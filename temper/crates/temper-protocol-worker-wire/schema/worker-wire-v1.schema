@@ -1,0 +1,38 @@
+family temper-worker-wire 4
+
+# Down: the workspace items (protocol/channel.md, 4). Names, branches and
+# the save branch take Bounds.name_bytes; the remote Bounds.remote_bytes;
+# the list Bounds.repositories.
+record Merge { branch: bytes 1024 base: fixed 32 }
+record Branch { branch: bytes 1024 }
+record Commit { commit: fixed 32 }
+enum Start { merge: Merge, base: Branch, branch: Branch, commit: Commit, saved: Branch }
+record Writable { push: bytes 1024 expected: option fixed 32 landing: option bytes 1024 }
+enum Access { writable: Writable, read_only }
+record Repository { tag: u64 name: bytes 1024 remote: bytes 1024 git: option bytes 4096 start: Start access: Access identity: u32 account: option u64 }
+record Items { repositories: list 64 Repository save: option bytes 1024 }
+
+# Up: what a run left and saved, a failed preparation (protocol/channel.md, 5).
+# Lists of repositories take Bounds.repositories; Files Bounds.conflicts
+# paths of Bounds.path_bytes; the diagnostic its ceiling, the domain's
+# PushDiagnostic::CAPACITY.
+record Landed { tag: u64 commit: fixed 32 }
+record Left { landed: list 64 Landed }
+record Files { files: list 1024 bytes 4096 }
+enum PushReason { missing_repository, missing_branch, missing_commit, refused, unreachable, broken, timed_out, cancelled, unavailable, busy, too_large, nothing, unknown }
+record Diagnostic { output: bytes 512 cut: u64 }
+record PushFailure { repository: option u32 reason: PushReason diagnostic: Diagnostic }
+enum Landing { conflicted: Files, explained: PushFailure, landed: Commit, moved, failed, refused, unchanged }
+record SavedRepository { tag: u64 from_saved: bool landing: Landing }
+record Saved { repositories: list 64 SavedRepository }
+enum Missing { repository, branch, commit }
+record Missed { tag: u64 missing: Missing }
+record Tag { tag: u64 }
+enum Preparation { transient, missing: Missed, refused: Tag }
+
+# Beside a grant: a git identity's value (protocol/channel.md, 6).
+record Token { token: secret 4096 }
+record Entry { account: u64 account_login: text 256 token: secret 4096 }
+record Entries { entries: list 256 Entry }
+enum Kind { forgejo: Token, github: Entries }
+record Identity { kind: Kind login: text 256 name: text 256 email: text 256 }

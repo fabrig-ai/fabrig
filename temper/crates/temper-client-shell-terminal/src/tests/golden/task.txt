@@ -1,0 +1,73 @@
+== Refresh token handling == Live
+temper
+Menu:
+  [1] Shop (pressed)
+  [2] Inbox
+  [3] Chats
+  [4] Adopt a repository
+  * Pat
+  [5] Sign out
+Task details:
+  ## Task details
+  Task 9
+  Refresh token handling
+  Agent
+  * running
+  Shop
+  Asked by Pat
+  Goal · priority 1
+[6] Amend
+What was asked:
+  ## What was asked
+  Result · report
+  Rotate tokens safely.
+  Shown on the forge.
+Plan:
+  ## Plan
+  Its delegates: 2 live, 1 ended.
+  [7] All (pressed)
+  [8] Live only
+  Plan:
+    - [9] Task 11
+      Advise on the change
+      Agent
+      * Completed
+      3 spent
+    - [10] Task 12
+      Review the change
+      Agent
+      * Held
+      4 spent
+      Held: out of tries
+      Hold revision 7
+      The next run resumes its conversation; tries count again from zero
+    - [11] Task 13
+      Write the release notes
+      Agent
+      * waiting on task 12
+      0 spent
+      Dependencies of task 13:
+        - [12] Task 12
+          * Held
+    * Held below: 1
+Latest activity:
+  ## Latest activity
+  - Jan 1, 00:00
+    The review needs attention.
+Budget and authority:
+  ## Budget and authority
+  7 spent · 493 left of 500
+  Delegates spent:
+    0
+  Reserved for delegates:
+    0
+  Funded by:
+    Your pool
+  Deadline:
+    None
+  May spend:
+    500
+  May delegate:
+    Up to 1 task, 1 deep
+  Models:
+    All

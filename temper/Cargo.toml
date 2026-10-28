@@ -1,0 +1,325 @@
+# Profiles and lints follow skein's docs/foundation/programming-model.md, section 10.
+
+[workspace]
+resolver = "3"
+members = [
+    "crates/temper-settings-form",
+    "crates/temper-docs",
+    "crates/temper-fake",
+    "crates/temper-protocol-records",
+    "tests/real-loop",
+    "crates/temper-box",
+    "tools/gallery",
+    "tools/journeys",
+    "tools/fake-claude",
+    "tests/one-process",
+    "crates/temper-fake-git",
+    "testing/temper-fake-git-hosted",
+    "testing/temper-github-app",
+    "crates/temper",
+    "crates/temper-client-bundle",
+    "tests/engine/protocol-forge",
+    "crates/temper-client-shell-terminal",
+    "crates/temper-client-shell-cli",
+    "crates/temper-client-shell-web",
+    "tests/client",
+    "tests/client-browser",
+    "crates/temper-client-view",
+    "crates/temper-client-domain",
+    "crates/temper-client-tools",
+    "crates/temper-service",
+    "tests/worker/protocol-git",
+    "crates/temper-forge-setup",
+    "crates/temper-init",
+    "crates/temper-forge-setup-shell",
+    "crates/temper-worker-protocol-git",
+    "crates/temper-client-protocol-wire",
+    "tools/git-transcripts",
+    "tools/twin",
+    "crates/temper-protocol-worker-wire",
+    "tests/codecs",
+    "crates/temper-protocol-store",
+    "crates/temper-engine-domain",
+    "crates/temper-engine-domain-calendar",
+    "crates/temper-engine-smith",
+    "crates/temper-engine-domain-forge-change",
+    "crates/temper-engine-domain-forge-landing",
+    "crates/temper-engine-domain-forge-issues",
+    "crates/temper-engine-domain-forge",
+    "crates/temper-worker-domain",
+    "crates/temper-worker-domain-checkout",
+    "tests/fake-checkout",
+    "tests/engine/domain",
+    "tests/system",
+    "tests/conformance",
+    "tests/engine/forge",
+    "tests/worker/checkout",
+    "tests/worker/domain",
+]
+
+[workspace.package]
+license = "MIT"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.95"
+publish = false
+
+[workspace.dependencies]
+settings-form = { package = "temper-settings-form", path = "crates/temper-settings-form" }
+temper-docs = { path = "crates/temper-docs" }
+rustls = { version = "=0.23.41", default-features = false, features = ["std", "ring", "tls12"] }
+temper-github-app = { path = "testing/temper-github-app" }
+temper-fake = { path = "crates/temper-fake" }
+temper-protocol-records = { path = "crates/temper-protocol-records", default-features = false }
+skein-fake-forge-github = { git = "https://github.com/fabrig-dev/skein.git" }
+temper-box = { path = "crates/temper-box" }
+temper-forge-setup-shell = { path = "crates/temper-forge-setup-shell" }
+temper-forge-setup = { path = "crates/temper-forge-setup" }
+temper-init = { path = "crates/temper-init" }
+temper-client-bundle = { path = "crates/temper-client-bundle" }
+jig-boundary = { git = "https://github.com/fabrig-dev/jig.git" }
+temper-fake-git = { path = "crates/temper-fake-git" }
+temper-fake-git-hosted = { path = "testing/temper-fake-git-hosted" }
+skein-fake-peers = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-llm = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-llm-world = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-fake-llm-protocol = { git = "https://github.com/fabrig-dev/skein.git" }
+smith-agent-process-world = { git = "https://github.com/fabrig-dev/smith.git" }
+smith-fake-claude = { git = "https://github.com/fabrig-dev/smith.git" }
+smith-agent-shell = { git = "https://github.com/fabrig-dev/smith.git" }
+smith-local-service = { git = "https://github.com/fabrig-dev/smith.git" }
+smith-local-process-world = { git = "https://github.com/fabrig-dev/smith.git" }
+smith-agent-service = { git = "https://github.com/fabrig-dev/smith.git" }
+smith-local-domain = { git = "https://github.com/fabrig-dev/smith.git" }
+jig-channel-world = { git = "https://github.com/fabrig-dev/jig.git" }
+skein-tls-world = { git = "https://github.com/fabrig-dev/skein.git" }
+jig-protocol-worker-link = { git = "https://github.com/fabrig-dev/jig.git" }
+jig-protocol-engine-clients-http = { git = "https://github.com/fabrig-dev/jig.git" }
+jig-protocol-engine-clients = { git = "https://github.com/fabrig-dev/jig.git" }
+skein-shell = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-fail-stop = { git = "https://github.com/fabrig-dev/skein.git" }
+temper-client-shell-terminal = { path = "crates/temper-client-shell-terminal" }
+temper-client-shell-cli = { path = "crates/temper-client-shell-cli" }
+temper-client-shell-web = { path = "crates/temper-client-shell-web" }
+jig-client = { git = "https://github.com/fabrig-dev/jig.git" }
+jig-client-domain = { git = "https://github.com/fabrig-dev/jig.git" }
+jig-client-protocol-http = { git = "https://github.com/fabrig-dev/jig.git" }
+jig-client-test-records = { git = "https://github.com/fabrig-dev/jig.git" }
+jig-client-protocol-link = { git = "https://github.com/fabrig-dev/jig.git" }
+jig-client-shell-native = { git = "https://github.com/fabrig-dev/jig.git" }
+skein-tls = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-http = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-fake-oauth = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-forge-connection = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-forge-machine-world = { git = "https://github.com/fabrig-dev/skein.git" }
+jig-protocol-transcript = { git = "https://github.com/fabrig-dev/jig.git" }
+jig-client-test-kit = { git = "https://github.com/fabrig-dev/jig.git" }
+jig-client-world = { git = "https://github.com/fabrig-dev/jig.git" }
+skein-fake-person = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-fake-person-browser = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-browser = { git = "https://github.com/fabrig-dev/skein.git" }
+jig-client-fake-person-browser = { git = "https://github.com/fabrig-dev/jig.git" }
+skein-ui = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-ui-text = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-ui-web = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-ui-bundle = { git = "https://github.com/fabrig-dev/skein.git" }
+jig-client-shell-web = { git = "https://github.com/fabrig-dev/jig.git" }
+wasm-bindgen = "=0.2.126"
+js-sys = "=0.3.103"
+web-sys = "=0.3.103"
+jig-client-test-domain = { git = "https://github.com/fabrig-dev/jig.git" }
+temper-client-view = { path = "crates/temper-client-view" }
+temper-client-domain = { path = "crates/temper-client-domain" }
+temper-client-tools = { path = "crates/temper-client-tools" }
+temper = { path = "crates/temper" }
+skein-scratch = { git = "https://github.com/fabrig-dev/skein.git" }
+temper-service = { path = "crates/temper-service" }
+jig-protocol-config = { git = "https://github.com/fabrig-dev/jig.git" }
+smith-protocol-program = { git = "https://github.com/fabrig-dev/smith.git" }
+smith-host-protocol = { git = "https://github.com/fabrig-dev/smith.git" }
+temper-worker-protocol-git-world = { path = "tests/worker/protocol-git" }
+temper-worker-protocol-git = { path = "crates/temper-worker-protocol-git" }
+temper-client-protocol-wire = { path = "crates/temper-client-protocol-wire" }
+jig-client-protocol-wire = { git = "https://github.com/fabrig-dev/jig.git" }
+temper-protocol-worker-wire = { path = "crates/temper-protocol-worker-wire" }
+skein-codec = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-codegen = { git = "https://github.com/fabrig-dev/skein.git" }
+temper-protocol-store = { path = "crates/temper-protocol-store" }
+jig-protocol-accounts = { git = "https://github.com/fabrig-dev/jig.git" }
+skein-oauth = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-oauth-accounts = { git = "https://github.com/fabrig-dev/skein.git" }
+jig-protocol-store = { git = "https://github.com/fabrig-dev/jig.git" }
+skein-kv = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-throwaway-forgejo = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-channel = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-io = { git = "https://github.com/fabrig-dev/skein.git" }
+serde_json = "=1.0.154"
+skein-forge-setup = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-lib = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-fake-forge-domain = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-fake-forge-protocol = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-forge-client = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-forge = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-json = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-world = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-fake-checkout = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-fake-llm-domain = { git = "https://github.com/fabrig-dev/skein.git" }
+smith-agent-world = { git = "https://github.com/fabrig-dev/smith.git" }
+smith-domain = { git = "https://github.com/fabrig-dev/smith.git" }
+smith-domain-run = { git = "https://github.com/fabrig-dev/smith.git" }
+smith-domain-session = { git = "https://github.com/fabrig-dev/smith.git" }
+smith-domain-tools = { git = "https://github.com/fabrig-dev/smith.git" }
+smith-channel = { git = "https://github.com/fabrig-dev/smith.git" }
+smith-host-domain = { git = "https://github.com/fabrig-dev/smith.git" }
+smith-charter = { git = "https://github.com/fabrig-dev/smith.git" }
+smith-protocol-channel = { git = "https://github.com/fabrig-dev/smith.git" }
+smith-transcript = { git = "https://github.com/fabrig-dev/smith.git" }
+sha2 = { version = "=0.10.9", default-features = false }
+jig-domain-accounts = { git = "https://github.com/fabrig-dev/jig.git" }
+jig-test-connector = { git = "https://github.com/fabrig-dev/jig.git" }
+jig-test-domain = { git = "https://github.com/fabrig-dev/jig.git" }
+jig-conformance = { git = "https://github.com/fabrig-dev/jig.git" }
+jig-test-store-files = { git = "https://github.com/fabrig-dev/jig.git" }
+jig-fake-workers = { git = "https://github.com/fabrig-dev/jig.git" }
+jig-fake-parties = { git = "https://github.com/fabrig-dev/jig.git" }
+jig-test-system = { git = "https://github.com/fabrig-dev/jig.git" }
+jig-ops-fake-production = { git = "https://github.com/fabrig-dev/jig.git" }
+jig-ops-domain = { git = "https://github.com/fabrig-dev/jig.git" }
+jig-ops-domain-observability = { git = "https://github.com/fabrig-dev/jig.git" }
+jig-ops-domain-infrastructure = { git = "https://github.com/fabrig-dev/jig.git" }
+temper-engine-domain = { path = "crates/temper-engine-domain" }
+temper-engine-domain-calendar = { path = "crates/temper-engine-domain-calendar" }
+temper-engine-smith = { path = "crates/temper-engine-smith" }
+jig-domain-authority = { git = "https://github.com/fabrig-dev/jig.git" }
+jig-domain-core = { git = "https://github.com/fabrig-dev/jig.git" }
+jig-domain-notes = { git = "https://github.com/fabrig-dev/jig.git" }
+jig-domain-people = { git = "https://github.com/fabrig-dev/jig.git" }
+jig-domain-tasks = { git = "https://github.com/fabrig-dev/jig.git" }
+jig-domain-brief = { git = "https://github.com/fabrig-dev/jig.git" }
+jig-domain-fleet = { git = "https://github.com/fabrig-dev/jig.git" }
+temper-engine-domain-forge-change = { path = "crates/temper-engine-domain-forge-change" }
+temper-engine-domain-forge-landing = { path = "crates/temper-engine-domain-forge-landing" }
+temper-engine-domain-forge-issues = { path = "crates/temper-engine-domain-forge-issues" }
+temper-engine-domain-forge = { path = "crates/temper-engine-domain-forge" }
+jig-domain-views = { git = "https://github.com/fabrig-dev/jig.git" }
+temper-worker-domain = { path = "crates/temper-worker-domain" }
+temper-worker-domain-checkout = { path = "crates/temper-worker-domain-checkout" }
+jig-protocol-engine-workers = { git = "https://github.com/fabrig-dev/jig.git" }
+jig-protocol-worker-wire = { git = "https://github.com/fabrig-dev/jig.git" }
+jig-domain-host = { git = "https://github.com/fabrig-dev/jig.git" }
+jig-protocol-charter = { git = "https://github.com/fabrig-dev/jig.git" }
+jig-core-world = { git = "https://github.com/fabrig-dev/jig.git" }
+jig-tasks-world = { git = "https://github.com/fabrig-dev/jig.git" }
+jig-people-world = { git = "https://github.com/fabrig-dev/jig.git" }
+temper-fake-checkout = { path = "tests/fake-checkout" }
+temper-worker-checkout-world = { path = "tests/worker/checkout" }
+
+# Panics are fail-stop and overflow traps, in every profile. Release aborts.
+# Dev unwinds, as the test harness needs, so that the binaries and the tests
+# share one build of each dependency; each binary's main installs
+# skein_fail_stop's hook first, which aborts on a panic before anything
+# unwinds (skein's programming-model.md, 2).
+[profile.dev]
+overflow-checks = true
+
+# Dependencies carry no debug information in dev and test builds, which
+# halves the test executables; the workspace's own crates keep the line
+# tables that backtraces name.
+[profile.dev.package."*"]
+debug = false
+
+[profile.release]
+panic = "abort"
+overflow-checks = true
+
+# The browser's release module, embedded by a release build (skein's ui-web.md, 4.1; client/browser.md, 2.6).
+[profile.web]
+inherits = "release"
+opt-level = "s"
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+overflow-checks = true
+strip = true
+
+[profile.dev.package.skein-codegen]
+opt-level = 3
+
+# skein-lib holds SHA-256: the process tier hashes the whole cached Forgejo and
+# runner binaries (setup.md 6.6, 13.4), 8x faster optimized. Every hash still runs.
+[profile.dev.package.skein-lib]
+opt-level = 3
+
+# The lints for the step crates (every domain, protocol and io layer: lib is skein's).
+# Disallowed types, macros and methods are listed in clippy.toml. Ordinary Rust
+# (simulators, test harnesses) declares its own [lints] table.
+[workspace.lints.rust]
+unsafe_code = "deny"                  # and forbid at every step crate's root
+elided_lifetimes_in_paths = "deny"    # a type that borrows says so: Reader<'_>
+unused_must_use = "deny"
+non_ascii_idents = "deny"
+trivial_casts = "deny"
+trivial_numeric_casts = "deny"
+unit_bindings = "deny"
+let_underscore_drop = "deny"          # drop explicitly, or bind a name
+missing_debug_implementations = "deny" # state is inspectable in tests and traces
+unused_lifetimes = "deny"
+redundant_lifetimes = "deny"
+unused_qualifications = "warn"
+
+[workspace.lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+# Pedantic lints that fight the domain.
+module_name_repetitions = "allow"     # llm::LlmX reads fine next to agent::X
+missing_errors_doc = "allow"          # errors are enum values, documented on the enum
+missing_panics_doc = "allow"          # panics are assertions, named by expect("...")
+needless_pass_by_value = "allow"      # cell handlers take the source state by value
+single_match_else = "allow"           # a two-armed match on Option is as clear as if let
+
+# What is out of step code (programming-model.md, 10.3).
+wildcard_enum_match_arm = "deny"
+indexing_slicing = "deny"
+arithmetic_side_effects = "deny"
+as_conversions = "deny"
+float_arithmetic = "deny"
+unwrap_used = "deny"
+let_underscore_must_use = "deny"
+mem_forget = "deny"
+todo = "deny"
+unimplemented = "deny"
+impl_trait_in_params = "deny"
+disallowed_types = "deny"
+disallowed_macros = "deny"
+
+# Beyond the table of 10.3: the rest of what the subset leaves out.
+allow_attributes_without_reason = "deny"
+undocumented_unsafe_blocks = "deny"
+multiple_unsafe_ops_per_block = "deny"
+disallowed_methods = "deny"           # closure-taking combinators, panicking slice ops, ...
+allow_attributes = "deny"             # #[expect(.., reason = "..")], which fails once it is stale
+match_wildcard_for_single_variants = "deny"
+enum_glob_use = "deny"                # a variant is named with its enum
+wildcard_imports = "deny"
+panic = "deny"                        # assert!, unreachable!("why") or expect("invariant")
+missing_assert_message = "deny"       # an assertion names what it relies on
+assertions_on_result_states = "deny"
+unused_result_ok = "deny"
+let_underscore_untyped = "deny"
+mixed_read_write_in_expression = "deny"  # one side effect per statement
+infinite_loop = "deny"
+empty_drop = "deny"
+exit = "deny"
+dbg_macro = "deny"
+print_stdout = "deny"
+print_stderr = "deny"
+use_debug = "deny"
+host_endian_bytes = "deny"            # byte order is chosen, not inherited from the host
+fn_to_numeric_cast_any = "deny"
+default_numeric_fallback = "deny"     # every integer has a stated width
+std_instead_of_core = "deny"
+std_instead_of_alloc = "deny"
+alloc_instead_of_core = "deny"
+partial_pub_fields = "deny"           # a struct is plain data or opaque, not both
+mod_module_files = "deny"
+tests_outside_test_module = "deny"
+iter_over_hash_type = "deny"

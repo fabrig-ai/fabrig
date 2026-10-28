@@ -1,0 +1,4 @@
+Adopted o/n on forge 1 as owned.
+It is the project's home.
+temper may: read; push; open pull requests; land; review; set statuses; comment; create issues; create and delete branches.
+temper's forge user may not read the branch protection: the forge shows it to repository administrators only.

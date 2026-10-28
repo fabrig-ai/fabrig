@@ -1,0 +1,296 @@
+{
+  "engine": {
+    "limits": {
+      "profile": "small",
+      "overrides": {
+        "authority.executors": 6,
+        "authority.grants": 14,
+        "authority.segments": 8,
+        "core.resume_bytes": 1590049,
+        "documents.lines": 3,
+        "documents.rows": 2,
+        "documents.text_bytes": 128,
+        "hub.transcript_bytes": 6360193,
+        "hub.turn_bytes": 1590045,
+        "hub.turn_queue_bytes": 12720360,
+        "notes.scopes": 17,
+        "tasks.authority_bytes": 512,
+        "tasks.authority_grants": 14,
+        "tasks.authority_segments": 8,
+        "tasks.batch": 1,
+        "tasks.executor_kinds": 6,
+        "tasks.hold_segments": 8,
+        "views.watchers": 16,
+        "views.watchers_per_party": 16
+      }
+    },
+    "llm": {
+      "providers": [
+        {
+          "name": "openai",
+          "number": 1,
+          "signed_in_plan": true,
+          "manage_usage": "https://chatgpt.com/settings/usage",
+          "models": ["gpt-6-luna"],
+          "sources": {
+            "keys": true,
+            "sign_in": {
+              "issuer": "https://auth.openai.com",
+              "client": "dynamic_agent_client",
+              "name_hint": "temper",
+              "authorization": "https://auth.openai.com/api/accounts/authorize",
+              "token": "https://auth.openai.com/api/accounts/oauth/token",
+              "revocation": "https://auth.openai.com/api/accounts/oauth/revoke",
+              "keys": "https://auth.openai.com/.well-known/jwks.json",
+              "transport": "tls",
+              "server_name": "auth.openai.com",
+              "scopes": ["openid", "profile", "email", "offline_access", "resource.invoke", "chatgpt.tokens.use.direct"],
+              "must_grant": ["chatgpt.tokens.use.direct"],
+              "resource": "https://api.openai.com/v1",
+              "redirect_path": "auth/callback",
+              "redirect_port": 1455
+            }
+          }
+        }
+      ],
+      "endpoints": [
+        {
+          "name": "openai",
+          "number": 1,
+          "dialect": 3,
+          "provider": "openai",
+          "address": {
+            "host": "api.openai.com",
+            "port": 443
+          },
+          "transport": "tls",
+          "headers": [],
+          "connect_ms": 10000,
+          "handshake_ms": 10000,
+          "server_name": "api.openai.com"
+        }
+      ],
+      "models": [
+        {
+          "name": "gpt-6-luna",
+          "endpoint": "openai",
+          "window": 1048576,
+          "output": 8192,
+          "prices": {
+            "input": 1,
+            "cached": 1,
+            "output": 1,
+            "unit": 1000000
+          }
+        }
+      ]
+    },
+    "hosts": {
+      "workers": [
+        {
+          "name": "worker",
+          "digest": "secrets/worker.digest"
+        }
+      ],
+      "listener": [
+        {
+          "in_process": "workers"
+        }
+      ]
+    },
+    "clients": {
+      "heartbeat_ms": 10000,
+      "link": true
+    },
+    "deployment": {
+      "directory": "state",
+      "seed": 7
+    },
+    "owners": [
+      {
+        "provider": 1,
+        "subject": "owner-a"
+      }
+    ],
+    "providers": [
+      {
+        "number": 1,
+        "kind": "link"
+      },
+      {
+        "number": 2,
+        "kind": "deployment"
+      }
+    ],
+    "connectors": [
+      1
+    ],
+    "memory_bytes": 1073741824,
+    "projects": [
+      {
+        "number": 1,
+        "policy": 1
+      }
+    ]
+  },
+  "workers": [
+    {
+      "engine": {
+        "in_process": "workers"
+      },
+      "name": "worker",
+      "secret": "secrets/worker.secret",
+      "slots": 1,
+      "graces": {
+        "grace_ms": 10000,
+        "agent_stop_ms": 5000,
+        "delivery_ms": 1000,
+        "save_ms": 1000
+      },
+      "programs": {
+        "check_interval_ms": 60000
+      },
+      "agent": {
+        "program": "/usr/local/bin/temper",
+        "configuration": "/home/me/temper/owned/agent.json",
+        "arguments": [
+          "internal",
+          "agent",
+          "/home/me/temper/owned/agent.json"
+        ]
+      },
+      "limits": {
+        "profile": "small",
+        "overrides": {
+          "hub.accounts": 4,
+          "hub.event_bytes": 4096,
+          "hub.transcript_bytes": 6360193,
+          "hub.turn_bytes": 1590045,
+          "hub.turn_queue_bytes": 12720360
+        }
+      }
+    }
+  ],
+  "application": {
+    "forges": [
+      {
+        "number": 1,
+        "kind": "forgejo",
+        "api": {
+          "socket": "127.0.0.1:3000"
+        },
+        "transport": "plaintext",
+        "git": "http://127.0.0.1:3000"
+      }
+    ],
+    "identities": [
+      {
+        "number": 1,
+        "forge": 1,
+        "login": "temper",
+        "author": {
+          "name": "temper",
+          "email": "temper@example.invalid"
+        }
+      }
+    ],
+    "landing": {
+      "deployment": [],
+      "projects": [
+        {
+          "project": 1,
+          "rules": [
+            {
+              "connector": 1,
+              "kind": 4,
+              "pattern": {
+                "segments": [
+                  "forge",
+                  "127.0.0.1:3000",
+                  "acme",
+                  "widget",
+                  "branch"
+                ],
+                "last": "exact",
+                "value": "main"
+              },
+              "enforce": true,
+              "ci": true,
+              "up_to_date": true,
+              "gates": [
+                {
+                  "number": 1,
+                  "blocking": true,
+                  "freshness": "clean"
+                }
+              ],
+              "approvals": []
+            }
+          ]
+        }
+      ]
+    },
+    "charter": 2,
+    "clients": {
+      "listener": {
+        "socket": "127.0.0.1:7100"
+      },
+      "bundle": null,
+      "public": null
+    },
+    "webhooks": {
+      "listener": {
+        "socket": "127.0.0.1:7101"
+      }
+    },
+    "demo": null, "sign_in": null,
+    "setup": [
+      {
+        "forge": 1,
+        "directory": "forge-1",
+        "bot": {
+          "login": "temper",
+          "email": "temper@example.invalid"
+        },
+        "mode": {
+          "owned": {
+            "forgejo": "/opt/forgejo/forgejo",
+            "runner": {
+              "binary": "/opt/forgejo/forgejo-runner",
+              "labels": [
+                "temper-host:host"
+              ],
+              "capacity": 1,
+              "path": "/usr/local/bin:/usr/bin:/bin"
+            },
+            "listen": {
+              "socket": "127.0.0.1:3000"
+            },
+            "person": {
+              "login": "ada",
+              "email": "ada@example.invalid"
+            }
+          }
+        }
+      }
+    ],
+    "limits": {
+      "profile": "small",
+      "overrides": {
+        "checkout.message_bytes": 4098,
+        "root.journal.transcript_bytes": 1590049,
+        "root.loads.bytes": 1590293,
+        "root.loads.read_bytes": 3180090,
+        "root.loads.reply_bytes": 1590293,
+        "root.loads.transcript_bytes": 1590045,
+        "routes.query_bytes": 2048
+      }
+    },
+    "workers": [
+      {
+        "root": "workspaces",
+        "git": "/usr/bin/git"
+      }
+    ]
+  }
+}

@@ -1,0 +1,131 @@
+family temper-client-wire 11
+
+# The role, as temper-engine-domain-forge's Role, in its order.
+enum Role { owned, adopted, fork, context }
+
+# The keyed request (client/README.md, 4.6): forge::Adoption's fields in its order,
+# the provider's repository id and the host left out. Byte fields take
+# Bounds.field_bytes; checks Bounds.checks.
+record Adopt { project: u32 home: bool forge: u16 owner: bytes 1024 name: bytes 1024 prefix: bytes 1024 role: Role landing: bytes 1024 ci: bool checks: list 64 u32 }
+
+# The family's keyed requests and setup outcome (client/README.md, 4.6).
+# Enum payloads are records in the schema grammar.
+record ExistingProject { project: u32 }
+record NewProject { name: bytes 1024 }
+enum SetUpProject { existing: ExistingProject, new: NewProject }
+record SetUp { forge: u16 org: bytes 1024 repository: bytes 1024 project: SetUpProject playground: bool }
+record Return { source: u32 path: bytes 512 }
+# start_demo: the demo document's start (client/README.md, 4.6; protocol/setup.md, 8.4).
+record GitHubApp { id: u64 }
+record GitHubManifest { back: option bytes 512 }
+record FirstAsk { org: bytes 1024 repository: bytes 1024 project: SetUpProject label: bytes 64 }
+record ForgejoAdmin { first: option FirstAsk }
+enum How { github_app: GitHubApp, github_manifest: GitHubManifest, forgejo_admin: ForgejoAdmin }
+record Connect { forge: u16 how: How }
+record Install { forge: u16 back: option bytes 512 }
+record Reachable { forge: u16 installation: option u64 page: u32 }
+record Accept { forge: u16 installation: u64 }
+enum Request { adopt: Adopt, set_up: SetUp, start_demo, return_: Return, connect: Connect, install: Install, reachable: Reachable, accept: Accept }
+versioned record Requesting { request: Request }
+enum SetUpRefusal { not_offered, not_under_the_box, busy, new_project, invalid }
+record SetUpRefused { why: SetUpRefusal }
+enum StartRefusal { not_offered }
+record StartRefused { why: StartRefusal }
+record GroupFailed { why: bytes 256 }
+enum StartFailure { group: GroupFailed, account, adoption, not_connected }
+record StartFailed { why: StartFailure }
+enum DemoState { not_started, running, ended }
+
+
+# The deployment's forges, in number order (client/README.md, 4.6).
+enum Kind { forgejo, github }
+enum Mode { connected, managed, owned, fake }
+enum SetUpStep { fetch, prepare, run }
+record SettingUp { step: option SetUpStep }
+enum FailedStep { fetch, prepare, run, connect }
+record SetUpFailed { why: bytes 256 at: option FailedStep }
+record Connected { id: u64 login: bytes 1024 }
+record Stopped { reason: bytes 1024 }
+enum Connection { not_connected, not_set_up, setting_up: SettingUp, set_up_failed: SetUpFailed, connecting, connected: Connected, stopped: Stopped }
+# Whether the deployment offers to set the forge up here (client/README.md, 4.6):
+# the forge domain's, from its configuration, the box and its state.
+enum Offer { not_offered, not_under_the_box, offered }
+enum CreateStep { admin, org, repository, file }
+record Made { id: u64 }
+record CreateFailed { step: CreateStep }
+enum FirstState { making, made: Made, failed: CreateFailed }
+record FirstRepository { org: bytes 1024 repository: bytes 1024 project: SetUpProject state: FirstState label: bytes 64 playground: bool }
+record Account { id: u64 login: bytes 1024 }
+record Installation { id: u64 account: option Account suspended: bool stray: bool }
+record ConnectStopped { why: bytes 256 }
+enum SetupStage { admin, bot, token, org, repository, file, app, installation, state }
+record AdminRefused { status: u16 stage: SetupStage }
+enum AdminStop { not_admin, refused: AdminRefused, unmarked, other }
+enum AppWay { manifest, pasted }
+record Adoption { owner: bytes 1024 name: bytes 1024 project: u32 }
+record OwnedForge { forgejo: bytes 64 runner: option bytes 64 password: bytes 512 }
+record ForgeRow { number: u16 kind: Kind mode: Mode connection: Connection offer: Offer first: option FirstRepository installations: list 64 Installation ended: option ConnectStopped app: option AppWay web: option bytes 2048 repositories: list 16 Adoption owned: option OwnedForge admin: bool ended_stop: option AdminStop read_only: bool }
+versioned record Forges { forges: list 16 ForgeRow }
+
+# The family's read name and its demo answer (client/README.md, 4.6).
+# No demo is the read's empty answer, with no record.
+enum Read { demo }
+versioned record Reading { read: Read }
+versioned record DemoAnswer { project: u32 forge: u16 provider: u32 owner: bytes 1024 name: bytes 1024 state: DemoState cues: list 8 text 256 }
+
+# A change's watched panel (client/README.md, 4.6; client/forge.md, 9.2).
+record ChangeSubject { task: u64 }
+record Pull { number: u64 address: bytes 2048 }
+# A landing's watched panel (domain/landing.md, section 14).
+record LandingSubject { task: u64 }
+record LandingsSubject { project: u32 ended: bool }
+enum Watch { change: ChangeSubject, forges, landing: LandingSubject, landings: LandingsSubject }
+enum LandingPhase { waiting, preparing, proving, proved, turn, landed, held, cancelled }
+record Receipted { run: u64 number: u64 address: bytes 2048 }
+record Dispatched { attempt: u16 run: option u64 }
+enum Proof { unkeyed, keyed, dispatched: Dispatched, waiting, passed: Receipted, failed: Receipted }
+record GateProof { name: bytes 32 blocking: bool key: option fixed 32 proof: Proof faults: u32 }
+record Member { change: u64 forge: u16 owner: bytes 1024 name: bytes 1024 branch: bytes 1024 landing: bytes 1024 pull: option Pull base: option fixed 32 candidate: option fixed 32 landed: option fixed 32 gates: list 8 GateProof }
+record HeldFaults { member: u16 gate: u16 }
+enum LandingHold { faults: HeldFaults }
+versioned record LandingPanel { task: u64 project: u32 phase: LandingPhase hold: option LandingHold members: list 8 Member preparation: u16 stale_proofs: u32 turn: option u64 }
+record LandingLine { task: u64 phase: LandingPhase changes: list 8 u64 repositories: list 8 bytes 2048 landed: list 8 fixed 32 }
+versioned record LandingsPanel { project: u32 turn: option u64 landings: list 64 LandingLine }
+versioned record Watching { watch: Watch }
+record Queued { place: u32 ahead: list 64 u64 }
+record GateReason { gate: u64 }
+enum Reason { ci, gate: GateReason, semantic }
+record Repairing { reason: Reason }
+record Landed { merge: fixed 32 }
+record InLanding { landing: option u64 }
+enum Step { producing, opening, recreating, reopening, checking, gating, queued: Queued, first, updating, resolving, repairing: Repairing, landing, landed: Landed, ended, ready: InLanding, preparing: InLanding }
+record AuthorityHold { reason: bytes 512 }
+enum Hold { stalled, repairs, resolutions, updates, moved, missing, closed, retargeted, failed, rejected, authority: AuthorityHold }
+enum Ci { unknown, pending, passed, failed }
+enum GateKind { review, approval, check }
+enum Verdict { none, pending, approved, changes }
+record Gate { number: u64 kind: GateKind blocks: bool verdict: Verdict }
+record Used { used: u32 limit: u32 }
+enum Way { queue, turn }
+versioned record ChangePanel { task: u64 forge: u16 owner: bytes 1024 name: bytes 1024 branch: bytes 1024 landing: bytes 1024 head: option fixed 32 pull: option Pull step: Step hold: option Hold runs: option u64 ci: Ci gates: list 64 Gate repairs: Used resolutions: Used updates: Used way: Way in_landing: option u64 }
+
+# Its outcome (client/README.md, 4.6 and 4.7).
+record Kinds { read: bool push: bool open: bool land: bool review: bool status: bool comment: bool issue: bool branch: bool }
+record Rule { branch: bytes 1024 contexts: list 64 bytes 1024 approvals: u32 dismiss_stale: bool }
+enum Protection { unknown, absent, rule: Rule }
+record Adopted { forge: u16 repository: u32 owner: bytes 1024 name: bytes 1024 role: Role home: bool kinds: Kinds protection: Protection }
+# jig-client-protocol-wire's Refusal, encoded at jig's VERSION; 16777209 so
+# that Answer at its ceiling fits jig's Owned.record (16777216).
+record CoreRefused { refusal: bytes 16777209 }
+enum ForgeReason { no_such_forge, not_found, no_access, refused, in_flight, too_large, unreachable, invalid_answer, another_project, home_held, prefix_occupied }
+record ForgeRefused { reason: ForgeReason }
+enum ForgeRefusal { role, no_such_forge, not_taken, connected, not_connected, busy, no_key, first_is_bot }
+record ConnectRefused { why: ForgeRefusal }
+record Link { address: bytes 2048 }
+record Reached { id: u64 owner: Account name: bytes 1024 private: bool }
+record Page { rows: list 100 Reached more: bool }
+# unknown: the outcome's retention ended (02.2's Delivery::Application
+# outcome None; client/README.md, 4.7, "unknown past the retention").
+record AcceptedInstallation { installation: u64 }
+enum Outcome { adopted: Adopted, core_refused: CoreRefused, forge_refused: ForgeRefused, unknown, setting_up, set_up_refused: SetUpRefused, running, start_refused: StartRefused, start_failed: StartFailed, returning, connecting, link: Link, connect_refused: ConnectRefused, page: Page, accepted: AcceptedInstallation }
+versioned record Answer { outcome: Outcome }

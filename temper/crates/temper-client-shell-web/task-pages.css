@@ -1,0 +1,185 @@
+/* A goal's additions to the terminal task page (client/README.md, 5.8).
+   Loaded after temper.css, on its palette and type (client/browser.md, 2.5). */
+/* .card-top and .tag.outline: the result beside the request's heading. */
+.temper-task-card:has(> .temper-task-contract) { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; column-gap: 21px; }
+.temper-task-card:has(> .temper-task-contract) > * { flex-basis: 100%; min-width: 0; }
+.temper-task-card:has(> .temper-task-contract) > h2 { flex-basis: auto; }
+.temper-task-card > .temper-task-contract { flex: 0 1 auto; max-width: 100%; margin: 0; padding: 2.33px 7px; border: 1px solid var(--temper-line); border-radius: 3.5px; color: #6d695f; /* style.css .tag */ background: transparent; font-size: 11.67px; font-weight: 600; line-height: 1.58; }
+/* .tree-row without model/on: name, kind, state and its own spend, one line
+   ("N spent") whose width the name gives up. */
+.temper-plan-row:has(> .temper-plan-spend) { grid-template-columns: minmax(0, 1fr) 175px 291.67px max-content; column-gap: 11.67px; min-height: 36.17px; padding: 5.83px 0; }
+.temper-plan-row:has(> .temper-plan-spend) > .temper-plan-spend { grid-column: 4; grid-row: 1; text-align: right; color: var(--temper-muted); white-space: nowrap; }
+.temper-plan [role=treeitem] > [role=group] > [role=treeitem] > .temper-plan-row > .temper-plan-spend { padding-left: 0; }
+.temper-plan-row:has(> .temper-plan-spend) > :nth-child(5) { grid-column: 1 / -1; grid-row: 2; }
+/* The dependency list adds words the reference world does not supply. */
+.temper-dependencies { list-style: none; margin: 0 0 8.17px; padding: 0; font-size: 11.67px; line-height: 1.58; color: var(--temper-muted); }
+.temper-dependencies::before { content: attr(aria-label) ": "; }
+.temper-plan [role=treeitem] > [role=group] > [role=treeitem] > .temper-dependencies { margin-left: calc(2ch + 10.5px); }
+.temper-dependencies > li { display: inline-flex; align-items: baseline; gap: 5.83px; white-space: nowrap; }
+.temper-dependencies > li + li::before { content: ' · ' / ''; white-space: pre; }
+.temper-dependencies p { margin: 0; }
+.temper-dependencies [role=status] { display: inline; width: auto; padding: 0; border-radius: 0; background: transparent; color: var(--temper-muted); font-size: inherit; font-weight: 400; }
+.temper-dependencies .temper-status-active { color: var(--temper-ink); }
+.temper-dependencies .temper-status-done { color: var(--temper-green); }
+.temper-dependencies .temper-status-held { color: var(--temper-red); font-weight: 700; }
+.temper-dependencies .temper-status-retrying { color: var(--temper-amber); }
+.temper-dependencies a:hover { color: var(--temper-accent-dark); text-decoration: underline; }
+/* .side-card, .mini-stat, .rule and .kv from the terminal sheets.
+   .two-col > aside.stack gives the card one of three desktop columns. */
+.temper-main.temper-page > .temper-task-budget { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); width: calc((min(1353.33px, 100% - 56px) - 21px) / 3); margin-left: max(28px, calc((100% - 1353.33px) / 2)); margin-right: auto; padding: 16.33px 18.67px; font-size: 12.83px; }
+.temper-task-budget > h2 { grid-column: 1 / -1; margin: 0 0 10.5px; font-size: 14px; font-weight: 700; }
+.temper-task-budget > p { grid-column: 1 / -1; margin: 7px 0 0; color: var(--temper-muted); font-size: 12.83px; line-height: 1.58; }
+.temper-task-budget > p:first-of-type { margin-top: 0; margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px solid var(--temper-line); }
+.temper-task-budget > [role=term], .temper-task-budget > [role=definition] { min-width: 0; padding: 7px 0; border-bottom: 1px solid #f0ede8; /* style.css .kv */ }
+.temper-task-budget > [role=term] { grid-column: 1; color: var(--temper-muted); }
+.temper-task-budget > [role=definition] { grid-column: 2; text-align: right; font-weight: 600; }
+.temper-task-budget > [role=definition] + [role=definition] { padding-top: 0; }
+.temper-task-budget > [role=term]:not(:has(~ [role=term])), .temper-task-budget > [role=definition]:not(:has(~ [role=term])) { border-bottom: 0; }
+.temper-task-budget > [role=term]:not(:has(~ [role=term])), .temper-task-budget > [role=definition]:last-child { padding-bottom: 0; }
+.temper-task-budget a:hover { color: var(--temper-accent-dark); text-decoration: underline; }
+/* A heard result's "Task N" in Latest activity: in a line of text, a link in
+   the accent, as the lineage bar's and the chat card's task links are. */
+.temper-events > li > div > a { color: var(--temper-accent-dark); font-weight: 700; }
+.temper-events > li > div > a:hover { text-decoration: underline; }
+/* .tree-row at 1100px: the reference narrows kind, state and spend. */
+@media (max-width: 1100px) {
+  .temper-plan-row:has(> .temper-plan-spend) { grid-template-columns: minmax(0, 1fr) 151.67px 256.67px max-content; }
+}
+@media (max-width: 850px) {
+  .temper-main.temper-page > .temper-task-budget { width: calc((100% - 39.67px - 21px) / 3); margin-left: 19.83px; }
+}
+/* The phone keeps every cell, unlike the reference's hidden kind/model/on;
+   the spend sits at the right of the name's line, as the reference's. */
+@media (max-width: 760px) {
+  .temper-plan-row:has(> .temper-plan-spend) { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) max-content; row-gap: 4.67px; }
+  .temper-plan-row:has(> .temper-plan-spend) > :first-child { grid-column: 1 / 3; grid-row: 1; }
+  .temper-plan-row:has(> .temper-plan-spend) > p:nth-child(2) { grid-column: 1; grid-row: 2; }
+  .temper-plan-row:has(> .temper-plan-spend) > [role=status] { grid-column: 2; grid-row: 2; }
+  .temper-plan-row:has(> .temper-plan-spend) > .temper-plan-spend { grid-column: 3; grid-row: 1; }
+  .temper-plan-row:has(> .temper-plan-spend) > :nth-child(5) { grid-column: 1 / -1; grid-row: 3; }
+  .temper-main.temper-page > .temper-task-budget { width: calc(100% - 32.67px); margin-left: 16.33px; }
+}
+
+/* An agent's task's page (client/README.md, 5.9). */
+.temper-chat:has(> .temper-agent-lineage) > .temper-agent-lineage { flex: none; min-height: 36.17px; display: flex; align-items: center; gap: 10.5px; padding: 5.83px 29.17px; border-bottom: 1px solid var(--temper-line); color: #989084; font-size: 11.67px; white-space: nowrap; overflow: hidden; }
+.temper-agent-lineage > div { display: flex; align-items: baseline; gap: 10.5px; min-width: 0; overflow: hidden; }
+.temper-agent-lineage > div > p { margin: 0; overflow: hidden; text-overflow: ellipsis; }
+.temper-agent-lineage > div > :first-child { flex: none; }
+.temper-agent-lineage a { color: #8e5542; flex: none; }
+.temper-agent-lineage a::before { content: "← " / ""; }
+.temper-agent-lineage a:hover { text-decoration: underline; }
+.temper-agent-lineage > div + div::before { content: "/" / ""; flex: none; }
+.temper-chat:has(> .temper-agent-lineage) .temper-chatbar .temper-status-waiting { color: #8b7957; }
+.temper-chat:has(> .temper-agent-lineage) .temper-chatbar h1 { display: block; flex: 0 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--temper-ink); font-size: 14px; }
+/* One scrolling column keeps brief, run, conversation and result in order. */
+.temper-chat:has(> .temper-agent-lineage) > .temper-thread { overflow-y: auto; overflow-x: hidden; padding-top: 21px; scrollbar-width: thin; scrollbar-color: #d9d1c5 transparent; }
+.temper-chat:has(> .temper-agent-lineage) > .temper-thread > [role=log] { flex: none; min-height: 0; padding-top: 0; overflow: visible; }
+.temper-chat .temper-thread > .temper-agent-brief { margin-bottom: 23.33px; padding: 12.83px 17.5px; border-left: 2.33px solid #d8bba5; background: #f8f5f0; }
+.temper-agent-brief > h2 { margin: 0; color: #a15a43; font-size: 11.67px; font-weight: 700; line-height: 2.054; letter-spacing: .08em; text-transform: uppercase; }
+.temper-agent-brief p { margin: 5.83px 0 8.17px; font-size: 14px; }
+.temper-agent-brief > p:last-of-type { margin: 0; color: #91887c; font-size: 11.67px; }
+.temper-agent-brief > .temper-dependencies { margin: 8.17px 0 0; }
+.temper-agent-brief .temper-dependencies .temper-status-waiting { color: #8b7957; }
+.temper-agent-run > h2 { display: flex; align-items: center; gap: 14px; margin: 0 0 19.83px; color: #605a51; font-size: 11.67px; font-weight: 700; line-height: 1.58; letter-spacing: inherit; }
+.temper-agent-run > h2::after { content: ''; height: 1px; flex: 1; background: var(--temper-line); }
+.temper-agent-run > p { margin: -12.83px 0 22.17px; color: #a39b90; font-size: 11.67px; }
+.temper-chat:has(> .temper-agent-lineage) .temper-thread > [role=log] ~ .temper-agent-result { width: min(1086.17px, calc(100% - 201.83px)); margin: 2.33px max(37.33px, calc((100% - 1213.33px) / 2)) 21px auto; padding: 11.67px 15.17px; border-left: 2.33px solid #84a98f; background: #f2f7f1; font-size: 12.83px; }
+.temper-agent-result > h2 { display: block; margin: 0 0 4.67px; color: #477b59; font-size: 11.67px; line-height: 1.58; letter-spacing: .06em; text-transform: uppercase; }
+.temper-agent-result > .temper-details { display: block; margin: 0; padding: 0; border-radius: 0; background: transparent; }
+.temper-agent-result > [role=status] { margin-bottom: 4.67px; color: #477b59; font-size: 11.67px; }
+.temper-agent-result p { margin: 0; }
+/* Inline code and provisional text keep the conversation's terminal look. */
+.temper-chat:has(> .temper-agent-lineage) .temper-says :not(pre) > span > code { background: #f4f0ea; padding: 0 3.5px; border-radius: 3.5px; font: .92em ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.temper-chat:has(> .temper-agent-lineage) .temper-by-agent:has(> .temper-who > [role=status]) > .temper-who > [role=status] { color: #4c8067; }
+.temper-chat:has(> .temper-agent-lineage) .temper-by-agent:has(> .temper-who > [role=status]) > .temper-says { color: #59534c; }
+.temper-chat:has(> .temper-agent-lineage) .temper-by-agent:has(> .temper-who > [role=status]) > .temper-says > p:last-child::after { content: ''; display: inline-block; width: 5.83px; height: 14px; margin-left: 2.33px; background: #aa6a50; vertical-align: -2.33px; }
+@media (max-width: 760px) {
+  .temper-chat:has(> .temper-agent-lineage) > .temper-agent-lineage { padding-inline: 18.67px; }
+  .temper-chat:has(> .temper-agent-lineage) .temper-chatbar { height: auto; min-height: 43.17px; flex-wrap: wrap; padding-block: 9.33px; }
+  .temper-chat:has(> .temper-agent-lineage) .temper-chatbar > div:first-child { min-width: 0; width: 100%; flex-wrap: nowrap; }
+  .temper-chat:has(> .temper-agent-lineage) .temper-chatbar > div:last-child { display: flex; flex-wrap: wrap; }
+  .temper-chat:has(> .temper-agent-lineage) .temper-chatbar h1 { max-width: calc(49vw + 5ch); }
+  .temper-chat:has(> .temper-agent-lineage) .temper-thread > [role=log] ~ .temper-agent-result { width: calc(100% - 119px); margin-right: 18.67px; }
+}
+@media (max-width: 430px) {
+  .temper-chat:has(> .temper-agent-lineage) .temper-chatbar h1 { max-width: calc(39.67vw + 3ch); }
+  .temper-chat:has(> .temper-agent-lineage) .temper-thread > [role=log] ~ .temper-agent-result { width: calc(100% - 37.33px); }
+}
+
+/* Task acts (client/README.md, 5.11): .page-header and .task-toolbar.
+   The header and toolbar are sibling view parts, sharing a desktop row. */
+.temper-main.temper-page:has(> .temper-task-acts) { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 29.17px; }
+.temper-page:has(> .temper-task-acts) > * { grid-column: 1 / -1; }
+.temper-main.temper-page:has(> .temper-task-acts) > .temper-task-heading { grid-column: 1; grid-row: 2; width: auto; margin-left: max(28px, calc((116.67vw - 1353.33px) / 2)); margin-right: 0; }
+.temper-main.temper-page > .temper-task-acts { grid-column: 2; grid-row: 2; display: flex; flex-wrap: wrap; align-content: flex-start; align-items: center; gap: 8.17px; width: auto; max-width: 373.33px; margin: 25.67px max(28px, calc((116.67vw - 1353.33px) / 2)) 22.17px 0; }
+.temper-task-acts > :is(button, a) { min-height: 32.67px; margin: 0; padding: 5.83px 10.5px; border: 1px solid #dcd5ca; border-radius: 4.67px; background: var(--temper-paper); color: var(--temper-ink); font: 600 12.83px/1.35 var(--temper-mono); white-space: nowrap; }
+.temper-task-acts > :is(button, a):hover { border-color: #c9b7a8; background: #faf7f2; }
+/* .task-toolbar .button: an external link in the toolbar, drawn as its buttons. */
+.temper-task-acts > a { display: inline-flex; align-items: center; gap: 8.17px; text-decoration: none; }
+.temper-task-acts > .temper-task-danger { color: var(--temper-red); }
+/* Admissions have words in place of buttons; retain their supplied order. */
+.temper-task-acts > p, .temper-task-acts > [role=status] { flex: 0 0 100%; margin: 0; font-size: 12.83px; line-height: 1.58; overflow-wrap: anywhere; }
+.temper-task-acts > p { color: var(--temper-muted); }
+.temper-task-acts > p[aria-label] { color: var(--temper-ink); font-weight: 600; }
+/* Progress/outcome and the own held card follow the toolbar in its column. */
+.temper-page:has(> .temper-task-heading) > [role=status] { margin-top: 0; margin-bottom: 16.33px; color: var(--temper-muted); font-size: 12.83px; overflow-wrap: anywhere; }
+.temper-page > .temper-plan-hold { margin-top: 0; margin-bottom: 22.17px; }
+/* .agent-steer-note, above the chat's choice line and composer. */
+.temper-chat .temper-composer-area > .temper-agent-steer { width: min(1213.33px, 100%); margin: 0 auto 7px; color: #91897e; font-size: 11.67px; line-height: 1.58; }
+.temper-agent-steer > p { margin: 0; }
+/* A refused Message's reason is a note in the steer note's look, not an outcome (5.11). */
+.temper-composer-area > .temper-agent-steer [role=status].temper-refusal { color: inherit; font-size: inherit; }
+.temper-chat:has(> .temper-agent-lineage) .temper-composer-area > :is(p:not(.temper-agent-steer), [role=status]) { width: min(1213.33px, 100%); margin: 0 auto 7px; font-size: 12.83px; overflow-wrap: anywhere; }
+@media (max-width: 850px) {
+  .temper-main.temper-page:has(> .temper-task-acts) > .temper-task-heading { margin-left: 19.83px; }
+  .temper-main.temper-page > .temper-task-acts { margin-right: 19.83px; }
+}
+@media (max-width: 600px) {
+  .temper-main.temper-page:has(> .temper-task-acts) { grid-template-columns: minmax(0, 1fr); }
+  .temper-main.temper-page:has(> .temper-task-acts) > .temper-task-heading { margin-left: 16.33px; margin-bottom: 0; margin-right: 16.33px; }
+  .temper-main.temper-page > .temper-task-acts { grid-column: 1; grid-row: 3; max-width: none; margin: 10.5px 16.33px 22.17px; }
+}
+
+/* The amendment editor (client/README.md, 5.11), with the mockup's fields and button row. */
+.temper-task-amend { margin: 0 28px 23.33px; padding: 18.67px; border: 1px solid var(--temper-line, #dcd5ca); border-radius: 7px; background: var(--temper-paper); display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+.temper-task-amend > h2 { flex: 1 0 100%; margin: 0; font: 600 14px/1.4 var(--temper-mono); }
+.temper-task-amend > textarea { flex: 1 0 100%; box-sizing: border-box; min-height: 151.67px; padding: 10.5px 12.83px; border: 1px solid #dcd5ca; border-radius: 4.67px; font: 14px/1.6 var(--temper-mono); }
+.temper-task-amend > input[type=text] { width: 105px; padding: 8.17px; border: 1px solid #dcd5ca; border-radius: 4.67px; }
+.temper-task-amend > button { padding: 8.17px 12.83px; border: 1px solid #dcd5ca; border-radius: 4.67px; font: 600 12.83px/1.35 var(--temper-mono); }
+.temper-task-amend > p, .temper-task-amend > [role=status] { flex: 1 0 100%; margin: 0; font-size: 14px; overflow-wrap: anywhere; }
+@media (max-width: 600px) { .temper-task-amend { margin-inline: 16.33px; } }
+
+/* .card.card-pad: the change's panel, containing its supplied parts. */
+.temper-change { margin: 0 28px 25.67px; padding: 17.5px 21px; border: 1px solid var(--temper-line); border-radius: 5.83px; background: var(--temper-paper); min-width: 0; overflow-wrap: anywhere; }
+/* .tag.accent: the change's identity in the header. */
+.temper-task-heading > .temper-meta:first-of-type > .temper-change-tag:first-child { background: var(--temper-accent-pale); color: var(--temper-accent-dark); padding: 2.33px 7px; border-radius: 3.5px; font-size: 11.67px; font-weight: 600; }
+/* .steps: six columns, with the supplied current and completed slots. */
+.temper-change .temper-steps { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 3.5px; margin: 17.5px 0; padding: 0; list-style: none; }
+/* .step: the quiet slots ahead of the current step. */
+.temper-change .temper-step { border-top: 3.5px solid var(--temper-line); padding-top: 10.5px; font-size: 11.67px; color: var(--temper-muted); }
+/* .step.done: completed slots. */
+.temper-change .temper-step-done { border-color: var(--temper-green); color: var(--temper-green); }
+/* .step.current: the supplied current slot. */
+.temper-change .temper-step-current { border-color: var(--temper-accent); color: var(--temper-accent-dark); font-weight: 700; }
+/* .notice: the held step and its reason. */
+.temper-change .temper-change-hold { padding: 12.83px 16.33px; border-radius: 4.67px; background: var(--temper-amber-pale); color: #6f5738; border: 1px solid #ecdfc7; font-size: 12.83px; line-height: 1.5; }
+/* .gate: a name and its verdict in one row. */
+.temper-change .temper-gate { display: flex; justify-content: space-between; gap: 14px; padding: 8.17px 0; border-bottom: 1px solid #f0ede8; /* style.css .gate */ font-size: 12.83px; }
+/* .section-heading h3: the two regions inside the change's card. */
+.temper-change > [role=region] > h2 { margin: 26.83px 0 10.5px; font-size: 14px; font-weight: 700; line-height: 1.35; }
+/* .gate strong: the name carries the row's weight. */
+.temper-change .temper-gate > p:first-child { font-weight: 700; }
+/* .gate strong.muted: "No other gate.", a name with no verdict. */
+.temper-change .temper-gate > p:only-child { color: var(--temper-muted); }
+/* .gate span: its state stays muted. */
+.temper-change .temper-gate > p { margin: 0; }
+.temper-change .temper-gate > p + p { color: var(--temper-muted); }
+/* .gate:last-child: no trailing rule. */
+.temper-change .temper-gate:last-child { border: 0; }
+/* .steps at phone width: three columns in the same order. */
+@media (max-width: 600px) {
+  .temper-change { margin-inline: 16.33px; }
+  .temper-change .temper-steps { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 16.33px; }
+}
+
+.temper-plan-done > .temper-plan-row > :first-child > a { color: var(--temper-muted); }

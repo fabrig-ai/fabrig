@@ -1,0 +1,40 @@
+== What shall we change? == Live
+[1] temper
+Menu:
+  [2] Playground (pressed)
+  Main navigation:
+    [3] Inbox
+    [4] Chats (current)
+    [5] Adopt a repository
+    [6] Forges
+    [7] Accounts
+  * Pat
+  [8] Sign out
+Playground:
+  This is the playground: a scripted model and a playground forge.
+  [9] Connect a model
+  [10] Connect a forge
+New chat
+* Ready
+Scripted model
+Playground · playground/widget on Playground forge
+Signed in as the deployment’s owner
+What shall we change?
+  Try a request in playground/widget. Follow the task from its branch to a landed change.
+  Suggested requests:
+    - [11] Add CSV export to widget
+    - [12] Add a dark theme to widget
+    - [13] Fix widget’s empty search state
+  The scripted model plays these requests from its script.
+Using Scripted model · Default
+Change model:
+  - [14] Scripted model
+  [15] Reset choice
+[16] Start a chat: (empty) (enter sends)
+temper · Enter to start · Shift+Enter for newline
+[17] Start chat
+## Your chats
+[18] All (pressed)
+[19] Live
+[20] Closed
+No chats yet.

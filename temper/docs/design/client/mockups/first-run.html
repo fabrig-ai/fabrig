@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>First run · temper</title>
+  <meta http-equiv="refresh" content="0; url=welcome.html?world=first-run&amp;step=0">
+  <link rel="stylesheet" href="mockup.css">
+</head>
+<body>
+  <!-- The first run is a world of the mockups: this address, which the
+       client README and the setup's documents cite, opens it at its first
+       step, the welcome behind the link temper box prints. -->
+  <p class="mock-index"><a href="welcome.html?world=first-run&amp;step=0">The first run, at its first step</a></p>
+  <script>location.replace('welcome.html?world=first-run&step=0' + (new URLSearchParams(location.search).has('bare') ? '&bare' : ''));</script>
+</body>
+</html>

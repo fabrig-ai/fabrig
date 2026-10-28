@@ -1,0 +1,26 @@
+[package]
+name = "temper-client-view"
+description = "temper's client view root and forge words"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+jig-client.workspace = true
+skein-lib.workspace = true
+skein-ui.workspace = true
+temper-client-domain.workspace = true
+temper-client-protocol-wire.workspace = true
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+skein-ui-text.workspace = true
+skein-scratch.workspace = true
+skein-fake-person.workspace = true
+jig-client-test-records.workspace = true
+jig-client-protocol-link.workspace = true
+jig-client-protocol-wire.workspace = true

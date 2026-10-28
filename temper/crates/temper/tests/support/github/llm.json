@@ -1,0 +1,210 @@
+{{
+  "listen": {{
+    "socket": "127.0.0.1:0"
+  }},
+  "key": "{proc.llm.dir}/llm.key",
+  "tls": null,
+  "models": [
+    {{
+      "name": "fake",
+      "window": 1048576,
+      "output": 8192
+    }}
+  ],
+  "cued": [
+    {{
+      "cue": "@forge_chat",
+      "turns": [
+        {{
+          "lines": [
+            {{
+              "call": "delegate",
+              "arguments": {{
+                "batch": [
+                  {{
+                    "executor": {{
+                      "kind": "procedure",
+                      "connector": 1,
+                      "code": 2
+                    }},
+                    "spec": {{
+                      "words": "@coding Fix",
+                      "parameters": [
+                        {{
+                          "name": 1,
+                          "kind": "resource",
+                          "connector": 1,
+                          "resource": 4294967297
+                        }},
+                        {{
+                          "name": 2,
+                          "kind": "bytes",
+                          "value": "main"
+                        }}
+                      ]
+                    }},
+                    "contract": {{
+                      "kind": "change",
+                      "connector": 1,
+                      "change_kind": 1,
+                      "words": 128
+                    }},
+                    "authority": {{
+                      "tools": 1,
+                      "grants": [
+                        {{
+                          "connector": 1,
+                          "kind": 2,
+                          "segments": [
+                            "forge",
+                            "{proc.forge.ready.address}"
+                          ],
+                          "terminal": "open",
+                          "last": "acme"
+                        }},
+                        {{
+                          "connector": 1,
+                          "kind": 3,
+                          "segments": [
+                            "forge",
+                            "{proc.forge.ready.address}"
+                          ],
+                          "terminal": "open",
+                          "last": "acme"
+                        }},
+                        {{
+                          "connector": 1,
+                          "kind": 4,
+                          "segments": [
+                            "forge",
+                            "{proc.forge.ready.address}"
+                          ],
+                          "terminal": "open",
+                          "last": "acme"
+                        }},
+                        {{
+                          "connector": 1,
+                          "kind": 10,
+                          "segments": [
+                            "forge",
+                            "{proc.forge.ready.address}"
+                          ],
+                          "terminal": "open",
+                          "last": "acme"
+                        }},
+                        {{
+                          "connector": 1,
+                          "kind": 11,
+                          "segments": [
+                            "forge",
+                            "{proc.forge.ready.address}"
+                          ],
+                          "terminal": "open",
+                          "last": "acme"
+                        }},
+                        {{
+                          "connector": 1,
+                          "kind": 12,
+                          "segments": [
+                            "forge",
+                            "{proc.forge.ready.address}"
+                          ],
+                          "terminal": "open",
+                          "last": "acme"
+                        }}
+                      ],
+                      "delegation": {{
+                        "kinds": [
+                          {{
+                            "kind": "agent",
+                            "number": 1
+                          }}
+                        ],
+                        "tasks": 4,
+                        "depth": 2
+                      }},
+                      "budget": {{
+                        "spend": 10
+                      }},
+                      "notes": 0
+                    }}
+                  }}
+                ]
+              }}
+            }}
+          ],
+          "finish": "tool_calls",
+          "tokens": 20
+        }},
+        {{
+          "lines": [
+            {{
+              "text": "Change requested"
+            }},
+            {{
+              "call": "wait",
+              "arguments": {{}}
+            }}
+          ],
+          "finish": "tool_calls",
+          "tokens": 20
+        }}
+      ]
+    }},
+    {{
+      "cue": "## Task\n\n@coding Fix",
+      "turns": [
+        {{
+          "lines": [
+            {{
+              "call": "read",
+              "arguments": {{
+                "path": "README.md"
+              }}
+            }}
+          ],
+          "finish": "tool_calls",
+          "tokens": 20
+        }},
+        {{
+          "lines": [
+            {{
+              "call": "edit",
+              "arguments": {{
+                "path": "README.md",
+                "edits": [
+                  {{
+                    "old": "# Widget\n\nA small repository for temper's QA loop.\n",
+                    "new": "# Widget\n\nA small repository for temper's QA loop.\nChanged by temper.\n"
+                  }}
+                ]
+              }}
+            }}
+          ],
+          "finish": "tool_calls",
+          "tokens": 20
+        }},
+        {{
+          "lines": [
+            {{
+              "call": "finish",
+              "arguments": {{
+                "form": "change",
+                "fields": {{
+                  "title": "Update README",
+                  "body": "Changed by temper."
+                }}
+              }}
+            }}
+          ],
+          "finish": "tool_calls",
+          "tokens": 20
+        }}
+      ]
+    }}
+  ],
+  "asked": [],
+  "otherwise": [
+    "Hello."
+  ]
+}}

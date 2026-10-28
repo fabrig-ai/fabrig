@@ -1,0 +1,32 @@
+== T34 · Refresh token handling == Live
+temper
+Menu:
+  [1] Shop (pressed)
+  [2] Inbox
+  [3] Chats
+  [4] Adopt a repository
+  * Pat
+  [5] Sign out
+[6] Task 12
+Rotate the credentials
+Task 34
+Refresh token handling
+* running · writing
+Agent
+7 spent
+[7] Amend
+Task brief:
+  ## Task brief
+  Rotate tokens safely.
+  Asked by task 12
+  Dependencies of task 34:
+    - [8] Task 17
+      * Completed
+## Run 1 · live now
+Started 10-22 03:48Z
+Conversation:
+  Temper
+  Checking the credentials.
+  1 tool call: read_file
+    read_file
+    Read token.rs

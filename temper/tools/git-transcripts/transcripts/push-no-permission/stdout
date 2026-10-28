@@ -1,0 +1,3 @@
+To http://127.0.0.1:3000/fixture/specimen.git
+!	0000000000000000000000000000000000000006:refs/heads/forbidden	[remote rejected] (pre-receive hook declined)
+Done

@@ -1,0 +1,3 @@
+# Ordinary Rust: a one-off shell harness driving jig's public store API.
+disallowed-types = []
+disallowed-methods = []

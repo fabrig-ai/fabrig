@@ -1,0 +1,51 @@
+{{
+  "profile": {{
+    "name": "standard",
+    "declared": {{
+      "memory": 2147483648,
+      "tool_payload": 4096,
+      "read_window": 256,
+      "conversations": 1,
+      "calls_per_response": 1
+    }},
+    "policy": {{
+      "max_turns": 16,
+      "group_stop": 10,
+      "inbox": 8,
+      "unacknowledged": 8,
+      "check_timeout": 1000
+    }}
+  }},
+  "endpoints": [
+    {{
+      "name": "fake",
+      "number": 0,
+      "dialect": 3,
+      "provider": "openai",
+      "address": "{proc.llm.ready.address}",
+      "transport": "tls",
+      "identity": "plain",
+      "connect": 1000,
+      "handshake": 1000,
+      "models": [
+        {{
+          "name": "fake",
+          "prices": {{
+            "input": 1,
+            "cached": 1,
+            "output": 1,
+            "unit": 1000000
+          }},
+          "window": 1048576,
+          "output": 8192,
+          "reasoning_item": 64,
+          "head": 60000,
+          "idle": 30000
+        }}
+      ],
+      "server_name": "skein.test",
+      "trust_der": "{proc.llm.dir}/root.der"
+    }}
+  ],
+  "environment": []
+}}

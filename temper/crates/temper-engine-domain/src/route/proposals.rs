@@ -1,0 +1,195 @@
+//! Store translation for archived proposals and host-call translation for
+//! named proposals. The core owns authorization and holder routing.
+use super::{CallKey, Decision, Domain, Env, Limits, ProposedAction, ReplyTo, Token, Work, tasks};
+use alloc::boxed::Box;
+
+/// One bounded named historical lookup after a proposal left live memory.
+#[derive(Debug)]
+pub(crate) struct Query {
+    request: Token,
+    person: u64,
+    project: u32,
+    proposer: jig_domain_people::Proposer,
+    proposal: u64,
+}
+
+#[expect(clippy::too_many_arguments, reason = "one keyed proposal decision has one named archive identity")]
+pub(crate) fn historical_begin(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    barrier: &mut Decision,
+    request: Token,
+    person: u64,
+    project: u32,
+    proposer: jig_domain_people::Proposer,
+    proposal: u64,
+) {
+    let read = Query { request, person, project, proposer, proposal };
+    let Ok(id) = domain.archive_reads.insert(Some(super::Read::Proposal(read))) else {
+        domain.work.push(Work::Core(jig_domain_core::Event::HistoricalProposal {
+            request,
+            person,
+            project,
+            proposer,
+            proposal,
+            row: None,
+            busy: true,
+        }));
+        return;
+    };
+    super::emit(
+        barrier,
+        &env.limits,
+        super::Delivery::Load {
+            waiter: id.token(),
+            range: super::Range::Core(crate::CoreRange::ProposalDecision { proposer, proposal }),
+            after: None,
+        },
+    );
+}
+
+pub(crate) fn historical_loaded(domain: &mut Domain, waiter: Token, rows: Box<[super::Record]>) {
+    let Some(super::Read::Proposal(query)) = super::take_read(domain, waiter) else {
+        unreachable!("proposal archive owns its read")
+    };
+    domain.archive_reads.retire(super::Id::from_token(waiter));
+    let row = if rows.len() == 1 {
+        match rows.into_iter().next().expect("one loaded row") {
+            super::Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::ProposalDecision(row))) => {
+                Some(row)
+            }
+            super::Record::Core(
+                jig_domain_core::Record::Core(
+                    jig_domain_core::CoreRecord::Settings(_)
+                    | jig_domain_core::CoreRecord::Call(_)
+                    | jig_domain_core::CoreRecord::Deployment(_)
+                    | jig_domain_core::CoreRecord::Turn(_)
+                    | jig_domain_core::CoreRecord::RunProof(_)
+                    | jig_domain_core::CoreRecord::Terminal(_)
+                    | jig_domain_core::CoreRecord::Projection(_)
+                    | jig_domain_core::CoreRecord::EscalationDecision(_),
+                )
+                | jig_domain_core::Record::Tasks(_)
+                | jig_domain_core::Record::People(_)
+                | jig_domain_core::Record::Accounts(_)
+                | jig_domain_core::Record::Notes(_),
+            )
+            | super::Record::Forge { .. } => None,
+        }
+    } else {
+        None
+    };
+    domain.work.push(Work::Core(jig_domain_core::Event::HistoricalProposal {
+        request: query.request,
+        person: query.person,
+        project: query.project,
+        proposer: query.proposer,
+        proposal: query.proposal,
+        row,
+        busy: false,
+    }));
+}
+
+pub(crate) fn historical_failed(domain: &mut Domain, waiter: Token) {
+    let Some(super::Read::Proposal(query)) = super::take_read(domain, waiter) else {
+        unreachable!("proposal archive owns its read")
+    };
+    domain.archive_reads.retire(super::Id::from_token(waiter));
+    domain.work.push(Work::Core(jig_domain_core::Event::HistoricalProposal {
+        request: query.request,
+        person: query.person,
+        project: query.project,
+        proposer: query.proposer,
+        proposal: query.proposal,
+        row: None,
+        busy: true,
+    }));
+}
+
+pub(crate) fn propose_call(
+    domain: &mut Domain,
+    to: ReplyTo,
+    key: CallKey,
+    action: ProposedAction,
+    reason: Box<[u8]>,
+    as_holder: bool,
+) {
+    let action = match action {
+        ProposedAction::Effect { .. } => unreachable!("connector effect proposals retain their own payload"),
+        ProposedAction::Batch(batch) => {
+            domain.work.push(Work::Core(jig_domain_core::Event::NamedAction {
+                to,
+                key,
+                action: jig_domain_core::NamedAction::ProposeBatch { batch, reason, as_holder },
+            }));
+            return;
+        }
+        ProposedAction::Amend { task, revision, amendment } => {
+            tasks::ProposalAction::Amend { task, revision, amendment }
+        }
+        ProposedAction::Widen { task, authority } => tasks::ProposalAction::Widen { task, authority },
+        ProposedAction::Release { task, hold, revision } => {
+            tasks::ProposalAction::ReleasePlaced { task, hold, revision }
+        }
+    };
+    domain.work.push(Work::Core(jig_domain_core::Event::NamedAction {
+        to,
+        key,
+        action: jig_domain_core::NamedAction::Propose { action, reason, as_holder },
+    }));
+}
+
+pub(crate) fn task_begin(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    barrier: &mut Decision,
+    to: ReplyTo,
+    key: CallKey,
+    proposal: u64,
+) {
+    let read = super::Read::TaskProposal { to, key, proposal };
+    let id = match domain.archive_reads.insert(Some(read)) {
+        Ok(id) => id,
+        Err(Some(super::Read::TaskProposal { to, key, proposal })) => {
+            domain.work.push(Work::Core(jig_domain_core::Event::DecidedProposal {
+                to,
+                key,
+                proposal,
+                row: None,
+                busy: true,
+            }));
+            return;
+        }
+        Err(_) => unreachable!("task proposal read"),
+    };
+    super::emit(
+        barrier,
+        &env.limits,
+        super::Delivery::Load {
+            waiter: id.token(),
+            range: super::Range::Core(crate::CoreRange::TaskProposal { task: key.task, proposal }),
+            after: None,
+        },
+    );
+}
+pub(crate) fn task_loaded(domain: &mut Domain, waiter: Token, rows: Option<Box<[super::Record]>>) {
+    let Some(super::Read::TaskProposal { to, key, proposal }) = super::take_read(domain, waiter) else {
+        unreachable!("task proposal read")
+    };
+    domain.archive_reads.retire(super::Id::from_token(waiter));
+    let busy = rows.is_none();
+    let row = task_proposal(rows);
+    domain.work.push(Work::Core(jig_domain_core::Event::DecidedProposal { to, key, proposal, row, busy }));
+}
+
+fn task_proposal(rows: Option<Box<[super::Record]>>) -> Option<tasks::Proposal> {
+    let rows = rows?;
+    if rows.len() != 1 {
+        return None;
+    }
+    let super::Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::History(row))) = rows.into_iter().next()?
+    else {
+        return None;
+    };
+    Some(*row.proposal?)
+}

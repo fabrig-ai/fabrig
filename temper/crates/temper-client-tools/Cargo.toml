@@ -1,0 +1,28 @@
+[package]
+name = "temper-client-tools"
+description = "The tools table, calls and client root"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+settings-form.workspace = true
+jig-client.workspace = true
+jig-client-domain.workspace = true
+jig-client-protocol-link.workspace = true
+jig-client-protocol-wire.workspace = true
+temper-docs.workspace = true
+temper-client-domain.workspace = true
+temper-client-protocol-wire.workspace = true
+skein-lib.workspace = true
+skein-json.workspace = true
+skein-ui.workspace = true
+
+[dev-dependencies]
+jig-client-test-records.workspace = true
+temper-client-shell-terminal.workspace = true
+
+[lints]
+workspace = true

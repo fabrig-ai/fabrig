@@ -1,0 +1,86 @@
+[package]
+name = "temper-real-loop-world"
+description = "Temper's standalone service and hosted tools on one real kernel"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+temper-fake.workspace = true
+jig-domain-authority.workspace = true
+jig-domain-core.workspace = true
+jig-domain-fleet.workspace = true
+jig-domain-people.workspace = true
+jig-domain-tasks.workspace = true
+temper-worker-domain.workspace = true
+jig-protocol-config.workspace = true
+jig-protocol-store.workspace = true
+jig-protocol-worker-wire.workspace = true
+temper-protocol-store.workspace = true
+temper-engine-domain.workspace = true
+temper-engine-domain-forge.workspace = true
+temper.workspace = true
+temper-client-shell-cli.workspace = true
+temper-client-shell-terminal.workspace = true
+temper-client-tools.workspace = true
+temper-service.workspace = true
+temper-fake-git-hosted.workspace = true
+temper-fake-git.workspace = true
+temper-github-app.workspace = true
+skein-fake-forge-github.workspace = true
+temper-worker-protocol-git.workspace = true
+skein-scratch.workspace = true
+skein-io.workspace = true
+skein-channel.workspace = true
+smith-agent-shell.workspace = true
+smith-agent-service.workspace = true
+smith-fake-claude.workspace = true
+serde_json.workspace = true
+skein-fake-peers.workspace = true
+skein-fake-oauth.workspace = true
+skein-oauth.workspace = true
+skein-fake-forge-domain.workspace = true
+skein-fake-forge-protocol.workspace = true
+skein-http.workspace = true
+skein-forge.workspace = true
+skein-json.workspace = true
+skein-fake-llm-domain.workspace = true
+skein-fake-llm-protocol.workspace = true
+skein-llm.workspace = true
+skein-llm-world.workspace = true
+skein-world.workspace = true
+smith-agent-process-world.workspace = true
+jig-channel-world.workspace = true
+jig-client-protocol-wire.workspace = true
+skein-lib.workspace = true
+skein-shell.workspace = true
+
+[dev-dependencies]
+temper-twin = { path = "../../tools/twin" }
+skein-ui.workspace = true
+skein-ui-text.workspace = true
+skein-forge-client.workspace = true
+temper-worker-domain-checkout.workspace = true
+
+[lints.rust]
+unsafe_code = "forbid"
+elided_lifetimes_in_paths = "deny"
+unused_must_use = "deny"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+missing_panics_doc = "allow"
+missing_errors_doc = "allow"
+wildcard_enum_match_arm = "deny"
+match_wildcard_for_single_variants = "deny"
+unwrap_used = "deny"
+allow_attributes = "deny"
+allow_attributes_without_reason = "deny"
+disallowed_types = "deny"
+disallowed_methods = "deny"
+
+[[test]]
+name = "qa_plan_chat"
+path = "tests/qa_plan_chat.rs"

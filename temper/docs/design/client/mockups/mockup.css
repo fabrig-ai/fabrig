@@ -1,0 +1,185 @@
+/* The mockups' own chrome, never the product: the bar above each page
+   (the world, its step, what is marked), the sources' marks, and the
+   annotations (the reference case's names, the gaps temper lacks). All
+   slate, never the product's warm palette, so they read as notes on the
+   page. */
+
+:root {
+  --mock-bar: 32px;
+  --note: #56708f;
+  --note-pale: #eef2f6;
+  --note-line: #b9c6d6;
+  --src-engine: #2f6fd0;
+  --src-config: #8a4fc8;
+  --src-written: #d0802a;
+  --src-ops: #3a9089;
+}
+
+/* The bar: above the product. */
+body.mock { padding-top: var(--mock-bar); }
+body.mock .terminal-shell { height: calc(100dvh - var(--mock-bar)); }
+body.mock.terminal-pages .terminal-topbar { top: var(--mock-bar); }
+body.mock .drawer { top: calc(var(--mock-bar) + 49px); }
+
+.mockbar { position: fixed; inset: 0 0 auto; z-index: 40; height: var(--mock-bar); display: flex; align-items: center; gap: 14px; padding: 0 14px 0 18px; background: #2b2f36; color: #dfe5ec; font: 11px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: -.01em; }
+.mockbar-mark { color: #9fb3c9; font-weight: 700; letter-spacing: .1em; white-space: nowrap; }
+.mockbar-step { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.mockbar button { border: 1px solid #485260; background: transparent; color: #dfe5ec; border-radius: 4px; height: 22px; padding: 0 8px; font: inherit; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
+.mockbar button:hover:not(:disabled) { border-color: #8ea3bb; color: #fff; }
+.mockbar button:disabled { opacity: .4; cursor: default; }
+.mockbar-now { display: flex; gap: 10px; align-items: baseline; min-width: 0; overflow: hidden; }
+.mockbar-now b { color: #fff; white-space: nowrap; }
+.mockbar-now span { color: #a9b5c3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mockbar-right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.mockbar-pop { position: fixed; z-index: 41; top: calc(var(--mock-bar) + 6px); width: min(460px, calc(100vw - 24px)); max-height: calc(100dvh - var(--mock-bar) - 20px); overflow-y: auto; background: #fbfcfd; color: #2c333c; border: 1px solid var(--note-line); border-radius: 6px; box-shadow: 0 18px 50px rgba(30,40,55,.22); padding: 14px 16px; font: 11px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.mockbar-pop h4 { margin: 0 0 6px; font-size: 11px; color: var(--note); letter-spacing: .08em; text-transform: uppercase; }
+.mockbar-pop p { margin: 0 0 10px; }
+.mockbar-pop ol, .mockbar-pop ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 2px; }
+.mockbar-pop a { display: block; padding: 4px 6px; border-radius: 3px; }
+.mockbar-pop a:hover { background: var(--note-pale); color: var(--note); }
+.mockbar-pop .step-item { display: grid; grid-template-columns: 34px 1fr; gap: 6px; padding: 3px 6px; border-radius: 3px; }
+.mockbar-pop .step-item.current { background: var(--note-pale); font-weight: 700; }
+.mockbar-pop .step-item.later { color: #9aa4b0; }
+.mockbar-pop .act { margin: 10px 0 3px; color: var(--note); font-weight: 700; }
+.mockbar-pop .act:first-child { margin-top: 0; }
+
+/* The View menu: the world, and what is marked. */
+.view-pop h4 { margin-top: 12px; }
+.view-pop h4:first-child { margin-top: 0; }
+.view-toggle { display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 6px; padding: 4px 6px; border-radius: 3px; cursor: pointer; }
+.view-toggle:hover { background: var(--note-pale); }
+.view-toggle input { margin: 2px 0 0; accent-color: var(--note); }
+.view-hide { display: block; width: 100%; margin-top: 4px; padding: 4px 6px 4px 28px; border: 0; border-radius: 3px; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.view-hide:hover { background: var(--note-pale); }
+/* The bar hidden: an unseen handle in the corner, shown on hover. */
+.mock-restore { position: fixed; right: 4px; bottom: 4px; z-index: 40; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 4px; background: #2b2f36; color: #dfe5ec; font: 12px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; opacity: 0; transition: opacity .15s; cursor: pointer; }
+.mock-restore:hover, .mock-restore:focus-visible { opacity: .9; }
+.view-legend { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 0 6px !important; }
+.mockbar-legend { display: none; gap: 10px; color: #c6d0db; font-size: 10px; }
+body.mock-sources .mockbar-legend { display: flex; }
+.mockbar-legend span::before, .view-legend span::before { content: ''; display: inline-block; width: 9px; height: 3px; margin-right: 5px; vertical-align: 2px; border-radius: 1px; background: var(--c); }
+.legend-engine { --c: var(--src-engine); }
+.legend-config { --c: var(--src-config); }
+.legend-written { --c: var(--src-written); }
+.legend-ops { --c: var(--src-ops); }
+
+/* Sources: each value underlined by where it comes from, while asked. A
+   gradient paints the line, so a value inside another shows its own. */
+.src-engine { --c: var(--src-engine); }
+.src-config { --c: var(--src-config); }
+.src-written { --c: var(--src-written); }
+.src-ops { --c: var(--src-ops); }
+body.mock-sources span.src { background-image: linear-gradient(var(--c), var(--c)); background-size: 100% 2px; background-repeat: no-repeat; background-position: 0 100%; padding-bottom: 1px; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+body.mock-sources div.src { box-shadow: inset 2px 0 0 var(--c); padding-left: 8px; }
+body.mock-sources .src:hover { background-color: color-mix(in srgb, var(--c) 10%, transparent); }
+.src-tip { position: fixed; z-index: 60; max-width: 340px; padding: 7px 10px; border-radius: 5px; background: #2b2f36; color: #e3e8ee; box-shadow: 0 10px 30px rgba(30,40,55,.25); font: 10.5px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; pointer-events: none; }
+.src-tip b { display: block; font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; color: #fff; }
+.src-tip b::before { content: ''; display: inline-block; width: 9px; height: 3px; margin-right: 6px; vertical-align: 2px; background: var(--c); }
+.src-tip[hidden] { display: none; }
+
+/* The case's names and the gaps, beside the product's words. */
+.case-ref, .gap { display: inline-flex; align-items: center; height: 16px; padding: 0 5px; border-radius: 3px; font: 600 9.5px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: 0; vertical-align: 1px; white-space: nowrap; font-style: normal; }
+.case-ref { color: var(--note); background: var(--note-pale); }
+.gap { color: var(--note); border: 1px dashed var(--note-line); background: transparent; }
+body.mock-plain .case-ref, body.mock-plain .gap, body.mock-plain .gap-note, body.mock-plain .mock-note, body.mock-plain .mock-variants, body.mock-plain .mock-url { display: none !important; }
+.gap-note { margin: 12px 0 0; padding-top: 9px; border-top: 1px dashed var(--note-line); color: var(--note); font-size: 10.5px; }
+.mock-note { color: var(--note); font-size: 10.5px; margin-left: 8px; }
+
+.mock-variants { margin-top: 26px; padding: 18px; border: 1px dashed var(--note-line); background: var(--note-pale); }
+.mock-variants > h2, .mock-variants > h3, .mock-variants > p { color: var(--note); font: 11px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.mock-variants > h2 { font-weight: 700; margin: 0 0 6px; }
+.mock-variants > h3 { font-weight: 700; margin: 18px 0 6px; }
+.mock-variants > p { margin: 0 0 12px; }
+
+/* The future: hidden unless asked (View → Future, or ?future); then
+   in place of what the page shows today, outlined and marked with what
+   it needs. A capture (?bare&future) draws it unmarked. */
+body:not(.mock-future) .future { display: none !important; }
+body.mock-future .today { display: none !important; }
+.future { outline: 1px dashed var(--note-line); outline-offset: 3px; border-radius: 2px; }
+div.future { display: block; }
+.future-mark { display: inline-flex; align-items: center; height: 16px; margin-right: 6px; padding: 0 5px; border-radius: 3px; border: 1px dashed var(--note-line); color: var(--note); background: var(--note-pale); font: 600 9.5px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-style: normal; vertical-align: 1px; white-space: nowrap; }
+div.future > .future-mark { display: flex; width: max-content; margin: 0 0 6px; }
+body.mock-plain .future { outline: none; }
+body.mock-plain .future-mark { display: none !important; }
+
+/* Whether a page is under the README's rules, in the bar. */
+.mockbar-rules { padding: 2px 7px; border-radius: 3px; font: 600 10px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: #cfe8d5; border: 1px solid #4f7a5a; white-space: nowrap; }
+.mockbar-rules.not { color: #e8d9b8; border-color: #7a6a4f; }
+
+/* The contents' list of each page's states. */
+.mock-states { margin: 4px 0; }
+.mock-states summary { cursor: pointer; }
+.mock-states ul { margin: 4px 0 10px; }
+
+/* Where the tab is, on a way that leaves temper: its address, and how it
+   got there. */
+.mock-url { margin: 0 0 18px; padding: 7px 10px; border: 1px dashed var(--note-line); background: var(--note-pale); color: var(--note); font: 10.5px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; overflow-wrap: anywhere; }
+.mock-url b { color: #2c333c; font-weight: 600; }
+.gh-left { display: block; margin: 16px 0 0; }
+.gh-left a.text-link { color: var(--note); text-decoration: underline; }
+
+/* GitHub's pages, sketched: the other side of Connect GitHub, never
+   temper's, in a plain likeness of GitHub's own look. */
+.gh { min-height: calc(100dvh - var(--mock-bar)); background: #fff; color: #1f2328; font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif; }
+.gh-header { display: flex; align-items: center; gap: 12px; height: 56px; padding: 0 24px; background: #f6f8fa; border-bottom: 1px solid #d1d9e0; }
+.gh-mark { width: 30px; height: 30px; border-radius: 50%; background: #1f2328; }
+.gh-search { margin-left: auto; width: min(280px, 40vw); height: 30px; padding: 0 10px; display: flex; align-items: center; border: 1px solid #d1d9e0; border-radius: 6px; background: #fff; color: #818b98; font-size: 13px; }
+.gh-main { width: min(720px, calc(100% - 32px)); margin: 28px auto 60px; }
+.gh h1, .gh h2 { font-family: inherit; letter-spacing: 0; }
+.gh-title { font-size: 24px; font-weight: 400; margin: 0 0 4px; }
+.gh-h2 { font-size: 16px; font-weight: 600; margin: 0 0 12px; }
+.gh-sub { font-weight: 600; margin: 16px 0 8px; }
+.gh-sub:first-child { margin-top: 0; }
+.gh-muted { color: #59636e; font-size: 12px; margin: 0; }
+.gh-box { border: 1px solid #d1d9e0; border-radius: 6px; margin-top: 16px; }
+.gh-pad { padding: 16px; }
+.gh-rows .gh-row + .gh-row { border-top: 1px solid #d1d9e0; }
+.gh-row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; }
+.gh-grow { flex: 1; min-width: 0; }
+.gh-app-head { display: flex; align-items: center; gap: 14px; }
+.gh-avatar { width: 32px; height: 32px; flex: none; border-radius: 50%; display: grid; place-items: center; background: #ddf4ff; color: #0969da; font-weight: 600; }
+.gh-avatar.gh-org { border-radius: 6px; background: #fff8c5; color: #9a6700; }
+.gh-avatar.gh-app { width: 48px; height: 48px; border-radius: 10px; background: #ba694e; color: #fff; font-size: 22px; }
+.gh-label { display: block; font-weight: 600; margin-bottom: 6px; }
+.gh-input { width: 100%; box-sizing: border-box; height: 32px; padding: 5px 12px; border: 1px solid #d1d9e0; border-radius: 6px; font: inherit; }
+.gh-input + .gh-muted { margin: 6px 0 16px; }
+.gh-btn { display: inline-flex; align-items: center; height: 32px; padding: 0 16px; border: 1px solid #d1d9e0; border-radius: 6px; background: #f6f8fa; color: #25292e; font-size: 14px; font-weight: 500; text-decoration: none; white-space: nowrap; cursor: pointer; }
+.gh-btn:hover { background: #eff2f5; }
+.gh-btn-primary { background: #1f883d; border-color: #1a7f37; color: #fff; }
+.gh-btn-primary:hover { background: #1c8139; }
+.gh-btn[aria-disabled="true"] { opacity: .5; pointer-events: none; }
+.gh-acts { display: flex; gap: 8px; margin-top: 18px; }
+.gh-radio { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 6px; margin: 0 0 10px; cursor: pointer; }
+.gh-radio > span { display: grid; }
+.gh-radio input { margin: 4px 0 0; }
+.gh-select { margin: 4px 0 6px 24px; border: 1px solid #d1d9e0; border-radius: 6px; }
+.gh-select[hidden] { display: none; }
+.gh-repo { display: flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: 13px; cursor: pointer; }
+.gh-repo + .gh-repo { border-top: 1px solid #d1d9e0; }
+.gh-pill { margin-left: auto; padding: 0 7px; border: 1px solid #d1d9e0; border-radius: 2em; color: #59636e; font-size: 12px; }
+.gh-perms { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.gh-perms li::before { content: '✓'; color: #1a7f37; margin-right: 8px; }
+
+/* What the current step changed. */
+.fresh { position: relative; }
+.fresh::before { content: ''; position: absolute; left: -9px; top: 4px; bottom: 4px; width: 3px; border-radius: 2px; background: var(--note); }
+body.mock-plain .fresh::before { display: none; }
+
+/* The contents page. */
+.mock-index { width: min(760px, calc(100% - 32px)); margin: 0 auto; padding: 34px 0 60px; font: 12px/1.65 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: #2c333c; }
+.mock-index h1 { font: 700 20px/1.3 ui-monospace, monospace; margin: 0 0 8px; }
+.mock-index h2 { font: 700 11px/1.3 ui-monospace, monospace; letter-spacing: .08em; text-transform: uppercase; color: var(--note); margin: 22px 0 8px; }
+.mock-index p { margin: 0 0 12px; }
+.mock-index ul, .mock-index ol { margin: 0 0 12px; padding-left: 20px; }
+.mock-index a { color: var(--note); text-decoration: underline; text-underline-offset: 2px; }
+.mock-index [class^="legend-"] { box-shadow: inset 0 -2px 0 var(--c); }
+
+@media (max-width: 1100px) {
+  body.mock-sources .mockbar-legend { display: none; }
+}
+@media (max-width: 760px) {
+  .mockbar { gap: 8px; padding: 0 8px; }
+  .mockbar-mark, .mockbar-now { display: none; }
+  body.mock .drawer { top: calc(var(--mock-bar) + 45px); }
+}

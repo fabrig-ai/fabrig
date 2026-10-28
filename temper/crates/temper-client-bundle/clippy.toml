@@ -1,0 +1,5 @@
+# A build script and its data: ordinary Rust (programming-model.md, 10.3), as skein's bundler is.
+disallowed-types = [
+    { path = "std::collections::HashMap", reason = "ordered maps keep the bundle's list stable" },
+    { path = "std::collections::HashSet", reason = "ordered sets keep the bundle's list stable" },
+]

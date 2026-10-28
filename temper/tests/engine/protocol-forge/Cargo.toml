@@ -1,0 +1,49 @@
+[package]
+name = "temper-engine-protocol-forge-world"
+description = "Forge component against recorded HTTP answers and scripted io"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+skein-fake-forge-github.workspace = true
+skein-forge.workspace = true
+skein-lib.workspace = true
+skein-io.workspace = true
+skein-tls.workspace = true
+skein-forge-client.workspace = true
+skein-forge-connection.workspace = true
+skein-forge-machine-world.workspace = true
+skein-fake-forge-protocol.workspace = true
+skein-fake-forge-domain.workspace = true
+temper-engine-forge-world = { path = "../forge" }
+
+temper-engine-domain-forge.workspace = true
+
+temper-engine-domain-forge-change.workspace = true
+
+temper-engine-domain-forge-issues.workspace = true
+
+jig-domain-people.workspace = true
+
+
+[dev-dependencies]
+temper-service = { path = "../../../crates/temper-service" }
+
+[lints.rust]
+unsafe_code = "forbid"
+elided_lifetimes_in_paths = "deny"
+unused_must_use = "deny"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+missing_panics_doc = "allow"
+wildcard_enum_match_arm = "deny"
+match_wildcard_for_single_variants = "deny"
+unwrap_used = "deny"
+allow_attributes = "deny"
+allow_attributes_without_reason = "deny"
+disallowed_types = "deny"
+disallowed_methods = "deny"

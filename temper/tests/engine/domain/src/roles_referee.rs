@@ -1,0 +1,437 @@
+//! Independent role-administration obligations over submitted transactions and
+//! durable replies. The observer owns the outside roster/holder expectations;
+//! it never reads root or child state (jig's domain/people.md, section 5.1).
+
+use jig_domain_people as people;
+use jig_domain_tasks as tasks;
+use skein_lib::Token;
+use std::collections::{BTreeMap, BTreeSet};
+use temper_engine_domain::{Key, Record, Write};
+
+/// One independently expected successful roster replacement, including the
+/// exact task rows permitted to change (jig's domain/engine.md, section 5.1).
+#[derive(Clone, Debug)]
+pub struct Replacement {
+    /// Complete project roster supplied by the outside owner (jig's
+    /// domain/people.md, section 4).
+    pub holdings: Box<[people::Holding]>,
+
+    /// Exact expected Waiting rows; every other task field remains byte-for-byte
+    /// equal to its previous durable evidence.
+    pub tasks: BTreeMap<u64, tasks::TaskRecord>,
+}
+
+#[derive(Clone, Debug)]
+struct Obligation {
+    person: u64,
+    key: [u8; 16],
+    ask: people::Ask,
+    reply: people::Reply,
+    replacement: Option<Replacement>,
+}
+
+/// Frozen pre-transaction observer used unchanged by positive controls and
+/// corruption negatives. Its ledger consists entirely of actual store rows
+/// and registered outside asks.
+#[derive(Clone, Debug)]
+pub struct Referee {
+    rows: BTreeMap<Key, Record>,
+    asks: BTreeMap<Token, Obligation>,
+    terminals: BTreeSet<Token>,
+    /// Number of successful atomic role replacements observed
+    /// (jig's domain/people.md, section 5.1).
+    pub replacements: u32,
+}
+
+impl Referee {
+    /// Start from actual pre-transaction durable evidence
+    #[must_use]
+    pub fn new(rows: BTreeMap<Key, Record>) -> Referee {
+        Referee { rows, asks: BTreeMap::new(), terminals: BTreeSet::new(), replacements: 0 }
+    }
+
+    /// Register one authenticated outside call before dispatch; duplicate keys
+    /// may have distinct reply rights (jig's domain/people.md, section 5.1).
+    pub fn ask(
+        &mut self,
+        to: Token,
+        person: u64,
+        key: [u8; 16],
+        ask: people::Ask,
+        reply: people::Reply,
+        replacement: Option<Replacement>,
+    ) {
+        assert!(
+            self.asks.insert(to, Obligation { person, key, ask, reply, replacement }).is_none(),
+            "one fresh outside role-request reply right"
+        );
+    }
+
+    /// Validate an atomic cohort before advancing the outside observer.
+    ///
+    /// # Errors
+    /// Names missing cohort members, unauthorized changes, duplicate writes,
+    /// altered funding, or a task field differing from the scripted expectation
+    /// (jig's domain/engine.md, section 5.1).
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one independent atomic-cohort check names each specific violated contract"
+    )]
+    pub fn commit(&mut self, writes: &[Write]) -> Result<(), &'static str> {
+        if writes.contains(&Write::Wires) {
+            // domain/root.md 9.1: exactly the deployment header and Wires.
+            if writes.len() != 2 {
+                return Err("startup mark contains other writes");
+            }
+            let Some(Write::Save(
+                record @ Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(_))),
+            )) = writes.iter().find(|write| !matches!(write, Write::Wires))
+            else {
+                return Err("startup mark lacks deployment header");
+            };
+            self.rows.insert(record.key(), record.clone());
+            return Ok(());
+        }
+
+        let mut keys = BTreeSet::new();
+        for write in writes {
+            let key = match write {
+                Write::Wires => Key::Wires,
+                Write::Save(record) => record.key(),
+                Write::Erase(key) => key.clone(),
+                Write::CopySettingsRevision(number) => Key::Core(jig_domain_core::Key::Core(
+                    jig_domain_core::CoreKey::Settings(jig_domain_core::settings::Key::History(*number)),
+                )),
+            };
+            if !keys.insert(key) {
+                return Err("same key twice in role transaction");
+            }
+        }
+        let role_rows: Vec<_> = writes
+            .iter()
+            .filter_map(|write| match write {
+                Write::Save(Record::Core(jig_domain_core::Record::People(people::Stored::Roles {
+                    project,
+                    holdings,
+                }))) => Some((*project, holdings)),
+                Write::Save(
+                    Record::Core(
+                        jig_domain_core::Record::People(
+                            people::Stored::Person { .. }
+                            | people::Stored::ReadResults { .. }
+                            | people::Stored::ReadConversation { .. }
+                            | people::Stored::EndedRead { .. }
+                            | people::Stored::SignIn { .. }
+                            | people::Stored::Acted { .. }
+                            | people::Stored::Policy { .. }
+                            | people::Stored::Answer { .. },
+                        )
+                        | jig_domain_core::Record::Tasks(_)
+                        | jig_domain_core::Record::Core(
+                            jig_domain_core::CoreRecord::Settings(_)
+                            | jig_domain_core::CoreRecord::Projection(_)
+                            | jig_domain_core::CoreRecord::Call(_)
+                            | jig_domain_core::CoreRecord::Deployment(_)
+                            | jig_domain_core::CoreRecord::Turn(_)
+                            | jig_domain_core::CoreRecord::RunProof(_)
+                            | jig_domain_core::CoreRecord::Terminal(_)
+                            | jig_domain_core::CoreRecord::EscalationDecision(_)
+                            | jig_domain_core::CoreRecord::ProposalDecision(_),
+                        )
+                        | jig_domain_core::Record::Notes(_)
+                        | jig_domain_core::Record::Accounts(_),
+                    )
+                    | Record::Forge { .. },
+                )
+                | Write::Erase(_)
+                | Write::Wires
+                | Write::CopySettingsRevision(_) => None,
+            })
+            .collect();
+        let answers: Vec<_> = writes
+            .iter()
+            .filter_map(|write| match write {
+                Write::Save(Record::Core(jig_domain_core::Record::People(people::Stored::Answer {
+                    key,
+                    ask,
+                    outcome,
+                    ..
+                }))) => {
+                    if let people::Ask::SetRoles { .. } = ask.as_ref() {
+                        Some((*key, ask.as_ref(), outcome.clone()))
+                    } else {
+                        None
+                    }
+                }
+                Write::Save(
+                    Record::Core(
+                        jig_domain_core::Record::People(
+                            people::Stored::Person { .. }
+                            | people::Stored::ReadResults { .. }
+                            | people::Stored::ReadConversation { .. }
+                            | people::Stored::EndedRead { .. }
+                            | people::Stored::SignIn { .. }
+                            | people::Stored::Roles { .. }
+                            | people::Stored::Acted { .. }
+                            | people::Stored::Policy { .. },
+                        )
+                        | jig_domain_core::Record::Tasks(_)
+                        | jig_domain_core::Record::Core(
+                            jig_domain_core::CoreRecord::Settings(_)
+                            | jig_domain_core::CoreRecord::Projection(_)
+                            | jig_domain_core::CoreRecord::Call(_)
+                            | jig_domain_core::CoreRecord::Deployment(_)
+                            | jig_domain_core::CoreRecord::Turn(_)
+                            | jig_domain_core::CoreRecord::RunProof(_)
+                            | jig_domain_core::CoreRecord::Terminal(_)
+                            | jig_domain_core::CoreRecord::EscalationDecision(_)
+                            | jig_domain_core::CoreRecord::ProposalDecision(_),
+                        )
+                        | jig_domain_core::Record::Notes(_)
+                        | jig_domain_core::Record::Accounts(_),
+                    )
+                    | Record::Forge { .. },
+                )
+                | Write::Erase(_)
+                | Write::Wires
+                | Write::CopySettingsRevision(_) => None,
+            })
+            .collect();
+        let expected = answers.iter().find_map(|(key, ask, outcome)| {
+            self.asks.values().find(|obligation| {
+                obligation.person == key.person
+                    && obligation.key == key.key
+                    && obligation.ask == **ask
+                    && obligation.reply == people::Reply::Outcome(outcome.clone())
+            })
+        });
+        if !role_rows.is_empty() && expected.is_none() {
+            return Err("roles and keyed answer are not atomic");
+        }
+        let replacement = expected.and_then(|obligation| obligation.replacement.as_ref());
+        if let Some(replacement) = replacement {
+            let Some(Obligation { ask: people::Ask::SetRoles { project, .. }, .. }) = expected else {
+                return Err("role success has no outside request");
+            };
+            if role_rows.len() != 1 || role_rows[0].0 != *project {
+                return Err("keyed role success lacks its roles row");
+            }
+            if role_rows[0].1.as_ref() != replacement.holdings.as_ref() {
+                return Err("roles differ from outside roster");
+            }
+            for (number, expected_task) in &replacement.tasks {
+                let found = writes.iter().find_map(|write| match write {
+                    Write::Save(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(record))))
+                        if record.number == *number =>
+                    {
+                        Some(record.as_ref())
+                    }
+                    Write::Save(
+                        Record::Core(
+                            jig_domain_core::Record::Tasks(
+                                tasks::Stored::Live(_)
+                                | tasks::Stored::Ended(_)
+                                | tasks::Stored::Stub(_)
+                                | tasks::Stored::Ledger(_)
+                                | tasks::Stored::Milestone(_)
+                                | tasks::Stored::History(_)
+                                | tasks::Stored::PersonProposal(_)
+                                | tasks::Stored::Writer(_)
+                                | tasks::Stored::PlacedHold(_)
+                                | tasks::Stored::Pool(_)
+                                | tasks::Stored::Update(_)
+                                | tasks::Stored::Result(_)
+                                | tasks::Stored::EndedByParty(_)
+                                | tasks::Stored::EndedByProject(_)
+                                | tasks::Stored::EndedDelegate(_)
+                                | tasks::Stored::Delegate(_)
+                                | tasks::Stored::Activity(_)
+                                | tasks::Stored::DecidedProposal(_)
+                                | tasks::Stored::ClosedLedger(_),
+                            )
+                            | jig_domain_core::Record::People(_)
+                            | jig_domain_core::Record::Core(
+                                jig_domain_core::CoreRecord::Settings(_)
+                                | jig_domain_core::CoreRecord::Projection(_)
+                                | jig_domain_core::CoreRecord::Call(_)
+                                | jig_domain_core::CoreRecord::Deployment(_)
+                                | jig_domain_core::CoreRecord::Turn(_)
+                                | jig_domain_core::CoreRecord::RunProof(_)
+                                | jig_domain_core::CoreRecord::Terminal(_)
+                                | jig_domain_core::CoreRecord::EscalationDecision(_)
+                                | jig_domain_core::CoreRecord::ProposalDecision(_),
+                            )
+                            | jig_domain_core::Record::Notes(_)
+                            | jig_domain_core::Record::Accounts(_),
+                        )
+                        | Record::Forge { .. },
+                    )
+                    | Write::Erase(_)
+                    | Write::Wires
+                    | Write::CopySettingsRevision(_) => None,
+                });
+                if found.is_none() {
+                    return Err("roles and changed waiting rows are not atomic");
+                }
+                let Some(found) = found else { return Err("roles and changed waiting rows are not atomic") };
+                let mut comparable = found.clone();
+                match (&mut comparable.escalation, &expected_task.escalation) {
+                    (
+                        tasks::Escalation::Waiting { since: actual, .. },
+                        tasks::Escalation::Waiting { since: earliest, .. },
+                    ) if *actual >= *earliest => *actual = *earliest,
+                    (tasks::Escalation::Waiting { .. }, tasks::Escalation::Waiting { .. })
+                    | (
+                        tasks::Escalation::Unheld { .. }
+                        | tasks::Escalation::Routing { .. }
+                        | tasks::Escalation::Rejected { .. },
+                        _,
+                    )
+                    | (
+                        _,
+                        tasks::Escalation::Unheld { .. }
+                        | tasks::Escalation::Routing { .. }
+                        | tasks::Escalation::Rejected { .. },
+                    ) => {
+                        return Err("reroute timestamp precedes the request");
+                    }
+                }
+                if comparable.changed < expected_task.changed {
+                    return Err("reroute timestamp precedes the request");
+                }
+                comparable.changed = expected_task.changed;
+                if &comparable != expected_task {
+                    return Err("reroute changed more than expected holder and revision");
+                }
+            }
+        } else if !role_rows.is_empty() {
+            return Err("refused role request changed the roster");
+        }
+        for write in writes {
+            match write {
+                Write::Wires | Write::Erase(Key::Wires) => return Err("role administration changed wires"),
+                Write::CopySettingsRevision(_) => return Err("role administration changed settings"),
+                Write::Save(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(record)))) => {
+                    if replacement.is_none_or(|replacement| !replacement.tasks.contains_key(&record.number)) {
+                        return Err("unchanged or rejected task was rewritten");
+                    }
+                }
+                Write::Save(Record::Core(
+                    jig_domain_core::Record::Tasks(_)
+                    | jig_domain_core::Record::Core(
+                        jig_domain_core::CoreRecord::Settings(_)
+                        | jig_domain_core::CoreRecord::Projection(_)
+                        | jig_domain_core::CoreRecord::Call(_)
+                        | jig_domain_core::CoreRecord::RunProof(_)
+                        | jig_domain_core::CoreRecord::Terminal(_)
+                        | jig_domain_core::CoreRecord::EscalationDecision(_)
+                        | jig_domain_core::CoreRecord::ProposalDecision(_)
+                        | jig_domain_core::CoreRecord::Turn(_),
+                    )
+                    | jig_domain_core::Record::Notes(_),
+                ))
+                | Write::Erase(Key::Core(
+                    jig_domain_core::Key::Core(
+                        jig_domain_core::CoreKey::Settings(_)
+                        | jig_domain_core::CoreKey::Projection(_)
+                        | jig_domain_core::CoreKey::Call(_)
+                        | jig_domain_core::CoreKey::RunProof(..)
+                        | jig_domain_core::CoreKey::Terminal { .. }
+                        | jig_domain_core::CoreKey::EscalationDecision { .. }
+                        | jig_domain_core::CoreKey::ProposalDecision { .. }
+                        | jig_domain_core::CoreKey::Turn { .. },
+                    )
+                    | jig_domain_core::Key::Tasks(_)
+                    | jig_domain_core::Key::Notes(_),
+                )) => return Err("role administration changed funding or accepted work"),
+                Write::Save(Record::Core(jig_domain_core::Record::Accounts(_)))
+                | Write::Erase(Key::Core(jig_domain_core::Key::Accounts(_))) => {
+                    return Err("role administration changed accounts");
+                }
+                Write::Save(Record::Core(
+                    jig_domain_core::Record::People(_)
+                    | jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(_)),
+                ))
+                | Write::Erase(Key::Core(jig_domain_core::Key::People(_))) => {}
+                Write::Save(Record::Forge { .. }) | Write::Erase(Key::Forge(_)) => {
+                    return Err("role administration changed forge state");
+                }
+                Write::Erase(Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Deployment))) => {
+                    return Err("role administration erased deployment");
+                }
+            }
+        }
+        if replacement.is_some() {
+            self.replacements += 1;
+        }
+        for write in writes {
+            match write {
+                Write::Wires | Write::CopySettingsRevision(_) => {
+                    unreachable!("role administration settings write refused above")
+                }
+                Write::Save(record) => {
+                    self.rows.insert(record.key(), record.clone());
+                }
+                Write::Erase(key) => {
+                    self.rows.remove(key);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Consume exactly one expected external terminal after durable evidence.
+    ///
+    /// # Errors
+    /// Rejects unsolicited/duplicate replies, wrong wrappers/outcomes, replies
+    /// before durability, or admission refusals that replaced an existing key
+    /// (jig's domain/people.md, section 5.1; jig's domain/engine.md, section 5.2).
+    pub fn replied(
+        &mut self,
+        rows: &BTreeMap<Key, Record>,
+        to: Token,
+        reply: people::Reply,
+    ) -> Result<(), &'static str> {
+        let obligation = self.asks.get(&to).ok_or("unsolicited or duplicate role terminal")?;
+        if reply != obligation.reply {
+            return Err("role terminal differs from outside expectation");
+        }
+        let answer_key = Key::Core(jig_domain_core::Key::People(people::Key::Answer(people::RequestKey {
+            person: obligation.person,
+            key: obligation.key,
+        })));
+        match reply {
+            people::Reply::Signer(_) => unreachable!("the referee does not query signers"),
+            people::Reply::Again(_) | people::Reply::Outcome(people::Outcome::Again(_)) => {
+                if rows.contains_key(&answer_key) {
+                    return Err("retryable role refusal consumed an answered key");
+                }
+            }
+            people::Reply::Outcome(outcome) => {
+                if !matches!(rows.get(&answer_key), Some(Record::Core(jig_domain_core::Record::People(people::Stored::Answer { ask, outcome: saved, .. }))) if ask.as_ref() == &obligation.ask && *saved == outcome)
+                {
+                    return Err("role terminal before exact durable keyed answer");
+                }
+            }
+            // An expired sign-in is answered signed out, saving nothing (jig b7bdd9e8).
+            people::Reply::Refused(_) | people::Reply::SignedOut => {
+                if rows.get(&answer_key) != self.rows.get(&answer_key) {
+                    return Err("role entrance refusal changed durable key");
+                }
+            }
+            people::Reply::SignedIn { .. } | people::Reply::Full { .. } => {
+                return Err("role ask got a session terminal");
+            }
+        }
+        self.asks.remove(&to);
+        self.terminals.insert(to);
+        Ok(())
+    }
+
+    /// All registered terminal rights were consumed exactly once
+    /// (jig's domain/people.md, section 5.1).
+    #[must_use]
+    pub fn done(&self) -> bool {
+        self.asks.is_empty()
+    }
+}

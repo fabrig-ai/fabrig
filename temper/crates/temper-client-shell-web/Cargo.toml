@@ -1,0 +1,66 @@
+[package]
+name = "temper-client-shell-web"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+record = [
+    "dep:js-sys",
+    "web-sys/KeyboardEvent",
+    "web-sys/Blob",
+    "web-sys/BlobPropertyBag",
+    "web-sys/Url",
+    "web-sys/HtmlAnchorElement",
+    "web-sys/AddEventListenerOptions",
+]
+loopback-navigation = ["skein-ui-web/loopback-navigation"]
+
+[dependencies]
+jig-client.workspace = true
+jig-client-protocol-http.workspace = true
+jig-client-shell-web.workspace = true
+skein-lib.workspace = true
+skein-ui.workspace = true
+skein-ui-web.workspace = true
+temper-client-domain.workspace = true
+temper-client-view.workspace = true
+temper-client-protocol-wire.workspace = true
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+js-sys = { workspace = true, optional = true }
+wasm-bindgen.workspace = true
+web-sys = { workspace = true, features = ["Window", "Document", "Element", "Location", "HtmlElement"] }
+
+[lints.rust]
+unsafe_code = "forbid"
+elided_lifetimes_in_paths = "deny"
+unused_must_use = "deny"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+missing_panics_doc = "allow"
+wildcard_enum_match_arm = "deny"
+match_wildcard_for_single_variants = "deny"
+unwrap_used = "deny"
+allow_attributes = "deny"
+allow_attributes_without_reason = "deny"
+disallowed_types = "deny"
+disallowed_methods = "deny"
+
+# The host's world through the library's report-and-duties seam.
+[[test]]
+name = "host"
+path = "tests/host.rs"
+
+[dev-dependencies]
+skein-scratch.workspace = true
+skein-world.workspace = true
+jig-client-protocol-link.workspace = true
+jig-client-test-records.workspace = true
+jig-client-protocol-wire.workspace = true

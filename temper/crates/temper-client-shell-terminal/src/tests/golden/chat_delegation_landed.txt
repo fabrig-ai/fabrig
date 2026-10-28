@@ -1,0 +1,51 @@
+== T1 · Add CSV export to widget == Live
+[1] temper
+Menu:
+  [2] Playground (pressed)
+  Main navigation:
+    [3] Inbox
+    [4] Chats (current)
+    [5] Adopt a repository
+    [6] Forges
+    [7] Accounts
+  * Pat
+  [8] Sign out
+Playground:
+  This is the playground: a scripted model and a playground forge.
+  [9] Connect a model
+  [10] Connect a forge
+T1 · Add CSV export to widget:
+  * waiting on your words
+  0 spent · of 1
+Playground · playground/widget on Playground forge
+Signed in as the deployment’s owner
+Conversation:
+  Today · Thursday 1 January
+  You
+  00:00
+  Add CSV export to widget
+  Temper
+  00:00
+  I’ll delegate this change in playground/widget. It will push a branch, open a pull request, check CI and land into main on Playground forge.
+  Task 2:
+    T2 · CHANGE
+    * Landed
+    ### Export widget's table as CSV
+    CI passed. Landed · merge commit 1a2b3c4
+    Steps:
+      - Branch pushed (completed)
+      - Pull request opened (completed)
+      - CI passed (completed)
+      - Landed (completed)
+    [11] Task 2 ↗
+  1 tool call: wait
+    wait
+  Temper
+  00:00
+  CSV export is available from widget’s table. The change landed on Playground forge. This was a scripted change.
+  1 tool call: wait
+    wait
+Using Scripted model · Default
+[12] Message: (empty) (enter sends)
+Enter to send · Shift+Enter for newline
+[13] Send

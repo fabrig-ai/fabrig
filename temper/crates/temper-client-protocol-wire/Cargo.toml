@@ -1,0 +1,15 @@
+[package]
+name = "temper-client-protocol-wire"
+description = "The forge family's bounded client records"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+skein-lib.workspace = true
+skein-codec.workspace = true
+
+[lints]
+workspace = true

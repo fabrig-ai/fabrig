@@ -1,0 +1,17 @@
+{{
+  "listen": {{
+    "socket": "127.0.0.1:0"
+  }},
+  "admin_token": "{proc.forge.dir}/setup/admin_token",
+  "owner": "fake",
+  "repositories": [
+    {{
+      "name": "widget",
+      "landing": "main",
+      "ci": {{
+        "path": "NOTICE",
+        "green": "Maintained by temper."
+      }}
+    }}
+  ]
+}}

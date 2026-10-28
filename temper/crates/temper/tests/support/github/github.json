@@ -1,0 +1,47 @@
+{{
+  "listen": {{
+    "socket": "127.0.0.1:0"
+  }},
+  "admin_token": "{proc.forge.dir}/admin-token",
+  "owner": "acme",
+  "repositories": [
+    {{
+      "owner": "acme",
+      "name": "app",
+      "landing": "main",
+      "ci": null
+    }},
+    {{
+      "owner": "umbra",
+      "name": "tool",
+      "landing": "main",
+      "ci": null
+    }}
+  ],
+  "github": {{
+    "app": {{
+      "id": 4242,
+      "slug": "temper-test",
+      "bot": 4243,
+      "key": 0
+    }},
+    "accounts": [
+      {{
+        "login": "acme",
+        "id": 10,
+        "kind": "organization",
+        "installation": {{
+          "id": 1,
+          "repositories": "all"
+        }}
+      }},
+      {{
+        "login": "umbra",
+        "id": 20,
+        "kind": "organization",
+        "installation": null
+      }}
+    ],
+    "token_life_seconds": 3600
+  }}
+}}

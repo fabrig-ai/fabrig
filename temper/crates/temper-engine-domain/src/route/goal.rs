@@ -1,0 +1,125 @@
+//! Goals in the run's words (domain/agent.md, 4.3.2).
+use super::{Delegate, Domain, Env, Limits};
+use alloc::boxed::Box;
+use jig_domain_tasks as tasks;
+use skein_lib::{List, Writer};
+use temper_engine_domain_forge as forge;
+
+/// The root names an advisor before the requester's words (domain/agent.md, 4.3.2).
+const ADVISOR_SCOPE: &[u8] =
+    b"You are an advisor: you read what your brief asks and report what you found; you change nothing and ask no one.";
+
+/// Work goals carry a tracked priority; advisors and chats are untracked.
+/// The caller owns its plan regardless of who requested it (domain/agent.md, 4.3.2).
+pub(crate) fn refusal(domain: &Domain, task: u64, advisor: bool) -> Option<&'static [u8]> {
+    let row = domain.core.tasks.task(task)?;
+    if !advisor && row.tracked.is_some() {
+        Some(b"a goal starts an advisor alone: set advisor, or make the change with change")
+    } else if advisor && row.tracked.is_none() {
+        Some(b"a chat's goal is the work: call goal without advisor, and its goal asks for one")
+    } else {
+        None
+    }
+}
+
+pub(crate) fn goal(
+    domain: &Domain,
+    env: &Env<Limits>,
+    task: u64,
+    context: &tasks::DelegationContext,
+    words: Box<[u8]>,
+    advisor: bool,
+) -> Result<Delegate, tasks::Refusal> {
+    let row = domain.core.tasks.task(task).ok_or(tasks::Refusal::Unknown)?;
+    let tasks::Executor::Agent { charter } = row.executor else { return Err(tasks::Refusal::Executor) };
+    if context.tasks_left == 1 {
+        return Err(tasks::Refusal::Tree);
+    }
+    if context.authority.delegation.depth == 1 {
+        return Err(tasks::Refusal::Depth);
+    }
+    let spend = context
+        .numbers
+        .budget
+        .checked_sub(context.numbers.spent)
+        .ok_or(tasks::Refusal::Funding)?
+        .checked_sub(context.numbers.spent_below)
+        .ok_or(tasks::Refusal::Funding)?
+        .checked_sub(context.numbers.reserved)
+        .ok_or(tasks::Refusal::Funding)?
+        / 2;
+    if spend <= domain.core.authority.rules().minimum_run_spend {
+        return Err(tasks::Refusal::Funding);
+    }
+    let mut authority = context.authority.clone();
+    let mut grants = List::with_capacity(u32::try_from(authority.grants.len()).expect("bounded grants"));
+    for grant in &authority.grants {
+        if grant.connector == domain.config.forge_connector
+            && (forge::READ_KINDS.contains(&grant.kind) || (!advisor && forge::CHANGE_KINDS.contains(&grant.kind)))
+        {
+            grants.push(grant.clone()).expect("narrowed grants fit");
+        }
+    }
+    authority.grants = grants.into_boxed();
+    authority.delegation.tasks = context.tasks_left.saturating_sub(1);
+    authority.delegation.depth = authority.delegation.depth.saturating_sub(1);
+    authority.budget.spend = spend;
+    authority.notes = tasks::Scopes(0);
+    authority.note_resources = Box::new([]);
+    if advisor {
+        authority.tools.0 &= domain.core.settings.tools.read.0;
+        authority.delegation.kinds = Box::new([]);
+        authority.delegation.tasks = 0;
+        authority.delegation.depth = 0;
+    }
+    let tracked = if advisor {
+        None
+    } else if let Some(priority) = row.tracked {
+        Some(priority)
+    } else {
+        // Project queries order lower priorities first, then task number. At the
+        // numeric ceiling, the new number follows existing goals of that priority.
+        let mut priority = 0;
+        for goal in &domain.core.tasks.view_tasks() {
+            if goal.project == context.project
+                && let Some(existing) = goal.tracked
+            {
+                priority = priority.max(existing.saturating_add(1));
+            }
+        }
+        Some(priority)
+    };
+    let words = if advisor {
+        let length = ADVISOR_SCOPE
+            .len()
+            .checked_add(2)
+            .ok_or(tasks::Refusal::Spec)?
+            .checked_add(words.len())
+            .ok_or(tasks::Refusal::Spec)?;
+        if length > usize::try_from(env.limits.tasks.spec_bytes).unwrap_or(usize::MAX) {
+            return Err(tasks::Refusal::Spec);
+        }
+        let mut writer = Writer::new(length);
+        for part in [ADVISOR_SCOPE, b"\n\n".as_slice(), &words] {
+            writer.put(part).expect("measured advisor brief");
+        }
+        writer.finish()
+    } else {
+        words
+    };
+    Ok(Delegate {
+        executor: tasks::Executor::Agent { charter },
+        spec: tasks::Spec { words, parameters: Box::new([]), inputs: Box::new([]) },
+        contract: tasks::Contract::Report { words: env.limits.tasks.result_bytes },
+        authority,
+        deadline: tasks::Deadline::Named,
+        llm: None,
+        symbolic_grants: Box::new([]),
+        dependencies: Box::new([]),
+        wake: tasks::WakePolicy::DEFAULT,
+        tracked,
+        label: 0,
+        flags: tasks::Flags::PLAIN,
+        budget: jig_domain_people::Budget::Named,
+    })
+}

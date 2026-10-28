@@ -1,0 +1,24 @@
+== Adopt a repository into shop == Live
+temper
+Menu:
+  [1] Shop (pressed)
+  [2] Inbox
+  [3] Chats
+  [4] Adopt a repository
+  * Pat
+  [5] Sign out
+Adopt a repository into shop:
+  [6] Forge number: 1
+  [7] Owner: acme
+  [8] Name: shop
+  Role:
+    [9] (*) Owned: temper pushes, opens pull requests and lands
+    [10] ( ) Fork: temper contributes through a fork
+    [11] ( ) Context: temper only reads
+  [12] [x] Make it the project's home
+  [13] Branch prefix: temper/
+  [14] Landing branch: main
+  [15] [x] It runs CI
+  [16] Checks: gate numbers, separated by spaces or commas: (empty)
+  [17] Adopt
+  ! No repository acme/shop on forge 1 that temper's forge user can see.

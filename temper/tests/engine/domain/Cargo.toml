@@ -1,0 +1,68 @@
+[package]
+name = "temper-engine-domain-world"
+description = "The engine root with jig's real durable store"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+skein-forge.workspace = true
+jig-core-world.workspace = true
+jig-test-domain.workspace = true
+jig-conformance.workspace = true
+skein-world.workspace = true
+jig-test-store-files.workspace = true
+jig-protocol-store.workspace = true
+jig-protocol-config.workspace = true
+skein-kv.workspace = true
+temper-protocol-store.workspace = true
+temper-service.workspace = true
+skein-lib.workspace = true
+temper-engine-domain.workspace = true
+jig-domain-people.workspace = true
+jig-domain-tasks.workspace = true
+jig-domain-fleet.workspace = true
+jig-domain-host.workspace = true
+jig-domain-brief.workspace = true
+jig-domain-accounts.workspace = true
+jig-domain-authority.workspace = true
+jig-domain-views.workspace = true
+jig-domain-notes.workspace = true
+jig-domain-core.workspace = true
+temper-engine-domain-forge.workspace = true
+temper-engine-domain-forge-change.workspace = true
+skein-forge-client.workspace = true
+temper-engine-forge-world = { path = "../forge" }
+skein-fake-forge-domain.workspace = true
+smith-domain.workspace = true
+smith-domain-run.workspace = true
+smith-domain-session.workspace = true
+smith-domain-tools.workspace = true
+
+[dev-dependencies]
+skein-fake-llm-domain.workspace = true
+temper-fake.workspace = true
+serde_json.workspace = true
+jig-client.workspace = true
+jig-client-world.workspace = true
+temper-engine-smith.workspace = true
+jig-tasks-world.workspace = true
+jig-people-world.workspace = true
+
+[lints.rust]
+unsafe_code = "forbid"
+elided_lifetimes_in_paths = "deny"
+unused_must_use = "deny"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+missing_panics_doc = "allow"
+wildcard_enum_match_arm = "deny"
+match_wildcard_for_single_variants = "deny"
+unwrap_used = "deny"
+allow_attributes = "deny"
+allow_attributes_without_reason = "deny"
+disallowed_types = "deny"
+disallowed_methods = "deny"

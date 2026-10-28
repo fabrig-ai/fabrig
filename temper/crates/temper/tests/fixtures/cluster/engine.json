@@ -1,0 +1,294 @@
+{{
+  "engine": {{
+    "limits": {{
+      "profile": "small",
+      "overrides": {{
+        "authority.executors": 6,
+        "authority.grants": 14,
+        "authority.projects": 2,
+        "authority.requirements": 3,
+        "authority.roles": 1,
+        "authority.segments": 8,
+        "brief.briefs": 2,
+        "brief.sections": 4,
+        "core.call_answer_bytes": 4096,
+        "core.load_bytes": 8192,
+        "core.load_slots": 8,
+        "core.policy_bytes": 5120,
+        "core.resume_bytes": 1328159,
+        "core.run_bytes": 4096,
+        "core.templates": 2,
+        "documents.chips": 2,
+        "documents.lines": 3,
+        "documents.rows": 32,
+        "documents.text_bytes": 128,
+        "fleet.attempts": 2,
+        "fleet.calls": 1,
+        "fleet.engine_slots": 0,
+        "fleet.grace_ms": 3000,
+        "fleet.turns": 8,
+        "hub.transcript_bytes": 5312627,
+        "hub.turn_bytes": 1328155,
+        "hub.turn_queue_bytes": 10625240,
+        "hub.turns": 1,
+        "link.ping_ms": 100,
+        "link.silence_ms": 1000,
+        "notes.entries_per_scope": 1,
+        "notes.recalled": 1,
+        "notes.scopes": 17,
+        "people.amendment_bytes": 2048,
+        "people.holdings": 1,
+        "people.inbox_tasks": 16,
+        "people.operations": 5,
+        "people.pending": 4,
+        "people.people": 1,
+        "people.projects": 2,
+        "people.sign_ins": 2,
+        "people.waiters": 4,
+        "people.words": 512,
+        "tasks.authority_bytes": 512,
+        "tasks.authority_grants": 14,
+        "tasks.authority_segments": 9,
+        "tasks.batch": 1,
+        "tasks.charters": 4,
+        "tasks.contract_choices": 2,
+        "tasks.delegates": 4,
+        "tasks.dependencies": 1,
+        "tasks.funders": 4,
+        "tasks.hold_bytes": 64,
+        "tasks.executor_kinds": 6,
+        "tasks.hold_segments": 8,
+        "tasks.message_bytes": 4094,
+        "tasks.parameters": 5,
+        "tasks.project_goals": 1,
+        "tasks.project_tasks": 8,
+        "tasks.result_bytes": 128,
+        "tasks.saved_resources": 4,
+        "tasks.spec_bytes": 512,
+        "tasks.tasks": 8,
+        "tasks.tree_tasks": 8,
+        "views.runs": 1,
+        "views.text_bytes": 1024,
+        "views.watchers": 16,
+        "views.watchers_per_party": 16
+      }}
+    }},
+    "llm": {{
+      "providers": [
+        {{
+          "name": "fake-provider",
+          "number": 1,
+          "models": [
+            "fake"
+          ],
+          "sources": {{
+            "keys": true
+          }}
+        }}
+      ],
+      "endpoints": [
+        {{
+          "name": "fake",
+          "number": 1,
+          "dialect": 3,
+          "provider": "fake-provider",
+          "address": {{
+            "socket": "{proc.llm.ready.address}"
+          }},
+          "transport": "tls",
+          "headers": [],
+          "connect_ms": 10000,
+          "handshake_ms": 10000,
+          "server_name": "skein.test",
+          "trust": "{proc.llm.dir}/root.der"
+        }}
+      ],
+      "models": [
+        {{
+          "name": "fake",
+          "endpoint": "fake",
+          "window": 1048576,
+          "output": 8192,
+          "prices": {{
+            "input": 1,
+            "cached": 1,
+            "output": 1,
+            "unit": 1000000
+          }}
+        }}
+      ]
+    }},
+    "hosts": {{
+      "listener": [
+        {{
+          "socket": "127.0.0.1:0"
+        }}
+      ],
+      "workers": [
+        {{
+          "name": "w1",
+          "digest": "secrets/w1.digest"
+        }},
+        {{
+          "name": "w2",
+          "digest": "secrets/w2.digest"
+        }}
+      ]
+    }},
+    "clients": {{
+      "heartbeat_ms": 10000,
+      "link": true
+    }},
+    "deployment": {{
+      "directory": "state",
+      "seed": 7
+    }},
+    "owners": [
+      {{
+        "provider": 1,
+        "subject": "owner-a"
+      }}
+    ],
+    "providers": [
+      {{
+        "number": 1,
+        "kind": "link"
+      }},
+      {{
+        "number": 2,
+        "kind": "deployment"
+      }}
+    ],
+    "connectors": [
+      1
+    ],
+    "memory_bytes": 4503599627370496,
+    "projects": [
+      {{
+        "number": 1,
+        "policy": 1
+      }}
+    ]
+  }},
+  "workers": [],
+  "application": {{
+    "webhooks": {{
+      "listener": {{
+        "socket": "127.0.0.1:0"
+      }}
+    }},
+    "clients": {{
+      "listener": {{
+        "socket": "127.0.0.1:0"
+      }},
+      "bundle": null,
+      "public": null
+    }},
+    "forges": [
+      {{
+        "number": 1,
+        "kind": "forgejo",
+        "api": {{
+          "socket": "{proc.forge.ready.address}"
+        }},
+        "transport": "plaintext",
+        "git": "http://{proc.forge.ready.address}"
+      }}
+    ],
+    "identities": [
+      {{
+        "number": 1,
+        "forge": 1,
+        "login": "temper",
+        "author": {{
+          "name": "Temper",
+          "email": "temper@example.test"
+        }}
+      }}
+    ],
+    "setup": [
+      {{
+        "forge": 1,
+        "directory": "{proc.forge.dir}/setup",
+        "bot": {{
+          "login": "temper",
+          "email": "temper@example.test"
+        }},
+        "mode": {{
+          "fake": {{
+            "listen": {{
+              "socket": "{proc.forge.ready.address}"
+            }},
+            "git": "{artifact.git}",
+            "owner": "fake",
+            "repositories": [
+              {{
+                "name": "widget",
+                "landing": "main"
+              }}
+            ]
+          }}
+        }}
+      }}
+    ],
+    "demo": null,
+    "sign_in": null,
+    "landing": {{
+      "deployment": [],
+      "projects": [
+        {{
+          "project": 1,
+          "rules": [
+            {{
+              "connector": 1,
+              "kind": 4,
+              "pattern": {{
+                "segments": [
+                  "forge",
+                  "{proc.forge.ready.address}",
+                  "fake",
+                  "widget",
+                  "branch"
+                ],
+                "last": "exact",
+                "value": "main"
+              }},
+              "enforce": true,
+              "ci": true,
+              "up_to_date": true,
+              "gates": [
+                {{
+                  "number": 1,
+                  "blocking": true,
+                  "freshness": "exact"
+                }}
+              ],
+              "approvals": []
+            }}
+          ]
+        }}
+      ]
+    }},
+    "charter": 2,
+    "limits": {{
+      "profile": "small",
+      "overrides": {{
+        "checkout.message_bytes": 4096,
+        "checkout.name_bytes": 256,
+        "checkout.repositories": 2,
+        "forge.client.calls": 4,
+        "forge.client.pending": 8,
+        "forge.name_bytes": 64,
+        "forge.resources_per_task": 2,
+        "forge_component.connections": 4,
+        "git_component.stdout_bytes": 2048,
+        "root.journal.transcript_bytes": 1328159,
+        "root.loads.bytes": 1328403,
+        "root.loads.read_bytes": 2656310,
+        "root.loads.reply_bytes": 1328403,
+        "root.loads.transcript_bytes": 1328155
+      }}
+    }},
+    "workers": []
+  }}
+}}

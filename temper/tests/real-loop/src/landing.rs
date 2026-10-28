@@ -1,0 +1,337 @@
+//! Shared landing configuration and scripted turns (domain/testing.md, 2.4).
+use serde_json::{Value, json};
+use std::net::SocketAddr;
+
+pub mod kept;
+
+pub const EDIT: &[u8] = b"Changed by temper.\n";
+pub const README: &[u8] = b"# app\n";
+pub const PROGRAM_WORDS: &str = "Land a small change";
+pub const REQUESTED: &str = "Change requested";
+pub const LANDED: &str = "The change landed.";
+const CODING_WORDS: &str = "@coding Fix";
+const REVIEW_WORDS: &str = "Review this change at the named head";
+// A created member owns all ten grants, their segment boxes and executor kinds.
+const MEMBER_BYTES: u32 = 2048;
+
+#[must_use]
+pub fn fixture() -> crate::forge::Fixture {
+    crate::forge::Fixture {
+        setup: || {
+            use skein_fake_forge_domain::api;
+            let mut setup = (crate::forge::fixture().setup)();
+            setup.tree.iter_mut().find(|file| file.path.as_ref() == b"README.md").expect("README").content =
+                README.into();
+            setup.checks.cue = Some(api::Cue::File { path: b"README.md".as_slice().into(), green: EDIT.into() });
+            setup.protection = Some(api::Protection {
+                branch: b"main".as_slice().into(),
+                contexts: setup.checks.contexts.clone(),
+                approvals: 0,
+                dismiss_stale: false,
+                queue: false,
+                linear: false,
+                code_owners: false,
+                bypassing_users: Box::new([]),
+            });
+            setup
+        },
+        configure: |value, agent, forge| {
+            let limits = &mut value["application"]["limits"]["overrides"];
+            // Shipped: poll 5 s, poll_max 30 s, slow 40 s, hinted 1 s.
+            for (name, millis) in [("poll_ms", 10), ("poll_max_ms", 50), ("slow_ms", 100), ("hinted_ms", 10)] {
+                limits[format!("forge.client.{name}")] = millis.into();
+            }
+            // Chat, repository polls and one fresh change chain share the client.
+            limits["forge.client.pending"] = 8.into();
+            limits["forge.client.calls"] = 4.into();
+            limits["forge_component.connections"] = 4.into();
+            // The tools request their shipped 32-row tree window; the base world allows two.
+            value["engine"]["limits"]["overrides"]["documents.rows"] = temper_client_tools::limits::ROWS.into();
+            // The sample profile allows 100 requests per 10 s; short polls need a shorter window.
+            value["application"]["limits"]["overrides"]["forge.client.window_ms"] = 100.into();
+            value["application"]["landing"]["projects"] = json!([{"project":1,"rules":[{
+                "connector":1,"kind":4,"pattern":{"segments":["forge",forge.to_string(),"acme","app","branch"],"last":"exact","value":"main"},
+                "enforce":true,"ci":true,"up_to_date":true,
+                "gates":[{"number":1,"blocking":true,"freshness":"exact"}],"approvals":[]
+            }]}]);
+            configure(value, agent, forge);
+        },
+        ..crate::forge::fixture()
+    }
+}
+
+pub fn configure(value: &mut Value, agent: &mut Value, forge: SocketAddr) {
+    let grant = |kind| {
+        // A program story is laid before the forge gets its loopback address;
+        // it uses the stock deployment-wide forge scope, as ChangeAuthority::scope=None does.
+        let pattern = if agent["programs"].is_object() {
+            json!({"segments":["forge"],"last":"open","value":""})
+        } else {
+            json!({"segments":["forge",forge.to_string()],"last":"open","value":"acme"})
+        };
+        json!({"connector":1,"kind":kind,"pattern":pattern})
+    };
+    let grants =
+        json!([grant(1), grant(2), grant(3), grant(4), grant(7), grant(8), grant(10), grant(11), grant(12), grant(13)]);
+    let authority = json!({"tools":1,"grants":grants,"delegation":{"kinds":[{"kind":"charter","number":1},{"kind":"charter","number":4},{"kind":"procedure","number":2}],"tasks":8,"depth":4},"budget":{"spend":100,"deadline_unix_seconds":null},"notes":0,"note_resources":[]});
+    value["world_settings"]["policies"][0]["policy"]["ceiling"] = authority.clone();
+    value["world_settings"]["policies"][0]["policy"]["roles"][0]["authority"] = authority;
+    // The stock's 32-unit run and the reference cases' 20-unit delegate fit in 64.
+    value["world_settings"]["policies"][0]["policy"]["roles"][0]["authority"]["budget"]["spend"] = 64.into();
+    value["world_settings"]["policies"][0]["policy"]["projections"] = grants;
+    // A deployment project zero, which the binary's fixture clones from project one, keeps that
+    // mirror: its policy too must sit under the rules ceiling set above.
+    let policy = value["world_settings"]["policies"][0]["policy"].clone();
+    for project in value["world_settings"]["policies"].as_array_mut().expect("projects").iter_mut().skip(1) {
+        project["policy"] = policy.clone();
+    }
+    let limits = value["engine"]["limits"]["overrides"].as_object_mut().expect("engine overrides");
+    for (name, size) in [
+        ("people.operations", 5),
+        ("tasks.tasks", 8),
+        ("tasks.exemptions", 8),
+        ("documents.lines", 2),
+        ("documents.chips", 2),
+        ("tasks.project_tasks", 8),
+        ("tasks.tree_tasks", 8),
+        ("tasks.charters", 4),
+        ("tasks.message_bytes", 4094),
+        ("people.words", 512),
+        ("tasks.authority_bytes", 512),
+        ("core.call_answer_bytes", 4096),
+        ("tasks.spec_bytes", 512),
+        ("tasks.result_bytes", 128),
+        ("tasks.delegates", 4),
+        ("tasks.parameters", 5),
+        ("tasks.contract_choices", 2),
+        ("tasks.authority_grants", 12),
+        ("tasks.authority_segments", 9),
+        ("tasks.hold_segments", 8),
+        ("tasks.saved_resources", 4),
+        ("authority.grants", 16),
+        ("authority.segments", 8),
+        ("authority.roles", 1),
+        // CI, up-to-date and the review gate each produce one requirement.
+        ("authority.requirements", 3),
+        ("notes.scopes", 32),
+        ("brief.briefs", 2),
+        ("brief.sections", 4),
+        ("fleet.attempts", 2),
+        ("people.inbox_tasks", 16),
+        ("people.pending", 4),
+        ("people.waiters", 4),
+        ("people.amendment_bytes", MEMBER_BYTES),
+        ("core.policy_bytes", 4096),
+    ] {
+        limits.insert(name.into(), size.into());
+    }
+    value["workers"][0]["slots"] = 1.into();
+    let limits = &mut value["workers"][0]["limits"]["overrides"];
+    limits["hub.slots"] = 1.into();
+    limits["core.call_answer_bytes"] = 4096.into();
+    limits["hub.event_bytes"] = 4094.into();
+    limits["tasks.message_bytes"] = 4096.into();
+    agent["profile"]["declared"]["tool_payload"] = 4096.into();
+    agent["profile"]["policy"]["max_turns"] = 16.into();
+    agent["profile"]["policy"]["check_timeout"] = 1000.into();
+    for endpoint in agent["endpoints"].as_array_mut().expect("endpoints") {
+        endpoint["models"][0]["output"] = 8192.into();
+    }
+    admit(value);
+}
+
+fn limits(value: &Value) -> (jig_protocol_config::Limits, temper_service::limits::Limits) {
+    let mut configured = value.clone();
+    configured.as_object_mut().expect("deployment").remove("world_settings");
+    let bytes = serde_json::to_vec(&configured["engine"]).expect("engine JSON");
+    let document = jig_protocol_config::document(
+        &bytes,
+        &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 },
+    )
+    .expect("engine document");
+    // Parsing a fixture without a deployment; only its limits are used.
+    let given = crate::fixtures::own_defaults(value, &value["world_settings"]);
+    let jig = temper_service::startup::engine_with(&document, 0, &jig_protocol_config::Directories::working(), &given)
+        .expect("engine configuration");
+    let mut own = temper_service::limits::profile(temper_service::limits::Profile::Small);
+    for (name, number) in value["application"]["limits"]["overrides"].as_object().expect("own overrides") {
+        temper_service::limits::apply(&mut own, name.as_bytes(), number.as_u64().expect("limit number"))
+            .expect("application override");
+    }
+    (jig.limits, own)
+}
+
+/// Match the root's complete synchronous route, including a placed subtree stop.
+pub(crate) fn size_journal_writes(value: &mut Value) {
+    let (jig, own) = limits(value);
+    let core = &jig.core;
+    let route = jig_domain_tasks::max_out(&core.tasks) * 8
+        + jig_domain_people::max_out(&core.people) * 4
+        + core.people.pending * 2
+        + jig_domain_fleet::max_out(&core.fleet) * 4
+        + temper_engine_domain_forge::max_out(&own.forge)
+        + 2 * core.authority.projects
+        + core.tasks.tasks
+        + 4;
+    let settings = jig_domain_core::settings::writes_worst_case(core).expect("fixture settings writes");
+    value["application"]["limits"]["overrides"]["root.journal.writes"] =
+        own.root.journal.writes.max(route.max(settings) + core.call_records).into();
+}
+
+pub(crate) fn admit(value: &Value) {
+    let (jig, own) = limits(value);
+    let root = temper_service::limits::engine(&jig, &own).expect("engine root admits the fixture");
+    jig_protocol_store::sizes::check(
+        &jig.core,
+        &temper_protocol_store::application(&root.forge, root.tasks.spec_bytes).expect("application sizes"),
+        &temper_engine_domain::journal_limits(&root.journal),
+        &jig.store.store,
+        jig.store.orphan_erases,
+    )
+    .expect("store admits the fixture");
+}
+
+#[must_use]
+pub fn scripts(forge: SocketAddr, repository: u64, readme: &[u8]) -> Box<[skein_fake_llm_domain::api::Script]> {
+    let repository = u32::try_from(repository).expect("forge-local repository id fits u32");
+    change_scripts(
+        ChangeAuthority { coding_kind: 1, scope: Some((forge, "acme")) },
+        temper_engine_domain_forge::tag(1, repository),
+        readme,
+        EDIT,
+        b"@forge_chat",
+        CODING_WORDS,
+    )
+}
+
+/// The coding charter and grant scope used by a landing exchange.
+#[derive(Clone, Copy)]
+pub struct ChangeAuthority<'a> {
+    pub coding_kind: u64,
+    /// None uses the first repository's deployment-wide forge grants.
+    pub scope: Option<(SocketAddr, &'a str)>,
+}
+
+/// The landing exchange with a caller's cues, grant scope and README addition;
+/// `repository` is the resource's packed tag (forge and repository).
+#[must_use]
+pub fn change_scripts(
+    authority: ChangeAuthority<'_>,
+    repository: u64,
+    readme: &[u8],
+    edit: &[u8],
+    chat_cue: &[u8],
+    coding_words: &str,
+) -> Box<[skein_fake_llm_domain::api::Script]> {
+    use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
+    let call = |name: &[u8], value: Value| Turn {
+        lines: Box::new([Line::Call {
+            name: name.into(),
+            arguments: serde_json::to_vec(&value).expect("tool JSON").into_boxed_slice(),
+        }]),
+        finish: Finish::ToolCalls,
+        tokens: 20,
+    };
+    let delegate = delegate_input(authority, repository, coding_words);
+    let (original, changed) = readme_text(readme, edit);
+    Box::new([
+        Script {
+            cue: chat_cue.into(),
+            turns: Box::new([
+                call(b"delegate", delegate),
+                Turn {
+                    lines: Box::new([
+                        Line::Text { text: REQUESTED.as_bytes().into() },
+                        Line::Call { name: b"wait".as_slice().into(), arguments: b"{}".as_slice().into() },
+                    ]),
+                    finish: Finish::ToolCalls,
+                    tokens: 20,
+                },
+                call(b"finish", json!({"form":"report","text":LANDED,"fields":{}})),
+            ]),
+        },
+        Script {
+            cue: [b"## Task\n\n".as_slice(), coding_words.as_bytes()].concat().into(),
+            turns: Box::new([
+                call(b"read", json!({"path":"README.md"})),
+                call(b"edit", json!({"path":"README.md","edits":[{"old":original,"new":changed}]})),
+                call(b"finish", change_result()),
+            ]),
+        },
+        Script { cue: REVIEW_WORDS.as_bytes().into(), turns: Box::new([call(b"finish", verdict())]) },
+    ])
+}
+
+fn delegate_input(authority: ChangeAuthority<'_>, repository: u64, coding_words: &str) -> Value {
+    let grant = |kind| match authority.scope {
+        Some((forge, org)) => {
+            json!({"connector":1,"kind":kind,"segments":["forge",forge.to_string()],"terminal":"open","last":org})
+        }
+        None => json!({"connector":1,"kind":kind,"segments":["forge"],"terminal":"open","last":""}),
+    };
+    json!({"batch":[{"executor":{"kind":"procedure","connector":1,"code":2},"spec":{"words":coding_words,"parameters":[{"name":1,"kind":"resource","connector":1,"resource":repository},{"name":2,"kind":"bytes","value":"main"}]},"contract":{"kind":"change","connector":1,"change_kind":1,"words":128},"authority":{"tools":1,"grants":[grant(2),grant(3),grant(4),grant(10),grant(11),grant(12)],"delegation":{"kinds":[{"kind":"agent","number":authority.coding_kind},{"kind":"agent","number":4}],"tasks":4,"depth":2},"budget":{"spend":10},"notes":0}}]})
+}
+
+fn readme_text<'a>(readme: &'a [u8], edit: &[u8]) -> (&'a str, String) {
+    let original = std::str::from_utf8(readme).expect("README UTF-8");
+    let changed = format!("{original}{}", std::str::from_utf8(edit).expect("edit UTF-8"));
+    (original, changed)
+}
+
+fn change_result() -> Value {
+    json!({"form":"change","fields":{"title":"Update README","body":"Changed by temper."}})
+}
+
+fn verdict() -> Value {
+    json!({"form":"verdict","label":"1","text":"Checked","fields":{},"items":[]})
+}
+
+/// The program twin uses built-in file acts and an Open chat's text replies.
+#[must_use]
+pub fn program_story(repository: u64, readme: &[u8]) -> smith_fake_claude::Story {
+    use smith_fake_claude::{Script, Step, Story, Turn};
+    let call = |tool: &str, input| Step::Call { tool: tool.into(), input };
+    let (original, changed) = readme_text(readme, EDIT);
+    Story {
+        asked: vec![Script {
+            cue: PROGRAM_WORDS.into(),
+            turns: vec![
+                Turn {
+                    steps: vec![
+                        call(
+                            "delegate",
+                            delegate_input(ChangeAuthority { coding_kind: 1, scope: None }, repository, CODING_WORDS),
+                        ),
+                        Step::Text(REQUESTED.into()),
+                    ],
+                    ..Turn::default()
+                },
+                Turn { steps: vec![Step::Text(LANDED.into())], ..Turn::default() },
+            ],
+        }],
+        cued: vec![
+            Script {
+                cue: format!("## Task\n\n{CODING_WORDS}"),
+                turns: vec![Turn {
+                    steps: vec![
+                        Step::Act { tool: "Read".into(), input: json!({"file_path":"README.md"}) },
+                        Step::Act {
+                            tool: "Edit".into(),
+                            input: json!({"file_path":"README.md","old_string":original,"new_string":changed}),
+                        },
+                        Step::Outcome { input: json!({"outcome":change_result()}) },
+                    ],
+                    ..Turn::default()
+                }],
+            },
+            Script {
+                cue: REVIEW_WORDS.into(),
+                turns: vec![Turn {
+                    steps: vec![Step::Outcome { input: json!({"outcome":verdict()}) }],
+                    ..Turn::default()
+                }],
+            },
+        ],
+        ..Story::default()
+    }
+}

@@ -1,0 +1,83 @@
+[package]
+name = "temper-service"
+description = "Temper's engine and worker protocol services"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+jig-protocol-charter.workspace = true
+jig-domain-brief.workspace = true
+temper-forge-setup.workspace = true
+temper-protocol-records = { workspace = true, features = ["forge"] }
+skein-forge-setup.workspace = true
+skein-forge.workspace = true
+skein-forge-connection.workspace = true
+temper-client-protocol-wire.workspace = true
+jig-protocol-engine-clients.workspace = true
+jig-protocol-engine-clients-http.workspace = true
+skein-http.workspace = true
+jig-client-protocol-wire.workspace = true
+skein-lib.workspace = true
+skein-channel.workspace = true
+skein-codec.workspace = true
+jig-protocol-engine-workers.workspace = true
+temper-protocol-worker-wire.workspace = true
+jig-protocol-worker-wire.workspace = true
+smith-charter.workspace = true
+smith-transcript.workspace = true
+smith-channel.workspace = true
+smith-domain-run.workspace = true
+jig-domain-fleet.workspace = true
+temper-engine-smith.workspace = true
+skein-io.workspace = true
+skein-oauth.workspace = true
+skein-tls.workspace = true
+skein-oauth-accounts.workspace = true
+jig-protocol-accounts.workspace = true
+jig-domain-accounts.workspace = true
+jig-domain-core.workspace = true
+jig-domain-tasks.workspace = true
+jig-domain-notes.workspace = true
+jig-domain-people.workspace = true
+skein-kv.workspace = true
+jig-protocol-store.workspace = true
+jig-protocol-transcript.workspace = true
+temper-protocol-store.workspace = true
+jig-protocol-config.workspace = true
+skein-json.workspace = true
+jig-domain-authority.workspace = true
+jig-domain-host.workspace = true
+smith-protocol-channel.workspace = true
+smith-protocol-program.workspace = true
+smith-host-protocol.workspace = true
+smith-host-domain.workspace = true
+temper-engine-domain.workspace = true
+temper-engine-domain-forge.workspace = true
+skein-forge-client.workspace = true
+temper-engine-domain-forge-change.workspace = true
+temper-engine-domain-forge-issues.workspace = true
+temper-worker-domain-checkout.workspace = true
+temper-worker-domain.workspace = true
+temper-worker-protocol-git.workspace = true
+jig-protocol-worker-link.workspace = true
+
+[dev-dependencies]
+temper-client-domain.workspace = true
+temper-init.workspace = true
+temper-engine-domain-world = { path = "../../tests/engine/domain" }
+skein-shell.workspace = true
+skein-scratch.workspace = true
+skein-fake-oauth.workspace = true
+skein-fake-forge-domain.workspace = true
+skein-fake-forge-protocol.workspace = true
+skein-forge-machine-world.workspace = true
+skein-fake-forge-github.workspace = true
+jig-domain-views.workspace = true
+skein-world.workspace = true
+temper-worker-protocol-git-world.workspace = true
+
+[lints]
+workspace = true

@@ -1,0 +1,7 @@
+remote: 
+remote: Forgejo: User 'stranger' is not allowed to push to branch 'forbidden' in 'fixture/specimen'.        
+remote: If you instead wanted to create a pull request to the branch 'forbidden', please use:        
+remote: git push origin HEAD:refs/for/forbidden/choose-a-descriptor        
+remote: You might want to replace 'origin' with the name of your Git remote if it is different from origin. You can freely choose the descriptor to set it to a topic.        
+remote: You can learn about creating pull requests with AGit in the documentation: https://forgejo.org/docs/v17.0/user/git-cli/agit-support/        
+error: failed to push some refs to 'http://127.0.0.1:3000/fixture/specimen.git'

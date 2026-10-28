@@ -1,0 +1,75 @@
+{{
+  "workers": [
+    {{
+      "engine": {{
+        "socket": "{proc.engine.ready.workers}"
+      }},
+      "name": "w1",
+      "secret": "secrets/w1.secret",
+      "slots": 1,
+      "programs": {{
+        "check_interval_ms": 60000
+      }},
+      "graces": {{
+        "grace_ms": 1000,
+        "agent_stop_ms": 100,
+        "delivery_ms": 100,
+        "save_ms": 100
+      }},
+      "agent": {{
+        "program": "{artifact.temper}",
+        "configuration": "{proc.w1.dir}/config/agent.json",
+        "arguments": [
+          "internal",
+          "agent",
+          "{proc.w1.dir}/config/agent.json"
+        ]
+      }},
+      "limits": {{
+        "profile": "small",
+        "overrides": {{
+          "core.call_answer_bytes": 4096,
+          "hub.accounts": 4,
+          "hub.event_bytes": 4094,
+          "hub.held": 1,
+          "hub.program_sources": 0,
+          "hub.run_calls": 1,
+          "hub.slots": 1,
+          "hub.transcript_bytes": 5312627,
+          "hub.turn_bytes": 1328155,
+          "hub.turn_queue_bytes": 10625240,
+          "hub.turns": 8,
+          "link.ping_ms": 100,
+          "link.silence_ms": 1000,
+          "people.words": 512,
+          "tasks.message_bytes": 4096
+        }}
+      }},
+      "memory_bytes": 4503599627370496
+    }}
+  ],
+  "application": {{
+    "workers": [
+      {{
+        "root": "workspaces",
+        "git": "{artifact.git}"
+      }}
+    ],
+    "limits": {{
+      "profile": "small",
+      "overrides": {{
+        "checkout.message_bytes": 4096,
+        "checkout.name_bytes": 256,
+        "checkout.repositories": 2,
+        "forge.name_bytes": 64,
+        "forge.resources_per_task": 2,
+        "git_component.stdout_bytes": 2048,
+        "root.journal.transcript_bytes": 1328159,
+        "root.loads.bytes": 1328403,
+        "root.loads.read_bytes": 2656310,
+        "root.loads.reply_bytes": 1328403,
+        "root.loads.transcript_bytes": 1328155
+      }}
+    }}
+  }}
+}}

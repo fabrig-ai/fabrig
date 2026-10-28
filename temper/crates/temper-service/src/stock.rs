@@ -1,0 +1,320 @@
+//! temper's stock settings, the binary's defaults (protocol/configuration.md, 13.4 and 13.6).
+#![expect(
+    clippy::disallowed_macros,
+    reason = "stock instructions are held in the binary (protocol/configuration.md, 13.4)"
+)]
+use alloc::boxed::Box;
+use jig_domain_authority as authority;
+use jig_domain_core::{
+    Charter, ConfiguredPolicy, RunPolicy, Template,
+    settings::{Defaults, Setting},
+};
+use jig_domain_people::{TemplateBudget, TemplateDeadline, TemplateExecutor};
+use jig_domain_tasks::{Contract, EndedBy, Flags, Retention};
+use skein_lib::{Duration, List, Map, bytes};
+
+/// Settings defaults supplied at a start (protocol/configuration.md, 13.4).
+/// The binary uses Stock; an in-process test world may pass its own values.
+#[derive(Debug)]
+pub enum Given {
+    Stock,
+    Own(Box<Defaults>),
+}
+impl Given {
+    pub(crate) fn defaults(&self, llm: &jig_protocol_config::Llm) -> Option<Defaults> {
+        match self {
+            Self::Stock => checked(llm),
+            Self::Own(own) => {
+                let mut policies = Map::with_capacity(own.policies.len());
+                for (number, policy) in &own.policies {
+                    policies.insert(*number, policy.clone()).expect("counted policies");
+                }
+                Some(Defaults {
+                    charters: own.charters.clone(),
+                    templates: own.templates.clone(),
+                    policies,
+                    rules: own.rules.clone(),
+                })
+            }
+        }
+    }
+}
+
+const FORGE: u16 = 1;
+
+/// Each project's funding span, from its first period (protocol/configuration.md, 13.4).
+pub const PERIOD_SPAN: Duration = Duration::from_secs(7 * 24 * 60 * 60);
+
+/// Delegate (`change` and `delegate`), Message (delegates' questions and answers)
+/// and Read (the forge's reads), jig's families (jig's `domain/authority.md`);
+/// protocol/configuration.md, 13.4.
+const CHAT_TOOLS: authority::Tools = authority::Tools(1 | 2 | 512);
+
+/// One stock value past a limit the document set (protocol/configuration.md, 13.4).
+/// `limit` is its override name under `engine.limits`; `setting` needs `needed`.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Floor {
+    pub limit: &'static [u8],
+    pub configured: u64,
+    pub needed: u64,
+    pub setting: Setting,
+}
+
+fn floor(limit: &'static [u8], configured: u64, needed: u64, setting: Setting) -> Result<(), Floor> {
+    if configured < needed { Err(Floor { limit, configured, needed, setting }) } else { Ok(()) }
+}
+fn count(value: usize) -> u64 {
+    u64::try_from(value).expect("stock value fits u64")
+}
+
+/// Each floor the stock sets under `limits`, the first past it named.
+/// # Errors
+/// The first stock value past its limit. Byte prices are jig's own prices.
+/// # Panics
+/// If the stock's bounded byte prices overflow or its policy cannot be encoded.
+pub fn floors(defaults: &Defaults, limits: &jig_protocol_config::Limits) -> Result<(), Floor> {
+    let core = &limits.core;
+    floor(b"tasks.charters", u64::from(core.tasks.charters), count(defaults.charters.len()), Setting::Charter(1))?;
+    floor(b"core.templates", u64::from(core.templates), count(defaults.templates.len()), Setting::Template(1))?;
+    floor(
+        b"authority.projects",
+        u64::from(core.authority.projects),
+        u64::from(defaults.policies.len()),
+        Setting::Policy(1),
+    )?;
+    for charter in &defaults.charters {
+        let setting = Setting::Charter(charter.number);
+        let needed = jig_domain_core::policy_owned_bytes(&charter.policy).expect("bounded stock run policy");
+        floor(b"core.run_bytes", u64::from(core.run_bytes), needed, setting)?;
+        floor(
+            b"core.settings.alternatives",
+            u64::from(core.settings.alternatives.min(jig_domain_tasks::MODELS)),
+            count(charter.policy.alternatives.len()),
+            setting,
+        )?;
+    }
+    for template in &defaults.templates {
+        let setting = Setting::Template(template.number);
+        floor(b"documents.text_bytes", u64::from(core.documents.text_bytes), count(template.name.len()), setting)?;
+        if let Contract::Report { words } = template.contract {
+            floor(b"tasks.result_bytes", u64::from(core.tasks.result_bytes), u64::from(words), setting)?;
+        }
+        if let Some(grace) = template.grace {
+            floor(b"tasks.grace_ms", core.tasks.grace.as_nanos() / 1_000_000, grace.as_nanos() / 1_000_000, setting)?;
+        }
+    }
+    authority_floors(&defaults.rules.ceiling, &core.authority, Setting::Rules)?;
+    for (&number, policy) in &defaults.policies {
+        let setting = Setting::Policy(number);
+        let snapshot = jig_domain_core::policy_snapshot(&policy.policy, &policy.permissions, &policy.templates)
+            .expect("stock policy snapshot");
+        let needed = jig_domain_people::policy_bytes(&snapshot).expect("bounded stock policy encoding");
+        floor(b"core.policy_bytes", core.policy_bytes, needed, setting)?;
+        floor(
+            b"core.settings.permissions",
+            u64::from(core.settings.permissions),
+            count(policy.permissions.len()),
+            setting,
+        )?;
+        floor(b"authority.roles", u64::from(core.authority.roles), count(policy.policy.roles.len()), setting)?;
+        authority_floors(&policy.policy.ceiling, &core.authority, setting)?;
+        grant_floors(&policy.policy.projections, &core.authority, setting)?;
+        for role in &policy.policy.roles {
+            authority_floors(&role.authority, &core.authority, setting)?;
+        }
+    }
+    Ok(())
+}
+fn authority_floors(value: &authority::Authority, limits: &authority::Limits, setting: Setting) -> Result<(), Floor> {
+    grant_floors(&value.grants, limits, setting)?;
+    floor(b"authority.executors", u64::from(limits.executors), count(value.delegation.kinds.len()), setting)
+}
+fn grant_floors(grants: &[authority::Grant], limits: &authority::Limits, setting: Setting) -> Result<(), Floor> {
+    floor(b"authority.grants", u64::from(limits.grants), count(grants.len()), setting)?;
+    for grant in grants {
+        floor(b"authority.segments", u64::from(limits.segments), count(grant.pattern.segments.len()), setting)?;
+        for segment in &grant.pattern.segments {
+            floor(b"authority.segment_bytes", u64::from(limits.segment_bytes), count(segment.len()), setting)?;
+        }
+        let (authority::Last::Exact(last) | authority::Last::Open(last)) = &grant.pattern.last;
+        floor(b"authority.segment_bytes", u64::from(limits.segment_bytes), count(last.len()), setting)?;
+    }
+    Ok(())
+}
+
+/// The defaults temper passes jig's builder at each start. Each charter offers every
+/// model `llm` configures, in its order, the first its default.
+/// # Panics
+/// If `llm` offers no model or its budgets overflow; startup checks both before calling this.
+#[must_use]
+pub fn defaults(llm: &jig_protocol_config::Llm) -> Defaults {
+    checked(llm).expect("startup checked the default model and its stock budgets")
+}
+
+/// Checked stock construction lets startup refuse unrepresentable model-based budgets.
+pub(crate) fn checked(llm: &jig_protocol_config::Llm) -> Option<Defaults> {
+    llm.models.first()?;
+    let mut charters = Box::new([
+        charter(1, 8, include_bytes!("stock/chat.txt"), llm),
+        charter(2, 16, include_bytes!("stock/coding.txt"), llm),
+        reviewer(llm),
+    ]);
+    // jig prices the costliest completion; one reserve turn plus one is 2C.
+    // Its existing admission helper keeps the stock on that same rounding rule.
+    let minimum_run = jig_domain_core::reserve_floor(&charters.first()?.policy)?;
+    let mut run = minimum_run.checked_mul(2)?; // K starts at 4C.
+    // Keep K's coarse-price floor at the chat's eight turns, four units each.
+    // A 16-turn coder is bounded by that spend; at init prices (C = 1057,
+    // K = 4228) its 16 turns fit (protocol/configuration.md, 13.4).
+    run = run.max(u64::from(charters.first()?.policy.turns).checked_mul(4)?);
+    let chat_spend = run.checked_mul(24)?;
+    let ceiling_spend = run.checked_mul(48)?;
+    for charter in charters.iter_mut() {
+        charter.spend = run;
+    }
+    let templates = Box::new([chat(), goal()]);
+    let mut policies = Map::with_capacity(1);
+    let mut role_authority = ceiling(ceiling_spend);
+    role_authority.budget.spend = chat_spend;
+    policies
+        .insert(
+            1,
+            ConfiguredPolicy {
+                policy: authority::Policy {
+                    escalation_role: Some(0),
+                    ceiling: ceiling(ceiling_spend),
+                    projections: grants(),
+                    period_spend: ceiling_spend,
+                    roles: Box::new([authority::Role {
+                        number: 0,
+                        authority: role_authority,
+                        period_spend: ceiling_spend,
+                        requests: authority::Requests(511),
+                        decides: authority::Proposals(31),
+                    }]),
+                    requirements: Box::default(),
+                },
+                permissions: Box::new([jig_domain_people::PermissionRole { connector: FORGE, permission: 1, role: 0 }]),
+                templates: Box::default(),
+            },
+        )
+        .expect("one stock policy");
+    Some(Defaults {
+        charters,
+        templates,
+        policies,
+        rules: authority::Rules {
+            ceiling: ceiling(ceiling_spend),
+            period_spend: ceiling_spend,
+            minimum_run_spend: minimum_run,
+            maximum_run_spend: run,
+            implies: authority::Implies::new(Box::default(), 0).expect("empty stock implications"),
+            requirements: Box::default(),
+        },
+    })
+}
+
+fn charter(number: u32, turns: u32, instructions: &[u8], llm: &jig_protocol_config::Llm) -> Charter {
+    let model = llm.models.first().expect("parsed llm offers at least one model").clone();
+    let mut alternatives = List::with_capacity(u32::try_from(llm.models.len().saturating_sub(1)).expect("model count"));
+    for alternative in llm.models.iter().skip(1) {
+        alternatives.push(alternative.clone()).expect("one per remaining configured model");
+    }
+    Charter {
+        number,
+        hosts: jig_domain_fleet::Kinds::Workers,
+        spend: 0,
+        policy: RunPolicy {
+            instructions: bytes::copy_of(instructions),
+            model,
+            alternatives: alternatives.into_boxed(),
+            waiting: Duration::from_millis(10_000),
+            resume: true,
+            turns,
+            time: Duration::from_millis(120_000),
+            reserve_turns: 1,
+            reserve_time: Duration::from_millis(60_000),
+            inspect: true,
+            modify: true,
+            shell: false,
+            agents: true,
+            call_timeout: Duration::from_millis(10_000),
+        },
+    }
+}
+fn reviewer(llm: &jig_protocol_config::Llm) -> Charter {
+    let mut value = charter(4, 16, include_bytes!("stock/review.txt"), llm);
+    value.policy.modify = false;
+    value.policy.agents = false;
+    value
+}
+fn grants() -> Box<[authority::Grant]> {
+    let mut grants = List::with_capacity(14);
+    for kind in [1, 2, 3, 4, 6, 7, 8, 9, 10, 11, 12, 13, 16, 17] {
+        grants
+            .push(authority::Grant {
+                connector: FORGE,
+                kind,
+                pattern: authority::Pattern {
+                    segments: Box::new([bytes::copy_of(b"forge")]),
+                    last: authority::Last::Open(Box::default()),
+                },
+            })
+            .expect("stock forge grants");
+    }
+    grants.into_boxed()
+}
+fn ceiling(ceiling_spend: u64) -> authority::Authority {
+    authority::Authority {
+        tools: CHAT_TOOLS,
+        models: authority::Models::ALL,
+        grants: grants(),
+        delegation: authority::Delegation {
+            kinds: Box::new([
+                authority::Executor::Charter(1),
+                authority::Executor::Charter(2),
+                authority::Executor::Charter(4),
+                authority::Executor::Procedure(2),
+                authority::Executor::Procedure(3),
+                authority::Executor::Procedure(4),
+            ]),
+            tasks: 18,
+            depth: 4,
+        },
+        budget: authority::Budget { spend: ceiling_spend, deadline: None },
+        notes: authority::Scopes(0),
+        note_resources: Box::default(),
+    }
+}
+fn chat() -> Template {
+    Template {
+        number: 1,
+        name: bytes::copy_of(b"chat"),
+        executor: TemplateExecutor::Charter(1),
+        contract: Contract::Report { words: 32 },
+        shallower: 1,
+        budget: TemplateBudget::AsAllowed { cap: None },
+        deadline: TemplateDeadline::None,
+        tracked: None,
+        flags: Flags { ended_by: EndedBy::Requester, conversation: true, listed: false, retention: Retention::Kept },
+        label: 1,
+        grace: Some(Duration::from_millis(5000)),
+        llm: None,
+    }
+}
+fn goal() -> Template {
+    Template {
+        number: 2,
+        name: bytes::copy_of(b"goal"),
+        executor: TemplateExecutor::Chosen,
+        contract: Contract::Report { words: 32 },
+        shallower: 1,
+        budget: TemplateBudget::Given,
+        deadline: TemplateDeadline::Given,
+        tracked: Some(1),
+        flags: Flags { ended_by: EndedBy::Result, conversation: false, listed: true, retention: Retention::Kept },
+        label: 2,
+        grace: None,
+        llm: None,
+    }
+}

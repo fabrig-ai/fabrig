@@ -1,0 +1,264 @@
+//! What the checkout asks of io (domain/worker.md, 9): git and file
+//! operations on the worker's disk. The protocol layer runs each as one
+//! contained git invocation, or one file operation, and parses what it says
+//! into one terminal ([`Done`]); the domain never parses.
+//!
+//! A workspace is a directory io names by the workspace's token. Its
+//! repositories sit side by side in it, each in a directory named by the
+//! repository's name ([`Place`]), so that code that refers to a sibling by
+//! path works. An operation that reaches the forge names the repository there
+//! by its `remote`, the forge's address for it, which the protocol layer maps
+//! to a URL and never interprets otherwise.
+//!
+//! io settles every operation before it ends it (5.3): one that runs out of
+//! time or is cancelled ends only once its process tree has exited, so that
+//! nothing of it touches the workspace afterwards.
+//!
+//! No credentials reach the disk: an operation that reaches the forge, or
+//! commits, names the `identity` it acts as, which the protocol layer maps to
+//! credentials, or to an author, for that invocation only, never into a
+//! repository's configuration, where an agent could read them.
+
+use alloc::boxed::Box;
+
+use skein_lib::Token;
+
+/// A commit, as git names it: its object id, in a fixed-size value the
+/// protocol layer makes from git's output, the full id in 32 bytes (a SHA-256
+/// id as it is, a SHA-1 id followed by twelve zero bytes). The domain compares
+/// commits and never looks inside.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Commit([u8; 32]);
+
+impl Commit {
+    /// Made below the domain, from what git said.
+    #[must_use]
+    pub const fn new(raw: [u8; 32]) -> Commit {
+        Commit(raw)
+    }
+
+    /// What it was made from, for the layer that made it.
+    #[must_use]
+    pub const fn raw(self) -> [u8; 32] {
+        self.0
+    }
+}
+
+/// A repository in a workspace: the workspace's directory, as io names it, and
+/// the repository's name, the one path component its directory has there.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Place {
+    pub workspace: Token,
+    pub repository: Box<[u8]>,
+    /// The repository's program, carried to io, never read.
+    pub git: Option<Box<[u8]>>,
+}
+
+/// An operation, asked of io. Each ends in the terminals its documentation
+/// names, in [`Done::Succeeded`] if it names none, or in [`Done::Failed`].
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum Op {
+    /// Make the workspace's directory empty: rename the old tree aside
+    /// into trash, make it afresh, and sweep the old tree later.
+    Make { workspace: Token },
+    /// Clone the repository at `remote` on the forge into its directory, which
+    /// does not exist yet, without checking a tree out. Fails `Missing` if the
+    /// forge has no such repository.
+    Clone { at: Place, remote: Box<[u8]>, identity: u32, account: Option<u64> },
+    /// Fetch `want` from the repository at `remote` into the repository. Ends
+    /// in `Fetched`, or fails `Missing` if the forge has no such branch or
+    /// commit, or no default branch.
+    Fetch { at: Place, remote: Box<[u8]>, want: Want, identity: u32, account: Option<u64> },
+    /// Create `branch` on the forge at `commit`, only if it does not exist:
+    /// a branch that does is left where it is, and the operation ends in
+    /// `Exists`.
+    Create { at: Place, remote: Box<[u8]>, branch: Box<[u8]>, commit: Commit, identity: u32, account: Option<u64> },
+    /// Make the repository's working tree exactly `commit`'s tree: what is not
+    /// in it is removed, including untracked nested repositories. HEAD is
+    /// detached at commit, and the merge state is cleared.
+    CheckOut { at: Place, commit: Commit },
+    /// Whether fetched ancestor is contained in commit, including equality. Local and read-only.
+    IsAncestor { at: Place, ancestor: Commit, commit: Commit },
+    /// Merge fetched `theirs` into the checked-out commit, without committing;
+    /// leave conflict markers and merge state on disk. Ends Merged/Conflicted.
+    Merge { at: Place, theirs: Commit },
+    /// Commit the working tree exactly as it is, on `parent`, with the message `title` and `body`,
+    /// authored as `identity`. Ends in `Committed`, or in `Unchanged` if the tree is `parent`'s and
+    /// `merging` is None. With a second parent it always records both parents; before doing so io
+    /// refuses markers remaining in originally conflicted paths, ending `Conflicted` with those
+    /// paths.
+    Commit { at: Place, parent: Commit, merging: Option<Commit>, title: Box<[u8]>, body: Box<[u8]>, identity: u32 },
+    /// Push `commit` to `branch` on the forge, as a fast-forward, never forced:
+    /// a branch that does not exist is created, and one that is not an
+    /// ancestor of `commit` is left where it is, and the operation ends in
+    /// `Rejected`. A supplied `expected` is an additional exact old-head
+    /// condition, including when ordinary ancestry would permit the push.
+    Push {
+        at: Place,
+        remote: Box<[u8]>,
+        commit: Commit,
+        branch: Box<[u8]>,
+        expected: Option<Commit>,
+        identity: u32,
+        account: Option<u64>,
+    },
+}
+
+/// What a fetch asks for.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum Want {
+    /// The tip of a branch.
+    Branch { branch: Box<[u8]> },
+    /// A commit, by its hash.
+    Commit { commit: Commit },
+    /// The tip of the forge's default branch.
+    Default,
+}
+
+/// io's terminal for an operation.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[expect(clippy::large_enum_variant, reason = "bounded diagnostics stay inline and are included in worst_case")]
+pub enum Done {
+    /// The standalone local ancestry query.
+    IsAncestor { contains: bool },
+    /// Merge has no unresolved paths; the next explicit merge commit still
+    /// records both parents. No commit was made by the merge operation.
+    Merged,
+    /// Merge left conflicts, or a merge commit refused remaining markers.
+    /// Paths are bounded by the checkout's conflict/path limits.
+    Conflicted { files: Box<[Box<[u8]>]> },
+    /// `Make`, `Clone`, `Create`, `CheckOut`, `Push`: done as asked.
+    Succeeded,
+    /// `Fetch`: what was asked for is at `commit`, now in the repository.
+    Fetched { commit: Commit },
+    /// `Commit`: the tree is committed as `commit`.
+    Committed { commit: Commit },
+    /// `Commit`: the tree is its parent's, and nothing was committed.
+    Unchanged,
+    /// `Create`: the branch exists already, and was left where it is.
+    Exists,
+    /// `Push`: the branch is not an ancestor of the commit, so the push would
+    /// not be a fast-forward; nothing was pushed.
+    Rejected,
+    /// The operation did not do what it was asked.
+    Failed { fault: Fault },
+    /// Failed, with the bounded tail of git output supplied by io.
+    FailedWithOutput { fault: Fault, diagnostic: PushDiagnostic },
+}
+
+/// Why an operation failed.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Fault {
+    /// `Clone`, `Fetch`, `Create`, `Push`: the forge has no such repository;
+    /// Fetch may also name a branch or commit the forge lacks.
+    Missing { missing: Missing },
+    /// `Clone`, `Fetch`, `Create`, `Push`: the forge refused: the identity's
+    /// credentials or permissions, a protected branch, a hook.
+    Refused,
+    /// `Clone`, `Fetch`, `Create`, `Push`: the forge could not be reached or failed.
+    Unreachable,
+    /// Something failed on the worker's side: the disk, or git itself.
+    Broken,
+    /// The deadline passed first, and io stopped it.
+    TimedOut,
+    /// The cancel won the race, and io stopped it.
+    Cancelled,
+}
+
+/// What the forge does not have.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Missing {
+    Repository,
+    Branch,
+    Commit,
+}
+
+/// An operation's kind, for the facts.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Kind {
+    Make,
+    Clone,
+    Fetch,
+    Create,
+    CheckOut,
+    Merge,
+    IsAncestor,
+    Commit,
+    Push,
+}
+
+impl Op {
+    #[must_use]
+    pub const fn kind(&self) -> Kind {
+        match self {
+            Op::Make { .. } => Kind::Make,
+            Op::Clone { .. } => Kind::Clone,
+            Op::Fetch { .. } => Kind::Fetch,
+            Op::Create { .. } => Kind::Create,
+            Op::CheckOut { .. } => Kind::CheckOut,
+            Op::Merge { .. } => Kind::Merge,
+            Op::IsAncestor { .. } => Kind::IsAncestor,
+            Op::Commit { .. } => Kind::Commit,
+            Op::Push { .. } => Kind::Push,
+        }
+    }
+
+    /// Whether it reaches the forge, which decides its deadline.
+    #[must_use]
+    pub const fn is_remote(&self) -> bool {
+        match self {
+            Op::Clone { .. } | Op::Fetch { .. } | Op::Create { .. } | Op::Push { .. } => true,
+            Op::IsAncestor { .. } | Op::Make { .. } | Op::CheckOut { .. } | Op::Merge { .. } | Op::Commit { .. } => {
+                false
+            }
+        }
+    }
+}
+
+/// The last bytes of a failed git invocation's diagnostic output. The fixed
+/// protocol cap bounds every terminal, landing and reply without allocation.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct PushDiagnostic {
+    output: [u8; 512],
+    length: u16,
+    cut: u64,
+}
+
+impl PushDiagnostic {
+    /// The maximum diagnostic tail carried across the protocol boundary.
+    pub const CAPACITY: usize = 512;
+
+    /// Keep the latest diagnostic bytes, counting bytes already dropped by io.
+    #[must_use]
+    pub fn new(output: &[u8], cut: u64) -> Self {
+        let length = output.len().min(Self::CAPACITY);
+        let dropped = output.len().checked_sub(length).expect("the tail is within the output");
+        let mut tail = [0; Self::CAPACITY];
+        for (target, source) in tail.iter_mut().zip(output.get(dropped..).expect("the tail is within the output")) {
+            *target = *source;
+        }
+        Self {
+            output: tail,
+            length: u16::try_from(length).expect("the fixed tail fits in a u16"),
+            cut: cut.saturating_add(u64::try_from(dropped).expect("a byte length fits in u64")),
+        }
+    }
+
+    /// An invocation for which io has no diagnostic output.
+    #[must_use]
+    pub const fn empty() -> Self {
+        Self { output: [0; 512], length: 0, cut: 0 }
+    }
+
+    /// The retained diagnostic tail.
+    #[must_use]
+    pub fn output(&self) -> &[u8] {
+        self.output.get(..usize::from(self.length)).expect("the constructor seals the tail length")
+    }
+
+    /// Bytes preceding the tail, dropped by io or by this value's constructor.
+    #[must_use]
+    pub const fn cut(&self) -> u64 {
+        self.cut
+    }
+}

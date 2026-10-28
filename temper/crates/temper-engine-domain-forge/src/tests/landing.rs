@@ -1,0 +1,373 @@
+use super::*;
+use temper_engine_domain_forge_landing as policy;
+
+fn landing_fixture() -> Domain {
+    let mut d = domain();
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    let mut row = fixtures::opening_row();
+    row.repository = REPO;
+    row.pull = Some(1);
+    row.change.landing = None;
+    outputs(&mut d, Event::Restore { record: Stored::Change(row) });
+    assert!(d.project_landing(5, temper_engine_domain_forge_change::Way::Turn, Box::new([])));
+    d
+}
+fn landing_row(task: u64, phase: policy::Phase) -> LandingRow {
+    LandingRow {
+        landing: policy::Landing { task, project: 5, phase, members: Box::new([]), preparation: 0, stale_proofs: 0 },
+        asks: Box::new([]),
+        entries: Box::new([]),
+    }
+}
+#[test]
+fn landing_preflight_checks_rules_and_live_room() {
+    let mut d = landing_fixture();
+    assert_eq!(d.landing_admits(6, &[fixtures::CHANGE]), Err(LandingRefusal::Way));
+    assert_eq!(d.landing_admits(5, &[]), Err(LandingRefusal::Members));
+    assert_eq!(d.landing_admits(5, &[fixtures::CHANGE; 3]), Err(LandingRefusal::Members));
+    assert_eq!(d.landing_admits(5, &[999]), Err(LandingRefusal::Repository));
+    assert_eq!(d.landing_admits(5, &[fixtures::CHANGE; 2]), Err(LandingRefusal::Repository));
+    assert_eq!(d.landing_admits(5, &[fixtures::CHANGE]), Ok(()));
+    for task in 100..108 {
+        d.landing.rows.insert(task, landing_row(task, policy::Phase::Preparing)).expect("room");
+    }
+    assert_eq!(d.landing_admits(5, &[fixtures::CHANGE]), Err(LandingRefusal::Landings));
+    d.landing.rows.get_mut(&100).expect("landing").landing.phase = policy::Phase::Landed;
+    assert_eq!(d.landing_admits(5, &[fixtures::CHANGE]), Ok(()));
+    d.landing.rows.get_mut(&100).expect("landing").entries =
+        Box::new([LandingEntry { entry: 1, member: 0, gate: 0, operation: Operation::Merge }]);
+    assert_eq!(d.landing_admits(5, &[fixtures::CHANGE]), Err(LandingRefusal::Landings));
+}
+
+#[test]
+fn landing_merge_carries_coherent_evidence_and_veto_withdraws_it() {
+    use skein_forge::api::{Answer, Op, Read};
+    use temper_engine_domain_forge_change as change;
+    let mut d = landing_fixture();
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut d, Event::ReadAfresh);
+    outputs(&mut d, Event::SettleOutbox);
+    d.changes.get_mut(&fixtures::CHANGE).expect("change").change.state =
+        change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
+    let mut row = landing_row(61, policy::Phase::Turn { at: env().wall });
+    row.landing.members = Box::new([policy::Member {
+        change: fixtures::CHANGE,
+        repository: policy::Repository { forge: REPO.forge, repository: REPO.repository },
+        pull: 1,
+        head: Some(fixtures::HEAD),
+        base: Some(fixtures::BASE),
+        candidate: Some(fixtures::HEAD),
+        gates: Box::new([]),
+        asked: None,
+        landed: None,
+    }]);
+    row.asks = Box::new([None]);
+    outputs(&mut d, Event::Landing { row });
+    outputs(
+        &mut d,
+        Event::StepLanding {
+            task: 61,
+            entry: 91,
+            heard: LandingHeard { released: false, cancelled: false, kept: Box::new([]) },
+        },
+    );
+    fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::HEAD)));
+    fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::BASE)));
+    fixtures::answer_next(
+        &mut d,
+        Ok(Answer::Compare {
+            before: fixtures::BASE,
+            after: fixtures::HEAD,
+            contains_before: true,
+            files: Box::new([]),
+            commits: Box::new([]),
+        }),
+    );
+    fixtures::answer_next(&mut d, Ok(Answer::Pull(fixtures::open_pull())));
+    let (call, op) = fixtures::next_call(&mut d);
+    assert_eq!(op, Op::Read(Read::Reviews { number: 1, page: 1 }));
+    let requests = fixtures::answer(&mut d, call, Ok(Answer::Reviews { reviews: Box::new([]), more: false }));
+    let mut evidence = None;
+    for request in &requests {
+        if let Request::LandingDecision { evidence: Some(facts), entry: Some(91), .. } = request {
+            evidence = Some(facts);
+        }
+    }
+    let evidence = evidence.expect("merge evidence");
+    assert_eq!(evidence.change, fixtures::CHANGE);
+    assert_eq!(evidence.facts.head, Some(fixtures::HEAD));
+    assert_eq!(evidence.facts.base_tip, fixtures::BASE);
+    assert_eq!(evidence.facts.contains_base, change::Status::Passed);
+    assert_eq!(evidence.facts.ci, change::Status::Passed);
+    assert!(evidence.facts.reviews_complete);
+    let (repository, _, described) = d.describe_landing_effect(61, 91).expect("saved merge description");
+    assert_eq!(repository, REPO);
+    assert_eq!(described.kind, 4);
+    assert_eq!(described.state, fixtures::HEAD);
+    let vetoed = outputs(&mut d, Event::VetoLanding { task: 61, entry: 91 });
+    assert!(vetoed.contains(&Request::Erase { key: Key::Entry(91) }));
+    assert!(d.describe_landing_effect(61, 91).is_none());
+    assert_eq!(d.landing.results.get(&(61, 0, 0, 5)), Some(&policy::Status::Failed));
+    outputs(&mut d, Event::Committed { entry: 91 });
+    for request in ready(&mut d) {
+        if let Request::Call { op: Op::Write(_), .. } = request {
+            panic!("vetoed write reached client");
+        }
+    }
+}
+
+#[test]
+fn landing_deadline_wakes_once_and_an_offered_step_clears_it() {
+    let mut d = landing_fixture();
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut d, Event::ReadAfresh);
+    outputs(&mut d, Event::SettleOutbox);
+    d.wait_landing(&env(), 61, Some(env().wall));
+    assert_eq!(d.next_wall_deadline(), Some(env().wall));
+    let mut out = Queue::with_capacity(max_out(&LIMITS));
+    fire(&mut d, &env(), &mut out);
+    let mut wakes = 0_u32;
+    while let Some(request) = out.pop() {
+        if request == (Request::WakeProcedure { task: 61 }) {
+            wakes = wakes.checked_add(1).expect("bounded wake count");
+        }
+    }
+    assert_eq!(wakes, 1);
+    assert_eq!(d.next_wall_deadline(), None);
+    d.wait_landing(&env(), 61, None);
+    d.offered_landing(61);
+    assert_eq!(d.next_wall_deadline(), None);
+}
+
+fn member_landing(d: &mut Domain) {
+    let mut row = landing_row(61, policy::Phase::Preparing);
+    row.landing.members = Box::new([policy::Member {
+        change: fixtures::CHANGE,
+        repository: policy::Repository { forge: REPO.forge, repository: REPO.repository },
+        pull: 1,
+        head: None,
+        base: None,
+        candidate: None,
+        gates: Box::new([]),
+        asked: None,
+        landed: None,
+    }]);
+    row.asks = Box::new([None]);
+    outputs(d, Event::Landing { row });
+}
+
+fn merged_owner(turn: bool) -> (Domain, Box<[Request]>) {
+    use skein_forge::api::{Answer, Op, Read, Write};
+    let mut d = domain();
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut d, Event::ReadAfresh);
+    outputs(&mut d, Event::SettleOutbox);
+    let mut change = fixtures::opening_row();
+    change.pull = Some(1);
+    change.pending = None;
+    change.change.way =
+        if turn { temper_engine_domain_forge_change::Way::Turn } else { temper_engine_domain_forge_change::Way::Queue };
+    d.changes.insert(fixtures::CHANGE, change).expect("member change");
+    let task = if turn { 61 } else { fixtures::CHANGE };
+    if turn {
+        assert!(d.project_landing(5, temper_engine_domain_forge_change::Way::Turn, Box::new([])));
+        member_landing(&mut d);
+        let row = d.landing.rows.get_mut(&task).expect("landing");
+        row.landing.phase = policy::Phase::Turn { at: env().wall };
+        let member = row.landing.members.get_mut(0).expect("member");
+        member.head = Some(fixtures::HEAD);
+        member.base = Some(fixtures::BASE);
+        member.candidate = Some(fixtures::HEAD);
+        row.entries = Box::new([LandingEntry { entry: 91, member: 0, gate: 0, operation: Operation::Merge }]);
+    }
+    let mut entry = held_issue();
+    entry.number = 91;
+    entry.task = task;
+    entry.start = None;
+    entry.attempt = None;
+    entry.failures = 0;
+    entry.effect = skein_forge_client::Effect {
+        write: Write::Merge {
+            number: 1,
+            head: fixtures::HEAD,
+            how: if turn { skein_forge::api::MergeHow::FastForwardOnly } else { skein_forge::api::MergeHow::Style },
+        },
+        condition: skein_forge_client::Condition::Merge { base: Box::from(b"main".as_slice()) },
+    };
+    outputs(&mut d, Event::Enqueue { entry });
+    outputs(&mut d, Event::Committed { entry: 91 });
+    let mut merged = false;
+    for _ in 0..8_u32 {
+        let (call, op) = fixtures::next_call(&mut d);
+        let answer = match op {
+            Op::Read(Read::Branch { branch }) if branch.as_ref() == b"main" => Answer::Commit(fixtures::BASE),
+            Op::Read(Read::Branch { branch }) if branch.as_ref() == b"temper/51" => Answer::Commit(fixtures::HEAD),
+            Op::Read(Read::Items { .. }) => Answer::Items { items: Box::new([]), more: false, now: env().now },
+            Op::Read(Read::Pull { number: 1 }) => {
+                let mut pull = fixtures::open_pull();
+                if merged {
+                    pull.state = skein_forge::api::State::Closed;
+                    pull.merged = Some(fixtures::HEAD);
+                }
+                Answer::Pull(pull)
+            }
+            Op::Write(Write::Merge { head, .. }) => {
+                assert_eq!(head, fixtures::HEAD);
+                merged = true;
+                Answer::Merged(fixtures::HEAD)
+            }
+            other @ (Op::Read(_) | Op::Write(_)) => panic!("unexpected merge call: {other:?}"),
+        };
+        let requests = fixtures::answer(&mut d, call, Ok(answer));
+        let mut landed = false;
+        for request in &requests {
+            if let Request::Save { record: Stored::Landed { .. }, .. } = request {
+                landed = true;
+            }
+        }
+        if landed {
+            assert!(merged, "outcome follows merge write");
+            return (d, requests);
+        }
+    }
+    panic!("merge reaches its write");
+}
+
+#[test]
+fn a_turn_merge_records_its_members_change_as_the_landed_owner() {
+    for turn in [false, true] {
+        let (d, requests) = merged_owner(turn);
+        assert!(
+            requests.contains(&Request::Save {
+                read_afresh: None,
+                release: None,
+                record: Stored::Landed { commit: fixtures::HEAD, task: fixtures::CHANGE },
+            }),
+            "merge saves the change as owner, turn={turn}: {requests:?}"
+        );
+        assert_eq!(d.landed.get(&fixtures::HEAD), Some(&fixtures::CHANGE));
+        for request in &requests {
+            if let Request::Save { record: Stored::Landed { task, .. }, .. } = request {
+                assert_ne!(*task, 61, "landing task never owns the commit");
+            }
+        }
+    }
+}
+
+#[test]
+fn a_turn_merges_landed_owner_survives_rebuild() {
+    let (_, requests) = merged_owner(true);
+    let mut landed = None;
+    for request in &requests {
+        if let Request::Save { record: row @ Stored::Landed { .. }, .. } = request {
+            landed = Some(row.clone());
+        }
+    }
+    let landed = landed.expect("durable landed owner");
+    let mut restarted = landing_fixture();
+    outputs(&mut restarted, Event::Restore { record: landed });
+    outputs(&mut restarted, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut restarted, Event::ReadAfresh);
+    outputs(&mut restarted, Event::SettleOutbox);
+    assert_eq!(restarted.landed.get(&fixtures::HEAD), Some(&fixtures::CHANGE));
+}
+#[test]
+fn cancelling_a_landing_leaves_its_change_live_and_detached() {
+    let mut d = landing_fixture();
+    member_landing(&mut d);
+    let requests = outputs(&mut d, Event::SettleEffects { task: 61, root: 61, ending: ReleaseEnding::Cancelled });
+    assert_eq!(d.landing(61).expect("cancelled landing").landing.phase, policy::Phase::Cancelled);
+    assert_eq!(d.change(fixtures::CHANGE).expect("member stays").change.landing, None);
+    for request in &requests {
+        if let Request::Save { record: Stored::Release(row), .. } = request {
+            assert_ne!(row.task, fixtures::CHANGE, "member is not cancelled");
+        }
+    }
+}
+#[test]
+fn cancelling_the_last_member_cancels_its_landing_without_reading_the_missing_branch() {
+    let mut d = landing_fixture();
+    member_landing(&mut d);
+    outputs(
+        &mut d,
+        Event::SettleEffects { task: fixtures::CHANGE, root: fixtures::CHANGE, ending: ReleaseEnding::Cancelled },
+    );
+    assert!(d.landing(61).expect("landing").landing.members.is_empty());
+    let requests = outputs(
+        &mut d,
+        Event::StepLanding {
+            task: 61,
+            entry: 92,
+            heard: LandingHeard { released: false, cancelled: false, kept: Box::new([]) },
+        },
+    );
+    assert!(requests.contains(&Request::LandingDecision {
+        task: 61,
+        decision: policy::Decision::Cancel,
+        entry: None,
+        evidence: None
+    }));
+}
+
+const OTHER_CHANGE: u64 = fixtures::CHANGE + 1;
+const OTHER_REPOSITORY: skein_forge::api::Repository = skein_forge::api::Repository { forge: 1, repository: 3 };
+
+fn across_fixture() -> Domain {
+    let mut d = landing_fixture();
+    let mut repository = adopted();
+    repository.provider = OTHER_REPOSITORY;
+    repository.name = b"lib".as_slice().into();
+    repository.home = false;
+    outputs(&mut d, Event::Restore { record: Stored::Repository(repository) });
+    let mut change = fixtures::opening_row();
+    change.task = OTHER_CHANGE;
+    change.change.task = OTHER_CHANGE;
+    change.change.landing = None;
+    change.repository = OTHER_REPOSITORY;
+    outputs(&mut d, Event::Restore { record: Stored::Change(change) });
+    d
+}
+
+#[test]
+fn a_dependency_closure_is_upstream_first_and_stops_at_the_turn() {
+    let mut d = across_fixture();
+    let graph = [ChangeDependencies { change: fixtures::CHANGE, pending: Box::new([OTHER_CHANGE]) }];
+    assert_eq!(d.joined_changes(5, fixtures::CHANGE, &graph).as_ref(), [OTHER_CHANGE, fixtures::CHANGE]);
+    assert_eq!(d.joined_changes(5, OTHER_CHANGE, &graph).as_ref(), [OTHER_CHANGE, fixtures::CHANGE]);
+    member_landing(&mut d);
+    d.landing.rows.get_mut(&61).expect("landing").landing.phase = policy::Phase::Turn { at: env().wall };
+    assert_eq!(d.joined_changes(5, OTHER_CHANGE, &graph).as_ref(), [OTHER_CHANGE]);
+}
+
+#[test]
+fn an_upstream_join_and_a_member_leaving_remap_the_live_effects() {
+    let mut d = across_fixture();
+    member_landing(&mut d);
+    let mut member = d.landing(61).expect("landing").landing.members[0].clone();
+    member.change = OTHER_CHANGE;
+    member.repository.repository = OTHER_REPOSITORY.repository;
+    let key = [7; 32];
+    d.landing.rows.get_mut(&61).expect("landing").entries =
+        Box::new([LandingEntry { entry: 91, member: 0, gate: 0, operation: Operation::Dispatch }]);
+    d.landing.results.insert((61, 0, 0, 1), policy::Status::Pending).expect("result room");
+    d.landing.keys.insert((61, 0, 0), (fixtures::HEAD, key)).expect("key room");
+    d.landing.keys.insert((62, 0, 0), (fixtures::HEAD, key)).expect("other landing key room");
+    d.landing.results.insert((61, 0, 0, 5), policy::Status::Passed).expect("merge result room");
+    outputs(&mut d, Event::JoinLanding { task: 61, member, after: Box::new([]) });
+    let row = d.landing(61).expect("joined landing");
+    assert_eq!(row.landing.members[0].change, OTHER_CHANGE);
+    assert_eq!(row.entries[0].member, 1);
+    assert_eq!(d.landing.results.get(&(61, 1, 0, 1)), Some(&policy::Status::Pending));
+    assert_eq!(d.landing.keys.get(&(61, 1, 0)), Some(&(fixtures::HEAD, key)));
+    assert_eq!(d.landing.keys.get(&(62, 0, 0)), Some(&(fixtures::HEAD, key)));
+    assert_eq!(d.landing.results.get(&(61, 1, 0, 5)), Some(&policy::Status::Passed));
+    outputs(&mut d, Event::SettleEffects { task: OTHER_CHANGE, root: OTHER_CHANGE, ending: ReleaseEnding::Cancelled });
+    let row = d.landing(61).expect("remaining landing");
+    assert_eq!(row.landing.members[0].change, fixtures::CHANGE);
+    assert_eq!(row.entries[0].member, 0);
+    assert_eq!(d.landing.results.get(&(61, 0, 0, 1)), Some(&policy::Status::Pending));
+    assert_eq!(d.landing.keys.get(&(61, 0, 0)), Some(&(fixtures::HEAD, key)));
+    assert_eq!(d.landing.keys.get(&(62, 0, 0)), Some(&(fixtures::HEAD, key)));
+    assert_eq!(d.landing.results.get(&(61, 0, 0, 5)), Some(&policy::Status::Passed));
+}

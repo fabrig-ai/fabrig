@@ -1,0 +1,730 @@
+# The agent
+
+Provisional, 2026-10-05, revised 2026-10-23. temper's agent is smith's:
+the standard agent built from smith, the kit for LLM agents, on skein
+like temper. smith's design is its own (smith's `domain/run.md`,
+`domain/session.md`, `domain/tools.md`, `domain/host.md`), and how a
+run's charter, tools, contract, messages and delivery become smith's is
+jig's (jig's `domain/hosts.md`, sections 8 and 9). This document says
+what temper fills in: the charters its engine writes, the host tools its
+engine serves (4.3, the one table of them), its result contracts and
+conventions, delivery as a push, and the agents temper runs. What is
+still open is listed in section 10.
+
+## 1. In one page
+
+- **temper runs smith's stock agent,** on workers, one process per run:
+  temper's own binary run as `temper internal agent`, smith's agent shell
+  (`../protocol/README.md`, section 4). temper builds no code into it. A
+  run's charter and its host's answers are all that make it temper's.
+- **The engine writes the charter** (section 4): the task's instructions,
+  its brief rendered, every host tool, a result contract with temper's
+  verdicts and a change's `title` and `body`, `.temper/pre-pr` and
+  `AGENTS.md` as conventions, and a budget in the deployment's unit with
+  its models' prices.
+- **The host tools are temper's** (4.3): jig's core's tools under temper's
+  own names, and the forge's reads, effect and topics.
+- **The worker is smith's host** (section 6; worker.md): it prepares the
+  workspace from the forge, supervises the agent's process with smith's
+  host domain, delivers a change by pushing it, and relays the rest to
+  the engine.
+- **The engine keeps what smith leaves to hosts:** transcripts, turn by
+  turn, in its store; host tools' calls, decided once; what follows an
+  answer (jig's `domain/engine.md`, section 7).
+- **One translation, temper's own.** `temper-engine-smith`, which the
+  engine's routing calls, is the only place where temper's charter,
+  tools and results become smith's, and smith's back. temper uses
+  neither `jig-protocol-charter` nor `jig-protocol-tools`, since its root
+  has a `Tool` vocabulary of its own (`../protocol/llm.md`, sections 4
+  and 5). smith interprets no temper vocabulary, and the worker none of
+  either.
+
+## 2. The agent in the system
+
+```
+engine   jig's core and the forge, the store; writes each run's charter and serves its tools
+worker   smith's host: workspaces, agent processes, pushing their changes; relays the rest
+agent    smith: LLM work, one run per process, reporting to its worker
+```
+
+- **The engine is the only client** of the store and of the forge. It
+  answers the host tools a run calls, and commits the run's turns and
+  result. The worker's one write is pushing a run's branch, over git.
+- **The engine never reads a repository.** It works from what the forge
+  connector reads; what a workspace holds, such as a repository's
+  `AGENTS.md` or its checks, is for the run to find.
+- **The agent acts on the world only through the worker:** a delivery,
+  which the worker makes as a push, and host tools, which the worker
+  relays to the engine. It never pushes, merges or writes to a system on
+  its own authority.
+- **Retrying a failed run is decided above the run,** by the engine,
+  across attempts. A run answers once and is done.
+
+## 3. What temper takes from smith
+
+- **In the domains:** the engine's root links no smith crate; charters,
+  transcripts and results are bytes to jig's core (jig's
+  `domain/hosts.md`, 6.8). The worker's root composes `smith-host-domain`
+  as its agent child (worker.md, section 3). `temper-engine-smith`, the
+  translation of section 4, is step code over `smith-domain`,
+  `smith-domain-run` and `smith-domain-session`.
+- **In the protocol layers:** smith's codecs, its host half and its agent
+  shell (`../protocol/README.md`, section 5).
+- **In the worlds:** smith's agent domain over skein's fake LLM, its
+  agent processes, and its codecs (section 9).
+- **LLM accounts are jig's,** made from the client, on skein's accounts
+  driver. A run's grants reach it through its worker and smith's host
+  half: for each LLM provider it uses, a credential with its scheme, or
+  a program source's name, whose login the host checks and the program
+  reads (`../protocol/credentials.md`, section 3; jig's
+  `protocol/llm.md`, section 6). The agent runs the loop itself, or
+  through the program (smith's `protocol/programs.md`, section 2).
+
+## 4. temper's charter
+
+The core decides a run's charter in its own terms (jig's
+`domain/engine.md`, 7.1); `temper-engine-smith` writes it as smith's
+(smith's `domain/run.md`, 3.1) from the root's assignment, and the
+engine's routing encodes it (`../protocol/llm.md`, section 5).
+
+### 4.1 Instructions and brief
+
+- **Instructions:** the charter's, from the deployment's configuration
+  (jig's `protocol/configuration.md`, section 3): a chat's, a
+  coordinator's, a reviewer's with a lens, a change's producer's; until
+  an amendment gives a task its own (jig's `domain/tasks.md`, section
+  7), whole, where an empty text leaves it none, not its charter's.
+  The task's next run carries them; a run already live hears them as
+  the amendment's words. Designed, not built: a charter is a setting in
+  the store, read from the revision the task runs under (jig's
+  `domain/engine.md`, 17.3), temper's stock chat's and coding agent's
+  held in the binary as their defaults
+  (`../protocol/configuration.md`, 13.4).
+- **The brief:** the sections jig's core gathers (jig's
+  `domain/engine.md`, section 9) and the forge's (forge.md, section 2),
+  each rendered as one of smith's titled sections, titled by its kind:
+  `Task`, `Lineage`, `Dependencies`, `Plan`, `Earlier attempts`,
+  `Calls`, `Waiting`, `Notes`, `Transcript tail`, and the forge's
+  `Pull request`, `CI`, `Reviews` and, for each document the charter
+  names, `Document` followed by its repository, path and heading
+  (`../protocol/configuration.md`, 13.7). A section its gather could not fill
+  says why: its read failed, timed out, or exceeded its limit. smith adds
+  the sections about its own mechanics, and each repository's guide.
+
+### 4.2 Workspace
+
+The connectors name the repositories, where each starts, which may be
+written and the branch a change goes to (jig's `domain/engine.md`, 7.1;
+worker.md, 4.1); the worker prepares them and gives smith the workspace:
+each repository's directory and name, whether it may be written, and for
+a merge in progress the files in conflict (worker.md, section 5). Every
+temper workspace is git repositories. A run with no repository, such as
+a chat that names none, runs with no workspace (worker.md, 4.1).
+
+### 4.3 Tools
+
+- **smith's own families** by the charter's policy: inspecting,
+  modifying and the shell in the workspace, and sub-agents, each as the
+  charter's `inspect`, `modify`, `shell` and `agents` say; `wait`, always;
+  `deliver`, for a change's contract, and mid-run for a run with a
+  repository it may write, as a chat delivers a small fix (jig's
+  `domain/hosts.md`, section 8; smith's `domain/run.md`, 8.4), but
+  never in an Open run (4.6).
+- **Every host tool below,** declared in every charter, each with the
+  charter's call timeout, but those of the `settings` family, declared
+  only where the run's charter names that family in its `tools` (jig's
+  `domain/engine.md`, 7.1) and its task's authority has it: charter 3
+  alone in the stock
+  (`../protocol/configuration.md`, 13.4). The task's authority decides
+  each call by its family (jig's `domain/authority.md`, sections 3 and
+  8.5): a call beyond it is answered beyond authority, naming what it
+  lacked, and the run may `propose` it instead.
+- **The host part's budget.** smith refuses a run whose host part (its
+  tools' names, descriptions and schemas) passes its bound, 33,419 bytes
+  in the small profile, before any turn. On 10-27, with an empty brief,
+  charter 2's producer took 31,055 of it with its 37 tools, 2,364 left,
+  and a role-0 chat with the two `settings` tools 32,716, 703 left; a
+  gathered brief spends the rest. So a new host tool is offered only
+  where a family and the charter gate it, never to every run, and a
+  charter's room is measured before a tool joins it.
+- **The brief fits the room its charter leaves.** smith counts a run's
+  brief in its host part, beside the charter's offered tools, its
+  instructions and the finish and deliver schemas. So `temper-engine-smith`,
+  preparing a run, renders the brief within what those leave of the
+  bound, cutting from the last section in the core's order. Each cut
+  section says how much it lost and how to read it whole: the forge's
+  reads for a document, `read_docs` for a page. No run is refused for
+  its brief. (10-27: charter 1's 37 tools and instructions take 30,984
+  of the small profile's 33,419, and its largest brief, 9,984 body
+  bytes, would pass it by 7,613.)
+- **Checked before a run meets it:** at start, and at temper's three
+  entrances of a change of settings that touches a charter (the
+  engine's `ChangeSettings` and `ProposeSettings` routes and a run's
+  `propose_settings`), temper sums each charter's offered tools, its
+  instructions and the fixed parts, and refuses one that leaves its
+  brief less than 2,048 bytes, naming the charter and both figures
+  (`../protocol/configuration.md`, section 7). A stored proposal's
+  acceptance, a restore and a reset carry values that passed an
+  entrance or the start, and the bound does not move while the engine
+  runs. The sum is a table of each host family's declaration bytes and
+  the charter's own text, where the domain reads it, not a call into
+  smith; a step test in `temper-engine-smith` holds the table equal to
+  smith's own measure. The bound is the engine's size profile's, the
+  one its workers are configured from (33,419 in the small one); an
+  engine without that figure skips the start's check. A run smith
+  refuses for its host part anyway is held with smith's reason, the
+  bound and the figure, never a bare "invalid".
+- **`repository`,** one of the project's repositories as `owner/name`:
+  among its adopted repositories of any role, on forges not ended, the
+  one named, or with no name the only one; with several and no name, or
+  a name none has, refused, naming them. The root resolves it to the
+  repository's resource as it builds a change's delegate (4.3.1),
+  before it decides the call, so that the call's authority is checked
+  on that resource (`root.md`, 5.2) and the run never names a number.
+- **The read's own members,** beside it: `read_branch` `branch`;
+  `read_branches` `prefix`; `read_pull` `number`; `read_pull_for` `head`
+  and `base`, branch names; `read_pull_files` `number`, `head` and
+  `page`; `read_reviews` `number` and `page`; `read_remarks` `number`,
+  `review` and `page`; `read_statuses` `commit` and `page`;
+  `read_checks` `commit`; `read_compare` `before` and `after`;
+  `read_file` `head`, `path` and `max_bytes`; `read_job` `head`, `run`,
+  `job`, `attempt` and `max_bytes`, exactly as `read_checks` and
+  `read_statuses` name each Actions job: the job attempt skein resolved
+  from the check's link (its run, the forge's own job id, its attempt:
+  skein's `forge.md`, 9), never the link's index of the job in its run,
+  which the answer may show beside it but no read takes; `read_items` `since`, `page` and
+  `item_kind` (`issue` or `pull`); `read_item` `number` and `after`;
+  `read_protection` `branch`; `read_settings` none;
+  `read_collaborators` `page`; `read_permission` `user`, a forge user's
+  id. A commit or a head is its id, 40 or 64 lowercase hexadecimal
+  digits; `page` is from 1, and 1 when left out; `since` is a time in
+  nanoseconds, 0 when left out; `after` a comment's id, 0 when left
+  out; `max_bytes`, the read's limit when left out.
+
+- **Reads and writes:** the forge's reads, `recall`, `settings` and `read_docs` are reads; every
+  other host tool is a write, which smith runs alone (smith's
+  `domain/run.md`, 5.2).
+- **Declared, decoded and rendered in one place,** `temper-engine-smith`:
+  each tool's JSON Schema, description and effect, written once
+  (`delegate`'s and `amend`'s schemas name every field of the spec and
+  the authority, so that a run writes them from its tools alone, and
+  both take a priority as `{priority}`, where jig's own `delegate` takes
+  a bare number, so that a run learns one shape); a
+  call's input decoded into the root's `Tool`, or answered at once as an
+  error naming what is wrong, deciding nothing; an answer rendered as
+  smith's text, marked an error or not (`../protocol/llm.md`, section 4).
+- **Calls are named and decided once** (jig's `domain/engine.md`, 7.3):
+  the engine answers a call it has seen before from its record, and smith
+  asks again under the same name after busy or a lost answer (smith's
+  `domain/run.md`, 5.2).
+- **An answer fits what the agent takes** (`domain/worker.md`, 4.3):
+  a call past the worker's input bound, `core.call_answer_bytes`, is
+  answered `call too large` under its name, and the run goes on (jig's
+  worker link). An answer past the agent's `host_reply_bytes` (smith's,
+  its channel's `host_reply_text`, the agent's `tool_payload`) reaches
+  the run as smith's `TooLarge`, which says the answer was too large
+  and not shown, and the run goes on. The engine keeps the answer it
+  decided, so a call asked again gets the same reply.
+- **A call names what it saw** (jig's `domain/engine.md`, 7.3): the
+  revisions above are those its brief, its messages and its earlier
+  answers showed it. One whose object has moved since is answered moved,
+  with what it is now, and the run decides again on that.
+- **Not the engine's:** `wait`, `finish` and `deliver` (jig's
+  `domain/engine.md`, 7.3). `deliver` is a push (section 6).
+- **Jobs are smith's** (smith's `domain/tools.md`), not `read_job`'s,
+  which reads a CI job's log. A `shell` command that runs past its
+  yield goes on as a job in the agent's process, under the charter's
+  `shell` (from `policy.shell`); the run reads or stops it with smith's
+  `job`. Neither the engine nor the worker routes or answers a job.
+  `temper-engine-smith`'s `turn` takes a turn request alone, and
+  answers any other request, a job's included, as not a turn
+  (`Problem::Type`).
+
+#### 4.3.1 A change, in the run's words
+
+A chat cannot know what a change's `delegate` needs: the procedure's
+numbers, the repository's resource, its landing branch, the contract's
+kind and the grants a change makes. `change` takes the words alone, and
+the root builds the one delegate from what it knows, then decides it as
+any `delegate` (jig's authority, named and decided once):
+
+- **the repository:** among the project's adopted repositories it may
+  write, on forges not ended, the one named, or with no name the only
+  one; with several and no name, or a name none has, refused, naming
+  them. Never the home by default: a project's home may be another
+  forge's (the demo's);
+- **the delegate:** the change procedure (forge.md, 8.1) with the words,
+  the repository's resource and its default branch as the landing
+  branch; a change's contract;
+- **its authority, the run's own narrowed:** the run's grants of the
+  forge's reads (kind 1, forge.md, section 2) and of the kinds a change
+  makes (forge.md, section 6: a push, open, merge, edit, update, close
+  or reopen a pull request), on the change's repository, which every
+  agent of the change holds, so that its reviewer and its repairs read
+  the pull request, its files and CI's logs; the forge's charter as the
+  only kind it may delegate, and a person's role where a landing rule
+  covering the branch names a person gate; at most 6 tasks (a
+  producer, a review, and two repairs each followed by its review), one
+  fewer than the run has left, and a depth of at most 2; no notes; half of
+  what the run's budget has left, so that it can still read the result
+  and answer, refused when that is no more than a run's minimum. That
+  half is a default, open to tuning.
+
+A `delegate` refused for an executor or a grant says, too, that a
+repository change is `change`'s.
+
+#### 4.3.2 A goal, in the run's words
+
+A chat cannot know what a goal's `delegate` needs either: its own
+authority's tool families, the grants' vocabulary on the forge's
+resources, the delegation's kinds and its funding, none of which a run
+sees. `goal` takes the words alone, whether the work is to be agreed
+first (`agree`, 8.2), and whether the goal is an advisor,
+and the root builds the one delegate from the run's own, then decides
+it as any `delegate`:
+
+- **the delegate:** under the run's charter (a chat's, charter 1),
+  whose instructions stay its instructions, the words its brief, opening
+  with the root's own line that it is a goal, the work its person asked
+  for, as an advisor's opens with its own, so that it reads the
+  instructions meant for a goal as its own and those meant for a chat
+  as not (charter 1's instructions name each), and, for an agreed goal
+  (8.2), carrying after the words its person's last words to the chat,
+  whole, under their own heading, so that a request the chat cut short
+  still reaches the goal entire; tracked
+  at the run's own priority, or last among the project's goals where the
+  run is untracked: one past the largest tracked priority in the
+  project, saturating, or 0 with none (the lower first, jig's
+  `domain/tasks.md`, section 3), with a report's contract bounded by
+  the deployment's largest result, jig's `tasks.result_bytes` (512 on
+  the small profile a box runs), whatever the run's own contract's
+  bound (a chat's is a line), since jig refuses a batch whose contract
+  is above it (4.4): the work a person asked for, which plans, asks its
+  requester with `message` where its words say to (8.2), calls `change`
+  for each change, and reports. The contract bounds the result, not
+  the work: asking first is the instructions', and the rail is
+  authority's;
+- **its authority, the run's own narrowed,** never wider in any part
+  (jig's `domain/authority.md`, sections 3 and 5): the run's models and
+  deadline; its tool families (delegation, messages and reads, so that
+  it may call `change`, ask and read the forge); its grants of the kinds
+  a change makes and its reads, so that `change` can narrow them again
+  (4.3.1); its delegation kinds, with the tasks its subtree may still
+  make, as jig counts them, less one for the goal itself, and a depth
+  one less, refused when either is spent; no notes; half of what its
+  budget has left, refused when that is no more than a run's minimum, as
+  `change`'s. A change the goal then makes has half of the goal's,
+  so at most a quarter of the chat's: defaults, open to tuning;
+- **an advisor,** with `advisor` set, its report bounded as a goal's,
+  its brief opening with the root's own line that it is an advisor,
+  which reads and reports and changes nothing, before the run's words,
+  the line counted with them within the spec's bytes (a request is
+  refused as too long with the line included, never cut to make room),
+  so that it knows what it is without a convention in those words:
+  untracked, so that no goal of its
+  is projected on the forge; reads alone, no grant of a forge effect, no
+  delegation (no kinds, tasks or depth) and no notes, so that it reads
+  and reports and can change nothing beyond its own workspace, which it
+  has no grant to push (the retired first edition's tester,
+  testing.md, 5.3: a rail, not an instruction).
+
+The root builds it where it builds `change`'s delegate, in the engine's
+route of host tools, and decides it as any `delegate`; the smith
+translation only decodes the call.
+
+The goal's own run takes `goal` too: an advisor it asks for, before it
+asks its requester, is how the retired first edition's survey before a plan
+goes (testing.md, 5.3). An advisor is all it takes, and only it takes
+one: a goal is the work its person asked for, and a goal under it would
+ask the goal, not the person, and be answered by it (8.2); a goal is
+where the work is planned, so an advisor asked for elsewhere leaves the
+work to be planned in a chat's reply. So one fact of the calling run,
+whether the root built it as a goal, decides both: the root refuses a
+goal's `goal` without `advisor` (a goal starts an advisor alone: set
+`advisor`, or make the change with `change`), and any other run's
+`goal` with `advisor` set (a chat's goal is the work: call `goal`
+without `advisor`, and its goal asks for one), and the run goes on, as
+any refused host call does. A person who wants a survey alone gets a
+goal that asks its advisor and reports, changing nothing.
+
+### 4.4 Result contracts
+
+A task's result contract (jig's `domain/tasks.md`, section 3) becomes
+smith's (smith's `domain/run.md`, 7.1):
+
+| temper's | In smith |
+|---|---|
+| a report: words, bounded | a report, and a failure, within the same bound |
+| a verdict from a closed list, each with the fields it requires and the follow-up tasks it may propose | a verdict for each choice, named by its number, with its fields and its words' bound; follow-ups as items, of the kinds of task the verdict may propose; a failure of at most 1,024 bytes |
+| a connector's result: a change landed | a change, requiring the fields `title` and `body`, each within the contract's bound, its checks required; a failure within the same bound |
+| an approval | a failure only, of at most 1,024 bytes: approvals are people's |
+
+A change's result names the resource the worker's push and the forge
+settled, never one from the LLM's fields, and its words are the `body`.
+The core judges a result again as it commits it, against the contract
+and the state as it is now (jig's `domain/tasks.md`, 5.6).
+
+### 4.5 Conventions
+
+Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
+`domain/run.md`, 3.1 and 8.1).
+
+### 4.6 Budget, models, waiting
+
+- **Budget:** the run's turns, spend and time, with its reserve of turns
+  and time for finishing (smith's `domain/run.md`, 9.1), from its charter
+  in configuration (designed, not built: at the task's revision); its spend is what its task has left, capped per run,
+  reserved at its claim, in the deployment's unit (jig's
+  `domain/hosts.md`, section 8).
+- **Models:** the main session's and those its sub-agents may use, each
+  with its endpoint, window, output and prices (`../protocol/llm.md`,
+  section 3): the task's LLM choice among those its charter allows,
+  without one the charter's first whose LLM provider has an account
+  usable for the payer (jig's `domain/tasks.md`, section 3),
+  and the account the run's claim chose for each LLM provider (jig's
+  `domain/accounts.md`, 4.3). Their credentials, or a program source's
+  name, come to the agent as grants through the worker
+  (`../protocol/credentials.md`, section 3). A run on a program has no
+  sub-agents (smith's `protocol/programs.md`, section 2).
+- **Waiting and resuming:** the waiting time is the charter's; a
+  coordinator's is zero. A chat resumes its transcript, and a
+  coordinator starts fresh from its brief (jig's `domain/engine.md`,
+  7.4).
+- **Its mode is its task's ending** (jig's `domain/tasks.md`, 5.8;
+  `domain/hosts.md`, 8.1), the assignment's `ended_by`, whatever the
+  charter: a task its result ends runs smith's `Finite` mode, and one
+  its requester ends runs `Open`, granted the wait and neither `finish`
+  nor `deliver`. temper's chats are Open (`../protocol/configuration.md`,
+  section 2): ordinary text listens for the person's next words. Idle or
+  wind-down parks the run, committing its reply with no result and no try
+  spent. Close carries the grace's finish request live or in Start; its
+  admission puts the Open run into wind-down, so its next text parks.
+  Cancellation after the grace keeps its existing meaning; only the
+  person's Close, or a cancel, ends the chat. Goals and every delegate
+  run Finite and end by their results.
+
+## 5. Messages
+
+What a task hears while its run is live reaches smith as messages, as
+jig's `domain/hosts.md`, section 9 says: each named, with its sender's
+label, its kind and its words whole, the start carrying those waiting
+in the task's inbox. Words read `2: …`; a question reads `2 asks
+(question 4): …`, its number the one `message`'s answer form takes;
+an answer reads `1 answers question 4: …`. So a goal hears its
+person's answer to question 4 by the number it asked, and a chat, which
+answers no question waiting in its person's inbox (8.2), hears that
+question 4 was answered. Proposals and escalations waiting for the task's decision
+are relayed the same way, each naming what `decide` or
+`decide_escalation` takes.
+
+## 6. Delivery is a push
+
+smith's `deliver` is the worker's push (worker.md, section 5): the
+worker commits exactly the tree the run checked, with the result's
+`title` and `body`, and pushes it as a fast-forward, never forced, to the
+branch the assignment names; a merge in progress is committed as the
+merge, with both parents. Its outcomes, in smith's terms (smith's
+`domain/run.md`, 8.2):
+
+| The push | smith's delivery |
+|---|---|
+| landed in every repository with a change, or already landed by this hold's last push | delivered, naming each head |
+| nothing to push | nothing |
+| a branch moved, as a fast-forward cannot take it or its head is not the one expected | stale: the run ends, and the engine decides afresh |
+| a conflicted file still holds a marker | refused, naming the file |
+| refused by the forge, unreachable, timed out, broken, too large, missing the repository, a branch or a commit | failed, with the reason and the last 512 bytes of git's diagnostic output |
+
+A push that lands is the result, even if the run was winding down. The
+answer carries what the run left on the forge (worker.md, 4.2), and the
+forge's change procedure goes on from it (forge.md, section 8).
+
+## 7. Turns and transcripts
+
+Turns are smith's bytes (smith's `domain/session.md`, section 3), which
+the worker relays and the engine keeps opaque, by conversation and
+window (jig's `domain/engine.md`, 7.2; jig's `domain/hosts.md`, 6.4).
+temper's client decodes them as jig's client does (jig's
+`client/domain/client.md`, section 10). A run that resumes is given its
+transcript's current window and the calls committed after its last turn;
+past the resume limit, or when smith refuses the transcript, the next
+run starts fresh, its brief carrying the tail.
+
+## 8. The agents temper runs
+
+| Agent | Messages in | Tools its authority gives | Ends when |
+|---|---|---|---|
+| producing a change (forge.md, 8.2) | none | the workspace's, from the landing branch or saved work; `finish` with a change | its change passes its checks and is pushed |
+| a repair (forge.md, 8.4) | none | the workspace's, from the change's branch, its brief carrying why; `finish` with a change | its new head passes its checks and is pushed |
+| resolving a conflict (forge.md, 8.4) | none | the workspace's, from a merge in progress; `finish` with a change | the merge is resolved, checked and pushed |
+| a review (forge.md, 8.3), a triage | none | reads; `finish` with a verdict | its verdict meets its contract |
+| a chat | its person's words; its delegates' results and questions, and its person's answers to those questions (8.2) | most; `deliver` mid-run; `message`; `wait` | its person closes it |
+| a coordinator | questions, results, overlapping landings, the answers to its own questions (8.2); proposals and escalations to decide | `delegate`, `amend`, `cancel`, `release`, `decide`, `decide_escalation`, `propose`, `subscribe_forge`, `note`, `message`; `wait` | its goal's report is written |
+| the configuring agent (8.1) | its person's words; its proposals' outcomes: accepted, rejected with a reason, withdrawn as stale | `settings`, `propose_settings`, `withdraw`, the forge's reads, `read_docs`; `wait` | its person closes it |
+
+The change's agents run under the forge's charters, the ones the change
+was made with, kept on it whatever later changes of settings make them
+(`../protocol/configuration.md`, 13.2): its producing, repairs and
+resolutions under the forge's charter, a coding agent's; its reviews
+under the forge's review charter, a reviewer's, whose instructions are
+to judge the change through its brief and the forge's reads and give a
+verdict, or fail saying why it cannot (forge.md, 8.3), and whose tools
+are the workspace's inspection and the forge's reads, never
+modification or the shell: a reviewer changes nothing.
+
+The change's agents ask no one, and take no questions, answers or words
+(8.2).
+
+### 8.1 The configuring agent
+
+A chat from template 3, run by charter 3, both stock and both settings
+like any other (`../protocol/configuration.md`, 13.4), which turns how
+a person says they work into a proposal of settings
+(`../draft/configuring.md`, sections 2, 5 and 6).
+
+- **Its instructions** are held in the binary, in the `stock` module,
+  and say, in the person's register:
+  - the test for each sentence of a description: would temper's engine
+    act differently without it? What changes what temper wakes,
+    schedules, permits, pays, lands or holds is structure, and becomes
+    settings; what only changes how an agent behaves is a rule, and
+    stays text that runs read, in a charter's instructions;
+  - to read the settings first, and the documents the person points to
+    (a path in an adopted repository, with `read_file`; a pasted text);
+  - to ask until it can propose, one question at a time, and to offer a
+    rule as structure where temper's model has it, saying what it
+    guarantees and what it does not, as the draft's 4-hour cap does;
+  - to propose once, against the newest revision it read, with a reason
+    whose first line is the proposal's title and whose next lines say,
+    under "temper enforces", each change of structure in the person's
+    words, under "your agents follow", each rule and where it comes
+    from, and what the change does to running work;
+  - to say what temper cannot model, offering the nearest thing, and
+    what needs a restart (the document's members: a provider, a forge,
+    a listener, a worker, a limit), never proposing it;
+  - to explain from the settings and the documentation (`read_docs`),
+    naming its pages, never their sections or offsets: the concepts
+    `settings`, `revision` (moving running work and restoring a version
+    among it), `proposal`, `charter`, `template`, `policy` and
+    `landing-rule`, each with what it cannot do and what needs a
+    restart; `settings-fields`, each setting's fields, bounds and
+    defaults; `configuration`, the document's members; and the recipes.
+    What happens when work starts, which role runs where, why a task's
+    run had what it had, given the task's `settings:` line the person
+    reads to it;
+  - on its proposal's outcome, heard in its inbox (jig's
+    `domain/engine.md`, 17.6): accepted, to say so in one line with the
+    revision it made; rejected, to take the
+    reason as the person's words and revise; withdrawn as stale, to
+    read the settings again and propose afresh, saying what changed.
+- **It changes nothing itself.** Its charter's `settings` family reads
+  and proposes; only an owner's decision changes settings (jig's
+  `domain/engine.md`, 17.6). A member's configuring chat proposes as
+  an owner's does, and its proposal waits for an owner.
+- **Started from ctl** with `chat start --project PROJECT --template 3
+  TEXT` (`../client/tools.md`, 5.3), and, once the user's pages land,
+  from "Tell temper how you work".
+- **Its tests** are `testing.md`, 6.4's: scripted runs in the engine's
+  domain world for its flows, and one process story through ctl.
+
+### 8.2 Asking before the work
+
+A person who wants to agree a plan before anything is changed: the
+reference case's question to a requester and to the chat
+(`../draft/reference-case.md`, 4.2 and 7.2),
+and rung B0 of `../draft/v0.1.0.md`. Where the second edition keeps a
+question to the chat with the chat, which answers it or asks its person
+itself (`../draft/process-model.md`, J7 and J8), the route below is
+today's, until those land.
+
+- **The work that waits asks; a change never does.** A change is
+  decided work, asked for once what to change is agreed. Its agents,
+  the table's first four rows, ask no one: the change procedure
+  delegates each with the Message family taken out of the tool families
+  it passes on, which a child's authority otherwise keeps (jig's
+  `domain/authority.md`, section 3). The change itself takes no
+  questions, answers or words (forge.md, 8.1); its amendments and its
+  cancel reach it as forge.md says.
+- **The chat delegates the work as a goal** when its person asks to
+  agree it first, with `goal` (4.3.2) and the person's words: a
+  delegate under charter 1 holding the authority to call `change` and
+  to ask; never `change` itself, which would start the work at once. The stock
+  chat's instructions (charter 1, `../protocol/configuration.md`, 13.4)
+  carry the rule: work the person wants to agree before anything is
+  changed goes to such a delegate, which tells its plan, asks, and calls
+  `change` only after the answer, which reaches it from the person's
+  inbox, not through the chat. The chat passes the person's words whole, at once, even where they
+  ask for an advisor first, since the goal asks one itself (4.3.2): it
+  never sets `advisor` for such work, writes the plan or asks the
+  go-ahead in its own reply, nor calls `change`. The goal, once it has
+  asked, waits for the answer: it never finishes before it, nor before
+  every agreed change has landed.
+- **Designed, not built (J7, J8):** the goal's question stays with the
+  chat (jig's `domain/tasks.md`, 8.5): the chat, woken by it, answers
+  from what it knows (its person's priorities, its notes), or asks its
+  person a question of its own in its own words, which is an entry of
+  the person's inbox, and answers the goal once it has the person's
+  answer. The rest of this section is today's route, which this
+  replaces once jig's rule is built.
+- **The goal asks its requester,** the chat, with `message` in the
+  question form, before it calls `change`, and waits. jig puts the
+  question in the inbox of the chat's person, since the person requested
+  the chat (jig's `domain/tasks.md`, 8.1; jig's `domain/people.md`,
+  section 6). The chat cannot ask its own person: it says in its reply
+  that a question waits for them.
+- **The person answers in the inbox,** `temper ctl task answer TASK
+  QUESTION TEXT` (`../client/tools.md`, 5.3) or the inbox's page, and
+  nobody else does: the answer reaches the goal itself, as its
+  requester's, never through the chat's model, which may not answer a
+  question that waits in its person's inbox (jig's `domain/people.md`,
+  section 6): its `message` answer is refused, naming that its person
+  answers it there. The chat hears a notice that the question was
+  answered, and says so. The goal is kept while its question waits
+  (jig's `domain/tasks.md`, 5.7): a run of it that finishes before the
+  answer parks, and the answer wakes it. It then calls `change` with
+  what was agreed, waits for its result and reports; the chat says what
+  landed.
+- **Nothing is changed before the answer:** no change task, branch or
+  pull request exists until the goal calls `change`.
+- **The asking is the root's rail, not the goal's choice.** The chat
+  marks such work once, as it delegates it: `goal` with `agree` set, at
+  the moment its person asks to agree it first, and the root makes the
+  goal's task owing its requester a question (jig's `domain/tasks.md`,
+  5.7, its spec's `asks`), the typed mark everything below reads, never
+  the brief's text. `finish` is the run's own, so an agreed goal that
+  finishes before it has asked is not refused but parks, kept by what it
+  owes, and wakes at once to the notice "this work is to be agreed: ask
+  your requester your plan with message, as a question, and wait"; its
+  `change`, the root's host call, is refused before that question is
+  answered ("wait for the answer to question N"), the run going on, as
+  any refused host call does. Once answered,
+  it changes and finishes as any goal; a person who declines is
+  answered by a report, changing nothing. So a model that writes its
+  plan as its result, or changes first, is turned back to the inbox.
+- **Its stories:** `fuzzy_green_light` on fakes (testing.md, 2.4), and
+  rung B0 walked on real backends (`../draft/v0.1.0.md`, 2.1).
+
+### 8.3 The golden: rung D
+
+v0.1.0's rung D (`../draft/v0.1.0.md`, section 3): the reference case's
+process told to the configuring agent in words, on real backends, its
+proposal scored against a golden and accepted, and rung C then run
+under the revision it made. Its walk is QA's (`../qa.md`); this section
+is what it walks with.
+
+- **The words,** `crates/temper/tests/fixtures/golden/words.md`: the
+  case's section 3 (`../draft/reference-case.md`) as its person would
+  say it, frozen with the case, in five paragraphs a QA driver types
+  into a configuring chat (`temper ctl chat start --template 3`), one
+  per turn: the cast and their models; the repositories, their gates
+  and app's tier; the tooling; the forge; how landings and their
+  aftermath go (section 3's settings table). No setting's name or
+  number appears in them. The agent's questions are answered from the
+  golden's notes, each answer a sentence the case already says.
+- **Each fact of section 3, sorted** as `../draft/configuring.md` 2
+  sorts a description:
+  - *settings,* scored: the charters' models and delegation by role;
+    the forge's change charter (kind 3, number 1); the landing rule
+    (kind 1) without the stock's agent-review gate, since the case's
+    reviews are delegates inside goals, not gates (its section 12);
+    a project's landing (kind 4: by turn; the project's `prepare`, run
+    in app, its home, preparing both repositories, the key the
+    default; dependencies joining a landing; app pinned to kit,
+    following kit's main; two stale proofs before a reservation;
+    suspects bisected; a red pausing nothing; a verification bound of
+    2 hours; findings on, the director triager and chooser, the tester's
+    charter; the person's questions on the forge); a repository's gates
+    (kind 5: kit's `check` and app's, `docs/` ignored, blocking, and
+    app's `browser` tier). Values the case does not give (retries,
+    areas, the review charter, hosts, resume, tool families) are not
+    scored;
+  - *rules,* which the reason lists under "your agents follow": D has
+    each part reviewed once; F starts from a finding with no designer;
+    an advisor is called once two tries have missed; `STATUS.md` is
+    generated from one file per part, by `prepare`; the director checks
+    every 2 hours, subscribing itself to a timer with its `subscribe`
+    tool (jig's `domain/tasks.md`, 8.3 and 8.4; `process-model.md` 3.1,
+    graded exact), which D's walk checks is built, citing it as a built
+    gap if not;
+  - *named, never proposed:* budgets, the person's (`temper ctl project
+    fund`);
+  - *setup, not the agent's:* app as the project's home (its
+    adoption), the owned Forgejo with dispatch-only workflows, and
+    hour 0 (P running, nothing held, no finding open, `browser` green),
+    which C's start establishes after D's acceptance.
+- **The golden,** `crates/temper/tests/fixtures/golden/reference-case.json`,
+  a file of its own, not the settings form: one entry per scored
+  setting, its kind, its scope (a repository by name, `kit` or `app`,
+  bound to its adoption's number at the walk), its number or role, the
+  fields the case gives with their values, and the case's sentence it
+  encodes. The models are scored by provider (Claude or GPT), the
+  workflows and the prepare command by the names C's fixture gives
+  them.
+- **Charters matched by role,** mechanically, from the proposal's
+  would-be settings (`temper ctl proposal show PROPOSAL --json`, each
+  value whole): the implementer is kind 3's number 1; the tester,
+  kind 4's tester charter; the coordinator, the charter of the
+  template the director's chat starts from; the advisor, the Claude
+  charter the coordinator may delegate to that none of these names;
+  each then compared on its main model's provider and on whether it
+  may delegate, and the advisor on its one-shot contract. A role with
+  no charter is a miss.
+- **Scored** by `tools/golden` in this repository, on the effective
+  settings the proposal would make (an unchanged default need not
+  appear in it), each entry's fields one line each: *match*; *miss*,
+  absent or otherwise; *extra*, a changed setting the golden lacks;
+  *gap*, a field of a kind not yet built when the walk runs (kinds 4
+  and 5 arrive field by field with design/process-model's parts,
+  `../domain/landing.md` 13.1). Whether the reason names each gap and
+  lists each rule is read by the walk's QA session, a judgement it
+  records, not the tool's. D passes when every built field matches,
+  no extra changes structure the case never said, and every gap and
+  rule is named. A miss or an unnamed gap is a finding against the
+  agent's instructions or the pages it read.
+- **Then** the owner accepts with `--running stays`, and rung C starts
+  under the revision it made, its hour 0 set up as C's start says. D's
+  spend ceiling is the user's (temper#6).
+- **When:** once the agent lands (8.1) and C's acts can run. Until a
+  kind lands, its fields are gaps, so an early D measures the agent on
+  what exists. D is walked again when the agent's instructions or the
+  help's pages change (`../draft/configuring.md`, section 8).
+
+## 9. The world
+
+smith's worlds test the agent itself (smith's documents, each section
+"The world"). temper's test what it fills in, and the agent under its
+host:
+
+- **`temper-engine-smith`'s step tests:** the root's charter becomes
+  smith's start, its brief in order and its budget exact; every declared
+  tool decodes its least shape and refuses a wrong one; `amend` and
+  `release` name their revision; every answer renders as smith's text
+  within smith's limits, or as an error; a job's answer names its failed
+  step before its log; smith's terminals keep their spend and the root's
+  contract.
+- **The routing's tests:** a call decoded into the root's `Tool`; one of
+  another activation, or of an unknown tool, answered as an error with no
+  commit; a result that does not decode failing its attempt as invalid;
+  a change's result kept only with its settled resource; each settled
+  delivery the hub's answer (`../protocol/llm.md`, section 6).
+- **The worker's and the system worlds** (worker.md, section 10): smith's
+  scripted agent for the agent child, and smith's real agent domain over
+  skein's fake LLM, its tools working in the trees the worker prepared.
+- **Stories that are temper's:** a change produced, checked and pushed,
+  and its push found moved; a coordinator that delegates a batch, hears
+  results, and proposes what is beyond its authority; a chat that waits,
+  hears its person's words, parks, and resumes from its transcript; a
+  host tool answered busy by the engine, asked again and decided once.
+
+## 10. Open questions
+
+- **Which host tools a charter offers.** jig's charter carries the tools
+  its task's authority gives (jig's `domain/engine.md`, 7.1); temper's
+  declares every host tool but the `settings` family's (4.3), and the
+  authority refuses what it does not allow. Whether to declare only what
+  it allows for the other families too, which the host part's budget
+  (4.3) may force, and how a brief teaches an LLM when to delegate a task
+  rather than a sub-agent.
+- **A cancel's grace:** jig's `cancel` takes one, if the run gives it
+  (jig's `domain/engine.md`, 7.3); temper's takes none.
+- **A code graph** for a workspace (worker.md, section 12), as an MCP
+  tool source once smith has one.

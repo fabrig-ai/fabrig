@@ -1,0 +1,60 @@
+== Inbox == Live
+temper
+Menu:
+  [1] Shop (pressed)
+  [2] Inbox
+  [3] Chats
+  [4] Adopt a repository
+  * Pat
+  [5] Sign out
+[6] + New chat
+[7] All projects
+[8] Shop
+[9] Second
+[10] All goals
+Kind:
+  [11] All kinds
+  [12] Proposal
+  [13] Question
+  [14] Held
+  [15] Person task
+[16] Goal: (empty)
+## Needs you
+4
+- Proposal
+  Project 1
+  [17] Task 9
+  Waiting under 1 min
+  ### Add OAuth login
+  Why:
+    “It touches sign-in.”
+  Budget:
+    Funds 40 from your pool · 120 left, 80 after
+- Question
+  Project 1
+  [18] Task 9
+  Waiting under 1 min
+  ### Which provider first?
+- Held
+  Project 1
+  [19] Task 9
+  Waiting under 1 min
+  ### Review needs attention
+  Held: out of tries
+  Hold revision 7
+  The next run resumes its conversation; tries count again from zero
+- Person task
+  Project 1
+  [20] Task 9
+  Waiting under 1 min
+  ### Choose a provider
+## Updates
+2 new
+- Project 1
+  [21] Task 9
+  ### T9 Accessibility pass is done
+  just now
+- Project 1
+  [22] Task 9
+  ### T9 OAuth login? replied
+  just now

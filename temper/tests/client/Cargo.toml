@@ -1,0 +1,64 @@
+[package]
+name = "temper-client-world"
+description = "temper's client joined to its real engine root"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+skein-forge.workspace = true
+smith-domain-session.workspace = true
+smith-protocol-channel.workspace = true
+smith-transcript.workspace = true
+temper-worker-domain-world = { path = "../worker/domain" }
+jig-client.workspace = true
+jig-client-protocol-link.workspace = true
+jig-client-protocol-wire.workspace = true
+skein-lib.workspace = true
+skein-io.workspace = true
+skein-world.workspace = true
+jig-client-world.workspace = true
+jig-client-test-kit.workspace = true
+skein-fake-person.workspace = true
+jig-client-test-domain.workspace = true
+jig-test-domain.workspace = true
+jig-core-world.workspace = true
+jig-domain-core.workspace = true
+jig-domain-accounts.workspace = true
+jig-domain-authority.workspace = true
+jig-domain-people.workspace = true
+jig-domain-tasks.workspace = true
+jig-domain-host.workspace = true
+jig-domain-views.workspace = true
+skein-ui.workspace = true
+jig-protocol-transcript.workspace = true
+jig-protocol-config.workspace = true
+temper-client-protocol-wire.workspace = true
+temper-service.workspace = true
+temper-client-domain.workspace = true
+temper-client-tools.workspace = true
+temper-client-view.workspace = true
+temper-engine-domain.workspace = true
+temper-engine-domain-forge.workspace = true
+temper-engine-domain-world = { path = "../engine/domain" }
+
+[lints.rust]
+unsafe_code = "forbid"
+elided_lifetimes_in_paths = "deny"
+unused_must_use = "deny"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+missing_panics_doc = "allow"
+wildcard_enum_match_arm = "deny"
+match_wildcard_for_single_variants = "deny"
+unwrap_used = "deny"
+allow_attributes = "deny"
+allow_attributes_without_reason = "deny"
+disallowed_types = "deny"
+disallowed_methods = "deny"
+
+[dev-dependencies]
+jig-boundary.workspace = true

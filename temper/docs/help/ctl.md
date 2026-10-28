@@ -1,0 +1,166 @@
+# temper ctl
+
+Kind: concept
+
+temper ctl is the command line through which an agent works in a deployment for a person, each call a read, an act or a wait in a process of its own.
+
+## What it is
+
+- **A call** is `temper ctl DIR GROUP VERB [ARGUMENT...] [--json]`:
+  one process, one tool, then its exit status. A group is one of
+  temper's nouns, such as `task`, `forge` or `account`; its verbs are
+  its tools: `task show`, `forge setup`. Five tools are one word:
+  `me`, `inbox`, `sign-in`, `sign-out`, `pending`.
+- **Help:** `temper ctl help` prints this page, then the groups, a
+  line each; `temper ctl help GROUP` the group's tools; `temper ctl
+  help GROUP VERB` one tool's usage, arguments and result.
+- **`DIR`** is the agent's directory for one deployment and one party:
+  the sign-in's token, the engine's address, and the requests the
+  engine has not yet answered. It is private to the user who owns it.
+  Every call names it; ctl never chooses a deployment.
+- **A read** prints a document: a header and its fields, then, where
+  something can follow, `acts:`, the calls ready to copy, and, where a
+  wait can follow, a `digest:`.
+- **An act** asks the engine for a change and prints its outcome.
+- **A wait** is a read given `--since` or `--until`: it blocks until
+  the subject changes, or meets a condition, or its timeout passes.
+- **The party** is who `DIR` is signed in as. `temper ctl DIR me`
+  prints it, with its projects, its bounds and how long the engine
+  keeps its requests.
+
+## How it changes
+
+**Signed out, then signed in.** `temper box` and `temper serve` print
+a sign-in link. Pass it on stdin; `DIR` then holds the token every
+later call uses:
+
+```
+temper ctl DIR sign-in -
+```
+
+A link signs in once. `sign-out` ends the sign-in and leaves the token
+empty; a call then exits 1 until the next sign-in.
+
+**A request is kept** in `DIR` from the moment an act sends it until
+the engine's answer is durable. A call cut short, by a signal or a
+link down past its deadline, leaves its request kept, and the next
+call that sends sends it again under its key, printing the answer on
+stderr: `kept: message, done: task 41, message`. A request the engine
+has not answered yet holds no other act: the line says `unanswered`,
+and the call goes on with its own act. `temper ctl DIR pending`
+lists what `DIR` keeps, and sends nothing.
+
+## What temper guarantees
+
+- **The exit status says who answered:**
+  - 0: a read answered, an act done or proposed, a wait's condition
+    met;
+  - 1: the call failed on ctl's side: usage, `DIR` refused or busy,
+    signed out, a bound of ctl's, the engine unreachable past the
+    link's deadline. The engine refused nothing;
+  - 2: the engine refused, and only the engine: a key conflict, a
+    revision that moved, a subject no longer visible, no room for
+    another answer (below). Its line says what to do instead where
+    there is something;
+  - 3: a wait's timeout, or its watch ended, its condition not met;
+    it prints the last document;
+  - 130 or 143: ended by `SIGINT` or `SIGTERM`; what it sent stays
+    kept.
+
+  An exit 1 that says unconfirmed, or a key conflict found by ctl
+  itself, is a bug of ctl's: report it as a finding.
+- **A key makes an act happen once.** The same key for the same
+  request, from the same party, within the retention `me` prints,
+  answers the first outcome again and changes nothing.
+- **A full engine says when it has room.** The engine keeps each
+  act's answer for that retention, and a set number of them:
+  `temper ctl: the engine holds its N answers of the last day; room
+  again at TIME` (exit 2) means it has no room for another, and
+  nothing was made. A call that can wait until TIME waits and goes
+  on; one that can't stops at once. Send the same act with the same
+  key after TIME.
+- **A wait outlives the engine's restart:** it reconnects, and fails
+  only past the link's deadline.
+- **A decision names the revision it saw.** When the revision has
+  moved, the engine refuses it (exit 2): read again, then decide.
+
+## Acting on it
+
+**The loop:** read, act from the read's `acts:`, wait, then read
+again.
+
+```
+temper ctl DIR me
+temper ctl DIR me --until waiting
+temper ctl DIR inbox
+temper ctl DIR task show TASK --tree
+temper ctl DIR task message TASK TEXT --key KEY
+```
+
+**Waits.** A read of one subject waits when given `--since DIGEST`,
+the digest a read of it printed, or `--until CONDITION`, or both:
+`--since` returns once the subject differs from that read; `--until`
+once the condition holds, at once if it holds already; both, once
+both do. `--until changed` returns at the subject's next change.
+`--timeout DURATION` bounds it: 300 seconds unless given, at most
+3600. The subjects, and their conditions beside `changed`:
+
+- `me`: `waiting`, something waits on your party;
+- `inbox`, with no flag: `waiting`; `updates`, an unread update;
+- `task show TASK`, with no flag: `ended` (done, failed or
+  cancelled); `waiting-on-me`, over the task's tree; `held`;
+  `replied`, once a chat waits on someone, holds, closes or ends;
+  `phase:PHASE`, a live phase;
+- `task tree TASK`, `task run TASK`: `ended`;
+- `task list`, without `--after` or `--ended`: none;
+- `account list`: `usable`, an account your work may use; `settled`,
+  no sign-in or check you asked still in progress;
+- `forge list`: `settled`, no set up, connect or install in progress;
+  `connected:FORGE`; `made:FORGE`, its first repository made;
+- `change show TASK`: `pull`, `ci:pending`, `ci:passed`, `ci:failed`,
+  `held`, `landed`.
+
+- **Keys:** an act takes `--key KEY` where its usage shows one,
+  required or optional; reads and waits take none. Agents that share
+  a party give their keys a prefix of their own, such as
+  `review-41-`. A key is never reused for new work.
+- **TEXT** is one argument, or `-` to read stdin to its end; a call
+  reads stdin once.
+- **Secrets** (a model's key, a forge's token or private key, an
+  account's record) are read from a file: regular, owned by you, with
+  no permission for group or others. Never type one or pass it as an
+  argument. ctl sends a secret once and keeps nothing of it: when its
+  answer is lost (exit 1), the same call with the same key and file
+  gets the first answer.
+- **Links:** ctl prints the links a person or a browser must open,
+  such as a sign-in to a model's provider or a forge's install page,
+  and never opens one. After opening one on the engine's machine,
+  wait for what it settles.
+- **JSON:** `--json` prints one object, its keys in snake case.
+  `--call FILE` reads one call as JSON, `{"tool": "task message",
+  "arguments": {...}}`, the arguments named as `temper ctl help GROUP
+  VERB --json` names them and `key` among them; `--call -` reads it
+  from stdin. A tool that reads a file, such as a secret or
+  `sign-in`'s link, takes its arguments on the command line, never in
+  `--call`.
+- **The forge:** read its diffs, reviews, CI runs, logs and branches
+  with tools of your own, at the numbers and links ctl prints. What
+  temper owns there, its branches, its pull requests and their
+  landing, changes only through temper.
+
+## Limits
+
+- ctl reaches an engine on loopback alone: `127.0.0.0/8` or `[::1]`.
+- The link's deadline is 30 seconds: an engine that does not answer
+  within it fails the call (exit 1).
+- A malformed call prints the usage line alone: `temper ctl: usage:
+  temper ctl DIR GROUP VERB [ARGUMENT...]; temper ctl help GROUP VERB
+  prints one tool`. A word that names no group or tool says which, and
+  where help lists them.
+- A `DIR` holds one party's sign-in; several parties take several
+  directories. Give `temper open` a directory of its own.
+- Calls that send take `DIR` in turns: a second waits up to 60
+  seconds, then exits 1. Reads and waits never wait for `DIR`.
+- A kept request is answered only within its retention; past it, its
+  outcome is unknown, and reading again tells what happened.
+- ctl opens no browser and runs no program.

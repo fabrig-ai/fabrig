@@ -1,0 +1,31 @@
+[package]
+name = "temper-protocol-store"
+description = "Temper's ordered keys and durable store codecs"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+skein-forge.workspace = true
+skein-codec.workspace = true
+skein-lib.workspace = true
+skein-kv.workspace = true
+jig-protocol-store.workspace = true
+jig-domain-people.workspace = true
+temper-engine-domain-forge.workspace = true
+skein-forge-client.workspace = true
+temper-engine-domain-forge-change.workspace = true
+temper-engine-domain-forge-issues.workspace = true
+
+temper-engine-domain-forge-landing = { path = "../temper-engine-domain-forge-landing" }
+
+[dev-dependencies]
+temper-engine-domain.workspace = true
+jig-domain-core.workspace = true
+jig-domain-tasks.workspace = true
+jig-domain-notes.workspace = true
+
+[lints]
+workspace = true

@@ -1,0 +1,64 @@
+== Every role == Live
+temper
+Menu:
+  [1] Shop (pressed)
+  [2] Inbox
+  [3] Chats
+  [4] Adopt a repository
+  * Pat
+  [5] Sign out
+Region:
+  child
+Figure:
+  child
+Dialog:
+  child
+List:
+  child
+Tree:
+  child
+Choices:
+  child
+Tabs:
+  child
+Log:
+  child
+## Heading
+Paragraph
+Time
+Cell
+Term:
+  Description
+! Alert
+    code
+    second
+> quote
+> second
+* Status
+Text
+`run` strong
+- item
+  continued
+- item
+  continued
+one | two
+[6] Button
+[7] Tab
+[8] Link
+[9] Field: value (enter sends)
+[10] Area: (empty)
+[11] ( ) Choice
+[12] [ ] Check
+[13] (*) Chosen
+[14] [x] Checked
+[-] All states (disabled) (expanded) (busy) (current) (invalid) (pressed) (selected)
+[-] Unbound
+Outside <https://example.test/>
+* Loading
+* 
+Progress: half
+--
+Slot
+Drawing:
+  fallback
+beforeNestedafter

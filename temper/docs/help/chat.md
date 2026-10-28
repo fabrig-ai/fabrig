@@ -1,0 +1,77 @@
+# Chats
+
+Kind: concept
+
+A chat is a conversation between a party and an agent in a project: an untracked task of the label chat, which replies, parks between messages, and asks for changes that other tasks make.
+
+## What it is
+
+- **A chat is a task** labelled `chat`, made from its project's chat
+  template, template 1: its charter, its budget rule and its model.
+  It is untracked, has no deadline, and keeps its transcript.
+- **Its conversation** is what `chat show` reads: each turn's words, from
+  the party and from the agent, and each run's start and end.
+- **A reply is not a result.** The agent's words answer the party,
+  and the chat goes on: it ends only when its party closes it.
+- **A change is another task's.** Asked for a change, the chat's run
+  asks for it with the host tool `change`: a change task, its
+  delegate, writes it, opens its pull request and lands it, and the
+  chat hears its result (temper help task).
+- **Work agreed first.** Asked to agree a plan before anything is
+  changed, the chat's run never calls `change`, never writes the plan
+  or asks for the go-ahead in its own reply, and never sets `advisor`:
+  it starts a goal at once with `goal` and the party's words whole,
+  even where they ask for an advisor first (temper help goal), and
+  says a question will wait in the party's inbox. The goal asks its plan with
+  `message`, then waits for the answer, and finishes only once every
+  agreed change has landed; the question waits in the party's inbox; the party
+  answers it there (`task answer`), the chat relays the answer to the goal,
+  and only then does the goal call `change`. In the chat's
+  conversation the goal's question reads `G asks (question Q): ...`
+  and the party's answer `P answers question Q: ...`: the chat relays
+  it to the goal by that number. The chat says what landed as the
+  result says it, never a check or test it doesn't name.
+- **An advisor, and changes in order.** Asked for an advisor first, the
+  goal, never the chat, starts one with `goal` and `advisor` set: temper opens its brief
+  with a line saying it is an advisor, which reads the forge and
+  reports, and it can change nothing. The goal names what it found in
+  its plan. Agreed changes are made one at a time: one that builds on
+  another is asked for only after the first has landed.
+
+## How it changes
+
+- **Running, then parked:** a run answers, waits a while for more
+  words, then parks; the chat waits for news, `Waiting for news`, and
+  a message makes it due for its next run.
+- **Closing, then closed:** closing moves the live direct delegates
+  the party names to the party, cancels the others at once, then
+  gives the chat's run its template's grace, 5 seconds in the stock
+  template, and cancels it. A closed chat is not reopened.
+
+## What temper guarantees
+
+- **Words between turns:** a message sent while a run works reaches
+  it at the next turn's boundary.
+- **Each delegate decided at the close:** none is left without an
+  owner; the ones not moved are cancelled with the chat.
+- **The transcript stays** after the close: `chat show` and `task
+  show` with `--run` read it.
+
+## Acting on it
+
+- **ctl:** `chat start` starts one in a project and `chat show` reads
+  one; `task message` sends it words; `chat close` ends it, and the
+  same `chat close` again gets its first answer; `task show` on its
+  task with `--until replied` returns once it has answered or waits on
+  someone; `task tree` shows the change tasks it started.
+- **temper's runs** in a chat use the host tools `change`, `goal`,
+  `delegate` and `message`, and read these pages with `read_docs`.
+
+## Limits
+
+- temper does not let ctl choose a chat's template: `chat start` uses the
+  project's chat template.
+- temper does not promise a final summary before the close's grace
+  ends.
+- A chat whose request goes past what the party may start alone is
+  proposed instead, and starts only once accepted.
