@@ -47,7 +47,7 @@ fn finish(
     let google = engine.clients.google.as_mut().unwrap();
     let exchange = *google.pending.first().expect("pending sign-in").0;
     let pending = google.pending.get_mut(&exchange).unwrap();
-    pending.out = Queue::with_capacity(oauth::MAX_OUT);
+    pending.out = Queue::uncapped();
     pending.out.push(oauth::Request::Tokens { record: record(payload, subject), missing: Box::new([]) });
     world::pump(service, &mut peer);
     peer
@@ -258,7 +258,7 @@ fn the_full_pending_table_stays_under_its_measured_heap_ceiling() {
             call: None,
             redirect,
             client: Some(oauth::Client::new(limits::client(limits)).unwrap()),
-            out: Queue::with_capacity(oauth::MAX_OUT),
+            out: Queue::uncapped(),
             phase: Phase::Starting,
         };
         pending.client.as_mut().unwrap().step(
