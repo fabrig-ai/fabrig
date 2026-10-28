@@ -416,6 +416,19 @@ amendments to it are refused, and a cancel ends its job at once. It
 costs nothing from a budget but the host's time, which its deadline
 bounds.
 
+- **Its record:** the executor `Job { kind }`; its spec, bytes of the
+  application's own within the kind's declared spec bound (hosts.md,
+  6.9), never words or parameters, which are UTF-8; its items, prepared
+  by its procedure's connector as a run's are (connectors.md, section
+  10); and its deadline.
+- **Its result:** a contract of its own, `Job`, the application's bytes
+  within the kind's declared result bound, never decoded as an agent's;
+  its requester hears it as any delegate's result (5.6), and its own
+  failures (its deadline passed, its delivery lost) are a job's, held
+  past its tries.
+- **Its authority:** a creator's delegation names the job kinds it may
+  make (authority.md, section 3), as it names charters and procedures.
+
 ### 5.4 Person tasks
 
 An active person task is in the inbox of the party, or of the parties

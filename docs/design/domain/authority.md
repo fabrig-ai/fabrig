@@ -127,7 +127,9 @@ Authority
   or a read only if some grant covers it.
 - **Delegation:**
   - *kinds:* which executors its delegates may have: agents with which
-    charters, which procedures, people in which roles;
+    charters, which procedures, people in which roles, jobs of which
+    kinds (tasks.md, 5.3.1): a kind of its own, so that a policy grants
+    its landings their jobs' kinds, never borrowed from a procedure's;
   - *tasks:* how many tasks its subtree may make over its life;
   - *depth:* how deep below it its subtree may go.
 - **Budget:**
@@ -474,7 +476,7 @@ A check answers the strictest of what it found.
 
 Before a batch commits (tasks.md, section 4): each task's authority fits
 under its creator (section 5), the creator's delegation allows each
-task's executor kind and charter, each agent task's LLM choice names
+task's executor kind and its charter, procedure, role or job kind, each agent task's LLM choice names
 models its own authority allows and efforts its models declare
 (tasks.md, section 3), and the batch's tasks, depth, budgets and
 deadlines are within what its creator has left. Beyond any of these, the
