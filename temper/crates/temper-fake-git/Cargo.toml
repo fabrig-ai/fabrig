@@ -22,7 +22,7 @@ temper-worker-protocol-git.workspace = true
 temper-worker-domain-checkout.workspace = true
 
 [dev-dependencies]
-skein-fake-machine = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-fake-machine = { path = "../../../skein/crates/skein-fake-machine" }
 
 [lints.rust]
 unsafe_code = "forbid"

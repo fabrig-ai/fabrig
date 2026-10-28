@@ -40,7 +40,7 @@ jig-client-protocol-wire.workspace = true
 jig-protocol-config.workspace = true
 jig-protocol-store.workspace = true
 jig-conformance.workspace = true
-jig-test-service = { git = "https://github.com/fabrig-dev/jig.git" }
+jig-test-service = { path = "../../../jig/testing/jig-test-service" }
 jig-core-world.workspace = true
 smith-channel.workspace = true
 smith-charter.workspace = true
@@ -48,20 +48,20 @@ skein-lib.workspace = true
 skein-io.workspace = true
 skein-shell.workspace = true
 skein-world.workspace = true
-skein-sim = { git = "https://github.com/fabrig-dev/skein.git" }
-skein-fake-machine = { git = "https://github.com/fabrig-dev/skein.git" }
-skein-fake-peers = { git = "https://github.com/fabrig-dev/skein.git" }
-skein-fake-llm-domain = { git = "https://github.com/fabrig-dev/skein.git" }
-skein-fake-llm-protocol = { git = "https://github.com/fabrig-dev/skein.git" }
-skein-llm = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-sim = { path = "../../../skein/crates/skein-sim" }
+skein-fake-machine = { path = "../../../skein/crates/skein-fake-machine" }
+skein-fake-peers = { path = "../../../skein/crates/skein-fake-peers" }
+skein-fake-llm-domain = { path = "../../../skein/crates/skein-fake-llm-domain" }
+skein-fake-llm-protocol = { path = "../../../skein/crates/skein-fake-llm-protocol" }
+skein-llm = { path = "../../../skein/crates/skein-llm" }
 skein-llm-world.workspace = true
-skein-kv = { git = "https://github.com/fabrig-dev/skein.git" }
-smith-agent-process-world = { git = "https://github.com/fabrig-dev/smith.git" }
-smith-agent-shell = { git = "https://github.com/fabrig-dev/smith.git" }
-smith-agent-service = { git = "https://github.com/fabrig-dev/smith.git" }
-smith-host-protocol = { git = "https://github.com/fabrig-dev/smith.git" }
-smith-local-service = { git = "https://github.com/fabrig-dev/smith.git" }
-smith-protocol-llm = { git = "https://github.com/fabrig-dev/smith.git" }
+skein-kv = { path = "../../../skein/crates/skein-kv" }
+smith-agent-process-world = { path = "../../../smith/tests/agent-process" }
+smith-agent-shell = { path = "../../../smith/crates/smith-agent-shell" }
+smith-agent-service = { path = "../../../smith/crates/smith-agent-service" }
+smith-host-protocol = { path = "../../../smith/crates/smith-host-protocol" }
+smith-local-service = { path = "../../../smith/crates/smith-local-service" }
+smith-protocol-llm = { path = "../../../smith/crates/smith-protocol-llm" }
 smith-domain.workspace = true
 temper-engine-smith.workspace = true
 

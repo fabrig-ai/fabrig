@@ -39,7 +39,7 @@ jig-client-fake-person-browser.workspace = true
 
 [dev-dependencies]
 skein-world.workspace = true
-skein-sim = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-sim = { path = "../../../skein/crates/skein-sim" }
 
 [lints.rust]
 unsafe_code = "forbid"

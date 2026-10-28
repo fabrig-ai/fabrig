@@ -27,7 +27,7 @@ temper-client-protocol-wire.workspace = true
 
 [dev-dependencies]
 skein-scratch.workspace = true
-skein-sim = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-sim = { path = "../../../skein/crates/skein-sim" }
 jig-client-world.workspace = true
 
 [lints.rust]

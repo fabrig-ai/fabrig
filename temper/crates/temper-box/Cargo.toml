@@ -16,8 +16,8 @@ skein-shell.workspace = true
 [dev-dependencies]
 skein-world.workspace = true
 skein-scratch.workspace = true
-skein-sim = { git = "https://github.com/fabrig-dev/skein.git" }
-skein-fake-machine = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-sim = { path = "../../../skein/crates/skein-sim" }
+skein-fake-machine = { path = "../../../skein/crates/skein-fake-machine" }
 jig-boundary.workspace = true
 
 [lints]
