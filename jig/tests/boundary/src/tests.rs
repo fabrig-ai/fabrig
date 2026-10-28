@@ -66,8 +66,14 @@ fn workspace_vocabulary(source: &str) -> String {
     vocabulary
 }
 
+/// The kit's manifests and, as a workspace manifest without a name, the share of the workspace's
+/// dependencies that they inherit.
 fn manifests() -> Vec<CrateManifest> {
-    crate::manifest::manifests(&kit_root())
+    let root = kit_root();
+    let mut manifests = crate::manifest::manifests(&root);
+    let (path, share) = crate::manifest::workspace_share(&root);
+    manifests.push(parse_manifest(path, &share));
+    manifests
 }
 
 fn forbidden_words() -> Vec<String> {
@@ -97,6 +103,38 @@ fn workspace_fixture_checks_dependencies_without_a_package() {
     assert_eq!(parsed.name, None);
     assert_eq!(graph::breaches(&[parsed], graph::all_crates), [format!("fixture/Cargo.toml: {forbidden}")]);
     assert!(!workspace_manifest("[workspace]\n[package]\nname = \"jig-sample\"\n"));
+}
+
+#[test]
+fn the_workspace_share_holds_the_inherited_entries_by_package() {
+    let forbidden = ["tem", "per", "-sample"].concat();
+    let workspace = format!(
+        "[workspace]\nmembers = []\n[workspace.dependencies]\nskein-lib = {{ path = \"skein/crates/skein-lib\" }}\n\
+         sample = {{ package = \"{forbidden}\", path = \"sample\" }}\nunused = {{ path = \"unused\" }}\n\
+         [profile.dev]\nsample = 1\n"
+    );
+    let kit = [
+        "[package]\nname = \"jig-one\"\n[dependencies]\nskein-lib.workspace = true\n".to_owned(),
+        "[package]\nname = \"jig-two\"\n[dev-dependencies]\nsample = { workspace = true }\n".to_owned(),
+    ];
+    let share = crate::manifest::share(&workspace, &kit);
+    assert_eq!(
+        share,
+        format!(
+            "[workspace]\n[workspace.dependencies]\nskein-lib = {{ path = \"skein/crates/skein-lib\" }}\n\
+             sample = {{ package = \"{forbidden}\", path = \"sample\" }}\n"
+        )
+    );
+    let parsed = parse_manifest(PathBuf::from("fixture/Cargo.toml"), &share);
+    assert_eq!(parsed.dependencies, ["skein-lib", forbidden.as_str()]);
+    assert_eq!(graph::breaches(&[parsed], graph::all_crates), [format!("fixture/Cargo.toml: {forbidden}")]);
+}
+
+#[test]
+fn the_kit_inherits_from_the_workspace_manifest_above_it() {
+    let (path, share) = crate::manifest::workspace_share(&kit_root());
+    assert_eq!(path, kit_root().parent().expect("the kit has a parent").join("Cargo.toml"));
+    assert!(share.lines().any(|line| line.starts_with("skein-lib =")), "the kit inherits skein-lib: {share}");
 }
 
 #[test]

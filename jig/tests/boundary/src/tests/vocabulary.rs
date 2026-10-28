@@ -145,6 +145,13 @@ fn kit_sources_part_16_keep_the_kit_vocabulary() {
 }
 
 #[test]
+fn the_workspace_share_keeps_the_kit_vocabulary() {
+    let (path, share) = crate::manifest::workspace_share(&kit_root());
+    let failures = vocabulary_breaches(&path, &workspace_vocabulary(&share), &forbidden_words());
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+#[test]
 fn workspace_fixture_omits_only_dependency_sources() {
     let word = ["g", "it"].concat();
     let url = format!("https://{word}.ekanayaka.io/ai/skein.{word}");
