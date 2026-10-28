@@ -112,16 +112,16 @@ and file operations.
 
 ### 3.1 Admission and its orders
 
-The worker's root admits by a watermark, as every root does (skein's
-programming-model.md, 7.1). The queues between its children are
+The worker's service loop admits by the root's watermark (skein's
+programming-model.md, 7.1). The queues between the root's children are
 uncapped and no route reserves room; the link to the engine, a host's
 channel and the kernel's queues are its edges and stay capped.
 
-- **The backlog** is the entries in the uncapped queues between its
-  children; **the watermark** a field of its `Limits`, at twice the old
-  room of one entrance's largest output (`2 × max_out` at the stock
-  `small` profile), set where the worker's limits are, with no key in
-  temper's documents.
+- **The backlog** is the entries in the uncapped queues between the
+  service's components and the root's children; **the watermark** a
+  field of the root's `Limits`, at twice one entrance's largest output
+  (`2 × max_out` at the stock `small` profile), set where the worker's
+  limits are, with no key in temper's documents.
 - **New work waits:** an assignment, a message, a check and a sign-out
   from the engine wait at the watermark, in the link's capped queue in
   order. **Everything else is always taken**: the children's
@@ -475,9 +475,9 @@ process has exited and its tree is empty. temper's choices:
   are.
 - **The worker's own facts:** each child domain's, content-free (tokens,
   kinds and counts, never a name, a branch or a message), gathered after
-  every entry point into one capped queue the loop drains, for
-  operators: a sink that drops and counts (skein's programming-model.md,
-  section 3), since nothing in production reads it to the end.
+  every entry point into one capped queue: a sink that drops and
+  counts (skein's programming-model.md, section 3), with no production
+  consumer.
 
 Nothing the worker or the engine decides depends on a fact arriving, and
 no fact holds a slot.
