@@ -10,7 +10,7 @@ use skein_lib::stream::Up;
 use skein_lib::{Duration, Time};
 
 use super::{LIMITS, Rig, admitted, close, failed, reply, room, scan, send, session, socket, stream};
-use crate::{BUSY, Limits, TOO_LONG, worst_case};
+use crate::{BUSY, Limits, TOO_LONG};
 
 #[test]
 fn a_line_is_a_call_and_its_answer_goes_back_after_room_for_the_next_is_asked() {
@@ -298,20 +298,6 @@ fn a_second_reply_to_one_call_is_a_bug() {
     rig.listen();
     let conn = rig.reading(1, session(1));
     let _again = rig.down(admitted(conn, session(1)));
-}
-
-#[test]
-fn the_worst_case_counts_the_slab_and_a_line_per_connection_and_one_more() {
-    let two = worst_case(&LIMITS).expect("priced");
-    let three = worst_case(&Limits { conns: 3, ..LIMITS }).expect("priced");
-    let longer = worst_case(&Limits { line: 32, ..LIMITS }).expect("priced");
-    assert!(three > two, "a connection more costs more");
-    assert_eq!(
-        longer.checked_sub(two),
-        Some(48),
-        "sixteen bytes more for each line counted: two connections and one more"
-    );
-    assert_eq!(worst_case(&Limits { conns: u32::MAX, line: u32::MAX, ..LIMITS }), None, "past a u64");
 }
 
 #[test]

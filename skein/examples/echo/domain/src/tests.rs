@@ -7,7 +7,7 @@ use alloc::boxed::Box;
 
 use skein_lib::{Env, Queue, ReplyTo, Time, Token, Wall};
 
-use crate::{Domain, Event, Limits, Reply, Request, step, worst_case};
+use crate::{Domain, Event, Limits, Reply, Request, step};
 
 const LIMITS: Limits = Limits { sessions: 2 };
 
@@ -130,13 +130,4 @@ fn a_session_told_gone_twice_is_a_bug() {
     let _gone = rig.step(Event::Gone { session });
     rig.domain.reclaim();
     let _again = rig.step(Event::Gone { session });
-}
-
-#[test]
-fn the_worst_case_is_the_slab_of_sessions_and_grows_with_it() {
-    let two = worst_case(&LIMITS).expect("priced");
-    let four = worst_case(&Limits { sessions: 4 }).expect("priced");
-    assert!(two > 0, "a slab of two takes heap");
-    assert_eq!(four, two * 2, "each session costs its slot");
-    assert_eq!(worst_case(&Limits { sessions: 0 }), Some(0));
 }

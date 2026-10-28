@@ -19,7 +19,6 @@
 //! - at the reclaim point, [`Protocol::reclaim`].
 //!
 //! Events up are the domain's calls and events; requests down are io's.
-//! [`worst_case`] is the layer's part of the service's memory.
 
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
@@ -33,4 +32,4 @@ mod limits;
 mod tests;
 
 pub use layer::{Protocol, down, fire, resume, up};
-pub use limits::{BUSY, Limits, TOO_LONG, worst_case};
+pub use limits::{BUSY, Limits, TOO_LONG};

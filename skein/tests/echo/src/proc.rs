@@ -111,17 +111,6 @@ impl Host for Proc {
         }
     }
 
-    /// Each one's worst case, and the box this process keeps its state in,
-    /// which the harness's choice and not the process's.
-    fn worst_case(&self) -> u64 {
-        let (worst, boxed) = match self {
-            Proc::Echo { limits, .. } => (service::worst_case(limits), size_of::<Echo>()),
-            Proc::Client { client, limits } => (client::worst_case(limits, client.conns()), size_of::<Client>()),
-        };
-        let boxed = u64::try_from(boxed).expect("a struct's size fits a u64");
-        worst.and_then(|worst| worst.checked_add(boxed)).expect("a process's limits are priced")
-    }
-
     fn operations(&self) -> u32 {
         match self {
             Proc::Echo { limits, .. } => service::operations(limits).expect("a small ring"),

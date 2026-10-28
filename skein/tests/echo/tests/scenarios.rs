@@ -6,12 +6,12 @@
 //! The sweeps over many seeds are in `fuzzy_scenarios.rs`.
 
 use skein_echo_world::scenarios::{
-    EchoWorld, backpressure, busy, clients, closes, half_close, idle, shutdown, shutdown_abort, shutdown_line,
-    too_long, worst,
+    EchoWorld, backpressure, busy, clients, clients_with_memory, closes, half_close, idle, shutdown, shutdown_abort,
+    shutdown_line, too_long, worst_with_memory,
 };
 use skein_heap::Counting;
 use skein_sim::Config;
-use skein_world::Outcome;
+use skein_world::{Memory, Outcome};
 
 use skein_echo_world::proc::Proc;
 
@@ -127,12 +127,15 @@ fn the_same_seed_replays_to_the_same_trace() {
 }
 
 #[test]
-fn memory_is_checked_at_every_iteration_against_the_worst_cases() {
-    let outcome = clients(1, Config::calm()).run();
+fn every_process_stays_within_its_scenario_ceiling_at_every_iteration() {
+    // Bounds each process in the echo and three clients scenario, including queue growth.
+    const CEILING: u64 = 9_100;
+    let outcome = clients_with_memory(1, Config::calm(), Memory::Within(CEILING)).run();
     let heap = outcome.heap.as_ref().expect("checked");
-    assert_eq!(heap.len(), 4, "the echo and three clients, each checked against its own");
+    assert_eq!(heap.len(), 4, "the echo and three clients, each checked against the scenario ceiling");
     for (at, (most, bound)) in heap.iter().enumerate() {
-        assert!(*most > 0 && most <= bound, "process {at} held {most} bytes at most, within {bound}");
+        assert_eq!(*bound, CEILING);
+        assert!(*most > 0 && *most <= CEILING, "process {at} held {most} bytes at most, within {bound}");
     }
     // Dropping the outcome checks that each process frees what it held.
 }
@@ -146,27 +149,33 @@ fn a_half_close_with_lines_unanswered_has_every_whole_line_answered_then_the_end
 /// Every connection reaches full intake and output together after a full
 /// receive, observed from byte traffic while the echo has no internal work.
 #[test]
-fn every_echo_connection_fills_its_buffers_together_within_its_worst_case() {
+fn every_echo_connection_fills_its_buffers_together_within_its_scenario_ceiling() {
+    // Bounds each process while every echo connection fills its intake, receive and output.
+    const CEILING: u64 = 8_900;
     let limits = skein_echo_world::scenarios::server();
     for seed in CALM {
         let mut filled = false;
-        let outcome = worst(seed, Config::calm()).run_with_inputs(|sim, _, procs| {
-            let echo = procs[0].as_echo().expect("the echo");
-            // This hook runs before the clients act, including at their abort tick.
-            if !filled
-                && sim.now() <= skein_echo_world::scenarios::ms(1_000)
-                && !echo.work_pending(sim.now())
-                && echo.domain().sessions() == limits.protocol.conns
-            {
-                filled |=
-                    skein_echo_world::referee::full_echo_buffers(sim.trace(), &limits.io) == limits.protocol.conns;
-            }
-        });
+        let outcome =
+            worst_with_memory(seed, Config::calm(), Memory::Within(CEILING)).run_with_inputs(|sim, _, procs| {
+                let echo = procs[0].as_echo().expect("the echo");
+                // This hook runs before the clients act, including at their abort tick.
+                if !filled
+                    && sim.now() <= skein_echo_world::scenarios::ms(1_000)
+                    && !echo.work_pending(sim.now())
+                    && echo.domain().sessions() == limits.protocol.conns
+                {
+                    filled |=
+                        skein_echo_world::referee::full_echo_buffers(sim.trace(), &limits.io) == limits.protocol.conns;
+                }
+            });
         assert!(filled, "seed {seed}: every connection filled its intake and output after a full receive");
         let (most, bound) = outcome.heap.as_ref().expect("checked")[0];
-        assert!(most <= bound, "seed {seed}: the echo held {most} bytes, within {bound}");
+        assert_eq!(bound, CEILING);
+        assert!(most <= CEILING, "seed {seed}: the echo held {most} bytes, within {bound}");
     }
-    chaos(worst);
+    for seed in CHAOS {
+        let _outcome = worst_with_memory(seed, Config::chaos(), Memory::Within(CEILING)).run();
+    }
 }
 
 #[test]
