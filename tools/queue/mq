@@ -12,6 +12,7 @@ from pathlib import Path, PurePosixPath
 import shlex
 import shutil
 import socket
+import stat
 import subprocess
 import sys
 import time
@@ -241,6 +242,45 @@ def run_checks(repo, selected, paths, log_path, *, runner=subprocess.run, clock=
     return outcomes
 
 
+def prune_test_executables(repo, disk_floor, batch_started_ns):
+    """Relink old test binaries when disk is low (design.md, 3.5)."""
+    report = {"count": 0, "gb": 0.0}
+    goal = disk_floor + 40
+    if free_gb(repo) >= goal:
+        return report
+    deps = repo / "target/debug/deps"
+    if any(path.is_symlink() for path in (repo / "target", repo / "target/debug", deps)):
+        return report
+    if not deps.is_dir():
+        return report
+    candidates = []
+    for path in deps.iterdir():
+        info = path.lstat()
+        if (stat.S_ISREG(info.st_mode) and info.st_mode & 0o111 and
+                path.suffix not in (".rlib", ".rmeta", ".so", ".d") and
+                info.st_mtime_ns < batch_started_ns):
+            candidates.append((info.st_mtime_ns, path, info))
+    removed = 0
+    for _, path, original in sorted(candidates):
+        if free_gb(repo) >= goal:
+            break
+        try:
+            current = path.lstat()
+            if (not stat.S_ISREG(current.st_mode) or not current.st_mode & 0o111 or
+                    current.st_mtime_ns >= batch_started_ns or
+                    (current.st_dev, current.st_ino) != (original.st_dev, original.st_ino)):
+                continue
+            path.unlink()
+            report["count"] += 1
+            removed += current.st_size
+        except FileNotFoundError:
+            continue
+        except OSError as error:
+            report.setdefault("errors", []).append(f"{path.name}: {error}")
+    report["gb"] = removed / GB
+    return report
+
+
 def bisect(branches, check):
     """Try each half in order, letting check land successful groups before the next."""
     if not branches:
@@ -375,6 +415,7 @@ class Queue:
             raise DiskFloorError(
                 f"{host}: {available:.1f} GB free, below queue disk floor {self.disk_floor} GB",
                 f"disk-floor:{host}")
+        batch_started_ns = time.time_ns()
         record = {"start": utc_now(), "branches": branches, "selection": None,
                   "steps": [], "posts": [], "dry": self.dry, "outcome": "error"}
         record["log"] = str(self.log_path.parent / f"queue-{uuid.uuid4().hex}.log")
@@ -465,6 +506,10 @@ class Queue:
                 output.write(f"\n{error}\n")
             raise
         finally:
+            try:
+                record["target_cleanup"] = prune_test_executables(self.repo, self.disk_floor, batch_started_ns)
+            except Exception as cleanup_error:
+                record["target_cleanup"] = {"error": str(cleanup_error)}
             record["end"] = utc_now()
             log_batch(self.log_path, record)
 
@@ -501,7 +546,10 @@ class Queue:
             try:
                 worked = self.cycle()
             except Exception as error:
-                self.recover(error)
+                try:
+                    self.recover(error)
+                except Exception as recovery_error:
+                    print(f"mq: recovery failed: {recovery_error}", file=sys.stderr)
                 worked = False
             if not worked and not stop.exists():
                 sleeper(60)

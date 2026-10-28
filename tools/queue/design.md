@@ -12,7 +12,7 @@ Provisional, 2026-10-28. How a branch reaches `main`: a script on the gate machi
 - **Capacity refusal:** a heavy exit 2 containing `below the disk floor` is an error, with no rejection or bisection. Before every batch, free space below `--disk-floor` (45 GB by default) defers work to the next cycle.
 - **Error:** an exception logs the batch as `error`; its tips remain eligible. `run` restores `origin/main`, reports each distinct error to the coordinator once, waits a cycle, and continues. `once` raises to its caller.
 - **Docs-only batches** whose files no test reads skip the build (formatting and the ratchet only).
-- **Every batch is logged** as one JSON line (`~/src/fabrig/notes/queue.jsonl`): start and end, branches, outcome, the selection's packages, and each step's duration.
+- **Every batch is logged** as one JSON line (`~/src/fabrig/notes/queue.jsonl`): start and end, branches, outcome, the selection's packages, each step's duration, and test executable cleanup counts and GB.
 
 ## 2. The selection
 
@@ -39,7 +39,9 @@ branches tried. Recovery diagnostics and coordinator delivery are logged as a
 separate `event: "recovery"` record; errors outside an attempt get their own
 error record. Distinct error texts already reported to `coord` in `leads.txt`
 are kept in state, so a repeated error does not post every cycle. Recovery
-failures are logged and the loop waits 60 seconds before trying again.
+failures are logged and the loop waits 60 seconds before trying again. If
+recovery itself cannot append its record, it reports that failure on stderr
+and keeps the loop running.
 
 ### 3.2 Capacity refusals
 
@@ -71,6 +73,20 @@ Each pinned branch is merged with `git merge --no-ff -m "Merge <branch name>"`,
 for example `Merge ready/jig/admission-ops`. The message names the ready
 branch even though the merge uses its pinned commit, and a ratchet amendment
 keeps that message. Landing notifications name the resulting merge commit.
+
+### 3.5 Target space
+
+After every attempt (green, red, conflict, or error), if free space is below
+`--disk-floor` plus 40 GB, remove old test executables from
+`target/debug/deps`, oldest mtime first, until that space is free or no eligible
+files remain. Eligible files are regular executable files with mtime strictly
+before the batch started, excluding `.rlib`, `.rmeta`, `.so`, and `.d` files.
+Symlinks, directories, nonexecutables, batch outputs, libraries, and incremental
+state stay. A symlink in the target/deps directory path skips cleanup. Recheck
+each candidate's identity and mtime before deletion to protect rewritten files.
+A later batch relinks any removed executable. The batch's `target_cleanup`
+records the count and decimal GB of file sizes removed; deletion errors are
+logged without changing a gate result. Cleanup also runs after dry checks.
 
 ## 4. Later
 

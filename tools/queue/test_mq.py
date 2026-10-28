@@ -1,10 +1,11 @@
 """Queue policy and effects against disposable local repositories; no real posts."""
 
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 import importlib.machinery
 import importlib.util
 import io
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -146,6 +147,78 @@ class CheckTests(unittest.TestCase):
                     steps = mq.run_checks(ROOT, "full", [], Path(directory) / "checks.log", runner=runner)
                 self.assertEqual("error" in steps[-1], refused)
                 self.assertEqual(len(steps), 2)
+
+
+class CleanupTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory(dir=ROOT, prefix=".mq-test-")
+        self.addCleanup(self.temporary.cleanup)
+        self.repo = Path(self.temporary.name)
+        self.deps = self.repo / "target/debug/deps"
+        self.deps.mkdir(parents=True)
+        self.batch_start = 10_000_000_000
+
+    def artifact(self, name, *, mtime=1_000_000_000, executable=True):
+        path = self.deps / name
+        path.write_bytes(b"test binary")
+        path.chmod(0o700 if executable else 0o600)
+        os.utime(path, ns=(mtime, mtime))
+        return path
+
+    def test_prunes_oldest_first_until_floor_plus_forty_is_free(self):
+        oldest = self.artifact("oldest", mtime=1_000_000_000)
+        middle = self.artifact("middle", mtime=2_000_000_000)
+        newest = self.artifact("newest", mtime=3_000_000_000)
+        with patch.object(mq, "free_gb", side_effect=[84, 84, 85]):
+            report = mq.prune_test_executables(self.repo, 45, self.batch_start)
+        self.assertFalse(oldest.exists())
+        self.assertTrue(middle.exists() and newest.exists())
+        self.assertEqual(report, {"count": 1, "gb": 11 / mq.GB})
+
+    def test_protects_libraries_nonexecutables_and_batch_outputs(self):
+        protected = [self.artifact("fresh", mtime=self.batch_start),
+                     self.artifact("newer", mtime=self.batch_start + 1),
+                     self.artifact("ordinary", executable=False)]
+        protected += [self.artifact("library" + suffix) for suffix in (".rlib", ".rmeta", ".so", ".d")]
+        old = self.artifact("old")
+        (self.deps / "symlink").symlink_to(old)
+        (self.deps / "directory").mkdir()
+        with patch.object(mq, "free_gb", return_value=0):
+            report = mq.prune_test_executables(self.repo, 45, self.batch_start)
+        self.assertEqual(report["count"], 1)
+        self.assertTrue(all(path.exists() for path in protected))
+        self.assertTrue((self.deps / "symlink").is_symlink())
+        self.assertTrue((self.deps / "directory").is_dir())
+
+    def test_no_cleanup_at_space_goal(self):
+        old = self.artifact("old")
+        with patch.object(mq, "free_gb", return_value=85):
+            self.assertEqual(mq.prune_test_executables(self.repo, 45, self.batch_start),
+                             {"count": 0, "gb": 0.0})
+        self.assertTrue(old.exists())
+
+    def test_rewritten_candidate_is_preserved(self):
+        old = self.artifact("old")
+        calls = []
+
+        def space(repo):
+            calls.append(repo)
+            if len(calls) == 2:
+                os.utime(old, ns=(self.batch_start, self.batch_start))
+            return 0
+
+        with patch.object(mq, "free_gb", side_effect=space):
+            self.assertEqual(mq.prune_test_executables(self.repo, 45, self.batch_start)["count"], 0)
+        self.assertTrue(old.exists())
+
+    def test_symlinked_deps_directory_is_preserved(self):
+        old = self.artifact("old")
+        moved = self.deps.with_name("other")
+        self.deps.rename(moved)
+        self.deps.symlink_to(moved, target_is_directory=True)
+        with patch.object(mq, "free_gb", return_value=0):
+            self.assertEqual(mq.prune_test_executables(self.repo, 45, self.batch_start)["count"], 0)
+        self.assertTrue(old.exists())
 
 
 class BisectTests(unittest.TestCase):
@@ -564,6 +637,36 @@ baseline.write_text(str(count) + '\n')
         self.assertTrue(self.run_cycle(self.queue()))
         self.assertTrue((self.repo / "a").exists())
 
+    def test_run_lands_batch_on_next_cycle_after_error(self):
+        self.branch("a", publish=True)
+        queue = self.queue()
+        calls = []
+        stop = self.directory / "stop"
+
+        def checker(*args):
+            calls.append(args)
+            if len(calls) == 1:
+                raise RuntimeError("temporary git failure")
+            stop.touch()
+            return self.checker(*args)
+
+        queue.checker = checker
+        with redirect_stdout(io.StringIO()):
+            queue.run(stop, sleeper=lambda seconds: None)
+        self.assertEqual(len(calls), 2)
+        self.assertTrue((self.repo / "a").exists())
+        self.assertEqual(self.records()[-1]["outcome"], "green")
+        self.assertEqual(len([subject for _, subject, _ in self.posts if subject == "queue error"]), 1)
+
+    def test_run_survives_recovery_log_failure(self):
+        queue = self.queue()
+        queue.cycle = lambda: (_ for _ in ()).throw(RuntimeError("git failed"))
+        output = io.StringIO()
+        with patch.object(mq, "log_batch", side_effect=OSError("disk full")), redirect_stderr(output):
+            self.assertEqual(self.run_cycles(queue, 2), [60, 60])
+        self.assertIn("recovery failed: disk full", output.getvalue())
+        self.assertEqual(len(self.posts), 1)
+
     def test_run_aborts_unfinished_merge_and_preserves_ignored_target(self):
         self.write(".gitignore", "/target/\n")
         self.commit("ignore build output")
@@ -633,6 +736,26 @@ baseline.write_text(str(count) + '\n')
         with patch.object(mq, "free_gb", return_value=45):
             self.assertTrue(self.run_cycle(self.queue(disk_floor=45)))
         self.assertEqual(self.records()[0]["outcome"], "green")
+
+    def test_every_batch_logs_cleanup_for_green_red_and_error(self):
+        for task, outcome in (("a", "green"), ("red", "red"), ("error", "error")):
+            with self.subTest(outcome=outcome):
+                branch = self.branch(task)
+                queue = self.queue()
+                if outcome == "error":
+                    queue.checker = lambda *args: (_ for _ in ()).throw(RuntimeError("gate guard"))
+                with patch.object(mq, "prune_test_executables", return_value={"count": 2, "gb": 3}) as prune:
+                    if outcome == "error":
+                        with self.assertRaisesRegex(RuntimeError, "gate guard"):
+                            queue.attempt([branch])
+                    else:
+                        queue.attempt([branch])
+                self.assertEqual(prune.call_count, 1)
+                self.assertEqual(prune.call_args.args[:2], (self.repo, 0))
+                self.assertGreater(prune.call_args.args[2], 0)
+                record = self.records()[-1]
+                self.assertEqual(record["outcome"], outcome)
+                self.assertEqual(record["target_cleanup"], {"count": 2, "gb": 3})
 
     def test_changed_tip_is_preserved_by_cleanup(self):
         branch = self.branch("a", publish=True)
