@@ -41,11 +41,10 @@ descriptor or a kernel error. Below it is the kernel boundary
 ## 2. In skein
 
 `skein-io` depends on lib. A service's protocol layer depends on it, and
-so do the backends, for the kernel records. io's limits are counted in
-its worst case like any layer's: the shared entity slots, the operations
-in flight, each stream's intake and queued output, children's pipe
-lists, and the in-process names (3.5). The command buffers supplied to
-`Spawn` belong to the caller's memory bound.
+so do the backends, for the kernel records. io's limits cap its edges:
+the shared entity slots, the operations in flight, each stream's intake
+and queued output, children's pipe lists, and the in-process names
+(3.5). The command buffers supplied to `Spawn` belong to the caller.
 
 ```rust
 // skein-io, the protocol side, for sockets
@@ -91,15 +90,20 @@ An accepted socket is announced to the listener's owner, which binds to
 it or rejects it (programming-model.md, 4.2). Files have requests and
 events of their own, `skein_io::file`'s (section 5).
 
-The loop drives io through four entry points, each declaring its `MAX_OUT`
-(programming-model.md, section 2): `resume` takes one entry of the ready
-list, `up` one completion, `fire` one expired deadline (a graceful
-close's, or a retry's), and `down` one request. io's stage in the up pass
-is `resume` until the ready list is empty, then `up` for each completion,
-then `fire` while a deadline is due; the loop hands io no completion while
-the ready list holds something, so what the down pass made is told first.
-Requests to the kernel go out as `Submit` records into the queue the loop
-hands the kernel.
+The loop drives io through four entry points: `resume` takes one entry
+of the ready list, `up` one completion, `fire` one expired deadline (a
+graceful close's, or a retry's), and `down` one request. io's stage in
+the up pass is `resume` until the ready list is empty, then `up` for
+each completion, then `fire` while a deadline is due; the loop hands io
+no completion while the ready list holds something, so what the down
+pass made is told first. Requests to the kernel go out as `Submit`
+records into the queue the loop hands the kernel. The kernel's
+submission and completion queues stay capped, with
+`MAX_OUT_DOWN`/`MAX_OUT_UP` and `takes` keeping their room checks
+(programming-model.md, section 2). Queues between io and the protocol
+layer use `Queue::uncapped`: a push cannot fail and the loop reserves no
+room there. New external work waits at the root's watermark
+(programming-model.md, 7.1).
 
 **Decisions.**
 
@@ -328,11 +332,11 @@ Failed. A previously emitted Granted is never answered again. Close and
 Abort's promise of only Closed applies to the classic face; the
 independent face also owes its already admitted pending terminal.
 
-The loop reserves the declared maximum for all simultaneous events,
-including Bytes, End and an independent output terminal. The extra cell,
-staged terminal and actual enum layouts enter io's checked worst-case
-bound. Over TLS, a framed connection uses TLS's native face (tls.md, 3.6),
-which implements it at both its plaintext and ciphertext boundaries.
+Bytes, End and an independent output terminal enter the uncapped queue
+to the protocol layer without a room reservation. The extra cell and
+staged terminal cost what they hold. Over TLS, a framed connection uses
+TLS's native face (tls.md, 3.6), which implements it at both its plaintext
+and ciphertext boundaries.
 
 | State | Holds | In flight | Serves | Deadline |
 |---|---|---|---|---|
@@ -477,10 +481,12 @@ has at most one read or write and its cancel; a child waits and may have
 one signal in flight. Thus `operations(limits)` is four per entity slot,
 and one for a `Usage` (6.1), the ring's size (kernel.md, 5);
 the operation table holds twice that, as an operation retired in an
-iteration keeps its slot until the reclaim point. `worst_case` adds up
-what the containers report (programming-model.md, 6.3), including a
-child's pipe IDs and the temporary arrays on spawn completion. The
-caller budgets the command buffers it supplies to `Spawn`.
+iteration keeps its slot until the reclaim point. Containers grow as
+they fill, including a child's pipe IDs and the temporary arrays on
+spawn completion. There is no per-layer heap formula to sum: scenarios
+check measured peaks under named ceilings with headroom
+(programming-model.md, 6.3; testing-strategy.md, 6). The caller owns the
+command buffers it supplies to `Spawn`.
 
 ### 3.5 Joined sockets
 
@@ -556,8 +562,8 @@ are passed through at once, and no retry deadline is ever armed.
   stated there or to a close, so each up pass ends.
 - **Memory.** A pair holds two slots of `Limits::sockets`, one per end,
   as a loopback connection within one process does. An end holds no more
-  than a socket's stream, so 3.4's bound covers it; `worst_case` adds the
-  names table, `Limits::names` entries of a name and its listener's id.
+  than a socket's stream, so 3.4's edge limits cover it. The names table
+  holds at most `Limits::names` entries of a name and its listener's id.
 - **In the simulator** joined sockets run as in the real loop: they are
   io's own, never the kernel's records, so the simulator's faults and
   latency never reach them and its trace does not show them; a cut
@@ -695,9 +701,9 @@ pub enum Request {
   owner closes it when done. Entries come in the
   directory's order, `.` and `..` left out, each once while the
   directory is unchanged; one added or removed between pages may appear
-  or not, as `readdir` allows. A page's entries are counted in
-  `worst_case` as a `List`'s are. A page that fails, with a kernel's
-  error or stopped by its deadline or a cancel (below), may have taken
+  or not, as `readdir` allows. A page's entries cost what its `List`
+  holds. A page that fails, with a kernel's error or stopped by its
+  deadline or a cancel (below), may have taken
   entries it never answered: the position is past them. An owner that
   must see every entry closes the directory and lists it from a new
   `OpenDirectory`.
@@ -813,15 +819,14 @@ pub enum Request {
   landed says so. A request with more to do after it, such as a page of
   a listing with entries still to read, stops at that completion, unless
   the completion finished it.
-- **Memory:** `FileIo::worst_case` counts the open files' table, the
-  driver's own buffers, and an admitted `Load`, `Scan` or `Store` at its
+- **Memory:** the open files' table and the driver's own buffers grow as
+  they fill; an admitted `Load`, `Scan` or `Store` keeps its edge
   bounds. The buffers an owner hands in, `WriteAt`'s bytes and paths,
   are the owner's. The records of a tree's metadata and of btrfs take
   buffers at the kernel's largest (kernel.md, 6.4 and 6.5), which io
   makes for the request in flight and hands up cut to their length, so
-  `worst_case` counts 65,536 bytes for an attribute's list or value and
-  4,096 for a link's target or a subvolume's path, the largest one
-  request holds.
+  one request holds at most 65,536 bytes for an attribute's list or
+  value and 4,096 for a link's target or a subvolume's path.
 - **Beyond whole files:** a file appended to as a stream (5.1); the
   durable replace that services keep their records with (5.2); and
   private files, for secrets (5.3). A file read as a stream, by demand,
@@ -854,15 +859,15 @@ file beside the loop (programming-model.md, 2.1).
   replaced whole (5.2).
 - **A write deadline gives up on a stalled filesystem.** A regular file
   has no peer to stop reading, but its filesystem may stall (kernel.md,
-  6.1), and a write that never completes would hold the stream's owner,
-  and every step that waits on its room, for good. So the owner states,
-  when it adopts the stream, the most one write may stay in flight. io
-  arms that deadline with each write and, at it, cancels the write, keeps
-  the stream settling until the write's completion arrives, drops what
-  is queued, and tells the owner the stream failed (`Failed`), once. The
-  owner decides what an abandoned stream means: a trace's sink records
-  it where it still can. As for a whole-file operation (section 5), the
-  deadline is the owner's policy and io's mechanism.
+  6.1), and a write that never completes would keep facts waiting in
+  their queue for good. So the owner states, when it adopts the stream,
+  the most one write may stay in flight. io arms that deadline with each
+  write and, at it, cancels the write, keeps the stream settling until
+  the write's completion arrives, drops what is queued, and tells the
+  owner the stream failed (`Failed`), once. The owner decides what an
+  abandoned stream means: a trace's sink records it where it still can.
+  As for a whole-file operation (section 5), the deadline is the owner's
+  policy and io's mechanism.
 - **An inherited write pipe takes the same deadline when its owner
   states one.** A standard output that is a pipe or a terminal, adopted
   to carry such a stream, as an event stream's, stalls when its reader
@@ -879,9 +884,9 @@ file beside the loop (programming-model.md, 2.1).
   the write in flight.
 - **Backpressure is the owner's choice.** An owner that must lose
   nothing asks for room before it encodes (programming-model.md, 7), so a
-  slow disk holds its queue, and through it the step that fills it. One
-  that may lose drops and counts when the room does not come
-  (programming-model.md, section 3).
+  slow disk lets facts wait in their uncapped queue until the stream
+  takes more. One that may lose drops and counts when the room does not
+  come (programming-model.md, section 3).
 
 ### 5.2 Durable replace
 
@@ -1285,7 +1290,7 @@ pub struct Rlimit { pub resource: Resource, pub soft: u64, pub hard: u64 }
   the whole of it fits the helper's 64 KiB (kernel.md, 6.6); past them, the
   spawn is refused at io's entrance. A given root takes no slot of its
   own. The helper's memory is its own process's, outside the service's
-  worst case.
+  measured heap.
 
 ### 6.4 Stopping a tree, and its end
 
@@ -1374,38 +1379,40 @@ simulator's machine seam (testing.md, 4).
 - **Step tests** (`crates/skein-io/src/tests/`): each cell of both
   machines driven by hand, the refusals at a full slab, stale tokens
   dropped going down and asserted going up, every outcome of a cancel in
-  every order, each call with exactly its `MAX_OUT` of room; sends within
-  the room granted, and one past it, or with none granted, asserted.
+  every order, each call with the kernel queues' declared room; sends
+  within the room granted, and one past it, or with none granted,
+  asserted.
 - **io worlds** (`tests/io`, `skein-io-world`): a loop over the
   simulator drives each process's io and a scripted owner, which runs
   each connection by a plan of sends within the room granted and demands
-  of every kind; a referee holds each scenario's expectations; the harness
-  checks `MAX_OUT` and the accept batch at each call, both halves of the
-  stream contract in a ledger (io's, and the owner's as the side above),
-  the invariants once settled, and replay. Thirteen scenarios: accept,
-  bind and reject; connects made, refused for a slot and by the peer;
-  connects waiting on a full backlog, cancelled; descriptors run out, so
-  a socket is refused and a listener starves; two listeners under one
-  accept batch; a socket discarded for want of a slot; a burst of
-  connects past the slab and the refusals; an exchange both ways;
-  backpressure through io; a refusal mid-upload that still reaches the
-  peer, which hears the end and no reset; abort; the close deadline;
-  closes and aborts at random moments. Each admission point's scenario
-  checks its trace for evidence the point was reached. A few seeds each,
-  calm and chaotic, in the focused suite; 150 of each in the fuzzy one,
-  which asserts that every fault fell and that a cancel of each operation
-  io cancels was seen to stop it, to come too late, and to go
-  unsubmitted.
+  of every kind; a referee holds each scenario's expectations; the
+  harness checks the kernel queues' `MAX_OUT_DOWN`/`MAX_OUT_UP` and the
+  accept batch at each call, both halves of the stream contract in a
+  ledger (io's, and the owner's as the side above), the invariants once
+  settled, and replay. Thirteen scenarios: accept, bind and reject;
+  connects made, refused for a slot and by the peer; connects waiting on
+  a full backlog, cancelled; descriptors run out, so a socket is refused
+  and a listener starves; two listeners under one accept batch; a socket
+  discarded for want of a slot; a burst of connects past the slab and
+  the refusals; an exchange both ways; backpressure through io; a
+  refusal mid-upload that still reaches the peer, which hears the end
+  and no reset; abort; the close deadline; closes and aborts at random
+  moments. Each admission point's scenario checks its trace for evidence
+  the point was reached. A few seeds each, calm and chaotic, in the
+  focused suite; 150 of each in the fuzzy one, which asserts that every
+  fault fell and that a cancel of each operation io cancels was seen to
+  stop it, to come too late, and to go unsubmitted.
 - **One exchange over the real ring**, in the focused suite.
 - **Memory:** io driven by hand to its limits and back, every call
-  checked against `worst_case` with the counting allocator, at four sets
-  of limits, one of them with receive buffers that dwarf the rest; and a
-  listener's life, its sockets announced, rejected, bound and discarded.
+  checked under its scenario's named ceiling with headroom by the
+  counting allocator, at four sets of limits, one of them with receive
+  buffers that dwarf the rest; and a listener's life, its sockets
+  announced, rejected, bound and discarded.
 - **Processes and pipes:** step tests exercise spawn, wait, signal, the
   one-way pipe streams and child closure after its pipes. A separate
   counting-allocator test fills the entity slab with a child and its
   pipes, checks the spawn completion and arms a read on every pipe
-  against `worst_case`.
+  under the scenario's named ceiling with headroom.
 - **Files:** step tests drive `FileIo` by hand
   (`crates/skein-io/src/tests/file.rs`, `store.rs`): short transfers,
   bounds refused after the close, a scan's prefix across batches, each
@@ -1470,8 +1477,8 @@ simulator's machine seam (testing.md, 4).
 - **The same owners over either:** a calm world whose owners run the
   same plans over a loopback pair and over a joined pair, and read the
   same bytes, ends and failures over each.
-- **Memory:** every name held and every slot a joined end, against
-  `worst_case`.
+- **Memory:** every name held and every slot a joined end, under the
+  scenario's named ceiling with headroom.
 - **One process, on the real ring:** a listener on loopback and one on an
   in-process name in one `drive`, an exchange over each.
 
