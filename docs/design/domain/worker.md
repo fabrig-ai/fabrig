@@ -153,6 +153,13 @@ temper's workspace items beside it:
     sections 4 and 6), carried with the identity into each git operation
     that reaches the forge, which the domain copies and never reads.
 - **Saving.** Whether to save unfinished work, and to which branch.
+  The engine asks it for every run whose charter resumes its transcript
+  (a chat's, a coding agent's: agent.md, section 4), and the next
+  attempt starts from the saved work: the tree follows the transcript,
+  so a retry that remembers a write finds the file it wrote, and a run
+  that starts fresh from its brief starts from a clean checkout. A run
+  that ended with its change landed, or from a merge in progress, saves
+  nothing (step 7).
 - **Charter.** smith's, as the engine wrote it (agent.md, section 4),
   carried as bytes. The worker gives it to the agent with the workspace
   it prepared: where the repositories sit, which may be written, and for
