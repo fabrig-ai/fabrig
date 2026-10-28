@@ -3,9 +3,9 @@
 # The focused suite, profile default, is each tree's focused suite: every test
 # but the fuzzy ones and the tiers' binaries (process, live, QA, browser,
 # exhaustive), which have no profile here yet. The fuzzy suite, profile fuzzy,
-# is each tree's fuzzy suite: the binaries named fuzzy_* beside the focused
-# tests. Each tree's filter is its own, restricted to the packages under its
-# directory (cargo metadata), joined with |.
+# is each tree's fuzzy suite: the binaries named fuzzy_*, and the `fuzzy` module
+# of a package's `suite` binary. Each tree's filter is its own, restricted to the
+# packages under its directory (cargo metadata), joined with |.
 #
 #   skein:  package(/^skein-/), and forgejo-conformance, github-conformance
 #   smith:  package(/^smith(-|$)/)
@@ -25,20 +25,20 @@
 default-filter = """
 (
   (package(/^skein-/) | package(=forgejo-conformance) | package(=github-conformance))
-  & not binary(/^fuzzy_/) & not binary(/^browser_/) & not binary(=live)
+  & not binary(/^fuzzy_/) & not (kind(test) & test(/^fuzzy::/)) & not binary(/^browser_/) & not binary(=live)
   & not binary(/^exhaustive_/) & not binary(/^qa_/)
 ) | (
   package(/^smith(-|$)/)
-  & not binary(/^fuzzy_/) & not binary(/^qa_/)
+  & not binary(/^fuzzy_/) & not (kind(test) & test(/^fuzzy::/)) & not binary(/^qa_/)
   & not ((package(=smith) | package(=smith-agent-process-world)) & binary(=live))
 ) | (
   package(/^jig(-|$)/)
-  & not binary(/^fuzzy_/)
+  & not binary(/^fuzzy_/) & not (kind(test) & test(/^fuzzy::/))
   & (not binary(/^(process|live)$/) | (binary(=live) & test(=the_live_configurations_are_ones_jig_test_reads)))
   & not binary(/^browser_/) & not binary(/^qa_/)
 ) | (
   (package(/^temper(-|$)/) | package(=git-transcripts))
-  & not test(/^tests::sign_in::fuzzy_/) & not binary(/^fuzzy_/)
+  & not test(/^tests::sign_in::fuzzy_/) & not binary(/^fuzzy_/) & not (kind(test) & test(/^fuzzy::/))
   & not binary(/^(process|live|live_github)$/)
   & not binary(/^qa_/) & not test(/::qa_/) & not binary(/^browser_/)
 ) | package(=fabrig-boundary)
@@ -67,17 +67,17 @@ priority = 10
 default-filter = """
 (
   (package(/^skein-/) | package(=forgejo-conformance) | package(=github-conformance))
-  & binary(/^fuzzy_/)
+  & (binary(/^fuzzy_/) | (kind(test) & test(/^fuzzy::/)))
 ) | (
   package(/^smith(-|$)/)
-  & binary(/^fuzzy_/) & not binary(/^qa_/) & not binary(=live)
+  & (binary(/^fuzzy_/) | (kind(test) & test(/^fuzzy::/))) & not binary(/^qa_/) & not binary(=live)
 ) | (
   package(/^jig(-|$)/)
-  & binary(/^fuzzy_/) & not binary(/^(process|live)$/)
+  & (binary(/^fuzzy_/) | (kind(test) & test(/^fuzzy::/))) & not binary(/^(process|live)$/)
   & not binary(/^browser_/) & not binary(/^qa_/)
 ) | (
   (package(/^temper(-|$)/) | package(=git-transcripts))
-  & (binary(/^fuzzy_/) | (package(=temper-service) & test(/^tests::sign_in::fuzzy_/)))
+  & ((binary(/^fuzzy_/) | (kind(test) & test(/^fuzzy::/))) | (package(=temper-service) & test(/^tests::sign_in::fuzzy_/)))
   & not binary(/^(process|live|live_github)$/) & not binary(/^qa_/)
 )
 """
@@ -91,5 +91,5 @@ slow-timeout = { period = "10s" }
 
 # temper: the walking story's eight shards first, the suite's longest tests.
 [[profile.fuzzy.overrides]]
-filter = "(package(/^temper(-|$)/) | package(=git-transcripts)) & test(/^fuzzy_walking_shard_/)"
+filter = "(package(/^temper(-|$)/) | package(=git-transcripts)) & (test(/^fuzzy_walking_shard_/) | test(/^fuzzy::walking::fuzzy_walking_shard_/))"
 priority = 20
