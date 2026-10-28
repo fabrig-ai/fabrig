@@ -1,8 +1,8 @@
 //! Queues for the records between stages (lib.md, section 5), capped at
 //! startup, or uncapped between service components. Capped rings of at most
-//! 4 KiB allocate at construction; larger and uncapped rings grow as they fill.
+//! 1 MiB allocate at construction; larger and uncapped rings grow as they fill.
 
-#![expect(clippy::disallowed_types, reason = "a queue is a VecDeque allocated under its cap, grown above 4 KiB")]
+#![expect(clippy::disallowed_types, reason = "a queue is a VecDeque allocated under its cap, grown above 1 MiB")]
 
 use core::hash::{Hash, Hasher};
 
@@ -10,7 +10,11 @@ use alloc::collections::VecDeque;
 use alloc::collections::vec_deque;
 use core::mem::size_of;
 
-/// A first-in, first-out queue, allocated whole up to 4 KiB, otherwise grown
+/// Test worlds' harnesses fill rings outside the metered process calls, so
+/// rings through this many bytes allocate with their owner at construction.
+const EAGER_BYTES: u32 = 1 << 20;
+
+/// A first-in, first-out queue, allocated whole up to 1 MiB, otherwise grown
 /// as it fills, never past its cap.
 #[derive(Debug)]
 pub struct Queue<T> {
@@ -23,7 +27,8 @@ impl<T> Queue<T> {
     pub fn with_capacity(capacity: u32) -> Queue<T> {
         let cap = usize::try_from(capacity).expect("a u32 fits in a usize");
         let item = size_of::<T>();
-        let small = item == 0 || cap <= 4096_usize.checked_div(item).expect("nonzero item size");
+        let eager = usize::try_from(EAGER_BYTES).expect("one MiB fits in a usize");
+        let small = item == 0 || cap <= eager.checked_div(item).expect("nonzero item size");
         let items = if small { VecDeque::with_capacity(cap) } else { VecDeque::new() };
         Queue { items, capacity }
     }
@@ -124,12 +129,12 @@ impl<T: Hash> Hash for Queue<T> {
 }
 
 /// The growth peak counts the cap's buffer and the largest buffer reallocated
-/// on the way, live together while copying. Rings of at most 4 KiB allocate
+/// on the way, live together while copying. Rings of at most 1 MiB allocate
 /// their cap at construction and hold only that buffer.
 fn growth_peak(capacity: u32, item: u64) -> Option<u64> {
     let cap = u64::from(capacity);
     let full = cap.checked_mul(item)?;
-    if full <= 4096 || capacity <= 1 {
+    if full <= u64::from(EAGER_BYTES) || capacity <= 1 {
         return Some(full);
     }
     let mut previous = 1_u64;

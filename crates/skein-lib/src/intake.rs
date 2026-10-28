@@ -1,10 +1,10 @@
 //! The carry-over of a stream (programming-model.md, 4.3; lib.md,
 //! 7): bytes received but not yet demanded, held by the side below
-//! under its cap: allocated whole up to 4 KiB, otherwise grown as it fills.
+//! under its cap: allocated whole up to 1 MiB, otherwise grown as it fills.
 
 #![expect(
     clippy::disallowed_types,
-    reason = "an intake is a VecDeque allocated under its cap, grown above 4 KiB, and deliveries are exact-length Vecs"
+    reason = "an intake is a VecDeque allocated under its cap, grown above 1 MiB, and deliveries are exact-length Vecs"
 )]
 
 use core::hash::{Hash, Hasher};
@@ -16,12 +16,16 @@ use alloc::vec::Vec;
 use crate::Overflow;
 use crate::stream::{Delimiter, Read};
 
+/// Test worlds' harnesses fill rings outside the metered process calls, so
+/// rings through this many bytes allocate with their owner at construction.
+const EAGER_BYTES: u32 = 1 << 20;
+
 /// The bytes a stream has received and the side above has not yet demanded,
 /// up to a cap fixed when it is made.
 ///
 /// The side below appends what arrives while there is [`room`](Intake::room),
 /// and meets the side above's [`Read`] with [`meet`](Intake::meet) as soon as
-/// it can. Up to 4 KiB the buffer is allocated at construction; larger
+/// it can. Up to 1 MiB the buffer is allocated at construction; larger
 /// buffers grow as they fill, never past the cap. Each
 /// delivery is a box of exactly the demanded length.
 #[derive(Debug)]
@@ -61,7 +65,7 @@ impl Until {
 impl Intake {
     #[must_use]
     pub fn with_capacity(capacity: u32) -> Intake {
-        let bytes = if capacity <= 4096 { VecDeque::with_capacity(index(capacity)) } else { VecDeque::new() };
+        let bytes = if capacity <= EAGER_BYTES { VecDeque::with_capacity(index(capacity)) } else { VecDeque::new() };
         Intake { bytes, capacity, searched: Searched { until: Until::LineEnd, clear: 0 } }
     }
 
@@ -256,11 +260,11 @@ impl Hash for Intake {
 }
 
 /// The growth peak counts the cap's buffer and the largest buffer reallocated
-/// on the way, live together while copying. Intakes of at most 4 KiB allocate
+/// on the way, live together while copying. Intakes of at most 1 MiB allocate
 /// their cap at construction and hold only that buffer.
 fn growth_peak(capacity: u32) -> Option<u64> {
     let cap = u64::from(capacity);
-    if cap <= 4096 {
+    if cap <= u64::from(EAGER_BYTES) {
         return Some(cap);
     }
     let mut previous = 1_u64;
