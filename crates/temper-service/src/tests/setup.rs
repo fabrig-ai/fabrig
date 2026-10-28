@@ -586,6 +586,8 @@ fn contains(bytes: &[u8], needle: &[u8]) -> bool {
 }
 #[test]
 fn setup_memory_includes_the_whole_host_and_its_owner() {
+    // Setup's whole heap including its host and owner, a quarter above 10-28's 1,339,887,062 bytes.
+    const SETUP_HEAP_CEILING: u64 = 1_700_000_000;
     let mut config = fixtures::engine();
     config.forges[0].kind = crate::settings::Kind::GitHub;
     config.identities[0].token = Secret::new(Box::new([]));
@@ -597,8 +599,6 @@ fn setup_memory_includes_the_whole_host_and_its_owner() {
     let setup = prepare(&config, &mut endpoints, &fixtures::seeds().crypto, 2, false).unwrap();
     let (settings, _) = setup.pending.unwrap();
     assert_eq!(settings.user_agent.as_ref(), crate::forge::USER_AGENT.as_bytes());
-    // Setup's whole heap including its host and owner, a quarter above 10-28's 1,339,887,062 bytes.
-    const SETUP_HEAP_CEILING: u64 = 1_700_000_000;
     let whole = worst_case(&config, &endpoints, 2).unwrap();
     assert!(whole <= SETUP_HEAP_CEILING);
     assert!(whole > host::worst_case(&setup.env.limits, &settings).unwrap());
