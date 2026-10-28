@@ -1,0 +1,26 @@
+# Implementers
+
+Provisional, 2026-10-28. An implementer is a Codex run that takes one task file from its lead, in a slot, and writes, builds, tests and repairs until the task is done. It reads `AGENTS.md`, this file, its task, and section 1 of `skein/docs/foundation/programming-model.md` and `testing-strategy.md` (a later section only where the task names it). Where the task departs from this file, it says why, and the task wins.
+
+## 1. The task
+
+- **The sketches bind the outer layer:** modules, names, public types and signatures, what crosses a boundary, the tests' shape. Inside them the choices are yours, and the report names those that matter.
+- **Done** is the task's acceptance criteria, their tests passing, in commits on the task's branch, pushed.
+- **Not yours:** any `docs/design/` (what the code taught goes in the report), drafts, and `docs/help/`.
+- **The slot:** a fixed directory whose target stays warm across tasks. Start by switching it to the task's base in place (`git fetch origin && git switch -c <branch> <base>`), never a fresh clone or worktree.
+- **The log:** every 30 minutes, if the task runs that long, 3 or 4 lines appended to the log the task names: where you are, and whether you're on track.
+- **A rebase** only when the task asks for one.
+
+## 2. Building and testing
+
+- After each change, the narrowest test that checks it (`AGENTS.md`, 6). A compile repair may use `heavy cargo check -p PKG --tests` while errors last.
+- Find the test with `rg` for the changed items' uses, then read its assertions before choosing it.
+- When the changes are done, once: `cargo fmt`; `heavy cargo clippy -p PKG [-p PKG ...] --all-targets -- -D warnings` naming every package you changed; the focused tests of the packages you changed and their direct dependents (`heavy cargo nextest run -p ...`). Never the whole workspace: the merge queue runs the wider set.
+- A repair of what the queue found runs the failing test alone in its profile (`--profile fuzzy -E 'test(=NAME)'`), then the narrowest tests its fix touches.
+
+## 3. The report
+
+- Written whole over the report's path; its first line is read first.
+- Besides what the task asks: what ran (the tests, how many, what each found), any test you couldn't run, and the calls you made inside the sketches.
+- **On a doubt, stop:** the first line is `Question:`, with the options and a recommendation. Never improvise across a boundary; a tool the task lacks is such a question.
+- Throwaway code lives untracked in the slot and is deleted before the push.
