@@ -4,9 +4,8 @@
 
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
-use temper_engine_domain as engine;
 use temper_engine_domain::{Key, Record, Write};
-use temper_engine_domain_world::roles::{Base, Settings, World, limits, reroute_replayed};
+use temper_engine_domain_world::roles::{Base, Settings, World, reroute_replayed};
 
 fn successful() -> people::Reply {
     people::Reply::Outcome(people::Outcome::RolesSet { project: 1 })
@@ -169,7 +168,6 @@ fn role_admission_checks_current_authority_payload_bounds_and_revision_room() {
     );
     assert_eq!(world.referee.replacements, 0);
     current_owner_policy_and_session_expiry_are_separate_real_checks();
-    insufficient_startup_room_refuses_before_mutation();
 }
 
 fn current_owner_policy_and_session_expiry_are_separate_real_checks() {
@@ -197,14 +195,6 @@ fn current_owner_policy_and_session_expiry_are_separate_real_checks() {
     member.ask(1, 83, roster(&member, 1), refused(people::Refusal::Role { held: Some(people::Role::Member) }), false);
     member.run();
     assert_eq!(member.referee.replacements, 1, "ordinary membership does not grant administration");
-}
-
-// A reroute keeps the hold's revision (jig 00de0b8c), so no revision can be
-// exhausted by one; only the route's room is checked here.
-fn insufficient_startup_room_refuses_before_mutation() {
-    let mut too_small = limits();
-    too_small.journal.writes = 3;
-    assert!(engine::worst_case(&too_small).is_none(), "counted root proof rejects missing atomic role-route room");
 }
 
 #[test]

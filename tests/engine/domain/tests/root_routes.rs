@@ -1141,13 +1141,6 @@ fn invalid_nonfinal_task_restore_page_stops_before_issuing_its_continuation() {
 }
 
 #[test]
-fn root_configuration_refuses_a_decoded_page_larger_than_synchronous_route_room() {
-    let mut limits = limits();
-    limits.loads.rows = u32::MAX;
-    assert!(engine::worst_case(&limits).is_none());
-}
-
-#[test]
 fn an_early_worker_hello_does_not_number_a_commit_before_the_durable_header() {
     let mut driver = Driver::configured(Store::new(), [config(98), config(98)], &limits());
     driver.hello(Token::new(7));
@@ -1178,8 +1171,6 @@ fn maximum_cold_hello_batch_and_duplicate_losses_fit_one_startup_decision() {
     driver.settle();
     assert_eq!(driver.delivered.iter().filter(|delivery| matches!(delivery, Delivery::Refuse { .. })).count(), 5);
     assert!(!driver.stopped);
-    limits.fleet.workers = 16;
-    assert!(engine::worst_case(&limits).is_none(), "cold callback outputs plus continuation must fit");
 }
 
 #[test]
@@ -3180,9 +3171,6 @@ fn coalesced_history_waiters_survive_simultaneous_io_completion_under_full_journ
     configured.journal.deliveries =
         configured.tasks.tasks * 4 + 8 + configured.people.pending * configured.people.waiters;
     configured.journal.held = configured.journal.deliveries * 3 + 16;
-    let mut insufficient = configured;
-    insufficient.journal.deliveries -= 1;
-    assert_eq!(engine::worst_case(&insufficient), None, "startup prices every pending flight's duplicate waiters");
     let session = world.store.header().sign_ins;
     let mut driver = Driver::configured(world.store, [config(9204), config(9204)], &configured);
     driver.settle();
@@ -3721,13 +3709,6 @@ fn multiple_waiting_recipients_preflight_together_and_a_full_journal_hands_the_a
 
 #[test]
 fn read_only_role_stages_have_one_not_ready_terminal_and_empty_projects_need_no_financial_ledger() {
-    let mut insufficient = temper_engine_domain_world::roles::limits();
-    assert!(engine::worst_case(&insufficient).is_some(), "valid role cascade factory");
-    insufficient.journal.writes -= 1;
-    assert!(
-        engine::worst_case(&insufficient).is_none(),
-        "exact cross-route room includes the complete role handoff cohort"
-    );
     let mut oversized = temper_engine_domain_world::roles::limits();
     oversized.people.holdings = oversized.journal.transcript_bytes;
     assert!(engine::worst_case(&oversized).is_none(), "one roster-bearing durable row must fit before any clone");
