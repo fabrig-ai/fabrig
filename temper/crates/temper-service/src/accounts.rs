@@ -608,7 +608,7 @@ impl Accounts {
     fn driver_events(&mut self, values: &mut Values, events: &mut Queue<root::Event>, store: &mut crate::store::Store) {
         let now = self.env.now;
         for _ in 0..self.above.len() {
-            if events.room() == 0 || !store.room() || !self.down_room() || self.move_out.room() == 0 {
+            if events.room() == 0 || !self.down_room() || self.move_out.room() == 0 {
                 break;
             }
             let event = self.above.pop().expect("account events");
@@ -749,7 +749,7 @@ impl Accounts {
             return;
         }
         for _ in 0..self.move_out.len() {
-            if !store.room() || events.room() == 0 || !self.down_room() {
+            if events.room() == 0 || !self.down_room() {
                 break;
             }
             match self.move_out.pop().expect("move steps") {
@@ -861,7 +861,7 @@ impl Accounts {
         self.inventory.loaded(next);
     }
     fn sweep(&mut self, store: &mut crate::store::Store) {
-        if self.aborting || !store.component.mark_durable() || !store.room() {
+        if self.aborting || !store.component.mark_durable() {
             return;
         }
         let Some(step) = self.inventory.step() else { return };
@@ -881,9 +881,6 @@ impl Accounts {
             return;
         }
         for _ in 0..self.forgotten.len() {
-            if !store.room() {
-                break;
-            }
             let source = self.forgotten.pop().expect("forgotten LLM key");
             values.accounts.remove(source);
             let _later = store.secrets(
@@ -892,7 +889,7 @@ impl Accounts {
             );
         }
         for _ in 0..self.key_out.len() {
-            if !store.room() || events.room() == 0 {
+            if events.room() == 0 {
                 break;
             }
             match self.key_out.pop().expect("LLM key steps") {
@@ -951,7 +948,7 @@ impl Accounts {
     }
     fn finish_steps(&mut self, events: &mut Queue<root::Event>, store: &mut crate::store::Store) {
         for _ in 0..self.finish_out.len() {
-            if !store.room() || events.room() == 0 || !self.down_room() {
+            if events.room() == 0 || !self.down_room() {
                 break;
             }
             match self.finish_out.pop().expect("finish steps") {
@@ -1136,7 +1133,6 @@ impl Accounts {
             Phase::Running => {
                 for _ in 0..self.early.len() {
                     if !self.down_room()
-                        || !store.room()
                         || !self.move_out.is_empty()
                         || self.finish_out.room() == 0
                         || self.key_out.room() == 0
