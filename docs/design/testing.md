@@ -48,9 +48,10 @@ client of it. They exist to be tested, and to be copied.
 
 - **In simulated worlds,** each runs as a process of the simulator, with
   every layer real. It is the first tier where the loop runs, so it tests
-  what the loop adds: the two passes, `MAX_OUT` reserved at each stage,
-  deadlines across layers, and requests made in the down pass reaped in a
-  later iteration.
+  what the loop adds: the two passes, room checked at the kernel's queues
+  and new work held at the root's watermark (programming-model.md, 7.1),
+  deadlines across layers, and requests made in the down pass reaped in
+  a later iteration.
 - **In the real loop,** they run under the shell on the real kernel: the
   ring, loopback sockets, a scratch directory as the root, real child
   processes, the real clock, and TLS. It shows what only the real kernel
@@ -159,27 +160,40 @@ over a forge the service may share with its own fake of git. Its
 transcripts of git stay its own.
 
 **The counting allocator** is `skein-heap`, in `testing/` (section 6): a
-global allocator that counts each thread's heap, and a meter that checks a
-step at the most it held of its own, less what it handed out in its
-requests, against its worst case (programming-model.md, 6.3). Every world
-that checks memory uses it, whatever its tier (testing-strategy.md, 6), in
-a test binary of its own that declares it. It measures; it runs no world.
-In a simulated world, the check at every iteration is the world harness's:
-each hosted service's heap, grown within its own calls, against its own
-worst case (simulator.md, 5), measured with the allocator's span, the
-heap's growth around one call, signed.
+global allocator that counts each thread's heap, and a meter that checks
+a step at the most it held of its own, less what it handed out in its
+requests, under its scenario's named ceiling with headroom
+(programming-model.md, 6.3). Every world that checks memory uses it,
+whatever its tier (testing-strategy.md, 6), in a test binary of its own
+that declares it. It measures; it runs no world. In a simulated world,
+the check at every iteration is the world harness's: each hosted
+service's peak against the ceiling its scenario names
+(testing-strategy.md, 6), measured with the allocator's span, the heap's
+growth around one call, signed. Whatever the harness does to a process's
+own containers runs inside that process's ledger span: delivering
+completions, draining submissions, and the real loop's `ring.deliver`
+included. A ring that grows on a harness push is charged to its process.
+The host declares no ceiling or worst case (shell.md, 12).
 
-**Who counts a payload handed to a step.** A step's bound covers what
-it keeps and what it allocates; what it hands out in its requests is the
-next step's input, and the meter takes it off the step's own. An input
-moved into a step is counted by whoever made it, with one exception: a
-delivery from the side below is made to the reading machine's own
-demand, within its largest demand, so the reader's bound covers the one
-it reads, for the step that reads it. A request whose size the receiving
-step's limits do not bound, such as an HTTP call's target and fields or
-a piece of a request body, is counted in the sender's worst case (the
-protocol layer's), and the memory test checks the step that takes it
-against its bound plus that input's size.
+**Who counts a payload handed to a step.** A step's measured heap covers
+what it keeps and what it allocates; what it hands out in its requests
+is the next step's input, and the meter takes it off the step's own. An
+input moved into a step is counted by whoever made it, with one
+exception: a delivery from the side below is made to the reading
+machine's own demand, within its largest demand, so the reader's
+measured heap covers the one it reads, for the step that reads it. A
+request whose size the receiving step's limits do not bound, such as an
+HTTP call's target and fields or a piece of a request body, is counted
+with the sender's payloads (the protocol layer's), and the memory test
+accounts for that input's size when checking the receiving step's peak
+under its scenario's ceiling.
+
+**Exact checks are contracts:** zero after release, the ledger's account,
+a byte price equal to what the allocator saw, or an edge formula equal
+to the size it bounds. Other memory checks hold peaks under named
+ceilings with headroom, moved by hand when a real change passes them,
+never by a type's size; no write mode updates them (testing-strategy.md,
+6).
 
 **The world harness** is `skein-world`, in `testing/` (examples.md, 6),
 built over the simulated world, `skein-sim-world` in `crates/`, whose
@@ -271,7 +285,7 @@ crates/skein-fake-forge-github  the fake forge's GitHub API/browser and signed-l
 crates/skein-fake-machine       the minimal fake machine: files beneath a root, its programs, and its face behind the simulator (section 4)
 crates/skein-sim-world          the simulated world: processes hosted over the simulator and stepped, which the harness and a playground run (world.md)
 testing/skein-conformance       the conformance suite: the backend interface, the scenarios, the driver, the checks
-testing/skein-heap              the counting allocator, the meter that checks a step against its worst case, and the span a world meters its processes with
+testing/skein-heap              the counting allocator, the meter that checks a step under its scenario's ceiling, and the span a world meters its processes with
 testing/skein-scratch           a scratch directory beneath the system's temporary one, removed when dropped, for tests of files on the real kernel
 testing/skein-world             the world harness: the simulated world's run with the referee, the trace and the heap, and the real ring's loop
 testing/skein-echo-client       the fake echo client, a step machine
@@ -291,18 +305,18 @@ tests/ring                      the ring adapter's own tests, skein-ring-tests
 tests/readiness                 the readiness backend's own tests, on each system, skein-readiness-tests
 tests/conformance/sim           the suite against the simulator, skein-conformance-sim
 tests/conformance/real          the suite against the real kernel's backends, the ring and the readiness backend, skein-conformance-real
-tests/json                      the JSON tokenizer's machine worlds, the writer against it, and their worst cases against the counting allocator, skein-json-world
+tests/json                      the JSON tokenizer's machine worlds, the writer against it, and their peaks under scenario ceilings with the counting allocator, skein-json-world
 tests/json/transcripts          its transcripts, each with what it must decode to
-tests/http                      the HTTP client's and server's and the event stream reader's and writer's machine worlds, a reference reader of each, the client and the reader stacked with JSON, and their worst cases against the counting allocator, skein-http-world
+tests/http                      the HTTP client's and server's and the event stream reader's and writer's machine worlds, a reference reader of each, the client and the reader stacked with JSON, and their peaks under scenario ceilings with the counting allocator, skein-http-world
 tests/http/transcripts          its transcripts, responses and, in requests/, requests, each with what it must decode to
 tests/protocol                  the protocol worlds: an LLM client's stack against a server's, joined by bytes cut at random, skein-protocol-world
 tests/llm                       skein-llm's subscription protocol worlds, fragmentation and fault sweeps, and bounds against the counting allocator, skein-llm-world
 tests/llm-connection            the LLM connection component's worlds, skein-llm-connection-world
 tests/oauth                     the OAuth client against the independent issuer, skein-oauth-world
-tests/forge/machine             the forge component's machine world and the listener's, against a scripted HTTP peer and the fake's GitHub layer on its clock, and their worst case against the counting allocator, every holder filled (forge-connection.md, 10)
+tests/forge/machine             the forge component's machine world and the listener's, against a scripted HTTP peer and the fake's GitHub layer on its clock, and their peaks under scenario ceilings with the counting allocator, every holder filled (forge-connection.md, 10)
 tests/forge/protocol            the protocol world: the client and the component against the fake forge's protocol layer and domain, joined by streams cut at random, under a scripted durable owner that restarts; its fuzzy runs take seeds (forge-connection.md, 10)
 tests/forge/client              the client world: the client alone under a scripted parent, over the fake forge's domain (forge-client.md, 10)
-tests/forge/setup               the setup world: the host component over a store of items and the fake forge's setup routes and GitHub layer, through HTTP bytes, and its worst case against the counting allocator (forge-setup.md, 7)
+tests/forge/setup               the setup world: the host component over a store of items and the fake forge's setup routes and GitHub layer, through HTTP bytes, and its peak under a scenario ceiling with the counting allocator (forge-setup.md, 7)
 tests/forge/conformance         the conformance tool, outside the suites: a throwaway Forgejo driven, each fact the dialect relies on recorded (fake-forge.md, 7)
 tests/fake-forge                the fake forge's domain against the counting allocator, skein-fake-forge-tests
 tests/fake-peers                the LLM, OAuth and forge peers on loopback io against their clients, including GitHub's job-log redirect to its blob listener, skein-fake-peers-tests
@@ -310,10 +324,10 @@ tests/fake-checkout             the fake checkout's leaf tests and its replay sw
 tests/channel                   the framed channel's machine and protocol worlds, skein-channel-world
 tests/codec                     a generated sample codec and its worlds, skein-codec-tests
 tests/kv                        the store over file io, the simulated kernel and a crashing fake disk, skein-kv-tests
-tests/browser                   the browser kit's machine world against a fake browser, its tests against real Chromium, and its worst case against the counting allocator, skein-browser-world
-tests/tls                       the TLS client's machine worlds against a rustls server in memory, the HTTP client stacked on it, and its worst case against the counting allocator, skein-tls-world
+tests/browser                   the browser kit's machine world against a fake browser, its tests against real Chromium, and its peaks under scenario ceilings with the counting allocator, skein-browser-world
+tests/tls                       the TLS client's machine worlds against a rustls server in memory, the HTTP client stacked on it, and its peaks under scenario ceilings with the counting allocator, skein-tls-world
 tests/tls/fixtures              its certificates and key, and the script that makes them
-tests/ui                        skein-ui's worst cases against the counting allocator, and its comparisons with naive functions, skein-ui-tests (ui.md, 17)
+tests/ui                        skein-ui's peaks under scenario ceilings with the counting allocator, and its comparisons with naive functions, skein-ui-tests (ui.md, 17)
 tests/ui-text                   the text shell's terminal on the simulated machine, skein-ui-text-tests (ui-text.md, 8)
 tests/ui-web                    the browser parts' host tests that need more than a crate's step tests, and the UI example's browser tier, skein-ui-web-tests (ui-web.md, 14)
 tests/**/tests/*.rs             a crate's focused tests
@@ -340,7 +354,7 @@ threads. Each backend of the conformance suite is implemented beside the
 tests that run the suite against it. A crate's memory tests are binaries
 of their own, as the global allocator a binary declares is the whole
 binary's: `tests/memory.rs`, and `tests/fuzzy_memory.rs` for a sweep
-against the worst case (testing-strategy.md, 8). The crate's other tests
+under scenario ceilings (testing-strategy.md, 8). The crate's other tests
 run on the system allocator. A simulated world checks memory at every
 iteration, so each binary of `tests/echo` that runs one declares the
 counting allocator; its real loop runs on the system allocator.
@@ -407,16 +421,13 @@ and a JSON world, an HTTP world, an io world and an echo world to the
 same run; a TLS world does not, as rustls draws from the kernel. The
 state digests replay with the trace (lib.md, 5.1; section 5).
 
-Memory: each part's worst case is checked against the counting allocator
-in its own tier, a call of an entry point at a time; the echo's simulated
-worlds check it at every iteration (examples.md, 6). A world's scenarios
-peak below the worst case, and a part that held more than it should
-within that slack would pass unseen; and the worst cases of io's and the
-protocol layer's B-tree tables (deadlines, ready lists) count a full
-table's nodes, while a world arms a few timers. So a focused test drives
-the echo to its limits (every connection's intake, receive and output
-full at once) and holds it to at least half its worst case, so that it
-keeps reaching them.
+Memory: each part's peak is measured with the counting allocator in its
+own tier, a call of an entry point at a time, under its scenario's named
+ceiling with headroom; the echo's simulated worlds check each host at
+every iteration (examples.md, 6). A focused test drives the echo to its
+edge limits and shows it by what it holds: every connection's intake,
+receive and output full at once. Reaching the limits is checked by those
+contents, never by nearly filling a formula (testing-strategy.md, 6).
 
 The forge's worlds (section 6) keep within a budget of their own: a step
 test under 40 ms (20 ms before the user's doubling of 10-22, provisional), a
@@ -433,13 +444,13 @@ and section 3).
 ## 9. Open questions
 
 - **Heap handed between services in one thread.** A world checks each
-  service against its own worst case by metering around its own calls
-  (simulator.md, 5), which holds while nothing one service allocates is
-  freed by another: true over the kernel boundary, whose backend hands
-  every buffer back. A world that joins two services' layers in-process,
-  passing a box from one to the other, would need the hand-off counted.
-- The real loop in CI and sanitizers on the ring adapter are the shell's
-  (shell.md, 10).
+  service under its scenario's ceiling by metering its own calls and
+  harness operations on its containers (simulator.md, 5), which holds
+  while nothing one service allocates is freed by another: true over the
+  kernel boundary, whose backend hands every buffer back. A world that
+  joins two services' layers in-process, passing a box from one to the
+  other, would need the hand-off counted. - The real loop in CI and
+  sanitizers on the ring adapter are the shell's (shell.md, 10).
 
 ## 10. The portable target
 
