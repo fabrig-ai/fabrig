@@ -113,7 +113,32 @@ Chances are per mille, in `Config`, and drawn from the domain's seed.
   replaces the chance: a commit whose file at `path` holds `green` passes,
   any other fails. `Cue::Message { fail }` instead fails a commit whose
   message contains `fail`, and passes any other commit. With no cue the
-  configured chance decides; neither cue changes latency, silence or reruns.
+  configured chance decides; no cue changes latency, silence or reruns.
+- **A context's own cue:** `Checks.cues`, at most one `ContextCue {
+  context, cue }` per configured context, each naming one, overrides the
+  repository's `cue` for that context; a context without one inherits
+  `cue`, then the chance. So a world fails one check of a head and
+  passes the others, as a person's gate beside a starter check does.
+- **`Cue::PullFile { path, no_pull, step, log }`** judges a head by its
+  pull request: it passes when the head's tree holds `path` with `{pull}`
+  replaced by the pull request's number, by presence, never content, and
+  fails otherwise; a head that is no open pull request's reports
+  `no_pull`, a settled verdict (`Skipped`, typically), never pending.
+  A commit's pull request is the lowest-numbered open one whose head it
+  is. A failure names `step` as its job's failed step and ends the job's
+  log with `log`, `{pull}` replaced too, read through the ordinary jobs,
+  steps and logs (4); every other context, and a `File` or `Message`
+  cue, keeps the generic step and text. Templates are bounded by their
+  expansion at a full 64-bit number (20 digits per `{pull}`).
+- **The pull binding** is the one exception to CI once per commit: a
+  commit judged by a pull-file cue runs again when it becomes a pull
+  request's head after it was pushed, binding that number, as a forge's
+  `pull_request` event runs on a commit its `push` already did. The
+  commit keeps its latest run alone.
+- **`Skipped`,** a check's settled state beside passed and failed, counts
+  as a pass in a combined status and as neither pending nor failed in a
+  head's verdict; the protocol layer serves it as `skipped` and reads a
+  forge's `skipped` as `Skipped`, never as passed.
 - **A rerun** happens once per context, with the `reruns` chance: pending
   again, then a new verdict, so a head's CI can move after it settled.
   People with write permission report statuses of their own.
