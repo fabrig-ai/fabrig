@@ -163,10 +163,9 @@ admission:
 ```
 try_step(root, event):
     a store's answer (committed, loaded, unloaded), a released output, Resume:   always taken
-    a completion of admitted work (a host call rendered, a result read, a delivery acknowledged):   always taken
+    a completion or an advance of admitted work (below):   always taken, once the work queue is empty
     a core read's page, a load switched:   taken in arrival order, after the work queue and earlier answers
-    an event with admitted and new work:   split: the admitted part taken, the new part as below
-    new external work:                     handed back while the backlog is at the watermark,
+    new external work (below):             handed back while the backlog is at the watermark,
                                            or while the work queue holds a hand-off
 step(root, event):
     route the event to its child; drain every hand-off it starts, through the root's work queue
@@ -192,13 +191,26 @@ release(root):   (the service's iterate)
     stepped in arrival order, queued behind earlier work;
   - **releases in order:** an older release steps before a later one;
     releases are always taken.
-- **Split, not held whole.** A worker's link coming up, a worker's answer
-  and a forge's answer can carry what finishes admitted work beside what
-  starts new. The root steps the first at any backlog and hands back the
-  rest, an event of its own holding only the new work, which its owner
-  offers again as any handed-back event (programming-model.md, 7.1); so
-  nothing taken is offered twice, and the new work follows what it came
-  with.
+- **Classed by variant.** No event carries new work beside admitted
+  work, so none is split; each variant is one or the other.
+  - **Always taken:** a worker's link coming up or lost, and every record
+    it sends but a call (a turn, an answer, pieces, logins, a sign-out,
+    activity, limits), with the payloads' room where a record takes a
+    slot; a host call decoded or rendered; a result read; a party's
+    acknowledgements and unwatch, and a procedure step's answers; an
+    account's notifications; setup and stop; the forge's answers and
+    hand-offs. The new work a completion makes possible (a placement, a
+    due task's activation, the forge's continuation) waits at `Resume`'s
+    own watermark check.
+  - **New, waiting at the watermark:** a worker's call, a party's
+    requests, a credential, a restart, the forge's bind, installation and
+    hint.
+- **A held call lets completions pass.** The service holds one handed-back
+  new event per source, and lets the events behind it that the root
+  always takes pass it, in order, up to the next new one
+  (programming-model.md, 7.1). A call held at the watermark never acts
+  for an attempt that ended behind it, and completions taken under
+  pressure release nothing before their commit.
 - **Handed back, not answered.** An input the journal cannot take returns
   to its owner unchanged, who offers it again; the root answers nobody
   busy itself. Busy answers are the core's (jig's `domain/engine.md`,
