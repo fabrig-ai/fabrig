@@ -200,7 +200,12 @@ pull request changes; `read_reviews`, a pull request's reviews;
 `read_checks`, a commit's combined checks; `read_job`, one CI job's log,
 bounded, its failed step named before it; `read_branch`, a branch's head;
 `read_branches`, the branches; `read_compare`, two commits compared;
-`read_file`, a file at one head, bounded; `read_protection`, a branch's
+`read_file`, a file at one head, bounded, or, where the path names a
+directory (the repository's root as `.` or empty), its entries at that
+head, each its name and kind (file, directory, submodule), in the
+forge's order, bounded and cut as a file's bytes are, so an agent with
+no workspace (an advisor, a goal) finds a repository's paths rather than
+guessing them, with no tool of its own; `read_protection`, a branch's
 protection; `read_settings`, the repository's settings;
 `read_collaborators`, its collaborators; `read_permission`, a user's
 permission on it.
