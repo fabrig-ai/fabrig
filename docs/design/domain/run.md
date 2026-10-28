@@ -218,6 +218,13 @@ that is not empty, or a message.
   the instruction to begin the work the brief describes, when the brief
   is not empty, then every message queued, in arrival order, at most one
   offer's worth (section 6); the rest stay queued for main's next yield.
+  An Open run's brief is its person's first words, not work handed to
+  it, so its opening carries the brief itself, whole, as that first
+  user message, before the messages queued, and its system text keeps
+  its instructions alone, with no instruction to begin: a model that
+  reads a person's request as its own system text plans the work
+  itself where its instructions would have it delegate. A Finite run's
+  opening, a sub-agent's and a resumed window's are as above.
   When concrete history is selected for resume, the waking prompt contains
   the offered messages without a new instruction to begin; without offered
   messages it says “Continue the saved conversation.” It first includes
