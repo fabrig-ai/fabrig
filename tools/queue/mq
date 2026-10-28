@@ -695,6 +695,11 @@ def main():
         if name == "once":
             sub.add_argument("--dry", action="store_true")
     args = parser.parse_args()
+    if args.action == "run":
+        for name in ("cargo", "heavy", "post", "git"):
+            if shutil.which(name) is None:
+                print(f"mq: missing {name} on PATH; invoke from bash -lc", file=sys.stderr)
+                return 2
     try:
         repo = args.repo.expanduser().resolve()
         if git(repo, "rev-parse", "--show-toplevel").stdout.strip() != str(repo):

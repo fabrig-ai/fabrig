@@ -128,6 +128,29 @@ for build, default, and fuzzy, as for an empty test selection. Fuzzy remains
 one step with `--profile fuzzy`; the build step already built its binaries.
 Ratchets follow tests. Docs-only batches run only touched trees' ratchets.
 
+### 3.7 Restarting and the login shell
+
+`bash -lc 'tools/queue/restart'`, from the queue clone, checks `cargo`,
+`heavy`, `post`, and `git` on PATH before changing anything. A missing tool
+exits 2 and names it; `mq run` performs the same check before its first git
+command. `once` and `plan` keep their existing behavior.
+
+Restart finds the queue lock's holder through `/proc/locks`, falling back
+to `pgrep -f` for exactly one `tools/queue/mq run`. An absent or ambiguous
+process is an error. It writes `~/src/fabrig/queue.stop`, prints the pid and
+stop path, and waits for that process to exit, using a pidfd so pid reuse
+cannot change the wait. `--wait` bounds this wait in seconds (default 1800).
+A timeout retains the stop file and does not fetch or start a replacement.
+
+After the process exits, restart fetches origin and switches the clone to
+detached `origin/main`. Only then does it remove the stop file and start
+`python3 -u tools/queue/mq run --repo <clone>` in a new session with stdin
+from `/dev/null` and both outputs appended to
+`~/src/fabrig/notes/queue.out` (0600). After three seconds it checks for an
+early exit, then prints the new pid and main's commit. `--repo` defaults to
+the current directory and must name the clone root. Run only one restart
+at a time; a failed update leaves the stop file for inspection.
+
 ## 4. Later
 
 - Two gate machines with nextest's `--partition` once the full run's time matters.
