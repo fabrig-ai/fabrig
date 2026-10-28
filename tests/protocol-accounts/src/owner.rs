@@ -117,6 +117,8 @@ pub struct Owner {
     source_providers: Map<u32, u32>,
     inventory: restart::Inventory,
     move_mode: Option<()>,
+    /// The referee's changes wait inline until the owner's next metered call.
+    pending_changes: [Option<(Token, child::Change)>; 2],
     move_events: Queue<child::Event>,
     /// Test client's output and preallocated input; the referee only copies bytes.
     moved_file: Option<(u32, Secret)>,
@@ -226,6 +228,7 @@ impl Owner {
             source_providers: Map::with_capacity(limits.accounts),
             inventory: restart::Inventory::new(limits.accounts, store_limits.secrets.page.rows),
             move_mode: None,
+            pending_changes: [None, None],
             move_events: Queue::with_capacity(ROOM),
             moved_file: None,
             move_input: bytes::zeroed(
@@ -335,11 +338,8 @@ impl Owner {
         owner
     }
     pub(crate) fn change(&mut self, request: u64, change: child::Change) {
-        self.move_events.push(child::Event::Change {
-            request: Token::new(request),
-            holder: child::Holder::Party(7),
-            change,
-        });
+        let slot = self.pending_changes.iter_mut().find(|slot| slot.is_none()).expect("at most two pending changes");
+        *slot = Some((Token::new(request), change));
     }
     pub(crate) fn moved_file(&self, source: u32) -> Option<&Secret> {
         self.moved_file.as_ref().filter(|(number, _)| *number == source).map(|(_, value)| value)
@@ -1225,6 +1225,11 @@ impl Host for Owner {
             self.carried_move = Some(number);
             self.change(93, child::Change::MoveIn { carried: number });
         }
+        for slot in &mut self.pending_changes {
+            if let Some((request, change)) = slot.take() {
+                self.move_events.push(child::Event::Change { request, holder: child::Holder::Party(7), change });
+            }
+        }
         while let Some(event) = self.move_events.pop() {
             self.child_event(now, wall, event);
         }
@@ -1291,6 +1296,7 @@ impl Host for Owner {
             || !self.requests.is_empty()
             || !self.above.is_empty()
             || !self.store_above.is_empty()
+            || self.pending_changes.iter().any(Option::is_some)
             || !self.move_events.is_empty()
             || self.move_input_len.is_some()
             || !self.move_out.is_empty()
@@ -1327,6 +1333,7 @@ impl Host for Owner {
             && self.files.is_empty()
             && self.above.is_empty()
             && self.child_out.is_empty()
+            && self.pending_changes.iter().all(Option::is_none)
             && self.completions.is_empty()
             && self.submissions.is_empty()
     }
