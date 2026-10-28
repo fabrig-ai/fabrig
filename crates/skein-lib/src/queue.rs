@@ -1,8 +1,7 @@
-//! Queues for the records between stages (lib.md, section 5), capped at
-//! startup, or uncapped between service components. Capped rings of at most
-//! 1 MiB allocate at construction; larger and uncapped rings grow as they fill.
+//! Bounded queues (programming-model.md, section 2): the records between
+//! stages, sized at startup.
 
-#![expect(clippy::disallowed_types, reason = "a queue is a VecDeque allocated under its cap, grown above 1 MiB")]
+#![expect(clippy::disallowed_types, reason = "a queue is a VecDeque allocated once, at its final capacity")]
 
 use core::hash::{Hash, Hasher};
 
@@ -10,12 +9,7 @@ use alloc::collections::VecDeque;
 use alloc::collections::vec_deque;
 use core::mem::size_of;
 
-/// Test worlds' harnesses fill rings outside the metered process calls, so
-/// rings through this many bytes allocate with their owner at construction.
-const EAGER_BYTES: u32 = 1 << 20;
-
-/// A first-in, first-out queue, allocated whole up to 1 MiB, otherwise grown
-/// as it fills, never past its cap.
+/// A first-in, first-out queue that never grows past its capacity.
 #[derive(Debug)]
 pub struct Queue<T> {
     items: VecDeque<T>,
@@ -25,12 +19,8 @@ pub struct Queue<T> {
 impl<T> Queue<T> {
     #[must_use]
     pub fn with_capacity(capacity: u32) -> Queue<T> {
-        let cap = usize::try_from(capacity).expect("a u32 fits in a usize");
-        let item = size_of::<T>();
-        let eager = usize::try_from(EAGER_BYTES).expect("one MiB fits in a usize");
-        let small = item == 0 || cap <= eager.checked_div(item).expect("nonzero item size");
-        let items = if small { VecDeque::with_capacity(cap) } else { VecDeque::new() };
-        Queue { items, capacity }
+        let size = usize::try_from(capacity).expect("a u32 fits in a usize");
+        Queue { items: VecDeque::with_capacity(size), capacity }
     }
 
     /// For hops between a service's own components, never for what a peer
@@ -40,12 +30,11 @@ impl<T> Queue<T> {
         Queue { items: VecDeque::new(), capacity: u32::MAX }
     }
 
-    /// The most heap a queue of `capacity` takes for its items, or `None` past a
-    /// `u64`, including old and new buffers during growth. What the items own
-    /// is theirs to count.
+    /// The heap a queue of `capacity` takes for its items, or `None` past a
+    /// `u64`. What the items own is theirs to count.
     #[must_use]
     pub fn worst_case(capacity: u32) -> Option<u64> {
-        growth_peak(capacity, u64::try_from(size_of::<T>()).ok()?)
+        u64::try_from(size_of::<T>()).ok()?.checked_mul(u64::from(capacity))
     }
 
     #[must_use]
@@ -75,7 +64,6 @@ impl<T> Queue<T> {
     /// calling it, so a full queue here is a bug, not an outcome.
     pub fn push(&mut self, item: T) {
         assert!(self.room() > 0, "the loop reserves room for every output");
-        self.grow();
         self.items.push_back(item);
     }
 
@@ -84,20 +72,8 @@ impl<T> Queue<T> {
         if self.room() == 0 {
             return Err(item);
         }
-        self.grow();
         self.items.push_back(item);
         Ok(())
-    }
-
-    /// Reserves the next doubling, clamped to the cap.
-    fn grow(&mut self) {
-        if self.items.len() < self.items.capacity() {
-            return;
-        }
-        let cap = usize::try_from(self.capacity).expect("a u32 fits in a usize");
-        let next = self.items.capacity().saturating_mul(2).max(1).min(cap);
-        let additional = next.checked_sub(self.items.len()).expect("room was checked before growing");
-        self.items.reserve_exact(additional);
     }
 
     /// Takes the oldest item.
@@ -126,21 +102,4 @@ impl<T: Hash> Hash for Queue<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.items.hash(state);
     }
-}
-
-/// The growth peak counts the cap's buffer and the largest buffer reallocated
-/// on the way, live together while copying. Rings of at most 1 MiB allocate
-/// their cap at construction and hold only that buffer.
-fn growth_peak(capacity: u32, item: u64) -> Option<u64> {
-    let cap = u64::from(capacity);
-    let full = cap.checked_mul(item)?;
-    if full <= u64::from(EAGER_BYTES) || capacity <= 1 {
-        return Some(full);
-    }
-    let mut previous = 1_u64;
-    // At most 32 doublings reach the u32 cap.
-    while previous.checked_mul(2)? < cap {
-        previous = previous.checked_mul(2)?;
-    }
-    full.checked_add(previous.checked_mul(item)?)
 }

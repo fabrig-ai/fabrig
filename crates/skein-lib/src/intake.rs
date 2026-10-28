@@ -1,10 +1,10 @@
 //! The carry-over of a stream (programming-model.md, 4.3; lib.md,
 //! 7): bytes received but not yet demanded, held by the side below
-//! under its cap: allocated whole up to 1 MiB, otherwise grown as it fills.
+//! under its cap.
 
 #![expect(
     clippy::disallowed_types,
-    reason = "an intake is a VecDeque allocated under its cap, grown above 1 MiB, and deliveries are exact-length Vecs"
+    reason = "an intake is a VecDeque allocated once, at its cap, and a delivery is built in a Vec of its exact length"
 )]
 
 use core::hash::{Hash, Hasher};
@@ -16,17 +16,12 @@ use alloc::vec::Vec;
 use crate::Overflow;
 use crate::stream::{Delimiter, Read};
 
-/// Test worlds' harnesses fill rings outside the metered process calls, so
-/// rings through this many bytes allocate with their owner at construction.
-const EAGER_BYTES: u32 = 1 << 20;
-
 /// The bytes a stream has received and the side above has not yet demanded,
 /// up to a cap fixed when it is made.
 ///
 /// The side below appends what arrives while there is [`room`](Intake::room),
 /// and meets the side above's [`Read`] with [`meet`](Intake::meet) as soon as
-/// it can. Up to 1 MiB the buffer is allocated at construction; larger
-/// buffers grow as they fill, never past the cap. Each
+/// it can. The buffer is allocated once, at the cap, and never grows; each
 /// delivery is a box of exactly the demanded length.
 #[derive(Debug)]
 pub struct Intake {
@@ -65,15 +60,19 @@ impl Until {
 impl Intake {
     #[must_use]
     pub fn with_capacity(capacity: u32) -> Intake {
-        let bytes = if capacity <= EAGER_BYTES { VecDeque::with_capacity(index(capacity)) } else { VecDeque::new() };
-        Intake { bytes, capacity, searched: Searched { until: Until::LineEnd, clear: 0 } }
+        Intake {
+            bytes: VecDeque::with_capacity(index(capacity)),
+            capacity,
+            searched: Searched { until: Until::LineEnd, clear: 0 },
+        }
     }
 
-    /// The most heap an intake of `capacity` takes, including its growth peak.
-    /// The boxes it delivers are their new owners' to count.
+    /// The heap an intake of `capacity` takes: its buffer, so always
+    /// `Some(capacity)`, an `Option` to match the other containers. The boxes
+    /// it delivers are their new owners' to count.
     #[must_use]
     pub fn worst_case(capacity: u32) -> Option<u64> {
-        growth_peak(capacity)
+        Some(u64::from(capacity))
     }
 
     #[must_use]
@@ -100,7 +99,7 @@ impl Intake {
         self.capacity.checked_sub(self.len()).expect("no longer than its capacity")
     }
 
-    /// Drops buffered bytes while keeping its buffer; resets scan progress.
+    /// Drops buffered bytes while keeping the fixed capacity; resets scan progress.
     pub fn clear(&mut self) {
         self.bytes.clear();
         self.searched.clear = 0;
@@ -111,17 +110,6 @@ impl Intake {
     pub fn append(&mut self, bytes: &[u8]) -> Result<(), Overflow> {
         if bytes.len() > index(self.room()) {
             return Err(Overflow);
-        }
-        let needed = self.bytes.len().checked_add(bytes.len()).expect("the bytes fit the cap");
-        if needed > self.bytes.capacity() {
-            let cap = index(self.capacity);
-            let mut next = self.bytes.capacity().max(1);
-            // At most 32 doublings reach the u32 cap.
-            while next < needed {
-                next = next.saturating_mul(2).min(cap);
-            }
-            let additional = next.checked_sub(self.bytes.len()).expect("growing to fit the bytes");
-            self.bytes.reserve_exact(additional);
         }
         self.bytes.extend(bytes);
         Ok(())
@@ -257,20 +245,4 @@ impl Hash for Intake {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.bytes.hash(state);
     }
-}
-
-/// The growth peak counts the cap's buffer and the largest buffer reallocated
-/// on the way, live together while copying. Intakes of at most 1 MiB allocate
-/// their cap at construction and hold only that buffer.
-fn growth_peak(capacity: u32) -> Option<u64> {
-    let cap = u64::from(capacity);
-    if cap <= u64::from(EAGER_BYTES) {
-        return Some(cap);
-    }
-    let mut previous = 1_u64;
-    // At most 32 doublings reach the u32 cap.
-    while previous.checked_mul(2)? < cap {
-        previous = previous.checked_mul(2)?;
-    }
-    cap.checked_add(previous)
 }
