@@ -355,8 +355,12 @@ impl Owner {
         self.child.source_grant(self.account, self.now).is_some()
     }
     pub(crate) fn carried_value(&mut self, carried: u64) -> Option<Secret> {
-        let env = Env { now: self.now, wall: Wall::EPOCH, limits: self.limits };
-        self.secret_value(&env, GET, store::SecretOwner::Application, carried)
+        self.inspect_secret(store::SecretOwner::Application, carried).map(|value| {
+            let store::SecretValue::Carried { kind: store::CarriedKind::Moved, value } = value else {
+                panic!("carried move kind")
+            };
+            value
+        })
     }
     /// Opens the store, as this start drew `drawn`, and answers the
     /// installation's identifier it keeps. At an empty store the owner, as
@@ -469,19 +473,32 @@ impl Owner {
     }
     /// The actual durable source record, read after the story has settled.
     pub fn read_record(&mut self) -> Option<Box<[u8]>> {
-        self.secrets(
-            self.now,
-            Wall::EPOCH,
-            GET,
-            store::Secrets::Get { owner: store::SecretOwner::Source, number: u64::from(self.account) },
-        );
-        let Some(store::Event::Secret { owner: GET, value }) = self.store_above.pop() else {
-            panic!("the memory store answers Get immediately");
-        };
-        value.map(|value| {
+        self.inspect_secret(store::SecretOwner::Source, u64::from(self.account)).map(|value| {
             let store::SecretValue::Record(value) = value else { panic!("source record kind") };
             bytes::copy_of(value.expose())
         })
+    }
+    /// A referee's read owns its temporary handoff buffers outside process calls.
+    fn inspect_secret(&mut self, owner: store::SecretOwner, number: u64) -> Option<store::SecretValue> {
+        let env = Env { now: self.now, wall: Wall::EPOCH, limits: self.store_limits };
+        let mut above = Queue::with_capacity(self.store_above.capacity());
+        let mut below = store::Below {
+            store: Queue::with_capacity(self.below.store.capacity()),
+            secrets: Queue::with_capacity(self.below.secrets.capacity()),
+            transcripts: Queue::with_capacity(self.below.transcripts.capacity()),
+        };
+        store::down(
+            &mut self.store,
+            &env,
+            store::Request::Secrets { owner: GET, request: store::Secrets::Get { owner, number } },
+            &mut above,
+            &mut below,
+        );
+        let Some(store::Event::Secret { owner: GET, value }) = above.pop() else {
+            panic!("the memory store answers Get immediately");
+        };
+        assert!(above.is_empty() && below.store.is_empty() && below.secrets.is_empty() && below.transcripts.is_empty());
+        value
     }
     pub(crate) fn unstarted(&self) -> bool {
         self.component.is_none()
