@@ -22,6 +22,7 @@ Provisional, 2026-10-29. One Codex owner on hel8 (`codex-run owner`, at high), p
 
 - If a transient systemd service wraps the restart helper, set `RemainAfterExit=yes`: the helper exits after starting a child in its cgroup. After it returns, verify that the queue daemon survives and holds both authority and checkout locks. Exit 0 acknowledges startup, not a completed gate.
 - Keep Python service wrappers and observation helpers in standalone files and compile their source before sending it over SSH; compile service wrappers on the builder before startup too. Preserve failed startup logs and require the tool's state or submission receipt before reporting that work began (ledger 85).
+- Pass full commit OIDs to `ready-check` and use precheck's run-directory `result.json` as evidence. Its captured stdout also contains human-readable lines and is not a JSON result file (ledger 87).
 
 ## 3. Machines and slots
 
