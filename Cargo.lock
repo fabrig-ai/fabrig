@@ -4735,7 +4735,6 @@ dependencies = [
  "skein-fake-oauth",
  "skein-fake-peers",
  "skein-forge",
- "skein-forge-client",
  "skein-http",
  "skein-io",
  "skein-json",

@@ -1223,6 +1223,18 @@ impl Caller {
         } else if self.running[index].is_some() {
             return false;
         }
+        if let Step::Until { argv, .. } = step {
+            let call = &self.calls[index];
+            assert_eq!(
+                call.exit,
+                Some(Exit::Code(0)),
+                "Until step {} argv={:?} exit={:?}: {}",
+                self.next,
+                self.diagnostic_argv(argv),
+                call.exit,
+                String::from_utf8_lossy(&call.stderr)
+            );
+        }
         let call = &mut self.calls[index];
         if matches!(step, Step::SameParty { .. }) && call.tries == 1 {
             let link = *self.retry_link.get_or_insert(self.links.get());
@@ -1235,7 +1247,6 @@ impl Caller {
         }
         if let Step::Until { holds, early, .. } = step
             && !holds.matches(&call.stdout)
-            && call.exit == Some(Exit::Code(0))
         {
             call.early += u32::from(occurrences(&call.stdout, early) != 0);
             self.spawn(now, index);
@@ -1677,6 +1688,33 @@ mod read_condition_tests {
         let condition = ReadCondition::Contains(b"ready");
         assert!(condition.matches(b"plain ready text"));
         assert!(!condition.matches(b"plain pending text"));
+    }
+    #[test]
+    #[should_panic(
+        expected = "Until step 0 argv=[\"task\", \"show\", \"1\", \"--json\"] exit=Some(Code(1)): store cannot be read"
+    )]
+    fn until_rejects_a_failed_observation_even_when_stdout_matches() {
+        failed_observation(Exit::Code(1));
+    }
+    #[test]
+    #[should_panic(
+        expected = "Until step 0 argv=[\"task\", \"show\", \"1\", \"--json\"] exit=Some(Signal(15)): store cannot be read"
+    )]
+    fn until_rejects_a_signaled_observation_even_when_stdout_matches() {
+        failed_observation(Exit::Signal(15));
+    }
+    fn failed_observation(exit: Exit) {
+        let mut caller = Caller::new(
+            vec![until(D1, crate::argv!["task", "show", "1", "--json"], b"ready", b"pending")],
+            PathBuf::new(),
+            Fd::new(0),
+        );
+        caller.advance(Time::ZERO);
+        caller.running[0] = None;
+        caller.calls[0].exit = Some(exit);
+        caller.calls[0].stdout = b"ready".to_vec();
+        caller.calls[0].stderr = b"store cannot be read".to_vec();
+        caller.advance(Time::from_nanos(1));
     }
     #[test]
     fn real_loop_until_retries_initial_due_and_retains_exact_matching_response() {
