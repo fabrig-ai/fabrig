@@ -6,15 +6,12 @@
 //! holds as live ones.
 
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
-use skein_world::domain::heap::{self, Meter};
+use skein_world::domain::heap::Meter;
 use temper_worker_domain_checkout::git::{Commit, Done, Fault, Kind, Missing};
 use temper_worker_domain_checkout::{
     Domain, Event, Limits, MAX_OUT, Message, Outcome, Preparation, Prepared, Refusal, Repository, Request, Spec, Start,
     step, worst_case,
 };
-
-#[global_allocator]
-static HEAP: heap::Counting = heap::Counting;
 
 const LIMITS: Limits = Limits {
     workspaces: 2,
