@@ -26,6 +26,8 @@ Provisional, 2026-10-29. One Codex owner on hel8 (`codex-run owner`, at high), p
 
 ## 3. Machines and slots
 
+- Keep CPU burners and loaded validation off hel8: use a claimed builder slot through ordinary heavy, checking80GB before every command. On hel8, coordinate full agents gates serially while the shared gate lock is pending; retain existing test budgets. A stopped child does not prove its parent cannot spawn another (ledger93).
+
 - Builders: hetzner3, 6, 7 (slots); hetzner8 runs the gate; hetzner2 was deleted by the director on the user’s instruction at19:38UTC on2026-10-29; its second-prover reservation is released and its private recovery archive remains onhetzner6. Do not query it. Live helper inventories, routing and known-host entries exclude it; historical evidence remains intact. Free disk stays above heavy's floor: a slot is trimmed when its task starts (`codex-run` does it), and an idle slot can be trimmed by hand (`tools/slots/trim`); the operator never frees another's cache, `~/.cargo` or `~/.cache`.
 - Manage each builder’s five-minute idle-slot guard with `python3 -I ~/src/fabrig/main/tools/slots/guard --timer`; it trims idle slots below 80 GB. During a temporary guard repair, replace the timer’s source with main only after the repair lands and installation refreshes it; never remove a file still used by its timer. Hetzner2 has no builder-slot guard.
 - During disk pressure, admit each new heavy command only with at least 80000000000 available bytes (`df -B1 --output=avail /`), matching the guard’s decimal 80 GB. Human-readable `df -h` uses binary units and cannot be compared directly with that number.
