@@ -55,7 +55,6 @@ pub fn check(limits: &Limits, checkout: &checkout::Limits) -> Result<(), Unfit> 
     if u64::from(limits.sweep_bytes) < u64::try_from(kernel::LONGEST_NAME).expect("name bound fits u64") {
         return Err(Unfit::SweepBytes);
     }
-    worst_case(limits, checkout).ok_or(Unfit::Memory)?;
     Ok(())
 }
 
