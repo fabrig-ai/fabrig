@@ -194,7 +194,6 @@ pub(crate) const ANSWER: u16 = 0x0110;
 pub(crate) const LIVE: u16 = 0x0112;
 pub(crate) const FRAME_HEADER_BYTES: u32 = 8; // skein's channel frame header.
 pub(crate) const PEER_FRAMES: u32 = 6; // Accept, Terms, Admitted, Live, Turn, Answer.
-const PEER_EVENTS: u32 = 2 + PEER_FRAMES; // Opened and Start, then the six scripted records.
 pub(crate) const PEER_STEPS: u16 = 1000; // The existing LinkPeer's finite settling bound.
 
 // Private agent peer for the Worker's Process IO, without a root assignment.
@@ -264,8 +263,8 @@ impl AgentPeer {
                 agent.endpoints.clone(),
             )
             .unwrap(),
-            events: Queue::with_capacity(smith_protocol_channel::max_out(&limits).to_domain.max(PEER_EVENTS)),
-            out: Queue::with_capacity(smith_protocol_channel::max_out(&limits).below),
+            events: Queue::uncapped(),
+            out: Queue::uncapped(),
             agent_bytes: Intake::with_capacity(host.channel.output_bytes),
             worker_bytes: Intake::with_capacity(channel.output_bytes),
             agent_read: None,
