@@ -1,4 +1,4 @@
-//! Independent facts decoded at the native transport's byte boundary.
+//! Independent facts at the native byte boundary (jig/docs/design/protocol/service.md, 8).
 use super::Received;
 use jig_client::{Event, Message, Request, Streamed};
 use jig_client_protocol_link::translate;
@@ -8,25 +8,44 @@ use std::collections::BTreeMap;
 
 #[derive(Clone, Copy)]
 enum Kind {
-    Request(Option<(u64, u32)>),
+    Request(Option<(u64, u32)>, skein_lib::RequestKey),
     Read(Option<jig_client_test_domain::family::Subject>),
     SignIn,
     SignOut,
     Other,
 }
+/// Every completed printed-link exchange, including answers without a credential.
+#[derive(Clone, Copy, Debug)]
+pub enum SignInOutcome {
+    SignedIn,
+    NotSignedIn(jig_client::NotSignedIn),
+    Refused,
+    Lost,
+}
 #[derive(Default)]
 pub struct Wire {
+    diagnostics: bool,
     exchanges: BTreeMap<Token, Kind>,
     watches: BTreeMap<u64, jig_client_test_domain::family::Subject>,
     credential: Option<Secret>,
+    pub(super) sign_in_answers: Vec<SignInOutcome>,
+    terminals: BTreeMap<skein_lib::RequestKey, jig_client::Outcome>,
 }
 impl Wire {
+    pub(super) fn diagnose(&mut self) {
+        self.diagnostics = true;
+    }
     #[must_use]
     pub fn credential(&self) -> Option<Secret> {
         self.credential.clone()
     }
     pub fn restore(&mut self, credential: Option<Secret>) {
         self.credential = credential;
+    }
+    /// A carried request's decoded terminal, retained apart from `Received`.
+    #[must_use]
+    pub fn carried_terminal(&self, name: skein_lib::RequestKey) -> Option<&jig_client::Outcome> {
+        self.terminals.get(&name)
     }
     pub fn sent(&mut self, request: &Request) -> Vec<Received> {
         self.sent_with(request, Some)
@@ -45,7 +64,10 @@ impl Wire {
         }
         let Request::Exchange { exchange, message, .. } = request else { return vec![] };
         let kind = match message {
-            Message::Request(bytes) => Kind::Request(compound::message(bytes)),
+            Message::Request(bytes) => {
+                let keyed = w::Keyed::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("keyed request bytes");
+                Kind::Request(compound::message(bytes), *keyed.key())
+            }
             Message::Read(bytes) => {
                 let record = w::Owned::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("owned read");
                 let subject = match record.owner() {
@@ -118,7 +140,7 @@ impl Wire {
         }
         let Event::Reply { exchange, message } = event else { return Vec::new() };
         match self.exchanges.get(exchange) {
-            Some(Kind::Request(words)) => {
+            Some(Kind::Request(words, _)) => {
                 match w::KeyedAnswer::decode(&w::CEILINGS, &mut Reader::new(message)).expect("answer bytes") {
                     w::KeyedAnswer::FinalAnswer(value) if matches!(value.owner(), w::Owner::Family(_)) => {
                         vec![Receipt::Answer { attempt: *exchange, final_answer: true, words: None }]
@@ -151,8 +173,11 @@ impl Wire {
     pub fn received_with(&mut self, event: &Event, limits: jig_client_protocol_link::Limits) -> Vec<Received> {
         match event {
             Event::Reply { exchange, message } => match self.exchanges.remove(exchange) {
-                Some(Kind::Request(_)) => {
+                Some(Kind::Request(_, name)) => {
                     let answer = w::KeyedAnswer::decode(&w::CEILINGS, &mut Reader::new(message)).expect("answer bytes");
+                    if self.diagnostics {
+                        self.terminals.insert(name, request_terminal(&answer, &limits));
+                    }
                     translate::answers::answer(answer, &limits)
                         .map_or_else(|_| vec![], |answer| vec![Received::Answer { attempt: *exchange, answer }])
                 }
@@ -172,7 +197,12 @@ impl Wire {
                     }
                 }
                 Some(Kind::SignIn) => {
-                    match w::SignInAnswer::decode(&w::CEILINGS, &mut Reader::new(message)).expect("sign-in bytes") {
+                    let answer =
+                        w::SignInAnswer::decode(&w::CEILINGS, &mut Reader::new(message)).expect("sign-in bytes");
+                    if self.diagnostics {
+                        self.sign_in_answers.push(sign_in_outcome(&answer));
+                    }
+                    match answer {
                         w::SignInAnswer::SignedIn(value) => {
                             self.credential.clone_from(value.token());
                             vec![Received::SignedIn { person: value.party() }]
@@ -206,7 +236,13 @@ impl Wire {
                 }
             }
             Event::Lost { exchange } => {
-                self.exchanges.remove(exchange);
+                match self.exchanges.remove(exchange) {
+                    Some(Kind::SignIn) if self.diagnostics => self.sign_in_answers.push(SignInOutcome::Lost),
+                    Some(Kind::Request(_, name)) if self.diagnostics => {
+                        self.terminals.insert(name, jig_client::Outcome::Lost);
+                    }
+                    Some(Kind::Read(_) | Kind::SignOut | Kind::Other | Kind::SignIn | Kind::Request(_, _)) | None => {}
+                }
                 vec![]
             }
             Event::Start { .. }
@@ -229,7 +265,72 @@ impl Wire {
     }
 }
 
+fn request_terminal(answer: &w::KeyedAnswer, limits: &jig_client_protocol_link::Limits) -> jig_client::Outcome {
+    match answer {
+        w::KeyedAnswer::AnswersFull(full) => {
+            jig_client::Outcome::Full { held: full.held(), room_at: skein_lib::Wall::from_nanos(full.room_at()) }
+        }
+        w::KeyedAnswer::Busy | w::KeyedAnswer::NotReady | w::KeyedAnswer::NotServed(_) | w::KeyedAnswer::SignedOut => {
+            jig_client::Outcome::Unsent
+        }
+        w::KeyedAnswer::FinalAnswer(_) => match translate::answers::answer(answer.clone(), limits) {
+            Ok(answer) => jig_client::Outcome::Answered(jig_client::Answered::Jig(answer)),
+            Err(_) => jig_client::Outcome::Lost,
+        },
+    }
+}
+fn sign_in_outcome(answer: &w::SignInAnswer) -> SignInOutcome {
+    match answer {
+        w::SignInAnswer::SignedIn(_) => SignInOutcome::SignedIn,
+        w::SignInAnswer::Refused => SignInOutcome::Refused,
+        w::SignInAnswer::NotReady => SignInOutcome::NotSignedIn(jig_client::NotSignedIn::NotReady),
+        w::SignInAnswer::Busy => SignInOutcome::NotSignedIn(jig_client::NotSignedIn::Busy),
+        w::SignInAnswer::Full(full) => SignInOutcome::NotSignedIn(jig_client::NotSignedIn::Full {
+            sign_ins: full.sign_ins(),
+            earliest: skein_lib::Wall::from_nanos(full.earliest()),
+            link_until: skein_lib::Wall::from_nanos(full.link_until()),
+        }),
+    }
+}
+
 #[cfg(test)]
 mod tests;
 
 mod compound;
+
+#[cfg(test)]
+mod diagnostic_tests {
+    use super::*;
+    use skein_lib::Writer;
+
+    /// Carried requests stop at retryable wire answers instead of being sent again.
+    #[test]
+    fn retryable_carried_answers_have_an_unsent_terminal() {
+        const NAME: skein_lib::RequestKey = [61; 16];
+        const EXCHANGE: Token = Token::new(7);
+        for answer in [w::KeyedAnswer::Busy, w::KeyedAnswer::NotReady, w::KeyedAnswer::SignedOut] {
+            let mut wire = Wire::default();
+            wire.diagnose();
+            wire.exchanges.insert(EXCHANGE, Kind::Request(None, NAME));
+            let mut writer = Writer::new(usize::try_from(answer.measure()).expect("fixture length"));
+            answer.encode(&mut writer).expect("fixture answer");
+            wire.received(&Event::Reply { exchange: EXCHANGE, message: writer.finish() });
+            assert_eq!(wire.carried_terminal(NAME), Some(&jig_client::Outcome::Unsent));
+        }
+    }
+    /// Loss remains visible even though no decoded `Received` fact is made.
+    #[test]
+    fn lost_exchanges_retain_sign_in_and_carried_terminals() {
+        const NAME: skein_lib::RequestKey = [61; 16];
+        const SIGN_IN: Token = Token::new(7);
+        const CARRY: Token = Token::new(8);
+        let mut wire = Wire::default();
+        wire.diagnose();
+        wire.exchanges.insert(SIGN_IN, Kind::SignIn);
+        wire.exchanges.insert(CARRY, Kind::Request(None, NAME));
+        wire.received(&Event::Lost { exchange: SIGN_IN });
+        wire.received(&Event::Lost { exchange: CARRY });
+        assert!(matches!(wire.sign_in_answers.as_slice(), [SignInOutcome::Lost]));
+        assert_eq!(wire.carried_terminal(NAME), Some(&jig_client::Outcome::Lost));
+    }
+}
