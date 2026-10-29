@@ -118,9 +118,10 @@ pub enum ActivityPhrase {
     ResultCancelled,
     QuestionEnded,
     KeptQuestion,
+    QuestionAnswered,
 }
-// The original 107 activity phrases plus two question captions.
-pub const ALL: [ActivityPhrase; 109] = [
+// Activity captions include the three numbered question outcomes.
+pub const ALL: [ActivityPhrase; 110] = [
     ActivityPhrase::Activity,
     ActivityPhrase::Task,
     ActivityPhrase::Position,
@@ -230,6 +231,7 @@ pub const ALL: [ActivityPhrase; 109] = [
     ActivityPhrase::ResultCancelled,
     ActivityPhrase::QuestionEnded,
     ActivityPhrase::KeptQuestion,
+    ActivityPhrase::QuestionAnswered,
 ];
 impl ActivityPhrase {
     #[must_use]
@@ -348,6 +350,7 @@ impl ActivityPhrase {
             Self::ResultCancelled => 7303,
             Self::QuestionEnded => 7308,
             Self::KeptQuestion => 7309,
+            Self::QuestionAnswered => 7310,
         };
         PhraseId { owner: Owner::Jig.opaque(), number }
     }
@@ -455,6 +458,7 @@ impl ActivityPhrase {
             | Self::Entry
             | Self::QuestionNumber
             | Self::QuestionEnded
+            | Self::QuestionAnswered
             | Self::KeptQuestion
             | Self::Subscription
             | Self::Target
@@ -580,6 +584,7 @@ impl ActivityPhrase {
             Self::ResultCancelled => b"Result: cancelled",
             Self::QuestionEnded => b"Question ended unanswered: ",
             Self::KeptQuestion => b"Kept by question: ",
+            Self::QuestionAnswered => b"Person answered question in inbox: ",
         }
     }
 }

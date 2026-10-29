@@ -679,6 +679,8 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::Message { reply_to, project, task, word, .. } => {
             crate::inbox::message(domain, env, reply_to, project, task, word, false, out);
         }
+        event @ Event::PersonQuestion { .. } => crate::questions::person_question(domain, env, event, out),
+        event @ Event::PersonQuestionAnswer { .. } => crate::questions::person_answer(domain, env, event, out),
         Event::AuthorizedMessage { reply_to, project, task, word } => {
             crate::inbox::message(domain, env, reply_to, project, task, word, true, out);
         }

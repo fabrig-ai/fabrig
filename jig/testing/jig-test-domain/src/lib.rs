@@ -407,6 +407,11 @@ pub struct Domain {
 }
 
 impl Domain {
+    /// Configure the composed core before the testing application's first step.
+    pub fn core_mut(&mut self) -> &mut core::Core {
+        &mut self.core
+    }
+
     /// Borrow the core's settings; the testing root only translates this lookup.
     #[must_use]
     pub fn settings(&self) -> &core::settings::Current {

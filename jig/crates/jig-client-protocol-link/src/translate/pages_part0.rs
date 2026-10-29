@@ -86,6 +86,9 @@ pub(crate) fn owner_message_kind_fields(
         w::OwnerMessageKind::Met(row) => {
             c::OwnerMessageKind::Met { dependency: row.dependency(), removed: row.removed() }
         }
+        w::OwnerMessageKind::QuestionAnswered(row) => {
+            c::OwnerMessageKind::QuestionAnswered { question: row.question() }
+        }
         w::OwnerMessageKind::QuestionEnded(row) => c::OwnerMessageKind::QuestionEnded { question: row.question() },
         w::OwnerMessageKind::Words => c::OwnerMessageKind::Words,
         w::OwnerMessageKind::EffectNotMade(row) => c::OwnerMessageKind::EffectNotMade { entry: row.entry() },

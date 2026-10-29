@@ -206,6 +206,12 @@ impl World {
     }
 
     /// Cold start with the same scenario configuration, including its host slots.
+    /// Change the application's startup setup for its replacement core.
+    pub fn restart_with_startup(&mut self, config: root::Config, setup: fn(&mut root::Domain)) {
+        self.startup = Some(setup);
+        self.restart_with(config);
+    }
+
     pub fn restart_with(&mut self, config: root::Config) {
         self.observer.observe(self.wall, crate::referee::Observed::Restart);
         self.store.reconfigure(18, &config.core.settings.models);
@@ -225,6 +231,9 @@ impl World {
         self.restoring = None;
         self.move_provider = config.core.settings.llm_providers.providers.first().map(|provider| provider.number);
         self.domain = root::Domain::new(config, &self.limits);
+        if let Some(setup) = self.startup {
+            setup(&mut self.domain);
+        }
         for (connector, kinds) in self.hold_kinds.clone() {
             self.domain.configure_holds(&self.env(), connector, kinds);
         }

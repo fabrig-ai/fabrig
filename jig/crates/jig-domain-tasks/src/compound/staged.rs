@@ -88,6 +88,7 @@ impl CompoundTask<'_> {
                 | crate::MessageKind::FinishRequested { .. }
                 | crate::MessageKind::Amendment { .. }
                 | crate::MessageKind::Met { .. }
+                | crate::MessageKind::QuestionAnswered { .. }
                 | crate::MessageKind::QuestionEnded { .. }
                 | crate::MessageKind::SettingsDecision { .. }
                 | crate::MessageKind::ProposalDecision { .. }

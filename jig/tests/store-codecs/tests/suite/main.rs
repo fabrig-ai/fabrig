@@ -5,6 +5,7 @@ mod drift;
 mod memory;
 mod placed;
 mod profiles;
+mod questions;
 mod secrets;
 
 mod fuzzy {

@@ -80,3 +80,16 @@ fn record_with_decision(source: &w::OwnerHistorical, decision: w::OwnerEscalatio
     );
     w::ReadValue::Historical(Box::new(w::OwnerHistorical::new(&limits, parts).expect("literal historical")))
 }
+
+#[test]
+fn a_person_answer_notice_encodes_its_question_number() {
+    let limits = fixtures::wire_limits();
+    for question in [0, 1, u64::MAX] {
+        let value = jig_domain_tasks::MessageKind::QuestionAnswered { question };
+        let encoded = translate::objects::question_answer::message_kind(&value, &limits).expect("notice");
+        let expected = w::OwnerMessageKind::QuestionAnswered(
+            w::OwnerMessageKindAnswer::new(&limits, w::OwnerMessageKindAnswerParts { question }).expect("number"),
+        );
+        assert_eq!(encoded, expected);
+    }
+}

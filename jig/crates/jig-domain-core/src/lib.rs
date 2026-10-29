@@ -285,6 +285,7 @@ pub type Delegating = (CallKey, Box<[tasks::Stub]>, Option<people::Given>);
     reason = "pending generation, worker placement, stopping and role-table fullness are independent facts"
 )]
 pub struct Core {
+    person_answers: bool,
     routes: u32,
     run_inbox: u32,
     pub(crate) run_now: skein_lib::Time,
@@ -452,6 +453,12 @@ fn assert_connector_registry(connectors: &[u16]) {
 }
 
 impl Core {
+    /// Enable the person's direct inbox answers (domain/people.md, 6).
+    /// Set by the application after `Core::new`, before the first step; off by default.
+    pub fn person_answers(&mut self) {
+        self.person_answers = true;
+    }
+
     /// Earliest absolute wall time among retained effect reply rights
     /// (`domain/engine.md`, 4.4). Stale rights remain visible until the
     /// existing effect-deadline event consumes them; this query changes nothing.
@@ -642,6 +649,7 @@ impl Core {
             routes: limits.routes,
             run_inbox: limits.tasks.run_inbox,
             fill: 0,
+            person_answers: false,
             workers_in_process: config.workers_in_process,
             stopping: false,
             draining: None,

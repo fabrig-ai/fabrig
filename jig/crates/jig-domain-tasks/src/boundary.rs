@@ -120,6 +120,8 @@ pub enum MessageKind {
     Met { dependency: u64, removed: bool },
     /// The question ended without an answer; its asker may go on.
     QuestionEnded { question: u64 },
+    /// Its person answered the question in their inbox (domain/people.md, 6).
+    QuestionAnswered { question: u64 },
 }
 
 /// Terminal shape carried with a delegate's bounded message words.
@@ -185,6 +187,7 @@ impl Word {
             | MessageKind::News { .. }
             | MessageKind::Result(_)
             | MessageKind::Met { .. }
+            | MessageKind::QuestionAnswered { .. }
             | MessageKind::QuestionEnded { .. } => false,
         }
     }
@@ -215,6 +218,7 @@ impl Word {
             | MessageKind::FinishRequested { .. }
             | MessageKind::Amendment { .. }
             | MessageKind::Met { .. }
+            | MessageKind::QuestionAnswered { .. }
             | MessageKind::QuestionEnded { .. }
             | MessageKind::Question
             | MessageKind::Answer { .. }
@@ -1303,6 +1307,8 @@ pub enum Refusal {
     Kept,
     /// Its own unanswered question keeps it (domain/tasks.md, 5.7).
     KeptQuestion { question: u64 },
+    /// Its person answers this question in their inbox (domain/people.md, 6).
+    PersonAnswers { question: u64 },
     /// `Agent` charter is absent from the admitted configured table.
     Executor,
     /// Specification count or aggregate owned bytes are invalid.
@@ -1525,6 +1531,18 @@ pub enum Event {
     Introduce { reply_to: ReplyTo, by: u64, left: u64, right: u64 },
     /// Admit authenticated person words to a live chat and wake or relay after their commit.
     Message { reply_to: ReplyTo, project: u32, task: u64, word: Word },
+    /// Admit a question offered to the addressed task's person (domain/people.md, 6).
+    PersonQuestion { reply_to: ReplyTo, project: u32, task: u64, person: u64, word: Word },
+    /// Deliver an authenticated inbox answer and its notice in one decision.
+    PersonQuestionAnswer {
+        reply_to: ReplyTo,
+        project: u32,
+        asked: u64,
+        person: u64,
+        question: u64,
+        notice: u64,
+        word: Word,
+    },
     /// A person's words whose project standing was admitted by the core; retains that actor.
     AuthorizedMessage { reply_to: ReplyTo, project: u32, task: u64, word: Word },
     /// Root delivers a just-ended delegate's result to its task requester in

@@ -48,6 +48,7 @@ pub(crate) fn message(task: &mut TaskRecord, word: &Word, bound: u32) {
         | MessageKind::FinishRequested { .. }
         | MessageKind::Amendment { .. }
         | MessageKind::Met { .. }
+        | MessageKind::QuestionAnswered { .. }
         | MessageKind::QuestionEnded { .. }
         | MessageKind::Notice { .. }
         | MessageKind::Timer { .. }
