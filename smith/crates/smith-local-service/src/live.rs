@@ -6,7 +6,9 @@ use skein_lib::{Duration, Queue, Time, Token};
 use smith_host_domain::{self as host, process};
 use smith_host_protocol::OpenEvent;
 
-/// The front's four lossy slots, independent of channel flow control.
+/// The live-content edge's cap, independent of channel flow control.
+/// Text past it or for another run is dropped and counted in `lost`;
+/// reasoning and input pieces are never kept.
 pub const LIVE_SLOTS: u32 = 4;
 
 /// Protocol/limits.md, section 3.6: maximum bytes in one live piece.
