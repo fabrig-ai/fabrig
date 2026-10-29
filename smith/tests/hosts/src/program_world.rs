@@ -323,8 +323,9 @@ pub fn run(
     missing: bool,
     extra_environment: &[Box<[u8]>],
 ) -> Run {
-    // Peak of source check, login and refresh scenarios with the hosted fake.
-    // Measured 200_884 B on 2026-10-28; a quarter of headroom, rounded up.
+    // Peak across every program_source test: source checks and sign-out with the hosted fake.
+    // The signed-in-otherwise check's hosted fake is largest.
+    // Measured peak: 203_129 bytes on 2026-10-29; a quarter of headroom, rounded up.
     const SOURCE_PARENT_CEILING: u64 = 260_000;
 
     let mut items = vec![Item::directory(b"home"), Item::directory(b"programs"), Item::directory(b"programs/alice")];
