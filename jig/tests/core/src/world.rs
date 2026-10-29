@@ -9,7 +9,7 @@ use jig_domain_fleet as fleet;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
-use skein_lib::{Duration, Env, JournalLimits, Queue, ReplyTo, Time, Token, Wall};
+use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
 use std::collections::VecDeque;
 
 // Four people hand-offs allow five requests apiece: one bootstrap owner plus
@@ -130,7 +130,7 @@ fn profile() -> root::Limits {
         history: 2,
     };
     let writes = PEOPLE_WRITE_ALLOWANCE + people.pending * 2 + jig_test_connector::OUTPUTS_BOUND * 2 + tasks.tasks + 6;
-    let journal = JournalLimits { commits: 3, held: 2000, writes: writes.max(2000), now: 32, release: 32 };
+    let journal = root::JournalSizes { commits: 3, writes: writes.max(2000), door: 32, release: 32 };
     let mut limits = root::Limits {
         journal,
         routes: 200,
@@ -222,12 +222,6 @@ fn profile() -> root::Limits {
     let room = limits.core.routes;
     let connectors = jig_test_connector::OUTPUTS_BOUND.checked_mul(2).expect("two connectors");
     limits.journal.writes = limits.journal.writes.max(room.checked_add(connectors).expect("fixture writes"));
-    limits.journal.held = limits.journal.held.max(
-        room.checked_add(connectors)
-            .expect("fixture deliveries")
-            .checked_mul(limits.journal.commits)
-            .expect("fixture flights"),
-    );
     limits
 }
 

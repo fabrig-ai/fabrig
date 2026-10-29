@@ -543,7 +543,6 @@ pub fn world(seed: u64, automatic: bool) -> crate::effects::World {
     let room = limits.core.routes;
     let connectors = jig_test_connector::OUTPUTS_BOUND * 2;
     limits.journal.writes = (room + connectors) * 2;
-    limits.journal.held = (room + connectors) * 2;
     let mut world = crate::effects::World::configured(seed, false, configuration, limits);
     world.watches = Some(Parties::new(seed, world.store.applied, automatic, world.sign_in.expect("signed in")));
     let task = world.assigned.as_ref().expect("assigned chat").task;

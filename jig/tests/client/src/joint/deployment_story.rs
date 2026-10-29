@@ -12,12 +12,6 @@ fn world() -> World<Test, Joint> {
     let room = owner.core.routes;
     let connectors = jig_test_connector::OUTPUTS_BOUND.checked_mul(2).expect("two connector outputs");
     owner.journal.writes = owner.journal.writes.max(room.checked_add(connectors).expect("fixture writes"));
-    owner.journal.held = owner.journal.held.max(
-        room.checked_add(connectors)
-            .expect("fixture deliveries")
-            .checked_mul(owner.journal.commits)
-            .expect("fixture flights"),
-    );
     let driver = Driver::new(config, owner, Peers::new(Vec::new(), Vec::new()), Time::ZERO, clock(Time::ZERO));
     let codec = jig_protocol_transcript::Limits {
         smith: smith_transcript::v6::CEILINGS,
