@@ -104,40 +104,68 @@ decisions stay the user's.
   workspace's shared inputs (the lockfile entries it resolves, the
   profiles). A package's key changes exactly when something its build
   or tests read changes.
-- **A candidate is proved** when every package's key has a passed
-  receipt; only packages with no receipt run, as one dispatch with the
-  set (one build for the set, as fabrig's batches build once).
-- **Receipts outlive candidates:** a receipt is a key's, not a
-  candidate's. A candidate discarded (a bisection half, a train's
-  successor invalidated, a stale base) leaves its receipts good for
-  every key they name, so its next preparation runs only the keys the
-  change of parent reached.
+- **Repository gates beside package gates:** a gate whose subject is
+  the whole repository (fabrig's tools' suites, the counted baselines'
+  ratchets, formatting of the changed files) has a key of its own: the
+  paths it reads (`tools/`, a tree's sources for its ratchet) and its
+  definition. It runs when its key changes, whatever the package
+  selection says: a tools-only batch runs the tools' gate and no
+  package's, a docs-only batch may still run a tree's ratchet.
+- **A candidate is proved** when every member's blocking gates hold at
+  exactly its candidate: each test gate's keys by passed receipts, each
+  judgement gate by its verdict (`landing.md`, 7.2). Only keys with no
+  receipt run, as one dispatch with the set (one build for the set, as
+  fabrig's batches build once). An advisory gate is run and reported,
+  and neither holds a landing nor starts a bisection or a repair.
+- **Receipts outlive candidates, once certified:** a receipt is a
+  key's, not a candidate's, made only from a certificate the serializer
+  accepted (section 5). A candidate discarded later (a bisection half, a
+  train's successor whose ancestor failed, a stale base) leaves its
+  certified receipts good for every key they name, so its next
+  preparation runs only the keys the change of parent reached. What an
+  invalid or incomplete certificate carried is discarded whole.
 - **What a key cannot see** is named by the project and checked: a test
   that reads files by path or runs another package's binary
   (`tools/queue/always.txt` and the binaries a test runs, in fabrig's
-  terms) joins the keys it depends on, and a periodic full proof (every
-  N landings, hourly, or idle) finds a missing one: a full proof that
-  fails where the selections before it passed is the project's key gap,
-  reported to its operator, never a member's red.
-- **Paths no gate reads** (documentation outside every package, a
-  gate's ignored paths) reach no key: a landing of them is proved on
-  receipts alone (`landing.md`, 7.2), as fabrig's docs-only batches
-  run no build.
+  terms) joins the keys it depends on.
+- **Full proofs audit the keys:** every N proof attempts (reds
+  included), hourly, and when the provers have idled with main moved
+  since the last, a full proof runs every gate whatever its receipts
+  say. An idle audit proves main itself (parent and candidate both
+  main's tip; nothing lands). A full proof that fails is a red like any
+  other, bisected with every half proved in full; where the selections
+  before it passed, its operator is also told of a suspected key gap.
+- **Paths no gate reads** (documentation outside every package and
+  every repository gate's paths, a gate's ignored paths) reach no key:
+  a landing of them is proved on receipts alone (`landing.md`, 7.2),
+  as fabrig's docs-only batches run no build.
 
 ## 4. Candidates: one landing, a batch, a train
 
 ### 4.1 A candidate
 
-- **A parent and an ordered list of landings,** each pinned at its
+- **Parents and an ordered list of landings,** each pinned at its
   members' heads, prepared once into exact commits: per repository, a
-  commit whose history holds the parent. Its identity is the parent,
-  the pinned heads and the prepare's tooling at its revision.
+  parent and a candidate commit whose history holds it. Its identity is
+  the per-repository parents, the pinned heads, the merge commits the
+  prepare made, and the prepare's tooling at its revision. A landing
+  joins a candidate whole: when the prepare cannot include one of its
+  members, the whole landing (and every landing joined to it) is left
+  out.
 - **What is proved is what lands:** the prepare's commits are made
   once and travel to the prover and to the turn as they are; nothing
   is merged, rebased or amended again after proof.
 - **Pinned heads:** a landing joins a candidate at the heads it had
-  when selected. A head that moves later enters only a later
-  candidate; a member is in at most one live candidate.
+  when selected, and its branches' names are reserved across every live
+  candidate. A head that moves later enters only a later candidate,
+  once the one it was pinned in is decided; it does not send the live
+  candidate back to prepare (an exception to `landing.md`, 5.1, which
+  section 10 asks for).
+- **A conflict is staged with its attempt:** a conflict the prepare
+  meets is evidence of that attempt, adjudicated (a resolution, a
+  rejection) only once the attempt's parent is known good; if the
+  attempt errors or is invalidated, its pending conflicts are dropped
+  and the member is prepared again.
 - **The prepare's tooling may write** what the project's rules make
   from the members (regenerated files, lowered counted baselines that
   refuse a raise) as commits of the candidate's own, named for what
@@ -181,15 +209,23 @@ decisions stay the user's.
   ends first waits, with no effect: no landing, no rejection, no
   report. The serializer lands only the train's head, once main equals
   that head's parent.
-- **An ancestor's failure discards its successors' candidates, not
-  their receipts:** a red, a conflict, a fault or a recovery doubt at
-  candidate k invalidates every candidate prepared on it; their
-  results, arriving later, are ignored. Their landings return to the
-  ready set unchanged and are prepared again on the new parent, where
-  their unchanged keys need no run (section 3).
-- **No speculation past a doubt:** while candidate k is bisected, or
-  its preparation left a member out, nothing is prepared on it; the
-  train refills once its outcome is known.
+- **An ancestor's failure discards its successors' candidates:** a red,
+  a conflict, a fault or a recovery doubt at candidate k invalidates
+  every candidate prepared on it; their results, arriving later, decide
+  nothing (no landing, no rejection, no report). Their landings return
+  to the ready set unchanged and are prepared again on the new parent,
+  where the keys a certified result already proved need no run
+  (section 3).
+- **No speculation during a bisection:** from a red until its
+  bisection's whole worklist is decided, nothing is prepared on any
+  candidate of it; the halves are proved one at a time against main as
+  it is, each carrying the full-proof requirement it inherited, and the
+  worklist is persisted so a restart cannot change the outcome. Nor is
+  anything prepared on a candidate whose preparation left a landing
+  out until that is decided.
+- **An invalidated prover is not free:** a prover whose candidate was
+  invalidated stays busy until its commands and cleanup have ended;
+  only then does it take another candidate.
 - **Landing a successor needs its whole chain:** a successor lands only
   after every candidate ahead of it has landed, at exactly the parent
   its proof certified; a successor's green never lands an ancestor.
@@ -200,9 +236,11 @@ decisions stay the user's.
   (`landing.md`, 9): within a train, landing order is the train's
   order, which is preparation order. A batch is proved when all its
   members are.
-- **The reservation** (`landing.md`, 9) holds across batches: a landing
-  whose proof went stale twice is prepared at the head of the next
-  candidate for its repositories.
+- **The reservation** (`landing.md`, 9) holds across batches and trains,
+  unchanged: a landing whose proof went stale `stale_proofs` times
+  reserves the next turn for its repositories; while it proves again,
+  no other candidate touching them may take the turn, and the
+  reservation lapses as `landing.md`, 9 says.
 
 ## 5. Provers
 
@@ -222,16 +260,27 @@ decisions stay the user's.
   temper's: `landing.md`, 4.1), deleted when the candidate is decided;
   fabrig's train, whose serializer alone talks to the forge, sends the
   exact commits as a bundle instead.
-- **A prover answers with a certificate:** the candidate and its
-  parent, each gate's verdict per key with its log, the prover, and the
-  identity of the tooling and selection lists it ran with. The
-  serializer accepts only a complete certificate matching the
-  candidate it dispatched; anything else is a fault.
+- **Dispatch is recorded before it starts, and starting is
+  idempotent:** the serializer persists the request (attempt, candidate,
+  prover) before asking the prover to start it; asking again for the
+  same attempt answers that attempt's state, never a second run. A
+  prover's state for an attempt is running, ended (with its result) or
+  unknown; unknown is never read as idle.
+- **A prover answers with a certificate,** accepted only when it
+  matches the request in full: the generation, the attempt and the
+  prover; the parents, the pinned inputs in order and the prepare's
+  merge commits; the policy and the selection; every gate expected and
+  its result, with its complete log returned to the serializer's own
+  storage; the checkout unchanged before and after the checks, and
+  clean. An empty plan is accepted only where the request expected one.
+  Anything else is a fault.
 - **Capacity is the prover's to check:** a prover below its disk floor,
   missing a tool, or unable to fetch the candidate refuses the
-  candidate as a fault (section 6) before it runs a gate, and keeps its
-  own cache within its disk (fabrig: stale test executables trimmed
-  after each batch).
+  candidate as a fault (section 6) before it runs a gate; a refusal the
+  prover's tools give mid-gate (fabrig: heavy's disk-floor refusal) is
+  a fault too. It keeps its own cache within its disk (fabrig: stale
+  test executables trimmed after each batch), on its own checkout,
+  after its commands end.
 - **How many provers** is a project's setting, measured by the share
   of time proofs run, the ready landings waiting, the candidates
   invalidated and the serializer's preparation lag; a second prover is
@@ -242,14 +291,22 @@ decisions stay the user's.
 
 | Outcome | What it is | What follows | fabrig's cases |
 |---|---|---|---|
-| green | every gate passes at the candidate | the turn (section 7) | a batch landed |
-| red | a gate's own step failed | a batch is bisected; one landing's red is a repair of the failing member (`landing.md`, 7.3), its brief the failing step and the log | clippy, a test, a raised count |
+| green | every blocking gate holds at the candidate (advisory gates reported only) | the turn (section 7) | a batch landed |
+| red | a blocking gate's own step failed, and no fault was recognized | a batch is bisected; one landing's red is a repair of the failing member (`landing.md`, 7.3), its brief the failing step and the log | clippy, a test, a raised count, a tools suite's nonzero exit or timeout |
 | conflict | the prepare could not settle a member | conflicts the project's rules know are settled by its tooling; any other leaves that member out for a resolution (`landing.md`, 3) | `old-forms.txt` recounted; a rebase task |
 | fault | the prover's, not the change's: set-up failed, a refusal for capacity, a missing tool, a transport or certificate failure, a crash | retried with nobody rejected and no member marked tried, up to `gate_retries`; past it the project's operator is told and the landing held (`landing.md`, 7.4) | the disk floor; a queue restarted without its tools |
 | starved | a test that the prover starved of time it was owed | neither a pass nor a fail: recorded apart in the receipt, the gate's verdict unchanged by it (`testing-strategy.md`, 2.10) | real-loop judges under load |
-| stale | the candidate's parent is no longer main's tip, or an ancestor in the train failed | prepared again; unchanged keys keep their receipts | a train's successor; a main moved by hand |
-| key gap | a full proof fails where selections passed | reported to the project's operator; the missing input joins its key | `always.txt`, `read-by-tests.txt` |
+| stale | at the train's head, its parent is not main's tip; or an ancestor in the train failed | prepared again; certified keys keep their receipts | a successor whose ancestor failed; a main moved by hand |
+| key gap | a full proof fails where selections passed | a red as any other (bisected in full), and also reported to the project's operator; the missing input joins its key | `always.txt`, `read-by-tests.txt` |
 
+- **A fault outranks a red:** where a gate failed and the prover also
+  recognized a fault (a refusal for capacity, a lost runner), the
+  outcome is the fault. A suite that ran and failed, or timed out, is
+  red; a test step whose selection was empty (nextest's exit 4) is
+  green.
+- **A successor is not stale while it waits:** its parent is compared
+  with main only when it reaches the train's head; before that it waits
+  on its ancestors' decisions.
 - **A flake is a red until shown otherwise:** a failure whose tests
   all match open flake findings is rerun once (`landing.md`, 6.2); a
   failure the change cannot reach, passing alone, is a finding, never a
@@ -260,25 +317,43 @@ decisions stay the user's.
 - **One per project, the only writer of main:** `landing.md`'s turn,
   held by one serializer that alone prepares candidates, dispatches
   them, adjudicates certificates, lands and reports. Provers never
-  write the forge's refs or report.
-- **It lands the train's head only,** after reading main afresh: main
-  must equal the certified parent, then main is fast-forwarded to
-  exactly the certified commit. No force, no merge at the turn; a
-  fast-forward check alone is not enough, since main might be another
-  ancestor of the candidate.
-- **Decisions before effects:** each decision (a landing, a rejection,
-  a bisection step, an invalidation) is persisted, versioned, before
-  its effects, and the effects (posts, statuses, the members' branches'
-  release) go out at least once under stable ids, so a reader drops a
-  repeat; a failed report never changes an outcome. A branch is
-  released only at the head it landed, never a head pushed since.
-- **Recovery reads main:** after a crash, main at the candidate means
-  the landing happened, to be finished; main at its parent means it did
-  not, to be retried under the same decision; anything else is stale.
-  A prover's result for an invalidated candidate is ignored.
-- **Draining:** a stop admits no new candidate, lets proofs in flight
-  finish or discards them, and lands nothing past an unresolved
-  outcome; restarting resumes from the persisted state, with the
+  write the forge's refs or report. One authority lock covers every
+  mode that can move main (the train, a single prover, a restart), and
+  a mode refuses to start while another's state or a prover's checkout
+  is unresolved.
+- **It lands the train's head only,** per repository, after reading
+  main afresh: main must equal the certified parent, then main is
+  fast-forwarded to exactly the certified commit. No force, no merge at
+  the turn; a fast-forward check alone is not enough, since main might
+  be another ancestor of the candidate. A landing across repositories
+  keeps `landing.md` 8's partial rule: repositories landed stay landed,
+  the rest prepare again on them.
+- **Decisions before effects:** the serializer's state is versioned (a
+  version it does not know is refused, never guessed) and holds the
+  requests, the reserved names, the certificates, the invalidations, the
+  bisection worklist and each decision under a stable id with a mark
+  once applied, so an accounting step is applied once. A landing is
+  written as an intent before its push.
+- **Effects at least once, through an outbox:** each effect (a post, a
+  status, a branch's release) is written as pending, delivered, then
+  marked delivered; an uncertain delivery is sent again under the same
+  id, and its reader may see it twice. A failed delivery never changes
+  an outcome. A branch is released by a deletion that names the head it
+  landed (an expected-head lease), so a head pushed since, or a branch
+  made again, survives; a failed release stays pending work.
+- **Recovery reads main and the intents:** after a crash, under the
+  lock, the serializer reconciles each prover first, then each landing
+  intent in train order: main at the candidate means the landing
+  happened, to be finished once; main at its parent means it did not,
+  to be tried again under the same decision; main anywhere else stops
+  promotion until it is explained. A prover's result for an invalidated
+  candidate is ignored, and a prover that cannot be reached stays
+  unavailable.
+- **Draining:** a stop closes admission (no new candidate, no new
+  bisection group), lets admitted proofs end in order and decides them,
+  persists any recovery work left, and only then may the serializer's
+  tooling or the provers' checkouts change; a stop that times out stays
+  in force. Restarting resumes from the persisted state, with the
   settings it had.
 - **Nothing runs inside the turn:** no gate, no prepare (`landing.md`,
   8). The turn is seconds; the train is how proofs overlap.
@@ -300,6 +375,10 @@ decisions stay the user's.
   requests, and that its runs are not temper's dispatches. A project
   chooses it in its landing settings; temper's turn stays the default
   until a project's queue-backed turn has been walked on real backends.
+- **A queue-backed turn lands only what temper proved:** temper reports
+  success on a group only when the group's commit, parent and ordered
+  members match a certificate of temper's; otherwise temper proves the
+  group GitHub built (its keys, its judgement gates) before reporting.
 - **Forgejo has no merge queue** (its "merge when checks succeed" is a
   scheduled merge, not a queue): temper's turn is the only one.
 
@@ -318,19 +397,19 @@ term here, and `landing.md` has, or section 10 asks for, its mechanism.
 | `git merge --no-ff -m "Merge <branch>"` per member | prepare by a merge chain | 4.1 |
 | `old_forms.py --write` lowers baselines; ratchet-only conflicts recounted | the project's prepare tooling, its candidate's own commits; conflicts its rules know | 4.1; `landing.md`, 5.3 |
 | selection: owners, reverse dependencies, lockfile entries, `always.txt`, `read-by-tests.txt` | keys per package; what a key cannot see | 3 |
-| docs-only batches skip cargo; tools-only batches run the tools' suites | paths no gate reads; a gate's ignored paths | 3; `landing.md`, 6.1 |
-| steps: ratchets, tools, fmt, clippy, build, focused, fuzzy | gates of the repository, each with its key | 3; section 12 |
+| docs-only batches skip cargo (a touched tree's ratchet still runs); tools-only batches run the tools' suites and no cargo | repository gates keyed by their own paths; paths no package gate reads | 3 |
+| steps: ratchets, tools, fmt, clippy, build, focused, fuzzy | repository gates (ratchets, tools, fmt) and package gates (clippy, build, focused, fuzzy), each with its key | 3; section 12 |
 | `heavy --gate`: the gate machine builds nothing else | a prover's exclusive use | 5 |
-| a full run every 5 batches, hourly, or idle | the periodic full proof; the baseline at main's tip | 3; `landing.md`, 6.2 |
+| a full run every 5 attempts, hourly, or idle with main moved | the full proof that audits the keys; an idle audit of main | 3; `landing.md`, 6.2 |
 | a red batch halved, left before right | bisection | 4.2 |
 | a rejection posted with its step and log | a red receipt; the member's repair brief | 6; `landing.md`, 7.3 |
 | below the disk floor; an exception; a missing tool | faults, retried, nobody rejected | 6 |
-| a full run red where selections passed | a key gap, to the operator | 3; 6 |
+| a full run red where selections passed | a red bisected in full, and a suspected key gap to the operator | 3; 6 |
 | test executables trimmed after a batch | the prover's own housekeeping | 5 |
-| `queue.stop`, `tools/queue/restart` | draining and restart | 7 |
+| `queue.stop`, `tools/queue/restart`, the queue's lock | draining and restart under one authority lock | 7 |
 | `queue.state.json`, `queue.jsonl` | the serializer's persisted state; its audit stream | 7; `landing.md`, 12 |
 | `git push origin HEAD:main` | the turn's fast-forward | 7 |
-| the ready branch deleted after landing | the member's branch released at the head it landed | 7 |
+| the ready branch deleted after landing | the member's branch released by an expected-head deletion, through the outbox | 7 |
 | the train: one controller, two gate machines, bundles, certificates, invalidation | a train of depth two; provers; certificates; the serializer | 4.3; 5; 7 |
 | batch size 8 then 16; hetzner2 drained to prove | settings measured: batch size, provers | 4.2; 5 |
 
@@ -339,28 +418,50 @@ term here, and `landing.md` has, or section 10 asks for, its mechanism.
 - **Batches** (`landing.md`, 1, 4, 9): a candidate carrying several
   landings, each still its own task; bisection by halves; the batch
   size a setting with its measures.
+- **Candidates** (`landing.md`, 5): a candidate of several landings on a
+  branch of temper's, made by a merge chain; the prepare's own commits
+  (regenerated files, lowered baselines) on the candidate, not on a
+  member's branch, and who holds that branch and its effects; how a
+  member's pull request shows the candidate it is in; pinned heads, a
+  moved head entering only a later candidate (an exception to 5.1);
+  conflicts staged with their attempt; a landing joined to another
+  left out whole.
 - **Trains** (`landing.md`, 8, 15): a candidate prepared on a proving
-  candidate; landing only the train's head on its certified parent;
-  invalidation of successors; recovery by reading main.
+  candidate; landing only the train's head on its certified parent,
+  per repository, keeping 8's partial landings; invalidation of
+  successors; no speculation during a bisection; recovery by the
+  intents and main.
 - **Keys per package** (`landing.md`, 6.1): a gate's key per package,
   beside today's filtered tree, from the project's key command or the
-  build tool's graph; receipts reused across discarded candidates.
+  build tool's graph, in a versioned encoding that names the gate and
+  the package, its dependencies' keys (cycles and features included),
+  the targets, the toolchain and environment, the shared files, the
+  inputs a key cannot see, and the policy's revision; repository gates'
+  keys; receipts made only from accepted certificates and reused
+  across discarded candidates; full proofs that run despite receipts.
 - **Provers** (`landing.md`, 7): a project's own provers as labelled
   runners with affinity; candidates on temper's branches; certificates;
   faults the prover raises before a gate runs.
 - **Starved** (`landing.md`, 6.2, 7): a receipt records starved tests
   apart from passes and failures.
-- **The serializer's effects** (`landing.md`, 11, 12): persisted
-  decisions, at-least-once effects under stable ids, release at the
-  landed head.
+- **The serializer** (`landing.md`, 8, 11, 12, 15): one authority lock
+  over every mode; a versioned state refusing unknown versions;
+  decisions under stable ids applied once; landing intents; an outbox
+  with at-least-once delivery; expected-head release; dispatch recorded
+  before it starts, idempotent starts, a prover's unknown state; a
+  drain that closes admission.
 - **Settings** (`landing.md`, 13.1): `batch` (size, or by measure),
-  `provers` and `train_depth`, `full_proofs` (every N landings, hourly,
+  `provers` and `train_depth`, `full_proofs` (every N attempts, hourly,
   idle), `prepare` merge or rebase for batches.
 - **Stories** (`landing.md`, 16): a batch with one red lands the rest;
   a train whose head fails discards its successor and re-proves only
   the keys that changed; a successor proved first waits; a prover's
-  fault rejects nobody; a restart mid-train lands nothing twice;
-  fabrig's queue tests, moved into the landing world.
+  fault rejects nobody, even mid-gate; a restart mid-train lands
+  nothing twice and finishes an uncertain landing once; a lost
+  acknowledgement starts no second run; a ready branch pushed again
+  after selection survives its release; an idle audit of main; a full
+  proof that fails is bisected in full; a key invalidated by each kind
+  of input; fabrig's queue tests, moved into the landing world.
 - **`forge.md`:** the merge queue's speculation (section 8) where a
   project chooses GitHub's queue.
 
@@ -388,6 +489,11 @@ term here, and `landing.md` has, or section 10 asks for, its mechanism.
   branches, since dispatch needs the commit on the forge.
 - **The batch's size and when to batch:** a fixed size, or from the
   measures of section 4.2.
+- **Receipts from a speculative candidate:** kept for their keys once
+  the certificate is accepted (section 3, recommended: a key's result
+  does not depend on which candidate carried it), or held until the
+  candidate's ancestors land, as fabrig's train design holds every
+  speculative result.
 - **GitHub's merge queue and dispatch-only gates:** whether a
   queue-backed turn can always report temper's receipts as the queue's
   required check without a run of its own.
