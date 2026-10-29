@@ -276,7 +276,7 @@ impl Decision {
     /// The write buffer retains the store's per-commit write edge; outputs are uncapped.
     #[must_use]
     pub fn decide(journal: &mut Journal, limits: &Limits) -> Decision {
-        assert!(worst_case(limits).is_some(), "valid root journal limits");
+        assert!(valid(limits), "valid root journal limits");
         Decision {
             limits: *limits,
             writes: List::with_capacity(limits.writes.checked_sub(1).expect("header slot reserved")),
@@ -655,29 +655,13 @@ pub fn uncommitted(journal: &mut Journal, number: u64, out: &mut Queue<Output>) 
     out.push(Output::Stop);
 }
 
-/// Pure startup heap calculation for the root's containers and simultaneously owned
-/// decision/commit/held payloads, excluding allocator overhead. Invalid bounds or arithmetic
-/// overflow return `None`; no state or effect is created.
+/// Whether the journal's store and admission limits are usable
+/// (temper/docs/design/domain/root.md, sections 4 and 10).
+/// Commits, writes, deliveries and run bytes must be nonzero; one write slot
+/// is reserved for the deployment header. Heap sums do not constrain admission.
 #[must_use]
-pub fn worst_case(limits: &Limits) -> Option<u64> {
-    if limits.commits == 0 || limits.writes == 0 || limits.deliveries == 0 || limits.run_bytes == 0 {
-        return None;
-    }
-    List::<Write>::price(limits.writes)?
-        .checked_mul(2)?
-        .checked_add(Queue::<Delivery>::price(limits.deliveries)?)?
-        .checked_add(u64::from(limits.writes).checked_mul(2)?.checked_mul(u64::from(limits.transcript_bytes))?)?
-        .checked_add(
-            u64::from(limits.held).checked_add(u64::from(limits.deliveries))?.checked_mul(
-                u64::from(limits.result_bytes)
-                    .max(u64::from(limits.transcript_bytes))
-                    .checked_add(u64::from(limits.run_bytes))?
-                    .checked_add(
-                        List::<crate::BriefSection>::price(limits.deliveries)?
-                            .max(u64::try_from(size_of::<jig_domain_tasks::EscalationContext>()).ok()?),
-                    )?,
-            )?,
-        )
+pub const fn valid(limits: &Limits) -> bool {
+    limits.commits != 0 && limits.writes != 0 && limits.deliveries != 0 && limits.run_bytes != 0
 }
 
 fn fleet_delivery_within(event: &jig_domain_fleet::Event) -> bool {
