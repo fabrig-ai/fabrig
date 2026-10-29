@@ -78,6 +78,10 @@ preview detects ignored-file collisions, including paths introduced by
 directory renames. Source preparation still uses the ordinary uncommitted
 merge. Ignored targets and unrelated files are never cleaned or trimmed.
 
+Source identity compares Git patch output as raw bytes. A golden without NUL
+bytes may be emitted as a text diff even with `--binary`; its contents need
+not be UTF-8. The guard retains those bytes when checking for source mutation.
+
 Ownership holds nonblocking flocks for the slot's sibling `.queue.lock` and
 `.worker.lock`, and its Git directory's `worker.lock` and `precheck.lock`,
 through restoration. These coordinate with the queue's existing lock and
