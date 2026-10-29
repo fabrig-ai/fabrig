@@ -374,7 +374,6 @@ fn prepared(clients: bool) -> crate::Service {
                 &config,
                 address(),
                 &seeds,
-                512,
                 &crate::limits::profile_limits(jig_protocol_config::Profile::Small).server,
             )
             .expect("clients fixture"),
@@ -422,26 +421,12 @@ fn before_restart_is_not_ready(engine: &mut crate::Engine) {
 fn waiting_workers(engine: &mut crate::Engine) {
     let config = f::config();
     assert!(engine.events.is_empty());
-    engine.events = skein_lib::Queue::with_capacity(
-        engine
-            .max_out
-            .checked_mul(2)
-            .expect("engine routes")
-            .checked_mul(jig_protocol_engine_workers::MAX_OUT_DOWN)
-            .expect("worker event room"),
-    );
     engine.workers = Some(
         crate::workers::Workers::new(
             &config,
             &f::files(&f::engine_document()),
             f::seeds().deployment,
             &crate::limits::for_profile(jig_protocol_config::Profile::Small, &config.limits).workers,
-            engine
-                .max_out
-                .checked_mul(2)
-                .expect("engine routes")
-                .checked_mul(jig_protocol_engine_workers::MAX_OUT_DOWN)
-                .expect("worker route room"),
         )
         .expect("workers fixture"),
     );
@@ -682,7 +667,6 @@ fn a_moved_record_bound_past_the_wire_value_bound_refuses_start() {
         &config,
         address(),
         &f::seeds(),
-        512,
         &crate::limits::profile_limits(jig_protocol_config::Profile::Small).server,
     ) else {
         panic!("moved file does not fit the wire")

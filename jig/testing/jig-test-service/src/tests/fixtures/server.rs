@@ -164,16 +164,14 @@ fn retained_demand(out: &mut Queue<Routed>, socket: Token) -> (skein_lib::stream
     panic!("fixture answers an emitted demand")
 }
 
-/// The clients child and listener, with the existing client fixture's 512 request slots.
+/// The clients child and listener, retaining typed output until the caller drains it.
 pub fn retained_clients() -> crate::clients::Clients {
-    const CLIENT_REQUESTS: u32 = 512;
     let (config, _) = crate::startup::fixture_connectors(&super::engine_document());
     let limits = crate::limits::profile_limits(jig_protocol_config::Profile::Small);
     let mut clients = crate::clients::Clients::new(
         &config,
         skein_io::Addr::Ip(core::net::SocketAddr::new(core::net::IpAddr::from([127, 0, 0, 1]), 7100)),
         &super::seeds(),
-        CLIENT_REQUESTS,
         &limits.server,
     )
     .expect("clients fixture");

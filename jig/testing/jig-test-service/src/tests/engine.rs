@@ -126,13 +126,13 @@ fn the_service_waits_while_its_load_is_outstanding() {
 }
 
 #[test]
-fn a_store_answer_is_work_when_party_outputs_are_full() {
+fn a_store_answer_is_work_with_party_outputs_at_the_watermark() {
     let mut driven = fixtures::Driven::started(&fixtures::engine_document());
     period(&mut driven, 2);
     let number = driven.commit_asked();
     let terminal = driven.terminal(number);
     let engine = fixtures::engine(&mut driven.service);
-    for _ in 0..engine.parties_out().room() {
+    for _ in 0..engine.env.limits.watermark {
         engine.parties_out().push(crate::PartyOutput::Busy(Box::new(jig_test_domain::Event::Core(
             core::Event::Period { project: 1, period: 3, budget: 100, next: None },
         ))));
@@ -807,9 +807,8 @@ fn pass_by_run() -> (fixtures::Driven, u64, u64) {
     let Some(people::Reply::Outcome(people::Outcome::Created { first: task, .. })) = driven.reply else {
         let engine = fixtures::engine(&mut driven.service);
         panic!(
-            "the chat was admitted: {:?}, room {}, blocked {}, events {}, parties {}, end {:?}",
+            "the chat was admitted: {:?}, blocked {}, events {}, parties {}, end {:?}",
             driven.reply,
-            engine.room(),
             engine.blocked,
             engine.events.len(),
             engine.parties.len(),
