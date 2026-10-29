@@ -1,7 +1,4 @@
 //! Focused runtime stories and full trace replay.
-#[global_allocator]
-static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
-
 use temper_worker_domain_world::runtime::{Close, Settings, World};
 
 /// The turns seed 7's script leaves unacknowledged as it shuts down.

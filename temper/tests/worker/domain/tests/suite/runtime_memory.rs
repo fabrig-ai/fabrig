@@ -1,10 +1,6 @@
 //! All root entry points, including owned conflict paths, retained opaque
 //! bodies, repeated hello copies and retained answers, measured serially.
-use skein_world::domain::heap;
 use temper_worker_domain_world::runtime::{Close, Settings, World};
-
-#[global_allocator]
-static HEAP: heap::Counting = heap::Counting;
 
 // Measured peak: 34,177 bytes; 25% headroom, rounded up to two significant digits.
 const RUNTIME_HEAP_CEILING: u64 = 43_000;

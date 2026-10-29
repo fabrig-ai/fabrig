@@ -1,4 +1,3 @@
-use skein_world::domain::heap;
 use temper_worker_domain_checkout::git;
 use temper_worker_protocol_git_world::{
     fixtures,
@@ -6,9 +5,6 @@ use temper_worker_protocol_git_world::{
     referee::{Expected, Verdict},
     world::{self, Stop},
 };
-
-#[global_allocator]
-static HEAP: heap::Counting = heap::Counting;
 
 #[test]
 fn each_operation_ends_once_with_its_transcript_s_outcome() {

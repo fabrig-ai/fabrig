@@ -23,22 +23,23 @@ fn a_core_refusal_carries_jigs_refusal_bytes_unchanged() {
 fn version_seven_request_answer_and_forges_goldens_round_trip() {
     use temper_client_protocol_wire as wire;
     for bytes in [
-        include_bytes!("../../../crates/temper-client-protocol-wire/golden/record_requesting_smallest.bin").as_slice(),
-        include_bytes!("../../../crates/temper-client-protocol-wire/golden/record_requesting_full.bin").as_slice(),
+        include_bytes!("../../../../crates/temper-client-protocol-wire/golden/record_requesting_smallest.bin")
+            .as_slice(),
+        include_bytes!("../../../../crates/temper-client-protocol-wire/golden/record_requesting_full.bin").as_slice(),
     ] {
         let record = wire::decode_requesting(bytes, &v1::CEILINGS).expect("request golden");
         assert_eq!(wire::requesting(&record).as_ref(), bytes);
     }
     for bytes in [
-        include_bytes!("../../../crates/temper-client-protocol-wire/golden/record_answer_smallest.bin").as_slice(),
-        include_bytes!("../../../crates/temper-client-protocol-wire/golden/record_answer_full.bin").as_slice(),
+        include_bytes!("../../../../crates/temper-client-protocol-wire/golden/record_answer_smallest.bin").as_slice(),
+        include_bytes!("../../../../crates/temper-client-protocol-wire/golden/record_answer_full.bin").as_slice(),
     ] {
         let record = v1::Answer::decode(&v1::CEILINGS, &mut Reader::new(bytes)).expect("answer golden");
         assert_eq!(wire::answer(&record).as_ref(), bytes);
     }
     for bytes in [
-        include_bytes!("../../../crates/temper-client-protocol-wire/golden/record_forges_smallest.bin").as_slice(),
-        include_bytes!("../../../crates/temper-client-protocol-wire/golden/record_forges_full.bin").as_slice(),
+        include_bytes!("../../../../crates/temper-client-protocol-wire/golden/record_forges_smallest.bin").as_slice(),
+        include_bytes!("../../../../crates/temper-client-protocol-wire/golden/record_forges_full.bin").as_slice(),
     ] {
         let record = wire::decode_forges(bytes, &v1::CEILINGS).expect("forges golden");
         assert_eq!(wire::forges(&record).as_ref(), bytes);
@@ -338,9 +339,10 @@ fn demo_states_round_trip_at_smallest_and_ceiling() {
 fn reachable_and_page_goldens_round_trip_with_ids_privacy_and_more() {
     use temper_client_protocol_wire as wire;
     for bytes in [
-        include_bytes!("../../../crates/temper-client-protocol-wire/golden/enum_request_reachable_smallest.bin")
+        include_bytes!("../../../../crates/temper-client-protocol-wire/golden/enum_request_reachable_smallest.bin")
             .as_slice(),
-        include_bytes!("../../../crates/temper-client-protocol-wire/golden/enum_request_reachable_full.bin").as_slice(),
+        include_bytes!("../../../../crates/temper-client-protocol-wire/golden/enum_request_reachable_full.bin")
+            .as_slice(),
     ] {
         let mut reader = Reader::new(bytes);
         let request = v1::Request::decode(&v1::CEILINGS, &mut reader).expect("reachable golden");
@@ -350,8 +352,9 @@ fn reachable_and_page_goldens_round_trip_with_ids_privacy_and_more() {
         assert_eq!(writer.finish().as_ref(), bytes);
     }
     for bytes in [
-        include_bytes!("../../../crates/temper-client-protocol-wire/golden/enum_outcome_page_smallest.bin").as_slice(),
-        include_bytes!("../../../crates/temper-client-protocol-wire/golden/enum_outcome_page_full.bin").as_slice(),
+        include_bytes!("../../../../crates/temper-client-protocol-wire/golden/enum_outcome_page_smallest.bin")
+            .as_slice(),
+        include_bytes!("../../../../crates/temper-client-protocol-wire/golden/enum_outcome_page_full.bin").as_slice(),
     ] {
         let mut reader = Reader::new(bytes);
         let outcome = v1::Outcome::decode(&v1::CEILINGS, &mut reader).expect("page golden");
