@@ -141,20 +141,6 @@ fn no_git_writes_or_key_leaks(ran: &Ran) {
 }
 
 #[test]
-#[ignore = "gap: real-loop steps expose no GitHub suspension or revocation mutation"]
-fn a_suspended_installation_and_a_revoked_key_stop_repository_access() {
-    let ran = run_github(fresh(), no_agents, || {
-        let mut steps = begin();
-        steps.extend([call(&["forge", "install", "1", "--key", "qa-suspend-revoke"]), calls::browse(3)]);
-        steps
-    });
-    assert_eq!(ran.browsed()[0].hops, [302, 200]);
-    // Connect and accept, suspend through Service::installations_mut, assert refusal;
-    // revoke through Service::revoke_key, assert Stopped with no token or key output.
-    panic!("gap: no step can mutate the running GitHub service");
-}
-
-#[test]
 fn a_failed_paste_is_named_in_human_status_and_cleared_by_retry() {
     // client/forge.md 5.4: a stopped run stays on the row until the next connect.
     const HUMAN_FAILED: usize = 3;
