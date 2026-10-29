@@ -426,9 +426,11 @@ class RecoveryTests(unittest.TestCase):
         directory = self.home / "src/fabrig/slot-maintenance/1"
         (directory / "ack.json").chmod(0o644)
         self.assertIn("0600", self.recover([slot]))
-        (directory / "ack.json").rename(directory / "saved.json")
-        (directory / "ack.json").symlink_to(directory / "saved.json")
+        saved = self.home / "saved-ack.json"
+        (directory / "ack.json").rename(saved)
+        (directory / "ack.json").symlink_to(saved)
         self.assertIn("symlink", self.recover([slot]))
+        self.assertTrue((slot / "target/cache").exists())
 
     def test_real_lifetime_lock_blocks_reclaim_and_invalidates_ack(self):
         slot = self.slot()
