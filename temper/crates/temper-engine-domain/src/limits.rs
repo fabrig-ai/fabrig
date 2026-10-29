@@ -33,7 +33,7 @@ pub struct Limits {
     /// The byte budget for transcripts and turns (domain/root.md, 4.1).
     /// Past it, a due task’s activation waits: pacing, as the watermark is in entries.
     pub memory_bytes: u64,
-    /// Per-commit store edges and journal memory estimates.
+    /// Per-commit store edges, payload byte bounds and journal admission counts.
     pub journal: JournalLimits,
     /// Paged store reads; every startup page must fit whole.
     pub loads: loads::Limits,

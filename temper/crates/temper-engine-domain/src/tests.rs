@@ -15,6 +15,7 @@ mod result;
 mod resume;
 pub(super) mod resume_fixture;
 mod setup;
+mod validity;
 
 const LIMITS: Limits =
     Limits { commits: 2, held: 8, writes: 4, deliveries: 4, transcript_bytes: 64, result_bytes: 32, run_bytes: 1 };
