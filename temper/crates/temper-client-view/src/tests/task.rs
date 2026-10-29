@@ -912,7 +912,7 @@ fn a_kept_activity_is_parked() {
     let mut builder = Builder::new(&fixtures::tree_limits());
     crate::pages::task::owner_activity(
         &mut builder,
-        &c::OwnerActivity::Kept { attempt: 1, pending: List::with_capacity(0) },
+        &c::OwnerActivity::Kept { attempt: 1, pending: List::with_capacity(0), question: None },
         &fixtures::words(),
     );
     assert_eq!(fixtures::text(&builder.finish()).as_ref(), b"parked");

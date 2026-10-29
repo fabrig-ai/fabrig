@@ -36,6 +36,7 @@ impl Payload for OwnerMessageKind {
             | Self::Words
             | Self::EffectNotMade { .. }
             | Self::Met { .. }
+            | Self::QuestionEnded { .. }
             | Self::Amendment { .. }
             | Self::Question
             | Self::Answer { .. }

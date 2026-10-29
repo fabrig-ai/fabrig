@@ -1839,6 +1839,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                 | tasks::MessageKind::Answer { .. }
                 | tasks::MessageKind::Met { .. }
                 | tasks::MessageKind::Notice { .. }
+                | tasks::MessageKind::QuestionEnded { .. }
                 | tasks::MessageKind::Timer { .. }
                 | tasks::MessageKind::PersonStalled { .. }
                 | tasks::MessageKind::EffectNotMade { .. }
@@ -2519,6 +2520,7 @@ fn change_replies(
             | tasks::MessageKind::Amendment { .. }
             | tasks::MessageKind::Met { .. }
             | tasks::MessageKind::Notice { .. }
+            | tasks::MessageKind::QuestionEnded { .. }
             | tasks::MessageKind::Timer { .. }
             | tasks::MessageKind::PersonStalled { .. }
             | tasks::MessageKind::EffectNotMade { .. }

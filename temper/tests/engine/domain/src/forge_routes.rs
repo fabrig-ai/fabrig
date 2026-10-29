@@ -1186,7 +1186,13 @@ impl World {
             panic!("live change")
         };
         assert!(target.delegates.contains(&delegate));
-        sender.questions = Box::new([tasks::QuestionCredit { number: question, answerer: change }]);
+        sender.activity += 1;
+        sender.questions = Box::new([tasks::QuestionCredit {
+            number: question,
+            answerer: tasks::Party::Task(change),
+            asked: tasks::Party::Task(change),
+            line: sender.activity,
+        }]);
         let mut inbox = target.inbox.into_vec();
         inbox.push(tasks::Word {
             number: question,
@@ -1201,6 +1207,19 @@ impl World {
         target.last_message = question;
         target.phase = tasks::Phase::Active(tasks::Active::Due);
         let writes = Box::new([
+            engine::Write::Save(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Activity(
+                tasks::ActivityLine {
+                    task: delegate,
+                    position: sender.activity,
+                    at: self.env.wall,
+                    line: tasks::Line::Words {
+                        message: question,
+                        by: tasks::Party::Task(delegate),
+                        kind: tasks::MessageKind::Question,
+                        words: words.into(),
+                    },
+                },
+            )))),
             engine::Write::Save(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(sender)))),
             engine::Write::Save(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(target)))),
             engine::Write::Save(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(

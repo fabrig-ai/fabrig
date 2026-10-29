@@ -128,3 +128,55 @@ fn both_shipped_profiles_round_trip_a_policy_whose_roles_name_models() {
         assert_eq!(codec::people::decode(&bytes, &limits, &names), Ok(row.clone()), "{profile_name:?}");
     }
 }
+
+/// Measure format carriers and check each shipped store envelope without changing it.
+#[test]
+fn question_formats_fit_the_shipped_envelopes() {
+    use jig_domain_tasks as tasks;
+    use jig_protocol_store::{sizes, tasks_v9};
+    println!(
+        "resident credit={} task={} line={} activity={} request={} core={} store={}",
+        size_of::<tasks::QuestionCredit>(),
+        size_of::<tasks::TaskRecord>(),
+        size_of::<tasks::Line>(),
+        size_of::<tasks::ActivityLine>(),
+        size_of::<tasks::Request>(),
+        size_of::<jig_domain_core::Core>(),
+        size_of::<jig_protocol_store::Store>(),
+    );
+    println!(
+        "encoded credit={} kept={} interests={}",
+        tasks_v9::QuestionCredit::encoded_bound(&tasks_v9::CEILINGS).expect("credit bound"),
+        tasks_v9::KeptLine::encoded_bound(&tasks_v9::CEILINGS).expect("kept bound"),
+        tasks_v9::TaskInterests::encoded_bound(&tasks_v9::CEILINGS).expect("interests bound"),
+    );
+    for name in [Profile::Small, Profile::Standard] {
+        let limits = profile(name);
+        let commits = sizes::Commits { in_flight: limits.journal.commits, writes: limits.journal.writes };
+        let sizes = sizes::check_commits(
+            &limits.core,
+            &sizes::Application { version: 1, key: 2_078, value: 4_304 },
+            &commits,
+            &limits.store.store,
+            limits.store.orphan_erases,
+        )
+        .expect("question formats fit current store envelopes");
+        let codec = codec::tasks::limits(&limits.core.tasks).expect("task codec limits");
+        println!(
+            "{name:?}: task_row={} value={}/{} page={}/{} commit={}/{} ops={}/{} queued_bytes={}/{} journal_writes={} journal_held={}",
+            tasks_v9::TaskRecord::encoded_bound(&codec).expect("task row bound"),
+            sizes.value,
+            limits.store.store.value,
+            sizes.key + sizes.value,
+            limits.store.store.page.bytes,
+            sizes.commit,
+            limits.store.store.commit,
+            sizes.ops,
+            limits.store.store.ops,
+            u64::from(sizes.commit) * u64::from(commits.in_flight),
+            limits.store.store.queued_bytes,
+            commits.writes,
+            u64::from(commits.writes) * u64::from(commits.in_flight),
+        );
+    }
+}

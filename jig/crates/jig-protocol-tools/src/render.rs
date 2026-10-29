@@ -310,6 +310,9 @@ fn task_problem(problem: &jig_domain_tasks::Problem) -> Rendered {
                 jig_domain_tasks::Status::Done => text(&[b"Refused: T", task.as_bytes(), b" is done"], true),
             };
         }
+        jig_domain_tasks::Refusal::KeptQuestion { question } => {
+            return text(&[b"Refused: kept until question ", Decimal::of(question).as_bytes(), b" is answered"], true);
+        }
         jig_domain_tasks::Refusal::Kept => {
             return dependency_list(
                 problem,
@@ -782,6 +785,11 @@ mod tests {
     #[test]
     fn a_kept_task_names_each_pending_dependency() {
         refusal(Refusal::Kept, KEPT, b"Refused: kept until T4 is done, kept until T6 is done");
+    }
+
+    #[test]
+    fn a_kept_task_names_its_unanswered_question() {
+        refusal(Refusal::KeptQuestion { question: 12 }, &[], b"Refused: kept until question 12 is answered");
     }
 
     #[test]

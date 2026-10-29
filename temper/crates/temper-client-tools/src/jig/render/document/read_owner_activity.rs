@@ -94,7 +94,7 @@ pub(super) fn encode_owner_activity(
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::OwnerActivity::Kept { attempt, pending } => {
+        jig_client::contract::OwnerActivity::Kept { attempt, pending, .. } => {
             out.object_start();
             out.key(b"kept");
             out.object_start();

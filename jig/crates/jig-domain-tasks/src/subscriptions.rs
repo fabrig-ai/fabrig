@@ -23,6 +23,7 @@ fn hint_of(kind: &MessageKind) -> Option<u64> {
         | MessageKind::FinishRequested { .. }
         | MessageKind::Amendment { .. }
         | MessageKind::Met { .. }
+        | MessageKind::QuestionEnded { .. }
         | MessageKind::Question
         | MessageKind::Answer { .. }
         | MessageKind::PersonStalled { .. }
@@ -241,6 +242,7 @@ pub(crate) fn notice(domain: &mut Domain, env: &Env<Limits>, number: u64, word: 
         | MessageKind::FinishRequested { .. }
         | MessageKind::Amendment { .. }
         | MessageKind::Met { .. }
+        | MessageKind::QuestionEnded { .. }
         | MessageKind::Question
         | MessageKind::Answer { .. }
         | MessageKind::PersonStalled { .. }

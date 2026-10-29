@@ -330,6 +330,9 @@ fn a_question_read_after_its_task_ended_finds_both_lines_by_key() {
         91,
         people::Ask::AnswerQuestion { project: 1, task, question: message, words: b"the answer".as_slice().into() },
     );
+    // The person answers the recipient today; its requester answer releases
+    // the asking task before both runs finish (domain/tasks.md, 5.7).
+    self::message(&mut world, task, sender, 2, tasks::MessageKind::Answer { question: message }, b"the answer");
     finish_chat(&mut world, sender);
     finish_chat(&mut world, task);
     ask(&mut world, 901, reads::Read::Question { task, message });
@@ -382,14 +385,15 @@ fn a_task_proposal_read_finds_its_history_row_by_key() {
 #[test]
 fn a_question_older_than_the_kept_lines_reads_as_gone() {
     let bound = 2;
-    let (mut world, task) = question_world(794, Some(bound));
-    let sender = chat_task(&world);
-    let oldest = question(&mut world, task, 1);
+    let (mut world, sender) = question_world(794, Some(bound));
+    let task = chat_task(&world);
+    let oldest = message(&mut world, sender, task, 2, tasks::MessageKind::Question, b"original question?");
     let answer = reply(&mut world, task, sender, oldest, bound + 2);
     take_message(&mut world, task, 1, oldest);
     take_message(&mut world, sender, 1, answer);
     for number in 2..=bound + 1 {
-        let message = question(&mut world, task, number);
+        let message =
+            message(&mut world, sender, task, number + 1, tasks::MessageKind::Question, b"original question?");
         let answer = reply(&mut world, task, sender, message, number + bound + 1);
         take_message(&mut world, task, number, message);
         take_message(&mut world, sender, number, answer);

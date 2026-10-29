@@ -372,6 +372,21 @@ impl World {
                     &mut self.out,
                 );
             }
+            Request::QuestionEndedDue { task, questions } => {
+                let notices = questions
+                    .iter()
+                    .map(|question| {
+                        self.message = self.message.checked_add(1).expect("question notice number room");
+                        tasks::QuestionNotice { question: *question, message: self.message }
+                    })
+                    .collect();
+                tasks::step(
+                    &mut self.domain,
+                    &self.env,
+                    Event::QuestionEndedNotice { task: *task, notices },
+                    &mut self.out,
+                );
+            }
             Request::MetDue { task, dependency, removed, by } => {
                 self.message = self.message.checked_add(1).expect("met message number room");
                 tasks::step(
@@ -543,10 +558,17 @@ impl World {
             | Event::SubscribeTopic { .. }
             | Event::Unsubscribe { .. }
             | Event::MetNotice { .. }
+            | Event::QuestionEndedNotice { .. }
+            | Event::CancelQuestion { .. }
             | Event::PersonStallNotice { .. }
             | Event::Notice { .. } => None,
         };
         match event {
+            Event::QuestionEndedNotice { notices, .. } => {
+                for notice in notices {
+                    self.message = self.message.max(notice.message);
+                }
+            }
             Event::DecideSettingsProposal { decision, .. } => {
                 self.message = self.message.max(decision.message);
             }
@@ -623,6 +645,7 @@ impl World {
             | Event::SubscribeTopic { .. }
             | Event::Unsubscribe { .. }
             | Event::MetNotice { .. }
+            | Event::CancelQuestion { .. }
             | Event::PersonStallNotice { .. }
             | Event::Turn { .. } => {}
         }
@@ -777,6 +800,7 @@ impl World {
                 | Request::Sent { .. }
                 | Request::Relay { .. }
                 | Request::MetDue { .. }
+                | Request::QuestionEndedDue { .. }
                 | Request::PersonStallDue { .. }
                 | Request::Notify { .. }
                 | Request::Timer { .. }
@@ -870,6 +894,7 @@ impl World {
                 | Request::EscalationNeeded { .. }
                 | Request::Relay { .. }
                 | Request::MetDue { .. }
+                | Request::QuestionEndedDue { .. }
                 | Request::PersonStallDue { .. }
                 | Request::Notify { .. }
                 | Request::Timer { .. }

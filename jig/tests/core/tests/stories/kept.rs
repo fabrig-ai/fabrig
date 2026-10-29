@@ -126,7 +126,7 @@ fn a_party_reads_the_kept_agents_activity_naming_its_pending_dependency() {
     let core::reads::Answer::Page(page) = jig_core_world::reads::latest(&world) else { panic!("activity page") };
     assert!(page.rows.iter().any(|row| matches!(row,
         core::reads::PageRow::Activity { line, .. }
-            if line.task == kept && line.line == tasks::Line::Kept { attempt: run.1, pending: Box::new([dependency]) })));
+            if line.task == kept && line.line == tasks::Line::Kept { attempt: run.1, pending: Box::new([dependency]), question: None })));
 }
 
 #[test]
@@ -223,4 +223,54 @@ fn an_idle_kept_agents_inbox_waits_without_waking_then_delivers_after_met() {
     assert_eq!(assignment.task, kept);
     assert_eq!(assignment.messages.iter().filter(|word| word.number == message.number).count(), 1);
     assert!(assignment.messages.iter().any(|word| word.kind == tasks::MessageKind::Met { dependency, removed: false }));
+}
+
+#[test]
+fn a_requester_question_parks_the_run_then_its_answer_resumes_it() {
+    let mut world = plan_world(885);
+    let parent = world.assignments[0];
+    let child = member(&world, tasks::Executor::Agent { charter: 1 }, b"question report");
+    let child = delegate(&mut world, parent, 1, child);
+    let run = running(&world, child);
+    world.send(root::Event::Core(core::Event::NamedAction {
+        to: ReplyTo::new(Token::new(9201)),
+        key: core::CallKey { task: run.0, attempt: run.1, completion: 1, position: 0 },
+        action: core::NamedAction::Message {
+            target: parent.0,
+            kind: tasks::MessageKind::Question,
+            words: b"proceed?".as_slice().into(),
+        },
+    }));
+    let question = live_row(&world, child).questions[0].number;
+    finish(&mut world, run, b"waiting report");
+    assert_eq!(live_row(&world, child).phase, tasks::Phase::Active(tasks::Active::Idle));
+    world.reads = Some(jig_core_world::reads::Parties::new(world.store.applied));
+    jig_core_world::reads::ask(&mut world, 1, core::reads::Read::Activity { task: child, before: None });
+    let core::reads::Answer::Page(page) = jig_core_world::reads::latest(&world) else { panic!("activity page") };
+    assert!(page.rows.iter().any(|row| matches!(row,
+    core::reads::PageRow::Activity { line, .. } if line.task == child && matches!(
+        &line.line, tasks::Line::Kept { pending, question: Some(named), .. }
+            if pending.is_empty() && *named == question
+    ))));
+    world.send(root::Event::Core(core::Event::NamedAction {
+        to: ReplyTo::new(Token::new(9202)),
+        key: core::CallKey { task: parent.0, attempt: parent.1, completion: 2, position: 0 },
+        action: core::NamedAction::Message {
+            target: child,
+            kind: tasks::MessageKind::Answer { question },
+            words: b"yes".as_slice().into(),
+        },
+    }));
+    let resumed = running(&world, child);
+    assert_ne!(resumed, run);
+    assert!(live_row(&world, child).questions.is_empty());
+    assert!(
+        live_row(&world, child)
+            .inbox
+            .iter()
+            .any(|word| word.kind == tasks::MessageKind::Answer { question }
+                && word.from == tasks::Party::Task(parent.0))
+    );
+    finish(&mut world, resumed, b"resumed question report");
+    ended(&world, child, b"resumed question report");
 }

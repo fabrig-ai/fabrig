@@ -136,7 +136,7 @@ fn a_kept_activity_is_parked_in_text_and_preserved_in_json() {
                 task: fixtures::TASK,
                 position: 1,
                 at: skein_lib::Wall::EPOCH,
-                line: c::OwnerActivity::Kept { attempt: 7, pending: skein_lib::List::with_capacity(0) },
+                line: c::OwnerActivity::Kept { attempt: 7, pending: skein_lib::List::with_capacity(0), question: None },
             }),
             decoded: None,
         };

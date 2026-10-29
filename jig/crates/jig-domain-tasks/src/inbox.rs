@@ -35,6 +35,7 @@ fn merge_key(kind: &MessageKind) -> Option<(u8, u64)> {
         | MessageKind::EffectNotMade { .. }
         | MessageKind::Words
         | MessageKind::Question
+        | MessageKind::QuestionEnded { .. }
         | MessageKind::Answer { .. }
         | MessageKind::Proposal { .. }
         | MessageKind::Escalation { .. }
@@ -79,7 +80,14 @@ pub(crate) fn prepare_staged(
             }
             if (word.kind == MessageKind::Question
                 && unanswered >= usize::try_from(limits.inbox_messages).expect("u32 fits usize"))
-                || !room_staged(domain, staged, limits, number, 1, word.words.len())
+                || !room_staged(
+                    domain,
+                    staged,
+                    limits,
+                    number,
+                    if word.kind == MessageKind::Question && is_person(task.requester) { 2 } else { 1 },
+                    word.words.len(),
+                )
             {
                 return None;
             }
@@ -130,6 +138,7 @@ pub(crate) fn prepare_staged(
                 | MessageKind::FinishRequested { .. }
                 | MessageKind::Amendment { .. }
                 | MessageKind::Met { .. }
+                | MessageKind::QuestionEnded { .. }
                 | MessageKind::News { class: NewsClass::Kept | NewsClass::Dropped, .. } => {}
             }
         } else {
@@ -146,7 +155,7 @@ pub(crate) fn room(domain: &Domain, limits: &Limits, task: u64, count: u32, byte
     room_staged(domain, &crate::compound::Staged::new(0), limits, task, count, bytes)
 }
 
-fn room_staged(
+pub(crate) fn room_staged(
     domain: &Domain,
     staged: &crate::compound::Staged,
     limits: &Limits,
@@ -170,6 +179,8 @@ fn room_staged(
     }
     let Some(reserved) = delegates.checked_add(stall_credits) else { return false };
     let Some(reserved) = reserved.checked_add(record.questions.len()) else { return false };
+    let received = received_credits(record.requester, &record.question_lines, &record.questions, record.inbox);
+    let Some(reserved) = reserved.checked_add(received) else { return false };
     let Some(reserved) = reserved.checked_add(usize::from(record.proposal.is_some())) else { return false };
     let Some((subscription_count, subscription_bytes)) = crate::subscriptions::credit(&record, limits) else {
         return false;
@@ -187,7 +198,8 @@ fn room_staged(
                 extra_count = extra_count.checked_add(1).expect("bounded merged slots");
                 extra_bytes = extra_bytes.checked_add(word.words.len()).expect("bounded amendment bytes");
             }
-            MessageKind::EffectNotMade { .. }
+            MessageKind::QuestionEnded { .. }
+            | MessageKind::EffectNotMade { .. }
             | MessageKind::Words
             | MessageKind::Question
             | MessageKind::Answer { .. }
@@ -279,7 +291,7 @@ pub(crate) fn check_message(
     env: &Env<Limits>,
     message: Message,
 ) -> Result<MessagePlan, Box<crate::Problem>> {
-    let Message { project, number, word, authorized } = message;
+    let Message { project, number, mut word, authorized } = message;
     if !domain.ready() {
         return Err(Box::new(crate::Problem {
             task: Some(number),
@@ -309,6 +321,7 @@ pub(crate) fn check_message(
         | MessageKind::FinishRequested { .. }
         | MessageKind::Amendment { .. }
         | MessageKind::Met { .. }
+        | MessageKind::QuestionEnded { .. }
         | MessageKind::SettingsDecision { .. }
         | MessageKind::ProposalDecision { .. }
         | MessageKind::PersonStalled { .. }
@@ -368,7 +381,7 @@ pub(crate) fn check_message(
                 Party::Task(answerer) => {
                     let mut found = false;
                     for credit in &task.questions {
-                        if credit.number == question && answerer == credit.answerer {
+                        if credit.number == question && Party::Task(answerer) == credit.answerer {
                             found = true;
                         }
                     }
@@ -400,7 +413,16 @@ pub(crate) fn check_message(
             }
             match word.from {
                 Party::Task(_) => Some(question),
-                Party::Person(_) | Party::Deployment { .. } => None,
+                Party::Person(person) => {
+                    let mut direct = None;
+                    for credit in &task.questions {
+                        if credit.number == question && credit.answerer == Party::Person(person) {
+                            direct = Some(question);
+                        }
+                    }
+                    direct
+                }
+                Party::Deployment { .. } => None,
             }
         }
         MessageKind::EffectNotMade { .. }
@@ -409,6 +431,7 @@ pub(crate) fn check_message(
         | MessageKind::FinishRequested { .. }
         | MessageKind::Amendment { .. }
         | MessageKind::Met { .. }
+        | MessageKind::QuestionEnded { .. }
         | MessageKind::SettingsDecision { .. }
         | MessageKind::ProposalDecision { .. }
         | MessageKind::PersonStalled { .. }
@@ -419,6 +442,14 @@ pub(crate) fn check_message(
             unreachable!("root hints have reserved entrances")
         }
     };
+    if let Some(question) = answer {
+        word.eligible = false;
+        for credit in &task.questions {
+            if credit.number == question && credit.asked == task.requester {
+                word.eligible = true;
+            }
+        }
+    }
     let admission = match answer {
         Some(_) => Admission::RoomKept,
         None => Admission::Refusable,
@@ -478,7 +509,7 @@ pub(crate) fn apply_message(
         let mut credits = List::with_capacity(env.limits.inbox_messages);
         for credit in &task.record.questions {
             if credit.number != question {
-                credits.push(*credit).expect("credit subset bounded");
+                credits.push(credit.clone()).expect("credit subset bounded");
             }
         }
         task.record.questions = credits.into_boxed();
@@ -491,13 +522,28 @@ pub(crate) fn apply_message(
             Party::Task(source) => source,
             Party::Person(_) | Party::Deployment { .. } => unreachable!("question source checked"),
         };
+        let credit = question_credit(domain, number, &prepared.word);
         let source_row = task_mut(domain, source).expect("referenced questioner remains live");
+        crate::activity::append(
+            &mut source_row.record,
+            prepared.activity_word.at,
+            crate::Line::Words {
+                message: prepared.activity_word.number,
+                by: prepared.activity_word.from,
+                kind: MessageKind::Question,
+                words: prepared.activity_word.words.clone(),
+            },
+            out,
+        );
+        assert!(source_row.record.activity == credit.line, "credit names its owner's question activity");
         let mut credits = List::with_capacity(env.limits.inbox_messages);
         for credit in &source_row.record.questions {
-            credits.push(*credit).expect("question credits bounded");
+            credits.push(credit.clone()).expect("question credits bounded");
         }
-        credits.push(QuestionCredit { number: prepared.word.number, answerer: number }).expect("answer room reserved");
+        credits.push(credit).expect("answer room reserved");
         source_row.record.questions = credits.into_boxed();
+        source_row.record.phase = crate::run::ends::for_record(&source_row.record)
+            .amended(source_row.record.executor, source_row.record.phase.clone());
         publish(domain, env, source, out);
     }
     crate::wake::after_message(domain, env, number, prepared.previous, prepared.word.clone(), out);
@@ -527,6 +573,7 @@ pub(crate) fn delegate_result(
         | MessageKind::FinishRequested { .. }
         | MessageKind::Amendment { .. }
         | MessageKind::Met { .. }
+        | MessageKind::QuestionEnded { .. }
         | MessageKind::Question
         | MessageKind::Answer { .. }
         | MessageKind::Notice { .. }
@@ -679,22 +726,67 @@ pub(crate) fn preview_message(
         let mut credits = List::with_capacity(env.limits.inbox_messages);
         for credit in &row.questions {
             if credit.number != question {
-                credits.push(*credit).expect("credit subset");
+                credits.push(credit.clone()).expect("credit subset");
             }
         }
         row.questions = credits.into_boxed();
     }
     if checked.prepared.word.kind == MessageKind::Question {
         let Party::Task(source) = checked.prepared.word.from else { unreachable!("question source checked") };
+        let credit = question_credit(domain, number, &checked.prepared.word);
         let row = &mut task_mut(domain, source).expect("referenced source").record;
         let mut credits = List::with_capacity(env.limits.inbox_messages);
         for credit in &row.questions {
-            credits.push(*credit).expect("bounded credits");
+            credits.push(credit.clone()).expect("bounded credits");
         }
-        credits
-            .push(QuestionCredit { number: checked.prepared.word.number, answerer: number })
-            .expect("question checked");
+        credits.push(credit).expect("question checked");
         row.questions = credits.into_boxed();
     }
     Ok(())
+}
+
+fn question_credit(domain: &Domain, asked: u64, word: &Word) -> QuestionCredit {
+    let answerer = Party::Task(asked);
+    QuestionCredit {
+        number: word.number,
+        answerer,
+        asked: Party::Task(asked),
+        line: match word.from {
+            Party::Task(source) => {
+                record(domain, source).expect("question source live").activity.checked_add(1).expect("activity room")
+            }
+            Party::Person(_) | Party::Deployment { .. } => unreachable!("questions come from tasks"),
+        },
+    }
+}
+
+/// Received question positions and original outgoing credits share the core
+/// history cache admission. A carried direct question uses its existing credit.
+pub(crate) fn received_credits(
+    requester: Party,
+    lines: &[crate::QuestionLine],
+    credits: &[QuestionCredit],
+    _inbox: &[Word],
+) -> usize {
+    let Party::Person(_) = requester else {
+        return 0;
+    };
+    let mut received = 0_usize;
+    for line in lines {
+        let mut present = false;
+        for credit in credits {
+            present |= credit.number == line.message;
+        }
+        if line.answer.is_none() && !present {
+            received = received.checked_add(1).expect("bounded received questions");
+        }
+    }
+    received
+}
+
+fn is_person(party: Party) -> bool {
+    match party {
+        Party::Person(_) => true,
+        Party::Task(_) | Party::Deployment { .. } => false,
+    }
 }
