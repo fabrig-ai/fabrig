@@ -14,8 +14,8 @@ Provisional, 2026-10-28. The machines' and the pipeline's facts every role works
 
 ## 2. Launching a task
 
-- One writer per checkout: the coordinator edits in a clone of its own (`~/src/fabrig/coord/<name>`), and each Codex run has its own checkout. Do not edit, stage or commit in a checkout while its run is writing there.
-- The task file and anything it must read go to the builder (`~/src/fabrig/tasks/<area>/`), written with `ssh HOST 'umask 077; cat > PATH' < FILE`; the report and log land in `~/src/fabrig/notes/<area>/` there. The lead keeps its own copy of each task in its scratch, and its `state.md` names the builder's task, report and log paths.
+- One writer per checkout: the coordinator edits in `~/src/fabrig/coord/mine`, and each Codex run has its own checkout. Do not edit, stage or commit in a checkout while its run is writing there.
+- The task file and anything it must read go to the builder (`~/src/fabrig/tasks/<area>/`), written with `ssh HOST 'umask 077; cat > PATH' < FILE`; the report and log land in `~/src/fabrig/notes/<area>/` there.
 - `ssh HOST 'bash -lc "codex-run task --effort high --to lead/<area>@hel8 TASK SLOT REPORT </dev/null"'`; `--effort medium` for mechanical work; never xhigh. A question or a repair resumes the same run: `--resume <run id>`, a new task file and a NEW report path.
 - Remote commands run in a login shell (`bash -lc`), or `cargo`, `heavy`, `codex-run` and `post` are not on PATH.
 - Hosts and their slots: `tools/slots/hosts`; post routes: `~/src/rust/tmp/post/machines`.
@@ -33,7 +33,7 @@ Provisional, 2026-10-28. The machines' and the pipeline's facts every role works
 
 ## 5. The merge queue
 
-- `tools/queue/design.md`. Branches `<area>/<task>`, ready as `ready/<area>/<task>`, marked by the lead after a skim of the diff, from its `repo/`: `git fetch origin && git push origin <sha>:refs/heads/ready/<area>/<task>`; a rebased branch gets a new name. The queue posts a rejection (step, log path on hetzner8) to the branch's lead; a rejection is a repair task, a conflict a rebase task.
+- `tools/queue/design.md`. Branches `<lead>/<task>`, ready as `ready/<lead>/<task>`, marked by the lead from `repo/` after a skim of the diff; a rebased branch gets a new name. The queue posts a rejection (step, log path on hetzner8) to the branch's lead; a rejection is a repair task, a conflict a rebase task.
 - Tasks need not lower `scripts/old-forms.txt`: after merging, the queue runs each touched tree's `old_forms.py --write` and commits lower baselines before checks. A raised count rejects or bisects the batch. Branch baseline changes still merge; a conflict confined to baselines merges by itself through a recount, which refuses a raise.
 - When the queue's own code is wrong in a way that stops it landing its fix (every batch fails a step), the operator runs the fixed `tools/queue/` from a copy outside the clone (`mq run --repo <clone>`) until the fix lands, then restarts it normally.
 

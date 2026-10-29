@@ -11,7 +11,7 @@ Provisional, 2026-10-28. A lead is a Claude session (Opus 5.5, at xhigh) for one
 - **A pipeline:** no slot waits; each report is handled in one turn; the first task of a part is out within 10 minutes of the part arriving.
 - **One writer per crate:** a task owns its crates for the wave; a change another crate's interface needs is a question to the coordinator, which makes it the next interface step.
 - **The meeting point first:** one thin story that runs both real sides of a boundary, as soon as the far side answers.
-- **No landing work:** the merge queue merges; a lead marks a branch ready once its report and a skim of its diff say it's done (`agents/operations.md` 5), and repairs what the queue sends back.
+- **No landing work:** the merge queue merges; a lead marks a branch ready once its report, a skim of its diff and its precheck (section 2) say it's done, from its `repo/`: `git fetch origin && git push origin <sha>:refs/heads/ready/<area>/<task>`; it repairs what the queue sends back.
 - **Reports up:** each part's tasks, what landed, what the code taught (for the design and its status file), and questions, to the coordinator (`s/dynamic-memory@hel8`): `post send --as lead/<area> s/dynamic-memory@hel8 SUBJECT` with the body on stdin, one line per event, a question first with its options and a recommendation.
 
 ## 2. Tasks
