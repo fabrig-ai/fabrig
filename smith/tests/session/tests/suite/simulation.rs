@@ -513,31 +513,23 @@ fn a_seed_replays_to_the_same_run() {
     assert!(trace.len() > 20, "the run did something");
 }
 
-/// The parent holds a step until its complete fact reserve is available.
+/// Every native observation survives with no session fact allowance.
 #[test]
-fn a_fact_queue_at_its_bound_holds_the_step_and_loses_nothing() {
-    const COVERING_SEEDS: [u64; 1] = [7];
-    let mut holds = 0;
-    for seed in COVERING_SEEDS {
-        let run = |minimum| {
-            let mut settings = noisy(seed);
-            if minimum {
-                settings.agent.tools.facts =
-                    (settings.agent.parallel_tools + 2) * tools::max_facts(&settings.agent.tools);
-                settings.agent.facts = smith_domain_session::max_facts(&settings.agent);
-            }
-            let mut world = World::new(settings);
-            submit_noisily(&mut world, &settings, seed);
-            world.run(ITERATIONS);
-            (world.fact_holds(), world.stats(), world.told())
-        };
-        let (_, stats, told) = run(false);
-        assert!(told.ended > 0 && stats.calls > 0, "seed {seed}: actual calls settled");
-        let (held, same, all) = run(true);
-        holds += held;
-        assert!(all.ended > 0 && same.calls > 0, "seed {seed}: every pressured call settled");
-    }
-    assert!(holds > 0, "actual pending work was held for native facts");
+fn observations_are_lossless_without_a_session_fact_allowance() {
+    let seed = 7;
+    let run = |without_allowance| {
+        let mut settings = noisy(seed);
+        if without_allowance {
+            settings.agent.facts = 0;
+        }
+        let mut world = World::new(settings);
+        submit_noisily(&mut world, &settings, seed);
+        world.run(ITERATIONS);
+        (world.stats(), world.told(), world.trace().to_vec())
+    };
+    let normal = run(false);
+    assert!(normal.1.ended > 0 && normal.0.calls > 0, "seed {seed}: calls settled");
+    assert_eq!(normal, run(true), "seed {seed}: complete observations and request order survive");
 }
 
 #[test]
