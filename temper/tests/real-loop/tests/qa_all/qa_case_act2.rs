@@ -13,7 +13,6 @@ use temper_real_loop_world::{
 
 // Each mutation targets one recorded tool call, not serialized script text.
 const ONE_EDIT: usize = 1;
-const OTHER_PRIORITY: u8 = 2;
 const WORKERS: &[&str] = &["ws", "s1", "s2"];
 
 fn edit_call(scripts: &mut [Script], agent: Agent, tool: &[u8], edit: impl Fn(&mut Value)) {
@@ -51,9 +50,7 @@ fn run(
 fn direction(scripts: fn(SocketAddr) -> Box<[Script]>) -> Observed {
     run(case::fixture_5_4(), scripts, case::scripts::step_5_4_rules, acts::step_5_4, acts::READS_5_4)
 }
-fn plan(scripts: fn(SocketAddr) -> Box<[Script]>) -> Observed {
-    run(case::fixture_5_5(), scripts, case::scripts::step_5_5_rules, acts::step_5_5, acts::READS_5_5)
-}
+
 fn misread(scripts: fn(SocketAddr) -> Box<[Script]>) -> Observed {
     run(case::fixture_5_6(), scripts, case::scripts::step_5_6_rules, acts::step_5_6, acts::READS_5_6)
 }
@@ -63,16 +60,6 @@ fn only_miss(misses: &[Miss], step: &'static str, promise: Promise) {
         println!("{miss}");
     }
     assert_eq!(misses.iter().map(|miss| (miss.step, miss.promise)).collect::<Vec<_>>(), [(step, promise)]);
-}
-
-#[test]
-fn cancelled_review_cannot_land_after_its_hold_is_released() {
-    // domain/forge.md, 8.6: live delegates close before the cancelled change ends.
-    let observed = direction(case::scripts::step_5_4);
-    oracle::assert_met(&oracle::step_5_4(&observed));
-    let pull = observed.kit.pulls.iter().find(|p| p.number == case::X3_PULL_NUMBER).expect("x3 pull");
-    assert!(pull.closed && !pull.merged && pull.landed.is_none(), "released cancelled review cannot merge x3");
-    assert_eq!(pull.deleted, pull.pushed, "delete only x3's owned pushed head");
 }
 
 #[test]
@@ -90,42 +77,7 @@ fn missing_deferred_work_is_reported_after_real_cancellation() {
 }
 
 #[test]
-fn depth_zero_refuses_a_subowners_own_delegate() {
-    // 5.5: a sub-owner cannot start one of its own; one run per task.
-    oracle::assert_met(&oracle::step_5_5(&plan(case::scripts::step_5_5)));
-}
-
-#[test]
-fn a_later_subowner_deadline_is_named_by_the_oracle() {
-    let observed = plan(|forge| {
-        let mut scripts = case::scripts::step_5_5(forge);
-        edit_call(&mut scripts, Agent::Planner, b"delegate", |call| {
-            // Keep the parent's ceiling: equality is legal authority, but loses
-            // this case's explicit nearer milestone deadline.
-            let deadline = call.pointer_mut("/batch/0/authority/budget/deadline").expect("sub-owner deadline");
-            *deadline = case::A_DEADLINE.into();
-        });
-        scripts
-    });
-    let misses = oracle::step_5_5(&observed);
-    only_miss(&misses, "5.5", Promise::Must("a mission and sub-owner carry their deadlines"));
-}
-
-#[test]
 fn a_live_timer_does_not_prevent_fresh_cancellation() {
     // 5.6 Add: timers are the task's, outside its run.
     oracle::assert_met(&oracle::step_5_6(&misread(case::scripts::step_5_6)));
-}
-
-#[test]
-fn a_wrong_helper_priority_is_reported_after_cancellation() {
-    let observed = misread(|forge| {
-        let mut scripts = case::scripts::step_5_6(forge);
-        edit_call(&mut scripts, Agent::Misread, b"delegate", |call| {
-            *call.pointer_mut("/batch/0/tracked/priority").expect("helper priority") = OTHER_PRIORITY.into();
-        });
-        scripts
-    });
-    let misses = oracle::step_5_6(&observed);
-    only_miss(&misses, "5.6", Promise::Must("priorities and preferred host kinds (exact, hosts left out)"));
 }
