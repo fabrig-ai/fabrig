@@ -9,7 +9,7 @@ use jig_store_world::{World, root};
 use skein_lib::{Token, Wall};
 
 /// The kept file, as the writer leaves it after `turns()`.
-const KEPT: &[u8] = include_bytes!("../golden/transcript");
+const KEPT: &[u8] = include_bytes!("../../golden/transcript");
 /// store.md 8.1: task 21's high bits (21 >> 12), then its number, in hex.
 const PATH: &[u8] = b"transcripts/0000000000000000/0000000000000015";
 const SEED: u64 = 0x0000_474f_4c44_454e;

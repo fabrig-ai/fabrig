@@ -792,16 +792,16 @@ fn lifecycle_history_has_independent_positions_and_restore_does_not_repeat_a_pha
     );
 }
 
-#[path = "lifecycle/goals.rs"]
+#[path = "../lifecycle/goals.rs"]
 mod goals;
 
-#[path = "lifecycle/delegates.rs"]
+#[path = "../lifecycle/delegates.rs"]
 mod delegates;
 
-#[path = "lifecycle/grace.rs"]
+#[path = "../lifecycle/grace.rs"]
 mod grace;
 
-#[path = "lifecycle/compound.rs"]
+#[path = "../lifecycle/compound.rs"]
 mod compound;
 
 fn open_task() -> jig_domain_tasks::New {

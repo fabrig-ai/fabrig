@@ -4,10 +4,7 @@ use jig_domain_tasks::{
 };
 use jig_tasks_world::{LIMITS, task};
 use skein_lib::{Env, Queue, ReplyTo, Time, Token, Wall};
-use skein_world::domain::heap::{self, Meter};
-
-#[global_allocator]
-static HEAP: heap::Counting = heap::Counting;
+use skein_world::domain::heap::Meter;
 
 struct Measured {
     d: Domain,

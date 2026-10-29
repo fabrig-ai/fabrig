@@ -1,9 +1,5 @@
 //! Independent acceptance checks for store.md 8.6, 10.3 and 13.
-#[path = "support/frame_reads.rs"]
-mod frame_reads;
-
-#[global_allocator]
-static HEAP: skein_heap::Counting = skein_heap::Counting;
+use crate::frame_reads;
 
 use jig_protocol_store::{
     self as store, Event, KeptFamily, Owner, PatchSet, PatchSets, Request, TranscriptRead, Write, keys,

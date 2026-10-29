@@ -1,6 +1,5 @@
 //! Public decode against fixture bytes, using the fuzzy profile's binary filter.
-#[path = "support/frame_reads.rs"]
-mod frame_reads;
+use crate::frame_reads;
 use frame_reads::{FRAME_KEY_BYTES, decode, turn};
 use jig_test_patches_jig::frames;
 use skein_lib::Rng;

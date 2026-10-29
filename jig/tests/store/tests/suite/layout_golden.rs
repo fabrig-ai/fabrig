@@ -6,10 +6,10 @@ use jig_protocol_store::codec::component::{Levels, Manifest};
 use jig_store_world::{World, patches};
 use std::fmt::Write;
 
-const FIRST_START: &[u8] = include_bytes!("../golden/layout/first-start.txt");
-const PATCHED_START: &[u8] = include_bytes!("../golden/layout/patched-start.txt");
-const ACTIVE: &[u8] = include_bytes!("../golden/layout/active");
-const MANIFEST: &[u8] = include_bytes!("../golden/layout/manifest");
+const FIRST_START: &[u8] = include_bytes!("../../golden/layout/first-start.txt");
+const PATCHED_START: &[u8] = include_bytes!("../../golden/layout/patched-start.txt");
+const ACTIVE: &[u8] = include_bytes!("../../golden/layout/active");
+const MANIFEST: &[u8] = include_bytes!("../../golden/layout/manifest");
 const SEED: u64 = 0x4c41_594f_5554;
 const PATCHED_MANIFEST: &[u8] = b"generations/2/manifest";
 

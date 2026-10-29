@@ -1,10 +1,7 @@
 //! Count only this binary: the orphan queue costs what it holds, not
 //! the budget's most orphan tasks (skein's draft/dynamic-memory.md, 2).
 use jig_store_world::World;
-use skein_heap::{Counting, Meter};
-
-#[global_allocator]
-static HEAP: Counting = Counting;
+use skein_heap::Meter;
 
 // Measured 173,330 bytes, including the world's simulator and file drivers;
 // about twice that peak, far below the old 481,877,984-byte orphan estimate
