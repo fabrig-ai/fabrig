@@ -269,7 +269,7 @@ impl World {
             creating: jig_core_world::fixtures::Creating::new(&config.core, limits.tasks.tree_tasks),
             root: engine::Domain::new(config, &limits).expect("valid engine configuration"),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
-            out: Queue::with_capacity(engine::max_out(&limits)),
+            out: Queue::uncapped(),
             events: VecDeque::from([engine::Event::Restart { pending: false }]),
             store,
             fake,
