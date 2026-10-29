@@ -39,10 +39,10 @@ fn fixture(seed: u64, start: Start) -> (World<Test, Scripted>, RootAddress) {
         Start::Incident => (stories::incident_world(seed), stories::incident()),
     }
 }
-fn explore(mut world: World<Test, Scripted>, address: RootAddress, seed: u64, memory: bool) -> Outcome {
+fn explore(mut world: World<Test, Scripted>, address: RootAddress, seed: u64, heap_ceiling: Option<u64>) -> Outcome {
     world.randomness(16, 150, 8);
-    if memory {
-        world.measure_heap();
+    if let Some(ceiling) = heap_ceiling {
+        world.measure_heap_within(ceiling);
     }
     let mut rng = Rng::new(seed);
     for party in [7, 8] {
@@ -57,15 +57,16 @@ fn explore(mut world: World<Test, Scripted>, address: RootAddress, seed: u64, me
     }
     world.run(Until::Done)
 }
-/// Random people across one real story's initial truth, with tabs and devices.
+/// Random people across one real story's initial truth, with tabs and devices
+/// checked together against the scenario's measured heap ceiling.
 #[must_use]
-pub fn story(seed: u64, start: Start) -> Outcome {
+pub fn story(seed: u64, start: Start, heap_ceiling: u64) -> Outcome {
     let (world, address) = fixture(seed, start);
-    explore(world, address, seed, true)
+    explore(world, address, seed, Some(heap_ceiling))
 }
 /// Random whole documents, addresses, family values and offers behind the same shell.
 #[must_use]
-fn world_with_heap(seed: u64, memory: bool) -> (Outcome, Reach) {
+fn world_with_heap(seed: u64, heap_ceiling: Option<u64>) -> (Outcome, Reach) {
     let mut rng = Rng::new(seed);
     let start = Start::ALL[usize::try_from(rng.below(6)).expect("six starts")];
     let (mut world, mut address) = fixture(seed, start);
@@ -113,31 +114,31 @@ fn world_with_heap(seed: u64, memory: bool) -> (Outcome, Reach) {
         _ => {}
     }
     let reach = Reach { start, original_address: address == original_address };
-    (explore(world, address, seed, memory), reach)
+    (explore(world, address, seed, heap_ceiling), reach)
 }
 
-/// Random whole documents with allocator accounting for the focused smoke.
+/// Random whole documents with allocator accounting against the scenario's measured heap ceiling.
 #[must_use]
-pub fn world(seed: u64) -> Outcome {
-    world_with_heap(seed, true).0
+pub fn world(seed: u64, heap_ceiling: u64) -> Outcome {
+    world_with_heap(seed, Some(heap_ceiling)).0
 }
 
-/// The same story exploration without heap bookkeeping; memory tests and
-/// the focused smoke retain that check independently.
+/// The same story exploration without heap bookkeeping; metered scenarios
+/// check their measured ceilings independently.
 #[must_use]
 pub fn story_without_heap(seed: u64, start: Start) -> Outcome {
     let (world, address) = fixture(seed, start);
-    explore(world, address, seed, false)
+    explore(world, address, seed, None)
 }
 
 /// The same random documents and faults without heap bookkeeping.
 #[must_use]
 pub fn world_without_heap(seed: u64) -> Outcome {
-    world_with_heap(seed, false).0
+    world_with_heap(seed, None).0
 }
 
-/// Random whole documents with typed reach recorded at their actual opening.
+/// Random whole documents without heap bookkeeping, with typed reach at their opening.
 #[must_use]
 pub fn world_with_coverage(seed: u64) -> (Outcome, Reach) {
-    world_with_heap(seed, false)
+    world_with_heap(seed, None)
 }

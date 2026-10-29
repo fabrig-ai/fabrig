@@ -129,7 +129,12 @@ fn full_task() -> jig_client_domain::contract::Task {
     task
 }
 fn full_world() -> jig_client_world::World<jig_client_world::Test, jig_client_world::Scripted> {
-    let mut w = stories::configured(Settings { memory: true, seed: 5, ..Settings::default() });
+    let mut w = stories::configured(Settings {
+        memory: true,
+        heap_ceiling: Some(FULL_DOCUMENTS_HEAP_CEILING),
+        seed: 5,
+        ..Settings::default()
+    });
     let task = full_task();
     w.front()
         .engine
@@ -203,8 +208,10 @@ fn full_world() -> jig_client_world::World<jig_client_world::Test, jig_client_wo
     }
     w
 }
+// Peak 1,561,962 bytes measured 10-29; testing-strategy.md 6.
+const FULL_DOCUMENTS_HEAP_CEILING: u64 = 2_000_000;
 #[test]
-fn full_documents_tabs_and_all_page_kinds_fit_the_client_and_view_bounds() {
+fn full_documents_tabs_and_all_page_kinds_stay_under_their_measured_ceiling() {
     let mut w = full_world();
     let c = w.client(7, stories::inbox());
     let _tab = w.tab(c);
@@ -285,5 +292,5 @@ fn full_documents_tabs_and_all_page_kinds_fit_the_client_and_view_bounds() {
     let result = w.run(Until::Steps(2));
     eprintln!("full client fixture: heap peak {} bytes, bound {} bytes", result.heap_peak, result.heap_bound);
     assert!(result.heap_peak > 0, "counted every iteration");
-    assert!(result.heap_peak <= result.heap_bound, "composed root, view and shell model envelope");
+    assert!(result.heap_peak <= result.heap_bound, "scenario's measured heap ceiling");
 }

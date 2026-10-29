@@ -30,8 +30,12 @@ pub struct Settings {
     pub store_records: usize,
     pub iterations: u32,
     pub memory: bool,
-    /// Practical owned-heap guard per client, in addition to the composed envelope.
+    /// Owned-heap guard per client when no scenario ceiling is supplied.
     pub heap_bytes_per_client: u64,
+    /// The scenario's memory ceiling: the most its clients hold together at any
+    /// iteration (testing-strategy.md, 6), a named constant beside the one test
+    /// that checks it. `None` checks the per-client guards' sum instead.
+    pub heap_ceiling: Option<u64>,
     pub random_steps: u32,
     pub word_bytes: u32,
     pub faults_per_mille: u32,
@@ -50,6 +54,7 @@ impl Default for Settings {
             iterations: 4096,
             memory: false,
             heap_bytes_per_client: 16 * 1024 * 1024,
+            heap_ceiling: None,
             random_steps: 32,
             word_bytes: 32,
             faults_per_mille: 0,
@@ -189,6 +194,11 @@ impl<A: App, F: Front<A>> World<A, F> {
     pub fn measure_heap(&mut self) {
         assert!(self.clients.is_empty(), "start the meter before admitting clients");
         self.meter = Some(skein_world::domain::heap::Meter::new());
+    }
+    /// Count every iteration from this fixture boundary against the scenario's own ceiling.
+    pub fn measure_heap_within(&mut self, ceiling: u64) {
+        self.measure_heap();
+        self.settings.heap_ceiling = Some(ceiling);
     }
     /// Starts a device with an empty small store.
     pub fn client(&mut self, party: u64, address: A::Address) -> ClientId {
@@ -682,6 +692,9 @@ impl<A: App, F: Front<A>> World<A, F> {
         }
     }
     fn heap_bound(&self) -> u64 {
+        if let Some(ceiling) = self.settings.heap_ceiling {
+            return ceiling;
+        }
         self.clients
             .iter()
             .try_fold(0_u64, |sum, client| sum.checked_add(client.heap_bound))
