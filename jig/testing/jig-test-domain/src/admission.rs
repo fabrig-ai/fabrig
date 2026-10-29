@@ -354,7 +354,7 @@ mod expiry_tests {
         let mut env = fixtures::env();
         let mut domain = fixtures::domain();
         let expiry = Wall::from_nanos(10);
-        let mut ignored = Queue::with_capacity(people::max_out(&env.limits.core.people));
+        let mut ignored = Queue::uncapped();
         for record in [
             people::Stored::Person {
                 number: 1,
