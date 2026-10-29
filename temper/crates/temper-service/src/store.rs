@@ -33,6 +33,8 @@ const fn record_version(version: u64) -> u32 {
 const ADOPT: Token = Token::new(u64::MAX - 1);
 const CLOSE: Token = Token::new(u64::MAX);
 const MASK: u64 = (1_u64 << 60) - 1;
+// Each of the three FileIo drivers owns one target (or cleanup successor) and one cancel.
+pub(crate) const OPERATIONS: u32 = 3 * 2;
 
 #[derive(Debug)]
 struct Driver {
@@ -199,14 +201,13 @@ impl Store {
         models: &[jig_domain_core::Model],
         installation: [u8; 16],
     ) -> Self {
-        let room = root::max_out(application).checked_mul(2).expect("store route room");
         let routes = route::Routes::new(
             application.loads.loads,
             application,
             temper_protocol_store::bounds(&application.forge, application.tasks.spec_bytes)
                 .expect("checked family bounds"),
         );
-        let mut drivers = [driver(limits, room), driver(limits, room), driver(limits, room)];
+        let mut drivers = [driver(limits), driver(limits), driver(limits)];
         let [store, secrets, transcripts] = &mut drivers;
         let seeded = protocol::seed(
             [&mut store.io, &mut secrets.io, &mut transcripts.io],
@@ -244,7 +245,7 @@ impl Store {
                 transcripts: Queue::uncapped(),
             },
             drivers,
-            submitted: Queue::with_capacity(room),
+            submitted: Queue::with_capacity(OPERATIONS),
             opened: false,
             pending_generation: false,
             installation,
@@ -610,10 +611,10 @@ fn check_read_page(limits: &protocol::Limits) -> Option<()> {
     }
     Some(())
 }
-fn driver(limits: &protocol::Limits, capacity: u32) -> Driver {
+fn driver(limits: &protocol::Limits) -> Driver {
     Driver {
         io: FileIo::with_whole_limit(handles(limits), max_read(limits), 32, max_whole(limits), limits.store.deadline),
-        above: Queue::with_capacity(capacity),
+        above: Queue::uncapped(),
         handles: Map::with_capacity(handles(limits)),
     }
 }

@@ -24,7 +24,7 @@ impl Store {
 /// is finite and every capacity they derive fits (programming-model.md, 6.3).
 #[must_use]
 pub(crate) fn valid(limits: &Limits) -> bool {
-    w::Keyed::worst_case_bytes(&limits.wire).is_some()
+    w::Keyed::encoded_bound(&limits.wire).is_some()
 }
 
 pub(super) fn key(record: &Saved) -> Box<[u8]> {

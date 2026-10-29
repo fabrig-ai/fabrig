@@ -475,6 +475,6 @@ pub fn worst_case(limits: &Limits) -> Option<u64> {
         return None;
     }
     Slab::<Entry>::worst_case(limits.loads)?
-        .checked_add(List::<Record>::worst_case(limits.rows)?)?
+        .checked_add(List::<Record>::price(limits.rows)?)?
         .checked_add(u64::from(limits.reply_bytes))
 }

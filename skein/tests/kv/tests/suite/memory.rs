@@ -1,7 +1,7 @@
-//! The store's declared bound against the counting allocator.
+//! The memory store's random churn stays under a measured heap ceiling.
 
 use skein_heap::Meter;
-use skein_kv::{Event, Limits, Op, Page, Request, Store, worst_case};
+use skein_kv::{Event, Limits, Op, Page, Request, Store};
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 
 fn limits() -> Limits {
@@ -21,10 +21,13 @@ fn limits() -> Limits {
     }
 }
 
+// Bounds the in-memory store and boundary queues through 500 seeded commits and erases.
+// Measured peak: 4914 bytes; a quarter of headroom, rounded up to two significant digits.
+const RANDOM_CHURN_HEAP_CEILING: u64 = 6200;
+
 #[test]
-fn random_churn_stays_under_declared_worst_case() {
+fn random_churn_stays_under_heap_ceiling() {
     let limits = limits();
-    let bound = worst_case(&limits).expect("usable limits have a bound");
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let meter = Meter::new();
     meter.start();
@@ -54,5 +57,5 @@ fn random_churn_stays_under_declared_worst_case() {
         assert!(store.used() <= limits.budget);
     }
     let measured = meter.end();
-    let _own = meter.check(measured, bound, &"skein-kv random memory churn");
+    assert!(measured.peak() <= RANDOM_CHURN_HEAP_CEILING, "peak {} exceeds ceiling", measured.peak());
 }

@@ -7,26 +7,21 @@ use skein_world::{Deadline, Expired};
 
 /// Real-clock waits and their scheduler watches
 /// (skein/docs/foundation/testing-strategy.md, 2.10).
-/// Each `Deadline` has one process watch; keep the test and waited-on process
-/// separate so registering a child cannot replace the test's helper threads.
+/// One deadline watches the test and waited-on processes, including their
+/// descendants; the largest single runnable wait decides starvation.
 pub struct Patience {
-    process: Deadline,
-    own: Deadline,
-    watching: bool,
+    deadline: Deadline,
 }
 
 impl Patience {
     pub fn new(what: &'static str, patience: Duration) -> Self {
-        // Arm the process watch first so it has passed whenever own has.
-        let process = Deadline::arm(what, patience);
-        let mut own = Deadline::arm(what, patience);
-        own.watch_process(std::process::id());
-        Self { process, own, watching: false }
+        let mut deadline = Deadline::arm(what, patience);
+        deadline.watch_process(std::process::id());
+        Self { deadline }
     }
 
     pub fn watch_process(&mut self, pid: u32) {
-        self.process.watch_process(pid);
-        self.watching = true;
+        self.deadline.watch_process(pid);
     }
 
     pub fn watch_spawn(&mut self, complete: &io::kernel::Complete) {
@@ -36,28 +31,19 @@ impl Patience {
     }
 
     pub fn passed(&self) -> bool {
-        self.own.passed()
+        self.deadline.passed()
     }
 
     pub fn until(&self) -> skein_lib::Time {
-        self.own.until()
+        self.deadline.until()
     }
 
     pub fn remaining(&self) -> Duration {
-        self.own.remaining()
+        self.deadline.remaining()
     }
 
     pub fn expired(&self) -> Expired {
-        match self.own.expired() {
-            Expired::Starved(starved) => Expired::Starved(starved),
-            failed @ Expired::Failed(_) => {
-                if self.watching {
-                    self.process.expired()
-                } else {
-                    failed
-                }
-            }
-        }
+        self.deadline.expired()
     }
 }
 

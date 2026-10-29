@@ -92,7 +92,7 @@ fn run_position_admission_keeps_signin_visibility_and_watch_bounds() {
         );
         assert_watch_refusal(&out[0], refusal);
     }
-    let mut people_out = Queue::with_capacity(people::max_out(&limits.people));
+    let mut people_out = Queue::uncapped();
     people::step(
         &mut core.people,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people },

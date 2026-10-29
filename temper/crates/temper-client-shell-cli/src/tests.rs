@@ -1010,3 +1010,24 @@ fn validity_accepts_stock_limits_and_refuses_invalid_edges() {
     limits.connections.http.send = 0;
     assert!(!limits::valid(&limits));
 }
+
+#[test]
+fn validity_refuses_unusable_io_and_overflowing_operation_counts() {
+    let mut limits = limits::native();
+    limits.io.refusals = 0;
+    assert!(!limits::valid(&limits));
+    limits = limits::native();
+    limits.io.retry = skein_lib::Duration::ZERO;
+    assert!(!limits::valid(&limits));
+    limits = limits::native();
+    limits.io.sockets = u32::MAX;
+    assert!(!limits::valid(&limits));
+}
+
+#[test]
+fn validity_accepts_large_representable_io_edges() {
+    let mut limits = limits::native();
+    limits.io.sockets = 1 << 28_u32;
+    limits.io.sends = u32::MAX;
+    assert!(limits::valid(&limits));
+}

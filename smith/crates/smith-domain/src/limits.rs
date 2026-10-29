@@ -95,12 +95,12 @@ pub(crate) fn handoffs(limits: &Limits) -> Option<u32> {
 }
 
 /// Room for what the run emits in an entry point: its most, for each step it
-/// takes (see the domain module).
+/// takes (see the domain module). Retained for the public root output allowance.
 pub(crate) const fn run_out(limits: &Limits) -> u32 {
     run_steps(limits).saturating_mul(run::MAX_OUT)
 }
 
-/// Room for what the session child domain emits in an entry point.
+/// The session contribution to the public root output allowance.
 pub(crate) const fn session_out(limits: &Limits) -> u32 {
     session_steps(limits).saturating_mul(session::max_out(&limits.session))
 }

@@ -369,13 +369,25 @@ pub fn run(directory: &Path, started: Time, peers: Peers) -> (u32, u32) {
         run: String::new(),
         ended: None,
     });
+    let fakes = if let Peers::Fake | Peers::Refusing = peers {
+        let (issuer, issuer_address, issuer_fd) = support::issuer();
+        let (peer, peer_address, peer_fd) = fake_peer(peers);
+        support::ports::configure(directory, Some(issuer_address), Some(peer_address));
+        Some((issuer, issuer_fd, peer, peer_fd))
+    } else {
+        None
+    };
     let _client_directory = spawn_client(
         &mut world,
         directory,
         Script::answered_report(WORDS.as_bytes(), support::ANSWER, Duration::from_secs(240)),
         support::CLIENT_SEED,
     );
-    peers.spawn(&mut world);
+    if let Some((issuer, issuer_fd, peer, peer_fd)) = fakes {
+        world.spawn_with_fds(vec![issuer_fd], || Process::Issuer(Box::new(issuer)));
+        world.spawn(|| Process::Visitor(Box::default()));
+        world.spawn_with_fds(vec![peer_fd], || Process::Peer(Box::new(peer)));
+    }
     let remaining = started.saturating_add(peers.whole()).saturating_since(clock.now().now);
     let outcome = world.run(&clock, remaining);
     assert!(outcome.procs.iter().all(Host::is_empty), "all live sign-in io settles");
@@ -481,10 +493,10 @@ impl Peers {
                 "name_hint":"jig", "redirect_path":"auth/callback", "redirect_port":1455
             }),
             Self::Fake | Self::Refusing => serde_json::json!({
-                "issuer":"http://127.0.0.1:31000", "client":"client", "scopes":["openid","read"],
-                "name_hint":"jig-test", "authorization":"http://127.0.0.1:31000/authorize",
-                "token":"http://127.0.0.1:31000/token", "revocation":"http://127.0.0.1:31000/revoke",
-                "keys":"http://127.0.0.1:31000/keys", "transport":"plaintext",
+                "issuer":"http://127.0.0.1:0", "client":"client", "scopes":["openid","read"],
+                "name_hint":"jig-test", "authorization":"http://127.0.0.1:0/authorize",
+                "token":"http://127.0.0.1:0/token", "revocation":"http://127.0.0.1:0/revoke",
+                "keys":"http://127.0.0.1:0/keys", "transport":"plaintext",
                 "must_grant":["openid","read"], "resource":"api", "redirect_path":"callback"
             }),
         }
@@ -560,20 +572,13 @@ impl Peers {
             }
         }
     }
-    fn spawn(self, world: &mut real::World<Process, Judge>) {
-        if let Self::Fake | Self::Refusing = self {
-            world.spawn(|| Process::Issuer(Box::new(support::issuer())));
-            world.spawn(|| Process::Visitor(Box::default()));
-            world.spawn(|| Process::Peer(Box::new(fake_peer(self))));
-        }
-    }
 }
 
 /// Shared fake model and credential check for the process stories.
-pub(super) fn fake_peer(peers: Peers) -> skein_fake_peers::llm::Peer {
+pub(super) fn fake_peer(peers: Peers) -> (skein_fake_peers::llm::Peer, std::net::SocketAddr, skein_io::kernel::Fd) {
     let mut script = jig_channel_world::fixtures::one_chat(WORDS.as_bytes());
     script.result = br#"{"form":"report","text":"Process answer","fields":{}}"#.as_slice().into();
-    jig_channel_world::fixtures::provider(
+    support::ports::provider(
         Box::new([skein_fake_llm_domain::api::Script {
             cue: Box::default(),
             turns: jig_channel_world::fixtures::provider_turns(&script),
@@ -582,9 +587,6 @@ pub(super) fn fake_peer(peers: Peers) -> skein_fake_peers::llm::Peer {
             Peers::Refusing => b"not the plan's grant".as_slice().into(),
             Peers::Real | Peers::Fake => fixtures::TOKEN_SECOND.into(),
         }),
-        Duration::ZERO,
-        skein_fake_peers::Transport::Tls,
-        skein_fake_llm_protocol::documents::Provider::OpenAi,
     )
 }
 
@@ -620,4 +622,32 @@ pub(super) fn spawn_client<R: Referee<Process>>(
         }))
     });
     client_directory
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The diagnostic checked by the refused-plan process story is formatted without a process.
+    #[test]
+    fn a_refused_plan_is_reported_with_the_run_failure() {
+        let mut task = jig_client_protocol_link::translate::documents::task(
+            jig_client_test_records::task_with_hold_record(),
+            &jig_client_protocol_world::fixtures::link_limits(),
+        )
+        .expect("owner task fixture");
+        let c::ChipPhase::Owner { phase, details } = task.chip.details.as_mut() else { panic!("owner chip") };
+        *phase = c::OwnerChipPhase::Active(c::RunStage::BackingOff { until: skein_lib::Wall::from_nanos(17) });
+        details.attempt = Some(1);
+        details.retry = Some(c::RetryNotice::OwnerFailed { class: c::HoldFailure::Run, count: 1, allowance: 3 });
+        details.hold = None;
+        details.ending = None;
+        details.observation = None;
+        task.run_wait = None;
+        assert!(failed(&task));
+        assert_eq!(
+            run_line(&task),
+            "phase=Active(BackingOff { until: Wall(17) }); attempt=Some(1); retry=Some(OwnerFailed { class: Run, count: 1, allowance: 3 }); work=None; hold=None; ending=none; wait=None"
+        );
+    }
 }

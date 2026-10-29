@@ -6,6 +6,7 @@ mod direct_opening;
 #[path = "../support/opening.rs"]
 mod opening;
 
+mod coding;
 mod content;
 mod fact_drain;
 mod grants;

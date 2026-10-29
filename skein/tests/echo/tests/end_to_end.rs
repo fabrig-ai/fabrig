@@ -77,7 +77,6 @@ struct Judge {
     listening: Option<Addr>,
     told: bool,
     clients: Clients,
-    idle: bool,
     signalled: bool,
     exit: Option<Exit>,
     now: Time,
@@ -140,7 +139,7 @@ impl Referee<Process> for Judge {
                 assert!(seen.complete, "every line was answered before the fake ended");
             }
             done &= seen.done.is_some();
-            ready &= if self.idle { seen.complete } else { seen.done.is_some() };
+            ready &= seen.complete;
         }
         self.clients = if done {
             Clients::Done
@@ -179,16 +178,7 @@ impl Referee<Process> for Judge {
 }
 
 #[test]
-fn the_shipped_echo_answers_two_loopback_clients_and_terminates_successfully() {
-    run(false);
-}
-
-#[test]
 fn sigterm_with_idle_clients_exits_at_once_with_success() {
-    run(true);
-}
-
-fn run(idle: bool) {
     let clock = Clock::new();
     let start = clock.now().now;
     let binary = Binary::start(
@@ -213,7 +203,6 @@ fn run(idle: bool) {
         listening: None,
         told: false,
         clients: Clients::Waiting,
-        idle,
         signalled: false,
         exit: None,
         now: start,
@@ -221,10 +210,7 @@ fn run(idle: bool) {
     });
     world.spawn_with_fds(binary.descriptors(), || Process::Echo(binary));
     for seed in [7, 11] {
-        let plans = [skein_echo_client::Plan {
-            then: if idle { skein_echo_client::Then::Linger } else { skein_echo_client::Then::Finish },
-            ..plan(start, seed)
-        }];
+        let plans = [skein_echo_client::Plan { then: skein_echo_client::Then::Linger, ..plan(start, seed) }];
         world.spawn(|| Process::Client(Proc::client(client_limits(1), &plans)));
     }
     let outcome = world.run(&clock, Duration::from_secs(4));

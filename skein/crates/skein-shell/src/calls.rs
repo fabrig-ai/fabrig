@@ -1,6 +1,6 @@
 //! Shared operation errors, path checks and bounds (shell.md, 7.5).
 
-use skein_io::kernel::{Error, Op};
+use skein_io::kernel::{Error, Fd, Op};
 
 use crate::system::{self, status_flags};
 
@@ -252,9 +252,21 @@ pub(crate) fn file_error(kind: &Op, errno: i32) -> Error {
 
 /// Path-only descriptors never enter an operation other than Stat or Close (kernel.md, 6.1).
 pub(crate) fn check_path_access(operation: &Op) {
-    let descriptors = match operation {
+    for descriptor in path_descriptors(operation).into_iter().flatten() {
+        check_path_flags(status_flags(descriptor.raw()));
+    }
+}
+
+fn check_path_flags(flags: Result<i32, i32>) {
+    if let Ok(flags) = flags {
+        assert_eq!(flags & system::PATH_ONLY, 0, "only Stat and Close may use a path-only descriptor");
+    }
+}
+
+fn path_descriptors(operation: &Op) -> [Option<Fd>; 2] {
+    match operation {
         Op::Stat { .. } | Op::Close { .. } | Op::Socket { .. } | Op::Usage | Op::Window { .. } | Op::Cancel { .. } => {
-            return;
+            [None, None]
         }
         Op::Bind { fd, .. }
         | Op::Listen { fd, .. }
@@ -278,11 +290,6 @@ pub(crate) fn check_path_access(operation: &Op) {
         Op::Remove { dir, .. } | Op::MakeDirectory { dir, .. } => [Some(*dir), None],
         Op::Spawn { spawn } => [Some(spawn.root), None],
         Op::Wait { pidfd, .. } | Op::Signal { pidfd, .. } => [Some(*pidfd), None],
-    };
-    for descriptor in descriptors.into_iter().flatten() {
-        if let Ok(flags) = status_flags(descriptor.raw()) {
-            assert_eq!(flags & system::PATH_ONLY, 0, "only Stat and Close may use a path-only descriptor");
-        }
     }
 }
 
@@ -350,3 +357,6 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+mod guards;

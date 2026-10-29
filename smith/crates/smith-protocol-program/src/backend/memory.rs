@@ -49,7 +49,7 @@ fn stream_edges(bound: u32, depth: u32, tokens: u32) -> Option<()> {
 }
 
 fn json_edges(limits: skein_json::collector::Limits) -> Option<()> {
-    skein_json::collector::worst_case(
+    skein_json::collector::collector_bound(
         &limits,
         &[],
         &skein_json::collector::Filter { root: skein_json::collector::Keep::Value },
@@ -59,9 +59,9 @@ fn json_edges(limits: skein_json::collector::Limits) -> Option<()> {
 }
 
 fn document_bound(tokens: u32, text: u32) -> Option<u64> {
-    skein_json::document::worst_case(&skein_json::document::Limits { tokens, text })
+    skein_json::document::document_bound(&skein_json::document::Limits { tokens, text })
 }
 
 fn writer_bound(depth: u32, length: u32) -> Option<u64> {
-    skein_json::writer::worst_case(&skein_json::writer::Limits { depth, length })
+    skein_json::writer::encoder_bound(&skein_json::writer::Limits { depth, length })
 }

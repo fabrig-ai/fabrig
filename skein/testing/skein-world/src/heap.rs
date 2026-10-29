@@ -91,7 +91,7 @@ impl Heap {
     }
 
     /// Drops a terminated process under its own span and removes its meter.
-    pub(crate) fn release<T>(&mut self, at: usize, proc: T) -> (u64, u64) {
+    pub(crate) fn release<T>(&mut self, at: usize, proc: T) -> u64 {
         let held = self.procs.remove(at);
         let span = Span::start();
         drop(proc);
@@ -102,7 +102,7 @@ impl Heap {
                 held.now
             ));
         }
-        (u64::try_from(held.most).expect("a nonnegative peak"), self.ceiling.unwrap_or(u64::MAX))
+        u64::try_from(held.most).expect("a nonnegative peak")
     }
 
     /// Drops a cut process and meters its replacement in the same slot.
@@ -148,11 +148,11 @@ impl Heap {
         held
     }
 
-    /// Each process's peak and the scenario ceiling, or `u64::MAX`, by index.
-    pub(crate) fn report(&self) -> Vec<(u64, u64)> {
+    /// Each process's peak, by index.
+    pub(crate) fn report(&self) -> Vec<u64> {
         let mut report = Vec::with_capacity(self.procs.len());
         for held in &self.procs {
-            report.push((u64::try_from(held.most).unwrap_or(0), self.ceiling.unwrap_or(u64::MAX)));
+            report.push(u64::try_from(held.most).unwrap_or(0));
         }
         report
     }
@@ -175,7 +175,7 @@ impl skein_sim_world::Meter for Metered {
             None => call(),
         }
     }
-    fn release<T>(&mut self, at: usize, proc: T) -> Option<(u64, u64)> {
+    fn release<T>(&mut self, at: usize, proc: T) -> Option<u64> {
         match &mut self.0 {
             Some(heap) => Some(heap.release(at, proc)),
             None => {

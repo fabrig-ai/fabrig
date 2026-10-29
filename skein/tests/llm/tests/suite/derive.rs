@@ -27,7 +27,7 @@ fn declared_quantities_price_the_retained_event_and_leave_transport_to_the_owner
         assert_eq!(limits.strings, limits.answer.max(limits.reasoning));
         assert_eq!(limits.tokens, fixed_tokens + limits.reasoning);
         assert_eq!(limits.retained, limits.answer.max(limits.input).max(limits.reasoning) + fixed_text);
-        let event = skein_json::document::worst_case(&skein_json::document::Limits {
+        let event = skein_json::document::document_bound(&skein_json::document::Limits {
             tokens: limits.tokens,
             text: limits.retained,
         })

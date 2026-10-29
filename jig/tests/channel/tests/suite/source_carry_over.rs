@@ -92,7 +92,7 @@ fn a_source_grant_change_carries_plain_history_and_discards_replay() {
     let limits = smith_agent_process_world::limits().domain.session;
     let mut domain = session::Domain::new(&limits, 181);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let mut out = Queue::with_capacity(session::max_out(&limits));
+    let mut out = Queue::uncapped();
     session::step(
         &mut domain,
         &env,

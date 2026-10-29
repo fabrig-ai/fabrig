@@ -1,6 +1,9 @@
 //! The reference case on the cluster's processes (domain/testing.md, 2.6 and 5.3).
 mod project;
-use super::{Ended, Scratch, WITHIN, cluster, ctl};
+use super::{
+    Ended, Scratch, WITHIN, cluster, ctl,
+    story_socket::{Scope, Socket},
+};
 use serde_json::{Value, json};
 use skein_fake_llm_domain::api::{Error, Finish, Line, Report, Rule, Script};
 use skein_io::kernel::Exit;
@@ -10,8 +13,7 @@ use skein_world::{Referee, real};
 use std::{
     collections::{BTreeMap, BTreeSet, VecDeque},
     fs,
-    io::{Read, Write},
-    net::{SocketAddr, TcpStream},
+    net::SocketAddr,
     path::{Path, PathBuf},
 };
 use temper_real_loop_world::{
@@ -1235,33 +1237,31 @@ fn has_holds(value: &Value) -> bool {
             .any(has_holds)
 }
 fn release(address: SocketAddr) {
-    let within = std::time::Duration::from_secs(10);
-    let mut socket = TcpStream::connect_timeout(&address, within).expect("PLACED control connect");
-    socket.set_read_timeout(Some(within)).expect("control read bound");
-    socket.set_write_timeout(Some(within)).expect("control write bound");
+    let within = skein_lib::Duration::from_secs(10);
+    let mut socket =
+        Socket::connect("PLACED control connect", within, address, Scope::World).expect("PLACED control connect");
     let name = text(temper_real_loop_world::cluster::PLACED);
-    write!(
-        socket,
-        "POST /release/{name} HTTP/1.1\r\nHost: {address}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
-    )
-    .expect("PLACED release");
-    let mut response = Vec::new();
-    socket.take(4096).read_to_end(&mut response).expect("PLACED response");
+    let request =
+        format!("POST /release/{name} HTTP/1.1\r\nHost: {address}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+    socket.write_all("the PLACED release request", within, request.as_bytes()).expect("PLACED release");
+    let response = socket.read_to_end("the PLACED release reply", within, 4096).expect("PLACED response");
     assert!(response.starts_with(b"HTTP/1.1 204 "), "PLACED release: {}", String::from_utf8_lossy(&response));
 }
 
 // Managed setup creates the bot but leaves each existing repository's access to
 // its owner. Supply the same collaborator grant the former fake setup supplied.
 fn permit_repository(address: SocketAddr, token: &[u8]) {
-    let within = std::time::Duration::from_secs(10);
-    let mut socket = TcpStream::connect_timeout(&address, within).expect("fixture forge");
-    socket.set_read_timeout(Some(within)).expect("read bound");
-    socket.set_write_timeout(Some(within)).expect("write bound");
+    let within = skein_lib::Duration::from_secs(10);
+    let mut socket = Socket::connect("fixture forge", within, address, Scope::World).expect("fixture forge");
     let body = br#"{"permission":"write"}"#;
-    write!(socket, "PUT /api/v1/repos/acme/app/collaborators/temper HTTP/1.1\r\nHost: {address}\r\nAuthorization: token {}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", text(token), body.len()).expect("collaborator head");
-    socket.write_all(body).expect("collaborator body");
-    let mut response = Vec::new();
-    socket.take(65_537).read_to_end(&mut response).expect("collaborator response");
+    let request = format!(
+        "PUT /api/v1/repos/acme/app/collaborators/temper HTTP/1.1\r\nHost: {address}\r\nAuthorization: token {}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+        text(token),
+        body.len()
+    );
+    socket.write_all("the fixture collaborator request", within, request.as_bytes()).expect("collaborator head");
+    socket.write_all("the fixture collaborator body", within, body).expect("collaborator body");
+    let response = socket.read_to_end("the fixture collaborator reply", within, 65_537).expect("collaborator response");
     assert!(response.len() <= 65_536);
     assert!(response.starts_with(b"HTTP/1.1 204 "), "fixture bot collaborator: {}", String::from_utf8_lossy(&response));
 }

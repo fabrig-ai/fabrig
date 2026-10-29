@@ -139,7 +139,7 @@ pub fn seeds() -> Seeds {
 pub fn journal(limits: &jig_test_domain::Limits) -> skein_lib::JournalLimits {
     // The two reference connectors each write at most nine records per decision.
     const CONNECTOR_COMMIT_WRITES: u32 = 18;
-    let room = core::route_bound(&limits.core).expect("final core limits");
+    let room = limits.core.routes;
     let writes = room.checked_add(CONNECTOR_COMMIT_WRITES).expect("fixture commit write edge").max(2000);
     skein_lib::JournalLimits {
         writes,

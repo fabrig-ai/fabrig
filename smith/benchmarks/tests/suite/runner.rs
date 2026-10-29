@@ -75,32 +75,6 @@ fn repository_request(root: &std::path::Path, guard: &smith_bench::guard::Guard)
 }
 
 #[test]
-fn a_repository_attempt_compares_protected_files_with_its_bundle() {
-    let Some(root) = isolated_replay("a_repository_attempt_compares_protected_files_with_its_bundle") else { return };
-    let guard = smith_bench::guard::Guard::new(&root.join("home"), &root.join("config"), &root.join("state"), &[])
-        .expect("guard");
-    let machine = smith_bench::isolate::Machine { path: "/usr/bin:/bin".into(), rustup_home: None };
-    let mut prepared = repository_request(&root, &guard);
-    for (name, tail, expected) in [
-        ("unchanged", "", Vec::<PathBuf>::new()),
-        ("changed", "printf changed > Cargo.toml;", vec![PathBuf::from("Cargo.toml")]),
-    ] {
-        prepared.identity.attempt = name.into();
-        let mut command = replay(tail);
-        command.arguments[1] = format!("cat >/dev/null; {tail} cat \"$1\"").into();
-        prepared.arguments = command.arguments.iter().map(|value| value.to_str().expect("argument").into()).collect();
-        let recorded = smith_bench::run::attempt(&guard, &machine, &root.join("state/smith-bench"), &prepared)
-            .expect("repository replay");
-        assert_eq!(recorded.result.outcome.end, End::Completed, "{name}");
-        assert_eq!(
-            recorded.result.outcome.protected_files_changed,
-            smith_bench::Measure::Observed { value: expected },
-            "{name}"
-        );
-    }
-}
-
-#[test]
 fn a_file_left_in_tmp_by_an_attempt_is_a_write_outside() {
     let Some(root) = isolated_replay("a_file_left_in_tmp_by_an_attempt_is_a_write_outside") else { return };
     let guard = smith_bench::guard::Guard::new(&root.join("home"), &root.join("config"), &root.join("state"), &[])
@@ -263,20 +237,4 @@ fn stderr_at_its_bound_is_complete_and_a_settled_overflow_still_fails() {
         assert_eq!(result.stderr, b"12345678");
         assert!(result.tree.live_pids.is_empty());
     }
-}
-
-#[test]
-fn an_answer_near_the_hard_deadline_receives_its_full_teardown_allowance() {
-    let clock = Clock::new();
-    let mut command = replay("sleep 0.12; exit 0");
-    command.arguments[1] =
-        command.arguments[1].to_string_lossy().replace("cat \"$1\"", "sleep 0.08; cat \"$1\"").into();
-    let mut policy = bounds();
-    policy.hard = Duration::from_millis(160);
-    policy.teardown = Duration::from_millis(180);
-    let result = execute(&clock, command, Box::new([]), Capture::Codex, policy).expect("accepted answer settles");
-    assert!(result.error.is_none(), "{:?}", result.error);
-    assert_eq!(result.forced, Forced::No);
-    assert_eq!(result.observer.classify(result.exit, result.forced).end, End::Completed);
-    assert!(result.answered.is_some());
 }

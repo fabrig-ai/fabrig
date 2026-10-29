@@ -89,8 +89,8 @@ mod sibling_routes;
 pub use numbers::{Counters, Deployment, Family, fresh};
 pub use routing::{
     Ask, Carried, CoreBriefBudgets, EscalationChoice, Event, Held, Limits, NamedAction, Now, PayloadRefusal,
-    ProposalChoice, Request, Requests, StepRefusal, Timer, ToolKind, WatchRefusal, Write, fire, resume_fleet,
-    route_bound, step, want_accounts,
+    ProposalChoice, Request, Requests, StepRefusal, Timer, ToolKind, WatchRefusal, Write, fire, resume_fleet, step,
+    want_accounts,
 };
 pub use sibling_routes::{MadeRoute, PersonMessage, SentRoute};
 mod conversation;
@@ -277,7 +277,7 @@ pub type Delegating = (CallKey, Box<[tasks::Stub]>, Option<people::Given>);
 
 /// The engine's children, routing and durable live state (domain/engine.md,
 /// section 3). Configuration limits stay immutable (programming-model.md,
-/// section 10.1); route room is cached only after validating those limits.
+/// section 10.1); the hand-off bound also validates restored projection history.
 #[derive(Debug)]
 #[expect(clippy::partial_pub_fields, reason = "the keyed escalation route remains private to the core")]
 #[expect(
@@ -285,7 +285,7 @@ pub type Delegating = (CallKey, Box<[tasks::Stub]>, Option<people::Given>);
     reason = "pending generation, worker placement, stopping and role-table fullness are independent facts"
 )]
 pub struct Core {
-    route_bound: u32,
+    routes: u32,
     run_inbox: u32,
     pub(crate) run_now: skein_lib::Time,
     pub(crate) run_wall: Wall,
@@ -522,12 +522,13 @@ impl Core {
     /// application erases these keys in the same decision and drops any
     /// connector-owned answer for them.
     pub fn retire_calls(&mut self, task: u64, attempt: u64, turn: u32, room: u32) -> Box<[CallKey]> {
-        let mut retired = List::with_capacity(room);
+        let mut retired = List::with_capacity(self.call_parts.len());
         for (&key, _) in &self.call_parts {
             if key.task == task && (key.attempt < attempt || (key.attempt == attempt && key.completion < turn)) {
                 retired.push(key).expect("all retained call names fit their configured bound");
             }
         }
+        assert!(retired.len() <= room, "retired calls fit their configured bound");
         for &key in &retired {
             self.call_settled.remove(&key);
             match self.call_parts.remove(&key) {
@@ -637,9 +638,8 @@ impl Core {
             );
         }
         let authority = authority::Domain::new(current.rules().clone(), limits.authority).expect("configured rules");
-        let route_bound = route_bound(limits).expect("validated immutable core limits");
         Ok(Core {
-            route_bound,
+            routes: limits.routes,
             run_inbox: limits.tasks.run_inbox,
             fill: 0,
             workers_in_process: config.workers_in_process,
@@ -737,8 +737,8 @@ impl Core {
             restoring_proofs: Map::with_capacity(limits.tasks.tasks),
             unreported_restored: Map::with_capacity(limits.tasks.tasks),
             claiming: Map::with_capacity(limits.tasks.tasks),
-            due: Queue::with_capacity(limits.tasks.tasks),
-            adopted: Queue::with_capacity(limits.tasks.tasks.checked_mul(2).expect("adoption room representable")),
+            due: Queue::uncapped(),
+            adopted: Queue::uncapped(),
             tasks: tasks::Domain::new(
                 &settings::task_limits(limits),
                 config.seed,

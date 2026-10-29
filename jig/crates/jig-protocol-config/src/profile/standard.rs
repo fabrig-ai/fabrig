@@ -122,6 +122,8 @@ pub(super) const DOCUMENTS: core::documents::DocumentLimits = core::documents::D
     ..small::DOCUMENTS
 };
 pub(super) const CORE: core::Limits = core::Limits {
+    // The sum of child route bounds when this configured hand-off bound was set.
+    routes: 151_655,
     settings: core::settings::Limits {
         revisions: 8,
         versions: 16,

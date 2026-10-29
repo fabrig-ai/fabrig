@@ -42,7 +42,7 @@ Provisional, 2026-10-28. What every agent working here must know, whatever its r
 
 ## 5. Build machines
 
-- Builders: hetzner2, 3, 6, 7, 8 (8 cores, 15 GB each; memory is the limit, about three temper-sized builds at once). hel8 builds nothing.
+- Builders: hetzner3, 6, 7 (8 cores, 15 GB each; heavy admits three builds at once). Hetzner8 runs the gate; hetzner2 is reserved for the second gate, with no builder tasks. hel8 builds nothing.
 - `heavy cargo ...` for every build and test; what builds nothing (`cargo fmt`, `cargo tree`, `cargo metadata`) runs directly. Never `heavy --gate`: the gate is the merge queue's.
 - One command at a time, and its inputs stay still until it reports. Cancel with `heavy --cancel TOKEN` from the directory that submitted it; never stop heavy's units or touch its state.
 - Disk: below 40 GB free heavy queues nothing. Free disk only in your own `target/`; never `kache clean --cache`, `~/.cache`, `~/.cargo`, another's worktree.

@@ -24,6 +24,36 @@ fn a_status_without_a_login_is_not_signed_in() {
     );
 }
 
+/// Lower test of binary::the_binary_without_its_directory_is_not_signed_in
+/// (top tiers test wiring only).
+#[test]
+fn a_status_without_its_directory_is_not_signed_in() {
+    let result = support::run_without_directory(Invocation::auth("status"));
+    assert_eq!(result.records[0].exit, Some(Exit::Code(1)));
+    assert_eq!(
+        status(&result.records[0]),
+        serde_json::json!({
+            "loggedIn": false, "authMethod": "none", "apiProvider": "firstParty",
+        })
+    );
+    assert!(!result.config_exists);
+    assert_eq!(result.login, None);
+    assert_eq!(result.observations, None);
+}
+
+/// Lower test of binary::the_binary_login_refuses_without_its_directory
+/// (top tiers test wiring only).
+#[test]
+fn a_login_without_its_directory_is_refused() {
+    let result = support::run_without_directory(Invocation::auth("login"));
+    assert_eq!(result.records[0].exit, Some(Exit::Code(1)));
+    assert!(result.records[0].stdout.is_empty());
+    assert!(!result.records[0].stderr.is_empty());
+    assert!(!result.config_exists);
+    assert_eq!(result.login, None);
+    assert_eq!(result.observations, None);
+}
+
 #[test]
 fn a_login_then_a_status_is_signed_in_through_the_subscription() {
     let result = run(None, None, vec![Invocation::auth("login"), Invocation::auth("status")]);
@@ -52,6 +82,8 @@ fn a_login_as_another_method_is_signed_in_otherwise() {
     assert_eq!(result.login.as_deref(), Some(method.as_bytes()));
 }
 
+/// Lower test of sign_in::a_sign_in_by_code_reads_the_pasted_line
+/// (top tiers test wiring only).
 #[test]
 fn a_login_by_code_reads_the_pasted_line() {
     let result = run(
@@ -62,6 +94,7 @@ fn a_login_by_code_reads_the_pasted_line() {
     assert_eq!(result.records[0].stdout, b"Paste the code from the browser:\n");
     assert_eq!(result.records[0].exit, Some(Exit::Code(0)));
     assert_eq!(status(&result.records[1])["authMethod"], "claude.ai");
+    assert_eq!(result.login.as_deref(), Some(b"claude.ai".as_slice()));
     let bytes = result.observations.expect("observations");
     assert!(!String::from_utf8_lossy(&bytes).contains("pasted-code"));
 }

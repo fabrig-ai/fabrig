@@ -12,9 +12,10 @@ test trust and git repository with an executable check script. Git implements
 the referee's narrow head/message/files face through outside observations.
 The ordinary test observer reaps each observation command before returning.
 
-The four named stories cover sign-in/token persistence, all tool families
-followed by mandatory checks and a local commit, durable history across
-invocations, and equivalent hosted/colocated reports. Every construction,
+One change story covers TLS provider traffic, real git/rg/sh output, file
+reads and writes, mandatory checks and a local commit. Sign-in persistence,
+history resume and placement parity are tested in the simulated local-process
+world. Every construction,
 iteration and final process drop uses Skein's checked real world and counting
 allocator. The checked outcome stays borrowed until its final drop verifies
 exact release; smith owns no generic allocator spans, host schedule or

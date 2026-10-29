@@ -1038,7 +1038,7 @@ fn a_search_is_bounded_and_says_when_it_cannot_run() {
 }
 
 #[test]
-fn a_fact_queue_at_its_bound_holds_the_step_and_loses_nothing() {
+fn observations_answers_and_files_do_not_depend_on_the_fact_allowance() {
     let run_with = |facts| {
         let calm = Settings::calm(80);
         let settings = Settings { tools: Limits { facts, jobs: 0, ..calm.tools }, ..calm };
@@ -1059,10 +1059,10 @@ fn a_fact_queue_at_its_bound_holds_the_step_and_loses_nothing() {
         )
     };
     let (answers, files, facts) = run_with(64);
-    let (held_answers, held_files, held_facts) = run_with(2);
+    let (uncapped_answers, uncapped_files, uncapped_facts) = run_with(0);
     assert!(facts > 0);
-    assert_eq!(held_facts, facts, "every actual observation is retained");
-    assert_eq!((held_answers, held_files), (answers, files), "reservation holds work without changing its answer");
+    assert_eq!(uncapped_facts, facts, "every observation is retained");
+    assert_eq!((uncapped_answers, uncapped_files), (answers, files), "the fact allowance changes no answer or file");
 }
 
 #[test]

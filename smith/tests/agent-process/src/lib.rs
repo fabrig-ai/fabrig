@@ -177,7 +177,7 @@ fn derive_limits() -> agent::Limits {
     limits.llm.grant_value_bytes = 128;
     limits.machine.file_bytes = 16;
     limits.file_timeout = Duration::from_secs(1);
-    limits.queue = smith_domain::max_out(&limits.domain).max(256);
+    limits.queue = agent::profile::DEFAULT_PACING;
     limits
 }
 

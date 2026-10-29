@@ -31,7 +31,7 @@ pub fn owner_limits() -> jig_test_domain::Limits {
 }
 #[must_use]
 pub fn journal(mut limits: jig_test_domain::Limits) -> jig_test_domain::Limits {
-    let room = jig_domain_core::route_bound(&limits.core).expect("whole core room");
+    let room = limits.core.routes;
     let connectors = jig_test_connector::MAX_OUT.checked_mul(2).expect("two connector routes");
     limits.journal.writes = room.checked_add(connectors).expect("whole writes");
     limits.journal.held =

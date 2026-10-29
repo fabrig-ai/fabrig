@@ -223,7 +223,7 @@ pub fn valid(limits: &Limits, config: &Config) -> bool {
         && skein_http::server::valid(&limits.http)
         && skein_json::tokenizer::largest_demand(&limits.documents.json) <= limits.http.read
         && skein_forge::forgejo::limits::check(&limits.documents).is_ok()
-        && skein_json::tokenizer::worst_case(&limits.documents.json).is_some()
-        && crate::git::decoder_worst_case(limits).is_some()
+        && skein_json::tokenizer::tokenizer_bound(&limits.documents.json).is_some()
+        && crate::git::decoder_bound(limits).is_some()
         && config.max_response_items.checked_mul(4).is_some()
 }

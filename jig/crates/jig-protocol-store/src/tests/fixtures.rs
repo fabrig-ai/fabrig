@@ -603,6 +603,7 @@ pub fn people_asks() -> Box<[people::Ask]> {
 }
 
 pub const CORE_LIMITS: core::Limits = core::Limits {
+    routes: 20_783,
     settings: core::settings::Limits {
         revisions: 4,
         versions: 8,

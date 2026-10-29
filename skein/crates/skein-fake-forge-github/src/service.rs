@@ -907,8 +907,8 @@ pub fn valid(limits: &Limits, config: &Config) -> bool {
         && crate::server::valid(limits)
         && installations::valid(&limits.installations)
         && crate::delivery::valid(&config.deliveries, limits.deliveries, limits.github.string_bytes)
-        && crate::manifest::worst_case(&limits.github, limits.pages.manifest_bytes).is_some()
-        && skein_json::tokenizer::worst_case(&limits.github.json).is_some()
+        && crate::manifest::manifest_bound(&limits.github, limits.pages.manifest_bytes).is_some()
+        && skein_json::tokenizer::tokenizer_bound(&limits.github.json).is_some()
 }
 
 pub(crate) fn valid_origin(base: &[u8], cap: u32) -> bool {

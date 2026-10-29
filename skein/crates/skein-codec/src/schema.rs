@@ -395,27 +395,22 @@ pub fn parse(text: &[u8]) -> Result<Schema, SchemaError> {
     Ok(parsed.schema)
 }
 
-/// The old name of [`schema_bound`]; it goes once every tree calls the new name (wave 3).
-pub(crate) fn worst_case_heap(text: u32) -> Option<u64> {
-    schema_bound(text)
-}
-
 /// Bounds schema parse workspace and tables.
 /// Text bounds every token and type; names occupy disjoint spans of the text.
 pub(crate) fn schema_bound(text: u32) -> Option<u64> {
     let declarations = text.min(MAX_DECLARATIONS);
     let mut total = u64::from(text).checked_mul(3)?; // owned text and both name sets
     for bytes in [
-        List::<tokens::Token>::worst_case(text)?,
-        List::<Declaration>::worst_case(declarations)?,
-        List::<Field>::worst_case(text)?,
-        List::<Variant>::worst_case(text)?,
-        List::<Type>::worst_case(text)?,
-        List::<Span>::worst_case(text)?,
-        List::<Option<Span>>::worst_case(text)?,
-        List::<u32>::worst_case(declarations)?.checked_mul(2)?,
-        Map::<Box<[u8]>, DeclIx>::worst_case(declarations)?,
-        skein_lib::Set::<Box<[u8]>>::worst_case(text)?,
+        List::<tokens::Token>::price(text)?,
+        List::<Declaration>::price(declarations)?,
+        List::<Field>::price(text)?,
+        List::<Variant>::price(text)?,
+        List::<Type>::price(text)?,
+        List::<Span>::price(text)?,
+        List::<Option<Span>>::price(text)?,
+        List::<u32>::price(declarations)?.checked_mul(2)?,
+        Map::<Box<[u8]>, DeclIx>::price(declarations)?,
+        skein_lib::Set::<Box<[u8]>>::price(text)?,
     ] {
         total = total.checked_add(bytes)?;
     }

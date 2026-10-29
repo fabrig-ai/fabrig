@@ -113,7 +113,7 @@ fn a_person_task_for_policy_role_five_is_offered_to_delegation() {
             symbolic: Box::new([]),
         }]),
     };
-    let mut findings = Queue::with_capacity(authority::max_out(core.authority.limits()).unwrap());
+    let mut findings = Queue::uncapped();
     assert_eq!(authority::check_batch(&core.authority, &ask, &mut findings).answer, authority::Answer::Allow);
 }
 

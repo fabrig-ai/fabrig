@@ -103,7 +103,7 @@ pub(crate) fn settle(
     name: Box<[u8]>,
     mut call: SettledCall,
 ) -> Requests {
-    let mut out = Queue::with_capacity(3);
+    let mut out = Queue::uncapped();
     if !call.valid(limits) || !core.call_parts.contains_key(&key) {
         out.push(Request::Now(Box::new(Now::SettledCallRefused { to, key, name, tool: call.tool })));
     } else {

@@ -593,7 +593,7 @@ fn removal_markers_fit_beside_offered_charters_and_held_versions() {
     assert_eq!(core.held.versions.len(), 1);
     assert!(core.charter_at(7, 1).is_some());
     assert!(core.charter_at(7, 2).is_none());
-    let mut tasks_out = skein_lib::Queue::with_capacity(task_room(&limits));
+    let mut tasks_out = skein_lib::Queue::uncapped();
     tasks::step(
         &mut core.tasks,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: task_limits(&limits) },
@@ -691,7 +691,7 @@ fn a_held_revision_left_without_holders_is_released_by_the_start() {
         &limits
     ));
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let crate::Requests::Out(mut out) = core.commit_restored_settings(&env, crate::route_bound(&limits).unwrap());
+    let crate::Requests::Out(mut out) = core.commit_restored_settings(&env, limits.routes);
     let mut copied = false;
     let mut erased_head = false;
     let mut erased_version = false;
@@ -726,10 +726,10 @@ fn a_settings_commit_before_the_first_start_seed_keeps_the_supplied_defaults() {
     let rules = configured.defaults.rules.clone();
     let mut core = Core::new(configured, &limits).unwrap();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let crate::Requests::Out(out) = core.commit_restored_settings(&env, crate::route_bound(&limits).unwrap());
+    let crate::Requests::Out(out) = core.commit_restored_settings(&env, limits.routes);
     assert!(out.is_empty());
     assert_eq!(core.current.rules(), &rules);
-    let mut writes = skein_lib::Queue::with_capacity(crate::route_bound(&limits).unwrap());
+    let mut writes = skein_lib::Queue::uncapped();
     assert!(restart::first_start(&mut core, &env, &mut writes));
     assert!(!writes.is_empty());
     assert_eq!(core.current.newest(), 1);

@@ -47,7 +47,7 @@ fn take_due_skips_an_unusable_account_and_starts_a_procedure() {
     procedure.llm = None;
     fixtures::make_batch(&mut core, &limits, tasks::Party::Person(1), Box::new([procedure]));
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.accounts };
-    let mut out = Queue::with_capacity(accounts::max_out(&limits.accounts));
+    let mut out = Queue::uncapped();
     accounts::step(&mut core.accounts, &env, accounts::Event::Want, &mut out);
     while out.pop().is_some() {}
     accounts::step(&mut core.accounts, &env, accounts::Event::Limited { account: 1, reset: None }, &mut out);

@@ -823,6 +823,15 @@ An owner proposal outcome carries its proposal number and the original admitted 
   request carrying a value, or whose answer carries one, is never
   stored, and leaves at once, once (section 5). An account's move
   *written* is an ordinary request: kept, and sent again under its key.
+- **Held exchanges wait for durability and leave in order.**
+  `request_records_durable` holds keyed exchanges behind pending writes;
+  `held_exchanges_fifo` releases the surviving attempts once, in arrival
+  order, skipping cancelled attempts even when their credit is reused.
+  The client protocol world holds this under load in
+  `jig-client-protocol-world`,
+  `orders::held_exchanges_wait_for_durability_and_leave_in_order_under_load`;
+  it holds failure and late completions without a send in
+  `orders::failed_persistence_never_releases_held_exchanges_under_load`.
 - **`Seen` has no save of its own.** The client domain consumes its
   table save before the composed client or link registers a store write
   (`../client/domain/client.md`, section 6). Its exchange still waits

@@ -132,9 +132,10 @@ iterate, after the step:
   same step function, within one decision; verdicts precede health news.
   The split takes the connector's environment to check validity: an
   invalid mixed fact settles without changing state and leaves no rest.
-  No route reserves room, and an order a
-  room check once kept is a named predicate with its test
-  (programming-model.md, 7.2).
+  No route reserves room. Synchronous hand-offs finish within their
+  decision, store answers keep arrival order, and a kept turn precedes
+  its terminal acknowledgement (sections 4 and 5;
+  programming-model.md, 7.2).
 - **One decision per event.** Hand-offs complete within the step;
   nothing of a decision is left for a later step but what a child holds
   in its own state, saying so (a brief gathering, a load awaited).
@@ -159,6 +160,11 @@ iterate, after the step:
   A released callback is always taken: no decision refuses it, so none is
   lost under load, and a callback's terminal acknowledgement follows the
   turn it kept.
+- **Completions pass held new work in arrival order.** The engine's
+  `passing()` permits admitted completions to pass a held call, stopping
+  at the next new event; later records keep their order. The reference
+  service holds this at the watermark in `jig-test-service`,
+  `tests::engine::completions_pass_a_held_call_in_order`.
 
 ## 4. The journal
 
@@ -194,6 +200,38 @@ It inspects nothing it holds. What jig asks of it:
   defined, no closures (programming-model.md, 10.2).
 
 ## 5. Routing
+
+- **Synchronous hand-offs finish before the next entrance.**
+  `decision_work_finished` requires the decision's work queue to be
+  empty before it is accepted. The core world holds this in
+  `jig-core-world`,
+  `route_orders::a_wide_route_finishes_within_its_decision_before_a_later_entrance`;
+  the ops world holds the connector's whole route in `jig-ops-world`,
+  `orders::an_application_route_finishes_before_the_next_entrance`.
+- **Store answers keep their arrival order.** `store_answers_fifo`
+  requires queued answers to be routed before later store answers,
+  including while new work waits at the watermark. The core world
+  holds this in `jig-core-world`,
+  `orders::queued_read_answers_keep_their_arrival_order_under_load`;
+  the ops world holds it in `jig-ops-world`,
+  `orders::read_answers_keep_completion_arrival_order_under_load`.
+- **A kept turn precedes its terminal acknowledgement.**
+  `prior_held_delivery_dispatched` requires the earlier released
+  delivery to be dispatched before the later acknowledgement, including
+  callbacks addressed to a child. The core and ops worlds hold this
+  under load in `jig-core-world` and `jig-ops-world`, each in
+  `orders::turn_kept_precedes_terminal_acknowledgement_under_load`.
+- **An early account request follows the previous move's dispatch.**
+  `move_requests_dispatched` requires every stage of the previous move
+  to be dispatched before another early account request starts. The
+  reference service holds this under load in `jig-test-service`,
+  `tests::accounts::an_early_account_request_waits_for_the_previous_moves_dispatch`.
+- **A sign-in's ending follows its own durable commit.**
+  `ending_commit_durable` requires the ending's commit number to be no
+  greater than the durable number before its secret is erased. Earlier
+  durability cannot release a later ending. The reference service holds
+  this under load in `jig-test-service`,
+  `tests::clients::sign_in_endings_follow_their_own_commits_under_load`.
 
 - **From the protocol layer:** each event goes to the child it is for:
   - the store's pages and restores to the core or to the connector whose

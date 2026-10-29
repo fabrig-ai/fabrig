@@ -587,8 +587,8 @@ fn invalid_limits_are_refused() {
     assert!(valid(&Limits { list_bytes: u64::MAX, ..LIMITS }));
     // One shell capture's head and tail share a u32 byte budget.
     assert!(!valid(&Limits { shell_head: u32::MAX, ..LIMITS }));
-    // Every native entrance can emit its reserved observations.
-    assert!(!valid(&Limits { facts: crate::max_facts(&LIMITS) - 1, ..LIMITS }));
+    // Observations need no configured allowance.
+    assert!(valid(&Limits { facts: 0, ..LIMITS }));
     // One listing entry and its nonempty name must fit.
     assert!(!valid(&Limits { list_bytes: u64::try_from(size_of::<Entry>()).expect("entry fits"), ..LIMITS }));
     // A kit's active and retained flight counts must add without overflow.
@@ -1515,30 +1515,30 @@ fn a_kit_tells_what_happens_as_facts() {
 }
 
 #[test]
-fn a_minimum_fact_reserve_keeps_every_native_entrance_observation() {
-    assert!(!valid(&Limits { facts: 1, ..LIMITS }));
-    let mut h = Harness::new(Limits { facts: crate::max_facts(&LIMITS), ..LIMITS });
+fn native_entrances_keep_every_observation_without_a_fact_allowance() {
+    let mut h = Harness::new(Limits { facts: 0, ..LIMITS });
     let kit = h.open(5, authority(ALL));
-    assert!(h.domain.facts_room() < crate::max_facts(&LIMITS));
+    assert_eq!(h.domain.pending_facts(), 1);
     assert_eq!(
         h.call(kit, read(b"/etc/passwd")),
         Outcome::Outside { path: path::Resolved::Outside { path: bytes(b"etc/passwd") } }
     );
     assert_eq!(h.step(Event::Close { kit }), Some(Request::Closed { session: Token::new(5) }));
-    assert_eq!(h.observed.len() + h.env.limits.facts - h.domain.facts_room(), 3);
+    assert_eq!(h.observed.len() + h.domain.pending_facts(), 3);
     assert_eq!(told(&mut h).len(), 3);
+    assert_eq!(h.domain.pending_facts(), 0);
 }
 
 #[test]
-fn the_last_cancelled_operation_fills_the_complete_two_fact_reserve() {
-    let mut h = Harness::new(Limits { jobs: 0, facts: 2, ..LIMITS });
+fn the_last_cancelled_operation_reports_its_answer_before_the_kit_closes() {
+    let mut h = Harness::new(Limits { jobs: 0, facts: 0, ..LIMITS });
     let kit = h.open(5, authority(ALL));
     let (owner, _) = h.start(kit, 1, read(b"src/lib.rs"));
     drop(h.emit(Event::Close { kit }));
     h.keep_facts();
     let before = h.observed.len();
     drop(h.emit(Event::Done { owner, done: Done::Cancelled }));
-    assert_eq!(h.domain.facts_room(), 0, "the terminal uses its complete reserved output");
+    assert_eq!(h.domain.pending_facts(), 2, "the terminal retains both observations");
     h.keep_facts();
     assert_eq!(h.observed.len() - before, 2);
     let mut tail = List::with_capacity(2);

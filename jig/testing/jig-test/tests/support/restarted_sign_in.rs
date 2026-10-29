@@ -270,7 +270,7 @@ impl Referee<Process> for Peers {
 /// Keep one issuer and LLM alive while a story kills and starts its application binaries.
 pub(super) fn with_peers(
     plans: Vec<skein_fake_oauth::Plan>,
-    story: impl FnOnce(),
+    story: impl FnOnce(std::net::SocketAddr, std::net::SocketAddr),
     observe: impl FnOnce(&oauth::Peer, &llm::Peer) + Send,
 ) {
     std::thread::scope(|scope| {
@@ -284,24 +284,25 @@ pub(super) fn with_peers(
                 deadline: clock.now().now.saturating_add(PEER_WAIT),
                 wake: clock.now().now,
             });
-            world.spawn(|| Process::Issuer(Box::new(support::issuer_with_plans(plans))));
-            world.spawn(|| Process::Peer(Box::new(live_sign_in::fake_peer(live_sign_in::Peers::Fake))));
-            ready.send(()).expect("peer world ready");
+            let (issuer, issuer_address, issuer_fd) = support::issuer_with_plans(plans);
+            let (peer, peer_address, peer_fd) = live_sign_in::fake_peer(live_sign_in::Peers::Fake);
+            world.spawn_with_fds(vec![issuer_fd], || Process::Issuer(Box::new(issuer)));
+            world.spawn_with_fds(vec![peer_fd], || Process::Peer(Box::new(peer)));
+            ready.send((issuer_address, peer_address)).expect("peer world ready");
             let outcome = world.run(&clock, PEER_WAIT);
             assert!(outcome.procs.iter().all(Host::is_empty), "independent peers' io settles");
             let Process::Issuer(issuer) = &outcome.procs[0] else { panic!("issuer") };
             let Process::Peer(peer) = &outcome.procs[1] else { panic!("LLM") };
             observe(issuer, peer);
         });
-        listening.recv().expect("peers constructed");
-        story();
+        let (issuer_address, peer_address) = listening.recv().expect("peers constructed");
+        story(issuer_address, peer_address);
         drop(stop);
         peers.join().expect("peer world");
     });
 }
 
 pub fn run(directory: &Path) {
-    live_sign_in::configuration_at(directory, "127.0.0.1:34443", live_sign_in::Peers::Fake);
     let mut plans = fixtures::issuer_plans(Story::AccountSignInVaryingPort);
     let mut first = plans.remove(0);
     let skein_fake_oauth::Body::Token(token) = &mut first.body else { panic!("token plan") };
@@ -311,7 +312,9 @@ pub fn run(directory: &Path) {
     plans.insert(0, first);
     with_peers(
         plans,
-        || {
+        |issuer_address, peer_address| {
+            live_sign_in::configuration_at(directory, &peer_address.to_string(), live_sign_in::Peers::Fake);
+            support::ports::configure(directory, Some(issuer_address), Some(peer_address));
             let account = stage(directory, None);
             stage(directory, Some(account));
         },

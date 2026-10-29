@@ -1,5 +1,8 @@
 //! client/tools.md, 11.4: ctl moves an account between two shipped deployments.
-use super::{Process, ctl, sign_in};
+use super::{
+    Process, ctl, sign_in,
+    story_socket::{Scope, Socket},
+};
 use skein_fake_peers::{llm, oauth};
 use skein_io::kernel::{Exit, Signal};
 use skein_lib::{Duration, Time};
@@ -7,7 +10,7 @@ use skein_shell::{Clock, Host};
 use skein_world::{Referee, real};
 use std::{
     fs,
-    io::{Read, Write},
+    io::Write,
     net::{SocketAddr, TcpStream},
     os::unix::fs::PermissionsExt,
     path::{Path, PathBuf},
@@ -289,11 +292,10 @@ fn refuse_file_token(address: SocketAddr, client: &str, record: &[u8]) {
         "grant_type=refresh_token&client_id={client}&refresh_token={}",
         std::str::from_utf8(FILE_REFRESH).expect("fixture token")
     );
-    let mut socket = TcpStream::connect(address).expect("same fake issuer");
-    socket.set_read_timeout(Some(std::time::Duration::from_secs(5))).expect("replay timeout");
-    socket.write_all(format!("POST /api/accounts/oauth/token HTTP/1.1\r\nHost: {address}\r\nContent-Type: application/x-www-form-urlencoded\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).as_bytes()).expect("replay sent");
-    let mut response = Vec::new();
-    socket.take(8192).read_to_end(&mut response).expect("issuer refusal");
+    let mut socket = Socket::new(TcpStream::connect(address).expect("same fake issuer"), Scope::World);
+    socket.stream().write_all(format!("POST /api/accounts/oauth/token HTTP/1.1\r\nHost: {address}\r\nContent-Type: application/x-www-form-urlencoded\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).as_bytes()).expect("replay sent");
+    let response =
+        socket.read_to_end("the moved token's replay refusal", Duration::from_secs(5), 8192).expect("issuer refusal");
     assert!(response.starts_with(b"HTTP/1.1 400 "), "stale token refused");
     let body = response.split(|byte| *byte == b'\n').next_back().expect("refusal body");
     let error: serde_json::Value = serde_json::from_slice(body).expect("issuer error JSON");

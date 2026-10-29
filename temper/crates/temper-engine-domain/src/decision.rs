@@ -663,9 +663,9 @@ pub fn worst_case(limits: &Limits) -> Option<u64> {
     if limits.commits == 0 || limits.writes == 0 || limits.deliveries == 0 || limits.run_bytes == 0 {
         return None;
     }
-    List::<Write>::worst_case(limits.writes)?
+    List::<Write>::price(limits.writes)?
         .checked_mul(2)?
-        .checked_add(Queue::<Delivery>::worst_case(limits.deliveries)?)?
+        .checked_add(Queue::<Delivery>::price(limits.deliveries)?)?
         .checked_add(u64::from(limits.writes).checked_mul(2)?.checked_mul(u64::from(limits.transcript_bytes))?)?
         .checked_add(
             u64::from(limits.held).checked_add(u64::from(limits.deliveries))?.checked_mul(
@@ -673,7 +673,7 @@ pub fn worst_case(limits: &Limits) -> Option<u64> {
                     .max(u64::from(limits.transcript_bytes))
                     .checked_add(u64::from(limits.run_bytes))?
                     .checked_add(
-                        List::<crate::BriefSection>::worst_case(limits.deliveries)?
+                        List::<crate::BriefSection>::price(limits.deliveries)?
                             .max(u64::try_from(size_of::<jig_domain_tasks::EscalationContext>()).ok()?),
                     )?,
             )?,

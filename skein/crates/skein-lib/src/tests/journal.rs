@@ -256,14 +256,14 @@ fn restored_maximum_number_panics_on_writing_accept() {
 }
 
 #[test]
-fn compatibility_forms_push_writes_and_held_outputs() {
+fn pushed_writes_commit_and_held_outputs_release_in_order() {
     // Four held outputs fill two release calls.
     const ITEMS: u8 = 4;
     let mut journal = Journal::<u8, u8>::uncapped(RELEASE, 0);
     let mut decision = journal.decide();
     for value in 0..ITEMS {
-        assert_eq!(decision.write(value), Ok(()));
-        assert_eq!(decision.hold(value), Ok(()));
+        decision.push_write(value);
+        decision.push_held(value);
     }
     journal.accept(decision);
     let mut commit = journal.commit().expect("one writing decision");

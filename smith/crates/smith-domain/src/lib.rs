@@ -8,8 +8,9 @@
 //!
 //! [`step`], [`fire`] and [`resume`] accept typed host, provider and IO events
 //! with injected clocks and seed. They emit owned [`Request`] values within
-//! [`max_out`]; the caller reserves output room and returns each request's
-//! one typed terminal. Iteration-end reclamation follows output delivery.
+//! [`max_out`]; internal handoffs drain completely through uncapped queues.
+//! The caller returns each request's one typed terminal. Iteration-end
+//! reclamation follows output delivery.
 //! The root translates run conversations into sessions; siblings share no
 //! state or vocabulary, and tools remain beneath sessions.
 //!
