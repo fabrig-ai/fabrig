@@ -1,6 +1,4 @@
 use skein_forge_setup_world::memory::{self, Kinds};
-#[global_allocator]
-static HEAP: skein_heap::Counting = skein_heap::Counting;
 
 #[test]
 fn forgejo_plaintext_host_fits() {
