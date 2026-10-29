@@ -41,6 +41,11 @@ document.
 TLS is tested on its own (tls.md, 5), and the replaying tiers run in
 plaintext.
 
+For a domain world, `skein_world::domain::Stage::uncapped(limits)` owns
+its environment, FIFO inbox and uncapped output queue. The world calls
+the domain for each event and due alarm without reserving output room;
+the stage holds neither back. Incoming work is bounded by the world.
+
 ## 3. The examples
 
 Small services in `examples/`: an echo server, an HTTP server, and a

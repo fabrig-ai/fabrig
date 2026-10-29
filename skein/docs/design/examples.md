@@ -236,13 +236,12 @@ every `Open` with `Busy` and asks once for `Stop`.
 
 ## 4. The echo's main
 
-`main` reads its configuration from its arguments (the address to listen
-on, and the memory it may take), runs startup (shell.md, 6): the worst
-case against the memory, io's caps against the protocol's largest demand,
-the termination signals blocked and their signalfd opened
-(`open_termination_signals`) for io to adopt, then the seed and the
-kernel; and then the loop of programming-model.md, section 2, over the
-shell's `Kernel` and `Clock`.
+`main` reads the address to listen on from its arguments and uses the
+shell's layer limits. Startup (shell.md, 6) checks usable limits and io's
+caps against the protocol's largest demand. It blocks termination signals
+and opens their signalfd (`open_termination_signals`) for io to adopt,
+then obtains the seed and opens the kernel. It runs the loop of
+programming-model.md, section 2, over the shell's `Kernel` and `Clock`.
 
 - **It ends by itself.** `SIGINT` or `SIGTERM` arrives as io's `Shutdown`:
   the echo admits no one more, its connections end (section 3.3), and the
@@ -259,8 +258,9 @@ shell's `Kernel` and `Clock`.
 
 `skein-echo-client` is a step machine (testing-strategy.md, 4): io and
 one layer above it, which plays the line protocol over io's stream
-vocabulary, with an `iterate` of its own and its own limits and worst
-case. It shares no type with the echo. Each connection follows a plan:
+vocabulary, with an `iterate` of its own and its own edge limits.
+Worlds check its measured process peaks under scenario ceilings. It shares
+no type with the echo. Each connection follows a plan:
 
 - when it connects, how many lines it sends and their lengths, drawn
   from its seed, one of them past the server's limit if the plan says;

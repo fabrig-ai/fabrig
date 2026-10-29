@@ -576,9 +576,17 @@ kernel with `io_uring_disabled` set, or macOS (Apple Silicon, from macOS
   call that made progress, never continued by the backend: a short send,
   write or read goes up as it is, and io continues it from `from + n`,
   as with the ring (`skein_io::kernel`, the counts).
-- **Retries are the ring's:** a call interrupted (`EINTR`) is made again
-  at once; an `Open` whose `..` raced a rename or a mount (`EAGAIN`) is
-  made again, up to 16 times, then fails with `Other(EAGAIN)`.
+- **Interrupted transfers are reissued:** an uncancelled `PipeWrite`,
+  `Write`, `Append`, `Send`, `PipeRead`, `Read`, `Recv` or `ReadSignal`
+  interrupted with `EINTR` is reissued from its slot with identical
+  buffers, offsets and token, without a retry bound. The backend absorbs
+  the interruption before any outward completion. A requested cancellation
+  instead completes `Cancelled`; other errors and short counts retain
+  their usual results. An `Open` whose `..` raced a rename or a mount
+  (`EAGAIN`) is made again, up to 16 times, then fails with
+  `Other(EAGAIN)`. A `Close` is never made again: its descriptor may
+  already be another's. The rule for an interrupted `Socket`, `Accept`,
+  `Connect` or `Open` is not designed yet (`STATUS.md`).
 - **Errors map as the ring's do,** per operation, by the same functions
   (7.5): an error number means what it means to the ring.
 - **A cancel** of a record that waits takes it off its side, completes

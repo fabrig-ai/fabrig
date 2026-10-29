@@ -95,7 +95,7 @@ queue is a bug, asserted; `Queue::try_push` is the refusing form.
 exactly and never past the cap. A B-tree allocates as it fills, so its
 `price(capacity)` counts its nodes at capacity, not its entries.
 `List`, `Queue`, `Intake`, `Map`, `Set`, `Stack` and `Buffer` give this
-allocation price; their `worst_case(capacity)` delegates to it.
+allocation price through `price(capacity)`.
 
 **`Queue::uncapped()`, `Map::uncapped()` and `List::uncapped()`**
 start empty and grow, with `u32::MAX` as their capacity. They hold the
@@ -526,10 +526,12 @@ allocator (testing.md, 5), in `tests/lib/tests/suite/memory.rs`, in the
 focused suite. Every capped container is built at capacities from 0 to
 300, filled to them, emptied and filled again, every operation a step of
 the meter, and what it held of its own is never more than its price:
-`price(capacity)`, or `RequestTable::price(&limits)` for a request table.
-What an item owns is its owner's to count, so the items own no heap; they come in several sizes and alignments, up to
-64 bytes, as a container's price depends on both. An input moved into a
-step is accounted for as testing.md, 5 states. What an operation hands
+`price(capacity)`, including `Slab::price` and `Deadlines::price`, or
+`RequestTable::price(&limits)` for a request table.
+What an item owns is its owner's to count, so the items own no heap; they
+come in several sizes and alignments, up to 64 bytes, as a container's
+price depends on both. An input moved into a step is accounted for as
+testing.md, 5 states. What an operation hands
 out (an item taken, a delivery, a list moved into a box) is no longer
 the container's, and the meter takes it off.
 
@@ -559,6 +561,7 @@ data structure, like a queue; a service does not hand-roll one
   held outputs and the door in queues that grow as they fill (section
   5); `release` is the most one release call moves, `durable` the last
   commit number the store holds, from which numbering goes on.
+  `JournalLimits` holds only `release`, the per-call output limit.
   `decide()` opens a decision with no room to reserve, which cannot be
   refused; `Decision::push_write` and `push_held` add without a
   `Result`. New external work waits at the root's watermark
@@ -674,7 +677,7 @@ lib because it is a data structure with a lifecycle, like a queue or the journal
   `ask` or by `restore`, has a number, which they return with the key.
   Numbers increase with each admission. `not_kept` names the key and the
   number; every other call stays by key: an asker holds one admission per
-  key at a time. The table does not measure a request. `worst_case`
+  key at a time. The table does not measure a request. `price(&limits)`
   prices its containers, owner values and bookkeeping from the limits
   with checked arithmetic; the owner prices the payload bytes it
   declares separately.

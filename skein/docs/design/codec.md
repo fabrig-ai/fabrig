@@ -225,16 +225,12 @@ For each record and enumeration:
   without checking them again: a bound costs the types it reaches,
   not their number times the family's limits.
 
-The generator chooses the names per module with
-`generate_named(schema, Names::{WorstCase, Bounds, Both})`, or the CLI's
-`--names` choice. `Bounds` emits `encoded_bound` and `decoded_bound`,
-their `_within` forms and numbered helpers, using `List::price`.
-`WorstCase` emits the corresponding `worst_case_bytes` and
-`worst_case_heap` names and uses `List::worst_case`. `Both` emits the
-bounds and aliases only the old public `worst_case_bytes` and
-`worst_case_heap`; helpers keep the bound names. Both sets of names
-remain reserved for fields under every choice. The OAuth v3 module
-uses `Both`; the UI example and codec kit's fixtures use `Bounds`.
+`generate(schema)` writes a module for one schema version. It emits
+`encoded_bound` and `decoded_bound`, their `_within` forms and numbered
+helpers, and uses `List::price`. The CLI's generation invocation takes
+`<schema> <out-dir>`; any extra argument is a usage error. The bound names
+and `worst_case_bytes`/`worst_case_heap` (and their `_within` forms) stay
+reserved for fields.
 
 ## 5. Versions
 
