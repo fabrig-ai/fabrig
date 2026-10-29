@@ -267,7 +267,10 @@ fn a_busy_sign_in_retries_until_the_engine_signs_in() {
         let mut now = Time::ZERO;
         let mut jittered = false;
         for span_ms in BACKOFF_SPANS_MS {
-            c.step_at(now, Event::Reply { exchange: previous, message: fixtures::sign_in_answer(&w::SignInAnswer::Busy) });
+            c.step_at(
+                now,
+                Event::Reply { exchange: previous, message: fixtures::sign_in_answer(&w::SignInAnswer::Busy) },
+            );
             assert_eq!(c.machine.link().not_signed_in, notice);
             if now == Time::ZERO && notice.is_some() {
                 assert_link_told(&c);
@@ -282,7 +285,8 @@ fn a_busy_sign_in_retries_until_the_engine_signs_in() {
             c.fire(Time::from_nanos(until.as_nanos() - 1));
             assert!(c.requests().is_empty(), "busy sign-in waits for its backoff");
             c.fire(until);
-            let [Request::Exchange { exchange, credential: sent_credential, message: sent_message }] = c.requests() else {
+            let [Request::Exchange { exchange, credential: sent_credential, message: sent_message }] = c.requests()
+            else {
                 panic!("one busy sign-in retry: {:?}", c.requests());
             };
             assert_ne!(*exchange, previous);
@@ -571,7 +575,7 @@ fn assert_link_told(c: &Client) {
 fn each_link_retry_answer_is_visible_and_told_until_the_next_sign_in() {
     for (answer, why, backoff) in [
         (w::SignInAnswer::NotReady, NotSignedIn::NotReady, Some((LEAST_BACKOFF, FIRST_BACKOFF))),
-        (w::SignInAnswer::Busy, NotSignedIn::Busy, None),
+        (w::SignInAnswer::Busy, NotSignedIn::Busy, Some((LEAST_BACKOFF, FIRST_BACKOFF))),
         (
             full_sign_in_answer(),
             NotSignedIn::Full {
@@ -590,7 +594,7 @@ fn each_link_retry_answer_is_visible_and_told_until_the_next_sign_in() {
         assert_link_told(&c);
         match backoff {
             Some((least, most)) => {
-                let until = c.machine.next_deadline().expect("not-ready link is sent again");
+                let until = c.machine.next_deadline().expect("retryable link sign-in is sent again");
                 assert!(until >= Time::ZERO.saturating_add(least));
                 assert!(until <= Time::ZERO.saturating_add(most));
             }
@@ -611,15 +615,31 @@ fn each_link_retry_answer_is_visible_and_told_until_the_next_sign_in() {
 }
 
 #[test]
-fn a_services_busy_or_full_ends_signing_without_a_retry() {
-    for answer in [w::SignInAnswer::Busy, full_sign_in_answer()] {
+fn a_service_s_busy_sign_in_retries_and_full_does_not() {
+    for (answer, backoff) in
+        [(w::SignInAnswer::Busy, Some((LEAST_BACKOFF, FIRST_BACKOFF))), (full_sign_in_answer(), None)]
+    {
         let mut c = Client::new();
         c.step(Event::SignIn { with: With::Service(fixtures::credential(&SERVICE_CREDENTIAL)) });
         c.step(Event::Reply { exchange: c.exchange(), message: fixtures::sign_in_answer(&answer) });
         assert_eq!(c.machine.link().not_signed_in, None);
         assert!(c.machine.link().credential.is_none());
-        assert!(c.machine.next_deadline().is_none());
-        c.fire(Time::from_nanos(u64::MAX));
-        assert!(c.requests().is_empty());
+        match backoff {
+            Some((least, most)) => {
+                let until = c.machine.next_deadline().expect("busy service sign-in is sent again");
+                assert!(until >= Time::ZERO.saturating_add(least));
+                assert!(until <= Time::ZERO.saturating_add(most));
+                c.fire(until);
+                let [Request::Exchange { credential, message: Message::SignInService, .. }] = c.requests() else {
+                    panic!("one service sign-in retry: {:?}", c.requests());
+                };
+                assert_eq!(credential, &Some(fixtures::credential(&SERVICE_CREDENTIAL)));
+            }
+            None => {
+                assert!(c.machine.next_deadline().is_none());
+                c.fire(Time::from_nanos(u64::MAX));
+                assert!(c.requests().is_empty());
+            }
+        }
     }
 }

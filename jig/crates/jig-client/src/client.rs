@@ -391,7 +391,7 @@ impl Client {
                 self.sign_out_lost = false;
                 self.up(env, Up::SignedOut);
             }
-            link::Signing::Again if !self.signing_out && self.send_again.is_some() => {
+            link::Signing::Again | link::Signing::Busy if !self.signing_out && self.send_again.is_some() => {
                 let span = match self.signing_span {
                     Some(span) => core::cmp::min(span.saturating_mul(2), env.limits.backoff.most),
                     None => env.limits.backoff.first,
