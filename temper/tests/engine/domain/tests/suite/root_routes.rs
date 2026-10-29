@@ -4783,6 +4783,9 @@ mod ended_read;
 #[path = "root_routes/proposal_archive.rs"]
 mod proposal_archive;
 
+#[path = "root_routes/second_edition.rs"]
+mod second_edition;
+
 const TEMPLATE_CHAT_REPLY: Token = Token::new(6001);
 const TEMPLATE_CHAT_KEY: [u8; 16] = [201; 16];
 #[test]
