@@ -284,12 +284,6 @@ impl Collector {
     }
 }
 
-/// The old name of [`collector_bound`]; it goes once every tree calls the new name (wave 3).
-#[must_use]
-pub fn worst_case(limits: &Limits, caps: &[u32], filter: &Filter) -> Option<u64> {
-    collector_bound(limits, caps, filter)
-}
-
 /// Bounds one collection.
 /// The collector's retained buffers, bounded walk and transient ownership.
 #[must_use]

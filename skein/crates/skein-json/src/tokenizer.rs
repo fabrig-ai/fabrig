@@ -36,7 +36,7 @@
 //! [`Limits::number`], allocated with the tokenizer, and goes up in a box of
 //! exactly its length. Every byte delivered counts against
 //! [`Limits::length`], so no peer keeps the tokenizer reading without end,
-//! whitespace included. Past any limit, the document fails. [`worst_case`] is
+//! whitespace included. Past any limit, the document fails. [`tokenizer_bound`] is
 //! what a tokenizer holds; [`largest_demand`] is what whoever stacks it checks
 //! against the cap of the side below at startup.
 
@@ -91,12 +91,6 @@ pub fn largest_demand(limits: &Limits) -> u32 {
     limits.chunk.max(Literal::False.len())
 }
 
-/// The old name of [`tokenizer_bound`]; it goes once every tree calls the new name (wave 3).
-#[must_use]
-pub fn worst_case(limits: &Limits) -> Option<u64> {
-    tokenizer_bound(limits)
-}
-
 /// Bounds the tokenizer stack and text.
 /// The most memory a tokenizer holds under `limits`, in bytes
 /// (programming-model.md, 6.3), or `None` if it does not fit a `u64` or the
@@ -117,12 +111,6 @@ pub fn tokenizer_bound(limits: &Limits) -> Option<u64> {
     let open = Stack::<Container>::price(limits.depth)?;
     let text = List::<u8>::price(text_capacity(limits))?;
     open.checked_add(text)?.checked_add(u64::from(largest_demand(limits)))
-}
-
-/// The old name of [`validation_bound`]; it goes once every tree calls the new name (wave 3).
-#[must_use]
-pub fn validation_worst_case(limits: &Limits) -> Option<u64> {
-    validation_bound(limits)
 }
 
 /// Bounds grammar validation.
