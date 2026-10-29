@@ -11,11 +11,11 @@ which owns no slot build working directory. Service-only observation skips
 that reserved maintenance unit; payload/wrapper services remain checked.
 Service-only observation and exact refusal of the existing
 `mq-worker-unresolved.json` worker marker are implemented with regressions.
-Ops must repeat real validation, including ordinary-heavy compile/lint/build
-coverage. This task runs no Cargo builds, remote commands, production
-installation or service operations. Ops will validate
-on a claimed ordinary builder slot before marking ready, and install after
-landing. Heavy completion after a lost client requires reconciliation;
+Ops validated the executable on a claimed ordinary builder: a docs-only
+check passed, then fmt, ordinary-heavy clippy and nextest test-build checks
+passed over the queue selection. The original branch, commit, clean worktree
+and absent ownership marker were verified afterward. The tool is ready for
+merge; installation on builders follows landing. Heavy completion after a lost client requires reconciliation;
 unsupported sparse/submodule/hidden-index or ignored-collision inputs are
 refused. Unit observation cannot replace exclusive ownership of an idle
 claimed slot.
