@@ -6,8 +6,8 @@ use skein_lib::{Reader, Writer};
 #[test]
 fn placed_hold_smallest_and_full_goldens_round_trip() {
     for bytes in [
-        include_bytes!("../../../crates/jig-protocol-store/golden/tasks/record_placed_hold_smallest.bin").as_slice(),
-        include_bytes!("../../../crates/jig-protocol-store/golden/tasks/record_placed_hold_full.bin").as_slice(),
+        include_bytes!("../../../../crates/jig-protocol-store/golden/tasks/record_placed_hold_smallest.bin").as_slice(),
+        include_bytes!("../../../../crates/jig-protocol-store/golden/tasks/record_placed_hold_full.bin").as_slice(),
     ] {
         let mut reader = Reader::new(bytes);
         let hold = wire::PlacedHold::decode(&wire::CEILINGS, &mut reader).expect("placed hold golden");

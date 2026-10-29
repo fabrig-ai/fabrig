@@ -1,10 +1,7 @@
 //! Full golden rows decode within their heap worst cases (skein's codec.md, 6).
 use jig_protocol_store::{accounts_v2, component_v3, core_v6, notes_v1, people_v13, secrets_v1, tasks_v9};
-use skein_heap::{Counting, Meter};
+use skein_heap::Meter;
 use skein_lib::Reader;
-
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 fn check<T>(family: &str, record: &str, bound: u64, decode: impl FnOnce(&[u8]) -> T) {
     let golden = std::fs::read(
