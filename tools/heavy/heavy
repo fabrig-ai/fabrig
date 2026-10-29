@@ -1,23 +1,17 @@
 #!/usr/bin/env bash
-# Queue builds and exclusive gates (build-infrastructure.md, 2-5).
+# Queue builds and exclusive gates (tools/heavy/design.md, 2-5).
 # shellcheck source-path=SCRIPTDIR
 set -euo pipefail
 umask 077
 kit=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
-# The workspace: DEV_ROOT, or the directory holding the agents checkout these
-# tools come from, or ~/src/rust.
-workspace() {
-    local agents
-    agents=$(cd "$kit/../.." && pwd)
-    if [[ $(basename "$agents") == agents ]]; then dirname "$agents"; else echo "$HOME/src/rust"; fi
-}
-root=${DEV_ROOT:-$(workspace)}
+# Storage is independent of the installation checkout (tools/heavy/design.md, 2).
+root=${DEV_ROOT:-$HOME/src/rust}
 tmp=${DEV_TMP:-$root/tmp}
 # shellcheck source=kit.sh
 source "$kit/kit.sh"
 # Every task builds as wide as the machine, and builds take no slot but the
 # machine's setting (0, the default: no limit). CPU weights, not a queue, order
-# them (build-infrastructure.md, 2).
+# them (tools/heavy/design.md, 2).
 read -r build_jobs _ < <(machine_setting HEAVY_BUILD_JOBS "$(nproc)")
 read -r build_slots _ < <(machine_setting HEAVY_BUILD_SLOTS 0)
 export DEV_ROOT=$root DEV_TMP=$tmp HEAVY_BUILD_JOBS_EFFECTIVE=$build_jobs HEAVY_BUILD_SLOTS_EFFECTIVE=$build_slots

@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# Gate runtime and evidence identity (gate-policy.md, 1 to 3).
+# Gate runtime and evidence identity (tools/heavy/design.md, 5).
 # Sourced by land and gate admission; no environment/configuration dump.
 
 _gate_policy_script=$(readlink -f "${BASH_SOURCE[0]}")

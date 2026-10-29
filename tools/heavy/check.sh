@@ -91,7 +91,6 @@ suite test-landings scripts/devel/test-landings
 suite test-after-landing scripts/devel/test-after-landing
 suite test-codex-run scripts/devel/test-codex-run
 suite test-record scripts/devel/test-record
-suite test-qa scripts/devel/test-qa
 suite test-logins scripts/devel/test-logins
 suite test-issue scripts/devel/test-issue
 suite test-tidy scripts/devel/test-tidy

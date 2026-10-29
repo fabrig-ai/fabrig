@@ -4,6 +4,7 @@ from case_runner import HUNG_TOOL_S
 import hashlib
 import json
 import os
+import shutil
 from pathlib import Path
 import subprocess
 import tempfile
@@ -113,6 +114,44 @@ class Plain(unittest.TestCase):
         self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
         self.assertIn('heavy: independent reconciler timer is not active', result.stderr)
         self.assertNotIn('running it directly', result.stderr)
+
+    def test_installation_layouts_share_default_queue(self):
+        # Intercept Python before --installed can read a ledger. Importing the
+        # helper computes its own canonical paths and identity without main().
+        probe = self.bin / 'python3'
+        probe.write_text("#!/usr/bin/python3 -B\n"
+                         "import json, runpy, sys\nfrom pathlib import Path\n"
+                         "sys.path.insert(0, str(Path(sys.argv[2]).parent))\n"
+                         "m = runpy.run_path(sys.argv[2])\n"
+                         "print(json.dumps({k: str(m[k]) for k in "
+                         "('ROOT', 'TMP', 'BASE', 'QUEUE', 'PREFIX')}))\n")
+        probe.chmod(0o700)
+        env = {'PATH': str(self.bin) + ':' + os.defpath, 'HOME': str(self.home)}
+        layouts = (self.home / 'src/rust/agents/scripts/devel',
+                   self.home / 'src/fabrig/main/tools/heavy')
+        identities = []
+        for index, layout in enumerate(layouts):
+            layout.mkdir(parents=True)
+            for name in ('heavy', 'heavy-recovery.py', 'kit.sh', 'recovery_message.py', 'receipt_inputs.py'):
+                source = KIT / 'fixtures/agents-heavy' if index == 0 and name == 'heavy' else KIT / name
+                shutil.copy2(source, layout / name)
+            # Resolve the installed symlink as the entrypoint does in production.
+            link = self.bin / ('heavy-' + str(index))
+            link.symlink_to(layout / 'heavy')
+            result = subprocess.run([str(link), '--installed'], env=env, cwd=self.cwd,
+                                    text=True, capture_output=True, stdin=subprocess.DEVNULL,
+                                    timeout=HUNG_TOOL_S)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            identities.append(json.loads(result.stdout))
+        expected = self.home / 'src/rust'
+        self.assertEqual(identities[0], identities[1])
+        self.assertEqual(identities[1]['ROOT'], str(expected))
+        self.assertEqual(identities[1]['TMP'], str(expected / 'tmp'))
+        self.assertEqual(identities[1]['BASE'], str(expected / 'tmp/heavy'))
+        queue = hashlib.sha256(str(expected / 'tmp/heavy').encode()).hexdigest()
+        self.assertEqual(identities[1]['QUEUE'], queue)
+        self.assertEqual(identities[1]['PREFIX'], 'skein-heavy-' + queue[:12])
+        self.assertFalse((expected / 'tmp').exists())
 
     def test_empty_command_is_refused(self):
         result = self.heavy('--gate')

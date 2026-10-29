@@ -19,7 +19,7 @@ machine_setting() {
     if [[ -n $value ]]; then printf '%s machine.env\n' "$value"; else printf '%s default\n' "$fallback"; fi
 }
 
-# The disk floor (director.md, 10): below the machine's PLAN_MIN_DISK_GB, a
+# The disk floor (tools/heavy/design.md, 2): below the machine's PLAN_MIN_DISK_GB, a
 # tool refuses, naming the floor, what is free and the ten largest
 # directories that fill the disk, so that an owner frees them.
 disk_floor() {

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Durable admission and cgroup recovery for heavy; build-infrastructure.md."""
+"""Durable admission and cgroup recovery for heavy; tools/heavy/design.md."""
 import contextlib
 import ctypes
 import errno
@@ -30,20 +30,20 @@ TMP = Path(os.environ.get('DEV_TMP', str(ROOT / 'tmp'))).resolve()
 BASE = TMP / 'heavy'
 LOGS = TMP / 'logs'
 BOOT_FILE = Path(os.environ.get('HEAVY_BOOT_ID_FILE', '/proc/sys/kernel/random/boot_id'))
-# The state directory is the queue (build-infrastructure.md, 2).
+# The state directory is the queue (tools/heavy/design.md, 2).
 QUEUE = hashlib.sha256(str(BASE).encode()).hexdigest()
 PREFIX = 'skein-heavy-' + QUEUE[:12]
 LANES = ('build', 'gate')
 UNCLAIMED = ('submitted', 'enqueuing', 'queued')
 LIVE = ('launching', 'active', 'finishing', 'closing')
-ROOM_AFTER = 120  # Reservation after release (build-infrastructure.md 2).
-DISK_WAIT_LIMIT = 20 * 60  # Time below a landing's floor (build-infrastructure.md 2).
-SNAPSHOT_READ_S = 1.0  # Waiting clients read at most once a second (build-infrastructure.md 3).
+ROOM_AFTER = 120  # Reservation after release (tools/heavy/design.md 2).
+DISK_WAIT_LIMIT = 20 * 60  # Time below a landing's floor (tools/heavy/design.md 2).
+SNAPSHOT_READ_S = 1.0  # Waiting clients read at most once a second (tools/heavy/design.md 3).
 FLOOR_REFUSAL = 'disk floor refused before payload start'
 CGROOT = Path('/sys/fs/cgroup')
 CANCELLED = 130  # A cancelled task's exit, as check.sh and codex-run exit on SIGINT.
 USAGE = 'usage: heavy [--gate | --land] [--tail N] [--] command... | heavy --cancel TOKEN'
-# Each task's CPU weight in its systemd unit (build-infrastructure.md, 2): a
+# Each task's CPU weight in its systemd unit (tools/heavy/design.md, 2): a
 # landing's work first, an agent's builds next, background work after, and
 # idle work only on otherwise idle cores. HEAVY_CLASS names one.
 WEIGHTS = {'land': '10000', 'build': '1000', 'background': '100', 'idle': 'idle'}
@@ -55,7 +55,7 @@ class Refusal(Exception):
 
 def subreaper():
     # An orphan's getppid() must name this guard, never systemd --user
-    # (build-infrastructure.md 3: the payload adopts its orphans).
+    # (tools/heavy/design.md 3: the payload adopts its orphans).
     libc = ctypes.CDLL(None, use_errno=True)
     if libc.prctl(36, 1, 0, 0, 0) != 0:  # PR_SET_CHILD_SUBREAPER
         raise Refusal('cannot become child subreaper: ' + os.strerror(ctypes.get_errno()))
@@ -204,7 +204,7 @@ def durable_append(path, lines):
 
 
 def installed():
-    # Atomic ledger snapshots need no host lock (build-infrastructure.md 12).
+    # Atomic ledger snapshots need no host lock (tools/heavy/design.md 12).
     try:
         snapshot = (BASE / 'state.json').read_text()
     except FileNotFoundError:
@@ -815,7 +815,7 @@ def install(interval):
         if any(char in str(path) for path in (BASE, units, KIT) for char in '\r\n'):
             raise Refusal('systemd integration paths must be single-line paths')
         # Record first: a partial install must refuse, never run plain
-        # (build-infrastructure.md 4 and 12). Reinstallation rewrites the units.
+        # (tools/heavy/design.md 4 and 12). Reinstallation rewrites the units.
         ledger.data['installation'] = {'boot': boot(), 'interval': interval, 'probe': groups,
                                         'units': str(units)}
         ledger.save()

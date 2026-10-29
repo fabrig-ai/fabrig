@@ -1086,7 +1086,7 @@ printf '%s\\n' "$before"
     def test_check_boundary_does_not_prepare_gate_policy(self):
         script = self.repo / "scripts/check.sh"
         script.parent.mkdir()
-        shutil.copy(KIT.parent / "check.sh", script)
+        shutil.copy(KIT / "check.sh", script)
         (script.parent / "devel").mkdir()
         shutil.copy(KIT / "gate-shares.py", script.parent / "devel/gate-shares.py")
         self.script(self.repo / "scripts/devel/gate-policy.sh", "#!/bin/sh\nexit 91\n")

@@ -24,12 +24,12 @@ import time
 import uuid
 
 KIT = Path(__file__).resolve().parent
-COORDINATOR = 'debian-16gb-hel1-3'
+COORDINATOR = 'fixture-coordinator'
 SSH = ['ssh', '-T', '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=yes',
        '-o', 'ConnectTimeout=5', '-o', 'ServerAliveInterval=5',
        '-o', 'ServerAliveCountMax=2', '-o', 'UpdateHostKeys=no',
-       '-o', 'LogLevel=QUIET', 'free@2.29.124.199']
-FEED_PATH = '/home/free/.local/state/agents-land-set/feed.jsonl'
+       '-o', 'LogLevel=QUIET', 'fixture-host.invalid']
+FEED_PATH = str(Path.home() / 'fixture-feed.jsonl')
 # Same append program and transport as land-set; records enter only on stdin.
 FEED = '''import fcntl, os, pathlib, stat, sys
 os.umask(0o077)

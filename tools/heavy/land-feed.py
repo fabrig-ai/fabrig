@@ -21,11 +21,11 @@ from urllib.parse import urlsplit
 
 LIMIT, WIDTH = 10, 200  # a landing's lines per repository, and their width
 # Copied verbatim from land-set: COORDINATOR, SSH and the FEED program.
-COORDINATOR = 'debian-16gb-hel1-3'
+COORDINATOR = 'fixture-coordinator'
 SSH = ['ssh', '-T', '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=yes',
        '-o', 'ConnectTimeout=5', '-o', 'ServerAliveInterval=5',
        '-o', 'ServerAliveCountMax=2', '-o', 'UpdateHostKeys=no',
-       '-o', 'LogLevel=QUIET', 'free@2.29.124.199']
+       '-o', 'LogLevel=QUIET', 'fixture-host.invalid']
 FEED = '''import fcntl, os, stat, sys
 os.umask(0o077)
 p = sys.argv[1]
@@ -41,7 +41,7 @@ with os.fdopen(fd, 'w') as out:
     out.write(sys.stdin.read())
     out.flush()
 '''
-FEED_PATH = '/home/free/.local/state/agents-land-set/feed.jsonl'
+FEED_PATH = str(Path.home() / 'fixture-feed.jsonl')
 
 
 def taught(path, base, tip):
