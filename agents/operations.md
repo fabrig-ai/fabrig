@@ -24,6 +24,7 @@ Provisional, 2026-10-28. The machines' and the pipeline's facts every role works
 
 - Run installed `claim` from PATH on hel8, not from a lead's clone: it reads main's `tools/slots/hosts`. `claim list` shows shares and holders; `claim list --free OWNER` lists free slots of that share, then the pool.
 - `claim claim HOST N OWNER WHAT` before a task takes a slot, `claim release HOST N OWNER` when its report is in. Another lead's share needs its owner's agreement and `--lent-by SHARE_OWNER`; a free slot in that share is not pool space.
+- QA walks use hetzner6 shares 4 and 8 as `s/qa`, claiming before checkout changes or builds and releasing after the box and give-back finish. Switch the named slot in place and retain its warm target; do not create additional walk worktrees with independent cargo targets. A held claim is not available, including one held by another walk of the same owner. The ordinary heavy cap and decimal 80 GB admission checks still apply.
 - A guard on each builder (`tools/slots/guard --timer`) trims idle slots when free space falls below 80 GB.
 - A slot's target stays warm across tasks: a task switches the slot's checkout in place, never a fresh clone. Stale test executables fill a builder's disk (one reached zero bytes on 10-28, and heavy then fails its own bookkeeping), so `codex-run` trims a writable task's slot before Codex starts (`tools/slots/trim`; by hand: `ssh HOST 'bash -lc "python3 -I - SLOT"' < tools/slots/trim` from hel8).
 
