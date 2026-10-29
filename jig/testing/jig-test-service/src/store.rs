@@ -53,10 +53,10 @@ pub(super) struct Store {
 
 pub(super) fn limits(root: &root::Limits, profile: &protocol::Limits) -> Option<protocol::Limits> {
     let mut kv = profile.store;
-    let sizes = protocol::sizes::check(
+    let sizes = protocol::sizes::check_commits(
         &root.core,
         &jig_test_store::application(&root.connector),
-        &root.journal,
+        &protocol::sizes::commits(&root.journal),
         &kv,
         profile.orphan_erases,
     )

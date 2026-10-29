@@ -582,9 +582,14 @@ pub fn component_limits(root: &root::Limits) -> Limits {
         page: skein_kv::Page { rows: 2, bytes: u32::MAX },
         deadline: Duration::from_secs(1),
     };
-    let sizes =
-        protocol::sizes::check(&root.core, &jig_test_store::application(&root.connector), &root.journal, &kv, 1)
-            .expect("root's actual journal and map rows fit the store");
+    let sizes = protocol::sizes::check_commits(
+        &root.core,
+        &jig_test_store::application(&root.connector),
+        &protocol::sizes::commits(&root.journal),
+        &kv,
+        1,
+    )
+    .expect("root's actual journal and map rows fit the store");
     kv.key = sizes.key;
     kv.value = sizes.value;
     kv.ops = sizes.ops;
