@@ -4,7 +4,6 @@ use skein_world::domain::heap::Counting;
 #[global_allocator]
 static HEAP: Counting = Counting;
 
-mod qa_added_deps;
 mod qa_adoption_hold;
 mod qa_github_connect;
 mod qa_github_land;
