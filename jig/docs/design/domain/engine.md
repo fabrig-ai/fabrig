@@ -1770,13 +1770,15 @@ across another mark before that turn, settling it again.
 Its stories of the restore before the switch (section 6), over the store
 with fixture patch sets: a patched copy restored whole, its restores'
 commits in the copy, no secret served and no run adopted before the
-switch, switched, and the manifest naming the position then; a patched account the accounts child would
-count and leave, refused at the switch step, the generation patched from
-still active and unchanged, and a start of the build before opening it as
-it was; a task naming a project the copy does not hold, refused before the
-switch the same way; a live set past limits lowered since, refused the
-same way; a crash during the restore, the next start patching a fresh
-copy; and a start with nothing pending, whose script has no switch step.
+switch, switched, and the manifest naming the position then; a live set
+past limits lowered since, refused before the switch, the generation
+patched from still active and unchanged, and a start of the build before
+opening it as it was; a task naming a project the copy does not hold, a
+link that cannot be made, panicking before the switch with the task and
+the project named, the generation patched from the same; a crash during
+the restore, the next start patching a fresh copy; and a start with
+nothing pending, whose switch step switches nothing and commits the
+wires alone.
 
 Its referee holds the core to core.md, section 11, seen from outside;
 applications' worlds reuse it on jig's conformance world (testing.md,
