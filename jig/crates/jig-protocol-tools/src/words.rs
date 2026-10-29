@@ -31,7 +31,8 @@ pub fn words(word: &tasks::Word) -> Box<[u8]> {
             (b"Your person answered question in their inbox ".as_slice(), question)
         }
         tasks::MessageKind::QuestionEnded { question } => (b"Question ended unanswered ".as_slice(), question),
-        tasks::MessageKind::Words
+        tasks::MessageKind::QuestionOwed
+        | tasks::MessageKind::Words
         | tasks::MessageKind::Question
         | tasks::MessageKind::Answer { .. }
         | tasks::MessageKind::Notice { .. }

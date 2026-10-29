@@ -447,6 +447,16 @@ fn question_world_with_switch(
     text: Option<u32>,
     enabled: bool,
 ) -> (jig_core_world::effects::World, u64) {
+    question_world_with_obligation(seed, bound, text, enabled, false)
+}
+
+fn question_world_with_obligation(
+    seed: u64,
+    bound: Option<u32>,
+    text: Option<u32>,
+    enabled: bool,
+    asks: bool,
+) -> (jig_core_world::effects::World, u64) {
     let (configuration, mut limits) = jig_core_world::faults::plan_fixture(seed);
     if let Some(text) = text {
         limits.core.documents.text_bytes = text;
@@ -477,6 +487,7 @@ fn question_world_with_switch(
             budget: jig_domain_people::Budget::Named,
             executor: tasks::Executor::Agent { charter: 1 },
             spec: tasks::Spec {
+                asks,
                 words: b"ask the parent".as_slice().into(),
                 parameters: Box::new([]),
                 inputs: Box::new([]),
@@ -844,4 +855,45 @@ fn enabling_direct_answers_accepts_an_open_relay_question_after_restart() {
         people::Ask::AnswerQuestion { project: 1, task: director, question, words: b"proceed".as_slice().into() },
     );
     assert!(jig_core_world::fixtures::live_row(&world, delegate).questions.is_empty());
+}
+
+#[test]
+fn an_owing_delegates_early_finish_commits_the_reminder_and_resumes() {
+    let (mut world, parent) = question_world_with_obligation(809, None, None, true, true);
+    let delegate = chat_task(&world);
+    world.turn(1, 1, None, b"prepared a plan");
+    let attempt = run_key(&world, delegate, 0).attempt;
+    world.send(root::Event::Answer {
+        read: None,
+        refused: Box::new([]),
+        channel: skein_lib::Token::new(7),
+        task: delegate,
+        attempt,
+        cumulative: 1,
+        end: tasks::End::Finished {
+            result: tasks::TaskResult::Report { words: b"plan ready".as_slice().into() },
+            cancel_delegates: false,
+        },
+    });
+    let assigned = world.assigned.as_ref().expect("immediate next run");
+    assert_eq!(assigned.task, delegate);
+    assert!(assigned.attempt > attempt);
+    assert!(assigned.messages.iter().any(|word| word.kind == tasks::MessageKind::QuestionOwed
+        && word.words.as_ref()
+            == b"You owe your requester a question: ask your plan with message, as a question, and wait."));
+    let transcript = world
+        .assignment_transcripts
+        .iter()
+        .rev()
+        .find(|transcript| transcript.task == delegate)
+        .expect("resumed delegate transcript");
+    assert_eq!(transcript.turns.as_ref(), [Box::<[u8]>::from(b"prepared a plan".as_slice())]);
+    let question = message(&mut world, delegate, parent, 1, tasks::MessageKind::Question, b"proceed with this plan?");
+    request(
+        &mut world,
+        99,
+        people::Ask::AnswerQuestion { project: 1, task: parent, question, words: b"proceed".as_slice().into() },
+    );
+    finish_chat(&mut world, delegate);
+    world.restart(809, false);
 }

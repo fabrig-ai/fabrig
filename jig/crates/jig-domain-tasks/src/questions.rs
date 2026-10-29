@@ -222,13 +222,18 @@ fn append_notice(
     let word = Word {
         number: message,
         from: Party::Task(task),
+        words: if kind == MessageKind::QuestionOwed { Box::from(OWED_WORDS) } else { Box::new([]) },
         kind,
-        words: Box::new([]),
         at: env.wall,
         hits: 1,
         eligible: true,
     };
-    let prepared = crate::inbox::prepare(domain, &env.limits, task, word, crate::inbox::Admission::RoomKept)
+    let admission = if word.kind == MessageKind::QuestionOwed {
+        crate::inbox::Admission::Merged
+    } else {
+        crate::inbox::Admission::RoomKept
+    };
+    let prepared = crate::inbox::prepare(domain, &env.limits, task, word, admission)
         .expect("question reserved its terminal notice");
     let row = task_mut(domain, task).expect("notice owner live");
     row.record.last_message = message;
@@ -354,5 +359,20 @@ fn coalesce(output_start: u32, out: &mut Queue<Request>) {
         if last.get(&row.number) == Some(&position) {
             out.push(request);
         }
+    }
+}
+
+/// The reminder is durable message text, carried unchanged to the run.
+pub(crate) const OWED_WORDS: &[u8] =
+    b"You owe your requester a question: ask your plan with message, as a question, and wait.";
+
+pub(crate) fn owed(domain: &mut Domain, env: &Env<Limits>, task: u64, message: u64, out: &mut Queue<Request>) {
+    let Some(row) = record(domain, task) else { return };
+    if !row.spec.asks || row.asked_requester || row.phase != crate::Phase::Active(crate::Active::Idle) {
+        return;
+    }
+    if let Some((previous, word)) = append_notice(domain, env, task, message, MessageKind::QuestionOwed, out) {
+        changed(domain, task);
+        crate::wake::after_message(domain, env, task, previous, word, out);
     }
 }

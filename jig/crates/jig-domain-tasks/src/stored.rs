@@ -409,6 +409,7 @@ fn valid_record(domain: &Domain, limits: &Limits, task: &TaskRecord) -> bool {
             | crate::MessageKind::Words
             | crate::MessageKind::Question
             | crate::MessageKind::QuestionAnswered { .. }
+            | crate::MessageKind::QuestionOwed
             | crate::MessageKind::QuestionEnded { .. }
             | crate::MessageKind::Answer { .. }
             | crate::MessageKind::Notice { .. }
@@ -492,6 +493,7 @@ fn valid_record(domain: &Domain, limits: &Limits, task: &TaskRecord) -> bool {
             | crate::MessageKind::Amendment { .. }
             | crate::MessageKind::Met { .. }
             | crate::MessageKind::QuestionAnswered { .. }
+            | crate::MessageKind::QuestionOwed
             | crate::MessageKind::QuestionEnded { .. } => match word.from {
                 Party::Task(_) | Party::Person(_) => true,
                 Party::Deployment { .. } => false,
@@ -534,6 +536,9 @@ fn valid_record(domain: &Domain, limits: &Limits, task: &TaskRecord) -> bool {
             limits.result_bytes
         } else {
             match &word.kind {
+                crate::MessageKind::QuestionOwed => {
+                    u32::try_from(crate::questions::OWED_WORDS.len()).expect("fixed reminder length")
+                }
                 crate::MessageKind::Words
                 | crate::MessageKind::SettingsDecision { .. }
                 | crate::MessageKind::ProposalDecision { .. }
@@ -572,6 +577,7 @@ fn valid_record(domain: &Domain, limits: &Limits, task: &TaskRecord) -> bool {
                 | crate::MessageKind::Amendment { .. }
                 | crate::MessageKind::Met { .. }
                 | crate::MessageKind::QuestionAnswered { .. }
+                | crate::MessageKind::QuestionOwed
                 | crate::MessageKind::QuestionEnded { .. }
                 | crate::MessageKind::Notice { .. }
                 | crate::MessageKind::News { .. }
@@ -1038,6 +1044,7 @@ fn links(domain: &Domain, env: &Env<Limits>, task: &TaskRecord) -> bool {
             | crate::MessageKind::ProposalDecision { .. }
             | crate::MessageKind::Question
             | crate::MessageKind::QuestionAnswered { .. }
+            | crate::MessageKind::QuestionOwed
             | crate::MessageKind::QuestionEnded { .. }
             | crate::MessageKind::Answer { .. }
             | crate::MessageKind::Notice { .. }

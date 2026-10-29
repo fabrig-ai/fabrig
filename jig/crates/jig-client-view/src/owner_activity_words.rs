@@ -119,9 +119,10 @@ pub enum ActivityPhrase {
     QuestionEnded,
     KeptQuestion,
     QuestionAnswered,
+    QuestionOwed,
 }
-// Activity captions include the three numbered question outcomes.
-pub const ALL: [ActivityPhrase; 110] = [
+// Activity captions include question outcomes and the requester obligation.
+pub const ALL: [ActivityPhrase; 111] = [
     ActivityPhrase::Activity,
     ActivityPhrase::Task,
     ActivityPhrase::Position,
@@ -232,6 +233,7 @@ pub const ALL: [ActivityPhrase; 110] = [
     ActivityPhrase::QuestionEnded,
     ActivityPhrase::KeptQuestion,
     ActivityPhrase::QuestionAnswered,
+    ActivityPhrase::QuestionOwed,
 ];
 impl ActivityPhrase {
     #[must_use]
@@ -351,6 +353,7 @@ impl ActivityPhrase {
             Self::QuestionEnded => 7308,
             Self::KeptQuestion => 7309,
             Self::QuestionAnswered => 7310,
+            Self::QuestionOwed => 7311,
         };
         PhraseId { owner: Owner::Jig.opaque(), number }
     }
@@ -432,7 +435,8 @@ impl ActivityPhrase {
             | Self::FieldValue
             | Self::Change
             | Self::ResultFailed
-            | Self::ResultCancelled => None,
+            | Self::ResultCancelled
+            | Self::QuestionOwed => None,
             Self::Task
             | Self::Position
             | Self::Message
@@ -585,6 +589,7 @@ impl ActivityPhrase {
             Self::QuestionEnded => b"Question ended unanswered: ",
             Self::KeptQuestion => b"Kept by question: ",
             Self::QuestionAnswered => b"Person answered question in inbox: ",
+            Self::QuestionOwed => b"Owes a question: ask your requester",
         }
     }
 }
