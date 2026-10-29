@@ -1,12 +1,10 @@
 //! UI storage and full pages measured on the counting allocator.
-use skein_heap::{Counting, Meter};
+use skein_heap::Meter;
 use skein_lib::Queue;
 use skein_ui::scene::{Anchor, Point, Scene};
 use skein_ui::{Builder, Limits, Node, Owner, Patch, Role, SlotRef, Style, View, markdown, worst_case};
 use skein_ui_tests::full_page;
 
-#[global_allocator]
-static HEAP: Counting = Counting;
 const LIMITS: Limits = Limits {
     nodes: 32,
     depth: 8,
