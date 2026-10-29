@@ -4772,6 +4772,7 @@ dependencies = [
 name = "temper-service"
 version = "0.0.0"
 dependencies = [
+ "jig-client",
  "jig-client-protocol-wire",
  "jig-domain-accounts",
  "jig-domain-authority",
@@ -4825,6 +4826,7 @@ dependencies = [
  "smith-transcript",
  "temper-client-domain",
  "temper-client-protocol-wire",
+ "temper-client-tools",
  "temper-engine-domain",
  "temper-engine-domain-forge",
  "temper-engine-domain-forge-change",
