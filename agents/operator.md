@@ -77,3 +77,5 @@ Provisional, 2026-10-29. One Codex owner on hel8 (`codex-run owner`, at high), p
 - Before starting an agents landing, fetch and rebase the branch onto current main, then invoke its updated native tools/land. A branch predating the shared lock can run an unlocked first gate before its later rebase; that rebase protects only subsequent gates. Keep the final candidate under the shared lock and retain the maintenance window’s expiry (ledger105).
 
 - Include the no-cargo/no-heavy rule in every hel8 task, including docs tasks. When edited documentation is compiled into tests, place those tests in a claimed builder slot and check80GB before each heavy command; required doc coverage does not authorize building on the session host (ledger107).
+
+- A watcher’s active unit and registered waiter establish its first check, not its steady waiting behavior. Verify the service’s own waiting phase against the configured interval and wrapper bounds; preserve custody while a latency-only repair is reviewed, and arrange one drained restart after the installed-source proof (ledger108).
