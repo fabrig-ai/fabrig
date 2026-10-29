@@ -331,7 +331,7 @@ the routing in the step that routes the record:
   | `saved` | `Saved` | the checkout's `repositories`, `conflicts` and `path_bytes`, and `PushDiagnostic::CAPACITY` |
   | `resource` | `Preparation` | fixed |
   | `evidence` | smith's delivery reply | smith's channel limits, as the hub's `delivery_evidence_bytes` takes them |
-  | `grant` | max(credential value bound, program source name bound 32, generated `Identity::worst_case_bytes`), which grows with `forges.installations` on a GitHub forge | jig's accounts (jig's `protocol/llm.md`, section 6); configuration's identities, `records.value_bytes` and `forges.installations`, checked to fit jig's grant bound at start (configuration.md, section 3) |
+  | `grant` | max(credential value bound, program source name bound 32, generated `Identity::encoded_bound`), which grows with `forges.installations` on a GitHub forge | jig's accounts (jig's `protocol/llm.md`, section 6); configuration's identities, `records.value_bytes` and `forges.installations`, checked to fit jig's grant bound at start (configuration.md, section 3) |
   | `credentials` | the number of git identities | configuration (configuration.md, section 3) |
 
 - **Within jig's ceilings.** Each must fit the ceiling jig's schema gives

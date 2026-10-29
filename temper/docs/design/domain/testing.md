@@ -1783,12 +1783,20 @@ skein's (skein's `fake-llm.md`):
     stop, its transcripts decoded by jig's frame decoder and smith's
     turn codec (jig's `protocol/store.md`, section 8; smith's
     `protocol/transcript.md`), never the store opened; and the tasks to
-    take, `--cue TASK=PHRASE` each. Every script is `cued`, its cue a
-    phrase of that task's system text, where smith renders each task's
-    brief, a chat's included: the person's request for a chat, a phrase
-    of its brief for a delegate. A chat's first user message is smith's
-    own opening words, never the person's, so an `asked` script would
-    not match.
+    take, `--cue TASK=PHRASE` each. A fresh Open chat's cue is a phrase
+    of its person's opening request, where smith puts that run's
+    brief (smith's `domain/run.md`, 3.4); its script is `asked`. A
+    Finite run's or a delegate's cue is a phrase of its system brief,
+    and its script is `cued`. The converter reads the first turn's
+    user text before its assistant completion: a cue found there is
+    asked, unless the text starts with smith's instruction to begin
+    the brief or the instructions, which keeps the script cued even
+    when an offered message quotes its cue. A cue absent from that
+    opening text stays cued. Both script lists replace the base's;
+    its other members are preserved. A script's cue names its opening
+    sequence: asked turns advance on tool results, a pending `wait`'s
+    waking result included, while a new user message holding text
+    selects anew and restarts the count (skein's `fake-llm.md`, 2.4).
   - **Its output:** one document in `temper fake llm`'s form
     (../protocol/setup.md, 8.4), a script per task, each assistant
     completion of its run one turn, its text and its calls in order,
