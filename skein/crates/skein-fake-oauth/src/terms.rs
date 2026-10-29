@@ -38,15 +38,6 @@ pub(super) fn valid(terms: Option<&Terms>, limits: &Limits) -> bool {
         None => true,
     }
 }
-pub(super) fn worst_case(limits: &Limits) -> Option<u64> {
-    List::<Box<[u8]>>::price(limits.carried)?
-        .checked_add(u64::from(limits.carried).checked_mul(u64::from(limits.document.string_bytes))?)?
-        .checked_add(u64::try_from(ISSUED).ok()?.checked_mul(
-            u64::from(limits.document.string_bytes).checked_add(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?,
-        )?)?
-        .checked_add(u64::from(limits.uri_bytes))?
-        .checked_add(crate::openid::worst_case(limits)?)
-}
 pub(super) fn latest(config: &Config, count: usize) -> &[u8] {
     let Some(terms) = &config.terms else { return &config.client_id };
     if count == 0 {
