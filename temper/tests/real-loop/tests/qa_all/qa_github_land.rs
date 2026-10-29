@@ -1,6 +1,6 @@
 //! QA-B: connected GitHub after pull creation, on the shipped real loop.
 //! Design, public harness surface and explicitly allowed usage examples only.
-use serde_json::{Value, json};
+use serde_json::Value;
 use skein_fake_forge_domain::{Observation, api};
 use skein_fake_llm_domain::api::{Finish, Line, Part, Script, Turn};
 use std::{fmt::Write, net::SocketAddr, path::Path};
@@ -289,35 +289,6 @@ fn available_client_pages_context_and_nonsecret_store_have_no_token() {
     assert!(scan(&ran.path().join("state/generations/1/store")) > 0, "persisted store scan exercised");
     assert!(scan(&ran.path().join("state/transcripts")) > 0, "transcript scan exercised");
     scan(&ran.path().join("worker-root"));
-}
-
-fn tool(name: &[u8], arguments: &Value) -> Turn {
-    Turn {
-        lines: Box::new([Line::Call {
-            name: name.into(),
-            arguments: serde_json::to_vec(arguments).expect("tool JSON").into(),
-        }]),
-        finish: Finish::ToolCalls,
-        tokens: 20,
-    }
-}
-
-fn unanswered_repair_scripts(address: SocketAddr) -> Box<[Script]> {
-    let mut scripts = scripts(address).into_vec();
-    scripts[1].turns[1] =
-        tool(b"edit", &json!({"path":"README.md","edits":[{"old":"# app\n","new":"# app\nQA failing head\n"}]}));
-    scripts.push(Script {
-        cue: b"CI".as_slice().into(),
-        turns: Box::new([
-            tool(b"read", &json!({"path":"README.md"})),
-            tool(
-                b"edit",
-                &json!({"path":"README.md","edits":[{"old":"QA failing head\n","new":"Changed by temper.\n"}]}),
-            ),
-            tool(b"finish", &json!({"form":"change","fields":{"title":"Repair CI","body":"Fixed failing head."}})),
-        ]),
-    });
-    scripts.into_boxed_slice()
 }
 
 const ONE_MERGE: usize = 1;
@@ -646,34 +617,4 @@ fn a_landing_merges_before_any_resource_poll() {
     };
     let ran = run_github(fixture, scripts, landed_steps);
     landed(&ran);
-}
-
-#[test]
-#[ignore = "needs: real-loop per-request GitHub pause/release hook for a required brief read across fixture-short gather"]
-fn an_unanswered_repair_brief_is_bounded_by_its_gather_deadline() {
-    // QA: domain/root.md 7.2, 10: gather (shipped 30 s) bounds a stuck
-    // connector; a missing required section never becomes a partial brief.
-    // The public GitHub setup/timing callbacks cannot pause a request.
-    // Needs: hold CI-log or PullFiles after preparation starts, through a
-    // short gather; take the following reads while it remains held, then
-    // release it. Expiry's exact task phase is not specified by the design.
-    let ran = run_github(fixture(), unanswered_repair_scripts, || {
-        let mut steps = begin();
-        steps.extend([
-            call(D1, argv!["task", "show", task(CHAT_CALL), "--until", "replied"]),
-            call(D1, argv!["me", "--json"]),
-            call(D1, argv!["task", "show", number(CHANGE), "--json"]),
-        ]);
-        steps
-    });
-    succeeded(&ran);
-    assert!(!ran.github().pulls.iter().any(|seen| matches!(seen, Observation::Merged { .. })));
-    assert!(
-        !ran.llm().iter().any(|seen| matches!(seen,
-            skein_fake_peers::llm::Observation::Query { query, .. }
-                if contains(&query.system, b"Repair the failed CI on the change branch")
-        )),
-        "no repair assignment while its required section is missing"
-    );
-    panic!("needs: real-loop required-brief read pause/release and gather-boundary synchronization");
 }
