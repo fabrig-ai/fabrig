@@ -26,11 +26,11 @@ def command(*args):
 
 
 def busy(slot):
-    units = command("systemctl", "--user", "list-units", "--plain", "--no-legend",
+    units = command("systemctl", "--user", "list-units", "--type=service", "--plain", "--no-legend",
                     "--state=active,activating")
     for row in units.splitlines():
         name = row.split()[0]
-        if "-heavy-" not in name:
+        if "-heavy-" not in name or not name.endswith(".service"):
             continue
         properties = dict(line.split("=", 1) for line in command(
             "systemctl", "--user", "show", "-p", "WorkingDirectory,ActiveState", name
