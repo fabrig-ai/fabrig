@@ -162,10 +162,6 @@ impl Service {
         let forges = crate::forge::prepare(&settings, forges)?;
         Self::prepared(settings, seeds, accounts, forges, worker, io_limits, None)
     }
-    #[expect(
-        clippy::too_many_lines,
-        reason = "one startup constructs the service; explicit matches follow the strict subset"
-    )]
     pub(crate) fn prepared(
         mut settings: settings::Engine,
         seeds: &settings::Seeds,
@@ -187,14 +183,12 @@ impl Service {
             limits::client_value_bytes(&settings.jig.limits, &settings.limits);
         let store_limits = store::limits(&limits, &limits.forge, &settings.jig.limits.store)
             .ok_or(start_problem(b"limits", What::Bound))?;
-        let max = temper_engine_domain::max_out(&limits);
-        let queue = max.checked_mul(2).ok_or(start_problem(b"limits", What::Bound))?;
         let worker_operations = match &worker {
             Some(worker) => worker.operations(),
             None => 0,
         };
         let operations =
-            startup_operations(&io_limits, queue, worker_operations).ok_or(start_problem(b"limits", What::Bound))?;
+            startup_operations(&io_limits, worker_operations).ok_or(start_problem(b"limits", What::Bound))?;
         let accounts = accounts_driver(&settings, seeds, accounts, &store_limits.secrets)?;
         let mut values =
             values::Values::new(settings.jig.limits.driver.accounts, values::credential_bytes(&settings.jig));
@@ -261,10 +255,14 @@ impl Service {
             engine: Some(engine),
             io: Io::new(&io_limits),
             io_env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: io_limits },
-            completions: Queue::with_capacity(queue),
-            submissions: Queue::with_capacity(queue),
-            raw_submissions: Queue::with_capacity(queue),
+            // Every live kernel operation can complete in one reap batch.
+            completions: Queue::with_capacity(operations),
+            // The shell can publish the whole credited operation population at once.
+            submissions: Queue::with_capacity(operations),
+            // Staged successors and cancels share the aggregate operation credit.
+            raw_submissions: Queue::with_capacity(operations),
             told: Queue::uncapped(),
+            // Live routes and completed targets awaiting cancel publication use the same credit.
             kernel: accounts::Kernel::new(operations),
             box_pipe: None,
             signals: None,
@@ -565,18 +563,7 @@ impl Service {
     /// Maximum simultaneous kernel operations, for the shell's ring.
     #[must_use]
     pub fn operations(&self) -> u32 {
-        if self.engine.is_none() {
-            return self.raw_submissions.capacity();
-        }
-        io::operations(&self.io_env.limits)
-            .expect("checked io operations")
-            .checked_add(self.raw_submissions.capacity().checked_mul(4).expect("component operations"))
-            .expect("engine operations")
-            .checked_add(match &self.worker {
-                Some(worker) => worker.operations(),
-                None => 0,
-            })
-            .expect("service operations")
+        self.raw_submissions.capacity()
     }
     /// Every owned child has closed and every queue and kernel route is empty.
     #[must_use]
@@ -689,6 +676,14 @@ impl Service {
             roots.entry(&worker.root);
         }
         roots.finish()
+    }
+    #[cfg(test)]
+    pub(crate) fn publish_staged(&mut self) {
+        self.kernel.publish(&mut self.raw_submissions, &mut self.submissions);
+    }
+    #[cfg(test)]
+    pub(crate) fn complete_staged(&mut self, complete: Complete) -> Complete {
+        self.kernel.complete(complete, &self.raw_submissions)
     }
     fn complete(&mut self, complete: Complete) {
         if store::owns(complete.op) {
@@ -948,8 +943,9 @@ pub(crate) fn worker_alone_operations(io: &io::Limits, worker_operations: u32) -
     // operations and closes counted by worker_settings.
     io::operations(io)?.checked_mul(io::MAX_OUT_DOWN.submissions)?.checked_add(worker_operations)
 }
-fn startup_operations(io: &io::Limits, queue: u32, worker_operations: u32) -> Option<u32> {
-    io::operations(io)?.checked_add(queue.checked_mul(4)?)?.checked_add(worker_operations)
+fn startup_operations(io: &io::Limits, worker_operations: u32) -> Option<u32> {
+    // Shared io successors, worker file operations and the three store drivers own the kernel credit.
+    worker_alone_operations(io, worker_operations)?.checked_add(store::OPERATIONS)
 }
 
 fn forget_handover(settings: &mut settings::Engine) {

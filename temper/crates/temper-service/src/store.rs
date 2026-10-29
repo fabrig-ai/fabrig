@@ -33,6 +33,8 @@ const fn record_version(version: u64) -> u32 {
 const ADOPT: Token = Token::new(u64::MAX - 1);
 const CLOSE: Token = Token::new(u64::MAX);
 const MASK: u64 = (1_u64 << 60) - 1;
+// Each of the three FileIo drivers owns one target (or cleanup successor) and one cancel.
+pub(crate) const OPERATIONS: u32 = 3 * 2;
 
 #[derive(Debug)]
 struct Driver {
@@ -199,7 +201,6 @@ impl Store {
         models: &[jig_domain_core::Model],
         installation: [u8; 16],
     ) -> Self {
-        let room = root::max_out(application).checked_mul(2).expect("store route room");
         let routes = route::Routes::new(
             application.loads.loads,
             application,
@@ -244,7 +245,7 @@ impl Store {
                 transcripts: Queue::uncapped(),
             },
             drivers,
-            submitted: Queue::with_capacity(room),
+            submitted: Queue::with_capacity(OPERATIONS),
             opened: false,
             pending_generation: false,
             installation,
