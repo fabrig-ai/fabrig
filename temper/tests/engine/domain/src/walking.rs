@@ -234,21 +234,6 @@ pub fn limits() -> engine::Limits {
     limits
 }
 
-// Remove this helper when the two temper-client-world callers move.
-/// Root route room for these bounds, including continuations and call records.
-#[must_use]
-pub fn writes(limits: &engine::Limits) -> u32 {
-    tasks::max_out(&limits.tasks) * 8
-        + people::max_out(&limits.people) * 4
-        + limits.people.pending * 2
-        + fleet::max_out(&limits.fleet) * 4
-        + temper_engine_domain_forge::max_out(&limits.forge)
-        + 2 * limits.authority.projects
-        + limits.tasks.tasks
-        + 4
-        + limits.call_records
-}
-
 fn authority_limits() -> authority::Limits {
     authority::Limits {
         projects: 1,
