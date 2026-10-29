@@ -488,8 +488,7 @@ impl World {
             .as_ref()
             .and_then(|workspace| workspace.directories.first())
             .map(|directory| directory.root.raw());
-        let max_out = agent::max_out(&settings.limits);
-        let mut stage = Stage::new(settings.limits, max_out, max_out + 3);
+        let mut stage = Stage::uncapped(settings.limits);
         let charter = selected_charter.unwrap_or_else(|| charter(settings));
         let observed_contract = charter.outcome.clone();
         let mut model_prices = BTreeMap::new();
@@ -886,10 +885,7 @@ impl World {
             while let Some(delivery) = self.schedule.next(self.now) {
                 self.deliver(delivery);
             }
-            while self.agent.facts_room() >= agent::max_facts(&self.stage.env.limits)
-                && self.stage.has_room()
-                && self.agent.is_ready()
-            {
+            while self.agent.facts_room() >= agent::max_facts(&self.stage.env.limits) && self.agent.is_ready() {
                 agent::resume(&mut self.agent, &self.stage.env, &mut self.stage.out);
                 self.gather();
             }
@@ -900,10 +896,7 @@ impl World {
                 agent::step(&mut self.agent, &self.stage.env, event, &mut self.stage.out);
                 self.gather();
             }
-            while self.agent.facts_room() >= agent::max_facts(&self.stage.env.limits)
-                && self.stage.has_room()
-                && self.agent.is_due(self.now)
-            {
+            while self.agent.facts_room() >= agent::max_facts(&self.stage.env.limits) && self.agent.is_due(self.now) {
                 agent::fire(&mut self.agent, &self.stage.env, &mut self.stage.out);
                 self.gather();
             }

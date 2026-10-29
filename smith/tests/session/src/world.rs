@@ -20,13 +20,6 @@ mod window_referee;
 
 pub use window_referee::{assert_prompt_bound, assert_prompt_boundary, assert_prompt_extends};
 
-/// Room in each domain's output queue beyond what one step may emit. Small, so
-/// the loop's flow control (take an event only while there is room for what
-/// it may produce) is exercised.
-///
-/// World contract: domain/session.md, sections 10 and 12; testing-strategy.md, section 2.2.
-const SLACK: u32 = 3;
-
 /// What the fake opener says when it nudges a session on.
 ///
 /// World contract: domain/session.md, sections 10 and 12; testing-strategy.md, section 2.2.
@@ -901,7 +894,6 @@ impl World {
         let provider =
             provider::Domain::configured(&settings.provider, rng.next_u64(), scripts, crate::provider::menu())
                 .expect("application menu obeys provider admission");
-        let max_out = agent::max_out(&settings.agent);
         let mut checkout = Checkout::new();
         fixture::script(&mut checkout);
         World {
@@ -909,7 +901,7 @@ impl World {
             rng,
             settings,
             agent,
-            agent_stage: Stage::new(settings.agent, max_out, max_out + SLACK),
+            agent_stage: Stage::uncapped(settings.agent),
             provider,
             provider_stage: Stage::uncapped(settings.provider),
             wire: Schedule::new(),
@@ -1038,12 +1030,9 @@ impl World {
         self.provider_stage.tick(self.now);
         self.deliver();
 
-        // Each stage resumes what is ready, then takes its events, then fires
-        // its alarms, while it has room for what one more may produce.
-        while self.agent.facts_room() >= agent::max_facts(&self.agent_stage.env.limits)
-            && self.agent_stage.has_room()
-            && self.agent.is_ready()
-        {
+        // The agent resumes what is ready, then takes its events, then fires
+        // its alarms, while it has room for the facts one more may produce.
+        while self.agent.facts_room() >= agent::max_facts(&self.agent_stage.env.limits) && self.agent.is_ready() {
             self.log("agent ready");
             let from = self.agent_stage.out.len();
             agent::resume(&mut self.agent, &self.agent_stage.env, &mut self.agent_stage.out);
@@ -1072,10 +1061,7 @@ impl World {
                 self.runs.remove(&run);
             }
         }
-        while self.agent.facts_room() >= agent::max_facts(&self.agent_stage.env.limits)
-            && self.agent_stage.has_room()
-            && self.agent.is_due(self.now)
-        {
+        while self.agent.facts_room() >= agent::max_facts(&self.agent_stage.env.limits) && self.agent.is_due(self.now) {
             self.log("agent alarm");
             let from = self.agent_stage.out.len();
             agent::fire(&mut self.agent, &self.agent_stage.env, &mut self.agent_stage.out);
