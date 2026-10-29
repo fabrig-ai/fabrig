@@ -303,12 +303,12 @@ fn an_owed_result_is_forgotten_by_compaction() {
 }
 
 #[test]
-fn program_results_leave_the_turn_cell_bounded() {
-    // Type-size contract check on the Turn and Kind cells together.
+fn the_turn_and_kind_cells_keep_their_size() {
+    // Type-size contract on the Turn and Kind cells together, measured on x86_64.
     // A change of either type's size is a deliberate edit of this number.
-    const TURN_KIND_SIZE: usize = 240;
+    const TURN_KIND_SIZE: usize = 192;
     let cells = size_of::<crate::record::Turn>() + size_of::<crate::record::Kind>();
-    assert!(cells <= TURN_KIND_SIZE, "record cells {cells} exceed {TURN_KIND_SIZE}");
+    assert_eq!(cells, TURN_KIND_SIZE, "record cells must keep their contracted size");
 }
 
 #[test]
