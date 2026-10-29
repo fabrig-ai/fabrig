@@ -56,8 +56,9 @@ fn worker_wire_decoders_never_panic_and_reencode_the_same() {
     let mut rng = Rng::new(0x7e3d_0301);
     let goldens = temper_codecs_world::goldens("crates/temper-protocol-worker-wire/golden");
     for golden in [
-        include_bytes!("../../../crates/temper-protocol-worker-wire/golden/enum_kind_forgejo_full.bin").as_slice(),
-        include_bytes!("../../../crates/temper-protocol-worker-wire/golden/enum_kind_github_full.bin").as_slice(),
+        include_bytes!("../../../../../crates/temper-protocol-worker-wire/golden/enum_kind_forgejo_full.bin")
+            .as_slice(),
+        include_bytes!("../../../../../crates/temper-protocol-worker-wire/golden/enum_kind_github_full.bin").as_slice(),
     ] {
         let kind = v1::Kind::decode(&v1::CEILINGS, &mut Reader::new(golden)).expect("kind golden");
         let value = v1::Identity::new(

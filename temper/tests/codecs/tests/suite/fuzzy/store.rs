@@ -3,10 +3,8 @@ use skein_lib::Rng;
 use temper_engine_domain_forge as forge;
 use temper_protocol_store::{Bounds, keys, records};
 
-#[path = "support/store.rs"]
-mod fixture;
-#[path = "support/protection.rs"]
-mod protection;
+use crate::fixture;
+use crate::protection;
 use fixture::LIMITS;
 
 fn record(bytes: &[u8], bounds: &Bounds) {

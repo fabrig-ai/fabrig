@@ -2,10 +2,8 @@
 use skein_forge::api::Bypass;
 use temper_protocol_store::{STORE_VERSION, Undecodable, records, v10};
 
-#[path = "support/store.rs"]
-mod fixture;
-#[path = "support/protection.rs"]
-mod protection;
+use crate::fixture;
+use crate::protection;
 
 #[test]
 fn protection_fields_have_v10_golden_bytes_and_round_trip() {

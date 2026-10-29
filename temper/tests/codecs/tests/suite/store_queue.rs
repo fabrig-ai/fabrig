@@ -1,6 +1,5 @@
 //! The runtime-30 merge queue is durable at v10 in place (protocol/store.md, 4).
-#[path = "support/store.rs"]
-mod fixture;
+use crate::fixture;
 use skein_forge::api::{Answer, Repository, Write};
 use skein_forge_client::{Condition, Effect, Entry, Outcome};
 use temper_engine_domain_forge::{CallPayload, NamedCall, Stored};
