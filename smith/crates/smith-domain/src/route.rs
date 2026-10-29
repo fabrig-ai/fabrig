@@ -225,7 +225,8 @@ fn acknowledge(domain: &mut Domain, env: &Env<Limits>, run: Token, turn: u32) {
         let mut emitted = Queue::uncapped();
         complete(domain, env, pending, &mut emitted);
         // Completion settlement is finite; transferring notices makes no more work.
-        while let Some(request) = emitted.pop() {
+        for _ in 0..emitted.len() {
+            let request = emitted.pop().expect("the emitted completion notices are queued");
             domain.notices.push(request);
         }
     }
@@ -414,22 +415,44 @@ fn history_fits(transcript: Option<&session::record::Transcript>, answered: &[u8
 /// Routes what the child domains emitted, and what that leads to, until both
 /// have emitted all they will in this entry point.
 pub(crate) fn hand_off(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
-    // Moving the entrance's finite notices to the owner makes no child work.
-    while let Some(notice) = domain.notices.pop() {
+    // Moving the entrance's notices to the owner makes no child work.
+    for _ in 0..domain.notices.len() {
+        let notice = domain.notices.pop().expect("the entrance's notices are queued");
         out.push(notice);
     }
-    // Return and Close wait for reclaim. Open/Say and an unsent completion's
-    // terminal add only finite synchronous translations (programming-model.md, 2, 4.5).
-    while !child_handoffs_drained(domain) {
-        // Finish the causal run translation of a child notice before taking
-        // its next child request. In particular Session Turn precedes Complete;
-        // its concrete root Turn must not be overtaken by that provider effect.
-        if !run_handoffs_drained(domain) {
-            let request = domain.run_out.pop().expect("a pending run handoff");
-            from_run(domain, env, request, out);
-        } else if let Some(request) = domain.session_out.pop() {
-            from_session(domain, env, request, out);
-        }
+    run_handoffs(domain, env, out);
+    // The finite synchronous chain is the entrance's session batch, sessions
+    // opened/continued by it, one narrowed unsent completion, then its terminal.
+    // Return/Close defer across reclaim; none of these batches can start another
+    // delegated batch (programming-model.md, 2, 4.5).
+    session_handoff_batch(domain, env, out);
+    session_handoff_batch(domain, env, out);
+    session_handoff_batch(domain, env, out);
+    session_handoff_batch(domain, env, out);
+    assert!(child_handoffs_drained(domain), "the synchronous causal batches finish before root return");
+}
+
+/// Drains the current session batch, including each request's causal run translation.
+fn session_handoff_batch(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    for _ in 0..domain.session_out.len() {
+        assert!(run_handoffs_drained(domain), "run translation precedes another session request");
+        let request = domain.session_out.pop().expect("the session batch is queued");
+        from_session(domain, env, request, out);
+        run_handoffs(domain, env, out);
+    }
+}
+
+/// An Open refusal can append run terminals; those emit no further synchronous run work.
+fn run_handoffs(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    run_handoff_batch(domain, env, out);
+    run_handoff_batch(domain, env, out);
+    assert!(run_handoffs_drained(domain), "Open refusals and run terminals finish this translation");
+}
+
+fn run_handoff_batch(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    for _ in 0..domain.run_out.len() {
+        let request = domain.run_out.pop().expect("the run batch is queued");
+        from_run(domain, env, request, out);
     }
 }
 

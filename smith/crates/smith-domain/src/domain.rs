@@ -347,12 +347,6 @@ impl Domain {
         self.content.pop()
     }
 
-    /// Always ample observation room on the uncapped queue; kept for existing owners.
-    #[must_use]
-    pub fn facts_room(&self) -> u32 {
-        self.facts.room()
-    }
-
     /// Optional content observations omitted by the current capture buffer.
     #[must_use]
     pub fn content_lost(&self) -> u64 {

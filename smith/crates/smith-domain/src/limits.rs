@@ -101,8 +101,7 @@ pub(crate) const fn run_out(limits: &Limits) -> u32 {
 }
 
 /// The session contribution to the public root output allowance, also sizing
-/// the turn handoff slab until slab growth
-/// (skein/docs/design/draft/dynamic-memory.md, 7.1).
+/// the turn handoff slab pending a bound for retired slots as well as live turns.
 pub(crate) const fn session_out(limits: &Limits) -> u32 {
     session_steps(limits).saturating_mul(session::max_out(&limits.session))
 }
