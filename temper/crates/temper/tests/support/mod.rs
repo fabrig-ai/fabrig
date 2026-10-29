@@ -39,6 +39,7 @@ pub mod relay;
 pub mod sign_in;
 pub mod sign_in_browser;
 pub mod sign_in_welcome;
+pub mod story_command;
 pub mod story_socket;
 use std::{fs, net::SocketAddr, os::unix::fs::PermissionsExt, path::Path};
 

@@ -156,32 +156,23 @@ impl Forge {
         forge
     }
     fn request(&self, method: &str, suffix: &str, body: Option<&Value>) -> Value {
-        use std::io::Write;
-        use std::process::{Command, Stdio};
+        use std::process::Command;
         let mut command = Command::new("/usr/bin/curl");
         command
-            .args(["--silent", "--show-error", "--fail", "--max-time", "10", "--request", method, "--header"])
+            .args(["--silent", "--show-error", "--fail", "--request", method, "--header"])
             .arg(format!("@{}", self.header.display()))
             .args(["--header", "Content-Type: application/json"])
-            .arg(format!("http://{}{REPOSITORY}/{suffix}", self.address))
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
+            .arg(format!("http://{}{REPOSITORY}/{suffix}", self.address));
         if body.is_some() {
             command.args(["--data-binary", "@-"]);
         }
-        let mut child = command.spawn().expect("owned API request");
-        if let Some(body) = body {
-            child
-                .stdin
-                .take()
-                .expect("request stdin")
-                .write_all(&serde_json::to_vec(body).expect("JSON"))
-                .expect("request body");
-        } else {
-            drop(child.stdin.take());
-        }
-        let output = child.wait_with_output().expect("owned API response");
+        let body = body.map(|body| serde_json::to_vec(body).expect("JSON"));
+        let output = super::story_command::output(
+            &mut command,
+            "the CSV repair's forge request",
+            Duration::from_secs(10),
+            body.as_deref(),
+        );
         assert!(output.status.success(), "{method} {suffix}: {}", String::from_utf8_lossy(&output.stderr));
         serde_json::from_slice(&output.stdout).expect("API JSON")
     }

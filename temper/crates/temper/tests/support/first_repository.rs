@@ -457,8 +457,6 @@ pub fn header_request(api: &str, header: &str, method: &str, route: &str, body: 
         "--show-error",
         "--noproxy",
         "*",
-        "--max-time",
-        "5",
         "--header",
         &format!("@{header}"),
         "--request",
@@ -469,7 +467,12 @@ pub fn header_request(api: &str, header: &str, method: &str, route: &str, body: 
     if let Some(body) = body {
         command.args(["--header", "Content-Type: application/json", "--data", body]);
     }
-    let output = command.arg(format!("{api}{route}")).output().expect("curl with header by path");
+    let output = super::story_command::output(
+        command.arg(format!("{api}{route}")),
+        "the printed header's API request",
+        skein_lib::Duration::from_secs(5),
+        None,
+    );
     assert!(output.status.success(), "header request failed: {}", String::from_utf8_lossy(&output.stderr));
     let text = std::str::from_utf8(&output.stdout).expect("HTTP response UTF-8");
     let (json, status) = text.rsplit_once('\n').expect("HTTP status");
