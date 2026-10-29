@@ -33,7 +33,7 @@ pub struct Limits {
     /// The byte budget for transcripts and turns (domain/root.md, 4.1).
     /// Past it, a due task’s activation waits: pacing, as the watermark is in entries.
     pub memory_bytes: u64,
-    /// Per-commit store edges and journal memory estimates.
+    /// Per-commit store edges, payload byte bounds and journal admission counts.
     pub journal: JournalLimits,
     /// Paged store reads; every startup page must fit whole.
     pub loads: loads::Limits,
@@ -391,8 +391,9 @@ pub(crate) fn row_bound(limits: &Limits) -> Option<u64> {
     )
 }
 
-/// Whether the root's limits are representable and agree with its children's
-/// (temper/docs/design/domain/root.md, 10). Startup refuses limits it rejects.
+/// Whether the root's entrance limits are representable, agree with its children
+/// and satisfy their validity predicates (temper/docs/design/domain/root.md, 10).
+/// Startup refuses limits it rejects.
 #[must_use]
 pub fn valid(limits: &Limits) -> bool {
     let Some(brief_fetches) = brief_fetches(limits) else {
@@ -420,9 +421,9 @@ pub fn valid(limits: &Limits) -> bool {
         return false;
     }
     jig_domain_core::valid(&core_limits(limits))
-        && forge::worst_case(&limits.forge).is_some()
-        && loads::worst_case(&limits.loads).is_some()
-        && crate::journal_worst_case(&limits.journal).is_some()
+        && forge::valid(&limits.forge)
+        && loads::valid(&limits.loads)
+        && crate::journal_valid(&limits.journal)
         && jig_domain_core::settings::revision_worst_case(&core_limits(limits)).is_some()
         && jig_domain_core::reads::answer_worst_case(&core_limits(limits)).is_some()
         && payload_slots(limits).is_some()
