@@ -171,7 +171,6 @@ pub struct LowerLimits {
 }
 
 /// A client with four independent cells and the classic client's engine.
-/// Its size is counted by `worst_case`.
 #[derive(Debug)]
 pub struct Client {
     state: State,

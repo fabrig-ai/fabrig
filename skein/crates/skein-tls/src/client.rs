@@ -40,8 +40,7 @@
 //! rustls has not discarded, within [`Limits::records`]; TLS's own output,
 //! within [`FLIGHT`]. The client reads a record only when the intake has
 //! room for its plaintext, so rustls never holds plaintext of its own
-//! between steps. [`worst_case`] is what a client holds, rustls's heap
-//! included; [`LARGEST_READ`] and [`largest_room`] are what whoever stacks
+//! between steps. [`LARGEST_READ`] and [`largest_room`] are what whoever stacks
 //! it checks against the caps of the stream below at startup.
 
 /// The client with independent output on both sides (tls.md, 3.6; lib.md, 7.1).
@@ -57,7 +56,6 @@ pub use error::{Certificate, Error};
 pub(crate) use limits::MAX_HANDSHAKE;
 pub use limits::{
     FLIGHT, HEADER, LARGEST_READ, Limits, MAX_BODY, MAX_PLAINTEXT, MAX_RECORD, largest_room, room_for, valid,
-    worst_case,
 };
 
 use above::{Above, Answer, Reading, Wanted, answer, stream};
