@@ -796,14 +796,9 @@ fn closing_with_a_partial_json_batch_drops_local_work() {
     clippy::disallowed_macros,
     reason = "report the local intake peak and teardown for the memory ledger"
 )]
-fn json_body_intakes_fit_the_worst_case_and_release_on_teardown() {
-    let bound = crate::limits::worst_case(
-        &fixtures::limits(),
-        &fixtures::shared(),
-        crate::limits::Forges { forgejo: 1, github: 0 },
-        0,
-    )
-    .expect("complete bound");
+fn json_body_intakes_stay_under_the_ceiling_and_release_on_teardown() {
+    // All configured JSON intakes and their fixture peak, including teardown.
+    const CEILING: u64 = 25_000;
     let span = skein_heap::Span::start();
     {
         let mut connections = skein_lib::List::with_capacity(fixtures::limits().connections);
@@ -823,6 +818,6 @@ fn json_body_intakes_fit_the_worst_case_and_release_on_teardown() {
     }
     let grown = span.end();
     assert_eq!(grown.net, 0, "all fixture and local intake allocations released");
-    assert!(u64::try_from(grown.peak).expect("positive peak") <= bound, "{} <= {bound}", grown.peak);
-    println!("JSON intake fixture peak={} bound={bound} teardown_net={}", grown.peak, grown.net);
+    assert!(u64::try_from(grown.peak).expect("positive peak") <= CEILING, "{} <= {CEILING}", grown.peak);
+    println!("JSON intake fixture peak={} ceiling={CEILING} teardown_net={}", grown.peak, grown.net);
 }

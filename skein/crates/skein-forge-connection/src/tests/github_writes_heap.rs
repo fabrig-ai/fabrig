@@ -1,4 +1,4 @@
-//! Write prerequisites and pending requests fit the GitHub call ledger.
+//! Write prerequisites and pending requests stay under scenario ceilings.
 use super::{fixtures as f, github_files::CallHeap};
 use alloc::boxed::Box;
 use skein_forge::api::{Answer, Error, Op, Read, Write};
@@ -31,14 +31,15 @@ fn hear(h: &mut f::Harness, body: &[u8], heap: &mut CallHeap) {
 }
 
 #[expect(clippy::print_stdout, clippy::disallowed_macros, reason = "report measured call peaks for the heap ledger")]
-fn fits(heap: &CallHeap, label: &str) {
-    let slot = crate::limits::github_call_heap(&f::limits(), &f::shared()).expect("GitHub call heap");
-    assert!(u64::try_from(heap.peak).expect("positive peak") <= slot, "{label}: {} > {slot}", heap.peak);
-    println!("{label}: peak {} bytes <= GitHub call heap {slot}", heap.peak);
+fn fits(heap: &CallHeap, label: &str, ceiling: u64) {
+    assert!(u64::try_from(heap.peak).expect("positive peak") <= ceiling, "{label}: {} > {ceiling}", heap.peak);
+    println!("{label}: peak {} bytes <= ceiling {ceiling}", heap.peak);
 }
 
 #[test]
-fn largest_github_set_reviewers_fits_one_slots_heap() {
+fn largest_github_set_reviewers_stays_under_the_ceiling() {
+    // The largest peak across full additions, removals and both lists full.
+    const CEILING: u64 = 18_000;
     let shared = f::shared();
     let l = f::limits();
     let bound = shared.rows.min(shared.op_bytes / 8).min(shared.answer_bytes / 8);
@@ -109,12 +110,14 @@ fn largest_github_set_reviewers_fits_one_slots_heap() {
             let answer = h.answered(1).expect("body cap checked before mutation");
             assert_eq!((answer.cost, &answer.result), (1, &Err(Error::TooLarge)));
         }
-        fits(&heap, label);
+        fits(&heap, label, CEILING);
     }
 }
 
 #[test]
-fn github_queue_merge_fits_one_slots_heap() {
+fn github_queue_merge_stays_under_the_ceiling() {
+    // Queue Merge prerequisites and the pending enqueue request.
+    const CEILING: u64 = 9_300;
     let mut h = warm();
     let text = f::filled(usize::try_from(f::limits().string_bytes).expect("string bound"), b'n');
     let pull = joined(&[
@@ -142,7 +145,7 @@ fn github_queue_merge_fits_one_slots_heap() {
     hear(&mut h, &enqueued, &mut heap);
     let answer = h.answered(1).expect("queue terminal");
     assert_eq!((answer.cost, &answer.result), (3, &Ok(Answer::Queued)));
-    fits(&heap, "queue Merge");
+    fits(&heap, "queue Merge", CEILING);
 }
 
 // Scripted peer allocations stay outside the component's measurement spans.

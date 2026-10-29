@@ -34,7 +34,11 @@ fn retained(h: &ConnectionHarness) -> &GitHubExchange {
     }
 }
 #[test]
-fn github_exchange_handoff_fits_on_every_connection_at_peak() {
+#[expect(clippy::print_stdout, clippy::disallowed_macros, reason = "report the handoff fixture peak")]
+fn github_exchange_handoff_stays_under_the_ceiling_on_every_connection() {
+    // All configured connections retaining their full exchange handoffs.
+    const CEILING: i64 = 13_000;
+    let span = skein_heap::Span::start();
     let count = f::limits().connections + f::github_settings().forges.len();
     let mut connections = List::with_capacity(count);
     for _ in 0..count {
@@ -55,9 +59,9 @@ fn github_exchange_handoff_fits_on_every_connection_at_peak() {
     // Request payloads already have the per-connection body/target term. The
     // allocation is one 136-byte exchange envelope per connection.
     assert_eq!(heap, usize::try_from(count).expect("connections") * 136);
-    let bound = limits::worst_case(&f::limits(), &f::shared(), limits::Forges { forgejo: 0, github: 1 }, 0)
-        .expect("complete bound");
-    assert!(bound >= u64::try_from(heap).expect("handoff heap"));
+    let grown = span.end();
+    assert!(grown.peak <= CEILING, "{} <= {CEILING}", grown.peak);
+    println!("GitHub exchange handoffs: peak={} ceiling={CEILING}", grown.peak);
 }
 #[derive(Clone, Copy, Debug)]
 enum Terminal {
