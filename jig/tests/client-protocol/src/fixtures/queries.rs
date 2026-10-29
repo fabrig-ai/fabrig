@@ -48,7 +48,7 @@ pub fn person_batch_config(seed: u64) -> jig_test_domain::Config {
     policy.ceiling.delegation.kinds.clone_from(&kinds);
     policy.roles[0].authority.delegation.kinds = kinds;
     let mut authority = a::Domain::new(rules, super::owner_limits().core.authority).expect("person rules");
-    let mut out = skein_lib::Queue::with_capacity(a::POLICY_MAX_OUT);
+    let mut out = skein_lib::Queue::uncapped();
     a::step(&mut authority, a::Event::Policy { project: 1, policy }, &mut out);
     assert_eq!(out.pop(), Some(a::PolicyFact::Added { project: 1 }));
     config.core.seed_projects[0].policy.policy = authority.policy(1).expect("checked seed policy").clone();
