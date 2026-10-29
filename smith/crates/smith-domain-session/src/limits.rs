@@ -78,7 +78,8 @@ pub struct Limits {
     pub backoff_base: Duration,
     /// The longest wait before a retry, unless the provider asks for longer.
     pub backoff_max: Duration,
-    /// Reserved observations, including tools, buffered until the parent drains them.
+    /// Compatibility allowance read by the root's fact gather and optional
+    /// content projection. Session observations are uncapped.
     pub facts: u32,
     /// The tools child domain's, which the session owns: a kit for each
     /// session, with room for its widest batch.
@@ -102,16 +103,7 @@ pub fn completion_reserve(limits: &Limits) -> Option<u64> {
 /// The shell refuses limits for which this is false.
 #[must_use]
 pub fn valid(limits: &Limits) -> bool {
-    let tools_facts = match limits.parallel_tools.checked_add(2) {
-        Some(batches) => match batches.checked_mul(tools::max_facts(&limits.tools)) {
-            Some(facts) => facts,
-            None => return false,
-        },
-        None => return false,
-    };
-    limits.tools.facts >= tools_facts
-        && limits.facts >= crate::max_facts(limits)
-        && (1..=MAX_PARALLEL).contains(&limits.parallel_tools)
+    (1..=MAX_PARALLEL).contains(&limits.parallel_tools)
         && limits.parallel_tools <= limits.tools.calls
         && limits.history_messages >= 2
         && limits.history_blocks > 0

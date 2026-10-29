@@ -7,7 +7,7 @@ use std::mem::size_of;
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use skein_world::domain::heap::Meter;
 use smith_domain_session::llm::{Block, Completion, Decoded, Descriptor, Endpoint, Failure, Problem, Stop, Usage};
-use smith_domain_session::{Budget, Domain, Event, Limits, MAX_PARALLEL, Request, Spec, max_out};
+use smith_domain_session::{Budget, Domain, Event, Limits, MAX_PARALLEL, Request, Spec};
 use smith_domain_tools::{
     Authority, Budget as ToolBudget, Call, Done, Effect, Grants, Name, Part, Path, Repo, Version,
 };
@@ -225,7 +225,7 @@ fn fill(original: &Limits, route: Route, full_service: bool, bound: u64) {
     let messages = held_messages.checked_add(2).expect("checked provider message-cell reserve");
     let (limits, spec_cost, output, field) = pressure_limits(original, route, messages);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let mut out = Queue::with_capacity(max_out(&limits));
+    let mut out = Queue::uncapped();
     let count = usize::try_from(limits.sessions).expect("bounded session count");
     let mut observed = vec![(false, 0_u32, 0_u32, 0_u32, false); count];
     let meter = Meter::new();
@@ -493,7 +493,7 @@ fn recorded_delegated_turns_cut_results_and_hold_history_for_compaction() {
     };
     let bound = RECORDED_DELEGATION_CEILING;
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let mut out = Queue::with_capacity(max_out(&limits));
+    let mut out = Queue::uncapped();
     let meter = Meter::new();
     let mut domain = Domain::new(&limits, 77);
     let mut saved = Vec::new();
@@ -613,7 +613,7 @@ fn restoring_a_maximum_foreign_history_stays_within_the_counted_bound() {
     };
     let bound = RESTORE_HISTORY_CEILING;
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let mut out = Queue::with_capacity(max_out(&limits));
+    let mut out = Queue::uncapped();
     let meter = Meter::new();
     let mut domain = Domain::new(&limits, 78);
     let block = size(size_of::<Block>());
@@ -724,7 +724,7 @@ fn an_oversized_waking_result_tail_is_refused_before_cloning_provider_ids() {
         Limits { history_messages: 4, history_bytes: spec_charge + original, spend: u64::MAX, tools, ..LIMITS };
     let bound = WAKING_RESULT_CEILING;
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let mut out = Queue::with_capacity(max_out(&limits));
+    let mut out = Queue::uncapped();
     let meter = Meter::new();
     let mut domain = Domain::new(&limits, 79);
     let mut tail = Vec::new();
@@ -1025,7 +1025,7 @@ fn check_provider_admission(base: &Limits, exact: u64) {
     for history_bytes in [exact - 1, exact] {
         let limits = Limits { history_bytes, ..*base };
         let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-        let mut out = Queue::with_capacity(max_out(&limits));
+        let mut out = Queue::uncapped();
         let meter = Meter::new();
         let mut domain = Domain::new(&limits, 11);
         let bound = PROVIDER_ADMISSION_CEILING;
@@ -1075,7 +1075,7 @@ fn check_capped_read(base: &Limits, exact: u64, read_bytes: u64, result: u64, bo
         ..*base
     };
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let mut out = Queue::with_capacity(max_out(&limits));
+    let mut out = Queue::uncapped();
     let meter = Meter::new();
     let mut domain = Domain::new(&limits, 12);
     let seen = measured_step(
@@ -1135,7 +1135,7 @@ fn maximum_admissible_backoff_preserves_the_exact_next_provider_credit() {
     let block = size(size_of::<Block>());
     let message = held.checked_sub(spec_cost + block + 1 + block).expect("maximum caller message fits");
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let mut out = Queue::with_capacity(max_out(&limits));
+    let mut out = Queue::uncapped();
     let meter = Meter::new();
     let mut domain = Domain::new(&limits, 13);
     let bound = BACKOFF_CEILING;
@@ -1215,7 +1215,7 @@ fn the_original_maximum_parallel_width_has_live_result_rights() {
         .checked_add(reservation_envelope(&limits).expect("checked widest credit"))
         .expect("pressure plus credit fits");
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let mut out = Queue::with_capacity(max_out(&limits));
+    let mut out = Queue::uncapped();
     let meter = Meter::new();
     let mut domain = Domain::new(&limits, 14);
     let bound = PARALLEL_RIGHTS_CEILING;
@@ -1285,7 +1285,7 @@ fn the_four_message_cap_asks_for_compaction_before_provider_growth() {
         limits.history_messages = original.history_messages;
         assert_eq!(limits.history_messages - 3, 1, "one cell cannot hold an assistant and its results");
         let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-        let mut out = Queue::with_capacity(max_out(&limits));
+        let mut out = Queue::uncapped();
         let meter = Meter::new();
         let mut domain = Domain::new(&limits, 15);
         let seen = measured_step(
@@ -1394,7 +1394,7 @@ fn the_largest_fitting_note_and_all_offered_choices_obey_the_session_byte_cap() 
     for extra in [0, 1] {
         let limits = Limits { history_bytes: cap, ..original };
         let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-        let mut out = Queue::with_capacity(max_out(&limits));
+        let mut out = Queue::uncapped();
         let meter = Meter::new();
         let mut domain = Domain::new(&limits, 31);
         let bound = NOTE_CHOICES_CEILING;
@@ -1457,7 +1457,7 @@ fn a_maximum_child_final_note_is_charged_before_its_first_request_and_released()
     for extra in [0, 1] {
         let limits = Limits { history_bytes: cap, ..original };
         let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-        let mut out = Queue::with_capacity(max_out(&limits));
+        let mut out = Queue::uncapped();
         let meter = Meter::new();
         let mut domain = Domain::new(&limits, 32);
         let bound = CHILD_NOTE_CEILING;

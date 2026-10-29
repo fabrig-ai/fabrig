@@ -5,7 +5,6 @@ use std::collections::BTreeSet;
 
 use smith_domain_session::End;
 use smith_domain_session::llm::Failure;
-use smith_domain_tools as tools;
 use smith_session_world::{Ended, World, noisy, submit_noisily};
 
 const ITERATIONS: u32 = 100_000;
@@ -163,30 +162,24 @@ fn no_drawn_session_ends_because_its_history_grew() {
     }
 }
 
-/// The parent holds a step until its complete fact reserve is available.
+/// Every native observation survives with no session fact allowance.
 #[test]
-fn a_fact_queue_at_its_bound_holds_the_step_and_loses_nothing_over_many_seeds() {
-    let mut holds = 0;
+fn observations_are_lossless_without_a_session_fact_allowance_over_many_seeds() {
     for seed in 0..100 {
-        let run = |minimum| {
+        let run = |without_allowance| {
             let mut settings = noisy(seed);
-            if minimum {
-                settings.agent.tools.facts =
-                    (settings.agent.parallel_tools + 2) * tools::max_facts(&settings.agent.tools);
-                settings.agent.facts = smith_domain_session::max_facts(&settings.agent);
+            if without_allowance {
+                settings.agent.facts = 0;
             }
             let mut world = World::new(settings);
             submit_noisily(&mut world, &settings, seed);
             world.run(ITERATIONS);
-            (world.fact_holds(), world.stats(), world.told())
+            (world.stats(), world.told(), world.trace().to_vec())
         };
-        let (_, stats, told) = run(false);
-        assert!(told.ended > 0 && stats.calls > 0, "seed {seed}: actual calls settled");
-        let (held, same, all) = run(true);
-        holds += held;
-        assert!(all.ended > 0 && same.calls > 0, "seed {seed}: every pressured call settled");
+        let normal = run(false);
+        assert!(normal.1.ended > 0 && normal.0.calls > 0, "seed {seed}: calls settled");
+        assert_eq!(normal, run(true), "seed {seed}: complete observations and request order survive");
     }
-    assert!(holds > 0, "actual pending work was held for native facts");
 }
 
 #[test]

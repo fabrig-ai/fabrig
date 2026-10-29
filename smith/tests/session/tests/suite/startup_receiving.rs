@@ -58,7 +58,7 @@ fn the_frozen_control_is_refused_at_startup_or_services_finish_after_four_turns(
     let mut world = World::new(415, 256);
     world.env.limits = limits.domain.session;
     world.domain = session::Domain::new(&world.env.limits, 415);
-    world.out = Queue::with_capacity(session::max_out(&world.env.limits));
+    world.out = Queue::uncapped();
     let mut start = opening(None, 1_000_000_000);
     start.spec.endpoint = llm::Endpoint(1);
     start.spec.model = b"gpt-6-luna".as_slice().into();

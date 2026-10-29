@@ -17,8 +17,8 @@ use crate::llm::{
     Block, Completion, Decoded, Descriptor, Endpoint, Failure, Message, Problem, Prompt, Returned, Role, Stop, Usage,
 };
 use crate::{
-    Budget, Dimension, Domain, End, Event, FactKind as Fact, Limits, MAX_PARALLEL, Request, Spec, Yield, fire, max_out,
-    resume, step, valid,
+    Budget, Dimension, Domain, End, Event, FactKind as Fact, Limits, MAX_PARALLEL, Request, Spec, Yield, fire, resume,
+    step, valid,
 };
 
 /// The budget every spec asks for, unless a test says otherwise: the most the
@@ -87,7 +87,7 @@ const LIMITS: Limits = Limits {
 
 const OUT_OF_TIME: End = End::Budget { spent: Dimension::Time };
 
-/// The domain, its environment, room for one step's output, and the `Used`
+/// The domain, its environment, its output, and the `Used`
 /// it has reported.
 struct Harness {
     observed: Queue<crate::facts::Fact>,
@@ -116,10 +116,10 @@ impl Harness {
 
     fn new(limits: &Limits) -> Harness {
         Harness {
-            observed: Queue::with_capacity(4096),
+            observed: Queue::uncapped(),
             domain: Domain::new(limits, 1),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits },
-            out: Queue::with_capacity(max_out(limits)),
+            out: Queue::uncapped(),
             turns: 0,
             usage: Usage::ZERO,
 
@@ -232,7 +232,7 @@ impl Harness {
     fn batch(&mut self, event: Event) -> List<Token> {
         self.keep_facts();
         step(&mut self.domain, &self.env, event, &mut self.out);
-        let mut runs = List::with_capacity(max_out(&self.env.limits));
+        let mut runs = List::with_capacity(self.out.len());
         while let Some(request) = self.next() {
             match request {
                 Request::Turn { .. } | Request::Priced { .. } => unreachable!("next observes records"),
@@ -891,9 +891,8 @@ fn time_expires_while_a_session_rests_between_batches() {
 }
 
 #[test]
-fn a_batch_as_wide_as_the_most_a_step_emits_fits() {
-    let mut limits = Limits { parallel_tools: MAX_PARALLEL, ..LIMITS };
-    limits.facts = crate::max_facts(&limits);
+fn a_maximum_legal_batch_dispatches_every_call() {
+    let limits = Limits { parallel_tools: MAX_PARALLEL, ..LIMITS };
     let mut h = Harness::new(&limits);
     let (owner, _) = h.open(1);
     let mut content = List::with_capacity(MAX_PARALLEL);
@@ -904,7 +903,7 @@ fn a_batch_as_wide_as_the_most_a_step_emits_fits() {
     h.keep_facts();
     step(&mut h.domain, &h.env, Event::Completed { owner, completion }, &mut h.out);
     assert_eq!(h.out.len(), 2 + MAX_PARALLEL, "the price, usage, and an operation for each call");
-    assert!(h.out.len() <= max_out(&limits), "within what a step may emit");
+    while h.out.pop().is_some() {}
     assert!(!valid(&Limits { parallel_tools: 0, ..LIMITS }));
     assert!(!valid(&Limits { parallel_tools: MAX_PARALLEL + 1, ..LIMITS }));
     // A batch the tools could not take whole, and a session without a kit.
@@ -913,11 +912,8 @@ fn a_batch_as_wide_as_the_most_a_step_emits_fits() {
 }
 
 #[test]
-fn the_minimum_fact_reserve_keeps_a_maximum_batch_answered_at_the_tools_entrance() {
-    let base = Limits { parallel_tools: MAX_PARALLEL, ..LIMITS };
-    let required = crate::max_facts(&base);
-    let tools = tools::Limits { facts: (MAX_PARALLEL + 2) * tools::max_facts(&TOOLS), ..TOOLS };
-    let mut h = Harness::new(&Limits { facts: required, tools, ..base });
+fn a_maximum_refused_batch_keeps_every_call_observation_without_a_fact_allowance() {
+    let mut h = Harness::new(&Limits { facts: 0, parallel_tools: MAX_PARALLEL, ..LIMITS });
     let (owner, _) = h.open(1);
     let mut content = List::with_capacity(MAX_PARALLEL);
     for _ in 0..MAX_PARALLEL {
@@ -927,8 +923,19 @@ fn the_minimum_fact_reserve_keeps_a_maximum_batch_answered_at_the_tools_entrance
     }
     h.keep_facts();
     assert_eq!(h.step(Event::Completed { owner, completion: completion(content.into_boxed(), Stop::ToolUse) }), None);
-    assert_eq!(required - h.domain.facts_room(), MAX_PARALLEL + 2, "one terminal per call plus response and use");
-    assert_eq!(h.domain.calls.tools.facts_room(), tools.facts, "every child observation passed to its parent");
+    let mut facts = 0;
+    let mut answered = 0;
+    while let Some(fact) = h.domain.pop_fact() {
+        facts += 1;
+        if let Fact::Tools { fact: tools::FactKind::Answered { .. }, .. } = fact.kind {
+            answered += 1;
+            assert_eq!(fact.at, h.env.now);
+            assert_eq!(fact.call.expect("refused call metadata").id.as_ref(), b"c");
+        }
+    }
+    assert_eq!(facts, MAX_PARALLEL + 2, "one terminal per call plus response and use");
+    assert_eq!(answered, MAX_PARALLEL);
+    assert!(h.domain.calls.tools.pop_fact().is_none(), "every child observation passed to its parent");
 }
 
 #[test]
@@ -1998,10 +2005,9 @@ fn drive(h: &mut Harness) -> (Token, Prompt, Option<Request>, Option<Request>) {
 }
 
 #[test]
-fn the_minimum_fact_reserve_keeps_the_same_complete_native_call_history() {
-    let required = crate::max_facts(&LIMITS);
-    assert!(!valid(&Limits { facts: required - 1, ..LIMITS }));
-    let mut bounded = Harness::new(&Limits { facts: required, ..LIMITS });
+fn native_call_history_is_complete_without_a_session_fact_allowance() {
+    assert!(valid(&Limits { facts: 0, ..LIMITS }));
+    let mut bounded = Harness::new(&Limits { facts: 0, ..LIMITS });
     let mut roomy = Harness::new(&LIMITS);
     assert_eq!(drive(&mut bounded), drive(&mut roomy));
     bounded.keep_facts();
@@ -2018,16 +2024,13 @@ fn invalid_limits_are_refused() {
     assert!(valid(&LIMITS));
     // Heap-total overflow alone is not constructor invalidity.
     assert!(valid(&Limits { history_bytes: u64::MAX, completion_bytes: u64::MAX, answer_bytes: u64::MAX, ..LIMITS }));
-    // The child reserves a whole batch of entrance observations.
-    assert!(!valid(&Limits { tools: tools::Limits { facts: 23, ..TOOLS }, ..LIMITS }));
-    // The session reserves its own full fact batch.
-    assert!(!valid(&Limits { facts: crate::max_facts(&LIMITS) - 1, ..LIMITS }));
+    assert!(valid(&Limits { tools: tools::Limits { facts: 23, ..TOOLS }, facts: 0, ..LIMITS }));
     // A batch has positive width.
     assert!(!valid(&Limits { parallel_tools: 0, ..LIMITS }));
-    // Batch width stays within the vocabulary cap (with enough facts and calls).
+    // Batch width stays within the vocabulary cap (with enough calls).
     let wide =
         Limits { parallel_tools: MAX_PARALLEL + 1, tools: tools::Limits { calls: 9, facts: 128, ..TOOLS }, ..LIMITS };
-    assert!(!valid(&Limits { facts: crate::max_facts(&wide), ..wide }));
+    assert!(!valid(&wide));
     // The child can accept the whole batch.
     assert!(!valid(&Limits { tools: tools::Limits { calls: 1, ..TOOLS }, ..LIMITS }));
     // A transcript has room for its prompt and answer.
@@ -2345,7 +2348,7 @@ fn exact_read_batch_limits(content: &[Block], short: bool) -> Limits {
 
 #[test]
 fn delayed_facts_keep_their_times_completion_numbers_and_exact_call_measurements() {
-    let mut h = Harness::new(&LIMITS);
+    let mut h = Harness::new(&Limits { facts: 0, ..LIMITS });
     h.env.now = Time::from_nanos(7);
     let (owner, _) = h.open(1);
     h.env.now = Time::from_nanos(11);
@@ -2469,27 +2472,24 @@ fn usage_fact_carries_the_exact_accepted_host_unit_charge() {
     let Some(Request::Opened { session: owner, .. }) = h.next() else { panic!("session opens") };
     drop(calling(h.one()));
     step(&mut h.domain, &h.env, Event::Completed { owner, completion: done() }, &mut h.out);
-    for _ in 0..max_out(&h.env.limits) {
-        drop(h.out.pop());
-    }
+    while h.out.pop().is_some() {}
     let facts = observed_facts(&mut h);
     let used = &facts[4];
     assert_eq!(used.kind, Fact::Used { opener: Token::new(1), usage: USAGE });
     assert_eq!(used.response, Some(crate::ResponseInfo { number: 1, spent: Some(expected) }));
 }
 
+#[expect(clippy::disallowed_types, reason = "ordinary test observation drains the uncapped fact queue whole")]
 fn observed_facts(harness: &mut Harness) -> Box<[crate::Fact]> {
-    let mut facts = List::with_capacity(LIMITS.facts);
-    for _ in 0..LIMITS.facts {
-        if let Some(fact) = harness.pop_fact() {
-            facts.push(fact).expect("room for all observations");
-        }
+    let mut facts = Vec::new();
+    while let Some(fact) = harness.pop_fact() {
+        facts.push(fact);
     }
-    facts.into_boxed()
+    facts.into_boxed_slice()
 }
 
 fn fact_times(facts: &[crate::Fact]) -> Box<[Time]> {
-    let mut times = List::with_capacity(LIMITS.facts);
+    let mut times = List::with_capacity(u32::try_from(facts.len()).expect("observed fact count fits"));
     for fact in facts {
         times.push(fact.at).expect("room for all observations");
     }
