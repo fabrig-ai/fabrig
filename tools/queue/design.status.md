@@ -16,9 +16,15 @@ identity, checkout exclusion and private atomic evidence passed. This smoke
 ran no Cargo checks and does not validate a second prover.
 
 Section 3.9 is implemented as a **disabled library** in `train.py`,
-with 63 disposable tests in `test_train.py`. Ops reviewed the provisional
-partial-conflict decision repair and its replay coverage; the library is ready
-for merge while the production activation prohibition below remains in force. It prepares exact chained Git
+with 63 disposable cases split across `test_train.py` (19),
+`test_train_decisions.py` (22) and `test_train_recovery.py` (22).
+`test_train_isolation.py` adds two fixture-kill/discovery safety tests. The
+shared test-free fixture and reviewed-case fingerprint manifest are excluded
+from automatic suite discovery. Fixtures live beside the source checkout,
+so a killed suite cannot leave untracked inputs inside it (section 2.3).
+Ops reviewed the provisional partial-conflict decision repair and replay
+coverage. The test-only fixture/suite repair awaits Ops' pinned gate validation
+before re-readying; production activation remains prohibited. It prepares exact chained Git
 candidates in a separate clone, writes ratchets before freezing, pins/exports
 objects, reserves names/full cadence, records dispatch ownership, independently
 validates complete worker/log evidence, and adjudicates in order. Sequential
