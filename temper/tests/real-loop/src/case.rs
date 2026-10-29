@@ -822,7 +822,7 @@ pub const BATCH_SUBOWNER_REPORT: &str = "All four batch delegates reported.";
 pub const BATCH_OWNER_REPORT: &str = "M1's sub-owner reported the batch.";
 pub const BATCH_DIRECTOR_REPORT: &str = "A reported M1's batch.";
 
-// The root's largest synchronous route in these batch scenarios, one commit.
+// Writes admitted in one store commit for the batch scenario.
 const BATCH_JOURNAL_WRITES: u32 = 15_586;
 
 #[must_use]
@@ -834,11 +834,9 @@ pub fn fixture_6_1() -> forge::Fixture {
             // past small's 1,567,829 B store value; size one profile up.
             value["engine"]["limits"]["profile"] = "standard".into();
             value["workers"][0]["limits"]["profile"] = "standard".into();
-            // The standard engine needed for a four-entry batch also needs
-            // matching application room: 128 retained calls; 8 workers *
-            // fleet.max_out (137) + 1 deliveries; three held per delivery;
-            // and the batch scenario's journal writes.
-            // Placed subtree writes and retained forge answers contribute.
+            // The batch sets 128 retained forge calls and 1097 journal
+            // deliveries, the door term in the admission watermark. Its
+            // journal.writes override bounds writes in one store message.
             // A1's task read needs documents.lines = 4 for its complete live delegates.
             value["application"]["limits"]["overrides"]["forge.named_calls"] = 128.into();
             value["application"]["limits"]["overrides"]["root.journal.deliveries"] = 1097.into();
@@ -926,9 +924,9 @@ pub fn fixture_6_2() -> forge::Fixture {
             // Small's four store joins cannot read a3's three ancestors,
             // dependency and terminal result, nor the coder/reviewer's four
             // ancestors and terminal result. Joins are profile-only: standard
-            // gives sixteen, and matching worker channel terms. Its 128
-            // retained calls need forge.named_calls 128; eight workers *
-            // fleet.max_out 137 + one gives 1097 deliveries, three held each.
+            // gives sixteen, with matching worker channel terms. This story
+            // sets 128 retained forge calls and 1097 journal deliveries for
+            // the admission watermark; journal.writes bounds each commit.
             value["engine"]["limits"]["profile"] = "standard".into();
             value["workers"][0]["limits"]["profile"] = "standard".into();
             value["application"]["limits"]["overrides"]["forge.named_calls"] = 128.into();
