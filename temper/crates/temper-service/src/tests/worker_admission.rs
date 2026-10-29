@@ -290,7 +290,7 @@ fn the_link_is_not_read_without_room_for_one_link_step() {
 }
 
 #[test]
-fn a_full_held_entrance_holds_even_a_passing_answer() {
+fn a_full_held_entrance_lets_a_passing_answer_pass() {
     let mut stand = fixtures::started_worker();
     let settings = fixtures::worker_agent();
     let mut agent = AgentPeer::assigned(&mut stand.worker, &settings);
@@ -327,16 +327,17 @@ fn a_full_held_entrance_holds_even_a_passing_answer() {
             parts: Box::new([]),
         },
     );
+    let answer = stand.worker.engine.iter().next().expect("the engine's answer");
+    assert!(root::passes(answer), "the head answers an admitted turn");
+    stand.worker.link(fixtures::NOW, assignment());
+    assert_eq!(stand.worker.engine.len(), 2, "a new record follows the passing answer");
+    assert_eq!(retained, SENT_TURNS, "the admitted turn waits for its answer");
     stand.worker.iterate(fixtures::NOW, Wall::EPOCH);
-    assert_eq!(retained, SENT_TURNS);
-    assert_eq!(stand.worker.root.retained_turns(), SENT_TURNS, "the passing answer waits at a full held entrance");
-    assert_eq!(stand.worker.engine.len(), 1, "the answer remains at the engine entrance");
-    let answer = stand.worker.engine.iter().next().unwrap();
-    assert!(root::passes(answer), "this answer can pass when held has room");
-    // Return one entrance slot while retaining the watermark pressure.
-    assert!(stand.worker.held.pop().is_some());
-    stand.worker.iterate(fixtures::NOW, Wall::EPOCH);
-    assert_eq!(stand.worker.root.retained_turns(), 0, "with entrance credit the owner receives its answer");
-    assert!(stand.worker.engine.is_empty());
-    assert_eq!(stand.worker.held.len(), crate::worker::ENGINE_EVENTS - 1);
+    assert_eq!(stand.worker.root.retained_turns(), 0, "the passing answer reaches its owner without a held slot");
+    assert_eq!(stand.worker.held.room(), 0, "the held entrance remains full");
+    assert_eq!(stand.worker.held.len(), crate::worker::ENGINE_EVENTS);
+    assert_eq!(stand.worker.engine.len(), 1, "the new record behind the answer still waits");
+    let waiting = stand.worker.engine.iter().next().expect("the next new record");
+    assert!(root::is_new_work(waiting));
+    assert!(!root::passes(waiting), "the scan stops at the first record that cannot pass");
 }
