@@ -274,8 +274,9 @@ pub fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
     if let Some(workers) = &mut engine.workers {
         workers.iterate(now, &mut engine.events);
     }
+    let starting = engine.begin || !engine.domain.ready();
     if let Some(clients) = &mut engine.clients {
-        clients.starting = if engine.begin { Some(()) } else { None };
+        clients.starting = if starting { Some(()) } else { None };
         clients.iterate(
             now,
             wall,
@@ -291,9 +292,7 @@ pub fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
         engine.abort_if_ended();
         return;
     }
-    if engine.begin
-        && let Some(clients) = &mut engine.clients
-    {
+    if starting && let Some(clients) = &mut engine.clients {
         for _ in 0..clients.early.len() {
             let event = clients.early.pop().expect("client startup input");
             clients.not_ready(event);
@@ -302,9 +301,7 @@ pub fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
     if engine.begin && !engine.listeners_open() {
         return;
     }
-    if !engine.begin
-        && let Some(clients) = &mut engine.clients
-    {
+    if !starting && let Some(clients) = &mut engine.clients {
         for _ in 0..clients.early.len() {
             let event = clients.early.pop().expect("client startup inputs");
             engine.events.push(event);
