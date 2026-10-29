@@ -4,7 +4,7 @@ use temper_real_loop_world::{
     Exit, Ran, argv,
     calls::{D1, browse, call, ends_leaving, file, number, sign_in, task},
     ending::{Left, Leftover},
-    github, landing, run_github,
+    github, landing, llm, run_github,
 };
 
 // The fresh deployment allocates chat 1, procedure 2, and its coder 3.
@@ -23,7 +23,7 @@ const SEEDED_FORGES: usize = 1;
 fn a_seeded_app_reopens_with_its_deployments_settings_and_owner() {
     let ran = run_github(
         github::fixture(),
-        |_| Box::new([]),
+        |_| llm::cued(Box::new([])),
         || {
             vec![
                 sign_in(D1),
@@ -55,7 +55,7 @@ fn a_person_connects_their_app_and_a_chats_push_carries_its_installations_token(
     fixture.manifest = true;
     fixture.unaccepted_after_install = true;
     fixture.keep_heads = true;
-    let ran = run_github(fixture, scripts, steps);
+    let ran = run_github(fixture, |at| llm::cued(scripts(at)), steps);
     for (index, result) in ran.calls().iter().enumerate() {
         assert_eq!(result.exit, Some(Exit::Code(if index == UMBRA { 2 } else { 0 })), "call {index}: {result:?}");
     }

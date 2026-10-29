@@ -2,13 +2,13 @@
 //! Design, public harness surface and explicitly allowed usage examples only.
 use serde_json::Value;
 use skein_fake_forge_domain::{Observation, api};
-use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
+use skein_fake_llm_domain::api::{Finish, Line, Scripts, Turn};
 use std::{fmt::Write, net::SocketAddr};
 use temper_real_loop_world::{
     Exit, Ran, argv,
     calls::{self, D1, Step, call, file, number, sign_in, task},
     github::{self, check_chat_heard_the_landing, check_connection, check_landing, connect_adopt_and_ask_for_a_change},
-    landing, run_github, terminal,
+    landing, llm, run_github, terminal,
 };
 
 const CHANGE: u64 = 2;
@@ -32,7 +32,7 @@ fn fixture() -> github::Fixture {
     }
 }
 
-fn scripts(address: SocketAddr) -> Box<[Script]> {
+fn scripts(address: SocketAddr) -> Scripts {
     let mut scripts = landing::scripts(address, u64::from(github::REPOSITORY), landing::README);
     // Keep the person's ordinary requester-ended chat open after its report.
     scripts[0].turns[2] = Turn {
@@ -43,7 +43,9 @@ fn scripts(address: SocketAddr) -> Box<[Script]> {
         finish: Finish::ToolCalls,
         tokens: 20,
     };
-    scripts
+    let mut scripts = scripts.into_vec();
+    let chat = scripts.remove(0);
+    Scripts { cued: scripts.into_boxed_slice(), asked: Box::new([chat]), otherwise: Box::new([]) }
 }
 
 fn begin() -> Vec<Step> {
@@ -351,7 +353,7 @@ fn repair_acts() -> Vec<Step> {
     steps
 }
 
-fn repair_scripts(at: std::net::SocketAddr) -> Box<[skein_fake_llm_domain::api::Script]> {
+fn repair_scripts(at: std::net::SocketAddr) -> Scripts {
     use serde_json::json;
     use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
     let mut scripts = landing::scripts(at, u64::from(github::REPOSITORY), landing::README).into_vec();
@@ -382,5 +384,5 @@ fn repair_scripts(at: std::net::SocketAddr) -> Box<[skein_fake_llm_domain::api::
             call(b"finish", json!({"form":"change","fields":{"title":"Restore README heading","body":"Repair CI."}})),
         ]),
     });
-    scripts.into_boxed_slice()
+    llm::cued(scripts.into_boxed_slice())
 }

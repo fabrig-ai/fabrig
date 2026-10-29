@@ -232,7 +232,7 @@ pub fn run_key_on(
 #[must_use]
 pub fn run_github(
     fixture: github::Fixture,
-    scripts: fn(std::net::SocketAddr) -> Box<[skein_fake_llm_domain::api::Script]>,
+    scripts: fn(std::net::SocketAddr) -> skein_fake_llm_domain::api::Scripts,
     steps: impl FnOnce() -> Vec<calls::Step>,
 ) -> Ran {
     let scratch = Scratch::new("real-github");
