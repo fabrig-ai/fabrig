@@ -281,7 +281,7 @@ impl Host for Process {
 }
 struct Judge {
     stopped: bool,
-    deadline: Time,
+    deadline: super::patience::Patience,
     settled: bool,
 }
 impl Referee<Process> for Judge {
@@ -292,7 +292,7 @@ impl Referee<Process> for Judge {
             self.stopped = true;
         }
     }
-    fn observe(&mut self, now: Time, procs: &[Process]) {
+    fn observe(&mut self, _now: Time, procs: &[Process]) {
         self.settled = self.stopped && procs.iter().all(Host::is_empty);
         let Process::Binary(serve) = &procs[0] else { panic!("service binary") };
         assert!(
@@ -303,22 +303,25 @@ impl Referee<Process> for Judge {
         let Process::Binary(open) = &procs[2] else { panic!("terminal binary") };
         let Process::Pipes(typist) = &procs[3] else { panic!("typist") };
         assert!(
-            now < self.deadline || self.settled,
-            "terminal deadline; stdout: {}; stderr: {}",
-            String::from_utf8_lossy(&typist.bytes),
-            String::from_utf8_lossy(open.stderr())
-        );
-        assert!(
             open.exit_status().is_none() || typist.actions.is_empty(),
             "terminal exited before the script; stderr: {}",
             String::from_utf8_lossy(open.stderr())
         );
+        if !self.settled
+            && let Some(figures) = self.deadline.failed()
+        {
+            panic!(
+                "terminal deadline; stdout: {}; stderr: {}; {figures}",
+                String::from_utf8_lossy(&typist.bytes),
+                String::from_utf8_lossy(open.stderr())
+            );
+        }
     }
     fn next_deadline(&self) -> Option<Time> {
-        (!self.settled).then_some(self.deadline)
+        if self.settled { None } else { self.deadline.until() }
     }
-    fn overdue(&self, now: Time) -> Option<String> {
-        (!self.settled && now >= self.deadline).then(|| "terminal and service did not drain".into())
+    fn overdue(&self, _now: Time) -> Option<String> {
+        None
     }
     fn passed(&self) -> bool {
         self.settled
@@ -356,12 +359,12 @@ impl Typist {
     }
     pub fn exit(&mut self, within: Duration) -> u8 {
         let clock = Clock::new();
+        let serve = self.serve.take().expect("service binary");
         let mut world = real::World::new(Judge {
             stopped: false,
             settled: false,
-            deadline: clock.now().now.saturating_add(within),
+            deadline: super::patience::Patience::watching("the terminal and service draining", within, &serve),
         });
-        let serve = self.serve.take().expect("service binary");
         let link = self.link.take().expect("service streams");
         world.spawn_with_fds(serve.descriptors(), || Process::Binary(Box::new(serve)));
         world.spawn_with_fds(link.streams.descriptors(), || {
