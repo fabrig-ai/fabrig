@@ -212,7 +212,7 @@ pub(crate) fn changed(domain: &Domain, env: &Env<Limits>, service: &Service, out
 
 /// Allocation bound for the largest owned document moved to the root's journal.
 #[must_use]
-pub fn document_worst_case(limits: &Limits) -> Option<u64> {
+pub fn document_bound(limits: &Limits) -> Option<u64> {
     let name = u64::from(limits.name_bytes).checked_mul(2)?;
     let fact = u64::from(limits.samples_per_service).checked_mul(u64::try_from(size_of::<crate::LoadPoint>()).ok()?)?;
     let timeline = List::<crate::IncidentPoint>::price(limits.samples_per_service.max(1))?;

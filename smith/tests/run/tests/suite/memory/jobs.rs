@@ -14,9 +14,11 @@ const SMALL_BRIEF: u64 = 1;
 const LARGE_BRIEF: u64 = SMALL_BRIEF + 65_536;
 
 // Peak ceiling for a waiting writer with a one-byte brief (programming-model.md, section 6.3).
-const SMALL_WRITER_CEILING: u64 = 15_000;
+// Measured peak: 8_470 bytes on 2026-10-29; a quarter of headroom, rounded up.
+const SMALL_WRITER_CEILING: u64 = 11_000;
 
 // Peak ceiling for a waiting writer with a 65537-byte brief (programming-model.md, section 6.3).
+// Measured peak: 139_542 bytes on 2026-10-29; a quarter of headroom, rounded up.
 const LARGE_WRITER_CEILING: u64 = 180_000;
 
 #[test]

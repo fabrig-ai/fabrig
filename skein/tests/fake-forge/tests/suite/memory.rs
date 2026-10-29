@@ -1,4 +1,4 @@
-//! Memory stays within the worst case (programming-model.md, 6.3), measured by
+//! Memory stays within each scenario's ceiling (programming-model.md, 6.3), measured by
 //! a counting allocator: the forge filled to its limits, every repository
 //! holding as many items, comments, reviews, branches, statuses and wiki pages
 //! as it may, each as large as it may be, the store as many commits, with
@@ -10,7 +10,7 @@ use skein_fake_forge_domain::api::{
     Answer, Check, Checks, ContextCue, Cue, Error, File, Git, Op, Order, Permission, Protection, Read, Setup, Verdict,
     Write,
 };
-use skein_fake_forge_domain::{Config, Domain, Event, Limits, Request, Skew, fire, step, worst_case};
+use skein_fake_forge_domain::{Config, Domain, Event, Limits, Request, Skew, fire, step};
 use skein_lib::{Duration, Env, List, Queue, ReplyTo, Time, Token, Wall, Writer};
 use skein_world::domain::heap::Meter;
 
@@ -155,20 +155,24 @@ fn setup(index: u64) -> Setup {
     }
 }
 
-/// The forge, measured: each step's peak is checked against the worst case,
+/// The forge, measured: each step's peak is checked against its scenario's ceiling,
 /// less what it handed out in requests, which their receivers count.
 struct Measured {
     domain: Domain,
     env: Env<Config>,
     out: Queue<Request>,
     meter: Meter,
-    bound: u64,
+    ceiling: u64,
+    peak: u64,
     calls: u64,
 }
 
+// Bounds the domain's step peaks while filling and traversing both-parent history.
+const MERGE_HISTORY_PEAK_CEILING: u64 = 52_000;
+
 #[test]
 fn full_merge_history_and_both_parent_traversals_stay_bounded() {
-    let mut forge = Measured::new();
+    let mut forge = Measured::new(MERGE_HISTORY_PEAK_CEILING);
     let repository = name(b'r', 0);
     let mut configured = setup(0);
     configured.protection = None;
@@ -197,7 +201,7 @@ fn full_merge_history_and_both_parent_traversals_stay_bounded() {
         )
         .expect("one commit per free store slot");
         let measured = forge.meter.end();
-        forge.meter.check(measured, forge.bound, &"a merge commit");
+        forge.peak = forge.peak.max(forge.meter.check(measured, forge.ceiling, &"a merge commit"));
         left = right;
         right = next;
     }
@@ -205,7 +209,7 @@ fn full_merge_history_and_both_parent_traversals_stay_bounded() {
     assert!(forge.domain.is_ancestor(first, right));
     assert!(forge.domain.is_ancestor(left, right));
     let measured = forge.meter.end();
-    forge.meter.check(measured, forge.bound, &"both-parent ancestry");
+    forge.peak = forge.peak.max(forge.meter.check(measured, forge.ceiling, &"both-parent ancestry"));
     forge.ok(AUTHOR, &repository, Op::Git(Git::Push { branch: name(b'w', 0), commit: right, expected: None }));
     assert_eq!(forge.domain.has(&repository).len(), LIMITS.commits);
     // Reading mergeability walks both histories as a real merge-base read does.
@@ -236,13 +240,17 @@ fn full_merge_history_and_both_parent_traversals_stay_bounded() {
         forge.send(AUTHOR, &repository, Op::Read(Read::Compare { base: first, head: right, page: 1, limit: 1 }));
     }
     assert_eq!(forge.domain.calls(), LIMITS.calls);
+    assert!(forge.peak <= MERGE_HISTORY_PEAK_CEILING);
 }
+
+// Bounds the domain's step peaks with 64 check contexts and one-file trees.
+const CHECK_CONTEXTS_PEAK_CEILING: u64 = 130_000;
 
 #[test]
 fn many_check_contexts_and_small_trees_keep_the_temporary_status_array_bounded() {
     let limits = Limits { repositories: 1, files: 1, contexts: 64, statuses: 1, commits: 2, ..LIMITS };
     let config = Config { limits, ..CONFIG };
-    let mut forge = Measured::with(config);
+    let mut forge = Measured::with(config, CHECK_CONTEXTS_PEAK_CEILING);
     let repository = name(b'r', 0);
     let mut configured = setup(0);
     configured.tree = Box::new([File { path: name(b'p', 0), content: text(limits.content_bytes, b'g') }]);
@@ -255,15 +263,15 @@ fn many_check_contexts_and_small_trees_keep_the_temporary_status_array_bounded()
         forge.send(AUTHOR, &repository, Op::Read(Read::Checks { commit: first }));
     }
     assert_eq!(forge.domain.calls(), limits.calls);
+    assert!(forge.peak <= CHECK_CONTEXTS_PEAK_CEILING);
 }
 
 impl Measured {
-    fn new() -> Measured {
-        Self::with(CONFIG)
+    fn new(ceiling: u64) -> Measured {
+        Self::with(CONFIG, ceiling)
     }
 
-    fn with(config: Config) -> Measured {
-        let bound = worst_case(&config.limits).expect("the test limits fit");
+    fn with(config: Config, ceiling: u64) -> Measured {
         let meter = Meter::new();
         let domain = Domain::new(&config, 7);
         let out = Queue::uncapped();
@@ -272,7 +280,8 @@ impl Measured {
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: config },
             out,
             meter,
-            bound,
+            ceiling,
+            peak: 0,
             calls: 0,
         }
     }
@@ -287,7 +296,7 @@ impl Measured {
         step(&mut self.domain, &self.env, event, &mut self.out);
         let measured = self.meter.end();
         assert!(self.out.is_empty(), "a call is held");
-        self.meter.check(measured, self.bound, &"a call");
+        self.peak = self.peak.max(self.meter.check(measured, self.ceiling, &"a call"));
         token
     }
 
@@ -302,7 +311,7 @@ impl Measured {
             Some(Request::Reply { to, result }) => Some((to.into_token(), outcome(result))),
             Some(Request::Hook { .. }) | None => None,
         };
-        self.meter.check(measured, self.bound, &"a timer");
+        self.peak = self.peak.max(self.meter.check(measured, self.ceiling, &"a timer"));
         self.domain.reclaim();
         outcome
     }
@@ -461,9 +470,12 @@ fn fill(forge: &mut Measured, index: u64, first: u64) {
     }
 }
 
+// Bounds the filled domain's held heap and step peaks, including calls and hooks.
+const FILLED_FORGE_PEAK_CEILING: u64 = 87_000;
+
 #[test]
-fn a_forge_filled_to_its_limits_stays_within_its_worst_case() {
-    let mut forge = Measured::new();
+fn a_forge_filled_to_its_limits_stays_within_its_peak_ceiling() {
+    let mut forge = Measured::new(FILLED_FORGE_PEAK_CEILING);
     let config = forge.env.limits;
     let mut firsts = List::with_capacity(LIMITS.repositories);
     for index in 0..u64::from(LIMITS.repositories) {
@@ -534,7 +546,7 @@ fn a_forge_filled_to_its_limits_stays_within_its_worst_case() {
     }
     assert_eq!(forge.domain.calls(), LIMITS.calls);
     let held = forge.meter.held();
-    assert!(held <= forge.bound, "the filled forge holds {held} bytes within {}", forge.bound);
+    assert!(held <= forge.ceiling, "the filled forge holds {held} bytes within {}", forge.ceiling);
     assert_eq!(forge.domain.deliveries(), LIMITS.hooks, "all webhook slots are held");
     for index in 0..u64::from(LIMITS.repositories) {
         let repository = name(b'r', index);
@@ -558,7 +570,11 @@ fn a_forge_filled_to_its_limits_stays_within_its_worst_case() {
             assert_eq!(page.content.len(), usize::try_from(LIMITS.content_bytes).expect("page content limit"));
         }
     }
+    assert!(forge.peak <= FILLED_FORGE_PEAK_CEILING);
 }
+
+// Bounds the domain's step peaks through group branch creation and queue landing.
+const QUEUE_LANDINGS_PEAK_CEILING: u64 = 26_000;
 
 #[test]
 fn counted_group_branches_and_queue_landings_stay_within_memory_bound() {
@@ -567,7 +583,7 @@ fn counted_group_branches_and_queue_landings_stay_within_memory_bound() {
     // one repository and three branches hold main, the pull head and its group.
     let limits = Limits { repositories: 1, name_bytes: 96, branches: 3, ..LIMITS };
     let config = Config { limits, ..CONFIG };
-    let mut forge = Measured::with(config);
+    let mut forge = Measured::with(config, QUEUE_LANDINGS_PEAK_CEILING);
     let repository = name(b'r', 0);
     let mut configured = setup(0);
     configured.default = Box::from(*b"main");
@@ -614,4 +630,5 @@ fn counted_group_branches_and_queue_landings_stay_within_memory_bound() {
     };
     assert!(pull.queue_merged);
     assert_eq!(forge.domain.branches(&repository).len(), 2);
+    assert!(forge.peak <= QUEUE_LANDINGS_PEAK_CEILING);
 }

@@ -458,13 +458,16 @@ fn refuse_oversized_charter(limits: &Limits, env: &Env<Limits>, out: &mut Queue<
 }
 
 // Peak ceiling for one full run (programming-model.md, section 6.3).
-const FULL_RUNS_CEILING: u64 = 9_400;
+// Measured peak: 7_324 bytes on 2026-10-29; a quarter of headroom, rounded up.
+const FULL_RUNS_CEILING: u64 = 9_200;
 
 // Peak ceiling for 64 full runs with large charters and guides (programming-model.md, section 6.3).
+// Measured peak: 6_446_424 bytes on 2026-10-29; a quarter of headroom, rounded up.
 const LARGE_RUNS_CEILING: u64 = 8_100_000;
 
 // Peak ceiling for 1000 full runs (programming-model.md, section 6.3).
-const MANY_RUNS_CEILING: u64 = 5_900_000;
+// Measured peak: 4_435_512 bytes on 2026-10-29; a quarter of headroom, rounded up.
+const MANY_RUNS_CEILING: u64 = 5_600_000;
 
 #[test]
 fn a_domain_with_every_run_full_stays_under_its_scenario_ceilings() {
@@ -502,6 +505,10 @@ fn delivered() -> smith_domain_run::Delivery {
     )
 }
 
+// Peak ceiling for three full receipt copies and two full marker-refusal copies.
+// Measured peak: 102_912 bytes on 2026-10-29; a quarter of headroom, rounded up.
+const TERMINAL_COPIES_CEILING: u64 = 130_000;
+
 #[test]
 fn full_receipt_and_marker_terminals_price_each_owned_copy() {
     let meter = Meter::new();
@@ -513,8 +520,9 @@ fn full_receipt_and_marker_terminals_price_each_owned_copy() {
     let output_copy = original.clone();
     let final_answer_copy = original.clone();
     let measured = meter.end();
-    let bound = smith_domain_run::Delivered::worst_case().checked_mul(3).expect("three bounded copies");
-    assert_eq!(original.owned_bytes(), smith_domain_run::Delivered::worst_case());
+    let bound = TERMINAL_COPIES_CEILING;
+    assert_eq!(original.owned_bytes(), smith_domain_run::Delivered::owned_bound());
+    assert_eq!(measured.held(), original.owned_bytes() + output_copy.owned_bytes() + final_answer_copy.owned_bytes());
     meter.check(measured, bound, &"three full delivery evidence copies");
     for copy in [&original, &output_copy, &final_answer_copy] {
         assert_eq!(copy.receipts().len(), usize::try_from(smith_domain_run::MAX_DIRECTORIES).expect("directory cap"));
@@ -534,12 +542,13 @@ fn full_receipt_and_marker_terminals_price_each_owned_copy() {
     let refusal = smith_domain_run::DeliveryRefusal::new(Some(marker), bytes(512)).expect("exact explanation cap");
     let another = refusal.clone();
     let measured = meter.end();
-    meter.check(measured, 2 * 4608, &"two full marker refusals");
+    meter.check(measured, bound, &"two full marker refusals");
     assert_eq!(refusal.owned_bytes(), 4608);
+    assert_eq!(measured.held(), refusal.owned_bytes() + another.owned_bytes());
     meter.start();
     drop((refusal, another));
     let measured = meter.end();
-    meter.check(measured, 2 * 4608, &"marker copies released");
+    meter.check(measured, bound, &"marker copies released");
     assert_eq!(meter.held(), 0);
 }
 
@@ -580,7 +589,7 @@ fn delivery_memory_step(
             | Request::Deliver { owner, .. } => token = Some(owner),
             Request::Open { conversation, .. } => token = Some(conversation),
             Request::Return { result: smith_domain_run::Returned::Delivered(receipts), .. } => {
-                assert_eq!(receipts.owned_bytes(), smith_domain_run::Delivered::worst_case());
+                assert_eq!(receipts.owned_bytes(), smith_domain_run::Delivered::owned_bound());
             }
             Request::Answer {
                 answer: Answer::Failed { failure: smith_domain_run::Failure::Cancelled, .. }, ..
@@ -609,7 +618,8 @@ fn delivery_memory_step(
 }
 
 // Peak ceiling for full receipt delivery and cancellation (programming-model.md, section 6.3).
-const DELIVERY_CEILING: u64 = 91_000;
+// Measured peak: 70_940 bytes on 2026-10-29; a quarter of headroom, rounded up.
+const DELIVERY_CEILING: u64 = 89_000;
 
 #[test]
 fn full_receipt_delivery_settles_before_a_cancelled_answer() {
@@ -798,6 +808,7 @@ fn host_memory_take(
 }
 
 // Peak ceiling for maximum immutable host input and retry (programming-model.md, section 6.3).
+// Measured peak: 74_781 bytes on 2026-10-29; a quarter of headroom, rounded up.
 const HOST_RELAY_CEILING: u64 = 94_000;
 
 #[test]
@@ -888,6 +899,7 @@ fn complete_declaration_and_maximum_opaque_input_answer_retries_reach_the_measur
 }
 
 // Peak ceiling for full owning convention paths (programming-model.md, section 6.3).
+// Measured peak: 22_684 bytes on 2026-10-29; a quarter of headroom, rounded up.
 const SELECTED_PATHS_CEILING: u64 = 29_000;
 
 #[test]
@@ -901,7 +913,8 @@ fn maximum_selected_read_probe_and_check_paths_attain_the_full_run_ownership_bou
 }
 
 // Peak ceiling for an awaiting run retaining its full charter (programming-model.md, section 6.3).
-const AWAITING_CEILING: u64 = 7_600;
+// Measured peak: 5_644 bytes on 2026-10-29; a quarter of headroom, rounded up.
+const AWAITING_CEILING: u64 = 7_100;
 
 #[test]
 fn an_awaiting_run_retains_its_full_charter_without_allocating_a_session() {
@@ -958,7 +971,8 @@ fn an_awaiting_run_retains_its_full_charter_without_allocating_a_session() {
 }
 
 // Peak ceiling for the largest final note at scalar maxima (programming-model.md, section 6.3).
-const FINAL_NOTE_CEILING: u64 = 11_000;
+// Measured peak: 7_948 bytes on 2026-10-29; a quarter of headroom, rounded up.
+const FINAL_NOTE_CEILING: u64 = 10_000;
 
 #[test]
 fn a_run_at_scalar_maxima_emits_its_largest_final_note_within_its_ownership_bound() {

@@ -1,12 +1,5 @@
 //! Configured UI storage (skein's ui.md, section 15).
 //! The caller derives these capacities from the domain and its own fragments.
-//! `worst_case` counts owned heap, excluding allocator overhead, for the visible
-//! tree, builders, diff scratch, output patches and a scene; splice scratch only with slots.
-
-use crate::builder::PlacedSlot;
-use crate::diff::Open;
-use crate::{Attribute, Made, Node, Patch, Slot, State, Style, TextRun};
-use skein_lib::{List, Queue, Stack};
 
 /// Capacities checked before each builder allocation.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -35,42 +28,4 @@ pub struct Limits {
 pub fn valid(limits: &Limits) -> bool {
     limits.scene_marks.checked_mul(limits.styles_per_node).is_some()
         && crate::markdown::markdown_bound(limits.text_bytes, limits.markdown_depth).is_some()
-}
-
-/// Heap for rendering, splicing, diff scratch, patch payloads and one scene.
-/// Readers that check representability use [`valid`].
-#[must_use]
-pub fn worst_case(limits: &Limits) -> Option<u64> {
-    let nodes = List::<Node>::price(limits.nodes)?;
-    let states = List::<State>::price(10)?.checked_mul(u64::from(limits.nodes))?;
-    let styles = List::<Style>::price(limits.styles_per_node)?.checked_mul(u64::from(limits.nodes))?;
-    let runs = List::<TextRun>::price(limits.text_per_node)?.checked_mul(u64::from(limits.nodes))?;
-    let drawings = u64::from(limits.drawing_bytes).checked_mul(u64::from(limits.nodes))?;
-    let payloads = u64::from(limits.text_bytes).checked_add(drawings)?;
-    let tree = nodes.checked_add(states)?.checked_add(styles)?.checked_add(runs)?.checked_add(payloads)?;
-    // The page and fragment each need a node list for splicing only with slots.
-    let splice = if limits.slots > 0 { nodes.checked_mul(2)? } else { 0 };
-    let trees = tree.checked_mul(5)?.checked_add(splice)?;
-    let stacks = Stack::<u32>::price(limits.depth)?.checked_mul(3)?;
-    let slots = List::<PlacedSlot>::price(limits.slots)?
-        .checked_mul(3)?
-        .checked_add(List::<Slot>::price(limits.slots)?.checked_mul(2)?)?;
-    // Each matched node emits at most one boxed attribute (ui.md, 7).
-    let attributes = u64::from(limits.nodes).checked_mul(u64::try_from(size_of::<Attribute>()).ok()?)?;
-    let patches = Queue::<Patch>::price(limits.patches)?.checked_add(attributes)?;
-    let made = List::<Made>::price(limits.nodes)?;
-    let maps = List::<Option<u32>>::price(limits.nodes)?.checked_mul(4)?;
-    let children = List::<u32>::price(limits.nodes)?;
-    let ancestry = Stack::<Open>::price(limits.depth)?.checked_mul(2)?;
-    let markdown = crate::markdown::markdown_bound(limits.text_bytes, limits.markdown_depth)?;
-    trees
-        .checked_add(crate::scene::worst_case(limits)?)?
-        .checked_add(markdown)?
-        .checked_add(stacks)?
-        .checked_add(slots)?
-        .checked_add(patches)?
-        .checked_add(made)?
-        .checked_add(maps)?
-        .checked_add(children)?
-        .checked_add(ancestry)
 }

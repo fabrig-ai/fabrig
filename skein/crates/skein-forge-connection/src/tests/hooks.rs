@@ -166,25 +166,6 @@ fn a_hook_head_past_what_io_holds_is_unusable_as_a_stacked_server() {
     );
 }
 #[test]
-fn the_worst_case_grows_with_the_webhook_connections() {
-    let limits = fixtures::limits();
-    let one = limits::worst_case(
-        &Limits { hooks: 1, ..limits },
-        &fixtures::shared(),
-        limits::Forges::of(&fixtures::hook_settings()).expect("forge counts"),
-        crate::settings::owned_bytes(&fixtures::hook_settings()).expect("owner bytes"),
-    )
-    .expect("one");
-    let two = limits::worst_case(
-        &Limits { hooks: 2, ..limits },
-        &fixtures::shared(),
-        limits::Forges::of(&fixtures::hook_settings()).expect("forge counts"),
-        crate::settings::owned_bytes(&fixtures::hook_settings()).expect("owner bytes"),
-    )
-    .expect("two");
-    assert!(two > one);
-}
-#[test]
 fn each_delivery_becomes_the_hint_forge_md_5_names() {
     for (delivery, change, key) in hint_rows() {
         assert_eq!(

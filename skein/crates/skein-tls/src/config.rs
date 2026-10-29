@@ -15,7 +15,7 @@ use core::time::Duration;
 
 use rustls::client::Resumption;
 use rustls::crypto::{CryptoProvider, ring};
-use rustls::pki_types::{CertificateDer, DnsName, IpAddr, ServerName, TrustAnchor, UnixTime};
+use rustls::pki_types::{CertificateDer, DnsName, IpAddr, ServerName, UnixTime};
 use rustls::time_provider::TimeProvider;
 use rustls::{ClientConfig, RootCertStore};
 use skein_lib::Wall;
@@ -59,21 +59,6 @@ pub enum Refusal {
 pub struct Parsed {
     pub taken: u32,
     pub skipped: u32,
-}
-
-/// The shared configuration's heap from at most `count` roots of `each`
-/// bytes (tls.md, 3.4 and 5), counted once by its service. Includes its
-/// fixed construction peak and longest ALPN, owned anchor bytes and the root
-/// vector's growth; excludes the caller's DER input. `None` on overflow.
-#[must_use]
-pub fn roots_worst_case(count: u32, each: u32) -> Option<u64> {
-    let anchor = u64::try_from(size_of::<TrustAnchor<'static>>()).ok()?;
-    // A growing root vector can hold its old capacity beside twice that
-    // capacity; the owned byte fields are at most the input certificate.
-    let per = u64::from(each).checked_add(anchor)?.checked_mul(3)?;
-    // The counting allocator measures a 19 KB construction peak with one
-    // root and the maximum ALPN element count; 24 KB bounds that fixed work.
-    u64::from(count).checked_mul(per)?.checked_add(24 * 1_024)
 }
 
 impl Config {

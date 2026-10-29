@@ -234,7 +234,7 @@ pub fn fits(value: &OwnerDeployment, bounds: &Bounds) -> bool {
 }
 /// Owner documents stay under the configured whole byte ceiling.
 #[must_use]
-pub fn worst_case(bounds: &Bounds) -> Option<u64> {
+pub fn heap_bound(bounds: &Bounds) -> Option<u64> {
     if bounds.document_bytes < u64::try_from(size_of::<OwnerDeployment>()).ok()? {
         None
     } else {

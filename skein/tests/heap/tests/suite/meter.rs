@@ -39,7 +39,7 @@ fn a_step_is_measured_at_its_peak_less_what_it_had_handed_out_by_then() {
 
 #[test]
 #[should_panic(expected = "1100 bytes held at the peak of a step, more than the worst case of 1099")]
-fn a_step_whose_peak_passes_the_worst_case_fails_its_check() {
+fn a_step_whose_peak_passes_its_ceiling_fails_its_check() {
     let meter = Meter::new();
     let (measured, _kept, handed) = handing_first(&meter);
     drop(handed);

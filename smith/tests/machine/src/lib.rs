@@ -145,9 +145,18 @@ impl World {
 
     /// Enable the shared harness's construction, iteration and drop checks.
     pub fn check_memory(&mut self) {
-        // Peak across file, command, check, flood and selected-listing scenarios.
-        // Measured 68_544 B on 2026-10-28; a quarter of headroom, rounded up.
-        const MACHINE_SCENARIOS_CEILING: u64 = 86_000;
+        // Peak 16_112 bytes on 2026-10-29 (the flood run); a quarter of headroom,
+        // rounded up. Measured across these suite tests:
+        // memory::shared_harness_meters_file_child_and_flood_runs_through_drop,
+        // memory::a_selected_listing_at_both_caps_stays_within_the_machine_bound,
+        // simulated_jobs::a_yielded_command_is_read_to_its_end,
+        // simulated_jobs::held_output_is_partitioned_and_counted_only_once,
+        // simulated_jobs::a_stopped_job_settles_and_answers_stopped,
+        // simulated_jobs::the_original_deadline_ends_a_held_job,
+        // simulated_jobs::cancelling_a_running_held_job_answers_cancelled,
+        // simulated_jobs::cancelling_a_finished_job_preserves_its_successful_exit,
+        // simulated_jobs::a_hastened_read_finishes_before_its_virtual_wait.
+        const MACHINE_SCENARIOS_CEILING: u64 = 21_000;
         self.memory = Memory::Within(MACHINE_SCENARIOS_CEILING);
     }
 

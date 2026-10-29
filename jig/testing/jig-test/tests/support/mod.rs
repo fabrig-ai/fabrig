@@ -1,5 +1,6 @@
 //! Binary, native person and independent provider on Skein's real ring.
 pub mod ports;
+#[expect(dead_code, reason = "process and live binaries use different trace helpers")]
 pub mod trace;
 use crate::account_sign_in_visitor::Visitor;
 use jig_client_protocol_world::native::{NativeClient, Script};
@@ -396,9 +397,7 @@ pub fn run(
 }
 
 pub(super) fn issuer() -> (oauth::Peer, std::net::SocketAddr, Fd) {
-    issuer_with_plans(accounts::issuer_plans(Story::AccountSignInVaryingPort))
-}
-pub(super) fn issuer_with_plans(plans: Vec<skein_fake_oauth::Plan>) -> (oauth::Peer, std::net::SocketAddr, Fd) {
+    let plans = accounts::issuer_plans(Story::AccountSignInVaryingPort);
     let profile = accounts::limits();
     let limits = skein_fake_oauth::Limits {
         document: profile.client.document,

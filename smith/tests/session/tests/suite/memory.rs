@@ -440,16 +440,20 @@ fn fill_spec(limits: &Limits) -> Spec {
 }
 
 // Peak ceiling for default full sessions across all routes and tails (programming-model.md, section 6.3).
-const FULL_SESSIONS_CEILING: u64 = 110_000;
+// Measured peak: 24_917 bytes on 2026-10-29; a quarter of headroom, rounded up.
+const FULL_SESSIONS_CEILING: u64 = 32_000;
 
 // Peak ceiling for 16 full sessions with large histories across all routes and tails (programming-model.md, section 6.3).
-const LARGE_HISTORY_SESSIONS_CEILING: u64 = 2_900_000;
+// Measured peak: 2_146_480 bytes on 2026-10-29; a quarter of headroom, rounded up.
+const LARGE_HISTORY_SESSIONS_CEILING: u64 = 2_700_000;
 
 // Peak ceiling for 64 full sessions with small histories across all routes and tails (programming-model.md, section 6.3).
-const MANY_SESSIONS_CEILING: u64 = 2_000_000;
+// Measured peak: 1_308_240 bytes on 2026-10-29; a quarter of headroom, rounded up.
+const MANY_SESSIONS_CEILING: u64 = 1_700_000;
 
 // Peak ceiling for 16 full sessions with maximum batch width across all routes and tails (programming-model.md, section 6.3).
-const WIDE_SESSIONS_CEILING: u64 = 3_000_000;
+// Measured peak: 2_199_504 bytes on 2026-10-29; a quarter of headroom, rounded up.
+const WIDE_SESSIONS_CEILING: u64 = 2_800_000;
 
 #[test]
 fn a_domain_with_every_session_full_stays_under_its_scenario_ceilings() {
@@ -468,7 +472,8 @@ fn a_domain_with_every_session_full_stays_under_its_scenario_ceilings() {
 }
 
 // Peak ceiling for recorded delegated turns and history compaction (programming-model.md, section 6.3).
-const RECORDED_DELEGATION_CEILING: u64 = 130_000;
+// Measured peak: 38_255 bytes on 2026-10-29; a quarter of headroom, rounded up.
+const RECORDED_DELEGATION_CEILING: u64 = 48_000;
 
 #[test]
 #[expect(
@@ -597,7 +602,8 @@ fn recorded_delegated_turns_cut_results_and_hold_history_for_compaction() {
 }
 
 // Peak ceiling for restoring maximum recorded history (programming-model.md, section 6.3).
-const RESTORE_HISTORY_CEILING: u64 = 110_000;
+// Measured peak: 16_475 bytes on 2026-10-29; a quarter of headroom, rounded up.
+const RESTORE_HISTORY_CEILING: u64 = 21_000;
 
 #[test]
 fn restoring_a_maximum_foreign_history_stays_within_the_counted_bound() {
@@ -706,6 +712,7 @@ fn restoring_a_maximum_foreign_history_stays_within_the_counted_bound() {
 }
 
 // Peak ceiling for refusing an oversized restored waking result (programming-model.md, section 6.3).
+// Measured peak: 1_066_529 bytes on 2026-10-29; a quarter of headroom, rounded up.
 const WAKING_RESULT_CEILING: u64 = 1_400_000;
 
 #[test]
@@ -1019,7 +1026,8 @@ fn provider_admission_and_owned_result_space_have_exact_and_one_short_controls()
 }
 
 // Peak ceiling for exact and one-short provider admission (programming-model.md, section 6.3).
-const PROVIDER_ADMISSION_CEILING: u64 = 84_000;
+// Measured peak: 5_811 bytes on 2026-10-29; a quarter of headroom, rounded up.
+const PROVIDER_ADMISSION_CEILING: u64 = 7_300;
 
 fn check_provider_admission(base: &Limits, exact: u64) {
     for history_bytes in [exact - 1, exact] {
@@ -1056,13 +1064,16 @@ fn check_provider_admission(base: &Limits, exact: u64) {
 }
 
 // Peak ceiling for owned read-result admission at the exact cap (programming-model.md, section 6.3).
-const EXACT_CAPPED_READ_CEILING: u64 = 90_000;
+// Measured peak: 11_942 bytes on 2026-10-29; a quarter of headroom, rounded up.
+const EXACT_CAPPED_READ_CEILING: u64 = 15_000;
 
 // Peak ceiling for owned read-result admission with one-over read cap (programming-model.md, section 6.3).
-const OVER_CAPPED_READ_CEILING: u64 = 95_000;
+// Measured peak: 16_065 bytes on 2026-10-29; a quarter of headroom, rounded up.
+const OVER_CAPPED_READ_CEILING: u64 = 21_000;
 
 // Peak ceiling for owned read-result admission with a large read cap (programming-model.md, section 6.3).
-const LARGE_CAPPED_READ_CEILING: u64 = 1_500_000;
+// Measured peak: 1_060_289 bytes on 2026-10-29; a quarter of headroom, rounded up.
+const LARGE_CAPPED_READ_CEILING: u64 = 1_400_000;
 
 fn check_capped_read(base: &Limits, exact: u64, read_bytes: u64, result: u64, bound: u64) {
     let limits = Limits {
@@ -1122,7 +1133,8 @@ fn check_capped_read(base: &Limits, exact: u64, read_bytes: u64, result: u64, bo
 }
 
 // Peak ceiling for maximum retained payload through backoff (programming-model.md, section 6.3).
-const BACKOFF_CEILING: u64 = 110_000;
+// Measured peak: 21_514 bytes on 2026-10-29; a quarter of headroom, rounded up.
+const BACKOFF_CEILING: u64 = 27_000;
 
 #[test]
 fn maximum_admissible_backoff_preserves_the_exact_next_provider_credit() {
@@ -1195,7 +1207,8 @@ fn maximum_admissible_backoff_preserves_the_exact_next_provider_credit() {
 }
 
 // Peak ceiling for maximum parallel live result rights (programming-model.md, section 6.3).
-const PARALLEL_RIGHTS_CEILING: u64 = 140_000;
+// Measured peak: 51_852 bytes on 2026-10-29; a quarter of headroom, rounded up.
+const PARALLEL_RIGHTS_CEILING: u64 = 65_000;
 
 #[test]
 fn the_original_maximum_parallel_width_has_live_result_rights() {
@@ -1274,7 +1287,8 @@ fn missing_completion(field: u64) -> Completion {
 }
 
 // Peak ceiling for four-message compaction across all routes (programming-model.md, section 6.3).
-const FOUR_MESSAGES_CEILING: u64 = 86_000;
+// Measured peak: 8_117 bytes on 2026-10-29; a quarter of headroom, rounded up.
+const FOUR_MESSAGES_CEILING: u64 = 11_000;
 
 #[test]
 fn the_four_message_cap_asks_for_compaction_before_provider_growth() {
@@ -1377,7 +1391,8 @@ fn run_call(ticket: u64, effect: Effect) -> Decoded {
 }
 
 // Peak ceiling for maximum fitting note and all offered choices (programming-model.md, section 6.3).
-const NOTE_CHOICES_CEILING: u64 = 96_000;
+// Measured peak: 13_689 bytes on 2026-10-29; a quarter of headroom, rounded up.
+const NOTE_CHOICES_CEILING: u64 = 18_000;
 
 #[test]
 fn the_largest_fitting_note_and_all_offered_choices_obey_the_session_byte_cap() {
@@ -1444,7 +1459,8 @@ fn the_largest_fitting_note_and_all_offered_choices_obey_the_session_byte_cap() 
 }
 
 // Peak ceiling for maximum child final-note admission and release (programming-model.md, section 6.3).
-const CHILD_NOTE_CEILING: u64 = 96_000;
+// Measured peak: 14_131 bytes on 2026-10-29; a quarter of headroom, rounded up.
+const CHILD_NOTE_CEILING: u64 = 18_000;
 
 #[test]
 fn a_maximum_child_final_note_is_charged_before_its_first_request_and_released() {

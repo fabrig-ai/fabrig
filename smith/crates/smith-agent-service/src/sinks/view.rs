@@ -117,7 +117,7 @@ impl View {
 
     /// One queued projection, including its cell and the largest owned payload.
     #[must_use]
-    pub fn worst_case(text_bytes: u32) -> Option<u64> {
+    pub fn owned_bound(text_bytes: u32) -> Option<u64> {
         let string = u64::try_from(smith_events::DETAIL_BYTES).ok()?;
         let model = string.checked_mul(4)?;
         let tool = string.checked_mul(2)?;

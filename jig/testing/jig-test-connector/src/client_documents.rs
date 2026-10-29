@@ -342,7 +342,7 @@ pub(crate) fn read(
 
 /// Owned allocation moved to the root's journal, including nested paths.
 #[must_use]
-pub fn document_worst_case(limits: &Limits) -> Option<u64> {
+pub fn document_bound(limits: &Limits) -> Option<u64> {
     let path = u64::from(limits.path_segments).checked_mul(u64::from(limits.segment_bytes).checked_add(16)?)?;
     let paths = u64::from(limits.resources_per_effect)
         .checked_mul(path.checked_add(u64::try_from(size_of::<crate::Path>()).ok()?)?)?;

@@ -62,7 +62,7 @@ fn eight_entries_end_with_an_empty_third_page() {
     }
 }
 #[test]
-fn a_page_of_max_entries_stays_within_file_ios_worst_case() {
+fn a_full_directory_page_returns_each_entry_once() {
     for seed in [0, 1, 17] {
         let outcome = pages::world(seed, pages::ENTRIES, pages::ENTRIES).run();
         assert_eq!(outcome.procs[0].pages.iter().map(|page| page.len()).collect::<Vec<_>>(), [4, 0]);

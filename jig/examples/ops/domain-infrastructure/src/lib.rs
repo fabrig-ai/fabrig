@@ -36,7 +36,7 @@ mod client_documents;
 mod client_marks;
 pub use client_documents::{
     ClientDocument, ClientEnvironment, ClientPool, ClientResource, ClientScope, ClientSubject, DocumentMissing,
-    ResourceFact, document_worst_case,
+    ResourceFact, document_bound,
 };
 mod boundary;
 mod domain;
@@ -48,7 +48,7 @@ pub use boundary::{
     ProcedureState, Purpose, Record, RecordKey, Recovery, Request, Resource, ResourceRole, RestartStage, Service,
     ServiceFact, StepDecision, SystemEvent, SystemRequest, TEAR_DOWN_CODE,
 };
-pub use domain::{Domain, MAX_OUT, fire, next_deadline, split, step};
+pub use domain::{Domain, fire, next_deadline, split, step};
 pub use limits::{Limits, valid};
 
 #[cfg(test)]

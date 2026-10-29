@@ -74,7 +74,7 @@ fn message_fits(kind: &OwnerMessageKind, words: &Text, limits: &Limits) -> Optio
 #[must_use]
 pub fn word_required(value: &OwnerWord, limits: &Limits, words: &Words) -> Option<ActivityFragment> {
     message_fits(&value.kind, &value.words, limits)?;
-    worst_case(limits, words)
+    fragment_bound(limits, words)
 }
 /// Whole activity envelope. Text and field arrays are never shortened to fit.
 #[must_use]
@@ -95,11 +95,11 @@ pub fn required(value: &OwnerActivityLine, limits: &Limits, words: &Words) -> Op
         | OwnerActivity::Decided { .. }
         | OwnerActivity::Milestone { .. } => {}
     }
-    worst_case(limits, words)
+    fragment_bound(limits, words)
 }
 /// Finite standalone envelope includes every field label, opaque byte and region name.
 #[must_use]
-pub fn worst_case(limits: &Limits, words: &Words) -> Option<ActivityFragment> {
+pub fn fragment_bound(limits: &Limits, words: &Words) -> Option<ActivityFragment> {
     let nodes = 100_u32.checked_add(limits.rows.checked_mul(4)?)?;
     let saying = words.jig_capacity()?;
     let text_per_node = crate::literal_segment::max_bytes(limits.text)?.max(saying);

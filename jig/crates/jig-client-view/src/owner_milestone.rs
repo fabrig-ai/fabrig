@@ -65,11 +65,11 @@ pub fn required(value: &OwnerMilestoneLine, limits: &Limits, words: &Words) -> O
             }
         }
     }
-    worst_case(limits, words)
+    fragment_bound(limits, words)
 }
-/// Checked worst-case tree/text/binding envelope from the normal selected language.
+/// Checked bound tree/text/binding envelope from the normal selected language.
 #[must_use]
-pub fn worst_case(limits: &Limits, words: &Words) -> Option<MilestoneFragment> {
+pub fn fragment_bound(limits: &Limits, words: &Words) -> Option<MilestoneFragment> {
     let nodes = max_nodes(limits)?;
     let phrase = words.jig_capacity()?;
     let text_per_node = crate::literal_segment::max_bytes(limits.text)?.max(phrase).checked_mul(2)?;

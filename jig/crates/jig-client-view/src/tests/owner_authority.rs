@@ -115,9 +115,9 @@ fn exact_authority_fragment_keeps_opaque_boundaries_full_codes_and_explicit_cut(
     let tree = render(&complete, &words, 3);
     assert!(!has(&tree, b"More are held than shown"));
     assert_eq!(tree.len(), 26);
-    let envelope = view::worst_case(3, 3, 5, &words).expect("configured envelope");
+    let envelope = view::fragment_bound(3, 3, 5, &words).expect("configured envelope");
     assert!(tree.len() <= envelope.nodes);
-    assert_eq!(view::worst_case(u32::MAX, u32::MAX, u32::MAX, &words), None);
+    assert_eq!(view::fragment_bound(u32::MAX, u32::MAX, u32::MAX, &words), None);
 }
 #[test]
 fn owner_authority_words_use_selected_language_and_person_offset() {
