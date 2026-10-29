@@ -1,18 +1,18 @@
-#[path = "client/account_keys.rs"]
+#[path = "../client/account_keys.rs"]
 mod account_keys;
-#[path = "client/accounts.rs"]
+#[path = "../client/accounts.rs"]
 mod accounts;
-#[path = "client/carried.rs"]
+#[path = "../client/carried.rs"]
 mod carried;
-#[path = "client/llm.rs"]
+#[path = "../client/llm.rs"]
 mod llm;
-#[path = "client/named.rs"]
+#[path = "../client/named.rs"]
 mod named;
-#[path = "client/named_accounts.rs"]
+#[path = "../client/named_accounts.rs"]
 mod named_accounts;
-#[path = "client/programs.rs"]
+#[path = "../client/programs.rs"]
 mod programs;
-#[path = "client/words.rs"]
+#[path = "../client/words.rs"]
 mod words;
 use jig_client::{
     Answered, Ask, Asker, Handle, Key, Latest, Link, Outcome, Readable, Readout, State, Watchable, contract,
