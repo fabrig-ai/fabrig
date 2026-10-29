@@ -52,6 +52,9 @@ pub struct Launch {
     /// Admit three tool turns, so the fourth would exceed the budget.
     #[serde(default)]
     pub budget_failure: bool,
+    /// A named plain directory whose write authority crosses the local/agent boundary.
+    #[serde(default)]
+    pub plain: Option<PlainDirectory>,
     pub placement: crate::Placement,
     pub keep_facts: bool,
     #[serde(default)]
@@ -62,6 +65,13 @@ pub struct Launch {
     pub state_directory: PathBuf,
     pub token_directory: PathBuf,
     pub root_path: PathBuf,
+}
+
+/// One selected non-git workspace root for composed tool stories.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct PlainDirectory {
+    pub name: Box<[u8]>,
+    pub writable: bool,
 }
 impl Launch {
     /// Exact arguments used unchanged by both kernel backends.
@@ -536,6 +546,15 @@ pub fn local_roots(spawn: &kernel::Spawn) -> Vec<StartupRoot> {
             });
         }
     }
+    if launch.plain.is_some() {
+        let path = launch.root_path.join("extra");
+        for name in [b"extra-delivery".as_slice(), b"extra-effect"] {
+            if name == b"extra-effect" && launch.placement != crate::Placement::InProcess {
+                continue;
+            }
+            roots.push(StartupRoot { name: name.into(), path: path.as_os_str().as_encoded_bytes().into() });
+        }
+    }
     roots
 }
 fn configure_choices(config: &mut service::Config, lower: &mut agent::Config) {
@@ -633,9 +652,13 @@ pub fn make_local(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
             input: inherited.pipes.iter().find(|(child, _)| *child == 0).expect("stdin").1,
             output: inherited.pipes.iter().find(|(child, _)| *child == 1).expect("stdout").1,
             signals: inherited.signal,
-            delivery_roots: if launch.change { Box::new([root(inherited, b"delivery")]) } else { Box::new([]) },
+            delivery_roots: if launch.plain.is_some() {
+                Box::new([root(inherited, b"delivery"), root(inherited, b"extra-delivery")])
+            } else if launch.change { Box::new([root(inherited, b"delivery")]) } else { Box::new([]) },
             effect_roots: if launch.change && launch.placement == crate::Placement::InProcess {
-                Box::new([root(inherited, b"effect")])
+                if launch.plain.is_some() {
+                    Box::new([root(inherited, b"effect"), root(inherited, b"extra-effect")])
+                } else { Box::new([root(inherited, b"effect")]) }
             } else {
                 Box::new([])
             },
@@ -709,7 +732,11 @@ pub fn agent_roots(spawn: &kernel::Spawn) -> Vec<StartupRoot> {
     let launch = agent_launch(spawn);
     if launch.change {
         let path = launch.root_path.join("repo");
-        vec![StartupRoot { name: b"repo".as_slice().into(), path: path.as_os_str().as_encoded_bytes().into() }]
+        let mut roots = vec![StartupRoot { name: b"repo".as_slice().into(), path: path.as_os_str().as_encoded_bytes().into() }];
+        if launch.plain.is_some() {
+            roots.push(StartupRoot { name: b"extra".as_slice().into(), path: launch.root_path.join("extra").as_os_str().as_encoded_bytes().into() });
+        }
+        roots
     } else {
         vec![]
     }
