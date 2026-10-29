@@ -4,7 +4,7 @@ use skein_channel::{
 };
 use skein_lib::{List, Queue, Rng, stream};
 
-#[path = "generic_protocol.rs"]
+#[path = "../generic_protocol.rs"]
 mod protocol;
 
 fn schema() -> Schema {

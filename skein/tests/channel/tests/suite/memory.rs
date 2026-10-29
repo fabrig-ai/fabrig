@@ -3,11 +3,8 @@ use skein_channel::{
     Control, Direction, Event, Kind, Limits, Lower, LowerEvent, MAX_DOWN, MAX_UP, Machine, Request, Role, Schema, Term,
     Version, control_frame, frame_writer, worst_case,
 };
-use skein_heap::{Counting, Meter};
+use skein_heap::Meter;
 use skein_lib::{List, Queue, Token, stream};
-
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 fn schema() -> Schema {
     let mut kinds = List::with_capacity(2);
