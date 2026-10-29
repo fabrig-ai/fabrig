@@ -190,7 +190,7 @@ impl World {
         Self {
             seed,
             domain: host::Domain::new(&bounds),
-            stage: Stage { out: skein_lib::Queue::uncapped(), ..Stage::new(bounds, 0, 0) },
+            stage: Stage::uncapped(bounds),
             schedule: Schedule::new(),
             lower: Ledger::new("host lower operation"),
             seen: Seen::default(),
