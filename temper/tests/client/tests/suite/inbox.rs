@@ -10,7 +10,7 @@ const ANSWER: &[u8] = b"Go ahead.";
 #[test]
 fn a_delegates_question_answered_in_the_inbox_reaches_the_delegate() {
     let mut world = fixtures::world(fixtures::SEED);
-    let chat = fixtures::question(world.front(), QUESTION);
+    let chat = fixtures::agreed_question(world.front(), QUESTION);
     let (question, delegate) = {
         let task = world.front().engine.task(chat).expect("asked chat");
         let question = task
@@ -23,6 +23,7 @@ fn a_delegates_question_answered_in_the_inbox_reaches_the_delegate() {
         let jig_domain_tasks::Party::Task(delegate) = question.from else { panic!("question from a task") };
         (question.number, delegate)
     };
+    assert!(world.front().engine.task(delegate).expect("agreed goal").spec.asks);
     let person = world.client(fixtures::PARTY, fixtures::inbox());
     world.person(
         person,
@@ -65,6 +66,20 @@ fn a_delegates_question_answered_in_the_inbox_reaches_the_delegate() {
         "delegate T{delegate}'s question turn missing"
     );
     assert!(!turn_holds(tree, b"You", ANSWER), "the answer goes directly to its asker");
+
+    world.go(person, fixtures::task_page(delegate));
+    world.person(
+        person,
+        vec![
+            Step::See {
+                find: Find::exactly_named(Role::Paragraph, format!("Task {delegate}").as_bytes()),
+                within: fixtures::WITHIN,
+            },
+            Step::See { find: Find::text(b"You are a goal: the work your person asked for"), within: fixtures::WITHIN },
+        ],
+    );
+    let outcome = world.run(Until::Done);
+    assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
 
     world.go(person, fixtures::inbox());
     world.person(
