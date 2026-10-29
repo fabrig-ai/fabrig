@@ -1,0 +1,6 @@
+# README: status
+
+2026-10-29. Where temper's code lags or departs from [README.md](README.md).
+
+- **Built:** 3 to 5: client tools/ctl, standalone service and terminal. 4: directories/init. 4: the binary's table (`temper --help` by who runs it, `temper COMMAND --help`, the page `commands`) and `temper internal` (agent, serve --box, forge-child), with every spawn site. 15: engine-only/worker-only/standalone cluster, ready/link diagnostics, reverse stop and loss/restart stories. 4: the unsettled stop's lines. 4: a start refused for a write in flight names each. 9: the forges' secrets and pasted bundles from temper-protocol-records' schema/secrets-v1.schema (family temper-secrets). 4: a box's serve that aborts is started again within its delay, whatever order its pipes and process end in. 4: a refused start names what it refused (a restore's range and reason, or its restart step) and exits 1, closing every listener it holds; under the box, retried within box.restarts. A restart's census reads back an unanswered question's activity. 5, 15.1: entrance checks, no component heap sum with jig's; memory budgets meter held bytes.
+- **Not yet:** 14: between-host TLS and contained agents/git. 6, 7: setup close independent of note room and public worker-refusal consumers.
