@@ -72,7 +72,7 @@ pub fn required(value: &OwnerAmendmentState, limits: &Limits, words: &Words) -> 
         }
     }
     authority_fits(&value.authority, limits)?;
-    worst_case(limits, words)
+    fragment_bound(limits, words)
 }
 /// Finite whole-node envelope shared by standalone and enclosing page renderers.
 #[must_use]
@@ -87,7 +87,7 @@ pub fn max_nodes(limits: &Limits) -> Option<u32> {
 /// The authority fragment includes escaped opaque pattern bytes; other fragment
 /// bounds include Markdown, per-text loss, specification arrays and wake facts.
 #[must_use]
-pub fn worst_case(limits: &Limits, words: &Words) -> Option<AmendmentFragment> {
+pub fn fragment_bound(limits: &Limits, words: &Words) -> Option<AmendmentFragment> {
     let nodes = max_nodes(limits)?;
     let phrase_bytes = words.jig_capacity()?;
     let text_per_node = crate::literal_segment::max_bytes(limits.text)?.max(phrase_bytes).checked_mul(2)?;

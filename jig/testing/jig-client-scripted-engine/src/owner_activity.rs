@@ -94,13 +94,13 @@ fn word_heap(bounds: &Bounds) -> Option<u64> {
 }
 /// Configured whole activity envelope; exactly one message may occur in a line.
 #[must_use]
-pub fn worst_case(bounds: &Bounds) -> Option<u64> {
+pub fn heap_bound(bounds: &Bounds) -> Option<u64> {
     u64::try_from(size_of::<OwnerActivityLine>())
         .ok()?
         .checked_add(word_heap(bounds)?.max(List::<u64>::price(bounds.rows)?))
 }
 #[must_use]
-pub fn word_worst_case(bounds: &Bounds) -> Option<u64> {
+pub fn word_heap_bound(bounds: &Bounds) -> Option<u64> {
     u64::try_from(size_of::<OwnerWord>()).ok()?.checked_add(word_heap(bounds)?)
 }
 #[cfg(test)]

@@ -196,9 +196,9 @@ fn owner_history_whole_bytes_charge_boxes_reserved_lists_and_nested_opaque_alloc
             assert_eq!(fits(&value, &Bounds { document_bytes: limit, ..bounds() }), admitted);
             assert_eq!(value, source, "whole admission never shortens source facts");
         }
-        assert!(expected <= worst_case(&bounds()).unwrap());
+        assert!(expected <= heap_bound(&bounds()).unwrap());
     }
-    assert_eq!(worst_case(&Bounds { text: u32::MAX, rows: u32::MAX, ..bounds() }), None);
+    assert_eq!(heap_bound(&Bounds { text: u32::MAX, rows: u32::MAX, ..bounds() }), None);
 }
 #[test]
 fn owner_history_reserved_empty_batch_and_optional_delta_fields_keep_actual_presence_and_capacity() {
@@ -249,7 +249,7 @@ fn owner_history_whole_batch_and_every_nested_text_or_row_boundary_refuses_uncha
     }
     assert!(fits(&value, &bounds()));
     assert!(!fits(&value, &Bounds { text: 7, ..bounds() }));
-    assert!(bytes(&value, &bounds()).unwrap() <= worst_case(&bounds()).unwrap());
+    assert!(bytes(&value, &bounds()).unwrap() <= heap_bound(&bounds()).unwrap());
 }
 #[test]
 fn owner_history_snapshot_optional_overrides_and_independent_retained_losses_are_not_live_defaults() {

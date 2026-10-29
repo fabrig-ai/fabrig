@@ -204,7 +204,7 @@ fn full_world() -> jig_client_world::World<jig_client_world::Test, jig_client_wo
     w
 }
 #[test]
-fn full_documents_tabs_and_all_page_kinds_fit_the_client_and_view_worst_cases() {
+fn full_documents_tabs_and_all_page_kinds_fit_the_client_and_view_bounds() {
     let mut w = full_world();
     let c = w.client(7, stories::inbox());
     let _tab = w.tab(c);

@@ -77,7 +77,7 @@ pub fn page_fits(value: &OwnerInboxPage, bounds: &Bounds) -> bool {
     crate::payload::fits(value, bounds)
 }
 #[must_use]
-pub fn worst_case(bounds: &Bounds) -> Option<u64> {
+pub fn heap_bound(bounds: &Bounds) -> Option<u64> {
     if bounds.document_bytes < u64::try_from(size_of::<OwnerInbox>()).ok()? {
         None
     } else {

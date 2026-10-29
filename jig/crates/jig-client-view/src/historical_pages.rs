@@ -51,11 +51,11 @@ fn envelope(nodes: u32, l: &Limits, words: &Words) -> Option<HistoricalFragment>
     })
 }
 #[must_use]
-pub fn ended_worst_case(l: &Limits, words: &Words) -> Option<HistoricalFragment> {
+pub fn ended_fragment_bound(l: &Limits, words: &Words) -> Option<HistoricalFragment> {
     envelope(ended_nodes(l)?, l, words)
 }
 #[must_use]
-pub fn spend_worst_case(l: &Limits, words: &Words) -> Option<HistoricalFragment> {
+pub fn spend_fragment_bound(l: &Limits, words: &Words) -> Option<HistoricalFragment> {
     envelope(spend_nodes(l)?, l, words)
 }
 fn edges_fit(before: Option<&Cursor>, after: Option<&Cursor>, l: &Limits) -> Option<()> {
@@ -125,7 +125,7 @@ pub fn ended_required(page: &OwnerEndedPage, l: &Limits, words: &Words) -> Optio
         chip_fits(&row.chip, l, words)?;
         ending_fits(&row.ended, l)?;
     }
-    ended_worst_case(l, words)
+    ended_fragment_bound(l, words)
 }
 #[must_use]
 pub fn spend_required(page: &OwnerSpendPage, l: &Limits, words: &Words) -> Option<HistoricalFragment> {
@@ -133,7 +133,7 @@ pub fn spend_required(page: &OwnerSpendPage, l: &Limits, words: &Words) -> Optio
         return None;
     }
     edges_fit(page.before.as_ref(), page.after.as_ref(), l)?;
-    spend_worst_case(l, words)
+    spend_fragment_bound(l, words)
 }
 fn saying(words: &Words, phrase: P, holes: &[Hole]) -> Box<[u8]> {
     words

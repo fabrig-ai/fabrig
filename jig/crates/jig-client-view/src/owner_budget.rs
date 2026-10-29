@@ -99,7 +99,7 @@ pub fn ledger_required(value: &PoolLedger, words: &Words) -> Option<BudgetFragme
 }
 /// Maximum budget storage, including a supplied deadline and any exact Funder.
 #[must_use]
-pub fn worst_case(words: &Words) -> Option<BudgetFragment> {
+pub fn fragment_bound(words: &Words) -> Option<BudgetFragment> {
     let mut result = region();
     result.name(words, BudgetPhrase::Budget)?;
     result.numbers(words)?;
@@ -110,7 +110,7 @@ pub fn worst_case(words: &Words) -> Option<BudgetFragment> {
 }
 /// Maximum ledger storage includes both sources, both times and either state.
 #[must_use]
-pub fn ledger_worst_case(words: &Words) -> Option<BudgetFragment> {
+pub fn ledger_fragment_bound(words: &Words) -> Option<BudgetFragment> {
     let mut result = region();
     result.name(words, BudgetPhrase::Source)?;
     result.numbers(words)?;
