@@ -153,16 +153,8 @@ pub fn decision_words() -> skein_ui::phrases::Language {
 }
 
 fn world_with(seed: u64, front: Joint) -> World<Temper, Joint> {
-    let mut world = World::new(
-        Settings {
-            seed,
-            words: decision_words(),
-            heap_bytes_per_client: 64 * 1024 * 1024,
-            iterations: 4096,
-            ..Settings::default()
-        },
-        front,
-    );
+    let mut world =
+        World::new(Settings { seed, words: decision_words(), iterations: 4096, ..Settings::default() }, front);
     world.randomness(2, 0, 0);
     world
 }

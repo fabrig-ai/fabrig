@@ -218,12 +218,7 @@ fn qa_a_panel_dropped_before_its_first_record_keeps_loading_until_jig_reopens_it
     front.engine.forge.as_mut().expect("fake forge").push_branch(7, b"temper/qa");
     let task = fixtures::goal_with_pushed_change(&mut front, b"temper/qa");
     let mut world = World::<Temper, Joint>::new(
-        Settings {
-            seed: fixtures::SEED,
-            words: fixtures::decision_words(),
-            heap_bytes_per_client: 64 * 1024 * 1024,
-            ..Settings::default()
-        },
+        Settings { seed: fixtures::SEED, words: fixtures::decision_words(), ..Settings::default() },
         front,
     );
     let client = world.client(fixtures::PARTY, fixtures::task_page(task));

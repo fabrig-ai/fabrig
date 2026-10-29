@@ -18,15 +18,8 @@ fn change_world() -> (ClientWorld, u64) {
     fixtures::adopt_change_repository(&mut front);
     front.engine.forge.as_mut().expect("fake forge").push_branch(7, b"temper/qa");
     let task = fixtures::goal_with_pushed_change(&mut front, b"temper/qa");
-    let world = World::new(
-        Settings {
-            seed: fixtures::SEED,
-            words: fixtures::decision_words(),
-            heap_bytes_per_client: 64 * 1024 * 1024,
-            ..Settings::default()
-        },
-        front,
-    );
+    let world =
+        World::new(Settings { seed: fixtures::SEED, words: fixtures::decision_words(), ..Settings::default() }, front);
     (world, task)
 }
 fn see(world: &mut ClientWorld, client: ClientId, find: Find) {
