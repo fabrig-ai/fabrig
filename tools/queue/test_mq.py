@@ -291,7 +291,7 @@ class CheckTests(unittest.TestCase):
         steps = mq.check_commands(ROOT, {"core", "normal"}, ["core/src/lib.rs", "skein/docs/x.md"],
                                   metadata=metadata(ROOT))
         self.assertEqual([name for name, _, _ in steps],
-                         ["fmt", "clippy", "build", "default", "fuzzy", "ratchet:skein"])
+                         ["fmt", "clippy", "build", "default", "fuzzy"])
         self.assertEqual(steps[0][1], ["cargo", "fmt", "--check", "-p", "core"])
         for _, argv, _ in steps[1:5]:
             self.assertEqual(argv[:3], ["heavy", "--gate", "cargo"])
@@ -302,15 +302,18 @@ class CheckTests(unittest.TestCase):
         self.assertNotIn("--no-fail-fast", steps[2][1])
         self.assertIn("--no-fail-fast", steps[3][1])
         self.assertEqual(steps[4][1][-2:], ["--profile", "fuzzy"])
-        self.assertEqual(steps[-1][2], ROOT / "skein")
-        self.assertEqual(steps[-1][1], ["python3", "-I", "-B", str(ROOT / "skein/scripts/old_forms.py")])
+        ratchets = mq.ratchet_commands(ROOT, ["core/src/lib.rs", "skein/docs/x.md"])
+        self.assertEqual(ratchets, [("ratchet:skein", ["python3", "-I", "-B",
+                                                     str(ROOT / "skein/scripts/old_forms.py"), "--write"],
+                                    ROOT / "skein")])
 
     def test_full_formats_workspace_and_docs_only_runs_ratchets(self):
         self.assertEqual(mq.check_commands(ROOT, "full", [])[0][1], ["cargo", "fmt", "--all", "--check"])
         for _, argv, _ in mq.check_commands(ROOT, "full", [])[1:]:
             self.assertIn("--workspace", argv)
             self.assertNotIn("-p", argv)
-        self.assertEqual([name for name, _, _ in mq.check_commands(ROOT, "docs", ["jig/README.md"])],
+        self.assertEqual(mq.check_commands(ROOT, "docs", ["jig/README.md"]), [])
+        self.assertEqual([name for name, _, _ in mq.ratchet_commands(ROOT, ["jig/README.md"])],
                          ["ratchet:jig"])
 
     def test_fmt_uses_only_changed_rust_owners_sorted_once(self):
@@ -412,7 +415,8 @@ class CheckTests(unittest.TestCase):
             steps = mq.run_checks(ROOT, "docs", ["tools/x.py", "jig/README.md"],
                                   Path(directory) / "checks.log",
                                   runner=lambda *a, **kw: subprocess.CompletedProcess(a, 0))
-        self.assertEqual([step["name"] for step in steps], ["tools", "ratchet:jig"])
+        self.assertEqual([step["name"] for step in steps], ["ratchet:jig", "tools"])
+        self.assertEqual(steps[0]["command"][-1], "--write")
 
     def test_only_heavy_exit_two_with_disk_floor_text_is_a_refusal(self):
         for code, output, refused in ((2, "builder: 39 GB below the disk floor", True),
@@ -583,6 +587,16 @@ class RepositoryTests(unittest.TestCase):
         self.checks.append((selected, paths, self.tip()))
         return [{"name": "fixture", "green": not (repo / "red").exists(), "duration": 0.0}]
 
+    def ratchet_checker(self, repo, selected, paths, log):
+        def runner(argv, **kwargs):
+            if argv[0] == "python3":
+                return subprocess.run(argv, **kwargs)
+            self.checks.append(argv)
+            self.assertIn(argv[0], ("cargo", "heavy"))
+            return subprocess.CompletedProcess(argv, int((repo / "red").exists()))
+
+        return mq.run_checks(repo, selected, paths, log, runner=runner)
+
     def poster(self, address, subject, body):
         self.assertLess(len(body.splitlines()), 15)
         self.posts.append((address, subject, body))
@@ -619,6 +633,7 @@ class RepositoryTests(unittest.TestCase):
             self.write(f"{tree}/src/b.rs", "old\n")
             self.write(f"{tree}/scripts/old_forms.py", r"""from pathlib import Path
 import sys
+assert sys.argv[1:] == ['--write']
 baseline = Path('scripts/old-forms.txt')
 count = sum(p.read_text().count('old') for p in Path('src').glob('*.rs'))
 if count > int(baseline.read_text()):
@@ -657,6 +672,118 @@ baseline.write_text(str(count) + '\n')
         self.assertEqual(mq.git(self.repo, "show", "-s", "--format=%s").stdout.strip(),
                          "Merge ready/coord/b")
         self.assertEqual(mq.git(self.repo, "status", "--porcelain").stdout, "")
+
+    def test_lower_count_is_committed_on_top_of_merges_and_pushed(self):
+        self.ratchet_base()
+        branch = self.branch("lower", "skein/src/a.rs", "", publish=True)
+        queue = self.queue()
+        queue.checker = self.ratchet_checker
+        self.run_cycle(queue)
+        record = self.records()[0]
+        self.assertEqual(record["outcome"], "green")
+        self.assertEqual(mq.git(self.repo, "show", "origin/main:skein/scripts/old-forms.txt").stdout, "1\n")
+        self.assertEqual(mq.git(self.repo, "show", "-s", "--format=%s", "origin/main").stdout.strip(),
+                         "Lower skein old-form baselines")
+        merge = mq.git(self.repo, "rev-parse", "origin/main^").stdout.strip()
+        self.assertEqual(mq.git(self.repo, "show", "-s", "--format=%s", merge).stdout.strip(),
+                         "Merge " + branch["name"])
+        self.assertEqual(mq.git(self.repo, "show", "-s", "--format=%an <%ae>", "origin/main").stdout.strip(),
+                         "Queue fixture <queue@example.test>")
+        self.assertEqual(record["steps"][0]["name"], "ratchet:skein")
+        self.assertEqual(record["steps"][0]["command"][-1], "--write")
+        self.assertGreaterEqual(record["steps"][0]["duration"], 0)
+        self.assertTrue(any(f"Merge commit: {merge}" in body for _, _, body in self.posts))
+        self.assertEqual(mq.git(self.repo, "ls-remote", "origin", "refs/heads/main").stdout.split()[0],
+                         record["commit"])
+        self.assertEqual(mq.git(self.repo, "status", "--porcelain").stdout, "")
+
+    def test_branches_lowering_same_baseline_land_combined_count(self):
+        self.ratchet_base()
+        first = self.branch("a", "skein/src/a.rs", "old\n")
+        self.write("skein/scripts/old-forms.txt", "2\n")
+        self.commit("lower first baseline")
+        first["tip"] = self.tip()
+        second = self.ratchet_branch("b", "b", 2)
+        queue = self.queue()
+        queue.checker = self.ratchet_checker
+        self.assertTrue(queue.attempt([first, second]))
+        self.assertEqual(mq.git(self.repo, "show", "origin/main:skein/scripts/old-forms.txt").stdout, "1\n")
+        self.assertEqual(mq.git(self.repo, "show", "-s", "--format=%s", "origin/main").stdout.strip(),
+                         "Lower skein old-form baselines")
+        subjects = mq.git(self.repo, "log", "--first-parent", "--format=%s", f"{self.base}..origin/main").stdout.splitlines()
+        self.assertEqual(subjects, ["Lower skein old-form baselines", "Merge ready/coord/b", "Merge ready/coord/a"])
+
+    def test_count_rise_rejects_single_batch_before_other_checks(self):
+        self.ratchet_base()
+        branch = self.branch("raise", "skein/src/a.rs", "old old old\n", publish=True)
+        queue = self.queue()
+        queue.checker = self.ratchet_checker
+        with patch.object(mq, "tools_commands", side_effect=AssertionError("tools ran")), \
+                patch.object(mq, "check_commands", side_effect=AssertionError("cargo ran")):
+            self.run_cycle(queue)
+        record = self.records()[0]
+        self.assertEqual(record["outcome"], "red")
+        self.assertEqual([step["name"] for step in record["steps"]], ["ratchet:skein"])
+        self.assertEqual(record["steps"][0]["returncode"], 1)
+        self.assertIn("count rose above HEAD baseline", Path(record["log"]).read_text())
+        self.assertTrue(any("failing step: ratchet:skein" in body for _, _, body in self.posts))
+        self.assertEqual(queue.state["tried"][branch["name"]], branch["tip"])
+        self.assertEqual(mq.git(self.repo, "rev-parse", "origin/main").stdout.strip(), self.base)
+        self.assertEqual(self.checks, [])
+
+    def test_batch_touching_no_tree_creates_no_baseline_commit(self):
+        branch = self.branch("docs", "guide.md", publish=True)
+        queue = self.queue(now=lambda: 10000)
+        queue.state["last_full"] = 9999
+        queue.checker = self.ratchet_checker
+        self.run_cycle(queue)
+        self.assertEqual(self.records()[0]["steps"], [])
+        self.assertEqual(mq.git(self.repo, "show", "-s", "--format=%s", "origin/main").stdout.strip(),
+                         "Merge " + branch["name"])
+        self.assertEqual(mq.git(self.repo, "ls-tree", "-r", "--name-only", "origin/main").stdout.splitlines(),
+                         ["guide.md", "shared"])
+
+    def test_docs_only_recounts_only_touched_trees_and_commits_slack(self):
+        self.ratchet_base(("skein", "smith", "jig"))
+        self.write("skein/src/a.rs", "")
+        self.write("smith/src/a.rs", "")
+        self.write("jig/src/a.rs", "")
+        self.commit("slack on main")
+        self.base = self.tip()
+        mq.git(self.repo, "push", "origin", "HEAD:main")
+        mq.git(self.repo, "fetch", "origin")
+        branch = self.branch("docs", "skein/README.md", publish=True)
+        self.write("smith/README.md", "docs\n")
+        self.commit("second tree docs")
+        mq.git(self.repo, "push", "origin", f"HEAD:refs/heads/{branch['name']}")
+        queue = self.queue(now=lambda: 10000)
+        queue.state["last_full"] = 9999
+        queue.checker = self.ratchet_checker
+        self.run_cycle(queue)
+        record = self.records()[0]
+        self.assertEqual(record["selection"], "docs")
+        self.assertEqual([step["name"] for step in record["steps"]], ["ratchet:skein", "ratchet:smith"])
+        self.assertTrue(all(step["command"][-1] == "--write" for step in record["steps"]))
+        self.assertEqual(mq.git(self.repo, "show", "origin/main:jig/scripts/old-forms.txt").stdout, "3\n")
+        for tree in ("skein", "smith"):
+            self.assertEqual(mq.git(self.repo, "show", f"origin/main:{tree}/scripts/old-forms.txt").stdout, "1\n")
+        self.assertEqual(self.checks, [])
+
+    def test_bisection_recomputes_baselines_from_each_halfs_merges(self):
+        self.ratchet_base()
+        self.branch("a", "skein/src/a.rs", "", publish=True)
+        self.branch("b", "skein/src/b.rs", "", publish=True)
+        self.branch("red", publish=True)
+        queue = self.queue()
+        queue.checker = self.ratchet_checker
+        self.run_cycle(queue)
+        records = self.records()
+        self.assertEqual([record["outcome"] for record in records], ["red", "green", "red", "green", "red"])
+        green = [record for record in records if record["outcome"] == "green"]
+        self.assertEqual([mq.git(self.repo, "show", f"{record['commit']}:skein/scripts/old-forms.txt").stdout
+                          for record in green], ["1\n", "0\n"])
+        self.assertEqual(mq.git(self.repo, "show", "origin/main:skein/scripts/old-forms.txt").stdout, "0\n")
+        self.assertNotIn("red", mq.git(self.repo, "ls-tree", "--name-only", "origin/main").stdout.splitlines())
 
     def test_ratchet_rise_rejects_branch_and_restores_batch_so_far(self):
         self.ratchet_base()

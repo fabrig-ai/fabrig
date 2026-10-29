@@ -6,7 +6,7 @@ Provisional, 2026-10-28. Kept by the operator (`agents/operator.md`, 5); every r
 |---|---|---|---|---|---|
 | 1 | 3 | the queue rejected good branches because heavy refused below its disk floor | repair rounds | a floor refusal is an error, not a red; the queue waits below its floor and trims its own test executables | `tools/queue/mq` |
 | 2 | 3 | a builder's disk reached zero bytes: slots' stale test executables; heavy failed its own bookkeeping | a stalled task, a manual reconcile | every task trims its slot first; fewer test binaries | `tools/slots/trim`; `agents/implementer.md` 1; `agents/operations.md` 3 |
-| 3 | 3 | conflicts in `old-forms.txt` between branches that each lowered a count | rebase rounds | the queue merges a conflict confined to it by `--write` | `tools/queue/mq` |
+| 3 | 3 | conflicts in `old-forms.txt` between branches that each lowered a count, or slack when both lowered to the same count | rebase rounds and loose baselines | the queue writes and commits lower baselines after each batch's merges; tasks need not lower them; baseline-only conflicts merge through a recount | `tools/queue/mq`; `AGENTS.md` 1 |
 | 4 | 2 | every batch a full workspace run (lockfile and manifest changes forced it) | 7-11 min a batch | lockfile-aware selection; fmt on changed packages; build and test timed apart | `tools/queue/mq` |
 | 5 | 2 | ~1,366 test executables per full build; linking dominates the test step | build time, disk | one integration binary per package | `AGENTS.md` 6; the nextest profiles |
 | 6 | 3 | a gate red under load (it was a real bug that load exposed) | a batch and a repair | harness deadlines tell starved from failed through one skein mechanism | `skein/docs/foundation/testing-strategy.md` 2.10 |
