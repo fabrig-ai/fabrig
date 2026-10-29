@@ -655,7 +655,7 @@ pub fn uncommitted(journal: &mut Journal, number: u64, out: &mut Queue<Output>) 
     out.push(Output::Stop);
 }
 
-/// Pure startup heap calculation for journal containers and simultaneously owned
+/// Pure startup heap calculation for the root's containers and simultaneously owned
 /// decision/commit/held payloads, excluding allocator overhead. Invalid bounds or arithmetic
 /// overflow return `None`; no state or effect is created.
 #[must_use]
@@ -663,8 +663,8 @@ pub fn worst_case(limits: &Limits) -> Option<u64> {
     if limits.commits == 0 || limits.writes == 0 || limits.deliveries == 0 || limits.run_bytes == 0 {
         return None;
     }
-    Journal::worst_case(&journal_limits(limits))?
-        .checked_add(List::<Write>::worst_case(limits.writes)?.checked_mul(2)?)?
+    List::<Write>::worst_case(limits.writes)?
+        .checked_mul(2)?
         .checked_add(Queue::<Delivery>::worst_case(limits.deliveries)?)?
         .checked_add(u64::from(limits.writes).checked_mul(2)?.checked_mul(u64::from(limits.transcript_bytes))?)?
         .checked_add(
