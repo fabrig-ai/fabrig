@@ -146,10 +146,10 @@ pub(crate) fn layout(
     if transcript > ceiling {
         return Err(Refusal::Transcript { bytes: transcript, ceiling });
     }
-    let sizes = match protocol::sizes::check(
+    let sizes = match protocol::sizes::check_commits(
         &core,
         &temper_protocol_store::application(forge, root.tasks.spec_bytes).ok_or(arithmetic)?,
-        &root::journal_limits(&root.journal),
+        &protocol::sizes::Commits { in_flight: root.journal.commits, writes: root.journal.writes },
         &kv,
         profile.orphan_erases,
     ) {
