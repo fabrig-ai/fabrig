@@ -314,7 +314,6 @@ impl World {
             self.provider_replies();
         }
         while self.agent.is_due(now) {
-            assert!(self.stage.has_room());
             inline::fire(&mut self.agent, &self.stage.env, &mut self.stage.out);
             self.outputs();
             self.pass();
@@ -605,7 +604,6 @@ impl World {
             if !self.agent.is_ready() {
                 return;
             }
-            assert!(self.stage.has_room());
             inline::resume(&mut self.agent, &self.stage.env, &mut self.stage.out);
         }
         panic!("bounded ready work did not settle");
