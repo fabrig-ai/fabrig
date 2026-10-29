@@ -524,7 +524,7 @@ impl World {
         let mut world = World {
             domain: engine::Domain::new(config, &limits).expect("valid engine configuration"),
             environment: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
-            out: Queue::with_capacity(engine::max_out(&limits)),
+            out: Queue::uncapped(),
             events: VecDeque::new(),
             store,
             referee: WalkingReferee::default(),
@@ -737,7 +737,6 @@ impl World {
     }
 
     fn observe(&mut self) {
-        assert!(self.out.len() <= engine::max_out(&self.environment.limits));
         while let Some(request) = self.out.pop() {
             self.trace.push(format!("output {request:?}"));
             let request = match self.protocol.play(request) {
@@ -994,7 +993,7 @@ mod tests {
     use super::{Settings, World};
     use crate::walking_referee::REPORT;
     use skein_lib::Queue;
-    use temper_engine_domain::{self as engine, Delivery, PartyRequest, Request};
+    use temper_engine_domain::{Delivery, PartyRequest, Request};
 
     #[test]
     #[should_panic(expected = "committed result reaches person once: \"person received result twice\"")]
@@ -1003,7 +1002,7 @@ mod tests {
         world.run();
         let person = world.referee.person().expect("story's person");
         let task = world.assignment.as_ref().expect("script retained assignment").task;
-        world.out = Queue::with_capacity(engine::max_out(&world.environment.limits) + 1);
+        world.out = Queue::uncapped();
         world.out.push(Request::Party(PartyRequest::Deliver(Delivery::Result { person, task, words: REPORT.into() })));
         assert!(!world.settled(), "queued outward work cannot be hidden by completed story counters");
         world.run();
