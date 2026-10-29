@@ -3,6 +3,7 @@
 #![forbid(unsafe_code)]
 extern crate alloc;
 
+#[expect(dead_code, reason = "Generated compatibility helpers retain the old bound names during migration.")]
 #[rustfmt::skip]
 #[path = "generated/v1.rs"]
 pub mod v1;

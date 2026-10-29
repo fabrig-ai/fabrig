@@ -5,6 +5,7 @@ extern crate alloc;
 use alloc::boxed::Box;
 pub mod keys;
 pub mod records;
+#[expect(dead_code, reason = "Generated compatibility helpers retain the old bound names during migration.")]
 #[rustfmt::skip]
 #[path = "generated/v10.rs"]
 pub mod v10;
