@@ -2,6 +2,8 @@
 
 mod guide_room;
 
+mod brief_room;
+
 mod program;
 
 mod open;
