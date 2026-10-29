@@ -1,5 +1,7 @@
 //! Admission order and cues on one checked real world.
+mod lifecycle;
 use crate::{agent, calls::Caller, fixtures, forge, llm, service::ServiceHost};
+use lifecycle::{Hosts, Lifecycle};
 use skein_fake_peers::llm::Observation::{Answered, Query};
 use skein_io::kernel::{Complete, Exit, ServiceSignal, Submit};
 use skein_lib::{Queue, Time, Wall};
@@ -144,9 +146,7 @@ pub(crate) fn run(
         patience: crate::patience::Patience::new(patience),
         controls,
         workers: Vec::new(),
-        engine_stopping: false,
-        stopping: false,
-        finished: false,
+        lifecycle: Lifecycle::default(),
         failure: None,
         armed: false,
         wake: None,
@@ -272,9 +272,7 @@ pub(crate) fn run_forge(
         patience: crate::patience::Patience::new(patience),
         controls,
         workers: Vec::new(),
-        engine_stopping: false,
-        stopping: false,
-        finished: false,
+        lifecycle: Lifecycle::default(),
         failure: None,
         armed: false,
         wake: None,
@@ -406,15 +404,12 @@ fn host<R: Referee<Proc>>(
         if configuration.programs.is_empty() { |_| Vec::new() } else { agent::roots },
     );
 }
-#[expect(clippy::struct_excessive_bools, reason = "independent referee cues for placement and shutdown")]
 struct Judge {
     patience: crate::patience::Patience,
     controls: Controls,
     workers: Vec<&'static str>,
-    engine_stopping: bool,
-    stopping: bool,
+    lifecycle: Lifecycle,
     armed: bool,
-    finished: bool,
     failure: Option<Failure>,
     wake: Option<Time>,
     forge: Option<std::rc::Rc<std::cell::RefCell<Option<forge::State>>>>,
@@ -558,6 +553,22 @@ impl LlmHistory {
     }
 }
 impl Judge {
+    fn shutdown_decisions(
+        &mut self,
+        caller: &Caller,
+        service: &ServiceHost,
+        workers: &[Proc],
+        children: &[Proc],
+    ) -> lifecycle::Shutdown {
+        self.lifecycle.shutdown(
+            caller.is_empty(),
+            Hosts {
+                service_empty: service.is_empty(),
+                workers_empty: workers.iter().all(Host::is_empty),
+                children_settled: self.children.settled(children),
+            },
+        )
+    }
     fn finish_peers(&mut self, peer: &mut Llm, children: &mut [Proc]) {
         peer.scripts = None;
         peer.shutdown();
@@ -622,7 +633,7 @@ impl Judge {
         use std::fmt::Write;
         let mut report = format!(
             "temper judge overdue: stopping={} engine_stopping={} finished={}\n",
-            self.stopping, self.engine_stopping, self.finished
+            self.lifecycle.stopping, self.lifecycle.engine_stopping, self.lifecycle.finished
         );
         if let Some(failure) = &self.failure {
             writeln!(report, "judge early_failure settled={} message={}", failure.settled, failure.message)
@@ -669,7 +680,7 @@ impl Referee<Proc> for Judge {
         }
         self.worker_actions(caller_end, caller, workers);
         peer.release_hold(caller);
-        if placed(workers) && !self.finished {
+        if placed(workers) && !self.lifecycle.finished {
             peer.cue = true;
         }
         if !self.armed {
@@ -712,13 +723,13 @@ impl Referee<Proc> for Judge {
             github_cues(state, peer, service, caller, children);
         }
         service.address = peer.address();
-        if service.links() != 0
-            && workers
+        Lifecycle::release(
+            caller,
+            service.links(),
+            workers
                 .iter()
-                .all(|proc| matches!(proc, Proc::Service(worker) if !worker_started(worker) || worker.linked() > 0))
-        {
-            caller.released = true;
-        }
+                .all(|proc| matches!(proc, Proc::Service(worker) if !worker_started(worker) || worker.linked() > 0)),
+        );
         if !caller.released && service.is_empty() {
             self.fail_startup(service.early_exit(engine_index), caller, workers, caller_end);
             self.finish_peers(peer, children);
@@ -728,20 +739,18 @@ impl Referee<Proc> for Judge {
             service.arm_watch(call);
             caller.watched = service.delivered();
         }
-        if caller.is_empty() && self.children.settled(children) && !self.stopping {
+        let shutdown = self.shutdown_decisions(caller, service, workers, children);
+        if shutdown.workers {
             check_ending(caller, service, workers, children);
             for (position, _) in self.workers.iter().enumerate() {
                 self.controls.signal(caller_end + position, ServiceSignal::Terminate);
             }
-            self.stopping = true;
         }
-        if self.stopping && workers.iter().all(Host::is_empty) && !self.engine_stopping {
+        if shutdown.engine {
             self.controls.signal(engine_index, ServiceSignal::Terminate);
-            self.engine_stopping = true;
         }
-        if service.is_empty() && caller.is_empty() && !self.finished {
+        if shutdown.peers {
             self.finish_peers(peer, children);
-            self.finished = true;
         }
     }
     fn observe(&mut self, now: Time, procs: &[Proc]) {
@@ -807,7 +816,7 @@ impl Referee<Proc> for Judge {
             || (caller.releasing_hold().is_some() && !caller.hold_released.get() && peer.release.is_none())
             || placing
             || workers_changed
-            || (self.stopping && workers.iter().all(Host::is_empty) && !self.engine_stopping)
+            || (self.lifecycle.stopping && workers.iter().all(Host::is_empty) && !self.lifecycle.engine_stopping)
             || (self.github.is_some() && children.first().is_some_and(|proc|
                 matches!(proc, Proc::Forge(forge) if forge.address().is_some() && service.forge_address.is_none())))
             || forge_changed
@@ -817,8 +826,8 @@ impl Referee<Proc> for Judge {
                 && !caller.released
                 && workers.iter().all(|proc| matches!(proc, Proc::Service(worker) if !worker_started(worker) || worker.linked() > 0)))
             || (caller.watching.is_some() && (!service.watching() || service.delivered() && !caller.watched))
-            || (caller.is_empty() && self.children.settled(children) && !self.stopping)
-            || (service.is_empty() && !self.finished && (!caller.released || caller.is_empty()))
+            || (caller.is_empty() && self.children.settled(children) && !self.lifecycle.stopping)
+            || (service.is_empty() && !self.lifecycle.finished && (!caller.released || caller.is_empty()))
         {
             self.wake = Some(now);
         }
@@ -835,7 +844,7 @@ impl Referee<Proc> for Judge {
             .or_else(|| self.patience.overdue())
     }
     fn passed(&self) -> bool {
-        self.finished && self.failure.is_none()
+        self.lifecycle.passed(self.failure.is_some())
     }
 }
 
@@ -938,9 +947,7 @@ fn cluster_judge(
         patience: crate::patience::Patience::new(patience),
         controls,
         workers: workers.to_vec(),
-        engine_stopping: false,
-        stopping: false,
-        finished: false,
+        lifecycle: Lifecycle::default(),
         failure: None,
         armed: false,
         wake: None,

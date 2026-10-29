@@ -12,7 +12,6 @@ mod git;
 mod github;
 mod github_land;
 mod kept_requests;
-mod landing;
 mod landing_retry;
 mod lifecycle;
 mod lock;
