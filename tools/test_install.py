@@ -32,9 +32,14 @@ class InstallTests(unittest.TestCase):
         self.tool = self.source / "tools/codex-run/codex-run"
         self.tool.write_text("#!/bin/bash\necho fixture\n")
         self.tool.chmod(0o700)
+        (self.source / "tools/slots").mkdir()
+        self.claim_tool = self.source / "tools/slots/claim"
+        self.claim_tool.write_text("#!/bin/bash\necho claim-fixture\n")
+        self.claim_tool.chmod(0o700)
         self.commit()
         self.checkout = self.home / "src/fabrig/main"
         self.link = self.home / ".local/bin/codex-run"
+        self.claim_link = self.home / ".local/bin/claim"
 
     def git(self, directory, *args):
         return subprocess.check_output(["git", "-C", str(directory), *args],
@@ -55,23 +60,29 @@ class InstallTests(unittest.TestCase):
         output = self.install("--dry-run")
         self.assertIn("git clone", output)
         self.assertIn("(absent) -> " + str(self.checkout / "tools/codex-run/codex-run"), output)
+        self.assertIn("(absent) -> " + str(self.checkout / "tools/slots/claim"), output)
         self.assertFalse((self.home / "src").exists())
         self.assertFalse((self.home / ".local").exists())
 
     def test_clone_update_and_detached_main(self):
         self.link.parent.mkdir(parents=True)
         self.link.symlink_to("/fixture/old-codex-run")
+        self.claim_link.symlink_to("/fixture/old-claim")
         output = self.install()
         self.assertIn("/fixture/old-codex-run -> ", output)
+        self.assertIn("/fixture/old-claim -> ", output)
         self.assertEqual(self.link.readlink(), self.checkout / "tools/codex-run/codex-run")
+        self.assertEqual(self.claim_link.readlink(), self.checkout / "tools/slots/claim")
         self.assertEqual(self.git(self.checkout, "rev-parse", "--abbrev-ref", "HEAD"), "HEAD")
         before = self.git(self.checkout, "rev-parse", "HEAD")
         self.tool.write_text("#!/bin/bash\necho updated-fixture\n")
+        self.claim_tool.write_text("#!/bin/bash\necho updated-claim-fixture\n")
         self.commit()
         self.install("--dry-run")
         self.assertEqual(self.git(self.checkout, "rev-parse", "HEAD"), before)
         self.install()
         self.assertEqual(self.link.read_text(), self.tool.read_text())
+        self.assertEqual(self.claim_link.read_text(), self.claim_tool.read_text())
         self.assertEqual(self.git(self.checkout, "rev-parse", "HEAD"),
                          self.git(self.source, "rev-parse", "main"))
 
@@ -99,6 +110,14 @@ class InstallTests(unittest.TestCase):
         self.commit()
         self.assertIn("invalid tools/installed entry", self.install(success=False))
         self.assertFalse(self.link.exists())
+
+    def test_second_regular_program_preserves_both_links(self):
+        self.link.parent.mkdir(parents=True)
+        self.link.symlink_to("/fixture/old-codex-run")
+        self.claim_link.write_text("keep claim program\n")
+        self.assertIn("refusing to replace a non-symlink", self.install(success=False))
+        self.assertEqual(self.claim_link.read_text(), "keep claim program\n")
+        self.assertEqual(self.link.readlink(), Path("/fixture/old-codex-run"))
 
 
 if __name__ == "__main__":
