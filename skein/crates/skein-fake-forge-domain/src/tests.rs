@@ -20,7 +20,7 @@ use crate::api::{
     Answer, Change, Check, Checks, Comment, Created, Cue, Ended, Error, File, Git, Head, JobRef, Kind, Op, Order, Page,
     PageName, Permission, Protection, Pull, Pushed, Read, Setup, State, Summary, Verdict, Want, What, Write,
 };
-use crate::{Branches, Config, Domain, Event, Limits, Observation, Operation, Request, Skew, fire, step, worst_case};
+use crate::{Branches, Config, Domain, Event, Limits, Observation, Operation, Request, Skew, fire, step};
 
 const LIMITS: Limits = Limits {
     repositories: 2,
@@ -881,17 +881,6 @@ fn what_is_missing_is_refused() {
     let readme = read(Read::File { commit: FIRST, path: copy_of(b"README") });
     assert_eq!(h.ok(PERSON, readme), Answer::File(copy_of(b"hello")));
     assert_eq!(h.call(ENGINE, read(Read::Page { name: copy_of(b"home") })), Err(Error::Missing(What::Page)));
-}
-
-#[test]
-fn the_worst_case_is_bounded_or_refused() {
-    let bound = worst_case(&LIMITS).expect("the test limits fit");
-    let stored = u64::from(LIMITS.commits * LIMITS.files * LIMITS.content_bytes);
-    assert!(bound > stored, "it counts the store");
-    let more = worst_case(&Limits { items: LIMITS.items + 1, ..LIMITS }).expect("fits");
-    assert!(more > bound, "an item more is more");
-    assert_eq!(worst_case(&Limits { content_bytes: u32::MAX, commits: u32::MAX, files: u32::MAX, ..LIMITS }), None);
-    assert_eq!(worst_case(&Limits { items: u32::MAX, comments: u32::MAX, ..LIMITS }), None);
 }
 
 #[test]

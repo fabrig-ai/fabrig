@@ -69,12 +69,11 @@ fn bypass_list_refuses_one_past_its_bound() {
     Harness::with(QUEUEING, setup);
 }
 #[test]
-fn bypass_list_at_its_bound_is_kept_and_priced() {
+fn bypass_list_at_its_bound_is_kept() {
     let mut setup = protected(false);
     setup.protection.as_mut().unwrap().bypassing_users = Box::from([1, 2, 3, 4]);
     let h = Harness::with(QUEUEING, setup);
     let value = h.domain.inspect_protection(REPOSITORY, MAIN).unwrap();
     assert_eq!(value.bypassing_users.as_ref(), &[1, 2, 3, 4]);
     assert!(value.linear && value.code_owners);
-    assert!(worst_case(&Limits { bypassing_users: 5, ..LIMITS }).unwrap() >= worst_case(&LIMITS).unwrap() + 16);
 }
