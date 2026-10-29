@@ -1,6 +1,6 @@
 //! Completion obligations at the frozen stop boundary (domain/testing.md, 2.4).
 use crate::service::ServiceHost;
-use crate::world::Proc;
+use crate::world::{Kind, Proc};
 use jig_domain_tasks::{Active, Phase, Was};
 use skein_shell::Host;
 use temper_worker_domain::host;
@@ -101,18 +101,18 @@ impl Obligations {
         if child.exit().is_some() {
             return;
         }
-        match child {
-            Proc::Agent(_) => self.child(index, "agent"),
-            Proc::Git(_) | Proc::GitRoute(_) => self.child(index, "git"),
-            Proc::Claude(_) => self.child(index, "claude"),
-            Proc::Relay(_) => self.child(index, "relay"),
-            Proc::Llm(_)
-            | Proc::Forge(_)
-            | Proc::Issuer(_)
-            | Proc::Service(_)
-            | Proc::Caller(_)
-            | Proc::Ctl(_)
-            | Proc::Terminal(_) => {}
+        match &child.kind {
+            Kind::Agent(_) => self.child(index, "agent"),
+            Kind::Git(_) | Kind::GitRoute(_) => self.child(index, "git"),
+            Kind::Claude(_) => self.child(index, "claude"),
+            Kind::Relay(_) => self.child(index, "relay"),
+            Kind::Llm(_)
+            | Kind::Forge(_)
+            | Kind::Issuer(_)
+            | Kind::Service(_)
+            | Kind::Caller(_)
+            | Kind::Ctl(_)
+            | Kind::Terminal(_) => {}
         }
     }
     fn phase(&mut self, task: u64, phase: &Phase) {

@@ -1,4 +1,5 @@
 //! Admission order and cues on one checked real world.
+mod diagnostics;
 mod lifecycle;
 use crate::{agent, calls::Caller, fixtures, forge, llm, service::ServiceHost};
 use lifecycle::{Hosts, Lifecycle};
@@ -11,7 +12,55 @@ use skein_world::{
     real::{CheckedOutcome, Controls, World},
 };
 
-pub(crate) enum Proc {
+pub(crate) struct Proc {
+    pub(crate) kind: Kind,
+    diagnostics: diagnostics::Operations,
+}
+impl Proc {
+    pub(crate) fn new(kind: Kind) -> Self {
+        Self { kind, diagnostics: diagnostics::Operations::default() }
+    }
+}
+impl Host for Proc {
+    fn iterate(&mut self, now: Time, wall: Wall) {
+        self.diagnostics.complete(self.kind.completions(), now);
+        self.kind.iterate(now, wall);
+    }
+    fn drain(&mut self) {
+        self.kind.drain();
+        self.diagnostics.submit(self.kind.submissions());
+        self.diagnostics.timers(self.kind.next_deadline(), self.kind.next_policy_deadline());
+        if let Kind::Caller(caller) = &self.kind {
+            self.diagnostics.step(caller.position());
+        }
+    }
+    fn completions(&mut self) -> &mut Queue<Complete> {
+        self.kind.completions()
+    }
+    fn submissions(&mut self) -> &mut Queue<Submit> {
+        self.kind.submissions()
+    }
+    fn work_pending(&self, now: Time) -> bool {
+        self.kind.work_pending(now)
+    }
+    fn next_deadline(&self) -> Option<Time> {
+        self.kind.next_deadline()
+    }
+    fn next_policy_deadline(&self) -> Option<Time> {
+        self.kind.next_policy_deadline()
+    }
+    fn is_empty(&self) -> bool {
+        self.kind.is_empty()
+    }
+    fn exit(&self) -> Option<Exit> {
+        self.kind.exit()
+    }
+    fn operations(&self) -> u32 {
+        self.kind.operations()
+    }
+}
+
+pub(crate) enum Kind {
     Llm(Box<Llm>),
     Forge(Box<ForgePeer>),
     Issuer(Box<skein_fake_peers::oauth::Peer>),
@@ -25,7 +74,7 @@ pub(crate) enum Proc {
     Claude(Box<smith_fake_claude::Fake>),
     Relay(Box<smith_agent_shell::relay::Process>),
 }
-impl Proc {
+impl Kind {
     fn host(&self) -> &dyn Host {
         match self {
             Self::Llm(h) => &h.peer,
@@ -59,7 +108,7 @@ impl Proc {
         }
     }
 }
-impl Host for Proc {
+impl Host for Kind {
     fn iterate(&mut self, now: Time, wall: Wall) {
         if !matches!(self, Self::Llm(llm) if llm.deferred()) {
             if let Self::Llm(llm) = self
@@ -154,9 +203,10 @@ pub(crate) fn run(
         github: None,
         llm_history: LlmHistory::default(),
         children: Children::default(),
+        tasks: diagnostics::Tasks::default(),
     });
     world.spawn(|| {
-        Proc::Llm(Box::new(Llm {
+        Proc::new(Kind::Llm(Box::new(Llm {
             pending_streak: crate::patience::PendingStreak::default(),
             peer: llm::peer(recipe()).expect("independent LLM peer"),
             scripts: None,
@@ -166,13 +216,13 @@ pub(crate) fn run(
             cue: false,
             release: None,
             released: None,
-        }))
+        })))
     });
     world.spawn_signals(|signals| {
-        Proc::Service(Box::new(match issuer {
+        Proc::new(Kind::Service(Box::new(match issuer {
             Some(address) => ServiceHost::with_issuer(scratch.path().into(), signals, address),
             None => ServiceHost::new(scratch.path().into(), signals, direct_key),
-        }))
+        })))
     });
     host(&mut world, scratch.path(), steps, direct_key, 1);
     if let Some(listener) = reservation {
@@ -183,7 +233,7 @@ pub(crate) fn run(
             let mut peer = crate::issuer::peer(address, &crate::issuer::registration(address));
             peer.adopt_listener(fd, address).expect("held issuer listener");
             let _ = listener.into_raw_fd();
-            Proc::Issuer(Box::new(peer))
+            Proc::new(Kind::Issuer(Box::new(peer)))
         });
     }
     world.run(&skein_shell::Clock::new(), patience)
@@ -290,9 +340,10 @@ pub(crate) fn run_forge(
         github: None,
         llm_history: LlmHistory::default(),
         children: Children::default(),
+        tasks: diagnostics::Tasks::default(),
     });
     world.spawn(|| {
-        Proc::Llm(Box::new(Llm {
+        Proc::new(Kind::Llm(Box::new(Llm {
             pending_streak: crate::patience::PendingStreak::default(),
             peer: llm::peer(llm::scripted(Box::new([]))).expect("deferred peer"),
             scripts: Some(scripts),
@@ -302,16 +353,21 @@ pub(crate) fn run_forge(
             cue: false,
             release: None,
             released: None,
-        }))
+        })))
     });
     world.spawn_signals(|signals| {
-        Proc::Service(Box::new(ServiceHost::configured(scratch.path().into(), signals, Some(fixture), false)))
+        Proc::new(Kind::Service(Box::new(ServiceHost::configured(
+            scratch.path().into(),
+            signals,
+            Some(fixture),
+            false,
+        ))))
     });
     host(&mut world, scratch.path(), steps, false, 1);
     world.spawn(|| {
         let (forge, peer) = forge::State::new(fixture);
         *state.borrow_mut() = Some(forge);
-        Proc::Forge(Box::new(ForgePeer::new(peer)))
+        Proc::new(Kind::Forge(Box::new(ForgePeer::new(peer))))
     });
     world.host_roots(crate::git::program(), crate::git::roots);
     let outcome = world.run(&skein_shell::Clock::new(), patience);
@@ -332,7 +388,7 @@ pub(crate) fn run_github(
         judge
     });
     world.spawn(|| {
-        Proc::Llm(Box::new(Llm {
+        Proc::new(Kind::Llm(Box::new(Llm {
             pending_streak: crate::patience::PendingStreak::default(),
             peer: llm::peer(llm::scripted(Box::new([]))).expect("deferred peer"),
             scripts: None,
@@ -342,16 +398,16 @@ pub(crate) fn run_github(
             cue: false,
             release: None,
             released: None,
-        }))
+        })))
     });
     world.spawn_signals(|signals| {
         let mut service = ServiceHost::github(scratch.path().into(), signals, fixture);
         service.make_github_app(&mut peer);
-        Proc::Service(Box::new(service))
+        Proc::new(Kind::Service(Box::new(service)))
     });
     // This story provisions its account explicitly, retaining every ctl output.
     host(&mut world, scratch.path(), steps, true, 1);
-    world.spawn(|| Proc::Forge(Box::new(ForgePeer::new(peer))));
+    world.spawn(|| Proc::new(Kind::Forge(Box::new(ForgePeer::new(peer)))));
     world.host_roots(crate::git::route_program(), crate::git::roots);
     world.run(&skein_shell::Clock::new(), patience)
 }
@@ -364,11 +420,11 @@ fn host<R: Referee<Proc>>(
 ) {
     let root = skein_shell::open_root(path).expect("caller launch root");
     world.spawn_with_fds(vec![root], || {
-        Proc::Caller(Box::new(if direct_key {
+        Proc::new(Kind::Caller(Box::new(if direct_key {
             Caller::new(steps(), path.into(), root)
         } else {
             Caller::provisioned(steps(), path.into(), root)
-        }))
+        })))
     });
     let limits = temper_client_shell_cli::limits::native();
     world.host_roots(
@@ -428,6 +484,7 @@ struct Judge {
     github: Option<crate::github::State>,
     llm_history: LlmHistory,
     children: Children,
+    tasks: diagnostics::Tasks,
 }
 
 struct Failure {
@@ -465,7 +522,7 @@ impl Children {
             self.locks.borrow_mut().clear();
         }
         for (offset, proc) in children[self.seen..].iter().enumerate() {
-            if let Proc::Ctl(recorded) = proc {
+            if let Kind::Ctl(recorded) = &proc.kind {
                 let index = self.seen + offset;
                 if self.calls.len() <= recorded.call {
                     self.calls.resize_with(recorded.call + 1, Default::default);
@@ -476,7 +533,7 @@ impl Children {
                 if !self.finished {
                     recorded.observe_with(&self.locks);
                 }
-            } else if matches!(proc, Proc::Terminal(_)) {
+            } else if matches!(&proc.kind, Kind::Terminal(_)) {
                 self.terminals.push(self.seen + offset);
             }
         }
@@ -489,7 +546,7 @@ impl Children {
             // Removal can reveal an older attempt at a reused call number. Restore
             // the retained hosts' admission order, just as the whole scan did.
             for proc in children {
-                if let Proc::Ctl(recorded) = proc {
+                if let Kind::Ctl(recorded) = &proc.kind {
                     recorded.apply(caller);
                 }
             }
@@ -509,7 +566,7 @@ impl Children {
             let records = &mut self.calls[call][phase];
             let differs = records.positions.len() > 1
                 && records.positions.iter().any(|index| {
-                    let Proc::Ctl(recorded) = &children[*index] else { panic!("ctl position") };
+                    let Kind::Ctl(recorded) = &children[*index].kind else { panic!("ctl position") };
                     recorded.differs(caller)
                 });
             if differs != records.differs {
@@ -532,7 +589,7 @@ impl Children {
         // The referee owns the queue's heap. Hosts must release their subscriptions
         // before the referee drops, so no host frees another owner's allocation.
         for proc in children {
-            if let Proc::Ctl(recorded) = proc {
+            if let Kind::Ctl(recorded) = &proc.kind {
                 recorded.stop_observing();
             }
         }
@@ -540,7 +597,7 @@ impl Children {
     }
     fn settled(&self, children: &[Proc]) -> bool {
         self.terminals.iter().all(|index| {
-            let Proc::Terminal(terminal) = &children[*index] else { panic!("terminal position") };
+            let Kind::Terminal(terminal) = &children[*index].kind else { panic!("terminal position") };
             terminal.is_empty()
         })
     }
@@ -586,19 +643,19 @@ impl Judge {
         peer.groups = None;
         peer.shutdown();
         for proc in children.iter_mut() {
-            match proc {
-                Proc::Forge(forge) => forge.shutdown(),
-                Proc::Issuer(issuer) => issuer.shutdown(),
-                Proc::Llm(_)
-                | Proc::Service(_)
-                | Proc::Caller(_)
-                | Proc::Ctl(_)
-                | Proc::Terminal(_)
-                | Proc::Agent(_)
-                | Proc::Git(_)
-                | Proc::GitRoute(_)
-                | Proc::Claude(_)
-                | Proc::Relay(_) => {}
+            match &mut proc.kind {
+                Kind::Forge(forge) => forge.shutdown(),
+                Kind::Issuer(issuer) => issuer.shutdown(),
+                Kind::Llm(_)
+                | Kind::Service(_)
+                | Kind::Caller(_)
+                | Kind::Ctl(_)
+                | Kind::Terminal(_)
+                | Kind::Agent(_)
+                | Kind::Git(_)
+                | Kind::GitRoute(_)
+                | Kind::Claude(_)
+                | Kind::Relay(_) => {}
             }
         }
         self.children.finish(children);
@@ -615,7 +672,7 @@ impl Judge {
     fn worker_actions(&mut self, caller_end: usize, caller: &Caller, workers: &mut [Proc]) {
         if let Some(name) = caller.adding_worker() {
             let position = worker_position(workers, name).expect("configured worker");
-            let Proc::Service(worker) = &mut workers[position] else { panic!("worker root") };
+            let Kind::Service(worker) = &mut workers[position].kind else { panic!("worker root") };
             let Some(crate::cluster::Shape::Worker { started, .. }) = &mut worker.cluster else {
                 panic!("worker shape")
             };
@@ -624,7 +681,7 @@ impl Judge {
         }
         if let Some(name) = caller.stopping_worker() {
             let position = worker_position(workers, name).expect("configured worker");
-            let Proc::Service(worker) = &mut workers[position] else { panic!("worker root") };
+            let Kind::Service(worker) = &mut workers[position].kind else { panic!("worker root") };
             if !worker.stopping() {
                 worker.stop_for_restart();
                 self.controls.signal(caller_end + position, ServiceSignal::Terminate);
@@ -633,7 +690,7 @@ impl Judge {
         }
         if let Some(name) = caller.starting_worker() {
             let position = worker_position(workers, name).expect("configured worker");
-            let Proc::Service(worker) = &mut workers[position] else { panic!("worker root") };
+            let Kind::Service(worker) = &mut workers[position].kind else { panic!("worker root") };
             if worker.stopping() {
                 worker.restart();
             }
@@ -642,6 +699,11 @@ impl Judge {
     }
 }
 impl Judge {
+    fn capture_overdue(&mut self, now: Time, procs: &mut [Proc]) {
+        let report = self.describe_pending(now, procs);
+        self.patience.capture(report);
+        crate::patience::fail_overdue::<Proc, _>(self, now);
+    }
     fn describe_pending(&self, now: Time, procs: &mut [Proc]) -> String {
         use std::fmt::Write;
         let mut report = format!(
@@ -652,6 +714,8 @@ impl Judge {
             writeln!(report, "judge early_failure settled={} message={}", failure.settled, failure.message)
                 .expect("string writer");
         }
+        self.tasks.describe(&mut report);
+        diagnostics::outstanding(procs, now, &mut report);
         crate::patience::processes(procs, now, &mut report);
         if let Some(state) = &self.forge {
             let borrowed = state.borrow();
@@ -669,23 +733,26 @@ impl Judge {
 impl Referee<Proc> for Judge {
     fn act(&mut self, now: Time, procs: &mut [Proc]) {
         if self.patience.due() {
-            let report = self.describe_pending(now, procs);
-            self.patience.capture(report);
-            crate::patience::fail_overdue::<Proc, _>(self, now);
+            self.capture_overdue(now, procs);
         }
         self.wake = None;
         if self.failure.is_some() {
             return;
         }
-        let engine_index = procs.iter().position(|proc| matches!(proc, Proc::Service(_))).expect("engine root");
+        let engine_index = procs.iter().position(|proc| matches!(&proc.kind, Kind::Service(_))).expect("engine root");
         let caller_end = 3;
         let (roots, children) = procs.split_at_mut(caller_end);
-        let [Proc::Llm(peer), Proc::Service(service), Proc::Caller(caller)] = roots else {
+        let [
+            Proc { kind: Kind::Llm(peer), .. },
+            Proc { kind: Kind::Service(service), .. },
+            Proc { kind: Kind::Caller(caller), .. },
+        ] = roots
+        else {
             panic!("root admission order")
         };
         let (workers, children) = children.split_at_mut(self.workers.len());
         for proc in workers.iter_mut() {
-            let Proc::Service(worker) = proc else { panic!("worker root") };
+            let Kind::Service(worker) = &mut proc.kind else { panic!("worker root") };
             worker.address = peer.address();
             if let Some(crate::cluster::Shape::Worker { engine, .. }) = &mut worker.cluster {
                 *engine = service.workers_address;
@@ -707,10 +774,10 @@ impl Referee<Proc> for Judge {
         if let Some(state) = &self.forge {
             let mut borrowed = state.borrow_mut();
             let state = borrowed.as_mut().expect("spawned forge");
-            let Proc::Forge(forge) = &mut children[0] else { panic!("forge admission order") };
+            let Kind::Forge(forge) = &mut children[0].kind else { panic!("forge admission order") };
             service.forge_address = forge.address();
             for proc in workers.iter_mut() {
-                let Proc::Service(worker) = proc else { panic!("worker root") };
+                let Kind::Service(worker) = &mut proc.kind else { panic!("worker root") };
                 worker.forge_address = forge.address();
             }
             if let Some(address) = forge.address() {
@@ -739,9 +806,9 @@ impl Referee<Proc> for Judge {
         Lifecycle::release(
             caller,
             service.links(),
-            workers
-                .iter()
-                .all(|proc| matches!(proc, Proc::Service(worker) if !worker_started(worker) || worker.linked() > 0)),
+            workers.iter().all(
+                |proc| matches!(&proc.kind, Kind::Service(worker) if !worker_started(worker) || worker.linked() > 0),
+            ),
         );
         if !caller.released && service.is_empty() {
             self.fail_startup(service.early_exit(engine_index), caller, workers, caller_end);
@@ -767,17 +834,31 @@ impl Referee<Proc> for Judge {
         }
     }
     fn observe(&mut self, now: Time, procs: &[Proc]) {
+        for proc in procs {
+            if let Kind::Service(host) = &proc.kind
+                && let Some(service) = &host.service
+                && let Some(engine) = service.engine_domain()
+            {
+                self.tasks.observe(engine);
+            }
+        }
         if let Some(failure) = &mut self.failure {
             failure.settled = procs.iter().all(Host::is_empty);
             return;
         }
-        let [Proc::Llm(peer), Proc::Service(service), Proc::Caller(caller), ..] = procs else {
+        let [
+            Proc { kind: Kind::Llm(peer), .. },
+            Proc { kind: Kind::Service(service), .. },
+            Proc { kind: Kind::Caller(caller), .. },
+            ..,
+        ] = procs
+        else {
             panic!("root admission order")
         };
         let caller_end = 3;
         let (workers, children) = procs[caller_end..].split_at(self.workers.len());
         let workers_changed = workers.iter().any(|proc| {
-            let Proc::Service(worker) = proc else { panic!("worker root") };
+            let Kind::Service(worker) = &proc.kind else { panic!("worker root") };
             (peer.address().is_some() && worker.address.is_none())
                 || (worker_started(worker)
                     && service.workers_address.is_some()
@@ -785,7 +866,7 @@ impl Referee<Proc> for Judge {
         });
         let _ = self.children.observe(children);
         if let Some(index) = self.children.terminals.last() {
-            let Proc::Terminal(terminal) = &children[*index] else { panic!("terminal position") };
+            let Kind::Terminal(terminal) = &children[*index].kind else { panic!("terminal position") };
             // Exit lines mutate in place, rather than appending to a history.
             caller.terminal.refused.set(terminal.exit_line().is_some_and(|line| {
                 line.as_ref() == b"temper open: the link was refused: use the fresh link temper serve printed\n"
@@ -797,7 +878,7 @@ impl Referee<Proc> for Judge {
         let forge_changed = self.forge.as_ref().is_some_and(|state| {
             let borrowed = state.borrow();
             let state = borrowed.as_ref().expect("spawned forge");
-            let Proc::Forge(forge) = &children[0] else { panic!("forge root") };
+            let Kind::Forge(forge) = &children[0].kind else { panic!("forge root") };
             (forge.address().is_some() && service.forge_address.is_none())
                 || (service.hooks.is_some() && !state.hooked)
                 || (caller.advancing() && state.hooked && !state.moved)
@@ -810,7 +891,7 @@ impl Referee<Proc> for Judge {
         let placing = placed(workers) && pending > 0;
         let named_worker = |name| {
             worker_position(workers, name).map(|position| {
-                let Proc::Service(worker) = &workers[position] else { panic!("worker root") };
+                let Kind::Service(worker) = &workers[position].kind else { panic!("worker root") };
                 worker.as_ref()
             })
         };
@@ -831,13 +912,13 @@ impl Referee<Proc> for Judge {
             || workers_changed
             || (self.lifecycle.stopping && workers.iter().all(Host::is_empty) && !self.lifecycle.engine_stopping)
             || (self.github.is_some() && children.first().is_some_and(|proc|
-                matches!(proc, Proc::Forge(forge) if forge.address().is_some() && service.forge_address.is_none())))
+                matches!(&proc.kind, Kind::Forge(forge) if forge.address().is_some() && service.forge_address.is_none())))
             || forge_changed
             || lock_changed
             || (peer.address().is_some() && service.address.is_none())
             || (service.links() != 0
                 && !caller.released
-                && workers.iter().all(|proc| matches!(proc, Proc::Service(worker) if !worker_started(worker) || worker.linked() > 0)))
+                && workers.iter().all(|proc| matches!(&proc.kind, Kind::Service(worker) if !worker_started(worker) || worker.linked() > 0)))
             || (caller.watching.is_some() && (!service.watching() || service.delivered() && !caller.watched))
             || (caller.is_empty() && self.children.settled(children) && !self.lifecycle.stopping)
             || (service.is_empty() && !self.lifecycle.finished && (!caller.released || caller.is_empty()))
@@ -866,7 +947,7 @@ fn check_ending(caller: &Caller, service: &ServiceHost, workers: &[Proc], childr
     let mut obligations = crate::ending::Obligations::default();
     obligations.read(service, declared);
     for worker in workers {
-        let Proc::Service(worker) = worker else { panic!("worker root") };
+        let Kind::Service(worker) = &worker.kind else { panic!("worker root") };
         obligations.read(worker, declared);
     }
     for (index, child) in children.iter().enumerate() {
@@ -894,7 +975,7 @@ fn github_cues(
     caller: &mut Caller,
     children: &mut [Proc],
 ) {
-    let Proc::Forge(forge) = &mut children[0] else { panic!("GitHub root") };
+    let Kind::Forge(forge) = &mut children[0].kind else { panic!("GitHub root") };
     service.forge_address = forge.address();
     if let Some(address) = forge.address() {
         peer.bind(address);
@@ -943,7 +1024,7 @@ pub(crate) fn run_cluster_forge(
     world.spawn(|| {
         let (forge, peer) = forge::State::new(fixture);
         *state.borrow_mut() = Some(forge);
-        Proc::Forge(Box::new(ForgePeer::new(peer)))
+        Proc::new(Kind::Forge(Box::new(ForgePeer::new(peer))))
     });
     world.run(&skein_shell::Clock::new(), patience)
 }
@@ -966,6 +1047,7 @@ fn cluster_judge(
         github: None,
         llm_history: LlmHistory::default(),
         children: Children::default(),
+        tasks: diagnostics::Tasks::default(),
     }
 }
 
@@ -980,7 +1062,7 @@ fn cluster_roots<R: Referee<Proc>>(
 ) {
     let (engine, worker_scratch) = scratch.split_first().expect("engine scratch");
     world.spawn(|| {
-        Proc::Llm(Box::new(Llm {
+        Proc::new(Kind::Llm(Box::new(Llm {
             pending_streak: crate::patience::PendingStreak::default(),
             peer: llm::peer(recipe()).expect("cluster LLM"),
             scripts: forge.map(|(_, scripts, _)| scripts),
@@ -990,25 +1072,25 @@ fn cluster_roots<R: Referee<Proc>>(
             cue: false,
             release: None,
             released: None,
-        }))
+        })))
     });
     world.spawn_signals(|signals| {
-        Proc::Service(Box::new(ServiceHost::cluster(
+        Proc::new(Kind::Service(Box::new(ServiceHost::cluster(
             engine.path(),
             signals,
             crate::cluster::Shape::Engine(workers.to_vec()),
             forge.map(|(fixture, _, _)| fixture),
-        )))
+        ))))
     });
     host(world, &engine.path().join("data"), steps, false, u32::try_from(workers.len()).expect("worker count"));
     for (name, scratch) in workers.iter().zip(worker_scratch) {
         world.spawn_signals(|signals| {
-            Proc::Service(Box::new(ServiceHost::cluster(
+            Proc::new(Kind::Service(Box::new(ServiceHost::cluster(
                 scratch.path(),
                 signals,
                 crate::cluster::Shape::Worker { name, engine: None, started: !late.contains(name) },
                 forge.map(|(fixture, _, _)| fixture),
-            )))
+            ))))
         });
     }
     let mut git = crate::git::program();
@@ -1017,7 +1099,7 @@ fn cluster_roots<R: Referee<Proc>>(
 }
 
 fn worker_position(workers: &[Proc], name: &str) -> Option<usize> {
-    workers.iter().position(|proc| matches!(proc, Proc::Service(worker)
+    workers.iter().position(|proc| matches!(&proc.kind, Kind::Service(worker)
         if matches!(worker.cluster, Some(crate::cluster::Shape::Worker { name: worker_name, .. }) if worker_name == name)))
 }
 
@@ -1027,9 +1109,9 @@ fn worker_started(worker: &ServiceHost) -> bool {
 
 fn placed(workers: &[Proc]) -> bool {
     !workers.is_empty()
-        && workers
-            .iter()
-            .all(|proc| matches!(proc, Proc::Service(worker) if !worker_started(worker) || worker.runs.assigned()))
+        && workers.iter().all(
+            |proc| matches!(&proc.kind, Kind::Service(worker) if !worker_started(worker) || worker.runs.assigned()),
+        )
 }
 
 #[cfg(test)]
@@ -1062,7 +1144,7 @@ mod tests {
     fn ctl(setup: bool) -> super::Proc {
         use skein_io::kernel::Fd;
         use temper_client_shell_cli::host::{Invocation, OneShot, Startup};
-        super::Proc::Ctl(Box::new(crate::calls::Recorded::new(
+        super::Proc::new(super::Kind::Ctl(Box::new(crate::calls::Recorded::new(
             OneShot::new(
                 Invocation {
                     directory: None,
@@ -1082,11 +1164,11 @@ mod tests {
             .expect("shipped tools limits"),
             0,
             setup,
-        )))
+        ))))
     }
 
     fn lock_event(procs: &mut [super::Proc], index: usize, locked: Option<u64>, released: Option<u64>) {
-        let super::Proc::Ctl(recorded) = &mut procs[index] else { panic!("ctl fixture") };
+        let super::Kind::Ctl(recorded) = &mut procs[index].kind else { panic!("ctl fixture") };
         recorded.locked = locked.map(skein_lib::Time::from_nanos);
         recorded.released = released.map(skein_lib::Time::from_nanos);
         recorded.record_change();

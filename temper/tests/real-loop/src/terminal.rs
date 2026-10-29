@@ -87,14 +87,14 @@ pub(crate) fn host(spawn: &Spawn, inherited: &skein_world::Inherited) -> crate::
     let directory = Path::new(std::ffi::OsStr::from_bytes(&spawn.args[0]));
     let target = temper::open::target(&spawn.args[1]).expect("printed terminal link");
     let pipe = |child| inherited.pipes.iter().find(|(number, _)| *number == child).expect("terminal pipe").1;
-    crate::world::Proc::Terminal(Box::new(compose(
+    crate::world::Proc::new(crate::world::Kind::Terminal(Box::new(compose(
         directory,
         target,
         inherited.roots[0].1,
         pipe(0),
         pipe(1),
         inherited.signal,
-    )))
+    ))))
 }
 pub(crate) fn compose(
     directory: &Path,

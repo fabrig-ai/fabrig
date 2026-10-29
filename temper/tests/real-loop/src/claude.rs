@@ -1,5 +1,5 @@
 //! Smith's fake Claude Code and shipped MCP relay (domain/testing.md, 2.4, 4.1).
-use crate::world::Proc;
+use crate::world::{Kind, Proc};
 use skein_io::kernel::Spawn;
 use skein_world::{HostedProgram, Inherited};
 use std::{os::unix::ffi::OsStrExt, path::Path};
@@ -44,7 +44,7 @@ pub(crate) fn program(path: &[u8]) -> HostedProgram<Proc> {
 
 fn fake(spawn: &Spawn, inherited: &Inherited) -> Proc {
     let launch = launch(spawn);
-    Proc::Claude(Box::new((smith_fake_claude::hosted(&launch.program).make)(&launch, inherited)))
+    Proc::new(Kind::Claude(Box::new((smith_fake_claude::hosted(&launch.program).make)(&launch, inherited))))
 }
 
 /// The hosted fake uses filesystem names; Spawn's cwd is relative to its root descriptor.
@@ -73,7 +73,7 @@ pub(crate) fn relay(path: &[u8]) -> HostedProgram<Proc> {
 fn make_relay(spawn: &Spawn, inherited: &Inherited) -> Proc {
     assert_eq!(spawn.args.first().map(AsRef::as_ref), Some(smith_agent_shell::relay::FLAG.as_bytes()));
     let pipe = |number| inherited.pipes.iter().find(|(child, _)| *child == number).map(|(_, fd)| *fd);
-    Proc::Relay(Box::new(smith_agent_shell::relay::Process::new(
+    Proc::new(Kind::Relay(Box::new(smith_agent_shell::relay::Process::new(
         &spawn.args,
         &spawn.env,
         smith_agent_shell::relay::Faces {
@@ -82,7 +82,7 @@ fn make_relay(spawn: &Spawn, inherited: &Inherited) -> Proc {
             stderr: pipe(2),
             signal: inherited.signal,
         },
-    )))
+    ))))
 }
 
 /// Lay a private, signed-in fake source; its presence opts this scratch into program configuration.
