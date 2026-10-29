@@ -1,11 +1,8 @@
 //! Patch emission measured at the browser's configured bounds.
 use skein_lib::{Time, Wall};
 use skein_ui::Patch;
-use skein_world::domain::heap::{Counting, Meter};
+use skein_world::domain::heap::Meter;
 use temper_client_shell_web::host;
-
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 #[test]
 fn a_turn_reserves_no_patch_queue() {

@@ -53,11 +53,6 @@ allow_attributes_without_reason = "deny"
 disallowed_types = "deny"
 disallowed_methods = "deny"
 
-# The host's world through the library's report-and-duties seam.
-[[test]]
-name = "host"
-path = "tests/host.rs"
-
 [dev-dependencies]
 skein-scratch.workspace = true
 skein-world.workspace = true
