@@ -64,6 +64,8 @@ pub struct Clients {
     writes: u32,
     secret_owners: Map<Token, Asked>,
     next_secret: u64,
+    #[cfg(test)]
+    pub(crate) secret_terminals: Option<Queue<kit::SecretOwner>>,
     demo_starts: Map<Token, root::Event>,
     demo_reads: Queue<crate::HandoverRead>,
     demo_ready: Queue<root::Event>,
@@ -276,6 +278,8 @@ impl Clients {
             endings: Map::with_capacity(journal.commits),
             secret_owners: Map::with_capacity(room),
             next_secret: 1,
+            #[cfg(test)]
+            secret_terminals: None,
             demo_starts: Map::with_capacity(DEMO_STARTS),
             demo_reads: Queue::with_capacity(DEMO_STARTS),
             demo_ready: Queue::with_capacity(DEMO_STARTS),
@@ -834,6 +838,15 @@ impl Clients {
             | Event::Unread { .. }
             | Event::Corrupt { .. } => kit::SecretsAnswer::Failed,
         };
+        #[cfg(test)]
+        if let Some(trace) = &mut self.secret_terminals {
+            match &event {
+                kit::SecretsAnswer::Kept { owner }
+                | kit::SecretsAnswer::Erased { owner }
+                | kit::SecretsAnswer::Got { owner, .. } => trace.push(*owner),
+                kit::SecretsAnswer::Carried { .. } | kit::SecretsAnswer::Failed => {}
+            }
+        }
         self.down(kit::Event::Secrets(event));
     }
     fn owner(&mut self, token: Token) -> kit::SecretOwner {

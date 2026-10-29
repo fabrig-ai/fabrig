@@ -465,3 +465,42 @@ fn a_moved_file_at_its_forms_bound_passes_and_one_byte_past_is_refused() {
         }
     }
 }
+
+#[test]
+fn secret_asks_in_flight_each_get_their_own_terminal() {
+    use skein_lib::{List, Queue};
+    // More owners than the fixture's 64-slot client staging queues, without
+    // delivering a terminal until every request has left the clients.
+    const ASKS: u32 = 67;
+    let mut clients = super::fixtures::clients();
+    let mut store = super::fixtures::marked_store();
+    clients.secret_terminals = Some(Queue::uncapped());
+    let mut delayed = List::with_capacity(ASKS);
+    for number in 0..ASKS {
+        let owner = match number % 3 {
+            0 => kit::SecretOwner::SignIn(u64::from(number)),
+            1 => kit::SecretOwner::Service(u64::from(number)),
+            _ => kit::SecretOwner::Carried(u64::from(number)),
+        };
+        clients.secrets.push(kit::SecretsRequest::Erase { owner });
+        clients.secrets_step(&mut store);
+        assert!(clients.secrets.is_empty(), "each ask issues while all earlier terminals wait");
+        store.iterate();
+        let terminal = store.above.pop().expect("one store terminal per erase");
+        let jig_protocol_store::Event::Erased { owner: routed } = &terminal else { panic!("erase terminal") };
+        assert_eq!(*routed, Token::new(crate::tokens::CLIENTS + 1 + u64::from(number)), "distinct routing tokens");
+        assert!(store.above.is_empty(), "exactly one terminal");
+        delayed.push((owner, terminal)).unwrap();
+    }
+    assert_eq!(store.secret_requests, ASKS, "all requests are in flight together");
+    assert!(clients.secret_terminals.as_ref().unwrap().is_empty(), "no terminal delivered early");
+    for (owner, terminal) in delayed.into_boxed().into_iter().rev() {
+        store.secrets.push(terminal);
+        clients.secrets_step(&mut store);
+        assert!(store.secrets.is_empty(), "the reversed terminal is consumed");
+        let trace = clients.secret_terminals.as_mut().unwrap();
+        assert_eq!(trace.pop(), Some(owner), "each terminal keeps its original owner");
+        assert!(trace.is_empty(), "one terminal per owner");
+    }
+    assert!(clients.secrets.is_empty());
+}
