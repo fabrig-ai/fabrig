@@ -213,7 +213,10 @@ fetches its objects, verifies the observed full commit and requires the
 checked base to be its ancestor. Missing objects, unavailable refs, shallow
 history, replace refs and Git location overrides fail closed. It collects
 literal filenames with NUL-delimited `diff-tree` output for every commit
-since the checked base, comparing merges against each parent. Both sides of
+since the checked base along main's first-parent history, comparing each commit
+with its first parent. Differences against a merge's other parents do not count
+changes already present in the checked main. A checked base outside the current
+first-parent line requires a fresh precheck. Both sides of
 renames, deletions, merge resolutions and changes later reverted count;
 this can conservatively require a new precheck even when final trees match.
 Any intersection with reported paths requires another precheck. A second
