@@ -710,7 +710,7 @@ mod sizing_tests {
         const KEY_BYTES: u64 = 2 + 8;
         let (application, _, profile) = crate::tests::fixtures::store_limits();
         let limits = super::limits(&application, &application.forge, &profile).unwrap();
-        let row = protocol::secrets_v1::worst_case_bytes(&protocol::secrets_v1::CEILINGS).unwrap();
+        let row = protocol::secrets_v1::encoded_bound(&protocol::secrets_v1::CEILINGS).unwrap();
         assert_eq!(row, 274_504);
         assert!(row <= u64::from(limits.secrets.value));
         assert!(row.checked_add(KEY_BYTES).unwrap() < u64::from(limits.secrets.page.bytes));
