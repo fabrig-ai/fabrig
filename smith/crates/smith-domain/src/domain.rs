@@ -4,7 +4,7 @@
 //! layer out.
 //! It retains the run and session children, conversation and credential
 //! bindings and issued renewal policies, pending starts, turn handoffs, unsent completions waiting for
-//! acknowledgements, bounded notices and uncapped facts awaiting the owner. [`step`],
+//! acknowledgements, uncapped handoff queues, notices and facts awaiting the owner. [`step`],
 //! [`fire`] and [`resume`] are its entries (domain/run.md, sections 2, 3, 10,
 //! 13; domain/session.md, sections 3–5). It never knows provider
 //! wire syntax, encoded turn size, credential secrets, forge state or host delivery policy.
@@ -49,8 +49,9 @@ use crate::route;
 
 /// The most requests an entry point emits per call under `limits`: what the
 /// child domains emit in the most steps it takes of each (see the module), as
-/// each of their requests is one of ours or a hand-off. The loop reserves this
-/// much room in `out` before calling it.
+/// each of their requests is one of ours or a hand-off. The agent service's
+/// profile uses it for its queue default; channel and protocol-llm harnesses
+/// use it for output storage. Internal handoff queues need no reservation.
 #[must_use]
 pub const fn max_out(limits: &Limits) -> u32 {
     // A session step issues at most one completion and one writer command;
@@ -250,12 +251,12 @@ impl Domain {
             grants: Map::with_capacity(limits.accounts),
             completions: Map::with_capacity(limits.run.conversations),
             pending: Map::with_capacity(limits.run.runs),
-            notices: Queue::with_capacity(2),
+            notices: Queue::uncapped(),
             commands: Map::with_capacity(limits::commands(limits).expect("valid limits")),
             ready: Ready::with_capacity(handoffs),
             tickets: 0,
-            run_out: Queue::with_capacity(limits::run_out(limits)),
-            session_out: Queue::with_capacity(limits::session_out(limits)),
+            run_out: Queue::uncapped(),
+            session_out: Queue::uncapped(),
             facts: Queue::uncapped(),
             content: Queue::with_capacity(limits.session.facts),
             content_lost: 0,
@@ -388,7 +389,7 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     } else if session_due {
         session::fire(&mut domain.session, &route::session_env(env), &mut domain.session_out);
     }
-    gather(domain, &env.limits);
+    child_facts_gathered_before_handoff(domain);
     settle(domain, env, out);
 }
 
@@ -399,10 +400,10 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 pub fn resume(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     if domain.run.is_ready() {
         run::resume(&mut domain.run, &route::run_env(env), &mut domain.run_out);
-        gather(domain, &env.limits);
+        child_facts_gathered_before_handoff(domain);
     } else if domain.session.is_ready() {
         session::resume(&mut domain.session, &route::session_env(env), &mut domain.session_out);
-        gather(domain, &env.limits);
+        child_facts_gathered_before_handoff(domain);
     } else if let Some(handoff) = domain.ready.pop() {
         route::deliver(domain, env, handoff);
     }
@@ -412,22 +413,17 @@ pub fn resume(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
 /// Completes the hand-offs, then gathers the facts.
 fn settle(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     route::hand_off(domain, env, out);
-    gather(domain, &env.limits);
+    child_facts_gathered_before_handoff(domain);
 }
 
-/// Moves each child entrance's observations into the owner's uncapped queue.
-pub(crate) fn gather(domain: &mut Domain, limits: &Limits) {
-    for _ in 0..limits.run.facts {
-        let Some(fact) = domain.run.pop_fact() else {
-            break;
-        };
+/// Moves each child's facts before dispatch can consume their queued Open.
+/// Popping facts produces no child work, so the entrance's finite facts end each drain.
+pub(crate) fn child_facts_gathered_before_handoff(domain: &mut Domain) {
+    while let Some(fact) = domain.run.pop_fact() {
         let opening = opening(domain, &fact);
         keep(domain, Fact::Run { fact, opening });
     }
-    for _ in 0..limits.session.facts {
-        let Some(fact) = domain.session.pop_fact() else {
-            break;
-        };
+    while let Some(fact) = domain.session.pop_fact() {
         keep(domain, Fact::Session { fact });
     }
 }
@@ -436,7 +432,7 @@ fn keep(domain: &mut Domain, fact: Fact) {
     domain.facts.push(fact);
 }
 
-/// Gather precedes hand-off: the actual Open is still owned by the child's output queue.
+/// Gathering precedes hand-off: Open is still owned by the child's output queue.
 fn opening(domain: &Domain, fact: &run::facts::Fact) -> Option<crate::Opening> {
     let conversation = match fact.kind {
         run::facts::FactKind::Opened { conversation, .. } => conversation,
@@ -489,5 +485,5 @@ fn opening(domain: &Domain, fact: &run::facts::Fact) -> Option<crate::Opening> {
             | run::Request::Return { .. } => {}
         }
     }
-    unreachable!("each opened fact accompanies its actual Open before hand-off")
+    unreachable!("each opened fact accompanies its Open before hand-off")
 }

@@ -5,7 +5,7 @@
 //!
 //! Every match is exhaustive, so a variant added to either side's vocabulary
 //! breaks the build here.
-//! The functions retain no independent state: they mutate the root's bounded
+//! The functions retain no independent state: they mutate the root's uncapped handoff
 //! queues and child domains. They never know provider wire syntax, credential
 //! secrets or the host's delivery policy. [`event`], [`deliver`] and
 //! [`hand_off`] perform the boundary handoffs.
@@ -222,12 +222,11 @@ fn completed(domain: &mut Domain, env: &Env<Limits>, owner: Token, completion: c
 fn acknowledge(domain: &mut Domain, env: &Env<Limits>, run: Token, turn: u32) {
     run_step(domain, env, run::Event::Acknowledge { run, turn });
     if let Some(pending) = domain.pending.remove(&run) {
-        let mut emitted = Queue::with_capacity(2);
+        let mut emitted = Queue::uncapped();
         complete(domain, env, pending, &mut emitted);
-        for _ in 0_u32..2 {
-            if let Some(request) = emitted.pop() {
-                domain.notices.push(request);
-            }
+        // Completion settlement is finite; transferring notices makes no more work.
+        while let Some(request) = emitted.pop() {
+            domain.notices.push(request);
         }
     }
 }
@@ -415,41 +414,43 @@ fn history_fits(transcript: Option<&session::record::Transcript>, answered: &[u8
 /// Routes what the child domains emitted, and what that leads to, until both
 /// have emitted all they will in this entry point.
 pub(crate) fn hand_off(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
-    for _ in 0_u32..2 {
-        if let Some(notice) = domain.notices.pop() {
-            out.push(notice);
-        }
+    // Moving the entrance's finite notices to the owner makes no child work.
+    while let Some(notice) = domain.notices.pop() {
+        out.push(notice);
     }
-    let bound = limits::run_out(&env.limits).saturating_add(limits::session_out(&env.limits));
-    for _ in 0..bound {
+    // Return and Close wait for reclaim. Open/Say and an unsent completion's
+    // terminal add only finite synchronous translations (programming-model.md, 2, 4.5).
+    while !child_handoffs_drained(domain) {
         // Finish the causal run translation of a child notice before taking
         // its next child request. In particular Session Turn precedes Complete;
         // its concrete root Turn must not be overtaken by that provider effect.
-        if let Some(request) = domain.run_out.pop() {
+        if !run_handoffs_drained(domain) {
+            let request = domain.run_out.pop().expect("a pending run handoff");
             from_run(domain, env, request, out);
         } else if let Some(request) = domain.session_out.pop() {
             from_session(domain, env, request, out);
-        } else {
-            return;
         }
     }
-    assert!(
-        domain.session_out.is_empty() && domain.run_out.is_empty(),
-        "an entry point's hand-offs end within its bound"
-    );
+}
+
+/// The causal run translation is complete before another session request.
+fn run_handoffs_drained(domain: &Domain) -> bool {
+    domain.run_out.is_empty()
+}
+
+/// Both children have finished their synchronous handoffs before root return.
+fn child_handoffs_drained(domain: &Domain) -> bool {
+    run_handoffs_drained(domain) && domain.session_out.is_empty()
 }
 
 fn run_step(domain: &mut Domain, env: &Env<Limits>, event: run::Event) {
-    assert!(domain.run_out.room() >= run::MAX_OUT, "an entry point steps the run no more than its bound");
     run::step(&mut domain.run, &run_env(env), event, &mut domain.run_out);
-    crate::domain::gather(domain, &env.limits);
+    crate::domain::child_facts_gathered_before_handoff(domain);
 }
 
 fn session_step(domain: &mut Domain, env: &Env<Limits>, event: session::Event) {
-    let room = session::max_out(&env.limits.session);
-    assert!(domain.session_out.room() >= room, "an entry point steps the sessions no more than its bound");
     session::step(&mut domain.session, &session_env(env), event, &mut domain.session_out);
-    crate::domain::gather(domain, &env.limits);
+    crate::domain::child_facts_gathered_before_handoff(domain);
 }
 
 /// Release the settled peer and move its last diagnostic with the run terminal.
