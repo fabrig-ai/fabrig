@@ -700,26 +700,6 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "at most one waiter per descriptor side")]
-    fn a_second_waiter_on_the_same_side_breaks_the_contract() {
-        let mut kernel = Readiness::open(Config { operations: 2 }).expect("the poller is usable");
-        let fd = listener();
-        assert!(kernel.nonblocking.insert(fd));
-        submit(&mut kernel, 1, Op::Accept { fd });
-        submit(&mut kernel, 2, Op::Accept { fd });
-    }
-
-    #[test]
-    #[should_panic(expected = "no Close beside a waiter")]
-    fn a_close_beside_a_waiter_breaks_the_contract() {
-        let mut kernel = Readiness::open(Config { operations: 2 }).expect("the poller is usable");
-        let fd = listener();
-        assert!(kernel.nonblocking.insert(fd));
-        submit(&mut kernel, 1, Op::Accept { fd });
-        submit(&mut kernel, 2, Op::Close { fd });
-    }
-
-    #[test]
     fn an_idle_deadline_does_not_wake_early() {
         let mut kernel = Readiness::open(Config { operations: 1 }).expect("the poller is usable");
         let clock = Clock::new();

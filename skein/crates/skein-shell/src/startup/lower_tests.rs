@@ -12,7 +12,6 @@ fn parse(bytes: &[u8], bounds: RootBounds) -> Result<Roots, RootsRefusal> {
     pem(bytes, Path::new("bundle"), &bounds)
 }
 
-// Lowers ring::startup::pem_takes_der_in_order_and_skips_other_blocks_without_decoding_them
 #[test]
 fn pem_preserves_certificate_order_and_skips_other_blocks_without_decoding() {
     let bytes = b"explanatory text\r\n-----BEGIN PRIVATE KEY-----\ninvalid!\n-----END PRIVATE KEY-----\n\
@@ -25,7 +24,6 @@ fn pem_preserves_certificate_order_and_skips_other_blocks_without_decoding() {
     assert_eq!(roots.path, Path::new("bundle"));
 }
 
-// Lowers ring::startup::malformed_certificate_blocks_recover_at_the_next_begin_and_do_not_consume_the_count_bound
 #[test]
 fn pem_recovers_malformed_blocks_without_spending_the_certificate_count() {
     for bad in [
@@ -53,7 +51,6 @@ fn pem_recovers_malformed_blocks_without_spending_the_certificate_count() {
     assert_eq!((roots.malformed, roots.other_blocks), (1, 0));
 }
 
-// Lowers ring::startup::root_bounds_refuse_and_first_decode_defect_or_byte_bound_wins
 #[test]
 fn pem_checks_both_sides_of_bounds_and_keeps_first_error_precedence() {
     let roots = parse(VALID, RootBounds { certificates: 1, certificate_bytes: 3, ..BOUNDS }).expect("exact bounds");
@@ -90,7 +87,6 @@ fn pem_checks_both_sides_of_bounds_and_keeps_first_error_precedence() {
     );
 }
 
-// Lowers ring::startup::distribution_bundles_choose_the_first_existing_path_and_refuse_its_errors
 #[test]
 fn supplied_sources_keep_the_first_existing_bundle() {
     let mut selected = None;
@@ -103,7 +99,6 @@ fn supplied_sources_keep_the_first_existing_bundle() {
     assert_eq!(roots.certificates.as_ref(), [Box::from(b"Man".as_slice())]);
 }
 
-// Lowers ring::startup::distribution_bundles_choose_the_first_existing_path_and_refuse_its_errors
 #[test]
 fn supplied_source_errors_prevent_fallback() {
     for why in [Unread::NotAFile, Unread::TooLarge { max: 4_096 }, Unread::Kernel(skein_io::kernel::Error::Permission)]
@@ -126,7 +121,6 @@ fn supplied_source_errors_prevent_fallback() {
     );
 }
 
-// Lowers ring::startup::distribution_bundles_choose_the_first_existing_path_and_refuse_its_errors
 #[test]
 fn an_existing_empty_bundle_prevents_fallback() {
     let mut selected = None;

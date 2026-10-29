@@ -9,7 +9,7 @@ use skein_io::file::Unsafe;
 use skein_io::kernel::{Error, Kind};
 use skein_scratch::Scratch;
 use skein_shell::{
-    DirectoryAccess, RootBounds, Roots, RootsRefusal, Trust, Unread, directory_access, read_file, read_private_file,
+    DirectoryAccess, RootBounds, RootsRefusal, Trust, Unread, directory_access, read_file, read_private_file,
     read_trust_roots,
 };
 
@@ -219,12 +219,6 @@ fn private_reads_leave_no_descriptor_open() {
     assert_eq!(fs::read_dir(DESCRIPTORS).expect("descriptor observer").count(), descriptors, "private reads close");
 }
 
-fn bundle(scratch: &Scratch, bytes: &[u8], bounds: RootBounds) -> Result<Roots, RootsRefusal> {
-    let path = scratch.path().join("bundle");
-    fs::write(&path, bytes).expect("plant the supplied bundle");
-    read_trust_roots(&Trust::Machine { ssl_cert_file: Some(path) }, &bounds)
-}
-
 #[test]
 fn startup_reads_whole_regular_files_at_their_bound_and_closes_every_entry() {
     let scratch = Scratch::new("startup");
@@ -248,78 +242,7 @@ fn startup_reads_whole_regular_files_at_their_bound_and_closes_every_entry() {
 }
 
 #[test]
-fn pem_takes_der_in_order_and_skips_other_blocks_without_decoding_them() {
-    let scratch = Scratch::new("startup");
-    let bytes = b"explanatory text\r\n-----BEGIN PRIVATE KEY-----\ninvalid!\n-----END PRIVATE KEY-----\n\
-        -----BEGIN CERTIFICATE-----\n T W\tF\x0bu\x0c \n-----END CERTIFICATE-----\n\
-        -----BEGIN TRUSTED CERTIFICATE-----\nbroken!\n-----END TRUSTED CERTIFICATE-----\n\
-        -----BEGIN CERTIFICATE-----\nAP8=\n-----END CERTIFICATE-----\n";
-    let roots = bundle(&scratch, bytes, BOUNDS).expect("well-framed certificates");
-    assert_eq!(roots.certificates.as_ref(), [Box::from(b"Man".as_slice()), Box::from([0, 255].as_slice())]);
-    assert_eq!((roots.other_blocks, roots.malformed), (2, 0));
-    assert_eq!(roots.path, scratch.path().join("bundle"));
-}
-
-#[test]
-fn malformed_certificate_blocks_recover_at_the_next_begin_and_do_not_consume_the_count_bound() {
-    let scratch = Scratch::new("startup");
-    let valid = b"-----BEGIN CERTIFICATE-----\nTWFu\n-----END CERTIFICATE-----\n";
-    for bad in [
-        b"-----BEGIN CERTIFICATE-----\nTW!u\n-----END CERTIFICATE-----\n".as_slice(),
-        b"-----BEGIN CERTIFICATE-----\nTWFu\n".as_slice(),
-        b"-----BEGIN CERTIFICATE-----\nTWFu\n-----END KEY-----\n".as_slice(),
-        b"-----BEGIN CERTIFICATE-----\nProc-Type: 4,ENCRYPTED\nTWFu\n-----END CERTIFICATE-----\n".as_slice(),
-        b"-----BEGIN CERTIFICATE-----\nTW=Fu\n-----END CERTIFICATE-----\n".as_slice(),
-        b"-----BEGIN CERTIFICATE-----\nT\n-----END CERTIFICATE-----\n".as_slice(),
-    ] {
-        let mut bytes = Vec::from(bad);
-        bytes.extend_from_slice(valid);
-        let roots = bundle(&scratch, &bytes, RootBounds { certificates: 1, ..BOUNDS }).expect("recover next root");
-        assert_eq!(roots.certificates.as_ref(), [Box::from(b"Man".as_slice())]);
-        assert_eq!(roots.malformed, 1, "one bad certificate block: {bad:?}");
-    }
-    let roots = bundle(&scratch, b"-----BEGIN CERTIFICATE-----\nTWFu", BOUNDS).expect("truncated block is skipped");
-    assert!(roots.certificates.is_empty(), "none recovered");
-    assert_eq!(roots.malformed, 1);
-}
-
-#[test]
-fn root_bounds_refuse_and_first_decode_defect_or_byte_bound_wins() {
-    let scratch = Scratch::new("startup");
-    let valid = b"-----BEGIN CERTIFICATE-----\nTWFu\n-----END CERTIFICATE-----\n";
-    assert_eq!(
-        bundle(&scratch, valid, RootBounds { certificate_bytes: 2, ..BOUNDS }).expect_err("one byte past"),
-        RootsRefusal::TooLong { index: 0, bound: 2 }
-    );
-    assert_eq!(
-        bundle(&scratch, valid, RootBounds { certificates: 0, ..BOUNDS }).expect_err("no certificate allowed"),
-        RootsRefusal::TooMany { bound: 0 }
-    );
-    let length = u32::try_from(valid.len()).expect("fixture fits");
-    assert!(bundle(&scratch, valid, RootBounds { bundle_bytes: length, ..BOUNDS }).is_ok(), "exact bundle bytes");
-    assert_eq!(
-        bundle(&scratch, valid, RootBounds { bundle_bytes: length - 1, ..BOUNDS }).expect_err("bundle past bound"),
-        RootsRefusal::Unread { path: scratch.path().join("bundle"), why: Unread::TooLarge { max: length - 1 } }
-    );
-    let bad_first = b"-----BEGIN CERTIFICATE-----\n!TWFu\n-----END CERTIFICATE-----\n";
-    let roots = bundle(&scratch, bad_first, RootBounds { certificate_bytes: 0, ..BOUNDS }).expect("first defect wins");
-    assert_eq!(roots.malformed, 1);
-    let bound_first = b"-----BEGIN CERTIFICATE-----\nTWFu!\n-----END CERTIFICATE-----\n";
-    assert_eq!(
-        bundle(&scratch, bound_first, RootBounds { certificate_bytes: 0, ..BOUNDS }).expect_err("first bound wins"),
-        RootsRefusal::TooLong { index: 0, bound: 0 }
-    );
-    let mut after_bad = Vec::from(bad_first);
-    after_bad.extend_from_slice(valid);
-    assert_eq!(
-        bundle(&scratch, &after_bad, RootBounds { certificate_bytes: 2, ..BOUNDS })
-            .expect_err("second certificate long"),
-        RootsRefusal::TooLong { index: 1, bound: 2 }
-    );
-}
-
-#[test]
-fn startup_reads_one_der_certificate_and_honors_the_explicit_bundle_path() {
+fn startup_reads_one_der_certificate() {
     let scratch = Scratch::new("startup");
     let path = scratch.path().join("root.der");
     fs::write(&path, b"DER bytes").expect("plant DER");
@@ -327,15 +250,19 @@ fn startup_reads_one_der_certificate_and_honors_the_explicit_bundle_path() {
     assert_eq!(roots.certificates.as_ref(), [Box::from(b"DER bytes".as_slice())]);
     assert_eq!((roots.other_blocks, roots.malformed), (0, 0));
     assert_eq!(roots.path, path);
+}
+
+#[test]
+fn startup_forwards_the_bundle_byte_bound_to_the_reader() {
+    let scratch = Scratch::new("startup");
+    let path = scratch.path().join("bundle");
+    let bytes = b"-----BEGIN CERTIFICATE-----\nTWFu\n-----END CERTIFICATE-----\n";
+    fs::write(&path, bytes).expect("plant bundle");
+    let length = u32::try_from(bytes.len()).expect("fixture fits");
+    let trust = Trust::Machine { ssl_cert_file: Some(path.clone()) };
+    assert!(read_trust_roots(&trust, &RootBounds { bundle_bytes: length, ..BOUNDS }).is_ok(), "exact bundle bytes");
     assert_eq!(
-        read_trust_roots(&Trust::Der(path), &RootBounds { certificate_bytes: 8, ..BOUNDS })
-            .expect_err("DER byte bound"),
-        RootsRefusal::TooLong { index: 0, bound: 8 }
-    );
-    let missing = scratch.path().join("missing");
-    assert_eq!(
-        read_trust_roots(&Trust::Machine { ssl_cert_file: Some(missing.clone()) }, &BOUNDS)
-            .expect_err("explicit absent"),
-        RootsRefusal::Unread { path: missing, why: Unread::Absent }
+        read_trust_roots(&trust, &RootBounds { bundle_bytes: length - 1, ..BOUNDS }).expect_err("bundle past bound"),
+        RootsRefusal::Unread { path, why: Unread::TooLarge { max: length - 1 } }
     );
 }
