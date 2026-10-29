@@ -226,7 +226,12 @@ down:  released and door outputs → components → io submissions
      and their held outputs released, until nothing waits for a commit,
      which the core says.
   4. **Each component closes,** its peers told, and reports closed; the
-     store closes last. A stop before the start's mark (the switch
+     store closes last: `other_store_drivers_closed` holds its root open
+     until the other drivers' handles are closed, their io ready and
+     their terminal queues empty. The reference service holds this with
+     delayed driver completions in `jig-test-service`,
+     `tests::engine::the_store_root_closes_after_delayed_driver_completions`.
+     A stop before the start's mark (the switch
      step's wires commit, `../domain/engine.md`, section 6) finds the
      components that wait for it never made, the accounts' driver and
      the secrets' gate among them: each closes at once as closed, with
