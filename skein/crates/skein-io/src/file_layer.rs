@@ -99,6 +99,10 @@ enum Pending {
         owner: Token,
         max: u32,
     },
+    LoadReopening {
+        owner: Token,
+        max: u32,
+    },
     LoadStating {
         owner: Token,
         fd: Fd,
@@ -170,6 +174,7 @@ impl Pending {
             | Pending::Page { owner, .. }
             | Pending::ListClosing { owner, .. }
             | Pending::LoadOpening { owner, .. }
+            | Pending::LoadReopening { owner, .. }
             | Pending::LoadStating { owner, .. }
             | Pending::LoadReading { owner, .. }
             | Pending::LoadClosing { owner, .. }
@@ -205,6 +210,7 @@ impl Pending {
             | Pending::List { .. }
             | Pending::Page { .. }
             | Pending::ListClosing { .. }
+            | Pending::LoadReopening { .. }
             | Pending::LoadStating { .. }
             | Pending::LoadClosing { .. }
             | Pending::LoadTooLargeClosing { .. }
@@ -221,6 +227,7 @@ struct Loading {
     user: u32,
     root: Fd,
     path: Box<[u8]>,
+    reopened: bool,
 }
 
 /// An owned descriptor and, for verified private roots, its effective user.
@@ -449,7 +456,7 @@ fn down_inner(io: &mut FileIo, request: Request, events: &mut Queue<Event>, subs
                 return;
             }
             if let Some(user) = io.private_owner(root) {
-                io.loading = Some(Loading { user, root: fd, path: path.clone() });
+                io.loading = Some(Loading { user, root: fd, path: path.clone(), reopened: false });
             }
             io.pending = Some(Pending::LoadOpening { owner, max });
             let how = if no_follow || io.loading.is_some() { OpenHow::ReadNoFollow } else { OpenHow::Read };
@@ -642,6 +649,7 @@ pub fn cancel(io: &mut FileIo, owner: Token, subs: &mut Queue<Submit>) {
         | Pending::Page { .. }
         | Pending::ListClosing { .. }
         | Pending::LoadOpening { .. }
+        | Pending::LoadReopening { .. }
         | Pending::LoadStating { .. }
         | Pending::LoadReading { .. }
         | Pending::LoadClosing { .. }
@@ -704,6 +712,7 @@ fn cancelled(io: &mut FileIo, complete: Complete, events: &mut Queue<Event>, sub
         | Pending::List { .. }
         | Pending::Page { .. }
         | Pending::LoadOpening { .. }
+        | Pending::LoadReopening { .. }
         | Pending::LoadStating { .. }
         | Pending::LoadReading { .. }
         | Pending::ScanOpening { .. }
@@ -747,6 +756,7 @@ fn cancelled(io: &mut FileIo, complete: Complete, events: &mut Queue<Event>, sub
             | Pending::Page { .. }
             | Pending::ListClosing { .. }
             | Pending::LoadOpening { .. }
+            | Pending::LoadReopening { .. }
             | Pending::LoadStating { .. }
             | Pending::LoadReading { .. }
             | Pending::LoadClosing { .. }
@@ -853,6 +863,7 @@ fn stopped(io: &mut FileIo, complete: Complete, reason: Error, events: &mut Queu
         | Pending::List { .. }
         | Pending::ListClosing { .. }
         | Pending::LoadOpening { .. }
+        | Pending::LoadReopening { .. }
         | Pending::LoadStating { .. }
         | Pending::LoadReading { .. }
         | Pending::LoadClosing { .. }
@@ -861,35 +872,7 @@ fn stopped(io: &mut FileIo, complete: Complete, reason: Error, events: &mut Queu
         | Pending::ScanListing { .. }
         | Pending::ScanClosing { .. }) => other,
     };
-    let owner = match &pending {
-        Pending::Create { owner }
-        | Pending::OpenRead { owner }
-        | Pending::OpenDirectory { owner }
-        | Pending::Stat { owner, .. }
-        | Pending::Stating { owner }
-        | Pending::Cleanup { owner, .. }
-        | Pending::Write { owner }
-        | Pending::Read { owner, .. }
-        | Pending::Cut { owner }
-        | Pending::Lock { owner }
-        | Pending::Sync { owner }
-        | Pending::Close { owner }
-        | Pending::Rename { owner }
-        | Pending::Remove { owner }
-        | Pending::ListOpening { owner }
-        | Pending::List { owner, .. }
-        | Pending::Page { owner, .. }
-        | Pending::ListClosing { owner, .. }
-        | Pending::LoadOpening { owner, .. }
-        | Pending::LoadStating { owner, .. }
-        | Pending::LoadReading { owner, .. }
-        | Pending::LoadClosing { owner, .. }
-        | Pending::LoadTooLargeClosing { owner, .. }
-        | Pending::ScanOpening { owner, .. }
-        | Pending::ScanListing { owner, .. }
-        | Pending::ScanClosing { owner, .. } => *owner,
-        Pending::Store(_) | Pending::Private(_) => unreachable!("dedicated file completion is handled separately"),
-    };
+    let owner = pending.owner();
     let fd = match (pending, complete.result) {
         (
             Pending::Create { .. }
@@ -1005,6 +988,7 @@ fn up_inner(io: &mut FileIo, complete: Complete, events: &mut Queue<Event>, subs
         | Pending::List { .. }
         | Pending::ListClosing { .. }
         | Pending::LoadOpening { .. }
+        | Pending::LoadReopening { .. }
         | Pending::LoadStating { .. }
         | Pending::LoadReading { .. }
         | Pending::LoadClosing { .. }
@@ -1055,6 +1039,7 @@ fn up_inner(io: &mut FileIo, complete: Complete, events: &mut Queue<Event>, subs
             | Pending::Remove { owner }
             | Pending::ListOpening { owner }
             | Pending::ListClosing { owner, .. }
+            | Pending::LoadReopening { owner, .. }
             | Pending::LoadClosing { owner, .. }
             | Pending::LoadTooLargeClosing { owner, .. }
             | Pending::ScanOpening { owner, .. }
@@ -1105,12 +1090,25 @@ fn up_inner(io: &mut FileIo, complete: Complete, events: &mut Queue<Event>, subs
             io.pending = Some(Pending::LoadStating { owner, fd, max });
             io.issue(Op::Stat { fd }, subs);
         }
+        (Pending::LoadReopening { owner, max }, Op::Close { .. }, Done::Nothing) => {
+            let loading = io.loading.as_ref().expect("only a private load reopens a replaced file");
+            let operation = Op::Open { root: loading.root, path: loading.path.clone(), how: OpenHow::ReadNoFollow };
+            io.pending = Some(Pending::LoadOpening { owner, max });
+            io.issue(operation, subs);
+        }
         (Pending::LoadStating { owner, fd, max }, Op::Stat { .. }, Done::Stat(stat)) => {
             let unsafe_found = match io.loading.as_ref() {
                 Some(loading) => private::unsafe_file(stat, loading.user),
                 None => None,
             };
-            if let Some(found) = unsafe_found {
+            if unsafe_found == Some(crate::file::Unsafe::Links(0))
+                && let Some(loading) = io.loading.as_mut()
+                && !loading.reopened
+            {
+                loading.reopened = true;
+                io.pending = Some(Pending::LoadReopening { owner, max });
+                io.issue(Op::Close { fd }, subs);
+            } else if let Some(found) = unsafe_found {
                 private::refuse_file(io, owner, fd, found, events, subs);
             } else if stat.kind != crate::kernel::Kind::File {
                 io.pending = Some(Pending::Cleanup { owner, error: Error::IsADirectory });
