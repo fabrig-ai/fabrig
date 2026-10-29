@@ -1,13 +1,10 @@
 //! A person starts a chat at the terminal and reads its committed answer.
-use skein_world::domain::heap::Counting;
 use std::os::unix::fs::MetadataExt;
 use temper_real_loop_world::{
     Exit,
     calls::{D1, sign_in},
     run, scripts, terminal,
 };
-#[global_allocator]
-static HEAP: Counting = Counting;
 // The production view's Provisional word (cards/words.rs).
 const PROVISIONAL: &[u8] = b"Writing...";
 // The ctl call that signs in and provisions the deployment's key.

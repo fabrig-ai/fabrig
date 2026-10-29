@@ -1,10 +1,6 @@
 //! Design-only QA of the worker-to-terminal text path (domain/testing.md, 2.4).
 use skein_fake_llm_domain::api::{Finish, Line, Piece, Script, Turn};
-use skein_world::domain::heap::Counting;
 use temper_real_loop_world::{calls, run, scripts, terminal};
-
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 const REQUEST: &[u8] = b"QA live text request";
 const PREFIX: &str = "QA prefix caf\u{e9}";

@@ -1,12 +1,9 @@
 //! A request held durably survives the loss of its caller's answer.
-use skein_world::domain::heap::Counting;
 use temper_real_loop_world::{
     Exit, argv,
     calls::{D2, call, listed, same_party, task, until},
     fixtures, run, scripts,
 };
-#[global_allocator]
-static HEAP: Counting = Counting;
 // D2's same-party sign-in is call two; its named retry is call three.
 const AGAIN: usize = 3;
 // Each story gives one scripted response to each of its distinct named chats.

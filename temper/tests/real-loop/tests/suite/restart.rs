@@ -1,12 +1,9 @@
 //! A new standalone preparation reads the work the drained service kept.
-use skein_world::domain::heap::Counting;
 use temper_real_loop_world::{
     Exit, argv,
     calls::{D1, call, number, occurrences, sign_in, task, until},
     fixtures, llm, run_on, scripts,
 };
-#[global_allocator]
-static HEAP: Counting = Counting;
 // One chat is created after sign-in; its last read follows the restarted sign-in.
 const CHAT: usize = 2;
 const READ: usize = 1;

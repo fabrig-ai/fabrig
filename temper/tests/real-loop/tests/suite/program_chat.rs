@@ -1,13 +1,10 @@
 //! An Open chat parks and resumes through smith's fake Claude Code (protocol/llm.md, 6).
-use skein_world::domain::heap::Counting;
 use smith_fake_claude::{Script, Seen, Selection, Step, Story, Turn};
 use temper_real_loop_world::{
     Exit, Scratch, argv,
     calls::{D1, call, occurrences, task, until},
     claude, fixtures, llm, run_on,
 };
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 use claude::{ACCOUNT as PROGRAM_ACCOUNT, SOURCE};
 // The real loop retains jig's standalone worker fixture name.

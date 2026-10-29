@@ -1,9 +1,6 @@
 //! The init template's two-row bound is below ctl's unchanged 32-row window.
-use skein_world::domain::heap::Counting;
 use std::{cell::RefCell, rc::Rc};
 use temper_real_loop_world::template_bounds::{self, Seen};
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 #[test]
 fn the_two_call_agent_past_smalls_page_is_refused_by_name() {
