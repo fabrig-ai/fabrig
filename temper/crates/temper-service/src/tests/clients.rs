@@ -504,3 +504,41 @@ fn secret_asks_in_flight_each_get_their_own_terminal() {
     }
     assert!(clients.secrets.is_empty());
 }
+
+#[test]
+fn a_stalled_link_consumer_drops_nothing_and_keeps_order() {
+    let mut service = super::fixtures::ready();
+    let admitted = super::fixtures::engine().limits.sign_in.pending;
+    let bound = service.links().capacity();
+    let produced = admitted.max(bound).checked_add(3).unwrap();
+    let _initial_link = service.links().pop().expect("startup link");
+    assert!(service.links().is_empty());
+    for number in 0..produced {
+        service.engine.as_mut().unwrap().clients.links.push(ordered_printed_link(number));
+    }
+    // The binary leaves its channel untouched across two service passes.
+    for _ in 0..2 {
+        super::fixtures::turn(&mut service);
+        assert_eq!(service.links().len(), bound, "the binary-facing channel fills");
+        let upstream = &service.engine.as_ref().unwrap().clients.links;
+        assert_eq!(upstream.len(), produced - bound, "the producer waits with every excess link");
+        assert_eq!(upstream.iter().next().unwrap().as_ref(), ordered_printed_link(bound).as_ref(), "head waits");
+    }
+    for number in 0..bound {
+        assert_eq!(service.links().pop().unwrap(), ordered_printed_link(number), "FIFO before the stall");
+    }
+    assert!(service.links().is_empty());
+    super::fixtures::turn(&mut service);
+    assert!(service.engine.as_ref().unwrap().clients.links.is_empty(), "the waiting producer resumes");
+    for number in bound..produced {
+        assert_eq!(service.links().pop().unwrap(), ordered_printed_link(number), "FIFO across the stall");
+    }
+    assert!(service.links().is_empty(), "no duplicate links");
+    assert_eq!(service.end(), None);
+    assert_eq!(bound, admitted, "printed-link credit belongs to the admitted sign-in population");
+}
+
+fn ordered_printed_link(number: u32) -> Box<[u8]> {
+    let secret = skein_lib::Secret::new(Box::new([u8::try_from(number).unwrap(); 32]));
+    crate::clients::printed::link(([127, 0, 0, 1], 7100).into(), &secret)
+}
