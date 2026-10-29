@@ -87,8 +87,8 @@ The transcript v6 generator uses `Names::Bounds`; its golden bytes are
 unchanged. The root's `feedback_bound` and `ConfiguredModel::owned_bound`
 have no old-name aliases, and jig and temper use the bound names.
 
-`testing.md`, 2 and 6: built: patch tests use
-`generate_named(.., Names::Bounds)`, with no unnamed generator caller;
+`testing.md`, 2 and 6: built: patch and drift tests check the
+generated bound vocabulary through `skein_codegen::generate`;
 world stages ask for no room and the run world's order log keeps no room
 field. World content settings and calm fact inventories are named
 constants independent of entrance allowances.
