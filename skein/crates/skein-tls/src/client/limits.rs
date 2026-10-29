@@ -42,6 +42,7 @@ const SLACK: u32 = 2 * 27;
 
 /// The longest handshake message rustls reads: 64 KB of body (its
 /// `MAX_HANDSHAKE_SIZE`, 0xffff) and the message's header.
+#[cfg(test)]
 pub(crate) const MAX_HANDSHAKE: u32 = 65_535 + 4;
 
 /// The client's limits (programming-model.md, 7): the same for every step

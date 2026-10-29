@@ -52,7 +52,7 @@ mod close;
 mod error;
 mod limits;
 pub use error::{Certificate, Error};
-#[cfg_attr(not(test), expect(unused_imports, reason = "The crate's step tests use this client path"))]
+#[cfg(test)]
 pub(crate) use limits::MAX_HANDSHAKE;
 pub use limits::{
     FLIGHT, HEADER, LARGEST_READ, Limits, MAX_BODY, MAX_PLAINTEXT, MAX_RECORD, largest_room, room_for, valid,
