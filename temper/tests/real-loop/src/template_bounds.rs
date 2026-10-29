@@ -6,7 +6,7 @@ use skein_io::kernel::{Fd, ServiceSignal};
 use skein_lib::{Duration, Time};
 use skein_shell::Host;
 use skein_world::{
-    HostedProgram, Referee,
+    Deadline, Expired, HostedProgram, Referee,
     real::{Controls, World},
 };
 use std::{cell::RefCell, path::PathBuf, rc::Rc};
@@ -261,7 +261,7 @@ struct Judge {
     path: PathBuf,
     current: usize,
     stage: Stage,
-    deadline: Option<Time>,
+    deadline: Option<Deadline>,
     wake: Option<Time>,
     stopping: bool,
     finished: bool,
@@ -326,7 +326,7 @@ impl Judge {
                     assert_eq!(seen.activity[0]["rows"][0]["position"], seen.task.as_ref().expect("task")["activity"]);
                     drop(seen);
                     self.stage = Stage::Tree;
-                    self.deadline = Some(now.saturating_add(Duration::from_secs(2)));
+                    self.deadline = Some(Deadline::arm("the task tree display's answer", Duration::from_secs(2)));
                     self.next(procs, &["task", "show", "1", "--tree"], false);
                 }
             }
@@ -364,6 +364,27 @@ impl Judge {
     }
 }
 impl Judge {
+    fn expire_wait(&mut self) {
+        if let Some(deadline) = &self.deadline
+            && deadline.passed()
+        {
+            match deadline.expired() {
+                Expired::Failed(figures) => panic!(
+                    "{}: {figures}",
+                    if self.stopping {
+                        "service shutdown did not finish within two seconds"
+                    } else {
+                        "task show 1 --tree did not answer within two seconds"
+                    }
+                ),
+                Expired::Starved(_) => {
+                    // The world owns all hosts and ends them at its patience.
+                    self.deadline = None;
+                    self.patience.defer();
+                }
+            }
+        }
+    }
     fn describe_pending(&self, now: Time, procs: &mut [Proc]) -> String {
         let mut report = format!(
             "temper bounds judge overdue: stage={:?} page={} stopping={} finished={}\n",
@@ -383,22 +404,13 @@ impl Judge {
 }
 impl Referee<Proc> for Judge {
     fn act(&mut self, now: Time, procs: &mut [Proc]) {
-        if self.patience.due(now) {
+        if self.patience.due() {
             let report = self.describe_pending(now, procs);
             self.patience.capture(report);
             crate::patience::fail_overdue::<Proc, _>(self, now);
         }
         self.wake = None;
         self.started.get_or_insert(now);
-        assert!(
-            self.deadline.is_none_or(|deadline| now < deadline),
-            "{}",
-            if self.stopping {
-                "service shutdown did not finish within one second"
-            } else {
-                "task show 1 --tree did not answer within one second"
-            }
-        );
         let Proc::Llm { peer, .. } = &procs[0] else { panic!("LLM") };
         let address = peer.address();
         let created = batch_created(peer);
@@ -467,7 +479,7 @@ impl Referee<Proc> for Judge {
                 }
             }
             obligations.check(declared).unwrap_or_else(|error| panic!("{error}"));
-            self.deadline = Some(now.saturating_add(Duration::from_secs(2)));
+            self.deadline = Some(Deadline::arm("the bounds service's shutdown", Duration::from_secs(2)));
             self.controls.signal(1, ServiceSignal::Terminate);
             self.stopping = true;
         }
@@ -478,6 +490,8 @@ impl Referee<Proc> for Judge {
             self.deadline = None;
             self.finished = true;
         }
+        // Completed answers and shutdowns clear their wait before it is classified.
+        self.expire_wait();
     }
     fn observe(&mut self, now: Time, procs: &[Proc]) {
         let Proc::Llm { peer, .. } = &procs[0] else { panic!("LLM") };
@@ -496,7 +510,7 @@ impl Referee<Proc> for Judge {
         }
     }
     fn next_deadline(&self) -> Option<Time> {
-        [self.wake, self.deadline, self.patience.deadline()].into_iter().flatten().min()
+        [self.wake, self.deadline.as_ref().map(Deadline::until), self.patience.deadline()].into_iter().flatten().min()
     }
     fn overdue(&self, _now: Time) -> Option<String> {
         self.patience.overdue()
