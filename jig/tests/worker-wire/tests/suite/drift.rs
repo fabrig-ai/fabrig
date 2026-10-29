@@ -1,4 +1,4 @@
-use skein_codegen::{generate, parse};
+use skein_codegen::{Names, generate_named, parse};
 use std::fs;
 
 #[test]
@@ -6,7 +6,7 @@ fn worker_wire_schema_matches_generated_code_and_goldens() {
     let root = skein_scratch::paths::tree().join("crates/jig-protocol-worker-wire");
     let source = fs::read_to_string(root.join("schema/worker-wire-v9.schema")).expect("schema");
     let schema = parse(&source).expect("schema valid");
-    let output = generate(&schema);
+    let output = generate_named(&schema, Names::Both);
     let code = root.join("src/generated/v9.rs");
     let goldens = root.join("golden");
     let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
