@@ -1,12 +1,12 @@
 //! The committed codecs and golden bytes against their schemas (skein's codec.md, 6).
-use skein_codegen::{Names, generate_named, parse};
+use skein_codegen::{generate, parse};
 use std::fs;
 
 fn schema_matches(crate_name: &str, family: &str, version: &str) {
     let root = skein_scratch::paths::tree().join("crates").join(crate_name);
     let source =
         fs::read_to_string(root.join("schema").join(format!("{family}-{version}.schema"))).expect("family schema");
-    let output = generate_named(&parse(&source).expect("schema valid"), Names::Bounds);
+    let output = generate(&parse(&source).expect("schema valid"));
     let code = root.join("src/generated").join(format!("{version}.rs"));
     let goldens = root.join("golden");
     let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
