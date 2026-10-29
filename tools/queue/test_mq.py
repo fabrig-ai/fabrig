@@ -845,9 +845,49 @@ baseline.write_text(str(count) + '\n')
         self.commit("tracked tools suites")
         self.write("tools/test_untracked.py", "untracked\n")
         self.assertEqual(mq.tools_commands(self.repo), [
-            ("tools/nested/test-shell", ["bash", "tools/nested/test-shell"], self.repo),
+            ("tools/nested/test-shell", ["./tools/nested/test-shell"], self.repo),
             ("tools/nested/test_input.py", ["python3", "-I", "-B", "tools/nested/test_input.py"], self.repo),
             ("tools/test_root.py", ["python3", "-I", "-B", "tools/test_root.py"], self.repo)])
+
+    def test_executable_python_and_bash_suites_use_their_shebangs(self):
+        self.write("tools/with spaces/test-python", """#!/usr/bin/env python3
+import pathlib, sys
+assert sys.stdin.read() == ''
+assert pathlib.Path('shared').read_text() == 'base\\n'
+print('Python shebang passed')
+""")
+        self.write("tools/test-bash", """#!/bin/bash
+set -eu
+words=(Bash shebang passed)
+[[ $(<shared) == base && -z $(cat) ]]
+printf '%s\\n' "${words[*]}"
+""")
+        for path in ("tools/with spaces/test-python", "tools/test-bash"):
+            (self.repo / path).chmod(0o700)
+        self.commit("executable suites with different interpreters")
+        log_path = self.directory / "checks.log"
+        with log_path.open("a+") as log:
+            result = mq.run_tools(self.repo, log)
+        self.assertTrue(result["green"], log_path.read_text())
+        self.assertEqual(len(result["suites"]), 2)
+        self.assertIn("Python shebang passed", log_path.read_text())
+        self.assertIn("Bash shebang passed", log_path.read_text())
+
+    def test_heavy_discovery_excludes_only_the_systemd_recovery_suite(self):
+        offline = ["tools/heavy/test-gate-policy", "tools/heavy/test-heavy-plain",
+                   "tools/heavy/test-receipt-inputs", "tools/other/test-heavy-recovery"]
+        recovery = "tools/heavy/test-heavy-recovery"
+        for path in [*offline, recovery]:
+            body = "raise AssertionError('systemd recovery must not run in the gate')" if path == recovery else "print('offline fixture passed')"
+            self.write(path, "#!/usr/bin/env python3\n" + body + "\n")
+            (self.repo / path).chmod(0o700)
+        self.commit("offline and manual recovery suites")
+        self.assertEqual([name for name, _, _ in mq.tools_commands(self.repo)], offline)
+        log_path = self.directory / "checks.log"
+        with log_path.open("a+") as log:
+            result = mq.run_tools(self.repo, log)
+        self.assertTrue(result["green"], log_path.read_text())
+        self.assertEqual([suite["name"] for suite in result["suites"]], offline)
 
     def test_tools_only_batch_runs_tools_without_cargo_and_lands(self):
         self.branch("tools", "tools/test_root.py", """import pathlib, sys

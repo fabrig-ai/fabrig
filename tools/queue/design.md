@@ -55,9 +55,23 @@ run keeps `cargo fmt --all --check`. A batch with no checks to run is green.
 A change under `tools/`, or any full run, runs step `tools` before Cargo.
 Discover suites from the checkout's tracked files: every `tools/**/test_*.py`
 runs with `python3 -I -B`, including `tools/test_install.py`; every executable
-`tools/**/test-*` runs with `bash`. Run serially from the checkout root with
-stdin from `/dev/null` and a 60-second timeout per suite. The longest suite
-measures about 13 seconds. Each suite's command and output go to the batch
+`tools/**/test-*` runs directly as `./tools/.../test-*`, honoring its shebang.
+Pass the path as one argument without a shell or PATH lookup, so Python and
+Bash suites both use their declared interpreters.
+
+Discovery changes take effect when the running queue restarts (section 3.7).
+Land and activate a discovery change before queuing suites that require it.
+
+Exclude exactly `tools/heavy/test-heavy-recovery`: it installs real user
+systemd units and requires manual execution on a builder with isolated
+state and unit prefixes (`tools/heavy/design.md, 6`). It must not run
+automatically on the gate machine. The three offline heavy suites
+`test-heavy-plain`, `test-gate-policy` and `test-receipt-inputs` remain in
+the tools step. Other executable suites, including the same recovery
+basename in another directory, remain eligible.
+
+Run serially from the checkout root with stdin from `/dev/null` and a
+60-second timeout per suite. Each suite's command and output go to the batch
 log; its exit code and elapsed time go in the tools step's `suites` records.
 The step records its total elapsed time. Run every suite even if one fails;
 any nonzero exit, missing interpreter, or timeout makes the step red and stops
