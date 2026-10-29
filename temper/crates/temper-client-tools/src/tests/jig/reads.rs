@@ -431,7 +431,7 @@ fn a_refused_next_run_names_its_cause_in_text_and_json() {
 }
 
 #[test]
-fn a_document_at_its_byte_bound_prints_worst_case_json_escapes() {
+fn a_document_at_its_byte_bound_prints_its_maximal_json_escapes() {
     use crate::jig::render::document::{self, Document};
     let task = fixtures::document_at_byte_bound();
     let printed = document::print(Document::Task(&task, None), true, &crate::limits::tools(), &crate::root::Parts);

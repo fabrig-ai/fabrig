@@ -377,7 +377,7 @@ pub(crate) fn composite_tree() -> c::Tree {
 }
 
 /// NUL is valid UTF-8 and takes six bytes as a JSON Unicode escape.
-pub(crate) fn worst_case_json_text(size: u32) -> Box<[u8]> {
+pub(crate) fn maximally_escaped_json_text(size: u32) -> Box<[u8]> {
     let mut out = skein_lib::Writer::new(usize::try_from(size).expect("fixture length"));
     for _ in 0..size {
         out.put(&[0]).expect("fixture length");
@@ -395,7 +395,7 @@ pub(crate) fn document_at_byte_bound() -> c::Task {
     parts.instructions = Some(
         w::DocumentText::new(
             &link.wire,
-            w::DocumentTextParts { bytes: worst_case_json_text(client.domain.text), cut: false },
+            w::DocumentTextParts { bytes: maximally_escaped_json_text(client.domain.text), cut: false },
         )
         .expect("worst-case instructions at text bound"),
     );
@@ -420,7 +420,7 @@ fn resource_pieces(link: &jig_client_protocol_link::Limits, payload: u32) -> Box
         let mut path = List::with_capacity(link.client.segments);
         for _ in 0..link.client.segments {
             let bytes = left.min(link.client.text);
-            path.push(worst_case_json_text(bytes)).expect("bounded path");
+            path.push(maximally_escaped_json_text(bytes)).expect("bounded path");
             left = left.checked_sub(bytes).expect("within payload");
         }
         let part = w::Part::Resource(

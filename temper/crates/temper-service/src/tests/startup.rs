@@ -276,7 +276,7 @@ fn startup_refuses_policy_row_arithmetic_overflow_by_name() {
 }
 
 #[test]
-fn startup_names_the_policy_row_before_generic_worst_case_refusal() {
+fn startup_names_the_policy_row_before_its_general_refusal() {
     let document = fixtures::with(
         &fixtures::document(),
         b"application.limits.overrides",
