@@ -430,10 +430,12 @@ fn a_tls_peer_serves_forgejo_over_the_fixed_test_chain() {
     peer.tls().unwrap();
     let kernel = Kernel::open(skein_shell::Config { operations: peer.operations() }).expect("kernel ring");
     let mut world = git::Loop { peer, kernel, clock: Clock::new() };
-    let deadline = world.clock.now().now.saturating_add(Duration::from_secs(6));
+    let deadline = skein_world::Deadline::arm("the TLS forge listener, exchange and drain", Duration::from_secs(6));
     while world.peer.address().is_none() {
         world.pass();
-        assert!(world.clock.now().now < deadline, "TLS listener binds");
+        if world.peer.address().is_none() && deadline.passed() {
+            world.expired(&deadline);
+        }
     }
     let bound = world.peer.address().unwrap();
     let mut roots = RootCertStore::empty();
@@ -464,7 +466,10 @@ fn a_tls_peer_serves_forgejo_over_the_fixed_test_chain() {
             Err(error) if error.kind() == std::io::ErrorKind::UnexpectedEof => break,
             Err(error) => panic!("TLS response: {error}"),
         }
-        assert!(world.clock.now().now < deadline, "TLS exchange settles");
+        if deadline.passed() {
+            drop(stream);
+            world.expired(&deadline);
+        }
     }
     assert!(response.starts_with(b"HTTP/1.1 200 "), "{}", String::from_utf8_lossy(&response));
     let split = skein_lib::bytes::find(&response, b"\r\n\r\n").expect("HTTP head");
@@ -483,7 +488,9 @@ fn a_tls_peer_serves_forgejo_over_the_fixed_test_chain() {
     world.peer.shutdown();
     while !world.peer.is_empty() {
         world.pass();
-        assert!(world.clock.now().now < deadline, "TLS peer settles");
+        if !world.peer.is_empty() && deadline.passed() {
+            world.expired(&deadline);
+        }
     }
 }
 
