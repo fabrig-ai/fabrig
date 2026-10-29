@@ -114,8 +114,8 @@ pub fn tokenizer_bound(limits: &Limits) -> Option<u64> {
     if limits.chunk == 0 || limits.length == u32::MAX {
         return None;
     }
-    let open = Stack::<Container>::worst_case(limits.depth)?;
-    let text = List::<u8>::worst_case(text_capacity(limits))?;
+    let open = Stack::<Container>::price(limits.depth)?;
+    let text = List::<u8>::price(text_capacity(limits))?;
     open.checked_add(text)?.checked_add(u64::from(largest_demand(limits)))
 }
 
@@ -131,7 +131,7 @@ pub fn validation_worst_case(limits: &Limits) -> Option<u64> {
 #[must_use]
 pub fn validation_bound(limits: &Limits) -> Option<u64> {
     let bounded = Limits { string: 0, ..*limits };
-    worst_case(&bounded)?.checked_add(Queue::<Event>::worst_case(1)?)?.checked_add(Queue::<Down>::worst_case(1)?)
+    tokenizer_bound(&bounded)?.checked_add(Queue::<Event>::price(1)?)?.checked_add(Queue::<Down>::price(1)?)
 }
 
 /// Checks one borrowed value through `Skip`, including trailing whitespace.
