@@ -550,8 +550,7 @@ pub(crate) fn read_call(
     let name = read_name(adopted, &read, env.limits.authority.segments);
     let allowed = match name {
         Some(name) if context.project == adopted.project && adopted.kinds.read => {
-            let mut findings =
-                Queue::with_capacity(authority::max_out(domain.core.authority.limits()).expect("authority findings"));
+            let mut findings = Queue::uncapped();
             domain.core.connector_read_admit(
                 key.task,
                 authority::Effect {
@@ -1251,8 +1250,7 @@ fn may_push(
 ) -> bool {
     let Some(what) = branch_what(branch, env.limits.forge.name_bytes) else { return false };
     let Some(name) = resource_name(repository, &what, env.limits.authority.segments) else { return false };
-    let Some(bound) = authority::max_out(domain.core.authority.limits()) else { return false };
-    let mut findings = Queue::with_capacity(bound);
+    let mut findings = Queue::uncapped();
     domain.core.connector_run_write_admit(
         context,
         authority::Effect {
