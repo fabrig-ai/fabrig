@@ -270,7 +270,12 @@ that is not empty, or a message.
    (protocol/channel.md, section 6), a program source granted for a
    sub-agent's LLM and not for main's (protocol/programs.md,
    section 2)). The start's messages are admitted
-   or refused with it.
+   or refused with it. A host that builds a brief measures its room
+   first: `brief_room` is the window's host part less the exact host
+   bytes of everything but the brief, for the charter and the workspace
+   (the empty guide's scaffolding included), and `brief_bytes` counts the
+   brief's sections and framing as the run renders them, so a brief at
+   the room fits the host part and one byte more is refused.
 2. **Prepares:** reads each workspace directory's guide and looks for its
    checks (8.1).
 3. **Equips** its main session: prompt, tools, workspace authority, LLM,
