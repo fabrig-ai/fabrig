@@ -21,7 +21,7 @@ mod tests {
         rows.push(pair).unwrap();
         rows.push(pair).unwrap();
         let bytes = u64::try_from(core::mem::size_of::<List<OwnerKindImplication>>()).unwrap()
-            + List::<OwnerKindImplication>::worst_case(4).unwrap();
+            + List::<OwnerKindImplication>::price(4).unwrap();
         let mut bounds = Bounds { rows: 4, document_bytes: bytes, ..Bounds::default() };
         assert!(crate::payload::fits(&rows, &bounds));
         assert_eq!(rows.as_slice(), &[pair, pair]);

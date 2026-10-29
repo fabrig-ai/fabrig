@@ -223,7 +223,7 @@ pub fn worst_case(config: &Config) -> Option<u64> {
     let scratch = query.checked_add(generated.checked_mul(3)?)?;
     Slab::<Call>::worst_case(config.calls)?
         .checked_add(Deadlines::<Id<Call>>::worst_case(config.calls)?)?
-        .checked_add(Set::<Id<Call>>::worst_case(config.calls)?)?
+        .checked_add(Set::<Id<Call>>::price(config.calls)?)?
         .checked_add(scripts)?
         .checked_add(u64::from(config.calls).checked_mul(u64::from(config.answer_bytes))?)?
         .checked_add(scratch)?

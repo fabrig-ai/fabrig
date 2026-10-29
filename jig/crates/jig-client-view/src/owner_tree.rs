@@ -30,7 +30,7 @@ enum Visit {
 /// Temporary traversal is bounded by retained descendants, not source depth values.
 #[must_use]
 pub fn scratch(rows: u32) -> Option<u64> {
-    Stack::<Visit>::worst_case(rows.checked_mul(2)?)?.checked_add(Set::<u32>::worst_case(rows)?)
+    Stack::<Visit>::price(rows.checked_mul(2)?)?.checked_add(Set::<u32>::price(rows)?)
 }
 /// Full rows, proposal cards, link chips and independent parent folds.
 #[must_use]

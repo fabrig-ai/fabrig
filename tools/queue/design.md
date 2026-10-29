@@ -5,8 +5,8 @@ Provisional, 2026-10-28. How a branch reaches `main`: a script on the gate machi
 ## 1. In one page
 
 - **Input:** remote branches `ready/<lead>/<task>` on `origin`, each pushed by its lead.
-- **A batch:** from `origin/main`, the ready branches not yet tried at their current tip, oldest tip first, at most `batch` (8) of them, each merged with `git merge --no-ff -m "Merge <branch name>"`; ratchet-only conflicts are resolved by recounting against HEAD (section 3.3); any other conflict is aborted, reported, and left out.
-- **The checks run on a selection** (section 2), not always the whole workspace: the tools' suites (section 2.3), `cargo fmt --check`, clippy with `-D warnings`, a nextest `build`, the focused (`default`) and `fuzzy` nextest profiles, and each tree's `scripts/old_forms.py` (the ratchet). Cargo build and test commands run through `heavy --gate` on the gate machine, which nothing else builds on. Lockfile and member manifest changes select affected packages (section 2.1); formatting covers changed Rust owners (section 2.2). Step durations are recorded separately (section 3.6).
+- **A batch:** from `origin/main`, the ready branches not yet tried at their current tip, oldest tip first, at most `batch` (8) of them, each merged with `git merge --no-ff -m "Merge <branch name>"`; ratchet-only conflicts are resolved by recounting against HEAD (section 3.3); any other conflict is aborted, reported, and left out. After merging, the queue writes and commits lower old-form baselines for touched trees before checks. Branches need not change those baselines.
+- **The checks run on a selection** (section 2), not always the whole workspace: touched trees' `scripts/old_forms.py --write` (the ratchet, section 3.3), then the tools' suites (section 2.3), `cargo fmt --check`, clippy with `-D warnings`, a nextest `build`, and the focused (`default`) and `fuzzy` nextest profiles. Cargo build and test commands run through `heavy --gate` on the gate machine, which nothing else builds on. Lockfile and member manifest changes select affected packages (section 2.1); formatting covers changed Rust owners (section 2.2). Step durations are recorded separately (section 3.6).
 - **Green:** `git push origin HEAD:main` (fast-forward only); the batch's `ready/` branches are deleted; each lead is told which commit holds its task.
 - **Red:** a batch of one is rejected (its lead gets the failing step and the log's path, and the branch isn't retried until its tip changes); a larger batch is halved and each half tried from `main`, recursively, so the green branches still land.
 - **Capacity refusal:** a heavy exit 2 containing `below the disk floor` is an error, with no rejection or bisection. Before every batch, free space below `--disk-floor` (45 GB by default) defers work to the next cycle.
@@ -16,7 +16,7 @@ Provisional, 2026-10-28. How a branch reaches `main`: a script on the gate machi
 
 ## 2. The selection
 
-1. **Changed paths:** `git diff --name-only origin/main...HEAD` for the batch.
+1. **Changed paths:** compare the checked parent and candidate trees with `git diff --name-only --no-renames -z <parent> <candidate>`. `changed_paths` accepts an explicit `base` and `candidate`, defaulting to `origin/main` and `HEAD` for the one-gate queue. Include both sides of renames and deleted paths. The unmerged `plan` uses `preview_changed_paths` instead: compare each ready tip with its merge base with `origin/main`, preserving `origin/main...<tip>` preview semantics.
 2. **Everything** when a changed path is outside every package's `src/`, `tests/`, `benches/`, `examples/`, `build.rs` and member `Cargo.toml`, except the root `Cargo.lock` (section 2.1), `tools/`, and unread Markdown (`*.md`). The root `Cargo.toml`, `.config/`, `rust-toolchain*`, `rustfmt.toml`, `clippy.toml`, docs read by tests, and other scripts and fixtures force everything. Also run everything every `full_every` (5) batches, when the last full run is older than an hour, or when the gate machine has been idle for 10 minutes and main has changed since the last full run.
 3. **Otherwise,** the packages that own a changed path (the longest manifest directory that prefixes it, from `cargo metadata --no-deps`), their reverse dependencies' closure (normal, build and dev dependencies, from `cargo metadata`'s resolve graph), and the packages listed in `tools/queue/always.txt` (tests that read files by path).
 4. **Docs read by tests** are globs in `tools/queue/read-by-tests.txt`; a matching path forces everything. A path under `tools/` contributes no package. Otherwise package source ownership still selects its package, including Markdown under `src/`, `tests/`, `benches/` and `examples/`. Unread Markdown outside those directories contributes no package. A batch with no package inputs and no full input selects `docs`: no Cargo checks or `always.txt` packages, plus tools and touched trees' ratchets as applicable.
@@ -25,11 +25,15 @@ Provisional, 2026-10-28. How a branch reaches `main`: a script on the gate machi
 ### 2.1 Lockfiles and member manifests
 
 A member's `Cargo.toml` selects its owner and reverse dependencies just as a
-source change does. For `Cargo.lock`, read `origin/main:Cargo.lock` and
-`HEAD:Cargo.lock` with `git show`, without checking out the base. Compare
+source change does. For `Cargo.lock`, read `<parent>:Cargo.lock` and
+`<candidate>:Cargo.lock` with `git show`, without checking out the parent.
+`Queue.choose` accepts explicit `base` and `candidate` inputs with the same
+`origin/main` and `HEAD` defaults. Checked package selection requires the
+checkout to be at the candidate before loading its metadata; an explicit
+candidate that differs from HEAD is an error. Compare
 entries by name, version, source, and sorted dependencies; checksums and entry
 order do not select packages. Added and removed entries count as changes.
-Match changed entries to the batch HEAD's resolved package IDs by name,
+Match changed entries to the candidate's resolved package IDs by name,
 version, and source. Follow reverse edges through all resolved dependencies,
 including external packages, and retain workspace members plus `always.txt`.
 A removed dependency selects the parent whose lock entry drops that edge;
@@ -55,9 +59,20 @@ run keeps `cargo fmt --all --check`. A batch with no checks to run is green.
 A change under `tools/`, or any full run, runs step `tools` before Cargo.
 Discover suites from the checkout's tracked files: every `tools/**/test_*.py`
 runs with `python3 -I -B`, including `tools/test_install.py`; every executable
-`tools/**/test-*` runs with `bash`. Run serially from the checkout root with
-stdin from `/dev/null` and a 60-second timeout per suite. The longest suite
-measures about 13 seconds. Each suite's command and output go to the batch
+`tools/**/test-*` runs directly as `./tools/.../test-*`, honoring its shebang.
+Pass the path as one argument without a shell or PATH lookup, so Python and
+Bash suites both use their declared interpreters.
+
+Exclude exactly `tools/heavy/test-heavy-recovery`: it installs real user
+systemd units and requires manual execution on a builder with isolated
+state and unit prefixes (`tools/heavy/design.md, 6`). It must not run
+automatically on the gate machine. The three offline heavy suites
+`test-heavy-plain`, `test-gate-policy` and `test-receipt-inputs` remain in
+the tools step. Other executable suites, including the same recovery
+basename in another directory, remain eligible.
+
+Run serially from the checkout root with stdin from `/dev/null` and a
+60-second timeout per suite. Each suite's command and output go to the batch
 log; its exit code and elapsed time go in the tools step's `suites` records.
 The step records its total elapsed time. Run every suite even if one fails;
 any nonzero exit, missing interpreter, or timeout makes the step red and stops
@@ -96,7 +111,24 @@ step's output (including the builder's host and space), plus the queue host
 and free GB. Other exit codes or messages remain red. No refused batch
 marks tips tried, rejects a branch, or bisects. `once` surfaces these errors.
 
-### 3.3 Ratchet conflicts
+### 3.3 Old-form baselines and ratchet conflicts
+
+After all batch merges and any conflict recounts below, run
+`python3 -I -B <absolute tree>/scripts/old_forms.py --write` from each touched
+tree, in tree-name order, before tools or Cargo checks. Each command is step
+`ratchet:<tree>` with its duration recorded. A raised count makes that step
+red and stops later checks; rejection or bisection follows section 1. For
+each changed `<tree>/scripts/old-forms.txt`, commit it on top of the batch's
+merges as `Lower <tree> old-form baselines`, using the queue's git identity.
+An unchanged baseline gets no commit. The green push carries these commits;
+each bisection half recounts from its own merges. The selection uses the
+batch's changed paths before these baseline commits, so a recount does not
+expand a docs-only batch into Cargo checks. Batches touching no tree write
+no baseline, including idle full checks with no changed paths.
+
+Tasks do not lower baselines: the queue keeps them tight. Branches may still
+change `old-forms.txt`; those changes merge normally, with the following
+resolution for conflicts confined to baselines.
 
 If every conflicted path is `<tree>/scripts/old-forms.txt` for one of the four
 trees, take HEAD's version of each baseline and complete the merge. From
@@ -139,9 +171,13 @@ monotonic wall time in its own step record. A failed build stops checks and
 the rejection names failing step `build`. Nextest exit 4 (no tests) is green
 for build, default, and fuzzy, as for an empty test selection. Fuzzy remains
 one step with `--profile fuzzy`; the build step already built its binaries.
-Ratchets follow tests. Docs-only batches run only touched trees' ratchets.
+Ratchets run before tools and Cargo checks (section 3.3). Docs-only batches
+run only touched trees' writing ratchets, plus tools suites when applicable.
 
 ### 3.7 Restarting and the login shell
+
+Discovery changes take effect when the running queue restarts. Land and
+activate a discovery change before queuing suites that require it.
 
 `bash -lc 'tools/queue/restart'`, from the queue clone, checks `cargo`,
 `heavy`, `post`, and `git` on PATH before changing anything. A missing tool
@@ -164,7 +200,13 @@ early exit, then prints the new pid and main's commit. `--repo` defaults to
 the current directory and must name the clone root. Run only one restart
 at a time; a failed update leaves the stop file for inspection.
 
+`restart --batch N` sets the replacement queue's positive batch size; the
+default remains 8. Pass the option on each restart to retain a nondefault
+size. It changes batch capacity, not checks, rejection or bisection policy.
+
 ## 4. Later
 
+- A merge-train controller and workers using explicit parent/candidate selection,
+  with pinned objects, validated results, durable decisions, and ordered promotion.
 - Two gate machines with nextest's `--partition` once the full run's time matters.
 - Learning the selection's always-list from full runs' misses.

@@ -79,7 +79,7 @@ fn restored_flight_nodes_fit_the_counted_entry_bound() {
     let measured = meter.end();
     meter.check(
         measured,
-        skein_lib::Map::<(u64, u64), ()>::worst_case(LIMITS.entries).expect("flight table bound"),
+        skein_lib::Map::<(u64, u64), ()>::price(LIMITS.entries).expect("flight table bound"),
         &LIMITS,
     );
     assert!(out.is_empty(), "restoration emits no writes");

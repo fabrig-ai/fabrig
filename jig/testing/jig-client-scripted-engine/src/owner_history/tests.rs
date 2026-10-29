@@ -219,13 +219,10 @@ fn owner_history_reserved_empty_batch_and_optional_delta_fields_keep_actual_pres
         ..none.clone()
     };
     assert_ne!(none, empty);
-    assert_eq!(empty.heap(&bounds()).unwrap() - none.heap(&bounds()).unwrap(), List::<u64>::worst_case(3).unwrap());
+    assert_eq!(empty.heap(&bounds()).unwrap() - none.heap(&bounds()).unwrap(), List::<u64>::price(3).unwrap());
     let a = OwnerHistoryLine { proposal: Some(proposal(OwnerRetainedAction::Batch(List::with_capacity(0)))), ..line() };
     let b = OwnerHistoryLine { proposal: Some(proposal(OwnerRetainedAction::Batch(List::with_capacity(3)))), ..line() };
-    assert_eq!(
-        bytes(&b, &bounds()).unwrap() - bytes(&a, &bounds()).unwrap(),
-        List::<ProposedTask>::worst_case(3).unwrap()
-    );
+    assert_eq!(bytes(&b, &bounds()).unwrap() - bytes(&a, &bounds()).unwrap(), List::<ProposedTask>::price(3).unwrap());
     assert!(!fits(&b, &Bounds { rows: 2, segments: 2, ..bounds() }));
     assert_eq!(b.proposal.as_ref().unwrap().action, OwnerRetainedAction::Batch(List::with_capacity(3)));
 }
@@ -289,26 +286,26 @@ fn owner_history_snapshot_optional_overrides_and_independent_retained_losses_are
 }
 
 fn expected_action(action: &OwnerRetainedAction) -> u64 {
-    let authority = List::<OwnerGrant>::worst_case(3).unwrap()
-        + List::<OwnerResourceScope>::worst_case(3).unwrap()
-        + List::<OwnerAuthorityExecutor>::worst_case(3).unwrap()
-        + List::<Box<[u8]>>::worst_case(3).unwrap()
+    let authority = List::<OwnerGrant>::price(3).unwrap()
+        + List::<OwnerResourceScope>::price(3).unwrap()
+        + List::<OwnerAuthorityExecutor>::price(3).unwrap()
+        + List::<Box<[u8]>>::price(3).unwrap()
         + 3
         + 2
         + 4
         + 1;
-    let spec = List::<ParameterDocument>::worst_case(3).unwrap() + List::<u64>::worst_case(3).unwrap() + 4 + 5;
-    let path = List::<Box<[u8]>>::worst_case(3).unwrap() + 3 + 2;
+    let spec = List::<ParameterDocument>::price(3).unwrap() + List::<u64>::price(3).unwrap() + 4 + 5;
+    let path = List::<Box<[u8]>>::price(3).unwrap() + 3 + 2;
     match action {
-        OwnerRetainedAction::Settings(_) => List::<RevisionItemHead>::worst_case(3).unwrap(),
+        OwnerRetainedAction::Settings(_) => List::<RevisionItemHead>::price(3).unwrap(),
         OwnerRetainedAction::Batch(_) => {
-            List::<ProposedTask>::worst_case(3).unwrap()
+            List::<ProposedTask>::price(3).unwrap()
                 + 3 * (spec
                     + authority
                     + 8
                     + path
-                    + List::<u64>::worst_case(3).unwrap()
-                    + List::<OwnerPart>::worst_case(3).unwrap()
+                    + List::<u64>::price(3).unwrap()
+                    + List::<OwnerPart>::price(3).unwrap()
                     + path)
         }
         OwnerRetainedAction::Effect { .. } | OwnerRetainedAction::ProcedureEffect { .. } => path + authority,
@@ -316,7 +313,7 @@ fn expected_action(action: &OwnerRetainedAction) -> u64 {
             u64::try_from(size_of::<OwnerRetainedAmendment>()).unwrap()
                 + spec
                 + authority
-                + List::<u64>::worst_case(3).unwrap()
+                + List::<u64>::price(3).unwrap()
                 + 5
         }
         OwnerRetainedAction::Widen { .. } => authority,

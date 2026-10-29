@@ -10,6 +10,7 @@ use smith_agent_service::{self as agent, Service};
 
 pub(super) struct Tracing {
     service: Service,
+    pub(super) pressure: Option<super::world::orders::Pressure>,
     roots: std::vec::IntoIter<Fd>,
     unused: Vec<Fd>,
     completions: Queue<Complete>,
@@ -64,6 +65,7 @@ impl Tracing {
         });
         Self {
             service,
+            pressure: None,
             roots: inherited
                 .roots
                 .iter()
@@ -95,7 +97,20 @@ impl Tracing {
 
 impl Host for Tracing {
     fn iterate(&mut self, now: Time, wall: Wall) {
+        if let Some(pressure) = &mut self.pressure
+            && pressure.released
+            && let Some(complete) = pressure.held.take()
+        {
+            self.service.completions().push(complete);
+        }
         while let Some(complete) = self.completions.pop() {
+            if let Some(pressure) = &mut self.pressure
+                && pressure.holds(&complete)
+            {
+                assert!(complete.result.is_ok(), "pressure retains a successful completion");
+                pressure.held = Some(complete);
+                continue;
+            }
             if complete.op.raw() == u64::MAX {
                 let Ok(kernel::Done::Fd(fd)) = complete.result else { panic!("trace file opens beneath its root") };
                 self.service
@@ -162,6 +177,9 @@ impl Host for Tracing {
             }
         }
         while let Some(submission) = self.service.submissions().pop() {
+            if let Some(pressure) = &mut self.pressure {
+                pressure.observe(&submission);
+            }
             self.submissions.push(submission);
         }
     }

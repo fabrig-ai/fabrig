@@ -6,7 +6,7 @@
 
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
 use skein_world::domain::heap::Meter;
-use smith_domain_tools::{Domain, Done, Event, Limits, Request, Version, max_out};
+use smith_domain_tools::{Domain, Done, Event, Limits, Request, Version};
 use smith_tools_world::memory::{LIMITS, authority, edit, read, write};
 
 /// Fills every kit of a domain under `limits` to its limits, checking the peak
@@ -15,7 +15,7 @@ use smith_tools_world::memory::{LIMITS, authority, edit, read, write};
 /// once, writes of the files it knows and reads.
 fn fill(limits: Limits, bound: u64) {
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let mut out = Queue::with_capacity(max_out(&limits));
+    let mut out = Queue::uncapped();
     let meter = Meter::new();
     let mut domain = Domain::new(&limits);
     // Each step is an iteration of its own, ending at the reclaim point. The
@@ -145,7 +145,7 @@ const HELD_JOBS_CEILING: u64 = 24_000;
 fn fill_jobs() {
     use smith_domain_tools::{Budget, Call, JobEnd, Timeout, Yield};
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: LIMITS };
-    let mut out = Queue::with_capacity(max_out(&LIMITS));
+    let mut out = Queue::uncapped();
     let meter = Meter::new();
     let mut domain = Domain::new(&LIMITS);
     let deadline = Time::from_nanos(u64::MAX);

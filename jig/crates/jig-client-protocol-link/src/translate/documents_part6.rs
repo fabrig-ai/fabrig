@@ -11,7 +11,7 @@ pub(crate) fn owner_account_fields(
 ) -> Result<c::OwnerAccount, w::Problem> {
     super::charge_account(value.uses().as_ref(), value.display(), room)?;
     // An account's runs and its waiting tasks stay lists bounded by the rows.
-    let chips = List::<c::Chip>::worst_case(limits.client.rows);
+    let chips = List::<c::Chip>::price(limits.client.rows);
     charge(room, chips)?;
     charge(room, chips)?;
     let opt0 = match value.generation() {
@@ -57,7 +57,7 @@ pub(crate) fn owner_account_piece(
     if count > limits.client.accounts.accounts {
         return Err(too_large());
     }
-    charge(room, List::<c::OwnerAccount>::worst_case(count))?;
+    charge(room, List::<c::OwnerAccount>::price(count))?;
     let mut reader = Reader::new(bytes);
     let mut rows = List::with_capacity(count);
     for _ in 0..count {

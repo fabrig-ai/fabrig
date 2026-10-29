@@ -436,7 +436,7 @@ pub(crate) fn connector_restarting(domain: &Domain) -> bool {
 /// (jig's `examples/ops/domain/src/restart.rs`).
 fn restore_account(domain: &mut Domain, env: &Env<Limits>, record: jig_domain_accounts::Stored) {
     let limits = core_limits(&env.limits).accounts;
-    let mut out = Queue::with_capacity(jig_domain_accounts::max_out(&limits));
+    let mut out = Queue::uncapped();
     jig_domain_accounts::step(
         &mut domain.core.accounts,
         &Env { now: env.now, wall: env.wall, limits },

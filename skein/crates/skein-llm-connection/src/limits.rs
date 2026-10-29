@@ -67,10 +67,10 @@ pub fn worst_case(limits: &Limits, endpoints: &List<crate::Endpoint>) -> Option<
     }
     // One physical socket owns these buffers. The owner prices io's entity,
     // flight and deadline tables once; they are never a pool multiplier.
-    let socket = Intake::worst_case(limits.io.intake)?
+    let socket = Intake::price(limits.io.intake)?
         .checked_add(u64::from(limits.io.receive))?
         .checked_add(u64::from(limits.io.output))?
-        .checked_add(Queue::<Box<[u8]>>::worst_case(limits.io.sends)?)?;
+        .checked_add(Queue::<Box<[u8]>>::price(limits.io.sends)?)?;
     let mut largest = 0_u64;
     let mut scratch = 0_u64;
     let mut waiting_endpoint = 0_u64;
@@ -111,11 +111,11 @@ pub fn worst_case(limits: &Limits, endpoints: &List<crate::Endpoint>) -> Option<
     pool.checked_add(limits.memory)?
         .checked_add(scratch)?
         .checked_add(Slab::<Connection>::worst_case(limits.connections)?)?
-        .checked_add(List::<Option<Id<Connection>>>::worst_case(limits.connections)?)?
-        .checked_add(List::<Option<crate::component::Waiting>>::worst_case(limits.calls)?)?
+        .checked_add(List::<Option<Id<Connection>>>::price(limits.connections)?)?
+        .checked_add(List::<Option<crate::component::Waiting>>::price(limits.calls)?)?
         // Each owned measurement retains its endpoint until preparation.
         .checked_add(waiting_endpoint.checked_mul(u64::from(limits.calls))?)?
-        .checked_add(List::<crate::Endpoint>::worst_case(limits.endpoints)?)
+        .checked_add(List::<crate::Endpoint>::price(limits.endpoints)?)
 }
 
 #[cfg(test)]

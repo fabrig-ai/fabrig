@@ -123,7 +123,7 @@ pub struct Limits {
     pub wrap_up: Duration,
     /// The most bytes of a failed check's output the LLM is shown: its tail.
     pub check_tail: u32,
-    /// Reserved observations buffered until the parent drains them; at least [`crate::max_facts`].
+    /// The root's transitional fact-drain allowance; the run buffers facts without a cap.
     pub facts: u32,
 }
 
@@ -132,15 +132,7 @@ pub struct Limits {
 /// The shell refuses limits for which this is false.
 #[must_use]
 pub fn valid(limits: &Limits) -> bool {
-    let facts = match limits.messages.checked_mul(2) {
-        Some(messages) => match messages.checked_add(8) {
-            Some(facts) => facts,
-            None => return false,
-        },
-        None => return false,
-    };
-    limits.facts >= facts
-        && limits.offer_messages > 0
+    limits.offer_messages > 0
         && limits.offer_bytes >= limits.message_bytes
         && u64::from(limits.conflict_path_bytes)
             <= u64::try_from(crate::Marker::CAPACITY).expect("marker capacity fits u64")

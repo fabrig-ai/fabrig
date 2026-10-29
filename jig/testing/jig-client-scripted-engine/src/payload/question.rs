@@ -29,9 +29,9 @@ fn heap() -> u64 {
     6_u64
         .checked_add(u64::try_from(size_of::<ChipPhase>()).unwrap())
         .unwrap()
-        .checked_add(List::<u64>::worst_case(3).unwrap())
+        .checked_add(List::<u64>::price(3).unwrap())
         .unwrap()
-        .checked_add(List::<Offered>::worst_case(2).unwrap())
+        .checked_add(List::<Offered>::price(2).unwrap())
         .unwrap()
 }
 #[test]

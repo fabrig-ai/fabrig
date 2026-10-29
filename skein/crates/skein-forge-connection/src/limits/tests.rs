@@ -337,7 +337,7 @@ fn installation_heap_covers_simultaneous_tables_and_page_payloads() {
     assert_eq!(peak - empty, PEAK_PAYLOADS);
     assert!(
         peak >= PEAK_PAYLOADS
-            + List::<skein_forge::github::document::Installation>::worst_case(100).expect("page storage") * 2
+            + List::<skein_forge::github::document::Installation>::price(100).expect("page storage") * 2
     );
 }
 #[test]
@@ -363,9 +363,7 @@ fn ready_candidate_and_held_token_fit_at_simultaneous_peak() {
         .expect("scalar storage");
     let peak = super::installation_heap(&l, &s).expect("simultaneous payloads");
     assert_eq!(peak - scalar, TOKEN_COPIES * 64 + NAME_COPIES * 128);
-    assert!(
-        scalar >= skein_lib::Map::<u64, crate::installations::Row>::worst_case(ROWS).expect("states and revisions")
-    );
+    assert!(scalar >= skein_lib::Map::<u64, crate::installations::Row>::price(ROWS).expect("states and revisions"));
 }
 
 #[test]
@@ -380,7 +378,7 @@ fn renewal_clocks_and_handoff_fit_at_peak() {
     let payload = super::installation_heap(&super::Limits { token_bytes: 64, ..l }, &s).expect("handoff storage");
     assert_eq!(payload - scalar, COPIES * 64);
     assert!(size_of::<Row>() >= size_of::<Clock>() * 2 + 16);
-    assert!(scalar >= skein_lib::Map::<u64, Row>::worst_case(ROWS).expect("row clocks and revisions"));
+    assert!(scalar >= skein_lib::Map::<u64, Row>::price(ROWS).expect("row clocks and revisions"));
 }
 #[test]
 fn renewal_handoff_checked_add_refuses_overflow() {
@@ -419,7 +417,7 @@ fn discovery_candidates_fit_the_installation_bound_for_every_call() {
     let empty = super::Limits { installations: 0, ..l };
     let before = super::github_call_heap(&empty, &s).expect("no candidate storage");
     let after = super::github_call_heap(&l, &s).expect("candidate storage for a call");
-    assert_eq!(after - before, List::<Selected>::worst_case(ROWS).expect("candidate list"));
+    assert_eq!(after - before, List::<Selected>::price(ROWS).expect("candidate list"));
     let total = super::worst_case(&l, &s, super::Forges { forgejo: 0, github: 1 }, 0).expect("all calls");
     assert!(total >= u64::from(CALLS) * after);
 }
@@ -429,7 +427,7 @@ fn discovery_handoff_prices_two_live_read_plans_and_the_retained_operation() {
     let s = fixtures::shared();
     let reads = u64::try_from(size_of::<skein_forge::github::plans::reads::Plan>()).expect("read size");
     let staged = super::github_tables_heap(&l, 1, 1).expect("staged row");
-    let candidates = List::<crate::installations::Selected>::worst_case(l.installations).expect("candidate storage");
+    let candidates = List::<crate::installations::Selected>::price(l.installations).expect("candidate storage");
     let heap = super::github_call_heap(&l, &s).expect("discovery and handoff");
     assert!(heap >= reads * 2 + staged + candidates + u64::from(s.answer_bytes) * 3);
     let base = super::worst_case(&l, &s, super::Forges { forgejo: 0, github: 1 }, 0).expect("all calls");

@@ -321,6 +321,117 @@ fn a_zero_patience_deadline_reports_the_failing_iteration() {
 }
 
 #[test]
+#[cfg(target_os = "linux")]
+fn a_starved_referee_drops_hosts_before_reporting_its_figures() {
+    use skein_io::kernel::{Complete, Submit};
+    use skein_lib::{Queue, Time, Wall};
+    use skein_world::{Deadline, Expired, Host, Referee, Starved};
+    use std::sync::OnceLock;
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    const CHILD: &str = "SKEIN_STARVED_REFEREE_CHILD";
+    static DROPPED: AtomicBool = AtomicBool::new(false);
+    static DROPPED_AT_FAILURE: AtomicBool = AtomicBool::new(false);
+    static EXPECTED: OnceLock<String> = OnceLock::new();
+
+    #[derive(Debug)]
+    struct DroppedHost {
+        completions: Queue<Complete>,
+        submissions: Queue<Submit>,
+    }
+    impl Drop for DroppedHost {
+        fn drop(&mut self) {
+            DROPPED.store(true, Ordering::SeqCst);
+        }
+    }
+    impl Host for DroppedHost {
+        fn iterate(&mut self, _now: Time, _wall: Wall) {}
+        fn completions(&mut self) -> &mut Queue<Complete> {
+            &mut self.completions
+        }
+        fn submissions(&mut self) -> &mut Queue<Submit> {
+            &mut self.submissions
+        }
+        fn work_pending(&self, _now: Time) -> bool {
+            false
+        }
+        fn next_deadline(&self) -> Option<Time> {
+            None
+        }
+        fn next_policy_deadline(&self) -> Option<Time> {
+            None
+        }
+        fn is_empty(&self) -> bool {
+            true
+        }
+        fn operations(&self) -> u32 {
+            1
+        }
+    }
+    struct StarvedJudge(Option<Starved>);
+    impl Referee<DroppedHost> for StarvedJudge {
+        fn act(&mut self, _now: Time, _procs: &mut [DroppedHost]) {}
+        fn observe(&mut self, _now: Time, _procs: &[DroppedHost]) {
+            let deadline = Deadline::arm("the referee's own answer", Duration::ZERO);
+            let starved = match deadline.expired() {
+                Expired::Starved(starved) => starved,
+                Expired::Failed(figures) => panic!("zero patience needs usable scheduler accounting: {figures}"),
+            };
+            EXPECTED.set(format!("skein-world: starved: {}", starved.figures())).expect("one observation");
+            self.0 = Some(starved);
+        }
+        fn next_deadline(&self) -> Option<Time> {
+            None
+        }
+        fn overdue(&self, _now: Time) -> Option<String> {
+            None
+        }
+        fn passed(&self) -> bool {
+            true
+        }
+        fn starved(&mut self) -> Option<Starved> {
+            self.0.take()
+        }
+    }
+
+    if std::env::var_os(CHILD).is_none() {
+        let output = std::process::Command::new(std::env::current_exe().expect("test binary"))
+            .args(["--exact", "real::a_starved_referee_drops_hosts_before_reporting_its_figures", "--nocapture"])
+            .env(CHILD, "1")
+            .env_remove("NEXTEST")
+            .output()
+            .expect("run the isolated starved-referee check");
+        assert!(
+            output.status.success(),
+            "{}{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr),
+        );
+        assert!(String::from_utf8_lossy(&output.stdout).contains("1 passed"), "the child ran its assertions");
+        return;
+    }
+
+    // Linux publishes a new thread's runtime at a context switch; zero
+    // runtime makes scheduler accounting unavailable to Deadline.
+    std::thread::sleep(core::time::Duration::from_millis(1));
+    let hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(|_| {
+        // Sample before unwinding could drop the world's hosts.
+        DROPPED_AT_FAILURE.store(DROPPED.load(Ordering::SeqCst), Ordering::SeqCst);
+    }));
+    let failure = std::panic::catch_unwind(|| {
+        let mut world = real::World::new(StarvedJudge(None));
+        world.spawn(|| DroppedHost { completions: Queue::uncapped(), submissions: Queue::uncapped() });
+        world.run(&Clock::new(), Duration::from_secs(2))
+    });
+    std::panic::set_hook(hook);
+    let failure = failure.expect_err("the referee's starved verdict fails outside nextest");
+    let text = failure.downcast_ref::<String>().expect("the referee's figures");
+    assert_eq!(Some(text), EXPECTED.get(), "the referee's observed figures: {text}");
+    assert!(DROPPED_AT_FAILURE.load(Ordering::SeqCst), "the host was dropped before failure reporting");
+}
+
+#[test]
 fn a_world_that_ends_by_itself_passes() {
     let mut world = real::World::new(Judge);
     world.spawn(|| Script::new(&[]));

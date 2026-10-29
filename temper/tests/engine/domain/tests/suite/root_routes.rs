@@ -11,10 +11,29 @@ use temper_engine_domain as engine;
 use temper_engine_domain::{Delivery, Key, Record, Write};
 use temper_engine_domain_world::direct::Driver;
 use temper_engine_domain_world::fixtures::{report_delegate, task_amendment, tool_call};
+use temper_engine_domain_world::journal_limits as journal;
 use temper_engine_domain_world::protocol;
 use temper_engine_domain_world::store::Store;
 use temper_engine_domain_world::walking::{Settings, World, charter, config, limits};
 use temper_engine_domain_world::walking_referee::{FINAL_SPEND, QUESTION, REPORT};
+
+// Deliveries for four workers in the cold hello startup world.
+const COLD_HELLO_DELIVERIES: u32 = 29;
+
+// Writes for the four-task batch world with one initial owner.
+const BATCH_WRITES: u32 = 4_170;
+
+// Writes for the escalation world with eight simultaneous history waiters.
+const ESCALATION_WAITERS_WRITES: u32 = 2_138;
+
+// Writes for two held chats with eight sign-ins in the role cohort world.
+const HELD_COHORT_WRITES: u32 = 2_134;
+
+// Writes for the batch world with a second owner or eight live call records.
+const EXTENDED_BATCH_WRITES: u32 = 4_174;
+
+// Deliveries for the lost-worker and configured-position worlds with two workers.
+const TWO_WORKER_DELIVERIES: u32 = 51;
 
 fn turn(driver: &mut Driver, assignment: &engine::Assignment, number: u32, cumulative: u64) {
     driver.send(protocol::turn(Token::new(7), assignment.task, assignment.attempt, number, cumulative, None, b"step"));
@@ -190,14 +209,7 @@ fn with_policy(configuration: &mut engine::Config, change: impl FnOnce(&mut auth
 fn two_slot_limits() -> engine::Limits {
     let mut limits = limits();
     limits.fleet.slots = 2;
-    limits.journal.writes = tasks::max_out(&limits.tasks) * 8
-        + people::max_out(&limits.people) * 4
-        + limits.people.pending * 2
-        + fleet::max_out(&limits.fleet) * 4
-        + temper_engine_domain_forge::max_out(&limits.forge)
-        + 2 * limits.authority.projects
-        + limits.tasks.tasks
-        + 6;
+    limits.journal.writes = journal::WALKING_WRITES;
     limits
 }
 
@@ -1160,9 +1172,9 @@ fn maximum_cold_hello_batch_and_duplicate_losses_fit_one_startup_decision() {
     limits.fleet.workers = 4;
     // Core's worst_case requires accounts.program_names <= fleet.program_sources.
     limits.fleet.program_sources = limits.accounts.program_names;
-    // Each worker's fleet outputs take route and delivery room (jig's fleet `max_out`).
+    // Four workers need writes and deliveries for one startup decision.
     limits.journal.writes += 4 * (4 - 1);
-    limits.journal.deliveries = limits.fleet.workers * fleet::max_out(&limits.fleet) + 1;
+    limits.journal.deliveries = COLD_HELLO_DELIVERIES;
     limits.journal.held = 3 * limits.journal.deliveries + 16;
     let mut driver = Driver::configured(Store::new(), [config(97), config(97)], &limits);
     for channel in 1..=4 {
@@ -1329,7 +1341,7 @@ fn batch_settings(
     // jig's provenance header on each dependency result leaves room for both reports.
     bounds.brief.budgets.dependencies = 256;
     // The placed subtree route sizes the journal alongside the fixture's floor.
-    bounds.journal.writes = 4096.max(temper_engine_domain_world::walking::writes(&bounds));
+    bounds.journal.writes = if second_owner { EXTENDED_BATCH_WRITES } else { BATCH_WRITES };
     bounds.journal.deliveries = 100;
     bounds.journal.held = 300;
     let configuration = std::array::from_fn(|_| {
@@ -2077,7 +2089,7 @@ fn an_agent_changes_a_live_delegates_controls_and_replays_the_answer() {
     let (configuration, mut bounds) = batch_settings(2, 1, 200, false, false, false);
     bounds.call_records = 8;
     bounds.fleet.calls = 4;
-    bounds.journal.writes = bounds.journal.writes.max(temper_engine_domain_world::walking::writes(&bounds));
+    bounds.journal.writes = EXTENDED_BATCH_WRITES;
     let mut driver = Driver::configured(Store::new(), configuration, &bounds);
     driver.send(hello_with(Token::new(7), 2, Duration::from_secs(1), Box::new([])));
     driver.settle();
@@ -3156,7 +3168,6 @@ fn a_rejected_hold_stays_rejected_across_a_restart() {
 }
 
 #[test]
-#[expect(clippy::too_many_lines, reason = "one history replay story retains its full script")]
 fn coalesced_history_waiters_survive_simultaneous_io_completion_under_full_journal() {
     use temper_engine_domain_world::{escalation, escalation_referee::Story};
     let mut world = escalation::World::new(escalation::Settings::calm(9204, Story::Release));
@@ -3178,14 +3189,7 @@ fn coalesced_history_waiters_survive_simultaneous_io_completion_under_full_journ
         .expect("actual immutable decision");
     let mut configured = escalation::limits();
     configured.people.waiters = 8;
-    configured.journal.writes = tasks::max_out(&configured.tasks) * 8
-        + people::max_out(&configured.people) * 4
-        + configured.people.pending * 2
-        + fleet::max_out(&configured.fleet) * 4
-        + temper_engine_domain_forge::max_out(&configured.forge)
-        + 2 * configured.authority.projects
-        + configured.tasks.tasks
-        + 6;
+    configured.journal.writes = ESCALATION_WAITERS_WRITES;
     configured.journal.deliveries =
         configured.tasks.tasks * 4 + 8 + configured.people.pending * configured.people.waiters;
     configured.journal.held = configured.journal.deliveries * 3 + 16;
@@ -3593,14 +3597,7 @@ fn held_cohort() -> (Driver, [u64; 2], [u64; 2], Vec<tasks::TaskRecord>) {
     let (sessions, persons) = (prior.sessions, prior.people);
     let mut configured = roles::limits();
     configured.people.sign_ins = 8;
-    configured.journal.writes = tasks::max_out(&configured.tasks) * 8
-        + people::max_out(&configured.people) * 4
-        + configured.people.pending * 2
-        + fleet::max_out(&configured.fleet) * 4
-        + temper_engine_domain_forge::max_out(&configured.forge)
-        + 2 * configured.authority.projects
-        + configured.tasks.tasks
-        + 6;
+    configured.journal.writes = HELD_COHORT_WRITES;
     let mut driver =
         Driver::configured(prior.store, [administration_config(9310), administration_config(9310)], &configured);
     driver.settle();
@@ -3741,7 +3738,7 @@ fn read_only_role_stages_have_one_not_ready_terminal_and_empty_projects_need_no_
         Box::new([0]),
     );
     let environment = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: configured.tasks };
-    let mut out = Queue::with_capacity(tasks::max_out(&configured.tasks));
+    let mut out = Queue::uncapped();
     let right = |request| ReplyTo::new(Token::new(request));
     tasks::step(
         &mut child,
@@ -4379,7 +4376,7 @@ fn a_lost_workers_run_is_placed_on_the_other_worker_past_its_grace() {
     bounds.fleet.workers = WORKERS;
     bounds.people.program_hosts = PROGRAM_HOSTS;
     bounds.accounts.program_hosts = PROGRAM_HOSTS;
-    bounds.journal.deliveries = bounds.fleet.workers * fleet::max_out(&bounds.fleet) + 1;
+    bounds.journal.deliveries = TWO_WORKER_DELIVERIES;
     bounds.journal.held = 3 * bounds.journal.deliveries + 16;
     let configs = [91, 91].map(|seed| {
         let mut configuration = sharing_config(seed);
@@ -4935,7 +4932,7 @@ fn a_hello_keeps_its_configured_worker_position() {
     limits.fleet.workers = 2;
     limits.people.program_hosts = 3;
     limits.accounts.program_hosts = 3;
-    limits.journal.deliveries = limits.fleet.workers * fleet::max_out(&limits.fleet) + 1;
+    limits.journal.deliveries = TWO_WORKER_DELIVERIES;
     limits.journal.held = 3 * limits.journal.deliveries + 16;
     let configs = [config(91), config(91)].map(|mut config| {
         config.core.worker_names = Box::new([b"first-worker".as_slice().into(), b"second-worker".as_slice().into()]);

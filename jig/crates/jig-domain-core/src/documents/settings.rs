@@ -86,10 +86,10 @@ pub(crate) fn build(core: &Core) -> Settings {
 
 pub(super) fn worst_case(limits: &Limits) -> Option<u64> {
     let count = crate::settings::capacity(limits)?.checked_mul(2)?;
-    List::<SettingLine>::worst_case(count)?
+    List::<SettingLine>::price(count)?
         .checked_add(u64::from(limits.templates).checked_mul(2)?.checked_mul(u64::from(limits.documents.text_bytes))?)?
-        .checked_add(List::<HeldRevision>::worst_case(limits.settings.revisions.checked_add(1)?)?)?
-        .checked_add(List::<SettingsProposal>::worst_case(limits.settings.proposals)?)?
+        .checked_add(List::<HeldRevision>::price(limits.settings.revisions.checked_add(1)?)?)?
+        .checked_add(List::<SettingsProposal>::price(limits.settings.proposals)?)?
         .checked_add(u64::try_from(size_of::<Settings>()).ok()?)
 }
 

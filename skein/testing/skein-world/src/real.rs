@@ -583,6 +583,15 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
         }
     }
 
+    fn settled(&self) -> bool {
+        self.living_hosts.iter().all(|host| self.proc(*host).is_empty())
+            && self.ring.is_empty()
+            && self.cleanup.is_empty()
+            && self.unsettled_children == 0
+            && self.placeholders.is_empty()
+            && self.world.referee.passed()
+    }
+
     fn run(mut self, clock: &Clock, patience: Duration) -> Outcome<P> {
         let deadline = Deadline::arm("the real loop", patience);
         let start = deadline.start();
@@ -598,6 +607,10 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
                 self.deadline_reached(&deadline, iterations, now, last_word);
             }
             self.world.referee.act(now, &mut self.world.procs);
+            if let Some(starved) = self.world.referee.starved() {
+                self.forced_cleanup();
+                starved.pass();
+            }
             self.signals();
             self.reap();
             let mut at = 0;
@@ -634,12 +647,20 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
                 }
                 if ran {
                     self.world.referee.observe(now, &self.world.procs);
+                    if let Some(starved) = self.world.referee.starved() {
+                        self.forced_cleanup();
+                        starved.pass();
+                    }
                     observed = true;
                 }
             }
             if !observed {
                 // Even a pass with only retained exits observes what act did.
                 self.world.referee.observe(now, &self.world.procs);
+                if let Some(starved) = self.world.referee.starved() {
+                    self.forced_cleanup();
+                    starved.pass();
+                }
             }
             if last_word.is_none() && self.world.referee.passed() {
                 last_word = Some(self.world.referee.last_word().at(now));
@@ -651,13 +672,7 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
             if self.work_pending(now) || self.ring.has_ready() || !self.world.controls.signals.borrow().is_empty() {
                 continue;
             }
-            if self.living_hosts.iter().all(|host| self.proc(*host).is_empty())
-                && self.ring.is_empty()
-                && self.cleanup.is_empty()
-                && self.unsettled_children == 0
-                && self.placeholders.is_empty()
-                && self.world.referee.passed()
-            {
+            if self.settled() {
                 assert!(
                     self.processes.iter().all(|process| process.fds.is_empty()),
                     "settled hosts leave no owned descriptor open"

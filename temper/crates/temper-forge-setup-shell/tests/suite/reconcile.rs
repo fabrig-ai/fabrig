@@ -14,9 +14,10 @@ fn a_reserved_peer_holds_its_address_until_it_serves() {
     let settings = support::settings(peer.address());
     std::thread::scope(|scope| {
         let server = scope.spawn(|| peer.serve_after(0, &[(401, b"deleted")]));
-        let refused = reconcile(settings, &Clock::new()).expect_err("reserved peer answers");
+        let result = reconcile(settings, &Clock::new());
+        let heard = server.join().expect("peer thread").unwrap_or_else(|starved| starved.pass());
+        let refused = result.expect_err("reserved peer answers");
         assert_eq!(refused.line(), "temper forge reconcile: forge 1: admin temper-admin: HTTP 401\n");
-        let heard = server.join().expect("peer thread");
         assert_eq!(heard.requests.len(), 1);
         assert_eq!(heard.requests[0].line, "GET /api/v1/user HTTP/1.1");
     });
@@ -30,8 +31,9 @@ fn done(settings: temper_forge_setup_shell::reconcile::Settings, peer: Peer) {
     }
     std::thread::scope(|scope| {
         let server = scope.spawn(|| peer.serve_after(0, &[(200, ADMIN), (200, BOT), (200, BOT), (200, BOT)]));
-        reconcile(settings, &Clock::new()).expect("Done");
-        let heard = server.join().expect("peer thread");
+        let result = reconcile(settings, &Clock::new());
+        let heard = server.join().expect("peer thread").unwrap_or_else(|starved| starved.pass());
+        result.expect("Done");
         assert_eq!(heard.requests.len(), 4);
         assert!(heard.requests.iter().all(|request| !request.line.contains("/orgs")));
     });
@@ -80,9 +82,11 @@ fn a_first_request_is_made_again_until_the_api_answers() {
     let settings = support::settings(peer.address());
     let heard = std::thread::scope(|scope| {
         let server = scope.spawn(|| peer.serve_after(120, &[(403, br#"{"message":"no"}"#)]));
-        let refused = reconcile(settings, &Clock::new()).expect_err("403 stops run");
+        let result = reconcile(settings, &Clock::new());
+        let heard = server.join().expect("peer thread").unwrap_or_else(|starved| starved.pass());
+        let refused = result.expect_err("403 stops run");
         assert_eq!(refused.line(), "temper forge reconcile: forge 1: admin temper-admin: HTTP 403\n");
-        server.join().expect("peer thread")
+        heard
     });
     assert_eq!(heard.requests.len(), 1);
     assert_eq!(heard.requests[0].line, "GET /api/v1/user HTTP/1.1");
@@ -194,9 +198,11 @@ fn a_later_request_that_fails_is_not_made_again() {
     let directory = settings.directory.clone();
     let heard = std::thread::scope(|scope| {
         let server = scope.spawn(|| peer.serve_after(0, &[(200, ADMIN), (503, b"")]));
-        let refused = reconcile(settings, &Clock::new()).expect_err("later 503");
+        let result = reconcile(settings, &Clock::new());
+        let heard = server.join().expect("peer thread").unwrap_or_else(|starved| starved.pass());
+        let refused = result.expect_err("later 503");
         assert_eq!(refused.line(), "temper forge reconcile: forge 1: bot temper-bot: HTTP 503\n");
-        server.join().expect("peer thread")
+        heard
     });
     assert_eq!(heard.requests.len(), 2);
     assert_eq!(heard.requests[1].line, "GET /api/v1/users/temper-bot HTTP/1.1");

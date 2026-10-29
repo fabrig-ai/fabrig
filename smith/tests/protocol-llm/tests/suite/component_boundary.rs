@@ -245,8 +245,8 @@ fn invalid_limits_are_refused() {
 fn a_lapsed_grant_fails_unsent_and_refresh_starts_a_call() {
     let limits = limits();
     let mut component = Component::new(&limits, endpoints()).expect("component");
-    let mut up = Queue::with_capacity(adapter::MAX_OUT.above);
-    let mut io = Queue::with_capacity(adapter::MAX_OUT.below);
+    let mut up = Queue::uncapped();
+    let mut io = Queue::uncapped();
     component
         .grant(GrantName { account: 0, generation: 1 }, credential(b"old"), Time::from_nanos(10))
         .expect("first grant");
@@ -273,8 +273,8 @@ fn a_lapsed_grant_fails_unsent_and_refresh_starts_a_call() {
 fn a_grant_refreshed_between_calls_preserves_the_first_start() {
     let limits = limits();
     let mut component = Component::new(&limits, endpoints()).expect("component");
-    let mut up = Queue::with_capacity(adapter::MAX_OUT.above);
-    let mut io = Queue::with_capacity(adapter::MAX_OUT.below);
+    let mut up = Queue::uncapped();
+    let mut io = Queue::uncapped();
     component
         .grant(GrantName { account: 0, generation: 1 }, credential(b"first"), Time::from_nanos(100))
         .expect("first grant");
@@ -292,8 +292,8 @@ fn a_grant_refreshed_between_calls_preserves_the_first_start() {
 fn a_connect_deadline_keeps_timed_out_failure_evidence() {
     let limits = limits();
     let mut component = Component::new(&limits, endpoints()).expect("component");
-    let mut up = Queue::with_capacity(adapter::MAX_OUT.above);
-    let mut io = Queue::with_capacity(adapter::MAX_OUT.below);
+    let mut up = Queue::uncapped();
+    let mut io = Queue::uncapped();
     component
         .grant(GrantName { account: 0, generation: 1 }, credential(b"first"), Time::from_nanos(20_000_000_000))
         .expect("grant");
@@ -413,8 +413,8 @@ fn a_full_connection_pool_and_two_grant_generations_fit_the_component_bound() {
     let meter = Meter::new();
     meter.start();
     let mut component = Component::new(&limits, destinations).expect("bounded component");
-    let mut up = Queue::with_capacity(adapter::MAX_OUT.above);
-    let mut io = Queue::with_capacity(adapter::MAX_OUT.below);
+    let mut up = Queue::uncapped();
+    let mut io = Queue::uncapped();
     component
         .grant(GrantName { account: 0, generation: 1 }, first_credential, Time::from_nanos(100))
         .expect("first grant");
@@ -432,8 +432,8 @@ fn a_full_connection_pool_and_two_grant_generations_fit_the_component_bound() {
 fn a_tls_handshake_deadline_stops_the_unsent_call() {
     let limits = limits();
     let mut component = Component::new(&limits, endpoints()).expect("component");
-    let mut up = Queue::with_capacity(adapter::MAX_OUT.above);
-    let mut io = Queue::with_capacity(adapter::MAX_OUT.below);
+    let mut up = Queue::uncapped();
+    let mut io = Queue::uncapped();
     component
         .grant(GrantName { account: 0, generation: 1 }, credential(b"first"), Time::from_nanos(20_000_000_000))
         .expect("grant");
@@ -465,8 +465,8 @@ fn a_tls_handshake_deadline_stops_the_unsent_call() {
 fn the_whole_deadline_precedes_a_later_endpoint_connect_deadline() {
     let limits = limits();
     let mut component = Component::new(&limits, endpoints_with_connect(Duration::from_secs(60))).expect("component");
-    let mut up = Queue::with_capacity(adapter::MAX_OUT.above);
-    let mut io = Queue::with_capacity(adapter::MAX_OUT.below);
+    let mut up = Queue::uncapped();
+    let mut io = Queue::uncapped();
     component
         .grant(GrantName { account: 0, generation: 1 }, credential(b"first"), Time::from_nanos(20_000_000_000))
         .expect("grant");
@@ -504,8 +504,8 @@ fn an_observed_request_is_native_validated_before_its_payload_is_copied() {
                 prompt.system = vec![0xff].into();
             }
         }
-        let mut up = Queue::with_capacity(adapter::MAX_OUT.above);
-        let mut io = Queue::with_capacity(adapter::MAX_OUT.below);
+        let mut up = Queue::uncapped();
+        let mut io = Queue::uncapped();
         component.from_domain(&env(0, &limits), request, &mut up, &mut io);
         assert!(component.pop_measure().is_none(), "the refused native request is never copied as content");
         assert!(component.measures_drained(), "no refused handoff remains held");

@@ -33,7 +33,7 @@ fn signed_in_on(role: Option<people::Role>, kind: forge::Kind) -> (Domain, Env<L
 }
 fn signed_in_root((mut domain, env): (Domain, Env<Limits>), role: Option<people::Role>) -> (Domain, Env<Limits>) {
     domain.core.people = people::Domain::new(&env.limits.people, Box::new([]), 1, Box::new([]));
-    let mut out = Queue::with_capacity(people::max_out(&env.limits.people));
+    let mut out = Queue::uncapped();
     for record in [
         people::Stored::Person {
             number: 1,

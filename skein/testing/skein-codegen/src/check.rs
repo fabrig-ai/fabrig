@@ -93,6 +93,12 @@ fn reserved_field_name(name: &str) -> bool {
             | "into_parts"
             | "worst_case_bytes"
             | "worst_case_heap"
+            | "worst_case_bytes_within"
+            | "worst_case_heap_within"
+            | "encoded_bound"
+            | "decoded_bound"
+            | "encoded_bound_within"
+            | "decoded_bound_within"
     )
 }
 

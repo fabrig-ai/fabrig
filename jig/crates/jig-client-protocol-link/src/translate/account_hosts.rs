@@ -13,7 +13,7 @@ pub(super) fn decode(
         return Err(super::piece_problem(skein_codec::Reason::Malformed));
     }
     let mut room = limits.client.document_bytes.checked_mul(2).ok_or(super::too_large())?;
-    super::documents::charge(&mut room, List::<c::AccountHostFailure>::worst_case(rows.len()))?;
+    super::documents::charge(&mut room, List::<c::AccountHostFailure>::price(rows.len()))?;
     let mut out = List::with_capacity(rows.len());
     for row in rows {
         let name = super::programs::name(row.name(), &mut room)?;

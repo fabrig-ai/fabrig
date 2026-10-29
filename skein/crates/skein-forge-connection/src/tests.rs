@@ -426,11 +426,11 @@ fn a_github_slot_prices_its_files_state() {
             .expect("nonzero commit width"),
     );
     // files_admission reserves these capacities before page_size limits requests.
-    let containers = Queue::<github::document::File>::worst_case(files)
+    let containers = Queue::<github::document::File>::price(files)
         .expect("descriptors")
-        .checked_add(List::<api::File>::worst_case(files).expect("files"))
+        .checked_add(List::<api::File>::price(files).expect("files"))
         .expect("files storage")
-        .checked_add(List::<api::Commit>::worst_case(commits).expect("commits"))
+        .checked_add(List::<api::Commit>::price(commits).expect("commits"))
         .expect("all containers");
     let names = u64::from(files)
         .checked_mul(2)
@@ -445,7 +445,7 @@ fn a_github_slot_prices_its_files_state() {
     let empty = limits::github_call_heap(&l, &crate::Shared { rows: 0, ..s }).expect("empty reserve");
     // Directories reserve independently of rows. The row comparison includes that floor.
     let directory =
-        List::<api::Entry>::worst_case(s.answer_bytes / u32::try_from(measure::ENTRY_BYTES).expect("entry width"))
+        List::<api::Entry>::price(s.answer_bytes / u32::try_from(measure::ENTRY_BYTES).expect("entry width"))
             .expect("directory backing")
             + u64::try_from(size_of::<(List<api::Entry>, u32, bool)>()).expect("directory envelope");
     assert!(slot.checked_sub(empty).expect("row growth") + directory >= containers + names);

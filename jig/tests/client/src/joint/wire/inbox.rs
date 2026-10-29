@@ -58,7 +58,7 @@ pub fn selection(
     value
         .map(|value| {
             owner::list(value, limits, |value| {
-                let bytes = List::<u64>::worst_case(value.goals.capacity()).ok_or(owner::Invalid::TooLarge)?;
+                let bytes = List::<u64>::price(value.goals.capacity()).ok_or(owner::Invalid::TooLarge)?;
                 if bytes > limits.document_bytes {
                     return Err(owner::Invalid::TooLarge);
                 }
