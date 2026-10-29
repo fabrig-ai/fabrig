@@ -95,7 +95,7 @@ class ReadyCheckTests(unittest.TestCase):
         self.record.update(plan=[{"name": "tools/test_fixture.py", "argv": command,
                                   "cwd": str(self.repo), "timeout": 60}],
                            steps=[{"name": "tools/test_fixture.py", "command": command,
-                                   "returncode": 0, "green": True, "duration": 0.1}],
+                                   "returncode": 0, "green": True, "duration": 0.1, "cwd": str(self.repo)}],
                            active_command={"argv": command, "cwd": str(self.repo),
                                            "completion": "completed", "returncode": 0})
         self.save()
@@ -259,6 +259,12 @@ class ReadyCheckTests(unittest.TestCase):
         self.save()
         self.refuse("active-command")
 
+    def test_missing_executed_command_cwd_requires_fresh_evidence(self):
+        self.plan()
+        del self.record["steps"][0]["cwd"]
+        self.save()
+        self.refuse("malformed or failed precheck step")
+
     def test_dangerous_and_duplicate_scopes_refuse(self):
         for paths in (["../escape"], ["/absolute"], ["a/./b"], ["a//b"], [".git/config"],
                       ["a/.GiT/b"], ["nul\0name"], [""], ["same", "same"], [42]):
@@ -280,7 +286,7 @@ class ReadyCheckTests(unittest.TestCase):
         argv = ["python3", "-I", "-B", f"{self.repo}/skein/scripts/old_forms.py", "--write"]
         self.record.update(paths=["skein/docs/example.md"],
                            steps=[{"name": "ratchet:skein", "command": argv, "returncode": 0,
-                                   "green": True, "duration": 0}],
+                                   "green": True, "duration": 0, "cwd": f"{self.repo}/skein"}],
                            active_command={"argv": argv, "cwd": f"{self.repo}/skein",
                                            "completion": "completed", "returncode": 0})
         self.save()
@@ -305,7 +311,7 @@ class ReadyCheckTests(unittest.TestCase):
         self.refuse("unknown planned command")
         self.plan()
         self.record["steps"].insert(0, {"name": "extra", "command": ["true"],
-                                        "returncode": 0, "green": True, "duration": 0})
+                                        "returncode": 0, "green": True, "duration": 0, "cwd": str(self.repo)})
         self.save()
         self.refuse("outside precheck plan")
 
@@ -316,7 +322,7 @@ class ReadyCheckTests(unittest.TestCase):
                                  ("build", ["heavy", "cargo", "nextest", "run", "--no-run"], 4)):
             self.record["plan"].append({"name": name, "argv": argv, "cwd": str(self.repo), "timeout": None})
             self.record["steps"].append({"name": name, "command": argv, "green": True,
-                                         "returncode": code, "duration": 0.01})
+                                         "returncode": code, "duration": 0.01, "cwd": str(self.repo)})
             self.record["active_command"] = {"argv": argv, "cwd": str(self.repo),
                                              "completion": "completed", "returncode": code}
         self.save()
@@ -332,7 +338,7 @@ class ReadyCheckTests(unittest.TestCase):
         argv = ["cargo", "fmt", "--all", "--check"]
         self.record["plan"].insert(0, {"name": "fmt", "argv": argv, "cwd": str(self.repo), "timeout": None})
         self.record["steps"].insert(0, {"name": "fmt", "command": argv, "green": True,
-                                        "returncode": 0, "duration": 0.01})
+                                        "returncode": 0, "duration": 0.01, "cwd": str(self.repo)})
         self.save()
         self.assertEqual(self.check()["verdict"], "passed")
 

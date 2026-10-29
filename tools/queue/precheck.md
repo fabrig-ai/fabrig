@@ -150,7 +150,8 @@ base/tip/original OIDs, the slot, a timezone-bearing start time, a heavy
 observation, exact literal file paths, selection, plan and completed steps.
 Duplicate JSON keys, duplicate or unsafe file paths, incomplete records,
 errors or unresolved evidence, unsuccessful steps and disagreement between
-planned and completed commands are refused. Completed ratchet steps precede
+planned and completed commands (including executed working directories)
+are refused. Completed ratchet steps precede
 the plan, with a completion for each touched tree. A nonempty compile/lint
 selection needs ordinary-heavy clippy and test-build commands. Build exit 4
 is accepted as in precheck; every other accepted step exited 0. The last

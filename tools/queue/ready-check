@@ -101,7 +101,7 @@ def evidence(filename, tip):
     for item in steps:
         require(isinstance(item, dict) and string(item.get("name")) and strings(item.get("command"))
                 and type(item.get("returncode")) is int and item.get("green") is True and item.get("completion", "completed") == "completed"
-                and number(item.get("duration")) and "error" not in item,
+                and absolute(item.get("cwd")) and number(item.get("duration")) and "error" not in item,
                 "malformed or failed precheck step")
         require(item["returncode"] == 0 or (item["name"] == "build" and item["returncode"] == 4),
                 "precheck step has unsuccessful return code")
@@ -127,12 +127,12 @@ def evidence(filename, tip):
                 and tree not in ratchets and item["returncode"] == 0 and
                 item["command"] == ["python3", "-I", "-B", f"{record['slot']}/{tree}/scripts/old_forms.py", "--write"],
                 "unexpected command outside precheck plan")
-        require(item.get("cwd", f"{record['slot']}/{tree}") == f"{record['slot']}/{tree}",
+        require(item["cwd"] == f"{record['slot']}/{tree}",
                 "ratchet cwd mismatch")
         ratchets.add(tree)
     for planned, completed in zip(plan, steps[len(prefix):]):
         require(planned["name"] == completed["name"] and planned["argv"] == completed["command"]
-                and completed.get("cwd", planned["cwd"]) == planned["cwd"],
+                and completed["cwd"] == planned["cwd"],
                 "completed commands differ from precheck plan")
     require({item.split("/", 1)[0] for item in paths} & {"skein", "smith", "jig", "temper"} <= ratchets,
             "missing touched-tree ratchet completion")
