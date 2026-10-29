@@ -59,7 +59,7 @@ impl Ran {
     }
     #[must_use]
     pub fn calls(&self) -> &[calls::Called] {
-        let world::Proc::Caller(caller) = &self.outcome.procs[2] else { panic!("caller root") };
+        let world::Kind::Caller(caller) = &self.outcome.procs[2].kind else { panic!("caller root") };
         for call in &caller.calls {
             call.assert_no_timeout();
         }
@@ -67,19 +67,19 @@ impl Ran {
     }
     #[must_use]
     pub fn browsed(&self) -> &[calls::Browsed] {
-        let world::Proc::Caller(caller) = &self.outcome.procs[2] else { panic!("caller root") };
+        let world::Kind::Caller(caller) = &self.outcome.procs[2].kind else { panic!("caller root") };
         &caller.browsed
     }
     /// What the person read from the hosted terminal.
     #[must_use]
     pub fn terminal(&self) -> &terminal::Read {
-        let world::Proc::Caller(caller) = &self.outcome.procs[2] else { panic!("caller root") };
+        let world::Kind::Caller(caller) = &self.outcome.procs[2].kind else { panic!("caller root") };
         &caller.terminal.read
     }
     /// Answers to native GETs of the kept redirect, in story order.
     #[must_use]
     pub fn returned(&self) -> &[issuer::Returned] {
-        let world::Proc::Caller(caller) = &self.outcome.procs[2] else { panic!("caller root") };
+        let world::Kind::Caller(caller) = &self.outcome.procs[2].kind else { panic!("caller root") };
         &caller.returned
     }
     /// Count complete token POSTs; this fixture queues only a code grant.
@@ -89,7 +89,7 @@ impl Ran {
             .outcome
             .procs
             .iter()
-            .find_map(|proc| if let world::Proc::Issuer(peer) = proc { Some(peer) } else { None })
+            .find_map(|proc| if let world::Kind::Issuer(peer) = &proc.kind { Some(peer) } else { None })
             .expect("story's issuer");
         peer.observations()
             .iter()
@@ -102,11 +102,11 @@ impl Ran {
         calls::task_number(&self.calls()[call].stdout)
     }
     fn requested_kills(&self) -> usize {
-        let world::Proc::Caller(caller) = &self.outcome.procs[2] else { panic!("caller root") };
+        let world::Kind::Caller(caller) = &self.outcome.procs[2].kind else { panic!("caller root") };
         caller.requested_kills()
     }
     fn service(&self) -> &service::ServiceHost {
-        let world::Proc::Service(service) = &self.outcome.procs[1] else { panic!("service root") };
+        let world::Kind::Service(service) = &self.outcome.procs[1].kind else { panic!("service root") };
         service
     }
     #[must_use]
@@ -119,7 +119,7 @@ impl Ran {
     }
     #[must_use]
     pub fn llm(&self) -> &[skein_fake_peers::llm::Observation] {
-        let world::Proc::Llm(peer) = &self.outcome.procs[0] else { panic!("LLM root") };
+        let world::Kind::Llm(peer) = &self.outcome.procs[0].kind else { panic!("LLM root") };
         peer.peer.observations()
     }
     #[must_use]

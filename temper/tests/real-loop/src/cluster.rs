@@ -24,7 +24,7 @@ impl Cluster {
             .outcome
             .procs
             .iter()
-            .filter_map(|proc| if let world::Proc::Service(host) = proc { Some(host.as_ref()) } else { None })
+            .filter_map(|proc| if let world::Kind::Service(host) = &proc.kind { Some(host.as_ref()) } else { None })
             .find(|host| matches!(&host.cluster, Some(Shape::Worker { name: worker, .. }) if *worker == name))
             .expect("worker root")
     }

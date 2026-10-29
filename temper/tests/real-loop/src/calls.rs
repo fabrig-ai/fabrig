@@ -526,6 +526,9 @@ fn is_settings(argv: &Argv) -> bool {
     matches!(argv.0.as_slice(), [Arg::Lit("settings"), Arg::Lit("apply"), ..])
 }
 impl Caller {
+    pub(crate) fn position(&self) -> (bool, usize) {
+        (self.setup(), self.next)
+    }
     pub(crate) fn terminal_pending(&self) -> crate::terminal::Pending {
         self.terminal.pending()
     }

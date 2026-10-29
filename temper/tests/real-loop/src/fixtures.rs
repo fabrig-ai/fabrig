@@ -222,7 +222,7 @@ pub(crate) fn ctl(spawn: &skein_io::kernel::Spawn, inherited: &skein_world::Inhe
     };
     let directory = Path::new(std::ffi::OsStr::from_bytes(&spawn.args[0]));
     let pipe = |child| inherited.pipes.iter().find(|(number, _)| *number == child).expect("standard pipe").1;
-    crate::world::Proc::Ctl(Box::new(crate::calls::Recorded::new(
+    crate::world::Proc::new(crate::world::Kind::Ctl(Box::new(crate::calls::Recorded::new(
         OneShot::with_text_files(
             Invocation {
                 directory: Some(directory.file_name().expect("directory leaf").as_bytes().into()),
@@ -259,7 +259,7 @@ pub(crate) fn ctl(spawn: &skein_io::kernel::Spawn, inherited: &skein_world::Inhe
             .parse()
             .expect("call index"),
         spawn.env.get(1).is_some_and(|value| value.as_ref() == b"FIXTURE=true"),
-    )))
+    ))))
 }
 
 /// The project supplied by the standalone engine fixture.

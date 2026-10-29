@@ -21,7 +21,7 @@ impl Referee<Proc> for Recording {
         if self.judge.failure.is_some() {
             self.receipt.settled.set(procs.iter().all(Host::is_empty));
             self.receipt.passed.set(self.judge.passed());
-            let Proc::Caller(caller) = &procs[2] else { panic!("caller root") };
+            let Kind::Caller(caller) = &procs[2].kind else { panic!("caller root") };
             self.receipt.calls.set(caller.calls.len());
         }
     }
@@ -50,7 +50,7 @@ fn startup(
         Recording { judge, receipt }
     });
     world.spawn(|| {
-        Proc::Llm(Box::new(Llm {
+        Proc::new(Kind::Llm(Box::new(Llm {
             pending_streak: crate::patience::PendingStreak::default(),
             peer: llm::peer(llm::scripted(Box::new([]))).expect("deferred LLM"),
             scripts: Some(|_| Box::new([])),
@@ -60,17 +60,17 @@ fn startup(
             cue: false,
             release: None,
             released: None,
-        }))
+        })))
     });
     world.spawn_signals(|signals| {
         let mut service = ServiceHost::github(scratch.path().into(), signals, fixture);
         if let Some(listener) = occupied {
             service.clients_occupied_by(listener);
         }
-        Proc::Service(Box::new(service))
+        Proc::new(Kind::Service(Box::new(service)))
     });
     host(&mut world, scratch.path(), || vec![crate::calls::sign_in(crate::calls::D1)], true, 1);
-    world.spawn(|| Proc::Forge(Box::new(ForgePeer::new(peer))));
+    world.spawn(|| Proc::new(Kind::Forge(Box::new(ForgePeer::new(peer)))));
     world.run(&skein_shell::Clock::new(), patience)
 }
 

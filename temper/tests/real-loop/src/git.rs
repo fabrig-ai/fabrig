@@ -1,5 +1,5 @@
 //! Hosted fake git on the real filesystem, sharing the caller's pipe lifecycle.
-use crate::world::Proc;
+use crate::world::{Kind, Proc};
 use skein_world::{HostedProgram, Inherited, StartupRoot};
 use std::cell::RefCell;
 use temper_fake_git_hosted::Typed;
@@ -13,7 +13,7 @@ pub fn transport() -> Typed {
     SHARED.with(|shared| shared.borrow().as_ref().expect("world's forge").clone())
 }
 fn git(spawn: &skein_io::kernel::Spawn, inherited: &Inherited) -> Proc {
-    Proc::Git(Box::new(temper_fake_git_hosted::git(spawn, inherited, transport())))
+    Proc::new(Kind::Git(Box::new(temper_fake_git_hosted::git(spawn, inherited, transport()))))
 }
 pub(crate) fn program() -> HostedProgram<Proc> {
     HostedProgram { program: b"/usr/bin/git".as_slice().into(), make: git, instances: 1, operations: 1 }
@@ -30,11 +30,11 @@ fn routed(spawn: &skein_io::kernel::Spawn, inherited: &Inherited) -> Proc {
         Ok(_) | Err(temper_fake_git::Refusal::Usage) => {}
         Err(temper_fake_git::Refusal::Broken(rule)) => panic!("git's spawn broke {rule}"),
     }
-    Proc::GitRoute(Box::new(temper_fake_git::Git::new(
+    Proc::new(Kind::GitRoute(Box::new(temper_fake_git::Git::new(
         spawn,
         temper_fake_git_hosted::start(inherited),
         temper_fake_git::Route::new(crate::github::protocol_limits()),
-    )))
+    ))))
 }
 pub(crate) fn route_program() -> HostedProgram<Proc> {
     HostedProgram { make: routed, ..program() }

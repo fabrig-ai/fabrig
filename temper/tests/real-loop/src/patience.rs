@@ -1,6 +1,9 @@
 //! Temper-only detail at the world's patience boundary
 //! (skein/docs/foundation/testing-strategy.md, 2.8 and 2.10).
-use crate::{calls::Caller, world::Proc};
+use crate::{
+    calls::Caller,
+    world::{Kind, Proc},
+};
 use skein_lib::{Duration, Time};
 use skein_shell::Host;
 use skein_world::{Deadline, Expired, Referee};
@@ -13,6 +16,8 @@ pub(crate) struct Patience {
     figures: Option<String>,
     report: Option<String>,
     deferred: bool,
+    #[cfg(test)]
+    forced: bool,
 }
 
 enum Verdict {
@@ -32,12 +37,24 @@ impl Patience {
         let margin = Duration::from_secs(1);
         let after = patience.as_nanos().checked_sub(margin.as_nanos()).expect("patience exceeds diagnostic margin");
         assert!(after > 0, "a positive diagnostic window");
-        Self { after: Duration::from_nanos(after), deadline: None, figures: None, report: None, deferred: false }
+        Self {
+            after: Duration::from_nanos(after),
+            deadline: None,
+            figures: None,
+            report: None,
+            deferred: false,
+            #[cfg(test)]
+            forced: false,
+        }
     }
     /// The first act arms the real-clock deadline after all fixture admission.
     pub(crate) fn due(&mut self) -> bool {
         if self.deferred {
             return false;
+        }
+        #[cfg(test)]
+        if self.forced {
+            return self.handle(Verdict::Failed("forced failed deadline figures".into()));
         }
         let Some(deadline) = &self.deadline else {
             self.deadline = Some(Deadline::arm("the temper judge's verdict", self.after));
@@ -47,6 +64,10 @@ impl Patience {
             return false;
         }
         self.handle(verdict(deadline.expired()))
+    }
+    #[cfg(test)]
+    pub(crate) fn force_failed(&mut self) {
+        self.forced = true;
     }
     fn handle(&mut self, verdict: Verdict) -> bool {
         match verdict {
@@ -127,35 +148,35 @@ fn service_pending(service: &temper_service::Service, now: Time, out: &mut Strin
 
 /// Constructed only at overdue, including the caller's bounded terminal transcript metadata.
 pub(crate) fn processes(procs: &mut [Proc], now: Time, out: &mut String) {
-    let typist = procs.iter().find_map(|proc| match proc {
-        Proc::Caller(caller) => Some(caller.terminal_pending()),
-        Proc::Llm(_)
-        | Proc::Forge(_)
-        | Proc::Issuer(_)
-        | Proc::Service(_)
-        | Proc::Ctl(_)
-        | Proc::Terminal(_)
-        | Proc::Agent(_)
-        | Proc::Git(_)
-        | Proc::GitRoute(_)
-        | Proc::Claude(_)
-        | Proc::Relay(_) => None,
+    let typist = procs.iter().find_map(|proc| match &proc.kind {
+        Kind::Caller(caller) => Some(caller.terminal_pending()),
+        Kind::Llm(_)
+        | Kind::Forge(_)
+        | Kind::Issuer(_)
+        | Kind::Service(_)
+        | Kind::Ctl(_)
+        | Kind::Terminal(_)
+        | Kind::Agent(_)
+        | Kind::Git(_)
+        | Kind::GitRoute(_)
+        | Kind::Claude(_)
+        | Kind::Relay(_) => None,
     });
     for (id, proc) in procs.iter_mut().enumerate() {
         describe(id, proc, now, out);
-        if matches!(proc, Proc::Terminal(_)) {
+        if matches!(&proc.kind, Kind::Terminal(_)) {
             writeln!(out, "terminal typist {typist:#?}").expect("string writer");
         }
     }
 }
 
 pub(crate) fn describe(id: usize, proc: &mut Proc, now: Time, out: &mut String) {
-    match proc {
-        Proc::Llm(peer) => {
+    match &mut proc.kind {
+        Kind::Llm(peer) => {
             llm(id, &mut peer.peer, peer.pending_streak.passes(), now, out);
             writeln!(out, "LLM hold release={:?} released={:?}", peer.release, peer.released).expect("string writer");
         }
-        Proc::Service(host) => {
+        Kind::Service(host) => {
             header(id, "service", host.as_ref(), host.pending_streak.passes(), now, out);
             if let Some(service) = &host.service {
                 service_pending(service, now, out);
@@ -163,8 +184,8 @@ pub(crate) fn describe(id: usize, proc: &mut Proc, now: Time, out: &mut String) 
                 out.push_str("service awaiting preparation\n");
             }
         }
-        Proc::Caller(host) => caller(id, host, now, out),
-        Proc::Forge(host) => {
+        Kind::Caller(host) => caller(id, host, now, out),
+        Kind::Forge(host) => {
             header(id, "forge", &host.peer, host.pending_streak.passes(), now, out);
             let completions = host.peer.completions().len();
             let submissions = host.peer.submissions().len();
@@ -175,17 +196,17 @@ pub(crate) fn describe(id: usize, proc: &mut Proc, now: Time, out: &mut String) 
             )
             .expect("string writer");
         }
-        Proc::Ctl(recorded) => {
+        Kind::Ctl(recorded) => {
             header(id, "ctl", recorded.as_ref(), 0, now, out);
             writeln!(out, "ctl call={} setup={}", recorded.call, recorded.setup).expect("string writer");
         }
-        Proc::Agent(host) => header(id, "smith agent", host.as_ref(), 0, now, out),
-        Proc::Claude(host) => header(id, "fake Claude", host.as_ref(), 0, now, out),
-        Proc::Relay(host) => header(id, "smith relay", host.as_ref(), 0, now, out),
-        Proc::Git(host) => header(id, "hosted git", host.as_ref(), 0, now, out),
-        Proc::GitRoute(host) => header(id, "git route", host.as_ref(), 0, now, out),
-        Proc::Issuer(host) => header(id, "issuer", host.as_ref(), 0, now, out),
-        Proc::Terminal(host) => {
+        Kind::Agent(host) => header(id, "smith agent", host.as_ref(), 0, now, out),
+        Kind::Claude(host) => header(id, "fake Claude", host.as_ref(), 0, now, out),
+        Kind::Relay(host) => header(id, "smith relay", host.as_ref(), 0, now, out),
+        Kind::Git(host) => header(id, "hosted git", host.as_ref(), 0, now, out),
+        Kind::GitRoute(host) => header(id, "git route", host.as_ref(), 0, now, out),
+        Kind::Issuer(host) => header(id, "issuer", host.as_ref(), 0, now, out),
+        Kind::Terminal(host) => {
             header(id, "terminal", host.as_ref(), 0, now, out);
             writeln!(out, "terminal {:#?}", host.pending()).expect("string writer");
         }
@@ -379,7 +400,7 @@ mod tests {
 
     #[test]
     fn a_held_terminal_snapshot_is_bounded_nonsecret_and_does_not_load_a_machine() {
-        use crate::world::Proc;
+        use crate::world::{Kind, Proc};
         let printed = b"http://127.0.0.1:7100/jig/v1/sign-in/link?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
         let host = crate::terminal::compose(
             std::path::Path::new("/private-directory-must-not-appear"),
@@ -390,7 +411,7 @@ mod tests {
             Fd::new(2),
         );
         let caller = crate::calls::Caller::new(Vec::new(), std::path::PathBuf::new(), Fd::new(4));
-        let mut procs = [Proc::Caller(Box::new(caller)), Proc::Terminal(Box::new(host))];
+        let mut procs = [Proc::new(Kind::Caller(Box::new(caller))), Proc::new(Kind::Terminal(Box::new(host)))];
         let mut first = String::new();
         super::processes(&mut procs, Time::ZERO, &mut first);
         let mut second = String::new();
