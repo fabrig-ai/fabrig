@@ -22,6 +22,12 @@ pub struct Binding {
 #[derive(Debug)]
 pub struct Ring {
     pub(crate) kernel: Kernel,
+    pub(crate) state: State,
+}
+
+/// Host-local bindings and returned records (skein/docs/foundation/testing-strategy.md, 2.1).
+#[derive(Debug)]
+pub(crate) struct State {
     pub(crate) next: u64,
     pub(crate) limits: Vec<u32>,
     pub(crate) counts: Vec<u32>,
@@ -48,8 +54,79 @@ impl Ring {
     }
 
     fn with_kernel(operations: u32, limits: Vec<u32>, kernel: Kernel) -> Self {
+        Self { kernel, state: State::new(operations, limits) }
+    }
+
+    /// Reaps raw kernel records, for loops that intercept operations themselves.
+    pub fn reap(&mut self) -> &mut Queue<Complete> {
+        self.kernel.reap(&mut self.state.arrived);
+        &mut self.state.arrived
+    }
+
+    /// Queues a restored record until its owner has completion capacity.
+    pub fn returned(&mut self, host: usize, complete: Complete) {
+        self.state.returned(host, complete);
+    }
+
+    /// Queues an already registered operation for the next kernel entry.
+    pub fn queue(&mut self, record: Submit) {
+        self.state.queue(record);
+    }
+
+    /// Restores a reaped record to its host and local identity. The caller must
+    /// queue it with `returned` until `deliver` hands it back to that host.
+    pub fn complete(&mut self, complete: Complete) -> (usize, Complete) {
+        self.state.complete(complete)
+    }
+
+    /// Delivers returned records and releases their host's operation capacity.
+    pub fn deliver(&mut self, host: usize, out: &mut Queue<Complete>) {
+        self.state.deliver(host, out);
+    }
+
+    /// Binds a host-local operation and translates its cancellation target.
+    /// A local token may be reused only after its terminal has been delivered.
+    pub fn register(&mut self, host: usize, record: Submit) -> Submit {
+        self.state.register(host, record)
+    }
+
+    /// Reserves a token outside the host bindings for loop-owned cleanup.
+    pub fn fresh(&mut self) -> Token {
+        self.state.fresh()
+    }
+
+    /// Adds a host within the provisioned total.
+    pub fn admit(&mut self, limit: u32) -> usize {
+        self.state.admit(limit)
+    }
+
+    /// Counts operations whose terminals have not yet been delivered.
+    #[must_use]
+    pub fn count(&self, host: usize) -> u32 {
+        self.state.count(host)
+    }
+
+    /// Submits queued operations and waits as requested.
+    pub fn enter(&mut self, wait: Wait) {
+        self.state.enter(&mut self.kernel, wait);
+    }
+
+    /// Whether any host has a completion waiting for delivery.
+    #[must_use]
+    pub fn has_ready(&self) -> bool {
+        self.state.has_ready()
+    }
+
+    /// Whether the kernel and returned queues are empty.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.kernel.in_flight() == 0 && !self.has_ready()
+    }
+}
+
+impl State {
+    pub(crate) fn new(operations: u32, limits: Vec<u32>) -> Self {
         Self {
-            kernel,
             next: 0,
             counts: vec![0; limits.len()],
             ready: (0..limits.len()).map(|_| VecDeque::new()).collect(),
@@ -60,12 +137,6 @@ impl Ring {
             submits: Queue::with_capacity(operations),
             arrived: Queue::with_capacity(operations),
         }
-    }
-
-    /// Reaps raw kernel records, for loops that intercept operations themselves.
-    pub fn reap(&mut self) -> &mut Queue<Complete> {
-        self.kernel.reap(&mut self.arrived);
-        &mut self.arrived
     }
 
     /// Queues a restored record until its owner has completion capacity.
@@ -153,8 +224,8 @@ impl Ring {
     }
 
     /// Submits every queued operation and waits as requested.
-    pub fn enter(&mut self, wait: Wait) {
-        self.kernel.submit(&mut self.submits, wait);
+    pub(crate) fn enter(&mut self, kernel: &mut Kernel, wait: Wait) {
+        kernel.submit(&mut self.submits, wait);
         assert!(self.submits.is_empty(), "the ring is provisioned for every host and cleanup");
     }
 
@@ -163,17 +234,11 @@ impl Ring {
     pub fn has_ready(&self) -> bool {
         self.returned != 0
     }
-
-    /// Whether the kernel and all hosts' returned queues are empty.
-    #[must_use]
-    pub fn is_empty(&self) -> bool {
-        self.kernel.in_flight() == 0 && !self.has_ready()
-    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::Ring;
+    use super::{Ring, State};
     use skein_io::kernel::{Complete, Done, Op, Submit};
     use skein_lib::{Queue, Token};
     use skein_shell::OpenError;
@@ -184,11 +249,42 @@ mod tests {
     }
 
     #[test]
+    fn shared_ring_room_does_not_allow_a_host_to_exceed_its_own_limit() {
+        let mut ring = State::new(8, vec![1, 2]);
+        let local = Token::new(10);
+        let pending = ring.register(0, Submit { op: local, kind: Op::Close { fd: skein_io::kernel::Fd::new(-1) } });
+        assert_eq!(ring.count(0), 1, "the host admits its exact limit");
+        for returned in [false, true] {
+            if returned {
+                let (host, complete) = ring.complete(Complete {
+                    op: pending.op,
+                    kind: Op::Close { fd: skein_io::kernel::Fd::new(-1) },
+                    result: Ok(Done::Nothing),
+                });
+                ring.returned(host, complete);
+            }
+            let failure = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| {
+                ring.register(0, Submit { op: Token::new(11), kind: Op::Close { fd: skein_io::kernel::Fd::new(-1) } });
+            }))
+            .expect_err("another host's room cannot be borrowed");
+            let text = failure.downcast_ref::<String>().expect("host admission diagnostic");
+            assert_eq!(text, "host 0 exceeds its own operation limit");
+            assert_eq!(ring.count(0), 1, "returned records retain capacity until delivery");
+        }
+        ring.register(1, Submit { op: local, kind: Op::Close { fd: skein_io::kernel::Fd::new(-1) } });
+        assert_eq!(ring.count(1), 1, "the other host retains its own admission room");
+        let mut out = Queue::with_capacity(1);
+        ring.deliver(0, &mut out);
+        ring.register(0, Submit { op: local, kind: Op::Close { fd: skein_io::kernel::Fd::new(-1) } });
+        assert_eq!(ring.count(0), 1, "delivering the terminal permits reuse at the limit");
+    }
+
+    #[test]
     fn cancellation_preserves_host_local_targets_and_reuse() {
         // Two hosts, each with one operation and its cancellation in flight.
         const PER_HOST: u32 = 2;
         const TOTAL: u32 = 4;
-        let mut ring = Ring::new(TOTAL, vec![PER_HOST, PER_HOST]).expect("test ring");
+        let mut ring = State::new(TOTAL, vec![PER_HOST, PER_HOST]);
         let local = Token::new(10);
         let cancel = Token::new(11);
         let first = ring.register(0, Submit { op: local, kind: Op::Close { fd: skein_io::kernel::Fd::new(-1) } });

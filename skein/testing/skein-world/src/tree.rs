@@ -472,11 +472,27 @@ impl GroupTree {
             peak_rss_bytes: usage.children.peak_rss_bytes,
             peak_scope: PeakScope::LargestProcess { baseline_bytes: self.baseline.peak_rss_bytes },
         };
-        if lingering {
-            return Err(format!("binary exited while its process group {id} still had members").into());
-        }
+        expected_group_end(expectation, id, lingering)?;
         Ok(counts)
     }
+}
+
+// The shell supplies the membership observed before cleanup (examples.md, 6).
+pub(crate) fn expected_group_end(expectation: Expectation, id: u32, lingering: bool) -> Result<(), String> {
+    if expectation == Expectation::EndsWithBinary && lingering {
+        return Err(format!("binary exited while its process group {id} still had members"));
+    }
+    Ok(())
+}
+
+#[cfg(target_os = "linux")]
+pub(crate) fn expected_tree_end(expectation: Expectation, lingering: &mut Vec<u32>) -> Result<(), String> {
+    if expectation == Expectation::EndsWithBinary && !lingering.is_empty() {
+        lingering.sort_unstable();
+        lingering.dedup();
+        return Err(format!("binary exited while tree processes still ran: {lingering:?}"));
+    }
+    Ok(())
 }
 
 #[derive(Clone, Copy)]
@@ -505,7 +521,7 @@ fn settle_group<F: FnMut(GroupStep) -> Result<bool, Failure>>(
         act(GroupStep::Pause)?;
     }
     act(GroupStep::Reap)?;
-    Ok(expectation == Expectation::EndsWithBinary && lingering)
+    Ok(lingering)
 }
 
 fn group_live(id: u32) -> Result<bool, String> {
@@ -847,11 +863,7 @@ impl LinuxTree {
         if let Some(group) = self.cgroup.take() {
             group.remove(wait == LeaderWait::Retain);
         }
-        if expectation == Expectation::EndsWithBinary && !lingering.is_empty() {
-            lingering.sort_unstable();
-            lingering.dedup();
-            return Err(format!("binary exited while tree processes still ran: {lingering:?}").into());
-        }
+        expected_tree_end(expectation, &mut lingering)?;
         Ok(counts)
     }
 
