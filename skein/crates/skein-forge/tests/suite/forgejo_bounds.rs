@@ -1,6 +1,6 @@
 #![cfg(test)]
 #![expect(clippy::disallowed_macros, reason = "the boundary harness formats bounded nesting fixtures")]
-pub mod common;
+use crate::common;
 use common::{admitted, forgejo, generated};
 use skein_forge::forgejo::{
     client,

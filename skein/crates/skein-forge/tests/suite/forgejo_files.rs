@@ -1,14 +1,14 @@
 #![cfg(test)]
 #![expect(clippy::needless_raw_string_hashes, reason = "literal malformed fields use consistent raw-byte notation")]
+use crate::common;
+use common::cases::files::{cases, expected};
+use common::forgejo;
 use skein_forge::forgejo::{
     client,
     decode::Malformed,
     document::{Row, StatusState},
     server,
 };
-pub mod common;
-use common::cases::files::{cases, expected};
-use common::forgejo;
 #[test]
 fn file_transcripts_decode_to_their_documents_and_rows() {
     for (case, request, answer, status) in cases() {

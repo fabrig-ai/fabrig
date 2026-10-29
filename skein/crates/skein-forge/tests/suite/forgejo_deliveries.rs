@@ -1,5 +1,5 @@
 #![cfg(test)]
-pub mod common;
+use crate::common;
 use common::forgejo;
 use skein_forge::forgejo::{
     delivery::{Delivery, SUBSCRIBED},

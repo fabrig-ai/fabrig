@@ -9,6 +9,9 @@
 )]
 #![expect(clippy::needless_raw_string_hashes, reason = "literal wire fixtures use one consistent raw-byte notation")]
 #![cfg(test)]
+use crate::common;
+use common::cases::reviews::{cases, expected};
+use common::forgejo;
 use skein_forge::forgejo::{
     client,
     decode::Malformed,
@@ -16,9 +19,6 @@ use skein_forge::forgejo::{
     request::Request,
     server::{self, Answer},
 };
-pub mod common;
-use common::cases::reviews::{cases, expected};
-use common::forgejo;
 #[test]
 fn review_transcripts_decode_to_their_documents_and_rows() {
     for (case, request, answer) in cases() {

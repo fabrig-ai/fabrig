@@ -4,15 +4,15 @@
     reason = "the document harness transforms finite fixture rows with ordinary Rust iterators"
 )]
 #![cfg(test)]
+use crate::common;
+use common::cases::writes::{answers, expected, failure_cases};
+use common::forgejo;
 use skein_forge::forgejo::{
     client,
     document::{Body, Document, ErrorBody},
     failure,
     server::{self, Answer},
 };
-pub mod common;
-use common::cases::writes::{answers, expected, failure_cases};
-use common::forgejo;
 #[test]
 fn write_requests_encode_as_the_tool_sent_them() {
     for (case, request) in forgejo::write_cases() {

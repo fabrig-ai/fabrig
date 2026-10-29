@@ -1,8 +1,8 @@
 #![cfg(test)]
-use skein_forge::forgejo::{client, server};
-pub mod common;
+use crate::common;
 use common::cases::start::{cases, expected};
 use common::forgejo;
+use skein_forge::forgejo::{client, server};
 #[test]
 fn start_transcripts_decode_to_their_documents() {
     for (case, request, answer) in cases() {

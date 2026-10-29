@@ -4,10 +4,10 @@
     reason = "the document harness transforms finite fixture rows with ordinary Rust iterators"
 )]
 #![cfg(test)]
-use skein_forge::forgejo::{client, decode::Malformed, document::Document, request::Method, server};
-pub mod common;
+use crate::common;
 use common::cases::setup::{OrgAnswer, answers, expected, hook_answers, org_answers, request};
 use common::forgejo;
+use skein_forge::forgejo::{client, decode::Malformed, document::Document, request::Method, server};
 #[test]
 fn setup_requests_encode_as_the_tool_sent_them() {
     let limits = forgejo::profile_limits();

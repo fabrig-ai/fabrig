@@ -8,7 +8,7 @@
 )]
 #![expect(clippy::similar_names, reason = "the request and reply names follow the dialect vocabulary")]
 #![cfg(test)]
-pub mod common;
+use crate::common;
 use common::{forgejo, mutated, mutated_into};
 use skein_lib::Rng;
 #[test]
