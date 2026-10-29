@@ -46,7 +46,7 @@ if Path(sys.argv[0]).name == "systemctl":
 
 class GuardTests(unittest.TestCase):
     def setUp(self):
-        temporary = tempfile.TemporaryDirectory(dir=ROOT, prefix=".guard-test-")
+        temporary = tempfile.TemporaryDirectory(dir=ROOT.parent, prefix=".guard-test-")
         self.addCleanup(temporary.cleanup)
         self.home = Path(temporary.name)
         self.slots = self.home / "src/fabrig/slots"

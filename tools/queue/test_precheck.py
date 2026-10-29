@@ -39,7 +39,7 @@ def metadata(root):
 
 class Fixture(unittest.TestCase):
     def setUp(self):
-        self.temp = tempfile.TemporaryDirectory(dir=ROOT, prefix=".precheck-test-")
+        self.temp = tempfile.TemporaryDirectory(dir=ROOT.parent, prefix=".precheck-test-")
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         self.repo = self.root / 'slot ; $(touch BAD) space'

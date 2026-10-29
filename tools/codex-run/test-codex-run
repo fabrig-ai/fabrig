@@ -12,7 +12,8 @@ HUNG_CASE_S=$((3 * HUNG_TOOL_S))
 # This deadline is the subject of the TERM-ignoring callback case.
 ON_STOP_TIMEOUT_S=1
 kit=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
-t=$(mktemp -d "$kit/test-codex-run.XXXXXX")
+scratch_parent=$(cd "$kit/../../.." && pwd -P)
+t=$(mktemp -d "$scratch_parent/.test-codex-run.XXXXXX")
 cleanup() {
     local file pid
     for file in "$DEV_ROOT"/fake/*.pid; do
@@ -353,9 +354,10 @@ refusal() {
     [[ $status == 2 && $output != *$'\n'* && $before == "$(directories)" ]]
     expect "$what" "$output" 'codex-run:'
 }
-mkdir "$t/unsafe kit"
-cp "$kit/codex-run" "$t/unsafe kit/codex-run"
-output=$("$t/unsafe kit/codex-run" task --on-stop "$t/return-login" \
+mkdir -p "$t/unsafe kit/tools/codex-run" "$t/unsafe kit/tools/slots"
+cp "$kit/codex-run" "$t/unsafe kit/tools/codex-run/codex-run"
+cp "$kit/../slots/lifetime.py" "$t/unsafe kit/tools/slots/lifetime.py"
+output=$("$t/unsafe kit/tools/codex-run/codex-run" task --on-stop "$t/return-login" \
     "$t/task file.md" "$t/work dir" "$t/reports/refused.md" 2>&1) && status=0 || status=$?
 [[ $status == 2 && ! -e $fake/launch.args && ! -e $DEV_ROOT/tmp/codex-run && ! -e $t/reports/refused.md ]]
 expect 'on-stop refused for an unsafe kit path' "$output" "codex-run: the kit's path is unsafe in a stop command"
