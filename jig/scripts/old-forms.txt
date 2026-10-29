@@ -3,4 +3,4 @@
 max_out 237
 JournalRoom 0
 takes 0
-worst_case 349
+worst_case 234
