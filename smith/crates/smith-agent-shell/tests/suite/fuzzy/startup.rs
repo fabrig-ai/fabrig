@@ -13,7 +13,7 @@ use smith_agent_service as service;
 use smith_agent_service::sinks::Capture;
 use smith_agent_shell::config;
 
-#[path = "support/product.rs"]
+#[path = "../../support/product.rs"]
 mod product;
 
 use product::product_document;
