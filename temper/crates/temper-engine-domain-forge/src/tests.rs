@@ -103,6 +103,18 @@ const LIMITS: Limits = Limits {
 fn env() -> Env<Limits> {
     Env { now: Time::from_nanos(100_000_000_000), wall: Wall::from_nanos(100_000_000_000), limits: LIMITS }
 }
+
+#[test]
+fn client_limits_must_be_coherent_and_their_capacities_representable() {
+    for (client, admitted) in [
+        (CLIENT, true),
+        (skein_forge_client::Limits { calls: 0, ..CLIENT }, false),
+        (skein_forge_client::Limits { pending: u32::MAX, ..CLIENT }, false),
+    ] {
+        assert_eq!(worst_case(&Limits { client, ..LIMITS }).is_some(), admitted, "{client:?}");
+    }
+}
+
 fn domain() -> Domain {
     Domain::new(
         &LIMITS,
