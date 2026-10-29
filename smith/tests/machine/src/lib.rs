@@ -71,7 +71,7 @@ pub struct World {
     trace: Vec<String>,
     /// The child-output deliveries in the last settled run.
     pub deliveries: usize,
-    heap: Vec<(u64, u64)>,
+    peaks: Vec<u64>,
     environment: Vec<smith_protocol_machine::Variable>,
     spawns: Rc<RefCell<Vec<Spawned>>>,
 }
@@ -130,7 +130,7 @@ impl World {
             memory: Memory::Unchecked,
             trace: Vec::new(),
             deliveries: 0,
-            heap: Vec::new(),
+            peaks: Vec::new(),
             environment: Vec::new(),
             spawns: Rc::default(),
         }
@@ -162,10 +162,10 @@ impl World {
         self.now
     }
 
-    /// Each checked run's measured process peak and bound.
+    /// Each checked run's measured process peak.
     #[must_use]
-    pub fn heap(&self) -> &[(u64, u64)] {
-        &self.heap
+    pub fn peaks(&self) -> &[u64] {
+        &self.peaks
     }
 
     /// An external writer changes the authoritative fake checkout.
@@ -256,8 +256,8 @@ impl World {
         self.deliveries = outcome.procs[0].deliveries;
         self.trace.extend(outcome.trace.iter().map(|entry| format!("{entry:?}")));
         self.now = Time::from_nanos(self.now.as_nanos().checked_add(outcome.end.as_nanos()).expect("scenario clock"));
-        if let Some(heap) = &outcome.heap {
-            self.heap.extend_from_slice(heap);
+        if let Some(peaks) = outcome.peaks() {
+            self.peaks.extend(peaks);
         }
         drop(outcome); // The original terminal remains in its metered process until drop.
         self.settle();
