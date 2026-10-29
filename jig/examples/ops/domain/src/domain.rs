@@ -297,6 +297,7 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
     };
     let mut work = Queue::uncapped();
     work.push(first);
+    // One entrance's finite hand-offs finish within the configured route bound.
     for _ in 0..env.limits.routes {
         let next = match work.pop() {
             Some(next) => next,
@@ -313,7 +314,8 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
         };
         crate::route::work(domain, env, &mut decision, next, &mut work);
     }
-    assert!(work.is_empty(), "complete synchronous route fits its admission");
+    let decision_work_finished = work.is_empty();
+    assert!(decision_work_finished, "decision_work_finished: complete synchronous route");
     if finish_only {
         assert!(!domain.wrote && !domain.core.counters.dirty(), "stopping continuation makes no commit");
     }
@@ -360,7 +362,7 @@ pub fn release(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Output>) 
     if let Some(commit) = domain.journal.commit() {
         out.push(Output::Commit { number: commit.number, writes: commit.writes });
     }
-    let mut ready = Queue::with_capacity(env.limits.journal.release);
+    let mut ready = Queue::uncapped();
     let _released = domain.journal.release(&mut ready);
     for _ in 0..ready.len() {
         out.push(ready.pop().expect("journal release count"));

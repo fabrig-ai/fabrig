@@ -175,7 +175,7 @@ fn forward(
     request: core::Request,
     work: &mut Queue<Work>,
 ) {
-    let mut requests = Queue::with_capacity(1);
+    let mut requests = Queue::uncapped();
     requests.push(request);
     core_out(domain, env, decision, core::Requests::Out(requests), work);
 }
@@ -201,7 +201,7 @@ pub(crate) fn read(
     let mut reply = Some(reply);
     match jig_ops_domain_connectors::connector(number) {
         Some(Connector::Infrastructure) => {
-            let mut out = Queue::with_capacity(infrastructure::MAX_OUT);
+            let mut out = Queue::uncapped();
             infrastructure::step(
                 &mut domain.infrastructure,
                 &Env { now: env.now, wall: env.wall, limits: env.limits.infrastructure },
@@ -246,7 +246,7 @@ pub(crate) fn read(
                     | infrastructure::Request::Save { .. }
                     | infrastructure::Request::Erase { .. }
                     | infrastructure::Request::System(_)) => {
-                        let mut requests = Queue::with_capacity(1);
+                        let mut requests = Queue::uncapped();
                         requests.push(request);
                         infrastructure_out(domain, env, decision, &mut requests, work);
                     }
@@ -254,7 +254,7 @@ pub(crate) fn read(
             }
         }
         Some(Connector::Observability) => {
-            let mut out = Queue::with_capacity(observability::MAX_OUT);
+            let mut out = Queue::uncapped();
             observability::step(
                 &mut domain.observability,
                 &Env { now: env.now, wall: env.wall, limits: env.limits.observability },
@@ -300,7 +300,7 @@ pub(crate) fn read(
                     | observability::Request::Erase { .. }
                     | observability::Request::System(_)
                     | observability::Request::Changed { .. }) => {
-                        let mut requests = Queue::with_capacity(1);
+                        let mut requests = Queue::uncapped();
                         requests.push(request);
                         observability_out(domain, env, decision, &mut requests, work);
                     }
