@@ -24,6 +24,13 @@ LOADER.exec_module(claim)
 NOW = datetime(2026, 10, 28, 12, tzinfo=timezone.utc)
 
 
+FIXTURE = {
+    ("hetzner2", "1"): "lead/skein", ("hetzner2", "2"): "lead/skein", ("hetzner2", "3"): "pool",
+    ("hetzner3", "1"): "pool", ("hetzner3", "2"): "pool", ("hetzner3", "3"): "pool",
+    ("hetzner6", "1"): "lead/temper", ("hetzner6", "2"): "lead/smith", ("hetzner6", "3"): "lead/temper",
+    ("hetzner7", "1"): "lead/jig", ("hetzner7", "2"): "lead/jig", ("hetzner7", "3"): "lead/jig"}
+
+
 class ClaimTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory(dir=ROOT, prefix=".claim-test-")
@@ -73,7 +80,7 @@ class ClaimTests(unittest.TestCase):
         self.create()
         later = datetime(2026, 10, 29, 14, 3, 4, tzinfo=timezone.utc)
         with redirect_stdout(io.StringIO()) as output:
-            claim.list_claims(self.directory, claim.inventory(), later)
+            claim.list_claims(self.directory, FIXTURE, later)
         rows = output.getvalue().splitlines()
         self.assertEqual(len(rows), 12)
         self.assertIn("lead: a task (since 2026-10-28T12:00:00+00:00); held 1d 02:03:04", rows[0])
@@ -141,11 +148,13 @@ class ClaimTests(unittest.TestCase):
     def test_free_lists_own_share_before_pool_and_omits_held_slots(self):
         self.create()
         self.assertEqual(self.cli("claim", "hetzner3", "2", "lead/smith", "task")[0], 0)
-        code, output, error = self.cli("list", "--free", "lead/skein")
+        with patch.object(claim, "inventory", return_value=FIXTURE):
+            code, output, error = self.cli("list", "--free", "lead/skein")
         self.assertEqual(code, 0, error)
         self.assertEqual(output.splitlines(), [
             "hetzner2 2", "hetzner2 3", "hetzner3 1", "hetzner3 3"])
-        code, output, error = self.cli("list", "--free", "lead/smith")
+        with patch.object(claim, "inventory", return_value=FIXTURE):
+            code, output, error = self.cli("list", "--free", "lead/smith")
         self.assertEqual(code, 0, error)
         self.assertEqual(output.splitlines(), [
             "hetzner6 2", "hetzner2 3", "hetzner3 1", "hetzner3 3"])
@@ -176,12 +185,13 @@ class ClaimTests(unittest.TestCase):
     def test_inventory_matches_assigned_builders(self):
         self.assertEqual(claim.inventory(), {
             ("hetzner2", "1"): "lead/skein", ("hetzner2", "2"): "lead/skein",
-            ("hetzner2", "3"): "pool",
+            ("hetzner2", "3"): "pool", ("hetzner2", "4"): "pool",
             ("hetzner3", "1"): "pool", ("hetzner3", "2"): "pool", ("hetzner3", "3"): "pool",
+            ("hetzner3", "4"): "pool",
             ("hetzner6", "1"): "lead/temper", ("hetzner6", "2"): "lead/smith",
             ("hetzner6", "3"): "lead/temper",
             ("hetzner7", "1"): "lead/jig", ("hetzner7", "2"): "lead/jig",
-            ("hetzner7", "3"): "lead/jig"})
+            ("hetzner7", "3"): "lead/jig", ("hetzner7", "4"): "pool", ("hetzner7", "5"): "pool"})
 
     def test_inventory_accepts_comments_blank_lines_and_normalizes_numbers(self):
         path = self.home / "hosts"

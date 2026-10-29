@@ -21,7 +21,7 @@ Provisional, 2026-10-29. One Claude session on hel8, post name `ops`: it runs th
 
 - Builders: hetzner2, 3, 6, 7 (slots) and hetzner8 (the gate). Free disk stays above heavy's floor: a slot is trimmed when its task starts (`codex-run` does it), and an idle slot can be trimmed by hand (`tools/slots/trim`); the operator never frees another's cache, `~/.cargo` or `~/.cache`.
 - heavy's state is never touched: `heavy --check-recovery` and `--reconcile` are the operator's tools when it misbehaves.
-- Shares and the pool are in `tools/slots/hosts`; leads claim pool slots themselves. A lead's question about a slot or a disk goes to the operator, who claims a freed pool slot for the first lead waiting, or lends a share's slot with its owner's agreement. Slots are added where memory and disk allow (about three builds on a 15 GB builder).
+- Shares and the pool are in `tools/slots/hosts`; leads claim pool slots themselves. A lead's question about a slot or a disk goes to the operator, who claims a freed pool slot for the first lead waiting, or lends a share's slot with its owner's agreement. Slots are added where disk allows: heavy admits at most three builds at once on a 15 GB builder (`HEAVY_BUILD_SLOTS=3` in `~/src/rust/tmp/machine.env`), so a slot past the third costs a wait in heavy, never memory, while its Codex run thinks.
 
 ## 4. Tools
 
