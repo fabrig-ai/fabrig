@@ -13,11 +13,7 @@ fn admission_classes() -> Box<[(Event, bool, bool)]> {
     let source = host::SourceName::new(b"alice").unwrap();
     Box::new([
         (
-            Event::Assign {
-                assignment: fixtures::assignment(false, Box::new([])),
-                items: Ok(fixtures::items(&[])),
-                save: None,
-            },
+            Event::Assign { assignment: fixtures::assignment(false, Box::new([])), items: Ok(fixtures::items(&[])) },
             true,
             false,
         ),

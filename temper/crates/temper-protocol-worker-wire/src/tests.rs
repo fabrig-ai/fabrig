@@ -17,7 +17,7 @@ fn limits_take_each_bound_from_its_source_field() {
             repository_remote: 48,
             repository_git_some: 4096,
             items_repositories: 2,
-            items_save_some: 16,
+            repository_save_some: 16,
             left_landed: 2,
             files_files: 2,
             files_files_item: 8,
@@ -98,7 +98,10 @@ fn largest_parts_are_the_generated_encoded_bounds() {
     assert_eq!(u64::from(sizes.saved), v1::Saved::encoded_bound(&limits).expect("saved"));
     assert_eq!(u64::from(sizes.resource), v1::Preparation::encoded_bound(&limits).expect("preparation"));
     assert_eq!(u64::from(sizes.grant), v1::Identity::encoded_bound(&limits).expect("identity"));
-    assert_eq!(sizes, crate::Largest { items: 8669, left: 84, saved: 1084, resource: 10, grant: 233 });
+    // Each repository owns a one-byte option, four-byte length and save name.
+    assert_eq!(v1::Items::encoded_bound(&v1::CEILINGS), Some(662_980));
+    // At ceilings: 64 * 10,359-byte repositories + the four-byte list length.
+    assert_eq!(sizes, crate::Largest { items: 8690, left: 84, saved: 1084, resource: 10, grant: 233 });
 }
 
 #[test]
@@ -233,5 +236,31 @@ fn landing_branch_uses_the_name_bound_and_largest_items_count_it() {
     assert_eq!(
         crate::largest(&limits).unwrap().items - crate::largest(&without).unwrap().items,
         limits.items_repositories * limits.writable_landing_some
+    );
+}
+
+fn repository_with_save(length: u32) -> Result<v1::Repository, v1::Problem> {
+    let mut parts = fixtures::repository_parts(1, b"remote".as_slice().into());
+    parts.save = Some(skein_lib::bytes::zeroed(usize::try_from(length).expect("bounded length")));
+    v1::Repository::new(&fixtures::limits(), parts)
+}
+
+#[test]
+fn a_repositorys_save_branch_at_its_name_bound_is_admitted() {
+    let limits = fixtures::limits();
+    let repository = repository_with_save(limits.repository_save_some).expect("at the bound");
+    let mut writer = skein_lib::Writer::new(usize::try_from(repository.measure()).expect("bounded length"));
+    repository.encode(&mut writer).expect("measured room");
+    let bytes = writer.finish();
+    let mut reader = skein_lib::Reader::new(&bytes);
+    assert_eq!(v1::Repository::decode(&limits, &mut reader).expect("roundtrip"), repository);
+    assert!(reader.is_empty());
+}
+
+#[test]
+fn a_repositorys_save_branch_past_its_name_bound_is_refused() {
+    assert_eq!(
+        repository_with_save(fixtures::limits().repository_save_some + 1).expect_err("past the bound").path,
+        v1::Path::RepositorySave
     );
 }

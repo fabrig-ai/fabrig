@@ -1386,11 +1386,8 @@ pub(crate) fn run_workspace(
     for repository in &selected {
         let saved = saved.contains(&forge::tag(repository.provider.forge, repository.provider.repository));
         let run_branch = tree_branch(repository, root, b'r', context.task, None, env.limits.forge.name_bytes)?;
-        let saved_branch = if saved {
-            Some(tree_branch(repository, root, b's', context.task, None, env.limits.forge.name_bytes)?)
-        } else {
-            None
-        };
+        let save = tree_branch(repository, root, b's', context.task, None, env.limits.forge.name_bytes)?;
+        let saved_branch = if saved { Some(save.clone()) } else { None };
         let item = domain.forge.workspace_item(forge::items::Seed {
             task: context.task,
             parent,
@@ -1409,7 +1406,11 @@ pub(crate) fn run_workspace(
         if let Some((row, _)) = inherited {
             key = row.task;
         }
-        workspace_bytes = workspace_bytes.checked_add(item.bytes)?;
+        // Charge the per-repository save destination beside the selected item.
+        workspace_bytes = workspace_bytes
+            .checked_add(item.bytes)?
+            .checked_add(u64::try_from(save.len()).ok()?)?
+            .checked_add(u64::try_from(size_of::<Option<Box<[u8]>>>()).ok()?)?;
         if workspace_bytes > u64::from(env.limits.journal.run_bytes) {
             return None;
         }
@@ -1479,6 +1480,16 @@ pub(crate) fn run_workspace(
         let provider = item.provider;
         repositories
             .push(ForgeRepository {
+                save: match start {
+                    ForgeStart::Merge { .. } => None,
+                    ForgeStart::Base(_) | ForgeStart::Branch(_) | ForgeStart::Saved(_) => {
+                        if push.is_some() {
+                            Some(save)
+                        } else {
+                            None
+                        }
+                    }
+                },
                 tag: forge::tag(provider.forge, provider.repository),
                 provider,
                 name: item.name,
