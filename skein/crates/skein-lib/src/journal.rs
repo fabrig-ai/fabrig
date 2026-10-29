@@ -25,18 +25,9 @@ use core::hash::{Hash, Hasher};
 
 use crate::Queue;
 
-/// Container sizes kept by callers (lib.md, section 11).
-/// The journal reads only `release`; the other fields are sizes its callers keep.
+/// The journal's limit on outputs released by one call (lib.md, section 11).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct JournalLimits {
-    /// Commits made but not yet answered.
-    pub commits: u32,
-    /// Writes in one commit.
-    pub writes: u32,
-    /// Outputs held across decisions.
-    pub held: u32,
-    /// Untagged outputs at the door.
-    pub now: u32,
     /// Outputs released by one call.
     pub release: u32,
 }
