@@ -531,7 +531,14 @@ fn task_problem(text: &mut Text, problem: &jig_domain_tasks::Problem) -> Result<
         Refusal::Delegates => text.add(b"delegate limit"),
         Refusal::Reference => text.add(b"no reference"),
         Refusal::Subscription => text.add(b"subscription"),
-        Refusal::Dependencies => text.add(b"dependencies"),
+        Refusal::Dependencies => {
+            if let Some([dependency]) = problem.blocked_by.as_deref() {
+                text.add(b"dependency T")?;
+                text.number(*dependency)?;
+                return text.add(b" is outside your reach");
+            }
+            text.add(b"dependencies")
+        }
         Refusal::Circle { .. } => text.add(b"circle"),
         Refusal::DependencyEnded { .. } => text.add(b"dependency"),
         Refusal::Kept => text.add(b"kept"),
