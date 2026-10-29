@@ -2,8 +2,8 @@
 
 use skein_lib::Duration;
 
-/// Immutable root-configured capacities and payload limits for people's retained state and one-step
-/// outputs; validate via `valid` before construction. (domain/people.md, sections 2–5).
+/// Immutable root-configured capacities and payload limits for people's retained state;
+/// validate via `valid` before construction. (domain/people.md, sections 2–5).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
     /// Configured workers plus the engine host in one retained program outcome.
@@ -76,14 +76,9 @@ pub fn valid(limits: &Limits) -> bool {
         return false;
     }
     limits.inbox_entries.checked_add(1).is_some()
-        && limits.people.checked_add(1).is_some()
         && limits.people.checked_mul(limits.inbox_tasks).is_some()
         && inbox_capacity(limits).is_some()
         && limits.requests.checked_add(limits.room_refusals).is_some()
-        && limits.initial_owners.checked_add(4).is_some()
-        && limits.waiters.checked_add(2).is_some()
-        && limits.sign_ins.checked_add(1).is_some()
-        && limits.holdings.checked_add(1).is_some()
         && limits.people.checked_mul(limits.projects).is_some()
         && waiting_capacity(limits).is_some()
 }

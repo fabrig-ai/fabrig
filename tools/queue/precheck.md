@@ -167,7 +167,81 @@ automatic recovery/force option. A worker's `mq-worker-unresolved.json`
 belongs to its separate operational reconciliation: leave it intact, and
 do not use precheck restoration or process absence to clear that ownership.
 
-## 5. Later
+## 5. Before-ready freshness
+
+`ready-check RESULT --repo REPO --tip EXACTTIP` is a standalone check of
+owner-supplied precheck evidence. `tools/install` installs its executable
+link from `queue`. RESULT is the completed `result.json`; REPO is the lead's
+candidate checkout, never the dedicated primary clone. EXACTTIP must be the
+full lowercase commit OID, with no revision expressions or abbreviated IDs.
+The check runs no precheck, build, test, push, reset, merge or checkout.
+It preserves HEAD, local and remote branch refs, source files and index bytes.
+It downloads Git objects with a destination-free fetch, an empty refmap,
+no tags, no submodule recursion and no FETCH_HEAD write. Hooks are disabled
+for its Git commands. It accepts dirty candidate sources because all decisions
+use pinned commit objects and the completed report, never working contents.
+
+The evidence must say `outcome=passed` and `restored=true`, contain full
+base/tip/original OIDs, the slot, a timezone-bearing start time, a heavy
+observation, exact literal file paths, selection, plan and completed steps.
+Duplicate JSON keys, duplicate or unsafe file paths, incomplete records,
+errors or unresolved evidence, unsuccessful steps and disagreement between
+planned and completed commands (including executed working directories)
+are refused. Completed ratchet steps precede
+the plan, with a completion for each touched tree. A nonempty compile/lint
+selection needs ordinary-heavy clippy and test-build commands. Build exit 4
+is accepted as in precheck; every other accepted step exited 0. The last
+active command must explicitly be completed, match the last step, its cwd
+and return code. A run with no commands has no active command and requires
+an empty/docs selection. Older or injected reports that cannot establish
+these inputs require fresh usable evidence. No arbitrary age limit is added:
+freshness is evaluated against pinned commits and remote history.
+
+The report is owner-supplied evidence, not authentication. Its `paths` list
+is the exact reported touched-file scope, not a crate or dependency closure;
+ready-check validates its shape and consistency but does not recreate the
+uncommitted merge, ratchet outputs or command selection to authenticate it.
+A lead must use the unedited report from the exact-tip precheck. This check
+proves no compatibility with semantic changes in other files.
+
+The check observes `origin`'s `refs/heads/main` with `ls-remote`,
+fetches its objects, verifies the observed full commit and requires the
+checked base to be its ancestor. Missing objects, unavailable refs, shallow
+history, replace refs and Git location overrides fail closed. It collects
+literal filenames with NUL-delimited `diff-tree` output for every commit
+since the checked base, comparing merges against each parent. Both sides of
+renames, deletions, merge resolutions and changes later reverted count;
+this can conservatively require a new precheck even when final trees match.
+Any intersection with reported paths requires another precheck. A second
+remote observation after comparison must equal the first. An advance or
+rewrite observed during the check is a refusal, including a disjoint advance.
+
+Stdout is one JSON decision with `verdict` (`passed` or `rerun-precheck`),
+`tip`, `checkedbase`, `currentmain`, `touchedscope`, and `diagnostic`. Once
+known, it also includes `overlap` and the second observation `finalmain`.
+Unavailable values are null. Exit 0 means passed; a refusal exits nonzero
+and writes a human diagnostic to stderr naming tip, precheck base and current
+main as known, and concrete overlapping filenames when present. The lead
+may redirect stdout to a private verification record outside source.
+
+Immediately before publishing readiness, pin the candidate OID and use:
+
+```sh
+ready-check RESULT --repo REPO --tip "$exact_tip" &&
+    git -C REPO push origin "$exact_tip:refs/heads/ready/lead/task"
+```
+
+`exact_tip` is the full OID supplied to the successful precheck, not a moving
+branch expression. A refusal means fetch current main, rerun precheck of
+that exact tip in the owned idle slot, and retry this check with its new
+report. A pass is bound to `currentmain`, the exact remote OID observed twice.
+It cannot fence origin: main may advance after the final observation, before
+return, or before/after the ready push. A transient advance and return to the
+same OID between observations also cannot be detected. The queue gate remains
+the final check of the eventual combined candidate. This tool publishes no
+refs; the lead owns the conditional exact-tip ready push.
+
+## 6. Later
 
 - Builder validation and fleet installation by Ops after review/landing.
 - Coordination with a future common checkout ownership protocol, if workers

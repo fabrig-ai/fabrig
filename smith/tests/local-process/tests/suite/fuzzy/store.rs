@@ -325,9 +325,10 @@ fn configured_mode(seed: u64, fresh: bool, initial: Initial, config: skein_sim::
     let mut files = Files::new();
     let root = files.lay(&initial_files(initial));
     files.close(root);
-    // Peak across generated turn loading and every recovery/cut scenario.
-    // Measured 20_926 B on 2026-10-28; a quarter of headroom, rounded up.
-    const STORE_SCENARIOS_CEILING: u64 = 27_000;
+    // Peak across power-loss recovery, fresh resets, first marker creation, older-layout
+    // refusals, generated whole-turn loading and the extra-seed 713 store sweep.
+    // Measured 19_710 B on 2026-10-29; a quarter of headroom, rounded up.
+    const STORE_SCENARIOS_CEILING: u64 = 25_000;
     let mut world =
         World::new(seed, config, Judge::default(), Memory::Within(STORE_SCENARIOS_CEILING)).with_machine(Disk(files));
     world.spawn_restartable(

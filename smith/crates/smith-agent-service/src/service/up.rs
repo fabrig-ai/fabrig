@@ -61,8 +61,8 @@ pub(super) fn io_up(service: &mut Service) {
 pub(super) fn lower_events(service: &mut Service) {
     for _ in 0..service.limits.queue {
         if service.channel.is_some()
-            && (service.channel_events.room() < channel::max_out(&service.limits.channel).to_domain
-                || service.channel_below.room() < channel::max_out(&service.limits.channel).below)
+            && (service.channel_events.room() < channel::edge_room(&service.limits.channel).to_domain
+                || service.channel_below.room() < channel::edge_room(&service.limits.channel).below)
         {
             break;
         }
@@ -168,7 +168,7 @@ pub(super) fn live_step(service: &mut Service, action: crate::live::Action<'_>) 
         below: &mut service.channel_below,
         next: &mut service.next_send,
         failed: false,
-        maximum: channel::max_out(&service.limits.channel),
+        room: channel::edge_room(&service.limits.channel),
         ending,
     };
     service.live.act(action, service.io_env.now, &mut room);
@@ -247,9 +247,9 @@ fn llm_measure_batch(service: &mut Service, pending: u32, direct: bool) -> bool 
 pub(super) fn component_up(service: &mut Service) {
     program::fire(service);
     llm_measures(service);
-    let channel_max = channel::max_out(&service.limits.channel);
-    if service.channel_events.room() >= channel_max.to_domain
-        && service.channel_below.room() >= channel_max.below
+    let channel_room = channel::edge_room(&service.limits.channel);
+    if service.channel_events.room() >= channel_room.to_domain
+        && service.channel_below.room() >= channel_room.below
         && let Some(channel) = &mut service.channel
     {
         channel.fire(&mut service.channel_events, &mut service.channel_below);
@@ -293,8 +293,8 @@ fn llm_events_up(service: &mut Service) {
         }
         if !service.llm.measures_drained()
             || (service.channel.is_some()
-                && (service.channel_events.room() < channel::max_out(&service.limits.channel).to_domain
-                    || service.channel_below.room() < channel::max_out(&service.limits.channel).below))
+                && (service.channel_events.room() < channel::edge_room(&service.limits.channel).to_domain
+                    || service.channel_below.room() < channel::edge_room(&service.limits.channel).below))
         {
             break;
         }

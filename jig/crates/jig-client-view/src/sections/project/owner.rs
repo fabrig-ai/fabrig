@@ -142,7 +142,7 @@ fn historical_nodes(l: &Limits, card: u32) -> Option<u32> {
 }
 /// Every loaded saying and escaped source segment contributes to the envelope.
 #[must_use]
-pub fn worst_case(l: &Limits, words: &Words) -> Option<ProjectFragment> {
+pub fn fragment_bound(l: &Limits, words: &Words) -> Option<ProjectFragment> {
     let nodes = max_nodes(l)?;
     let saying = words.jig_capacity()?;
     let text_per_node = saying.max(crate::literal_segment::max_bytes(l.text)?).checked_mul(2)?;
@@ -210,7 +210,7 @@ pub fn required(value: &OwnerProject, l: &Limits, words: &Words) -> Option<Proje
     for row in &value.acts {
         super::owner_goals::offer_fits(&row.admission, l)?;
     }
-    worst_case(l, words)
+    fragment_bound(l, words)
 }
 fn pattern_fits(value: &jig_client::contract::OwnerPattern, l: &Limits) -> Option<()> {
     if value.segments.capacity() > l.segments {

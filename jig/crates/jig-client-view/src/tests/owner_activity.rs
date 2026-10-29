@@ -630,8 +630,8 @@ fn owner_activity_selected_normal_language_and_full_opaque_tree_envelope_refuse_
     }
     assert!(view::required(&value, &crate::Limits { text: 7, ..client_limits() }, &selected).is_none());
     assert!(view::required(&value, &crate::Limits { rows: 2, ..client_limits() }, &selected).is_none());
-    assert!(view::worst_case(&crate::Limits { rows: u32::MAX, ..client_limits() }, &selected).is_none());
-    assert!(view::worst_case(&crate::Limits { text: u32::MAX, ..client_limits() }, &selected).is_none());
+    assert!(view::fragment_bound(&crate::Limits { rows: u32::MAX, ..client_limits() }, &selected).is_none());
+    assert!(view::fragment_bound(&crate::Limits { text: u32::MAX, ..client_limits() }, &selected).is_none());
     let reserved =
         fixture(OwnerMessageKind::Result(OwnerWordResult::Verdict { code: 1, fields: List::with_capacity(4) }));
     assert!(view::word_required(&reserved, &client_limits(), &selected).is_none());
@@ -742,7 +742,7 @@ fn dependency_refusals_name_the_circle_the_ending_and_the_kept_answer() {
             b"dependency T5 was cancelled".as_slice(),
         ),
     ] {
-        let f = view::worst_case(&client_limits(), normal_words()).unwrap();
+        let f = view::fragment_bound(&client_limits(), normal_words()).unwrap();
         let mut b = Builder::new(&tree_limits(f));
         normal_words().refusal(&mut b, &refusal, client_limits().text);
         assert!(has(&b.finish(), expected));

@@ -20,6 +20,7 @@ temper-engine-domain-forge-issues = { path = "../temper-engine-domain-forge-issu
 temper-engine-domain-forge-landing = { path = "../temper-engine-domain-forge-landing" }
 
 [dev-dependencies]
+skein-world.workspace = true
 skein-forge-setup.workspace = true
 
 [lints]

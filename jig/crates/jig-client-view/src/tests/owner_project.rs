@@ -550,7 +550,7 @@ fn check_owner_project_real_page_decodes_whole_role_edits_preserves_prior_channe
         ReadPage { read, result: ReadResult::Value(ReadValue::OwnerProject(Box::new(value.clone()))) },
     );
     let w = words(false);
-    let f = view::worst_case(&limits(), w).unwrap();
+    let f = view::fragment_bound(&limits(), w).unwrap();
     let mut bounds = capacity(f);
     bounds.nodes = bounds.nodes.checked_add(32).unwrap();
     bounds.text_bytes = bounds.text_bytes.checked_add(bounds.text_per_node.checked_mul(32).unwrap()).unwrap();
@@ -729,7 +729,7 @@ fn native_owner_at(value: OwnerProject, section: crate::address::ProjectSection)
 }
 fn owner_page(domain: &Fixture) -> (Tree, JigBindings) {
     let w = words(false);
-    let f = view::worst_case(&limits(), w).unwrap();
+    let f = view::fragment_bound(&limits(), w).unwrap();
     let mut bound = capacity(f);
     bound.nodes = bound.nodes.checked_add(32).unwrap();
     bound.text_bytes = bound.text_bytes.checked_add(32_u32.checked_mul(bound.text_per_node).unwrap()).unwrap();
@@ -1172,7 +1172,7 @@ fn historical_project_tree(domain: &Fixture, w: &Words, bound: skein_ui::Limits)
     (b.finish(), bindings)
 }
 fn historical_project_bound(w: &Words) -> skein_ui::Limits {
-    let mut bound = capacity(view::worst_case(&limits(), w).unwrap());
+    let mut bound = capacity(view::fragment_bound(&limits(), w).unwrap());
     bound.nodes = bound.nodes.checked_add(32).unwrap();
     bound.text_bytes = bound.text_bytes.checked_add(32_u32.checked_mul(bound.text_per_node).unwrap()).unwrap();
     bound

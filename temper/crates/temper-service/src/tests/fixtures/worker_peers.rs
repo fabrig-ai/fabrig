@@ -32,9 +32,10 @@ pub(crate) struct LinkPeer {
 }
 impl LinkPeer {
     pub(crate) fn new() -> Self {
-        let settings = fixtures::worker_settings();
-        let prepared =
-            worker_settings::prepare(&settings, &fixtures::worker_agent(), &fixtures::worker_limits()).unwrap();
+        Self::with_settings(&fixtures::worker_settings(), &fixtures::worker_agent())
+    }
+    pub(crate) fn with_settings(settings: &crate::settings::Worker, agent: &crate::settings::Agent) -> Self {
+        let prepared = worker_settings::prepare(settings, agent, &fixtures::worker_limits()).unwrap();
         let limits = engine_link::Limits {
             sizes: prepared.link.sizes,
             names: 1,
@@ -52,7 +53,7 @@ impl LinkPeer {
             component: engine_link::Component::new(
                 &limits,
                 Box::new([engine_link::Worker {
-                    name: settings.jig.name,
+                    name: settings.jig.name.clone(),
                     digest: io::digest::digest(fixtures::worker_files().contents(b"worker-secret").unwrap()),
                 }]),
                 temper_protocol_worker_wire::PAYLOAD_VERSION,
@@ -89,6 +90,10 @@ impl LinkPeer {
     }
     pub(crate) fn turn(&mut self, worker: &mut crate::Worker) -> Option<engine_link::Request> {
         worker.iterate(fixtures::NOW, Wall::EPOCH);
+        self.exchange(worker)
+    }
+    // Exchange demanded bytes while leaving root entrances queued for inspection.
+    pub(crate) fn exchange(&mut self, worker: &mut crate::Worker) -> Option<engine_link::Request> {
         for _ in 0..worker.io().len() {
             let request = worker.io().pop().expect("queued IO");
             if !stream_request(&request, &[self.owner, Token::new(44)]) {
@@ -189,7 +194,6 @@ pub(crate) const ANSWER: u16 = 0x0110;
 pub(crate) const LIVE: u16 = 0x0112;
 pub(crate) const FRAME_HEADER_BYTES: u32 = 8; // skein's channel frame header.
 pub(crate) const PEER_FRAMES: u32 = 6; // Accept, Terms, Admitted, Live, Turn, Answer.
-const PEER_EVENTS: u32 = 2 + PEER_FRAMES; // Opened and Start, then the six scripted records.
 pub(crate) const PEER_STEPS: u16 = 1000; // The existing LinkPeer's finite settling bound.
 
 // Private agent peer for the Worker's Process IO, without a root assignment.
@@ -259,8 +263,8 @@ impl AgentPeer {
                 agent.endpoints.clone(),
             )
             .unwrap(),
-            events: Queue::with_capacity(smith_protocol_channel::max_out(&limits).to_domain.max(PEER_EVENTS)),
-            out: Queue::with_capacity(smith_protocol_channel::max_out(&limits).below),
+            events: Queue::uncapped(),
+            out: Queue::uncapped(),
             agent_bytes: Intake::with_capacity(host.channel.output_bytes),
             worker_bytes: Intake::with_capacity(channel.output_bytes),
             agent_read: None,

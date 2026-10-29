@@ -70,8 +70,8 @@ fn signed_in_root((mut domain, env): (Domain, Env<Limits>), role: Option<people:
 
 // Drive the root's existing journal seam; only its store acknowledgements are scripted.
 fn settle(domain: &mut Domain, env: &Env<Limits>) -> Box<[Request]> {
-    let mut out = Queue::with_capacity(crate::max_out(&env.limits).checked_mul(2).unwrap());
-    let mut requests = List::with_capacity(crate::max_out(&env.limits));
+    let mut out = Queue::uncapped();
+    let mut requests = List::uncapped();
     for _ in 0_u32..256 {
         crate::release(domain, env, &mut out);
         crate::release(domain, env, &mut out);
@@ -421,7 +421,7 @@ fn a_new_binding_answers_only_after_its_commit_is_durable() {
         })),
     )
     .unwrap();
-    let mut out = Queue::with_capacity(crate::max_out(&env.limits));
+    let mut out = Queue::uncapped();
     let mut committed = None;
     // A release pass may issue a commit; none may deliver its dependent answer.
     let binding = forge::Stored::Binding {
@@ -496,7 +496,7 @@ fn make_project_copies_policy_one_and_the_root_hears_it_only_after_commit() {
     let (mut domain, env) = runtime_project_root();
     let policy = domain.core.authority.policy(1).unwrap().clone();
     crate::try_step(&mut domain, &env, make_project("Tally")).unwrap();
-    let mut out = Queue::with_capacity(crate::max_out(&env.limits).checked_mul(2).unwrap());
+    let mut out = Queue::uncapped();
     let mut commit = None;
     let mut saved = false;
     for _ in 0_u32..32_u32 {

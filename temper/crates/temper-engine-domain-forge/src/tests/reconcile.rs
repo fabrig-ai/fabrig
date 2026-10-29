@@ -1,7 +1,8 @@
 use super::*;
-use crate::reconcile::{Reconciliation, Reference};
+use crate::reconcile::Reconciliation;
 use alloc::boxed::Box;
 use skein_lib::{Time, Wall};
+use skein_world::domain::heap::Meter;
 
 const TASK: u64 = 7;
 const ENTRY: u64 = 11;
@@ -246,17 +247,60 @@ fn a_demo_record_requires_the_configured_demo() {
     let d = held_domain();
     assert!(!resolved(&d, &Stored::Demo(Demo { forge: 1, state: DemoState::Ended }), false));
 }
+
+// Measured peak: 3,072 bytes; 25% headroom, rounded up to two significant digits.
+const REFERENCE_HEAP_CEILING: u64 = 3_900;
+
 #[test]
-fn reconciliation_storage_stays_within_its_ceilings() {
-    // A retained reconciliation reference, a quarter above 10-28's 32 bytes.
-    const REFERENCE_STORAGE_CEILING: usize = 40;
-    // The reconciliation state, a quarter above 10-28's 48 bytes.
-    const RECONCILIATION_STORAGE_CEILING: usize = 60;
-    // An optional demo record, a quarter above 10-28's 4 bytes.
-    const DEMO_STORAGE_CEILING: usize = 5;
-    assert!(size_of::<Reference>() <= REFERENCE_STORAGE_CEILING);
-    assert!(size_of::<Reconciliation>() <= RECONCILIATION_STORAGE_CEILING);
-    assert!(size_of::<Option<Demo>>() <= DEMO_STORAGE_CEILING);
+fn retained_reconciliation_references_fit_their_heap_ceiling() {
+    let mut rows = skein_lib::List::with_capacity(LIMITS.tasks);
+    for task in 1..=u64::from(LIMITS.tasks) {
+        let mut resources = skein_lib::List::with_capacity(LIMITS.resources_per_task);
+        for _ in 0..LIMITS.resources_per_task {
+            resources
+                .push(Name { forge: REPO.forge, repository: REPO.repository, what: What::Issue(task) })
+                .expect("configured resources");
+        }
+        rows.push(Stored::Names { task, resources: resources.into_boxed() }).expect("configured tasks");
+    }
+    let meter = Meter::new();
+    meter.start();
+    let mut reconciliation = Reconciliation::new(&LIMITS);
+    for row in &rows {
+        reconciliation.restore(row);
+    }
+    let measured = meter.end();
+    meter.check(measured, REFERENCE_HEAP_CEILING, &LIMITS);
+    core::hint::black_box(&reconciliation);
+    assert!(meter.held() > 0, "restoration retains references");
+}
+
+// Measured peak: 9,139 bytes; 25% headroom, rounded up to two significant digits.
+const RECONCILIATION_HEAP_CEILING: u64 = 12_000;
+
+#[test]
+fn populated_reconciliation_owner_fits_its_heap_ceiling() {
+    let meter = Meter::new();
+    meter.start();
+    // The boxed owner includes inline reconciliation storage in the measured heap.
+    let d = Box::new(held_domain());
+    let measured = meter.end();
+    meter.check(measured, RECONCILIATION_HEAP_CEILING, &LIMITS);
+    assert!(resolved(&d, &Stored::Flight { task: TASK, entry: ENTRY }, true));
+}
+
+// Measured peak: 9,170 bytes; 25% headroom, rounded up to two significant digits.
+const DEMO_HEAP_CEILING: u64 = 12_000;
+
+#[test]
+fn retained_demo_and_its_owner_fit_their_heap_ceiling() {
+    let meter = Meter::new();
+    meter.start();
+    // The boxed owner includes its optional demo record in the measured heap.
+    let d = Box::new(demo_domain());
+    let measured = meter.end();
+    meter.check(measured, DEMO_HEAP_CEILING, &LIMITS);
+    assert!(resolved(&d, &Stored::Demo(Demo { forge: 1, state: DemoState::Ended }), false));
 }
 
 fn demo_domain() -> Domain {

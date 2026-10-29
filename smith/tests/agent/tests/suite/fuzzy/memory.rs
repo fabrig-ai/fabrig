@@ -5,11 +5,13 @@ use skein_world::domain::heap::Meter;
 use smith_agent_world::memory::{LIMITS, churn};
 use smith_domain::{Limits, run};
 
-// Peak ceiling for random root-domain churn with default limits across twelve seeds (programming-model.md, section 6.3).
-const RANDOM_AGENT_CEILING: u64 = 4_500_000;
+// Peak for 3_000 rounds of default-limit root-domain churn over seeds 0..12 (highest: seed 4).
+// Measured 187_897 B on 2026-10-29; a quarter of headroom, rounded up.
+const RANDOM_AGENT_CEILING: u64 = 240_000;
 
-// Peak ceiling for random root-domain churn with wider limits across twelve seeds (programming-model.md, section 6.3).
-const WIDE_RANDOM_AGENT_CEILING: u64 = 5_900_000;
+// Peak for 3_000 rounds of wider-limit root-domain churn over seeds 0..12 (highest: seed 11).
+// Measured 254_648 B on 2026-10-29; a quarter of headroom, rounded up.
+const WIDE_RANDOM_AGENT_CEILING: u64 = 320_000;
 
 #[test]
 fn a_domain_driven_at_random_stays_under_its_scenario_ceilings_at_every_entry_point() {

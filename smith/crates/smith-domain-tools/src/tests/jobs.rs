@@ -155,7 +155,7 @@ fn parallel_job_reads_reserve_each_calls_capture_budget() {
         path_bytes: 1,
         ..super::LIMITS
     };
-    assert_eq!(crate::batch_result_worst_case(&limits, 3), Some(576));
+    assert_eq!(crate::batch_result_bound(&limits, 3), Some(576));
 }
 
 #[test]

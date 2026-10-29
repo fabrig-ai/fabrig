@@ -17,12 +17,6 @@ pub const fn replay_bytes(limits: &DocumentLimits) -> Option<u32> {
     limits.bytes.checked_add(REPLAY_HEADER_BYTES)
 }
 
-/// The old name of [`replay_bound`]; it goes once every tree calls the new name (wave 3).
-#[must_use]
-pub fn replay_worst_case(limits: &DocumentLimits) -> Option<u64> {
-    replay_bound(limits)
-}
-
 /// Bounds replay transit.
 /// Transit heap for encoding/decoding, including simultaneous raw/output bytes
 /// and bounded JSON machines/token storage. Caller-owned input storage is separate.

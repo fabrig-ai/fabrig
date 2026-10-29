@@ -4,7 +4,7 @@ use jig_protocol_store::secrets_v1::CEILINGS;
 fn the_saved_record_bound_is_oauths_ceiling() {
     assert_eq!(
         u64::from(CEILINGS.source_record_record),
-        skein_oauth::v3::SavedToken::worst_case_bytes(&skein_oauth::v3::CEILINGS).expect("OAuth bound")
+        skein_oauth::v3::SavedToken::encoded_bound(&skein_oauth::v3::CEILINGS).expect("OAuth bound")
     );
 }
 #[test]

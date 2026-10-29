@@ -423,7 +423,7 @@ pub fn window_first(
 ) -> Result<(), Refusal> {
     let reserve = smith_domain::session::completion_reserve(limits)
         .ok_or(Refusal::Derived { limit: LimitName::deployment(Layer::Session, "completion_reserve") })?;
-    let owned = tools::batch_result_worst_case(&limits.tools, limits.parallel_tools)
+    let owned = tools::batch_result_bound(&limits.tools, limits.parallel_tools)
         .ok_or(Refusal::Derived { limit: LimitName::deployment(Layer::Session, "batch_results") })?;
     let delegated = limits
         .delegated_result_bytes

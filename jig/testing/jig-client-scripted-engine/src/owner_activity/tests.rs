@@ -211,7 +211,7 @@ fn owner_activity_reserved_empty_fields_and_each_nested_text_overflow_refuse_who
     }
 }
 #[test]
-fn owner_activity_full_fields_and_approved_state_reach_the_declared_whole_worst_case() {
+fn owner_activity_full_fields_and_approved_state_reach_the_declared_whole_heap_bound() {
     for rows in [0_u32, 2] {
         let bounds = Bounds { rows, text: 3, ..bounds() };
         let kind = if rows == 0 {
@@ -224,18 +224,18 @@ fn owner_activity_full_fields_and_approved_state_reach_the_declared_whole_worst_
             OwnerMessageKind::Result(OwnerWordResult::Verdict { code: u32::MAX, fields })
         };
         let value = OwnerWord { words: text(b"xxx"), ..word(kind) };
-        let maximum = word_worst_case(&bounds).unwrap();
+        let maximum = word_heap_bound(&bounds).unwrap();
         assert_eq!(word_bytes(&value, &bounds), Some(maximum));
         assert!(word_fits(&value, &Bounds { document_bytes: maximum, ..bounds }));
         assert!(!word_fits(&value, &Bounds { document_bytes: maximum - 1, ..bounds }));
         let value = line(OwnerActivity::Heard(value));
-        let maximum = worst_case(&bounds).unwrap();
+        let maximum = heap_bound(&bounds).unwrap();
         assert_eq!(bytes(&value, &bounds), Some(maximum));
         assert!(fits(&value, &Bounds { document_bytes: maximum, ..bounds }));
         assert!(!fits(&value, &Bounds { document_bytes: maximum - 1, ..bounds }));
     }
-    assert_eq!(worst_case(&Bounds { rows: u32::MAX, text: u32::MAX, ..bounds() }), None);
-    assert_eq!(word_worst_case(&Bounds { rows: u32::MAX, text: u32::MAX, ..bounds() }), None);
+    assert_eq!(heap_bound(&Bounds { rows: u32::MAX, text: u32::MAX, ..bounds() }), None);
+    assert_eq!(word_heap_bound(&Bounds { rows: u32::MAX, text: u32::MAX, ..bounds() }), None);
 }
 
 const UTF8_TEXTS: [&[u8]; 2] = [b"~\0", b"!\0"];

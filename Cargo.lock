@@ -3002,6 +3002,7 @@ dependencies = [
 name = "skein-ui-text-tests"
 version = "0.0.0"
 dependencies = [
+ "skein-heap",
  "skein-io",
  "skein-lib",
  "skein-sim",
@@ -4313,6 +4314,7 @@ dependencies = [
  "skein-forge-client",
  "skein-forge-setup",
  "skein-lib",
+ "skein-world",
  "temper-engine-domain-forge-change",
  "temper-engine-domain-forge-issues",
  "temper-engine-domain-forge-landing",
@@ -4624,6 +4626,7 @@ dependencies = [
  "jig-test-store-files",
  "serde_json",
  "skein-fake-forge-domain",
+ "skein-fake-forge-github",
  "skein-fake-forge-protocol",
  "skein-fake-llm-domain",
  "skein-fake-llm-protocol",
@@ -4659,8 +4662,10 @@ dependencies = [
  "temper-engine-domain-forge",
  "temper-engine-smith",
  "temper-fake-checkout",
+ "temper-fake-git",
  "temper-fake-git-hosted",
  "temper-forge-setup",
+ "temper-github-app",
  "temper-protocol-store",
  "temper-service",
 ]
@@ -4730,7 +4735,6 @@ dependencies = [
  "skein-fake-oauth",
  "skein-fake-peers",
  "skein-forge",
- "skein-forge-client",
  "skein-http",
  "skein-io",
  "skein-json",

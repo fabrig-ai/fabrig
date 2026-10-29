@@ -142,10 +142,11 @@ channel and the kernel's queues are its edges and stay capped.
   `tests::worker_admission::a_full_held_entrance_lets_a_passing_answer_pass`.
 - **A link invocation's output precedes the next invocation.**
   `drain_link` dispatches the whole batch, bounded by `link_out.len()`
-  at entry; dispatch does not invoke the link. The service's reconnect
-  order is held in `temper-service`,
-  `tests::worker_orders::the_hello_precedes_the_replayed_turns_at_a_reconnect`;
-  the complete-batch boundary has no direct test.
+  at entry; dispatch does not invoke the link. The service holds the
+  complete batch before the next invocation in `temper-service`,
+  `tests::worker_orders::a_link_invocations_whole_output_precedes_the_next_invocation`,
+  and the reconnect order in
+  `tests::worker_orders::the_hello_precedes_the_replayed_turns_at_a_reconnect`.
 - **Its orders, stated** (programming-model.md, 7.2), each a world test
   under load: a hand-off before the next entrance's; a capability's
   hand-outs in order, and an end after its last hand-out; one entrance

@@ -543,7 +543,7 @@ pub(super) fn host_limits() -> smith_host_domain::Limits {
         messages: 8,
         calls: 8,
         call_bytes: 4096,
-        answer_bytes: smith_host_domain::Delivered::worst_case(),
+        answer_bytes: smith_host_domain::Delivered::owned_bound(),
         turns: 2,
         turn_bytes: 1_048_576,
         unacknowledged_bytes: 2_097_152,

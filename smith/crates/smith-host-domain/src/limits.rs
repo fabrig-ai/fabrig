@@ -102,7 +102,7 @@ pub fn valid(limits: &Limits) -> bool {
         && limits.turns > 0
         && limits.turn_bytes > 0
         && limits.unacknowledged_bytes >= limits.turn_bytes
-        && limits.answer_bytes >= Delivered::worst_case()
+        && limits.answer_bytes >= Delivered::owned_bound()
         && limits.calls.checked_add(9).is_some()
         && outbox(limits).is_some()
         && limits.agents.checked_mul(3).is_some()

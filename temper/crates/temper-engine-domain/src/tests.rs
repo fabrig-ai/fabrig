@@ -374,7 +374,7 @@ fn a_root_store_edge_overrun_releases_only_stop_and_discards_immediate_outputs()
     for number in 1..=env.limits.journal.writes {
         crate::domain::save(&mut decision, &env.limits, turn(number, 1));
     }
-    let mut out = Queue::with_capacity(crate::max_out(&env.limits));
+    let mut out = Queue::uncapped();
     out.push(crate::Request::Drained);
     crate::domain::close(&mut domain, &env, decision, &mut out);
     crate::domain::stage_now(&mut domain, &mut out);

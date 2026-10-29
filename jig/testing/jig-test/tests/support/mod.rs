@@ -396,9 +396,7 @@ pub fn run(
 }
 
 pub(super) fn issuer() -> (oauth::Peer, std::net::SocketAddr, Fd) {
-    issuer_with_plans(accounts::issuer_plans(Story::AccountSignInVaryingPort))
-}
-pub(super) fn issuer_with_plans(plans: Vec<skein_fake_oauth::Plan>) -> (oauth::Peer, std::net::SocketAddr, Fd) {
+    let plans = accounts::issuer_plans(Story::AccountSignInVaryingPort);
     let profile = accounts::limits();
     let limits = skein_fake_oauth::Limits {
         document: profile.client.document,

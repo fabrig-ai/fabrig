@@ -86,6 +86,38 @@ impl Rig {
         assert_eq!((owner, len), (OWNER, 0));
         file
     }
+    fn load(&mut self, root: Token) {
+        self.down(Request::Load { owner: OWNER, root, path: Box::from(&b"record"[..]), max: 16, no_follow: false });
+        self.done(Ok(Done::Fd(FILE)));
+    }
+    fn replaced_load(&mut self) {
+        let root = self.opened();
+        self.load(root);
+        self.done(Ok(Done::Stat(Stat { links: 0, ..file_stat() })));
+        self.assert_next(Op::Close { fd: FILE });
+    }
+    fn reopen(&mut self) {
+        self.done(Ok(Done::Nothing));
+        self.assert_next(Op::Open { root: PRIVATE, path: Box::from(&b"record"[..]), how: OpenHow::ReadNoFollow });
+        self.done(Ok(Done::Fd(FILE)));
+    }
+    fn read(&mut self, bytes: &[u8]) {
+        let Submit { op, kind } = self.subs.pop().expect("one read");
+        let Op::Read { fd, at, mut buf } = kind else { panic!("a content read") };
+        for (slot, byte) in buf.iter_mut().zip(bytes) {
+            *slot = *byte;
+        }
+        file_layer::up(
+            &mut self.io,
+            Complete {
+                op,
+                kind: Op::Read { fd, at, buf },
+                result: Ok(Done::Count(u32::try_from(bytes.len()).expect("short fixture"))),
+            },
+            &mut self.events,
+            &mut self.subs,
+        );
+    }
     fn close_refusal(&mut self, expected: Unsafe, closes: usize) {
         for _ in 0..closes {
             assert!(self.events.is_empty(), "close descriptors before terminal");
@@ -411,4 +443,75 @@ fn a_failed_parent_sync_answers_committed() {
         assert!(rig.subs.is_empty() && rig.io.takes(), "{label}");
         assert_eq!(rig.io.open_files(), 1, "{label}");
     }
+}
+
+#[test]
+fn a_private_load_reopens_a_replaced_file_once() {
+    let mut rig = Rig::new();
+    rig.replaced_load();
+    rig.reopen();
+    rig.done(Ok(Done::Stat(file_stat())));
+    rig.read(b"new");
+    rig.read(b"");
+    rig.assert_next(Op::Close { fd: FILE });
+    rig.done(Ok(Done::Nothing));
+    assert_eq!(rig.events.pop(), Some(Event::Loaded { owner: OWNER, bytes: Box::from(&b"new"[..]) }));
+    assert!(rig.events.is_empty() && rig.subs.is_empty() && rig.io.takes());
+    assert_eq!(rig.io.open_files(), 2, "only the two roots remain");
+    assert_eq!(rig.io.next_deadline(), None);
+}
+
+#[test]
+fn a_second_replace_refuses_without_another_reopen() {
+    let mut rig = Rig::new();
+    rig.replaced_load();
+    rig.reopen();
+    rig.done(Ok(Done::Stat(Stat { links: 0, ..file_stat() })));
+    rig.close_refusal(Unsafe::Links(0), 1);
+    assert_eq!(rig.io.open_files(), 2);
+}
+
+#[test]
+fn a_reopened_private_load_still_refuses_unsafe_metadata_unread() {
+    for (stat, expected) in [
+        (Stat { kind: Kind::Symlink, ..file_stat() }, Unsafe::Link),
+        (Stat { kind: Kind::Directory, ..file_stat() }, Unsafe::Kind(Kind::Directory)),
+        (Stat { mode: 0o644, ..file_stat() }, Unsafe::Mode(0o044)),
+        (Stat { links: 2, ..file_stat() }, Unsafe::Links(2)),
+        (Stat { owner: USER + 1, ..file_stat() }, Unsafe::Owner { found: USER + 1, expected: USER }),
+    ] {
+        let mut rig = Rig::new();
+        rig.replaced_load();
+        rig.reopen();
+        rig.done(Ok(Done::Stat(stat)));
+        rig.close_refusal(expected, 1);
+    }
+}
+
+#[test]
+fn cancelling_while_the_replaced_file_closes_prevents_reopen() {
+    let mut rig = Rig::new();
+    rig.replaced_load();
+    file_layer::cancel(&mut rig.io, OWNER, &mut rig.subs);
+    rig.done(Ok(Done::Nothing));
+    assert_eq!(rig.events.pop(), Some(Event::Cancelled { owner: OWNER }));
+    assert!(rig.events.is_empty() && rig.subs.is_empty() && rig.io.takes());
+}
+
+#[test]
+fn reopening_a_replaced_file_keeps_the_loads_deadline() {
+    let mut rig = Rig::new();
+    rig.replaced_load();
+    let deadline = rig.io.next_deadline().expect("the load deadline");
+    rig.reopen();
+    assert_eq!(rig.io.next_deadline(), Some(deadline));
+    file_layer::expire(&mut rig.io, deadline, &mut rig.subs);
+    rig.done(Ok(Done::Stat(file_stat())));
+    rig.assert_next(Op::Close { fd: FILE });
+    rig.done(Ok(Done::Nothing));
+    assert_eq!(
+        rig.events.pop(),
+        Some(Event::Failed { owner: OWNER, error: Error::TimedOut, committed: false, residue: None })
+    );
+    assert!(rig.events.is_empty() && rig.subs.is_empty() && rig.io.takes());
 }

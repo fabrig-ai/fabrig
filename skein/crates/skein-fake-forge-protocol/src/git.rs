@@ -149,13 +149,6 @@ impl Decoder {
         Self { records: List::with_capacity(cap), text: List::with_capacity(cap), over: false }
     }
 }
-/// The old name of [`decoder_bound`]; it goes once every tree
-/// calls the new name (wave 3).
-#[must_use]
-pub fn decoder_worst_case(limits: &Limits) -> Option<u64> {
-    decoder_bound(limits)
-}
-
 /// Bounds Git document decoder retention.
 /// Decoder buffers, the final compact document, decoded lists and payload,
 /// transient base64 text, and one incoming tokenizer token. Both sides use

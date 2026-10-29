@@ -2661,7 +2661,7 @@ fn receive_completion(conversation: &mut Conversation, content: &[Block], calls:
 }
 
 fn owned_credit(call: &Call, limits: &Limits) -> u64 {
-    tools::result_worst_case(call, &limits.tools).expect("admitted result bounds")
+    tools::result_bound(call, &limits.tools).expect("admitted result bounds")
 }
 
 fn delegated_credit(limits: &Limits) -> u64 {

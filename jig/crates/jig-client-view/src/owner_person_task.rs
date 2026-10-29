@@ -47,7 +47,7 @@ pub(crate) fn controls_nodes(l: &Limits) -> Option<u32> {
     l.rows.checked_mul(3)?.checked_add(5)
 }
 #[must_use]
-pub fn worst_case(l: &Limits, words: &Words) -> Option<PersonFragment> {
+pub fn fragment_bound(l: &Limits, words: &Words) -> Option<PersonFragment> {
     let nodes = max_nodes(l)?;
     let phrase = words.jig_capacity()?;
     let text_per_node = phrase.max(crate::literal_segment::max_bytes(l.text)?).checked_mul(2)?;
@@ -168,7 +168,7 @@ pub fn required(value: &OwnerPersonTask, l: &Limits, words: &Words) -> Option<Pe
             }
         }
     }
-    worst_case(l, words)
+    fragment_bound(l, words)
 }
 fn saying(words: &Words, phrase: P, holes: &[Hole]) -> Box<[u8]> {
     words.book().say(words.language(), phrase.id(), holes).expect("checked person words and typed holes").text

@@ -384,7 +384,7 @@ pub(crate) fn read(
 
 /// Includes nested names, versions, description resources, retained facts and outboxes.
 #[must_use]
-pub fn document_worst_case(limits: &Limits) -> Option<u64> {
+pub fn document_bound(limits: &Limits) -> Option<u64> {
     let name = u64::from(limits.name_bytes);
     let task = List::<ClientResource>::price(limits.resources_per_task)?
         .checked_add(u64::from(limits.resources_per_task).checked_mul(name.checked_mul(3)?)?)?;

@@ -31,7 +31,7 @@ pub fn fits(value: &OwnerMilestoneLine, bounds: &Bounds) -> bool {
 /// Finite ceiling for admitted whole values, including recursive result values.
 /// Rows/text alone do not supply a recursive depth bound.
 #[must_use]
-pub fn worst_case(bounds: &Bounds) -> Option<u64> {
+pub fn heap_bound(bounds: &Bounds) -> Option<u64> {
     if bounds.document_bytes < u64::try_from(size_of::<OwnerMilestoneLine>()).ok()? {
         None
     } else {

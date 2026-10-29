@@ -104,6 +104,12 @@ impl Domain {
         self.facts.pop()
     }
 
+    /// The observations queued for the parent.
+    #[must_use]
+    pub fn pending_facts(&self) -> u32 {
+        self.facts.len()
+    }
+
     /// The reclaim point: frees what closed in this iteration.
     pub fn reclaim(&mut self) {
         self.runs.reclaim();

@@ -1,4 +1,4 @@
-use super::{bytes, fits, worst_case};
+use super::{bytes, fits, heap_bound};
 use crate::{
     Bounds,
     payload::{self, Payload},
@@ -66,7 +66,7 @@ fn owner_tree_admission_prices_every_reserved_collection_link_box_and_opaque_cur
     assert!(!payload::fits(&delivery, &Bounds { document_bytes: size - 1, ..b }));
     assert!(payload::fits(&delivery, &Bounds { document_bytes: size, ..b }));
     assert_eq!(value, tree());
-    assert_eq!(worst_case(&b), Some(b.document_bytes));
+    assert_eq!(heap_bound(&b), Some(b.document_bytes));
 }
 #[test]
 fn owner_tree_over_reserved_empty_nested_lists_and_cursor_bytes_refuse_without_shortening() {

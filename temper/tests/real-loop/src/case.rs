@@ -822,6 +822,9 @@ pub const BATCH_SUBOWNER_REPORT: &str = "All four batch delegates reported.";
 pub const BATCH_OWNER_REPORT: &str = "M1's sub-owner reported the batch.";
 pub const BATCH_DIRECTOR_REPORT: &str = "A reported M1's batch.";
 
+// The root's largest synchronous route in these batch scenarios, one commit.
+const BATCH_JOURNAL_WRITES: u32 = 15_586;
+
 #[must_use]
 pub fn fixture_6_1() -> forge::Fixture {
     forge::Fixture {
@@ -834,7 +837,7 @@ pub fn fixture_6_1() -> forge::Fixture {
             // The standard engine needed for a four-entry batch also needs
             // matching application room: 128 retained calls; 8 workers *
             // fleet.max_out (137) + 1 deliveries; three held per delivery;
-            // and journal writes derived from the complete route below.
+            // and the batch scenario's journal writes.
             // Placed subtree writes and retained forge answers contribute.
             // A1's task read needs documents.lines = 4 for its complete live delegates.
             value["application"]["limits"]["overrides"]["forge.named_calls"] = 128.into();
@@ -859,7 +862,7 @@ pub fn fixture_6_1() -> forge::Fixture {
                 project["policy"]["roles"][0]["authority"]["budget"]["spend"] = 71.into();
             }
             value["application"]["landing"]["projects"] = json!([]);
-            landing::size_journal_writes(value);
+            value["application"]["limits"]["overrides"]["root.journal.writes"] = BATCH_JOURNAL_WRITES.into();
             landing::admit(value);
         },
         ..fixture()

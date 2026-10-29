@@ -560,6 +560,12 @@ Every request has one answer, of one of these kinds:
   5.1): *answers full*, with how many it holds and when its oldest
   answer expires, so a client says so and when it will have room, never
   only that the request was not sent;
+- **no answer** (the exchange lost: its deadline passed, or the
+  transport failed before an answer): the outcome is unknown, so the
+  request is sent again under its key after the same backoff; its key
+  makes a repeat safe, since a request already taken answers with what
+  was retained, and a sign-in by link repeats until the link's own
+  expiry ends it;
 - **signed out:** the sign-in has ended; sign in, then send it again;
 - **version not served:** the engine does not serve the version the
   request's owner is encoded in. Nothing was read, made or kept. It

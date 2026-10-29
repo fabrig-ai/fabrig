@@ -1602,12 +1602,6 @@ pub fn worst_case(limits: &Limits) -> Option<u64> {
         .checked_add(crate::document::document_bound(&error_document(limits))?)?
         .checked_add(u64::from(REPORT_BYTES).checked_mul(3)?)
 }
-/// The old name of [`encoder_bound`]; it goes once every tree calls the new name (wave 3).
-#[must_use]
-pub fn encoding_worst_case(limits: &Limits) -> Option<u64> {
-    encoder_bound(limits)
-}
-
 /// Bounds request encoding workspace.
 /// One borrowed request's fixed encoder/grammar scratch, excluding its reserved bytes.
 /// Neither document density nor request counts grow it (llm.md, section 4.2).

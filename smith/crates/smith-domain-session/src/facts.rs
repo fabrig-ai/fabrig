@@ -202,6 +202,10 @@ impl Facts {
     pub(crate) fn pop(&mut self) -> Option<Fact> {
         self.queue.pop()
     }
+
+    pub(crate) fn len(&self) -> u32 {
+        self.queue.len()
+    }
 }
 
 /// The owner of a tool declaration, supplied by the conversation opener.

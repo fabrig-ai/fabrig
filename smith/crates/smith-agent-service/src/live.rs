@@ -20,16 +20,16 @@ pub(crate) struct Connection<'a> {
     pub below: &'a mut Queue<Lower>,
     pub next: &'a mut u64,
     pub failed: bool,
-    pub maximum: channel::MaxOut,
+    pub room: channel::EdgeRoom,
     pub ending: bool,
 }
 
 impl Room for Connection<'_> {
     fn takes(&self, kind: channel::PieceKind<'_>, bytes: u32) -> bool {
-        let maximum = self.maximum;
+        let room = self.room;
         let entrances = if self.ending { 2 } else { 1 };
-        self.above.room() >= maximum.to_domain.saturating_mul(entrances)
-            && self.below.room() >= maximum.below.saturating_mul(entrances)
+        self.above.room() >= room.to_domain.saturating_mul(entrances)
+            && self.below.room() >= room.below.saturating_mul(entrances)
             && self.channel.takes_live(kind, bytes)
     }
     fn send(&mut self, piece: Piece<'_>) {

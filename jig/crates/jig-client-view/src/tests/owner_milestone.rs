@@ -419,7 +419,7 @@ fn owner_milestone_whole_view_refuses_each_nested_reserved_list_text_and_opaque_
     });
     assert!(view::required(&empty, &base, &w).is_none());
     assert!(view::max_nodes(&crate::Limits { rows: u32::MAX, ..base }).is_none());
-    assert!(view::worst_case(&crate::Limits { text: u32::MAX, ..base }, &w).is_none());
+    assert!(view::fragment_bound(&crate::Limits { text: u32::MAX, ..base }, &w).is_none());
 }
 #[test]
 fn owner_milestone_second_checked_language_and_full_fragment_preserve_raw_slots_and_reject_wrong_holes() {
@@ -437,7 +437,7 @@ fn owner_milestone_second_checked_language_and_full_fragment_preserve_raw_slots_
     });
     let (tree, bindings, f) = build(&value, &w);
     assert_eq!(f.nodes, view::max_nodes(&limits()).unwrap());
-    assert_eq!(f, view::worst_case(&limits(), &w).unwrap());
+    assert_eq!(f, view::fragment_bound(&limits(), &w).unwrap());
     assert!(has(&tree, b"second 18446744073709551615"));
     assert!(!contains(&tree, b"Milestone time"));
     let mut slots = 0_u32;

@@ -106,8 +106,8 @@ fn owner_amendment_whole_admission_counts_inline_nested_lists_and_every_opaque_b
         assert_eq!(fits(&value, &Bounds { document_bytes: limit, ..bounds() }), admitted);
         assert_eq!(value, original, "admission never trims the source");
     }
-    assert!(expected <= worst_case(&bounds()).unwrap());
-    assert_eq!(worst_case(&Bounds { rows: u32::MAX, text: u32::MAX, ..bounds() }), None);
+    assert!(expected <= heap_bound(&bounds()).unwrap());
+    assert_eq!(heap_bound(&Bounds { rows: u32::MAX, text: u32::MAX, ..bounds() }), None);
 }
 #[test]
 fn owner_amendment_optional_instruction_contexts_and_losses_never_collapse_or_default() {
@@ -197,7 +197,7 @@ fn owner_amendment_empty_reserved_capacities_and_each_nested_text_refuse_without
     }
 }
 #[test]
-fn owner_amendment_full_rows_and_text_reach_the_declared_worst_case_without_omission() {
+fn owner_amendment_full_rows_and_text_reach_the_declared_heap_bound_without_omission() {
     let bounds = Bounds { rows: 2, authority: 2, segments: 2, text: 3, ..bounds() };
     let mut value = fixture();
     let doc = doc(b"xxx", true);
@@ -245,7 +245,7 @@ fn owner_amendment_full_rows_and_text_reach_the_declared_worst_case_without_omis
             .unwrap();
     }
     value.authority.authority.models = Some(AuthorityModels::Named(names));
-    let maximum = worst_case(&bounds).unwrap();
+    let maximum = heap_bound(&bounds).unwrap();
     assert_eq!(bytes(&value, &bounds), Some(maximum));
     assert!(fits(&value, &Bounds { document_bytes: maximum, ..bounds }));
     assert!(!fits(&value, &Bounds { document_bytes: maximum - 1, ..bounds }));

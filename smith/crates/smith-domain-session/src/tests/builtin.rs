@@ -304,10 +304,11 @@ fn an_owed_result_is_forgotten_by_compaction() {
 
 #[test]
 fn program_results_leave_the_turn_cell_bounded() {
-    // Ceiling on Turn and Kind cells together: a quarter above 10-28's figure, moved by hand when a real change passes it.
-    const BUILTIN_RECORD_CELLS_CEILING: usize = 240;
+    // Type-size contract check on the Turn and Kind cells together.
+    // A change of either type's size is a deliberate edit of this number.
+    const TURN_KIND_SIZE: usize = 240;
     let cells = size_of::<crate::record::Turn>() + size_of::<crate::record::Kind>();
-    assert!(cells <= BUILTIN_RECORD_CELLS_CEILING, "record cells {cells} exceed {BUILTIN_RECORD_CELLS_CEILING}");
+    assert!(cells <= TURN_KIND_SIZE, "record cells {cells} exceed {TURN_KIND_SIZE}");
 }
 
 #[test]

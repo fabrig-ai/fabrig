@@ -39,7 +39,7 @@ pub trait App: Sized {
     /// No bound of the application's own: the world's
     /// `heap_bytes_per_client` binds (programming-model.md, 6.3). An
     /// application that still states a bound overrides it.
-    fn worst_case(_limits: &Self::Limits) -> u64 {
+    fn heap_bound(_limits: &Self::Limits) -> u64 {
         u64::MAX
     }
     fn seen(tree: &Tree) -> Vec<Seen>;

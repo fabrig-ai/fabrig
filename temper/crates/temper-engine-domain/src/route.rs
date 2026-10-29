@@ -22,7 +22,7 @@ use crate::boundary::{
     Payload, PreparedWorkspace, ProposalChoice, ProposedAction, Read, Request, Tool, Work,
 };
 use crate::domain::{
-    Domain, close, emit, forge_release_ending, internal, journal_outputs, max_out, now, route, save, step_released,
+    Domain, close, emit, forge_release_ending, internal, journal_outputs, now, route, save, step_released,
 };
 use crate::limits::{Limits, core_limits, environment_core};
 use crate::restart::{accept_load, connector_restart_done, load_decision, load_outputs, restart_request};
@@ -57,7 +57,6 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
     crate::domain::invalidate_input(domain, &event);
     assert!(domain.application.is_none(), "application value cleared in its admission step");
     assert!(domain.limits == env.limits, "root uses configured limits");
-    assert!(out.room() >= max_out(&env.limits), "root output room reserved");
     if domain.journal.stopped() || domain.core.restart_failure().is_some() {
         discard_after_stop(domain, event);
         return;

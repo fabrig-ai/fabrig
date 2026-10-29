@@ -195,7 +195,7 @@ use crate::support::events_max as events;
 #[test]
 fn every_event_at_its_largest_payload_stays_within_its_encoded_and_heap_bounds() {
     let limits = smith_events::Limits { string: 32, content: 128, items: 3 };
-    let heap = smith_events::worst_case(&limits).expect("codec heap bound");
+    let heap = smith_events::codec_bound(&limits).expect("codec heap bound");
     for record in events::largest_samples(&limits) {
         for capture in [smith_events::Capture::None, smith_events::Capture::Calls, smith_events::Capture::Everything] {
             let bound = smith_events::largest_size(&record.event, &capture, &limits).expect("record bound");

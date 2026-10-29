@@ -499,8 +499,8 @@ impl Component {
         let length = u64::try_from(piece.bytes.len()).expect("piece length fits u64");
         if self.last_sent_turn.checked_add(1) != Some(piece.turn)
             || !self.takes_live(piece.kind, u32::try_from(length).unwrap_or(u32::MAX))
-            || to_service.room() < crate::limits::MAX_OUT.to_domain
-            || below.room() < crate::limits::MAX_OUT.below
+            || to_service.room() < crate::limits::EDGE_ROOM.to_domain
+            || below.room() < crate::limits::EDGE_ROOM.below
         {
             self.lose_live(length);
             return Ok(false);
@@ -540,8 +540,8 @@ impl Component {
     ) -> Result<bool, Error> {
         if self.phase != Phase::Admitted
             || self.ended
-            || to_service.room() < crate::limits::MAX_OUT.to_domain
-            || below.room() < crate::limits::MAX_OUT.below
+            || to_service.room() < crate::limits::EDGE_ROOM.to_domain
+            || below.room() < crate::limits::EDGE_ROOM.below
         {
             self.lost_facts = self.lost_facts.saturating_add(1);
             return Ok(false);
