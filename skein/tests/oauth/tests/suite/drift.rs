@@ -25,7 +25,7 @@ fn the_saved_token_schema_has_no_drift() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../crates/skein-oauth");
     let source = fs::read_to_string(root.join("schema/oauth-v3.schema")).expect("schema readable");
     let schema = skein_codegen::parse(&source).expect("schema valid");
-    let output = skein_codegen::generate_named(&schema, skein_codegen::Names::Both);
+    let output = skein_codegen::generate_named(&schema, skein_codegen::Names::Bounds);
     let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
     check(&root.join("src/generated/v3.rs"), output.rust.as_bytes(), write);
     for golden in output.goldens {
