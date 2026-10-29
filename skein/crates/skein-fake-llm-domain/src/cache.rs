@@ -59,10 +59,6 @@ impl Cache {
     }
 }
 
-pub(crate) fn worst_case(capacity: u32) -> Option<u64> {
-    Queue::<Entry>::price(capacity)
-}
-
 pub(crate) fn valid(query: &Query) -> bool {
     match &query.caching {
         Caching::Scope(_) | Caching::Unscoped => true,
