@@ -424,7 +424,8 @@ class Precheck:
                              check=False)
         log.write(result.stdout)
         log.flush()
-        ratchet_paths = set(self.paths())
+        selection_paths = self.paths()
+        ratchet_paths = set(selection_paths)
         if result.returncode:
             conflicts = self.git("diff", "--name-only", "--diff-filter=U", "-z").split("\0")[:-1]
             baselines = {f"{tree}/scripts/old-forms.txt" for tree in self.mq.TREES}
@@ -435,6 +436,9 @@ class Precheck:
             self.git("checkout", "--ours", "--", *conflicts)
             # Resolve the index without making a merge or ratchet commit.
             self.git("add", "--", *conflicts)
+        # Keep supplied/conflicted paths before recounts add generated baseline diffs.
+        self.record["selection_paths"] = selection_paths
+        self.save()
         for name, argv, cwd in self.mq.ratchet_commands(self.repo, ratchet_paths):
             baseline = f"{cwd.name}/scripts/old-forms.txt"
             before = self.identity(exclude_worktree=(baseline,))
@@ -452,7 +456,7 @@ class Precheck:
             raise InfrastructureError("source HEAD or branch refs unexpectedly changed")
 
     def choose(self):
-        paths = self.paths()
+        paths = self.record["selection_paths"]
         # Use the queue's graph-free docs/tools/full ownership cases.
         graph_free = self.mq.full_inputs(paths) or all(
             path.startswith("tools/") or (path.endswith(".md") and not
@@ -470,7 +474,7 @@ class Precheck:
             locked = self.mq.lock_changes(before.stdout, candidate.read_text(), metadata)
         selected = self.mq.selection(paths, metadata, always=self.always,
                                      read_by_tests=self.read_by_tests, locked=locked)
-        self.record.update(paths=paths, selection=sorted(selected) if isinstance(selected, set) else selected)
+        self.record.update(paths=self.paths(), selection=sorted(selected) if isinstance(selected, set) else selected)
         print(f"selection: {self.record['selection']}", flush=True)
         self.save()
         commands = []

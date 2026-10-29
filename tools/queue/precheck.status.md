@@ -34,6 +34,16 @@ repository. Its effectful cases and scratch now use disposable sibling
 fixtures; ratchet commit semantics remain tested with real Git.
 `test_precheck_tools_isolation.py` covers the offending case, all 113 mq
 cases over a staged candidate plus unstaged lower baseline, and precheck
-restoration after running the real mq suite. Cargo/heavy remain fake in
-this regression. Reconciliation of the retained real builder candidate
+restoration after running the real mq suite, with no Cargo/heavy step for
+its docs/tools candidate. Reconciliation of the retained real builder candidate
 and a repeated real Jig check remain Ops' proof to collect.
+
+Selection captures merged candidate paths before generated ratchet writes,
+matching the queue's selection before checker recounts. The result keeps
+`selection_paths` separately from the complete post-recount `paths` diff.
+Branch-supplied baseline changes and baseline-only conflicts still select
+full checks; conflict paths remain selected even when recounting matches
+BASE. `test_precheck_selection.py` covers package/reverse dependency scope,
+docs without a graph, supplied baselines, recount-before-lint ordering,
+conflict retention and exact restoration. The combined selection/isolation
+change still needs claimed-builder ordinary-heavy and low-disk proof by Ops.

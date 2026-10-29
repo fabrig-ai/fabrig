@@ -14,8 +14,12 @@ It detaches BASE and merges TIP with `--no-ff --no-commit`, without moving
 any original branch ref or making a commit. Already-contained tips have an
 empty candidate diff. Logs include merge diagnostics.
 
-Selection uses the merged index and worktree against BASE, after writing
-ratchets. Metadata and formatting ownership come from this candidate;
+Selection uses the merged index and worktree paths against BASE, captured
+before writing ratchets. Generated lower baselines do not widen selection;
+baseline changes supplied by the branch retain the queue's ordinary policy.
+Ratchet-only conflicts retain their baseline paths for selection even when
+choosing BASE and recounting leaves no baseline diff. Recounts still finish
+before checks run. Metadata and formatting ownership come from the candidate;
 Cargo.lock selection compares BASE's blob with the candidate file through
 `mq.lock_changes`. `mq.selection`, its always/read-by-tests lists,
 `mq.check_commands`, `mq.tools_commands`, `mq.ratchet_commands`, and
@@ -118,6 +122,10 @@ the source checkout. Files are 0600: `commands.log`, `result.json`,
 preparation/restoration can rewrite, including baseline files).
 Results include pinned inputs, paths, selection, planned commands, argv,
 step return codes, durations, heavy observation, outcome and restoration.
+`selection_paths` records candidate paths captured before recounts,
+including reconciled baseline conflict paths; `paths` retains the complete
+post-recount candidate diff against BASE, including generated baselines.
+The latter remains available to consumers verifying candidate freshness.
 `min_free_bytes` records the chosen threshold; `admissions` records each
 heavy command's name, `free_bytes`, `min_free_bytes` and `admitted` decision.
 A deferred command remains in the plan without a completed step or an

@@ -101,9 +101,6 @@ Path('scripts/old-forms.txt').write_text('9\\n')
 
         def runner(argv, **options):
             self.assertEqual(options["stdin"], subprocess.DEVNULL)
-            if argv[0] in ("cargo", "heavy"):
-                self.calls.append((list(argv), options["cwd"]))
-                return subprocess.CompletedProcess(argv, 0)
             self.assertEqual(argv[:3], ["python3", "-I", "-B"])
             # Only the real fixture ratchet and the copied mq suite can execute.
             self.assertIn(argv[3], (str(self.repo / "jig/scripts/old_forms.py"),
@@ -121,24 +118,22 @@ Path('scripts/old-forms.txt').write_text('9\\n')
         tool = fixtures.precheck.Precheck(self.repo, "base", "tip", mq=fixtures.mq,
                                           always=[], read_by_tests=fixtures.PATTERNS,
                                           runner=runner, busy=lambda _: "fixture observation",
-                                          metadata=self.load_metadata, min_free_bytes=1)
+                                          metadata=lambda _: self.fail("docs/tools need no metadata"))
         with redirect_stdout(io.StringIO()):
             result = tool.run()
         log = (tool.log_directory / "commands.log").read_text()
         self.assertEqual(result, 0, str(tool.record) + "\n" + log)
         self.assertEqual(len(observations), 1)
         self.assertIn("Ran 113 tests", log)
-        # Queue policy selects full checks when the recount adds a changed baseline.
-        self.assertEqual(tool.record["selection"], "full")
+        self.assertEqual(tool.record["selection"], "docs")
+        self.assertEqual(tool.record["selection_paths"], ["jig/README.md", "tools/candidate.md"])
+        self.assertEqual(tool.record["paths"],
+                         ["jig/README.md", "jig/scripts/old-forms.txt", "tools/candidate.md"])
         self.assertEqual([step["name"] for step in tool.record["steps"]],
-                         ["ratchet:jig", "tools/queue/test_mq.py", "fmt", "clippy", "build"])
-        self.assertEqual([argv[:3] for argv, _ in self.calls],
-                         [["cargo", "fmt", "--all"], ["heavy", "cargo", "clippy"],
-                          ["heavy", "cargo", "nextest"]])
+                         ["ratchet:jig", "tools/queue/test_mq.py"])
         self.assertEqual(tool.record["outcome"], "passed")
-        self.assertEqual(tool.record["min_free_bytes"], 1)
-        self.assertEqual([item["name"] for item in tool.record["admissions"]], ["clippy", "build"])
-        self.assertTrue(all(item["admitted"] for item in tool.record["admissions"]))
+        self.assertEqual(tool.record["min_free_bytes"], 80_000_000_000)
+        self.assertEqual(tool.record["admissions"], [])
         self.assertTrue(tool.record["restored"])
         self.assertFalse(tool.marker.exists())
         self.assertEqual(json.loads((tool.log_directory / "result.json").read_text()), tool.record)
