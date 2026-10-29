@@ -129,11 +129,7 @@ fn profile() -> root::Limits {
         facts: 2,
         history: 2,
     };
-    let writes = PEOPLE_WRITE_ALLOWANCE
-        + people.pending * 2
-        + jig_test_connector::MAX_OUT * 2
-        + tasks.tasks
-        + 6;
+    let writes = PEOPLE_WRITE_ALLOWANCE + people.pending * 2 + jig_test_connector::MAX_OUT * 2 + tasks.tasks + 6;
     let journal = JournalLimits { commits: 3, held: 2000, writes: writes.max(2000), now: 32, release: 32 };
     let mut limits = root::Limits {
         journal,
