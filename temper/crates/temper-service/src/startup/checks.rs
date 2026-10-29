@@ -590,7 +590,7 @@ pub fn turns(
     }
 }
 /// The worker's rules against the agent's configuration, each naming both
-/// limits (temper-worker-domain's `worst_case`).
+/// limits (temper-worker-domain's `unfit`).
 pub fn worker(limits: &worker_domain::Limits, problems: &mut Problems) {
     use worker_domain::Unfit;
     let worker = at(0, Path::root().member(b"workers"));
