@@ -75,13 +75,13 @@ pub fn worst_case(limits: &Limits, checkout: &checkout::Limits) -> Option<u64> {
     let name = u64::from(checkout.name_bytes);
     // Forty argument boxes; settings/options/ids have fewer than 1024 bytes,
     // and the longest leased push owns its remote and branch twice.
-    let arguments = List::<Box<[u8]>>::worst_case(40)?.checked_add(1024)?.checked_add(name.checked_mul(3)?)?;
+    let arguments = List::<Box<[u8]>>::price(40)?.checked_add(1024)?.checked_add(name.checked_mul(3)?)?;
     // The grant ceiling of jig's protocol/channel.md, section 11, is 8192
     // bytes (the pinned jig schema).
     // Four identity fields, their base64 header and author copies, fixed
     // variable names, and HOME fit this envelope for a filesystem path.
-    let environment = List::<Box<[u8]>>::worst_case(14)?.checked_add(32768)?;
-    let paths = List::<Box<[u8]>>::worst_case(checkout.conflicts)?
+    let environment = List::<Box<[u8]>>::price(14)?.checked_add(32768)?;
+    let paths = List::<Box<[u8]>>::price(checkout.conflicts)?
         .checked_add(u64::from(checkout.conflicts).checked_mul(u64::from(checkout.path_bytes))?)?;
     let mut each = arguments
         .checked_add(environment)?
@@ -104,8 +104,8 @@ pub fn worst_case(limits: &Limits, checkout: &checkout::Limits) -> Option<u64> {
         .checked_add(u64::from(checkout::PROGRAM_BYTES).checked_mul(2)?)?;
     let capacity = limits.operations.checked_add(1)?;
     let table = Slab::<Operation>::worst_case(capacity.checked_mul(2)?)?
-        .checked_add(Map::<Token, Id<Operation>>::worst_case(capacity)?)?;
-    let page = List::<kernel::Entry>::worst_case(limits.sweep_entries)?.checked_add(u64::from(limits.sweep_bytes))?;
+        .checked_add(Map::<Token, Id<Operation>>::price(capacity)?)?;
+    let page = List::<kernel::Entry>::price(limits.sweep_entries)?.checked_add(u64::from(limits.sweep_bytes))?;
     let background = u64::try_from(size_of::<crate::files::Task>())
         .ok()?
         .checked_add(u64::try_from(kernel::LONGEST_NAME).ok()?.checked_mul(2)?)?;
