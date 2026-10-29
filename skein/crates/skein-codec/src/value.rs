@@ -120,12 +120,6 @@ impl Value {
         Value { bytes: Secret::new(Box::default()), entries: List::with_capacity(nodes), growing: None }
     }
 
-    /// The old name of [`decoder_bound`]; it goes once every tree calls the new name (wave 3).
-    #[must_use]
-    pub fn worst_case_heap(nodes: u32) -> Option<u64> {
-        Self::decoder_bound(nodes)
-    }
-
     /// Bounds a node allowance's decoder entry tables.
     /// The heap allocated for the entries, or none past u64.
     #[must_use]

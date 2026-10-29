@@ -16,6 +16,7 @@ mod drift;
 mod fingerprint;
 mod generic;
 mod memory;
+mod names;
 mod patch;
 mod wire;
 mod worst;
