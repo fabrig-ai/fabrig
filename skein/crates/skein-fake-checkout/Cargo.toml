@@ -9,6 +9,10 @@ publish.workspace = true
 
 # Ordinary Rust (programming-model.md, 10.2), so not the step crates' lints.
 # its clippy.toml bans what would make a run unrepeatable.
+[lib]
+test = false
+doctest = false
+
 [lints.rust]
 unsafe_code = "forbid"
 elided_lifetimes_in_paths = "deny"
