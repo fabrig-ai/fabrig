@@ -118,6 +118,8 @@ pub enum MessageKind {
     /// removal emptied the pending set; of several removed at once, the
     /// first in the old list.
     Met { dependency: u64, removed: bool },
+    /// The question ended without an answer; its asker may go on.
+    QuestionEnded { question: u64 },
 }
 
 /// Terminal shape carried with a delegate's bounded message words.
@@ -182,7 +184,8 @@ impl Word {
             | MessageKind::Timer { .. }
             | MessageKind::News { .. }
             | MessageKind::Result(_)
-            | MessageKind::Met { .. } => false,
+            | MessageKind::Met { .. }
+            | MessageKind::QuestionEnded { .. } => false,
         }
     }
 
@@ -212,6 +215,7 @@ impl Word {
             | MessageKind::FinishRequested { .. }
             | MessageKind::Amendment { .. }
             | MessageKind::Met { .. }
+            | MessageKind::QuestionEnded { .. }
             | MessageKind::Question
             | MessageKind::Answer { .. }
             | MessageKind::Notice { .. }
@@ -229,11 +233,22 @@ pub struct SavedResource {
     pub path: Box<[Box<[u8]>]>,
 }
 
-/// An unanswered question and the task allowed to use its reserved answer room.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+/// An unanswered question and the party allowed to use its reserved answer room.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct QuestionCredit {
     pub number: u64,
-    pub answerer: u64,
+    pub answerer: Party,
+    /// The logical addressed party.
+    pub asked: Party,
+    /// Position of the question activity in the owning task record.
+    pub line: u64,
+}
+
+/// Root-numbered notices for one asker's retired questions.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct QuestionNotice {
+    pub question: u64,
+    pub message: u64,
 }
 
 /// Root-verified requester/creator identity; requester topology and financial source are
@@ -1286,6 +1301,8 @@ pub enum Refusal {
     /// person's answer, a procedure's step ending it done, or an effect that waits for them
     /// (domain/tasks.md, 5.7).
     Kept,
+    /// Its own unanswered question keeps it (domain/tasks.md, 5.7).
+    KeptQuestion { question: u64 },
     /// `Agent` charter is absent from the admitted configured table.
     Executor,
     /// Specification count or aggregate owned bytes are invalid.
@@ -1741,6 +1758,10 @@ pub enum Event {
     },
     /// Root numbers the news requested by the due person-task timer.
     PersonStallNotice { task: u64, message: u64 },
+    /// Root numbers each unanswered-question notice once.
+    QuestionEndedNotice { task: u64, notices: Box<[QuestionNotice]> },
+    /// A caller cancels its own unanswered question.
+    CancelQuestion { reply_to: ReplyTo, task: u64, question: u64 },
     /// Root numbers the notice that a kept task goes on (domain/tasks.md, 5.7 and 8.1).
     MetNotice { task: u64, dependency: u64, removed: bool, by: Party, message: u64 },
     /// Admit one `Live`/`Ledger` row during restoring; invalid input permanently fails restoration
@@ -1792,6 +1813,8 @@ pub enum Request {
     ProposalRerouteNeeded { proposer: u64, proposal: u64 },
     /// Root supplies one message number for the elapsed person-task wait.
     PersonStallDue { task: u64 },
+    /// One continuation for each asker whose questions ended unanswered.
+    QuestionEndedDue { task: u64, questions: Box<[u64]> },
     /// Root supplies one message number for the notice that a kept task goes on (domain/tasks.md, 5.7 and 8.1).
     MetDue { task: u64, dependency: u64, removed: bool, by: Party },
     /// One nonfinal held decision passed its configured wait.

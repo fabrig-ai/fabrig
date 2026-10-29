@@ -196,7 +196,9 @@ fn a_live_run_finishes_done_as_parked_keeps_saved_state_and_names_its_dependenci
         .iter()
         .position(|line| matches!(line, Line::RunEnded { end: tasks::EndKind::Parked, .. }))
         .expect("fixture evidence");
-    assert!(matches!(lines.get(end + 1), Some(Line::Kept { attempt: 1, pending }) if pending.as_ref() == [2]));
+    assert!(
+        matches!(lines.get(end + 1), Some(Line::Kept { attempt: 1, pending, question: None }) if pending.as_ref() == [2])
+    );
     done(&mut world, 2);
     assert_eq!(world.record(1).phase, Phase::Active(Active::Due));
     assert!(world.contexts[&1].pending.is_empty());

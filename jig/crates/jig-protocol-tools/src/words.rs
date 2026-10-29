@@ -27,6 +27,7 @@ pub fn words(word: &tasks::Word) -> Box<[u8]> {
         tasks::MessageKind::Notice { target, state: tasks::NoticeState::Held { revision }, .. } => {
             return held(b"Task ", target, revision, &word.words);
         }
+        tasks::MessageKind::QuestionEnded { question } => (b"Question ended unanswered ".as_slice(), question),
         tasks::MessageKind::Words
         | tasks::MessageKind::Question
         | tasks::MessageKind::Answer { .. }

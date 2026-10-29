@@ -57,6 +57,7 @@ pub enum Line {
     Kept {
         attempt: u64,
         pending: Box<[u64]>,
+        question: Option<u64>,
     },
 }
 
@@ -107,6 +108,7 @@ pub(crate) fn message(task: &mut TaskRecord, word: &Word, bound: u32, out: &mut 
         | MessageKind::FinishRequested { .. }
         | MessageKind::Amendment { .. }
         | MessageKind::Met { .. }
+        | MessageKind::QuestionEnded { .. }
         | MessageKind::Notice { .. }
         | MessageKind::Timer { .. }
         | MessageKind::News { .. }

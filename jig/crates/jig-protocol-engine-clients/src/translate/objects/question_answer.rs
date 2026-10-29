@@ -17,6 +17,9 @@ pub fn message_kind(value: &t::MessageKind, limits: &w::Limits) -> Result<w::Own
                 },
             )?)
         }
+        t::MessageKind::QuestionEnded { question } => w::OwnerMessageKind::QuestionEnded(
+            w::OwnerMessageKindAnswer::new(limits, w::OwnerMessageKindAnswerParts { question: *question })?,
+        ),
         t::MessageKind::Words => w::OwnerMessageKind::Words,
         t::MessageKind::Question => w::OwnerMessageKind::Question,
         t::MessageKind::Escalation { task, revision } => {

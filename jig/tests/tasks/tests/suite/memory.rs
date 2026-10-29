@@ -360,6 +360,8 @@ fn borrowed_stored_bytes_matches_allocator_for_every_retained_row() {
         message: 1,
     });
     record.refused = Box::new([1, 2]);
+    record.questions =
+        Box::new([tasks::QuestionCredit { number: 3, answerer: Party::Task(4), asked: Party::Task(4), line: 1 }]);
     record.spec = new.spec;
     record.spec.parameters = Box::new([
         Parameter::Bytes { name: 1, value: vec![1; 4096].into_boxed_slice() },

@@ -1,0 +1,350 @@
+//! Requester question keeps and task-batched exits (domain/tasks.md, 5.7 and 7).
+use jig_domain_tasks::{self as tasks, *};
+use jig_tasks_world::{LIMITS, Reply, World, task};
+use skein_lib::{Queue, ReplyTo, Token, Wall};
+
+const REQUESTER: u64 = 1;
+const ASKER: u64 = 2;
+const PERSON: u64 = 9;
+const QUESTION: u64 = 1;
+const ANSWER: u64 = 2;
+const LATER_QUESTION: u64 = 3;
+const ATTEMPT: u64 = 1;
+const PERSON_TASK: u64 = 3;
+
+fn response(world: &mut World, make: impl FnOnce(ReplyTo) -> Event) -> Reply {
+    let to = world.to();
+    let number = to.into_token().raw();
+    world.send(make(ReplyTo::new(Token::new(number))));
+    world.replies[&number].clone()
+}
+
+fn message(world: &mut World, source: Party, target: u64, number: u64, kind: MessageKind) -> Reply {
+    response(world, |reply_to| Event::Message {
+        reply_to,
+        project: 1,
+        task: target,
+        word: Word {
+            number,
+            from: source,
+            kind,
+            words: b"proceed?".as_slice().into(),
+            at: Wall::EPOCH,
+            hits: 1,
+            eligible: false,
+        },
+    })
+}
+
+fn pair() -> World {
+    let mut world = World::new(880, LIMITS);
+    let mut parent = task(REQUESTER, &[]);
+    parent.numbers.budget = 1_000;
+    parent.authority.budget.spend = 1_000;
+    world.make(Party::Person(PERSON), vec![parent]);
+    let mut child = task(ASKER, &[]);
+    child.funder = Funder::Task(REQUESTER);
+    child.wake.answers = false;
+    world.make(Party::Task(REQUESTER), vec![child]);
+    world.claim(ASKER, ATTEMPT);
+    world
+}
+
+fn asked() -> World {
+    let mut world = pair();
+    message(&mut world, Party::Task(ASKER), REQUESTER, QUESTION, MessageKind::Question);
+    world
+}
+
+fn report() -> End {
+    End::Finished { result: TaskResult::Report { words: b"ready".as_slice().into() }, cancel_delegates: false }
+}
+
+fn parked() -> World {
+    let mut world = asked();
+    world.terminal(ASKER, report());
+    world
+}
+
+#[test]
+fn a_task_with_its_own_question_unanswered_parks_on_finish() {
+    let world = parked();
+    assert_eq!(world.record(ASKER).phase, Phase::Active(Active::Idle));
+    assert_eq!(world.record(ASKER).tries, Tries::NONE);
+    assert!(world.records.values().any(|row| matches!(row, Stored::Activity(ActivityLine {
+        task: ASKER, line: Line::Kept { attempt: ATTEMPT, pending, question: Some(QUESTION) }, ..
+    }) if pending.is_empty())));
+    assert!(!world.activations.contains(&ASKER));
+}
+
+#[test]
+fn the_answer_wakes_a_task_kept_by_its_question() {
+    let mut world = parked();
+    world.restart();
+    message(&mut world, Party::Task(REQUESTER), ASKER, ANSWER, MessageKind::Answer { question: QUESTION });
+    assert!(world.record(ASKER).questions.is_empty());
+    assert!(world.activations.contains(&ASKER));
+    assert_eq!(world.contexts[&ASKER].inbox[0].from, Party::Task(REQUESTER));
+    world.claim(ASKER, ANSWER);
+    world.finish(ASKER);
+    world.settle(ASKER);
+    assert!(matches!(world.results[&ASKER], Ending::Done(_)));
+}
+
+#[test]
+fn a_question_keep_permits_failure() {
+    let mut world = asked();
+    world.terminal(
+        ASKER,
+        End::Finished {
+            result: TaskResult::Failure { reason: b"cannot proceed".as_slice().into() },
+            cancel_delegates: false,
+        },
+    );
+    world.settle(ASKER);
+    assert!(matches!(world.results[&ASKER], Ending::Failed { .. }));
+}
+
+#[test]
+fn a_question_keep_permits_cancellation() {
+    let mut world = parked();
+    response(&mut world, |reply_to| Event::Control {
+        reply_to,
+        by: Party::Person(PERSON),
+        task: ASKER,
+        control: Control::Cancel { reason: Box::new([]), grace: None, message: None },
+    });
+    world.settle(ASKER);
+    assert!(matches!(world.results[&ASKER], Ending::Cancelled { .. }));
+}
+
+#[test]
+fn a_question_through_a_person_task_keeps_nothing() {
+    let mut world = pair();
+    let mut person = task(PERSON_TASK, &[]);
+    person.executor = Executor::Person(PersonAddress::Person(PERSON));
+    person.funder = Funder::Task(ASKER);
+    person.numbers.budget = 20;
+    person.authority.budget.spend = 20;
+    world.make(Party::Task(ASKER), vec![person]);
+    message(&mut world, Party::Task(ASKER), PERSON_TASK, QUESTION, MessageKind::Words);
+    assert!(world.record(ASKER).questions.is_empty());
+    // Detachment is a separate task rule; finishing with delegate cancellation
+    // demonstrates that words introduced no question keep.
+    world.terminal(
+        ASKER,
+        End::Finished { result: TaskResult::Report { words: b"ready".as_slice().into() }, cancel_delegates: true },
+    );
+    assert!(matches!(world.record(ASKER).phase, Phase::Closing(_)));
+}
+
+fn moved() -> World {
+    let mut world = parked();
+    response(&mut world, |reply_to| Event::Move {
+        reply_to,
+        task: ASKER,
+        person: PERSON,
+        period: 0,
+        pool_budget: 1_000,
+        period_budget: 10_000,
+        reason: Box::new([]),
+    });
+    world.restart();
+    world
+}
+
+#[test]
+fn a_moved_asker_carries_its_open_question_to_its_new_requester() {
+    let mut world = moved();
+    let row = world.record(ASKER);
+    assert_eq!(row.requester, Party::Person(PERSON));
+    assert_eq!(row.phase, Phase::Active(Active::Idle));
+    let credit = row.questions[0].clone();
+    assert_eq!(credit.number, QUESTION);
+    assert_eq!(credit.answerer, Party::Person(PERSON));
+    assert_eq!(credit.asked, Party::Person(PERSON));
+    assert_eq!(row.question_lines[0].line, credit.line);
+    assert!(matches!(&world.records[&Key::Activity { task: ASKER, position: credit.line }],
+        Stored::Activity(ActivityLine { line: Line::Words { message: QUESTION, words, .. }, .. })
+            if words.as_ref() == b"proceed?"));
+    assert!(world.record(REQUESTER).question_lines.is_empty());
+    message(&mut world, Party::Person(PERSON), ASKER, ANSWER, MessageKind::Answer { question: QUESTION });
+    assert!(world.record(ASKER).questions.is_empty());
+    assert!(world.activations.contains(&ASKER));
+}
+
+#[test]
+fn a_question_ending_unanswered_lifts_the_keep_with_a_notice() {
+    let mut world = parked();
+    response(&mut world, |reply_to| Event::CancelQuestion { reply_to, task: ASKER, question: QUESTION });
+    assert!(world.record(ASKER).questions.is_empty());
+    assert!(world.activations.contains(&ASKER));
+    assert!(
+        world.record(ASKER).inbox.iter().any(|word| word.kind == MessageKind::QuestionEnded { question: QUESTION })
+    );
+    assert!(world.record(REQUESTER).question_lines.is_empty());
+}
+
+#[test]
+fn an_asked_task_ending_unanswered_notifies_each_asker() {
+    // Move the asker under its own person so its old requester may end,
+    // then ask that old requester through the retained bilateral reference.
+    let mut world = moved();
+    message(&mut world, Party::Person(PERSON), ASKER, ANSWER, MessageKind::Answer { question: QUESTION });
+    message(&mut world, Party::Task(ASKER), REQUESTER, LATER_QUESTION, MessageKind::Question);
+    world.claim(ASKER, ANSWER);
+    world.terminal(ASKER, End::Parked);
+    world.claim(REQUESTER, LATER_QUESTION);
+    world.finish(REQUESTER);
+    world.settle(REQUESTER);
+    assert!(world.record(ASKER).questions.is_empty());
+    assert!(
+        world
+            .record(ASKER)
+            .inbox
+            .iter()
+            .any(|word| word.kind == MessageKind::QuestionEnded { question: LATER_QUESTION })
+    );
+    assert!(world.activations.contains(&ASKER));
+}
+
+/// A single tasks step's publications, before the parent numbers continuations.
+fn step(domain: &mut Domain, env: &skein_lib::Env<Limits>, event: Event) -> Vec<Request> {
+    let mut out = Queue::uncapped();
+    tasks::step(domain, env, event, &mut out);
+    let mut requests = Vec::new();
+    while let Some(request) = out.pop() {
+        requests.push(request);
+    }
+    requests
+}
+
+const SECOND_ASKER: u64 = 3;
+const FIRST_PEER: u64 = 4;
+const SECOND_PEER: u64 = 5;
+const ASKER_COUNT: usize = 2;
+
+fn fanout() -> (Domain, skein_lib::Env<Limits>) {
+    let limits = Limits { message_bytes: 8, ..LIMITS };
+    let mut world = World::new(881, limits);
+    let mut parent = task(REQUESTER, &[]);
+    parent.numbers.budget = 10_000;
+    parent.authority.budget.spend = 10_000;
+    world.make(Party::Person(PERSON), vec![parent]);
+    let children = [ASKER, SECOND_ASKER, FIRST_PEER, SECOND_PEER].map(|number| {
+        let mut child = task(number, &[]);
+        child.funder = Funder::Task(REQUESTER);
+        child
+    });
+    world.make(Party::Task(REQUESTER), children.into());
+    let mut serial = 0;
+    for asker in [ASKER, SECOND_ASKER] {
+        world.claim(asker, asker);
+        for peer in [FIRST_PEER, SECOND_PEER] {
+            response(&mut world, |reply_to| Event::Introduce { reply_to, by: REQUESTER, left: asker, right: peer });
+            // Each peer receives half of each asker's full credit list.
+            for _ in 0..limits.inbox_messages / u32::try_from(ASKER_COUNT).expect("asker count") {
+                serial += 1;
+                message(&mut world, Party::Task(asker), peer, serial, MessageKind::Question);
+            }
+        }
+        world.terminal(asker, End::Parked);
+    }
+    let mut domain = jig_tasks_world::domain(&limits, 881);
+    for record in world.records.values().filter(|row| row.key().live()) {
+        step(&mut domain, &world.env, Event::Restore { record: record.clone() });
+    }
+    step(&mut domain, &world.env, Event::Check);
+    step(&mut domain, &world.env, Event::Restored);
+    (domain, world.env)
+}
+
+fn publications(out: &[Request], task: u64) -> usize {
+    out.iter()
+        .filter(|request| {
+            matches!(request,
+        Request::Save { record: Stored::Live(row) } if row.number == task)
+        })
+        .count()
+}
+
+#[test]
+fn moving_full_credit_lists_publishes_each_affected_task_once() {
+    let (mut domain, env) = fanout();
+    for asker in [ASKER, SECOND_ASKER] {
+        let original = domain.task(asker).expect("asker").questions.clone();
+        let out = step(
+            &mut domain,
+            &env,
+            Event::Move {
+                reply_to: ReplyTo::new(Token::new(1)),
+                task: asker,
+                person: PERSON,
+                period: 0,
+                pool_budget: 10_000,
+                period_budget: 100_000,
+                reason: Box::new([]),
+            },
+        );
+        let row = domain.task(asker).expect("moved asker");
+        assert_eq!(row.questions.len(), usize::try_from(env.limits.inbox_messages).expect("credit bound"));
+        assert_eq!(
+            row.questions.iter().map(|credit| (credit.number, credit.line)).collect::<Vec<_>>(),
+            original.iter().map(|credit| (credit.number, credit.line)).collect::<Vec<_>>()
+        );
+        assert!(row.questions.iter().all(|credit| credit.asked == Party::Person(PERSON)));
+        for affected in [REQUESTER, asker, FIRST_PEER, SECOND_PEER] {
+            assert_eq!(publications(&out, affected), 1, "task {affected}");
+        }
+        assert!(!out.iter().any(|request| matches!(
+            request,
+            Request::Save {
+                record: Stored::Activity(ActivityLine { line: Line::Words { kind: MessageKind::Question, .. }, .. })
+            }
+        )));
+    }
+}
+
+#[test]
+fn ending_full_credit_lists_emits_one_batch_per_asker_and_one_publication() {
+    let (mut domain, env) = fanout();
+    step(
+        &mut domain,
+        &env,
+        Event::Control {
+            reply_to: ReplyTo::new(Token::new(1)),
+            by: Party::Task(REQUESTER),
+            task: FIRST_PEER,
+            control: Control::Cancel { reason: Box::new([]), grace: None, message: None },
+        },
+    );
+    step(&mut domain, &env, Event::EffectsSettled { task: FIRST_PEER });
+    let out = step(&mut domain, &env, Event::Settled { task: FIRST_PEER });
+    let batches = out
+        .iter()
+        .filter_map(|request| {
+            let Request::QuestionEndedDue { task, questions } = request else { return None };
+            Some((*task, questions.clone()))
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(batches.len(), ASKER_COUNT);
+    for (task, questions) in batches {
+        assert_eq!(questions.len(), usize::try_from(env.limits.inbox_messages).expect("credit bound") / ASKER_COUNT);
+        assert_eq!(publications(&out, task), 1);
+        let notices = questions
+            .iter()
+            .enumerate()
+            .map(|(at, question)| QuestionNotice {
+                question: *question,
+                message: 100 + u64::try_from(at).expect("bounded notice index"),
+            })
+            .collect();
+        let out = step(&mut domain, &env, Event::QuestionEndedNotice { task, notices });
+        assert_eq!(publications(&out, task), 1);
+        let row = domain.task(task).expect("asker");
+        assert_eq!(
+            row.inbox.iter().filter(|word| matches!(word.kind, MessageKind::QuestionEnded { .. })).count(),
+            questions.len()
+        );
+    }
+}

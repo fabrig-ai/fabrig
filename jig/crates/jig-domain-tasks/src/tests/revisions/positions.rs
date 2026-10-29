@@ -156,12 +156,12 @@ fn a_tasks_answer_names_the_line_in_the_delegates_activity() {
     let activity = live(&h, 1).activity;
     assert!(live(&h, 1).inbox.is_empty());
     let _answer = word(&mut h, 2, Party::Task(1), 2, MessageKind::Answer { question: 1 });
-    let expected = Some(crate::AnswerLine { task: 2, position: 2 });
+    let expected = Some(crate::AnswerLine { task: 2, position: 3 });
     assert_eq!(live(&h, 1).question_lines[0].answer, expected);
     assert_eq!(live(&h, 1).activity, activity, "the answering task gains no line");
     let Stored::Live(saved) = &h.stored[&Key::Live(1)] else { panic!("answer pointer saved") };
     assert_eq!(saved.question_lines[0].answer, expected);
-    let Stored::Activity(line) = &h.stored[&Key::Activity { task: 2, position: 2 }] else { panic!("answer line") };
+    let Stored::Activity(line) = &h.stored[&Key::Activity { task: 2, position: 3 }] else { panic!("answer line") };
     let crate::Line::Words { kind, .. } = &line.line else { panic!("answer words") };
     assert_eq!(*kind, MessageKind::Answer { question: 1 });
     let original = live(&h, 1).clone();

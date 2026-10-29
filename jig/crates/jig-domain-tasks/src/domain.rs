@@ -43,6 +43,8 @@ pub struct Domain {
     pub(crate) circle_changes: crate::waits::CircleChanges,
     pub(crate) tasks: Slab<Task>,
     pub(crate) names: Map<u64, Id<Task>>,
+    pub(crate) question_changes: List<u64>,
+    pub(crate) question_ends: Map<u64, List<u64>>,
     pub(crate) live_agents: u32,
     pub(crate) newest: u32,
     pub(crate) holders: Map<u32, u32>,
@@ -225,6 +227,8 @@ impl Domain {
             circle_changes: crate::waits::CircleChanges::new(limits),
             tasks: Slab::with_capacity(limits.tasks),
             names: Map::with_capacity(limits.tasks),
+            question_changes: List::uncapped(),
+            question_ends: Map::uncapped(),
             live_agents: 0,
             newest,
             holders: Map::with_capacity(limits.revisions.checked_add(1).expect("revision bound")),
@@ -532,6 +536,7 @@ impl Domain {
 /// effects before external replies.
 #[expect(clippy::too_many_lines, reason = "the closed task event vocabulary dispatches to focused handlers")]
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
+    let output_start = out.len();
     let held = crate::settings::before(domain);
     match event {
         Event::MoveToNewest { from } => crate::settings_moves::move_tasks(domain, env, from, out),
@@ -745,6 +750,10 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::EffectsSettled { task } => crate::closing::effects_settled(domain, env, task, out),
         Event::Retained { task, root, holding } => crate::holds::retained(domain, env, task, root, &holding, out),
         Event::Settled { task } => crate::closing::settled(domain, env, task, out),
+        Event::QuestionEndedNotice { task, notices } => crate::questions::ended(domain, env, task, &notices, out),
+        Event::CancelQuestion { reply_to, task, question } => {
+            crate::questions::cancel(domain, env, reply_to, task, question, out);
+        }
         Event::PersonStallNotice { task, message } => crate::person::stalled(domain, env, task, message, out),
         Event::MetNotice { task, dependency, removed, by, message } => {
             crate::wake::met(domain, env, task, dependency, removed, by, message, out);
@@ -766,6 +775,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         crate::holds::expire(domain, env, out);
         crate::closing::progress(domain, env, out);
     }
+    crate::questions::flush(domain, env, output_start, out);
     crate::settings::released(domain, held, out);
 }
 
@@ -773,6 +783,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
 /// bounded closing/readiness cascades into an uncapped output queue. The caller drives later
 /// iterations while due; wall correction does not reproject an already armed deadline.
 pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    let output_start = out.len();
     if !domain.ready() {
         return;
     }
@@ -819,6 +830,7 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         }
     }
     crate::closing::progress(domain, env, out);
+    crate::questions::flush(domain, env, output_start, out);
     crate::settings::released(domain, held, out);
 }
 
@@ -1051,6 +1063,7 @@ fn milestone(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queu
 }
 
 pub(crate) fn publish(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue<Request>) {
+    crate::questions::published(domain, number);
     crate::placed::enforce(&mut task_mut(domain, number).expect("published task live").record);
     crate::settings::publish(domain, number);
     crate::waits::refresh(domain, number);

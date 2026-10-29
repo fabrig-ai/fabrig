@@ -18,6 +18,7 @@ mod person;
 mod placed;
 mod procedures;
 mod proposals;
+mod questions;
 mod recurring;
 mod referee;
 mod repin_order;

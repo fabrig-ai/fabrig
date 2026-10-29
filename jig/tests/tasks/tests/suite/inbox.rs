@@ -131,15 +131,16 @@ fn a_question_keeps_room_for_its_answer_while_words_fill_the_inbox() {
     let mut world = World::new(83, limits);
     world.make(Party::Person(9), vec![task(1, &[])]);
     world.make(Party::Task(1), vec![task(2, &[])]);
-    assert!(matches!(task_words(&mut world, 2, 1, 1, MessageKind::Question), Reply::Done));
-    assert_eq!(world.record(2).questions.len(), 1);
-    assert!(matches!(task_words(&mut world, 1, 2, 2, MessageKind::Words), Reply::Done));
+    world.make(Party::Task(2), vec![task(3, &[])]);
+    assert!(matches!(task_words(&mut world, 3, 2, 1, MessageKind::Question), Reply::Done));
+    assert_eq!(world.record(3).questions.len(), 1);
+    assert!(matches!(task_words(&mut world, 2, 3, 2, MessageKind::Words), Reply::Done));
     assert!(
-        matches!(task_words(&mut world, 1, 2, 3, MessageKind::Words), Reply::Refused(problem) if problem.why == Refusal::Busy)
+        matches!(task_words(&mut world, 2, 3, 3, MessageKind::Words), Reply::Refused(problem) if problem.why == Refusal::Busy)
     );
-    assert!(matches!(task_words(&mut world, 1, 2, 4, MessageKind::Answer { question: 1 }), Reply::Done));
-    assert!(world.record(2).questions.is_empty());
-    assert_eq!(world.record(2).inbox.len(), 2);
+    assert!(matches!(task_words(&mut world, 2, 3, 4, MessageKind::Answer { question: 1 }), Reply::Done));
+    assert!(world.record(3).questions.is_empty());
+    assert_eq!(world.record(3).inbox.len(), 2);
     world.restart();
 }
 

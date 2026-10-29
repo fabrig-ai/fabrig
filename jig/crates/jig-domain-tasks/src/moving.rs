@@ -107,6 +107,40 @@ pub(crate) fn check(
     if reason.len() > usize::try_from(env.limits.message_bytes).expect("bounded reason size") {
         return Err(crate::Problem::new(Some(number), Refusal::Read));
     }
+    let mut unanswered = 0_usize;
+    for line in &old.question_lines {
+        if line.answer.is_none() {
+            unanswered = unanswered.checked_add(1).expect("bounded question positions");
+        }
+    }
+    let mut carried = 0_usize;
+    for credit in &old.questions {
+        match credit.asked {
+            Party::Task(_) => carried = carried.checked_add(1).expect("bounded outgoing questions"),
+            Party::Person(_) | Party::Deployment { .. } => {}
+        }
+    }
+    if unanswered.saturating_add(carried) > usize::try_from(env.limits.inbox_messages).expect("question bound") {
+        return Err(crate::Problem::new(Some(number), Refusal::Busy));
+    }
+    let received_before = crate::inbox::received_credits(old.requester, &old.question_lines, &old.questions, old.inbox);
+    let received_after =
+        crate::inbox::received_credits(Party::Person(person), &old.question_lines, &old.questions, old.inbox);
+    let added =
+        u32::try_from(received_after.checked_sub(received_before).expect("move adds received question positions"))
+            .expect("bounded question positions");
+    if added > 0 && !crate::inbox::room_staged(domain, staged, &env.limits, number, added, 0) {
+        return Err(crate::Problem::capacity(
+            Some(number),
+            Refusal::Busy,
+            crate::Capacity {
+                project: Some(old.project),
+                by: Party::Person(person),
+                action: crate::CapacityAction::Move,
+                cause: crate::capacity::inbox(number, &env.limits),
+            },
+        ));
+    }
     let project = old.project;
     let from = old.requester;
     let previous_root = old.root;
@@ -310,6 +344,21 @@ pub(crate) fn make(domain: &mut Domain, env: &Env<Limits>, plan: Plan, reason: &
         let budget = record(domain, number).expect("target live").numbers.budget;
         crate::funders::refunding::apply(domain, env, number, destination, budget, out);
     }
+    {
+        let task = task_mut(domain, number).expect("moving target live");
+        task.record.requester = Party::Person(person);
+        if let Some(parent) = old_parent
+            && !task.record.references.contains(&parent)
+        {
+            let mut references = List::with_capacity(env.limits.references);
+            for reference in &task.record.references {
+                references.push(*reference).expect("old references bounded");
+            }
+            references.push(parent).expect("bilateral reference room preflighted");
+            task.record.references = references.into_boxed();
+        }
+    }
+    crate::questions::moved(domain, env, number, person, out);
     if let Some(parent) = old_parent {
         out.push(Request::Erase { key: crate::Key::Delegate { requester: parent, task: number } });
         let parent_row = task_mut(domain, parent).expect("old requester live");
@@ -329,20 +378,6 @@ pub(crate) fn make(domain: &mut Domain, env: &Env<Limits>, plan: Plan, reason: &
             parent_row.record.references = references.into_boxed();
         }
         publish(domain, env, parent, out);
-    }
-    {
-        let task = task_mut(domain, number).expect("moving target live");
-        task.record.requester = Party::Person(person);
-        if let Some(parent) = old_parent
-            && !task.record.references.contains(&parent)
-        {
-            let mut references = List::with_capacity(env.limits.references);
-            for reference in &task.record.references {
-                references.push(*reference).expect("old references bounded");
-            }
-            references.push(parent).expect("bilateral reference room preflighted");
-            task.record.references = references.into_boxed();
-        }
     }
     for child in subtree.into_boxed() {
         let row = task_mut(domain, child).expect("subtree live");
