@@ -164,10 +164,10 @@ fn limits(value: &Value) -> (jig_protocol_config::Limits, temper_service::limits
 pub(crate) fn admit(value: &Value) {
     let (jig, own) = limits(value);
     let root = temper_service::limits::engine(&jig, &own).expect("engine root admits the fixture");
-    jig_protocol_store::sizes::check(
+    jig_protocol_store::sizes::check_commits(
         &jig.core,
         &temper_protocol_store::application(&root.forge, root.tasks.spec_bytes).expect("application sizes"),
-        &temper_engine_domain::journal_limits(&root.journal),
+        &jig_protocol_store::sizes::Commits { in_flight: root.journal.commits, writes: root.journal.writes },
         &jig.store.store,
         jig.store.orphan_erases,
     )
