@@ -283,3 +283,5 @@ fn a_line_the_check_does_not_read_fails_it() {
         assert!(failure.contains(why), "{source:?}: {failure}");
     }
 }
+
+// Operator precheck validation: harmless candidate comment.
