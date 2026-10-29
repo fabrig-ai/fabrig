@@ -4,7 +4,7 @@ use super::{
     first_repository::{self, call},
 };
 use serde_json::{Value, json};
-use skein_fake_llm_domain::api::{Line, Piece, Script};
+use skein_fake_llm_domain::api::{Finish, Line, Piece, Script, Turn};
 use skein_lib::{Duration, Time};
 use std::{
     fs,
@@ -73,7 +73,11 @@ pub fn llm(config: &Path) -> super::boxed::CtlLlm {
     // smith's write checks the version the agent read; playground/widget
     // already has src/main.rs, unlike the CSV fixture's empty work/hello.
     scripts[1].turns = Box::new([call(b"read", &json!({"path":"src/main.rs"})), source, finish]);
-    let mut report = call(b"finish", &json!({"form":"report", "text":"playground/widget landed.", "fields":{}}));
+    let mut report = Turn {
+        lines: Box::new([Line::Text { text: b"playground/widget landed.".as_slice().into() }]),
+        finish: Finish::Stop,
+        tokens: 20,
+    };
     let mut lines = report.lines.into_vec();
     lines.insert(
         0,
@@ -409,7 +413,7 @@ pub fn assert_briefs(model: &super::forge_land::Seen, landed: &Value) {
     }
     let mut received = String::new();
     for query in &model.requests {
-        if String::from_utf8_lossy(&query.system).contains("[Requested by person 1]") {
+        if super::llm::request_has(query, b"[Requested by person 1]") {
             for message in &query.messages {
                 if message.role == skein_fake_llm_domain::api::Role::User {
                     for part in &message.parts {

@@ -712,7 +712,7 @@ fn fake_account(root: &Path, paths: &[PathBuf; 3], file: &Path) {
         ],
         boxed::BOX_DEADLINE,
         || (),
-        super::fake_face(issuer, Box::new([])),
+        super::fake_face(issuer, temper_real_loop_world::llm::cued(Box::new([]))),
     );
     for call in &outcome.calls {
         assert_eq!(call.exit, Some(Exit::Code(0)), "fake account setup: {}", String::from_utf8_lossy(&call.stderr));

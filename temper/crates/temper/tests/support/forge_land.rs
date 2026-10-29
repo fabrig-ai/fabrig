@@ -176,8 +176,8 @@ pub fn failed_review_scripts(plan: &Plan<'_>) -> Box<[Script]> {
 
 /// The fake face uses the shared plan bearer and existing test TLS root.
 #[must_use]
-pub fn fake_face(issuer: oauth::Peer, scripts: Box<[Script]>) -> Face {
-    Face::Fake { issuer, peer: sign_in::plan_peer(scripts) }
+pub fn fake_face(issuer: oauth::Peer, scripts: api::Scripts) -> Face {
+    Face::Fake { issuer, peer: sign_in::plan_played(scripts) }
 }
 
 /// Indexes of the face's processes, following the story's box and ctl.
@@ -239,6 +239,7 @@ pub struct CtlFace {
 /// The plan story's face: the first box waits for the landing, the second for the restarted answer.
 #[must_use]
 pub fn plan_face(issuer: oauth::Peer, scripts: Box<[Script]>, first: bool) -> CtlFace {
+    let scripts = if first { super::llm::requested(scripts) } else { temper_real_loop_world::llm::cued(scripts) };
     CtlFace { face: fake_face(issuer, scripts), first, reply: if first { LANDED } else { RESTARTED } }
 }
 
@@ -458,7 +459,7 @@ pub fn assert_requests(seen: &Seen, count: usize, words: &[u8], first: bool) {
     let mut counts = [0; 3];
     for query in &seen.requests {
         let has = |cue: &[u8]| query.system.windows(cue.len()).any(|part| part == cue);
-        let kind = if has(words) {
+        let kind = if (first && super::llm::request_has(query, words)) || (!first && has(words)) {
             0
         } else if has(b"## Task\n\n@coding Append this README line:") {
             1

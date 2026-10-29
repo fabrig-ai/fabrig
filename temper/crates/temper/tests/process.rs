@@ -1525,7 +1525,11 @@ fn a_change_whose_reviews_exhaust_its_tasks_holds_and_a_bare_release_holds_it_ag
         steps,
         BOX_DEADLINE,
         || support::first_repository::live(&paths[0], &paths[1], &client),
-        CtlFace { face: forge_land::fake_face(issuer, scripts), first: true, reply: forge_land::REVIEW_HELD },
+        CtlFace {
+            face: forge_land::fake_face(issuer, support::llm::requested(scripts)),
+            first: true,
+            reply: forge_land::REVIEW_HELD,
+        },
     );
     let stderr = String::from_utf8_lossy(&outcome.stderr);
     assert_plan_box("first", true, &outcome, &stderr);
@@ -2149,7 +2153,11 @@ fn a_change_whose_coder_fails_holds_and_its_chat_answers() {
         steps,
         BOX_DEADLINE,
         || support::first_repository::live(&paths[0], &paths[1], &client),
-        CtlFace { face: forge_land::fake_face(issuer, scripts), first: true, reply: forge_land::HELD },
+        CtlFace {
+            face: forge_land::fake_face(issuer, support::llm::requested(scripts)),
+            first: true,
+            reply: forge_land::HELD,
+        },
     );
     let stderr = String::from_utf8_lossy(&outcome.stderr);
     assert_plan_box("first", true, &outcome, &stderr);
@@ -4808,7 +4816,7 @@ enum ReviewHold {
 const REVIEW_TURNS: usize = 20;
 const REVIEW_TOKENS: u64 = 20; // landing::change_scripts uses the same reported usage.
 
-fn held_review_restart_scripts() -> Box<[skein_fake_llm_domain::api::Script]> {
+fn held_review_restart_scripts() -> skein_fake_llm_domain::api::Scripts {
     let mut scripts = [
         (
             b"Restart review held.\n".as_slice(),
@@ -4851,7 +4859,15 @@ fn held_review_restart_scripts() -> Box<[skein_fake_llm_domain::api::Script]> {
             .into_boxed_slice();
         }
     }
-    scripts
+    let (asked, cued): (Vec<_>, Vec<_>) = scripts
+        .into_vec()
+        .into_iter()
+        .partition(|script| matches!(script.cue.as_ref(), b"@first-repository" | b"@second-chat"));
+    skein_fake_llm_domain::api::Scripts {
+        cued: cued.into_boxed_slice(),
+        asked: asked.into_boxed_slice(),
+        otherwise: Box::new([]),
+    }
 }
 
 fn assert_held_reviewers(calls: &[support::Ended], hold: ReviewHold) {
@@ -5140,11 +5156,12 @@ fn held_review_restart(case: &str, probe: RestartProbe) {
         assert!(!scratch.path().join("incoming-account.move").exists(), "the deployed account came through import");
     }
     let mut scripts = scripts;
-    for script in &mut scripts {
-        if matches!(script.cue.as_ref(), b"@first-repository" | b"@second-chat") {
-            script.turns = Box::new([script.turns[2].clone()]);
-        }
+    for script in &mut scripts.asked {
+        script.turns = Box::new([script.turns[2].clone()]);
     }
+    let scripts = temper_real_loop_world::llm::cued(
+        scripts.cued.into_vec().into_iter().chain(scripts.asked.into_vec()).collect(),
+    );
     let steps = if probe.imported {
         // Read while the original transfer-out remains pending. No new
         // account import can make this start's own continuation progress.
