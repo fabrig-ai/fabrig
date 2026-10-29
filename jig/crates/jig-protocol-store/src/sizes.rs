@@ -12,7 +12,7 @@ pub fn frame(domain: &core::Limits, transcript_bytes: u32) -> Option<u32> {
         return None;
     }
     limits.turn_record_transcript = transcript_bytes;
-    let body = u32::try_from(core_v6::TurnRecord::worst_case_bytes(&limits)?).ok()?;
+    let body = u32::try_from(core_v6::TurnRecord::encoded_bound(&limits)?).ok()?;
     body.checked_add(crate::transcripts::frame::WRAPPER_BYTES)
 }
 
@@ -123,12 +123,12 @@ fn largest(
     let mut map_core = limits.core;
     map_core.turn_record_transcript = 0;
     let value = u32::try_from(
-        core_v6::Row::worst_case_bytes(&map_core)?
-            .max(tasks_v9::Row::worst_case_bytes(&limits.tasks)?)
-            .max(people_v13::Row::worst_case_bytes(&limits.people)?)
-            .max(notes_v1::Row::worst_case_bytes(&limits.notes)?)
-            .max(component_v3::worst_case_bytes(&component_v3::CEILINGS)?)
-            .max(accounts_v2::worst_case_bytes(&accounts_v2::CEILINGS)?)
+        core_v6::Row::encoded_bound(&map_core)?
+            .max(tasks_v9::Row::encoded_bound(&limits.tasks)?)
+            .max(people_v13::Row::encoded_bound(&limits.people)?)
+            .max(notes_v1::Row::encoded_bound(&limits.notes)?)
+            .max(component_v3::encoded_bound(&component_v3::CEILINGS)?)
+            .max(accounts_v2::encoded_bound(&accounts_v2::CEILINGS)?)
             .max(
                 core::settings::revision_worst_case(domain)?.checked_add(16)?.checked_add(
                     u64::from(jig_domain_tasks::MODELS)
