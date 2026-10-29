@@ -1177,7 +1177,7 @@ pub fn restore_record(domain: &mut Domain, env: &Env<Limits>, record: Record) ->
             if !domain.core.restore_people_row(&row) {
                 return false;
             }
-            let mut out = Queue::with_capacity(jig_domain_people::max_out(&env.limits.core.people));
+            let mut out = Queue::uncapped();
             jig_domain_people::step(
                 &mut domain.core.people,
                 &Env { now: env.now, wall: env.wall, limits: env.limits.core.people },

@@ -464,7 +464,7 @@ fn settled_frame_watch(expiry: skein_lib::Wall) -> (crate::Domain, skein_lib::En
     let mut domain = fixtures::domain();
     let env = fixtures::env();
     let people_env = Env { now: env.now, wall: env.wall, limits: env.limits.core.people };
-    let mut ignored = Queue::with_capacity(people::max_out(&people_env.limits));
+    let mut ignored = Queue::uncapped();
     for record in [
         people::Stored::Person {
             number: 1,
