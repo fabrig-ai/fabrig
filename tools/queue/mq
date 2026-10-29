@@ -263,9 +263,10 @@ def check_commands(repo, selected, paths, *, metadata=None):
     return steps
 
 
-def ratchet_commands(repo, paths):
+def ratchet_commands(repo, paths, *, check_only=False):
     trees = {path.split("/", 1)[0] for path in paths} & set(TREES)
-    return [(f"ratchet:{tree}", ["python3", "-I", "-B", str(repo / tree / "scripts/old_forms.py"), "--write"],
+    return [(f"ratchet:{tree}", ["python3", "-I", "-B", str(repo / tree / "scripts/old_forms.py"),
+                              *([] if check_only else ["--write"])],
              repo / tree) for tree in sorted(trees)]
 
 
@@ -293,6 +294,7 @@ def run_step(name, argv, cwd, log, *, runner, clock, timeout=None):
     log.flush()
     output_start = log.tell()
     started = clock()
+    launch_error = None
     try:
         options = {} if timeout is None else {"timeout": timeout}
         result = runner(argv, cwd=cwd, stdin=subprocess.DEVNULL,
@@ -304,6 +306,7 @@ def run_step(name, argv, cwd, log, *, runner, clock, timeout=None):
     except OSError as error:
         log.write(f"{error}\n")
         code = 127
+        launch_error = str(error)
     log.flush()
     log.seek(output_start)
     output = log.read()
@@ -311,40 +314,51 @@ def run_step(name, argv, cwd, log, *, runner, clock, timeout=None):
     refused = code == 2 and "below the disk floor" in output and argv[0] == "heavy"
     green = code == 0 or (name in ("build", "default", "fuzzy") and code == 4)
     outcome = {"name": name, "command": argv, "returncode": code,
-               "green": green, "duration": clock() - started}
+               "cwd": str(cwd), "green": green, "duration": clock() - started}
     if refused:
         outcome["error"] = output.strip()
+    if launch_error is not None:
+        outcome["launch_error"] = launch_error
     return outcome
 
 
-def run_tools(repo, log, *, runner=subprocess.run, clock=time.monotonic):
+def run_tools(repo, log, *, runner=subprocess.run, clock=time.monotonic, observer=None):
     """Run every tools suite before cargo, with a deadline per suite (design.md, 2.3)."""
     started = clock()
-    suites = [run_step(name, argv, cwd, log, runner=runner, clock=clock, timeout=TOOLS_TIMEOUT)
-              for name, argv, cwd in tools_commands(repo)]
+    suites = []
+    for name, argv, cwd in tools_commands(repo):
+        suites.append(run_step(name, argv, cwd, log, runner=runner, clock=clock, timeout=TOOLS_TIMEOUT))
+        if observer is not None:
+            observer(suites[-1])
     return {"name": "tools", "green": all(suite["green"] for suite in suites),
             "duration": clock() - started, "suites": suites}
 
 
-def run_checks(repo, selected, paths, log_path, *, runner=subprocess.run, clock=time.monotonic):
+def run_checks(repo, selected, paths, log_path, *, runner=subprocess.run, clock=time.monotonic,
+               check_only=False, metadata=None, observer=None, outcomes=None):
     """Run serially, logging output; nextest's empty selection is green."""
-    outcomes = []
+    outcomes = [] if outcomes is None else outcomes
+    def record(outcome):
+        outcomes.append(outcome)
+        if observer is not None:
+            observer(outcome)
+
     with log_path.open("a+") as log:
         os.chmod(log_path, 0o600)
-        for name, argv, cwd in ratchet_commands(repo, paths):
-            outcomes.append(run_step(name, argv, cwd, log, runner=runner, clock=clock))
+        for name, argv, cwd in ratchet_commands(repo, paths, check_only=check_only):
+            record(run_step(name, argv, cwd, log, runner=runner, clock=clock))
             if not outcomes[-1]["green"]:
                 return outcomes
             baseline = f"{cwd.name}/scripts/old-forms.txt"
-            if git(repo, "diff", "--name-only", "--", baseline).stdout:
+            if not check_only and git(repo, "diff", "--name-only", "--", baseline).stdout:
                 git(repo, "add", "--", baseline)
                 git(repo, "commit", "-m", f"Lower {cwd.name} old-form baselines")
         if selected == "full" or any(path.startswith("tools/") for path in paths):
-            outcomes.append(run_tools(repo, log, runner=runner, clock=clock))
+            record(run_tools(repo, log, runner=runner, clock=clock, observer=observer))
             if not outcomes[-1]["green"]:
                 return outcomes
-        for name, argv, cwd in check_commands(repo, selected, paths):
-            outcomes.append(run_step(name, argv, cwd, log, runner=runner, clock=clock))
+        for name, argv, cwd in check_commands(repo, selected, paths, metadata=metadata):
+            record(run_step(name, argv, cwd, log, runner=runner, clock=clock))
             if not outcomes[-1]["green"]:
                 break
     return outcomes
