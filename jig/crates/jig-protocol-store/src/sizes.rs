@@ -85,7 +85,7 @@ pub fn is_patching(store: &crate::Store) -> bool {
     store.directory.patch.is_some() || crate::directory::patching(store).is_some()
 }
 
-/// The former form of [`check_commits`], kept until temper's callers move.
+/// The former form of [`check_commits`], kept until its application callers move.
 pub fn check(
     domain: &core::Limits,
     application: &Application,
