@@ -1,6 +1,6 @@
 # The forge connector
 
-Provisional, 2026-10-04, revised 2026-10-27. How temper drives a forge,
+Provisional, 2026-10-04, revised 2026-10-29. How temper drives a forge,
 Forgejo or GitHub: the forge as a connector on jig's contract (jig's
 `domain/connectors.md`), with its resources, effects, topics, procedures,
 requirements and reads; a forge connected or not; adopting repositories,
@@ -1012,6 +1012,11 @@ Lazy, too, for runs: before a repair or a resolution is created, the
 change takes its base if its head lacks the base's tip, so a repair
 starts from current code. It never updates only because its base moved.
 
+A completed change waits for its live delegates to end before offering
+its result to the core. A landing observed while a resumed repair's
+terminal is still on its way leaves the procedure waiting; the
+delegate's terminal wakes it to offer the landed result.
+
 ### 8.3 Gates
 
 - **A gate** is a verdict a change asks for before it lands, at its exact
@@ -1523,8 +1528,11 @@ instead (`landing.md`, section 5).
   repository's prefix (`temper/` by default, one deployment's on a
   repository: section 4) and its tree's root task:
   - a change's own branch: `temper/<root>/c<task>`;
-  - a task's saved work: `temper/<root>/s<task>`, never the change's
-    branch, so it starts no CI and moves no pull request;
+  - a task's saved work: `<prefix><root>/s<task>` in each writable
+    repository, using that repository's own prefix (`temper/` by
+    default). The task is the running agent's, even when its workstream
+    and delivery branch belong to its parent change. Saved work has its
+    own branch, so it starts no CI and moves no pull request;
   - a landing's own branch, for a pin-only member: `temper/<root>/l<task>`,
     the landing's task, held by the landing (`landing.md`, 4.1);
   - an agent's task's own branch, for runs that push outside a change,

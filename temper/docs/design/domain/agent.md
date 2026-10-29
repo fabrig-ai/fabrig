@@ -1,6 +1,6 @@
 # The agent
 
-Provisional, 2026-10-05, revised 2026-10-23. temper's agent is smith's:
+Provisional, 2026-10-05, revised 2026-10-29. temper's agent is smith's:
 the standard agent built from smith, the kit for LLM agents, on skein
 like temper. smith's design is its own (smith's `domain/run.md`,
 `domain/session.md`, `domain/tools.md`, `domain/host.md`), and how a
@@ -146,22 +146,38 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   lacked, and the run may `propose` it instead.
 - **The host part's budget.** smith refuses a run whose host part (its
   tools' names, descriptions and schemas) passes its bound, 33,419 bytes
-  in the small profile, before any turn. On 10-27, with an empty brief,
-  charter 2's producer took 31,055 of it with its 37 tools, 2,364 left,
-  and a role-0 chat with the two `settings` tools 32,716, 703 left; a
-  gathered brief spends the rest. So a new host tool is offered only
+  in the small profile, before any turn. A gathered brief spends what
+  the declarations leave. So a new host tool is offered only
   where a family and the charter gate it, never to every run, and a
   charter's room is measured before a tool joins it.
 - **The brief fits the room its charter leaves.** smith counts a run's
   brief in its host part, beside the charter's offered tools, its
-  instructions and the finish and deliver schemas. So `temper-engine-smith`,
-  preparing a run, renders the brief within what those leave of the
-  bound, cutting from the last section in the core's order. Each cut
-  section says how much it lost and how to read it whole: the forge's
-  reads for a document, `read_docs` for a page. No run is refused for
-  its brief. (10-27: charter 1's 37 tools and instructions take 30,984
-  of the small profile's 33,419, and its largest brief, 9,984 body
-  bytes, would pass it by 7,613.)
+  instructions and the finish and deliver schemas. At start, temper's
+  worker service fits it after the workspace is prepared and before
+  encoding the start, using the receiving run's limits and measured
+  schema costs, including the prepared workspace's conflict paths.
+  `temper-engine-smith` owns the fitter; its typed start takes explicit
+  receiving limits and fits the brief too. A brief already within the
+  room is kept whole. Otherwise, fitting cuts bodies from the last
+  section in the core's order, at UTF-8 boundaries, keeping each cut
+  section's title and ending its body with its own line:
+  `[cut N bytes; whole: READ]`. `N` counts original body bytes removed,
+  excluding the added separator and cut line. `READ` is
+  `read_job/read_checks` for `CI`, `read_pull/read_pull_files` for
+  `Pull request`, `read_reviews/read_remarks` for `Reviews`, `read_docs`
+  for `Home`, `recall` for `Notes`, `the task's plan` for `Plan`, and
+  `the task's activity` for the other core sections; other titles use
+  `read_docs or the task's activity`.
+  When a title and its minimum cut line cannot fit, whole trailing
+  sections are omitted. One line records them, in their original order:
+  `[N sections omitted: TITLE, TITLE; whole: the task's activity]`.
+  It follows the last retained body, or stands in an untitled section
+  if none remains, only when it fits without cutting more retained
+  text. If even that line cannot fit, it is left out, down to an empty
+  brief at zero room. Fitting also keeps the charter within its admitted
+  ownership allowance. No run is refused for its brief's size; if the
+  non-brief host part alone exceeds the bound, smith's declaration
+  refusal still applies.
 - **Checked before a run meets it:** at start, and at temper's three
   entrances of a change of settings that touches a charter (the
   engine's `ChangeSettings` and `ProposeSettings` routes and a run's
