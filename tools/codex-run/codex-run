@@ -51,7 +51,7 @@ stamp() {
         my $t = time;
         my @utc = gmtime $t;
         my $ts;
-        if ($utc[5] < -1899) {
+        if (!@utc || $utc[5] < -1899) {
             # strftime normalizes years before 1 differently from Perl gmtime.
             require POSIX;
             $ts = POSIX::strftime("%Y-%m-%dT%H:%M:%S", @utc) . sprintf(".%03dZ", ($t - int $t) * 1000);
