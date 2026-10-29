@@ -7,4 +7,3 @@ static HEAP: Counting = Counting;
 mod qa_adoption_hold;
 mod qa_github_land;
 mod qa_plan_chat;
-mod qa_sign_in_paste;
