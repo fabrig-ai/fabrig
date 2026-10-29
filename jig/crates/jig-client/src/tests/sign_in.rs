@@ -304,6 +304,43 @@ fn a_busy_sign_in_retries_until_the_engine_signs_in() {
 }
 
 #[test]
+fn a_lost_sign_in_is_sent_again_then_signs_in() {
+    // The native test transport's exchange deadline is one second.
+    const EXCHANGE_DEADLINE: Duration = Duration::from_secs(1);
+    for with in [
+        link_attempt(),
+        With::Link { secret: fixtures::credential(&NEW_CREDENTIAL), held: Some(fixtures::credential(&CREDENTIAL)) },
+        With::Service(fixtures::credential(&SERVICE_CREDENTIAL)),
+    ] {
+        let mut c = Client::new();
+        c.machine.step(Time::ZERO, skein_lib::Wall::EPOCH, Event::SignIn { with }, &mut c.out);
+        let Some(Request::Exchange { exchange: first, credential, message }) = c.out.pop() else {
+            panic!("initial sign-in exchange");
+        };
+        let lost_at = Time::ZERO.saturating_add(EXCHANGE_DEADLINE);
+        c.step_at(lost_at, Event::Lost { exchange: first });
+        assert!(c.requests().is_empty());
+        let until = c.machine.next_deadline().expect("lost sign-in schedules a retry");
+        assert!(until >= lost_at.saturating_add(LEAST_BACKOFF));
+        assert!(until <= lost_at.saturating_add(FIRST_BACKOFF));
+        c.fire(Time::from_nanos(until.as_nanos() - 1));
+        assert!(c.requests().is_empty(), "lost sign-in waits for its backoff");
+        c.fire(until);
+        let [Request::Exchange { exchange, credential: sent_credential, message: sent_message }] = c.requests() else {
+            panic!("one lost sign-in retry: {:?}", c.requests());
+        };
+        assert_ne!(*exchange, first);
+        assert_eq!(sent_credential, &credential);
+        assert_eq!(sent_message, &message);
+        let exchange = *exchange;
+        c.step_at(until, Event::Reply { exchange, message: fixtures::signed_in(&NEW_CREDENTIAL) });
+        assert_eq!(c.machine.link().state, Link::Starting);
+        assert_eq!(c.machine.link().credential, Some(&fixtures::credential(&NEW_CREDENTIAL)));
+        assert!(!c.machine.link().sign_out_lost);
+    }
+}
+
+#[test]
 fn a_sign_out_that_did_not_reach_the_engine_tells_the_link() {
     let mut c = Client::signed_in();
     c.step(Event::SignOut);
