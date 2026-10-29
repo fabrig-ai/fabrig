@@ -433,6 +433,19 @@ class CheckTests(unittest.TestCase):
         self.assertEqual([step["name"] for step in steps], ["ratchet:jig", "tools"])
         self.assertEqual(steps[0]["command"][-1], "--write")
 
+    def test_check_only_ratchets_never_stage_or_commit_and_observe_each_step(self):
+        observed = []
+        outcomes = []
+        with tempfile.TemporaryDirectory(dir=ROOT, prefix=".mq-test-") as directory, \
+                patch.object(mq, "git", side_effect=AssertionError("check-only mutated git")):
+            steps = mq.run_checks(ROOT, "docs", ["jig/README.md"], Path(directory) / "checks.log",
+                                  runner=lambda *a, **kw: subprocess.CompletedProcess(a, 0),
+                                  check_only=True, observer=observed.append, outcomes=outcomes)
+        self.assertIs(steps, outcomes)
+        self.assertEqual(observed, steps)
+        self.assertEqual(steps[0]["command"][-1], str(ROOT / "jig/scripts/old_forms.py"))
+        self.assertEqual(steps[0]["cwd"], str(ROOT / "jig"))
+
     def test_only_heavy_exit_two_with_disk_floor_text_is_a_refusal(self):
         for code, output, refused in ((2, "builder: 39 GB below the disk floor", True),
                                       (1, "below the disk floor", False),

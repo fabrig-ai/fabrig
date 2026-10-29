@@ -501,10 +501,8 @@ impl World {
         self.stage.tick(self.now);
         self.deliver();
 
-        // The tools take events in FIFO order while their facts can be retained.
-        while self.tools.facts_room() >= tools::max_facts(&self.stage.env.limits)
-            && let Some(event) = self.stage.next_event()
-        {
+        // The tools take events in FIFO order; their output and facts are uncapped.
+        while let Some(event) = self.stage.next_event() {
             self.log(&format!("tools <- {event:?}"));
             // The operations a step asks for are for the kit of the call, or
             // of the operation, the event is about.

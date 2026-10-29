@@ -1081,3 +1081,175 @@ fn a_sha1_pull_files_answer_matches_the_requested_head_and_fills_the_review_brie
     assert!(words.contains("File: review.txt"), "{words}");
     assert!(words.contains("After:\nthe reviewed contents"), "{words}");
 }
+
+#[test]
+#[expect(clippy::too_many_lines, reason = "one landing story with its root scheduler, news and request referee")]
+fn a_landing_merges_on_its_own_wakes_before_any_resource_poll() {
+    // temper/docs/design/domain/forge.md, 5.2: procedure progress uses news and fresh reads.
+    use skein_fake_forge_domain::api::Check;
+    use skein_forge::api::{Change, Hint};
+    use skein_forge_machine_world::joint;
+    use skein_lib::Duration;
+
+    const RESOURCE_POLL: Duration = Duration::from_secs(3600);
+    const HORIZON: Duration = Duration::from_secs(60);
+    const CI_DELAY: Duration = Duration::from_secs(5);
+    const MAX_STEPS: u64 = 16;
+    const MAX_CALLS: u32 = 128;
+    let mut limits = temper_engine_forge_world::LIMITS;
+    limits.client.poll = RESOURCE_POLL;
+    limits.client.poll_max = RESOURCE_POLL;
+    limits.client.slow = RESOURCE_POLL;
+    let mut checks = joint::checks(1000);
+    checks.latency_min = CI_DELAY;
+    checks.latency_max = CI_DELAY;
+    let mut world = Protocol::github_with_limits(71, checks, &limits);
+    world.adopt();
+    let start = world.wall();
+    let deadline = Wall::from_nanos(start.as_nanos() + HORIZON.as_nanos());
+    let run = branch_name(b"temper/1/r1");
+    world.event(top::Event::Names { task: 1, resources: Box::new([run.clone()]) });
+    world.event(top::Event::Hold { task: 1, resource: run, from: None });
+    let mut row = change_row();
+    row.change.since = start;
+    row.change.gates = Box::new([change::Gate {
+        number: 9,
+        kind: change::GateKind::Agent,
+        blocking: true,
+        freshness: change::Freshness::Exact,
+        eager: false,
+    }]);
+    world.event(top::Event::Change { row });
+    let branch = branch_name(b"temper/51");
+    world.event(top::Event::Names { task: 51, resources: Box::new([branch.clone(), main_name()]) });
+    world.event(top::Event::Hold { task: 51, resource: branch.clone(), from: None });
+    world.run_for(0);
+    let mut due = true;
+    let mut until = None;
+    let mut entry = 1;
+    let mut named_pull = false;
+    let mut ci_news = false;
+    let mut pushed = None;
+    let mut reviewed = false;
+    let mut finished = false;
+    let mut wakes = 0;
+    while world.wall() <= deadline && !finished {
+        if !named_pull
+            && let Some(top::Stored::Change(row)) = world.stored().get(&top::Key::Change(51))
+            && let Some(number) = row.pull
+        {
+            world.event(top::Event::Rename {
+                task: 51,
+                resources: Box::new([
+                    branch.clone(),
+                    top::Name { forge: REPO.forge, repository: REPO.repository, what: top::What::Pull(number) },
+                ]),
+            });
+            named_pull = true;
+        }
+        if !ci_news && pushed.is_some_and(|at: Wall| world.wall().as_nanos() >= at.as_nanos() + CI_DELAY.as_nanos()) {
+            let head = temper_engine_forge_world::translate::commit(world.branch(b"temper/51"));
+            world.event(top::Event::Hint { hint: Hint { repository: REPO, change: Change::Commit(head), key: None } });
+            ci_news = true;
+        }
+        for request in world.take_seen() {
+            #[expect(
+                clippy::wildcard_enum_match_arm,
+                reason = "only this change's root scheduler requests drive the story"
+            )]
+            match request {
+                top::Request::WakeProcedure { task: 51 } => {
+                    wakes += 1;
+                    due = true;
+                }
+                top::Request::ChangeDecision { task: 51, decision, entry: committed, .. } => {
+                    if let Some(entry) = committed {
+                        world.event(top::Event::Committed { entry });
+                    }
+                    match decision {
+                        change::Decision::Delegate(kind) => {
+                            let child = match kind {
+                                change::Delegate::Produce => {
+                                    world.produce(b"temper/51");
+                                    pushed = Some(world.wall());
+                                    world.event(top::Event::Hint {
+                                        hint: Hint {
+                                            repository: REPO,
+                                            change: Change::Branch(b"temper/51".as_slice().into()),
+                                            key: None,
+                                        },
+                                    });
+                                    52
+                                }
+                                change::Delegate::Gate { number: 9, head } => {
+                                    assert_eq!(
+                                        head,
+                                        temper_engine_forge_world::translate::commit(world.branch(b"temper/51"))
+                                    );
+                                    assert!(!reviewed, "review requested once at the checked head");
+                                    reviewed = true;
+                                    53
+                                }
+                                other => panic!("unexpected delegate: {other:?}"),
+                            };
+                            world.event(top::Event::Delegated { task: 51, child, kind });
+                            world.event(top::Event::DelegateResult {
+                                task: 51,
+                                child,
+                                status: change::Status::Passed,
+                                failed: false,
+                                cancelled: false,
+                                words: b"passed".as_slice().into(),
+                            });
+                            due = true;
+                        }
+                        change::Decision::Finish { .. } => finished = true,
+                        change::Decision::Wait { until: at } => until = at,
+                        change::Decision::None | change::Decision::Effect(_) | change::Decision::Ready => due = true,
+                        other => panic!("unexpected decision: {other:?}"),
+                    }
+                }
+                top::Request::Refused { task: 51 } => panic!("change refused"),
+                _ => {}
+            }
+        }
+        if until.is_some_and(|at| world.wall() >= at) {
+            due = true;
+            until = None;
+        }
+        if due && !finished {
+            due = false;
+            assert!(entry <= MAX_STEPS, "the procedure settles within its scenario step bound");
+            step_change(&mut world, entry, change::Status::Unknown, false);
+            entry += 1;
+            world.run_for(0);
+        } else if !finished {
+            world.run_for(1);
+        }
+    }
+    let end = Wall::from_nanos(world.wall().as_nanos() + 1);
+    let routes = request_routes(&world, start, end);
+    eprintln!(
+        "landing: steps={}, wakes={wakes}, elapsed={}ns, calls={}, routes={routes:?}",
+        entry - 1,
+        world.wall().as_nanos() - start.as_nanos(),
+        world.calls()
+    );
+    assert!(finished && named_pull && ci_news && reviewed, "landing finishes from push, CI and review news");
+    assert!(wakes > 0, "the connector wakes its procedure");
+    assert!(world.wall() < Wall::from_nanos(start.as_nanos() + RESOURCE_POLL.as_nanos()));
+    assert_eq!(world.tally().routes.get(&Route::OpenPull), Some(&1));
+    assert_eq!(world.tally().routes.get(&Route::Merge), Some(&1));
+    assert!(world.observations().iter().any(|observation| matches!(observation,
+        Observation::Reported { commit, state: Check::Passed, .. } if *commit == world.branch(b"temper/51"))));
+    assert!(world.observations().iter().any(|observation| matches!(observation,
+        Observation::Merged { head, .. } if *head == world.branch(b"temper/51"))));
+    assert_eq!(routes.get("GET /repos/acme/widgets/branches/temper/1/r1"), Some(&1), "no resource repoll");
+    assert!(routes.get("GET /repos/acme/widgets/branches/main").is_some_and(|reads| *reads > 1), "fresh base reads");
+    assert!(
+        routes.get("GET /repos/acme/widgets/pulls/1/reviews").is_some_and(|reads| *reads > 1),
+        "fresh review reads"
+    );
+    assert!(world.calls() <= MAX_CALLS, "bounded fresh procedure reads: {routes:?}");
+    world.finish();
+}

@@ -13,7 +13,5 @@ pub mod manifest;
 pub use checks::Lacking;
 pub mod reconcile;
 
-pub(crate) mod memory;
-
 pub mod paste;
 mod write;

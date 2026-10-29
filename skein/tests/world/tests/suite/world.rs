@@ -207,3 +207,58 @@ fn a_named_later_last_word_still_rejects_policy_deadlines_after_it() {
     world.spawn(|| Script::new(ms(10), &[]));
     let _outcome = world.run();
 }
+
+#[test]
+#[should_panic(expected = "past its scenario's ceiling")]
+fn root_construction_is_charged_before_the_first_iteration() {
+    use skein_world_tests::hosted::{Judge, Script};
+
+    // Construction holds 64 KiB; the scenario permits half of it.
+    const PAYLOAD_BYTES: usize = 64 * 1024;
+    const CEILING: u64 = 32 * 1024;
+    let mut world = World::new(SEED, Config::calm(), Judge, Memory::Within(CEILING));
+    world.spawn(|| {
+        let mut script = Script::new(&[]);
+        script.held = vec![0; PAYLOAD_BYTES].into_boxed_slice();
+        script
+    });
+}
+
+struct AllocatingJudge {
+    storage: Vec<u8>,
+    bytes: usize,
+}
+
+impl skein_world::Referee<Script> for AllocatingJudge {
+    fn act(&mut self, _now: skein_lib::Time, _procs: &mut [Script]) {
+        self.storage.resize(self.bytes, 1);
+    }
+    fn observe(&mut self, _now: skein_lib::Time, _procs: &[Script]) {
+        self.storage.resize(self.bytes * 2, 1);
+    }
+    fn next_deadline(&self) -> Option<skein_lib::Time> {
+        None
+    }
+    fn overdue(&self, _now: skein_lib::Time) -> Option<String> {
+        None
+    }
+    fn passed(&self) -> bool {
+        true
+    }
+}
+
+#[test]
+fn referee_allocations_leave_the_process_peak_unchanged() {
+    // Enough referee storage to dominate the empty script's own heap.
+    const REFEREE_BYTES: usize = 128 * 1024;
+    let mut peaks = Vec::new();
+    for bytes in [0, REFEREE_BYTES] {
+        let mut world =
+            World::new(SEED, Config::calm(), AllocatingJudge { storage: Vec::new(), bytes }, Memory::Checked);
+        world.spawn(|| Script::new(skein_lib::Time::ZERO, &[]));
+        let outcome = world.run();
+        peaks.push(outcome.peaks().expect("process checked")[0]);
+        drop(outcome); // Also checks that the process releases exactly its own heap.
+    }
+    assert_eq!(peaks[0], peaks[1], "neither referee act nor observe belongs to the process");
+}

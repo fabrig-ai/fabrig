@@ -757,7 +757,7 @@ pub use crate::watches::Parties as WatchParties;
 
 /// Derive the admitted journal room after a peer fixture's final limits.
 pub fn journal(limits: &mut root::Limits) {
-    let room = core::route_bound(&limits.core).expect("peer root room");
+    let room = limits.core.routes;
     let connectors = jig_test_connector::MAX_OUT * 2;
     limits.journal.writes = (room + connectors).max(2000);
     limits.journal.held = ((room + connectors) * limits.journal.commits).max(2000);

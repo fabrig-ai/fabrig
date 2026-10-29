@@ -247,7 +247,7 @@ fn oversized_hints_read_nothing() {
     }
 }
 #[test]
-fn worst_case_rejects_invalid_limits() {
+fn valid_rejects_invalid_limits() {
     for (name, limits) in [
         ("pending", Limits { pending: 0, ..LIMITS }),
         ("calls", Limits { calls: 0, ..LIMITS }),
@@ -274,18 +274,18 @@ fn worst_case_rejects_invalid_limits() {
         ("backoff max", Limits { backoff_max: Duration::ZERO, ..LIMITS }),
         ("poll max", Limits { poll_max: Duration::ZERO, ..LIMITS }),
     ] {
-        assert_eq!(crate::worst_case(&limits), None, "{name}");
+        assert!(!crate::valid(&limits), "{name}");
     }
 }
 #[test]
-fn worst_case_accepts_permitted_zeroes() {
+fn valid_accepts_permitted_zeroes() {
     for (name, limits) in [
         ("op bytes", Limits { op_bytes: 0, ..LIMITS }),
         ("answer bytes", Limits { answer_bytes: 0, ..LIMITS }),
         ("reserve", Limits { reserve: 0, ..LIMITS }),
         ("facts", Limits { facts: 0, ..LIMITS }),
     ] {
-        assert!(crate::worst_case(&limits).is_some(), "{name}");
+        assert!(crate::valid(&limits), "{name}");
     }
 }
 #[test]

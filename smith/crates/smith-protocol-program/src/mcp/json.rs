@@ -63,11 +63,11 @@ pub(crate) fn worst_case(bound: u32) -> Option<u64> {
 
 pub(crate) fn worst_case_limited(limits: collector::Limits) -> Option<u64> {
     let bound = limits.tokenizer.length;
-    collector::worst_case(&limits, &[], &FILTER)?
+    collector::collector_bound(&limits, &[], &FILTER)?
         .checked_add(Intake::price(bound)?)?
         .checked_add(Queue::<collector::Event>::price(1)?)?
         .checked_add(Queue::<stream::Down>::price(1)?)?
-        .checked_add(skein_json::writer::worst_case(&skein_json::writer::Limits {
+        .checked_add(skein_json::writer::encoder_bound(&skein_json::writer::Limits {
             depth: limits.tokenizer.depth,
             length: bound,
         })?)

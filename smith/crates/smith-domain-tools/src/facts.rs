@@ -1,11 +1,10 @@
 //! What the tools tell whoever watches the agent (domain/tools.md, section 4):
 //! a fact for each thing that happened, content-free (tokens, counts and
 //! classifications, never a path, a file or what a command wrote), in a
-//! bounded queue the parent drains at its own pace.
+//! uncapped queue the parent drains at its own pace.
 //!
-//! Facts are a separate step output. The parent reserves [`crate::max_facts`]
-//! slots before each entrance, holding work while its drain is behind; every
-//! observation is preserved and none changes a tool's decision. Applied tool
+//! Facts are a separate step output. Every observation is preserved without
+//! reserving room, and none changes a tool's decision. Applied tool
 //! caps and omitted suffix bytes are retained at the terminal, before rendering
 //! (protocol/events.md, section 3.6); a later render cut is never known here.
 
@@ -339,7 +338,7 @@ fn len(bytes: &[u8]) -> u64 {
     u64::try_from(bytes.len()).expect("bounded tool bytes fit u64")
 }
 
-/// Reserved step observations not yet drained by the parent.
+/// Step observations not yet drained by the parent.
 #[derive(Debug)]
 pub(crate) struct Facts {
     queue: Queue<Fact>,
@@ -347,15 +346,15 @@ pub(crate) struct Facts {
 }
 
 impl Facts {
-    pub(crate) fn with_capacity(capacity: u32) -> Facts {
-        Facts { queue: Queue::with_capacity(capacity), now: Time::ZERO }
+    pub(crate) fn new() -> Facts {
+        Facts { queue: Queue::uncapped(), now: Time::ZERO }
     }
 
     pub(crate) fn begin(&mut self, now: Time) {
         self.now = now;
     }
 
-    /// Keeps one fact in the room the parent reserved for this entry point.
+    /// Keeps one fact at this entry point's injected time.
     pub(crate) fn push(&mut self, kind: FactKind) {
         let fact = Fact { at: self.now, kind, call: None };
         self.queue.push(fact);
@@ -373,8 +372,8 @@ impl Facts {
         self.queue.pop()
     }
 
-    pub(crate) fn room(&self) -> u32 {
-        self.queue.room()
+    pub(crate) fn len(&self) -> u32 {
+        self.queue.len()
     }
 }
 

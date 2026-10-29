@@ -14,7 +14,7 @@ mod tests;
 use alloc::boxed::Box;
 use skein_lib::{List, Secret};
 
-pub use settings::{Limits, valid, worst_case};
+pub use settings::{Limits, valid};
 
 #[derive(Debug)]
 pub struct Settings {

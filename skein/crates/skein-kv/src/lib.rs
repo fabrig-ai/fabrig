@@ -23,5 +23,5 @@ mod tests;
 
 pub use boundary::{Event, Failure, Op, Page, Range, Refusal, Request, Row};
 pub use key::{KeyReader, KeyWriter};
-pub use limits::{Limits, worst_case};
+pub use limits::Limits;
 pub use store::{Store, down, fire, is_ready, up};

@@ -1078,11 +1078,12 @@ pub(crate) fn rested(domain: &mut Domain, env: &Env<Limits>, id: Id<Session>, ou
 
 /// Passes the tools' facts on among the session's own, as the tools' parent,
 /// each with the opener of the session whose kit it is of. Each pass drains
-/// the tools' queue, which holds no more facts than it takes, so a fact goes
-/// on at the end of the entry point that told it, while its session is there
-/// still: a session is reclaimed at the reclaim point at the earliest.
-pub(crate) fn pass_on_facts(domain: &mut Domain, env: &Env<Limits>) {
-    for _ in 0..env.limits.tools.facts {
+/// the tools' queue by its count at entry; translating facts adds none to
+/// that queue. Each fact goes on at the end of the entry point that told it,
+/// while its session is there still: a session is reclaimed at the reclaim
+/// point at the earliest.
+pub(crate) fn pass_on_facts(domain: &mut Domain, _env: &Env<Limits>) {
+    for _ in 0..domain.calls.tools.pending_facts() {
         let Some(fact) = domain.calls.tools.pop_fact() else {
             break;
         };

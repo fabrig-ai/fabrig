@@ -144,8 +144,8 @@ pub enum Names {
     /// `encoded_bound`, `decoded_bound`, `encoded_bound_within`, `decoded_bound_within`,
     /// `{encoded,decoded}_bound_<n>` helpers, and `List::price`.
     Bounds,
-    /// `Bounds`, plus each old public name (`worst_case_bytes`, `worst_case_heap` and the
-    /// `_within` forms) as a one-line call of its new name: for a module another tree's
+    /// `Bounds`, plus each old public name (`worst_case_bytes`, `worst_case_heap`)
+    /// as a one-line call of its new name: for a module another tree's
     /// hand-written code still calls by the old names. Helpers only under the new names.
     Both,
 }

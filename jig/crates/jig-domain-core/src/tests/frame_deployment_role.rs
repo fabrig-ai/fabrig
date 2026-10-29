@@ -17,7 +17,7 @@ fn source(deployment_role: Option<people::Role>) -> (Core, Limits) {
     let identity = core.people.identity(1).unwrap().clone();
     core.people = people::Domain::new(&limits.people, Box::new([]), core.settings.deployment_provider, Box::new([]));
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people };
-    let mut out = Queue::with_capacity(people::max_out(&limits.people));
+    let mut out = Queue::uncapped();
     let mut rows = vec![
         people::Stored::Person { number: 1, identity },
         people::Stored::Roles {
@@ -122,7 +122,7 @@ fn frame_deployment_role_changes_only_when_its_own_retained_membership_changes()
     let (mut core, limits) = source(None);
     assert_eq!(frame(&core, &limits).deployment_role, None);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people };
-    let mut out = Queue::with_capacity(people::max_out(&limits.people));
+    let mut out = Queue::uncapped();
     people::step(
         &mut core.people,
         &env,
@@ -171,7 +171,7 @@ fn frame_deployment_role_changes_only_when_its_own_retained_membership_changes()
 fn frame_deployment_role_does_not_invent_a_reserved_policy_number_refused_by_its_source() {
     let (mut core, limits) = source(None);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people };
-    let mut out = Queue::with_capacity(people::max_out(&limits.people));
+    let mut out = Queue::uncapped();
     people::step(
         &mut core.people,
         &env,

@@ -11,7 +11,7 @@ const FIRST: Token = Token::new(7);
 const SECOND: Token = Token::new(11);
 
 fn account(core: &mut Core, limits: &Limits, event: accounts::Event) {
-    let mut out = Queue::with_capacity(accounts::max_out(&limits.accounts));
+    let mut out = Queue::uncapped();
     accounts::step(
         &mut core.accounts,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.accounts },
@@ -49,7 +49,7 @@ fn host_with_endpoints(
     bounds.program_endpoints = endpoints;
     bounds.models =
         names.iter().map(|name| fleet::ModelBound { name: (*name).into(), window: 8192, output: 1024 }).collect();
-    let mut out = Queue::with_capacity(fleet::max_out(&limits.fleet));
+    let mut out = Queue::uncapped();
     fleet::step(
         &mut core.fleet,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.fleet },
@@ -136,7 +136,7 @@ fn a_lower_numbered_goals_waiting_run_starts_first() {
         account(&mut core, &limits, accounts::Event::Want);
         granted(&mut core, &limits, 1);
         let environment = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.fleet };
-        let mut out = Queue::with_capacity(fleet::max_out(&limits.fleet));
+        let mut out = Queue::uncapped();
         fleet::step(
             &mut core.fleet,
             &environment,
@@ -442,7 +442,7 @@ fn a_progress_count_leaves_due_task_watches_unmarked() {
     limits.fleet.engine_slots = 1;
     core.fleet = fleet::Domain::new(&limits.fleet, fixtures::needs(), Box::new([]));
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.fleet };
-    let mut out = Queue::with_capacity(fleet::max_out(&limits.fleet));
+    let mut out = Queue::uncapped();
     fleet::step(
         &mut core.fleet,
         &env,
@@ -496,7 +496,7 @@ fn login(name: &[u8], state: fleet::LoginState) -> fleet::Login {
     fleet::Login { name: fleet::SourceName::new(name).unwrap(), state }
 }
 fn inventory(core: &mut Core, limits: &Limits, channel: Token, logins: Box<[fleet::Login]>) {
-    let mut out = Queue::with_capacity(fleet::max_out(&limits.fleet));
+    let mut out = Queue::uncapped();
     fleet::step(
         &mut core.fleet,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.fleet },
@@ -591,7 +591,7 @@ fn placement_with_accounts(
     account(&mut core, &limits, accounts::Event::Want);
     granted(&mut core, &limits, 1);
     core.people = people::Domain::new(&limits.people, Box::new([]), u16::MAX, Box::new([]));
-    let mut out = Queue::with_capacity(people::max_out(&limits.people));
+    let mut out = Queue::uncapped();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people };
     for person in [OWNER, OTHER_PERSON] {
         people::step(
@@ -623,7 +623,7 @@ fn placement_with_accounts(
     );
     people::step(&mut core.people, &env, people::Event::Restored, &mut out);
     core.fleet = placement_fleet(&core, &limits);
-    let mut out = Queue::with_capacity(fleet::max_out(&limits.fleet));
+    let mut out = Queue::uncapped();
     fleet::step(
         &mut core.fleet,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.fleet },
@@ -717,7 +717,7 @@ fn two_people_s_kept_logins_close_a_host() {
             signed_out: false,
         }],
     );
-    let mut out = Queue::with_capacity(fleet::max_out(&limits.fleet));
+    let mut out = Queue::uncapped();
     fleet::step(
         &mut core.fleet,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.fleet },
@@ -839,7 +839,7 @@ fn a_declared_model_s_account_takes_no_program_source() {
     );
     core.settings.models[2].program = Some(b"claude_code".as_slice().into());
     core.current.test_charter_mut(1).policy.alternatives = Box::new([core.settings.models[2].clone()]);
-    let mut out = Queue::with_capacity(fleet::max_out(&limits.fleet));
+    let mut out = Queue::uncapped();
     fleet::step(
         &mut core.fleet,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.fleet },
@@ -868,7 +868,7 @@ fn a_declared_model_with_mains_program_shares_mains_account() {
     core.settings.models[1].program = core.settings.models[0].program.clone();
     core.current.test_charter_mut(1).policy.alternatives = Box::new([core.settings.models[1].clone()]);
     core.fleet = placement_fleet(&core, &limits);
-    let mut out = Queue::with_capacity(fleet::max_out(&limits.fleet));
+    let mut out = Queue::uncapped();
     fleet::step(
         &mut core.fleet,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.fleet },
@@ -892,7 +892,7 @@ fn a_declared_model_with_mains_program_shares_mains_account() {
 }
 
 fn fleet_event(core: &mut Core, limits: &Limits, wall: Wall, event: fleet::Event) {
-    let mut out = Queue::with_capacity(fleet::max_out(&limits.fleet));
+    let mut out = Queue::uncapped();
     fleet::step(&mut core.fleet, &Env { now: Time::ZERO, wall, limits: limits.fleet }, event, &mut out);
 }
 fn document_wait(core: &Core, limits: &Limits) -> Option<TaskRunWait> {
@@ -1466,7 +1466,7 @@ fn a_program_host_and_its_replacement_make_open_due() {
     assert!(core.take_due().is_none());
     let document = task_from_row(&core, &limits, 1, core.tasks.task(OPEN_TASK).unwrap(), Wall::EPOCH).unwrap();
     assert_eq!(document.run_wait, None);
-    let mut out = Queue::with_capacity(fleet::max_out(&limits.fleet));
+    let mut out = Queue::uncapped();
     fleet::step(
         &mut core.fleet,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.fleet },

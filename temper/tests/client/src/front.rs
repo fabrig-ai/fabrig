@@ -87,13 +87,16 @@ fn engine_limits() -> engine::Limits {
     limits.watermark = engine::default_watermark(&limits.journal);
     limits
 }
+// First-run client worlds cover the seeded project, a new project and its owner.
+const FIRST_RUN_WRITES: u32 = 2120;
+
 /// The first-run stories need the seeded project and one made at runtime.
 /// Use the real `MakeProject` path, with a configured policy and room for its owner.
 pub fn first_run_projects(config: &mut engine::Config, limits: &mut engine::Limits) {
     limits.authority.projects = 2;
     limits.people.projects = 3; // The deployment roster and two projects.
     limits.people.holdings = 3;
-    limits.journal.writes = temper_engine_domain_world::walking::writes(limits);
+    limits.journal.writes = FIRST_RUN_WRITES;
     let seed = &config.core.seed_projects[0].policy;
     let policy = jig_domain_core::ConfiguredPolicy {
         policy: seed.policy.clone(),

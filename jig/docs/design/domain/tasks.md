@@ -992,6 +992,11 @@ circle, each for another of the set, so that none of them could end.
   - *What may be added:* a task the amender could name in a batch
     (section 4), or, for a task, any task below it. An added dependency
     moves no authority and funds nothing.
+  - *Out of reach:* a dependency the amender may not add is refused as
+    `Dependencies` naming exactly that dependency in the problem's
+    `blocked_by`; a refusal of too many dependencies, or of one named
+    twice, names none there. So the amender hears which dependency is
+    outside its reach, and the other refusals stay told apart.
   - *An ended one* is judged on its stored row, which the core loads
     (engine.md, 5.3), by its place in the tree, as a live one is. For a
     task amender, it is reached when the amender was introduced to it (8.5), or

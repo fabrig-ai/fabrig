@@ -43,7 +43,7 @@ fn each_full_piece_and_fact_has_the_hand_measured_body() {
         let bytes = writer.finish();
         assert_eq!(wire::Fact::decode(&wire::CEILINGS, &mut Reader::new(&bytes)).unwrap(), fact);
     }
-    assert_eq!(wire::Fact::worst_case_bytes(&wire::CEILINGS), Some(4462));
+    assert_eq!(wire::Fact::encoded_bound(&wire::CEILINGS), Some(4462));
 }
 #[test]
 fn every_size_fixture_holds_a_largest_piece_fact_and_its_frame() {

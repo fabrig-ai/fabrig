@@ -46,7 +46,6 @@ impl Workers {
         encoding: Encoding,
         forges: Box<[Forge]>,
         limits: &kit::Limits,
-        room: u32,
     ) -> Result<Self, Problems> {
         let mut workers = List::with_capacity(limits.names);
         for worker in &config.hosts.workers {
@@ -63,7 +62,7 @@ impl Workers {
             return Err(invalid(What::Bound));
         }
         let mut listeners = List::with_capacity(count);
-        let mut io = Queue::with_capacity(room);
+        let mut io = Queue::uncapped();
         for (index, address) in config.hosts.listener.iter().enumerate() {
             let config::Address::Addr(address) = address else {
                 return Err(invalid(What::Form));
@@ -97,14 +96,6 @@ impl Workers {
     #[must_use]
     pub fn opened(&self) -> bool {
         self.opened
-    }
-    #[must_use]
-    pub fn batch_room(&self, batch: u32) -> bool {
-        self.io.room() >= batch.checked_mul(kit::MAX_OUT_DOWN).expect("worker route room")
-    }
-    #[must_use]
-    pub fn room(&self) -> bool {
-        self.io.room() >= kit::MAX_OUT_DOWN
     }
     #[must_use]
     pub fn work_pending(&self, now: Time) -> bool {
@@ -270,7 +261,7 @@ impl Workers {
         }
     }
     pub fn iterate(&mut self, now: Time, events: &mut Queue<root::Event>) {
-        if self.room() && events.room() >= kit::MAX_OUT_FIRE {
+        if events.room() >= kit::MAX_OUT_FIRE {
             self.component.fire(now, &mut self.out);
             self.drain(events);
         }
@@ -554,11 +545,7 @@ fn channel_limits_accept_stock_and_refuse_zero_handshake() {
 
 impl Workers {
     /// Construct checked channels from the service's typed settings.
-    pub fn configured(
-        settings: &mut crate::settings::Engine,
-        deployment: [u8; 16],
-        max: u32,
-    ) -> Result<Self, Problems> {
+    pub fn configured(settings: &mut crate::settings::Engine, deployment: [u8; 16]) -> Result<Self, Problems> {
         let worker_limits = limits(settings).ok_or(invalid(What::Bound))?;
         let mut endpoints =
             List::with_capacity(u32::try_from(settings.jig.llm.endpoints.len()).expect("endpoint count"));
@@ -581,7 +568,6 @@ impl Workers {
             },
             ::core::mem::replace(&mut settings.forges, Box::new([])),
             &worker_limits,
-            max.checked_mul(jig_protocol_engine_workers::MAX_OUT_DOWN).expect("worker routing room"),
         )?;
         Ok(workers)
     }

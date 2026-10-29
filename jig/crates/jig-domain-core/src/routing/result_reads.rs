@@ -57,7 +57,7 @@ pub(crate) fn clear(core: &mut Core, task: u64) {
 }
 
 pub(super) fn begin(core: &mut Core, work: &mut Queue<Event>, task: u64, ids: Box<[u64]>) -> Requests {
-    let mut out = Queue::with_capacity(2);
+    let mut out = Queue::uncapped();
     for (_, read) in &core.result_reads {
         match read.why {
             ReadFor::Preparation { task: owner, .. } if owner == task => {
@@ -104,7 +104,7 @@ pub(super) fn loaded(
     row: Option<Box<tasks::TaskRecord>>,
     busy: bool,
 ) -> Requests {
-    let mut out = Queue::with_capacity(3);
+    let mut out = Queue::uncapped();
     out.push(Request::Decided);
     let Some(mut read) = core.result_reads.remove(&request) else { return Requests::Out(out) };
     match read.why {

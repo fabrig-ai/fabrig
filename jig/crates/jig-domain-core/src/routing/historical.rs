@@ -83,7 +83,7 @@ pub(super) fn route_historical_escalation(
         people::Outcome::Refused(people::Refusal::Unknown)
     };
     work.push(Event::People(people::Event::Decided { request, outcome }));
-    let mut out = Queue::with_capacity(1);
+    let mut out = Queue::uncapped();
     out.push(Request::Decided);
     Requests::Out(out)
 }
@@ -159,7 +159,7 @@ pub(super) fn route_historical_proposal(
         people::Outcome::Refused(people::Refusal::Unknown)
     };
     work.push(Event::People(people::Event::Decided { request, outcome }));
-    let mut out = Queue::with_capacity(1);
+    let mut out = Queue::uncapped();
     out.push(Request::Decided);
     Requests::Out(out)
 }

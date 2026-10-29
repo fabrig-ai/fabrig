@@ -1137,6 +1137,27 @@ fn a_cut_circle_says_its_lists_are_incomplete() {
 }
 
 #[test]
+fn an_unreachable_dependency_refusal_names_the_dependency_to_the_agent() {
+    // Replaces the real-loop test `unreachable_dependency_refusal_names_the_task_to_the_agent`.
+    let value =
+        engine::CallAnswer::ControlRefused(tasks::Problem::naming(Some(99), tasks::Refusal::Dependencies, &[4]));
+    let rendered = answer(&value);
+    assert!(rendered.error());
+    let words = rendered.text();
+    assert!(words.contains(&b'4'), "the agent must hear the unreachable dependency's identity: {words:?}");
+    let mut names_dependency = false;
+    for pattern in [b"depend".as_slice(), b"reach".as_slice()] {
+        for part in words.windows(pattern.len()) {
+            if part.eq_ignore_ascii_case(pattern) {
+                names_dependency = true;
+                break;
+            }
+        }
+    }
+    assert!(names_dependency, "the agent must hear a dependency or reach refusal: {words:?}");
+}
+
+#[test]
 fn a_failed_dependency_is_named() {
     refusal_words(
         tasks::Refusal::DependencyEnded { how: tasks::Status::Failed },

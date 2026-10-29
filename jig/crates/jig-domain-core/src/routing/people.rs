@@ -94,7 +94,7 @@ pub(super) fn sign_in(
     identity: people::Identity,
     held: Option<u64>,
 ) -> Requests {
-    let mut out = Queue::with_capacity(2);
+    let mut out = Queue::uncapped();
     if !core.people.ready() {
         out.push(Request::Held(Box::new(Held::PeopleReply {
             to: reply_to,
@@ -125,18 +125,12 @@ pub(super) fn tag_people(
     mut child: Queue<people::Request>,
     work: &mut Queue<Event>,
 ) -> Requests {
-    let room = people::max_out(&env.limits.people)
-        .checked_mul(4)
-        .expect("bounded party routes")
-        .checked_add(env.limits.people.inbox_tasks)
-        .expect("bounded party routes")
-        .max(crate::settings::writes_worst_case(&env.limits).expect("settings output room"));
     let mut pending = Queue::uncapped();
     for _ in 0..child.len() {
         pending.push(child.pop().expect("party output count"));
     }
     let mut out = Queue::uncapped();
-    for _ in 0..room {
+    for _ in 0..env.limits.routes {
         let Some(next) = pending.pop() else { break };
         let request = match next {
             people::Request::Act { request, connector: _, act } => {
@@ -503,7 +497,7 @@ pub(super) fn tag_people(
         };
         out.push(request);
     }
-    assert!(pending.is_empty(), "finite party routes fit their bound");
+    assert!(pending.is_empty(), "party_routes_drained");
     out.push(Request::Decided);
     Requests::Out(out)
 }

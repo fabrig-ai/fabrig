@@ -327,7 +327,7 @@ impl Harness {
                 1,
             ),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits },
-            out: Queue::with_capacity(max_out(limits)),
+            out: Queue::uncapped(),
             turns: List::with_capacity(CEILING.turns),
             long: List::with_capacity(4096),
             checking: false,
@@ -352,25 +352,21 @@ impl Harness {
     /// of this one, then whatever is ready, at the start of the domain's stage.
     fn next(&mut self) -> Box<[Request]> {
         self.domain.reclaim();
-        let mut all = List::with_capacity(max_out(&LIMITS));
-        for _ in 0..max_out(&LIMITS) {
-            if !self.domain.is_ready() {
-                break;
-            }
+        let mut all = Queue::uncapped();
+        while self.domain.is_ready() {
             self.keep_facts();
             resume(&mut self.domain, &self.env, &mut self.out);
             for request in self.drain() {
-                all.push(request).expect("a test's iteration emits little");
+                all.push(request);
             }
         }
         assert!(!self.domain.is_ready(), "what is made ready while the list is drained waits for the next iteration");
-        all.into_boxed()
+        collected_requests(all)
     }
 
     fn drain(&mut self) -> Box<[Request]> {
-        let mut requests = List::with_capacity(max_out(&LIMITS));
-        for _ in 0..max_out(&LIMITS) {
-            let Some(request) = self.out.pop() else { break };
+        let mut requests = Queue::uncapped();
+        while let Some(request) = self.out.pop() {
             match request {
                 Request::Turn { turn, number, .. } => {
                     assert_eq!(
@@ -389,16 +385,14 @@ impl Harness {
                         }
                         run::Answer::Refused(_) => assert!(self.turns.is_empty()),
                     }
-                    requests
-                        .push(Request::Answer { to, answer, read, detail: Box::default() })
-                        .expect("room for max_out");
+                    requests.push(Request::Answer { to, answer, read, detail: Box::default() });
                 }
                 Request::Long { host_run, operation, until } => {
                     self.long.push(Some(operation)).expect("bounded issued operation history");
                     match operation {
                         crate::Operation::Checks => {
                             self.checking = true;
-                            requests.push(Request::Long { host_run, operation, until }).expect("room for max_out");
+                            requests.push(Request::Long { host_run, operation, until });
                         }
                         crate::Operation::Completion | crate::Operation::Command => {}
                     }
@@ -407,7 +401,7 @@ impl Harness {
                     self.long.push(None).expect("bounded actual operation terminals");
                     if self.checking {
                         self.checking = false;
-                        requests.push(Request::LongDone { host_run }).expect("room for max_out");
+                        requests.push(Request::LongDone { host_run });
                     }
                 }
                 request @ (Request::HostCall { .. }
@@ -429,12 +423,12 @@ impl Harness {
                 | Request::Abort { .. }
                 | Request::MessageRefused { .. }
                 | Request::Waiting { .. }) => {
-                    requests.push(request).expect("room for max_out");
+                    requests.push(request);
                 }
             }
         }
-        assert!(self.out.is_empty(), "an entry point emits at most max_out");
-        requests.into_boxed()
+        assert!(self.out.is_empty(), "every emitted request was collected");
+        collected_requests(requests)
     }
 
     /// Starts a run of `charter` for call `call`, and has it find no guide:
@@ -1843,28 +1837,38 @@ fn invalid_conventions_are_refused_at_original_root_start_before_any_effect() {
     }
 }
 
+/// Drains an uncapped test collector into the slice inspected by its assertions.
+fn collected_requests(mut requests: Queue<Request>) -> Box<[Request]> {
+    let mut collected = List::with_capacity(requests.len());
+    while let Some(request) = requests.pop() {
+        collected.push(request).expect("the collected queue's observed length");
+    }
+    collected.into_boxed()
+}
+
 /// Settle the positive default-path companion using its provider terminal.
-fn settle_default_convention_control(harness: &mut Harness, run: Token, main: Token, receiving: &Limits) {
-    let mut cancelled = List::with_capacity(max_out(receiving));
+fn settle_default_convention_control(harness: &mut Harness, run: Token, main: Token) {
+    let mut cancelled = Queue::uncapped();
     for request in harness.step(Event::Cancel { run }) {
-        cancelled.push(request).unwrap();
+        cancelled.push(request);
     }
     for request in harness.next() {
-        cancelled.push(request).unwrap();
+        cancelled.push(request);
     }
-    let [Request::Cancel { owner }] = cancelled.as_slice() else {
+    let cancelled = collected_requests(cancelled);
+    let [Request::Cancel { owner }] = cancelled.as_ref() else {
         panic!("positive default control cancels its actual provider request: {cancelled:?}");
     };
     assert_eq!(*owner, main);
-    let mut ended = List::with_capacity(max_out(receiving));
+    let mut ended = Queue::uncapped();
     for request in harness.step(Event::Cancelled { owner: main }) {
-        ended.push(request).unwrap();
+        ended.push(request);
     }
     for request in harness.next() {
-        ended.push(request).unwrap();
+        ended.push(request);
     }
-    let [Request::Answer { answer: run::Answer::Failed { failure: run::Failure::Cancelled, .. }, .. }] =
-        ended.as_slice()
+    let ended = collected_requests(ended);
+    let [Request::Answer { answer: run::Answer::Failed { failure: run::Failure::Cancelled, .. }, .. }] = ended.as_ref()
     else {
         panic!("positive default control settles its original Start: {ended:?}");
     };
@@ -1964,7 +1968,7 @@ fn maximum_custom_guide_headings_obey_the_session_receiving_limit_after_discover
             };
         } else {
             let (main, _) = completing(emitted);
-            settle_default_convention_control(&mut harness, run, main, &receiving);
+            settle_default_convention_control(&mut harness, run, main);
         }
         harness.domain.reclaim();
         assert_eq!(

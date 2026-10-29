@@ -843,7 +843,7 @@ fn a_failed_binary_start_restores_the_original_subreaper_setting() {
     assert_eq!(skein_shell::subreaper().expect("the setting after failed startup"), original);
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 enum SupervisedTrigger {
     // The detached-descendant cases use Linux's tree keeper (shell.md, 9).
     #[cfg(target_os = "linux")]
@@ -886,42 +886,63 @@ impl SupervisedJudge {
     }
 }
 
-impl Referee<Process> for SupervisedJudge {
-    fn act(&mut self, now: Time, procs: &mut [Process]) {
-        let Process::Child(child) = &mut procs[0] else { panic!("binary observer") };
+/// The observer's supplied state, with no process or kernel required
+/// (skein/docs/foundation/testing-strategy.md, 2.1).
+struct SupervisedSnapshot<'a> {
+    stderr: &'a [u8],
+    stderr_overflowed: bool,
+    exit: Option<Exit>,
+    settled: bool,
+    tree: &'a skein_world::end_to_end::TreeStatus,
+}
+
+impl SupervisedSnapshot<'_> {
+    fn from_binary(child: &Binary) -> SupervisedSnapshot<'_> {
+        SupervisedSnapshot {
+            stderr: child.stderr(),
+            stderr_overflowed: child.stderr_overflowed(),
+            exit: child.exit_status(),
+            settled: child.counts().is_some(),
+            tree: child.tree_status(),
+        }
+    }
+}
+
+impl SupervisedJudge {
+    fn act_snapshot(&mut self, now: Time, child: &SupervisedSnapshot<'_>) -> Option<Signal> {
         if self.term_at.is_none() {
             let ready = match self.trigger {
                 #[cfg(target_os = "linux")]
-                SupervisedTrigger::Ready => ready_descendant(child.stderr()).is_some(),
+                SupervisedTrigger::Ready => ready_descendant(child.stderr).is_some(),
                 #[cfg(target_os = "linux")]
-                SupervisedTrigger::StderrOverflow => child.stderr_overflowed(),
+                SupervisedTrigger::StderrOverflow => child.stderr_overflowed,
                 #[cfg(target_os = "linux")]
-                SupervisedTrigger::LeaderExit => child.exit_status().is_some(),
+                SupervisedTrigger::LeaderExit => child.exit.is_some(),
                 SupervisedTrigger::Bound => now >= Time::ZERO.saturating_add(Duration::from_millis(10)),
                 SupervisedTrigger::Never => false,
             };
             if ready {
-                child.signal_tree(Signal::Terminate);
                 self.term_at = Some(now);
+                return Some(Signal::Terminate);
             }
         } else if let Some(term_at) = self.term_at
-            && child.counts().is_none()
+            && !child.settled
         {
             let grace = term_at.saturating_add(self.grace);
             if now >= grace && self.kill_at.is_none() {
-                child.signal_tree(Signal::Kill);
                 self.kill_at = Some(now);
+                return Some(Signal::Kill);
             }
         }
+        None
     }
 
-    fn observe(&mut self, now: Time, procs: &[Process]) {
-        let Process::Child(child) = &procs[0] else { panic!("binary observer") };
+    fn observe_snapshot(&mut self, now: Time, child: &SupervisedSnapshot<'_>) {
         // A forced cleanup gives the live TERM-delivered tree its grace before
         // the leader wait completes. The exit may first reach this referee
         // after escalation; its history survives the current membership poll.
         if self.cleanup == Cleanup::Kill {
-            let tree = child.tree_status();
+            let tree = child.tree;
             self.saw_retained_exit |= tree.live_at_leader_exit.as_ref().is_some_and(|pids| !pids.is_empty());
             if self.term_at.is_some_and(|at| now < at.saturating_add(self.grace))
                 && tree.live_pids.iter().any(|pid| tree.terminated_pids.contains(pid))
@@ -930,14 +951,14 @@ impl Referee<Process> for SupervisedJudge {
                 self.saw_grace = true;
             }
         }
-        if child.exit_status().is_some() && !child.tree_status().live_pids.is_empty() {
-            assert!(child.counts().is_none(), "a living tree retains its keeper after leader exit");
+        if child.exit.is_some() && !child.tree.live_pids.is_empty() {
+            assert!(!child.settled, "a living tree retains its keeper after leader exit");
             self.saw_retained_exit = true;
             if let Some(term_at) = self.term_at
                 && now < term_at.saturating_add(self.grace)
             {
                 self.saw_grace = true;
-                assert!(child.tree_status().killed_pids.is_empty(), "the keeper leaves escalation to its referee");
+                assert!(child.tree.killed_pids.is_empty(), "the keeper leaves escalation to its referee");
             }
         }
         // Once a required window closes or the tree settles, later iterations
@@ -952,7 +973,7 @@ impl Referee<Process> for SupervisedJudge {
                 Some(
                     "waiting for a live retained leader exit during TERM grace: the grace window closed before it was observed",
                 )
-            } else if child.counts().is_some() && !self.passed() {
+            } else if child.settled && !self.passed() {
                 Some(
                     "waiting for a retained leader exit and the expected cleanup: the supervised tree has already settled",
                 )
@@ -963,22 +984,36 @@ impl Referee<Process> for SupervisedJudge {
         if let Some(why) = self.overdue(now) {
             panic!("supervised referee failed: {why}");
         }
-        self.next = if child.counts().is_some() {
+        self.next = if child.settled {
             None
         } else if let Some(term_at) = self.term_at {
             self.kill_at.is_none().then_some(term_at.saturating_add(self.grace))
         } else {
             match self.trigger {
                 #[cfg(target_os = "linux")]
-                SupervisedTrigger::Ready => ready_descendant(child.stderr()).is_some().then_some(now),
+                SupervisedTrigger::Ready => ready_descendant(child.stderr).is_some().then_some(now),
                 #[cfg(target_os = "linux")]
-                SupervisedTrigger::StderrOverflow => child.stderr_overflowed().then_some(now),
+                SupervisedTrigger::StderrOverflow => child.stderr_overflowed.then_some(now),
                 #[cfg(target_os = "linux")]
-                SupervisedTrigger::LeaderExit => child.exit_status().is_some().then_some(now),
+                SupervisedTrigger::LeaderExit => child.exit.is_some().then_some(now),
                 SupervisedTrigger::Bound => Some(Time::ZERO.saturating_add(Duration::from_millis(10))),
                 SupervisedTrigger::Never => None,
             }
         };
+    }
+}
+
+impl Referee<Process> for SupervisedJudge {
+    fn act(&mut self, now: Time, procs: &mut [Process]) {
+        let Process::Child(child) = &mut procs[0] else { panic!("binary observer") };
+        if let Some(signal) = self.act_snapshot(now, &SupervisedSnapshot::from_binary(child)) {
+            child.signal_tree(signal);
+        }
+    }
+
+    fn observe(&mut self, now: Time, procs: &[Process]) {
+        let Process::Child(child) = &procs[0] else { panic!("binary observer") };
+        self.observe_snapshot(now, &SupervisedSnapshot::from_binary(child));
     }
 
     fn next_deadline(&self) -> Option<Time> {
@@ -1321,25 +1356,6 @@ fn supervised_stderr_overflow_keeps_a_bounded_prefix_and_drains_a_natural_tree()
     }
 }
 
-// Under the walk on Linux, the group on macOS (`WALKS`).
-#[test]
-fn supervised_stderr_limits_distinguish_exact_capture_empty_capture_and_overflow() {
-    for (bytes, limit, prefix, overflow) in
-        [("", 0, "", false), ("12345678", 8, "12345678", false), ("123456789", 8, "12345678", true), ("x", 0, "", true)]
-    {
-        let outcome = capture_run(
-            command(&format!("printf '{bytes}' >&2")),
-            limit,
-            SupervisedTrigger::Never,
-            cfg!(target_os = "linux"),
-        );
-        let child = tree_child(&outcome);
-        assert_eq!(child.stderr(), prefix.as_bytes());
-        assert_eq!(child.stderr_overflowed(), overflow);
-        assert!(child.counts().is_some());
-    }
-}
-
 // A cgroup, the subreaper and `/proc` are Linux's (examples.md, 6; shell.md, 9).
 #[cfg(target_os = "linux")]
 #[test]
@@ -1462,12 +1478,6 @@ fn a_forced_kill_referee_observes_a_late_retained_exit_after_kill_and_settlement
 }
 
 #[test]
-#[should_panic(expected = "binary stderr exceeds its scenario limit of 8 bytes")]
-fn legacy_stderr_capture_still_fails_the_scenario_at_overflow() {
-    legacy_stderr_overflow();
-}
-
-#[test]
 fn repeated_stderr_overflow_unwinds_without_aborting() {
     // Exercise twenty independent stderr-overflow unwinds in one test process.
     const UNWINDS: usize = 20;
@@ -1561,3 +1571,8 @@ fn a_group_refuses_beside_a_subreaper() {
     skein_shell::set_subreaper(previous).expect("the test restores its prior adoption policy");
     assert!(matches!(result, Err(StartError::Tree(skein_io::kernel::Error::Other(16)))));
 }
+
+// The supplied-state tests start no process (testing-strategy.md, 2.1).
+#[cfg(target_os = "linux")]
+#[path = "supervised_referee.rs"]
+mod referee_steps;

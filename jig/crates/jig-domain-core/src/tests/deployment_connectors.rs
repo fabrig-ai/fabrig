@@ -13,7 +13,7 @@ fn source(connectors: &[u16], lines: u32) -> (Core, Limits) {
     let mut core = seeded_core(config, &limits).expect("fixture core configuration");
     restore_key_account(&mut core, &limits, 0, 1, 1);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people };
-    let mut out = Queue::with_capacity(people::max_out(&limits.people));
+    let mut out = Queue::uncapped();
     for record in [
         people::Stored::Person {
             number: 1,
@@ -133,7 +133,7 @@ fn deployment_connector_reference_loss_is_independent_and_included_in_the_aggreg
 fn deployment_complete_connector_registry_does_not_hide_original_refusal_history_loss_or_epoch() {
     let (mut core, limits) = source(&[u16::MAX - 1], 2);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.fleet };
-    let mut out = Queue::with_capacity(fleet::max_out(&limits.fleet));
+    let mut out = Queue::uncapped();
     for channel in [9, 10, 11] {
         fleet::step(
             &mut core.fleet,
@@ -188,7 +188,7 @@ fn a_refused_hello_shows_its_agent_shortfall() {
     let mut bounds = fixtures::bounds();
     bounds.models = Box::new([fleet::ModelBound { name: b"scripted".as_slice().into(), window: 8191, output: 1024 }]);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.fleet };
-    let mut out = Queue::with_capacity(fleet::max_out(&limits.fleet));
+    let mut out = Queue::uncapped();
     fleet::step(
         &mut core.fleet,
         &env,
