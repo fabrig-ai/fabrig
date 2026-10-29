@@ -20,11 +20,30 @@ fn gone(find: Find) -> Step<Address> {
     Step::Gone { find, within: f::WITHIN }
 }
 
-fn setup() -> (Pages, ClientId, u64) {
+struct Question {
+    asker: u64,
+    number: u64,
+}
+
+impl Question {
+    fn read(world: &mut Pages, chat: u64) -> Self {
+        let engine = &world.front().engine;
+        let asker = engine.task(chat).expect("question chat").delegates[0];
+        let number = engine.task(asker).expect("asking delegate").questions[0].number;
+        Self { asker, number }
+    }
+
+    fn acknowledged(&self) -> Find {
+        Find::text(format!("You answered question {} in your inbox", self.number).as_bytes())
+    }
+}
+
+fn setup() -> (Pages, ClientId, u64, Question) {
     let mut world = f::world(f::SEED);
     let task = f::question(world.front(), QUESTION);
+    let question = Question::read(&mut world, task);
     let client = world.client(f::PARTY, f::inbox());
-    (world, client, task)
+    (world, client, task, question)
 }
 
 fn drawing(world: &Pages, client: ClientId) -> String {
@@ -113,8 +132,61 @@ fn turn(world: &Pages, client: ClientId, words: &[u8]) -> Vec<String> {
     paragraphs
 }
 
-fn assert_person_answer(world: &Pages, client: ClientId) {
-    assert_eq!(turn(world, client, ANSWER)[0], "You", "{}", drawing(world, client));
+fn assert_answer_received(world: &mut Pages, client: ClientId, task: u64, question: &Question, words: &[u8]) {
+    let acknowledgement = format!("You answered question {} in your inbox", question.number);
+    assert_eq!(
+        world
+            .tree(client)
+            .nodes()
+            .iter()
+            .filter(|node| { node.role == Role::Paragraph && node.name.as_deref() == Some(acknowledgement.as_bytes()) })
+            .count(),
+        1,
+        "one acknowledgement in the chat\n{}",
+        drawing(world, client)
+    );
+    follow(
+        world,
+        client,
+        vec![
+            Step::Go { address: f::task_page(question.asker) },
+            see(Find::exactly_named(
+                Role::Heading { level: 1 },
+                format!("T{} · Ask the person", question.asker).as_bytes(),
+            )),
+        ],
+    );
+    // The asking task's durable activity keeps one whole answer, including line breaks.
+    let answers: Vec<_> = world
+        .front()
+        .engine
+        .store
+        .rows
+        .values()
+        .filter_map(|record| {
+            if let temper_engine_domain::Record::Core(jig_domain_core::Record::Tasks(
+                jig_domain_tasks::Stored::Activity(line),
+            )) = record
+                && line.task == question.asker
+                && let jig_domain_tasks::Line::Words {
+                    kind: jig_domain_tasks::MessageKind::Answer { question: number },
+                    words,
+                    ..
+                } = &line.line
+                && *number == question.number
+            {
+                Some(words.as_ref())
+            } else {
+                None
+            }
+        })
+        .collect();
+    assert_eq!(answers, [words], "one whole answer on the asking task");
+    follow(world, client, vec![Step::Go { address: f::chat_page(task) }, see(question.acknowledged())]);
+}
+
+fn assert_person_answer(world: &mut Pages, client: ClientId, task: u64, question: &Question) {
+    assert_answer_received(world, client, task, question, ANSWER);
     // The delegate's question remains a separate turn when the answer arrives.
     let question = turn(world, client, QUESTION);
     assert!(question[0].strip_prefix('T').is_some_and(|number| number.parse::<u64>().is_ok()), "{question:?}");
@@ -122,7 +194,7 @@ fn assert_person_answer(world: &Pages, client: ClientId) {
 
 #[test]
 fn question_card_links_to_chat_whose_wait_is_for_you() {
-    let (mut world, client, task) = setup();
+    let (mut world, client, task, _question) = setup();
     follow(
         &mut world,
         client,
@@ -144,7 +216,7 @@ fn question_card_links_to_chat_whose_wait_is_for_you() {
 
 #[test]
 fn delegate_question_keeps_its_lines_and_its_speaker() {
-    let (mut world, client, task) = setup();
+    let (mut world, client, task, _question) = setup();
     follow(
         &mut world,
         client,
@@ -168,6 +240,7 @@ fn question_and_answer_keep_utf8_and_lines_at_the_receiving_bound() {
     answer_words.resize(bound, b'a');
     let mut world = f::world(f::SEED);
     let task = f::question(world.front(), &question);
+    let info = Question::read(&mut world, task);
     let client = world.client(f::PARTY, f::inbox());
     follow(
         &mut world,
@@ -180,7 +253,7 @@ fn question_and_answer_keep_utf8_and_lines_at_the_receiving_bound() {
             see(Find::text(b"Answered")),
             Step::Go { address: f::chat_page(task) },
             see(Find::text("Café <&>?".as_bytes())),
-            see(Find::text("Oui — café.".as_bytes())),
+            see(info.acknowledged()),
         ],
     );
     let question_turn = turn(&world, client, &question);
@@ -188,12 +261,12 @@ fn question_and_answer_keep_utf8_and_lines_at_the_receiving_bound() {
         question_turn[0].strip_prefix('T').is_some_and(|number| number.parse::<u64>().is_ok()),
         "{question_turn:?}"
     );
-    assert_eq!(turn(&world, client, &answer_words)[0], "You");
+    assert_answer_received(&mut world, client, task, &info, &answer_words);
 }
 
 #[test]
 fn answered_card_stays_until_inbox_is_read_again() {
-    let (mut world, client, task) = setup();
+    let (mut world, client, task, question) = setup();
     draft(&mut world, client);
     follow(
         &mut world,
@@ -205,19 +278,21 @@ fn answered_card_stays_until_inbox_is_read_again() {
             gone(Find::exactly_named(Role::Link, b"Inbox 1")),
             see(Find::exactly_named(Role::Link, b"Inbox")),
             Step::Go { address: f::chat_page(task) },
-            see(Find::text(b"Use the careful approach.")),
-            see(Find::text(b"Keep the fallback: yes.")),
+            see(question.acknowledged()),
             Step::Go { address: f::inbox() },
             gone(Find::named(Role::TextArea, b"Answer words")),
             gone(Find::text(QUESTION)),
             gone(Find::text(b"Answered")),
+            Step::Go { address: f::chat_page(task) },
+            see(question.acknowledged()),
         ],
     );
+    assert_person_answer(&mut world, client, task, &question);
 }
 
 #[test]
-fn inbox_answer_is_your_multiline_turn_after_navigation_and_reload() {
-    let (mut world, client, task) = setup();
+fn inbox_answer_is_acknowledged_and_keeps_lines_after_navigation_and_reload() {
+    let (mut world, client, task, question) = setup();
     draft(&mut world, client);
     follow(
         &mut world,
@@ -226,11 +301,10 @@ fn inbox_answer_is_your_multiline_turn_after_navigation_and_reload() {
             answer(),
             see(Find::text(b"Answered")),
             Step::Go { address: f::chat_page(task) },
-            see(Find::text(b"Use the careful approach.")),
-            see(Find::text(b"Keep the fallback: yes.")),
+            see(question.acknowledged()),
         ],
     );
-    assert_person_answer(&world, client);
+    assert_person_answer(&mut world, client, task, &question);
     follow(
         &mut world,
         client,
@@ -243,16 +317,15 @@ fn inbox_answer_is_your_multiline_turn_after_navigation_and_reload() {
             // A client closed on any page opens at the inbox (client/README.md, 3.4).
             see(Find::exactly_named(Role::Heading { level: 1 }, b"Inbox")),
             Step::Go { address: f::chat_page(task) },
-            see(Find::text(b"Use the careful approach.")),
-            see(Find::text(b"Keep the fallback: yes.")),
+            see(question.acknowledged()),
         ],
     );
-    assert_person_answer(&world, client);
+    assert_person_answer(&mut world, client, task, &question);
 }
 
 #[test]
 fn answer_survives_leaving_and_reopening_both_pages() {
-    let (mut world, client, task) = setup();
+    let (mut world, client, task, question) = setup();
     draft(&mut world, client);
     follow(
         &mut world,
@@ -263,11 +336,10 @@ fn answer_survives_leaving_and_reopening_both_pages() {
             Step::Go { address: f::chats_page() },
             see(Find::exactly_named(Role::Link, format!("T{task}").as_bytes())),
             Step::Press { find: Find::exactly_named(Role::Link, format!("T{task}").as_bytes()) },
-            see(Find::text(b"Use the careful approach.")),
-            see(Find::text(b"Keep the fallback: yes.")),
+            see(question.acknowledged()),
         ],
     );
-    assert_person_answer(&world, client);
+    assert_person_answer(&mut world, client, task, &question);
     follow(
         &mut world,
         client,
@@ -276,16 +348,15 @@ fn answer_survives_leaving_and_reopening_both_pages() {
             see(Find::exactly_named(Role::Heading { level: 1 }, b"Inbox")),
             gone(Find::text(QUESTION)),
             Step::Go { address: f::chat_page(task) },
-            see(Find::text(b"Use the careful approach.")),
-            see(Find::text(b"Keep the fallback: yes.")),
+            see(question.acknowledged()),
         ],
     );
-    assert_person_answer(&world, client);
+    assert_person_answer(&mut world, client, task, &question);
 }
 
 #[test]
 fn double_press_waits_for_confirmation_and_delivers_one_answer() {
-    let (mut world, client, task) = setup();
+    let (mut world, client, task, question) = setup();
     draft(&mut world, client);
     world.fault(FrontFault::Slow { span: Duration::from_millis(100) });
     let button = node(&world, client, &Find::exactly_named(Role::Button, b"Answer"));
@@ -298,16 +369,15 @@ fn double_press_waits_for_confirmation_and_delivers_one_answer() {
             gone(Find::text(b"Answered")),
             see(Find::text(b"Answered")),
             Step::Go { address: f::chat_page(task) },
-            see(Find::text(b"Use the careful approach.")),
-            see(Find::text(b"Keep the fallback: yes.")),
+            see(question.acknowledged()),
         ],
     );
-    assert_person_answer(&world, client);
+    assert_person_answer(&mut world, client, task, &question);
 }
 
 #[test]
 fn lost_confirmation_retries_without_losing_the_answer() {
-    let (mut world, client, task) = setup();
+    let (mut world, client, task, question) = setup();
     draft(&mut world, client);
     world.fault(FrontFault::NoAnswer);
     follow(
@@ -319,17 +389,16 @@ fn lost_confirmation_retries_without_losing_the_answer() {
             gone(Find::text(b"Answered")),
             see(Find::text(b"Answered")),
             Step::Go { address: f::chat_page(task) },
-            see(Find::text(b"Use the careful approach.")),
-            see(Find::text(b"Keep the fallback: yes.")),
+            see(question.acknowledged()),
         ],
     );
-    assert_person_answer(&world, client);
+    assert_person_answer(&mut world, client, task, &question);
 }
 
 #[test]
 #[ignore = "the joint world's reload delivers its Inbox jump and a second sign-in late (tests/client/src/front.rs:868-876): a Go right after a reload at the Inbox is undone; needs jig's client-world reload-address hook"]
 fn reload_during_pending_preserves_the_answer_request() {
-    let (mut world, client, task) = setup();
+    let (mut world, client, task, question) = setup();
     draft(&mut world, client);
     world.fault(FrontFault::Slow { span: Duration::from_millis(100) });
     follow(
@@ -341,9 +410,8 @@ fn reload_during_pending_preserves_the_answer_request() {
             Step::Reload,
             see(Find::exactly_named(Role::Heading { level: 1 }, b"Inbox")),
             Step::Go { address: f::chat_page(task) },
-            see(Find::text(b"Use the careful approach.")),
-            see(Find::text(b"Keep the fallback: yes.")),
+            see(question.acknowledged()),
         ],
     );
-    assert_person_answer(&world, client);
+    assert_person_answer(&mut world, client, task, &question);
 }

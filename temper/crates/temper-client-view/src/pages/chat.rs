@@ -779,6 +779,14 @@ fn provisional(b: &mut Builder, message: &[u8], cut: bool, words: &Words, text_l
     b.close();
 }
 fn owner_line(b: &mut Builder, line: &c::OwnerActivity, projected: bool, person: Option<u64>, words: &Words) {
+    if projected
+        && let c::OwnerActivity::Heard(c::OwnerWord {
+            kind: c::OwnerMessageKind::QuestionAnswered { question }, ..
+        }) = line
+    {
+        text(b, Role::Paragraph, &words.say(Word::QuestionAnswered, &[Hole::Number(*question)]));
+        return;
+    }
     if projected && let c::OwnerActivity::Words { by, words: message, .. } = line {
         let (label, side) = match by {
             c::OwnerRequester::Person(by) => (
