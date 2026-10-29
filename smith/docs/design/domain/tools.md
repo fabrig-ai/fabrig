@@ -350,6 +350,13 @@ workspace that can write can remove, with no shell needed.
 
 ## 6. Below the domain
 
+`result_bound` bounds the dynamic ownership of one call's result, without
+its enclosing block or copied provider id, which the session reserves
+separately. `batch_result_bound` bounds one legal batch: adjacent reads
+may run together, and a write runs alone. These are receiving bounds with
+checked arithmetic, not a sum of the domain's heap (programming-model.md,
+6.3).
+
 io's operations: file loads and atomic stores, directory scans and tree
 listings, `rg` searches, and commands in their own process groups with
 deadlines, each job's group held with its unread output between its
