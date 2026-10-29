@@ -16,5 +16,8 @@ skein-scratch.workspace = true
 skein-codegen = { path = "../../testing/skein-codegen" }
 skein-heap.workspace = true
 
+[build-dependencies]
+skein-codegen = { path = "../../testing/skein-codegen" }
+
 [lints]
 workspace = true

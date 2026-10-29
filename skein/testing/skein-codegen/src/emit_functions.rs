@@ -2,13 +2,16 @@
 
 //! Split generated functions at codec.md, section 6's line bound.
 
-pub(crate) fn split_worst_functions(out: &mut String) {
+pub(crate) fn split_bound_functions(out: &mut String) {
     let source = core::mem::take(out);
     let lines = source.lines().collect::<Vec<_>>();
     let mut offset = 0;
     while let Some(line) = lines.get(offset) {
-        let worst = line.trim_start().starts_with("pub fn worst_case_");
-        if !worst {
+        let signature = line.trim_start();
+        let bound = ["pub fn worst_case_", "pub fn encoded_bound", "pub fn decoded_bound"]
+            .iter()
+            .any(|prefix| signature.starts_with(prefix));
+        if !bound || !line.ends_with('{') {
             out.push_str(line);
             out.push('\n');
             offset = offset.checked_add(1).expect("source offset");
