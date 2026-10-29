@@ -104,6 +104,7 @@ class Lab:
                          'with Path(os.environ["HEAVY_FIXTURE_GC_LOG"]).open("a") as out: out.write("gc\\n")\n')
         cache.chmod(0o700)
         self.env['PATH'] = str(cache_bin) + ':' + self.env['PATH']
+        self.env['XDG_CACHE_HOME'] = str(self.path / 'cache')
         self.env['HEAVY_FIXTURE_GC_LOG'] = str(self.path / 'cache-gc-stub.txt')
         runtime = cache_bin / 'chromium-147-fixture'
         runtime.write_text('#!/bin/sh\necho "Chromium 147.0.7727.101"\n')
