@@ -1,4 +1,4 @@
-//! Admission and memory bounds.
+//! Admission limits.
 
 use crate::Page;
 use skein_lib::Duration;
@@ -38,25 +38,4 @@ impl Limits {
             && self.deadline.as_nanos() > 0
             && u64::from(self.chunk) >= u64::from(self.key).saturating_add(u64::from(self.value)).saturating_add(20)
     }
-}
-
-#[must_use]
-pub fn worst_case(limits: &Limits) -> Option<u64> {
-    if !limits.is_usable() {
-        return None;
-    }
-    let queue = limits.queued_bytes.checked_mul(2)?;
-    let chunks = u64::from(limits.chunk).checked_mul(3)?;
-    let page = u64::from(limits.page.bytes);
-    let codec = u64::from(limits.commit);
-    let snapshot = limits.budget.checked_mul(2)?;
-    let recovery_log = limits.segment.checked_add(limits.queued_bytes)?;
-    limits
-        .budget
-        .checked_add(snapshot)?
-        .checked_add(recovery_log)?
-        .checked_add(queue)?
-        .checked_add(chunks)?
-        .checked_add(page)?
-        .checked_add(codec)
 }
