@@ -8,7 +8,7 @@ mod jobs;
 use std::mem::size_of;
 
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
-use skein_world::domain::heap::{self, Meter};
+use skein_world::domain::heap::Meter;
 use smith_domain_run::charter::{Endpoint, Families, Grants, HostTool, Llm, Tools};
 use smith_domain_run::outcome::{Change, ChangeSpec, Declared, Field, FieldRule, ItemRule, OutcomeSpec, VerdictRule};
 use smith_domain_run::{
@@ -16,9 +16,6 @@ use smith_domain_run::{
     Spend, Stop,
 };
 use smith_domain_run::{Directory, Workspace};
-
-#[global_allocator]
-static HEAP: heap::Counting = heap::Counting;
 
 fn bytes(len: u64) -> Box<[u8]> {
     vec![b'x'; usize::try_from(len).expect("a test length fits")].into_boxed_slice()
