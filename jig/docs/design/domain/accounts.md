@@ -389,6 +389,14 @@ counts for accounts, sources and sign-ins
 are at least the engine's document lines, so every list cut there fits
 (`../client/domain/client.md`, section 14).
 
+A restored set past its limit, lowered since it was written (the
+accounts, one account's sources, or the lifetime program source names),
+refuses the start, naming the record's key, the set and the limit
+(`engine.md`, section 6); the refusal stays until the next cold start,
+whatever rows follow it. An account a source names that is not held, or
+a name reserved by two sources, is not a limit but a link the start
+cannot make, and panics.
+
 `valid(&Limits)` checks that `accounts * sources` is representable,
 alongside the individual bounds. This sizes the retained source table;
 it does not reserve an output queue's room. Internal outputs are
