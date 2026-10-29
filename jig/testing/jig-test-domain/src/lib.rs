@@ -18,7 +18,7 @@ use jig_domain_core as core;
 use jig_domain_fleet as fleet;
 use jig_domain_tasks as tasks;
 use jig_test_connector as connector;
-use skein_lib::{Decision, Env, Journal, JournalLimits, List, Map, Queue, ReplyTo, Set, Time, Token, Wall};
+use skein_lib::{Decision, Env, Journal, List, Map, Queue, ReplyTo, Set, Time, Token, Wall};
 
 /// A store address owned by the core or one numbered connector.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
@@ -304,6 +304,19 @@ pub enum Event {
     },
 }
 
+/// The journal's sizes (`domain/root.md` 4, 10).
+#[derive(Clone, Copy, Debug)]
+pub struct JournalSizes {
+    /// Commits in flight at once: the store's `sizes::Commits::in_flight` and the watermark's first term.
+    pub commits: u32,
+    /// Unique writes in one commit: the store's commit edge, `sizes::Commits::writes`.
+    pub writes: u32,
+    /// Outputs the journal's door holds (`Journal::now`): the watermark's second term.
+    pub door: u32,
+    /// Held outputs the journal releases in one call (`Journal::uncapped`).
+    pub release: u32,
+}
+
 /// Child bounds, synchronous route capacity and admission pacing for the test root.
 #[derive(Clone, Copy, Debug)]
 pub struct Limits {
@@ -312,7 +325,7 @@ pub struct Limits {
     /// Each test connector's bounded state and output.
     pub connector: connector::Limits,
     /// Journal release pacing and capacities used for conservative pricing.
-    pub journal: JournalLimits,
+    pub journal: JournalSizes,
     /// New external work waits while the backlog is at or past this many
     /// entries (skein's draft `dynamic-memory.md`, 4.4); a pacing limit,
     /// not a memory one.
@@ -324,8 +337,8 @@ pub struct Limits {
 /// The watermark's default: the journal's commits plus the outputs its
 /// door holds (`domain/root.md` 10).
 #[must_use]
-pub fn default_watermark(journal: &JournalLimits) -> u32 {
-    journal.commits.checked_add(journal.now).expect("journal commits plus door outputs fit")
+pub fn default_watermark(journal: &JournalSizes) -> u32 {
+    journal.commits.checked_add(journal.door).expect("journal commits plus door outputs fit")
 }
 
 /// The testing application's two numbered connectors.

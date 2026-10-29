@@ -359,12 +359,17 @@ fn prepared(clients: bool) -> crate::Service {
     core.views.watchers = 4;
     core.views.subjects_per_change = 4;
     core.documents.rows = 2;
-    config.limits.journal = skein_lib::JournalLimits { commits: 3, writes: 2000, held: 2000, now: 32, release: 32 };
+    config.limits.journal = jig_protocol_config::JournalSizes { commits: 3, writes: 2000, door: 32, release: 32 };
     config.limits.routes = 16;
     let mut limits = crate::limits::for_profile(jig_protocol_config::Profile::Small, &config.limits);
     limits.root.journal = f::journal(&limits.root);
     limits.root.watermark = root::default_watermark(&limits.root.journal);
-    config.limits.journal = limits.root.journal;
+    config.limits.journal = jig_protocol_config::JournalSizes {
+        commits: limits.root.journal.commits,
+        writes: limits.root.journal.writes,
+        door: limits.root.journal.door,
+        release: limits.root.journal.release,
+    };
     assert!(root::valid(&limits.root), "test root limits: {:?}", limits.root);
     let seeds = f::seeds();
     let root = root::Config { core: jig_protocol_config::core(&config, seeds.deployment, seeds.seed), first, second };

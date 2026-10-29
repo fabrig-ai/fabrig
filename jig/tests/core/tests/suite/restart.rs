@@ -483,7 +483,6 @@ fn census_world(seed: u64) -> World {
     limits.journal.commits = 2;
     limits.watermark = root::default_watermark(&limits.journal);
     limits.journal.writes = room + connectors;
-    limits.journal.held = (room + connectors) * 2;
     let mut world = World::configured(seed, false, configuration, limits);
     world.reads = Some(jig_core_world::reads::Parties::new(world.store.applied));
     world

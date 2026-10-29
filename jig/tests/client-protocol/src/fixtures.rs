@@ -34,8 +34,6 @@ pub fn journal(mut limits: jig_test_domain::Limits) -> jig_test_domain::Limits {
     let room = limits.core.routes;
     let connectors = jig_test_connector::OUTPUTS_BOUND.checked_mul(2).expect("two connector routes");
     limits.journal.writes = room.checked_add(connectors).expect("whole writes");
-    limits.journal.held =
-        room.checked_add(connectors).expect("whole held").checked_mul(limits.journal.commits).expect("bounded flights");
     limits
 }
 #[must_use]
