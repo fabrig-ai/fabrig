@@ -5,3 +5,13 @@ smith lead/smith@hel8
 jig lead/jig@hel8
 temper lead/temper@hel8
 mc s/multi-coord@hel8
+q s/qa@hel8
+q-skein lead/q/skein@hel8
+q-smith lead/q/smith@hel8
+q-jig lead/q/jig@hel8
+q-temper lead/q/temper@hel8
+u s/upgrades@hel8
+u-skein lead/u/skein@hel8
+u-smith lead/u/smith@hel8
+u-jig lead/u/jig@hel8
+u-temper lead/u/temper@hel8
