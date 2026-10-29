@@ -585,7 +585,7 @@ pub fn component_limits(root: &root::Limits) -> Limits {
     let sizes = protocol::sizes::check_commits(
         &root.core,
         &jig_test_store::application(&root.connector),
-        &protocol::sizes::commits(&root.journal),
+        &protocol::sizes::Commits { in_flight: root.journal.commits, writes: root.journal.writes },
         &kv,
         1,
     )
@@ -604,7 +604,7 @@ pub fn component_limits(root: &root::Limits) -> Limits {
         core: root.core,
         store: kv,
         secrets: kv,
-        journal: root.journal,
+        commits: protocol::sizes::Commits { in_flight: root.journal.commits, writes: root.journal.writes },
         joins: 128,
         queue: 8,
         files: 8,

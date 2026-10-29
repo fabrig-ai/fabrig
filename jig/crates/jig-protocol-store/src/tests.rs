@@ -48,7 +48,7 @@ fn valid_refuses_each_unrepresentable_limit() {
         ("reservation addition", crate::Limits { queue: u32::MAX, ..limits }, false),
         (
             "reservation product",
-            crate::Limits { journal: skein_lib::JournalLimits { writes: u32::MAX, ..limits.journal }, ..limits },
+            crate::Limits { commits: crate::sizes::Commits { writes: u32::MAX, ..limits.commits }, ..limits },
             false,
         ),
         ("operation capacity", crate::Limits { orphan_erases: u32::MAX, ..limits }, false),

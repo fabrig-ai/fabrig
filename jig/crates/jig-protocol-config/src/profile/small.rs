@@ -422,7 +422,7 @@ pub(super) const STORE: jig_protocol_store::Limits = jig_protocol_store::Limits 
     core: CORE,
     store: STORE_KV,
     secrets: STORE_KV,
-    journal: JOURNAL,
+    commits: jig_protocol_store::sizes::Commits { in_flight: JOURNAL.commits, writes: JOURNAL.writes },
     joins: 4,
     queue: 3,
     files: 8,

@@ -72,11 +72,11 @@ pub const BASE: PatchSets = PatchSets {
 
 /// Fixture rows need 64 bytes; 1024 also leaves room for the component's
 /// format, layouts and deployment header. A walk's page holds at most
-/// `journal.writes` puts: at 32, each family's range is one page.
+/// `commits.writes` puts: at 32, each family's range is one page.
 #[must_use]
 pub fn limits() -> jig_protocol_store::Limits {
     let mut limits = root::limits();
-    limits.journal.writes = 32;
+    limits.commits.writes = 32;
     for map in [&mut limits.store, &mut limits.secrets] {
         map.key = 64;
         map.value = 1024;
@@ -393,7 +393,7 @@ pub const FRESH_BEFORE: PatchSets = PatchSets {
 #[must_use]
 pub fn fresh_limits() -> jig_protocol_store::Limits {
     let mut limits = limits();
-    limits.journal.writes = 4;
+    limits.commits.writes = 4;
     limits
 }
 

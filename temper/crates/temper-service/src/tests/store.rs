@@ -21,7 +21,10 @@ fn sizes_past_skein_kvs_limits_refuse_the_store() {
     assert!(checked.store.is_usable());
     assert_eq!(checked.store, checked.secrets);
     assert_eq!(checked.core, engine::core_limits(&root));
-    assert_eq!(checked.journal, engine::journal_limits(&root.journal));
+    assert_eq!(
+        checked.commits,
+        jig_protocol_store::sizes::Commits { in_flight: root.journal.commits, writes: root.journal.writes }
+    );
     for field in ["key", "value", "ops", "commit", "page", "queue", "queued bytes"] {
         let mut short = profile;
         match field {
