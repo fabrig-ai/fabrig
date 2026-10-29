@@ -34,6 +34,23 @@ impl Bound {
         }
     }
 
+    fn check(&mut self, stream: &mut Option<TcpStream>) -> io::Result<()> {
+        match self {
+            Self::World(patience) => match patience.failed() {
+                Some(figures) => Err(io::Error::new(io::ErrorKind::TimedOut, figures.to_string())),
+                None => Ok(()),
+            },
+            Self::Owned(deadline) if deadline.passed() => match deadline.expired() {
+                Expired::Starved(starved) => {
+                    drop(stream.take());
+                    Err(io::Error::other(StarvedSocket(starved)))
+                }
+                Expired::Failed(figures) => Err(io::Error::new(io::ErrorKind::TimedOut, figures.to_string())),
+            },
+            Self::Owned(_) => Ok(()),
+        }
+    }
+
     fn retry(&mut self, error: io::Error, stream: &mut Option<TcpStream>) -> io::Result<()> {
         match self {
             Self::World(patience) => patience.socket_retry(error),
@@ -43,7 +60,7 @@ impl Bound {
                 match deadline.expired() {
                     Expired::Starved(starved) => {
                         drop(stream.take());
-                        return Err(io::Error::other(StarvedSocket(starved)));
+                        Err(io::Error::other(StarvedSocket(starved)))
                     }
                     Expired::Failed(figures) => Err(io::Error::new(error.kind(), format!("{error}; {figures}"))),
                 }
@@ -78,6 +95,7 @@ pub struct Socket {
     scope: Scope,
 }
 impl Socket {
+    #[must_use]
     pub fn new(stream: TcpStream, scope: Scope) -> Self {
         Self { stream: Some(stream), scope }
     }
@@ -107,7 +125,11 @@ impl Socket {
             match self.stream().write(bytes) {
                 Ok(0) => return Err(io::ErrorKind::WriteZero.into()),
                 Ok(count) => bytes = &bytes[count..],
+                Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
                 Err(error) => bound.retry(error, &mut self.stream)?,
+            }
+            if !bytes.is_empty() {
+                bound.check(&mut self.stream)?;
             }
         }
         Ok(())
@@ -123,7 +145,11 @@ impl Socket {
             match self.stream().read(&mut buffer[..length]) {
                 Ok(0) => break,
                 Ok(count) => bytes.extend_from_slice(&buffer[..count]),
+                Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
                 Err(error) => bound.retry(error, &mut self.stream)?,
+            }
+            if bytes.len() < limit {
+                bound.check(&mut self.stream)?;
             }
         }
         Ok(bytes)
@@ -136,7 +162,11 @@ impl Socket {
             match self.stream().read(bytes) {
                 Ok(0) => return Err(io::ErrorKind::UnexpectedEof.into()),
                 Ok(count) => bytes = &mut bytes[count..],
+                Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
                 Err(error) => bound.retry(error, &mut self.stream)?,
+            }
+            if !bytes.is_empty() {
+                bound.check(&mut self.stream)?;
             }
         }
         Ok(())
@@ -151,9 +181,13 @@ impl Socket {
             match self.stream().read(&mut byte) {
                 Ok(0) => return Err(io::ErrorKind::UnexpectedEof.into()),
                 Ok(_) => bytes.push(byte[0]),
+                Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
                 Err(error) => bound.retry(error, &mut self.stream)?,
             }
             assert!(bytes.len() <= 65_536, "bounded HTTP head");
+            if !bytes.ends_with(b"\r\n\r\n") {
+                bound.check(&mut self.stream)?;
+            }
         }
         Ok(bytes)
     }

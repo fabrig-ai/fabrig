@@ -311,6 +311,7 @@ impl Referee<Process> for Judge {
         let Process::Binary(engine) = &procs[0] else { panic!("engine") };
         self.deadline.watch(engine);
         if !self.settled
+            && !procs.iter().all(Host::is_empty)
             && let Some(figures) = self.deadline.failed()
         {
             self.timed_out = Some(format!("elsewhere life deadline: {figures}"));
@@ -402,7 +403,7 @@ impl Referee<Process> for Judge {
         if self.settled { None } else { self.deadline.until() }
     }
     fn overdue(&self, _now: Time) -> Option<String> {
-        self.timed_out.clone()
+        if self.settled { None } else { self.timed_out.clone() }
     }
     fn passed(&self) -> bool {
         self.settled

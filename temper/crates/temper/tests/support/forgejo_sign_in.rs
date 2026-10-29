@@ -10,7 +10,7 @@ use skein_lib::{
     Reader, Writer,
     base64::{self, Alphabet},
 };
-use std::{fs, path::Path, process::Command};
+use std::{fmt::Write, fs, path::Path, process::Command};
 use std::{
     io,
     os::{fd::AsRawFd, unix::process::CommandExt},
@@ -75,7 +75,7 @@ impl Browser {
         let mut request =
             format!("{method} {path} HTTP/1.0\r\nHost: {host}\r\nConnection: close\r\nCookie: {cookie}\r\n");
         if body.is_some() {
-            request.push_str(&format!("Content-Type: application/octet-stream\r\nJig-Client: browser\r\nOrigin: http://{host}\r\nSec-Fetch-Site: same-origin\r\nContent-Length: {}\r\n", data.len()));
+            write!(request, "Content-Type: application/octet-stream\r\nJig-Client: browser\r\nOrigin: http://{host}\r\nSec-Fetch-Site: same-origin\r\nContent-Length: {}\r\n", data.len()).expect("browser headers");
         }
         request.push_str("\r\n");
         stream.write_all("the Forgejo browser's request", skein_lib::Duration::from_secs(2), request.as_bytes())?;

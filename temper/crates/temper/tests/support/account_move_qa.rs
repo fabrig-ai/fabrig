@@ -1,7 +1,6 @@
 //! Process probes on fake records. The relay holds complete exchanges, never logs their bytes.
 #![expect(
     clippy::disallowed_methods,
-    clippy::disallowed_types,
     reason = "Process-tier fault injection uses independent real sockets and joined issuer/relay threads, with wall-time bounds; engine code remains in its world."
 )]
 use super::{
@@ -293,7 +292,7 @@ impl Engine {
 }
 impl Drop for Engine {
     fn drop(&mut self) {
-        super::parent::end_child(self.child.get_mut().expect("serve owner"));
+        super::parent::end_child(self.child.get_mut().unwrap_or_else(std::sync::PoisonError::into_inner));
     }
 }
 
@@ -313,13 +312,25 @@ impl Running {
     }
     #[must_use]
     pub fn finish(mut self) -> Output {
-        let mut deadline = Deadline::arm("the account-move ctl probe", WITHIN);
-        deadline.watch_process(self.child.as_ref().expect("ctl").id());
-        let mut deferred = false;
+        let mut deadline = (!self.in_world).then(|| Deadline::arm("the account-move ctl probe", WITHIN));
+        let mut patience = self.in_world.then(|| Patience::arm("the account-move ctl probe", WITHIN));
+        let pid = self.child.as_ref().expect("ctl").id();
+        if let Some(deadline) = &mut deadline {
+            deadline.watch_process(pid);
+        }
+        if let Some(patience) = &mut patience {
+            patience.watch_process(pid);
+        }
         while self.child.as_mut().expect("ctl").try_wait().expect("poll ctl").is_none() {
-            if !deferred && deadline.passed() {
+            if let Some(patience) = &mut patience
+                && let Some(figures) = patience.failed()
+            {
+                panic!("ctl {} exceeded its probe deadline: {figures}", self.tool);
+            }
+            if let Some(deadline) = &deadline
+                && deadline.passed()
+            {
                 match deadline.expired() {
-                    Expired::Starved(_) if self.in_world => deferred = true,
                     Expired::Starved(starved) => {
                         super::parent::end_child(self.child.as_mut().expect("ctl"));
                         starved.pass();
