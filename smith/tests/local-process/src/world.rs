@@ -23,9 +23,9 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
+mod composition;
 mod key;
 mod lending;
-mod composition;
 pub use key::provider as key_provider;
 pub(crate) use lending::login_token;
 pub use lending::{Lending, login_at};
@@ -829,7 +829,7 @@ impl World {
                     program: b"smith-agent".as_slice().into(),
                     make: if self.scenario.linger_agent { process::make_lingering_agent } else { process::make_agent },
                     instances: 8,
-                    // Signal, stderr and trace, plus the named plain root's close when present.
+                    // Workspace root, stderr and its capture, plus the extra plain root's close when present.
                     operations: process::lower_configuration().limits.routes + 3 + u32::from(launch.plain.is_some()),
                 },
                 process::agent_roots,

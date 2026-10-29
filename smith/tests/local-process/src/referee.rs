@@ -167,7 +167,9 @@ impl Expectations for Meeting {
                     judge.check(self.shown && self.answered, "the invocation actually answered and showed it");
                 }
                 let code = match self.ending {
-                    Ending::HostFailure | Ending::HostFailureBeforeAnswer | Ending::AgentEnded | Ending::OlderStore => 1,
+                    Ending::HostFailure | Ending::HostFailureBeforeAnswer | Ending::AgentEnded | Ending::OlderStore => {
+                        1
+                    }
                     Ending::Dropped => 130,
                     Ending::Budget => 4,
                     _ => 0,

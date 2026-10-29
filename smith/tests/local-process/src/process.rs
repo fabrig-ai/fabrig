@@ -654,11 +654,17 @@ pub fn make_local(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
             signals: inherited.signal,
             delivery_roots: if launch.plain.is_some() {
                 Box::new([root(inherited, b"delivery"), root(inherited, b"extra-delivery")])
-            } else if launch.change { Box::new([root(inherited, b"delivery")]) } else { Box::new([]) },
+            } else if launch.change {
+                Box::new([root(inherited, b"delivery")])
+            } else {
+                Box::new([])
+            },
             effect_roots: if launch.change && launch.placement == crate::Placement::InProcess {
                 if launch.plain.is_some() {
                     Box::new([root(inherited, b"effect"), root(inherited, b"extra-effect")])
-                } else { Box::new([root(inherited, b"effect")]) }
+                } else {
+                    Box::new([root(inherited, b"effect")])
+                }
             } else {
                 Box::new([])
             },
@@ -732,9 +738,13 @@ pub fn agent_roots(spawn: &kernel::Spawn) -> Vec<StartupRoot> {
     let launch = agent_launch(spawn);
     if launch.change {
         let path = launch.root_path.join("repo");
-        let mut roots = vec![StartupRoot { name: b"repo".as_slice().into(), path: path.as_os_str().as_encoded_bytes().into() }];
+        let mut roots =
+            vec![StartupRoot { name: b"repo".as_slice().into(), path: path.as_os_str().as_encoded_bytes().into() }];
         if launch.plain.is_some() {
-            roots.push(StartupRoot { name: b"extra".as_slice().into(), path: launch.root_path.join("extra").as_os_str().as_encoded_bytes().into() });
+            roots.push(StartupRoot {
+                name: b"extra".as_slice().into(),
+                path: launch.root_path.join("extra").as_os_str().as_encoded_bytes().into(),
+            });
         }
         roots
     } else {

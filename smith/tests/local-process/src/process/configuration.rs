@@ -84,8 +84,12 @@ pub(super) fn configuration_for_launch(root: kernel::Fd, launch: &Launch) -> (se
         let path = std::path::absolute(launch.root_path.join("extra")).expect("extra root");
         let host: Box<[u8]> = path.as_os_str().as_encoded_bytes().into();
         directories.push(smith_domain::run::Directory {
-            host: host.clone(), name: plain.name.clone(), root: skein_lib::Token::new(2),
-            writable: plain.writable, git: false, conflicts: Box::new([]),
+            host: host.clone(),
+            name: plain.name.clone(),
+            root: skein_lib::Token::new(2),
+            writable: plain.writable,
+            git: false,
+            conflicts: Box::new([]),
         });
         workspace.directories = directories.into();
         local.paths = [local.paths.as_ref(), &[host]].concat().into();

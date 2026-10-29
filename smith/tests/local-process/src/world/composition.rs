@@ -16,7 +16,11 @@ impl World {
         // The store's production scan and record bounds.
         for (_, name) in machine.files.list(root, 16_384, 16 << 20).expect("store names") {
             let file = machine.files.open(root, &name, How::ReadNoFollow).expect("store record");
-            snapshot.push((name, machine.files.stat(file), machine.files.read(file, 0, 64 << 20).expect("store bytes")));
+            snapshot.push((
+                name,
+                machine.files.stat(file),
+                machine.files.read(file, 0, 64 << 20).expect("store bytes"),
+            ));
             machine.files.close(file);
         }
         machine.files.close(root);

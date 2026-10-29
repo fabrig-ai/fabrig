@@ -2,8 +2,13 @@
 use skein_io::kernel::Exit;
 use skein_world::domain::Verdict;
 use smith_events::Event;
-use smith_local_process_world::{Files, Placement, World,
-    referee::{CheckoutRead, live::{self, Outcome, Seen}}};
+use smith_local_process_world::{
+    Files, Placement, World,
+    referee::{
+        CheckoutRead,
+        live::{self, Outcome, Seen},
+    },
+};
 
 fn capture(world: &mut World) -> Seen {
     let head = world.head();
@@ -15,8 +20,16 @@ fn capture(world: &mut World) -> Seen {
             working.insert(path.clone(), bytes);
         }
     }
-    Seen { exit: world.exit(), errors: world.errors().to_vec(), shown: world.shown().to_vec(),
-        records: world.records(), head, message: world.commit_message().to_vec(), committed, working }
+    Seen {
+        exit: world.exit(),
+        errors: world.errors().to_vec(),
+        shown: world.shown().to_vec(),
+        records: world.records(),
+        head,
+        message: world.commit_message().to_vec(),
+        committed,
+        working,
+    }
 }
 
 fn rejects(seen: Seen, before: Option<Vec<u8>>, files: skein_fake_checkout::git::Tree, why: &str) {
@@ -28,8 +41,10 @@ fn rejects(seen: Seen, before: Option<Vec<u8>>, files: skein_fake_checkout::git:
 fn without_finish_start(seen: &Seen) -> Seen {
     let mut missing = seen.clone();
     let before = missing.records.len();
-    missing.records.retain(|record| !matches!(&record.event,
-        Event::ToolStarted(tool) if tool.tool.as_ref() == b"finish"));
+    missing.records.retain(|record| {
+        !matches!(&record.event,
+        Event::ToolStarted(tool) if tool.tool.as_ref() == b"finish")
+    });
     const FINISH_STARTS: usize = 1; // The accepted script calls finish once.
     assert_eq!(before - missing.records.len(), FINISH_STARTS);
     missing
@@ -39,7 +54,9 @@ fn refused_finish(seen: &Seen) -> Seen {
     let mut refused = seen.clone();
     let mut changed = 0;
     for record in &mut refused.records {
-        if let Event::ToolCompleted(tool) = &mut record.event && tool.tool.as_ref() == b"finish" {
+        if let Event::ToolCompleted(tool) = &mut record.event
+            && tool.tool.as_ref() == b"finish"
+        {
             tool.verdict = smith_events::Verdict::Invalid;
             changed += 1;
         }
@@ -80,7 +97,10 @@ fn the_live_change_policy_rejects_mutated_delivery_observations() {
     let before = world.head();
     world.settle();
     let seen = capture(&mut world);
-    let expected = seen.committed.clone();
+    let expected = skein_fake_checkout::git::Tree::from([
+        (b"original.txt".to_vec(), b"original\n".to_vec()),
+        (b"result.txt".to_vec(), b"new\n".to_vec()),
+    ]);
     live::review(seen.clone(), Outcome { before: before.clone(), files: expected.clone() }).assert_passed(87);
     let mut unchanged = seen.clone();
     unchanged.head = before.clone();
@@ -95,7 +115,9 @@ fn the_live_change_policy_rejects_mutated_delivery_observations() {
     let mut not_delivered = seen.clone();
     let mut changed = 0;
     for record in &mut not_delivered.records {
-        if let Event::ToolCompleted(tool) = &mut record.event && tool.tool.as_ref() == b"finish" {
+        if let Event::ToolCompleted(tool) = &mut record.event
+            && tool.tool.as_ref() == b"finish"
+        {
             tool.delivery = Some(smith_events::Delivered::Refused);
             changed += 1;
         }
