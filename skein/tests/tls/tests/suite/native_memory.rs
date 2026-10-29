@@ -7,7 +7,7 @@
 use std::collections::VecDeque;
 use std::sync::Arc;
 
-use skein_heap::{Counting, Span};
+use skein_heap::Span;
 use skein_lib::stream::{Down, OutputDown, OutputOutcome, OutputUp, Read, Up};
 use skein_lib::{Env, Queue, Time, Token};
 use skein_tls::client::{self, Error, Limits, native};
@@ -19,9 +19,6 @@ use skein_tls_world::{
     meter::{LARGE, SMALL, Steps},
     records,
 };
-
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Plain {

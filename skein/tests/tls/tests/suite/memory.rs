@@ -20,7 +20,7 @@ use std::sync::Arc;
 
 use rustls::server::ServerConfig;
 
-use skein_heap::{Counting, Meter, Span};
+use skein_heap::{Meter, Span};
 use skein_lib::stream::{Down, Fault, Read, Up};
 use skein_lib::{Env, Queue, Rng, Time};
 use skein_tls::client::{self, Client, Error, Event, Limits, Request};
@@ -32,9 +32,6 @@ use skein_tls_world::{
     meter::{LARGE, SMALL, Steps},
     records,
 };
-
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 #[test]
 fn shared_roots_at_their_bounds_fit_the_measured_factor() {
