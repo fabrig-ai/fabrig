@@ -135,3 +135,77 @@ fn settled_agent_neutral_outcome_contracts() {
     neutral_outcomes_read_only_the_settled_end_exit_and_retained_text();
     every_terminal_name_is_distinct_from_answer_content_and_exit_code();
 }
+
+fn protected_snapshot() -> Snapshot {
+    use smith_bench::grade::Entry;
+    Snapshot::from([
+        ("README".into(), Entry::File { sha256: "a".repeat(64), executable: false }),
+        ("Cargo.toml".into(), Entry::File { sha256: "b".repeat(64), executable: false }),
+        ("src".into(), Entry::Directory),
+        ("src/lib.rs".into(), Entry::File { sha256: "c".repeat(64), executable: false }),
+    ])
+}
+
+fn protected_verdicts(before: &Snapshot, after: &Snapshot) -> Vec<smith_bench::CheckVerdict> {
+    let ended = Ended {
+        end: End::Completed,
+        exit: Measure::Observed { value: Exit::Code(0) },
+        last_line: None,
+        answer: None,
+        credential_refresh: Measure::unavailable("no credential attempt"),
+    };
+    let checks = ["README", "Cargo.toml"].map(|path| OutcomeCheck::Protected { path: path.into() });
+    // Protected checks consume the supplied snapshots and never open this path.
+    smith_bench::grade::checks(Path::new("/unopened-workspace"), before, after, &checks, &ended)
+}
+
+/// Lower test of smith-bench's `runner::a_repository_attempt_compares_protected_files_with_its_bundle` (top tiers test wiring only).
+#[test]
+fn prepared_protected_snapshot_ignores_changes_outside_its_paths() {
+    let before = protected_snapshot();
+    let mut after = before.clone();
+    after.insert("src/lib.rs".into(), smith_bench::grade::Entry::File { sha256: "d".repeat(64), executable: false });
+    assert!(!smith_bench::grade::changed(&before, &after, Path::new("README")));
+    assert!(!smith_bench::grade::changed(&before, &after, Path::new("Cargo.toml")));
+    let verdicts = protected_verdicts(&before, &after);
+    assert_eq!(
+        verdicts.iter().map(|verdict| verdict.passed.clone()).collect::<Vec<_>>(),
+        [Measure::Observed { value: true }, Measure::Observed { value: true }]
+    );
+}
+
+/// Lower test of smith-bench's `runner::a_repository_attempt_compares_protected_files_with_its_bundle` (top tiers test wiring only).
+#[test]
+fn changed_protected_file_fails_against_its_prepared_snapshot() {
+    let before = protected_snapshot();
+    let mut after = before.clone();
+    after.insert("Cargo.toml".into(), smith_bench::grade::Entry::File { sha256: "d".repeat(64), executable: false });
+    let changed: Vec<_> = ["README", "Cargo.toml"]
+        .into_iter()
+        .filter(|path| smith_bench::grade::changed(&before, &after, Path::new(path)))
+        .collect();
+    assert_eq!(changed, ["Cargo.toml"]);
+    let verdicts = protected_verdicts(&before, &after);
+    assert_eq!(
+        verdicts.iter().map(|verdict| verdict.passed.clone()).collect::<Vec<_>>(),
+        [Measure::Observed { value: true }, Measure::Observed { value: false }]
+    );
+}
+
+/// Lower test of smith-bench's `runner::a_repository_attempt_compares_protected_files_with_its_bundle` (top tiers test wiring only).
+#[test]
+fn protected_directory_detects_missing_added_and_changed_descendants() {
+    use smith_bench::grade::Entry;
+    let before = protected_snapshot();
+    let mut missing = before.clone();
+    missing.remove(Path::new("src/lib.rs"));
+    let mut added = before.clone();
+    added.insert("src/new.rs".into(), Entry::File { sha256: "d".repeat(64), executable: false });
+    let mut executable = before.clone();
+    executable.insert("src/lib.rs".into(), Entry::File { sha256: "c".repeat(64), executable: true });
+    let mut linked = before.clone();
+    linked.insert("src/lib.rs".into(), Entry::Link { target: "elsewhere".into() });
+    for after in [missing, added, executable, linked] {
+        assert!(smith_bench::grade::changed(&before, &after, Path::new("src")));
+    }
+}
