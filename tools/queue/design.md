@@ -403,12 +403,19 @@ Preparation and reservations:
   and requested objects without changing checkout HEAD or publishing refs to
   origin. Transport must hold ownership while importing. Pins/artifacts have
   no automatic deletion in this part.
-- Conflicts block successors. Their rejections wait until all preparation
-  succeeds and that record is head on its expected main. Unaffected merged
-  inputs then enter sequential recovery. Ratchet exit 1 is a preparation red;
-  other exits, missing objects, metadata or preparation errors are INFRA.
-  An error after conflicts produces no retained rejection intent. Preparation
-  red conservatively requires full checks for its later bisection groups.
+- Conflicts block successors throughout preparation, checking and adjudication.
+  When some inputs merge, dispatch that exact merged subset in the same attempt
+  against its pinned P/C; the conflicts remain provisional. A valid green lands
+  C and records merged inputs' tried marks and conflict rejections in one
+  durable decision. A valid red rejects the conflicts and bisects only the
+  checked merged inputs, preserving the current full requirement. Preparation,
+  transport, capacity, checker or result INFRA retains no branch rejection or
+  tried mark from that attempt, and uncertain gate ownership stays unresolved.
+  When all inputs conflict and the merge chain is empty, an immediate conflict
+  decision needs no worker check. An unchecked partial-conflict decision is
+  refused. Ratchet exit 1 is a preparation red; other exits, missing objects,
+  metadata or preparation errors are INFRA. Preparation red conservatively
+  requires full checks for its later bisection groups.
 
 Transport and evidence:
 
@@ -453,9 +460,10 @@ Adjudication and effects:
 - `full_due` charges unresolved predecessors as attempts without assuming
   an unresolved full resets state. It preserves the fifth-batch/hourly policy;
   idle full checks retain the ten-minute/main-change rule and use P == C with
-  no push. Adjudicated green/red checks update cadence; conflicts, INFRA and
-  invalidated speculation do not. Full red after selected successes enqueues
-  the selection-gap event.
+  no push. Adjudicated green/red checks update cadence, including checks of
+  partial-conflict merged subsets; all-conflict decisions, INFRA and invalidated
+  speculation do not. Full red after selected successes enqueues the
+  selection-gap event.
 - Green first persists `promotion-intent` with explicit P, C and stable id.
   `authority.guard()` must establish one sole main authority and startup guard
   across legacy, train and restart. `main()` reads fresh authoritative main.

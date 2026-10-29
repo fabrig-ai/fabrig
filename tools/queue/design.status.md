@@ -16,7 +16,7 @@ identity, checkout exclusion and private atomic evidence passed. This smoke
 ran no Cargo checks and does not validate a second prover.
 
 Section 3.9 is implemented as a **disabled, unready library** in `train.py`,
-with 51 disposable tests in `test_train.py`. It prepares exact chained Git
+with 63 disposable tests in `test_train.py`. It prepares exact chained Git
 candidates in a separate clone, writes ratchets before freezing, pins/exports
 objects, reserves names/full cadence, records dispatch ownership, independently
 validates complete worker/log evidence, and adjudicates in order. Sequential
@@ -24,6 +24,16 @@ bisection, stop/drain state, version-1 atomic snapshots, explicit promotion
 intents, applied-once accounting, stable at-least-once outbox and injected
 reconciliation/effect interfaces are present. There are no changes to Queue's
 CLI/default behavior and no production adapter or train entry point.
+
+Partial conflicts block successor speculation while the unaffected merged
+subset is checked in its original attempt against pinned P/C. Conflict tried
+marks and rejections remain provisional through transport, checking and result
+validation. Green lands that exact candidate and applies both merged-input and
+conflict decisions atomically; red bisects only the merged inputs with its full
+requirement preserved. INFRA at any stage retains no branch rejection/tried
+mark and does not release uncertain ownership. All-conflict batches can still
+be adjudicated without worker checks. Replay tests cover combined decisions
+and outbox acknowledgements as well as stop/drain and ancestor invalidation.
 
 The train compares the full parent/candidate trees, including generated lower
 baselines; this can conservatively escalate to full rather than retaining the

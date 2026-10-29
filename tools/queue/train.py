@@ -214,7 +214,7 @@ class Preparer:
         if request["plan"] != expected["plan"]:
             raise ValueError("preparation plan changed")
         evidence = {"chain": chain, "conflicts": conflicts, "pins": pins,
-                    "preparation": steps, "outcome": "conflict" if conflicts else None,
+                    "preparation": steps, "outcome": "conflict" if conflicts and not merged else None,
                     "baseline_commits": baselines, "candidate": candidate,
                     "request": request, "expected": expected}
         verify_chain(repo, {**record, **evidence})
@@ -452,6 +452,7 @@ class Controller:
                     for owner in self.state["gates"].values()) or
                 any(self.state["records"][a]["phase"] == "preparing" for a in self.state["active"]) or
                 any(self.state["records"][a].get("blocked") for a in self.state["active"]) or
+                any(self.state["records"][a].get("conflicts") for a in self.state["active"]) or
                 any(self.state["records"][a].get("outcome") in ("red", "conflict", "INFRA")
                     for a in self.state["active"])):
             return None
@@ -647,6 +648,8 @@ class Controller:
         if (self.state["active"][:1] != [record["id"]] or record.get("invalidated") or
                 outcome != record["outcome"]):
             raise ValueError("decision requires the matching head outcome")
+        if outcome == "conflict" and record.get("chain"):
+            raise ValueError("partial conflicts require a checked outcome")
         if outcome == "green" and (record["phase"] != "promotion-intent" or
                                    self.authority.main() != record["candidate"]):
             raise ValueError("green decision requires landed certified candidate")
@@ -661,9 +664,6 @@ class Controller:
             inherited_full = (record["request"]["selection"] == "full"
                               if record.get("request") else record["full"])
             self.state["force_full"] |= inherited_full
-            for branch in record.get("conflicts", []):
-                self.state["tried"][branch["name"]] = branch["tip"]
-                self.event(record, "rejected", branch, branch["error"])
             merged = [{"name": b["name"], "tip": b["tip"]} for b in record.get("chain", [])]
             if outcome == "red" and len(merged) == 1:
                 branch = merged[0]
@@ -672,13 +672,19 @@ class Controller:
                 failed = next((s["name"] for s in steps if not s["green"]), "preparation")
                 self.event(record, "rejected", branch, "failing step: " + failed)
             elif merged:
-                groups = [merged] if outcome == "conflict" else [merged[:len(merged)//2], merged[len(merged)//2:]]
+                groups = [merged[:len(merged)//2], merged[len(merged)//2:]]
                 self.state["pending"] = groups + self.state["pending"]
         else:
             # No conflict rejection survives infrastructure failure.
             self.event(record, "infrastructure", detail=record.get("error"))
             if self.state["bisecting"]:
                 self.state["pending"].insert(0, clone(record["inputs"]))
+        if outcome in ("green", "red", "conflict"):
+            # Partial conflicts stay provisional through worker checking and
+            # promotion; only this same non-INFRA decision makes them tried.
+            for branch in record.get("conflicts", []):
+                self.state["tried"][branch["name"]] = branch["tip"]
+                self.event(record, "rejected", branch, branch["error"])
         record["applied"], record["decision"] = True, outcome
         record["phase"] = "decided"
         self.state["active"].remove(record["id"])

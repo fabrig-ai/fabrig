@@ -694,22 +694,45 @@ if '--write' in sys.argv:
         self.controller.adjudicate_head()
         self.assertNotIn("ready/ops/c", self.controller.state["tried"])
 
-    def test_conflict_blocks_speculation_and_later_error_rolls_back_rejections(self):
+    def test_partial_conflict_checks_original_candidate_before_green_decision(self):
         self.set_batch(2)
-        self.branch("a", {"README.md": "left"})
+        merged = self.branch("a", {"README.md": "left", "core/src/lib.rs": "source"})
         conflict = self.branch("b", {"README.md": "right"})
         self.branch("c")
         a, record = self.admit()
-        self.assertEqual(record["outcome"], "conflict")
+        candidate = record["candidate"]
+        self.assertIsNone(record["outcome"])
+        self.assertEqual(record["phase"], "running")
+        self.assertEqual(record["parent"], self.base)
+        self.assertEqual(self.transport.jobs[a]["request"]["branches"], [merged])
+        self.assertEqual(record["conflicts"][0]["name"], conflict["name"])
+        self.assertEqual(self.controller.state["tried"], {})
+        self.assertEqual(self.controller.state["outbox"], {})
+        self.assertEqual(self.authority.posts, [])
+        self.assertFalse(self.controller.adjudicate_head())
         self.assertIsNone(self.controller.admit())
-        self.controller.adjudicate_head()
-        self.assertEqual(self.controller.state["tried"], {conflict["name"]: conflict["tip"]})
-        a, retry = self.admit()
         self.finish(a)
+        self.assertIsNone(self.controller.admit())
+        self.assertEqual(self.controller.state["tried"], {})
+        self.assertEqual(self.controller.state["outbox"], {})
         self.controller.adjudicate_head()
-        self.assertEqual(self.authority.main(), retry["candidate"])
+        self.assertEqual(self.authority.main(), candidate)
+        self.assertEqual(self.authority.pushes, [(self.base, candidate, a + ":promotion")])
+        self.assertEqual(self.controller.state["tried"],
+                         {merged["name"]: merged["tip"], conflict["name"]: conflict["tip"]})
+        self.assertEqual(self.controller.state["pending"], [])
+        self.assertFalse(self.controller.state["bisecting"])
+        self.assertEqual(self.transport.starts, [a])
+        self.controller = self.reload()
+        self.controller.flush_outbox()
+        rejected = [event for event in self.authority.posts if event["kind"] == "rejected"]
+        self.assertEqual([event["branch"]["name"] for event in rejected], [conflict["name"]])
+        self.controller = self.reload()
+        self.controller.flush_outbox()
+        self.assertEqual(len(self.authority.posts), 2)
+        self.assertEqual(self.controller.state["batches_since_full"], 1)
 
-    def test_error_after_merge_conflict_rejects_neither_branch(self):
+    def test_preparation_metadata_error_after_merge_conflict_rejects_neither_branch(self):
         self.set_batch(2)
         self.branch("a", {"README.md": "left", "core/src/lib.rs": "source"})
         self.branch("b", {"README.md": "right"})
@@ -720,6 +743,264 @@ if '--write' in sys.argv:
         self.controller.adjudicate_head()
         self.assertEqual(self.controller.state["tried"], {})
         self.assertEqual(self.controller.state["pending"], [])
+
+    def partial_conflict_inputs(self):
+        self.set_batch(3)
+        left = self.branch("a", {"README.md": "left"})
+        conflict = self.branch("b", {"README.md": "right"})
+        source = self.branch("c", {"core/src/lib.rs": "unrelated source"})
+        return [left, source], conflict
+
+    def partial_conflict_attempt(self):
+        merged, conflict = self.partial_conflict_inputs()
+        attempt, record = self.admit()
+        self.assertEqual(record["request"]["branches"], merged)
+        self.assertEqual(record["parent"], self.base)
+        self.assertEqual(record["phase"], "running")
+        self.assertEqual([b["name"] for b in record["conflicts"]], [conflict["name"]])
+        self.assertEqual(self.controller.state["tried"], {})
+        self.assertEqual(self.controller.state["outbox"], {})
+        self.assertEqual(self.authority.posts, [])
+        self.assertFalse(self.controller.adjudicate_head())
+        self.assertIsNone(self.controller.admit())
+        return attempt, record, merged, conflict
+
+    def assert_partial_conflict_infra(self, attempt, record):
+        self.assertEqual(record["outcome"], "INFRA")
+        self.assertEqual(self.controller.state["tried"], {})
+        self.assertEqual(self.controller.state["outbox"], {})
+        self.assertTrue(self.controller.adjudicate_head())
+        self.assertEqual(record["decision"], "INFRA")
+        self.assertEqual(self.controller.state["tried"], {})
+        self.assertEqual(self.controller.state["pending"], [])
+        self.assertFalse(self.controller.state["bisecting"])
+        self.assertEqual(self.controller.state["batches_since_full"], 0)
+        self.assertEqual(self.authority.main(), self.base)
+        self.assertEqual(self.authority.pushes, [])
+        self.assertEqual(self.controller.state["gates"][record["gate"]], attempt)
+        self.assertFalse(self.controller.drained())
+        self.assertIsNone(self.controller.admit())
+        self.controller.flush_outbox()
+        self.assertEqual([event["kind"] for event in self.authority.posts], ["infrastructure"])
+
+    def test_partial_conflict_red_bisects_only_checked_inputs_and_preserves_full(self):
+        self.controller.state["batches_since_full"] = 4
+        a, record, merged, conflict = self.partial_conflict_attempt()
+        self.assertEqual(record["request"]["selection"], "full")
+        self.finish(a, code=1)
+        self.assertEqual(record["outcome"], "red")
+        self.assertEqual(self.controller.state["tried"], {})
+        self.assertEqual(self.controller.state["outbox"], {})
+        self.assertIsNone(self.controller.admit())
+        self.controller.adjudicate_head()
+        self.assertEqual(self.controller.state["tried"], {conflict["name"]: conflict["tip"]})
+        self.assertEqual(self.controller.state["pending"], [[merged[0]], [merged[1]]])
+        self.assertEqual(self.authority.pushes, [])
+        self.controller = self.reload()
+        left, left_record = self.admit()
+        self.assertEqual(left_record["request"]["selection"], "full")
+        self.assertEqual(left_record["request"]["branches"], [merged[0]])
+        self.assertEqual(left_record["parent"], self.base)
+        self.finish(left)
+        self.controller.adjudicate_head()
+        right, right_record = self.admit()
+        self.assertEqual(right_record["parent"], left_record["candidate"])
+        self.assertEqual(right_record["request"]["selection"], "full")
+        self.assertEqual(right_record["request"]["branches"], [merged[1]])
+        self.finish(right, code=1)
+        self.controller.adjudicate_head()
+        rejected = [event["branch"]["name"] for event in self.controller.state["outbox"].values()
+                    if event["kind"] == "rejected"]
+        self.assertEqual(rejected, [conflict["name"], merged[1]["name"]])
+        self.assertEqual(self.authority.main(), left_record["candidate"])
+        self.assertEqual(self.controller.state["pending"], [])
+
+    def test_partial_conflict_cannot_be_applied_as_an_unchecked_conflict_decision(self):
+        a, record, _, _ = self.partial_conflict_attempt()
+        record["outcome"] = "conflict"
+        with self.assertRaisesRegex(ValueError, "require a checked outcome"):
+            self.controller.apply_decision_once(record, "conflict")
+        self.assertEqual(self.controller.state["tried"], {})
+        self.assertEqual(self.controller.state["outbox"], {})
+        self.assertEqual(self.controller.state["gates"][record["gate"]], a)
+
+    def test_partial_conflict_heavy_capacity_refusal_rejects_no_branch(self):
+        a, record, _, _ = self.partial_conflict_attempt()
+        def capacity_runner(argv, **kwargs):
+            refused = argv[0] == "heavy"
+            kwargs["stdout"].write("fixture below the disk floor\n" if refused else "fixture passed\n")
+            return subprocess.CompletedProcess(argv, 2 if refused else 0)
+        def checker(*args, **kwargs):
+            return mq.run_checks(*args, runner=capacity_runner, **kwargs)
+        result = self.finish(a, checker=checker)
+        self.assertEqual(result["outcome"], "INFRA")
+        self.assertIn("below the disk floor", result["error"])
+        self.assertTrue(result["completion_known"])
+        self.assert_partial_conflict_infra(a, record)
+
+    def test_partial_conflict_worker_exception_preserves_unresolved_ownership(self):
+        a, record, _, _ = self.partial_conflict_attempt()
+        def checker(*args, **kwargs):
+            raise RuntimeError("fixture checker interrupted")
+        result = self.finish(a, checker=checker)
+        self.assertFalse(result["completion_known"])
+        self.assertTrue((self.workers[record["gate"]] / ".git/mq-worker-unresolved.json").exists())
+        self.assert_partial_conflict_infra(a, record)
+        self.controller.stop()
+        self.controller = self.reload()
+        self.assertFalse(self.controller.drained())
+        self.assertIsNone(self.controller.admit())
+
+    def test_partial_conflict_corrupt_result_rejects_no_branch(self):
+        a, record, _, _ = self.partial_conflict_attempt()
+        result = self.transport.finish(a)
+        self.assertEqual(result["outcome"], "green")
+        result["observed"]["candidate_tree"] = "0" * 40
+        self.transport.jobs[a]["result"] = worker.encoded(result)
+        self.controller.poll(a)
+        self.assertIn("observed identities mismatch", record["error"])
+        self.assert_partial_conflict_infra(a, record)
+
+    def test_partial_conflict_status_loss_and_late_green_cannot_reject_or_land(self):
+        a, record, _, _ = self.partial_conflict_attempt()
+        self.transport.fail_status = True
+        self.controller.poll(a)
+        self.assert_partial_conflict_infra(a, record)
+        self.transport.fail_status = False
+        self.finish(a)
+        self.assertEqual(record["phase"], "discarded")
+        self.assertEqual(self.controller.state["tried"], {})
+        self.assertEqual(self.authority.pushes, [])
+        self.assertTrue(self.controller.drained())
+        self.assertFalse(self.controller.adjudicate_head())
+
+    def test_partial_conflict_lost_start_acknowledgement_rejects_no_branch(self):
+        merged, _ = self.partial_conflict_inputs()
+        self.transport.fail_start = "after"
+        a = self.controller.admit()
+        record = self.controller.state["records"][a]
+        self.assertEqual(record["request"]["branches"], merged)
+        self.assertEqual(self.transport.starts, [a])
+        self.assertEqual(record["phase"], "unknown")
+        self.assert_partial_conflict_infra(a, record)
+        self.transport.fail_start = None
+        self.finish(a)
+        self.assertEqual(self.controller.state["tried"], {})
+        self.assertEqual(self.authority.pushes, [])
+
+    def test_all_conflict_inputs_are_decided_without_dispatch_or_check_accounting(self):
+        self.set_batch(2)
+        conflicts = [self.branch("a", {"README.md": "left"}),
+                     self.branch("b", {"README.md": "right"})]
+        mq.git(self.prep, "switch", "--detach", self.base)
+        self.write("README.md", "main changed")
+        self.commit("advance fixture main")
+        parent = self.tip()
+        mq.git(self.prep, "push", "origin", parent + ":refs/heads/main")
+        a, record = self.admit()
+        self.assertEqual(record["outcome"], "conflict")
+        self.assertEqual(record["chain"], [])
+        self.assertEqual(record["parent"], parent)
+        self.assertEqual(record["candidate"], parent)
+        self.assertEqual(self.transport.starts, [])
+        self.assertEqual(self.controller.state["tried"], {})
+        self.assertEqual(self.controller.state["outbox"], {})
+        self.assertTrue(self.controller.adjudicate_head())
+        self.assertEqual(self.controller.state["tried"], {b["name"]: b["tip"] for b in conflicts})
+        self.assertEqual(self.controller.state["pending"], [])
+        self.assertEqual(self.controller.state["batches_since_full"], 0)
+        self.assertEqual(self.authority.pushes, [])
+        self.assertTrue(self.controller.drained())
+        self.controller.flush_outbox()
+        self.assertEqual([event["branch"]["name"] for event in self.authority.posts],
+                         [b["name"] for b in conflicts])
+
+    def test_partial_conflict_combined_decision_and_outbox_replay_after_publication_failures(self):
+        a, record, merged, conflict = self.partial_conflict_attempt()
+        self.controller = self.reload()
+        self.assertIsNone(self.controller.admit())
+        self.finish(a)
+        original = self.store.save
+        def decision_save(state):
+            if state["records"][a]["applied"]:
+                raise OSError("combined decision publication failed")
+            original(state)
+        with patch.object(self.store, "save", side_effect=decision_save):
+            with self.assertRaises(OSError):
+                self.controller.adjudicate_head()
+        self.assertEqual(self.authority.main(), record["candidate"])
+        durable = self.store.load()
+        self.assertEqual(durable["tried"], {})
+        self.assertEqual(durable["outbox"], {})
+        self.controller = self.reload()
+        self.controller.adjudicate_head()
+        expected = {b["name"]: b["tip"] for b in [*merged, conflict]}
+        self.assertEqual(self.controller.state["tried"], expected)
+        self.assertEqual(self.controller.state["batches_since_full"], 1)
+        self.assertEqual(len(self.authority.pushes), 1)
+        self.assertEqual(len(self.controller.state["outbox"]), 5)
+        def post_save(state):
+            if any(event["delivered"] for event in state["outbox"].values()):
+                raise OSError("post acknowledgement publication failed")
+            original(state)
+        with patch.object(self.store, "save", side_effect=post_save):
+            with self.assertRaises(OSError):
+                self.controller.flush_outbox()
+        self.controller = self.reload()
+        self.controller.flush_outbox()
+        self.assertEqual(self.authority.posts[0]["id"], self.authority.posts[1]["id"])
+        rejected = [event for event in self.authority.posts if event["kind"] == "rejected"]
+        self.assertEqual([event["branch"]["name"] for event in rejected], [conflict["name"]])
+        self.assertEqual(self.controller.state["tried"], expected)
+        self.assertEqual(self.controller.state["batches_since_full"], 1)
+        self.assertFalse(self.controller.adjudicate_head())
+
+    def test_checked_partial_conflict_successor_is_discarded_when_ancestor_is_infra(self):
+        self.set_batch(2)
+        self.branch("a", {"README.md": "left"})
+        self.branch("b", {"core/src/b.rs": "first source"})
+        self.branch("c", {"README.md": "right"})
+        unrelated = self.branch("d", {"core/src/lib.rs": "unrelated source"})
+        a, head = self.admit()
+        b, successor = self.admit()
+        self.assertEqual(successor["request"]["branches"], [unrelated])
+        self.assertEqual(successor["parent"], head["candidate"])
+        self.finish(b)
+        self.assertEqual(successor["outcome"], "green")
+        self.assertEqual(self.controller.state["tried"], {})
+        self.assertEqual(self.controller.state["outbox"], {})
+        self.transport.fail_status = True
+        self.controller.poll(a)
+        self.controller.adjudicate_head()
+        self.assertTrue(successor["invalidated"])
+        self.assertEqual(successor["phase"], "discarded")
+        self.assertEqual(self.controller.state["tried"], {})
+        self.assertEqual(self.authority.pushes, [])
+        self.assertFalse(self.controller.adjudicate_head())
+
+    def test_stop_partial_conflict_green_drains_original_attempt_without_replacement(self):
+        a, record, merged, conflict = self.partial_conflict_attempt()
+        self.controller.stop()
+        self.finish(a)
+        self.controller.adjudicate_head()
+        self.assertEqual(self.authority.main(), record["candidate"])
+        self.assertEqual(self.controller.state["tried"],
+                         {b["name"]: b["tip"] for b in [*merged, conflict]})
+        self.assertTrue(self.controller.drained())
+        self.assertIsNone(self.controller.admit())
+        self.assertEqual(self.transport.starts, [a])
+
+    def test_stop_partial_conflict_red_retains_only_merged_bisection_groups(self):
+        a, _, merged, conflict = self.partial_conflict_attempt()
+        self.controller.stop()
+        self.finish(a, code=1)
+        self.controller.adjudicate_head()
+        self.controller = self.reload()
+        self.assertEqual(self.controller.state["tried"], {conflict["name"]: conflict["tip"]})
+        self.assertEqual(self.controller.state["pending"], [[merged[0]], [merged[1]]])
+        self.assertTrue(self.controller.drained())
+        self.assertIsNone(self.controller.admit())
+        self.assertEqual(self.transport.starts, [a])
 
     def test_successor_lock_change_compares_its_parent_not_lagging_main(self):
         original = (self.prep / "Cargo.lock").read_text()
