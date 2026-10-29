@@ -183,7 +183,7 @@ impl State {
                 self.stream_open = true;
                 self.events = events::Events::new();
                 let bound =
-                    u32::try_from(records::Notes::worst_case_bytes(&records::CEILINGS).expect("record bound fits"))
+                    u32::try_from(records::Notes::encoded_bound(&records::CEILINGS).expect("record bound fits"))
                         .expect("record bound fits u32");
                 duties.exchanges.push(Exchange {
                     id: 0,
@@ -440,7 +440,7 @@ fn add_exchange(id: u32, add: &records::Add) -> Exchange {
         post: true,
         path: Box::from(&b"/api/notes"[..]),
         body: writer.finish(),
-        bound: u32::try_from(records::Note::worst_case_bytes(&records::CEILINGS).expect("record bound fits"))
+        bound: u32::try_from(records::Note::encoded_bound(&records::CEILINGS).expect("record bound fits"))
             .expect("record bound fits u32"),
     }
 }
