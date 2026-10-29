@@ -146,14 +146,31 @@ pub fn read_trust_roots(trust: &Trust, bounds: &RootBounds) -> Result<Roots, Roo
 }
 
 fn machine(paths: &[&Path], bounds: &RootBounds) -> Result<Roots, RootsRefusal> {
+    let mut selected = None;
     for path in paths {
-        match read_file(path, bounds.bundle_bytes) {
-            Ok(bytes) => return pem(&bytes, path, bounds),
-            Err(Unread::Absent) => {}
-            Err(why) => return Err(RootsRefusal::Unread { path: path.to_path_buf(), why }),
+        select_source(&mut selected, path, read_file(path, bounds.bundle_bytes), bounds);
+        if let Some(result) = selected {
+            return result;
         }
     }
     Err(RootsRefusal::NoBundle)
+}
+
+/// Only absence advances to another source; a selected source's result is final.
+fn select_source(
+    selected: &mut Option<Result<Roots, RootsRefusal>>,
+    path: &Path,
+    result: Result<Box<[u8]>, Unread>,
+    bounds: &RootBounds,
+) {
+    if selected.is_some() {
+        return;
+    }
+    *selected = match result {
+        Ok(bytes) => Some(pem(&bytes, path, bounds)),
+        Err(Unread::Absent) => None,
+        Err(why) => Some(Err(RootsRefusal::Unread { path: path.to_path_buf(), why })),
+    };
 }
 
 fn source(path: &Path, max: u32) -> Result<Box<[u8]>, RootsRefusal> {
@@ -279,3 +296,6 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+mod lower_tests;
