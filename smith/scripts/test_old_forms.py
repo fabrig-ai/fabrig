@@ -1,6 +1,7 @@
 """The old-forms gate counts tracked Rust and lets each count only fall."""
 
 from pathlib import Path
+import runpy
 import subprocess
 import sys
 import tempfile
@@ -80,6 +81,34 @@ class OldForms(unittest.TestCase):
         self.source(forms, "src/generated_more.rs")
         self.run_script("--write")
         self.assertEqual(self.counts(), {"max_out": 1, "JournalRoom": 1, "takes": 1, "worst_case": 1})
+
+    def test_edge_identifiers_are_exempt_only_as_whole_identifiers(self):
+        self.source('MAX_OUT_DOWN MAX_OUT_UP max_output_tokens max_output_bytes '
+                    'my_max_output_tokens\n')
+        self.run_script("--write")
+        self.assertEqual(self.counts()["max_out"], 1)
+
+    def test_escapes_separate_words_in_ordinary_literals(self):
+        for literal, expected in (
+                (r'"\nmax_out"', 1),
+                (r'"\nmax_output_bytes"', 0),
+                (r'"\x41max_out"', 1),
+                (r'"\u{41}max_out"', 1),
+                (r"'\n'max_out", 1),
+        ):
+            with self.subTest(literal=literal):
+                self.source(literal)
+                self.baseline.unlink(missing_ok=True)
+                self.run_script("--write")
+                self.assertEqual(self.counts()["max_out"], expected)
+
+    def test_raw_strings_keep_escape_text_as_written(self):
+        self.source(r'r"\nmax_out"')
+        self.run_script("--write")
+        self.assertEqual(self.counts()["max_out"], 1)
+        counter = runpy.run_path(str(SCRIPT))
+        candidates = counter["without_comments"](r'r"\nmax_out"')
+        self.assertEqual(counter["FORMS"]["max_out"].findall(candidates), ["nmax_out"])
 
     def test_a_missing_baseline_needs_write(self):
         self.source("fn ordinary() {}\n")
