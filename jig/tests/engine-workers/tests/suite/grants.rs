@@ -1,3 +1,4 @@
+#[expect(clippy::module_inception, reason = "Keep the existing test paths under the suite file module.")]
 mod grants {
     use jig_domain_host::{self as host, LinkDown};
     use jig_engine_workers_world::{World, fixtures};

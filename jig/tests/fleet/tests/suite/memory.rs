@@ -2,10 +2,7 @@
 
 use jig_domain_fleet::{Answer, Domain, Event, Hello, Hosted, Limits, Phase, Request, fire, max_out, resume, step};
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
-use skein_world::domain::heap::{self, Meter};
-
-#[global_allocator]
-static HEAP: heap::Counting = heap::Counting;
+use skein_world::domain::heap::Meter;
 
 const LIMITS: Limits = Limits {
     configured_workers: 64,

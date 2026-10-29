@@ -1,3 +1,4 @@
+#[expect(clippy::module_inception, reason = "Keep the existing test paths under the suite file module.")]
 mod hello {
     use jig_engine_workers_world::{
         World,

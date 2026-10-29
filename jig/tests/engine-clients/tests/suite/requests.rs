@@ -6,9 +6,9 @@ use skein_lib::{
     Writer,
     base64::{self, Alphabet},
 };
-#[path = "requests/full.rs"]
+#[path = "../requests/full.rs"]
 mod full;
-#[path = "requests/llm.rs"]
+#[path = "../requests/llm.rs"]
 mod llm;
 fn bearer(peer: &mut Peer, sign_in: u64, person: u64) -> Box<[u8]> {
     let link = peer.printed_link();

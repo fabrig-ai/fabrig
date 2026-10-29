@@ -263,5 +263,5 @@ fn a_pending_assignment_keeps_its_checked_host_when_room_is_lost() {
     assert_eq!(fleet.domain.waiting(), 0, "the stale check is refused for a fresh allowance");
 }
 
-#[path = "models/standing_refusal.rs"]
+#[path = "../models/standing_refusal.rs"]
 mod standing_refusal;
