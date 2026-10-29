@@ -79,7 +79,7 @@ section 7).
 | 9 | `Landed` | `Landed(Commit)` | a merge temper made, and its task | `landings` |
 | 10 | `Entry` | `Entry(u64)`: the entry's number | an unsettled outbox entry, held or not, and whether the forge's merge queue holds its merge (`queued`, skein's `forge-client.md`, 7.7) | `entries` |
 | 11 | `Client` | `Client(client::Key)`: `Live(Resource)` or `Repository(Repository)` | the client's working set: a live resource's row, or a repository's listing mark | the client's `resources` and `repositories` |
-| 12 | `Change` | `Change(u64)`: the task | a change procedure's state | `changes` |
+| 12 | `Change` | `Change(u64)`: the task | a change procedure's state, with its last producer's failure words (`producer_failure`, fitted to the hold's account bytes and cut with `...`; a new delegate or a producer's success clears them), which become a producing hold's account (`../domain/forge.md`, 8.4) | `changes` |
 | 13 | `Issue` | `Issue(u64)`: the goal | a goal's issue projection | `issues` |
 | 14 | `Release` | `Release(u64)`: the task | a closing task's release | `tasks` |
 | 15 | `Application` | `Application(u64)`: the people child's token for the request | a keyed adoption's outcome, or a keyed outcome of the FORGE family, kept until its retention ends (jig's `domain/connectors.md`, 5.5: a connector keeps its keyed requests' outcomes durably); an outcome carrying a link is kept in memory alone, until its state's life ends (`setup.state_life_ms` after `Done`; `../client/README.md`, section 8) | `applications` |

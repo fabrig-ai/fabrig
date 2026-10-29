@@ -1160,8 +1160,10 @@ starts from current code. It never updates only because its base moved.
   decides afresh. A producer that fails for good, or finds nothing to
   change (its failure saying so, in its own words), holds the change at
   producing, the hold carrying its words whole within the hold's bytes,
-  so its requester hears why and its person decides: cancel it, or
-  release it if the producer was wrong. At producing, with no head pushed
+  so its requester hears why (its notice fitted to the requester's
+  message bytes on its own, marked when cut) and its person decides:
+  cancel it, or release it if the producer was wrong; a chat holds no
+  decision of its own here. At producing, with no head pushed
   (its producer failed for good), deciding afresh makes a fresh producer, one more of its
   tasks, holding by the rule above when its authority no longer covers
   one. A change is a procedure, with no run of its own to repeat: a
