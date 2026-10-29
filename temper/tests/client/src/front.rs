@@ -405,10 +405,13 @@ impl Joint {
         let [(bootstrap, engine_limits), (config, _)] = std::array::from_fn(|_| {
             let mut config = walking::config(seed);
             let mut rules = config.core.defaults.rules.clone();
-            rules.ceiling.delegation.depth = 2;
+            rules.ceiling.delegation.depth = 3;
+            rules.ceiling.delegation.tasks = 3;
             let mut policy = config.core.seed_projects[0].policy.policy.clone();
-            policy.ceiling.delegation.depth = 2;
-            policy.roles[0].authority.delegation.depth = 2;
+            policy.ceiling.delegation.depth = 3;
+            policy.ceiling.delegation.tasks = 3;
+            policy.roles[0].authority.delegation.depth = 3;
+            policy.roles[0].authority.delegation.tasks = 3;
             let mut domain = authority::Domain::new(rules, temper_engine_domain_world::walking::limits().authority)
                 .expect("question authority");
             let mut out = skein_lib::Queue::uncapped();
@@ -421,6 +424,10 @@ impl Joint {
             config.core.seed_projects[0].policy.policy = domain.policy(1).expect("configured seed policy").clone();
             config.core.defaults.rules = domain.rules().clone();
             let mut engine_limits = engine_limits();
+            // The 306-byte agreed brief plus a quarter of headroom, rounded up.
+            engine_limits.tasks.spec_bytes = 384;
+            // The chat, its goal and the goal's possible delegate fit the tree.
+            engine_limits.tasks.tree_tasks = 3;
             engine_limits.tasks.inbox_bytes = 512;
             if let Some(text) = text {
                 engine_limits.documents.text_bytes = text;

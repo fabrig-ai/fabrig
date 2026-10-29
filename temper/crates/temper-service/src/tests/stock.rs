@@ -258,10 +258,14 @@ fn the_chats_words_send_plain_changes_to_change() {
     assert!(words.contains("Call goal only when they want to hear a plan or give a go-ahead before anything changes"));
     assert!(words.contains("never call change for work they want agreed first"));
     assert!(!words.contains("never call change yourself"));
-    assert!(words.contains("Only if your words ask to agree the work first"));
+    assert!(words.contains("Only if your brief says the work is to be agreed"));
     assert!(words.contains("Otherwise do the work without asking."));
-    assert!(words.contains("If a task, not a person, requested you, you are a goal, and this paragraph alone is yours; the next is the chat's, not yours."));
-    assert!(words.contains("Otherwise you are the person's chat, and this paragraph alone is yours."));
+    assert!(words.contains("If your brief opens by saying you are a goal, this paragraph alone is yours; the next is the chat's, not yours."));
+    assert!(
+        words.contains(
+            "If neither line opens your brief, you are the person's chat, and this paragraph alone is yours."
+        )
+    );
 }
 
 #[test]
@@ -274,13 +278,13 @@ fn the_chats_words_tell_the_person_when_its_change_holds() {
 #[test]
 fn the_chats_words_send_work_agreed_first_to_a_goal() {
     let words = include_str!("../stock/chat.txt");
-    assert!(words.contains("If a task, not a person, requested you"), "a goal is told apart by its requester");
+    assert!(words.contains("If your brief opens by saying you are a goal"), "a goal is told apart by its root brief");
     assert!(
-        words.contains("Only if your words ask to agree the work first (a plan to hear, a go-ahead to give): before anything is changed, send your requester your plan with message, as a question asking whether to go ahead, and call wait until it is answered: never call finish before that answer, nor before every agreed change has landed; if the answer declines, report that and change nothing."),
+        words.contains("Only if your brief says the work is to be agreed: before anything is changed, send your requester your plan with message, as a question asking whether to go ahead, and call wait until it is answered: never call finish before that answer, nor before every agreed change has landed; if the answer declines, report that and change nothing."),
         "the goal calls wait after asking and finishes only after the answer and all landings"
     );
     assert!(
-        words.contains("Call goal only when they want to hear a plan or give a go-ahead before anything changes, with their words whole at once, even where they ask for an advisor first, since the goal asks one itself: the goal tells its plan and asks them; or when they want a survey that changes nothing. Never write a plan yourself, never ask for their go-ahead in your own reply, never set advisor, and never call change for work they want agreed first. Tell them a question will wait in their inbox."),
+        words.contains("Call goal only when they want to hear a plan or give a go-ahead before anything changes, with their words whole at once and agree set, even where they ask for an advisor first, since the goal asks one itself: the goal tells its plan and asks them; or when they want a survey that changes nothing. Never write a plan yourself, never ask for their go-ahead in your own reply, never set advisor, and never call change for work they want agreed first. Tell them a question will wait in their inbox."),
         "the chat sends work agreed first to goal with the person's words"
     );
     assert!(

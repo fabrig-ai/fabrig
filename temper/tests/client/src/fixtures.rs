@@ -346,12 +346,7 @@ pub fn question_with_text_bound(front: &mut Joint, words: &[u8], text: Option<u3
         engine::Call {
             completion: QUESTION_COMPLETION,
             position: QUESTION_POSITION,
-            tool: engine::Tool::Delegate {
-                batch: Box::new([temper_engine_domain_world::fixtures::report_delegate(
-                    b"Ask the person",
-                    Box::new([]),
-                )]),
-            },
+            tool: engine::Tool::Goal { words: b"Ask the person".as_slice().into(), advisor: false, agree: true },
         },
     );
     driver.settle();

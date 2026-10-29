@@ -9,7 +9,8 @@
             {
               "call": "goal",
               "arguments": {
-                "words": "Add CSV export to widget. Before anything is changed, inspect the relevant code and send person 1 your proposed plan as a question asking for go-ahead. Wait for their explicit approval before calling change. Implement only the agreed work through change, wait for its result, and report what landed."
+                "words": "Add CSV export to widget. Before anything is changed, inspect the relevant code and send person 1 your proposed plan as a question asking for go-ahead. Wait for their explicit approval before calling change. Implement only the agreed work through change, wait for its result, and report what landed.",
+                "agree": true
               }
             }
           ],
@@ -55,7 +56,7 @@
       ]
     },
     {
-      "cue": "[Requested by task 1]",
+      "cue": "You are a goal: the work your person asked for",
       "turns": [
         {
           "lines": [
