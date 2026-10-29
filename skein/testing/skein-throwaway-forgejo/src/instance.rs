@@ -1,11 +1,14 @@
 use crate::{Account, Exchange, Failure, Forgejo, Init, Made, Outgoing, Settings, Token, WorkPath, http};
+use skein_world::{Deadline, Expired};
 use std::{
     fs::{self, File},
     path::{Path, PathBuf},
     process::Child,
+    sync::Mutex,
 };
 pub struct Instance {
-    child: Option<Child>,
+    // The shared exchange API can reap the owned child before a starved pass.
+    child: Mutex<Option<Child>>,
     port: u16,
     scratch: PathBuf,
     work: Option<WorkPath>,
@@ -24,7 +27,7 @@ impl Instance {
         let scratch = work.scratch().to_owned();
         let port = work.port;
         let mut instance = Self {
-            child: None,
+            child: Mutex::new(None),
             work: Some(work),
             port,
             scratch,
@@ -58,7 +61,7 @@ impl Instance {
             &instance.secrets,
         )?;
         let log = File::create(instance.scratch.join("server.log"))?;
-        instance.child = Some(
+        *instance.child.get_mut().expect("child lock") = Some(
             instance
                 .work
                 .as_ref()
@@ -83,7 +86,7 @@ impl Instance {
     pub fn attach(child: Child, port: u16, scratch: &Path, admin: Token, settings: &Settings) -> Result<Self, Failure> {
         let secrets = vec![admin.value().to_owned()];
         let mut instance = Self {
-            child: Some(child),
+            child: Mutex::new(Some(child)),
             port,
             scratch: scratch.into(),
             work: None,
@@ -100,16 +103,43 @@ impl Instance {
         Ok(instance)
     }
     fn ready(&mut self) -> Result<(), Failure> {
+        let interval = skein_lib::Duration::from_millis(50);
+        let mut deadline = Deadline::arm(
+            "the throwaway Forgejo startup",
+            interval.saturating_mul(u64::from(self.settings.ready_polls)),
+        );
+        deadline.watch_process(self.child.get_mut().expect("child lock").as_ref().expect("web started").id());
         for _ in 0..self.settings.ready_polls {
-            if let Some(status) = self.child.as_mut().expect("web started").try_wait()? {
+            if let Some(status) = self.child.get_mut().expect("child lock").as_mut().expect("web started").try_wait()? {
                 return Err(Failure::Exited { step: "web", status: status.to_string(), log_tail: self.log_tail() });
             }
             if self.exchange(&Outgoing::get("/api/v1/version", None)).is_ok_and(|x| x.status == 200) {
                 return Ok(());
             }
-            http::host::wait(skein_lib::Duration::from_millis(50))?;
+            if deadline.passed() {
+                break;
+            }
+            http::host::wait(deadline.remaining().min(interval))?;
         }
-        Err(Failure::NotReady { polls: self.settings.ready_polls, log_tail: self.log_tail() })
+        if let Some(status) = self.child.get_mut().expect("child lock").as_mut().expect("web started").try_wait()? {
+            return Err(Failure::Exited { step: "web", status: status.to_string(), log_tail: self.log_tail() });
+        }
+        let log_tail = self.log_tail();
+        if deadline.passed() {
+            match deadline.expired() {
+                Expired::Starved(starved) => {
+                    self.cleanup()?;
+                    starved.pass();
+                }
+                Expired::Failed(figures) => {
+                    return Err(Failure::NotReady {
+                        polls: self.settings.ready_polls,
+                        log_tail: format!("{log_tail}\n{figures}"),
+                    });
+                }
+            }
+        }
+        Err(Failure::NotReady { polls: self.settings.ready_polls, log_tail })
     }
     /// Runs Forgejo's command line on the running instance's work path.
     /// # Errors
@@ -137,11 +167,9 @@ impl Instance {
         let target = format!("/api/v1/users/{login}/tokens");
         let auth = format!("Basic {}", http::basic(&format!("{login}:{password}")));
         self.secrets.push(auth.clone());
-        let response = http::exchange(
-            self.port,
+        let response = self.request(
             &Outgoing::json("POST", &target, None, b"{\"name\":\"throwaway\",\"scopes\":[\"all\"]}"),
             Some(&auth),
-            self.settings.answer_bytes,
         )?;
         self.expect(&target, &response, 201)?;
         let token = text(&value(&response)?, b"sha1").ok_or_else(|| Failure::Io("token missing".into()))?;
@@ -236,14 +264,30 @@ impl Instance {
     /// Returns a connection, framing or bounded-read failure.
     pub fn exchange(&self, outgoing: &Outgoing<'_>) -> Result<Exchange, Failure> {
         let auth = outgoing.token.map(|t| format!("token {}", t.value()));
-        http::exchange(self.port, outgoing, auth.as_deref(), self.settings.answer_bytes)
+        self.request(outgoing, auth.as_deref())
     }
     /// One basic-auth exchange with the credential masked in the recording.
     /// # Errors
     /// Returns a connection, framing or bounded-read failure.
     pub fn exchange_basic(&self, outgoing: &Outgoing<'_>, login: &str, secret: &str) -> Result<Exchange, Failure> {
         let auth = format!("Basic {}", http::basic(&format!("{login}:{secret}")));
-        http::exchange(self.port, outgoing, Some(&auth), self.settings.answer_bytes)
+        self.request(outgoing, Some(&auth))
+    }
+    fn request(&self, outgoing: &Outgoing<'_>, auth: Option<&str>) -> Result<Exchange, Failure> {
+        let process = self.child.lock().expect("child lock").as_ref().map(Child::id);
+        let result = http::exchange(self.port, outgoing, auth, self.settings.answer_bytes, process);
+        match result {
+            Ok(exchange) => Ok(exchange),
+            Err(http::Attempt::Failed(error)) => Err(error),
+            Err(http::Attempt::Starved(starved)) => {
+                let status = self.child.lock().expect("child lock").as_mut().expect("web started").try_wait()?;
+                if let Some(status) = status {
+                    return Err(Failure::Exited { step: "web", status: status.to_string(), log_tail: self.log_tail() });
+                }
+                self.cleanup()?;
+                starved.pass();
+            }
+        }
     }
     #[must_use]
     pub fn secrets(&self) -> Vec<String> {
@@ -251,11 +295,11 @@ impl Instance {
     }
     /// # Errors
     /// Returns a child or scratch removal failure after attempting both.
-    pub fn stop(mut self) -> Result<(), Failure> {
+    pub fn stop(self) -> Result<(), Failure> {
         self.cleanup()
     }
-    fn cleanup(&mut self) -> Result<(), Failure> {
-        let child_result = self.child.take().map_or(Ok(()), |mut child| {
+    fn cleanup(&self) -> Result<(), Failure> {
+        let child_result = self.child.lock().expect("child lock").take().map_or(Ok(()), |mut child| {
             let kill = child.kill();
             let wait = child.wait();
             kill.and(wait.map(|_| ()))

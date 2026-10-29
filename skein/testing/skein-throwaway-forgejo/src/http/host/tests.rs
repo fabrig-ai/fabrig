@@ -24,7 +24,8 @@ impl<'a> Driver<'a> {
     }
     #[expect(clippy::wildcard_enum_match_arm, reason = "the one-shot host submits only socket operations")]
     fn turn(&mut self) {
-        self.host.iterate(Time::ZERO, Wall::EPOCH);
+        let now = self.host.real_deadline.as_ref().map_or(Time::ZERO, Deadline::until);
+        self.host.iterate(now, Wall::EPOCH);
         while let Some(Submit { op, kind }) = self.host.submit.pop() {
             let result = match &kind {
                 Op::Recv { .. } => {
@@ -89,6 +90,7 @@ fn a_received_reply_finishes_before_a_later_reset() {
     let mut exchange = exchange();
     let mut driver = Driver::new(&mut exchange);
     driver.receive(REPLY);
+    driver.host.arm("the completed test reply", Duration::ZERO);
     driver.reset();
     assert!(exchange.error.is_none(), "{:?}", exchange.error);
     assert_eq!(exchange.exchange.status, 423);
@@ -100,17 +102,34 @@ fn an_incomplete_reply_still_fails_on_reset() {
     let mut driver = Driver::new(&mut exchange);
     let (_, incomplete) = REPLY.split_last().expect("nonempty reply");
     driver.receive(incomplete);
+    driver.host.arm("the reset test reply", Duration::ZERO);
     driver.reset();
     assert_eq!(format!("{:?}", exchange.error), "Some(Io(\"malformed HTTP answer: Stream(Reset)\"))");
 }
 #[test]
 fn terminal_close_cancels_and_drains_the_receive() {
-    let mut exchange = exchange();
-    let mut driver = Driver::new(&mut exchange);
-    driver.receive(REPLY);
-    driver.drain();
-    assert!(driver.host.is_empty());
-    assert!(driver.recv.is_none());
+    for answered in [true, false] {
+        let mut exchange = exchange();
+        let mut driver = Driver::new(&mut exchange);
+        if answered {
+            driver.receive(REPLY);
+        } else {
+            driver.host.arm("the unanswered test reply", Duration::ZERO);
+            driver.turn();
+        }
+        driver.drain();
+        assert!(driver.host.is_empty());
+        assert!(driver.recv.is_none());
+        if !answered {
+            match driver.host.starved.take() {
+                Some(starved) => assert_eq!(starved.figures().what, "the unanswered test reply"),
+                None => assert!(
+                    format!("{:?}", driver.host.exchange.as_ref().expect("exchange").error)
+                        .contains("HTTP exchange timed out: the unanswered test reply: patience 0 ns")
+                ),
+            }
+        }
+    }
 }
 // wait() supplies a policy deadline without any socket or network retry.
 const WAIT: Duration = Duration::from_millis(1);
