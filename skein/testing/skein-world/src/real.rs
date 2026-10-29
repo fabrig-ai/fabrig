@@ -47,14 +47,13 @@ fn hosted_sender(host: usize) -> skein_io::kernel::Sender {
 
 /// What a real run left.
 #[derive(Debug)]
+#[expect(clippy::partial_pub_fields, reason = "metered peaks are read only through the outcome accessor")]
 pub struct Outcome<P> {
     /// The processes as the run left them, settled.
     pub procs: Vec<P>,
     pub killed: Vec<Killed>,
-    /// Per-process peak and scenario ceiling, in surviving admission order;
-    /// `u64::MAX` when checked without a ceiling.
-    /// The pair goes once callers read `peaks()`; the ceiling a scenario named is its own constant.
-    pub heap: Option<Vec<(u64, u64)>>,
+    /// Each surviving process's peak, in admission order, when memory was checked.
+    peaks: Option<Vec<u64>>,
     /// Bytes each surviving process must release when dropped.
     pub held: Option<Vec<i64>>,
     pub iterations: u32,
@@ -68,12 +67,7 @@ impl<P> Outcome<P> {
     /// `None` when memory was not checked.
     #[must_use]
     pub fn peaks(&self) -> Option<Vec<u64>> {
-        let heap = self.heap.as_ref()?;
-        let mut peaks = Vec::new();
-        for (peak, _) in heap {
-            peaks.push(*peak);
-        }
-        Some(peaks)
+        self.peaks.clone()
     }
 }
 
@@ -149,13 +143,12 @@ pub fn run<P: Host, R: Referee<P>>(procs: Vec<P>, referee: R, clock: &Clock, pat
 
 /// A killed hosted child, reported after its operations and descriptors settle.
 #[derive(Debug)]
+#[expect(clippy::partial_pub_fields, reason = "metered peaks are read only through the outcome accessor")]
 pub struct Killed {
     pub host: usize,
     pub exit: Exit,
-    /// Peak and scenario ceiling after exact metered release, when checked;
-    /// `u64::MAX` when checked without a ceiling.
-    /// The pair goes once callers read `peak()`; the ceiling a scenario named is its own constant.
-    pub heap: Option<(u64, u64)>,
+    /// Its peak after exact metered release, when memory was checked.
+    peak: Option<u64>,
 }
 
 impl Killed {
@@ -163,8 +156,7 @@ impl Killed {
     /// `None` when memory was not checked.
     #[must_use]
     pub fn peak(&self) -> Option<u64> {
-        let (peak, _) = self.heap?;
-        Some(peak)
+        self.peak
     }
 }
 
@@ -678,7 +670,7 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
                     "settled hosts leave no owned descriptor open"
                 );
                 return Outcome {
-                    heap: self.world.heap.as_ref().map(Heap::report),
+                    peaks: self.world.heap.as_ref().map(Heap::report),
                     held: self.world.heap.as_ref().map(Heap::held),
                     procs: self.world.procs,
                     killed: self.killed,
@@ -1070,14 +1062,14 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
         for (at, host) in self.ids.iter().enumerate().skip(at) {
             *self.positions.get_mut(*host).expect("a position per host") = Some(at);
         }
-        let heap = match &mut self.world.heap {
+        let peak = match &mut self.world.heap {
             Some(heap) => Some(heap.release(at, proc)),
             None => {
                 drop(proc);
                 None
             }
         };
-        self.killed.push(Killed { host, exit, heap });
+        self.killed.push(Killed { host, exit, peak });
     }
 
     fn settle_children(&mut self) {
