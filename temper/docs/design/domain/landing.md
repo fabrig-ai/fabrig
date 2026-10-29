@@ -560,8 +560,8 @@ Three kinds join `forge.md`'s section 6, each a row of its own:
   each within a branch name's bounds; and `inputs`, within skein's
   `INPUTS`. A landing that would pass one is refused at its making, or
   a member at its joining, naming the limit; its change stays ready and
-  waits for room, as a change waits for a hold. Each enters the
-  engine's worst case.
+  waits for room, as a change waits for a hold. Entrance constraints
+  and representable counts are checked by the forge's `valid`.
 
 ## 13. Settings
 

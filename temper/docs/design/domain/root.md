@@ -106,7 +106,7 @@ temper-engine-domain/src/
 ├── restart.rs          the restart script's steps (section 9)
 ├── stopping.rs         the drain (section 9)
 ├── deadline.rs         the children's timers
-├── limits.rs           the root's limits and its worst case (section 10)
+├── limits.rs           the root's entrance limits and validity (section 10)
 └── tests.rs
 ```
 
@@ -158,7 +158,8 @@ with the worker's (`../protocol/README.md`, section 8).
 ## 4. The one shape, and the journal
 
 jig's shape (jig's `domain/root.md`, section 3), with temper's
-admission:
+admission. The journal's `held` field and memory estimates do not
+admit work; the watermark paces new external work (section 10).
 
 ```
 try_step(root, event):
@@ -902,7 +903,7 @@ Then the drain. What the root adds to the core's:
   its outbox row stays durable, and the next start's settlement makes it;
 - **`Drained`** once nothing waits for a commit.
 
-## 10. Limits and worst cases
+## 10. Limits and validity
 
 The root carries configured `core.policy_bytes` and `core.call_answer_bytes`
 unchanged and derives one effective core envelope for runtime, store opening,
@@ -915,16 +916,10 @@ over-bound stored settings policy by setting number and source, and an
 over-bound project policy by project number.
 Startup also checks the seed policy after enforced landing requirements are joined, before constructing the core.
 
-- **The restart's workspace is priced once,** where the restart holds
-  it: a cold restore page, which holds any row a writer commits (jig's
-  `protocol/store.md`, 7.1), lives only before the engine serves, and
-  no message carries it, since a startup answer goes straight to the
-  restart, one at a time. So it is never part of the root's payload
-  worst case nor of a retained read answer's slot, which every queue
-  and envelope multiplies. It is priced as jig prices patching beside
-  serving: the common part, then the larger of the restart's and the
-  serving workspaces it precedes (jig's `protocol/store.md`, 10.2 and
-  section 13).
+- **The restart's workspace** holds a cold restore page, which holds
+  any row a writer commits (jig's `protocol/store.md`, 7.1). It lives
+  only before the engine serves; a startup answer goes straight to
+  the restart, one at a time, and occupies no retained read-answer slot.
 - **The core's children's limits** are `engine.limits`, jig's part:
   tasks, authority, people, the fleet, accounts, notes, documents,
   templates and call records (jig's `protocol/configuration.md`, section
@@ -981,17 +976,13 @@ Startup also checks the seed policy after enforced landing requirements are join
 - **The store's fill mark and a read's bytes** are jig's small profile's
   numbers, 268,435,456 and 65,536 bytes, held as the root's constants
   (section 13).
-- **The worst case, an estimate until it goes** (skein's
-  programming-model.md, 6.3, which no longer has one; the startup fit
-  check goes in one set across the repositories): the core's, the forge's, the calendar's (a record
-  per project, within jig's project limit), the journal's, the loads',
-  the landing policy's (designed, not built: the forge's rules and its
-  kinds' values, priced by the forge, and their states, by jig) and
-  the permission
-  mappings', and every value in
-  flight (section 2), summed in checked arithmetic (programming-model.md,
-  6.3). The service computes it at start; limits whose sum overflows, or
-  that break a check above, refuse the start.
+- **Validity:** `temper_engine_domain::valid` checks child validity,
+  entrance constraints, payload capacities and count representability.
+  The journal requires nonzero `commits`, `writes`, `deliveries` and
+  `run_bytes`; `writes = 1` admits a header-only commit. Its `held`
+  field and memory estimates impose no admission condition. The root
+  accepts `forge.output = 0`: the forge's internal output envelope
+  does not constrain the parent. No heap sum admits the root.
 
 ## 11. What the root never does
 

@@ -17,7 +17,7 @@ credentials.md's (section 4). What is open is listed in section 10.
   `git::Op` with a deadline (`Request::Io`) and may cancel it
   (`Request::CancelIo`); the git component runs it and answers with
   exactly one `Event::Done`. It is step code, a child of the worker's
-  protocol layer, with its own limits and worst case (README.md,
+  protocol layer, with its own entrance limits (README.md,
   section 5).
 - **A fixed sequence per operation:** at most four git invocations, each
   its own process in a process group of its own, all under the
@@ -600,7 +600,7 @@ variable of the worker's own process reaches git.
   `protocol/service.md`, section 10). Operations in flight end as io
   closes them.
 
-## 8. Limits and the worst case
+## 8. Entrance limits and kernel submissions
 
 The git component's `Limits`, set by temper's profile `small` and
 overridable under `git_component.` (configuration.md, section 7):
@@ -617,20 +617,14 @@ The start is refused, naming the limit, when a rule does not hold. The
 component has no deadline of its own: an operation's is the domain's,
 and io's close timeout bounds the end of a killed invocation.
 
-- **Memory:** for each operation in flight, its program (an absolute
-  path of at most 4,096 bytes, channel.md, section 8), its argument
-  vector (the settings, a URL and a refspec within the checkout's
-  `name_bytes`), its
-  environment (an identity's value within the channel's bound,
-  channel.md, section 8), its message (the checkout's `message_bytes`),
-  `stdout_bytes`, `stderr_bytes`, `read_bytes` and the paths it parsed
-  (`conflicts` × `path_bytes`); plus one page of the sweep, and the
-  table of operations. `worst_case` counts them, the containers'
-  bookkeeping included.
+- **Memory:** operation state and parsed paths grow as they fill; stdout,
+  stderr, reads and sweep pages are bounded at their entrances. No heap
+  sum is a startup condition: `check` refuses a limit set only for the
+  operations, stdout, stderr, read and sweep rules above.
 - **Processes:** at most `operations` git process groups at once.
 - **Time:** an operation ends within its deadline and io's close timeout.
-- **Most outputs per entry point:** a constant the component exports; an
-  event starts at most one invocation, or one file operation.
+- **Kernel submissions:** `KERNEL_SUBMISSIONS = 1`, one file operation
+  at the queue edge toward skein-io. Internal hand-offs reserve no room.
 - **Disk:** the workspaces are the cache's (`../domain/worker.md`, section
   5); `trash` holds no more than the workspaces it took, until the sweep
   has emptied it.
@@ -679,8 +673,8 @@ checks this document's contract:
   two. Its referee: each operation ends exactly once, with the outcome
   its scripted outputs imply; no invocation starts after a deadline or a
   cancel; every child is closed before its operation's terminal; no
-  credential in an argument; memory within `worst_case`. Its scripted
-  outputs are the transcripts.
+  credential in an argument; scenario memory peaks under their ceilings.
+  Its scripted outputs are the transcripts.
 - **The fake git program,** its core `crates/temper-fake-git` and its
   hosted half `testing/temper-fake-git-hosted` (`../domain/testing.md`,
   4.3), answers this document's invocations as real

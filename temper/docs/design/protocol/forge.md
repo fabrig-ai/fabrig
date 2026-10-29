@@ -123,7 +123,7 @@ skein-io socket
   sections 5 and 11).
 - **The forge component,** `skein-forge-connection`, is a child of the
   engine's protocol layer, beside jig's components, with its own limits,
-  worst case, deadlines and most outputs per entry point; the routing
+  deadlines and kernel submission edges; the routing
   carries what passes between it, io and the root, and decides nothing
   (README.md, sections 5 and 6; jig's `protocol/service.md`, section 2).
   One component serves every configured forge. What it holds is skein's
@@ -416,9 +416,8 @@ of the engine's protocol layer beside the forge component. The routing
 carries what passes between it, the root and the records.
 
 The engine builds the setup host once at start from the configured
-forges, admitting `host::worst_case(&limits, &settings)` against its
-own bound before it builds it; a full host answers `Why::Busy` at a
-Run's start, and the page shows it as busy, try again (skein's
+forges, checking the host's entrance limits and settings before it
+builds it; a full host answers `Why::Busy` at a Run's start, and the page shows it as busy, try again (skein's
 `forge-setup.md`, 6.5).
 
 - **Down,** `Run { run, plan }` and `Answer { run, answer }`; **up,**
@@ -834,7 +833,7 @@ values are temper's: `../domain/forge.md`, 5.2 and 5.4.
 Nothing the engine writes changes often: it writes the forge only to
 make an effect (`../domain/forge.md`, section 6), never as a heartbeat.
 
-## 7. Entities, limits and the worst case
+## 7. Entities and entrance limits
 
 Held by skein's `forge-connection.md`, section 7. temper's values are
 its `limits` member (configuration.md, section 7), set in
@@ -863,8 +862,13 @@ its `limits` member (configuration.md, section 7), set in
   GitHub routes and the picker's reads (client/README.md, the routes and
   the picker; `../domain/forge.md`, 4.3).
 
-The worst case grows by a GitHub forge's: its accepted installations'
-tokens and their renewals, one log poll in flight, and one setup run.
+The domain's `temper_engine_domain_forge::valid` checks the entrance
+constraints of `../domain/forge.md`, sections 4, 8 and 16, and count
+representability: demo acts, reconciliation rows and landing capacities.
+Names and gates fit the panel, and the client's admissions cover the
+top's rows. The connection owner's forge-by-installation row count must
+be representable. Internal output envelopes and heap sums do not
+constrain admission.
 
 ## 8. State machines
 

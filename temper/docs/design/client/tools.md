@@ -148,8 +148,7 @@ temper                       the binary: `temper ctl` runs the host
   (`client_outputs_dispatched`): a retirement's erase precedes its
   printed result and a follow-on request under the same name. A test
   holds this order at the admitted-call quota (programming-model.md,
-  7.2). `max_out` reserves no internal room, and the client has no
-  watermark (`README.md`, 3.1).
+  7.2). The client has no watermark (`README.md`, 3.1).
 - **Words:** jig's for jig's enums (`jig-client`'s `words`) and the
   forge's of `README.md`, 4.1 and 4.7, so an agent and a person name
   things alike. The view's overrides for its mockups stay the view's.
@@ -1379,6 +1378,7 @@ as the terminal's host is:
 4. send what the store kept for `me`'s party again, each answered as a
    line on stderr, `kept: ...`, a restored proposal's without its
    recipient (6.1), and its record erased once its answer is durable;
+   the finish notice uses the party last known even after a stream drop;
    the step ends once each is sent, not answered, so that a kept request
    the engine does not answer (busy past its retries, a bound full)
    holds no other act: the call's own local keys are drawn past those

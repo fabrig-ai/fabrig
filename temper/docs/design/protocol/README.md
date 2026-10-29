@@ -442,7 +442,7 @@ skein's (`fake-forge.md`, sections 4, 6 and 7).
 **What temper's components share** is what every component of jig's
 does (jig's `protocol/README.md`, section 1; programming-model.md,
 sections 4 and 9): each a child of the protocol layer with its own
-limits, worst case, deadlines and most outputs per entry point; its
+limits, deadlines and kernel submission edges; its
 connections or invocations its own entities, bound to calls by echoed
 tokens; one exchange in flight per connection, with an output cap and a
 room check before the next is parsed; a call with no room refused before
@@ -455,8 +455,10 @@ rules every temper component keeps:
   unavailable only when the call provably never left, and timed out
   otherwise (skein's `forge.md`, 5.4). A retry below the domain hides its cost from
   the budget, and adds load just when the peer is struggling.
-- **Limits and the worst case.** Each component exports its `Limits` and
-  `worst_case`, summed with jig's at start (configuration.md, section 7).
+- **Limits at the entrances.** The worker's `temper-worker-domain::valid`
+  checks entrance constraints and count representability at start
+  (configuration.md, section 7). No heap sum admits a component, and
+  nothing is summed with jig's for admission.
 
 ## 6. The engine's service
 
@@ -982,10 +984,10 @@ nothing else: no flag, no command of its own.
   the store and the secrets' store among it, and each worker's digest; a
   worker alone's, its secret, its root, where its workspaces are, and
   its programs directory. No two processes share one.
-- **Memory by its service:** an engine alone's worst case within
-  `engine.memory_bytes`, a worker alone's within its worker part's
-  `memory_bytes` (configuration.md, section 7); io's sockets, each its
-  own service's.
+- **Memory by its service:** `engine.memory_bytes` meters the engine's
+  held transcripts and turns (`../domain/root.md`, 4.1). Memory budgets
+  are not startup heap sums (configuration.md, section 7); io's sockets
+  belong to their own service.
 - **`temper program-login`** takes a worker alone's directories as it
   takes standalone's, and reads only the worker's part: each worker
   signs its programs in on its own, and none is copied to another
