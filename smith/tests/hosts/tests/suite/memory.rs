@@ -3,11 +3,6 @@
 
 #[cfg(test)]
 mod tests {
-    use skein_world::domain::heap::Counting;
-
-    #[global_allocator]
-    static HEAP: Counting = Counting;
-
     #[test]
     fn hosted_parent_agent_and_peer_are_metered_at_every_iteration_and_drop() {
         use smith_hosts_world::{Program, World};

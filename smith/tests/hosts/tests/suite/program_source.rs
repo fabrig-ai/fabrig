@@ -1,6 +1,3 @@
-#[global_allocator]
-static HEAP: skein_heap::Counting = skein_heap::Counting;
-
 #[cfg(test)]
 mod tests {
     use smith_fake_claude::{Status, Story};
