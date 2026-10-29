@@ -14,7 +14,7 @@ impl World {
         let mut world = Self {
             domain: fleet::Domain::new(&limits, jig_fleet_world::fixtures::needs(), Box::new([])),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
-            out: Queue::with_capacity(fleet::max_out(&limits)),
+            out: Queue::uncapped(),
         };
         let membership = fleet::Membership::new(
             Box::new([b"alpha".as_slice().into(), b"beta".as_slice().into()]),

@@ -8,7 +8,7 @@ fn step(domain: &mut Domain, out: &mut Queue<views::Request>, event: Event) {
 #[test]
 fn retained_runs_survive_followers_and_release_on_end() {
     let mut domain = Domain::new(&LIMITS);
-    let mut out = Queue::with_capacity(views::max_out(&LIMITS));
+    let mut out = Queue::uncapped();
     for wave in 0..2 {
         for watcher in 0..LIMITS.watchers {
             let token = Token::new(u64::from(wave * LIMITS.watchers + watcher));

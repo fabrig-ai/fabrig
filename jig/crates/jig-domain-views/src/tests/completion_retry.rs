@@ -154,7 +154,7 @@ fn an_unwatched_call_is_retained_and_an_empty_retry_clears_it() {
 }
 
 fn call(domain: &mut Domain, owner: u64, sequence: u32, retry: u32, id: &[u8], wall: Wall) {
-    let mut out = Queue::with_capacity(max_out(&LIMITS));
+    let mut out = Queue::uncapped();
     step(
         domain,
         &Env { now: Time::ZERO, wall, limits: LIMITS },
@@ -213,7 +213,7 @@ fn repeated_ids_in_one_completion_replace_payload_and_keep_the_first_seen_clock(
     let mut next = writing(&domain, Token::new(7), 16).unwrap().call.unwrap();
     next.input = Box::from(&b"new"[..]);
     next.began = None;
-    let mut out = Queue::with_capacity(max_out(&LIMITS));
+    let mut out = Queue::uncapped();
     step(
         &mut domain,
         &Env { now: Time::ZERO, wall: Wall::from_nanos(5), limits: LIMITS },
@@ -318,7 +318,7 @@ fn call_only_live_runs_use_the_existing_retention_capacity_until_end() {
         began: None,
     };
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let mut out = Queue::with_capacity(max_out(&limits));
+    let mut out = Queue::uncapped();
     for run in [7, 8] {
         step(&mut domain, &env, Event::Called { run: Token::new(run), attempt: 1, call: supplied.clone() }, &mut out);
     }

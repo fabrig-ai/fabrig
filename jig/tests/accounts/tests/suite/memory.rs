@@ -1,7 +1,7 @@
 use jig_accounts_world::{LIMITS, provider, providers};
 use jig_domain_accounts::{
     ADDRESS, DISPLAY, Domain, Event, Failure, Form, FromComponent, Held, Holder, Kind, Limits, NAME, Request, SUBJECT,
-    Scheme, Signing, Stored, max_out, step,
+    Scheme, Signing, Stored, step,
 };
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 const KINDS: [Kind; 3] = [Kind::SignIn, Kind::Key, Kind::Program];
@@ -37,7 +37,7 @@ fn granted(source: u32) -> FromComponent {
 /// sign-in's end kept, and a sign-in under way.
 #[test]
 fn full_accounts_restore_sign_in_and_sign_out() {
-    let mut out = Queue::with_capacity(max_out(&LIMITS));
+    let mut out = Queue::uncapped();
     let providers = providers(vec![provider(1, true, true)]);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: LIMITS };
     let mut domain = Domain::new(&LIMITS, providers);
@@ -191,7 +191,7 @@ fn pending_keys_and_account_removals_complete() {
     use jig_domain_accounts::{Change, USES, Use};
     let providers = providers(vec![provider(1, true, true)]);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: LIMITS };
-    let mut run = Run { env, out: Queue::with_capacity(max_out(&LIMITS)), request: 0 };
+    let mut run = Run { env, out: Queue::uncapped(), request: 0 };
     let mut domain = Domain::new(&LIMITS, providers);
     for number in 0..LIMITS.accounts {
         let account = jig_accounts_world::account(number * 2, 1, Holder::Party(u64::from(number)), b"subject");
@@ -266,7 +266,7 @@ fn full_program_operations_stay_below_the_accounts_bound() {
     let mut offered = provider(1, false, false);
     offered.offers.programs = Box::new([b"claude_code".as_slice().into()]);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: LIMITS };
-    let out = Queue::with_capacity(max_out(&LIMITS));
+    let out = Queue::uncapped();
     let providers = providers(vec![offered]);
     let mut domain = Domain::new(&LIMITS, providers);
     let mut run = Run { env, out, request: 0 };
@@ -356,7 +356,7 @@ fn move_tables() -> (Domain, Run) {
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let offered = providers(vec![provider(1, true, true)]);
     let domain = Domain::new(&limits, offered);
-    let out = Queue::with_capacity(max_out(&limits));
+    let out = Queue::uncapped();
     (domain, Run { env, out, request: 0 })
 }
 fn restore_move_accounts(domain: &mut Domain, run: &mut Run) {
@@ -472,7 +472,9 @@ fn valid_refuses_each_unrepresentable_limit() {
     for (name, limits, accepted) in [
         ("fixture", LIMITS, true),
         ("accounts", Limits { accounts: 0, ..LIMITS }, false),
-        ("output", Limits { accounts: u32::MAX, ..LIMITS }, false),
+        ("source count overflow", Limits { accounts: u32::MAX, ..LIMITS }, false),
+        ("source count bound", Limits { accounts: u32::MAX, sources: 1, ..LIMITS }, true),
+        ("output overflow", Limits { sign_ins: u32::MAX, ..LIMITS }, true),
         ("holder zero", Limits { holder_accounts: 0, ..LIMITS }, false),
         ("holder range", Limits { holder_accounts: LIMITS.accounts + 1, ..LIMITS }, false),
         ("hosts zero", Limits { program_hosts: 0, ..LIMITS }, false),
