@@ -97,6 +97,7 @@ impl Store {
         // Route correlations grow with admitted work, without reserving an output envelope.
         let mut routes = route::Routes::new(u32::MAX);
         routes.configure(application);
+        routes.configure_restore(limits).expect("restart page bounds fit");
         let mut drivers = [driver(limits), driver(limits), driver(limits)];
         let [store, secrets, transcripts] = &mut drivers;
         let seeded = protocol::seed([&mut store.io, &mut secrets.io, &mut transcripts.io], seed);

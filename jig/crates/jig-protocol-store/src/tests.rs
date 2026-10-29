@@ -72,3 +72,5 @@ fn valid_refuses_each_unrepresentable_limit() {
         assert_eq!(crate::valid(&limits), accepted, "{name}");
     }
 }
+
+mod sizes;

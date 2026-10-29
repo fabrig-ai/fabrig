@@ -17,6 +17,7 @@ fn outstanding_routes_outgrow_the_supplied_table_size() {
     const TABLE_HINT: u32 = 1; // All eight admitted flights must retain their continuations.
     let mut routes = route::Routes::new(TABLE_HINT);
     routes.configure(&fixtures::root_limits());
+    routes.configure_restore(&fixtures::component_limits()).expect("restart page bounds fit");
     delayed_routes(routes);
 }
 
@@ -249,4 +250,52 @@ fn a_window_read_reaches_the_root_as_transcript_pages() {
         }
     }
     assert_eq!(pages, 2);
+}
+
+#[test]
+fn writer_admitted_rows_restore_above_the_ordinary_read_allowance() {
+    let mut component = fixtures::component();
+    let mut limits = fixtures::root_limits();
+    limits.core.load_bytes = 1;
+    let mut routes = route::Routes::new(1);
+    routes.configure(&limits);
+    routes.configure_restore(&component.limits).expect("restart page bounds fit");
+    let record = routed_result(fixtures::FIRST, 7);
+    fixtures::routed(
+        &mut component,
+        &mut routes,
+        StoreOut::Commit { number: 1, writes: Box::new([fixtures::header(1), root::Write::Save(record.clone())]) },
+    );
+    let step = core::RestartStep::RestoreConnector { connector: fixtures::FIRST };
+    let outputs = fixtures::routed(&mut component, &mut routes, StoreOut::Restart { step, census: None });
+    let mut outputs = outputs.into_iter();
+    let Some(Up::Restore(row)) = outputs.next() else { panic!("restored writer row") };
+    assert_eq!(row, record);
+    let Some(Up::Root(root::Event::RestartDone(done))) = outputs.next() else { panic!("restart terminal") };
+    assert_eq!(done, step);
+    assert!(outputs.next().is_none());
+    assert!(routes.idle());
+}
+
+#[test]
+#[should_panic(expected = "configure restore before routing requests")]
+fn missing_restore_configuration_panics_before_routing() {
+    let mut routes = route::Routes::new(1);
+    routes.configure(&fixtures::root_limits());
+    let _request = route::down(&mut routes, StoreOut::Restart { step: core::RestartStep::LoadCore, census: None });
+}
+
+#[test]
+fn restart_configuration_preserves_the_ordinary_read_allowance() {
+    let mut limits = fixtures::root_limits();
+    limits.core.load_bytes = 7;
+    let mut routes = fixtures::routes();
+    routes.configure(&limits);
+    let request = route::down(
+        &mut routes,
+        StoreOut::NotesLoad { owner: Token::new(1), range: jig_domain_notes::Range::Entry { name: 1 } },
+    )
+    .expect("ordinary read request");
+    let jig_protocol_store::Request::Load { bytes, .. } = request else { panic!("ordinary load") };
+    assert_eq!(bytes, 7);
 }

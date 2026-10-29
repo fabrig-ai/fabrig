@@ -111,6 +111,7 @@ impl Store {
         component.patch_sets(sets);
         let mut routes = route::Routes::new(limits.routes);
         routes.configure(limits);
+        routes.configure_restore(&component_limits).expect("restart page bounds fit");
         let mut store = Store {
             applied: 0,
             generation_pending: false,
@@ -267,6 +268,7 @@ impl Store {
         assert!(self.component.as_mut().expect("rebuilt component").wires(self.wires));
         self.routes = route::Routes::new(self.limits.routes);
         self.routes.configure(&self.limits);
+        self.routes.configure_restore(&self.component_limits).expect("restart page bounds fit");
         self.pending.clear();
         self.held.clear();
         self.inflight.clear();

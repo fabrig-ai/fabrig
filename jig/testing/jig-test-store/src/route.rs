@@ -16,6 +16,7 @@ pub struct Routes {
     next: u64,
     commit: u64,
     limits: Option<root::Limits>,
+    restore_bytes: Option<u64>,
 }
 #[derive(Debug)]
 enum Flight {
@@ -29,12 +30,18 @@ impl Routes {
     /// The supplied size does not limit the retained continuations.
     #[must_use]
     pub fn new(_table: u32) -> Routes {
-        Routes { pending: BTreeMap::new(), next: 0, commit: 0, limits: None }
+        Routes { pending: BTreeMap::new(), next: 0, commit: 0, limits: None, restore_bytes: None }
     }
     /// Give the routing the configured decode and page bounds before use.
     pub fn configure(&mut self, limits: &root::Limits) {
         assert!(self.pending.is_empty(), "configure before routing requests");
         self.limits = Some(*limits);
+    }
+    /// Give restart its writer-sized page allowance before routing requests.
+    pub fn configure_restore(&mut self, limits: &store::Limits) -> Option<()> {
+        assert!(self.pending.is_empty(), "configure before routing requests");
+        self.restore_bytes = Some(store::sizes::restore_bytes(limits)?);
+        Some(())
     }
     /// Whether every routed store request has terminated.
     #[must_use]
@@ -52,6 +59,7 @@ impl Routes {
 #[must_use]
 pub fn down(routes: &mut Routes, out: StoreOut) -> Option<Request> {
     let limits = routes.limits?;
+    routes.restore_bytes.expect("configure restore before routing requests");
     Some(match out {
         StoreOut::Commit { number, writes } => {
             let mut translated = List::with_capacity(u32::try_from(writes.len()).ok()?);
@@ -132,7 +140,13 @@ fn restart(routes: &Routes, owner: Token, after: Option<store::Cursor>) -> Optio
         | core::RestartStep::SettleOutbox { .. }
         | core::RestartStep::Open => return None,
     };
-    Some(Request::Restore { owner, range, after, rows: 2, bytes: routes.limits?.core.load_bytes })
+    Some(Request::Restore {
+        owner,
+        range,
+        after,
+        rows: 2,
+        bytes: routes.restore_bytes.expect("configure restore before routing requests"),
+    })
 }
 fn transcript(routes: &Routes, owner: Token, after: Option<u64>) -> Option<Request> {
     let (task, attempt, turn) = match routes.pending.get(&owner)? {
