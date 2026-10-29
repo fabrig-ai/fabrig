@@ -2212,6 +2212,12 @@ Its code comes after the rest (`../STATUS.md`).
   oldest. A revision below the cutoff is answered as forgotten even while
   a row that commit had no room for remains; later revisions' commits
   erase the rest.
+- **Settings writes** are checked at configuration against the store's
+  commit edge (`../protocol/store.md`, 5.4).
+  `jig_domain_core::settings::writes_bound` bounds the first start's or
+  a revision's writes; it must fit `JournalSizes.writes`, which supplies
+  the store's `commits.writes`. An overflow or a bound past that edge
+  refuses the configuration.
 - **A start** reads the settings right after the deployment's
   numbers, before any other record of the core's (section 6, step 1):
   the stored defaults, the changes, the held revisions' records and the

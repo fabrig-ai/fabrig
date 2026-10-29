@@ -176,11 +176,16 @@ It inspects nothing it holds. What jig asks of it:
   grow as they fill. Its `backlog()` counts the commits made and not yet
   answered, the outputs held and those at the door, for the root's
   watermark (section 3).
+- **jig's journal sizes** are `JournalSizes { commits, writes, door, release }`,
+  owned by `jig-protocol-config` and `jig-test-domain`. `commits` and
+  `writes` supply the store's commit edge; `release` bounds the held
+  outputs released per call. The journal's containers remain uncapped.
 - **A decision:** a value, `#[must_use]` and not `Clone`, from
   `decide()`, that gathers one decision's writes and held outputs
   (`push_write`, `push_held`). It reserves nothing and cannot fail. The
   store's commit is an edge: it refuses a commit of more writes than its
-  `journal.writes`, and a decision past it stops the root.
+  `Limits.commits.writes` (`sizes::Commits`, `../protocol/store.md`,
+  5.4), and a decision past it stops the root.
 - **At most one commit per decision,** numbered in order; a decision
   with no write makes no commit, and its held outputs wait for the last
   commit made.
@@ -396,8 +401,8 @@ them, and with decisions that cannot be refused it says so itself.
   write, since no route reserves room.
 - **The root's watermark,** one number in entries, a field of the root's
   `Limits`, defaulting to the journal's commits in flight plus the
-  door's outputs (`commits` and `deliveries`): what a reserved route
-  could hold, so pacing stays close to it. The commits alone bind after
+  door's outputs (`JournalSizes.commits` and `JournalSizes.door`):
+  `default_watermark` adds `commits` and `door`. The commits alone bind after
   one decision that holds several outputs, since held outputs count in
   the backlog (temper's root is at the same formula). It limits pacing, not memory
   (programming-model.md, 7.1); where a person's reads wait behind it, it
