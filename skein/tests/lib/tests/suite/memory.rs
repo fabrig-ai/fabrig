@@ -20,12 +20,9 @@
 
 use std::any::type_name;
 
-use skein_heap::{Counting, Meter};
+use skein_heap::Meter;
 use skein_lib::stream::{Delimiter, Read};
 use skein_lib::{Deadlines, Id, Intake, Journal, List, Map, Queue, Rng, Set, Slab, Stack, Time};
-
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 /// Tiny capacities, a B-tree's (a leaf is full at 11 and splits at 12), and
 /// enough for a tree of three levels.
