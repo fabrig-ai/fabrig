@@ -378,7 +378,7 @@ fn suspension_withdraws_the_accepted_installations_git_access() {
 }
 
 #[test]
-fn key_revocation_is_shown_in_human_and_json_status() {
+fn key_revocation_stops_the_forge_and_withdraws_git_access() {
     let mut service = accepted_token();
     let engine = service.engine.as_mut().unwrap();
     engine.forge.above.push(connection::Event::Stopped { forge: FORGE, why: connection::Stopped::KeyRefused });
@@ -394,6 +394,7 @@ fn key_revocation_is_shown_in_human_and_json_status() {
         assert_eq!(printed.status, 0);
         assert!(contains(&printed.stdout, b"KeyRefused"));
     }
+    assert_eq!(crate::forge::tokens::account(&engine.values.tokens, FORGE, b"account-fixture"), None);
 }
 
 #[test]
