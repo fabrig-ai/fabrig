@@ -4,7 +4,6 @@ use jig_client::{Client, Down, Handle, Key, Readout, Up, Watchable, contract};
 use skein_lib::{Duration, List, Queue, Time, Token, Wall};
 pub(crate) const MOST: Duration = Duration::from_nanos(80);
 const OBSERVATIONS: u32 = 4096;
-const OUTPUTS: u32 = 512;
 const EXCHANGES: u32 = 256;
 const HEARTBEAT: Duration = Duration::from_secs(1000);
 const SEED: u64 = 9;
@@ -100,7 +99,7 @@ impl Fixture {
             transport_reads: List::with_capacity(OBSERVATIONS),
             read_origins: List::with_capacity(OBSERVATIONS),
         };
-        let mut out = Queue::with_capacity(OUTPUTS);
+        let mut out = Queue::uncapped();
         let kept = if let Some((records, kept)) = restored {
             value.ui.step(
                 Time::ZERO,
@@ -167,9 +166,9 @@ impl Fixture {
     pub fn reopen(&mut self, watch: Handle) {
         self.drive(self.now, Ended { watch, end: contract::WatchEnd::Dropped });
         self.now = self.now.saturating_add(Duration::from_secs(1));
-        let mut native = Queue::with_capacity(OUTPUTS);
+        let mut native = Queue::uncapped();
         self.client.fire(self.now, Wall::EPOCH, &mut native);
-        let mut ui = Queue::with_capacity(OUTPUTS);
+        let mut ui = Queue::uncapped();
         self.native_out(native, None, None, &mut ui);
         self.output(ui);
     }
@@ -180,7 +179,7 @@ impl Fixture {
         Token::new(key.number ^ self.ui.seed)
     }
     pub fn request_watch(&mut self, subject: contract::Subject) -> Option<Handle> {
-        let mut out = Queue::with_capacity(OUTPUTS);
+        let mut out = Queue::uncapped();
         let handle = self.ui.handles.watch(subject, crate::handles::Owner::Page, &mut out)?;
         self.output(out);
         Some(handle)
@@ -201,7 +200,7 @@ impl Fixture {
         handle
     }
     pub fn request_read(&mut self, source: crate::objects::Source, what: contract::Read) -> Option<Handle> {
-        let mut out = Queue::with_capacity(OUTPUTS);
+        let mut out = Queue::uncapped();
         let handle = self.ui.handles.read(source, what, &mut out)?;
         self.output(out);
         Some(handle)
@@ -211,7 +210,7 @@ impl Fixture {
         self.ui.now = now;
         self.ui.wall = Wall::EPOCH;
         self.down.clear();
-        let mut out = Queue::with_capacity(OUTPUTS);
+        let mut out = Queue::uncapped();
         input.enter(self, &mut out);
         self.output(out)
     }
@@ -279,7 +278,7 @@ impl Fixture {
             | jig_client::Event::NotStored
             | jig_client::Event::Up { .. } => None,
         };
-        let mut out = Queue::with_capacity(OUTPUTS);
+        let mut out = Queue::uncapped();
         self.client.step(self.now, Wall::EPOCH, event, &mut out);
         self.native_out(out, reading, sending, ui_out);
     }
@@ -565,7 +564,7 @@ pub struct FireClient {
 }
 impl Input for FireClient {
     fn enter(self, fixture: &mut Fixture, out: &mut Queue<Request>) {
-        let mut native = Queue::with_capacity(OUTPUTS);
+        let mut native = Queue::uncapped();
         fixture.client.fire(fixture.now, self.wall, &mut native);
         fixture.native_out(native, None, None, out);
     }
