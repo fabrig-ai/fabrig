@@ -46,9 +46,11 @@ Its steps, as `step:` prints them:
 - `repairing`: an agent repairs it, after CI failed at its head (a
   review still running there is cancelled first), a gate asked for
   changes, or the base broke it, its brief holding the failed check
-  and the end of its log; the repair task's words open with what it
-  repairs (`Repair CI at HEAD: CONTEXT`, `Repair gate N (KIND) at
-  HEAD: changes requested`, `Repair the base's break at HEAD: BASE`),
+  and the end of its log, and telling it to finish with the change,
+  which becomes the pull request's new head; the repair task's words
+  open with what it repairs (`Repair CI at HEAD: CONTEXT`,
+  `Repair gate N (KIND) at HEAD: changes requested`,
+  `Repair the base's break at HEAD: BASE`),
   so `task show` names it; the change is checked again;
 - `landing`, then `landed`: temper merges it, and `change show` names
   the merge commit.
