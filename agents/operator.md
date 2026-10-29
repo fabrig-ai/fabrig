@@ -16,6 +16,7 @@ Provisional, 2026-10-29. One Codex owner on hel8 (`codex-run owner`, at high), p
 - The batch-size trial is 16. Restart with explicit `--batch 16`; the helper defaults to 8 and does not infer the previous setting.
 
 - The queue runs on hetzner8 from `~/src/fabrig/queue` (`tools/queue/design.md`); never touch that clone while `mq run` runs. It restarts only through `tools/queue/restart`, in `bash -lc`; a change to `tools/queue/` or its lists takes effect at the restart after it lands.
+- A dirty-checkout error is infrastructure failure. Drain the queue before inspection; preserve unexpected files and quarantine only confirmed generated artifacts outside the checkout. A passing tools suite must leave the source tree clean, including when executable Python entry points inherit no bytecode settings or Git excludes.
 - Its batches are logged in `~/src/fabrig/notes/queue.jsonl` there: steps and durations, the selection, the outcome. A batch that errors, a full run that fails where selections passed (a gap in `always.txt` or `read-by-tests.txt`), or a queue busy most of the hour is the operator's to act on.
 - When the queue's own code stops it landing its fix, the operator runs the fixed `tools/queue/` from a copy outside the clone until the fix lands (`agents/operations.md`, 5), then removes the copy.
 
