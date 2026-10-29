@@ -251,3 +251,42 @@ Ops will port the separate completed reviewed repair-priority commit after this
 writer ends. Preserve normal legacy repair-triplet handling and restart support
 during that merge. No active repair-priority working tree was accessed or ported
 here; its runtime/protocol changes need their own integration verification.
+
+## 7. Reviewed deadline and completed-preparation recovery checks
+
+The tools' existing 60-second limit covers fork descendants through ECHILD,
+including descendants that create another session. The supervisor waits on
+SIGCHLD events, and after expiry signals only pidfd identities proved to be
+its adopted children. Timeout becomes code 124/red only after all descendants
+are reaped; a zero direct-child exit cannot certify green after the deadline.
+While containment is unresolved, the command has no completion journal or
+terminal receipt and its checkout marker/ownership remain held. A kill request
+or an unkillable child never supplies release proof. No extra timeout budget
+is granted to make the result green.
+
+On recovery, inspect the preparation marker before polling either gate or
+adjudicating any result. The endpoint's exact attempt/generation/state marker
+must match a snapshot-backed COMPLETED preparation and its retained objects/logs.
+This applies even when its record has a conflict/red outcome or has been
+invalidated and removed from active. A completed successor's marker must not
+make its predecessor's certificate fail. Unknown/mismatching/incomplete markers
+refuse before polling; never remove them by hand.
+
+The enclosing drain/restart deadline also scopes policy Git, both Cargo
+metadata calls, certificate/chain/artifact validation and preparation runners.
+No expired client starts. Local clients inherit held authority/checkout locks;
+on expiry the owning command's session receives a termination request, but this
+is not a descendant completion claim. The existing preparation marker and
+preparation_unresolved flag persist, the physical gate remains owned, and no
+candidate is promoted or replaced. Drain cannot return true with an unresolved
+preparation marker. An escaped descendant can remain alive after its client
+ends; that case stays quarantined across reload, requires supported operator
+reconciliation, and cannot use the completed-preparation shortcut. Evidence for
+an incomplete or uncertain preparation is not reconstructed by this repair.
+
+Repeat these checks only in the private fixtures during the separate approved
+real validation: zero-exit parent with a blocked session-escaped descendant;
+controller loss after successor preparation publication before marker removal;
+and bounded certificate metadata/Git with surviving descendants. Record stop,
+marker, snapshot and result evidence. The offline tests exercise these local
+boundaries; they activate no queue and prove no real heavy/systemd containment.
