@@ -43,9 +43,9 @@ pub fn valid(limits: &Limits) -> bool {
         return false;
     }
     jig_client_protocol_wire::v19::check_limits(&limits.wire).is_ok()
-        && jig_client_protocol_wire::v19::KeyedAnswer::worst_case_bytes(&limits.wire).is_some()
-        && jig_client_protocol_wire::v19::ReadAnswer::worst_case_bytes(&limits.wire).is_some()
-        && jig_client_protocol_wire::v19::AuthorizeAnswer::worst_case_bytes(&limits.wire).is_some()
+        && jig_client_protocol_wire::v19::KeyedAnswer::encoded_bound(&limits.wire).is_some()
+        && jig_client_protocol_wire::v19::ReadAnswer::encoded_bound(&limits.wire).is_some()
+        && jig_client_protocol_wire::v19::AuthorizeAnswer::encoded_bound(&limits.wire).is_some()
         && limits.exchanges.checked_add(limits.exchanges).is_some()
         && provider_bounds(&provider_limits(limits)).is_some()
 }
