@@ -1292,7 +1292,50 @@ def payload(token):
     return code
 
 
+def completion_query(label):
+    """Read-only identity/receipt inventory; never constructs or flushes a Ledger.
+
+    The caller owns a unique label and checks repo/head/argv itself. No absence
+    or missing unit is a completion proof. Empty matches are explicit inventory.
+    """
+    if not re.fullmatch(r'mq-[a-f0-9]{64}-[0-9]+', label):
+        raise Refusal('completion query requires a queue command label')
+    with (BASE / 'host.lock').open('rb') as lock:
+        fcntl.flock(lock, fcntl.LOCK_SH)
+        data = json.loads((BASE / 'state.json').read_text())
+        if data.get('version') != 1 or data.get('queue') != QUEUE:
+            raise Refusal('unknown completion ledger identity')
+        matches = []
+        for task in data['tasks'].values():
+            if task.get('label') != label:
+                continue
+            item = {key: task.get(key) for key in
+                    ('token', 'id', 'queue', 'label', 'repo', 'args', 'commit', 'tree', 'state')}
+            if task['state'] == 'released':
+                receipt = completed_task(task['token'])
+                if (receipt.get('schema') != 'heavy-receipt-v1' or
+                        any(receipt.get(key) != task.get(key) for key in
+                            ('token', 'id', 'queue', 'args', 'tree')) or
+                        receipt.get('release_complete') is not True or
+                        receipt.get('cgroup_empty') is not True or
+                        receipt.get('row_durable') is not True):
+                    raise Refusal('incomplete or mismatched release receipt')
+                log = Path(receipt['log']).read_bytes()
+                if hashlib.sha256(log).hexdigest() != receipt['log_sha256']:
+                    raise Refusal('completion log digest mismatch')
+                item['receipt'] = receipt
+                # The sealed log travels with its receipt, independently of diagnostics.
+                import base64
+                item['log_base64'] = base64.b64encode(log).decode('ascii')
+            matches.append(item)
+        return {'schema': 'heavy-completion-query-v1', 'queue': QUEUE,
+                'label': label, 'matches': matches}
+
+
 def main(args):
+    if len(args) == 2 and args[0] == '--completion-query':
+        print(json.dumps(completion_query(args[1]), sort_keys=True))
+        return 0
     if args == ['--installed']:
         return 0 if installed() else 1
     if len(args) == 2 and args[0] == '--group-held':
@@ -1369,7 +1412,7 @@ if __name__ == '__main__':
         # Record fixed categories, never arbitrary subprocess text or caller
         # arguments. Wrong-queue/corrupt-state refusals cannot use that ledger.
         try:
-            if sys.argv[1:] != ['--installed']:
+            if sys.argv[1:] != ['--installed'] and sys.argv[1:2] != ['--completion-query']:
                 with locked() as refused:
                     refused.event(None, 'refusal:' + uuid.uuid4().hex, reason=type(error).__name__)
                     refused.save()

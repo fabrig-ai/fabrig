@@ -22,3 +22,10 @@ bytecode regression invokes their real entry points in a disposable clean Git
 checkout with global configuration disabled, so generated Python caches cannot
 be hidden by a developer’s excludes. The real-systemd recovery suite remains
 manual-only.
+
+The read-only `--completion-query` API in design 6.1 is implemented for queue
+transport. Seven offline isolated-ledger cases cover immutable matching
+receipts/logs, unresolved/absent identities, corruption/version/queue refusal,
+and byte/mtime invariance on success and failure. This new behavior requires
+fresh operator validation; previous identical-runtime migration proofs do not
+validate it. No real recovery/systemd operation was run for this addition.

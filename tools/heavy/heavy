@@ -38,7 +38,7 @@ prepare_gate_policy() {
 case ${1:-} in
     # The Python payload guard must precede every policy executable. These
     # skip the disk floor: --cancel above all must work below it.
-    --payload|--task|--reconcile|--install-reconciler|--remove-reconciler|--maintenance-pause|--maintenance-resume|--installed|--check-recovery|--group-held|--record-refusal|--cancel) ;;
+    --completion-query|--payload|--task|--reconcile|--install-reconciler|--remove-reconciler|--maintenance-pause|--maintenance-resume|--installed|--check-recovery|--group-held|--record-refusal|--cancel) ;;
     *)
         pending_tail=0 gate_policy=0 valid_command=1 command=()
         for argument in "$@"; do

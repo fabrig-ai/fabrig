@@ -370,3 +370,23 @@ heavy's weights.
 - Historical rollback to the daemon-based generation and a real installed
   browser runtime proof need separate fixtures. This directory tests
   relocation/rollback of the current queue format and fixture runtimes.
+
+### 6.1 Read-only queue completion inventory
+
+`heavy --completion-query mq-<64 lowercase hex digits>-<command index>`
+returns JSON `heavy-completion-query-v1` for that exact caller-owned label.
+It opens the existing host lock shared and reads the existing version-1,
+matching-queue snapshot. It never constructs `Ledger`, flushes journals,
+reconciles, creates state or queries/stops systemd. Failure exits 2 without
+recording a refusal in the ledger. Existing admission and recovery semantics
+are unchanged.
+
+Each matching task includes token/id/queue/label/repo/argv/commit/tree/state.
+A released match additionally requires the immutable matching receipt, durable
+history row, release/empty-containment flags and sealed log digest. The response
+includes that receipt and base64 sealed log. Active matches have no release
+receipt; zero matches is an inventory result, never proof of quiescence. The
+queue must bind the label to its durable command intent and exact candidate,
+refuse ambiguity/reuse, and separately prove its local supervisor descendants
+ended. A killed client before admission identity is established stays unknown.
+No caller may replace heavy evidence with a handwritten receipt.
