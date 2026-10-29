@@ -103,3 +103,107 @@ fn the_director_p_and_both_implementers_start_assigned_without_holds_or_findings
         "the opening creates no forge finding"
     );
 }
+
+fn person_ask(driver: &mut Driver, key: u8, ask: people::Ask) {
+    driver.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(u64::from(key))),
+        sign_in: driver.session(),
+        key: [key; 16],
+        ask,
+    }));
+    driver.settle();
+}
+
+#[test]
+fn the_persons_stop_requires_its_owners_acceptance_and_resumes_the_subtrees_transcripts() {
+    let (mut driver, cast) = opening();
+    let runs = [&cast.p, &cast.implementers[0], &cast.implementers[1]];
+    for run in runs {
+        driver.send(protocol::turn(Token::new(7), run.task, run.attempt, 1, 1, None, &run.task.to_be_bytes()));
+        driver.settle();
+    }
+    person_ask(&mut driver, 80, people::Ask::Stop { project: 1, task: cast.p.task });
+    assert!(replied(&driver, &people::Outcome::Stopped { task: cast.p.task }));
+    let hold = live(&driver, cast.p.task).placed.expect("person's subtree hold");
+    for run in runs {
+        assert_eq!(live(&driver, run.task).placed, Some(hold));
+        assert!(matches!(live(&driver, run.task).phase,
+            tasks::Phase::Held { why: tasks::Hold::Placed { hold: found }, .. } if found == hold));
+        assert!(cancelled(&driver).contains(&(run.task, run.attempt)));
+        driver.answer(Token::new(7), run.task, run.attempt, 1, tasks::End::Parked, engine::Parts::none());
+        driver.settle();
+    }
+    assert_eq!(live(&driver, cast.director.task).placed, None);
+    assert!(!cancelled(&driver).contains(&(cast.director.task, cast.director.attempt)));
+    let revision = live(&driver, cast.p.task).revisions.hold;
+    tool_call(&mut driver, &cast.director, 932, engine::Tool::Release { target: cast.p.task, revision, again: None });
+    let person = signed_in(&driver, 101).0;
+    assert_eq!(
+        driver.answered(932),
+        Some(&engine::CallAnswer::HoldOwner {
+            task: cast.p.task,
+            hold,
+            revision,
+            owner: people::HoldOwner::Party { person },
+        })
+    );
+    tool_call(
+        &mut driver,
+        &cast.director,
+        933,
+        engine::Tool::Propose {
+            action: engine::ProposedAction::Release { task: cast.p.task, hold, revision },
+            reason: b"Use every free slot".as_slice().into(),
+            as_holder: false,
+        },
+    );
+    let proposal = proposal_of(&driver, 933);
+    assert!(proposal_waits_at(&driver, cast.director.task, tasks::ProposalHolder::Person(person)));
+    for run in runs {
+        assert_eq!(
+            driver
+                .delivered
+                .iter()
+                .filter(|item| matches!(item,
+            Delivery::Assigned { assignment, .. } if assignment.task == run.task))
+                .count(),
+            1
+        );
+    }
+    person_ask(
+        &mut driver,
+        81,
+        people::Ask::DecideProposal {
+            project: 1,
+            proposer: people::Proposer::Task(cast.director.task),
+            proposal,
+            decision: people::ProposalDecision::Accept,
+            running: None,
+        },
+    );
+    assert!(driver.delivered.iter().any(|item| matches!(item,
+        Delivery::WebReply { reply: people::Reply::Outcome(people::Outcome::ProposalDecided {
+            proposal: found, choice: people::ProposalChoice::Accepted, .. }), .. } if *found == proposal)));
+    for run in runs {
+        let resumed = driver
+            .delivered
+            .iter()
+            .rev()
+            .find_map(|item| {
+                if let Delivery::Assigned { assignment, .. } = item
+                    && assignment.task == run.task
+                {
+                    Some(assignment)
+                } else {
+                    None
+                }
+            })
+            .expect("subtree resumes");
+        assert!(resumed.attempt > run.attempt);
+        assert_eq!(resumed.transcript.as_ref(), [Box::<[u8]>::from(run.task.to_be_bytes())]);
+        assert_eq!(live(&driver, run.task).placed, None);
+        assert!(matches!(live(&driver, run.task).phase,
+            tasks::Phase::Active(tasks::Active::Running { attempt }) if attempt == resumed.attempt));
+    }
+}
