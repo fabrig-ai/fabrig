@@ -1567,14 +1567,14 @@ mod tests {
         let mut running = children_after_descriptor_cleanup();
         running.world.referee.passed = false;
         running.world.referee.deadline = Some(Time::ZERO);
-        running.world.procs[1].work = true;
-        running.world.procs[2].deadline = Some(Time::ZERO);
-        running.world.procs[2].policy = Some(Time::from_nanos(20));
+        running.world.procs.get_mut(1).expect("pending host").work = true;
+        running.world.procs.get_mut(2).expect("timer host").deadline = Some(Time::ZERO);
+        running.world.procs.get_mut(2).expect("timer host").policy = Some(Time::from_nanos(20));
         let record = running.ring.register(2, Submit { op: Token::new(1), kind: Op::Close { fd: Fd::new(-1) } });
         running.answer(Complete { op: record.op, kind: record.kind, result: Ok(Done::Nothing) });
         // Sample every host past the eight-pass window, even after a pending host.
-        for pass in 0..10 {
-            running.world.procs[2].work = pass % 2 == 0;
+        for pass in 0_u8..10 {
+            running.world.procs.get_mut(2).expect("timer host").work = pass % 2 == 0;
             assert!(running.work_pending(Time::from_nanos(10)));
         }
         let figures = Figures {

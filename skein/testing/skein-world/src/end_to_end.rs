@@ -786,7 +786,8 @@ mod tests {
             assert_eq!(binary.counts(), if live { None } else { Some(terminal_counts()) });
             assert!(binary.is_empty());
         }
-        assert!(crate::tree::expected_group_end(Expectation::Measure, 42, true).is_ok());
+        crate::tree::expected_group_end(Expectation::Measure, 42, true)
+            .expect("measurement permits live group members before cleanup");
     }
 
     #[cfg(target_os = "linux")]
@@ -819,7 +820,8 @@ mod tests {
             assert_eq!(binary.counts(), if live.is_empty() { Some(terminal_counts()) } else { None });
             assert!(binary.is_empty());
         }
-        assert!(crate::tree::expected_tree_end(Expectation::Measure, &mut vec![43]).is_ok());
+        crate::tree::expected_tree_end(Expectation::Measure, &mut vec![43])
+            .expect("measurement permits live descendants before cleanup");
     }
 
     #[test]
