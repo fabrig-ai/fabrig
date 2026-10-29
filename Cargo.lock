@@ -2086,6 +2086,7 @@ dependencies = [
  "skein-shell",
  "skein-ui",
  "skein-ui-web",
+ "skein-world",
 ]
 
 [[package]]
