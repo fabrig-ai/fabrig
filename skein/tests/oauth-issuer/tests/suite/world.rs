@@ -1,8 +1,5 @@
-mod support;
+use crate::support::{Story, run};
 use skein_oauth::{Check, Failure};
-use support::{Story, run};
-#[global_allocator]
-static HEAP: skein_heap::Counting = skein_heap::Counting;
 #[test]
 fn sign_in_keeps_the_person_and_userinfo_names_the_same_subject() {
     let outcome = run(7, Story::SignIn);
