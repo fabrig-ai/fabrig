@@ -103,12 +103,12 @@ pub fn worst_case(limits: &Limits) -> Option<u64> {
     record = record.max(u64::from(limits.string).checked_mul(2)?.checked_add(u64::from(limits.content))?);
     record = record.max(heap_notice(limits)?);
     record
-        .checked_add(List::<skein_json::Token>::worst_case(length)?)?
+        .checked_add(List::<skein_json::Token>::price(length)?)?
         .checked_add(u64::from(length).checked_mul(3)?)?
         .checked_add(skein_json::tokenizer::worst_case(&json)?)?
         .checked_add(skein_json::writer::worst_case(&writer)?)?
-        .checked_add(Queue::<skein_json::tokenizer::Event>::worst_case(1)?)?
-        .checked_add(Queue::<skein_lib::stream::Down>::worst_case(1)?)
+        .checked_add(Queue::<skein_json::tokenizer::Event>::price(1)?)?
+        .checked_add(Queue::<skein_lib::stream::Down>::price(1)?)
 }
 
 fn heap_agent(limits: &Limits) -> Option<u64> {
@@ -136,15 +136,15 @@ fn heap_model(limits: &Limits) -> Option<u64> {
 fn heap_tools(limits: &Limits) -> Option<u64> {
     let mut length = 0_u64;
     length = length.checked_add(
-        List::<Family>::worst_case(limits.items)?
+        List::<Family>::price(limits.items)?
             .checked_add((u64::from(limits.string)).checked_mul(u64::from(limits.items))?)?,
     )?;
     length = length.checked_add(
-        List::<Box<[u8]>>::worst_case(limits.items)?
+        List::<Box<[u8]>>::price(limits.items)?
             .checked_add((u64::from(limits.string)).checked_mul(u64::from(limits.items))?)?,
     )?;
     length.checked_add(
-        List::<Family>::worst_case(limits.items)?
+        List::<Family>::price(limits.items)?
             .checked_add(u64::from(limits.string).checked_mul(u64::from(limits.items))?)?,
     )
 }
@@ -175,8 +175,7 @@ fn heap_run_result(limits: &Limits) -> Option<u64> {
     length = length.checked_add(u64::from(limits.string))?;
     length = length.checked_add(u64::from(limits.content))?;
     length = length.checked_add(
-        List::<Field>::worst_case(limits.items)?
-            .checked_add((heap_field(limits)?).checked_mul(u64::from(limits.items))?)?,
+        List::<Field>::price(limits.items)?.checked_add((heap_field(limits)?).checked_mul(u64::from(limits.items))?)?,
     )?;
     Some(length)
 }
@@ -185,8 +184,7 @@ fn heap_message(limits: &Limits) -> Option<u64> {
     let mut length = 0_u64;
     length = length.checked_add(u64::from(limits.string))?;
     length = length.checked_add(
-        List::<Block>::worst_case(limits.items)?
-            .checked_add((heap_block(limits)?).checked_mul(u64::from(limits.items))?)?,
+        List::<Block>::price(limits.items)?.checked_add((heap_block(limits)?).checked_mul(u64::from(limits.items))?)?,
     )?;
     Some(length)
 }
@@ -195,11 +193,11 @@ fn heap_prompt(limits: &Limits) -> Option<u64> {
     let mut length = 0_u64;
     length = length.checked_add(u64::from(limits.content))?;
     length = length.checked_add(
-        List::<Box<[u8]>>::worst_case(limits.items)?
+        List::<Box<[u8]>>::price(limits.items)?
             .checked_add((u64::from(limits.string)).checked_mul(u64::from(limits.items))?)?,
     )?;
     length = length.checked_add(
-        List::<Message>::worst_case(limits.items)?
+        List::<Message>::price(limits.items)?
             .checked_add((heap_message(limits)?).checked_mul(u64::from(limits.items))?)?,
     )?;
     Some(length)
@@ -208,8 +206,7 @@ fn heap_prompt(limits: &Limits) -> Option<u64> {
 fn heap_completion(limits: &Limits) -> Option<u64> {
     let mut length = 0_u64;
     length = length.checked_add(
-        List::<Block>::worst_case(limits.items)?
-            .checked_add((heap_block(limits)?).checked_mul(u64::from(limits.items))?)?,
+        List::<Block>::price(limits.items)?.checked_add((heap_block(limits)?).checked_mul(u64::from(limits.items))?)?,
     )?;
     Some(length)
 }
@@ -223,7 +220,7 @@ fn heap_session_started(limits: &Limits) -> Option<u64> {
     length = length.checked_add(u64::from(limits.string))?;
     length = length.checked_add(u64::from(limits.string))?;
     length = length
-        .checked_add(List::<EffectiveLimit>::worst_case(limits.items)?)?
+        .checked_add(List::<EffectiveLimit>::price(limits.items)?)?
         .checked_add(u64::from(limits.items).checked_mul(u64::from(limits.string))?)?;
     Some(length)
 }
@@ -231,8 +228,7 @@ fn heap_session_started(limits: &Limits) -> Option<u64> {
 fn heap_session_ended(limits: &Limits) -> Option<u64> {
     let mut length = 0_u64;
     length = length.checked_add(
-        List::<Count>::worst_case(limits.items)?
-            .checked_add((heap_count(limits)?).checked_mul(u64::from(limits.items))?)?,
+        List::<Count>::price(limits.items)?.checked_add((heap_count(limits)?).checked_mul(u64::from(limits.items))?)?,
     )?;
     length = length.checked_add(0_u64)?;
     length = length.checked_add(0_u64)?;
@@ -246,7 +242,7 @@ fn heap_run_started(limits: &Limits) -> Option<u64> {
     length = length.checked_add(0_u64)?;
     length = length.checked_add(heap_tools(limits)?)?;
     length = length.checked_add(
-        List::<Form>::worst_case(limits.items)?
+        List::<Form>::price(limits.items)?
             .checked_add((u64::from(limits.string)).checked_mul(u64::from(limits.items))?)?,
     )?;
     Some(length)
@@ -266,7 +262,7 @@ fn heap_conversation_opened(limits: &Limits) -> Option<u64> {
     length = length.checked_add(u64::from(limits.string))?;
     length = length.checked_add(u64::from(limits.string))?;
     length = length.checked_add(heap_model(limits)?)?;
-    length = length.checked_add(List::<Clamp>::worst_case(limits.items)?)?;
+    length = length.checked_add(List::<Clamp>::price(limits.items)?)?;
     length = length.checked_add(u64::from(limits.string).checked_mul(2)?.checked_mul(u64::from(limits.items))?)?;
     Some(length)
 }
