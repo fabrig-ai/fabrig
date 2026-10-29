@@ -14,7 +14,7 @@ Provisional, 2026-10-28. A lead is a long-lived Claude session (Opus 5.5, at xhi
 
 ## 2. Tasks
 
-- A task is one file, read literally. Its first line says: read `roles/implementer.md` first; its departures from it are stated.
+- A task is one file, read literally. Its first line says: read `agents/implementer.md` first; its departures from it are stated.
 - It holds: the goal in 2-3 lines; the design sections to read, never a whole design; sketches of the outer layer (modules, names, public types and signatures, what crosses a boundary, the tests' shape); test sketches in the named world; acceptance criteria; the slot, the base commit, the branch, the files in scope, and the log's path.
 - Check the sketches against main: every name and file they assume exists.
 - `common.md` in the lead's scratch holds the standing rules every task names (fakes, fixtures, what not to touch), and grows when a question shows a gap.
