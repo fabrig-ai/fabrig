@@ -89,8 +89,8 @@ mod sibling_routes;
 pub use numbers::{Counters, Deployment, Family, fresh};
 pub use routing::{
     Ask, Carried, CoreBriefBudgets, EscalationChoice, Event, Held, Limits, NamedAction, Now, PayloadRefusal,
-    ProposalChoice, Request, Requests, StepRefusal, Timer, ToolKind, WatchRefusal, Write, fire, resume_fleet,
-    route_bound, step, want_accounts,
+    ProposalChoice, Request, Requests, StepRefusal, Timer, ToolKind, WatchRefusal, Write, fire, resume_fleet, step,
+    want_accounts,
 };
 pub use sibling_routes::{MadeRoute, PersonMessage, SentRoute};
 mod conversation;
@@ -277,7 +277,7 @@ pub type Delegating = (CallKey, Box<[tasks::Stub]>, Option<people::Given>);
 
 /// The engine's children, routing and durable live state (domain/engine.md,
 /// section 3). Configuration limits stay immutable (programming-model.md,
-/// section 10.1); route room is cached only after validating those limits.
+/// section 10.1); the hand-off bound also validates restored projection history.
 #[derive(Debug)]
 #[expect(clippy::partial_pub_fields, reason = "the keyed escalation route remains private to the core")]
 #[expect(
@@ -285,7 +285,7 @@ pub type Delegating = (CallKey, Box<[tasks::Stub]>, Option<people::Given>);
     reason = "pending generation, worker placement, stopping and role-table fullness are independent facts"
 )]
 pub struct Core {
-    route_bound: u32,
+    routes: u32,
     run_inbox: u32,
     pub(crate) run_now: skein_lib::Time,
     pub(crate) run_wall: Wall,
@@ -637,9 +637,8 @@ impl Core {
             );
         }
         let authority = authority::Domain::new(current.rules().clone(), limits.authority).expect("configured rules");
-        let route_bound = route_bound(limits).expect("validated immutable core limits");
         Ok(Core {
-            route_bound,
+            routes: limits.routes,
             run_inbox: limits.tasks.run_inbox,
             fill: 0,
             workers_in_process: config.workers_in_process,

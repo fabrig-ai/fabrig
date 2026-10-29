@@ -137,7 +137,7 @@ pub fn seeds() -> Seeds {
     Seeds { deployment: [7; 16], installation: [9; 16], seed: 7, crypto: Secret::new(Box::new([7; 32])) }
 }
 pub fn journal(limits: &jig_test_domain::Limits) -> skein_lib::JournalLimits {
-    let room = core::route_bound(&limits.core).expect("final core limits");
+    let room = limits.core.routes;
     let connector = jig_test_connector::MAX_OUT * 2;
     skein_lib::JournalLimits {
         writes: room.checked_add(connector).expect("journal writes").max(2000),

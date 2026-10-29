@@ -23,7 +23,7 @@ pub fn valid(limits: &Limits) -> bool {
     checked_valid(limits).is_some()
 }
 fn checked_valid(limits: &Limits) -> Option<()> {
-    let room = core::route_bound(&limits.core)?;
+    let room = limits.core.routes;
     let connectors = connector::MAX_OUT.checked_mul(2)?;
     if limits.routes == 0
         || room.checked_add(connectors)? > limits.journal.writes

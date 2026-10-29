@@ -547,7 +547,7 @@ pub(crate) fn make_task(core: &mut Core, limits: &Limits, number: u64) {
 }
 fn make_task_ended_by(core: &mut Core, limits: &Limits, number: u64, ended_by: tasks::EndedBy) {
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.tasks };
-    let mut out = Queue::with_capacity(settings::task_room(limits));
+    let mut out = Queue::with_capacity(limits.routes);
     tasks::step(&mut core.tasks, &env, tasks::Event::Check, &mut out);
     tasks::step(&mut core.tasks, &env, tasks::Event::Restored, &mut out);
     while out.pop().is_some() {}
@@ -792,7 +792,7 @@ fn tree_core() -> (Core, Limits) {
 }
 
 fn send_task(core: &mut Core, limits: &Limits, event: tasks::Event) {
-    let mut out = Queue::with_capacity(settings::task_room(limits));
+    let mut out = Queue::with_capacity(limits.routes);
     tasks::step(&mut core.tasks, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.tasks }, event, &mut out);
     while let Some(request) = out.pop() {
         if let tasks::Request::Save { record: tasks::Stored::Activity(line) } = &request {
@@ -800,7 +800,7 @@ fn send_task(core: &mut Core, limits: &Limits, event: tasks::Event) {
         }
         if let tasks::Request::Save { record: tasks::Stored::Live(row) } = request {
             core.prune_questions(row.number);
-            let mut projections = Queue::with_capacity(route_bound(limits).unwrap());
+            let mut projections = Queue::with_capacity(limits.routes);
             projections::save(core, limits, &row, &mut projections);
         }
     }
