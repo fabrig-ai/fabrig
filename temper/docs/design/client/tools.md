@@ -565,6 +565,10 @@ READ [--since DIGEST] [--until CONDITION] [--timeout DURATION]
 - **`--timeout`:** 300 seconds by default, at most 3600; answered with
   the current document, its digest, and that the condition is not met
   (6.3).
+- **Wait timers** are bounded by `Deadlines::with_capacity(rows)` in
+  `temper-client-tools`' `jig/wait.rs`, one per admitted call. Arming a
+  new timer past that capacity refuses; admitted calls keep within it.
+  The tools do not price the timer table.
 - **A watch that ends under a wait** (jig's `client/domain/contract.md`,
   7.2) answers it: met where the condition is `ended` and the subject
   ended. For `task show`, `ended` and `replied` first require the matching
