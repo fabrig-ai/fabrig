@@ -1,7 +1,5 @@
 //! Each landing supplies the next run's base (codec.md, 12.9).
 
-extern crate alloc;
-
 #[cfg(test)]
 mod tests {
     use alloc::collections::BTreeMap;
