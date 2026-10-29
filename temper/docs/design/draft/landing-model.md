@@ -1,13 +1,14 @@
 # Landing: one model, the forge's best where it fits
 
-Draft, 2026-10-29. What fabrig's own merge queue (`tools/queue/`, run by
+Draft, 2026-10-29, revised the same night as the queue grew. What fabrig's own merge queue (`tools/queue/`, run by
 hand on 10-28 and 10-29) taught temper's landing (`../domain/landing.md`),
 and how temper's landing should use each forge: the model is temper's,
 the same on every forge; a forge's native machinery serves a step only
 where its semantics match, and temper does the step itself where it has
 none. It records a conversation with the user on 2026-10-29 and the
-queue's numbers of that night. It changes `landing.md` and `forge.md`;
-nobody edits this draft but the user.
+queue's numbers of that night. It changes `landing.md` and `forge.md`.
+The coordinator keeps it current as fabrig's queue changes (the user,
+2026-10-29); its decisions stay the user's.
 
 ## 1. In one page
 
@@ -59,6 +60,24 @@ nobody edits this draft but the user.
   which refuses a raise; `landing.md`'s prepare by a project's tooling
   (5.3) is the general form.
 
+- **Throughput doubled, then the queue saturated:** 23 merges an hour
+  at midnight, 47 an hour by 01:08Z with about eleven implementers at
+  once; the queue was then busy 98% of the time and 36 ready branches
+  waited. The builders were not the limit: builds waited a median of
+  2 to 7 seconds for a slot in the builder's build cap, and averaged
+  about two of eight cores. So capacity moved to the queue: a builder
+  became the second prover, and batches grew from 8 to 16.
+- **The checker's own rules break it as the tree changes:** a selector
+  that names a test binary fails the whole run the day the last such
+  binary goes (nextest refuses a `binary()` matcher that matches
+  nothing); selection by test names that a refactor cannot empty
+  stays valid.
+- **Starved is not the only congestion:** a CPU-bound test took 2.5
+  times its idle CPU on the loaded prover with no time spent waiting
+  for a CPU (shared cores, cache, clock), which no runnable-wait rule
+  sees. The remedy was the testing pyramid's own: the costly story
+  moved down a tier, where it belongs (`../domain/testing.md`, 2.4).
+
 ## 3. Keys per package
 
 - **A gate per package, or a gate whose key is per package:** a test
@@ -89,6 +108,20 @@ nobody edits this draft but the user.
   once; on a failure, halves proved again, so the good ones land. A
   merge train is the same with the next group prepared on the current
   one's candidate while it proves.
+- **Two provers, one serializer** (fabrig's queue, 10-29): one
+  controller prepares candidates and alone lands and reports; two
+  provers each check one candidate; batch N+1 is prepared on N's
+  candidate and proved while N proves, so its parent is exactly the
+  commit N's proof certified. When N fails, every candidate built on it
+  is discarded and prepared again, and N is bisected by halves as
+  before. The candidate travels to its prover as the exact prepared
+  commits, so what lands is what was proved.
+- **A failure that is the machine's is never the change's:** a refused
+  build (a full disk), a missing tool, a runner's fault: the batch is
+  an error, retried, and no branch is rejected.
+- **Counts that may only fall are lowered by the landing,** not by the
+  changes: the prover rewrites each touched baseline after merging and
+  refuses a raise, so no two changes conflict over a counted figure.
 - **Fairness stays section 9's:** first proved, first landed; a batch
   is proved when all its members are.
 
@@ -115,7 +148,8 @@ nobody edits this draft but the user.
 
 - Keys per package for languages other than Rust (the project's tooling
   names a package's inputs).
-- Two provers for one project (a merge train across two gate machines).
+- More than two provers when one serializer's preparation keeps up;
+  a prover added or removed by the measure of proofs waiting.
 - Elastic gate capacity: more provers when proofs queue, fewer when they
   idle.
 

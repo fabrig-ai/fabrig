@@ -49,13 +49,13 @@ fn owner_tree_admission_prices_every_reserved_collection_link_box_and_opaque_cur
     let b = bounds();
     let expected = u64::try_from(core::mem::size_of::<OwnerTree>()).unwrap()
         + value.root.heap(&b).unwrap()
-        + List::<OwnerTreeRow>::worst_case(3).unwrap()
+        + List::<OwnerTreeRow>::price(3).unwrap()
         + value.rows.as_slice()[0].chip.heap(&b).unwrap()
-        + List::<ProposalKey>::worst_case(3).unwrap()
-        + List::<OwnerTaskLink>::worst_case(3).unwrap()
+        + List::<ProposalKey>::price(3).unwrap()
+        + List::<OwnerTaskLink>::price(3).unwrap()
         + value.rows.as_slice()[0].dependencies.as_slice()[0].heap(&b).unwrap()
         + value.rows.as_slice()[0].dependencies.as_slice()[1].heap(&b).unwrap()
-        + List::<OwnerTreeFold>::worst_case(3).unwrap()
+        + List::<OwnerTreeFold>::price(3).unwrap()
         + 3;
     assert_eq!(bytes(&value, &b), Some(expected));
     for (size, accepted) in [(expected - 1, false), (expected, true), (expected + 1, true)] {

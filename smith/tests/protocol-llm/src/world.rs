@@ -973,7 +973,8 @@ impl World {
                 while let Some(event) = stage.next_event() {
                     provider::step(provider, &stage.env, event, &mut stage.out);
                 }
-                while stage.has_room() && provider.is_due(self.now) {
+                // Each due firing advances a retained call's finite response.
+                while provider.is_due(self.now) {
                     provider::fire(provider, &stage.env, &mut stage.out);
                 }
             }

@@ -7,12 +7,6 @@ use smith_domain_run as run;
 use crate::host::{self, Host};
 use crate::partner::{Out, Partner, Script, Tally};
 
-/// Room in each domain's output queue. Small, so the loop's flow control (take
-/// an event only while there is room for what it may produce) is exercised.
-///
-/// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
-const OUT: u32 = 4;
-
 /// Immutable seeded peer behavior and component limits used to construct this world.
 ///
 /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
@@ -607,6 +601,7 @@ pub struct World {
     facts_seen: Vec<run::facts::Fact>,
     charges_seen: Vec<(Time, Token, crate::facts_referee::Charged)>,
     empty_brief_wait: Option<bool>,
+    open_runs: bool,
     waiting_time: Option<Duration>,
     awaiting_message: Option<run::Message>,
     carried_messages: Box<[run::Message]>,
@@ -618,7 +613,7 @@ pub struct World {
     message_answers: Vec<(Token, Option<Token>)>,
     deadline_cells: BTreeMap<&'static str, u32>,
     iteration: u64,
-    fact_holds: u64,
+    order_log: Option<Vec<crate::order_log::Record>>,
     /// The run the last request answered, for the iteration's attribution;
     /// the call the step being attributed took, if it asked for a sub-agent,
     /// with what its run had left then; and the sub-agent each such call
@@ -653,7 +648,7 @@ impl World {
             share_seen: Vec::new(),
             workspace_of_call: BTreeMap::new(),
             run: run::Domain::new(&settings.run, settings.seed),
-            run_stage: Stage::new(settings.run, run::MAX_OUT, OUT),
+            run_stage: Stage::uncapped(settings.run),
             host,
             partner,
             permits: Vec::new(),
@@ -690,6 +685,7 @@ impl World {
             facts_seen: Vec::new(),
             charges_seen: Vec::new(),
             empty_brief_wait: None,
+            open_runs: false,
             waiting_time: None,
             awaiting_message: None,
             carried_messages: Box::default(),
@@ -701,7 +697,7 @@ impl World {
             message_answers: Vec::new(),
             deadline_cells: BTreeMap::new(),
             iteration: 0,
-            fact_holds: 0,
+            order_log: None,
             just_answered: None,
             asked: None,
             pending_asks: BTreeMap::new(),
@@ -824,10 +820,46 @@ impl World {
         Stats { host: self.host.tally(), partner: self.partner.tally(), ..self.stats }
     }
 
-    /// Parent passes that left pending work untouched until native facts drained.
+    /// Give scripted starts the Open contract, including its required wait grant.
+    pub fn open_runs(&mut self) {
+        self.open_runs = true;
+    }
+
+    /// Record scheduling boundaries without changing the world's delivery or phase order.
+    pub fn record_orders(&mut self) {
+        self.order_log = Some(Vec::new());
+    }
+
+    /// Scheduling boundaries in their recorded order, when enabled.
     #[must_use]
-    pub fn fact_holds(&self) -> u64 {
-        self.fact_holds
+    pub fn orders(&self) -> &[crate::order_log::Record] {
+        self.order_log.as_deref().unwrap_or_default()
+    }
+
+    fn order(&mut self, seen: crate::order_log::Seen) {
+        if let Some(log) = &mut self.order_log {
+            log.push(crate::order_log::Record { pass: self.iteration, at: self.now, seen });
+        }
+    }
+
+    fn order_queued(&mut self) {
+        if self.order_log.is_some() {
+            self.order(crate::order_log::Seen::Queued {
+                inputs: self.run_stage.inbox.iter().map(crate::order_log::Input::of).collect(),
+                ready: self.run.is_ready(),
+            });
+        }
+    }
+
+    fn order_pending(&mut self) {
+        if self.order_log.is_some() {
+            self.order(crate::order_log::Seen::Pending {
+                inputs: self.run_stage.inbox.iter().map(crate::order_log::Input::of).collect(),
+                due: self.run.is_due(self.now),
+                ready: self.run.is_ready(),
+                room: self.run_stage.has_room(),
+            });
+        }
     }
 
     /// What crossed between the domains and the world, in order, with times.
@@ -890,13 +922,13 @@ impl World {
         self.run_stage.tick(self.now);
         self.deliver();
 
-        // Each stage takes its events, then fires its alarms, while it has room
-        // for what one more may produce.
+        // The pass takes its queued input, fires alarms, then resumes at most
+        // once. Requests reach peers only after these entrances finish.
         self.iteration += 1;
+        self.order_queued();
         let mut made = Vec::new();
-        while self.run.facts_room() >= run::max_facts(&self.run_stage.env.limits)
-            && let Some(event) = self.run_stage.next_event()
-        {
+        while let Some(event) = self.run_stage.next_event() {
+            self.order(crate::order_log::Seen::Taken(crate::order_log::Input::of(&event)));
             self.log(&format!("run <- {event:?}"));
             let run = self.run_of(&event);
             let cancel = self.note(&event, run);
@@ -915,10 +947,10 @@ impl World {
             run::step(&mut self.run, &self.run_stage.env, event, &mut self.run_stage.out);
             made.push(Made { run, requests: self.run_stage.out.len() - before, cancel, asked });
         }
-        while self.run.facts_room() >= run::max_facts(&self.run_stage.env.limits)
-            && self.run_stage.has_room()
-            && self.run.is_due(self.now)
-        {
+        self.order_pending();
+        let run_inputs_drained = !self.run_stage.has_events();
+        while run_inputs_drained && self.run.is_due(self.now) {
+            self.order(crate::order_log::Seen::Alarm);
             self.log("run alarm");
             let run = self.deadline_due();
             let before = self.run_stage.out.len();
@@ -926,19 +958,12 @@ impl World {
             made.push(Made { run, requests: self.run_stage.out.len() - before, cancel: None, asked: None });
         }
 
-        if !self.run_stage.has_events()
-            && self.run.is_ready()
-            && self.run_stage.has_room()
-            && self.run.facts_room() >= run::max_facts(&self.run_stage.env.limits)
-        {
+        let run_inputs_drained = !self.run_stage.has_events();
+        if run_inputs_drained && self.run.is_ready() {
             let before = self.run_stage.out.len();
+            self.order(crate::order_log::Seen::Resume);
             run::resume(&mut self.run, &self.run_stage.env, &mut self.run_stage.out);
             made.push(Made { run: None, requests: self.run_stage.out.len() - before, cancel: None, asked: None });
-        }
-        if self.run.facts_room() < run::max_facts(&self.run_stage.env.limits)
-            && (self.run_stage.has_events() || self.run.is_due(self.now))
-        {
-            self.fact_holds += 1;
         }
         // What the steps asked for, submitted at the end of the iteration, each
         // attributed to the run its step was about.
@@ -983,6 +1008,7 @@ impl World {
 
         // The reclaim point.
         self.run.reclaim();
+        self.order(crate::order_log::Seen::Reclaim);
         assert!(self.run.runs() <= self.settings.run.runs, "runs stay within their slots");
         assert!(self.run.conversations() <= self.settings.run.conversations, "conversations stay within their slots");
         assert!(self.run.calls() <= self.settings.run.calls, "calls stay within their slots");
@@ -1006,6 +1032,11 @@ impl World {
         if self.views[&run].main == Some(conversation) {
             self.views.get_mut(&run).expect("a run outlives its conversations").decided = true;
         }
+        self.order(crate::order_log::Seen::Close {
+            run,
+            conversation,
+            main: self.views[&run].main == Some(conversation),
+        });
         self.stats.closes += 1;
         self.send(Lane::Conversations, Delivery::Close { peer });
     }
@@ -1018,7 +1049,11 @@ impl World {
                 current = Some(self.observed_turn(host_run, number, read, spent));
             }
             run::Request::CompletionReady { conversation } => self.completion_ready(conversation),
-            run::Request::MessageRefused { .. } | run::Request::Yield { .. } => {}
+            run::Request::MessageRefused { .. } => {}
+            run::Request::Yield { peer } => {
+                let conversation = self.conversation_of_peer[&peer];
+                self.order(crate::order_log::Seen::Yield { run: self.run_of_conversation[&conversation] });
+            }
             run::Request::Waiting { host_run, read } => {
                 current = Some(self.observed_waiting(host_run, read));
             }
@@ -1181,6 +1216,16 @@ impl World {
                 ) {
                     Ok(()) => {
                         if matches!(permit, run::CompletionPermit::Final { .. }) {
+                            if let Some(log) = &mut self.order_log {
+                                log.push(crate::order_log::Record {
+                                    pass: self.iteration,
+                                    at: self.now,
+                                    seen: crate::order_log::Seen::Final {
+                                        run: owner,
+                                        live_children: view.live.saturating_sub(1),
+                                    },
+                                });
+                            }
                             self.wind_down_seen.push((
                                 self.now,
                                 owner,
@@ -1911,6 +1956,11 @@ impl World {
         mut charter: run::Charter,
         workspace: Option<run::Workspace>,
     ) {
+        if self.open_runs {
+            charter.mode = run::Mode::Open;
+            charter.grants.wait = true;
+            charter.grants.deliver = None;
+        }
         if let Some(wait) = self.empty_brief_wait {
             charter.brief.sections = Box::default();
             charter.grants.wait = wait;

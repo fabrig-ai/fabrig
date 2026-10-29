@@ -116,92 +116,92 @@ pub fn worst_case(l: &Limits) -> Option<u64> {
         .checked_mul(u64::from(l.paths_per_subscription))?
         .checked_mul(u64::from(l.name_bytes))?;
     let criteria = u64::from(l.judge_criteria).checked_mul(u64::try_from(size_of::<Criterion>()).ok()?)?;
-    let judges = Map::<u32, Box<[Criterion]>>::worst_case(l.judge_projects)?
+    let judges = Map::<u32, Box<[Criterion]>>::price(l.judge_projects)?
         .checked_add(criteria.checked_mul(u64::from(l.judge_projects).checked_add(1)?)?)?;
     // Restart retains row references until reconciliation.
-    skein_lib::List::<crate::reconcile::Reference>::worst_case(crate::reconcile::capacity(l)?)?
-        .checked_add(Map::<Box<[u8]>, Box<[u8]>>::worst_case(l.bindings)?)?
+    skein_lib::List::<crate::reconcile::Reference>::price(crate::reconcile::capacity(l)?)?
+        .checked_add(Map::<Box<[u8]>, Box<[u8]>>::price(l.bindings)?)?
         .checked_add(u64::from(l.bindings).checked_mul(254 + 255)?)?
         .checked_add(crate::adoption::worst_case(l)?)?
         .checked_add(retirement_scratch(l)?)?
-        .checked_add(Map::<[u8; 16], crate::DemoActKind>::worst_case(demo_act_bound(l)?)?)?
+        .checked_add(Map::<[u8; 16], crate::DemoActKind>::price(demo_act_bound(l)?)?)?
         .checked_add(crate::connect::worst_case(l.applications)?)?
-        .checked_add(Map::<skein_lib::Token, skein_lib::Token>::worst_case(l.applications)?)?
-        .checked_add(Map::<skein_lib::Token, crate::StartAnswer>::worst_case(l.applications)?)?
+        .checked_add(Map::<skein_lib::Token, skein_lib::Token>::price(l.applications)?)?
+        .checked_add(Map::<skein_lib::Token, crate::StartAnswer>::price(l.applications)?)?
         .checked_add(u64::from(l.applications).checked_mul(256)?)?
         .checked_add(5 * 1024)?
-        .checked_add(Map::<skein_lib::Token, (skein_lib::Token, skein_lib::Duration)>::worst_case(l.applications)?)?
-        .checked_add(Map::<skein_lib::Token, (skein_lib::Wall, crate::SetUpAnswer)>::worst_case(l.applications)?)?
-        .checked_add(Map::<u16, crate::Configured>::worst_case(l.client.repositories)?)?
+        .checked_add(Map::<skein_lib::Token, (skein_lib::Token, skein_lib::Duration)>::price(l.applications)?)?
+        .checked_add(Map::<skein_lib::Token, (skein_lib::Wall, crate::SetUpAnswer)>::price(l.applications)?)?
+        .checked_add(Map::<u16, crate::Configured>::price(l.client.repositories)?)?
         // Public startup details: the git/web addresses and setup entry's bot login.
         .checked_add(u64::from(l.client.repositories).checked_mul(2048 + 2048 + 40)?)?
         // Owned startup details: two versions and the first-password file path.
         .checked_add(u64::from(l.client.repositories).checked_mul(64 + 64 + 512)?)?
-        .checked_add(Map::<u16, crate::First>::worst_case(l.client.repositories)?)?
-        .checked_add(Map::<u16, crate::AppWay>::worst_case(l.client.repositories)?)?
-        .checked_add(Map::<u16, (Box<[u8]>, Option<crate::AdminStop>)>::worst_case(l.client.repositories)?)?
+        .checked_add(Map::<u16, crate::First>::price(l.client.repositories)?)?
+        .checked_add(Map::<u16, crate::AppWay>::price(l.client.repositories)?)?
+        .checked_add(Map::<u16, (Box<[u8]>, Option<crate::AdminStop>)>::price(l.client.repositories)?)?
         .checked_add(u64::from(l.client.repositories).checked_mul(u64::try_from(CONNECT_WHY_BYTES).ok()?)?)?
         .checked_add(
             u64::from(l.client.repositories)
                 .checked_mul(u64::from(l.name_bytes.max(FIRST_NAME_BYTES)).checked_mul(3)?.checked_add(64)?)?,
         )?
-        .checked_add(Map::<skein_forge::api::Repository, Repository>::worst_case(l.repositories)?)?
-        .checked_add(Map::<u16, crate::domain::ConnectionState>::worst_case(l.client.repositories)?)?
+        .checked_add(Map::<skein_forge::api::Repository, Repository>::price(l.repositories)?)?
+        .checked_add(Map::<u16, crate::domain::ConnectionState>::price(l.client.repositories)?)?
         .checked_add(u64::from(l.client.repositories).checked_mul(
             u64::from(l.name_bytes).checked_add(u64::try_from(BOT_LOGIN_SUFFIX.len()).ok()?)?.max(STOPPED_TEXT_BYTES),
         )?)?
-        .checked_add(Map::<(u16, u64), crate::Installation>::worst_case(l.client.rows)?)?
+        .checked_add(Map::<(u16, u64), crate::Installation>::price(l.client.rows)?)?
         .checked_add(u64::from(l.client.rows).checked_mul(u64::from(l.name_bytes))?)?
         // Each forge's writer and git identity.
-        .checked_add(Map::<u16, u64>::worst_case(l.client.repositories)?)?
-        .checked_add(Map::<u16, u32>::worst_case(l.repositories)?)?
+        .checked_add(Map::<u16, u64>::price(l.client.repositories)?)?
+        .checked_add(Map::<u16, u32>::price(l.repositories)?)?
         .checked_add(
             u64::from(l.repositories)
                 .checked_mul(u64::from(l.change_policy.gates))?
                 .checked_mul(u64::try_from(size_of::<u32>()).ok()?)?,
         )?
-        .checked_add(Map::<u64, Box<[Name]>>::worst_case(l.tasks)?)?
-        .checked_add(Map::<Name, Hold>::worst_case(l.holds)?)?
-        .checked_add(skein_lib::List::<skein_forge_client::Resource>::worst_case(l.holds)?)?
+        .checked_add(Map::<u64, Box<[Name]>>::price(l.tasks)?)?
+        .checked_add(Map::<Name, Hold>::price(l.holds)?)?
+        .checked_add(skein_lib::List::<skein_forge_client::Resource>::price(l.holds)?)?
         .checked_add(u64::from(l.holds).checked_mul(u64::from(l.name_bytes))?)?
         .checked_add(u64::from(l.holds).checked_mul(u64::from(l.client.answer_bytes).checked_mul(2)?)?)?
-        .checked_add(Map::<(u64, Topic), Subscriber>::worst_case(l.subscriptions)?)?
-        .checked_add(Map::<Name, BranchHead>::worst_case(l.client.resources)?)?
-        .checked_add(Map::<Name, PullState>::worst_case(l.client.resources)?)?
-        .checked_add(Map::<Name, bool>::worst_case(l.client.resources)?)?
-        .checked_add(Map::<(skein_forge::api::Repository, skein_forge::api::Commit), crate::CiState>::worst_case(
+        .checked_add(Map::<(u64, Topic), Subscriber>::price(l.subscriptions)?)?
+        .checked_add(Map::<Name, BranchHead>::price(l.client.resources)?)?
+        .checked_add(Map::<Name, PullState>::price(l.client.resources)?)?
+        .checked_add(Map::<Name, bool>::price(l.client.resources)?)?
+        .checked_add(Map::<(skein_forge::api::Repository, skein_forge::api::Commit), crate::CiState>::price(
             l.subscriptions,
         )?)?
-        .checked_add(Map::<skein_lib::Token, crate::domain::PendingCi>::worst_case(l.subscriptions)?)?
-        .checked_add(Map::<skein_lib::Token, crate::capabilities::Pending>::worst_case(l.repositories)?)?
+        .checked_add(Map::<skein_lib::Token, crate::domain::PendingCi>::price(l.subscriptions)?)?
+        .checked_add(Map::<skein_lib::Token, crate::capabilities::Pending>::price(l.repositories)?)?
         .checked_add(u64::from(l.repositories).checked_mul(u64::from(l.client.answer_bytes))?)?
-        .checked_add(Map::<u64, crate::domain::Outboxed>::worst_case(l.entries)?)?
+        .checked_add(Map::<u64, crate::domain::Outboxed>::price(l.entries)?)?
         // One key-only flight per attempted entry (domain/forge.md, 6).
-        .checked_add(Map::<(u64, u64), ()>::worst_case(l.entries)?)?
+        .checked_add(Map::<(u64, u64), ()>::price(l.entries)?)?
         .checked_add(u64::from(l.entries).checked_mul(u64::try_from(size_of::<crate::Unfinished>()).ok()?)?)?
-        .checked_add(Map::<crate::NamedCall, crate::CallPayload>::worst_case(l.named_calls)?)?
+        .checked_add(Map::<crate::NamedCall, crate::CallPayload>::price(l.named_calls)?)?
         .checked_add(u64::from(l.named_calls).checked_mul(u64::from(l.client.answer_bytes))?)?
-        .checked_add(Map::<u64, crate::ProposedEffect>::worst_case(l.tasks)?)?
+        .checked_add(Map::<u64, crate::ProposedEffect>::price(l.tasks)?)?
         .checked_add(
             u64::from(l.tasks).checked_mul(u64::from(l.client.op_bytes).checked_add(u64::from(l.name_bytes))?)?,
         )?
-        .checked_add(Map::<skein_forge::api::Commit, u64>::worst_case(l.landings.max(l.changes))?)?
-        .checked_add(Map::<skein_lib::Token, crate::domain::PendingLanding>::worst_case(
+        .checked_add(Map::<skein_forge::api::Commit, u64>::price(l.landings.max(l.changes))?)?
+        .checked_add(Map::<skein_lib::Token, crate::domain::PendingLanding>::price(
             l.landings.max(l.client.resources),
         )?)?
-        .checked_add(Map::<skein_lib::Token, crate::domain::PendingLost>::worst_case(l.holds)?)?
-        .checked_add(Map::<u64, crate::ChangeRow>::worst_case(l.changes)?)?
+        .checked_add(Map::<skein_lib::Token, crate::domain::PendingLost>::price(l.holds)?)?
+        .checked_add(Map::<u64, crate::ChangeRow>::price(l.changes)?)?
         .checked_add(u64::from(l.changes).checked_mul(u64::from(crate::EFFECT_ACCOUNT_BYTES))?)?
         .checked_add(
             u64::from(l.changes)
                 .checked_mul(u64::from(l.change_policy.gates))?
                 .checked_mul(u64::try_from(size_of::<temper_engine_domain_forge_change::GateFailure>()).ok()?)?,
         )?
-        .checked_add(Map::<u64, temper_engine_domain_forge_change::Ci>::worst_case(l.changes)?)?
-        .checked_add(skein_lib::List::<(Box<[u8]>, crate::DriftChange)>::worst_case(l.changes)?)?
+        .checked_add(Map::<u64, temper_engine_domain_forge_change::Ci>::price(l.changes)?)?
+        .checked_add(skein_lib::List::<(Box<[u8]>, crate::DriftChange)>::price(l.changes)?)?
         .checked_add(u64::from(l.changes).checked_mul(u64::from(l.name_bytes).checked_mul(3)?)?)?
-        .checked_add(Map::<u64, crate::topics::Files>::worst_case(l.changes)?)?
-        .checked_add(Map::<skein_lib::Token, crate::topics::Pending>::worst_case(l.changes)?)?
+        .checked_add(Map::<u64, crate::topics::Files>::price(l.changes)?)?
+        .checked_add(Map::<skein_lib::Token, crate::topics::Pending>::price(l.changes)?)?
         .checked_add(file_payload(l)?)?
         .checked_add(
             u64::from(l.changes)
@@ -212,38 +212,35 @@ pub fn worst_case(l: &Limits) -> Option<u64> {
             u64::try_from(size_of::<crate::GateRemark>()).ok()?.checked_add(u64::from(l.client.answer_bytes))?,
         )?)?
         .checked_add(u64::from(l.changes).checked_mul(u64::from(l.client.answer_bytes).checked_mul(4)?)?)?
-        .checked_add(Map::<skein_lib::Token, crate::domain::PendingStep>::worst_case(l.changes)?)?
-        .checked_add(Map::<u64, crate::IssueRow>::worst_case(l.issues)?)?
-        .checked_add(Map::<u64, skein_lib::Wall>::worst_case(l.issues)?)?
-        .checked_add(Map::<u64, skein_lib::Wall>::worst_case(l.changes)?)?
-        .checked_add(Map::<u64, bool>::worst_case(l.changes)?)?
-        .checked_add(Map::<u64, crate::settle::Settle>::worst_case(l.changes)?)?
-        .checked_add(Map::<u64, crate::ReleaseRow>::worst_case(l.tasks)?)?
+        .checked_add(Map::<skein_lib::Token, crate::domain::PendingStep>::price(l.changes)?)?
+        .checked_add(Map::<u64, crate::IssueRow>::price(l.issues)?)?
+        .checked_add(Map::<u64, skein_lib::Wall>::price(l.issues)?)?
+        .checked_add(Map::<u64, skein_lib::Wall>::price(l.changes)?)?
+        .checked_add(Map::<u64, bool>::price(l.changes)?)?
+        .checked_add(Map::<u64, crate::settle::Settle>::price(l.changes)?)?
+        .checked_add(Map::<u64, crate::ReleaseRow>::price(l.tasks)?)?
         // A cancel reason is bounded by jig result_bytes, checked against op_bytes by the root.
         .checked_add(u64::from(l.tasks).checked_mul(u64::from(l.client.op_bytes))?)?
         .checked_add(u64::from(l.tasks).checked_mul(u64::from(l.name_bytes))?)?
         .checked_add(issue_payload(l)?)?
-        .checked_add(Map::<skein_lib::Token, crate::adoption::PendingAdoption>::worst_case(l.adoptions)?)?
-        .checked_add(Map::<skein_lib::Token, crate::brief::BriefFetch>::worst_case(l.brief_sections)?)?
-        .checked_add(Map::<skein_lib::Token, crate::BriefSource>::worst_case(l.brief_sections)?)?
-        .checked_add(Map::<skein_lib::Token, crate::held::Pending>::worst_case(l.brief_sections)?)?
-        .checked_add(Map::<skein_lib::Token, crate::held::Held>::worst_case(l.brief_sections)?)?
+        .checked_add(Map::<skein_lib::Token, crate::adoption::PendingAdoption>::price(l.adoptions)?)?
+        .checked_add(Map::<skein_lib::Token, crate::brief::BriefFetch>::price(l.brief_sections)?)?
+        .checked_add(Map::<skein_lib::Token, crate::BriefSource>::price(l.brief_sections)?)?
+        .checked_add(Map::<skein_lib::Token, crate::held::Pending>::price(l.brief_sections)?)?
+        .checked_add(Map::<skein_lib::Token, crate::held::Held>::price(l.brief_sections)?)?
         .checked_add(u64::from(l.brief_sections).checked_mul(u64::from(l.brief_bytes))?)?
         .checked_add(u64::from(l.brief_sections).checked_mul(u64::from(l.brief_bytes))?)?
         .checked_add(u64::from(l.brief_sections).checked_mul(u64::from(l.client.answer_bytes))?)?
         // CI retains bounded head/log records and one section-sized payload, so
         // a later cut can preserve heads without parsing provider-controlled text.
         // Pending and held sections share the same section capacity.
-        .checked_add(
-            u64::from(l.brief_sections).checked_mul(
-                skein_lib::List::<crate::brief_ci::Check>::worst_case(l.client.rows)?
-                    .checked_add(u64::from(l.brief_bytes))?,
-            )?,
-        )?
+        .checked_add(u64::from(l.brief_sections).checked_mul(
+            skein_lib::List::<crate::brief_ci::Check>::price(l.client.rows)?.checked_add(u64::from(l.brief_bytes))?,
+        )?)?
         .checked_add(u64::from(l.brief_bytes).checked_mul(2)?)?
-        .checked_add(Queue::<Stored>::worst_case(l.output)?)?
-        .checked_add(Queue::<Key>::worst_case(l.output)?)?
-        .checked_add(Queue::<skein_forge_client::Fact>::worst_case(l.facts)?)?
+        .checked_add(Queue::<Stored>::price(l.output)?)?
+        .checked_add(Queue::<Key>::price(l.output)?)?
+        .checked_add(Queue::<skein_forge_client::Fact>::price(l.facts)?)?
         .checked_add(names)?
         .checked_add(subscribers)?
         .checked_add(goal_tasks)?
@@ -282,19 +279,19 @@ fn issue_payload(l: &Limits) -> Option<u64> {
 #[must_use]
 pub fn connection_worst_case(forges: u32, installations: u32, name_bytes: u32) -> Option<u64> {
     let count = forges.checked_mul(installations)?;
-    Map::<u16, crate::First>::worst_case(forges)?
-        .checked_add(Map::<u16, crate::AppWay>::worst_case(forges)?)?
-        .checked_add(Map::<u16, (Box<[u8]>, Option<crate::AdminStop>)>::worst_case(forges)?)?
+    Map::<u16, crate::First>::price(forges)?
+        .checked_add(Map::<u16, crate::AppWay>::price(forges)?)?
+        .checked_add(Map::<u16, (Box<[u8]>, Option<crate::AdminStop>)>::price(forges)?)?
         .checked_add(u64::from(forges).checked_mul(u64::try_from(CONNECT_WHY_BYTES).ok()?)?)?
         .checked_add(
             u64::from(forges)
                 .checked_mul(u64::from(name_bytes.max(FIRST_NAME_BYTES)).checked_mul(3)?.checked_add(64)?)?,
         )?
-        .checked_add(Map::<u16, crate::domain::ConnectionState>::worst_case(forges)?)?
+        .checked_add(Map::<u16, crate::domain::ConnectionState>::price(forges)?)?
         .checked_add(u64::from(forges).checked_mul(
             u64::from(name_bytes).checked_add(u64::try_from(BOT_LOGIN_SUFFIX.len()).ok()?)?.max(STOPPED_TEXT_BYTES),
         )?)?
-        .checked_add(Map::<(u16, u64), crate::Installation>::worst_case(count)?)?
+        .checked_add(Map::<(u16, u64), crate::Installation>::price(count)?)?
         .checked_add(u64::from(count).checked_mul(u64::from(name_bytes))?)
 }
 
@@ -309,11 +306,11 @@ pub const fn demo_act_bound(l: &Limits) -> Option<u32> {
 // names in each map entry (key + watch), plus one in the list = 3 * name_bytes.
 // Price the larger phase; the child's own removal scratch remains in its bound.
 fn retirement_scratch(l: &Limits) -> Option<u64> {
-    let tokens = skein_lib::List::<skein_lib::Token>::worst_case(l.holds)?
-        .max(skein_lib::List::<skein_lib::Token>::worst_case(l.subscriptions)?)
-        .max(skein_lib::List::<skein_lib::Token>::worst_case(l.changes)?);
-    let watches = Map::<skein_forge_client::Resource, skein_forge_client::Watch>::worst_case(l.client.resources)?
-        .checked_add(skein_lib::List::<skein_forge_client::Watch>::worst_case(l.client.resources)?)?
+    let tokens = skein_lib::List::<skein_lib::Token>::price(l.holds)?
+        .max(skein_lib::List::<skein_lib::Token>::price(l.subscriptions)?)
+        .max(skein_lib::List::<skein_lib::Token>::price(l.changes)?);
+    let watches = Map::<skein_forge_client::Resource, skein_forge_client::Watch>::price(l.client.resources)?
+        .checked_add(skein_lib::List::<skein_forge_client::Watch>::price(l.client.resources)?)?
         .checked_add(u64::from(l.client.resources).checked_mul(u64::from(l.name_bytes))?.checked_mul(3)?)?;
     Some(tokens.max(watches))
 }

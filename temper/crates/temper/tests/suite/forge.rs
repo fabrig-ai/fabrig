@@ -486,6 +486,11 @@ fn forge_fetch_command() {
             command.arg("3");
         }
         let result = command.env("SSL_CERT_FILE", &root).current_dir(scratch.path()).output().expect("fetch command");
+        assert_eq!(result.status.code(), Some(1), "{row}");
+        assert!(result.stdout.is_empty(), "{row}");
+        if let Some(peer) = &mut server {
+            peer.check();
+        }
         let expected = match row {
             "managed" => "temper forge fetch: forge 3: it is managed, not owned\n".into(),
             "fake" => "temper forge fetch: forge 3: it is fake, not owned\n".into(),
@@ -527,9 +532,6 @@ fn forge_fetch_command() {
             assert_eq!(fs::read(&file).expect("person's file kept"), b"mine");
         } else {
             assert!(!file.exists(), "{row}");
-        }
-        if let Some(peer) = server {
-            peer.check();
         }
         scratch.remove();
     }

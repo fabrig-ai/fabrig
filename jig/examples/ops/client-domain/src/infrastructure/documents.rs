@@ -348,8 +348,8 @@ fn price(document: &Document, limits: &super::Limits) -> Option<u64> {
             if pools.capacity() > limits.rows || environments.capacity() > limits.rows {
                 return None;
             }
-            let mut bytes = List::<Pool>::worst_case(pools.capacity())?
-                .checked_add(List::<Environment>::worst_case(environments.capacity())?)?;
+            let mut bytes = List::<Pool>::price(pools.capacity())?
+                .checked_add(List::<Environment>::price(environments.capacity())?)?;
             for pool in pools {
                 bytes = bytes.checked_add(pool_price(pool, limits)?)?;
             }
@@ -369,11 +369,11 @@ fn price(document: &Document, limits: &super::Limits) -> Option<u64> {
             }
             let mut bytes = u64::try_from(size_of::<PartDocument>())
                 .expect("part layout")
-                .checked_add(List::<Resource>::worst_case(part.resources.capacity())?)?
-                .checked_add(List::<Effect>::worst_case(part.effects.capacity())?)?
-                .checked_add(List::<Drift>::worst_case(part.drift.capacity())?)?
-                .checked_add(List::<Environment>::worst_case(part.environments.capacity())?)?
-                .checked_add(List::<Pool>::worst_case(part.pools.capacity())?)?;
+                .checked_add(List::<Resource>::price(part.resources.capacity())?)?
+                .checked_add(List::<Effect>::price(part.effects.capacity())?)?
+                .checked_add(List::<Drift>::price(part.drift.capacity())?)?
+                .checked_add(List::<Environment>::price(part.environments.capacity())?)?
+                .checked_add(List::<Pool>::price(part.pools.capacity())?)?;
             if let Some(panel) = &part.panel {
                 match &panel.procedure {
                     Procedure::Remediate { service, .. } | Procedure::Scale { service, .. } => {

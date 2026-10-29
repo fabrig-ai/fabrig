@@ -45,6 +45,11 @@ enum Until {
     SecondAssignment,
 }
 
+// Writes for the system forge world's initial people and fleet limits.
+const BASE_WRITES: u32 = 2_118;
+// Writes for the system forge change world's twelve-task route.
+const CHANGE_WRITES: u32 = 8_696;
+
 impl World {
     fn chat(&self, project: u32, words: &[u8]) -> people::Ask {
         walking::configured_chat(&self.creating, &self.store.rows, self.env.limits.tasks.tree_tasks, project, words)
@@ -66,7 +71,7 @@ impl World {
                 jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.people.amendment_bytes;
             limits.people.people = 4;
             limits.people.holdings = 4;
-            limits.journal.writes += (people::max_out(&limits.people) - people::max_out(&walking::limits().people)) * 4;
+            limits.journal.writes = BASE_WRITES;
             let mut config = crate::world::config(71);
             if approval.is_some() {
                 limits.authority.roles = 3;
@@ -257,8 +262,8 @@ impl World {
         fake::grant(&mut fake, b"org/repo", 2, raw::Permission::Write);
         fake::grant(&mut fake, b"org/repo", 7, raw::Permission::Read);
         let fake_env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: fake_config };
-        // Size journal writes from the placed subtree's complete child route.
-        limits.journal.writes = limits.journal.writes.max(walking::writes(&limits));
+        // Keep room for the change world's complete decision.
+        limits.journal.writes = CHANGE_WRITES;
         let store = temper_engine_domain_world::fixtures::restored_store(bootstrap, &limits);
         Self {
             creating: jig_core_world::fixtures::Creating::new(&config.core, limits.tasks.tree_tasks),

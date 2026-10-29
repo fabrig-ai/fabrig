@@ -288,3 +288,56 @@ fn the_link_is_not_read_without_room_for_one_link_step() {
     assert_eq!(waiting, 1, "socket input waits while the engine entrance lacks link credit");
     assert!(service.told.is_empty(), "the next iteration routes it after the entrance drained");
 }
+
+#[test]
+fn a_full_held_entrance_lets_a_passing_answer_pass() {
+    let mut stand = fixtures::started_worker();
+    let settings = fixtures::worker_agent();
+    let mut agent = AgentPeer::assigned(&mut stand.worker, &settings);
+    let body = cancellation_turn(&settings);
+    let turn = smith_protocol_channel::decode_turn(&body, SENT_TURNS, &settings.limits.transcript, &settings.endpoints)
+        .unwrap();
+    agent
+        .component
+        .send_turn(
+            SENT_TURNS,
+            None,
+            smith_domain_run::Spend::ZERO,
+            true,
+            &turn,
+            AGENT_OWNER,
+            &mut agent.events,
+            &mut agent.out,
+        )
+        .unwrap();
+    agent.settle(&mut stand.worker);
+    let retained = stand.worker.root.retained_turns();
+    let hosting = stand.worker.root.hosting();
+    let admitted = hosting.get(0).expect("the admitted run");
+    load(&mut stand.worker, WATERMARK);
+    for _ in 0..crate::worker::ENGINE_EVENTS {
+        stand.worker.link(fixtures::NOW, assignment());
+        stand.worker.iterate(fixtures::NOW, Wall::EPOCH);
+    }
+    assert_eq!(stand.worker.held.room(), 0, "new assignments fill the held entrance");
+    stand.worker.link(
+        fixtures::NOW,
+        link::Request::Down {
+            down: hub::LinkDown::TurnKept { run: admitted.run, attempt: admitted.attempt, turn: SENT_TURNS },
+            parts: Box::new([]),
+        },
+    );
+    let answer = stand.worker.engine.iter().next().expect("the engine's answer");
+    assert!(root::passes(answer), "the head answers an admitted turn");
+    stand.worker.link(fixtures::NOW, assignment());
+    assert_eq!(stand.worker.engine.len(), 2, "a new record follows the passing answer");
+    assert_eq!(retained, SENT_TURNS, "the admitted turn waits for its answer");
+    stand.worker.iterate(fixtures::NOW, Wall::EPOCH);
+    assert_eq!(stand.worker.root.retained_turns(), 0, "the passing answer reaches its owner without a held slot");
+    assert_eq!(stand.worker.held.room(), 0, "the held entrance remains full");
+    assert_eq!(stand.worker.held.len(), crate::worker::ENGINE_EVENTS);
+    assert_eq!(stand.worker.engine.len(), 1, "the new record behind the answer still waits");
+    let waiting = stand.worker.engine.iter().next().expect("the next new record");
+    assert!(root::is_new_work(waiting));
+    assert!(!root::passes(waiting), "the scan stops at the first record that cannot pass");
+}

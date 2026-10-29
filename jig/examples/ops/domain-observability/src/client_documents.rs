@@ -215,18 +215,18 @@ pub(crate) fn changed(domain: &Domain, env: &Env<Limits>, service: &Service, out
 pub fn document_worst_case(limits: &Limits) -> Option<u64> {
     let name = u64::from(limits.name_bytes).checked_mul(2)?;
     let fact = u64::from(limits.samples_per_service).checked_mul(u64::try_from(size_of::<crate::LoadPoint>()).ok()?)?;
-    let timeline = List::<crate::IncidentPoint>::worst_case(limits.samples_per_service.max(1))?;
-    let incidents = List::<Incident>::worst_case(crate::incidents::capacity(limits)?)?.checked_add(
+    let timeline = List::<crate::IncidentPoint>::price(limits.samples_per_service.max(1))?;
+    let incidents = List::<Incident>::price(crate::incidents::capacity(limits)?)?.checked_add(
         u64::from(crate::incidents::capacity(limits)?).checked_mul(
             name.checked_add(u64::from(limits.alerts_per_batch).checked_mul(8)?)?.checked_add(timeline)?,
         )?,
     )?;
-    let services = List::<ClientService>::worst_case(limits.services)?
+    let services = List::<ClientService>::price(limits.services)?
         .checked_add(u64::from(limits.services).checked_mul(name.checked_add(fact)?)?)?;
     let project = incidents.checked_add(services)?;
     let alert_set = u64::from(limits.alerts_per_batch).checked_mul(8)?;
     let incident = name.checked_add(alert_set)?.checked_add(timeline)?.checked_add(fact)?;
-    let deployment = List::<crate::Entry>::worst_case(limits.effects)?
+    let deployment = List::<crate::Entry>::price(limits.effects)?
         .checked_add(u64::from(limits.effects).checked_mul(u64::from(limits.name_bytes))?)?;
     u64::try_from(size_of::<ClientDocument>()).ok()?.checked_add(project.max(incident).max(deployment))
 }

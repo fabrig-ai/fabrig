@@ -5,13 +5,13 @@ use skein_lib::{
     sha256::Sha256,
 };
 use skein_tls_world::pki;
+use skein_world::{Deadline, Starved};
 use std::{
     fs,
     io::{Read, Write},
     net::TcpListener,
     os::unix::{ffi::OsStrExt, fs::PermissionsExt},
     thread,
-    time::Duration,
 };
 use temper_forge_setup::{
     fetch::{Failure, Fetch, Pin},
@@ -35,11 +35,11 @@ fn pem(root: &[u8]) -> Vec<u8> {
         .into_bytes()
 }
 #[expect(clippy::disallowed_methods, reason = "the local TLS file server is a real socket peer on its own test thread")]
-fn server(listener: TcpListener, response: &'static [u8]) -> thread::JoinHandle<Vec<u8>> {
+fn server(listener: TcpListener, response: &'static [u8]) -> thread::JoinHandle<Result<Vec<u8>, Starved>> {
     thread::spawn(move || {
         let (socket, _) = listener.accept().expect("fetch fixture");
-        socket.set_read_timeout(Some(Duration::from_secs(2))).expect("fetch fixture");
-        socket.set_write_timeout(Some(Duration::from_secs(2))).expect("fetch fixture");
+        let mut deadline = Deadline::arm("the setup fetch peer's request", skein_lib::Duration::from_secs(2));
+        deadline.watch_process(std::process::id());
         let mut tls = rustls::StreamOwned::new(
             rustls::ServerConnection::new(pki::Server::plain().config()).expect("fetch fixture"),
             socket,
@@ -47,14 +47,33 @@ fn server(listener: TcpListener, response: &'static [u8]) -> thread::JoinHandle<
         let mut head = Vec::new();
         let mut byte = [0];
         while !head.ends_with(b"\r\n\r\n") {
+            if deadline.passed() {
+                return Err(support::expired(&deadline));
+            }
+            tls.sock.set_read_timeout(Some(support::timeout(&deadline))).expect("fetch read timeout");
+            tls.sock.set_write_timeout(Some(support::timeout(&deadline))).expect("fetch handshake timeout");
             match tls.read(&mut byte) {
                 Ok(1) => head.push(byte[0]),
-                Ok(_) | Err(_) => return head,
+                Err(why) if why.kind() == std::io::ErrorKind::Interrupted => {}
+                Err(why) if matches!(why.kind(), std::io::ErrorKind::TimedOut | std::io::ErrorKind::WouldBlock) => {
+                    if deadline.passed() {
+                        return Err(support::expired(&deadline));
+                    }
+                }
+                Ok(_) | Err(_) => return Ok(head),
             }
         }
-        tls.write_all(response).expect("fetch fixture");
-        tls.flush().expect("fetch fixture");
-        head
+        let mut deadline = Deadline::arm("the setup fetch peer's response", skein_lib::Duration::from_secs(2));
+        deadline.watch_process(std::process::id());
+        tls.sock.set_write_timeout(Some(support::timeout(&deadline))).expect("fetch write timeout");
+        if let Err(why) = tls.write_all(response).and_then(|()| tls.flush()) {
+            if matches!(why.kind(), std::io::ErrorKind::TimedOut | std::io::ErrorKind::WouldBlock) && deadline.passed()
+            {
+                return Err(support::expired(&deadline));
+            }
+            panic!("fetch response: {why}");
+        }
+        Ok(head)
     })
 }
 #[test]
@@ -92,8 +111,12 @@ fn local_tls_fetch() {
         fs::write(&roots, pem(root)).expect("fetch fixture");
         let listener = TcpListener::bind("127.0.0.1:0").expect("fetch fixture");
         let address = listener.local_addr().expect("fetch fixture");
-        let server =
-            if initial.is_none() { Some(server(listener.try_clone().expect("fetch fixture"), response)) } else { None };
+        let mut unused_listener = Some(listener);
+        let server = if initial.is_none() {
+            Some(server(unused_listener.take().expect("fetch listener"), response))
+        } else {
+            None
+        };
         let url = format!("https://127.0.0.1:{}/binary", address.port());
         let result = fetch::run(
             &support::io(),
@@ -108,31 +131,9 @@ fn local_tls_fetch() {
                 bound,
             ),
         );
-        match expected {
-            "ok" => assert!(result.is_ok(), "{name}: {result:?}"),
-            "digest" => {
-                assert!(matches!(result, Err(Failed::Refused(Failure::Digest { .. }))));
-                assert_eq!(
-                    result.expect_err("fetch refused").words(),
-                    format!(
-                        "{url}: digest differs: pinned ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad, got 3608bca1e44ea6c4d268eb6db02260269892c0b42b86bbf1e77a6fa16c3c9282"
-                    )
-                );
-            }
-            "present" => assert_eq!(
-                result.expect_err("fetch refused").words(),
-                format!("{}: does not match the pinned digest", file.display())
-            ),
-            "status" => assert_eq!(result.expect_err("fetch refused").words(), format!("{url}: HTTP status 404")),
-            "bytes" => {
-                assert_eq!(result.expect_err("fetch refused").words(), format!("{url}: body past setup.fetch_bytes"));
-            }
-            "tls" => {
-                let words = result.expect_err("fetch refused").words();
-                assert!(words.starts_with(&format!("{url}: TLS:")), "{words}");
-            }
-            _ => unreachable!(),
-        }
+        // The fetch has settled before a peer starvation verdict can end the test.
+        let head = server.map(|server| server.join().expect("fetch fixture").unwrap_or_else(|starved| starved.pass()));
+        check_outcome(expected, result, name, &url, &file);
         if let Some(initial) = initial {
             assert_eq!(fs::read(&file).expect("fetch fixture"), initial);
         } else if expected == "ok" {
@@ -142,8 +143,7 @@ fn local_tls_fetch() {
             assert!(!file.exists(), "{name}");
         }
         assert!(!part.exists(), "{name}");
-        if let Some(server) = server {
-            let head = server.join().expect("fetch fixture");
+        if let Some(head) = head {
             let expected = if expected == "tls" {
                 String::new()
             } else {
@@ -154,9 +154,38 @@ fn local_tls_fetch() {
             };
             assert_eq!(String::from_utf8(head).expect("fetch fixture"), expected, "{name}");
         } else {
+            let listener = unused_listener.expect("unused fetch listener");
             listener.set_nonblocking(true).expect("fetch fixture");
             assert_eq!(listener.accept().expect_err("fetch refused").kind(), std::io::ErrorKind::WouldBlock);
         }
         scratch.remove();
+    }
+}
+
+fn check_outcome(expected: &str, result: Result<(), Failed>, name: &str, url: &str, file: &std::path::Path) {
+    match expected {
+        "ok" => assert!(result.is_ok(), "{name}: {result:?}"),
+        "digest" => {
+            assert!(matches!(result, Err(Failed::Refused(Failure::Digest { .. }))));
+            assert_eq!(
+                result.expect_err("fetch refused").words(),
+                format!(
+                    "{url}: digest differs: pinned ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad, got 3608bca1e44ea6c4d268eb6db02260269892c0b42b86bbf1e77a6fa16c3c9282"
+                )
+            );
+        }
+        "present" => assert_eq!(
+            result.expect_err("fetch refused").words(),
+            format!("{}: does not match the pinned digest", file.display())
+        ),
+        "status" => assert_eq!(result.expect_err("fetch refused").words(), format!("{url}: HTTP status 404")),
+        "bytes" => {
+            assert_eq!(result.expect_err("fetch refused").words(), format!("{url}: body past setup.fetch_bytes"));
+        }
+        "tls" => {
+            let words = result.expect_err("fetch refused").words();
+            assert!(words.starts_with(&format!("{url}: TLS:")), "{words}");
+        }
+        _ => unreachable!(),
     }
 }

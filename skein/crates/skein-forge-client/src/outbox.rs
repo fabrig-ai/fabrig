@@ -97,7 +97,7 @@ impl Outbox {
     }
 }
 pub(crate) fn worst_case(l: &Limits) -> Option<u64> {
-    Map::<u64, Writing>::worst_case(l.entries)?.checked_add(u64::from(l.entries).checked_mul(u64::from(l.op_bytes))?)
+    Map::<u64, Writing>::price(l.entries)?.checked_add(u64::from(l.entries).checked_mul(u64::from(l.op_bytes))?)
 }
 fn valid(entry: &Entry, l: &Limits) -> bool {
     if entry.queued && (entry.attempt.is_none() || !is_merge(&entry.effect.write)) {

@@ -141,7 +141,7 @@ pub fn worst_case(limits: &Limits) -> Option<u64> {
     if !valid(limits) {
         return None;
     }
-    let intake = Intake::worst_case(intake_cap(limits)?)?;
+    let intake = Intake::price(intake_cap(limits)?)?;
     let records = u64::from(limits.records);
     let decoded = u64::from(limits.records.min(MAX_HANDSHAKE)).checked_mul(HANDSHAKE)?;
     intake

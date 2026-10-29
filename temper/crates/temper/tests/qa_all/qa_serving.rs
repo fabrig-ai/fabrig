@@ -3,7 +3,7 @@
 use crate::support;
 use skein_io::kernel::{Exit, Signal};
 use skein_lib::Duration;
-use skein_world::end_to_end::Binary;
+use skein_world::{Deadline, Expired, end_to_end::Binary};
 use std::{
     fs,
     io::{Read, Write},
@@ -120,18 +120,29 @@ fn deployment(case: &str, layout: Layout) -> support::Scratch {
 }
 
 /// A read that goes on after a signal interrupts it.
-fn read(stream: &mut TcpStream, chunk: &mut [u8]) -> std::io::Result<usize> {
+fn read(stream: &mut TcpStream, chunk: &mut [u8], deadline: &Deadline) -> Result<usize, Expired> {
     loop {
+        if deadline.passed() {
+            return Err(deadline.expired());
+        }
+        let timeout =
+            std::time::Duration::from_nanos(deadline.remaining().as_nanos()).max(std::time::Duration::from_millis(1));
+        stream.set_read_timeout(Some(timeout)).expect("read timeout");
         match stream.read(chunk) {
-            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => {}
-            other => return other,
+            Err(error)
+                if matches!(
+                    error.kind(),
+                    std::io::ErrorKind::Interrupted | std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
+                ) => {}
+            Err(error) => panic!("an answer's bytes: {error}"),
+            Ok(count) => return Ok(count),
         }
     }
 }
 
 /// `temper serve`, running, with its listener's port and its printed link's route.
 struct Served {
-    serve: Binary,
+    serve: Option<Binary>,
     link: support::terminal::Link,
     scratch: support::Scratch,
     port: u16,
@@ -152,13 +163,13 @@ impl Served {
         let rest = text.strip_prefix("http://127.0.0.1:").expect("a loopback link");
         let (port, route) = rest.split_at(rest.find('/').expect("a route"));
         let port = port.parse().expect("a port");
-        Self { serve, link, scratch, port, route: route.to_owned() }
+        Self { serve: Some(serve), link, scratch, port, route: route.to_owned() }
     }
     fn stop(self) {
         drop((self.serve, self.link));
         self.scratch.remove();
     }
-    fn send(&self, method: &str, path: &str, headers: &[(&str, &str)]) -> Reply {
+    fn send(&mut self, method: &str, path: &str, headers: &[(&str, &str)]) -> Reply {
         let host = format!("Host: 127.0.0.1:{}", self.port);
         let mut lines = vec![format!("{method} {path} HTTP/1.1"), "Connection: close".to_owned()];
         if !headers.iter().any(|(name, _)| name.eq_ignore_ascii_case("host")) {
@@ -170,46 +181,58 @@ impl Served {
         }
         let request = lines.join("\r\n") + "\r\n";
         let mut stream = TcpStream::connect(("127.0.0.1", self.port)).expect("the listener accepts");
-        stream.set_read_timeout(Some(std::time::Duration::from_secs(10))).expect("read timeout");
         stream.write_all(format!("{request}\r\n").as_bytes()).expect("request sent");
-        let mut raw = Vec::new();
-        let end = loop {
-            if let Some(at) = skein_lib::bytes::find(&raw, b"\r\n\r\n") {
-                break at + 4;
+        let mut deadline = Deadline::arm("the served HTTP answer", Duration::from_secs(10));
+        deadline.watch(self.serve.as_ref().expect("running serve"));
+        let result = (|| -> Result<Reply, Expired> {
+            let mut raw = Vec::new();
+            let end = loop {
+                if let Some(at) = skein_lib::bytes::find(&raw, b"\r\n\r\n") {
+                    break at + 4;
+                }
+                let mut chunk = [0; 4096];
+                let count = read(&mut stream, &mut chunk, &deadline)?;
+                assert_ne!(count, 0, "an answer, not a close: {method} {path}");
+                raw.extend_from_slice(&chunk[..count]);
+            };
+            let head = String::from_utf8(raw[..end].to_vec()).expect("a head in text");
+            let mut lines = head.split("\r\n");
+            let status = lines.next().and_then(|line| line.split(' ').nth(1)).and_then(|code| code.parse().ok());
+            let headers: Vec<(String, String)> = lines
+                .filter_map(|line| line.split_once(':'))
+                .map(|(name, value)| (name.to_ascii_lowercase(), value.trim().to_owned()))
+                .collect();
+            let mut reply = Reply { status: status.expect("a status"), headers, body: raw[end..].to_vec() };
+            let length = reply.header("content-length").map(|length| length.parse::<usize>().expect("a length"));
+            let bodiless = method == "HEAD" || reply.status == 304;
+            while !bodiless && length.is_none_or(|length| reply.body.len() < length) {
+                let mut chunk = [0; 4096];
+                let count = read(&mut stream, &mut chunk, &deadline)?;
+                if count == 0 {
+                    break;
+                }
+                reply.body.extend_from_slice(&chunk[..count]);
             }
-            let mut chunk = [0; 4096];
-            let count = read(&mut stream, &mut chunk).expect("an answer's head");
-            assert_ne!(count, 0, "an answer, not a close: {method} {path}");
-            raw.extend_from_slice(&chunk[..count]);
-        };
-        let head = String::from_utf8(raw[..end].to_vec()).expect("a head in text");
-        let mut lines = head.split("\r\n");
-        let status = lines.next().and_then(|line| line.split(' ').nth(1)).and_then(|code| code.parse().ok());
-        let headers: Vec<(String, String)> = lines
-            .filter_map(|line| line.split_once(':'))
-            .map(|(name, value)| (name.to_ascii_lowercase(), value.trim().to_owned()))
-            .collect();
-        let mut reply = Reply { status: status.expect("a status"), headers, body: raw[end..].to_vec() };
-        let length = reply.header("content-length").map(|length| length.parse::<usize>().expect("a length"));
-        let bodiless = method == "HEAD" || reply.status == 304;
-        while !bodiless && length.is_none_or(|length| reply.body.len() < length) {
-            let mut chunk = [0; 4096];
-            let count = read(&mut stream, &mut chunk).expect("an answer's body");
-            if count == 0 {
-                break;
+            Ok(reply)
+        })();
+        drop(stream);
+        match result {
+            Ok(reply) => reply,
+            Err(Expired::Starved(starved)) => {
+                drop(self.serve.take());
+                starved.pass();
             }
-            reply.body.extend_from_slice(&chunk[..count]);
+            Err(Expired::Failed(figures)) => panic!("an answer's bytes: {method} {path}: {figures}"),
         }
-        reply
     }
-    fn get(&self, path: &str) -> Reply {
+    fn get(&mut self, path: &str) -> Reply {
         self.send("GET", path, &[])
     }
 }
 
 #[test]
 fn every_get_the_routes_leave_over_is_the_page_with_its_etag_under_no_cache() {
-    let served = Served::start("page", true);
+    let mut served = Served::start("page", true);
     // `/jigsaw` is not under `/jig`, and `/bundle` not under `/bundle/` (browser.md, 2.2, steps 1 and 4).
     let paths = ["/", "/projects/7/goals", "/jigsaw", "/bundle", "/bundlex/a", "/favicon.ico", "/index.html", "/?q=1"];
     let mut etag = None;
@@ -228,9 +251,9 @@ fn every_get_the_routes_leave_over_is_the_page_with_its_etag_under_no_cache() {
 
 #[test]
 fn the_printed_links_route_answers_the_page_each_time_it_is_read() {
-    let served = Served::start("link", true);
+    let mut served = Served::start("link", true);
     for read in 1..=2 {
-        let reply = served.get(&served.route);
+        let reply = served.get(&served.route.clone());
         assert_eq!((reply.status, reply.body.as_slice()), (200, SERVED), "read {read} of {}", served.route);
         assert_eq!(reply.header("cache-control"), Some("no-cache"), "read {read}");
         assert!(reply.header("etag").is_some(), "read {read}");
@@ -241,7 +264,7 @@ fn the_printed_links_route_answers_the_page_each_time_it_is_read() {
 
 #[test]
 fn a_matching_if_none_match_is_304_where_a_stale_one_is_the_page() {
-    let served = Served::start("etag", true);
+    let mut served = Served::start("etag", true);
     let etag = served.get("/").header("etag").expect("an ETag").to_owned();
     let stale = "\"stale\"";
     let rows = [
@@ -271,7 +294,7 @@ fn a_matching_if_none_match_is_304_where_a_stale_one_is_the_page() {
 
 #[test]
 fn a_request_other_than_get_is_405_with_the_policy_before_the_bundle_or_the_page() {
-    let served = Served::start("not_get", true);
+    let mut served = Served::start("not_get", true);
     let file = format!("/bundle/{DIGEST}/boot.js");
     let missing = format!("/bundle/{OTHER_DIGEST}/boot.js");
     let rows = [
@@ -294,7 +317,7 @@ fn a_request_other_than_get_is_405_with_the_policy_before_the_bundle_or_the_page
 
 #[test]
 fn jigs_mapping_claims_every_path_under_jig_before_the_405_or_the_page() {
-    let served = Served::start("jig_routes", true);
+    let mut served = Served::start("jig_routes", true);
     let rows = [
         ("GET", "/jig/nothing-here"),
         ("GET", "/jig/"),
@@ -316,7 +339,7 @@ fn jigs_mapping_claims_every_path_under_jig_before_the_405_or_the_page() {
 
 #[test]
 fn a_host_off_the_allow_list_is_421_under_jig_with_the_policy() {
-    let served = Served::start("host", true);
+    let mut served = Served::start("host", true);
     let link = "/jig/v1/sign-in/link?secret=qa";
     let wrong_port = format!("127.0.0.1:{}", served.port ^ 1);
     let rows = [
@@ -339,7 +362,7 @@ fn a_host_off_the_allow_list_is_421_under_jig_with_the_policy() {
 #[test]
 #[ignore = "needs a signed-in credential: the process tier encodes no sign-in record to get one"]
 fn a_cookie_without_jigs_browser_header_is_403_with_nothing_done() {
-    let served = Served::start("cookie", true);
+    let mut served = Served::start("cookie", true);
     let cookie = ("Cookie", "jig-sign-in=AAAA");
     let rows = [("POST", "/jig/v1/read", vec![cookie, OCTETS]), ("GET", "/jig/v1/stream", vec![cookie])];
     for (method, path, headers) in rows {
@@ -353,7 +376,7 @@ fn a_cookie_without_jigs_browser_header_is_403_with_nothing_done() {
 
 #[test]
 fn each_bundle_file_is_served_immutable_as_its_type_with_its_bytes() {
-    let served = Served::start("files", true);
+    let mut served = Served::start("files", true);
     // A query is no part of the path (ui-web.md, 4.4: each file at `<prefix><digest>/<its path>`).
     let queried = [("boot.js?v=1", FILES[0].1, FILES[0].2)];
     for (path, bytes, kind) in FILES.iter().copied().chain(queried) {
@@ -370,7 +393,7 @@ fn each_bundle_file_is_served_immutable_as_its_type_with_its_bytes() {
 
 #[test]
 fn a_path_under_bundle_that_is_no_file_of_the_digest_directory_is_not_found() {
-    let served = Served::start("not_found", true);
+    let mut served = Served::start("not_found", true);
     let paths = [
         "/bundle/".to_owned(),
         "/bundle/index.html".to_owned(),
@@ -399,7 +422,7 @@ fn a_path_under_bundle_that_is_no_file_of_the_digest_directory_is_not_found() {
 
 #[test]
 fn robots_txt_is_the_bundles_root_file_revalidated_disallowing_every_path() {
-    let served = Served::start("robots", true);
+    let mut served = Served::start("robots", true);
     for path in ["/robots.txt", "/robots.txt?x=1"] {
         let reply = served.get(path);
         assert_eq!(reply.status, 200, "{path}");
@@ -419,13 +442,14 @@ fn robots_txt_is_the_bundles_root_file_revalidated_disallowing_every_path() {
 fn with_bundle_null_gets_serve_the_binarys_own_page_and_files() {
     // The binary's own bundle, or none built with TEMPER_BUNDLE=none (client/browser.md, 2.2 and 2.6).
     let own = temper::bundle::OWN;
-    let served = Served::start("no_bundle", false);
+    let mut served = Served::start("no_bundle", false);
     let fixture_file = format!("/bundle/{DIGEST}/boot.js");
+    let route = served.route.clone();
     // Each row: the request, and its status from a binary without its bundle and from one with it.
     let rows = [
         ("GET", "/", 200, 200),
         ("GET", "/projects/7", 200, 200),
-        ("GET", served.route.as_str(), 200, 200),
+        ("GET", route.as_str(), 200, 200),
         ("GET", "/robots.txt", 404, 200),
         ("GET", fixture_file.as_str(), 404, 404),
         ("GET", "/jigsaw", 200, 200),

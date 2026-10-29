@@ -142,7 +142,7 @@ pub(crate) fn charge_account(
     room: &mut u64,
 ) -> Result<(), w::Problem> {
     let uses = match uses {
-        Some(value) => List::<c::OwnerAccountUse>::worst_case(value.len()),
+        Some(value) => List::<c::OwnerAccountUse>::price(value.len()),
         None => Some(0),
     };
     charge(room, uses)?;
@@ -242,7 +242,7 @@ pub(crate) fn owner_account_source_piece(
     if count > limits.client.accounts.sources {
         return Err(too_large());
     }
-    charge(room, List::<c::OwnerAccountSource>::worst_case(count))?;
+    charge(room, List::<c::OwnerAccountSource>::price(count))?;
     let mut reader = Reader::new(bytes);
     let mut rows = List::with_capacity(count);
     for _ in 0..count {
@@ -261,7 +261,7 @@ pub(crate) fn owner_account_line_piece(
     if count > limits.client.accounts.accounts {
         return Err(too_large());
     }
-    charge(room, List::<c::OwnerAccountLine>::worst_case(count))?;
+    charge(room, List::<c::OwnerAccountLine>::price(count))?;
     let mut reader = Reader::new(bytes);
     let mut rows = List::with_capacity(count);
     for _ in 0..count {
@@ -280,7 +280,7 @@ pub(crate) fn owner_account_sign_in_piece(
     if count > limits.client.accounts.sign_ins {
         return Err(too_large());
     }
-    charge(room, List::<c::OwnerAccountSignIn>::worst_case(count))?;
+    charge(room, List::<c::OwnerAccountSignIn>::price(count))?;
     let mut reader = Reader::new(bytes);
     let mut rows = List::with_capacity(count);
     for _ in 0..count {

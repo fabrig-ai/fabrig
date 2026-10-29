@@ -245,25 +245,25 @@ pub(super) fn note(core: &Core, party: u64, project: u32, scope: &people::NoteSc
 
 pub(super) fn heap_worst_case(limits: &DocumentLimits) -> Option<u64> {
     let authority = super::task_tree::authority_worst_case(limits)?;
-    let grants = List::<super::GrantLine>::worst_case(limits.grants)?
+    let grants = List::<super::GrantLine>::price(limits.grants)?
         .checked_add(u64::from(limits.grants).checked_mul(super::task_tree::grant_worst_case(limits)?)?)?;
     let amended = authority
         .checked_add(u64::try_from(size_of::<super::AuthorityLine>()).ok()?)?
         .checked_mul(2)?
         .checked_add(grants)?
-        .checked_add(List::<jig_domain_authority::Implication>::worst_case(limits.implications)?)?;
-    let recipient = List::<u32>::worst_case(limits.lines)?;
+        .checked_add(List::<jig_domain_authority::Implication>::price(limits.implications)?)?;
+    let recipient = List::<u32>::price(limits.lines)?;
     // Amend carries the full amendment facts on a task;
     // all other object kinds carry at most one bounded act.
-    let goal = List::<u32>::worst_case(1)?
-        .checked_add(List::<acts::CreateProcedure>::worst_case(limits.lines)?)?
+    let goal = List::<u32>::price(1)?
+        .checked_add(List::<acts::CreateProcedure>::price(limits.lines)?)?
         .checked_add(u64::try_from(size_of::<super::AuthorityLine>()).ok()?)?
         .checked_add(authority)?;
-    List::<Offered>::worst_case(MAX_ACTS)?.checked_add(amended.max(goal).checked_add(recipient)?.checked_mul(2)?)
+    List::<Offered>::price(MAX_ACTS)?.checked_add(amended.max(goal).checked_add(recipient)?.checked_mul(2)?)
 }
 
 fn path_heap(value: &List<Box<[u8]>>, last: &super::PatternEnd) -> Option<u64> {
-    let mut bytes = List::<Box<[u8]>>::worst_case(value.len().checked_add(value.room())?)?;
+    let mut bytes = List::<Box<[u8]>>::price(value.len().checked_add(value.room())?)?;
     for segment in value {
         bytes = bytes.checked_add(u64::try_from(segment.len()).ok()?)?;
     }
@@ -273,7 +273,7 @@ fn path_heap(value: &List<Box<[u8]>>, last: &super::PatternEnd) -> Option<u64> {
     bytes.checked_add(u64::try_from(terminal).ok()?)
 }
 fn grants_heap(value: &List<super::GrantLine>) -> Option<u64> {
-    let mut bytes = List::<super::GrantLine>::worst_case(value.len().checked_add(value.room())?)?;
+    let mut bytes = List::<super::GrantLine>::price(value.len().checked_add(value.room())?)?;
     for grant in value {
         bytes = bytes.checked_add(path_heap(&grant.segments, &grant.last)?)?;
     }
@@ -281,10 +281,10 @@ fn grants_heap(value: &List<super::GrantLine>) -> Option<u64> {
 }
 fn authority_heap(value: &super::AuthorityLine) -> Option<u64> {
     let mut bytes = grants_heap(&value.grants)?
-        .checked_add(List::<tasks::AuthorityExecutor>::worst_case(
+        .checked_add(List::<tasks::AuthorityExecutor>::price(
             value.executors.len().checked_add(value.executors.room())?,
         )?)?
-        .checked_add(List::<super::NoteScope>::worst_case(
+        .checked_add(List::<super::NoteScope>::price(
             value.note_resources.len().checked_add(value.note_resources.room())?,
         )?)?;
     for scope in &value.note_resources {
@@ -294,7 +294,7 @@ fn authority_heap(value: &super::AuthorityLine) -> Option<u64> {
 }
 fn recipient_heap(value: &Recipient) -> Option<u64> {
     match value {
-        Recipient::Roles { roles, .. } => List::<u32>::worst_case(roles.len().checked_add(roles.room())?),
+        Recipient::Roles { roles, .. } => List::<u32>::price(roles.len().checked_add(roles.room())?),
         Recipient::Task(_) | Recipient::Party(_) | Recipient::Role { .. } => Some(0),
     }
 }
@@ -305,7 +305,7 @@ fn beyond_heap(value: &Beyond) -> Option<u64> {
     }
 }
 pub(super) fn heap_bytes(value: &List<Offered>) -> Option<u64> {
-    let mut bytes = List::<Offered>::worst_case(value.len().checked_add(value.room())?)?;
+    let mut bytes = List::<Offered>::price(value.len().checked_add(value.room())?)?;
     for offer in value {
         bytes = bytes.checked_add(match &offer.admission {
             Admission::Allowed | Admission::Refused(_) => 0,
@@ -313,15 +313,15 @@ pub(super) fn heap_bytes(value: &List<Offered>) -> Option<u64> {
             Admission::Bounded { within, beyond } => {
                 let inner = match within {
                     Bounds::Create { charters, procedures, authority, .. } => {
-                        List::<u32>::worst_case(charters.len().checked_add(charters.room())?)?
-                            .checked_add(List::<acts::CreateProcedure>::worst_case(
+                        List::<u32>::price(charters.len().checked_add(charters.room())?)?
+                            .checked_add(List::<acts::CreateProcedure>::price(
                                 procedures.len().checked_add(procedures.room())?,
                             )?)?
                             .checked_add(u64::try_from(size_of::<super::AuthorityLine>()).ok()?)?
                             .checked_add(authority_heap(authority)?)?
                     }
                     Bounds::Amend { grants, implications, authority, ceiling, .. } => grants_heap(grants)?
-                        .checked_add(List::<jig_domain_authority::Implication>::worst_case(
+                        .checked_add(List::<jig_domain_authority::Implication>::price(
                             implications.len().checked_add(implications.room())?,
                         )?)?
                         .checked_add(u64::try_from(size_of::<super::AuthorityLine>()).ok()?.checked_mul(2)?)?

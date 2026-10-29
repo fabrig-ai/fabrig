@@ -168,5 +168,5 @@ impl Hooks {
 
 /// Fixed connection slots and their owner index, priced with the listener.
 pub(crate) fn storage(connections: u32) -> Option<u64> {
-    Slab::<Hooked>::worst_case(connections)?.checked_add(Map::<Token, Id<Hooked>>::worst_case(connections)?)
+    Slab::<Hooked>::worst_case(connections)?.checked_add(Map::<Token, Id<Hooked>>::price(connections)?)
 }

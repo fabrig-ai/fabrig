@@ -361,6 +361,13 @@ pub(super) fn complete(service: &mut Service, request: llm::FromDomain) {
     }
 }
 
+pub(super) fn pending_measures(service: &Service) -> u32 {
+    match &service.program {
+        Some(program) => program.backend.pending_measures(),
+        None => 0,
+    }
+}
+
 pub(super) fn pop_measure(service: &mut Service) -> Option<llm::Measure> {
     match &mut service.program {
         Some(program) => program.backend.pop_measure(),

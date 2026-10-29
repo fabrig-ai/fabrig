@@ -494,7 +494,7 @@ pub fn charter() -> Box<[u8]> {
     writer.finish()
 }
 
-pub use world::{TraceCase, World};
+pub use world::{Order, OrderSnapshot, TraceCase, World};
 
 pub use events::{check as assert_event_conformance, check_program as assert_program_event_conformance};
 

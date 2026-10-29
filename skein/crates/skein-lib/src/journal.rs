@@ -276,12 +276,12 @@ impl<W, O> Journal<W, O> {
     /// The journal itself no longer allocates by these sizes.
     #[must_use]
     pub fn worst_case(limits: &JournalLimits) -> Option<u64> {
-        let commits = Queue::<Commit<W>>::worst_case(limits.commits)?;
-        let outstanding = Queue::<u64>::worst_case(limits.commits)?;
-        let held = Queue::<Held<O>>::worst_case(limits.held)?;
-        let now = Queue::<O>::worst_case(limits.now)?;
-        let writes = Queue::<W>::worst_case(limits.writes)?.checked_mul(u64::from(limits.commits).checked_add(1)?)?;
-        let decision_held = Queue::<O>::worst_case(limits.held)?;
+        let commits = Queue::<Commit<W>>::price(limits.commits)?;
+        let outstanding = Queue::<u64>::price(limits.commits)?;
+        let held = Queue::<Held<O>>::price(limits.held)?;
+        let now = Queue::<O>::price(limits.now)?;
+        let writes = Queue::<W>::price(limits.writes)?.checked_mul(u64::from(limits.commits).checked_add(1)?)?;
+        let decision_held = Queue::<O>::price(limits.held)?;
         commits
             .checked_add(outstanding)?
             .checked_add(held)?

@@ -220,10 +220,17 @@ def load_metadata(repo):
     return metadata
 
 
-def changed_paths(repo, tip="HEAD"):
+def changed_paths(repo, candidate="HEAD", *, base="origin/main"):
+    """Compare checked parent and candidate trees (design.md, 2)."""
     # Include both sides of a rename, so moving a file cannot hide its old owner.
-    output = git(repo, "diff", "--name-only", "--no-renames", "-z", f"origin/main...{tip}").stdout
+    output = git(repo, "diff", "--name-only", "--no-renames", "-z", base, candidate, "--").stdout
     return output.split("\0")[:-1] if output else []
+
+
+def preview_changed_paths(repo, tip, *, base="origin/main"):
+    """Preview an unmerged tip from its merge base (design.md, 2)."""
+    ancestor = git(repo, "merge-base", base, tip).stdout.strip()
+    return changed_paths(repo, tip, base=ancestor)
 
 
 def check_commands(repo, selected, paths, *, metadata=None):
@@ -253,14 +260,17 @@ def check_commands(repo, selected, paths, *, metadata=None):
             ("default", ["heavy", "--gate", "cargo", "nextest", "run", *scope, "--no-fail-fast"], repo),
             ("fuzzy", ["heavy", "--gate", "cargo", "nextest", "run", *scope, "--no-fail-fast", "--profile", "fuzzy"], repo),
         ])
-    trees = {path.split("/", 1)[0] for path in paths} & set(TREES)
-    steps.extend((f"ratchet:{tree}", ["python3", "-I", "-B", str(repo / tree / "scripts/old_forms.py")], repo / tree)
-                 for tree in sorted(trees))
     return steps
 
 
+def ratchet_commands(repo, paths):
+    trees = {path.split("/", 1)[0] for path in paths} & set(TREES)
+    return [(f"ratchet:{tree}", ["python3", "-I", "-B", str(repo / tree / "scripts/old_forms.py"), "--write"],
+             repo / tree) for tree in sorted(trees)]
+
+
 def tools_commands(repo):
-    """Discover tracked suites, including executable Bash suites (design.md, 2.3)."""
+    """Discover tracked offline suites, honoring executable shebangs (design.md, 2.3)."""
     commands = []
     for entry in git(repo, "ls-files", "--stage", "-z", "--", "tools/").stdout.split("\0"):
         if not entry:
@@ -268,10 +278,13 @@ def tools_commands(repo):
         attributes, path = entry.split("\t", 1)
         mode = attributes.split()[0]
         name = PurePosixPath(path).name
+        # This suite installs real systemd units; run it manually on a builder.
+        if path == "tools/heavy/test-heavy-recovery":
+            continue
         if fnmatch.fnmatchcase(name, "test_*.py"):
             commands.append((path, ["python3", "-I", "-B", path], repo))
         elif name.startswith("test-") and mode == "100755":
-            commands.append((path, ["bash", path], repo))
+            commands.append((path, ["./" + path], repo))
     return commands
 
 
@@ -318,6 +331,14 @@ def run_checks(repo, selected, paths, log_path, *, runner=subprocess.run, clock=
     outcomes = []
     with log_path.open("a+") as log:
         os.chmod(log_path, 0o600)
+        for name, argv, cwd in ratchet_commands(repo, paths):
+            outcomes.append(run_step(name, argv, cwd, log, runner=runner, clock=clock))
+            if not outcomes[-1]["green"]:
+                return outcomes
+            baseline = f"{cwd.name}/scripts/old-forms.txt"
+            if git(repo, "diff", "--name-only", "--", baseline).stdout:
+                git(repo, "add", "--", baseline)
+                git(repo, "commit", "-m", f"Lower {cwd.name} old-form baselines")
         if selected == "full" or any(path.startswith("tools/") for path in paths):
             outcomes.append(run_tools(repo, log, runner=runner, clock=clock))
             if not outcomes[-1]["green"]:
@@ -468,7 +489,8 @@ class Queue:
         return (self.now() - self.state.get("idle_since", self.now()) >= 600 and
                 main != self.state.get("last_full_main"))
 
-    def choose(self, paths, *, preview=False):
+    def choose(self, paths, *, base="origin/main", candidate="HEAD", preview=False):
+        """Use parent/candidate lock blobs and the candidate checkout's graph (design.md, 2.1)."""
         if self.full_due() or full_inputs(paths):
             return "full"
         # A plan has not merged the batch, so its checkout cannot resolve changed manifests.
@@ -480,12 +502,16 @@ class Queue:
                set(PurePosixPath(path).parts[:-1]) & {"src", "tests", "benches", "examples"})
                for path in paths):
             return selection(paths, {})
+        if not preview:
+            head, expected = git(self.repo, "rev-parse", "HEAD", f"{candidate}^{{commit}}").stdout.splitlines()
+            if head != expected:
+                raise ValueError("checked selection requires the candidate checkout")
         metadata = self.metadata_loader(self.repo)
         locked = None
         if "Cargo.lock" in paths:
-            base = git(self.repo, "show", "origin/main:Cargo.lock").stdout
-            head = git(self.repo, "show", "HEAD:Cargo.lock").stdout
-            locked = lock_changes(base, head, metadata)
+            before = git(self.repo, "show", f"{base}:Cargo.lock").stdout
+            after = git(self.repo, "show", f"{candidate}:Cargo.lock").stdout
+            locked = lock_changes(before, after, metadata)
         return selection(paths, metadata, locked=locked)
 
     def notify(self, record, lead, subject, body):
@@ -660,7 +686,7 @@ class Queue:
         if not branches and not self.idle_due():
             print("nothing to do")
             return
-        paths = sorted({path for branch in branches for path in changed_paths(self.repo, branch["tip"])})
+        paths = sorted({path for branch in branches for path in preview_changed_paths(self.repo, branch["tip"])})
         selected = self.choose(paths, preview=True) if branches else "full"
         print(json.dumps({"branches": branches,
                           "selection": sorted(selected) if isinstance(selected, set) else selected,
