@@ -30,3 +30,32 @@ Provisional, 2026-10-29. Kept by the coordinator and the operator: what is decid
 - **Crate leases (1):** one writer per crate across designers: a registry like the slots' claims, per wave.
 - **Interfaces by expand, move, contract (1):** additive upstream changes let designers work at once; a skein lead shared by the designers orders the removals.
 - **Mailboxes per designer;** the queue posts the branch's lead; the operator gets the rest; the ledger and operations are shared.
+
+## 6. The ladder's findings off the happy path (qa)
+
+Kept by coordinator q (s/qa). v0.1.0's happy path is the ladder's stories used as intended on the
+four backends (temper `docs/design/draft/v0.1.0.md`, 4); a walk's finding off it waits here, by
+the user's rule (10-29 13:35Z), until v0.1.0 is out or a walk shows it is on the path. Each line:
+what, whose code, the evidence.
+
+### 6.1 jig
+
+- **A refusal names no tool family.** `Finding::Tool` carries no family or source, so a chat's
+  refused `decide_escalation` reads "Authority refused: tool family; tool family; tool family;"
+  (one per authority level checked: task, project, deployment). Rung A walk 12 attempt 2,
+  hetzner6 `~/src/rust/tmp/qa-focused/rung-a-12/evidence/a2-empty-chat-held.txt`; temper renders
+  it at `temper-engine-smith` `answers.rs:436`.
+
+### 6.2 temper
+
+- **A custom charter's shell writes for a run that cannot deliver.** The rail "modify only with
+  deliver" (agent.md 4.3) does not cover `shell`; the stock gives shell only to charter 2 (change
+  coders). lead/q/temper, g-modify, 10-29.
+- **ctl names a not-yet-made task "unknown".** `task show N` before task N exists exits 2
+  `{"error":"unknown"}`, not "no task N yet" (jig `documents/small.rs:24` Missing::Unknown to
+  ctl's `jig/render.rs:272`). green's fixture investigation, 10-29.
+- **Walk 12's tooling list:** `task show` cuts a result to 128 bytes even in `--json`; a whole
+  activity takes one cursor call per page; a budget refusal "Authority missing" names no limiting
+  setting; `task show --until replied` returns while delegates run. Rung A walk 12 reports.
+- **The playground's starter CI only echoes:** rung A's "passed by CI" is a workflow that
+  compiles and tests nothing (walk 12 attempt 2, `a2-csv-job3.log`).
