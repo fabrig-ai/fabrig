@@ -725,6 +725,7 @@ tool.run()
 
 class ObservationTests(unittest.TestCase):
     LISTING = ("fixture-heavy-reconcile.timer loaded active waiting Heavy reconciliation\n"
+               "fixture-heavy-reconcile.service loaded activating start Heavy reconciliation\n"
                "fixture-heavy-build.service loaded active running Heavy build\n"
                "fixture-heavy-wrapper.service loaded activating start Heavy wrapper\n"
                "unrelated.service loaded active running Unrelated service\n")
@@ -745,6 +746,12 @@ class ObservationTests(unittest.TestCase):
             self.assertIn("no active heavy service observed", precheck.heavy_busy(Path("/slot")))
         run.assert_called_once()
         self.assertIn("--type=service", run.call_args.args[0])
+
+    def test_reconciler_service_needs_no_build_working_directory(self):
+        listing = "fixture-heavy-reconcile.service loaded activating start Heavy reconciliation\n"
+        with patch.object(subprocess, "run", return_value=subprocess.CompletedProcess([], 0, listing, "")) as run:
+            self.assertIn("no active heavy service observed", precheck.heavy_busy(Path("/slot")))
+        run.assert_called_once()
 
     def test_wrapper_in_slot_is_refused_after_unrelated_payload(self):
         results = [subprocess.CompletedProcess([], 0, self.LISTING, ""),

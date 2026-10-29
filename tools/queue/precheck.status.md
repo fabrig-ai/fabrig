@@ -6,7 +6,10 @@ implemented in `precheck` with disposable Git and fake-command coverage in
 executable link. `mq` and its default queue behavior are unchanged.
 
 Ops' initial real builder docs-only smoke exposed a timer being inspected
-as a service. Service-only observation and exact refusal of the existing
+as a service. A repeat smoke also identified the installed reconciler service,
+which owns no slot build working directory. Service-only observation skips
+that reserved maintenance unit; payload/wrapper services remain checked.
+Service-only observation and exact refusal of the existing
 `mq-worker-unresolved.json` worker marker are implemented with regressions.
 Ops must repeat real validation, including ordinary-heavy compile/lint/build
 coverage. This task runs no Cargo builds, remote commands, production

@@ -96,6 +96,9 @@ def heavy_busy(repo):
         name = row.split()[0]
         if not name.endswith(".service") or "-heavy-" not in name:
             continue
+        # The installed reconciler observes jobs; it owns no slot build cwd.
+        if name.endswith("-reconcile.service"):
+            continue
         detail = subprocess.run(["systemctl", "--user", "show", "-p",
                                  "WorkingDirectory,ActiveState,LoadState", name], text=True,
                                 capture_output=True, stdin=subprocess.DEVNULL)
