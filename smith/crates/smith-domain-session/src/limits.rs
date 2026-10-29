@@ -78,8 +78,7 @@ pub struct Limits {
     pub backoff_base: Duration,
     /// The longest wait before a retry, unless the provider asks for longer.
     pub backoff_max: Duration,
-    /// Compatibility allowance read by the root's fact gather and optional
-    /// content projection. Session observations are uncapped.
+    /// Root content-capture edge capacity; session observations are uncapped.
     pub facts: u32,
     /// The tools child domain's, which the session owns: a kit for each
     /// session, with room for its widest batch.

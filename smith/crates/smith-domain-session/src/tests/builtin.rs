@@ -359,10 +359,11 @@ fn closing_a_full_builtin_batch_keeps_every_observation() {
     limits.delegated_result_bytes = 64;
     let mut harness = Harness::new(&limits);
     let session = begin(&mut harness, full_batch(&limits));
-    let bound = crate::domain::builtin_close_facts(&limits);
+    // Every builtin answer, the closed kit and the ended session.
+    let observations = limits.completion_blocks + 2;
     begin_facts(&mut harness);
     crate::session::close(&mut harness.domain, &harness.env, session, &mut harness.out);
-    assert_fact_count(&mut harness, bound);
+    assert_fact_count(&mut harness, observations);
 }
 
 #[test]
@@ -373,7 +374,8 @@ fn failing_after_a_full_builtin_batch_keeps_every_observation() {
     let mut harness = Harness::new(&limits);
     let session = begin(&mut harness, full_batch(&limits));
     drop(next_prompt(&mut harness));
-    let bound = crate::domain::builtin_failure_facts(&limits);
+    // Every builtin answer, the failed completion, the closed kit and the ended session.
+    let observations = limits.completion_blocks + 3;
     begin_facts(&mut harness);
     crate::session::failed(
         &mut harness.domain,
@@ -385,7 +387,7 @@ fn failing_after_a_full_builtin_batch_keeps_every_observation() {
         true,
         &mut harness.out,
     );
-    assert_fact_count(&mut harness, bound);
+    assert_fact_count(&mut harness, observations);
 }
 
 #[test]

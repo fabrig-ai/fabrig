@@ -94,39 +94,6 @@ pub(crate) fn handoffs(limits: &Limits) -> Option<u32> {
     limits.run.conversations.checked_add(flights(limits)?)
 }
 
-/// The most steps an entry point takes of the session child domain: its own, if
-/// it is for the sessions, and one for each hand-off the run makes at once in
-/// answer to what that step sent it (an `Open` or a `Say`: as many as the run
-/// emits requests in each of its steps). An entry point for the run takes no
-/// more: one hand-off for each request its step emits. Each such step may
-/// request one completion denied before publication, adding one synchronous
-/// unsent settlement. Doubling covers that extra step; its Return/Close stays
-/// on Ready and cannot recurse through the subtree.
-pub(crate) const fn session_steps(limits: &Limits) -> u32 {
-    let sent = session::max_to_opener(&limits.session);
-    1_u32.saturating_add(sent.saturating_mul(run::MAX_OUT)).saturating_mul(2)
-}
-
-/// The most steps an entry point takes of the run: one for each request the
-/// session's first step sends it, and, for each hand-off the run makes at once
-/// in answer, one for each request the session it hands off to sends it, or a
-/// single one if the hand-off is refused in the run's terms without a
-/// session. An unsent completion denial adds one synchronous session terminal
-/// and its run notice. Child Return and Close stay deferred on Ready, so this
-/// adds at most one extra pair, rather than recursing through the subtree.
-/// Doubling accounts for that bounded pair. A session just opened or continued
-/// calls nothing and does not yield. An entry point for the run takes fewer: its
-/// own step, and those for what the sessions it hands off to send it.
-///
-/// It counts what a session step sends its opener, never what it sends its
-/// tools' io (a kit's close may cancel as many operations as the tools run),
-/// which goes out to the protocol layer and leads nowhere else.
-pub(crate) const fn run_steps(limits: &Limits) -> u32 {
-    let sent = session::max_to_opener(&limits.session);
-    let at_once = sent.saturating_mul(run::MAX_OUT);
-    sent.saturating_add(at_once.saturating_mul(sent)).saturating_mul(2)
-}
-
 /// History payload and separate allocated record/message envelopes. The source
 /// session byte cap prices Block cells/payloads, never these arrays.
 pub(crate) fn record_payload(limits: &Limits) -> Option<u64> {

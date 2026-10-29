@@ -2,6 +2,7 @@
 //! sections 3–7; programming-model.md, sections 4.5 and 6.3). [`Domain`]
 //! retains sessions, tools, alarms, deferred ready work, injected randomness
 //! and uncapped facts. [`step`], [`fire`] and [`resume`] emit owned requests.
+//! Facts are kept losslessly and drained by their queued count.
 //! This module never knows run outcomes, host policy, credentials or provider
 //! wire syntax.
 
@@ -12,66 +13,6 @@ use crate::boundary::{Event, Request};
 use crate::facts::{Fact, Facts};
 use crate::limits::{self, Limits};
 use crate::session::{self, Alarm, Calls, Ready, Session};
-
-/// The most requests that are for the opener (the session's records
-/// that name it, and its delegated calls and their withdraws): the session's
-/// own four, and a batch of delegated calls, a request each, or the withdraws
-/// closing sends for one (a step starts a batch or cancels one, never both).
-/// The tools' operations and their cancels never reach the opener.
-/// `smith-domain` reads this compatibility allowance for its causal handoff
-/// formulas until the root's queue migration.
-#[must_use]
-pub const fn max_to_opener(limits: &Limits) -> u32 {
-    4_u32.saturating_add(limits.parallel_tools)
-}
-
-/// Compatibility observation allowance read by `smith-domain`'s gather
-/// formula until the root's queue migration. Ordinary and program calls can
-/// start together (protocol/programs.md, sections 5.4–5.5); facts are uncapped.
-#[must_use]
-pub const fn max_facts(limits: &Limits) -> u32 {
-    let mut program = builtin_completed_facts(limits);
-    if builtin_close_facts(limits) > program {
-        program = builtin_close_facts(limits);
-    }
-    if builtin_failure_facts(limits) > program {
-        program = builtin_failure_facts(limits);
-    }
-    // Completed's two own facts already appear in ordinary_facts.
-    ordinary_facts(limits).saturating_add(program.saturating_sub(2))
-}
-
-// session::tell, tools/kit.rs::call and jobs.rs::call; close/drain paths retain the full child allowance.
-const fn ordinary_facts(limits: &Limits) -> u32 {
-    8_u32
-        .saturating_add(limits.parallel_tools)
-        .saturating_add(tools::max_facts(&limits.tools).saturating_mul(limits.parallel_tools.saturating_add(2)))
-}
-
-// session::completed and builtin::flush: each inventory can fill independently.
-pub(crate) const fn builtin_completed_facts(limits: &Limits) -> u32 {
-    let old_stand_ins = limits.completion_blocks;
-    let new_starts = limits.completion_blocks;
-    let new_stand_ins = limits.completion_blocks;
-    let dropped_reasoning = limits.completion_blocks;
-    // CompletionAnswered in completed, Used in tell; ordinary_facts holds terminal/drain facts.
-    old_stand_ins
-        .saturating_add(new_starts)
-        .saturating_add(new_stand_ins)
-        .saturating_add(dropped_reasoning)
-        .saturating_add(2)
-}
-
-// session::close/conclude and tools/kit.rs::close: stand-ins, kit drain and Ended.
-pub(crate) const fn builtin_close_facts(limits: &Limits) -> u32 {
-    let drain = if limits.tools.jobs == 0 { 1 } else { tools::max_facts(&limits.tools) };
-    limits.completion_blocks.saturating_add(drain).saturating_add(1)
-}
-
-// session::failed/conclude: stand-ins, CompletionFailed, kit drain and Ended.
-pub(crate) const fn builtin_failure_facts(limits: &Limits) -> u32 {
-    builtin_close_facts(limits).saturating_add(1)
-}
 
 /// The session child domain's state.
 #[derive(Debug)]

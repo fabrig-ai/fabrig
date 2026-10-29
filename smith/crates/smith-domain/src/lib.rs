@@ -47,7 +47,7 @@ mod waking;
 
 pub use boundary::{Answered, AnsweredCall, Event, Grant, GrantName, Operation, Request, Window};
 pub use config::{Config, ConfiguredModel, Program};
-pub use domain::{Domain, fire, max_facts, resume, step};
+pub use domain::{Domain, fire, resume, step};
 pub use facts::{Content, Fact, Opening};
 
 pub use feedback::{Feedback, FeedbackRefusal, feedback, feedback_bound, feedback_worst_case};

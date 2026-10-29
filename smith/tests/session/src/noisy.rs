@@ -88,8 +88,7 @@ pub fn noisy(seed: u64) -> Settings {
         serving: Span::millis(10, 3_000),
         ..calm
     };
-    settings.agent.tools.facts =
-        settings.agent.tools.facts.saturating_add((parallel_tools + 2) * CALM_TOOLS_FACTS);
+    settings.agent.tools.facts = settings.agent.tools.facts.saturating_add((parallel_tools + 2) * CALM_TOOLS_FACTS);
     // Keep the original 2000..8000 draw and every RNG operation above. The
     // original draw pressures retained payload; canonical terminals additionally
     // require pre-effect provider/result credit (domain/session.md, sections 3, 5

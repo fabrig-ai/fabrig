@@ -8,6 +8,7 @@
 //! [`fire`] and [`resume`] are its entries (domain/run.md, sections 2, 3, 10,
 //! 13; domain/session.md, sections 3–5). It never knows provider
 //! wire syntax, encoded turn size, credential secrets, forge state or host delivery policy.
+//! Facts are kept losslessly in uncapped queues and drained by their queued count.
 //!
 //! Hand-offs between the run and the sessions go both ways, so a chain of them
 //! could go on within one step: a session's delegated call that the run
@@ -45,14 +46,6 @@ use crate::facts::Fact;
 use crate::limits::{self, Limits};
 use crate::peer::Peer;
 use crate::route;
-
-/// The child observations along every bounded causal handoff of one entrance.
-#[must_use]
-pub const fn max_facts(limits: &Limits) -> u32 {
-    limits::run_steps(limits)
-        .saturating_mul(run::max_facts(&limits.run))
-        .saturating_add(limits::session_steps(limits).saturating_mul(session::max_facts(&limits.session)))
-}
 
 /// The agent domain's state: its child domains', what it keeps of each
 /// conversation between them, and facts awaiting the owner's drain.

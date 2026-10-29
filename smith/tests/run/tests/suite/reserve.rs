@@ -137,10 +137,8 @@ fn actual_facts_tell_child_shares_and_budget_without_deciding_work() {
         assert!(matches!(judge(&bad), Verdict::Failed(_)), "budget part {part}");
     }
     check_child_returns(&world);
-    let mut tight = World::new(Settings {
-        run: smith_domain_run::Limits { facts: CALM_RUN_FACTS, ..settings.run },
-        ..settings
-    });
+    let mut tight =
+        World::new(Settings { run: smith_domain_run::Limits { facts: CALM_RUN_FACTS, ..settings.run }, ..settings });
     tight.run(1_000_000);
     // The iterator batches input before submitting output. Drain pressure may
     // change their same-clock interleaving, but never either boundary's sequence.
