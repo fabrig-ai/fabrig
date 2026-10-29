@@ -126,6 +126,11 @@ impl NativeClient {
     pub fn sign_in_answers(&self) -> &[wire::SignInOutcome] {
         &self.wire.sign_in_answers
     }
+    /// Each completed sign-in's send time, elapsed time and outcome, including retries.
+    #[must_use]
+    pub fn sign_in_exchanges(&self) -> &[wire::SignInExchange] {
+        &self.wire.sign_in_exchanges
+    }
     /// The client's link state and printed-link failure reason, without credentials.
     #[must_use]
     pub fn sign_in_state(&self) -> (jig_client::Link, Option<jig_client::NotSignedIn>) {
@@ -239,7 +244,7 @@ impl NativeClient {
     }
     fn callback(&mut self, event: client::Event) {
         if let client::Event::Client { event } = &event {
-            let received = self.wire.received(event);
+            let received = self.wire.received_at(event, self.env.now);
             for fact in &received {
                 match fact {
                     Received::SignedIn { .. } => self.signed_in += 1,
@@ -284,7 +289,16 @@ impl NativeClient {
                 Request::SignOut => self.callback(client::Event::Client { event: jig_client::Event::SignOut }),
                 Request::SignIn { .. } => panic!("printed link supplied by caller"),
                 Request::Client { request } => {
-                    self.received.extend(self.wire.sent(&request));
+                    let before = self.wire.sign_ins_started;
+                    self.received.extend(self.wire.sent_at(&request, self.env.now));
+                    if self.wire.sign_ins_started != before
+                        && let Some((started, run, _)) = self.script_diagnostics
+                    {
+                        eprintln!(
+                            "jig-test {run} elapsed={:?} sign-in exchange {before} sent",
+                            self.env.now.saturating_since(started)
+                        );
+                    }
                     self.shell.down(request);
                 }
                 Request::First(_) | Request::Fact { .. } => {}

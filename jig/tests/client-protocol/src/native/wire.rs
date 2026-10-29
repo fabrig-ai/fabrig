@@ -3,14 +3,14 @@ use super::Received;
 use jig_client::{Event, Message, Request, Streamed};
 use jig_client_protocol_link::translate;
 use jig_client_protocol_wire::v19 as w;
-use skein_lib::{Reader, Secret, Token};
+use skein_lib::{Duration, Reader, Secret, Time, Token};
 use std::collections::BTreeMap;
 
 #[derive(Clone, Copy)]
 enum Kind {
     Request(Option<(u64, u32)>, skein_lib::RequestKey),
     Read(Option<jig_client_test_domain::family::Subject>),
-    SignIn,
+    SignIn { number: usize, sent: Time },
     SignOut,
     Other,
 }
@@ -22,9 +22,20 @@ pub enum SignInOutcome {
     Refused,
     Lost,
 }
+/// One sign-in exchange timed at the native transport boundary.
+#[derive(Clone, Copy, Debug)]
+pub struct SignInExchange {
+    pub number: usize,
+    pub sent: Time,
+    pub elapsed: Duration,
+    pub outcome: SignInOutcome,
+}
 #[derive(Default)]
 pub struct Wire {
     diagnostics: bool,
+    diagnostic_now: Option<Time>,
+    pub(super) sign_ins_started: usize,
+    pub(super) sign_in_exchanges: Vec<SignInExchange>,
     exchanges: BTreeMap<Token, Kind>,
     watches: BTreeMap<u64, jig_client_test_domain::family::Subject>,
     credential: Option<Secret>,
@@ -34,6 +45,23 @@ pub struct Wire {
 impl Wire {
     pub(super) fn diagnose(&mut self) {
         self.diagnostics = true;
+    }
+    pub(super) fn sent_at(&mut self, request: &Request, now: Time) -> Vec<Received> {
+        self.diagnostic_now = Some(now);
+        self.sent(request)
+    }
+    pub(super) fn received_at(&mut self, event: &Event, now: Time) -> Vec<Received> {
+        self.diagnostic_now = Some(now);
+        self.received(event)
+    }
+    fn sign_in_answered(&mut self, number: usize, sent: Time, outcome: SignInOutcome) {
+        self.sign_in_answers.push(outcome);
+        self.sign_in_exchanges.push(SignInExchange {
+            number,
+            sent,
+            elapsed: self.diagnostic_now.unwrap_or(Time::ZERO).saturating_since(sent),
+            outcome,
+        });
     }
     #[must_use]
     pub fn credential(&self) -> Option<Secret> {
@@ -84,7 +112,13 @@ impl Wire {
                 };
                 Kind::Read(subject)
             }
-            Message::SignInLink(_) | Message::SignInService => Kind::SignIn,
+            Message::SignInLink(_) | Message::SignInService => {
+                let number = self.sign_ins_started;
+                if self.diagnostics {
+                    self.sign_ins_started += 1;
+                }
+                Kind::SignIn { number, sent: self.diagnostic_now.unwrap_or(Time::ZERO) }
+            }
             Message::SignOut => Kind::SignOut,
             Message::Watch(bytes) => {
                 let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("open bytes");
@@ -116,7 +150,7 @@ impl Wire {
     #[must_use]
     pub fn sign_in_refused(&self, event: &Event) -> bool {
         let Event::Reply { exchange, message } = event else { return false };
-        matches!(self.exchanges.get(exchange), Some(Kind::SignIn))
+        matches!(self.exchanges.get(exchange), Some(Kind::SignIn { .. }))
             && matches!(w::SignInAnswer::decode(&w::CEILINGS, &mut Reader::new(message)), Ok(w::SignInAnswer::Refused))
     }
     #[must_use]
@@ -163,7 +197,7 @@ impl Wire {
                     jig_client_test_domain::first::Event::Read { read: *exchange, result: value },
                 ))
             }
-            Some(Kind::Read(None) | Kind::SignIn | Kind::SignOut | Kind::Other) | None => Vec::new(),
+            Some(Kind::Read(None) | Kind::SignIn { .. } | Kind::SignOut | Kind::Other) | None => Vec::new(),
         }
     }
     pub fn received(&mut self, event: &Event) -> Vec<Received> {
@@ -196,11 +230,11 @@ impl Wire {
                         w::ReadAnswer::NotServed(_) | w::ReadAnswer::Value(_) => vec![],
                     }
                 }
-                Some(Kind::SignIn) => {
+                Some(Kind::SignIn { number, sent }) => {
                     let answer =
                         w::SignInAnswer::decode(&w::CEILINGS, &mut Reader::new(message)).expect("sign-in bytes");
                     if self.diagnostics {
-                        self.sign_in_answers.push(sign_in_outcome(&answer));
+                        self.sign_in_answered(number, sent, sign_in_outcome(&answer));
                     }
                     match answer {
                         w::SignInAnswer::SignedIn(value) => {
@@ -237,11 +271,14 @@ impl Wire {
             }
             Event::Lost { exchange } => {
                 match self.exchanges.remove(exchange) {
-                    Some(Kind::SignIn) if self.diagnostics => self.sign_in_answers.push(SignInOutcome::Lost),
+                    Some(Kind::SignIn { number, sent }) if self.diagnostics => {
+                        self.sign_in_answered(number, sent, SignInOutcome::Lost);
+                    }
                     Some(Kind::Request(_, name)) if self.diagnostics => {
                         self.terminals.insert(name, jig_client::Outcome::Lost);
                     }
-                    Some(Kind::Read(_) | Kind::SignOut | Kind::Other | Kind::SignIn | Kind::Request(_, _)) | None => {}
+                    Some(Kind::Read(_) | Kind::SignOut | Kind::Other | Kind::SignIn { .. } | Kind::Request(_, _))
+                    | None => {}
                 }
                 vec![]
             }
@@ -318,6 +355,32 @@ mod diagnostic_tests {
             assert_eq!(wire.carried_terminal(NAME), Some(&jig_client::Outcome::Unsent));
         }
     }
+    /// Every retry keeps its own send time and outcome, including a lost first exchange.
+    #[test]
+    fn sign_in_exchange_times_are_measured_from_each_send() {
+        const FIRST: Token = Token::new(7);
+        const AGAIN: Token = Token::new(8);
+        let mut wire = Wire::default();
+        wire.diagnose();
+        wire.sent_at(
+            &Request::Exchange { exchange: FIRST, credential: None, message: Message::SignInService },
+            Time::from_nanos(10),
+        );
+        wire.received_at(&Event::Lost { exchange: FIRST }, Time::from_nanos(30));
+        wire.sent_at(
+            &Request::Exchange { exchange: AGAIN, credential: None, message: Message::SignInService },
+            Time::from_nanos(40),
+        );
+        let answer = w::SignInAnswer::Busy;
+        let mut writer = Writer::new(usize::try_from(answer.measure()).expect("fixture length"));
+        answer.encode(&mut writer).expect("fixture answer");
+        wire.received_at(&Event::Reply { exchange: AGAIN, message: writer.finish() }, Time::from_nanos(47));
+        let [first, again] = wire.sign_in_exchanges.as_slice() else { panic!("two exchanges") };
+        assert_eq!((first.number, first.sent, first.elapsed), (0, Time::from_nanos(10), Duration::from_nanos(20)));
+        assert!(matches!(first.outcome, SignInOutcome::Lost));
+        assert_eq!((again.number, again.sent, again.elapsed), (1, Time::from_nanos(40), Duration::from_nanos(7)));
+        assert!(matches!(again.outcome, SignInOutcome::NotSignedIn(jig_client::NotSignedIn::Busy)));
+    }
     /// Loss remains visible even though no decoded `Received` fact is made.
     #[test]
     fn lost_exchanges_retain_sign_in_and_carried_terminals() {
@@ -326,7 +389,7 @@ mod diagnostic_tests {
         const CARRY: Token = Token::new(8);
         let mut wire = Wire::default();
         wire.diagnose();
-        wire.exchanges.insert(SIGN_IN, Kind::SignIn);
+        wire.exchanges.insert(SIGN_IN, Kind::SignIn { number: 0, sent: Time::ZERO });
         wire.exchanges.insert(CARRY, Kind::Request(None, NAME));
         wire.received(&Event::Lost { exchange: SIGN_IN });
         wire.received(&Event::Lost { exchange: CARRY });
