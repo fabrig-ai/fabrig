@@ -774,7 +774,7 @@ pub fn worst_case(l: &Limits, s: &Shared, forges: Forges, owned_bytes: u64) -> O
     let connection = skein_http::client::worst_case(&http(l, true, &s.io))?
         .max(skein_http::client::worst_case(&http(l, false, &s.io))?)
         .checked_add(skein_tls::client::worst_case(&l.tls)?)?
-        .checked_add(tokenizer::worst_case(&tokenizer::Limits {
+        .checked_add(tokenizer::tokenizer_bound(&tokenizer::Limits {
             string: json.string.max(docs.json.string),
             ..docs.json
         })?)?
@@ -976,7 +976,7 @@ fn github_tables_heap(l: &Limits, repositories: u32, users: u32) -> Option<u64> 
 
 fn hook_heap(l: &Limits, decoder: u64, socket: u64) -> Option<u64> {
     skein_http::server::worst_case(&hook_http(l))?
-        .checked_add(tokenizer::worst_case(&hook_documents(l).json)?)?
+        .checked_add(tokenizer::tokenizer_bound(&hook_documents(l).json)?)?
         .checked_add(decoder)?
         .checked_add(socket)?
         .checked_add(u64::try_from(size_of::<skein_lib::sha256::Hmac>()).ok()?)?
