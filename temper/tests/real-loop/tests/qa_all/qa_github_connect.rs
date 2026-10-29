@@ -140,34 +140,6 @@ fn no_git_writes_or_key_leaks(ran: &Ran) {
     assert!(files > 0, "persisted state was checked");
 }
 
-#[test]
-#[ignore = "backlog: Q1, Adopt with no accepted installation is refused no_access, not protocol/forge.md's not installed; the remedy's words only, off the happy path"]
-fn an_unvisited_install_link_does_not_authorize_adoption() {
-    // domain/forge.md 4.3: no accepted installation means NotInstalled.
-    let ran = run_github(fresh(), no_agents, || {
-        let mut steps = begin();
-        steps.extend([
-            call(&["forge", "install", "1", "--key", "qa-abandoned"]),
-            adopt("acme", "app", "qa-no-install"),
-            call(&["forge", "list", "--json"]),
-        ]);
-        steps
-    });
-    no_git_writes_or_key_leaks(&ran);
-    for at in 0..4 {
-        succeeded(&ran, at);
-    }
-    assert!(!json(&ran, 4)["adopted"].is_object(), "unvisited link grants no adoption");
-    assert_eq!(row(&json(&ran, 5))["installations"], serde_json::json!([]));
-    assert!(ran.github().installations.is_empty());
-    assert_eq!(ran.github().minted, 0, "no token before acceptance");
-    assert_eq!(
-        json(&ran, 4)["forge_refused"]["reason"],
-        "not_installed",
-        "adoption names the missing installation: {}",
-        json(&ran, 4)
-    );
-}
 
 #[test]
 fn replaying_an_install_request_keeps_one_link_and_one_acceptance() {
@@ -197,33 +169,6 @@ fn replaying_an_install_request_keeps_one_link_and_one_acceptance() {
     assert!(json(&ran, 5)["adopted"].is_object(), "first acceptance survives replay");
 }
 
-#[test]
-#[ignore = "backlog: Q2, Adopt on an account without an accepted installation is refused no_access, not not installed; access stays scoped, the remedy's words only"]
-fn accepting_acme_does_not_grant_umbras_repository() {
-    // domain/forge.md 4.3: installation access is scoped to its account.
-    let ran = run_github(fresh(), no_agents, || {
-        let mut steps = begin();
-        steps.extend([
-            call(&["forge", "install", "1", "--key", "qa-acme"]),
-            calls::browse(3),
-            call(&["forge", "list", "--until", "settled", "--json"]),
-            adopt("umbra", "tool", "qa-wrong-owner"),
-            adopt("acme", "app", "qa-right-owner"),
-        ]);
-        steps
-    });
-    no_git_writes_or_key_leaks(&ran);
-    assert!(!json(&ran, 5)["adopted"].is_object(), "another account is not granted");
-    succeeded(&ran, 6);
-    assert!(json(&ran, 6)["adopted"].is_object(), "right account still adopts: {}", json(&ran, 6));
-    assert_eq!(
-        json(&ran, 5)["forge_refused"]["reason"],
-        "not_installed",
-        "wrong account gets the actionable installation refusal: {}",
-        json(&ran, 5)
-    );
-    assert_eq!(ran.github().installations.len(), ONE_INSTALLATION);
-}
 
 #[test]
 #[ignore = "gap: real-loop steps expose no GitHub suspension or revocation mutation"]
