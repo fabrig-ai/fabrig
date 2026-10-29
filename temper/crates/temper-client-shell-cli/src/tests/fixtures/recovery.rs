@@ -174,6 +174,11 @@ impl Frame {
         self.hold_stores = None;
         self.run();
     }
+    pub fn drop_stream(&mut self) {
+        self.deliver = None;
+        self.sockets.get_mut(&self.stream.expect("open stream")).expect("stream socket").eof = Some(());
+        self.run();
+    }
     pub fn fail_erase(&mut self) {
         self.fail_store = Some(());
         self.store_erase();
