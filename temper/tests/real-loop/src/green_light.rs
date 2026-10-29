@@ -124,6 +124,91 @@ pub fn run() -> Ran {
     crate::run_forge_with(fixture(), ForgeRecipe { source: PathBuf::new(), build: recipe }, acts)
 }
 
+/// The twin converter's CSV landing on the walk's chat and producer alone
+/// (temper/docs/design/domain/testing.md, 2.4).
+pub mod csv_change {
+    use super::{ForgeRecipe, Path, PathBuf, Ran, SocketAddr, Value, argv, calls, forge, llm};
+    use calls::{D1, call};
+
+    // Without the goal, the chat creates change 2 and its producer 3.
+    pub const TASKS: [u64; 2] = [1, 3];
+    pub const CUES: [&str; 2] = [super::CUES[0], super::CUES[2]];
+
+    #[must_use]
+    pub fn fixture() -> forge::Fixture {
+        forge::Fixture {
+            configure: |value, agent, forge| {
+                (super::fixture().configure)(value, agent, forge);
+                // Converter stability needs a landed edit; CI checks this variant without review tasks.
+                value["application"]["landing"]["projects"][0]["rules"][0]["gates"] = serde_json::json!([]);
+            },
+            ..super::fixture()
+        }
+    }
+
+    fn recipe(_forge: SocketAddr, _source: &Path) -> llm::Recipe {
+        let mut document: Value =
+            serde_json::from_slice(include_bytes!("../tests/fixtures/b0/llm.json")).expect("recorded scripts");
+        let chat = serde_json::json!({
+            "cue": CUES[0],
+            "turns": [
+                document["cued"][1]["turns"][5], // The approved change request.
+                document["cued"][1]["turns"][6], // Wait for its landing result.
+                document["cued"][0]["turns"][5], // Tell the person what landed.
+            ],
+        });
+        document["cued"] = serde_json::json!([chat, document["cued"][2]]);
+        super::from_document(&serde_json::to_vec(&document).expect("two-task scripts"))
+    }
+
+    #[must_use]
+    pub fn run() -> Ran {
+        crate::run_forge_with(fixture(), ForgeRecipe { source: PathBuf::new(), build: recipe }, acts)
+    }
+
+    #[must_use]
+    pub fn acts() -> Vec<calls::Step> {
+        let mut steps = super::acts();
+        steps.truncate(2); // Sign in and adopt the same seeded widget repository.
+        steps.extend([
+            call(
+                D1,
+                argv!["chat", "start", "--project", "1", "--key", "csv-twin", "Add the approved CSV export to widget."],
+            ),
+            call(D1, argv!["task", "show", "1", "--until", "replied"]),
+            call(D1, argv!["change", "show", "2", "--until", "landed", "--json"]),
+            call(D1, argv!["task", "show", "3", "--until", "ended", "--json"]),
+            call(D1, argv!["task", "show", "1", "--until", "phase:idle"]),
+            call(D1, argv!["chat", "show", "1", "--json"]),
+            call(D1, argv!["chat", "close", "1", "--key", "close-csv-twin"]),
+            call(D1, argv!["task", "show", "1", "--until", "ended"]),
+        ]);
+        steps
+    }
+
+    pub fn check(ran: &Ran) {
+        assert_eq!(ran.calls().len(), 10);
+        for (position, call) in ran.calls().iter().enumerate() {
+            assert_eq!(call.exit, Some(super::Exit::Code(0)), "ctl call {position}: {call:?}");
+            assert_eq!(call.tries, 1, "each read is issued once; waits use native watches");
+        }
+        assert_eq!(ran.number(2), TASKS[0]);
+        assert_eq!(super::document(ran, 5)["chip"]["phase"], "ended");
+        assert!(
+            String::from_utf8_lossy(&ran.calls()[7].stdout).contains(super::person("last_word")),
+            "chat's landing reply: {}",
+            String::from_utf8_lossy(&ran.calls()[7].stdout)
+        );
+        assert_eq!(
+            ran.llm().iter().filter(|seen| matches!(seen, skein_fake_peers::llm::Observation::Query { .. })).count(),
+            3 + 8,
+            "only the chat's three turns and the producer's eight turns"
+        );
+        assert!(ran.forge().merged_green(), "CI passed at the merged head");
+        super::check_csv(ran);
+    }
+}
+
 const CHAT_STARTED: usize = 2;
 const TREE: usize = 6;
 const ASKED: usize = 7;
@@ -274,6 +359,16 @@ pub fn check(ran: &Ran) {
     let work = document(ran, WORK_ENDED);
     let report = work["result"]["value"]["report"]["bytes"].as_str().expect("goal's report");
     assert!(report.contains(&merge[..7]), "goal must name the fresh merge {merge}: {report}");
+    check_csv(ran);
+    assert_eq!(document(ran, WORK_ENDED)["chip"]["phase"], "ended");
+    assert_eq!(document(ran, PRODUCED)["chip"]["phase"], "ended");
+    assert!(document(ran, FIRST_REVIEW).to_string().contains("cannot complete the mandated review"));
+    assert!(document(ran, RETRY_REVIEW).to_string().contains("Approve."));
+    assert!(String::from_utf8_lossy(&ran.calls()[LAST_WORD].stdout).contains(person("last_word")));
+    assert!(document(ran, INBOX_EMPTY)["needs"]["rows"].as_array().expect("last questions").is_empty());
+}
+
+fn check_csv(ran: &Ran) {
     let source = String::from_utf8_lossy(ran.forge().main_file(b"src/main.rs"));
     assert!(source.contains("writeln!(output, \"fruit,count\")?;"), "CSV header landed: {source}");
     let scripts: Value =
@@ -281,10 +376,4 @@ pub fn check(ran: &Ran) {
     let expected =
         scripts["cued"][2]["turns"][3]["lines"][0]["arguments"]["content"].as_str().expect("recorded main write");
     assert_eq!(source, expected, "the walk's whole program landed");
-    assert_eq!(document(ran, WORK_ENDED)["chip"]["phase"], "ended");
-    assert_eq!(document(ran, PRODUCED)["chip"]["phase"], "ended");
-    assert!(document(ran, FIRST_REVIEW).to_string().contains("cannot complete the mandated review"));
-    assert!(document(ran, RETRY_REVIEW).to_string().contains("Approve."));
-    assert!(String::from_utf8_lossy(&ran.calls()[LAST_WORD].stdout).contains(person("last_word")));
-    assert!(document(ran, INBOX_EMPTY)["needs"]["rows"].as_array().expect("last questions").is_empty());
 }
