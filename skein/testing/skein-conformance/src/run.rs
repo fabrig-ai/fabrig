@@ -140,8 +140,10 @@ impl<'b, B: Backend> Run<'b, B> {
 
     /// The completion of `token`, which must come.
     pub(crate) fn wait(&mut self, process: B::Process, token: Token) -> Complete {
+        self.backend.wait_begins("the conformance operation's completion", PATIENCE);
         let complete = self.within(process, token, PATIENCE);
-        complete.expect("an operation that can complete does, within the patience of the suite")
+        complete
+            .unwrap_or_else(|| self.unanswered("an operation that can complete does, within the patience of the suite"))
     }
 
     /// The completion of `token` if it comes within `bound`.
@@ -163,6 +165,7 @@ impl<'b, B: Backend> Run<'b, B> {
     /// The completion of whichever of two operations, each on its own
     /// process or both on one, comes first: its token says which.
     pub(crate) fn either(&mut self, a: (B::Process, Token), b: (B::Process, Token)) -> Complete {
+        self.backend.wait_begins("either conformance operation's completion", PATIENCE);
         let deadline = self.later(PATIENCE);
         loop {
             self.reap(a.0);
@@ -173,8 +176,19 @@ impl<'b, B: Backend> Run<'b, B> {
                 }
             }
             let now = self.backend.now();
-            assert!(now < deadline, "one of two operations that can complete does, within the patience of the suite");
+            if now >= deadline {
+                self.unanswered("one of two operations that can complete does, within the patience of the suite");
+            }
             self.backend.pass(a.0, deadline.saturating_since(now));
+        }
+    }
+
+    #[expect(clippy::panic, reason = "an unanswered scenario wait fails with its backend's scheduler figures")]
+    fn unanswered(&mut self, message: &str) -> ! {
+        self.backend.wait_unanswered();
+        match self.backend.wait_figures() {
+            Some(figures) => panic!("{message}: {figures}"),
+            None => panic!("{message}"),
         }
     }
 

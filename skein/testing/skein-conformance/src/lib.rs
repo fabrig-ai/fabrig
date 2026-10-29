@@ -89,6 +89,20 @@ pub trait Backend {
     /// world's loops would.
     fn pass(&mut self, process: Self::Process, bound: Duration);
 
+    /// A must-complete wait begins with `patience` on this backend's clock
+    /// (skein/docs/foundation/testing-strategy.md, 2.10).
+    fn wait_begins(&mut self, _what: &'static str, _patience: Duration) {}
+
+    /// The wait passed unanswered: a real backend classifies it and ends a
+    /// starved test here. Returning preserves the scenario's failure
+    /// (skein/docs/foundation/testing-strategy.md, 2.10).
+    fn wait_unanswered(&mut self) {}
+
+    /// Scheduler figures for the unanswered wait, if this backend measures them.
+    fn wait_figures(&self) -> Option<String> {
+        None
+    }
+
     /// Lets `span` pass with no process entering the kernel: what waits on
     /// a process stays undecided.
     fn sleep(&mut self, span: Duration);

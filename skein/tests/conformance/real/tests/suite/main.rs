@@ -2,6 +2,7 @@
 
 mod adopted_listener;
 mod conformance;
+mod deadline;
 mod given_listener;
 mod listener_readiness;
 mod parent_death;
