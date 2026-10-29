@@ -45,7 +45,7 @@ def queue_pid(repo):
     return pids[0]
 
 
-def restart(repo, wait, home):
+def restart(repo, wait, home, *, batch=8):
     if command(["git", "rev-parse", "--show-toplevel"], repo) != str(repo):
         raise RuntimeError("--repo must name the checkout root")
     pid = queue_pid(repo)
@@ -71,7 +71,10 @@ def restart(repo, wait, home):
     output.parent.mkdir(parents=True, exist_ok=True)
     with output.open("a") as log:
         os.chmod(output, 0o600)
-        child = subprocess.Popen(["python3", "-u", "tools/queue/mq", "run", "--repo", str(repo)],
+        argv = ["python3", "-u", "tools/queue/mq", "run", "--repo", str(repo)]
+        if batch != 8:
+            argv.extend(["--batch", str(batch)])
+        child = subprocess.Popen(argv,
                                  cwd=repo, stdin=subprocess.DEVNULL, stdout=log, stderr=log,
                                  start_new_session=True)
     time.sleep(3)
@@ -87,18 +90,27 @@ def seconds(value):
     return number
 
 
+def positive(value):
+    number = int(value)
+    if number < 1:
+        raise argparse.ArgumentTypeError("must be positive")
+    return number
+
+
 def main():
     os.umask(0o077)
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", type=Path, default=Path.cwd())
     parser.add_argument("--wait", type=seconds, default=1800)
+    parser.add_argument("--batch", type=positive, default=8,
+                        help="branches per batch for the replacement queue (default: 8)")
     args = parser.parse_args()
     for name in ("cargo", "heavy", "post", "git"):
         if shutil.which(name) is None:
             print(f"restart: missing {name} on PATH; invoke from bash -lc", file=sys.stderr)
             return 2
     try:
-        restart(args.repo.expanduser().resolve(), args.wait, Path.home())
+        restart(args.repo.expanduser().resolve(), args.wait, Path.home(), batch=args.batch)
         return 0
     except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
         print(f"restart: {error}", file=sys.stderr)
