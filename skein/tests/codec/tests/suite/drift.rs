@@ -18,7 +18,7 @@ mod tests {
             let committed = fs::read_to_string(generated_path).expect("generated code committed");
             assert_eq!(
                 committed, output.rust,
-                "run SKEIN_CODEGEN_WRITE=1 cargo nextest run -p skein-codec-tests --test drift"
+                "run SKEIN_CODEGEN_WRITE=1 cargo nextest run -p skein-codec-tests --test suite -E 'test(/^drift::/)'"
             );
         }
         let golden_directory = Path::new(golden_directory);
@@ -31,7 +31,7 @@ mod tests {
                 let committed = fs::read(&path).expect("golden bytes committed");
                 assert_eq!(
                     committed, golden.bytes,
-                    "run SKEIN_CODEGEN_WRITE=1 cargo nextest run -p skein-codec-tests --test drift"
+                    "run SKEIN_CODEGEN_WRITE=1 cargo nextest run -p skein-codec-tests --test suite -E 'test(/^drift::/)'"
                 );
             }
         }

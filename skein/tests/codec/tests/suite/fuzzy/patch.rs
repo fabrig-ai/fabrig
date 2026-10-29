@@ -1,7 +1,6 @@
 //! Seeded patches over every generic value form (codec.md, 11.8).
 
-#[path = "support/generated.rs"]
-mod generated;
+use crate::support::generated;
 
 #[cfg(test)]
 mod tests {
@@ -11,7 +10,7 @@ mod tests {
     use skein_codec::value::{Node, Value};
     use skein_lib::Rng;
 
-    const OLD: &str = include_str!("../schema/every-v1.schema");
+    const OLD: &str = include_str!("../../../schema/every-v1.schema");
     const NEW: &str = "family every 2
 versioned record Blank {}
 record Numbers { short: u16 small: u16 word: u32 long: u64 flag: bool wait: duration tag: fixed 3 }

@@ -2,7 +2,7 @@
 
 extern crate alloc;
 
-mod support;
+use crate::support;
 
 #[cfg(test)]
 mod tests {
@@ -66,7 +66,7 @@ mod tests {
             }
         }
 
-        let schema = skein_codegen::parse(include_str!("../schema/every-v1.schema")).expect("every schema");
+        let schema = skein_codegen::parse(include_str!("../../schema/every-v1.schema")).expect("every schema");
         for declaration in &schema.declarations {
             if let Declaration::Enum(enumeration) = declaration {
                 let key = format!("every.{}", enumeration.name);

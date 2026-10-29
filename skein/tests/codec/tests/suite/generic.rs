@@ -2,11 +2,8 @@
 
 extern crate alloc;
 
-#[path = "support/generated.rs"]
-#[expect(dead_code, reason = "goldens use the shared decoders; seeded draws run in fuzzy_generic")]
-mod generated;
-#[path = "support/generic.rs"]
-pub mod generic;
+use crate::generic_support as generic;
+use crate::support::generated;
 
 #[cfg(test)]
 mod tests {

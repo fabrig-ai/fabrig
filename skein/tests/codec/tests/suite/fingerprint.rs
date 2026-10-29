@@ -1,10 +1,7 @@
 //! Shipped schemas preserve fingerprints and diff through reprinting (codec.md, 10.6).
 
-#[path = "support/generated.rs"]
-#[expect(dead_code, reason = "fingerprint tests use schema text, not generated decoders or draws")]
-mod generated;
-#[path = "support/reprint.rs"]
-mod reprint;
+use crate::support::generated;
+use crate::support::reprint;
 
 #[cfg(test)]
 mod tests {
@@ -18,7 +15,7 @@ mod tests {
 
     fn shipped_schemas() -> Vec<(&'static str, &'static str)> {
         let mut families: Vec<_> = generated::families().into_iter().map(|family| (family.name, family.text)).collect();
-        families.push(("notes", include_str!("../../../examples/ui/view/schema/notes-v1.schema")));
+        families.push(("notes", include_str!("../../../../examples/ui/view/schema/notes-v1.schema")));
         families
     }
 
@@ -139,7 +136,7 @@ mod tests {
 
     #[test]
     fn every_fixture_family_digest_is_golden() {
-        let schema = parse(include_str!("../schema/every-v1.schema").as_bytes()).expect("every schema");
+        let schema = parse(include_str!("../../schema/every-v1.schema").as_bytes()).expect("every schema");
         let mut hex = String::new();
         for byte in schema.fingerprints().family().digest() {
             write!(hex, "{byte:02x}").expect("string write");
@@ -149,7 +146,7 @@ mod tests {
 
     #[test]
     fn plain_secret_family_digest_is_golden() {
-        let schema = parse(include_str!("../schema/secrets-v1.schema").as_bytes()).expect("secret schema");
+        let schema = parse(include_str!("../../schema/secrets-v1.schema").as_bytes()).expect("secret schema");
         let mut hex = String::new();
         for byte in schema.fingerprints().family().digest() {
             write!(hex, "{byte:02x}").expect("string write");

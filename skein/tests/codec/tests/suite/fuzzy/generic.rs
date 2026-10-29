@@ -2,10 +2,8 @@
 
 extern crate alloc;
 
-#[path = "support/generated.rs"]
-mod generated;
-#[path = "support/generic.rs"]
-pub mod generic;
+use crate::generic_support as generic;
+use crate::support::generated;
 
 #[cfg(test)]
 mod tests {

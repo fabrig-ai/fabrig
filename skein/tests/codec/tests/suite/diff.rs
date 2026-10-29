@@ -45,7 +45,7 @@ mod tests {
                 assert_eq!(
                     result.to_string(),
                     expected,
-                    "{case}: run SKEIN_DIFF_WRITE=1 heavy cargo nextest run -p skein-codec-tests --test diff"
+                    "{case}: run SKEIN_DIFF_WRITE=1 heavy cargo nextest run -p skein-codec-tests --test suite -E 'test(/^diff::/)'"
                 );
             }
         }

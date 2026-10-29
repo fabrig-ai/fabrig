@@ -2,8 +2,7 @@
 
 extern crate alloc;
 
-#[path = "support/generic.rs"]
-pub mod generic;
+use crate::generic_support as generic;
 
 #[cfg(test)]
 mod tests {
@@ -58,8 +57,8 @@ mod tests {
         }
     }
 
-    const V1: &str = include_str!("../schema/every-v1.schema");
-    const V2: &str = include_str!("../schema/every-v2.schema");
+    const V1: &str = include_str!("../../schema/every-v1.schema");
+    const V2: &str = include_str!("../../schema/every-v2.schema");
     const PATCH: &str = patches::PATCHES.first().expect("fixture patch");
     // Six records and seven enum variants, each with smallest and full goldens.
     const GOLDENS: usize = 26;
@@ -376,7 +375,7 @@ mod tests {
             if write {
                 fs::write(&path, &result).expect("write patched golden");
             } else {
-                assert_eq!(fs::read(&path).expect("patched golden committed; run SKEIN_PATCH_WRITE=1 heavy cargo nextest run -p skein-codec-tests --test patch"), result, "{}", golden.name);
+                assert_eq!(fs::read(&path).expect("patched golden committed; run SKEIN_PATCH_WRITE=1 heavy cargo nextest run -p skein-codec-tests --test suite -E 'test(/^patch::/)'"), result, "{}", golden.name);
             }
             assert!(names.insert(golden.name), "golden name unique");
         }

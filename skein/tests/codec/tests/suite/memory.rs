@@ -1,11 +1,6 @@
 //! A decoded value at every ceiling stays within its declared heap worst case
 //! (codec.md, sections 4 and 6; testing-strategy.md, section 6).
 
-use skein_heap::Counting;
-
-#[global_allocator]
-static HEAP: Counting = Counting;
-
 #[cfg(test)]
 mod tests {
     use skein_codec_tests::v1::{CEILINGS, Effect, Field, FieldParts, Report, ReportParts};
@@ -189,7 +184,7 @@ mod tests {
         use skein_codec_tests::every::{CEILINGS, Every};
         // Every's largest tree has 99 nodes; room also admits every other fixture.
         const ROOM: u32 = 256;
-        let schema = skein_codec::schema::parse(include_bytes!("../schema/every-v1.schema")).expect("schema");
+        let schema = skein_codec::schema::parse(include_bytes!("../../schema/every-v1.schema")).expect("schema");
         let root = schema.find(b"Every").expect("root");
         let full = full_every();
         assert_eq!(u64::from(full.measure()), Every::worst_case_bytes(&CEILINGS).expect("wire bound"));
