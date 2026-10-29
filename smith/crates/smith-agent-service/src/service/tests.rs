@@ -111,7 +111,7 @@ fn limits() -> Limits {
         file_bytes: 512,
         file_timeout: Duration::from_secs(1),
         live_interval: crate::profile::standard().policy.live_interval,
-        queue: domain::max_out(&smith_agent_world::LIMITS).max(256),
+        queue: crate::profile::DEFAULT_PACING,
         routes: io::operations(&io).expect("bounded test IO").checked_add(2).expect("file routes fit"),
         memory: u64::MAX,
         events: None,
