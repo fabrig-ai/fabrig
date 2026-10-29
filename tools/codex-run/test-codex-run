@@ -385,6 +385,15 @@ done
 refusal 'bad effort' task --effort max "$t/task file.md" "$t/work dir" "$t/reports/refused.md"
 refusal 'resume without thread' task --resume absent "$t/task file.md" "$t/work dir" "$t/reports/refused.md"
 [[ ! -e $DEV_ROOT/tmp/codex-run ]]
+# The subreaper bootstrap must still validate history before reading metadata.
+mkdir -p "$HOME/src/fabrig/slots/1/target"
+output=$(DEV_ROOT="$HOME/src/fabrig/slots/1/target" "$kit/codex-run" _run absent 2>&1) && status=0 || status=$?
+[[ $status == 2 && ! -e $fake/launch.args && ! -e $DEV_ROOT/tmp/codex-run ]]
+expect 'bootstrapped worker refuses target history before metadata' "$output" 'protected evidence overlaps target'
+ln -s "$DEV_ROOT" "$t/history-link"
+output=$(DEV_ROOT="$t/history-link/../workspace" "$kit/codex-run" _run absent 2>&1) && status=0 || status=$?
+[[ $status == 2 && ! -e $fake/launch.args && ! -e $DEV_ROOT/tmp/codex-run ]]
+expect 'bootstrapped worker refuses a cancelled history symlink' "$output" 'symlink path'
 refusal 'owner invalid name' owner ../oops "$t/brief.md"
 refusal 'owner relative brief' owner o/fixture relative
 refusal 'owner unreadable brief' owner o/fixture "$t/missing"
@@ -642,6 +651,10 @@ export POST_NAME=o/caller
 start_task success --resume "$recipient_id"
 json_expect 'POST_NAME overrides the resumed recipient' \
     'length == 1 and .[0].args[3] == "o/caller"' "$fake/post.calls"
+
+# Resume assertions are complete. Preserve their evidence outside the stale
+# cases' history so each stale check scans only its own fixture runs.
+mv "$DEV_ROOT/tmp/codex-run" "$DEV_ROOT/tmp/checked-task-runs"
 
 printf '3\n' >"$fake/post-exit"
 start_task success

@@ -247,7 +247,7 @@ task_launch() {
     model=${model:-gpt-6.1-sol} effort=${effort:-high} read_only=${read_only:-0}
     settings
     absolute "$task" TASK; absolute "$dir" DIR; absolute "$report" REPORT
-    report=$(python3 -I -B "$fabrig/tools/slots/lifetime.py" protect "$report" 2>&1) || refuse "$report"
+    report=$(python3 -I -S -B "$fabrig/tools/slots/lifetime.py" protect "$report" 2>&1) || refuse "$report"
     [[ -f $task && -r $task ]] || refuse 'TASK is not readable'
     [[ -d $dir ]] || refuse 'DIR is not a directory'
     [[ ! -e $report && ! -L $report ]] || refuse 'REPORT already exists'
@@ -284,7 +284,7 @@ task_launch() {
 lease_task() {
     local purpose=$1 expected=$1 validated helper=$fabrig/tools/slots/lifetime.py adopt=''
     # Inspect symlink components before normalizing aliases and slot membership.
-    validated=$(python3 -I -B "$helper" directory "$dir" 2>&1) || refuse "$validated"
+    validated=$(python3 -I -S -B "$helper" directory "$dir" 2>&1) || refuse "$validated"
     dir=${validated%$'\n'*}
     [[ ${validated##*$'\n'} == slot ]] || return 0
     [[ -f $helper ]] || refuse 'missing slot lifetime helper'
@@ -313,10 +313,6 @@ trim_slot() {
 
 task_run() {
     (($# == 1)) || refuse 'usage: codex-run _run ID'
-    if [[ ${CODEX_RUN_SUBREAPER:-} != "$$" ]]; then
-        # exec preserves the adopting parent: an orphan must never signal systemd --user.
-        exec python3 -I -c 'import ctypes, os, sys; libc = ctypes.CDLL(None, use_errno=True); libc.prctl(36, 1, 0, 0, 0) == 0 or sys.exit("codex-run: cannot become child subreaper: " + os.strerror(ctypes.get_errno())); os.environ["CODEX_RUN_SUBREAPER"] = str(os.getpid()); os.execv(sys.argv[1], sys.argv[1:])' "$script" _run "$@"
-    fi
     local id=$1 state=$runs/$1 key value
     local model='' effort='' read_only='' task='' dir='' report='' to='' started='' on_stop='' tries=0 run_exit=0
     while IFS='=' read -r key value; do
@@ -510,9 +506,15 @@ stale() {
     return "$result"
 }
 
-root=$(python3 -I -B "$fabrig/tools/slots/lifetime.py" root "$root" 2>&1) || refuse "$root"
-runs=$root/tmp/codex-run
 mode=${1:-}
+# Bootstrap before path validation: the exec'd worker validates once, before
+# reading metadata. Exec preserves the adopting parent for orphan signals.
+if [[ $mode == _run && ${CODEX_RUN_SUBREAPER:-} != "$$" ]] && (($# == 2)); then
+    exec python3 -I -c 'import ctypes, os, sys; libc = ctypes.CDLL(None, use_errno=True); libc.prctl(36, 1, 0, 0, 0) == 0 or sys.exit("codex-run: cannot become child subreaper: " + os.strerror(ctypes.get_errno())); os.environ["CODEX_RUN_SUBREAPER"] = str(os.getpid()); os.execv(sys.argv[1], sys.argv[1:])' "$script" "${original_args[@]}"
+fi
+# Path-only helper modes use os/sys and require no site initialization.
+root=$(python3 -I -S -B "$fabrig/tools/slots/lifetime.py" root "$root" 2>&1) || refuse "$root"
+runs=$root/tmp/codex-run
 (($# == 0)) || shift
 case $mode in
     task) task_launch "$@" ;;
