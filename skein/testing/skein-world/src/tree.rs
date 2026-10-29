@@ -1235,7 +1235,7 @@ fn remove_cgroup(path: &Path) {
         if std::thread::panicking() {
             let _reported = writeln!(std::io::stderr().lock(), "removing cgroup {}: {error}", path.display());
         } else {
-            panic!("removing cgroup {}: {error}", path.display());
+            crate::fail(&format!("removing cgroup {}: {error}", path.display()));
         }
     }
 }
@@ -1278,7 +1278,7 @@ mod tests {
             }
         }
         let _remove = RemoveCgroup;
-        panic!("the scenario's failure");
+        crate::fail("the scenario's failure");
     }
 
     #[test]
