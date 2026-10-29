@@ -49,7 +49,9 @@ A budget is what a task may spend, in units its models' prices make of their usa
   below zero.
 - **Spent out:** a run that runs out of its turns, spend or time
   fails as a run fails: retried with a growing pause, then held, out
-  of tries. A task without enough for its next run is held for its
+  of tries. A retry of a run whose charter resumes its transcript
+  starts from the files its last attempt left, saved when it ended; a
+  run that starts afresh from its brief starts from a clean checkout. A task without enough for its next run is held for its
   budget, one past its deadline for its deadline, which comes first
   when both hold; `task show` prints `Held`, and its record names the
   reason and what lets it run: for its budget, more budget, then a
