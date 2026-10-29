@@ -1,22 +1,15 @@
 //! The hosted git codec and two-parent walk under the counting allocator.
-extern crate alloc;
 use skein_fake_forge_domain as domain;
-use skein_fake_forge_protocol::{
-    Config, Event, Faults, Hosted, Limits, Repository, Server, Service, closed, delivery, down, resume,
-    resume_with_domain, start, up, up_with_domain,
-};
 #[cfg(test)]
-#[path = "../src/tests/fixtures.rs"]
+#[path = "../../src/tests/fixtures.rs"]
 #[expect(dead_code, reason = "the protocol's shared fixture also serves route and document tests")]
 mod fixtures;
 #[cfg(test)]
 mod tests {
     use super::*;
     use skein_fake_forge_protocol::git;
-    use skein_heap::{Counting, Meter};
+    use skein_heap::Meter;
     use skein_lib::{List, Writer};
-    #[global_allocator]
-    static HEAP: Counting = Counting;
 
     fn bytes(count: u32, byte: u8) -> Box<[u8]> {
         let mut writer = Writer::new(count.try_into().expect("test bytes"));
