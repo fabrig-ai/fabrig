@@ -62,12 +62,12 @@ fn the_tasks_familys_code_and_goldens_have_no_drift() {
 
 #[test]
 fn the_people_familys_code_and_goldens_have_no_drift() {
-    check("people", 13, Names::Both);
+    check("people", 13, Names::Bounds);
 }
 
 #[test]
 fn the_core_familys_code_and_goldens_have_no_drift() {
-    check("core", 6, Names::Both);
+    check("core", 6, Names::Bounds);
 }
 
 #[test]
@@ -163,7 +163,7 @@ fn the_stores_layouts_have_no_drift() {
 
 #[test]
 fn the_secrets_familys_code_and_goldens_have_no_drift() {
-    check("secrets", 1, Names::Both);
+    check("secrets", 1, Names::Bounds);
 }
 
 #[test]
