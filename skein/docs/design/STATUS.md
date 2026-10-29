@@ -40,14 +40,13 @@ Updated 2026-10-29. How far skein's code is from its design.
 
 Memory and tier details that lag the contracts above:
 
-- **`codec.md`, 4, 8.1, 8.3:** lags: `Value::worst_case_heap` compatibility alias remains, until `ready/skein/a14-codec` lands. `Patcher::worst_case_heap` also delegates to `workspace_bound` for its remaining store caller; its retirement follows `ready/coord/docs-store-workspace-bound` and the caller's move.
-- **`json.md`, 2, 3.3, 4, 5; `llm.md`, 2, 4:** lags: five JSON and six LLM edge aliases keep the old names beside the bound names, until `ready/skein/a15-json-llm-names` lands. `skein_llm::client::worst_case`, `skein_http::client::worst_case` and `skein_http::sse::worst_case` retain their last smith readers.
-- **`testing.md`, 5; `io.md`, 5:** lags: `Files` and `FileIo` keep their unused sums, until `ready/skein/a16-files` lands.
+- **`codec.md`, 11.6, 11.7:** lags: `Patcher::worst_case_heap` delegates to `workspace_bound` for its remaining store caller, until `ready/coord/docs-store-workspace-bound-2` lands and that caller moves.
+- **`llm.md`, 4; `http.md`, 4.2, 5.6:** lags: `skein_llm::client::worst_case`, `skein_http::client::worst_case` and `skein_http::sse::worst_case` remain, until their last smith readers move.
 - **`oauth.md`, 6.7, 6.8:** lags: accounts and listener sums and their memory assertions remain, until `ready/skein/a17-oauth-accounts-tests` and `ready/skein/a22-tls-http-io` land.
 - **`io.md`, 5.3:** lags: a private load refuses the first replace between open and stat, until `ready/skein/a18-io-replace-race` lands.
 - **`llm-connection.md`, 8:** lags: its memory tests retain their computed envelopes, until `ready/skein/a19-llm-connection-ceilings` lands.
 - **`tls.md`, 2, 3.5, 3.6; `http.md`, 5.6; `io.md`, 2; `examples.md`, 3.2; `ui-text.md`, 3:** lags: TLS-client, HTTP-server and io sums remain exported, until `ready/skein/a22-tls-http-io` lands. Their limits retain the edge and derived-capacity checks described by `valid`.
 - **`fake-llm.md`, 5:** lags: fake-domain and cache sums remain, until `skein/a23-llm-tests` lands. The published branch uses scenario ceilings; no ready ref was available at review.
-- **`oauth.md`, 5, 6.8; `oauth-issuer.md`, 9:** lags: OAuth-client and common sums, fake OAuth's sum and its terms/OpenID sums remain on main, until `skein/a24-oauth` lands. Its published tip removes the fake sums and changes the memory tests, but still exports the client and common sums; no ready ref was available at review.
+- **`oauth.md`, 5, 6.8; `oauth-issuer.md`, 9:** lags: OAuth-client and common sums, fake OAuth's sum and its terms/OpenID sums remain, until `ready/skein/a24-oauth` lands. The generated v3 module keeps `Both` names until jig's last v3 callers move.
 - **`testing.md`, 5; `world.md`, 8:** lags: kernel-free ring/real-loop mechanics and binary-observation tests, until `ready/skein/l3-world-lower` lands. Counts mark tree settlement independently of stderr; observation remains nonempty until EOF and descriptor closes drain.
 - **`testing.md`, 5; `world.md`, 8:** lags: the remaining world real-loop and end-to-end behaviour rows move to lower tiers, until `skein/t4-shrink-world-2` lands; no ready ref was available at review. The three real `skein_shell::drive` scheduling paths stay above.
