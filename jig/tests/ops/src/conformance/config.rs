@@ -2,7 +2,7 @@
 use jig_domain_host as host;
 use jig_ops_domain::{Config, Limits};
 use jig_ops_domain_infrastructure as infrastructure;
-use skein_lib::{Duration, JournalLimits};
+use skein_lib::Duration;
 
 #[must_use]
 #[expect(clippy::too_many_lines, reason = "the fixture lists every child bound")]
@@ -57,7 +57,6 @@ pub fn root_for(seed: u64, environment_chat: bool) -> (Config, Limits) {
     core_limits.brief.brief_bytes = 8192;
     core_limits.brief.read_bytes = 8192;
     core_limits.call_answer_bytes = 1024;
-    let journal = JournalLimits { commits: 4, writes: 20000, held: 20000, now: 128, release: 128 };
     let mut limits = Limits {
         core: core_limits,
         infrastructure: crate::infrastructure_limits(),
@@ -86,8 +85,8 @@ pub fn root_for(seed: u64, environment_chat: bool) -> (Config, Limits) {
         },
         charter: smith_charter::v4::CEILINGS,
         endpoints: 1,
-        journal,
-        watermark: jig_ops_domain::default_watermark(&journal),
+        release: 128,
+        watermark: jig_ops_domain::default_watermark(4, 128),
         routes: 256,
     };
     let mut config = Config {

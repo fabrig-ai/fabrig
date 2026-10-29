@@ -4,7 +4,6 @@ use jig_domain_core as core;
 use jig_domain_host as host;
 use jig_ops_domain_infrastructure as infrastructure;
 use jig_ops_domain_observability as observability;
-use skein_lib::JournalLimits;
 
 /// Each child receives its own limits; the root owns its admission pacing.
 #[derive(Clone, Copy, Debug)]
@@ -21,8 +20,8 @@ pub struct Limits {
     pub charter: smith_charter::v4::Limits,
     /// How many endpoint names the charter codec holds.
     pub endpoints: u32,
-    /// The one commit barrier.
-    pub journal: JournalLimits,
+    /// Held outputs the journal releases in one call (`domain/root.md` 4).
+    pub release: u32,
     /// New external work waits while the backlog is at or past this many
     /// entries (skein's draft `dynamic-memory.md`, 4.4); a pacing limit,
     /// not a memory one.
@@ -31,9 +30,9 @@ pub struct Limits {
     pub routes: u32,
 }
 
-/// The watermark's default: the journal's commits plus the outputs its
-/// door holds (`domain/root.md` 10).
+/// The watermark's default: `commits` in flight plus the `door`'s outputs
+/// (`domain/root.md` 10).
 #[must_use]
-pub fn default_watermark(journal: &JournalLimits) -> u32 {
-    journal.commits.checked_add(journal.now).expect("journal commits plus door outputs fit")
+pub fn default_watermark(commits: u32, door: u32) -> u32 {
+    commits.checked_add(door).expect("journal commits plus door outputs fit")
 }

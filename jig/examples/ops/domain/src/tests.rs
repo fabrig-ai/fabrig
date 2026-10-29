@@ -7,7 +7,7 @@ use jig_domain_core as core;
 use jig_domain_host as host;
 use jig_ops_domain_infrastructure as infrastructure;
 use jig_ops_domain_observability as observability;
-use skein_lib::{Duration, Env, JournalLimits, List, Queue, Time, Token, Wall};
+use skein_lib::{Duration, Env, List, Queue, Time, Token, Wall};
 
 fn fixture() -> (Domain, Env<Limits>) {
     fixture_with_commits(1)
@@ -17,7 +17,6 @@ fn fixture_with_commits(commits: u32) -> (Domain, Env<Limits>) {
     let mut core_limits = jig_core_world::world::limits().core;
     core_limits.fleet.engine_slots = 1;
     core_limits.tasks.hold_kinds = 3;
-    let journal = JournalLimits { commits, writes: 20000, held: 20000, now: 128, release: 128 };
     let limits = Limits {
         core: core_limits,
         infrastructure: jig_ops_world::infrastructure_limits(),
@@ -46,8 +45,8 @@ fn fixture_with_commits(commits: u32) -> (Domain, Env<Limits>) {
         },
         charter: smith_charter::v4::CEILINGS,
         endpoints: 1,
-        journal,
-        watermark: crate::default_watermark(&journal),
+        release: 128,
+        watermark: crate::default_watermark(commits, 128),
         routes: 256,
     };
     let mut config = Config {
