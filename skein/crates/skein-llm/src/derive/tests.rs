@@ -81,7 +81,7 @@ fn read_head(limits: http::Limits, wire: &[u8]) -> Result<http::Response, http::
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let mut above = Queue::uncapped();
     let mut below = Queue::uncapped();
-    let mut intake = Intake::with_capacity(u32::try_from(wire.len()).unwrap());
+    let mut intake = Intake::with_capacity(limits.head.max(u32::try_from(wire.len()).unwrap()));
     intake.append(wire).unwrap();
     http::down(
         &mut machine,
