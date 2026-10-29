@@ -30,7 +30,7 @@ fn limits() -> crate::Limits {
         messages: 1,
         calls: 1,
         call_bytes: 64,
-        answer_bytes: crate::Delivered::worst_case(),
+        answer_bytes: crate::Delivered::owned_bound(),
         turns: 1,
         turn_bytes: 64,
         unacknowledged_bytes: 64,
@@ -640,7 +640,7 @@ fn invalid_limits_are_refused() {
         crate::Limits { turns: 0, ..limits },
         crate::Limits { turn_bytes: 0, ..limits },
         crate::Limits { unacknowledged_bytes: limits.turn_bytes - 1, ..limits },
-        crate::Limits { answer_bytes: crate::Delivered::worst_case() - 1, ..limits },
+        crate::Limits { answer_bytes: crate::Delivered::owned_bound() - 1, ..limits },
         // Leave room in the outbox so only the entry output count overflows.
         crate::Limits { calls: u32::MAX - 8, messages: 0, accounts: 0, turns: 1, ..limits },
         crate::Limits { messages: u32::MAX, ..limits },

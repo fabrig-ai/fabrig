@@ -98,13 +98,19 @@ impl Delivered {
 
     /// Maximum owned receipt storage of any constructor-accepted terminal.
     #[must_use]
-    pub fn worst_case() -> u64 {
+    pub fn owned_bound() -> u64 {
         u64::from(MAX_DIRECTORIES)
             .checked_mul(
                 u64::try_from(size_of::<Receipt>().checked_add(Receipt::CAPACITY).expect("fixed receipt sum"))
                     .expect("fixed receipt size"),
             )
             .expect("fixed terminal size")
+    }
+
+    /// Kept for readers outside smith until they move to `owned_bound`.
+    #[must_use]
+    pub fn worst_case() -> u64 {
+        Self::owned_bound()
     }
 }
 
@@ -403,7 +409,7 @@ mod tests {
                 .expect("fixed directory cap");
         }
         let delivered = Delivered::new(receipts.into_boxed()).expect("unique full terminal");
-        assert_eq!(delivered.owned_bytes(), Delivered::worst_case());
+        assert_eq!(delivered.owned_bytes(), Delivered::owned_bound());
         let marker = Marker::new(63, bytes(4096)).expect("exact relative path cap");
         let refusal = DeliveryRefusal::new(Some(marker), bytes(512)).expect("exact explanation cap");
         assert_eq!(refusal.owned_bytes(), 4608);

@@ -130,7 +130,7 @@ pub fn limits() -> Limits {
         messages: 3,
         calls: 2,
         call_bytes: 128,
-        answer_bytes: host::Delivered::worst_case(),
+        answer_bytes: host::Delivered::owned_bound(),
         turns: 2,
         turn_bytes: 512,
         unacknowledged_bytes: 1024,
