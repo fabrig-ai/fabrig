@@ -5,7 +5,11 @@
 use core::cell::Cell;
 use core::fmt;
 use core::fmt::Write;
+#[cfg(target_os = "linux")]
 use std::path::PathBuf;
+
+mod process;
+use process::{Boot, Proc, Processes};
 
 use skein_lib::{Duration, Time};
 use skein_shell::Clock;
@@ -24,19 +28,19 @@ pub struct Deadline {
     start: Time,
     until: Time,
     thread: Option<Sched>,
-    tree: TreeWatch,
+    trees: Vec<TreeWatch>,
+    boot: Option<Boot>,
 }
 
 #[derive(Debug)]
 enum TreeWatch {
-    None,
     #[cfg(target_os = "linux")]
     Cgroup {
         path: PathBuf,
         start: Option<u64>,
         last: Cell<Option<u64>>,
     },
-    Threads(Vec<(PathBuf, Sched)>),
+    Threads(Processes),
 }
 
 /// A passed deadline, by its scheduler accounting.
@@ -56,8 +60,8 @@ pub struct Figures {
     pub elapsed: Duration,
     pub thread_waited: Option<Duration>,
     pub thread_cpu: Option<Duration>,
-    /// Cgroup CPU pressure's `some` stall, else the largest single owned
-    /// thread's runnable-wait delta. Concurrent thread waits are never summed.
+    /// The largest runnable wait across all watched sources: each cgroup's
+    /// `some` stall or owned descendant thread's delta. Waits are never summed.
     pub tree_waited: Option<Duration>,
 }
 
@@ -150,20 +154,23 @@ impl Deadline {
             start,
             until: start.saturating_add(patience),
             thread: thread_sched(),
-            tree: TreeWatch::None,
+            trees: Vec::new(),
+            boot: Boot::read(),
         }
     }
 
-    /// Also measures a binary's owned tree: its cgroup, else its owned threads.
+    /// Adds a binary's owned tree: its cgroup, else its processes and descendants.
+    /// Earlier watches remain measured; this keeps no borrow of the binary.
     pub fn watch(&mut self, binary: &Binary) {
-        self.tree = TreeWatch::None;
         if let Some(tree) = binary.keeper() {
             self.watch_tree(tree);
         }
     }
 
-    /// Measures every thread of a process the caller spawned and owns.
-    /// The test's own process ID covers its helper threads.
+    /// Adds a process the caller spawned and owns, and its descendants.
+    /// The test's own process ID covers its helper threads and children.
+    /// Threads first seen at expiry count from zero only when their process
+    /// started after arming; unreadable or vanished threads contribute nothing.
     pub fn watch_process(&mut self, pid: u32) {
         self.watch_threads(&[pid]);
     }
@@ -175,24 +182,11 @@ impl Deadline {
     #[cfg(target_os = "linux")]
     pub(crate) fn watch_cgroup(&mut self, path: PathBuf) {
         let start = pressure(&path);
-        self.tree = TreeWatch::Cgroup { path, start, last: Cell::new(start) };
+        self.trees.push(TreeWatch::Cgroup { path, start, last: Cell::new(start) });
     }
 
     pub(crate) fn watch_threads(&mut self, pids: &[u32]) {
-        let mut threads = Vec::new();
-        if cfg!(target_os = "linux") {
-            for pid in pids {
-                if let Ok(tasks) = std::fs::read_dir(format!("/proc/{pid}/task")) {
-                    for task in tasks.flatten() {
-                        let path = task.path().join("schedstat");
-                        if let Some(sched) = read_sched(&path) {
-                            threads.push((path, sched));
-                        }
-                    }
-                }
-            }
-        }
-        self.tree = TreeWatch::Threads(threads);
+        self.trees.push(TreeWatch::Threads(Processes::arm(pids, &Proc::Live)));
     }
 
     /// Whether the deadline has passed.
@@ -233,18 +227,7 @@ impl Deadline {
     fn classify_at(&self, what: &'static str, patience: Duration, now: Time, end: Option<Sched>) -> Expired {
         let sched = sched_elapsed(self.thread, end);
         self.sample_pressure();
-        let (tree_waited, kind) = match &self.tree {
-            TreeWatch::None => (None, "threads"),
-            #[cfg(target_os = "linux")]
-            TreeWatch::Cgroup { start, last, .. } => (
-                match start.zip(last.get()) {
-                    Some((start, last)) => last.checked_sub(start).map(Duration::from_nanos),
-                    None => None,
-                },
-                "cgroup",
-            ),
-            TreeWatch::Threads(threads) => (threads_waited(threads), "threads"),
-        };
+        let (tree_waited, kind) = self.watched_wait(&Proc::Live);
         let (thread_cpu, thread_waited) = match sched {
             Some(sched) => (Some(Duration::from_nanos(sched.cpu)), Some(Duration::from_nanos(sched.waited))),
             None => (None, None),
@@ -270,12 +253,27 @@ impl Deadline {
         self.start
     }
 
+    fn watched_wait(&self, proc: &Proc) -> (Option<Duration>, &'static str) {
+        let mut tree_waited = None;
+        let mut kind = "threads";
+        for tree in &self.trees {
+            let (waited, source_kind) = tree.waited(proc, self.boot);
+            if waited.is_some() && (tree_waited.is_none() || waited > tree_waited) {
+                tree_waited = waited;
+                kind = source_kind;
+            }
+        }
+        (tree_waited, kind)
+    }
+
     fn sample_pressure(&self) {
         #[cfg(target_os = "linux")]
-        if let TreeWatch::Cgroup { path, last, .. } = &self.tree
-            && let Some(value) = pressure(path)
-        {
-            last.set(Some(value));
+        for tree in &self.trees {
+            if let TreeWatch::Cgroup { path, last, .. } = tree
+                && let Some(value) = pressure(path)
+            {
+                last.set(Some(value));
+            }
         }
     }
 }
@@ -293,14 +291,17 @@ pub(crate) fn starved(patience: Duration, waited: u64) -> bool {
     waited >= patience.as_nanos().div_ceil(2)
 }
 
-fn threads_waited(threads: &[(PathBuf, Sched)]) -> Option<Duration> {
-    let mut largest = None;
-    for (path, start) in threads {
-        if let Some(delta) = sched_elapsed(Some(*start), read_sched(path)) {
-            largest = largest_wait(largest, Some(delta));
+impl TreeWatch {
+    fn waited(&self, proc: &Proc, boot: Option<Boot>) -> (Option<Duration>, &'static str) {
+        match self {
+            #[cfg(target_os = "linux")]
+            Self::Cgroup { start, last, .. } => (
+                start.zip(last.get()).and_then(|(start, last)| last.checked_sub(start)).map(Duration::from_nanos),
+                "cgroup",
+            ),
+            Self::Threads(processes) => (processes.waited(proc, boot), "threads"),
         }
     }
-    largest.map(Duration::from_nanos)
 }
 
 fn largest_wait(largest: Option<u64>, delta: Option<Sched>) -> Option<u64> {
@@ -308,10 +309,6 @@ fn largest_wait(largest: Option<u64>, delta: Option<Sched>) -> Option<u64> {
         Some(delta) => Some(largest.unwrap_or(0).max(delta.waited)),
         None => largest,
     }
-}
-
-fn read_sched(path: &std::path::Path) -> Option<Sched> {
-    parse_schedstat(&std::fs::read_to_string(path).ok()?)
 }
 
 #[cfg(target_os = "linux")]
@@ -370,12 +367,12 @@ pub(crate) fn sched_elapsed(start: Option<Sched>, end: Option<Sched>) -> Option<
 
 #[cfg(test)]
 mod tests {
-    #[cfg(target_os = "linux")]
-    use super::{Cell, PathBuf};
     use super::{
-        Deadline, Duration, Expired, Figures, Sched, Time, TreeWatch, classify, largest_wait, parse_pressure,
+        Boot, Deadline, Duration, Expired, Figures, Sched, Time, TreeWatch, classify, largest_wait, parse_pressure,
         parse_schedstat, sched_elapsed, starved,
     };
+    #[cfg(target_os = "linux")]
+    use super::{Cell, PathBuf};
 
     #[test]
     fn referee_patience_is_its_deadline_since_the_runs_start() {
@@ -385,7 +382,8 @@ mod tests {
             start: Time::from_nanos(7),
             until: Time::from_nanos(1_000_000_007),
             thread: None,
-            tree: TreeWatch::None,
+            trees: Vec::new(),
+            boot: Boot::read(),
         };
         let Expired::Failed(figures) = deadline.expired_at("the referee's expectation", Time::from_nanos(107)) else {
             crate::fail("unavailable accounting fails");
@@ -404,7 +402,8 @@ mod tests {
             start: Time::from_nanos(7),
             until: Time::from_nanos(1007),
             thread: Some(Sched { cpu: 100, waited: 200 }),
-            tree: TreeWatch::None,
+            trees: Vec::new(),
+            boot: Boot::read(),
         };
         for (waited, expected) in [(49, false), (50, true), (51, true)] {
             let expired = deadline.classify_at(
@@ -562,15 +561,15 @@ mod tests {
         let mut deadline = Deadline::arm("the gone cgroup", Duration::ZERO);
         deadline.thread = None;
         // A missing file in this process's proc directory supplies an unavailable read.
-        deadline.tree = TreeWatch::Cgroup {
+        deadline.trees.push(TreeWatch::Cgroup {
             path: PathBuf::from("/proc/thread-self/skein-missing-pressure"),
             start: Some(1000),
             last: Cell::new(Some(6000)),
-        };
+        });
         let Expired::Starved(starved) = deadline.expired() else { crate::fail("the saved cgroup figure classifies") };
         assert_eq!(starved.figures().tree_waited, Some(Duration::from_nanos(5000)));
         assert!(starved.line().ends_with("; tree waited 0 ms (cgroup)"));
-        if let TreeWatch::Cgroup { last, .. } = &deadline.tree {
+        if let Some(TreeWatch::Cgroup { last, .. }) = deadline.trees.first() {
             last.set(None);
         }
         let Expired::Failed(figures) = deadline.expired() else {
@@ -620,14 +619,16 @@ mod tests {
         let has_cgroup = binary.keeper().and_then(crate::tree::Tree::cgroup).is_some();
         let mut deadline = Deadline::arm("the accounting observation", Duration::from_millis(20));
         deadline.watch(&binary);
-        let (is_cgroup, source) = match &deadline.tree {
+        let (is_cgroup, source) = match deadline.trees.first().expect("a watch adds a source") {
             TreeWatch::Cgroup { start, .. } => {
                 (true, format!("cgroup pressure baseline={}", super::figure(start.map(Duration::from_nanos))))
             }
             TreeWatch::Threads(threads) => (false, format!("cgroup absent; {} readable owned threads", threads.len())),
-            TreeWatch::None => crate::fail("a started binary has an accounting source"),
         };
         assert_eq!(is_cgroup, has_cgroup);
+        deadline.watch_process(std::process::id());
+        deadline.watch(&binary);
+        assert_eq!(deadline.trees.len(), 3, "binary and process watches accumulate");
         std::thread::sleep(core::time::Duration::from_nanos(deadline.remaining().as_nanos()));
         let expired = deadline.expired();
         drop(binary);
@@ -641,5 +642,39 @@ mod tests {
             }
             Expired::Starved(starved) => starved.pass(),
         }
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    #[expect(clippy::print_stderr, reason = "the report records both live sources and the deadline figures")]
+    fn watching_our_process_and_an_idle_child_keeps_both_sources() {
+        let mut child = std::process::Command::new("/bin/sleep").arg("10").spawn().expect("spawn idle child");
+        // Let the child enter its idle wait before taking the scheduler baseline.
+        let startup = Deadline::arm("the idle child's startup", Duration::from_millis(20));
+        std::thread::sleep(core::time::Duration::from_nanos(startup.remaining().as_nanos()));
+        let mut deadline = Deadline::arm("our process and idle child", Duration::from_millis(20));
+        assert!(deadline.boot.is_some(), "Linux exposes the shared boot-clock origin");
+        deadline.watch_process(std::process::id());
+        deadline.watch_process(child.id());
+        std::thread::sleep(core::time::Duration::from_nanos(deadline.remaining().as_nanos()));
+        assert_eq!(deadline.trees.len(), 2, "each watch keeps a source");
+        let sources: Vec<_> =
+            deadline.trees.iter().map(|tree| tree.waited(&super::Proc::Live, deadline.boot).0).collect();
+        let expired = deadline.expired();
+        child.kill().expect("end idle child");
+        child.wait().expect("reap idle child");
+        let figures = match expired {
+            Expired::Failed(figures) => figures,
+            Expired::Starved(starved) => starved.pass(),
+        };
+        for source in &sources {
+            assert!(source.is_some(), "each owned process has readable accounting: {sources:?}; {:?}", deadline.trees);
+            let waited = source.expect("checked readable accounting");
+            assert!(waited.as_nanos() < figures.patience.as_nanos().div_ceil(2));
+        }
+        let waited = figures.tree_waited.expect("both owned processes have readable accounting");
+        assert!(waited.as_nanos() < figures.patience.as_nanos().div_ceil(2));
+        let sources = sources.iter().copied().map(super::figure).collect::<Vec<_>>().join(", ");
+        eprintln!("deadline accounting: own process and child: sources=[{sources}]; {figures}");
     }
 }
