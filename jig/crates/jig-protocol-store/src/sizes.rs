@@ -2,6 +2,14 @@
 use crate::{accounts_v2, codec, component_v3, core_v6, notes_v1, people_v13, tasks_v9};
 use jig_domain_core as core;
 
+/// Decoded byte allowance for a two-row restart page (protocol/store.md, 7.2).
+/// Application rows count untagged keys and values; jig rows and joined
+/// census owners count their encoded values, each within this row bound.
+#[must_use]
+pub fn restore_bytes(limits: &crate::Limits) -> Option<u64> {
+    u64::from(limits.store.key).checked_add(u64::from(limits.store.value))?.checked_mul(2)
+}
+
 /// Largest current full turn frame for the admitted transcript byte bound,
 /// including metadata and framing (protocol/store.md, 8.1 and 8.6).
 /// Reject an out-of-codec bound or arithmetic overflow; never clamp it.

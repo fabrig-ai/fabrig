@@ -140,7 +140,7 @@ pub struct Component {
 pub fn root_limits() -> jig_test_domain::Limits {
     jig_core_world::world::limits()
 }
-pub fn component() -> Component {
+pub fn component_limits() -> jig_protocol_store::Limits {
     let root = root_limits();
     let kv = skein_kv::Limits {
         key: 1024,
@@ -156,7 +156,7 @@ pub fn component() -> Component {
         page: skein_kv::Page { rows: 2, bytes: 16_778_240 },
         deadline: skein_lib::Duration::from_secs(1),
     };
-    let limits = jig_protocol_store::Limits {
+    jig_protocol_store::Limits {
         core: root.core,
         store: kv,
         secrets: kv,
@@ -167,7 +167,12 @@ pub fn component() -> Component {
         reads: 4,
         orphan_erases: 1,
         held: 2,
-    };
+    }
+}
+pub fn component() -> Component {
+    let root = root_limits();
+    let limits = component_limits();
+    let kv = limits.store;
     let stores =
         jig_protocol_store::Stores { store: skein_kv::Store::memory(&kv), secrets: skein_kv::Store::memory(&kv) };
     let store = jig_protocol_store::Store::over(&limits, crate::application(&root.connector), &[], stores);
@@ -188,6 +193,7 @@ fn matches_opened(above: &mut skein_lib::Queue<jig_protocol_store::Event>) -> bo
 pub fn routes() -> crate::route::Routes {
     let mut routes = crate::route::Routes::new(8);
     routes.configure(&root_limits());
+    routes.configure_restore(&component_limits()).expect("restart page bounds fit");
     routes
 }
 pub fn send(

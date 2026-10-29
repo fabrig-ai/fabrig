@@ -330,14 +330,10 @@ fn the_census_hands_up_conversations_before_result_rows() {
 }
 
 #[test]
+#[should_panic(expected = "empty nonterminal restore page must advance its cursor")]
 fn the_census_counts_the_joined_task_against_decoded_bytes() {
     let mut store = census_store(true);
-    let (rows, next) = page(restore(&mut store, census(), None, 2, 100));
-    assert!(rows.is_empty());
-    assert!(next.is_some());
-    let (rows, next) = page(restore(&mut store, census(), next, 2, 65_536));
-    assert_eq!(next, None);
-    assert_eq!(jig_rows(rows).as_ref(), &[fixtures::ended_task(ENDED)]);
+    restore(&mut store, census(), None, 2, 100);
 }
 
 fn application_store() -> Store {
@@ -443,7 +439,86 @@ fn the_census_never_parts_an_ended_read_position_from_its_task() {
             after: keys::encode(&ended_position(ENDED).key(), fixtures::KEY_LIMIT).expect("position key")
         })
     );
-    let (rows, next) = page(restore(&mut store, census(), None, 1, 65_536));
-    assert!(rows.is_empty());
+}
+
+#[test]
+#[should_panic(expected = "empty nonterminal restore page must advance its cursor")]
+fn a_census_pair_without_room_for_both_rows_panics() {
+    let mut store = positions_store();
+    restore(&mut store, census(), None, 1, 65_536);
+}
+
+#[test]
+#[should_panic(expected = "empty nonterminal restore page must advance its cursor")]
+fn an_initial_empty_nonterminal_page_panics() {
+    let mut store = application_store();
+    application_page(&mut store, None, 0);
+}
+
+#[test]
+#[should_panic(expected = "empty nonterminal restore page must advance its cursor")]
+fn a_subsequent_empty_nonterminal_page_panics() {
+    let mut store = application_store();
+    let (_, next) = page(application_page(&mut store, None, 3));
     assert!(next.is_some());
+    application_page(&mut store, next, 0);
+}
+
+#[test]
+fn an_empty_terminal_page_is_legal() {
+    let mut store = fixtures::opened();
+    let (rows, next) = page(application_page(&mut store, None, 0));
+    assert!(rows.is_empty());
+    assert_eq!(next, None);
+}
+
+#[test]
+fn the_restore_allowance_fits_maximum_application_rows() {
+    let mut store = fixtures::opened();
+    let mut key = skein_lib::bytes::zeroed(usize::try_from(fixtures::APPLICATION.key).expect("fixture key bound"));
+    key.fill(b'a');
+    let first = key.clone();
+    *key.last_mut().expect("nonempty key") = b'b';
+    let second = key;
+    let mut value =
+        skein_lib::bytes::zeroed(usize::try_from(fixtures::APPLICATION.value).expect("fixture value bound"));
+    value.fill(7);
+    fixtures::committed(
+        &mut store,
+        Box::new([
+            fixtures::header(1),
+            Write::Put { key: first.clone(), value: value.clone() },
+            Write::Put { key: second.clone(), value: value.clone() },
+        ]),
+    );
+    let bytes = crate::sizes::restore_bytes(&store.limits).expect("restart allowance fits");
+    let ranges = Box::new([skein_kv::Range::prefix(b"a")]);
+    let (rows, next) = page(restore(&mut store, Restore::Application(ranges), None, 2, bytes));
+    assert_eq!(next, None);
+    assert_eq!(rows.len(), 2);
+    for (row, expected) in rows.into_iter().zip([first, second]) {
+        let Row::Application { key, value: found } = row else { panic!("application row") };
+        assert_eq!(key, expected);
+        assert_eq!(found, value);
+    }
+}
+
+#[test]
+fn the_restore_allowance_fits_atomic_census_pairs_and_resumes_exclusively() {
+    let mut store = positions_store();
+    let bytes = crate::sizes::restore_bytes(&store.limits).expect("restart allowance fits");
+    let (rows, next) = page(restore(&mut store, census(), None, 2, bytes));
+    assert_eq!(jig_rows(rows).as_ref(), &[ended_position(ENDED), fixtures::ended_task(ENDED)]);
+    assert!(next.is_some());
+    let (rows, next) = page(restore(&mut store, census(), next, 2, bytes));
+    assert_eq!(jig_rows(rows).as_ref(), &[ended_position(SECOND_ENDED), fixtures::ended_task(SECOND_ENDED)]);
+    assert_eq!(next, None);
+}
+
+#[test]
+fn an_empty_page_can_advance_its_interval_with_the_same_key() {
+    let cursor = Cursor { interval: 1, after: Box::from(b"a".as_slice()) };
+    let walked =
+        crate::pages::Decoded { rows: Box::new([]), next: Some(Cursor { interval: 2, after: cursor.after.clone() }) };
+    crate::restore::assert_progress(Some(cursor), &walked);
 }

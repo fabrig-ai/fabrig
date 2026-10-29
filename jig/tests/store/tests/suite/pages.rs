@@ -56,3 +56,44 @@ fn a_secret_kept_survives_a_crash() {
     };
     assert_eq!(secret.expose(), b"private credential");
 }
+
+#[test]
+fn maximum_writer_rows_restore_across_a_crash_above_the_ordinary_read_allowance() {
+    use jig_protocol_store::{Request, Restore, Row, sizes};
+    use skein_lib::Token;
+    let mut limits = root::limits();
+    limits.core.load_bytes = 1;
+    let mut world = World::unopened_observed(19, limits, None);
+    assert_eq!(world.open(), Some(0));
+    assert_eq!(world.commit(root::first()), Some(1));
+    let first = vec![b'a'; usize::try_from(root::APPLICATION.key).expect("application key bound")].into_boxed_slice();
+    let second = vec![b'b'; first.len()].into_boxed_slice();
+    let value = vec![7; usize::try_from(root::APPLICATION.value).expect("application value bound")].into_boxed_slice();
+    assert_eq!(
+        world.commit(Box::new([
+            Write::Save(root::header(2)),
+            Write::Put { key: first.clone(), value: value.clone() },
+            Write::Put { key: second.clone(), value: value.clone() },
+        ])),
+        Some(2)
+    );
+    world.crash(19);
+    let restored = world.reopen();
+    Referee::check(&world.model, &restored).expect("whole committed prefix after crash");
+    let mut after = None;
+    for (index, expected) in [first, second].into_iter().enumerate() {
+        let events = world.request(Request::Restore {
+            owner: Token::new(1),
+            range: Restore::Application(Box::new([skein_kv::Range::prefix(b"")])),
+            after,
+            rows: 1,
+            bytes: sizes::restore_bytes(&limits).expect("restart allowance fits"),
+        });
+        let [Event::Restored { rows, next, .. }] = events.as_slice() else { panic!("restore page: {events:?}") };
+        let [Row::Application { key, value: found }] = rows.as_ref() else { panic!("one application row") };
+        assert_eq!(*key, expected);
+        assert_eq!(*found, value);
+        assert_eq!(next.is_some(), index == 0);
+        after = next.clone();
+    }
+}

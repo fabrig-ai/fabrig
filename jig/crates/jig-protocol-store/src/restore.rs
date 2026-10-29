@@ -28,6 +28,7 @@ pub(crate) fn restore(
         above.push(Event::Corrupt { owner });
         return;
     };
+    assert_progress(after, &walked);
     if let Some(interval) = people {
         let done = match &walked.next {
             Some(next) => next.interval > interval,
@@ -42,6 +43,19 @@ pub(crate) fn restore(
         }
     }
     above.push(Event::Restored { owner, rows: walked.rows, next: walked.next });
+}
+
+/// An empty page either ends the walk or advances its exclusive place.
+pub(crate) fn assert_progress(after: Option<Cursor>, walked: &Restored) {
+    if walked.rows.is_empty()
+        && let Some(next) = &walked.next
+    {
+        let initial = after.unwrap_or(Cursor { interval: 0, after: Box::new([]) });
+        assert!(
+            next.interval > initial.interval || (next.interval == initial.interval && next.after > initial.after),
+            "empty nonterminal restore page must advance its cursor"
+        );
+    }
 }
 
 fn restore_page(store: &mut Store, range: Restore, after: Option<&Cursor>, rows: u32, bytes: u64) -> Option<Restored> {
