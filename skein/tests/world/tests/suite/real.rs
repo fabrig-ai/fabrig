@@ -282,7 +282,7 @@ fn a_zero_patience_deadline_reports_the_failing_iteration() {
     const CHILD: &str = "SKEIN_ZERO_PATIENCE_CHILD";
     if std::env::var_os(CHILD).is_none() {
         let output = std::process::Command::new(std::env::current_exe().expect("test binary"))
-            .args(["--exact", "a_zero_patience_deadline_reports_the_failing_iteration", "--nocapture"])
+            .args(["--exact", "real::a_zero_patience_deadline_reports_the_failing_iteration", "--nocapture"])
             .env(CHILD, "1")
             .env_remove("NEXTEST")
             .output()

@@ -11,9 +11,6 @@ use skein_world_tests::roots::{
     append_child, appends, file_child, missing_appends, missing_roots, roots, waiting_child,
 };
 
-#[global_allocator]
-static HEAP: skein_heap::Counting = skein_heap::Counting;
-
 const REPLAY: &[(bool, bool)] = &[(false, false), (true, false), (false, true)];
 
 #[test]

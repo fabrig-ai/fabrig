@@ -1,14 +1,10 @@
 //! Checked real-process ownership, including buffers returned after a kill.
 
-use skein_heap::Counting;
 use skein_io::kernel::{Exit, Signal, Spawn};
 use skein_lib::Duration;
 use skein_shell::{Clock, open_root};
 use skein_world::{HostedProgram, Inherited, real};
 use skein_world_tests::hosted::{Act, Judge, Script};
-
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 #[test]
 fn a_ring_the_loop_grows_is_charged_to_its_process() {

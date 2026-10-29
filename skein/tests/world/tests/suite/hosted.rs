@@ -1,14 +1,10 @@
 //! Hosting through the world harness, with scripted services on raw pipes.
 
-use skein_heap::Counting;
 use skein_io::kernel::{Complete, Error, Exit, Fd, Op, Spawn, Submit};
 use skein_lib::{Queue, Time, Token, Wall};
 use skein_sim::{Config, Handle};
 use skein_world::{Cut, Host, HostedProgram, Inherited, Machine, Memory, Referee, StartupRoot, World};
 use skein_world_tests::hosted::{Act, Judge, RootMachine, Script};
-
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 fn child(spawn: &Spawn, inherited: &Inherited) -> Script {
     assert_eq!(&*spawn.args[0], b"argument");

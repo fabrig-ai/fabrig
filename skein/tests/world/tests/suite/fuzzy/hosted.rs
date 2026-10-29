@@ -1,10 +1,6 @@
 //! Hosted process interleavings, replay and ownership over deterministic seeds.
 
-use skein_heap::Counting;
 use skein_world_tests::hosted::{Story, check_story, story};
-
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 #[test]
 fn every_hosted_story_settles_replays_and_frees_its_own_heap_over_seeds() {

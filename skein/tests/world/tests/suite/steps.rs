@@ -1,6 +1,5 @@
 //! The product world's steps, clock, inputs and bounded process output.
-#[path = "steps/support.rs"]
-mod support;
+use crate::support;
 
 use skein_lib::{Rng, Time};
 use skein_sim::{Config, Trace};

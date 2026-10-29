@@ -2,15 +2,11 @@
 
 use std::io::Write;
 
-use skein_heap::Counting;
 use skein_io::kernel::{Complete, Exit, Spawn, Submit};
 use skein_lib::{Duration, Queue, Time, Wall};
 use skein_sim::{Config, Faults, Handle};
 use skein_world::{Host, HostedProgram, Inherited, Memory, PipeHost, PipeWriter, World, real};
 use skein_world_tests::hosted::{Act, Judge, RootMachine, Script};
-
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 #[derive(Debug)]
 struct Diagnostic {

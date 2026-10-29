@@ -3,9 +3,6 @@ use skein_world::{Digests, Host, Machine, NoMachine, StateDigests};
 use skein_world_tests::fixtures::{exchange, scripts};
 use skein_world_tests::{Act, Script, ms};
 
-#[global_allocator]
-static HEAP: skein_heap::Counting = skein_heap::Counting;
-
 #[test]
 fn an_outcome_gives_each_process_s_digest_and_the_machine_s() {
     let outcome = exchange(7, Digests::Untraced, 3).run();

@@ -4,14 +4,10 @@
 //! ceiling, and one that leaks; and a seed that replays. Under the counting
 //! allocator, as every world here checks memory.
 
-use skein_heap::Counting;
 use skein_lib::Duration;
 use skein_sim::{Config, Event, Fault, Faults, Summary};
 use skein_world::{Memory, Outcome, World};
 use skein_world_tests::{Expect, Judge, Script, client, ms, server};
-
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 const SEED: u64 = 7;
 

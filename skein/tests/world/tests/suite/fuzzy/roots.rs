@@ -2,9 +2,6 @@
 
 use skein_io::kernel::{Error, Exit};
 
-#[global_allocator]
-static HEAP: skein_heap::Counting = skein_heap::Counting;
-
 #[test]
 fn startup_roots_settle_over_reordered_normal_failed_and_killed_launches() {
     for seed in 0..100 {
