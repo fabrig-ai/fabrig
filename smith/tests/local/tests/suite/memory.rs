@@ -1,12 +1,9 @@
 //! The full local line queue and child allocation stay under a measured ceiling.
 
 use skein_lib::{Duration, Env, Queue, Time, Wall};
-use skein_world::domain::heap::{Counting, Meter};
+use skein_world::domain::heap::Meter;
 use smith_domain::run::{self, charter::Endpoint, outcome};
 use smith_local_domain::{self as local, Contract, Event, Request};
-
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 #[test]
 fn a_local_domain_with_every_line_slot_full_stays_under_its_ceiling() {
