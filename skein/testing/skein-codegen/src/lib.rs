@@ -13,7 +13,7 @@ mod emit_functions;
 mod emit_limits;
 mod emit_tests;
 mod emit_types;
-mod emit_worst;
+mod emit_bounds;
 mod parse;
 pub mod patch;
 
@@ -203,7 +203,7 @@ pub fn generate_named(schema: &Schema, names: Names) -> Output {
     emit_limits::emit(&context, &mut rust);
     emit_types::emit(&context, &mut rust);
     emit_codec::emit(&context, &mut rust);
-    emit_worst::emit(&context, names, &mut rust);
+    emit_bounds::emit(&context, names, &mut rust);
     emit_functions::split_bound_functions(&mut rust);
     let goldens = emit_tests::emit(&context, &mut rust);
     Output { rust, goldens }
