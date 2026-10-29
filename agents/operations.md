@@ -13,7 +13,7 @@ Provisional, 2026-10-28. The machines' and the pipeline's facts every role works
 
 ## 2. Launching a task
 
-- One writer per checkout: the coordinator edits in `~/src/fabrig/coord/mine`, and each Codex run has its own checkout. Do not edit, stage or commit in a checkout while its run is writing there.
+- One writer per checkout: the coordinator edits in a clone of its own (`~/src/fabrig/coord/<name>`), and each Codex run has its own checkout. Do not edit, stage or commit in a checkout while its run is writing there.
 - The task file and anything it must read go to the builder (`~/src/fabrig/tasks/<area>/`), written with `ssh HOST 'umask 077; cat > PATH' < FILE`; the report and log land in `~/src/fabrig/notes/<area>/` there.
 - `ssh HOST 'bash -lc "codex-run task --effort high --to lead/<area>@hel8 TASK SLOT REPORT </dev/null"'`; `--effort medium` for mechanical work; never xhigh. A question or a repair resumes the same run: `--resume <run id>`, a new task file and a NEW report path.
 - Remote commands run in a login shell (`bash -lc`), or `cargo`, `heavy`, `codex-run` and `post` are not on PATH.
@@ -21,7 +21,8 @@ Provisional, 2026-10-28. The machines' and the pipeline's facts every role works
 
 ## 3. Slots
 
-- Run installed `claim` from PATH on hel8, not from a lead's clone: it reads main's `tools/slots/hosts`. `claim list` shows shares and holders; `claim list --free OWNER` lists free slots of that share, then the pool.
+- Until the operator confirms the final inventory is installed, use `python3 -I ~/src/fabrig/ops/bin/claim` on hel8: it knows the replacement slots and hetzner7 slot 9, and excludes drained hetzner2. The installed main inventory is catching up through the queue.
+- After that confirmation, run installed `claim` from PATH on hel8, not from a lead's clone: it reads main's `tools/slots/hosts`. `claim list` shows shares and holders; `claim list --free OWNER` lists free slots of that share, then the pool.
 - `claim claim HOST N OWNER WHAT` before a task takes a slot, `claim release HOST N OWNER` when its report is in. Another lead's share needs its owner's agreement and `--lent-by SHARE_OWNER`; a free slot in that share is not pool space.
 - A guard on each builder (`tools/slots/guard --timer`) trims idle slots when free space falls below 80 GB.
 - A slot's target stays warm across tasks: a task switches the slot's checkout in place, never a fresh clone. Stale test executables fill a builder's disk (one reached zero bytes on 10-28, and heavy then fails its own bookkeeping), so `codex-run` trims a writable task's slot before Codex starts (`tools/slots/trim`; by hand: `ssh HOST 'bash -lc "python3 -I - SLOT"' < tools/slots/trim` from hel8).
@@ -32,6 +33,7 @@ Provisional, 2026-10-28. The machines' and the pipeline's facts every role works
 
 ## 5. The merge queue
 
+- The current trial uses batches of 16. Preserve it on every restart with `tools/queue/restart --repo ~/src/fabrig/queue --batch 16`; omitting the option restores the default of 8. The operator keeps or reverts the trial from measured throughput and bisection costs.
 - `tools/queue/design.md`. Branches `<lead>/<task>`, ready as `ready/<lead>/<task>`, marked by the lead from `repo/` after a skim of the diff; a rebased branch gets a new name. The queue posts a rejection (step, log path on hetzner8) to the branch's lead; a rejection is a repair task, a conflict a rebase task.
 - Tasks need not lower `scripts/old-forms.txt`: after merging, the queue runs each touched tree's `old_forms.py --write` and commits lower baselines before checks. A raised count rejects or bisects the batch. Branch baseline changes still merge; a conflict confined to baselines merges by itself through a recount, which refuses a raise.
 - When the queue's own code is wrong in a way that stops it landing its fix (every batch fails a step), the operator runs the fixed `tools/queue/` from a copy outside the clone (`mq run --repo <clone>`) until the fix lands, then restarts it normally.

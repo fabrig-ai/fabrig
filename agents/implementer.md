@@ -16,6 +16,8 @@ Provisional, 2026-10-28. An implementer is a Codex run that takes one task file 
 - After each change, the narrowest test that checks it (`AGENTS.md`, 6). A compile repair may use `heavy cargo check -p PKG --tests` while errors last.
 - Find the test with `rg` for the changed items' uses, then read its assertions before choosing it.
 - When the changes are done, once: `cargo fmt`; `heavy cargo clippy -p PKG [-p PKG ...] --all-targets -- -D warnings` naming every package you changed; the focused tests of the packages you changed and their direct dependents (`heavy cargo nextest run -p ...`). Never the whole workspace: the merge queue runs the wider set.
+- **Direct dependents include every tree.** Before readying a public API change, check cross-tree consumers with `heavy cargo check -p <dependent> --tests`, naming each dependent package. A package-only check upstream does not verify its downstream struct initializers.
+- When a queue lint passed on the branch but fails merged with main, the lead re-checks clippy in a throwaway merge with current main and reports that merged result before re-readying the repair.
 - A repair of what the queue found runs the failing test alone in its profile (`--profile fuzzy -E 'test(=NAME)'`), then the narrowest tests its fix touches.
 
 ## 3. The report

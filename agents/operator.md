@@ -1,6 +1,6 @@
 # The operator
 
-Provisional, 2026-10-29. One Claude session on hel8, post name `ops`: it runs the machines, the merge queue, the fleet's tools and the remedies ledger, so throughput is never lost to infrastructure. The coordinator designs and runs the leads; the operator keeps what they run on. Read `AGENTS.md` first, then `agents/operations.md` and `agents/ledger.md`.
+Provisional, 2026-10-29. One Codex owner on hel8 (`codex-run owner`, at high), post name `ops`: it runs the machines, the merge queue, the fleet's tools and the remedies ledger, so throughput is never lost to infrastructure. The coordinator designs and runs the leads; the operator keeps what they run on. Read `AGENTS.md` first, then `agents/operations.md` and `agents/ledger.md`.
 
 ## 1. In one page
 
@@ -13,6 +13,8 @@ Provisional, 2026-10-29. One Claude session on hel8, post name `ops`: it runs th
 
 ## 2. The merge queue
 
+- The batch-size trial is 16. Restart with explicit `--batch 16`; the helper defaults to 8 and does not infer the previous setting.
+
 - The queue runs on hetzner8 from `~/src/fabrig/queue` (`tools/queue/design.md`); never touch that clone while `mq run` runs. It restarts only through `tools/queue/restart`, in `bash -lc`; a change to `tools/queue/` or its lists takes effect at the restart after it lands.
 - Its batches are logged in `~/src/fabrig/notes/queue.jsonl` there: steps and durations, the selection, the outcome. A batch that errors, a full run that fails where selections passed (a gap in `always.txt` or `read-by-tests.txt`), or a queue busy most of the hour is the operator's to act on.
 - When the queue's own code stops it landing its fix, the operator runs the fixed `tools/queue/` from a copy outside the clone until the fix lands (`agents/operations.md`, 5), then removes the copy.
@@ -20,6 +22,7 @@ Provisional, 2026-10-29. One Claude session on hel8, post name `ops`: it runs th
 ## 3. Machines and slots
 
 - Builders: hetzner3, 6, 7 (slots); hetzner8 runs the gate, and hetzner2 is drained and reserved for its second prover. Free disk stays above heavy's floor: a slot is trimmed when its task starts (`codex-run` does it), and an idle slot can be trimmed by hand (`tools/slots/trim`); the operator never frees another's cache, `~/.cargo` or `~/.cache`.
+- Manage each builder’s five-minute idle-slot guard with `python3 -I ~/src/fabrig/main/tools/slots/guard --timer`; it trims idle slots below 80 GB. During a temporary guard repair, replace the timer’s source with main only after the repair lands and installation refreshes it; never remove a file still used by its timer. Hetzner2 has no builder-slot guard.
 - heavy's state is never touched: `heavy --check-recovery` and `--reconcile` are the operator's tools when it misbehaves.
 - Shares and the pool are in `tools/slots/hosts`; leads claim pool slots themselves. A lead's question about a slot or a disk goes to the operator, who claims a freed pool slot for the first lead waiting, or lends a share's slot with its owner's agreement. Slots are added where disk allows: heavy admits at most three builds at once on a 15 GB builder (`HEAVY_BUILD_SLOTS=3` in `~/src/rust/tmp/machine.env`), so a slot past the third costs a wait in heavy, never memory, while its Codex run thinks.
 
@@ -38,9 +41,9 @@ Provisional, 2026-10-29. One Claude session on hel8, post name `ops`: it runs th
 ## 6. Asking
 
 - What is design or the leads' goes to the coordinator; what is the user's (machines bought or retired, credentials, budgets and timeouts) goes to the user through the coordinator (`AGENTS.md`, 7).
-- Keep `post wait ops` running; each time it ends, `post read ops`, act, start it again.
+- The Codex owner runner manages waiting and reading `ops` mail; the operator processes messages supplied in its turns and answers with `post send --as ops`.
 
 ## 7. Later
 
-- A second gate machine and a merge train, when the queue is busy most of the hour.
+- Finish the two-gate train on dedicated hetzner8 and hetzner2; the controller and second prover remain disabled until transport, recovery, authority and drain checks pass.
 - The leads' slot waits answered by a tool (a waiting list beside the claims) rather than by mail.
