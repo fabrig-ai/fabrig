@@ -1139,22 +1139,11 @@ fn a_cut_circle_says_its_lists_are_incomplete() {
 #[test]
 fn an_unreachable_dependency_refusal_names_the_dependency_to_the_agent() {
     // Replaces the real-loop test `unreachable_dependency_refusal_names_the_task_to_the_agent`.
-    let value =
-        engine::CallAnswer::ControlRefused(tasks::Problem::naming(Some(99), tasks::Refusal::Dependencies, &[4]));
-    let rendered = answer(&value);
-    assert!(rendered.error());
-    let words = rendered.text();
-    assert!(words.contains(&b'4'), "the agent must hear the unreachable dependency's identity: {words:?}");
-    let mut names_dependency = false;
-    for pattern in [b"depend".as_slice(), b"reach".as_slice()] {
-        for part in words.windows(pattern.len()) {
-            if part.eq_ignore_ascii_case(pattern) {
-                names_dependency = true;
-                break;
-            }
-        }
-    }
-    assert!(names_dependency, "the agent must hear a dependency or reach refusal: {words:?}");
+    refusal_words(
+        tasks::Refusal::Dependencies,
+        Some(Box::new([4])),
+        b"Refused: task 99 dependency T4 is outside your reach",
+    );
 }
 
 #[test]
@@ -1211,6 +1200,7 @@ fn dependency_refusals_without_tasks_are_plain_lines() {
     let lists: [Option<Box<[u64]>>; 2] = [None, Some(Box::new([]))];
     for blocked in lists {
         for (why, expected) in [
+            (tasks::Refusal::Dependencies, b"Refused: task 99 dependencies".as_slice()),
             (tasks::Refusal::Circle { cut: false }, b"Refused: these tasks would wait for one another".as_slice()),
             (tasks::Refusal::Circle { cut: true }, b"Refused: these tasks would wait for one another"),
             (tasks::Refusal::DependencyEnded { how: tasks::Status::Failed }, b"Refused: a dependency has ended"),
