@@ -266,17 +266,14 @@ fn the_links_loss_waits_behind_a_held_assignment() {
 }
 
 #[test]
-fn the_link_is_not_read_without_room_for_one_link_step() {
+fn the_link_is_not_read_until_its_last_output_is_taken() {
     let mut stand = socket_stand();
     let mut engine = LinkPeer::new();
     engine.open(&mut stand.worker);
-    // Leave one fewer free slot than a link step needs.
-    let filled = crate::worker::ENGINE_EVENTS - link::MAX_OUT_DOWN + 1;
-    for _ in 0..filled {
-        stand.worker.engine.push(root::Event::Lost);
-    }
-    let without_credit = stand.worker.room();
-    // Use the actual service's IO event routing gate with a socket terminal.
+    while stand.worker.notes().pop().is_some() {}
+    stand.worker.engine.push(root::Event::Lost);
+    let output_taken = stand.worker.link_taken();
+    // Use the service's IO event routing gate with a socket terminal.
     let mut service = super::worker::alone_service();
     service.worker = Some(stand.worker);
     let owner = engine.owner;
@@ -284,8 +281,8 @@ fn the_link_is_not_read_without_room_for_one_link_step() {
     crate::iterate(&mut service, fixtures::NOW, Wall::EPOCH);
     let waiting = service.told.len();
     crate::iterate(&mut service, fixtures::NOW, Wall::EPOCH);
-    assert!(!without_credit);
-    assert_eq!(waiting, 1, "socket input waits while the engine entrance lacks link credit");
+    assert!(!output_taken);
+    assert_eq!(waiting, 1, "socket input waits until the last engine record is taken");
     assert!(service.told.is_empty(), "the next iteration routes it after the entrance drained");
 }
 
@@ -315,7 +312,7 @@ fn a_full_held_entrance_lets_a_passing_answer_pass() {
     let hosting = stand.worker.root.hosting();
     let admitted = hosting.get(0).expect("the admitted run");
     load(&mut stand.worker, WATERMARK);
-    for _ in 0..crate::worker::ENGINE_EVENTS {
+    for _ in 0..crate::worker::HELD_ENTRANCE {
         stand.worker.link(fixtures::NOW, assignment());
         stand.worker.iterate(fixtures::NOW, Wall::EPOCH);
     }
@@ -335,7 +332,7 @@ fn a_full_held_entrance_lets_a_passing_answer_pass() {
     stand.worker.iterate(fixtures::NOW, Wall::EPOCH);
     assert_eq!(stand.worker.root.retained_turns(), 0, "the passing answer reaches its owner without a held slot");
     assert_eq!(stand.worker.held.room(), 0, "the held entrance remains full");
-    assert_eq!(stand.worker.held.len(), crate::worker::ENGINE_EVENTS);
+    assert_eq!(stand.worker.held.len(), crate::worker::HELD_ENTRANCE);
     assert_eq!(stand.worker.engine.len(), 1, "the new record behind the answer still waits");
     let waiting = stand.worker.engine.iter().next().expect("the next new record");
     assert!(root::is_new_work(waiting));
