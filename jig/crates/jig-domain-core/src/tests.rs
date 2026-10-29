@@ -1637,7 +1637,7 @@ fn documents_project_exposes_two_roles_members_pool_and_resource_parts() {
     let mut admitted = authority_limits();
     admitted.roles = 2;
     core.authority = authority::Domain::new(core.authority.rules().clone(), admitted).unwrap();
-    let mut out = Queue::with_capacity(authority::POLICY_MAX_OUT);
+    let mut out = Queue::uncapped();
     authority::step(&mut core.authority, authority::Event::Policy { project: 1, policy }, &mut out);
     assert_eq!(out.pop(), Some(authority::PolicyFact::Added { project: 1 }));
     let first_identity = core.people.identity(1).unwrap().clone();
@@ -3179,7 +3179,7 @@ fn goal_deadlines_are_checked_against_the_role_and_policy() {
     let later = Wall::from_nanos(3_000_000_000);
     let mut policy = core.authority.policy(1).expect("configured project").clone();
     policy.roles[0].authority.budget.deadline = Some(deadline);
-    let mut out = Queue::with_capacity(authority::POLICY_MAX_OUT);
+    let mut out = Queue::uncapped();
     authority::step(&mut core.authority, authority::Event::Policy { project: 1, policy: policy.clone() }, &mut out);
     let started = crate::acts::bounds::create_start(
         &core,

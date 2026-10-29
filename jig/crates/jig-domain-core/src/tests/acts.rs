@@ -25,7 +25,7 @@ fn policy(core: &mut Core, accept: bool, period: u64) {
     let mut value = core.authority.policy(1).unwrap().clone();
     value.roles[0].decides = if accept { authority::Proposals::ALL } else { authority::Proposals(16) };
     value.roles[0].period_spend = period;
-    let mut out = Queue::with_capacity(authority::POLICY_MAX_OUT);
+    let mut out = Queue::uncapped();
     authority::step(&mut core.authority, authority::Event::Policy { project: 1, policy: value }, &mut out);
     assert_eq!(out.pop(), Some(authority::PolicyFact::Changed { project: 1 }));
 }
@@ -140,7 +140,7 @@ fn a_policy_proposal_names_every_eligible_role_without_choosing_one_holder() {
     third.decides = authority::Proposals(16);
     policy.roles = Box::new([policy.roles[0].clone(), second, third]);
     core.authority = authority::Domain::new(core.authority.rules().clone(), limits.authority).unwrap();
-    let mut out = Queue::with_capacity(authority::POLICY_MAX_OUT);
+    let mut out = Queue::uncapped();
     authority::step(&mut core.authority, authority::Event::Policy { project: 1, policy }, &mut out);
     assert_eq!(out.pop(), Some(authority::PolicyFact::Added { project: 1 }));
     let Admission::Bounded { beyond, .. } = fixtures::creating(&core, &limits, 1, 1) else { panic!("bounded goal") };
@@ -548,7 +548,7 @@ fn task_controls_owner_changes_priorities_and_note_scopes_share_their_judges() {
     policy.ceiling.notes = authority::Scopes(2);
     policy.roles[0].authority.notes = authority::Scopes(2);
     core.authority = authority::Domain::new(rules, limits.authority).unwrap();
-    let mut out = Queue::with_capacity(authority::POLICY_MAX_OUT);
+    let mut out = Queue::uncapped();
     authority::step(&mut core.authority, authority::Event::Policy { project: 1, policy }, &mut out);
     assert_eq!(out.pop(), Some(authority::PolicyFact::Added { project: 1 }));
     for act in [Act::EditNote, Act::DeleteNote] {
@@ -781,7 +781,7 @@ fn procedure_goal_bounds_and_admission_keep_exact_executor_and_authority_facts()
     .unwrap_err();
     let mut changed = core.authority.policy(1).unwrap().clone();
     changed.roles[0].authority.delegation.kinds = Box::new([authority::Executor::Charter(1)]);
-    let mut out = Queue::with_capacity(authority::POLICY_MAX_OUT);
+    let mut out = Queue::uncapped();
     authority::step(&mut core.authority, authority::Event::Policy { project: 1, policy: changed }, &mut out);
     assert_eq!(out.pop(), Some(authority::PolicyFact::Changed { project: 1 }));
     crate::acts::bounds::create_start(&core, 1, 1, people::Role::Owner, executor, 100, None, limits.tasks.tree_tasks)

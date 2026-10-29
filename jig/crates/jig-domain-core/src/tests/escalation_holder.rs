@@ -20,7 +20,7 @@ fn holder_policy(core: &mut Core, decides: authority::Proposals, holder: Option<
     bounds.roles = 2;
     let rules = core.authority.rules().clone();
     core.authority = authority::Domain::new(rules, bounds).unwrap();
-    let mut out = Queue::with_capacity(authority::POLICY_MAX_OUT);
+    let mut out = Queue::uncapped();
     authority::step(&mut core.authority, authority::Event::Policy { project: PROJECT, policy }, &mut out);
     assert_eq!(out.pop(), Some(authority::PolicyFact::Added { project: PROJECT }));
 }
@@ -96,7 +96,7 @@ fn a_person_task_for_policy_role_five_is_offered_to_delegation() {
     policy.roles[0].authority = given.clone();
     let bounds = *core.authority.limits();
     core.authority = authority::Domain::new(rules, bounds).unwrap();
-    let mut out = Queue::with_capacity(authority::POLICY_MAX_OUT);
+    let mut out = Queue::uncapped();
     authority::step(&mut core.authority, authority::Event::Policy { project: PROJECT, policy }, &mut out);
     assert_eq!(out.pop(), Some(authority::PolicyFact::Added { project: PROJECT }));
     let creator = given.clone();

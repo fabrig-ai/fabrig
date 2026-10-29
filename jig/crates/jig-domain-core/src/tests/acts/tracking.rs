@@ -38,7 +38,7 @@ fn permit_role(core: &mut Core, limits: &mut Limits, number: u32) {
     role.number = number;
     policy.roles = Box::new([policy.roles[0].clone(), role]);
     core.authority = authority::Domain::new(core.authority.rules().clone(), limits.authority).expect("two roles");
-    let mut out = Queue::with_capacity(authority::POLICY_MAX_OUT);
+    let mut out = Queue::uncapped();
     authority::step(&mut core.authority, authority::Event::Policy { project: PRIORITY_PROJECT, policy }, &mut out);
     assert_eq!(out.pop(), Some(authority::PolicyFact::Added { project: PRIORITY_PROJECT }));
 }
