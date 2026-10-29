@@ -507,6 +507,7 @@ fn secret_asks_in_flight_each_get_their_own_terminal() {
 
 #[test]
 fn a_stalled_link_consumer_drops_nothing_and_keeps_order() {
+    const STALLED_PASSES: u32 = 2;
     let mut service = super::fixtures::ready();
     let admitted = super::fixtures::engine().limits.sign_in.pending;
     let bound = service.links().capacity();
@@ -517,7 +518,7 @@ fn a_stalled_link_consumer_drops_nothing_and_keeps_order() {
         service.engine.as_mut().unwrap().clients.links.push(ordered_printed_link(number));
     }
     // The binary leaves its channel untouched across two service passes.
-    for _ in 0..2 {
+    for _ in 0..STALLED_PASSES {
         super::fixtures::turn(&mut service);
         assert_eq!(service.links().len(), bound, "the binary-facing channel fills");
         let upstream = &service.engine.as_ref().unwrap().clients.links;
