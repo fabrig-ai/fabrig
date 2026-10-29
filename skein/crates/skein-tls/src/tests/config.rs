@@ -60,17 +60,6 @@ fn room_for_a_send_counts_its_records_and_rustlss_slack() {
 }
 
 #[test]
-fn worst_case_counts_buffers_and_rustlss_heap() {
-    // Intake 16400, records 18437, owed 2048, delivery 18432,
-    // rustls 16384, and 20 bytes for each of 18437 handshake bytes.
-    assert_eq!(client::worst_case(&LIMITS), Some(440_441));
-    // With eight records: 147496 records and 20 * 65539 decoded bytes;
-    // the intake, owed output, delivery and rustls's state are the same.
-    let large = Limits { records: 8 * client::MAX_RECORD, ..LIMITS };
-    assert_eq!(client::worst_case(&large), Some(1_511_540));
-}
-
-#[test]
 fn a_configuration_trusts_some_root_and_offers_protocols_that_fit() {
     drop(Config::new(roots(), &[b"h2", b"http/1.1"]).unwrap());
     assert_eq!(Config::new(RootCertStore::empty(), &[]).unwrap_err(), Refusal::Roots);

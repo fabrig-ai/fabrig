@@ -21,8 +21,8 @@
 //! - at the reclaim point, [`Io::reclaim`].
 //!
 //! The records for the kernel go into the loop's `Queue<Submit>`; the
-//! kernel's completions come back as `Complete`s. [`worst_case`] is io's part
-//! of the service's memory, and [`operations`] the size of the ring.
+//! kernel's completions come back as `Complete`s. [`operations`] is the size
+//! of the ring.
 
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
@@ -49,7 +49,5 @@ mod tests;
 
 pub use addr::{Addr, Name};
 pub use layer::{Io, down, fire, resume, up};
-pub use limits::{
-    Limits, MAX_OUT_DOWN, MAX_OUT_FIRE, MAX_OUT_RESUME, MAX_OUT_UP, MaxOut, operations, valid, worst_case,
-};
+pub use limits::{Limits, MAX_OUT_DOWN, MAX_OUT_FIRE, MAX_OUT_RESUME, MAX_OUT_UP, MaxOut, operations, valid};
 pub use records::{Error, Event, Measured, Request, Window};
