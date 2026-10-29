@@ -1017,23 +1017,6 @@ impl Domain {
     }
 }
 
-/// Maximum requests from one top step, including retirement's child burst.
-#[must_use]
-pub const fn max_out(l: &Limits) -> u32 {
-    // At most one panel mark accompanies each previously bounded output:
-    // a saved change, or a read completion whose CI verdict changed.
-    // Connection and Restored use the second output cohort for retirement's
-    // Keep instead of panel marks (limits.rs). A demo start can also finish
-    // every bounded waiting application together.
-    l.output
-        .saturating_mul(2)
-        .saturating_add(l.applications)
-        .saturating_add(l.tasks.saturating_add(1).saturating_mul(2))
-        .saturating_add(l.landings)
-        .saturating_add(l.landing_members)
-        .saturating_add(l.entries)
-}
-
 /// Decide one parent event and collect its durable records and outputs.
 #[expect(clippy::too_many_lines, reason = "one exhaustive connector input dispatcher")]
 pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {

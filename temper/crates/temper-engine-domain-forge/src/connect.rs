@@ -32,17 +32,6 @@ impl State {
         out.push(Request::ApplicationDone { request, token });
     }
 }
-pub(crate) fn worst_case(bound: u32) -> Option<u64> {
-    Map::<Token, Answered>::price(bound)?
-        .checked_add(Map::<Token, Token>::price(bound)?)?
-        .checked_add(Map::<u16, (Token, Option<Carried>)>::price(bound)?)?
-        .checked_add(Map::<u16, Token>::price(bound)?)?
-        .checked_add(Map::<u16, (Connection, Option<crate::FailedStep>)>::price(bound)?)?
-        .checked_add(u64::from(bound).checked_mul(crate::STOPPED_TEXT_BYTES)?)?
-        .checked_add(u64::from(bound).checked_mul(
-            2048_u64.max(100_u64.checked_mul(u64::try_from(size_of::<crate::Reached>()).ok()?.checked_add(2048)?)?),
-        )?)
-}
 pub(crate) fn start(
     d: &mut Domain,
     request: Token,
