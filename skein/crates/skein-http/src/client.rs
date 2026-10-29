@@ -44,7 +44,8 @@
 //! [`Limits::headers`] fields each; a chunk's size line and the trailer
 //! section, at most [`Limits::head`] each. The body is not bounded: it is
 //! a stream, and the side above stops reading it when it has had enough.
-//! [`worst_case`] is what a client holds; [`largest_read`] and
+//! The client holds the request head, response fields and parsing line,
+//! and the body's intake and current delivery. [`largest_read`] and
 //! [`largest_room`] are what whoever stacks it checks against the caps of
 //! the stream below at startup.
 
@@ -114,39 +115,6 @@ pub fn largest_room(limits: &Limits) -> u32 {
 #[must_use]
 pub fn valid(limits: &Limits) -> bool {
     limits.head >= 2 && limits.read > 0 && limits.send > 0
-}
-
-/// The most memory a client holds under `limits`, in bytes
-/// (programming-model.md, 6.3), or `None` if it does not fit a `u64` or
-/// the limits cannot be honoured: a head shorter than a blank line, a read
-/// of nothing, or room for nothing of a request body.
-///
-/// It is the intake of the body's carry-over, allocated with the client;
-/// the request head, held until room comes for it, with the list of the
-/// response's fields; the head being read: its fields' bytes and the line
-/// that holds the next, at most [`Limits::head`], and as much again while a
-/// fold joins a value; and, once the body is read, the delivery it reads
-/// (a line of its framing, within the twice [`Limits::head`] already
-/// counted, or a piece, at most [`Limits::read`]) or the carry-over an
-/// exchange leaves unread, moved out of the intake when it ends. A
-/// delivery is made to the client's demand, so it counts it. A call and a
-/// piece of the request body are counted by the side above, which made
-/// them, and the step that takes one reads it and drops it or passes it on
-/// (testing.md, 5); what goes up (a response, the body's bytes) is handed
-/// out when it is emitted.
-#[must_use]
-pub fn worst_case(limits: &Limits) -> Option<u64> {
-    if !valid(limits) {
-        return None;
-    }
-    let intake = Intake::price(limits.read)?;
-    let fields = List::<Header>::price(limits.headers)?;
-    let head = u64::from(limits.head).checked_mul(2)?;
-    intake
-        .checked_add(fields)?
-        .checked_add(head)?
-        .checked_add(u64::from(limits.request))?
-        .checked_add(u64::from(limits.read))
 }
 
 /// From the side above.
