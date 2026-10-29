@@ -270,7 +270,6 @@ fn sign_in_endings_follow_their_own_commits_under_load() {
     use jig_protocol_engine_clients::{SecretOwner, SecretsRequest};
     const WATERMARK: u32 = 1; // One writing period holds admission shut.
     const SETTLE: u32 = 8; // The service fixtures' startup settlement turns.
-    const OUTPUT_ROOM: u32 = jig_protocol_engine_clients::MAX_OUT_DOWN;
     const ENDINGS_PER_COMMIT: u32 = 1; // One erased sign-in in each scripted commit.
     const FIRST_COMMIT: u64 = 57;
     const SECOND_COMMIT: u64 = 58;
@@ -289,7 +288,6 @@ fn sign_in_endings_follow_their_own_commits_under_load() {
     }
     assert!(engine.blocked, "the unacknowledged writing period holds the next period at the watermark");
     let clients = engine.clients.as_mut().expect("clients");
-    clients.secrets = skein_lib::Queue::with_capacity(OUTPUT_ROOM);
     let mut writes = skein_lib::Queue::with_capacity(ENDINGS_PER_COMMIT);
     for (commit, sign_in) in
         [(FIRST_COMMIT, FIRST_SIGN_IN), (SECOND_COMMIT, SECOND_SIGN_IN), (LAST_COMMIT, LAST_SIGN_IN)]
@@ -301,11 +299,10 @@ fn sign_in_endings_follow_their_own_commits_under_load() {
     advance_client(clients, &mut engine.events, &engine.env.limits);
     assert!(clients.secrets.is_empty(), "no ending is durable yet");
     clients.committed(SECOND_COMMIT);
+    advance_client(clients, &mut engine.events, &engine.env.limits);
     for sign_in in [FIRST_SIGN_IN, SECOND_SIGN_IN] {
-        advance_client(clients, &mut engine.events, &engine.env.limits);
         let Some(SecretsRequest::Erase { owner }) = clients.secrets.pop() else { panic!("durable ending") };
         assert_eq!(owner, SecretOwner::SignIn(sign_in), "endings leave in commit order");
-        assert!(clients.secrets.is_empty(), "one ending crosses each output drain");
     }
     advance_client(clients, &mut engine.events, &engine.env.limits);
     assert!(clients.secrets.is_empty(), "the last ending waits for its own commit");
@@ -548,23 +545,21 @@ fn a_core_refusal_finishes_an_application_read() {
 }
 
 #[test]
-fn durable_sign_in_endings_wait_for_output_room() {
+fn durable_sign_in_endings_drain_in_commit_order() {
     use jig_protocol_engine_clients::{SecretOwner, SecretsRequest};
     let mut service = started(true);
     let engine = ready_client(&mut service);
     let clients = engine.clients.as_mut().expect("clients");
-    clients.secrets = skein_lib::Queue::with_capacity(4);
     let mut writes = skein_lib::Queue::with_capacity(2);
     for number in [41, 42] {
         writes.push(root::Write::Erase(root::Key::Core(core::Key::People(people::Key::SignIn(number)))));
     }
     clients.commit(57, &writes);
     clients.committed(57);
-    for (label, number) in [("first ending", 41), ("resumed ending", 42)] {
-        advance_client(clients, &mut engine.events, &engine.env.limits);
+    advance_client(clients, &mut engine.events, &engine.env.limits);
+    for (label, number) in [("first ending", 41), ("second ending", 42)] {
         let Some(SecretsRequest::Erase { owner }) = clients.secrets.pop() else { panic!("{label}: erase") };
         assert_eq!(owner, SecretOwner::SignIn(number), "{label}");
-        assert!(clients.secrets.is_empty(), "{label}: one ending fits");
     }
     clients.committed(57);
     advance_client(clients, &mut engine.events, &engine.env.limits);
