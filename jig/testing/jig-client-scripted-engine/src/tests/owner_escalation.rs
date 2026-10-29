@@ -12,9 +12,8 @@ fn owner_escalation_prices_whole_boxed_task_and_separate_reserved_offers_and_ref
     path.push(Box::<[u8]>::from([255_u8; 32])).unwrap();
     task.resources.push(TaskResource::Part(Part::Resource { connector: u16::MAX, path })).unwrap();
     let row = OwnerEscalation { task: Box::new(task.clone()), acts: List::with_capacity(2) };
-    let independent = u64::try_from(size_of::<Task>()).unwrap()
-        + task.heap(&bounds).unwrap()
-        + List::<Offered>::worst_case(2).unwrap();
+    let independent =
+        u64::try_from(size_of::<Task>()).unwrap() + task.heap(&bounds).unwrap() + List::<Offered>::price(2).unwrap();
     assert_eq!(row.heap(&bounds), Some(independent));
     let value = ReadValue::OwnerEscalation(Box::new(row.clone()));
     let exact = u64::try_from(size_of::<ReadValue>()).unwrap()
@@ -89,13 +88,13 @@ fn owner_escalation_reserved_closed_offers_are_independent_of_task_rows_at_whole
                 - u64::try_from(size_of::<ReadValue>()).unwrap()
                 - u64::try_from(size_of::<OwnerEscalation>()).unwrap()
         );
-        assert_eq!(crate::offered::heap(&row.acts, &bounds), List::<Offered>::worst_case(MAX_OFFERED_ACTS));
+        assert_eq!(crate::offered::heap(&row.acts, &bounds), List::<Offered>::price(MAX_OFFERED_ACTS));
         assert!(payload::fits(&value, &Bounds { document_bytes: exact, ..bounds }));
         assert!(!payload::fits(&value, &Bounds { document_bytes: exact - 1, ..bounds }));
         let base = OwnerEscalation { acts: reserved_offers(&[], 2), ..row.clone() };
         assert_eq!(
             row.heap(&bounds).unwrap() - base.heap(&bounds).unwrap(),
-            List::<Offered>::worst_case(MAX_OFFERED_ACTS).unwrap() - List::<Offered>::worst_case(2).unwrap()
+            List::<Offered>::price(MAX_OFFERED_ACTS).unwrap() - List::<Offered>::price(2).unwrap()
         );
         for outer in [false, true] {
             let mut oversized = row.clone();
@@ -138,13 +137,13 @@ fn owner_escalation_normal_read_preserves_offer_order_recursive_admissions_and_b
     let mut setup = script();
     setup.bounds = Bounds { rows: 2, authority: 2, text: 32, document_bytes: u64::MAX, ..setup.bounds };
     let authority_heap = row.task.authority.heap(&setup.bounds).unwrap();
-    let nested = List::<u32>::worst_case(2).unwrap()
-        + List::<OwnerKindImplication>::worst_case(2).unwrap()
-        + List::<OwnerGrant>::worst_case(2).unwrap()
+    let nested = List::<u32>::price(2).unwrap()
+        + List::<OwnerKindImplication>::price(2).unwrap()
+        + List::<OwnerGrant>::price(2).unwrap()
         + 2 * (u64::try_from(size_of::<OwnerAuthorityDocument>()).unwrap() + authority_heap);
     assert_eq!(
         crate::offered::heap(&row.acts, &setup.bounds),
-        Some(List::<Offered>::worst_case(MAX_OFFERED_ACTS).unwrap() + nested)
+        Some(List::<Offered>::price(MAX_OFFERED_ACTS).unwrap() + nested)
     );
     let exact = whole_read_bytes(&row, &setup.bounds);
     let original = row.clone();

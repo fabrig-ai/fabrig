@@ -66,8 +66,8 @@ fn recurring_prices_the_whole_template_batch_and_final_members_owned_bytes() {
     let row = recurring();
     let bytes = u64::try_from(core::mem::size_of::<Recurring>()).unwrap()
         + u64::try_from(core::mem::size_of::<ChipPhase>()).unwrap()
-        + skein_lib::List::<ProposedTask>::worst_case(2).unwrap()
-        + skein_lib::List::<u64>::worst_case(2).unwrap()
+        + skein_lib::List::<ProposedTask>::price(2).unwrap()
+        + skein_lib::List::<u64>::price(2).unwrap()
         + 3
         + 5
         + 6;
@@ -166,7 +166,7 @@ fn exact_parts_and_contracts_price_every_segment_choice_and_opaque_state_byte() 
         key: OwnerPartKey::Path(list(vec![b"a/b".as_slice().into(), b"c\xff".as_slice().into()])),
     };
     let bytes = u64::try_from(core::mem::size_of::<OwnerPart>()).unwrap()
-        + skein_lib::List::<Box<[u8]>>::worst_case(2).unwrap()
+        + skein_lib::List::<Box<[u8]>>::price(2).unwrap()
         + 3
         + 2;
     bounds.document_bytes = bytes;
@@ -180,7 +180,7 @@ fn exact_parts_and_contracts_price_every_segment_choice_and_opaque_state_byte() 
 
     let approval = TaskContractDocument::Approval { state: b"opaque\xff".as_slice().into(), part: reference };
     let bytes = u64::try_from(core::mem::size_of::<TaskContractDocument>()).unwrap()
-        + skein_lib::List::<Box<[u8]>>::worst_case(2).unwrap()
+        + skein_lib::List::<Box<[u8]>>::price(2).unwrap()
         + 3
         + 2
         + 7;
@@ -200,8 +200,8 @@ fn exact_parts_and_contracts_price_every_segment_choice_and_opaque_state_byte() 
     };
     let verdict = TaskContractDocument::Verdict { choices: list(vec![choice]), cut: true };
     let bytes = u64::try_from(core::mem::size_of::<TaskContractDocument>()).unwrap()
-        + skein_lib::List::<VerdictChoice>::worst_case(1).unwrap()
-        + skein_lib::List::<FieldRule>::worst_case(2).unwrap()
+        + skein_lib::List::<VerdictChoice>::price(1).unwrap()
+        + skein_lib::List::<FieldRule>::price(2).unwrap()
         + 3
         + 2;
     bounds.document_bytes = bytes;

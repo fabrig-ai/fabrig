@@ -330,7 +330,7 @@ fn historical_recursive_admission_prices_reserved_raw_goal_paths_boxes_and_each_
     proposal.goal.dependencies = List::with_capacity(0);
     assert_eq!(
         whole - owner_historical::bytes(&empty, &b).expect("empty source fits"),
-        List::<u64>::worst_case(3).expect("reserved list")
+        List::<u64>::price(3).expect("reserved list")
     );
     let mut overflow = value.clone();
     let OwnerHistoricalValue::PersonProposal { proposal, .. } = &mut overflow.value else { panic!("goal") };

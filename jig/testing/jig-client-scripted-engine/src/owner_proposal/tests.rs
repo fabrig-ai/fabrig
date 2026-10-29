@@ -89,25 +89,25 @@ fn proposal(action: OwnerProposalAction) -> OwnerProposal {
 fn base_bytes() -> u64 {
     u64::try_from(size_of::<OwnerProposal>()).unwrap()
         + 8
-        + List::<OwnerFundingOffer>::worst_case(3).unwrap()
-        + List::<Offered>::worst_case(3).unwrap()
+        + List::<OwnerFundingOffer>::price(3).unwrap()
+        + List::<Offered>::price(3).unwrap()
 }
 #[test]
 fn owner_proposal_exact_whole_action_allocations_include_reserved_lists_boxes_and_opaque_bytes() {
     let bounds = Bounds { rows: 3, segments: 3, text: 8, document_bytes: u64::MAX, ..Bounds::default() };
     let auth = crate::owner_authority::worst_case(&bounds).unwrap();
     assert!(auth > 0);
-    let authority_heap = List::<OwnerGrant>::worst_case(3).unwrap()
-        + List::<OwnerAuthorityExecutor>::worst_case(3).unwrap()
-        + List::<OwnerResourceScope>::worst_case(3).unwrap();
+    let authority_heap = List::<OwnerGrant>::price(3).unwrap()
+        + List::<OwnerAuthorityExecutor>::price(3).unwrap()
+        + List::<OwnerResourceScope>::price(3).unwrap();
     let before = state();
     let after = state();
     let states = crate::owner_amendment::bytes(&before, &bounds).unwrap()
         + crate::owner_amendment::bytes(&after, &bounds).unwrap();
-    let part_heap = List::<Box<[u8]>>::worst_case(3).unwrap() + 3;
+    let part_heap = List::<Box<[u8]>>::price(3).unwrap() + 3;
     let hold_heap = u64::try_from(size_of::<OwnerChipHold>()).unwrap() + part_heap + 8;
     let cases = [
-        (OwnerProposalAction::Batch(List::with_capacity(3)), List::<ProposedTask>::worst_case(3).unwrap()),
+        (OwnerProposalAction::Batch(List::with_capacity(3)), List::<ProposedTask>::price(3).unwrap()),
         (
             OwnerProposalAction::Effect {
                 part: part(),
@@ -185,9 +185,9 @@ fn owner_proposal_reserved_empty_and_whole_nested_refusals_never_shorten_input_o
         supplied.acts = List::with_capacity(capacity);
         let expected = u64::try_from(size_of::<OwnerProposal>()).unwrap()
             + 8
-            + List::<OwnerFundingOffer>::worst_case(capacity).unwrap()
-            + List::<Offered>::worst_case(capacity).unwrap()
-            + List::<ProposedTask>::worst_case(capacity).unwrap();
+            + List::<OwnerFundingOffer>::price(capacity).unwrap()
+            + List::<Offered>::price(capacity).unwrap()
+            + List::<ProposedTask>::price(capacity).unwrap();
         assert_eq!(bytes(&supplied, &bounds), Some(expected));
         assert!(fits(&supplied, &bounds));
         assert_eq!(supplied.funding.len(), 0);
@@ -238,23 +238,23 @@ fn owner_proposal_full_batch_members_price_every_nested_spec_contract_authority_
             })
             .unwrap();
     }
-    let part_heap = List::<Box<[u8]>>::worst_case(3).unwrap() + 3;
-    let authority_heap = List::<OwnerGrant>::worst_case(3).unwrap()
-        + List::<OwnerAuthorityExecutor>::worst_case(3).unwrap()
-        + List::<OwnerResourceScope>::worst_case(3).unwrap();
+    let part_heap = List::<Box<[u8]>>::price(3).unwrap() + 3;
+    let authority_heap = List::<OwnerGrant>::price(3).unwrap()
+        + List::<OwnerAuthorityExecutor>::price(3).unwrap()
+        + List::<OwnerResourceScope>::price(3).unwrap();
     let member_heap = 8
-        + List::<ParameterDocument>::worst_case(3).unwrap()
+        + List::<ParameterDocument>::price(3).unwrap()
         + 8
-        + List::<u64>::worst_case(3).unwrap()
+        + List::<u64>::price(3).unwrap()
         + authority_heap
         + 8
         + part_heap
-        + List::<u64>::worst_case(3).unwrap()
-        + List::<OwnerPart>::worst_case(3).unwrap()
+        + List::<u64>::price(3).unwrap()
+        + List::<OwnerPart>::price(3).unwrap()
         + part_heap * 3;
     let supplied = proposal(OwnerProposalAction::Batch(tasks.clone()));
     let original = supplied.clone();
-    let expected = base_bytes() + List::<ProposedTask>::worst_case(3).unwrap() + member_heap * 3;
+    let expected = base_bytes() + List::<ProposedTask>::price(3).unwrap() + member_heap * 3;
     assert_eq!(bytes(&supplied, &bounds), Some(expected));
     assert!(fits(&supplied, &Bounds { document_bytes: expected, ..bounds }));
     assert!(!fits(&supplied, &Bounds { document_bytes: expected - 1, ..bounds }));
