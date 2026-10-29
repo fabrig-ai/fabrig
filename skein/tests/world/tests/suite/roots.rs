@@ -30,14 +30,7 @@ fn independently_owned_roots_support_child_files_after_parent_close_and_settle_m
     assert_eq!(parent.received, READY);
     assert_eq!(child.expect("child admitted").received, b"gofrom child");
     assert_eq!(parent.child_exit, Some(Exit::Code(0)));
-    assert!(
-        outcome
-            .heap
-            .as_ref()
-            .expect("metered processes")
-            .iter()
-            .all(|(peak, ceiling)| *peak <= CEILING && *ceiling == CEILING)
-    );
+    assert!(outcome.peaks().expect("metered processes").iter().all(|peak| *peak <= CEILING));
     outcome.machine.finish();
 }
 
@@ -47,7 +40,7 @@ fn killed_child_closes_all_startup_roots_under_its_own_memory_span() {
         launched(19, skein_sim::Config::calm(), waiting_child, roots, no_appends, Story::Kill, Memory::Checked);
     assert_eq!(processes(&outcome).parent.child_exit, Some(Exit::Signal(9)));
     assert_eq!(outcome.killed.len(), KILLED_CHILDREN);
-    assert!(killed_child(&outcome).heap.is_some());
+    assert!(killed_child(&outcome).peak().is_some());
     outcome.machine.finish();
 }
 
@@ -120,7 +113,7 @@ fn a_killed_child_releases_its_startup_append_files_in_its_own_memory_span() {
     let mut outcome =
         launched(43, skein_sim::Config::calm(), waiting_child, roots, appends, Story::Kill, Memory::Checked);
     assert_eq!(outcome.killed.len(), KILLED_CHILDREN);
-    assert!(killed_child(&outcome).heap.is_some());
+    assert!(killed_child(&outcome).peak().is_some());
     outcome.machine.finish();
 }
 

@@ -230,23 +230,70 @@ fn a_masked_delivery_keeps_a_content_length_that_matches_its_body() {
 }
 #[test]
 fn the_listener_holds_its_answer_until_the_probe_replies() {
+    use skein_world::Deadline;
     use std::{
-        io::{Read, Write},
+        io::{ErrorKind, Read, Write},
         net::TcpStream,
+        sync::mpsc::RecvTimeoutError,
         time::Duration,
     };
-    let listener = crate::deliveries::Listener::start().expect("listener");
+    let listener = crate::deliveries::Listener::start_test().expect("listener");
     let mut client = TcpStream::connect(("127.0.0.1", listener.port)).expect("connect");
     client.write_all(b"POST /hooks/1 HTTP/1.1\r\nContent-Length: 4\r\n\r\nbody").expect("sent");
-    let (received, reply) = listener.next(Duration::from_secs(5)).expect("delivery");
+    let mut deadline = Deadline::arm("the listener's delivery", skein_lib::Duration::from_secs(5));
+    deadline.watch_process(std::process::id());
+    let (received, reply) = loop {
+        match listener.next_test(Duration::from_nanos(deadline.remaining().as_nanos())) {
+            Ok(delivery) => break delivery,
+            Err(RecvTimeoutError::Timeout) => {
+                if deadline.passed() {
+                    listener_expired(listener, client, &deadline, "delivery");
+                }
+            }
+            Err(RecvTimeoutError::Disconnected) => panic!("delivery: listener disconnected"),
+        }
+    };
     assert_eq!(received.body, b"body");
     client.set_read_timeout(Some(Duration::from_millis(100))).expect("timeout");
     assert!(client.read(&mut [0; 1]).is_err());
     reply.answer(204);
-    client.set_read_timeout(Some(Duration::from_secs(5))).expect("timeout");
-    let mut answer = String::new();
-    client.read_to_string(&mut answer).expect("answer");
+    let mut deadline = Deadline::arm("the listener's answer", skein_lib::Duration::from_secs(5));
+    deadline.watch_process(std::process::id());
+    let mut answer = Vec::new();
+    loop {
+        if deadline.passed() {
+            listener_expired(listener, client, &deadline, "answer");
+        }
+        client.set_read_timeout(Some(Duration::from_nanos(deadline.remaining().as_nanos().max(1)))).expect("timeout");
+        let mut bytes = [0; 1024];
+        match client.read(&mut bytes) {
+            Ok(0) => break,
+            Ok(count) => answer.extend_from_slice(&bytes[..count]),
+            Err(error)
+                if [ErrorKind::TimedOut, ErrorKind::WouldBlock, ErrorKind::Interrupted].contains(&error.kind()) => {}
+            Err(error) => panic!("answer: {error}"),
+        }
+    }
+    let answer = String::from_utf8(answer).expect("answer text");
     assert!(answer.starts_with("HTTP/1.1 204 No Content\r\n"), "{answer}");
+    drop(client);
+    listener.finish();
+}
+
+fn listener_expired(
+    listener: crate::deliveries::Listener,
+    client: std::net::TcpStream,
+    deadline: &skein_world::Deadline,
+    message: &str,
+) -> ! {
+    let expired = deadline.expired();
+    let _closed = client.shutdown(std::net::Shutdown::Both);
+    drop(client);
+    listener.finish();
+    match expired {
+        skein_world::Expired::Starved(starved) => starved.pass(),
+        skein_world::Expired::Failed(figures) => panic!("{message}: {figures}"),
+    }
 }
 #[test]
 fn the_roll_up_ignores_the_losers_of_the_pairs() {

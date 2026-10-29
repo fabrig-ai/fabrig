@@ -1181,7 +1181,7 @@ the fake.
   and a delivery decoded by `skein_forge::github` alike pushed and
   logged.
 - **Memory** is checked as section 8 says, with the stores full. Built in
-  dedicated `github_memory` binaries under `tests/fake-forge` and
+  `suite::github_memory` tests under `tests/fake-forge` and
   `tests/fake-peers`: installation rows and listed reach, minted and person
   tokens, App grants and events, manifest states and blob records are full,
   with a queued pull in every domain repository. The hosted test fills both

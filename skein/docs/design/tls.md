@@ -485,13 +485,13 @@ a wall time each test chooses.
 - **Not replayed:** what rustls draws from the kernel changes a record's
   length, and with it where the pieces fall. The worlds assert only what
   does not depend on it.
-- **The machines stacked** (`tests/tls/tests/stack.rs`): the HTTP client
+- **The machines stacked** (`tests/tls/tests/suite/stack.rs`): the HTTP client
   over the TLS client, as a connection routes between them, a call made
   on `Ready`, a body uploaded in records, a response read by length and
   by chunks, and one read to the end of the stream: whole once
   `close_notify` ends it, failed `Stream(Invalid)` when the stream is cut
   without it.
-- **Memory** (`tests/tls/tests/memory.rs`, with the counting allocator):
+- **Memory** (`tests/tls/tests/suite/memory.rs`, with the counting allocator):
   every call of an entry point a step of the meter. The server runs on
   the same thread, between the client's steps; its heap and the
   harness's are measured with a span around what is done between steps,
@@ -507,7 +507,7 @@ a wall time each test chooses.
   certificates, which rustls accepts and keeps, 20 times in TLS 1.2 (1.30
   MB past the buffers) and 18 in TLS 1.3. That chain reaches 97% of the
   worst case. Dropped, the client frees what it held.
-- **The fuzzy suite** (`tests/tls/tests/fuzzy_world.rs`): 400 runs of
+- **The fuzzy suite** (`tests/tls/tests/suite/fuzzy/world.rs`): 400 runs of
   scenarios and neighbours drawn from each seed: each version, retries,
   ALPN, the big chain, the server's key updates, each ending and each
   certificate refused. It asserts that what it draws fell: no failure,
@@ -522,10 +522,10 @@ a wall time each test chooses.
   nightly toolchain.
 - **The native face** (section 3.6): step tests in
   `crates/skein-tls/src/client/native/tests.rs`; a pair against a rustls
-  server in memory (`tests/tls/tests/native_output.rs`), the same over
+  server in memory (`tests/tls/tests/suite/native_output.rs`), the same over
   io's sockets on the simulator, and memory against the worst case
   (`native_memory.rs`); a fuzzy run of short and reordered reads and
-  writes (`fuzzy_native.rs`). rustls 0.23.41 folds the TLS 1.3 key
+  writes (`tests/tls/tests/suite/fuzzy/native.rs`). rustls 0.23.41 folds the TLS 1.3 key
   updates asked for while the side above holds its grant into one: the
   tests ask for 32, and see one key update in front of the largest
   plaintext `Send`. A TLS 1.2 `HelloRequest` while the grant is held is

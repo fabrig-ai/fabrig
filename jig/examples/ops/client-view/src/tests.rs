@@ -247,7 +247,7 @@ fn an_incident_drawing_has_a_readable_fallback_and_missing_lead_is_explicit() {
         }),
     );
     let mut view = view();
-    let mut patches = Queue::with_capacity(view.limits().tree.patches);
+    let mut patches = Queue::uncapped();
     build(&mut view, &root, &mut patches);
     assert!(
         view.tree()
@@ -376,7 +376,7 @@ fn public_effect_fragments_keep_equal_task_and_party_makers_separate() {
         );
     }
     let mut view = view();
-    let mut patches = Queue::with_capacity(view.limits().tree.patches);
+    let mut patches = Queue::uncapped();
     build(&mut view, &root, &mut patches);
     for kind in [5, 10] {
         let expected = skein_ui::Key {
@@ -547,7 +547,7 @@ fn arranged_task_view(section: jig_client_view::address::TaskSection) -> View {
         },
     );
     let mut view = small_view();
-    let mut patches = Queue::with_capacity(view.limits().tree.patches);
+    let mut patches = Queue::uncapped();
     build(&mut view, &root, &mut patches);
     view
 }
@@ -678,7 +678,7 @@ fn the_incident_page_fills_its_leads_plan_in_a_section_slot() {
     for native in [false, true] {
         let root = incident_plan_page(native);
         let mut view = small_view();
-        let mut patches = Queue::with_capacity(view.limits().tree.patches);
+        let mut patches = Queue::uncapped();
         build(&mut view, &root, &mut patches);
         let plans: Vec<_> = view
             .tree()
@@ -778,7 +778,7 @@ fn an_incident_with_a_proposal_and_an_infrastructure_panel_fills_both_slot_passe
         }
     }
     let mut view = view();
-    let mut patches = Queue::with_capacity(view.limits().tree.patches);
+    let mut patches = Queue::uncapped();
     build(&mut view, &root, &mut patches);
     assert!(contains(&view, b"Task 9"));
     assert!(contains(&view, b"Waiting at policy roles"));
@@ -838,7 +838,7 @@ fn moving_an_environment_end_names_the_end_revision_and_waits_for_the_final_enve
         }),
     );
     let mut view = view();
-    let mut patches = Queue::with_capacity(view.limits().tree.patches);
+    let mut patches = Queue::uncapped();
     while patches.pop().is_some() {}
     build(&mut view, &root, &mut patches);
     assert!(contains(&view, b"Not ready"));
@@ -950,7 +950,7 @@ fn an_environment_without_an_end_has_no_revision_or_move_form() {
         }),
     );
     let mut view = view();
-    let mut patches = Queue::with_capacity(view.limits().tree.patches);
+    let mut patches = Queue::uncapped();
     build(&mut view, &root, &mut patches);
     assert!(!view.tree().nodes().iter().any(|n| n.role == skein_ui::Role::TextField
         && n.name.as_deref() == Some(b"New end (seconds since epoch)".as_slice())));
@@ -1037,7 +1037,7 @@ fn a_common_entrance_refusal_prints_supplied_budget_facts_without_claiming_gone(
         ),
     );
     let mut view = view();
-    let mut patches = Queue::with_capacity(view.limits().tree.patches);
+    let mut patches = Queue::uncapped();
     build(&mut view, &root, &mut patches);
     assert!(contains(&view, b"Your pool has 3 left; this needs 10"));
     assert!(!contains(&view, b"Gone"));
@@ -1100,7 +1100,7 @@ fn actual_outbox_entries_render_from_their_explicit_scope_and_keep_proposal_keys
             }),
         );
         let mut view = view();
-        let mut patches = Queue::with_capacity(view.limits().tree.patches);
+        let mut patches = Queue::uncapped();
         build(&mut view, &root, &mut patches);
         let value = match scope {
             PartScope::Project(project) => u64::from(project),
@@ -1347,7 +1347,7 @@ fn known_deployment_parts_name_actual_capacities_and_deferred_diagnostics_withou
         let mut root = ready();
         let request = deployment_read(&mut root, connector);
         let mut view = view();
-        let mut patches = Queue::with_capacity(view.limits().tree.patches);
+        let mut patches = Queue::uncapped();
         build(&mut view, &root, &mut patches);
         assert!(contains(&view, b"Loading"));
         assert!(!contains(&view, b"not kept by this connector"));
@@ -1448,7 +1448,7 @@ fn unknown_deployment_parts_keep_missing_owner_facts_without_not_kept_captions()
             _ => panic!("connector Deployment read"),
         }
         let mut view = view();
-        let mut patches = Queue::with_capacity(view.limits().tree.patches);
+        let mut patches = Queue::uncapped();
         build(&mut view, &root, &mut patches);
         assert!(contains(&view, b"Unknown"));
         assert!(!contains(&view, b"not kept by this connector"));
@@ -1707,7 +1707,7 @@ fn native_environment_form_uses_the_supplied_request_revision_and_keeps_whole_wi
         }),
     );
     let mut view = view();
-    let mut patches = Queue::with_capacity(view.limits().tree.patches);
+    let mut patches = Queue::uncapped();
     build(&mut view, &root, &mut patches);
     assert!(contains(&view, b"Observed backend lease (seconds since epoch): 18446744073709551615"));
     assert!(contains(&view, b"Ready at (seconds since epoch): 18446744073709551615"));

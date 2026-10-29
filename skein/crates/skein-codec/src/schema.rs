@@ -395,8 +395,14 @@ pub fn parse(text: &[u8]) -> Result<Schema, SchemaError> {
     Ok(parsed.schema)
 }
 
-/// Text bounds every token and type; names occupy disjoint spans of the text.
+/// The old name of [`schema_bound`]; it goes once every tree calls the new name (wave 3).
 pub(crate) fn worst_case_heap(text: u32) -> Option<u64> {
+    schema_bound(text)
+}
+
+/// Bounds schema parse workspace and tables.
+/// Text bounds every token and type; names occupy disjoint spans of the text.
+pub(crate) fn schema_bound(text: u32) -> Option<u64> {
     let declarations = text.min(MAX_DECLARATIONS);
     let mut total = u64::from(text).checked_mul(3)?; // owned text and both name sets
     for bytes in [

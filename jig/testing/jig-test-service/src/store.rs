@@ -12,6 +12,8 @@ use skein_lib::{Duration, Env, Map, Queue, Time, Token, Wall};
 const ADOPT: Token = Token::new(u64::MAX - 1);
 const CLOSE: Token = Token::new(u64::MAX);
 const MASK: u64 = (1_u64 << 60) - 1;
+/// Three single-flight file drivers, each with at most four kernel records per transition.
+pub(super) const KERNEL_HANDOFF_ENTRIES: u32 = 3 * 4;
 
 #[derive(Debug)]
 struct Driver {
@@ -92,10 +94,10 @@ impl Store {
         installation: [u8; 16],
         seed: u64,
     ) -> Self {
-        let room = root::max_out(application).checked_mul(2).expect("store route room");
-        let mut routes = route::Routes::new(room);
+        // Route correlations grow with admitted work, without reserving an output envelope.
+        let mut routes = route::Routes::new(u32::MAX);
         routes.configure(application);
-        let mut drivers = [driver(limits, room), driver(limits, room), driver(limits, room)];
+        let mut drivers = [driver(limits), driver(limits), driver(limits)];
         let [store, secrets, transcripts] = &mut drivers;
         let seeded = protocol::seed([&mut store.io, &mut secrets.io, &mut transcripts.io], seed);
         Self {
@@ -117,7 +119,7 @@ impl Store {
                 transcripts: Queue::uncapped(),
             },
             drivers,
-            submitted: Queue::with_capacity(room),
+            submitted: Queue::with_capacity(KERNEL_HANDOFF_ENTRIES),
             opened: false,
             pending: false,
             installation,
@@ -250,6 +252,7 @@ impl Store {
         false
     }
     fn can_close(&self, index: usize) -> bool {
+        // other_store_drivers_closed: root closure follows the other drivers' handles and terminals.
         self.closing
             && !self.drivers.get(index).expect("driver index").handles.is_empty()
             && (index != 0
@@ -449,9 +452,9 @@ fn check_read_page(limits: &protocol::Limits) -> Option<()> {
     }
     Some(())
 }
-fn driver(limits: &protocol::Limits, capacity: u32) -> Driver {
+fn driver(limits: &protocol::Limits) -> Driver {
     let io = FileIo::with_whole_limit(handles(limits), max_read(limits), 32, max_whole(limits), limits.store.deadline);
-    Driver { io, above: Queue::with_capacity(capacity), handles: Map::with_capacity(handles(limits)) }
+    Driver { io, above: Queue::uncapped(), handles: Map::with_capacity(handles(limits)) }
 }
 fn close(file: Token) -> file::Request {
     file::Request::Close { owner: CLOSE, file }

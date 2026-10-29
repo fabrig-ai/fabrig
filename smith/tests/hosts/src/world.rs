@@ -124,13 +124,6 @@ impl Host for HostService {
             && self.submissions.is_empty()
     }
 
-    fn worst_case(&self) -> u64 {
-        // Peak of the sample host parent in service and stderr-failure scenarios.
-        // Measured 454_471 B on 2026-10-28; a quarter of headroom, rounded up.
-        const HOST_PARENT_CEILING: u64 = 570_000;
-        HOST_PARENT_CEILING
-    }
-
     fn operations(&self) -> u32 {
         skein_io::operations(&self.io_env.limits)
             .and_then(|operations| operations.checked_add(1))
@@ -189,10 +182,6 @@ impl Host for ErrorTail {
 
     fn is_empty(&self) -> bool {
         false
-    }
-
-    fn worst_case(&self) -> u64 {
-        4096
     }
 
     fn operations(&self) -> u32 {
@@ -446,7 +435,10 @@ impl World {
 
     /// Check each process at every iteration using the shared allocator.
     pub fn check_memory(&mut self) {
-        self.memory = Memory::Checked;
+        // Peak of the sample host parent in service and stderr-failure scenarios.
+        // Measured 454_471 B on 2026-10-28; a quarter of headroom, rounded up.
+        const HOST_PARENT_CEILING: u64 = 570_000;
+        self.memory = Memory::Within(HOST_PARENT_CEILING);
     }
 
     /// Run the shared harness through complete process and descriptor settlement.

@@ -24,7 +24,6 @@ pub struct Engine {
     pub(crate) systems: [System; 2],
     pub(crate) end: Option<End>,
     pub(crate) begin: bool,
-    pub(crate) max_out: u32,
     pub(crate) restart_reads: Option<(u16, u32)>,
     pub(crate) drain: Option<stop::Drain>,
     pub(super) blocked: bool,
@@ -50,8 +49,6 @@ impl Engine {
         store: crate::store::Store,
     ) -> Self {
         let Children { accounts, workers, clients } = children;
-        let max_out = root::max_out(limits);
-        let capacity = max_out.checked_mul(2).expect("engine queues fit u32");
         let mut events = Queue::uncapped();
         if accounts.is_some() || workers.is_some() {
             events.push(root::Event::Credential { number: 1, generation: 1, valid: Duration::from_nanos(u64::MAX) });
@@ -67,14 +64,13 @@ impl Engine {
             aborted: None,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits },
             store,
-            parties: Queue::with_capacity(capacity),
-            outputs: Queue::with_capacity(capacity),
+            parties: Queue::uncapped(),
+            outputs: Queue::uncapped(),
             events,
-            requests: Queue::with_capacity(max_out),
+            requests: Queue::uncapped(),
             systems,
             end: None,
             begin: true,
-            max_out,
             restart_reads: None,
             drain: None,
             blocked: false,
@@ -108,24 +104,6 @@ impl Engine {
         self.values.accounts.granted(account, generation, value, expires).expect("a grant within the table's bounds");
     }
 
-    pub(crate) fn room(&self) -> bool {
-        (match &self.drain {
-            Some(drain) => drain.busy.room() >= self.max_out,
-            None => true,
-        }) && self.outputs.room() >= self.max_out
-            && match &self.workers {
-                Some(workers) => workers.batch_room(self.max_out),
-                None => true,
-            }
-            && match &self.clients {
-                Some(clients) => clients.room(self.max_out) && clients.commit_room(),
-                None => true,
-            }
-            && match &self.accounts {
-                Some(accounts) => accounts.batch_room(self.max_out),
-                None => true,
-            }
-    }
     pub(crate) fn step(&mut self, event: root::Event) {
         self.root_steps = self.root_steps.wrapping_add(1);
         let watcher = match &mut self.clients {
@@ -214,14 +192,13 @@ impl Engine {
         components
             || !self.store.above.is_empty()
             || !self.store.routed.is_empty()
-            || (self.room()
-                && (self.begin
-                    || (!self.first_periods.is_empty() && self.domain.ready() && !self.blocked)
-                    || !self.parties.is_empty()
-                    || ((!self.events.is_empty() || !self.held.is_empty()) && !self.blocked)
-                    || (!self.held.is_empty() && self.passing())
-                    || self.ready
-                    || (due && (!self.blocked || !self.held.is_empty()))))
+            || self.begin
+            || (!self.first_periods.is_empty() && self.domain.ready() && !self.blocked)
+            || !self.parties.is_empty()
+            || ((!self.events.is_empty() || !self.held.is_empty()) && !self.blocked)
+            || (!self.held.is_empty() && self.passing())
+            || self.ready
+            || (due && (!self.blocked || !self.held.is_empty()))
     }
     fn passing(&self) -> bool {
         match self.events.iter().next() {
@@ -230,17 +207,6 @@ impl Engine {
         }
     }
 
-    pub(crate) fn io_room(&self) -> bool {
-        self.events.room() >= jig_protocol_engine_workers::MAX_OUT_DOWN
-            && match &self.workers {
-                Some(workers) => workers.room(),
-                None => true,
-            }
-            && match &self.clients {
-                Some(clients) => clients.room(1),
-                None => true,
-            }
-    }
     pub(crate) fn listeners_open(&self) -> bool {
         (match &self.workers {
             Some(workers) => workers.opened(),
@@ -325,16 +291,10 @@ pub fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
         engine.abort_if_ended();
         return;
     }
-    if !engine.room() {
-        return;
-    }
     if engine.begin
         && let Some(clients) = &mut engine.clients
     {
         for _ in 0..clients.early.len() {
-            if !clients.room(1) {
-                break;
-            }
             let event = clients.early.pop().expect("client startup input");
             clients.not_ready(event);
         }
@@ -346,9 +306,6 @@ pub fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
         && let Some(clients) = &mut engine.clients
     {
         for _ in 0..clients.early.len() {
-            if engine.events.room() == 0 {
-                break;
-            }
             let event = clients.early.pop().expect("client startup inputs");
             engine.events.push(event);
         }
@@ -392,7 +349,7 @@ fn pass(engine: &mut Engine) {
         return;
     }
     for _ in 0..engine.events.len() {
-        if !engine.room() || !engine.passing() {
+        if !engine.passing() {
             break;
         }
         let event = engine.events.pop().expect("passing component input");
@@ -428,7 +385,7 @@ fn release(engine: &mut Engine) {
     engine.ready = true;
     let mut empty = 0_u32;
     for _ in 0..engine.env.limits.routes {
-        if !engine.room() || engine.end.is_some() {
+        if engine.end.is_some() {
             break;
         }
         root::release(&mut engine.domain, &engine.env, &mut engine.requests);

@@ -108,7 +108,7 @@ fn effect(kind: u16, purpose: u64, target: u64) -> Effect {
 
 fn run(domain: &mut Domain, at: u64, event: Event) -> Vec<Request> {
     let env = Env { now: Time::ZERO, wall: Wall::from_nanos(at), limits: LIMITS };
-    let mut out = Queue::with_capacity(connector::MAX_OUT);
+    let mut out = Queue::uncapped();
     connector::step(domain, &env, event, &mut out);
     let mut requests = Vec::new();
     while let Some(request) = out.pop() {
@@ -119,7 +119,7 @@ fn run(domain: &mut Domain, at: u64, event: Event) -> Vec<Request> {
 
 fn fire(domain: &mut Domain, at: u64) -> Vec<Request> {
     let env = Env { now: Time::ZERO, wall: Wall::from_nanos(at), limits: LIMITS };
-    let mut out = Queue::with_capacity(connector::MAX_OUT);
+    let mut out = Queue::uncapped();
     connector::fire(domain, &env, &mut out);
     let mut requests = Vec::new();
     while let Some(request) = out.pop() {

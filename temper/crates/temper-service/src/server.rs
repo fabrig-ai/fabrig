@@ -367,8 +367,7 @@ fn end(connection: &mut Connection, drain: bool, out: &mut Queue<Routed>) {
 /// Listener and HTTP edge limits required by the connection lifecycle.
 #[must_use]
 pub fn valid(limits: &Limits) -> bool {
-    // skein's valid() replaces this at the set's repin
-    limits.connections != 0 && limits.stall != Duration::ZERO && http::worst_case(&limits.http).is_some()
+    limits.connections != 0 && limits.stall != Duration::ZERO && http::valid(&limits.http)
 }
 
 #[cfg(test)]
@@ -383,5 +382,19 @@ fn listener_limits_accept_stock_and_refuse_zero_connections_or_stall() {
     assert!(!valid(&limits));
     limits = crate::limits::server(&crate::tests::fixtures::engine().jig.limits);
     limits.http.read = 0;
+    assert!(!valid(&limits));
+    limits = crate::limits::server(&crate::tests::fixtures::engine().jig.limits);
+    limits.http.head = 1;
+    assert!(!valid(&limits));
+    limits = crate::limits::server(&crate::tests::fixtures::engine().jig.limits);
+    limits.http.send = 0;
+    assert!(!valid(&limits));
+    limits = crate::limits::server(&crate::tests::fixtures::engine().jig.limits);
+    limits.http.response = 122; // The server's longest answer needs 123 bytes.
+    assert!(!valid(&limits));
+    limits = crate::limits::server(&crate::tests::fixtures::engine().jig.limits);
+    limits.http.send = u32::MAX - 12; // Eight hex digits and four framing bytes.
+    assert!(valid(&limits));
+    limits.http.send += 1;
     assert!(!valid(&limits));
 }

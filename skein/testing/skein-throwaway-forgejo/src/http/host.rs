@@ -1,9 +1,10 @@
 //! A single admitted socket, closed at the HTTP terminal and fully drained.
-use super::ExchangeHost;
+use super::{Attempt, ExchangeHost};
 use crate::Failure;
 use skein_io::{self as io, kernel};
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use skein_shell::{Clock, Host, Kernel};
+use skein_world::{Deadline, Expired, Starved};
 
 fn limits() -> io::Limits {
     io::Limits {
@@ -29,6 +30,9 @@ struct OneShot<'a> {
     socket: Option<Token>,
     exchange: Option<&'a mut ExchangeHost>,
     deadline: Time,
+    real_deadline: Option<Deadline>,
+    process: Option<u32>,
+    starved: Option<Starved>,
     closing: bool,
     connected: bool,
 }
@@ -43,9 +47,20 @@ impl OneShot<'_> {
             socket: None,
             exchange,
             deadline,
+            real_deadline: None,
+            process: None,
+            starved: None,
             closing: false,
             connected: false,
         }
+    }
+    fn arm(&mut self, what: &'static str, patience: Duration) {
+        let mut deadline = Deadline::arm(what, patience);
+        if let Some(pid) = self.process {
+            deadline.watch_process(pid);
+        }
+        self.deadline = deadline.until();
+        self.real_deadline = Some(deadline);
     }
     fn stop(&mut self) {
         if !self.closing {
@@ -75,7 +90,11 @@ impl Host for OneShot<'_> {
                 io::Event::Connecting { socket, .. } => self.socket = Some(socket),
                 io::Event::Connected { .. } => {
                     self.connected = true;
-                    self.deadline = now.saturating_add(Duration::from_secs(10));
+                    if self.real_deadline.is_some() {
+                        self.arm("the throwaway HTTP answer", Duration::from_secs(10));
+                    } else {
+                        self.deadline = now.saturating_add(Duration::from_secs(10));
+                    }
                 }
                 io::Event::Stream { up, .. } => {
                     if !self.closing
@@ -104,12 +123,6 @@ impl Host for OneShot<'_> {
                 | io::Event::Shutdown { .. } => unreachable!("one-shot client socket events"),
             }
         }
-        if !self.closing && now >= self.deadline {
-            if let Some(exchange) = self.exchange.as_mut() {
-                exchange.fail("HTTP exchange timed out".into());
-            }
-            self.stop();
-        }
         if self.exchange.as_ref().is_some_and(|exchange| exchange.done) {
             self.stop();
         }
@@ -130,6 +143,22 @@ impl Host for OneShot<'_> {
                 break;
             };
             io::down(&mut self.io, &env, request, &mut self.submit);
+        }
+        // Deliver completed input and its HTTP demands before classifying an unanswered wait.
+        if !self.closing && !self.work_pending(now) && now >= self.deadline {
+            if let Some(deadline) = &self.real_deadline {
+                match deadline.expired() {
+                    Expired::Starved(starved) => self.starved = Some(starved),
+                    Expired::Failed(figures) => {
+                        if let Some(exchange) = self.exchange.as_mut() {
+                            exchange.fail(format!("HTTP exchange timed out: {figures}"));
+                        }
+                    }
+                }
+            } else if let Some(exchange) = self.exchange.as_mut() {
+                exchange.fail("HTTP exchange timed out".into());
+            }
+            self.stop();
         }
         self.io.reclaim();
     }
@@ -160,22 +189,32 @@ impl Host for OneShot<'_> {
         io::operations(&limits()).expect("one socket operations")
     }
 }
-fn drive(mut host: OneShot<'_>, clock: &Clock) -> Result<(), Failure> {
+fn drive(mut host: OneShot<'_>, clock: &Clock) -> Result<(), Attempt> {
     let mut kernel = Kernel::open(skein_shell::Config { operations: host.operations() })
-        .map_err(|error| Failure::Io(format!("HTTP ring: {error:?}")))?;
+        .map_err(|error| Attempt::Failed(Failure::Io(format!("HTTP ring: {error:?}"))))?;
     skein_shell::drive(&mut kernel, clock, &mut host);
-    Ok(())
+    drop(kernel);
+    match host.starved {
+        Some(starved) => Err(Attempt::Starved(starved)),
+        None => Ok(()),
+    }
 }
-pub(super) fn exchange(port: u16, exchange: &mut ExchangeHost) -> Result<(), Failure> {
+pub(super) fn exchange(port: u16, exchange: &mut ExchangeHost, process: Option<u32>) -> Result<(), Attempt> {
     let clock = Clock::new();
-    let mut host = OneShot::new(Some(exchange), clock.now().now.saturating_add(Duration::from_millis(100)));
+    let mut host = OneShot::new(Some(exchange), Time::ZERO);
+    host.process = process;
+    host.arm("the throwaway HTTP connection", Duration::from_millis(100));
     host.requests
         .push(io::Request::Connect { owner: Token::new(0), addr: io::Addr::Ip(([127, 0, 0, 1], port).into()) });
     drive(host, &clock)
 }
 pub(crate) fn wait(duration: Duration) -> Result<(), Failure> {
     let clock = Clock::new();
-    drive(OneShot::new(None, clock.now().now.saturating_add(duration)), &clock)
+    match drive(OneShot::new(None, clock.now().now.saturating_add(duration)), &clock) {
+        Ok(()) => Ok(()),
+        Err(Attempt::Failed(error)) => Err(error),
+        Err(Attempt::Starved(_)) => unreachable!("a polling delay has no unanswered exchange"),
+    }
 }
 
 #[cfg(test)]

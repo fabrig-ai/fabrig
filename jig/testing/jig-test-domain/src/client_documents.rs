@@ -121,7 +121,7 @@ fn forward(
     request: core::Request,
     work: &mut Queue<Work>,
 ) {
-    let mut requests = Queue::with_capacity(1);
+    let mut requests = Queue::uncapped();
     requests.push(request);
     route_core(domain, env, decision, core::Requests::Out(requests), work);
 }
@@ -140,7 +140,7 @@ pub(crate) fn read(
     work: &mut Queue<Work>,
 ) {
     let mut reply = Some(reply);
-    let mut out = Queue::with_capacity(connector::MAX_OUT);
+    let mut out = Queue::uncapped();
     connector::step(
         crate::numbered(domain, number),
         &Env { now: env.now, wall: env.wall, limits: env.limits.connector },
@@ -190,7 +190,7 @@ pub(crate) fn read(
             | connector::Request::News { .. }
             | connector::Request::Save { .. }
             | connector::Request::Erase { .. }) => {
-                let mut requests = Queue::with_capacity(1);
+                let mut requests = Queue::uncapped();
                 requests.push(request);
                 route_connector(domain, env, decision, number, &mut requests, work);
             }

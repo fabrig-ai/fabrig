@@ -190,15 +190,21 @@ pub(crate) fn request(port: u16, outgoing: &Outgoing<'_>, auth: Option<&str>) ->
     }
     exchange.exchange.sent
 }
+pub(crate) enum Attempt {
+    Failed(Failure),
+    Starved(skein_world::Starved),
+}
+
 pub(crate) fn exchange(
     port: u16,
     outgoing: &Outgoing<'_>,
     auth: Option<&str>,
     cap: usize,
-) -> Result<Exchange, Failure> {
+    process: Option<u32>,
+) -> Result<Exchange, Attempt> {
     let mut exchange = ExchangeHost::new(port, outgoing, auth, cap);
-    host::exchange(port, &mut exchange)?;
-    exchange.result()
+    host::exchange(port, &mut exchange, process)?;
+    exchange.result().map_err(Attempt::Failed)
 }
 #[cfg(test)]
 pub(crate) fn parse(bytes: &[u8], sent: Vec<u8>) -> Result<Exchange, Failure> {

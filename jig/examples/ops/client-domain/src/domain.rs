@@ -65,6 +65,7 @@ impl Domain {
 }
 pub fn step(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     route::event(root, env, event, out);
+    children_first(out);
 }
 pub fn fire(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     let mut child = Queue::uncapped();
@@ -87,6 +88,30 @@ pub fn fire(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     let mut client = Queue::uncapped();
     root.client.fire(env.now, env.wall, &mut client);
     route::route_client(root, env, &mut client, out);
+    children_first(out);
+}
+
+/// `child_records_dispatched`: child records, facts and shows precede transport,
+/// preserving each partition's order (jig/docs/design/client/domain/root.md, 3).
+fn children_first(out: &mut Queue<Request>) {
+    let mut client = Queue::uncapped();
+    for _ in 0..out.len() {
+        let request = out.pop().expect("counted root output");
+        match request {
+            Request::Client { .. } => client.push(request),
+            request @ (Request::Save { .. }
+            | Request::Erase { .. }
+            | Request::Infrastructure(_)
+            | Request::Observability(_)
+            | Request::Show { .. }
+            | Request::SignIn { .. }
+            | Request::SignOut
+            | Request::Fact { .. }) => out.push(request),
+        }
+    }
+    while let Some(request) = client.pop() {
+        out.push(request);
+    }
 }
 #[must_use]
 pub fn next_deadline(root: &Domain) -> Option<Time> {

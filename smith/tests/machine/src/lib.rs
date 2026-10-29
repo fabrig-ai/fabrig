@@ -71,7 +71,7 @@ pub struct World {
     trace: Vec<String>,
     /// The child-output deliveries in the last settled run.
     pub deliveries: usize,
-    heap: Vec<(u64, u64)>,
+    peaks: Vec<u64>,
     environment: Vec<smith_protocol_machine::Variable>,
     spawns: Rc<RefCell<Vec<Spawned>>>,
 }
@@ -130,7 +130,7 @@ impl World {
             memory: Memory::Unchecked,
             trace: Vec::new(),
             deliveries: 0,
-            heap: Vec::new(),
+            peaks: Vec::new(),
             environment: Vec::new(),
             spawns: Rc::default(),
         }
@@ -144,7 +144,10 @@ impl World {
 
     /// Enable the shared harness's construction, iteration and drop checks.
     pub fn check_memory(&mut self) {
-        self.memory = Memory::Checked;
+        // Peak across file, command, check, flood and selected-listing scenarios.
+        // Measured 68_544 B on 2026-10-28; a quarter of headroom, rounded up.
+        const MACHINE_SCENARIOS_CEILING: u64 = 86_000;
+        self.memory = Memory::Within(MACHINE_SCENARIOS_CEILING);
     }
 
     /// Complete kernel traces for every request, in submission order.
@@ -159,10 +162,10 @@ impl World {
         self.now
     }
 
-    /// Each checked run's measured process peak and bound.
+    /// Each checked run's measured process peak.
     #[must_use]
-    pub fn heap(&self) -> &[(u64, u64)] {
-        &self.heap
+    pub fn peaks(&self) -> &[u64] {
+        &self.peaks
     }
 
     /// An external writer changes the authoritative fake checkout.
@@ -253,8 +256,8 @@ impl World {
         self.deliveries = outcome.procs[0].deliveries;
         self.trace.extend(outcome.trace.iter().map(|entry| format!("{entry:?}")));
         self.now = Time::from_nanos(self.now.as_nanos().checked_add(outcome.end.as_nanos()).expect("scenario clock"));
-        if let Some(heap) = &outcome.heap {
-            self.heap.extend_from_slice(heap);
+        if let Some(peaks) = outcome.peaks() {
+            self.peaks.extend(peaks);
         }
         drop(outcome); // The original terminal remains in its metered process until drop.
         self.settle();
@@ -976,12 +979,6 @@ impl Host for Application {
             && !self
                 .work_pending(Time::from_nanos(self.machine_env.now.as_nanos().saturating_sub(self.offset.as_nanos())))
             && self.submissions.is_empty()
-    }
-    fn worst_case(&self) -> u64 {
-        // Peak across file, command, check, flood and selected-listing scenarios.
-        // Measured 68_544 B on 2026-10-28; a quarter of headroom, rounded up.
-        const MACHINE_SCENARIOS_CEILING: u64 = 86_000;
-        MACHINE_SCENARIOS_CEILING
     }
     fn operations(&self) -> u32 {
         io::operations(&self.process_env.limits).and_then(|ops| ops.checked_add(16)).expect("application operations")

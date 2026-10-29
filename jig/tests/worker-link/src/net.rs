@@ -72,6 +72,12 @@ impl Net {
             },
         }
     }
+    pub fn inject(&mut self, bytes: &[u8]) {
+        self.bytes.extend(bytes);
+    }
+    pub fn buffered_input(&self) -> bool {
+        !self.bytes.is_empty() || !self.intake.is_empty()
+    }
     pub fn tick(&mut self, rng: &mut Rng) -> Option<LowerEvent> {
         if !self.write_room && self.right.is_some() {
             self.blocked = self.blocked.saturating_add(1);

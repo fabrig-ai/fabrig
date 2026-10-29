@@ -1,9 +1,10 @@
 //! Opt-in checks of the real program's interrupt and resume contracts (programs.md 5.7, 8).
+use skein_lib::Duration;
+use skein_world::{Deadline, Expired};
 use std::{
     io::{BufRead, BufReader, Write},
     process::{Child, Command, Stdio},
     sync::mpsc,
-    time::Duration,
 };
 
 #[path = "probe.rs"]
@@ -155,9 +156,27 @@ impl Live {
         (child, messages)
     }
 
-    fn message(&self) -> serde_json::Value {
-        let message =
-            self.messages.recv_timeout(Duration::from_mins(1)).expect("program message within the live deadline");
+    fn message(&mut self) -> serde_json::Value {
+        let mut deadline = Deadline::arm("a live program message", Duration::from_secs(60));
+        deadline.watch_process(self.child.id());
+        let message = loop {
+            match self.messages.recv_timeout(std::time::Duration::from_nanos(deadline.remaining().as_nanos())) {
+                Ok(message) => break message,
+                Err(mpsc::RecvTimeoutError::Disconnected) => panic!("the program's output closed before a message"),
+                Err(mpsc::RecvTimeoutError::Timeout) => {
+                    if deadline.passed() {
+                        match deadline.expired() {
+                            Expired::Starved(starved) => {
+                                self.child.kill().expect("kill the starved program");
+                                self.child.wait().expect("reap the starved program");
+                                starved.pass();
+                            }
+                            Expired::Failed(figures) => panic!("program message within the live deadline: {figures}"),
+                        }
+                    }
+                }
+            }
+        };
         // Check a limit's wire only when one arrives; never spend to force one.
         if message["type"] == "rate_limit_event" {
             assert!(message["rate_limit_info"]["status"].is_string(), "a limit reports its status");
@@ -177,7 +196,7 @@ impl Live {
         .expect("next user message");
     }
 
-    fn result_text(&self) -> String {
+    fn result_text(&mut self) -> String {
         let mut text = String::new();
         for _ in 0..1000 {
             let message = self.message();
@@ -196,7 +215,7 @@ impl Live {
         panic!("program turn did not finish");
     }
 
-    fn wait_for_turn_start(&self) {
+    fn wait_for_turn_start(&mut self) {
         // Same bounded record allowance as these live turn probes.
         const START_RECORDS: usize = 1000;
         for _ in 0..START_RECORDS {
@@ -369,7 +388,7 @@ for line in sys.stdin:
 fn a_live_server_with_a_non_object_schema_lists_no_tools() {
     // The existing live turn probes allow this many records before a terminal.
     const INIT_RECORDS: usize = 1000;
-    let live = Live::start_inventory("Reply with OK.", false, false, None, true);
+    let mut live = Live::start_inventory("Reply with OK.", false, false, None, true);
     for _ in 0..INIT_RECORDS {
         let message = live.message();
         if message["type"] == "system" && message["subtype"] == "init" {

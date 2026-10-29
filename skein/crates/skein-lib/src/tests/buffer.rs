@@ -140,9 +140,9 @@ fn copying_out_keeps_exact_bytes_and_the_buffer() {
 }
 
 #[test]
-fn worst_case_counts_the_capacity_in_bytes() {
+fn price_counts_the_capacity_in_bytes() {
     for (capacity, heap) in [(0, 0), (1, 1), (16, 16), (u32::MAX, 4_294_967_295)] {
-        assert_eq!(Buffer::worst_case(capacity), Some(heap));
+        assert_eq!(Buffer::price(capacity), Some(heap));
     }
 }
 

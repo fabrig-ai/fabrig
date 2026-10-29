@@ -191,9 +191,16 @@ impl Document {
     }
 }
 
-/// The document's two allocations at their admitted counts (programming-model.md, 6.3).
+/// The old name of [`document_bound`]; it goes once every tree calls the new name (wave 3).
 #[must_use]
 pub fn worst_case(limits: &Limits) -> Option<u64> {
+    document_bound(limits)
+}
+
+/// Bounds one compact document.
+/// The document's two allocations at their admitted counts (programming-model.md, 6.3).
+#[must_use]
+pub fn document_bound(limits: &Limits) -> Option<u64> {
     List::<Compact>::worst_case(limits.tokens)?.checked_add(u64::from(limits.text))
 }
 

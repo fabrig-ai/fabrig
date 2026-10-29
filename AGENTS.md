@@ -8,7 +8,7 @@ Provisional, 2026-10-28. What every agent working here must know, whatever its r
 - **Dependencies point one way:** skein names none of smith, jig or temper; smith names neither jig nor temper; jig never names temper. A missing generic mechanism goes into skein before its smith or jig consumer. A gate step checks it.
 - **The code's rules are skein's:** `skein/docs/foundation/programming-model.md` and `testing-strategy.md`, section 1 first, a later section when the work touches it; `notes.md` beside them holds the reasons. Depart only with a reason written in the design or the commit.
 - **The design is the contract:** each tree's `docs/design/`, cited by path from the repository root and section (`skein/docs/design/lib.md, 5`). Every design document has a "Later" section for what is out of scope now, and a status file beside it (`lib.status.md`) saying where the code lags or departs; its designer keeps both.
-- **main moves only through the merge queue.** You push a branch; you never push main, never force-push, and push only your own branches.
+- **main moves only through the merge queue.** You push a branch; you never push main, never force-push, and push only your own branches (a lead also publishes its implementers' reviewed tips as `ready/<area>/<task>`).
 - **Every build and test goes through `heavy`**, one command at a time; the only test profiles are `default` (focused) and `fuzzy`.
 - **On a doubt, stop and ask** (section 7); never improvise across a boundary.
 
@@ -35,13 +35,13 @@ Provisional, 2026-10-28. What every agent working here must know, whatever its r
 
 - fabrig's clones, slots and scratch live under `~/src/fabrig/` on every machine (slots at `~/src/fabrig/slots/<n>`), nothing above them but this repository's own files.
 - You work in your slot or worktree, on a branch; no git command in anyone else's checkout, and none in a primary checkout, not even `git fetch`.
-- One task, one branch, one slot: branches are `<lead>/<task>`, and a lead has as many in flight as it has implementers running; a branch is ready for the queue when pushed as `ready/<lead>/<task>`. A rebased branch is pushed under a new name.
+- One task, one branch, one slot: branches are `<area>/<task>` (the coordinator's `coord/<task>`, the operator's `ops/<task>`), and a lead has as many in flight as it has implementers running; a branch is ready for the queue when pushed as `ready/<area>/<task>`. A rebased branch is pushed under a new name.
 - Commits are small and say why; the merge queue keeps them as they are.
 - Throwaway code lives untracked in your worktree and is gone before you push; a tool the work lacks is a question, never a script beside it.
 
 ## 5. Build machines
 
-- Builders: hetzner2, 3, 6, 7, 8 (8 cores, 15 GB each; memory is the limit, about three temper-sized builds at once). hel8 builds nothing.
+- Builders: hetzner3, 6, 7 (8 cores, 15 GB each; heavy admits three builds at once). Hetzner8 runs the gate; hetzner2 is reserved for the second gate, with no builder tasks. hel8 builds nothing.
 - `heavy cargo ...` for every build and test; what builds nothing (`cargo fmt`, `cargo tree`, `cargo metadata`) runs directly. Never `heavy --gate`: the gate is the merge queue's.
 - One command at a time, and its inputs stay still until it reports. Cancel with `heavy --cancel TOKEN` from the directory that submitted it; never stop heavy's units or touch its state.
 - Disk: below 40 GB free heavy queues nothing. Free disk only in your own `target/`; never `kache clean --cache`, `~/.cache`, `~/.cargo`, another's worktree.
@@ -55,7 +55,7 @@ Provisional, 2026-10-28. What every agent working here must know, whatever its r
 - Read a failure's log (heavy prints its path) before anything reruns; no unchanged rerun, except once after exit 137.
 - A failure your change can't reach runs once alone: passing, it's a flake, reported with both logs and the machine; failing, it's a question.
 - Fix a failure in the lowest tier that shows it: a skein fault seen downstream is reproduced in skein.
-- The budgets, measured on an idle machine: a tree's focused suite within 30 seconds, its fuzzy suite (randomized: `tests/fuzzy_*.rs`, or a `suite` binary's `fuzzy` module) within 120 seconds. They are the user's; moving a test to escape one is raising it.
+- The budgets, measured on an idle machine: a tree's focused suite within 30 seconds, its fuzzy suite (randomized: the `fuzzy` module of a package's `suite` binary) within 120 seconds. They are the user's; moving a test to escape one is raising it.
 
 ## 7. Asking
 
@@ -65,4 +65,4 @@ Provisional, 2026-10-28. What every agent working here must know, whatever its r
 
 ## 8. Roles
 
-`agents/coordinator.md` (one; designs and runs the pipeline), `agents/lead.md` (one per area; design parts into tasks), `agents/implementer.md` (Codex; one task at a time), `agents/operator.md` (one; the merge queue, the machines, the tools and the ledger); `agents/operations.md` (the machines', slots', surveys' and queue's facts) and `agents/ledger.md` (each incident that cost throughput, and where its remedy lives) for every session that coordinates or leads. Agents talk through `post`, the coordinator at the hub: `post send [--as NAME] [--re ID] TO SUBJECT [FILE]` sends FILE (or stdin) to `NAME@MACHINE`; exit 0 or 3 is delivered, exit 2 is not; a body stays under 15 lines, and anything longer is a file whose path the message names. `post wait NAME` waits for mail, `post read NAME` reads it.
+`agents/coordinator.md` (one; designs and runs the pipeline), `agents/lead.md` (one per area at a time, ephemeral; design parts into tasks), `agents/implementer.md` (Codex; one task at a time), `agents/operator.md` (one; the merge queue, the machines, the tools and the ledger); `agents/operations.md` (the machines', slots', surveys' and queue's facts) and `agents/ledger.md` (each incident that cost throughput, and where its remedy lives) for every session that coordinates or leads. Agents talk through `post`, the coordinator at the hub: `post send [--as NAME] [--re ID] TO SUBJECT [FILE]` sends FILE (or stdin) to `NAME@MACHINE`; exit 0 or 3 is delivered, exit 2 is not; a body stays under 15 lines, and anything longer is a file whose path the message names. `post wait NAME` waits for mail, `post read NAME` reads it.

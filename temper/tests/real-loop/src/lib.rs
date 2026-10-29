@@ -62,6 +62,9 @@ impl Ran {
     #[must_use]
     pub fn calls(&self) -> &[calls::Called] {
         let world::Proc::Caller(caller) = &self.outcome.procs[2] else { panic!("caller root") };
+        for call in &caller.calls {
+            call.assert_no_timeout();
+        }
         &caller.calls
     }
     #[must_use]

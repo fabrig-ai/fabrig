@@ -994,9 +994,17 @@ pub fn head_bytes(headers: &[Header]) -> Option<u64> {
     Some(bytes)
 }
 
-/// Checked maximum ownership of one admitted HTTP request head.
+/// The old name of [`head_bound`]; it goes once every tree
+/// calls the new name (wave 3).
 #[must_use]
 pub fn head_worst_case(limits: &Limits) -> Option<u64> {
+    head_bound(limits)
+}
+
+/// Bounds one HTTP request head.
+/// Checked maximum ownership of one admitted HTTP request head.
+#[must_use]
+pub fn head_bound(limits: &Limits) -> Option<u64> {
     u64::from(limits.http.headers)
         .checked_mul(u64::try_from(size_of::<Header>()).ok()?)?
         .checked_add(u64::from(limits.http.head))

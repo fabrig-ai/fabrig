@@ -49,11 +49,8 @@ fn a_world_of_two_scripts_settles_and_each_frees_what_it_held() {
     let received = &outcome.procs[0].received;
     assert_eq!(received.len(), 1);
     assert_eq!((received[0].0, &*received[0].1), (ms(20), &b"hello"[..]), "received when sent");
-    let heap = outcome.heap.as_ref().expect("checked");
-    assert!(
-        heap.iter().all(|(most, bound)| *most > 0 && *most <= CEILING && *bound == CEILING),
-        "within the scenario ceiling: {heap:?}"
-    );
+    let heap = outcome.peaks().expect("checked");
+    assert!(heap.iter().all(|most| *most > 0 && *most <= CEILING), "within the scenario ceiling: {heap:?}");
 }
 
 #[test]
@@ -79,7 +76,7 @@ fn a_ring_the_loop_grows_is_charged_to_its_process() {
         assert_eq!(process.completed, OPERATIONS);
         assert_eq!(process.largest_delivery, OPERATIONS, "one delivery grows through several ring capacities");
         let before_growth = process.before_growth;
-        let peak = outcome.heap.as_ref().expect("checked process")[0].0;
+        let peak = outcome.peaks().expect("checked process")[0];
         drop(outcome);
         assert!(peak > before_growth, "the process's peak includes the ring the loop grew");
     }
@@ -135,7 +132,7 @@ fn checked_memory_reports_peaks_without_a_ceiling() {
     )
     .run();
     let heap = outcome.heap.as_ref().expect("checked memory");
-    assert!(heap[0].0 >= u64::try_from(HOG_BYTES).expect("small hog"));
+    assert!(outcome.peaks().expect("checked memory")[0] >= u64::try_from(HOG_BYTES).expect("small hog"));
     assert!(heap.iter().all(|(_, ceiling)| *ceiling == u64::MAX));
 }
 

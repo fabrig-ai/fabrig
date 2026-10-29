@@ -1000,4 +1000,13 @@ fn validity_accepts_stock_limits_and_refuses_invalid_edges() {
     assert!(limits::valid(&limits));
     limits.connections.body_bytes = u32::MAX; // Stream record + 512 overflows.
     assert!(!limits::valid(&limits));
+    limits = limits::native();
+    limits.connections.http.head = 1;
+    assert!(!limits::valid(&limits));
+    limits = limits::native();
+    limits.connections.http.read = 0;
+    assert!(!limits::valid(&limits));
+    limits = limits::native();
+    limits.connections.http.send = 0;
+    assert!(!limits::valid(&limits));
 }

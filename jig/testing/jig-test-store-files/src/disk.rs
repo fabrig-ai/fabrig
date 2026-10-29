@@ -68,7 +68,7 @@ impl Disk {
     }
     pub fn answer(&mut self, driver: usize, request: file::Request) -> Arrived {
         let io = &mut self.io[driver];
-        let mut events = Queue::with_capacity(QUEUE);
+        let mut events = Queue::uncapped();
         let mut submissions = Queue::with_capacity(QUEUE);
         let mut completions = Queue::with_capacity(QUEUE);
         file_layer::down(io, Time::ZERO, request, &mut events, &mut submissions);

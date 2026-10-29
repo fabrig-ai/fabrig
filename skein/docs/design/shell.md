@@ -965,14 +965,14 @@ and changes no code above io:
 |---|---|
 | `tests/ring` (`skein-ring-tests`): `ring` and `files` but its `startup` module | the ring adapter's own |
 | `tests/conformance/real`: the `ring` module | the conformance on the ring |
-| `tests/io/tests/ring.rs` | io's real-kernel files on the ring |
-| `tests/echo/tests/real.rs`: the ring's cases | the echo's real loop on the ring |
+| `tests/io/tests/suite/ring.rs` | io's real-kernel files on the ring |
+| `tests/echo/tests/suite/real.rs`: the ring's cases | the echo's real loop on the ring |
 | `crates/skein-shell`: `linux`'s and `linux::ring`'s unit tests | Linux's calls: epoll, signalfd, pidfds, the ring |
 | `crates/skein-shell`: `kernel`'s `the_host_chooses_the_ring` and `forcing_a_backend_reports_it_and_refuses_zero_capacity` | each opens the ring |
 | `crates/skein-shell`: `readiness`'s `a_registration_error_completes_without_calling_or_adding_a_waiter` | its error is epoll's second add (`EEXIST`); kqueue's `EV_ADD` modifies instead |
-| `tests/world/tests/end_to_end.rs`: the cgroup's and the walk's tree tests, an escape from the group among them | a cgroup, the subreaper and `/proc` are Linux's (examples.md, 6) |
-| `tests/world/tests/end_to_end.rs`: `supervised_stderr_overflow_is_observed_before_the_referees_term_grace_and_whole_tree_kill` | its descendant leaves its session and group through `setsid`; a cgroup or the subreaper's walk follows it, Group does not (examples.md, 6) |
-| `testing/skein-throwaway-forgejo/tests/throwaway.rs` (`skein-throwaway-forgejo`) | starts the pinned Forgejo binary; no owned Forgejo on macOS, its releases are Linux's |
+| `tests/world/tests/suite/end_to_end.rs`: the cgroup's and the walk's tree tests, an escape from the group among them | a cgroup, the subreaper and `/proc` are Linux's (examples.md, 6) |
+| `tests/world/tests/suite/end_to_end.rs`: `supervised_stderr_overflow_is_observed_before_the_referees_term_grace_and_whole_tree_kill` | its descendant leaves its session and group through `setsid`; a cgroup or the subreaper's walk follows it, Group does not (examples.md, 6) |
+| `testing/skein-throwaway-forgejo/tests/suite/throwaway.rs` (`skein-throwaway-forgejo`) | starts the pinned Forgejo binary; no owned Forgejo on macOS, its releases are Linux's |
 
   The list grows with each test that a Darwin build shows to be
   Linux's, in the commit that marks it.

@@ -68,8 +68,8 @@ impl Component {
             credential,
             phase: Phase::Idle { at: Time::ZERO },
             backoff,
-            events: Queue::with_capacity(channel::MAX_UP.saturating_mul(3)),
-            below: Queue::with_capacity(channel::MAX_DOWN.saturating_mul(3)),
+            events: Queue::uncapped(),
+            below: Queue::uncapped(),
             next_part: 1,
             dropped: 0,
             relays: Relays::new(limits),
@@ -545,7 +545,7 @@ impl Component {
             }
             return;
         }
-        let mut parts = List::with_capacity(1);
+        let mut parts = Queue::uncapped();
         match translate::down(kind, body, &limits, now, &mut parts, &mut self.next_part, out) {
             Some(down) => {
                 let forward = match &down {
@@ -567,7 +567,12 @@ impl Component {
                     | host::LinkDown::Grant { .. } => true,
                 };
                 if forward {
-                    out.push(Request::Down { down, parts: parts.into_boxed() });
+                    // One translated record carries at most its workspace payload.
+                    let mut payloads = List::with_capacity(parts.len());
+                    for _ in 0..parts.len() {
+                        payloads.push(parts.pop().expect("one queued part per slot")).expect("one slot per part");
+                    }
+                    out.push(Request::Down { down, parts: payloads.into_boxed() });
                 }
                 self.command(channel::Request::Read);
             }

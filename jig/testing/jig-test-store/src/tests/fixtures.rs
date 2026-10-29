@@ -190,7 +190,7 @@ pub fn routes() -> crate::route::Routes {
     routes.configure(&root_limits());
     routes
 }
-fn send(
+pub fn send(
     component: &mut Component,
     request: jig_protocol_store::Request,
     above: &mut skein_lib::Queue<jig_protocol_store::Event>,

@@ -126,13 +126,13 @@ fn the_service_waits_while_its_load_is_outstanding() {
 }
 
 #[test]
-fn a_store_answer_is_work_when_party_outputs_are_full() {
+fn a_store_answer_is_work_with_party_outputs_at_the_watermark() {
     let mut driven = fixtures::Driven::started(&fixtures::engine_document());
     period(&mut driven, 2);
     let number = driven.commit_asked();
     let terminal = driven.terminal(number);
     let engine = fixtures::engine(&mut driven.service);
-    for _ in 0..engine.parties_out().room() {
+    for _ in 0..engine.env.limits.watermark {
         engine.parties_out().push(crate::PartyOutput::Busy(Box::new(jig_test_domain::Event::Core(
             core::Event::Period { project: 1, period: 3, budget: 100, next: None },
         ))));
@@ -531,6 +531,87 @@ fn the_store_waits_for_other_drivers_before_closing_its_root() {
     assert!(!engine.store.closed(), "the owned root is still held");
 }
 
+/// `other_store_drivers_closed`: a one-slot kernel carrier holds the other
+/// directory opens and closes across successive drains. The root follows both
+/// drivers' delayed completions and closes exactly once.
+#[test]
+fn the_store_root_closes_after_delayed_driver_completions() {
+    use skein_io::kernel::{Done, Fd, Op};
+    use skein_lib::Queue;
+    const ROOT: Fd = Fd::new(9); // The deployment descriptor supplied by the shell.
+    const SECRETS: Fd = Fd::new(10); // The secrets driver's cloned directory.
+    const TRANSCRIPTS: Fd = Fd::new(11); // The transcripts driver's cloned directory.
+    const KERNEL_SLOT: u32 = 1; // Two drivers must share one submission slot.
+    const DELAY: u32 = 8; // The service fixtures' finite settlement budget.
+    let mut service = fixtures::started(&fixtures::engine_document());
+    service.submissions = Queue::with_capacity(KERNEL_SLOT);
+    fixtures::engine(&mut service).store.adopt(ROOT, 0).expect("fixture deployment root");
+    store_kernel_turn(&mut service);
+    fixtures::engine(&mut service).store.close();
+    for _ in 0..DELAY {
+        store_kernel_turn(&mut service);
+        assert_eq!(service.submissions.len(), KERNEL_SLOT, "the kernel carrier stays full");
+        assert_eq!(fixtures::engine(&mut service).store.submitted.len(), KERNEL_SLOT, "the other open waits");
+        assert!(!fixtures::engine(&mut service).store.closed(), "the root waits for the opening drivers");
+    }
+    let first_open = service.submissions.pop().expect("secrets directory open");
+    let Op::Open { .. } = &first_open.kind else { panic!("secrets directory open") };
+    store_kernel_turn(&mut service); // The second open fills the carrier.
+    store_kernel_complete(&mut service, first_open, Done::Fd(SECRETS));
+    store_kernel_turn(&mut service);
+    assert_eq!(fixtures::engine(&mut service).store.submitted.len(), KERNEL_SLOT, "the first close waits for room");
+    let second_open = service.submissions.pop().expect("transcripts directory open");
+    let Op::Open { .. } = &second_open.kind else { panic!("transcripts directory open") };
+    store_kernel_turn(&mut service);
+    let first_close = service.submissions.pop().expect("secrets directory close");
+    assert_eq!(first_close.kind, Op::Close { fd: SECRETS });
+    store_kernel_complete(&mut service, first_close, Done::Nothing);
+    for _ in 0..DELAY {
+        store_kernel_turn(&mut service);
+        assert!(service.submissions.is_empty(), "the root cannot overtake the second open's completion");
+        assert!(!fixtures::engine(&mut service).store.closed());
+    }
+    store_kernel_complete(&mut service, second_open, Done::Fd(TRANSCRIPTS));
+    store_kernel_turn(&mut service);
+    let second_close = service.submissions.pop().expect("transcripts directory close");
+    assert_eq!(second_close.kind, Op::Close { fd: TRANSCRIPTS });
+    for _ in 0..DELAY {
+        store_kernel_turn(&mut service);
+        assert!(service.submissions.is_empty(), "the root cannot overtake the second close's completion");
+        assert!(!fixtures::engine(&mut service).store.closed());
+    }
+    store_kernel_complete(&mut service, second_close, Done::Nothing);
+    for _ in 0..DELAY {
+        store_kernel_turn(&mut service);
+        if !service.submissions.is_empty() {
+            break;
+        }
+    }
+    let root_close = service.submissions.pop().expect("root closes after both other drivers");
+    assert_eq!(root_close.kind, Op::Close { fd: ROOT });
+    store_kernel_complete(&mut service, root_close, Done::Nothing);
+    for _ in 0..DELAY {
+        store_kernel_turn(&mut service);
+        assert!(service.submissions.is_empty(), "no directory closes twice");
+    }
+    assert!(fixtures::engine(&mut service).store.closed(), "every directory and completion settled");
+    assert!(service.kernel.is_empty(), "every kernel operation received its completion");
+}
+
+fn store_kernel_turn(service: &mut crate::Service) {
+    let engine = service.engine.as_mut().expect("store world engine");
+    engine.store.iterate();
+    service.kernel.publish(&mut engine.store.submitted, &mut service.submissions);
+}
+
+fn store_kernel_complete(service: &mut crate::Service, submit: skein_io::kernel::Submit, done: skein_io::kernel::Done) {
+    let complete = service.kernel.complete(
+        skein_io::kernel::Complete { op: submit.op, kind: submit.kind, result: Ok(done) },
+        &service.raw_submissions,
+    );
+    fixtures::engine(service).store.complete(complete);
+}
+
 #[test]
 fn a_program_grant_needs_no_table_entry() {
     use jig_domain_host::{Form, Grant, SourceName};
@@ -726,9 +807,8 @@ fn pass_by_run() -> (fixtures::Driven, u64, u64) {
     let Some(people::Reply::Outcome(people::Outcome::Created { first: task, .. })) = driven.reply else {
         let engine = fixtures::engine(&mut driven.service);
         panic!(
-            "the chat was admitted: {:?}, room {}, blocked {}, events {}, parties {}, end {:?}",
+            "the chat was admitted: {:?}, blocked {}, events {}, parties {}, end {:?}",
             driven.reply,
-            engine.room(),
             engine.blocked,
             engine.events.len(),
             engine.parties.len(),

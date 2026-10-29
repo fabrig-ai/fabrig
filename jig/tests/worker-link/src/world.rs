@@ -86,6 +86,35 @@ impl World {
     pub fn change_next_engine_version(&mut self) {
         self.other_version_next = true;
     }
+    /// Steps one entrance without routing its requests or delivering another event.
+    pub fn step_entrance(&mut self, event: Event) -> Vec<Request> {
+        self.component.down(self.now, event, &mut self.out);
+        let mut requests = Vec::new();
+        while let Some(request) = self.out.pop() {
+            requests.push(request);
+        }
+        requests
+    }
+    pub fn dispatch_entrance(&mut self, requests: Vec<Request>) {
+        for request in requests {
+            self.out.push(request);
+        }
+        self.run();
+    }
+    #[must_use]
+    pub fn buffered_input(&self) -> bool {
+        self.net.as_ref().expect("channel").buffered_input()
+    }
+    pub fn next_lower(&mut self) -> Option<Event> {
+        let event = self.net.as_mut().expect("channel").tick(&mut self.rng)?;
+        Some(Event::Lower { connection: self.connection, event })
+    }
+    pub fn buffer_input(&mut self, bytes: &[u8]) {
+        self.net.as_mut().expect("channel").inject(bytes);
+    }
+    pub fn allow_write_room(&mut self) {
+        self.net.as_mut().expect("channel").write_room = true;
+    }
     pub fn down(&mut self, event: Event) {
         if matches!(event, Event::Dialled { .. } | Event::Unreachable) {
             self.dial = DialState::Settled;
