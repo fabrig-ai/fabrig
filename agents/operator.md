@@ -24,7 +24,7 @@ Provisional, 2026-10-29. One Codex owner on hel8 (`codex-run owner`, at high), p
 
 ## 3. Machines and slots
 
-- Builders: hetzner3, 6, 7 (slots); hetzner8 runs the gate, and hetzner2 is drained and reserved for its second prover. Free disk stays above heavy's floor: a slot is trimmed when its task starts (`codex-run` does it), and an idle slot can be trimmed by hand (`tools/slots/trim`); the operator never frees another's cache, `~/.cargo` or `~/.cache`.
+- Builders: hetzner3, 6, 7 (slots); hetzner8 runs the gate; hetzner2 is retired for this phase and its second-prover reservation is released. Free disk stays above heavy's floor: a slot is trimmed when its task starts (`codex-run` does it), and an idle slot can be trimmed by hand (`tools/slots/trim`); the operator never frees another's cache, `~/.cargo` or `~/.cache`.
 - Manage each builder’s five-minute idle-slot guard with `python3 -I ~/src/fabrig/main/tools/slots/guard --timer`; it trims idle slots below 80 GB. During a temporary guard repair, replace the timer’s source with main only after the repair lands and installation refreshes it; never remove a file still used by its timer. Hetzner2 has no builder-slot guard.
 - During disk pressure, admit each new heavy command only with at least 80000000000 available bytes (`df -B1 --output=avail /`), matching the guard’s decimal 80 GB. Human-readable `df -h` uses binary units and cannot be compared directly with that number.
 - If targets keep growing after idle executable trimming is exhausted, redirect new builds while current commands drain. With the target owner’s or coordinator’s agreement, reclaim a confirmed idle slot’s generated target only after checking live Codex runs, heavy use and pending resumes. Preserve sources, refs, reports and claims; report the cold rebuild cost. Heavy’s disk admission floor does not reserve space for already admitted growth.
@@ -55,5 +55,5 @@ Provisional, 2026-10-29. One Codex owner on hel8 (`codex-run owner`, at high), p
 
 ## 7. Later
 
-- Finish the two-gate train on dedicated hetzner8 and hetzner2; the controller and second prover remain disabled until transport, recovery, authority and drain checks pass.
+- Resume two-gate train work only when queue utilization is again a demonstrated bottleneck and a second gate is explicitly assigned. Hetzner2 is retired for this phase; the controller and second prover stay disabled.
 - The leads' slot waits answered by a tool (a waiting list beside the claims) rather than by mail.

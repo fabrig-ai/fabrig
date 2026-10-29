@@ -4,7 +4,7 @@ Provisional, 2026-10-28. The machines' and the pipeline's facts every role works
 
 ## 1. In one page
 
-- **hel8 runs sessions and surveys, never builds:** the coordinator's and the leads' sessions, their clones, and read-only Codex surveys. Builders (hetzner3, 6, 7) build in slots; hetzner8 runs the merge queue, and drained hetzner2 is reserved for its second prover. The prover remains disabled until the train code is ready.
+- **hel8 runs sessions and surveys, never builds:** the coordinator's and the leads' sessions, their clones, and read-only Codex surveys. Builders (hetzner3, 6, 7) build in slots; hetzner8 runs the merge queue. Hetzner2 is retired for this phase; its second-prover reservation is released and train work stays paused until queue utilization warrants it again.
 - **A lead** is a Claude session on hel8 named `lead/<area>`, started from a directory Claude trusts (under `~/src/rust/`), with its scratch and clones in `~/src/fabrig/leads/<area>/`: `repo/` (read main, mark branches ready) and `survey/` (surveys).
 - **Implementers are Codex runs** on a builder, one task in one slot, launched by `codex-run`; their end is posted to whoever launched them.
 - **Leads are ephemeral:** each is started for one part from `~/src/rust/tmp/supervise/leads/<area>` and starts warm from the files in its scratch (`agents/lead.md`, 4).
