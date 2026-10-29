@@ -486,6 +486,7 @@ dependencies = [
  "skein-scratch",
  "skein-ui",
  "skein-ui-bundle",
+ "skein-world",
 ]
 
 [[package]]

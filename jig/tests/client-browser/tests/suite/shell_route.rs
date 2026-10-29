@@ -1,4 +1,4 @@
-#[path = "../../../testing/jig-client-test-shell-web/src/mapping.rs"]
+#[path = "../../../../testing/jig-client-test-shell-web/src/mapping.rs"]
 mod mapping;
 
 #[test]
