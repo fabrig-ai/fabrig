@@ -5,6 +5,12 @@ parent/candidate inputs, writing ratchets, offline shebang discovery and
 batch-size restart prerequisites are present and remain covered by
 `test_mq.py`.
 
+Section 3.7.1 is implemented by the opt-in pinned repair triplet and restart's
+external runtime selection. `test_repair_priority.py` covers disposable local
+origins, full singleton ordering, normal batches of 16, durable tried tips,
+pin refusal/advancement, red/conflict/error audit and simulated CLI/restart
+launches. This enables no production action and changes no check or timeout.
+
 Section 3.8 is an implemented **local-only review proposal**, tested by
 `test_worker.py`: explicit opt-in, independent clone ownership, immutable
 candidate checking, frozen runtime/list identity, check-only ratchets and

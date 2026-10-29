@@ -204,6 +204,47 @@ at a time; a failed update leaves the stop file for inspection.
 default remains 8. Pass the option on each restart to retain a nondefault
 size. It changes batch capacity, not checks, rejection or bisection policy.
 
+#### 3.7.1 Pinned gate repair priority
+
+Ops may name one branch repairing a recurring gate failure with the paired
+options `--repair-ready ready/<lead>/<task> --repair-tip <full lowercase OID>
+--repair-reason <printable nonempty text>` on `run`, `once`, or `plan`.
+All three are required together; Git validates the full ready ref before
+checkout mutation. There is no priority inferred from branch names or files.
+After fetching, selection requires the exact name and tip both in fetched
+ready refs and advertised by origin. A missing or moved pin refuses the cycle;
+it never falls through to ordinary work. `plan` previews the singleton as full.
+
+The repair runs first as a singleton through the ordinary attempt path with
+`force_full=True`: writing ratchets, all offline tools suites, workspace fmt,
+clippy, build, default and fuzzy checks remain unchanged. Ordinary merge
+conflicts, red rejection, fast-forward-only main push, pinned cleanup and
+notifications apply. Exceptions, capacity refusals and failed process launches
+are errors, preserving tried tips without bisection or rejection. A completed
+attempt consumes the priority; the existing durable tried name/tip suppresses
+the completed repair after restart, including after its ready ref is deleted.
+Normal batch capacity and full-check counters/cadence then resume. Use explicit
+`--batch 16` for the approved operational batch capacity; the default remains 8.
+No successor is selected before the repair attempt completes.
+
+Attempt records add a `repair` object containing `name`, `tip` and `reason` to
+the existing external `queue.jsonl` stream. Conflicts and errors retain it;
+configuration or selection refusals use `event: "repair-refusal", outcome: "error"`.
+No additional persistent state format or in-checkout audit file is introduced.
+
+`restart` forwards the same triplet and explicit batch size. Its optional
+`--runtime DIRECTORY` selects a complete queue runtime directory outside the
+live checkout, containing regular `mq`, `restart`, `worker.py`, `always.txt`,
+`read-by-tests.txt` and `leads.txt` files. It validates Python syntax, repair
+support, lists and the advertised pin before requesting stop, then checks that
+the external files stayed unchanged during the drain. The replacement loads
+its code and lists from that directory, with bytecode writes disabled, while
+operating on `--repo`. Without `--runtime`, the installed path stays unchanged.
+The existing pidfd drain, 1800-second default wait, adjacent checkout flock and
+update sequence remain in use. A failed launch restores the stop file. Stop
+is observed between whole bisection cycles; restart cannot interrupt heavy.
+The external runtime is an interim Ops choice until this option is installed.
+
 ### 3.8 Local immutable-candidate worker (disabled rollout)
 
 `worker.py` is an opt-in, synchronous local entry point and a review proposal
