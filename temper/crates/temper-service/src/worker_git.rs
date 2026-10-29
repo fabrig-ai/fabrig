@@ -42,14 +42,12 @@ impl Git {
             Ok(component) => component,
             Err(why) => return Err(unfit(why)),
         };
-        let slots = own.git_component.operations.checked_add(1).ok_or(problem(b"git", What::Bound))?;
-        let io = slots.checked_mul(component::MAX_OUT.io).ok_or(problem(b"git", What::Bound))?;
         Ok(Self {
             component,
             out: component::Outputs {
-                events: Queue::with_capacity(slots),
-                io: Queue::with_capacity(io),
-                kernel: Queue::with_capacity(component::MAX_OUT.kernel),
+                events: Queue::uncapped(),
+                io: Queue::uncapped(),
+                kernel: Queue::with_capacity(component::KERNEL_SUBMISSIONS),
             },
             started: false,
             ready: false,
