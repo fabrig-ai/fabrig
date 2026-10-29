@@ -397,7 +397,7 @@ fn delivery_replies_and_shutdown_rights_stay_priced() {
 fn checked_capacity_arithmetic_refuses_unrepresentable_or_incompatible_caps() {
     let mut limits = smith_host_world::limits();
     assert!(host::valid(&limits));
-    limits.answer_bytes = Delivered::worst_case() - 1;
+    limits.answer_bytes = Delivered::owned_bound() - 1;
     assert!(!host::valid(&limits));
     limits = smith_host_world::limits();
     limits.messages = u32::MAX;
