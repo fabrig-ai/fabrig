@@ -43,12 +43,42 @@ class ClaimTests(unittest.TestCase):
         with claim.state_lock(self.directory), redirect_stdout(io.StringIO()):
             claim.create_claim(self.path, owner, what, NOW)
 
-    def cli(self, *args, inventory=FIXTURE):
+    def cli(self, *args, inventory=FIXTURE, hostname="hel8"):
         with patch.object(sys, "argv", ["claim", *args]), patch.object(Path, "home", return_value=self.home), \
+                patch.object(claim.socket, "gethostname", return_value=hostname), \
                 patch.object(claim, "inventory", return_value=inventory), \
                 redirect_stdout(io.StringIO()) as output, redirect_stderr(io.StringIO()) as errors:
             code = claim.main()
         return code, output.getvalue(), errors.getvalue()
+
+    def test_off_host_actions_refuse_without_creating_local_state(self):
+        for args in (("list",), ("list", "--free", "lead/smith"),
+                     ("claim", "hetzner3", "1", "lead/smith", "task"),
+                     ("release", "hetzner3", "1", "lead/smith")):
+            with self.subTest(args=args):
+                code, output, error = self.cli(*args, hostname="debian-16gb-hel1-3")
+                self.assertEqual(code, 1)
+                self.assertEqual(output, "")
+                self.assertIn("claim authority is hel8", error)
+                self.assertFalse(self.directory.exists())
+
+    def test_off_host_refusal_preserves_existing_local_claim(self):
+        self.create(what="a local record that must stay untouched")
+        before = {p.name: p.read_bytes() for p in self.directory.iterdir()}
+        with patch.object(claim, "state_lock", side_effect=AssertionError("local state opened")):
+            code, output, error = self.cli("release", "hetzner2", "1", "lead",
+                                           hostname="hetzner3")
+        self.assertEqual(code, 1)
+        self.assertEqual(output, "")
+        self.assertIn("claim authority is hel8", error)
+        self.assertEqual({p.name: p.read_bytes() for p in self.directory.iterdir()}, before)
+
+    def test_authority_aliases_keep_central_output(self):
+        for hostname in ("hel8", "hel8.example", "debian-8gb-hel1-1"):
+            with self.subTest(hostname=hostname):
+                code, output, error = self.cli("list", hostname=hostname)
+                self.assertEqual(code, 0, error)
+                self.assertIn("hetzner3 1 [pool]: free", output)
 
     def test_claim_records_owner_work_utc_and_private_mode(self):
         self.create()
@@ -194,7 +224,11 @@ class ClaimTests(unittest.TestCase):
 
     def test_concurrent_claims_have_exactly_one_winner(self):
         environment = {**os.environ, "HOME": str(self.home)}
-        commands = [[sys.executable, "-I", "-B", str(DIRECTORY / "claim"),
+        # Both child processes represent the authority; their state is disposable.
+        driver = ("import runpy,socket,sys; socket.gethostname=lambda:'hel8'; "
+                  "script=sys.argv.pop(1); sys.argv[0]=script; "
+                  "runpy.run_path(script,run_name='__main__')")
+        commands = [[sys.executable, "-I", "-B", "-c", driver, str(DIRECTORY / "claim"),
                      "claim", "hetzner3", "1", owner, "task"] for owner in ("first", "second")]
         children = [subprocess.Popen(argv, env=environment, stdin=subprocess.DEVNULL,
                                      stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)

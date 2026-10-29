@@ -94,6 +94,13 @@ local advisory lock so readers and release cannot race a record's creation
 or replacement. This lock also lives under the claims directory. There is
 no expiry or automatic stealing: a holder releases its claim explicitly.
 
+Operational CLI commands refuse on other hosts before reading inventory or
+opening local claim state. The authority accepts `hel8` and its deployed hostname
+`debian-8gb-hel1-1` (including their fully qualified forms). A builder uses SSH to
+run `claim` on hel8 and fails closed if that request fails; it never treats a
+builder-local list as central custody. Refusal does not copy or change local
+records and does not route requests automatically.
+
 ## 5. Disk guard
 
 Builder identity accepts the inventory aliases and their deployed hostnames
