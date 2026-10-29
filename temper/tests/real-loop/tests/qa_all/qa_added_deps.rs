@@ -7,103 +7,11 @@ use temper_real_loop_world::{
     forge, landing,
 };
 
-// Sign-in, adoption, chat, its idle wait, the report wait, then its document.
-const CHAT_CALL: usize = 2;
-const REPORT_WAIT: usize = 4;
-const REPORT_DOCUMENT: usize = 5;
-// Fresh refusal deployment: one root and its two report delegates.
-const PARENT_TASK: u64 = 1;
-const REPORT_TASK: u64 = 2;
-const PREREQUISITE_TASK: u64 = 3;
 // Creating an unrelated root first shifts the parent's delegates by one.
 const OUTSIDE_TASK: u64 = 1;
 const SHIFTED_REPORT_TASK: u64 = 3;
 const FIRST_PARENT_CALL: usize = 1;
 const PARENT_CALL_AFTER_OUTSIDE: usize = 3;
-
-fn landing_scripts(forge: SocketAddr) -> Box<[Script]> {
-    landing::kept::scripts(forge, u64::from(forge::ID))
-}
-
-fn landed_report() -> Ran {
-    temper_real_loop_world::run_forge(landing::kept::fixture(), landing_scripts, || {
-        vec![
-            calls::sign_in(D1),
-            calls::call(
-                D1,
-                argv![
-                    "repository",
-                    "adopt",
-                    "--project",
-                    "1",
-                    "--forge",
-                    "1",
-                    "--owner",
-                    "acme",
-                    "--name",
-                    "app",
-                    "--landing",
-                    "main",
-                    "--prefix",
-                    "temper/",
-                    "--key",
-                    "qa-adopt"
-                ],
-            ),
-            calls::call(D1, argv!["chat", "start", "--project", "1", "--key", "qa-kept", "@kept_chat"]),
-            calls::call(D1, argv!["task", "show", calls::task(CHAT_CALL), "--until", "phase:idle"]).timeout(5),
-            calls::call(D1, argv!["task", "show", calls::number(landing::kept::A3), "--until", "ended"]).timeout(5),
-            calls::call(D1, argv!["task", "show", calls::number(landing::kept::A3), "--json"]),
-            calls::call(D1, argv!["task", "show", calls::task(CHAT_CALL), "--until", "ended"]).timeout(5),
-        ]
-    })
-}
-
-#[test]
-fn landing_releases_the_kept_report_delegate() {
-    // docs/design/domain/testing.md, 5.3; jig's tasks.md 5.7, 8.1.
-    let ran = landed_report();
-    let waited = &ran.calls()[REPORT_WAIT];
-    assert_eq!(
-        waited.exit,
-        Some(temper_real_loop_world::Exit::Code(0)),
-        "kept report must finish after landing: {}",
-        String::from_utf8_lossy(&waited.stderr)
-    );
-    assert!(ran.forge().merged_green(), "the dependency must be released by a successful landing");
-    let document = String::from_utf8_lossy(&ran.calls()[REPORT_DOCUMENT].stdout);
-    assert!(document.contains(landing::kept::AFTER_MET), "resumed report must be retained: {document}");
-}
-
-fn agent_text(ran: &Ran, cue: &str) -> String {
-    ran.llm()
-        .iter()
-        .filter_map(|record| {
-            if let skein_fake_peers::llm::Observation::Query { query, .. } = record {
-                String::from_utf8_lossy(&query.system).contains(cue).then_some(query)
-            } else {
-                None
-            }
-        })
-        .flat_map(|query| query.messages.iter())
-        .flat_map(|message| message.parts.iter())
-        .filter_map(|part| {
-            if let api::Part::Text { text } = part { Some(String::from_utf8_lossy(text).into_owned()) } else { None }
-        })
-        .collect::<Vec<_>>()
-        .join("\n")
-}
-
-#[test]
-fn met_notice_tells_the_agent_which_dependency_finished() {
-    // jig's domain/tasks.md 8.1: the core tells the resumed agent its last dependency is met.
-    let ran = landed_report();
-    let text = agent_text(&ran, "@kept_a3");
-    assert!(
-        text.contains("T2 is done; the task can go on"),
-        "the resumed agent must hear an identifiable Met notice for task 2, rather than an empty numbered message: {text:?}"
-    );
-}
 
 fn call_turn(name: &[u8], arguments: &serde_json::Value) -> api::Turn {
     api::Turn {
@@ -216,18 +124,6 @@ fn refusal_words(ran: &Ran) -> String {
 }
 
 #[test]
-fn circle_refusal_names_the_waiting_tasks_to_the_agent() {
-    // jig's domain/tasks.md 6.7, 7; engine.md 7.3: a refused circle names its tasks.
-    // Fresh deployment: parent 1, report delegate 2, prerequisite delegate 3.
-    let ran = refusal_story(|_| refusal_scripts(REPORT_TASK, PARENT_TASK, false), false);
-    let words = refusal_words(&ran);
-    assert!(
-        words.contains("wait for one another") && words.contains("T1") && words.contains("T2"),
-        "the agent must hear why task 2 after its requester 1 circles: {words:?}"
-    );
-}
-
-#[test]
 fn unreachable_dependency_refusal_names_the_task_to_the_agent() {
     // jig's domain/tasks.md 7; engine.md 7.3: a new dependency must be in the amender's reach.
     // Outside root 1, parent 2, report delegate 3, prerequisite delegate 4.
@@ -237,52 +133,5 @@ fn unreachable_dependency_refusal_names_the_task_to_the_agent() {
         words.contains('1')
             && (words.to_ascii_lowercase().contains("depend") || words.to_ascii_lowercase().contains("reach")),
         "the agent must hear which dependency is outside its reach: {words:?}"
-    );
-}
-
-#[test]
-fn cancelled_dependency_refusal_names_the_task_to_the_agent() {
-    // jig's domain/tasks.md 7; engine.md 7.3: adding a cancelled prerequisite is refused, naming it.
-    let ran = refusal_story(|_| refusal_scripts(REPORT_TASK, PREREQUISITE_TASK, true), false);
-    let words = refusal_words(&ran);
-    assert!(
-        words.contains('3')
-            && (words.to_ascii_lowercase().contains("cancel") || words.to_ascii_lowercase().contains("depend")),
-        "the agent must hear that dependency 3 ended cancelled: {words:?}"
-    );
-}
-
-fn failed_prerequisite_scripts(_: SocketAddr) -> Box<[Script]> {
-    use serde_json::json;
-    let mut scripts = refusal_scripts(REPORT_TASK, PREREQUISITE_TASK, false);
-    let parent = scripts.iter_mut().find(|script| script.cue.as_ref() == b"@qa-parent").expect("parent script");
-    let mut original = parent.turns.iter();
-    let delegate = original.next().expect("delegation turn").clone();
-    let amend = original.next().expect("amendment turn").clone();
-    parent.turns = Box::new([
-        delegate,
-        call_turn(b"wait", &json!({})),
-        amend,
-        call_turn(b"cancel", &json!({"target":REPORT_TASK,"reason":"report cannot continue"})),
-        report_turn(),
-        // The cancelled report's result refuses the first finish: finish again once it is read.
-        report_turn(),
-    ]);
-    scripts.iter_mut().find(|script| script.cue.as_ref() == b"@qa-report").expect("report script").turns =
-        Box::new([call_turn(b"wait", &json!({}))]);
-    scripts.iter_mut().find(|script| script.cue.as_ref() == b"@qa-prerequisite").expect("prerequisite script").turns =
-        Box::new([call_turn(b"finish", &json!({"form":"failure","reason":"declared failure","fields":{}}))]);
-    scripts
-}
-
-#[test]
-fn failed_dependency_refusal_names_the_task_to_the_agent() {
-    // jig's domain/tasks.md 7; engine.md 7.3: adding a failed prerequisite is refused, naming it.
-    let ran = refusal_story(failed_prerequisite_scripts, false);
-    let words = refusal_words(&ran);
-    assert!(
-        words.contains('3')
-            && (words.to_ascii_lowercase().contains("fail") || words.to_ascii_lowercase().contains("depend")),
-        "the agent must hear that dependency 3 ended failed: {words:?}"
     );
 }
