@@ -40,3 +40,13 @@ Provisional, 2026-10-28. The machines' and the pipeline's facts every role works
 
 - `codex-run` trimming the slot itself, so no task can forget.
 - A periodic run of each package's tests alone, to catch tests that pass only after a workspace build.
+
+## 7. Succession of long-running sessions
+
+- **Who:** every session that outlives its tasks: the coordinator, the operator, a lead. A session's context is finite; a session that compacts loses what it knew in its own words.
+- **When:** at about three quarters of the context window (or the second compaction, whichever comes first), the session starts its successor; it never waits for the window to fill.
+- **How:**
+  1. The incumbent brings its handover file up to date (where things stand, what is in flight with run ids and branches, decisions pending and whose, what it was about to do) and starts the successor with its role file, the handover and the same mailbox name to inherit.
+  2. **Warm-up, read-only:** the successor reads the handover, the role and operations files, the plans and the ledger, and follows the mailbox without acting (reading delivered messages' copies, never `post read` of the incumbent's box); it asks the incumbent what is unclear under a temporary name (`<role>-next`), and says when it is ready.
+  3. **Takeover:** the incumbent stops its waiter and says so; the successor starts its own on the inherited name, tells the parties it talks to that the role changed hands, and the incumbent stops.
+- **Leads are scoped, not eternal:** a lead runs one wave of its area; its area's lasting facts live in its common file and the designs, so the next wave's lead starts warm from files, not from a long context.
