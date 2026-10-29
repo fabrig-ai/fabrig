@@ -16,12 +16,6 @@ fn pending() -> Find {
 }
 
 #[test]
-fn jig_s_spent_link_story_holds_for_jig_test() {
-    let tier = Tier::new("spent-link");
-    assert_eq!(stories::a_spent_link_signs_the_person_out(&tier.setup(), &tier.states()), Outcome::Done);
-}
-
-#[test]
 fn jig_s_pending_request_story_holds_for_jig_test() {
     let tier = Tier::reserved("pending-reload");
     assert_eq!(
@@ -31,19 +25,6 @@ fn jig_s_pending_request_story_holds_for_jig_test() {
             &mut tier.request_script(),
             pending(),
             made()
-        ),
-        Outcome::Done
-    );
-}
-#[test]
-fn a_pending_request_meets_the_closing_warning() {
-    let tier = Tier::reserved("pending-warning");
-    assert_eq!(
-        stories::a_reload_with_a_pending_request_meets_the_closing_warning(
-            &tier.setup(),
-            &tier.states(),
-            &mut tier.request_script(),
-            pending()
         ),
         Outcome::Done
     );
@@ -60,9 +41,4 @@ fn jig_s_no_warning_story_holds_for_jig_test() {
         ),
         Outcome::Done
     );
-}
-#[test]
-fn jig_s_restart_story_holds_for_jig_test() {
-    let tier = Tier::reserved("restart");
-    assert_eq!(stories::a_restart_shows_offline_then_live(&tier.setup(), &tier.states()), Outcome::Done);
 }

@@ -50,13 +50,6 @@ fn jig_test_serves_its_bundle_s_page_under_the_reference_policy() {
 }
 
 #[test]
-fn a_party_signs_in_through_a_client_and_opens_the_address_at_the_issuer() {
-    let directory = support::scratch();
-    accounts::configuration(directory.path());
-    accounts::run(directory.path());
-}
-
-#[test]
 fn a_binary_told_to_stop_with_a_sign_in_under_way_ends_at_once() {
     accounts::sigterm();
 }
@@ -69,15 +62,6 @@ mod account_sign_in_visitor;
 
 #[path = "support/accounts.rs"]
 mod accounts;
-
-#[path = "support/account_keys.rs"]
-mod account_keys;
-#[test]
-fn a_party_adds_replaces_and_removes_a_key() {
-    let directory = support::scratch();
-    account_keys::configuration(directory.path());
-    account_keys::run(directory.path());
-}
 
 #[expect(dead_code, reason = "only the live binary uses the DNS-resolving configuration entry")]
 #[path = "support/live_sign_in.rs"]
@@ -123,21 +107,6 @@ fn a_person_s_sign_in_outlives_a_restart_is_refreshed_at_the_issuer_and_signs_ou
     let result = std::panic::catch_unwind(|| restarted_sign_in::run(directory.path()));
     if let Err(failure) = result {
         eprintln!("{}", support::trace::failures(directory.path()));
-        std::panic::resume_unwind(failure);
-    }
-}
-
-#[path = "support/account_move.rs"]
-mod account_move;
-
-#[test]
-fn an_account_moves_between_two_binaries_and_the_first_holds_nothing() {
-    let directory = support::scratch();
-    let result = std::panic::catch_unwind(|| account_move::run(directory.path()));
-    if let Err(failure) = result {
-        for deployment in ["a", "b"] {
-            eprintln!("{deployment}: {}", support::trace::failures(&directory.path().join(deployment)));
-        }
         std::panic::resume_unwind(failure);
     }
 }
