@@ -1,5 +1,4 @@
 //! Each row of codec.md 12.7, checked without writing.
-extern crate alloc;
 
 #[cfg(test)]
 mod tests {

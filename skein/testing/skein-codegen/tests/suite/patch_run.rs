@@ -1,5 +1,4 @@
 //! Whole-file examples of the run, with the base supplied in memory.
-extern crate alloc;
 
 #[cfg(test)]
 mod tests {
