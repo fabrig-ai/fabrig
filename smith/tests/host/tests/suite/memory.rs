@@ -1,15 +1,12 @@
 //! Every retained V2 inventory and terminal path is metered by skein's allocator
 //! (programming-model.md, section 6.3; domain/host.md, sections 4, 6 and 10).
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
-use skein_world::domain::heap::{Counting, Meter};
+use skein_world::domain::heap::Meter;
 use smith_host_domain::{
     self as host, Answer, AnsweredCall, Ask, CallName, Delivered, Delivery, Directory, Down, Effect, Grant, Input,
     Limits, Output, Receipt, Reply, RunResult, Start, Turn, Up,
 };
 use smith_host_domain::{parent, process};
-
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 fn bytes(length: u64) -> Box<[u8]> {
     vec![b'x'; usize::try_from(length).expect("small test length")].into_boxed_slice()
