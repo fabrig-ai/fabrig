@@ -40,7 +40,7 @@ fn supplied_period_boundaries_preserve_the_opening_wall_across_duplicates_and_re
 }
 
 #[test]
-fn cold_restore_refuses_a_period_without_its_actual_opening_fact() {
+fn cold_restore_retains_period_facts_without_rejudging_family_shape() {
     let test = Harness::new();
     let mut row = *test.domain.funding(Funder::Period { project: 1, period: 0 }).unwrap();
     let original = row;
@@ -61,7 +61,8 @@ fn cold_restore_refuses_a_period_without_its_actual_opening_fact() {
                 refused = true;
             }
         }
-        assert!(refused);
+        assert!(!refused);
+        assert_eq!(domain.funding(row.funder), Some(&row));
     }
 }
 

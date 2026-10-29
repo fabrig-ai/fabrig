@@ -70,7 +70,7 @@ fn hold_origin_survives_restart_terminal_and_release_in_exact_milestones() {
 }
 
 #[test]
-fn hold_origin_shape_is_checked_on_admission_and_cold_restore() {
+fn hold_origin_admission_checks_semantics_and_restore_checks_bytes() {
     let mut h = Harness::new();
     h.make([task(1, &[])].into());
     let before = h.domain.task(1).unwrap().clone();
@@ -98,7 +98,7 @@ fn hold_origin_shape_is_checked_on_admission_and_cold_restore() {
             let Request::RestoreRefused { .. } = request else { continue };
             refused = true;
         }
-        assert!(refused);
+        assert_eq!(refused, why == Hold::Drift, "only oversized resource bytes refuse");
     }
     h.send(Event::HoldFrom {
         task: 1,

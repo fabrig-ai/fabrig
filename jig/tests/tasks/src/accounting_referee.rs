@@ -1,8 +1,8 @@
 //! Independent conservation from durable task allocations, ended transitions
 //! and admitted priced inputs (domain/tasks.md, 2 and 5).
 use jig_domain_tasks::{
-    Accepted, Escalation, EscalationHolder, Executor, Funder, Key, MessageKind, ProposalHolder, ProposalState, Request,
-    Stored, TaskRecord,
+    Accepted, Active, Escalation, EscalationHolder, Executor, Funder, Key, MessageKind, Phase, ProposalHolder,
+    ProposalState, Request, RetryNotice, Stored, TaskRecord, Was,
 };
 use std::collections::BTreeMap;
 
@@ -189,6 +189,14 @@ impl Accounting {
         }
         for row in rows.values() {
             let Stored::Live(task) = row else { continue };
+            if !valid_runtime(task) || !valid_positions(task, u32::MAX) {
+                return Err("writer lifecycle observations or positions disagree");
+            }
+            if let Phase::Closing(closing) = &task.phase
+                && closing.stage == jig_domain_tasks::Stage::Settled
+            {
+                return Err("writer kept a settled task live");
+            }
             if let Some(proposal) = &task.proposal
                 && let ProposalState::Pending { holder, .. } = proposal.state
             {
@@ -534,4 +542,82 @@ fn ended_party_indexes(rows: &BTreeMap<Key, Stored>, requests: &[Request]) -> Re
         }
     }
     Ok(())
+}
+
+fn valid_runtime(task: &TaskRecord) -> bool {
+    if task.run_since.is_some() && task.attempt == 0 {
+        return false;
+    }
+    let notice_valid = match task.retry_notice {
+        Some(RetryNotice::Failed { count, allowance, .. }) => task.attempt != 0 && count != 0 && allowance != u32::MAX,
+        Some(RetryNotice::Refused { count }) => count != 0,
+        None => true,
+    };
+    if !notice_valid {
+        return false;
+    }
+    match task.phase {
+        Phase::Active(Active::Claimed { .. }) | Phase::Held { was: Was::Active(Active::Claimed { .. }), .. } => {
+            task.run_since.is_none()
+        }
+        Phase::Active(Active::Running { .. }) | Phase::Held { was: Was::Active(Active::Running { .. }), .. } => {
+            task.run_since.is_some()
+        }
+        Phase::Active(Active::BackingOff { .. }) | Phase::Held { was: Was::Active(Active::BackingOff { .. }), .. } => {
+            match task.retry_notice {
+                Some(RetryNotice::Failed { class, count, allowance }) => {
+                    count == task.tries.of(class) && count <= allowance
+                }
+                Some(RetryNotice::Refused { count }) => count == task.refusals,
+                None => false,
+            }
+        }
+        Phase::Waiting | Phase::Active(_) | Phase::Closing(_) | Phase::Held { .. } | Phase::Ended(_) => true,
+    }
+}
+
+fn valid_positions(task: &TaskRecord, bound: u32) -> bool {
+    let bound = usize::try_from(bound).expect("u32 fits usize");
+    if task.hold > task.milestone || task.question_lines.len() > bound || task.proposal_rows.len() > bound {
+        return false;
+    }
+    for (index, line) in task.question_lines.iter().enumerate() {
+        if line.message == 0 || line.message > task.last_message || line.line == 0 || line.line > task.activity {
+            return false;
+        }
+        if let Some(answer) = line.answer
+            && (answer.task == 0
+                || answer.position == 0
+                || (answer.task == task.number && (answer.position <= line.line || answer.position > task.activity)))
+        {
+            return false;
+        }
+        // Answered positions interleave in activity order.
+        // Each group stays newest first, with no position or message repeated.
+        for old in task.question_lines.iter().take(index) {
+            if old.message == line.message
+                || old.line == line.line
+                || (old.answer.is_some() == line.answer.is_some() && old.line < line.line)
+            {
+                return false;
+            }
+        }
+    }
+    let mut previous = u64::MAX;
+    for (index, row) in task.proposal_rows.iter().enumerate() {
+        if row.proposal == 0
+            || row.revision == 0
+            || row.revision > task.revision
+            || (index != 0 && row.revision >= previous)
+        {
+            return false;
+        }
+        for old in task.proposal_rows.iter().take(index) {
+            if old.proposal == row.proposal {
+                return false;
+            }
+        }
+        previous = row.revision;
+    }
+    true
 }

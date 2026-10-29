@@ -942,11 +942,11 @@ pub(crate) fn pool_changed(domain: &mut Domain, _limits: &Limits) {
 }
 
 /// Judge the restored set whole; hold its earliest circling queue waiter (domain/tasks.md, 6.7).
-pub(crate) fn restore(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) -> bool {
+pub(crate) fn restore(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     for _ in 0..=env.limits.tasks {
         let remaining = eliminate(domain, &env.limits);
         if remaining.is_empty() {
-            return true;
+            return;
         }
         let mut earliest = None;
         for (number, _) in &remaining {
@@ -961,10 +961,9 @@ pub(crate) fn restore(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Re
                 }
             }
         }
-        let Some((number, problem)) = earliest else { return false };
+        let Some((number, problem)) = earliest else { return };
         hold_circle(domain, env, number, problem, out);
     }
-    false
 }
 
 fn eliminate(domain: &Domain, limits: &Limits) -> Map<u64, u32> {

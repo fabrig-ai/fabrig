@@ -634,20 +634,19 @@ fn a_proposal_below_a_kept_task_waits_at_the_holder_above() {
 }
 
 #[test]
-fn restore_refuses_added_entries_outside_or_out_of_order_in_the_dependency_list() {
+fn restore_keeps_added_provenance_without_rejudging_the_dependency_subsequence() {
     let mut world = pair();
     world.make(Party::Person(9), vec![task(3, &[])]);
     assert_eq!(amend(&mut world, Party::Person(9), 1, &[2, 3]), Reply::Done);
     let entry = |task| tasks::Added { task, at: world.env.wall, by: Party::Person(9) };
     for added in [vec![entry(3), entry(2)], vec![entry(2), entry(2)], vec![entry(4)]] {
         let mut row = world.record(1).clone();
-        row.added = added.into_boxed_slice();
+        row.added = added.clone().into_boxed_slice();
         let mut domain = jig_tasks_world::domain(&LIMITS, 859);
         let mut out = skein_lib::Queue::uncapped();
         tasks::step(&mut domain, &world.env, Event::Restore { record: Stored::Live(Box::new(row)) }, &mut out);
-        assert!(
-            matches!(out.pop(), Some(tasks::Request::RestoreRefused { problem }) if problem.why == Refusal::Restore)
-        );
+        assert!(out.is_empty());
+        assert_eq!(domain.task(1).expect("retained task").added.as_ref(), added.as_slice());
     }
 }
 

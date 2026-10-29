@@ -1,6 +1,6 @@
 //! Kept facts and requester authority (domain/tasks.md, 5.7 and 5.8).
 use super::revisions::{Harness, LIMITS, task};
-use crate::{Domain, Event, Party, Request, Stored};
+use crate::{Domain, Event, Party, Stored};
 use alloc::boxed::Box;
 
 #[test]
@@ -34,7 +34,7 @@ fn shared_kept_rule_separates_claims_from_finish_authority() {
 }
 
 #[test]
-fn requester_ending_survives_restore_only_with_its_existing_person_authority() {
+fn requester_ending_restores_without_rejudging_historical_authority() {
     let mut h = Harness::new();
     let mut open = task(1, &[]);
     open.flags.conversation = true;
@@ -49,11 +49,7 @@ fn requester_ending_survives_restore_only_with_its_existing_person_authority() {
         let mut cold = Harness::new();
         cold.domain = Domain::new(&LIMITS, 91, 1, crate::tests::charters(), Box::new([0]));
         let out = cold.send(Event::Restore { record: Stored::Live(Box::new(broken)) });
-        let mut refused = false;
-        for request in out {
-            let Request::RestoreRefused { .. } = request else { continue };
-            refused = true;
-        }
-        assert!(refused);
+        assert!(out.is_empty());
+        assert_eq!(cold.domain.task(1).unwrap().requester, requester);
     }
 }

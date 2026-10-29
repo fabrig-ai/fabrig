@@ -81,6 +81,8 @@ impl Measured {
 #[test]
 #[expect(clippy::too_many_lines, reason = "one allocation family fills task payloads and every graph phase")]
 fn saturated_payloads_graph_backoff_held_closing_retirement_and_restore_fit() {
+    let scenario_meter = Meter::new();
+    scenario_meter.start();
     for l in [
         Limits {
             tasks: 4,
@@ -217,10 +219,14 @@ fn saturated_payloads_graph_backoff_held_closing_retirement_and_restore_fit() {
             m.event(Event::Settled { task: number });
         }
     }
+    let peak = scenario_meter.end().peak();
+    eprintln!("saturated_payloads_graph_backoff_held_closing_retirement_and_restore_fit heap_peak_bytes={peak}");
 }
 
 #[test]
 fn full_delegate_tree_dependency_edges_and_cold_restored_claims_fit() {
+    let scenario_meter = Meter::new();
+    scenario_meter.start();
     let l = Limits { tasks: 4, tree_tasks: 4, delegates: 3, batch: 3, dependencies: 3, inputs: 0, ..LIMITS };
     let mut source = jig_tasks_world::World::new(2, l);
     source.make(Party::Person(1), vec![task(1, &[])]);
@@ -264,6 +270,8 @@ fn full_delegate_tree_dependency_edges_and_cold_restored_claims_fit() {
     assert!(
         matches!(w.records.get(&tasks::Key::Ended(10)),Some(Stored::Ended(record)) if record.phase!=tasks::Phase::Active(Active::Due))
     );
+    let peak = scenario_meter.end().peak();
+    eprintln!("full_delegate_tree_dependency_edges_and_cold_restored_claims_fit heap_peak_bytes={peak}");
 }
 
 fn filled(limits: &Limits, number: u64) -> jig_domain_tasks::New {
@@ -412,6 +420,8 @@ fn borrowed_stored_bytes_matches_allocator_for_every_retained_row() {
 
 #[test]
 fn the_complete_maximum_recurring_batch_and_retained_ids_fit_the_owner_bound() {
+    let scenario_meter = Meter::new();
+    scenario_meter.start();
     let limits = Limits { tasks: 5, project_tasks: 5, tree_tasks: 5, depth: 2, delegates: 4, batch: 4, ..LIMITS };
     let mut measured = Measured::new(&limits);
     measured.event(Event::Check);
@@ -475,6 +485,8 @@ fn the_complete_maximum_recurring_batch_and_retained_ids_fit_the_owner_bound() {
             .as_ref(),
         [2, 3, 4, 5]
     );
+    let peak = scenario_meter.end().peak();
+    eprintln!("the_complete_maximum_recurring_batch_and_retained_ids_fit_the_owner_bound heap_peak_bytes={peak}");
 }
 
 #[test]
@@ -662,6 +674,8 @@ fn pool_task(number: u64, dependencies: &[u64]) -> tasks::New {
 
 #[test]
 fn saturated_placed_records_reasons_and_exemptions_fit_and_measure_exactly() {
+    let scenario_meter = Meter::new();
+    scenario_meter.start();
     let limits =
         Limits { tasks: 4, placed_holds: 4, project_placed_holds: 4, party_placed_holds: 4, exemptions: 3, ..LIMITS };
     let mut source = jig_tasks_world::World::new(322, limits);
@@ -702,9 +716,7 @@ fn saturated_placed_records_reasons_and_exemptions_fit_and_measure_exactly() {
         if let Stored::PlacedHold(hold) = row {
             assert_eq!(hold.exempt.len(), limits.exemptions as usize);
             let meter = Meter::new();
-            meter.start();
             let cloned = row.clone();
-            let _peak = meter.end();
             assert_eq!(tasks::stored_bytes(&cloned), Some(meter.held()));
         }
     }
@@ -714,4 +726,6 @@ fn saturated_placed_records_reasons_and_exemptions_fit_and_measure_exactly() {
     let reply_to = measured.to();
     measured.event(Event::Lift { reply_to, by: Party::Person(1), hold: 100, revision, with_tasks: true });
     assert!(!measured.refused);
+    let peak = scenario_meter.end().peak();
+    eprintln!("saturated_placed_records_reasons_and_exemptions_fit_and_measure_exactly heap_peak_bytes={peak}");
 }

@@ -109,7 +109,7 @@ fn the_complete_last_batch_survives_skips_endings_restart_and_rejected_replaceme
 }
 
 #[test]
-fn cold_restore_rejects_partial_duplicate_zero_self_and_oversized_last_batches() {
+fn cold_restore_bounds_last_batch_storage_without_repeating_writer_rules() {
     let test = accepted();
     let original = test.domain.task(100).unwrap();
     let invalid: [Box<[u64]>; 5] = [
@@ -121,6 +121,7 @@ fn cold_restore_rejects_partial_duplicate_zero_self_and_oversized_last_batches()
     ];
     for numbers in invalid {
         let mut row = original.clone();
+        let oversized = numbers.len() > usize::try_from(LIMITS.batch).unwrap();
         row.recurring.as_mut().unwrap().last_batch = numbers;
         let mut domain = Domain::new(&LIMITS, 91, 1, crate::tests::charters(), Box::new([0]));
         let mut out = Queue::uncapped();
@@ -131,7 +132,7 @@ fn cold_restore_rejects_partial_duplicate_zero_self_and_oversized_last_batches()
                 refused = true;
             }
         }
-        assert!(refused);
+        assert_eq!(refused, oversized);
     }
 }
 

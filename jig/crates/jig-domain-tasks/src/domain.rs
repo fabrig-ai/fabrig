@@ -498,7 +498,7 @@ impl Domain {
         crate::waiting::next(self, task, after)
     }
 
-    /// Whether the restored whole set passed its pre-switch checks (domain/engine.md, 6).
+    /// Whether live rows fit and required links are attached before the switch (domain/engine.md, 6).
     #[must_use]
     pub fn checked(&self) -> bool {
         self.startup == Startup::Checked

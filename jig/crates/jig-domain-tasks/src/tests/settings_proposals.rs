@@ -126,18 +126,17 @@ fn settings_proposals_keep_the_one_pending_proposal_per_party_rule() {
 }
 
 #[test]
-fn restore_refuses_two_pending_settings_proposals_from_one_party() {
+fn restore_retains_pending_settings_proposals_without_repeating_party_admission() {
     let mut h = Harness::new();
     h.domain = Domain::new(&LIMITS, 91, 1, super::charters(), Box::new([0]));
     h.send(Event::Restore { record: Stored::PersonProposal(Box::new(proposal(1))) });
     let mut second = proposal(1);
     second.number += 1;
     let out = h.send(Event::Restore { record: Stored::PersonProposal(Box::new(second)) });
-    assert!(out.iter().any(|row| match row {
-        Request::RestoreRefused { .. } => true,
-        _ => false,
-    }));
-    assert!(!h.domain.ready());
+    assert!(out.is_empty());
+    assert_eq!(h.domain.person_proposals().len(), 2);
+    assert!(h.send(Event::Check).is_empty());
+    assert!(h.domain.checked());
 }
 
 fn restored_pending() -> Harness {

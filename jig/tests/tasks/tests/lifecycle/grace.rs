@@ -214,7 +214,7 @@ fn a_graces_ask_keeps_room_for_the_whole_cancellation_reason() {
 }
 
 #[test]
-fn a_restored_finish_word_requires_its_matching_grace() {
+fn a_restored_finish_word_does_not_repeat_grace_consistency_checks() {
     const RESTORE_SEED: u64 = 194;
     let mut world = world();
     cancel(&mut world, Some(Duration::from_secs(5)), b"wrap up");
@@ -240,6 +240,6 @@ fn a_restored_finish_word_requires_its_matching_grace() {
                 refusals.push(problem.why);
             }
         }
-        assert_eq!(refusals, [Refusal::Restore]);
+        assert!(refusals.is_empty());
     }
 }

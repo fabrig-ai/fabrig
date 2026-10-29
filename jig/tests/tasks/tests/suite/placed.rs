@@ -679,7 +679,7 @@ fn check_rows(rows: Vec<Stored>, env: &skein_lib::Env<tasks::Limits>) -> Vec<tas
 }
 
 #[test]
-fn restart_refuses_missing_holds_missing_scope_roots_and_unheld_tasks_in_scope() {
+fn restart_asserts_missing_hold_links_and_leaves_scope_laws_to_the_referee() {
     let mut w = World::new(920, LIMITS);
     goal_tree(&mut w);
     stop(&mut w, 1, 1, 100);
@@ -707,7 +707,41 @@ fn restart_refuses_missing_holds_missing_scope_roots_and_unheld_tasks_in_scope()
             }
             _ => unreachable!(),
         }
-        assert!(check_rows(rows, &w.env).iter().any(|reply| matches!(reply, tasks::Request::RestoreRefused { .. })));
+        if corruption < 2 {
+            let panic =
+                std::panic::catch_unwind(|| check_rows(rows, &w.env)).expect_err("missing required link panics");
+            let message = panic.downcast_ref::<String>().expect("keyed panic message");
+            let expected = if corruption == 0 {
+                "restore Live(1): missing placed hold 100"
+            } else {
+                "restore PlacedHold(100): missing scope task 99"
+            };
+            assert!(message.contains(expected), "{message}");
+        } else {
+            let live = rows
+                .iter()
+                .filter_map(|row| if let Stored::Live(row) = row { Some(*row.clone()) } else { None })
+                .collect();
+            let holds = rows
+                .iter()
+                .filter_map(|row| if let Stored::PlacedHold(row) = row { Some(*row.clone()) } else { None })
+                .collect();
+            assert!(
+                !check_rows(rows, &w.env).iter().any(|reply| matches!(reply, tasks::Request::RestoreRefused { .. }))
+            );
+            let mut referee = skein_world::domain::Referee::new(jig_tasks_world::referee::Tasks::default());
+            referee.observe(
+                skein_lib::Time::ZERO,
+                jig_tasks_world::referee::Seen::Placed {
+                    live,
+                    holds,
+                    stops: w.stops.clone(),
+                    limits: Box::new(w.env.limits),
+                },
+                &mut Vec::new(),
+            );
+            assert!(matches!(referee.verdict(), skein_world::domain::Verdict::Failed(_)));
+        }
     }
 }
 

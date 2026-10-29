@@ -81,26 +81,32 @@ fn a_delegates_words_from_a_person_restore() {
 }
 
 #[test]
-fn a_delegates_question_or_answer_from_a_person_refuses() {
+fn a_delegates_question_or_answer_does_not_repeat_sender_admission() {
     for kind in [crate::MessageKind::Question, crate::MessageKind::Answer { question: WORD }] {
         let source = delegate_with_person_word(kind);
-        refused_delegate(&source);
+        loaded_delegate(&source);
     }
 }
 
 #[test]
-fn a_delegates_words_from_person_zero_refuse() {
+fn a_delegates_words_do_not_repeat_person_admission() {
     let mut source = delegate_with_person_word(crate::MessageKind::Words);
     let Some(Stored::Live(row)) = source.stored.get_mut(&Key::Live(DELEGATE)) else { panic!("delegate fixture") };
     row.inbox[0].from = crate::Party::Person(0);
-    refused_delegate(&source);
+    loaded_delegate(&source);
 }
 
-fn refused_delegate(source: &Harness) {
-    let mut cold = Harness::new();
-    cold.domain = Domain::new(&LIMITS, 91, source.domain.newest(), super::charters(), Box::new([0]));
-    let row = source.stored.get(&Key::Live(DELEGATE)).expect("delegate row").clone();
-    refusal(&cold.send(Event::Restore { record: row }), Refusal::Restore);
+fn loaded_delegate(source: &Harness) {
+    let mut restored = cold(source);
+    assert!(restored.send(Event::Check).is_empty());
+    assert!(restored.domain.checked());
+    assert_eq!(
+        restored.domain.task(DELEGATE).expect("linked delegate"),
+        match &source.stored[&Key::Live(DELEGATE)] {
+            Stored::Live(row) => row.as_ref(),
+            _ => panic!("delegate row"),
+        }
+    );
 }
 
 fn refusal(out: &[Request], why: Refusal) {
@@ -126,24 +132,27 @@ fn refused_at_check(mut cold: Harness) {
 }
 
 #[test]
-fn a_broken_task_link_refuses_at_check() {
+#[should_panic(expected = "restore Live(1): missing task 99")]
+fn a_broken_task_link_panics_at_link() {
     let mut source = one_task();
     let Some(Stored::Live(row)) = source.stored.get_mut(&Key::Live(DUE)) else { panic!("live fixture") };
     row.root = UNNAMED;
-    refused_at_check(cold(&source));
+    cold(&source).send(Event::Check);
 }
 
 #[test]
-fn a_stub_named_by_no_live_task_refuses_at_check() {
+fn a_stub_is_retained_without_rejudging_reciprocal_references() {
     let mut cold = cold(&one_task());
     cold.send(Event::Restore {
         record: Stored::Stub(Stub { task: UNNAMED, phase: Status::Done, result: Token::new(UNNAMED) }),
     });
-    refused_at_check(cold);
+    assert!(cold.send(Event::Check).is_empty());
+    assert!(cold.domain.checked());
 }
 
 #[test]
-fn a_writer_without_a_holder_refuses_at_check() {
+#[should_panic(expected = "restore Writer(1): missing hold owner")]
+fn a_writer_without_a_holder_panics_at_link() {
     let mut cold = cold(&one_task());
     cold.send(Event::Restore {
         record: Stored::Writer(WriterSlot {
@@ -153,7 +162,7 @@ fn a_writer_without_a_holder_refuses_at_check() {
             lost: false,
         }),
     });
-    refused_at_check(cold);
+    cold.send(Event::Check);
 }
 
 #[test]
