@@ -75,11 +75,11 @@ fn html(state: &State) -> String {
 }
 #[test]
 fn the_list_page_maps_as_its_golden_html() {
-    assert_eq!(html(&state()), include_str!("../golden/list.html").trim_end());
+    assert_eq!(html(&state()), include_str!("../../golden/list.html").trim_end());
 }
 #[test]
 fn the_note_page_maps_as_its_golden_html() {
     let mut state = state();
     state.step(Report::Place(Place::Note { number: 7 }), Time::ZERO, Wall::EPOCH, &mut duties());
-    assert_eq!(html(&state), include_str!("../golden/note.html").trim_end());
+    assert_eq!(html(&state), include_str!("../../golden/note.html").trim_end());
 }
