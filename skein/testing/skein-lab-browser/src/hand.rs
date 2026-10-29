@@ -728,26 +728,20 @@ impl Hand {
             self.rt.requests.push_back(io::Request::Close { entity });
         }
         self.rt.requests.push_back(io::Request::Close { entity: self.rt.output });
-        let deadline = self.rt.clock.now().now.saturating_add(Duration::from_secs(8));
-        while !(self.rt.exited
-            && self.rt.child_closed
-            && self.rt.root_closed
-            && self.rt.io.is_empty()
-            && self.rt.ring.is_empty()
-            && self.rt.requests.is_empty()
-            && self.rt.submits.is_empty())
-        {
-            if self.rt.clock.now().now >= deadline {
-                return Err("shutdown deadline passed".into());
-            }
+        let deadline = self.rt.deadline("the hand shutdown", Duration::from_secs(8));
+        while !self.rt.settled() {
             self.pump()?;
             self.events.clear();
+            if !self.rt.settled() && deadline.passed() {
+                return Err(self.rt.expired(deadline.expired(), "shutdown deadline passed")?);
+            }
         }
         self.evidence.finish_log(&self.redact)
     }
     fn closed(&mut self, entity: Token) -> Result<(), String> {
-        let deadline = self.rt.clock.now().now.saturating_add(Duration::from_secs(10));
+        let deadline = self.rt.deadline("the hand entity close", Duration::from_secs(10));
         loop {
+            self.pump()?;
             while let Some(event) = self.events.pop_front() {
                 if let Event::Closed { owner } = event
                     && owner == entity
@@ -755,10 +749,9 @@ impl Hand {
                     return Ok(());
                 }
             }
-            if self.rt.clock.now().now >= deadline {
-                return Err("close deadline passed".into());
+            if deadline.passed() {
+                return Err(self.rt.expired(deadline.expired(), "close deadline passed")?);
             }
-            self.pump()?;
         }
     }
     fn moved(&mut self, face: &mut BrowserFace<'_>, field: &str) -> Result<Value, String> {
@@ -801,7 +794,7 @@ impl Hand {
         Ok(object([(field, seen)]))
     }
     fn wait(&mut self, face: &mut BrowserFace<'_>, part: &Part, gone: bool, seconds: u32) -> Result<Value, String> {
-        let deadline = self.rt.ienv.now.saturating_add(Duration::from_secs(u64::from(seconds)));
+        let deadline = self.rt.deadline("the hand scenario wait", Duration::from_secs(u64::from(seconds)));
         loop {
             let found = match self.find(face, &part.find) {
                 Ok(found) => found,
@@ -813,10 +806,12 @@ impl Hand {
             if !gone && let Some(node) = found {
                 return Ok(object([("met", calls::part(part.role, face.seen(node).expect("found node")))]));
             }
-            if self.rt.ienv.now >= deadline {
+            if deadline.passed() {
+                let figures = self.rt.expired(deadline.expired(), "scenario wait missed")?;
+                eprintln!("{figures}");
                 break;
             }
-            let next = self.rt.ienv.now.saturating_add(self.rt.benv.limits.poll).min(deadline);
+            let next = self.rt.ienv.now.saturating_add(self.rt.benv.limits.poll).min(deadline.until());
             while self.rt.ienv.now < next {
                 self.pump()?;
             }

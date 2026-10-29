@@ -19,7 +19,7 @@ use skein_io::{
 };
 use skein_lib::{Duration, Env, List, Queue, Time, Token, Wall, stream};
 use skein_shell::{Clock, Wait, open_root};
-use skein_world::ring::Ring;
+use skein_world::{Deadline, Expired, ring::Ring};
 use std::{
     collections::{BTreeMap, VecDeque},
     os::unix::ffi::OsStrExt,
@@ -131,6 +131,9 @@ struct Runtime {
     listener: Option<hand::Listener>,
     signals: Option<Token>,
     interrupted: bool,
+    pid: Option<u32>,
+    child: Option<Token>,
+    ending: bool,
 }
 pub fn run(config: &Config) -> Result<(), String> {
     std::fs::create_dir_all(&config.out).map_err(|e| e.to_string())?;
@@ -235,6 +238,9 @@ impl Runtime {
             listener: None,
             signals,
             interrupted: false,
+            pid: None,
+            child: None,
+            ending: false,
         })
     }
     fn fresh(&mut self) -> Token {
@@ -411,6 +417,9 @@ impl Runtime {
             io::resume(&mut self.io, &self.ienv, &mut self.io_events, &mut self.submits);
         }
         while let Some(complete) = self.complete.pop() {
+            if let Ok(kernel::Done::Spawned { pidfd, .. }) = &complete.result {
+                self.pid = skein_shell::child_id(*pidfd).ok().filter(|pid| *pid != 0);
+            }
             io::up(&mut self.io, &self.ienv, complete, &mut self.io_events, &mut self.submits);
         }
         while self.io.is_due(time.now) {
@@ -419,7 +428,7 @@ impl Runtime {
         while let Some(event) = self.io_events.pop() {
             self.io_event(event)?;
         }
-        if self.pipes.is_some() {
+        if self.pipes.is_some() && !self.ending {
             for _ in 0..32 {
                 if !self.browser.work_pending() && self.browser.next_deadline().is_none_or(|at| at > time.now) {
                     break;
@@ -531,7 +540,8 @@ impl Runtime {
             }
         }
         match event {
-            io::Event::Spawned { pipes, .. } => {
+            io::Event::Spawned { child, pipes, .. } => {
+                self.child = Some(child);
                 let [commands, replies, errors] = pipes.as_ref() else {
                     return Err("Chromium pipe layout".into());
                 };
@@ -540,6 +550,9 @@ impl Runtime {
                 self.submits.push(Submit { op: ROOT, kind: Op::Close { fd: root } });
             }
             io::Event::Stream { owner, up } => {
+                if self.ending {
+                    return Ok(());
+                }
                 if owner == self.input {
                     self.input_events.push_back(up);
                     return Ok(());
@@ -582,6 +595,7 @@ impl Runtime {
             }
             io::Event::Closed { owner } => {
                 if owner == PROCESS {
+                    self.pid = None;
                     self.child_closed = true;
                 }
             }
@@ -799,6 +813,61 @@ impl Runtime {
             | Event::Closed { .. }) => Err(format!("expected Closed {entity:?}: {other:?}")),
         }
     }
+    fn deadline(&self, what: &'static str, patience: Duration) -> Deadline {
+        let mut deadline = Deadline::arm(what, patience);
+        if let Some(pid) = self.pid {
+            deadline.watch_process(pid);
+        }
+        deadline
+    }
+    fn expired(&mut self, expired: Expired, why: &str) -> Result<String, String> {
+        match expired {
+            Expired::Failed(figures) => Ok(format!("{why}: {figures}")),
+            Expired::Starved(starved) => {
+                self.end()?;
+                starved.pass()
+            }
+        }
+    }
+    // testing-strategy.md, 2.10: settle owned io before a starvation verdict exits.
+    fn end(&mut self) -> Result<(), String> {
+        self.closing = true;
+        self.ending = true;
+        self.answers.clear();
+        self.input_events.clear();
+        while self.down.pop().is_some() {}
+        if let Some(listener) = &mut self.listener {
+            listener.stop();
+        }
+        self.proxy.stop();
+        for pages in self.origins.values_mut() {
+            pages.stop();
+        }
+        for entity in self
+            .child
+            .into_iter()
+            .chain(self.pipes.into_iter().flatten())
+            .chain(self.signals.take())
+            .chain([self.input, self.output])
+        {
+            self.requests.push_back(io::Request::Abort { entity });
+        }
+        while !self.io.is_empty() || !self.ring.is_empty() || !self.requests.is_empty() || !self.submits.is_empty() {
+            self.pump()?;
+        }
+        Ok(())
+    }
+    fn settled(&self) -> bool {
+        self.exited
+            && self.child_closed
+            && self.root_closed
+            && self.proxy.closed()
+            && self.origins.values().all(Pages::is_closed)
+            && self.io.is_empty()
+            && self.ring.is_empty()
+            && self.requests.is_empty()
+            && self.submits.is_empty()
+    }
     fn shutdown(&mut self) -> Result<(), String> {
         let names = self.pages.keys().cloned().collect::<Vec<_>>();
         for name in names {
@@ -813,21 +882,12 @@ impl Runtime {
         self.proxy.stop();
         self.requests.push_back(io::Request::Close { entity: self.input });
         self.requests.push_back(io::Request::Close { entity: self.output });
-        let deadline = self.clock.now().now.saturating_add(Duration::from_secs(8));
-        while !(self.exited
-            && self.child_closed
-            && self.root_closed
-            && self.proxy.closed()
-            && self.origins.values().all(Pages::is_closed)
-            && self.io.is_empty()
-            && self.ring.is_empty()
-            && self.requests.is_empty()
-            && self.submits.is_empty())
-        {
-            if self.clock.now().now >= deadline {
-                return Err("shutdown deadline passed".into());
-            }
+        let deadline = self.deadline("the lab browser shutdown", Duration::from_secs(8));
+        while !self.settled() {
             self.pump()?;
+            if !self.settled() && deadline.passed() {
+                return Err(self.expired(deadline.expired(), "shutdown deadline passed")?);
+            }
         }
         Ok(())
     }
