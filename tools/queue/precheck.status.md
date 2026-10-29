@@ -19,3 +19,11 @@ merge; installation on builders follows landing. Heavy completion after a lost c
 unsupported sparse/submodule/hidden-index or ignored-collision inputs are
 refused. Unit observation cannot replace exclusive ownership of an idle
 claimed slot.
+
+Per-command disk admission is implemented with `--min-free-bytes` (default
+80000000000), including a fresh observation before the nextest build after
+clippy. `test_precheck_admission.py` uses disposable Git, fake checkers and
+deterministic free bytes to cover deferral, exact restoration, retained
+completed results, unchanged commands and CLI validation. This helper
+scheduling threshold leaves heavy and queue floors unchanged; Ops validates
+and deploys after review/landing.
