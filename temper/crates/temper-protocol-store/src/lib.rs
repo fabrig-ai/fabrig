@@ -25,7 +25,7 @@ pub fn application(
     Some(jig_protocol_store::sizes::Application {
         version: STORE_VERSION,
         key: keys::largest(limits)?,
-        value: u32::try_from(v10::Row::worst_case_bytes(bounds.limits())?).ok()?,
+        value: u32::try_from(v10::Row::encoded_bound(bounds.limits())?).ok()?,
     })
 }
 
