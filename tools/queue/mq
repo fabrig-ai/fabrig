@@ -23,6 +23,7 @@ import uuid
 CONFIG = Path(__file__).resolve().parent
 TREES = ("skein", "smith", "jig", "temper")
 GB = 1_000_000_000
+TOOLS_TIMEOUT = 60
 
 
 class DiskFloorError(RuntimeError):
@@ -154,15 +155,13 @@ def selection(changed_paths, metadata, *, always=None, read_by_tests=None, locke
     patterns = lines(CONFIG / "read-by-tests.txt") if read_by_tests is None else read_by_tests
     if any(fnmatch.fnmatchcase(path, pattern) for path in paths for pattern in patterns):
         return "full"
-    if paths and all(path.endswith(".md") for path in paths):
-        return "docs"
-    if not paths:
-        return "docs"
-    members = set(metadata["workspace_members"])
-    packages = {p["id"]: p for p in metadata["packages"] if p["id"] in members}
-    owners = package_owners(metadata)
+    members = set(metadata.get("workspace_members", []))
+    packages = {p["id"]: p for p in metadata.get("packages", []) if p["id"] in members}
+    owners = package_owners(metadata) if metadata else []
     selected = set()
     for path in paths:
+        if path.startswith("tools/"):
+            continue
         if path == "Cargo.lock":
             if locked is None:
                 raise ValueError("lockfile selection requires base and HEAD lock entries")
@@ -177,9 +176,14 @@ def selection(changed_paths, metadata, *, always=None, read_by_tests=None, locke
                                                    ("src", "tests", "benches", "examples")):
                 selected.add(package_id)
                 break
-            return "full"
+            if not path.endswith(".md"):
+                return "full"
+            break
         else:
-            return "full"
+            if not path.endswith(".md"):
+                return "full"
+    if not selected and "Cargo.lock" not in paths:
+        return "docs"
     resolve = metadata.get("resolve")
     if resolve is None:
         raise ValueError("package selection requires cargo metadata's resolve graph")
@@ -255,34 +259,72 @@ def check_commands(repo, selected, paths, *, metadata=None):
     return steps
 
 
+def tools_commands(repo):
+    """Discover tracked suites, including executable Bash suites (design.md, 2.3)."""
+    commands = []
+    for entry in git(repo, "ls-files", "--stage", "-z", "--", "tools/").stdout.split("\0"):
+        if not entry:
+            continue
+        attributes, path = entry.split("\t", 1)
+        mode = attributes.split()[0]
+        name = PurePosixPath(path).name
+        if fnmatch.fnmatchcase(name, "test_*.py"):
+            commands.append((path, ["python3", "-I", "-B", path], repo))
+        elif name.startswith("test-") and mode == "100755":
+            commands.append((path, ["bash", path], repo))
+    return commands
+
+
+def run_step(name, argv, cwd, log, *, runner, clock, timeout=None):
+    log.write(f"\n[{name}] {shlex.join(argv)} (cwd {cwd})\n")
+    log.flush()
+    output_start = log.tell()
+    started = clock()
+    try:
+        options = {} if timeout is None else {"timeout": timeout}
+        result = runner(argv, cwd=cwd, stdin=subprocess.DEVNULL,
+                        stdout=log, stderr=subprocess.STDOUT, **options)
+        code = result.returncode
+    except subprocess.TimeoutExpired:
+        log.write(f"Timed out after {timeout} seconds\n")
+        code = 124
+    except OSError as error:
+        log.write(f"{error}\n")
+        code = 127
+    log.flush()
+    log.seek(output_start)
+    output = log.read()
+    log.seek(0, os.SEEK_END)
+    refused = code == 2 and "below the disk floor" in output and argv[0] == "heavy"
+    green = code == 0 or (name in ("build", "default", "fuzzy") and code == 4)
+    outcome = {"name": name, "command": argv, "returncode": code,
+               "green": green, "duration": clock() - started}
+    if refused:
+        outcome["error"] = output.strip()
+    return outcome
+
+
+def run_tools(repo, log, *, runner=subprocess.run, clock=time.monotonic):
+    """Run every tools suite before cargo, with a deadline per suite (design.md, 2.3)."""
+    started = clock()
+    suites = [run_step(name, argv, cwd, log, runner=runner, clock=clock, timeout=TOOLS_TIMEOUT)
+              for name, argv, cwd in tools_commands(repo)]
+    return {"name": "tools", "green": all(suite["green"] for suite in suites),
+            "duration": clock() - started, "suites": suites}
+
+
 def run_checks(repo, selected, paths, log_path, *, runner=subprocess.run, clock=time.monotonic):
     """Run serially, logging output; nextest's empty selection is green."""
     outcomes = []
     with log_path.open("a+") as log:
         os.chmod(log_path, 0o600)
+        if selected == "full" or any(path.startswith("tools/") for path in paths):
+            outcomes.append(run_tools(repo, log, runner=runner, clock=clock))
+            if not outcomes[-1]["green"]:
+                return outcomes
         for name, argv, cwd in check_commands(repo, selected, paths):
-            log.write(f"\n[{name}] {shlex.join(argv)} (cwd {cwd})\n")
-            log.flush()
-            output_start = log.tell()
-            started = clock()
-            try:
-                result = runner(argv, cwd=cwd, stdin=subprocess.DEVNULL,
-                                stdout=log, stderr=subprocess.STDOUT)
-                code = result.returncode
-            except OSError as error:
-                log.write(f"{error}\n")
-                code = 127
-            log.flush()
-            log.seek(output_start)
-            output = log.read()
-            log.seek(0, os.SEEK_END)
-            refused = code == 2 and "below the disk floor" in output and argv[0] == "heavy"
-            green = code == 0 or (name in ("build", "default", "fuzzy") and code == 4)
-            outcomes.append({"name": name, "command": argv, "returncode": code,
-                             "green": green, "duration": clock() - started})
-            if refused:
-                outcomes[-1]["error"] = output.strip()
-            if not green:
+            outcomes.append(run_step(name, argv, cwd, log, runner=runner, clock=clock))
+            if not outcomes[-1]["green"]:
                 break
     return outcomes
 
@@ -430,9 +472,13 @@ class Queue:
         if self.full_due() or full_inputs(paths):
             return "full"
         # A plan has not merged the batch, so its checkout cannot resolve changed manifests.
-        if preview and any(path == "Cargo.lock" or PurePosixPath(path).name == "Cargo.toml" for path in paths):
+        if preview and any(path == "Cargo.lock" or (not path.startswith("tools/") and
+                           PurePosixPath(path).name == "Cargo.toml") for path in paths):
             return "full"
-        if not paths or all(path.endswith(".md") for path in paths):
+        # Only source-directory Markdown can select a package; other docs and tools need no graph.
+        if all(path.startswith("tools/") or (path.endswith(".md") and not
+               set(PurePosixPath(path).parts[:-1]) & {"src", "tests", "benches", "examples"})
+               for path in paths):
             return selection(paths, {})
         metadata = self.metadata_loader(self.repo)
         locked = None
