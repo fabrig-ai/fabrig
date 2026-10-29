@@ -392,8 +392,8 @@ them, and with decisions that cannot be refused it says so itself.
 
 - **Each child declares its limits:** its entrances' counts and sizes,
   and the formulas that size its edges (a record, a frame, a message).
-  No child declares a `MAX_OUT` or the most an event makes it write or
-  output, since no route reserves room.
+  No child declares an output maximum or the most an event makes it
+  write, since no route reserves room.
 - **The root's watermark,** one number in entries, a field of the root's
   `Limits`, defaulting to the journal's commits in flight plus the
   door's outputs (`commits` and `deliveries`): what a reserved route

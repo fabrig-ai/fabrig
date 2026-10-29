@@ -105,12 +105,10 @@ translates between them with small total functions.
 
 The queues between the core and its children are uncapped. Their
 hand-offs finish within the decision (4.4), without a reservation for a
-child's largest output. Accounts, fleet, views, brief and notes
-have no `max_out` allowance. Authority's stored denial count is
-`stored_finding_limit` (authority.md, section 2); people's
+child's largest output. No child declares an output maximum.
+Authority's stored denial count is `stored_finding_limit` (authority.md, section 2); people's
 `outputs_bound` is reserved by the settings route at the store's commit
-edge (people.md, section 2). Authority, tasks and people also expose
-`max_out` as a compatibility name for consumers outside jig.
+edge (people.md, section 2).
 
 - **`tasks` is the center of the core:** it keeps every live task, and
   knows a task's lifecycle and nothing of runs, connectors or clients.
@@ -292,9 +290,10 @@ step its last answer arrives.
   including the store's answers, is always taken. New external work
   past the watermark is handed back before any child changes; its
   sender keeps it and offers it again. No route reserves journal room.
-  The core's `route_bound(&Limits)` is one number for pricing and
-  capacities only, never admission. A commit's write limit remains the
-  store's edge (programming-model.md, 7.1).
+  The core's `Limits::routes` bounds each drain within a step, with
+  its predicate asserted empty afterward (root.md, section 10). A
+  commit's write limit remains the store's edge
+  (programming-model.md, 7.1).
 - **A failed commit stops the engine** (core.md, section 4). Nothing
   waiting for that commit, or any later one, goes out. A restart starts
   from the last durable commit.
