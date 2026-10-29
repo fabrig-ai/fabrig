@@ -6,6 +6,8 @@ use skein_lib::Duration;
 use smith_host_domain::{Form, Scheme};
 use smith_protocol_channel::GrantValue;
 
+mod output;
+
 fn grant() -> smith_domain::Grant {
     smith_domain::Grant {
         renewable: true,
