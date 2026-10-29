@@ -475,20 +475,6 @@ pub mod control {
         pub fn work_pending(&self) -> bool {
             self.done || self.release.is_some() || !self.requests.is_empty() || !self.below.is_empty()
         }
-        #[must_use]
-        pub fn worst_case() -> u64 {
-            let mut bytes = http::worst_case(&LIMITS).expect("fixed HTTP limits");
-            for owned in [
-                Queue::<http::Event>::worst_case(QUEUE),
-                Queue::<http::Request>::worst_case(QUEUE),
-                Queue::<Down>::worst_case(QUEUE),
-                u64::from(QUEUE).checked_mul(u64::from(LIMITS.response)),
-                Some(64),
-            ] {
-                bytes = bytes.checked_add(owned.expect("bounded control storage")).expect("fixed control footprint");
-            }
-            bytes
-        }
         fn respond(&mut self, status: u16) {
             // Respond before discarding: a forbidden body gets no read or 100
             // Continue. The discard then settles even an empty body's stream.
