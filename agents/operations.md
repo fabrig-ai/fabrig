@@ -22,7 +22,7 @@ Provisional, 2026-10-28. The machines' and the pipeline's facts every role works
 ## 3. Slots
 
 - Until the operator confirms the final inventory is installed, use `python3 -I ~/src/fabrig/ops/bin/claim` on hel8: it knows the replacement slots and hetzner7 slot 9, and excludes drained hetzner2. The installed main inventory is catching up through the queue.
-- Run installed `claim` from PATH on hel8, not from a lead's clone: it reads main's `tools/slots/hosts`. `claim list` shows shares and holders; `claim list --free OWNER` lists free slots of that share, then the pool.
+- After that confirmation, run installed `claim` from PATH on hel8, not from a lead's clone: it reads main's `tools/slots/hosts`. `claim list` shows shares and holders; `claim list --free OWNER` lists free slots of that share, then the pool.
 - `claim claim HOST N OWNER WHAT` before a task takes a slot, `claim release HOST N OWNER` when its report is in. Another lead's share needs its owner's agreement and `--lent-by SHARE_OWNER`; a free slot in that share is not pool space.
 - A guard on each builder (`tools/slots/guard --timer`) trims idle slots when free space falls below 80 GB.
 - A slot's target stays warm across tasks: a task switches the slot's checkout in place, never a fresh clone. Stale test executables fill a builder's disk (one reached zero bytes on 10-28, and heavy then fails its own bookkeeping), so `codex-run` trims a writable task's slot before Codex starts (`tools/slots/trim`; by hand: `ssh HOST 'bash -lc "python3 -I - SLOT"' < tools/slots/trim` from hel8).
