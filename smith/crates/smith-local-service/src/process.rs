@@ -1453,9 +1453,7 @@ mod tests {
         adapter.adopt_store(kernel::Fd::new(10)).expect("store root");
         adapter.adopt_delivery_roots(Box::new([kernel::Fd::new(11)]), Box::new([]));
         let mut events = Queue::uncapped();
-        adapter.store_request(local_protocol::StoreRequest::Load);
-        adapter.markers_up(Time::ZERO, &mut events);
-        adapter.markers_up(Time::ZERO, &mut events);
+        start_store_load(&mut adapter, Time::ZERO, &mut events);
         adapter.start_markers(
             MARKER_OWNER,
             0,
@@ -1503,6 +1501,140 @@ mod tests {
         assert!(adapter.file_events.is_empty(), "both file terminals settle once");
         assert!(adapter.store_actions.is_empty(), "the store answer settles once");
         assert!(adapter.markers.is_none(), "the inspection settles once");
+    }
+
+    fn start_store_load(adapter: &mut ProcessAdapter, now: Time, events: &mut Queue<local::Event>) {
+        adapter.store_request(local_protocol::StoreRequest::Load);
+        adapter.markers_up(now, events);
+        adapter.markers_up(now, events);
+    }
+
+    // Two completed loads must both fit the dispatch work bound, so only
+    // the store-action gate can hold the second terminal within that pass.
+    const ORDER_TERMINALS: u32 = 2;
+    // Open/stat/read/close for the loads and adopted roots settle within this bound.
+    const ORDER_STEPS: u32 = 64;
+
+    struct FileOrderWorld {
+        adapter: ProcessAdapter,
+        sim: skein_sim::Sim,
+        pid: skein_sim::Pid,
+        machine: skein_fake_machine::Machine,
+    }
+
+    impl FileOrderWorld {
+        fn new(seed: u64) -> Self {
+            use skein_fake_machine::{How, Item, Machine};
+            let mut machine = Machine::for_user(7);
+            let root =
+                machine.lay(&[Item::file(b"format", b"unreadable").mode(0o000), Item::file(b"source.rs", b"clean\n")]);
+            let workspace = machine.open(root, b".", How::Directory).expect("workspace root");
+            let mut sim = skein_sim::Sim::new(seed, skein_sim::Config::calm());
+            let pid = sim.spawn_process();
+            let store = sim.root(pid, skein_sim::Handle::new(root.raw()));
+            let workspace = sim.root(pid, skein_sim::Handle::new(workspace.raw()));
+            let mut adapter = adapter(ORDER_TERMINALS, KERNEL_QUEUE);
+            adapter.adopt_store(store).expect("store root");
+            adapter.adopt_delivery_roots(Box::new([workspace]), Box::new([]));
+            Self { adapter, sim, pid, machine }
+        }
+
+        // Complete real adapter file IO while its parent holds terminal dispatch.
+        fn kernel_step(&mut self) {
+            let env = self.adapter.at(self.sim.now(), self.sim.wall());
+            self.sim.reap(self.pid, self.adapter.completions());
+            self.adapter.io_up(&env);
+            self.adapter.down(
+                &env,
+                &mut Queue::uncapped(),
+                &mut None,
+                &Map::with_capacity(0),
+                &mut Queue::uncapped(),
+                &mut None,
+            );
+            self.sim.submit(self.pid, &mut self.adapter.submissions);
+            skein_fake_machine::serve(&mut self.machine, &mut self.sim);
+            if self.sim.ready(self.pid) == 0 {
+                self.sim.advance();
+            }
+        }
+
+        fn complete_files(&mut self) {
+            for _ in 0..ORDER_STEPS {
+                self.kernel_step();
+                if self.adapter.file_events.len() == ORDER_TERMINALS {
+                    return;
+                }
+            }
+            panic!("seeded file operations did not complete");
+        }
+
+        fn close(&mut self, events: &mut Queue<local::Event>) {
+            self.adapter.close();
+            for _ in 0..ORDER_STEPS {
+                self.adapter.markers_up(self.sim.now(), events);
+                self.kernel_step();
+                if self.adapter.closed() {
+                    assert_eq!(self.machine.open_handles(), 0, "all adopted roots close");
+                    return;
+                }
+            }
+            panic!("seeded file owner did not close");
+        }
+    }
+
+    /// Order: `store_actions_dispatched` (phase C).
+    #[test]
+    fn simulated_store_failure_reaches_chat_before_a_later_marker() {
+        const SEED: u64 = 19;
+        const MARKER_OWNER: Token = Token::new(7);
+        let mut world = FileOrderWorld::new(SEED);
+        let mut events = Queue::uncapped();
+        start_store_load(&mut world.adapter, world.sim.now(), &mut events);
+        world.adapter.start_markers(
+            MARKER_OWNER,
+            0,
+            Box::new([Box::from(b"source.rs".as_slice())]),
+            world.sim.now().saturating_add(skein_lib::Duration::from_secs(1)),
+            &mut events,
+        );
+        world.complete_files();
+        assert!(world.adapter.files.takes(), "both file operations have returned their credit");
+        let mut pending = world.adapter.file_events.iter();
+        assert_eq!(
+            pending.next(),
+            Some(&file::Event::Failed {
+                owner: Token::new(u64::MAX - 1),
+                error: kernel::Error::Permission,
+                committed: false,
+                residue: None,
+            })
+        );
+        assert_eq!(
+            pending.next(),
+            Some(&file::Event::Loaded { owner: MARKER_OWNER, bytes: b"clean\n".as_slice().into() })
+        );
+        // The first pass consumes the failed load but must retain the marker
+        // behind the actions that will publish the store's failure.
+        world.adapter.markers_up(world.sim.now(), &mut events);
+        assert!(events.is_empty(), "the marker cannot pass the undispatched store answer");
+        assert!(!world.adapter.store_actions_dispatched());
+        assert_eq!(world.adapter.file_events.len(), 1, "the gate retains the completed marker");
+        world.adapter.markers_up(world.sim.now(), &mut events);
+        let Some(local::Event::StoreFailed { turn: None, reason: local::StoreFailure::Read }) = events.pop() else {
+            panic!("the chat must see the store's read failure first");
+        };
+        let Some(local::Event::Git { owner: MARKER_OWNER, result: local::GitResult::Markers { first: None } }) =
+            events.pop()
+        else {
+            panic!("the chat must see the marker result after the store failure");
+        };
+        assert!(events.is_empty(), "both requests have exactly one chat terminal");
+        assert!(world.adapter.file_events.is_empty());
+        assert!(world.adapter.store_actions.is_empty());
+        assert!(world.adapter.markers.is_none());
+        world.close(&mut events);
+        assert!(events.is_empty(), "closing adds no request terminal");
     }
 
     // One entry is the smallest routing queue: terminals are handed to the
