@@ -233,6 +233,12 @@ section 7).
   with `STORE_VERSION` to jig's component, which checks them with its own
   against skein-kv's limits, and the start is refused when they do not
   fit (jig's `protocol/store.md`, 5.4).
+  `temper-service` builds
+  `jig_protocol_store::sizes::Commits { in_flight: root.journal.commits, writes: root.journal.writes }`
+  for the store's sizing check and commit edge. The real-loop world uses
+  the same inputs. The journal's limits are temper's own decision
+  `Limits` (`../domain/root.md`, section 10); temper names no skein
+  `JournalLimits`.
   The service derives the shared store and secrets page byte bound as
   `P = max(K + V, F(A))`, where `K` and `V` are the checked map sizes and
   `A` is `root.loads.transcript_bytes`. Startup checks that `A` covers

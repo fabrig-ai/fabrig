@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import subprocess
 import tempfile
+import time
 import unittest
 
 TOOL = Path(__file__).resolve().parent / "session-context"
@@ -32,8 +33,11 @@ class SessionContext(unittest.TestCase):
         path.write_text("".join(json.dumps(c) + "\n" for c in calls) + "not json\n")
         return path
 
-    def run_tool(self, *args):
+    def run_tool(self, *args, session_id=None):
         env = dict(os.environ, HOME=str(self.home))
+        env.pop("CLAUDE_CODE_SESSION_ID", None)
+        if session_id is not None:
+            env["CLAUDE_CODE_SESSION_ID"] = session_id
         return subprocess.run(["python3", "-I", str(TOOL), *args], cwd=self.cwd, env=env,
                               text=True, capture_output=True, stdin=subprocess.DEVNULL)
 
@@ -53,12 +57,41 @@ class SessionContext(unittest.TestCase):
         self.assertEqual(self.run_tool("--window", "2000000").returncode, 0)
         self.assertEqual(self.run_tool("--threshold", "0.8").returncode, 0)
 
-    def test_session_by_prefix_and_newest_by_default(self):
+    def test_session_by_prefix_and_one_recent_writer(self):
         old = self.transcript("cccc3333-old", [call((0, 1_000, 0, 0))])
         self.transcript("dddd4444-new", [call((0, 2_000, 0, 0))])
         os.utime(old, (1, 1))
         self.assertIn("dddd4444: 2,000", self.run_tool().stdout)
         self.assertIn("cccc3333: 1,000", self.run_tool("cccc").stdout)
+
+    def test_environment_selects_its_session_among_several(self):
+        own = self.transcript("cccc3333-own", [call((0, 1_000, 0, 0))])
+        self.transcript("dddd4444-new", [call((0, 2_000, 0, 0))])
+        os.utime(own, (1, 1))
+        result = self.run_tool(session_id="cccc3333")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("cccc3333: 1,000", result.stdout)
+        explicit = self.run_tool("dddd", session_id="cccc3333")
+        self.assertIn("dddd4444: 2,000", explicit.stdout)
+
+    def test_several_recent_writers_require_a_session_id(self):
+        older = self.transcript("cccc3333-old", [call((0, 1_000, 0, 0))])
+        newer = self.transcript("dddd4444-new", [call((0, 2_000, 0, 0))])
+        for path in (older, newer):
+            os.utime(path, (time.time(), 1_900_000_000))
+        result = self.run_tool()
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertEqual(result.stdout, "")
+        self.assertIn("cccc3333 mtime 2030-03-17T17:46:40+00:00", result.stderr)
+        self.assertIn("dddd4444 mtime 2030-03-17T17:46:40+00:00", result.stderr)
+        self.assertIn("pass a session id", result.stderr)
+
+    def test_no_recent_writer_requires_a_session_id(self):
+        old = self.transcript("cccc3333-old", [call((0, 1_000, 0, 0))])
+        os.utime(old, (1, 1))
+        result = self.run_tool()
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertIn("pass a session id", result.stderr)
 
     def test_compactions_are_counted(self):
         self.transcript("ffff6666-x", [call((0, 900_000, 0, 0)),

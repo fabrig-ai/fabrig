@@ -58,7 +58,7 @@ pub fn forge_read_llm(config: &Path) -> CtlLlm {
 }
 pub(super) fn model(config: &Path, scripts: Box<[Script]>) -> CtlLlm {
     let config = config.to_path_buf();
-    let peer = super::fake_llm(scripts);
+    let peer = super::fake_llm_played(super::llm::requested(scripts));
     let address = peer.address();
     CtlLlm {
         peer,
@@ -142,7 +142,11 @@ fn scripts() -> Box<[Script]> {
                     }]}),
                 ),
                 call(b"wait", &json!({})),
-                call(b"finish", &json!({"form":"report","text":"work/hello landed.","fields":{}})),
+                Turn {
+                    lines: Box::new([Line::Text { text: b"work/hello landed.".as_slice().into() }]),
+                    finish: Finish::Stop,
+                    tokens: 20,
+                },
             ]),
         },
         Script {

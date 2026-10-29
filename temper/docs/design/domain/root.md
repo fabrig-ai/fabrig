@@ -926,11 +926,15 @@ Startup also checks the seed policy after enforced landing requirements are join
   6).
 - **The root's own,** `root.` in temper's limits
   (`../protocol/configuration.md`, section 7):
-  - the journal (`JournalLimits`): commits in flight, which is the
-    store's edge (jig's store queues that many commits, so the root sends
+  - the journal (temper's `JournalLimits`, its decision `Limits`):
+    commits in flight, which is the store's edge (jig's store queues
+    that many commits, so the root sends
     a commit only while fewer are in flight, the store's credit, and the
-    rest wait in the journal); with the door's outputs, it gives the
-    watermark; a row's bytes, a result's bytes and a charter's bytes,
+    rest wait in the journal); the service passes `root.journal.commits`
+    and `root.journal.writes` as jig's store `sizes::Commits`'s
+    `in_flight` and `writes` (`../protocol/store.md`, 4); with the door's
+    outputs, it gives the watermark; a row's bytes, a result's bytes
+    and a charter's bytes,
     which size the store's records (edges); the journal itself, its
     decisions and its held outputs are uncapped;
   - loads: in flight, rows per page, the bytes kept and a page's bytes;

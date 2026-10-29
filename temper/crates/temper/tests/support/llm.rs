@@ -5,6 +5,31 @@ use skein_lib::Queue;
 use skein_shell::{Clock, Config, Host, Kernel, Wait};
 use std::{fs, net::SocketAddr, path::Path};
 
+/// Select the fresh Open chat from its request, keeping its workers system-cued
+/// (skein/docs/design/fake-llm.md, 2.4).
+#[must_use]
+pub fn requested(scripts: Box<[skein_fake_llm_domain::api::Script]>) -> skein_fake_llm_domain::api::Scripts {
+    let mut scripts = scripts.into_vec();
+    let chat = scripts.remove(0);
+    skein_fake_llm_domain::api::Scripts {
+        cued: scripts.into_boxed_slice(),
+        asked: Box::new([chat]),
+        otherwise: Box::new([]),
+    }
+}
+
+/// A fresh Open brief is text in the first user message (smith/docs/design/domain/run.md, 3.4).
+#[must_use]
+pub fn request_has(query: &skein_fake_llm_domain::api::Query, cue: &[u8]) -> bool {
+    use skein_fake_llm_domain::api::{Part, Role};
+    query.messages.iter().find(|message| message.role == Role::User).is_some_and(|message| {
+        message
+            .parts
+            .iter()
+            .any(|part| matches!(part, Part::Text { text } if skein_lib::bytes::find(text, cue).is_some()))
+    })
+}
+
 pub struct Listening {
     peer: Peer,
     listener: Fd,

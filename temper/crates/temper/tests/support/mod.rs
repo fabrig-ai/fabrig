@@ -224,9 +224,13 @@ fn serve_command(directory: &Path) -> Command {
 }
 #[must_use]
 pub fn fake_llm(scripts: Box<[skein_fake_llm_domain::api::Script]>) -> llm::Listening {
+    fake_llm_played(temper_real_loop_world::llm::cued(scripts))
+}
+#[must_use]
+pub fn fake_llm_played(scripts: skein_fake_llm_domain::api::Scripts) -> llm::Listening {
     // The account's API key routes to /v1/responses: the real loop's recipe, on the fixture endpoint's
     // TLS port. smith's configured peer keeps the Codex path, which refuses a key.
-    let recipe = temper_real_loop_world::llm::scripted(scripts);
+    let recipe = temper_real_loop_world::llm::played(scripts);
     llm::Listening::new(
         skein_fake_peers::llm::Peer::new(
             (std::net::Ipv4Addr::LOCALHOST, 0).into(),

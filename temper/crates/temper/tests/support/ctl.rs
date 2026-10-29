@@ -687,6 +687,16 @@ impl Calls {
                 self.observed_at.push(Some(self.wall));
             }
             Action::Until(mut call, condition) => {
+                if !self.cancelling {
+                    assert_eq!(
+                        ended.exit,
+                        Some(Exit::Code(0)),
+                        "poll prerequisite argv={:?}: stdout {}; stderr {}",
+                        call.arguments.iter().map(|word| String::from_utf8_lossy(word)).collect::<Vec<_>>(),
+                        String::from_utf8_lossy(&ended.stdout),
+                        String::from_utf8_lossy(&ended.stderr)
+                    );
+                }
                 if condition.matches(&ended.stdout) {
                     self.ends.push(ended);
                     self.observed_at.push(Some(self.wall));
@@ -1217,6 +1227,18 @@ pub fn proposal_key(ended: &Ended) -> String {
 #[cfg(test)]
 mod read_condition_tests {
     use super::*;
+
+    #[test]
+    #[should_panic(expected = "poll prerequisite")]
+    fn a_failed_poll_stops_before_retrying_an_unmet_condition() {
+        let mut calls = Calls::new(Fd::new(0), Vec::new(), None, None);
+        calls.action = Some(Action::Until(Call::new(&["task", "show", "2"]), ReadCondition::Contains(b"ended")));
+        let mut child = completed(b"");
+        child.ended.exit = Some(Exit::Code(2));
+        child.ended.stderr = b"unknown".to_vec();
+        calls.child = Some(child);
+        calls.finish(Time::ZERO);
+    }
 
     #[test]
     #[should_panic(expected = "adoption ended refused: exit=Some(Code(2)); unreachable")]

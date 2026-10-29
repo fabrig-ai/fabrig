@@ -642,18 +642,22 @@ clamped. Applications deriving page room combine it with the checked
 map key-plus-value bound; row, queue, read-slot and decoder ceilings are
 separate and need not grow with this admission counter.
 
-The component computes, from the domain's limits and the application's,
-the largest encoded key, value and commit, and refuses to start when
-skein-kv's limits are smaller (its key, value, operations and commit;
-skein's `kv.md`, section 7), so a commit the root admitted is never
-refused as too large.
+The store's `Limits.commits` is its commit edge,
+`sizes::Commits { in_flight, writes }`: the commits it queues at once
+and the writes in one commit. `sizes::check_commits` computes, from
+that edge, the domain's limits and the application's, the largest
+encoded key, value and commit, and refuses to start when skein-kv's
+limits are smaller (its key, value, operations, commit, page and queued
+commits and bytes; skein's `kv.md`, section 7), so a commit the root
+admitted within that edge is never refused as too large.
 
 - **The largest commit is what it can leave in the map,** not its
   writes times the largest row: each key a commit puts is in the map
   once it is applied, at most skein-kv's budget in all, since a commit
   writes each key once (section 6) and the fill keeps the map within
   its budget (11.2). So the largest commit is the map's budget, plus,
-  for each operation the journal's writes allow, a key and its framing.
+  for each operation the store's `commits.writes` allows, a key and its
+  framing.
   A deployment's commit then fits skein-kv's `u32` whenever its map's
   budget does.
 

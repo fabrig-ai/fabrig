@@ -1,8 +1,8 @@
-# The workspace's two test suites.
+# The workspace's focused, fuzzy, and tier profiles.
 #
 # The focused suite, profile default, is each tree's focused suite: every test
 # but the fuzzy ones and the tiers' binaries (process, live, QA, browser,
-# exhaustive), which have no profile here yet. The fuzzy suite, profile fuzzy,
+# exhaustive). The fuzzy suite, profile fuzzy,
 # is each tree's fuzzy suite: the `fuzzy` module
 # of a package's `suite` binary. Each tree's filter is its own, restricted to the
 # packages under its directory (cargo metadata), joined with |.
@@ -15,6 +15,11 @@
 # and the repository's own checks, under tests/ at the root:
 #
 #   fabrig: package(=fabrig-boundary)
+#
+# The tier profiles are exhaustive-skein, browser-skein, live-skein, qa-skein;
+# live-smith, qa-smith; qa-jig, process-jig, live-jig, browser-jig; and
+# process-temper, live-temper, qa-temper, browser-temper. Each keeps its tree's
+# own budget.
 #
 # Each tree's budget was 30 s focused and 120 s fuzzy, doubled provisionally
 # at the user's request on 10-22; the workspace's is their sum, until the
@@ -106,3 +111,94 @@ slow-timeout = { period = "10s" }
 [[profile.fuzzy.overrides]]
 filter = "(package(/^temper(-|$)/) | package(=git-transcripts)) & (test(/^fuzzy_walking_shard_/) | test(/^fuzzy::walking::fuzzy_walking_shard_/))"
 priority = 20
+
+[profile.exhaustive-skein]
+default-filter = "binary(/^exhaustive_/) & (package(/^skein-/) | package(=forgejo-conformance) | package(=github-conformance))"
+global-timeout = "120s"
+slow-timeout = { period = "40s" }
+
+[profile.browser-skein]
+default-filter = "((package(=skein-browser-world) | package(=skein-ui-web-tests) | package(=skein-lab-browser)) & binary(/^browser_/)) & (package(/^skein-/) | package(=forgejo-conformance) | package(=github-conformance))"
+global-timeout = "4m"
+slow-timeout = { period = "40s", terminate-after = 3 }
+test-threads = 1
+
+[profile.live-skein]
+default-filter = "(package(=skein-llm-world) & binary(=live)) & (package(/^skein-/) | package(=forgejo-conformance) | package(=github-conformance))"
+global-timeout = "20m"
+slow-timeout = { period = "120s", terminate-after = 3 }
+test-threads = 1
+retries = 0
+fail-fast = false
+
+[profile.qa-skein]
+default-filter = "binary(/^qa_/) & (package(/^skein-/) | package(=forgejo-conformance) | package(=github-conformance))"
+global-timeout = "4m"
+slow-timeout = { period = "40s", terminate-after = 3 }
+test-threads = 1
+
+[profile.live-smith]
+default-filter = "((package(=smith) | package(=smith-agent-process-world)) & binary(=live)) & package(/^smith(-|$)/)"
+global-timeout = "20m"
+slow-timeout = { period = "120s" }
+test-threads = 1
+retries = 0
+fail-fast = false
+
+[profile.qa-smith]
+default-filter = "binary(/^qa_/) & package(/^smith(-|$)/)"
+global-timeout = "120s"
+slow-timeout = { period = "6s" }
+
+[profile.qa-jig]
+default-filter = "binary(/^qa_/) & package(/^jig(-|$)/)"
+global-timeout = "120s"
+slow-timeout = { period = "10s" }
+
+[profile.process-jig]
+default-filter = "binary(=process) & package(/^jig(-|$)/)"
+global-timeout = "4m"
+test-threads = 1
+
+[profile.live-jig]
+default-filter = "binary(=live) & package(/^jig(-|$)/)"
+global-timeout = "24m"
+slow-timeout = { period = "10m", terminate-after = 1 }
+test-threads = 1
+retries = 0
+
+[[profile.live-jig.overrides]]
+filter = "test(=a_person_signs_in_to_chatgpt_and_a_real_model_answers)"
+slow-timeout = { period = "22m", terminate-after = 1 }
+
+[profile.browser-jig]
+default-filter = "(package(=jig-client-browser-world) & binary(/^browser_/)) & package(/^jig(-|$)/)"
+global-timeout = "120s"
+slow-timeout = { period = "40s", terminate-after = 3 }
+test-threads = 1
+
+[profile.process-temper]
+default-filter = "binary(=process) & (package(/^temper(-|$)/) | package(=git-transcripts))"
+global-timeout = "25m"
+test-threads = 1
+
+[profile.live-temper]
+default-filter = "(binary(=live) | binary(=live_github)) & (package(/^temper(-|$)/) | package(=git-transcripts))"
+global-timeout = "50m"
+test-threads = 1
+retries = 0
+
+[profile.qa-temper]
+default-filter = "(binary(/^qa_/) | test(/::qa_/)) & (package(/^temper(-|$)/) | package(=git-transcripts))"
+global-timeout = "20m"
+test-threads = 1
+
+[[profile.qa-temper.overrides]]
+filter = "package(=temper-real-loop-world) & kind(test)"
+test-group = "temper-real-loop"
+
+[profile.browser-temper]
+default-filter = "(package(=temper-client-browser-world) & binary(/^browser_/)) & (package(/^temper(-|$)/) | package(=git-transcripts))"
+global-timeout = "120s"
+slow-timeout = { period = "40s", terminate-after = 3 }
+test-threads = 1
