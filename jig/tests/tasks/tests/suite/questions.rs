@@ -37,12 +37,17 @@ fn message(world: &mut World, source: Party, target: u64, number: u64, kind: Mes
 }
 
 fn pair() -> World {
+    pair_with_asks(false)
+}
+
+fn pair_with_asks(asks: bool) -> World {
     let mut world = World::new(880, LIMITS);
     let mut parent = task(REQUESTER, &[]);
     parent.numbers.budget = 1_000;
     parent.authority.budget.spend = 1_000;
     world.make(Party::Person(PERSON), vec![parent]);
     let mut child = task(ASKER, &[]);
+    child.spec.asks = asks;
     child.funder = Funder::Task(REQUESTER);
     child.wake.answers = false;
     world.make(Party::Task(REQUESTER), vec![child]);
@@ -453,4 +458,130 @@ fn a_full_inbox_keeps_room_for_its_person_answer_notice() {
     let once = world.record(REQUESTER).clone();
     person_reply(&mut world, PERSON);
     assert_eq!(world.record(REQUESTER), &once, "a repeated answer cannot make a second notice");
+}
+
+const OWED: &[u8] = b"You owe your requester a question: ask your plan with message, as a question, and wait.";
+
+#[test]
+fn a_task_owing_a_question_parks_on_finish_and_wakes_with_a_notice() {
+    let mut world = pair_with_asks(true);
+    world.terminal(ASKER, report());
+    let row = world.record(ASKER);
+    assert_eq!(row.phase, Phase::Active(Active::Due));
+    assert_eq!(row.tries.run, 1);
+    assert!(row.inbox.iter().any(|word| word.kind == MessageKind::QuestionOwed && word.words.as_ref() == OWED));
+    assert!(world.records.values().any(|row| matches!(
+        row,
+        Stored::Activity(ActivityLine {
+            task: ASKER,
+            line: Line::RunEnded { attempt: ATTEMPT, end: EndKind::Parked, .. },
+            ..
+        })
+    )));
+    world.restart();
+    assert_eq!(world.record(ASKER).tries.run, 1);
+    assert!(world.record(ASKER).inbox.iter().any(|word| word.words.as_ref() == OWED));
+    world.claim(ASKER, ATTEMPT + 1);
+}
+
+#[test]
+fn once_asked_the_owing_task_is_kept_by_its_question() {
+    let mut world = pair_with_asks(true);
+    message(&mut world, Party::Task(ASKER), REQUESTER, QUESTION, MessageKind::Question);
+    world.terminal(ASKER, report());
+    world.restart();
+    assert!(world.record(ASKER).asked_requester);
+    assert_eq!(world.record(ASKER).phase, Phase::Active(Active::Idle));
+    assert_eq!(world.record(ASKER).questions[0].number, QUESTION);
+    assert!(!world.record(ASKER).inbox.iter().any(|word| word.kind == MessageKind::QuestionOwed));
+    message(&mut world, Party::Task(REQUESTER), ASKER, ANSWER, MessageKind::Answer { question: QUESTION });
+    world.restart();
+    assert!(world.record(ASKER).asked_requester);
+    assert!(world.record(ASKER).questions.is_empty());
+    world.claim(ASKER, ATTEMPT + 1);
+    world.finish(ASKER);
+    world.settle(ASKER);
+    assert!(matches!(world.results[&ASKER], Ending::Done(_)));
+}
+
+#[test]
+fn an_owing_task_that_never_asks_ends_by_its_tries() {
+    let mut world = pair_with_asks(true);
+    let attempts = u64::from(world.env.limits.retries.run.retries) + 1;
+    for attempt in 1..=attempts {
+        if attempt > ATTEMPT {
+            world.claim(ASKER, attempt);
+        }
+        world.terminal(ASKER, report());
+    }
+    assert_eq!(u64::from(world.record(ASKER).tries.run), attempts);
+    assert!(matches!(world.record(ASKER).phase, Phase::Closing(Closing { ending: Ending::Failed { .. }, .. })));
+    world.settle(ASKER);
+    assert!(matches!(world.results[&ASKER], Ending::Failed { .. }));
+}
+
+#[test]
+fn asks_cannot_be_amended() {
+    for (old, replacement) in [(false, true), (true, false)] {
+        let mut world = pair_with_asks(old);
+        let mut spec = world.record(ASKER).spec.clone();
+        spec.asks = replacement;
+        let amendment = Amendment {
+            tracked: None,
+            addressed: None,
+            instructions: None,
+            release: None,
+            spec: Some(spec),
+            wake: None,
+            dependencies: None,
+            authority: None,
+            llm: None,
+            reason: Box::new([]),
+        };
+        let reply = response(&mut world, |reply_to| Event::Amend {
+            reply_to,
+            by: Party::Task(REQUESTER),
+            task: ASKER,
+            places: Box::new([]),
+            funder: None,
+            stop_run: false,
+            amendment,
+            message: ANSWER,
+        });
+        assert!(matches!(reply, Reply::Refused(problem) if problem.why == Refusal::Spec));
+        assert_eq!(world.record(ASKER).spec.asks, old);
+    }
+}
+
+#[test]
+fn a_task_without_asks_finishes_as_before() {
+    let mut world = pair();
+    world.finish(ASKER);
+    world.settle(ASKER);
+    assert!(matches!(world.results[&ASKER], Ending::Done(_)));
+}
+
+#[test]
+fn unread_words_cannot_prepare_an_owing_task_before_its_reminder() {
+    let mut world = pair_with_asks(true);
+    message(&mut world, Party::Task(REQUESTER), ASKER, QUESTION, MessageKind::Words);
+    world.terminal(ASKER, report());
+    let context = &world.contexts[&ASKER];
+    assert!(context.inbox.iter().any(|word| word.kind == MessageKind::QuestionOwed && word.words.as_ref() == OWED));
+    assert!(!world.record(ASKER).asked_requester);
+}
+
+#[test]
+fn an_inbox_too_small_for_the_fixed_reminder_refuses_asks_at_creation() {
+    let limits = Limits { inbox_bytes: LIMITS.message_bytes, ..LIMITS };
+    let mut world = World::new(882, limits);
+    let mut new = task(REQUESTER, &[]);
+    new.spec.asks = true;
+    let reply = response(&mut world, |reply_to| Event::Make {
+        reply_to,
+        creator: Party::Person(PERSON),
+        batch: Box::new([new]),
+    });
+    assert!(matches!(reply, Reply::Refused(problem) if problem.why == Refusal::Spec));
+    assert!(!world.records.contains_key(&Key::Live(REQUESTER)));
 }

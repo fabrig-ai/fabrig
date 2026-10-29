@@ -15,6 +15,19 @@ use alloc::boxed::Box;
 use jig_domain_tasks as domain;
 use skein_lib::{Reader, Writer};
 
+// Fixed internal words use the existing inbox byte envelope; caller
+// words and result words retain their admission bounds (domain/tasks.md, 5.7).
+fn word_bytes(domain: &domain::Limits) -> u32 {
+    domain.message_bytes.max(domain.result_bytes).max(
+        domain.inbox_bytes.min(
+            u32::try_from(
+                b"You owe your requester a question: ask your plan with message, as a question, and wait.".len(),
+            )
+            .expect("fixed reminder length"),
+        ),
+    )
+}
+
 /// Translate the tasks child's bounds, refusing any schema ceiling.
 #[must_use]
 pub fn limits(domain: &domain::Limits) -> Option<wire::Limits> {
@@ -89,7 +102,7 @@ pub fn limits(domain: &domain::Limits) -> Option<wire::Limits> {
         rejected_person_proposal_reason: domain.message_bytes,
         approval_message_state: domain.result_bytes,
         verdict_message_fields: fields,
-        word_words: domain.message_bytes.max(domain.result_bytes),
+        word_words: word_bytes(domain),
         activity_words_words: domain.message_bytes,
         rejected_escalation_reason: domain.result_bytes,
         recurring_state_last_batch: domain.batch,
