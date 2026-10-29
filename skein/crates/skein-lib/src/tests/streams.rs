@@ -198,7 +198,7 @@ fn a_full_intake_meets_any_demand_it_can_hold() {
     let mut intake = Intake::with_capacity(4);
     assert_eq!(intake.append(b"abcd"), Ok(()));
     assert_eq!(intake.meet(scan(Delimiter::LF, 4)), Some(boxed(b"abcd")));
-    assert_eq!(Intake::worst_case(4), Some(4));
+    assert_eq!(Intake::price(4), Some(4));
 }
 
 #[test]
