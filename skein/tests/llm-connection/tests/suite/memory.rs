@@ -2,14 +2,11 @@
 
 use core::net::Ipv4Addr;
 
-use skein_heap::{Counting, Meter};
+use skein_heap::Meter;
 use skein_io::kernel::Addr;
 use skein_lib::{Duration, Env, List, Queue, Time, Token};
 use skein_llm_connection::{Component, Deadlines, Endpoint, Event, Limits, Request};
 use skein_tls_world::pki;
-
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 fn full_pool_limits() -> Limits {
     Limits {

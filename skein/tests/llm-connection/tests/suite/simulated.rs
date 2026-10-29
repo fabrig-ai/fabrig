@@ -1,8 +1,5 @@
 //! Focused simulated loop with the scripted fake peer.
 
-#[global_allocator]
-static HEAP: skein_heap::Counting = skein_heap::Counting;
-
 #[test]
 fn scripted_fake_peer_answers_over_io_and_simulated_loopback() {
     skein_llm_connection_world::simulated::scenario(23, false);
