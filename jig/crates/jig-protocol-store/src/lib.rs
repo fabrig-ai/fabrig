@@ -232,7 +232,7 @@ impl Store {
 pub fn valid(limits: &Limits) -> bool {
     limits.store.is_usable()
         && limits.secrets.is_usable()
-        && decoded_worst_case(limits).is_some()
+        && decoded_records_bound(limits).is_some()
         && frame_bound(limits).is_some()
         && transcripts::reservation_count(limits).is_some()
         && commits::most_ops(limits.journal.writes, limits.orphan_erases).is_some()
@@ -246,8 +246,8 @@ fn frame_bound(limits: &Limits) -> Option<u64> {
     core_v6::TurnRecord::encoded_bound(&codec.core)?.checked_add(12)
 }
 
-// Two decoded records, including their wire values and the census's joined task.
-pub(crate) fn decoded_worst_case(limits: &Limits) -> Option<u64> {
+// Bound for two decoded records, including their wire values and the census's joined task.
+pub(crate) fn decoded_records_bound(limits: &Limits) -> Option<u64> {
     let codec = codec::limits(&limits.core)?;
     core_v6::Row::decoded_bound(&codec.core)?
         .checked_add(tasks_v9::Row::decoded_bound(&codec.tasks)?)?
