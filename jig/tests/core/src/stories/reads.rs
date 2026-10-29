@@ -116,7 +116,7 @@ fn read_world(seed: u64, reply_bound: Option<u32>, rows: u32, initial: Option<pe
     limits.core.views.watchers_per_party = 1;
     limits.core.views.subjects_per_change = 1;
     let room = limits.core.routes;
-    let connectors = jig_test_connector::MAX_OUT * 2;
+    let connectors = jig_test_connector::OUTPUTS_BOUND * 2;
     limits.journal.commits = 2;
     limits.watermark = root::default_watermark(&limits.journal);
     limits.journal.writes = room + connectors;
