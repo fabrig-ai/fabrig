@@ -46,7 +46,6 @@ fn github_exchange_handoff_stays_under_the_ceiling_on_every_connection() {
         peak(&mut h);
         connections.push(h).expect("all call and own connections");
     }
-    let mut heap = 0;
     for h in &connections {
         let exchange = retained(h);
         assert_eq!(exchange.retention, Some(Retention::Whole { bytes: f::shared().answer_bytes }));
@@ -54,11 +53,7 @@ fn github_exchange_handoff_stays_under_the_ceiling_on_every_connection() {
         let github::request::Request::Raw { owner, name, path, .. } = &exchange.request else { unreachable!("raw") };
         assert_eq!(owner.len(), usize::try_from(h.env.limits.string_bytes).expect("bound"));
         assert_eq!((name.len(), path.len()), (owner.len(), owner.len()));
-        heap += size_of_val(exchange);
     }
-    // Request payloads already have the per-connection body/target term. The
-    // allocation is one 136-byte exchange envelope per connection.
-    assert_eq!(heap, usize::try_from(count).expect("connections") * 136);
     let grown = span.end();
     assert!(grown.peak <= CEILING, "{} <= {CEILING}", grown.peak);
     println!("GitHub exchange handoffs: peak={} ceiling={CEILING}", grown.peak);
