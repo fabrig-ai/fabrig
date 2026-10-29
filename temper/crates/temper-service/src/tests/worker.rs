@@ -54,6 +54,47 @@ fn a_workspace_start_carries_one_path_per_directory() {
     encode_grants(*start, values, &agent).expect("two prepared directories encode with their paths");
 }
 
+#[test]
+fn a_start_fits_against_the_prepared_workspaces_conflicts_and_schema_costs() {
+    use smith_domain_run as run;
+    let mut agent = fixtures::worker_agent();
+    agent.run_limits.schema_costs.finish_text = 123;
+    let mut start = decoded_chat_start(&agent);
+    let mut charter = start.charter.into_value();
+    charter.brief.sections = Box::new([run::Section { title: b"CI".as_slice().into(), text: repeated(b'x', 2400) }]);
+    let workspace = run::Workspace {
+        directories: Box::new([run::Directory {
+            root: Token::new(73),
+            name: b"work".as_slice().into(),
+            host: Box::default(),
+            writable: true,
+            git: true,
+            conflicts: Box::new([b"src/conflicted.rs".as_slice().into()]),
+        }]),
+    };
+    let base = agent.run_limits;
+    let non_brief =
+        base.host_part.checked_sub(u64::from(run::brief_room(&charter, Some(&workspace), &base).unwrap())).unwrap();
+    agent.run_limits.host_part = non_brief.checked_add(256).unwrap();
+    start.directories = Box::new([smith_host_domain::Directory {
+        root: Token::new(73),
+        name: b"work".as_slice().into(),
+        host: Box::default(),
+        writable: true,
+        git: true,
+        conflicts: Box::new([b"src/conflicted.rs".as_slice().into()]),
+    }]);
+    start.charter = smith_host_domain::Charter::new(charter, agent.host_limits.charter_bytes).unwrap();
+    let start = crate::worker::fit_start(*start, &agent);
+    let charter = start.charter.value();
+    assert_eq!(run::brief_room(charter, Some(&workspace), &agent.run_limits), Some(256));
+    assert!(run::brief_bytes(&charter.brief).unwrap() <= 256);
+    assert!(charter.brief.sections[0].text.ends_with(b" bytes; whole: read_job/read_checks]\n"));
+    let table = jig_protocol_accounts::table::Table::new(0, 0);
+    let values = crate::worker::start_values(&table, &start, b"/worker", fixtures::NOW).unwrap();
+    encode_grants(start, values, &agent).expect("the fitted start encodes with its prepared workspace");
+}
+
 use jig_domain_host as hub;
 use jig_protocol_worker_link as link;
 use jig_protocol_worker_wire::Part;

@@ -807,6 +807,7 @@ fn a_run_reads_the_settings_and_proposes_a_change_an_owner_accepts() {
         ReplyTo::new(Token::new(997)),
         Token::new(run.task),
         smith_domain::Window { turns: 1, bytes: 100_000 },
+        &smith_agent_world::LIMITS.run,
     ) else {
         panic!("smith start")
     };

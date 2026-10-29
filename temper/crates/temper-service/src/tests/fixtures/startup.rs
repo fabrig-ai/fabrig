@@ -306,9 +306,9 @@ pub fn owned_worker_alone_document() -> Box<[u8]> {
     with(&input, b"workers[0].secret", br#""secrets/w1.secret""#)
 }
 
-/// The typed metadata from owned/agent.json's standard profile. Kept here
-/// because the sans-io service does not depend on smith's shell/profile reader;
-/// the process regression also reads the example's actual agent document.
+/// The host/channel metadata from owned/agent.json's standard profile, with
+/// calm-world run bounds. The sans-io service has no shell/profile reader;
+/// the process regression reads the example's agent document.
 #[expect(clippy::too_many_lines, reason = "one typed snapshot of the example's agent metadata")]
 pub fn owned_worker_agent() -> settings::Agent {
     let mut endpoints = List::with_capacity(3);
@@ -316,6 +316,7 @@ pub fn owned_worker_agent() -> settings::Agent {
         .push(smith_protocol_channel::Endpoint { name: b"openai".as_slice().into(), number: 1, dialect: 3 })
         .unwrap();
     settings::Agent {
+        run_limits: smith_agent_world::LIMITS.run,
         tool_payload: 4_098,
         programs: Box::new([settings::Program {
             adapter: settings::Adapter::ClaudeCode,

@@ -106,9 +106,15 @@ fn assignment() -> engine::Assignment {
 #[test]
 fn root_charter_becomes_a_smith_start_with_ordered_brief_and_exact_budget() {
     let window = smith::Window { turns: 1, bytes: 100_000 };
-    let smith::Event::Start { activation, charter, grants, transcript, window: started_window, .. } =
-        start(&assignment(), None, None, ReplyTo::new(Token::new(50)), Token::new(23), window)
-    else {
+    let smith::Event::Start { activation, charter, grants, transcript, window: started_window, .. } = start(
+        &assignment(),
+        None,
+        None,
+        ReplyTo::new(Token::new(50)),
+        Token::new(23),
+        window,
+        &smith_agent_world::LIMITS.run,
+    ) else {
         panic!("start conversion produces Smith Start")
     };
     assert_eq!(activation, 7);
@@ -254,9 +260,15 @@ fn a_starting_run_hears_its_met_dependency_by_name() {
         eligible: true,
     }]);
     let window = smith::Window { turns: 1, bytes: 100_000 };
-    let smith::Event::Start { messages, .. } =
-        start(&assignment, None, None, ReplyTo::new(Token::new(50)), Token::new(23), window)
-    else {
+    let smith::Event::Start { messages, .. } = start(
+        &assignment,
+        None,
+        None,
+        ReplyTo::new(Token::new(50)),
+        Token::new(23),
+        window,
+        &smith_agent_world::LIMITS.run,
+    ) else {
         panic!("start conversion produces Smith Start")
     };
     assert_eq!(messages[0].label.as_ref(), b"2");
@@ -293,6 +305,7 @@ fn a_starting_inbox_keeps_question_and_answer_references() {
         ReplyTo::new(Token::new(50)),
         Token::new(23),
         smith::Window { turns: 1, bytes: 100_000 },
+        &smith_agent_world::LIMITS.run,
     ) else {
         panic!("start conversion")
     };
@@ -1337,6 +1350,7 @@ fn change_repository_refusals_render_the_three_choices() {
     }
 }
 
+mod brief_fit;
 mod docs;
 mod reference;
 

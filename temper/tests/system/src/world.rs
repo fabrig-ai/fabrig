@@ -222,6 +222,19 @@ fn agent_for_with_options(
     });
     let resume = transcript.is_some();
     let mut settings = Settings::calm(901);
+    settings.job = job;
+    settings.resume = resume;
+    settings.cancel_at = cancel_at;
+    settings.budget = run::Budget {
+        turns: assignment.run.policy.turns,
+        spend: assignment.run.budget,
+        time: assignment.run.policy.time,
+    };
+    settings.limits.run.budget = settings.budget;
+    settings.limits.run.host_tools =
+        u32::try_from(temper_engine_smith::tools(Duration::from_secs(10)).len()).expect("tool count");
+    settings.limits.run.brief_sections = 16;
+    settings.limits.session.spend = settings.budget.spend;
     let largest = smith::max_turn_bytes(&settings.limits).expect("bounded Smith turn");
     // This composed story commits the run's turns after its answer, so its
     // window covers the charter's entire bounded activation.
@@ -236,17 +249,8 @@ fn agent_for_with_options(
         ReplyTo::new(Token::new(402)),
         Token::new(assignment.task),
         window,
+        &settings.limits.run,
     );
-    let smith::Event::Start { ref charter, .. } = start else { panic!("typed Smith start") };
-    settings.job = job;
-    settings.resume = resume;
-    settings.cancel_at = cancel_at;
-    settings.budget = charter.budget;
-    settings.limits.run.budget = charter.budget;
-    settings.limits.run.host_tools =
-        u32::try_from(temper_engine_smith::tools(Duration::from_secs(10)).len()).expect("tool count");
-    settings.limits.run.brief_sections = 16;
-    settings.limits.session.spend = charter.budget.spend;
     let scripts = match script {
         Some(script) => Box::new([script]),
         None => smith_agent_world::script::all(),

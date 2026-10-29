@@ -29,7 +29,7 @@ pub use calls::{call, call_configured, tools};
 pub use finish::{ChangeResource, Terminal, result, turn};
 pub use reference::reference;
 pub use settings::{settings_answer, settings_text};
-pub use start::{charter, model, section, start};
+pub use start::{charter, fit_brief, model, section, start};
 
 fn decimal(bytes: &[u8], member: &'static [u8]) -> Result<u64, Problem> {
     if bytes.is_empty() {
