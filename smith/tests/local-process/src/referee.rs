@@ -9,6 +9,8 @@ use skein_lib::{Duration, Time};
 use skein_world::domain::{Expectations, Judge, Referee};
 use smith_local_domain::Fact;
 
+pub mod live;
+
 /// Checkout observations and the scenario's expected token-exchange count.
 pub trait CheckoutRead {
     /// Token requests expected by the scenario when an issuer is present.

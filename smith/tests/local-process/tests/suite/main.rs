@@ -6,6 +6,7 @@ mod configuration;
 mod composition;
 mod events;
 mod lending;
+mod live_referee;
 mod memory;
 mod referee;
 mod replay;
