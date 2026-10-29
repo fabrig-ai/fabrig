@@ -1387,7 +1387,8 @@ as the terminal's host is:
    record allows, which keeps the request's digest and no name (6.1):
    `kept: adopt, first sent T, unanswered: it clears when the engine
    answers it, or past its retention; pending lists it`, a line apart
-   from the call's own output on stdout;
+   from the call's own output on stdout, printed for the party last
+   known even when the stream dropped before the call's end;
 5. run the call: a read answered, an act's answer durable, a wait's
    condition met or its timeout;
 6. print the result on stdout, close the stream, exit with the call's

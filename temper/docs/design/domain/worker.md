@@ -114,8 +114,9 @@ and file operations.
 
 The worker's service loop admits by the root's watermark (skein's
 programming-model.md, 7.1). The queues between the root's children are
-uncapped and no route reserves room; the link to the engine, a host's
-channel and the kernel's queues are its edges and stay capped.
+uncapped and no route reserves room. The held entrance is the link's
+capped edge, and the link is read only after its last output has been
+taken; a host's channel and the kernel's queues stay capped.
 
 - **The backlog** is the entries in the uncapped queues between the
   service's components and the root's children; **the watermark** a

@@ -2156,29 +2156,36 @@ them as it does any Forgejo.
   second CSV request, once the first landed, finds `main` past the
   edit's `old` and its change fails, until a restart seeds the fake
   again. `temper-init`'s tests check the scripts as data: each cue
-  matched apart in its own system text and absent from the others',
+  matched apart where it is looked for, a chat's in its person's
+  request and an agent's in its system text, and absent from the
+  others',
   within `temper-fake`'s bounds; the process tier's first run plays
   them (13.4). The real loop's landing story already plays a cued
   chat's `delegate` to its landing on skein's peers, so the demo adds
   no story there.
 - **`temper fake llm DIRS`,** a long step: skein's fake LLM peer, run
   `without_records` as a peer serving a person is (skein's
-  `fake-llm.md`), its domain `Domain::played` with `asked` then `cued`
-  as its cued scripts and `otherwise` as its fallback, no asked script and no
-  menu. A chat's opening words are its run's brief, which smith puts in
-  the system text, and the one user message is smith's own opening, so
-  a request's cue is in the system, where skein's cued scripts look and
-  its asked ones do not (skein's `fake-llm.md`, 2.4). A cued script's
-  turns count every assistant message of the conversation, a tool's
-  call among them, so a chat's first answer is its script's first turn
-  and each result or message that wakes it plays the next. A one-turn
-  script replies and waits, as the CSV's does: the chat stays open
-  (above). A message past a script's turns is answered "done". It reads
-  the key file before it binds, and refuses to start without it, naming
-  the file; it accepts that one credential, and refuses every other
-  request as the provider would. It serves `llm.provider`'s models, at
-  their windows and outputs; no failure and no latency is configured,
-  and its limits are `temper-fake`'s constants.
+  `fake-llm.md`), its domain `Domain::played` with `asked` as its asked
+  scripts, `cued` as its system-cued scripts, and `otherwise` as its
+  fallback, no menu. A fresh Open chat's opening user message holds
+  its person's brief, whole; its system text holds its instructions
+  (smith's `domain/run.md`, 3.4). The chat's suggested requests are
+  therefore `asked`; the coding agent's and reviewer's briefs stay in
+  system text and are `cued`. Skein chooses a system cue first, then
+  a cue in the last user message holding text, then the fallback
+  (skein's `fake-llm.md`, 2.4). An asked script's turns count the
+  assistant messages after that user message. Tool results, the
+  waking words returned by a pending `wait` among them, keep that
+  count: the CSV chat delegates, waits, then reports landing and
+  waits again. A new user message holding text selects from its own
+  words and starts the count again. A one-turn text reply waits for
+  the person's next words; the chat stays open (above). Past a
+  script's turns the reply is "done". It reads the key file before it
+  binds, and refuses to start without it, naming the file; it accepts
+  that one credential, and refuses every other request as the provider
+  would. It serves `llm.provider`'s models, at their windows and
+  outputs; no failure and no latency is configured, and its limits
+  are `temper-fake`'s constants.
 - **`temper forge prepare DIRS N` on a fake entry,** a once step: its
   directory made private; `admin_token` written when absent, 20 bytes
   from the kernel's random source as 40 lowercase hexadecimal digits,
