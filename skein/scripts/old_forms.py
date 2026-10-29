@@ -6,6 +6,7 @@ with scripts/old-forms.txt; --write can initialize or lower that baseline.
 Escapes separate words in ordinary strings and chars; raw strings stay literal.
 The max_out form exempts only the exact identifiers in EXEMPT: the four
 kernel submission bounds and the provider wire field max_output_tokens.
+The worst_case form exempts the four reserved old bound names in EXEMPT.
 Identifiers containing an exempt name still count.
 Recorded raises and other comments stay in place when counts are rewritten.
 Run from the repository root, using only the Python standard library:
@@ -25,6 +26,11 @@ FORMS = {
     'worst_case': re.compile(r'\b\w*worst_case\w*\b'),
 }
 EXEMPT = {
+    'worst_case': (
+        # The generator keeps these reserved as field names (codec.md, 4).
+        'worst_case_bytes', 'worst_case_heap',
+        'worst_case_bytes_within', 'worst_case_heap_within',
+    ),
     'max_out': (
         # The kernel's submission bounds stay at its edges.
         'MAX_OUT_DOWN', 'MAX_OUT_UP', 'MAX_OUT_RESUME', 'MAX_OUT_FIRE',
