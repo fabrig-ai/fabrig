@@ -86,7 +86,12 @@ class OldForms(unittest.TestCase):
         self.source('MAX_OUT_DOWN MAX_OUT_UP max_output_tokens max_output_bytes '
                     'my_max_output_tokens\n')
         self.run_script("--write")
-        self.assertEqual(self.counts()["max_out"], 1)
+        self.assertEqual(self.counts()["max_out"], 3)
+
+    def test_qualified_kernel_max_out_identifiers_count(self):
+        self.source('io::MAX_OUT_DOWN skein_io::MAX_OUT_UP\n')
+        self.run_script("--write")
+        self.assertEqual(self.counts()["max_out"], 2)
 
     def test_escapes_separate_words_in_ordinary_literals(self):
         for literal, expected in (

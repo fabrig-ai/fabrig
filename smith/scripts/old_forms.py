@@ -4,8 +4,8 @@ Count matches in tracked Rust files, excluding generated/ components and
 comments, while keeping string literals. Compare each form independently
 with scripts/old-forms.txt; --write can initialize or lower that baseline.
 Escapes separate words in ordinary strings and chars; raw strings stay literal.
-The max_out form exempts only the exact identifiers in EXEMPT: the two
-kernel submission bounds, the provider wire field max_output_tokens and
+The max_out form exempts only the exact identifiers in EXEMPT:
+the provider wire field max_output_tokens and
 the benchmark grader's subprocess capture setting max_output_bytes.
 Identifiers containing an exempt name still count.
 Recorded raises and other comments stay in place when counts are rewritten.
@@ -27,8 +27,6 @@ FORMS = {
 }
 EXEMPT = {
     'max_out': (
-        # The kernel's submission bounds stay at its edges.
-        'MAX_OUT_DOWN', 'MAX_OUT_UP',
         # The provider's wire vocabulary stays on the wire.
         'max_output_tokens',
         # The benchmark grader bounds subprocess output at its capture edge.
