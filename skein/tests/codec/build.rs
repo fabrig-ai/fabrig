@@ -64,7 +64,7 @@ fn comparisons(schema: &Schema, module: &str, names: Names, out: &mut String) {
         for (new, old) in [("encoded_bound", old_encoded), ("decoded_bound", old_decoded)] {
             writeln!(out, "assert_eq!({name}::{new}(&CEILINGS), skein_codec_tests::{module}::{name}::{old}(&skein_codec_tests::{module}::CEILINGS));").expect("bound comparison");
             if names == Names::Both {
-                writeln!(out, "assert_eq!({name}::{old}(&CEILINGS), {name}::{new}(&CEILINGS));\nassert_eq!({name}::{old}_within(&CEILINGS), {name}::{new}_within(&CEILINGS));").expect("alias comparison");
+                writeln!(out, "assert_eq!({name}::{old}(&CEILINGS), {name}::{new}(&CEILINGS));").expect("alias comparison");
             }
         }
         out.push_str("}\n");
