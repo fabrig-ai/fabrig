@@ -145,12 +145,22 @@ pub(super) struct Person {
 impl Person {
     fn observe_phases(phases: &mut Option<Phases>, llm_key: Option<bool>, client: &NativeClient, now: Time) {
         if let Some(phases) = phases {
-            for answer in &client.sign_in_answers()[phases.answers..] {
-                phases.say(now, format_args!("sign-in answer {answer:?}; client={:?}", client.sign_in_state()));
+            for exchange in &client.sign_in_exchanges()[phases.answers..] {
+                let answer = &exchange.outcome;
+                phases.say(
+                    now,
+                    format_args!(
+                        "sign-in exchange {} answer after={:?} outcome={answer:?}; client={:?}",
+                        exchange.number,
+                        exchange.elapsed,
+                        client.sign_in_state()
+                    ),
+                );
                 assert!(
                     matches!(
                         answer,
                         jig_client_protocol_world::native::wire::SignInOutcome::SignedIn
+                            | jig_client_protocol_world::native::wire::SignInOutcome::Lost
                             | jig_client_protocol_world::native::wire::SignInOutcome::NotSignedIn(
                                 jig_client::NotSignedIn::NotReady | jig_client::NotSignedIn::Busy
                             )
@@ -160,7 +170,7 @@ impl Person {
                     client.sign_in_state()
                 );
             }
-            phases.answers = client.sign_in_answers().len();
+            phases.answers = client.sign_in_exchanges().len();
             if llm_key == Some(true)
                 && !phases.account_answered
                 && let Some(outcome) = client.carried_terminal(ACCOUNT_KEY, ACCOUNT_NAME)
@@ -400,6 +410,26 @@ impl Referee<Process> for Judge {
     }
     fn observe(&mut self, now: Time, procs: &[Process]) {
         let Process::Binary(binary) = &procs[0] else { panic!("binary") };
+        let Process::Person(person) = &procs[1] else { panic!("native person") };
+        if let Some(client) = &person.client {
+            for exchange in &client.sign_in_exchanges()[self.phases.answers..] {
+                if matches!(exchange.outcome, jig_client_protocol_world::native::wire::SignInOutcome::Lost)
+                    || exchange.elapsed > Duration::from_millis(500)
+                {
+                    self.phases
+                        .say(now, format_args!("sign-in exchange {} service stderr snapshot begins", exchange.number));
+                    let stderr = binary.stderr();
+                    if stderr.is_empty() {
+                        eprintln!("(service stderr empty)");
+                    } else {
+                        eprintln!("{}", String::from_utf8_lossy(stderr));
+                    }
+                    self.phases
+                        .say(now, format_args!("sign-in exchange {} service stderr snapshot ends", exchange.number));
+                }
+            }
+            self.phases.answers = client.sign_in_exchanges().len();
+        }
         if !self.reported_exit
             && let Some(status) = binary.exit_status()
         {
