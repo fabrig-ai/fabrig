@@ -130,6 +130,44 @@ class Fixture(unittest.TestCase):
 
 
 class CandidateTests(Fixture):
+    def binary_golden_candidate(self):
+        path = self.repo / "jig/app/golden/frame.bin"
+        path.parent.mkdir(parents=True)
+        path.write_bytes(b"original\xfe\n")
+        self.ancestor = self.commit()
+        self.git("branch", "-f", "base", self.ancestor)
+        self.git("branch", "-f", "tip", self.ancestor)
+        self.git("switch", "tip")
+        path.write_bytes(b"candidate\xff\n")
+        self.commit()
+        self.git("switch", "original")
+        diff = subprocess.check_output(["git", "-C", str(self.repo), "diff", "--binary", "base", "tip"],
+                                       env=self.env)
+        self.assertIn(b"candidate\xff", diff)
+        self.assertNotIn(b"GIT binary patch", diff)
+        return path
+
+    def test_non_utf8_golden_runs_checks_and_restores_original_bytes(self):
+        path = self.binary_golden_candidate()
+        observed = []
+        self.effect = lambda argv: observed.append(path.read_bytes())
+        self.assertEqual(self.run_tool(), 0)
+        self.assertTrue(observed)
+        self.assertTrue(all(body == b"candidate\xff\n" for body in observed))
+        self.assertEqual(path.read_bytes(), b"original\xfe\n")
+        self.restored()
+
+    def test_ratchet_cannot_modify_non_utf8_golden(self):
+        path = self.binary_golden_candidate()
+        def modify(argv):
+            if "--write" in argv:
+                path.write_bytes(b"unexpected\x80\n")
+        self.effect = modify
+        self.assertEqual(self.run_tool(), 1)
+        self.assertEqual(self.tool.record["outcome"], "unresolved")
+        self.assertIn("outside its baseline", self.tool.record["error"])
+        self.assertTrue((self.repo / ".git/precheck.unresolved").exists())
+
     def test_checks_exact_merged_worktree_and_reverse_dependencies(self):
         base = self.change("base", "unrelated/src/lib.rs", "main API\n")
         tip = self.change("tip", "skein/core/src/lib.rs", "branch API\n")

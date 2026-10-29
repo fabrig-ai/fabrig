@@ -354,11 +354,19 @@ class Precheck:
 
     def identity(self, *, exclude_worktree=()):
         # Git's diff includes staged additions, unstaged contents and mode changes.
+        # A non-UTF8 golden without NUL bytes can be emitted as a text patch.
+        patch = subprocess.run(["git", "--no-optional-locks", "diff", "--binary", "--no-ext-diff",
+                                "--no-textconv", "HEAD", "--",
+                                *[f":(exclude){path}" for path in exclude_worktree]],
+                               cwd=self.repo, stdin=subprocess.DEVNULL,
+                               stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if patch.returncode:
+            raise InfrastructureError(f"git diff exited {patch.returncode}: "
+                                      f"{patch.stderr.decode('utf-8', errors='replace')}")
         return (self.oid("HEAD"), self.git("symbolic-ref", "-q", "HEAD", check=False),
                 self.refs(), self.git("ls-files", "--stage", "-z"), self.git("ls-files", "-v", "-z"),
                 self.worktree(exclude=exclude_worktree),
-                self.git("diff", "--binary", "--no-ext-diff", "--no-textconv", "HEAD", "--",
-                         *[f":(exclude){path}" for path in exclude_worktree]),
+                patch.stdout,
                 self.git("ls-files", "--others", "--exclude-standard", "-z"))
 
     def save(self):
