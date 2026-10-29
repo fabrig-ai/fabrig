@@ -64,6 +64,7 @@ pub struct World {
     /// All outputs seen by the scripted root.
     pub seen: Vec<obs::Request>,
     domain: obs::Domain,
+    limits: obs::Limits,
     triage_templates: Box<[obs::TriageTemplate]>,
     lead_templates: Box<[obs::LeadTemplate]>,
     records: BTreeMap<obs::RecordKey, obs::Record>,
@@ -75,6 +76,12 @@ impl World {
     /// Builds the system, connector and scripted root.
     #[must_use]
     pub fn new(seed: u64) -> Self {
+        Self::with_limits(seed, limits())
+    }
+
+    /// Builds a world with explicit connector bounds for load scenarios.
+    #[must_use]
+    pub fn with_limits(seed: u64, limits: obs::Limits) -> Self {
         let mut production = production::Production::new(seed, production::Backend::Fake);
         production.add_service(production::ServiceName::new("production", "checkout"), "v1", 3);
         production.add_alert_rule("checkout-errors", production::ServiceName::new("production", "checkout"));
@@ -82,7 +89,8 @@ impl World {
             production,
             now: 0,
             seen: Vec::new(),
-            domain: obs::Domain::new(&limits()),
+            domain: obs::Domain::new(&limits),
+            limits,
             triage_templates: Box::new([]),
             lead_templates: Box::new([]),
             records: BTreeMap::new(),
@@ -94,7 +102,8 @@ impl World {
     #[must_use]
     pub fn with_templates(seed: u64, triage: Box<[obs::TriageTemplate]>, lead: Box<[obs::LeadTemplate]>) -> Self {
         let mut world = Self::new(seed);
-        world.domain = obs::Domain::with_templates(&limits(), triage.clone()).with_leads(&limits(), lead.clone());
+        world.domain =
+            obs::Domain::with_templates(&world.limits, triage.clone()).with_leads(&world.limits, lead.clone());
         world.triage_templates = triage;
         world.lead_templates = lead;
         world
@@ -103,7 +112,7 @@ impl World {
     /// One connector step; the root commits its writes before returning requests.
     pub fn event(&mut self, input: obs::Event) -> Vec<obs::Request> {
         let wall = self.now.checked_mul(1_000_000_000).expect("world time fits");
-        let env = Env { now: Time::from_nanos(self.now), wall: Wall::from_nanos(wall), limits: limits() };
+        let env = Env { now: Time::from_nanos(self.now), wall: Wall::from_nanos(wall), limits: self.limits };
         let mut out = Queue::with_capacity(obs::MAX_OUT);
         obs::step(&mut self.domain, &env, input, &mut out);
         let mut requests = Vec::new();
@@ -194,7 +203,7 @@ impl World {
     }
 
     /// Apply one system request and return what the fake observed.
-    fn system(&mut self, call: obs::SystemRequest) -> obs::SystemEvent {
+    pub fn system(&mut self, call: obs::SystemRequest) -> obs::SystemEvent {
         match call {
             obs::SystemRequest::Facts { service } => {
                 let name = production_name(&service);
@@ -258,10 +267,19 @@ impl World {
         }
     }
 
+    /// Rebuild only the connector from committed records, leaving restart hand-offs to the caller.
+    pub fn restore(&mut self) {
+        self.domain = obs::Domain::with_templates(&self.limits, self.triage_templates.clone())
+            .with_leads(&self.limits, self.lead_templates.clone());
+        for record in self.records.values().cloned().collect::<Vec<_>>() {
+            let requests = self.event(obs::Event::Restore { record });
+            assert!(requests.is_empty(), "restore makes no external request");
+        }
+    }
+
     /// Rebuild the connector from committed records, then let it settle outbox entries.
     pub fn restart(&mut self) -> Vec<obs::Request> {
-        self.domain = obs::Domain::with_templates(&limits(), self.triage_templates.clone())
-            .with_leads(&limits(), self.lead_templates.clone());
+        self.restore();
         let records: Vec<_> = self.records.values().cloned().collect();
         let mut live = BTreeSet::new();
         for record in &records {
@@ -283,10 +301,6 @@ impl World {
                 obs::Record::Delegation(_) | obs::Record::Outbox(..) => {}
             }
         }
-        for record in records {
-            let restored = self.event(obs::Event::Restore { record });
-            assert!(restored.is_empty(), "restore makes no external request");
-        }
         for service in live {
             self.release(&[obs::Request::System(obs::SystemRequest::Facts { service })]);
         }
@@ -297,7 +311,7 @@ impl World {
     /// Recheck uncertain effects when their saved absolute deadlines pass.
     pub fn fire(&mut self) -> Vec<obs::Request> {
         let wall = self.now.checked_mul(1_000_000_000).expect("world time fits");
-        let env = Env { now: Time::from_nanos(self.now), wall: Wall::from_nanos(wall), limits: limits() };
+        let env = Env { now: Time::from_nanos(self.now), wall: Wall::from_nanos(wall), limits: self.limits };
         let mut out = Queue::with_capacity(obs::MAX_OUT);
         obs::fire(&mut self.domain, &env, &mut out);
         let mut requests = Vec::new();
