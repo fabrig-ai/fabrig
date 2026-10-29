@@ -6,10 +6,7 @@ use jig_domain_host::{
 };
 use jig_domain_host::{LinkDown, LinkUp};
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
-use skein_world::domain::heap::{self, Meter};
-
-#[global_allocator]
-static HEAP: heap::Counting = heap::Counting;
+use skein_world::domain::heap::Meter;
 
 const LIMITS: Limits = Limits {
     accounts: 4,

@@ -1539,6 +1539,7 @@ dependencies = [
  "jig-test-connector",
  "jig-test-system",
  "sha2",
+ "skein-heap",
  "skein-lib",
 ]
 
@@ -1725,6 +1726,7 @@ version = "0.0.0"
 dependencies = [
  "jig-protocol-worker-wire",
  "skein-codegen",
+ "skein-heap",
  "skein-lib",
  "skein-scratch",
 ]

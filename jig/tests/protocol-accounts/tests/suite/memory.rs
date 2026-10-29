@@ -1,8 +1,6 @@
 use jig_protocol_accounts::table::{Scheme, Table, Value};
-use skein_heap::{Counting, Meter};
+use skein_heap::Meter;
 use skein_lib::{Secret, Time, bytes};
-#[global_allocator]
-static HEAP: Counting = Counting;
 #[test]
 fn the_table_keeps_two_generations_at_its_account_and_token_limits() {
     let accounts = 2;

@@ -5,8 +5,6 @@ use jig_protocol_accounts_world::{
     world::{self, Story},
 };
 use skein_lib::Duration;
-#[global_allocator]
-static HEAP: skein_heap::Counting = skein_heap::Counting;
 
 fn heard(story: Story) -> Vec<Heard> {
     let outcome = world::run(1, story);

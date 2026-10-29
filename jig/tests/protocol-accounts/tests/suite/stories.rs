@@ -5,8 +5,6 @@ use jig_protocol_accounts_world::{
     world::{self, Story},
 };
 use skein_oauth as oauth;
-#[global_allocator]
-static HEAP: skein_heap::Counting = skein_heap::Counting;
 
 #[test]
 fn a_wanted_account_is_granted_and_its_value_lands_in_the_table() {
