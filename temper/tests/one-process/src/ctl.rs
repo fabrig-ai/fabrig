@@ -59,10 +59,27 @@ pub fn host(spawn: &Spawn, inherited: &Inherited) -> Recorded {
     }
 }
 
+pub(crate) struct Command {
+    pub words: Vec<Box<[u8]>>,
+    pub input: Box<[u8]>,
+}
+impl Command {
+    pub(crate) fn new(words: &[&[u8]]) -> Self {
+        Self { words: words.iter().map(|word| (*word).into()).collect(), input: Box::default() }
+    }
+}
+pub(crate) struct Answer {
+    pub output: Vec<u8>,
+    pub error: Vec<u8>,
+    pub exit: Exit,
+}
 pub(crate) struct Caller {
     root: Fd,
+    close_root: Option<Fd>,
     link: Option<Box<[u8]>>,
-    at: u8,
+    pub commands: std::collections::VecDeque<Command>,
+    pub answers: Vec<Answer>,
+    pub closed: bool,
     started: bool,
     pidfd: Option<Fd>,
     pending: u32,
@@ -80,10 +97,30 @@ impl Caller {
         token.raw() & TAG == TAG
     }
     pub(crate) fn new(root: Fd, link: &[u8]) -> Self {
+        let words: &[&[u8]] = if crate::stories::held_change() && !crate::stories::first_start() {
+            &[b"settings", b"show", b"--json"]
+        } else if crate::stories::held_change() {
+            &[b"forge", b"list", b"--until", b"connected:1"]
+        } else {
+            &[b"settings", b"apply", b"/setup/settings.json", b"--against", b"1", b"--key", b"world-settings"]
+        };
+        let mut caller = Self::scripted(root);
+        let mut sign_in = Command::new(&[b"sign-in", b"-"]);
+        sign_in.input = link.into();
+        caller.commands.push_back(sign_in);
+        caller.commands.push_back(Command::new(words));
+        caller.closed = true;
+        caller.close_root = None;
+        caller
+    }
+    pub(crate) fn scripted(root: Fd) -> Self {
         Self {
             root,
-            link: Some(link.into()),
-            at: 0,
+            close_root: Some(root),
+            link: None,
+            commands: std::collections::VecDeque::new(),
+            answers: Vec::new(),
+            closed: false,
             started: false,
             pidfd: None,
             pending: 0,
@@ -164,48 +201,31 @@ impl Host for Caller {
             return;
         }
         if self.started {
-            assert_eq!(
-                self.exit,
-                Some(Exit::Code(0)),
-                "ctl setup {} refused: {} {}",
-                self.at,
-                String::from_utf8_lossy(&self.output),
-                String::from_utf8_lossy(&self.error)
-            );
-            self.at += 1;
+            self.answers.push(Answer {
+                output: std::mem::take(&mut self.output),
+                error: std::mem::take(&mut self.error),
+                exit: self.exit.take().expect("ctl exit"),
+            });
             self.started = false;
-            self.exit = None;
-            self.output.clear();
-            self.error.clear();
         }
-        let steps = 2;
-        if self.at >= steps {
-            self.finished = true;
+        let Some(command) = self.commands.pop_front() else {
+            if self.closed
+                && let Some(fd) = self.close_root.take()
+            {
+                self.submit(Op::Close { fd });
+            } else {
+                self.finished = self.closed;
+            }
             return;
-        }
-        let words: &[&[u8]] = if self.at == 0 {
-            &[b"/client/private", b"sign-in", b"-"]
-        } else if crate::stories::held_change() && !crate::stories::first_start() {
-            &[b"/client/private", b"settings", b"show", b"--json"]
-        } else if crate::stories::held_change() {
-            &[b"/client/private", b"forge", b"list", b"--until", b"connected:1"]
-        } else {
-            &[
-                b"/client/private",
-                b"settings",
-                b"apply",
-                b"/setup/settings.json",
-                b"--against",
-                b"1",
-                b"--key",
-                b"world-settings",
-            ]
         };
+        let mut words = vec![b"/client/private".as_slice().into()];
+        words.extend(command.words);
+        self.link = Some(command.input);
         self.started = true;
         self.submit(Op::Spawn {
             spawn: Box::new(Spawn {
                 program: PROGRAM.into(),
-                args: words.iter().map(|word| (*word).into()).collect(),
+                args: words.into_boxed_slice(),
                 env: Box::new([]),
                 root: self.root,
                 dir: Box::new([]),
@@ -222,7 +242,8 @@ impl Host for Caller {
         &mut self.submissions
     }
     fn work_pending(&self, _now: Time) -> bool {
-        !self.completions.is_empty() || (!self.finished && self.pending == 0)
+        !self.completions.is_empty()
+            || (!self.finished && self.pending == 0 && (self.started || self.closed || !self.commands.is_empty()))
     }
     fn next_deadline(&self) -> Option<Time> {
         None
@@ -231,6 +252,9 @@ impl Host for Caller {
         None
     }
     fn is_empty(&self) -> bool {
+        if self.closed && self.finished {
+            assert!(self.answers.iter().all(|answer| answer.exit == Exit::Code(0)), "ctl setup accepted");
+        }
         self.finished && self.submissions.is_empty() && self.completions.is_empty()
     }
     fn operations(&self) -> u32 {

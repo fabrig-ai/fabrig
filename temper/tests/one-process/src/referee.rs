@@ -318,7 +318,8 @@ impl skein_world::Referee<Proc> for Referee {
             | Proc::Git(_)
             | Proc::Shell(_)
             | Proc::Forge(_)
-            | Proc::Ctl(_) => true,
+            | Proc::Ctl(_)
+            | Proc::Calls(_) => true,
         });
         if crate::stories::adopted(&self.store.borrow().rows) > 0 {
             self.forge.borrow_mut().adopted();
@@ -600,6 +601,12 @@ fn shutdown_peer(proc: &mut Proc) {
     match proc {
         Proc::Peer(peer) => peer.shutdown(),
         Proc::Forge(forge) => forge.shutdown(),
-        Proc::Service(_) | Proc::Agent(_) | Proc::Git(_) | Proc::Shell(_) | Proc::Client(_) | Proc::Ctl(_) => {}
+        Proc::Service(_)
+        | Proc::Agent(_)
+        | Proc::Git(_)
+        | Proc::Shell(_)
+        | Proc::Client(_)
+        | Proc::Ctl(_)
+        | Proc::Calls(_) => {}
     }
 }
