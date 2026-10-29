@@ -4760,7 +4760,6 @@ dependencies = [
  "temper-protocol-store",
  "temper-service",
  "temper-worker-domain",
- "temper-worker-domain-checkout",
  "temper-worker-protocol-git",
 ]
 
