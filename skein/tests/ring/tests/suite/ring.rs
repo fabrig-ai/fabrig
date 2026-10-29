@@ -16,6 +16,7 @@ use skein_io::kernel::{Complete, Done, Error, Family, Fd, Op, Submit};
 use skein_lib::{Duration, Queue, Time, Token};
 use skein_ring_tests::{PATIENCE, World, filled, pattern, v4};
 use skein_shell::{Backend, Clock, Config, Kernel, OpenError, Wait};
+use skein_world::Deadline;
 
 #[test]
 fn a_large_transfer_takes_short_sends_and_many_receives() {
@@ -38,16 +39,16 @@ fn a_large_transfer_takes_short_sends_and_many_receives() {
     let mut from = first_sent;
     let mut sending = None;
     let mut receiving = None;
-    let deadline = world.later(Duration::from_secs(120));
+    let deadline = Deadline::arm("the ring large transfer", Duration::from_secs(120));
     while received.len() < LEN {
-        assert!(world.clock.now().now < deadline, "the transfer finished in time");
+        world.check_deadline(&deadline, "the transfer finished in time");
         if sending.is_none() && usize::try_from(from).unwrap() < LEN {
             sending = Some(world.start(Op::send(client, outgoing.take().unwrap(), from).unwrap()));
         }
         if receiving.is_none() {
             receiving = Some(world.start(Op::recv(server, vec![0; 64 << 10].into_boxed_slice()).unwrap()));
         }
-        world.turn(deadline);
+        world.turn(deadline.until());
         if let Some(op) = sending
             && let Some(sent) = world.arrived.remove(&op)
         {
@@ -284,16 +285,17 @@ fn a_reap_takes_only_what_fits_and_the_rest_waits_without_blocking() {
     world.outstanding.extend(sockets);
 
     let mut one = Queue::with_capacity(1);
-    let deadline = world.later(PATIENCE);
+    let deadline = Deadline::arm("the ring first queued completion", PATIENCE);
     while one.is_empty() {
-        world.kernel.submit(&mut world.submissions, Wait::Until(deadline));
+        world.check_deadline(&deadline, "a completion arrived in time");
+        world.kernel.submit(&mut world.submissions, Wait::Until(deadline.until()));
         world.kernel.reap(&mut one);
     }
     assert_eq!(world.kernel.in_flight(), 2, "two completions wait");
     for _ in 0..2 {
         // Completions are waiting, so a wait with a far deadline returns at once.
         let before = world.clock.now().now;
-        world.kernel.submit(&mut world.submissions, Wait::Until(deadline));
+        world.kernel.submit(&mut world.submissions, Wait::Until(deadline.until()));
         let after = world.clock.now().now;
         assert!(
             after < before.checked_add(Duration::from_millis(1000)).expect("in reach"),

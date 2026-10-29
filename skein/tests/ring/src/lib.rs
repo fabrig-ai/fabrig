@@ -15,6 +15,7 @@ use std::net::{Ipv4Addr, SocketAddr};
 use skein_io::kernel::{Addr, Complete, Done, Error, Family, Fd, Op, Submit};
 use skein_lib::{Duration, Queue, Time, Token};
 use skein_shell::{Backend, Clock, Config, Kernel, Wait};
+use skein_world::{Deadline, Expired};
 
 /// How long a test waits for any one completion before it fails.
 pub const PATIENCE: Duration = Duration::from_secs(20);
@@ -96,12 +97,45 @@ impl World {
 
     /// The completion of `op`, waiting for it.
     pub fn wait(&mut self, op: Token) -> Complete {
-        let deadline = self.later(PATIENCE);
+        let deadline = Deadline::arm("the ring operation completion", PATIENCE);
         while !self.arrived.contains_key(&op) {
-            assert!(self.clock.now().now < deadline, "{op:?} completed in time");
-            self.turn(deadline);
+            self.check_deadline(&deadline, &format!("{op:?} completed in time"));
+            self.turn(deadline.until());
         }
         self.arrived.remove(&op).expect("it arrived")
+    }
+
+    /// Classifies an unanswered harness wait (testing-strategy.md, 2.10).
+    pub fn check_deadline(&mut self, deadline: &Deadline, message: &str) {
+        if deadline.passed() {
+            match deadline.expired() {
+                Expired::Starved(starved) => {
+                    self.cancel_and_drain();
+                    starved.pass();
+                }
+                Expired::Failed(figures) => panic!("{message}: {figures}"),
+            }
+        }
+    }
+
+    fn cancel_and_drain(&mut self) {
+        // Unsubmitted records own no kernel work and need not be started during teardown.
+        while let Some(record) = self.submissions.pop() {
+            self.outstanding.remove(&record.op);
+        }
+        self.reap();
+        let targets: Vec<Token> = self.outstanding.iter().copied().collect();
+        for target in targets {
+            let op = self.token();
+            self.submissions.push(Submit { op, kind: Op::Cancel { target } });
+            assert!(self.outstanding.insert(op), "a new cancel token");
+        }
+        while !self.outstanding.is_empty() {
+            self.kernel.submit(&mut self.submissions, Wait::Forever);
+            self.reap();
+        }
+        self.arrived.clear();
+        assert_eq!(self.kernel.in_flight(), 0, "starved teardown drained every record");
     }
 
     /// Submits `kind` and waits for its completion.

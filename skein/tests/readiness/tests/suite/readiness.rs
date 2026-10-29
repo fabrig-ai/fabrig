@@ -1,7 +1,7 @@
 //! The readiness backend's own behaviours through the public kernel (shell.md, 9).
 //! Peers share this thread; every backend is forced to readiness.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::io::Write;
 use std::os::fd::{AsRawFd, IntoRawFd};
 use std::os::unix::net::UnixStream;
@@ -9,6 +9,7 @@ use std::os::unix::net::UnixStream;
 use skein_io::kernel::{Addr, Complete, Done, Error, Family, Fd, Op, Submit};
 use skein_lib::{Duration, Queue, Time, Token};
 use skein_shell::{Backend, Clock, Config, Kernel, Wait};
+use skein_world::{Deadline, Expired};
 
 // Two transfers or a target and its cancel, with room for setup and close.
 const OPERATIONS: u32 = 4;
@@ -32,6 +33,7 @@ struct World {
     out: Queue<Complete>,
     arrived: BTreeMap<Token, Complete>,
     next: u64,
+    outstanding: BTreeSet<Token>,
 }
 
 impl World {
@@ -44,6 +46,7 @@ impl World {
             out: Queue::with_capacity(OPERATIONS),
             arrived: BTreeMap::new(),
             next: 0,
+            outstanding: BTreeSet::new(),
         }
     }
 
@@ -53,6 +56,7 @@ impl World {
         self.submits.push(Submit { op, kind });
         self.kernel.submit(&mut self.submits, Wait::No);
         assert!(self.submits.is_empty(), "the small fixture fits its operation bound");
+        assert!(self.outstanding.insert(op), "a new token");
         op
     }
 
@@ -60,6 +64,7 @@ impl World {
         self.kernel.reap(&mut self.out);
         while let Some(complete) = self.out.pop() {
             assert!(complete.is_valid(), "the readiness backend kept the record contract: {complete:?}");
+            assert!(self.outstanding.remove(&complete.op), "one completion per submission");
             assert!(self.arrived.insert(complete.op, complete).is_none(), "one completion per operation");
         }
     }
@@ -74,15 +79,45 @@ impl World {
     }
 
     fn wait(&mut self, op: Token) -> Complete {
-        let until = self.later(PATIENCE);
+        let deadline = Deadline::arm("the readiness operation completion", PATIENCE);
         loop {
             self.reap();
             if let Some(complete) = self.arrived.remove(&op) {
                 return complete;
             }
-            assert!(self.clock.now().now < until, "{op:?} completes within patience");
-            self.turn(until);
+            self.check_deadline(&deadline, &format!("{op:?} completes within patience"));
+            self.turn(deadline.until());
         }
+    }
+
+    /// Classifies an unanswered harness wait (testing-strategy.md, 2.10).
+    fn check_deadline(&mut self, deadline: &Deadline, message: &str) {
+        if deadline.passed() {
+            match deadline.expired() {
+                Expired::Starved(starved) => {
+                    self.cancel_and_drain();
+                    starved.pass();
+                }
+                Expired::Failed(figures) => panic!("{message}: {figures}"),
+            }
+        }
+    }
+
+    fn cancel_and_drain(&mut self) {
+        self.reap();
+        let targets: Vec<Token> = self.outstanding.iter().copied().collect();
+        for target in targets {
+            self.next += 1;
+            let op = Token::new(self.next);
+            self.submits.push(Submit { op, kind: Op::Cancel { target } });
+            assert!(self.outstanding.insert(op), "a new cancel token");
+        }
+        while !self.outstanding.is_empty() {
+            self.kernel.submit(&mut self.submits, Wait::Forever);
+            self.reap();
+        }
+        self.arrived.clear();
+        assert_eq!(self.kernel.in_flight(), 0, "starved teardown drained every record");
     }
 
     fn run(&mut self, kind: Op) -> Complete {
@@ -145,6 +180,7 @@ fn a_record_made_at_submit_and_one_that_waits_complete_in_order() {
     assert_eq!(world.kernel.in_flight(), 2, "the ready Usage and waiting Recv occupy their slots");
     world.kernel.reap(&mut world.out);
     let complete = world.out.pop().expect("Usage arrives at the next reap");
+    assert!(world.outstanding.remove(&complete.op), "the reaped operation is no longer outstanding");
     assert_eq!(complete.op, usage);
     assert!(matches!(complete.result, Ok(Done::Usage(_))));
     assert!(world.out.is_empty(), "Recv still waits");
@@ -163,10 +199,10 @@ fn a_readiness_another_reader_took_first_waits_again() {
     let first = world.start(recv(Fd::new(reader.as_raw_fd())));
     let second = world.start(recv(Fd::new(clone.as_raw_fd())));
     peer.write_all(b"a").expect("only one reader can take this byte");
-    let until = world.later(PATIENCE);
+    let deadline = Deadline::arm("the readiness competing reader", PATIENCE);
     while world.arrived.is_empty() {
-        assert!(world.clock.now().now < until, "one reader completes");
-        world.turn(until);
+        world.check_deadline(&deadline, "one reader completes");
+        world.turn(deadline.until());
     }
     assert_eq!(world.arrived.len(), 1, "the other reader retries EAGAIN and waits again");
     assert_eq!(world.kernel.in_flight(), 1);
@@ -195,16 +231,16 @@ fn a_large_transfer_completes_through_short_sends() {
     let mut sending = None;
     let mut receiving = None;
     let mut got = Vec::with_capacity(TRANSFER);
-    let until = world.later(PATIENCE);
+    let deadline = Deadline::arm("the readiness large transfer", PATIENCE);
     while got.len() < TRANSFER || sending.is_some() {
-        assert!(world.clock.now().now < until, "the transfer finishes within patience");
+        world.check_deadline(&deadline, "the transfer finishes within patience");
         if sending.is_none() && usize::try_from(from).unwrap() < TRANSFER {
             sending = Some(world.start(Op::send(client, outgoing.take().unwrap(), from).unwrap()));
         }
         if receiving.is_none() && got.len() < TRANSFER {
             receiving = Some(world.start(Op::recv(server, vec![0; PIECE].into_boxed_slice()).unwrap()));
         }
-        world.turn(until);
+        world.turn(deadline.until());
         if let Some(op) = sending
             && let Some(complete) = world.arrived.remove(&op)
         {
