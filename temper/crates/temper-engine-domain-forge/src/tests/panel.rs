@@ -269,17 +269,15 @@ fn a_fresh_ci_read_marks_a_changed_verdict_and_restart_forgets_it() {
 fn admission_accepts_large_internal_output_and_rejects_oversized_panel_names() {
     let limits = Limits { output: u32::MAX, ..LIMITS };
     assert!(valid(&limits));
-    assert!(
-        Domain::new(
-            &limits,
-            4,
-            skein_forge_client::Config { namespace: Box::from(&b"test"[..]), writers: Box::new([]) },
-            &[],
-            &[],
-            false,
-        )
-        .is_ok()
-    );
+    Domain::new(
+        &limits,
+        4,
+        skein_forge_client::Config { namespace: Box::from(&b"test"[..]), writers: Box::new([]) },
+        &[],
+        &[],
+        false,
+    )
+    .expect("large internal output does not limit admission");
     assert!(!valid(&Limits { name_bytes: PANEL_NAME_BYTES + 1, ..LIMITS }));
     assert!(valid(&LIMITS));
 }

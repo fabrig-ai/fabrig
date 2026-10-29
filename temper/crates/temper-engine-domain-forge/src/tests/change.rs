@@ -459,7 +459,7 @@ fn named_pull_verdict(number: u64) -> Box<[Request]> {
             resources: Box::new([Name { forge: REPO.forge, repository: REPO.repository, what: What::Pull(number) }]),
         },
     );
-    let mut seen = alloc::vec::Vec::new();
+    let mut seen = Queue::uncapped();
     // At most a repository listing, the item, and the pull itself.
     for _ in 0_u32..3 {
         let (call, op) = fixtures::next_call(&mut d);
@@ -473,7 +473,11 @@ fn named_pull_verdict(number: u64) -> Box<[Request]> {
             for request in ready(&mut d) {
                 seen.push(request);
             }
-            return seen.into_boxed_slice();
+            let mut values = skein_lib::List::with_capacity(seen.len());
+            for _ in 0..seen.len() {
+                values.push(seen.pop().expect("counted request")).expect("sized from observed passes");
+            }
+            return values.into_boxed();
         }
         let answer = if let Op::Read(Read::Items { .. }) = op {
             Answer::Items { items: Box::new([]), more: false, now: env().now }
