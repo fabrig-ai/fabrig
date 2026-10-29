@@ -128,12 +128,6 @@ pub fn feedback_bound(limits: &run::Limits) -> Option<u64> {
     Some(problems.max(checks).max(receipts).max(refusal).max(child).max(u64::from(limits.host_reply_bytes)).max(4096))
 }
 
-/// The name jig's channel world reads; returns [`feedback_bound`]'s value.
-#[must_use]
-pub fn feedback_worst_case(limits: &run::Limits) -> Option<u64> {
-    feedback_bound(limits)
-}
-
 fn render(text: &mut Text, returned: &Returned) {
     match returned {
         Returned::Withheld => unreachable!("withheld results are routed without feedback"),
