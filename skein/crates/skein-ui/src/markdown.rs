@@ -707,10 +707,3 @@ pub fn markdown_bound(bytes: u32, depth: u32) -> Option<u64> {
         .checked_add(Stack::<Run>::price(depth)?)?
         .checked_add(Stack::<ListLevel>::price(depth)?)
 }
-
-/// The old name of [`markdown_bound`]; it goes once every tree calls the
-/// new name (wave 3).
-#[must_use]
-pub fn worst_case(bytes: u32, depth: u32) -> Option<u64> {
-    markdown_bound(bytes, depth)
-}
