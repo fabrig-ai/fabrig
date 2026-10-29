@@ -801,16 +801,20 @@ mod tests {
         assert!(!rejected_before_output(&result));
     }
 
-    #[test]
-    fn prepared_blocks_preserve_seeded_order_unique_ids_and_token_gaps() {
+    // Two arms, repeated twice, form complete interleaved blocks.
+    const BLOCK_ARMS: [&str; 2] = ["a", "b"];
+    const BLOCK_REPETITIONS: u32 = 2;
+    const BLOCK_SEED: u64 = 71;
+
+    fn block_requests() -> (crate::Suite, Vec<Prepared>) {
         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         let mut suite = crate::read_suite(&root.join("tests/recorded/suites/sample.toml")).expect("suite");
         suite.design = Design::Interleaved;
-        suite.repetitions = 2;
-        let mut result = crate::read_result(&root.join("tests/recorded/results/attempt.json")).expect("result");
+        suite.repetitions = BLOCK_REPETITIONS;
+        let result = crate::read_result(&root.join("tests/recorded/results/attempt.json")).expect("result");
         let mut requests = Vec::new();
-        for arm in ["a", "b"] {
-            for repetition in 0..2 {
+        for arm in BLOCK_ARMS {
+            for repetition in 0..BLOCK_REPETITIONS {
                 let mut identity = result.identity.clone();
                 identity.arm = arm.into();
                 identity.attempt = format!("{arm}-{repetition}");
@@ -832,36 +836,80 @@ mod tests {
                 });
             }
         }
-        let first = ordered(&suite, requests.clone(), 71).expect("interleaving");
-        let second = ordered(&suite, requests.clone(), 71).expect("same seed");
-        assert_eq!(
-            first.iter().map(|request| &request.identity.attempt).collect::<Vec<_>>(),
-            second.iter().map(|request| &request.identity.attempt).collect::<Vec<_>>()
-        );
-        for block in first.chunks_exact(2) {
+        (suite, requests)
+    }
+
+    /// Lower test of smith-bench's batch::tests::prepared_blocks_preserve_seeded_order_unique_ids_and_token_gaps (top tiers test wiring only).
+    #[test]
+    fn seeded_blocks_replay_with_one_request_per_arm() {
+        let (suite, requests) = block_requests();
+        let first = ordered(&suite, requests.clone(), BLOCK_SEED).expect("interleaving");
+        let second = ordered(&suite, requests, BLOCK_SEED).expect("same seed");
+        assert_eq!(first.iter().map(|request| &request.identity.attempt).collect::<Vec<_>>(),
+            second.iter().map(|request| &request.identity.attempt).collect::<Vec<_>>());
+        for block in first.chunks_exact(BLOCK_ARMS.len()) {
             assert_ne!(block[0].identity.arm, block[1].identity.arm);
         }
-        let mut duplicate = requests.clone();
-        duplicate.push(requests[0].clone());
-        assert!(ordered(&suite, duplicate, 71).expect_err("duplicate").contains("unique"));
-        let mut mixed = requests.clone();
-        mixed[0].identity.run = "another-run".into();
-        assert!(ordered(&suite, mixed, 71).expect_err("mixed runs").contains("one run"));
+    }
+
+    /// Lower test of smith-bench's batch::tests::prepared_blocks_preserve_seeded_order_unique_ids_and_token_gaps (top tiers test wiring only).
+    #[test]
+    fn duplicate_attempt_ids_refuse_before_dispatch() {
+        let (suite, mut requests) = block_requests();
+        requests.push(requests[0].clone());
+        assert!(ordered(&suite, requests, BLOCK_SEED).expect_err("duplicate").contains("unique"));
+    }
+
+    /// Lower test of smith-bench's batch::tests::prepared_blocks_preserve_seeded_order_unique_ids_and_token_gaps (top tiers test wiring only).
+    #[test]
+    fn mixed_runs_refuse_before_dispatch() {
+        let (suite, mut requests) = block_requests();
+        requests[0].identity.run = "another-run".into();
+        assert!(ordered(&suite, requests, BLOCK_SEED).expect_err("mixed runs").contains("one run"));
+    }
+
+    /// Lower test of smith-bench's batch::tests::prepared_blocks_preserve_seeded_order_unique_ids_and_token_gaps (top tiers test wiring only).
+    #[test]
+    fn incomplete_repetition_blocks_refuse_before_dispatch() {
+        let (suite, mut requests) = block_requests();
         requests.pop();
-        assert!(ordered(&suite, requests, 71).expect_err("missing repetition").contains("repetition"));
+        assert!(ordered(&suite, requests, BLOCK_SEED).expect_err("missing repetition").contains("repetition"));
+    }
+
+    fn token_result() -> AttemptResult {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let mut result = crate::read_result(&root.join("tests/recorded/results/attempt.json")).expect("result");
         let total = result.tokens.iter_mut().find(|record| record.role == ScopeKind::Total).expect("total");
         total.usage.fresh = Measure::Observed { value: 10 };
         total.usage.cache_read = Measure::Observed { value: 20 };
         total.usage.output = Measure::Observed { value: 30 };
-        assert_eq!(known_tokens(&result), Some(60));
+        result
+    }
+
+    /// Lower test of smith-bench's batch::tests::prepared_blocks_preserve_seeded_order_unique_ids_and_token_gaps (top tiers test wiring only).
+    #[test]
+    fn observed_token_scopes_sum_before_dispatch() {
+        // The supplied total contains 10 fresh, 20 cache-read and 30 output tokens.
+        const TOKENS: u64 = 60;
+        assert_eq!(known_tokens(&token_result()), Some(TOKENS));
+    }
+
+    /// Lower test of smith-bench's batch::tests::prepared_blocks_preserve_seeded_order_unique_ids_and_token_gaps (top tiers test wiring only).
+    #[test]
+    fn missing_token_scopes_keep_the_total_unknown() {
+        let mut result = token_result();
         let total = result.tokens.iter_mut().find(|record| record.role == ScopeKind::Total).expect("total");
         total.usage.fresh = Measure::unavailable("missing child");
         assert_eq!(known_tokens(&result), None);
+    }
 
+    #[test]
+    fn missing_result_recovery_archives_evidence_and_removes_settled_scratch() {
         // The fake fresh attempt creates its scratch, then exits without a
         // result. Settlement must precede recovery and owned scratch deletion;
         // dispatcher resource counts never become agent measurements.
-        let request = &first[0];
+        let (_, requests) = block_requests();
+        let request = &requests[0];
         let state = std::env::temp_dir().join(format!("smith-bench-dispatch-{}", std::process::id()));
         let guard = Guard::new(&state.join("user-home"), &state.join("config"), &state.join("state"), &[])
             .expect("synthetic guard");
