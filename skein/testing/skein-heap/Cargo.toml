@@ -13,5 +13,9 @@ publish.workspace = true
 # wants (no silent casts, overflow or panicking indexing). Its unsafe impl is
 # allowed in place, the one exception beside the ring adapter: a test-only
 # crate, never linked into a service (testing.md, 6).
+[lib]
+test = false
+doctest = false
+
 [lints]
 workspace = true
