@@ -23,6 +23,7 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
+mod composition;
 mod key;
 mod lending;
 pub use key::provider as key_provider;
@@ -381,6 +382,8 @@ pub struct Scenario {
     /// Keep the answered spawned process alive until its host sends a signal.
     pub linger_agent: bool,
     pub authentication: Option<Authentication>,
+    /// Explicit provider turns for a composed scenario.
+    pub scripts: Option<Box<[api::Script]>>,
 }
 /// Simulated configuration and the settled shared-harness result.
 pub struct World {
@@ -661,6 +664,7 @@ impl World {
                     interactive: false,
                     choices: false,
                     budget_failure: false,
+                    plain: None,
                     placement,
                     keep_facts,
                     traced: false,
@@ -676,6 +680,7 @@ impl World {
                 terminate_on_output_end: false,
                 linger_agent: false,
                 authentication: None,
+                scripts: None,
             },
             machine: Some(Machine {
                 files: disk,
@@ -824,7 +829,8 @@ impl World {
                     program: b"smith-agent".as_slice().into(),
                     make: if self.scenario.linger_agent { process::make_lingering_agent } else { process::make_agent },
                     instances: 8,
-                    operations: process::lower_configuration().limits.routes + 3,
+                    // Workspace root, stderr and its capture, plus the extra plain root's close when present.
+                    operations: process::lower_configuration().limits.routes + 3 + u32::from(launch.plain.is_some()),
                 },
                 process::agent_roots,
                 process::agent_appends,
@@ -1123,6 +1129,9 @@ impl Scenario {
         } else {
             scripts()
         };
+        if let Some(scripts) = &self.scripts {
+            provider_scripts = scripts.clone();
+        }
         if self.launch.choices {
             let mut combined = vec![api::Script {
                 cue: b"Summarise the work so far".as_slice().into(),
