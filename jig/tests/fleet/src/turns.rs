@@ -167,7 +167,7 @@ impl World {
             rng: Rng::new(settings.seed),
             domain: crate::fixtures::domain(&limits, crate::fixtures::needs()),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
-            out: Queue::with_capacity(fleet::max_out(&limits)),
+            out: Queue::uncapped(),
             worker: BTreeMap::new(),
             parent: BTreeMap::new(),
             payloads: BTreeMap::new(),

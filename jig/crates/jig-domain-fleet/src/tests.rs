@@ -6,7 +6,7 @@ use skein_lib::{Duration, Env, List, Queue, ReplyTo, Time, Token, Wall};
 
 use crate::{
     Answer, Assignment, Call, Domain, Event, Fact, Hello, HelloRefusal, HostKind, Hosted, Kinds, Limits, Message,
-    Phase, Refusal, Request, Undelivered, Withdrawal, fire, max_out, resume, step, valid,
+    Phase, Refusal, Request, Undelivered, Withdrawal, fire, resume, step, valid,
 };
 
 const LIMITS: Limits = Limits {
@@ -71,7 +71,7 @@ impl Harness {
     }
 
     fn with_catalogue(limits: Limits, needs: crate::Needs, catalogue: Box<[Box<[u8]>]>) -> Harness {
-        let out = Queue::with_capacity(max_out(&limits));
+        let out = Queue::uncapped();
         let mut domain = Domain::new(&limits, needs, catalogue);
         let mut names = List::with_capacity(limits.configured_workers);
         for index in 0..limits.configured_workers {
@@ -140,7 +140,7 @@ impl Harness {
                     &mut self.domain,
                     &self.env,
                     Event::Logins { channel, logins: Box::new([]) },
-                    &mut Queue::with_capacity(max_out(&self.env.limits)),
+                    &mut Queue::uncapped(),
                 );
             } else {
                 requests.push(request).unwrap();
@@ -1171,24 +1171,10 @@ fn facts_beyond_the_room_are_dropped_and_counted() {
 }
 
 #[test]
-fn a_configured_worker_fan_out_sets_the_output_floor() {
-    for slots in [1, 2, 8] {
-        assert_eq!(max_out(&Limits { slots, ..LIMITS }), 65);
+fn source_and_worker_counts_need_no_output_headroom() {
+    for limits in [Limits { configured_workers: u32::MAX, ..LIMITS }, Limits { program_sources: u32::MAX, ..LIMITS }] {
+        assert!(valid(&limits));
     }
-}
-#[test]
-fn a_slot_burst_sets_the_output_floor() {
-    for (slots, expected) in [(1, 25), (8, 33)] {
-        assert_eq!(max_out(&Limits { configured_workers: 0, slots, ..LIMITS }), expected);
-    }
-}
-#[test]
-fn an_overflowing_configured_worker_count_is_refused() {
-    assert!(!valid(&Limits { configured_workers: u32::MAX, ..LIMITS }));
-}
-#[test]
-fn an_overflowing_program_source_count_is_refused() {
-    assert!(!valid(&Limits { program_sources: u32::MAX, ..LIMITS }));
 }
 
 fn turns() -> Harness {
@@ -1376,11 +1362,5 @@ fn free_kind_follows_the_placement_rule() {
 mod grants;
 
 mod needs;
-
-#[test]
-fn an_overflowing_joined_reply_count_is_refused() {
-    let limits = Limits { program_sources: u32::MAX / 2 + 1, ..LIMITS };
-    assert!(!valid(&limits));
-}
 
 mod crossed;

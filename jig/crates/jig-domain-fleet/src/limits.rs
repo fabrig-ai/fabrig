@@ -68,8 +68,6 @@ pub fn valid(limits: &Limits) -> bool {
 }
 
 fn valid_counts(limits: &Limits) -> Option<()> {
-    limits.configured_workers.checked_add(1)?;
-    limits.program_sources.checked_mul(2)?.checked_add(1)?;
     limits.workers.checked_add(u32::from(limits.engine_slots > 0))?.checked_add(limits.history)?;
     tracked(limits)?;
     needs_bytes(limits)?;
