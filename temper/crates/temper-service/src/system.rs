@@ -278,7 +278,8 @@ impl Service {
             signals_closing: false,
             held_listeners: List::with_capacity(io_limits.sockets),
             listeners_closing: 0,
-            links: Queue::with_capacity(queue),
+            // The binary-facing channel holds one admitted pending sign-in population.
+            links: Queue::with_capacity(own.sign_in.pending),
         })
     }
     // The stock small profile's Prepared::room on main 8cd49c3d47:

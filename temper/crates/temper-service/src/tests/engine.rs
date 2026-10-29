@@ -669,7 +669,7 @@ fn a_released_batch_is_routed_before_the_next_release() {
     let mut later_release = false;
     while let Some(observation) = trace.observations.pop() {
         match observation {
-            ReleaseObservation::Released { ordinal, requests } => {
+            ReleaseObservation::Released { ordinal, requests, .. } => {
                 assert!(
                     expected.is_empty(),
                     "every request is dispatched before the next release, including empty releases"
@@ -695,4 +695,84 @@ fn a_released_batch_is_routed_before_the_next_release() {
     assert!(multi_request_release.is_some(), "the scenario releases more than one request in a batch");
     assert!(later_release, "a later nonempty release exercises the ordering boundary");
     assert_eq!(service.end(), None);
+}
+
+#[test]
+fn a_root_productive_past_one_quantum_lets_a_waiting_answer_in() {
+    use crate::engine::{ReleaseObservation, ReleaseTrace};
+    use skein_lib::{Token, Wall};
+    // The shipped small profile's scheduling quantum, pinned independently of output limits.
+    const QUANTUM: u32 = 22;
+    const INPUTS: u32 = 13;
+    let mut service = fixtures::ready();
+    let engine = service.engine.as_mut().expect("engine");
+    // Leave enough client staging room that only the scheduling quantum yields.
+    let settings = fixtures::engine();
+    engine.clients = crate::clients::Clients::new(
+        &settings.jig,
+        &settings.clients,
+        &fixtures::seeds(),
+        4096,
+        &settings.limits.root.journal,
+        None,
+        &[],
+    )
+    .unwrap();
+    let mut trace = ReleaseTrace::new();
+    // Each routed refusal lets the scripted neighbour ask again. Every cycle
+    // uses the real root's admission, journal, release and request routing.
+    for watcher in 0..INPUTS {
+        trace.inputs.push(root::Event::Party(root::PartyInput::Watch {
+            watcher: Token::new(1000 + u64::from(watcher)),
+            sign_in: u64::MAX,
+            subject: jig_domain_core::documents::Watched::Frame,
+            window: jig_domain_core::documents::Window { rows: 1, after: None },
+        }));
+    }
+    engine.step(trace.inputs.pop().expect("first productive input"));
+    engine.release_trace = Some(trace);
+    engine.store.above.push(jig_protocol_store::Event::Patched {
+        owner: Token::new(999),
+        of: jig_protocol_store::Owner::Application,
+        patch: 999,
+        counts: jig_protocol_store::Counts { records: 1, commits: 1 },
+    });
+    // Enter the release stage with an answer already waiting; the next service
+    // pass must take that answer before another quantum of productive work.
+    crate::engine::release(engine);
+    let trace = engine.release_trace.as_ref().expect("release trace");
+    let mut dispatched = 0;
+    for observation in &trace.observations {
+        if let ReleaseObservation::Dispatched { .. } = observation {
+            dispatched += 1;
+        }
+    }
+    assert_eq!(trace.cycles, QUANTUM, "a productive root yields at its scheduling quantum");
+    assert!(dispatched > 0 && dispatched < INPUTS, "root output spans the quantum boundary");
+    assert!(!trace.inputs.is_empty(), "more root work remains");
+    assert!(engine.ready, "quantum exhaustion leaves the root ready");
+    assert_eq!(engine.store.above.len(), 1, "the answer waits throughout the first quantum");
+    assert!(engine.work_pending(Time::from_nanos(1)), "the yielded root keeps the loop awake");
+    crate::engine::iterate(engine, Time::from_nanos(1), Wall::from_nanos(1));
+    assert!(engine.store.above.is_empty(), "the waiting answer is taken between quanta");
+    let mut answered = false;
+    for note in &engine.notes {
+        if let crate::Note::Patched { patch: 999, .. } = note {
+            answered = true;
+        }
+    }
+    assert!(answered, "the waiting answer reaches its owner");
+    let trace = engine.release_trace.as_ref().expect("release trace");
+    assert!(trace.inputs.is_empty(), "the root resumes on the next pass");
+    let mut released = 0;
+    for observation in &trace.observations {
+        if let ReleaseObservation::Released { requests, waiting_answers, .. } = observation
+            && !requests.is_empty()
+        {
+            assert_eq!(*waiting_answers, u32::from(released < dispatched), "answer precedes the next quantum");
+            released += 1;
+        }
+    }
+    assert_eq!(released, INPUTS, "all productive inputs are eventually routed");
+    assert_eq!(engine.end, None);
 }

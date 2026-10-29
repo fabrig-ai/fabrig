@@ -64,6 +64,8 @@ pub struct Clients {
     writes: u32,
     secret_owners: Map<Token, Asked>,
     next_secret: u64,
+    #[cfg(test)]
+    pub(crate) secret_terminals: Option<Queue<kit::SecretOwner>>,
     demo_starts: Map<Token, root::Event>,
     demo_reads: Queue<crate::HandoverRead>,
     demo_ready: Queue<root::Event>,
@@ -274,8 +276,10 @@ impl Clients {
             starting: Some(()),
             early: Queue::with_capacity(room),
             endings: Map::with_capacity(journal.commits),
-            secret_owners: Map::with_capacity(room),
+            secret_owners: Map::with_capacity(u32::MAX),
             next_secret: 1,
+            #[cfg(test)]
+            secret_terminals: None,
             demo_starts: Map::with_capacity(DEMO_STARTS),
             demo_reads: Queue::with_capacity(DEMO_STARTS),
             demo_ready: Queue::with_capacity(DEMO_STARTS),
@@ -766,14 +770,14 @@ impl Clients {
             self.secrets.push(request);
         }
         for _ in 0..self.secrets.len() {
-            if self.out.room() < kit::MAX_OUT_DOWN || self.secret_owners.len() == self.secret_owners.capacity() {
+            if self.out.room() < kit::MAX_OUT_DOWN {
                 break;
             }
             let request = self.secrets.pop().expect("client secrets requests");
             let (owner, request) = secret_request(request);
             let token = Token::new(PREFIX.checked_add(self.next_secret).expect("secret routing name"));
             self.next_secret = self.next_secret.checked_add(1).expect("secret routing sequence");
-            self.secret_owners.insert(token, owner).expect("bounded secrets in flight");
+            self.secret_owners.insert(token, owner).expect("secret owner count fits u32");
             if let Some(answer) = store.secrets(token, request) {
                 self.secret_answer(answer);
             }
@@ -834,6 +838,15 @@ impl Clients {
             | Event::Unread { .. }
             | Event::Corrupt { .. } => kit::SecretsAnswer::Failed,
         };
+        #[cfg(test)]
+        if let Some(trace) = &mut self.secret_terminals {
+            match &event {
+                kit::SecretsAnswer::Kept { owner }
+                | kit::SecretsAnswer::Erased { owner }
+                | kit::SecretsAnswer::Got { owner, .. } => trace.push(*owner),
+                kit::SecretsAnswer::Carried { .. } | kit::SecretsAnswer::Failed => {}
+            }
+        }
         self.down(kit::Event::Secrets(event));
     }
     fn owner(&mut self, token: Token) -> kit::SecretOwner {
