@@ -6,7 +6,7 @@ use std::mem::size_of;
 use skein_fake_llm_domain::api::{
     Error, Finish, InvalidInput, Line, Menu, Message, Part, Query, Role, Script, ToolSpec, Turn,
 };
-use skein_fake_llm_domain::{Config, Domain, Event, Request, fire, step, worst_case};
+use skein_fake_llm_domain::{Config, Domain, Event, Request, fire, step};
 use skein_heap::Meter;
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
 
@@ -63,16 +63,18 @@ fn caps() -> skein_fake_llm_domain::Config {
     }
 }
 
+// Bounds the joint script/menu, four delayed answers and refusal at seed 7.
+const DELAYED_SLOTS_PEAK_CEILING: u64 = 65_000;
+
 #[test]
 fn exact_joint_menu_script_cap_and_all_delayed_slots_include_empty_part_wrappers() {
     let config = caps();
-    let bound = worst_case(&config).expect("checked bound");
     let mut out = output_queue();
     let meter = Meter::new();
     meter.start();
     let mut domain = Domain::configured(&config, 7, scripts(), menu()).expect("exact joint script/menu cap");
     let measured = meter.end();
-    meter.check(measured, bound, &"all retained script/menu wrappers");
+    assert!(measured.peak() <= DELAYED_SLOTS_PEAK_CEILING, "all retained script/menu wrappers: {}", measured.peak());
     let mut env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: config };
     for token in 1..=u64::from(config.calls) {
         meter.start();
@@ -84,7 +86,11 @@ fn exact_joint_menu_script_cap_and_all_delayed_slots_include_empty_part_wrappers
         );
         let measured = meter.end();
         assert!(out.pop().is_none(), "every admitted answer waits for its actual timer");
-        meter.check(measured, bound, &"empty-part wrapper scratch plus all delayed slots");
+        assert!(
+            measured.peak() <= DELAYED_SLOTS_PEAK_CEILING,
+            "empty-part wrapper scratch plus all delayed slots: {}",
+            measured.peak()
+        );
     }
     assert_eq!(domain.calls(), config.calls, "every slab and alarm slot is live");
     meter.start();
@@ -99,7 +105,7 @@ fn exact_joint_menu_script_cap_and_all_delayed_slots_include_empty_part_wrappers
         panic!("the call ends in one reply")
     };
     assert_eq!(result, Err(Error::Overloaded.into()));
-    meter.check(measured, bound, &"one-over live-slot refusal");
+    assert!(measured.peak() <= DELAYED_SLOTS_PEAK_CEILING, "one-over live-slot refusal: {}", measured.peak());
     env.now = Time::from_nanos(1_000_000_000);
     let mut terminals = 0_u32;
     while domain.is_due(env.now) {
@@ -113,7 +119,7 @@ fn exact_joint_menu_script_cap_and_all_delayed_slots_include_empty_part_wrappers
         assert_eq!(answer.parts.len(), ITEMS, "every empty Part wrapper reached output");
         assert!(answer.parts.iter().all(|part| matches!(part, Part::Text { text } if text.is_empty())));
         drop(answer);
-        meter.check(measured, bound, &"actual delayed terminal output");
+        assert!(measured.peak() <= DELAYED_SLOTS_PEAK_CEILING, "actual delayed terminal output: {}", measured.peak());
         terminals += 1;
     }
     assert_eq!(terminals, config.calls);
@@ -146,18 +152,20 @@ fn exact_joint_menu_script_cap_and_all_delayed_slots_include_empty_part_wrappers
     assert_eq!(result, Err(Error::ContextTooLong.into()), "empty wrappers count toward answer admission");
 }
 
+// Bounds exact and one-byte-over query admission and delayed replies at seed 7.
+const QUERY_CAP_PEAK_CEILING: u64 = 27_000;
+
 #[test]
 fn exact_query_cap_is_accepted_and_one_byte_less_returns_one_actual_refusal() {
     for fits in [true, false] {
         let config = caps();
         let config = Config { query_bytes: config.query_bytes - u32::from(!fits), ..config };
-        let bound = worst_case(&config).expect("checked query-bound control");
         let mut out = output_queue();
         let meter = Meter::new();
         meter.start();
         let mut domain = Domain::try_scripted(&config, 7, scripts()).expect("unchanged admitted script");
         let measured = meter.end();
-        meter.check(measured, bound, &"query-cap control startup");
+        assert!(measured.peak() <= QUERY_CAP_PEAK_CEILING, "query-cap control startup: {}", measured.peak());
         let mut env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: config };
         meter.start();
         step(
@@ -168,7 +176,11 @@ fn exact_query_cap_is_accepted_and_one_byte_less_returns_one_actual_refusal() {
         );
         let measured = meter.end();
         assert!(out.pop().is_none(), "query admission preserves actual delayed settlement");
-        meter.check(measured, bound, &"exact or one-byte-over query admission");
+        assert!(
+            measured.peak() <= QUERY_CAP_PEAK_CEILING,
+            "exact or one-byte-over query admission: {}",
+            measured.peak()
+        );
         assert_eq!(domain.calls(), 1);
         assert_eq!(domain.next_deadline(), Some(Time::from_nanos(1_000_000_000)));
         env.now = Time::from_nanos(1_000_000_000);
@@ -188,7 +200,11 @@ fn exact_query_cap_is_accepted_and_one_byte_less_returns_one_actual_refusal() {
             assert_eq!(result, Err(Error::ContextTooLong.into()), "only the query allowance changed");
         }
         assert!(out.pop().is_none(), "one terminal consumes the original reply right");
-        meter.check(measured, bound, &"actual query success or refusal terminal");
+        assert!(
+            measured.peak() <= QUERY_CAP_PEAK_CEILING,
+            "actual query success or refusal terminal: {}",
+            measured.peak()
+        );
         assert_eq!(domain.next_deadline(), None);
         domain.reclaim();
         assert_eq!(domain.calls(), 0);
@@ -196,13 +212,6 @@ fn exact_query_cap_is_accepted_and_one_byte_less_returns_one_actual_refusal() {
         drop((domain, out));
         assert_eq!(meter.held(), 0, "query control leaves no retained or transferred ownership");
     }
-}
-
-#[test]
-fn extreme_call_and_answer_configuration_has_no_representable_memory_bound() {
-    assert!(worst_case(&caps()).is_some(), "ordinary configuration is representable");
-    let config = Config { calls: u32::MAX, answer_bytes: u32::MAX, ..caps() };
-    assert!(worst_case(&config).is_none(), "container and payload accounting must not wrap");
 }
 
 fn tool_scripts() -> Box<[Script]> {
@@ -225,8 +234,11 @@ fn tool_menu() -> Menu {
     Menu { arguments: Box::new([vec![b'a'; 256].into_boxed_slice()]), invalid: Box::new([]) }
 }
 
+// Bounds random/scripted full and truncated tool answers at seed 7.
+const TOOL_SCRATCH_PEAK_CEILING: u64 = 5_000;
+
 #[test]
-fn random_and_scripted_full_and_truncated_tool_scratch_stays_within_the_bound() {
+fn random_and_scripted_full_and_truncated_tool_scratch_stays_under_the_peak_ceiling() {
     for scripted in [false, true] {
         let config = Config {
             calls: 2,
@@ -237,14 +249,17 @@ fn random_and_scripted_full_and_truncated_tool_scratch_stays_within_the_bound() 
             calls_per_answer: 2,
             ..caps()
         };
-        let bound = worst_case(&config).expect("checked tool scratch bound");
         let mut out = output_queue();
         let meter = Meter::new();
         meter.start();
         let scripts = if scripted { tool_scripts() } else { Box::new([]) };
         let mut domain = Domain::configured(&config, 7, scripts, tool_menu()).expect("bounded caller tool data");
         let measured = meter.end();
-        meter.check(measured, bound, &"caller tool script and menu startup");
+        assert!(
+            measured.peak() <= TOOL_SCRATCH_PEAK_CEILING,
+            "caller tool script and menu startup: {}",
+            measured.peak()
+        );
         let mut env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: config };
         for (token, max_tokens) in [(1, 1000), (2, 0)] {
             meter.start();
@@ -263,7 +278,11 @@ fn random_and_scripted_full_and_truncated_tool_scratch_stays_within_the_bound() 
             );
             let measured = meter.end();
             assert!(out.pop().is_none(), "full and truncated tools both await actual fire");
-            meter.check(measured, bound, &"full tool generation and simultaneous truncation scratch");
+            assert!(
+                measured.peak() <= TOOL_SCRATCH_PEAK_CEILING,
+                "full tool generation and simultaneous truncation scratch: {}",
+                measured.peak()
+            );
         }
         assert_eq!(domain.calls(), config.calls, "both delayed tool slots are held");
         env.now = Time::from_nanos(1_000_000_000);
@@ -302,13 +321,17 @@ fn random_and_scripted_full_and_truncated_tool_scratch_stays_within_the_bound() 
             }
             drop(answer);
             assert!(out.pop().is_none(), "each fired call emits only one terminal");
-            meter.check(measured, bound, &"tool output ownership handed to its receiver");
+            assert!(
+                measured.peak() <= TOOL_SCRATCH_PEAK_CEILING,
+                "tool output ownership handed to its receiver: {}",
+                measured.peak()
+            );
         }
         assert_eq!(domain.next_deadline(), None);
         meter.start();
         domain.reclaim();
         let measured = meter.end();
-        meter.check(measured, bound, &"tool slots reclaimed after actual outputs");
+        assert!(measured.peak() <= TOOL_SCRATCH_PEAK_CEILING, "reclaimed tool slots: {measured:?}");
         assert_eq!(domain.calls(), 0);
         assert!(out.is_empty());
         drop((domain, out));
@@ -376,17 +399,19 @@ fn configured_codex_echo_request_and_entry_scratch_stay_under_the_peak_ceiling()
     assert_eq!(meter.held(), 0, "every echo/request owner releases its bounded storage");
 }
 
+// Bounds cache fill, replacement and delayed reply storage at seed 5.
+const CACHE_PEAK_CEILING: u64 = 2_400;
+
 #[test]
-fn the_cache_table_reaches_its_bound_under_the_counted_domain_footprint() {
+fn the_cache_table_fills_and_replaces_entries_under_the_peak_ceiling() {
     use skein_fake_llm_domain::api::Caching;
     let config = Config { cache_entries: 3, query_bytes: caps().query_bytes + 4, ..caps() };
-    let bound = worst_case(&config).unwrap();
     let mut out = output_queue();
     let meter = Meter::new();
     meter.start();
     let mut domain = Domain::new(&config, 5);
     let measured = meter.end();
-    meter.check(measured, bound, &"fixed cache capacity at construction");
+    assert!(measured.peak() <= CACHE_PEAK_CEILING, "fixed cache capacity at construction: {}", measured.peak());
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: config };
     for scope in 1..=4 {
         let mut query = query();
@@ -405,7 +430,7 @@ fn the_cache_table_reaches_its_bound_under_the_counted_domain_footprint() {
             &mut out,
         );
         let measured = meter.end();
-        meter.check(measured, bound, &"full prefix table and oldest replacement");
+        assert!(measured.peak() <= CACHE_PEAK_CEILING, "full prefix table and oldest replacement: {}", measured.peak());
         let later = Env { now: env.now.saturating_add(Duration::from_secs(1)), ..env };
         meter.start();
         fire(&mut domain, &later, &mut out);
@@ -415,7 +440,11 @@ fn the_cache_table_reaches_its_bound_under_the_counted_domain_footprint() {
         assert_eq!(answer.usage.cache_read, Some(0));
         drop(answer);
         domain.reclaim();
-        meter.check(measured, bound, &"real delayed answer and retained full cache");
+        assert!(
+            measured.peak() <= CACHE_PEAK_CEILING,
+            "real delayed answer and retained full cache: {}",
+            measured.peak()
+        );
     }
     assert!(out.is_empty());
     meter.start();

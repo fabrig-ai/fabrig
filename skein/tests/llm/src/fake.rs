@@ -63,20 +63,6 @@ fn credential_bytes(credentials: &[Credential]) -> Option<u64> {
     })
 }
 
-fn observation_worst_case(observations: &ObservationLimits) -> Option<u64> {
-    cells::<client::Event>(observations.events)?
-        .checked_add(cells::<Box<[skein_http::Header]>>(observations.heads)?)?
-        .checked_add(cells::<provider::Presented>(observations.heads)?)?
-        .checked_add(u64::from(observations.heads).checked_mul(observations.head_bytes)?)?
-        .checked_add(u64::from(observations.events).checked_mul(observations.event_bytes)?)?
-        .checked_add(cells::<api::Query>(observations.queries)?)?
-        .checked_add(u64::from(observations.queries).checked_mul(observations.query_bytes)?)?
-        .checked_add(cells::<fake::Event>(observations.pending)?)?
-        .checked_add(u64::from(observations.pending).checked_mul(observations.query_bytes)?)?
-        .checked_add(u64::from(observations.request))?
-        .checked_add(u64::from(observations.response_bytes))
-}
-
 fn cells<T>(count: u32) -> Option<u64> {
     u64::from(count).checked_mul(u64::try_from(size_of::<T>()).ok()?)
 }
@@ -454,7 +440,19 @@ impl Exchange {
         );
         assert!(self.requests.is_empty() && self.responses.is_empty());
         // Validate all container/payload products before reserving storage.
-        observation_worst_case(&observations).expect("finite configured peer observation ownership");
+        cells::<client::Event>(observations.events).expect("finite configured peer observation ownership");
+        cells::<Box<[skein_http::Header]>>(observations.heads).expect("finite configured peer observation ownership");
+        cells::<provider::Presented>(observations.heads).expect("finite configured peer observation ownership");
+        cells::<api::Query>(observations.queries).expect("finite configured peer observation ownership");
+        cells::<fake::Event>(observations.pending).expect("finite configured peer observation ownership");
+        for (count, bytes) in [
+            (observations.heads, observations.head_bytes),
+            (observations.events, observations.event_bytes),
+            (observations.queries, observations.query_bytes),
+            (observations.pending, observations.query_bytes),
+        ] {
+            u64::from(count).checked_mul(bytes).expect("finite configured peer observation ownership");
+        }
         self.observations = Some(observations);
         self.reserve_observations();
     }

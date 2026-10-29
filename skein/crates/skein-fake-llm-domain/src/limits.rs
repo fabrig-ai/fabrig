@@ -1,14 +1,11 @@
-//! Owned payload caps and the provider's worst-case live heap.
+//! Owned payload caps checked at admission.
 //!
 //! Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, sections 4.4 and 6.3.
 
 use alloc::boxed::Box;
 use core::mem::size_of;
 
-use skein_lib::{Deadlines, Id, Set, Slab};
-
 use crate::api::{Answer, Failure, Line, Message, Part, Piece, Query, Report, Rule, Rules, Script, ToolSpec, Turn};
-use crate::domain::{Call, Config};
 
 pub(crate) fn fits(bytes: Option<u64>, cap: u32) -> bool {
     match bytes {
@@ -198,34 +195,4 @@ pub(crate) fn random_answer(query: &Query, menu: &crate::api::Menu, count: u32) 
     }
     let one = u64::try_from(size_of::<Part>()).ok()?.checked_add(name)?.checked_add(arguments)?.checked_add(21)?;
     u64::from(count).checked_mul(one)
-}
-
-/// The provider's live heap, including stored scripts, delayed answers and
-/// scratch while generating an answer. Container bookkeeping is included;
-/// allocator overhead and requests handed to the receiver are not.
-///
-/// Query payloads are capped before generation. A random call copies an offered
-/// or configured invalid name and one whole body from the retained caller menu,
-/// plus its generated id. The menu, scripts, rules and reset state jointly fit `script_bytes`;
-/// each scripted call adds a generated id and a `Part`. Converting the temporary
-/// `List` into a boxed slice can hold both
-/// arrays at once, and the truncated answer can coexist with the full one.
-///
-/// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
-#[must_use]
-pub fn worst_case(config: &Config) -> Option<u64> {
-    let query = u64::from(config.query_bytes);
-    let scripts = u64::from(config.script_bytes);
-    let part = u64::try_from(size_of::<Part>()).ok()?;
-    // Dynamic answers are admitted before copying. Fixed replies are tiny
-    // even when the configured cap refuses them after generation.
-    let generated = u64::from(config.answer_bytes).max(part.checked_add(256)?);
-    let scratch = query.checked_add(generated.checked_mul(3)?)?;
-    Slab::<Call>::worst_case(config.calls)?
-        .checked_add(Deadlines::<Id<Call>>::worst_case(config.calls)?)?
-        .checked_add(Set::<Id<Call>>::price(config.calls)?)?
-        .checked_add(scripts)?
-        .checked_add(u64::from(config.calls).checked_mul(u64::from(config.answer_bytes))?)?
-        .checked_add(scratch)?
-        .checked_add(crate::cache::worst_case(config.cache_entries)?)
 }
