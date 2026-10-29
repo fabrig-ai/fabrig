@@ -14,10 +14,8 @@ const TRANSCRIPT: &str = include_str!("../../../../crates/smith-transcript/schem
 
 #[test]
 fn each_version_one_golden_patches_to_its_version_two_golden() {
-    let output = skein_codegen::generate_named(
-        &skein_codegen::parse(fixture::kept::fixture_turn::TEXTS[0]).expect("v1 schema"),
-        skein_codegen::Names::Bounds,
-    );
+    let output =
+        skein_codegen::generate(&skein_codegen::parse(fixture::kept::fixture_turn::TEXTS[0]).expect("v1 schema"));
     let directory = skein_scratch::paths::tree().join("tests/transcript-patches/patches/golden/0001/fixture-turn");
     let files: BTreeSet<_> = fs::read_dir(&directory)
         .expect("patch goldens")
@@ -114,10 +112,8 @@ fn the_real_written_answers_every_site_no_site() {
     let mut patcher = patches::fixture_patcher();
     let plan = patcher.plan_from(1).expect("v1 plan");
     let root = patcher.schema(1).expect("v1 schema").find(smith_transcript::ROOT.as_bytes()).expect("Turn");
-    let output = skein_codegen::generate_named(
-        &skein_codegen::parse(fixture::kept::fixture_turn::TEXTS[0]).expect("v1 schema"),
-        skein_codegen::Names::Bounds,
-    );
+    let output =
+        skein_codegen::generate(&skein_codegen::parse(fixture::kept::fixture_turn::TEXTS[0]).expect("v1 schema"));
     patcher.start(plan, root, output.goldens[0].bytes.clone().into_boxed_slice()).expect("start golden");
     let (old, new) = patcher.parts();
     let mut context = smith_transcript::patches::Context::default();
