@@ -550,6 +550,8 @@ impl World {
             | Event::RoutedEscalation { .. }
             | Event::DecideEscalation { .. }
             | Event::Message { .. }
+            | Event::PersonQuestion { .. }
+            | Event::PersonQuestionAnswer { .. }
             | Event::AuthorizedMessage { .. }
             | Event::Introduce { .. }
             | Event::DelegateResult { .. }
@@ -576,6 +578,8 @@ impl World {
                 self.message = self.message.max(*message);
             }
             Event::Message { word, .. }
+            | Event::PersonQuestion { word, .. }
+            | Event::PersonQuestionAnswer { word, .. }
             | Event::AuthorizedMessage { word, .. }
             | Event::DelegateResult { word, .. }
             | Event::Notice { word, .. } => {

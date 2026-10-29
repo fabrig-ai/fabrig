@@ -86,3 +86,18 @@ fn valid_refuses_each_unrepresentable_limit() {
         assert!(!valid(&limits), "case {case}");
     }
 }
+
+#[test]
+fn a_person_answer_notice_keeps_its_question_number() {
+    let limits = fixtures::limits();
+    for question in [0, 1, u64::MAX] {
+        let notice = w::OwnerMessageKind::QuestionAnswered(
+            w::OwnerMessageKindAnswer::new(&limits.wire, w::OwnerMessageKindAnswerParts { question })
+                .expect("question number"),
+        );
+        assert_eq!(
+            translate::pages::owner_message_kind_fields(&notice, &limits),
+            Ok(c::OwnerMessageKind::QuestionAnswered { question }),
+        );
+    }
+}

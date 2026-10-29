@@ -1692,10 +1692,34 @@ pub(super) fn route_tasks(
     } else {
         event
     };
+    let event = question_event(core, event);
     tasks::step(&mut core.tasks, &Env { now: env.now, wall: env.wall, limits: env.limits.tasks }, event, &mut out);
     crate::resources::resume(core, work);
     tag_tasks(core, env, out, false, false, false)
 }
+// Direct-answer authority stays inside the core's question admission.
+fn question_event(core: &Core, event: tasks::Event) -> tasks::Event {
+    if let tasks::Event::Message { reply_to, project, task, word } = event {
+        let person = match core.tasks.task(task) {
+            Some(row) => match row.requester {
+                tasks::Party::Person(person) => Some(person),
+                tasks::Party::Task(_) | tasks::Party::Deployment { .. } => None,
+            },
+            None => None,
+        };
+        if core.person_answers
+            && word.kind == tasks::MessageKind::Question
+            && let Some(person) = person
+        {
+            tasks::Event::PersonQuestion { reply_to, project, task, person, word }
+        } else {
+            tasks::Event::Message { reply_to, project, task, word }
+        }
+    } else {
+        event
+    }
+}
+
 pub(super) fn result_words(result: tasks::TaskResult) -> Box<[u8]> {
     match result {
         tasks::TaskResult::Report { words }

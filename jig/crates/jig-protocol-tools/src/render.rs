@@ -262,6 +262,10 @@ fn finding_text(finding: &authority::Finding) -> &'static [u8] {
     }
 }
 
+fn person_answers(question: u64) -> Rendered {
+    text(&[b"Refused: your person answers question ", Decimal::of(question).as_bytes(), b" in their inbox"], true)
+}
+
 fn task_problem(problem: &jig_domain_tasks::Problem) -> Rendered {
     let why: &[u8] = match problem.why {
         jig_domain_tasks::Refusal::Placed { .. } => b"held by a placed hold",
@@ -310,6 +314,7 @@ fn task_problem(problem: &jig_domain_tasks::Problem) -> Rendered {
                 jig_domain_tasks::Status::Done => text(&[b"Refused: T", task.as_bytes(), b" is done"], true),
             };
         }
+        jig_domain_tasks::Refusal::PersonAnswers { question } => return person_answers(question),
         jig_domain_tasks::Refusal::KeptQuestion { question } => {
             return text(&[b"Refused: kept until question ", Decimal::of(question).as_bytes(), b" is answered"], true);
         }
@@ -790,6 +795,15 @@ mod tests {
     #[test]
     fn a_kept_task_names_its_unanswered_question() {
         refusal(Refusal::KeptQuestion { question: 12 }, &[], b"Refused: kept until question 12 is answered");
+    }
+
+    #[test]
+    fn a_task_is_told_its_person_answers_the_named_question() {
+        refusal(
+            Refusal::PersonAnswers { question: 12 },
+            &[],
+            b"Refused: your person answers question 12 in their inbox",
+        );
     }
 
     #[test]

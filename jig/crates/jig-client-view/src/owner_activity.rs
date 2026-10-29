@@ -61,6 +61,7 @@ fn message_fits(kind: &OwnerMessageKind, words: &Text, limits: &Limits) -> Optio
         | OwnerMessageKind::Words
         | OwnerMessageKind::EffectNotMade { .. }
         | OwnerMessageKind::Met { .. }
+        | OwnerMessageKind::QuestionAnswered { .. }
         | OwnerMessageKind::QuestionEnded { .. }
         | OwnerMessageKind::Amendment { .. }
         | OwnerMessageKind::Question
@@ -239,6 +240,7 @@ fn kind(b: &mut Builder, value: &OwnerMessageKind, words: &Words) {
             caption(b, words, P::Amendment);
             number(b, words, P::Revision, *revision);
         }
+        OwnerMessageKind::QuestionAnswered { question } => number(b, words, P::QuestionAnswered, *question),
         OwnerMessageKind::QuestionEnded { question } => number(b, words, P::QuestionEnded, *question),
         OwnerMessageKind::Met { dependency, removed } => words.text(
             b,

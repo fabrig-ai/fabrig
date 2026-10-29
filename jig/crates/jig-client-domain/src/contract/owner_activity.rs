@@ -75,6 +75,9 @@ pub enum OwnerMessageKind {
         proposal: u64,
         accepted: bool,
     },
+    QuestionAnswered {
+        question: u64,
+    },
     QuestionEnded {
         question: u64,
     },

@@ -619,6 +619,7 @@ fn core_ask(
                                 | tasks::MessageKind::Question
                                 | tasks::MessageKind::Answer { .. }
                                 | tasks::MessageKind::Notice { .. }
+                                | tasks::MessageKind::QuestionAnswered { .. }
                                 | tasks::MessageKind::QuestionEnded { .. }
                                 | tasks::MessageKind::Timer { .. }
                                 | tasks::MessageKind::PersonStalled { .. } => {}

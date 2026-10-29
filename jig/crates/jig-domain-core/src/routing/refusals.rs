@@ -83,7 +83,7 @@ fn task_answer(core: &Core, problem: tasks::Problem) -> people::Outcome {
                 tasks::AccountWhy::Limited => people::AccountWhy::Limited,
             },
         },
-        tasks::Refusal::KeptQuestion { .. } | tasks::Refusal::Reference => {
+        tasks::Refusal::KeptQuestion { .. } | tasks::Refusal::PersonAnswers { .. } | tasks::Refusal::Reference => {
             people::Refusal::Authority { proposable: None, lacking: people::Lack::Reference }
         }
         tasks::Refusal::Funding => people::Refusal::Authority { proposable: None, lacking: people::Lack::Funding },

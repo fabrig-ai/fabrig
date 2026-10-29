@@ -88,11 +88,14 @@ pub fn kind(value: &tasks::MessageKind, limits: &Limits) -> Result<client::Owner
                 tasks::SettingsOutcome::Stale { newest } => client::SettingsOutcome::Stale { newest: *newest },
             },
         },
-        tasks::MessageKind::QuestionEnded { question } => {
-            client::OwnerMessageKind::QuestionEnded { question: *question }
+        tasks::MessageKind::QuestionAnswered { question } => {
+            client::OwnerMessageKind::QuestionAnswered { question: *question }
         }
         tasks::MessageKind::Words => client::OwnerMessageKind::Words,
         tasks::MessageKind::EffectNotMade { entry } => client::OwnerMessageKind::EffectNotMade { entry: *entry },
+        tasks::MessageKind::QuestionEnded { question } => {
+            client::OwnerMessageKind::QuestionEnded { question: *question }
+        }
         tasks::MessageKind::Amendment { revision } | tasks::MessageKind::FinishRequested { revision } => {
             client::OwnerMessageKind::Amendment { revision: *revision }
         }
