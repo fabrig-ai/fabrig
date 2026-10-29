@@ -177,6 +177,48 @@ class ReadyCheckTests(unittest.TestCase):
         self.advance("touched.md", "base\n")
         self.refuse("touched.md")
 
+    def test_merge_does_not_count_changes_already_in_checked_main(self):
+        self.git(self.writer, "switch", "-c", "old-side")
+        self.write(self.writer, "side.md", "side\n")
+        self.commit(self.writer)
+        self.git(self.writer, "switch", "main")
+        base = self.advance("touched.md", "checked main\n")
+        self.git(self.repo, "fetch", "origin")
+        self.git(self.repo, "reset", "--hard", base)
+        self.write(self.repo, "touched.md", "candidate on checked main\n")
+        self.commit(self.repo)
+        self.tip = self.git(self.repo, "rev-parse", "HEAD")
+        self.record.update(base=base, tip=self.tip, original=self.tip)
+        self.save()
+        self.git(self.writer, "merge", "--no-ff", "-m", "Merge old side", "old-side")
+        self.git(self.writer, "push", "origin", "HEAD:main")
+        result = self.check()
+        self.assertEqual(result["verdict"], "passed", result)
+        self.assertEqual(result["overlap"], [])
+
+    def test_merge_branch_changes_after_checked_main_still_refuse(self):
+        self.git(self.writer, "switch", "-c", "side")
+        self.write(self.writer, "touched.md", "side change\n")
+        self.commit(self.writer)
+        self.git(self.writer, "switch", "main")
+        self.advance()
+        self.git(self.writer, "merge", "--no-ff", "-m", "Merge side", "side")
+        self.git(self.writer, "push", "origin", "HEAD:main")
+        self.refuse("touched.md")
+
+    def test_checked_main_on_second_parent_requires_fresh_precheck(self):
+        root = self.base
+        base = self.advance()
+        self.git(self.repo, "fetch", "origin")
+        self.record["base"] = base
+        self.save()
+        self.git(self.writer, "switch", "-c", "new-main-line", root)
+        self.write(self.writer, "side.md", "side\n")
+        self.commit(self.writer)
+        self.git(self.writer, "merge", "--no-ff", "-m", "Merge old main as side", "main")
+        self.git(self.writer, "push", "origin", "HEAD:main")
+        self.refuse("first-parent")
+
     def test_merge_resolution_changes_are_seen(self):
         self.git(self.writer, "switch", "-c", "side")
         self.write(self.writer, "other.md", "side\n")

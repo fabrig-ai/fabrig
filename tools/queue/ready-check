@@ -196,12 +196,23 @@ class Repository:
         return value
 
     def changed(self, base, current):
-        # Inspect each parent, including merge resolutions and changes later reverted.
-        commits = self.git("rev-list", f"{base}..{current}").stdout
-        output = self.git("diff-tree", "--stdin", "--root", "-r", "-m", "--no-commit-id", "--name-only",
-                          "--no-renames", "--no-ext-diff", "--no-textconv", "-z", input=commits).stdout
-        require(not output or output.endswith(b"\0"), "invalid NUL-delimited changed paths")
-        return {os.fsdecode(item) for item in output.split(b"\0") if item}
+        # Follow main's first-parent transitions, including changes later reverted.
+        commits = self.git("rev-list", "--first-parent", "--parents", f"{base}..{current}").stdout
+        previous = current.encode("ascii")
+        paths = set()
+        for row in commits.splitlines():
+            fields = row.split()
+            require(len(fields) >= 2 and fields[0] == previous,
+                    "unavailable first-parent main history")
+            commit, parent = fields[:2]
+            output = self.git("diff-tree", "-r", "--no-commit-id", "--name-only", "--no-renames",
+                              "--no-ext-diff", "--no-textconv", "-z",
+                              parent.decode("ascii"), commit.decode("ascii")).stdout
+            require(not output or output.endswith(b"\0"), "invalid NUL-delimited changed paths")
+            paths.update(os.fsdecode(item) for item in output.split(b"\0") if item)
+            previous = parent
+        require(previous == base.encode("ascii"), "checked base is not on origin/main's first-parent history")
+        return paths
 
 
 def check(result, repo, tip):
