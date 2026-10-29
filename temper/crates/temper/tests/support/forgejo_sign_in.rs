@@ -2,6 +2,7 @@
 use super::{
     configuration,
     forge_sign_in::{command, configure, success},
+    story_socket::{self, Scope, Socket},
 };
 use jig_client_protocol_wire as wire;
 use serde_json::{Value, json};
@@ -11,11 +12,9 @@ use skein_lib::{
 };
 use std::{fs, path::Path, process::Command};
 use std::{
-    io::{Read, Write},
-    net::TcpStream,
+    io,
     os::{fd::AsRawFd, unix::process::CommandExt},
     process::{Child, Stdio},
-    time::Duration,
 };
 
 struct Serve {
@@ -53,14 +52,17 @@ struct Browser {
     cookies: Vec<(String, String, String)>,
 }
 impl Browser {
-    fn call(&mut self, url: &str, body: Option<&[u8]>) -> Answer {
+    fn call(&mut self, url: &str, body: Option<&[u8]>) -> io::Result<Answer> {
         let (host, path) = url.strip_prefix("http://").expect("local HTTP").split_once('/').expect("URL path");
         let path = format!("/{path}");
         let address: std::net::SocketAddr = host.parse().expect("literal socket");
         assert!(address.ip().is_loopback(), "fixture peers are loopback only");
-        let mut stream = TcpStream::connect_timeout(&address, Duration::from_secs(2)).expect("HTTP connection");
-        stream.set_read_timeout(Some(Duration::from_secs(10))).expect("read bound");
-        stream.set_write_timeout(Some(Duration::from_secs(2))).expect("write bound");
+        let mut stream = Socket::connect(
+            "the Forgejo browser's connection",
+            skein_lib::Duration::from_secs(2),
+            address,
+            Scope::Owned,
+        )?;
         let cookie = self
             .cookies
             .iter()
@@ -70,15 +72,15 @@ impl Browser {
             .join("; ");
         let data = body.unwrap_or_default();
         let method = if body.is_some() { "POST" } else { "GET" };
-        write!(stream, "{method} {path} HTTP/1.0\r\nHost: {host}\r\nConnection: close\r\nCookie: {cookie}\r\n")
-            .expect("request head");
+        let mut request =
+            format!("{method} {path} HTTP/1.0\r\nHost: {host}\r\nConnection: close\r\nCookie: {cookie}\r\n");
         if body.is_some() {
-            write!(stream, "Content-Type: application/octet-stream\r\nJig-Client: browser\r\nOrigin: http://{host}\r\nSec-Fetch-Site: same-origin\r\nContent-Length: {}\r\n", data.len()).expect("browser headers");
+            request.push_str(&format!("Content-Type: application/octet-stream\r\nJig-Client: browser\r\nOrigin: http://{host}\r\nSec-Fetch-Site: same-origin\r\nContent-Length: {}\r\n", data.len()));
         }
-        stream.write_all(b"\r\n").expect("head end");
-        stream.write_all(data).expect("body");
-        let mut bytes = Vec::new();
-        stream.take(1 << 20).read_to_end(&mut bytes).expect("bounded answer");
+        request.push_str("\r\n");
+        stream.write_all("the Forgejo browser's request", skein_lib::Duration::from_secs(2), request.as_bytes())?;
+        stream.write_all("the Forgejo browser's body", skein_lib::Duration::from_secs(2), data)?;
+        let bytes = stream.read_to_end("the Forgejo browser's reply", skein_lib::Duration::from_secs(10), 1 << 20)?;
         let split = bytes.windows(4).position(|part| part == b"\r\n\r\n").expect("HTTP head");
         let head = std::str::from_utf8(&bytes[..split]).expect("head text");
         let status = head.split_whitespace().nth(1).expect("status").parse().expect("status number");
@@ -97,7 +99,7 @@ impl Browser {
                 self.cookies.push((name.into(), value.into(), scope.into()));
             }
         }
-        Answer { status, location, body: bytes[split + 4..].to_vec() }
+        Ok(Answer { status, location, body: bytes[split + 4..].to_vec() })
     }
 }
 
@@ -117,6 +119,12 @@ fn member_named(instance: &skein_throwaway_forgejo::Instance) {
 
 /// The one process proof of Forgejo's settings and the provider's claims.
 pub fn run(directory: &Path) {
+    if let Err(error) = run_owned(directory) {
+        story_socket::finish(error);
+    }
+}
+
+fn run_owned(directory: &Path) -> io::Result<()> {
     let clock = skein_shell::Clock::new();
     let whole = clock.now().now;
     let forge = super::owned::tier_configuration(directory);
@@ -176,33 +184,33 @@ pub fn run(directory: &Path) {
     let mut out = Writer::new(usize::try_from(record.measure()).expect("record size"));
     record.encode(&mut out).expect("link wire");
     let mut browser = Browser::default();
-    let signed = browser.call(&format!("http://{temper}/jig/v1/sign-in/link"), Some(&out.finish()));
+    let signed = browser.call(&format!("http://{temper}/jig/v1/sign-in/link"), Some(&out.finish()))?;
     assert_eq!(signed.status, 200);
     assert!(browser.cookies.iter().any(|(name, _, _)| name == "jig-sign-in"), "printed link set the browser cookie");
-    let opened = browser.call(&format!("http://{forge}/user/oauth2/temper"), None);
+    let opened = browser.call(&format!("http://{forge}/user/oauth2/temper"), None)?;
     assert_eq!(opened.status, 307);
     let authorization = opened.location.expect("provider authorization redirect");
     assert!(authorization.starts_with(&format!("http://{temper}/oauth/authorize?")));
-    let page = browser.call(&authorization, None);
+    let page = browser.call(&authorization, None)?;
     assert_eq!(page.status, 200);
     let query = authorization.split_once('?').expect("authorization query").1;
     let record = wire::Authorize::new(&limits, wire::AuthorizeParts { query: query.as_bytes().into() })
         .expect("authorize record");
     let mut out = Writer::new(usize::try_from(record.measure()).expect("record size"));
     record.encode(&mut out).expect("authorize wire");
-    let authorized = browser.call(&format!("http://{temper}/jig/v1/authorize"), Some(&out.finish()));
+    let authorized = browser.call(&format!("http://{temper}/jig/v1/authorize"), Some(&out.finish()))?;
     assert_eq!(authorized.status, 200);
     let wire::AuthorizeAnswer::Go(go) =
         wire::AuthorizeAnswer::decode(&limits, &mut Reader::new(&authorized.body)).expect("authorize answer")
     else {
         panic!("signed-in page must receive go")
     };
-    let mut callback = browser.call(std::str::from_utf8(go.location()).expect("callback URL"), None);
+    let mut callback = browser.call(std::str::from_utf8(go.location()).expect("callback URL"), None)?;
     for _ in 0..5 {
         if !matches!(callback.status, 302 | 303 | 307) {
             break;
         }
-        callback = browser.call(&callback.location.expect("callback redirect"), None);
+        callback = browser.call(&callback.location.expect("callback redirect"), None)?;
     }
     assert_eq!(callback.status, 200);
     member_named(&instance);
@@ -213,4 +221,5 @@ pub fn run(directory: &Path) {
         clock.now().now.saturating_since(whole),
         clock.now().now.saturating_since(past_start)
     );
+    Ok(())
 }
