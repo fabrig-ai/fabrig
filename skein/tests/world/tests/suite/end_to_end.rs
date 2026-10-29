@@ -230,6 +230,49 @@ fn an_abandoned_binary_is_reaped_and_its_untransferred_descriptors_are_closed() 
     }
 }
 
+// A delegated cgroup and /proc membership are Linux's (examples.md, 6).
+#[cfg(target_os = "linux")]
+fn tree_with_a_blocked_member() -> Option<(Binary, std::path::PathBuf)> {
+    let binary = Binary::start(fixture("supervise-ignore"), Mode::Pipes, 4096).expect("the tree starts");
+    let descriptors = binary.descriptors();
+    assert_eq!(
+        skein_shell::wait_readable(descriptors[1], WORLD_PATIENCE),
+        Ok(true),
+        "the fixture reports its detached, TERM-ignoring member before abandonment"
+    );
+    let pid = skein_shell::child_id(descriptors[0]).expect("the leader's pid");
+    let membership = std::fs::read_to_string(format!("/proc/{pid}/cgroup")).expect("the leader's membership");
+    let relative = membership.lines().find_map(|line| line.strip_prefix("0::")).expect("cgroup v2");
+    let path = std::path::Path::new("/sys/fs/cgroup").join(relative.trim_start_matches('/'));
+    if !path.file_name().is_some_and(|name| name.to_string_lossy().starts_with("binary-")) {
+        drop(binary);
+        eprintln!("no delegated cgroup: binary directory removal requires containment");
+        return None;
+    }
+    Some((binary, path))
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn abandonment_removes_the_cgroup_after_its_blocked_member_exits() {
+    let Some((binary, path)) = tree_with_a_blocked_member() else { return };
+    drop(binary);
+    assert!(!path.exists(), "the killed member's cgroup is removed");
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn unwinding_abandonment_removes_the_cgroup_after_its_blocked_member_exits() {
+    let Some((binary, path)) = tree_with_a_blocked_member() else { return };
+    let failure = std::panic::catch_unwind(move || {
+        let _binary = binary;
+        panic!("abandon the blocked tree");
+    })
+    .expect_err("the scenario unwinds through its tree");
+    assert_eq!(failure.downcast_ref::<&str>(), Some(&"abandon the blocked tree"));
+    assert!(!path.exists(), "unwinding waits for the killed member before removing its cgroup");
+}
+
 struct TreeJudge {
     end: bool,
     sent: bool,
@@ -1421,6 +1464,24 @@ fn a_forced_kill_referee_observes_a_late_retained_exit_after_kill_and_settlement
 #[test]
 #[should_panic(expected = "binary stderr exceeds its scenario limit of 8 bytes")]
 fn legacy_stderr_capture_still_fails_the_scenario_at_overflow() {
+    legacy_stderr_overflow();
+}
+
+#[test]
+fn repeated_stderr_overflow_unwinds_without_aborting() {
+    // Exercise twenty independent stderr-overflow unwinds in one test process.
+    const UNWINDS: usize = 20;
+    for iteration in 0..UNWINDS {
+        let failure = std::panic::catch_unwind(legacy_stderr_overflow).expect_err("stderr overflow fails the scenario");
+        assert_eq!(
+            failure.downcast_ref::<String>().expect("the overflow diagnostic"),
+            "binary stderr exceeds its scenario limit of 8 bytes",
+            "unwind {iteration} preserves the scenario's failure"
+        );
+    }
+}
+
+fn legacy_stderr_overflow() {
     let binary = Binary::start(command("printf '123456789' >&2"), Mode::Pipes, 8).expect("a legacy capture starts");
     let mut world = real::World::new(Judge { signal: false, sent: false, act_at: None });
     world.spawn_with_fds(binary.descriptors(), || Process::Child(binary));
