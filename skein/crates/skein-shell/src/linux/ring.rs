@@ -47,9 +47,10 @@
 //! The completion queue holds as many entries as the table has slots, and
 //! every slot has at most one entry in the kernel (single-shot operations
 //! only, each cancel in a slot of its own), so it cannot overflow. An
-//! `Open` that a `..` race failed with `EAGAIN` is pushed again from its
-//! slot, under the same `user_data`, once its first entry has completed:
-//! still one entry a slot.
+//! `Open` that a `..` race failed with `EAGAIN`, or an uncancelled transfer
+//! interrupted by `EINTR` (shell.md, 7.4), is pushed again from its slot,
+//! under the same `user_data`, once its first entry has completed: still
+//! one entry a slot.
 
 #![expect(unsafe_code, reason = "the ring adapter keeps submitted memory live until completion (shell.md, 3)")]
 
@@ -119,7 +120,7 @@ struct Table {
     resubmitted: u64,
 }
 
-/// What a reaped entry comes to: a completion to hand up, or an `Open` to
+/// What a reaped entry comes to: a completion to hand up, or an operation to
 /// submit again, its slot kept.
 enum Reaped {
     Complete(Complete),
@@ -316,17 +317,16 @@ impl Ring {
         self.table.resubmitted
     }
 
-    /// Pushes an `Open` that failed with `EAGAIN` again, in its slot under the
+    /// Pushes an operation that needs a retry again, in its slot under the
     /// same `user_data`; the next enter submits it.
     fn resubmit(&mut self, index: u32) {
         let entry = self.table.resubmission(index);
-        // SAFETY: as at the first push (`start`): the path and the
-        // `open_how` the entry points at are this slot's, which stays in
+        // SAFETY: as at the first push (`start`): the entry's pointers name
+        // this slot's structures or its record's buffers, which stay in
         // place, untouched by Rust code, until the new completion is reaped;
         // the kernel had done with them, having posted the first.
         let pushed = unsafe { self.ring.submission().push(&entry) };
         pushed.expect("the submission queue has an entry for every slot");
-        self.table.resubmitted = self.table.resubmitted.saturating_add(1);
     }
 
     fn start(&mut self, record: Submit) {
@@ -439,14 +439,20 @@ impl Table {
         );
     }
 
-    /// The next entry for an `Open` whose raw completion asked for a retry.
-    fn resubmission(&self, index: u32) -> squeue::Entry {
-        let slot = self.slots.get(slot_index(index)).expect("an index in flight names a slot");
-        let flight = slot.flight.as_ref().expect("an operation submitted again is in its slot");
-        let Op::Open { root, .. } = flight.kind else {
-            unreachable!("only an Open is submitted again");
+    /// The next entry for an operation whose raw completion asked for a retry.
+    fn resubmission(&mut self, index: u32) -> squeue::Entry {
+        let slot = self.slots.get_mut(slot_index(index)).expect("an index in flight names a slot");
+        let flight = slot.flight.as_mut().expect("an operation submitted again is in its slot");
+        let entry = if let Op::Open { root, .. } = flight.kind {
+            self.resubmitted = self.resubmitted.saturating_add(1);
+            open_entry(root, &flight.path, &flight.open_how)
+        } else {
+            let Prepared::Entry(entry) = prepare(flight, &self.tokens, &mut self.cancelled, &mut self.listing) else {
+                unreachable!("an interrupted transfer prepares another ring entry");
+            };
+            entry
         };
-        open_entry(root, &flight.path, &flight.open_how).user_data(user_data(index, slot.generation))
+        entry.user_data(user_data(index, slot.generation))
     }
 
     fn new(operations: u32) -> Table {
@@ -497,6 +503,22 @@ impl Table {
             && !self.cancelled.contains(&flight.op)
         {
             flight.again = flight.again.saturating_add(1);
+            return Reaped::Again(index);
+        }
+        // EINTR reports no progress: retry the same transfer, preserving its
+        // buffers, offsets and token (shell.md, 7.4). A requested cancel
+        // instead reaches the decoder, which completes it Cancelled.
+        if let Op::Recv { .. }
+        | Op::Send { .. }
+        | Op::Read { .. }
+        | Op::Write { .. }
+        | Op::Append { .. }
+        | Op::PipeRead { .. }
+        | Op::PipeWrite { .. }
+        | Op::ReadSignal { .. } = flight.kind
+            && res == -libc::EINTR
+            && !self.cancelled.contains(&flight.op)
+        {
             return Reaped::Again(index);
         }
         let (mut flight, cancelled) = self.retire(index);
@@ -785,6 +807,7 @@ mod tests {
 
     mod guards;
     mod open_retries;
+    mod write_retries;
 
     #[test]
     fn blocked_termination_signal_arrives_through_the_ring() {
