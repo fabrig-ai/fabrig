@@ -1,6 +1,7 @@
 """The gate ratchets old forms in tracked Rust without raising a baseline."""
 
 from pathlib import Path
+import runpy
 import subprocess
 import sys
 import tempfile
@@ -85,6 +86,24 @@ let edges = (MAX_OUT_DOWN, MAX_OUT_UP);
 let internal = (MAX_OUT, max_out_events, MAX_OUT_DOWNSTREAM);
 """}, counts=(3, 0, 0, 0))
         self.run_script(root)
+
+    def test_ordinary_string_escapes_separate_words(self):
+        root = self.repository({"src/lib.rs": r'''
+let words = "\nJournalRoom \x20JournalRoom \u{20}JournalRoom \nmax_out";
+'''}, counts=(1, 3, 0, 0))
+        self.run_script(root)
+
+    def test_raw_string_escapes_stay_literal(self):
+        root = self.repository({"src/lib.rs": r'''
+let words = r#"\nJournalRoom \x20JournalRoom \u{20}JournalRoom \nmax_out"#;
+'''}, counts=(1, 1, 0, 0))
+        self.run_script(root)
+
+    def test_character_escapes_become_separators(self):
+        without_comments = runpy.run_path(str(SCRIPT))["without_comments"]
+        for source in (r"'\n'", r"'\x20'", r"'\u{20}'"):
+            with self.subTest(source=source):
+                self.assertEqual(without_comments(source), "' '")
 
     def test_generated_directories_and_untracked_files_do_not_count(self):
         root = self.repository({

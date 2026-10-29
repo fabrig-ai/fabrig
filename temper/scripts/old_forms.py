@@ -3,6 +3,7 @@
 Count matches in tracked Rust files, excluding generated/ components and
 comments, while keeping string literals. Compare each form independently
 with scripts/old-forms.txt; --write can initialize or lower that baseline.
+Escapes separate words in ordinary strings and chars; raw strings stay literal.
 Recorded raises and other comments stay in place when counts are rewritten.
 Run from the repository root, using only the Python standard library:
 
@@ -39,6 +40,7 @@ TOKEN = re.compile(
     r"|'(?:[^'\\\n]|\\(?:x[0-9a-fA-F]{2}|u\{[0-9a-fA-F_]+\}|[^\n]))'"
 )
 BLOCK = re.compile(r'/\*|\*/')
+ESCAPE = re.compile(r'\\(?:x[0-9a-fA-F]{2}|u\{[0-9a-fA-F_]+\}|[\s\S])')
 IDENTIFIER = re.compile(r'\b\w+\b')
 
 
@@ -64,7 +66,9 @@ def without_comments(source):
                 closing = '"' + token.group('hashes')
                 close = source.find(closing, end)
                 end = len(source) if close == -1 else close + len(closing)
-            pieces.append(source[token.start():end])
+                pieces.append(source[token.start():end])
+            else:
+                pieces.append(ESCAPE.sub(' ', token.group()))
         position = end
     pieces.append(source[position:])
     return ''.join(pieces)
