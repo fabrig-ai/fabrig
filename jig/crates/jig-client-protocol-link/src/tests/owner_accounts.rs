@@ -475,12 +475,12 @@ fn deployment_accounts_one_past_the_receiving_count_are_refused() {
 // The deployment reserves its rows-bounded host list; these accounts have no sources, uses or
 // display, and each reserves two rows-bounded chip lists.
 fn deployment_held() -> u64 {
-    let chips = List::<c::Chip>::worst_case(fixtures::limits().client.rows).unwrap();
+    let chips = List::<c::Chip>::price(fixtures::limits().client.rows).unwrap();
     u64::try_from(size_of::<c::OwnerDeployment>())
         .unwrap()
-        .checked_add(List::<c::OwnerHost>::worst_case(fixtures::limits().client.rows).unwrap())
+        .checked_add(List::<c::OwnerHost>::price(fixtures::limits().client.rows).unwrap())
         .unwrap()
-        .checked_add(List::<c::OwnerAccount>::worst_case(DEPLOYMENT_ACCOUNTS).unwrap())
+        .checked_add(List::<c::OwnerAccount>::price(DEPLOYMENT_ACCOUNTS).unwrap())
         .unwrap()
         .checked_add(u64::from(DEPLOYMENT_ACCOUNTS).checked_mul(2).unwrap().checked_mul(chips).unwrap())
         .unwrap()

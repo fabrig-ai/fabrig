@@ -37,7 +37,7 @@ fn deployment_receiving_keeps_unkept_facts_scope_full_width_capacities_and_reser
     });
     assert_eq!(
         document_heap(&empty),
-        Some(size_of::<ClientDocument>() as u64 + List::<OutboxEntry>::worst_case(3).unwrap())
+        Some(size_of::<ClientDocument>() as u64 + List::<OutboxEntry>::price(3).unwrap())
     );
     bound = bounds();
     bound.rows = 2;
