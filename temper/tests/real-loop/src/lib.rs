@@ -15,7 +15,6 @@ pub mod landing;
 pub mod llm;
 pub mod repair;
 pub mod scripts;
-pub mod template_bounds;
 pub mod terminal;
 
 /// A real deadline bounds every story, including startup and drain.
