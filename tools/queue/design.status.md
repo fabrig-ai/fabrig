@@ -1,59 +1,53 @@
 # Merge queue status
 
-Provisional, 2026-10-29. Sections 1–3.7 retain the one-gate queue. Explicit
-parent/candidate inputs, writing ratchets, offline shebang discovery and
-batch-size restart prerequisites are present and remain covered by
-`test_mq.py`.
+Provisional, 2026-10-29. Sections 1–3.7 retain one-gate selection/check/outcome
+policy. Explicit parent/candidate inputs, writing ratchets, offline tools
+suite discovery and `restart --batch 16` remain covered by `test_mq.py`.
+Section 3.7 now uses section 3.10's shared authority, persistent startup guard
+and acknowledged same-inode handoff. Nothing is installed or activated here.
 
-Section 3.8 is an implemented **local-only review proposal**, tested by
-`test_worker.py`: explicit opt-in, independent clone ownership, immutable
-candidate checking, frozen runtime/list identity, check-only ratchets and
-private atomic result/log evidence. It is not installed or called by the
-queue/restart. It activates no second prover. The request/result contracts follow the approved section 3.8 design;
-production deployment remains disabled. Ops validated a documentation-only
-empty-plan job on the dedicated second gate: exact bundle import, candidate
-identity, checkout exclusion and private atomic evidence passed. This smoke
-ran no Cargo checks and does not validate a second prover.
+Section 3.8 remains an opt-in local worker, with no dispatch from mq/restart
+and no second-prover activation. It shares checkout exclusion with legacy and
+preparation; private request/log/result publication and unresolved ownership
+refusal are hardened. The earlier dedicated-gate empty-plan smoke validates
+object identity and local evidence only; it proves no heavy supervision.
 
-Section 3.9 is implemented as a **disabled library** in `train.py`,
-with 63 disposable tests in `test_train.py`. Ops reviewed the provisional
-partial-conflict decision repair and its replay coverage; the library is ready
-for merge while the production activation prohibition below remains in force. It prepares exact chained Git
-candidates in a separate clone, writes ratchets before freezing, pins/exports
-objects, reserves names/full cadence, records dispatch ownership, independently
-validates complete worker/log evidence, and adjudicates in order. Sequential
-bisection, stop/drain state, version-1 atomic snapshots, explicit promotion
-intents, applied-once accounting, stable at-least-once outbox and injected
-reconciliation/effect interfaces are present. There are no changes to Queue's
-CLI/default behavior and no production adapter or train entry point.
+Section 3.9 remains a disabled library with mandatory authority/transport.
+Pinned chained candidates, independent certificates, ordered decisions,
+conservative cadence, sequential bisection and provisional partial conflicts
+remain intact. INFRA rejects no input, invalidated jobs still physically own
+their gates, and speculation stops through ancestor failure and bisection.
+Full P/C diffs include generated baselines and may conservatively select full;
+preparation ratchet reds conservatively require full bisection checks.
 
-Partial conflicts block successor speculation while the unaffected merged
-subset is checked in its original attempt against pinned P/C. Conflict tried
-marks and rejections remain provisional through transport, checking and result
-validation. Green lands that exact candidate and applies both merged-input and
-conflict decisions atomically; red bisects only the merged inputs with its full
-requirement preserved. INFRA at any stage retains no branch rejection/tried
-mark and does not release uncertain ownership. All-conflict batches can still
-be adjudicated without worker checks. Replay tests cover combined decisions
-and outbox acknowledgements as well as stop/drain and ancestor invalidation.
+Section 3.10 is implemented in authority.py, durable.py and recovery.py with
+minimal mq/restart/worker/train integration. A clone-independent shared lock,
+durable train ownership receipt and worker/precheck/preparation markers block
+unsafe cross-mode reuse. Restart serializes independently, drains before
+acquiring main authority, retains stop on failure and passes one authority
+inode to an acknowledged child. Local effect clients inherit authority.
 
-The train compares the full parent/candidate trees, including generated lower
-baselines; this can conservatively escalate to full rather than retaining the
-one-gate pre-baseline selection in 3.3. Ratchet preparation reds conservatively
-force subsequent bisection full. Exact worker plan validation remains intact.
+Concrete train effects load recorded P/C intent, read fresh main and push the
+explicit C normally; cleanup leases apply only to ready deletion. Frozen area
+routes and stable event/evidence bodies use a durable at-least-once outbox.
+State version 1 refuses unknown versions and incompatible runtime/config;
+there is no silent migration. Structural/artifact validation, cadence and
+bisection consistency, preparation/dispatch/evidence/promotion/outbox inventory,
+publication poisoning and completed-preparation reconciliation are implemented.
+Pins and all artifacts are retained; there is no automatic GC or repair by
+replacing immutable evidence.
 
-Part 4 remains required: common legacy/train/restart authority lock and
-persistent startup guards; production fresh-parent/explicit-OID effects and
-conditional cleanup/post adapters; preparation and worker reconciliation;
-state structural hardening, artifact repair/retention and recovery validation.
-The core's injected guard and explicit evidence hooks do not supply those
-production guarantees. Unknown state versions refuse without migration.
+Part 5 remains required and production train activation is prohibited. Its
+supervised SSH/heavy lifetime evidence must cover client/controller/worker
+loss, stable same-job identity, complete object/evidence return and physical
+drain. The built-in evidence adapter accepts only local empty-plan jobs;
+nonempty/heavy/remote completion remains blocked. Fake tests inject a separate
+identity-bound completion adapter and prove no real heavy quiescence.
 
-Part 5 remains required: SSH and supervised job transport with proved lifetime
-ownership, operational stop/drain/resume/restart integration and rollout. Both
-live train gates stay off; production activation is prohibited. An unresolved
-worker clone requires explicit operational reconciliation; a local marker or
-process absence cannot establish heavy quiescence. Fake tests include real
-local Git bundles/merges/lease deletions and injected publication failures,
-not production services, remote supervision, real Cargo/systemd or arbitrary
-machine-crash proof.
+Operational stop/drain/resume/restart, explicit generation retirement/legacy
+return, real-tool validation and reviewed rollout remain part 5. A snapshot
+or train ownership receipt always refuses legacy; process absence or released
+flocks never retire ownership. No real main authority, queue restart, SSH,
+post, install, Cargo/build, systemd operation or second-gate activation was
+performed by this change. Disposable Git/process tests cover explicit crash
+boundaries, not arbitrary machine power loss or remote supervision.

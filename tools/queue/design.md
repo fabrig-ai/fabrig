@@ -184,21 +184,29 @@ activate a discovery change before queuing suites that require it.
 exits 2 and names it; `mq run` performs the same check before its first git
 command. `once` and `plan` keep their existing behavior.
 
-Restart finds the queue lock's holder through `/proc/locks`, falling back
-to `pgrep -f` for exactly one `tools/queue/mq run`. An absent or ambiguous
-process is an error. It writes `~/src/fabrig/queue.stop`, prints the pid and
-stop path, and waits for that process to exit, using a pidfd so pid reuse
-cannot change the wait. `--wait` bounds this wait in seconds (default 1800).
-A timeout retains the stop file and does not fetch or start a replacement.
+Restart serializes invocations with the shared layout's `restart.lock`. It
+finds the checkout lock's holder through `/proc/locks`; there is no broad
+process-name fallback. It writes `~/src/fabrig/queue.stop` and waits through a
+pidfd when a holder exists. `--wait` bounds this wait (default 1800 seconds).
+A timeout retains stop and performs no fetch or replacement. Process absence
+permits only an attempt to acquire authority and inspect persistent ownership.
 
-After the process exits, restart fetches origin and switches the clone to
-detached `origin/main`. Only then does it remove the stop file and start
-`python3 -u tools/queue/mq run --repo <clone>` in a new session with stdin
-from `/dev/null` and both outputs appended to
-`~/src/fabrig/notes/queue.out` (0600). After three seconds it checks for an
-early exit, then prints the new pid and main's commit. `--repo` defaults to
-the current directory and must name the clone root. Run only one restart
-at a time; a failed update leaves the stop file for inspection.
+After the old process exits, restart acquires the common authority lock and
+checks section 3.10's persistent guards before any update. It locks the
+checkout, fetches origin and switches to detached `origin/main`. The Git
+children inherit both locks. A competing direct writer or unresolved ownership
+causes refusal with stop retained. Restart does not hold main authority while
+waiting for the old controller to drain.
+
+It then removes stop and starts `python3 -B -u tools/queue/mq run --repo <clone>`
+in a new session, stdin `/dev/null`, both outputs appended to
+`~/src/fabrig/notes/queue.out` (0600). Internal arguments pass the same open
+flock description and an acknowledgement pipe to the child. The child adopts
+that inode, acquires checkout exclusion and checks persistent guards before
+acknowledging startup. Restart waits up to the existing three-second startup
+window for that acknowledgement and checks for early exit. Unconfirmed startup
+retains stop and reports failure. Closing the parent's duplicate does not
+unlock the child's authority. `--repo` defaults to the current clone root.
 
 `restart --batch N` sets the replacement queue's positive batch size; the
 default remains 8. Pass the option on each restart to retain a nondefault
@@ -429,10 +437,12 @@ Transport and evidence:
   and never establish that the gate is free. Retrying start uses the same
   request, candidate and attempt identity.
 - `status(request)` returns `running`, `unknown`, or `terminal`. Terminal
-  includes full result/log bytes and an explicit `quiescent` boolean. True
-  requires supported confirmation of supervised command completion and resolved
-  checkout ownership, independently of the worker's outcome. Process/SSH
-  absence, a terminal client and a released flock are insufficient.
+  includes its exact request, full result/log bytes, `quiescent` and
+  identity-bound `evidence`. A boolean alone cannot release ownership. The
+  frozen completion adapter must verify that evidence independently of outcome;
+  part 4's only production adapter accepts local empty-plan jobs. Part 5 must
+  supply supervised heavy/SSH evidence. Process/SSH absence, a terminal client
+  and a released flock are insufficient.
 - `ingest` stores immutable returned bytes, including malformed or incomplete
   evidence, in controller-owned 0700/0600 storage. `validate_result` separately
   recomputes objects, chain, paths, metadata graph, selection and complete plan
@@ -482,8 +492,8 @@ Adjudication and effects:
 - `authority.cleanup(name, expected_tip, id)` performs expected-tip deletion
   only. A changed/deleted/recreated ready ref is a harmless cleanup disposition;
   it cannot change a landing. The disposable adapter exercises explicit
-  expected-OID leases on deletions only. Production effects remain adapters
-  to implement; neither the controller nor workers contain a main writer.
+  expected-OID leases on deletions only. Section 3.10 supplies the concrete
+  adapter; workers still have no main writer.
 
 Persistence and remaining recovery boundaries:
 
@@ -502,25 +512,158 @@ Persistence and remaining recovery boundaries:
   promotion intents and pending outbox. `reconcile_job` requires explicit
   quiescence and operational evidence; it does not reset a checkout or infer
   heavy completion. An interrupted preparation remains reserved and blocks
-  admission. Automatic preparation recovery, artifact repair/retention, state
-  structural hardening and complete startup reconciliation are part 4.
+  admission. Section 3.10 hardens these boundaries; interrupted preparation
+  without a completed snapshot remains blocked for supervised reconciliation.
 - `stop` durably closes admission. `drained` requires no active records and no
   gate owners, including invalidated/uncertain owners. Existing jobs adjudicate
   in order; stop starts no replacements or pending bisection groups. Those
   groups remain durable. There is no production resume/restart integration.
 
-The injected authority guard is a required interface, not an implemented
-cross-process lock. Part 4 must make legacy/train/restart share one authority
-lock and persistent startup guard, implement production authoritative effects,
-and validate recovery before a production entry point exists. Part 5 supplies
-SSH/supervised job transport, operational drain/resume/restart integration and
-the reviewed rollout. No local test asserts real heavy quiescence, real-service
-authority, machine-crash durability, or remote transport safety.
+Section 3.10 implements shared local authority and concrete effects. Part 5
+supplies SSH/supervised job transport, operational drain/resume/restart and the
+reviewed rollout. No local test asserts real heavy quiescence, real-service
+authority, arbitrary machine-crash durability or remote transport safety.
+
+### 3.10 Shared authority, effects and fail-closed recovery (train disabled)
+
+The source adapters are production-capable primitives, with no executable
+train mode, network job transport, second-prover activation or installation.
+All queue modes on the same production host must use one authority directory,
+including alternate preparation/worker clone names. The default is
+`~/src/fabrig/queue-authority`; `--authority-dir ABSOLUTE` on `mq`/`restart`, or
+`MQ_AUTHORITY_DIR`, selects an isolated queue layout. An override denotes a
+queue identity, never a per-clone lock. It must name an owned 0700 directory
+without symlink components; its parent must exist. Tests pass private fixture
+layouts and never use the production default.
+
+`authority.Layout.acquire()` holds `authority.lock` (0600); `restart_lock()`
+holds a separate `restart.lock`. `Lock.guard()` checks the owning process and
+inode. Locks are never unlinked or explicitly unlocked during handoff. Legacy
+`run`, `once`, dry cycles and `plan` acquire common authority before fetching,
+then their checkout's sibling `<clone>.queue.lock`. `Queue` mutations require
+an injected authority/startup guard; the CLI supplies it for the entire run,
+including error recovery, bisection and pruning. Local Git/check/post children
+inherit the common lock so controller exit cannot release authority while
+those effect clients still run. This proves no remote heavy lifetime.
+
+`Layout.legacy_guard(repo)` refuses any `train/state.json` or
+`train-owner.json`, even corrupt state or a drained-looking snapshot. The
+concrete train adapter binds its state to `<layout>/train/state.json` and
+publishes an immutable generation/configuration ownership receipt before any
+train mutation. Missing state cannot erase that startup refusal. Returning to
+legacy requires explicit supported retirement in part 5, never deleting a
+snapshot to infer safety.
+
+Checkout exclusion recognizes the existing `.git/mq-worker-unresolved.json`
+and `.git/precheck.unresolved`, plus preparation ownership at
+`.git/mq-preparation-unresolved.json`. It checks `.git/precheck.lock`, sibling
+`<clone>.precheck.lock` when present, and the shared sibling queue lock.
+Markers block without parsing their contents; invalid markers and missing
+processes cannot grant reuse. Worker and preparer use the same checkout guard.
+Preparation holds checkout exclusion through its completed state publication;
+a durable marker survives a hard exit or failed publication. Recovery refuses
+fetch/reset/switch/cleanup while unresolved. Ordinary one-gate notifications
+and check/outcome policy retain their existing behavior.
+
+`authority.GitAuthority(layout, lock, repo, origin, leads, runner=...)` supplies
+`guard`, `identity`, `bind`, `main`, `promote`, `cleanup` and `post`. Caller
+configuration freezes the explicit origin and copied area/address mapping;
+`bind` requires the shared train state and an independent authority clone
+(which may be the preparation clone). Origin must
+be an absolute local path or validated SSH/HTTPS address; subprocesses use
+argv, full refs and full lowercase OIDs, with no shell interpolation.
+
+- `main()` freshly reads exactly `refs/heads/main` through `ls-remote`.
+- `promote(P,C,id)` loads and matches the durable head's promotion intent,
+  freshly requires main == P, imports the original verified bundle into a
+  separate controller clone when needed, verifies commit types and P ancestry
+  of C, freshly compares P again under the same authority, then performs `git push -- ORIGIN C:refs/heads/main`. There is no force, main lease,
+  HEAD substitution, reconstruction, recount or rebase. P/C/unexpected replay
+  stays in `Controller.promote`: C applies the landing once, P retries the same
+  intent, unexpected main blocks. Main authority must still be unique among
+  compliant writers; this is no server-side expected-parent extension.
+- `cleanup(name,tip,id)` validates the full ready ref, then pushes only its
+  deletion with `--force-with-lease=refs/heads/ready/...:TIP`. A fresh differing
+  tip or absence completes cleanup harmlessly; unreadable state/transport
+  remains pending. The lease compares OIDs; ref recreation at the same OID is
+  indistinguishable under this approved contract. No main update uses a lease.
+- `post(event)` routes landed/rejected to the frozen branch area and
+  infrastructure/selection-gap to ops. Every body carries `Event: ID` and its
+  controller-owned evidence directory. Content goes through stdin. Exits 0/3
+  acknowledge delivery; other exits/exceptions leave the durable outbox
+  pending. Replays retain ID and never change a landing or rejection.
+
+`durable.py` implements owned 0700 directories and 0600 regular files, strict
+JSON parsing, temp-file fsync, atomic rename and containing-directory fsync.
+Immutable publications serialize check/rename on the directory's stable flock
+inode and reject different existing bytes; identical replay also syncs the
+directory. State/marker replacement refuses unsafe targets. Logs are written
+as private partial files and published before terminal results. Bundles and
+requests are immutable. Validation refuses missing, public, symlinked,
+truncated or digest-mismatching referenced evidence. Pins use create-only
+expected-old-OID updates and cannot silently change identity.
+
+`StateStore.load()` and `recovery.validate_state()` refuse unknown versions,
+wrong structural types, changed exact generation/runtime/helper/configuration
+identity, malformed P/C/input/pin identities, phases and gate ownership,
+request/result mismatches, decision/tried/outbox/cadence inconsistencies and
+invalid sequential bisection frontiers/full inheritance. Version 1 is retained;
+there is no automatic migration or acceptance of an old runtime's generation.
+The frozen runtime includes train, authority, recovery, durable and restart
+sources as well as mq, worker and policy lists.
+
+`validate_artifacts()` checks every completed record's request, bundle,
+preparation log, pins, merge chain and returned evidence before replay effects.
+Accepted certificates are independently recomputed at decision/promotion.
+A failed snapshot/evidence publication or failed certificate recheck poisons
+that controller instance. Reload/reconciliation is required before further
+effects; malformed evidence is INFRA, never a test red. Missing snapshots with
+retained evidence/pins refuse new-generation initialization. Snapshot JSON is
+the recovery source; JSONL summaries have audit meaning only.
+
+`Controller.startup_inventory` / `recovery_inventory()` expose fresh main,
+P/C/unexpected promotion dispositions, preparing records, dispatch/physical
+owners (including adjudicated or invalidated draining jobs), evidence and
+pending cleanup/post events. Artifact inventory lists orphan/partial and
+unrecorded returned publications without following symlinks or deleting data.
+A reloaded controller blocks new preparation until each recorded gate has an
+identity-matching status observation or supported completion reconciliation.
+Every preparation/dispatch also requires fresh main consistent with recorded
+ancestry. A prepared record is dispatched/reconciled before another admission.
+
+`reconcile_preparation(attempt)` can clear only the exact completion marker
+backed by a validated completed snapshot. Incomplete preparation remains
+reserved, without reconstructing certified C or changing checkout/target.
+`reconcile_job(..., quiescent=True, evidence=...)` requires the frozen completion
+adapter to return its verified identity-bound evidence object. A generic
+boolean/string/PID fails. The built-in `local-empty-plan-v1` evidence names the
+exact private worker result path and SHA-256, matches the durable request,
+checks complete result/log and absence of checkout markers while holding its
+lock, and requires an empty plan. All heavy/nonempty/remote plans remain
+blocked until part 5 supplies supervised lifetime evidence. Tests inject an
+explicit fake-completion adapter whose events attest synchronous fake checks;
+this is not a production supervisor.
+
+No pin, artifact or snapshot GC is provided. Retain all objects/evidence;
+removal requires a later proof covering active, draining, bisection, decision,
+outbox and recovery references. There is no age-only removal or retention
+budget. Disposable processes inject crashes around file fsync, rename,
+dispatch, push/decision and post acknowledgements; tests prove those local
+boundaries and shared flock lifetime, not arbitrary machine power-loss or
+remote-supervisor guarantees.
 
 ## 4. Later
 
-- Production authority/effects and startup reconciliation around section 3.9,
-  then supervised remote transport, ownership recovery, train-aware restart
-  and an explicitly reviewed rollout. The library stays disabled until then.
+- Supervised SSH transport with stable job/incarnation identity, same-job
+  start/status, verified bundles/results/logs, and lifetime evidence across
+  client/controller/worker death and heavy recovery. Unknown ownership stays
+  blocked; neither absence nor an SSH error is quiescence.
+- Operational stop/drain/resume/restart and explicit generation retirement:
+  retain configuration and sequential recovery, prove both gates quiescent,
+  preserve stop on timeout, then permit legacy return/runtime updates.
+- Authorized real-tool validation and reviewed rollout. Both train provers
+  remain disabled; the executable train entry point belongs to part 5.
+- Reference-aware pin/artifact retention and operator repair, preserving all
+  immutable evidence until supported reconciliation permits removal.
 - Two gate machines with nextest's `--partition` once the full run's time matters.
 - Learning the selection's always-list from full runs' misses.
