@@ -47,6 +47,7 @@ fn hosted_sender(host: usize) -> skein_io::kernel::Sender {
 
 /// What a real run left.
 #[derive(Debug)]
+#[expect(clippy::partial_pub_fields, reason = "metered peaks are read only through the outcome accessor")]
 pub struct Outcome<P> {
     /// The processes as the run left them, settled.
     pub procs: Vec<P>,
@@ -142,6 +143,7 @@ pub fn run<P: Host, R: Referee<P>>(procs: Vec<P>, referee: R, clock: &Clock, pat
 
 /// A killed hosted child, reported after its operations and descriptors settle.
 #[derive(Debug)]
+#[expect(clippy::partial_pub_fields, reason = "metered peaks are read only through the outcome accessor")]
 pub struct Killed {
     pub host: usize,
     pub exit: Exit,

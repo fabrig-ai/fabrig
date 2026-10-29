@@ -90,6 +90,7 @@ impl<P, M, H> Debug for World<P, M, H> {
 
 /// A terminated hosted child, reported by the world after its resources settle.
 #[derive(Debug)]
+#[expect(clippy::partial_pub_fields, reason = "metered peaks are read only through the outcome accessor")]
 pub struct Killed {
     pub pid: Pid,
     pub exit: Exit,

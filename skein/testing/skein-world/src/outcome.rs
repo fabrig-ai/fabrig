@@ -13,6 +13,7 @@ use std::thread;
 /// or something it allocated was never accounted, or never freed. A test
 /// that panicked skips it.
 #[derive(Debug)]
+#[expect(clippy::partial_pub_fields, reason = "metered peaks are read only through the outcome accessor")]
 pub struct Outcome<P, M = NoMachine> {
     /// The fake machine after every non-hosted call has been answered.
     pub machine: M,
