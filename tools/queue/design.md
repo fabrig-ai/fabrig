@@ -260,7 +260,12 @@ Normal batch capacity and full-check counters/cadence then resume. Use explicit
 No successor is selected before the repair attempt completes.
 
 For a repair, a heavy client returning a negative signal status or 137 leaves
-completion **unknown**, never red or consumed. The queue retains the candidate
+completion **unknown**, never red or consumed. A per-attempt status observer
+blocks ownership in memory and publishes both receipts before log processing
+or checker return. It uses the known prepared candidate without another Git
+read; log I/O, decoding, checker and receipt-publication exceptions cannot
+authorize cleanup or recovery. Failed receipt encoding also retains ownership
+until publication can be retried. The queue retains the candidate
 and records the exact repair, parent, candidate, steps, log and runtime location
 in immutable private `queue.unresolved` receipts in the shared authority root
 and checkout's `.git/`. Shared authority and checkout guards refuse reuse,
