@@ -1,6 +1,6 @@
 # Agent guidance for fabrig
 
-Provisional, 2026-10-28. What every agent working here must know, whatever its role. Read it first, then your role's file in `roles/`, then the `AGENTS.md` of the tree you work in, which holds the facts about its code.
+Provisional, 2026-10-28. What every agent working here must know, whatever its role. Read it first, then your role's file in `agents/`, then the `AGENTS.md` of the tree you work in, which holds the facts about its code.
 
 ## 1. In one page
 
@@ -65,4 +65,4 @@ Provisional, 2026-10-28. What every agent working here must know, whatever its r
 
 ## 8. Roles
 
-`roles/coordinator.md` (one; designs and runs the pipeline), `roles/lead.md` (one per area; design parts into tasks), `roles/implementer.md` (Codex; one task at a time); `roles/operations.md` (the machines', slots', surveys' and queue's facts) and `roles/ledger.md` (each incident that cost throughput, and where its remedy lives) for every session that coordinates or leads. Agents talk through `post`, the coordinator at the hub: `post send [--as NAME] [--re ID] TO SUBJECT [FILE]` sends FILE (or stdin) to `NAME@MACHINE`; exit 0 or 3 is delivered, exit 2 is not; a body stays under 15 lines, and anything longer is a file whose path the message names. `post wait NAME` waits for mail, `post read NAME` reads it.
+`agents/coordinator.md` (one; designs and runs the pipeline), `agents/lead.md` (one per area; design parts into tasks), `agents/implementer.md` (Codex; one task at a time); `agents/operations.md` (the machines', slots', surveys' and queue's facts) and `agents/ledger.md` (each incident that cost throughput, and where its remedy lives) for every session that coordinates or leads. Agents talk through `post`, the coordinator at the hub: `post send [--as NAME] [--re ID] TO SUBJECT [FILE]` sends FILE (or stdin) to `NAME@MACHINE`; exit 0 or 3 is delivered, exit 2 is not; a body stays under 15 lines, and anything longer is a file whose path the message names. `post wait NAME` waits for mail, `post read NAME` reads it.
