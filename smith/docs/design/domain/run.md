@@ -246,6 +246,16 @@ that is not empty, or a message.
 
 ## 4. What a run does
 
+- **Inputs precede alarms.** `run_inputs_drained` requires admitted input
+  events to be handled before expired timers, so a check terminal at its
+  deadline is handled before the alarm. The run world holds this under
+  load in `smith-run-world`,
+  `orders::run_inputs_drained_before_alarms_at_the_check_deadline`.
+- **Inputs precede deferred work.** `run_inputs_drained` also requires
+  input events to be handled before resuming deferred wind-down work.
+  The run world holds this under load in `smith-run-world`,
+  `orders::run_inputs_drained_before_deferred_wind_down`.
+
 1. **Admits** a start, or refuses it at the entrance: busy, or invalid
    (a charter in a version it does not read, a charter that does not
    decode, a window of unacknowledged turns that cannot hold one turn,
@@ -725,6 +735,13 @@ answers as it was ending; the host has the delivery's own answer.
 
 ### 9.1 The reserve and the wind-down
 
+- **Deferred wind-down work follows reclaim.**
+  `wind_down_promoted_after_reclaim` makes successive child closes and
+  main's finishing yield ready only in the next iteration. The run world
+  holds this under load in `smith-run-world`,
+  `orders::wind_down_promoted_after_reclaim_closes_children_once` and
+  `orders::wind_down_promoted_after_reclaim_defers_main_yield`.
+
 - **The reserve** is the charter's `reserve { turns, time }`, which the
   product's presets give a default (`docs/design/shell.md`). Its spend is
   derived: its turns, each at the main model's maximum completion cost
@@ -843,10 +860,10 @@ finish delivered meanwhile is still its result (8.4).
 ## 11. Facts
 
 Each child domain pushes what happened as typed, content-free facts into
-a queue whose room its step reserves like any other output
-(programming-model.md, section 3), so no fact is lost inside the
-process. Each carries when it happened, taken by the step that emits it,
-never when a sink takes it:
+an uncapped queue (programming-model.md, section 3), so no fact is lost
+inside the process. The service dispatches those facts before the next
+domain entrance (protocol/limits.md, 3.8). Each carries when it happened,
+taken by the step that emits it, never when a sink takes it:
 
 - a run admitted or ended;
 - a conversation opened or closed (main, a sub-agent or a compaction, a

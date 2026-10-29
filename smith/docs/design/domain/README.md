@@ -140,6 +140,27 @@ is what crosses the domain boundary: the host's messages, the run's
 calls, turns and answer, calls to LLM providers, and the file and process
 operations the tools and the checks ask of io.
 
+The parent keeps these orders while routing between its children:
+
+- **A session's notice is translated through the run before its next
+  request.** `run_handoffs_drained` gives the run's hand-offs precedence
+  over later session requests, so a concrete turn precedes the provider
+  call that follows it; `child_handoffs_drained` holds when routing
+  returns. The agent world holds this under load in `smith-agent-world`,
+  `orders::run_handoffs_drained_before_later_session_requests`.
+- **Deferred returns and closes follow reclaim.**
+  `handoff_promoted_after_reclaim` makes a deferred answer or close
+  deliverable in the next iteration, after the children reclaim. The
+  agent world holds this for immediate refusals and child cancellation
+  in `smith-agent-world`,
+  `orders::handoff_promoted_after_reclaim_for_returns_and_closes`.
+- **Child facts are gathered before their requests are routed.**
+  `child_facts_gathered_before_handoff` gathers after each run or session
+  step, preserving an opening's activation, ordinal and LLM metadata
+  before its hand-off. The agent world holds this with fact writes held
+  in `smith-agent-world`,
+  `orders::child_facts_gathered_before_open_handoff_under_load`.
+
 `smith-host-domain`, `smith-inline-agent` and `smith-local-domain` are
 domains of the other side (host.md). The first two are the two kinds of
 agent capability a host embeds as a child, speaking one vocabulary: the

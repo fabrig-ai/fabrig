@@ -294,6 +294,12 @@ workspace that can write can remove, with no shell needed.
     when it asks for none, clamped to `job_wait`, before it answers
     `running` (revised 2026-10-20: the default and the ceiling were one
     value, so a poll could not wait longer than it waited by default).
+  - **Reads of one job consume its output in admission order.**
+    `job_reader_idle` permits only one active reader of a job; queued
+    reads retain their admission order, including when a wait is ended
+    early. The tools world holds this beside other jobs, reads and writes
+    in `smith-tools-world`,
+    `jobs::same_job_reads_consume_output_in_admission_order_under_load`.
   - **A wait ended early.** The session ends a `job` call's wait once
     every call beside it in its batch that is not a `job` call has
     answered, and as soon as it starts in a batch of `job` calls only
