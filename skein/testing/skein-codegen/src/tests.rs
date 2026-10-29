@@ -2,7 +2,7 @@
 
 use core::fmt::Write;
 
-use crate::{Names, generate, generate_named, parse};
+use crate::{generate, parse};
 
 #[test]
 fn a_family_of_120_records_has_no_function_past_100_lines() {
@@ -11,7 +11,7 @@ fn a_family_of_120_records_has_no_function_past_100_lines() {
         writeln!(&mut records, "record Record{index} {{}}").expect("schema string");
     }
     let schema = parse(&format!("family many 1\n{records}")).expect("valid family");
-    let output = generate_named(&schema, Names::Bounds);
+    let output = generate(&schema);
     assert!(output.rust.contains("fn encoded_bound_0("));
     assert!(output.rust.contains("fn decoded_bound_0("));
     for name in ["worst_case_bytes", "worst_case_heap", "worst_case_bytes_within", "worst_case_heap_within"] {
@@ -145,7 +145,7 @@ fn an_optional_unbounded_record_needs_no_bound_check() {
 #[test]
 fn a_bound_checks_its_familys_limits_once() {
     let schema = parse("family tiny 1\nrecord Value { payload: bytes 64 }").expect("valid family");
-    let output = generate_named(&schema, Names::Bounds);
+    let output = generate(&schema);
     let mut functions = 0_usize;
     for name in ["encoded_bound", "decoded_bound"] {
         for part in output.rust.split(&format!("fn {name}")).skip(1) {
@@ -168,10 +168,4 @@ fn every_bound_name_is_reserved() {
             assert!(error.message.contains("invalid generated field name"));
         }
     }
-}
-
-#[test]
-fn default_generation_uses_bound_names() {
-    let schema = parse("family tiny 1\nrecord Value { payload: bytes 64 }").expect("valid family");
-    assert_eq!(generate(&schema), generate_named(&schema, Names::Bounds));
 }
