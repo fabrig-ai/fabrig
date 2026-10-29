@@ -1,12 +1,9 @@
 //! Random agent memory stays under scenario ceilings at every entry point.
 
 use skein_lib::Duration;
-use skein_world::domain::heap::{self, Meter};
+use skein_world::domain::heap::Meter;
 use smith_agent_world::memory::{LIMITS, churn};
 use smith_domain::{Limits, run};
-
-#[global_allocator]
-static HEAP: heap::Counting = heap::Counting;
 
 // Peak ceiling for random root-domain churn with default limits across twelve seeds (programming-model.md, section 6.3).
 const RANDOM_AGENT_CEILING: u64 = 4_500_000;

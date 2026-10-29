@@ -1,11 +1,5 @@
 //! Seeded direct Open openings keep the person's words under simulated I/O schedules.
-#[global_allocator]
-static HEAP: skein_heap::Counting = skein_heap::Counting;
-
-#[path = "support/direct_opening.rs"]
-mod direct_opening;
-#[path = "support/opening.rs"]
-mod opening;
+use crate::direct_opening;
 
 #[test]
 fn seeded_open_chats_replay_the_whole_first_user_message() {

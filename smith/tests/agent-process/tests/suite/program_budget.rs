@@ -1,7 +1,4 @@
 //! Program budgets and stop order through the shipped composition (programs.md 5.7).
-#[global_allocator]
-static HEAP: skein_heap::Counting = skein_heap::Counting;
-
 use serde_json::json;
 use skein_lib::{Duration, Reader, Writer};
 use smith_agent_process_world::{

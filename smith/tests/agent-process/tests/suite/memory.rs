@@ -6,11 +6,7 @@
 mod jobs;
 
 use skein_lib::{List, Reader, Writer};
-use skein_world::domain::heap::Counting;
 use smith_agent_process_world::{World, charter, limits};
-
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 fn full_context() -> Box<[u8]> {
     let base = charter();

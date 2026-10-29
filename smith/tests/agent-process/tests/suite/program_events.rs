@@ -2,9 +2,6 @@
     clippy::wildcard_enum_match_arm,
     reason = "ordinary fixture selects event kinds; the shared referee checks every variant"
 )]
-#[global_allocator]
-static HEAP: skein_heap::Counting = skein_heap::Counting;
-
 use serde_json::json;
 use skein_lib::{Reader, Writer};
 use smith_agent_process_world::{

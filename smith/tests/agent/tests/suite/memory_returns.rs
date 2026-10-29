@@ -1,15 +1,11 @@
 //! Heap returns after a window's use ends (protocol/limits.md, sections 5 and 11).
 
 use skein_lib::Duration;
-use skein_world::domain::heap;
 use smith_agent_service::profile::{self, Configuration, Endpoint, Model, OversizedReasoning};
 use smith_agent_world::memory::Memory;
 use smith_domain::llm::{Asker, Completion, Decoded, Said, Stop, Usage};
 use smith_domain::tools::{Call, Done, Name, Part, Path, Version};
 use smith_domain::{Event, Limits};
-
-#[global_allocator]
-static HEAP: heap::Counting = heap::Counting;
 
 fn limits() -> Limits {
     let declarations = Configuration {
