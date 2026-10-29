@@ -27,6 +27,7 @@ pub(crate) const DEMO_STARTS: u32 = 8;
 pub struct Clients {
     /// Bound address awaiting the system's note routing.
     pub(crate) listening: Option<::core::net::SocketAddr>,
+    pub(crate) address: io::Addr,
     public: Option<crate::startup::application::Origin>,
     component: kit::Component,
     initial: Option<kit::Settings>,
@@ -242,6 +243,7 @@ impl Clients {
         let component = kit::Component::new(initial, &env, &mut out).or(Err(invalid(What::Bound)))?;
         Ok(Self {
             listening: None,
+            address: *listener,
             public: clients.public.clone(),
             component,
             initial: Some(settings()?),

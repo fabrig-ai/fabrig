@@ -24,7 +24,7 @@ pub struct Workers {
     pub(crate) component: kit::Component,
     out: Queue<kit::Request>,
     pub(crate) io: Queue<io::Request>,
-    pub(crate) listeners: List<(Token, Option<Token>)>,
+    pub(crate) listeners: List<(Token, io::Addr, Option<Token>)>,
     pub(crate) sockets: Map<Token, Token>,
     next: u64,
     pub(crate) opened: bool,
@@ -71,7 +71,7 @@ impl Workers {
                 LISTENERS.checked_add(u64::try_from(index).expect("listener count")).expect("listener owner"),
             );
             io.push(io::Request::Listen { owner, addr: *address });
-            listeners.push((owner, None)).expect("listener count");
+            listeners.push((owner, *address, None)).expect("listener count");
         }
         Ok(Self {
             listening: None,
@@ -171,7 +171,7 @@ impl Workers {
             io::Event::Listening { listener, addr, .. } => {
                 self.listening = addr.socket();
                 for index in 0..self.listeners.len() {
-                    let (name, slot) = self.listeners.get_mut(index).expect("listener index");
+                    let (name, _, slot) = self.listeners.get_mut(index).expect("listener index");
                     if *name == owner {
                         *slot = Some(listener);
                     }
@@ -269,7 +269,7 @@ impl Workers {
     pub fn abort(&mut self, now: Time, events: &mut Queue<root::Event>) {
         if self.ending != Some(Closing::Abort) {
             self.ending = Some(Closing::Abort);
-            for (_, listener) in &self.listeners {
+            for (_, _, listener) in &self.listeners {
                 if let Some(listener) = listener {
                     self.io.push(io::Request::Abort { entity: *listener });
                 }
@@ -278,8 +278,8 @@ impl Workers {
         }
     }
 }
-fn listeners_open(listeners: &List<(Token, Option<Token>)>) -> bool {
-    for (_, entity) in listeners {
+fn listeners_open(listeners: &List<(Token, io::Addr, Option<Token>)>) -> bool {
+    for (_, _, entity) in listeners {
         if entity.is_none() {
             return false;
         }
@@ -338,9 +338,17 @@ impl Workers {
         };
         events.push(root::Event::Worker(root::WorkerInput::Link { channel, link: root::Link::Up { up, parts } }));
     }
+    pub(crate) fn listener_address(&self, owner: Option<Token>) -> Option<io::Addr> {
+        for (name, address, _) in &self.listeners {
+            if Some(*name) == owner {
+                return Some(*address);
+            }
+        }
+        None
+    }
     fn listener_closed(&mut self, owner: Token) -> bool {
         for index in 0..self.listeners.len() {
-            let (name, listener) = self.listeners.get_mut(index).expect("listener index");
+            let (name, _, listener) = self.listeners.get_mut(index).expect("listener index");
             if *name == owner {
                 *listener = None;
                 return true;
@@ -358,7 +366,7 @@ impl Workers {
     /// Close listeners and drain the channel component.
     pub fn close(&mut self, now: Time, events: &mut Queue<root::Event>) {
         self.ending = Some(Closing::Drain);
-        for (_, listener) in &self.listeners {
+        for (_, _, listener) in &self.listeners {
             if let Some(listener) = listener {
                 self.io.push(io::Request::Close { entity: *listener });
             }
@@ -371,7 +379,7 @@ impl Workers {
         if !self.component_closed || !self.sockets.is_empty() || !self.io.is_empty() {
             return false;
         }
-        for (_, listener) in &self.listeners {
+        for (_, _, listener) in &self.listeners {
             if listener.is_some() {
                 return false;
             }

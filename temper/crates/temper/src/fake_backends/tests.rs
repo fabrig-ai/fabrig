@@ -222,8 +222,32 @@ fn retained_peer_edits_are_checked_without_replacement() {
         let mut reservation = None;
         match kind {
             "edited" => {
-                let socket =
-                    reserve(&[1455, first.peers.github.port(), first.peers.oauth.port()]).expect("edited peer port");
+                let deployment = crate::setup::check(&first.bytes, &first.directories.jig()).expect("deployment");
+                let mut serve = vec![crate::address(&deployment.named.clients).expect("clients address")];
+                if let Some(webhooks) = &deployment.named.webhooks {
+                    serve.push(crate::address(&webhooks.listener).expect("webhooks address"));
+                }
+                let ordinary = temper_fake::steps(
+                    &deployment.checked.setup,
+                    deployment.demo.as_ref(),
+                    &first.directories.flags(),
+                    serve.into_boxed_slice(),
+                    true,
+                    Box::new([]),
+                );
+                let mut taken =
+                    vec![1455, first.peers.github.port(), first.peers.oauth.port(), first.peers.forgejo.port()];
+                for step in ordinary
+                    .always
+                    .iter()
+                    .chain(ordinary.asked.iter().flat_map(|group| group.steps.iter().map(|(_, step)| step)))
+                {
+                    taken.extend(step.listeners().iter().map(SocketAddr::port));
+                    if let Some(ready) = step.ready() {
+                        taken.push(ready.port());
+                    }
+                }
+                let socket = reserve(&taken).expect("edited peer port");
                 edited["listen"]["socket"] = addr(&socket).expect("socket").to_string().into();
                 reservation = Some(socket);
             }

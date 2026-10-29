@@ -83,7 +83,11 @@ pub enum Stop {
     StoreOpen {
         why: jig_protocol_store::OpenRefusal,
     },
-    Listener,
+    Listener {
+        listener: Listening,
+        address: Option<skein_io::Addr>,
+        error: Option<skein_io::Error>,
+    },
     /// The webhooks listener failed.
     Hooks,
 }

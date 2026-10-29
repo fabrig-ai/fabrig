@@ -402,6 +402,52 @@ fn a_box_on_a_fresh_init_reaches_serves_link_with_forge_3_dormant() {
     }
     scratch.remove();
 }
+
+#[test]
+fn a_box_adopts_an_inherited_clients_listener_without_binding_again() {
+    let scratch = support::Scratch::startup("box-inherited-client");
+    let init = std::process::Command::new(skein_scratch::paths::binary("temper"))
+        .arg("init")
+        .args(support::configuration::flags(scratch.path()))
+        .output()
+        .expect("init command");
+    assert!(init.status.success(), "{}", String::from_utf8_lossy(&init.stderr));
+    support::own_listener_files(scratch.path());
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("held listener");
+    let address = listener.local_addr().expect("client address");
+    let path = scratch.path().join("temper.json");
+    let mut document: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
+    document["application"]["clients"]["listener"] = serde_json::json!({"socket":address.to_string()});
+    support::write_private(&path, &serde_json::to_vec(&document).expect("JSON"));
+    let mut command = listeners::command(listener, "exec \"$@\" 3<&0 0</dev/null");
+    command.arg("box").args(support::configuration::flags(scratch.path()));
+    let ended = listeners::probe(command, address, "secret=");
+    assert!(ended.ready.is_some(), "box ready: {:?}", ended.stderr);
+    assert!(ended.reply.expect("clients answer").starts_with(b"HTTP/1.1 "));
+    assert!(ended.status.success(), "box drains: {:?}", ended.stderr);
+    scratch.remove();
+}
+
+#[test]
+fn a_box_refuses_an_unmatched_inherited_listener_naming_its_address() {
+    let scratch = support::Scratch::startup("box-unmatched-listener");
+    support::configuration(scratch.path(), &support::Forge::Unreached);
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("held listener");
+    let address = listener.local_addr().expect("unmatched address");
+    let mut command = listeners::command(listener, "exec \"$@\" 3<&0 0</dev/null");
+    command.arg("box").args(support::configuration::flags(scratch.path()));
+    let ended = command.output().expect("box refusal");
+    assert_eq!(ended.status.code(), Some(1));
+    assert_eq!(
+        String::from_utf8(ended.stderr).expect("diagnostic"),
+        format!(
+            "temper box: {}: inherited listener fd 3 at {address}: no step names this listener\n",
+            scratch.path().join("temper.json").display()
+        )
+    );
+    assert!(ended.stdout.is_empty(), "no step started");
+    scratch.remove();
+}
 #[test]
 fn a_fake_entrys_handover_is_read_privately_and_checked_before_serve_starts() {
     for case in ["missing", "public", "short", "uppercase", "valid"] {
