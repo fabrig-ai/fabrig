@@ -93,10 +93,10 @@ pub fn model_names(models: &[crate::Model]) -> Box<[ModelName]> {
 }
 #[must_use]
 pub fn model_names_worst_case() -> Option<u64> {
-    List::<ModelName>::worst_case(jig_domain_tasks::MODELS)?.checked_add(
+    List::<ModelName>::price(jig_domain_tasks::MODELS)?.checked_add(
         u64::from(jig_domain_tasks::MODELS).checked_mul(
             u64::from(crate::MODEL_NAME_BYTES)
-                .checked_add(List::<Box<[u8]>>::worst_case(crate::EFFORTS)?)?
+                .checked_add(List::<Box<[u8]>>::price(crate::EFFORTS)?)?
                 .checked_add(u64::from(crate::EFFORTS).checked_mul(u64::from(crate::EFFORT_BYTES))?)?,
         )?,
     )
@@ -355,7 +355,7 @@ pub fn set_worst_case(limits: &crate::Limits) -> Option<u64> {
 #[must_use]
 pub fn revision_worst_case(limits: &crate::Limits) -> Option<u64> {
     set_worst_case(limits)?
-        .checked_add(List::<Item>::worst_case(capacity(limits)?.checked_mul(2)?)?)?
+        .checked_add(List::<Item>::price(capacity(limits)?.checked_mul(2)?)?)?
         .checked_add(u64::try_from(size_of::<Head>()).ok()?)
 }
 

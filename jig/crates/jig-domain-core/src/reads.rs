@@ -622,7 +622,7 @@ pub fn answer_worst_case(limits: &Limits) -> Option<u64> {
         document
             .checked_mul(u64::from(limits.documents.rows).checked_add(3)?)?
             .checked_add(limits.load_bytes.checked_mul(2)?)?
-            .checked_add(List::<PageRow>::worst_case(limits.documents.rows)?)?
+            .checked_add(List::<PageRow>::price(limits.documents.rows)?)?
             .checked_add(u64::try_from(size_of::<Page>()).ok()?)?
             .checked_add(query_worst_case(limits)?)?
             .checked_add(settings::load_bytes(limits, limits.documents.rows)?.checked_mul(2)?)?,
