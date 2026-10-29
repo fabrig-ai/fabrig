@@ -79,7 +79,7 @@ pub(crate) fn start(runner: &mut Runner, client: &Client, env: &Env<Limits>, cal
     if runner.wait_timers.is_none() {
         runner.wait_timers = Some(Deadlines::with_capacity(env.limits.rows));
     }
-    // One timer per admitted call: bounded and priced by Deadlines::worst_case(rows).
+    // One timer per admitted call: at most `rows` (`with_capacity` above); `arm` refuses past it.
     runner.wait_timers.as_mut().expect("wait timers").arm(number, deadline).expect("bounded calls");
     if let Some(handle) = deployment_handle(&wait) {
         out.push(Out::Client { event: Event::Watch { handle, subject: Watchable::Jig(c::Subject::Deployment) } });
