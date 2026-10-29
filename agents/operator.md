@@ -20,6 +20,8 @@ Provisional, 2026-10-29. One Codex owner on hel8 (`codex-run owner`, at high), p
 - Its batches are logged in `~/src/fabrig/notes/queue.jsonl` there: steps and durations, the selection, the outcome. A batch that errors, a full run that fails where selections passed (a gap in `always.txt` or `read-by-tests.txt`), or a queue busy most of the hour is the operator's to act on.
 - When the queue's own code stops it landing its fix, the operator runs the fixed `tools/queue/` from a copy outside the clone until the fix lands (`agents/operations.md`, 5), then removes the copy.
 
+- If a transient systemd service wraps the restart helper, set `RemainAfterExit=yes`: the helper exits after starting a child in its cgroup. After it returns, verify that the queue daemon survives and holds both authority and checkout locks. Exit 0 acknowledges startup, not a completed gate.
+
 ## 3. Machines and slots
 
 - Builders: hetzner3, 6, 7 (slots); hetzner8 runs the gate, and hetzner2 is drained and reserved for its second prover. Free disk stays above heavy's floor: a slot is trimmed when its task starts (`codex-run` does it), and an idle slot can be trimmed by hand (`tools/slots/trim`); the operator never frees another's cache, `~/.cargo` or `~/.cache`.
