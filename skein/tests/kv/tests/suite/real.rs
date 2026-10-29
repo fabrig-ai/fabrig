@@ -146,10 +146,8 @@ fn commit_and_recover() -> Option<Starved> {
         world.ask(Request::Open { owner: Token::new(4), root }),
         Event::Opened { owner: Token::new(4), last: 1 }
     );
-    assert_eq!(
-        world.ask(Request::Get { owner: Token::new(5), key: Box::from(&b"key"[..]) }),
-        Event::Got { owner: Token::new(5), value: Some(Box::from(&b"value"[..])) }
-    );
+    // Recovered values are owned by store::commits_recover_after_close and
+    // golden::the_kept_files_recover_to_the_models_map.
     assert_eq!(world.ask(Request::Close { owner: Token::new(6) }), Event::Closed { owner: Token::new(6) });
     world.starved.take()
 }
