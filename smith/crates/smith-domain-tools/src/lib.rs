@@ -15,7 +15,7 @@
 //! [`Outcome`] goes back for the protocol layer to render as the text the LLM
 //! reads.
 //!
-//! What happens is also told as content-free [`Fact`]s, kept in a bounded
+//! What happens is also told as content-free [`Fact`]s, kept in an uncapped
 //! queue the parent drains ([`Domain::pop_fact`]).
 //!
 //! The checkout is shared, knowledge is not. Files are world state, reached
@@ -26,8 +26,8 @@
 
 //! It keeps bounded kits, per-kit observed file versions, active calls and
 //! pending IO terminals. It never knows model text, provider dialects, run
-//! results, authentication, forge state or CI. The parent reserves [`max_out`]
-//! output slots before every entrance and returns each started operation's
+//! results, authentication, forge state or CI. Output needs no room reservation.
+//! The parent returns each started operation's
 //! one terminal, including a cancellation terminal when cancellation wins
 //! (domain/tools.md, sections 4–6; programming-model.md, sections 5.2
 //! and 7).

@@ -268,7 +268,7 @@ impl FileIo {
             return None;
         }
 
-        let file_map = Map::<Token, Opened>::worst_case(files)?;
+        let file_map = Map::<Token, Opened>::price(files)?;
 
         // A list can append a full kernel batch before rejecting excess
         // entries. A scan can insert one transient entry into a vector

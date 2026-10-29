@@ -21,7 +21,6 @@ jig-client-protocol-link.workspace = true
 [dev-dependencies]
 skein-world.workspace = true
 jig-protocol-config.workspace = true
-skein-http.workspace = true
 jig-client-protocol-http.workspace = true
 [lints.rust]
 unsafe_code = "forbid"

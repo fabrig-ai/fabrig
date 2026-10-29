@@ -16,7 +16,7 @@ use smith_local_process_world::{
     process::{self, Proc},
     referee::{CheckoutRead, Ending, Run, Seen},
     terminal::Terminal,
-    world::{Authentication, Scenario},
+    world::Scenario,
 };
 use std::io::Write as _;
 use std::os::unix::fs::PermissionsExt;
@@ -144,14 +144,6 @@ impl World {
     }
 
     #[must_use]
-    pub fn authenticated(seed: u64, scratch: &Scratch, placement: Placement) -> Self {
-        Self::configured(
-            Simulated::authenticated(seed, &scratch.files, placement, Authentication::SignIn).scenario,
-            scratch,
-        )
-    }
-
-    #[must_use]
     pub fn changed(seed: u64, scratch: &Scratch, placement: Placement) -> Self {
         let mut scenario = Simulated::changed(seed, &scratch.files, placement).scenario;
         let checkout = Checkout { path: Some(scratch.path().join("repo")) };
@@ -244,18 +236,6 @@ impl World {
     #[must_use]
     pub fn checkout(&self) -> &Checkout {
         &self.checkout
-    }
-
-    /// Actual durable transcript loaded through the same outside store face.
-    #[must_use]
-    pub fn turns(&self) -> usize {
-        match smith_local_process_world::world::load_chat(
-            &self.scenario.launch.state_directory,
-            &process::lower_configuration().channel_endpoints,
-        ) {
-            smith_local_domain::Event::Loaded { transcript, .. } => transcript.map_or(0, |history| history.turns.len()),
-            _ => unreachable!("store load has its declared terminal"),
-        }
     }
 
     #[must_use]

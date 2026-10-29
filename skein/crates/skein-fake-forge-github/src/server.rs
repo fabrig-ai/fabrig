@@ -103,8 +103,8 @@ pub fn valid(limits: &Limits) -> bool {
         && limits.response >= 128
         && http::valid(&limits.http)
         && limits.github.inner.checked_mul(4).is_some()
-        && git::decoder_worst_case(&crate::git::limits(limits)).is_some()
-        && skein_json::tokenizer::worst_case(&crate::git::limits(limits).documents.json).is_some()
+        && git::decoder_bound(&crate::git::limits(limits)).is_some()
+        && skein_json::tokenizer::tokenizer_bound(&crate::git::limits(limits).documents.json).is_some()
 }
 
 pub fn start(

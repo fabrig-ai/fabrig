@@ -1,5 +1,5 @@
 //! The committed client codec and bytes against its schema (skein's codec.md, 6).
-use skein_codegen::{generate, parse};
+use skein_codegen::{Names, generate_named, parse};
 use std::{fs, path::Path};
 
 #[test]
@@ -29,7 +29,7 @@ fn ops_client_wire_schema_matches_generated_code_and_goldens() {
     check(&root, &source, "v1", true);
 }
 fn check(root: &Path, source: &str, version: &str, check_goldens: bool) {
-    let output = generate(&parse(source).expect("schema valid"));
+    let output = generate_named(&parse(source).expect("schema valid"), Names::Bounds);
     let code = root.join(format!("src/generated/{version}.rs"));
     let goldens = root.join("golden");
     let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");

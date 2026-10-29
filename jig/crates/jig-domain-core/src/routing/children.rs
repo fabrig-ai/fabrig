@@ -16,7 +16,7 @@ pub(super) fn append_people(core: &mut Core, env: &Env<Limits>, event: people::E
     super::view_routes::touch_people_event(core, &env.limits, &event);
     let mut child = Queue::uncapped();
     people::step(&mut core.people, &Env { now: env.now, wall: env.wall, limits: env.limits.people }, event, &mut child);
-    let mut work = Queue::with_capacity(0);
+    let mut work = Queue::uncapped();
     let Requests::Out(mut routed) = tag_people(core, env, child, &mut work);
     assert!(work.is_empty(), "a keyed party terminal does not start a task route");
     for _ in 0..routed.len() {
@@ -106,15 +106,13 @@ pub(super) fn tag_fleet(
     env: &Env<Limits>,
     work: &mut Queue<Event>,
     mut child: Queue<fleet::Request>,
-    room: u32,
 ) -> Requests {
-    let marked = room.checked_mul(4).expect("bounded fleet routes");
     let mut out = Queue::uncapped();
     let mut pending = Queue::uncapped();
     for _ in 0..child.len() {
         pending.push(child.pop().expect("fleet output count"));
     }
-    for _ in 0..marked {
+    for _ in 0..env.limits.routes {
         let Some(next) = pending.pop() else { break };
         let request = match next {
             fleet::Request::ProgramTargets { source, workers } => {
@@ -423,7 +421,7 @@ pub(super) fn tag_fleet(
         };
         out.push(request);
     }
-    assert!(pending.is_empty(), "finite fleet routes fit their bound");
+    assert!(pending.is_empty(), "fleet_routes_drained");
     out.push(Request::Decided);
     Requests::Out(out)
 }
@@ -449,7 +447,7 @@ fn run_failed(now: Time, turned: fleet::Turned) -> accounts::Event {
 }
 
 fn append_account(core: &mut Core, env: &Env<Limits>, event: accounts::Event, out: &mut Queue<Request>) {
-    let mut work = Queue::with_capacity(0);
+    let mut work = Queue::uncapped();
     let Requests::Out(mut routed) = route_account(core, env, &mut work, event);
     assert!(work.is_empty(), "a run's account turn answers no party");
     for _ in 0..routed.len() {
@@ -709,7 +707,7 @@ pub(super) fn route_fleet(
     if shape || draining != draining_hosts(core) {
         core.touch_accounts(None);
     }
-    tag_fleet(core, env, work, out, fleet::max_out(&env.limits.fleet))
+    tag_fleet(core, env, work, out)
 }
 
 pub(super) fn route_projection_settled(core: &mut Core, goal: u64, connector: u16) -> Requests {

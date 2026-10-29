@@ -146,14 +146,31 @@ pub fn read_trust_roots(trust: &Trust, bounds: &RootBounds) -> Result<Roots, Roo
 }
 
 fn machine(paths: &[&Path], bounds: &RootBounds) -> Result<Roots, RootsRefusal> {
+    let mut selected = None;
     for path in paths {
-        match read_file(path, bounds.bundle_bytes) {
-            Ok(bytes) => return pem(&bytes, path, bounds),
-            Err(Unread::Absent) => {}
-            Err(why) => return Err(RootsRefusal::Unread { path: path.to_path_buf(), why }),
+        select_source(&mut selected, path, read_file(path, bounds.bundle_bytes), bounds);
+        if let Some(result) = selected {
+            return result;
         }
     }
     Err(RootsRefusal::NoBundle)
+}
+
+/// Only absence advances to another source; a selected source's result is final.
+fn select_source(
+    selected: &mut Option<Result<Roots, RootsRefusal>>,
+    path: &Path,
+    result: Result<Box<[u8]>, Unread>,
+    bounds: &RootBounds,
+) {
+    if selected.is_some() {
+        return;
+    }
+    *selected = match result {
+        Ok(bytes) => Some(pem(&bytes, path, bounds)),
+        Err(Unread::Absent) => None,
+        Err(why) => Some(Err(RootsRefusal::Unread { path: path.to_path_buf(), why })),
+    };
 }
 
 fn source(path: &Path, max: u32) -> Result<Box<[u8]>, RootsRefusal> {
@@ -258,24 +275,26 @@ mod tests {
 
     use skein_scratch::Scratch;
 
-    use super::{RootBounds, RootsRefusal, Unread, machine};
+    use super::{RootBounds, RootsRefusal, machine};
 
     #[test]
-    fn distribution_bundles_choose_the_first_existing_path_and_refuse_its_errors() {
+    fn a_distribution_bundle_loads_from_its_path() {
         let scratch = Scratch::new("startup");
-        let absent = scratch.path().join("absent");
         let first = scratch.path().join("first");
-        let second = scratch.path().join("second");
         let bounds = RootBounds { bundle_bytes: 1_024, certificates: 1, certificate_bytes: 3 };
         fs::write(&first, b"-----BEGIN CERTIFICATE-----\nTWFu\n-----END CERTIFICATE-----\n").expect("first bundle");
-        fs::write(&second, b"-----BEGIN CERTIFICATE-----\nTWE=\n-----END CERTIFICATE-----\n").expect("second bundle");
-        let roots = machine(&[&absent, &first, &second], &bounds).expect("first existing distribution bundle");
-        assert_eq!(roots.path, first, "documented path order");
-        assert_eq!(machine(&[&absent], &bounds).expect_err("none exist"), RootsRefusal::NoBundle, "no fallback source");
-        assert_eq!(
-            machine(&[scratch.path(), &second], &bounds).expect_err("first source is a directory"),
-            RootsRefusal::Unread { path: scratch.path().to_path_buf(), why: Unread::NotAFile },
-            "an existing refused source never falls through"
-        );
+        let roots = machine(&[&first], &bounds).expect("load distribution bundle");
+        assert_eq!(roots.path, first, "loaded bundle path");
+    }
+
+    #[test]
+    fn absent_distribution_bundles_report_no_bundle() {
+        let scratch = Scratch::new("startup");
+        let absent = scratch.path().join("absent");
+        let bounds = RootBounds { bundle_bytes: 1_024, certificates: 1, certificate_bytes: 3 };
+        assert_eq!(machine(&[&absent], &bounds).expect_err("none exist"), RootsRefusal::NoBundle);
     }
 }
+
+#[cfg(test)]
+mod lower_tests;

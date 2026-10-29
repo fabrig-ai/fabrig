@@ -1104,15 +1104,13 @@ impl World {
             while let Some(delivery) = self.schedule.next(self.now) {
                 self.deliver(delivery);
             }
-            while self.agent.facts_room() >= agent::max_facts(&self.stage.env.limits) && self.agent.is_ready() {
+            while self.agent.is_ready() {
                 let mark = self.stage.out.len();
                 agent::resume(&mut self.agent, &self.stage.env, &mut self.stage.out);
                 self.gather();
                 self.record_entrance(crate::orders::Entrance::Resume, mark);
             }
-            while self.agent.facts_room() >= agent::max_facts(&self.stage.env.limits)
-                && let Some(mut event) = self.stage.next_event()
-            {
+            while let Some(mut event) = self.stage.next_event() {
                 self.log_event(&mut event);
                 let entrance = if matches!(&event, Event::Cancel { .. }) {
                     self.messages_seen.push((self.now, crate::messages_referee::Seen::ParentCancelled));
@@ -1125,7 +1123,7 @@ impl World {
                 self.gather();
                 self.record_entrance(entrance, mark);
             }
-            while self.agent.facts_room() >= agent::max_facts(&self.stage.env.limits) && self.agent.is_due(self.now) {
+            while self.agent.is_due(self.now) {
                 let mark = self.stage.out.len();
                 agent::fire(&mut self.agent, &self.stage.env, &mut self.stage.out);
                 self.gather();
@@ -1230,7 +1228,7 @@ impl World {
                     }
                     provider::step(provider, &stage.env, event, &mut stage.out);
                 }
-                while stage.has_room() && provider.is_due(self.now) {
+                while provider.is_due(self.now) {
                     provider::fire(provider, &stage.env, &mut stage.out);
                 }
             }

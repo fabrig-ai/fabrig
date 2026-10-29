@@ -133,7 +133,8 @@ fn drawn_declarations_keep_every_relationship_and_the_whole_event_reservation() 
         assert!(limits.output_items >= declared.calls_per_response);
         assert!(limits.strings >= limits.input);
         assert!(limits.strings >= limits.reasoning);
-        let event = document::worst_case(&document::Limits { tokens: limits.tokens, text: limits.retained }).unwrap();
+        let event =
+            document::document_bound(&document::Limits { tokens: limits.tokens, text: limits.retained }).unwrap();
         assert!(u64::from(limits.receiving) >= event + u64::from(limits.answer));
         assert!(u64::from(limits.skip) >= u64::from(limits.request) + u64::from(limits.receiving) * u64::from(ESCAPE));
     }

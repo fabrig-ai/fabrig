@@ -1,6 +1,6 @@
 //! Executable calls beside serve, with every descriptor on one real ring.
 mod member;
-use super::{Ended, Process, WITHIN};
+use super::{Ended, Process, WITHIN, patience::Patience};
 use skein_io::kernel::{Complete, Done, Error, Exit, Fd, Op, Pipe, Signal, Spawn, Submit, Target, Way};
 use skein_lib::{Duration, Queue, Time, Token, Wall};
 use skein_shell::{Clock, Host};
@@ -386,7 +386,7 @@ pub struct Calls {
     link: Vec<u8>,
     selected: usize,
     within: Option<Duration>,
-    deadline: Option<Time>,
+    deadline: Option<Patience>,
     began: Option<Wall>,
     wall: Wall,
     spans: Vec<(Wall, Wall)>,
@@ -723,7 +723,7 @@ impl Calls {
         }
         self.deadline = None;
     }
-    fn bound(&mut self, now: Time) {
+    fn bound(&mut self, _now: Time) {
         if matches!(self.action, Some(Action::NextLink)) {
             let after =
                 self.selected + self.link[self.selected..].iter().position(|b| *b == b'\n').map_or(0, |n| n + 1);
@@ -744,7 +744,7 @@ impl Calls {
                 self.finish_step(false);
             }
         }
-        if self.deadline.is_some_and(|deadline| now >= deadline) {
+        if let Some(figures) = self.deadline.as_mut().and_then(Patience::failed) {
             let name = self
                 .steps
                 .iter()
@@ -752,7 +752,7 @@ impl Calls {
                     if let Step::Mark(name) = step { Some(name.strip_prefix("pool ").unwrap_or(name)) } else { None }
                 })
                 .unwrap_or("story step");
-            self.mismatches.push(format!("{name}: timed out after WITHIN"));
+            self.mismatches.push(format!("{name}: timed out after WITHIN; {figures}"));
             self.deadline = None;
             if let Some(child) = &mut self.child {
                 child.drive(&mut self.submit, true);
@@ -835,7 +835,7 @@ impl Calls {
             && !matches!(self.steps.front(), Some(Step::Mark(_)))
         {
             self.began = Some(self.wall);
-            self.deadline = Some(now.saturating_add(within));
+            self.deadline = Some(Patience::arm("the measured ctl step", within));
         }
         match self.steps.pop_front() {
             Some(Step::Mark(name)) => {
@@ -989,14 +989,14 @@ impl Host for Calls {
     fn next_deadline(&self) -> Option<Time> {
         self.retry
             .into_iter()
-            .chain(self.deadline)
+            .chain(self.deadline.as_ref().and_then(Patience::until))
             .chain(self.member.as_ref().and_then(member::Member::next_deadline))
             .min()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         self.retry
             .into_iter()
-            .chain(self.deadline)
+            .chain(self.deadline.as_ref().and_then(Patience::until))
             .chain(self.member.as_ref().and_then(member::Member::next_deadline))
             .min()
     }
@@ -1119,7 +1119,7 @@ pub fn run(story: Story<'_>) -> Seen {
         if story.measured {
             let began = clock.now();
             calls.began = Some(began.wall);
-            calls.deadline = Some(began.now.saturating_add(WITHIN));
+            calls.deadline = Some(Patience::arm("the measured ctl step", WITHIN));
         }
         Process::Calls(Box::new(calls))
     });

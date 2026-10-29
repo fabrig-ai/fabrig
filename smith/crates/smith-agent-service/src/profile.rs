@@ -51,6 +51,10 @@ pub const ENDPOINTS: u32 = 3;
 /// The count of distinct credential accounts the standard profile admits.
 pub const ACCOUNTS: u32 = 4;
 
+/// Default entries for the backlog watermark and per-stage work quantum, also
+/// sizing pending-message room (skein/docs/foundation/programming-model.md, 7.1).
+pub const DEFAULT_PACING: u32 = 2_302;
+
 /// Compose layer limits from the selected profile and endpoint declarations.
 pub fn derive(profile: &Profile, configuration: &Configuration) -> Result<service::Limits, Refusal> {
     validate::declarations(profile, configuration)?;
@@ -117,7 +121,6 @@ pub fn derive(profile: &Profile, configuration: &Configuration) -> Result<servic
     charter.verdict_rule_fields = policy.fields;
     charter.change_rule_fields = policy.fields;
     let transcript = transcript(&domain, &client)?;
-    let queue = domain::max_out(&domain).max(256);
     let operations = io::operations(&io).ok_or(derived(Layer::Service, "routes"))?;
     let routes = operations.checked_add(64).ok_or(derived(Layer::Service, "routes"))?;
     let limits = service::Limits {
@@ -132,7 +135,7 @@ pub fn derive(profile: &Profile, configuration: &Configuration) -> Result<servic
         file_bytes: domain.session.tools.file_bytes,
         file_timeout: domain.session.tools.file_timeout,
         live_interval: policy.live_interval,
-        queue,
+        queue: DEFAULT_PACING,
         routes,
         memory,
         events: None,

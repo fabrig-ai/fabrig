@@ -25,6 +25,9 @@ pub const TRANSCRIPT_TAIL_BYTES: u32 = 2048;
 /// capacities.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Limits {
+    /// The most hand-offs one jig core decision routes, sibling continuations included:
+    /// the bound of every drain within a step (skein/docs/foundation/programming-model.md, 3; 4.5).
+    pub routes: u32,
     /// Admission watermark, in backlog entries (skein/docs/foundation/programming-model.md, 7.1).
     pub watermark: u32,
     /// The byte budget for transcripts and turns (domain/root.md, 4.1).
@@ -116,6 +119,7 @@ pub const VIEWS: views::Limits = views::Limits {
 #[must_use]
 pub fn core_limits(limits: &Limits) -> jig_domain_core::Limits {
     jig_domain_core::Limits {
+        routes: limits.routes,
         fill_mark: FILL_MARK,
         load_bytes: limits.loads.read_bytes,
         documents: limits.documents,

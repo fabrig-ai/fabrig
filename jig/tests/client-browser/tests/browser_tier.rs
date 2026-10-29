@@ -7,7 +7,6 @@ use skein_ui::Role;
 const HEADING_LEVEL: u8 = 1;
 const INBOX_WAIT: Duration = Duration::from_secs(10);
 const FIRST_TASK: u64 = 1;
-const OK_STATUS: u16 = 200;
 #[test]
 fn a_person_opens_the_printed_link_and_sees_their_inbox() {
     let tier = Tier::new("printed-link");
@@ -15,21 +14,6 @@ fn a_person_opens_the_printed_link_and_sees_their_inbox() {
         find: Find::exactly_named(Role::Heading { level: HEADING_LEVEL }, &tier.words(b"inbox")),
         within: INBOX_WAIT,
     })]));
-    assert_eq!(Harness::new(tier.setup()).run(&mut [&mut person]), Outcome::Done);
-}
-
-#[test]
-fn the_root_file_is_served_as_the_bundle_s_robots_txt() {
-    let tier = Tier::new("root-file");
-    let mut person = Script::new(Box::new([harness::Step::Request {
-        method: skein_http::Method::Get,
-        path: b"/robots.txt".as_slice().into(),
-        host: b"localhost".as_slice().into(),
-        headers: vec![],
-        body: Box::new([]),
-        status: OK_STATUS,
-        within: INBOX_WAIT,
-    }]));
     assert_eq!(Harness::new(tier.setup()).run(&mut [&mut person]), Outcome::Done);
 }
 

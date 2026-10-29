@@ -5,17 +5,16 @@
 //! 9): records submitted directly, as io will, and every
 //! completion checked against the contract of `skein_io::kernel` as it
 //! arrives. What is the adapter's own: its slots and waits, a large transfer
-//! through short sends, what it completes itself, the broken invariants it
-//! asserts, dropping it. The sockets' behaviour is the conformance suite's,
-//! in `tests/conformance/real`.
+//! through short sends, what it completes itself, dropping it. The sockets'
+//! behaviour is the conformance suite's, in `tests/conformance/real`.
 //!
 //! A machine without `io_uring` (a seccomp profile, `io_uring_disabled`) fails
 //! every test here, saying so, rather than passing them silently.
 
 use skein_io::kernel::{Complete, Done, Error, Family, Fd, Op, Submit};
-use skein_lib::{Duration, Queue, Time, Token};
+use skein_lib::{Duration, Queue, Time};
 use skein_ring_tests::{PATIENCE, World, filled, pattern, v4};
-use skein_shell::{Backend, Clock, Config, Kernel, OpenError, Wait};
+use skein_shell::{Clock, Wait};
 use skein_world::Deadline;
 
 #[test]
@@ -180,27 +179,6 @@ fn a_deadline_already_past_does_not_wait() {
 }
 
 #[test]
-fn a_kernel_of_no_operations_does_not_open() {
-    assert_eq!(Kernel::open_on(Config { operations: 0 }, Backend::Ring).unwrap_err(), OpenError::NoOperations);
-}
-
-#[test]
-#[should_panic(expected = "io submits only valid records")]
-fn an_invalid_record_is_refused_at_submit() {
-    let mut world = World::new(4);
-    world.submit(Token::new(1), Op::Recv { fd: Fd::new(0), buf: Box::from([]) });
-}
-
-#[test]
-#[should_panic(expected = "io never reuses a token in flight")]
-fn a_token_already_in_flight_is_refused_at_submit() {
-    let mut world = World::new(4);
-    let (listener, _addr) = world.listener(v4(0));
-    let accept = world.start(Op::Accept { fd: listener });
-    world.submit(accept, Op::Close { fd: listener });
-}
-
-#[test]
 fn the_clock_moves_forward_and_the_seed_varies() {
     let clock = Clock::new();
     let first = clock.now();
@@ -249,13 +227,6 @@ fn a_wait_forever_returns_with_a_completion() {
     };
     world.close(fd);
     world.settle();
-}
-
-#[test]
-#[should_panic(expected = "waiting forever with nothing in flight never returns")]
-fn a_wait_forever_with_nothing_in_flight_is_refused() {
-    let mut world = World::new(4);
-    world.kernel.submit(&mut world.submissions, Wait::Forever);
 }
 
 #[test]

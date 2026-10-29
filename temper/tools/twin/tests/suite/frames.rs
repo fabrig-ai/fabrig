@@ -1,4 +1,6 @@
 //! Recorded green-light frames, edited through their owning codecs.
+mod round_trip;
+
 use jig_protocol_store::{self as store, codec, transcripts::frame};
 use serde_json::{Value, json};
 use skein_lib::{List, Reader, Writer};

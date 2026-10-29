@@ -76,6 +76,24 @@ pub(super) fn configuration_for_launch(root: kernel::Fd, launch: &Launch) -> (se
             model.dialect = 2;
         }
     }
+    if let Some(plain) = &launch.plain {
+        let workspace = local.local.workspace.as_mut().expect("plain workspace");
+        let mut directories = workspace.directories.to_vec();
+        directories[0].name = b"workspace".as_slice().into();
+        directories[0].git = false;
+        let path = std::path::absolute(launch.root_path.join("extra")).expect("extra root");
+        let host: Box<[u8]> = path.as_os_str().as_encoded_bytes().into();
+        directories.push(smith_domain::run::Directory {
+            host: host.clone(),
+            name: plain.name.clone(),
+            root: skein_lib::Token::new(2),
+            writable: plain.writable,
+            git: false,
+            conflicts: Box::new([]),
+        });
+        workspace.directories = directories.into();
+        local.paths = [local.paths.as_ref(), &[host]].concat().into();
+    }
     (local, lower)
 }
 
@@ -317,6 +335,7 @@ fn fixture_launch(tls: bool) -> Launch {
         interactive: false,
         choices: false,
         budget_failure: false,
+        plain: None,
         placement: crate::Placement::InProcess,
         keep_facts: false,
         traced: false,

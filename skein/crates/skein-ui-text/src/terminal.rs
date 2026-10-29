@@ -100,19 +100,19 @@ impl Terminal {
         let batch = u64::from(BATCH);
         skein_io::worst_case(&limits)?
             .checked_add(name)?
-            .checked_add(Queue::<Complete>::worst_case(32)?)?
-            .checked_add(Queue::<Submit>::worst_case(256)?.checked_mul(2)?)?
-            .checked_add(Queue::<Event>::worst_case(32)?)?
-            .checked_add(Queue::<Command>::worst_case(BATCH)?)?
-            .checked_add(Queue::<Line>::worst_case(settings.lines.checked_add(BATCH)?.checked_add(1)?)?)?
+            .checked_add(Queue::<Complete>::price(32)?)?
+            .checked_add(Queue::<Submit>::price(256)?.checked_mul(2)?)?
+            .checked_add(Queue::<Event>::price(32)?)?
+            .checked_add(Queue::<Command>::price(BATCH)?)?
+            .checked_add(Queue::<Line>::price(settings.lines.checked_add(BATCH)?.checked_add(1)?)?)?
             .checked_add(u64::from(settings.lines).checked_mul(application)?)?
             .checked_add(batch.checked_add(1)?.checked_mul(refusal)?)?
             .checked_add(batch.checked_mul(u64::from(settings.longest))?)?
             .checked_add(batch)?
-            .checked_add(List::<u8>::worst_case(settings.longest.checked_add(1)?)?)?
+            .checked_add(List::<u8>::price(settings.longest.checked_add(1)?)?)?
             .checked_add(application.max(refusal))?
-            .checked_add(List::<skein_ui::NodeId>::worst_case(view.nodes)?)?
-            .checked_add(render::worst_case(view)?.1)
+            .checked_add(List::<skein_ui::NodeId>::price(view.nodes)?)?
+            .checked_add(render::render_bound(view)?.1)
     }
     /// The most io operations in flight at once, cancels included (ui-text.md, 3).
     #[must_use]

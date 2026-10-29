@@ -29,7 +29,7 @@ pub fn channel_limits(limits: &Limits) -> Result<channel::Limits, Unusable> {
         let largest = sizes::largest_body(&limits.sizes, rule.body).ok_or(Unusable::Limits)?;
         skip = skip.max(largest);
     }
-    let credential = wire::Credential::worst_case_bytes(&bodies).ok_or(Unusable::Limits)?;
+    let credential = wire::Credential::encoded_bound(&bodies).ok_or(Unusable::Limits)?;
     let Ok(credential) = u32::try_from(credential) else { return Err(Unusable::Limits) };
     let Ok(kinds) = u32::try_from(wire::KINDS.len()) else { return Err(Unusable::Limits) };
     Ok(channel::Limits {
@@ -76,7 +76,7 @@ pub fn valid(limits: &Limits) -> bool {
 }
 
 fn inventory_bound(bodies: &wire::v9::Limits) -> Option<u64> {
-    wire::Logins::worst_case_bytes(bodies)?.checked_add(8)
+    wire::Logins::encoded_bound(bodies)?.checked_add(8)
 }
 
 // The channel has no separate validity API at this pin. Keep its derived

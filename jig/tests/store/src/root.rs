@@ -111,6 +111,7 @@ pub const PEOPLE_LIMITS: people::Limits = people::Limits {
 };
 
 pub const CORE_LIMITS: core::Limits = core::Limits {
+    routes: 20_783,
     settings: core::settings::Limits {
         revisions: 4,
         versions: 8,

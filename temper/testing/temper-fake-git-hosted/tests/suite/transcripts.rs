@@ -160,8 +160,9 @@ impl Disk {
         let mut host = temper_fake_git_hosted::git(&spawn, &inherited, scenario.transport.clone());
         let mut answer = Answer { exit: 0, stdout: Vec::new(), stderr: Vec::new() };
         let mut input = input;
+        let now = scenario.transport.forge.borrow().now;
         for _ in 0..20_000 {
-            host.iterate(Time::ZERO, Wall::EPOCH);
+            host.iterate(now, Wall::EPOCH);
             if let Some(Exit::Code(code)) = host.exit() {
                 answer.exit = code;
                 assert!(held.is_empty(), "inherited pipes and signals closed");
@@ -421,4 +422,91 @@ fn hosted_commit_tree_stores_unchanged_trees_with_exactly_the_requested_parents(
         );
         assert_eq!(disk.read(&scenario.at, b".git/temper-head"), 1_u64.to_le_bytes(), "commit {number}: HEAD");
     }
+}
+
+// A read left due before the hosted git process starts owns this reply.
+const OLDER_READ: skein_lib::Token = skein_lib::Token::new(42);
+// Only the older read remains after hosted git consumes its own reply.
+const PENDING_READ_REPLIES: u32 = 1;
+
+fn an_older_read_is_due() -> fixtures::Scenario {
+    use skein_fake_forge_domain::{self as domain, api};
+    use skein_lib::{Duration, Env, ReplyTo, Time, Wall};
+    let scenario = fixtures::scenario();
+    {
+        let mut forge = scenario.transport.forge.borrow_mut();
+        let mut config = forge.config;
+        config.limits.calls = 2;
+        let mut state = domain::Domain::new(&config, 1);
+        domain::repository(
+            &mut state,
+            &config,
+            api::Setup {
+                id: 2,
+                name: b"acme/app".as_slice().into(),
+                default: b"main".as_slice().into(),
+                tree: Box::new([api::File {
+                    path: b"conflict.txt".as_slice().into(),
+                    content: b"base\n".as_slice().into(),
+                }]),
+                labels: Box::new([]),
+                workflows: Box::new([]),
+                checks: api::Checks {
+                    cues: Box::new([]),
+                    contexts: Box::new([]),
+                    latency_min: Duration::ZERO,
+                    latency_max: Duration::ZERO,
+                    silent: 0,
+                    passes: 1000,
+                    reruns: 0,
+                    cue: None,
+                },
+                protection: None,
+                hooked: false,
+            },
+        );
+        domain::grant(&mut state, b"acme/app", 1, api::Permission::Write);
+        *forge = skein_fake_peers::forge::Forge::new(state, config);
+        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: config };
+        let skein_fake_peers::forge::Forge { domain, pending, .. } = &mut *forge;
+        domain::step(
+            domain,
+            &env,
+            domain::Event::Call {
+                reply_to: ReplyTo::new(OLDER_READ),
+                user: 1,
+                repository: b"acme/app".as_slice().into(),
+                op: api::Op::Read(api::Read::Locate),
+            },
+            pending,
+        );
+        assert!(pending.is_empty(), "the older read is submitted but not fired");
+        assert_eq!(domain.next_deadline(), Some(Time::ZERO));
+        forge.now = Time::from_nanos(1);
+    }
+    scenario
+}
+
+#[test]
+fn hosted_git_fires_past_an_older_due_read_and_keeps_its_reply_once() {
+    use skein_fake_forge_domain as domain;
+    let scenario = an_older_read_is_due();
+    let mut disk = Disk::new(&scenario);
+    let result = disk.run(
+        &scenario,
+        &Command::Fetch { remote: scenario.remote.clone().into(), source: invocation::Source::Default },
+        b"",
+    );
+    assert_eq!(result.exit, 0, "{:?}", result.stderr);
+    assert!(result.stderr.is_empty());
+    let mut forge = scenario.transport.forge.borrow_mut();
+    assert!(forge.now > Time::ZERO, "git's call follows the older read");
+    assert_eq!(forge.pending.len(), PENDING_READ_REPLIES, "only the older read's reply remains");
+    let domain::Request::Reply { to, result } = forge.pending.pop().expect("older reply") else {
+        panic!("the pending request is the older read's reply");
+    };
+    assert_eq!(to, skein_lib::ReplyTo::new(OLDER_READ));
+    assert!(result.is_ok());
+    assert!(forge.pending.is_empty(), "the older reply is returned once");
+    assert_eq!(forge.domain.next_deadline(), None, "neither call waits on a timer");
 }

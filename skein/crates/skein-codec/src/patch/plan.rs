@@ -1708,32 +1708,27 @@ pub(super) fn identity(tables: &Tables, index: u32) -> Result<Plan, PatchWrong> 
     Ok(plan)
 }
 
-/// The old name of [`plan_bound`]; it goes once every tree calls the new name (wave 3).
-pub(super) fn worst_case_heap(text: u32) -> Option<u64> {
-    plan_bound(text)
-}
-
 /// Bounds one patch plan.
 /// Retained conversions plus the parser, matching and change scratch at text's bound.
 pub(super) fn plan_bound(text: u32) -> Option<u64> {
     let tokens = text.checked_add(1)?;
     let mut total = u64::from(text);
     for bytes in [
-        List::<Conversion>::worst_case(text)?,
-        List::<Option<DeclIx>>::worst_case(text)?.checked_mul(2)?,
-        List::<Source>::worst_case(text)?,
-        List::<Option<VariantIx>>::worst_case(text)?.checked_mul(2)?,
-        List::<bool>::worst_case(text)?.checked_mul(2)?,
-        List::<u8>::worst_case(tokens.checked_mul(8)?.checked_add(text)?)?,
-        List::<SitePlan>::worst_case(tokens)?,
-        List::<RefusalPlan>::worst_case(tokens)?,
-        List::<Span>::worst_case(tokens)?.checked_mul(2)?,
-        List::<Token>::worst_case(tokens)?,
-        List::<Line>::worst_case(tokens)?,
-        List::<Block>::worst_case(tokens)?,
-        List::<Option<FieldIx>>::worst_case(text)?,
-        List::<Option<PatchError>>::worst_case(tokens)?,
-        List::<Change>::worst_case(text.checked_mul(2)?)?,
+        List::<Conversion>::price(text)?,
+        List::<Option<DeclIx>>::price(text)?.checked_mul(2)?,
+        List::<Source>::price(text)?,
+        List::<Option<VariantIx>>::price(text)?.checked_mul(2)?,
+        List::<bool>::price(text)?.checked_mul(2)?,
+        List::<u8>::price(tokens.checked_mul(8)?.checked_add(text)?)?,
+        List::<SitePlan>::price(tokens)?,
+        List::<RefusalPlan>::price(tokens)?,
+        List::<Span>::price(tokens)?.checked_mul(2)?,
+        List::<Token>::price(tokens)?,
+        List::<Line>::price(tokens)?,
+        List::<Block>::price(tokens)?,
+        List::<Option<FieldIx>>::price(text)?,
+        List::<Option<PatchError>>::price(tokens)?,
+        List::<Change>::price(text.checked_mul(2)?)?,
     ] {
         total = total.checked_add(bytes)?;
     }

@@ -984,3 +984,7 @@ mod tests {
 #[cfg(test)]
 #[path = "navigation_tests.rs"]
 mod navigation_tests;
+
+#[cfg(test)]
+#[path = "prefix_tests.rs"]
+mod prefix_tests;

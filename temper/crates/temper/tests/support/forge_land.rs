@@ -1427,12 +1427,12 @@ struct LiveJudge<'a> {
     checked: usize,
     pending: std::collections::VecDeque<Vec<String>>,
     arguments: Vec<Vec<String>>,
-    active_until: Option<skein_lib::Time>,
+    active_until: Option<super::patience::Patience>,
     wait_started: Option<skein_lib::Time>,
-    wait_until: Option<skein_lib::Time>,
+    wait_until: Option<super::patience::Patience>,
     wait_call: Option<usize>,
     failure: &'a std::cell::Cell<Option<String>>,
-    signing_until: Option<skein_lib::Time>,
+    signing_until: Option<super::patience::Patience>,
     account_checked: bool,
     linked: bool,
     cleanup: bool,
@@ -1444,7 +1444,7 @@ struct LiveJudge<'a> {
     ended_at: Option<u64>,
     pages: usize,
     evidence: &'a std::cell::Cell<Option<LiveEvidence>>,
-    deadline: skein_lib::Time,
+    deadline: super::patience::Patience,
     poll: skein_lib::Time,
 }
 impl LiveJudge<'_> {
@@ -1494,7 +1494,8 @@ impl LiveJudge<'_> {
                     .as_u64()
                     .ok_or("created chat number missing")?;
                 self.wait_started = Some(now);
-                self.wait_until = Some(now.saturating_add(Duration::from_secs(1800)));
+                self.wait_until =
+                    Some(super::patience::Patience::arm("the live change's watch", Duration::from_secs(1800)));
                 self.queue_delegates();
             }
             LivePhase::Delegates => self.find_delegates(now, calls, &last)?,
@@ -1613,7 +1614,8 @@ impl LiveJudge<'_> {
             }
         } else {
             self.wait_started = Some(now);
-            self.wait_until = Some(now.saturating_add(Duration::from_secs(1800)));
+            self.wait_until =
+                Some(super::patience::Patience::arm("the live change's watch", Duration::from_secs(1800)));
             self.wait_round(now)?;
         }
 
@@ -1667,7 +1669,9 @@ impl LiveJudge<'_> {
         if delegates.is_empty() {
             let chat = live_json(calls.ends().iter().rev().nth(1).ok_or("chat snapshot missing")?)?;
             require_chat_progress(&chat)?;
-            require(now < self.wait_until.ok_or("delegate deadline missing")?, "chat did not delegate within 1800s")?;
+            if let Some(figures) = self.wait_until.as_mut().ok_or("delegate deadline missing")?.failed() {
+                return Err(format!("chat did not delegate within 1800s: {figures}"));
+            }
             self.queue(&[
                 "task",
                 "show",
@@ -1764,8 +1768,8 @@ impl LiveJudge<'_> {
             task["waits_on"],
             task["chip"]["details"]
         ));
-        if now >= self.wait_until.ok_or("watch deadline missing")? {
-            self.fail("change watch exceeded 1800s", calls, self.wait_call);
+        if let Some(figures) = self.wait_until.as_mut().ok_or("watch deadline missing")?.failed() {
+            self.fail(&format!("change watch exceeded 1800s: {figures}"), calls, self.wait_call);
         } else {
             self.wait_round(now)?;
         }
@@ -1851,7 +1855,12 @@ impl LiveJudge<'_> {
     }
     fn wait_round(&mut self, now: skein_lib::Time) -> Result<(), String> {
         let change = self.tasks.change.to_string();
-        let left = self.wait_until.ok_or("watch deadline missing")?.saturating_since(now).as_nanos() / 1_000_000_000;
+        let left = self
+            .wait_until
+            .as_ref()
+            .ok_or("watch deadline missing")?
+            .until()
+            .map_or(60, |until| until.saturating_since(now).as_nanos() / 1_000_000_000);
         self.queue(&[
             "task",
             "show",
@@ -1961,7 +1970,7 @@ impl LiveJudge<'_> {
             None
         }
     }
-    fn check_calls(&mut self, now: skein_lib::Time, calls: &super::ctl::Calls) {
+    fn check_calls(&mut self, _now: skein_lib::Time, calls: &super::ctl::Calls) {
         for index in self.checked..calls.ends().len() {
             let call = &calls.ends()[index];
             if (self.plan.kept || self.account_checked)
@@ -1999,7 +2008,10 @@ impl LiveJudge<'_> {
             {
                 super::live::notice(&String::from_utf8_lossy(&call.stdout));
                 if matches!(self.plan.model, LiveModel::ChatGpt { account: None }) {
-                    self.signing_until = Some(now.saturating_add(Duration::from_secs(600)));
+                    self.signing_until = Some(super::patience::Patience::arm(
+                        "the live forge's ChatGPT sign-in",
+                        Duration::from_secs(600),
+                    ));
                 }
             }
         }
@@ -2022,6 +2034,12 @@ impl LiveJudge<'_> {
             }
         }
     }
+    fn watch_waits(&mut self, binary: &skein_world::end_to_end::Binary) {
+        self.deadline.watch(binary);
+        for patience in [&mut self.active_until, &mut self.wait_until, &mut self.signing_until].into_iter().flatten() {
+            patience.watch(binary);
+        }
+    }
     fn drive(
         &mut self,
         now: skein_lib::Time,
@@ -2035,46 +2053,60 @@ impl LiveJudge<'_> {
             self.linked = true;
         }
         self.check_calls(now, calls);
+        if !self.stopping()
+            && !matches!(self.phase, LivePhase::Done)
+            && binary.exit_status().is_none()
+            && let Err(message) = self.advance(now, calls)
+        {
+            self.fail(&message, calls, calls.ends().len().checked_sub(1));
+        }
+        self.watch_waits(binary);
         if !self.stopping() && !matches!(self.phase, LivePhase::Done) {
-            if self.signing_until.is_some_and(|until| !self.account_checked && now >= until) {
-                self.fail("ChatGPT sign-in exceeded 10 minutes", calls, None);
-            } else if now >= self.deadline {
-                self.fail("live story exceeded its budget", calls, None);
-            } else if binary.exit_status().is_some() {
+            if binary.exit_status().is_some() {
                 super::live::notice(&format!(
                     "BOX exit={:?} stderr: {}",
                     binary.exit_status(),
                     String::from_utf8_lossy(binary.stderr())
                 ));
                 self.fail("live box stopped before its reads", calls, None);
-            } else if self.active_until.is_some_and(|until| now >= until) {
-                self.fail("live ctl exceeded its per-call bound", calls, None);
+            } else if let Some(figures) = self
+                .signing_until
+                .as_mut()
+                .filter(|_| !self.account_checked)
+                .and_then(super::patience::Patience::failed)
+            {
+                self.fail(&format!("ChatGPT sign-in exceeded 10 minutes: {figures}"), calls, None);
+            } else if let Some(figures) = self.deadline.failed() {
+                self.fail(&format!("live story exceeded its budget: {figures}"), calls, None);
+            } else if let Some(figures) = self.active_until.as_mut().and_then(super::patience::Patience::failed) {
+                self.fail(&format!("live ctl exceeded its per-call bound: {figures}"), calls, None);
             } else if now >= self.poll {
                 self.poll = now.saturating_add(Duration::from_secs(1));
             }
         }
-        if !self.stopping() && !matches!(self.phase, LivePhase::Done) {
-            if let Err(message) = self.advance(now, calls) {
-                self.fail(&message, calls, calls.ends().len().checked_sub(1));
-            }
-            if calls.foreground_idle()
-                && let Some(args) = self.pending.pop_front()
-            {
-                let seconds = args
-                    .windows(2)
-                    .find(|pair| pair[0] == "--timeout")
-                    .and_then(|pair| pair[1].strip_suffix('s'))
-                    .and_then(|s| s.parse::<u64>().ok())
-                    .unwrap_or(0);
-                self.active_until = Some(now.saturating_add(Duration::from_secs(seconds + 60)));
-                let words = args.iter().map(String::as_str).collect::<Vec<_>>();
-                calls.push(super::ctl::Step::Run(if words == ["sign-in", "-"] {
-                    super::ctl::Call::sign_in()
-                } else {
-                    super::ctl::Call::new(&words)
-                }));
-                self.arguments.push(printed_command(&args));
-            }
+        if !self.stopping()
+            && !matches!(self.phase, LivePhase::Done)
+            && calls.foreground_idle()
+            && let Some(args) = self.pending.pop_front()
+        {
+            let seconds = args
+                .windows(2)
+                .find(|pair| pair[0] == "--timeout")
+                .and_then(|pair| pair[1].strip_suffix('s'))
+                .and_then(|s| s.parse::<u64>().ok())
+                .unwrap_or(0);
+            self.active_until = Some(super::patience::Patience::watching(
+                "the live forge's ctl call",
+                Duration::from_secs(seconds + 60),
+                binary,
+            ));
+            let words = args.iter().map(String::as_str).collect::<Vec<_>>();
+            calls.push(super::ctl::Step::Run(if words == ["sign-in", "-"] {
+                super::ctl::Call::sign_in()
+            } else {
+                super::ctl::Call::new(&words)
+            }));
+            self.arguments.push(printed_command(&args));
         }
         if !self.stopping() && matches!(self.phase, LivePhase::Done) {
             calls.release();
@@ -2082,7 +2114,12 @@ impl LiveJudge<'_> {
             binary.signal(skein_io::kernel::Signal::Terminate);
             self.phase = LivePhase::Stopping;
         }
-        if !self.cleanup && now >= self.deadline && !binary.is_empty() {
+        self.watch_waits(binary);
+        if !self.cleanup
+            && !binary.is_empty()
+            && let Some(figures) = self.deadline.failed()
+        {
+            super::live::notice(&format!("live story cleanup: {figures}"));
             binary.signal_tree(skein_io::kernel::Signal::Kill);
             self.cleanup = true;
         }
@@ -2139,9 +2176,9 @@ impl Referee<Process> for LiveJudge<'_> {
         if matches!(self.phase, LivePhase::Settled) || self.cleanup {
             None
         } else if self.stopping() {
-            Some(self.deadline)
+            self.deadline.until()
         } else {
-            Some(self.poll.min(self.deadline))
+            Some(self.deadline.until().map_or(self.poll, |until| self.poll.min(until)))
         }
     }
     fn overdue(&self, _now: skein_lib::Time) -> Option<String> {
@@ -2150,6 +2187,11 @@ impl Referee<Process> for LiveJudge<'_> {
     fn passed(&self) -> bool {
         matches!(self.phase, LivePhase::Settled)
     }
+}
+
+fn live_deadline(budget: Duration, binary: &skein_world::end_to_end::Binary) -> super::patience::Patience {
+    let within = Duration::from_nanos(budget.as_nanos().saturating_sub(Duration::from_secs(10).as_nanos()));
+    super::patience::Patience::watching("the live forge's story", within, binary)
 }
 
 /// The live face has only the supervised box and ctl, no issuer, visitor or peer.
@@ -2217,10 +2259,7 @@ pub fn run_live(
         ended_at: None,
         pages: 0,
         evidence: &evidence,
-        deadline: clock
-            .now()
-            .now
-            .saturating_add(Duration::from_nanos(budget.as_nanos().saturating_sub(Duration::from_secs(10).as_nanos()))),
+        deadline: live_deadline(budget, &binary),
         poll: clock.now().now,
     });
     world.spawn_with_fds(binary.descriptors(), || Process::Binary(Box::new(binary)));
@@ -2271,10 +2310,10 @@ fn live_change_page(engine: std::net::SocketAddr, client: &std::path::Path, task
         opened: bool,
         closing: bool,
         page: &'a std::cell::Cell<String>,
-        until: skein_lib::Time,
+        until: super::patience::Patience,
     }
     impl Referee<NativeClient> for Judge<'_> {
-        fn act(&mut self, now: skein_lib::Time, clients: &mut [NativeClient]) {
+        fn act(&mut self, _now: skein_lib::Time, clients: &mut [NativeClient]) {
             let client = &mut clients[0];
             if client.started() && !self.opened {
                 client.go(temper_client_domain::Address::Task {
@@ -2293,7 +2332,12 @@ fn live_change_page(engine: std::net::SocketAddr, client: &std::path::Path, task
                 }
                 page.push('\n');
             }
-            if (page.contains("work/hello") && page.contains("CI at its head")) || now >= self.until {
+            if (page.contains("work/hello") && page.contains("CI at its head"))
+                || self.until.failed().is_some_and(|figures| {
+                    eprintln!("native change page incomplete: {figures}");
+                    true
+                })
+            {
                 self.page.set(page);
                 client.close();
                 self.closing = true;
@@ -2301,7 +2345,7 @@ fn live_change_page(engine: std::net::SocketAddr, client: &std::path::Path, task
         }
         fn observe(&mut self, _now: skein_lib::Time, _clients: &[NativeClient]) {}
         fn next_deadline(&self) -> Option<skein_lib::Time> {
-            (!self.closing).then_some(self.until)
+            if self.closing { None } else { self.until.until() }
         }
         fn overdue(&self, _now: skein_lib::Time) -> Option<String> {
             None
@@ -2318,7 +2362,10 @@ fn live_change_page(engine: std::net::SocketAddr, client: &std::path::Path, task
         opened: false,
         closing: false,
         page: &page,
-        until: clock.now().now.saturating_add(skein_lib::Duration::from_secs(10)),
+        until: super::patience::Patience::arm(
+            "the live forge's native change page",
+            skein_lib::Duration::from_secs(10),
+        ),
     });
     world.spawn_with_fds(vec![root], || {
         NativeClient::new(

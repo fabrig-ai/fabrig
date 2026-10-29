@@ -105,8 +105,8 @@ pub fn worst_case(limits: &Limits) -> Option<u64> {
     record
         .checked_add(List::<skein_json::Token>::price(length)?)?
         .checked_add(u64::from(length).checked_mul(3)?)?
-        .checked_add(skein_json::tokenizer::worst_case(&json)?)?
-        .checked_add(skein_json::writer::worst_case(&writer)?)?
+        .checked_add(skein_json::tokenizer::tokenizer_bound(&json)?)?
+        .checked_add(skein_json::writer::encoder_bound(&writer)?)?
         .checked_add(Queue::<skein_json::tokenizer::Event>::price(1)?)?
         .checked_add(Queue::<skein_lib::stream::Down>::price(1)?)
 }

@@ -374,7 +374,12 @@ impl Shared {
         }
         Ok(())
     }
-    fn serve(&self, mut socket: std::net::TcpStream, git: bool) -> io::Result<()> {
+    fn serve(&self, socket: std::net::TcpStream, git: bool) -> io::Result<()> {
+        let mut socket = super::socket::Socket::deferred(
+            socket,
+            skein_lib::Duration::from_secs(30),
+            ["the managed relay client's request", "the managed relay client's reply"],
+        );
         let request = Request::read(&mut socket)?;
         let (method, target) = request.route()?;
         let accepted = self.allows(&request, git)?;
@@ -595,7 +600,12 @@ fn journal_distinguishes_learn_redirect_guard_and_upstream_refusals() {
             if status != 0 {
                 let upstream = &upstream;
                 scope.spawn(move || {
-                    let (mut socket, _) = upstream.accept().expect("upstream accepts");
+                    let (socket, _) = upstream.accept().expect("upstream accepts");
+                    let mut socket = super::socket::Socket::deferred(
+                        socket,
+                        skein_lib::Duration::from_secs(30),
+                        ["the managed relay stub's request", "the managed relay stub's reply"],
+                    );
                     Request::read(&mut socket).expect("forwarded request");
                     write!(socket, "HTTP/1.1 {status} Answer\r\nContent-Length: {}\r\n\r\n{body}", body.len())
                         .expect("upstream response");
@@ -605,8 +615,12 @@ fn journal_distinguishes_learn_redirect_guard_and_upstream_refusals() {
                 let (socket, _) = listener.accept().expect("relay accepts");
                 shared.serve(socket, false).expect("serve");
             });
-            let mut client = TcpStream::connect(listener.local_addr().expect("relay address")).expect("client");
-            client.set_read_timeout(Some(Duration::from_secs(2))).expect("timeout");
+            let client = TcpStream::connect(listener.local_addr().expect("relay address")).expect("client");
+            let mut client = super::socket::Socket::reading(
+                client,
+                skein_lib::Duration::from_secs(2),
+                "the offline managed relay client's reply",
+            );
             let token = if status == 0 { "unknown-token" } else { "private-token" };
             write!(client, "GET /installation/repositories?private-query HTTP/1.1\r\nHost: local\r\nAuthorization: Bearer {token}\r\n\r\n").expect("request");
             let mut response = Vec::new();
@@ -695,8 +709,12 @@ fn delivery_polls_have_their_own_cap_and_leave_the_git_budget_available() {
             let (socket, _) = listener.accept().expect("relay accepts");
             shared.serve(socket, false).expect("serve refused 5001st poll");
         });
-        let mut client = TcpStream::connect(listener.local_addr().expect("relay address")).expect("client");
-        client.set_read_timeout(Some(Duration::from_secs(2))).expect("timeout");
+        let client = TcpStream::connect(listener.local_addr().expect("relay address")).expect("client");
+        let mut client = super::socket::Socket::reading(
+            client,
+            skein_lib::Duration::from_secs(2),
+            "the offline managed relay client's reply",
+        );
         client.write_all(poll("/app/hook/deliveries/1").as_bytes()).expect("request");
         let mut response = Vec::new();
         client.read_to_end(&mut response).expect("response");

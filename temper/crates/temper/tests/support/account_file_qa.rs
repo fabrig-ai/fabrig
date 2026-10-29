@@ -1,6 +1,11 @@
 //! QA-B process probes: client/tools.md 5.5 area 5 and 6.3; jig domain/accounts.md 6
 //! and client/domain/client.md 6. The terminal composition talks to the shipped server.
-use super::{Process, ctl, ctl::Call, sign_in};
+use super::{
+    Process, ctl,
+    ctl::Call,
+    sign_in,
+    story_socket::{Scope, Socket},
+};
 use skein_fake_peers::oauth;
 use skein_io::kernel::{Exit, Signal};
 use skein_lib::{Duration, Time};
@@ -365,20 +370,20 @@ fn post(address: std::net::SocketAddr, credential: &[u8], body: &[u8]) -> Vec<u8
         Writer,
         base64::{self, Alphabet},
     };
-    use std::io::{Read, Write};
     let length = base64::encoded_len(Alphabet::Url, u32::try_from(credential.len()).expect("fake token length"))
         .expect("base64 length");
     let mut encoded = Writer::new(usize::try_from(length).expect("base64 length fits"));
     base64::encode(Alphabet::Url, credential, &mut encoded).expect("fake credential encoding");
     let bearer = String::from_utf8(encoded.finish().into_vec()).expect("base64 ASCII");
-    let mut socket = std::net::TcpStream::connect(address).expect("real deployment");
-    let timeout = Some(std::time::Duration::from_secs(5));
-    socket.set_read_timeout(timeout).expect("bounded read");
-    socket.set_write_timeout(timeout).expect("bounded write");
-    write!(socket, "POST /jig/v1/request HTTP/1.1\r\nHost: {address}\r\nAuthorization: Bearer {bearer}\r\nContent-Type: application/octet-stream\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", body.len()).expect("request head");
-    socket.write_all(body).expect("request body");
-    let mut response = Vec::new();
-    socket.take(262_144).read_to_end(&mut response).expect("whole answer");
+    let mut socket = Socket::new(std::net::TcpStream::connect(address).expect("real deployment"), Scope::World);
+    let within = Duration::from_secs(5);
+    let request = format!(
+        "POST /jig/v1/request HTTP/1.1\r\nHost: {address}\r\nAuthorization: Bearer {bearer}\r\nContent-Type: application/octet-stream\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+        body.len()
+    );
+    socket.write_all("the file move's request", within, request.as_bytes()).expect("request head");
+    socket.write_all("the file move's body", within, body).expect("request body");
+    let response = socket.read_to_end("the file move's reply", within, 262_144).expect("whole answer");
     assert!(response.starts_with(b"HTTP/1.1 200 "), "native request answered 200");
     let at = response.windows(4).position(|bytes| bytes == b"\r\n\r\n").expect("HTTP head");
     response[at + 4..].to_vec()

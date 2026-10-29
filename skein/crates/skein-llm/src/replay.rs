@@ -28,7 +28,7 @@ pub fn replay_worst_case(limits: &DocumentLimits) -> Option<u64> {
 /// and bounded JSON machines/token storage. Caller-owned input storage is separate.
 #[must_use]
 pub fn replay_bound(limits: &DocumentLimits) -> Option<u64> {
-    crate::document::worst_case(limits)?
+    crate::document::document_bound(limits)?
         .checked_add(u64::from(limits.bytes).checked_mul(2)?)?
         .checked_add(u64::from(REPLAY_HEADER_BYTES))
 }

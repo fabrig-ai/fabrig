@@ -432,7 +432,7 @@ fn written_observed(limits: writer::Limits, items: &[Outgoing], close: Option<u3
     let mut above = Queue::uncapped();
     let mut below = Queue::uncapped();
     let what = format!("{limits:?} {close:?} writing {items:?}");
-    let bound = writer::worst_case(&limits).expect("the limits are honoured");
+    let bound = writer::frame_bound(&limits).expect("the limits are honoured");
     let meter = Meter::new();
     meter.start();
     let mut machine = Writer::new(&limits);

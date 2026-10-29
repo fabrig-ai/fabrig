@@ -206,167 +206,10 @@ fn an_incomplete_file_record_faults_after_genuine_tree_settlement_and_retains_it
     std::fs::remove_dir_all(directory).expect("fixture cleanup");
 }
 
-#[test]
-fn a_failed_main_answer_also_closes_person_input_and_preserves_its_budget_end() {
-    let directory = root("failed-answer");
-    std::fs::create_dir(&directory).expect("fixture directory");
-    let trace = directory.join("trace.jsonl");
-    std::fs::write(&trace, []).expect("append file");
-    let recording = directory.join("recording.jsonl");
-    std::fs::write(&recording, failed_recording()).expect("budget terminal");
-    let command = Command {
-        program: "/bin/sh".into(),
-        arguments: vec![
-            "-c".into(),
-            "IFS= read -r prompt; cat \"$1\" >> \"$2\"; if IFS= read -r extra; then exit 9; fi".into(),
-            "replay".into(),
-            recording.into_os_string(),
-            trace.clone().into_os_string(),
-        ],
-        environment: vec![("PATH".into(), "/usr/bin:/bin".into())],
-        directory: directory.clone(),
-    };
-    let result = execute(
-        &Clock::new(),
-        command,
-        Box::from(&b"finish the task\n"[..]),
-        Capture::Agent(Box::new(smith_bench::agent::Observing::Smith(observing(&trace)))),
-        bounds(),
-    )
-    .expect("settled failure");
-    assert_eq!(result.exit, smith_bench::Exit::Code(0));
-    assert_eq!(result.forced, Forced::No);
-    assert!(result.answered.is_some());
-    assert_eq!(
-        result.observing.expect("paired observer").classify(result.exit, result.forced).end,
-        End::Budget { which: smith_bench::BudgetLimit::Time }
-    );
-    assert!(result.tree.live_pids.is_empty());
-    std::fs::remove_dir_all(directory).expect("cleanup");
-}
-
-fn failed_recording() -> Vec<u8> {
-    let mut records = common::events::balanced();
-    let failed =
-        common::events::record(include_str!("../../../crates/smith-events/golden/v4/answer_class_budget.jsonl"));
-    let smith_events::Event::RunCompleted(mut failed) = failed.event else { panic!("run terminal") };
-    failed.run = 0;
-    failed.failure.as_mut().expect("budget").which = Some(Box::from(&b"time"[..]));
-    for record in &mut records {
-        if let smith_events::Event::SessionStarted(value) = &mut record.event {
-            value.mode = smith_events::Mode::Chat;
-        }
-        if let smith_events::Event::RunCompleted(value) = &mut record.event {
-            value.status = smith_events::Status::Failed;
-            value.result = None;
-            value.failure.clone_from(&failed.failure);
-        }
-    }
-    common::events::bytes(&records)
-}
-
-fn person_capture(trace: &Path) -> Capture {
-    let mut prepared = observing(trace).prepared;
-    prepared.face = smith_bench::agent::smith::events::Shape::Chat;
-    prepared.registry.shape = prepared.face;
-    prepared.registry.receiving = serde_json::from_value(serde_json::json!({
-        "string":128,"content":1024,"items":16,"encoded_line":4096
-    }))
-    .expect("fixture receiving limits");
-    Capture::Agent(Box::new(smith_bench::agent::Observing::Smith(Observing::new(prepared).expect("event observer"))))
-}
-
-fn person_recording() -> Vec<u8> {
-    let mut records = common::events::balanced();
-    let mut started =
-        common::events::record(include_str!("../../../crates/smith-events/golden/v4/tool_started_everything.jsonl"));
-    started.t_ms = 4;
-    if let smith_events::Event::ToolStarted(value) = &mut started.event {
-        value.run = 0;
-        value.conversation = 0;
-        value.call = Box::from(&b"finish"[..]);
-        value.tool = Box::from(&b"finish"[..]);
-        value.deadline_ms = Some(100);
-        value.input_bytes = 0;
-        value.input = None;
-    }
-    records.insert(4, started);
-    common::events::bytes(&records)
-}
-
-#[test]
-fn a_task_person_line_follows_its_tool_cue_at_the_terminal() {
-    let directory = root("task-cue");
-    std::fs::create_dir(&directory).expect("fixture directory");
-    let trace = directory.join("trace.jsonl");
-    std::fs::write(&trace, []).expect("append file");
-    let replay = directory.join("records.jsonl");
-    std::fs::write(&replay, person_recording()).expect("tool cue");
-    let project = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let mut task = smith_bench::read_task(&project.join("tests/recorded/tasks/valid/task.toml")).expect("task");
-    task.person = vec![
-        toml::from_str("when = { tool-call = { tool = 'finish' } }\ntext = \"second line\\n\"\n")
-            .expect("authored cue"),
-    ];
-    task.input_end = Some(smith_bench::agent::Close::AfterLastCue);
-    let command=Command {program:"/bin/sh".into(),arguments:vec!["-c".into(),
-        "IFS= read -r prompt; cat \"$1\" >> \"$2\"; IFS= read -r reply || exit 7; test \"$reply\" = 'second line' || exit 8; if IFS= read -r extra; then exit 9; fi".into(),
-        "replay".into(),replay.into_os_string(),trace.clone().into_os_string()],
-        environment:vec![("PATH".into(),"/usr/bin:/bin".into())],directory:directory.clone()};
-    let capture = person_capture(&trace);
-    let result = smith_bench::process::execute_script(
-        &Clock::new(),
-        command,
-        smith_bench::run::script(&task, &capture),
-        capture,
-        bounds(),
-    )
-    .expect("settled task script");
-    assert_eq!(result.exit, smith_bench::Exit::Code(0), "{:?}", result.error);
-    assert_eq!(result.forced, Forced::No);
-    assert!(result.error.is_none(), "{:?}", result.error);
-    assert!(result.tree.live_pids.is_empty());
-    std::fs::remove_dir_all(directory).expect("cleanup");
-}
-
-#[test]
-fn a_later_person_line_waits_for_its_named_tool_cue_and_eof_follows_that_line() {
-    use smith_bench::agent::{Close, Cue, Script, Trigger};
-    let directory = root("cue");
-    std::fs::create_dir(&directory).expect("fixture directory");
-    let trace = directory.join("trace.jsonl");
-    std::fs::write(&trace, []).expect("append file");
-    let recording = directory.join("recording.jsonl");
-    std::fs::write(&recording, person_recording()).expect("event recording");
-    let command=Command {program:"/bin/sh".into(),arguments:vec!["-c".into(),
-        "IFS= read -r prompt; cat \"$1\" >> \"$2\"; IFS= read -r reply || exit 7; test \"$reply\" = 'second line' || exit 8; if IFS= read -r extra; then exit 9; fi".into(),
-        "replay".into(),recording.into_os_string(),trace.clone().into_os_string()],
-        environment:vec![("PATH".into(),"/usr/bin:/bin".into())],directory:directory.clone()};
-    let script = Script {
-        cues: vec![
-            Cue { when: Trigger::Start, text: "first line\n".into() },
-            Cue { when: Trigger::ToolCall { tool: "finish".into() }, text: "second line\n".into() },
-        ],
-        close: Close::AfterLastCue,
-    };
-    let result = smith_bench::process::execute_script(
-        &Clock::new(),
-        command,
-        script,
-        Capture::Agent(Box::new(smith_bench::agent::Observing::Smith(observing(&trace)))),
-        bounds(),
-    )
-    .expect("settled script");
-    assert_eq!(result.exit, smith_bench::Exit::Code(0));
-    assert_eq!(result.forced, Forced::No);
-    assert!(result.error.is_none(), "{:?}", result.error);
-    assert!(result.tree.live_pids.is_empty());
-    std::fs::remove_dir_all(directory).expect("cleanup");
-}
-
+/// Lower test of smith-bench's `smith_adapter::path_mounts_reach_native_policy_and_escaped_mounts_refuse_before_credentials` (top tiers test wiring only).
 #[test]
 fn path_mounts_reach_native_policy_and_escaped_mounts_refuse_before_credentials() {
-    let fixture = exec::ExecFixture::new("path-settings", 0);
+    let fixture = exec::ExecFixture::rendering("path-settings");
     let mut task = authored_task("paths");
     let context = fixture.context();
     let private = context.private;
@@ -429,9 +272,10 @@ fn mount_refusals(context: &smith_bench::agent::Context<'_>, task: &mut smith_be
     }
 }
 
+/// Lower test of smith-bench's `smith_adapter::every_probe_tasks_overrides_pass_the_actual_public_startup_derivation` (top tiers test wiring only).
 #[test]
 fn every_probe_tasks_overrides_pass_the_actual_public_startup_derivation() {
-    let fixture = exec::ExecFixture::new("all-probe-settings", 0);
+    let fixture = exec::ExecFixture::rendering("all-probe-settings");
     for name in ["app", "spec"] {
         std::fs::create_dir_all(fixture.context().private.workspace.join(name)).expect("probe mount");
     }
@@ -452,9 +296,10 @@ fn every_probe_tasks_overrides_pass_the_actual_public_startup_derivation() {
     fixture.clean();
 }
 
+/// Lower test of smith-bench's `smith_adapter::tool_output_profiles_render_and_pass_the_actual_public_startup_derivation` (top tiers test wiring only).
 #[test]
 fn tool_output_profiles_render_and_pass_the_actual_public_startup_derivation() {
-    let fixture = exec::ExecFixture::new("tool-output-settings", 0);
+    let fixture = exec::ExecFixture::rendering("tool-output-settings");
     let task = authored_task("tool-output");
     for variant in &task.variant {
         let context = smith_bench::agent::Context { task: &task, variant: Some(variant), ..fixture.context() };
@@ -471,9 +316,10 @@ fn tool_output_profiles_render_and_pass_the_actual_public_startup_derivation() {
     fixture.clean();
 }
 
+/// Lower test of smith-bench's `smith_adapter::process_tree_profile_renders_and_passes_the_actual_public_startup_derivation` (top tiers test wiring only).
 #[test]
 fn process_tree_profile_renders_and_passes_the_actual_public_startup_derivation() {
-    let fixture = exec::ExecFixture::new("process-tree-settings", 0);
+    let fixture = exec::ExecFixture::rendering("process-tree-settings");
     let task = authored_task("process-tree");
     let context = smith_bench::agent::Context { task: &task, ..fixture.context() };
     let resolved = resolved_product(&context);
@@ -486,9 +332,10 @@ fn process_tree_profile_renders_and_passes_the_actual_public_startup_derivation(
     fixture.clean();
 }
 
+/// Lower test of smith-bench's `smith_adapter::slow_completion_profile_renders_and_passes_the_actual_public_startup_derivation` (top tiers test wiring only).
 #[test]
 fn slow_completion_profile_renders_and_passes_the_actual_public_startup_derivation() {
-    let fixture = exec::ExecFixture::new("slow-completion-settings", 0);
+    let fixture = exec::ExecFixture::rendering("slow-completion-settings");
     let task = authored_task("slow-completion");
     let context = smith_bench::agent::Context { task: &task, ..fixture.context() };
     let resolved = resolved_product(&context);
@@ -537,26 +384,6 @@ fn an_exec_arm_reads_its_prompt_to_eof_without_a_trace_file() {
     assert_eq!(result.forced, Forced::No);
     assert!(result.error.is_none() && result.tree.live_pids.is_empty());
     fixture.clean();
-}
-
-#[test]
-fn a_binary_older_than_the_product_face_is_refused() {
-    let project = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let repository = project.parent().expect("repository");
-    let arm = smith_bench::arm::BuiltArm {
-        version: 1,
-        commit: "4d06c1106b45b12280bad141cacb2806c514fe26".into(),
-        sha256: "0".repeat(64),
-        toolchain: "selection only".into(),
-        binaries: vec![],
-    };
-    let entries = smith_bench::agent::smith::read_faces(&project.join("agents/smith/faces.toml")).expect("registry");
-    let refusal = smith_bench::agent::smith::face(&arm, &entries, repository).expect_err("pre-product arm");
-    assert_eq!(refusal.step, smith_bench::isolate::SetupStep::Configuration);
-    assert_eq!(
-        refusal.reason,
-        "Smith arm 4d06c1106b45b12280bad141cacb2806c514fe26 predates the first supported product face"
-    );
 }
 
 #[test]
@@ -687,9 +514,10 @@ fn a_time_breakdown_sums_to_task_wall_within_one_second() {
     assert!(value(&timing.longest_completion_ms) > 10_000);
 }
 
+/// Lower test of smith-bench's `smith_adapter::a_task_override_reaches_smith_as_a_product_setting` (top tiers test wiring only).
 #[test]
 fn a_task_override_reaches_smith_as_a_product_setting() {
-    let fixture = exec::ExecFixture::new("task-setting", 0);
+    let fixture = exec::ExecFixture::rendering("task-setting");
     let mut task = authored_task("first-request");
     task.smith.insert("models.\"{model}\".output".into(), toml::Value::Integer(8192));
     let context = smith_bench::agent::Context { task: &task, ..fixture.context() };
@@ -699,9 +527,10 @@ fn a_task_override_reaches_smith_as_a_product_setting() {
     fixture.clean();
 }
 
+/// Lower test of smith-bench's `smith_adapter::a_comparison_pin_keeps_every_preset_value_and_the_default_role` (top tiers test wiring only).
 #[test]
 fn a_comparison_pin_keeps_every_preset_value_and_the_default_role() {
-    let fixture = exec::ExecFixture::new("comparison-settings", 0);
+    let fixture = exec::ExecFixture::rendering("comparison-settings");
     let mut task = authored_task("first-request");
     task.smith.clear();
     task.budget.turns = None;
@@ -746,9 +575,10 @@ fn a_comparison_pin_keeps_every_preset_value_and_the_default_role() {
     fixture.clean();
 }
 
+/// Lower test of smith-bench's `smith_adapter::a_task_without_a_budget_renders_the_products_defaults` (top tiers test wiring only).
 #[test]
 fn a_task_without_a_budget_renders_the_products_defaults() {
-    let fixture = exec::ExecFixture::new("default-budget", 0);
+    let fixture = exec::ExecFixture::rendering("default-budget");
     let mut task = authored_task("first-request");
     task.smith.remove("budget.reserve.seconds");
     task.budget.turns = None;

@@ -1062,3 +1062,39 @@ fn an_unused_slab_holds_nothing() {
         assert!(!slab.is_full());
     }
 }
+
+#[test]
+fn an_uncapped_map_allocates_only_as_entries_arrive() {
+    // Twelve entries cross a B-tree leaf's eleven-entry capacity.
+    const ENTRIES: u32 = 12;
+    let meter = Meter::new();
+    let mut map = std::hint::black_box(Map::<u32, u32>::uncapped());
+    assert_eq!(meter.held(), 0);
+    assert_eq!(map.capacity(), u32::MAX);
+    for key in 0..ENTRIES {
+        assert_eq!(map.insert(key, key), Ok(None));
+    }
+    assert_eq!(map.len(), ENTRIES);
+    assert!(meter.held() > 0);
+    for key in 0..ENTRIES {
+        assert_eq!(map.get(&key), Some(&key));
+    }
+}
+
+#[test]
+fn an_uncapped_list_allocates_only_as_items_arrive() {
+    // Twelve items require growth beyond the four-item initial buffer.
+    const ITEMS: u32 = 12;
+    let meter = Meter::new();
+    let mut list = std::hint::black_box(List::<u32>::uncapped());
+    assert_eq!(meter.held(), 0);
+    assert_eq!(list.capacity(), u32::MAX);
+    for item in 0..ITEMS {
+        assert_eq!(list.push(item), Ok(()));
+    }
+    assert_eq!(list.len(), ITEMS);
+    assert!(meter.held() > 0);
+    for item in 0..ITEMS {
+        assert_eq!(list.get(item), Some(&item));
+    }
+}

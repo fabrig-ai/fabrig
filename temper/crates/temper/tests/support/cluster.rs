@@ -1,5 +1,5 @@
 //! The process tier's reader of crates/temper/tests/fixtures/cluster (protocol/README.md, 15.5).
-use super::{StdoutReader, WITHIN};
+use super::{StdoutReader, WITHIN, patience::Patience};
 use serde_json::Value;
 use skein_io::kernel::{Complete, Exit, Signal, Submit};
 use skein_lib::{Duration, Queue, Time, Token, Wall};
@@ -290,11 +290,17 @@ impl Cluster {
     /// Reserve a world root for each member before running the world.
     #[must_use]
     pub fn members(self) -> (Members, Vec<Root>) {
+        self.members_within(WITHIN)
+    }
+    /// The enclosing world's patience decides whether an inner wait can defer to it.
+    #[must_use]
+    pub fn members_within(self, world_patience: Duration) -> (Members, Vec<Root>) {
         let count = self.specs.len();
         let hosts = (0..count).map(|_| Root::Process(Box::new(Member::idle()))).collect();
         (
             Members {
                 cluster: self,
+                world_patience,
                 requested: vec![false; count],
                 states: (0..count).map(|_| State::Waiting).collect(),
                 actions: Vec::new(),
@@ -473,11 +479,47 @@ impl Host for Member {
     }
 }
 
+/// A wait needs a longer world to own a deferred starvation verdict.
+enum MemberWait {
+    World(Patience),
+    Bound(Time),
+    Disarmed,
+}
+impl MemberWait {
+    fn arm(what: &'static str, now: Time, within: Duration, world: Duration) -> Self {
+        if world > within { Self::World(Patience::arm(what, within)) } else { Self::Bound(now.saturating_add(within)) }
+    }
+    fn watching(what: &'static str, now: Time, within: Duration, world: Duration, binary: &Binary) -> Self {
+        let mut wait = Self::arm(what, now, within, world);
+        wait.watch(binary);
+        wait
+    }
+    fn watch(&mut self, binary: &Binary) {
+        if let Self::World(deadline) = self {
+            deadline.watch(binary);
+        }
+    }
+    fn failed(&mut self, now: Time) -> Option<String> {
+        match self {
+            Self::World(deadline) => deadline.failed().map(|figures| format!("; {figures}")),
+            Self::Bound(until) => (now >= *until).then(String::new),
+            Self::Disarmed => None,
+        }
+    }
+    fn until(&self) -> Option<Time> {
+        match self {
+            Self::World(deadline) => deadline.until(),
+            Self::Bound(until) => Some(*until),
+            Self::Disarmed => None,
+        }
+    }
+}
+
 enum State {
     Waiting,
-    Starting { deadline: Time, captures: Vec<Option<String>> },
+    Starting { deadline: MemberWait, captures: Vec<Option<String>> },
     Ready,
-    Stopping { deadline: Time, ending: Ending, swept: bool, killed: bool, survivors: Vec<u32> },
+    Stopping { deadline: MemberWait, ending: Ending, swept: bool, killed: bool, survivors: Vec<u32> },
     Ended,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -498,6 +540,7 @@ struct Life {
 /// Every cluster story embeds this half in its own referee.
 pub struct Members {
     cluster: Cluster,
+    world_patience: Duration,
     requested: Vec<bool>,
     states: Vec<State>,
     started: Vec<Life>,
@@ -620,7 +663,13 @@ impl Members {
             binary.signal(if ending == Ending::Kill { Signal::Kill } else { Signal::Terminate });
         }
         self.states[i] = State::Stopping {
-            deadline: now.saturating_add(Duration::from_secs(STOP_SECONDS)),
+            deadline: MemberWait::watching(
+                "the cluster member's stopping",
+                now,
+                Duration::from_secs(STOP_SECONDS),
+                self.world_patience,
+                binary,
+            ),
             ending,
             swept: false,
             killed: false,
@@ -660,7 +709,15 @@ impl Members {
                 *swept = true;
             }
             let survivors = binary.tree_status().live_at_leader_exit.as_deref().unwrap_or(&[]);
-            let timed_out = matches!(state, State::Stopping { deadline, killed: false, .. } if now >= *deadline);
+            let timed_out =
+                if let State::Stopping { deadline, killed: false, .. } = state { deadline.failed(now) } else { None };
+            if let Some(figures) = &timed_out {
+                self.failure = Some(format!(
+                    "{} did not stop within {STOP_SECONDS}s{figures}",
+                    string(&self.cluster.specs[i]["name"])
+                ));
+            }
+            let timed_out = timed_out.is_some();
             // skein-world end_to_end.rs:253–260 refreshes tree membership on delivery;
             // an intentional whole-tree kill awaits settlement, not leader-exit cleanup.
             let deliberate_kill = matches!(state, State::Stopping { ending: Ending::Kill, .. });
@@ -676,7 +733,8 @@ impl Members {
                 survivors.extend_from_slice(&binary.tree_status().live_pids);
                 survivors.sort_unstable();
                 survivors.dedup();
-                *state = State::Stopping { deadline: now, ending, swept: true, killed: true, survivors };
+                let deadline = MemberWait::Disarmed;
+                *state = State::Stopping { deadline, ending, swept: true, killed: true, survivors };
                 binary.signal_tree(Signal::Kill);
                 self.stopping = true;
             }
@@ -710,7 +768,12 @@ impl Members {
             host.starting = true;
             self.linked_through[i] = 0;
             self.states[i] = State::Starting {
-                deadline: now.saturating_add(Duration::from_secs(READY_SECONDS)),
+                deadline: MemberWait::arm(
+                    "the cluster member's readiness",
+                    now,
+                    Duration::from_secs(READY_SECONDS),
+                    self.world_patience,
+                ),
                 captures: vec![None; list(&self.cluster.specs[i]["ready"]).len()],
             };
             let number = self.started.iter().filter(|life| life.member == i).count();
@@ -734,6 +797,7 @@ impl Members {
             }
             assert!(!binary.stderr_overflowed(), "{name}'s stderr exceeded its bound");
             if let State::Starting { deadline, captures } = &mut self.states[i] {
+                deadline.watch(binary);
                 let rules = list(&self.cluster.specs[i]["ready"]);
                 for (rule, captured) in rules.iter().zip(captures.iter_mut()) {
                     if captured.is_some() {
@@ -765,9 +829,11 @@ impl Members {
                         }
                     }
                     self.states[i] = State::Ready;
-                } else if now >= *deadline {
+                } else if binary.exit_status().is_none()
+                    && let Some(figures) = deadline.failed(now)
+                {
                     self.failure = Some(format!(
-                        "{name} did not become ready within {READY_SECONDS}s: {}",
+                        "{name} did not become ready within {READY_SECONDS}s: {}{figures}",
                         String::from_utf8_lossy(binary.stderr())
                     ));
                     self.stopping = true;
@@ -781,7 +847,13 @@ impl Members {
                 self.stopping = true;
                 self.settling_client = true;
                 self.states[i] = State::Stopping {
-                    deadline: now.saturating_add(Duration::from_secs(STOP_SECONDS)),
+                    deadline: MemberWait::watching(
+                        "the cluster member's stopping",
+                        now,
+                        Duration::from_secs(STOP_SECONDS),
+                        self.world_patience,
+                        binary,
+                    ),
                     ending: Ending::Cluster,
                     swept: false,
                     killed: false,
@@ -811,8 +883,8 @@ impl Members {
         self.states
             .iter()
             .filter_map(|s| match s {
-                State::Starting { deadline, .. } if !self.stopping => Some(*deadline),
-                State::Stopping { deadline, killed: false, .. } => Some(*deadline),
+                State::Starting { deadline, .. } if !self.stopping => deadline.until(),
+                State::Stopping { deadline, killed: false, .. } => deadline.until(),
                 State::Waiting | State::Starting { .. } | State::Ready | State::Stopping { .. } | State::Ended => None,
             })
             .min()
@@ -881,4 +953,22 @@ fn probe(scratch: &Path) {
     let binary = &outcome.procs[0];
     assert_eq!(binary.exit_status(), Some(Exit::Code(0)), "cgroup probe exits successfully");
     assert_eq!(binary.counts().expect("probe settled").method, Method::Cgroup, "{CGROUPS}");
+}
+
+#[cfg(test)]
+mod deadline_tests {
+    use super::MemberWait;
+    use skein_lib::{Duration, Time};
+
+    #[test]
+    fn a_member_wait_can_defer_only_to_a_longer_world() {
+        let within = Duration::from_secs(20);
+        for (world, can_defer) in [(19, false), (20, false), (21, true)] {
+            let wait = MemberWait::arm("the member's answer", Time::ZERO, within, Duration::from_secs(world));
+            assert_eq!(matches!(wait, MemberWait::World(_)), can_defer, "world={world}");
+            if let MemberWait::Bound(until) = wait {
+                assert_eq!(until, Time::ZERO.saturating_add(within));
+            }
+        }
+    }
 }

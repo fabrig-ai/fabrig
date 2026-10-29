@@ -956,7 +956,7 @@ mod tests {
             owner_limits.core.run_bytes =
                 owner_limits.core.run_bytes.max(u32::try_from(bytes).expect("fixture run bound"));
         }
-        let room = core::route_bound(&owner_limits.core).expect("fixture core output bound");
+        let room = owner_limits.core.routes;
         let connectors = jig_test_connector::MAX_OUT.checked_mul(2).expect("two fixture connectors");
         owner_limits.journal.writes =
             owner_limits.journal.writes.max(room.checked_add(connectors).expect("fixture writes"));

@@ -177,8 +177,8 @@ mod tests {
     fn a_boxed_variants_heap_counts_its_records_size() {
         use skein_codec_tests::lints::{BoxedChoice, InlineChoice, OptionalPayload};
         let record_size = u64::try_from(size_of::<OptionalPayload>()).expect("size fits u64");
-        assert_eq!(InlineChoice::worst_case_heap(&LINT_CEILINGS), Some(4));
-        assert_eq!(BoxedChoice::worst_case_heap(&LINT_CEILINGS), Some(record_size.checked_add(4).expect("heap size")));
+        assert_eq!(InlineChoice::decoded_bound(&LINT_CEILINGS), Some(4));
+        assert_eq!(BoxedChoice::decoded_bound(&LINT_CEILINGS), Some(record_size.checked_add(4).expect("heap size")));
     }
 
     #[test]

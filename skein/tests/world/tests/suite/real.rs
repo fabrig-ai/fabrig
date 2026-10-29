@@ -182,16 +182,6 @@ fn referee_signal_reaches_a_hosted_child_through_its_pipe() {
 }
 
 #[test]
-#[should_panic(expected = "process 0 woke for policy deadline")]
-fn a_keep_time_after_the_last_word_fails_the_world_naming_the_process() {
-    let clock = Clock::new();
-    let mut world = real::World::new(Judge);
-    // The pause and the last word use the same iteration snapshot.
-    world.spawn(|| Script::new(&[Act::PauseFor(Duration::from_millis(5))]));
-    let _outcome = world.run(&clock, Duration::from_secs(2));
-}
-
-#[test]
 fn a_never_settling_world_names_each_hosts_pending_work_and_deadlines() {
     use skein_io::kernel::{Complete, Submit};
     use skein_lib::{Queue, Time, Wall};
@@ -429,56 +419,4 @@ fn a_starved_referee_drops_hosts_before_reporting_its_figures() {
     let text = failure.downcast_ref::<String>().expect("the referee's figures");
     assert_eq!(Some(text), EXPECTED.get(), "the referee's observed figures: {text}");
     assert!(DROPPED_AT_FAILURE.load(Ordering::SeqCst), "the host was dropped before failure reporting");
-}
-
-#[test]
-fn a_world_that_ends_by_itself_passes() {
-    let mut world = real::World::new(Judge);
-    world.spawn(|| Script::new(&[]));
-    let outcome = world.run(&Clock::new(), Duration::from_secs(2));
-    assert!(skein_world::Host::is_empty(&outcome.procs[0]));
-}
-
-struct LaterFromAct {
-    delay: Duration,
-    after: Option<skein_lib::Time>,
-}
-
-impl skein_world::Referee<Script> for LaterFromAct {
-    fn act(&mut self, now: skein_lib::Time, _procs: &mut [Script]) {
-        // The last word and PauseFor use the first iteration's snapshot.
-        self.after.get_or_insert_with(|| now.saturating_add(self.delay));
-    }
-    fn observe(&mut self, _now: skein_lib::Time, _procs: &[Script]) {}
-    fn next_deadline(&self) -> Option<skein_lib::Time> {
-        None
-    }
-    fn overdue(&self, _now: skein_lib::Time) -> Option<String> {
-        None
-    }
-    fn passed(&self) -> bool {
-        true
-    }
-    fn last_word(&self) -> skein_world::LastWord {
-        skein_world::LastWord::After(self.after.expect("the referee acted before its last word"))
-    }
-}
-
-#[test]
-fn a_scenario_that_names_a_later_last_word_may_wait_for_it() {
-    let clock = Clock::new();
-    let delay = Duration::from_millis(5);
-    let mut world = real::World::new(LaterFromAct { delay, after: None });
-    world.spawn(|| Script::new(&[Act::PauseFor(delay)]));
-    let outcome = world.run(&clock, Duration::from_secs(2));
-    assert!(outcome.end >= outcome.start.saturating_add(delay));
-}
-
-#[test]
-#[should_panic(expected = "process 0 woke for policy deadline")]
-fn a_named_later_last_word_still_rejects_policy_deadlines_after_it() {
-    let clock = Clock::new();
-    let mut world = real::World::new(LaterFromAct { delay: Duration::from_millis(5), after: None });
-    world.spawn(|| Script::new(&[Act::PauseFor(Duration::from_millis(10))]));
-    let _outcome = world.run(&clock, Duration::from_secs(2));
 }

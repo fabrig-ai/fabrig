@@ -786,11 +786,7 @@ impl Clients {
             keys.push(*key).expect("bounded pending names");
         }
         for key in &keys {
-            if events.room() == 0
-                || self.out.room() < kit::MAX_OUT_DOWN
-                || self.io.room() < 8
-                || self.server_out.room() < 8
-            {
+            if events.room() == 0 {
                 break;
             }
             let Some(mut pending) = google.pending.remove(key) else { unreachable!("pending name") };
@@ -823,9 +819,6 @@ impl Clients {
             keys.push(*key).expect("bounded fetch names");
         }
         for key in &keys {
-            if self.io.room() < 8 {
-                break;
-            }
             let mut fetch = google.fetches.remove(key).expect("fetch name");
             if !google.pending.contains_key(&fetch.exchange) || self.stopping.is_some() {
                 fetch.web.close(&env, true, &mut self.io);
@@ -861,7 +854,6 @@ impl Clients {
         let scripted = false;
         if !scripted
             && google.fetches.len() < google.limits.fetches
-            && self.io.room() >= 8
             && let Some((exchange, request)) = google.http.pop()
             && google.pending.contains_key(&exchange)
         {

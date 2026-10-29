@@ -10,6 +10,7 @@ pub(crate) struct Wire {
     pipes: BTreeMap<i32, (bool, Vec<u8>)>,
     attempt: u64,
     pub events: Vec<Observed>,
+    pub answers: Vec<smith_channel::RunResult>,
     pub mode: Option<smith_charter::Mode>,
 }
 impl Wire {
@@ -68,6 +69,9 @@ impl Wire {
                 // These byte-level scenarios use fixed first-start settings.
                 settings: 1,
             });
+        } else if !down && kind == 0x0110 {
+            let answer = smith_channel::Answer::decode(&limits, &mut Reader::new(bytes)).expect("agent Answer bytes");
+            self.answers.push(answer.result().clone());
         } else if !down && kind == 0x0109 {
             let turn = smith_channel::Turn::decode(&limits, &mut Reader::new(bytes)).expect("agent Turn bytes");
             self.events.push(Observed::Completion { task: 1, attempt: self.attempt, cumulative: turn.spent() });

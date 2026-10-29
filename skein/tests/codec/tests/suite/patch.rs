@@ -74,9 +74,9 @@ mod tests {
             patches: 1,
             text: u32::try_from(V1.len().max(V2.len()).max(PATCH.len())).expect("fixture text fits"),
             bytes: u32::try_from(
-                v1::worst_case_bytes(&v1::CEILINGS)
+                v1::encoded_bound(&v1::CEILINGS)
                     .expect("v1 bound")
-                    .max(v2::worst_case_bytes(&v2::CEILINGS).expect("v2 bound")),
+                    .max(v2::encoded_bound(&v2::CEILINGS).expect("v2 bound")),
             )
             .expect("fixture bytes fit"),
             nodes: generic::ROOM,

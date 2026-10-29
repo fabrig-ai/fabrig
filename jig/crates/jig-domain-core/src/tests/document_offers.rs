@@ -34,7 +34,7 @@ fn document_offers_fit_the_object_and_preserve_actor_specific_refusals() {
     assert_eq!(find(&value.acts, Act::Stop), Some(&Admission::Allowed));
     assert_eq!(find(&value.acts, Act::Answer), None);
     assert_eq!(find(&value.acts, Act::Take), None);
-    let mut out = Queue::with_capacity(people::max_out(&limits.people));
+    let mut out = Queue::uncapped();
     people::step(
         &mut core.people,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people },

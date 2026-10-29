@@ -1,7 +1,9 @@
 // Bounded admission fixtures have a fake runtime and retain fixture-relative file keys.
 //! Fixtures for the owned forge commands, shared with the process tier.
+use super::patience::Patience;
 use skein_forge::forgejo::pin::{RUNNER_VERSION, VERSION};
 use skein_lib::Duration;
+use skein_world::{Deadline, Expired};
 use std::{
     fs,
     net::SocketAddr,
@@ -96,9 +98,9 @@ impl Programs {
         fs::write(self.directory.join(format!("{program}.hang")), command).expect("hang");
     }
     #[must_use]
-    pub fn hung(&self, within: Duration) -> u32 {
-        let clock = skein_shell::Clock::new();
-        let deadline = clock.now().now.saturating_add(within);
+    pub fn hung(&self, child: &mut std::process::Child, within: Duration) -> u32 {
+        let mut deadline = Deadline::arm("the scripted command's hung marker", within);
+        deadline.watch_process(child.id());
         loop {
             // The shell creates the file before it writes the pid: an empty file is not yet an answer.
             if let Some(pid) =
@@ -106,7 +108,19 @@ impl Programs {
             {
                 return pid;
             }
-            assert!(clock.now().now < deadline, "command hung within bound");
+            assert!(
+                child.try_wait().expect("fixture child status").is_none(),
+                "fixture child exited before its marker"
+            );
+            if deadline.passed() {
+                match deadline.expired() {
+                    Expired::Starved(starved) => {
+                        super::parent::end_child(child);
+                        starved.pass();
+                    }
+                    Expired::Failed(figures) => panic!("command hung within bound: {figures}"),
+                }
+            }
             std::thread::sleep(std::time::Duration::from_millis(1));
         }
     }
@@ -191,9 +205,9 @@ impl Programs {
     pub fn lock(&self, program: &str) -> PathBuf {
         self.directory.join(format!("forge-1/{program}.lock"))
     }
-    pub fn marker(&self, program: &str, within: Duration) -> Marker {
-        let clock = skein_shell::Clock::new();
-        let deadline = clock.now().now.saturating_add(within);
+    pub fn marker(&self, program: &str, child: &mut std::process::Child, within: Duration) -> Marker {
+        let mut deadline = Deadline::arm("the scripted process's exec marker", within);
+        deadline.watch_process(child.id());
         loop {
             if let Ok(text) = fs::read_to_string(self.directory.join(format!("{program}.marker"))) {
                 let mut lines = text.lines();
@@ -214,7 +228,19 @@ impl Programs {
                     return Marker { pid, arguments, environment, descriptors };
                 }
             }
-            assert!(clock.now().now < deadline, "process execs sleep within bound");
+            assert!(
+                child.try_wait().expect("fixture child status").is_none(),
+                "fixture child exited before its marker"
+            );
+            if deadline.passed() {
+                match deadline.expired() {
+                    Expired::Starved(starved) => {
+                        super::parent::end_child(child);
+                        starved.pass();
+                    }
+                    Expired::Failed(figures) => panic!("process execs sleep within bound: {figures}"),
+                }
+            }
             std::thread::sleep(std::time::Duration::from_millis(1));
         }
     }
@@ -255,8 +281,8 @@ impl Running {
         self.child.take().expect("owned child")
     }
     pub fn declared(&mut self) {
-        let clock = skein_shell::Clock::new();
-        let deadline = clock.now().now.saturating_add(super::WITHIN);
+        let mut deadline = Deadline::arm("the runner's declaration", super::WITHIN);
+        deadline.watch_process(self.id());
         loop {
             let text = fs::read_to_string(&self.log).expect("runner log");
             if text.contains("declared successfully") {
@@ -266,7 +292,15 @@ impl Running {
                 self.child.as_mut().expect("owned child").try_wait().expect("status").is_none(),
                 "runner exited: {text}"
             );
-            assert!(clock.now().now < deadline, "runner did not declare: {text}");
+            if deadline.passed() {
+                match deadline.expired() {
+                    Expired::Starved(starved) => {
+                        self.kill();
+                        starved.pass();
+                    }
+                    Expired::Failed(figures) => panic!("runner did not declare: {text}; {figures}"),
+                }
+            }
             std::thread::sleep(std::time::Duration::from_millis(10));
         }
     }
@@ -275,8 +309,7 @@ impl Running {
     }
     fn kill(&mut self) {
         if let Some(mut child) = self.child.take() {
-            let _ = child.kill();
-            child.wait().expect("reaped");
+            super::parent::end_child(&mut child);
         }
     }
 }
@@ -287,13 +320,34 @@ impl Drop for Running {
 }
 pub fn answer(port: u16, path: &str, token: Option<&str>) -> std::io::Result<serde_json::Value> {
     use std::io::{Read, Write};
-    let mut socket =
-        std::net::TcpStream::connect_timeout(&([127, 0, 0, 1], port).into(), std::time::Duration::from_millis(200))?;
-    socket.set_read_timeout(Some(std::time::Duration::from_secs(2)))?;
+    // These probes also run in live-check callbacks; the enclosing world owns the processes.
+    let mut connect = Patience::arm("the owned forge's HTTP connection", Duration::from_millis(200));
+    let address = ([127, 0, 0, 1], port).into();
+    let mut socket = loop {
+        let result = match connect.socket_timeout() {
+            Some(timeout) => std::net::TcpStream::connect_timeout(&address, timeout),
+            None => std::net::TcpStream::connect(address),
+        };
+        match result {
+            Ok(socket) => break socket,
+            Err(error) => connect.socket_retry(error)?,
+        }
+    };
     let auth = token.map_or_else(String::new, |token| format!("Authorization: token {token}\r\n"));
     write!(socket, "GET {path} HTTP/1.0\r\nHost: 127.0.0.1\r\n{auth}Connection: close\r\n\r\n")?;
-    let mut text = String::new();
-    socket.take(1 << 20).read_to_string(&mut text)?;
+    let mut read = Patience::arm("the owned forge's HTTP reply", Duration::from_secs(2));
+    let mut bytes = Vec::new();
+    let mut buf = [0; 8192];
+    while bytes.len() < 1 << 20 {
+        socket.set_read_timeout(read.socket_timeout())?;
+        let room = buf.len().min((1 << 20) - bytes.len());
+        match socket.read(&mut buf[..room]) {
+            Ok(0) => break,
+            Ok(count) => bytes.extend_from_slice(&buf[..count]),
+            Err(error) => read.socket_retry(error)?,
+        }
+    }
+    let text = std::str::from_utf8(&bytes).map_err(|_| std::io::ErrorKind::InvalidData)?;
     let (head, body) = text.split_once("\r\n\r\n").ok_or(std::io::ErrorKind::InvalidData)?;
     if !head.starts_with("HTTP/1.0 200 ") && !head.starts_with("HTTP/1.1 200 ") {
         return Err(std::io::ErrorKind::InvalidData.into());
@@ -302,13 +356,15 @@ pub fn answer(port: u16, path: &str, token: Option<&str>) -> std::io::Result<ser
 }
 #[must_use]
 pub fn await_answer(port: u16, path: &str, token: Option<&str>) -> serde_json::Value {
-    let clock = skein_shell::Clock::new();
-    let deadline = clock.now().now.saturating_add(super::WITHIN);
+    let mut deadline = Patience::arm("the owned forge's readiness", super::WITHIN);
     loop {
-        if let Ok(value) = answer(port, path, token) {
-            return value;
+        let error = match answer(port, path, token) {
+            Ok(value) => return value,
+            Err(error) => error,
+        };
+        if let Some(figures) = deadline.failed() {
+            panic!("{path} did not answer: {error}; {figures}");
         }
-        assert!(clock.now().now < deadline, "{path} did not answer");
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
 }

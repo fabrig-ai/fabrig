@@ -2,7 +2,6 @@
 use super::{
     app::{self, Kept},
     given::Given,
-    limits::Limits,
 };
 use crate::{
     item::{self, Item},
@@ -233,18 +232,4 @@ pub(crate) fn step(machine: &mut Sweep, event: Event, out: &mut Queue<Progress>)
         State::Ended => return,
     };
     out.push(progress);
-}
-
-/// Heap for both discovery sets, live accepted ids, retained ids and their
-/// encoded item, two App key copies (kept and outgoing auth), and the decimal
-/// scratch and copied failure subject. Parent-owned replies and output queues
-/// are counted there.
-pub(crate) fn worst_case(limits: &Limits) -> Option<u64> {
-    let capacity = limits.pages.checked_mul(PAGE_CAP)?;
-    Set::<u64>::worst_case(capacity)?
-        .checked_mul(2)?
-        .checked_add(Set::<u64>::worst_case(limits.installations)?)?
-        .checked_add(List::<u64>::worst_case(limits.installations)?.checked_mul(3)?)?
-        .checked_add(u64::from(limits.key_bytes).checked_mul(2)?)?
-        .checked_add(40)
 }

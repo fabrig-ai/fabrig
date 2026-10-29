@@ -2276,7 +2276,7 @@ fn a_first_run_ctl_demo_start_answers_running_twice() {
             Step::Run(Call::new(&["playground", "start", "--key", "second"])),
         ],
         BOX_DEADLINE,
-        || (),
+        |_binary| (),
     );
     assert_eq!(seen.exit, Some(Exit::Code(0)), "{}", String::from_utf8_lossy(&seen.stderr));
     assert_eq!(seen.left, Some(Vec::new()), "no process outlived the box");
@@ -2321,7 +2321,7 @@ fn a_second_forge_ends_the_playground_for_good_closing_its_chat_and_account() {
                 &[(7, 2), (8, 2)],
             )
         } else {
-            support::boxed::run_ctl(scratch.path(), flags.clone(), &client, steps, BOX_DEADLINE, || ())
+            support::boxed::run_ctl(scratch.path(), flags.clone(), &client, steps, BOX_DEADLINE, |_binary| ())
         };
         eprintln!("{run} playground-end box: {} ms", clock.now().now.saturating_since(began).as_nanos() / 1_000_000);
         let stderr = String::from_utf8_lossy(&seen.stderr);
@@ -4192,10 +4192,10 @@ fn a_story_box_and_its_steps_die_when_the_test_process_is_killed() {
         .expect("child test");
     let mut guard = Guard::new(child);
     let pid_file = scratch.path().join("box.pid");
-    wait(|| pid_file.exists());
+    wait(&mut guard, |_| pid_file.exists());
     let box_pid = fs::read_to_string(pid_file).expect("box pid").parse().expect("pid number");
     guard.record(box_pid, guard.child.as_ref().expect("child test").id());
-    wait(|| {
+    wait(&mut guard, |guard| {
         guard.descendants(box_pid);
         guard.has_descendants()
     });
