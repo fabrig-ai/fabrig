@@ -1,4 +1,4 @@
-mod support;
+use crate::support;
 use skein_lib::Duration;
 #[test]
 fn random_cuts_and_stdout_delays_lose_no_command_or_change() {
