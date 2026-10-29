@@ -45,7 +45,7 @@ fn an_ended_conversation_moves_its_position_to_the_ended_family() {
 fn an_ended_read_position_is_refused_at_restore() {
     let mut domain = Domain::new(&LIMITS, Box::new([]), 2, Box::new([]));
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: LIMITS };
-    let mut out = Queue::with_capacity(max_out(&LIMITS));
+    let mut out = Queue::uncapped();
     step(
         &mut domain,
         &env,
@@ -77,7 +77,7 @@ fn a_mark_on_an_ended_conversation_saves_its_ended_position() {
     });
     let seen = Seen::Conversation { task: TASK, through: 1 };
     let request = route(&test.request(SIGN_IN, MARK, Ask::MarkSeen { seen }));
-    let mut out = Queue::with_capacity(max_out(&LIMITS));
+    let mut out = Queue::uncapped();
     test.d.mark_ended(&test.env, EndedMark { request, project: PROJECT, last_reply: 2, seen: 0 }, &mut out);
     let mut requests = Vec::new();
     while let Some(request) = out.pop() {

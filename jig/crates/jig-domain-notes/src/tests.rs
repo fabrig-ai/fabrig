@@ -5,8 +5,7 @@ use alloc::boxed::Box;
 use skein_lib::{Env, List, Queue, Time, Token, Wall};
 
 use crate::{
-    Author, Change, Domain, Entry, Event, Limits, Line, New, Range, Recall, Record, Refusal, Request, Rows, Scope,
-    max_out, step,
+    Author, Change, Domain, Entry, Event, Limits, Line, New, Range, Recall, Record, Refusal, Request, Rows, Scope, step,
 };
 
 const LIMITS: Limits = Limits {
@@ -59,7 +58,7 @@ impl Harness {
         Harness {
             domain: Domain::new(&limits),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
-            out: Queue::with_capacity(max_out(&limits)),
+            out: Queue::uncapped(),
         }
     }
 

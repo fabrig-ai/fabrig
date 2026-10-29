@@ -80,7 +80,7 @@ fn before_the_first_answer_and_after_restart_it_is_the_start() {
 }
 #[test]
 #[should_panic(expected = "the end position fits u32")]
-fn a_length_of_u32_max_has_no_worst_case_and_no_tokenizer() {
+fn a_length_of_u32_max_has_no_bound_and_no_tokenizer() {
     let limits = Limits { length: u32::MAX, ..LIMITS };
     assert_eq!(tokenizer::tokenizer_bound(&limits), None);
     let _tokenizer = tokenizer::Tokenizer::new(&limits);

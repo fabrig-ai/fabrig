@@ -2,7 +2,7 @@
 
 use jig_domain_host::{
     AgentFailure, Ask, Delivery, DeliveryOutcome, Domain, Ending, Event, Finish, Grant, Invalid, Limits, Preparation,
-    Reason, Refusal, Request, RunAssignment, Workspace, max_out, resume, step,
+    Reason, Refusal, Request, RunAssignment, Workspace, resume, step,
 };
 use jig_domain_host::{LinkDown, LinkUp};
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
@@ -61,7 +61,7 @@ struct Measured {
 impl Measured {
     fn new(limits: Limits) -> Measured {
         // The output queue belongs to the parent, not the measured child.
-        let out = Queue::with_capacity(max_out(&limits));
+        let out = Queue::uncapped();
         let meter = Meter::new();
         let domain = Domain::new(&limits);
         Measured { domain, env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits }, out, meter }
@@ -443,7 +443,7 @@ fn source_replacement_at_capacity_completes_every_check() {
     use jig_domain_host::{LoginState, SourceFailure, SourceName, sources};
     let limits = Limits { slots: 0, ..LIMITS };
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let mut out = Queue::with_capacity(max_out(&limits));
+    let mut out = Queue::uncapped();
     let mut domain = Domain::new(&limits);
     let names: Box<[_]> = (0..limits.program_sources)
         .map(|index| SourceName::new(format!("{index:032}").as_bytes()).expect("full source name"))
