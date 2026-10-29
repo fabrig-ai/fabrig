@@ -22,11 +22,6 @@ pub(super) fn limits(bound: u32, depth: u32, tokens: u32) -> collector::Limits {
     }
 }
 
-#[expect(dead_code, reason = "programming-model.md 6.3: preserve the independent edge workspace bound")]
-pub(super) fn worst_case(bound: u32, depth: u32, tokens: u32) -> Option<u64> {
-    json::worst_case_limited(limits(bound, depth, tokens))
-}
-
 pub(super) fn collect(bytes: &[u8], depth: u32, tokens: u32) -> Option<skein_json::Document> {
     json::collect_limited(bytes, limits(u32::try_from(bytes.len()).ok()?, depth, tokens))
 }
