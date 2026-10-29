@@ -109,7 +109,7 @@ pub(crate) fn goal(
     };
     Ok(Delegate {
         executor: tasks::Executor::Agent { charter },
-        spec: tasks::Spec { words, parameters: Box::new([]), inputs: Box::new([]) },
+        spec: tasks::Spec { asks: false, words, parameters: Box::new([]), inputs: Box::new([]) },
         contract: tasks::Contract::Report { words: env.limits.tasks.result_bytes },
         authority,
         deadline: tasks::Deadline::Named,

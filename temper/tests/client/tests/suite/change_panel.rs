@@ -648,6 +648,7 @@ fn silent_ci_world() -> (World<Temper, Joint>, u64, u64) {
                 batch: Box::new([engine::Delegate {
                     executor: tasks::Executor::Procedure { connector: 1, code: 2 },
                     spec: tasks::Spec {
+                        asks: false,
                         words: b"Wait for CI on the pushed change".as_slice().into(),
                         parameters: Box::new([
                             tasks::Parameter::Resource {

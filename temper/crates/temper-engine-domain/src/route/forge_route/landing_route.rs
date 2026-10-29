@@ -210,6 +210,7 @@ pub(super) fn start_landing(domain: &mut Domain, env: &Env<Limits>, task: u64) {
         seed: Box::new(seed),
         executor: tasks::Executor::Procedure { connector: domain.config.forge_connector, code: LANDING_CODE },
         spec: tasks::Spec {
+            asks: false,
             words: words.into_boxed(),
             parameters: Box::new([
                 tasks::Parameter::Number { name: 1, value: u64::from(project) },

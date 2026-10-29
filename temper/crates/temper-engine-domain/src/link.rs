@@ -497,6 +497,7 @@ pub fn inbox_words(word: &tasks::Word) -> Box<[u8]> {
         | tasks::MessageKind::Answer { .. }
         | tasks::MessageKind::Notice { .. }
         | tasks::MessageKind::QuestionAnswered { .. }
+        | tasks::MessageKind::QuestionOwed
         | tasks::MessageKind::QuestionEnded { .. }
         | tasks::MessageKind::News { .. }
         | tasks::MessageKind::Timer { .. }
@@ -555,6 +556,7 @@ pub fn inbox_sender(word: &tasks::Word) -> Box<[u8]> {
         | tasks::MessageKind::Met { .. }
         | tasks::MessageKind::Notice { .. }
         | tasks::MessageKind::QuestionAnswered { .. }
+        | tasks::MessageKind::QuestionOwed
         | tasks::MessageKind::QuestionEnded { .. }
         | tasks::MessageKind::News { .. }
         | tasks::MessageKind::Timer { .. }
