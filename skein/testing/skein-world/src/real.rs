@@ -454,6 +454,10 @@ fn sched_figures((cpu, waited): (Duration, Duration)) -> Sched {
     Sched { cpu: cpu.as_nanos(), waited: waited.as_nanos() }
 }
 
+fn referee_diagnostic(elapsed: Duration, why: &str, figures: &Figures) -> String {
+    format!("at {} ms, the referee failed the real loop:\n{why}\n{figures}", elapsed.as_nanos().div_euclid(1_000_000))
+}
+
 fn deadline_status(deadline: Option<Time>, now: Time) -> String {
     match deadline {
         Some(at) if at <= now => {
@@ -525,9 +529,26 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
         }
     }
 
+    fn referee_deadline_reached(self, deadline: &Deadline, now: Time, why: &str) -> ! {
+        let until = self.world.referee.next_deadline().expect("an overdue expectation has a deadline");
+        let expired = deadline.expired_at("the referee's expectation", until);
+        let figures = match &expired {
+            Expired::Starved(starved) => starved.figures(),
+            Expired::Failed(figures) => figures,
+        };
+        let diagnostic = referee_diagnostic(now.saturating_since(deadline.start()), why, figures);
+        match expired {
+            Expired::Starved(starved) if std::env::var_os("NEXTEST").is_some() => {
+                self.forced_cleanup();
+                starved.pass();
+            }
+            Expired::Starved(_) | Expired::Failed(_) => crate::fail(&diagnostic),
+        }
+    }
+
     fn run(mut self, clock: &Clock, patience: Duration) -> Outcome<P> {
-        let start = clock.now().now;
         let deadline = Deadline::arm("the real loop", patience);
+        let start = deadline.start();
         self.world.controls.sched_start.set(deadline.thread_start());
         let mut iterations: u32 = 0;
         let mut last_word = None;
@@ -615,10 +636,7 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
                 };
             }
             if let Some(why) = self.world.referee.overdue(now) {
-                crate::fail(&format!(
-                    "at {} ms, the referee failed the real loop:\n{why}",
-                    now.saturating_since(start).as_nanos().div_euclid(1_000_000)
-                ));
+                self.referee_deadline_reached(&deadline, now, &why);
             }
             let until = self.wait_until(deadline.until());
             self.policy_wake(last_word, &mut policy_wake);
@@ -1112,8 +1130,8 @@ fn check_policy_wake(deadlines: &mut Vec<(usize, Time)>, now: Time) {
 
 #[cfg(test)]
 mod tests {
-    use super::{Child, Process, Running, Sched, World, deadline_diagnostic};
-    use crate::{Host, Referee, ring::Ring};
+    use super::{Child, Process, Running, Sched, World, deadline_diagnostic, referee_diagnostic};
+    use crate::{Figures, Host, Referee, ring::Ring};
     use alloc::collections::{BTreeMap, BTreeSet, VecDeque};
     use alloc::rc::Rc;
     use core::cell::RefCell;
@@ -1151,6 +1169,23 @@ mod tests {
         );
         let header = deadline_diagnostic(Duration::from_millis(1), 2, None);
         assert!(header.ends_with("thread CPU elapsed (schedstat): UNAVAILABLE (ns); thread runnable wait elapsed (schedstat): UNAVAILABLE (ns)"));
+    }
+
+    #[test]
+    fn referee_failure_keeps_its_prefix_and_appends_the_figures() {
+        let figures = Figures {
+            what: "the referee's expectation",
+            patience: Duration::from_millis(10),
+            elapsed: Duration::from_millis(12),
+            thread_waited: Some(Duration::from_millis(1)),
+            thread_cpu: Some(Duration::from_millis(2)),
+            tree_waited: None,
+        };
+        let message = referee_diagnostic(figures.elapsed, "  unmet: answer", &figures);
+        assert_eq!(
+            message,
+            "at 12 ms, the referee failed the real loop:\n  unmet: answer\nthe referee's expectation: patience 10000000 ns; elapsed 12000000 ns; thread runnable wait 1000000 ns; thread CPU 2000000 ns; tree runnable wait UNAVAILABLE (ns)"
+        );
     }
 
     struct Idle {

@@ -220,7 +220,18 @@ impl Deadline {
     pub fn expired(&self) -> Expired {
         let now = Clock::new().now().now;
         assert!(now >= self.until, "only a passed deadline is classified");
-        let sched = sched_elapsed(self.thread, thread_sched());
+        self.classify_at(self.what, self.patience, now, thread_sched())
+    }
+
+    /// Classifies another unanswered deadline using this wait's time and scheduler origins.
+    pub(crate) fn expired_at(&self, what: &'static str, until: Time) -> Expired {
+        let now = Clock::new().now().now;
+        assert!(now >= until, "only a passed deadline is classified");
+        self.classify_at(what, until.saturating_since(self.start), now, thread_sched())
+    }
+
+    fn classify_at(&self, what: &'static str, patience: Duration, now: Time, end: Option<Sched>) -> Expired {
+        let sched = sched_elapsed(self.thread, end);
         self.sample_pressure();
         let (tree_waited, kind) = match &self.tree {
             TreeWatch::None => (None, "threads"),
@@ -240,8 +251,8 @@ impl Deadline {
         };
         classify(
             Figures {
-                what: self.what,
-                patience: self.patience,
+                what,
+                patience,
                 elapsed: now.saturating_since(self.start),
                 thread_waited,
                 thread_cpu,
@@ -253,6 +264,10 @@ impl Deadline {
 
     pub(crate) fn thread_start(&self) -> Option<Sched> {
         self.thread
+    }
+
+    pub(crate) fn start(&self) -> Time {
+        self.start
     }
 
     fn sample_pressure(&self) {
@@ -356,11 +371,59 @@ pub(crate) fn sched_elapsed(start: Option<Sched>, end: Option<Sched>) -> Option<
 #[cfg(test)]
 mod tests {
     #[cfg(target_os = "linux")]
-    use super::{Cell, Deadline, PathBuf, TreeWatch};
+    use super::{Cell, PathBuf};
     use super::{
-        Duration, Expired, Figures, Sched, classify, largest_wait, parse_pressure, parse_schedstat, sched_elapsed,
-        starved,
+        Deadline, Duration, Expired, Figures, Sched, Time, TreeWatch, classify, largest_wait, parse_pressure,
+        parse_schedstat, sched_elapsed, starved,
     };
+
+    #[test]
+    fn referee_patience_is_its_deadline_since_the_runs_start() {
+        let deadline = Deadline {
+            what: "the real loop",
+            patience: Duration::from_secs(1),
+            start: Time::from_nanos(7),
+            until: Time::from_nanos(1_000_000_007),
+            thread: None,
+            tree: TreeWatch::None,
+        };
+        let Expired::Failed(figures) = deadline.expired_at("the referee's expectation", Time::from_nanos(107)) else {
+            crate::fail("unavailable accounting fails");
+        };
+        assert_eq!(figures.what, "the referee's expectation");
+        assert_eq!(figures.patience, Duration::from_nanos(100));
+        assert!(figures.elapsed >= figures.patience);
+        assert_eq!(deadline.start(), Time::from_nanos(7));
+    }
+
+    #[test]
+    fn referee_classification_uses_the_runs_scheduler_origin_and_half_its_own_patience() {
+        let deadline = Deadline {
+            what: "the real loop",
+            patience: Duration::from_nanos(1000),
+            start: Time::from_nanos(7),
+            until: Time::from_nanos(1007),
+            thread: Some(Sched { cpu: 100, waited: 200 }),
+            tree: TreeWatch::None,
+        };
+        for (waited, expected) in [(49, false), (50, true), (51, true)] {
+            let expired = deadline.classify_at(
+                "the referee's expectation",
+                Duration::from_nanos(100),
+                Time::from_nanos(207),
+                Some(Sched { cpu: 130, waited: 200_u64.checked_add(waited).expect("tiny counters") }),
+            );
+            let (is_starved, figures) = match &expired {
+                Expired::Starved(starved) => (true, starved.figures()),
+                Expired::Failed(figures) => (false, figures),
+            };
+            assert_eq!(is_starved, expected, "waited={waited}");
+            assert_eq!(figures.patience, Duration::from_nanos(100));
+            assert_eq!(figures.elapsed, Duration::from_nanos(200));
+            assert_eq!(figures.thread_cpu, Some(Duration::from_nanos(30)));
+            assert_eq!(figures.thread_waited, Some(Duration::from_nanos(waited)));
+        }
+    }
 
     #[test]
     fn starvation_includes_exactly_half_the_patience_waiting() {
