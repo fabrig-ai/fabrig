@@ -1,10 +1,10 @@
-use crate::{Assignment, Config, Domain, Limits};
+use crate::{Assignment, Config, Domain, JournalSizes, Limits};
 use jig_domain_authority as authority;
 use jig_domain_core as core;
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
 use jig_domain_tasks as tasks;
-use skein_lib::{Duration, Env, JournalLimits, List, Map, Queue, Time, Token, Wall};
+use skein_lib::{Duration, Env, List, Map, Queue, Time, Token, Wall};
 
 pub const CHANNEL: Token = Token::new(17);
 pub const RUN: Token = Token::new(2);
@@ -73,7 +73,12 @@ pub fn authority() -> authority::Authority {
 }
 pub fn env() -> Env<Limits> {
     let profile = jig_protocol_config::profile::profile(jig_protocol_config::profile::Profile::Small);
-    let journal = JournalLimits { commits: 2, ..profile.journal };
+    let journal = JournalSizes {
+        commits: 2,
+        writes: profile.journal.writes,
+        door: profile.journal.door,
+        release: profile.journal.release,
+    };
     Env {
         now: Time::from_nanos(1),
         wall: Wall::from_nanos(1),

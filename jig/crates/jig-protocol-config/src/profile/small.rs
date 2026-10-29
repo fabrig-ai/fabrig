@@ -288,10 +288,9 @@ pub(super) const IO: skein_io::Limits = skein_io::Limits {
 // Close cancels each of Small's two pending sign-ins (protocol/llm.md, 5.2).
 // Account moves count 18 core route positions for their emitted outputs.
 // Retained-revision release adds 2 * 4 heads + 8 versions + one extent = 17.
-// Held room covers three decisions: 3 * 20,801 = 62,403.
 // Placed holds: tightened core room plus 18 connector slots needs 20,801 writes.
-pub(super) const JOURNAL: skein_lib::JournalLimits =
-    skein_lib::JournalLimits { commits: 3, writes: 20_801, held: 62_403, now: 256, release: 256 };
+pub(super) const JOURNAL: super::JournalSizes =
+    super::JournalSizes { commits: 3, writes: 20_801, door: 256, release: 256 };
 pub(super) const LIMITS: Limits = Limits {
     core: CORE,
     store: STORE,

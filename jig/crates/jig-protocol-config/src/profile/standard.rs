@@ -194,8 +194,7 @@ pub(super) const CLIENTS: jig_protocol_engine_clients::Limits = jig_protocol_eng
 // Account moves count 56 core route positions for their emitted outputs.
 // Retained-revision release adds 2 * 8 heads + 16 versions + one extent = 33.
 // Placed holds: tightened core room plus 18 connector slots needs 151,673 writes.
-const JOURNAL: skein_lib::JournalLimits =
-    skein_lib::JournalLimits { commits: 3, writes: 151_673, held: 455_019, now: 1024, release: 1024 };
+const JOURNAL: super::JournalSizes = super::JournalSizes { commits: 3, writes: 151_673, door: 1024, release: 1024 };
 // Same 19.s3 composition as small; the standard domain supplies the larger value and operation bounds.
 // Its 25 choices plus the kept pin add 26 optional u32s (130 bytes) to the largest tasks row.
 // The largest tasks row can reference all 64 names; sparse and ALL rows keep only used names.

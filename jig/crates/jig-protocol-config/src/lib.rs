@@ -31,7 +31,7 @@ pub mod address;
 mod document;
 pub mod overrides;
 pub mod profile;
-pub use profile::{Limits, Link, Profile, profile};
+pub use profile::{JournalSizes, Limits, Link, Profile, profile};
 pub mod forms;
 mod problem;
 pub mod read;
