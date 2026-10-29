@@ -121,6 +121,8 @@ def builder(slot, home, host=None):
     if canonical != slot or slot.parent != Path(home) / "src/fabrig/slots":
         raise RuntimeError("whole-target recovery requires an actual numeric slot root")
     host = host or socket.gethostname().split(".")[0]
+    actual_hosts = {f"debian-16gb-hel1-{number}": f"hetzner{number}" for number in (3, 6, 7)}
+    host = actual_hosts.get(host, host)
     if host not in ("hetzner3", "hetzner6", "hetzner7"):
         raise RuntimeError(f"not a builder: {host}")
     inventory = Path(__file__).with_name("hosts").read_text().splitlines()

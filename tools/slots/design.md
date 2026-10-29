@@ -90,6 +90,9 @@ no expiry or automatic stealing: a holder releases its claim explicitly.
 
 ## 5. Disk guard
 
+Builder identity accepts the inventory aliases and their deployed hostnames
+(debian-16gb-hel1-3, -6 and -7); other hosts cannot acknowledge targets.
+
 `tools/slots/guard [--below GB] [--dry-run]` checks the filesystem holding
 `~/src/fabrig/slots`. Below 80 decimal GB by default, ordinary executable
 trimming runs first, largest slot first by allocated regular-file bytes.

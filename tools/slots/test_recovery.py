@@ -98,6 +98,24 @@ class RecoveryTests(unittest.TestCase):
         self.assertEqual(child.stdout.readline(), b"ready\n")
         return child, fd
 
+    def test_actual_builder_hostnames_can_acknowledge(self):
+        slot = self.slot()
+        for number in (3, 6, 7):
+            with self.subTest(number=number), patch.object(
+                    R["socket"], "gethostname", return_value=f"debian-16gb-hel1-{number}"):
+                self.assertIn("acknowledged", self.ack(slot))
+                state = L["state_root"](self.home) / slot.name / "ack.json"
+                self.assertEqual(L["read"](state)["host"], f"hetzner{number}")
+
+    def test_actual_gate_hostnames_cannot_acknowledge(self):
+        slot = self.slot()
+        for number in (2, 8):
+            with self.subTest(number=number), patch.object(
+                    R["socket"], "gethostname", return_value=f"debian-16gb-hel1-{number}"):
+                with self.assertRaisesRegex(RuntimeError, "not a builder"):
+                    self.ack(slot)
+                self.assertTrue((slot / "target/cache").exists())
+
     def test_report_and_post_delivery_never_grant_eligibility(self):
         slot = self.slot()
         (self.runs / "run-1/post-output").write_text("delivered\n")
