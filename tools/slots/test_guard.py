@@ -215,6 +215,19 @@ class GuardTests(unittest.TestCase):
         self.assertTrue(path.exists())
         self.assertIn("missing heavy unit properties", output)
 
+    def test_heavy_timer_without_working_directory_does_not_block_pressure_recovery(self):
+        path = self.executable("1")
+        self.state(units={
+            "skein-heavy-queue-reconcile.timer": {"ActiveState": "active"},
+            "skein-heavy-queue-reconcile.service": {"WorkingDirectory": "", "ActiveState": "active"}})
+        code, output = self.cli()
+        self.assertEqual(code, 2)
+        self.assertFalse(path.exists())
+        self.assertNotIn("error:", output)
+        listed = [call for call in self.calls() if "list-units" in call]
+        self.assertTrue(all("--type=service" in call for call in listed))
+        self.assertFalse(any("show" in call and call[-1].endswith(".timer") for call in self.calls()))
+
     def test_symlink_slot_is_refused(self):
         path = self.executable("scratch")
         (self.slots / "1").symlink_to(self.slots / "scratch", target_is_directory=True)
