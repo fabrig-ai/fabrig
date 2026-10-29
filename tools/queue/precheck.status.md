@@ -19,3 +19,12 @@ merge; installation on builders follows landing. Heavy completion after a lost c
 unsupported sparse/submodule/hidden-index or ignored-collision inputs are
 refused. Unit observation cannot replace exclusive ownership of an idle
 claimed slot.
+
+Section 5 is implemented by standalone `ready-check`, with disposable bare
+origins/candidate clones in `test_ready_check.py`. It validates exact-tip
+owner-supplied evidence, checks reported literal paths against freshly
+observed main history, and refuses observed remote advancement during the
+check. The installed manifest and installer tests include its executable
+link. It does not call precheck or modify its ownership/lifetime behavior,
+and does not publish readiness. A pass has the point-in-time and exact-file
+scope limits in section 5; the queue gate remains necessary.
