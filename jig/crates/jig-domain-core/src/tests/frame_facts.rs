@@ -45,7 +45,7 @@ fn frame_projects_keep_unopened_pools_absent_and_use_actual_current_funding() {
 #[test]
 fn frame_joins_all_four_exact_need_counts_without_truncating_them_to_document_lines() {
     let (mut core, limits) = core();
-    let mut out = Queue::with_capacity(people::max_out(&limits.people));
+    let mut out = Queue::uncapped();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people };
     for (task, kind) in [
         (1, people::EntryKind::Question { message: 1 }),
@@ -202,7 +202,7 @@ pub(super) fn owner_creating(capacity: u32, tasks_left: u32, depth: u32) -> crat
 }
 
 fn hold(core: &mut Core, limits: &Limits, role: people::Role) {
-    let mut out = Queue::with_capacity(people::max_out(&limits.people));
+    let mut out = Queue::uncapped();
     people::step(
         &mut core.people,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people },

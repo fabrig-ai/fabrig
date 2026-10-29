@@ -19,7 +19,7 @@ pub fn worst_case(l: &Limits, settings: &Settings) -> Option<u64> {
     let mut plan = 0;
     let mut connection = 0;
     let mut github = false;
-    let mut configured = List::<Forge>::worst_case(settings.forges.capacity())?
+    let mut configured = List::<Forge>::price(settings.forges.capacity())?
         .checked_add(u64::try_from(settings.user_agent.len()).ok()?)?;
     for forge in &settings.forges {
         let (run, given_bytes) = match &forge.kind {
@@ -55,9 +55,9 @@ pub fn worst_case(l: &Limits, settings: &Settings) -> Option<u64> {
             },
         })?;
     }
-    Map::<Token, Run>::worst_case(l.runs)?
-        .checked_add(Map::<Token, Connection>::worst_case(l.runs)?)?
-        .checked_add(List::<Token>::worst_case(l.runs)?)?
+    Map::<Token, Run>::price(l.runs)?
+        .checked_add(Map::<Token, Connection>::price(l.runs)?)?
+        .checked_add(List::<Token>::price(l.runs)?)?
         .checked_add(if github {
             Host::github_states_worst_case(l.states)?
         } else {
@@ -74,9 +74,9 @@ fn connection_heap(l: &Limits, forge: &Forge) -> Option<u64> {
     let h = limits::http_transport(l, tls);
     let capacity = largest_page(l, &forge.kind)?;
     let (rows, decoder, jwt) = match &forge.kind {
-        Kind::Forgejo(_) => (List::<forgejo::document::Row>::worst_case(capacity)?, forgejo_decoder(l)?, 0),
+        Kind::Forgejo(_) => (List::<forgejo::document::Row>::price(capacity)?, forgejo_decoder(l)?, 0),
         Kind::GitHub(g) => (
-            List::<github::document::Row>::worst_case(capacity)?,
+            List::<github::document::Row>::price(capacity)?,
             github_decoder(l)?,
             // Signing input, signature, token/bearer and signing-key scratch.
             u64::try_from(github::jwt::JWT_BYTES)
@@ -87,7 +87,7 @@ fn connection_heap(l: &Limits, forge: &Forge) -> Option<u64> {
     };
     skein_http::client::worst_case(&h)?
         .checked_add(if tls { skein_tls::client::worst_case(&l.tls)? } else { 0 })?
-        .checked_add(tokenizer::worst_case(&limits::documents(l).json)?)?
+        .checked_add(tokenizer::tokenizer_bound(&limits::documents(l).json)?)?
         // Queued pieces of HTTP, TLS and JSON, even while closing.
         .checked_add(u64::from(h.send.max(l.chunk)).checked_mul(8)?)?
         .checked_add(if tls { u64::from(l.io.output).checked_mul(8)? } else { 0 })?
@@ -98,15 +98,15 @@ fn connection_heap(l: &Limits, forge: &Forge) -> Option<u64> {
         .checked_add(u64::from(l.body_bytes_in).checked_mul(3)?)?
         .checked_add(decoder)?
         // Call headers/target and their HTTP encoding, upload/writer overlap.
-        .checked_add(List::<skein_http::Header>::worst_case(6)?.checked_mul(2)?)?
+        .checked_add(List::<skein_http::Header>::price(6)?.checked_mul(2)?)?
         .checked_add(u64::from(h.request).checked_mul(3)?)?
         .checked_add(u64::from(l.body_bytes_in).checked_mul(2)?)?
-        .checked_add(writer::worst_case(&limits::documents(l).writer)?)?
+        .checked_add(writer::encoder_bound(&limits::documents(l).writer)?)?
         .checked_add(jwt)?
-        .checked_add(Intake::worst_case(l.io.intake)?)?
+        .checked_add(Intake::price(l.io.intake)?)?
         .checked_add(u64::from(l.io.receive))?
         .checked_add(u64::from(l.io.output))?
-        .checked_add(Queue::<Box<[u8]>>::worst_case(l.io.sends)?)
+        .checked_add(Queue::<Box<[u8]>>::price(l.io.sends)?)
 }
 // The private walkers' frames fit 128 bytes, including field masks and want.
 // Setup selects no boxed item/file/review decoder. Its builder, delivered
@@ -114,20 +114,20 @@ fn connection_heap(l: &Limits, forge: &Forge) -> Option<u64> {
 fn forgejo_decoder(l: &Limits) -> Option<u64> {
     u64::try_from(size_of::<forgejo::client::Decoder>())
         .ok()?
-        .checked_add(Stack::<[u8; 128]>::worst_case(l.depth)?)?
-        .checked_add(List::<Box<[u8]>>::worst_case(l.inner)?.checked_mul(4)?)?
+        .checked_add(Stack::<[u8; 128]>::price(l.depth)?)?
+        .checked_add(List::<Box<[u8]>>::price(l.inner)?.checked_mul(4)?)?
         .checked_add(u64::from(l.string_bytes).checked_mul(u64::from(l.inner).checked_add(32)?)?)?
         .checked_add(u64::from(l.body_bytes).checked_mul(2)?)
 }
 fn github_decoder(l: &Limits) -> Option<u64> {
     u64::try_from(size_of::<github::decode::Decoder>())
         .ok()?
-        .checked_add(Stack::<[u8; 128]>::worst_case(l.depth)?)?
+        .checked_add(Stack::<[u8; 128]>::price(l.depth)?)?
         // App builder and delivered permissions/events; decoder's eagerly
         // reserved labels, reviewers and errors even for setup documents.
-        .checked_add(List::<github::document::Permission>::worst_case(l.inner)?.checked_mul(2)?)?
-        .checked_add(List::<Box<[u8]>>::worst_case(l.inner)?.checked_mul(4)?)?
-        .checked_add(List::<u64>::worst_case(l.inner)?)?
+        .checked_add(List::<github::document::Permission>::price(l.inner)?.checked_mul(2)?)?
+        .checked_add(List::<Box<[u8]>>::price(l.inner)?.checked_mul(4)?)?
+        .checked_add(List::<u64>::price(l.inner)?)?
         .checked_add(u64::from(l.string_bytes).checked_mul(u64::from(l.inner).checked_mul(4)?.checked_add(32)?)?)?
         .checked_add(u64::from(l.body_bytes).checked_mul(2)?)
 }

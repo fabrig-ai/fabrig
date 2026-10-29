@@ -163,6 +163,7 @@ fn checked_valid(limits: &Limits) -> Option<()> {
         || limits.settings.versions == 0
         || limits.settings.history == 0
         || limits.settings.proposals == 0
+        || limits.routes == 0
         || limits.templates == 0
         || limits.resume_bytes == 0
         || limits.run_bytes == 0
@@ -194,7 +195,6 @@ fn checked_valid(limits: &Limits) -> Option<()> {
     limits.people.people.checked_mul(limits.people.inbox_entries)?.checked_add(1)?;
     limits.settings.versions.checked_add(crate::settings::capacity(limits)?.checked_mul(4)?)?;
     limits.tasks.charters.checked_mul(2)?.checked_add(limits.settings.versions)?;
-    crate::routing::route_bound(limits)?;
     crate::documents::document_with_context_worst_case(limits)?;
     crate::settings::set_worst_case(limits)?;
     crate::settings::revision_worst_case(limits)?;

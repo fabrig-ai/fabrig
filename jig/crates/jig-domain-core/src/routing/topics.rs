@@ -16,7 +16,7 @@ pub(super) fn subscribe(
     topic: u64,
     resources: &[authority::Effect],
 ) -> Requests {
-    let mut out = Queue::with_capacity(3);
+    let mut out = Queue::uncapped();
     if !core.current_proof(key.task, key.attempt) {
         out.push(Request::Decided);
         return Requests::Out(out);

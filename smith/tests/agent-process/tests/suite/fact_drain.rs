@@ -4,6 +4,28 @@ use smith_agent_process_world::{TraceCase, World, charter};
 use smith_channel::RunResult;
 use smith_events::{Event, RunCompleted, Status};
 
+/// Lower test of smith's `end_to_end::the_agents_trace_header_carries_its_effective_limits` (top tiers test wiring only).
+#[test]
+fn the_trace_header_carries_exact_effective_memory_and_history_limits() {
+    let mut world = World::new(81, &charter());
+    world.observe_facts(TraceCase::Accepted, 4);
+    assert!(world.settle());
+    world.assert_event_conformance();
+    let Event::SessionStarted(header) = &world.records()[0].event else { panic!("startup header first") };
+    // The tiny profile declares 2 GiB; its 1,048,576-token window, completion
+    // reserve and one result batch derive 9,463,058 history bytes.
+    for (name, expected) in [(b"declared.memory".as_slice(), 2_147_483_648), (b"session.history_bytes", 9_463_058)] {
+        let values = header
+            .limits
+            .iter()
+            .filter(|limit| limit.name.as_ref() == name)
+            .map(|limit| &limit.value)
+            .collect::<Vec<_>>();
+        assert_eq!(values, [&smith_events::LimitValue::Integer(expected)]);
+    }
+    world.assert_agent_clean();
+}
+
 fn terminal(world: &World) -> &RunCompleted {
     world.assert_event_conformance();
     let terminals: Vec<_> = world

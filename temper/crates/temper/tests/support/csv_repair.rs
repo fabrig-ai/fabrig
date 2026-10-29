@@ -156,32 +156,23 @@ impl Forge {
         forge
     }
     fn request(&self, method: &str, suffix: &str, body: Option<&Value>) -> Value {
-        use std::io::Write;
-        use std::process::{Command, Stdio};
+        use std::process::Command;
         let mut command = Command::new("/usr/bin/curl");
         command
-            .args(["--silent", "--show-error", "--fail", "--max-time", "10", "--request", method, "--header"])
+            .args(["--silent", "--show-error", "--fail", "--request", method, "--header"])
             .arg(format!("@{}", self.header.display()))
             .args(["--header", "Content-Type: application/json"])
-            .arg(format!("http://{}{REPOSITORY}/{suffix}", self.address))
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
+            .arg(format!("http://{}{REPOSITORY}/{suffix}", self.address));
         if body.is_some() {
             command.args(["--data-binary", "@-"]);
         }
-        let mut child = command.spawn().expect("owned API request");
-        if let Some(body) = body {
-            child
-                .stdin
-                .take()
-                .expect("request stdin")
-                .write_all(&serde_json::to_vec(body).expect("JSON"))
-                .expect("request body");
-        } else {
-            drop(child.stdin.take());
-        }
-        let output = child.wait_with_output().expect("owned API response");
+        let body = body.map(|body| serde_json::to_vec(body).expect("JSON"));
+        let output = super::story_command::output(
+            &mut command,
+            "the CSV repair's forge request",
+            Duration::from_secs(10),
+            body.as_deref(),
+        );
         assert!(output.status.success(), "{method} {suffix}: {}", String::from_utf8_lossy(&output.stderr));
         serde_json::from_slice(&output.stdout).expect("API JSON")
     }
@@ -207,14 +198,16 @@ impl Forge {
         assert_eq!(commit["parents"][0]["sha"], previous, "one person commit");
         assert_eq!(self.contents(".forgejo/workflows/ci.yml", head), WORKFLOW);
         assert_eq!(self.contents("CONTRIBUTING.md", head), CONTRIBUTING);
-        let until = now().saturating_add(Duration::from_secs(60));
+        let mut patience = super::patience::Patience::arm("the main gate's CI", Duration::from_secs(60));
         loop {
             let status = self.statuses(head);
             if status["state"] == "success" {
                 assert_contexts(&status, "push", "skipped");
                 break;
             }
-            assert!(now() < until, "main gate CI phase: {status}");
+            if let Some(figures) = patience.failed() {
+                panic!("main gate CI phase: {status}; {figures}");
+            }
             std::thread::sleep(std::time::Duration::from_millis(100));
         }
         let protection = self.get("branch_protections");
@@ -241,7 +234,7 @@ impl Forge {
         // ctl and the API are separate samples. Forgejo can publish another
         // pending context after a brief success containing only the first job.
         // Keep the reviewer held until both of this head's jobs have finished.
-        let until = now().saturating_add(Duration::from_secs(60));
+        let mut patience = super::patience::Patience::arm("the change head's two CI contexts", Duration::from_secs(60));
         let statuses = loop {
             let statuses = self.statuses(head);
             if changes == "failure"
@@ -252,7 +245,9 @@ impl Forge {
             {
                 break statuses;
             }
-            assert!(now() < until, "H2's two CI contexts phase: {statuses}");
+            if let Some(figures) = patience.failed() {
+                panic!("H2's two CI contexts phase: {statuses}; {figures}");
+            }
             std::thread::sleep(std::time::Duration::from_millis(100));
         };
         assert_eq!(statuses["state"], if changes == "failure" { "failure" } else { "success" });

@@ -27,7 +27,7 @@ pub(crate) fn start_watch(core: &mut Core, env: &Env<Limits>, watcher: Token) ->
     let Ok(load) = core.reads.insert(pending) else {
         return crate::routing::view_routes::retained_made(core, env, watcher, Err(views::End::Gone));
     };
-    let mut out = Queue::with_capacity(2);
+    let mut out = Queue::uncapped();
     out.push(Request::Held(Box::new(Held::ReadLoad { load: load.token(), range: Box::new(range) })));
     out.push(Request::Decided);
     Requests::Out(out)

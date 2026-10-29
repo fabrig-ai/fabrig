@@ -8,7 +8,7 @@ use std::fmt::Write as _;
 use std::{
     fs,
     io::{BufRead, BufReader, Read, Write},
-    net::{SocketAddr, TcpListener, TcpStream},
+    net::{SocketAddr, TcpListener},
     os::fd::AsRawFd,
     path::Path,
 };
@@ -18,8 +18,8 @@ pub const SECRET: &[u8] = b"fixture-hook-secret";
 // listener path; forge 9 is not configured.
 pub const KNOWN_FORGE: &str = "/hooks/1";
 pub const UNKNOWN_FORGE: &str = "/hooks/9";
-// The listener stories allow five seconds for each socket operation.
-const SOCKET_DEADLINE: std::time::Duration = std::time::Duration::from_secs(10);
+// The listener stories allow ten seconds for each socket operation.
+const SOCKET_DEADLINE: Duration = Duration::from_secs(10);
 pub const PING: &[u8] = b"ping";
 
 #[must_use]
@@ -59,10 +59,16 @@ impl<'a> Post<'a> {
     pub fn unsigned(path: &'a str, body: &'a [u8], event: &'a [u8]) -> Self {
         Self { path, body, event, signed: false }
     }
-    fn send(&self, listener: SocketAddr) -> u16 {
-        let mut stream = TcpStream::connect_timeout(&listener, SOCKET_DEADLINE).expect("listener");
-        stream.set_read_timeout(Some(SOCKET_DEADLINE)).expect("read deadline");
-        stream.set_write_timeout(Some(SOCKET_DEADLINE)).expect("write deadline");
+    fn send(&self, listener: SocketAddr, binary: &skein_world::end_to_end::Binary) -> u16 {
+        let mut stream = super::socket::Socket::connect(
+            listener,
+            "the webhook POST's connection",
+            SOCKET_DEADLINE,
+            ["the webhook POST's response", "the webhook POST's request"],
+            true,
+            Some(binary),
+        )
+        .expect("listener");
         write!(stream, "POST {} HTTP/1.1\r\nHost: {listener}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nX-Forgejo-Event: {}\r\n",
             self.path, self.body.len(), std::str::from_utf8(self.event).expect("event")).expect("request head");
         if self.signed {
@@ -92,7 +98,8 @@ impl Referee<Process> for Judge<'_> {
     fn act(&mut self, _: Time, procs: &mut [Process]) {
         let Process::Stdout(stdout) = &procs[1] else { panic!("stdout reader") };
         if !self.sent && super::printed_link(&stdout.bytes).is_some() {
-            self.statuses.extend(self.posts.iter().map(|post| post.send(self.listener)));
+            let Process::Binary(binary) = &procs[0] else { panic!("binary") };
+            self.statuses.extend(self.posts.iter().map(|post| post.send(self.listener, binary)));
             let Process::Binary(binary) = &mut procs[0] else { panic!("binary") };
             binary.signal(Signal::Terminate);
             self.sent = true;
@@ -158,27 +165,31 @@ pub struct Delivery {
 #[must_use]
 pub fn receive(listener: &TcpListener, within: Duration) -> Delivery {
     listener.set_nonblocking(true).expect("nonblocking listener");
-    let clock = Clock::new();
-    let deadline = clock.now().now.saturating_add(within);
+    // The caller retains the listener and the sending forge. This receiver
+    // cannot end them, so starvation defers without passing from this helper.
+    let mut deadline = Some(skein_world::Deadline::arm("the webhook's complete delivery", within));
     let (stream, _) = loop {
         match listener.accept() {
             Ok(connection) => break connection,
             Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
-                assert!(
-                    skein_shell::wait_readable(
-                        skein_io::kernel::Fd::new(listener.as_raw_fd()),
-                        deadline.saturating_since(clock.now().now),
-                    )
-                    .expect("webhook listener readiness"),
-                    "no webhook arrived within its bound"
-                );
+                let left = deadline.as_ref().map_or(super::WITHIN, skein_world::Deadline::remaining);
+                if !skein_shell::wait_readable(skein_io::kernel::Fd::new(listener.as_raw_fd()), left)
+                    .expect("webhook listener readiness")
+                    && let Some(bound) = &deadline
+                    && bound.passed()
+                {
+                    match bound.expired() {
+                        skein_world::Expired::Starved(_) => deadline = None,
+                        skein_world::Expired::Failed(figures) => {
+                            panic!("no webhook arrived within its bound: {figures}")
+                        }
+                    }
+                }
             }
             Err(error) => panic!("listener accept: {error}"),
         }
     };
-    let remaining = std::time::Duration::from_nanos(deadline.saturating_since(clock.now().now).as_nanos());
-    stream.set_read_timeout(Some(remaining)).expect("request deadline");
-    stream.set_write_timeout(Some(remaining)).expect("answer deadline");
+    let stream = super::socket::Socket::until(stream, deadline);
     let mut reader = BufReader::new(stream);
     let mut delivery = Delivery { event: String::new(), signature: String::new(), body: Vec::new() };
     let mut length = None;

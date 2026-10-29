@@ -32,7 +32,7 @@ fn fixture() -> (Core, Limits) {
     send_task(&mut core, &limits, tasks::Event::Restored);
     let identity = core.people.identity(1).unwrap().clone();
     core.people = people::Domain::new(&limits.people, Box::new([]), core.settings.deployment_provider, Box::new([]));
-    let mut out = Queue::with_capacity(people::max_out(&limits.people));
+    let mut out = Queue::uncapped();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people };
     for record in [
         people::Stored::Person { number: 1, identity },
@@ -64,7 +64,7 @@ fn waiting(core: &mut Core, limits: &Limits, task: u64, kinds: &[people::EntryKi
             })
             .unwrap();
     }
-    let mut out = Queue::with_capacity(people::max_out(&limits.people));
+    let mut out = Queue::uncapped();
     people::step(
         &mut core.people,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people },

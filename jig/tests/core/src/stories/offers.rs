@@ -96,7 +96,7 @@ pub fn world_with_policy(
         .expect("checked rules"))
     .rules()
     .clone();
-    let room = core::route_bound(&limits.core).expect("core room bound");
+    let room = limits.core.routes;
     let connectors = jig_test_connector::MAX_OUT.checked_mul(2).expect("two connectors");
     limits.journal.writes = limits.journal.writes.max(room.checked_add(connectors).expect("writes"));
     limits.journal.held = limits

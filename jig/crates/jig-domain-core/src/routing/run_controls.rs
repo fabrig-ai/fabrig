@@ -11,7 +11,7 @@ pub(super) fn control(
     target: u64,
     mut control: tasks::Control,
 ) -> Requests {
-    let mut out = Queue::with_capacity(3);
+    let mut out = Queue::uncapped();
     if let tasks::Control::Cancel { grace: Some(_), message, .. } = &mut control {
         *message = crate::fresh(&mut core.counters, crate::Family::Message);
         if message.is_none() {

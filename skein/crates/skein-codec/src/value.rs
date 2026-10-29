@@ -130,7 +130,7 @@ impl Value {
     /// The heap allocated for the entries, or none past u64.
     #[must_use]
     pub fn decoder_bound(nodes: u32) -> Option<u64> {
-        List::<Entry>::worst_case(nodes)
+        List::<Entry>::price(nodes)
     }
 
     /// Decodes at the schema's ceilings, allocating only to grow tables past

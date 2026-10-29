@@ -15,7 +15,7 @@ fn hosted_records(records: Vec<accounts::Stored>, granted: bool) -> (Core, Env<L
     if granted {
         grant(&mut core, &env, FIRST_SOURCE);
     }
-    let mut out = Queue::with_capacity(fleet::max_out(&env.limits.fleet));
+    let mut out = Queue::uncapped();
     let host_env = Env { now: env.now, wall: env.wall, limits: env.limits.fleet };
     fleet::step(
         &mut core.fleet,

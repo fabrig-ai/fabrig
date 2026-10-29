@@ -594,3 +594,158 @@ fn another_forges_change_keeps_its_link() {
 fn an_ended_demo_changes_address_stays_text() {
     demo_change_page(REPOSITORY.forge, true);
 }
+
+fn silent_forge() -> ForgeStand {
+    use skein_fake_forge_domain::api as raw;
+    use skein_lib::Duration;
+    ForgeStand::with_setup(Box::new([raw::Setup {
+        workflows: Box::new([]),
+        id: REPOSITORY.repository,
+        name: b"acme/shop".as_slice().into(),
+        default: BASE.into(),
+        tree: Box::new([]),
+        labels: Box::new([]),
+        checks: raw::Checks {
+            cues: Box::new([]),
+            contexts: Box::new([BUILD.into()]),
+            latency_min: Duration::ZERO,
+            latency_max: Duration::ZERO,
+            silent: 1000,
+            passes: 1000,
+            reruns: 0,
+            cue: None,
+        },
+        protection: None,
+        hooked: false,
+    }]))
+}
+
+fn silent_ci_world() -> (World<Temper, Joint>, u64, u64) {
+    use temper_engine_domain_forge as forge;
+    const DELEGATE: u64 = 901;
+    let mut world = fixtures::world(fixtures::SEED);
+    *world.front() = Joint::with_change_landing(fixtures::SEED, &fixtures::domain_limits());
+    world.front().engine.forge = Some(silent_forge());
+    fixtures::adopt_change_repository(world.front());
+    world.front().engine.forge.as_mut().expect("silent forge").push_branch(REPOSITORY.repository, BRANCH);
+    let chat = fixtures::chat(world.front(), b"Follow the silent check");
+    let driver = &mut world.front().engine;
+    let owner = driver.task(chat).expect("requesting chat");
+    let attempt = owner.attempt;
+    let mut authority = owner.authority.clone();
+    authority.tools = tasks::Tools(0);
+    authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
+    authority.budget.spend = 40;
+    driver.call(
+        WORKER,
+        chat,
+        attempt,
+        DELEGATE,
+        engine::Call {
+            completion: 1,
+            position: 1,
+            tool: engine::Tool::Delegate {
+                batch: Box::new([engine::Delegate {
+                    executor: tasks::Executor::Procedure { connector: 1, code: 2 },
+                    spec: tasks::Spec {
+                        words: b"Wait for CI on the pushed change".as_slice().into(),
+                        parameters: Box::new([
+                            tasks::Parameter::Resource {
+                                name: 1,
+                                connector: 1,
+                                resource: forge::tag(REPOSITORY.forge, REPOSITORY.repository),
+                            },
+                            tasks::Parameter::Bytes { name: 3, value: BRANCH.into() },
+                        ]),
+                        inputs: Box::new([]),
+                    },
+                    contract: tasks::Contract::Change { connector: 1, kind: 1, words: 32 },
+                    authority,
+                    ..temper_engine_domain_world::fixtures::report_delegate(b"change", Box::new([]))
+                }]),
+            },
+        },
+    );
+    driver.settle();
+    let Some(engine::CallAnswer::Delegated(children)) = driver.answered(DELEGATE) else {
+        panic!("chat delegates its change: {:?}", driver.answered(DELEGATE));
+    };
+    let change = children[0].task;
+    driver.answer(WORKER, chat, attempt, 0, tasks::End::Parked, engine::Parts::none());
+    driver.settle();
+    (world, chat, change)
+}
+
+// temper/docs/design/domain/forge.md, 8.4; temper/docs/design/client/forge.md, 2.4–2.5.
+#[test]
+fn silent_ci_notifies_the_chat_and_shows_a_stall_with_a_release_action() {
+    use skein_lib::{Duration, Time};
+    use temper_engine_domain_forge as forge;
+    let (mut world, chat, change) = silent_ci_world();
+    let person = world.client(fixtures::PARTY, fixtures::chat_page(chat));
+    world.person(person, vec![Step::See { find: Find::named(Role::Status, b"Running"), within: fixtures::WITHIN }]);
+    assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
+    let row = world
+        .front()
+        .engine
+        .store
+        .rows
+        .values()
+        .find_map(|record| {
+            if let engine::Record::Forge { row } = record
+                && let forge::Stored::Change(row) = row.as_ref()
+                && row.task == change
+            {
+                Some(row.clone())
+            } else {
+                None
+            }
+        })
+        .expect("real change row");
+    let before = facts(world.front());
+    assert_eq!(before.pull.merged, None);
+    assert_eq!(before.pull.ci, api::Ci::Pending);
+    let stall = world.front().engine.env.limits.forge.change_policy.stall;
+    let after_stall =
+        Time::from_nanos(row.change.since.as_nanos()).saturating_add(stall).saturating_add(Duration::from_secs(1));
+    assert_eq!(world.run(Until::Time(after_stall)).verdict, Verdict::Passed);
+    assert!(
+        matches!(world.front().engine.task(change).expect("change").phase, tasks::Phase::Held { .. }),
+        "change at {:?}: {:?}",
+        world.now(),
+        world.front().engine.task(change)
+    );
+    let front = world.front();
+    let requester = front.engine.task(chat).expect("live requesting chat");
+    assert!(
+        requester
+            .inbox
+            .iter()
+            .chain(
+                front
+                    .assignments
+                    .iter()
+                    .filter(|assignment| assignment.task == chat)
+                    .flat_map(|assignment| &assignment.messages)
+            )
+            .any(|message| matches!(message.kind, tasks::MessageKind::Escalation { task, .. } if task == change)),
+        "requester receives its delegate's hold notice: {:?}",
+        requester.inbox
+    );
+    world.person(person, vec![Step::See { find: Find::named(Role::Status, b"Held"), within: fixtures::WITHIN }]);
+    assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
+    world.go(person, fixtures::task_page(change));
+    world.person(
+        person,
+        vec![
+            Step::See { find: Find::text(b"stall"), within: fixtures::WITHIN },
+            Step::See { find: Find::named(Role::Button, b"Release task"), within: fixtures::WITHIN },
+        ],
+    );
+    let outcome = world.run(Until::Done);
+    assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
+    let held = facts(world.front());
+    assert_eq!(held.pull.ci, api::Ci::Pending, "silent CI has no terminal report");
+    assert_eq!(held.pull.merged, None, "a silent check never merges");
+    assert_eq!(held.main, before.main, "main stays at its original head");
+}

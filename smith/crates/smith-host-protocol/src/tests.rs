@@ -158,7 +158,7 @@ pub(super) fn process_limits() -> Limits {
     }
 }
 
-fn launch() -> crate::Launch {
+pub(super) fn launch() -> crate::Launch {
     use alloc::boxed::Box;
     crate::Launch {
         program: Box::from(&b"smith"[..]),

@@ -1,6 +1,7 @@
 //! Owned process cleanup and observations at the startup/process world's patience.
 #[cfg(target_os = "linux")]
 use skein_io::kernel::{Fd, Signal, Target};
+use skein_world::{Deadline, Expired, Starved};
 use std::{
     process::{Child, Command},
     time::Duration,
@@ -15,15 +16,27 @@ struct Kept {
 }
 #[cfg(target_os = "linux")]
 impl Kept {
-    fn wait(&self) {
-        // A reaped pidfd reports POLLHUP; stream readiness treats that as an
-        // error. In either case the pidfd-specific observation must prove exit.
-        let _readiness = skein_shell::wait_readable(self.fd, super::WITHIN);
-        assert!(
-            skein_shell::pidfd_exited(self.fd).expect("pidfd exit observation"),
-            "process {} exited within the world's patience",
-            self.pid
-        );
+    fn wait(&self, owned: bool, what: &'static str) -> Option<Starved> {
+        let mut deadline = Deadline::arm(what, super::WITHIN);
+        deadline.watch_process(self.pid);
+        let mut deferred = false;
+        loop {
+            if skein_shell::pidfd_exited(self.fd).expect("pidfd exit observation") {
+                return None;
+            }
+            if !deferred && deadline.passed() {
+                match deadline.expired() {
+                    Expired::Starved(starved) if owned => return Some(starved),
+                    Expired::Starved(_) => deferred = true,
+                    Expired::Failed(figures) => {
+                        panic!("process {} exited within the world's patience: {figures}", self.pid)
+                    }
+                }
+            }
+            // A reaped pidfd can report POLLHUP; only the identity-specific check proves exit.
+            let _readiness =
+                skein_shell::wait_readable(self.fd, if deferred { super::WITHIN } else { deadline.remaining() });
+        }
     }
 }
 #[cfg(target_os = "linux")]
@@ -86,14 +99,41 @@ impl Guard {
         skein_shell::signal_kept_child(fd, signal, Target::Child).expect("signal retained process");
     }
 
-    pub fn wait_for(&self, pid: u32) {
-        self.kept.iter().find(|kept| kept.pid == pid).expect("recorded process").wait();
+    pub fn wait_for(&mut self, pid: u32) {
+        let kept = self.kept.iter().find(|kept| kept.pid == pid).expect("recorded process");
+        if let Some(starved) = kept.wait(self.kill_on_drop, "the retained child's exit") {
+            self.end_owned();
+            starved.pass();
+        }
     }
 
-    pub fn wait_all(&self) {
-        for kept in &self.kept {
-            kept.wait();
+    pub fn wait_all(&mut self) {
+        for i in 0..self.kept.len() {
+            self.wait_for(self.kept[i].pid);
         }
+    }
+
+    fn end_owned(&mut self) {
+        assert!(self.kill_on_drop, "an observing guard leaves cleanup to its world");
+        self.end_kept();
+        if let Some(child) = &mut self.child {
+            end_child(child);
+        }
+        self.child = None;
+    }
+
+    fn end_kept(&mut self) {
+        for kept in &self.kept {
+            let _sent = skein_shell::signal_kept_child(kept.fd, Signal::Kill, Target::Child);
+        }
+        for kept in &self.kept {
+            let _starved = kept.wait(false, "the owned child's cleanup");
+        }
+        for kept in &self.kept {
+            // A retained descendant may be reaped by its parent rather than by this test.
+            let _reaped = skein_shell::poll_child(kept.fd, true);
+        }
+        self.kept.clear();
     }
 
     pub fn descendants(&mut self, pid: u32) {
@@ -137,17 +177,9 @@ impl Drop for Guard {
         // End every possible sender before releasing the parent's numeric PID.
         // An observing guard only closes identities; its world owns the children.
         if self.kill_on_drop {
-            for kept in &self.kept {
-                let _sent = skein_shell::signal_kept_child(kept.fd, Signal::Kill, Target::Child);
-            }
-            for kept in &self.kept {
-                let _exited = skein_shell::wait_readable(kept.fd, super::WITHIN);
-            }
-        }
-        self.kept.clear();
-        if let Some(child) = &mut self.child {
-            let _killed = child.kill();
-            let _reaped = child.wait();
+            self.end_owned();
+        } else {
+            self.kept.clear();
         }
     }
 }
@@ -184,16 +216,70 @@ pub fn term_consumed(child: &Child) -> bool {
     true
 }
 
-pub fn wait(mut ready: impl FnMut() -> bool) {
-    let clock = skein_shell::Clock::new();
-    let end = clock.now().now.saturating_add(super::WITHIN);
+/// Wait with the explicit owner available for a starvation cleanup.
+#[cfg(target_os = "linux")]
+pub fn wait(guard: &mut Guard, mut ready: impl FnMut(&mut Guard) -> bool) {
+    assert!(guard.kill_on_drop, "the condition wait has an owned process");
+    let mut deadline = Deadline::arm("the owned parent's condition", super::WITHIN);
+    if let Some(child) = &guard.child {
+        deadline.watch_process(child.id());
+    }
     loop {
-        if ready() {
+        if ready(guard) {
             return;
         }
-        assert!(clock.now().now < end, "condition settled within the world's patience");
+        if let Some(child) = &mut guard.child {
+            assert!(
+                child.try_wait().expect("condition's child status").is_none(),
+                "owned child exited before the condition"
+            );
+        }
+        if deadline.passed() {
+            match deadline.expired() {
+                Expired::Starved(starved) => {
+                    guard.end_owned();
+                    starved.pass();
+                }
+                Expired::Failed(figures) => panic!("condition settled within the world's patience: {figures}"),
+            }
+        }
         std::thread::sleep(Duration::from_millis(10));
     }
+}
+
+/// End the passed child and every discovered descendant before releasing its identity.
+pub fn end_child(child: &mut Child) {
+    let running = child.try_wait().expect("owned child status before cleanup").is_none();
+    #[cfg(target_os = "linux")]
+    let mut tree = {
+        let mut tree = Guard { child: None, kept: Vec::new(), kill_on_drop: false };
+        if running {
+            match skein_shell::open_child_pidfd(child.id(), std::process::id()) {
+                Ok(fd) => {
+                    tree.kept.push(Kept { pid: child.id(), parent: std::process::id(), fd });
+                    tree.descendants(child.id());
+                }
+                Err(skein_io::kernel::Error::NotFound | skein_io::kernel::Error::Other(3)) => {}
+                Err(error) => panic!("owned child's identity for cleanup: {error:?}"),
+            }
+        }
+        for kept in &tree.kept {
+            let _sent = skein_shell::signal_kept_child(kept.fd, Signal::Kill, Target::Child);
+        }
+        for kept in &tree.kept {
+            let _starved = kept.wait(false, "the owned child's cleanup");
+        }
+        tree
+    };
+    if running {
+        let _killed = child.kill();
+    }
+    child.wait().expect("owned child reaped");
+    drop(child.stdin.take());
+    drop(child.stdout.take());
+    drop(child.stderr.take());
+    #[cfg(target_os = "linux")]
+    tree.end_kept();
 }
 
 /// Numeric snapshots are observations only, never a capability to signal.

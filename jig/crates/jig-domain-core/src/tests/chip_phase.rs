@@ -75,7 +75,7 @@ fn chip_live_observation_uses_receipt_time_and_drops_after_loss() {
     limits.fleet.engine_slots = 1;
     core.fleet = fleet::Domain::new(&limits.fleet, fixtures::needs(), Box::new([]));
     let mut env = Env { now: Time::ZERO, wall: Wall::from_nanos(20), limits: limits.fleet };
-    let mut out = Queue::with_capacity(fleet::max_out(&limits.fleet));
+    let mut out = Queue::uncapped();
     fleet::step(
         &mut core.fleet,
         &env,
@@ -228,7 +228,7 @@ fn long_operation_work(operation: fleet::Operation) -> ChipWork {
     limits.fleet.engine_slots = 1;
     core.fleet = fleet::Domain::new(&limits.fleet, fixtures::needs(), Box::new([]));
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.fleet };
-    let mut out = Queue::with_capacity(fleet::max_out(&limits.fleet));
+    let mut out = Queue::uncapped();
     fleet::step(
         &mut core.fleet,
         &env,

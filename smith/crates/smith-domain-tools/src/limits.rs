@@ -67,7 +67,7 @@ pub struct Limits {
     pub search_bytes: u32,
     /// How long a search may take, within its call's deadline.
     pub search_timeout: Duration,
-    /// Reserved observations buffered until the parent drains them; at least [`crate::max_facts`].
+    /// Compatibility setting; observations are uncapped and this does not limit them.
     pub facts: u32,
 }
 
@@ -84,7 +84,6 @@ pub fn valid(limits: &Limits) -> bool {
         Err(_) => return false,
     };
     limits.shell_head.checked_add(limits.shell_tail).is_some()
-        && limits.facts >= crate::max_facts(limits)
         && limits.list_bytes >= smallest_entry
         && flight::slots(limits).is_some()
         && limits.path_bytes.checked_add(1).is_some()

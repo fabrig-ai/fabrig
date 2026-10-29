@@ -1,5 +1,8 @@
 //! A person connects their App, pushes once and restarts (domain/testing.md, 2.6).
-use super::{Scratch, WITHIN, cluster, ctl};
+use super::{
+    Scratch, WITHIN, cluster, ctl,
+    story_socket::{Scope, Socket},
+};
 use serde_json::Value;
 use skein_io::kernel::Exit;
 use skein_lib::{Secret, Time, base64};
@@ -8,8 +11,8 @@ use skein_world::{Referee, real};
 use std::{
     collections::BTreeSet,
     fs,
-    io::{Read, Write},
-    net::{SocketAddr, TcpStream},
+    io::Write,
+    net::SocketAddr,
     os::unix::fs::{OpenOptionsExt, PermissionsExt},
     path::{Path, PathBuf},
 };
@@ -670,14 +673,15 @@ fn decode(value: &Value) -> Box<[u8]> {
 // The fake's object route is credential-free and does not add a repository git call.
 // Like support/webhooks.rs, the referee makes one bounded request to a separate process.
 pub(super) fn objects(address: SocketAddr, commit: u64) -> Value {
-    let within = std::time::Duration::from_secs(10);
-    let mut socket = TcpStream::connect_timeout(&address, within).expect("object route");
-    socket.set_read_timeout(Some(within)).expect("read bound");
-    socket.set_write_timeout(Some(within)).expect("write bound");
+    let within = skein_lib::Duration::from_secs(10);
+    let mut socket = Socket::connect("the GitHub object route", within, address, Scope::World).expect("object route");
     let body = format!("{{\"commits\":[{commit}]}}");
-    write!(socket, "POST /.fake/git/objects HTTP/1.1\r\nHost: {address}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).expect("object request");
-    let mut response = Vec::new();
-    socket.take(65_536).read_to_end(&mut response).expect("object response");
+    let request = format!(
+        "POST /.fake/git/objects HTTP/1.1\r\nHost: {address}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+        body.len()
+    );
+    socket.write_all("the GitHub objects request", within, request.as_bytes()).expect("object request");
+    let response = socket.read_to_end("the GitHub objects reply", within, 65_536).expect("object response");
     assert!(response.starts_with(b"HTTP/1.1 200"), "{}", String::from_utf8_lossy(&response));
     let at = response.windows(4).position(|bytes| bytes == b"\r\n\r\n").expect("HTTP head");
     serde_json::from_slice(&response[at + 4..]).expect("objects JSON")
@@ -701,15 +705,17 @@ pub(crate) fn request_url(address: SocketAddr, method: &str, url: &str, media: &
     request(address, method, target, media, body)
 }
 fn request(address: SocketAddr, method: &str, target: &str, media: &str, body: &[u8]) -> Response {
-    let within = std::time::Duration::from_secs(10);
-    let mut socket = TcpStream::connect_timeout(&address, within).expect("local HTTP listener");
-    socket.set_read_timeout(Some(within)).expect("read bound");
-    socket.set_write_timeout(Some(within)).expect("write bound");
+    let within = skein_lib::Duration::from_secs(10);
+    let mut socket =
+        Socket::connect("the GitHub local HTTP listener", within, address, Scope::World).expect("local HTTP listener");
     let version = skein_forge::github::pin::API_VERSION;
-    write!(socket, "{method} {target} HTTP/1.1\r\nHost: {address}\r\nUser-Agent: temper-test\r\nX-GitHub-Api-Version: {version}\r\nContent-Type: {media}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", body.len()).expect("HTTP head");
-    socket.write_all(body).expect("HTTP body");
-    let mut bytes = Vec::new();
-    socket.take(65_537).read_to_end(&mut bytes).expect("bounded HTTP response");
+    let request = format!(
+        "{method} {target} HTTP/1.1\r\nHost: {address}\r\nUser-Agent: temper-test\r\nX-GitHub-Api-Version: {version}\r\nContent-Type: {media}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+        body.len()
+    );
+    socket.write_all("the GitHub HTTP request", within, request.as_bytes()).expect("HTTP head");
+    socket.write_all("the GitHub HTTP body", within, body).expect("HTTP body");
+    let bytes = socket.read_to_end("the GitHub HTTP reply", within, 65_537).expect("bounded HTTP response");
     assert!(bytes.len() <= 65_536, "HTTP response bound");
     let at = bytes.windows(4).position(|bytes| bytes == b"\r\n\r\n").expect("HTTP head");
     let head = std::str::from_utf8(&bytes[..at]).expect("HTTP header text");

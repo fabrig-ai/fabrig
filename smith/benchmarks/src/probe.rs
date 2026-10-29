@@ -258,8 +258,16 @@ fn task(entries: &[crate::CatalogueTask], name: &str) -> Result<crate::Catalogue
     Err(format!("unknown task: {name}"))
 }
 
+// Fixed machine and directory observations supplied to request construction.
+struct RequestInputs<'a> {
+    repository: &'a Path,
+    codex_home: PathBuf,
+    host: String,
+    cpus: Vec<u32>,
+}
+
 fn request(
-    repository: &Path,
+    inputs: &RequestInputs<'_>,
     entry: &crate::CatalogueTask,
     suite: &Suite,
     agent: &crate::SuiteAgent,
@@ -267,7 +275,7 @@ fn request(
     run: (&str, &str, Option<crate::SmithFace>, &str),
     attempt: usize,
 ) -> Result<crate::run::Prepared, String> {
-    let root = repository.join("benchmarks");
+    let root = inputs.repository.join("benchmarks");
     let task = &entry.task;
     let pin_file = root.join("agents").join(agent.agent.directory()).join(format!("{}.pin.toml", agent.config));
     let pin = crate::read_configuration(&pin_file).map_err(|error| error.to_string())?;
@@ -285,7 +293,7 @@ fn request(
         program,
         arguments: Vec::new(),
         configuration: Some(pin_file),
-        codex_home: Some(crate::arm::state_root(&Guard::from_environment()?)?.join("logins/codex")),
+        codex_home: Some(inputs.codex_home.clone()),
         identity: Identity {
             run: run.0.into(),
             attempt: format!("{attempt:02}"),
@@ -315,8 +323,8 @@ fn request(
                 resolved_effort: Measure::unavailable("not run"),
             },
             harness_commit: run.3.into(),
-            host: fs::read_to_string("/proc/sys/kernel/hostname").map_err(|error| error.to_string())?.trim().into(),
-            cpus: cpus()?,
+            host: inputs.host.clone(),
+            cpus: inputs.cpus.clone(),
             started_utc: run.1.into(),
         },
         teardown_ms: 10_000,
@@ -339,6 +347,24 @@ fn task_requests(
     repetitions: u32,
     requests: &mut Vec<crate::run::Prepared>,
 ) -> Result<(), String> {
+    let inputs = RequestInputs {
+        repository,
+        codex_home: crate::arm::state_root(&Guard::from_environment()?)?.join("logins/codex"),
+        host: fs::read_to_string("/proc/sys/kernel/hostname").map_err(|error| error.to_string())?.trim().into(),
+        cpus: cpus()?,
+    };
+    task_requests_in(&inputs, entry, suite, arms, run, repetitions, requests)
+}
+
+fn task_requests_in(
+    inputs: &RequestInputs<'_>,
+    entry: &crate::CatalogueTask,
+    suite: &Suite,
+    arms: (&ArmRef, &[(String, ArmRef)]),
+    run: (&str, &str, Option<crate::SmithFace>, &str),
+    repetitions: u32,
+    requests: &mut Vec<crate::run::Prepared>,
+) -> Result<(), String> {
     let (arm, binaries) = arms;
     for agent in &suite.agents {
         if !agent.tasks.is_empty() && !agent.tasks.contains(&entry.name) {
@@ -346,7 +372,7 @@ fn task_requests(
         }
         let installed;
         let selected = if agent.agent == Agent::Codex && matches!(arm, ArmRef::Built(_)) {
-            installed = codex(repository, &agent.config)?;
+            installed = codex(inputs.repository, &agent.config)?;
             &installed
         } else {
             arm
@@ -377,7 +403,7 @@ fn task_requests(
         }
         for (name, program, arguments) in executions {
             for _ in 0..repetitions {
-                let mut request = request(repository, entry, suite, agent, program, run, requests.len() + 1)?;
+                let mut request = request(inputs, entry, suite, agent, program, run, requests.len() + 1)?;
                 if let Some(name) = name {
                     request.identity.arm.clone_from(name);
                     request.arguments.clone_from(&arguments);
@@ -519,13 +545,7 @@ fn prepare(
             &mut requests,
         )?;
     }
-    for request in &requests {
-        write(
-            &guard,
-            &directory.join(format!("{}.json", request.identity.attempt)),
-            &serde_json::to_vec_pretty(request).map_err(|error| error.to_string())?,
-        )?;
-    }
+    write_requests(&guard, &directory, &requests)?;
     Ok(Planned { run, suite: suite_file, directory, requests })
 }
 
@@ -568,6 +588,17 @@ fn archived(repository: &Path, source: &Source) -> Result<ArmRef, String> {
         }
     }
     Err(format!("no archived arm for {commit}; run build {reference} first"))
+}
+
+fn write_requests(guard: &Guard, directory: &Path, requests: &[crate::run::Prepared]) -> Result<(), String> {
+    for request in requests {
+        write(
+            guard,
+            &directory.join(format!("{}.json", request.identity.attempt)),
+            &serde_json::to_vec_pretty(request).map_err(|error| error.to_string())?,
+        )?;
+    }
+    Ok(())
 }
 
 fn check_parent(suite: &Suite, has_parent: bool) -> Result<(), String> {
@@ -1050,3 +1081,7 @@ mod calibration_tests {
         assert!(task.calibrated().expect("matching inputs"));
     }
 }
+
+#[cfg(test)]
+#[path = "probe/lower_tests.rs"]
+mod lower_tests;

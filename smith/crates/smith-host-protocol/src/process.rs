@@ -15,6 +15,9 @@ use crate::{Component, Error, Limits, OpenEvent, Values};
 
 const STDERR_READ: u32 = 4096;
 
+#[cfg(test)]
+mod tests;
+
 /// The executable, arguments, credential-free environment and prepared view.
 #[derive(Debug)]
 pub struct Launch {
@@ -104,8 +107,8 @@ impl Process {
             channel_ended: false,
             stderr_demanded: false,
             tail: List::with_capacity(detail_bytes),
-            channel_events: Queue::with_capacity(8),
-            channel_below: Queue::with_capacity(16),
+            channel_events: Queue::uncapped(),
+            channel_below: Queue::uncapped(),
         })
     }
 
@@ -413,7 +416,8 @@ impl Process {
     }
 
     fn drain_channel(&mut self, above: &mut Queue<ProcessEvent>, below: &mut Queue<IoRequest>) {
-        for _ in 0..self.channel_events.capacity() {
+        let queued = self.channel_events.len();
+        for _ in 0..queued {
             let Some(event) = self.channel_events.pop() else { break };
             if self.phase == Phase::Failing {
                 continue;

@@ -110,8 +110,8 @@ pub fn valid(limits: &Limits, receiving: &Receiving) -> bool {
     let Some(replay) = replay_limits(&limits.client) else {
         return false;
     };
-    skein_llm::replay_worst_case(&document_limits(&limits.client, document_bytes)).is_some()
-        && skein_llm::replay_worst_case(&replay).is_some()
+    skein_llm::replay_bound(&document_limits(&limits.client, document_bytes)).is_some()
+        && skein_llm::replay_bound(&replay).is_some()
 }
 
 /// Derive one result's rendering from the workspace caps and host/delegated text.

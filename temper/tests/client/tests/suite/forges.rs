@@ -21,6 +21,8 @@ const CONNECTED_MODE: u16 = 5;
 const AUTOMATIC: u16 = 6;
 const OUTPUTS: u32 = 128;
 const STEPS: u32 = 256;
+// The forge setup world covers four configured forges and their project allocations.
+const FORGE_SETUP_WRITES: u32 = 2126;
 
 fn config(under_box: bool) -> engine::Config {
     let mut config = walking::config(fixtures::SEED);
@@ -107,7 +109,7 @@ impl World {
         limits.forge.output += extra * 2;
         // Frame project allocations fit the tools preset, as the shared front requires.
         limits.documents.lines = tools::limits::client().client.domain.projects;
-        limits.journal.writes = walking::writes(&limits);
+        limits.journal.writes = FORGE_SETUP_WRITES;
         assert!(engine::valid(&limits), "the story profile covers the larger cohort");
         let store = temper_engine_domain_world::fixtures::restored_over(Store::new(), config(under_box), &limits);
         let configuration = config(under_box);

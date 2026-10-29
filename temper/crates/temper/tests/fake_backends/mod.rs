@@ -4,7 +4,7 @@ use skein_io::kernel::Exit;
 use std::{
     fs,
     io::{Read, Write},
-    net::{SocketAddr, TcpStream},
+    net::SocketAddr,
     os::unix::fs::{MetadataExt, PermissionsExt},
     path::{Path, PathBuf},
 };
@@ -47,17 +47,22 @@ fn flags(config: &Path, data: &Path, cache: &Path, bundle: Option<&Path>) -> Vec
     }
     flags
 }
-fn get_root(config: &Path) -> Vec<u8> {
+fn get_root(config: &Path, binary: &skein_world::end_to_end::Binary) -> Vec<u8> {
     let document = value(&config.join("temper.json"));
     let address: SocketAddr = document["application"]["clients"]["listener"]["socket"]
         .as_str()
         .expect("effective clients socket")
         .parse()
         .expect("loopback clients");
-    let timeout = std::time::Duration::from_millis(500);
-    let mut socket = TcpStream::connect_timeout(&address, timeout).expect("running serve child");
-    socket.set_read_timeout(Some(timeout)).expect("HTTP read bound");
-    socket.set_write_timeout(Some(timeout)).expect("HTTP write bound");
+    let mut socket = support::socket::Socket::connect(
+        address,
+        "the retained serve child's connection",
+        skein_lib::Duration::from_millis(500),
+        ["the retained serve child's HTTP reply", "the retained serve child's HTTP request"],
+        true,
+        Some(binary),
+    )
+    .expect("running serve child");
     write!(socket, "GET / HTTP/1.1\r\nHost: {address}\r\nConnection: close\r\n\r\n").expect("one HTTP request");
     let mut bytes = Vec::new();
     socket.take(65_536).read_to_end(&mut bytes).expect("bounded HTTP reply");
@@ -74,15 +79,20 @@ fn life(root: &Path, paths: &[PathBuf; 3], effective: &Path, client: &str, bundl
         &client,
         vec![Step::Run(Call::sign_in())],
         crate::BOX_DEADLINE,
-        || {
+        |binary| {
             for name in ["github.json", "oauth.json", "llm.json", "forgejo.json"] {
                 let peer = value(&effective.join(name));
                 let address: SocketAddr =
                     peer["listen"]["socket"].as_str().expect("retained peer socket").parse().expect("peer address");
-                let timeout = std::time::Duration::from_millis(500);
-                let mut socket = TcpStream::connect_timeout(&address, timeout).expect("supervised peer listener");
-                socket.set_read_timeout(Some(timeout)).expect("peer read bound");
-                socket.set_write_timeout(Some(timeout)).expect("peer write bound");
+                let mut socket = support::socket::Socket::connect(
+                    address,
+                    "the supervised peer's connection",
+                    skein_lib::Duration::from_millis(500),
+                    ["the supervised peer's HTTP status", "the supervised peer's HTTP request"],
+                    true,
+                    Some(binary),
+                )
+                .expect("supervised peer listener");
                 write!(socket, "GET / HTTP/1.1\r\nHost: {address}\r\nConnection: close\r\n\r\n").expect("peer request");
                 let mut status = [0_u8; 12];
                 socket.read_exact(&mut status).expect("bounded peer HTTP status");
@@ -91,7 +101,7 @@ fn life(root: &Path, paths: &[PathBuf; 3], effective: &Path, client: &str, bundl
                     "{name}: {status:?}"
                 );
             }
-            get_root(effective)
+            get_root(effective, binary)
         },
     );
     assert_eq!(outcome.exit, Some(Exit::Code(0)), "{}", String::from_utf8_lossy(&outcome.stderr));

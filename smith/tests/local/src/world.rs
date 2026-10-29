@@ -227,6 +227,7 @@ pub struct World {
     reached: BTreeSet<Goal>,
     exit: Option<ExitStatus>,
     completions: u32,
+    answers: u32,
     prompt_assistants: Vec<usize>,
     prompt_affinities: Vec<agent::llm::Affinity>,
     child_prompts: Vec<(tools::Grants, Box<[agent::llm::Served]>)>,
@@ -734,6 +735,7 @@ impl World {
             reached: BTreeSet::new(),
             exit: None,
             completions: 0,
+            answers: 0,
             prompt_assistants: Vec::new(),
             prompt_affinities: Vec::new(),
             child_prompts: Vec::new(),
@@ -966,6 +968,12 @@ impl World {
     #[must_use]
     pub fn completions(&self) -> u32 {
         self.completions
+    }
+
+    /// Number of typed answer terminals emitted by the local host.
+    #[must_use]
+    pub fn answers(&self) -> u32 {
+        self.answers
     }
 
     /// Actual child completion prompts, with their workspace authority and served tools.
@@ -1438,7 +1446,8 @@ impl World {
             }
             Request::Process(_) => panic!("in-process local world cannot spawn an external agent"),
             Request::SelectChat { .. } => panic!("this world's stories keep their configured chat"),
-            Request::Answered { .. } | Request::Unanswered { .. } => {}
+            Request::Answered { .. } => self.answers += 1,
+            Request::Unanswered { .. } => {}
             Request::Exit { status } => {
                 self.exit = Some(status);
                 self.reached.insert(Goal::Exit);

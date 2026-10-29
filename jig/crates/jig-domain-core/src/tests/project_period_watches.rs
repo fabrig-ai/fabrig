@@ -189,7 +189,7 @@ fn a_cross_project_period_holds_the_frame_signal_and_project_reread_until_durabi
     assert!(funding_writes > 0);
     let frame = frame_delivery(&out, watcher).expect("cross-project frame signal is held");
     assert_frame_project_pool(&frame, before.pools.get(0));
-    let room = route_bound(&limits).unwrap();
+    let room = limits.routes;
     let mut journal = skein_lib::Journal::<Write, Box<Held>>::uncapped(room, 0);
     let mut decision = journal.decide();
     let mut writes = 0_u32;

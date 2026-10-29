@@ -31,12 +31,6 @@ pub fn lacks(app: &App) -> Box<[Lacking]> {
     lacking.into_boxed()
 }
 
-/// The old name of [`missing_access_bound`]; it goes once every tree
-/// calls the new name (wave 3).
-pub(crate) fn worst_case() -> Option<u64> {
-    missing_access_bound()
-}
-
 /// Bounds the missing-access result and conversion workspace.
 /// Dialect Missing arrays and the returned Lacking array coexist while entries
 /// move between them. Each conversion to a boxed slice may retain its source
@@ -45,9 +39,9 @@ pub(crate) fn missing_access_bound() -> Option<u64> {
     use skein_forge::github::document::Permission;
     let permissions = u32::try_from(setup::PERMISSIONS.len()).ok()?;
     let events = u32::try_from(setup::EVENTS.len()).ok()?;
-    let missing_permissions = List::<Permission>::worst_case(permissions)?;
-    let missing_events = List::<Box<[u8]>>::worst_case(events)?;
-    let lacking = List::<Lacking>::worst_case(permissions.checked_add(events)?)?;
+    let missing_permissions = List::<Permission>::price(permissions)?;
+    let missing_events = List::<Box<[u8]>>::price(events)?;
+    let lacking = List::<Lacking>::price(permissions.checked_add(events)?)?;
     let mut total = missing_permissions
         .checked_add(missing_permissions)?
         .checked_add(missing_events)?

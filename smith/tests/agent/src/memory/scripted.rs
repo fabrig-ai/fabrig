@@ -2,7 +2,7 @@
 
 use super::{Asked, Domain, Driver, Duration, Env, Event, Limits, Meter, Queue, Request, Rng, Time, Token, Wall};
 use smith_domain::llm::{Asker, Completion, Purpose};
-use smith_domain::{Config, max_out, resume, step};
+use smith_domain::{Config, resume, step};
 
 /// An agent domain measured after its requests are drained and garbage reclaimed.
 pub struct Memory {
@@ -25,7 +25,7 @@ impl Memory {
             running: None,
             seen: [0; 18],
         };
-        let out = Queue::with_capacity(max_out(&limits));
+        let out = Queue::uncapped();
         let meter = Meter::new();
         let domain = Domain::new(
             &limits,

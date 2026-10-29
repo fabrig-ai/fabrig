@@ -478,7 +478,7 @@ fn census_world(seed: u64) -> World {
     limits.core.tasks.inbox_messages = 8;
     limits.core.tasks.run_inbox = 8;
     limits.core.documents.rows = 2;
-    let room = core::route_bound(&limits.core).expect("census world room");
+    let room = limits.core.routes;
     let connectors = connector::MAX_OUT * 2;
     limits.journal.commits = 2;
     limits.watermark = root::default_watermark(&limits.journal);

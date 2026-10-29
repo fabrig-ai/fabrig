@@ -47,12 +47,42 @@ impl Throwaway {
 
     fn with_repository(mut self, scratch: &Scratch, sleep_seconds: u64) -> Self {
         let began = skein_shell::Clock::new().now().now;
-        let reconciled = owned::reconcile(scratch.path(), 1);
-        assert_eq!(reconciled.status.code(), Some(0), "{}", String::from_utf8_lossy(&reconciled.stderr));
-        assert!(
-            skein_shell::Clock::new().now().now.saturating_since(began) < super::WITHIN,
-            "reconcile within its bound"
-        );
+        let output_path = scratch.path().join("reconcile.out");
+        let error_path = scratch.path().join("reconcile.err");
+        let mut deadline = skein_world::Deadline::arm("the owned Forgejo's reconcile", super::WITHIN);
+        let mut child = std::process::Command::new(skein_scratch::paths::binary("temper"))
+            .args(["forge", "reconcile"])
+            .args(super::configuration::flags(scratch.path()))
+            .arg("1")
+            .current_dir(scratch.path())
+            .stdin(std::process::Stdio::null())
+            .stdout(fs::File::create(&output_path).expect("reconcile output"))
+            .stderr(fs::File::create(&error_path).expect("reconcile errors"))
+            .spawn()
+            .expect("reconcile starts");
+        deadline.watch_process(child.id());
+        loop {
+            if let Some(status) = child.try_wait().expect("reconcile status") {
+                assert!(
+                    status.success(),
+                    "{}",
+                    String::from_utf8_lossy(&fs::read(&error_path).expect("reconcile errors"))
+                );
+                break;
+            }
+            if deadline.passed() {
+                let expired = deadline.expired();
+                super::parent::end_child(&mut child);
+                match expired {
+                    skein_world::Expired::Starved(starved) => {
+                        self.stop();
+                        starved.pass();
+                    }
+                    skein_world::Expired::Failed(figures) => panic!("reconcile within its bound: {figures}"),
+                }
+            }
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
         stage("reconcile", began);
         let person = person_token(&self.instance);
         let repository = repository(&self.instance, &person, sleep_seconds);

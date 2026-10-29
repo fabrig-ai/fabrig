@@ -4,7 +4,7 @@ Provisional, 2026-10-28. The machines' and the pipeline's facts every role works
 
 ## 1. In one page
 
-- **hel8 runs sessions and surveys, never builds:** the coordinator's and the leads' Claude sessions, their clones, and read-only Codex surveys. Builders (hetzner2, 3, 6, 7) build in slots; hetzner8 is the merge queue's alone.
+- **hel8 runs sessions and surveys, never builds:** the coordinator's and the leads' sessions, their clones, and read-only Codex surveys. Builders (hetzner3, 6, 7) build in slots; hetzner8 runs the merge queue, and drained hetzner2 is reserved for its second prover. The prover remains disabled until the train code is ready.
 - **A lead** is a Claude session on hel8 named `lead/<area>`, started from a directory Claude trusts (under `~/src/rust/`), with its scratch and clones in `~/src/fabrig/leads/<area>/`: `repo/` (read main, mark branches ready) and `survey/` (surveys).
 - **Implementers are Codex runs** on a builder, one task in one slot, launched by `codex-run`; their end is posted to whoever launched them.
 - **Slots are for builds:** a fixed share per lead, the rest a free pool claimed with `claim` from PATH on hel8; every task trims its slot first (`tools/slots/trim`).
@@ -40,3 +40,13 @@ Provisional, 2026-10-28. The machines' and the pipeline's facts every role works
 
 - `codex-run` trimming the slot itself, so no task can forget.
 - A periodic run of each package's tests alone, to catch tests that pass only after a workspace build.
+
+## 7. Succession of long-running sessions
+
+- **Who:** every session that outlives its tasks: the coordinator, the operator, a lead. A session's context is finite; a session that compacts loses what it knew in its own words.
+- **When:** at about three quarters of the context window the session starts its successor, which usually comes before any compaction; if a compaction happens first, the handover starts right after it, never after a second. It never waits for the window to fill.
+- **How:**
+  1. The incumbent brings its handover file up to date (where things stand, what is in flight with run ids and branches, decisions pending and whose, what it was about to do) and starts the successor with its role file, the handover and the same mailbox name to inherit.
+  2. **Warm-up, read-only:** the successor reads the handover, the role and operations files, the plans and the ledger, and follows the mailbox without acting (reading delivered messages' copies, never `post read` of the incumbent's box); it asks the incumbent what is unclear under a temporary name (`<role>-next`), and says when it is ready.
+  3. **Takeover:** the incumbent stops its waiter and says so; the successor starts its own on the inherited name, tells the parties it talks to that the role changed hands, and the incumbent stops.
+- **Leads are scoped, not eternal:** a lead runs one wave of its area; its area's lasting facts live in its common file and the designs, so the next wave's lead starts warm from files, not from a long context.

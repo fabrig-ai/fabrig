@@ -49,7 +49,7 @@ fn manifest(given: &Given) -> Option<u64> {
         .checked_add(32)?
         .checked_add(name)?
         .checked_add(name.checked_add(17)?)?
-        .checked_add(writer::worst_case(&writer::Limits { depth: 2, length: given.limits.page_bytes })?)?
+        .checked_add(writer::encoder_bound(&writer::Limits { depth: 2, length: given.limits.page_bytes })?)?
         .checked_add(u64::from(given.limits.page_bytes))
 }
 fn convert(given: &Given) -> Option<u64> {
@@ -80,7 +80,7 @@ fn install(given: &Given) -> Option<u64> {
 fn accept(given: &Given) -> Option<u64> {
     // Decoded ids, insertion list (and its shrinking allocation), encoded item;
     // the retained and pending App credentials, decimal subject and its copy.
-    let ids = List::<u64>::worst_case(given.limits.installations)?;
+    let ids = List::<u64>::price(given.limits.installations)?;
     u64::try_from(size_of::<Accept>())
         .ok()?
         .checked_add(ids)?
@@ -97,9 +97,9 @@ fn reachable(given: &Given) -> Option<u64> {
     // decoding, and the retained and pending credentials during the mint.
     u64::try_from(size_of::<Reachable>())
         .ok()?
-        .checked_add(List::<u64>::worst_case(given.limits.installations)?)?
-        .checked_add(List::<u64>::worst_case(given.limits.installations)?)?
-        .checked_add(List::<Reached>::worst_case(given.limits.reachable.min(skein_forge::github::pin::PAGE_CAP))?)?
+        .checked_add(List::<u64>::price(given.limits.installations)?)?
+        .checked_add(List::<u64>::price(given.limits.installations)?)?
+        .checked_add(List::<Reached>::price(given.limits.reachable.min(skein_forge::github::pin::PAGE_CAP))?)?
         .checked_add(u64::from(given.limits.key_bytes))?
         .checked_add(u64::from(given.limits.key_bytes))?
         .checked_add(40)
@@ -116,6 +116,6 @@ fn paste(given: &Given) -> Option<u64> {
         .checked_add(u64::from(base64::encoded_len(Alphabet::Standard, key)?))?
         .checked_add(u64::from(given.limits.name_bytes).checked_mul(4)?)?
         .checked_add(u64::try_from(b"https://.invalid/".len()).ok()?)?
-        .checked_add(checks::worst_case()?)?
+        .checked_add(checks::missing_access_bound()?)?
         .checked_add(40)
 }

@@ -1,6 +1,7 @@
 //! Entry-point tests for file admission and translation.
 
 mod admission;
+mod deadlines;
 mod routing;
 
 use alloc::boxed::Box;

@@ -25,19 +25,12 @@ pub(super) fn tag_tasks(
     task_escalation: bool,
     person_escalation: bool,
 ) -> Requests {
-    let task_room = crate::settings::task_route_room(&env.limits).checked_mul(8).expect("bounded task routes");
-    let party_room = people::max_out(&env.limits.people).checked_mul(4).expect("bounded party routes");
-    let route_room = task_room
-        .checked_add(party_room)
-        .expect("bounded task and party routes")
-        .checked_add(crate::settings::release_writes(&env.limits).expect("release bound"))
-        .expect("release route room");
     let mut pending = Queue::uncapped();
     for _ in 0..child.len() {
         pending.push(child.pop().expect("task output count"));
     }
     let mut out = Queue::uncapped();
-    for _ in 0..route_room {
+    for _ in 0..env.limits.routes {
         let Some(next) = pending.pop() else { break };
         let request = match next {
             tasks::Request::ProcedureRefused { task, step, problem } => {
@@ -1505,7 +1498,7 @@ pub(super) fn tag_tasks(
         core.task_capacity_mark = capacity_mark;
         core.touch_deployment();
     }
-    assert!(pending.is_empty(), "finite task routes fit their bound");
+    assert!(pending.is_empty(), "task_routes_drained");
     out.push(Request::Decided);
     Requests::Out(out)
 }
@@ -1585,7 +1578,7 @@ pub(super) fn route_connector_repair(
             tracked: None,
         }]),
     }));
-    let mut out = Queue::with_capacity(1);
+    let mut out = Queue::uncapped();
     out.push(Request::Decided);
     Requests::Out(out)
 }
