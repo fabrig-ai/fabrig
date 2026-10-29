@@ -9,9 +9,9 @@ use skein_lib::{Duration, Time};
 use skein_llm::{Credential, Endpoint, Provider, Scheme};
 use skein_shell::Host;
 
-#[path = "llm/request.rs"]
+#[path = "../llm/request.rs"]
 mod request;
-#[path = "llm/tls.rs"]
+#[path = "../llm/tls.rs"]
 mod tls;
 use skein_fake_peers_tests as support;
 

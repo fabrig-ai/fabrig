@@ -3,11 +3,11 @@ use skein_fake_peers::{Error, Limits, forge};
 use skein_lib::Time;
 use skein_shell::Host;
 
-#[path = "forge/fixtures.rs"]
+#[path = "../forge/fixtures.rs"]
 mod fixtures;
-#[path = "forge/git.rs"]
+#[path = "../forge/git.rs"]
 mod git;
-#[path = "forge/github.rs"]
+#[path = "../forge/github.rs"]
 mod github;
 use fixtures::{ONE_REPLY, SEED, World, address, config, limits, protocol_limits, request};
 

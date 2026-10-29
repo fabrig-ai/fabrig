@@ -1,5 +1,5 @@
 //! Hosted GitHub stores filled over simulated loopback, with every owner iteration measured.
-#[path = "../../fake-forge/tests/github/fixtures.rs"]
+#[path = "../../../fake-forge/tests/github/fixtures.rs"]
 #[expect(dead_code, reason = "The service binary also uses this fixture's direct request helper.")]
 mod f;
 
@@ -9,15 +9,12 @@ use skein_fake_peers::{
     forge::{Forge, Peer},
 };
 use skein_fake_peers_tests as support;
-use skein_heap::{Counting, Meter};
+use skein_heap::Meter;
 use skein_io::kernel::{Complete, Done, Family, Fd, Op, Submit};
 use skein_lib::{Duration, Queue, Secret, Token, bytes};
 use skein_shell::Host;
 use skein_sim::{Pid, Sim};
 use std::{cell::RefCell, net::Ipv4Addr, rc::Rc};
-
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 // Bounds construction and each iteration of the full-store hosted scenario.
 const FAKE_GITHUB_PEER_PEAK_CEILING: u64 = 1_100_000;

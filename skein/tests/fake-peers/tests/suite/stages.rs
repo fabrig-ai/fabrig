@@ -1,7 +1,7 @@
 //! Drive the shared production face with a kernel played by hand.
 
 // Keep private stage state accessible without adding a public peer control.
-#[path = "../../../crates/skein-fake-peers/src/face.rs"]
+#[path = "../../../../crates/skein-fake-peers/src/face.rs"]
 #[expect(dead_code, reason = "this world exercises the shared up stage, not peer admission and shutdown")]
 mod face;
 
