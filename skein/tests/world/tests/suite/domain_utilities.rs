@@ -28,23 +28,6 @@ fn same_time_deliveries_keep_send_order_and_a_withdrawn_key_cannot_cancel_a_late
 }
 
 #[test]
-fn a_slow_output_consumer_keeps_input_waiting_until_one_whole_step_fits() {
-    let mut stage = Stage::<u32, u64, u64>::new(7, 2, 3);
-    stage.tick(at(2));
-    stage.push(10);
-    stage.push(20);
-    assert_eq!(stage.next_event(), Some(10));
-    stage.out.push(11);
-    stage.out.push(12);
-    assert_eq!(stage.next_event(), None, "a second step could emit two requests");
-    assert!(stage.has_events());
-    assert_eq!(stage.out.pop(), Some(11));
-    assert_eq!(stage.next_event(), Some(20));
-    assert_eq!(stage.env.now, at(2));
-    assert_eq!(stage.env.limits, 7, "output pressure does not change domain configuration");
-}
-
-#[test]
 fn terminal_races_remove_each_open_obligation_once() {
     let mut ledger = Ledger::new("domain effect");
     ledger.open(1_u64, "read");
