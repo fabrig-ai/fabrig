@@ -133,7 +133,7 @@ impl Proc {
 
     /// An entry point emitted no more than it declared.
     fn within(&self, subs: u32, max: MaxOut, entry: &str) {
-        assert!(self.subs.len() - subs <= max.submissions, "{entry} submitted no more than its MAX_OUT");
+        assert!(self.subs.len() - subs <= max.submissions, "{entry} submitted no more than its submission bound");
     }
 
     /// Whether the loop has work now, without the kernel or time.

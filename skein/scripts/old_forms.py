@@ -3,6 +3,9 @@
 Count matches in tracked Rust files, excluding generated/ components and
 comments, while keeping string literals. Compare each form independently
 with scripts/old-forms.txt; --write can initialize or lower that baseline.
+The max_out form exempts only the exact identifiers in EXEMPT: the four
+kernel submission bounds and the provider wire field max_output_tokens.
+Identifiers containing an exempt name still count.
 Recorded raises and other comments stay in place when counts are rewritten.
 Run from the repository root, using only the Python standard library:
 
@@ -19,6 +22,14 @@ FORMS = {
     'JournalRoom': re.compile(r'\bJournalRoom\b'),
     'takes': re.compile(r'\.takes\(&'),
     'worst_case': re.compile(r'\b\w*worst_case\w*\b'),
+}
+EXEMPT = {
+    'max_out': (
+        # The kernel's submission bounds stay at its edges.
+        'MAX_OUT_DOWN', 'MAX_OUT_UP', 'MAX_OUT_RESUME', 'MAX_OUT_FIRE',
+        # The provider's wire vocabulary stays on the wire.
+        'max_output_tokens',
+    ),
 }
 BASELINE = Path('scripts/old-forms.txt')
 HEADER = (
@@ -92,7 +103,7 @@ def counts():
         for form, pattern in FORMS.items():
             totals[form] += sum(
                 1 for match in pattern.finditer(source if form == 'takes' else candidates)
-                if form != 'max_out' or match.group() not in ('MAX_OUT_DOWN', 'MAX_OUT_UP')
+                if match.group() not in EXEMPT.get(form, ())
             )
     return totals
 
