@@ -129,8 +129,16 @@ pub enum Step {
 struct Bounds {
     answer: Option<Duration>,
     timeout: Option<Duration>,
+    success: bool,
 }
 impl Step {
+    /// Stop the story if this prerequisite call exits unsuccessfully.
+    #[must_use]
+    pub fn succeeds(mut self) -> Self {
+        let Self::Call { argv, .. } = &mut self else { panic!("only a call has a success prerequisite") };
+        argv.1.success = true;
+        self
+    }
     /// Require an answer within this harness bound, or a starved verdict.
     #[must_use]
     pub fn within(mut self, after: Duration) -> Self {
@@ -1218,6 +1226,20 @@ impl Caller {
                 self.next,
                 self.diagnostic_argv(argv),
                 call.exit,
+                String::from_utf8_lossy(&call.stderr)
+            );
+        }
+        if let Step::Call { argv, .. } = step
+            && argv.1.success
+        {
+            let call = &self.calls[index];
+            assert_eq!(
+                call.exit,
+                Some(Exit::Code(0)),
+                "call {index} argv={:?} exit={:?} stdout={} stderr={}",
+                self.diagnostic_argv(argv),
+                call.exit,
+                String::from_utf8_lossy(&call.stdout),
                 String::from_utf8_lossy(&call.stderr)
             );
         }

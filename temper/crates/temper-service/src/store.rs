@@ -174,7 +174,7 @@ pub(crate) fn layout(
         store: kv,
         secrets: kv,
         held: profile.held,
-        journal: root::journal_limits(&root.journal),
+        commits: protocol::sizes::Commits { in_flight: root.journal.commits, writes: root.journal.writes },
         joins: profile.joins,
         queue: kv.queued,
         files: profile.files,

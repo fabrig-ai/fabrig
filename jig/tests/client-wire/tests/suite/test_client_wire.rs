@@ -1,5 +1,5 @@
 //! The committed client codec and bytes against its schema (skein's codec.md, 6).
-use skein_codegen::{Names, generate_named, parse};
+use skein_codegen::{generate, parse};
 use std::fs;
 
 #[test]
@@ -15,7 +15,7 @@ fn test_client_wire_v1_schema_matches_generated_code() {
 fn check_test_client(version: u16) {
     let root = skein_scratch::paths::tree().join("testing/jig-client-test-protocol-wire");
     let source = fs::read_to_string(root.join(format!("schema/test-client-v{version}.schema"))).expect("client schema");
-    let output = generate_named(&parse(&source).expect("schema valid"), Names::Bounds);
+    let output = generate(&parse(&source).expect("schema valid"));
     let code = root.join(format!("src/generated/v{version}.rs"));
     let goldens = root.join("golden");
     let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");

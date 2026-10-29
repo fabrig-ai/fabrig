@@ -23,7 +23,7 @@ Provisional, 2026-10-29. Kept by the coordinator and the operator: what is decid
 ## 4. Code shape (data first)
 - **Crate granularity (2):** per crate: build time (cargo `--timings` of a full build), how often it changes (git log per crate path), rebuild fan-out (its reverse dependencies and their build cost). A crate that changes often and drags a large fan-out is a split candidate; one that never changes alone may merge.
 - **Wave 2.5 effect (2):** measure the queue’s build step and targets’ size before and after the completed one-binary-per-package consolidation.
-- **Tiers we dropped for the spike:** browser, process, live, qa: their scripts assume per-tree targets and profiles the root `.config` lacks; restore the ones worth it once the spike's numbers are in.
+- **Tiers we dropped for the spike (3):** browser, process, live, qa: their scripts assume per-tree targets and profiles the root `.config` lacks. First, a periodic run outside the gate (nightly, or after each wave) of the test targets no gate selects, temper's `qa_` binaries and the process tier, reporting failures to the tree's lead: retained `qa_` stories failed unchanged on main with nobody told (ledger 52; `qa_github_land`'s checked-head story from 10-28 until its fixture was fixed on 10-29). Restore the rest once the spike's numbers are in.
 
 ## 5. More than one designer
 - **Operator effort (1, 3):** measure the Codex operator’s response times and missed incidents at high before deciding whether to try medium.

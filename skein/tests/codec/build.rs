@@ -3,7 +3,7 @@
 use core::fmt::Write;
 use std::path::PathBuf;
 
-use skein_codegen::{Declaration, Names, Schema, generate, generate_named, parse};
+use skein_codegen::{Declaration, Schema, generate, parse};
 
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
@@ -21,8 +21,7 @@ fn main() {
         let path = format!("schema/{fixture}.schema");
         println!("cargo:rerun-if-changed={path}");
         let schema = parse(&std::fs::read_to_string(path).expect("fixture schema")).expect("valid fixture");
-        let output = generate_named(&schema, Names::Bounds);
-        assert_eq!(output.goldens, generate(&schema).goldens, "{fixture}: fixed wire bytes");
+        let output = generate(&schema);
         let old_encoded = "worst_case_bytes";
         let old_decoded = "worst_case_heap";
         for old in [old_encoded, old_decoded] {

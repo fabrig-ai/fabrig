@@ -56,7 +56,7 @@ pub(super) fn limits(root: &root::Limits, profile: &protocol::Limits) -> Option<
     let sizes = protocol::sizes::check_commits(
         &root.core,
         &jig_test_store::application(&root.connector),
-        &protocol::sizes::commits(&root.journal),
+        &protocol::sizes::Commits { in_flight: root.journal.commits, writes: root.journal.writes },
         &kv,
         profile.orphan_erases,
     )
@@ -74,7 +74,7 @@ pub(super) fn limits(root: &root::Limits, profile: &protocol::Limits) -> Option<
         core: root.core,
         store: kv,
         secrets: kv,
-        journal: root.journal,
+        commits: protocol::sizes::Commits { in_flight: root.journal.commits, writes: root.journal.writes },
         joins: root.core.load_slots,
         queue: kv.queued,
         files: profile.files,

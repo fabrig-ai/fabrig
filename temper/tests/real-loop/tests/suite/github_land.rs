@@ -5,7 +5,7 @@ use temper_real_loop_world::{
         self, check_chat_heard_the_landing, check_connection, check_landing, connect_adopt_and_ask_for_a_change,
         scripts,
     },
-    landing, run_github,
+    landing, llm, run_github,
 };
 
 const ONE_PUSH: usize = 1;
@@ -15,7 +15,7 @@ fn a_chats_change_lands_on_connected_github() {
     let mut fixture = github::fixture();
     fixture.connected = false;
     fixture.configure = |value, agent, at| (landing::fixture().configure)(value, agent, at);
-    let ran = run_github(fixture, scripts, connect_adopt_and_ask_for_a_change);
+    let ran = run_github(fixture, |at| llm::cued(scripts(at)), connect_adopt_and_ask_for_a_change);
     check_connection(&ran);
     let commit = check_landing(&ran);
     check_chat_heard_the_landing(&ran, &commit);

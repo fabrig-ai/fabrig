@@ -4,7 +4,7 @@ fn records_match_their_generated_code() {
     let root = std::path::Path::new(".");
     let source = std::fs::read_to_string(root.join("schema/notes-v1.schema")).expect("schema readable");
     let schema = skein_codegen::parse(&source).expect("schema valid");
-    let output = skein_codegen::generate_named(&schema, skein_codegen::Names::Bounds);
+    let output = skein_codegen::generate(&schema);
     let write = std::env::var_os("SKEIN_CODEGEN_WRITE").as_deref() == Some(std::ffi::OsStr::new("1"));
     let generated = root.join("src/generated/v1.rs");
     if write {

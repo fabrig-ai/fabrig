@@ -61,7 +61,7 @@ impl Proc {
 }
 impl Host for Proc {
     fn iterate(&mut self, now: Time, wall: Wall) {
-        if !matches!(self, Self::Llm(llm) if llm.scripts.is_some()) {
+        if !matches!(self, Self::Llm(llm) if llm.deferred()) {
             if let Self::Llm(llm) = self
                 && std::mem::take(&mut llm.cue)
             {
@@ -110,7 +110,7 @@ impl Host for Proc {
         self.host_mut().submissions()
     }
     fn work_pending(&self, now: Time) -> bool {
-        !matches!(self, Self::Llm(llm) if llm.scripts.is_some())
+        !matches!(self, Self::Llm(llm) if llm.deferred())
             && (matches!(self, Self::Llm(llm) if llm.release.is_some()) || self.host().work_pending(now))
     }
     fn next_deadline(&self) -> Option<Time> {
@@ -160,6 +160,7 @@ pub(crate) fn run(
             pending_streak: crate::patience::PendingStreak::default(),
             peer: llm::peer(recipe()).expect("independent LLM peer"),
             scripts: None,
+            groups: None,
             recipe: None,
             rules: None,
             cue: false,
@@ -189,6 +190,7 @@ pub(crate) fn run(
 }
 type Rules = fn() -> Box<[Box<[skein_fake_llm_domain::api::Rule]>]>;
 type Scripts = fn(std::net::SocketAddr) -> Box<[skein_fake_llm_domain::api::Script]>;
+type ScriptGroups = fn(std::net::SocketAddr) -> skein_fake_llm_domain::api::Scripts;
 pub(crate) struct ForgePeer {
     pub(crate) peer: skein_fake_peers::forge::Peer,
     pub(crate) pending_streak: crate::patience::PendingStreak,
@@ -213,6 +215,7 @@ pub(crate) struct Llm {
     pub(crate) pending_streak: crate::patience::PendingStreak,
     pub(crate) peer: skein_fake_peers::llm::Peer,
     scripts: Option<Scripts>,
+    groups: Option<ScriptGroups>,
     recipe: Option<crate::ForgeRecipe>,
     rules: Option<Rules>,
     cue: bool,
@@ -220,6 +223,9 @@ pub(crate) struct Llm {
     pub(crate) released: Option<&'static [u8]>,
 }
 impl Llm {
+    fn deferred(&self) -> bool {
+        self.scripts.is_some() || self.groups.is_some()
+    }
     fn release_hold(&mut self, caller: &Caller) {
         if let Some(name) = caller.releasing_hold() {
             if self.released == Some(name) {
@@ -237,6 +243,10 @@ impl Llm {
         if let Some(recipe) = self.recipe.take() {
             self.peer = llm::peer((recipe.build)(address, &recipe.source)).expect("derived forge recipe");
             self.scripts = None;
+            return;
+        }
+        if let Some(groups) = self.groups.take() {
+            self.peer = llm::peer(llm::played(groups(address))).expect("bound forge script groups");
             return;
         }
         let Some(scripts) = self.scripts.take() else { return };
@@ -286,6 +296,7 @@ pub(crate) fn run_forge(
             pending_streak: crate::patience::PendingStreak::default(),
             peer: llm::peer(llm::scripted(Box::new([]))).expect("deferred peer"),
             scripts: Some(scripts),
+            groups: None,
             recipe,
             rules,
             cue: false,
@@ -310,7 +321,7 @@ pub(crate) fn run_forge(
 pub(crate) fn run_github(
     scratch: &skein_scratch::Scratch,
     fixture: crate::github::Fixture,
-    scripts: Scripts,
+    scripts: ScriptGroups,
     steps: impl FnOnce() -> Vec<crate::calls::Step>,
 ) -> skein_world::real::Outcome<Proc> {
     let patience = crate::PATIENCE;
@@ -324,7 +335,8 @@ pub(crate) fn run_github(
         Proc::Llm(Box::new(Llm {
             pending_streak: crate::patience::PendingStreak::default(),
             peer: llm::peer(llm::scripted(Box::new([]))).expect("deferred peer"),
-            scripts: Some(scripts),
+            scripts: None,
+            groups: Some(scripts),
             recipe: None,
             rules: None,
             cue: false,
@@ -571,6 +583,7 @@ impl Judge {
     }
     fn finish_peers(&mut self, peer: &mut Llm, children: &mut [Proc]) {
         peer.scripts = None;
+        peer.groups = None;
         peer.shutdown();
         for proc in children.iter_mut() {
             match proc {
@@ -883,10 +896,8 @@ fn github_cues(
 ) {
     let Proc::Forge(forge) = &mut children[0] else { panic!("GitHub root") };
     service.forge_address = forge.address();
-    if let Some(address) = forge.address()
-        && let Some(scripts) = peer.scripts.take()
-    {
-        peer.peer = llm::peer(llm::scripted(scripts(address))).expect("bound GitHub scripts");
+    if let Some(address) = forge.address() {
+        peer.bind(address);
     }
     caller.github_app = service.github_seen.app.as_ref().map(|app| app.id);
     service.checkpoint_github(forge, &caller.calls);
@@ -973,6 +984,7 @@ fn cluster_roots<R: Referee<Proc>>(
             pending_streak: crate::patience::PendingStreak::default(),
             peer: llm::peer(recipe()).expect("cluster LLM"),
             scripts: forge.map(|(_, scripts, _)| scripts),
+            groups: None,
             recipe: None,
             rules: forge.map(|(_, _, rules)| rules),
             cue: false,

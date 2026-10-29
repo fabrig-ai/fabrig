@@ -1,4 +1,4 @@
-//! The fixture round trips and bound checks under Bounds (codec.md, 6).
+//! The fixture round trips and bound checks from generate (codec.md, 6).
 
 extern crate alloc;
 

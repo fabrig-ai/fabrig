@@ -77,6 +77,26 @@ pub fn scripted_sized(scripts: Box<[api::Script]>, strings: u32) -> Recipe {
     }
 }
 
+/// Scripts selected by system text, with no request or fallback group.
+#[must_use]
+pub fn cued(scripts: Box<[api::Script]>) -> api::Scripts {
+    api::Scripts { cued: scripts, asked: Box::new([]), otherwise: Box::new([]) }
+}
+
+/// The native peer selects system and request scripts as declared (skein/docs/design/fake-llm.md, 2.4).
+#[must_use]
+pub fn played(scripts: api::Scripts) -> Recipe {
+    let mut recipe = scripted(Box::new([]));
+    recipe.domain = domain::Domain::played(
+        &recipe.domain_limits,
+        17,
+        scripts,
+        api::Menu { arguments: Box::new([]), invalid: Box::new([]) },
+    )
+    .expect("bounded real-loop script groups");
+    recipe
+}
+
 /// The scripted peer with opt-in fresh-input turn selection (skein's fake-llm.md, 2.4).
 #[must_use]
 pub fn played_by_input(scripts: Box<[api::Script]>, rules: Box<[Box<[api::Rule]>]>) -> Recipe {
