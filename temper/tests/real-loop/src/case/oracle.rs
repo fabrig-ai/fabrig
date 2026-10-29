@@ -89,20 +89,7 @@ impl Told {
 impl Observed {
     #[must_use]
     pub fn from_ran(ran: &Ran, reads: &[(Read, usize)]) -> Self {
-        let mut documents = BTreeMap::new();
-        let mut observed_at = BTreeMap::new();
-        for (read, position) in reads {
-            let Some(call) = ran.calls().get(*position) else { continue };
-            if call.exit != Some(Exit::Code(0)) {
-                continue;
-            }
-            if let Ok(document) = serde_json::from_slice::<Value>(&call.stdout) {
-                documents.insert(*read, document);
-                if let Some(wall) = call.observed_at {
-                    observed_at.insert(*read, wall);
-                }
-            }
-        }
+        let (mut documents, observed_at) = read_documents(ran.calls(), reads);
         let mut told = Vec::new();
         for observation in ran.llm() {
             let skein_fake_peers::llm::Observation::Query { query, .. } = observation else { continue };
@@ -131,6 +118,23 @@ impl Observed {
             },
         }
     }
+}
+fn read_documents(calls: &[calls::Called], reads: &[(Read, usize)]) -> (BTreeMap<Read, Value>, BTreeMap<Read, Wall>) {
+    let mut documents = BTreeMap::new();
+    let mut observed_at = BTreeMap::new();
+    for (read, position) in reads {
+        let Some(call) = calls.get(*position) else { continue };
+        if call.exit != Some(Exit::Code(0)) {
+            continue;
+        }
+        if let Ok(document) = serde_json::from_slice::<Value>(&call.stdout) {
+            documents.insert(*read, document);
+            if let Some(wall) = call.observed_at {
+                observed_at.insert(*read, wall);
+            }
+        }
+    }
+    (documents, observed_at)
 }
 impl Observed {
     /// The command verbs of the story's ctl argv, in order, for checks on which acts it made.
@@ -590,7 +594,7 @@ mod tests {
         }
     }
 
-    fn met() -> Observed {
+    pub(super) fn met() -> Observed {
         let mut documents = BTreeMap::new();
         for (read, task, tools, spend, tasks, depth, spent, below, report) in [
             (Read::DirectorEnded, DIRECTOR, 3, 40, 7, 4, 2, 5, DIRECTOR_REPORT),
@@ -4994,7 +4998,7 @@ mod direction_tests {
         documents.insert(Read::DirectionFirst, journal(DIRECTION, 1, 1));
     }
 
-    fn met() -> Observed {
+    pub(super) fn met() -> Observed {
         let documents = documents();
         let news = format!("forge landing {} -> {}", direction_commit(8), direction_commit(9));
         let amendment = tool(
@@ -11768,3 +11772,6 @@ mod milestone_tests {
         assert!(!qa_authority(&wrote));
     }
 }
+
+#[cfg(test)]
+mod calibration_tests;
