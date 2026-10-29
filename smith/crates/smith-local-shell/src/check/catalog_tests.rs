@@ -33,7 +33,7 @@ fn checked(settings: &Settings) -> Box<Report> {
     }
 }
 
-/// Lower test of smith's end_to_end::local_bad_setting_exits_2_and_names_output_before_a_run (top tiers test wiring only).
+/// Lower test of smith's `end_to_end::local_bad_setting_exits_2_and_names_output_before_a_run` (top tiers test wiring only).
 #[test]
 fn zero_output_names_its_key_and_positive_requirement() {
     let files = Files::new();
@@ -46,7 +46,7 @@ fn zero_output_names_its_key_and_positive_requirement() {
     assert!(!files.0.join("state").exists() && !files.0.join("unopened").exists(), "refusal creates no resources");
 }
 
-/// Lower test of smith's end_to_end::smith_check_and_startup_refuse_missing_sign_in_registration_keys_by_name (top tiers test wiring only).
+/// Lower test of smith's `end_to_end::smith_check_and_startup_refuse_missing_sign_in_registration_keys_by_name` (top tiers test wiring only).
 #[test]
 fn missing_fixed_registration_keys_keep_their_source() {
     let files = Files::new();
@@ -82,7 +82,7 @@ fn missing_fixed_registration_keys_keep_their_source() {
     assert!(!files.0.join("unopened").exists(), "registration validation opens no credential store");
 }
 
-/// Lower test of smith's end_to_end::the_interactive_default_check_emits_its_declaration_without_starting_resources (top tiers test wiring only).
+/// Lower test of smith's `end_to_end::the_interactive_default_check_emits_its_declaration_without_starting_resources` (top tiers test wiring only).
 #[test]
 fn default_checks_declare_memory_without_opening_resources() {
     // The standard profile's shipped memory declaration.
@@ -98,7 +98,7 @@ fn default_checks_declare_memory_without_opening_resources() {
     }
 }
 
-/// Lower test of smith's end_to_end::smith_check_json_lists_the_effective_limits_by_name (top tiers test wiring only).
+/// Lower test of smith's `end_to_end::smith_check_json_lists_the_effective_limits_by_name` (top tiers test wiring only).
 #[test]
 fn effective_limits_keep_their_names_values_and_units() {
     let files = Files::new();
@@ -121,7 +121,7 @@ fn effective_limits_keep_their_names_values_and_units() {
     );
 }
 
-/// Lower test of smith's end_to_end::smith_check_json_warns_of_a_wrapper_cache_outside_the_caches (top tiers test wiring only).
+/// Lower test of smith's `end_to_end::smith_check_json_warns_of_a_wrapper_cache_outside_the_caches` (top tiers test wiring only).
 #[test]
 fn an_unlisted_wrapper_cache_warns_without_creating_it() {
     let files = Files::new();
@@ -148,7 +148,7 @@ fn an_unlisted_wrapper_cache_warns_without_creating_it() {
     assert!(!cache.exists(), "check never creates the wrapper cache");
 }
 
-/// Lower test of smith's end_to_end::smith_check_warns_about_an_absent_cache_and_creates_nothing (top tiers test wiring only).
+/// Lower test of smith's `end_to_end::smith_check_warns_about_an_absent_cache_and_creates_nothing` (top tiers test wiring only).
 #[test]
 fn an_absent_cache_warns_without_being_created() {
     let files = Files::new();
@@ -159,7 +159,7 @@ fn an_absent_cache_warns_without_being_created() {
     assert!(!cache.exists(), "check creates nothing");
 }
 
-/// Lower test of smith's end_to_end::smith_check_warns_about_a_file_named_as_a_cache_and_keeps_it (top tiers test wiring only).
+/// Lower test of smith's `end_to_end::smith_check_warns_about_a_file_named_as_a_cache_and_keeps_it` (top tiers test wiring only).
 #[test]
 fn a_file_cache_warns_and_keeps_its_bytes() {
     let files = Files::new();
@@ -171,9 +171,11 @@ fn a_file_cache_warns_and_keeps_its_bytes() {
     assert_eq!(std::fs::read(cache).expect("retained cache file"), b"kept", "check preserves file bytes");
 }
 
-/// Lower test of smith's end_to_end::check_inspects_an_unused_program_account_without_refusing_startup (top tiers test wiring only).
+/// Lower test of smith's `end_to_end::check_inspects_an_unused_program_account_without_refusing_startup` (top tiers test wiring only).
 #[test]
 fn an_unused_program_account_warns_without_refusing_check() {
+    // SHA-256 of spare starts cf2d9706; the first four bytes name the account.
+    const SPARE: u32 = 0xcf2d_9706;
     let files = Files::new();
     let report = checked(&check_settings(
         &files,
@@ -182,8 +184,6 @@ fn an_unused_program_account_warns_without_refusing_check() {
         "[accounts.spare]\nprovider='anthropic'\nsource='program'\n",
     ));
     let json: serde_json::Value = serde_json::from_str(&render_json(&report)).expect("check JSON");
-    // SHA-256 of spare starts cf2d9706; the first four bytes name the account.
-    const SPARE: u32 = 0xcf2d_9706;
     assert_eq!(
         json["credentials"]["spare"],
         serde_json::json!({
@@ -206,18 +206,31 @@ fn an_unused_program_account_warns_without_refusing_check() {
     );
 }
 
-/// Lower tests of smith's end_to_end::check_refuses_a_linked_program_account_directory and end_to_end::check_refuses_a_public_program_account_directory (top tiers test wiring only).
-/// Lower tests of smith's end_to_end::check_refuses_a_linked_programs_directory and end_to_end::check_refuses_a_public_programs_directory (top tiers test wiring only).
+fn linked_directory(path: &std::path::Path, target: &std::path::Path) {
+    std::fs::rename(path, target).expect("move source directory");
+    std::os::unix::fs::symlink(target, path).expect("linked source directory");
+}
+
+fn public_directory(path: &std::path::Path, _target: &std::path::Path) {
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755)).expect("public source directory");
+}
+
+/// Lower test of smith's `end_to_end::check_refuses_a_linked_program_account_directory` (top tiers test wiring only).
+/// Lower test of smith's `end_to_end::check_refuses_a_public_program_account_directory` (top tiers test wiring only).
+/// Lower test of smith's `end_to_end::check_refuses_a_linked_programs_directory` (top tiers test wiring only).
+/// Lower test of smith's `end_to_end::check_refuses_a_public_programs_directory` (top tiers test wiring only).
 #[test]
 fn unsafe_program_directories_map_to_failed_account_reports() {
-    use std::os::unix::fs::{DirBuilderExt, symlink};
+    use std::os::unix::fs::DirBuilderExt;
     // Path components and faults are row data; every row follows the same inspection.
-    for (relative, linked, reason) in [
-        ("programs/codex", true, "symbolic link"),
-        ("programs/codex", false, "nonprivate mode bits 0o55"),
-        ("programs", true, "symbolic link"),
-        ("programs", false, "nonprivate mode bits 0o55"),
-    ] {
+    type Fault = fn(&std::path::Path, &std::path::Path);
+    let rows: &[(&str, Fault, &str)] = &[
+        ("programs/codex", linked_directory, "symbolic link"),
+        ("programs/codex", public_directory, "nonprivate mode bits 0o55"),
+        ("programs", linked_directory, "symbolic link"),
+        ("programs", public_directory, "nonprivate mode bits 0o55"),
+    ];
+    for &(relative, fault, reason) in rows {
         let files = Files::new();
         let executable = files.0.join("unrun-program");
         std::fs::write(&executable, b"").expect("scratch executable");
@@ -232,13 +245,7 @@ fn unsafe_program_directories_map_to_failed_account_reports() {
             .mode(0o700)
             .create(base.join("programs/codex"))
             .expect("private source tree");
-        if linked {
-            let target = files.0.join("linked-target");
-            std::fs::rename(&path, &target).expect("move source directory");
-            symlink(target, &path).expect("linked source directory");
-        } else {
-            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).expect("public source directory");
-        }
+        fault(&path, &files.0.join("linked-target"));
         let report = checked(&settings);
         let json: serde_json::Value = serde_json::from_str(&render_json(&report)).expect("check JSON");
         assert_eq!(json["credentials"]["codex"]["state"], "program_failed", "{relative}: {reason}");

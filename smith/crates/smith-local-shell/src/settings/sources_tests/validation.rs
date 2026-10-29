@@ -2,7 +2,7 @@ use super::*;
 use crate::credentials::{Directory, tests::Files};
 use std::os::unix::fs::PermissionsExt;
 
-/// Lower test of smith's end_to_end::login_refuses_the_same_invalid_declarations_as_startup (top tiers test wiring only).
+/// Lower test of smith's `end_to_end::login_refuses_the_same_invalid_declarations_as_startup` (top tiers test wiring only).
 #[test]
 fn credential_commands_refuse_the_startup_declaration_matrix() {
     for (text, diagnostic) in [
@@ -18,7 +18,7 @@ fn credential_commands_refuse_the_startup_declaration_matrix() {
     }
 }
 
-/// Lower test of smith's end_to_end::a_repository_layer_setting_an_account_is_refused_naming_the_file (top tiers test wiring only).
+/// Lower test of smith's `end_to_end::a_repository_layer_setting_an_account_is_refused_naming_the_file` (top tiers test wiring only).
 #[test]
 fn repository_accounts_name_the_file_and_authority() {
     let refusal =
@@ -29,7 +29,7 @@ fn repository_accounts_name_the_file_and_authority() {
     assert!(refusal.line().contains("fixture.toml:1") && refusal.line().contains("authority"), "{}", refusal.line());
 }
 
-/// Lower test of smith's end_to_end::an_override_past_its_bound_is_refused_naming_the_override (top tiers test wiring only).
+/// Lower test of smith's `end_to_end::an_override_past_its_bound_is_refused_naming_the_override` (top tiers test wiring only).
 #[test]
 fn an_oversized_override_keeps_its_index_and_key() {
     let shared = crate::command::Shared { overrides: vec!["budget.turns=4294967296".into()], ..Default::default() };

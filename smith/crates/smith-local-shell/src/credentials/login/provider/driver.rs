@@ -171,3 +171,6 @@ fn redirect_port(url: &[u8]) -> Option<u16> {
     let port = redirect.split("%3A").nth(2)?.split("%2F").next()?;
     port.parse().ok()
 }
+
+#[cfg(test)]
+mod tests;

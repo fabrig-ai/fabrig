@@ -147,24 +147,28 @@ mod tests {
         }
     }
 
-    /// Lower test of smith's end_to_end::smith_login_of_an_unknown_account_exits_2 (top tiers test wiring only).
+    /// Lower test of smith's `end_to_end::smith_login_of_an_unknown_account_exits_2` (top tiers test wiring only).
     #[test]
     fn an_unknown_account_is_refused_without_creating_credentials() {
         let files = Files::new();
-        let error = run(
-            &invocation(&files, &["accounts.work.source='none'"]),
-            "missing",
-            false,
-            &Clock::new(),
-            &Environment::default(),
-        )
-        .expect_err("unknown account");
+        let shared = invocation(&files, &["accounts.work.source='none'"]);
+        let error =
+            run(&shared, "missing", false, &Clock::new(), &Environment::default()).expect_err("unknown account");
         assert_eq!(error, "unknown account missing", "lookup diagnostic");
-        assert_eq!(LoginOutcome::Refused.code(), 2, "credential command refusal code");
+        let mut arguments: Vec<std::ffi::OsString> =
+            vec!["smith".into(), "login".into(), "missing".into(), "-C".into(), files.0.clone().into()];
+        for declaration in &shared.overrides {
+            arguments.extend(["-c".into(), declaration.into()]);
+        }
+        assert_eq!(
+            command(&arguments, &Clock::new(), &Environment::default()),
+            Some(2),
+            "credential command refusal code"
+        );
         assert!(!files.0.join("unopened").exists(), "lookup starts no credential store");
     }
 
-    /// Lower test of smith's end_to_end::login_checks_an_account_without_selecting_a_main_model (top tiers test wiring only).
+    /// Lower test of smith's `end_to_end::login_checks_an_account_without_selecting_a_main_model` (top tiers test wiring only).
     #[test]
     fn account_only_login_needs_no_main_model() {
         let files = Files::new();
