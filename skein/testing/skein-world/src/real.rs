@@ -19,11 +19,11 @@ use alloc::vec::Vec;
 use core::fmt::Write;
 use core::ops::{Deref, DerefMut};
 
-use crate::ring::Ring;
+use crate::ring::{Ring, State};
 use skein_heap::Span;
 use skein_io::kernel::{Complete, Done, Error, Exit, Fd, Op, ServiceSignal, Signal, Spawn, Submit};
 use skein_lib::{Duration, Queue, Time, Token};
-use skein_shell::{Backend, Clock, Now, Wait};
+use skein_shell::{Backend, Clock, Kernel, Now, Wait};
 
 use crate::Host;
 pub(crate) use crate::deadline::Sched;
@@ -320,6 +320,7 @@ impl<P: Host, R: Referee<P>> World<P, R> {
                 crate::fail(&format!("the host's backend is not usable here, so the real loop cannot run: {error}"))
             }),
         };
+        let Ring { mut kernel, state: ring } = ring;
         let ids: Vec<usize> = (0..self.procs.len()).collect();
         let living_hosts = ids.iter().copied().collect();
         let positions = ids.iter().copied().map(Some).collect();
@@ -356,8 +357,9 @@ impl<P: Host, R: Referee<P>> World<P, R> {
             cleanup: VecDeque::new(),
             killed: Vec::new(),
             dying: BTreeSet::new(),
+            iterations: 0,
         }
-        .run(clock, patience)
+        .run(&mut kernel, clock, patience)
     }
 }
 
@@ -418,7 +420,7 @@ struct Child {
 
 struct Running<P, R> {
     world: World<P, R>,
-    ring: Ring,
+    ring: State,
     ids: Vec<usize>,
     // Stable host identities name the ledger; positions follow surviving hosts.
     positions: Vec<Option<usize>>,
@@ -438,6 +440,7 @@ struct Running<P, R> {
     cleanup: VecDeque<(usize, Op)>,
     killed: Vec<Killed>,
     dying: BTreeSet<usize>,
+    iterations: u32,
 }
 
 impl Controls {
@@ -536,7 +539,14 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
         any
     }
 
-    fn deadline_reached(self, deadline: &Deadline, iterations: u32, now: Time, last_word: Option<Time>) -> ! {
+    fn deadline_reached(
+        self,
+        kernel: &mut Kernel,
+        deadline: &Deadline,
+        iterations: u32,
+        now: Time,
+        last_word: Option<Time>,
+    ) -> ! {
         let expired = deadline.expired();
         let figures = match &expired {
             Expired::Starved(starved) => starved.figures(),
@@ -545,21 +555,15 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
         let diagnostic = self.deadline_diagnostic(figures, iterations, now, last_word);
         match expired {
             Expired::Starved(starved) if std::env::var_os("NEXTEST").is_some() => {
-                self.forced_cleanup();
+                self.forced_cleanup(kernel);
                 starved.pass();
             }
             Expired::Starved(_) | Expired::Failed(_) => crate::fail(&diagnostic),
         }
     }
 
-    fn referee_deadline_reached(self, deadline: &Deadline, now: Time, why: &str) -> ! {
-        let until = match self.world.referee.next_deadline() {
-            Some(until) if until <= now => until,
-            Some(_) | None => {
-                // A referee may report a terminal failure before a liveness deadline.
-                crate::fail(&referee_diagnostic(now.saturating_since(deadline.start()), why, None));
-            }
-        };
+    fn referee_deadline_reached(self, kernel: &mut Kernel, deadline: &Deadline, now: Time, why: &str) -> ! {
+        let until = self.referee_deadline(deadline.start(), now, why);
         let expired = deadline.expired_at("the referee's expectation", until);
         let figures = match &expired {
             Expired::Starved(starved) => starved.figures(),
@@ -568,103 +572,73 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
         let diagnostic = referee_diagnostic(now.saturating_since(deadline.start()), why, Some(figures));
         match expired {
             Expired::Starved(starved) if std::env::var_os("NEXTEST").is_some() => {
-                self.forced_cleanup();
+                self.forced_cleanup(kernel);
                 starved.pass();
             }
             Expired::Starved(_) | Expired::Failed(_) => crate::fail(&diagnostic),
         }
     }
 
-    fn settled(&self) -> bool {
+    fn referee_deadline(&self, start: Time, now: Time, why: &str) -> Time {
+        match self.world.referee.next_deadline() {
+            Some(until) if until <= now => until,
+            Some(_) | None => {
+                // A terminal failure before a liveness deadline stays a failure.
+                crate::fail(&referee_diagnostic(now.saturating_since(start), why, None));
+            }
+        }
+    }
+
+    fn settled(&self, in_flight: u32) -> bool {
         self.living_hosts.iter().all(|host| self.proc(*host).is_empty())
-            && self.ring.is_empty()
+            && in_flight == 0
+            && !self.ring.has_ready()
             && self.cleanup.is_empty()
             && self.unsettled_children == 0
             && self.placeholders.is_empty()
             && self.world.referee.passed()
     }
 
-    fn run(mut self, clock: &Clock, patience: Duration) -> Outcome<P> {
+    fn begin_iteration(&mut self, now: Time, until: Time) -> bool {
+        self.iterations = self.iterations.checked_add(1).expect("fewer than 2^32 iterations");
+        now >= until
+    }
+
+    fn run(mut self, kernel: &mut Kernel, clock: &Clock, patience: Duration) -> Outcome<P> {
         let deadline = Deadline::arm("the real loop", patience);
         let start = deadline.start();
         self.world.controls.sched_start.set(deadline.thread_start());
-        let mut iterations: u32 = 0;
         let mut last_word = None;
         let mut policy_wake: Vec<(usize, Time)> = Vec::new();
         loop {
-            iterations = iterations.checked_add(1).expect("fewer than 2^32 iterations");
             let Now { now, wall } = clock.now();
             check_policy_wake(&mut policy_wake, now);
-            if deadline.passed() {
-                self.deadline_reached(&deadline, iterations, now, last_word);
+            if self.begin_iteration(now, deadline.until()) {
+                let iterations = self.iterations;
+                self.deadline_reached(kernel, &deadline, iterations, now, last_word);
             }
             self.world.referee.act(now, &mut self.world.procs);
             if let Some(starved) = self.world.referee.starved() {
-                self.forced_cleanup();
+                self.forced_cleanup(kernel);
                 starved.pass();
             }
             self.signals();
-            self.reap();
-            let mut at = 0;
-            let mut observed = false;
-            while at < self.world.procs.len() {
-                let host = *self.ids.get(at).expect("an id per host");
-                let mut ran = self.processes.get(host).expect("a process per host").exit.is_none();
-                if ran {
-                    let proc = self.world.procs.get_mut(at).expect("a process per host");
-                    let mut turn = || {
-                        self.ring.deliver(host, proc.completions());
-                        proc.iterate(now, wall);
-                        proc.drain();
-                    };
-                    match &mut self.world.heap {
-                        Some(heap) => heap.around(at, turn),
-                        None => turn(),
-                    }
-                    while let Some(record) = proc.submissions().pop() {
-                        self.submits.push(record);
-                    }
-                    while let Some(record) = self.submits.pop() {
-                        let record = self.ring.register(host, record);
-                        self.submit(record);
-                    }
-                    self.check_exit(at, host);
-                }
-                if self.dying.contains(&host) {
-                    self.discard(at, host);
-                    ran = true;
-                }
-                if self.ids.get(at) == Some(&host) {
-                    at = at.checked_add(1).expect("bounded host count");
-                }
-                if ran {
-                    self.world.referee.observe(now, &self.world.procs);
-                    if let Some(starved) = self.world.referee.starved() {
-                        self.forced_cleanup();
-                        starved.pass();
-                    }
-                    observed = true;
-                }
-            }
-            if !observed {
-                // Even a pass with only retained exits observes what act did.
-                self.world.referee.observe(now, &self.world.procs);
-                if let Some(starved) = self.world.referee.starved() {
-                    self.forced_cleanup();
-                    starved.pass();
-                }
+            self.reap(kernel);
+            if let Some(starved) = self.drive(now, wall) {
+                self.forced_cleanup(kernel);
+                starved.pass();
             }
             if last_word.is_none() && self.world.referee.passed() {
                 last_word = Some(self.world.referee.last_word().at(now));
             }
             self.settle_children();
             self.settle_root_signals();
-            self.submit_cleanup();
-            self.ring.enter(Wait::No);
+            self.submit_cleanup(kernel.room());
+            self.ring.enter(kernel, Wait::No);
             if self.work_pending(now) || self.ring.has_ready() || !self.world.controls.signals.borrow().is_empty() {
                 continue;
             }
-            if self.settled() {
+            if self.settled(kernel.in_flight()) {
                 assert!(
                     self.processes.iter().all(|process| process.fds.is_empty()),
                     "settled hosts leave no owned descriptor open"
@@ -674,21 +648,73 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
                     held: self.world.heap.as_ref().map(Heap::held),
                     procs: self.world.procs,
                     killed: self.killed,
-                    iterations,
+                    iterations: self.iterations,
                     start,
                     end: now,
                 };
             }
             if let Some(why) = self.world.referee.overdue(now) {
-                self.referee_deadline_reached(&deadline, now, &why);
+                self.referee_deadline_reached(kernel, &deadline, now, &why);
             }
             let until = self.wait_until(deadline.until());
             self.policy_wake(last_word, &mut policy_wake);
-            self.ring.enter(Wait::Until(until));
+            self.ring.enter(kernel, Wait::Until(until));
         }
     }
 
-    fn forced_cleanup(mut self) {
+    // Supplied completions have been reaped; this pass only drives host state.
+    fn drive(&mut self, now: Time, wall: skein_lib::Wall) -> Option<crate::Starved> {
+        let mut at = 0;
+        let mut observed = false;
+        while at < self.world.procs.len() {
+            let host = *self.ids.get(at).expect("an id per host");
+            let mut ran = self.processes.get(host).expect("a process per host").exit.is_none();
+            if ran {
+                let proc = self.world.procs.get_mut(at).expect("a process per host");
+                let mut turn = || {
+                    self.ring.deliver(host, proc.completions());
+                    proc.iterate(now, wall);
+                    proc.drain();
+                };
+                match &mut self.world.heap {
+                    Some(heap) => heap.around(at, turn),
+                    None => turn(),
+                }
+                while let Some(record) = proc.submissions().pop() {
+                    self.submits.push(record);
+                }
+                while let Some(record) = self.submits.pop() {
+                    let record = self.ring.register(host, record);
+                    self.submit(record);
+                }
+                self.check_exit(at, host);
+            }
+            if self.dying.contains(&host) {
+                self.discard(at, host);
+                ran = true;
+            }
+            if self.ids.get(at) == Some(&host) {
+                at = at.checked_add(1).expect("bounded host count");
+            }
+            if ran {
+                self.world.referee.observe(now, &self.world.procs);
+                if let Some(starved) = self.world.referee.starved() {
+                    return Some(starved);
+                }
+                observed = true;
+            }
+        }
+        if !observed {
+            // Even a pass with only retained exits observes what act did.
+            self.world.referee.observe(now, &self.world.procs);
+            if let Some(starved) = self.world.referee.starved() {
+                return Some(starved);
+            }
+        }
+        None
+    }
+
+    fn forced_cleanup(mut self, kernel: &mut Kernel) {
         // Host destructors end their trees as on a failed run. Exit skips
         // destructors, so finish them and cancel and drain the shared kernel first.
         drop(self.world);
@@ -700,23 +726,23 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
             .chain(self.housekeeping.keys())
             .copied()
             .collect();
-        self.ring.enter(Wait::No);
+        self.ring.enter(kernel, Wait::No);
         loop {
-            self.ring.kernel.reap(&mut self.ring.arrived);
+            kernel.reap(&mut self.ring.arrived);
             while let Some(complete) = self.ring.arrived.pop() {
                 drop(complete);
             }
-            if self.ring.kernel.in_flight() == 0 {
+            if kernel.in_flight() == 0 {
                 break;
             }
-            if self.ring.kernel.room() > 0
+            if kernel.room() > 0
                 && let Some(target) = targets.pop_front()
             {
                 let op = self.ring.fresh();
                 self.ring.queue(Submit { op, kind: Op::Cancel { target } });
-                self.ring.enter(Wait::No);
+                self.ring.enter(kernel, Wait::No);
             } else {
-                self.ring.enter(Wait::Forever);
+                self.ring.enter(kernel, Wait::Forever);
             }
         }
     }
@@ -796,8 +822,8 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
         }
     }
 
-    fn reap(&mut self) {
-        self.ring.kernel.reap(&mut self.ring.arrived);
+    fn reap(&mut self, kernel: &mut Kernel) {
+        kernel.reap(&mut self.ring.arrived);
         while let Some(complete) = self.ring.arrived.pop() {
             if let Some(host) = self.housekeeping.remove(&complete.op) {
                 let process = self.processes.get_mut(host).expect("cleanup names a process");
@@ -1125,9 +1151,8 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
         self.cleanup.push_back((host, kind));
     }
 
-    fn submit_cleanup(&mut self) {
-        let room =
-            self.ring.kernel.room().checked_sub(self.ring.submits.len()).expect("pending submissions fit the ring");
+    fn submit_cleanup(&mut self, room: u32) {
+        let room = room.checked_sub(self.ring.submits.len()).expect("pending submissions fit the ring");
         for _ in 0..room {
             let Some((host, kind)) = self.cleanup.pop_front() else { break };
             if let Op::Close { fd } = &kind
@@ -1175,7 +1200,7 @@ fn check_policy_wake(deadlines: &mut Vec<(usize, Time)>, now: Time) {
 #[cfg(test)]
 mod tests {
     use super::{Child, Process, Running, Sched, World, deadline_diagnostic, referee_diagnostic};
-    use crate::{Figures, Host, Referee, ring::Ring};
+    use crate::{Figures, Host, Referee, ring::State};
     use alloc::collections::{BTreeMap, BTreeSet, VecDeque};
     use alloc::rc::Rc;
     use core::cell::RefCell;
@@ -1237,6 +1262,9 @@ mod tests {
         submissions: Queue<Submit>,
         iterations: u32,
         marked: bool,
+        work: bool,
+        deadline: Option<Time>,
+        policy: Option<Time>,
     }
 
     impl Host for Idle {
@@ -1250,16 +1278,16 @@ mod tests {
             &mut self.submissions
         }
         fn work_pending(&self, _now: Time) -> bool {
-            false
+            self.work
         }
         fn next_deadline(&self) -> Option<Time> {
-            None
+            self.deadline
         }
         fn next_policy_deadline(&self) -> Option<Time> {
-            None
+            self.policy
         }
         fn is_empty(&self) -> bool {
-            true
+            !self.work && self.deadline.is_none() && self.policy.is_none()
         }
         fn operations(&self) -> u32 {
             2
@@ -1268,6 +1296,7 @@ mod tests {
 
     struct Quiet {
         deadline: Option<Time>,
+        passed: bool,
     }
 
     impl Referee<Idle> for Quiet {
@@ -1280,22 +1309,22 @@ mod tests {
             None
         }
         fn passed(&self) -> bool {
-            true
+            self.passed
         }
     }
 
     fn children_after_descriptor_cleanup() -> Running<Idle, Quiet> {
-        children_with(Quiet { deadline: None })
+        children_with(Quiet { deadline: None, passed: true })
     }
 
     #[test]
     fn a_referee_failure_without_a_due_deadline_stays_a_plain_failure() {
-        let deadline = crate::Deadline::arm("the real loop", Duration::from_secs(1));
-        for until in [None, Some(deadline.until())] {
+        let start = Time::ZERO;
+        for until in [None, Some(start.saturating_add(Duration::from_secs(1)))] {
             let mut running = children_after_descriptor_cleanup();
             running.world.referee.deadline = until;
             let error = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| {
-                running.referee_deadline_reached(&deadline, deadline.start(), "startup failed");
+                running.referee_deadline(start, start, "startup failed");
             }))
             .expect_err("a terminal failure is never starved");
             let message = error.downcast_ref::<String>().expect("formatted referee failure");
@@ -1311,11 +1340,14 @@ mod tests {
                 submissions: Queue::with_capacity(2),
                 iterations: 0,
                 marked: false,
+                work: false,
+                deadline: None,
+                policy: None,
             });
         }
         Running {
             world,
-            ring: Ring::new(8, vec![2; 3]).expect("test ring"),
+            ring: State::new(8, vec![2; 3]),
             ids: vec![0, 1, 2],
             positions: vec![Some(0), Some(1), Some(2)],
             living_hosts: [0, 1, 2].into_iter().collect(),
@@ -1355,6 +1387,7 @@ mod tests {
             cleanup: VecDeque::new(),
             killed: Vec::new(),
             dying: BTreeSet::new(),
+            iterations: 0,
         }
     }
 
@@ -1398,8 +1431,12 @@ mod tests {
         let mut running = children_with(Observations(seen.clone()));
         retain_exited(&mut running, 1);
         retain_exited(&mut running, 2);
-        let outcome = running.run(&super::Clock::new(), Duration::from_secs(1));
-        assert_eq!(outcome.iterations, 1);
+        assert!(!running.begin_iteration(Time::ZERO, Time::from_nanos(1)));
+        running.world.referee.act(Time::ZERO, &mut running.world.procs);
+        assert!(running.drive(Time::ZERO, Wall::from_nanos(0)).is_none());
+        running.settle_children();
+        assert!(running.settled(0));
+        assert_eq!(running.iterations, 1);
         assert_eq!(*seen.borrow(), [vec![1_u32, 0_u32, 0_u32]]);
     }
 
@@ -1410,8 +1447,12 @@ mod tests {
         for host in 0_usize..3 {
             retain_exited(&mut running, host);
         }
-        let outcome = running.run(&super::Clock::new(), Duration::from_secs(1));
-        assert_eq!(outcome.iterations, 1);
+        assert!(!running.begin_iteration(Time::ZERO, Time::from_nanos(1)));
+        running.world.referee.act(Time::ZERO, &mut running.world.procs);
+        assert!(running.drive(Time::ZERO, Wall::from_nanos(0)).is_none());
+        running.settle_children();
+        assert!(running.settled(0));
+        assert_eq!(running.iterations, 1);
         assert_eq!(*seen.borrow(), [vec![0_u32, 0_u32, 0_u32]]);
     }
 
@@ -1421,9 +1462,13 @@ mod tests {
         let mut running = children_with(Observations(seen.clone()));
         retain_exited(&mut running, 2);
         running.kill(1);
-        let outcome = running.run(&super::Clock::new(), Duration::from_secs(1));
-        assert_eq!(outcome.iterations, 1);
-        assert_eq!(outcome.killed.len(), 1);
+        assert!(!running.begin_iteration(Time::ZERO, Time::from_nanos(1)));
+        running.world.referee.act(Time::ZERO, &mut running.world.procs);
+        assert!(running.drive(Time::ZERO, Wall::from_nanos(0)).is_none());
+        running.settle_children();
+        assert!(running.settled(0));
+        assert_eq!(running.iterations, 1);
+        assert_eq!(running.killed.len(), 1);
         assert_eq!(*seen.borrow(), [vec![1_u32, 0_u32, 0_u32], vec![1_u32, 0_u32, 0_u32]]);
     }
 
@@ -1470,7 +1515,7 @@ mod tests {
             "its own cleanup holds the second child"
         );
         assert_eq!(running.processes.get(2).expect("cleanup owner").queued_cleanup, 1);
-        running.submit_cleanup();
+        running.submit_cleanup(8);
         let process = running.processes.get(2).expect("cleanup owner");
         assert_eq!((process.queued_cleanup, process.cleanup), (0, 1));
         running.settle_children();
@@ -1515,6 +1560,70 @@ mod tests {
         running.settle_children();
         assert_eq!(running.killed.first().expect("released child").host, 1);
         assert!(running.children.get(&2).expect("waited child").exit.is_none(), "cancelling its waits leaves it live");
+    }
+
+    #[test]
+    fn a_never_settling_world_names_each_hosts_pending_work_and_deadlines() {
+        let mut running = children_after_descriptor_cleanup();
+        running.world.referee.passed = false;
+        running.world.referee.deadline = Some(Time::ZERO);
+        running.world.procs.get_mut(1).expect("pending host").work = true;
+        running.world.procs.get_mut(2).expect("timer host").deadline = Some(Time::ZERO);
+        running.world.procs.get_mut(2).expect("timer host").policy = Some(Time::from_nanos(20));
+        let record = running.ring.register(2, Submit { op: Token::new(1), kind: Op::Close { fd: Fd::new(-1) } });
+        running.answer(Complete { op: record.op, kind: record.kind, result: Ok(Done::Nothing) });
+        // Sample every host past the eight-pass window, even after a pending host.
+        for pass in 0_u8..10 {
+            running.world.procs.get_mut(2).expect("timer host").work = pass % 2 == 0;
+            assert!(running.work_pending(Time::from_nanos(10)));
+        }
+        let figures = Figures {
+            what: "the real loop",
+            patience: Duration::from_millis(1),
+            elapsed: Duration::from_millis(2),
+            thread_waited: None,
+            thread_cpu: None,
+            tree_waited: None,
+        };
+        let text = running.deadline_diagnostic(&figures, 11, Time::from_nanos(10), None);
+        assert_eq!(
+            text,
+            concat!(
+                "the real loop settles within 1 ms; iterations (including failing iteration): 11; thread CPU elapsed (schedstat): UNAVAILABLE (ns); thread runnable wait elapsed (schedstat): UNAVAILABLE (ns)\n",
+                "the real loop: patience 1000000 ns; elapsed 2000000 ns; thread runnable wait UNAVAILABLE (ns); thread CPU UNAVAILABLE (ns); tree runnable wait UNAVAILABLE (ns)\n\n",
+                "now: 10 ns\n",
+                "referee: passed=false; last_word=None; next_deadline=Some(0 ns) (due 10 ns ago)\n",
+                "host 0: work_pending=false; next_deadline=None; next_policy_deadline=None; is_empty=true; ring_count=0; work_pending_last_8=0/8\n",
+                "host 1: work_pending=true; next_deadline=None; next_policy_deadline=None; is_empty=false; ring_count=0; work_pending_last_8=8/8\n",
+                "host 2: work_pending=false; next_deadline=Some(0 ns) (due 10 ns ago); next_policy_deadline=Some(20 ns) (in 10 ns); is_empty=false; ring_count=1; work_pending_last_8=4/8\n",
+            )
+        );
+        running.living_hosts.remove(&1);
+        let text = running.deadline_diagnostic(&figures, 11, Time::from_nanos(20), Some(Time::from_nanos(5)));
+        assert!(text.contains("last_word=Some(5 ns)"));
+        assert!(!text.contains("host 1:"), "retained exits are absent from the pending-host diagnostic");
+        assert!(text.contains("next_policy_deadline=Some(20 ns) (due 0 ns ago)"));
+    }
+
+    #[test]
+    fn a_zero_patience_deadline_reports_the_failing_iteration_before_driving_hosts() {
+        let mut running = children_after_descriptor_cleanup();
+        let now = Time::from_nanos(10);
+        assert!(running.begin_iteration(now, now), "zero patience fails at the first boundary");
+        let figures = Figures {
+            what: "the real loop",
+            patience: Duration::ZERO,
+            elapsed: Duration::ZERO,
+            thread_waited: Some(Duration::ZERO),
+            thread_cpu: Some(Duration::ZERO),
+            tree_waited: None,
+        };
+        let text = running.deadline_diagnostic(&figures, running.iterations, now, None);
+        assert!(text.starts_with("the real loop settles within 0 ms; iterations (including failing iteration): 1; thread CPU elapsed (schedstat): 0 ns; thread runnable wait elapsed (schedstat): 0 ns\n"));
+        assert!(running.world.procs.iter().all(|proc| proc.iterations == 0));
+        assert!(!running.begin_iteration(now, Time::from_nanos(11)), "one nanosecond of patience admits the pass");
+        assert!(running.begin_iteration(Time::from_nanos(11), Time::from_nanos(11)));
+        assert_eq!(running.iterations, 3, "the failing pass is counted after admitted passes too");
     }
 
     #[test]
