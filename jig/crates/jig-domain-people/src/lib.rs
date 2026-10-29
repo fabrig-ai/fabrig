@@ -43,8 +43,8 @@
 //! so its key can retry . `Save` and `Erase` are
 //! root decision outputs, not IO operations; task changes and keyed answers
 //! share one atomic commit (domain/people.md, section 5.1).
-//! `fire` expires at most one due sign-in per call. The caller reserves free
-//! request room from `max_out`, accounts output bytes separately, and reclaims
+//! `fire` expires at most one due sign-in per call. The caller supplies an uncapped
+//! output queue, accounts output bytes separately, and reclaims
 //! retired flights at the iteration boundary. `Domain::role` supplies current membership for root
 //! escalation coverage/standing without authentication or copying. `Domain::has_project` is a pure bounded startup
 //! lookup; `Domain::person` is a pure sign-in lookup after restoration, checking
