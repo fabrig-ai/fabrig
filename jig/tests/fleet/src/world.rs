@@ -8,10 +8,6 @@ use skein_world::domain::{Ledger, Referee, Schedule, Span, Stage, Trace};
 
 use crate::referee::{Down, End, Fleet, Kind, Said, Seen, Stimulus};
 
-/// Room in the fleet's output queue beyond what one step may emit. Small, so
-/// the loop's flow control is exercised.
-const SLACK: u32 = 2;
-
 /// The most lines a trace keeps, and deliveries in flight: a world past
 /// either fails with its seed rather than grow.
 const MAX_TRACE: usize = 400_000;
@@ -522,12 +518,11 @@ impl World {
         );
         assert!(settings.slots <= settings.limits.slots, "a worker hosts no more runs than the fleet's limit");
         assert!(settings.workers <= settings.limits.workers, "a worker turned away would dial for ever");
-        let max_out = fleet::max_out(&settings.limits);
         let mut world = World {
             now: Time::ZERO,
             rng: Rng::new(settings.seed),
             domain: crate::fixtures::domain(&settings.limits, crate::fixtures::needs()),
-            stage: Stage::new(settings.limits, max_out, max_out + SLACK),
+            stage: Stage::uncapped(settings.limits),
             epoch: 0,
             loaded: true,
             adopting: Vec::new(),
