@@ -63,6 +63,15 @@ def directory_text(path):
     return f"{directory}\n{membership}"
 
 
+def task_paths(root, report, directory):
+    """Validate one launcher entrance together, without caching across execs."""
+    root = history_root_text(root)
+    report = protected_text(report)
+    directory = checked_path_text(directory)
+    membership = "slot" if slot_text(directory) is not None else "other"
+    return root, report, directory, membership
+
+
 def no_links(path):
     return Path(checked_path_text(path, collapse=False))
 
@@ -86,12 +95,19 @@ def slot_path(directory, home=None):
 PATH_MODES = {"canonical": checked_path_text, "protect": protected_text,
               "root": history_root_text, "directory": directory_text}
 
-if __name__ == "__main__" and len(sys.argv) > 1 and sys.argv[1] in PATH_MODES:
+if (__name__ == "__main__" and len(sys.argv) > 1
+        and (sys.argv[1] in PATH_MODES or sys.argv[1] == "task-paths")):
     os.umask(0o077)
     try:
-        if len(sys.argv) != 3:
-            raise RuntimeError("path validation requires exactly one path")
-        print(PATH_MODES[sys.argv[1]](sys.argv[2]))
+        if sys.argv[1] == "task-paths":
+            if len(sys.argv) != 5:
+                raise RuntimeError("task path validation requires root, report and directory")
+            # Publish only after every check succeeds. NUL preserves path newlines.
+            sys.stdout.write("\0".join(task_paths(*sys.argv[2:])) + "\0")
+        else:
+            if len(sys.argv) != 3:
+                raise RuntimeError("path validation requires exactly one path")
+            print(PATH_MODES[sys.argv[1]](sys.argv[2]))
         sys.exit(0)
     except (OSError, ValueError, RuntimeError) as error:
         sys.exit(f"slot lifetime: {error}")
