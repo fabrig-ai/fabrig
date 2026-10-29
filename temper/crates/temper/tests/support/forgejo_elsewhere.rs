@@ -206,7 +206,8 @@ fn life(root: &Path, restarted: bool) {
     let clock = Clock::new();
     let began = clock.now().now;
     let config = root.join("config");
-    let peer = (!restarted).then(|| super::fake_llm(scripts("elsewhere/first", b"# first")));
+    let peer =
+        (!restarted).then(|| super::fake_llm_played(super::llm::requested(scripts("elsewhere/first", b"# first"))));
     if let Some(peer) = &peer {
         peer.configure(&config);
     }
@@ -330,6 +331,7 @@ impl Referee<Process> for Judge {
                 String::from_utf8_lossy(&call.stdout),
                 String::from_utf8_lossy(&call.stderr)
             );
+            assert_eq!(call.exit, Some(Exit::Code(0)), "elsewhere prerequisite call {} failed", self.logged);
             self.logged += 1;
         }
         if !calls.foreground_idle() {

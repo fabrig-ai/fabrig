@@ -81,20 +81,27 @@ fn rules(entries: &[(&str, u32)]) -> Box<[Rule]> {
 }
 fn llm(config: &Path, expected_exits: Vec<(usize, u8)>) -> boxed::CtlLlm {
     let config = config.to_path_buf();
-    let recipe = temper_real_loop_world::llm::played_by_input(
-        scripts(),
-        Box::new([
-            rules(&[
+    let mut recipe = temper_real_loop_world::llm::scripted(Box::new([]));
+    recipe.domain = skein_fake_llm_domain::Domain::played_by_input(
+        &recipe.domain_limits,
+        17,
+        super::llm::requested(scripts()),
+        skein_fake_llm_domain::api::Menu { arguments: Box::new([]), invalid: Box::new([]) },
+        skein_fake_llm_domain::api::Rules {
+            cued: Box::new([
+                rules(&[("Begin the work your brief describes.", 0), ("", 1)]),
+                rules(&[("Begin the work your brief describes.", 0), ("", 1)]),
+            ]),
+            asked: Box::new([rules(&[
                 ("Ask to resume the stopped goal", 2),
                 ("Refused: task 2 is held by hold", 3),
                 ("Proposed as ", 4),
-                ("Begin the work your brief describes.", 0),
+                ("@hold-chat", 0),
                 ("", 1),
-            ]),
-            rules(&[("Begin the work your brief describes.", 0), ("", 1)]),
-            rules(&[("Begin the work your brief describes.", 0), ("", 1)]),
-        ]),
-    );
+            ])]),
+        },
+    )
+    .expect("bounded holds scripts and input rules");
     let peer = super::llm::Listening::new(
         skein_fake_peers::llm::Peer::new(
             (std::net::Ipv4Addr::LOCALHOST, 0).into(),
@@ -236,7 +243,12 @@ fn placed(calls: &[Ended]) -> Value {
     task["hold"]["placed"].clone()
 }
 fn queries<'a>(seen: &'a super::forge_land::Seen, cue: &[u8]) -> Vec<&'a Query> {
-    seen.requests.iter().filter(|query| query.system.windows(cue.len()).any(|bytes| bytes == cue)).collect()
+    seen.requests
+        .iter()
+        .filter(|query| {
+            query.system.windows(cue.len()).any(|bytes| bytes == cue) || super::llm::request_has(query, cue)
+        })
+        .collect()
 }
 fn transcript(seen: &super::forge_land::Seen, cue: &[u8]) {
     let requests = queries(seen, cue);

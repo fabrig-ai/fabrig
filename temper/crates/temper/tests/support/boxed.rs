@@ -509,7 +509,7 @@ fn release_llm(calls: &mut super::ctl::Calls, peers: &mut [Process], release_ans
                 if let Observation::Query { connection: queried, query } = event
                     && queried == connection
                 {
-                    Some(skein_lib::bytes::find(&query.system, cue).is_some())
+                    Some(skein_lib::bytes::find(&query.system, cue).is_some() || super::llm::request_has(query, cue))
                 } else {
                     None
                 }
