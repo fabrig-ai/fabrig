@@ -106,6 +106,15 @@ pub(super) fn encode_owner_message_kind(
             out.object_end();
             out.object_end();
         }
+        jig_client::contract::OwnerMessageKind::QuestionAnswered { question } => {
+            out.object_start();
+            out.key(b"question_answered");
+            out.object_start();
+            out.key(b"question");
+            out.unsigned(*question);
+            out.object_end();
+            out.object_end();
+        }
         jig_client::contract::OwnerMessageKind::QuestionEnded { question } => {
             out.object_start();
             out.key(b"question_ended");
