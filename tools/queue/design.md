@@ -10,7 +10,7 @@ Provisional, 2026-10-28. How a branch reaches `main`: a script on the gate machi
 - **Green:** `git push origin HEAD:main` (fast-forward only); the batch's `ready/` branches are deleted; each lead is told which commit holds its task.
 - **Red:** a batch of one is rejected (its lead gets the failing step and the log's path, and the branch isn't retried until its tip changes); a larger batch is halved and each half tried from `main`, recursively, so the green branches still land.
 - **Capacity refusal:** a heavy exit 2 containing `below the disk floor` is an error, with no rejection or bisection. Before every batch, free space below `--disk-floor` (45 GB by default) defers work to the next cycle.
-- **Error:** an exception logs the batch as `error`; its tips remain eligible. `run` restores `origin/main`, reports each distinct error to the coordinator once, waits a cycle, and continues. `once` raises to its caller.
+- **Error:** an exception logs the batch as `error`; its tips remain eligible. `run` restores `origin/main`, reports each distinct error to the operator (`ops`) once, waits a cycle, and continues. `once` raises to its caller.
 - **Docs-only batches** whose files no test reads skip formatting and builds; only the touched trees' ratchets run.
 - **Every batch is logged** as one JSON line (`~/src/fabrig/notes/queue.jsonl`): start and end, branches, outcome, the selection's packages, each step's duration, and test executable cleanup counts and GB.
 
@@ -20,7 +20,7 @@ Provisional, 2026-10-28. How a branch reaches `main`: a script on the gate machi
 2. **Everything** when a changed path is outside every package's `src/`, `tests/`, `benches/`, `examples/`, `build.rs` and member `Cargo.toml`, except the root `Cargo.lock` (section 2.1). The root `Cargo.toml`, `.config/`, `rust-toolchain*`, `rustfmt.toml`, `clippy.toml`, scripts, docs read by tests, and fixtures force everything. Also run everything every `full_every` (5) batches, when the last full run is older than an hour, or when the gate machine has been idle for 10 minutes and main has changed since the last full run.
 3. **Otherwise,** the packages that own a changed path (the longest manifest directory that prefixes it, from `cargo metadata --no-deps`), their reverse dependencies' closure (normal, build and dev dependencies, from `cargo metadata`'s resolve graph), and the packages listed in `tools/queue/always.txt` (tests that read files by path).
 4. **Docs read by tests** are globs in `tools/queue/read-by-tests.txt`; a Markdown-only batch that matches none of them is docs-only (section 1).
-5. A full run that fails where the selections before it passed points at a gap in `always.txt` or `read-by-tests.txt`: the queue reports it to the coordinator.
+5. A full run that fails where the selections before it passed points at a gap in `always.txt` or `read-by-tests.txt`: the queue reports it to the operator.
 
 ### 2.1 Lockfiles and member manifests
 
@@ -63,9 +63,9 @@ run keeps `cargo fmt --all --check`. A batch with no checks to run is green.
 to detached `origin/main`, discarding tracked changes left by a check. Ignored
 `target/` stays in place; the root `.gitignore` and each tree's ignore file
 cover build output. An errored attempt logs its error without marking its
-branches tried. Recovery diagnostics and coordinator delivery are logged as a
+branches tried. Recovery diagnostics and the operator's delivery are logged as a
 separate `event: "recovery"` record; errors outside an attempt get their own
-error record. Distinct error texts already reported to `coord` in `leads.txt`
+error record. Distinct error texts already reported to `ops` in `leads.txt`
 are kept in state, so a repeated error does not post every cycle. Recovery
 failures are logged and the loop waits 60 seconds before trying again. If
 recovery itself cannot append its record, it reports that failure on stderr
@@ -76,7 +76,7 @@ and keeps the loop running.
 Space is measured on the queue checkout's filesystem in decimal GB. Before
 every attempt, including bisection halves and idle full checks, less than
 `--disk-floor` GB raises a capacity error without running a batch. `run`
-posts the coordinator with the host and free GB once for that host's queue
+posts the operator with the host and free GB once for that host's queue
 floor refusal, then waits for the next cycle. A heavy step that exits 2 and
 prints `below the disk floor` also raises a capacity error, preserving the
 step's output (including the builder's host and space), plus the queue host

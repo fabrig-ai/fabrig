@@ -520,7 +520,7 @@ class Queue:
                     self.state["last_full_main"] = git(self.repo, "rev-parse", "HEAD").stdout.strip()
                     self.state["selected_passed"] = False
                 elif self.state.get("selected_passed"):
-                    self.notify(record, "coord", "possible queue selection gap",
+                    self.notify(record, "ops", "possible queue selection gap",
                                 f"A full check failed after selected checks passed.\nLog: {detail}\n"
                                 "Review always.txt and read-by-tests.txt.\n")
             else:
@@ -585,7 +585,7 @@ class Queue:
             summary = "\n".join(str(error).splitlines()[:10])
             if record.get("log"):
                 summary += f"\nLog: {record['log']}"
-            self.notify(record, "coord", "queue error", summary + "\n")
+            self.notify(record, "ops", "queue error", summary + "\n")
             reported.append(report_key)
         try:
             self.save()
