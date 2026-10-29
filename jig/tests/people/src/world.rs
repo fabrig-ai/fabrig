@@ -200,7 +200,7 @@ impl World {
             settings,
             domain,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: settings.limits },
-            out: Queue::with_capacity(people::max_out(&settings.limits)),
+            out: Queue::uncapped(),
             owners,
             grants,
             acts: Vec::new(),
