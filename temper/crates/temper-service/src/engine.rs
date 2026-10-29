@@ -5,6 +5,9 @@ use alloc::boxed::Box;
 use skein_lib::{Env, List, Queue, Time, Wall};
 use temper_engine_domain as root;
 
+// A pass keeps the shipped small profile's 22 release/resume cycles.
+const RELEASE_CYCLES: u32 = 22;
+
 pub(crate) struct Engine {
     pub(crate) domain: root::Domain,
     pub(crate) env: Env<root::Limits>,
@@ -455,7 +458,7 @@ pub(crate) fn release(engine: &mut Engine) {
     }
     engine.ready = true;
     let mut empty = 0_u32;
-    for _ in 0..root::max_out(&engine.env.limits) {
+    for _ in 0..RELEASE_CYCLES {
         if !engine.room() || engine.end.is_some() {
             break;
         }
