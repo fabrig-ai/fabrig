@@ -27,6 +27,8 @@ in `POST_NAME`. Paths and model names must not contain tabs or newlines.
 A resume names a previous run under the same run root. It reuses that
 thread and inherits model, effort, read-only mode and working directory
 unless supplied anew. With a resume, `TASK REPORT` can omit DIR.
+A resume inherits its recipient unless `--to` or `POST_NAME` supplies one,
+with `--to` taking precedence.
 Each resume gets its own run directory and report. A thread missing from
 its saved file can be recovered from its events.
 

@@ -1,6 +1,6 @@
 # The remedies ledger
 
-Provisional, 2026-10-28. Kept by the coordinator (`agents/coordinator.md`, 3). The goal is throughput: (1) a pipeline in which each role schedules the next as soon as it can and plans more while the next is busy, (2) short builds on warm caches, (3) no spurious blocking. Each row is an incident that cost one of them, what it cost, its remedy, and where the remedy lives so the next agent meets it. A new session reads this file before its role's work.
+Provisional, 2026-10-28. Kept by the operator (`agents/operator.md`, 5); every role reports its incidents to it. The goal is throughput: (1) a pipeline in which each role schedules the next as soon as it can and plans more while the next is busy, (2) short builds on warm caches, (3) no spurious blocking. Each row is an incident that cost one of them, what it cost, its remedy, and where the remedy lives so the next agent meets it. A new session reads this file before its role's work.
 
 | # | goal | incident | cost | remedy | lives in |
 |---|---|---|---|---|---|
@@ -18,3 +18,8 @@ Provisional, 2026-10-28. Kept by the coordinator (`agents/coordinator.md`, 3). T
 | 12 | 1 | a task bound a tool's syntax that the tool's version refuses | two round trips | a task binds the check, not the syntax | `agents/coordinator.md` 3; `agents/lead.md` 2 |
 | 13 | 3 | a test ran another package's binary that only a workspace build makes | a red in a package-scoped run | a test's binaries are its own package's targets | smith's test; `testing-strategy.md` (to come) |
 | 14 | 3 | the queue's own build step passed flags nextest refuses together; every building batch failed, including its fix | ~6 min of rejections | the fix runs from a copy until it lands; the queue's tests run its commands' arguments against nextest's rules | `agents/operations.md` 5; `tools/queue/test_mq.py` |
+| 15 | 1 | a lead claimed another lead's share "from the pool": shares lived only in briefs; a new pool slot was invisible in leads' clones | a lead without a slot; round trips | shares in `hosts` (an owner per slot or `pool`), `claim` refuses another's share without a lend, installed from main | `tools/slots/hosts`, `tools/slots/claim`; `agents/operator.md` 3 |
+| 16 | 3 | tests that relaunch their own binary with `--exact <name>` pass silently after a rename: the child selects nothing and exits 0 | a hidden loss of coverage, caught before it happened | a relaunched child reports having run exactly one test | wave 2.5's recipe; `testing-strategy.md` (to come) |
+| 17 | 3 | `tools/slots/trim` refused every slot: a systemd process's fd directory is unreadable | every task's first step failed until told | skip unreadable processes; a tool's task ends with one real, harmless run on a builder | `tools/slots/trim`; `agents/operator.md` 4 |
+| 18 | 3 | hetzner7 fell under heavy's floor (35 GB): one slot held 1651 test executables (174 GB), all younger than the two hours a task-start trim keeps | a refused run, a round trip | a guard on each builder trims idle slots fully when free space runs low | `tools/slots/guard` (to come); `agents/operator.md` 3 |
+| 19 | 1 | leads asked the designer for each memory ceiling's value (temper a5; earlier c3) | a round trip each | the rule written once: a quarter above the measured peak, rounded up to two significant digits | `testing-strategy.md` 6 |

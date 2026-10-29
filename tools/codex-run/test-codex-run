@@ -533,6 +533,7 @@ cp "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/codex-run" "$kit/codex-run.n
 mv "$kit/codex-run.new" "$kit/codex-run"
 
 start_task no-report --to director@hel8
+recipient_id=$id
 expect 'fallback also saved in run directory' "$(cmp -s "$report" "$state/report.md" && echo same)" same
 expect 'missing report gets last message' "$(cat "$report")" \
     'codex-run: the run wrote no report; its last message follows.' 'Last message from the fixture.'
@@ -621,6 +622,19 @@ has_row
 expect 'resume inherits omitted DIR and overrides settings' "$(cat "$state/meta")" "dir=$t/work dir" 'model=override' 'effort=medium'
 json_expect 'resumed writable invocation keeps bypass' \
     '.[0].args[0:2] == ["exec", "resume"] and (.[0].args | index("--dangerously-bypass-approvals-and-sandbox")) != null' "$fake/codex.calls"
+
+# Recipient resolution keeps explicit and environment settings ahead of inheritance.
+unset POST_NAME
+start_task success --resume "$recipient_id"
+json_expect 'resume without --to or POST_NAME posts to the saved recipient' \
+    'length == 1 and .[0].args[0:4] == ["send", "--as", "codex-run", "director@hel8"]' "$fake/post.calls"
+start_task success --resume "$recipient_id" --to o/override
+json_expect '--to overrides the resumed recipient' \
+    'length == 1 and .[0].args[3] == "o/override"' "$fake/post.calls"
+export POST_NAME=o/caller
+start_task success --resume "$recipient_id"
+json_expect 'POST_NAME overrides the resumed recipient' \
+    'length == 1 and .[0].args[3] == "o/caller"' "$fake/post.calls"
 
 printf '3\n' >"$fake/post-exit"
 start_task success

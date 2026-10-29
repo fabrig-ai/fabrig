@@ -415,9 +415,6 @@ impl Host for Output {
             && self.completions.is_empty()
             && self.submissions.is_empty()
     }
-    fn worst_case(&self) -> u64 {
-        u64::MAX
-    }
     fn operations(&self) -> u32 {
         6
     }
@@ -465,9 +462,6 @@ impl Host for Process {
     }
     fn is_empty(&self) -> bool {
         self.host().is_empty()
-    }
-    fn worst_case(&self) -> u64 {
-        self.host().worst_case()
     }
     fn operations(&self) -> u32 {
         self.host().operations()

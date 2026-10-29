@@ -1,0 +1,350 @@
+//! Memory stays within the worst case (programming-model.md, 6.3), measured by
+//! a counting allocator: the checkout with every workspace held for a spec at
+//! its limits, pushing and saving with a message and a branch at theirs; then
+//! every hold released and, before the reclaim point, every workspace held
+//! again for other workstreams, so that the hold slab holds as many released
+//! holds as live ones.
+
+use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
+use skein_world::domain::heap::Meter;
+use temper_worker_domain_checkout::git::{Commit, Done, Fault, Kind, Missing};
+use temper_worker_domain_checkout::{
+    Domain, Event, Limits, MAX_OUT, Message, Outcome, Preparation, Prepared, Refusal, Repository, Request, Spec, Start,
+    step, worst_case,
+};
+
+const LIMITS: Limits = Limits {
+    workspaces: 2,
+    repositories: 2,
+    name_bytes: 32,
+    message_bytes: 128,
+    conflicts: 0,
+    path_bytes: 0,
+    remote_timeout: Duration::from_secs(60),
+    local_timeout: Duration::from_secs(10),
+    facts: 16,
+};
+
+fn bytes(len: u32) -> Box<[u8]> {
+    vec![b'x'; usize::try_from(len).expect("a test length fits")].into_boxed_slice()
+}
+
+/// A name of `len` bytes, its first eight `n` in hexadecimal, so that names
+/// differ and each is a safe path component.
+fn name(len: u32, n: u32) -> Box<[u8]> {
+    let mut name = bytes(len);
+    name[..8].copy_from_slice(format!("{n:08x}").as_bytes());
+    name
+}
+
+fn commit(n: u32) -> Commit {
+    let mut raw = [0; 32];
+    raw[..4].copy_from_slice(&n.to_be_bytes());
+    Commit::new(raw)
+}
+
+/// What a step asked for, without the payload.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Asked {
+    Held { hold: Token },
+    Io { op: Kind },
+    Prepared { prepared: Preparation },
+    Pushed,
+    Saved,
+    Refused { refusal: Refusal },
+    Released,
+    Cancel,
+}
+
+/// A spec at the limits for the workstream `n`: its key and every name,
+/// remote, branch and identity at the longest, and as many repositories as
+/// there may be, each starting from a base branch and pushed back.
+fn full_spec(limits: &Limits, n: u32) -> Spec {
+    let mut repositories = Vec::new();
+    for place in 0..limits.repositories {
+        repositories.push(Repository {
+            git: None,
+            expected: None,
+            landing: Some(bytes(limits.name_bytes)),
+            name: name(limits.name_bytes, place),
+            remote: name(limits.name_bytes, place),
+            start: Start::Base { branch: name(limits.name_bytes, place) },
+            identity: 0,
+            account: None,
+            push: Some(bytes(limits.name_bytes)),
+        });
+    }
+    Spec { key: name(limits.name_bytes, n), repositories: repositories.into_boxed_slice() }
+}
+
+fn message(limits: &Limits) -> Message {
+    Message { title: bytes(1), body: bytes(limits.message_bytes - 1) }
+}
+
+/// A domain under its limits, stepped with each step's peak checked against
+/// the worst case. The requests are the parent's to route and their
+/// receivers' to count: each is dropped, keeping only what it asked for, and
+/// the step's peak checked less them. Nothing is reclaimed until the test
+/// says so.
+struct Fill {
+    domain: Domain,
+    env: Env<Limits>,
+    out: Queue<Request>,
+    meter: Meter,
+    bound: u64,
+}
+
+impl Fill {
+    fn new(limits: Limits) -> Fill {
+        let bound = worst_case(&limits).expect("the test limits fit");
+        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+        let out = Queue::with_capacity(MAX_OUT);
+        let meter = Meter::new();
+        let domain = Domain::new(&limits);
+        Fill { domain, env, out, meter, bound }
+    }
+
+    fn step(&mut self, event: Event) -> Vec<Asked> {
+        self.meter.start();
+        step(&mut self.domain, &self.env, event, &mut self.out);
+        let measured = self.meter.end();
+        let mut asked = Vec::new();
+        while let Some(request) = self.out.pop() {
+            asked.push(match request {
+                Request::Held { hold, .. } => Asked::Held { hold },
+                Request::Io { op, .. } => Asked::Io { op: op.kind() },
+                Request::Prepared { prepared, .. } => Asked::Prepared {
+                    prepared: match prepared {
+                        Prepared::Ready { workspace, conflicts } => Preparation::Ready {
+                            workspace,
+                            conflicts: conflicts
+                                .iter()
+                                .map(|row| u64::try_from(row.files.len()).expect("an admitted path count fits u32"))
+                                .sum(),
+                        },
+                        Prepared::Refused { refusal } => Preparation::Refused { refusal },
+                        Prepared::Failed { failure } => Preparation::Failed { failure },
+                        Prepared::Aborted => Preparation::Aborted,
+                    },
+                },
+                Request::Pushed { outcome: Outcome::Pushed { .. }, .. } => Asked::Pushed,
+                Request::Saved { outcome: Outcome::Pushed { .. }, .. } => Asked::Saved,
+                Request::Pushed { outcome: Outcome::Refused { refusal }, .. }
+                | Request::Saved { outcome: Outcome::Refused { refusal }, .. } => Asked::Refused { refusal },
+                Request::Released { .. } => Asked::Released,
+                Request::Cancel { .. } => Asked::Cancel,
+            });
+        }
+        self.meter.check(measured, self.bound, &self.env.limits);
+        asked
+    }
+
+    fn done(&mut self, hold: Token, done: Done) -> Vec<Asked> {
+        self.step(Event::Done { owner: hold, done })
+    }
+
+    /// Prepares the workstream `n` at the limits into the workspace it is
+    /// given, made empty, each base branch created: returns the hold.
+    fn prepare(&mut self, n: u32) -> Token {
+        let limits = self.env.limits;
+        let prepare = Event::Prepare { client: Token::new(u64::from(n)), spec: full_spec(&limits, n) };
+        let [Asked::Held { hold }, Asked::Io { op: Kind::Make }] = self.step(prepare)[..] else {
+            panic!("a spec at the limits is admitted, into a workspace made empty");
+        };
+        for _ in 0..limits.repositories {
+            assert_eq!(self.done(hold, Done::Succeeded)[..], [Asked::Io { op: Kind::Clone }]);
+        }
+        assert_eq!(self.done(hold, Done::Succeeded)[..], [Asked::Io { op: Kind::Fetch }]);
+        for place in 0..limits.repositories {
+            let missing = Done::Failed { fault: Fault::Missing { missing: Missing::Branch } };
+            assert_eq!(self.done(hold, missing)[..], [Asked::Io { op: Kind::Fetch }], "the default branch");
+            assert_eq!(self.done(hold, Done::Fetched { commit: commit(place) })[..], [Asked::Io { op: Kind::Create }]);
+            assert_eq!(self.done(hold, Done::Succeeded)[..], [Asked::Io { op: Kind::CheckOut }]);
+            let next = self.done(hold, Done::Succeeded);
+            if place + 1 < limits.repositories {
+                assert_eq!(next[..], [Asked::Io { op: Kind::Fetch }]);
+            } else {
+                let [Asked::Prepared { prepared: Preparation::Ready { .. } }] = next[..] else {
+                    panic!("the workspace is ready: {next:?}");
+                };
+            }
+        }
+        hold
+    }
+
+    /// Pushes every repository of `hold`, each push running out of time and
+    /// verified as landed, its landings held until the last.
+    fn push(&mut self, hold: Token, n: u32) {
+        let limits = self.env.limits;
+        let push = Event::Push { hold, message: message(&limits) };
+        assert_eq!(self.step(push)[..], [Asked::Io { op: Kind::Commit }]);
+        for place in 0..limits.repositories {
+            let head = commit(1000 * (n + 1) + place);
+            assert_eq!(self.done(hold, Done::Committed { commit: head })[..], [Asked::Io { op: Kind::Push }]);
+            let timed_out = Done::Failed { fault: Fault::TimedOut };
+            assert_eq!(self.done(hold, timed_out)[..], [Asked::Io { op: Kind::Fetch }], "verified");
+            let next = self.done(hold, Done::Fetched { commit: head });
+            let expected = if place + 1 < limits.repositories { Asked::Io { op: Kind::Commit } } else { Asked::Pushed };
+            assert_eq!(next[..], [expected]);
+        }
+    }
+
+    /// Saves what `hold` holds, with a message and a branch at their limits,
+    /// and leaves the save's first push in flight.
+    fn save(&mut self, hold: Token, n: u32) {
+        let limits = self.env.limits;
+        let save = Event::Save { hold, branch: bytes(limits.name_bytes), message: message(&limits) };
+        assert_eq!(self.step(save)[..], [Asked::Io { op: Kind::Commit }]);
+        let committed = Done::Committed { commit: commit(1_000_000 + n) };
+        assert_eq!(self.done(hold, committed)[..], [Asked::Io { op: Kind::Push }], "the save's push is in flight");
+    }
+}
+
+/// Fills every workspace of a domain under `limits` as the module says. The
+/// peak of the heap in every step is checked against the worst case.
+fn fill(limits: Limits) {
+    let mut fill = Fill::new(limits);
+    let workspaces = limits.workspaces;
+    let mut holds = Vec::new();
+    for n in 0..workspaces {
+        let hold = fill.prepare(n);
+        fill.push(hold, n);
+        fill.save(hold, n);
+        holds.push(hold);
+    }
+    // Every workspace is held: another prepare is refused.
+    let another = Event::Prepare { client: Token::new(1 << 40), spec: full_spec(&limits, 1 << 20) };
+    let [Asked::Prepared { prepared: Preparation::Refused { refusal: Refusal::Full } }] = fill.step(another)[..] else {
+        panic!("every workspace is held");
+    };
+    // Released, each once its save has landed: no reclaim point yet.
+    for hold in holds {
+        assert!(fill.step(Event::Abort { hold }).is_empty(), "a save in flight is not cancelled");
+        assert!(fill.step(Event::Release { hold }).is_empty(), "released once the save has ended");
+        assert_eq!(fill.done(hold, Done::Succeeded)[..], [Asked::Saved, Asked::Released]);
+    }
+    // Every workspace held again, for other workstreams, each evicting one.
+    for n in workspaces..workspaces * 2 {
+        let hold = fill.prepare(n);
+        fill.save(hold, n);
+    }
+    assert_eq!(fill.domain.holds(), workspaces * 2, "as many released holds as live ones");
+    let held = fill.meter.held();
+    let name = u64::from(limits.name_bytes);
+    let repositories = u64::from(limits.repositories);
+    // Each workspace's key, twice, and its repositories' names and remotes;
+    // each hold's spec, five names a repository; and each live hold's save's
+    // message and branch.
+    let cache = 2 * name + repositories * 2 * name;
+    let spec = repositories * 5 * name;
+    let save = u64::from(limits.message_bytes) + name;
+    let least = u64::from(workspaces) * (cache + 2 * spec + save);
+    assert!(held >= least, "{limits:?}: every workspace and hold holds its limits: {held} < {least}");
+    fill.domain.reclaim();
+    assert_eq!(fill.domain.holds(), workspaces, "the released ones are reclaimed");
+
+    // A byte more is refused.
+    let mut domain = Domain::new(&limits);
+    let mut spec = full_spec(&limits, 0);
+    spec.key = bytes(limits.name_bytes + 1);
+    let mut out = Queue::with_capacity(MAX_OUT);
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    temper_worker_domain_checkout::step(&mut domain, &env, Event::Prepare { client: Token::new(0), spec }, &mut out);
+    let Some(Request::Prepared { prepared, .. }) = out.pop() else { panic!("expected an answer") };
+    assert_eq!(prepared, Prepared::Refused { refusal: Refusal::Invalid });
+}
+
+#[test]
+fn a_domain_with_every_workspace_held_at_its_limits_stays_within_its_worst_case() {
+    fill(LIMITS);
+    fill(Limits { workspaces: 64, repositories: 8, name_bytes: 256, message_bytes: 65_536, ..LIMITS });
+    fill(Limits { workspaces: 1000, repositories: 1, name_bytes: 16, message_bytes: 16, ..LIMITS });
+}
+
+fn full_paths(limits: &Limits) -> Box<[Box<[u8]>]> {
+    (0..limits.conflicts).map(|index| name(limits.path_bytes, index)).collect()
+}
+
+impl Fill {
+    /// Retain all but the final repository's maximum conflict set, with
+    /// that last merge in flight. IO's trusted terminals are supplied here;
+    /// the separate merge world checks their trees and remote effects.
+    fn pending_merge(&mut self, n: u32) -> Token {
+        let limits = self.env.limits;
+        let mut spec = full_spec(&limits, n);
+        for repo in &mut spec.repositories {
+            repo.start = Start::Merge { branch: bytes(limits.name_bytes), base: commit(5) };
+            repo.expected = Some(commit(1));
+        }
+        let [Asked::Held { hold }, Asked::Io { op: Kind::Make }] =
+            self.step(Event::Prepare { client: Token::new(u64::from(n)), spec })[..]
+        else {
+            panic!("admitted")
+        };
+        for _ in 0..limits.repositories {
+            assert_eq!(self.done(hold, Done::Succeeded)[..], [Asked::Io { op: Kind::Clone }]);
+        }
+        assert_eq!(self.done(hold, Done::Succeeded)[..], [Asked::Io { op: Kind::Fetch }]);
+        for place in 0..limits.repositories {
+            assert_eq!(self.done(hold, Done::Fetched { commit: commit(1) })[..], [Asked::Io { op: Kind::Fetch }]);
+            assert_eq!(self.done(hold, Done::Fetched { commit: commit(5) })[..], [Asked::Io { op: Kind::CheckOut }]);
+            assert_eq!(self.done(hold, Done::Succeeded)[..], [Asked::Io { op: Kind::Merge }]);
+            if place + 1 < limits.repositories {
+                assert_eq!(
+                    self.done(hold, Done::Conflicted { files: full_paths(&limits) })[..],
+                    [Asked::Io { op: Kind::Fetch }]
+                );
+            }
+        }
+        hold
+    }
+}
+
+#[test]
+fn retired_preparations_and_live_pushes_own_maximum_conflict_sets_within_the_bound() {
+    let limits = Limits { workspaces: 8, repositories: 4, conflicts: 8, path_bytes: 128, ..LIMITS };
+    // World bookkeeping predates the meter; only the domain and its admitted
+    // ownership transfers are charged against the domain's worst case.
+    let mut active = Vec::with_capacity(limits.workspaces as usize);
+    let mut fill = Fill::new(limits);
+    for n in 0..limits.workspaces {
+        let hold = fill.pending_merge(n);
+        assert_eq!(fill.step(Event::Release { hold })[..], [Asked::Cancel]);
+        assert_eq!(
+            fill.done(hold, Done::Failed { fault: Fault::Cancelled })[..],
+            [Asked::Prepared { prepared: Preparation::Aborted }, Asked::Released]
+        );
+    }
+    for n in limits.workspaces..limits.workspaces * 2 {
+        active.push(fill.pending_merge(n));
+    }
+    let payload = u64::from(limits.workspaces)
+        * u64::from(limits.repositories - 1)
+        * u64::from(limits.conflicts)
+        * u64::from(limits.path_bytes);
+    assert!(fill.meter.held() >= 2 * payload, "released and live preparations both retain full path bytes");
+    assert_eq!(fill.domain.holds(), limits.workspaces * 2);
+    for hold in &active {
+        let next = fill.done(*hold, Done::Conflicted { files: full_paths(&limits) });
+        let [Asked::Prepared { prepared: Preparation::Ready { conflicts, .. } }] = next[..] else { panic!("prepared") };
+        assert_eq!(conflicts, u64::from(limits.repositories) * u64::from(limits.conflicts));
+        assert_eq!(
+            fill.step(Event::Push { hold: *hold, message: message(&limits) })[..],
+            [Asked::Io { op: Kind::Commit }]
+        );
+        for _ in 0..limits.repositories - 1 {
+            assert_eq!(
+                fill.done(*hold, Done::Conflicted { files: full_paths(&limits) })[..],
+                [Asked::Io { op: Kind::Commit }]
+            );
+        }
+    }
+    assert!(fill.meter.held() >= 2 * payload, "retired preparation paths and live landing paths coexist");
+    let before = fill.meter.held();
+    fill.domain.reclaim();
+    assert!(before - fill.meter.held() >= payload, "reclaim releases retired path ownership");
+    assert_eq!(fill.domain.holds(), limits.workspaces);
+    for hold in active {
+        assert_eq!(fill.done(hold, Done::Conflicted { files: full_paths(&limits) })[..], [Asked::Pushed]);
+    }
+}

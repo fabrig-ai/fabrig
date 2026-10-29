@@ -247,6 +247,17 @@ class SelectionTests(unittest.TestCase):
     def test_markdown_outside_test_inputs_is_docs(self):
         self.assertEqual(self.select(["README.md", "docs/guide.md"]), "docs")
 
+    def test_tools_and_unread_markdown_contribute_no_packages(self):
+        self.assertEqual(self.select(["tools/y.py", "agents/x.md", "core/README.md"]), "docs")
+        self.assertEqual(self.select(["core/src/lib.rs", "agents/x.md", "tools/y.py"]),
+                         {"core", "normal", "build", "dev", "transitive", "always"})
+
+    def test_markdown_under_package_source_directories_selects_owner(self):
+        for directory in ("src", "tests", "benches", "examples"):
+            with self.subTest(directory=directory):
+                self.assertEqual(self.select([f"unrelated/{directory}/input.md"]), {"unrelated", "always"})
+        self.assertEqual(self.select(["core/examples/nested/src/input.md"]), {"nested", "always"})
+
     def test_markdown_read_by_tests_is_full(self):
         self.assertEqual(self.select(["docs/contract/store.md"]), "full")
 
@@ -350,11 +361,58 @@ class CheckTests(unittest.TestCase):
                          [("clippy", 2), ("build", 8), ("default", 3), ("fuzzy", 5)])
 
     def test_failure_stops_checks_and_four_is_not_green_for_fmt(self):
-        with tempfile.TemporaryDirectory(dir=ROOT, prefix=".mq-test-") as directory:
+        with tempfile.TemporaryDirectory(dir=ROOT, prefix=".mq-test-") as directory, \
+                patch.object(mq, "tools_commands", return_value=[]):
             steps = mq.run_checks(ROOT, "full", [], Path(directory) / "checks.log",
                                   runner=lambda *args, **kwargs: subprocess.CompletedProcess(args, 4))
-            self.assertEqual(len(steps), 1)
-            self.assertFalse(steps[0]["green"])
+            self.assertEqual([step["name"] for step in steps], ["tools", "fmt"])
+            self.assertFalse(steps[-1]["green"])
+
+    def test_tools_timeout_is_red_and_other_suites_still_run(self):
+        commands = [("tools/test_first.py", ["python3", "-I", "-B", "tools/test_first.py"], ROOT),
+                    ("tools/test-second", ["bash", "tools/test-second"], ROOT)]
+        calls = []
+
+        def runner(argv, **kwargs):
+            calls.append(argv)
+            self.assertEqual(kwargs["timeout"], mq.TOOLS_TIMEOUT)
+            self.assertEqual(kwargs["stdin"], subprocess.DEVNULL)
+            self.assertEqual(kwargs["cwd"], ROOT)
+            if argv[0] == "python3":
+                raise subprocess.TimeoutExpired(argv, mq.TOOLS_TIMEOUT)
+            return subprocess.CompletedProcess(argv, 0)
+
+        with tempfile.TemporaryDirectory(dir=ROOT, prefix=".mq-test-") as directory, \
+                patch.object(mq, "tools_commands", return_value=commands):
+            log = Path(directory) / "checks.log"
+            steps = mq.run_checks(ROOT, "full", [], log, runner=runner)
+            self.assertIn(f"Timed out after {mq.TOOLS_TIMEOUT} seconds", log.read_text())
+        self.assertEqual(calls, [argv for _, argv, _ in commands])
+        self.assertEqual([step["name"] for step in steps], ["tools"])
+        self.assertFalse(steps[0]["green"])
+        self.assertEqual([suite["returncode"] for suite in steps[0]["suites"]], [124, 0])
+
+    def test_tools_exit_four_is_red_and_os_errors_are_logged(self):
+        commands = [("tools/test_first.py", ["python3", "-I", "-B", "tools/test_first.py"], ROOT)]
+        for result in (subprocess.CompletedProcess([], 4), FileNotFoundError("missing interpreter")):
+            with self.subTest(result=result), \
+                    tempfile.TemporaryDirectory(dir=ROOT, prefix=".mq-test-") as directory, \
+                    patch.object(mq, "tools_commands", return_value=commands):
+                log = Path(directory) / "checks.log"
+                runner = Mock(side_effect=result) if isinstance(result, OSError) else Mock(return_value=result)
+                steps = mq.run_checks(ROOT, "docs", ["tools/y.py"], log, runner=runner)
+                self.assertFalse(steps[0]["green"])
+                self.assertEqual(steps[0]["suites"][0]["returncode"], 127 if isinstance(result, OSError) else 4)
+                if isinstance(result, OSError):
+                    self.assertIn("missing interpreter", log.read_text())
+
+    def test_tools_and_docs_keep_touched_tree_ratchets_without_cargo(self):
+        with tempfile.TemporaryDirectory(dir=ROOT, prefix=".mq-test-") as directory, \
+                patch.object(mq, "tools_commands", return_value=[]):
+            steps = mq.run_checks(ROOT, "docs", ["tools/x.py", "jig/README.md"],
+                                  Path(directory) / "checks.log",
+                                  runner=lambda *a, **kw: subprocess.CompletedProcess(a, 0))
+        self.assertEqual([step["name"] for step in steps], ["tools", "ratchet:jig"])
 
     def test_only_heavy_exit_two_with_disk_floor_text_is_a_refusal(self):
         for code, output, refused in ((2, "builder: 39 GB below the disk floor", True),
@@ -370,7 +428,7 @@ class CheckTests(unittest.TestCase):
                 with tempfile.TemporaryDirectory(dir=ROOT, prefix=".mq-test-") as directory:
                     steps = mq.run_checks(ROOT, "full", [], Path(directory) / "checks.log", runner=runner)
                 self.assertEqual("error" in steps[-1], refused)
-                self.assertEqual(len(steps), 2)
+                self.assertEqual([step["name"] for step in steps], ["tools", "fmt", "clippy"])
 
 
 class CleanupTests(unittest.TestCase):
@@ -716,6 +774,12 @@ baseline.write_text(str(count) + '\n')
                 with self.subTest(path=path):
                     self.assertEqual(queue.choose([path], preview=True), "full")
 
+    def test_tools_manifest_preview_needs_no_cargo_graph(self):
+        queue = self.queue(now=lambda: 10000)
+        queue.state["last_full"] = 9999
+        with patch.object(queue, "metadata_loader", side_effect=AssertionError("tools metadata")):
+            self.assertEqual(queue.choose(["tools/fixture/Cargo.toml"], preview=True), "docs")
+
     def test_post_failure_is_logged_and_does_not_fail_landing(self):
         self.branch("a", publish=True)
         queue = self.queue()
@@ -773,15 +837,112 @@ baseline.write_text(str(count) + '\n')
         self.assertEqual((record["outcome"], record["steps"]), ("green", []))
         self.assertTrue((self.repo / "README.md").exists())
 
+    def test_tools_discovery_uses_tracked_names_and_executable_modes(self):
+        for path in ("tools/test_root.py", "tools/nested/test_input.py", "tools/nested/test-shell",
+                     "tools/nested/test-plain", "tools/nested/ordinary.py", "elsewhere/test_other.py"):
+            self.write(path, "fixture\n")
+        (self.repo / "tools/nested/test-shell").chmod(0o700)
+        self.commit("tracked tools suites")
+        self.write("tools/test_untracked.py", "untracked\n")
+        self.assertEqual(mq.tools_commands(self.repo), [
+            ("tools/nested/test-shell", ["bash", "tools/nested/test-shell"], self.repo),
+            ("tools/nested/test_input.py", ["python3", "-I", "-B", "tools/nested/test_input.py"], self.repo),
+            ("tools/test_root.py", ["python3", "-I", "-B", "tools/test_root.py"], self.repo)])
+
+    def test_tools_only_batch_runs_tools_without_cargo_and_lands(self):
+        self.branch("tools", "tools/test_root.py", """import pathlib, sys
+assert sys.flags.isolated and sys.flags.dont_write_bytecode
+assert pathlib.Path('shared').read_text() == 'base\\n'
+assert sys.stdin.read() == ''
+print('tools fixture passed')
+""", publish=True)
+        queue = self.queue(now=lambda: 10000)
+        queue.state["last_full"] = 9999
+        queue.checker = mq.run_checks
+        queue.metadata_loader = lambda repo: self.fail("tools-only selection needs no cargo metadata")
+        self.run_cycle(queue)
+        record = self.records()[0]
+        self.assertEqual((record["selection"], record["outcome"]), ("docs", "green"))
+        self.assertEqual([step["name"] for step in record["steps"]], ["tools"])
+        tools = record["steps"][0]
+        self.assertEqual([suite["name"] for suite in tools["suites"]], ["tools/test_root.py"])
+        self.assertGreater(tools["duration"], 0)
+        self.assertGreater(tools["suites"][0]["duration"], 0)
+        self.assertIn("tools fixture passed", Path(record["log"]).read_text())
+        self.assertTrue((self.repo / "tools/test_root.py").exists())
+
+    def test_failing_tools_suite_rejects_single_branch(self):
+        branch = self.branch("tools", "tools/test_red.py", "raise SystemExit('tools fixture failed')\n", publish=True)
+        queue = self.queue(now=lambda: 10000)
+        queue.state["last_full"] = 9999
+        queue.checker = mq.run_checks
+        self.run_cycle(queue)
+        record = self.records()[0]
+        self.assertEqual((record["selection"], record["outcome"]), ("docs", "red"))
+        self.assertEqual([step["name"] for step in record["steps"]], ["tools"])
+        self.assertEqual(record["steps"][0]["suites"][0]["returncode"], 1)
+        self.assertIn("tools fixture failed", Path(record["log"]).read_text())
+        self.assertIn("failing step: tools", self.posts[0][2])
+        self.assertEqual(queue.state["tried"], {branch["name"]: branch["tip"]})
+        self.assertEqual(mq.git(self.repo, "rev-parse", "origin/main").stdout.strip(), self.base)
+
+    def test_tools_failure_bisects_and_lands_green_branch(self):
+        self.branch("a", "tools/test_green.py", "print('green fixture')\n", publish=True)
+        self.branch("z", "tools/test_red.py", "raise SystemExit(1)\n", publish=True)
+        queue = self.queue(now=lambda: 10000)
+        queue.state["last_full"] = 9999
+        queue.checker = mq.run_checks
+        self.run_cycle(queue)
+        self.assertEqual([record["outcome"] for record in self.records()], ["red", "green", "red"])
+        mq.git(self.repo, "switch", "--detach", "origin/main")
+        self.assertTrue((self.repo / "tools/test_green.py").exists())
+        self.assertFalse((self.repo / "tools/test_red.py").exists())
+        self.assertEqual([subject for _, subject, _ in self.posts],
+                         ["landed ready/coord/a", "rejected ready/coord/z"])
+
+    def test_mixed_code_docs_and_tools_select_only_code_packages(self):
+        branch = self.branch("mixed", "core/src/lib.rs")
+        self.write("agents/x.md", "agent guidance\n")
+        self.write("tools/y.py", "tool source\n")
+        self.write("tools/test_green.py", "print('green fixture')\n")
+        self.commit("mixed inputs")
+        branch["tip"] = self.tip()
+        queue = self.queue(now=lambda: 10000)
+        queue.state["last_full"] = 9999
+        calls = []
+
+        def runner(argv, **kwargs):
+            calls.append(argv)
+            return subprocess.CompletedProcess(argv, 0)
+
+        queue.checker = lambda *args: mq.run_checks(*args, runner=runner)
+        with patch.object(mq, "load_workspace_metadata", return_value=metadata(self.repo)):
+            self.assertTrue(queue.attempt([branch]))
+        record = self.records()[0]
+        self.assertEqual(record["selection"], sorted(
+            {"core", "normal", "build", "dev", "transitive"} | set(mq.lines(DIRECTORY / "always.txt"))))
+        self.assertEqual([step["name"] for step in record["steps"]],
+                         ["tools", "fmt", "clippy", "build", "default", "fuzzy"])
+        self.assertEqual(calls[0], ["python3", "-I", "-B", "tools/test_green.py"])
+        self.assertTrue(all("--workspace" not in argv for argv in calls))
+
+    def test_source_markdown_batch_loads_ownership_and_selects_package(self):
+        self.branch("source-doc", "core/src/input.md", publish=True)
+        queue = self.queue(now=lambda: 10000)
+        queue.state["last_full"] = 9999
+        self.run_cycle(queue)
+        self.assertEqual(self.checks[0][0],
+                         {"core", "normal", "build", "dev", "transitive"} | set(mq.lines(DIRECTORY / "always.txt")))
+
     def test_batch_record_keeps_build_and_default_durations_separate(self):
         branch = self.branch("timed")
         queue = self.queue()
-        times = iter([0, 1, 10, 12, 20, 27, 30, 33, 40, 44])
+        times = iter([-10, -5, 0, 1, 10, 12, 20, 27, 30, 33, 40, 44])
         queue.checker = lambda *args: mq.run_checks(
             *args, runner=lambda *a, **kw: subprocess.CompletedProcess(a, 0), clock=lambda: next(times))
         queue.attempt([branch])
         self.assertEqual([(step["name"], step["duration"]) for step in self.records()[0]["steps"]],
-                         [("fmt", 1), ("clippy", 2), ("build", 7), ("default", 3), ("fuzzy", 4)])
+                         [("tools", 5), ("fmt", 1), ("clippy", 2), ("build", 7), ("default", 3), ("fuzzy", 4)])
 
     def test_failed_build_stops_tests_and_names_build_in_rejection(self):
         branch = self.branch("unbuildable")
@@ -794,7 +955,7 @@ baseline.write_text(str(count) + '\n')
         queue.attempt([branch])
         record = self.records()[0]
         self.assertEqual(record["outcome"], "red")
-        self.assertEqual([step["name"] for step in record["steps"]], ["fmt", "clippy", "build"])
+        self.assertEqual([step["name"] for step in record["steps"]], ["tools", "fmt", "clippy", "build"])
         self.assertIn("failing step: build", self.posts[0][2])
 
     def test_manifest_batch_does_not_need_valid_cargo_metadata(self):

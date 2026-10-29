@@ -144,7 +144,10 @@ impl World {
 
     /// Enable the shared harness's construction, iteration and drop checks.
     pub fn check_memory(&mut self) {
-        self.memory = Memory::Checked;
+        // Peak across file, command, check, flood and selected-listing scenarios.
+        // Measured 68_544 B on 2026-10-28; a quarter of headroom, rounded up.
+        const MACHINE_SCENARIOS_CEILING: u64 = 86_000;
+        self.memory = Memory::Within(MACHINE_SCENARIOS_CEILING);
     }
 
     /// Complete kernel traces for every request, in submission order.
@@ -976,12 +979,6 @@ impl Host for Application {
             && !self
                 .work_pending(Time::from_nanos(self.machine_env.now.as_nanos().saturating_sub(self.offset.as_nanos())))
             && self.submissions.is_empty()
-    }
-    fn worst_case(&self) -> u64 {
-        // Peak across file, command, check, flood and selected-listing scenarios.
-        // Measured 68_544 B on 2026-10-28; a quarter of headroom, rounded up.
-        const MACHINE_SCENARIOS_CEILING: u64 = 86_000;
-        MACHINE_SCENARIOS_CEILING
     }
     fn operations(&self) -> u32 {
         io::operations(&self.process_env.limits).and_then(|ops| ops.checked_add(16)).expect("application operations")

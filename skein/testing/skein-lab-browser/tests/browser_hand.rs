@@ -6,16 +6,17 @@ mod support;
 use json::{Value, number, object, string};
 use skein_lib::Duration;
 use skein_scratch::Scratch;
+use std::os::unix::process::CommandExt;
 use std::{
     fs,
-    io::{BufRead, BufReader, Read, Write},
+    io::{BufReader, Write},
     net::{SocketAddr, TcpListener, TcpStream},
     os::unix::fs::PermissionsExt,
     path::{Path, PathBuf},
     process::{Command, Stdio},
     sync::{
         Arc,
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicBool, AtomicU32, Ordering},
     },
     thread::JoinHandle,
 };
@@ -25,6 +26,7 @@ struct Origin {
     address: SocketAddr,
     stop: Arc<AtomicBool>,
     thread: Option<JoinHandle<()>>,
+    browser: Arc<AtomicU32>,
 }
 impl Origin {
     #[expect(clippy::disallowed_methods, reason = "C-hand.md permits a small fixture origin in a std listener thread")]
@@ -33,6 +35,8 @@ impl Origin {
         let address = listener.local_addr().expect("bound fixture address");
         let stop = Arc::new(AtomicBool::new(false));
         let stopping = stop.clone();
+        let browser = Arc::new(AtomicU32::new(0));
+        let owned_browser = browser.clone();
         let fixture = skein_scratch::paths::package().join("tests/fixture/hand");
         let index = fs::read_to_string(fixture.join("index.html"))
             .expect("fixture browser conversation")
@@ -47,11 +51,19 @@ impl Origin {
                 if stopping.load(Ordering::Relaxed) {
                     break;
                 }
-                stream
-                    .set_read_timeout(Some(std::time::Duration::from_secs(10)))
-                    .expect("fixture browser conversation");
-                let mut request = String::new();
-                BufReader::new(&stream).read_line(&mut request).expect("fixture browser conversation");
+                let mut pids = vec![std::process::id()];
+                let pid = owned_browser.load(Ordering::Relaxed);
+                if pid != 0 {
+                    pids.push(pid);
+                }
+                let deadline = support::Waiting::new("the fixture origin request", Duration::from_secs(10), &pids);
+                let mut request = Vec::new();
+                deadline.read_line(
+                    &mut BufReader::new(stream.try_clone().expect("fixture socket")),
+                    &mut request,
+                    "fixture request",
+                );
+                let request = String::from_utf8(request).expect("fixture request UTF-8");
                 let path = request
                     .split_whitespace()
                     .nth(1)
@@ -71,7 +83,7 @@ impl Origin {
                 let _ = stream.write_all(reply.as_bytes());
             }
         });
-        Self { address, stop, thread: Some(thread) }
+        Self { address, stop, thread: Some(thread), browser }
     }
 }
 impl Drop for Origin {
@@ -85,18 +97,23 @@ struct Client {
     address: SocketAddr,
     answers: Vec<u8>,
     stderr: PathBuf,
+    pid: u32,
 }
 impl Client {
     fn call(&mut self, call: &Value) -> Value {
         let mut stream = TcpStream::connect(self.address).expect("connect hand listener");
-        stream.set_read_timeout(Some(std::time::Duration::from_secs(20))).expect("fixture browser conversation");
+        let deadline = support::Waiting::new("the hand socket answer and close", Duration::from_secs(20), &[self.pid])
+            .evidence(&self.stderr);
         let mut bytes = json::encode(call);
         bytes.push(b'\n');
         stream.write_all(&bytes).expect("fixture browser conversation");
         let mut line = Vec::new();
-        BufReader::new(&mut stream).read_until(b'\n', &mut line).unwrap_or_else(|e| {
-            panic!("answer: {e}; {}", fs::read_to_string(&self.stderr).expect("fixture browser conversation"))
-        });
+        let mut reader = BufReader::new(stream);
+        deadline.read_line(
+            &mut reader,
+            &mut line,
+            &format!("answer; {}", fs::read_to_string(&self.stderr).expect("stderr")),
+        );
         assert_eq!(
             line.pop(),
             Some(b'\n'),
@@ -108,7 +125,7 @@ impl Client {
         assert!(!String::from_utf8_lossy(&line).contains(QUERY));
         self.answers.extend_from_slice(&line);
         let mut tail = Vec::new();
-        stream.read_to_end(&mut tail).expect("fixture browser conversation");
+        deadline.read_end(&mut reader, &mut tail, "hand closes after its answer", false);
         assert!(tail.is_empty(), "one answer per connection");
         answer
     }
@@ -277,16 +294,18 @@ fn browser_hand() {
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(fs::File::create(&stderr).unwrap())
+            .process_group(0)
             .spawn()
             .unwrap(),
     );
-    let mut reader = Reader::new(child.0.stdout.take().unwrap(), stderr.clone());
+    origin.browser.store(child.0.id(), Ordering::Relaxed);
+    let mut reader = Reader::new(child.0.stdout.take().unwrap(), stderr.clone(), vec![child.0.id()]);
     let start = reader.now();
     let ready = String::from_utf8(reader.line()).unwrap();
     let address: SocketAddr =
         ready.strip_prefix("listening 127.0.0.1:").map(|port| format!("127.0.0.1:{port}")).unwrap().parse().unwrap();
     assert_ne!(address.port(), 0);
-    let mut client = Client { address, answers: Vec::new(), stderr };
+    let mut client = Client { address, answers: Vec::new(), stderr, pid: child.0.id() };
     assert_eq!(client.simple("address"), object([("address", json::bytes(b"about:blank"))]));
     assert_eq!(
         client.call(&object([("call", string("sign-in")), ("link", string(format!("{base}/sign-in?{QUERY}")))])),
@@ -465,13 +484,14 @@ fn browser_hand() {
     assert_eq!(field(&client.simple("trouble"), "more"), &number(0));
     client.call(&object([("call", string("history")), ("to", string("back"))]));
     assert!(Command::new("/bin/kill").args(["-TERM", &child.0.id().to_string()]).status().unwrap().success());
-    let deadline = reader.now().saturating_add(Duration::from_secs(20));
+    let deadline = reader.deadline("the hand SIGTERM exit", Duration::from_secs(20));
     loop {
         if let Some(status) = child.0.try_wait().unwrap() {
+            deadline.verdict(status.success());
             assert!(status.success(), "{status}; {}", reader.stderr());
             break;
         }
-        assert!(reader.now() < deadline, "SIGTERM did not finish: {}", reader.stderr());
+        deadline.check(&format!("SIGTERM did not finish: {}", reader.stderr()));
         reader.pause();
     }
     let log = fs::read_to_string(out.join("trouble.jsonl")).unwrap();

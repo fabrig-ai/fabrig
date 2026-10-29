@@ -10,6 +10,7 @@ publish.workspace = true
 [[bin]]
 name = "fake-claude"
 path = "src/main.rs"
+test = false
 
 [dependencies]
 skein-fail-stop.workspace = true

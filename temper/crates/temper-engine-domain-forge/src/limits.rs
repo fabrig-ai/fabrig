@@ -84,6 +84,7 @@ pub fn worst_case(l: &Limits) -> Option<u64> {
         || l.landings == 0
         || l.brief_sections == 0
         || l.brief_bytes == 0
+        || !skein_forge_client::valid(&l.client)
         || l.repositories > l.client.repositories
         // The top's entries, held ones included, are the client's only
         // makes, so a held entry made again always finds the client's room.
@@ -144,7 +145,6 @@ pub fn worst_case(l: &Limits) -> Option<u64> {
             u64::from(l.client.repositories)
                 .checked_mul(u64::from(l.name_bytes.max(FIRST_NAME_BYTES)).checked_mul(3)?.checked_add(64)?)?,
         )?
-        .checked_add(skein_forge_client::worst_case(&l.client)?)?
         .checked_add(Map::<skein_forge::api::Repository, Repository>::worst_case(l.repositories)?)?
         .checked_add(Map::<u16, crate::domain::ConnectionState>::worst_case(l.client.repositories)?)?
         .checked_add(u64::from(l.client.repositories).checked_mul(

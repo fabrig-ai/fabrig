@@ -47,13 +47,10 @@ fn hosted_processes_replay_and_each_frees_its_metered_heap() {
     let first = exchange(7, Memory::Within(CEILING));
     let second = exchange(7, Memory::Within(CEILING));
     assert_eq!(first.trace, second.trace, "hosted process records replay with the same seed");
-    assert_eq!(first.heap, second.heap, "each process's peaks replay too");
-    let heap = first.heap.as_ref().expect("checked memory");
+    assert_eq!(first.peaks(), second.peaks(), "each process's peaks replay too");
+    let heap = first.peaks().expect("checked memory");
     assert_eq!(heap.len(), 2, "parent and hosted child are separately metered");
-    assert!(
-        heap.iter().all(|(peak, bound)| *peak > 0 && *peak <= CEILING && *bound == CEILING),
-        "both process heaps fit the scenario ceiling"
-    );
+    assert!(heap.iter().all(|peak| *peak > 0 && *peak <= CEILING), "both process heaps fit the scenario ceiling");
     assert_ne!(first.trace, exchange(8, Memory::Within(CEILING)).trace, "another seed changes the delayed completions");
     drop(first);
     drop(second);
@@ -160,7 +157,7 @@ fn every_hosted_story_replays_under_its_own_memory_meter() {
         check_story(scenario, &first);
         check_story(scenario, &second);
         assert_eq!(first.trace, second.trace, "the hosted story replays its records");
-        assert_eq!(first.heap, second.heap, "the hosted story replays its surviving process peaks");
+        assert_eq!(first.peaks(), second.peaks(), "the hosted story replays its surviving process peaks");
     }
 }
 

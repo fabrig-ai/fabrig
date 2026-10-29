@@ -7,12 +7,12 @@ mod support;
 
 use json::Value;
 use skein_scratch::Scratch;
+use std::os::unix::process::CommandExt;
 use std::{
     fs::{self, File},
-    io::{BufRead, BufReader, Read, Write},
+    io::{BufRead, BufReader, Write},
     net::{SocketAddr, TcpListener, TcpStream},
     process::{Command, Stdio},
-    time::Duration,
 };
 use support::{Child, Reader, field, integer, text};
 
@@ -41,6 +41,7 @@ impl Hand {
                 .arg(scratch.path().join("www"))
                 .stdout(Stdio::piped())
                 .stderr(Stdio::null())
+                .process_group(0)
                 .spawn()
                 .expect("standard HTTP server"),
         );
@@ -67,10 +68,12 @@ impl Hand {
                 .stdin(Stdio::null())
                 .stdout(Stdio::piped())
                 .stderr(File::create(&stderr).expect("stderr"))
+                .process_group(0)
                 .spawn()
                 .expect("hand process"),
         );
-        let mut reader = Reader::new(child.0.stdout.take().expect("hand stdout"), stderr);
+        let mut reader =
+            Reader::new(child.0.stdout.take().expect("hand stdout"), stderr, vec![child.0.id(), server.0.id()]);
         let ready = String::from_utf8(reader.line()).expect("ready UTF-8");
         let address: SocketAddr =
             ready.strip_prefix("listening ").expect("8.1 ready line").parse().expect("bound address");
@@ -78,15 +81,16 @@ impl Hand {
         Self { scratch, child, reader, address, origin, _server: server }
     }
     fn connect(&self) -> TcpStream {
-        let stream = TcpStream::connect(self.address).expect("connect hand");
-        stream.set_read_timeout(Some(Duration::from_secs(28))).expect("read deadline");
-        stream.set_write_timeout(Some(Duration::from_secs(6))).expect("write deadline");
-        stream
+        TcpStream::connect(self.address).expect("connect hand")
+    }
+    fn send(&self, stream: &mut TcpStream, bytes: &[u8], why: &str) {
+        let deadline = self.reader.deadline("the hand socket write", skein_lib::Duration::from_secs(6));
+        deadline.write(stream, bytes, why);
     }
     fn call(&self, line: &str) -> Value {
         let mut stream = self.connect();
-        writeln!(stream, "{line}").expect("send call");
-        answer(stream)
+        self.send(&mut stream, format!("{line}\n").as_bytes(), "send call");
+        answer(self, stream)
     }
     fn go(&self) {
         let result = self.call(r#"{"call":"go","path":"/index.html"}"#);
@@ -100,26 +104,28 @@ impl Hand {
                 .expect("signal hand")
                 .success()
         );
-        let deadline = self.reader.now().saturating_add(skein_lib::Duration::from_secs(10));
+        let deadline = self.reader.deadline("the hand shutdown exit", skein_lib::Duration::from_secs(10));
         loop {
             if let Some(status) = self.child.0.try_wait().expect("wait hand") {
+                deadline.verdict(status.success());
                 assert!(status.success(), "8.1: {status}; {}", self.reader.stderr());
                 return;
             }
-            assert!(self.reader.now() < deadline, "8.1 shutdown deadline; {}", self.reader.stderr());
+            deadline.check(&format!("8.1 shutdown deadline; {}", self.reader.stderr()));
             self.reader.pause();
         }
     }
 }
-fn answer(stream: TcpStream) -> Value {
+fn answer(hand: &Hand, stream: TcpStream) -> Value {
+    let deadline = hand.reader.deadline("the hand socket answer and close", skein_lib::Duration::from_secs(28));
     let mut reader = BufReader::new(stream);
     let mut line = Vec::new();
-    reader.read_until(b'\n', &mut line).expect("answer before deadline");
+    deadline.read_line(&mut reader, &mut line, "answer before deadline");
     assert_eq!(line.pop(), Some(b'\n'), "8.2 answer newline");
     let result = json::parse(&line).expect("answer JSON");
     assert_eq!(json::encode(&result), line, "canonical answer");
     let mut rest = Vec::new();
-    reader.read_to_end(&mut rest).expect("8.2 closes after one answer");
+    deadline.read_end(&mut reader, &mut rest, "8.2 closes after one answer", false);
     assert!(rest.is_empty(), "8.2 one answer a connection");
     result
 }
@@ -140,8 +146,8 @@ fn ready_blank_address_and_both_shutdown_signals() {
 fn one_answer_even_when_two_lines_are_sent() {
     let mut hand = Hand::start("<h1>Fixture</h1>");
     let mut stream = hand.connect();
-    stream.write_all(b"{\"call\":\"address\"}\n{\"call\":\"shot\"}\n").expect("two lines");
-    assert_eq!(text(field(&answer(stream), "address")), "about:blank");
+    hand.send(&mut stream, b"{\"call\":\"address\"}\n{\"call\":\"shot\"}\n", "two lines");
+    assert_eq!(text(field(&answer(&hand, stream), "address")), "about:blank");
     assert!(!hand.scratch.path().join("out/shots/0001.png").exists());
     hand.stop("-TERM");
 }
@@ -150,18 +156,19 @@ fn one_answer_even_when_two_lines_are_sent() {
 fn incomplete_connection_expires_and_preserves_accept_order() {
     let mut hand = Hand::start("<h1>Fixture</h1>");
     let mut first = hand.connect();
-    first.write_all(b"{\"call\":").expect("partial line");
+    hand.send(&mut first, b"{\"call\":", "partial line");
     let start = hand.reader.now();
     let mut second = hand.connect();
-    second.write_all(b"{\"call\":\"address\"}\n").expect("queued call");
-    assert_eq!(text(field(&answer(second), "address")), "about:blank");
+    hand.send(&mut second, b"{\"call\":\"address\"}\n", "queued call");
+    assert_eq!(text(field(&answer(&hand, second), "address")), "about:blank");
     assert!(
         hand.reader.now() >= start.saturating_add(skein_lib::Duration::from_secs(9)),
         "8.2 accepted order bypassed"
     );
     assert!(hand.reader.now() < start.saturating_add(skein_lib::Duration::from_secs(13)), "8.2 ten second bound");
     let mut bytes = Vec::new();
-    first.read_to_end(&mut bytes).expect("expired connection closed");
+    let deadline = hand.reader.deadline("the incomplete connection close", skein_lib::Duration::from_secs(28));
+    deadline.read_end(&mut BufReader::new(first), &mut bytes, "expired connection closed", false);
     assert!(bytes.is_empty(), "8.2 incomplete line unanswered");
     hand.stop("-TERM");
 }
@@ -174,15 +181,13 @@ fn line_limit_has_an_answer_at_boundary_and_none_past_it() {
         let prefix = r#"{"call":"unknown","padding":""#;
         let line = format!("{prefix}{}\"}}\n", "x".repeat(size - prefix.len() - 2));
         assert_eq!(line.len(), size + 1, "JSON bytes plus LF delimiter");
-        stream.write_all(line.as_bytes()).expect("bounded line");
+        hand.send(&mut stream, line.as_bytes(), "bounded line");
         if size <= 128 * 1024 {
-            refused(&answer(stream), "call");
+            refused(&answer(&hand, stream), "call");
         } else {
             let mut bytes = Vec::new();
-            match stream.read_to_end(&mut bytes) {
-                Ok(_) => {}
-                Err(error) => assert_eq!(error.kind(), std::io::ErrorKind::ConnectionReset),
-            }
+            let deadline = hand.reader.deadline("the oversized connection close", skein_lib::Duration::from_secs(28));
+            deadline.read_end(&mut BufReader::new(stream), &mut bytes, "oversized line unanswered", true);
             assert!(bytes.is_empty(), "8.2 oversized line unanswered");
         }
     }
@@ -293,19 +298,21 @@ fn a_named_peer_is_reached_and_any_other_port_is_still_refused() {
     hand.go();
     let pressed = hand.call(r#"{"call":"press","in":[],"match":"exact","name":"Peer","role":"link"}"#);
     let _ = field(&pressed, "pressed");
-    let deadline = hand.reader.now().saturating_add(skein_lib::Duration::from_secs(6));
-    let mut stream = loop {
+    let deadline = hand.reader.deadline("the named peer connection", skein_lib::Duration::from_secs(6));
+    let stream = loop {
         match peer.accept() {
             Ok((stream, _)) => break stream,
             Err(error) => assert_eq!(error.kind(), std::io::ErrorKind::WouldBlock),
         }
-        assert!(hand.reader.now() < deadline, "8.5 named peer reached");
+        deadline.check("8.5 named peer reached");
         hand.reader.pause();
     };
-    stream.set_read_timeout(Some(Duration::from_secs(6))).expect("peer read deadline");
-    let mut request = String::new();
-    BufReader::new(&stream).read_line(&mut request).expect("peer request");
-    assert_eq!(request, "GET /link HTTP/1.1\r\n");
+    let deadline = hand.reader.deadline("the named peer request", skein_lib::Duration::from_secs(6));
+    let mut request = Vec::new();
+    let mut peer_reader = BufReader::new(stream);
+    deadline.read_line(&mut peer_reader, &mut request, "peer request");
+    assert_eq!(request, b"GET /link HTTP/1.1\r\n");
+    let mut stream = peer_reader.into_inner();
     let body = "<h1>Named peer</h1>";
     write!(stream, "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len())
         .expect("peer response");
@@ -427,14 +434,14 @@ fn browser_death_ends_hand_with_diagnostic_and_status_one() {
         skein_shell::close_keeper_fd(browser);
         assert!(sent.is_ok(), "kill kept browser: {sent:?}");
     }
-    let deadline = hand.reader.now().saturating_add(skein_lib::Duration::from_secs(10));
+    let deadline = hand.reader.deadline("the hand exit after browser death", skein_lib::Duration::from_secs(10));
     loop {
         if let Some(status) = hand.child.0.try_wait().expect("wait hand") {
             assert_eq!(status.code(), Some(1), "8.1 browser death status");
             assert!(!hand.reader.stderr().trim().is_empty(), "8.1 browser death diagnostic");
             break;
         }
-        assert!(hand.reader.now() < deadline, "8.1 browser death must end hand");
+        deadline.check("8.1 browser death must end hand");
         hand.reader.pause();
     }
 }
@@ -467,12 +474,12 @@ if(n>=4200){clearInterval(timer);document.querySelector('h1').textContent='Finis
 fn complete_calls_keep_accept_order_after_a_partial_first_call() {
     let mut hand = Hand::start("<h1>Fixture</h1>");
     let mut first = hand.connect();
-    first.write_all(b"{\"call\":").expect("partial first call");
+    hand.send(&mut first, b"{\"call\":", "partial first call");
     let mut second = hand.connect();
-    second.write_all(b"{\"call\":\"shot\"}\n").expect("complete second call");
-    first.write_all(b"\"shot\"}\n").expect("complete first call");
-    let first = answer(first);
-    let second = answer(second);
+    hand.send(&mut second, b"{\"call\":\"shot\"}\n", "complete second call");
+    hand.send(&mut first, b"\"shot\"}\n", "complete first call");
+    let first = answer(&hand, first);
+    let second = answer(&hand, second);
     assert_eq!(text(field(field(&first, "shot"), "file")), "shots/0001.png", "8.2 accepted order");
     assert_eq!(text(field(field(&second, "shot"), "file")), "shots/0002.png", "8.2 accepted order");
     hand.stop("-TERM");

@@ -13,7 +13,7 @@ fn every_hosted_story_settles_replays_and_frees_its_own_heap_over_seeds() {
             check_story(scenario, &first);
             check_story(scenario, &replay);
             assert_eq!(first.trace, replay.trace, "seed {seed} replays its hosted records");
-            assert_eq!(first.heap, replay.heap, "seed {seed} replays its metered heaps");
+            assert_eq!(first.peaks(), replay.peaks(), "seed {seed} replays its metered heaps");
         }
     }
 }

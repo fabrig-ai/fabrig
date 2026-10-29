@@ -27,6 +27,7 @@ use skein_io::{self as io, Io};
 use skein_lib::stream;
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use skein_shell::{Clock, Config, Kernel, Wait, open_root};
+use skein_world::{Deadline, Expired};
 
 const PROCESS: Token = Token::new(10);
 const BROWSER: Token = Token::new(11);
@@ -302,16 +303,10 @@ impl Rig {
     }
 
     pub fn run(&mut self) {
-        let deadline = self.clock.now().now.saturating_add(Duration::from_secs(60));
+        let mut deadline = Deadline::arm("the Chromium browser conversation", Duration::from_secs(60));
         for _ in 0..50_000_u32 {
             self.kernel.reap(&mut self.complete);
             let now = self.clock.now();
-            assert!(
-                now.now < deadline,
-                "Chromium smoke test timed out at {:?}, stderr: {}",
-                self.stage,
-                String::from_utf8_lossy(&self.stderr)
-            );
             self.browser_env.now = now.now;
             self.browser_env.wall = now.wall;
             self.io_env.now = now.now;
@@ -324,6 +319,11 @@ impl Rig {
                 if complete.op == ROOT_CLOSE {
                     assert_eq!(complete.result, Ok(Done::Nothing), "close the process root descriptor");
                 } else {
+                    if let Ok(Done::Spawned { pidfd, .. }) = &complete.result
+                        && let Some(pid) = skein_shell::child_id(*pidfd).ok().filter(|pid| *pid != 0)
+                    {
+                        deadline.watch_process(pid);
+                    }
                     io::up(&mut self.io, &self.io_env, complete, &mut self.io_events, &mut self.submits);
                 }
             }
@@ -352,6 +352,19 @@ impl Rig {
             {
                 return;
             }
+            if deadline.passed() {
+                match deadline.expired() {
+                    Expired::Starved(starved) => {
+                        self.end();
+                        starved.pass();
+                    }
+                    Expired::Failed(figures) => panic!(
+                        "Chromium smoke test timed out at {:?}, stderr: {}; {figures}",
+                        self.stage,
+                        String::from_utf8_lossy(&self.stderr)
+                    ),
+                }
+            }
             let pending = self.io.is_ready()
                 || !self.complete.is_empty()
                 || !self.io_events.is_empty()
@@ -363,7 +376,7 @@ impl Rig {
             let wait = if pending {
                 Wait::No
             } else {
-                let mut until = deadline;
+                let mut until = deadline.until();
                 if let Some(next) = self.io.next_deadline() {
                     until = until.min(next);
                 }
@@ -375,6 +388,68 @@ impl Rig {
             self.kernel.submit(&mut self.submits, wait);
         }
         panic!("Chromium smoke test did not settle at {:?}", self.stage);
+    }
+
+    // testing-strategy.md, 2.10: abort and reap before a starved pass exits.
+    fn end(&mut self) {
+        self.io_requests.retain(|request| matches!(request, io::Request::Spawn { .. }));
+        while self.browser_down.pop().is_some() {}
+        self.pages.stop();
+        for entity in self.child.into_iter().chain(self.pipes.into_iter().flatten()) {
+            self.io_requests.push_back(io::Request::Abort { entity });
+        }
+        loop {
+            self.kernel.reap(&mut self.complete);
+            let now = self.clock.now();
+            self.io_env.now = now.now;
+            self.io_env.wall = now.wall;
+            self.pages.update_time(now.now, now.wall);
+            while self.io.is_ready() {
+                io::resume(&mut self.io, &self.io_env, &mut self.io_events, &mut self.submits);
+            }
+            while let Some(complete) = self.complete.pop() {
+                if complete.op == ROOT_CLOSE {
+                    assert_eq!(complete.result, Ok(Done::Nothing), "close the process root descriptor");
+                } else {
+                    io::up(&mut self.io, &self.io_env, complete, &mut self.io_events, &mut self.submits);
+                }
+            }
+            while self.io.is_due(now.now) {
+                io::fire(&mut self.io, &self.io_env, &mut self.io_events, &mut self.submits);
+            }
+            while let Some(event) = self.io_events.pop() {
+                if let io::Event::Failed { error, .. } = &event {
+                    panic!("browser cleanup: {error:?}");
+                }
+                if let io::Event::Spawned { owner: PROCESS, child, pipes } = &event {
+                    self.child = Some(*child);
+                    for entity in core::iter::once(*child).chain(pipes.iter().copied()) {
+                        self.io_requests.push_back(io::Request::Abort { entity });
+                    }
+                    self.submits.push(Submit { op: ROOT_CLOSE, kind: Op::Close { fd: self.root } });
+                    self.root_closed = true;
+                } else if matches!(&event, io::Event::Exited { owner: PROCESS, .. }) {
+                    self.exited = true;
+                } else if matches!(&event, io::Event::Closed { owner: PROCESS }) {
+                    self.child_closed = true;
+                } else if matches!(
+                    &event,
+                    io::Event::Listening { owner: serve::OWNER, .. } | io::Event::Accepted { owner: serve::OWNER, .. }
+                ) || matches!(&event, io::Event::Stream { owner, .. } | io::Event::Closed { owner } if self.pages.owns(*owner))
+                {
+                    self.pages.event(event);
+                }
+            }
+            while self.io.takes() {
+                let Some(request) = self.io_requests.pop_front().or_else(|| self.pages.take()) else { break };
+                io::down(&mut self.io, &self.io_env, request, &mut self.submits);
+            }
+            self.io.reclaim();
+            if self.child_closed && self.io.is_empty() && self.kernel.in_flight() == 0 && self.submits.is_empty() {
+                return;
+            }
+            self.kernel.submit(&mut self.submits, Wait::Until(now.now.saturating_add(Duration::from_millis(10))));
+        }
     }
 
     pub fn fixed_page(&mut self, body: Vec<u8>) {

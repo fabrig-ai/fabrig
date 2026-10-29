@@ -6,10 +6,12 @@
 )]
 #[path = "../src/json.rs"]
 mod json;
+#[expect(dead_code, reason = "the shared reader also supports hand sockets and elapsed-time assertions")]
 mod support;
 
 use std::fs::{self, File};
 use std::io::Write;
+use std::os::unix::process::CommandExt;
 use std::process::{Command, Stdio};
 
 use json::Value;
@@ -50,10 +52,11 @@ fn start() -> (Scratch, Child, Reader) {
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(File::create(&stderr).expect("stderr evidence"))
+        .process_group(0)
         .spawn()
         .expect("start built browser program");
     let mut child = Child(process);
-    let mut reader = Reader::new(child.0.stdout.take().expect("stdout pipe"), stderr);
+    let mut reader = Reader::new(child.0.stdout.take().expect("stdout pipe"), stderr, vec![child.0.id()]);
     let ready = reader.answer();
     assert!(!text(field(field(&ready, "ready"), "browser")).is_empty(), "{ready:?}");
     (scratch, child, reader)
@@ -68,13 +71,14 @@ fn call(child: &mut Child, reader: &mut Reader, line: &str) -> Value {
 
 fn finish(child: &mut Child, reader: &mut Reader) {
     drop(child.0.stdin.take());
-    let deadline = reader.now().saturating_add(Duration::from_secs(10));
+    let deadline = reader.deadline("the lab program exit", Duration::from_secs(10));
     loop {
         if let Some(status) = child.0.try_wait().expect("wait program") {
+            deadline.verdict(status.success());
             assert!(status.success(), "{status}; {}", reader.stderr());
             return;
         }
-        assert!(reader.now() < deadline, "EOF must settle the browser: {}", reader.stderr());
+        deadline.check(&format!("EOF must settle the browser: {}", reader.stderr()));
         reader.pause();
     }
 }

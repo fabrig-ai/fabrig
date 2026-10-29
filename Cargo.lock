@@ -201,6 +201,7 @@ dependencies = [
  "skein-shell",
  "skein-throwaway-forgejo",
  "skein-tls",
+ "skein-world",
 ]
 
 [[package]]
@@ -2086,6 +2087,7 @@ dependencies = [
  "skein-shell",
  "skein-ui",
  "skein-ui-web",
+ "skein-world",
 ]
 
 [[package]]
@@ -2884,6 +2886,7 @@ dependencies = [
  "skein-lib",
  "skein-scratch",
  "skein-shell",
+ "skein-world",
 ]
 
 [[package]]

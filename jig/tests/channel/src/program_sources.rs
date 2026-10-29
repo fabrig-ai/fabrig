@@ -464,9 +464,6 @@ impl Host for Login {
     fn is_empty(&self) -> bool {
         self.state.get() == LoginPhase::Done && self.io.is_empty()
     }
-    fn worst_case(&self) -> u64 {
-        4_194_304
-    }
     fn operations(&self) -> u32 {
         io::operations(&self.env.limits).expect("login launcher io").checked_add(1).expect("root close operation")
     }

@@ -127,11 +127,10 @@ fn every_process_stays_within_its_scenario_ceiling_at_every_iteration() {
     // Bounds each process in the echo and three clients scenario, including queue growth.
     const CEILING: u64 = 9_100;
     let outcome = clients_with_memory(1, Config::calm(), Memory::Within(CEILING)).run();
-    let heap = outcome.heap.as_ref().expect("checked");
+    let heap = outcome.peaks().expect("checked");
     assert_eq!(heap.len(), 4, "the echo and three clients, each checked against the scenario ceiling");
-    for (at, (most, bound)) in heap.iter().enumerate() {
-        assert_eq!(*bound, CEILING);
-        assert!(*most > 0 && *most <= CEILING, "process {at} held {most} bytes at most, within {bound}");
+    for (at, most) in heap.iter().enumerate() {
+        assert!(*most > 0 && *most <= CEILING, "process {at} held {most} bytes at most, within {CEILING}");
     }
     // Dropping the outcome checks that each process frees what it held.
 }
@@ -165,9 +164,8 @@ fn every_echo_connection_fills_its_buffers_together_within_its_scenario_ceiling(
                 }
             });
         assert!(filled, "seed {seed}: every connection filled its intake and output after a full receive");
-        let (most, bound) = outcome.heap.as_ref().expect("checked")[0];
-        assert_eq!(bound, CEILING);
-        assert!(most <= CEILING, "seed {seed}: the echo held {most} bytes, within {bound}");
+        let most = outcome.peaks().expect("checked")[0];
+        assert!(most <= CEILING, "seed {seed}: the echo held {most} bytes, within {CEILING}");
     }
     for seed in CHAOS {
         let _outcome = worst_with_memory(seed, Config::chaos(), Memory::Within(CEILING)).run();

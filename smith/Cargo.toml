@@ -16,10 +16,12 @@ autoexamples = false
 [[bin]]
 name = "smith"
 path = "src/main.rs"
+test = false
 
 [[bin]]
 name = "smith-agent"
 path = "src/bin/smith-agent.rs"
+test = false
 
 [[bin]]
 name = "fake-claude"
