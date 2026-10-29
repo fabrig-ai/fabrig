@@ -327,7 +327,14 @@ pub(crate) fn tokenize(input: &[u8], limits: &Limits) -> Option<List<Token>> {
     None
 }
 
+/// The old name of [`manifest_bound`]; it goes once every tree
+/// calls the new name (wave 3).
 pub(crate) fn worst_case(limits: &Limits, manifest_bytes: u32) -> Option<u64> {
+    manifest_bound(limits, manifest_bytes)
+}
+
+/// Bounds one decoded manifest and its token workspace.
+pub(crate) fn manifest_bound(limits: &Limits, manifest_bytes: u32) -> Option<u64> {
     let strings = u64::from(limits.string_bytes);
     let lists =
         List::<Permission>::worst_case(limits.inner)?.checked_add(List::<Box<[u8]>>::worst_case(limits.inner)?)?;
