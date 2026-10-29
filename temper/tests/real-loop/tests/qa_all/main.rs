@@ -9,6 +9,5 @@ mod qa_adoption_hold;
 mod qa_github_connect;
 mod qa_github_land;
 mod qa_github_loop;
-mod qa_live_text;
 mod qa_plan_chat;
 mod qa_sign_in_paste;
