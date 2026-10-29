@@ -7,8 +7,6 @@ use alloc::boxed::Box;
 use skein_forge::forgejo::pin::{self, Binary};
 use skein_lib::{Decimal, List, Queue, Writer, sha256::Sha256};
 
-/// At most one effect or terminal answer for each event.
-pub const MAX_OUT: u32 = 1;
 /// One pinned release at its resolved cache path.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Pin {
