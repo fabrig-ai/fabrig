@@ -742,6 +742,12 @@ admitted within that edge is never refused as too large.
 - **Two bounds.** skein-kv bounds a page by encoded bytes, the asker by
   rows and decoded bytes. The component keeps the longest prefix that
   fits both.
+- **A restart's page holds any row a writer commits:** its byte bound
+  is at least the largest row a writer can commit, never the on-demand
+  read allowance (`core.load_bytes`), which bounds a party's or a run's
+  loads alone. So every record its writers wrote restores
+  (`../domain/engine.md`, section 6), and a restart page that comes back
+  empty without moving its cursor is a bug and panics, never a loop.
 - **A row that does not decode** stops the engine, as a failed commit
   does: the store holds bytes it did not write, or that broke since.
 
@@ -1699,7 +1705,10 @@ Event::Switched { owner: Token }   // or `OpenRefused`, or `Failed` with the ren
   (section 16). In memory: one map at a time (`A`'s closed before the
   copy's opens) and one machine per kept family (10.3), each
   `Patcher::workspace_bound` of its capacity. Section 13's worst case
-  counts the larger of patching's peak and serving's, never both.
+  counts the larger of patching's peak and serving's, never both. A
+  cold restart's page workspace (7.1) is held the same way: only before
+  the engine serves, so the restart's peak counts it, never a message's
+  or a retained answer's bound, since no message carries it.
 - **The domain sees** the copy as any restart's store, pending until it
   asks for the switch (step 7), with the windows a fresh mark closed and
   the claims it crossed (step 4).
