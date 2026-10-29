@@ -117,12 +117,6 @@ pub const fn edge_room(_limits: &Limits) -> EdgeRoom {
     EDGE_ROOM
 }
 
-/// The name temper's worker-peer fixture reads; returns `edge_room`'s value.
-#[must_use]
-pub const fn max_out(limits: &Limits) -> EdgeRoom {
-    edge_room(limits)
-}
-
 /// Whether codec edges and responder capacities fit (programming-model.md, 6.3).
 #[must_use]
 #[expect(clippy::manual_let_else, reason = "programming-model.md, section 10: explicit exhaustive matches")]

@@ -33,12 +33,6 @@ fn limits() -> Limits {
 }
 
 #[test]
-fn max_out_returns_the_host_channel_edge_room() {
-    let limits = limits();
-    assert_eq!(crate::max_out(&limits), crate::edge_room(&limits));
-}
-
-#[test]
 fn the_agent_demands_the_open_before_the_domain_hears_anything() {
     let limits = limits();
     let mut component =
