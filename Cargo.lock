@@ -3923,6 +3923,8 @@ dependencies = [
  "skein-world",
  "smith-agent-service",
  "smith-agent-shell",
+ "smith-agent-world",
+ "smith-domain-run",
  "smith-fake-claude",
  "smith-host-domain",
  "smith-host-protocol",
