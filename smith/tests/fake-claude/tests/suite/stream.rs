@@ -1,13 +1,8 @@
 //! The owner's recorded stream shapes, reports/live-claude-sequence.txt.
-#[allow(dead_code)]
-mod support;
 
+use crate::support::print::{self, messages};
 use serde_json::{Value, json};
 use smith_fake_claude::{Answer, End, ServerScript, Step, Story, Tool, Turn};
-use support::print::{self, messages};
-
-#[global_allocator]
-static HEAP: skein_heap::Counting = skein_heap::Counting;
 
 #[test]
 fn init_has_the_recorded_keys_and_thirteen_capabilities() {

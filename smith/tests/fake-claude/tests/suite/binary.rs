@@ -94,8 +94,7 @@ fn the_binary_logout_accepts_an_absent_directory() {
     assert!(!config.exists());
 }
 
-#[allow(dead_code)]
-mod support;
+use crate::support;
 
 use smith_fake_claude::{Answer, End, STORY_FILE, ServerScript, Step, Story, Tool, Turn};
 use std::io::{BufRead, BufReader, Write};

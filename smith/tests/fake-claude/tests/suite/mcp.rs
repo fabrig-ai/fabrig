@@ -1,16 +1,12 @@
 //! The fake and its MCP child hosted together, per protocol/programs.md,
 //! sections 5 and 8. Referee signals reach the fake rather than its peer.
 
-#[allow(dead_code)]
-mod support;
+use crate::support;
 
+use crate::support::print::{self, messages};
 use serde_json::{Value, json};
 use skein_io::kernel::{Exit, ServiceSignal};
 use smith_fake_claude::{Answer, Decision, End, Seen, ServerScript, Step, Story, Tool, Turn, Verdict, seen};
-use support::print::{self, messages};
-
-#[global_allocator]
-static HEAP: skein_heap::Counting = skein_heap::Counting;
 
 fn story(steps: Vec<Step>) -> Story {
     Story { turns: vec![Turn { steps, end: End::default() }], ..Story::default() }

@@ -1,16 +1,12 @@
 //! Print conversations through the simulated process face, per
 //! protocol/programs.md, sections 5 and 8.
 
-#[allow(dead_code)]
-mod support;
+use crate::support;
 
+use crate::support::print::{self, MCP, SESSION, messages, normal};
 use serde_json::{Value, json};
 use skein_io::kernel::{Exit, ServiceSignal};
 use smith_fake_claude::{End, Resume, Seen, Step, Story, Turn, seen};
-use support::print::{self, MCP, SESSION, messages, normal};
-
-#[global_allocator]
-static HEAP: skein_heap::Counting = skein_heap::Counting;
 
 fn story(steps: Vec<Step>, end: End) -> Story {
     Story { turns: vec![Turn { steps, end }], ..Story::default() }

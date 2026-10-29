@@ -1,12 +1,8 @@
 //! Fake Claude, shipped relay and real MCP server (programs.md, 5.3, 5.4, 9).
-#[allow(dead_code)]
-mod support;
+use crate::support::relay::{self, Run};
 use serde_json::{Value, json};
 use smith_fake_claude::{End, Step, Story, Turn};
 use smith_protocol_program::mcp::Up;
-use support::relay::{self, Run};
-#[global_allocator]
-static HEAP: skein_heap::Counting = skein_heap::Counting;
 fn story(steps: Vec<Step>) -> Story {
     Story { turns: vec![Turn { steps, end: End::default() }], ..Story::default() }
 }

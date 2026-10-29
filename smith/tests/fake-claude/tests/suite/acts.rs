@@ -1,16 +1,10 @@
 //! Allowed workspace operations through the shared simulated process face
 //! (protocol/programs.md, sections 5.3, 5.4 and 8).
 
-#[allow(dead_code)]
-mod support;
-
+use crate::support::{Run, print};
 use serde_json::{Value, json};
 use skein_fake_machine::Item;
 use smith_fake_claude::{Decision, Seen, ServerScript, Step, Story, Turn, Verdict, seen};
-use support::{Run, print};
-
-#[global_allocator]
-static HEAP: skein_heap::Counting = skein_heap::Counting;
 
 const FILE: &[u8] = b"file.txt";
 const ORIGINAL: &[u8] = b"before\n";

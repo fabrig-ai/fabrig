@@ -1,16 +1,10 @@
 //! Conversation cues and resumed cursors through the simulated process face
 //! (protocol/programs.md, sections 5.8 and 8; skein fake-llm.md, section 2.4).
 
-#[allow(dead_code)]
-mod support;
-
+use crate::support::{Invocation, Run, print};
 use serde_json::{Value, json};
 use skein_fake_machine::Item;
 use smith_fake_claude::{Script, Seen, Selection, Step, Story, Turn, selections};
-use support::{Invocation, Run, print};
-
-#[global_allocator]
-static HEAP: skein_heap::Counting = skein_heap::Counting;
 
 const OTHER_SESSION: &str = "12345678-1234-1234-1234-123456789abd";
 const PROMPT: &str = "run/instructions.md";

@@ -1,14 +1,11 @@
 //! Hosted sign-in stories over skein's fake filesystem (protocol/programs.md,
 //! section 8; testing.md, section 4).
 
-mod support;
+use crate::support;
 
+use crate::support::{Invocation, run};
 use skein_io::kernel::Exit;
 use smith_fake_claude::{Login, Logout, Observation, Status, Story, observations};
-use support::{Invocation, run};
-
-#[global_allocator]
-static HEAP: skein_heap::Counting = skein_heap::Counting;
 
 fn status(record: &support::Record) -> serde_json::Value {
     assert!(record.stderr.is_empty());
