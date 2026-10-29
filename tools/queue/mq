@@ -253,10 +253,13 @@ def check_commands(repo, selected, paths, *, metadata=None):
             ("default", ["heavy", "--gate", "cargo", "nextest", "run", *scope, "--no-fail-fast"], repo),
             ("fuzzy", ["heavy", "--gate", "cargo", "nextest", "run", *scope, "--no-fail-fast", "--profile", "fuzzy"], repo),
         ])
-    trees = {path.split("/", 1)[0] for path in paths} & set(TREES)
-    steps.extend((f"ratchet:{tree}", ["python3", "-I", "-B", str(repo / tree / "scripts/old_forms.py")], repo / tree)
-                 for tree in sorted(trees))
     return steps
+
+
+def ratchet_commands(repo, paths):
+    trees = {path.split("/", 1)[0] for path in paths} & set(TREES)
+    return [(f"ratchet:{tree}", ["python3", "-I", "-B", str(repo / tree / "scripts/old_forms.py"), "--write"],
+             repo / tree) for tree in sorted(trees)]
 
 
 def tools_commands(repo):
@@ -318,6 +321,14 @@ def run_checks(repo, selected, paths, log_path, *, runner=subprocess.run, clock=
     outcomes = []
     with log_path.open("a+") as log:
         os.chmod(log_path, 0o600)
+        for name, argv, cwd in ratchet_commands(repo, paths):
+            outcomes.append(run_step(name, argv, cwd, log, runner=runner, clock=clock))
+            if not outcomes[-1]["green"]:
+                return outcomes
+            baseline = f"{cwd.name}/scripts/old-forms.txt"
+            if git(repo, "diff", "--name-only", "--", baseline).stdout:
+                git(repo, "add", "--", baseline)
+                git(repo, "commit", "-m", f"Lower {cwd.name} old-form baselines")
         if selected == "full" or any(path.startswith("tools/") for path in paths):
             outcomes.append(run_tools(repo, log, runner=runner, clock=clock))
             if not outcomes[-1]["green"]:

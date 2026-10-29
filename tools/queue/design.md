@@ -5,8 +5,8 @@ Provisional, 2026-10-28. How a branch reaches `main`: a script on the gate machi
 ## 1. In one page
 
 - **Input:** remote branches `ready/<lead>/<task>` on `origin`, each pushed by its lead.
-- **A batch:** from `origin/main`, the ready branches not yet tried at their current tip, oldest tip first, at most `batch` (8) of them, each merged with `git merge --no-ff -m "Merge <branch name>"`; ratchet-only conflicts are resolved by recounting against HEAD (section 3.3); any other conflict is aborted, reported, and left out.
-- **The checks run on a selection** (section 2), not always the whole workspace: the tools' suites (section 2.3), `cargo fmt --check`, clippy with `-D warnings`, a nextest `build`, the focused (`default`) and `fuzzy` nextest profiles, and each tree's `scripts/old_forms.py` (the ratchet). Cargo build and test commands run through `heavy --gate` on the gate machine, which nothing else builds on. Lockfile and member manifest changes select affected packages (section 2.1); formatting covers changed Rust owners (section 2.2). Step durations are recorded separately (section 3.6).
+- **A batch:** from `origin/main`, the ready branches not yet tried at their current tip, oldest tip first, at most `batch` (8) of them, each merged with `git merge --no-ff -m "Merge <branch name>"`; ratchet-only conflicts are resolved by recounting against HEAD (section 3.3); any other conflict is aborted, reported, and left out. After merging, the queue writes and commits lower old-form baselines for touched trees before checks. Branches need not change those baselines.
+- **The checks run on a selection** (section 2), not always the whole workspace: touched trees' `scripts/old_forms.py --write` (the ratchet, section 3.3), then the tools' suites (section 2.3), `cargo fmt --check`, clippy with `-D warnings`, a nextest `build`, and the focused (`default`) and `fuzzy` nextest profiles. Cargo build and test commands run through `heavy --gate` on the gate machine, which nothing else builds on. Lockfile and member manifest changes select affected packages (section 2.1); formatting covers changed Rust owners (section 2.2). Step durations are recorded separately (section 3.6).
 - **Green:** `git push origin HEAD:main` (fast-forward only); the batch's `ready/` branches are deleted; each lead is told which commit holds its task.
 - **Red:** a batch of one is rejected (its lead gets the failing step and the log's path, and the branch isn't retried until its tip changes); a larger batch is halved and each half tried from `main`, recursively, so the green branches still land.
 - **Capacity refusal:** a heavy exit 2 containing `below the disk floor` is an error, with no rejection or bisection. Before every batch, free space below `--disk-floor` (45 GB by default) defers work to the next cycle.
@@ -96,7 +96,24 @@ step's output (including the builder's host and space), plus the queue host
 and free GB. Other exit codes or messages remain red. No refused batch
 marks tips tried, rejects a branch, or bisects. `once` surfaces these errors.
 
-### 3.3 Ratchet conflicts
+### 3.3 Old-form baselines and ratchet conflicts
+
+After all batch merges and any conflict recounts below, run
+`python3 -I -B <absolute tree>/scripts/old_forms.py --write` from each touched
+tree, in tree-name order, before tools or Cargo checks. Each command is step
+`ratchet:<tree>` with its duration recorded. A raised count makes that step
+red and stops later checks; rejection or bisection follows section 1. For
+each changed `<tree>/scripts/old-forms.txt`, commit it on top of the batch's
+merges as `Lower <tree> old-form baselines`, using the queue's git identity.
+An unchanged baseline gets no commit. The green push carries these commits;
+each bisection half recounts from its own merges. The selection uses the
+batch's changed paths before these baseline commits, so a recount does not
+expand a docs-only batch into Cargo checks. Batches touching no tree write
+no baseline, including idle full checks with no changed paths.
+
+Tasks do not lower baselines: the queue keeps them tight. Branches may still
+change `old-forms.txt`; those changes merge normally, with the following
+resolution for conflicts confined to baselines.
 
 If every conflicted path is `<tree>/scripts/old-forms.txt` for one of the four
 trees, take HEAD's version of each baseline and complete the merge. From
@@ -139,7 +156,8 @@ monotonic wall time in its own step record. A failed build stops checks and
 the rejection names failing step `build`. Nextest exit 4 (no tests) is green
 for build, default, and fuzzy, as for an empty test selection. Fuzzy remains
 one step with `--profile fuzzy`; the build step already built its binaries.
-Ratchets follow tests. Docs-only batches run only touched trees' ratchets.
+Ratchets run before tools and Cargo checks (section 3.3). Docs-only batches
+run only touched trees' writing ratchets, plus tools suites when applicable.
 
 ### 3.7 Restarting and the login shell
 
