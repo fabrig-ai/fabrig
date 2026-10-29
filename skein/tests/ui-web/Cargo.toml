@@ -25,3 +25,12 @@ skein-scratch.workspace = true
 
 [lints.rust]
 unsafe_code = "forbid"
+
+[lib]
+test = false
+doctest = false
+
+[[bin]]
+name = "harness_fixture"
+path = "src/bin/harness_fixture.rs"
+test = false

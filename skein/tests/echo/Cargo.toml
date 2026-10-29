@@ -42,14 +42,10 @@ allow_attributes_without_reason = "deny"
 disallowed_types = "deny"
 disallowed_methods = "deny"
 
-[[test]]
-name = "scenarios"
-path = "tests/scenarios.rs"
+[lib]
+test = false
+doctest = false
 
 [[test]]
-name = "fuzzy_scenarios"
-path = "tests/fuzzy_scenarios.rs"
-
-[[test]]
-name = "real"
-path = "tests/real.rs"
+name = "suite"
+path = "tests/suite/main.rs"

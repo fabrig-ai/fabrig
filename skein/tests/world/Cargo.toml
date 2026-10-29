@@ -40,9 +40,15 @@ disallowed_methods = "deny"
 # Reuse exactly the conformance suite's process fixture, rather than owning
 # another executable with the same behaviour.
 [[bin]]
+test = false
 name = "world_process_fixture"
 path = "../conformance/real/src/bin/process_fixture.rs"
 
 [[bin]]
+test = false
 name = "world_terminal_fixture"
 path = "src/bin/terminal_fixture.rs"
+
+[lib]
+test = false
+doctest = false
