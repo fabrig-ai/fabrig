@@ -332,7 +332,7 @@ fn stopping_continues_a_projection_deferred_watch_without_another_commit() {
     use skein_lib::{Env, Wall};
     let (mut domain, env, watcher) = settled_frame_watch(Wall::from_nanos(u64::MAX));
     let mut out = Queue::with_capacity(env.limits.journal.held);
-    let mut policy_out = Queue::with_capacity(jig_domain_authority::POLICY_MAX_OUT);
+    let mut policy_out = Queue::uncapped();
     jig_domain_authority::step(
         &mut domain.core.authority,
         jig_domain_authority::Event::Policy {

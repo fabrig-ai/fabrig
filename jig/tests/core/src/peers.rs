@@ -528,7 +528,7 @@ pub fn fixture(seed: u64, engine_slots: u32) -> (root::Config, root::Limits) {
     observer.decides = policy::Proposals(0);
     project.roles = Box::new([owner, maintainer, member, observer]);
     let mut checked = policy::Domain::new(rules, limits.core.authority).expect("peer policy limits");
-    let mut out = skein_lib::Queue::with_capacity(policy::POLICY_MAX_OUT);
+    let mut out = skein_lib::Queue::uncapped();
     policy::step(&mut checked, policy::Event::Policy { project: 1, policy: project }, &mut out);
     assert_eq!(out.pop(), Some(policy::PolicyFact::Added { project: 1 }));
     configuration.core.seed_projects[0].policy.policy = checked.policy(1).expect("checked seed policy").clone();

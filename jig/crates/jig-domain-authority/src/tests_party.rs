@@ -196,14 +196,14 @@ fn batch_request(spend: u64) -> PersonAsk {
 #[test]
 fn a_partys_batch_beyond_their_role_answers_propose() {
     let domain = domain_with_role_spend(40);
-    let mut why = skein_lib::Queue::with_capacity(crate::max_out(domain.limits()).unwrap());
+    let mut why = skein_lib::Queue::uncapped();
     assert_eq!(crate::check_request(&domain, &batch_request(60), &mut why).answer, crate::Answer::Propose);
 }
 
 #[test]
 fn a_partys_batch_beyond_the_project_ceiling_answers_refuse() {
     let domain = domain_with_role_spend(40);
-    let mut why = skein_lib::Queue::with_capacity(crate::max_out(domain.limits()).unwrap());
+    let mut why = skein_lib::Queue::uncapped();
     assert_eq!(crate::check_request(&domain, &batch_request(110), &mut why).answer, crate::Answer::Refuse);
 }
 
@@ -212,7 +212,7 @@ fn a_partys_widening_beyond_their_role_answers_propose() {
     let domain = domain_with_role_spend(40);
     let mut ask = batch_request(60);
     ask.request = PersonRequest::Amend(crate::tests_fixtures::delegate(60).authority);
-    let mut why = skein_lib::Queue::with_capacity(crate::max_out(domain.limits()).unwrap());
+    let mut why = skein_lib::Queue::uncapped();
     assert_eq!(crate::check_request(&domain, &ask, &mut why).answer, crate::Answer::Propose);
 }
 
@@ -229,8 +229,8 @@ fn one_batch_answers_alike_under_a_task_and_under_a_party() {
             tasks_left: person.tasks_left,
             tasks: tasks.clone(),
         };
-        let mut task_why = skein_lib::Queue::with_capacity(crate::max_out(domain.limits()).unwrap());
-        let mut person_why = skein_lib::Queue::with_capacity(crate::max_out(domain.limits()).unwrap());
+        let mut task_why = skein_lib::Queue::uncapped();
+        let mut person_why = skein_lib::Queue::uncapped();
         assert_eq!(
             crate::check_batch(&domain, &task, &mut task_why),
             crate::check_request(&domain, &person, &mut person_why),
@@ -249,7 +249,7 @@ fn a_partys_widening_beyond_their_pool_answers_propose() {
     let mut ask = batch_request(60);
     ask.pool = numbers(40);
     ask.request = PersonRequest::Amend(crate::tests_fixtures::delegate(60).authority);
-    let mut why = skein_lib::Queue::with_capacity(crate::max_out(domain.limits()).unwrap());
+    let mut why = skein_lib::Queue::uncapped();
     assert_eq!(crate::check_request(&domain, &ask, &mut why).answer, crate::Answer::Propose);
 }
 

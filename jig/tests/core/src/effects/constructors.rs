@@ -35,7 +35,7 @@ pub fn fixture(seed: u64, requirement: bool) -> (root::Config, root::Limits) {
         }]);
     }
     let mut domain = authority::Domain::new(rules, limits.core.authority).expect("bounded effect rules");
-    let mut out = Queue::with_capacity(authority::POLICY_MAX_OUT);
+    let mut out = Queue::uncapped();
     authority::step(&mut domain, authority::Event::Policy { project: 1, policy }, &mut out);
     assert_eq!(out.pop(), Some(authority::PolicyFact::Added { project: 1 }));
     configuration.core.seed_projects[0].policy.policy = domain.policy(1).expect("checked seed policy").clone();

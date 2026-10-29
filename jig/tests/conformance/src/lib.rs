@@ -71,7 +71,7 @@ impl Config {
             let mut domain = authority::Domain::new(config.core.defaults.rules.clone(), limits.core.authority)
                 .expect("compound authority bounds");
             let policy = config.core.seed_projects[0].policy.policy.clone();
-            let mut out = Queue::with_capacity(authority::POLICY_MAX_OUT);
+            let mut out = Queue::uncapped();
             authority::step(&mut domain, authority::Event::Policy { project: 1, policy }, &mut out);
             assert_eq!(out.pop(), Some(authority::PolicyFact::Added { project: 1 }));
             config.core.seed_projects[0].policy.policy = domain.policy(1).expect("checked seed policy").clone();
@@ -120,7 +120,7 @@ impl Config {
                 must_be_guarded: false,
             }]);
             let mut checked = authority::Domain::new(rules, limits.core.authority).expect("scenario authority fits");
-            let mut out = Queue::with_capacity(authority::POLICY_MAX_OUT);
+            let mut out = Queue::uncapped();
             authority::step(&mut checked, authority::Event::Policy { project: 1, policy }, &mut out);
             assert_eq!(out.pop(), Some(authority::PolicyFact::Added { project: 1 }));
             config.core.seed_projects[0].policy.policy = checked.policy(1).expect("checked seed policy").clone();
