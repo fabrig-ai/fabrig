@@ -484,12 +484,3 @@ fn read_coordinate(reader: &mut skein_lib::Reader<'_>) -> u16 {
     let high = reader.u8().expect("stored coordinate high byte");
     u16::from_le_bytes([low, high])
 }
-
-/// Reservations shared by `Scene::new` and the UI heap bound.
-pub(crate) fn worst_case(limits: &Limits) -> Option<u64> {
-    let tokens = limits.scene_marks.checked_mul(limits.styles_per_node)?;
-    List::<Mark>::price(limits.scene_marks)?
-        .checked_add(List::<Properties>::price(limits.scene_marks)?)?
-        .checked_add(List::<u8>::price(limits.scene_bytes)?)?
-        .checked_add(List::<Style>::price(tokens)?)
-}
