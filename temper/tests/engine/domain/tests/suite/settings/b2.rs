@@ -226,7 +226,7 @@ fn chat_in(config: [engine::Config; 2]) -> (Driver, engine::Assignment) {
     let chat = assigned(&driver, 1).expect("stock chat assigned");
     assert_eq!(
         chat.run.policy.instructions.as_ref(),
-        include_bytes!("../../../../../crates/temper-service/src/stock/chat.txt"),
+        include_bytes!("../../../../../../crates/temper-service/src/stock/chat.txt"),
         "the chat reports a landed change as its result says it"
     );
     assert_eq!(chat.run.policy.model, box_model());
@@ -255,7 +255,7 @@ fn repair_change(driver: &mut Driver, coordinator: &engine::Assignment, number: 
     let mut worker = child_run(driver, change);
     assert_eq!(
         worker.run.policy.instructions.as_ref(),
-        include_bytes!("../../../../../crates/temper-service/src/stock/coding.txt"),
+        include_bytes!("../../../../../../crates/temper-service/src/stock/coding.txt"),
         "the producer reads the stock coding instructions"
     );
     assert!(!worker.run.policy.shell, "the producer can run nothing");
@@ -384,7 +384,7 @@ pub(super) fn story() {
     let first = assigned(&driver, made[0].task).expect("D1");
     assert_eq!(
         first.run.policy.instructions.as_ref(),
-        include_bytes!("../../../../../crates/temper-service/src/stock/chat.txt"),
+        include_bytes!("../../../../../../crates/temper-service/src/stock/chat.txt"),
         "the goal reports a landed change as its result says it"
     );
     let second = made[1].task;

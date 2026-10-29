@@ -1,12 +1,9 @@
 use skein_lib::{Queue, Token, Wall};
-use skein_world::domain::heap::{self, Meter};
+use skein_world::domain::heap::Meter;
 use temper_engine_domain::{
     self as root, Counters, Decision, Delivery, Journal, JournalOutput as Output, Record, TurnRecord, Write,
 };
 use temper_engine_domain_world::store::{HEADER, LIMITS};
-
-#[global_allocator]
-static HEAP: heap::Counting = heap::Counting;
 
 #[test]
 fn retired_and_abandoned_load_slots_and_a_partial_page_fit_without_payload_clones() {

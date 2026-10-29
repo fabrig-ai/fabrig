@@ -1,6 +1,5 @@
 //! Settings cross the root's journal and real store, including cold restoration.
-#[path = "fixtures/stock.rs"]
-mod stock;
+use crate::stock;
 
 use jig_domain_authority as authority;
 use jig_domain_core::{self as core, settings as s};
