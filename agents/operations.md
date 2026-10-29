@@ -31,7 +31,7 @@ Provisional, 2026-10-28. The machines' and the pipeline's facts every role works
 
 - `tools/queue/design.md`. Branches `<lead>/<task>`, ready as `ready/<lead>/<task>`, marked by the lead from `repo/` after a skim of the diff; a rebased branch gets a new name. The queue posts a rejection (step, log path on hetzner8) to the branch's lead; a rejection is a repair task, a conflict a rebase task.
 - A conflict confined to a tree's `scripts/old-forms.txt` merges by itself (the queue re-runs `--write`, which refuses a raise).
-- When the queue's own code is wrong in a way that stops it landing its fix (every batch fails a step), the coordinator runs the fixed `tools/queue/` from a copy outside the clone (`mq run --repo <clone>`) until the fix lands, then restarts it normally.
+- When the queue's own code is wrong in a way that stops it landing its fix (every batch fails a step), the operator runs the fixed `tools/queue/` from a copy outside the clone (`mq run --repo <clone>`) until the fix lands, then restarts it normally.
 
 ## 6. Later
 
