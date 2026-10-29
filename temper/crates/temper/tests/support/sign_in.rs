@@ -278,6 +278,15 @@ impl Referee<Process> for Judge {
         {
             assert_eq!(exit, Exit::Code(0), "SIGTERM stops serve: {}", String::from_utf8_lossy(binary.stderr()));
         }
+        let Process::Calls(calls) = &procs[1] else { panic!("ctl calls") };
+        for ended in calls.ends() {
+            assert_eq!(
+                ended.exit,
+                Some(Exit::Code(0)),
+                "setup call failed: {}",
+                String::from_utf8_lossy(&ended.stderr)
+            );
+        }
         self.settled = self.sent && procs.iter().all(Host::is_empty);
         if !self.settled
             && let Some(figures) = self.deadline.failed()

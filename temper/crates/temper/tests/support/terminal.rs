@@ -307,6 +307,16 @@ impl Referee<Process> for Judge {
             "terminal exited before the script; stderr: {}",
             String::from_utf8_lossy(open.stderr())
         );
+        for binary in [serve, open] {
+            if let Some(exit) = binary.exit_status() {
+                assert_eq!(
+                    exit,
+                    Exit::Code(0),
+                    "terminal story child failed: {}",
+                    String::from_utf8_lossy(binary.stderr())
+                );
+            }
+        }
         if !self.settled
             && let Some(figures) = self.deadline.failed()
         {
@@ -360,17 +370,17 @@ impl Typist {
     pub fn exit(&mut self, within: Duration) -> u8 {
         let clock = Clock::new();
         let serve = self.serve.take().expect("service binary");
+        let mut open = self.open.take().expect("terminal binary");
         let mut world = real::World::new(Judge {
             stopped: false,
             settled: false,
-            deadline: super::patience::Patience::watching("the terminal and service draining", within, &serve),
+            deadline: super::patience::Patience::watching("the terminal and service draining", within, &open),
         });
         let link = self.link.take().expect("service streams");
         world.spawn_with_fds(serve.descriptors(), || Process::Binary(Box::new(serve)));
         world.spawn_with_fds(link.streams.descriptors(), || {
             Process::Pipes(Box::new(Pipes::new(&link.streams, VecDeque::new())))
         });
-        let mut open = self.open.take().expect("terminal binary");
         let streams = open.take_streams().expect("terminal pipes");
         world.spawn_with_fds(open.descriptors(), || Process::Binary(Box::new(open)));
         world.spawn_with_fds(streams.descriptors(), || {
