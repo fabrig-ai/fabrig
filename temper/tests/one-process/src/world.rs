@@ -232,6 +232,23 @@ impl Host for Proc {
         self.host_mut().drain();
     }
     fn iterate(&mut self, now: Time, wall: Wall) {
+        if crate::m15::observer::enabled() {
+            use crate::m15::observer::{self, Role};
+            let role = match self {
+                Self::Service(_) => Role::Service,
+                Self::Ctl(_) => Role::Ctl,
+                Self::Calls(_) => Role::Caller,
+                Self::Agent(_) => Role::Agent,
+                Self::Git(_) | Self::GitRoute(_) => Role::Git,
+                Self::Shell(_) => Role::Shell,
+                Self::Peer(_) => Role::Provider,
+                Self::Forge(_) => Role::Forge,
+                Self::Client(_) => Role::Client,
+            };
+            for complete in self.host_mut().completions().iter() {
+                observer::complete(role, complete);
+            }
+        }
         self.host_mut().iterate(now, wall);
     }
     fn completions(&mut self) -> &mut Queue<Complete> {
@@ -280,6 +297,30 @@ pub(crate) struct Person {
 }
 const CHAT_WITHIN: Duration = Duration::from_secs(5);
 impl Person {
+    pub(crate) fn pages(root: Fd, steps: Box<[Step<temper_client_domain::Address>]>) -> Self {
+        let mut person = Self::new(root, Story::Chat { words: b"" });
+        person.actor = skein_fake_person::Person::new(steps);
+        person.provision = None;
+        person.wire = referee::client::Wire::capturing();
+        crate::m15::observer::root(crate::m15::observer::Role::Client, root, b"client");
+        person
+    }
+    pub(crate) fn saved(&mut self) {
+        self.client = Some(
+            NativeClient::new(
+                ClientSettings {
+                    engine: skein_io::Addr::Ip(fixtures::CLIENTS),
+                    directory: b"private".as_slice().into(),
+                    limits: stories::client_limits(),
+                },
+                self.root.take().expect("saved client root"),
+                1000,
+                fixtures::SEED,
+                Start::Token,
+            )
+            .expect("saved native client"),
+        );
+    }
     fn new(root: Fd, scenario: Story) -> Self {
         let steps = match scenario {
             Story::Chat { words } | Story::ChatReadThenWait { words } => vec![
@@ -460,6 +501,9 @@ impl Host for Person {
         self.prepare_client(now, wall);
         let Some(client) = &mut self.client else { return };
         client.iterate(now, wall);
+        if crate::m15::observer::enabled() {
+            crate::m15::observer::page(format!("{:?}", client.tree().nodes()).as_bytes());
+        }
         while let Some(signing) = client.signing() {
             if matches!(signing, Signing::Again) {
                 client.sign_in(&self.printed_link).expect("retry the printed link while startup restores settings");
@@ -616,6 +660,8 @@ pub(crate) fn service_roots() -> Vec<skein_world::StartupRoot> {
 pub(crate) fn service(inherited: &Inherited) -> Proc {
     let root = inherited.roots.iter().find(|(name, _)| name.as_ref() == b"state").expect("state root").1;
     let worker = inherited.roots.iter().find(|(name, _)| name.as_ref() == b"worker").expect("worker root").1;
+    crate::m15::observer::root(crate::m15::observer::Role::Service, root, b"state");
+    crate::m15::observer::root(crate::m15::observer::Role::Service, worker, b"worker");
     let setup = stories::held_change().then(|| crate::restart_control::checked_setup(&fixtures::document()));
     let mut document: serde_json::Value = serde_json::from_slice(&fixtures::document()).expect("deployment JSON");
     if REFUSE_START.with(std::cell::Cell::get) {
@@ -674,6 +720,7 @@ pub(crate) fn service(inherited: &Inherited) -> Proc {
     reason = "smith's endpoint program selections use the sole adapter name as the map's value"
 )]
 fn agent(_spawn: &skein_io::kernel::Spawn, inherited: &Inherited) -> Proc {
+    crate::m15::observer::process(crate::m15::observer::Role::Agent, inherited, b"worker/agent");
     let stderr = inherited.pipes.iter().find(|(child, _)| *child == 2).expect("stderr").1;
     let (errors, capture) = smith_agent_process_world::AgentErrors::pipe(stderr);
     Proc::Agent(Box::new(
@@ -706,6 +753,7 @@ fn agent(_spawn: &skein_io::kernel::Spawn, inherited: &Inherited) -> Proc {
     ))
 }
 fn git(spawn: &skein_io::kernel::Spawn, inherited: &Inherited) -> Proc {
+    crate::m15::observer::process(crate::m15::observer::Role::Git, inherited, b"worker");
     if crate::lower::github::active() {
         return Proc::GitRoute(Box::new(temper_fake_git::Git::new(
             spawn,
@@ -716,6 +764,7 @@ fn git(spawn: &skein_io::kernel::Spawn, inherited: &Inherited) -> Proc {
     Proc::Git(Box::new(temper_fake_git_hosted::git(spawn, inherited, transport())))
 }
 fn shell(spawn: &skein_io::kernel::Spawn, inherited: &Inherited) -> Proc {
+    crate::m15::observer::process(crate::m15::observer::Role::Shell, inherited, b"worker/shell");
     Proc::Shell(Box::new(stories::Shell::new(spawn, inherited)))
 }
 fn worker_root(_spawn: &skein_io::kernel::Spawn) -> Vec<skein_world::StartupRoot> {

@@ -183,6 +183,7 @@ pub(crate) fn world_document() -> serde_json::Value {
     value["engine"]["limits"]["overrides"]["tasks.funders"] = 4.into();
     crate::lower::configure(&mut value);
     crate::lower::github::configure(&mut value);
+    crate::m15::configure(&mut value);
     turn_bounds::apply(&mut value, agent().limits.bodies.turn_body);
     value
 }
