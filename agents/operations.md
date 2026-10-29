@@ -4,6 +4,8 @@ Provisional, 2026-10-28. The machines' and the pipeline's facts every role works
 
 ## 1. In one page
 
+- **heavy is installed from fabrig:** `tools/install` links it from `~/src/fabrig/main/tools/heavy/`; its workspace and queue stay under `~/src/rust`.
+
 - **hel8 runs sessions and surveys, never builds:** the coordinator's and the leads' Claude sessions, their clones, and read-only Codex surveys. Builders (hetzner2, 3, 6, 7) build in slots; hetzner8 is the merge queue's alone.
 - **A lead** is a Claude session on hel8 named `lead/<area>`, started from a directory Claude trusts (under `~/src/rust/`), with its scratch and clones in `~/src/fabrig/leads/<area>/`: `repo/` (read main, mark branches ready) and `survey/` (surveys).
 - **Implementers are Codex runs** on a builder, one task in one slot, launched by `codex-run`; their end is posted to whoever launched them.
