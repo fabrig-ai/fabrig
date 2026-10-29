@@ -9,8 +9,8 @@ use std::collections::{BTreeMap, BTreeSet};
 #[test]
 fn seeded_selected_paths_keep_the_exact_tree_prefix_and_omitted_count_within_memory() {
     // Peak of the 128 seeded selected-prefix and omitted-count scenarios.
-    // Measured 1_201 B on 2026-10-28; a quarter of headroom, rounded up.
-    const SELECTED_PATHS_CEILING: u64 = 1_600;
+    // Measured 1_153 bytes on 2026-10-29 (seed 76); a quarter of headroom, rounded up.
+    const SELECTED_PATHS_CEILING: u64 = 1_500;
     const BRANCHES: u64 = 4;
     const CHILDREN: u64 = 3;
     for seed in 0..128 {
