@@ -119,7 +119,7 @@ pub(crate) fn task_carrier(limits: &Limits) -> Option<u64> {
             u64::from(task.result_bytes).checked_mul(sizeof(size_of::<tasks::FieldRule>())?.checked_add(1)?)?,
         )?)?
         .checked_add(u64::from(task.result_bytes))?
-        .checked_add(List::<Box<[u8]>>::worst_case(task.hold_segments)?)?
+        .checked_add(List::<Box<[u8]>>::price(task.hold_segments)?)?
         .checked_add(u64::from(task.hold_bytes))?
         .checked_add(names)?
         .checked_add(authority)?

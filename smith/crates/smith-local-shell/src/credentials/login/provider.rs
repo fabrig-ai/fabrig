@@ -5,7 +5,7 @@ use crate::settings::Settings;
 use driver::{Login, Stage};
 use skein_lib::{List, Queue};
 use skein_shell::Clock;
-use smith_local_service::{ACCOUNTS_MAX_OUT, Accounts};
+use smith_local_service::Accounts;
 use std::{collections::BTreeSet, path::Path};
 
 mod driver;
@@ -127,7 +127,7 @@ pub(in crate::credentials) fn run(
         others,
         ssh,
         operations,
-        out: Queue::with_capacity(ACCOUNTS_MAX_OUT),
+        out: Queue::uncapped(),
         completions: Queue::with_capacity(8),
     };
     let _exit = skein_shell::drive(&mut kernel, clock, &mut host);

@@ -152,7 +152,7 @@ fn incident_price(incident: &Incident, limits: &super::Limits) -> Option<u64> {
         return None;
     }
     service_price(&incident.service, limits)?
-        .checked_add(List::<Point>::worst_case(incident.timeline.capacity())?)?
+        .checked_add(List::<Point>::price(incident.timeline.capacity())?)?
         .checked_add(u64::try_from(incident.alerts.len()).ok()?.checked_mul(8)?)
 }
 #[must_use]
@@ -174,7 +174,7 @@ pub fn price(document: &Document, limits: &super::Limits) -> Option<u64> {
             if effects.capacity() > limits.rows {
                 return None;
             }
-            let mut bytes = List::<Entry>::worst_case(effects.capacity())?;
+            let mut bytes = List::<Entry>::price(effects.capacity())?;
             for entry in effects {
                 bytes = bytes.checked_add(text_price(&entry.effect.rule, limits)?)?;
             }
@@ -191,8 +191,8 @@ pub fn price(document: &Document, limits: &super::Limits) -> Option<u64> {
             if services.capacity() > limits.rows || incidents.capacity() > limits.rows {
                 return None;
             }
-            let mut bytes = List::<ServiceState>::worst_case(services.capacity())?
-                .checked_add(List::<Incident>::worst_case(incidents.capacity())?)?;
+            let mut bytes = List::<ServiceState>::price(services.capacity())?
+                .checked_add(List::<Incident>::price(incidents.capacity())?)?;
             for service in services {
                 bytes = bytes.checked_add(service_price(&service.service, limits)?)?;
                 if let Some(fact) = &service.fact {

@@ -53,7 +53,7 @@ impl Accounts {
     }
 
     pub(super) fn private_files(&mut self, now: Time, wall: Wall) {
-        if self.events.room() < 3 || self.submissions.room() < 2 {
+        if !self.account_file_events_dispatched() || self.submissions.room() < 2 {
             return;
         }
         for _ in 0..self.file_requests.len() {

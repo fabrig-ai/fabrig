@@ -91,8 +91,7 @@
 //! entrance, without asking io anything (a path outside the checkout, a family
 //! not granted, a file not read first). Were a parent to go on from such an
 //! answer at once, starting the next piece of work, hand-offs would chain
-//! within one step: what it emits would follow the length of the chain rather
-//! than [`crate::max_out`], and what it holds for work ended in the iteration
+//! within one step, and what it holds for work ended in the iteration
 //! (reclaimed only at the reclaim point) would outgrow its slabs. So a step
 //! starts one batch at most, and a batch the tools answer entirely within the
 //! step that started it rests (Resting): its results are kept, and the
@@ -1160,11 +1159,11 @@ enum News {
 /// at most one call: an open, a close or an operation's end concerns one kit,
 /// and a call is answered at the entrance or later.
 fn tools_step(calls: &mut Calls, env: &Env<Limits>, event: tools::Event, out: &mut Queue<Request>) -> Heard {
-    assert!(calls.tools.facts_room() >= tools::max_facts(&env.limits.tools), "session reserved child observations");
     let tools_env = Env { now: env.now, wall: env.wall, limits: env.limits.tools };
     tools::step(&mut calls.tools, &tools_env, event, &mut calls.out);
     let mut heard = Heard { answer: None, kit: None, cancelled: None };
-    for _ in 0..tools::max_out(&env.limits.tools) {
+    // This entrance has finished: translation never appends to the child queue.
+    for _ in 0..calls.out.len() {
         let Some(request) = calls.out.pop() else {
             break;
         };
@@ -1190,7 +1189,7 @@ fn tools_step(calls: &mut Calls, env: &Env<Limits>, event: tools::Event, out: &m
             tools::Request::JobsCancelled { session } => heard.cancelled = Some(session),
         }
     }
-    assert!(calls.out.is_empty(), "the tools emit no more than their max_out");
+    assert!(calls.out.is_empty(), "tools_requests_dispatched");
     heard
 }
 

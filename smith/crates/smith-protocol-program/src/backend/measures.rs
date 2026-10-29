@@ -19,6 +19,12 @@ pub(super) fn capacity(settings: &super::Settings) -> Option<u32> {
 }
 
 impl Backend {
+    /// The number of observations waiting for the owner to drain.
+    #[must_use]
+    pub fn pending_measures(&self) -> u32 {
+        self.measures.len()
+    }
+
     /// Drain one bounded observation before consuming the corresponding domain terminal.
     pub fn pop_measure(&mut self) -> Option<Measure> {
         self.measures.pop()

@@ -61,19 +61,6 @@ impl From<skein_lib::Overflow> for Error {
     }
 }
 
-/// Slots reserved by the caller at each entry point during opening.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct MaxOut {
-    pub to_domain: u32,
-    pub below: u32,
-}
-
-/// Opening emits at most one owner event and six lower operations per step.
-#[must_use]
-pub const fn max_out(_limits: &Limits) -> MaxOut {
-    MaxOut { to_domain: 1, below: 6 }
-}
-
 /// Largest frame sent by the host, including its fixed framing header.
 #[must_use]
 pub fn output_bytes(limits: &Limits) -> Option<u32> {

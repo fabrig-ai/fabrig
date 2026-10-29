@@ -61,6 +61,11 @@ a post name such as `lead/jig`, or `pool`. Blank lines and `#` comments
 are ignored; malformed entries, duplicate pairs and empty owners fail.
 Only configured pairs can be claimed or released. Owner and work
 description are nonempty text; quote a description containing spaces.
+Slots on a draining builder belong to `ops`: leads start no new work there,
+while existing holders can still release their claims. Replacement slots
+and shares are announced before use. Remove the drained builder from the
+inventory after its last task finishes. Build admission remains capped by
+the machine's heavy setting, independently of its slot count.
 A claim may take its owner's share or a pool slot. Another owner's share
 requires that owner's agreement and `--lent-by SHARE_OWNER`; the value
 must equal the configured share owner. Refusal exits 1 and names the

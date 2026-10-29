@@ -1,7 +1,7 @@
 //! The run child domain's state and its entry points (domain/run.md, sections
 //! 3, 5, 6 and 10; programming-model.md, sections 4.5 and 6.3). [`Domain`]
 //! retains seeded admission randomness, runs, conversations, delegated calls,
-//! alarms, deferred wind-down effects and bounded facts.
+//! alarms, deferred wind-down effects and uncapped facts.
 //! [`step`] accepts parent events, [`fire`] handles due alarms and [`resume`]
 //! emits deferred child closures and main's yield after a reclaim point. All three emit
 //! bounded requests. This module never knows provider syntax, credential
@@ -18,11 +18,13 @@ use crate::run::{self, Alarm, Conversation, Run};
 /// The most requests an entry point emits per call: an admitted start names
 /// the run and opens its main conversation or asks io for its first look; a
 /// check goes with its notice to the host; a call returns as main is
-/// closed. The parent reserves this much room in `out` before calling it.
+/// closed. The root domain still uses this allowance to reserve its child
+/// handoff queue until that queue becomes uncapped.
 pub const MAX_OUT: u32 = 3;
 
 /// A terminal may observe every offered and queued message, its end and
-/// answer; other entrances observe no more. The parent reserves this room.
+/// answer; other entrances observe no more. The root domain still uses this
+/// allowance in its observation formulas; the run's fact queue is uncapped.
 #[must_use]
 pub const fn max_facts(limits: &Limits) -> u32 {
     limits.messages.saturating_mul(2).saturating_add(8)
@@ -51,7 +53,7 @@ impl Domain {
             conversations: Slab::with_capacity(limits.conversations),
             calls: Calls::with_capacity(limits.calls),
             alarms: Deadlines::with_capacity(crate::limits::alarms(limits).expect("valid limits")),
-            facts: Facts::with_capacity(limits.facts),
+            facts: Facts::new(),
             ready: crate::wind_down::Ready::with_capacity(limits.runs),
         }
     }
@@ -97,15 +99,9 @@ impl Domain {
         self.calls.len()
     }
 
-    /// The oldest reserved observation; the parent drains it before more work.
+    /// The oldest observation, retaining the time of the entrance that made it.
     pub fn pop_fact(&mut self) -> Option<Fact> {
         self.facts.pop()
-    }
-
-    /// Free fact slots the parent reserves before each entrance.
-    #[must_use]
-    pub fn facts_room(&self) -> u32 {
-        self.facts.room()
     }
 
     /// The reclaim point: frees what closed in this iteration.
@@ -119,7 +115,6 @@ impl Domain {
 
 /// Handles one event, emitting at most [`MAX_OUT`] requests.
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
-    assert!(domain.facts_room() >= max_facts(&env.limits), "parent reserved fact step output");
     domain.facts.begin(env.now);
     let mark = out.len();
     take(domain, env, event, out);
@@ -192,7 +187,6 @@ fn take(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Re
 /// progress that arrived in the same iteration wins over a deadline that passed
 /// while the loop waited.
 pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
-    assert!(domain.facts_room() >= max_facts(&env.limits), "parent reserved fact step output");
     let Some(alarm) = domain.alarms.expire(env.now) else {
         return;
     };
@@ -207,9 +201,8 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     facts::tell(&mut domain.facts, &domain.runs, &domain.conversations, out, mark);
 }
 
-/// Emits one deferred child close, preserving the entrance's fixed output bound.
+/// Emits one deferred wind-down effect from the generation promoted at reclaim.
 pub fn resume(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
-    assert!(domain.facts_room() >= max_facts(&env.limits), "parent reserved fact resume output");
     domain.facts.begin(env.now);
     let mark = out.len();
     run::resume(domain, out);

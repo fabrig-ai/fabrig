@@ -217,7 +217,7 @@ impl Private {
         false
     }
     fn advance_accounts(&mut self, hold_loaded: bool) -> Queue<CredentialRequest> {
-        let mut out = Queue::with_capacity(ACCOUNTS_MAX_OUT);
+        let mut out = Queue::uncapped();
         if !hold_loaded || !self.loaded_pending() {
             self.owner.advance(self.sim.now(), self.sim.wall(), &mut out);
         }
@@ -418,7 +418,7 @@ fn an_unsafe_private_record_is_refused_before_a_visit() {
 #[test]
 fn cancelling_a_queued_private_file_request_emits_its_terminal_without_starting_it() {
     let mut world = Private::new(Story::Cancel);
-    let mut out = Queue::with_capacity(ACCOUNTS_MAX_OUT);
+    let mut out = Queue::uncapped();
     world.owner.advance(world.sim.now(), world.sim.wall(), &mut out);
     assert!(!world.owner.files.takes());
     let owner = Token::new(99);

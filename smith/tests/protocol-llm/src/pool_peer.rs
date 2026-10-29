@@ -138,8 +138,8 @@ impl Peer {
         Self {
             component,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
-            above: Queue::with_capacity(smith_protocol_llm::MAX_OUT.above),
-            below: Queue::with_capacity(smith_protocol_llm::MAX_OUT.below),
+            above: Queue::uncapped(),
+            below: Queue::uncapped(),
             bindings: BTreeMap::new(),
             terminals: Vec::new(),
             measures: Vec::new(),

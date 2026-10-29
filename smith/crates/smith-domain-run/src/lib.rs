@@ -27,8 +27,8 @@
 //! settled wait/park state and activation-local turn numbering
 //! (domain/run.md, sections 6 and 13).
 //! The run never knows authentication, provider dialect bytes,
-//! credential secrets, forge state, CI or the host's delivery policy. Entrances
-//! reserve [`MAX_OUT`] output slots, and the caller delivers pending terminals
+//! credential secrets, forge state, CI or the host's delivery policy. The root
+//! still reserves [`MAX_OUT`] child handoff slots, and the caller delivers pending terminals
 //! even while cancellation is settling (domain/run.md, sections 2, 10;
 //! programming-model.md, sections 5.2, 5.3 and 7).
 
