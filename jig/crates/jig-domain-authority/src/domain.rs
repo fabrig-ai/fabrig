@@ -5,7 +5,7 @@ use skein_lib::{List, Map, Queue};
 
 use crate::limits::{authority_within, requirements_within, within};
 use crate::order::at_most_but_models;
-use crate::{Limits, Models, Policy, Requirement, Role, Rules, max_out};
+use crate::{Limits, Models, Policy, Requirement, Role, Rules, stored_finding_limit};
 
 /// Bounded live project-policy table and immutable deployment rules; contains no task ledger,
 /// connector state or authentication. (domain/authority.md, sections 2 and 6).
@@ -16,8 +16,8 @@ pub struct Domain {
     limits: Limits,
 }
 
-/// Root-issued policy-table mutation, producing exactly one `PolicyFact` in caller-reserved output
-/// room. (domain/authority.md, sections 2 and 6).
+/// Root-issued policy-table mutation, producing exactly one `PolicyFact` in uncapped output
+/// queues. (domain/authority.md, sections 2 and 6).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Event {
     /// Replace rules without revalidating existing projects (engine.md, 17.2).
@@ -82,7 +82,7 @@ pub enum PolicyFact {
     },
 }
 
-/// Exact output-room requirement for one policy event: one terminal lifecycle fact.
+/// Compatibility count for callers outside jig: one terminal lifecycle fact per policy event.
 pub const POLICY_MAX_OUT: u32 = 1;
 
 impl Domain {
@@ -91,7 +91,7 @@ impl Domain {
     /// configured retained capacity.
     #[must_use]
     pub fn new(rules: Rules, limits: Limits) -> Option<Domain> {
-        max_out(&limits)?;
+        stored_finding_limit(&limits)?;
         if !valid_rules(&rules, &limits) {
             return None;
         }
@@ -164,12 +164,9 @@ impl Domain {
     }
 }
 
-/// Policy events emit one fact and retain the previous policy on refusal. Caller reserves
-/// `POLICY_MAX_OUT` slots before applying the event. Apply one root-issued `event` to `domain` and
-/// emit exactly one terminal policy fact. Caller must reserve `POLICY_MAX_OUT` free slots in `out`;
-/// refusal preserves the previous policy, and the root owns persistence.
+/// Apply one root-issued `event` to `domain` and append exactly one terminal policy fact to the
+/// uncapped `out` queue. Refusal preserves the previous policy, and the root owns persistence.
 pub fn step(domain: &mut Domain, event: Event, out: &mut Queue<PolicyFact>) {
-    assert!(out.room() >= POLICY_MAX_OUT, "caller reserves policy lifecycle output");
     let restoring = match &event {
         Event::Restore { .. } => true,
         Event::Rules(_) | Event::Policy { .. } | Event::Dropped { .. } => false,

@@ -294,7 +294,7 @@ fn policy_domain(limits: &authority::Limits, environment_chat: bool) -> (authori
         }]),
         requirements: Box::new([]),
     };
-    let mut out = Queue::with_capacity(authority::POLICY_MAX_OUT);
+    let mut out = Queue::uncapped();
     authority::step(&mut scratch, authority::Event::Policy { project: 1, policy: policy.clone() }, &mut out);
     assert_eq!(out.pop(), Some(authority::PolicyFact::Added { project: 1 }), "a checked scenario policy");
     (domain, policy)
