@@ -246,6 +246,10 @@ pub fn step_4_4(_forge: SocketAddr) -> Box<[Script]> {
                 wait(super::PACE_PENDING),
                 note(),
                 amend(),
+                call(
+                    b"message",
+                    &json!({"target":A,"form":"answer","question":super::PACE_QUESTION_MESSAGE,"words":super::PACE_ANSWER}),
+                ),
                 wait("The answer is kept and A's model amended."),
                 recall(),
                 report(PACE_REPORT),
@@ -488,6 +492,10 @@ pub fn step_5_3(_forge: SocketAddr) -> Box<[Script]> {
                     b"amend",
                     &json!({"target":MOVER,"revision":MOVER_AMENDMENT_REVISION - 1,
                     "amendment":{"instructions":NEW_BRIEF,"reason":SHAPE_REASON}}),
+                ),
+                call(
+                    b"message",
+                    &json!({"target":MOVER,"form":"answer","question":super::MOVER_QUESTION_NUMBER,"words":SHAPE_REASON}),
                 ),
                 wait(SHAPE_AMENDED),
                 report(SHAPE_REPORT),
