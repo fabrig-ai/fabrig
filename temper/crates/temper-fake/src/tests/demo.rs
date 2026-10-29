@@ -3,6 +3,8 @@ use crate::{demo, llm};
 use jig_protocol_config::{self as config, Path};
 use serde_json::{Value, json};
 use skein_fake_llm_domain::api::{self, Finish, Message, Part, Role};
+use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
+use smith_domain_run::{self as run, charter};
 use temper_forge_setup::{problem, setup::Setup};
 
 type Row = (Vec<(&'static str, Option<Value>)>, &'static str);
@@ -270,16 +272,9 @@ fn demo_acceptance() {
         }
         let demo = demo.unwrap();
         let m = &value["application"]["demo"]["llm"];
-        let combined: Vec<_> = m["asked"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .chain(m.get("cued").and_then(Value::as_array).into_iter().flatten())
-            .cloned()
-            .collect();
         let standalone = json!({"listen":m["listen"], "key":"/data/demo/llm.key", "tls":null,
-            "models":[{"name":"demo","window":window,"output":output}], "cued":combined,
-            "asked":[], "otherwise":m["otherwise"]});
+            "models":[{"name":"demo","window":window,"output":output}], "cued":m.get("cued").cloned().unwrap_or(json!([])),
+            "asked":m["asked"], "otherwise":m["otherwise"]});
         assert_eq!(demo.llm(), &llm::Document::decode(&serde_json::to_vec(&standalone).unwrap()).unwrap());
         assert_eq!(demo.provider(), 3);
         assert_eq!(demo.forge(), 1);
@@ -288,7 +283,7 @@ fn demo_acceptance() {
 }
 
 #[test]
-fn cued_scripts_follow_asked_and_play_from_the_brief() {
+fn cued_scripts_keep_their_system_placement() {
     let mut value = fixture();
     value["application"]["demo"]["llm"]["cued"] = json!([
         {"cue":"coding brief","turns":["coding answer"]}
@@ -297,7 +292,7 @@ fn cued_scripts_follow_asked_and_play_from_the_brief() {
     let m = &value["application"]["demo"]["llm"];
     let standalone = json!({"listen":m["listen"], "key":"/data/demo/llm.key", "tls":null,
         "models":[{"name":"demo","window":4096,"output":1024}],
-        "cued":[m["asked"][0],m["cued"][0]],"asked":[],"otherwise":m["otherwise"]});
+        "cued":m["cued"],"asked":m["asked"],"otherwise":m["otherwise"]});
     assert_eq!(demo.llm(), &llm::Document::decode(&serde_json::to_vec(&standalone).unwrap()).unwrap());
     let answer = super::answer(demo.llm(), 23, super::query(b"coding brief", b"Begin"));
     assert_eq!(answer.parts.as_ref(), &[Part::Text { text: b"coding answer".as_slice().into() }]);
@@ -363,7 +358,7 @@ fn key_file() {
 }
 
 #[test]
-fn demo_answers_the_brief() {
+fn demo_answers_the_latest_request() {
     let mut value = fixture();
     // These fixtures are the fake's own and need not be the template's.
     value["application"]["demo"]["llm"]["asked"] = json!([
@@ -379,21 +374,15 @@ fn demo_answers_the_brief() {
         }]}
     ]);
     let demo = read(&value).unwrap().unwrap();
-    let csv = CHAT;
-    let dark = concat!(
-        include_str!("../../../temper-service/src/stock/chat.txt"),
-        "\n## Task\n\nAdd a dark theme to widget\n[Report: at most 32 bytes]\n[Requested by person 1]\n\n"
-    );
-    let opening = "Begin the work your brief describes.";
     for (name, system, user, said, text, tokens, finish) in [
-        ("CSV brief", csv, opening, false, "Export CSV", 3, Finish::ToolCalls),
-        ("dark brief", dark, opening, false, "Use dark colours", 4, Finish::ToolCalls),
-        ("user cue only", "No suggested request", "Add CSV export to widget", false, "demo model", 3, Finish::Stop),
-        ("past last turn", csv, opening, true, "done", 1, Finish::Stop),
+        ("CSV request", "Instructions", "Add CSV export to widget", false, "Export CSV", 3, Finish::ToolCalls),
+        ("dark request", "Instructions", "Add a dark theme to widget", false, "Use dark colours", 4, Finish::ToolCalls),
+        ("system cue only", "Add CSV export to widget", "Begin", false, "demo model", 3, Finish::Stop),
+        ("past last turn", "Instructions", "Add CSV export to widget", true, "done", 1, Finish::Stop),
         (
             "earliest cue",
+            "Instructions",
             "Add a dark theme to widget; Add CSV export to widget",
-            opening,
             false,
             "Use dark colours",
             4,
@@ -403,12 +392,19 @@ fn demo_answers_the_brief() {
         let mut query = super::query(system.as_bytes(), user.as_bytes());
         if said {
             query.messages = Box::new([
-                Message { role: Role::User, parts: Box::new([Part::Text { text: opening.as_bytes().into() }]) },
+                Message { role: Role::User, parts: Box::new([Part::Text { text: user.as_bytes().into() }]) },
                 Message {
                     role: Role::Assistant,
                     parts: Box::new([Part::Text { text: b"Earlier answer".as_slice().into() }]),
                 },
-                Message { role: Role::User, parts: Box::new([Part::Text { text: user.as_bytes().into() }]) },
+                Message {
+                    role: Role::User,
+                    parts: Box::new([Part::ToolOutput {
+                        id: b"call".as_slice().into(),
+                        output: b"Completed".as_slice().into(),
+                        is_error: false,
+                    }]),
+                },
             ]);
         }
         let answer = super::answer(demo.llm(), 23, query);
@@ -436,14 +432,8 @@ fn template() -> Value {
     value
 }
 
-const CHAT: &str = concat!(
-    include_str!("../../../temper-service/src/stock/chat.txt"),
-    "\n## Task\n\nAdd CSV export to widget\n[Report: at most 32 bytes]\n[Requested by person 1]\n\n"
-);
-const RESUMED_CHAT: &str = concat!(
-    include_str!("../../../temper-service/src/stock/chat.txt"),
-    "\n## Task\n\nAdd CSV export to widget\n[Report: at most 32 bytes]\n[Requested by person 1]\n\n## Plan\n\ndelegate 2: ended, spec revision 1\n"
-);
+const CHAT: &str = "Add CSV export to widget";
+
 const CODING: &str = "Read only what the change needs, then write it in its files: your turns are few. Finish with a clear change summary. You can run nothing and delete no file, and the change has no pull request yet: once you finish, your work is committed, its pull request opened and its checks run; what fails there, or needs the pull request's number, comes back as a repair that names it. So write only files the change keeps, and no placeholder for what you can't know yet.\n\n## Task\n\nExport widget's table as CSV\n[Change connector 1, kind 2, at most 4096 bytes]\n[Requested by task 2]\n\n";
 
 #[test]
@@ -451,35 +441,37 @@ fn the_templates_demo_fits_the_fakes_bounds() {
     assert!(read(&template()).unwrap().is_some());
 }
 
-fn answers(system: &str, resumed: &str, count: usize) -> Vec<api::Answer> {
+fn answers(words: &str, mode: run::Mode, count: usize) -> Vec<api::Answer> {
     let demo = read(&template()).unwrap().unwrap();
-    let mut query = super::query(system.as_bytes(), b"Begin the work your brief describes.");
+    let opening = opening(words, mode);
+    let mut query = super::query(&opening.system, &opening.prompt);
     query.model = b"demo".as_slice().into();
     query.max_tokens = 8192;
     let mut answers = Vec::new();
-    for index in 0..count {
-        if index == 2 {
-            query.system = resumed.as_bytes().into();
-        }
+    for _ in 0..count {
         let answer = super::answer(demo.llm(), 23, query.clone());
-        let mut messages = query.messages.into_vec();
-        messages.push(Message { role: Role::Assistant, parts: answer.parts.clone() });
-        for part in &answer.parts {
-            if let Part::ToolCall { id, .. } = part {
-                messages.push(Message {
-                    role: Role::User,
-                    parts: Box::new([Part::ToolOutput {
-                        id: id.clone(),
-                        output: b"Completed".as_slice().into(),
-                        is_error: false,
-                    }]),
-                });
-            }
-        }
-        query.messages = messages.into_boxed_slice();
+        query.messages = after_answer(query.messages, &answer).into_boxed_slice();
         answers.push(answer);
     }
     answers
+}
+
+fn after_answer(messages: Box<[Message]>, answer: &api::Answer) -> Vec<Message> {
+    let mut messages = messages.into_vec();
+    messages.push(Message { role: Role::Assistant, parts: answer.parts.clone() });
+    for part in &answer.parts {
+        if let Part::ToolCall { id, .. } = part {
+            messages.push(Message {
+                role: Role::User,
+                parts: Box::new([Part::ToolOutput {
+                    id: id.clone(),
+                    output: b"Completed".as_slice().into(),
+                    is_error: false,
+                }]),
+            });
+        }
+    }
+    messages
 }
 
 fn call(answer: &api::Answer, name: &[u8]) -> Value {
@@ -492,7 +484,7 @@ fn call(answer: &api::Answer, name: &[u8]) -> Value {
 
 #[test]
 fn the_csv_chat_delegates_waits_and_reports_landing_before_waiting_again() {
-    let answers = answers(CHAT, RESUMED_CHAT, 3);
+    let answers = answers(CHAT, run::Mode::Open, 3);
     assert_eq!(answers[0].parts.len(), 2);
     assert_eq!(answers[0].parts[0], Part::Text { text: "I’ll delegate this change in playground/widget. It will push a branch, open a pull request, check CI and land into main on Playground forge.".as_bytes().into() });
     let delegate = call(&answers[0], b"delegate");
@@ -512,7 +504,7 @@ fn the_csv_chat_delegates_waits_and_reports_landing_before_waiting_again() {
 
 #[test]
 fn the_csv_chat_answers_done_past_its_last_turn() {
-    let answers = answers(CHAT, RESUMED_CHAT, 4);
+    let answers = answers(CHAT, run::Mode::Open, 4);
     assert_eq!(answers[3].parts.as_ref(), &[Part::Text { text: b"done".as_slice().into() }]);
     assert_eq!(answers[3].finish, Finish::Stop);
     assert_eq!(answers[3].usage.output, Some(1));
@@ -520,7 +512,7 @@ fn the_csv_chat_answers_done_past_its_last_turn() {
 
 #[test]
 fn the_csv_coding_agent_reads_edits_and_finishes_the_change() {
-    let answers = answers(CODING, CODING, 3);
+    let answers = answers(CODING, run::Mode::Finite, 3);
     for answer in &answers {
         assert_eq!(answer.parts.len(), 1);
     }
@@ -543,9 +535,7 @@ fn the_csv_coding_agent_reads_edits_and_finishes_the_change() {
 #[test]
 fn the_csv_cues_select_only_their_own_agents_briefs() {
     let value = template();
-    for (list, own, other, tool) in
-        [("asked", CHAT, CODING, b"delegate".as_slice()), ("cued", CODING, RESUMED_CHAT, b"read")]
-    {
+    for (list, own, other, tool) in [("asked", CHAT, CODING, b"delegate".as_slice()), ("cued", CODING, CHAT, b"read")] {
         let cue = value["application"]["demo"]["llm"][list][0]["cue"].as_str().unwrap();
         assert!(own.contains(cue));
         assert!(!other.contains(cue));
@@ -554,8 +544,10 @@ fn the_csv_cues_select_only_their_own_agents_briefs() {
         only["application"]["demo"]["llm"]["cued"] = json!([]);
         only["application"]["demo"]["llm"][list] = json!([value["application"]["demo"]["llm"][list][0]]);
         let demo = read(&only).unwrap().unwrap();
-        for (system, selected) in [(own, true), (other, false)] {
-            let mut query = super::query(system.as_bytes(), b"Begin the work your brief describes.");
+        for (words, selected) in [(own, true), (other, false)] {
+            let mode = if list == "asked" { run::Mode::Open } else { run::Mode::Finite };
+            let opening = opening(words, mode);
+            let mut query = super::query(&opening.system, &opening.prompt);
             query.model = b"demo".as_slice().into();
             query.max_tokens = 8192;
             let answer = super::answer(demo.llm(), 23, query);
@@ -574,8 +566,104 @@ fn the_csv_cues_select_only_their_own_agents_briefs() {
 #[test]
 fn the_csv_review_uses_its_verdict_script_with_the_changes_words_quoted() {
     let review = "Review the change with read-only authority.\n\n## Task\n\nReview this change at the named head\nChange words:\nExport widget's table as CSV\n[Requested by task 2]\n";
-    let answers = answers(review, review, 1);
+    let answers = answers(review, run::Mode::Finite, 1);
     let verdict = call(&answers[0], b"finish");
     assert_eq!(verdict["form"], "verdict");
     assert_eq!(verdict["label"], "1");
+}
+
+fn opening(words: &str, mode: run::Mode) -> run::Opening {
+    let limits = smith_agent_world::LIMITS.run;
+    let budget = run::Budget { turns: 4, spend: 10, time: Duration::from_secs(60) };
+    let charter = run::Charter {
+        mode,
+        resume: false,
+        waiting: Duration::ZERO,
+        instructions: b"Help the person plan their work.".as_slice().into(),
+        brief: run::Brief {
+            sections: Box::new([run::Section { title: b"Task".as_slice().into(), text: words.as_bytes().into() }]),
+        },
+        conventions: None,
+        grants: charter::Grants {
+            wait: true,
+            deliver: None,
+            tools: charter::Tools { inspect: false, modify: false, shell: false },
+            agents: false,
+            host_tools: Box::new([]),
+        },
+        outcome: run::outcome::OutcomeSpec {
+            change: None,
+            verdicts: Box::new([]),
+            report: Some(run::outcome::TextSpec { max: 128, fields: Box::new([]) }),
+            failure: None,
+        },
+        budget,
+        reserve: charter::Reserve { turns: 0, time: Duration::ZERO },
+        llm: charter::Llm {
+            effort: None,
+            prices: run::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1_000_000 },
+            account: None,
+            endpoint: charter::Endpoint(1),
+            model: b"fake".as_slice().into(),
+            window: 1_048_576,
+            output: 512,
+            dialect: 3,
+        },
+        models: Box::new([]),
+    };
+    let mut domain = run::Domain::new(&limits, 7);
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    let mut out = Queue::uncapped();
+    run::step(
+        &mut domain,
+        &env,
+        run::Event::Start {
+            reply_to: ReplyTo::new(Token::new(1)),
+            host_run: Token::new(1),
+            activation: 1,
+            identity: None,
+            window: run::Window { turns: 4, bytes: 65_536, largest_turn: 1 },
+            messages: Box::new([]),
+            charter,
+            workspace: None,
+            transcript: None,
+            resumed: false,
+        },
+        &mut out,
+    );
+    assert!(matches!(out.pop(), Some(run::Request::Admitted { .. })), "run admitted: {out:?}");
+    let Some(run::Request::Open { opening, .. }) = out.pop() else { panic!("main opening: {out:?}") };
+    assert!(out.is_empty());
+    opening
+}
+
+#[test]
+fn suggested_chats_select_their_scripts_from_smiths_opening() {
+    for (words, prefix) in [
+        ("Add CSV export to widget", "I’ll delegate this change"),
+        ("Add a dark theme to widget", "I would give widget a dark theme"),
+        ("Fix widget's empty search state", "I would have widget say"),
+    ] {
+        let answer = answers(words, run::Mode::Open, 1).remove(0);
+        assert!(
+            answer.parts.iter().any(|part| matches!(part, Part::Text { text } if text.starts_with(prefix.as_bytes()))),
+            "{words}: {answer:?}"
+        );
+    }
+}
+
+#[test]
+fn a_persons_new_request_restarts_the_chat_script() {
+    let demo = read(&template()).unwrap().unwrap();
+    let opening = opening(CHAT, run::Mode::Open);
+    let mut query = super::query(&opening.system, &opening.prompt);
+    query.max_tokens = 8192;
+    let first = super::answer(demo.llm(), 23, query.clone());
+    let mut messages = after_answer(query.messages, &first);
+    messages.push(Message { role: Role::User, parts: Box::new([Part::Text { text: opening.prompt }]) });
+    query.messages = messages.into_boxed_slice();
+    let restarted = super::answer(demo.llm(), 23, query);
+    assert_eq!(restarted.parts, first.parts);
+    assert_eq!(restarted.finish, first.finish);
+    assert_eq!(restarted.usage.output, first.usage.output);
 }

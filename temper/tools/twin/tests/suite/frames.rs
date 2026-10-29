@@ -136,9 +136,10 @@ fn a_chat_and_its_delegates_become_cued_scripts() {
     assert_eq!(&*converted.report.dropped, &[(CHAT, 0), (WORK, 0), (CODER, 0), (REVIEWER, 0)]);
     let doc: Value = serde_json::from_slice(&converted.document).expect("twin JSON");
     let before: Value = serde_json::from_slice(&input.base).expect("base JSON");
-    for name in ["listen", "key", "tls", "models", "otherwise", "asked", "added_keys", "control"] {
+    for name in ["listen", "key", "tls", "models", "otherwise", "added_keys", "control"] {
         assert_eq!(doc[name], before[name], "base member {name}");
     }
+    assert_eq!(doc["asked"], json!([]));
     for (i, cue) in CUES.iter().enumerate() {
         assert_eq!(doc["cued"][i]["cue"], *cue);
     }
@@ -369,4 +370,92 @@ fn sixteen_recorded_turns_fit_and_a_seventeenth_is_refused() {
     turns.push(turns[0].clone());
     save(&input, REVIEWER, &turns);
     assert_eq!(twin(&input).expect_err("seventeen turns"), Refusal::Bounds { what: "turns" });
+}
+
+#[test]
+fn an_open_chats_user_cue_replays_its_converted_turns() {
+    use skein_fake_llm_domain::{self as fake, api};
+    use skein_lib::{Env, Queue, ReplyTo, Time, Token, Wall};
+    let (_scratch, input) = fixture(&TASKS);
+    let mut parts = first(&input);
+    let mut blocks = List::with_capacity(1);
+    blocks.push(text(CUES[0])).expect("one request");
+    let user = Message::new(&smith::CEILINGS, MessageParts { role: Role::User, blocks }).expect("opening request");
+    let mut messages = List::with_capacity(2);
+    messages.push(user).expect("request");
+    messages
+        .push(parts.messages.iter().find(|message| *message.role() == Role::Assistant).expect("completion").clone())
+        .expect("completion");
+    parts.messages = messages;
+    save_first(&input, parts);
+    let converted = twin(&input).expect("Open chat conversion");
+    let value: Value = serde_json::from_slice(&converted.document).expect("converted JSON");
+    assert_eq!(value["asked"][0]["cue"], CUES[0]);
+    for (script, cue) in value["cued"].as_array().expect("Finite scripts").iter().zip(&CUES[1..]) {
+        assert_eq!(script["cue"], *cue);
+    }
+    let document = temper_fake::llm::Document::decode(&converted.document).expect("checked twin");
+    let mut domain = document.domain(17);
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: temper_fake::llm::LIMITS };
+    let mut history = vec![api::Message {
+        role: api::Role::User,
+        parts: Box::new([api::Part::Text { text: CUES[0].as_bytes().into() }]),
+    }];
+    // The recorded chat has six completions. Compare every replayed text/call,
+    // finish and token count to its recorded completion through the wire codec.
+    for record in records(&input, CHAT) {
+        let query = api::Query {
+            credential: None,
+            caching: api::Caching::Unscoped,
+            model: b"fake".as_slice().into(),
+            system: b"Help the person.".as_slice().into(),
+            tools: Box::new([]),
+            choice: api::ToolChoice::Auto,
+            messages: history.clone().into_boxed_slice(),
+            max_tokens: 16_384,
+        };
+        let mut out = Queue::uncapped();
+        fake::step(
+            &mut domain,
+            &env,
+            fake::Event::Call { reply_to: ReplyTo::new(Token::new(1)), call: Token::new(1), query },
+            &mut out,
+        );
+        fake::fire(&mut domain, &env, &mut out);
+        let Some(fake::Request::Reply { result, .. }) = out.pop() else { panic!("script reply") };
+        let answer = result.expect("accepted replay");
+        let (blocks, usage) = round_trip::decoded(&answer);
+        let recorded = Turn::decode(&smith::CEILINGS, &mut Reader::new(&record.transcript)).expect("recorded turn");
+        let expected =
+            recorded.messages().iter().find(|message| *message.role() == Role::Assistant).expect("completion");
+        // The provider regenerates call ids and compacts argument JSON.
+        assert_eq!(usage.output(), recorded.usage().output());
+        assert_eq!(blocks.len(), expected.blocks().as_slice().len());
+        for (block, expected) in blocks.iter().zip(expected.blocks()) {
+            match (block, expected) {
+                (Block::Text(got), Block::Text(expected)) => assert_eq!(got.text(), expected.text()),
+                (Block::Call(got), Block::Call(expected)) => {
+                    assert_eq!(got.name(), expected.name());
+                    assert_eq!(
+                        serde_json::from_slice::<Value>(got.input()).expect("replayed arguments"),
+                        serde_json::from_slice::<Value>(expected.input()).expect("recorded arguments")
+                    );
+                }
+                _ => panic!("replayed block differs: {block:?}, {expected:?}"),
+            }
+        }
+        let mut results = Vec::new();
+        for part in &answer.parts {
+            if let api::Part::ToolCall { id, .. } = part {
+                results.push(api::Part::ToolOutput {
+                    id: id.clone(),
+                    output: b"Completed".as_slice().into(),
+                    is_error: false,
+                });
+            }
+        }
+        history.push(api::Message { role: api::Role::Assistant, parts: answer.parts });
+        history.push(api::Message { role: api::Role::User, parts: results.into_boxed_slice() });
+        domain.reclaim();
+    }
 }
