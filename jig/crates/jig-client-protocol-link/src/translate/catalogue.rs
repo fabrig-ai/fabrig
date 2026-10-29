@@ -8,7 +8,7 @@ pub(super) fn offers(bytes: &[u8], limits: &Limits, room: &mut u64) -> Result<Li
         return Err(too_large());
     }
     let mut rows: List<c::ProviderOffer> = List::with_capacity(count);
-    charge(room, List::<c::ProviderOffer>::worst_case(rows.capacity()))?;
+    charge(room, List::<c::ProviderOffer>::price(rows.capacity()))?;
     let mut reader = Reader::new(bytes);
     for _ in 0..count {
         let item = match skein_codec::piece::split(&mut reader) {
@@ -23,7 +23,7 @@ pub(super) fn offers(bytes: &[u8], limits: &Limits, room: &mut u64) -> Result<Li
         if value.programs().len() > limits.client.rows {
             return Err(too_large());
         }
-        charge(room, List::<c::Text>::worst_case(value.programs().len()))?;
+        charge(room, List::<c::Text>::price(value.programs().len()))?;
         charge(room, Some(u64::try_from(value.name().bytes().len()).or(Err(too_large()))?))?;
         let mut programs = List::with_capacity(value.programs().len());
         for name in value.programs() {
@@ -63,7 +63,7 @@ pub(super) fn readiness(bytes: &[u8], limits: &Limits, room: &mut u64) -> Result
         return Err(too_large());
     }
     let mut rows: List<c::PayerReadiness> = List::with_capacity(count);
-    charge(room, List::<c::PayerReadiness>::worst_case(rows.capacity()))?;
+    charge(room, List::<c::PayerReadiness>::price(rows.capacity()))?;
     let mut reader = Reader::new(bytes);
     for _ in 0..count {
         let item = match skein_codec::piece::split(&mut reader) {

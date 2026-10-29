@@ -62,7 +62,7 @@ fn login(value: &w::OwnerProgramLogin, room: &mut u64) -> Result<c::OwnerProgram
 }
 pub(crate) fn logins(value: &[u8], limits: &Limits, room: &mut u64) -> Result<List<c::OwnerProgramLogin>, w::Problem> {
     let count = piece_count(value)?;
-    charge(room, List::<c::OwnerProgramLogin>::worst_case(count))?;
+    charge(room, List::<c::OwnerProgramLogin>::price(count))?;
     let mut reader = Reader::new(value);
     let mut rows = List::with_capacity(count);
     for _ in 0..count {
@@ -83,7 +83,7 @@ pub(crate) fn name(value: &[u8], room: &mut u64) -> Result<Box<[u8]>, w::Problem
 }
 pub(crate) fn hosts(value: &[u8], limits: &Limits, room: &mut u64) -> Result<List<c::OwnerProgramHost>, w::Problem> {
     let count = piece_count(value)?;
-    charge(room, List::<c::OwnerProgramHost>::worst_case(count))?;
+    charge(room, List::<c::OwnerProgramHost>::price(count))?;
     let mut reader = Reader::new(value);
     let mut rows = List::with_capacity(count);
     for _ in 0..count {

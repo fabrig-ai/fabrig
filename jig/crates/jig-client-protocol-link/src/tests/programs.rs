@@ -72,7 +72,7 @@ fn malformed_payment_methods_are_refused() {
 }
 #[test]
 fn native_program_budget_accepts_its_exact_bound() {
-    let mut room = List::<c::OwnerProgramLogin>::worst_case(1).expect("one row").checked_add(1).expect("name");
+    let mut room = List::<c::OwnerProgramLogin>::price(1).expect("one row").checked_add(1).expect("name");
     let rows = decode::logins(&piece(&login(b"p", Some(w::OwnerProgramState::Usable))), &fixtures::limits(), &mut room)
         .unwrap();
     assert_eq!(rows.len(), 1);
@@ -80,7 +80,7 @@ fn native_program_budget_accepts_its_exact_bound() {
 }
 #[test]
 fn native_program_budget_refuses_one_byte_less() {
-    let mut room = List::<c::OwnerProgramLogin>::worst_case(1).expect("one row");
+    let mut room = List::<c::OwnerProgramLogin>::price(1).expect("one row");
     let result =
         decode::logins(&piece(&login(b"p", Some(w::OwnerProgramState::Usable))), &fixtures::limits(), &mut room);
     assert_eq!(result.err(), Some(w::Problem { path: w::Path::OwnedRecord, reason: skein_codec::Reason::Bound }));
@@ -92,7 +92,7 @@ fn program_lists_over_the_native_budget_are_refused() {
     let mut bytes = Writer::new(one.len().checked_mul(2).expect("two pieces"));
     bytes.put(&one).expect("first");
     bytes.put(&one).expect("second");
-    let mut room = List::<c::OwnerProgramLogin>::worst_case(1).expect("one row").checked_add(1).expect("name");
+    let mut room = List::<c::OwnerProgramLogin>::price(1).expect("one row").checked_add(1).expect("name");
     let result = decode::logins(&bytes.finish(), &fixtures::limits(), &mut room);
     assert_eq!(result.err(), Some(w::Problem { path: w::Path::OwnedRecord, reason: skein_codec::Reason::Bound }));
 }
