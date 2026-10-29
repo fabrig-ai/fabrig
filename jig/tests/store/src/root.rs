@@ -3,7 +3,7 @@ use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_protocol_store::{Limits, Write, sizes};
-use skein_lib::{Duration, JournalLimits, Wall};
+use skein_lib::{Duration, Wall};
 pub const LIVE: u64 = 21;
 pub const DEPLOYMENT: [u8; 16] = [18; 16];
 pub const APPLICATION: sizes::Application = sizes::Application { version: 1, key: 16, value: 64 };
@@ -226,7 +226,7 @@ const fn core_fleet_limits() -> jig_domain_fleet::Limits {
 
 #[must_use]
 pub fn limits() -> Limits {
-    let journal = JournalLimits { commits: 2, writes: 2000, held: 2000, now: 4, release: 4 };
+    let commits = sizes::Commits { in_flight: 2, writes: 2000 };
     let mut map = skein_kv::Limits {
         key: 1024,
         // The people family's policy row keeps up to 64 model names (protocol/store.md, 5.1).
@@ -243,8 +243,8 @@ pub fn limits() -> Limits {
         page: skein_kv::Page { rows: 2, bytes: 525_312 },
         deadline: Duration::from_secs(1),
     };
-    let sizes = sizes::check_commits(&CORE_LIMITS, &APPLICATION, &sizes::commits(&journal), &map, 1)
-        .expect("scripted record bounds fit");
+    let sizes =
+        sizes::check_commits(&CORE_LIMITS, &APPLICATION, &commits, &map, 1).expect("scripted record bounds fit");
     map.key = sizes.key;
     map.value = sizes.value;
     map.ops = sizes.ops;
@@ -256,7 +256,7 @@ pub fn limits() -> Limits {
         core: CORE_LIMITS,
         store: map,
         secrets: map,
-        journal,
+        commits,
         joins: 8,
         queue: 2,
         files: 2,

@@ -71,7 +71,11 @@ pub fn for_profile(name: Profile, jig: &jig_protocol_config::Limits) -> Limits {
             watermark: root::default_watermark(&jig.journal),
             routes: jig.routes,
         },
-        store: jig_protocol_store::Limits { core: jig.core, journal: jig.journal, ..jig.store },
+        store: jig_protocol_store::Limits {
+            core: jig.core,
+            commits: jig_protocol_store::sizes::Commits { in_flight: jig.journal.commits, writes: jig.journal.writes },
+            ..jig.store
+        },
         io: jig.io,
         accounts,
         workers: workers(jig),

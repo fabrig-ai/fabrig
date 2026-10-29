@@ -29,7 +29,10 @@ fn both_jig_profiles_have_usable_store_edges() {
         let sizes = jig_protocol_store::sizes::check_commits(
             &limits.root.core,
             &jig_test_store::application(&limits.root.connector),
-            &jig_protocol_store::sizes::commits(&limits.root.journal),
+            &jig_protocol_store::sizes::Commits {
+                in_flight: limits.root.journal.commits,
+                writes: limits.root.journal.writes,
+            },
             &limits.store.store,
             limits.store.orphan_erases,
         )
