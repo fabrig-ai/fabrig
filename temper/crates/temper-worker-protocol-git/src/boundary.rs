@@ -28,7 +28,7 @@ pub struct Settings {
 
 /// Each Io request ends with exactly one Done echoing its owner.
 #[derive(Debug)]
-#[expect(clippy::large_enum_variant, reason = "bounded operation payloads remain inline and are counted in worst_case")]
+#[expect(clippy::large_enum_variant, reason = "operation payloads bounded by checkout limits stay inline")]
 pub enum Request {
     Io { owner: Token, op: git::Op, deadline: Time, identity: Option<Identity> },
     CancelIo { owner: Token },
@@ -59,7 +59,8 @@ pub struct Version {
     pub patch: u32,
 }
 
-/// Parent-owned queues, reserved for `MAX_OUT` before every entry point.
+/// Parent-owned event and io hand-offs, with kernel submissions reserved
+/// at the queue's edge before every entry point.
 #[derive(Debug)]
 pub struct Outputs {
     pub events: Queue<Event>,
