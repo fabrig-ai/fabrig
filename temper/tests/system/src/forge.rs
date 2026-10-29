@@ -221,7 +221,7 @@ impl World {
                     policy.roles[0].authority.delegation = rules.ceiling.delegation.clone();
                 }
                 let mut domain = authority::Domain::new(rules, limits.authority).expect("read authority rules");
-                let mut facts = Queue::with_capacity(authority::POLICY_MAX_OUT);
+                let mut facts = Queue::uncapped();
                 authority::step(&mut domain, authority::Event::Policy { project: 1, policy }, &mut facts);
                 assert_eq!(facts.pop(), Some(authority::PolicyFact::Added { project: 1 }));
                 // A chat's authority is its role's, one level shallower (jig a2616181).
