@@ -1,10 +1,12 @@
 //! The built program's story on real Chromium (lab-browser.md, 6).
 #[path = "../src/json.rs"]
 mod json;
+#[expect(dead_code, reason = "the shared reader also supports hand sockets and elapsed-time assertions")]
 mod support;
 use json::{Value, number, object, string};
 use skein_lib::Duration;
 use skein_scratch::Scratch;
+use std::os::unix::process::CommandExt;
 use std::{
     fmt::Write as _,
     fs,
@@ -45,11 +47,12 @@ fn browser_program() {
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(fs::File::create(&stderr).unwrap())
+            .process_group(0)
             .spawn()
             .unwrap(),
     );
     let mut stdin = child.0.stdin.take().unwrap();
-    let mut reader = Reader::new(child.0.stdout.take().unwrap(), stderr);
+    let mut reader = Reader::new(child.0.stdout.take().unwrap(), stderr, vec![child.0.id()]);
     let start = reader.now();
     let ready = reader.answer();
     assert!(text(field(field(&ready, "ready"), "browser")).contains("Chrome"));
@@ -230,13 +233,14 @@ fn browser_program() {
     let refused = call(object([("call", string("fly"))]));
     assert_eq!(field(&refused, "refused"), &string("call"));
     drop(stdin);
-    let deadline = reader.now().saturating_add(Duration::from_secs(10));
+    let deadline = reader.deadline("the lab program exit", Duration::from_secs(10));
     loop {
         if let Some(status) = child.0.try_wait().unwrap() {
+            deadline.verdict(status.success());
             assert!(status.success(), "exit {status}: {}", reader.stderr());
             break;
         }
-        assert!(reader.now() < deadline, "program did not exit: {}", reader.stderr());
+        deadline.check(&format!("program did not exit: {}", reader.stderr()));
         reader.pause();
     }
     eprintln!("browser program story: {} ms", reader.now().as_nanos().saturating_sub(start.as_nanos()) / 1_000_000);
