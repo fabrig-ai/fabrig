@@ -76,7 +76,7 @@ impl Workers {
         Ok(Self {
             listening: None,
             component,
-            out: Queue::with_capacity(kit::MAX_OUT_DOWN),
+            out: Queue::uncapped(),
             io,
             listeners,
             sockets: Map::with_capacity(limits.workers.checked_add(limits.opening).expect("connections")),
@@ -261,10 +261,8 @@ impl Workers {
         }
     }
     pub fn iterate(&mut self, now: Time, events: &mut Queue<root::Event>) {
-        if events.room() >= kit::MAX_OUT_FIRE {
-            self.component.fire(now, &mut self.out);
-            self.drain(events);
-        }
+        self.component.fire(now, &mut self.out);
+        self.drain(events);
     }
     pub fn abort(&mut self, now: Time, events: &mut Queue<root::Event>) {
         if self.ending != Some(Closing::Abort) {
@@ -588,7 +586,7 @@ mod tests {
             hosting: Box::new([]),
             bounds: crate::tests::fixtures::worker_agent().bounds,
         };
-        let mut events = Queue::with_capacity(1);
+        let mut events = Queue::uncapped();
         service.engine.as_mut().expect("engine").workers.out.push(kit::Request::Hello { channel, worker: 1, hello });
         service.engine.as_mut().expect("engine").workers.drain(&mut events);
         let Some(root::Event::Worker(root::WorkerInput::Link {
