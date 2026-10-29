@@ -4701,6 +4701,7 @@ dependencies = [
  "skein-forge-client",
  "skein-kv",
  "skein-lib",
+ "skein-world",
  "temper-engine-domain",
  "temper-engine-domain-forge",
  "temper-engine-domain-forge-change",
