@@ -98,6 +98,34 @@ fn stock_world() -> (World, engine::Assignment) {
     world_with(&defaults())
 }
 
+#[test]
+fn a_stock_goal_cannot_modify_but_its_change_producer_can() {
+    let (mut world, chat) = stock_world();
+    let task = goal(&mut world, &chat, false);
+    super::park_chat(&mut world, &chat);
+    advance(&mut world);
+    let work = admitted(&world, task);
+    assert_eq!(work.charter, 1);
+    assert!(work.run.policy.modify, "the stock charter keeps its modification ceiling");
+    assert!(matches!(work.run.contract, tasks::Contract::Report { .. }));
+    let charter = temper_engine_smith::charter(&work);
+    assert_eq!(charter.mode, smith_domain_run::Mode::Finite);
+    assert!(charter.grants.tools.inspect);
+    assert!(!charter.grants.tools.modify);
+    assert!(charter.grants.deliver.is_none());
+
+    let change =
+        delegated(&mut world, &work, engine::Tool::Change { words: b"Small fix".as_slice().into(), repository: None });
+    advance(&mut world);
+    let producer = admitted(&world, next_child(&world, change, change));
+    assert_eq!(producer.charter, 2);
+    assert!(matches!(producer.run.contract, tasks::Contract::Change { .. }));
+    let charter = temper_engine_smith::charter(&producer);
+    assert_eq!(charter.mode, smith_domain_run::Mode::Finite);
+    assert!(charter.grants.tools.modify);
+    assert!(charter.grants.deliver.is_some());
+}
+
 /// Smith rounds each completion's combined input/output charge upward once
 /// (smith's domain/session.md, 6; smith-domain-session's record.rs).
 fn charge(turns: u64, model: &engine::Model) -> u64 {

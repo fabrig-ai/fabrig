@@ -145,6 +145,12 @@ pub fn charter(assignment: &engine::Assignment) -> run::Charter {
         tasks::EndedBy::Result => run::Mode::Finite,
         tasks::EndedBy::Requester => run::Mode::Open,
     };
+    let deliver = match mode {
+        run::Mode::Finite => outcome.change.clone(),
+        run::Mode::Open => None,
+    };
+    // A run that cannot deliver cannot write (temper/docs/design/domain/agent.md, 4.3).
+    let modify = policy.modify && deliver.is_some();
     run::Charter {
         mode,
         resume: policy.resume && !assignment.transcript.is_empty(),
@@ -157,11 +163,8 @@ pub fn charter(assignment: &engine::Assignment) -> run::Charter {
         }),
         grants: run::charter::Grants {
             wait: true,
-            deliver: match mode {
-                run::Mode::Finite => outcome.change.clone(),
-                run::Mode::Open => None,
-            },
-            tools: run::charter::Tools { inspect: policy.inspect, modify: policy.modify, shell: policy.shell },
+            deliver,
+            tools: run::charter::Tools { inspect: policy.inspect, modify, shell: policy.shell },
             agents: policy.agents,
             host_tools: crate::calls::tools_for(policy.call_timeout, assignment.run.authority.tools),
         },
