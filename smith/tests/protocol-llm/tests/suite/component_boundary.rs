@@ -5,14 +5,11 @@ use core::net::SocketAddr;
 use skein_io::Request as IoRequest;
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use skein_llm::{self as shared, Credential};
-use skein_world::domain::heap::{Counting, Meter};
+use skein_world::domain::heap::Meter;
 use smith_domain::{GrantName, llm, run, tools};
 use smith_protocol_llm_world::adapter::{
     self as adapter, Component, ComponentLimits, ConfiguredEndpoint, Endpoints, FromDomain, Receiving, ToDomain,
 };
-
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 fn limits() -> ComponentLimits {
     let client = skein_llm_world::limits();
@@ -75,7 +72,9 @@ fn endpoints_with_connect(connect: Duration) -> Endpoints {
 
 fn endpoints_with_client(connect: Duration, client: skein_llm::client::Limits) -> Endpoints {
     let mut roots = skein_tls::RootCertStore::empty();
-    roots.add(skein_tls::CertificateDer::from(include_bytes!("../fixtures/root.der").to_vec())).expect("fixture root");
+    roots
+        .add(skein_tls::CertificateDer::from(include_bytes!("../../fixtures/root.der").to_vec()))
+        .expect("fixture root");
     Endpoints::new(
         Box::new([ConfiguredEndpoint {
             connect,

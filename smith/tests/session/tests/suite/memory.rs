@@ -5,16 +5,13 @@
 use std::mem::size_of;
 
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
-use skein_world::domain::heap::{self, Meter};
+use skein_world::domain::heap::Meter;
 use smith_domain_session::llm::{Block, Completion, Decoded, Descriptor, Endpoint, Failure, Problem, Stop, Usage};
 use smith_domain_session::{Budget, Domain, Event, Limits, MAX_PARALLEL, Request, Spec, max_out};
 use smith_domain_tools::{
     Authority, Budget as ToolBudget, Call, Done, Effect, Grants, Name, Part, Path, Repo, Version,
 };
 use smith_session_world::{TOOLS, reservation_envelope};
-
-#[global_allocator]
-static HEAP: heap::Counting = heap::Counting;
 
 fn bytes(len: u64) -> Box<[u8]> {
     vec![b'x'; usize::try_from(len).expect("a test length fits")].into_boxed_slice()

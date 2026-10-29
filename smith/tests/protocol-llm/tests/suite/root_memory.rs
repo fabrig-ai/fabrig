@@ -14,16 +14,13 @@
 use skein_fake_llm_domain::api::{Finish, Line, Script, Turn as ScriptTurn};
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
 use skein_llm_world::fake::ObservationLimits;
-use skein_world::domain::heap::{Counting, Meter};
+use skein_world::domain::heap::Meter;
 use smith_domain::{self as root, Domain, Event, Grant, GrantName, Limits, Request, llm, run, session};
 use smith_protocol_llm_world::adapter::{self as adapter, Receiving, ToolKind, ToolSchema};
 use smith_protocol_llm_world::{
     LIMITS,
     wire::{self, Configuration, Observed, Wire},
 };
-
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 const WORKER: Token = Token::new(91);
 const PARENT: Token = Token::new(92);
