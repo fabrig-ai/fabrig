@@ -183,6 +183,53 @@ fn a_service_s_sign_in_answered_not_ready_is_sent_again_after_its_backoff() {
 }
 
 #[test]
+fn a_link_sign_in_answered_not_ready_retries_until_signed_in() {
+    // fixtures::domain_limits: first 10 ms, doubling to most 80 ms, then capped.
+    const BACKOFF_SPANS_MS: [u64; 5] = [10, 20, 40, 80, 80];
+    for held in [None, Some(fixtures::credential(&CREDENTIAL))] {
+        let mut c = Client::new();
+        c.step(Event::SignIn { with: With::Link { secret: fixtures::credential(&NEW_CREDENTIAL), held: held.clone() } });
+        let [Request::Exchange { exchange, message, .. }] = c.requests() else {
+            panic!("one link sign-in: {:?}", c.requests());
+        };
+        let mut previous = *exchange;
+        let expected_message = match message {
+            Message::SignInLink(bytes) => Message::SignInLink(bytes.clone()),
+            other => panic!("link sign-in message: {other:?}"),
+        };
+        let mut now = Time::ZERO;
+        let mut jittered = false;
+        for span_ms in BACKOFF_SPANS_MS {
+            c.step_at(now, Event::Reply { exchange: previous, message: fixtures::sign_in_answer(&w::SignInAnswer::NotReady) });
+            assert_eq!(c.machine.link().not_signed_in, Some(NotSignedIn::NotReady));
+            assert!(c.requests().iter().all(|request| matches!(request, Request::Told { .. })));
+            let until = c.machine.next_deadline().expect("not-ready link sign-in schedules a retry");
+            let delay = until.saturating_since(now);
+            assert!(delay >= Duration::from_millis(span_ms / 2));
+            assert!(delay <= Duration::from_millis(span_ms));
+            jittered |= delay < Duration::from_millis(span_ms);
+            c.fire(Time::from_nanos(until.as_nanos() - 1));
+            assert!(c.requests().is_empty(), "no sign-in before its backoff");
+            c.fire(until);
+            let [Request::Exchange { exchange, credential, message }] = c.requests() else {
+                panic!("one link retry: {:?}", c.requests());
+            };
+            assert_ne!(*exchange, previous);
+            assert_eq!(message, &expected_message);
+            assert_eq!(credential, &held);
+            previous = *exchange;
+            now = until;
+        }
+        assert!(jittered, "the seeded backoff jitters within its span");
+        c.step_at(now, Event::Reply { exchange: previous, message: fixtures::signed_in(&NEW_CREDENTIAL) });
+        assert_eq!(c.machine.link().not_signed_in, None);
+        assert_eq!(c.machine.link().state, Link::Starting);
+        assert_eq!(c.machine.link().credential, Some(&fixtures::credential(&NEW_CREDENTIAL)));
+        assert!(c.requests().iter().any(|request| matches!(request, Request::OpenStream { .. })));
+    }
+}
+
+#[test]
 fn a_sign_out_that_did_not_reach_the_engine_tells_the_link() {
     let mut c = Client::signed_in();
     c.step(Event::SignOut);
