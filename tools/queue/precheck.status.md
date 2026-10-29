@@ -57,8 +57,8 @@ observed main history, and refuses observed remote advancement during the
 check. The installed manifest and installer tests include its executable
 link. It does not call precheck or modify its ownership/lifetime behavior,
 and does not publish readiness. A pass has the point-in-time and exact-file
-scope limits in section 5; the queue gate remains necessary. The 127-case
-ready-check change has landed and is installed.
+scope limits in section 5; the queue gate remains necessary. Ready-check has
+landed and is installed.
 
 The automatic whole-target guard is not deployed. Production uses the frozen
 bcaf external ten-file queue repair lane while the train is off. Source
