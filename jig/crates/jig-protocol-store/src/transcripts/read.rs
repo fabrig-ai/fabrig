@@ -432,7 +432,7 @@ fn length(
         return Ok(false);
     }
     let length = Reader::new(&bytes.finish()).u32().ok_or(())?;
-    let max = crate::core_v6::TurnRecord::worst_case_bytes(&store.codec.core).ok_or(())?.checked_add(12).ok_or(())?;
+    let max = crate::core_v6::TurnRecord::encoded_bound(&store.codec.core).ok_or(())?.checked_add(12).ok_or(())?;
     if length < 12 || u64::from(length) > max {
         return Err(());
     }

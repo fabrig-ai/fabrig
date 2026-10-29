@@ -3,6 +3,9 @@ use jig_domain_core::documents::{Cursor, InboxObject, InboxSelection, inbox_sele
 use skein_lib::List;
 use skein_world::domain::heap::Meter;
 
+// Peak 1,200 bytes measured 10-29; testing-strategy.md 6.
+const INBOX_SELECTION_PEAK_HEAP_CEILING: u64 = 1_500;
+
 #[test]
 fn inbox_selection_allocations_fit_the_whole_recursive_bound_including_empty_reserved_roots() {
     let rows = 7;
@@ -30,9 +33,9 @@ fn inbox_selection_allocations_fit_the_whole_recursive_bound_including_empty_res
             .expect("reserved context capacity");
     }
     let measured = meter.end();
-    // Growing lists hold old and new buffers at the peak; retained storage
-    // at the step's end stays within the full recursive formula.
-    meter.check(measured, 2 * bound, &(rows, depth));
+    // The whole selection peak stays under its measured ceiling; retained
+    // storage at the step's end stays within the full recursive formula.
+    meter.check(measured, INBOX_SELECTION_PEAK_HEAP_CEILING, &(rows, depth));
     assert!(meter.held() <= bound, "held selection storage within the recursive formula");
     assert_eq!(contexts.len(), rows);
     assert!(contexts.get(0).expect("first reserved context").goals.is_empty());
