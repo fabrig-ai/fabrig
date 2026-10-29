@@ -6,12 +6,12 @@ use crate::{
 use alloc::boxed::Box;
 use skein_lib::{Deadlines, Duration, Env, List, Map, Queue, Time, Wall};
 
-/// Room for restart normalization, source names and wants, account removal, and close.
+/// Forwarding bound for application callers: restart normalization, source names and wants, removal, and close.
 #[must_use]
 pub fn max_out(limits: &Limits) -> u32 {
     out_bound(limits).expect("account output bound")
 }
-pub(crate) const fn out_bound(limits: &Limits) -> Option<u32> {
+const fn out_bound(limits: &Limits) -> Option<u32> {
     let Some(per_account) = limits.sources.checked_mul(4) else { return None };
     let Some(per_account) = per_account.checked_add(3) else { return None };
     let Some(all) = limits.accounts.checked_mul(per_account) else { return None };
@@ -181,7 +181,7 @@ impl Domain {
     #[must_use]
     pub fn new(limits: &Limits, providers: Providers) -> Domain {
         assert!(crate::valid(limits), "account limits are valid");
-        let sources = limits.accounts.checked_mul(limits.sources).expect("checked by the worst case");
+        let sources = limits.accounts.checked_mul(limits.sources).expect("validated account source count");
         Domain {
             accounts: Map::with_capacity(limits.accounts),
             sources: Map::with_capacity(sources),
