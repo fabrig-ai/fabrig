@@ -181,7 +181,7 @@ fn a_full_answer_table_still_routes_seen() {
     // Only the original ordinary key has an answer expiry alarm.
     test.env.now = Time::from_nanos(Duration::from_secs(120).as_nanos());
     test.env.wall = Wall::from_nanos(Duration::from_secs(120).as_nanos());
-    let mut out = Queue::with_capacity(max_out(&test.env.limits));
+    let mut out = Queue::uncapped();
     fire(&mut test.d, &test.env, &mut out);
     assert_eq!(out.pop(), Some(Request::Erase { key: Key::Answer(RequestKey { person: 1, key: [1; 16] }) }));
     fire(&mut test.d, &test.env, &mut out);
@@ -373,7 +373,7 @@ fn only_keyed_mark_seen_moves_results_and_restores_the_position() {
 #[test]
 fn waiting_cache_keeps_newest_references_and_removes_one_task() {
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: LIMITS };
-    let mut out = Queue::with_capacity(max_out(&LIMITS));
+    let mut out = Queue::uncapped();
     let mut domain = Domain::new(&LIMITS, Box::new([]), 2, Box::new([]));
     step(
         &mut domain,
@@ -511,7 +511,7 @@ impl Test {
     }
 
     fn send(&mut self, event: Event) -> Vec<Request> {
-        let mut out = Queue::with_capacity(max_out(&self.env.limits));
+        let mut out = Queue::uncapped();
         step(&mut self.d, &self.env, event, &mut out);
         let mut requests = Vec::new();
         while let Some(request) = out.pop() {
@@ -522,9 +522,9 @@ impl Test {
     }
 
     fn send_bounded(&mut self, event: Event) -> List<Request> {
-        let capacity = max_out(&self.env.limits);
-        let mut out = Queue::with_capacity(capacity);
+        let mut out = Queue::uncapped();
         step(&mut self.d, &self.env, event, &mut out);
+        let capacity = out.len();
         let mut requests = List::with_capacity(capacity);
         for _ in 0..capacity {
             let Some(request) = out.pop() else {
@@ -889,7 +889,7 @@ fn expiry_is_monotonic_even_when_wall_clock_moves_back() {
     test.env.now = Time::from_nanos(Duration::from_secs(60).as_nanos());
     test.env.wall = Wall::EPOCH;
     assert_eq!(reply(&test.request(10, 1, ask(1))), Reply::SignedOut);
-    let mut out = Queue::with_capacity(max_out(&LIMITS));
+    let mut out = Queue::uncapped();
     fire(&mut test.d, &test.env, &mut out);
     assert_eq!(out.pop(), Some(Request::Erase { key: Key::SignIn(10) }));
 }
@@ -1577,7 +1577,7 @@ fn application_keys_join_flights_and_replay_opaque_tokens_across_sign_ins_and_re
         Stored::SignIn { number: 10, person: 1, expires: Wall::from_nanos(LIMITS.sign_in_lifetime.as_nanos()) },
         saved,
     ] {
-        let mut out = Queue::with_capacity(max_out(&LIMITS));
+        let mut out = Queue::uncapped();
         step(&mut d, &test.env, Event::Restore { record }, &mut out);
         assert!(out.is_empty());
     }
@@ -1769,7 +1769,7 @@ fn capacity_facts_keep_actual_times_replay_and_diagnostics_independent() {
     assert_eq!(cold.d.capacity_refusals_lost(), 0);
     cold.env.wall = Wall::from_nanos(Duration::from_secs(120).as_nanos() + 10);
     cold.env.now = Time::from_nanos(cold.env.wall.as_nanos());
-    let mut out = Queue::with_capacity(max_out(&cold.env.limits));
+    let mut out = Queue::uncapped();
     fire(&mut cold.d, &cold.env, &mut out);
     assert!(cold.d.capacity_refusals().is_empty(), "permanent facts follow keyed-answer retention");
 }
@@ -2110,7 +2110,7 @@ fn wall_expiry_and_original_elapsed_expiry_each_end_one_signin_per_fire() {
     test.env.wall = expiry;
     assert_eq!(test.d.person(10, test.env.now, test.env.wall), None);
     assert_eq!(test.d.sign_in_person(10), Some(1), "membership makes no validity claim");
-    let mut out = Queue::with_capacity(max_out(&LIMITS));
+    let mut out = Queue::uncapped();
     fire(&mut test.d, &test.env, &mut out);
     assert_signin_erased(&mut out, 10);
     assert!(out.is_empty());
@@ -2160,7 +2160,7 @@ fn restored_expiries_and_removing_the_earliest_keep_both_indexes_exact() {
     assert_eq!(test.d.next_wall_expiry(), Some(Wall::from_nanos(Duration::from_secs(90).as_nanos())));
     assert_eq!(test.d.next_deadline(), Some(Time::from_nanos(Duration::from_secs(65).as_nanos())));
     test.env.wall = Wall::from_nanos(Duration::from_secs(91).as_nanos());
-    let mut out = Queue::with_capacity(max_out(&LIMITS));
+    let mut out = Queue::uncapped();
     fire(&mut test.d, &test.env, &mut out);
     assert_signin_erased(&mut out, 11);
     assert!(out.is_empty());
@@ -2305,7 +2305,7 @@ fn a_full_pool_ends_only_the_next_expired_sign_in_by_either_clock() {
             test.env.wall = Wall::from_nanos(LIMITS.sign_in_lifetime.as_nanos());
         }
         let requests = test.signin(1, 12, identity(0, 1));
-        assert_eq!(requests.len(), 3, "erase, save, reply, within max_out");
+        assert_eq!(requests.len(), 3, "erase, save, reply");
         assert_eq!(requests[0], Request::Erase { key: Key::SignIn(10) });
         assert_eq!(
             reply(&requests),
@@ -2451,7 +2451,7 @@ fn valid_refuses_each_unrepresentable_limit() {
         ("sign in lifetime", Limits { sign_in_lifetime: Duration::ZERO, ..LIMITS }, false),
         ("request retention", Limits { request_retention: Duration::ZERO, ..LIMITS }, false),
         ("entries witness", Limits { inbox_entries: u32::MAX, ..LIMITS }, false),
-        ("people witness", Limits { people: u32::MAX, ..LIMITS }, false),
+        ("people without derived tables", Limits { people: u32::MAX, inbox_tasks: 0, projects: 0, ..LIMITS }, true),
         ("conversation positions", Limits { people: 65_536, inbox_tasks: 65_536, projects: 0, ..LIMITS }, false),
         ("inbox product", Limits { inbox_tasks: u32::MAX, inbox_recipients: 2, ..LIMITS }, false),
         (
@@ -2460,10 +2460,10 @@ fn valid_refuses_each_unrepresentable_limit() {
             false,
         ),
         ("refusal views", Limits { requests: u32::MAX, room_refusals: 1, ..LIMITS }, false),
-        ("initial owners", Limits { initial_owners: u32::MAX, ..LIMITS }, false),
-        ("waiters output", Limits { waiters: u32::MAX, ..LIMITS }, false),
-        ("sign ins output", Limits { sign_ins: u32::MAX, ..LIMITS }, false),
-        ("holdings output", Limits { holdings: u32::MAX, ..LIMITS }, false),
+        ("initial owners", Limits { initial_owners: u32::MAX, ..LIMITS }, true),
+        ("waiters", Limits { waiters: u32::MAX, ..LIMITS }, true),
+        ("sign ins", Limits { sign_ins: u32::MAX, ..LIMITS }, true),
+        ("holdings without projects", Limits { holdings: u32::MAX, projects: 0, ..LIMITS }, true),
         ("project census", Limits { people: 65_536, projects: 65_536, inbox_tasks: 0, holdings: 0, ..LIMITS }, false),
         ("waiting product", Limits { people: 0, projects: 65_536, holdings: 65_536, ..LIMITS }, false),
         ("waiting addition", Limits { people: 1, projects: u32::MAX, holdings: 1, inbox_tasks: 0, ..LIMITS }, false),
