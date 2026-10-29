@@ -1,14 +1,18 @@
 //! Process probes on fake records. The relay holds complete exchanges, never logs their bytes.
 #![expect(
     clippy::disallowed_methods,
-    clippy::disallowed_types,
     reason = "Process-tier fault injection uses independent real sockets and joined issuer/relay threads, with wall-time bounds; engine code remains in its world."
 )]
-use super::{Process, Scratch, WITHIN, configuration, sign_in};
+use super::{
+    Process, Scratch, WITHIN, configuration,
+    patience::{Patience, socket_timeout},
+    sign_in,
+    story_socket::{Scope, Socket},
+};
 use skein_fake_peers::oauth;
 use skein_lib::{Duration, Time};
 use skein_shell::{Clock, Host};
-use skein_world::{Referee, real};
+use skein_world::{Deadline, Expired, Referee, real};
 use std::{
     fs,
     io::{self, BufRead, BufReader, Read, Write},
@@ -21,12 +25,11 @@ use std::{
         mpsc,
     },
     thread::{self, JoinHandle},
-    time::{Duration as WallDuration, Instant},
+    time::Duration as WallDuration,
 };
 
 // Probe waits bound system progress, not the account move's deadline.
-// Share the QA/process harness patience, converted for std sockets and channels.
-const PATIENCE: WallDuration = WallDuration::from_nanos(WITHIN.as_nanos());
+// Share the QA/process harness patience for sockets and channels.
 pub const DEADLINE_MS: u64 = 500;
 
 fn document(directory: &Path) -> serde_json::Value {
@@ -133,7 +136,7 @@ impl Drop for Issuer {
 }
 
 pub struct Engine {
-    child: Child,
+    child: Mutex<Child>,
     client: PathBuf,
     pub directory: PathBuf,
     pub link: String,
@@ -157,20 +160,39 @@ impl Engine {
             .spawn()
             .expect("serve starts");
         let mut engine = Self {
-            child,
+            child: Mutex::new(child),
             client: directory.join(client),
             directory: directory.into(),
             link: String::new(),
             address: "127.0.0.1:0".parse().expect("socket"),
         };
-        let stdout = engine.child.stdout.take().expect("serve stdout");
+        let stdout = engine.child.lock().expect("serve owner").stdout.take().expect("serve stdout");
         let (sent, received) = mpsc::channel();
         thread::spawn(move || {
             let mut line = String::new();
             BufReader::new(stdout).read_line(&mut line).expect("serve link");
             let _ = sent.send(line);
         });
-        engine.link = received.recv_timeout(PATIENCE).expect("serve prints its link").trim().into();
+        let mut deadline = Deadline::arm("the account-move engine's printed link", WITHIN);
+        deadline.watch_process(engine.child.lock().expect("serve owner").id());
+        engine.link = loop {
+            match received.recv_timeout(socket_timeout(&deadline)) {
+                Ok(line) => break line.trim().into(),
+                Err(mpsc::RecvTimeoutError::Disconnected) => panic!("serve link reader disconnected"),
+                Err(mpsc::RecvTimeoutError::Timeout) => {}
+            }
+            let mut child = engine.child.lock().expect("serve owner");
+            assert!(child.try_wait().expect("serve status").is_none(), "serve exited before its printed link");
+            if deadline.passed() {
+                match deadline.expired() {
+                    Expired::Starved(starved) => {
+                        super::parent::end_child(&mut child);
+                        starved.pass();
+                    }
+                    Expired::Failed(figures) => panic!("serve prints its link: {figures}"),
+                }
+            }
+        };
         assert!(
             !engine.link.is_empty(),
             "serve startup: {}",
@@ -211,7 +233,7 @@ impl Engine {
         } else {
             drop(child.stdin.take());
         }
-        Running { child: Some(child), tool: arguments.first().expect("tool").to_string() }
+        Running { child: Some(child), tool: arguments.first().expect("tool").to_string(), in_world: false }
     }
     #[must_use]
     pub fn call(&self, arguments: &[&str], input: Option<&[u8]>) -> Output {
@@ -225,7 +247,8 @@ impl Engine {
     }
     #[must_use]
     pub fn account_state(&self, expected: &str) -> serde_json::Value {
-        let began = Instant::now();
+        let mut deadline = Deadline::arm("the moved account's source state", WITHIN);
+        deadline.watch_process(self.child.lock().expect("serve owner").id());
         loop {
             let value = self.accounts();
             let rows = value["accounts"]["party"].as_array().expect("party accounts");
@@ -238,7 +261,18 @@ impl Engine {
             {
                 return account.clone();
             }
-            assert!(began.elapsed() < PATIENCE, "source never became {expected}: {value}");
+            let mut child = self.child.lock().expect("serve owner");
+            assert!(child.try_wait().expect("serve status").is_none(), "serve exited before source became {expected}");
+            if deadline.passed() {
+                match deadline.expired() {
+                    Expired::Starved(starved) => {
+                        super::parent::end_child(&mut child);
+                        starved.pass();
+                    }
+                    Expired::Failed(figures) => panic!("source never became {expected}: {value}; {figures}"),
+                }
+            }
+            drop(child);
             thread::sleep(WallDuration::from_millis(10));
         }
     }
@@ -258,14 +292,14 @@ impl Engine {
 }
 impl Drop for Engine {
     fn drop(&mut self) {
-        let _ = self.child.kill();
-        let _ = self.child.wait();
+        super::parent::end_child(self.child.get_mut().unwrap_or_else(std::sync::PoisonError::into_inner));
     }
 }
 
 pub struct Running {
     child: Option<Child>,
     tool: String,
+    in_world: bool,
 }
 impl Running {
     pub fn terminate(&self) {
@@ -278,9 +312,32 @@ impl Running {
     }
     #[must_use]
     pub fn finish(mut self) -> Output {
-        let began = Instant::now();
+        let mut deadline = (!self.in_world).then(|| Deadline::arm("the account-move ctl probe", WITHIN));
+        let mut patience = self.in_world.then(|| Patience::arm("the account-move ctl probe", WITHIN));
+        let pid = self.child.as_ref().expect("ctl").id();
+        if let Some(deadline) = &mut deadline {
+            deadline.watch_process(pid);
+        }
+        if let Some(patience) = &mut patience {
+            patience.watch_process(pid);
+        }
         while self.child.as_mut().expect("ctl").try_wait().expect("poll ctl").is_none() {
-            assert!(began.elapsed() < PATIENCE, "ctl {} exceeded its probe deadline", self.tool);
+            if let Some(patience) = &mut patience
+                && let Some(figures) = patience.failed()
+            {
+                panic!("ctl {} exceeded its probe deadline: {figures}", self.tool);
+            }
+            if let Some(deadline) = &deadline
+                && deadline.passed()
+            {
+                match deadline.expired() {
+                    Expired::Starved(starved) => {
+                        super::parent::end_child(self.child.as_mut().expect("ctl"));
+                        starved.pass();
+                    }
+                    Expired::Failed(figures) => panic!("ctl {} exceeded its probe deadline: {figures}", self.tool),
+                }
+            }
             thread::sleep(WallDuration::from_millis(2));
         }
         self.child.take().expect("ctl").wait_with_output().expect("ctl output")
@@ -352,8 +409,8 @@ impl Fixture {
         self.a = Some(Engine::start(&directory));
     }
     pub fn another_holder_on_b(&mut self) {
-        self.b.child.kill().expect("stop B before changing its printed-link identity");
-        self.b.child.wait().expect("B stopped");
+        self.b.child.get_mut().expect("serve owner").kill().expect("stop B before changing its printed-link identity");
+        self.b.child.get_mut().expect("serve owner").wait().expect("B stopped");
         let directory = self.b.directory.clone();
         let mut value = document(&directory);
         value["engine"]["owners"][0]["subject"] = "qa-other-holder".into();
@@ -417,7 +474,7 @@ pub fn export_pending(directory: &Path, upstream: SocketAddr, account: u32, file
         .stderr(Stdio::piped())
         .spawn()
         .expect("pending fixture export");
-    let export = Running { child: Some(child), tool: "export".into() };
+    let export = Running { child: Some(child), tool: "export".into(), in_world: true };
     gate.wait();
     assert!(fs::metadata(file).expect("synced fixture move file").len() > 0, "record reached the CLI before Written");
     export.terminate();
@@ -465,7 +522,22 @@ pub struct Gate {
 }
 impl Gate {
     pub fn wait(&self) {
-        self.reached.recv_timeout(PATIENCE).expect("relay reaches the armed request");
+        let mut patience = Patience::arm("the account relay's armed request", WITHIN);
+        loop {
+            let received = match patience.socket_timeout() {
+                Some(timeout) => self.reached.recv_timeout(timeout),
+                None => self.reached.recv().map_err(|_| mpsc::RecvTimeoutError::Disconnected),
+            };
+            match received {
+                Ok(()) => return,
+                Err(mpsc::RecvTimeoutError::Disconnected) => panic!("relay disconnected before its armed request"),
+                Err(mpsc::RecvTimeoutError::Timeout) => {
+                    if let Some(figures) = patience.failed() {
+                        panic!("relay reaches the armed request: {figures}");
+                    }
+                }
+            }
+        }
     }
     pub fn release(mut self, deliver: bool) {
         let _ = self.release.take().expect("gate sender").send(deliver);
@@ -536,16 +608,6 @@ impl Drop for Relay {
     }
 }
 
-fn head(socket: &mut TcpStream) -> io::Result<Vec<u8>> {
-    let mut bytes = Vec::new();
-    while !bytes.ends_with(b"\r\n\r\n") {
-        let mut byte = [0];
-        socket.read_exact(&mut byte)?;
-        bytes.push(byte[0]);
-        assert!(bytes.len() <= 65_536, "bounded HTTP head");
-    }
-    Ok(bytes)
-}
 fn length(head: &[u8]) -> usize {
     std::str::from_utf8(head)
         .expect("HTTP head")
@@ -558,20 +620,35 @@ fn length(head: &[u8]) -> usize {
 }
 fn gate(rule: &Rule) -> bool {
     let _ = rule.reached.send(());
-    rule.release.recv_timeout(PATIENCE).unwrap_or(false)
+    let mut patience = Patience::arm("the account relay's gate release", WITHIN);
+    loop {
+        let received = match patience.socket_timeout() {
+            Some(timeout) => rule.release.recv_timeout(timeout),
+            None => rule.release.recv().map_err(|_| mpsc::RecvTimeoutError::Disconnected),
+        };
+        match received {
+            Ok(deliver) => return deliver,
+            Err(mpsc::RecvTimeoutError::Disconnected) => return false,
+            Err(mpsc::RecvTimeoutError::Timeout) => {
+                if let Some(figures) = patience.failed() {
+                    eprintln!("relay gate release timed out: {figures}");
+                    return false;
+                }
+            }
+        }
+    }
 }
 fn relay(
-    mut downstream: TcpStream,
+    downstream: TcpStream,
     upstream: SocketAddr,
     rules: &Mutex<Option<Rule>>,
     stop: &AtomicBool,
 ) -> io::Result<()> {
-    downstream.set_read_timeout(Some(PATIENCE))?;
-    downstream.set_write_timeout(Some(PATIENCE))?;
-    let request = head(&mut downstream)?;
+    let mut downstream = Socket::new(downstream, Scope::World);
+    let request = downstream.head("the account relay's request head", WITHIN)?;
     let mut body = vec![0; length(&request)];
     assert!(body.len() <= 262_144, "bounded request");
-    downstream.read_exact(&mut body)?;
+    downstream.read_exact("the account relay's request body", WITHIN, &mut body)?;
     let text = std::str::from_utf8(&request).expect("request head");
     let rule = if text.lines().next().expect("request line").contains("/v1/request ") {
         let mut rules = rules.lock().expect("relay rule");
@@ -590,9 +667,8 @@ fn relay(
     {
         return Ok(());
     }
-    let mut server = TcpStream::connect_timeout(&upstream, PATIENCE)?;
-    server.set_read_timeout(Some(WallDuration::from_millis(50)))?;
-    server.set_write_timeout(Some(PATIENCE))?;
+    let mut server = Socket::connect("the account relay's upstream connection", WITHIN, upstream, Scope::World)?;
+    server.stream().set_read_timeout(Some(WallDuration::from_millis(50)))?;
     let mut forwarded = String::new();
     for line in text.lines() {
         if line.is_empty() || line.to_ascii_lowercase().starts_with("connection:") {
@@ -608,32 +684,31 @@ fn relay(
         }
     }
     forwarded.push_str("Connection: close\r\n\r\n");
-    server.write_all(forwarded.as_bytes())?;
-    server.write_all(&body)?;
+    server.write_all("the account relay's upstream request", WITHIN, forwarded.as_bytes())?;
+    server.write_all("the account relay's upstream body", WITHIN, &body)?;
     if let Some(rule) = &rule
         && matches!(rule.boundary, Boundary::AfterReply)
     {
-        server.set_read_timeout(Some(PATIENCE))?;
-        let mut response = head(&mut server)?;
+        let mut response = server.head("the account relay's upstream reply head", WITHIN)?;
         let size = length(&response);
         assert!(size <= 262_144, "bounded reply");
         let offset = response.len();
         response.resize(offset + size, 0);
-        server.read_exact(&mut response[offset..])?;
+        server.read_exact("the account relay's upstream reply body", WITHIN, &mut response[offset..])?;
         if gate(rule) {
-            downstream.write_all(&response)?;
+            downstream.write_all("the account relay's held reply", WITHIN, &response)?;
         }
     } else {
         let mut buffer = [0; 8192];
         while !stop.load(Ordering::Relaxed) {
-            match server.read(&mut buffer) {
+            match server.stream().read(&mut buffer) {
                 Ok(0) => break,
-                Ok(count) => downstream.write_all(&buffer[..count])?,
+                Ok(count) => downstream.write_all("the account relay's forwarded reply", WITHIN, &buffer[..count])?,
                 Err(error) if matches!(error.kind(), io::ErrorKind::WouldBlock | io::ErrorKind::TimedOut) => {}
                 Err(error) => return Err(error),
             }
         }
     }
-    let _ = downstream.shutdown(Shutdown::Both);
+    let _ = downstream.stream().shutdown(Shutdown::Both);
     Ok(())
 }
