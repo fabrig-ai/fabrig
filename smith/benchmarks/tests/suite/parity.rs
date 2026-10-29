@@ -1,5 +1,5 @@
 //! Parity's offline verdict uses attempt rows and committed source identities.
-#[path = "common/parity.rs"]
+#[path = "../common/parity.rs"]
 mod common;
 
 use common::Rows;
@@ -52,7 +52,7 @@ fn a_summary_with_a_retried_failure_row_verifies_against_its_own_section() {
     let limits = smith_events::Limits { string: 524_288, content: 4096, items: 512 };
     let mut observer =
         smith_bench::agent::smith::events::Observer::with_ceiling(&limits, 16_384).expect("response bounds");
-    observer.feed(include_bytes!("recorded/retried-failure-17d63afd-02.jsonl")).expect("response excerpt");
+    observer.feed(include_bytes!("../recorded/retried-failure-17d63afd-02.jsonl")).expect("response excerpt");
     observer.finish().expect("whole lines");
     let tokens = observer.tokens().expect("recorded tokens");
     let total = tokens.iter().find(|record| record.role == smith_bench::ScopeKind::Total).expect("total");

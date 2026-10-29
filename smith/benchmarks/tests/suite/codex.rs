@@ -1,10 +1,10 @@
 use smith_bench::agent::codex::{Observer, parse_line};
 use smith_bench::{End, Exit, Forced, Measure};
 
-const COMPLETED: &str = include_str!("recorded/codex/completed.jsonl");
-const CHILDREN: &str = include_str!("recorded/codex/children.jsonl");
-const FAILED: &str = include_str!("recorded/codex/failed.jsonl");
-const REPEATED: &str = include_str!("recorded/codex/repeated-rollout.jsonl");
+const COMPLETED: &str = include_str!("../recorded/codex/completed.jsonl");
+const CHILDREN: &str = include_str!("../recorded/codex/children.jsonl");
+const FAILED: &str = include_str!("../recorded/codex/failed.jsonl");
+const REPEATED: &str = include_str!("../recorded/codex/repeated-rollout.jsonl");
 
 fn observed(stream: &str) -> Observer {
     let mut observer = Observer::default();
@@ -35,7 +35,7 @@ fn archived_streams_preserve_root_only_evidence_and_real_failure() {
     assert!(matches!(children.counts().children, Measure::Unavailable { .. }));
     assert!(matches!(observed(FAILED).classify(Exit::Code(1), Forced::No).end, End::Failed { .. }));
     let manifest: serde_json::Value =
-        serde_json::from_str(include_str!("recorded/codex/manifest.json")).expect("manifest");
+        serde_json::from_str(include_str!("../recorded/codex/manifest.json")).expect("manifest");
     for record in manifest["records"].as_array().expect("records") {
         let file = record["file"].as_str().expect("file");
         assert_eq!(record["provenance"], "archived");

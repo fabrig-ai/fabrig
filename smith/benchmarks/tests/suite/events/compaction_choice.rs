@@ -7,7 +7,7 @@ use smith_events::{Event, Record, ToolChoice};
 
 fn compaction_records() -> Vec<Record> {
     let mut records = super::balanced();
-    let excerpt = include_str!("../recorded/compaction-8a9747fa-02.jsonl");
+    let excerpt = include_str!("../../recorded/compaction-8a9747fa-02.jsonl");
     let compactions: Vec<_> = excerpt.lines().map(super::record).collect();
     let last = compactions.last().expect("recorded requests").t_ms;
     for (index, record) in records[5..].iter_mut().enumerate() {
@@ -53,7 +53,7 @@ fn compaction_choice_is_unavailable_without_a_compaction() {
 // excerpt keeps usage, model windows and the effective compaction material,
 // omitting captures and startup limits these checks do not read.
 fn threshold_records() -> Vec<Record> {
-    include_str!("../recorded/compaction-threshold-8a5bb9ec-03.jsonl").lines().map(super::record).collect()
+    include_str!("../../recorded/compaction-threshold-8a5bb9ec-03.jsonl").lines().map(super::record).collect()
 }
 
 fn compaction_opened() -> EventCheck {
@@ -127,7 +127,7 @@ fn a_stream_without_the_material_leaves_the_condition_unexercised() {
 
 fn edited_threshold_records(mut edit: impl FnMut(&mut serde_json::Value) -> bool) -> Vec<Record> {
     let mut edited = 0;
-    let records = include_str!("../recorded/compaction-threshold-8a5bb9ec-03.jsonl")
+    let records = include_str!("../../recorded/compaction-threshold-8a5bb9ec-03.jsonl")
         .lines()
         .map(|line| {
             let mut record = serde_json::from_str(line).expect("recorded event");

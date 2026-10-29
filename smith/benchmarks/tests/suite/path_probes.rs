@@ -6,9 +6,7 @@ use smith_bench::agent::smith::events::Observer;
 use smith_bench::{EventCheck, Measure};
 use smith_events::{Capture, Effect, Event, Record, Source, ToolCompleted, ToolStarted, Verdict};
 
-pub mod common;
-
-use common::events::{LIMITS, balanced};
+use crate::common::events::{LIMITS, balanced};
 
 fn path_check() -> EventCheck {
     EventCheck::ToolPath {

@@ -5,10 +5,10 @@ use smith_bench::agent::codex::Observer;
 fn codex_lines_survive_seeded_truncations_corruptions_and_repetition() {
     let mut rng = Rng::new(0xc0de_0005);
     for stream in [
-        include_str!("recorded/codex/completed.jsonl"),
-        include_str!("recorded/codex/children.jsonl"),
-        include_str!("recorded/codex/failed.jsonl"),
-        include_str!("recorded/codex/live-children.jsonl"),
+        include_str!("../../recorded/codex/completed.jsonl"),
+        include_str!("../../recorded/codex/children.jsonl"),
+        include_str!("../../recorded/codex/failed.jsonl"),
+        include_str!("../../recorded/codex/live-children.jsonl"),
     ] {
         for line in stream.lines() {
             for end in 0..line.len() {
@@ -45,9 +45,9 @@ fn named_rollouts_survive_seeded_truncation_corruption_and_response_repetition()
     use smith_bench::agent::codex::parse_rollout;
     let mut rng = skein_lib::Rng::new(0xc0de_0010);
     for (thread, stream) in [
-        ("01a121d2-5c3c-74b1-865b-66d8c6f41c3a", include_str!("recorded/codex/live-root-rollout.jsonl")),
-        ("01a121d2-6e5a-7e30-abd0-133d08c8c960", include_str!("recorded/codex/live-child-rollout.jsonl")),
-        ("01a121bc-04a8-75c2-8fba-d2694fa1ad22", include_str!("recorded/codex/repeated-rollout.jsonl")),
+        ("01a121d2-5c3c-74b1-865b-66d8c6f41c3a", include_str!("../../recorded/codex/live-root-rollout.jsonl")),
+        ("01a121d2-6e5a-7e30-abd0-133d08c8c960", include_str!("../../recorded/codex/live-child-rollout.jsonl")),
+        ("01a121bc-04a8-75c2-8fba-d2694fa1ad22", include_str!("../../recorded/codex/repeated-rollout.jsonl")),
     ] {
         let original = parse_rollout(stream.as_bytes(), thread).expect("actual rollout");
         for end in 0..stream.len() {
@@ -71,7 +71,7 @@ fn named_rollouts_survive_seeded_truncation_corruption_and_response_repetition()
 fn typed_event_chunks_preserve_records_under_seeded_cuts_and_corruption() {
     use smith_bench::agent::smith::events::Observer as Events;
     let limits = smith_events::Limits { string: 128, content: 1024, items: 16 };
-    let stream = include_bytes!("../../crates/smith-events/golden/v4/session_started_effective_limits.jsonl");
+    let stream = include_bytes!("../../../../crates/smith-events/golden/v4/session_started_effective_limits.jsonl");
     let mut rng = Rng::new(0xe7e0_0020);
     for _ in 0..128 {
         let mut observer = Events::new(&limits).expect("bounds");

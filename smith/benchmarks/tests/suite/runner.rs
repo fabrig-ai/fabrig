@@ -14,7 +14,7 @@ fn isolated_replay(name: &str) -> Option<PathBuf> {
     let root = std::env::temp_dir().join(format!("smith-bench-{name}-{}", std::process::id()));
     std::fs::create_dir(&root).expect("fixture root");
     let output = std::process::Command::new(std::env::current_exe().expect("test executable"))
-        .args(["--exact", name, "--nocapture"])
+        .args(["--exact", &format!("runner::{name}"), "--nocapture"])
         .env("SMITH_REPOSITORY_REPLAY_ROOT", &root)
         .env("HOME", root.join("home"))
         .env("XDG_CONFIG_HOME", root.join("config"))

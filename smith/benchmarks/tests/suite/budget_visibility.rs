@@ -3,7 +3,7 @@
 use smith_bench::{EventCheck, Measure};
 use smith_events::{Event, Record};
 
-pub mod common;
+use crate::common;
 
 fn records() -> Vec<Record> {
     static TEMPLATE: std::sync::LazyLock<Vec<Record>> = std::sync::LazyLock::new(build_records);
@@ -34,7 +34,7 @@ fn build_records() -> Vec<Record> {
         value.share = Some(smith_events::Share { turns: 2, time_ms: 1000, spend: 10 });
     }
     let mut returned =
-        common::events::record(include_str!("../../crates/smith-events/golden/v4/tool_completed_everything.jsonl"));
+        common::events::record(include_str!("../../../crates/smith-events/golden/v4/tool_completed_everything.jsonl"));
     if let Event::ToolCompleted(value) = &mut returned.event {
         value.run = 0;
         value.conversation = 0;

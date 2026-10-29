@@ -5,7 +5,7 @@ use smith_bench::{EventCheck, Measure};
 use smith_events::{Capture, Event, Record};
 use std::path::PathBuf;
 
-pub mod common;
+use crate::common;
 
 const COMMAND: &str = "sh -c 'sleep 600 & wait'";
 
@@ -51,9 +51,9 @@ fn nested_command_requires_retained_input_and_its_later_exact_terminal() {
     };
     let mut values = common::events::balanced();
     let mut start =
-        common::events::record(include_str!("../../crates/smith-events/golden/v4/tool_started_everything.jsonl"));
+        common::events::record(include_str!("../../../crates/smith-events/golden/v4/tool_started_everything.jsonl"));
     let mut end =
-        common::events::record(include_str!("../../crates/smith-events/golden/v4/tool_completed_everything.jsonl"));
+        common::events::record(include_str!("../../../crates/smith-events/golden/v4/tool_completed_everything.jsonl"));
     if let Event::ToolStarted(value) = &mut start.event {
         value.run = 0;
         value.conversation = 0;

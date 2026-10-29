@@ -4,7 +4,7 @@ use smith_bench::agent::smith::events::Observer;
 use smith_bench::{EventCheck, Measure};
 use smith_events::{ConversationKind, Event, Record};
 
-pub mod common;
+use crate::common;
 
 #[test]
 fn children_overlap_requires_positive_time_in_the_same_run() {

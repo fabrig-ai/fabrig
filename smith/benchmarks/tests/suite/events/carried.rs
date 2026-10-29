@@ -30,7 +30,7 @@ fn records(source: &str) -> Vec<Record> {
 }
 
 fn compaction() -> Vec<Record> {
-    records(include_str!("../recorded/compaction-carried-c2498a9d-05.jsonl"))
+    records(include_str!("../../recorded/compaction-carried-c2498a9d-05.jsonl"))
 }
 
 fn check(records: &[Record], check: &EventCheck) -> CheckVerdict {
@@ -105,7 +105,7 @@ fn compaction_carried_fails_a_window_without_its_summary() {
 
 #[test]
 fn a_failed_request_that_was_retried_leaves_its_checks_observed() {
-    let records = records(include_str!("../recorded/retried-request-c2498a9d-03.jsonl"));
+    let records = records(include_str!("../../recorded/retried-request-c2498a9d-03.jsonl"));
     let observer = observer(&records);
     assert_eq!(
         observer.check(&EventCheck::CallsPerResponse { tool: "read".into(), at_most: 1 }, "task").passed,
@@ -144,7 +144,7 @@ fn compaction_carried_needs_no_summary_without_a_parent_request() {
 
 #[test]
 fn an_unretried_failed_request_leaves_its_prompt_window_unavailable() {
-    let mut records = records(include_str!("../recorded/retried-request-c2498a9d-03.jsonl"));
+    let mut records = records(include_str!("../../recorded/retried-request-c2498a9d-03.jsonl"));
     records.retain(|record| {
         !matches!(&record.event,
         Event::ResponseStarted(value) if value.response == 29)

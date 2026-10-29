@@ -1,6 +1,6 @@
 //! Native preparation and trace replay use unissued credentials and immutable fixtures.
 
-pub mod common;
+use crate::common;
 
 use std::path::{Path, PathBuf};
 
@@ -247,7 +247,8 @@ fn a_failed_main_answer_also_closes_person_input_and_preserves_its_budget_end() 
 
 fn failed_recording() -> Vec<u8> {
     let mut records = common::events::balanced();
-    let failed = common::events::record(include_str!("../../crates/smith-events/golden/v4/answer_class_budget.jsonl"));
+    let failed =
+        common::events::record(include_str!("../../../crates/smith-events/golden/v4/answer_class_budget.jsonl"));
     let smith_events::Event::RunCompleted(mut failed) = failed.event else { panic!("run terminal") };
     failed.run = 0;
     failed.failure.as_mut().expect("budget").which = Some(Box::from(&b"time"[..]));
@@ -278,7 +279,7 @@ fn person_capture(trace: &Path) -> Capture {
 fn person_recording() -> Vec<u8> {
     let mut records = common::events::balanced();
     let mut started =
-        common::events::record(include_str!("../../crates/smith-events/golden/v4/tool_started_everything.jsonl"));
+        common::events::record(include_str!("../../../crates/smith-events/golden/v4/tool_started_everything.jsonl"));
     started.t_ms = 4;
     if let smith_events::Event::ToolStarted(value) = &mut started.event {
         value.run = 0;
@@ -661,9 +662,9 @@ fn a_time_breakdown_sums_to_task_wall_within_one_second() {
     let limits = smith_events::Limits { string: 524_288, content: 4096, items: 512 };
     let mut observer =
         smith_bench::agent::smith::events::Observer::with_ceiling(&limits, 1_048_576).expect("recorded stream bounds");
-    observer.feed(include_bytes!("recorded/smith-time.jsonl")).expect("recorded smith trace");
+    observer.feed(include_bytes!("../recorded/smith-time.jsonl")).expect("recorded smith trace");
     observer.finish().expect("complete trace");
-    let mut timing = smith_bench::parse_result(Path::new("fixture"), include_str!("recorded/results/attempt.json"))
+    let mut timing = smith_bench::parse_result(Path::new("fixture"), include_str!("../recorded/results/attempt.json"))
         .expect("result fixture")
         .timing;
     observer.timing(&mut timing);
@@ -724,7 +725,7 @@ fn a_comparison_pin_keeps_every_preset_value_and_the_default_role() {
         }
     }
     let recorded: serde_json::Value =
-        serde_json::from_str(include_str!("recorded/smith-product-check.json")).expect("recorded product check");
+        serde_json::from_str(include_str!("../recorded/smith-product-check.json")).expect("recorded product check");
     assert_eq!(recorded["version"], 2);
     for (key, leaf) in recorded["settings"]["values"].as_object().expect("recorded leaves") {
         if key.starts_with("models.")

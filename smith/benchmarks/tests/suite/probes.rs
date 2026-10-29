@@ -3,7 +3,7 @@
 use smith_bench::{CheckVerdict, End, Judgment, Measure, judge, judge_suite};
 use std::path::PathBuf;
 
-pub mod common;
+use crate::common;
 
 fn history() -> smith_bench::Task {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -296,8 +296,9 @@ fn follow_up_chat_judges_one_completion_per_exchange() {
     assert!(task.event.contains(&smith_bench::EventCheck::CompletionPerExchange));
     assert!(task.event.contains(&smith_bench::EventCheck::HandledOnce));
     let mut records = common::events::balanced();
-    let mut received =
-        common::events::record(include_str!("../../crates/smith-events/golden/v4/message_received_everything.jsonl"));
+    let mut received = common::events::record(include_str!(
+        "../../../crates/smith-events/golden/v4/message_received_everything.jsonl"
+    ));
     if let smith_events::Event::MessageReceived(value) = &mut received.event {
         value.run = 0;
         value.label = Some(b"person".as_slice().into());

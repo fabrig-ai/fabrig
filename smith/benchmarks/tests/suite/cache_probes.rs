@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use smith_bench::{CacheObservation, CheckVerdict, End, EventCheck, Judgment, Measure};
 use smith_events::{Block, Event};
 
-pub mod common;
+use crate::common;
 
 #[test]
 fn the_crossing_variant_waits_once_at_medium_effort() {
@@ -177,8 +177,9 @@ fn sequential_children_wait_for_the_parent_return_and_require_both_returns() {
         if let Event::ConversationClosed(value) = &mut closed.event {
             value.conversation = child;
         }
-        let mut returned =
-            common::events::record(include_str!("../../crates/smith-events/golden/v4/tool_completed_everything.jsonl"));
+        let mut returned = common::events::record(include_str!(
+            "../../../crates/smith-events/golden/v4/tool_completed_everything.jsonl"
+        ));
         if let Event::ToolCompleted(value) = &mut returned.event {
             value.run = 0;
             value.conversation = 0;

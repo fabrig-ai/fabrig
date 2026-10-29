@@ -4,7 +4,7 @@ fn retried_tokens(evidence: &str) -> Vec<TokenRecord> {
     let limits = smith_events::Limits { string: 524_288, content: 4096, items: 512 };
     let mut observer =
         smith_bench::agent::smith::events::Observer::with_ceiling(&limits, 16_384).expect("recorded response bounds");
-    let bytes = include_str!("../recorded/retried-failure-17d63afd-02.jsonl")
+    let bytes = include_str!("../../recorded/retried-failure-17d63afd-02.jsonl")
         .replace("\"evidence\":\"response\"", &format!("\"evidence\":\"{evidence}\""));
     observer.feed(bytes.as_bytes()).expect("recorded response excerpt");
     observer.finish().expect("whole recorded lines");

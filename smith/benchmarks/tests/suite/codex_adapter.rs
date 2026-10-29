@@ -373,8 +373,8 @@ fn captured_native_child_headers_and_usage_keep_each_response_in_its_own_scope()
     let root = "01a121d2-5c3c-74b1-865b-66d8c6f41c3a";
     let child = "01a121d2-6e5a-7e30-abd0-133d08c8c960";
     let (_, responses) =
-        parse_rollout(include_bytes!("recorded/codex/live-root-rollout.jsonl"), root).expect("actual root");
-    let (link, child_responses) = parse_rollout(include_bytes!("recorded/codex/live-child-rollout.jsonl"), child)
+        parse_rollout(include_bytes!("../recorded/codex/live-root-rollout.jsonl"), root).expect("actual root");
+    let (link, child_responses) = parse_rollout(include_bytes!("../recorded/codex/live-child-rollout.jsonl"), child)
         .expect("actual inherited context");
     assert_eq!(link, Link::Linked { parent: root.into() });
     assert_eq!(responses.len(), 4);
@@ -385,11 +385,11 @@ fn captured_native_child_headers_and_usage_keep_each_response_in_its_own_scope()
         files: vec![
             smith_bench::agent::codex::RolloutFile {
                 thread: root.into(),
-                bytes: include_bytes!("recorded/codex/live-root-rollout.jsonl").to_vec(),
+                bytes: include_bytes!("../recorded/codex/live-root-rollout.jsonl").to_vec(),
             },
             smith_bench::agent::codex::RolloutFile {
                 thread: child.into(),
-                bytes: include_bytes!("recorded/codex/live-child-rollout.jsonl").to_vec(),
+                bytes: include_bytes!("../recorded/codex/live-child-rollout.jsonl").to_vec(),
             },
         ],
     };
@@ -522,7 +522,7 @@ fn recorded_time(bytes: &[u8]) -> smith_bench::Timing {
         children: vec![],
         files: vec![smith_bench::agent::codex::RolloutFile { thread: thread.into(), bytes: bytes.into() }],
     };
-    let mut timing = smith_bench::parse_result(Path::new("fixture"), include_str!("recorded/results/attempt.json"))
+    let mut timing = smith_bench::parse_result(Path::new("fixture"), include_str!("../recorded/results/attempt.json"))
         .expect("result fixture")
         .timing;
     rollouts.timing(thread, &mut timing).expect("recorded timestamps");
@@ -531,7 +531,7 @@ fn recorded_time(bytes: &[u8]) -> smith_bench::Timing {
 
 #[test]
 fn rollout_threads_give_request_tool_and_command_overlap() {
-    let timing = recorded_time(include_bytes!("recorded/codex/repository-04-time.jsonl"));
+    let timing = recorded_time(include_bytes!("../recorded/codex/repository-04-time.jsonl"));
     let record = &timing.record;
     let value = |measure: &Measure<u64>| match measure {
         Measure::Observed { value } => *value,
@@ -549,7 +549,7 @@ fn rollout_threads_give_request_tool_and_command_overlap() {
 
 #[test]
 fn a_stream_without_spans_leaves_the_record_unavailable() {
-    for bytes in [b"".as_slice(), include_bytes!("recorded/codex/completed.jsonl").as_slice()] {
+    for bytes in [b"".as_slice(), include_bytes!("../recorded/codex/completed.jsonl").as_slice()] {
         let timing = recorded_time(bytes);
         assert_eq!(timing.record.requests_ms, Measure::unavailable("root rollout lacks complete timestamped spans"));
         assert!(matches!(timing.record.rest_ms, Measure::Unavailable { .. }));
@@ -561,8 +561,9 @@ fn a_stream_without_spans_leaves_the_record_unavailable() {
 fn a_summary_keeps_the_time_records_medians() {
     let mut results = Vec::new();
     for value in [100_u64, 300, 200] {
-        let mut result = smith_bench::parse_result(Path::new("fixture"), include_str!("recorded/results/attempt.json"))
-            .expect("result fixture");
+        let mut result =
+            smith_bench::parse_result(Path::new("fixture"), include_str!("../recorded/results/attempt.json"))
+                .expect("result fixture");
         result.identity.attempt = value.to_string();
         let record = &mut result.timing.record;
         record.requests_ms = Measure::Observed { value };
@@ -597,14 +598,14 @@ fn a_summary_keeps_the_time_records_medians() {
 fn repository_threads() -> (String, Rollouts) {
     let root = "01a13785-a5a8-7543-ad07-90745b2ada69";
     let sources = [
-        (root, include_bytes!("recorded/codex/repository-04-root.jsonl").as_slice()),
+        (root, include_bytes!("../recorded/codex/repository-04-root.jsonl").as_slice()),
         (
             "01a13785-fa70-7333-8992-f27e7720f4fb",
-            include_bytes!("recorded/codex/repository-04-child-one.jsonl").as_slice(),
+            include_bytes!("../recorded/codex/repository-04-child-one.jsonl").as_slice(),
         ),
         (
             "01a13786-12c9-7381-a0de-7de1cbc6eb1d",
-            include_bytes!("recorded/codex/repository-04-child-two.jsonl").as_slice(),
+            include_bytes!("../recorded/codex/repository-04-child-two.jsonl").as_slice(),
         ),
     ];
     let mut rollouts = Rollouts { responses: vec![], children: vec![], files: vec![] };
@@ -659,13 +660,13 @@ fn codex_responses_per_thread_come_from_token_counts() {
 fn codex_pin_fixture(root: &Path) -> (PathBuf, smith_bench::PinnedConfiguration, smith_bench::arm::ArmRef) {
     let directory = root.join("pin");
     std::fs::create_dir(&directory).expect("fixture pin directory");
-    let metadata = include_str!("../agents/codex/standard.pin.toml").replace(
+    let metadata = include_str!("../../agents/codex/standard.pin.toml").replace(
         "12eb3e81114588aca3b7998f4f19e8997b056aca08e57a7ca7c8a3ec8c652aad",
         "0d63d62cbfd277a91299c0335296a03bcb6a02c2642a90e2b5815caf71726a8d",
     );
     let pin_file = directory.join("standard.pin.toml");
     std::fs::write(&pin_file, metadata).expect("fixture pin");
-    std::fs::write(directory.join("overrides.toml"), include_str!("../agents/codex/overrides.toml"))
+    std::fs::write(directory.join("overrides.toml"), include_str!("../../agents/codex/overrides.toml"))
         .expect("fixture overrides");
     let program = root.join("tools/codex-0.160.0/bin/codex");
     std::fs::create_dir_all(program.parent().expect("bin directory")).expect("fixture package");
@@ -750,7 +751,7 @@ fn the_codex_pin_names_only_the_keys_an_attempt_must_own() {
     assert_eq!(pin.pin.sha256.as_deref(), Some("12eb3e81114588aca3b7998f4f19e8997b056aca08e57a7ca7c8a3ec8c652aad"));
     assert_eq!(pin.pin.package.as_deref(), Some(Path::new("tools/codex-0.160.0")));
     let document: toml::Table =
-        toml::from_str(include_str!("../agents/codex/overrides.toml")).expect("shipped overrides");
+        toml::from_str(include_str!("../../agents/codex/overrides.toml")).expect("shipped overrides");
     let keys: Vec<_> = document.keys().map(String::as_str).collect();
     assert_eq!(keys, ["approval_policy", "check_for_update_on_startup", "harness", "mcp_servers", "sandbox_mode"]);
 }

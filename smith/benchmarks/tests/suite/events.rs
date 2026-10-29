@@ -2,7 +2,7 @@ use smith_bench::agent::smith::events::Observer;
 use smith_bench::{Convention, End, Exit, Forced, Measure, ScopeKind};
 use smith_events::{Event, Limits, Record};
 
-pub mod common;
+use crate::common;
 
 #[path = "events/delegation.rs"]
 mod delegation;
@@ -13,7 +13,7 @@ mod compaction_choice;
 #[path = "events/carried.rs"]
 mod carried;
 
-use common::events::{LIMITS, balanced, bytes, record};
+use crate::common::events::{LIMITS, balanced, bytes, record};
 
 fn observe(records: &[Record]) -> Observer {
     static ORIGINAL: std::sync::LazyLock<Visible> = std::sync::LazyLock::new(|| Visible::new(balanced()));
@@ -125,7 +125,7 @@ fn agent_exit_tracks_the_sent_answer_and_forced_pending_stays_unknown() {
     if let Event::SessionStarted(value) = &mut values[0].event {
         value.mode = smith_events::Mode::Agent;
     }
-    let failed = record(include_str!("../../crates/smith-events/golden/v4/status_failed.jsonl"));
+    let failed = record(include_str!("../../../crates/smith-events/golden/v4/status_failed.jsonl"));
     if let Event::RunCompleted(source) = failed.event
         && let Event::RunCompleted(value) = &mut values[6].event
     {
@@ -151,7 +151,7 @@ fn agent_exit_tracks_the_sent_answer_and_forced_pending_stays_unknown() {
         health.passive_checks.iter().find(|check| check.check == "exit-agrees").expect("exit check").passed,
         Measure::Unavailable { .. }
     ));
-    let failure = record(include_str!("../../crates/smith-events/golden/v4/failure_class_limit.jsonl"));
+    let failure = record(include_str!("../../../crates/smith-events/golden/v4/failure_class_limit.jsonl"));
     if let Event::RunCompleted(source) = failure.event
         && let Event::ResponseCompleted(value) = &mut values[4].event
     {
@@ -312,7 +312,7 @@ fn observed_passive_contradictions_survive_loss_but_missing_records_do_not() {
     values.remove(5);
     values.remove(5);
     assert!(matches!(passed(&observe(&values), "paired"), Measure::Unavailable { .. }));
-    let failed = record(include_str!("../../crates/smith-events/golden/v4/failure_class_limit.jsonl"));
+    let failed = record(include_str!("../../../crates/smith-events/golden/v4/failure_class_limit.jsonl"));
     if let Event::RunCompleted(source) = failed.event
         && let Event::RunCompleted(value) = &mut values[5].event
     {
@@ -571,7 +571,7 @@ fn child_run() -> Vec<Record> {
         value.call = Some(Box::from(&b"child-call"[..]));
         value.share = Some(smith_events::Share { turns: 2, time_ms: 1000, spend: 10 });
     }
-    let mut returned = record(include_str!("../../crates/smith-events/golden/v4/tool_completed_everything.jsonl"));
+    let mut returned = record(include_str!("../../../crates/smith-events/golden/v4/tool_completed_everything.jsonl"));
     if let Event::ToolCompleted(value) = &mut returned.event {
         value.run = 0;
         value.conversation = 0;
@@ -804,7 +804,7 @@ fn spend_ceiling_uses_exact_currency_and_never_charges_terminals_again() {
 fn spend_ceiling_retains_over_budget_snapshots_and_multiple_run_totals() {
     let check = smith_bench::EventCheck::SpendWithin { ceiling_usd: 3.0 };
     let mut values = balanced();
-    let mut budget = record(include_str!("../../crates/smith-events/golden/v4/budget_ordinary.jsonl"));
+    let mut budget = record(include_str!("../../../crates/smith-events/golden/v4/budget_ordinary.jsonl"));
     if let Event::Budget(value) = &mut budget.event {
         value.run = 0;
         value.spend.used = 4;
@@ -986,7 +986,7 @@ fn build_visible_child() -> Vec<Record> {
         value.turns.used = 2;
         value.time_ms.used = 8;
     }
-    let mut returned = record(include_str!("../../crates/smith-events/golden/v4/tool_completed_everything.jsonl"));
+    let mut returned = record(include_str!("../../../crates/smith-events/golden/v4/tool_completed_everything.jsonl"));
     if let Event::ToolCompleted(value) = &mut returned.event {
         value.run = 0;
         value.conversation = 0;
@@ -1600,7 +1600,7 @@ fn the_resolved_window_comes_from_each_agents_stream() {
         children: vec![],
         files: vec![RolloutFile {
             thread: "root".into(),
-            bytes: include_bytes!("recorded/codex/model-window.jsonl").to_vec(),
+            bytes: include_bytes!("../recorded/codex/model-window.jsonl").to_vec(),
         }],
     };
     rollouts.resolve_model("root", &mut identity).expect("root model metadata");

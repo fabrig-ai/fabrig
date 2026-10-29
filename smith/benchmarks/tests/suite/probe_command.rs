@@ -1,6 +1,6 @@
 //! Offline command controls use synthetic credentials and an unissued replay arm.
 
-pub mod common;
+use crate::common;
 
 use smith_bench::arm::ArmRef;
 use smith_bench::probe::{Order, Source};
@@ -21,7 +21,7 @@ fn isolated(name: &str) -> Option<PathBuf> {
     std::fs::DirBuilder::new().mode(0o700).create(&directory).expect("private fixture root");
     std::fs::create_dir_all(directory.join("state/smith-bench/logins/smith/tokens")).expect("synthetic home");
     let output = Command::new(std::env::current_exe().expect("test executable"))
-        .args(["--exact", name, "--nocapture"])
+        .args(["--exact", &format!("probe_command::{name}"), "--nocapture"])
         .env("SMITH_PROBE_OFFLINE_CHILD", "1")
         .env("HOME", &directory)
         .env("XDG_CONFIG_HOME", directory.join("config"))

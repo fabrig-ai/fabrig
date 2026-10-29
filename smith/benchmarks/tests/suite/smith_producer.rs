@@ -61,7 +61,8 @@ capture='everything'
         smith_local_shell::settings::resolve::resolve_startup(&settings).unwrap_or_else(|why| panic!("{}", why.line()));
     let configured = resolved.agent;
     let producer = configured.service.limits.events.expect("configured stream writer");
-    let registry: toml::Value = toml::from_str(include_str!("../agents/smith/faces.toml")).expect("published registry");
+    let registry: toml::Value =
+        toml::from_str(include_str!("../../agents/smith/faces.toml")).expect("published registry");
     let entry = registry["face"].as_array().expect("face inventory").last().expect("writing face");
     assert_eq!(entry["shape"].as_str(), Some("chat"));
     let receiving: Receiving = entry["receiving"].clone().try_into().expect("required receiving values");

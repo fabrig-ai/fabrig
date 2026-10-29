@@ -37,7 +37,7 @@ fn a_row_keeps_the_attempts_responses() {
 
 #[test]
 fn smiths_own_peak_comes_from_session_ended() {
-    let observer = observer(include_bytes!("recorded/retried-failure-17d63afd-02.jsonl"));
+    let observer = observer(include_bytes!("../recorded/retried-failure-17d63afd-02.jsonl"));
     let mut result = result();
     result.identity.agent = Agent::Smith;
     result.resources.own_peak_rss_bytes = observer.own_peak_rss_bytes();
@@ -59,7 +59,7 @@ fn codexs_peak_is_its_trees_and_says_so() {
 
 #[test]
 fn a_null_peak_record_leaves_smiths_own_unavailable() {
-    let stream = include_str!("recorded/retried-failure-17d63afd-02.jsonl")
+    let stream = include_str!("../recorded/retried-failure-17d63afd-02.jsonl")
         .replace("\"peak_rss_bytes\":{\"self\":17321984,\"children\":157687808}", "\"peak_rss_bytes\":null");
     assert_eq!(
         observer(stream.as_bytes()).own_peak_rss_bytes(),
