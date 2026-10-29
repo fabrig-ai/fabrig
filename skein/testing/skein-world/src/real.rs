@@ -454,8 +454,13 @@ fn sched_figures((cpu, waited): (Duration, Duration)) -> Sched {
     Sched { cpu: cpu.as_nanos(), waited: waited.as_nanos() }
 }
 
-fn referee_diagnostic(elapsed: Duration, why: &str, figures: &Figures) -> String {
-    format!("at {} ms, the referee failed the real loop:\n{why}\n{figures}", elapsed.as_nanos().div_euclid(1_000_000))
+fn referee_diagnostic(elapsed: Duration, why: &str, figures: Option<&Figures>) -> String {
+    let mut text =
+        format!("at {} ms, the referee failed the real loop:\n{why}", elapsed.as_nanos().div_euclid(1_000_000));
+    if let Some(figures) = figures {
+        write!(&mut text, "\n{figures}").expect("String formatting");
+    }
+    text
 }
 
 fn deadline_status(deadline: Option<Time>, now: Time) -> String {
@@ -530,13 +535,19 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
     }
 
     fn referee_deadline_reached(self, deadline: &Deadline, now: Time, why: &str) -> ! {
-        let until = self.world.referee.next_deadline().expect("an overdue expectation has a deadline");
+        let until = match self.world.referee.next_deadline() {
+            Some(until) if until <= now => until,
+            Some(_) | None => {
+                // A referee may report a terminal failure before a liveness deadline.
+                crate::fail(&referee_diagnostic(now.saturating_since(deadline.start()), why, None));
+            }
+        };
         let expired = deadline.expired_at("the referee's expectation", until);
         let figures = match &expired {
             Expired::Starved(starved) => starved.figures(),
             Expired::Failed(figures) => figures,
         };
-        let diagnostic = referee_diagnostic(now.saturating_since(deadline.start()), why, figures);
+        let diagnostic = referee_diagnostic(now.saturating_since(deadline.start()), why, Some(figures));
         match expired {
             Expired::Starved(starved) if std::env::var_os("NEXTEST").is_some() => {
                 self.forced_cleanup();
@@ -1181,7 +1192,7 @@ mod tests {
             thread_cpu: Some(Duration::from_millis(2)),
             tree_waited: None,
         };
-        let message = referee_diagnostic(figures.elapsed, "  unmet: answer", &figures);
+        let message = referee_diagnostic(figures.elapsed, "  unmet: answer", Some(&figures));
         assert_eq!(
             message,
             "at 12 ms, the referee failed the real loop:\n  unmet: answer\nthe referee's expectation: patience 10000000 ns; elapsed 12000000 ns; thread runnable wait 1000000 ns; thread CPU 2000000 ns; tree runnable wait UNAVAILABLE (ns)"
@@ -1222,13 +1233,15 @@ mod tests {
         }
     }
 
-    struct Quiet;
+    struct Quiet {
+        deadline: Option<Time>,
+    }
 
     impl Referee<Idle> for Quiet {
         fn act(&mut self, _now: Time, _procs: &mut [Idle]) {}
         fn observe(&mut self, _now: Time, _procs: &[Idle]) {}
         fn next_deadline(&self) -> Option<Time> {
-            None
+            self.deadline
         }
         fn overdue(&self, _now: Time) -> Option<String> {
             None
@@ -1239,7 +1252,22 @@ mod tests {
     }
 
     fn children_after_descriptor_cleanup() -> Running<Idle, Quiet> {
-        children_with(Quiet)
+        children_with(Quiet { deadline: None })
+    }
+
+    #[test]
+    fn a_referee_failure_without_a_due_deadline_stays_a_plain_failure() {
+        let deadline = crate::Deadline::arm("the real loop", Duration::from_secs(1));
+        for until in [None, Some(deadline.until())] {
+            let mut running = children_after_descriptor_cleanup();
+            running.world.referee.deadline = until;
+            let error = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                running.referee_deadline_reached(&deadline, deadline.start(), "startup failed");
+            }))
+            .expect_err("a terminal failure is never starved");
+            let message = error.downcast_ref::<String>().expect("formatted referee failure");
+            assert_eq!(message, "at 0 ms, the referee failed the real loop:\nstartup failed");
+        }
     }
 
     fn children_with<R: Referee<Idle>>(referee: R) -> Running<Idle, R> {
