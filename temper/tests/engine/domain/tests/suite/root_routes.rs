@@ -1170,7 +1170,7 @@ fn an_early_worker_hello_does_not_number_a_commit_before_the_durable_header() {
 fn maximum_cold_hello_batch_and_duplicate_losses_fit_one_startup_decision() {
     let mut limits = limits();
     limits.fleet.workers = 4;
-    // Core's worst_case requires accounts.program_names <= fleet.program_sources.
+    // Core valid requires accounts.program_names <= fleet.program_sources.
     limits.fleet.program_sources = limits.accounts.program_names;
     // Four workers need writes and deliveries for one startup decision.
     limits.journal.writes += 4 * (4 - 1);
@@ -1311,7 +1311,7 @@ fn batch_settings(
 ) -> ([engine::Config; 2], engine::Limits) {
     let mut bounds = limits();
     bounds.tasks.tasks = 4;
-    // jig's core prices each task's inbox projections (`memory.rs`, `worst_case`).
+    // Core valid requires two inbox census entries per task.
     bounds.people.inbox_tasks = 8;
     bounds.people.inbox_recipients = 17;
     bounds.tasks.project_tasks = 4;

@@ -259,7 +259,7 @@ const ROOT: Root = Root {
         held: 1536,
         // A commit's unique writes: the store commit edge, checked by Decision::write.
         writes: 12288,
-        // At least jig small fleet.workers * fleet.max_out + 1: the root's worst case.
+        // Outputs at the journal's door, counted in the default admission watermark.
         deliveries: 512,
         // At least row_bound, including forge.client.answer_bytes: the root's worst case.
         transcript_bytes: 65_536,
