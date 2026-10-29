@@ -15,8 +15,10 @@ empty-plan job on the dedicated second gate: exact bundle import, candidate
 identity, checkout exclusion and private atomic evidence passed. This smoke
 ran no Cargo checks and does not validate a second prover.
 
-Section 3.9 is implemented as a **disabled, unready library** in `train.py`,
-with 63 disposable tests in `test_train.py`. It prepares exact chained Git
+Section 3.9 is implemented as a **disabled library** in `train.py`,
+with 63 disposable tests in `test_train.py`. Ops reviewed the provisional
+partial-conflict decision repair and its replay coverage; the library is ready
+for merge while the production activation prohibition below remains in force. It prepares exact chained Git
 candidates in a separate clone, writes ratchets before freezing, pins/exports
 objects, reserves names/full cadence, records dispatch ownership, independently
 validates complete worker/log evidence, and adjudicates in order. Sequential
