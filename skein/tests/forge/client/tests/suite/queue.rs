@@ -1,4 +1,4 @@
-pub mod fixtures;
+use crate::fixtures;
 use fixtures::merge_entry;
 use skein_forge::api::Error;
 use skein_forge_client::{Made, Outcome};

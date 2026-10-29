@@ -1,4 +1,4 @@
-pub mod fixtures;
+use crate::fixtures;
 use fixtures::issue;
 use skein_forge::api;
 use skein_forge_client::{Condition, Effect, Entry, Made, Outcome, Resource, Watch, What};

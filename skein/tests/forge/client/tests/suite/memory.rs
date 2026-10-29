@@ -8,9 +8,7 @@ use skein_forge_client::{
 };
 use skein_forge_client_world::{LIMITS, REPO};
 use skein_lib::{Env, List, Queue, Time, Token, Wall};
-use skein_world::domain::heap::{self, Meter};
-#[global_allocator]
-static HEAP: heap::Counting = heap::Counting;
+use skein_world::domain::heap::Meter;
 #[derive(Clone, Copy)]
 struct Call {
     token: Token,
