@@ -12,7 +12,8 @@ HUNG_CASE_S=$((3 * HUNG_TOOL_S))
 # This deadline is the subject of the TERM-ignoring callback case.
 ON_STOP_TIMEOUT_S=1
 kit=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
-t=$(mktemp -d "$kit/test-codex-run.XXXXXX")
+scratch_parent=$(cd "$kit/../../.." && pwd -P)
+t=$(mktemp -d "$scratch_parent/.test-codex-run.XXXXXX")
 cleanup() {
     local file pid
     for file in "$DEV_ROOT"/fake/*.pid; do
@@ -27,6 +28,7 @@ export CODEX_RUN_RETRY_DELAYS='0 0 0'
 mkdir -p "$HOME" "$DEV_ROOT/fake" "$t/bin" "$t/reports" "$t/work dir" "$t/fabrig/tools/codex-run" "$t/fabrig/tools/slots"
 trap cleanup EXIT
 cp "$kit/codex-run" "$t/fabrig/tools/codex-run/codex-run"
+cp "$kit/../slots/lifetime.py" "$t/fabrig/tools/slots/lifetime.py"
 kit=$t/fabrig/tools/codex-run
 export PATH=$t/bin:$PATH
 fake=$DEV_ROOT/fake
@@ -150,6 +152,10 @@ with (fake / 'codex.calls').open('a') as out:
                           'home': os.environ.get('HOME'), 'post_name': os.environ.get('POST_NAME'),
                           'unwanted': os.environ.get('CODEX_RUN_FIXTURE_UNWANTED')}) + '\n')
 scenario = (fake / 'scenario').read_text().strip()
+if pathlib.Path.cwd().is_relative_to(pathlib.Path(os.environ['HOME']) / 'src/fabrig/slots/1'):
+    lease = pathlib.Path(os.environ['HOME']) / 'src/fabrig/slot-maintenance/1/lease'
+    inherited = os.fstat(int(os.environ['FABRIG_SLOT_LEASE_FD']))
+    assert (inherited.st_dev, inherited.st_ino) == (lease.stat().st_dev, lease.stat().st_ino)
 if scenario == 'orphan':
     import signal, time
     parent = os.getpid()
@@ -348,9 +354,10 @@ refusal() {
     [[ $status == 2 && $output != *$'\n'* && $before == "$(directories)" ]]
     expect "$what" "$output" 'codex-run:'
 }
-mkdir "$t/unsafe kit"
-cp "$kit/codex-run" "$t/unsafe kit/codex-run"
-output=$("$t/unsafe kit/codex-run" task --on-stop "$t/return-login" \
+mkdir -p "$t/unsafe kit/tools/codex-run" "$t/unsafe kit/tools/slots"
+cp "$kit/codex-run" "$t/unsafe kit/tools/codex-run/codex-run"
+cp "$kit/../slots/lifetime.py" "$t/unsafe kit/tools/slots/lifetime.py"
+output=$("$t/unsafe kit/tools/codex-run/codex-run" task --on-stop "$t/return-login" \
     "$t/task file.md" "$t/work dir" "$t/reports/refused.md" 2>&1) && status=0 || status=$?
 [[ $status == 2 && ! -e $fake/launch.args && ! -e $DEV_ROOT/tmp/codex-run && ! -e $t/reports/refused.md ]]
 expect 'on-stop refused for an unsafe kit path' "$output" "codex-run: the kit's path is unsafe in a stop command"
@@ -378,6 +385,55 @@ done
 refusal 'bad effort' task --effort max "$t/task file.md" "$t/work dir" "$t/reports/refused.md"
 refusal 'resume without thread' task --resume absent "$t/task file.md" "$t/work dir" "$t/reports/refused.md"
 [[ ! -e $DEV_ROOT/tmp/codex-run ]]
+# The subreaper bootstrap must still validate history before reading metadata.
+mkdir -p "$HOME/src/fabrig/slots/1/target"
+output=$(DEV_ROOT="$HOME/src/fabrig/slots/1/target" "$kit/codex-run" _run absent 2>&1) && status=0 || status=$?
+[[ $status == 2 && ! -e $fake/launch.args && ! -e $DEV_ROOT/tmp/codex-run ]]
+expect 'bootstrapped worker refuses target history before metadata' "$output" 'protected evidence overlaps target'
+ln -s "$DEV_ROOT" "$t/history-link"
+output=$(DEV_ROOT="$t/history-link/../workspace" "$kit/codex-run" _run absent 2>&1) && status=0 || status=$?
+[[ $status == 2 && ! -e $fake/launch.args && ! -e $DEV_ROOT/tmp/codex-run ]]
+expect 'bootstrapped worker refuses a cancelled history symlink' "$output" 'symlink path'
+
+# A framed result must preserve paths, and success requires both all fields and
+# a successful helper exit before report reservation or detached startup.
+python3 -I -B - "$kit/../slots/lifetime.py" "$t" <<'PYPATHS'
+import os
+from pathlib import Path
+import subprocess
+import sys
+
+helper, fixture = sys.argv[1:]
+root = os.path.join(fixture, 'history\nwith a line')
+report = os.path.join(fixture, 'reports', 'framed.md')
+directory = os.path.join(fixture, 'work dir')
+result = subprocess.run([sys.executable, '-I', '-S', '-B', helper, 'task-paths',
+                         root, report, directory], stdin=subprocess.DEVNULL,
+                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+assert result.stdout.split(b'\0') == [os.fsencode(root), os.fsencode(report),
+                                      os.fsencode(directory), b'other', b'']
+PYPATHS
+checks=$((checks + 1))
+cp "$kit/../slots/lifetime.py" "$t/lifetime.saved"
+cat >"$kit/../slots/lifetime.py" <<'PYFAULT'
+import os
+import sys
+values = [*sys.argv[2:], 'other']
+short = os.path.exists(os.path.join(os.path.dirname(__file__), 'short-result'))
+sys.stdout.write('\0'.join(values[:3] if short else values) + '\0')
+sys.exit(0 if short else 7)
+PYFAULT
+refusal 'complete path result with failed status refuses launch' task "$t/task file.md" "$t/work dir" "$t/reports/framed.md"
+[[ ! -e $t/reports/framed.md && ! -e $fake/launch.args ]]
+touch "$kit/../slots/short-result"
+refusal 'successful incomplete path result refuses launch' task "$t/task file.md" "$t/work dir" "$t/reports/framed.md"
+[[ ! -e $t/reports/framed.md && ! -e $fake/launch.args ]]
+rm "$kit/../slots/short-result"
+mv "$t/lifetime.saved" "$kit/../slots/lifetime.py"
+ln -s "$kit/codex-run" "$t/bin/aliased-run"
+output=$("$t/bin/aliased-run" stale)
+[[ -z $output && ! -e $DEV_ROOT/tmp/codex-run && ! -e $fake/launch.args ]]
+checks=$((checks + 1))
 refusal 'owner invalid name' owner ../oops "$t/brief.md"
 refusal 'owner relative brief' owner o/fixture relative
 refusal 'owner unreadable brief' owner o/fixture "$t/missing"
@@ -635,6 +691,10 @@ export POST_NAME=o/caller
 start_task success --resume "$recipient_id"
 json_expect 'POST_NAME overrides the resumed recipient' \
     'length == 1 and .[0].args[3] == "o/caller"' "$fake/post.calls"
+
+# Resume assertions are complete. Preserve their evidence outside the stale
+# cases' history so each stale check scans only its own fixture runs.
+mv "$DEV_ROOT/tmp/codex-run" "$DEV_ROOT/tmp/checked-task-runs"
 
 printf '3\n' >"$fake/post-exit"
 start_task success
@@ -1039,6 +1099,66 @@ for excluded in "$slot" "$slot/nested" "$HOME/src/fabrig/slots/named" "$t/work d
     [[ ! -e $state/trim.log && $(wc -l <"$fake/trim.calls") == 2 ]]
     checks=$((checks + 1))
 done
+
+# A FIFO replaces retry sleep only in this case: observe the lease while Codex
+# is between attempts, then release it without relying on scheduling delays.
+mkfifo "$fake/retry-ready" "$fake/retry-release"
+exec {retry_ready}<>"$fake/retry-ready"
+exec {retry_release}<>"$fake/retry-release"
+cat >"$t/bin/sleep" <<'PYSLEEP'
+#!/usr/bin/python3
+import os
+from pathlib import Path
+fake = Path(os.environ['DEV_ROOT']) / 'fake'
+with (fake / 'retry-ready').open('wb', buffering=0) as ready:
+    ready.write(b'ready\n')
+with (fake / 'retry-release').open('rb', buffering=0) as release:
+    release.read(1)
+PYSLEEP
+chmod +x "$t/bin/sleep"
+printf 'capacity-once\n' >"$fake/scenario"
+report=$t/reports/slot-retry.md
+printf '%s\n' "$report" >"$fake/report"
+output=$("$kit/codex-run" task "$t/task file.md" "$HOME/src/fabrig/slots/../slots/1" "$report")
+read -r id state <<<"$output"
+IFS= read -r -t "$HUNG_CASE_S" ready <&"$retry_ready"
+[[ $ready == ready ]]
+checks=$((checks + 1))
+expect 'alias retry metadata names canonical slot' "$(sed -n 's/^dir=//p' "$state/meta")" "$slot"
+if flock -n "$HOME/src/fabrig/slot-maintenance/1/lease" true; then
+    echo 'FAIL reclaim entered during capacity retry' >&2
+    exit 1
+fi
+checks=$((checks + 1))
+printf x >&"$retry_release"
+wait_unit "codex-run-$id"
+expect 'slot capacity retry completes under lease' "$(row)" $'\t0\t2\t'
+shopt -s nullglob
+holds=("$HOME/src/fabrig/slot-maintenance/1/"*.hold)
+[[ ${#holds[@]} == 0 ]]
+checks=$((checks + 1))
+exec {retry_ready}>&- {retry_release}>&-
+
+printf 'on-stop\n' >"$fake/scenario"
+report=$t/reports/slot-on-stop.md
+printf '%s\n' "$report" >"$fake/report"
+output=$("$kit/codex-run" task --on-stop "$t/slot-return" "$t/task file.md" "$slot" "$report")
+read -r id state <<<"$output"
+wait_unit "codex-run-$id"
+holds=("$HOME/src/fabrig/slot-maintenance/1/"*.hold)
+[[ ${#holds[@]} == 0 ]]
+expect 'slot callback ends its bridged lease' "$(cat "$state/on-stop")" 'exit 0'
+printf 'on-stop-failure\n' >"$fake/scenario"
+report=$t/reports/slot-on-stop-failure.md
+printf '%s\n' "$report" >"$fake/report"
+output=$("$kit/codex-run" task --on-stop "$t/slot-return-failure" "$t/task file.md" "$slot" "$report")
+read -r id state <<<"$output"
+wait_unit "codex-run-$id"
+holds=("$HOME/src/fabrig/slot-maintenance/1/"*.hold)
+[[ ${#holds[@]} == 1 && $(jq -r .uncertain "${holds[0]}") == true ]]
+checks=$((checks + 1))
+expect 'failed slot callback retains uncertain ownership' "$(cat "$state/on-stop")" 'exit 3'
+shopt -u nullglob
 
 elapsed=$(awk -v start="$started" -v end="$(date +%s.%N)" 'BEGIN { printf "%.3f", end-start }')
 # A slow fixture shows in CPU time; wall time on a busy machine shows contention.

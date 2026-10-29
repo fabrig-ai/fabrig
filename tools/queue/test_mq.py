@@ -45,17 +45,19 @@ class StartupTests(unittest.TestCase):
 
 class RestartTests(unittest.TestCase):
     def setUp(self):
-        self.temporary = tempfile.TemporaryDirectory(dir=ROOT, prefix=".restart-test-")
+        self.temporary = tempfile.TemporaryDirectory(dir=ROOT.parent, prefix=".restart-test-")
         self.addCleanup(self.temporary.cleanup)
         self.home = Path(self.temporary.name)
         self.repo = self.home / "src/fabrig/queue"
-        self.repo.mkdir(parents=True)
+        self.repo.mkdir(parents=True, mode=0o700)
+        self.repo.parent.chmod(0o700)
+        (self.repo / ".git").mkdir(mode=0o700)
         self.stop = self.home / "src/fabrig/queue.stop"
 
     def run_restart(self, *, ready=True, returncode=None, batch=8):
         calls = []
 
-        def command(argv, repo):
+        def command(argv, repo, **ignored):
             calls.append(argv)
             if argv[1] in ("fetch", "switch"):
                 self.assertTrue(self.stop.exists())
@@ -63,7 +65,11 @@ class RestartTests(unittest.TestCase):
 
         def launch(argv, **kwargs):
             self.assertFalse(self.stop.exists())
-            expected = ["python3", "-u", "tools/queue/mq", "run", "--repo", str(self.repo)]
+            expected = ["python3", "-B", "-u", "tools/queue/mq", "run", "--repo", str(self.repo)]
+            expected.extend(["--authority-dir", str(self.home / "src/fabrig/queue-authority"),
+                             "--authority-fd", str(kwargs["pass_fds"][0]),
+                             "--startup-fd", str(kwargs["pass_fds"][1])])
+            os.write(kwargs["pass_fds"][1], b"READY\n")
             if batch != 8:
                 expected.extend(["--batch", str(batch)])
             self.assertEqual(argv, expected)
@@ -79,12 +85,13 @@ class RestartTests(unittest.TestCase):
                 patch.object(restart, "queue_pid", return_value=41), \
                 patch.object(os, "pidfd_open", return_value=123), \
                 patch.object(os, "close", side_effect=lambda fd: None if fd == 123 else close_fd(fd)) as close, \
-                patch.object(restart.select, "select", return_value=([123] if ready else [], [], [])), \
+                patch.object(restart.select, "select", side_effect=lambda fds, *args: (
+                    (fds if ready else [], [], []))), \
                 patch.object(subprocess, "Popen", side_effect=launch) as popen, \
                 patch.object(restart.time, "sleep") as sleep, redirect_stdout(io.StringIO()) as output:
             restart.restart(self.repo, 10, self.home, batch=batch)
         close.assert_any_call(123)
-        sleep.assert_called_once_with(3)
+        sleep.assert_not_called()
         popen.assert_called_once()
         return calls, output.getvalue()
 
@@ -132,6 +139,29 @@ class RestartTests(unittest.TestCase):
         self.assertTrue(self.stop.exists())
         popen.assert_not_called()
 
+    def test_stop_unlink_directory_fsync_failure_restores_stop_before_launch(self):
+        sync = restart.authority.durable.sync_directory
+        failed, updated = [], []
+        def command(argv, repo, **ignored):
+            if argv[:2] == ["git", "fetch"]:
+                self.assertTrue(self.stop.exists())
+                updated.append(True)
+            return str(repo)
+        def fail_after_unlink(path):
+            if updated and path == self.stop.parent and not self.stop.exists() and not failed:
+                failed.append(True)
+                raise OSError("stop directory fsync failed")
+            sync(path)
+        with patch.object(restart, "command", side_effect=command), \
+                patch.object(restart, "queue_pid", return_value=None), \
+                patch.object(restart.authority.durable, "sync_directory", side_effect=fail_after_unlink), \
+                patch.object(subprocess, "Popen") as popen, redirect_stdout(io.StringIO()):
+            with self.assertRaisesRegex(OSError, "stop directory fsync"):
+                restart.restart(self.repo, 0, self.home)
+        self.assertEqual(failed, [True])
+        self.assertTrue(self.stop.exists())
+        popen.assert_not_called()
+
     def test_lock_holder_is_preferred_to_pgrep(self):
         lock = self.repo.with_name("queue.queue.lock")
         lock.touch()
@@ -141,15 +171,10 @@ class RestartTests(unittest.TestCase):
             self.assertEqual(restart.queue_pid(self.repo), 41)
         run.assert_not_called()
 
-    def test_fallback_requires_exactly_one_process(self):
-        for output, expected in (("", None), ("41\n42\n", None), ("41\n", 41)):
-            with self.subTest(output=output), patch.object(subprocess, "run", return_value=(
-                    subprocess.CompletedProcess([], 0 if output else 1, output, ""))):
-                if expected is None:
-                    with self.assertRaisesRegex(RuntimeError, "exactly one"):
-                        restart.queue_pid(self.repo)
-                else:
-                    self.assertEqual(restart.queue_pid(self.repo), expected)
+    def test_absent_holder_does_not_use_broad_process_fallback(self):
+        with patch.object(subprocess, "run") as run:
+            self.assertIsNone(restart.queue_pid(self.repo))
+        run.assert_not_called()
 
     def test_wait_rejects_negative_and_nonfinite_values(self):
         for value in ("-1", "inf", "nan"):
@@ -302,9 +327,25 @@ class SelectionTests(unittest.TestCase):
 
 
 class CheckTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory(dir=ROOT.parent, prefix=".mq-test-")
+        self.addCleanup(self.temporary.cleanup)
+        self.directory = Path(self.temporary.name)
+        self.repo = self.directory / "caller-independent"
+        self.repo.mkdir()
+        mq.git(self.repo, "init", "-b", "fixture")
+        mq.git(self.repo, "config", "user.name", "Queue fixture")
+        mq.git(self.repo, "config", "user.email", "queue@example.test")
+        mq.git(self.repo, "config", "commit.gpgsign", "false")
+        baseline = self.repo / "jig/scripts/old-forms.txt"
+        baseline.parent.mkdir(parents=True)
+        baseline.write_text("10\n")
+        mq.git(self.repo, "add", ".")
+        mq.git(self.repo, "commit", "-m", "fixture baseline")
+
     def test_package_scope_and_ratchets(self):
-        steps = mq.check_commands(ROOT, {"core", "normal"}, ["core/src/lib.rs", "skein/docs/x.md"],
-                                  metadata=metadata(ROOT))
+        steps = mq.check_commands(self.repo, {"core", "normal"}, ["core/src/lib.rs", "skein/docs/x.md"],
+                                  metadata=metadata(self.repo))
         self.assertEqual([name for name, _, _ in steps],
                          ["fmt", "clippy", "build", "default", "fuzzy"])
         self.assertEqual(steps[0][1], ["cargo", "fmt", "--check", "-p", "core"])
@@ -317,25 +358,25 @@ class CheckTests(unittest.TestCase):
         self.assertNotIn("--no-fail-fast", steps[2][1])
         self.assertIn("--no-fail-fast", steps[3][1])
         self.assertEqual(steps[4][1][-2:], ["--profile", "fuzzy"])
-        ratchets = mq.ratchet_commands(ROOT, ["core/src/lib.rs", "skein/docs/x.md"])
+        ratchets = mq.ratchet_commands(self.repo, ["core/src/lib.rs", "skein/docs/x.md"])
         self.assertEqual(ratchets, [("ratchet:skein", ["python3", "-I", "-B",
-                                                     str(ROOT / "skein/scripts/old_forms.py"), "--write"],
-                                    ROOT / "skein")])
+                                                     str(self.repo / "skein/scripts/old_forms.py"), "--write"],
+                                    self.repo / "skein")])
 
     def test_full_formats_workspace_and_docs_only_runs_ratchets(self):
-        self.assertEqual(mq.check_commands(ROOT, "full", [])[0][1], ["cargo", "fmt", "--all", "--check"])
-        for _, argv, _ in mq.check_commands(ROOT, "full", [])[1:]:
+        self.assertEqual(mq.check_commands(self.repo, "full", [])[0][1], ["cargo", "fmt", "--all", "--check"])
+        for _, argv, _ in mq.check_commands(self.repo, "full", [])[1:]:
             self.assertIn("--workspace", argv)
             self.assertNotIn("-p", argv)
-        self.assertEqual(mq.check_commands(ROOT, "docs", ["jig/README.md"]), [])
-        self.assertEqual([name for name, _, _ in mq.ratchet_commands(ROOT, ["jig/README.md"])],
+        self.assertEqual(mq.check_commands(self.repo, "docs", ["jig/README.md"]), [])
+        self.assertEqual([name for name, _, _ in mq.ratchet_commands(self.repo, ["jig/README.md"])],
                          ["ratchet:jig"])
 
     def test_fmt_uses_only_changed_rust_owners_sorted_once(self):
         paths = ["unrelated/src/lib.rs", "core/src/lib.rs", "core/tests/check.rs",
                  "core/examples/nested/src/lib.rs"]
-        steps = mq.check_commands(ROOT, {"core", "normal", "nested", "unrelated", "always"}, paths,
-                                  metadata=metadata(ROOT))
+        steps = mq.check_commands(self.repo, {"core", "normal", "nested", "unrelated", "always"}, paths,
+                                  metadata=metadata(self.repo))
         self.assertEqual(steps[0][1], ["cargo", "fmt", "--check", "-p", "core", "-p", "nested",
                                       "-p", "unrelated"])
 
@@ -344,13 +385,13 @@ class CheckTests(unittest.TestCase):
                                 ("docs", ["README.md"]), ({"core"}, ["core/tests/data.json"]),
                                 (set(), ["Cargo.lock"])):
             with self.subTest(paths=paths, selected=selected), patch.object(mq, "load_workspace_metadata") as loader:
-                self.assertNotIn("fmt", [name for name, _, _ in mq.check_commands(ROOT, selected, paths)])
+                self.assertNotIn("fmt", [name for name, _, _ in mq.check_commands(self.repo, selected, paths)])
                 loader.assert_not_called()
 
     def test_fmt_loads_ownership_from_no_deps_metadata(self):
-        with patch.object(mq, "load_workspace_metadata", return_value=metadata(ROOT)) as loader:
-            steps = mq.check_commands(ROOT, {"core"}, ["core/src/lib.rs"])
-        loader.assert_called_once_with(ROOT)
+        with patch.object(mq, "load_workspace_metadata", return_value=metadata(self.repo)) as loader:
+            steps = mq.check_commands(self.repo, {"core"}, ["core/src/lib.rs"])
+        loader.assert_called_once_with(self.repo)
         self.assertEqual(steps[0][1], ["cargo", "fmt", "--check", "-p", "core"])
 
     def test_empty_nextest_is_green_and_steps_have_durations(self):
@@ -361,49 +402,49 @@ class CheckTests(unittest.TestCase):
             self.assertEqual(kwargs["stdin"], subprocess.DEVNULL)
             return subprocess.CompletedProcess(argv, 4 if "nextest" in argv else 0)
 
-        with tempfile.TemporaryDirectory(dir=ROOT, prefix=".mq-test-") as directory:
+        with tempfile.TemporaryDirectory(dir=self.directory, prefix=".mq-test-") as directory:
             log = Path(directory) / "checks.log"
             times = iter(range(8))
-            steps = mq.run_checks(ROOT, {"core"}, [], log, runner=runner, clock=lambda: next(times))
+            steps = mq.run_checks(self.repo, {"core"}, [], log, runner=runner, clock=lambda: next(times))
             self.assertEqual(len(calls), 4)
             self.assertTrue(all(step["green"] and step["duration"] == 1 for step in steps))
             self.assertEqual(log.stat().st_mode & 0o777, 0o600)
 
     def test_build_default_and_fuzzy_have_independent_durations(self):
         times = iter([0, 2, 10, 18, 20, 23, 30, 35])
-        with tempfile.TemporaryDirectory(dir=ROOT, prefix=".mq-test-") as directory:
-            steps = mq.run_checks(ROOT, {"core"}, [], Path(directory) / "checks.log",
+        with tempfile.TemporaryDirectory(dir=self.directory, prefix=".mq-test-") as directory:
+            steps = mq.run_checks(self.repo, {"core"}, [], Path(directory) / "checks.log",
                                   runner=lambda *args, **kwargs: subprocess.CompletedProcess(args, 0),
                                   clock=lambda: next(times))
         self.assertEqual([(step["name"], step["duration"]) for step in steps],
                          [("clippy", 2), ("build", 8), ("default", 3), ("fuzzy", 5)])
 
     def test_failure_stops_checks_and_four_is_not_green_for_fmt(self):
-        with tempfile.TemporaryDirectory(dir=ROOT, prefix=".mq-test-") as directory, \
+        with tempfile.TemporaryDirectory(dir=self.directory, prefix=".mq-test-") as directory, \
                 patch.object(mq, "tools_commands", return_value=[]):
-            steps = mq.run_checks(ROOT, "full", [], Path(directory) / "checks.log",
+            steps = mq.run_checks(self.repo, "full", [], Path(directory) / "checks.log",
                                   runner=lambda *args, **kwargs: subprocess.CompletedProcess(args, 4))
             self.assertEqual([step["name"] for step in steps], ["tools", "fmt"])
             self.assertFalse(steps[-1]["green"])
 
     def test_tools_timeout_is_red_and_other_suites_still_run(self):
-        commands = [("tools/test_first.py", ["python3", "-I", "-B", "tools/test_first.py"], ROOT),
-                    ("tools/test-second", ["bash", "tools/test-second"], ROOT)]
+        commands = [("tools/test_first.py", ["python3", "-I", "-B", "tools/test_first.py"], self.repo),
+                    ("tools/test-second", ["bash", "tools/test-second"], self.repo)]
         calls = []
 
         def runner(argv, **kwargs):
             calls.append(argv)
             self.assertEqual(kwargs["timeout"], mq.TOOLS_TIMEOUT)
             self.assertEqual(kwargs["stdin"], subprocess.DEVNULL)
-            self.assertEqual(kwargs["cwd"], ROOT)
+            self.assertEqual(kwargs["cwd"], self.repo)
             if argv[0] == "python3":
                 raise subprocess.TimeoutExpired(argv, mq.TOOLS_TIMEOUT)
             return subprocess.CompletedProcess(argv, 0)
 
-        with tempfile.TemporaryDirectory(dir=ROOT, prefix=".mq-test-") as directory, \
+        with tempfile.TemporaryDirectory(dir=self.directory, prefix=".mq-test-") as directory, \
                 patch.object(mq, "tools_commands", return_value=commands):
             log = Path(directory) / "checks.log"
-            steps = mq.run_checks(ROOT, "full", [], log, runner=runner)
+            steps = mq.run_checks(self.repo, "full", [], log, runner=runner)
             self.assertIn(f"Timed out after {mq.TOOLS_TIMEOUT} seconds", log.read_text())
         self.assertEqual(calls, [argv for _, argv, _ in commands])
         self.assertEqual([step["name"] for step in steps], ["tools"])
@@ -411,40 +452,47 @@ class CheckTests(unittest.TestCase):
         self.assertEqual([suite["returncode"] for suite in steps[0]["suites"]], [124, 0])
 
     def test_tools_exit_four_is_red_and_os_errors_are_logged(self):
-        commands = [("tools/test_first.py", ["python3", "-I", "-B", "tools/test_first.py"], ROOT)]
+        commands = [("tools/test_first.py", ["python3", "-I", "-B", "tools/test_first.py"], self.repo)]
         for result in (subprocess.CompletedProcess([], 4), FileNotFoundError("missing interpreter")):
             with self.subTest(result=result), \
-                    tempfile.TemporaryDirectory(dir=ROOT, prefix=".mq-test-") as directory, \
+                    tempfile.TemporaryDirectory(dir=self.directory, prefix=".mq-test-") as directory, \
                     patch.object(mq, "tools_commands", return_value=commands):
                 log = Path(directory) / "checks.log"
                 runner = Mock(side_effect=result) if isinstance(result, OSError) else Mock(return_value=result)
-                steps = mq.run_checks(ROOT, "docs", ["tools/y.py"], log, runner=runner)
+                steps = mq.run_checks(self.repo, "docs", ["tools/y.py"], log, runner=runner)
                 self.assertFalse(steps[0]["green"])
                 self.assertEqual(steps[0]["suites"][0]["returncode"], 127 if isinstance(result, OSError) else 4)
                 if isinstance(result, OSError):
                     self.assertIn("missing interpreter", log.read_text())
 
     def test_tools_and_docs_keep_touched_tree_ratchets_without_cargo(self):
-        with tempfile.TemporaryDirectory(dir=ROOT, prefix=".mq-test-") as directory, \
+        before = mq.git(self.repo, "rev-parse", "HEAD").stdout.strip()
+        (self.repo / "jig/scripts/old-forms.txt").write_text("9\n")
+        with tempfile.TemporaryDirectory(dir=self.directory, prefix=".mq-test-") as directory, \
                 patch.object(mq, "tools_commands", return_value=[]):
-            steps = mq.run_checks(ROOT, "docs", ["tools/x.py", "jig/README.md"],
+            steps = mq.run_checks(self.repo, "docs", ["tools/x.py", "jig/README.md"],
                                   Path(directory) / "checks.log",
                                   runner=lambda *a, **kw: subprocess.CompletedProcess(a, 0))
         self.assertEqual([step["name"] for step in steps], ["ratchet:jig", "tools"])
         self.assertEqual(steps[0]["command"][-1], "--write")
+        self.assertEqual(mq.git(self.repo, "show", "HEAD:jig/scripts/old-forms.txt").stdout, "9\n")
+        self.assertEqual(mq.git(self.repo, "show", "-s", "--format=%s").stdout.strip(),
+                         "Lower jig old-form baselines")
+        self.assertEqual(mq.git(self.repo, "rev-parse", "HEAD^").stdout.strip(), before)
+        self.assertEqual(mq.git(self.repo, "status", "--porcelain").stdout, "")
 
     def test_check_only_ratchets_never_stage_or_commit_and_observe_each_step(self):
         observed = []
         outcomes = []
-        with tempfile.TemporaryDirectory(dir=ROOT, prefix=".mq-test-") as directory, \
+        with tempfile.TemporaryDirectory(dir=self.directory, prefix=".mq-test-") as directory, \
                 patch.object(mq, "git", side_effect=AssertionError("check-only mutated git")):
-            steps = mq.run_checks(ROOT, "docs", ["jig/README.md"], Path(directory) / "checks.log",
+            steps = mq.run_checks(self.repo, "docs", ["jig/README.md"], Path(directory) / "checks.log",
                                   runner=lambda *a, **kw: subprocess.CompletedProcess(a, 0),
                                   check_only=True, observer=observed.append, outcomes=outcomes)
         self.assertIs(steps, outcomes)
         self.assertEqual(observed, steps)
-        self.assertEqual(steps[0]["command"][-1], str(ROOT / "jig/scripts/old_forms.py"))
-        self.assertEqual(steps[0]["cwd"], str(ROOT / "jig"))
+        self.assertEqual(steps[0]["command"][-1], str(self.repo / "jig/scripts/old_forms.py"))
+        self.assertEqual(steps[0]["cwd"], str(self.repo / "jig"))
 
     def test_only_heavy_exit_two_with_disk_floor_text_is_a_refusal(self):
         for code, output, refused in ((2, "builder: 39 GB below the disk floor", True),
@@ -457,15 +505,15 @@ class CheckTests(unittest.TestCase):
                         kwargs["stdout"].write(output)
                     return subprocess.CompletedProcess(argv, code if heavy else 0)
 
-                with tempfile.TemporaryDirectory(dir=ROOT, prefix=".mq-test-") as directory:
-                    steps = mq.run_checks(ROOT, "full", [], Path(directory) / "checks.log", runner=runner)
+                with tempfile.TemporaryDirectory(dir=self.directory, prefix=".mq-test-") as directory:
+                    steps = mq.run_checks(self.repo, "full", [], Path(directory) / "checks.log", runner=runner)
                 self.assertEqual("error" in steps[-1], refused)
                 self.assertEqual([step["name"] for step in steps], ["tools", "fmt", "clippy"])
 
 
 class CleanupTests(unittest.TestCase):
     def setUp(self):
-        self.temporary = tempfile.TemporaryDirectory(dir=ROOT, prefix=".mq-test-")
+        self.temporary = tempfile.TemporaryDirectory(dir=ROOT.parent, prefix=".mq-test-")
         self.addCleanup(self.temporary.cleanup)
         self.repo = Path(self.temporary.name)
         self.deps = self.repo / "target/debug/deps"
@@ -569,7 +617,7 @@ class BisectTests(unittest.TestCase):
 
 class RepositoryTests(unittest.TestCase):
     def setUp(self):
-        self.temporary = tempfile.TemporaryDirectory(dir=ROOT, prefix=".mq-test-")
+        self.temporary = tempfile.TemporaryDirectory(dir=ROOT.parent, prefix=".mq-test-")
         self.addCleanup(self.temporary.cleanup)
         self.directory = Path(self.temporary.name)
         self.repo = self.directory / "queue"
@@ -633,6 +681,7 @@ class RepositoryTests(unittest.TestCase):
     def queue(self, **kwargs):
         kwargs.setdefault("disk_floor", 0)
         return mq.Queue(self.repo, state_path=self.directory / "state.json",
+                        writer_guard=lambda: mq.authority.checkout_guard(self.repo),
                         log_path=self.directory / "queue.jsonl", checker=self.checker,
                         poster=self.poster, metadata_loader=lambda repo: metadata(repo), **kwargs)
 
@@ -1437,6 +1486,42 @@ print('tools fixture passed')
         self.assertEqual(self.records()[-1]["outcome"], "green")
         self.assertEqual([address for address, subject, _ in self.posts if subject == "queue error"], ["ops@hel8"])
 
+    def test_same_error_alerts_again_after_completed_batch(self):
+        queue = self.queue()
+        outcomes = iter([RuntimeError("repeated dirty tree"), True,
+                         RuntimeError("repeated dirty tree")])
+
+        def cycle():
+            outcome = next(outcomes)
+            if isinstance(outcome, Exception):
+                raise outcome
+            return outcome
+
+        queue.cycle = cycle
+        self.assertEqual(self.run_cycles(queue, 2), [60, 60])
+        alerts = [body for _, subject, body in self.posts if subject == "queue error"]
+        self.assertEqual(len(alerts), 2)
+        self.assertTrue(all(body.startswith("repeated dirty tree") for body in alerts))
+
+    def test_idle_recovery_clears_persisted_error_episode(self):
+        queue = self.queue()
+        outcomes = iter([RuntimeError("repeated dirty tree"), False])
+
+        def cycle():
+            outcome = next(outcomes)
+            if isinstance(outcome, Exception):
+                raise outcome
+            return outcome
+
+        queue.cycle = cycle
+        self.assertEqual(self.run_cycles(queue, 2), [60, 60])
+        reloaded = self.queue()
+        self.assertEqual(reloaded.state.get("reported_errors"), [])
+        (self.directory / "stop").unlink()
+        reloaded.cycle = lambda: (_ for _ in ()).throw(RuntimeError("repeated dirty tree"))
+        self.assertEqual(self.run_cycles(reloaded, 1), [60])
+        self.assertEqual(len([1 for _, subject, _ in self.posts if subject == "queue error"]), 2)
+
     def test_run_survives_recovery_log_failure(self):
         queue = self.queue()
         queue.cycle = lambda: (_ for _ in ()).throw(RuntimeError("git failed"))
@@ -1476,7 +1561,9 @@ print('tools fixture passed')
 
     def test_root_and_tree_targets_are_ignored(self):
         paths = ["target/fixture"] + [f"{tree}/target/fixture" for tree in mq.TREES]
-        self.assertEqual(mq.git(ROOT, "check-ignore", *paths).stdout.splitlines(), paths)
+        for prefix in ("", *(tree + "/" for tree in mq.TREES)):
+            self.write(prefix + ".gitignore", (ROOT / prefix / ".gitignore").read_text())
+        self.assertEqual(mq.git(self.repo, "check-ignore", *paths).stdout.splitlines(), paths)
 
     def test_heavy_disk_refusal_errors_without_rejection_or_bisection(self):
         for task in ("a", "b"):
@@ -1547,6 +1634,34 @@ print('tools fixture passed')
         self.assertIn("preserved", cleanup[0]["outcome"])
         self.assertEqual(mq.git(self.repo, "ls-remote", "origin", "refs/heads/" + branch["name"]).stdout.split()[0], advanced)
 
+    def test_tip_advanced_between_observation_and_delete_survives_legacy_cleanup(self):
+        branch = self.branch("a", publish=True)
+        self.write("advance", "advanced ready\n")
+        self.commit("advance ready")
+        advanced = self.tip()
+        mq.build_batch(self.repo, [branch])
+        ref = "refs/heads/" + branch["name"]
+        git, pushes, observed = mq.git, [], []
+        def race(repo, *args, **kwargs):
+            if args[0] == "push":
+                pushes.append(args)
+                if "--delete" in args or args[-1] == ":" + ref:
+                    self.assertEqual(observed, [branch["tip"]])
+                    git(self.repo, "push", "origin", advanced + ":" + ref)
+            result = git(repo, *args, **kwargs)
+            if args[0] == "ls-remote" and args[-1] == ref:
+                observed.append(result.stdout.split()[0])
+            return result
+        with patch.object(mq, "git", side_effect=race):
+            commit, cleanup = mq.push_and_cleanup(self.repo, [branch])
+        self.assertEqual(git(self.origin, "rev-parse", ref).stdout.strip(), advanced)
+        self.assertEqual(git(self.origin, "rev-parse", "refs/heads/main").stdout.strip(), commit)
+        self.assertNotEqual(cleanup[0]["returncode"], 0)
+        main_push, delete = pushes
+        self.assertFalse(any("--force" in arg or "--lease" in arg for arg in main_push))
+        self.assertEqual(delete, ("push", "--force-with-lease=" + ref + ":" + branch["tip"],
+                                  "origin", ":" + ref))
+
     def test_push_failure_does_not_delete_ready_branch(self):
         branch = self.branch("a", publish=True)
         mq.build_batch(self.repo, [branch])
@@ -1609,9 +1724,10 @@ class PostTests(unittest.TestCase):
         self.assertTrue(outcome["sent"])
 
     def test_metadata_json_is_separate_from_diagnostics(self):
-        result = mq.command([sys.executable, "-I", "-B", "-c",
-                             'import sys; print("{}"); print("diagnostic", file=sys.stderr)'],
-                            ROOT, separate_stderr=True)
+        with tempfile.TemporaryDirectory(dir=ROOT.parent, prefix=".mq-test-") as directory:
+            result = mq.command([sys.executable, "-I", "-B", "-c",
+                                 'import sys; print("{}"); print("diagnostic", file=sys.stderr)'],
+                                Path(directory), separate_stderr=True)
         self.assertEqual(json.loads(result.stdout), {})
         self.assertIn("diagnostic", result.stderr)
 

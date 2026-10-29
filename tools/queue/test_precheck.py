@@ -14,6 +14,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
+sys.dont_write_bytecode = True
 
 DIRECTORY = Path(__file__).resolve().parent
 ROOT = DIRECTORY.parent.parent
@@ -38,7 +39,7 @@ def metadata(root):
 
 class Fixture(unittest.TestCase):
     def setUp(self):
-        self.temp = tempfile.TemporaryDirectory(dir=ROOT, prefix=".precheck-test-")
+        self.temp = tempfile.TemporaryDirectory(dir=ROOT.parent, prefix=".precheck-test-")
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         self.repo = self.root / 'slot ; $(touch BAD) space'
@@ -110,7 +111,8 @@ class Fixture(unittest.TestCase):
         self.tool = precheck.Precheck(self.repo, base, tip, mq=mq, always=["always"],
                                      read_by_tests=PATTERNS,
                                      runner=None if production_runner else self.runner,
-                                     metadata=self.load_metadata, busy=lambda _: "fixture observation")
+                                     metadata=self.load_metadata, busy=lambda _: "fixture observation",
+                                     min_free_bytes=1)
         with redirect_stdout(io.StringIO()) as output:
             result = self.tool.run()
         self.printed = output.getvalue()
@@ -444,10 +446,12 @@ class CandidateTests(Fixture):
     def test_policy_code_and_lists_survive_switching_their_own_checkout(self):
         import shutil
         self.git("switch", "original")
-        for name in ("precheck", "mq", "always.txt", "read-by-tests.txt"):
+        for name in ("precheck", "mq", "authority.py", "durable.py", "always.txt", "read-by-tests.txt"):
             target = self.repo / "tools/queue" / name
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(DIRECTORY / name, target)
+        (self.repo / "tools/slots").mkdir()
+        shutil.copy2(DIRECTORY.parent / "slots/lifetime.py", self.repo / "tools/slots/lifetime.py")
         self.ancestor = self.commit()
         self.git("branch", "-f", "base", self.ancestor)
         self.git("branch", "-f", "tip", self.ancestor)
@@ -801,6 +805,68 @@ class ObservationTests(unittest.TestCase):
         with patch.object(subprocess, "run", return_value=subprocess.CompletedProcess(
                 [], 1, "", "Failed to connect to bus: No medium found")):
             self.assertIn("unavailable", precheck.heavy_busy(Path("/slot")))
+
+
+class SlotMaintenanceTests(Fixture):
+    def numeric_slot(self):
+        home = self.root / "home"
+        slot = home / "src/fabrig/slots/1"
+        slot.parent.mkdir(parents=True)
+        self.repo.rename(slot)
+        self.repo = slot
+        return home
+
+    def probe(self, lock):
+        code = ("import fcntl,sys; f=open(sys.argv[1],'a+'); "
+                "fcntl.flock(f,fcntl.LOCK_EX|fcntl.LOCK_NB)")
+        return subprocess.run([sys.executable, "-I", "-B", "-c", code, str(lock)],
+                              stdin=subprocess.DEVNULL, capture_output=True).returncode
+
+    def test_independent_reclaimer_is_excluded_through_checks_and_restoration(self):
+        home = self.numeric_slot()
+        self.change("tip", "skein/core/src/lib.rs", "candidate\n")
+        observations = []
+        lock = home / "src/fabrig/slot-maintenance/1/lease"
+        self.effect = lambda argv: observations.append(self.probe(lock))
+        restore = precheck.Precheck.restore
+        def restoring(tool):
+            observations.append(self.probe(lock))
+            restore(tool)
+            observations.append(self.probe(lock))
+        with patch.dict(os.environ, HOME=str(home)), patch.object(precheck.Precheck, "restore", restoring):
+            self.assertEqual(self.run_tool(), 0)
+        self.assertTrue(observations)
+        self.assertTrue(all(code != 0 for code in observations))
+        self.assertEqual(self.probe(lock), 0)
+        self.assertEqual(list(lock.parent.glob("*.hold")), [])
+        self.restored()
+
+    def test_reclaim_lease_blocks_precheck_before_source_mutation(self):
+        home = self.numeric_slot()
+        self.change("tip", "README.md", "candidate\n")
+        state = precheck.SLOT_LIFETIME["state_root"](home) / "1"
+        precheck.SLOT_LIFETIME["private_directory"](state)
+        with precheck.SLOT_LIFETIME["locked"](state / "lease"), patch.dict(os.environ, HOME=str(home)):
+            with self.assertRaisesRegex(RuntimeError, "lease busy"):
+                self.run_tool()
+        self.assertEqual(self.git("rev-parse", "HEAD"), self.ancestor)
+        self.assertFalse((self.repo / ".git/precheck.unresolved").exists())
+        self.assertEqual((self.repo / "target/keep").read_text(), "warm target\n")
+
+    def test_unknown_build_completion_retains_durable_slot_hold(self):
+        home = self.numeric_slot()
+        self.change("tip", "skein/core/src/lib.rs", "candidate\n")
+        def unknown(argv):
+            if argv[0] == "heavy":
+                self.tool.executor.unknown = True
+                raise precheck.UnknownCompletion("heavy completion unknown")
+        self.effect = unknown
+        with patch.dict(os.environ, HOME=str(home)):
+            self.assertEqual(self.run_tool(), 1)
+        state = home / "src/fabrig/slot-maintenance/1"
+        self.assertEqual(len(list(state.glob("*.hold"))), 1)
+        self.assertTrue((self.repo / ".git/precheck.unresolved").exists())
+        self.assertEqual((self.repo / "target/keep").read_text(), "warm target\n")
 
 
 if __name__ == "__main__":

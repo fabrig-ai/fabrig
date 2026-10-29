@@ -1,7 +1,8 @@
 # Branch pre-ready check
 
 Provisional, 2026-10-29. The lead owns a claimed, idle slot and runs
-`precheck [--base origin/main] SLOT TIP` before marking its branch ready.
+`precheck [--base origin/main] [--min-free-bytes INTEGER] SLOT TIP` before
+marking its branch ready.
 The source executable is `tools/queue/precheck`; `tools/install` installs
 `precheck` from directory `queue`.
 
@@ -13,8 +14,12 @@ It detaches BASE and merges TIP with `--no-ff --no-commit`, without moving
 any original branch ref or making a commit. Already-contained tips have an
 empty candidate diff. Logs include merge diagnostics.
 
-Selection uses the merged index and worktree against BASE, after writing
-ratchets. Metadata and formatting ownership come from this candidate;
+Selection uses the merged index and worktree paths against BASE, captured
+before writing ratchets. Generated lower baselines do not widen selection;
+baseline changes supplied by the branch retain the queue's ordinary policy.
+Ratchet-only conflicts retain their baseline paths for selection even when
+choosing BASE and recounting leaves no baseline diff. Recounts still finish
+before checks run. Metadata and formatting ownership come from the candidate;
 Cargo.lock selection compares BASE's blob with the candidate file through
 `mq.lock_changes`. `mq.selection`, its always/read-by-tests lists,
 `mq.check_commands`, `mq.tools_commands`, `mq.ratchet_commands`, and
@@ -31,6 +36,29 @@ queue's existing timeout, interpreter/shebang discovery, and exact exclusion
 of `tools/heavy/test-heavy-recovery`; every discovered suite runs after an
 ordinary suite failure, before stopping Cargo checks. No new budget or
 command timeout is introduced.
+
+Tools suites must keep their Git operations and temporary outputs outside
+the caller's checkout. `test_mq.py` uses disposable sibling repositories,
+including when exercising real ratchet stage/commit behavior.
+`test_precheck_tools_isolation.py` runs that suite against an uncommitted
+merge with a staged candidate and an unstaged lower baseline, compares the
+caller's exact index, HEAD, refs, merge state and tracked contents/modes,
+and verifies precheck restoration after the real suite finishes.
+
+Immediately before each heavy clippy or nextest build command, the helper
+checks `shutil.disk_usage(SLOT).free >= --min-free-bytes`. The default is
+80000000000 bytes, enforcing Ops' temporary night admission policy. The
+value must be a positive integer; zero, negative, nonfinite and malformed
+values refuse before any checkout operation. Ops can supply a different
+explicit value when that policy changes. This is helper scheduling: heavy's
+own 40 GB floor and the queue's 45 GB floor, caps and timeouts are unchanged.
+Fmt, metadata and docs-only checks need no build admission. A refusal
+defers the command without launching heavy, sleeping, retrying, lowering
+the threshold, cancelling work or changing heavy state. It records the
+chosen threshold and observed free bytes in the command log and result.
+Earlier completed checks retain their results, but the run reports an
+infrastructure error, restores through the same lifetime protocol and
+cannot certify readiness.
 
 Exit 0 means all requested steps passed and restoration was verified. A
 docs-only candidate can pass with no commands. This is a compile/lint check,
@@ -94,6 +122,14 @@ the source checkout. Files are 0600: `commands.log`, `result.json`,
 preparation/restoration can rewrite, including baseline files).
 Results include pinned inputs, paths, selection, planned commands, argv,
 step return codes, durations, heavy observation, outcome and restoration.
+`selection_paths` records candidate paths captured before recounts,
+including reconciled baseline conflict paths; `paths` retains the complete
+post-recount candidate diff against BASE, including generated baselines.
+The latter remains available to consumers verifying candidate freshness.
+`min_free_bytes` records the chosen threshold; `admissions` records each
+heavy command's name, `free_bytes`, `min_free_bytes` and `admitted` decision.
+A deferred command remains in the plan without a completed step or an
+unknown active-command record of its own.
 The active command is durably marked unknown before launch and completed
 only after its child exits. All execution uses argv and `/dev/null` stdin.
 

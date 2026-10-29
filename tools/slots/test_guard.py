@@ -13,6 +13,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
+sys.dont_write_bytecode = True
 
 DIRECTORY = Path(__file__).resolve().parent
 ROOT = DIRECTORY.parent.parent
@@ -36,6 +37,8 @@ if Path(sys.argv[0]).name == "systemctl":
         for name, properties in state.get("units", {}).items():
             print(name, "loaded", properties.get("ActiveState", "active"), "running", "fixture")
     elif "show" in args:
+        if "LoadState" not in state["units"][args[-1]]:
+            print("LoadState=loaded")
         for key, value in state["units"][args[-1]].items():
             print(key + "=" + value)
 '''
@@ -43,7 +46,7 @@ if Path(sys.argv[0]).name == "systemctl":
 
 class GuardTests(unittest.TestCase):
     def setUp(self):
-        temporary = tempfile.TemporaryDirectory(dir=ROOT, prefix=".guard-test-")
+        temporary = tempfile.TemporaryDirectory(dir=ROOT.parent, prefix=".guard-test-")
         self.addCleanup(temporary.cleanup)
         self.home = Path(temporary.name)
         self.slots = self.home / "src/fabrig/slots"
@@ -119,7 +122,7 @@ class GuardTests(unittest.TestCase):
                 self.assertTrue(path.exists())
                 self.assertIn("slot 1: skipped (busy)", output)
         self.assertIn(["systemctl", "--user", "show", "-p",
-                       "WorkingDirectory,ActiveState", "job-heavy-build.service"], self.calls())
+                       "WorkingDirectory,ActiveState,LoadState", "job-heavy-build.service"], self.calls())
 
     def test_exact_slot_directory_is_busy(self):
         self.executable("1")

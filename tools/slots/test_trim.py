@@ -26,7 +26,7 @@ OLD = CUTOFF - 1
 
 class TrimTests(unittest.TestCase):
     def setUp(self):
-        self.temporary = tempfile.TemporaryDirectory(dir=ROOT, prefix=".trim-test-")
+        self.temporary = tempfile.TemporaryDirectory(dir=ROOT.parent, prefix=".trim-test-")
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
         self.slot = self.root / "slot"
