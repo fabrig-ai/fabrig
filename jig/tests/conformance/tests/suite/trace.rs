@@ -1,8 +1,4 @@
 //! Trace settings change diagnostic retention only, never outside behavior.
-use skein_world::domain::heap;
-
-#[global_allocator]
-static HEAP: heap::Counting = heap::Counting;
 
 use jig_conformance_world::{Config, Testing};
 #[test]

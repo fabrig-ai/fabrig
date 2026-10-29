@@ -4,8 +4,6 @@ use jig_conformance::{
 };
 use jig_conformance_world::{Config, Testing};
 use jig_fake_parties::{Act, Ask};
-#[global_allocator]
-static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
 
 #[test]
 fn full_live_task_and_host_slots_fit_with_a_decision_held_in_the_journal() {

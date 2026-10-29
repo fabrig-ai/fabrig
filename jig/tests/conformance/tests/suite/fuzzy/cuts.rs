@@ -1,7 +1,5 @@
 use jig_conformance::Cut;
 use jig_conformance_world::actions;
-#[global_allocator]
-static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
 
 #[test]
 fn every_durable_cut_and_random_cuts_replay_the_same_effect_story() {

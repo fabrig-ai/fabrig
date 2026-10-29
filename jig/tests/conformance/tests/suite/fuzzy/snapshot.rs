@@ -1,7 +1,5 @@
 use jig_conformance::{Cut, scenarios::Scenario};
 use jig_conformance_world::replay;
-#[global_allocator]
-static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
 
 fn compare(scenario: Scenario, seed: u64) {
     let cuts = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));

@@ -1,7 +1,5 @@
 use jig_conformance::Cut;
 use jig_conformance_world::actions;
-#[global_allocator]
-static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
 
 fn story(cut: u64) -> actions::World {
     let mut world = actions::world(23, false);

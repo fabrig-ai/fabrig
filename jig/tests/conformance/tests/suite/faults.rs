@@ -2,8 +2,6 @@ use jig_conformance_world::actions;
 use jig_core_world::Fault as StoreFault;
 use jig_fake_workers::Fault;
 use skein_lib::Duration;
-#[global_allocator]
-static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
 
 #[test]
 fn held_commits_keep_assignments_and_party_answers_behind_their_barrier() {
