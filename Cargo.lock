@@ -643,6 +643,7 @@ dependencies = [
  "jig-test-connector",
  "skein-lib",
  "skein-ui",
+ "skein-world",
 ]
 
 [[package]]
