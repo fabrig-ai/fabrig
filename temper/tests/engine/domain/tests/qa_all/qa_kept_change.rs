@@ -55,7 +55,7 @@ fn configuration() -> engine::Config {
     policy.roles[0].authority.budget.spend = 150;
     policy.roles[0].period_spend = 500;
     let mut authority = jig_domain_authority::Domain::new(rules, limits().authority).expect("fixture authority");
-    let mut out = skein_lib::Queue::with_capacity(jig_domain_authority::POLICY_MAX_OUT);
+    let mut out = skein_lib::Queue::uncapped();
     jig_domain_authority::step(&mut authority, jig_domain_authority::Event::Policy { project: 1, policy }, &mut out);
     config.core.seed_projects[0].policy.policy = authority.policy(1).expect("configured seed policy").clone();
     config.core.defaults.rules = authority.rules().clone();
