@@ -468,6 +468,17 @@ schema remains v4. These are the versions the format row requires.
   section 6). People's retained answers keep the refusals for added
   dependencies as the client's contract has them
   (`../client/domain/contract.md`, section 4).
+- **Question credits share the inbox's list.** The tasks family's
+  `tasks-v9` stores `QuestionCredit { number, answerer, asked, line }`:
+  the question's number, its answering party and logical addressed
+  party (each a `Party`), and the position of its question activity line
+  in the asker's record. Words and time are read from that line, never
+  copied into the credit. `TaskInterests.inbox` packs credits first and
+  unread words after them in one bounded `InboxItem` list, each item a
+  `Credit` or a `Word`; decoding separates them into questions and
+  unread words. The task record also keeps `asked_requester`, the
+  durable latch set by admitting its first question-form message to its
+  current requester, never cleared (`../domain/tasks.md`, 5.7).
 - **Golden bytes** in one set per family, for its current schema until
   the first release (skein's `codec.md`, section 5); a fuzz target per
   family's decoder; bounds at their limit and one past it.
@@ -2285,8 +2296,9 @@ Each within jig's suites' budgets.
      history, each named by its position in its task's record, as a
      reply's is, an answer's with the task whose activity holds it, so a
      read finds it by key, never by a scan (7.3); and each open question
-     its task asked, by its number and the party that answers it, a task
-     or a person, so a person's answer is credited to its asker, a move
+     its task asked, by its number, answering party, logical addressed
+     party and question activity position (`QuestionCredit`, 5.1), so a
+     person's answer is credited to its asker, a move
      carries the question to the asker's new requester under the same
      number, and an answering task's end lifts its asker's keep with a
      notice (`../domain/tasks.md`, 5.7; `../domain/people.md`, section 6);

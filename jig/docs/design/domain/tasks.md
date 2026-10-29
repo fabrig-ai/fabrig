@@ -592,29 +592,49 @@ What it keeps:
 
 **Owing a question keeps it too.** A task its requester made owing it
 a question (its spec's `asks`, set at creation and never amended, as
-an application marks work to be agreed before it is done) is kept until
-it has asked its requester one, in the question form: its run that
-finishes done before then parks, as a kept task's does, and a notice
-naming what it owes wakes it at once, so its next run goes on from what
-the last one left with that notice to read; once it has asked, its own
-question keeps it, as below. Each such wake is a run, within the task's
-budget and tries, so a run that never asks ends the task by them.
+an application marks work to be agreed before it is done) owes one until
+its first question-form message to its current requester is admitted.
+Admission sets the durable `TaskRecord.asked_requester` latch, which is
+never cleared: answering or retiring that question does not make the
+obligation owed again. Before it has asked, its run that finishes done
+parks with its saved state, consumes a run try, and hears a notice
+naming what it owes that wakes it at once. Its next run goes on from
+what the last one left with that notice to read. Exhausting its run
+tries ends it failed; each run also spends within the task's budget.
+Once it has asked, its own question keeps it, as below.
 
 **Its own question keeps it too.** A task that asked its requester a
 question, in the question form, still unanswered, is kept as by a
 pending dependency, the reason naming the question: it ends no way but
-failed or cancelled, so its run that finishes done parks, its activity
-naming the question it waits for, and the answer, which wakes it (8.1),
-lets its next run go on from what the last one left. Its delegates,
-its holds and its other messages go on as for any kept task. A question
-that ends unanswered lifts the keep: its asked task ending with it open,
-or its cancel, wakes the asker with a notice naming it. A move of the
-asker to a new requester (section 7) carries its open questions to that
-requester in the move's decision, each keeping its number, as a
-successor's transfer does, so a goal moved to its party asks that party
-directly and stays kept. A question it asked through a person task, in
-words, is that task's, and detaches as section 7 says; it keeps
-nothing.
+failed or cancelled, so its run that finishes done parks without
+spending a try, its activity naming the question it waits for. Only an
+answer in that question's number releases this keep and wakes it (8.1),
+letting its next run go on from what the last one left. An instruction
+amendment, a note, or the person's answer to someone else is not that
+answer. Its delegates, its holds and its other messages go on as for
+any kept task. A question that ends unanswered lifts the keep: its asked
+task ending with it open, or its cancel, wakes the asker with a notice
+naming it. A move of the asker to a new requester (section 7) carries its
+open questions to that requester in the move's decision, each keeping
+its number and activity line, as a successor's transfer does, so a goal
+moved to its party asks that party directly and stays kept. A question
+it asked through a person task, in words, is that task's, and detaches
+as section 7 says; it keeps nothing.
+
+**A credit names the question's parties and line.** Each open question
+keeps a `QuestionCredit { number, answerer, asked, line }` in its asker's
+record: `answerer` is the party allowed to use its reserved answer room,
+`asked` the logical addressed party, each a `Party`; `line` is the
+position of the question's activity line in the asker's record. Words
+and time are read from that line, never copied into the credit; the
+line does not name the addressed party.
+
+**Question notices say which words they carry.** `QuestionEnded` and
+`QuestionAnswered` carry empty words, their kind naming the question's
+number. `QuestionOwed` carries the instruction: "You owe your requester
+a question: ask your plan with message, as a question, and wait."
+Unanswered questions retired together produce one `QuestionEndedDue`
+batch per asker; the core numbers each notice once.
 
 ### 5.8 Ended by its requester
 
