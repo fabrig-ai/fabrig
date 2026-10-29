@@ -103,15 +103,15 @@ fn deployment_supplied_empty_connector_registry_is_complete_and_reserves_whole_d
     assert!(!value.connectors_cut);
     assert!(!value.cut);
     let allocated = u64::try_from(size_of::<Document>()).unwrap()
-        + List::<Host>::worst_case(value.hosts.capacity()).unwrap()
-        + List::<HostRun>::worst_case(value.attempts.capacity()).unwrap()
-        + List::<Account>::worst_case(value.accounts.capacity()).unwrap()
-        + List::<ProjectCapacity>::worst_case(value.projects.capacity()).unwrap()
-        + List::<HelloRefusalLine>::worst_case(value.hello_refusals.capacity()).unwrap()
-        + List::<people::CapacityRefusal>::worst_case(value.person_room_refusals.capacity()).unwrap()
-        + List::<tasks::CapacityRefusal>::worst_case(value.task_room_refusals.capacity()).unwrap()
-        + List::<u16>::worst_case(value.connectors.capacity()).unwrap();
-    assert!(List::<u16>::worst_case(value.connectors.capacity()).unwrap() > 0);
+        + List::<Host>::price(value.hosts.capacity()).unwrap()
+        + List::<HostRun>::price(value.attempts.capacity()).unwrap()
+        + List::<Account>::price(value.accounts.capacity()).unwrap()
+        + List::<ProjectCapacity>::price(value.projects.capacity()).unwrap()
+        + List::<HelloRefusalLine>::price(value.hello_refusals.capacity()).unwrap()
+        + List::<people::CapacityRefusal>::price(value.person_room_refusals.capacity()).unwrap()
+        + List::<tasks::CapacityRefusal>::price(value.task_room_refusals.capacity()).unwrap()
+        + List::<u16>::price(value.connectors.capacity()).unwrap();
+    assert!(List::<u16>::price(value.connectors.capacity()).unwrap() > 0);
     assert!(document_worst_case(&limits.documents).unwrap() >= allocated);
 }
 
