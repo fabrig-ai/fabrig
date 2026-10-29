@@ -6,7 +6,7 @@
     clippy::wildcard_enum_match_arm,
     reason = "input tables and output observations are ordinary Rust tests"
 )]
-use super::{Harness, amendment, task, to};
+use super::{Harness, LIMITS, amendment, task, to};
 use crate::{DependencyPlace, Event, Funder, Party, Problem, Refusal, Request, Status};
 
 const ROOT: u64 = 10;
@@ -39,6 +39,44 @@ fn family() -> Harness {
 
 fn place(number: u64, requester: Party, root: u64, depth: u32, status: Status) -> DependencyPlace {
     DependencyPlace { number, project: 1, requester, root, depth, status }
+}
+
+#[test]
+fn an_unreachable_dependency_is_named_and_count_or_repeat_refusals_name_none() {
+    const UNRELATED_ROOT: u64 = 90;
+    // One more distinct identity than the configured dependency limit fails the count check.
+    let too_many = (0..=LIMITS.dependencies).map(u64::from).collect::<Vec<_>>();
+    for (label, dependencies, expected) in [
+        (
+            "unreachable",
+            vec![ANCESTOR, DEPENDENCY],
+            Problem::naming(Some(TARGET), Refusal::Dependencies, &[DEPENDENCY]),
+        ),
+        ("count", too_many, Problem::new(Some(TARGET), Refusal::Dependencies)),
+        ("repeat", vec![ANCESTOR, ANCESTOR], Problem::new(Some(TARGET), Refusal::Dependencies)),
+    ] {
+        let mut test = family();
+        let mut change = amendment();
+        change.dependencies = Some(dependencies.into_boxed_slice());
+        let out = test.send(Event::Amend {
+            places: Box::new([place(DEPENDENCY, Party::Person(PERSON), UNRELATED_ROOT, 0, Status::Done)]),
+            reply_to: to(),
+            by: Party::Task(AMENDER),
+            task: TARGET,
+            message: 1,
+            stop_run: false,
+            funder: None,
+            amendment: change,
+        });
+        let problems = out
+            .iter()
+            .filter_map(|request| match request {
+                Request::Refused { problem, .. } => Some(problem.clone()),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(problems, vec![expected], "{label}: {out:?}");
+    }
 }
 
 #[test]
