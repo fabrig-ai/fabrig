@@ -626,3 +626,73 @@ fn a_cancellation_waiting_unpublished_keeps_its_completed_targets_route() {
     crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
     assert!(!service.pending(Time::ZERO).signals, "the source's owner observes its final close");
 }
+
+#[test]
+fn a_released_batch_is_routed_before_the_next_release() {
+    use crate::engine::{ReleaseObservation, ReleaseTrace};
+    use skein_lib::{Queue, Wall};
+    let mut service = fixtures::ready();
+    let now = Time::from_nanos(1);
+    let wall = Wall::from_nanos(1);
+    let engine = service.engine.as_mut().expect("engine");
+    engine.release_trace = Some(ReleaseTrace::new());
+    // An unsigned watch stages an immediate refusal. Period decisions queue
+    // commits beside it, so a journal release can return an output and a commit.
+    engine.step(root::Event::Party(root::PartyInput::Watch {
+        watcher: skein_lib::Token::new(701),
+        sign_in: u64::MAX,
+        subject: jig_domain_core::documents::Watched::Frame,
+        window: jig_domain_core::documents::Window { rows: 1, after: None },
+    }));
+    engine.step(fixtures::period(2));
+    assert!(engine.pending.is_none(), "the watch and first period are admitted");
+    engine.events.push(fixtures::period(3));
+    engine.events.push(fixtures::period(4));
+    crate::iterate(&mut service, now, wall);
+    let engine = service.engine.as_ref().expect("engine");
+    assert_held_period(engine.events.iter().next(), 4);
+    let mut batch_while_waiting = false;
+    for observation in &engine.release_trace.as_ref().expect("enabled release recording").observations {
+        if let ReleaseObservation::Released { requests, .. } = observation
+            && requests.len() > 1
+        {
+            batch_while_waiting = true;
+        }
+    }
+    assert!(batch_while_waiting, "a multi-request release runs while the later input waits");
+    crate::iterate(&mut service, now, wall);
+    let engine = service.engine.as_mut().expect("engine");
+    assert!(engine.events.is_empty(), "the later admitted input is eventually taken");
+    let trace = engine.release_trace.as_mut().expect("enabled release recording");
+    let mut expected = Queue::uncapped();
+    let mut multi_request_release = None;
+    let mut later_release = false;
+    while let Some(observation) = trace.observations.pop() {
+        match observation {
+            ReleaseObservation::Released { ordinal, requests } => {
+                assert!(
+                    expected.is_empty(),
+                    "every request is dispatched before the next release, including empty releases"
+                );
+                if !requests.is_empty() && multi_request_release.is_some() {
+                    later_release = true;
+                }
+                if requests.len() > 1 {
+                    multi_request_release = Some(ordinal);
+                }
+                for request in requests.into_boxed() {
+                    expected.push((ordinal, request));
+                }
+            }
+            ReleaseObservation::Dispatched { ordinal, request } => {
+                let (released, original) = expected.pop().expect("dispatch names a recorded release");
+                assert_eq!(ordinal, Some(released), "dispatch keeps its release ordinal");
+                assert_eq!(request, original, "requests reach routing in release order");
+            }
+        }
+    }
+    assert!(expected.is_empty(), "the last released batch is dispatched completely");
+    assert!(multi_request_release.is_some(), "the scenario releases more than one request in a batch");
+    assert!(later_release, "a later nonempty release exercises the ordering boundary");
+    assert_eq!(service.end(), None);
+}
