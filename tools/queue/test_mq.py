@@ -52,7 +52,7 @@ class RestartTests(unittest.TestCase):
         self.repo.mkdir(parents=True)
         self.stop = self.home / "src/fabrig/queue.stop"
 
-    def run_restart(self, *, ready=True, returncode=None):
+    def run_restart(self, *, ready=True, returncode=None, batch=8):
         calls = []
 
         def command(argv, repo):
@@ -63,7 +63,10 @@ class RestartTests(unittest.TestCase):
 
         def launch(argv, **kwargs):
             self.assertFalse(self.stop.exists())
-            self.assertEqual(argv, ["python3", "-u", "tools/queue/mq", "run", "--repo", str(self.repo)])
+            expected = ["python3", "-u", "tools/queue/mq", "run", "--repo", str(self.repo)]
+            if batch != 8:
+                expected.extend(["--batch", str(batch)])
+            self.assertEqual(argv, expected)
             self.assertEqual(kwargs["cwd"], self.repo)
             self.assertEqual(kwargs["stdin"], subprocess.DEVNULL)
             self.assertTrue(kwargs["start_new_session"])
@@ -79,7 +82,7 @@ class RestartTests(unittest.TestCase):
                 patch.object(restart.select, "select", return_value=([123] if ready else [], [], [])), \
                 patch.object(subprocess, "Popen", side_effect=launch) as popen, \
                 patch.object(restart.time, "sleep") as sleep, redirect_stdout(io.StringIO()) as output:
-            restart.restart(self.repo, 10, self.home)
+            restart.restart(self.repo, 10, self.home, batch=batch)
         close.assert_any_call(123)
         sleep.assert_called_once_with(3)
         popen.assert_called_once()
@@ -102,6 +105,18 @@ class RestartTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "timed out"):
             self.run_restart(ready=False)
         self.assertTrue(self.stop.exists())
+
+    def test_nondefault_batch_survives_the_drain_and_launch(self):
+        self.run_restart(batch=16)
+
+    def test_invalid_batch_is_rejected_before_restart(self):
+        for value in ("0", "-1", "1.5", "nan"):
+            with self.subTest(value=value), patch.object(sys, "argv", ["restart", "--batch", value]), \
+                    patch.object(restart, "restart") as effect, redirect_stderr(io.StringIO()):
+                with self.assertRaises(SystemExit) as error:
+                    restart.main()
+                self.assertEqual(error.exception.code, 2)
+                effect.assert_not_called()
 
     def test_child_early_exit_reports_log(self):
         with self.assertRaisesRegex(RuntimeError, "exited 2.*queue.out"):

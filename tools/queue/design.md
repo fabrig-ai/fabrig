@@ -164,6 +164,10 @@ early exit, then prints the new pid and main's commit. `--repo` defaults to
 the current directory and must name the clone root. Run only one restart
 at a time; a failed update leaves the stop file for inspection.
 
+`restart --batch N` sets the replacement queue's positive batch size; the
+default remains 8. Pass the option on each restart to retain a nondefault
+size. It changes batch capacity, not checks, rejection or bisection policy.
+
 ## 4. Later
 
 - Two gate machines with nextest's `--partition` once the full run's time matters.
