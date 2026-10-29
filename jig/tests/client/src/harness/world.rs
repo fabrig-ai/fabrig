@@ -194,7 +194,7 @@ impl<A: App, F: Front<A>> World<A, F> {
     pub fn client(&mut self, party: u64, address: A::Address) -> ClientId {
         let bound = *self
             .default_heap_bound
-            .get_or_insert_with(|| A::worst_case(&A::limits()).min(self.settings.heap_bytes_per_client));
+            .get_or_insert_with(|| A::heap_bound(&A::limits()).min(self.settings.heap_bytes_per_client));
         self.make_client(party, address, Vec::new(), A::limits(), A::new, bound)
     }
     /// Starts a device with supplied receiving bounds and a root/view fixture.
@@ -206,7 +206,7 @@ impl<A: App, F: Front<A>> World<A, F> {
         limits: A::Limits,
         constructor: ClientConstructor<A>,
     ) -> ClientId {
-        let heap_bound = A::worst_case(&limits).min(self.settings.heap_bytes_per_client);
+        let heap_bound = A::heap_bound(&limits).min(self.settings.heap_bytes_per_client);
         self.make_client(party, address, Vec::new(), limits, constructor, heap_bound)
     }
     /// Play this client's subsequent person acts through the printed numbers.

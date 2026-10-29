@@ -127,7 +127,7 @@ impl<const BAD: u8> App for Broken<BAD> {
     fn patch_limit(_: &View) -> u32 {
         LIMITS.patches
     }
-    fn worst_case((): &()) -> u64 {
+    fn heap_bound((): &()) -> u64 {
         if BAD == 7 { 0 } else { 65536 }
     }
     fn sent(_: &Wire) -> Option<Sent> {
