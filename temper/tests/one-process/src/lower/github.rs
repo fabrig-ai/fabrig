@@ -121,7 +121,7 @@ fn config_layer() -> layer::Config {
         faults: layer::Faults { reset: 0, drop: 0, server_error: 0 },
     }
 }
-fn peer() -> (Rc<RefCell<Forge>>, Peer) {
+pub(crate) fn peer() -> (Rc<RefCell<Forge>>, Peer) {
     let wire = protocol();
     let mut config = temper_fake_git_hosted::fixtures::CONFIG;
     config.limits.files = 4;
@@ -476,4 +476,8 @@ pub fn run(scenario: Scenario) {
     }
     world::lower_store(None);
     ACTIVE.with(|active| active.set(false));
+}
+
+pub(crate) fn set_active(active: bool) {
+    ACTIVE.with(|slot| slot.set(active));
 }

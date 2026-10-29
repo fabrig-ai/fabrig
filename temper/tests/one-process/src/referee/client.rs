@@ -40,23 +40,29 @@ struct Connection {
 #[derive(Default)]
 pub(crate) struct Wire {
     connections: BTreeMap<i32, Connection>,
+    capture_only: bool,
     pub(crate) received: Vec<Received>,
 }
 fn mark(bytes: &[u8], marker: &[u8]) -> Option<usize> {
     bytes.windows(marker.len()).position(|window| window == marker)
 }
 impl Wire {
+    pub(crate) fn capturing() -> Self {
+        Self { capture_only: true, ..Self::default() }
+    }
     pub(crate) fn complete(&mut self, complete: &Complete) {
         match (&complete.kind, &complete.result) {
             (Op::Send { fd, bytes, from }, Ok(Done::Count(count))) => {
                 let connection = self.connections.entry(fd.raw()).or_default();
                 connection.sent.extend_from_slice(&bytes[*from as usize..(*from + *count) as usize]);
-                connection.request(&mut self.received);
+                if !self.capture_only {
+                    connection.request(&mut self.received);
+                }
             }
             (Op::Recv { fd, buf }, Ok(Done::Count(count))) => {
                 let connection = self.connections.entry(fd.raw()).or_default();
                 connection.incoming.extend_from_slice(&buf[..*count as usize]);
-                connection.progress(&mut self.received);
+                connection.progress(&mut self.received, self.capture_only);
             }
             (Op::Connect { .. }, Ok(Done::Fd(fd))) => {
                 self.connections.insert(fd.raw(), Connection::default());
@@ -94,7 +100,7 @@ impl Connection {
             received.push(Received::ApplicationSent { key: *keyed.key() });
         }
     }
-    fn progress(&mut self, received: &mut Vec<Received>) {
+    fn progress(&mut self, received: &mut Vec<Received>, capture_only: bool) {
         if !self.header {
             let Some(end) = mark(&self.incoming, b"\r\n\r\n") else { return };
             let header = std::str::from_utf8(&self.incoming[..end]).expect("HTTP response header");
@@ -122,10 +128,13 @@ impl Connection {
                 assert_eq!(&self.incoming[end + 2 + size..end + 4 + size], b"\r\n", "chunk ending");
                 self.incoming.drain(..end + size + 4);
             }
-            self.stream(received);
+            self.stream(received, capture_only);
         } else if !self.answered && self.remaining.is_some_and(|size| self.incoming.len() >= size) {
             let size = self.remaining.expect("length-framed reply");
-            self.answer(&self.incoming[..size], received);
+            crate::m15::observer::artifact("wire reply body", &self.incoming[..size]);
+            if !capture_only {
+                self.answer(&self.incoming[..size], received);
+            }
             self.answered = true;
         }
     }
@@ -181,7 +190,7 @@ impl Connection {
             _ => panic!("unobserved client request target"),
         }
     }
-    fn stream(&mut self, received: &mut Vec<Received>) {
+    fn stream(&mut self, received: &mut Vec<Received>, capture_only: bool) {
         let limits = native_link_limits();
         while let Some(end) = mark(&self.body, b"\n\n") {
             let event: Vec<_> = self.body.drain(..end + 2).collect();
@@ -195,6 +204,10 @@ impl Connection {
                 continue;
             }
             let decoded = base64::decode(Alphabet::Standard, &data, 16_777_216).expect("SSE record encoding");
+            crate::m15::observer::artifact("wire reply body", &decoded);
+            if capture_only {
+                continue;
+            }
             if let wire::StreamEvent::Delivery(value) =
                 wire::StreamEvent::decode(&wire::CEILINGS, &mut Reader::new(&decoded)).expect("SSE record bytes")
                 && value.document().owner() == &wire::Owner::Jig
