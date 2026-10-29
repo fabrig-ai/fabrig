@@ -49,13 +49,15 @@ class RestartTests(unittest.TestCase):
         self.addCleanup(self.temporary.cleanup)
         self.home = Path(self.temporary.name)
         self.repo = self.home / "src/fabrig/queue"
-        self.repo.mkdir(parents=True)
+        self.repo.mkdir(parents=True, mode=0o700)
+        self.repo.parent.chmod(0o700)
+        (self.repo / ".git").mkdir(mode=0o700)
         self.stop = self.home / "src/fabrig/queue.stop"
 
     def run_restart(self, *, ready=True, returncode=None, batch=8):
         calls = []
 
-        def command(argv, repo):
+        def command(argv, repo, **ignored):
             calls.append(argv)
             if argv[1] in ("fetch", "switch"):
                 self.assertTrue(self.stop.exists())
@@ -63,7 +65,11 @@ class RestartTests(unittest.TestCase):
 
         def launch(argv, **kwargs):
             self.assertFalse(self.stop.exists())
-            expected = ["python3", "-u", "tools/queue/mq", "run", "--repo", str(self.repo)]
+            expected = ["python3", "-B", "-u", "tools/queue/mq", "run", "--repo", str(self.repo)]
+            expected.extend(["--authority-dir", str(self.home / "src/fabrig/queue-authority"),
+                             "--authority-fd", str(kwargs["pass_fds"][0]),
+                             "--startup-fd", str(kwargs["pass_fds"][1])])
+            os.write(kwargs["pass_fds"][1], b"READY\n")
             if batch != 8:
                 expected.extend(["--batch", str(batch)])
             self.assertEqual(argv, expected)
@@ -79,12 +85,13 @@ class RestartTests(unittest.TestCase):
                 patch.object(restart, "queue_pid", return_value=41), \
                 patch.object(os, "pidfd_open", return_value=123), \
                 patch.object(os, "close", side_effect=lambda fd: None if fd == 123 else close_fd(fd)) as close, \
-                patch.object(restart.select, "select", return_value=([123] if ready else [], [], [])), \
+                patch.object(restart.select, "select", side_effect=lambda fds, *args: (
+                    (fds if ready else [], [], []))), \
                 patch.object(subprocess, "Popen", side_effect=launch) as popen, \
                 patch.object(restart.time, "sleep") as sleep, redirect_stdout(io.StringIO()) as output:
             restart.restart(self.repo, 10, self.home, batch=batch)
         close.assert_any_call(123)
-        sleep.assert_called_once_with(3)
+        sleep.assert_not_called()
         popen.assert_called_once()
         return calls, output.getvalue()
 
@@ -141,15 +148,10 @@ class RestartTests(unittest.TestCase):
             self.assertEqual(restart.queue_pid(self.repo), 41)
         run.assert_not_called()
 
-    def test_fallback_requires_exactly_one_process(self):
-        for output, expected in (("", None), ("41\n42\n", None), ("41\n", 41)):
-            with self.subTest(output=output), patch.object(subprocess, "run", return_value=(
-                    subprocess.CompletedProcess([], 0 if output else 1, output, ""))):
-                if expected is None:
-                    with self.assertRaisesRegex(RuntimeError, "exactly one"):
-                        restart.queue_pid(self.repo)
-                else:
-                    self.assertEqual(restart.queue_pid(self.repo), expected)
+    def test_absent_holder_does_not_use_broad_process_fallback(self):
+        with patch.object(subprocess, "run") as run:
+            self.assertIsNone(restart.queue_pid(self.repo))
+        run.assert_not_called()
 
     def test_wait_rejects_negative_and_nonfinite_values(self):
         for value in ("-1", "inf", "nan"):
@@ -633,6 +635,7 @@ class RepositoryTests(unittest.TestCase):
     def queue(self, **kwargs):
         kwargs.setdefault("disk_floor", 0)
         return mq.Queue(self.repo, state_path=self.directory / "state.json",
+                        writer_guard=lambda: mq.authority.checkout_guard(self.repo),
                         log_path=self.directory / "queue.jsonl", checker=self.checker,
                         poster=self.poster, metadata_loader=lambda repo: metadata(repo), **kwargs)
 

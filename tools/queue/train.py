@@ -1,16 +1,18 @@
 """Disabled controller library; tools/queue/design.md, section 3.9.
 
-No CLI, production transport, main writer, or implicit Cargo invocation. Adapters
-are mandatory. In particular Authority must enforce exclusive main authority;
-this library alone cannot make legacy Queue/restart safe to run beside a train.
+No CLI, production transport or implicit Cargo invocation. Adapters are
+mandatory. authority.GitAuthority supplies effects under the common queue
+lock/layout; remote/heavy completion remains blocked pending part 5.
 """
 
 import copy
+from contextlib import contextmanager
 import importlib.util
 import json
 import os
 from pathlib import Path, PurePosixPath
 import stat
+import tempfile
 
 
 DIRECTORY = Path(__file__).resolve().parent
@@ -18,6 +20,11 @@ SPEC = importlib.util.spec_from_file_location("train_worker", DIRECTORY / "worke
 worker = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(worker)
 mq = worker.mq
+RECOVERY_SPEC = importlib.util.spec_from_file_location("train_recovery", DIRECTORY / "recovery.py")
+recovery = importlib.util.module_from_spec(RECOVERY_SPEC)
+RECOVERY_SPEC.loader.exec_module(recovery)
+durable = recovery.durable
+authority_module = mq.authority
 VERSION = 1
 CONTROLLER_BYTES = Path(__file__).read_bytes()
 
@@ -26,39 +33,12 @@ def clone(value):
     return copy.deepcopy(value)
 
 
-def read_json(data):
-    def pairs(items):
-        result = {}
-        for key, value in items:
-            if key in result:
-                raise ValueError("duplicate JSON key")
-            result[key] = value
-        return result
-    return json.loads(data, object_pairs_hook=pairs, parse_constant=lambda value: (
-        _ for _ in ()).throw(ValueError("nonfinite JSON")))
-
-
-def private_directory(path):
-    path = worker.canonical_directory(path)
-    if path.stat().st_uid != os.getuid() or stat.S_IMODE(path.stat().st_mode) != 0o700:
-        raise ValueError("controller artifact directory must be owned and mode 0700")
-    return path
+read_json = durable.read_json
+private_directory = durable.directory
 
 
 def write_bytes(path, data):
-    # Evidence is written before the state begins referring to it.
-    if path.exists() or path.is_symlink():
-        info = path.stat()
-        if (path.is_symlink() or not stat.S_ISREG(info.st_mode) or
-                stat.S_IMODE(info.st_mode) != 0o600 or path.read_bytes() != data):
-            raise ValueError("immutable evidence already exists with different bytes")
-        return
-    with path.open("xb") as output:
-        os.fchmod(output.fileno(), 0o600)
-        output.write(data)
-        output.flush()
-        os.fsync(output.fileno())
-    worker.sync_directory(path.parent)
+    durable.publish(path, data, immutable=True)
 
 
 class StateStore:
@@ -69,15 +49,13 @@ class StateStore:
         self.path = self.directory / "state.json"
 
     def load(self):
-        if not self.path.exists():
+        if not self.path.exists() and not self.path.is_symlink():
             return None
-        info = self.path.stat()
-        if (self.path.is_symlink() or not stat.S_ISREG(info.st_mode) or
-                info.st_uid != os.getuid() or stat.S_IMODE(info.st_mode) != 0o600):
-            raise ValueError("state must be a private regular file")
-        state = read_json(self.path.read_bytes())
-        if type(state.get("version")) is not int or state["version"] != VERSION:
-            raise ValueError("unknown controller state version; no automatic migration")
+        state = read_json(durable.read_bytes(self.path))
+        try:
+            recovery.validate_state(state, validate_request=worker.validate_request)
+        except (KeyError, TypeError, AttributeError, OverflowError) as error:
+            raise ValueError("malformed recovery state") from error
         return state
 
     def save(self, state):
@@ -97,6 +75,7 @@ class Preparer:
         self.artifacts = private_directory(artifacts)
         self.metadata_loader = metadata_loader
         self.disk_floor = disk_floor
+        self._ownership = None
         if (not (self.repo / ".git").is_dir() or (self.repo / ".git").is_symlink() or
                 mq.git(self.repo, "rev-parse", "--show-toplevel").stdout.strip() != str(self.repo) or
                 Path(mq.git(self.repo, "rev-parse", "--path-format=absolute", "--git-common-dir").stdout.strip())
@@ -106,17 +85,44 @@ class Preparer:
                 self.artifacts in self.repo.parents):
             raise ValueError("preparation artifacts must be outside checkout")
 
+    @contextmanager
+    def ownership(self):
+        if self._ownership is not None:
+            self._ownership.guard()
+            yield
+            return
+        with authority_module.Lock(self.repo.with_name(self.repo.name + ".queue.lock")) as lease:
+            authority_module.checkout_guard(self.repo)
+            self._ownership = lease
+            try:
+                yield
+            finally:
+                self._ownership = None
+
     def discover(self, tried):
-        mq.git(self.repo, "fetch", "--prune", "origin")
-        return mq.list_candidates(self.repo, tried)
+        with self.ownership():
+            mq.git(self.repo, "fetch", "--prune", "origin")
+            return mq.list_candidates(self.repo, tried)
 
     def pin(self, attempt, name, oid):
         ref = f"refs/mq/jobs/{attempt}/{name}"
-        mq.git(self.repo, "update-ref", ref, oid)
+        if not worker.TOKEN.fullmatch(attempt) or not worker.OID.fullmatch(oid):
+            raise ValueError("invalid pin identity")
+        mq.git(self.repo, "check-ref-format", ref)
+        current = mq.git(self.repo, "rev-parse", "--verify", ref, check=False)
+        if current.returncode == 0:
+            if current.stdout.strip() != oid:
+                raise ValueError("immutable pin already names a different object")
+        else:
+            mq.git(self.repo, "update-ref", ref, oid, "0" * len(oid))
         return ref
 
     def expectation(self, request):
         """Compute from controller objects at exact C, never from worker claims."""
+        with self.ownership():
+            return self._expectation(request)
+
+    def _expectation(self, request):
         worker.runtime_unchanged()
         self.verify_history()
         objects = worker.verify_objects(self.repo, request)
@@ -152,7 +158,7 @@ class Preparer:
             before = branch["commit"]
         paths = mq.changed_paths(repo, before, base=parent)
         steps, baselines = [], []
-        log_path = job / "prepare.log"
+        log_path = job / ".prepare.partial"
         with log_path.open("x+") as log:
             os.fchmod(log.fileno(), 0o600)
             for name, argv, cwd in mq.ratchet_commands(repo, paths):
@@ -167,6 +173,8 @@ class Preparer:
                     os.fsync(log.fileno())
                     candidate = mq.git(repo, "rev-parse", "HEAD").stdout.strip()
                     pins.append(self.pin(attempt, "candidate", candidate))
+                    write_bytes(job / "prepare.log", durable.read_bytes(log_path))
+                    log_path.unlink()
                     worker.sync_directory(job)
                     return {"chain": chain, "conflicts": conflicts, "pins": pins,
                             "preparation": steps, "outcome": "red", "request": None,
@@ -182,6 +190,9 @@ class Preparer:
                                       "commit": mq.git(repo, "rev-parse", "HEAD").stdout.strip()})
             log.flush()
             os.fsync(log.fileno())
+        write_bytes(job / "prepare.log", durable.read_bytes(log_path))
+        log_path.unlink()
+        worker.sync_directory(job)
         mq.ensure_clean(repo)
         candidate = mq.git(repo, "rev-parse", "HEAD").stdout.strip()
         pins.append(self.pin(attempt, "candidate", candidate))
@@ -219,7 +230,7 @@ class Preparer:
                     "request": request, "expected": expected}
         verify_chain(repo, {**record, **evidence})
         evidence["bundle"] = self.export_bundle(attempt, pins, job)
-        worker.atomic_json(job / "request.json", request)
+        write_bytes(job / "request.json", worker.encoded(request))
         return evidence
 
     def verify_history(self):
@@ -231,14 +242,20 @@ class Preparer:
             raise ValueError("preparation index flags must not hide changes")
 
     def export_bundle(self, attempt, pins, job):
-        temporary, path = job / "candidate.tmp", job / "candidate.bundle"
-        mq.git(self.repo, "bundle", "create", str(temporary), *pins)
-        with temporary.open("rb") as source:
-            os.fsync(source.fileno())
-        temporary.chmod(0o600)
-        os.replace(temporary, path)
-        worker.sync_directory(job)
-        data = path.read_bytes()
+        path = job / "candidate.bundle"
+        fd, name = tempfile.mkstemp(prefix=".bundle-", dir=job)
+        os.close(fd)
+        temporary = Path(name)
+        try:
+            mq.git(self.repo, "bundle", "create", str(temporary), *pins)
+            temporary.chmod(0o600)
+            with temporary.open("rb") as source:
+                os.fsync(source.fileno())
+            data = durable.read_bytes(temporary)
+            write_bytes(path, data)
+        finally:
+            temporary.unlink(missing_ok=True)
+            worker.sync_directory(job)
         return {"path": str(path), "bytes": len(data), "sha256": worker.digest(data),
                 "refs": {ref: mq.git(self.repo, "rev-parse", ref).stdout.strip() for ref in pins}}
 
@@ -249,7 +266,16 @@ def import_bundle(repo, bundle, request):
     No checkout mutation, origin fetch or speculative origin refs. The transport
     must hold its checkout ownership boundary before calling this helper.
     """
-    data = Path(bundle["path"]).read_bytes()
+    worker.validate_request(request)
+    path = Path(bundle["path"])
+    if not path.is_absolute() or path != path.resolve():
+        raise ValueError("bundle path must be absolute and canonical")
+    if not isinstance(bundle.get("refs"), dict) or any(
+            not isinstance(ref, str) or not ref.startswith(f"refs/mq/jobs/{request['attempt']}/") or
+            not isinstance(value, str) or not worker.OID.fullmatch(value) or
+            mq.git(repo, "check-ref-format", ref, check=False).returncode for ref, value in bundle["refs"].items()):
+        raise ValueError("invalid bundle refs")
+    data = durable.checked(path, bundle)
     if len(data) != bundle["bytes"] or worker.digest(data) != bundle["sha256"]:
         raise ValueError("corrupt bundle")
     heads = mq.git(repo, "bundle", "list-heads", bundle["path"]).stdout.splitlines()
@@ -376,24 +402,30 @@ class Controller:
     held. main() reads fresh main. promote(P,C,id) must recheck P under that same
     authority and push explicit C normally. cleanup(name,tip,id) compares and
     deletes that tip only. post(event) returns exit 0/3 on delivery. There is no
-    built-in production adapter. Event ids are stable across every replay.
+    executable train mode. GitAuthority supplies the concrete effects under its
+    held shared layout lock. Event ids are stable across every replay.
     """
 
     def __init__(self, preparer, store, transport, authority, *, generation, gates,
-                 runtime, now, batch=8, full_every=5):
+                 runtime, now, batch=8, full_every=5, completion_adapter=None):
         for token in [generation, *gates]:
             if not worker.TOKEN.fullmatch(token):
                 raise ValueError("invalid generation/gate token")
-        if len(gates) != 2 or len(set(gates)) != 2 or batch < 1 or full_every < 1:
+        if (len(gates) != 2 or len(set(gates)) != 2 or type(batch) is not int or
+                type(full_every) is not int or batch < 1 or full_every < 1):
             raise ValueError("two distinct gates and positive policy values required")
         self.preparer, self.store, self.transport, self.authority = preparer, store, transport, authority
         self.now = now
+        self.completion_adapter = completion_adapter
         self.failed = False
         self.config = {"generation": generation, "gates": list(gates), "runtime": clone(runtime),
                        "batch": batch, "full_every": full_every,
                        "preparation": str(preparer.repo), "artifacts": str(preparer.artifacts),
                        "transport": clone(transport.identity()),
-                       "controller_sha256": worker.digest(CONTROLLER_BYTES)}
+                       "controller_sha256": worker.digest(CONTROLLER_BYTES),
+                       "authority": clone(authority.identity()) if hasattr(authority, "identity") else None,
+                       "completion": (clone(completion_adapter.completion_identity()) if completion_adapter
+                                      else {"kind": "local-empty-plan-v1"})}
         if set(self.config["transport"]) != set(gates):
             raise ValueError("transport must configure exactly the two gates")
         endpoints = [(config.get("host", "local"), config["repo"])
@@ -401,8 +433,14 @@ class Controller:
         if len(set(endpoints)) != 2 or ("local", str(preparer.repo)) in endpoints:
             raise ValueError("preparation and both gates require separate clones")
         authority.guard()
+        if hasattr(authority, "bind"):
+            authority.bind(store, preparer, config=self.config)
         self.state = store.load()
+        self.unreconciled_gates = set(self.state["gates"].values()) - {None} if self.state else set()
         if self.state is None:
+            if (any(store.directory.iterdir()) or any(preparer.artifacts.iterdir()) or
+                    mq.git(preparer.repo, "for-each-ref", "--format=%(refname)", "refs/mq/jobs/").stdout):
+                raise ValueError("missing snapshot with retained recovery evidence/pins; reconciliation required")
             self.state = {"version": VERSION, "config": clone(self.config), "serial": 0,
                           "records": {}, "active": [], "gates": {gate: None for gate in gates},
                           "tried": {}, "batches_since_full": 0, "last_full": 0,
@@ -410,8 +448,12 @@ class Controller:
                           "pending": [], "bisecting": False, "force_full": False,
                           "outbox": {}, "stopping": False, "idle_since": now()}
             self.save()
-        elif self.state["config"] != self.config:
+        elif worker.encoded(self.state["config"]) != worker.encoded(self.config):
             raise ValueError("generation/config changed; explicit reconciliation required")
+        else:
+            recovery.validate_artifacts(self.state, preparer, worker, verify_chain)
+        self.guard()
+        self.startup_inventory = self.recovery_inventory()
 
     def guard(self):
         if self.failed:
@@ -420,9 +462,12 @@ class Controller:
         worker.runtime_unchanged()
         if Path(__file__).read_bytes() != CONTROLLER_BYTES:
             raise ValueError("controller runtime changed during generation")
-        if self.config["runtime"] != worker.runtime_identity(self.preparer.disk_floor):
+        if worker.encoded(self.config["runtime"]) != worker.encoded(worker.runtime_identity(self.preparer.disk_floor)):
             raise ValueError("generation runtime mismatch")
-        if self.config["transport"] != self.transport.identity():
+        if (self.config["authority"] is not None and
+                worker.encoded(self.config["authority"]) != worker.encoded(self.authority.identity())):
+            raise ValueError("authority configuration changed during generation")
+        if worker.encoded(self.config["transport"]) != worker.encoded(self.transport.identity()):
             raise ValueError("gate configuration changed during generation")
 
     def save(self):
@@ -444,13 +489,31 @@ class Controller:
                 len(self.state["active"]) + 1 >= self.config["full_every"] or
                 self.now() - self.state["last_full"] >= 3600)
 
+    def main_consistent(self):
+        """Fresh P/C reconciliation before new preparation/dispatch, never adopt."""
+        main = self.authority.main()
+        if self.state["active"]:
+            head = self.state["records"][self.state["active"][0]]
+            expected = {head["parent"]}
+            if head["phase"] == "promotion-intent":
+                expected.add(head["candidate"])
+            return main in expected
+        ordered = sorted(self.state["records"].values(), key=lambda r: int(r["id"].rsplit("-", 1)[1]))
+        greens = [r for r in ordered if r.get("decision") == "green"]
+        expected = greens[-1]["candidate"] if greens else ordered[0]["parent"] if ordered else main
+        return main == expected
+
     def admit(self):
         self.guard()
+        if self.unreconciled_gates or not self.main_consistent():
+            return None
         if (self.state["stopping"] or len(self.state["active"]) >= 2 or
                 any(owner and (self.state["records"][owner].get("invalidated") or
                                self.state["records"][owner]["applied"])
                     for owner in self.state["gates"].values()) or
-                any(self.state["records"][a]["phase"] == "preparing" for a in self.state["active"]) or
+                any(self.state["records"][a]["phase"] in {"preparing", "prepared", "dispatch-intent"}
+                    for a in self.state["active"]) or
+                any(r.get("preparation_unresolved") for r in self.state["records"].values()) or
                 any(self.state["records"][a].get("blocked") for a in self.state["active"]) or
                 any(self.state["records"][a].get("conflicts") for a in self.state["active"]) or
                 any(self.state["records"][a].get("outcome") in ("red", "conflict", "INFRA")
@@ -485,25 +548,44 @@ class Controller:
         attempt = f"g{worker.digest(self.config['generation'].encode())}-{self.state['serial']}"
         record = {"id": attempt, "generation": self.config["generation"], "gate": available[0],
                   "parent": parent, "inputs": clone(branches), "full": idle or self.full_due(),
-                  "idle": idle, "phase": "preparing", "outcome": None, "applied": False}
+                  "idle": idle, "bisection": self.state["bisecting"],
+                  "phase": "preparing", "outcome": None, "applied": False}
         self.state["records"][attempt] = record
         self.state["active"].append(attempt)
         if self.state["bisecting"]:
             self.state["pending"].pop(0)
         self.save()  # Reservations and preparation intent precede clone mutation.
-        try:
-            record.update(self.preparer.prepare_candidate(record, self.config["runtime"]))
-            record["phase"] = "prepared"
-        except Exception as error:
-            self.infra(attempt, error)
-            return attempt
-        self.save()
+        # The marker survives controller death and failed snapshot publication.
+        # Only the completed snapshot permits clearing preparation ownership.
+        with self.preparer.ownership():
+            marker = self.preparer.repo / ".git/mq-preparation-unresolved.json"
+            try:
+                worker.atomic_json(marker, {"attempt": attempt, "generation": self.config["generation"],
+                                            "state": str(self.store.path)})
+            except BaseException:
+                self.failed = True
+                raise
+            try:
+                record.update(self.preparer.prepare_candidate(record, self.config["runtime"]))
+                record["prepare_log"] = durable.fingerprint(durable.read_bytes(
+                    self.preparer.artifacts / attempt / "prepare.log"))
+                record["phase"] = "prepared"
+            except Exception as error:
+                record["preparation_unresolved"] = True
+                self.infra(attempt, error)
+                return attempt
+            self.save()
+            marker.unlink()
+            worker.sync_directory(marker.parent)
         if record["outcome"] is None:
             self.dispatch(attempt)
         return attempt
 
     def dispatch(self, attempt):
         self.guard()
+        self.check_artifacts()
+        if not self.main_consistent():
+            raise RuntimeError("unexpected main; reconcile before dispatch")
         record = self.state["records"][attempt]
         if record["phase"] not in ("prepared", "dispatch-intent", "unknown") or record.get("invalidated"):
             raise ValueError("attempt cannot be dispatched")
@@ -515,7 +597,7 @@ class Controller:
         self.save()  # Persist ownership before even a transfer/start request.
         try:
             bundle = record["bundle"]
-            data = Path(bundle["path"]).read_bytes()
+            data = durable.checked(Path(bundle["path"]), bundle)
             if len(data) != bundle["bytes"] or worker.digest(data) != bundle["sha256"]:
                 raise ValueError("bundle changed before transfer")
             self.transport.start(clone(record["request"]), clone(bundle))
@@ -534,10 +616,15 @@ class Controller:
             return
         try:
             reply = self.transport.status(clone(record["request"]))
+            if reply.get("request") != record["request"]:
+                raise ValueError("status does not identify the owning request")
             if reply["state"] == "running":
-                record["phase"] = "draining" if record.get("invalidated") else "running"
+                if not record["applied"]:
+                    record["phase"] = "draining" if record.get("invalidated") else "running"
+                self.unreconciled_gates.discard(attempt)
             elif reply["state"] == "terminal":
-                self.ingest(attempt, reply["result"], reply["log"], quiescent=reply.get("quiescent"))
+                self.ingest(attempt, reply["result"], reply["log"],
+                            quiescent=reply.get("quiescent"), evidence=reply.get("evidence"))
                 return
             else:
                 raise RuntimeError("worker status unknown")
@@ -549,17 +636,24 @@ class Controller:
             return
         self.save()
 
-    def ingest(self, attempt, result_bytes, log, *, quiescent=None):
+    def ingest(self, attempt, result_bytes, log, *, quiescent=None, evidence=None):
         self.guard()
         record = self.state["records"][attempt]
         if type(quiescent) is not bool or self.state["gates"][record["gate"]] != attempt:
             raise ValueError("terminal evidence requires explicit ownership status for this job")
+        job = self.preparer.artifacts / attempt
         try:
-            job = self.preparer.artifacts / attempt
             write_bytes(job / "returned.log", log)
             write_bytes(job / "returned.json", result_bytes)
+        except BaseException:
+            self.failed = True
+            raise
+        try:
+            record["returned"] = {"returned.log": durable.fingerprint(log),
+                                  "returned.json": durable.fingerprint(result_bytes)}
             if quiescent is not True:
                 raise ValueError("terminal without resolved job/checkout ownership")
+            self.verify_completion(record, evidence)
             result = read_json(result_bytes)
             outcome = validate_result(self.preparer, record, result, log)
         except Exception as error:
@@ -568,6 +662,7 @@ class Controller:
         # Callers may only ingest terminal replies with independently established
         # quiescence (poll enforces it); malformed evidence retains ownership.
         self.state["gates"][record["gate"]] = None
+        self.unreconciled_gates.discard(attempt)
         record["result"] = result
         if record.get("invalidated") or record["applied"]:
             record["phase"] = "discarded"
@@ -595,20 +690,51 @@ class Controller:
         self.invalidate_descendants(attempt, "ancestor infrastructure failure")
         self.save()
 
+    def verify_completion(self, record, evidence):
+        if self.completion_adapter is not None:
+            if worker.encoded(self.completion_adapter.completion_identity()) != worker.encoded(self.config["completion"]):
+                raise ValueError("completion adapter changed during generation")
+            verified = self.completion_adapter.verify_completion(
+                clone(record["request"]), clone(evidence), clone(self.config["transport"][record["gate"]]))
+            if not isinstance(verified, dict) or verified != evidence:
+                raise ValueError("completion adapter must return verified identity-bound evidence")
+            return verified
+        return recovery.local_completion(record["request"], evidence,
+            self.config["transport"][record["gate"]], authority_module)
+
     def reconcile_job(self, attempt, *, quiescent, evidence):
-        """Operator adapter hook, NOT process-absence inference or a reset tool."""
+        """Only supported evidence releases ownership; no reset or PID inference."""
         self.guard()
-        if quiescent is not True or not evidence:
-            raise ValueError("explicit supported job/ownership reconciliation evidence required")
         record = self.state["records"][attempt]
+        if quiescent is not True:
+            raise ValueError("explicit supported job/ownership reconciliation evidence required")
+        self.verify_completion(record, evidence)
         if self.state["gates"][record["gate"]] != attempt:
             raise ValueError("attempt no longer owns gate")
-        record["reconciliation"] = evidence
+        record["reconciliation"] = clone(evidence)
+        self.unreconciled_gates.discard(attempt)
         self.state["gates"][record["gate"]] = None
         record["phase"] = "discarded" if record.get("invalidated") else "terminal"
         if record["outcome"] is None:
             record["outcome"] = "INFRA"
         self.save()
+
+    def recheck_certificate(self, record):
+        try:
+            log = durable.checked(self.preparer.artifacts / record["id"] / "returned.log", record["result"]["log"])
+            outcome = validate_result(self.preparer, record, record["result"], log)
+            if outcome != record["outcome"]:
+                raise ValueError("certificate differs from authoritative outcome")
+        except BaseException:
+            self.failed = True
+            raise
+
+    def check_artifacts(self):
+        try:
+            recovery.validate_artifacts(self.state, self.preparer, worker, verify_chain)
+        except BaseException:
+            self.failed = True
+            raise
 
     def event(self, record, kind, branch=None, detail=None):
         suffix = branch["name"] if branch else "ops"
@@ -685,6 +811,8 @@ class Controller:
             for branch in record.get("conflicts", []):
                 self.state["tried"][branch["name"]] = branch["tip"]
                 self.event(record, "rejected", branch, branch["error"])
+        record["accounting"] = {k: clone(self.state[k]) for k in (
+            "batches_since_full", "last_full", "last_full_main", "selected_passed")}
         record["applied"], record["decision"] = True, outcome
         record["phase"] = "decided"
         self.state["active"].remove(record["id"])
@@ -693,12 +821,15 @@ class Controller:
 
     def adjudicate_head(self):
         self.guard()
+        self.check_artifacts()
         if not self.state["active"]:
             return False
         record = self.state["records"][self.state["active"][0]]
         if record["phase"] == "promotion-intent":
             return self.promote(record)
         outcome = record["outcome"]
+        if outcome in ("green", "red") and record.get("result") is not None:
+            self.recheck_certificate(record)
         if outcome is None:
             return False
         if outcome != "INFRA" and self.authority.main() != record["parent"]:
@@ -718,9 +849,11 @@ class Controller:
 
     def promote(self, record):
         self.guard()
+        self.check_artifacts()
         if (self.state["active"][:1] != [record["id"]] or
                 record["phase"] != "promotion-intent" or record.get("invalidated")):
             raise ValueError("promotion requires the head's recorded intent")
+        self.recheck_certificate(record)
         intent = record["promotion"]
         main = self.authority.main()
         if main == intent["parent"]:
@@ -742,6 +875,7 @@ class Controller:
 
     def flush_outbox(self):
         self.guard()
+        self.check_artifacts()
         for event in self.state["outbox"].values():
             if event["delivered"]:
                 continue
@@ -764,13 +898,38 @@ class Controller:
         self.save()
 
     def drained(self):
-        return not self.state["active"] and not any(self.state["gates"].values())
+        return (not self.failed and not self.state["active"] and not any(self.state["gates"].values()) and
+                not any(r.get("preparation_unresolved") or r["phase"] == "preparing"
+                        for r in self.state["records"].values()))
 
     def recovery_inventory(self):
         """No mutation: next-part startup must reconcile every returned boundary."""
         self.guard()
-        return {"main": self.authority.main(), "gates": clone(self.state["gates"]),
-                "intents": [clone(r["promotion"]) for r in self.state["records"].values()
-                            if r["phase"] == "promotion-intent"],
-                "preparing": [r["id"] for r in self.state["records"].values() if r["phase"] == "preparing"],
-                "outbox": [e["id"] for e in self.state["outbox"].values() if not e["delivered"]]}
+        main = self.authority.main()
+        result = {"main": main, "unreconciled_gates": sorted(self.unreconciled_gates),
+                  **clone(recovery.inventory(self.state)),
+                  "artifacts": recovery.artifact_inventory(self.state, self.preparer.artifacts)}
+        result["promotions"] = [{**r["promotion"], "disposition": (
+            "candidate" if main == r["candidate"] else "parent" if main == r["parent"] else "unexpected")}
+            for r in self.state["records"].values() if r["phase"] == "promotion-intent"]
+        return result
+
+    def reconcile_preparation(self, attempt):
+        """Clear only a completion marker backed by the durable prepared snapshot.
+
+        Incomplete preparation has no safe reset/reconstruction path in part 4.
+        """
+        self.guard()
+        record = self.state["records"][attempt]
+        if record["phase"] == "preparing" or record.get("preparation_unresolved"):
+            raise RuntimeError("incomplete preparation requires supported supervisor evidence")
+        self.check_artifacts()
+        repo = self.preparer.repo
+        with authority_module.Lock(repo.with_name(repo.name + ".queue.lock")):
+            marker = repo / ".git/mq-preparation-unresolved.json"
+            expected = {"attempt": attempt, "generation": self.config["generation"],
+                        "state": str(self.store.path)}
+            if read_json(durable.read_bytes(marker)) != expected:
+                raise ValueError("preparation marker identity differs")
+            marker.unlink()
+            worker.sync_directory(marker.parent)

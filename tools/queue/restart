@@ -2,6 +2,7 @@
 """Stop, update, and detach one queue (tools/queue/design.md, 3.7)."""
 
 import argparse
+import importlib.util
 import os
 from pathlib import Path
 import select
@@ -11,9 +12,16 @@ import sys
 import time
 
 
-def command(argv, repo):
+sys.dont_write_bytecode = True
+SPEC = importlib.util.spec_from_file_location("restart_authority", Path(__file__).resolve().with_name("authority.py"))
+authority = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(authority)
+
+
+def command(argv, repo, *, pass_fds=()):
     return subprocess.run(argv, cwd=repo, stdin=subprocess.DEVNULL, text=True,
-                          stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True).stdout.strip()
+                          stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True,
+                          pass_fds=pass_fds).stdout.strip()
 
 
 def queue_pid(repo):
@@ -34,53 +42,81 @@ def queue_pid(repo):
             return holders.pop()
         if holders:
             raise RuntimeError(f"expected one queue lock holder, found {sorted(holders)}")
-    pattern = r"(^|[[:space:]])([^[:space:]]*/)?tools/queue/mq[[:space:]]+run([[:space:]]|$)"
-    result = subprocess.run(["pgrep", "-f", pattern], stdin=subprocess.DEVNULL,
-                            text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    if result.returncode not in (0, 1):
-        raise RuntimeError(f"pgrep failed: {result.stderr.strip()}")
-    pids = [int(pid) for pid in result.stdout.split()]
-    if len(pids) != 1:
-        raise RuntimeError(f"expected exactly one mq run, found {pids}")
-    return pids[0]
+    return None  # Process absence grants no checkout or remote-job authority.
 
 
-def restart(repo, wait, home, *, batch=8):
-    if command(["git", "rev-parse", "--show-toplevel"], repo) != str(repo):
-        raise RuntimeError("--repo must name the checkout root")
-    pid = queue_pid(repo)
-    # A pidfd follows this process even if the kernel later reuses its pid.
-    try:
-        process_fd = os.pidfd_open(pid)
-    except ProcessLookupError:
-        process_fd = None
-    stop = home / "src/fabrig/queue.stop"
-    stop.touch(mode=0o600)
-    print(f"waiting up to {wait:g}s for mq run pid {pid}; stop file {stop}", flush=True)
-    if process_fd is not None:
-        try:
-            if not select.select([process_fd], [], [], wait)[0]:
-                raise RuntimeError(f"timed out waiting for mq run pid {pid}; stop file retained")
-        finally:
-            os.close(process_fd)
-    command(["git", "fetch", "origin"], repo)
-    command(["git", "switch", "--detach", "origin/main"], repo)
-    commit = command(["git", "rev-parse", "HEAD"], repo)
-    stop.unlink()
-    output = home / "src/fabrig/notes/queue.out"
-    output.parent.mkdir(parents=True, exist_ok=True)
-    with output.open("a") as log:
-        os.chmod(output, 0o600)
-        argv = ["python3", "-u", "tools/queue/mq", "run", "--repo", str(repo)]
-        if batch != 8:
-            argv.extend(["--batch", str(batch)])
-        child = subprocess.Popen(argv,
-                                 cwd=repo, stdin=subprocess.DEVNULL, stdout=log, stderr=log,
-                                 start_new_session=True)
-    time.sleep(3)
+def await_start(child, ready_fd, output):
+    # The child acknowledges only after it adopted the same authority inode,
+    # checked durable ownership, and acquired its checkout lock. No drain sleep.
+    if not select.select([ready_fd], [], [], 3)[0] or os.read(ready_fd, 64) != b"READY\n":
+        raise RuntimeError(f"mq run startup unconfirmed; stop file retained; see {output}")
     if child.poll() is not None:
         raise RuntimeError(f"mq run exited {child.returncode}; see {output}")
-    print(f"mq run pid {child.pid}, main {commit}; output {output}")
+
+
+def restart(repo, wait, home, *, batch=8, authority_dir=None):
+    layout = authority.Layout(authority_dir, home=home)
+    with layout.restart_lock():
+        if command(["git", "rev-parse", "--show-toplevel"], repo) != str(repo):
+            raise RuntimeError("--repo must name the checkout root")
+        pid = queue_pid(repo)
+        process_fd = None
+        if pid is not None:
+            try:
+                process_fd = os.pidfd_open(pid)
+            except ProcessLookupError:
+                pass
+        stop = home / "src/fabrig/queue.stop"
+        authority.durable.publish(stop, b"", private_parent=False)
+        print(f"waiting up to {wait:g}s for mq run pid {pid}; stop file {stop}", flush=True)
+        if process_fd is not None:
+            try:
+                if not select.select([process_fd], [], [], wait)[0]:
+                    raise RuntimeError(f"timed out waiting for mq run pid {pid}; stop file retained")
+            finally:
+                os.close(process_fd)
+        # Never hold main authority while asking the existing writer to drain.
+        # A competing direct writer may win this acquisition: then refuse safely.
+        with layout.acquire() as lease:
+            layout.legacy_guard(repo)
+            with authority.checkout_lock(repo) as checkout:
+                inherited = (lease.fd, checkout.fd)
+                command(["git", "fetch", "origin"], repo, pass_fds=inherited)
+                command(["git", "switch", "--detach", "origin/main"], repo, pass_fds=inherited)
+                commit = command(["git", "rev-parse", "HEAD"], repo, pass_fds=inherited)
+            output = home / "src/fabrig/notes/queue.out"
+            output.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+            read_fd, write_fd = os.pipe()
+            try:
+                with output.open("a") as log:
+                    os.chmod(output, 0o600)
+                    argv = ["python3", "-B", "-u", "tools/queue/mq", "run", "--repo", str(repo),
+                            "--authority-dir", str(layout.root), "--authority-fd", str(lease.fd),
+                            "--startup-fd", str(write_fd)]
+                    if batch != 8:
+                        argv.extend(["--batch", str(batch)])
+                    stop.unlink()
+                    authority.durable.sync_directory(stop.parent)
+                    try:
+                        child = subprocess.Popen(argv, cwd=repo, stdin=subprocess.DEVNULL,
+                            stdout=log, stderr=log, start_new_session=True,
+                            pass_fds=(lease.fd, write_fd))
+                    except BaseException:
+                        authority.durable.publish(stop, b"", private_parent=False)
+                        raise
+                os.close(write_fd)
+                write_fd = None
+                try:
+                    await_start(child, read_fd, output)
+                except BaseException:
+                    authority.durable.publish(stop, b"", private_parent=False)
+                    raise
+            finally:
+                os.close(read_fd)
+                if write_fd is not None:
+                    os.close(write_fd)
+            # Close our duplicate, never LOCK_UN the child's open description.
+            print(f"mq run pid {child.pid}, main {commit}; output {output}")
 
 
 def seconds(value):
@@ -101,6 +137,8 @@ def main():
     os.umask(0o077)
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", type=Path, default=Path.cwd())
+    parser.add_argument("--authority-dir", type=Path,
+                        help="shared queue authority directory; never per clone")
     parser.add_argument("--wait", type=seconds, default=1800)
     parser.add_argument("--batch", type=positive, default=8,
                         help="branches per batch for the replacement queue (default: 8)")
@@ -110,7 +148,8 @@ def main():
             print(f"restart: missing {name} on PATH; invoke from bash -lc", file=sys.stderr)
             return 2
     try:
-        restart(args.repo.expanduser().resolve(), args.wait, Path.home(), batch=args.batch)
+        restart(args.repo.expanduser().resolve(), args.wait, Path.home(), batch=args.batch,
+                authority_dir=args.authority_dir)
         return 0
     except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
         print(f"restart: {error}", file=sys.stderr)

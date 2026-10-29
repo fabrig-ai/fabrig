@@ -57,6 +57,26 @@ class Transport:
             raise OSError("status unreachable")
         return self.jobs[request["attempt"]]
 
+    def completion_identity(self):
+        return {"kind": "fixture-completion-v1"}
+
+    def verify_completion(self, request, evidence, endpoint):
+        # The fake checker returns synchronously and never launches heavy.
+        # An explicit finish event, the exact request and durable result are
+        # required. A boolean, missing process or released lock proves nothing.
+        job = self.jobs[request["attempt"]]
+        if (job["state"] != "terminal" or job["request"] != request or
+                not isinstance(evidence, dict) or evidence != job["evidence"]):
+            raise ValueError("fixture completion event absent")
+        result = train.read_json(job["result"])
+        if result["completion_known"] is not True or result["reconciliation_required"] is not False:
+            raise ValueError("fixture commands unresolved")
+        with mq.authority.checkout_lock(Path(endpoint["repo"])):
+            stored = train.durable.read_bytes(Path(endpoint["artifacts"]) / request["attempt"] / "result.json")
+            if worker.digest(stored) != evidence["sha256"]:
+                raise ValueError("fixture evidence changed")
+        return evidence
+
     def finish(self, attempt, *, code=0, checker=None):
         job = self.jobs[attempt]
         request = job["request"]
@@ -71,7 +91,9 @@ class Transport:
                                 gate=request["gate"], disk_floor=0, checker=checker or checks,
                                 metadata_loader=self.world.metadata)
         job.update(state="terminal", quiescent=not result["reconciliation_required"],
-                   result=worker.encoded(result), log=Path(result["log"]["path"]).read_bytes())
+                   result=worker.encoded(result), log=Path(result["log"]["path"]).read_bytes(),
+                   evidence={"kind": "fixture-completion-v1", "attempt": attempt,
+                             "sha256": worker.digest(worker.encoded(result))})
         return result
 
 
@@ -170,7 +192,8 @@ class TrainTests(unittest.TestCase):
     def reload(self):
         return train.Controller(self.preparer, self.store, self.transport, self.authority,
                                 generation="generation-one", gates=list(self.workers),
-                                runtime=worker.runtime_identity(0), now=lambda: self.clock, batch=self.batch)
+                                runtime=worker.runtime_identity(0), now=lambda: self.clock, batch=self.batch,
+                                completion_adapter=self.transport)
 
     def set_batch(self, batch):
         # Seed the world's policy before its first admission.
@@ -379,7 +402,10 @@ class TrainTests(unittest.TestCase):
         self.assertEqual(self.authority.pushes, [])
         with self.assertRaises(ValueError):
             self.controller.reconcile_job(a, quiescent=False, evidence="process absent")
-        self.controller.reconcile_job(a, quiescent=True, evidence="fixture supervisor and checkout reconciled")
+        with self.assertRaises(ValueError):
+            self.controller.reconcile_job(a, quiescent=True, evidence="process absent")
+        self.transport.finish(a)
+        self.controller.reconcile_job(a, quiescent=True, evidence=self.transport.jobs[a]["evidence"])
         self.assertTrue(self.controller.drained())
 
     def test_transfer_error_and_missing_objects_are_infrastructure(self):
@@ -1336,7 +1362,7 @@ if '--write' in sys.argv:
         self.branch("a")
         self.controller = train.Controller(
             self.preparer, train.StateStore(alternate), self.transport, self.authority,
-            generation="g" * 128, gates=list(self.workers), runtime=worker.runtime_identity(0),
+            generation="g" * 128, gates=list(self.workers), completion_adapter=self.transport, runtime=worker.runtime_identity(0),
             now=lambda: self.clock, batch=1)
         a, record = self.admit()
         self.assertLessEqual(len(a), 128)
