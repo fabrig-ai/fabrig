@@ -391,22 +391,22 @@ fn original_conflict_files_are_read_through_the_services_kernel_routes() {
     assert!(!process.work_pending(sim.now()));
 }
 
-fn settle_file_io(
+pub(crate) fn settle_file_io(
     process: &mut crate::process::ProcessAdapter,
     sim: &mut skein_sim::Sim,
     machine: &mut skein_fake_machine::Machine,
     pid: skein_sim::Pid,
     local_events: &mut skein_lib::Queue<local::Event>,
 ) {
+    // A full plain snapshot admits 256 entries; allow sixteen IO passes per
+    // entry for open/stat/read/close and their dispatches, including teardown.
+    const FILE_IO_PASSES: u32 = 256 * 16;
     let mut host_events = skein_lib::Queue::with_capacity(256);
     let mut host_requests = skein_lib::Queue::with_capacity(256);
     let mut terminal_events = skein_lib::Queue::with_capacity(256);
     let mut terminal =
         smith_local_protocol::Terminal::new(smith_local_protocol::TerminalLimits { line_bytes: 256, show_bytes: 1024 })
             .unwrap();
-    // A full plain snapshot admits 256 entries; allow sixteen IO passes per
-    // entry for open/stat/read/close and their dispatches, including teardown.
-    const FILE_IO_PASSES: u32 = 256 * 16;
     for _ in 0..FILE_IO_PASSES {
         sim.reap(pid, process.completions());
         process.io_up(&process.at(sim.now(), sim.wall()));

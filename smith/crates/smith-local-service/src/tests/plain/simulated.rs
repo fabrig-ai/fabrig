@@ -31,20 +31,13 @@ impl PlainWorld {
         let pid = sim.spawn_process();
         let descriptor = sim.root(pid, skein_sim::Handle::new(root.raw()));
         let config = crate::tests::config();
-        let mut process =
-            ProcessAdapter::new(&config.limits.process, config.launch, config.endpoints, 1).unwrap();
+        let mut process = ProcessAdapter::new(&config.limits.process, config.launch, config.endpoints, 1).unwrap();
         process.adopt_delivery_roots(Box::new([descriptor]), Box::new([]));
         Self { process, machine, root, sim, pid, events: Queue::uncapped() }
     }
 
     fn settle(&mut self) {
-        crate::tests::settle_file_io(
-            &mut self.process,
-            &mut self.sim,
-            &mut self.machine,
-            self.pid,
-            &mut self.events,
-        );
+        crate::tests::settle_file_io(&mut self.process, &mut self.sim, &mut self.machine, self.pid, &mut self.events);
     }
 
     fn capture(&mut self) -> Option<bool> {
@@ -85,7 +78,7 @@ fn assert_status(event: local::Event, expected: bool) {
     assert_eq!(changed, expected);
 }
 
-/// Lower test of smith-local-service's tests::plain::an_unknown_plain_capture_completes_and_counts_as_changed
+/// Lower test of smith-local-service's `tests::plain::an_unknown_plain_capture_completes_and_counts_as_changed`
 /// (top tiers test wiring only).
 #[test]
 fn an_unknown_capture_completes_and_answers_changed_immediately() {
@@ -101,7 +94,7 @@ fn an_unknown_capture_completes_and_answers_changed_immediately() {
     }
 }
 
-/// Lower test of smith-local-service's tests::plain::a_plain_tree_outgrowing_its_capture_counts_as_changed
+/// Lower test of smith-local-service's `tests::plain::a_plain_tree_outgrowing_its_capture_counts_as_changed`
 /// (top tiers test wiring only).
 #[test]
 fn a_tree_outgrowing_its_capture_counts_as_changed() {
@@ -114,7 +107,7 @@ fn a_tree_outgrowing_its_capture_counts_as_changed() {
     }
 }
 
-/// Lower test of smith-local-service's tests::plain::an_untouched_plain_tree_at_the_bounds_is_unchanged
+/// Lower test of smith-local-service's `tests::plain::an_untouched_plain_tree_at_the_bounds_is_unchanged`
 /// (top tiers test wiring only).
 #[test]
 fn an_untouched_tree_at_both_bounds_is_unchanged() {
@@ -126,7 +119,7 @@ fn an_untouched_tree_at_both_bounds_is_unchanged() {
     }
 }
 
-/// Lower test of smith-local-service's tests::plain::a_fresh_capture_replaces_an_unknown_plain_tree
+/// Lower test of smith-local-service's `tests::plain::a_fresh_capture_replaces_an_unknown_plain_tree`
 /// (top tiers test wiring only).
 #[test]
 fn a_fresh_capture_replaces_an_unknown_tree() {
