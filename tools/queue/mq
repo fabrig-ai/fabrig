@@ -654,7 +654,7 @@ class Queue:
             log_batch(self.log_path, record)
 
     def recover(self, error):
-        """Restore main and report each distinct cycle error once (design.md, 3.1)."""
+        """Restore main and report each distinct error once per episode (design.md, 3.1)."""
         record = {**self.error_record, "event": "recovery"} if self.error_record else {
             "start": utc_now(), "branches": [], "steps": [], "posts": [],
             "outcome": "error", "error": str(error), "dry": self.dry,
@@ -685,6 +685,9 @@ class Queue:
             self.error_record = None
             try:
                 worked = self.cycle()
+                if self.state.get("reported_errors"):
+                    self.state["reported_errors"] = []
+                    self.save()
             except Exception as error:
                 try:
                     self.recover(error)
