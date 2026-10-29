@@ -1,5 +1,19 @@
 # Dynamic memory inside, limits at the edges
 
+**Retired**, 2026-10-29 (the user): its design now lives in skein's
+[programming model](../../foundation/programming-model.md) (1, 3, 6, 7),
+[testing strategy](../../foundation/testing-strategy.md) (the memory checks)
+and [notes](../../foundation/notes.md); in `../lib.md` (5, 10, 11, 12),
+`../world.md`, `../testing.md`, `../shell.md` (7.4, 12), `../io.md` and
+`../codec.md` (4); and in each tree's designs (temper's
+`domain/root.md` 4 and 10 and `protocol/store.md` 4, jig's
+`domain/root.md` 4 and 10 and `protocol/store.md` 5.4, smith's
+`domain/` and `protocol/limits.md`). What is left is in their
+`*.status.md` files. Two checks of section 9 carry to QA's first walk,
+which walks rung A first: rung A walks green on the end's main, and the
+idle engine's VmData is read against what it holds. This draft is kept
+as historical design.
+
 Draft, 2026-10-28, revised the same afternoon after two rounds of work.
 How skein's services hold memory: limits stay where a service meets its
 peers; inside it, containers grow as they fill, the queues between its
