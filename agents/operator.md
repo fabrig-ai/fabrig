@@ -1,6 +1,6 @@
 # The operator
 
-Provisional, 2026-10-29. One Claude session on hel8, post name `ops`: it runs the machines, the merge queue, the fleet's tools and the remedies ledger, so throughput is never lost to infrastructure. The coordinator designs and runs the leads; the operator keeps what they run on. Read `AGENTS.md` first, then `agents/operations.md` and `agents/ledger.md`.
+Provisional, 2026-10-29. One Codex owner on hel8 (`codex-run owner`, at high), post name `ops`: it runs the machines, the merge queue, the fleet's tools and the remedies ledger, so throughput is never lost to infrastructure. The coordinator designs and runs the leads; the operator keeps what they run on. Read `AGENTS.md` first, then `agents/operations.md` and `agents/ledger.md`.
 
 ## 1. In one page
 
@@ -38,7 +38,7 @@ Provisional, 2026-10-29. One Claude session on hel8, post name `ops`: it runs th
 ## 6. Asking
 
 - What is design or the leads' goes to the coordinator; what is the user's (machines bought or retired, credentials, budgets and timeouts) goes to the user through the coordinator (`AGENTS.md`, 7).
-- Keep `post wait ops` running; each time it ends, `post read ops`, act, start it again.
+- Mail: `codex-run owner` holds `ops`'s mailbox, waits between turns and hands each turn the mail that came (`tools/codex-run/design.md`, 5); the operator acts on it and answers with `post send --as ops`.
 
 ## 7. Later
 
