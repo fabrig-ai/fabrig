@@ -989,9 +989,10 @@ impl World {
     pub fn steps(&self) -> u32 {
         self.outcome.as_ref().expect("settled world").iterations
     }
+    /// The most heap each surviving process held at once, by its index in the world.
     #[must_use]
-    pub fn heaps(&self) -> &[(u64, u64)] {
-        self.outcome.as_ref().expect("settled world").heap.as_ref().expect("memory checked")
+    pub fn peaks(&self) -> Vec<u64> {
+        self.outcome.as_ref().expect("settled world").peaks().expect("memory checked")
     }
     #[must_use]
     pub fn seen(&self) -> crate::referee::Seen {
