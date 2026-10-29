@@ -545,7 +545,7 @@ pub fn outputs_bound(limits: &Limits) -> u32 {
         .max(limits.people.saturating_add(1))
 }
 
-/// The same bound under the name temper's real loop still reads.
+/// The same bound under its former name, kept while an application still reads it.
 #[must_use]
 pub fn max_out(limits: &Limits) -> u32 {
     outputs_bound(limits)
