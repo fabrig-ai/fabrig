@@ -286,6 +286,7 @@ impl Driver {
         keep: bool,
         within: Option<Duration>,
     ) -> Result<Vec<u8>, String> {
+        self.check_wait()?;
         let number = self.sequence;
         self.sequence += 1;
         let stdout = self.store.join(format!("call-{number}.out"));
@@ -1215,6 +1216,17 @@ fn landing(driver: &mut Driver, chat: &str, goal_text: &str, change: &str) -> Re
 mod tests {
     use super::Driver;
     use std::path::Path;
+
+    #[test]
+    fn an_expired_rung_phase_starts_no_further_command() {
+        let scratch = skein_scratch::Scratch::new("rung-expired-phase");
+        let mut driver = Driver::owned(scratch.path(), &scratch.path().join("client"));
+        driver.arm("the expired rung phase", skein_lib::Duration::ZERO);
+        let command = std::process::Command::new("/bin/true");
+        assert!(driver.execute(command, None, true).is_err());
+        assert_eq!(driver.sequence, 0, "the expired phase did not start its command");
+        assert!(!scratch.path().join("call-0.out").exists());
+    }
 
     #[test]
     fn rung_phases_keep_the_request_deadlines_when_selected_again() {
