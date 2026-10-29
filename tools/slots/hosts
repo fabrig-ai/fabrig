@@ -1,4 +1,5 @@
-hetzner2 1=lead/skein 2=lead/skein 3=pool 4=pool 5=pool
+# hetzner2 drains to a dedicated gate: existing holders release normally.
+hetzner2 1=ops 2=ops 3=ops 4=ops 5=ops
 hetzner3 1=pool 2=pool 3=pool 4=pool 5=pool 6=pool
-hetzner6 1=lead/temper 2=lead/smith 3=lead/temper 4=pool 5=pool
-hetzner7 1=lead/jig 2=lead/jig 3=lead/jig 4=pool 5=pool 6=pool
+hetzner6 1=lead/temper 2=lead/smith 3=lead/temper 4=pool 5=pool 6=lead/skein 7=lead/skein 8=pool
+hetzner7 1=lead/jig 2=lead/jig 3=lead/jig 4=pool 5=pool 6=pool 7=pool 8=pool
