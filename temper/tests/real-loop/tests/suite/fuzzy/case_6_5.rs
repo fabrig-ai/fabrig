@@ -17,8 +17,8 @@ fn a_budget_question_climbs_two_owners_to_the_persons_inbox_and_a_raised_investi
     // amendment is held until a5 parks and its medium document is read, so
     // the high choice belongs to its next run. Input cue rules tolerate news.
     // The high report is held across its task/activity read, then released.
-    // ctl answer wakes the chat; the director relays it as an answer to A,
-    // and A answers A1. The chat waits on A's question instead of delegating
+    // ctl answer reaches A directly and wakes the chat with a notice;
+    // A answers A1. The chat waits on A's question instead of delegating
     // again when a resumed input also carries the opening words.
     // The effort-only amendment's delivered reason selects a5's next turn;
     // cue rules suffice without also amending its spec. Activity names

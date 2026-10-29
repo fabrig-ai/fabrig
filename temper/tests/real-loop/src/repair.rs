@@ -78,7 +78,7 @@ pub fn recipe(forge: SocketAddr, _source: &Path) -> llm::Recipe {
     // text, including the walk's forge address and merge, remains untouched.
     let document = include_str!("../tests/fixtures/b1/llm.json").replace("http://B1-FORGE", &format!("http://{forge}"));
     let mut recipe = green_light::from_document(document.as_bytes());
-    // The walk has 48 completions. The peer retains six wire observations
+    // The twin has 47 completions. The peer retains six wire observations
     // per call, already beyond the shared 256-record smoke-test allowance.
     recipe.limits.observations = 512;
     recipe
@@ -214,8 +214,11 @@ fn check_waiting(ran: &Ran) {
     assert!(!tree.to_string().contains("\"task\":4"), "no change before approval: {tree}");
     assert_eq!(tree["tree"]["more"], false);
     assert!(tree["tree"]["folded"].as_array().expect("folded tasks").is_empty());
-    let relay = told(query_at(ran, 0, 3));
-    assert!(relay.find(person("question")).expect("question") < relay.find(person("answer")).expect("answer"));
+    let notice = told(query_at(ran, 0, 3));
+    assert!(
+        notice.find(person("question")).expect("question")
+            < notice.find("Person answered question 2 in their inbox").expect("answer notice")
+    );
     assert!(told(query_at(ran, 1, 6)).contains(person("answer")), "approval before change call");
     let seed = &ran.forge().snapshots()[0];
     assert_eq!(seed.branches.len(), 1);
@@ -342,7 +345,7 @@ fn check_landing(ran: &Ran, repaired: u64, merge: u64) {
     assert!(last.contains("checks passed after one repair"));
     assert!(last.contains("fruit,count"));
     assert!(!last.contains("tests passed"), "no unseen test claimed");
-    assert!(told(query_at(ran, 0, 5)).contains("checks passed after one repair"), "chat was told the checks evidence");
+    assert!(told(query_at(ran, 0, 4)).contains("checks passed after one repair"), "chat was told the checks evidence");
     let source = String::from_utf8_lossy(ran.forge().main_file(b"src/main.rs"));
     assert!(source.contains("String::from(\"fruit,count\\n\")"));
     let scripts: Value = serde_json::from_slice(include_bytes!("../tests/fixtures/b1/llm.json")).expect("walk scripts");

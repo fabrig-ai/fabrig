@@ -1603,3 +1603,12 @@ fn directory_answers_render_entries_and_the_root_header() {
         }
     }
 }
+
+#[test]
+fn a_chats_answer_refusal_names_its_persons_inbox_question() {
+    refusal_words(
+        tasks::Refusal::PersonAnswers { question: 42 },
+        None,
+        b"Refused: task 99 your person answers question 42 in their inbox",
+    );
+}
