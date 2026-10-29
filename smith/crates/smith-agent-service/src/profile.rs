@@ -251,8 +251,7 @@ fn transcript(
         validate::transcript_field(field, Value::Count(u64::from(required)), Value::Count(u64::from(available)))?;
     }
     let bytes = smith_transcript::Turn::encoded_bound(&limits).ok_or(derived(Layer::Transcript, "turn_bytes"))?;
-    let available =
-        smith_transcript::Turn::encoded_bound(&ceiling).ok_or(derived(Layer::Transcript, "turn_bytes"))?;
+    let available = smith_transcript::Turn::encoded_bound(&ceiling).ok_or(derived(Layer::Transcript, "turn_bytes"))?;
     validate::turn_in_transcript(bytes, available)?;
     Ok(limits)
 }
