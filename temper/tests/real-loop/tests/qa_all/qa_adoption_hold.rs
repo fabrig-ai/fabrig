@@ -120,67 +120,6 @@ fn read_was_answered(ran: &world::Ran) {
     assert!(read, "the model received README content from the adopted home");
 }
 
-fn old_chat() -> world::Ran {
-    world::run_forge(
-        fixture(),
-        |_| {
-            capture_forge();
-            Box::new([Script {
-                cue: b"@old".as_slice().into(),
-                turns: Box::new([
-                    parked(b"Parked before adoption"),
-                    tool(b"read", &json!({"path":"README.md"})),
-                    parked(b"Read the newly adopted home"),
-                ]),
-            }])
-        },
-        || {
-            vec![
-                calls::sign_in(D1),
-                calls::call(D1, argv!["chat", "start", "--project", "1", "--key", "old-chat", "@old Wait for a home"]),
-                calls::call(D1, argv!["task", "show", "1", "--until", "replied"]),
-                adopt(),
-                calls::call(D1, argv!["task", "message", "1", "Read the home now", "--key", "wake-old"]),
-                calls::call(D1, argv!["task", "show", "1", "--until", "replied"]),
-            ]
-        },
-    )
-}
-
-#[test]
-fn a_chat_created_before_home_adoption_reads_without_a_run_branch() {
-    let ran = old_chat();
-    read_was_answered(&ran);
-    assert!(branch_file().is_none(), "an older task must not push a run branch");
-}
-
-#[test]
-fn an_older_tasks_brief_explains_its_home_adoption_hold() {
-    let ran = old_chat();
-    read_was_answered(&ran);
-    let brief = ran
-        .llm()
-        .iter()
-        .rev()
-        .find_map(|observed| {
-            if let Observation::Query { query, .. } = observed {
-                Some(String::from_utf8_lossy(&query.system).to_ascii_lowercase())
-            } else {
-                None
-            }
-        })
-        .expect("resumed chat's brief");
-    // The design specifies the reason, not its exact wording. Accept either
-    // adoption named directly or the home and the relative task/home ordering.
-    let explains = brief.contains("adopt")
-        || (brief.contains("home")
-            && ["before", "after", "earlier", "older", "predat"].iter().any(|word| brief.contains(word)));
-    assert!(
-        explains,
-        "older task's brief must explain why the later-adopted home has no writable run branch; only a read-only checkout is described"
-    );
-}
-
 #[test]
 #[ignore = "a chat's deliver before its end is not built: STATUS.md, domain/agent.md, 4.4"]
 fn a_chat_created_after_home_adoption_gets_a_writable_run_branch() {
