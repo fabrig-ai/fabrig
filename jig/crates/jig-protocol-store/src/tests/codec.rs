@@ -380,6 +380,7 @@ fn bound_problem(path: crate::tasks_v9::Path) -> crate::tasks_v9::Problem {
 }
 fn spec_with_bytes(bytes: usize) -> jig_domain_tasks::Spec {
     jig_domain_tasks::Spec {
+        asks: false,
         words: Box::new([]),
         parameters: Box::new([jig_domain_tasks::Parameter::Bytes { name: 1, value: skein_lib::bytes::zeroed(bytes) }]),
         inputs: Box::new([]),
@@ -1389,3 +1390,42 @@ fn project_asks_answers_and_name_refusals_round_trip() {
 
 mod holds;
 mod settings_proposals;
+
+#[test]
+fn an_owing_spec_and_its_asked_latch_survive_storage() {
+    let mut task = fixtures::task_record();
+    task.spec.asks = true;
+    task.asked_requester = true;
+    let row = jig_domain_tasks::Stored::Live(Box::new(task));
+    assert_eq!(saved_tasks(&row), Ok(row));
+}
+
+#[test]
+fn an_owing_reminder_survives_storage_with_small_caller_word_limits() {
+    use jig_domain_tasks::{ActivityLine, Line, MessageKind, Party, Stored, Word};
+    let domain = jig_domain_tasks::Limits {
+        message_bytes: 16,
+        result_bytes: 32,
+        ..jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.tasks
+    };
+    let words = b"You owe your requester a question: ask your plan with message, as a question, and wait.";
+    assert!(words.len() > usize::try_from(domain.message_bytes).expect("word bound"));
+    assert!(words.len() <= usize::try_from(domain.inbox_bytes).expect("inbox bound"));
+    let limits = crate::codec::tasks::limits(&domain).expect("unchanged inbox envelope fits");
+    let row = Stored::Activity(ActivityLine {
+        task: 1,
+        position: 1,
+        at: skein_lib::Wall::EPOCH,
+        line: Line::Heard(Word {
+            number: 1,
+            from: Party::Task(1),
+            kind: MessageKind::QuestionOwed,
+            words: words.as_slice().into(),
+            at: skein_lib::Wall::EPOCH,
+            hits: 1,
+            eligible: true,
+        }),
+    });
+    let bytes = crate::codec::tasks::encode(&row, &limits, &[]).expect("fixed reminder fits");
+    assert_eq!(crate::codec::tasks::decode(&bytes, &limits, &[]), Ok(row));
+}

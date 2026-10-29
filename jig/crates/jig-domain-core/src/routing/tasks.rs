@@ -1389,6 +1389,21 @@ pub(super) fn tag_tasks(
                 }
                 continue;
             }
+            tasks::Request::QuestionOwedDue { task } => {
+                let message = crate::fresh(&mut core.counters, crate::Family::Message)
+                    .expect("question reminder number admitted");
+                let mut follow = Queue::uncapped();
+                tasks::step(
+                    &mut core.tasks,
+                    &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
+                    tasks::Event::QuestionOwedNotice { task, message },
+                    &mut follow,
+                );
+                for _ in 0..follow.len() {
+                    pending.push(follow.pop().expect("question notice output count"));
+                }
+                continue;
+            }
             tasks::Request::QuestionEndedDue { task, questions } => {
                 let mut notices = List::uncapped();
                 for question in questions {

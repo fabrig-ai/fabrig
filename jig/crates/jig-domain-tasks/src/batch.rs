@@ -370,6 +370,8 @@ pub fn valid_spec(limits: &Limits, spec: &Spec) -> bool {
     if spec.parameters.len() > usize::try_from(limits.parameters).expect("u32 fits usize")
         || spec.inputs.len() > usize::try_from(limits.inputs).expect("u32 fits usize")
         || !text(&spec.words)
+        || spec.asks
+            && crate::questions::OWED_WORDS.len() > usize::try_from(limits.inbox_bytes).expect("u32 fits usize")
     {
         return false;
     }
