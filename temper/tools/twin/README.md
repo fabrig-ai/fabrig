@@ -18,12 +18,19 @@ heavy env TEMPER_BUNDLE=none cargo run -p temper-twin --bin twin -- \
 holding `transcripts/` and `active`, not a generation's `store/` or `secrets/`.
 
 Each `--cue TASK=PHRASE` takes a task's completions in file order, across
-resumptions, as one system-cued script. Smith puts the brief in system text,
-a chat's request included. Pick distinct phrases of those briefs; the fake
-chooses the earliest cue in a task's system text, so replay the result to
-check selection. `asked` and every other base member are preserved; only
-`cued` is replaced. The base and result are checked by
+resumptions. A cue found in the opening user text becomes an `asked` script:
+Smith puts a fresh Open chat's brief there. An opening with Smith's instruction
+to begin the brief, as Finite and delegate runs have, stays `cued`, as does a
+cue absent from the opening request. Pick distinct phrases of the person's
+first request for Open chats and of the system brief for Finite runs and
+delegates; replay the result to check selection. Both `asked` and `cued` are
+replaced; other base members are preserved. The base and result are checked by
 `temper_fake::llm::Document::decode` before any output is opened.
+
+An `asked` script advances on tool results, including the messages returned
+by a pending `wait`. A new user text selects from its own cues and restarts
+the count. A recorded Open script therefore replays its opening request's
+sequence; a later person's request needs its own script.
 
 A completion's ordered text and calls become one turn. Calls finish
 `tool_calls`, other completions `stop`. Output tokens are the recorded count,

@@ -4481,6 +4481,8 @@ dependencies = [
  "skein-llm",
  "skein-oauth",
  "skein-shell",
+ "smith-agent-world",
+ "smith-domain-run",
  "temper-engine-domain-forge",
  "temper-engine-domain-forge-change",
  "temper-engine-domain-forge-issues",

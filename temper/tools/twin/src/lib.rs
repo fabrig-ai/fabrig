@@ -49,8 +49,9 @@ pub enum Unheld {
     Compaction,
 }
 
-/// Convert selected tasks' completions to system-cued scripts, preserving
-/// the base's other members. The caller guarantees a cleanly stopped input.
+/// Convert selected tasks' completions to scripts matched by their opening
+/// request or system brief, replacing both script lists in the base.
+/// The caller guarantees a cleanly stopped input.
 ///
 /// # Errors
 /// Refuses unreadable or invalid frames, unsupported turns, duplicate cues,
@@ -77,17 +78,23 @@ pub fn twin(input: &Input) -> Result<Twin, Refusal> {
     }
     let mut turns = Vec::new();
     let mut replaced = vec![0; input.replaces.len()];
-    let mut scripts = Vec::new();
+    let mut cued = Vec::new();
+    let mut asked = Vec::new();
     let mut dropped = Vec::new();
     for take in &input.takes {
         let completions = frames::read(&input.data, take.task)?;
         let count = u32::try_from(completions.len()).expect("sixteen turns");
         let mut blocks = 0;
-        scripts.push(document::script(take, &completions, &input.replaces, &mut replaced, &mut blocks)?);
+        let script = document::script(take, &completions, &input.replaces, &mut replaced, &mut blocks)?;
+        if document::asked(take, &completions) {
+            asked.push(script);
+        } else {
+            cued.push(script);
+        }
         dropped.push((take.task, blocks));
         turns.push((take.task, count));
     }
-    let document = document::finish(&mut base, &scripts)?;
+    let document = document::finish(&mut base, &cued, &asked)?;
     Ok(Twin {
         document,
         report: Report {
