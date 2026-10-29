@@ -38,7 +38,7 @@ Provisional, 2026-10-29. One Codex owner on hel8 (`codex-run owner`, at high), p
 - Validation that compares every Git ref runs in an independent disposable clone: linked worktrees share refs with other tasks. Retain raw evidence of any drift and verify caller source/index separately; do not freeze unrelated writers or mask their ref changes.
 - Close an operator worktree after its task lands and no live run, process working directory or pending resume needs it. Require it to be clean including ignored files; retain its branch refs, commit objects, task/report evidence and archived worktree Git metadata, then use non-force `git worktree remove`. Preserve primary clones, active or unlanded work, run history and caches (ledger 64).
 - A tool's task ends with one real, harmless run on a builder: fakes test only what was imagined (ledger 17).
-- After a tool's change lands, the operator reruns `tools/install` on every machine that uses it.
+- After a tool's change lands, ensure every machine that uses it receives `tools/install`. On converged hosts, fleet-sync invokes the installer on tools changes under the shared install lock and defer protocol; audit the installed source and canonical links rather than duplicate a completed install. Derive link expectations from the immutable `tools/installed` manifest. Use an owned defer file through an installed-closure proof and its callback; keep normal automatic convergence outside those windows.
 - Record launcher CPU and its remaining budget from the production gate logs. Private proofs establish regression coverage; their timing is separate evidence and does not establish production margin. Keep the user's budgets unchanged.
 
 ## 5. The ledger and the numbers
@@ -51,7 +51,7 @@ Provisional, 2026-10-29. One Codex owner on hel8 (`codex-run owner`, at high), p
 
 - What is design or the leads' goes to the coordinator; what is the user's (machines bought or retired, credentials, budgets and timeouts) goes to the user through the coordinator (`AGENTS.md`, 7).
 - The Codex owner runner manages waiting and reading `ops` mail; the operator processes messages supplied in its turns and answers with `post send --as ops`.
-- For a lead broadcast, derive identities from the registry's `start names --json` and intersect them with live `claude agents --json` sessions. A registered mailbox alone does not imply a running lead. When no lead is running, notify its coordinator; leave queued mail and ended sessions alone (ledger 69).
+- For a lead broadcast, derive identities from the registry's `session-start names --json` (or its reviewed immutable `tools/session/start names --json` runner) and intersect them with live `claude agents --json` sessions. A registered mailbox alone does not imply a running lead. When no lead is running, notify its coordinator; leave queued mail and ended sessions alone (ledger 69).
 
 ## 7. Later
 
