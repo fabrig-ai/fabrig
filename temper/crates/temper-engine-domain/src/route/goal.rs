@@ -16,7 +16,7 @@ pub(crate) fn refusal(domain: &Domain, task: u64, advisor: bool) -> Option<&'sta
     if !advisor && row.tracked.is_some() {
         Some(b"a goal starts an advisor alone: set advisor, or make the change with change")
     } else if advisor && row.tracked.is_none() {
-        Some(b"a chat's goal is the work: call goal without advisor, and its goal asks for one")
+        Some(b"to change a repository, call change; a goal is for work they want to agree first or a survey, and its goal asks for an advisor")
     } else {
         None
     }

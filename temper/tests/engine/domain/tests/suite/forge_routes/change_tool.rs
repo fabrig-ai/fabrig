@@ -2,6 +2,10 @@
 use super::*;
 
 fn chat_world(adopt: bool) -> (World, engine::Assignment) {
+    chat_world_with_words(adopt, &[b'x'; 128])
+}
+
+pub(super) fn chat_world_with_words(adopt: bool, words: &[u8]) -> (World, engine::Assignment) {
     let mut world = World::configured(true, true);
     if adopt {
         world.adopt();
@@ -9,8 +13,9 @@ fn chat_world(adopt: bool) -> (World, engine::Assignment) {
         world.sign_in();
     }
     world.send(protocol::hello_slots(Token::new(7), 2, Box::new([])));
-    let ask = adoption_chat(&world);
-    let chat = assigned_chat(&mut world, 92, ask);
+    let people::Ask::Create { project, mut batch } = adoption_chat(&world) else { panic!("create") };
+    batch[0].words = words.into();
+    let chat = assigned_chat(&mut world, 92, people::Ask::Create { project, batch });
     (world, chat)
 }
 
@@ -671,8 +676,13 @@ fn a_chats_two_kib_change_lands_with_its_words_whole_in_the_producers_brief() {
         .expect("registered past the operation bound");
     assert_eq!(row.title.as_ref(), words.as_slice());
     let branch = row.branch.clone();
-    world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 }));
-    let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"fixed", 1)
+    land_change(&mut world, &producer, &branch);
+    assert_eq!(world.merges, 1, "the long change lands on the independent fake forge");
+}
+
+pub(super) fn land_change(world: &mut World, producer: &engine::Assignment, branch: &[u8]) {
+    world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.into(), commit: 1 }));
+    let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", branch, b"file", b"fixed", 1)
         .expect("producer pushes its work");
     world.external(
         1,
@@ -707,5 +717,4 @@ fn a_chats_two_kib_change_lands_with_its_words_whole_in_the_producers_brief() {
         }
         world.tick();
     }
-    assert_eq!(world.merges, 1, "the long change lands on the independent fake forge");
 }
