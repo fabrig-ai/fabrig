@@ -5,12 +5,12 @@ mod tests {
     use std::fs;
     use std::path::Path;
 
-    use skein_codegen::{generate, parse};
+    use skein_codegen::{Names, generate_named, parse};
 
     fn check(schema_path: &str, generated_path: &str, golden_directory: &str) {
         let source = fs::read_to_string(schema_path).expect("schema readable");
         let schema = parse(&source).expect("schema valid");
-        let output = generate(&schema);
+        let output = generate_named(&schema, Names::Bounds);
         let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
         if write {
             fs::write(generated_path, &output.rust).expect("write generated code");
