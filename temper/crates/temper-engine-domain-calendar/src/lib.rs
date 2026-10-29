@@ -67,14 +67,7 @@ impl Calendar {
     }
 }
 
-/// One firing may renew every project.
-#[must_use]
-pub const fn max_out(limits: &Limits) -> u32 {
-    limits.projects
-}
-
 pub fn step(calendar: &mut Calendar, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
-    assert!(out.room() >= max_out(&env.limits), "calendar output room reserved");
     match event {
         Event::Began { project, period, began } => {
             let next = after(began, calendar.span);

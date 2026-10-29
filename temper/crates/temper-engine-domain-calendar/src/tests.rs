@@ -11,7 +11,7 @@ fn calendar() -> Calendar {
 }
 fn decide(calendar: &mut Calendar, now: u64, event: Event) -> Queue<Request> {
     let env = Env { now: Time::ZERO, wall: wall(now), limits: LIMITS };
-    let mut out = Queue::with_capacity(max_out(&LIMITS));
+    let mut out = Queue::uncapped();
     step(calendar, &env, event, &mut out);
     out
 }
