@@ -127,15 +127,15 @@ pub fn valid(limits: &Limits) -> bool {
     }
     let Some(heard) = limits.connections.http.read.checked_mul(3) else { return false };
     let Some(record) = limits.connections.body_bytes.checked_add(512) else { return false };
-    client::valid(&limits.client) && view(limits).is_some()
+    client::valid(&limits.client)
+        && view(limits).is_some()
         && jig_client_protocol_http::valid(&jig_client_protocol_http::Limits {
-            record, chunk: limits.connections.http.read,
+            record,
+            chunk: limits.connections.http.read,
         })
         && heard.checked_add(8).is_some()
         && limits.io.sockets.checked_mul(64).is_some()
-        && limits.io.is_usable()
-        // skein's valid() replaces this at the set's repin
-        && skein_io::worst_case(&limits.io).is_some()
+        && skein_io::valid(&limits.io)
 }
 /// The terminal's own fixed bounds, independent of configuration.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
