@@ -4,10 +4,7 @@
 
 use std::hint::black_box;
 
-use skein_heap::{Counting, Grown, Span};
-
-#[global_allocator]
-static HEAP: Counting = Counting;
+use skein_heap::{Grown, Span};
 
 #[test]
 fn a_span_measures_the_peak_and_the_net_growth_of_a_call() {

@@ -4,10 +4,7 @@
 
 use std::hint::black_box;
 
-use skein_heap::{Counting, Measured, Meter};
-
-#[global_allocator]
-static HEAP: Counting = Counting;
+use skein_heap::{Measured, Meter};
 
 /// A step that keeps 100 bytes, hands out 50, then uses 1000 for a while: at
 /// its peak, it holds 1100 of its own.

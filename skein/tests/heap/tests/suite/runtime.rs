@@ -1,10 +1,7 @@
 //! The runtime's own heap is never a step's (skein-heap's "The runtime's own").
 
 use core::cell::Cell;
-use skein_heap::{Counting, Meter, Span};
-
-#[global_allocator]
-static HEAP: Counting = Counting;
+use skein_heap::{Meter, Span};
 
 std::thread_local! {
     static FIRST: Cell<Option<Box<u8>>> = const { Cell::new(None) };
