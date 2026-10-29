@@ -28,6 +28,6 @@ fn checked_valid(limits: &Limits) -> Option<()> {
         return None;
     }
     core::reads::answer_worst_case(&limits.core)?;
-    connector::document_worst_case(&limits.connector)?;
+    connector::document_bound(&limits.connector)?;
     Some(())
 }

@@ -36,7 +36,7 @@ mod client_documents;
 mod client_marks;
 pub use client_documents::{
     ClientDocument, ClientEnvironment, ClientPool, ClientResource, ClientScope, ClientSubject, DocumentMissing,
-    ResourceFact, document_worst_case,
+    ResourceFact, document_bound,
 };
 mod boundary;
 mod domain;
