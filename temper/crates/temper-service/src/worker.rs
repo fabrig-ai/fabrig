@@ -401,11 +401,8 @@ impl Worker {
             link::Request::Down { down: hub::LinkDown::Assign { assignment }, parts }
                 if assignment.assignment.workspace.is_some() =>
             {
-                let (items, save) = match worker_route::items(&assignment, &parts, &self.payload) {
-                    Ok((items, save)) => (Ok(items), save),
-                    Err(why) => (Err(why), None),
-                };
-                self.engine.push(root::Event::Assign { assignment, items, save });
+                let items = worker_route::items(&assignment, &parts, &self.payload);
+                self.engine.push(root::Event::Assign { assignment, items });
             }
             link::Request::Down { down, .. } => self.engine.push(root::Event::Link(down)),
             link::Request::Value { account, generation, expires, value } => {

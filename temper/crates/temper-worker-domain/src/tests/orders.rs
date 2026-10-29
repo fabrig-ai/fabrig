@@ -17,11 +17,7 @@ fn held_beside_abort() -> Harness {
     route::event(
         &mut h.domain,
         &h.env,
-        Event::Assign {
-            assignment: fixtures::assignment(true, Box::new([])),
-            items: Ok(fixtures::items(&[b"app"])),
-            save: None,
-        },
+        Event::Assign { assignment: fixtures::assignment(true, Box::new([])), items: Ok(fixtures::items(&[b"app"])) },
         &mut h.out,
     );
     let host::Request::Prepare { owner, workspace } = h.domain.host_out.pop().expect("assignment prepares") else {

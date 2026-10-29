@@ -1386,11 +1386,8 @@ pub(crate) fn run_workspace(
     for repository in &selected {
         let saved = saved.contains(&forge::tag(repository.provider.forge, repository.provider.repository));
         let run_branch = tree_branch(repository, root, b'r', context.task, None, env.limits.forge.name_bytes)?;
-        let saved_branch = if saved {
-            Some(tree_branch(repository, root, b's', context.task, None, env.limits.forge.name_bytes)?)
-        } else {
-            None
-        };
+        let save = tree_branch(repository, root, b's', context.task, None, env.limits.forge.name_bytes)?;
+        let saved_branch = if saved { Some(save.clone()) } else { None };
         let item = domain.forge.workspace_item(forge::items::Seed {
             task: context.task,
             parent,
@@ -1409,7 +1406,11 @@ pub(crate) fn run_workspace(
         if let Some((row, _)) = inherited {
             key = row.task;
         }
-        workspace_bytes = workspace_bytes.checked_add(item.bytes)?;
+        // Charge the per-repository save destination beside the selected item.
+        workspace_bytes = workspace_bytes
+            .checked_add(item.bytes)?
+            .checked_add(u64::try_from(save.len()).ok()?)?
+            .checked_add(u64::try_from(size_of::<Option<Box<[u8]>>>()).ok()?)?;
         if workspace_bytes > u64::from(env.limits.journal.run_bytes) {
             return None;
         }
@@ -1479,6 +1480,16 @@ pub(crate) fn run_workspace(
         let provider = item.provider;
         repositories
             .push(ForgeRepository {
+                save: match start {
+                    ForgeStart::Merge { .. } => None,
+                    ForgeStart::Base(_) | ForgeStart::Branch(_) | ForgeStart::Saved(_) => {
+                        if push.is_some() {
+                            Some(save)
+                        } else {
+                            None
+                        }
+                    }
+                },
                 tag: forge::tag(provider.forge, provider.repository),
                 provider,
                 name: item.name,
@@ -2801,6 +2812,15 @@ fn wait_change_decision(
     ProcedureStep::new(StepEnd::Wait)
 }
 
+// A landed change waits for its live delegates' terminals before offering its
+// result, so their completion wakes an idle procedure rather than a refused step.
+fn change_has_live_delegates(domain: &Domain, task: u64) -> bool {
+    match domain.core.tasks.task(task) {
+        Some(row) => !row.delegates.is_empty(),
+        None => false,
+    }
+}
+
 fn change_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, choice: forge_change::Decision) {
     let Some((connector, code, step)) = domain.core.tasks.procedure_due(task) else { return };
     if connector != domain.config.forge_connector || code != CHANGE_CODE {
@@ -2809,6 +2829,10 @@ fn change_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, choice: fo
     domain.forge.offered_change(task);
     let mut again = false;
     let decision = match choice {
+        forge_change::Decision::Finish { .. } if change_has_live_delegates(domain, task) => {
+            domain.forge.wait_change(&super::environment_forge(env), task, None);
+            ProcedureStep::new(StepEnd::Wait)
+        }
         forge_change::Decision::Finish { merge } => {
             let pull = match domain.forge.change(task) {
                 Some(row) => row.pull,

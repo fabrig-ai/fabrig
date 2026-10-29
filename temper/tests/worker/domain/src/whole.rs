@@ -49,6 +49,7 @@ pub struct Report {
 }
 
 struct World {
+    attempt: Token,
     domain: Domain,
     env: Env<Limits>,
     out: Queue<Request>,
@@ -92,6 +93,7 @@ impl World {
         forge.create_branch(REMOTE, b"topic", first).expect("topic");
         forge.create_branch(REMOTE, b"saved", first).expect("saved");
         Self {
+            attempt: ATTEMPT,
             domain: Domain::new(&limits),
             out: Queue::uncapped(),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
@@ -167,7 +169,7 @@ impl World {
             }
             Request::Link(up) => self.link(up),
             Request::Answer { run, attempt, answer, work, preparation } => {
-                assert_eq!((run, attempt), (RUN, ATTEMPT));
+                assert_eq!((run, attempt), (RUN, self.attempt));
                 assert!(self.held.is_none(), "delivery settles before the final answer");
                 if self.up {
                     assert!(self.answer.replace((answer, work, preparation)).is_none());
@@ -192,9 +194,9 @@ impl World {
 
     fn link(&mut self, up: host::LinkUp) {
         match up {
-            host::LinkUp::Activity { run, attempt, .. } => assert_eq!((run, attempt), (RUN, ATTEMPT)),
+            host::LinkUp::Activity { run, attempt, .. } => assert_eq!((run, attempt), (RUN, self.attempt)),
             host::LinkUp::Call { run, attempt, call, tool, writes, input, .. } => {
-                assert_eq!((run, attempt), (RUN, ATTEMPT));
+                assert_eq!((run, attempt), (RUN, self.attempt));
                 assert_eq!(tool.as_ref(), b"recall");
                 assert!(!writes);
                 assert_eq!(input.as_ref(), b"{}");
@@ -269,7 +271,7 @@ impl World {
     fn down(&mut self, message: agent::Down) -> bool {
         match message {
             agent::Down::Start { start, .. } => {
-                assert_eq!(start.activation, ATTEMPT.raw());
+                assert_eq!(start.activation, self.attempt.raw());
                 assert_eq!(start.directories.len(), 1);
                 assert_eq!(start.directories[0].name.as_ref(), b"app");
                 assert_eq!(start.workspace, Some(start.directories[0].root));
@@ -325,13 +327,22 @@ impl World {
 
     /// The engine assigns the run, its one repository starting at `start`.
     fn assign(&mut self, start: wire::Start) {
-        self.event(assignment(self.first, RUN, WORKSTREAM, start));
+        self.assign_with(start, true);
+    }
+
+    fn assign_with(&mut self, start: wire::Start, save: bool) {
+        let Event::Assign { mut assignment, items } = assignment(self.first, RUN, WORKSTREAM, start) else {
+            panic!("workspace assignment")
+        };
+        assignment.assignment.attempt = self.attempt;
+        assignment.assignment.save = save;
+        self.event(Event::Assign { assignment, items });
     }
 
     fn deliver(&mut self) {
         self.say(agent::Up::Call {
             call: CALL,
-            name: agent::CallName { activation: ATTEMPT.raw(), completion: 1, position: 0 },
+            name: agent::CallName { activation: self.attempt.raw(), completion: self.deliveries + 1, position: 0 },
             deadline: self.env.now.saturating_add(Duration::from_secs(60)),
             ask: protocol::delivery(b"Delivery", b"Worker story"),
         });
@@ -575,6 +586,7 @@ fn host_reply(reply: agent::Reply) -> Option<smith_channel::Reply> {
 
 fn assignment(first: u64, run: Token, workstream: u64, start: wire::Start) -> Event {
     let repository = wire::Repository {
+        save: Some(Box::from(&b"saved"[..])),
         git: None,
         tag: 1,
         name: Box::from(&b"app"[..]),
@@ -604,5 +616,65 @@ fn assignment(first: u64, run: Token, workstream: u64, start: wire::Start) -> Ev
         },
     };
     let items = wire::Workspace { repositories: Box::new([repository]) };
-    Event::Assign { assignment, items: Ok(items), save: Some(Box::from(&b"saved"[..])) }
+    Event::Assign { assignment, items: Ok(items) }
+}
+
+/// An unfinished first attempt writes an untracked file, exits, and a new
+/// attempt either restores its saved commit or starts fresh. Dirt left in
+/// the cached directory between attempts is never part of the delivered tree.
+#[must_use]
+pub fn retry(seed: u64, resume: bool) -> Report {
+    let mut world = World::new(seed);
+    world.connect();
+    world.assign_with(wire::Start::Base { branch: b"main".as_slice().into() }, resume);
+    world.say(agent::Up::Admitted);
+    let at = temper_worker_domain::checkout::git::Place {
+        git: None,
+        workspace: world.workspace.expect("prepared"),
+        repository: b"app".as_slice().into(),
+    };
+    let path = translate::path(&at);
+    world.disk.write(&[path.as_slice(), b"/changes/3.md"].concat(), b"repair kept\n");
+    world.gone();
+    let (_, work, _) = world.answer.take().expect("unfinished answer after save");
+    let saved = work.saved.is_some();
+    assert_eq!(saved, resume);
+    world.event(Event::Link(host::LinkDown::Acknowledge { run: RUN, attempt: world.attempt }));
+    world.disk.write(&[path.as_slice(), b"/unrelated"].concat(), b"stale local file");
+    world.disk.write(&[path.as_slice(), b"/code"].concat(), b"stale local edit");
+    world.attempt = Token::new(world.attempt.raw() + 1);
+    world.process = None;
+    let start = if saved {
+        wire::Start::Saved { branch: b"saved".as_slice().into() }
+    } else {
+        wire::Start::Base { branch: b"main".as_slice().into() }
+    };
+    world.assign_with(start, resume);
+    world.say(agent::Up::Admitted);
+    let mut restored = world.disk.tree(&path);
+    restored.retain(|path, _| !temper_fake_checkout::in_git(path));
+    if saved {
+        world.deliver();
+        world.deliver(); // A finish after delivery still receives the same landing.
+        world.finish();
+    } else {
+        // There is no change to deliver. The fresh agent reports its clean tree.
+        world.finish();
+    }
+    world.gone();
+    let (_, work, _) = world.answer.take().expect("retry answer");
+    let head = if saved {
+        let [wire::Landed { commit, .. }] = work.landed.as_ref() else { panic!("restored file was delivered") };
+        translate::fake(temper_worker_domain::checkout::git::Commit::new(*commit))
+    } else {
+        world.first
+    };
+    world.report.tree = if saved { world.forge.tree(head) } else { restored };
+    world.event(Event::Link(host::LinkDown::Acknowledge { run: RUN, attempt: world.attempt }));
+    world.event(Event::Shutdown);
+    assert_eq!(world.domain.agent().agents(), 0);
+    assert_eq!(world.domain.workspaces(), 0);
+    assert_eq!(world.domain.kept_answers(), 0);
+    assert_eq!(world.stops, 1);
+    world.report
 }

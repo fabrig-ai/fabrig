@@ -75,8 +75,9 @@ pub enum Op {
     Create { at: Place, remote: Box<[u8]>, branch: Box<[u8]>, commit: Commit, identity: u32, account: Option<u64> },
     /// Make the repository's working tree exactly `commit`'s tree: what is not
     /// in it is removed, including untracked nested repositories. HEAD is
-    /// detached at commit, and the merge state is cleared.
-    CheckOut { at: Place, commit: Commit },
+    /// detached at commit, and the merge state is cleared. With `clean: false`,
+    /// the caller supplies a newly cloned repository in an empty workspace.
+    CheckOut { at: Place, commit: Commit, clean: bool },
     /// Whether fetched ancestor is contained in commit, including equality. Local and read-only.
     IsAncestor { at: Place, ancestor: Commit, commit: Commit },
     /// Merge fetched `theirs` into the checked-out commit, without committing;
