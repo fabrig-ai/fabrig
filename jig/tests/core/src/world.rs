@@ -128,7 +128,6 @@ fn profile() -> root::Limits {
     let writes = tasks::max_out(&tasks) * 8
         + people::max_out(&people) * 4
         + people.pending * 2
-        + fleet::max_out(&fleet) * 4
         + jig_test_connector::MAX_OUT * 2
         + tasks.tasks
         + 6;

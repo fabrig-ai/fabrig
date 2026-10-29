@@ -12,7 +12,7 @@ const ATTEMPT: Token = Token::new(4);
 
 fn step(domain: &mut Domain, event: Event) -> Vec<Request> {
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: LIMITS };
-    let mut out = Queue::with_capacity(fleet::max_out(&LIMITS));
+    let mut out = Queue::uncapped();
     fleet::step(domain, &env, event, &mut out);
     let mut requests = Vec::new();
     while let Some(request) = out.pop() {
@@ -58,7 +58,7 @@ fn hosted() -> Domain {
     };
     assert!(step(&mut domain, start).is_empty());
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: LIMITS };
-    let mut out = Queue::with_capacity(fleet::max_out(&LIMITS));
+    let mut out = Queue::uncapped();
     fleet::resume(&mut domain, &env, &mut out);
     assert!(matches!(out.pop(), Some(Request::Assign { channel: WORKER, .. })));
     assert!(matches!(out.pop(), Some(Request::Placed { .. })));
