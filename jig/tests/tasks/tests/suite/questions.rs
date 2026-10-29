@@ -348,3 +348,109 @@ fn ending_full_credit_lists_emits_one_batch_per_asker_and_one_publication() {
         );
     }
 }
+
+fn person_asked() -> World {
+    let mut world = pair();
+    response(&mut world, |reply_to| Event::PersonQuestion {
+        reply_to,
+        project: 1,
+        task: REQUESTER,
+        person: PERSON,
+        word: Word {
+            number: QUESTION,
+            from: Party::Task(ASKER),
+            kind: MessageKind::Question,
+            words: b"proceed?".as_slice().into(),
+            at: Wall::EPOCH,
+            hits: 1,
+            eligible: false,
+        },
+    });
+    assert_eq!(world.record(ASKER).questions[0].answerer, Party::Person(PERSON));
+    world
+}
+
+fn person_reply(world: &mut World, person: u64) -> Reply {
+    let number = world.record(REQUESTER).last_message.max(world.record(ASKER).last_message) + 1;
+    response(world, |reply_to| Event::PersonQuestionAnswer {
+        reply_to,
+        project: 1,
+        asked: REQUESTER,
+        person,
+        question: QUESTION,
+        notice: number + 1,
+        word: Word {
+            number,
+            from: Party::Person(person),
+            kind: MessageKind::Answer { question: QUESTION },
+            words: b"proceed".as_slice().into(),
+            at: Wall::EPOCH,
+            hits: 1,
+            eligible: false,
+        },
+    })
+}
+
+#[test]
+fn the_persons_answer_reaches_the_asking_task() {
+    let mut world = person_asked();
+    world.terminal(ASKER, report());
+    world.restart();
+    assert!(!world.record(ASKER).wake.answers);
+    person_reply(&mut world, PERSON);
+    assert!(world.record(ASKER).questions.is_empty());
+    assert!(world.activations.contains(&ASKER));
+    assert_eq!(world.contexts[&ASKER].inbox[0].from, Party::Task(REQUESTER));
+    assert_eq!(world.record(REQUESTER).question_lines[0].answer.expect("first answer retained").task, ASKER);
+    world.claim(ASKER, ANSWER);
+    world.finish(ASKER);
+    world.settle(ASKER);
+    assert!(matches!(world.results[&ASKER], Ending::Done(_)));
+}
+
+#[test]
+fn the_asked_task_hears_its_person_answered() {
+    let mut world = person_asked();
+    person_reply(&mut world, PERSON);
+    let row = world.record(REQUESTER);
+    assert!(row.inbox.iter().any(|word| word.kind == MessageKind::QuestionAnswered { question: QUESTION }));
+    assert!(!row.inbox.iter().any(|word| matches!(word.kind, MessageKind::Answer { .. })));
+}
+
+#[test]
+fn the_current_person_answers_after_the_asked_task_moves() {
+    const NEXT_PERSON: u64 = PERSON + 1;
+    let mut world = person_asked();
+    response(&mut world, |reply_to| Event::Move {
+        reply_to,
+        task: REQUESTER,
+        person: NEXT_PERSON,
+        period: 0,
+        pool_budget: 1_000,
+        period_budget: 10_000,
+        reason: Box::new([]),
+    });
+    assert_eq!(world.record(ASKER).questions[0].answerer, Party::Person(NEXT_PERSON));
+    person_reply(&mut world, PERSON);
+    assert_eq!(world.record(ASKER).questions.len(), 1);
+    person_reply(&mut world, NEXT_PERSON);
+    assert!(world.record(ASKER).questions.is_empty());
+}
+
+#[test]
+fn a_full_inbox_keeps_room_for_its_person_answer_notice() {
+    let mut world = person_asked();
+    // One delegate, the unread question and its notice credit use three slots.
+    for number in 2..=6 {
+        message(&mut world, Party::Person(PERSON), REQUESTER, number, MessageKind::Words);
+    }
+    let before = world.record(REQUESTER).inbox.len();
+    message(&mut world, Party::Person(PERSON), REQUESTER, 7, MessageKind::Words);
+    assert_eq!(world.record(REQUESTER).inbox.len(), before, "ordinary words cannot consume the notice credit");
+    person_reply(&mut world, PERSON);
+    assert_eq!(world.record(REQUESTER).inbox.len(), before + 1);
+    assert!(world.record(ASKER).questions.is_empty());
+    let once = world.record(REQUESTER).clone();
+    person_reply(&mut world, PERSON);
+    assert_eq!(world.record(REQUESTER), &once, "a repeated answer cannot make a second notice");
+}

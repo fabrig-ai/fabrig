@@ -434,6 +434,19 @@ fn question_world_with_text_bound(
     bound: Option<u32>,
     text: Option<u32>,
 ) -> (jig_core_world::effects::World, u64) {
+    question_world_with_switch(seed, bound, text, false)
+}
+
+fn enable_person_answers(domain: &mut root::Domain) {
+    domain.core_mut().person_answers();
+}
+
+fn question_world_with_switch(
+    seed: u64,
+    bound: Option<u32>,
+    text: Option<u32>,
+    enabled: bool,
+) -> (jig_core_world::effects::World, u64) {
     let (configuration, mut limits) = jig_core_world::faults::plan_fixture(seed);
     if let Some(text) = text {
         limits.core.documents.text_bytes = text;
@@ -443,7 +456,11 @@ fn question_world_with_text_bound(
         limits.core.tasks.run_inbox = bound;
     }
     jig_core_world::peers::journal(&mut limits);
-    let mut world = jig_core_world::effects::World::configured(seed, false, configuration, limits);
+    let mut world = if enabled {
+        jig_core_world::effects::World::configured_with_startup(seed, configuration, limits, enable_person_answers)
+    } else {
+        jig_core_world::effects::World::configured(seed, false, configuration, limits)
+    };
     world.reads = Some(jig_core_world::reads::Parties::new(world.store.applied));
     let parent = chat_task(&world);
     let mut authority = world.assigned.as_ref().expect("parent").run.authority.clone();
@@ -630,7 +647,7 @@ fn a_turn_load_preserves_the_gone_terminal() {
 }
 
 #[test]
-fn a_delegates_question_waits_for_the_person_after_the_director_reads_it() {
+fn with_the_switch_off_the_asked_task_answers_as_before() {
     let (mut world, director) = question_world(796, None);
     let delegate = chat_task(&world);
     let message = question(&mut world, director, 1);
@@ -684,6 +701,11 @@ fn a_delegates_question_waits_for_the_person_after_the_director_reads_it() {
     assert!(row.inbox.iter().any(|word| word.kind == tasks::MessageKind::Answer { question: message }
         && word.words.as_ref() == b"the person's answer"));
     assert!(row.question_lines[0].answer.is_some());
+    assert!(!row.inbox.iter().any(|word| matches!(word.kind, tasks::MessageKind::QuestionAnswered { .. })));
+    assert_eq!(
+        jig_core_world::fixtures::live_row(&world, delegate).questions[0].answerer,
+        tasks::Party::Task(director)
+    );
     assert_eq!(
         jig_core_world::fixtures::live_row(&world, delegate).questions.len(),
         1,
@@ -704,6 +726,8 @@ fn a_delegates_question_waits_for_the_person_after_the_director_reads_it() {
     let reads::Past::Question { question, answer, .. } = past(&world) else { panic!("historical question") };
     assert!(question.acts.is_empty());
     assert!(answer.is_some());
+    reply(&mut world, director, delegate, message, 2);
+    assert!(jig_core_world::fixtures::live_row(&world, delegate).questions.is_empty());
 }
 
 #[test]
@@ -732,4 +756,92 @@ fn stored_cut_question(words: &[u8], bound: u32, expected: &[u8]) {
     assert_eq!(question.words.bytes.as_ref(), expected);
     assert!(question.words.cut);
     assert!(answer.is_some(), "the full stored question remains answerable");
+}
+
+#[test]
+fn the_persons_answer_reaches_the_asking_task() {
+    let seed = 811;
+    let (mut world, director) = question_world_with_switch(seed, None, None, true);
+    let delegate = chat_task(&world);
+    let question = question(&mut world, director, 1);
+    assert_eq!(jig_core_world::fixtures::live_row(&world, delegate).questions[0].answerer, tasks::Party::Person(1));
+    take_message(&mut world, director, 1, question);
+    finish_chat(&mut world, delegate);
+    assert_eq!(jig_core_world::fixtures::live_row(&world, delegate).questions.len(), 1);
+    world.restart_with(jig_core_world::faults::plan_fixture(seed).0);
+    request(
+        &mut world,
+        99,
+        people::Ask::AnswerQuestion { project: 1, task: director, question, words: b"proceed".as_slice().into() },
+    );
+    let row = jig_core_world::fixtures::live_row(&world, delegate);
+    assert!(row.questions.is_empty());
+    assert!(row.inbox.iter().any(|word| word.from == tasks::Party::Task(director)
+        && word.kind == tasks::MessageKind::Answer { question }
+        && word.words.as_ref() == b"proceed"));
+    let row = jig_core_world::fixtures::live_row(&world, director);
+    assert!(row.inbox.iter().any(|word| word.kind == tasks::MessageKind::QuestionAnswered { question }));
+    assert_eq!(row.question_lines[0].answer.expect("first answer retained").task, delegate);
+    ask(&mut world, 910, reads::Read::Question { task: director, message: question });
+    let reads::Past::Question { answer, .. } = past(&world) else { panic!("answered question") };
+    assert!(answer.is_some());
+}
+
+#[test]
+fn a_task_answering_for_its_person_is_refused_by_name() {
+    let (mut world, director) = question_world_with_switch(812, None, None, true);
+    let delegate = chat_task(&world);
+    let question = question(&mut world, director, 1);
+    let input = format!(r#"{{"target":{delegate},"form":"answer","question":{question},"words":"proceed"}}"#);
+    let key = run_key(&world, director, 2);
+    let name = smith_channel::v5::CallName::new(
+        &smith_channel::v5::CEILINGS,
+        smith_channel::v5::CallNameParts { activation: key.attempt, completion: key.completion, position: 0 },
+    )
+    .expect("call name");
+    let mut encoded = skein_lib::Writer::new(name.measure() as usize);
+    name.encode(&mut encoded).expect("measured name");
+    let commits = world.store.applied;
+    world.send(root::Event::Core(core::Event::Fleet(jig_domain_fleet::Event::Relay {
+        channel: skein_lib::Token::new(7),
+        run: skein_lib::Token::new(director),
+        attempt: skein_lib::Token::new(key.attempt),
+        call: jig_domain_fleet::Call {
+            name: encoded.finish(),
+            tool: b"message".as_slice().into(),
+            input: input.into_bytes().into(),
+            writes: true,
+            deadline: skein_lib::Duration::from_secs(2),
+        },
+    })));
+    let answer = &world.host_answers.last().expect("host refusal").1.answer;
+    assert_eq!(
+        answer,
+        &core::SettledAnswer::Host {
+            error: true,
+            body: format!("Refused: your person answers question {question} in their inbox").into_bytes().into(),
+        }
+    );
+    assert!(world.store.applied > commits, "the refusal is committed");
+    assert_eq!(jig_core_world::fixtures::live_row(&world, delegate).questions.len(), 1);
+}
+
+#[test]
+fn enabling_direct_answers_accepts_an_open_relay_question_after_restart() {
+    let seed = 813;
+    let (mut world, director) = question_world(seed, None);
+    let delegate = chat_task(&world);
+    let question = question(&mut world, director, 1);
+    assert_eq!(
+        jig_core_world::fixtures::live_row(&world, delegate).questions[0].answerer,
+        tasks::Party::Task(director)
+    );
+    // The application applies its startup setting to the replacement core.
+    world.restart_with_startup(jig_core_world::faults::plan_fixture(seed).0, enable_person_answers);
+    request(
+        &mut world,
+        100,
+        people::Ask::AnswerQuestion { project: 1, task: director, question, words: b"proceed".as_slice().into() },
+    );
+    assert!(jig_core_world::fixtures::live_row(&world, delegate).questions.is_empty());
 }

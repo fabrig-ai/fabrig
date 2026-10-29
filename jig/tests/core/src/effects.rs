@@ -41,6 +41,7 @@ pub struct AssignedTranscript {
 #[derive(Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "independently held peer traffic and crash cuts")]
 pub struct World {
+    startup: Option<fn(&mut root::Domain)>,
     bootstrap_owners: Vec<people::InitialOwner>,
     fixture_accounts: Box<[root::Record]>,
     pub domain: root::Domain,
