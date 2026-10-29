@@ -237,6 +237,7 @@ task_launch() {
         model=${model:-$(meta_get "$previous/meta" model)}
         effort=${effort:-$(meta_get "$previous/meta" effort)}
         read_only=${read_only:-$(meta_get "$previous/meta" read_only)}
+        to=${to:-$(meta_get "$previous/meta" to)}
         dir=$(meta_get "$previous/meta" dir)
     fi
     if (($# == 3)); then task=$1 dir=$2 report=$3
