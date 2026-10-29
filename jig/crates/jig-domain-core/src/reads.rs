@@ -628,7 +628,7 @@ pub fn answer_bound(limits: &Limits) -> Option<u64> {
             .checked_add(settings::load_bytes(limits, limits.documents.rows)?.checked_mul(2)?)?,
     )
 }
-/// The former name of [`answer_bound`], kept until temper's readers move.
+/// The former name of [`answer_bound`], kept until its application readers move.
 #[must_use]
 pub fn answer_worst_case(limits: &Limits) -> Option<u64> {
     answer_bound(limits)

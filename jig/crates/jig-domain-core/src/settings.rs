@@ -348,7 +348,7 @@ pub fn revision_bound(limits: &crate::Limits) -> Option<u64> {
         .checked_add(List::<Item>::price(capacity(limits)?.checked_mul(2)?)?)?
         .checked_add(u64::try_from(size_of::<Head>()).ok()?)
 }
-/// The former name of [`revision_bound`], kept until temper's readers move.
+/// The former name of [`revision_bound`], kept until its application readers move.
 #[must_use]
 pub fn revision_worst_case(limits: &crate::Limits) -> Option<u64> {
     revision_bound(limits)
@@ -401,7 +401,7 @@ pub fn writes_bound(limits: &crate::Limits) -> Option<u32> {
         .checked_add(withdrawal_writes(limits)?)?
         .checked_add(move_writes(limits)?)
 }
-/// The former name of [`writes_bound`], kept until temper's readers move.
+/// The former name of [`writes_bound`], kept until its application readers move.
 #[must_use]
 pub fn writes_worst_case(limits: &crate::Limits) -> Option<u32> {
     writes_bound(limits)
