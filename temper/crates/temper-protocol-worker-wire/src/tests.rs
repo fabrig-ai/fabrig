@@ -93,11 +93,11 @@ fn saved_conflicts_past_their_count_are_refused() {
 fn largest_parts_are_the_generated_worst_cases() {
     let limits = fixtures::limits();
     let sizes = crate::largest(&limits).expect("test limits fit");
-    assert_eq!(u64::from(sizes.items), v1::Items::worst_case_bytes(&limits).expect("items"));
-    assert_eq!(u64::from(sizes.left), v1::Left::worst_case_bytes(&limits).expect("left"));
-    assert_eq!(u64::from(sizes.saved), v1::Saved::worst_case_bytes(&limits).expect("saved"));
-    assert_eq!(u64::from(sizes.resource), v1::Preparation::worst_case_bytes(&limits).expect("preparation"));
-    assert_eq!(u64::from(sizes.grant), v1::Identity::worst_case_bytes(&limits).expect("identity"));
+    assert_eq!(u64::from(sizes.items), v1::Items::encoded_bound(&limits).expect("items"));
+    assert_eq!(u64::from(sizes.left), v1::Left::encoded_bound(&limits).expect("left"));
+    assert_eq!(u64::from(sizes.saved), v1::Saved::encoded_bound(&limits).expect("saved"));
+    assert_eq!(u64::from(sizes.resource), v1::Preparation::encoded_bound(&limits).expect("preparation"));
+    assert_eq!(u64::from(sizes.grant), v1::Identity::encoded_bound(&limits).expect("identity"));
     assert_eq!(sizes, crate::Largest { items: 8669, left: 84, saved: 1084, resource: 10, grant: 233 });
 }
 

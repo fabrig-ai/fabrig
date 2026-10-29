@@ -75,11 +75,11 @@ pub struct Largest {
 #[must_use]
 pub fn largest(limits: &v1::Limits) -> Option<Largest> {
     Some(Largest {
-        items: narrow(v1::Items::worst_case_bytes(limits)?)?,
-        left: narrow(v1::Left::worst_case_bytes(limits)?)?,
-        saved: narrow(v1::Saved::worst_case_bytes(limits)?)?,
-        resource: narrow(v1::Preparation::worst_case_bytes(limits)?)?,
-        grant: narrow(v1::Identity::worst_case_bytes(limits)?)?,
+        items: narrow(v1::Items::encoded_bound(limits)?)?,
+        left: narrow(v1::Left::encoded_bound(limits)?)?,
+        saved: narrow(v1::Saved::encoded_bound(limits)?)?,
+        resource: narrow(v1::Preparation::encoded_bound(limits)?)?,
+        grant: narrow(v1::Identity::encoded_bound(limits)?)?,
     })
 }
 
