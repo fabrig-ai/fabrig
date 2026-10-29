@@ -161,23 +161,6 @@ fn limits(value: &Value) -> (jig_protocol_config::Limits, temper_service::limits
     (jig.limits, own)
 }
 
-/// Match the root's complete synchronous route, including a placed subtree stop.
-pub(crate) fn size_journal_writes(value: &mut Value) {
-    let (jig, own) = limits(value);
-    let core = &jig.core;
-    let route = jig_domain_tasks::max_out(&core.tasks) * 8
-        + jig_domain_people::max_out(&core.people) * 4
-        + core.people.pending * 2
-        + jig_domain_fleet::max_out(&core.fleet) * 4
-        + temper_engine_domain_forge::max_out(&own.forge)
-        + 2 * core.authority.projects
-        + core.tasks.tasks
-        + 4;
-    let settings = jig_domain_core::settings::writes_worst_case(core).expect("fixture settings writes");
-    value["application"]["limits"]["overrides"]["root.journal.writes"] =
-        own.root.journal.writes.max(route.max(settings) + core.call_records).into();
-}
-
 pub(crate) fn admit(value: &Value) {
     let (jig, own) = limits(value);
     let root = temper_service::limits::engine(&jig, &own).expect("engine root admits the fixture");
