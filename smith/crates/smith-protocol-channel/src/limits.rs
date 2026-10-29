@@ -97,20 +97,30 @@ impl From<skein_lib::Overflow> for Error {
     }
 }
 
-/// Slots reserved by the caller at each entry point during opening.
+/// Room a caller keeps at the host-channel edge for one entrance.
+///
+/// At most one owner event and six lower operations fit; past this room the
+/// entrance waits. `send_live` and `offer_fact` count the dropped piece's bytes
+/// or fact instead.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct MaxOut {
+pub struct EdgeRoom {
     pub to_domain: u32,
     pub below: u32,
 }
 
-/// Opening emits at most one owner event and six lower operations per step.
-pub(crate) const MAX_OUT: MaxOut = MaxOut { to_domain: 1, below: 6 };
+/// One entrance's room at the host-channel edge.
+pub(crate) const EDGE_ROOM: EdgeRoom = EdgeRoom { to_domain: 1, below: 6 };
 
-/// Opening emits at most one owner event and six lower operations per step.
+/// Room a caller keeps at the host-channel edge for one entrance.
 #[must_use]
-pub const fn max_out(_limits: &Limits) -> MaxOut {
-    MAX_OUT
+pub const fn edge_room(_limits: &Limits) -> EdgeRoom {
+    EDGE_ROOM
+}
+
+/// The name temper's worker-peer fixture reads; returns `edge_room`'s value.
+#[must_use]
+pub const fn max_out(limits: &Limits) -> EdgeRoom {
+    edge_room(limits)
 }
 
 /// Whether codec edges and responder capacities fit (programming-model.md, 6.3).
