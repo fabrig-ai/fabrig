@@ -391,8 +391,9 @@ pub(crate) fn row_bound(limits: &Limits) -> Option<u64> {
     )
 }
 
-/// Whether the root's limits are representable and agree with its children's
-/// (temper/docs/design/domain/root.md, 10). Startup refuses limits it rejects.
+/// Whether the root's entrance limits are representable, agree with its children
+/// and satisfy their validity predicates (temper/docs/design/domain/root.md, 10).
+/// Startup refuses limits it rejects.
 #[must_use]
 pub fn valid(limits: &Limits) -> bool {
     let Some(brief_fetches) = brief_fetches(limits) else {
@@ -420,7 +421,7 @@ pub fn valid(limits: &Limits) -> bool {
         return false;
     }
     jig_domain_core::valid(&core_limits(limits))
-        && forge::worst_case(&limits.forge).is_some()
+        && forge::valid(&limits.forge)
         && loads::valid(&limits.loads)
         && crate::journal_valid(&limits.journal)
         && jig_domain_core::settings::revision_worst_case(&core_limits(limits)).is_some()
