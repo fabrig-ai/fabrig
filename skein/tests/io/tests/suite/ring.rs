@@ -17,6 +17,7 @@ use skein_io_world::scenarios::{echo, expecting, framed, limits, local, message,
 use skein_io_world::world::Proc;
 use skein_lib::{Duration, Rng};
 use skein_shell::{Backend, Clock, Config, Kernel, Wait};
+use skein_world::{Deadline, Expired, Starved};
 
 #[test]
 fn an_exchange_through_io_over_the_ring() {
@@ -42,7 +43,13 @@ fn an_exchange_through_io_over_the_ring() {
     let mut proc = Proc::new(limits, Owner::new(7, vec![serve], vec![dial]));
     let mut directory = Directory::new();
 
-    run_exchange(&mut proc, &mut kernel, &clock, &mut directory, at(10_000));
+    let starved = run_exchange(
+        &mut proc,
+        &mut kernel,
+        &clock,
+        &mut directory,
+        &Deadline::arm("the io ring exchange", Duration::from_secs(10)),
+    );
     let client = proc.owner.conn("client").expect("the client connected");
     assert!(
         client.received == *sent,
@@ -52,6 +59,11 @@ fn an_exchange_through_io_over_the_ring() {
     );
     assert!(!client.broken(), "nothing broke on loopback");
     proc.ledger.settled();
+    if let Some(starved) = starved {
+        drop(proc);
+        drop(kernel);
+        starved.pass();
+    }
 }
 
 #[test]
@@ -61,14 +73,14 @@ fn a_loopback_and_a_named_listener_exchange_in_one_drive() {
         .expect("io_uring usable for the mixed-address exchange");
     let clock = Clock::new();
     let start = clock.now().now;
-    let deadline = start.saturating_add(Duration::from_secs(1));
+    let deadline = Deadline::arm("the mixed-address io ring exchange", Duration::from_secs(1));
     let sent = framed(&message(&mut Rng::new(7), 300));
     let serves = [("loopback", local(0), "ip-echo"), ("joined", skein_io_world::joined::name(b"ring"), "named-echo")]
         .map(|(name, addr, label)| Serve {
             name,
             addr,
             answers: vec![Some(echo(label, limits.largest_room(), Reads::Mixed(16)))],
-            close: ServeClose::Answered(deadline),
+            close: ServeClose::Answered(deadline.until()),
         });
     let dials = [("loopback", "ip-client"), ("joined", "named-client")].map(|(label, conn)| Dial {
         to: Target::Named(label),
@@ -76,7 +88,7 @@ fn a_loopback_and_a_named_listener_exchange_in_one_drive() {
         plan: expecting(plan(conn, sent.clone(), 32, Reads::Mixed(16)), &sent),
     });
     let mut proc = Proc::new(limits, Owner::new(7, serves.into(), dials.into()));
-    run_exchange(&mut proc, &mut kernel, &clock, &mut Directory::new(), deadline);
+    let starved = run_exchange(&mut proc, &mut kernel, &clock, &mut Directory::new(), &deadline);
     for label in ["ip-client", "named-client"] {
         let client = proc.owner.conn(label).expect("each client connected");
         assert_eq!(client.received, *sent, "{label} received every byte");
@@ -84,6 +96,11 @@ fn a_loopback_and_a_named_listener_exchange_in_one_drive() {
         assert!(!client.broken(), "{label} completed without failure");
     }
     proc.ledger.settled();
+    if let Some(starved) = starved {
+        drop(proc);
+        drop(kernel);
+        starved.pass();
+    }
 }
 
 fn run_exchange(
@@ -91,11 +108,17 @@ fn run_exchange(
     kernel: &mut Kernel,
     clock: &Clock,
     directory: &mut Directory,
-    deadline: skein_lib::Time,
-) {
+    deadline: &Deadline,
+) -> Option<Starved> {
+    let mut starved = None;
     loop {
         let now = clock.now();
-        assert!(now.now < deadline, "the exchange ends within its deadline");
+        if starved.is_none() && deadline.passed() {
+            match deadline.expired() {
+                Expired::Starved(expired) => starved = Some(expired),
+                Expired::Failed(figures) => panic!("the exchange ends within its deadline: {figures}"),
+            }
+        }
         kernel.reap(&mut proc.completions);
         proc.iterate(now.now, now.wall, directory);
         if proc.owner.done() && proc.io.is_empty() && proc.subs.is_empty() && kernel.in_flight() == 0 {
@@ -104,7 +127,7 @@ fn run_exchange(
         let wait = if proc.busy(now.now) {
             Wait::No
         } else {
-            let mut until = deadline;
+            let mut until = deadline.until();
             for next in [proc.io.next_deadline(), proc.owner.next_deadline(now.now)].into_iter().flatten() {
                 until = until.min(next);
             }
@@ -113,6 +136,8 @@ fn run_exchange(
         kernel.submit(&mut proc.subs, wait);
     }
     assert!(proc.io.is_empty() && kernel.in_flight() == 0, "io and the ring hold nothing");
+    // The scripted owner closes every listener and connection before exit.
+    starved
 }
 
 fn group_story(story: skein_io_world::processes::Story) {

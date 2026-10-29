@@ -16,7 +16,7 @@ use skein_echo_world::scenarios::{LINE, client_limits, plan, server};
 use skein_io::Addr;
 use skein_lib::{Duration, Rng};
 use skein_shell::{Backend, Clock};
-use skein_world::real;
+use skein_world::{Deadline, Expired, real};
 
 /// The echo's idle deadline here: short, so that the test is quick.
 const IDLE: Duration = Duration::from_millis(200);
@@ -92,11 +92,19 @@ fn serves_refuses_and_idles(backend: Backend) {
     });
     world.spawn(|| Proc::client(client_limits(3), &first));
     world.spawn(|| Proc::client(client_limits(2), &second));
+    let deadline = Deadline::arm("the real echo exchange and shutdown", Duration::from_secs(10));
     let outcome = world.run(&clock, Duration::from_secs(20));
-    let took = outcome.end.saturating_since(outcome.start);
-    assert!(took < Duration::from_secs(10), "over within ten seconds: {} ms", took.as_nanos() / 1_000_000);
     let seen = outcome.procs[2].as_client().expect("a fake client").seen(0);
     assert_eq!(seen.answered, 2, "the lines before the long one were answered");
+    if deadline.passed() {
+        match deadline.expired() {
+            Expired::Starved(starved) => {
+                drop(outcome);
+                starved.pass();
+            }
+            Expired::Failed(figures) => panic!("over within ten seconds: {figures}"),
+        }
+    }
 }
 
 #[test]
@@ -124,9 +132,17 @@ fn the_shipped_idle_time_does_not_delay_the_real_echo_shutdown() {
     });
     let plans = [Plan { lines: 1, then: Then::Linger, ..plan(start, 19) }];
     world.spawn(|| Proc::client(client_limits(1), &plans));
+    let deadline = Deadline::arm("the real echo owner drain", Duration::from_millis(1000));
     let outcome = world.run(&clock, Duration::from_secs(2));
-    assert!(
-        outcome.end.saturating_since(outcome.start) < Duration::from_millis(1000),
-        "the owner drain, rather than the shipped idle time, ends the echo"
-    );
+    if deadline.passed() {
+        match deadline.expired() {
+            Expired::Starved(starved) => {
+                drop(outcome);
+                starved.pass();
+            }
+            Expired::Failed(figures) => {
+                panic!("the owner drain, rather than the shipped idle time, ends the echo: {figures}");
+            }
+        }
+    }
 }

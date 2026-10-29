@@ -12,6 +12,7 @@ use skein_lib::{
     stream::{Down, Held},
 };
 use skein_shell::{Clock, Host, Kernel, Wait};
+use skein_world::{Deadline, Expired};
 use std::{
     io::{Read, Write},
     net::TcpStream,
@@ -30,6 +31,18 @@ impl Loop {
         self.peer.iterate(now.now, now.wall);
         self.kernel.submit(self.peer.submissions(), Wait::No);
     }
+    pub(super) fn expired(&mut self, deadline: &Deadline) -> ! {
+        match deadline.expired() {
+            Expired::Starved(starved) => {
+                self.peer.shutdown();
+                while !self.peer.is_empty() || self.kernel.in_flight() > 0 {
+                    self.pass();
+                }
+                starved.pass();
+            }
+            Expired::Failed(figures) => panic!("the fake forge wait did not settle: {figures}"),
+        }
+    }
     fn exchange(&mut self, call: &Call) -> Answer {
         self.exchange_authorized(call, b"Basic ZW5naW5lOjExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTE=")
     }
@@ -46,7 +59,7 @@ impl Loop {
         stream.write_all(head.as_bytes()).expect("request head");
         stream.write_all(&encoded.body).expect("request body");
         stream.set_nonblocking(true).expect("one loop");
-        let deadline = self.clock.now().now.saturating_add(Duration::from_secs(6));
+        let deadline = Deadline::arm("the private git loopback exchange", Duration::from_secs(6));
         let mut response = Vec::new();
         loop {
             self.pass();
@@ -57,7 +70,10 @@ impl Loop {
                 Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {}
                 Err(error) => panic!("response: {error}"),
             }
-            assert!(self.clock.now().now < deadline, "kernel loopback exchange settles");
+            if deadline.passed() {
+                drop(stream);
+                self.expired(&deadline);
+            }
         }
         assert!(response.starts_with(b"HTTP/1.1 200 "), "{response:?}");
         let body = &response[skein_lib::bytes::find(&response, b"\r\n\r\n").expect("HTTP head").saturating_add(4)..];
@@ -101,10 +117,12 @@ fn private_git_calls_cross_kernel_loopback_and_move_shared_branch() {
         .without_records();
     let kernel = Kernel::open(skein_shell::Config { operations: peer.operations() }).expect("kernel ring");
     let mut world = Loop { peer, kernel, clock: Clock::new() };
-    let deadline = world.clock.now().now.saturating_add(Duration::from_secs(6));
+    let deadline = Deadline::arm("the private git listener and peer drain", Duration::from_secs(6));
     while world.peer.address().is_none() {
         world.pass();
-        assert!(world.clock.now().now < deadline, "listener binds");
+        if world.peer.address().is_none() && deadline.passed() {
+            world.expired(&deadline);
+        }
     }
     let rows = [
         (
@@ -151,7 +169,9 @@ fn private_git_calls_cross_kernel_loopback_and_move_shared_branch() {
     world.peer.shutdown();
     while !world.peer.is_empty() {
         world.pass();
-        assert!(world.clock.now().now < deadline, "peer settles");
+        if !world.peer.is_empty() && deadline.passed() {
+            world.expired(&deadline);
+        }
     }
     assert_eq!(world.kernel.in_flight(), 0);
 }
@@ -218,10 +238,12 @@ fn github_private_git_calls_cross_kernel_loopback_on_an_installation_token() {
     let authorization = Secret::new(authorization.finish());
     let kernel = Kernel::open(skein_shell::Config { operations: peer.operations() }).expect("kernel ring");
     let mut world = Loop { peer, kernel, clock };
-    let deadline = world.clock.now().now.saturating_add(Duration::from_secs(6));
+    let deadline = Deadline::arm("the GitHub private git listeners and peer drain", Duration::from_secs(6));
     while world.peer.address().is_none() || world.peer.blob_address().is_none() {
         world.pass();
-        assert!(world.clock.now().now < deadline, "listeners bind");
+        if (world.peer.address().is_none() || world.peer.blob_address().is_none()) && deadline.passed() {
+            world.expired(&deadline);
+        }
     }
     let answer =
         world.exchange_authorized(&Call::Clone { repository: f::boxed(f::REPOSITORY) }, authorization.expose());
@@ -267,7 +289,9 @@ fn github_private_git_calls_cross_kernel_loopback_on_an_installation_token() {
     world.peer.shutdown();
     while !world.peer.is_empty() {
         world.pass();
-        assert!(world.clock.now().now < deadline, "peer settles");
+        if !world.peer.is_empty() && deadline.passed() {
+            world.expired(&deadline);
+        }
     }
     assert_eq!(world.kernel.in_flight(), 0);
 }

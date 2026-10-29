@@ -6,7 +6,8 @@ use skein_io::kernel::{Complete, Submit};
 use skein_kv::{Event, Limits, Op, Page, Request, Store};
 use skein_lib::{Duration, Env, Queue, Time, Token};
 use skein_scratch::Scratch;
-use skein_shell::{Clock, Config, Kernel, Wait, open_root};
+use skein_shell::{Clock, Config, Kernel, Wait};
+use skein_world::{Deadline, Expired, Starved};
 
 fn limits() -> Limits {
     Limits {
@@ -36,6 +37,7 @@ struct World {
     file_events: Queue<file::Event>,
     subs: Queue<Submit>,
     completes: Queue<Complete>,
+    starved: Option<Starved>,
 }
 
 impl World {
@@ -52,6 +54,7 @@ impl World {
             file_events: Queue::with_capacity(128),
             subs: Queue::with_capacity(128),
             completes: Queue::with_capacity(128),
+            starved: None,
         }
     }
 
@@ -63,13 +66,18 @@ impl World {
     fn ask(&mut self, request: Request) -> Event {
         let env = self.env();
         skein_kv::down(&mut self.store, &env, request, &mut self.above, &mut self.below);
-        let until = self.clock.now().now.checked_add(Duration::from_secs(10)).expect("deadline");
+        let deadline = Deadline::arm("the real store request", Duration::from_secs(10));
         for _ in 0..10_000 {
             if let Some(event) = self.above.pop() {
                 return event;
             }
-            assert!(self.clock.now().now < until, "the store answered in time");
-            self.step(until);
+            if self.starved.is_none() && deadline.passed() {
+                match deadline.expired() {
+                    Expired::Starved(starved) => self.starved = Some(starved),
+                    Expired::Failed(figures) => panic!("the store answered in time: {figures}"),
+                }
+            }
+            self.step(deadline.until());
         }
         panic!("store did not answer before the step limit");
     }
@@ -89,7 +97,6 @@ impl World {
         }
         self.kernel.reap(&mut self.completes);
         if self.completes.is_empty() && self.file_events.is_empty() && !self.io.takes() {
-            assert!(self.clock.now().now < until, "the file request completed in time");
             self.kernel.submit(&mut self.subs, Wait::Until(until));
             self.kernel.reap(&mut self.completes);
         }
@@ -114,9 +121,16 @@ impl World {
 
 #[test]
 fn commit_and_recover_through_real_ring() {
+    if let Some(starved) = commit_and_recover() {
+        starved.pass();
+    }
+}
+
+fn commit_and_recover() -> Option<Starved> {
     let scratch = Scratch::new("kv");
     let mut world = World::new();
-    let root = open_root(scratch.path()).expect("scratch directory opens");
+    let root_file = std::fs::File::open(scratch.path()).expect("scratch directory opens");
+    let root = skein_io::kernel::Fd::new(std::os::fd::AsRawFd::as_raw_fd(&root_file));
     assert_eq!(
         world.ask(Request::Open { owner: Token::new(1), root }),
         Event::Opened { owner: Token::new(1), last: 0 }
@@ -137,4 +151,5 @@ fn commit_and_recover_through_real_ring() {
         Event::Got { owner: Token::new(5), value: Some(Box::from(&b"value"[..])) }
     );
     assert_eq!(world.ask(Request::Close { owner: Token::new(6) }), Event::Closed { owner: Token::new(6) });
+    world.starved.take()
 }

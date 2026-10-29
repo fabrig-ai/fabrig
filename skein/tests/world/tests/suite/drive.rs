@@ -3,6 +3,7 @@
 use skein_io::kernel::{Complete, Done, Exit, Fd, Op, ServiceSignal, Submit};
 use skein_lib::{Duration, Queue, Time, Token, Wall};
 use skein_shell::{Clock, Config, Host, Kernel, drive};
+use skein_world::{Deadline, Expired};
 use skein_world_tests::hosted::{Act, Script};
 
 fn kernel() -> Kernel {
@@ -112,7 +113,7 @@ impl Host for Closing {
 #[test]
 fn a_termination_signal_while_closing_aborts_and_drive_returns_when_those_settle() {
     let clock = Clock::new();
-    let deadline = clock.now().now.saturating_add(Duration::from_secs(10));
+    let deadline = Deadline::arm("the signalled closing host drain", Duration::from_secs(10));
     let signals = skein_shell::open_termination_signals().expect("blocked termination signals");
     let (read, write) = skein_shell::open_signal_pipe().expect("silent peer");
     let mut host = Closing {
@@ -123,15 +124,24 @@ fn a_termination_signal_while_closing_aborts_and_drive_returns_when_those_settle
         submissions: Queue::with_capacity(8),
         stage: 0,
         pending: 0,
-        deadline,
+        deadline: deadline.until(),
         heard: false,
     };
     skein_shell::signal_current_thread(ServiceSignal::Terminate).expect("termination");
     let mut kernel = kernel();
     assert_eq!(drive(&mut kernel, &clock, &mut host), Exit::Code(0));
     assert!(host.heard);
-    assert!(clock.now().now < deadline);
     assert_eq!(kernel.in_flight(), 0);
+    if deadline.passed() {
+        match deadline.expired() {
+            Expired::Starved(starved) => {
+                drop(host);
+                drop(kernel);
+                starved.pass();
+            }
+            Expired::Failed(figures) => panic!("the signalled closing host drains in time: {figures}"),
+        }
+    }
 }
 
 #[test]

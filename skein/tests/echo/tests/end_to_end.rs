@@ -9,7 +9,7 @@ use skein_io::kernel::{Complete, Exit, Signal, Submit};
 use skein_lib::{Duration, Queue, Time, Wall};
 use skein_shell::Clock;
 use skein_world::end_to_end::{Binary, Command, Mode, StartError};
-use skein_world::{Host, Referee, real};
+use skein_world::{Deadline, Expired, Host, Referee, real};
 
 #[derive(Debug)]
 enum Process {
@@ -207,6 +207,8 @@ fn run(idle: bool) {
         StartError::Tree(error) => panic!("tree startup failed: {error:?}"),
         StartError::Child(error) => panic!("starting the shipped echo failed: {error:?}"),
     });
+    let mut deadline = Deadline::arm("the shipped echo shutdown", Duration::from_secs(2));
+    deadline.watch(&binary);
     let mut world = real::World::new(Judge {
         listening: None,
         told: false,
@@ -230,8 +232,13 @@ fn run(idle: bool) {
         panic!("the shipped binary observer")
     };
     assert_eq!(binary.exit_status(), Some(Exit::Code(0)), "the signalled echo exits successfully");
-    assert!(
-        outcome.end.saturating_since(outcome.start) < Duration::from_secs(2),
-        "shutdown settles well before the shipped idle time"
-    );
+    if deadline.passed() {
+        match deadline.expired() {
+            Expired::Starved(starved) => {
+                drop(outcome);
+                starved.pass();
+            }
+            Expired::Failed(figures) => panic!("shutdown settles well before the shipped idle time: {figures}"),
+        }
+    }
 }

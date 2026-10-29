@@ -2386,6 +2386,7 @@ dependencies = [
  "skein-shell",
  "skein-sim",
  "skein-tls",
+ "skein-world",
 ]
 
 [[package]]
@@ -2622,6 +2623,7 @@ dependencies = [
  "skein-scratch",
  "skein-shell",
  "skein-sim",
+ "skein-world",
 ]
 
 [[package]]
