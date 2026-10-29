@@ -775,7 +775,7 @@ fn assignment_within(assignment: &crate::Assignment, limits: &Limits) -> bool {
 fn host_within(host: &crate::HostDelivery, limits: &Limits) -> bool {
     match host {
         // The core admits these with the same document bounds as Delivery::Read.
-        // Their held-output payload is priced by core reads::answer_worst_case.
+        // Their held-output payload is priced by core reads::answer_bound.
         crate::HostDelivery::Settings { .. } => true,
         crate::HostDelivery::Render { name, tool, answer, .. } => {
             !name.is_empty()
