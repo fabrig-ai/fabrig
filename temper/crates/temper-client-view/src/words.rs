@@ -535,6 +535,7 @@ pub enum Word {
     Goal,
     Proposal,
     Question,
+    QuestionAnswered,
     Held,
     PersonTask,
     Task,
@@ -663,9 +664,9 @@ pub enum Word {
 // The paste of a sign-in's address adds fifteen phrases and twenty-one segments.
 // M1's Model details add eight phrases and sixteen segments.
 // The welcome's Forgejo card adds four literal phrases and segments.
-const PHRASES: u32 = 1179;
-const SEGMENTS: u32 = 2076;
-const ALL: [Word; 597] = [
+const PHRASES: u32 = 1180;
+const SEGMENTS: u32 = 2079;
+const ALL: [Word; 598] = [
     Word::WelcomeForgejo,
     Word::WelcomeForgejoDescription,
     Word::WelcomeForgejoRun,
@@ -1176,6 +1177,7 @@ const ALL: [Word; 597] = [
     Word::Goal,
     Word::Proposal,
     Word::Question,
+    Word::QuestionAnswered,
     Word::Held,
     Word::PersonTask,
     Word::Task,
@@ -1790,6 +1792,7 @@ impl Word {
             Self::Goal => 116,
             Self::Proposal => 117,
             Self::Question => 118,
+            Self::QuestionAnswered => 2021,
             Self::Held => 119,
             Self::PersonTask => 120,
             Self::Task => 122,
@@ -2634,6 +2637,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::Goal => (&[b"Goal"], &[]),
         Word::Proposal => (&[b"Proposal"], &[]),
         Word::Question => (&[b"Question"], &[]),
+        Word::QuestionAnswered => (&[b"You answered question ", b" in your inbox"], &[Number]),
         Word::Held => (&[b"Held"], &[]),
         Word::PersonTask => (&[b"Person task"], &[]),
         Word::Task => (&[b"Task ", b""], &[Number]),

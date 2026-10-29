@@ -126,6 +126,40 @@ fn an_owner_activity_message_is_shown_in_the_chat() {
     assert!(skein_lib::bytes::find(&fixtures::text(&tree(&thread)), b"An owner message").is_some());
 }
 
+#[test]
+fn an_inbox_answer_is_acknowledged_in_the_chat_conversation() {
+    let mut thread = Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT });
+    thread.reading = Some(jig_client::thread::Reading::Latest { known: COMMITTED.into() });
+    let mut rows = List::with_capacity(1);
+    rows.push(c::ActivityLine {
+        position: 1,
+        at: Wall::EPOCH,
+        event: c::Activity::Owner {
+            source: Box::new(c::OwnerActivityLine {
+                task: TASK,
+                position: 1,
+                at: Wall::EPOCH,
+                line: c::OwnerActivity::Heard(c::OwnerWord {
+                    number: MESSAGE,
+                    from: c::OwnerRequester::Task(TASK),
+                    kind: c::OwnerMessageKind::QuestionAnswered { question: 42 },
+                    words: c::Text::new(Box::new([]), TEXT).expect("empty notice words"),
+                    at: Wall::EPOCH,
+                    hits: 1,
+                    eligible: true,
+                }),
+            }),
+            decoded: None,
+        },
+    })
+    .expect("notice");
+    thread.page(c::ActivityPage { rows, before: None, after: None, cut: false });
+    let tree = tree(&thread);
+    assert!(fixtures::find(&tree, Role::Log, b"Conversation").is_some());
+    assert!(fixtures::find(&tree, Role::Paragraph, b"You answered question 42 in your inbox").is_some());
+    assert!(skein_lib::bytes::find(&fixtures::text(&tree), b"You answered question 42 in your inbox").is_some());
+}
+
 // The chat gallery's T10: a chat started with no spec, its request a words line.
 #[test]
 fn a_chat_whose_spec_is_empty_draws_no_opening_turn() {
