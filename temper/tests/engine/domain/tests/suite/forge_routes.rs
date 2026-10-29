@@ -38,6 +38,8 @@ mod change_tool;
 #[path = "forge_routes/plain_change.rs"]
 mod plain_change;
 
+#[path = "forge_routes/held_change.rs"]
+mod held_change;
 #[path = "forge_routes/landing.rs"]
 mod landing;
 #[path = "forge_routes/producer_failure.rs"]
@@ -1889,6 +1891,11 @@ fn park_chat(world: &mut World, assignment: &engine::Assignment) {
         world.send(protocol::turn(Token::new(7), assignment.task, assignment.attempt, 1, 0, read, b"Read the message"));
         world.until(Until::Ready);
     }
+    park_after_turn(world, assignment, read, u32::from(read.is_some()));
+    world.until(Until::Ready);
+}
+
+fn park_after_turn(world: &mut World, assignment: &engine::Assignment, read: Option<u64>, turns: u32) {
     let mut event = world.protocol.answer(
         Token::new(7),
         assignment.task,
@@ -1906,9 +1913,8 @@ fn park_chat(world: &mut World, assignment: &engine::Assignment) {
     };
     // A resumed chat consumes its Say before parking, rather than waking on it again.
     answer.read = read.map(Token::new);
-    answer.turns = u32::from(read.is_some());
+    answer.turns = turns;
     world.send(event);
-    world.until(Until::Ready);
 }
 
 fn task_brief(assignment: &engine::Assignment) -> &[u8] {
