@@ -4,7 +4,7 @@
 
 use smith_agent_service as profile_service;
 
-#[path = "support/declarations.rs"]
+#[path = "../../support/declarations.rs"]
 mod profile_declarations;
 
 use profile_declarations::declarations;

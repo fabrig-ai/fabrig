@@ -8,14 +8,11 @@ mod tests {
         clippy::wildcard_enum_match_arm,
         reason = "ordinary Rust test fixtures and boundary assertions follow programming-model.md section 10.2"
     )]
-    use skein_heap::{Counting, Meter};
+    use skein_heap::Meter;
     use skein_io as io;
     use skein_lib::{Queue, Time, Token, stream};
     use smith_agent_service::sinks::{Capture, Delivery, Destination, SinkLimits, Sinks};
     use smith_events::{Effect, Event, Record, Source, ToolStarted};
-
-    #[global_allocator]
-    static HEAP: Counting = Counting;
 
     fn product_limits() -> SinkLimits {
         use smith_agent_service::profile::{self, Configuration, Endpoint, Model, OversizedReasoning};
