@@ -9,11 +9,6 @@ use crate::engine::{self, Act, Engine, Plan};
 use crate::parent::{self, Out, Parent};
 use crate::trace::Trace;
 
-/// Room in the host's output queue beyond what one step may emit. Small, so
-/// the loop's flow control (take an event only while there is room for what
-/// it may produce) is exercised.
-const SPARE: u32 = 2;
-
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Settings {
     /// Seeds the world, which seeds the engine and the parent.
@@ -362,14 +357,13 @@ impl World {
         let mut rng = Rng::new(settings.seed);
         let engine = Engine::new(settings.engine, settings.host, rng.next_u64());
         let parent = Parent::new(settings.parent, settings.host, rng.next_u64());
-        let max_out = host::max_out(&settings.host);
         let latencies = Rng::new(rng.next_u64());
         let mut world = World {
             now: Time::ZERO,
             rng: latencies,
             settings: *settings,
             host: host::Domain::new(&settings.host),
-            stage: Stage::new(settings.host, max_out, max_out + SPARE),
+            stage: Stage::uncapped(settings.host),
             engine,
             parent,
             wire: Schedule::new(),
