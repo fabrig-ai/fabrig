@@ -313,7 +313,7 @@ fn wait_for_dependency(world: &mut World, seed: u64, parent: (u64, u64), target:
     });
     world.observer.inbound(&world.store, now.as_nanos(), &mut event);
     root::step(&mut world.domain, &env, event);
-    let mut out = Queue::with_capacity(root::max_out(&limits));
+    let mut out = Queue::uncapped();
     root::release(&mut world.domain, &env, &mut out);
     let mut load = None;
     while let Some(output) = out.pop() {

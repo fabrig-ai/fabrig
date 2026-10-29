@@ -1,5 +1,5 @@
 use crate::{fixtures, net::Net};
-use jig_protocol_worker_link::{Component, Event, Limits, MAX_OUT_DOWN, Request};
+use jig_protocol_worker_link::{Component, Event, Limits, Request};
 use skein_fake_channel::ScriptedPeer;
 use skein_lib::{Duration, Queue, Rng, Time, Token};
 use std::collections::VecDeque;
@@ -53,7 +53,7 @@ impl World {
             component: Component::new(limits, fixtures::credential(), seed).expect("world limits"),
             limits: *limits,
             now: Time::ZERO,
-            out: Queue::with_capacity(MAX_OUT_DOWN),
+            out: Queue::uncapped(),
             pending: VecDeque::new(),
             net: None,
             connection: Token::new(0),
