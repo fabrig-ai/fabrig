@@ -21,6 +21,11 @@
 # suites are timed together. Slow periods only flag a test SLOW as it runs
 # (none terminates); each tree keeps its own.
 
+# CPU contention inflates real-loop work without runnable wait, which
+# skein/docs/foundation/testing-strategy.md 2.10's starvation rule cannot see.
+[test-groups]
+temper-real-loop = { max-threads = 2 }
+
 [profile.default]
 default-filter = """
 (
@@ -45,6 +50,10 @@ default-filter = """
 """
 global-timeout = "120s"
 slow-timeout = { period = "6s" }
+
+[[profile.default.overrides]]
+filter = "package(=temper-real-loop-world) & kind(test)"
+test-group = "temper-real-loop"
 
 # jig's slow period was one second; the other trees' six.
 [[profile.default.overrides]]
@@ -83,6 +92,10 @@ default-filter = """
 """
 global-timeout = "480s"
 slow-timeout = { period = "40s" }
+
+[[profile.fuzzy.overrides]]
+filter = "package(=temper-real-loop-world) & kind(test)"
+test-group = "temper-real-loop"
 
 # jig's slow period was ten seconds; the other trees' forty.
 [[profile.fuzzy.overrides]]

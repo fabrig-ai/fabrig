@@ -56,7 +56,7 @@ fn the_store_version_is_ten() {
 #[test]
 fn demo_row_sizes_fit_the_existing_application_ceiling() {
     use crate::v10 as w;
-    assert_eq!(w::Demo::worst_case_bytes(&w::CEILINGS), Some(3));
+    assert_eq!(w::Demo::encoded_bound(&w::CEILINGS), Some(3));
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
     for state in [forge::DemoState::Running, forge::DemoState::Ended] {
         let row = forge::Stored::Demo(forge::Demo { forge: u16::MAX, state });
@@ -79,16 +79,16 @@ fn plan_text_uses_the_body_bound_without_changing_the_format() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
     let after = *bounds.limits();
     let before = crate::v10::Limits { plan_item_text: fixtures::LIMITS.issue_policy.comment_bytes, ..after };
-    let old_view = crate::v10::GoalView::worst_case_bytes(&before).expect("old view size");
-    let new_view = crate::v10::GoalView::worst_case_bytes(&after).expect("new view size");
+    let old_view = crate::v10::GoalView::encoded_bound(&before).expect("old view size");
+    let new_view = crate::v10::GoalView::encoded_bound(&after).expect("new view size");
     assert_eq!(new_view - old_view, EXTRA_PLAN_BYTES);
     // The schema's fixed framing plus the measured view; ChangeRow still dominates Row.
     assert_eq!(old_view, 5238);
     assert_eq!(new_view, 7286);
-    assert_eq!(crate::v10::IssueRow::worst_case_bytes(&before), Some(5657));
-    assert_eq!(crate::v10::IssueRow::worst_case_bytes(&after), Some(7705));
-    assert!(crate::v10::IssueRow::worst_case_heap(&before).unwrap() <= ISSUE_ROW_BEFORE_HEAP_CEILING);
-    assert!(crate::v10::IssueRow::worst_case_heap(&after).unwrap() <= ISSUE_ROW_AFTER_HEAP_CEILING);
-    assert_eq!(crate::v10::Row::worst_case_bytes(&before), Some(52_975));
-    assert_eq!(crate::v10::Row::worst_case_bytes(&after), Some(52_975));
+    assert_eq!(crate::v10::IssueRow::encoded_bound(&before), Some(5657));
+    assert_eq!(crate::v10::IssueRow::encoded_bound(&after), Some(7705));
+    assert!(crate::v10::IssueRow::decoded_bound(&before).unwrap() <= ISSUE_ROW_BEFORE_HEAP_CEILING);
+    assert!(crate::v10::IssueRow::decoded_bound(&after).unwrap() <= ISSUE_ROW_AFTER_HEAP_CEILING);
+    assert_eq!(crate::v10::Row::encoded_bound(&before), Some(52_975));
+    assert_eq!(crate::v10::Row::encoded_bound(&after), Some(52_975));
 }

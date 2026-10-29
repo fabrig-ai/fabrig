@@ -247,7 +247,7 @@ fn carried_start_messages_cross_the_wire_in_order_and_an_overfull_start_is_refus
         limits.run.messages = 2;
         let mut domain = agent::Domain::new(&limits, configuration(), 7);
         let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-        let mut out = Queue::with_capacity(agent::max_out(&limits));
+        let mut out = Queue::uncapped();
         while domain.pop_fact().is_some() {}
         agent::step(
             &mut domain,
@@ -353,7 +353,7 @@ fn an_empty_start_waits_without_a_fence_and_the_first_wire_message_opens_main() 
     let limits = smith_agent_world::LIMITS;
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let mut domain = agent::Domain::new(&limits, configuration(), 7);
-    let mut out = Queue::with_capacity(agent::max_out(&limits));
+    let mut out = Queue::uncapped();
     while domain.pop_fact().is_some() {}
     agent::step(
         &mut domain,
@@ -461,7 +461,7 @@ fn composed_start() -> Composed {
     let decoded = wire.take_agent_start().expect("translated Start reached agent side");
     let mut domain = agent::Domain::new(&limits, configuration(), 7);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let mut out = Queue::with_capacity(agent::max_out(&limits));
+    let mut out = Queue::uncapped();
     while domain.pop_fact().is_some() {}
     agent::step(
         &mut domain,

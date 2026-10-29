@@ -1,15 +1,15 @@
-//! The server's and the event writer's worst cases against the counting
+//! The server's scenario ceilings and the event writer's frame bound against the counting
 //! allocator (http.md, 5.6 and 4.4; programming-model.md, 6.3): every call
 //! of an entry point a step of the meter, and what the machine held of its
-//! own never more than its `worst_case`.
+//! own never more than the scenario's ceiling or the frame bound.
 //!
 //! The connection owns the stream below and its buffer before the meter.
 //! Its uncapped output queues leave with each step's emitted values. An input
 //! moved into a step was counted by whoever made it (testing.md, 5). Each delivery is made between steps, by
-//! the stream below, to the machine's demand: the machine's worst case
+//! the stream below, to the machine's demand: the scenario's ceiling
 //! covers it. A response, a piece of the response body, and an event or a
 //! comment to write are the side above's, which made them: the step that
-//! takes one is checked against the worst case and the input's own size.
+//! takes one is checked against the ceiling or frame bound and the input's own size.
 //! What a step emits is handed out: dropped before the check, as the next
 //! step's input.
 
@@ -56,11 +56,17 @@ struct Script<'a> {
 
 /// The steps of one request, each checked: the most the server held of its
 /// own in a step, less the input it was given.
-fn serve(limits: Limits, request: &[u8], script: Script<'_>, interrupt: Interrupt) -> u64 {
-    serve_observed(limits, request, script, interrupt).0
+fn serve(limits: Limits, request: &[u8], script: Script<'_>, interrupt: Interrupt, ceiling: u64) -> u64 {
+    serve_observed(limits, request, script, interrupt, ceiling).0
 }
 
-fn serve_observed(limits: Limits, request: &[u8], script: Script<'_>, interrupt: Interrupt) -> (u64, Flags) {
+fn serve_observed(
+    limits: Limits,
+    request: &[u8],
+    script: Script<'_>,
+    interrupt: Interrupt,
+    ceiling: u64,
+) -> (u64, Flags) {
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let mut above = Queue::uncapped();
     let mut below = Queue::uncapped();
@@ -68,12 +74,11 @@ fn serve_observed(limits: Limits, request: &[u8], script: Script<'_>, interrupt:
     let mut intake = Intake::with_capacity(cap);
     intake.append(request).expect("the stream holds it");
     let what = format!("{limits:?} {interrupt:?} {script:?} reading {}", request.escape_ascii());
-    let bound = server::worst_case(&limits).expect("the limits are honoured");
 
     let meter = Meter::new();
     meter.start();
     let mut server = Server::new(&limits);
-    let mut most = meter.check(meter.end(), bound, &what);
+    let mut most = meter.check(meter.end(), ceiling, &what);
     let mut flags = Flags::default();
     meter.start();
     server::down(&mut server, &env, Request::Next, &mut above, &mut below);
@@ -82,7 +87,7 @@ fn serve_observed(limits: Limits, request: &[u8], script: Script<'_>, interrupt:
     // Caller-owned handoff storage leaves the machine-only measurement.
     drop(core::mem::replace(&mut above, Queue::uncapped()));
     drop(core::mem::replace(&mut below, Queue::uncapped()));
-    most = most.max(meter.check(step, bound, &what));
+    most = most.max(meter.check(step, ceiling, &what));
 
     for steps in 1..100_000 {
         if flags.closed {
@@ -107,7 +112,7 @@ fn serve_observed(limits: Limits, request: &[u8], script: Script<'_>, interrupt:
         // Caller-owned handoff storage leaves the machine-only measurement.
         drop(core::mem::replace(&mut above, Queue::uncapped()));
         drop(core::mem::replace(&mut below, Queue::uncapped()));
-        most = most.max(meter.check(step, bound + input_size, &what).saturating_sub(input_size));
+        most = most.max(meter.check(step, ceiling + input_size, &what).saturating_sub(input_size));
     }
     panic!("{what}: a request is served in a few steps a byte");
 }
@@ -321,7 +326,10 @@ fn head_len(response: &Response) -> usize {
 }
 
 #[test]
-fn every_entry_point_of_the_server_holds_no_more_than_its_worst_case_at_its_limits() {
+fn server_entry_points_stay_under_the_memory_ceiling() {
+    // Server peak across full heads, body framings, replies and interruptions.
+    const CEILING: u64 = 1_500;
+    let mut peak = 0;
     let body: Vec<u8> = (0..400).map(|n| b'a' + u8::try_from(n % 26).unwrap()).collect();
     let mut by_length =
         full_head(&LIMITS, b"POST /x HTTP/1.1\r\n", format!("Content-Length: {}\r\n", body.len()).as_bytes());
@@ -363,21 +371,25 @@ fn every_entry_point_of_the_server_holds_no_more_than_its_worst_case_at_its_limi
         for read in [Read::Fill(LIMITS.read), Read::Fill(1), Read::Scan { until: Delimiter::LF, max: LIMITS.read }] {
             for first in [false, true] {
                 let script = Script { response, reply, read, first };
-                let most = serve(LIMITS, request, script, Interrupt::Nothing);
+                let most = serve(LIMITS, request, script, Interrupt::Nothing, CEILING);
+                peak = peak.max(most);
                 assert!(most > 0, "{what}");
             }
         }
         let script = Script { response, reply, read: Read::Fill(LIMITS.read), first: false };
         for at in 0..60 {
-            let _ = serve(LIMITS, request, script, Interrupt::Close(at));
-            let _ = serve(LIMITS, request, script, Interrupt::Fail(at));
-            let _ = serve(LIMITS, request, script, Interrupt::Discard(at));
+            peak = peak.max(serve(LIMITS, request, script, Interrupt::Close(at), CEILING));
+            peak = peak.max(serve(LIMITS, request, script, Interrupt::Fail(at), CEILING));
+            peak = peak.max(serve(LIMITS, request, script, Interrupt::Discard(at), CEILING));
         }
     }
+    assert!(peak <= CEILING, "server peak: {peak}");
 }
 
 #[test]
-fn the_server_filled_to_its_head_limits_stays_within_its_worst_case() {
+fn full_request_and_response_heads_stay_under_the_memory_ceiling() {
+    // Server peak with a full request line or a full response head and body delivery.
+    const CEILING: u64 = 3_900;
     // Reading a head, the larger phase under these limits: a request line
     // filling the head, ended by an LF alone, and its target's copy.
     let mut line = b"GET /".to_vec();
@@ -385,7 +397,8 @@ fn the_server_filled_to_its_head_limits_stays_within_its_worst_case() {
     line.extend_from_slice(b" HTTP/1.1\n");
     let response = Response { status: 204, headers: Box::new([]), body: Body::None, close: false };
     let script = Script { response: &response, reply: b"", read: Read::Fill(LIMITS.read), first: false };
-    let (_, observed) = serve_observed(LIMITS, &line, script, Interrupt::Nothing);
+    let (peak, observed) = serve_observed(LIMITS, &line, script, Interrupt::Nothing, CEILING);
+    assert!(peak <= CEILING, "request-head peak: {peak}");
     assert_eq!(line.len(), usize::try_from(LIMITS.head).unwrap());
     assert_eq!(observed.largest_delivery, usize::try_from(LIMITS.head).unwrap());
     // An exchange, the larger phase under these: a response head at its
@@ -399,7 +412,8 @@ fn the_server_filled_to_its_head_limits_stays_within_its_worst_case() {
     let value = vec![b'v'; usize::try_from(limits.response).unwrap() - kept - "X: \r\n".len()];
     response.headers = Box::new([Header { name: b"X".to_vec().into(), value: value.into() }]);
     let script = Script { response: &response, reply: b"", read: Read::Fill(limits.read), first: false };
-    let (_, observed) = serve_observed(limits, &request, script, Interrupt::Discard(0));
+    let (peak, observed) = serve_observed(limits, &request, script, Interrupt::Discard(0), CEILING);
+    assert!(peak <= CEILING, "response-head peak: {peak}");
     assert_eq!(observed.largest_send, usize::try_from(limits.response).unwrap());
     assert_eq!(
         head_len(&response) - "Connection: close\r\n".len(),
@@ -409,6 +423,8 @@ fn the_server_filled_to_its_head_limits_stays_within_its_worst_case() {
 
 #[test]
 fn the_server_s_head_its_carry_over_and_a_delivery_count_together() {
+    // Server peak while carry-over and the next delivery coexist.
+    const CEILING: u64 = 240;
     // The intake full but for a byte, and a delivery that fills it: the
     // carry-over and the delivery are held at once.
     let mut request = b"POST / HTTP/1.1\r\nHost: h\r\nTransfer-Encoding: chunked\r\n\r\n".to_vec();
@@ -416,7 +432,8 @@ fn the_server_s_head_its_carry_over_and_a_delivery_count_together() {
     request.extend_from_slice(b"1\r\nc\r\n0\r\n\r\n");
     let response = Response { status: 204, headers: Box::new([]), body: Body::None, close: false };
     let script = Script { response: &response, reply: b"", read: Read::Fill(LIMITS.read), first: false };
-    let most = serve(LIMITS, &request, script, Interrupt::Nothing);
+    let most = serve(LIMITS, &request, script, Interrupt::Nothing, CEILING);
+    assert!(most <= CEILING, "server peak: {most}");
     assert!(most > u64::from(LIMITS.read) + 95, "the intake and the delivery at once: {most}");
 }
 
@@ -495,7 +512,7 @@ fn written_observed(limits: writer::Limits, items: &[Outgoing], close: Option<u3
 }
 
 #[test]
-fn the_writer_at_its_event_limit_stays_within_its_worst_case() {
+fn the_writer_at_its_event_limit_stays_within_its_frame_bound() {
     let limits = writer::Limits { event: 300, chunk: 32 };
     // `event: `, the type, `id: `, the id, `data: ` and the data, each with an
     // LF, and the blank line: 300 bytes.

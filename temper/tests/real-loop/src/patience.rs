@@ -241,7 +241,7 @@ mod tests {
     }
     impl Referee<Frozen> for Judge {
         fn act(&mut self, now: Time, procs: &mut [Frozen]) {
-            if self.patience.due() {
+            if procs[0].service.pending_streak.passes() != 0 && self.patience.figures.is_some() {
                 let frozen = &procs[0];
                 let mut report = String::new();
                 header(0, "service", &frozen.service, frozen.service.pending_streak.passes(), now, &mut report);
@@ -273,7 +273,19 @@ mod tests {
         assert!(prepared.work_pending(Time::ZERO));
         service.service = Some(prepared);
         let patience = Duration::from_nanos(1_010_000_000);
-        let mut world = World::new(Judge { patience: Patience::new(patience) });
+        let mut guard = Patience::new(patience);
+        // Decide the failure before the loop starts; the starvation verdict has
+        // its own tests. Act reports it after the frozen service has stayed busy.
+        let figures = Figures {
+            what: "the temper judge's verdict",
+            patience: guard.after,
+            elapsed: guard.after,
+            thread_waited: None,
+            thread_cpu: None,
+            tree_waited: None,
+        };
+        assert!(guard.handle(verdict(Expired::Failed(figures))));
+        let mut world = World::new(Judge { patience: guard });
         world.spawn(|| Frozen { service, completions: Queue::with_capacity(1), submissions: Queue::with_capacity(1) });
         let error = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             let _outcome = world.run(&skein_shell::Clock::new(), patience);

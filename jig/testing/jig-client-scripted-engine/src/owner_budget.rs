@@ -43,11 +43,11 @@ pub fn ledger_fits(value: &PoolLedger, bounds: &Bounds) -> bool {
 }
 /// Fixed whole budget footprint: its Funder has only inline scalar fields.
 #[must_use]
-pub fn budget_worst_case() -> Option<u64> {
+pub fn budget_heap_bound() -> Option<u64> {
     u64::try_from(size_of::<OwnerBudget>()).ok()
 }
 /// Fixed whole ledger footprint: both source identities have only inline fields.
 #[must_use]
-pub fn ledger_worst_case() -> Option<u64> {
+pub fn ledger_heap_bound() -> Option<u64> {
     u64::try_from(size_of::<PoolLedger>()).ok()
 }

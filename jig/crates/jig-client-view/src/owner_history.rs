@@ -135,13 +135,13 @@ pub fn required(value: &OwnerHistoryLine, limits: &Limits, words: &Words) -> Opt
     if let Some(proposal) = &value.proposal {
         proposal_fits(proposal, limits)?;
     }
-    worst_case(limits, words)
+    fragment_bound(limits, words)
 }
 /// Validate a retained proposal without requiring a surrounding history line.
 #[must_use]
 pub fn proposal_required(proposal: &OwnerProposalHistory, limits: &Limits, words: &Words) -> Option<HistoryFragment> {
     proposal_fits(proposal, limits)?;
-    proposal_worst_case(limits, words)
+    proposal_fragment_bound(limits, words)
 }
 /// Conservative retained-proposal bound, including the whole history envelope's spare allowance.
 #[must_use]
@@ -150,8 +150,8 @@ pub fn proposal_max_nodes(limits: &Limits) -> Option<u32> {
 }
 /// Conservative whole-history storage envelope for the passive proposal subset.
 #[must_use]
-pub fn proposal_worst_case(limits: &Limits, words: &Words) -> Option<HistoryFragment> {
-    worst_case(limits, words)
+pub fn proposal_fragment_bound(limits: &Limits, words: &Words) -> Option<HistoryFragment> {
+    fragment_bound(limits, words)
 }
 /// Finite whole-node envelope reused by bounded history pages.
 #[must_use]
@@ -170,7 +170,7 @@ pub fn max_nodes(limits: &Limits) -> Option<u32> {
 }
 /// Finite nested envelope; raw reference bindings never acquire an application scope.
 #[must_use]
-pub fn worst_case(limits: &Limits, words: &Words) -> Option<HistoryFragment> {
+pub fn fragment_bound(limits: &Limits, words: &Words) -> Option<HistoryFragment> {
     let nodes = max_nodes(limits)?;
     let phrase = words.jig_capacity()?;
     let text_per_node = crate::literal_segment::max_bytes(limits.text)?.max(phrase).checked_mul(2)?;

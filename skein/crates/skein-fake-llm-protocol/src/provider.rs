@@ -994,13 +994,6 @@ pub fn head_bytes(headers: &[Header]) -> Option<u64> {
     Some(bytes)
 }
 
-/// The old name of [`head_bound`]; it goes once every tree
-/// calls the new name (wave 3).
-#[must_use]
-pub fn head_worst_case(limits: &Limits) -> Option<u64> {
-    head_bound(limits)
-}
-
 /// Bounds one HTTP request head.
 /// Checked maximum ownership of one admitted HTTP request head.
 #[must_use]

@@ -49,7 +49,7 @@ pub(crate) fn max_nodes_with_card(l: &Limits, card: u32) -> Option<u32> {
 }
 /// Checked envelope across all loaded sayings and full-width opaque source values.
 #[must_use]
-pub fn worst_case(l: &Limits, words: &Words) -> Option<TreeFragment> {
+pub fn fragment_bound(l: &Limits, words: &Words) -> Option<TreeFragment> {
     let nodes = max_nodes(l)?;
     let phrase = words.jig_capacity()?;
     let text_per_node = phrase.max(crate::literal_segment::max_bytes(l.text)?).checked_mul(2)?;
@@ -88,7 +88,7 @@ pub fn required(value: &OwnerTree, l: &Limits, words: &Words) -> Option<TreeFrag
             return None;
         }
     }
-    worst_case(l, words)
+    fragment_bound(l, words)
 }
 fn chip_fits(chip: &Chip, limits: &Limits, words: &Words) -> Option<()> {
     if !chip.title.bytes.fits(limits.text) {

@@ -395,7 +395,7 @@ impl World {
                 .ended_by,
             root: engine::Domain::new(config, &limits).expect("valid engine configuration"),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
-            root_out: Queue::with_capacity(engine::max_out(&limits)),
+            root_out: Queue::uncapped(),
             root_events: VecDeque::from([engine::Event::Restart { pending: false }]),
             store,
             party: parties::Party::new(
@@ -589,7 +589,9 @@ impl World {
         // One process notice crosses its channel, the worker root and link;
         // allow the peer driver's 1,000 settling steps at each boundary.
         const WORKER_NOTICE_STEPS: u32 = 3 * 1_000;
-        BOUNDARIES * (WORKER_NOTICE_STEPS + engine::max_out(&self.env.limits))
+        // Steps for one complete root output cohort queued ahead of the notice at a boundary.
+        const ROOT_COHORT_STEPS: u32 = 22;
+        BOUNDARIES * (WORKER_NOTICE_STEPS + ROOT_COHORT_STEPS)
     }
 
     /// Wait until the process receives the first Smith host operation.

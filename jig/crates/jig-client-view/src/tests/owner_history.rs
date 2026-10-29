@@ -525,7 +525,7 @@ fn owner_history_whole_view_admission_checks_nested_reserved_capacities_and_text
     let reserved =
         OwnerHistoryLine { proposal: Some(proposal(OwnerRetainedAction::Batch(List::with_capacity(4)))), ..line() };
     assert!(view::required(&reserved, &client_limits(), words).is_none());
-    assert_eq!(view::worst_case(&crate::Limits { rows: u32::MAX, text: u32::MAX, ..client_limits() }, words), None);
+    assert_eq!(view::fragment_bound(&crate::Limits { rows: u32::MAX, text: u32::MAX, ..client_limits() }, words), None);
 }
 #[test]
 fn owner_history_normal_selected_language_checks_all_holes_and_nested_tree_binding_envelope() {

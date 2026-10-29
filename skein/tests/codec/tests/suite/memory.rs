@@ -1,4 +1,4 @@
-//! A decoded value at every ceiling stays within its declared heap worst case
+//! A decoded value at every ceiling stays within its declared heap bound
 //! (codec.md, sections 4 and 6; testing-strategy.md, section 6).
 
 #[cfg(test)]
@@ -31,7 +31,7 @@ mod tests {
     }
 
     #[test]
-    fn full_record_decoder_at_its_limits_stays_within_heap_worst_case() {
+    fn full_record_decoder_at_its_limits_stays_within_decoded_bound() {
         let value = full_report();
         assert_eq!(
             value.measure(),
@@ -197,7 +197,7 @@ mod tests {
         meter.start();
         let mut value = Value::with_room(ROOM);
         let measured = meter.end();
-        let bound = Value::worst_case_heap(ROOM).expect("heap bound");
+        let bound = Value::decoder_bound(ROOM).expect("heap bound");
         assert_eq!(measured.peak(), 0, "empty room allocates nothing");
         assert_eq!(measured.held(), 0, "empty room holds nothing");
 
@@ -330,13 +330,13 @@ mod patch_memory {
 
     #[test]
     fn patcher_stays_within_its_heap_bound_after_every_call() {
-        small_records(CAPACITY, Patcher::worst_case_heap(CAPACITY).expect("bound"), false);
+        small_records(CAPACITY, Patcher::workspace_bound(CAPACITY).expect("bound"), false);
     }
 
     #[test]
     fn large_ceilings_keep_small_records_near_their_own_price() {
         let small = Capacity { nodes: CAPACITY.nodes, bytes: CAPACITY.bytes, ..LARGE };
-        small_records(LARGE, Patcher::worst_case_heap(small).expect("small bound") + FLOOR, true);
+        small_records(LARGE, Patcher::workspace_bound(small).expect("small bound") + FLOOR, true);
     }
 
     fn list_wire(items: u32, version: u16) -> Box<[u8]> {
@@ -374,7 +374,7 @@ mod patch_memory {
     }
 
     fn ceiling_story(capacity: Capacity, items: u32, refusal: skein_codec::patch::Halt) {
-        let bound = Patcher::worst_case_heap(capacity).expect("bound");
+        let bound = Patcher::workspace_bound(capacity).expect("bound");
         let meter = Meter::new();
         let (mut patcher, plan, mut peak) = setup(&meter, capacity, bound, LIST_OLD, LIST_NEW, LIST_PATCH);
         for &length in RISING {

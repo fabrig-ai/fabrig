@@ -30,12 +30,6 @@ pub enum Event {
     Write(Box<[u8]>),
 }
 
-/// Maximum output cells emitted by one entry point.
-#[must_use]
-pub const fn max_out() -> u32 {
-    1
-}
-
 /// Whether the terminal's line and notice edges are nonzero.
 #[must_use]
 pub fn valid(limits: &Limits) -> bool {
@@ -357,7 +351,7 @@ mod tests {
 
     fn rendered(notice: local::Notice) -> Box<[u8]> {
         let terminal = Terminal::new(Limits { line_bytes: 32, show_bytes: 128 }).expect("valid terminal");
-        let mut out = Queue::with_capacity(max_out());
+        let mut out = Queue::uncapped();
         terminal.notice(&notice, b"main", &[], &mut out);
         let Some(Event::Write(text)) = out.pop() else { panic!("one notice written") };
         assert!(out.is_empty());
@@ -508,7 +502,7 @@ mod tests {
     #[test]
     fn a_capped_store_notice_ends_on_a_character_boundary_with_a_newline() {
         let terminal = Terminal::new(Limits { line_bytes: 32, show_bytes: 37 }).expect("valid terminal");
-        let mut out = Queue::with_capacity(max_out());
+        let mut out = Queue::uncapped();
         terminal.notice(
             &local::Notice::Failure(local::Failure::Store { turn: Some(1), reason: local::StoreFailure::Write }),
             "éé".as_bytes(),
@@ -522,7 +516,7 @@ mod tests {
     #[test]
     fn a_line_and_its_continuation_are_one_message() {
         let mut terminal = terminal();
-        let mut out = Queue::with_capacity(max_out());
+        let mut out = Queue::uncapped();
         for byte in b"hello\\\nworld\n" {
             terminal.feed(*byte, &mut out);
         }
@@ -539,7 +533,7 @@ mod tests {
     #[test]
     fn a_second_interrupt_drops_the_selected_child() {
         let mut terminal = terminal();
-        let mut out = Queue::with_capacity(max_out());
+        let mut out = Queue::uncapped();
         terminal.interrupt(&mut out);
         match out.pop().expect("first interrupt") {
             Event::Domain(event) => {
@@ -565,7 +559,7 @@ mod tests {
     #[test]
     fn an_overlong_line_is_discarded_until_newline() {
         let mut terminal = Terminal::new(Limits { line_bytes: 3, show_bytes: 32 }).expect("valid terminal");
-        let mut out = Queue::with_capacity(max_out());
+        let mut out = Queue::uncapped();
         for byte in b"abcd\n" {
             terminal.feed(*byte, &mut out);
         }

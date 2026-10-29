@@ -27,7 +27,7 @@ fn every_exact_budget_funder_and_deadline_prices_as_one_inline_value() {
             assert_eq!(meter.held(), 0, "every source and optional deadline is inline");
             let bytes = u64::try_from(core::mem::size_of::<OwnerBudget>()).expect("size");
             assert_eq!(price::bytes(&value, &bounds()), Some(bytes));
-            assert_eq!(price::budget_worst_case(), Some(bytes));
+            assert_eq!(price::budget_heap_bound(), Some(bytes));
             let mut exact = bounds();
             exact.document_bytes = bytes;
             assert!(price::fits(&value, &exact));
@@ -51,7 +51,7 @@ fn ledger_parent_state_and_period_options_survive_whole_value_pricing() {
                         assert_eq!(meter.held(), 0, "all ledger fields remain inline");
                         let bytes = u64::try_from(core::mem::size_of::<PoolLedger>()).expect("size");
                         assert_eq!(price::ledger_bytes(&value, &bounds()), Some(bytes));
-                        assert_eq!(price::ledger_worst_case(), Some(bytes));
+                        assert_eq!(price::ledger_heap_bound(), Some(bytes));
                         let mut exact = bounds();
                         exact.document_bytes = bytes;
                         assert!(price::ledger_fits(&value, &exact));
@@ -101,9 +101,9 @@ fn maximal_budget_and_ledger_fragments_fit_the_tree_envelope() {
     };
     for is_ledger in [false, true] {
         let envelope = if is_ledger {
-            view::ledger_worst_case(words.words()).expect("ledger envelope")
+            view::ledger_fragment_bound(words.words()).expect("ledger envelope")
         } else {
-            view::worst_case(words.words()).expect("budget envelope")
+            view::fragment_bound(words.words()).expect("budget envelope")
         };
         let required = if is_ledger {
             view::ledger_required(&ledger, words.words()).expect("ledger fits")

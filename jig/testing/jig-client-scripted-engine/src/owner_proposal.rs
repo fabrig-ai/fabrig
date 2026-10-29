@@ -61,7 +61,7 @@ pub fn fits(value: &OwnerProposal, bounds: &Bounds) -> bool {
 }
 /// Finite receiving byte ceiling, including all recursively supplied lower values.
 #[must_use]
-pub fn worst_case(bounds: &Bounds) -> Option<u64> {
+pub fn heap_bound(bounds: &Bounds) -> Option<u64> {
     if bounds.document_bytes < u64::try_from(size_of::<OwnerProposal>()).ok()? {
         None
     } else {

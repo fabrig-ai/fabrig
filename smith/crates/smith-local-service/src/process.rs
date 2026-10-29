@@ -855,7 +855,7 @@ impl ProcessAdapter {
         let now = env.now;
         self.markers_up(now, local_events);
         for _ in 0..self.limits.queue {
-            if terminal_events.room() < local_protocol::terminal_max_out() || self.shell_events.room() == 0 {
+            if self.shell_events.room() == 0 {
                 break;
             }
             let Some(event) = self.io_events.pop() else { break };
@@ -1685,7 +1685,7 @@ mod tests {
         })
         .expect("fixture terminal");
         let mut host_events = Queue::with_capacity(ROUTING_QUEUE);
-        let mut terminal_events = Queue::with_capacity(ROUTING_QUEUE);
+        let mut terminal_events = Queue::uncapped();
         let mut local_events = Queue::with_capacity(ROUTING_QUEUE);
         for remaining in [1, 0] {
             adapter.up(&env, &mut host_events, &mut terminal, &mut terminal_events, &mut local_events, &mut None);

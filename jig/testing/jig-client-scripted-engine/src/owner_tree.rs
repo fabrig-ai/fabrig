@@ -34,7 +34,7 @@ pub fn fits(value: &OwnerTree, bounds: &Bounds) -> bool {
 }
 /// Finite admitted ceiling; nested chip results share the document byte bound.
 #[must_use]
-pub fn worst_case(bounds: &Bounds) -> Option<u64> {
+pub fn heap_bound(bounds: &Bounds) -> Option<u64> {
     if bounds.document_bytes < u64::try_from(size_of::<OwnerTree>()).ok()? { None } else { Some(bounds.document_bytes) }
 }
 #[cfg(test)]

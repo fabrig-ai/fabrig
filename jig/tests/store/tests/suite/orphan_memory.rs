@@ -3,10 +3,11 @@
 use jig_store_world::World;
 use skein_heap::Meter;
 
-// Measured 173,330 bytes, including the world's simulator and file drivers;
-// about twice that peak, far below the old 481,877,984-byte orphan estimate
+// Measured 76,250 bytes, including the world's simulator and file drivers;
+// a quarter above that peak, rounded up to two significant digits, replaces
+// the old 481,877,984-byte orphan estimate
 // (32 bytes * (268,435,456 / 18 + (3 + 1 + 3) * 20,801) tasks).
-const OPEN_HEAP: u64 = 352 * 1024;
+const OPEN_HEAP: u64 = 96_000;
 
 #[test]
 fn opening_a_store_reserves_nothing_for_orphans() {

@@ -301,3 +301,44 @@ fn every_service_start_keeps_the_shells_wires() {
         assert_eq!(kept.version(), expected.version);
     }
 }
+
+#[test]
+fn stalled_file_publication_keeps_targets_and_cancels_within_operation_credit() {
+    use skein_lib::{Queue, Wall};
+    // Three file drivers can each retain a target and its cancellation.
+    const OPERATIONS: u32 = 6;
+    let mut store = fixtures::memory_store();
+    store.submitted = Queue::with_capacity(OPERATIONS);
+    store.adopt(Fd::new(10), 1000).unwrap();
+    store.iterate();
+    assert_eq!(store.submitted.len(), 2, "both directory opens wait for publication");
+    let due = store.next_deadline().expect("file requests have deadlines");
+    store.clock(due, Wall::EPOCH);
+    store.iterate();
+    assert_eq!(store.submitted.len(), 4, "each stalled open has one cancellation");
+    store.iterate();
+    assert_eq!(store.submitted.len(), 4, "the next pass adds no duplicate cancellation");
+    let openings = [store.submitted.pop().unwrap(), store.submitted.pop().unwrap()];
+    let mut cancels = [store.submitted.pop().unwrap(), store.submitted.pop().unwrap()].into_iter();
+    for (index, submit) in openings.into_iter().enumerate() {
+        let cancel = cancels.next().unwrap();
+        let Op::Cancel { target } = cancel.kind else { panic!("file cancellation") };
+        assert_eq!(target, submit.op, "cancellation follows its target in the same driver namespace");
+        // A late successful open needs a cleanup close while its cancel still waits.
+        store.complete(Complete {
+            op: submit.op,
+            kind: submit.kind,
+            result: Ok(Done::Fd(Fd::new(20 + i32::try_from(index).unwrap()))),
+        });
+        assert_eq!(store.submitted.len(), u32::try_from(index + 1).unwrap());
+        store.complete(Complete { op: cancel.op, kind: cancel.kind, result: Err(skein_io::kernel::Error::TooLate) });
+    }
+    assert_eq!(store.submitted.len(), 2, "cleanup successors fit the same operation credit");
+    for _ in 0..store.submitted.len() {
+        let submit = store.submitted.pop().unwrap();
+        let Op::Close { .. } = submit.kind else { panic!("timed-out opens close their returned descriptors") };
+        store.complete(Complete { op: submit.op, kind: submit.kind, result: Ok(Done::Nothing) });
+    }
+    store.iterate();
+    assert!(store.submitted.is_empty(), "cleanup leaves no kernel work");
+}

@@ -32,7 +32,7 @@ mod client_documents;
 mod client_marks;
 pub use client_documents::{
     ClientCursor, ClientDocument, ClientResource, ClientScope, ClientSubject, ClientWindow, DiagnosticAvailability,
-    DocumentMissing, document_worst_case,
+    DocumentMissing, document_bound,
 };
 pub mod application_core;
 pub use application::{

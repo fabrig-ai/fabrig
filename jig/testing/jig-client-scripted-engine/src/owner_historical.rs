@@ -92,7 +92,7 @@ pub fn fits(value: &OwnerHistorical, bounds: &Bounds) -> bool {
 /// Existing recursive Result/Chip facts are limited by whole document admission,
 /// not by an invented nesting-depth ceiling from rows and text alone.
 #[must_use]
-pub fn worst_case(bounds: &Bounds) -> Option<u64> {
+pub fn heap_bound(bounds: &Bounds) -> Option<u64> {
     if bounds.document_bytes < u64::try_from(size_of::<OwnerHistorical>()).ok()? {
         None
     } else {

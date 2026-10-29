@@ -7,14 +7,6 @@ pub fn settings(directory: &Path) -> serde_json::Value {
     })
 }
 
-pub fn configure(directory: &Path) {
-    let path = directory.join("agent.json");
-    let mut agent: serde_json::Value =
-        serde_json::from_slice(&fs::read(&path).expect("agent fixture")).expect("agent JSON");
-    agent["trace"] = settings(directory);
-    super::private(&path, &serde_json::to_vec(&agent).expect("traced agent JSON"));
-}
-
 pub fn check(directory: &Path, credential: Option<&[u8]>) {
     let bytes = fs::read(directory.join("agent-trace.jsonl")).expect("Smith provider trace");
     let mut prompts = 0;

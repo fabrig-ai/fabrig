@@ -291,7 +291,7 @@ fn configured_boundaries_and_unknown_content_kinds_are_checked() {
     assert_eq!(write(&record, &Capture::Everything, &limits), Err(Error::Text));
     let overflowing = Limits { string: u32::MAX, content: u32::MAX, items: u32::MAX };
     assert_eq!(smith_events::largest_record(&overflowing), None);
-    assert_eq!(smith_events::worst_case(&overflowing), None);
+    assert_eq!(smith_events::codec_bound(&overflowing), None);
     let (_, prompt, _) = fixtures::samples()
         .into_iter()
         .find(|(_, value, capture)| matches!(value.event, Event::ResponseStarted(_)) && *capture == Capture::Everything)

@@ -79,7 +79,7 @@ impl Driver {
             forge: None,
             root: engine::Domain::new(config, limits).expect("valid engine configuration"),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits },
-            out: Queue::with_capacity(engine::max_out(limits)),
+            out: Queue::uncapped(),
             events: VecDeque::from([engine::Event::Restart { pending: store.pending_generation }]),
             store,
             delivered: Vec::new(),

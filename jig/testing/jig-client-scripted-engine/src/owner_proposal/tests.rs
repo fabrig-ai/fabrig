@@ -95,7 +95,7 @@ fn base_bytes() -> u64 {
 #[test]
 fn owner_proposal_exact_whole_action_allocations_include_reserved_lists_boxes_and_opaque_bytes() {
     let bounds = Bounds { rows: 3, segments: 3, text: 8, document_bytes: u64::MAX, ..Bounds::default() };
-    let auth = crate::owner_authority::worst_case(&bounds).unwrap();
+    let auth = crate::owner_authority::heap_bound(&bounds).unwrap();
     assert!(auth > 0);
     let authority_heap = List::<OwnerGrant>::price(3).unwrap()
         + List::<OwnerAuthorityExecutor>::price(3).unwrap()
@@ -207,8 +207,8 @@ fn owner_proposal_reserved_empty_and_whole_nested_refusals_never_shorten_input_o
     assert_eq!(supplied, original);
     let too_many = proposal(OwnerProposalAction::Batch(List::with_capacity(4)));
     assert!(!fits(&too_many, &bounds));
-    assert_eq!(worst_case(&bounds), Some(u64::MAX));
-    assert_eq!(worst_case(&Bounds { document_bytes: 0, ..bounds }), None);
+    assert_eq!(heap_bound(&bounds), Some(u64::MAX));
+    assert_eq!(heap_bound(&Bounds { document_bytes: 0, ..bounds }), None);
 }
 #[test]
 fn owner_proposal_full_batch_members_price_every_nested_spec_contract_authority_dependency_and_resource() {

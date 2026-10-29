@@ -269,7 +269,7 @@ fn omitted_memory_uses_the_standard_process_declaration() {
 }
 
 #[test]
-fn a_declared_memory_below_the_old_worst_case_starts() {
+fn a_declared_memory_of_one_byte_starts() {
     let mut document = shaped_document();
     document["profile"]["declared"]["memory"] = 1.into();
     let configuration = from_value(document).expect("one declared byte is accepted");

@@ -27,8 +27,7 @@ fn full_scene(limits: &Limits) -> Scene {
     }
     scene
 }
-fn peak() -> (u64, u64) {
-    let bound = super::heap_bound(&LIMITS).expect("fixture capacities fit");
+fn peak() -> u64 {
     let meter = Meter::new();
     meter.start();
     let mut builder = Builder::new(&LIMITS);
@@ -63,12 +62,14 @@ fn peak() -> (u64, u64) {
     assert_eq!(scene_bytes, usize::try_from(LIMITS.scene_bytes).expect("scene budget"));
     assert!(!scene.refused());
     drop((words, scene, patches, view, builder));
-    (measured.peak(), bound)
+    measured.peak()
 }
 #[test]
-fn full_pages_at_their_node_and_text_limits_stay_within_the_worst_case() {
-    let (peak, bound) = peak();
-    assert!(peak <= bound, "full pages, diff, Markdown and scene: {peak} <= {bound}");
+fn full_pages_at_their_node_and_text_limits_stay_within_the_heap_ceiling() {
+    // Peak heap for full pages, diff, Markdown and scene, with 25% headroom.
+    const CEILING: u64 = 90_000;
+    let peak = peak();
+    assert!(peak <= CEILING, "full pages, diff, Markdown and scene: {peak} <= {CEILING}");
 }
 #[test]
 fn a_full_page_fills_its_node_text_and_style_limits() {

@@ -24,4 +24,4 @@ mod tests;
 pub use boundary::{Deadlines, Event, Lower, LowerEvent, Measures, Refusal, Request};
 pub use component::Component;
 pub use endpoint::{Endpoint, EndpointError, Transport};
-pub use limits::{Limits, valid, worst_case};
+pub use limits::{Limits, valid};

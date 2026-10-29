@@ -209,7 +209,7 @@ impl World {
         let mut world = World {
             domain: engine::Domain::new(config, &limits).expect("valid engine configuration"),
             environment: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
-            out: Queue::with_capacity(engine::max_out(&limits)),
+            out: Queue::uncapped(),
             events: VecDeque::new(),
             sessions: [None, None],
             people: [None, None],
@@ -485,7 +485,7 @@ impl World {
         self.domain = engine::Domain::new(config(self.settings.seed), &self.environment.limits)
             .expect("valid engine configuration");
         self.events.clear();
-        self.out = Queue::with_capacity(engine::max_out(&self.environment.limits));
+        self.out = Queue::uncapped();
         self.frozen_cut = None;
         self.recovery = Recovery::Pending;
         self.restarts += 1;
@@ -610,7 +610,6 @@ impl World {
     }
 
     fn observe(&mut self) {
-        assert!(self.out.len() <= engine::max_out(&self.environment.limits), "declared root output room");
         while let Some(request) = self.out.pop() {
             self.trace.push(format!("output {request:?}"));
             let request = match self.protocol.play(request) {

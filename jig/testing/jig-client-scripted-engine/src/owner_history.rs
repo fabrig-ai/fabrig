@@ -69,10 +69,10 @@ pub fn fits(value: &OwnerHistoryLine, bounds: &Bounds) -> bool {
 }
 /// Finite maximum across all retained actions, states and two stored snapshots.
 #[must_use]
-pub fn worst_case(bounds: &Bounds) -> Option<u64> {
+pub fn heap_bound(bounds: &Bounds) -> Option<u64> {
     let rows = u64::from(bounds.rows);
     let text = u64::from(bounds.text);
-    let authority = crate::owner_authority::worst_case(bounds)?
+    let authority = crate::owner_authority::heap_bound(bounds)?
         .checked_sub(u64::try_from(size_of::<OwnerAuthorityDocument>()).ok()?)?;
     let part = List::<Box<[u8]>>::price(bounds.segments)?.checked_add(u64::from(bounds.segments).checked_mul(text)?)?;
     let spec = List::<ParameterDocument>::price(bounds.rows)?
@@ -100,7 +100,7 @@ pub fn worst_case(bounds: &Bounds) -> Option<u64> {
         .ok()?
         .checked_add(action)?
         .checked_add(text.checked_mul(2)?)?
-        .checked_add(crate::owner_amendment::worst_case(bounds)?.checked_mul(2)?)
+        .checked_add(crate::owner_amendment::heap_bound(bounds)?.checked_mul(2)?)
 }
 #[cfg(test)]
 mod tests;

@@ -318,6 +318,10 @@ impl Facts {
         self.queue.pop()
     }
 
+    pub(crate) fn len(&self) -> u32 {
+        self.queue.len()
+    }
+
     pub(crate) fn now(&self) -> Time {
         self.now
     }

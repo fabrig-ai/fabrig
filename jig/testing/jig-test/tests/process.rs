@@ -1,4 +1,5 @@
 //! The shipped service and agent, killed and restarted over one durable store.
+#[expect(dead_code, reason = "only the live binary uses trace helpers")]
 mod support;
 use jig_client_protocol_world::native::Script;
 
@@ -21,15 +22,6 @@ fn a_killed_jig_test_finds_its_work_after_restart() {
     support::configuration(directory.path());
     assert_eq!(support::run(directory.path(), Script::answered_chat(b"Hello", support::ANSWER), Some(peer())), (1, 1));
     assert_eq!(support::run(directory.path(), Script::found_chat(support::ANSWER), None), (1, 0));
-}
-
-#[test]
-fn an_agent_trace_captures_content_without_the_grant_or_authorization_header() {
-    let directory = support::scratch();
-    support::configuration(directory.path());
-    support::trace::configure(directory.path());
-    assert_eq!(support::run(directory.path(), Script::answered_chat(b"Hello", support::ANSWER), Some(peer())), (1, 1));
-    support::trace::check(directory.path(), Some(b"token"));
 }
 
 #[path = "support/browser.rs"]
@@ -59,51 +51,3 @@ mod account_sign_in_visitor;
 
 #[path = "support/accounts.rs"]
 mod accounts;
-
-#[expect(dead_code, reason = "only the live binary uses the DNS-resolving configuration entry")]
-#[path = "support/live_sign_in.rs"]
-mod live_sign_in;
-
-/// The live sign-in story on fake peers: a person's plan signed in, used for an answer and signed out.
-#[test]
-fn a_person_signs_in_at_the_fake_issuer_and_the_live_story_answers_and_signs_out() {
-    let directory = support::scratch();
-    let peers = live_sign_in::Peers::Fake;
-    let clock = skein_shell::Clock::new();
-    let started = clock.now().now;
-    let limits = live_sign_in::configuration_at(directory.path(), "127.0.0.1:0", peers);
-    let outcome = live_sign_in::run(directory.path(), started, peers);
-    live_sign_in::check(directory.path(), &limits, outcome, peers);
-}
-
-/// A provider that refuses the plan's grant fails the live story at once, with the run's words.
-#[test]
-fn a_provider_refusing_the_plan_s_grant_fails_the_live_story_in_words() {
-    let directory = support::scratch();
-    let peers = live_sign_in::Peers::Refusing;
-    let clock = skein_shell::Clock::new();
-    let started = clock.now().now;
-    live_sign_in::configuration_at(directory.path(), "127.0.0.1:0", peers);
-    let failed = std::panic::catch_unwind(|| live_sign_in::run(directory.path(), started, peers))
-        .expect_err("a refused grant fails the live story");
-    let why = failed.downcast_ref::<String>().expect("the judge's words");
-    assert!(why.starts_with("live chat task=1 can't answer: "), "{why}");
-    assert!(why.contains("retry=Some(OwnerFailed { class: Run"), "{why}");
-    let trace = support::trace::failures(directory.path());
-    eprintln!("{trace}");
-    assert!(trace.contains(r#""class":"unauthorized""#) && trace.contains(r#""status":401"#), "{trace}");
-}
-
-#[path = "support/restarted_sign_in.rs"]
-mod restarted_sign_in;
-
-/// A person's sign-in outlives the binary killed and restarted, is refreshed at the issuer, and signs out.
-#[test]
-fn a_person_s_sign_in_outlives_a_restart_is_refreshed_at_the_issuer_and_signs_out() {
-    let directory = support::scratch();
-    let result = std::panic::catch_unwind(|| restarted_sign_in::run(directory.path()));
-    if let Err(failure) = result {
-        eprintln!("{}", support::trace::failures(directory.path()));
-        std::panic::resume_unwind(failure);
-    }
-}

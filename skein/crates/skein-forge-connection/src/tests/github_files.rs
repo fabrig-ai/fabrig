@@ -188,20 +188,22 @@ fn active_file_handoffs_drop_on_connection_loss_and_component_close() {
 }
 
 #[test]
-fn largest_github_compare_page_fits_one_slots_heap() {
-    measure_files_page(true);
+fn largest_github_compare_page_stays_under_the_ceiling() {
+    // A full Compare page after warming the connection.
+    const CEILING: u64 = 18_000;
+    measure_files_page(true, CEILING);
 }
 
 #[test]
-fn largest_github_pull_files_page_fits_one_slots_heap() {
-    measure_files_page(false);
+fn largest_github_pull_files_page_stays_under_the_ceiling() {
+    // A full PullFiles page after warming the connection.
+    const CEILING: u64 = 19_000;
+    measure_files_page(false, CEILING);
 }
 
 #[expect(clippy::print_stdout, clippy::disallowed_macros, reason = "report measured call peaks for the heap ledger")]
-fn measure_files_page(comparison: bool) {
-    let l = f::limits();
+fn measure_files_page(comparison: bool, ceiling: u64) {
     let shared = f::shared();
-    let slot = crate::limits::github_call_heap(&l, &shared).expect("GitHub slot");
     let content = f::filled(256, b'x');
     let mut fake = Fake::with_files(&content, false, shared.rows);
     let mut h = harness(&fake);
@@ -249,11 +251,11 @@ fn measure_files_page(comparison: bool) {
                 assert_eq!(file.after.as_deref(), Some(content.as_ref()));
             }
             assert!(
-                u64::try_from(call_heap.peak).expect("positive peak") <= slot,
-                "comparison={comparison}: {} > {slot}",
+                u64::try_from(call_heap.peak).expect("positive peak") <= ceiling,
+                "comparison={comparison}: {} > {ceiling}",
                 call_heap.peak
             );
-            println!("comparison={comparison}: peak {} bytes <= GitHub call heap {slot}", call_heap.peak);
+            println!("comparison={comparison}: peak {} bytes <= ceiling {ceiling}", call_heap.peak);
             return;
         }
     }

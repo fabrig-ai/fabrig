@@ -55,7 +55,7 @@ pub fn spend_fits(value: &OwnerSpendPage, bounds: &Bounds) -> bool {
 }
 /// Any admitted whole page consumes at most its byte ceiling.
 #[must_use]
-pub fn worst_case(bounds: &Bounds) -> Option<u64> {
+pub fn heap_bound(bounds: &Bounds) -> Option<u64> {
     if bounds.document_bytes < u64::try_from(size_of::<OwnerEndedPage>().max(size_of::<OwnerSpendPage>())).ok()? {
         None
     } else {

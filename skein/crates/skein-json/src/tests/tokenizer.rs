@@ -477,7 +477,7 @@ fn the_largest_demand_is_the_chunk_or_a_literal() {
 }
 
 #[test]
-fn the_worst_case_is_the_stack_the_longest_text_and_the_largest_delivery() {
+fn the_tokenizer_bound_counts_stack_text_and_delivery() {
     let limits = Limits { depth: 10, string: 100, number: 40, chunk: 16, length: 1 << 20 };
     assert_eq!(json::tokenizer_bound(&limits), Some(10 + 100 + 16), "a container is a byte");
     assert_eq!(json::tokenizer_bound(&Limits { number: 200, ..limits }), Some(10 + 200 + 16));

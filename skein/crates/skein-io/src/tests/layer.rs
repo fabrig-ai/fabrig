@@ -1,13 +1,13 @@
 //! What io does beside its two machines (io.md, 2 and 3.1): refusals at a
 //! full slab, held until the next up pass; stale tokens, dropped going down
-//! and asserted going up; and its limits and worst case.
+//! and asserted going up; and its admission limits.
 
 use skein_lib::stream::{Down, Read};
 use skein_lib::{Duration, Token};
 
 use super::{Kind, Rig, addr, connected, limits, listening, owner};
 use crate::kernel::{Complete, Done, Fd, Op};
-use crate::{Error, Event, Io, Limits, Request, operations, worst_case};
+use crate::{Error, Event, Io, Limits, Name, Request, operations};
 
 #[test]
 fn a_connect_past_the_socket_slab_is_refused_and_told_in_the_next_up_pass() {
@@ -76,22 +76,9 @@ fn a_completion_of_an_operation_completed_and_reclaimed_is_a_bug() {
 }
 
 #[test]
-fn the_ring_has_four_operations_per_entity_and_one_usage_slot() {
+fn the_ring_has_four_operations_per_entity_and_two_independent_slots() {
     let base = limits();
     assert_eq!(operations(&base), Some(10), "four operations an entity, plus process usage and terminal size");
-    let at = worst_case(&base).expect("tiny limits fit a u64");
-    for bigger in [
-        Limits { sockets: 3, ..base },
-        Limits { refusals: 3, ..base },
-        Limits { intake: 9, ..base },
-        Limits { receive: 5, ..base },
-        Limits { output: 9, ..base },
-        Limits { sends: 3, ..base },
-    ] {
-        assert!(worst_case(&bigger).expect("fits") > at, "{bigger:?} costs more than {base:?}");
-    }
-    assert_eq!(worst_case(&Limits { close_timeout: Duration::from_secs(9), accepts: 9, backlog: 9, ..base }), Some(at));
-    assert_eq!(worst_case(&Limits { sockets: u32::MAX, ..base }), None, "past a u64, or the ring's u32");
     assert_eq!(operations(&Limits { sockets: u32::MAX, ..base }), None);
 }
 
@@ -159,10 +146,18 @@ fn usage_can_repeat_in_the_same_iteration_before_flights_reclaim() {
 }
 
 #[test]
-fn worst_case_grows_with_the_names_table() {
-    let base = Limits { names: 0, ..limits() };
-    assert!(
-        worst_case(&Limits { names: 5, ..base }).unwrap() > worst_case(&base).unwrap(),
-        "more names need a larger names table"
-    );
+fn the_names_table_holds_every_admitted_listener() {
+    // Five distinct names fill the table and the entity slab together.
+    const NAMES: u32 = 5;
+    let mut rig = Rig::new(Limits { sockets: NAMES, names: NAMES, ..limits() });
+    for index in 0..NAMES {
+        let addr = super::name(&index.to_le_bytes());
+        rig.down(Request::Listen { owner: owner(u64::from(index)), addr }).nothing();
+        let _listening = rig.next();
+    }
+    assert_eq!(rig.io.tables.names.len(), NAMES);
+    for index in 0..NAMES {
+        let name = Name::new(&index.to_le_bytes()).expect("a four-byte name");
+        assert!(rig.io.tables.names.contains_key(&name), "listener {index} retains its name");
+    }
 }

@@ -1,12 +1,14 @@
-//! Agreement outside semantic refusals and heap-total overflow (programming-model.md, 6.3).
+//! Seeded capacity admission checks (programming-model.md, 6.3).
 use super::super::limits::draw;
 use skein_io::{Limits, valid};
 use skein_lib::{Duration, Rng};
 
 #[test]
-fn valid_and_heap_bound_agree_over_seeded_usable_limits() {
-    // Bound sends and entities together so their heap product cannot overflow u64.
-    // Alternate full-range sockets to cover derived-capacity refusals as well.
+fn valid_checks_seeded_usable_limits_against_the_flight_capacity_edge() {
+    // The flight table needs 8*sockets+4 slots in a u32; the other
+    // derived capacities fit whenever it does. Alternate small and
+    // full-range socket counts to cover admission and refusal.
+    const LAST_FLIGHT_SOCKETS: u32 = 536_870_911;
     const DRAWS: u32 = 4096;
     const SMALL: u32 = 255;
     let mut rng = Rng::new(0x7067_7661_6c69_6401);
@@ -25,6 +27,6 @@ fn valid_and_heap_bound_agree_over_seeded_usable_limits() {
             close_timeout: Duration::from_nanos(rng.next_u64()),
             retry: Duration::from_nanos(rng.next_u64().max(1)),
         };
-        assert_eq!(valid(&limits), super::super::heap_bound(&limits).is_some(), "draw {draw_index}: {limits:?}");
+        assert_eq!(valid(&limits), sockets <= LAST_FLIGHT_SOCKETS, "draw {draw_index}: {limits:?}");
     }
 }

@@ -162,10 +162,6 @@ impl Service {
         let forges = crate::forge::prepare(&settings, forges)?;
         Self::prepared(settings, seeds, accounts, forges, worker, io_limits, None)
     }
-    #[expect(
-        clippy::too_many_lines,
-        reason = "one startup constructs the service; explicit matches follow the strict subset"
-    )]
     pub(crate) fn prepared(
         mut settings: settings::Engine,
         seeds: &settings::Seeds,
@@ -187,16 +183,13 @@ impl Service {
             limits::client_value_bytes(&settings.jig.limits, &settings.limits);
         let store_limits = store::limits(&limits, &limits.forge, &settings.jig.limits.store)
             .ok_or(start_problem(b"limits", What::Bound))?;
-        let max = temper_engine_domain::max_out(&limits);
-        let queue = max.checked_mul(2).ok_or(start_problem(b"limits", What::Bound))?;
         let worker_operations = match &worker {
             Some(worker) => worker.operations(),
             None => 0,
         };
         let operations =
-            startup_operations(&io_limits, queue, worker_operations).ok_or(start_problem(b"limits", What::Bound))?;
-        let room = max.checked_mul(6).expect("account routing room");
-        let accounts = accounts_driver(&settings, seeds, accounts, room, &store_limits.secrets)?;
+            startup_operations(&io_limits, worker_operations).ok_or(start_problem(b"limits", What::Bound))?;
+        let accounts = accounts_driver(&settings, seeds, accounts, &store_limits.secrets)?;
         let mut values =
             values::Values::new(settings.jig.limits.driver.accounts, values::credential_bytes(&settings.jig));
         let wire = translate::limits(&settings.limits).ok_or(start_problem(b"limits", What::Bound))?;
@@ -208,16 +201,10 @@ impl Service {
                 .push((project.number, project.policy.period_spend))
                 .or(Err(start_problem(b"projects", What::Bound)))?;
         }
-        let client_room = max
-            .checked_add(1)
-            .expect("client pass headroom")
-            .checked_mul(jig_protocol_engine_clients::MAX_OUT_DOWN)
-            .expect("client routing room");
         let mut clients = clients::Clients::new(
             &settings.jig,
             &settings.clients,
             seeds,
-            client_room,
             &limits.journal,
             settings.sign_in.as_ref(),
             settings.files.entries.as_slice(),
@@ -237,7 +224,7 @@ impl Service {
             Some(demo) => Some(demo.domain(&settings.forges, settings.limits.setup.deadline)),
             None => None,
         };
-        let workers = workers::Workers::configured(&mut settings, seeds.deployment, max)?;
+        let workers = workers::Workers::configured(&mut settings, seeds.deployment)?;
         let config = temper_engine_domain::Config {
             period_span: crate::stock::PERIOD_SPAN,
             core: jig_protocol_config::core(&settings.jig, seeds.deployment, seeds.seed),
@@ -268,10 +255,14 @@ impl Service {
             engine: Some(engine),
             io: Io::new(&io_limits),
             io_env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: io_limits },
-            completions: Queue::with_capacity(queue),
-            submissions: Queue::with_capacity(queue),
-            raw_submissions: Queue::with_capacity(queue),
+            // Every live kernel operation can complete in one reap batch.
+            completions: Queue::with_capacity(operations),
+            // The shell can publish the whole credited operation population at once.
+            submissions: Queue::with_capacity(operations),
+            // Staged successors and cancels share the aggregate operation credit.
+            raw_submissions: Queue::with_capacity(operations),
             told: Queue::uncapped(),
+            // Live routes and completed targets awaiting cancel publication use the same credit.
             kernel: accounts::Kernel::new(operations),
             box_pipe: None,
             signals: None,
@@ -572,18 +563,7 @@ impl Service {
     /// Maximum simultaneous kernel operations, for the shell's ring.
     #[must_use]
     pub fn operations(&self) -> u32 {
-        if self.engine.is_none() {
-            return self.raw_submissions.capacity();
-        }
-        io::operations(&self.io_env.limits)
-            .expect("checked io operations")
-            .checked_add(self.raw_submissions.capacity().checked_mul(4).expect("component operations"))
-            .expect("engine operations")
-            .checked_add(match &self.worker {
-                Some(worker) => worker.operations(),
-                None => 0,
-            })
-            .expect("service operations")
+        self.raw_submissions.capacity()
     }
     /// Every owned child has closed and every queue and kernel route is empty.
     #[must_use]
@@ -697,6 +677,14 @@ impl Service {
         }
         roots.finish()
     }
+    #[cfg(test)]
+    pub(crate) fn publish_staged(&mut self) {
+        self.kernel.publish(&mut self.raw_submissions, &mut self.submissions);
+    }
+    #[cfg(test)]
+    pub(crate) fn complete_staged(&mut self, complete: Complete) -> Complete {
+        self.kernel.complete(complete, &self.raw_submissions)
+    }
     fn complete(&mut self, complete: Complete) {
         if store::owns(complete.op) {
             self.engine.as_mut().expect("engine store completion").store.complete(complete);
@@ -722,13 +710,12 @@ fn accounts_driver(
     settings: &settings::Engine,
     seeds: &settings::Seeds,
     runtime: Option<AccountsRuntime>,
-    room: u32,
     secrets: &skein_kv::Limits,
 ) -> Result<Option<accounts::Accounts>, Problems> {
     if settings.jig.llm.providers.is_empty() {
         return Ok(None);
     }
-    Ok(Some(accounts::Accounts::new(ACCOUNT_APPLICATION.into(), &settings.jig, seeds, runtime, room, secrets)?))
+    Ok(Some(accounts::Accounts::new(ACCOUNT_APPLICATION.into(), &settings.jig, seeds, runtime, secrets)?))
 }
 /// Drive store terminals, account events, one root input and released outputs.
 pub fn iterate(service: &mut Service, now: Time, wall: Wall) {
@@ -861,11 +848,6 @@ fn held_listener_closed(service: &Service, event: &io::Event) -> bool {
 }
 fn route_events(service: &mut Service) {
     for _ in 0..service.told.len() {
-        if let Some(engine) = &service.engine
-            && (!engine.workers.room() || !engine.clients.room(1))
-        {
-            break;
-        }
         if let Some(worker) = &service.worker
             && !worker.room()
         {
@@ -961,8 +943,9 @@ pub(crate) fn worker_alone_operations(io: &io::Limits, worker_operations: u32) -
     // operations and closes counted by worker_settings.
     io::operations(io)?.checked_mul(io::MAX_OUT_DOWN.submissions)?.checked_add(worker_operations)
 }
-fn startup_operations(io: &io::Limits, queue: u32, worker_operations: u32) -> Option<u32> {
-    io::operations(io)?.checked_add(queue.checked_mul(4)?)?.checked_add(worker_operations)
+fn startup_operations(io: &io::Limits, worker_operations: u32) -> Option<u32> {
+    // Shared io successors, worker file operations and the three store drivers own the kernel credit.
+    worker_alone_operations(io, worker_operations)?.checked_add(store::OPERATIONS)
 }
 
 fn forget_handover(settings: &mut settings::Engine) {

@@ -241,6 +241,10 @@ struct Access {
     person: issuer::Person,
     expires: Time,
 }
+// Issuer construction and calls, including retained heap, output and temporaries,
+// across the focused and seeded sign-in, expiry, signature and grant-refusal stories.
+const ISSUER_HEAP_CEILING: u64 = 7_800;
+
 struct World {
     issuer: issuer::Issuer,
     issuer_live: i64,
@@ -259,12 +263,7 @@ struct World {
 impl World {
     fn new(seed: u64, story: Story) -> World {
         let mut issuer_live = 0;
-        let issuer = measured(
-            &mut issuer_live,
-            issuer::worst_case(&issuer_limits()).expect("issuer bound"),
-            |_| 0,
-            || make_issuer(false),
-        );
+        let issuer = measured(&mut issuer_live, ISSUER_HEAP_CEILING, |_| 0, || make_issuer(false));
         let mut client_live = 0;
         let client = measured(
             &mut client_live,
@@ -332,7 +331,7 @@ impl World {
         self.pending = true;
         request.endpoint.hash(&mut self.trace);
         request.body.hash(&mut self.trace);
-        let bound = issuer::worst_case(&issuer_limits()).expect("bound");
+        let bound = ISSUER_HEAP_CEILING;
         let (status, body) = match request.method {
             oauth::Method::Get => {
                 assert!(request.body.is_empty(), "GET has no credentials");
@@ -366,7 +365,7 @@ impl World {
         }
     }
     fn post(&mut self, request: &oauth::HttpRequest) -> (u16, Box<[u8]>) {
-        let bound = issuer::worst_case(&issuer_limits()).expect("bound");
+        let bound = ISSUER_HEAP_CEILING;
         let span = Span::start();
         let parsed = self.issuer.token_request(None, Some(request.content_type), &request.body);
         let grown = span.end();
@@ -408,7 +407,7 @@ impl World {
         let query =
             url.strip_prefix(AUTHORIZE).expect("registered authorization route").strip_prefix(b"?").expect("query");
         url.hash(&mut self.trace);
-        let bound = issuer::worst_case(&issuer_limits()).expect("bound");
+        let bound = ISSUER_HEAP_CEILING;
         let span = Span::start();
         let authorization = self.issuer.authorize(query).expect("valid authorization");
         let grown = span.end();
@@ -461,7 +460,7 @@ impl World {
     fn userinfo(&mut self, endpoint: &[u8], token: &[u8]) -> (u16, Box<[u8]>) {
         assert_eq!(endpoint, USERINFO, "userinfo route");
         let header = [b"Bearer ".as_slice(), token].concat();
-        let bound = issuer::worst_case(&issuer_limits()).expect("bound");
+        let bound = ISSUER_HEAP_CEILING;
         let supplied = measured::<Option<Secret>>(
             &mut self.issuer_live,
             bound,
@@ -474,7 +473,7 @@ impl World {
             let answer = self.issuer.userinfo_refused();
             return (answer.status, answer.body);
         };
-        let bound = issuer::worst_case(&issuer_limits()).expect("bound");
+        let bound = ISSUER_HEAP_CEILING;
         (
             200,
             measured::<Box<[u8]>>(
