@@ -1,11 +1,7 @@
 //! Design-only QA at the separate piece/commit boundary (domain/testing.md, 6.3).
 use jig_client_world::harness::Until;
 use skein_fake_person::{Face, Find, Found, Step, TreeFace};
-use skein_world::domain::heap::Counting;
 use temper_client_world::fixtures;
-
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 const WRITING: &[u8] = b"Writing...";
 const PARTS: &[&[u8]] = &[b"QA joint prefix", b" and its full suffix."];

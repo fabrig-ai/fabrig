@@ -8,6 +8,10 @@ rust-version.workspace = true
 publish.workspace = true
 build = "build/main.rs"
 
+[lib]
+test = false
+doctest = false
+
 # No build dependencies: the script runs cargo for the module and the bundler (client/browser.md, 2.6).
 
 [lints.rust]
