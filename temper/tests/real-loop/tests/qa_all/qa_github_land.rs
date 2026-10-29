@@ -84,9 +84,9 @@ fn landing_reads() -> Vec<Step> {
         // The chat's committed first reply follows delegate creation. Opening
         // a watch on T2 before that would correctly answer unknown.
         call(D1, argv!["task", "show", task(CHAT_CALL), "--until", "replied"]),
-        call(D1, argv!["task", "show", number(CHANGE), "--until", "ended", "--json"]),
+        call(D1, argv!["task", "show", number(CHANGE), "--until", "ended", "--json"]).succeeds(),
         // Ended tasks retain a plain result; --tree is a live watch.
-        call(D1, argv!["task", "show", number(CHANGE), "--json"]),
+        call(D1, argv!["task", "show", number(CHANGE), "--json"]).succeeds(),
         calls::until(D1, argv!["chat", "show", task(CHAT_CALL), "--json"], LANDED, b"Change requested"),
         call(D1, argv!["task", "show", number(CHANGE), "--json"]),
     ]);
