@@ -29,6 +29,12 @@ A goal is a tracked task: work given a numeric priority, which orders the goals'
   or a survey, and its goal asks for an advisor`. A person who wants a
   survey alone gets a goal that asks its advisor and reports, changing
   nothing.
+  `agree`, set by the party's chat when the party wants the work agreed
+  first, makes the goal owe its requester a question: its brief says so, and
+  before that question is answered its `change` is refused, `wait for the
+  answer to question N`; a goal that finishes before asking is woken to ask.
+  `agree` with `advisor` set is refused, `an advisor agrees nothing: set
+  agree or advisor, not both`.
 - **Reprioritised:** an amendment of its priority alone needs no
   spec revision; tracking an untracked task, or untracking a goal,
   names the spec revision the amender saw.

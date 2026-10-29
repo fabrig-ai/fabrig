@@ -25,8 +25,9 @@ A chat is a conversation between a party and an agent in a project: an untracked
 - **Work agreed first.** Asked to agree a plan before anything is
   changed, the chat's run never calls `change` for it, never writes the
   plan or asks for the go-ahead in its own reply, and never sets `advisor`:
-  it starts a goal at once with `goal` and the party's words whole,
-  even where they ask for an advisor first (temper help goal), and
+  it starts a goal at once with `goal`, `agree` set and the party's
+  words whole, even where they ask for an advisor first (temper help
+  goal), and
   says a question will wait in the party's inbox. The goal asks its plan with
   `message`, then waits for the answer, and finishes only once every
   agreed change has landed; the question waits in the party's inbox; the party
