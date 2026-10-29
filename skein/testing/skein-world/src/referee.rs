@@ -3,7 +3,10 @@
 //! what the processes show of themselves (a fake's observations, a service's
 //! public face), never their state. Safety is checked on every observation
 //! and fails at once; liveness is a deadline, and one that passes unmet
-//! fails the test with what is still pending. It ends the test once every
+//! fails the test with what is still pending. On the real clock, an unanswered
+//! deadline classified as starved instead asks the world to end what it owns
+//! and pass with the referee's figures (testing-strategy.md, 2.10). The
+//! simulated world never asks for this verdict. It ends the test once every
 //! expectation is met and the world has settled, and it may inject what
 //! belongs to no process: a shutdown, a directory of addresses.
 
@@ -17,6 +20,8 @@ use alloc::rc::Rc;
 use core::cell::{Cell, RefCell};
 use skein_io::kernel::ServiceSignal;
 use skein_lib::{Queue, Time};
+
+use crate::Starved;
 
 /// Where the referee places a scenario's last word (testing-strategy.md, 6).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -56,6 +61,13 @@ pub trait Referee<P> {
 
     /// Whether every expectation is met.
     fn passed(&self) -> bool;
+
+    /// A deadline this referee keeps itself passed unanswered and was starved
+    /// (testing-strategy.md, 2.10): the real loop ends what the world owns and
+    /// passes with these figures. The simulated world never asks.
+    fn starved(&mut self) -> Option<Starved> {
+        None
+    }
 
     /// The scenario's last word, later only for a named keep, idle or delay.
     fn last_word(&self) -> LastWord {
