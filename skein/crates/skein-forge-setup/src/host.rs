@@ -5,8 +5,6 @@ pub(crate) mod connection;
 #[path = "tests/github_host.rs"]
 mod install_tests;
 mod limits;
-mod memory;
-pub use memory::worst_case;
 pub(crate) mod run;
 mod settings;
 #[cfg(test)]
@@ -72,7 +70,7 @@ impl Host {
                     crate::given::check_create(&given.limits, env.limits.string_bytes, &plan)
                         .expect("the owner checks a creation plan before sending it");
                 }
-                let refused = if configured.takes(&plan) {
+                let refused = if configured.supports(&plan) {
                     let mut busy = self.slots() == self.runs.capacity();
                     for (_, live) in &self.runs {
                         busy |= live.forge == forge && live.writes == plan.writes();
@@ -356,9 +354,9 @@ impl Host {
     }
 }
 fn open(run: Token, forge: &Forge, agent: &[u8], send: &Send, env: &Env<Limits>) -> Result<Connection, Refused> {
-    // A call's rows stay within the page the host's heap priced (6.5).
-    match (connection::row_bound(&send.call), memory::largest_page(&env.limits, &forge.kind)) {
-        (Some(rows), Some(priced)) if rows <= priced => {}
+    // A call's rows stay within the configured page capacity (6.5).
+    match (connection::row_bound(&send.call), limits::largest_page(&env.limits, &forge.kind)) {
+        (Some(rows), Some(capacity)) if rows <= capacity => {}
         _ => return Err(Refused::Unexpected),
     }
     match &forge.kind {
@@ -428,4 +426,4 @@ pub(super) fn about(forge: &Forge, plan: &Plan, why: Why) -> Failure {
 
 #[cfg(test)]
 #[path = "host/tests.rs"]
-mod memory_tests;
+mod tests;

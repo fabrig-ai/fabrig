@@ -431,8 +431,6 @@ fn an_overflowing_sweep_capacity_stops_before_sending() {
     given.limits.pages = u32::MAX;
     let mut machine = new(&given, &[]);
     assert_eq!(go(&mut machine, Event::Begin), listing_failure(Why::Unexpected));
-    assert_eq!(installations::worst_case(&given.limits), None);
-    assert!(installations::worst_case(&fixtures::limits()).is_some());
     silent(&mut machine);
 }
 

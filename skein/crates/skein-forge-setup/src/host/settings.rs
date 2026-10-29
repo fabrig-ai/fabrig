@@ -43,8 +43,8 @@ impl Forge {
             Kind::GitHub(given) => Some(given),
         }
     }
-    /// Whether the plan is for this forge's kind.
-    pub(super) fn takes(&self, plan: &Plan) -> bool {
+    /// Whether this forge's kind supports the plan.
+    pub(super) fn supports(&self, plan: &Plan) -> bool {
         match plan.dialect() {
             Dialect::Both => true,
             Dialect::Forgejo => self.forgejo().is_some(),
