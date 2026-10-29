@@ -1,13 +1,15 @@
 //! The service keeps these orders under load (programming-model.md, 7.2):
 //! each root entrance's requests, including payload returns, are dispatched
-//! before the next entrance (W3), Hello precedes reconnect replay, and
+//! before the next entrance (W3), a whole link batch before its next invocation,
+//! Hello precedes reconnect replay, and
 //! admitted progress precedes a watchdog due in the same iteration (W4).
 
 use super::fixtures::{self, worker_peers::*};
 use jig_domain_host as hub;
+use jig_protocol_engine_workers as engine_link;
 use jig_protocol_worker_link as link;
 use skein_io as io;
-use skein_lib::{List, Time, Token, Wall};
+use skein_lib::{Duration, List, Secret, Time, Token, Wall};
 use smith_protocol_channel as channel;
 use temper_worker_domain as root;
 
@@ -20,6 +22,8 @@ const STEPS: usize = 1000; // The concrete peers' existing settlement budget.
 const ADMITTED_FRAMES: usize = 1;
 const WITH_TURN: usize = ADMITTED_FRAMES + 1;
 const PROCESS_RECORDS: u32 = 3; // The two messages and cancellation.
+// One value per grant, then the assignment, in one link invocation.
+const ASSIGNMENT_GRANTS: u32 = jig_protocol_worker_wire::v9::CEILINGS.assignment_grants;
 
 fn chat() -> (Token, Token) {
     let link::Request::Down { down: hub::LinkDown::Assign { assignment }, .. } = fixtures::chat_assignment() else {
@@ -231,6 +235,86 @@ fn the_hello_precedes_the_replayed_turns_at_a_reconnect() {
         link.records.as_slice(),
         [LinkRecord::Hello, LinkRecord::Turn(1), LinkRecord::Turn(2), LinkRecord::Turn(3)]
     );
+}
+
+#[test]
+fn a_link_invocations_whole_output_precedes_the_next_invocation() {
+    let mut settings = fixtures::worker_settings();
+    settings.jig.engine = jig_protocol_config::Address::Addr(io::Addr::Ip(([127, 0, 0, 1], 7100).into()));
+    settings.jig.limits.core.accounts.accounts = ASSIGNMENT_GRANTS;
+    settings.jig.limits.core.accounts.credentials = 0;
+    let agent = fixtures::worker_agent();
+    let mut stand = socket_stand_with(&settings, &agent);
+    let mut peer = LinkPeer::with_settings(&settings, &agent);
+    peer.open(&mut stand.worker);
+    assert!(stand.worker.engine.is_empty());
+
+    let link::Request::Down { down: hub::LinkDown::Assign { mut assignment }, parts } = fixtures::chat_assignment()
+    else {
+        panic!("chat assignment")
+    };
+    let mut grants = List::with_capacity(ASSIGNMENT_GRANTS);
+    let mut values = List::with_capacity(ASSIGNMENT_GRANTS);
+    for account in 1..=ASSIGNMENT_GRANTS {
+        grants
+            .push(hub::Grant {
+                form: hub::Form::Credential(hub::Scheme::Key),
+                account,
+                generation: 1,
+                valid: Duration::from_secs(60),
+            })
+            .unwrap();
+        values
+            .push(Some(engine_link::GrantValue::Credential {
+                scheme: engine_link::Scheme::Key,
+                token: Secret::new(account.to_be_bytes().as_slice().into()),
+            }))
+            .unwrap();
+    }
+    assignment.assignment.grants = grants.into_boxed();
+    let (run, attempt) = chat();
+    for (down, parts, values) in [
+        (hub::LinkDown::Assign { assignment }, parts, values.into_boxed()),
+        (hub::LinkDown::Cancel { run, attempt }, Box::default(), Box::default()),
+    ] {
+        peer.component.down(
+            fixtures::NOW,
+            engine_link::Event::Down { channel: Token::new(1), down, parts, values },
+            &mut peer.out,
+        );
+    }
+    // Stop at the invocation that decodes the assignment's body, before
+    // delivering any part of the cancellation queued immediately behind it.
+    for _ in 0..STEPS {
+        peer.exchange(&mut stand.worker);
+        if stand.worker.values.value(1, 1, fixtures::NOW).is_some() {
+            break;
+        }
+    }
+    for account in 1..=ASSIGNMENT_GRANTS {
+        let value = stand.worker.values.value(account, 1, fixtures::NOW).expect("the whole batch was dispatched");
+        assert_eq!(value.scheme, jig_protocol_accounts::table::Scheme::Key);
+        assert_eq!(value.token.expose(), account.to_be_bytes());
+    }
+    assert_eq!(stand.worker.engine.len(), 1, "the assignment follows all its values in the same invocation");
+    for _ in 0..STEPS {
+        peer.exchange(&mut stand.worker);
+        if stand.worker.engine.len() == 2 {
+            break;
+        }
+    }
+    let Some(root::Event::Link(hub::LinkDown::Assign { assignment })) = stand.worker.engine.pop() else {
+        panic!("the root receives the assignment first")
+    };
+    assert_eq!((assignment.assignment.run, assignment.assignment.attempt), (run, attempt));
+    assert_eq!(assignment.assignment.grants.len(), usize::try_from(ASSIGNMENT_GRANTS).unwrap());
+    let Some(root::Event::Link(hub::LinkDown::Cancel { run: cancelled, attempt: cancelled_attempt })) =
+        stand.worker.engine.pop()
+    else {
+        panic!("the root receives the cancellation second")
+    };
+    assert_eq!((cancelled, cancelled_attempt), (run, attempt));
+    assert!(stand.worker.engine.is_empty());
 }
 
 /// Progress is last among several admitted events at the exact watchdog
