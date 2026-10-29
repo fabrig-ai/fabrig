@@ -226,7 +226,7 @@ spawns one (hosts.md, section 5.2).
 ## 5. Facts and events
 
 - **One drain.** Each pass, the service takes the domain's facts, up to
-  its queue's bound, whatever the channel's phase or room. Inside the
+  its work quantum, whatever the channel's phase or room. Inside the
   process, facts are lossless: the domain's fact queue is a step's
   output in an uncapped queue (domain/run.md, section 11;
   programming-model.md, section 3). The next domain entrance waits until
@@ -402,8 +402,9 @@ spawns one (hosts.md, section 5.2).
 - **Configuration:** every refusal of a malformed one, and of each
   relationship of limits.md, section 4; an endpoint naming a program
   with no path; each withdrawn field accepted.
-- **Memory:** the process at its worst case, against skein's counting
-  allocator (limits.md, section 11).
+- **Memory:** fixed process scenarios against skein's counting
+  allocator, one measured total peak under a ceiling with headroom per
+  scenario (limits.md, section 11).
 
 ## 9. From temper
 

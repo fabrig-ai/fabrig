@@ -233,9 +233,9 @@ committed fingerprints cover `schema/local-store-v1.schema` and
 `transcript-v6.schema`; runtime construction parses neither schema. State,
 fresh metadata, the whole turn envelope and delivery records use the generated
 local-store family version 1. A turn's body remains transcript version 6. Generated envelope decoding owns
-one bounded body copy, included in the Store's worst case. The intermediate
-body copies are released once their aggregate transcript piece is built,
-before concrete transcript decoding.
+one bounded body copy, included in the store scenario's measured total.
+The intermediate body copies are released once their aggregate transcript
+piece is built, before concrete transcript decoding.
 
 A missing marker permits creation only after a complete bounded scan finds
 an empty directory, or only regular `format.skein-<16 lowercase hex>`

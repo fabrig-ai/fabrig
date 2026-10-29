@@ -316,7 +316,7 @@ jobs of every earlier window and activation.
   - `opens_window` on a conversation's first turn and on each window
     turn, and on no other, and a host resuming from the last of them.
 - **A large transcript:** at the resume limit, one window at its largest,
-  measured against the worst case.
+  its measured total peak under a scenario ceiling with headroom.
 
 ## 10. From temper
 

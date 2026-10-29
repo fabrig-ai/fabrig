@@ -163,7 +163,10 @@ not decode.
   needs none to supervise: a piece counts as progress for the watchdog
   like any record the half reads (protocol/channel.md, section 7).
 - **Bounded.** Every payload has a limit, sealed by its value
-  constructor; a host's limits may be smaller, never larger.
+  constructor; a host's limits may be smaller, never larger. A delivery's
+  `Delivered::owned_bytes()` counts its receipt cells and opaque bytes;
+  `Delivered::owned_bound()` bounds that one value, independently of
+  how many runs the host holds (programming-model.md, 6.3).
 
 ## 4. Supervising an agent process
 

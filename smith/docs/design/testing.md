@@ -321,11 +321,16 @@ process story proves operator words and exit 1.
   states relationships, not numbers: for declared values drawn at random,
   the derivation either refuses, naming the relationship, or yields
   limits that keep every relationship of protocol/limits.md; and the
-  `standard` profile derives and fits its memory. No test asserts a
-  shipped value; shell.md, section 6 holds them.
+  `standard` profile derives and passes its edge compatibility checks.
+  No test asserts a shipped value; shell.md, section 6 holds them.
 - **Profile tests live with the profile,** in the service crates.
 - **End to end is for paths through `main`** (2.3). Behaviour is shown in
-  the domain worlds first.
+  the domain worlds first. A test whose whole assertion has no lower
+  seam stays at the top tier until a seam is designed: product program
+  admission and state-directory creation, the provider login notice
+  selected against real files and the kernel, and the private binary
+  capture used to observe standard error. A partial lower assertion
+  does not replace the whole one.
 
 ### 2.6 Placement
 
@@ -468,9 +473,17 @@ Every world checks what the strategy lists (testing-strategy.md, section
   told by a later answer or by its `job.ended` (domain/tools.md, section
   5), usage summing to the answer's spend, and every loss counted exactly
   (protocol/events.md).
-- **Memory** is measured per step, against each process's worst case,
-  derived from the declared values the world chose, at every iteration
-  in the simulated worlds and the real loop.
+- **Memory** is measured by the counting allocator at every iteration
+  and through teardown. Each fixed scenario has one measured total peak
+  under a ceiling with headroom, named beside its test. Caller-held
+  outputs and transient ownership belong to that total: neither a second
+  held-bytes ceiling nor a doubled or tripled formula stands for it.
+  Ceilings move by hand when a real change passes them, never with a
+  type's size (programming-model.md, 6.3).
+- **Domain output never waits for room.** Domain stages and their output
+  queues are uncapped. No world exercises a domain's output flow
+  control; load tests hold the named dispatch orders and the root's
+  watermark, and test credit only at real edges.
 - **Memory returns when its use ends** (protocol/limits.md, sections 5
   and 11): in the agent's simulated world, the counting allocator shows
   the live heap falling once a compacted window's history is released,
@@ -515,8 +528,8 @@ Every world checks what the strategy lists (testing-strategy.md, section
 
 The strategy's two suites (testing-strategy.md, section 8) make the gate:
 - **focused tests:** the step tests; each world's scenarios, referee
-  tests, replay, facts changing nothing and memory at the worst case; the
-  real loop; the end-to-end tests against fakes; and the benchmark
+  tests, replay, facts changing nothing and memory under scenario ceilings;
+  the real loop; the end-to-end tests against fakes; and the benchmark
   harness's offline tests;
 - **fuzzy tests:** each world's `tests/fuzzy_*.rs`, sweeps over seeds
   under faults; the run's world also draws message timings, budgets and

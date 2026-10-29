@@ -77,10 +77,11 @@ root package's (section 3). The layers are those of skein's echo
 | `smith-agent-shell` | shell | the agent process (2.2) |
 | `smith-local-shell` | shell | the product (2.3) |
 
-A service owns its limits and the sum of their worst cases, as skein's
-echo does, so the profile is a function of the service crates and is
-tested there. The shell crates only choose a profile and the values a
-setting overrides.
+A service owns its entrance limits and admission watermark, so the
+profile is a function of the service crates and is tested there. Edge
+bounds must be representable; memory is measured under scenario ceilings
+(protocol/limits.md, section 5). The shell crates only choose a profile
+and the values a setting overrides.
 
 ### 2.2 The agent shell
 
@@ -96,9 +97,9 @@ setting overrides.
   does not declare is refused (protocol/charter.md, section 2). It never
   holds a credential.
 - **Startup,** in the order of skein's `shell.md`, section 6: the
-  configuration and the derived limits checked, the worst case within
-  the configured memory, termination signals blocked, the endpoints'
-  names resolved, trust roots loaded, the seed and the kernel.
+  configuration and the derived edge limits checked, termination
+  signals blocked, the endpoints' names resolved, trust roots loaded,
+  the seed and the kernel.
 - **The one `Agent` adapter:** a `skein_shell::Host` over
   `smith-agent-service`. The service drains the domain's facts each pass
   into its event sink, an append stream through io, and onto the
@@ -1070,7 +1071,7 @@ The declared quantities of protocol/limits.md, section 2.2:
 | `search_hits`, `search_bytes` | 100 and 16 KiB | provisional; the tool-output probe |
 | `list_entries` | 512 | provisional |
 | `llm_pool` | 128 MiB | provisional; peak memory in `session.ended` |
-| `memory` | 2,176 MiB (34 × 64 MiB) | decided: as large as smith's work needs, within the real memory a person's machine can spare, and never smaller than the derived worst case. A change whose worst case passes it raises it, naming the part and its bytes (protocol/limits.md, section 5) |
+| `memory` | 2,176 MiB (34 × 64 MiB) | declared process memory, carried without a startup fit check (protocol/limits.md, section 5) |
 
 ### 6.4 Run defaults
 
@@ -1429,7 +1430,7 @@ before the user's doubling of 10-22, provisional)
     names of one number, a `none` account's among them, refused with
     exit 2, naming both.
 - **Step tests in `smith-agent-service` and `smith-local-service`:** the
-  `standard` profile derives, and its derived worst case fits `memory`.
+  `standard` profile derives and passes its edge compatibility checks.
 - **The local host's simulated world** (testing.md, section 2.1):
   - one headless story per exit code but 2;
   - events against what the fake provider saw: one `response.completed`
