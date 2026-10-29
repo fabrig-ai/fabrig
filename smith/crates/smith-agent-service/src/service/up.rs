@@ -178,9 +178,10 @@ pub(super) fn live_step(service: &mut Service, action: crate::live::Action<'_>) 
 }
 
 fn llm_measures(service: &mut Service) {
-    let routed = llm::MAX_OUT.above.checked_mul(2).expect("content and transport measures per routed event");
-    let maximum = routed.checked_add(1).expect("one start plus the bounded routed batch");
-    for _ in 0..maximum {
+    // Drain one finite entrance's observations. Recording its one prepared
+    // prompt can add only that child entrance's finite events; further work
+    // waits for IO or another component entrance, gated by measures_drained().
+    loop {
         match &service.events {
             Some(events) if !events.sinks.takes() => break,
             Some(_) | None => {}

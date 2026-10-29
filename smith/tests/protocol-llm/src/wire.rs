@@ -260,7 +260,8 @@ impl Composition {
             Progress { immediate: false, terminals: Vec::new(), queries: Vec::new(), requests: Vec::new() };
         self.provider_stage.env.now = now;
         self.provider_stage.env.wall = wall;
-        while self.provider_stage.has_room() && self.provider.is_due(now) {
+        // Each due firing advances a retained call's finite response.
+        while self.provider.is_due(now) {
             provider::fire(&mut self.provider, &self.provider_stage.env, &mut self.provider_stage.out);
         }
         while let Some(request) = self.provider_stage.out.pop() {
