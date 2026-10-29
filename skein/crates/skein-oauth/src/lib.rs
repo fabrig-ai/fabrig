@@ -17,7 +17,7 @@ pub mod patches;
 mod pkce;
 mod record;
 mod redirect;
-pub use common::{Check, DecodeError, Failure, Limits, classify, worst_case};
+pub use common::{Check, DecodeError, Failure, Limits, classify};
 pub use documents::{
     OAuthError, RefreshRequest, TokenResponse, decode_error, decode_request, decode_response, encode_error,
     encode_request, encode_response,
@@ -26,7 +26,7 @@ pub use json::{Collector, Json};
 pub use jwt::{Claims, read_claims};
 pub use machine::{
     Client, ClientLimits, Event, HttpEvidence, HttpRequest, HttpResponse, Inadmissible, Method, Redirect, Registration,
-    Request, WireFormat, client_valid, client_worst_case,
+    Request, WireFormat, client_valid,
 };
 pub use pkce::challenge;
 pub use record::{ClaimSelector, RECORD_VERSION, RefreshState, SavedToken, decode_record, encode_record, rotate};
