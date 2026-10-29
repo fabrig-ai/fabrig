@@ -63,7 +63,7 @@ fn coding_charter() -> Box<[u8]> {
     bytes.finish()
 }
 
-/// Lower test of smith's end_to_end::standard_profile_runs_a_large_coding_write_and_the_following_checks (top tiers test wiring only).
+/// Lower test of smith's `end_to_end::standard_profile_runs_a_large_coding_write_and_the_following_checks` (top tiers test wiring only).
 #[test]
 fn a_standard_coding_write_reaches_following_calls_and_checks() {
     let content = "// coding regression\n".repeat(CODING_LINES);
@@ -105,7 +105,7 @@ fn a_standard_coding_write_reaches_following_calls_and_checks() {
                 api::Part::ToolOutput { output, is_error, .. } => Some((output, is_error)),
                 api::Part::Text { .. } | api::Part::ToolCall { .. } | api::Part::Opaque { .. } => None,
             })
-            .last()
+            .next_back()
             .expect("follow-up workspace answer");
         assert!(!output.1, "workspace call succeeded: {}", String::from_utf8_lossy(output.0));
     }

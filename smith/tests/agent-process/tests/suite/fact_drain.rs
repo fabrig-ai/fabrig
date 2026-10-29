@@ -4,7 +4,7 @@ use smith_agent_process_world::{TraceCase, World, charter};
 use smith_channel::RunResult;
 use smith_events::{Event, RunCompleted, Status};
 
-/// Lower test of smith's end_to_end::the_agents_trace_header_carries_its_effective_limits (top tiers test wiring only).
+/// Lower test of smith's `end_to_end::the_agents_trace_header_carries_its_effective_limits` (top tiers test wiring only).
 #[test]
 fn the_trace_header_carries_exact_effective_memory_and_history_limits() {
     let mut world = World::new(81, &charter());
