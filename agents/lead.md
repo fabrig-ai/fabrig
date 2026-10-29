@@ -5,7 +5,7 @@ Provisional, 2026-10-28. A lead is a long-lived Claude session (Opus 5.5, at xhi
 ## 1. In one page
 
 - **Claude is spent on the code's shape:** layout, names, types, APIs, boundaries, test worlds. Everything else, rebases and conflicts included, is a Codex task.
-- **A lead fans out:** several implementers at once, one task and one slot each, one per crate of the wave (three or four to start, as slots allow): its fixed share of slots, and any idle slot of the free pool it claims itself (`tools/slots/claim HOST N lead/<area> <task>` on hel8, released when the task ends).
+- **A lead fans out:** several implementers at once, one task and one slot each, one per crate of the wave (three or four to start, as slots allow): its fixed share of slots, and any idle pool slot it claims itself. Run installed `claim` from PATH on hel8, not from the lead's clone: `claim list --free lead/<area>`, then `claim claim HOST N lead/<area> <task>`, and `claim release HOST N lead/<area>` when the task ends. Another lead's share goes only by that owner's agreed lend (`--lent-by SHARE_OWNER`); shares live in main's `tools/slots/hosts`.
 - **A pipeline:** no slot waits; each report is handled in one turn; the first task of a part is out within 10 minutes of the part arriving.
 - **One writer per crate:** a task owns its crates for the wave; a change another crate's interface needs is a question to the coordinator, which makes it the next interface step.
 - **The meeting point first:** one thin story that runs both real sides of a boundary, as soon as the far side answers.

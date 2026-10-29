@@ -15,21 +15,24 @@ HOSTS = Path(__file__).resolve().with_name("hosts")
 
 
 def inventory(path=HOSTS):
-    slots = []
+    slots = {}
     for line in path.read_text().splitlines():
         fields = line.split("#", 1)[0].split()
         if not fields:
             continue
-        host, *numbers = fields
-        if not host.replace("-", "").isalnum() or not numbers:
+        host, *shares = fields
+        if not host.replace("-", "").isalnum() or not shares:
             raise ValueError(f"invalid hosts line: {line}")
-        for number in numbers:
+        for entry in shares:
+            number, separator, owner = entry.partition("=")
+            if not separator or not owner or "=" in owner or "\0" in owner:
+                raise ValueError(f"invalid slot share: {entry}")
             if not number.isdecimal() or int(number) < 1:
                 raise ValueError(f"invalid slot number: {number}")
             pair = (host, str(int(number)))
             if pair in slots:
                 raise ValueError(f"duplicate slot: {host} {number}")
-            slots.append(pair)
+            slots[pair] = owner
     return slots
 
 
@@ -53,6 +56,9 @@ def read_record(path):
     for key in ("owner", "what", "created"):
         if not isinstance(record.get(key), str) or not record[key].strip():
             raise ValueError(f"invalid claim record: {path.name}")
+    if "lent_by" in record and (not isinstance(record["lent_by"], str)
+                                or not record["lent_by"].strip()):
+        raise ValueError(f"invalid claim record: {path.name}")
     return record
 
 
@@ -60,15 +66,18 @@ def holder(record):
     return f"{record['owner']}: {record['what']} (since {record['created']})"
 
 
-def create_claim(path, owner, what, now):
+def create_claim(path, owner, what, now, lent_by=None):
     try:
         fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     except FileExistsError:
         raise RuntimeError(f"{path.name} held by {holder(read_record(path))}") from None
     try:
         with os.fdopen(fd, "w") as output:
-            json.dump({"owner": owner, "what": what,
-                       "created": now.astimezone(timezone.utc).isoformat()}, output)
+            record = {"owner": owner, "what": what,
+                      "created": now.astimezone(timezone.utc).isoformat()}
+            if lent_by is not None:
+                record["lent_by"] = lent_by
+            json.dump(record, output)
             output.write("\n")
     except BaseException:
         path.unlink()
@@ -85,12 +94,12 @@ def release_claim(path, owner):
 
 
 def list_claims(directory, slots, now):
-    for host, number in slots:
+    for (host, number), share in slots.items():
         path = directory / f"{host}-{number}"
         try:
             record = read_record(path)
         except FileNotFoundError:
-            print(f"{host} {number}: free")
+            print(f"{host} {number} [{share}]: free")
             continue
         created = datetime.fromisoformat(record["created"])
         if created.utcoffset() is None:
@@ -99,7 +108,20 @@ def list_claims(directory, slots, now):
         days, remainder = divmod(age, 86400)
         hours, remainder = divmod(remainder, 3600)
         minutes, seconds = divmod(remainder, 60)
-        print(f"{host} {number}: {holder(record)}; held {days}d {hours:02}:{minutes:02}:{seconds:02}")
+        lend = f"; lent by {record['lent_by']}" if "lent_by" in record else ""
+        print(f"{host} {number} [{share}]: {holder(record)}; "
+              f"held {days}d {hours:02}:{minutes:02}:{seconds:02}{lend}")
+
+
+def list_free(directory, slots, owner):
+    for group in dict.fromkeys((owner, "pool")):
+        for (host, number), share in slots.items():
+            if share != group:
+                continue
+            try:
+                read_record(directory / f"{host}-{number}")
+            except FileNotFoundError:
+                print(f"{host} {number}")
 
 
 def text(value):
@@ -119,21 +141,31 @@ def main():
         sub.add_argument("owner", type=text)
         if name == "claim":
             sub.add_argument("what", type=text)
-    subparsers.add_parser("list")
+            sub.add_argument("--lent-by", type=text)
+    subparsers.add_parser("list").add_argument("--free", metavar="OWNER", type=text)
     args = parser.parse_args()
     try:
         slots = inventory()
         if args.action != "list" and (args.host, args.number) not in slots:
             raise ValueError(f"unknown slot: {args.host} {args.number}")
+        if args.action == "claim":
+            share = slots[(args.host, args.number)]
+            if ((share not in ("pool", args.owner) and args.lent_by is None)
+                    or (args.lent_by is not None and args.lent_by != share)):
+                raise ValueError(f"{args.host} {args.number} belongs to share {share}; "
+                                 f"a lend requires --lent-by {share}")
         directory = Path.home() / "src/fabrig/claims"
         with state_lock(directory):
             now = datetime.now(timezone.utc)
             if args.action == "list":
-                list_claims(directory, slots, now)
+                if args.free is not None:
+                    list_free(directory, slots, args.free)
+                else:
+                    list_claims(directory, slots, now)
             else:
                 path = directory / f"{args.host}-{args.number}"
                 if args.action == "claim":
-                    create_claim(path, args.owner, args.what, now)
+                    create_claim(path, args.owner, args.what, now, args.lent_by)
                 else:
                     release_claim(path, args.owner)
         return 0
