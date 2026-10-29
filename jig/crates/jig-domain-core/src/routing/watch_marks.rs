@@ -483,7 +483,7 @@ pub(crate) fn finish_watches(core: &mut Core, env: &Env<Limits>) -> Requests {
                     views::Event::TurnCommitted { run: *run, attempt: *attempt, turn: *turn }
                 }
             };
-            let mut quiet = Queue::with_capacity(0);
+            let mut quiet = Queue::uncapped();
             views::step(
                 &mut core.views,
                 &Env { now: env.now, wall: env.wall, limits: env.limits.views },
@@ -512,7 +512,7 @@ pub(super) fn end_invalid(core: &mut Core, env: &Env<Limits>) -> Requests {
         }
     }
     if !any {
-        let mut out = Queue::with_capacity(1);
+        let mut out = Queue::uncapped();
         out.push(Request::Decided);
         return Requests::Out(out);
     }

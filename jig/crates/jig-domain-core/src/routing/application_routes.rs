@@ -180,7 +180,7 @@ pub(super) fn part(
 }
 
 pub(super) fn answer(connector: u16, request: Token, outcome: people::Outcome) -> Requests {
-    let mut out = Queue::with_capacity(2);
+    let mut out = Queue::uncapped();
     out.push(Request::Ask { connector, ask: Ask::ApplicationPartAnswered { request, outcome } });
     out.push(Request::Decided);
     Requests::Out(out)
@@ -206,7 +206,7 @@ pub(super) fn finished(
 }
 
 fn empty() -> Requests {
-    let mut out = Queue::with_capacity(1);
+    let mut out = Queue::uncapped();
     out.push(Request::Decided);
     Requests::Out(out)
 }

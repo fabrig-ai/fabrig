@@ -4,7 +4,7 @@ use super::*;
 fn a_run_waits_while_a_credential_it_needs_is_unusable() {
     let (mut core, limits) = core();
     make_task(&mut core, &limits, 1);
-    let mut placed = Queue::with_capacity(fleet::max_out(&limits.fleet));
+    let mut placed = Queue::uncapped();
     fleet::step(
         &mut core.fleet,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.fleet },
@@ -28,7 +28,7 @@ fn a_run_waits_while_a_credential_it_needs_is_unusable() {
         &mut placed,
     );
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.accounts };
-    let mut out = Queue::with_capacity(accounts::max_out(&limits.accounts));
+    let mut out = Queue::uncapped();
     accounts::step(&mut core.accounts, &env, accounts::Event::Want, &mut out);
     while out.pop().is_some() {}
     accounts::step(

@@ -169,7 +169,7 @@ pub(super) fn resume(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Event>
             super::runs::named_amend(core, env, work, token, key, target, revision, amendment, read.evidence)
         }
         Replay::Person { request, person, project, task, revision, amendment, release } => {
-            let mut out = Queue::with_capacity(3);
+            let mut out = Queue::uncapped();
             let role = core.people.role(person, project);
             super::party_controls::amend_route(
                 core,

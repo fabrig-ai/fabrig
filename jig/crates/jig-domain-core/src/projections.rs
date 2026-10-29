@@ -243,13 +243,15 @@ pub(crate) fn history(
     }
     let Some(state) = core.projections.get_mut(&root) else { return };
     let saved = milestone.clone();
-    let mut milestones = List::with_capacity(core.routes);
+    let count = u32::try_from(state.milestones.len()).expect("milestone count fits u32");
+    let mut milestones = List::with_capacity(count.checked_add(1).expect("one more milestone"));
     for old in &state.milestones {
         if old.identity == milestone.identity {
             return;
         }
         milestones.push(old.clone()).expect("pending history bounded by decision");
     }
+    assert!(count < core.routes, "pending history bounded by decision");
     milestones.push(milestone).expect("decision history room");
     state.milestones = milestones.into_boxed();
     state.changed = true;
@@ -566,7 +568,11 @@ fn restore_milestone(core: &mut Core, limits: &Limits, goal: u64, milestone: Pro
         return false;
     }
     let Some(state) = core.projections.get_mut(&goal) else { return false };
-    let mut milestones = List::with_capacity(core.routes);
+    let Ok(count) = u32::try_from(state.milestones.len()) else { return false };
+    if count >= core.routes {
+        return false;
+    }
+    let mut milestones = List::with_capacity(count + 1);
     for old in &state.milestones {
         if old.identity == milestone.identity || milestones.push(old.clone()).is_err() {
             return false;

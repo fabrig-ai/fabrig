@@ -1578,7 +1578,7 @@ pub(super) fn route_connector_repair(
             tracked: None,
         }]),
     }));
-    let mut out = Queue::with_capacity(1);
+    let mut out = Queue::uncapped();
     out.push(Request::Decided);
     Requests::Out(out)
 }

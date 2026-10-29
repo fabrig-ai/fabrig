@@ -12,7 +12,7 @@ fn policy_holder(numbers: &[u32]) -> offers::Recipient {
 }
 
 fn holding(core: &mut Core, limits: &Limits, role: people::Role) {
-    let mut out = Queue::with_capacity(people::max_out(&limits.people));
+    let mut out = Queue::uncapped();
     people::step(
         &mut core.people,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people },
@@ -246,7 +246,7 @@ fn an_observers_core_role_refusals_match_their_offers() {
         assert_eq!(offers::admit(&core, &limits, 1, act, &project, Wall::EPOCH), Admission::Refused(expected.clone()));
     }
     core.people = people::Domain::new(&limits.people, Box::new([]), 2, Box::new([]));
-    let mut child = Queue::with_capacity(people::max_out(&limits.people));
+    let mut child = Queue::uncapped();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people };
     people::step(
         &mut core.people,
@@ -368,7 +368,7 @@ fn a_maintainer_word_uses_the_trusted_entrance_and_keeps_its_actor() {
             },
         )
         .unwrap();
-    let mut out = Queue::with_capacity(limits.routes);
+    let mut out = Queue::uncapped();
     tasks::step(&mut core.tasks, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.tasks }, event, &mut out);
     let mut sent = false;
     for row in &out {
@@ -464,7 +464,7 @@ fn a_named_person_can_answer_without_project_membership() {
             batch: Box::new([row]),
         },
     );
-    let mut out = Queue::with_capacity(people::max_out(&limits.people));
+    let mut out = Queue::uncapped();
     people::step(
         &mut core.people,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people },
@@ -563,7 +563,7 @@ fn task_controls_owner_changes_priorities_and_note_scopes_share_their_judges() {
 
 fn sign_in(core: &mut Core, limits: &Limits) {
     let identity = core.people.identity(1).unwrap().clone();
-    let mut out = Queue::with_capacity(people::max_out(&limits.people));
+    let mut out = Queue::uncapped();
     people::step(
         &mut core.people,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people },

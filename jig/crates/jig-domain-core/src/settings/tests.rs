@@ -593,7 +593,7 @@ fn removal_markers_fit_beside_offered_charters_and_held_versions() {
     assert_eq!(core.held.versions.len(), 1);
     assert!(core.charter_at(7, 1).is_some());
     assert!(core.charter_at(7, 2).is_none());
-    let mut tasks_out = skein_lib::Queue::with_capacity(limits.routes);
+    let mut tasks_out = skein_lib::Queue::uncapped();
     tasks::step(
         &mut core.tasks,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: task_limits(&limits) },
@@ -729,7 +729,7 @@ fn a_settings_commit_before_the_first_start_seed_keeps_the_supplied_defaults() {
     let crate::Requests::Out(out) = core.commit_restored_settings(&env, limits.routes);
     assert!(out.is_empty());
     assert_eq!(core.current.rules(), &rules);
-    let mut writes = skein_lib::Queue::with_capacity(limits.routes);
+    let mut writes = skein_lib::Queue::uncapped();
     assert!(restart::first_start(&mut core, &env, &mut writes));
     assert!(!writes.is_empty());
     assert_eq!(core.current.newest(), 1);

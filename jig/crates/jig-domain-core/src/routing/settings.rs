@@ -547,7 +547,7 @@ pub(super) fn propose_run(
     core.pending_calls.insert(key, true).expect("call room reserved");
     core.routing_calls.insert(token, crate::RoutedCall::Propose { key, proposal: next }).expect("one proposal route");
     work.push(Event::Tasks(tasks::Event::Propose { reply_to: ReplyTo::new(token), proposal }));
-    let mut out = Queue::with_capacity(1);
+    let mut out = Queue::uncapped();
     out.push(Request::Decided);
     Requests::Out(out)
 }
