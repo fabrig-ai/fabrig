@@ -4,6 +4,9 @@ Count matches in tracked Rust files, excluding generated/ components and
 comments, while keeping string literals. Compare each form independently
 with scripts/old-forms.txt; --write can initialize or lower that baseline.
 Escapes separate words in ordinary strings and chars; raw strings stay literal.
+The max_out form exempts only EXEMPT's exact kernel submission bounds
+through their required io or skein_io qualifier. Bare names, other qualifiers
+and identifiers containing an exempt name still count.
 Recorded raises and other comments stay in place when counts are rewritten.
 Run from the jig root, using only the Python standard library:
 
@@ -20,6 +23,13 @@ FORMS = {
     'JournalRoom': re.compile(r'\bJournalRoom\b'),
     'takes': re.compile(r'\.takes\(&'),
     'worst_case': re.compile(r'\b\w*worst_case\w*\b'),
+}
+EXEMPT = {
+    'max_out': {
+        # The kernel's submission bounds stay at its edges.
+        name: ('io', 'skein_io')
+        for name in ('MAX_OUT_DOWN', 'MAX_OUT_UP', 'MAX_OUT_RESUME', 'MAX_OUT_FIRE')
+    },
 }
 BASELINE = Path('scripts/old-forms.txt')
 HEADER = (
@@ -41,7 +51,16 @@ TOKEN = re.compile(
 )
 BLOCK = re.compile(r'/\*|\*/')
 ESCAPE = re.compile(r'\\(?:x[0-9a-fA-F]{2}|u\{[0-9a-fA-F_]+\}|[\s\S])')
-IDENTIFIER = re.compile(r'\b\w+\b')
+IDENTIFIER = re.compile(r'\b\w+(?:\s*::\s*\w+)*\b')
+QUALIFIER = re.compile(r'(\b\w+(?:\s*::\s*\w+)*)\s*::\s*$')
+
+
+def exempt(form, match, source):
+    qualifiers = EXEMPT.get(form, {}).get(match.group(), ())
+    if not qualifiers:
+        return False
+    qualifier = QUALIFIER.search(source, 0, match.start())
+    return qualifier is not None and qualifier.group(1) in qualifiers
 
 
 def without_comments(source):
@@ -96,7 +115,7 @@ def counts():
         for form, pattern in FORMS.items():
             totals[form] += sum(
                 1 for match in pattern.finditer(source if form == 'takes' else candidates)
-                if form != 'max_out' or match.group() not in ('MAX_OUT_DOWN', 'MAX_OUT_UP')
+                if not exempt(form, match, source if form == 'takes' else candidates)
             )
     return totals
 
