@@ -4192,10 +4192,10 @@ fn a_story_box_and_its_steps_die_when_the_test_process_is_killed() {
         .expect("child test");
     let mut guard = Guard::new(child);
     let pid_file = scratch.path().join("box.pid");
-    wait(|| pid_file.exists());
+    wait(&mut guard, |_| pid_file.exists());
     let box_pid = fs::read_to_string(pid_file).expect("box pid").parse().expect("pid number");
     guard.record(box_pid, guard.child.as_ref().expect("child test").id());
-    wait(|| {
+    wait(&mut guard, |guard| {
         guard.descendants(box_pid);
         guard.has_descendants()
     });

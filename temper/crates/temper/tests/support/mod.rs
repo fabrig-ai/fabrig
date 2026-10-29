@@ -31,6 +31,7 @@ pub mod live_github;
 pub mod llm;
 pub mod long_question;
 pub mod parent;
+pub mod patience;
 pub mod person;
 pub mod playground;
 pub mod program_login;
@@ -392,7 +393,7 @@ impl Host for Process {
 struct Judge {
     sent: bool,
     signal: Signal,
-    deadline: Time,
+    deadline: patience::Patience,
     settled: bool,
 }
 impl Referee<Process> for Judge {
@@ -409,7 +410,7 @@ impl Referee<Process> for Judge {
             self.sent = true;
         }
     }
-    fn observe(&mut self, now: Time, procs: &[Process]) {
+    fn observe(&mut self, _now: Time, procs: &[Process]) {
         self.settled = self.sent && procs.iter().all(Host::is_empty);
         let Process::Binary(binary) = &procs[0] else { panic!("binary") };
         let Process::Stdout(stdout) = &procs[1] else { panic!("stdout reader") };
@@ -418,23 +419,25 @@ impl Referee<Process> for Judge {
             "temper serve failed before its link: {}",
             String::from_utf8_lossy(binary.stderr())
         );
-        assert!(
-            now < self.deadline || self.settled,
-            "signal sent: {}; stdout bytes: {}; exit: {:?}; binary empty: {}; stdout empty: {}; stderr: {}",
-            self.sent,
-            stdout.bytes.len(),
-            binary.exit_status(),
-            binary.is_empty(),
-            stdout.is_empty(),
-            String::from_utf8_lossy(binary.stderr())
-        );
+        if !self.settled
+            && let Some(figures) = self.deadline.failed()
+        {
+            panic!(
+                "signal sent: {}; stdout bytes: {}; exit: {:?}; binary empty: {}; stdout empty: {}; stderr: {}; {figures}",
+                self.sent,
+                stdout.bytes.len(),
+                binary.exit_status(),
+                binary.is_empty(),
+                stdout.is_empty(),
+                String::from_utf8_lossy(binary.stderr())
+            );
+        }
     }
     fn next_deadline(&self) -> Option<Time> {
-        (!self.settled).then_some(self.deadline)
+        if self.settled { None } else { self.deadline.until() }
     }
-    fn overdue(&self, now: Time) -> Option<String> {
-        (!self.settled && now >= self.deadline)
-            .then(|| "temper serve did not print its link and drain within its deadline".into())
+    fn overdue(&self, _now: Time) -> Option<String> {
+        None
     }
     fn passed(&self) -> bool {
         self.settled
@@ -452,9 +455,11 @@ fn run_signal(directory: &Path, signal: Signal, deadline: Duration, peer: Option
     let mut world = real::World::new(Judge {
         sent: false,
         signal,
-        deadline: clock.now().now.saturating_add(Duration::from_nanos(
-            deadline.as_nanos().saturating_sub(Duration::from_secs(10).as_nanos()),
-        )),
+        deadline: patience::Patience::watching(
+            "temper serve's link and drain",
+            Duration::from_nanos(deadline.as_nanos().saturating_sub(Duration::from_secs(10).as_nanos())),
+            &binary,
+        ),
         settled: false,
     });
     world.spawn_with_fds(binary.descriptors(), || Process::Binary(Box::new(binary)));
@@ -514,7 +519,7 @@ enum ChatPhase {
 struct ChatJudge<'a> {
     phase: ChatPhase,
     ending: Ending,
-    deadline: Time,
+    deadline: patience::Patience,
     forge: Option<&'a forgejo::Throwaway>,
     poll: Time,
     merged: bool,
@@ -568,7 +573,7 @@ impl Referee<Process> for ChatJudge<'_> {
             self.phase = ChatPhase::Stopping;
         }
     }
-    fn observe(&mut self, now: Time, procs: &[Process]) {
+    fn observe(&mut self, _now: Time, procs: &[Process]) {
         if self.stopping() && procs.iter().all(Host::is_empty) {
             self.phase = ChatPhase::Settled;
         }
@@ -614,24 +619,23 @@ impl Referee<Process> for ChatJudge<'_> {
             ),
             Ending::Crash => assert!(!binary.stderr_overflowed(), "crashed temper serve overflowed stderr"),
         }
-        assert!(
-            now < self.deadline || matches!(self.phase, ChatPhase::Settled),
-            "native chat did not settle: {}",
-            String::from_utf8_lossy(binary.stderr())
-        );
+        if !matches!(self.phase, ChatPhase::Settled)
+            && let Some(figures) = self.deadline.failed()
+        {
+            panic!("native chat did not settle: {}; {figures}", String::from_utf8_lossy(binary.stderr()));
+        }
     }
     fn next_deadline(&self) -> Option<Time> {
-        (!matches!(self.phase, ChatPhase::Settled)).then_some(
-            if self.forge.is_some() && matches!(self.phase, ChatPhase::Running) {
-                self.poll.min(self.deadline)
-            } else {
-                self.deadline
-            },
-        )
+        if matches!(self.phase, ChatPhase::Settled) {
+            None
+        } else if self.forge.is_some() && matches!(self.phase, ChatPhase::Running) {
+            Some(self.deadline.until().map_or(self.poll, |until| self.poll.min(until)))
+        } else {
+            self.deadline.until()
+        }
     }
-    fn overdue(&self, now: Time) -> Option<String> {
-        (!matches!(self.phase, ChatPhase::Settled) && now >= self.deadline)
-            .then(|| "native person's chat did not finish and settle".into())
+    fn overdue(&self, _now: Time) -> Option<String> {
+        None
     }
     fn passed(&self) -> bool {
         matches!(self.phase, ChatPhase::Settled)
@@ -726,9 +730,11 @@ fn run_story(
         forge,
         poll: clock.now().now,
         merged: false,
-        deadline: clock.now().now.saturating_add(Duration::from_nanos(
-            deadline.as_nanos().saturating_sub(Duration::from_secs(10).as_nanos()),
-        )),
+        deadline: patience::Patience::watching(
+            "the native chat's settlement",
+            Duration::from_nanos(deadline.as_nanos().saturating_sub(Duration::from_secs(10).as_nanos())),
+            &binary,
+        ),
     });
     world.spawn_with_fds(binary.descriptors(), || Process::Binary(Box::new(binary)));
     if setting_up {
@@ -776,8 +782,7 @@ pub fn private(path: &Path) -> bool {
 /// One complete stdout line; the read finishes before the pipe changes hosts.
 #[must_use]
 pub fn read_line(output: Fd, within: Duration) -> Vec<u8> {
-    let clock = Clock::new();
-    let deadline = clock.now().now.saturating_add(within);
+    let mut deadline = patience::Patience::arm("serve's printed link", within);
     let mut kernel = skein_shell::Kernel::open(skein_shell::Config { operations: 1 }).expect("link reader ring");
     let mut complete = Queue::with_capacity(1);
     let mut submit = Queue::with_capacity(1);
@@ -785,8 +790,10 @@ pub fn read_line(output: Fd, within: Duration) -> Vec<u8> {
     loop {
         submit.push(Submit { op: PIPE, kind: Op::PipeRead { fd: output, buf: vec![0; 1024].into_boxed_slice() } });
         loop {
-            assert!(clock.now().now < deadline, "serve prints a link within its deadline");
-            kernel.submit(&mut submit, skein_shell::Wait::Until(deadline));
+            if let Some(figures) = deadline.failed() {
+                panic!("serve prints a link within its deadline: {figures}");
+            }
+            kernel.submit(&mut submit, deadline.until().map_or(skein_shell::Wait::Forever, skein_shell::Wait::Until));
             kernel.reap(&mut complete);
             if !complete.is_empty() {
                 break;

@@ -269,7 +269,7 @@ fn run_to(root: &Path, forge: &Throwaway, previous: Option<&Proof>, retry: bool)
         chat: ChatJudge {
             phase: if first { ChatPhase::SettingUp } else { ChatPhase::Running },
             ending: Ending::Stop,
-            deadline: clock.now().now.saturating_add(LANDING),
+            deadline: super::patience::Patience::watching("the restarted turn's landing", LANDING, &binary),
             forge: Some(forge),
             poll: clock.now().now,
             merged: false,

@@ -321,7 +321,7 @@ fn parent_shutdown(signal: &str) {
         steps,
         boxed::BOX_DEADLINE,
         || {
-            let guard = parent::Guard::observing_test();
+            let mut guard = parent::Guard::observing_test();
             let runners = matching_arguments(guard.pids(), &["forge", "run"]);
             let forge_parent = runners
                 .into_iter()

@@ -94,7 +94,7 @@ fn a_termination_signal_kills_the_commands_group_and_ends_the_preparation_interr
     let scratch = support::Scratch::new("forge_interrupted");
     let programs = support::owned::scripted(scratch.path());
     programs.hang("forgejo", "migrate");
-    let run = Command::new(skein_scratch::paths::binary("temper"))
+    let mut run = Command::new(skein_scratch::paths::binary("temper"))
         .args(["forge", "prepare"])
         .args(support::configuration::flags(scratch.path()))
         .arg("1")
@@ -103,7 +103,7 @@ fn a_termination_signal_kills_the_commands_group_and_ends_the_preparation_interr
         .stderr(std::process::Stdio::piped())
         .spawn()
         .expect("preparation");
-    let sleep = programs.hung(support::WITHIN);
+    let sleep = programs.hung(&mut run, support::WITHIN);
     assert!(
         Command::new("/bin/sh").args(["-c", &format!("kill -TERM {}", run.id())]).status().expect("signal").success()
     );
@@ -134,7 +134,7 @@ fn a_second_run_is_refused_while_the_first_holds_the_lock() {
     let programs = support::owned::scripted(scratch.path());
     support::owned::finished(scratch.path());
     let mut first = support::owned::command(scratch.path(), "forgejo").spawn().expect("first run");
-    programs.marker("forgejo", support::WITHIN);
+    programs.marker("forgejo", &mut first, support::WITHIN);
     let refused = support::owned::command(scratch.path(), "forgejo").output().expect("second run");
     first.kill().and_then(|()| first.wait()).expect("first stopped");
     assert_eq!(refused.status.code(), Some(1));
@@ -147,7 +147,7 @@ fn the_run_replaces_itself_holding_the_lock_as_standard_input() {
     let programs = support::owned::scripted(scratch.path());
     support::owned::finished(scratch.path());
     let mut run = support::owned::command(scratch.path(), "forgejo").spawn().expect("run starts");
-    let marker = programs.marker("forgejo", support::WITHIN);
+    let marker = programs.marker("forgejo", &mut run, support::WITHIN);
     let stdin = fs::read_link(format!("/proc/{}/fd/0", run.id())).expect("stdin");
     run.kill().and_then(|()| run.wait()).expect("stopped");
     assert_eq!(marker.pid, run.id());
@@ -170,7 +170,7 @@ fn the_new_process_sees_the_specs_environment_alone() {
     let programs = support::owned::scripted(scratch.path());
     support::owned::finished(scratch.path());
     let mut run = support::owned::command(scratch.path(), "forgejo").env("LEAKED", "private").spawn().expect("run");
-    let mut marker = programs.marker("forgejo", support::WITHIN);
+    let mut marker = programs.marker("forgejo", &mut run, support::WITHIN);
     run.kill().and_then(|()| run.wait()).expect("stopped");
     marker.environment.sort();
     let directory = scratch.path().join("forge-1");
@@ -192,7 +192,7 @@ fn the_new_process_holds_no_descriptor_but_the_standard_three() {
     let programs = support::owned::scripted(scratch.path());
     support::owned::finished(scratch.path());
     let mut run = support::owned::command(scratch.path(), "runner").spawn().expect("run");
-    let marker = programs.marker("runner", support::WITHIN);
+    let marker = programs.marker("runner", &mut run, support::WITHIN);
     run.kill().and_then(|()| run.wait()).expect("stopped");
     assert_eq!(marker.descriptors, [0, 1, 2]);
     assert_eq!(
@@ -293,7 +293,7 @@ fn an_interrupted_upgrade_leaves_the_state_for_the_next_preparation() {
     let path = owned::file(scratch.path(), 1, temper_forge_setup::place::File::State);
     let before = fs::read(&path).expect("old state");
     programs.hang("forgejo", "dump");
-    let run = Command::new(skein_scratch::paths::binary("temper"))
+    let mut run = Command::new(skein_scratch::paths::binary("temper"))
         .args(["forge", "prepare"])
         .args(support::configuration::flags(scratch.path()))
         .arg("1")
@@ -302,7 +302,7 @@ fn an_interrupted_upgrade_leaves_the_state_for_the_next_preparation() {
         .stderr(std::process::Stdio::piped())
         .spawn()
         .expect("prepare");
-    let _sleep = programs.hung(support::WITHIN);
+    let _sleep = programs.hung(&mut run, support::WITHIN);
     assert!(
         Command::new("/bin/sh")
             .args(["-c", &format!("kill -TERM {}", run.id())])
