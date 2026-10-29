@@ -117,3 +117,65 @@ fn the_same_owners_read_the_same_over_either_pair() {
         assert_eq!(joined.failed, [None, None]);
     }
 }
+
+#[test]
+fn an_ip_and_a_named_listener_accept_and_exchange_independently() {
+    use skein_io_world::owner::{Dial, Owner, Reads, Serve, ServeClose, Target, Total};
+    use skein_io_world::referee::{Expect, Referee};
+    use skein_io_world::scenarios::{END, limits, local, plan};
+    use skein_io_world::world::World;
+    use skein_lib::Time;
+
+    for seed in SEEDS {
+        let mut serves = Vec::new();
+        let mut dials = Vec::new();
+        let mut expectations = Vec::new();
+        for (listener, addr, server, client, upload, reply) in [
+            ("ip", local(0), "ip-server", "ip-client", b"IP upload".as_slice(), b"IP reply".as_slice()),
+            (
+                "named",
+                skein_io_world::joined::name(b"mixed"),
+                "named-server",
+                "named-client",
+                b"named upload".as_slice(),
+                b"named reply".as_slice(),
+            ),
+        ] {
+            serves.push(Serve {
+                name: listener,
+                addr,
+                answers: vec![Some(skein_io_world::owner::Plan {
+                    total: Total::Known(upload.len()),
+                    ..plan(server, Box::from(reply), 16, Reads::Mixed(7))
+                })],
+                close: ServeClose::At(Time::from_nanos(50_000_000)),
+            });
+            dials.push(Dial {
+                to: Target::Named(listener),
+                at: Time::from_nanos(20_000_000),
+                plan: skein_io_world::owner::Plan {
+                    total: Total::Known(reply.len()),
+                    ..plan(client, Box::from(upload), 16, Reads::Mixed(7))
+                },
+            });
+            for (conn, bytes) in [(server, upload), (client, reply)] {
+                expectations.push(Expect::Receives { at: 0, conn, bytes: Box::from(bytes), by: END });
+                expectations.push(Expect::Ends { at: 0, conn, by: END });
+                expectations.push(Expect::Closed { at: 0, conn, by: END, optional: false });
+            }
+        }
+        let mut world = World::new(seed, Config::calm(), Referee::new(seed, expectations));
+        world.spawn(limits(6), Owner::new(seed, serves, dials));
+        let outcome = world.run();
+        assert_eq!(
+            outcome.logs[0]
+                .iter()
+                .take_while(|line| !line.contains("Closed {"))
+                .filter(|line| line.contains("Listening {"))
+                .count(),
+            2,
+            "seed {seed}: both listeners open before either closes"
+        );
+        assert!(!outcome.trace.is_empty(), "the IP pair uses the simulated kernel");
+    }
+}
