@@ -30,9 +30,9 @@ const LIMITS: Limits = Limits {
 
 /// The kept files, by name, as the store's root holds them.
 const KEPT: [(&[u8], &[u8]); 3] = [
-    (b"log-00000000000000000002", include_bytes!("../golden/log-00000000000000000002")),
-    (b"log-00000000000000000005", include_bytes!("../golden/log-00000000000000000005")),
-    (b"snapshot", include_bytes!("../golden/snapshot")),
+    (b"log-00000000000000000002", include_bytes!("../../golden/log-00000000000000000002")),
+    (b"log-00000000000000000005", include_bytes!("../../golden/log-00000000000000000005")),
+    (b"snapshot", include_bytes!("../../golden/snapshot")),
 ];
 
 /// The commit number of the sequence's last commit.

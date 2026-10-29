@@ -1,11 +1,8 @@
 //! The store's declared bound against the counting allocator.
 
-use skein_heap::{Counting, Meter};
+use skein_heap::Meter;
 use skein_kv::{Event, Limits, Op, Page, Request, Store, worst_case};
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
-
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 fn limits() -> Limits {
     Limits {
