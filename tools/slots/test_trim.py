@@ -68,6 +68,16 @@ class TrimTests(unittest.TestCase):
         self.assertTrue(opened.exists())
         self.assertTrue((self.deps / "hardlink").exists())
 
+    def test_dry_run_counts_candidates_without_unlinking(self):
+        old = self.file("old")
+        held = self.file("held")
+        info = held.stat()
+        self.assertEqual(trim.trim(self.slot, CUTOFF, dry_run=True,
+                                   held_files=lambda: ({(info.st_dev, info.st_ino)}, 0)),
+                         (1, 16, 0))
+        self.assertTrue(old.exists())
+        self.assertTrue(held.exists())
+
     def test_other_users_processes_are_not_inspected(self):
         proc = self.root / "proc"
         (proc / "101/fd").mkdir(parents=True)
