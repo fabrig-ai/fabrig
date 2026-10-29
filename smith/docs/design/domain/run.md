@@ -865,7 +865,9 @@ finish delivered meanwhile is still its result (8.4).
 
 Each child domain pushes what happened as typed, content-free facts into
 an uncapped queue (programming-model.md, section 3), so no fact is lost
-inside the process. The service dispatches those facts before the next
+inside the process. The run exposes its queued count through
+`pending_facts()` for its parent to drain, without an allowance for one
+entrance. The service dispatches those facts before the next
 domain entrance (protocol/limits.md, 3.8). Each carries when it happened,
 taken by the step that emits it, never when a sink takes it:
 
