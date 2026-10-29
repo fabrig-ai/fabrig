@@ -146,16 +146,16 @@ fn full_fake_process_and_connection_pool_fit_and_free_their_separate_heaps() {
     for transport in [skein_fake_peers::Transport::Plaintext, skein_fake_peers::Transport::Tls] {
         let first =
             skein_llm_connection_world::simulated::run(37, false, transport, true, skein_world::Memory::Checked);
-        let heap = first.heap.as_ref().unwrap();
+        let heap = first.peaks().unwrap();
         assert_eq!(heap.len(), 2);
-        let [(client, _), (peer, _)] = heap.as_slice() else { panic!("two separate process heaps") };
+        let [client, peer] = heap.as_slice() else { panic!("two separate process heaps") };
         assert!(*client > 0 && *client <= SIMULATED_CLIENT_PEAK_CEILING);
         assert!(*peer > 0 && *peer <= SIMULATED_PEER_PEAK_CEILING);
         if transport == skein_fake_peers::Transport::Plaintext {
             let second =
                 skein_llm_connection_world::simulated::run(37, false, transport, true, skein_world::Memory::Checked);
             skein_llm_connection_world::simulated::assert_replay(&first, &second);
-            assert_eq!(first.heap, second.heap);
+            assert_eq!(first.peaks(), second.peaks());
         }
     }
 }
@@ -173,11 +173,11 @@ fn bounded_request_batches_preserve_exact_upload_latency_replay_and_separate_hea
     let first = run_with_input(23, false, Transport::Plaintext, false, Memory::Checked, 1500);
     let second = run_with_input(23, false, Transport::Plaintext, false, Memory::Checked, 1500);
     assert_replay(&first, &second);
-    assert_eq!(first.heap, second.heap);
+    assert_eq!(first.peaks(), second.peaks());
     assert!(first.iterations < 256, "bounded upload settled in {} iterations", first.iterations);
     assert_eq!(first.procs.len(), 2, "client and fake remain separately owned processes");
-    let heap = first.heap.as_ref().unwrap();
-    let [(client, _), (peer, _)] = heap.as_slice() else { panic!("two separate process heaps") };
+    let heap = first.peaks().unwrap();
+    let [client, peer] = heap.as_slice() else { panic!("two separate process heaps") };
     assert!(*client > 0 && *client <= BATCHED_CLIENT_PEAK_CEILING);
     assert!(*peer > 0 && *peer <= BATCHED_PEER_PEAK_CEILING);
 }

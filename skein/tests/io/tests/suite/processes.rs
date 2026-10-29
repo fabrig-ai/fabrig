@@ -9,9 +9,7 @@ fn check(story: Story) {
     for seed in 0..4 {
         for config in [Config::calm(), chaos()] {
             let outcome = run(seed, config, story, Memory::Checked);
-            assert!(
-                outcome.heap.as_ref().expect("memory checked").iter().all(|(peak, _)| *peak > 0 && *peak <= CEILING)
-            );
+            assert!(outcome.peaks().expect("memory checked").iter().all(|peak| *peak > 0 && *peak <= CEILING));
         }
     }
 }
@@ -33,7 +31,7 @@ fn the_group_story_replays_its_actual_kernel_trace() {
     let first = run(7, chaos(), Story::SignalExited, Memory::Checked);
     let second = run(7, chaos(), Story::SignalExited, Memory::Checked);
     assert_eq!(first.trace, second.trace);
-    assert_eq!(first.heap, second.heap);
+    assert_eq!(first.peaks(), second.peaks());
     assert_ne!(first.trace, run(8, chaos(), Story::SignalExited, Memory::Checked).trace);
 }
 
@@ -45,9 +43,7 @@ fn a_childs_usage_joins_the_childrens_only_at_its_close() {
         for config in [Config::calm(), chaos()] {
             let outcome = skein_io_world::usage::run(seed, config, Memory::Checked);
             outcome.procs[0].check(true);
-            assert!(
-                outcome.heap.as_ref().expect("memory checked").iter().all(|(peak, _)| *peak > 0 && *peak <= CEILING)
-            );
+            assert!(outcome.peaks().expect("memory checked").iter().all(|peak| *peak > 0 && *peak <= CEILING));
         }
     }
 }

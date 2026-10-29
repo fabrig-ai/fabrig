@@ -16,7 +16,7 @@ fn complete(
     assert_eq!(outcome.machine.bytes(), CONTENTS);
     assert_eq!(outcome.procs[0].failures(), 0);
     assert_eq!(outcome.procs[0].events.last(), Some(&Evidence::Closed));
-    assert!(outcome.heap.as_ref().expect("checked owner").iter().all(|(peak, _)| *peak <= CEILING));
+    assert!(outcome.peaks().expect("checked owner").iter().all(|peak| *peak <= CEILING));
     outcome.machine.finish();
     outcome
 }
