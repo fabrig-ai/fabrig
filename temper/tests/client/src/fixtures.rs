@@ -325,7 +325,14 @@ pub fn question(front: &mut Joint, words: &[u8]) -> u64 {
 }
 /// Choose the document text bound before the engine starts, without changing message admission.
 pub fn question_with_text_bound(front: &mut Joint, words: &[u8], text: Option<u32>) -> u64 {
-    *front = Joint::with_question_text_bound(SEED, &domain_limits(), text);
+    question_with_agreement(front, words, text, false)
+}
+/// Work agreed first owes the chat a question before its change can start.
+pub fn agreed_question(front: &mut Joint, words: &[u8]) -> u64 {
+    question_with_agreement(front, words, None, true)
+}
+fn question_with_agreement(front: &mut Joint, words: &[u8], text: Option<u32>, agree: bool) -> u64 {
+    *front = Joint::with_question_text_bound(SEED, &domain_limits(), text, agree);
     let driver = &mut front.engine;
     driver.sign_in();
     driver.settle();
@@ -346,11 +353,15 @@ pub fn question_with_text_bound(front: &mut Joint, words: &[u8], text: Option<u3
         engine::Call {
             completion: QUESTION_COMPLETION,
             position: QUESTION_POSITION,
-            tool: engine::Tool::Delegate {
-                batch: Box::new([temper_engine_domain_world::fixtures::report_delegate(
-                    b"Ask the person",
-                    Box::new([]),
-                )]),
+            tool: if agree {
+                engine::Tool::Goal { words: b"Ask the person".as_slice().into(), advisor: false, agree: true }
+            } else {
+                engine::Tool::Delegate {
+                    batch: Box::new([temper_engine_domain_world::fixtures::report_delegate(
+                        b"Ask the person",
+                        Box::new([]),
+                    )]),
+                }
             },
         },
     );

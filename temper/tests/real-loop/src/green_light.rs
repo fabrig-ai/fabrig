@@ -16,7 +16,7 @@ use std::{
 
 const CUES: [&str; 4] = [
     "## Replying",
-    "[Requested by task 1]",
+    "You are a goal: the work your person asked for",
     "Implement the approved CSV export for widget.",
     "Review this change at the named head",
 ];

@@ -18,7 +18,7 @@ use std::{
 pub const TASKS: [u64; 6] = [1, 2, 3, 5, 6, 7];
 pub const CUES: [&str; 6] = [
     "## Replying",
-    "[Requested by task 1]",
+    "You are a goal: the work your person asked for",
     "You are an advisor: you read what your brief asks and report what you found; you change nothing and ask no one.",
     "Implement CSV export for the existing hard-coded TABLE data in src/main.rs",
     "Repair the failed CI on the change branch",

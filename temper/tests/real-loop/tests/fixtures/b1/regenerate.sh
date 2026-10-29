@@ -11,7 +11,7 @@ heavy env TEMPER_BUNDLE=none NEXTEST_DOUBLE_SPAWN=0 cargo run -p temper-twin -- 
   --base tests/real-loop/tests/fixtures/b1/llm-base.json \
   --out tests/real-loop/tests/fixtures/b1/llm.json \
   --cue '1=## Replying' \
-  --cue '2=[Requested by task 1]' \
+  --cue '2=You are a goal: the work your person asked for' \
   --cue '3=You are an advisor: you read what your brief asks and report what you found; you change nothing and ask no one.' \
   --cue '5=Implement CSV export for the existing hard-coded TABLE data in src/main.rs' \
   --cue '6=Repair the failed CI on the change branch' \
