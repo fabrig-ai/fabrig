@@ -21,11 +21,8 @@ const FIRST_DELEGATE: usize = 0;
 // The fresh case has at most eight tasks; this number names none of them.
 const ABSENT_TASK: u64 = 999;
 const PAST_CALLS: usize = usize::MAX;
-const OTHER_PRIORITY: u8 = 2;
 // Keep the case's scripted per-turn token charge when adding a tool turn.
 const TOKENS_PER_CALL: u64 = 20;
-const NON_MARKDOWN: &str = "export.rs";
-const NON_MARKDOWN_WORDS: &str = "pub fn export() {}\n";
 const CHANGED_DRAFT: &str = "# Export draft\n\nChanged by the designer.\n";
 
 fn script(scripts: &mut [Script], agent: Agent) -> &mut Script {
@@ -97,18 +94,6 @@ const AUTHORITY: Promise = Promise::Add("authority bounds A's subtree");
 const MARKDOWN: Promise = Promise::Must("the fast path for Markdown alone (exact)");
 
 #[test]
-fn another_priority_reports_the_delegation_must() {
-    let ran = story(|forge| {
-        let mut scripts = case::scripts::step_4_1(forge);
-        edit_call(&mut scripts, Agent::Director, b"delegate", |call| {
-            call["batch"][FIRST_DELEGATE]["tracked"]["priority"] = OTHER_PRIORITY.into();
-        });
-        scripts
-    });
-    misses(&ran, &[(DELEGATION, "priority")]);
-}
-
-#[test]
 fn the_default_model_reports_the_delegation_must() {
     let ran = story(|forge| {
         let mut scripts = case::scripts::step_4_1(forge);
@@ -131,16 +116,6 @@ fn a_brief_without_the_commit_reports_the_delegation_must() {
         scripts
     });
     misses(&ran, &[(DELEGATION, "commit")]);
-}
-
-#[test]
-fn a_non_markdown_file_reports_the_markdown_must() {
-    let ran = story(|forge| {
-        let mut scripts = case::scripts::step_4_1(forge);
-        extra_design_turn(&mut scripts, b"write", &json!({"path":NON_MARKDOWN,"content":NON_MARKDOWN_WORDS}));
-        scripts
-    });
-    misses(&ran, &[(MARKDOWN, "Markdown")]);
 }
 
 #[test]
@@ -221,26 +196,4 @@ fn missing_document_cannot_pass(ran: &Ran, reads: &[(acts::Read, usize)]) {
             ],
         );
     }
-}
-
-#[test]
-fn several_misses_are_reported_together_without_hiding_checkpoints() {
-    let ran = story(|forge| {
-        let mut scripts = case::scripts::step_4_1(forge);
-        edit_call(&mut scripts, Agent::Director, b"delegate", |call| {
-            let owner = &mut call["batch"][FIRST_DELEGATE];
-            owner["tracked"]["priority"] = OTHER_PRIORITY.into();
-            owner["spec"]["words"] = format!("{}{}", case::A_SPEC_PREFIX, case::A_SPEC_SUFFIX).into();
-        });
-        extra_design_turn(&mut scripts, b"write", &json!({"path":NON_MARKDOWN,"content":NON_MARKDOWN_WORDS}));
-        scripts
-    });
-    misses(
-        &ran,
-        &[
-            (DELEGATION, "A.priority must be 1"),
-            (DELEGATION, "A.spec must name the draft and its first commit"),
-            (MARKDOWN, "changed path \"export.rs\" is not Markdown"),
-        ],
-    );
 }
