@@ -272,21 +272,51 @@ invalidated and removed from active. A completed successor's marker must not
 make its predecessor's certificate fail. Unknown/mismatching/incomplete markers
 refuse before polling; never remove them by hand.
 
-The enclosing drain/restart deadline also scopes policy Git, both Cargo
-metadata calls, certificate/chain/artifact validation and preparation runners.
-No expired client starts. Local clients inherit held authority/checkout locks;
-on expiry the owning command's session receives a termination request, but this
-is not a descendant completion claim. The existing preparation marker and
-preparation_unresolved flag persist, the physical gate remains owned, and no
-candidate is promoted or replaced. Drain cannot return true with an unresolved
-preparation marker. An escaped descendant can remain alive after its client
-ends; that case stays quarantined across reload, requires supported operator
-reconciliation, and cannot use the completed-preparation shortcut. Evidence for
-an incomplete or uncertain preparation is not reconstructed by this repair.
+Operation scopes policy Git, both Cargo metadata calls, certificate/chain/
+artifact validation and preparation runners, including calls without a drain
+deadline. The enclosing drain/restart deadline still bounds scoped calls; no
+expired client starts. Before launch, an immutable intent in the authority's
+0700 `preparation-clients/` journal and a distinct 0600
+`.git/mq-preparation-unresolved.json` client marker must both publish durably.
+This private version-1 `preparation-client-v1` identity binds a unique client,
+exact attempt/generation/state path and snapshot digest, candidate, argv/cwd/
+input digest, and any preceding normal preparation marker. Calls without an
+admission-specific context use null attempt/candidate fields and retain the
+exact snapshot digest; certificate validation binds its exact request.
+Unknown versions/fields refuse; no stored
+state/request/config version is relaxed or migrated.
+
+Each client runs under an isolated Linux subreaper which inherits the held
+authority/checkout descriptors. Captured channels remain private journal files.
+Only ECHILD for that complete command family permits its exact immutable
+completion journal. A direct zero exit, EOF, closed inherited descriptors,
+released lock, PID absence or termination request is insufficient. The live
+caller validates that proof and the unchanged client marker before removing it
+or restoring its exact preceding normal preparation marker. A normal completed
+preparation marker supplies only its own snapshot/artifact proof and never
+supplies client completion proof.
+
+On expiry the owning command's session receives a termination request; escaped
+descendants can survive. The distinct pre-launch marker already retains their
+ownership even if controller loss precedes timeout, marker publication is
+followed by an I/O error, or snapshot publication of preparation_unresolved
+never completes. Where an attempt exists, timeout also records that existing
+flag. Physical gate ownership, stop and returned receipts remain retained;
+no candidate is promoted or replaced. Drain refuses an unresolved marker.
+Publication failures poison the live controller and preserve its held leases.
+
+Reload refuses client markers before completed-preparation reconciliation or
+checkout reuse. This repair exposes no recovery action to consume orphaned
+client journals, even if a lost caller's subreaper later produced a completion
+journal. Unsupported interrupted-client and incomplete-preparation recovery
+remain blocked for separately reviewed supported evidence; never remove or
+rewrite markers by hand, infer release from absence or fabricate certificates.
 
 Repeat these checks only in the private fixtures during the separate approved
 real validation: zero-exit parent with a blocked session-escaped descendant;
-controller loss after successor preparation publication before marker removal;
-and bounded certificate metadata/Git with surviving descendants. Record stop,
-marker, snapshot and result evidence. The offline tests exercise these local
+controller loss before client timeout and after client marker publication but
+before the unresolved snapshot flag, with escaped descendants alive through
+reload/reuse attempts; controller loss after successor preparation publication
+before marker removal; and bounded certificate metadata/Git. Record stop,
+marker, snapshot, intent/completion journals and result evidence. The offline tests exercise these local
 boundaries; they activate no queue and prove no real heavy/systemd containment.
