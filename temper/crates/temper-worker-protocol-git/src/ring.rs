@@ -53,8 +53,4 @@ impl ByteRing {
         }
         out.finish()
     }
-    #[must_use]
-    pub fn worst_case(capacity: u32) -> Option<u64> {
-        Some(u64::from(capacity))
-    }
 }
