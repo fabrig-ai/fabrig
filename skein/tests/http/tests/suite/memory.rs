@@ -15,15 +15,12 @@
 
 use std::mem::size_of;
 
-use skein_heap::{Counting, Meter};
+use skein_heap::Meter;
 use skein_http::Header;
 use skein_http::client::{self, Body, Call, Client, Event, Limits, Method, Request};
 use skein_http::sse::{self, Reader};
 use skein_lib::stream::{Delimiter, Down, Fault, Read, Up};
 use skein_lib::{Env, Intake, Queue, Time, Wall};
-
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 /// What a run does besides its exchange.
 #[derive(Clone, Copy, Debug)]
