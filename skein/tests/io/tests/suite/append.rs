@@ -5,9 +5,6 @@ use skein_lib::{Duration, Time};
 use skein_sim::{Config, Faults, Summary};
 use skein_world::Memory;
 
-#[global_allocator]
-static HEAP: skein_heap::Counting = skein_heap::Counting;
-
 fn complete(
     seed: u64,
     config: Config,

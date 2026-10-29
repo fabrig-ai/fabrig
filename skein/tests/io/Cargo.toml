@@ -42,5 +42,6 @@ disallowed_types = "deny"
 disallowed_methods = "deny"
 
 [[bin]]
+test = false
 name = "io_process_fixture"
 path = "../conformance/real/src/bin/process_fixture.rs"

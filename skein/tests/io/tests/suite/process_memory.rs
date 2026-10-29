@@ -3,14 +3,11 @@
 //! temporarily holds the child pipe IDs, a clone of them, result descriptors,
 //! and the announced tokens. The next pass arms a read on every pipe.
 
-use skein_heap::{Counting, Meter};
+use skein_heap::Meter;
 use skein_io::kernel::{Complete, Done, Exit, Fd, Op, Pipe, Spawn, Submit, Way};
 use skein_io::{Event, Io, Limits, Request, worst_case};
 use skein_lib::stream::{OutputDown, OutputOutcome, OutputUp};
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
-
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 const PIPES: usize = 7;
 

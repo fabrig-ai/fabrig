@@ -19,14 +19,11 @@
 
 use std::net::{Ipv4Addr, SocketAddr};
 
-use skein_heap::{Counting, Meter};
+use skein_heap::Meter;
 use skein_io::kernel::{Complete, Done, Error, Fd, Op, Submit};
 use skein_io::{Event, Io, Limits, Request, worst_case};
 use skein_lib::stream::{Down, OutputDown, OutputOutcome, OutputUp, Read};
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
-
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 /// io, and the storage of the test that drives it.
 struct Driver {

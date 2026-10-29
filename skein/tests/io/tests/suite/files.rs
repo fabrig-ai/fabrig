@@ -5,9 +5,6 @@ use skein_io::kernel::{Error, Op};
 use skein_io_world::files::{FileSystem, NEW, OLD, OTHER, Story, world, world_with_files};
 use skein_sim::{Config, Faults};
 
-#[global_allocator]
-static HEAP: skein_heap::Counting = skein_heap::Counting;
-
 #[test]
 fn a_store_failed_at_each_step_has_whole_contents_and_no_temporary() {
     for step in 0..17 {

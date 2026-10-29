@@ -3,9 +3,6 @@ use skein_io_world::cuts::{NEW, OLD, world};
 use skein_sim::Config;
 use skein_world::Cut;
 
-#[global_allocator]
-static HEAP: skein_heap::Counting = skein_heap::Counting;
-
 #[test]
 fn a_store_cut_at_each_sync_and_rename_recovers_old_or_new_whole() {
     let mut seen_old = false;

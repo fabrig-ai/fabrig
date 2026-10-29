@@ -1,8 +1,5 @@
 use skein_io_world::renames::{self, Found};
 use skein_world::Cut;
-#[global_allocator]
-static HEAP: skein_heap::Counting = skein_heap::Counting;
-
 #[test]
 fn a_rename_across_cut_at_each_operation_is_in_one_directory_whole() {
     let uncut = renames::world(0).run();

@@ -1,11 +1,7 @@
 //! io's process-group worlds, with exact replay and per-process heap checking.
-use skein_heap::Counting;
 use skein_io_world::processes::{Story, chaos, run};
 use skein_sim::Config;
 use skein_world::Memory;
-
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 fn check(story: Story) {
     // Process-group stories peak at 68,216 B. Ceiling adds 25% headroom, rounded up to two significant digits.

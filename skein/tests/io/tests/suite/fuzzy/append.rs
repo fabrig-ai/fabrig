@@ -5,9 +5,6 @@ use skein_sim::{Config, Event, Fault};
 use skein_world::Memory;
 use std::collections::BTreeSet;
 
-#[global_allocator]
-static HEAP: skein_heap::Counting = skein_heap::Counting;
-
 #[test]
 fn appends_under_chaos_settle_replay_and_every_applicable_fault_falls() {
     let required = BTreeSet::from([

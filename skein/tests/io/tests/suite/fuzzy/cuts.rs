@@ -4,9 +4,6 @@ use skein_lib::Duration;
 use skein_sim::{Config, Faults};
 use skein_world::Cut;
 
-#[global_allocator]
-static HEAP: skein_heap::Counting = skein_heap::Counting;
-
 #[test]
 fn every_file_cut_replays_across_seeded_power_losses() {
     let mut runs = 0;
