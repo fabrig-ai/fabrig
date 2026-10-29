@@ -1,5 +1,5 @@
 //! The GitHub layer's full stores, measured independently of the shared domain.
-#[path = "github/fixtures.rs"]
+#[path = "../github/fixtures.rs"]
 mod f;
 
 use skein_fake_forge_github::{
@@ -9,10 +9,7 @@ use skein_fake_forge_github::{
 };
 use skein_forge::github::request::Method;
 use skein_lib::List;
-use skein_world::domain::heap::{Counting, Meter};
-
-#[global_allocator]
-static HEAP: Counting = Counting;
+use skein_world::domain::heap::Meter;
 
 // Bounds construction and requests while GitHub's stores are full.
 const FAKE_GITHUB_SERVICE_PEAK_CEILING: u64 = 140_000;

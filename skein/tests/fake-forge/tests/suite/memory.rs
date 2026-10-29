@@ -12,10 +12,7 @@ use skein_fake_forge_domain::api::{
 };
 use skein_fake_forge_domain::{Config, Domain, Event, Limits, Request, Skew, fire, step, worst_case};
 use skein_lib::{Duration, Env, List, Queue, ReplyTo, Time, Token, Wall, Writer};
-use skein_world::domain::heap::{self, Meter};
-
-#[global_allocator]
-static HEAP: heap::Counting = heap::Counting;
+use skein_world::domain::heap::Meter;
 
 const LIMITS: Limits = Limits {
     repositories: 2,
