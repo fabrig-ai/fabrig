@@ -584,7 +584,9 @@ kernel with `io_uring_disabled` set, or macOS (Apple Silicon, from macOS
   instead completes `Cancelled`; other errors and short counts retain
   their usual results. An `Open` whose `..` raced a rename or a mount
   (`EAGAIN`) is made again, up to 16 times, then fails with
-  `Other(EAGAIN)`.
+  `Other(EAGAIN)`. A `Close` is never made again: its descriptor may
+  already be another's. The rule for an interrupted `Socket`, `Accept`,
+  `Connect` or `Open` is not designed yet (`STATUS.md`).
 - **Errors map as the ring's do,** per operation, by the same functions
   (7.5): an error number means what it means to the ring.
 - **A cancel** of a record that waits takes it off its side, completes
