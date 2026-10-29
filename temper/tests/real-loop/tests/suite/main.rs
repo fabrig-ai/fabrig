@@ -8,7 +8,6 @@ mod account_key;
 mod case_5_3;
 mod cluster;
 mod forge;
-mod git;
 mod github;
 mod github_land;
 mod landing_retry;

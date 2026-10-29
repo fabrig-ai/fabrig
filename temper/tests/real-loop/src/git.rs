@@ -1,60 +1,9 @@
 //! Hosted fake git on the real filesystem, sharing the caller's pipe lifecycle.
-use crate::{calls::Caller, world::Proc};
-use skein_world::{HostedProgram, Inherited, StartupRoot, real::World};
-use std::{cell::RefCell, ffi::OsStr, os::unix::ffi::OsStrExt};
-use temper_fake_git_hosted::{Answer, Typed, fixtures::Scenario};
-use temper_worker_protocol_git::invocation::Command;
+use crate::world::Proc;
+use skein_world::{HostedProgram, Inherited, StartupRoot};
+use std::cell::RefCell;
+use temper_fake_git_hosted::Typed;
 
-pub struct Disk {
-    scratch: skein_scratch::Scratch,
-    scenario: Scenario,
-}
-impl Disk {
-    #[must_use]
-    pub fn new(make: fn() -> Scenario) -> Self {
-        let disk = Self { scratch: skein_scratch::Scratch::new("real-git"), scenario: make() };
-        for (path, bytes) in disk.scenario.checkout.files() {
-            let path = disk.scratch.path().join(OsStr::from_bytes(path));
-            std::fs::create_dir_all(path.parent().expect("file parent")).expect("checkout directories");
-            std::fs::write(path, bytes).expect("checkout file");
-        }
-        disk
-    }
-    #[must_use]
-    pub fn forge(&self) -> std::cell::Ref<'_, skein_fake_peers::forge::Forge> {
-        self.scenario.transport.forge.borrow()
-    }
-    pub fn run(&mut self, command: &Command, input: &[u8]) -> Answer {
-        share(Some(self.scenario.transport.clone()));
-        let mut world = World::new_controlled(|_| Judge);
-        let root = skein_shell::open_root(self.scratch.path()).expect("git launch root");
-        let mut spawn = temper_fake_git_hosted::fixtures::spawn_of(command);
-        spawn.dir = self.scenario.at.clone().into();
-        world.spawn_with_fds(vec![root], || Proc::Caller(Box::new(Caller::command(spawn, input, root))));
-        world.host_roots(program(), roots);
-        let outcome = world.run(&skein_shell::Clock::new(), crate::PATIENCE);
-        share(None);
-        assert!(outcome.killed.is_empty(), "git settled without a kill");
-        let Proc::Caller(caller) = &outcome.procs[0] else { panic!("command root") };
-        let result = &caller.calls[0];
-        let Some(skein_io::kernel::Exit::Code(exit)) = result.exit else { panic!("git exit {:?}", result.exit) };
-        Answer { exit, stdout: result.stdout.clone(), stderr: result.stderr.clone() }
-    }
-}
-struct Judge;
-impl skein_world::Referee<Proc> for Judge {
-    fn act(&mut self, _: skein_lib::Time, _: &mut [Proc]) {}
-    fn observe(&mut self, _: skein_lib::Time, _: &[Proc]) {}
-    fn next_deadline(&self) -> Option<skein_lib::Time> {
-        None
-    }
-    fn overdue(&self, _: skein_lib::Time) -> Option<String> {
-        None
-    }
-    fn passed(&self) -> bool {
-        true
-    }
-}
 thread_local! { static SHARED: RefCell<Option<Typed>> = const { RefCell::new(None) }; }
 pub fn share(transport: Option<Typed>) {
     SHARED.with(|shared| *shared.borrow_mut() = transport);
