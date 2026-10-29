@@ -124,6 +124,9 @@ its own, wherever a presentation builds on skein's UI kit.
   read; watches delivered level-triggered, a delivery in flight at a
   time; a run's text written out over time. It holds the truth the
   referee compares with: what it committed, and when.
+  Its payloads' `heap_bound` functions size whole document values at
+  their receiving bounds, including nested allocations; these are
+  document envelopes, not a process heap sum.
 - **The transport, played by the world:** it carries the client's
   exchanges and its stream to the scripted engine, and its records to
   the small store, with section 7's faults between.
@@ -358,8 +361,13 @@ application's on skein's UI kit:
   tree is held to it as jig's is. jig adds no rule: that jig's default
   arrangement keeps its banner and `after_page`'s parts last is the
   reference UI's step tests' to check (section 2).
-- **Bounded:** the reference UI and its view within their limits, the
-  heap within their worst case.
+- **Bounded:** the reference UI and its view stay within their limits.
+  In `jig-client-world`, `Settings::heap_ceiling` holds one named
+  ceiling on the measured peak of all clients in a fixed scenario
+  together (testing-strategy.md, section 6). It takes the place of
+  per-client guards for that scenario. With no scenario ceiling, the
+  compatibility path checks the sum of per-client guards, each limited
+  to 16 MiB by default.
 
 ## 7. Faults
 

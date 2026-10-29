@@ -320,6 +320,10 @@ is kept for a person to read until its tree's root closes. A release's
 effects are keyed by the task and the resource, and its failure for good
 is news for the closing task.
 
+Infrastructure's closing table is bounded by its configured tasks plus
+procedures plus effects. This is independent of the refresh table's
+bound: a restart can have more fresh reads under way than closing tasks.
+
 ## 5. Facts and events
 
 ### 5.1 The working set
@@ -401,6 +405,9 @@ documents, beside jig's (`../client/domain/contract.md`, section 5):
 - **windows:** a watch of one of its subjects, and a read, carry a
   window, as jig's do; the connector makes the document within it
   (`../client/domain/contract.md`, 7.5);
+- **document bytes:** the ops connectors' `document_bound` counts the
+  largest document at their limits, including its owned nested values.
+  It sizes a document's envelope, not the connector's heap;
 - **its parts,** which jig's documents name by reference (a resource, a
   kind, a task's panel, a proposed effect, a hold's account), read and
   followed by its side of the application's client. An outbox entry is
@@ -781,6 +788,11 @@ asks for each step:
 
 Then, as decisions open, it steps each of its procedures once, on what
 it read. Nothing it held in memory before the restart is needed.
+
+Restoration may report facts to the core: the reference connector emits
+`Request::Resource` for a restored adoption. This rebuilds the core's
+resource report; it asks for no external action. Restoration makes no
+new effect or write.
 
 - **A restart reports completion after every refresh and the outbox
   settle.** `read_afresh_complete` requires all fresh reads to finish

@@ -389,6 +389,11 @@ counts for accounts, sources and sign-ins
 are at least the engine's document lines, so every list cut there fits
 (`../client/domain/client.md`, section 14).
 
+`valid(&Limits)` checks that `accounts * sources` is representable,
+alongside the individual bounds. This sizes the retained source table;
+it does not reserve an output queue's room. Internal outputs are
+uncapped and grow with the admitted work.
+
 ## 4. Uses: whose work an account pays for
 
 ### 4.1 The payer
