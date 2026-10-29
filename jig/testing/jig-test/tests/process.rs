@@ -3,18 +3,15 @@ mod support;
 use jig_client_protocol_world::native::Script;
 
 /// The fake provider checks the credential presented by the real run.
-fn peer() -> skein_fake_peers::llm::Peer {
+fn peer() -> (skein_fake_peers::llm::Peer, std::net::SocketAddr, skein_io::kernel::Fd) {
     let mut script = jig_channel_world::fixtures::one_chat(b"Hello");
     script.result = br#"{"form":"report","text":"Process answer","fields":{}}"#.as_slice().into();
-    jig_channel_world::fixtures::provider(
+    support::ports::provider(
         Box::new([skein_fake_llm_domain::api::Script {
             cue: Box::default(),
             turns: jig_channel_world::fixtures::provider_turns(&script),
         }]),
         skein_llm::Credential::bearer(b"token".as_slice().into()),
-        skein_lib::Duration::ZERO,
-        skein_fake_peers::Transport::Tls,
-        skein_fake_llm_protocol::documents::Provider::OpenAi,
     )
 }
 
@@ -74,7 +71,7 @@ fn a_person_signs_in_at_the_fake_issuer_and_the_live_story_answers_and_signs_out
     let peers = live_sign_in::Peers::Fake;
     let clock = skein_shell::Clock::new();
     let started = clock.now().now;
-    let limits = live_sign_in::configuration_at(directory.path(), "127.0.0.1:34443", peers);
+    let limits = live_sign_in::configuration_at(directory.path(), "127.0.0.1:0", peers);
     let outcome = live_sign_in::run(directory.path(), started, peers);
     live_sign_in::check(directory.path(), &limits, outcome, peers);
 }
@@ -86,7 +83,7 @@ fn a_provider_refusing_the_plan_s_grant_fails_the_live_story_in_words() {
     let peers = live_sign_in::Peers::Refusing;
     let clock = skein_shell::Clock::new();
     let started = clock.now().now;
-    live_sign_in::configuration_at(directory.path(), "127.0.0.1:34443", peers);
+    live_sign_in::configuration_at(directory.path(), "127.0.0.1:0", peers);
     let failed = std::panic::catch_unwind(|| live_sign_in::run(directory.path(), started, peers))
         .expect_err("a refused grant fails the live story");
     let why = failed.downcast_ref::<String>().expect("the judge's words");
