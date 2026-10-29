@@ -7,7 +7,7 @@ const CHANNEL: Token = Token::new(7);
 const STEPS: u32 = 200;
 const REASON: &[u8] = b"the repository has no search UI: it is a CSV command-line program; no files changed";
 
-fn failed_production(reason: &[u8]) -> (World, engine::Assignment, u64) {
+pub(super) fn failed_production(reason: &[u8]) -> (World, engine::Assignment, u64) {
     let mut world = World::configured_limits(
         true,
         true,
