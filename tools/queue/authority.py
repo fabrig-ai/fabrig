@@ -1,6 +1,6 @@
 """Sole queue writer and concrete effects (tools/queue/design.md, 3.10).
 
-No executable train mode or job transport. All subprocesses use argv. Tests
+Operation and transport supply the opt-in train endpoint. Subprocesses use argv. Tests
 inject runners and use disposable origins; this module never discovers hosts.
 """
 
@@ -92,11 +92,33 @@ class Layout:
         # active list says nothing about remote job lifetime or pending effects.
         if any(p.exists() or p.is_symlink() for p in (
                 self.root / "train-owner.json", self.train / "state.json")):
-            raise RuntimeError("train recovery state exists; explicit reconciliation/retirement required")
+            if not (self.root / "retired.json").exists():
+                raise RuntimeError("train recovery state exists; explicit reconciliation/retirement required")
+            retired_guard(self)
         checkout_guard(repo)
 
 
-def checkout_guard(repo):
+def retired_guard(layout):
+    """A retained, matching audited retirement is the sole legacy-return path."""
+    receipt = durable.read_json(durable.read_bytes(layout.root / "retired.json"))
+    state_bytes = durable.read_bytes(layout.train / "state.json")
+    owner_bytes = durable.read_bytes(layout.root / "train-owner.json")
+    operation_bytes = durable.read_bytes(layout.root / "train-operation.json")
+    spec = importlib.util.spec_from_file_location("retirement_recovery", DIRECTORY / "recovery.py")
+    recovery = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(recovery)
+    state = recovery.validate_state(durable.read_json(state_bytes))
+    if (receipt.get("version") != 1 or receipt.get("generation") != state["config"]["generation"] or
+            any(receipt.get(k) != durable.fingerprint(data) for k, data in
+                (("state", state_bytes), ("owner", owner_bytes), ("operation", operation_bytes))) or
+            not state["stopping"] or state["active"] or any(state["gates"].values()) or
+            state["pending"] or state["bisecting"] or
+            any(not e["delivered"] for e in state["outbox"].values()) or
+            any(r.get("preparation_unresolved") or r["phase"] == "preparing" for r in state["records"].values())):
+        raise RuntimeError("retirement audit/snapshot invalid; legacy refused")
+
+
+def checkout_guard(repo, *, transport_claim=None):
     repo = Path(repo).absolute()
     if any(p.is_symlink() for p in (repo, *repo.parents)):
         raise RuntimeError("checkout path contains a symlink")
@@ -107,6 +129,10 @@ def checkout_guard(repo):
         marker = gitdir / name
         if marker.exists() or marker.is_symlink():
             raise RuntimeError("unresolved checkout ownership; explicit reconciliation required: " + str(marker))
+    transport_marker = gitdir / "mq-transport-unresolved.json"
+    if transport_marker.exists() or transport_marker.is_symlink():
+        if transport_claim is None or durable.read_json(durable.read_bytes(transport_marker)) != transport_claim:
+            raise RuntimeError("supervised checkout ownership unresolved: " + str(transport_marker))
     # precheck uses its own lock, in addition to the common checkout lock.
     for path in (gitdir / "precheck.lock", repo.with_name(repo.name + ".precheck.lock")):
         if path.exists() or path.is_symlink():
@@ -148,6 +174,8 @@ class GitAuthority:
 
     def bind(self, store, preparer, *, config):
         self.guard()
+        if (self.layout.root / "retired.json").exists():
+            raise RuntimeError("retired train generation cannot be revived")
         if store.directory != self.layout.train:
             raise ValueError("production train state must use the shared authority layout")
         checkout_guard(self.repo)

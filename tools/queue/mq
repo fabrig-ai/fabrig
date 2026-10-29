@@ -816,8 +816,9 @@ def main():
     os.umask(0o077)
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="action", required=True)
-    for name in ("run", "once", "plan"):
+    for name in ("run", "once", "plan", "train-status", "train-stop", "train-resume", "train-retire", "train-reconcile", "train-drain"):
         sub = subparsers.add_parser(name)
+        sub.add_argument("--train-config", type=Path, help="explicit opt-in private train configuration")
         sub.add_argument("--repo", type=Path, default=Path.home() / "src/fabrig/queue")
         sub.add_argument("--authority-dir", type=Path,
                          help="shared queue authority directory; never per clone")
@@ -829,6 +830,20 @@ def main():
         if name == "once":
             sub.add_argument("--dry", action="store_true")
     args = parser.parse_args()
+    if args.train_config is not None:
+        try:
+            spec = importlib.util.spec_from_file_location("mq_operation", CONFIG / "operation.py")
+            operation = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(operation)
+            if any(option in sys.argv for option in ("--repo", "--batch", "--full-every", "--disk-floor", "--authority-dir", "--dry")):
+                raise ValueError("train configuration owns paths and policy; remove legacy overrides")
+            return operation.run(operation.configuration(args.train_config), args.action,
+                                 inherited=args.authority_fd, startup_fd=args.startup_fd)
+        except (OSError, ValueError, RuntimeError) as error:
+            print(f"mq train: {error}", file=sys.stderr)
+            return 1
+    if args.action.startswith("train-"):
+        parser.error("train operation requires explicit --train-config")
     if args.action == "run":
         for name in ("cargo", "heavy", "post", "git"):
             if shutil.which(name) is None:

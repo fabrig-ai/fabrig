@@ -1,8 +1,7 @@
-"""Disabled controller library; tools/queue/design.md, section 3.9.
+"""Controller and explicit adapters; tools/queue/design.md, 3.9–3.12.
 
-No CLI, production transport or implicit Cargo invocation. Adapters are
-mandatory. authority.GitAuthority supplies effects under the common queue
-lock/layout; remote/heavy completion remains blocked pending part 5.
+Operation selects this library only with a private --train-config. Adapters
+remain mandatory; authority.GitAuthority alone owns origin effects.
 """
 
 import copy
@@ -401,8 +400,8 @@ class Controller:
     authority.guard() must refuse unless its sole-main-writer/startup guard is
     held. main() reads fresh main. promote(P,C,id) must recheck P under that same
     authority and push explicit C normally. cleanup(name,tip,id) compares and
-    deletes that tip only. post(event) returns exit 0/3 on delivery. There is no
-    executable train mode. GitAuthority supplies the concrete effects under its
+    deletes that tip only. post(event) returns exit 0/3 on delivery. Operation supplies the explicit
+    train mode. GitAuthority supplies the concrete effects under its
     held shared layout lock. Event ids are stable across every replay.
     """
 
@@ -622,9 +621,14 @@ class Controller:
                 if not record["applied"]:
                     record["phase"] = "draining" if record.get("invalidated") else "running"
                 self.unreconciled_gates.discard(attempt)
+            elif reply["state"] == "reconciled":
+                self.reconcile_job(attempt, quiescent=reply.get("quiescent"), evidence=reply.get("evidence"), supervision=reply.get("supervision"))
+                if not record["applied"] and not record.get("invalidated"):
+                    self.infra(attempt, "operator reconciled interrupted supervisor; no check certificate")
+                return
             elif reply["state"] == "terminal":
                 self.ingest(attempt, reply["result"], reply["log"],
-                            quiescent=reply.get("quiescent"), evidence=reply.get("evidence"))
+                            quiescent=reply.get("quiescent"), evidence=reply.get("evidence"), supervision=reply.get("supervision"))
                 return
             else:
                 raise RuntimeError("worker status unknown")
@@ -636,7 +640,7 @@ class Controller:
             return
         self.save()
 
-    def ingest(self, attempt, result_bytes, log, *, quiescent=None, evidence=None):
+    def ingest(self, attempt, result_bytes, log, *, quiescent=None, evidence=None, supervision=None):
         self.guard()
         record = self.state["records"][attempt]
         if type(quiescent) is not bool or self.state["gates"][record["gate"]] != attempt:
@@ -645,12 +649,18 @@ class Controller:
         try:
             write_bytes(job / "returned.log", log)
             write_bytes(job / "returned.json", result_bytes)
+            if supervision is not None:
+                write_bytes(job / "supervision.json", supervision)
         except BaseException:
             self.failed = True
             raise
         try:
             record["returned"] = {"returned.log": durable.fingerprint(log),
                                   "returned.json": durable.fingerprint(result_bytes)}
+            if supervision is not None:
+                record["returned"]["supervision.json"] = durable.fingerprint(supervision)
+                if durable.fingerprint(supervision) != evidence.get("receipt"):
+                    raise ValueError("supervisor receipt identity mismatch")
             if quiescent is not True:
                 raise ValueError("terminal without resolved job/checkout ownership")
             self.verify_completion(record, evidence)
@@ -664,6 +674,7 @@ class Controller:
         self.state["gates"][record["gate"]] = None
         self.unreconciled_gates.discard(attempt)
         record["result"] = result
+        record["completion_evidence"] = clone(evidence)
         if record.get("invalidated") or record["applied"]:
             record["phase"] = "discarded"
         else:
@@ -704,7 +715,7 @@ class Controller:
         return recovery.local_completion(record["request"], evidence,
             self.config["transport"][record["gate"]], authority_module)
 
-    def reconcile_job(self, attempt, *, quiescent, evidence):
+    def reconcile_job(self, attempt, *, quiescent, evidence, supervision=None):
         """Only supported evidence releases ownership; no reset or PID inference."""
         self.guard()
         record = self.state["records"][attempt]
@@ -713,6 +724,15 @@ class Controller:
         self.verify_completion(record, evidence)
         if self.state["gates"][record["gate"]] != attempt:
             raise ValueError("attempt no longer owns gate")
+        if supervision is not None:
+            if durable.fingerprint(supervision) != evidence.get("receipt"):
+                raise ValueError("reconciliation receipt identity mismatch")
+            try:
+                write_bytes(self.preparer.artifacts / attempt / "reconciled-supervision.json", supervision)
+                record.setdefault("returned", {})["reconciled-supervision.json"] = durable.fingerprint(supervision)
+            except BaseException:
+                self.failed = True
+                raise
         record["reconciliation"] = clone(evidence)
         self.unreconciled_gates.discard(attempt)
         self.state["gates"][record["gate"]] = None

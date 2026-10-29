@@ -2,7 +2,7 @@
 """Opt-in synchronous LOCAL checker; tools/queue/design.md, section 3.8."""
 
 import argparse
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 import fcntl
 import hashlib
 import importlib.machinery
@@ -20,7 +20,8 @@ import time
 
 DIRECTORY = Path(__file__).resolve().parent
 RUNTIME_FILES = ("worker.py", "mq", "always.txt", "read-by-tests.txt", "leads.txt",
-                 "train.py", "authority.py", "recovery.py", "durable.py", "restart")
+                 "train.py", "authority.py", "recovery.py", "durable.py", "restart",
+                 "wire.py", "transport.py", "supervisor.py", "operation.py")
 FROZEN = {name: (DIRECTORY / name).read_bytes() for name in RUNTIME_FILES}
 LOADER = importlib.machinery.SourceFileLoader("worker_mq", str(DIRECTORY / "mq"))
 SPEC = importlib.util.spec_from_loader(LOADER.name, LOADER)
@@ -295,7 +296,7 @@ def validate_step(repo, expected, step, *, tools=False):
 
 
 def run_job(repo, artifacts, request, *, gate, disk_floor=45, checker=mq.run_checks,
-            metadata_loader=mq.load_metadata):
+            metadata_loader=mq.load_metadata, owned_checkout=None):
     """No transport or authority effects. Injectable checker/metadata are test seams only."""
     os.umask(0o077)
     validate_request(request)
@@ -311,7 +312,10 @@ def run_job(repo, artifacts, request, *, gate, disk_floor=45, checker=mq.run_che
         raise ValueError("worker requires an independent clone with its own .git directory")
     if artifacts.stat().st_uid != os.getuid() or stat.S_IMODE(artifacts.stat().st_mode) != 0o700:
         raise ValueError("artifact directory must be owned by this user and mode 0700")
-    with checkout_ownership(repo) as marker:
+    ownership = checkout_ownership(repo) if owned_checkout is None else nullcontext(repo / ".git/mq-worker-unresolved.json")
+    if owned_checkout is not None:
+        owned_checkout.guard()
+    with ownership as marker:
         job = artifacts / request["attempt"]
         job.mkdir(mode=0o700)  # Existing attempts are never overwritten or rerun.
         sync_directory(artifacts)

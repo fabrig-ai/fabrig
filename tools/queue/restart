@@ -26,7 +26,10 @@ def command(argv, repo, *, pass_fds=()):
 
 def queue_pid(repo):
     """Prefer the queue flock's holder; fall back to exactly one mq run."""
-    lock = repo.with_name(repo.name + ".queue.lock")
+    return queue_pid_for_lock(repo.with_name(repo.name + ".queue.lock"))
+
+
+def queue_pid_for_lock(lock):
     if lock.exists():
         info = lock.stat()
         holders = set()
@@ -136,6 +139,7 @@ def positive(value):
 def main():
     os.umask(0o077)
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--train-config", type=Path)
     parser.add_argument("--repo", type=Path, default=Path.cwd())
     parser.add_argument("--authority-dir", type=Path,
                         help="shared queue authority directory; never per clone")
@@ -143,6 +147,21 @@ def main():
     parser.add_argument("--batch", type=positive, default=8,
                         help="branches per batch for the replacement queue (default: 8)")
     args = parser.parse_args()
+    if args.train_config is not None:
+        try:
+            spec = importlib.util.spec_from_file_location("restart_operation", Path(__file__).resolve().with_name("operation.py"))
+            operation = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(operation)
+            config = operation.configuration(args.train_config)
+            if "--batch" in sys.argv and args.batch != config["batch"]:
+                raise ValueError("restart must preserve the train configuration batch")
+            if "--repo" in sys.argv or "--authority-dir" in sys.argv:
+                raise ValueError("train configuration owns authority and checkout paths")
+            operation.restart(args.train_config, args.wait)
+            return 0
+        except (OSError, ValueError, RuntimeError) as error:
+            print(f"restart train: {error}", file=sys.stderr)
+            return 1
     for name in ("cargo", "heavy", "post", "git"):
         if shutil.which(name) is None:
             print(f"restart: missing {name} on PATH; invoke from bash -lc", file=sys.stderr)

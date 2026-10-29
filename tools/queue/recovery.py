@@ -1,7 +1,7 @@
 """Fail-closed version-1 recovery inventory (tools/queue/design.md, 3.10).
 
 This is validation and explicit reconciliation, never candidate reconstruction.
-There is no remote supervisor evidence adapter in part 4.
+Supervised receipts are retained alongside returned result/log evidence.
 """
 
 import importlib.util
@@ -333,9 +333,20 @@ def validate_artifacts(state, preparer, worker, verify_chain):
                     "certificate snapshots")
             green = worker.validate_steps(preparer.repo, request["plan"], result["steps"])
             require(result["outcome"] == ("green" if green else "red"), "certificate check outcome")
+        if state["config"]["completion"].get("kind") == "subreaper-heavy-v1":
+            for field, name in (("completion_evidence", "supervision.json"),
+                                ("reconciliation", "reconciled-supervision.json")):
+                if field in record:
+                    proof = durable.checked(job / name, record[field]["receipt"])
+                    receipt = durable.read_json(proof)
+                    require(receipt["claim"]["request"] == record["request"] and
+                            receipt["claim"]["job"] == record[field]["job"] and
+                            receipt["claim"]["nonce"] == record[field]["nonce"] and
+                            receipt["claim"]["incarnation"] == record[field]["incarnation"],
+                            "supervisor receipt request/incarnation")
         if "returned" in record:
             for name, identity in record["returned"].items():
-                require(name in {"returned.json", "returned.log"}, "returned artifact name")
+                require(name in {"returned.json", "returned.log", "supervision.json", "reconciled-supervision.json"}, "returned artifact name")
                 durable.checked(job / name, identity)
 
 
@@ -354,8 +365,8 @@ def inventory(state):
 def local_completion(request, evidence, endpoint, authority_module):
     """Supported evidence ONLY for local jobs with an empty command plan.
 
-    No assertion string/boolean or remote PID can release a gate. Part 5 must
-    supply supervised heavy/SSH evidence; until then such gates stay owned.
+    No assertion string/boolean or remote PID can release a gate. The explicit
+    transport adapter supplies supervised heavy/SSH evidence separately.
     """
     require(isinstance(evidence, dict) and set(evidence) == {"kind", "result", "sha256"} and
             evidence["kind"] == "local-empty-plan-v1" and endpoint.get("host", "local") == "local",
