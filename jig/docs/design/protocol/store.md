@@ -2102,8 +2102,9 @@ was made (`../domain/tasks.md`, section 3):
   closing walk's run proof decoded by the binary's codec beside its
   bytes) is the
   larger of it and serving's, since the root never serves while it
-  patches. The sets are the shell's, so `worst_case_with_patches(limits, sets)`
-  prices their machines, and `worst_case(limits)` prices `PatchSets::NONE`.
+  patches. The sets are the shell's; their kept families determine the
+  patch machines' capacities. Fixed scenarios check measured heap peaks
+  against named ceilings (programming-model.md, 6.3).
   Serving's holds the frames' machines (8.6), at most two, each its
   `Patcher::workspace_bound`, and none for sets with no kept text: their
   bytes the frames' bounds and their nodes the most their kept texts

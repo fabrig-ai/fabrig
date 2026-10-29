@@ -364,10 +364,10 @@ application's on skein's UI kit:
 - **Bounded:** the reference UI and its view stay within their limits.
   In `jig-client-world`, `Settings::heap_ceiling` holds one named
   ceiling on the measured peak of all clients in a fixed scenario
-  together (testing-strategy.md, section 6). It takes the place of
-  per-client guards for that scenario. With no scenario ceiling, the
-  compatibility path checks the sum of per-client guards, each limited
-  to 16 MiB by default.
+  together (testing-strategy.md, section 6).
+  `World::measure_heap_within` starts the meter before clients are
+  admitted and sets that ceiling. With no scenario ceiling, the world
+  imposes no heap cap.
 
 ## 7. Faults
 

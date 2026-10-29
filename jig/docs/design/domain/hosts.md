@@ -218,7 +218,7 @@ keeps nothing durable (programming-model.md, 7.1).
   `agent_out` and `pending`, and the service's `out`, `process_events`
   and `io`. These queues are uncapped. Its watermark defaults to 2,048
   entries and paces admission, not memory; one admitted event's work
-  may take the backlog past it. The root has no `max_out` reservation.
+  may take the backlog past it. The root reserves no room for outputs.
 - **The waiting room** is the service's uncapped `events` FIFO, outside
   the admitted backlog; counting it would hold admission shut. A held
   new record lets admitted records pass it in order, until the next new
