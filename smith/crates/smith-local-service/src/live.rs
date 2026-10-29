@@ -6,7 +6,9 @@ use skein_lib::{Duration, Queue, Time, Token};
 use smith_host_domain::{self as host, process};
 use smith_host_protocol::OpenEvent;
 
-/// The front's four lossy slots, independent of channel flow control.
+/// The live-content edge's cap, independent of channel flow control.
+/// Text past it or for another run is dropped and counted in `lost`;
+/// reasoning and input pieces are never kept.
 pub const LIVE_SLOTS: u32 = 4;
 
 /// Protocol/limits.md, section 3.6: maximum bytes in one live piece.
@@ -110,7 +112,7 @@ impl Live {
     }
 }
 
-// Sent-unread names share the domain inbox: messages + one completed line.
+// Sent-unread names retain the service's send times until a read fence.
 // Received turn measurements share the host unacknowledged-turn bound
 // until SaveTurn accepts them. A Waiting
 // fence can release inbox names before a turn, retaining only its last time.
@@ -129,7 +131,6 @@ pub(crate) struct Timing {
 
 impl Timing {
     pub(crate) fn new(limits: &smith_local_domain::AgentLimits) -> Self {
-        let (messages, turns) = Self::bounds(limits);
         Self {
             generation: 0,
             started: Time::ZERO,
@@ -137,17 +138,18 @@ impl Timing {
             number: 0,
             elapsed: Duration::ZERO,
             run: None,
-            sent: Queue::with_capacity(messages),
+            sent: Queue::uncapped(),
             read: None,
             measured: Time::ZERO,
-            turns: Queue::with_capacity(turns),
+            turns: Queue::with_capacity(Self::turn_edge_bound(limits)),
         }
     }
 
-    fn bounds(limits: &smith_local_domain::AgentLimits) -> (u32, u32) {
+    // The process-output edge retains at most the host's unacknowledged-turn credit.
+    const fn turn_edge_bound(limits: &smith_local_domain::AgentLimits) -> u32 {
         match limits {
-            smith_local_domain::AgentLimits::Spawned(host) => (host.messages.saturating_add(1), host.turns),
-            smith_local_domain::AgentLimits::Inline(_) => (0, 0),
+            smith_local_domain::AgentLimits::Spawned(host) => host.turns,
+            smith_local_domain::AgentLimits::Inline(_) => 0,
         }
     }
 
@@ -174,12 +176,11 @@ impl Timing {
                 self.previous = now;
                 self.measured = now;
                 for message in &start.messages {
-                    // Missing times fall back to the previous told turn.
-                    let _timestamp: Result<(), (Token, Time)> = self.sent.try_push((message.name, now));
+                    self.sent.push((message.name, now));
                 }
             }
             process::Request::Send { message: host::Down::Message { name, .. }, .. } => {
-                let _timestamp: Result<(), (Token, Time)> = self.sent.try_push((*name, now));
+                self.sent.push((*name, now));
             }
             process::Request::Spawn { .. }
             | process::Request::Read { .. }
@@ -268,8 +269,8 @@ impl Timing {
             Some(sent) => self.measured.max(sent),
             None => self.measured,
         };
-        // A full queue can only follow invalid turn credit. Such records never
-        // acquire a SaveTurn; the domain owns their fault and teardown.
+        // A turn past the host's turn credit is not measured: its record never
+        // gets a SaveTurn, and the domain faults it.
         if self.turns.room() > 0 {
             self.turns.push((number, read, now, now.saturating_since(baseline)));
         }
@@ -387,6 +388,14 @@ mod tests {
         timing
     }
 
+    fn inbox_names() -> u32 {
+        let smith_local_domain::AgentLimits::Spawned(limits) = crate::tests::config().limits.local.agent else {
+            panic!("spawned fixture")
+        };
+        // The domain inbox and its one completed line.
+        limits.messages.checked_add(1).unwrap()
+    }
+
     fn send(timing: &mut Timing, name: u64, milliseconds: u64) {
         timing.sent(
             &process::Request::Send {
@@ -458,7 +467,7 @@ mod tests {
     fn waiting_fences_release_timestamp_slots_before_a_turn_is_told() {
         let mut timing = timing();
         // More messages than the fixed inbox: Waiting reads each before the next.
-        for name in 1..=timing.sent.capacity().checked_add(1).unwrap() {
+        for name in 1..=inbox_names().checked_add(1).unwrap() {
             send(&mut timing, u64::from(name), 900);
             timing.received(
                 &process::Event::Received {
@@ -469,7 +478,7 @@ mod tests {
             );
             assert!(timing.sent.is_empty());
         }
-        let last = u64::from(timing.sent.capacity().checked_add(1).unwrap());
+        let last = u64::from(inbox_names().checked_add(1).unwrap());
         receive_turn(&mut timing, 1, last, 1000);
         timing.told(1, Some(Token::new(last)), clock(1000));
         assert_eq!(timing.elapsed, Duration::from_millis(100));
@@ -491,9 +500,28 @@ mod tests {
     }
 
     #[test]
+    fn an_over_credit_turn_preserves_the_queued_measurements() {
+        let mut timing = timing();
+        send(&mut timing, 1, 100);
+        let credit = timing.turns.capacity();
+        for number in 1..=credit {
+            receive_turn(&mut timing, number, 1, u64::from(number) * 1000);
+        }
+        let mut queued = skein_lib::List::with_capacity(credit);
+        for measurement in &timing.turns {
+            queued.push(*measurement).unwrap();
+        }
+        receive_turn(&mut timing, credit.checked_add(1).unwrap(), 1, u64::from(credit) * 1000 + 500);
+        assert!(timing.turns.iter().eq(queued.iter()), "over-credit input leaves every queued measurement intact");
+        timing.told(1, Some(Token::new(1)), clock(u64::from(credit) * 1000 + 1000));
+        assert_eq!(timing.elapsed, Duration::from_millis(900));
+        assert_eq!(timing.previous, clock(1000));
+    }
+
+    #[test]
     fn refused_messages_release_their_timestamp_slots() {
         let mut timing = timing();
-        for name in 1..=timing.sent.capacity().checked_add(1).unwrap() {
+        for name in 1..=inbox_names().checked_add(1).unwrap() {
             send(&mut timing, u64::from(name), 900);
             timing.received(
                 &process::Event::Received {
@@ -556,7 +584,6 @@ mod tests {
         let names = limits.messages.saturating_add(1);
         for carried in [false, true] {
             let mut timing = timing();
-            assert_eq!(timing.sent.capacity(), names);
             if carried {
                 start(&mut timing, names, 900);
             } else {
@@ -573,22 +600,17 @@ mod tests {
     }
 
     #[test]
-    fn a_full_timestamp_queue_uses_the_previous_turns_time() {
-        for carried in [false, true] {
+    fn every_name_past_the_inbox_keeps_its_send_time() {
+        let names = inbox_names().checked_add(1).unwrap();
+        // Each name is read first in its own activation, after all names queue.
+        for read in 1..=names {
             let mut timing = timing();
-            let names = timing.sent.capacity().checked_add(1).unwrap();
-            if carried {
-                start(&mut timing, names, 0);
-            } else {
-                for name in 1..=names {
-                    send(&mut timing, u64::from(name), 900);
-                }
+            for name in 1..=names {
+                send(&mut timing, u64::from(name), u64::from(name));
             }
-            assert_eq!(timing.sent.len(), timing.sent.capacity());
-            receive_turn(&mut timing, 1, u64::from(names), 1000);
-            timing.told(1, Some(Token::new(u64::from(names))), clock(1000));
-            assert_eq!(timing.elapsed, Duration::from_millis(1000));
-            assert!(timing.read.is_none(), "the dropped name has no timestamp");
+            receive_turn(&mut timing, 1, u64::from(read), u64::from(read) + 100);
+            timing.told(1, Some(Token::new(u64::from(read))), clock(u64::from(read) + 200));
+            assert_eq!(timing.elapsed, Duration::from_millis(100), "message {read}");
         }
     }
 }

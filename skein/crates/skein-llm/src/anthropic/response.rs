@@ -753,12 +753,6 @@ fn text(tokens: (&Document, json::Span), name: &[u8]) -> Result<Box<[u8]>, Decod
 fn index(tokens: (&Document, json::Span)) -> Result<u32, DecodeError> {
     u32::try_from(json::unsigned(field(tokens, b"index")?)?).or(Err(DecodeError::Malformed))
 }
-/// The old name of [`decoder_bound`]; it goes once every tree calls the new name (wave 3).
-#[must_use]
-pub fn decoder_worst_case(limits: &Limits) -> Option<u64> {
-    decoder_bound(limits)
-}
-
 /// Bounds stream decoder retention.
 /// Includes the active block's buffers and replay JSON construction, excluding
 /// the common JSON event/parser/writer and the owner's output queue storage.

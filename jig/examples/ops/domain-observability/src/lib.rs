@@ -28,7 +28,7 @@ mod incidents;
 pub use incidents::{AlertAccount, Incident, IncidentHealth, IncidentPoint, IncidentState};
 mod client_documents;
 pub use client_documents::{
-    ClientDocument, ClientScope, ClientService, ClientSubject, DocumentMissing, document_worst_case,
+    ClientDocument, ClientScope, ClientService, ClientSubject, DocumentMissing, document_bound,
 };
 mod boundary;
 mod domain;
@@ -39,7 +39,7 @@ pub use boundary::{
     Record, RecordKey, Request, Requirement, Resource, RestartStage, Service, SystemEvent, SystemRequest, Topic,
     TriageTemplate, Verdict, Watch, Window,
 };
-pub use domain::{Domain, MAX_OUT, fire, next_deadline, split, step};
+pub use domain::{Domain, fire, next_deadline, split, step};
 pub use limits::{Limits, valid};
 
 #[cfg(test)]

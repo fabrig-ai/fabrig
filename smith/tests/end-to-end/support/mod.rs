@@ -725,16 +725,14 @@ pub fn smith_with_environment(
 
 mod exec;
 pub use exec::{
-    Reply, chat, chat_modes, chat_resized, chat_signed_in, chat_traced, chat_waiting, exec_with_foreign_file,
-    exec_with_provider, exec_with_turns, exec_without_head, fake_provider_settings, key_chat, program_chat,
-    program_interrupt, run as run_product, run_scripted as run_product_scripted,
+    Reply, chat_modes, chat_resized, chat_signed_in, chat_waiting, exec_with_foreign_file, exec_with_provider,
+    exec_without_head, fake_provider_settings, key_chat, program_chat, program_interrupt, run as run_product,
+    run_scripted as run_product_scripted,
 };
 
 pub mod login;
 
 pub mod sample_host;
-
-pub mod actor_refusal;
 
 mod window;
 

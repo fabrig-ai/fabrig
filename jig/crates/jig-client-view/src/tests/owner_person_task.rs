@@ -97,7 +97,7 @@ fn limits(words: &Words) -> Limits {
     limits_for(&client_limits(), words)
 }
 fn limits_for(client: &crate::Limits, words: &Words) -> Limits {
-    let f = view::worst_case(client, words).unwrap();
+    let f = view::fragment_bound(client, words).unwrap();
     Limits {
         nodes: f.nodes,
         depth: f.depth,

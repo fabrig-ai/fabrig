@@ -405,6 +405,13 @@ them, and with decisions that cannot be refused it says so itself.
 - **No sum along routes,** and no worst case of the root's: the
   per-process estimate goes with the startup fit check
   (programming-model.md, 6.3).
+- **The core's routes,** one number in its `Limits`: the most hand-offs
+  one core decision routes, sibling continuations included. It is the
+  bound of every drain within a step (each drain a `for` over at most
+  `routes`, its predicate asserted empty after: section 5 and
+  engine.md, 4.4), a loop's bound, not a reservation: nothing is sized
+  by it. The profiles set it (small 20,783, standard 151,655); an
+  application whose root wraps jig's core takes it from jig's profile.
 - **The application's limits** are configuration, given to each child as
   its own; the conformance world runs every story under tiny limits and a
   low watermark.

@@ -1,4 +1,5 @@
 use crate::*;
+
 use temper_engine_domain_forge_issues as issues;
 mod adoption;
 mod binding;
@@ -20,6 +21,9 @@ mod stopping;
 mod views;
 use alloc::boxed::Box;
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
+
+#[global_allocator]
+static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
 
 const REPO: skein_forge::api::Repository = skein_forge::api::Repository { forge: 1, repository: 2 };
 const CLIENT: skein_forge_client::Limits = skein_forge_client::Limits {
@@ -792,15 +796,20 @@ fn settling_release(comment: Option<Box<[u8]>>) -> ReleaseRow {
     }
 }
 
+// Measured peak: 42 bytes; 25% headroom, rounded up to two significant digits.
+const COMMENT_AND_BRANCH_HEAP_CEILING: u64 = 53;
+
 #[test]
 fn a_release_payload_counts_its_comment_and_pending_branch() {
     const COMMENT_BYTES: u64 = 3; // "why".
-    // A release's comment and pending branch heap, a quarter above 10-28's 42 bytes.
-    const COMMENT_AND_BRANCH_HEAP_CEILING: u64 = 53;
+    let meter = skein_world::domain::heap::Meter::new();
+    meter.start();
     let mut row = settling_release(Some(Box::from(b"why".as_slice())));
     assert_eq!(stored_bytes(&Stored::Release(row.clone())), Some(COMMENT_BYTES));
     row.pending = Some((20, Some(run_branch(b"7"))));
-    assert!(stored_bytes(&Stored::Release(row)).unwrap() <= COMMENT_AND_BRANCH_HEAP_CEILING);
+    let measured = meter.end();
+    meter.check(measured, COMMENT_AND_BRANCH_HEAP_CEILING, &"release payload");
+    core::hint::black_box(&row);
 }
 
 #[test]

@@ -2331,7 +2331,7 @@ fn named_authority_models_price_their_full_allocated_list_and_bytes() {
     let allocated = List::<Box<[u8]>>::price(64).unwrap() + 4096;
     value.authority.models = Some(AuthorityModels::Named(names));
     assert_eq!(crate::owner_authority::document_bytes(&value, &bounds), Some(before + allocated));
-    assert!(crate::owner_authority::worst_case(&bounds).unwrap() >= before + allocated);
+    assert!(crate::owner_authority::heap_bound(&bounds).unwrap() >= before + allocated);
     let mut over = List::with_capacity(65);
     over.push(Box::from(b"model".as_slice())).unwrap();
     value.authority.models = Some(AuthorityModels::Named(over));

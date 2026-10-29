@@ -15,7 +15,7 @@ mod records;
 mod words;
 mod write;
 
-pub use limits::{Limits, largest_record, largest_record_for, largest_size, worst_case};
+pub use limits::{Limits, codec_bound, largest_record, largest_record_for, largest_size};
 pub use read::{Line, Reader, read, read_with_ceiling};
 pub use records::{
     AccountState, Agent, AgentExit, AnswerClass, AnswerFailure, Backend, Block, Budget, BudgetStage, BudgetStanding,

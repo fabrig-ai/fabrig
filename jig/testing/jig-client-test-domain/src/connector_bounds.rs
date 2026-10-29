@@ -170,7 +170,7 @@ pub fn answer_fits(value: &ConnectorAnswer, bounds: &Bounds) -> bool {
 /// Largest complete document admitted by the structural envelope. The configured
 /// byte ceiling may admit fewer values; this still bounds every admitted value.
 #[must_use]
-pub fn document_worst_case(bounds: &Bounds) -> Option<u64> {
+pub fn document_bound(bounds: &Bounds) -> Option<u64> {
     let path = u64::from(bounds.segments).checked_mul(
         u64::try_from(size_of::<Box<[u8]>>())
             .expect("inline carrier size fits u64")

@@ -330,7 +330,7 @@ pub fn max_nodes(l: &Limits) -> Option<u32> {
     task.max(escalation).max(proposal).max(person_goal).max(question).max(person).checked_add(12)
 }
 #[must_use]
-pub fn worst_case(l: &Limits, words: &Words) -> Option<HistoricalFragment> {
+pub fn fragment_bound(l: &Limits, words: &Words) -> Option<HistoricalFragment> {
     let nodes = max_nodes(l)?;
     let text_per_node = words.jig_capacity()?.max(crate::literal_segment::max_bytes(l.text)?).checked_mul(2)?;
     Some(HistoricalFragment {
@@ -538,7 +538,7 @@ pub fn required(value: &OwnerHistorical, l: &Limits, words: &Words) -> Option<Hi
             result_fits(result, l, words)?;
         }
     }
-    worst_case(l, words)
+    fragment_bound(l, words)
 }
 fn link_fits(value: &OwnerTaskLink, l: &Limits, words: &Words) -> Option<()> {
     match value {

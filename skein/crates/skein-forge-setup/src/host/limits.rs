@@ -1,5 +1,6 @@
 //! Admission and stack bounds for the host (forge-setup.md, 6.3).
 use super::settings::{self, Kind, Settings, Transport};
+use alloc::boxed::Box;
 use skein_forge::{forgejo::limits as docs, github as dialect};
 use skein_json::{tokenizer, writer};
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -246,7 +247,7 @@ fn capacity_bound(l: &Limits, kind: &Kind, tls: bool) -> Option<()> {
     if !skein_http::client::valid(&http_transport(l, tls)) || l.body_bytes_in == u32::MAX {
         return None;
     }
-    super::memory::largest_page(l, kind)?;
+    largest_page(l, kind)?;
     match kind {
         Kind::Forgejo(_) => {}
         Kind::GitHub(given) => {
@@ -318,4 +319,24 @@ fn app_metadata(l: &Limits) -> Result<(), Unusable> {
         return Err(Unusable::GitHubMetadata { inner, string_bytes });
     }
     Ok(())
+}
+
+// The largest page any setup plan for this configured kind can request.
+pub(super) fn largest_page(l: &Limits, kind: &Kind) -> Option<u32> {
+    match kind {
+        Kind::Forgejo(given) => {
+            use skein_forge::forgejo::request::{Page, Request};
+            let listing = Request::Tokens { login: Box::new([]), page: Page { page: Some(1), limit: Some(l.inner) } };
+            let picker = Request::RepoSearch { page: Page { page: Some(1), limit: Some(given.limits.reachable) } };
+            Some(super::connection::row_bound(&listing.into())?.max(super::connection::row_bound(&picker.into())?))
+        }
+        Kind::GitHub(given) => {
+            use dialect::request::Request;
+            let picker = Request::Reachable { page: 1, per_page: given.limits.reachable.min(dialect::pin::PAGE_CAP) };
+            Some(
+                super::connection::row_bound(&Request::Installations { page: 1 }.into())?
+                    .max(super::connection::row_bound(&picker.into())?),
+            )
+        }
+    }
 }

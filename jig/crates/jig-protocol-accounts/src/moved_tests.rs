@@ -107,7 +107,7 @@ fn schema_ceilings_match_the_parts_owners() {
     assert_eq!(v1::CEILINGS.moved_display, DISPLAY);
     assert_eq!(
         u64::from(v1::CEILINGS.moved_record),
-        skein_oauth::v3::SavedToken::worst_case_bytes(&skein_oauth::v3::CEILINGS).expect("saved token ceiling")
+        skein_oauth::v3::SavedToken::encoded_bound(&skein_oauth::v3::CEILINGS).expect("saved token ceiling")
     );
 }
 

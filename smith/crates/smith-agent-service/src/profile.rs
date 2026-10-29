@@ -282,7 +282,7 @@ fn channel_bodies(domain: &domain::Limits, policy: &Policy) -> Result<smith_chan
     let run = domain.run;
     let refusal = derived(Layer::Channel, "turn_body");
     let session = domain.session;
-    let results = tools::batch_result_worst_case(&session.tools, run.calls).ok_or(refusal)?;
+    let results = tools::batch_result_bound(&session.tools, run.calls).ok_or(refusal)?;
     let delegated = session.delegated_result_bytes.checked_mul(u64::from(run.calls)).ok_or(refusal)?;
     // One completion, every result it can cause, and its first/window opening
     // share a turn. A window's earlier settled completions are not this turn.
@@ -546,7 +546,7 @@ fn derive_domain(
         u32::try_from(parts.host.min(u64::from(declared.guide))).or(Err(derived(Layer::Run, "guide_bytes")))?;
     let delegated = domain::feedback_worst_case(&run).ok_or(derived(Layer::Session, "delegated_result_bytes"))?;
     let parallel = policy.parallel_tools.min(declared.calls_per_response);
-    let owned = tools::batch_result_worst_case(&tools, parallel).ok_or(derived(Layer::Session, "batch_results"))?;
+    let owned = tools::batch_result_bound(&tools, parallel).ok_or(derived(Layer::Session, "batch_results"))?;
     let batch = owned.max(delegated.checked_mul(u64::from(parallel)).ok_or(derived(Layer::Session, "batch_results"))?);
     let line_bytes = line_bytes(configuration, run.compaction_material)?;
     let session = match session::derive(&session::Derivation {

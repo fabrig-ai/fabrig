@@ -367,7 +367,7 @@ impl Domain {
                 &calendar::Limits { projects: limits.authority.projects },
                 config.period_span,
             ),
-            scratch: Queue::with_capacity(max_out(limits)),
+            scratch: Queue::uncapped(),
             settled: None,
             settling: crate::settling::Phase::Running,
             #[cfg(test)]
@@ -567,8 +567,8 @@ impl Domain {
     }
 }
 
-/// Output room for a commit and one delivery, or one bounded immediate cohort.
-/// Reserve before release; step and fire allocate the same bounded scratch room.
+/// Retiring output estimate retained for callers while their reservations go.
+/// The root's scratch and output routing no longer reserve this room.
 #[must_use]
 /// The views' share is fixed by [`crate::limits::VIEWS`].
 pub const fn max_out(limits: &Limits) -> u32 {
@@ -771,9 +771,8 @@ pub(crate) fn stage_now(domain: &mut Domain, out: &mut Queue<Request>) {
 
 /// Drain the journal only; child continuations enter through `Event::Released`
 /// and owner progress through `Event::Resume`, each with its own admission.
-pub fn release(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+pub fn release(domain: &mut Domain, _env: &Env<Limits>, out: &mut Queue<Request>) {
     domain.changed();
-    assert!(out.room() >= max_out(&env.limits), "root output room reserved");
     if domain.stop_pending {
         domain.stop_pending = false;
         domain.door_pass = false;
@@ -790,8 +789,7 @@ pub fn release(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>)
         domain.door_count = 0;
         return;
     }
-    // journal_limits fixes release to one: the caller's reserved queue can
-    // receive that same single output without an intermediate allocation.
+    // journal_limits fixes release to one held output before the next commit.
     let _status: skein_lib::Released = release_one(domain, out);
     send_commit(domain, out);
 }
@@ -835,7 +833,6 @@ pub(crate) fn send_commit(domain: &mut Domain, out: &mut Queue<Request>) {
 }
 
 pub(crate) fn resume_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
-    assert!(out.room() >= max_out(&env.limits), "root ready output room");
     if domain.journal.stopped() || domain.core.restart_failure().is_some() {
         return;
     }

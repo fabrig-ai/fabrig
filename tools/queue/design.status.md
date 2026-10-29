@@ -6,6 +6,24 @@ immutable P/C/tips, two outstanding records, ordered decisions, persistent
 bisection, INFRA rejection of no input, ordinary explicit-C main pushes,
 deletion-only leases and stable at-least-once outbox IDs.
 
+Section 3.7.1 is implemented by the opt-in pinned repair triplet and restart's
+external runtime selection. `test_repair_priority.py` covers disposable local
+origins, full singleton ordering, normal batches of 16, durable tried tips,
+pin refusal/advancement, red/conflict/error audit and simulated CLI/restart
+launches. This enables no production action and changes no check or timeout.
+It is integrated with section 3.10's authority and restart interfaces. External
+runtime validation covers all fourteen frozen module/list files, refuses changes
+before update and launch, and loads its authority dependencies from that copy.
+The 47 priority cases cover dependency drain, persistent ownership, cross-clone
+exclusion and real external-child handoff.
+Review repairs cover signal/137 heavy uncertainty with durable global and
+checkout refusal receipts, no input recovery/pruning and unsupported release;
+consumed-pin restart with trusted state revalidation; PATH/plan refusal audit;
+and opt-in adjudicated repair hold. Real disposable daemons prove official
+restart through held consumed pins, same authority inode, stop drain and a
+later restart without hold resuming ordinary work. No production activation
+or unknown-heavy reconciliation is supplied.
+
 Sections 3.11–3.12 now implement explicit local/SSH endpoint transport,
 Linux subreaper supervision, matching heavy completion-query evidence,
 controller-owned result/log/supervision return, opt-in CLI, stop/drain/resume,

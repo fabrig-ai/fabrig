@@ -55,12 +55,6 @@ impl Limits {
         tokenizer::Limits { depth: self.depth, string: self.strings, number: 32, chunk: 256, length: self.skip }
     }
 }
-/// The old name of [`encoder_bound`]; it goes once every tree calls the new name (wave 3).
-#[must_use]
-pub fn encoding_worst_case(limits: &Limits) -> Option<u64> {
-    encoder_bound(limits)
-}
-
 /// Bounds request encoding workspace.
 /// Fixed scratch for writing borrowed requests (llm.md, section 4.2).
 /// The body belongs to its reservation; nesting and grammar are the only heap.
@@ -81,15 +75,9 @@ pub fn encoder_bound(limits: &Limits) -> Option<u64> {
         .checked_add(u64::try_from(size_of::<tokenizer::Tokenizer>()).ok()?)
 }
 
-/// The old name of [`decoded_bound`]; it goes once every tree calls the new name (wave 3).
-#[must_use]
-pub fn worst_case(limits: &Limits) -> Option<u64> {
-    decoded_bound(limits)
-}
-
 /// Bounds whole-value admission and decoded output.
 /// Conservative native whole-value admission and decoded output bounds.
-/// Request encoding uses `encoding_worst_case`, without compact copies.
+/// Request encoding uses `encoder_bound`, without compact copies.
 #[must_use]
 pub fn decoded_bound(limits: &Limits) -> Option<u64> {
     // Native temporary values belong to the request, answer or replay

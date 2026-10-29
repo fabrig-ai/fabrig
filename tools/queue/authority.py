@@ -82,12 +82,24 @@ class Layout:
         self.train = durable.directory(self.root / "train", create=True)
 
     def acquire(self, *, inherited=None):
-        return Lock(self.root / "authority.lock", inherited=inherited)
+        lease = Lock(self.root / "authority.lock", inherited=inherited)
+        try:
+            self.queue_guard()
+            return lease
+        except BaseException:
+            lease.close()
+            raise
+
+    def queue_guard(self):
+        marker = self.root / "queue.unresolved"
+        if marker.exists() or marker.is_symlink():
+            raise RuntimeError("unresolved queue ownership; heavy reconciliation is unsupported")
 
     def restart_lock(self):
         return Lock(self.root / "restart.lock")
 
     def legacy_guard(self, repo):
+        self.queue_guard()
         # Any live train snapshot requires explicit retirement. Even an empty
         # active list says nothing about remote job lifetime or pending effects.
         if any(p.exists() or p.is_symlink() for p in (
@@ -125,7 +137,7 @@ def checkout_guard(repo, *, transport_claim=None):
     gitdir = repo / ".git"
     if not gitdir.is_dir() or gitdir.is_symlink():
         raise RuntimeError("queue mutation requires an independent clone")
-    for name in ("mq-worker-unresolved.json", "precheck.unresolved", "mq-preparation-unresolved.json"):
+    for name in ("mq-worker-unresolved.json", "precheck.unresolved", "mq-preparation-unresolved.json", "queue.unresolved"):
         marker = gitdir / name
         if marker.exists() or marker.is_symlink():
             raise RuntimeError("unresolved checkout ownership; explicit reconciliation required: " + str(marker))

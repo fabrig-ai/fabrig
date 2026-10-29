@@ -38,7 +38,8 @@ tabs and people. `go`, `back`, `forward`, `reload`, `act`, `event`, `fault`,
 `run` yields the referee verdict, judged checks, virtual time, callbacks,
 faults, dropped old-epoch callbacks, trace and heap evidence. Configure
 `Settings` at construction; story fixtures may call `randomness` and
-`measure_heap` before admitting clients. Random people wait between actions
+`measure_heap_within` with the scenario's measured ceiling before admitting clients;
+worlds without a ceiling retain the per-client guards' sum. Random people wait between actions
 using the configured latency, so they act on delivered pages. Heap-counted
 binaries install `skein_world::domain::heap::Counting` as their allocator.
 

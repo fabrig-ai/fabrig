@@ -1,6 +1,5 @@
 use crate::Binding;
 use crate::Limits;
-use crate::worst_case;
 use crate::{Builder, DrawingKind, Key, Owner, Role, Run, State, Style};
 
 use skein_lib::{List, Token};
@@ -202,7 +201,7 @@ fn spare_node_storage_is_reused_and_replaced_bytes_are_recounted() {
     let tree = builder.finish();
     assert_eq!(tree.nodes().as_ptr(), storage);
     assert_eq!(tree.len(), 1);
-    assert!(worst_case(&limits).expect("small limits fit") > 0);
+    assert!(crate::valid(&limits));
 }
 
 #[test]

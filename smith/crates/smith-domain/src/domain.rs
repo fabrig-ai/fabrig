@@ -413,13 +413,16 @@ fn settle(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 }
 
 /// Moves each child's facts before dispatch can consume their queued Open.
-/// Popping facts produces no child work, so the entrance's finite facts end each drain.
+/// Popping facts produces no child work, so one pass over each child's count
+/// at entry empties its queue.
 pub(crate) fn child_facts_gathered_before_handoff(domain: &mut Domain) {
-    while let Some(fact) = domain.run.pop_fact() {
+    for _ in 0..domain.run.pending_facts() {
+        let fact = domain.run.pop_fact().expect("counted run fact");
         let opening = opening(domain, &fact);
         keep(domain, Fact::Run { fact, opening });
     }
-    while let Some(fact) = domain.session.pop_fact() {
+    for _ in 0..domain.session.pending_facts() {
+        let fact = domain.session.pop_fact().expect("counted session fact");
         keep(domain, Fact::Session { fact });
     }
 }

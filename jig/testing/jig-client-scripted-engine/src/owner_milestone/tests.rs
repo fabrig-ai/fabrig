@@ -1,4 +1,4 @@
-use super::{bytes, fits, worst_case};
+use super::{bytes, fits, heap_bound};
 use crate::Bounds;
 use core::mem::size_of;
 use jig_client_domain::contract::*;
@@ -55,7 +55,7 @@ fn owner_milestone_recursive_heap_counts_reserved_fields_parts_and_bytes_at_exac
     {
         let b = Bounds { document_bytes: amount, ..bounds() };
         assert_eq!(fits(&source, &b), admitted);
-        assert_eq!(worst_case(&b), Some(amount));
+        assert_eq!(heap_bound(&b), Some(amount));
     }
     assert_eq!(source, original);
 }
@@ -65,7 +65,7 @@ fn owner_milestone_reserved_empty_lists_optional_approval_and_every_nested_capac
     let absent = line(OwnerMilestonePhase::Waiting);
     let root = u64::try_from(size_of::<OwnerMilestoneLine>()).unwrap();
     assert_eq!(bytes(&absent, &base), Some(root));
-    assert!(worst_case(&Bounds { document_bytes: root.checked_sub(1).unwrap(), ..base }).is_none());
+    assert!(heap_bound(&Bounds { document_bytes: root.checked_sub(1).unwrap(), ..base }).is_none());
     let mut fields = List::with_capacity(3);
     let mut source = line(OwnerMilestonePhase::Ended(OwnerChipEnding::Done(ResultValue::OwnerVerdict {
         verdict: 0,

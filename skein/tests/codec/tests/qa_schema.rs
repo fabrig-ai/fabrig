@@ -171,7 +171,7 @@ fn numeric_words_refuse_one_past_their_widths() {
 }
 
 #[test]
-fn encoded_worst_cases_accept_u32_maximum() {
+fn encoded_bounds_accept_u32_maximum() {
     for (text, most) in [
         ("family qa 0 record R { x: fixed 4294967295 }", u32::MAX),
         ("family qa 65535 versioned record R { x: fixed 4294967293 }", u32::MAX),
@@ -184,7 +184,7 @@ fn encoded_worst_cases_accept_u32_maximum() {
 }
 
 #[test]
-fn encoded_worst_cases_refuse_one_past_u32() {
+fn encoded_bounds_refuse_one_past_u32() {
     for text in [
         "family qa 1\nrecord R { x: bytes 4294967292 }",
         "family qa 1\nversioned record R { x: fixed 4294967294 }",
@@ -195,7 +195,7 @@ fn encoded_worst_cases_refuse_one_past_u32() {
 }
 
 #[test]
-fn nested_list_worst_case_refuses_u64_overflow() {
+fn nested_list_encoded_bound_refuses_u64_overflow() {
     refusal("family qa 1\nrecord R { x: list 4294967295 list 4294967295 fixed 4294967295 }", Wrong::Overflow, 2, "x");
 }
 

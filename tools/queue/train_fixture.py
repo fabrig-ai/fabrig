@@ -314,5 +314,3 @@ if '--write' in sys.argv:
         self.assertIsNone(self.controller.admit())
         self.controller.flush_outbox()
         self.assertEqual([event["kind"] for event in self.authority.posts], ["infrastructure"])
-
-

@@ -21,7 +21,7 @@ pub fn host_limits(
         .ok_or(Refusal::Derived { limit: LimitName::deployment(Layer::Service, "turn_bytes") })?;
     // Concrete history and turn payloads share one window's aggregate bound,
     // rather than charging each reserved turn at the largest payload (rule 5).
-    let answer_bytes = u64::from(run.host_reply_bytes).max(host::Delivered::worst_case()).max(
+    let answer_bytes = u64::from(run.host_reply_bytes).max(host::Delivered::owned_bound()).max(
         u64::try_from(host::Marker::CAPACITY + host::DeliveryRefusal::CAPACITY).expect("sealed feedback fits u64"),
     );
     let answered_bytes = u64::from(run.answered_calls)
@@ -161,7 +161,7 @@ mod tests {
             assert_eq!(host.outcome_bytes, u64::from(payload));
             assert_eq!(host.call_bytes, u64::from(payload));
             assert!(host.answer_bytes >= u64::from(payload));
-            assert!(host.answer_bytes >= smith_host_domain::Delivered::worst_case());
+            assert!(host.answer_bytes >= smith_host_domain::Delivered::owned_bound());
             assert_eq!(host.fact_bytes, 17, "one kind and two u64 fields");
             assert_eq!(host.unacknowledged_bytes, host.turn_bytes);
             assert_eq!(host.transcript_bytes, host.turn_bytes);

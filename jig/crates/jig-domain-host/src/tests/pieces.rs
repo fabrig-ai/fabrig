@@ -40,7 +40,7 @@ fn an_old_agents_piece_and_its_queued_piece_are_fenced_after_reassignment() {
     let mut h = Harness {
         domain: Domain::new(&limits),
         env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
-        out: Queue::with_capacity(max_out(&limits)),
+        out: Queue::uncapped(),
     };
     assert_eq!((h.domain.pieces_fenced(), h.domain.pieces_lost()), (0, 0));
     let old = start(&mut h, 1001);

@@ -101,7 +101,7 @@ pub(crate) fn compare(
         return Err(Error::Missing(What::Commit));
     }
     // Finish the merge-base walk before building the comparison histories,
-    // keeping scratch within the two sets and queue in worst_case.
+    // so their scratch is not held together.
     let merge_base = git::merge_base(domain, base, head);
     let files = changed(domain, limits, Some(base), head)?;
     let old = git::ancestors(domain, base);

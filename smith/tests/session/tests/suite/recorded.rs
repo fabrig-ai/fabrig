@@ -705,7 +705,7 @@ fn fullest_history_keeps_maximum_owned_read_list_search_and_shell_after_cancel()
         world.env.limits.tools.shell_head = 2048;
         world.env.limits.tools.shell_tail = 2048;
         let (call, done, expected) = maximum_owned_result(kind);
-        let credit = tools::result_worst_case(&call, &world.env.limits.tools).expect("checked complete result cap");
+        let credit = tools::result_bound(&call, &world.env.limits.tools).expect("checked complete result cap");
         let id = b"actual-owned".as_slice();
         let name = b"owned".as_slice();
         let input = b"{}".as_slice();

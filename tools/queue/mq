@@ -10,6 +10,7 @@ import json
 import importlib.util
 import os
 from pathlib import Path, PurePosixPath
+import re
 import shlex
 import shutil
 import socket
@@ -58,6 +59,84 @@ class DiskFloorError(RuntimeError):
     def __init__(self, message, report_key):
         super().__init__(message)
         self.report_key = report_key
+
+
+class UnknownHeavyError(RuntimeError):
+    """Client termination leaves job completion and input ownership unresolved."""
+
+
+def repair_options(parser):
+    parser.add_argument("--repair-ready", help="one Ops-named ready branch repairing a recurring gate failure")
+    parser.add_argument("--repair-tip", help="exact full commit OID for the repair")
+    parser.add_argument("--repair-reason", help="why this repair must prove before ordinary batches")
+    parser.add_argument("--repair-hold", action="store_true", help="hold authority after this repair; admit nothing else")
+
+
+def validate_repair(repo, ready, tip, reason, *, hold=False):
+    if ready is None and tip is None and reason is None:
+        if hold:
+            raise ValueError("--repair-hold requires the complete repair triplet")
+        return None
+    if any(value is None for value in (ready, tip, reason)):
+        raise ValueError("--repair-ready, --repair-tip and --repair-reason must be supplied together")
+    if (len(ready.split("/")) != 3 or not ready.startswith("ready/") or
+            git(repo, "check-ref-format", "refs/heads/" + ready, check=False).returncode):
+        raise ValueError("--repair-ready must be a valid full ready/<lead>/<task> branch")
+    if not re.fullmatch(r"(?:[0-9a-f]{40}|[0-9a-f]{64})", tip):
+        raise ValueError("--repair-tip must be a full lowercase commit OID")
+    if not reason.strip() or not reason.isprintable():
+        raise ValueError("--repair-reason must be nonempty printable text")
+    return {"name": ready, "tip": tip, "reason": reason}
+
+
+def read_queue_state(repo, path=None):
+    """Validate private consumption evidence without changing the state contract."""
+    path = path or repo.with_name(repo.name + ".state.json")
+    if not path.exists() and not path.is_symlink():
+        return {}
+    state = authority.durable.read_json(authority.durable.read_bytes(path))
+    fields = {"tried", "batches_since_full", "last_full", "last_full_main", "selected_passed",
+              "idle_since", "reported_errors"}
+    if not isinstance(state, dict) or not set(state) <= fields or not isinstance(state.get("tried"), dict):
+        raise ValueError("invalid queue state/consumption evidence")
+    for name, tip in state["tried"].items():
+        if (len(name.split("/")) != 3 or not name.startswith("ready/") or
+                git(repo, "check-ref-format", "refs/heads/" + name, check=False).returncode):
+            raise ValueError("invalid ready name in queue state")
+        authority.oid(tip)
+    if "batches_since_full" in state and (type(state["batches_since_full"]) is not int or
+                                          state["batches_since_full"] < 0):
+        raise ValueError("invalid queue state batch counter")
+    for name in ("last_full", "idle_since"):
+        if name in state and (type(state[name]) not in (int, float) or
+                              not 0 <= state[name] <= sys.float_info.max):
+            raise ValueError("invalid queue state time")
+    if "last_full_main" in state:
+        authority.oid(state["last_full_main"])
+    if "selected_passed" in state and type(state["selected_passed"]) is not bool:
+        raise ValueError("invalid queue state selection flag")
+    if "reported_errors" in state and (not isinstance(state["reported_errors"], list) or
+                                       any(not isinstance(v, str) for v in state["reported_errors"])):
+        raise ValueError("invalid queue state errors")
+    return state
+
+
+def repair_pending(repo, repair):
+    return read_queue_state(repo).get("tried", {}).get(repair["name"]) != repair["tip"]
+
+
+def advertised_repair(repo, repair):
+    ref = "refs/heads/" + repair["name"]
+    output = git(repo, "ls-remote", "--heads", "origin", ref).stdout.splitlines()
+    if output != [repair["tip"] + "\t" + ref]:
+        raise ValueError("repair ready branch is missing or no longer advertises the pinned tip")
+
+
+def log_repair_refusal(path, repair, error):
+    record = {"start": utc_now(), "end": utc_now(), "branches": [], "steps": [], "posts": [],
+              "event": "repair-refusal", "repair": repair, "outcome": "error", "error": str(error)}
+    log_batch(path, record)
+    return record
 
 
 def free_gb(repo):
@@ -317,7 +396,12 @@ def tools_commands(repo):
     return commands
 
 
-def run_step(name, argv, cwd, log, *, runner, clock, timeout=None):
+def unknown_heavy(step):
+    return (step.get("command", [None])[0] == "heavy" and
+            (step.get("returncode", 0) < 0 or step.get("returncode") == 137))
+
+
+def run_step(name, argv, cwd, log, *, runner, clock, timeout=None, status_observer=None):
     log.write(f"\n[{name}] {shlex.join(argv)} (cwd {cwd})\n")
     log.flush()
     output_start = log.tell()
@@ -329,7 +413,6 @@ def run_step(name, argv, cwd, log, *, runner, clock, timeout=None):
             options["pass_fds"] = writer_fds()
         result = runner(argv, cwd=cwd, stdin=subprocess.DEVNULL,
                         stdout=log, stderr=subprocess.STDOUT, **options)
-        code = result.returncode
     except subprocess.TimeoutExpired:
         log.write(f"Timed out after {timeout} seconds\n")
         code = 124
@@ -337,6 +420,13 @@ def run_step(name, argv, cwd, log, *, runner, clock, timeout=None):
         log.write(f"{error}\n")
         code = 127
         launch_error = str(error)
+    else:
+        code = result.returncode
+        # Repair ownership must be blocked before log I/O or any later checker work.
+        # Observer failures are not command launch failures.
+        if status_observer is not None:
+            status_observer({"name": name, "command": argv, "cwd": str(cwd),
+                             "returncode": code, "green": code == 0})
     log.flush()
     log.seek(output_start)
     output = log.read()
@@ -352,12 +442,14 @@ def run_step(name, argv, cwd, log, *, runner, clock, timeout=None):
     return outcome
 
 
-def run_tools(repo, log, *, runner=subprocess.run, clock=time.monotonic, observer=None):
+def run_tools(repo, log, *, runner=subprocess.run, clock=time.monotonic, observer=None,
+              status_observer=None):
     """Run every tools suite before cargo, with a deadline per suite (design.md, 2.3)."""
     started = clock()
     suites = []
     for name, argv, cwd in tools_commands(repo):
-        suites.append(run_step(name, argv, cwd, log, runner=runner, clock=clock, timeout=TOOLS_TIMEOUT))
+        suites.append(run_step(name, argv, cwd, log, runner=runner, clock=clock, timeout=TOOLS_TIMEOUT,
+                               status_observer=status_observer))
         if observer is not None:
             observer(suites[-1])
     return {"name": "tools", "green": all(suite["green"] for suite in suites),
@@ -365,7 +457,7 @@ def run_tools(repo, log, *, runner=subprocess.run, clock=time.monotonic, observe
 
 
 def run_checks(repo, selected, paths, log_path, *, runner=subprocess.run, clock=time.monotonic,
-               check_only=False, metadata=None, observer=None, outcomes=None):
+               check_only=False, metadata=None, observer=None, outcomes=None, status_observer=None):
     """Run serially, logging output; nextest's empty selection is green."""
     outcomes = [] if outcomes is None else outcomes
     def record(outcome):
@@ -376,7 +468,7 @@ def run_checks(repo, selected, paths, log_path, *, runner=subprocess.run, clock=
     with log_path.open("a+") as log:
         os.chmod(log_path, 0o600)
         for name, argv, cwd in ratchet_commands(repo, paths, check_only=check_only):
-            record(run_step(name, argv, cwd, log, runner=runner, clock=clock))
+            record(run_step(name, argv, cwd, log, runner=runner, clock=clock, status_observer=status_observer))
             if not outcomes[-1]["green"]:
                 return outcomes
             baseline = f"{cwd.name}/scripts/old-forms.txt"
@@ -384,11 +476,12 @@ def run_checks(repo, selected, paths, log_path, *, runner=subprocess.run, clock=
                 git(repo, "add", "--", baseline)
                 git(repo, "commit", "-m", f"Lower {cwd.name} old-form baselines")
         if selected == "full" or any(path.startswith("tools/") for path in paths):
-            record(run_tools(repo, log, runner=runner, clock=clock, observer=observer))
+            record(run_tools(repo, log, runner=runner, clock=clock, observer=observer,
+                             status_observer=status_observer))
             if not outcomes[-1]["green"]:
                 return outcomes
         for name, argv, cwd in check_commands(repo, selected, paths, metadata=metadata):
-            record(run_step(name, argv, cwd, log, runner=runner, clock=clock))
+            record(run_step(name, argv, cwd, log, runner=runner, clock=clock, status_observer=status_observer))
             if not outcomes[-1]["green"]:
                 break
     return outcomes
@@ -492,7 +585,8 @@ class Queue:
 
     def __init__(self, repo, *, batch=8, full_every=5, dry=False,
                  state_path=None, log_path=None, checker=run_checks, poster=post,
-                 metadata_loader=load_metadata, now=time.time, disk_floor=45, writer_guard=None):
+                 metadata_loader=load_metadata, now=time.time, disk_floor=45, repair=None, writer_guard=None,
+                 repair_hold=False):
         self.repo = Path(repo).resolve()
         self._writer_guard = writer_guard
         self.batch = batch
@@ -501,6 +595,20 @@ class Queue:
         self.dry = dry
         self.state_path = state_path or self.repo.with_name(self.repo.name + ".state.json")
         self.log_path = log_path or Path.home() / "src/fabrig/notes/queue.jsonl"
+        self.repair = repair
+        self.repair_consumed = False
+        self.repair_hold = repair_hold
+        self.hold_logged = False
+        self.unknown_marker = None
+        self.unknown_durable = False
+        if repair is not None or repair_hold:
+            try:
+                supplied = repair or {}
+                self.repair = validate_repair(self.repo, supplied.get("name"), supplied.get("tip"),
+                                              supplied.get("reason"), hold=repair_hold)
+            except ValueError as error:
+                log_repair_refusal(self.log_path, repair, error)
+                raise
         self.checker = checker
         self.poster = poster
         self.metadata_loader = metadata_loader
@@ -511,11 +619,14 @@ class Queue:
         self.last_conflicts = []
         self.error_record = None
         self.leads = dict(line.split() for line in lines(CONFIG / "leads.txt"))
-        self.state = json.loads(self.state_path.read_text()) if self.state_path.exists() else {}
+        self.state = (read_queue_state(self.repo, self.state_path) if repair is not None else
+                      json.loads(self.state_path.read_text()) if self.state_path.exists() else {})
         self.state.setdefault("tried", {})
         self.state.setdefault("batches_since_full", 0)
 
     def writer_guard(self):
+        if self.unknown_marker is not None:
+            raise UnknownHeavyError("heavy completion is unresolved; recovery/reset/admission are blocked")
         authority.checkout_guard(self.repo)
         if self._writer_guard is None:
             raise RuntimeError("Queue mutation requires an injected sole authority/startup guard")
@@ -587,17 +698,27 @@ class Queue:
                     f"{branch['name']} at {branch['tip']}\n{detail}\nLog: {record['log']}\n"
                     "Push a new tip to retry.\n")
 
-    def attempt(self, branches, *, idle=False, force_full=False, skip_conflicts=False):
+    def attempt(self, branches, *, idle=False, force_full=False, skip_conflicts=False, repair=None):
         self.writer_guard()
+        if repair is not None and not writer_fds():
+            raise RuntimeError("repair checks require held authority and checkout descriptors")
         available = free_gb(self.repo)
         if available < self.disk_floor:
             host = socket.gethostname()
-            raise DiskFloorError(
+            error = DiskFloorError(
                 f"{host}: {available:.1f} GB free, below queue disk floor {self.disk_floor} GB",
                 f"disk-floor:{host}")
+            if repair is not None:
+                self.error_record = {"start": utc_now(), "end": utc_now(), "branches": branches,
+                                     "steps": [], "posts": [], "outcome": "error", "dry": self.dry,
+                                     "repair": repair, "error": str(error)}
+                log_batch(self.log_path, self.error_record)
+            raise error
         batch_started_ns = time.time_ns()
         record = {"start": utc_now(), "branches": branches, "selection": None,
                   "steps": [], "posts": [], "dry": self.dry, "outcome": "error"}
+        if repair is not None:
+            record["repair"] = repair
         record["log"] = str(self.log_path.parent / f"queue-{uuid.uuid4().hex}.log")
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
         detail = Path(record["log"])
@@ -609,6 +730,7 @@ class Queue:
         detail.write_text("")
         os.chmod(detail, 0o600)
         try:
+            record["parent"] = git(self.repo, "rev-parse", self.base).stdout.strip()
             merged, conflicts = build_batch(self.repo, branches, self.base)
             self.last_merged, self.last_conflicts = merged, conflicts
             record["conflicts"] = conflicts
@@ -630,7 +752,43 @@ class Queue:
             self.last_selection = selected
             record["selection"] = sorted(selected) if isinstance(selected, set) else selected
             record["changed_paths"] = paths
-            record["steps"] = self.checker(self.repo, selected, paths, detail)
+            check_options = {}
+            if repair is not None:
+                record["prepared_candidate"] = git(self.repo, "rev-parse", "HEAD").stdout.strip()
+                self.unknown_paths = (WRITER_LEASE.path.parent / "queue.unresolved",
+                                      self.repo / ".git/queue.unresolved")
+                provenance = {
+                    "version": 1, "kind": "repair-heavy-unknown", "repair": repair,
+                    "repo": str(self.repo), "runtime": str(CONFIG), "pid": os.getpid(), "record": record}
+
+                def block_unknown(step=None):
+                    # Set ownership before encoding, publication, or fallible provenance reads.
+                    self.unknown_marker = provenance
+                    if step is not None:
+                        record["steps"].append(step)
+                    record["candidate"] = record["prepared_candidate"]
+                    record["error"] = "heavy client terminated; completion unknown; reconciliation unsupported"
+                    provenance["record"] = {**record, "steps": list(record["steps"])}
+                    self.publish_unknown()
+                    raise UnknownHeavyError(record["error"])
+
+                def observe_status(step):
+                    if unknown_heavy(step):
+                        block_unknown(step)
+
+                check_options = {"status_observer": observe_status, "outcomes": record["steps"]}
+            record["steps"] = self.checker(self.repo, selected, paths, detail, **check_options)
+            if repair is not None:
+                if self.unknown_marker is not None:
+                    raise UnknownHeavyError("heavy completion unresolved; checker cannot adjudicate")
+                steps = [suite for step in record["steps"] for suite in step.get("suites", [step])]
+                unknown = next((step for step in steps if unknown_heavy(step)), None)
+                if unknown is not None:
+                    block_unknown()
+                launches = [suite for step in record["steps"] for suite in step.get("suites", [step])
+                            if "launch_error" in suite]
+                if launches:
+                    raise RuntimeError("repair check could not launch: " + launches[0]["launch_error"])
             refusal = next((step["error"] for step in record["steps"] if "error" in step), None)
             if refusal is not None:
                 host = socket.gethostname()
@@ -683,15 +841,23 @@ class Queue:
             record["outcome"] = "error"
             self.error_record = record
             record["error"] = str(error)
+            if self.unknown_marker is None:
+                try:
+                    self.save()
+                except Exception as save_error:
+                    record["state_error"] = str(save_error)
             with detail.open("a") as output:
                 output.write(f"\n{error}\n")
             raise
         finally:
-            try:
-                self.writer_guard()
-                record["target_cleanup"] = prune_test_executables(self.repo, self.disk_floor, batch_started_ns)
-            except Exception as cleanup_error:
-                record["target_cleanup"] = {"error": str(cleanup_error)}
+            if self.unknown_marker is not None:
+                record["target_cleanup"] = {"skipped": "heavy completion unknown"}
+            else:
+                try:
+                    self.writer_guard()
+                    record["target_cleanup"] = prune_test_executables(self.repo, self.disk_floor, batch_started_ns)
+                except Exception as cleanup_error:
+                    record["target_cleanup"] = {"error": str(cleanup_error)}
             record["end"] = utc_now()
             log_batch(self.log_path, record)
 
@@ -723,8 +889,33 @@ class Queue:
         record["end"] = utc_now()
         log_batch(self.log_path, record)
 
+    def publish_unknown(self):
+        self.unknown_durable = False
+        if isinstance(self.unknown_marker, dict):
+            self.unknown_marker = authority.durable.encoded(self.unknown_marker)
+        for path in self.unknown_paths:
+            authority.durable.publish(path, self.unknown_marker, immutable=True,
+                                       private_parent=path.parent != self.repo / ".git")
+        self.unknown_durable = True
+
+    def retain_unknown(self, stop, sleeper):
+        """Retain live leases until durable guards exist; no absence proves release."""
+        while True:
+            try:
+                self.publish_unknown()
+            except Exception as error:
+                print(f"mq: unresolved marker publication failed; retaining ownership: {error}", file=sys.stderr)
+            if self.unknown_durable and stop.exists():
+                return
+            sleeper(60)
+
     def run(self, stop, *, sleeper=time.sleep):
-        while not stop.exists():
+        while True:
+            if self.unknown_marker is not None:
+                self.retain_unknown(stop, sleeper)
+                return
+            if stop.exists():
+                return
             self.writer_guard()
             self.error_record = None
             try:
@@ -733,6 +924,8 @@ class Queue:
                     self.state["reported_errors"] = []
                     self.save()
             except Exception as error:
+                if self.unknown_marker is not None:
+                    continue
                 try:
                     self.recover(error)
                 except Exception as recovery_error:
@@ -742,22 +935,73 @@ class Queue:
                 sleeper(60)
 
     def plan(self):
+        self.error_record = None
+        try:
+            self.plan_once()
+        except Exception as error:
+            if self.repair is not None and self.error_record is None:
+                self.error_record = log_repair_refusal(self.log_path, self.repair, error)
+            raise
+
+    def plan_once(self):
         self.writer_guard()
+        if self.repair_hold and self.pending_repair() is None:
+            self.enter_hold()
+            print("repair hold: no admission")
+            return
         git(self.repo, "fetch", "--prune", "origin")
-        branches = list_candidates(self.repo, self.state["tried"])[:self.batch]
+        branches, repair = self.next_batch()
         if not branches and not self.idle_due():
             print("nothing to do")
             return
         paths = sorted({path for branch in branches for path in preview_changed_paths(self.repo, branch["tip"])})
-        selected = self.choose(paths, preview=True) if branches else "full"
+        selected = "full" if repair or not branches else self.choose(paths, preview=True)
         print(json.dumps({"branches": branches,
+                          **({"repair": repair} if repair else {}),
                           "selection": sorted(selected) if isinstance(selected, set) else selected,
                           "changed_paths": paths}, indent=2))
 
+    def pending_repair(self):
+        if (self.repair is not None and not self.repair_consumed and
+                self.state["tried"].get(self.repair["name"]) != self.repair["tip"]):
+            return self.repair
+        return None
+
+    def next_batch(self):
+        repair = self.pending_repair()
+        if repair is not None:
+            try:
+                advertised_repair(self.repo, repair)
+                branches = list_candidates(self.repo, {})
+                branch = next((branch for branch in branches if branch["name"] == repair["name"] and
+                               branch["tip"] == repair["tip"]), None)
+                if branch is None:
+                    raise ValueError("fetched repair ready branch does not match the pinned tip")
+            except Exception as error:
+                self.error_record = log_repair_refusal(self.log_path, repair, error)
+                raise
+            return [branch], repair
+        return list_candidates(self.repo, self.state["tried"])[:self.batch], None
+
     def cycle(self):
+        self.error_record = None
+        try:
+            return self.cycle_once()
+        except Exception as error:
+            repair = self.pending_repair()
+            if repair is not None and self.error_record is None:
+                self.error_record = {"start": utc_now(), "end": utc_now(), "branches": [], "steps": [],
+                                     "posts": [], "repair": repair, "outcome": "error", "error": str(error)}
+                log_batch(self.log_path, self.error_record)
+            raise
+
+    def cycle_once(self):
         self.writer_guard()
+        if self.repair_hold and self.pending_repair() is None:
+            self.enter_hold()
+            return False
         git(self.repo, "fetch", "--prune", "origin")
-        branches = list_candidates(self.repo, self.state["tried"])[:self.batch]
+        branches, repair = self.next_batch()
         if not branches:
             self.state.setdefault("idle_since", self.now())
             if not self.dry and self.idle_due():
@@ -772,7 +1016,10 @@ class Queue:
         original = git(self.repo, "symbolic-ref", "--quiet", "--short", "HEAD", check=False).stdout.strip()
         original_tip = git(self.repo, "rev-parse", "HEAD").stdout.strip()
         try:
-            initial_green = self.attempt(branches, skip_conflicts=True)
+            initial_green = self.attempt(branches, skip_conflicts=True, force_full=repair is not None,
+                                         repair=repair)
+            if repair is not None:
+                self.repair_consumed = True
             merged, conflicts = self.last_merged, self.last_conflicts
             first = True
             force_full = not initial_green and self.last_selection == "full"
@@ -793,10 +1040,19 @@ class Queue:
                               "conflicts": [branch["name"] for branch in conflicts], "dry": self.dry}))
             self.state["idle_since"] = self.now()
             self.save()
+            if repair is not None and self.repair_hold:
+                self.enter_hold()
             return True
         finally:
-            if self.dry:
+            if self.dry and self.unknown_marker is None:
                 git(self.repo, "switch", original) if original else git(self.repo, "switch", "--detach", original_tip)
+
+    def enter_hold(self):
+        if not self.hold_logged:
+            log_batch(self.log_path, {"start": utc_now(), "end": utc_now(), "event": "repair-hold",
+                                     "repair": self.repair, "branches": [], "dry": self.dry,
+                                     "message": "Admission held until official restart; hold is not completion evidence"})
+            self.hold_logged = True
 
 
 @contextmanager
@@ -827,11 +1083,18 @@ def main():
         sub.add_argument("--batch", type=positive, default=8)
         sub.add_argument("--full-every", type=positive, default=5)
         sub.add_argument("--disk-floor", type=positive, default=45)
+        repair_options(sub)
         if name == "once":
             sub.add_argument("--dry", action="store_true")
     args = parser.parse_args()
+    admitted = False
+    refusal_logged = False
+    raw = {"name": args.repair_ready, "tip": args.repair_tip, "reason": args.repair_reason}
+    repair = raw if args.repair_hold or any(value is not None for value in raw.values()) else None
     if args.train_config is not None:
         try:
+            if repair is not None:
+                raise ValueError("train configuration does not accept legacy repair options")
             spec = importlib.util.spec_from_file_location("mq_operation", CONFIG / "operation.py")
             operation = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(operation)
@@ -840,17 +1103,31 @@ def main():
             return operation.run(operation.configuration(args.train_config), args.action,
                                  inherited=args.authority_fd, startup_fd=args.startup_fd)
         except (OSError, ValueError, RuntimeError) as error:
+            if repair is not None:
+                log_repair_refusal(Path.home() / "src/fabrig/notes/queue.jsonl", repair, error)
             print(f"mq train: {error}", file=sys.stderr)
             return 1
     if args.action.startswith("train-"):
         parser.error("train operation requires explicit --train-config")
-    if args.action == "run":
-        for name in ("cargo", "heavy", "post", "git"):
-            if shutil.which(name) is None:
-                print(f"mq: missing {name} on PATH; invoke from bash -lc", file=sys.stderr)
-                return 2
     try:
+        if args.action == "run":
+            for name in ("cargo", "heavy", "post", "git"):
+                if shutil.which(name) is None:
+                    error = RuntimeError(f"missing {name} on PATH; invoke from bash -lc")
+                    if repair is not None:
+                        refusal_logged = True
+                        log_repair_refusal(Path.home() / "src/fabrig/notes/queue.jsonl", repair, error)
+                    print(f"mq: {error}", file=sys.stderr)
+                    return 2
         repo = args.repo.expanduser().resolve()
+        repair = raw
+        try:
+            repair = validate_repair(repo, args.repair_ready, args.repair_tip, args.repair_reason,
+                                     hold=args.repair_hold)
+        except ValueError as error:
+            refusal_logged = True
+            log_repair_refusal(Path.home() / "src/fabrig/notes/queue.jsonl", repair, error)
+            raise
         if git(repo, "rev-parse", "--show-toplevel").stdout.strip() != str(repo):
             raise RuntimeError("--repo must name the checkout root")
         layout = authority.Layout(args.authority_dir)
@@ -861,8 +1138,10 @@ def main():
             lease.guard()
             layout.legacy_guard(repo)
             queue = Queue(repo, batch=args.batch, full_every=args.full_every, disk_floor=args.disk_floor,
-                          dry=getattr(args, "dry", False),
+                          dry=getattr(args, "dry", False), repair=repair,
+                          repair_hold=args.repair_hold,
                           writer_guard=lambda: (lease.guard(), layout.legacy_guard(repo)))
+            admitted = True
             if args.action == "plan":
                 queue.plan()
                 return 0
@@ -870,12 +1149,19 @@ def main():
                 os.write(args.startup_fd, b"READY\n")
                 os.close(args.startup_fd)
             if args.action == "once":
-                queue.cycle()
+                try:
+                    queue.cycle()
+                except Exception:
+                    if queue.unknown_marker is not None and not queue.unknown_durable:
+                        queue.retain_unknown(Path.home() / "src/fabrig/queue.stop", time.sleep)
+                    raise
                 return 0
             stop = Path.home() / "src/fabrig/queue.stop"
             queue.run(stop)
         return 0
     except (OSError, ValueError, RuntimeError) as error:
+        if repair is not None and not admitted and not refusal_logged:
+            log_repair_refusal(Path.home() / "src/fabrig/notes/queue.jsonl", repair, error)
         print(f"mq: {error}", file=sys.stderr)
         return 1
 

@@ -210,8 +210,8 @@ fn store_terminals_are_taken_while_the_commit_barrier_has_no_admission_room() {
     let mut journal = skein_lib::Journal::<u32, u32>::uncapped(1, 0);
     for turn in 1..=watermark {
         let mut decision = journal.decide();
-        decision.write(turn).expect("one bounded write");
-        decision.hold(turn).expect("one bounded output");
+        decision.push_write(turn);
+        decision.push_held(turn);
         journal.accept(decision);
     }
     assert!(journal.backlog() >= u64::from(watermark));

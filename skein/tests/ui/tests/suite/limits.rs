@@ -1,6 +1,6 @@
 //! Limit representation and Markdown workspace bounds (programming-model.md, 6.3).
 use skein_lib::Rng;
-use skein_ui::markdown::{markdown_bound, worst_case as old_markdown_bound};
+use skein_ui::markdown::markdown_bound;
 use skein_ui::phrases::{self, PhraseLimits};
 use skein_ui::{Limits, valid};
 
@@ -29,7 +29,7 @@ fn draw(rng: &mut Rng, maximum: u32) -> u32 {
 }
 
 #[test]
-fn valid_and_heap_bound_agree_at_ui_capacity_edges() {
+fn valid_checks_ui_capacity_edges() {
     // Two styles per scene mark fit through floor(u32::MAX/2).
     const LAST_TWO_STYLE_MARKS: u32 = 2_147_483_647;
     let cases = [
@@ -55,28 +55,23 @@ fn valid_and_heap_bound_agree_at_ui_capacity_edges() {
     ];
     for (name, limits, expected) in cases {
         assert_eq!(valid(&limits), expected, "{name}: {limits:?}");
-        assert_eq!(valid(&limits), super::heap_bound(&limits).is_some(), "{name}: {limits:?}");
     }
 }
 
 #[test]
-fn valid_accepts_limits_whose_heap_total_alone_overflows() {
-    // Drawing bytes alone account for 2^62 per tree; five trees exceed u64.
+fn valid_accepts_large_independent_node_and_drawing_capacities() {
     const TWO_TO_31: u32 = 2_147_483_648;
     let limits = Limits { nodes: TWO_TO_31, drawing_bytes: TWO_TO_31, ..EMPTY };
     assert!(valid(&limits));
-    assert!(super::heap_bound(&limits).is_none());
 }
 
 #[test]
-fn valid_and_heap_bound_agree_over_seeded_ui_limits() {
-    // Small node counts avoid heap-total overflow while every other field
-    // spans u32, including the scene's derived-capacity overflow cases.
-    const SMALL_NODES: u32 = 255;
+fn valid_checks_scene_style_capacity_over_seeded_ui_limits() {
+    // Every field spans its type, including the scene's derived-capacity overflow cases.
     let mut rng = Rng::new(0x7067_7661_6c69_6402);
     for draw_index in 0..DRAWS {
         let limits = Limits {
-            nodes: draw(&mut rng, SMALL_NODES),
+            nodes: draw(&mut rng, u32::MAX),
             depth: draw(&mut rng, u32::MAX),
             text_per_node: draw(&mut rng, u32::MAX),
             text_bytes: draw(&mut rng, u32::MAX),
@@ -89,12 +84,13 @@ fn valid_and_heap_bound_agree_over_seeded_ui_limits() {
             scene_marks: draw(&mut rng, if draw_index % 2 == 0 { 1 } else { u32::MAX }),
             scene_bytes: draw(&mut rng, u32::MAX),
         };
-        assert_eq!(valid(&limits), super::heap_bound(&limits).is_some(), "draw {draw_index}: {limits:?}");
+        let styles = u64::from(limits.scene_marks) * u64::from(limits.styles_per_node);
+        assert_eq!(valid(&limits), u32::try_from(styles).is_ok(), "draw {draw_index}: {limits:?}");
     }
 }
 
 #[test]
-fn phrase_valid_and_heap_bound_agree_at_capacity_edges() {
+fn phrase_valid_checks_capacity_edges() {
     // Two plural forms per phrase fit through floor(u32::MAX/2).
     const LAST_PHRASES: u32 = 2_147_483_647;
     let cases = [
@@ -122,12 +118,11 @@ fn phrase_valid_and_heap_bound_agree_at_capacity_edges() {
     ];
     for (name, limits, expected) in cases {
         assert_eq!(phrases::valid(&limits), expected, "{name}: {limits:?}");
-        assert_eq!(phrases::valid(&limits), super::phrase_heap_bound(&limits).is_some(), "{name}: {limits:?}");
     }
 }
 
 #[test]
-fn phrase_valid_and_heap_bound_agree_over_seeded_limits() {
+fn phrase_valid_checks_form_capacity_over_seeded_limits() {
     let mut rng = Rng::new(0x7067_7661_6c69_6403);
     for draw_index in 0..DRAWS {
         let limits = PhraseLimits {
@@ -138,18 +133,13 @@ fn phrase_valid_and_heap_bound_agree_over_seeded_limits() {
             text_bytes: draw(&mut rng, u32::MAX),
             hole_bytes: draw(&mut rng, u32::MAX),
         };
-        assert_eq!(
-            phrases::valid(&limits),
-            super::phrase_heap_bound(&limits).is_some(),
-            "draw {draw_index}: {limits:?}"
-        );
+        assert_eq!(phrases::valid(&limits), limits.phrases <= u32::MAX / 2, "draw {draw_index}: {limits:?}");
     }
 }
 
 #[test]
-fn markdown_bound_preserves_the_old_workspace_formula() {
+fn markdown_workspace_is_representable_at_capacity_edges() {
     for (bytes, depth) in [(0, 0), (u32::MAX, 0), (0, u32::MAX), (u32::MAX, u32::MAX)] {
-        assert_eq!(markdown_bound(bytes, depth), old_markdown_bound(bytes, depth), "{bytes} bytes, depth {depth}");
         assert!(markdown_bound(bytes, depth).is_some());
     }
 }

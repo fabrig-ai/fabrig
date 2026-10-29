@@ -245,12 +245,22 @@ reuse blocked. The report must name exact remaining evidence and supported
 operator action. No real proof or activation is implied by this runbook.
 
 
-## 6. Later repair-priority integration
+## 6. Repair priority and separate launcher validation
 
-Ops will port the separate completed reviewed repair-priority commit after this
-writer ends. Preserve normal legacy repair-triplet handling and restart support
-during that merge. No active repair-priority working tree was accessed or ported
-here; its runtime/protocol changes need their own integration verification.
+The integrated source retains the reviewed legacy repair triplet, hold,
+consumed-pin restart, refusal audit and unknown-heavy ownership receipts.
+Without an explicit train configuration that path remains the default. Train
+configuration combined with legacy repair/runtime options refuses before
+launch; repair refusals retain their exact identity in the external audit.
+Restart's complete frozen manifest matches the worker's fourteen files,
+including wire, transport, supervisor and operation. This changes no live
+frozen external runtime or installed program.
+
+Independent integration review, the separate launcher CPU repair and real
+private h8/h2 proof remain required. The reported h8 launcher CPU result is
+19.682 seconds against the unchanged limit of 15; passing local queue fixtures
+does not close it. The port-race/hold/tidy changes on main supply no proof that
+the original operational port gap is repaired. Production train remains OFF.
 
 ## 7. Reviewed deadline and completed-preparation recovery checks
 

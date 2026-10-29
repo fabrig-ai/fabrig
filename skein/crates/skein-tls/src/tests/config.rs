@@ -6,7 +6,7 @@ use skein_lib::stream::Fault;
 
 use super::{LIMITS, fixture, roots};
 use crate::client::{self, Certificate, Error, Limits};
-use crate::{ALPN, Config, Name, Parsed, Refusal, Server, roots_worst_case};
+use crate::{ALPN, Config, Name, Parsed, Refusal, Server};
 
 #[test]
 fn der_roots_count_supported_certificates_and_skip_the_rest() {
@@ -42,13 +42,6 @@ fn der_configuration_keeps_the_alpn_refusals() {
     let name = [b'a'; 127];
     assert!(Config::from_der(&certificates, &[&name, &name]).is_ok(), "exact ALPN bound");
     assert_eq!(Config::from_der(&certificates, &[&name, &[b'a'; 128]]).expect_err("past ALPN bound"), Refusal::Alpn);
-}
-
-#[test]
-fn the_shared_roots_bound_uses_checked_arithmetic() {
-    assert!(roots_worst_case(128, 16_384).is_some(), "startup-sized roots fit");
-    assert!(roots_worst_case(0, 0).is_some(), "an empty store still prices configuration");
-    assert_eq!(roots_worst_case(u32::MAX, u32::MAX), None, "multiplication cannot wrap");
 }
 
 #[test]

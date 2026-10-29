@@ -74,9 +74,9 @@ pub fn largest_record_for(capture: &Capture, limits: &Limits) -> Option<u32> {
     u32::try_from(length).ok()
 }
 
-/// Peak heap for parsing and encoding, including the line, owned record, and bounded buffers.
+/// Event codec workspace heap bound for parsing and encoding, including the line, owned record, and bounded buffers.
 #[must_use]
-pub fn worst_case(limits: &Limits) -> Option<u64> {
+pub fn codec_bound(limits: &Limits) -> Option<u64> {
     let length = largest_record(limits)?;
     let json = skein_json::tokenizer::Limits {
         depth: 16,

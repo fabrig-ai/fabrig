@@ -7,9 +7,6 @@ use crate::{
     Recovery, Request, Resource, Service, ServiceFact, StepDecision, SystemEvent, SystemRequest,
 };
 
-/// Forwarding envelope for callers that reserve connector output room.
-pub const MAX_OUT: u32 = 64;
-
 /// Infrastructure's bounded working set and durable records.
 #[derive(Debug)]
 pub struct Domain {

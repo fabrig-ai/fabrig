@@ -33,7 +33,7 @@ FIXTURE = {
 
 class ClaimTests(unittest.TestCase):
     def setUp(self):
-        self.temporary = tempfile.TemporaryDirectory(dir=ROOT, prefix=".claim-test-")
+        self.temporary = tempfile.TemporaryDirectory(dir=ROOT.parent, prefix=".claim-test-")
         self.addCleanup(self.temporary.cleanup)
         self.home = Path(self.temporary.name)
         self.directory = self.home / "src/fabrig/claims"

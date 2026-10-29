@@ -11,12 +11,20 @@ import json
 import os
 from pathlib import Path
 import shlex
+import shutil
 import signal
 import stat
 import subprocess
 import sys
 import tempfile
 import time
+
+sys.dont_write_bytecode = True
+DEFAULT_MIN_FREE_BYTES = 80_000_000_000
+# Load the lifetime implementation before a candidate can switch this checkout.
+SLOT_LIFETIME = {"__name__": "slot_lifetime"}
+exec(compile((Path(__file__).resolve().parents[1] / "slots/lifetime.py").read_text(),
+             "tools/slots/lifetime.py", "exec"), SLOT_LIFETIME)
 
 
 def policy():
@@ -40,6 +48,16 @@ class CheckFailure(RuntimeError):
 
 class UnknownCompletion(InfrastructureError):
     pass
+
+
+def positive_bytes(value):
+    try:
+        number = int(value)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError("must be a positive integer byte count") from error
+    if number <= 0:
+        raise argparse.ArgumentTypeError("must be a positive integer byte count")
+    return number
 
 
 def no_symlinks(path):
@@ -117,7 +135,7 @@ def heavy_busy(repo):
         if properties["ActiveState"] not in ("inactive", "failed"):
             if not directory or not Path(directory).is_absolute():
                 raise InfrastructureError(f"cannot inspect heavy unit {name}: missing absolute WorkingDirectory")
-            if Path(directory).resolve().is_relative_to(repo):
+            if SLOT_LIFETIME["canonical"](directory).is_relative_to(repo):
                 raise InfrastructureError(f"live heavy unit uses this slot: {name}")
     return (f"no active heavy service observed; {vanished} unloaded inactive service(s); "
             "slot ownership is required")
@@ -183,7 +201,10 @@ class Executor:
 
 class Precheck:
     def __init__(self, repo, base, tip, *, mq, always, read_by_tests,
-                 runner=None, metadata=None, busy=heavy_busy):
+                 runner=None, metadata=None, busy=heavy_busy,
+                 min_free_bytes=DEFAULT_MIN_FREE_BYTES):
+        if type(min_free_bytes) is not int or min_free_bytes <= 0:
+            raise ValueError("min_free_bytes must be a positive integer byte count")
         for name in ("GIT_DIR", "GIT_COMMON_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_NAMESPACE",
                      "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES"):
             if name in os.environ:
@@ -195,7 +216,9 @@ class Precheck:
         self.mq, self.always, self.read_by_tests = mq, always, read_by_tests
         self.metadata = metadata or mq.load_metadata
         self.busy = busy
-        self.record = {"restored": False, "steps": [], "outcome": "infrastructure-error"}
+        self.min_free_bytes = min_free_bytes
+        self.record = {"restored": False, "steps": [], "outcome": "infrastructure-error",
+                       "min_free_bytes": min_free_bytes, "admissions": []}
         self.executor = Executor(self.started, self.completed)
         self.runner = runner or self.executor
         self.mutated = False
@@ -360,8 +383,25 @@ class Precheck:
         self.record["active_command"].update(completion=status, returncode=code)
         self.save()
 
+    def admit(self, name, log):
+        free = shutil.disk_usage(self.repo).free
+        admitted = free >= self.min_free_bytes
+        self.record["admissions"].append({"name": name, "free_bytes": free,
+                                           "min_free_bytes": self.min_free_bytes,
+                                           "admitted": admitted})
+        message = (f"[{name}] {'admitted' if admitted else 'deferred'}: {free} free bytes; "
+                   f"admission minimum {self.min_free_bytes} bytes")
+        log.write(message + "\n")
+        log.flush()
+        self.save()
+        print(message, flush=True)
+        if not admitted:
+            raise InfrastructureError(message)
+
     def step(self, name, argv, cwd, log, *, timeout=None):
         print(f"[{name}] {shlex.join(argv)} (cwd {cwd})", flush=True)
+        if argv[0] == "heavy":
+            self.admit(name, log)
         result = self.mq.run_step(name, argv, cwd, log, runner=self.runner,
                                   clock=time.monotonic, timeout=timeout)
         self.record["steps"].append(result)
@@ -384,7 +424,8 @@ class Precheck:
                              check=False)
         log.write(result.stdout)
         log.flush()
-        ratchet_paths = set(self.paths())
+        selection_paths = self.paths()
+        ratchet_paths = set(selection_paths)
         if result.returncode:
             conflicts = self.git("diff", "--name-only", "--diff-filter=U", "-z").split("\0")[:-1]
             baselines = {f"{tree}/scripts/old-forms.txt" for tree in self.mq.TREES}
@@ -395,6 +436,9 @@ class Precheck:
             self.git("checkout", "--ours", "--", *conflicts)
             # Resolve the index without making a merge or ratchet commit.
             self.git("add", "--", *conflicts)
+        # Keep supplied/conflicted paths before recounts add generated baseline diffs.
+        self.record["selection_paths"] = selection_paths
+        self.save()
         for name, argv, cwd in self.mq.ratchet_commands(self.repo, ratchet_paths):
             baseline = f"{cwd.name}/scripts/old-forms.txt"
             before = self.identity(exclude_worktree=(baseline,))
@@ -412,7 +456,7 @@ class Precheck:
             raise InfrastructureError("source HEAD or branch refs unexpectedly changed")
 
     def choose(self):
-        paths = self.paths()
+        paths = self.record["selection_paths"]
         # Use the queue's graph-free docs/tools/full ownership cases.
         graph_free = self.mq.full_inputs(paths) or all(
             path.startswith("tools/") or (path.endswith(".md") and not
@@ -430,7 +474,7 @@ class Precheck:
             locked = self.mq.lock_changes(before.stdout, candidate.read_text(), metadata)
         selected = self.mq.selection(paths, metadata, always=self.always,
                                      read_by_tests=self.read_by_tests, locked=locked)
-        self.record.update(paths=paths, selection=sorted(selected) if isinstance(selected, set) else selected)
+        self.record.update(paths=self.paths(), selection=sorted(selected) if isinstance(selected, set) else selected)
         print(f"selection: {self.record['selection']}", flush=True)
         self.save()
         commands = []
@@ -497,6 +541,7 @@ class Precheck:
         no_symlinks(self.state_path("HEAD"))
         self.marker = self.state_path("precheck.unresolved")
         with ExitStack() as stack:
+            lifetime = stack.enter_context(SLOT_LIFETIME["Lease"](self.repo))
             for path in (self.repo.with_name(self.repo.name + ".queue.lock"),
                          self.repo.with_name(self.repo.name + ".worker.lock"),
                          self.state_path("worker.lock"), self.state_path("precheck.lock")):
@@ -542,6 +587,7 @@ class Precheck:
             os.close(fd)
             self.save()
             print(f"base: {self.base}\ntip: {self.tip}\nlogs: {self.log_directory}\n"
+                  f"admission minimum: {self.min_free_bytes} bytes before each heavy command\n"
                   "No tests executed beyond selected tools suites; Cargo steps compile/lint only.", flush=True)
             stack.enter_context(self.executor.signals())
             prepared = None
@@ -593,6 +639,7 @@ class Precheck:
                                            reconciliation=self.reconciliation())
                 self.save()
             print(json.dumps(self.record, indent=2), flush=True)
+            lifetime.clean = self.record["restored"] and self.record["outcome"] != "unresolved"
             return 0 if self.record["outcome"] == "passed" and self.record["restored"] else 1
 
 
@@ -600,13 +647,15 @@ def main():
     os.umask(0o077)
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base", default="origin/main")
+    parser.add_argument("--min-free-bytes", type=positive_bytes, default=DEFAULT_MIN_FREE_BYTES,
+                        metavar="INTEGER", help="free bytes required before each heavy command (default: %(default)s)")
     parser.add_argument("slot", type=Path)
     parser.add_argument("tip")
     args = parser.parse_args()
     try:
         mq, always, read_by_tests = policy()
         return Precheck(args.slot, args.base, args.tip, mq=mq, always=always,
-                        read_by_tests=read_by_tests).run()
+                        read_by_tests=read_by_tests, min_free_bytes=args.min_free_bytes).run()
     except (OSError, ValueError, RuntimeError) as error:
         print(f"precheck: infrastructure-error: {error}", file=sys.stderr)
         return 1

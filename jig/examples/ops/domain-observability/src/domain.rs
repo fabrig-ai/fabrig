@@ -6,9 +6,6 @@ use crate::{
     Requirement, Service, SystemEvent, SystemRequest, Topic, Verdict, Watch,
 };
 
-/// Forwarding envelope for callers that reserve connector output room.
-pub const MAX_OUT: u32 = 80;
-
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 struct Question {
     requirement: Requirement,

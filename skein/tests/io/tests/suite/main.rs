@@ -1,8 +1,6 @@
 #[global_allocator]
 static HEAP: skein_heap::Counting = skein_heap::Counting;
 
-use skein_io::worst_case as heap_bound;
-
 mod append;
 mod cuts;
 mod directory;
@@ -14,6 +12,7 @@ mod output;
 mod process_memory;
 mod processes;
 mod remove;
+mod replace_race;
 mod ring;
 mod scenarios;
 

@@ -252,7 +252,7 @@ impl Interactive {
     #[must_use]
     pub fn new(plain: bool, limits: &smith_agent_service::Limits) -> Option<Self> {
         let client = limits.llm.adapter.client;
-        View::worst_case(client.answer.max(client.strings))?;
+        View::owned_bound(client.answer.max(client.strings))?;
         let mut screen = Live::new(plain, limits.domain.run.conversations);
         screen.accounts = Map::with_capacity(limits.domain.accounts);
         Some(Self { screen, remote: super::remote::Remote::new(super::remote::TEXT_BYTES), remote_config: None })

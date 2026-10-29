@@ -13,7 +13,7 @@ TOOLS = Path(__file__).resolve().parent
 
 class InstallTests(unittest.TestCase):
     def setUp(self):
-        self.temp = tempfile.TemporaryDirectory(prefix="test-install-", dir=TOOLS)
+        self.temp = tempfile.TemporaryDirectory(prefix="test-install-", dir=TOOLS.parent.parent)
         self.addCleanup(self.temp.cleanup)
         self.base = Path(self.temp.name)
         self.home = self.base / "home"
@@ -40,6 +40,9 @@ class InstallTests(unittest.TestCase):
         self.precheck_tool = self.source / "tools/queue/precheck"
         self.precheck_tool.write_text("#!/usr/bin/env python3\nprint('precheck-fixture')\n")
         self.precheck_tool.chmod(0o700)
+        self.ready_check_tool = self.source / "tools/queue/ready-check"
+        self.ready_check_tool.write_text("#!/usr/bin/env python3\nprint('ready-check-fixture')\n")
+        self.ready_check_tool.chmod(0o700)
         (self.source / "tools/heavy").mkdir()
         self.heavy_tool = self.source / "tools/heavy/heavy"
         self.heavy_tool.write_text("#!/bin/bash\necho heavy-fixture\n")
@@ -49,6 +52,7 @@ class InstallTests(unittest.TestCase):
         self.link = self.home / ".local/bin/codex-run"
         self.claim_link = self.home / ".local/bin/claim"
         self.precheck_link = self.home / ".local/bin/precheck"
+        self.ready_check_link = self.home / ".local/bin/ready-check"
         self.heavy_link = self.home / ".local/bin/heavy"
 
     def git(self, directory, *args):
@@ -72,6 +76,7 @@ class InstallTests(unittest.TestCase):
         self.assertIn("(absent) -> " + str(self.checkout / "tools/codex-run/codex-run"), output)
         self.assertIn("(absent) -> " + str(self.checkout / "tools/slots/claim"), output)
         self.assertIn("(absent) -> " + str(self.checkout / "tools/queue/precheck"), output)
+        self.assertIn("(absent) -> " + str(self.checkout / "tools/queue/ready-check"), output)
         self.assertIn("(absent) -> " + str(self.checkout / "tools/heavy/heavy"), output)
         self.assertFalse((self.home / "src").exists())
         self.assertFalse((self.home / ".local").exists())
@@ -81,21 +86,25 @@ class InstallTests(unittest.TestCase):
         self.link.symlink_to("/fixture/old-codex-run")
         self.claim_link.symlink_to("/fixture/old-claim")
         self.precheck_link.symlink_to("/fixture/old-precheck")
+        self.ready_check_link.symlink_to("/fixture/old-ready-check")
         self.heavy_link.symlink_to("/fixture/old-heavy")
         output = self.install()
         self.assertIn("/fixture/old-codex-run -> ", output)
         self.assertIn("/fixture/old-claim -> ", output)
         self.assertIn("/fixture/old-precheck -> ", output)
+        self.assertIn("/fixture/old-ready-check -> ", output)
         self.assertIn("/fixture/old-heavy -> ", output)
         self.assertEqual(self.link.readlink(), self.checkout / "tools/codex-run/codex-run")
         self.assertEqual(self.claim_link.readlink(), self.checkout / "tools/slots/claim")
         self.assertEqual(self.precheck_link.readlink(), self.checkout / "tools/queue/precheck")
+        self.assertEqual(self.ready_check_link.readlink(), self.checkout / "tools/queue/ready-check")
         self.assertEqual(self.heavy_link.readlink(), self.checkout / "tools/heavy/heavy")
         self.assertEqual(self.git(self.checkout, "rev-parse", "--abbrev-ref", "HEAD"), "HEAD")
         before = self.git(self.checkout, "rev-parse", "HEAD")
         self.tool.write_text("#!/bin/bash\necho updated-fixture\n")
         self.claim_tool.write_text("#!/bin/bash\necho updated-claim-fixture\n")
         self.precheck_tool.write_text("#!/usr/bin/env python3\nprint('updated-precheck-fixture')\n")
+        self.ready_check_tool.write_text("#!/usr/bin/env python3\nprint('updated-ready-check-fixture')\n")
         self.heavy_tool.write_text("#!/bin/bash\necho updated-heavy-fixture\n")
         self.commit()
         self.install("--dry-run")
@@ -104,6 +113,7 @@ class InstallTests(unittest.TestCase):
         self.assertEqual(self.link.read_text(), self.tool.read_text())
         self.assertEqual(self.claim_link.read_text(), self.claim_tool.read_text())
         self.assertEqual(self.precheck_link.read_text(), self.precheck_tool.read_text())
+        self.assertEqual(self.ready_check_link.read_text(), self.ready_check_tool.read_text())
         self.assertEqual(self.heavy_link.read_text(), self.heavy_tool.read_text())
         self.assertEqual(self.git(self.checkout, "rev-parse", "HEAD"),
                          self.git(self.source, "rev-parse", "main"))
@@ -115,6 +125,14 @@ class InstallTests(unittest.TestCase):
         result = subprocess.run([str(self.precheck_link)], text=True, capture_output=True,
                                 stdin=subprocess.DEVNULL)
         self.assertEqual((result.returncode, result.stdout), (0, "precheck-fixture\n"))
+
+    def test_ready_check_executable_link(self):
+        self.install()
+        self.assertEqual(self.ready_check_link.readlink(), self.checkout / "tools/queue/ready-check")
+        self.assertTrue(os.access(self.ready_check_link, os.X_OK))
+        result = subprocess.run([str(self.ready_check_link)], text=True, capture_output=True,
+                                stdin=subprocess.DEVNULL)
+        self.assertEqual((result.returncode, result.stdout), (0, "ready-check-fixture\n"))
 
     def test_dirty_clone_is_preserved(self):
         self.install()
@@ -149,17 +167,19 @@ class InstallTests(unittest.TestCase):
         self.assertEqual(self.claim_link.read_text(), "keep claim program\n")
         self.assertEqual(self.link.readlink(), Path("/fixture/old-codex-run"))
 
-    def test_fourth_regular_program_preserves_all_links(self):
+    def test_fifth_regular_program_preserves_all_links(self):
         self.link.parent.mkdir(parents=True)
         self.link.symlink_to("/fixture/old-codex-run")
         self.claim_link.symlink_to("/fixture/old-claim")
         self.precheck_link.symlink_to("/fixture/old-precheck")
+        self.ready_check_link.symlink_to("/fixture/old-ready-check")
         self.heavy_link.write_text("keep heavy program\n")
         self.assertIn("refusing to replace a non-symlink", self.install(success=False))
         self.assertEqual(self.heavy_link.read_text(), "keep heavy program\n")
         self.assertEqual(self.link.readlink(), Path("/fixture/old-codex-run"))
         self.assertEqual(self.claim_link.readlink(), Path("/fixture/old-claim"))
         self.assertEqual(self.precheck_link.readlink(), Path("/fixture/old-precheck"))
+        self.assertEqual(self.ready_check_link.readlink(), Path("/fixture/old-ready-check"))
 
 
 if __name__ == "__main__":

@@ -9,8 +9,9 @@ fn program() -> Backend {
 
 #[test]
 fn a_program_turn_records_its_backend() {
-    // Ceiling on Turn and Kind cells together: a quarter above 10-28's figure, moved by hand when a real change passes it.
-    const PROGRAM_RECORD_CELLS_CEILING: usize = 240;
+    // Type-size contract check on the Turn and Kind cells together.
+    // A change of either type's size is a deliberate edit of this number.
+    const TURN_KIND_SIZE: usize = 240;
     let mut h = Harness::new(&LIMITS);
     let (owner, _) = h.open_with(1, Spec { backend: program(), ..spec() });
     h.step(Event::Completed { owner, completion: completion(Box::new([text(b"answer")]), Stop::EndTurn) });
@@ -20,7 +21,7 @@ fn a_program_turn_records_its_backend() {
     assert_eq!(opener.account, spec().account);
 
     let cells = size_of::<crate::record::Turn>() + size_of::<Kind>();
-    assert!(cells <= PROGRAM_RECORD_CELLS_CEILING, "record cells {cells} exceed {PROGRAM_RECORD_CELLS_CEILING}");
+    assert!(cells <= TURN_KIND_SIZE, "record cells {cells} exceed {TURN_KIND_SIZE}");
 }
 
 fn provider_answer() -> Box<[Block]> {

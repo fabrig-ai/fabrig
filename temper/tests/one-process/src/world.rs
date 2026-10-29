@@ -188,7 +188,9 @@ impl Host for ServiceHost {
 pub(crate) enum Proc {
     Service(Box<ServiceHost>),
     Ctl(Box<crate::ctl::Recorded>),
+    Calls(Box<crate::ctl::Caller>),
     Agent(Box<skein_world::PipeHost<smith_agent_shell::Agent>>),
+    GitRoute(Box<temper_fake_git::Git<temper_fake_git::Route>>),
     Git(Box<temper_fake_git_hosted::Git<temper_fake_git_hosted::Typed>>),
     Shell(Box<stories::Shell>),
     Peer(Box<SignalHost<skein_fake_peers::llm::Peer>>),
@@ -200,8 +202,10 @@ impl Proc {
         match self {
             Self::Service(h) => h.as_ref(),
             Self::Ctl(h) => h.as_ref(),
+            Self::Calls(h) => h.as_ref(),
             Self::Agent(h) => h.as_ref(),
             Self::Git(h) => h.as_ref(),
+            Self::GitRoute(h) => h.as_ref(),
             Self::Shell(h) => h.as_ref(),
             Self::Peer(h) => h.as_ref(),
             Self::Forge(h) => h.as_ref(),
@@ -212,8 +216,10 @@ impl Proc {
         match self {
             Self::Service(h) => h.as_mut(),
             Self::Ctl(h) => h.as_mut(),
+            Self::Calls(h) => h.as_mut(),
             Self::Agent(h) => h.as_mut(),
             Self::Git(h) => h.as_mut(),
+            Self::GitRoute(h) => h.as_mut(),
             Self::Shell(h) => h.as_mut(),
             Self::Peer(h) => h.as_mut(),
             Self::Forge(h) => h.as_mut(),
@@ -601,13 +607,13 @@ fn person_failed(step: u32, why: &skein_fake_person::Why, wire: &referee::client
         panic!("person step {step}: {why:?}; adoption keys sent {sent:?}, answered {answered:?}, durable outcomes {durable}; pre-cut sent {before:?}; Adopt presses had frame {:?}; private cache {:?}", progress.press_had_frame, progress.cache.borrow());
     })
 }
-fn service_roots() -> Vec<skein_world::StartupRoot> {
+pub(crate) fn service_roots() -> Vec<skein_world::StartupRoot> {
     vec![
         skein_world::StartupRoot { name: b"state".as_slice().into(), path: b"state".as_slice().into() },
         skein_world::StartupRoot { name: b"worker".as_slice().into(), path: b"worker".as_slice().into() },
     ]
 }
-fn service(inherited: &Inherited) -> Proc {
+pub(crate) fn service(inherited: &Inherited) -> Proc {
     let root = inherited.roots.iter().find(|(name, _)| name.as_ref() == b"state").expect("state root").1;
     let worker = inherited.roots.iter().find(|(name, _)| name.as_ref() == b"worker").expect("worker root").1;
     let setup = stories::held_change().then(|| crate::restart_control::checked_setup(&fixtures::document()));
@@ -700,6 +706,13 @@ fn agent(_spawn: &skein_io::kernel::Spawn, inherited: &Inherited) -> Proc {
     ))
 }
 fn git(spawn: &skein_io::kernel::Spawn, inherited: &Inherited) -> Proc {
+    if crate::lower::github::active() {
+        return Proc::GitRoute(Box::new(temper_fake_git::Git::new(
+            spawn,
+            temper_fake_git_hosted::start(inherited),
+            temper_fake_git::Route::new(crate::lower::github::protocol()),
+        )));
+    }
     Proc::Git(Box::new(temper_fake_git_hosted::git(spawn, inherited, transport())))
 }
 fn shell(spawn: &skein_io::kernel::Spawn, inherited: &Inherited) -> Proc {
@@ -816,7 +829,7 @@ fn hooks_address(bound: &mut Option<(Fd, SocketAddr)>, complete: &Complete) -> O
     }
 }
 thread_local! { static SHARED: RefCell<Option<temper_fake_git_hosted::Typed>> = const { RefCell::new(None) }; }
-fn share(transport: Option<temper_fake_git_hosted::Typed>) {
+pub(crate) fn share(transport: Option<temper_fake_git_hosted::Typed>) {
     SHARED.with(|shared| *shared.borrow_mut() = transport);
 }
 fn transport() -> temper_fake_git_hosted::Typed {
@@ -841,7 +854,7 @@ fn peer() -> Peer {
 fn fake_forge(inherited: &Inherited) -> Proc {
     Proc::Forge(Box::new(SignalHost::new(peer(), Some(inherited.signal))))
 }
-fn host_programs(world: &mut skein_world::World<Proc, referee::Referee, Machine>) {
+pub(crate) fn host_programs<R: skein_world::Referee<Proc>>(world: &mut skein_world::World<Proc, R, Machine>) {
     let limits = temper_client_shell_cli::limits::native();
     world.host_roots(
         skein_world::HostedProgram {
@@ -1059,11 +1072,13 @@ fn run_phase(
             Proc::Client(person) => Some(person.signed_in),
             Proc::Service(_)
             | Proc::Agent(_)
+            | Proc::GitRoute(_)
             | Proc::Git(_)
             | Proc::Shell(_)
             | Proc::Peer(_)
             | Proc::Forge(_)
-            | Proc::Ctl(_) => None,
+            | Proc::Ctl(_)
+            | Proc::Calls(_) => None,
         })
         .sum();
     let chats_answered = if matches!(scenario, Story::ChatReadThenWait { .. }) {
@@ -1104,3 +1119,7 @@ fn run_phase(
 
 #[cfg(test)]
 mod tests;
+
+pub(crate) fn lower_store(store: Option<Rc<RefCell<Store>>>) {
+    STORE.with(|cell| *cell.borrow_mut() = store);
+}

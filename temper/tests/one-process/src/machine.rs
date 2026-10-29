@@ -80,15 +80,28 @@ impl skein_world::Machine for Machine {
         if path == b"agent" {
             let worker = self.0.reopen_root(1);
             // The parent has no workspace; repository runs adopt its prepared directory.
-            let root =
-                match self.0.open(worker, crate::fixtures::PREPARED_REPOSITORY, skein_fake_machine::How::Directory) {
-                    Ok(root) => {
-                        self.0.close(worker);
-                        root
-                    }
-                    Err(skein_fake_machine::Refusal::NotFound) => worker,
-                    Err(why) => panic!("prepared agent directory: {why:?}"),
-                };
+            let path = if crate::lower::github::active() {
+                let workspaces =
+                    self.0.open(worker, b"workspaces", skein_fake_machine::How::Directory).expect("workspace scaffold");
+                let entries = self.0.list(workspaces, 16, 4096).expect("scenario workspace names");
+                // The GitHub scenarios prepare the chat first, then one change.
+                assert!(entries.len() <= 2, "one chat and at most one change workspace");
+                self.0.close(workspaces);
+                entries.last().map_or_else(
+                    || crate::fixtures::PREPARED_REPOSITORY.to_vec(),
+                    |(_, key)| [b"workspaces/", key.as_ref(), b"/app"].concat(),
+                )
+            } else {
+                crate::fixtures::PREPARED_REPOSITORY.to_vec()
+            };
+            let root = match self.0.open(worker, &path, skein_fake_machine::How::Directory) {
+                Ok(root) => {
+                    self.0.close(worker);
+                    root
+                }
+                Err(skein_fake_machine::Refusal::NotFound) => worker,
+                Err(why) => panic!("prepared agent directory: {why:?}"),
+            };
             return Ok(skein_sim::Handle::new(root.raw()));
         }
         let index = match path {

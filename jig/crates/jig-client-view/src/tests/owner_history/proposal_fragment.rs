@@ -29,8 +29,8 @@ fn bare(value: &OwnerProposalHistory, words: &Words) -> (Tree, JigBindings, Hist
     let source = value.clone();
     let fragment = view::proposal_required(value, &client_limits(), words).unwrap();
     assert_eq!(Some(fragment.nodes), view::proposal_max_nodes(&client_limits()));
-    assert_eq!(Some(fragment), view::proposal_worst_case(&client_limits(), words));
-    assert_eq!(Some(fragment), view::worst_case(&client_limits(), words));
+    assert_eq!(Some(fragment), view::proposal_fragment_bound(&client_limits(), words));
+    assert_eq!(Some(fragment), view::fragment_bound(&client_limits(), words));
     let (tree, bindings) = render(value, words, &limits(fragment));
     assert_eq!(source, *value);
     assert!(tree.len() <= fragment.nodes);

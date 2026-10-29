@@ -21,7 +21,7 @@ impl World {
         Self {
             host: host::Domain::new(&limits),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
-            out: Queue::with_capacity(host::max_out(&limits)),
+            out: Queue::uncapped(),
         }
     }
     fn checking(names: &[&[u8]]) -> (Self, Token) {

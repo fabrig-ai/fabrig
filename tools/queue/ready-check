@@ -1,0 +1,256 @@
+#!/usr/bin/env python3
+"""Validate precheck evidence against observed origin/main (precheck.md, 5)."""
+
+import argparse
+from datetime import datetime, timezone
+import json
+import math
+import os
+from pathlib import Path
+import re
+import subprocess
+import sys
+
+sys.dont_write_bytecode = True
+
+
+class Refused(ValueError):
+    pass
+
+
+def require(condition, message):
+    if not condition:
+        raise Refused(message)
+
+
+def oid(value):
+    return isinstance(value, str) and re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", value) is not None
+
+
+def string(value):
+    return isinstance(value, str) and bool(value) and "\0" not in value
+
+
+def path(value):
+    return (string(value) and not value.startswith("/") and
+            all(part not in ("", ".", "..") and part.lower() != ".git"
+                for part in value.split("/")))
+
+
+def absolute(value):
+    return string(value) and value.startswith("/") and os.path.normpath(value) == value
+
+
+def strings(value):
+    return isinstance(value, list) and bool(value) and all(string(item) for item in value)
+
+
+def number(value):
+    return (type(value) is int and value >= 0) or (type(value) is float and math.isfinite(value) and value >= 0)
+
+
+def invalid_constant(value):
+    raise Refused(f"invalid number: {value}")
+
+
+def unique_object(pairs):
+    result = {}
+    for key, value in pairs:
+        require(key not in result, f"duplicate JSON key: {key}")
+        result[key] = value
+    return result
+
+
+def evidence(filename, tip):
+    with filename.open(encoding="utf-8") as source:
+        record = json.load(source, object_pairs_hook=unique_object,
+                           parse_constant=invalid_constant)
+    require(isinstance(record, dict), "precheck result must be an object")
+    require(record.get("outcome") == "passed" and record.get("restored") is True,
+            "precheck must have passed and verified restoration")
+    require(not any(key in record for key in ("error", "restoration_error", "reconciliation")),
+            "precheck contains failure or unresolved evidence")
+    for key in ("base", "tip", "original"):
+        require(oid(record.get(key)), f"missing or invalid full precheck {key} OID")
+    require(record["tip"] == tip, f"tip mismatch: precheck {record['tip']}, requested {tip}")
+    require(len(record["base"]) == len(tip) == len(record["original"]), "inconsistent OID formats")
+    require(absolute(record.get("slot")), "missing or invalid precheck slot")
+    require(string(record.get("heavy_observation")), "missing heavy observation")
+    require(string(record.get("started")), "missing precheck start time")
+    try:
+        started = datetime.fromisoformat(record["started"])
+        require(started.tzinfo is not None and started <= datetime.now(timezone.utc),
+                "precheck start time must have a timezone and not be in the future")
+    except ValueError as error:
+        raise Refused(f"invalid precheck start time: {error}") from error
+    paths = record.get("paths")
+    require(isinstance(paths, list) and all(path(item) for item in paths), "invalid touched-file paths")
+    require(len(set(paths)) == len(paths), "duplicate touched-file paths")
+    selection = record.get("selection")
+    require(selection in ("docs", "full") or (isinstance(selection, list) and
+            all(string(item) for item in selection) and len(set(selection)) == len(selection)),
+            "missing or invalid selection")
+    plan, steps = record.get("plan"), record.get("steps")
+    require(isinstance(plan, list) and isinstance(steps, list), "missing precheck plan or steps")
+    for item in plan:
+        require(isinstance(item, dict) and string(item.get("name")) and strings(item.get("argv"))
+                and absolute(item.get("cwd")) and "timeout" in item and
+                (item["timeout"] is None or (number(item["timeout"]) and item["timeout"] > 0)),
+                "malformed planned command")
+        require(item["cwd"] == record["slot"], "planned command cwd differs from precheck slot")
+    for item in steps:
+        require(isinstance(item, dict) and string(item.get("name")) and strings(item.get("command"))
+                and type(item.get("returncode")) is int and item.get("green") is True and item.get("completion", "completed") == "completed"
+                and absolute(item.get("cwd")) and number(item.get("duration")) and "error" not in item,
+                "malformed or failed precheck step")
+        require(item["returncode"] == 0 or (item["name"] == "build" and item["returncode"] == 4),
+                "precheck step has unsuccessful return code")
+    require(len(steps) >= len(plan), "incomplete precheck commands")
+    require(len({item["name"] for item in plan}) == len(plan), "duplicate planned commands")
+    for item in plan:
+        name, argv = item["name"], item["argv"]
+        require(name in ("fmt", "clippy", "build") or
+                (path(name) and name.startswith("tools/")), "unknown planned command")
+        if name == "fmt":
+            require(argv[:2] == ["cargo", "fmt"] and "--check" in argv[2:], "invalid formatting command")
+        elif name.startswith("tools/"):
+            require(argv in (["python3", "-I", "-B", name], ["./" + name]), "invalid tools command")
+    if selection == "docs" or selection == []:
+        require(not any(item["name"] in ("fmt", "clippy", "build") for item in plan),
+                "selection contradicts compile/lint plan")
+    prefix = steps[:len(steps) - len(plan)]
+    ratchets = set()
+    for item in prefix:
+        name = item["name"]
+        tree = name.removeprefix("ratchet:")
+        require(name == f"ratchet:{tree}" and tree in ("skein", "smith", "jig", "temper")
+                and tree not in ratchets and item["returncode"] == 0 and
+                item["command"] == ["python3", "-I", "-B", f"{record['slot']}/{tree}/scripts/old_forms.py", "--write"],
+                "unexpected command outside precheck plan")
+        require(item["cwd"] == f"{record['slot']}/{tree}",
+                "ratchet cwd mismatch")
+        ratchets.add(tree)
+    for planned, completed in zip(plan, steps[len(prefix):]):
+        require(planned["name"] == completed["name"] and planned["argv"] == completed["command"]
+                and completed["cwd"] == planned["cwd"],
+                "completed commands differ from precheck plan")
+    require({item.split("/", 1)[0] for item in paths} & {"skein", "smith", "jig", "temper"} <= ratchets,
+            "missing touched-tree ratchet completion")
+    if selection == "full" or (isinstance(selection, list) and selection):
+        names = [item["name"] for item in plan]
+        require(names.count("clippy") == names.count("build") == 1, "incomplete compile/lint plan")
+        for item in plan:
+            if item["name"] in ("clippy", "build"):
+                require(item["argv"][:3] == ["heavy", "cargo", "clippy" if item["name"] == "clippy" else "nextest"],
+                        "compile/lint plan bypasses ordinary heavy")
+                require(item["name"] != "build" or "--no-run" in item["argv"], "build plan executes tests")
+    active = record.get("active_command")
+    if steps:
+        require(isinstance(active, dict) and active.get("completion") == "completed" and
+                active.get("argv") == steps[-1]["command"] and
+                type(active.get("returncode")) is int and active["returncode"] == steps[-1]["returncode"],
+                "missing, unknown, or contradictory active-command completion")
+        last_cwd = plan[-1]["cwd"] if plan else f"{record['slot']}/{steps[-1]['name'].split(':')[1]}"
+        require(active.get("cwd") == last_cwd, "active-command cwd mismatch")
+    else:
+        require("active_command" not in record, "active command without completed steps")
+        require(selection == "docs" or selection == [], "empty compile/lint evidence")
+    return record
+
+
+class Repository:
+    def __init__(self, repo):
+        for name in ("GIT_DIR", "GIT_COMMON_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_NAMESPACE",
+                     "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_SHALLOW_FILE"):
+            require(name not in os.environ, f"unsupported Git environment override: {name}")
+        self.repo = repo.absolute()
+        require(self.repo != Path.home() / "src/fabrig/main", "primary checkout is unsupported")
+        require(self.repo == self.repo.resolve(), "--repo must be a canonical checkout root")
+        require(self.git("rev-parse", "--show-toplevel").stdout.rstrip(b"\n") == os.fsencode(self.repo),
+                "--repo must name the checkout root")
+        require(self.git("rev-parse", "--is-shallow-repository").stdout == b"false\n", "shallow history is unavailable evidence")
+        require(not self.git("for-each-ref", "--format=%(refname)", "refs/replace/").stdout,
+                "replace refs are unsupported")
+
+    def git(self, *args, check=True, input=None):
+        result = subprocess.run(["git", "--no-optional-locks", "--no-replace-objects", "-C", str(self.repo),
+                                 "-c", "core.hooksPath=/dev/null", *args],
+                                input=input, stdin=subprocess.DEVNULL if input is None else None,
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if check and result.returncode:
+            raise Refused(f"git {args[0]} failed: {os.fsdecode(result.stderr).strip()}")
+        return result
+
+    def commit(self, value):
+        require(oid(value), "expected a full commit OID")
+        result = self.git("rev-parse", "--verify", "--end-of-options", value + "^{commit}")
+        require(result.stdout == (value + "\n").encode(), f"missing exact commit object: {value}")
+
+    def observe(self):
+        rows = self.git("ls-remote", "--exit-code", "--refs", "origin", "refs/heads/main").stdout.splitlines()
+        require(len(rows) == 1, "origin/main unavailable or ambiguous")
+        fields = rows[0].split(b"\t")
+        require(len(fields) == 2 and fields[1] == b"refs/heads/main", "invalid origin/main observation")
+        value = fields[0].decode("ascii")
+        require(oid(value), "invalid full origin/main OID")
+        return value
+
+    def changed(self, base, current):
+        # Inspect each parent, including merge resolutions and changes later reverted.
+        commits = self.git("rev-list", f"{base}..{current}").stdout
+        output = self.git("diff-tree", "--stdin", "--root", "-r", "-m", "--no-commit-id", "--name-only",
+                          "--no-renames", "--no-ext-diff", "--no-textconv", "-z", input=commits).stdout
+        require(not output or output.endswith(b"\0"), "invalid NUL-delimited changed paths")
+        return {os.fsdecode(item) for item in output.split(b"\0") if item}
+
+
+def check(result, repo, tip):
+    decision = {"verdict": "rerun-precheck", "tip": tip, "checkedbase": None, "currentmain": None,
+                "touchedscope": [], "diagnostic": ""}
+    try:
+        require(oid(tip), "--tip must be a full lowercase commit OID")
+        record = evidence(result, tip)
+        decision.update(checkedbase=record["base"], touchedscope=record["paths"])
+        repository = Repository(repo)
+        repository.commit(tip)
+        repository.commit(record["base"])
+        require(repository.git("merge-base", record["base"], tip, check=False).returncode == 0,
+                "precheck base and tip have unavailable or unrelated history")
+        current = repository.observe()
+        decision["currentmain"] = current
+        # No destination ref and an empty refmap: objects only; no FETCH_HEAD or tracking update.
+        repository.git("fetch", "--no-tags", "--no-recurse-submodules", "--no-write-fetch-head", "--no-auto-maintenance",
+                       "--refmap=", "origin", "refs/heads/main")
+        repository.commit(current)
+        require(repository.git("merge-base", "--is-ancestor", record["base"], current, check=False).returncode == 0,
+                "origin/main rewrote history or checked base is not its ancestor")
+        overlap = sorted(set(record["paths"]) & repository.changed(record["base"], current))
+        decision["overlap"] = overlap
+        final = repository.observe()
+        decision["finalmain"] = final
+        require(final == current, f"origin/main advanced during check: {current} -> {final}")
+        require(not overlap, "origin/main changed precheck files: " + json.dumps(overlap, ensure_ascii=True))
+        decision.update(verdict="passed", diagnostic="reported touched files unchanged at observed origin/main; point-in-time only")
+    except (OSError, ValueError, RuntimeError, UnicodeError) as error:
+        decision["diagnostic"] = f"{error}; rerun precheck with fresh usable evidence"
+    return decision
+
+
+def main():
+    os.umask(0o077)
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("result", type=Path)
+    parser.add_argument("--repo", type=Path, required=True)
+    parser.add_argument("--tip", required=True)
+    args = parser.parse_args()
+    decision = check(args.result, args.repo, args.tip)
+    print(json.dumps(decision, ensure_ascii=True, sort_keys=True))
+    if decision["verdict"] != "passed":
+        print(f"ready-check: {decision['diagnostic']} (tip={decision['tip']}, "
+              f"precheckbase={decision['checkedbase']}, currentmain={decision['currentmain']})", file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

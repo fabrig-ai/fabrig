@@ -236,6 +236,102 @@ unlock the child's authority. `--repo` defaults to the current clone root.
 default remains 8. Pass the option on each restart to retain a nondefault
 size. It changes batch capacity, not checks, rejection or bisection policy.
 
+#### 3.7.1 Pinned gate repair priority
+
+Ops may name one branch repairing a recurring gate failure with the paired
+options `--repair-ready ready/<lead>/<task> --repair-tip <full lowercase OID>
+--repair-reason <printable nonempty text>` on `run`, `once`, or `plan`.
+All three are required together; Git validates the full ready ref before
+checkout mutation. There is no priority inferred from branch names or files.
+After fetching, selection requires the exact name and tip both in fetched
+ready refs and advertised by origin. A missing or moved pin refuses the cycle;
+it never falls through to ordinary work. `plan` previews the singleton as full.
+
+The repair runs first as a singleton through the ordinary attempt path with
+`force_full=True`: writing ratchets, all offline tools suites, workspace fmt,
+clippy, build, default and fuzzy checks remain unchanged. Ordinary merge
+conflicts, red rejection, fast-forward-only main push, pinned cleanup and
+notifications apply. Exceptions, capacity refusals and failed process launches
+are errors, preserving tried tips without bisection or rejection. A completed
+attempt consumes the priority; the existing durable tried name/tip suppresses
+the completed repair after restart, including after its ready ref is deleted.
+Normal batch capacity and full-check counters/cadence then resume. Use explicit
+`--batch 16` for the approved operational batch capacity; the default remains 8.
+No successor is selected before the repair attempt completes.
+
+For a repair, a heavy client returning a negative signal status or 137 leaves
+completion **unknown**, never red or consumed. A per-attempt status observer
+blocks ownership in memory and publishes both receipts before log processing
+or checker return. It uses the known prepared candidate without another Git
+read; log I/O, decoding, checker and receipt-publication exceptions cannot
+authorize cleanup or recovery. Failed receipt encoding also retains ownership
+until publication can be retried. The queue retains the candidate
+and records the exact repair, parent, candidate, steps, log and runtime location
+in immutable private `queue.unresolved` receipts in the shared authority root
+and checkout's `.git/`. Shared authority and checkout guards refuse reuse,
+including another clone or a worker. There is no recovery/reset, pruning,
+bisection or further admission. A daemon retains both leases, checking stop at
+the existing 60-second cadence. It honors stop only with both receipts durable;
+publication failure retains ownership and retries publication at that cadence.
+Stopping is not job-completion evidence: the receipts still block restart.
+There is no supported unknown-heavy reconciliation procedure or clear switch.
+Process absence, stop, a released flock or a held daemon cannot establish
+quiescence. Leave the queue blocked until supported completion evidence and
+reviewed reconciliation exist; do not remove receipts to resume work. A dry
+attempt also preserves unresolved inputs rather than restoring its checkout.
+This does not provide part 5's supervision or arbitrary crash durability.
+
+`--repair-hold` requires the complete triplet on `run`, `once`, `plan` and
+`restart`. After that repair's green/red/conflict adjudication, or when its
+exact name/tip is already tried, it admits no ordinary, replacement or idle
+attempt and performs no further fetch. The daemon stays alive with authority
+held, using the existing idle/stop cadence. One `event: "repair-hold"` policy
+record per invocation carries the repair identity and reason; it has no batch
+outcome and certifies no completion. Ops requests the next official restart
+with the next explicit repair and hold; an official restart without repair or
+hold resumes ordinary batches (explicit `--batch 16`). Without hold the normal
+post-repair behavior is unchanged. Unknown-heavy ownership is a separate blocker
+and never enters this adjudicated hold.
+
+Attempt records add a `repair` object containing `name`, `tip` and `reason` to
+the existing external `queue.jsonl` stream. Conflicts and errors retain it;
+configuration or selection refusals use `event: "repair-refusal", outcome: "error"`.
+No additional persistent state format or in-checkout audit file is introduced.
+
+`restart` forwards the same triplet and explicit batch size. Its optional
+`--runtime DIRECTORY` selects a complete queue runtime directory outside the
+live checkout, containing regular `mq`, `restart`, `worker.py`, `train.py`,
+`authority.py`, `recovery.py`, `durable.py`, `wire.py`, `transport.py`,
+`supervisor.py`, `operation.py`, `always.txt`, `read-by-tests.txt`
+and `leads.txt` files. This fourteen-file manifest covers all imported policy/effect modules
+and lists, matching the worker's frozen runtime. It validates Python syntax,
+repair and shared-authority support, lists and the advertised pin before
+requesting stop. Missing or changed files during drain refuse before checkout
+update; the manifest is checked again before launch. The replacement loads
+its code, authority dependencies and lists from that directory, with bytecode
+writes disabled, while operating on `--repo`. Without `--runtime`, the installed
+path stays unchanged. Section 3.10's shared lock, persistent startup guards,
+dual-lock effect inheritance and acknowledged same-inode handoff apply to the
+external runtime too. The pidfd drain and 1800-second default wait remain in
+use. A failed launch restores stop. Stop is observed between whole bisection
+cycles; restart cannot interrupt heavy.
+The external runtime is an interim Ops choice until this option is installed.
+
+Restart reads the private adjacent queue state to distinguish pending and
+consumed name/tip pairs, then revalidates under shared authority and checkout
+exclusion after drain and before update. Consumed repairs require no ready ref
+(cleanup may delete it or a new tip may replace it); pending repairs still
+require the exact advertised pin at both checks. Malformed, duplicate-key,
+nonfinite, incompatible or untrusted state refuses, with no normal fallback.
+No consumption state field or outcome vocabulary changes. PATH preflight,
+plan fetch and other triplet refusals retain the exact identity/reason in the
+external audit; audit failure cannot return success.
+
+The explicit train configuration owns its policy. Combining `--train-config`
+with legacy repair options refuses and audits the repair identity before any
+train operation. Train restart also refuses legacy `--runtime`; it uses the
+configuration's frozen generation instead of selecting a legacy runtime.
+
 ### 3.8 Local immutable-candidate worker
 
 `worker.py` is the synchronous checker primitive. Section 3.11 supplies its

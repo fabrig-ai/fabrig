@@ -106,7 +106,6 @@ fn plural_selection_hole_values_and_longest_language_capacity_are_checked() {
     assert_eq!(book.say(2, ID, &[]), Err(Invalid::Values { id: ID }));
     clock_words();
     plural_capacity();
-    assert!(crate::phrases::worst_case(&LIMITS).unwrap() > 200);
 }
 
 fn clock_words() {

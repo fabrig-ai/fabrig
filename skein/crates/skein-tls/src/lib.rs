@@ -37,7 +37,7 @@ pub use rs256::{
     RS256_KEY_BYTES, RS256_PKCS8_KEY_BYTES, Rs256Public, rs256_public, sign_rs256, sign_rs256_pkcs8, verify_rs256,
 };
 
-pub use config::{ALPN, Config, Name, Parsed, Refusal, Server, roots_worst_case};
+pub use config::{ALPN, Config, Name, Parsed, Refusal, Server};
 /// What [`Config::new`] takes: the roots a service trusts, which its shell
 /// reads at startup, and the certificates they are made of.
 pub use rustls::RootCertStore;

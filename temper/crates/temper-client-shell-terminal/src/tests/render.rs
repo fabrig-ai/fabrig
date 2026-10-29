@@ -81,16 +81,16 @@ fn a_behind_frame_adds_its_sentence_to_the_first_line() {
 #[test]
 fn the_largest_fixture_tree_prints_within_its_bounds() {
     let limits = fixtures::tree_limits();
-    let (lines, bytes) = skein_ui_text::worst_case(&limits).expect("fixture print envelope");
+    let (lines, bytes) = skein_ui_text::render_bound(&limits).expect("fixture print envelope");
     for (name, tree) in [("roles", fixtures::every_role()), ("task", fixtures::task_page())] {
         let print = fixtures::print(&tree);
         assert!(u64::from(print.text.len()) <= bytes, "{name}: bytes");
         assert!(skein_lib::bytes::count(print.text.as_slice(), b"\n", u32::MAX) <= lines, "{name}: lines");
         assert!(print.numbers.len() <= limits.nodes, "{name}: numbers");
-        assert!(skein_ui_text::worst_case(&limits).is_some(), "{name}: memory bound");
+        assert!(skein_ui_text::render_bound(&limits).is_some(), "{name}: memory bound");
     }
     let native = crate::limits::view(&crate::limits::native()).expect("native view bounds").0;
-    assert!(skein_ui_text::worst_case(&native.tree).is_some(), "native view has a print envelope: {:?}", native.tree);
+    assert!(skein_ui_text::render_bound(&native.tree).is_some(), "native view has a print envelope: {:?}", native.tree);
 }
 
 #[test]

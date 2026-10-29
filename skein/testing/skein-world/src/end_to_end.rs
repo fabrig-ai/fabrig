@@ -401,6 +401,16 @@ impl Binary {
         let _op = self.submit(Op::Close { fd });
     }
 
+    // Tree settlement is supplied by the keeper; records and descriptor ownership
+    // remain the observer's (skein/docs/design/examples.md, 6).
+    fn finished(&mut self, counts: Result<Option<Counts>, String>) {
+        self.counts = counts.unwrap_or_else(|why| crate::fail(&why));
+        self.tree = None;
+        let pidfd = self.pidfd.take().expect("a settled binary owns its leader descriptor");
+        self.poll_at = None;
+        self.close(pidfd);
+    }
+
     fn observation_pending(&self) -> bool {
         self.waiting.is_some() || self.reading.is_some() || self.signalling || self.cancelling != 0 || self.closing != 0
     }
@@ -585,13 +595,8 @@ impl Host for Binary {
                     return;
                 }
             }
-            if let Some(tree) = &mut self.tree {
-                self.counts = Some(tree.finish(pidfd, self.expectation, true).unwrap_or_else(|why| crate::fail(&why)));
-            }
-            self.tree = None;
-            self.pidfd = None;
-            self.poll_at = None;
-            self.close(pidfd);
+            let counts = self.tree.as_mut().map(|tree| tree.finish(pidfd, self.expectation, true)).transpose();
+            self.finished(counts);
         }
     }
 
@@ -653,7 +658,171 @@ impl Host for Binary {
 
 #[cfg(test)]
 mod tests {
-    use super::{Capture, Expectation};
+    use super::{Binary, Capture, Counts, Expectation, Method, PeakScope, TreeStatus};
+    use crate::Host;
+    use skein_io::kernel::{Complete, Done, Exit, Fd, Op};
+    use skein_lib::{Duration, Queue, Time, Wall};
+
+    fn observer(expectation: Expectation) -> Binary {
+        Binary {
+            pidfd: Some(Fd::new(-1)),
+            stderr: Some(Fd::new(-2)),
+            streams: None,
+            capture: Capture::new(32),
+            status: None,
+            wait_started: false,
+            waiting: None,
+            reading: None,
+            abandoning: false,
+            cancelling: 0,
+            signal: None,
+            tree_signal: None,
+            tree_sweep: None,
+            tree: None,
+            tree_status: Box::new(TreeStatus::new()),
+            counts: None,
+            expectation,
+            poll_at: None,
+            signalling: false,
+            closing: 0,
+            next: 0,
+            completions: Queue::with_capacity(8),
+            submissions: Queue::with_capacity(8),
+        }
+    }
+
+    fn terminal_counts() -> Counts {
+        Counts {
+            method: Method::Walk,
+            user: Duration::from_nanos(3),
+            system: Duration::from_nanos(4),
+            peak_rss_bytes: 5,
+            peak_scope: PeakScope::LargestProcess { baseline_bytes: 0 },
+        }
+    }
+
+    fn close_completions(binary: &mut Binary) {
+        while let Some(record) = binary.submissions.pop() {
+            assert!(matches!(record.kind, Op::Close { .. }), "only descriptor closures remain");
+            binary.completed(Complete { op: record.op, kind: record.kind, result: Ok(Done::Nothing) });
+        }
+    }
+
+    #[test]
+    fn supervised_observation_waits_for_stderr_eof_and_descriptor_closures() {
+        for exit_first in [false, true] {
+            let mut binary = observer(Expectation::Supervise);
+            // Drive observation without a keeper: tree settlement is supplied below.
+            // Before the wait returns, iterate only queues operations.
+            binary.iterate(Time::ZERO, Wall::EPOCH);
+            let wait = binary.submissions.pop().expect("leader wait");
+            let read = binary.submissions.pop().expect("stderr read");
+            assert!(matches!(wait.kind, Op::Wait { reap: false, .. }));
+            assert!(matches!(read.kind, Op::PipeRead { .. }));
+            assert_eq!(binary.counts(), None);
+            let mut exit = Some(Complete { op: wait.op, kind: wait.kind, result: Ok(Done::Exit(Exit::Code(0))) });
+            let data = Complete {
+                op: read.op,
+                kind: Op::PipeRead { fd: Fd::new(-2), buf: Box::from(&b"diagnostic"[..]) },
+                result: Ok(Done::Count(10)),
+            };
+            if exit_first {
+                binary.completed(exit.take().expect("one leader exit"));
+                binary.finished(Ok(Some(terminal_counts())));
+                assert_eq!(binary.counts(), Some(terminal_counts()), "settlement publishes counts before closure");
+                assert!(!binary.is_empty(), "the leader closure and stderr read remain pending");
+                close_completions(&mut binary);
+                assert_eq!(binary.counts(), Some(terminal_counts()), "a pending stderr read cannot hide settlement");
+            }
+            binary.completed(data);
+            assert_eq!(binary.stderr(), b"diagnostic");
+            assert!(!binary.is_empty(), "captured bytes precede EOF");
+            binary.iterate(Time::ZERO, Wall::EPOCH);
+            let eof = binary.submissions.pop().expect("next stderr read");
+            assert!(matches!(eof.kind, Op::PipeRead { .. }));
+            binary.completed(Complete { op: eof.op, kind: eof.kind, result: Ok(Done::Count(0)) });
+            assert!(binary.stderr.is_none() && binary.reading.is_none(), "EOF ends the stream");
+            assert!(!binary.is_empty(), "the EOF closure still has to drain");
+            close_completions(&mut binary);
+            if !exit_first {
+                assert_eq!(binary.counts(), None, "EOF alone cannot publish terminal counts before exit");
+                binary.completed(exit.take().expect("one leader exit"));
+                binary.finished(Ok(Some(terminal_counts())));
+                assert_eq!(binary.counts(), Some(terminal_counts()), "settlement publishes counts before closure");
+                assert!(!binary.is_empty(), "the leader descriptor still has to close");
+                close_completions(&mut binary);
+            }
+            assert_eq!(binary.exit_status(), Some(Exit::Code(0)));
+            assert_eq!(binary.stderr(), b"diagnostic");
+            assert_eq!(binary.counts(), Some(terminal_counts()));
+            assert!(binary.is_empty(), "terminal observation has drained every record and descriptor");
+        }
+    }
+
+    #[test]
+    fn an_expected_end_fails_naming_a_process_group_still_running() {
+        for live in [false, true] {
+            let mut binary = observer(Expectation::EndsWithBinary);
+            binary.stderr = None;
+            binary.iterate(Time::ZERO, Wall::EPOCH);
+            let wait = binary.submissions.pop().expect("leader wait");
+            binary.completed(Complete { op: wait.op, kind: wait.kind, result: Ok(Done::Exit(Exit::Code(0))) });
+            let result =
+                crate::tree::expected_group_end(binary.expectation, 42, live).map(|()| Some(terminal_counts()));
+            if live {
+                let failure = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| binary.finished(result)))
+                    .expect_err("an expected end refuses a living group");
+                assert_eq!(
+                    failure.downcast_ref::<String>().expect("group diagnostic"),
+                    "binary exited while its process group 42 still had members"
+                );
+                assert_eq!(binary.counts(), None);
+                // Return the supplied descriptor without invoking emergency cleanup.
+                binary.finished(Ok(None));
+            } else {
+                binary.finished(result);
+            }
+            close_completions(&mut binary);
+            assert_eq!(binary.counts(), if live { None } else { Some(terminal_counts()) });
+            assert!(binary.is_empty());
+        }
+        crate::tree::expected_group_end(Expectation::Measure, 42, true)
+            .expect("measurement permits live group members before cleanup");
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn an_expected_end_fails_naming_each_tree_process_still_running() {
+        for live in [vec![], vec![43], vec![44, 43, 44]] {
+            let mut binary = observer(Expectation::EndsWithBinary);
+            binary.stderr = None;
+            binary.iterate(Time::ZERO, Wall::EPOCH);
+            let wait = binary.submissions.pop().expect("leader wait");
+            binary.completed(Complete { op: wait.op, kind: wait.kind, result: Ok(Done::Exit(Exit::Code(0))) });
+            let mut pids = live.clone();
+            let result =
+                crate::tree::expected_tree_end(binary.expectation, &mut pids).map(|()| Some(terminal_counts()));
+            if live.is_empty() {
+                binary.finished(result);
+            } else {
+                let failure = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| binary.finished(result)))
+                    .expect_err("an expected end refuses living descendants");
+                let expected = if live.len() == 1 {
+                    "binary exited while tree processes still ran: [43]"
+                } else {
+                    "binary exited while tree processes still ran: [43, 44]"
+                };
+                assert_eq!(failure.downcast_ref::<String>().expect("tree diagnostic"), expected);
+                assert_eq!(binary.counts(), None);
+                binary.finished(Ok(None));
+            }
+            close_completions(&mut binary);
+            assert_eq!(binary.counts(), if live.is_empty() { Some(terminal_counts()) } else { None });
+            assert!(binary.is_empty());
+        }
+        crate::tree::expected_tree_end(Expectation::Measure, &mut vec![43])
+            .expect("measurement permits live descendants before cleanup");
+    }
 
     #[test]
     fn supervised_capture_keeps_an_exact_prefix_and_overflow_stays_set() {
