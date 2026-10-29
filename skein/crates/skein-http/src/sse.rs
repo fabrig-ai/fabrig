@@ -98,8 +98,8 @@ pub fn worst_case(limits: &Limits) -> Option<u64> {
     if limits.chunk == 0 {
         return None;
     }
-    let data = Intake::worst_case(limits.chunk)?;
-    let fields = List::<u8>::worst_case(limits.field)?.checked_mul(4)?;
+    let data = Intake::price(limits.chunk)?;
+    let fields = List::<u8>::price(limits.field)?.checked_mul(4)?;
     data.checked_add(fields)?.checked_add(u64::from(limits.chunk))
 }
 
