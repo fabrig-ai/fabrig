@@ -936,11 +936,14 @@ An owner proposal outcome carries its proposal number and the original admitted 
   in flight.
 - **The default mapping's,** at each end: its HTTP machines', TLS's, and
   the stream's buffer, at those limits.
-- **The worst case** of each side is its components' and its transport's,
-  at those limits. The client prices pending-read token and optional
-  family metadata, and up to one cancellation `Page` per independently
-  bounded read on a credential boundary, in `max_out` and composed
-  queues (`../client/domain/client.md`, section 14).
+- **Internal hand-offs are uncapped.** The client retains each pending
+  read's token and optional family metadata. A credential boundary can
+  emit one cancellation `Page` per admitted read, independently of
+  watch handles; this bounds the event's fan-out without reserving an
+  output queue (`../client/domain/client.md`, section 14). The kernel's
+  queues and transport edges keep their limits; fixed scenarios check
+  their measured heap peaks against ceilings
+  (`../client/domain/testing.md`, section 6).
 
 ## 14. Testing
 

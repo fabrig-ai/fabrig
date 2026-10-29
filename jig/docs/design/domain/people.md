@@ -74,6 +74,12 @@ capability. It keeps:
   reference to the task or proposal it is, and their read positions over
   results and over live conversations (section 6).
 
+`outputs_bound(&Limits)` counts the most outputs one step may make.
+The core's settings route reserves this allowance at the store's commit
+edge, alongside the settings writes. It is an edge count: the people
+child's output queue is uncapped, and the count reserves no internal
+hand-off or drain.
+
 It knows nothing of tasks beyond their numbers and what the core tells
 it waits for whom; every request goes to the core, which routes it to
 authority and to the tasks. Parties' watches of their `me` and their

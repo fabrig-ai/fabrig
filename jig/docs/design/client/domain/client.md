@@ -16,8 +16,8 @@ still open is listed in section 18.
 ## 1. In one page
 
 - **A step machine the application holds** (programming-model.md,
-  section 3): `jig_client::Client`, with its own vocabulary, limits,
-  worst case and world. The application steps it with each event, and
+  section 3): `jig_client::Client`, with its own vocabulary, limits
+  and world. The application steps it with each event, and
   it gives back what to send and what to tell. It runs no loop of its
   own, and it never calls the application (section 4).
 - **Presentation-agnostic.** It knows no page, place, card, confirmation
@@ -947,9 +947,9 @@ for any presentation of a chat or of any agent task's activity.
   place, are the reference UI's (view.md, 18.7). The client tells
   only the facts they are made from: answers and the link.
 
-## 14. Limits and the worst case
+## 14. Limits and envelopes
 
-Each is configured and part of the worst case:
+Each is configured and bounds what enters or is retained:
 
 - handles; the engine's watches open, `me`'s included, each until its
   terminal and one kept for `me` (8.1); reads in flight; exchanges in
@@ -995,8 +995,8 @@ at most `turn_bytes`; limits outside those bounds are refused.
 Reads have room independently of watch handles; a read need not own a
 watch. Pending entries price both their token and optional family. A
 credential boundary may emit one `Page` per pending read, in addition to
-watch and request outputs. The `max_out` functions include an explicit
-reads term; they size no internal queue and reserve no room.
+watch and request outputs. This fan-out is bounded by admitted reads;
+it sizes no internal queue and reserves no room.
 
 - **No client watermark.** Each event's fan-out is bounded by admitted
   state, and new work enters through capped edges: the link's exchanges,
@@ -1006,9 +1006,10 @@ reads term; they size no internal queue and reserve no room.
   hand-offs are uncapped too; only the kernel's queues and their staging
   stay capped (programming-model.md, 7.1).
 
-`worst_case` sums the containers' own and the bytes each entity may hold
-(programming-model.md, 6.3). Each held document is priced at twice its
-wire byte limit as room for its decoded representation: fixed-size
+Containers grow as they fill; fixed scenarios check their measured heap
+peak against a named ceiling (testing.md, section 6). Each held document
+is charged at twice its wire byte limit as room for its decoded
+representation: fixed-size
 records and lists reserved at their bounds. A deployment of 169 wire
 bytes holds 512 decoded bytes, so a document limit of 169 gives only
 338 bytes of room and refuses it; it needs a document limit of at least

@@ -22,8 +22,9 @@ listed in section 9.
   and skein's a process uses (smith's LLM component and skein's
   connections for runs in the process, smith's host half for agent
   processes), and each of the application's (its connectors' protocols,
-  its credentials' sources) is a child with its own limits, worst case,
-  deadlines and most outputs per entry point. The protocol layer routes
+  its credentials' sources) is a child with its own entrance limits and
+  deadlines. Internal hand-offs grow as they fill and are uncapped;
+  the kernel's hand-offs keep their edge sizes. The protocol layer routes
   between them, io and the root, and decides nothing.
 - **The clients' listener is the application's,** with its routes and
   its URL space: its server serves its pages and its bundle, its own
@@ -314,6 +315,17 @@ down:  released and door outputs → components → io submissions
   with its `iterate`, composed in one process (section 10), with a
   startup function that takes configuration's bytes and returns the
   service. jig's protocol world runs it (section 8).
+- **Its kernel hand-offs** are sized at the edge: the store allows 12
+  entries, four for each of its three single-flight file drivers; the
+  service's staging queues allow `skein_io::operations` plus those 12;
+  a worker's hand-off uses its own kernel budget. The queues between
+  the components and the root are uncapped. Store routes and client
+  ending and secret-owner correlations grow with admitted work, rather
+  than reserving a largest output envelope.
+- **Starting lasts until decisions open.** The reference service keeps
+  answering clients not ready while the core's restart is under way,
+  including after `RestartBegin` has been submitted. The end of starting
+  is the core's readiness, as section 3 requires.
 - **Its server,** the example of an application's (`browser.md`,
   section 12): on the clients' listener, it mounts the clients'
   component at `/jig` with jig's default HTTP mapping and its example
