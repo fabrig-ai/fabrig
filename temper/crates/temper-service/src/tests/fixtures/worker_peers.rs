@@ -32,9 +32,10 @@ pub(crate) struct LinkPeer {
 }
 impl LinkPeer {
     pub(crate) fn new() -> Self {
-        let settings = fixtures::worker_settings();
-        let prepared =
-            worker_settings::prepare(&settings, &fixtures::worker_agent(), &fixtures::worker_limits()).unwrap();
+        Self::with_settings(&fixtures::worker_settings(), &fixtures::worker_agent())
+    }
+    pub(crate) fn with_settings(settings: &crate::settings::Worker, agent: &crate::settings::Agent) -> Self {
+        let prepared = worker_settings::prepare(settings, agent, &fixtures::worker_limits()).unwrap();
         let limits = engine_link::Limits {
             sizes: prepared.link.sizes,
             names: 1,
@@ -52,7 +53,7 @@ impl LinkPeer {
             component: engine_link::Component::new(
                 &limits,
                 Box::new([engine_link::Worker {
-                    name: settings.jig.name,
+                    name: settings.jig.name.clone(),
                     digest: io::digest::digest(fixtures::worker_files().contents(b"worker-secret").unwrap()),
                 }]),
                 temper_protocol_worker_wire::PAYLOAD_VERSION,
@@ -89,6 +90,10 @@ impl LinkPeer {
     }
     pub(crate) fn turn(&mut self, worker: &mut crate::Worker) -> Option<engine_link::Request> {
         worker.iterate(fixtures::NOW, Wall::EPOCH);
+        self.exchange(worker)
+    }
+    // Exchange demanded bytes while leaving root entrances queued for inspection.
+    pub(crate) fn exchange(&mut self, worker: &mut crate::Worker) -> Option<engine_link::Request> {
         for _ in 0..worker.io().len() {
             let request = worker.io().pop().expect("queued IO");
             if !stream_request(&request, &[self.owner, Token::new(44)]) {
