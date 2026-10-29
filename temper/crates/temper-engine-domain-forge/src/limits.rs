@@ -62,11 +62,13 @@ pub struct Limits {
     pub client: skein_forge_client::Limits,
 }
 
-/// Maximum retained heap for the top and its child, excluding owned output
-/// copies that the root takes at each decision boundary.
+/// Whether entrance limits are coherent and retained row counts fit their types.
+/// Names and gates fit the panel; client admissions cover the top's rows.
+/// Demo, reconciliation and landing capacities must be representable
+/// (temper/docs/design/domain/forge.md, sections 4, 8 and 16).
+/// Internal output envelopes and retained heap sums do not constrain admission.
 #[must_use]
-#[expect(clippy::too_many_lines, reason = "one checked sum of the connector owners and retained payloads")]
-pub fn worst_case(l: &Limits) -> Option<u64> {
+pub fn valid(l: &Limits) -> bool {
     if l.repositories == 0
         || l.tasks == 0
         || l.holds == 0
@@ -77,7 +79,6 @@ pub fn worst_case(l: &Limits) -> Option<u64> {
         || l.name_bytes > crate::PANEL_NAME_BYTES
         || l.change_policy.gates > crate::PANEL_GATES
         || l.queue_window == skein_lib::Duration::ZERO
-        || l.output == 0
         || l.adoptions == 0
         || l.applications == 0
         || l.collaborators == 0
@@ -90,7 +91,21 @@ pub fn worst_case(l: &Limits) -> Option<u64> {
         // makes, so a held entry made again always finds the client's room.
         || l.entries > l.client.entries
         || l.holds > l.client.resources
+        || demo_act_bound(l).is_none()
+        || crate::reconcile::capacity(l).is_none()
+        || !crate::landing::valid(l)
     {
+        return false;
+    }
+    true
+}
+
+/// Maximum retained heap for the top and its child, excluding owned output
+/// copies that the root takes at each decision boundary.
+#[must_use]
+#[expect(clippy::too_many_lines, reason = "one checked sum of the connector owners and retained payloads")]
+pub fn worst_case(l: &Limits) -> Option<u64> {
+    if !valid(l) {
         return None;
     }
     if l.output < l.subscriptions.checked_mul(3)?.checked_add(l.holds.checked_mul(3)?)?.checked_add(9)?

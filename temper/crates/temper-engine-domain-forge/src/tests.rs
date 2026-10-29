@@ -12,6 +12,7 @@ mod fixtures;
 mod flight;
 #[path = "tests/landing.rs"]
 mod landing_routes;
+mod limits;
 mod panel;
 mod projection;
 mod purpose;
