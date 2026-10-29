@@ -25,7 +25,7 @@ fn topic_world(seed: u64, grant: bool) -> World {
     policy.ceiling.grants = Box::new([read_grant.clone()]);
     policy.roles[0].authority.grants = if grant { Box::new([read_grant]) } else { Box::new([]) };
     let mut domain = authority::Domain::new(rules, limits.core.authority).expect("topic rules");
-    let mut out = Queue::with_capacity(authority::POLICY_MAX_OUT);
+    let mut out = Queue::uncapped();
     authority::step(&mut domain, authority::Event::Policy { project: 1, policy }, &mut out);
     assert_eq!(out.pop(), Some(authority::PolicyFact::Added { project: 1 }));
     configuration.core.seed_projects[0].policy.policy = domain.policy(1).expect("checked seed policy").clone();
