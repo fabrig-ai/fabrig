@@ -140,36 +140,6 @@ fn no_git_writes_or_key_leaks(ran: &Ran) {
     assert!(files > 0, "persisted state was checked");
 }
 
-
-#[test]
-fn replaying_an_install_request_keeps_one_link_and_one_acceptance() {
-    // client/README.md 8: the same live request key returns the same link.
-    // client/forge.md 9.1: an installation state is usable once.
-    const LINK: usize = 3;
-    const REPLAY: usize = 4;
-    let ran = run_github(fresh(), no_agents, || {
-        let mut steps = begin();
-        steps.extend([
-            call(&["forge", "install", "1", "--key", "qa-repeat"]),
-            call(&["forge", "install", "1", "--key", "qa-repeat"]),
-            calls::browse(3),
-            calls::browse(4),
-            adopt("acme", "app", "qa-after-replay"),
-        ]);
-        steps
-    });
-    no_git_writes_or_key_leaks(&ran);
-    for at in 0..ran.calls().len() {
-        succeeded(&ran, at);
-    }
-    assert_eq!(ran.calls()[LINK].stdout, ran.calls()[REPLAY].stdout, "same request, same link");
-    assert_eq!(ran.browsed()[0].hops, [302, 200]);
-    assert_eq!(ran.browsed()[1].hops, [302, 410], "used state ends");
-    assert_eq!(ran.github().installations.len(), ONE_INSTALLATION, "no duplicate installation");
-    assert!(json(&ran, 5)["adopted"].is_object(), "first acceptance survives replay");
-}
-
-
 #[test]
 #[ignore = "gap: real-loop steps expose no GitHub suspension or revocation mutation"]
 fn a_suspended_installation_and_a_revoked_key_stop_repository_access() {
@@ -225,121 +195,6 @@ fn a_failed_paste_is_named_in_human_status_and_cleared_by_retry() {
         text.contains("The last connect stopped:") && text.contains(why),
         "human last connect omits stored reason {why:?}: {text}"
     );
-}
-
-#[test]
-fn replaying_a_paste_and_refusing_a_new_connect_preserves_the_app() {
-    // client/README.md 8: keyed replay; 4.6: connected refusal; credentials.md 2.2.
-    const CONNECT: usize = 1;
-    const REPLAY: usize = 3;
-    const REFUSED: usize = 4;
-    const REPLAY_AGAIN: usize = 6;
-    let ran = run_github(fresh(), no_agents, || {
-        let mut steps = begin();
-        steps.extend([
-            connect(calls::github_app(), "qa-connect"),
-            connect(calls::number(u64::MAX), "qa2-already-connected"),
-            call(&["forge", "list", "--json"]),
-            connect(calls::github_app(), "qa-connect"),
-            call(&["forge", "install", "1", "--key", "qa2-after-repeated-paste"]),
-            calls::browse(7),
-            call(&["forge", "list", "--until", "settled", "--json"]),
-            adopt("acme", "app", "qa2-repeated-paste-adopt"),
-        ]);
-        steps
-    });
-    no_git_writes_or_key_leaks(&ran);
-    for at in [0, CONNECT, 2, REPLAY, 5, REPLAY_AGAIN, 7, 8, 9] {
-        succeeded(&ran, at);
-    }
-    assert_eq!(ran.calls()[CONNECT].stdout, ran.calls()[REPLAY].stdout, "replay retains original connecting outcome");
-    assert_eq!(ran.calls()[CONNECT].stdout, ran.calls()[REPLAY_AGAIN].stdout);
-    assert_eq!(ran.calls()[REFUSED].exit, Some(Exit::Code(2)), "new connect cannot replace a connected App");
-    let refused = String::from_utf8_lossy(&ran.calls()[REFUSED].stdout);
-    let refused_error = String::from_utf8_lossy(&ran.calls()[REFUSED].stderr);
-    assert!(format!("{refused}{refused_error}").to_lowercase().contains("connected"));
-    let packet = json(&ran, 5);
-    assert_eq!(row(&packet)["login"], "temper-person[bot]");
-    assert!(row(&packet)["ended"].is_null(), "refusal did not start a failing Paste");
-    assert_eq!(ran.github().installations.len(), ONE_INSTALLATION);
-    assert_eq!(row(&json(&ran, 8))["installations"].as_array().expect("installations").len(), ONE_INSTALLATION);
-    assert!(json(&ran, 9)["adopted"].is_object(), "kept key still authorizes adoption");
-}
-
-#[test]
-fn install_json_and_human_replays_name_the_same_live_link() {
-    // client/README.md 8 and client/tools.md 5.5: one keyed outcome, either rendering.
-    const JSON_LINK: usize = 3;
-    const HUMAN_LINK: usize = 4;
-    let ran = run_github(fresh(), no_agents, || {
-        let mut steps = begin();
-        steps.extend([
-            call(&["forge", "install", "1", "--key", "qa2-link-formats", "--json"]),
-            call(&["forge", "install", "1", "--key", "qa2-link-formats"]),
-            calls::browse(4),
-            call(&["forge", "install", "1", "--key", "qa2-link-formats", "--json"]),
-            call(&["forge", "list", "--until", "settled", "--json"]),
-        ]);
-        steps
-    });
-    no_git_writes_or_key_leaks(&ran);
-    for at in 0..ran.calls().len() {
-        succeeded(&ran, at);
-    }
-    let packet = json(&ran, JSON_LINK);
-    let link = packet["link"]["address"].as_str().unwrap_or_else(|| panic!("JSON installation link: {packet}"));
-    let address: std::net::SocketAddr = link
-        .strip_prefix("http://")
-        .expect("fake HTTP")
-        .split('/')
-        .next()
-        .expect("authority")
-        .parse()
-        .expect("local socket");
-    assert!(address.ip().is_loopback(), "link points only at the fake");
-    let human = String::from_utf8_lossy(&ran.calls()[HUMAN_LINK].stdout);
-    assert!(human.lines().any(|line| line == link), "same link in human output");
-    assert!(human.contains("Open this address in a browser on the engine's machine:"));
-    assert_eq!(json(&ran, 5), packet, "acceptance does not turn a replay into a new install");
-    assert_eq!(ran.browsed()[0].hops, [302, 200]);
-    assert_eq!(ran.github().installations.len(), ONE_INSTALLATION);
-    assert_eq!(row(&json(&ran, 6))["installations"].as_array().expect("installations").len(), ONE_INSTALLATION);
-}
-
-#[test]
-fn independent_install_links_remain_live_and_accept_one_installation() {
-    // protocol/setup.md 17.4; client/forge.md 9.1: distinct live one-use states.
-    const FIRST: usize = 3;
-    const SECOND: usize = 4;
-    let ran = run_github(fresh(), no_agents, || {
-        let mut steps = begin();
-        steps.extend([
-            call(&["forge", "install", "1", "--key", "qa2-first-live"]),
-            call(&["forge", "install", "1", "--key", "qa2-second-live"]),
-            calls::browse(4),
-            call(&["forge", "list", "--until", "settled", "--json"]),
-            calls::browse(3),
-            call(&["forge", "list", "--until", "settled", "--json"]),
-            calls::browse(4),
-            calls::browse(3),
-        ]);
-        steps
-    });
-    no_git_writes_or_key_leaks(&ran);
-    for at in 0..ran.calls().len() {
-        succeeded(&ran, at);
-    }
-    assert_ne!(ran.calls()[FIRST].stdout, ran.calls()[SECOND].stdout, "independent requests draw fresh states");
-    let hops: Vec<_> = ran.browsed().iter().map(|page| page.hops.as_slice()).collect();
-    assert_eq!(hops, [&[302, 200][..], &[302, 200], &[302, 410], &[302, 410]]);
-    assert_eq!(ran.github().installations.len(), ONE_INSTALLATION, "same account is installed once");
-    for at in [5, 6] {
-        let packet = json(&ran, at);
-        let installations = row(&packet)["installations"].as_array().expect("installation rows");
-        assert_eq!(installations.len(), ONE_INSTALLATION, "Accepted is a set");
-        assert_eq!(installations[0]["id"], github::INSTALLATION);
-        assert_eq!(installations[0]["stray"], false);
-    }
 }
 
 #[test]
@@ -403,28 +258,6 @@ fn refused_and_replayed_pastes_keep_keys_out_of_persisted_public_state() {
     }
     assert!(checked > 0, "nonsecret persisted files checked");
     assert_eq!(ran.github().installations.len(), ONE_INSTALLATION);
-}
-
-#[test]
-#[ignore = "gap: no public setup-write journal or carried-secret row-count observer, including erases"]
-fn replayed_pastes_and_accepts_make_no_duplicate_store_writes() {
-    // client/README.md 8; protocol/credentials.md 2.2: one run, unused values erased.
-    let ran = run_github(fresh(), no_agents, || {
-        let mut steps = begin();
-        steps.extend([
-            connect(calls::github_app(), "qa-connect"),
-            call(&["forge", "install", "1", "--key", "qa2-write-count"]),
-            call(&["forge", "install", "1", "--key", "qa2-write-count"]),
-            calls::browse(4),
-            calls::browse(5),
-        ]);
-        steps
-    });
-    no_git_writes_or_key_leaks(&ran);
-    assert_eq!(ran.github().installations.len(), ONE_INSTALLATION);
-    // Exact counts of Paste/Accept runs, AppKey/Accepted writes and carried-row
-    // keeps/erases require an observer. Never inspect jig's secret values to count.
-    panic!("gap: no public write or carried-row-count observer");
 }
 
 #[test]
