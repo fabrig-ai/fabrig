@@ -340,6 +340,7 @@ pub struct World {
 
     jobs: BTreeMap<Token, jobs::Job>,
     job_outputs: BTreeMap<Vec<u8>, Vec<(Duration, Vec<u8>)>>,
+    job_acts: Vec<(Time, Token, tools::JobAct)>,
     stats: Stats,
     trace: Trace,
 }
@@ -374,6 +375,7 @@ impl World {
             untouched: None,
             jobs: BTreeMap::new(),
             job_outputs: BTreeMap::new(),
+            job_acts: Vec::new(),
             stats: Stats::default(),
             trace: Trace::default(),
         }
