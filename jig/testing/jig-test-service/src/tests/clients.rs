@@ -235,6 +235,11 @@ fn signed_stream(engine: &mut crate::Engine) -> Peer {
     assert!(skein_lib::bytes::find(&peer.wire.received, b"text/event-stream").is_some());
     peer
 }
+fn ready_decisions(service: &mut crate::Service) -> &mut crate::Engine {
+    let engine = ready_client(service);
+    decisions_open(engine);
+    engine
+}
 #[test]
 fn an_erased_sign_in_record_ends_its_stream_once_durable() {
     use jig_protocol_engine_clients::{SecretOwner, SecretsRequest};
@@ -255,6 +260,64 @@ fn an_erased_sign_in_record_ends_its_stream_once_durable() {
     assert_eq!(owner, SecretOwner::SignIn(41));
     clients.committed(57);
     assert!(clients.secrets.is_empty());
+}
+
+/// `ending_commit_durable`: endings cross the one-ending output carrier in
+/// commit order, while an unacknowledged root decision holds the watermark.
+/// The clients' three-commit table is exercised across successive drains.
+#[test]
+fn sign_in_endings_follow_their_own_commits_under_load() {
+    use jig_protocol_engine_clients::{SecretOwner, SecretsRequest};
+    const WATERMARK: u32 = 1; // One writing period holds admission shut.
+    const SETTLE: u32 = 8; // The service fixtures' startup settlement turns.
+    const OUTPUT_ROOM: u32 = jig_protocol_engine_clients::MAX_OUT_DOWN;
+    const ENDINGS_PER_COMMIT: u32 = 1; // One erased sign-in in each scripted commit.
+    const FIRST_COMMIT: u64 = 57;
+    const SECOND_COMMIT: u64 = 58;
+    const LAST_COMMIT: u64 = 59;
+    const FIRST_SIGN_IN: u64 = 41;
+    const SECOND_SIGN_IN: u64 = 42;
+    const LAST_SIGN_IN: u64 = 43;
+    let mut service = started(true);
+    let engine = ready_decisions(&mut service);
+    for _ in 0..SETTLE {
+        engine::iterate(engine, Time::ZERO, Wall::EPOCH);
+    }
+    engine.env.limits.watermark = WATERMARK;
+    for number in [1, 2] {
+        engine.step(root::Event::Core(core::Event::Period { project: 1, period: number, budget: 100, next: None }));
+    }
+    assert!(engine.blocked, "the unacknowledged writing period holds the next period at the watermark");
+    let clients = engine.clients.as_mut().expect("clients");
+    clients.secrets = skein_lib::Queue::with_capacity(OUTPUT_ROOM);
+    let mut writes = skein_lib::Queue::with_capacity(ENDINGS_PER_COMMIT);
+    for (commit, sign_in) in
+        [(FIRST_COMMIT, FIRST_SIGN_IN), (SECOND_COMMIT, SECOND_SIGN_IN), (LAST_COMMIT, LAST_SIGN_IN)]
+    {
+        writes.push(root::Write::Erase(root::Key::Core(core::Key::People(people::Key::SignIn(sign_in)))));
+        clients.commit(commit, &writes);
+        let _write = writes.pop().expect("one ending per commit");
+    }
+    advance_client(clients, &mut engine.events, &engine.env.limits);
+    assert!(clients.secrets.is_empty(), "no ending is durable yet");
+    clients.committed(SECOND_COMMIT);
+    for sign_in in [FIRST_SIGN_IN, SECOND_SIGN_IN] {
+        advance_client(clients, &mut engine.events, &engine.env.limits);
+        let Some(SecretsRequest::Erase { owner }) = clients.secrets.pop() else { panic!("durable ending") };
+        assert_eq!(owner, SecretOwner::SignIn(sign_in), "endings leave in commit order");
+        assert!(clients.secrets.is_empty(), "one ending crosses each output drain");
+    }
+    advance_client(clients, &mut engine.events, &engine.env.limits);
+    assert!(clients.secrets.is_empty(), "the last ending waits for its own commit");
+    clients.committed(LAST_COMMIT);
+    advance_client(clients, &mut engine.events, &engine.env.limits);
+    let Some(SecretsRequest::Erase { owner }) = clients.secrets.pop() else { panic!("last durable ending") };
+    assert_eq!(owner, SecretOwner::SignIn(LAST_SIGN_IN));
+    for commit in [FIRST_COMMIT, SECOND_COMMIT, LAST_COMMIT] {
+        clients.committed(commit);
+        advance_client(clients, &mut engine.events, &engine.env.limits);
+        assert!(clients.secrets.is_empty(), "each ending leaves once despite duplicate acknowledgements");
+    }
 }
 
 fn take_listener(engine: &mut crate::Engine) {
@@ -521,8 +584,7 @@ fn a_kept_digest_reaches_the_store_s_secrets() {
     use jig_protocol_engine_clients::{SecretOwner, SecretsRequest};
     use jig_protocol_store::{Event, Secrets};
     let mut service = started(true);
-    let engine = ready_client(&mut service);
-    decisions_open(engine);
+    let engine = ready_decisions(&mut service);
     let (bearer, value) = credential();
     let expected = jig_protocol_store::SecretValue::Digest {
         expiry: value.expires.as_nanos(),
