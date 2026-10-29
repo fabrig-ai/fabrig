@@ -91,16 +91,6 @@ pub fn model_names(models: &[crate::Model]) -> Box<[ModelName]> {
     }
     names.into_boxed()
 }
-#[must_use]
-pub fn model_names_worst_case() -> Option<u64> {
-    List::<ModelName>::price(jig_domain_tasks::MODELS)?.checked_add(
-        u64::from(jig_domain_tasks::MODELS).checked_mul(
-            u64::from(crate::MODEL_NAME_BYTES)
-                .checked_add(List::<Box<[u8]>>::price(crate::EFFORTS)?)?
-                .checked_add(u64::from(crate::EFFORTS).checked_mul(u64::from(crate::EFFORT_BYTES))?)?,
-        )?,
-    )
-}
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Revision {
     pub head: Head,
@@ -334,7 +324,7 @@ impl Record {
 /// One whole set of settings at the bounds the check enforces. The template
 /// carrier deliberately shares the pre-existing conservative construction bound.
 #[must_use]
-pub fn set_worst_case(limits: &crate::Limits) -> Option<u64> {
+pub fn set_bound(limits: &crate::Limits) -> Option<u64> {
     let charters = u64::from(limits.tasks.charters)
         .checked_mul(u64::from(limits.run_bytes).checked_add(u64::try_from(size_of::<Charter>()).ok()?)?)?;
     let templates = u64::from(limits.templates).checked_mul(
@@ -348,15 +338,20 @@ pub fn set_worst_case(limits: &crate::Limits) -> Option<u64> {
     charters
         .checked_add(templates)?
         .checked_add(policies)?
-        .checked_add(authority::rules_worst_case(&limits.authority)?)?
+        .checked_add(authority::rules_bound(&limits.authority)?)?
         .checked_add(u64::try_from(size_of::<authority::Rules>()).ok()?)
 }
 /// One record's whole items, priced independently of the held heads.
 #[must_use]
-pub fn revision_worst_case(limits: &crate::Limits) -> Option<u64> {
-    set_worst_case(limits)?
+pub fn revision_bound(limits: &crate::Limits) -> Option<u64> {
+    set_bound(limits)?
         .checked_add(List::<Item>::price(capacity(limits)?.checked_mul(2)?)?)?
         .checked_add(u64::try_from(size_of::<Head>()).ok()?)
+}
+/// The former name of [`revision_bound`], kept until its application readers move.
+#[must_use]
+pub fn revision_worst_case(limits: &crate::Limits) -> Option<u64> {
+    revision_bound(limits)
 }
 
 #[cfg(test)]
@@ -395,7 +390,7 @@ impl Current {
 /// The first start or a revision's largest write set, including its deployment
 /// header and one steady-state history erase (engine.md, 17.7).
 #[must_use]
-pub fn writes_worst_case(limits: &crate::Limits) -> Option<u32> {
+pub fn writes_bound(limits: &crate::Limits) -> Option<u32> {
     let count = capacity(limits)?;
     let first = count
         .checked_add(limits.people.initial_owners)?
@@ -405,6 +400,11 @@ pub fn writes_worst_case(limits: &crate::Limits) -> Option<u32> {
         .max(count.checked_mul(4)?.checked_add(8)?.checked_add(limits.settings.versions.checked_mul(2)?)?)
         .checked_add(withdrawal_writes(limits)?)?
         .checked_add(move_writes(limits)?)
+}
+/// The former name of [`writes_bound`], kept until its application readers move.
+#[must_use]
+pub fn writes_worst_case(limits: &crate::Limits) -> Option<u32> {
+    writes_bound(limits)
 }
 
 /// A party withdrawal takes five writes. A task withdrawal takes two activity

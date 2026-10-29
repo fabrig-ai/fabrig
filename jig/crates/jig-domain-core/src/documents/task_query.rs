@@ -170,9 +170,9 @@ pub fn lines(core: &Core, limits: &Limits, party: u64, query: &TaskQuery, window
     }
     Ok(Lines { query: *query, lines, next })
 }
-pub(super) fn worst_case(limits: &DocumentLimits) -> Option<u64> {
+pub(super) fn document_bound(limits: &DocumentLimits) -> Option<u64> {
     List::<TaskLine>::price(limits.rows)?.checked_add(
         u64::from(limits.rows)
-            .checked_mul(super::chip_heap_worst_case(limits)?.checked_add(List::<u64>::price(limits.lines)?)?)?,
+            .checked_mul(super::chip_heap_bound(limits)?.checked_add(List::<u64>::price(limits.lines)?)?)?,
     )
 }

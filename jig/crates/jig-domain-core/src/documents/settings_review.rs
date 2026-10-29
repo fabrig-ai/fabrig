@@ -68,8 +68,8 @@ pub(super) fn review(
         value_bytes: u64::from(limits.documents.text_bytes),
     }))
 }
-pub(super) fn worst_case(limits: &Limits) -> Option<u64> {
-    s::set_worst_case(limits)?
+pub(super) fn document_bound(limits: &Limits) -> Option<u64> {
+    s::set_bound(limits)?
         .checked_mul(2)?
         .checked_add(List::<ReviewItem>::price(t::SETTINGS_ITEMS)?)?
         .checked_add(List::<crate::reads::RevisionItemHead>::price(t::SETTINGS_ITEMS)?)?

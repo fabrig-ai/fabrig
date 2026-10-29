@@ -850,12 +850,12 @@ pub fn ended_delegate_from_row(limits: &Limits, row: &tasks::TaskRecord) -> Resu
     }
 }
 
-pub(super) fn worst_case(limits: &super::DocumentLimits) -> Option<u64> {
+pub(super) fn document_bound(limits: &super::DocumentLimits) -> Option<u64> {
     // A task page prices every nested authority, part, chip, form and result
     // carrier. A proposal batch or person task can hold one per bounded line.
-    super::task_tree::overview_worst_case(limits)?
+    super::task_tree::overview_bound(limits)?
         .checked_mul(u64::from(limits.lines).checked_add(4)?)?
-        .checked_add(u64::from(limits.lines).checked_add(2)?.checked_mul(super::offers::heap_worst_case(limits)?)?)?
+        .checked_add(u64::from(limits.lines).checked_add(2)?.checked_mul(super::offers::heap_bound(limits)?)?)?
         .checked_add(u64::try_from(size_of::<Proposal>()).ok()?)?
         .checked_add(u64::try_from(size_of::<PersonTask>()).ok()?)
 }

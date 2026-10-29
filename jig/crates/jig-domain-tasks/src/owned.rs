@@ -195,7 +195,7 @@ fn contract_bytes(contract: &Contract) -> Option<u64> {
             match &part.key {
                 crate::PartKey::Number(_) => {}
                 crate::PartKey::Path(segments) => {
-                    total = total.checked_add(skein_lib::List::<Box<[u8]>>::worst_case(segments.capacity())?)?;
+                    total = total.checked_add(skein_lib::List::<Box<[u8]>>::price(segments.capacity())?)?;
                     for segment in segments {
                         total = total.checked_add(bytes(segment.len())?)?;
                     }

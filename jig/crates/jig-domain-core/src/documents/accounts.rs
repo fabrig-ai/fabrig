@@ -96,7 +96,7 @@ pub(super) fn source_lines(core: &Core, limits: &Limits, account: &accounts::Acc
 #[expect(clippy::manual_map, reason = "step code has no closures (programming-model.md, section 10)")]
 pub(super) fn make(core: &Core, limits: &Limits, party: u64, owner: u64, window: &Window) -> Result<Accounts, Missing> {
     core.people.identity(party).ok_or(Missing::Unknown)?;
-    if super::document_worst_case(&limits.documents).is_none() || window.rows > limits.documents.rows {
+    if super::document_bound(&limits.documents).is_none() || window.rows > limits.documents.rows {
         return Err(Missing::TooLarge);
     }
     if owner != party {
@@ -179,7 +179,7 @@ fn serves_work(core: &Core, party: u64) -> bool {
     false
 }
 
-pub(super) fn worst_case(limits: &DocumentLimits) -> Option<u64> {
+pub(super) fn document_bound(limits: &DocumentLimits) -> Option<u64> {
     let account_heap = List::<SourceLine>::price(limits.lines)?
         .checked_add(u64::from(limits.lines).checked_mul(u64::from(accounts::NAME))?)?
         .checked_add(u64::from(limits.text_bytes).checked_mul(2)?)?
@@ -187,11 +187,11 @@ pub(super) fn worst_case(limits: &DocumentLimits) -> Option<u64> {
         .checked_add(List::<accounts::Use>::price(accounts::USES)?)?;
     u64::try_from(size_of::<Accounts>())
         .ok()?
-        .checked_add(super::programs::hosts_worst_case(limits)?)?
+        .checked_add(super::programs::hosts_bound(limits)?)?
         .checked_add(List::<AccountLine>::price(limits.lines)?)?
         .checked_add(u64::from(limits.lines).checked_mul(account_heap)?)?
         .checked_add(List::<SignInLine>::price(limits.lines)?)?
-        .checked_add(super::catalogue::rows_worst_case(limits)?)
+        .checked_add(super::catalogue::rows_bound(limits)?)
 }
 
 /// Copy an account's explicit uses without changing the default/empty distinction.
@@ -247,7 +247,7 @@ mod tests {
     #[test]
     fn the_accounts_document_is_priced() {
         let limits = crate::tests::limits();
-        let accounts = super::worst_case(&limits.documents).expect("accounts bound");
-        assert!(accounts <= crate::documents::document_worst_case(&limits.documents).expect("document bound"));
+        let accounts = super::document_bound(&limits.documents).expect("accounts bound");
+        assert!(accounts <= crate::documents::document_bound(&limits.documents).expect("document bound"));
     }
 }

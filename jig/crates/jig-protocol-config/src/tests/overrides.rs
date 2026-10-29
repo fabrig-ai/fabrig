@@ -26,7 +26,7 @@ fn an_override_of_an_unknown_name_is_refused() {
 fn an_override_past_its_type_is_refused() {
     assert_eq!(overrides::apply(&mut small(), b"hub.slots", 4_294_967_296), Err(What::Override));
 }
-fn an_override_that_breaks_a_worst_case_is_refused_naming_it() {
+fn an_override_that_breaks_a_bound_is_refused_naming_it() {
     problem(
         br#"{"profile":"small","overrides":{"tasks.tasks":0}}"#,
         &[b"limits", b"overrides", b"tasks.tasks"],
@@ -352,10 +352,7 @@ fn table<const N: usize>(cases: [Case; N]) {
 #[test]
 fn override_document_problems_name_the_invalid_fields() {
     table([
-        (
-            "an_override_that_breaks_a_worst_case_is_refused_naming_it",
-            an_override_that_breaks_a_worst_case_is_refused_naming_it,
-        ),
+        ("an_override_that_breaks_a_bound_is_refused_naming_it", an_override_that_breaks_a_bound_is_refused_naming_it),
         ("an_unknown_profile_is_refused_naming_it", an_unknown_profile_is_refused_naming_it),
         ("a_missing_profile_is_refused_naming_it", a_missing_profile_is_refused_naming_it),
         ("an_unknown_limits_member_is_refused_naming_it", an_unknown_limits_member_is_refused_naming_it),
@@ -527,9 +524,9 @@ fn pending_settings_proposals_are_positive_and_keep_the_profile_defaults() {
 fn the_journal_prices_each_pending_settings_withdrawal() {
     let mut limits = small().core;
     limits.settings.proposals = 1;
-    let one = jig_domain_core::settings::writes_worst_case(&limits).expect("write room");
+    let one = jig_domain_core::settings::writes_bound(&limits).expect("write room");
     limits.settings.proposals = 2;
-    let two = jig_domain_core::settings::writes_worst_case(&limits).expect("write room");
+    let two = jig_domain_core::settings::writes_bound(&limits).expect("write room");
     // Task withdrawal: set erase, terminal history, two activity rows and up to three live rows.
     assert_eq!(two - one, 7);
 }

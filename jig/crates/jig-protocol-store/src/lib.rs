@@ -255,7 +255,7 @@ pub(crate) fn decoded_worst_case(limits: &Limits) -> Option<u64> {
         .checked_add(notes_v1::Row::decoded_bound(&codec.notes)?)?
         .checked_add(accounts_v2::Row::decoded_bound(&accounts_v2::CEILINGS)?)?
         .checked_add(settings_v1::Revision::decoded_bound(&codec.settings)?)?
-        .checked_add(jig_domain_core::settings::revision_worst_case(&limits.core)?)?
+        .checked_add(jig_domain_core::settings::revision_bound(&limits.core)?)?
         .checked_add(u64::try_from(size_of::<jig_domain_tasks::TaskRecord>()).ok()?)?
         .checked_mul(2)
 }

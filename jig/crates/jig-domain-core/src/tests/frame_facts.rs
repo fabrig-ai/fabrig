@@ -89,7 +89,7 @@ fn frame_watch_receives_pool_ledger_changes_after_their_decision() {
         authority::Limits { projects: 2, ..*core.authority.limits() },
     )
     .expect("two project authority");
-    let mut facts = Queue::with_capacity(authority::POLICY_MAX_OUT);
+    let mut facts = Queue::uncapped();
     for project in [1, 2] {
         authority::step(&mut core.authority, authority::Event::Policy { project, policy: policy.clone() }, &mut facts);
         assert_eq!(facts.pop(), Some(authority::PolicyFact::Added { project }));
@@ -217,7 +217,7 @@ fn me_carries_a_members_creating_bounds_per_project() {
     let mut policy = core.authority.policy(1).unwrap().clone();
     policy.roles[0].number = people::Role::Member.number();
     policy.escalation_role = Some(people::Role::Member.number());
-    let mut out = Queue::with_capacity(authority::POLICY_MAX_OUT);
+    let mut out = Queue::uncapped();
     authority::step(&mut core.authority, authority::Event::Policy { project: 1, policy }, &mut out);
     assert_eq!(out.pop(), Some(authority::PolicyFact::Changed { project: 1 }));
     hold(&mut core, &limits, people::Role::Member);
@@ -236,7 +236,7 @@ fn me_shows_the_models_a_partys_role_may_use_in_each_project() {
     let mut policy = core.authority.policy(1).unwrap().clone();
     policy.ceiling.models = authority::Models::Named(0b011);
     policy.roles[0].authority.models = authority::Models::Named(0b110);
-    let mut out = Queue::with_capacity(authority::POLICY_MAX_OUT);
+    let mut out = Queue::uncapped();
     authority::step(&mut core.authority, authority::Event::Policy { project: 1, policy }, &mut out);
     assert_eq!(out.pop(), Some(authority::PolicyFact::Changed { project: 1 }));
     let value = frame(&core, &limits);

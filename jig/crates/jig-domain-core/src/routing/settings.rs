@@ -187,7 +187,7 @@ pub(super) fn decide(
 }
 
 pub(super) fn route_writes(limits: &Limits) -> Option<u32> {
-    s::writes_worst_case(limits)?.checked_add(people::outputs_bound(&limits.people))
+    s::writes_bound(limits)?.checked_add(people::outputs_bound(&limits.people))
 }
 
 #[expect(clippy::too_many_arguments, reason = "one keyed proposal envelope and its held value")]

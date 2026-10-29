@@ -531,7 +531,7 @@ pub fn make_with_clock(
         }
         super::Subject::Deployment => {
             core.people.identity(party).ok_or(Missing::Unknown)?;
-            if super::document_worst_case(&limits.documents).is_none() || window.rows > limits.documents.rows {
+            if super::document_bound(&limits.documents).is_none() || window.rows > limits.documents.rows {
                 return Err(Missing::TooLarge);
             }
             Ok(super::Document::Deployment(Box::new(deployment(core, limits, party, Some(clock))?)))
@@ -554,7 +554,7 @@ pub fn make_with_clock(
         | super::Subject::Application { .. } => super::make(core, limits, party, subject, window, clock.wall),
     }
 }
-pub(super) fn worst_case(limits: &super::DocumentLimits) -> Option<u64> {
+pub(super) fn document_bound(limits: &super::DocumentLimits) -> Option<u64> {
     let carriers = u64::from(limits.lines)
         .checked_mul(u64::from(limits.lines))?
         .checked_add(u64::from(limits.rows).checked_mul(2)?)?
@@ -567,11 +567,11 @@ pub(super) fn worst_case(limits: &super::DocumentLimits) -> Option<u64> {
         .checked_add(u64::from(limits.text_bytes).checked_mul(2)?)?
         .checked_add(u64::from(accounts::MANAGE_USAGE))?
         .checked_add(List::<accounts::Use>::price(accounts::USES)?)?;
-    super::task_tree::worst_case(limits)?
+    super::task_tree::document_bound(limits)?
         .checked_mul(carriers)?
         .checked_add(
             u64::from(limits.lines)
-                .checked_mul(u64::from(fleet::WORKER_NAME).checked_add(super::programs::logins_worst_case(limits)?)?)?,
+                .checked_mul(u64::from(fleet::WORKER_NAME).checked_add(super::programs::logins_bound(limits)?)?)?,
         )?
         // HostRule's tag and u64 payload occupy 16 aligned bytes per host.
         .checked_add(u64::from(limits.lines).checked_mul(u64::try_from(size_of::<crate::HostRule>()).ok()?)?)?
@@ -582,6 +582,6 @@ pub(super) fn worst_case(limits: &super::DocumentLimits) -> Option<u64> {
         .checked_add(List::<tasks::CapacityRefusal>::price(limits.lines)?)?
         .checked_add(List::<u16>::price(limits.lines)?)?
         .checked_add(u64::try_from(size_of::<Deployment>()).ok()?)?
-        .checked_add(super::catalogue::offers_worst_case(limits)?)?
-        .checked_add(super::catalogue::rows_worst_case(limits)?)
+        .checked_add(super::catalogue::offers_bound(limits)?)?
+        .checked_add(super::catalogue::rows_bound(limits)?)
 }

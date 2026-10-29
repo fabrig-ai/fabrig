@@ -750,13 +750,13 @@ fn documents_clamp_oversized_windows_and_reject_invalid_bounds() {
     assert_eq!(tree.rows.get(0).unwrap().chip.number, 3);
     assert_eq!(tree.rows.get(1).unwrap().chip.number, 4);
     assert_eq!(tree.next, None);
-    assert!(document_worst_case(&limits.documents).is_some());
+    assert!(document_bound(&limits.documents).is_some());
     limits.documents.lines = 0;
-    assert_eq!(document_worst_case(&limits.documents), None);
+    assert_eq!(document_bound(&limits.documents), None);
     assert_eq!(make(&core, &limits, 1, &subject, &window(), Wall::EPOCH), Err(Missing::TooLarge));
     limits.documents.lines = u32::MAX;
     limits.documents.chips = u32::MAX;
-    assert_eq!(document_worst_case(&limits.documents), None);
+    assert_eq!(document_bound(&limits.documents), None);
 }
 
 fn tree_core() -> (Core, Limits) {
@@ -973,7 +973,7 @@ fn documents_part_keys_are_preserved_or_refused_whole() {
     };
     assert_eq!(task.authority.grants.get(0).unwrap().segments.get(0).unwrap().as_ref(), b"whole");
     assert_eq!(task.authority.grants.get(0).unwrap().last, PatternEnd::Exact(b"end".as_slice().into()));
-    assert!(document_worst_case(&limits.documents).is_some());
+    assert!(document_bound(&limits.documents).is_some());
     assert!(valid(&limits));
 }
 
@@ -1637,7 +1637,7 @@ fn documents_project_exposes_two_roles_members_pool_and_resource_parts() {
     let mut admitted = authority_limits();
     admitted.roles = 2;
     core.authority = authority::Domain::new(core.authority.rules().clone(), admitted).unwrap();
-    let mut out = Queue::with_capacity(authority::POLICY_MAX_OUT);
+    let mut out = Queue::uncapped();
     authority::step(&mut core.authority, authority::Event::Policy { project: 1, policy }, &mut out);
     assert_eq!(out.pop(), Some(authority::PolicyFact::Added { project: 1 }));
     let first_identity = core.people.identity(1).unwrap().clone();
@@ -3179,7 +3179,7 @@ fn goal_deadlines_are_checked_against_the_role_and_policy() {
     let later = Wall::from_nanos(3_000_000_000);
     let mut policy = core.authority.policy(1).expect("configured project").clone();
     policy.roles[0].authority.budget.deadline = Some(deadline);
-    let mut out = Queue::with_capacity(authority::POLICY_MAX_OUT);
+    let mut out = Queue::uncapped();
     authority::step(&mut core.authority, authority::Event::Policy { project: 1, policy: policy.clone() }, &mut out);
     let started = crate::acts::bounds::create_start(
         &core,
