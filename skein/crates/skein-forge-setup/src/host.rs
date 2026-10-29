@@ -5,8 +5,6 @@ pub(crate) mod connection;
 #[path = "tests/github_host.rs"]
 mod install_tests;
 mod limits;
-mod memory;
-pub use memory::worst_case;
 pub(crate) mod run;
 mod settings;
 #[cfg(test)]
@@ -357,7 +355,7 @@ impl Host {
 }
 fn open(run: Token, forge: &Forge, agent: &[u8], send: &Send, env: &Env<Limits>) -> Result<Connection, Refused> {
     // A call's rows stay within the page the host's heap priced (6.5).
-    match (connection::row_bound(&send.call), memory::largest_page(&env.limits, &forge.kind)) {
+    match (connection::row_bound(&send.call), limits::largest_page(&env.limits, &forge.kind)) {
         (Some(rows), Some(priced)) if rows <= priced => {}
         _ => return Err(Refused::Unexpected),
     }
@@ -428,4 +426,4 @@ pub(super) fn about(forge: &Forge, plan: &Plan, why: Why) -> Failure {
 
 #[cfg(test)]
 #[path = "host/tests.rs"]
-mod memory_tests;
+mod tests;

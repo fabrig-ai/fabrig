@@ -50,20 +50,6 @@ fn a_listing_past_the_priced_page_is_refused_at_open() {
 }
 
 #[test]
-fn creation_heap_admission_prices_every_file_and_its_content() {
-    let limits = crate::tests::host::limits();
-    let mut settings = crate::tests::host::settings(&[1]);
-    let first = worst_case(&limits, &settings).expect("settings admitted");
-    let forge = settings.forges.get_mut(0).expect("forge");
-    let Kind::Forgejo(given) = &mut forge.kind else { unreachable!() };
-    given.limits.files = 2;
-    given.limits.file_bytes = 8192;
-    let more = worst_case(&limits, &settings).expect("larger files admitted");
-    // An additional full 8192-byte file plus both paths and file records is retained.
-    assert!(more >= first + 8192);
-}
-
-#[test]
 fn valid_accepts_test_limits() {
     let l = crate::tests::host::limits();
     let settings = crate::tests::host::settings(&[1]);

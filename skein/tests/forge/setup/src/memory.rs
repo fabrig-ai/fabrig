@@ -161,8 +161,7 @@ pub enum Kinds {
 /// Peak of the host's own heap, with simultaneous full run/connection slots.
 #[derive(Debug)]
 pub struct Full {
-    pub owned: u64,
-    pub bound: u64,
+    pub peak: u64,
     pub runs: u32,
     pub connections: u32,
     pub states: u32,
@@ -203,10 +202,9 @@ fn forge(kind: skein_forge_setup::host::Kind) -> skein_forge_setup::host::Forge 
 /// Runs the configured host with every run and connection slot occupied at
 /// once, then completes through its in-memory peers and releases every state.
 #[must_use]
-pub fn full_heap(kinds: Kinds, tls: bool) -> Full {
+pub fn full_heap(kinds: Kinds, tls: bool, ceiling: u64) -> Full {
     let l = fixtures::host_limits();
     let configured = settings(kinds, tls);
-    let bound = skein_forge_setup::host::worst_case(&l, &configured).expect("bound");
     let numbers: Vec<_> = configured.forges.as_slice().iter().map(skein_forge_setup::host::Forge::number).collect();
     // Trust is shared with an owner outside the measured host.
     let trust = configured.forges.as_slice().iter().find_map(|f| match &f.transport {
@@ -223,7 +221,7 @@ pub fn full_heap(kinds: Kinds, tls: bool) -> Full {
     }
     w.wall_base = Some(pki::VALID);
     w.set_time(Time::ZERO);
-    let mut steps = Steps::new(bound);
+    let mut steps = Steps::new(ceiling);
     steps.start();
     let mut configured = settings(kinds, false);
     if let Some(trust) = &trust {
@@ -301,6 +299,6 @@ pub fn full_heap(kinds: Kinds, tls: bool) -> Full {
     // Empty output buffers grew inside host steps, so release them with the host.
     let Metered { host, above, below, measurement: _ } = w.host;
     assert!(above.is_empty() && below.is_empty());
-    let owned = m.steps.finish((host, above, below), 0, &"host releases its own heap");
-    Full { owned, bound, runs: l.runs, connections: l.runs, states: u32::try_from(states.len()).expect("states") }
+    let peak = m.steps.finish((host, above, below), 0, &"host releases its own heap");
+    Full { peak, runs: l.runs, connections: l.runs, states: u32::try_from(states.len()).expect("states") }
 }
