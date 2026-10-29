@@ -572,7 +572,8 @@ fn restore_milestone(core: &mut Core, limits: &Limits, goal: u64, milestone: Pro
     if count >= core.routes {
         return false;
     }
-    let mut milestones = List::with_capacity(count + 1);
+    let mut milestones =
+        List::with_capacity(count.checked_add(1).expect("validated milestone count leaves room for one"));
     for old in &state.milestones {
         if old.identity == milestone.identity || milestones.push(old.clone()).is_err() {
             return false;
