@@ -42,14 +42,15 @@
 //! event, at most [`Limits::event`] bytes of its lines, endings and blank
 //! line included, so a stream that never ends an event fails, whatever it
 //! sends; an event's type or id, at most [`Limits::field`]. Past any of
-//! them, the stream fails. [`worst_case`] is what a reader holds;
+//! them, the stream fails. The reader holds its data intake, one bounded
+//! line piece, event type and ID fields, and the last ID and its buffer.
 //! [`largest_demand`] is what whoever stacks it checks against the side
 //! below at startup.
 
 use alloc::boxed::Box;
 
 use skein_lib::stream::{Down, Fault, Read, Up};
-use skein_lib::{Env, Intake, List, Queue, bytes};
+use skein_lib::{Env, Intake, Queue, bytes};
 
 mod lines;
 pub mod writer;
@@ -83,24 +84,6 @@ pub struct Limits {
 #[must_use]
 pub fn largest_demand(limits: &Limits) -> u32 {
     limits.chunk
-}
-
-/// The most memory a reader holds under `limits`, in bytes
-/// (programming-model.md, 6.3), or `None` if it does not fit a `u64` or the
-/// limits cannot be honoured: a [`Limits::chunk`] of zero.
-///
-/// It is the data intake and one bounded line piece, each at most
-/// [`Limits::chunk`]; and its type, ID field, last ID buffer and last ID,
-/// each at most [`Limits::field`]. Emitted data and dispatch metadata
-/// belong to their receiver (programming-model.md, 6.2).
-#[must_use]
-pub fn worst_case(limits: &Limits) -> Option<u64> {
-    if limits.chunk == 0 {
-        return None;
-    }
-    let data = Intake::price(limits.chunk)?;
-    let fields = List::<u8>::price(limits.field)?.checked_mul(4)?;
-    data.checked_add(fields)?.checked_add(u64::from(limits.chunk))
 }
 
 /// From the owner: an event demand, its data face, or the reader's close.

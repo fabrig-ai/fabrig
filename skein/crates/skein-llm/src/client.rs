@@ -10,7 +10,6 @@
 
 use alloc::boxed::Box;
 use core::mem;
-use core::mem::size_of;
 
 use skein_http::{Header, Method, client as http, sse};
 use skein_json::{Document, collector, tokenizer};
@@ -1569,39 +1568,6 @@ pub fn valid(limits: &Limits) -> bool {
         && anthropic::filter::valid(limits)
 }
 
-/// Fixed machine, table and buffer capacities, excluding the pool's request
-/// and receiving reservation and the caller-owned prompt/output payloads.
-/// Standalone owners add `largest_reservation` and their entry-point scratch.
-#[must_use]
-pub fn worst_case(limits: &Limits) -> Option<u64> {
-    if !valid(limits) {
-        return None;
-    }
-    let mut http_fixed = limits.http;
-    http_fixed.request = 0; // The admitted encoded head belongs to the reservation.
-    let native = limits.native();
-    let decoder = openai::response::decoder_fixed_bound(&native)?
-        .max(anthropic::decoder_bound(&native)?.checked_sub(u64::from(limits.answer))?);
-    u64::try_from(size_of::<Client>())
-        .ok()?
-        .checked_add(http::worst_case(&http_fixed)?)?
-        .checked_add(sse::worst_case(&event_stream(limits))?)?
-        .checked_add(decoder)?
-        .checked_add(List::<Block>::price(limits.output_items)?.checked_mul(3)?)?
-        .checked_add(
-            collector::collector_bound(&filter::collector(limits), &filter::caps(limits), &openai::filter::EVENT)?.max(
-                collector::collector_bound(
-                    &filter::collector(limits),
-                    &filter::caps(limits),
-                    &anthropic::filter::EVENT,
-                )?,
-            ),
-        )?
-        .checked_add(u64::from(limits.error_bytes).checked_mul(4)?)?
-        .checked_add(u64::from(limits.error_bytes).checked_add(1)?)?
-        .checked_add(crate::document::document_bound(&error_document(limits))?)?
-        .checked_add(u64::from(REPORT_BYTES).checked_mul(3)?)
-}
 /// Bounds request encoding workspace.
 /// One borrowed request's fixed encoder/grammar scratch, excluding its reserved bytes.
 /// Neither document density nor request counts grow it (llm.md, section 4.2).
