@@ -6,8 +6,8 @@ Provisional, 2026-10-28. Builder disk cleanup and local slot bookkeeping.
 
 - **Trim on the builder:** `tools/slots/trim [--older MINUTES] [SLOT ...]`
   deletes old test executables and prints each slot's count, decimal GB of
-  file sizes removed, and filesystem free GB. Default age is 120 minutes;
-  default slots are `~/src/fabrig/slots/*`.
+  file sizes removed, filesystem free GB, and skipped processes. Default age
+  is 120 minutes; default slots are `~/src/fabrig/slots/*`.
 - **Claim on hel8:** `tools/slots/claim claim HOST N OWNER WHAT` records a
   holder atomically, `release HOST N OWNER` removes its own claim, and
   `list` shows every configured slot and its age. No network operations.
@@ -25,8 +25,12 @@ nonexecutables, and files modified at or after the cutoff stay. A symlink
 in a slot's deps path is an error; an absent deps directory removes nothing.
 Immediately before deleting a slot's candidates, scan `/proc/*/fd` metadata
 for processes owned by the current uid. Compare device and inode, so an open
-file's hard links are protected too. Vanishing processes and descriptors
-are skipped; unreadable same-user descriptors fail that slot before deletion.
+file's hard links are protected too. A process is skipped if its metadata,
+fd directory, or an fd link raises `PermissionError`, `FileNotFoundError`, or
+`ProcessLookupError`. Count each such process once per slot's scan. Continue
+scanning its readable fd links, whose inodes remain protected. Other errors
+fail the slot before deletion.
+Slots without candidates skip the scan and report zero skipped processes.
 Never read descriptor contents or another process's environment.
 
 Recheck each candidate's identity, mode, size, mtime and ctime before unlinking.

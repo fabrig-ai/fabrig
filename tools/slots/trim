@@ -2,7 +2,6 @@
 """Trim idle test executables (tools/slots/design.md, 2). Standalone for ssh stdin."""
 
 import argparse
-import errno
 import os
 from pathlib import Path
 import shutil
@@ -19,9 +18,11 @@ def open_files(proc=Path("/proc"), uid=None):
     """Read only fd metadata of this user's processes, never their contents."""
     uid = os.getuid() if uid is None else uid
     held = set()
+    skipped = 0
     for process in proc.iterdir():
         if not process.name.isdecimal():
             continue
+        unavailable = False
         try:
             if process.stat().st_uid != uid:
                 continue
@@ -29,13 +30,12 @@ def open_files(proc=Path("/proc"), uid=None):
                 try:
                     info = fd.stat()
                     held.add((info.st_dev, info.st_ino))
-                except OSError as error:
-                    if error.errno not in (errno.ENOENT, errno.ESRCH):
-                        raise
-        except OSError as error:
-            if error.errno not in (errno.ENOENT, errno.ESRCH):
-                raise
-    return held
+                except (PermissionError, FileNotFoundError, ProcessLookupError):
+                    unavailable = True
+        except (PermissionError, FileNotFoundError, ProcessLookupError):
+            unavailable = True
+        skipped += int(unavailable)
+    return held, skipped
 
 
 def eligible(path, info, cutoff):
@@ -55,7 +55,7 @@ def trim(slot, cutoff, *, held_files=open_files):
     if not slot.is_dir():
         raise RuntimeError(f"not a slot directory: {slot}")
     if not deps.exists():
-        return 0, 0
+        return 0, 0, 0
     candidates = []
     for path in deps.iterdir():
         try:
@@ -64,7 +64,7 @@ def trim(slot, cutoff, *, held_files=open_files):
             continue
         if eligible(path, info, cutoff):
             candidates.append((path, info))
-    held = held_files() if candidates else set()
+    held, skipped = held_files() if candidates else (set(), 0)
     count, size = 0, 0
     for path, before in candidates:
         if (before.st_dev, before.st_ino) in held:
@@ -78,7 +78,7 @@ def trim(slot, cutoff, *, held_files=open_files):
             continue
         count += 1
         size += current.st_size
-    return count, size
+    return count, size, skipped
 
 
 def minutes(value):
@@ -100,9 +100,10 @@ def main():
     for slot in slots:
         slot = slot.expanduser().absolute()
         try:
-            count, size = trim(slot, cutoff)
+            count, size, skipped = trim(slot, cutoff)
             free = shutil.disk_usage(slot).free / GB
-            print(f"{slot}: {count} executables, {size / GB:.3f} GB freed; {free:.3f} GB free")
+            print(f"{slot}: {count} executables, {size / GB:.3f} GB freed; "
+                  f"{free:.3f} GB free; {skipped} processes skipped")
         except (OSError, RuntimeError) as error:
             print(f"trim: {slot}: {error}", file=sys.stderr)
             failed = True
