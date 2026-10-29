@@ -78,7 +78,12 @@ fn pump(service: &mut crate::Service) -> Option<w::Outcome> {
                 root::Request::Party(root::PartyRequest::Deliver(root::Delivery::WebReply { reply, .. })) => {
                     match reply {
                         people::Reply::SignedIn { .. } => {}
-                        reply => panic!("unexpected family web reply: {reply:?}"),
+                        reply @ (people::Reply::Signer(_)
+                        | people::Reply::SignedOut
+                        | people::Reply::Outcome(_)
+                        | people::Reply::Again(_)
+                        | people::Reply::Full { .. }
+                        | people::Reply::Refused(_)) => panic!("unexpected family web reply: {reply:?}"),
                     }
                 }
                 request @ root::Request::Party(root::PartyRequest::Deliver(root::Delivery::CarriedUnused {
@@ -87,7 +92,27 @@ fn pump(service: &mut crate::Service) -> Option<w::Outcome> {
                     crate::route::request(engine, request);
                 }
                 root::Request::Party(_) => {}
-                request => crate::route::request(engine, request),
+                request @ (root::Request::Unsettled(_)
+                | root::Request::Bound { .. }
+                | root::Request::StopGroup { .. }
+                | root::Request::SetUpGroup { .. }
+                | root::Request::Return { .. }
+                | root::Request::SetUp { .. }
+                | root::Request::Connect { .. }
+                | root::Request::Manifest { .. }
+                | root::Request::Reachable { .. }
+                | root::Request::Accept { .. }
+                | root::Request::Install { .. }
+                | root::Request::EraseCarried { .. }
+                | root::Request::Setup { .. }
+                | root::Request::Store(_)
+                | root::Request::Worker(_)
+                | root::Request::Forge { .. }
+                | root::Request::Account(_)
+                | root::Request::ToChild(_)
+                | root::Request::Busy(_)
+                | root::Request::Drained
+                | root::Request::Stop) => crate::route::request(engine, request),
             }
         }
         engine.step(root::Event::Resume);
@@ -368,6 +393,33 @@ fn key_revocation_is_shown_in_human_and_json_status() {
         let printed = render_tests::status(&service, json);
         assert_eq!(printed.status, 0);
         assert!(contains(&printed.stdout, b"KeyRefused"));
+    }
+}
+
+#[test]
+fn a_successful_paste_retry_clears_the_rows_readable_failure() {
+    const REASON: &[u8] = b"GitHub refused the App's id and key (401): check both are the same App's.";
+    let (mut service, bearer) = http_owner();
+    let _connecting = http_paste(&mut service, &bearer, 1, 7);
+    let mut face = Face::new();
+    face.sent(&mut service);
+    face.reply_status(&mut service, b"401 Unauthorized", b"{}");
+    let _failed = pump(&mut service);
+    assert_eq!(service.engine.as_ref().unwrap().domain.forges().rows[0].ended.as_deref(), Some(REASON));
+    for json in [false, true] {
+        let printed = render_tests::status(&service, json);
+        assert_eq!(printed.status, 0);
+        assert!(contains(&printed.stdout, REASON));
+    }
+    let _retry = http_paste(&mut service, &bearer, 2, 7);
+    paste_success(&mut service, &mut Face::new());
+    show_connected(&mut service);
+    assert_eq!(service.engine.as_ref().unwrap().domain.forges().rows[0].ended, None);
+    for json in [false, true] {
+        let printed = render_tests::status(&service, json);
+        assert_eq!(printed.status, 0);
+        assert!(!contains(&printed.stdout, REASON));
+        assert!(contains(&printed.stdout, b"app-fixture"));
     }
 }
 

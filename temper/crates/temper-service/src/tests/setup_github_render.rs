@@ -87,7 +87,12 @@ fn render(words: &[&[u8]], json: bool, record: &Record) -> tools::jig::Printed {
                     },
                 })
             }
-            _ => None,
+            cli::Request::Client { .. }
+            | cli::Request::Ready
+            | cli::Request::Record { .. }
+            | cli::Request::Kept { .. }
+            | cli::Request::Progress { .. }
+            | cli::Request::Fact { .. } => None,
         };
         if let Some(event) = event {
             cli::step(&mut root, &env, cli::Event::Client { event }, &mut out);
