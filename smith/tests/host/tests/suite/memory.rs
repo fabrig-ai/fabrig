@@ -75,7 +75,7 @@ struct Measured {
     env: Env<Limits>,
     out: Queue<Output>,
     meter: Meter,
-    bound: u64,
+    ceiling: u64,
     held_start: Option<Start>,
     held_messages: Vec<Box<[u8]>>,
     retain_message: bool,
@@ -91,7 +91,7 @@ impl Measured {
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             out,
             meter,
-            bound: ceiling,
+            ceiling,
             held_start: None,
             held_messages,
             retain_message: false,
@@ -161,10 +161,8 @@ impl Measured {
         // The output buffer belongs to the harness and is handed out with its outputs.
         assert!(self.out.is_empty());
         self.out = Queue::with_capacity(self.out.capacity());
-        // A growing ring holds old and new buffers at the peak; after handoff,
-        // held storage stays within the formula and the peak within twice it.
-        self.meter.check(measurement, 2 * self.bound, &self.env.limits);
-        assert!(self.meter.held() <= self.bound, "held storage within the host and caller formula");
+        // The scenario's total includes transient ring growth and retained ownership.
+        self.meter.check(measurement, self.ceiling, &self.env.limits);
         self.domain.reclaim();
         owner
     }
@@ -199,8 +197,10 @@ impl Measured {
     }
 }
 
-// Peaks for 1, 8 and 32 slots retaining maximum starts and full queued replies.
-const FULL_SLOT_CEILINGS: [(u32, u64); 3] = [(1, 97_000), (8, 240_000), (32, 700_000)];
+// Peaks measured 2026-10-29: 78,346, 146,008 and 377,992 bytes for 1, 8 and 32
+// slots retaining maximum starts and full queued replies; 25% headroom, rounded up
+// to two significant digits.
+const FULL_SLOT_CEILINGS: [(u32, u64); 3] = [(1, 98_000), (8, 190_000), (32, 480_000)];
 
 #[test]
 fn maximum_v2_starts_and_full_queued_replies_fit_every_slot() {
@@ -287,8 +287,9 @@ fn maximum_v2_starts_and_full_queued_replies_fit_every_slot() {
     }
 }
 
-// Peak while IO retains the maximum Start beside a full pre-read message queue.
-const START_IO_CEILING: u64 = 220_000;
+// Peak measured 2026-10-29: 167,738 bytes while IO retains the maximum Start
+// beside a full pre-read message queue; 25% headroom, rounded up to two significant digits.
+const START_IO_CEILING: u64 = 210_000;
 
 #[test]
 fn maximum_start_io_ownership_coexists_with_full_pre_read_message_queue() {
@@ -336,8 +337,9 @@ fn maximum_start_io_ownership_coexists_with_full_pre_read_message_queue() {
     measured.cleanup(owner, 0, true);
 }
 
-// Peak while maximum delivery receipts coexist with shutdown rights.
-const DELIVERY_SHUTDOWN_CEILING: u64 = 54_000;
+// Peak measured 2026-10-29: 39,344 bytes while maximum delivery receipts coexist
+// with shutdown rights; 25% headroom, rounded up to two significant digits.
+const DELIVERY_SHUTDOWN_CEILING: u64 = 50_000;
 
 #[test]
 fn delivery_replies_and_shutdown_rights_stay_priced() {
@@ -407,8 +409,9 @@ fn checked_capacity_arithmetic_refuses_unrepresentable_or_incompatible_caps() {
     assert!(!host::valid(&limits));
 }
 
-// Peak while a spawning agent owns its maximum carried Start messages.
-const CARRIED_START_CEILING: u64 = 13_000;
+// Peak measured 2026-10-29: 4,380 bytes while a spawning agent owns its maximum
+// carried Start messages; 25% headroom, rounded up to two significant digits.
+const CARRIED_START_CEILING: u64 = 5_500;
 
 #[test]
 fn maximum_carried_start_messages_are_owned_and_priced_during_spawn() {

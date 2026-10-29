@@ -6,8 +6,9 @@ use smith_host_domain::parent;
 use smith_host_world::inline;
 use smith_inline_agent::{Domain, Input, Output};
 
-// Peak with two full inline roots, their carried messages and emitted prompts.
-const INLINE_SLOTS_CEILING: u64 = 5_500_000;
+// Peak measured 2026-10-29: 189,354 bytes with two full inline roots, their carried
+// messages and emitted prompts; 25% headroom, rounded up to two significant digits.
+const INLINE_SLOTS_CEILING: u64 = 240_000;
 
 #[test]
 fn two_full_inline_slots_and_their_emitted_prompts_stay_under_the_ceiling() {
