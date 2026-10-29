@@ -485,8 +485,7 @@ pub fn check_story(story: Story, outcome: &skein_world::Outcome<Script, RootMach
             assert_eq!(parent.child_exit, Some(Exit::Signal(9)), "the parent's wait preserves the kill terminal");
             assert_eq!(outcome.procs.len(), 1, "the child is dropped after its kill");
             assert_eq!(outcome.killed.len(), 1, "the harness records the terminated child");
-            let (peak, bound) = outcome.killed[0].heap.expect("the killed child was metered and its drop checked");
-            assert_eq!(bound, KILL_CEILING);
+            let peak = outcome.killed[0].peak().expect("the killed child was metered and its drop checked");
             assert!(peak > 0 && peak <= KILL_CEILING, "the killed child's heap fits the scenario ceiling");
         }
         Story::EarlyExit => {
@@ -509,9 +508,11 @@ pub fn check_story(story: Story, outcome: &skein_world::Outcome<Script, RootMach
         }
     }
     if matches!(story, Story::Memory) {
-        let (peak, bound) = outcome.heap.as_ref().expect("checked heaps")[1];
-        assert_eq!(bound, MEMORY_CEILING);
-        assert!(peak <= MEMORY_CEILING, "the child's full payload stays within the scenario ceiling: {peak}/{bound}");
+        let peak = outcome.peaks().expect("checked heaps")[1];
+        assert!(
+            peak <= MEMORY_CEILING,
+            "the child's full payload stays within the scenario ceiling: {peak}/{MEMORY_CEILING}"
+        );
         assert_eq!(outcome.procs[1].held.len(), FULL_PAYLOAD_BYTES, "the child retains its full payload at settlement");
     }
 }

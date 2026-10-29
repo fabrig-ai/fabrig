@@ -40,7 +40,7 @@ fn sign_in_redirect_and_refresh_run_in_separate_processes_and_replay() {
     let second = sign_in::run(59, Story::Public, true, false, Memory::Checked);
     sign_in::assert_replay(&first, &second);
     assert_clients_settle_before_issuer(&first);
-    assert_eq!(first.heap, second.heap);
+    assert_eq!(first.peaks(), second.peaks());
 }
 #[test]
 fn full_issuer_tokens_plans_codes_and_rotations_fit_the_process_heap() {

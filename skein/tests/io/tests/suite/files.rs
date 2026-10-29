@@ -76,7 +76,7 @@ fn the_largest_admitted_store_stays_within_its_memory_ceiling() {
     let mut outcome = world(23, Config::calm(), Story::Replace, None, 65_536).run();
     assert!(matches!(outcome.procs[0].events[0], Event::Stored { .. }));
     assert_eq!(outcome.machine.bytes(b"record"), vec![b'n'; 65_536]);
-    assert!(outcome.heap.as_ref().expect("checked memory").iter().all(|(peak, _)| *peak <= CEILING));
+    assert!(outcome.peaks().expect("checked memory").iter().all(|peak| *peak <= CEILING));
     outcome.machine.finish();
 }
 
@@ -193,7 +193,7 @@ fn private_roots_and_files_refuse_planted_metadata_unread_and_make_secret_modes(
                 } else {
                     assert_eq!(outcome.machine.reads, 0, "unsafe metadata is refused before any content read");
                 }
-                assert!(outcome.heap.as_ref().unwrap().iter().all(|(peak, _)| *peak <= CEILING));
+                assert!(outcome.peaks().unwrap().iter().all(|peak| *peak <= CEILING));
                 outcome.machine.finish();
             }
         }
@@ -242,7 +242,7 @@ fn racing_absent_creators_have_one_durable_winner() {
         }
         assert_eq!((winners, losers), (1, 1));
         assert_eq!(outcome.machine.names(), vec![b"record".to_vec()], "no temporary remains");
-        assert!(outcome.heap.as_ref().expect("checked memory").iter().all(|(peak, _)| *peak <= CEILING));
+        assert!(outcome.peaks().expect("checked memory").iter().all(|peak| *peak <= CEILING));
         outcome.machine.finish();
     }
 }

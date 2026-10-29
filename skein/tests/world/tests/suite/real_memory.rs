@@ -20,7 +20,7 @@ fn a_ring_the_loop_grows_is_charged_to_its_process() {
     assert_eq!(process.completed, OPERATIONS);
     assert_eq!(process.largest_delivery, OPERATIONS, "one delivery grows through several ring capacities");
     let before_growth = process.before_growth;
-    let peak = outcome.heap.as_ref().expect("checked process")[0].0;
+    let peak = outcome.peaks().expect("checked process")[0];
     drop(outcome);
     assert!(peak > before_growth, "the process's peak includes the ring the loop grew");
 }
@@ -55,11 +55,10 @@ fn normal_hosted_exit_preserves_separate_peaks_and_exact_final_release() {
     assert_eq!(outcome.procs[0].received, b"reply");
     assert_eq!(outcome.procs[1].received, b"hello");
     assert_eq!(outcome.procs[0].child_exit, Some(Exit::Code(0)));
-    let peaks = outcome.heap.as_ref().expect("checked processes");
+    let peaks = outcome.peaks().expect("checked processes");
     assert_eq!(peaks.len(), 2);
-    for (peak, bound) in peaks {
-        assert_eq!(*bound, CEILING);
-        assert!(*peak > 0 && *peak <= CEILING);
+    for peak in peaks {
+        assert!(peak > 0 && peak <= CEILING);
     }
     assert_eq!(outcome.held.as_ref().expect("final ownership ledger").len(), 2);
     drop(outcome);
@@ -78,11 +77,10 @@ fn kill_returns_pending_buffers_before_exact_child_release() {
         assert_eq!(outcome.procs.len(), 1);
         assert_eq!(outcome.procs[0].child_exit, Some(Exit::Signal(9)));
         assert_eq!(outcome.killed.len(), 1);
-        let (peak, bound) = outcome.killed[0].heap.expect("killed child checked on release");
-        assert_eq!(bound, CEILING);
+        let peak = outcome.killed[0].peak().expect("killed child checked on release");
         assert!(peak >= 60 * 1024, "the child held its full payload before the kill");
         assert!(peak <= CEILING);
-        assert_eq!(outcome.heap.as_ref().expect("surviving root metered").len(), 1);
+        assert_eq!(outcome.peaks().expect("surviving root metered").len(), 1);
         drop(outcome);
     }
 }
@@ -164,6 +162,6 @@ fn referee_storage_is_excluded_from_process_accounting() {
     let mut world = real::World::new_controlled_checked(|_| AllocatingJudge { storage: Vec::new() });
     world.spawn(|| Script::new(&[]));
     let outcome = world.run(&Clock::new(), Duration::from_secs(2));
-    assert!(outcome.heap.as_ref().expect("root checked")[0].0 < 64 * 1024);
+    assert!(outcome.peaks().expect("root checked")[0] < 64 * 1024);
     drop(outcome);
 }

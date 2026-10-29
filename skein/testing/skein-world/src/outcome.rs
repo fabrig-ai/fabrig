@@ -30,12 +30,27 @@ pub struct Outcome<P, M = NoMachine> {
     pub end: Time,
     /// Each process's peak and scenario ceiling, by index, when checked;
     /// `u64::MAX` when checked without a ceiling.
+    /// The pair goes once callers read `peaks()`; the ceiling a scenario named is its own constant.
     pub heap: Option<Vec<(u64, u64)>>,
     /// What each process held of its own once settled, by index, when memory
     /// was checked: what dropping it must free.
     pub held: Option<Vec<i64>>,
     /// Submissions over each surviving process's life, across restarts.
     pub submissions: Vec<u32>,
+}
+
+impl<P, M> Outcome<P, M> {
+    /// The most heap each process held at once, by its index in the world;
+    /// `None` when memory was not checked.
+    #[must_use]
+    pub fn peaks(&self) -> Option<Vec<u64>> {
+        let heap = self.heap.as_ref()?;
+        let mut peaks = Vec::new();
+        for (peak, _) in heap {
+            peaks.push(*peak);
+        }
+        Some(peaks)
+    }
 }
 
 impl<P, M> Drop for Outcome<P, M> {

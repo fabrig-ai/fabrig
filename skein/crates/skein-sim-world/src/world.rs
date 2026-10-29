@@ -95,7 +95,18 @@ pub struct Killed {
     pub exit: Exit,
     /// Its separate peak and scenario ceiling, after exact ownership was checked
     /// on drop; `u64::MAX` when checked without a ceiling.
+    /// The pair goes once callers read `peak()`; the ceiling a scenario named is its own constant.
     pub heap: Option<(u64, u64)>,
+}
+
+impl Killed {
+    /// The most heap the killed process held at once;
+    /// `None` when memory was not checked.
+    #[must_use]
+    pub fn peak(&self) -> Option<u64> {
+        let (peak, _) = self.heap?;
+        Some(peak)
+    }
 }
 
 impl<P: Host> World<P> {

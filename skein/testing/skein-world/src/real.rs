@@ -53,6 +53,7 @@ pub struct Outcome<P> {
     pub killed: Vec<Killed>,
     /// Per-process peak and scenario ceiling, in surviving admission order;
     /// `u64::MAX` when checked without a ceiling.
+    /// The pair goes once callers read `peaks()`; the ceiling a scenario named is its own constant.
     pub heap: Option<Vec<(u64, u64)>>,
     /// Bytes each surviving process must release when dropped.
     pub held: Option<Vec<i64>>,
@@ -60,6 +61,20 @@ pub struct Outcome<P> {
     /// When the run began and settled, on the real clock.
     pub start: Time,
     pub end: Time,
+}
+
+impl<P> Outcome<P> {
+    /// The most heap each process held at once, by its index in the world;
+    /// `None` when memory was not checked.
+    #[must_use]
+    pub fn peaks(&self) -> Option<Vec<u64>> {
+        let heap = self.heap.as_ref()?;
+        let mut peaks = Vec::new();
+        for (peak, _) in heap {
+            peaks.push(*peak);
+        }
+        Some(peaks)
+    }
 }
 
 /// A checked real outcome, borrowed for assertions; its final drop verifies
@@ -139,7 +154,18 @@ pub struct Killed {
     pub exit: Exit,
     /// Peak and scenario ceiling after exact metered release, when checked;
     /// `u64::MAX` when checked without a ceiling.
+    /// The pair goes once callers read `peak()`; the ceiling a scenario named is its own constant.
     pub heap: Option<(u64, u64)>,
+}
+
+impl Killed {
+    /// The most heap the killed process held at once;
+    /// `None` when memory was not checked.
+    #[must_use]
+    pub fn peak(&self) -> Option<u64> {
+        let (peak, _) = self.heap?;
+        Some(peak)
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
