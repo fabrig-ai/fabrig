@@ -1,4 +1,3 @@
-pub mod support;
 use std::{fs, path::Path};
 fn forbidden(source: &str) -> bool {
     let compact: String = source.chars().filter(|c| !c.is_whitespace()).collect();

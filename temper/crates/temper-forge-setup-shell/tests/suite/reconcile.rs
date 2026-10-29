@@ -1,4 +1,4 @@
-pub mod support;
+use crate::support;
 use skein_lib::Duration;
 use skein_shell::Clock;
 use support::{ADMIN, Peer};

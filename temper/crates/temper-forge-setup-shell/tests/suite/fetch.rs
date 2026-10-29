@@ -1,4 +1,4 @@
-pub mod support;
+use crate::support;
 use skein_lib::{
     Writer,
     base64::{self, Alphabet},

@@ -1,4 +1,4 @@
-pub mod support;
+use crate::support;
 use temper_forge_setup::prepare::Exit;
 use temper_forge_setup_shell::command;
 #[test]

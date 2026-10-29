@@ -1,4 +1,4 @@
-pub mod support;
+use crate::support;
 use std::{
     fs,
     os::unix::fs::{MetadataExt, PermissionsExt},
