@@ -8,9 +8,7 @@ pub(crate) fn split_bound_functions(out: &mut String) {
     let mut offset = 0;
     while let Some(line) = lines.get(offset) {
         let signature = line.trim_start();
-        let bound = ["pub fn worst_case_", "pub fn encoded_bound", "pub fn decoded_bound"]
-            .iter()
-            .any(|prefix| signature.starts_with(prefix));
+        let bound = ["pub fn encoded_bound", "pub fn decoded_bound"].iter().any(|prefix| signature.starts_with(prefix));
         if !bound || !line.ends_with('{') {
             out.push_str(line);
             out.push('\n');
