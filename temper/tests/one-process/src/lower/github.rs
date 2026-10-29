@@ -122,9 +122,12 @@ fn config_layer() -> layer::Config {
     }
 }
 pub(crate) fn peer() -> (Rc<RefCell<Forge>>, Peer) {
-    peer_with_life(layer::installations::TOKEN_LIFE)
+    peer_options(layer::installations::TOKEN_LIFE, false)
 }
-pub(crate) fn peer_with_life(life: Duration) -> (Rc<RefCell<Forge>>, Peer) {
+pub(crate) fn peer_with_ci(life: Duration) -> (Rc<RefCell<Forge>>, Peer) {
+    peer_options(life, true)
+}
+fn peer_options(life: Duration, ci: bool) -> (Rc<RefCell<Forge>>, Peer) {
     let wire = protocol();
     let mut config = temper_fake_git_hosted::fixtures::CONFIG;
     config.limits.files = 4;
@@ -152,7 +155,7 @@ pub(crate) fn peer_with_life(life: Duration) -> (Rc<RefCell<Forge>>, Peer) {
                 hooked: false,
                 checks: api::Checks {
                     cues: Box::default(),
-                    contexts: Box::default(),
+                    contexts: if ci { Box::new([b"ci".as_slice().into()]) } else { Box::default() },
                     latency_min: Duration::ZERO,
                     latency_max: Duration::ZERO,
                     silent: 0,

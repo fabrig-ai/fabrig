@@ -192,7 +192,7 @@ impl Observer {
             }
             (Op::PipeWrite { fd, bytes, from }, Ok(Done::Count(count))) => {
                 if matches!(role, Role::Agent | Role::Git | Role::Shell) {
-                    self.save("worker process output", b"", &bytes[*from as usize..(*from + *count) as usize]);
+                    self.wire(role, *fd, &bytes[*from as usize..(*from + *count) as usize]);
                 }
                 if let Some(path) = self.names.get(&(role, fd.raw())).cloned()
                     && path.starts_with(b"stderr/")
@@ -217,7 +217,12 @@ impl Observer {
         }
         for stream in &self.streams {
             if stream.role != Role::Forge {
-                self.check("client wire", b"", &stream.bytes);
+                let surface = if matches!(stream.role, Role::Agent | Role::Git | Role::Shell) {
+                    "worker process output"
+                } else {
+                    "client wire"
+                };
+                self.check(surface, b"", &stream.bytes);
             }
         }
         self.checkpoints += 1;
@@ -456,6 +461,12 @@ pub(crate) fn finish(disk: &mut skein_fake_machine::Machine) -> Counts {
         counts
     })
 }
+
+pub(crate) fn public_output(bytes: &[u8]) -> String {
+    OBSERVER.with(|cell| cell.borrow().as_ref().expect("active observer").check("ctl diagnostic", b"", bytes));
+    String::from_utf8_lossy(bytes).into_owned()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -469,7 +480,7 @@ mod tests {
             [b"\xff".as_slice(), control, b"\x80"].concat(),
             format!("{control:?}").into_bytes(),
             format!("{:?}", [b"before-".as_slice(), control, b"-after"].concat()).into_bytes(),
-            encoded(&[b"x-access-token:", control].concat()).into_vec(),
+            encoded(&[b"x-access-token:".as_slice(), control].concat()).into_vec(),
         ] {
             assert!(observer.leak(&bytes).is_some(), "the seeded representation is detected");
         }

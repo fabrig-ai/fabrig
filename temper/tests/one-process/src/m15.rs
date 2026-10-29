@@ -70,6 +70,13 @@ impl skein_world::Referee<Proc> for Judge {
             return;
         }
         if !self.browsing {
+            let Proc::Calls(caller) = &other[0] else { unreachable!() };
+            let peer = other
+                .iter()
+                .find_map(|proc| if let Proc::Forge(peer) = proc { Some(peer) } else { None })
+                .expect("GitHub peer");
+            assert!(peer.git_calls().expect("git observation").is_empty(), "pastes start no git writes");
+            assert_eq!(peer.github_layer().expect("GitHub").installations().iter().count(), 1);
             for (index, answer) in caller.answers.iter().enumerate() {
                 assert!(
                     answer.exit == Exit::Code(if index == 7 { 2 } else { 0 }),
@@ -89,6 +96,11 @@ impl skein_world::Referee<Proc> for Judge {
             self.browsing = true;
         }
         if other.iter().any(|proc| matches!(proc, Proc::Client(person) if person.finished)) && !self.stopping {
+            let peer = other
+                .iter()
+                .find_map(|proc| if let Proc::Forge(peer) = proc { Some(peer) } else { None })
+                .expect("GitHub peer");
+            assert_eq!(observer::tokens() as u64, peer.github_layer().expect("GitHub").installations().minted());
             checkpoint(service, &self.store.borrow());
             let Proc::Calls(caller) = &mut other[0] else { unreachable!() };
             caller.closed = true;
@@ -158,4 +170,29 @@ pub fn refused_replayed_pastes() -> Counts {
     world::lower_store(None);
     github::set_active(false);
     counts
+}
+
+pub(crate) fn configure(value: &mut serde_json::Value) {
+    if !observer::enabled() {
+        return;
+    }
+    for project in value["world_settings"]["policies"].as_array_mut().expect("world policies") {
+        for pointer in ["/policy/ceiling/grants", "/policy/roles/0/authority/grants"] {
+            let grants = project.pointer_mut(pointer).expect("world grants");
+            let prototype = grants[0].clone();
+            *grants = temper_engine_domain_forge::CHANGE_KINDS
+                .into_iter()
+                .map(|kind| {
+                    let mut grant = prototype.clone();
+                    grant["kind"] = kind.into();
+                    grant
+                })
+                .collect();
+        }
+    }
+    value["engine"]["limits"]["overrides"]["tasks.authority_grants"] = 8.into();
+    value["engine"]["limits"]["overrides"]["authority.grants"] = 8.into();
+    value["engine"]["limits"]["overrides"]["notes.scopes"] = 12.into();
+    value["engine"]["limits"]["overrides"]["people.amendment_bytes"] = 2048.into();
+    value["engine"]["limits"]["overrides"]["tasks.authority_bytes"] = 256.into();
 }

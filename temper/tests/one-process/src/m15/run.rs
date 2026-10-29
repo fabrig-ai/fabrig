@@ -33,7 +33,7 @@ fn provider(renew: bool) -> skein_fake_peers::llm::Peer {
         "executor":{"kind":"procedure","connector":fixtures::FORGE_CONNECTOR,"code":fixtures::PROCEDURE_CODE},
         "spec":{"words":"@edit Fix","parameters":[{"name":fixtures::PARAMETER_NAMES[0],"kind":"resource","connector":fixtures::FORGE_CONNECTOR,"resource":fixtures::REPOSITORY_TAG},{"name":fixtures::PARAMETER_NAMES[1],"kind":"bytes","value":"main"}]},
         "contract":{"kind":"change","connector":fixtures::FORGE_CONNECTOR,"change_kind":fixtures::CHANGE_KIND,"words":fixtures::CHANGE_WORDS},
-        "authority":{"tools":fixtures::PRODUCER_TOOLS,"grants":fixtures::GRANT_KINDS.map(grant),"delegation":{"kinds":[{"kind":"agent","number":fixtures::AGENT_KIND}],"tasks":fixtures::PRODUCER_TASKS,"depth":fixtures::PRODUCER_DEPTH},"budget":{"spend":fixtures::PRODUCER_SPEND},"notes":fixtures::PRODUCER_NOTES}
+        "authority":{"tools":fixtures::PRODUCER_TOOLS,"grants":temper_engine_domain_forge::CHANGE_KINDS.map(grant),"delegation":{"kinds":[{"kind":"agent","number":fixtures::AGENT_KIND}],"tasks":fixtures::PRODUCER_TASKS,"depth":fixtures::PRODUCER_DEPTH},"budget":{"spend":fixtures::PRODUCER_SPEND},"notes":fixtures::PRODUCER_NOTES}
     }]});
     let mut edits =
         vec![call(b"read", br#"{"path":"README.md"}"#), call(b"shell", br#"{"command":"echo fixed > conflict.txt"}"#)];
@@ -98,6 +98,7 @@ fn commands(caller: &mut Caller, link: Box<[u8]>, app: u64) -> usize {
         b"--key",
         b"secrecy-chat",
         b"@plan Fix the adopted repository",
+        b"--json",
     ]));
     10
 }
@@ -116,6 +117,7 @@ struct Judge {
     stopping: bool,
     read: bool,
     pushed: bool,
+    landed: bool,
 }
 impl skein_world::Referee<Proc> for Judge {
     fn act(&mut self, now: Time, procs: &mut [Proc]) {
@@ -129,7 +131,12 @@ impl skein_world::Referee<Proc> for Judge {
             self.handed = true;
         }
         for (index, answer) in caller.answers.iter().enumerate().skip(self.answers) {
-            assert!(answer.exit == Exit::Code(0), "run call {index} succeeds");
+            assert!(
+                answer.exit == Exit::Code(0),
+                "run call {index} succeeds: {} {}",
+                observer::public_output(&answer.output),
+                observer::public_output(&answer.error)
+            );
             observer::artifact("ctl stdout", &answer.output);
             observer::artifact("ctl stderr", &answer.error);
         }
@@ -166,7 +173,7 @@ impl skein_world::Referee<Proc> for Judge {
             self.refreshed = true;
             return;
         }
-        if self.initial && self.pushed && (!self.renew || self.refreshed) && !self.browsing {
+        if self.initial && self.pushed && self.landed && (!self.renew || self.refreshed) && !self.browsing && self.store.borrow().rows.values().any(|row| matches!(row, temper_engine_domain::Record::Core(jig_domain_core::Record::Tasks(jig_domain_tasks::Stored::Ended(task))) if task.number == 2)) {
             assert_eq!(observer::tokens() as u64, minted, "the observer holds every issued token");
             assert!(git.iter().any(|call| call.writes), "a real git delivery used a token");
             assert!(
@@ -209,9 +216,28 @@ impl skein_world::Referee<Proc> for Judge {
         }
         let mut forge = self.forge.borrow_mut();
         while let Some(seen) = forge.domain.pop_observation() {
+            if let forge::Observation::Merged { ref repository, ref base, commit, .. } = seen {
+                assert!(
+                    repository.as_ref() == b"acme/app" && base.as_ref() == b"main",
+                    "the installed change lands on main"
+                );
+                assert!(
+                    forge
+                        .domain
+                        .object(commit)
+                        .expect("merge object")
+                        .tree
+                        .iter()
+                        .any(|(path, bytes)| path.as_ref() == b"conflict.txt" && bytes.as_ref() == b"fixed\n"),
+                    "the landed tree contains the delivered edit"
+                );
+                self.landed = true;
+            }
             if let forge::Observation::Moved { repository, branch, to, .. } = seen {
                 assert!(repository.as_ref() == b"acme/app", "delivery names its installed repository");
-                assert!(branch.as_ref() != b"main", "delivery writes its private branch");
+                if branch.as_ref() == b"main" {
+                    continue;
+                }
                 self.pushed |= forge
                     .domain
                     .object(to)
@@ -228,8 +254,15 @@ impl skein_world::Referee<Proc> for Judge {
     fn overdue(&self, now: Time) -> Option<String> {
         (!self.stopping && now >= PATIENCE).then(|| {
             format!(
-                "M15 run: calls {}/{}, read {}, initial {}, refreshed {}, pushed {}, pages {}",
-                self.answers, self.calls, self.read, self.initial, self.refreshed, self.pushed, self.browsing
+                "M15 run: calls {}/{}, read {}, initial {}, refreshed {}, pushed {}, pages {}, landed {}",
+                self.answers,
+                self.calls,
+                self.read,
+                self.initial,
+                self.refreshed,
+                self.pushed,
+                self.browsing,
+                self.landed
             )
         })
     }
@@ -246,7 +279,8 @@ pub fn delivery(renew: bool) -> observer::Counts {
     stories::setup_settings(world::Phase::Story);
     let store = Rc::new(RefCell::new(Store::new()));
     world::lower_store(Some(store.clone()));
-    let (forge, mut peer) = if renew { github::peer_with_life(TOKEN_LIFE) } else { github::peer() };
+    let (forge, mut peer) =
+        github::peer_with_ci(if renew { TOKEN_LIFE } else { skein_fake_forge_github::installations::TOKEN_LIFE });
     let (app, files) = observer::input(&mut peer);
     let mut disk = crate::machine::fresh();
     let input = disk.lay(&files);
@@ -272,6 +306,7 @@ pub fn delivery(renew: bool) -> observer::Counts {
             stopping: false,
             read: false,
             pushed: false,
+            landed: false,
         },
     )
     .with_machine(Machine(disk));
