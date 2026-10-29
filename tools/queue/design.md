@@ -59,9 +59,6 @@ runs with `python3 -I -B`, including `tools/test_install.py`; every executable
 Pass the path as one argument without a shell or PATH lookup, so Python and
 Bash suites both use their declared interpreters.
 
-Discovery changes take effect when the running queue restarts (section 3.7).
-Land and activate a discovery change before queuing suites that require it.
-
 Exclude exactly `tools/heavy/test-heavy-recovery`: it installs real user
 systemd units and requires manual execution on a builder with isolated
 state and unit prefixes (`tools/heavy/design.md, 6`). It must not run
@@ -156,6 +153,9 @@ one step with `--profile fuzzy`; the build step already built its binaries.
 Ratchets follow tests. Docs-only batches run only touched trees' ratchets.
 
 ### 3.7 Restarting and the login shell
+
+Discovery changes take effect when the running queue restarts. Land and
+activate a discovery change before queuing suites that require it.
 
 `bash -lc 'tools/queue/restart'`, from the queue clone, checks `cargo`,
 `heavy`, `post`, and `git` on PATH before changing anything. A missing tool
