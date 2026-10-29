@@ -3538,6 +3538,7 @@ dependencies = [
  "skein-oauth",
  "skein-scratch",
  "skein-shell",
+ "skein-world",
  "smith-channel",
  "smith-charter",
  "smith-domain",
