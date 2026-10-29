@@ -194,7 +194,7 @@ fn gather_brief(
     let crate::Work::Core(core::Event::Brief(event)) = work.pop().expect("brief planned") else {
         panic!("brief child");
     };
-    let mut completed = Queue::with_capacity(jig_domain_brief::gather_max_out(&env.limits.core.brief));
+    let mut completed = Queue::uncapped();
     jig_domain_brief::gather_step(
         &mut domain.core.brief,
         &skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.core.brief },
