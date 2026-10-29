@@ -6,11 +6,12 @@ fn schema_matches(crate_name: &str, family: &str, version: &str) {
     let root = skein_scratch::paths::tree().join("crates").join(crate_name);
     let source =
         fs::read_to_string(root.join("schema").join(format!("{family}-{version}.schema"))).expect("family schema");
-    let output = generate_named(&parse(&source).expect("schema valid"), Names::Both);
+    let output = generate_named(&parse(&source).expect("schema valid"), Names::Bounds);
     let code = root.join("src/generated").join(format!("{version}.rs"));
     let goldens = root.join("golden");
     let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
-    let again = "run SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p temper-codecs-world --test drift";
+    let again =
+        "run SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'";
     if write {
         fs::write(&code, &output.rust).expect("write generated code");
         fs::create_dir_all(&goldens).expect("create golden directory");

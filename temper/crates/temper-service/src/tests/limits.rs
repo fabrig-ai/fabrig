@@ -514,7 +514,7 @@ fn secrets_schema_fits_the_small_page_ceiling() {
     // Secrets keys are two owner bytes followed by a u64 number.
     const KEY_BYTES: u64 = 10;
     let (_, _, profile) = fixtures::store_limits();
-    assert_eq!(v1::Stored::worst_case_bytes(&v1::CEILINGS), Some(APPLICATION_BYTES));
+    assert_eq!(v1::Stored::encoded_bound(&v1::CEILINGS), Some(APPLICATION_BYTES));
     assert_eq!(profile.store.page.bytes, 1_590_110);
     assert!(APPLICATION_BYTES + KEY_BYTES < u64::from(profile.store.page.bytes));
 }
