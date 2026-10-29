@@ -105,34 +105,122 @@ def target_directory(env):
         raise FailedStep(f"{name}: {error}") from error
 
 
+def package_arguments(packages):
+    return [argument for package in packages for argument in ("-p", package)]
+
+
+def selected_tests(listing):
+    """Identify selected tests independently of artifact paths and build hashes."""
+    return {(suite["package-name"], suite["binary-id"], name)
+            for suite in listing["rust-suites"].values()
+            for name, test in suite.get("testcases", {}).items()
+            if test["filter-match"]["status"] == "matches"}
+
+
+def list_tests(profile, selection, env):
+    name = f"list {profile} {'workspace' if selection == ['--workspace'] else 'packages'}"
+    command = ["heavy", "cargo", "nextest", "list", *selection,
+               "--profile", profile, "--message-format", "json"]
+    try:
+        wait_for_disk(env)
+        print(f"tiers: {name}: {shlex.join(command)}", flush=True)
+        # Heavy wraps stdout with its evidence and normally tails it. Preserve the
+        # entire JSON document, including when nextest pretty-prints it.
+        result = subprocess.run(command, env=dict(env, HEAVY_TAIL=str(sys.maxsize)),
+                                stdin=subprocess.DEVNULL, text=True, stdout=subprocess.PIPE)
+        if result.returncode:
+            print(result.stdout, end="", flush=True)
+            raise FailedStep(f"{name}: exit {result.returncode}")
+        offset = 0
+        for line in result.stdout.splitlines(keepends=True):
+            if line.startswith("{"):
+                try:
+                    listing, end = json.JSONDecoder().raw_decode(result.stdout, offset)
+                except ValueError:
+                    pass
+                else:
+                    if isinstance(listing, dict) and "rust-suites" in listing:
+                        print(result.stdout[:offset] + result.stdout[end:].lstrip("\n"),
+                              end="", flush=True)
+                        return selected_tests(listing)
+            offset += len(line)
+        print(result.stdout, end="", flush=True)
+        raise FailedStep(f"{name}: missing nextest JSON listing")
+    except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError) as error:
+        raise FailedStep(f"{name}: {error}") from error
+
+
+def verify(profile, packages, env):
+    workspace = list_tests(profile, ["--workspace"], env)
+    limited = list_tests(profile, package_arguments(packages), env)
+    for label, tests in (("misses", workspace - limited), ("adds", limited - workspace)):
+        for package, binary, test in sorted(tests):
+            print(f"tiers: {profile}: package set {label} {package} {binary} {test}", file=sys.stderr)
+    print(f"tiers: {profile}: workspace {len(workspace)} tests; "
+          f"packages {len(limited)} tests ({len(packages)} packages)", flush=True)
+    return workspace == limited
+
+
 def main(argv=None):
     os.umask(0o077)
-    parser = argparse.ArgumentParser(description=__doc__, usage="%(prog)s TREE TIER [-- NEXTEST_ARGS...]")
-    parser.add_argument("tree")
-    parser.add_argument("tier")
+    parser = argparse.ArgumentParser(description=__doc__, usage=(
+        "%(prog)s TREE TIER [-- NEXTEST_ARGS...] | --verify TREE TIER | --verify-all"))
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--verify", action="store_true")
+    mode.add_argument("--verify-all", action="store_true")
+    parser.add_argument("tree", nargs="?")
+    parser.add_argument("tier", nargs="?")
     argv = sys.argv[1:] if argv is None else argv
     separator = argv.index("--") if "--" in argv else len(argv)
     args = parser.parse_args(argv[:separator])
     extra = argv[separator + 1:]
+    if args.verify_all:
+        if args.tree or args.tier or separator < len(argv):
+            parser.error("--verify-all takes no tree, tier or nextest arguments")
+    elif not args.tree or not args.tier:
+        parser.error("TREE and TIER are required")
+    if args.verify and separator < len(argv):
+        parser.error("--verify takes no nextest arguments")
     try:
         with Path(".config/nextest.toml").open("rb") as source:
             profiles = tomllib.load(source)["profile"]
         pairs = {(name.rsplit("-", 1)[1], name.rsplit("-", 1)[0]): name
                  for name in profiles if "-" in name}
         profile = pairs.get((args.tree, args.tier))
-        if profile is None:
+        if not args.verify_all and profile is None:
             print(f"tiers: refused unknown pair {args.tree} {args.tier}; "
                   f"configured profiles: {', '.join(sorted(pairs.values()))}", file=sys.stderr)
             return 2
     except (OSError, ValueError, KeyError, TypeError) as error:
         print(f"tiers: read .config/nextest.toml from the checkout root: {error}", file=sys.stderr)
         return 2
+    try:
+        with Path("tools/tiers/packages.toml").open("rb") as source:
+            package_map = tomllib.load(source)
+        chosen = sorted(pairs.values()) if args.verify_all else [profile]
+        for pair in chosen:
+            packages = package_map.get(pair)
+            if (not isinstance(packages, list) or not packages
+                    or any(not isinstance(package, str) or not package for package in packages)
+                    or packages != sorted(set(packages))):
+                print(f"tiers: refused missing or invalid package set for {pair} "
+                      "in tools/tiers/packages.toml (need sorted, unique package names)", file=sys.stderr)
+                return 2
+    except (OSError, ValueError, TypeError) as error:
+        print(f"tiers: read tools/tiers/packages.toml from the checkout root: {error}", file=sys.stderr)
+        return 2
     env = dict(os.environ)
     env["NEXTEST_DOUBLE_SPAWN"] = "0"
     try:
+        if args.verify or args.verify_all:
+            matches = True
+            for pair in chosen:
+                if not verify(pair, package_map[pair], env):
+                    matches = False
+            return 0 if matches else 1
         if (args.tier == "browser" and args.tree in ("skein", "jig", "temper")) or profile == "qa-temper":
             bundle(args.tree, target_directory(env), env)
-        command = ["heavy", "cargo", "nextest", "run", "--workspace", "--profile", profile,
+        command = ["heavy", "cargo", "nextest", "run", *package_arguments(package_map[profile]), "--profile", profile,
                    "--no-fail-fast", *extra]
         return step("nextest", command, env)
     except FailedStep as error:
