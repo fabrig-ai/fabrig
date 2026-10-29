@@ -1,69 +1,38 @@
 # Merge queue status
 
-Provisional, 2026-10-29. Sections 1–3.7 retain one-gate selection/check/outcome
-policy. Explicit parent/candidate inputs, writing ratchets, offline tools
-suite discovery and `restart --batch 16` remain covered by `test_mq.py`.
-Section 3.7 now uses section 3.10's shared authority, persistent startup guard
-and acknowledged same-inode handoff. Nothing is installed or activated here.
+Provisional, 2026-10-29. Legacy selection/check/outcome policy remains the
+plain default. Reviewed controller/authority invariants in 3.8–3.10 remain:
+immutable P/C/tips, two outstanding records, ordered decisions, persistent
+bisection, INFRA rejection of no input, ordinary explicit-C main pushes,
+deletion-only leases and stable at-least-once outbox IDs.
 
-Section 3.8 remains an opt-in local worker, with no dispatch from mq/restart
-and no second-prover activation. It shares checkout exclusion with legacy and
-preparation; private request/log/result publication and unresolved ownership
-refusal are hardened. The earlier dedicated-gate empty-plan smoke validates
-object identity and local evidence only; it proves no heavy supervision.
+Sections 3.11–3.12 now implement explicit local/SSH endpoint transport,
+Linux subreaper supervision, matching heavy completion-query evidence,
+controller-owned result/log/supervision return, opt-in CLI, stop/drain/resume,
+same-authority restart and audited retirement. Snapshot/request versions remain
+1; incompatible runtime/config/unknown versions refuse without migration.
+Production rollout remains OFF until independent review and real dedicated
+hetzner8/hetzner2 proof. This work activates no queue or second prover.
 
-Section 3.9 remains a disabled library with mandatory authority/transport.
-Pinned chained candidates, independent certificates, ordered decisions,
-conservative cadence, sequential bisection and provisional partial conflicts
-remain intact. INFRA rejects no input, invalidated jobs still physically own
-their gates, and speculation stops through ancestor failure and bisection.
-Full P/C diffs include generated baselines and may conservatively select full;
-preparation ratchet reds conservatively require full bisection checks.
+Offline tests use real disposable Git/process/flock/pidfd/inotify mechanisms
+and injected SSH/heavy neighbors. They cover lost acknowledgements, controller
+and supervisor death, surviving commands, unresolved heavy, command descendants,
+corrupt artifacts, exact ordered pushes, stopped bisection, restart timeout and
+handoff, enclosing drain deadlines, completed-preparation dispatch replay,
+retained retirement audit and generation revival refusal. All 63
+reviewed controller cases remain in their unchanged 19/22/22 split, with the
+existing isolation/AST checks. Budgets and existing timeouts are unchanged.
 
-Section 3.10 is implemented in authority.py, durable.py and recovery.py with
-minimal mq/restart/worker/train integration. A clone-independent shared lock,
-durable train ownership receipt and worker/precheck/preparation markers block
-unsafe cross-mode reuse. Restart serializes independently, drains before
-acquiring main authority, retains stop on failure and passes one authority
-inode to an acknowledged child. Local effect clients inherit authority.
+The read-only heavy query is new runtime behavior; the prior migration's
+identical-runtime proof does not validate it. Real SSH, heavy/systemd recovery,
+dedicated-gate nonempty checking and rollout still require Ops validation in
+transport-operations.md. No real service, SSH, Cargo/build, installation, post,
+main/ready push or production operation was performed for this task.
 
-Concrete train effects load recorded P/C intent, read fresh main and push the
-explicit C normally; cleanup leases apply only to ready deletion. Frozen area
-routes and stable event/evidence bodies use a durable at-least-once outbox.
-State version 1 refuses unknown versions and incompatible runtime/config;
-there is no silent migration. Structural/artifact validation, cadence and
-bisection consistency, preparation/dispatch/evidence/promotion/outbox inventory,
-publication poisoning and completed-preparation reconciliation are implemented.
-Pins and all artifacts are retained; there is no automatic GC or repair by
-replacing immutable evidence.
-
-Part 5 remains required and production train activation is prohibited. Its
-supervised SSH/heavy lifetime evidence must cover client/controller/worker
-loss, stable same-job identity, complete object/evidence return and physical
-drain. The built-in evidence adapter accepts only local empty-plan jobs;
-nonempty/heavy/remote completion remains blocked. Fake tests inject a separate
-identity-bound completion adapter and prove no real heavy quiescence.
-
-Operational stop/drain/resume/restart, explicit generation retirement/legacy
-return, real-tool validation and reviewed rollout remain part 5. A snapshot
-or train ownership receipt always refuses legacy; process absence or released
-flocks never retire ownership. No real main authority, queue restart, SSH,
-post, install, Cargo/build, systemd operation or second-gate activation was
-performed by this change. Disposable Git/process tests cover explicit crash
-boundaries, not arbitrary machine power loss or remote supervision.
-
-Bisection recovery consumes admitted groups before replaying red splits or
-INFRA requeues, including concrete promotion's snapshot load. Applied INFRA
-ownership stays in a valid decision phase through late status failures and
-verified release; drain requires a loadable matching snapshot. Legacy cleanup
-uses expected-tip deletion leases, and local mutating children inherit both
-main authority and checkout exclusion through parent death. Restart restores
-stop across the unlink/fsync/launch boundary. Error reporting resets after a
-completed cycle so a new error episode alerts again. Authority/recovery/worker
-and mq fixture roots are outside the checked source. The controller fixture
-is shared without test inheritance across preparation (19), decision (22) and
-recovery (22) entries; two isolation/discovery cases verify external roots and
-exactly-once coverage. The manifest preserves all 63 part4 case bodies, including
-its two completion-adapter changes. Part3 split suites passed real h8 validation;
-the combined part4 integration still awaits validation. No timeout or completion evidence is
-weakened, and part 5's remote lifetime/activation boundaries remain blocked.
+Limits remain explicit: same-boot lost-supervisor recovery is blocked; the
+supported operator path requires separately authorized host reboot plus matching
+heavy release evidence. Incomplete preparation stays blocked. Frozen runtime
+updates require drain/retirement; a new train generation in a retired layout is
+not implemented. Cooperative ownership does not sandbox arbitrary hostile code
+or unrecorded detached external jobs. There is no artifact GC, arbitrary
+machine-power-loss claim, or silent reconciliation by deleting state/markers.

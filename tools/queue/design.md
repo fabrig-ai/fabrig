@@ -236,13 +236,12 @@ unlock the child's authority. `--repo` defaults to the current clone root.
 default remains 8. Pass the option on each restart to retain a nondefault
 size. It changes batch capacity, not checks, rejection or bisection policy.
 
-### 3.8 Local immutable-candidate worker (disabled rollout)
+### 3.8 Local immutable-candidate worker
 
-`worker.py` is an opt-in, synchronous local entry point and a review proposal
-for the request/result contract. It is not installed, dispatched by `mq`, or
-started by `restart`. Ops review, coordinator contract review and a dedicated
-gate validation precede activation. Existing one-gate behavior remains the
-default. No second prover is activated by this code.
+`worker.py` is the synchronous checker primitive. Section 3.11 supplies its
+supervised local/SSH endpoint and section 3.12 explicit executable train mode.
+Production rollout remains OFF pending review and dedicated real-tool proof.
+Existing one-gate behavior remains the default.
 
 Run the policy from a frozen runtime copy **outside** the worker checkout.
 The configured checkout must be an independent clone, its root, with no
@@ -375,28 +374,17 @@ cleanup. A crash after result publication but before marker removal still
 requires reconciliation. Process absence, a lost client, or a released flock
 never proves that heavy is quiescent.
 
-There is deliberately no automatic reconciliation command. Ops must establish
-heavy job completion through its supported recovery procedure, inspect the
-candidate/worktree and result/log evidence, then explicitly reconcile the
-ownership marker before reusing this dedicated checkout. Do not remove heavy
-state or stop its units. Do not run legacy queue/restart or any other checkout
-writer on a worker clone with unresolved ownership: persistent controller-wide
-startup guards are a later obligation. The flock is cooperative ownership,
-not a sandbox against arbitrary external writers or hostile candidate code.
+Section 3.11 supplies supervised evidence and explicit fail-closed recovery.
+Standalone unresolved workers without that supervisor retain their existing
+operational recovery boundary; no process-absence or marker-deletion shortcut
+is supported. Workers never fetch/push origin, post, delete ready refs or
+promote a candidate.
 
-The worker never fetches/pushes origin, posts, changes queue counters, deletes
-ready refs, or promotes a candidate. Section 3.9 supplies a disabled controller
-library around this contract. Production transport, authoritative effects,
-shared startup guards, supervision, reconciliation tooling and train-aware
-restart remain absent. The worker cannot activate or supervise a train alone.
+### 3.9 Controller library
 
-### 3.9 Controller library (disabled, unready)
-
-`train.py` has no CLI, production transport or authority implementation. Neither
-`mq` nor `restart` imports it. Ordinary Queue behavior remains unchanged; both
-live train gates remain off. **Production activation is prohibited** until the
-authority/startup and recovery obligations below, followed by supervised
-transport and rollout validation, are implemented and reviewed.
+`train.py` supplies the reviewed decision library. Section 3.12 selects it only
+with an explicit private train configuration; plain Queue behavior remains
+the default. Production activation awaits separate review and rollout proof.
 
 `Controller` receives `Preparer`, `StateStore`, transport, authority, time,
 generation, two gate names, frozen worker runtime and batch/full cadence.
@@ -464,8 +452,8 @@ Transport and evidence:
   includes its exact request, full result/log bytes, `quiescent` and
   identity-bound `evidence`. A boolean alone cannot release ownership. The
   frozen completion adapter must verify that evidence independently of outcome;
-  part 4's only production adapter accepts local empty-plan jobs. Part 5 must
-  supply supervised heavy/SSH evidence. Process/SSH absence, a terminal client
+  the standalone local adapter accepts only empty plans. Section 3.11 supplies
+  supervised heavy/SSH evidence. Process/SSH absence, a terminal client
   and a released flock are insufficient.
 - `ingest` stores immutable returned bytes, including malformed or incomplete
   evidence, in controller-owned 0700/0600 storage. `validate_result` separately
@@ -541,17 +529,17 @@ Persistence and remaining recovery boundaries:
 - `stop` durably closes admission. `drained` requires no active records and no
   gate owners, including invalidated/uncertain owners. Existing jobs adjudicate
   in order; stop starts no replacements or pending bisection groups. Those
-  groups remain durable. There is no production resume/restart integration.
+  groups remain durable. Section 3.12 integrates explicit resume/restart.
 
-Section 3.10 implements shared local authority and concrete effects. Part 5
-supplies SSH/supervised job transport, operational drain/resume/restart and the
-reviewed rollout. No local test asserts real heavy quiescence, real-service
+Section 3.10 implements shared local authority and concrete effects. Sections
+3.11–3.12 supply supervised transport and operation; reviewed rollout remains
+a separate operator action. No local test asserts real heavy quiescence, real-service
 authority, arbitrary machine-crash durability or remote transport safety.
 
-### 3.10 Shared authority, effects and fail-closed recovery (train disabled)
+### 3.10 Shared authority, effects and fail-closed recovery
 
-The source adapters are production-capable primitives, with no executable
-train mode, network job transport, second-prover activation or installation.
+These authority primitives are used by the explicit train mode in 3.12.
+No production queue, second prover or installation is activated by this code.
 All queue modes on the same production host must use one authority directory,
 including alternate preparation/worker clone names. The default is
 `~/src/fabrig/queue-authority`; `--authority-dir ABSOLUTE` on `mq`/`restart`, or
@@ -576,7 +564,7 @@ those effect clients still run. This proves no remote heavy lifetime.
 concrete train adapter binds its state to `<layout>/train/state.json` and
 publishes an immutable generation/configuration ownership receipt before any
 train mutation. Missing state cannot erase that startup refusal. Returning to
-legacy requires explicit supported retirement in part 5, never deleting a
+legacy requires explicit supported retirement in 3.12, never deleting a
 snapshot to infer safety.
 
 Checkout exclusion recognizes the existing `.git/mq-worker-unresolved.json`
@@ -670,7 +658,7 @@ boolean/string/PID fails. The built-in `local-empty-plan-v1` evidence names the
 exact private worker result path and SHA-256, matches the durable request,
 checks complete result/log and absence of checkout markers while holding its
 lock, and requires an empty plan. All heavy/nonempty/remote plans remain
-blocked until part 5 supplies supervised lifetime evidence. Tests inject an
+blocked in this standalone adapter; 3.11 supplies supervised lifetime evidence. Tests inject an
 explicit fake-completion adapter whose events attest synchronous fake checks;
 this is not a production supervisor.
 
@@ -701,18 +689,148 @@ dispatch, push/decision and post acknowledgements; tests prove those local
 boundaries and shared flock lifetime, not arbitrary machine power-loss or
 remote-supervisor guarantees.
 
+### 3.11 Supervised gate transport (opt-in; rollout OFF)
+
+`transport.py` uses ordinary local argv or OpenSSH with one doubly quoted
+`bash -lc 'exec ...'` command. Only configured host/runtime/config paths enter
+that command; requests, refs, bundle metadata and bytes travel in `wire.py`'s
+binary envelope. SSH requires an explicit validated host alias, BatchMode,
+StrictHostKeyChecking and a private known-hosts file with a frozen digest.
+Configuration and Python/runtime/list identity are frozen for the generation.
+
+The wire version is 1: `MQ-WIRE-1\n`, an unsigned network-order 8-byte JSON
+header length, exact JSON header, then exact length/SHA-256 blobs. JSON headers
+and results are bounded at 8 MiB, bundles/supervision at 512 MiB, worker logs at
+128 MiB; diagnostics have a separate bounded pipe. Duplicate/nonfinite JSON,
+truncation, digest mismatch, trailing banners and version mismatch refuse.
+RPC timeout is explicitly configured (positive, at most the unchanged restart
+wait of 1800 seconds); an enclosing drain clamps RPC and authority-effect clients
+to its remaining deadline without changing the frozen configuration. Expired
+drain starts no additional RPC/effect. Terminating a client never releases a gate.
+
+`supervisor.py --config PATH --config-sha256 SHA start|status|reconcile-reboot`
+consumes an envelope containing version/request/bundle. `start` has one bundle
+blob. Status has none. Terminal replies return result, complete checks log and
+supervision receipt as three blobs. Reconciled replies return one receipt blob.
+Transport binds every reply to exact request and endpoint digest; receipt digest
+is independently checked before returning it. CLI diagnostics use stderr only.
+
+The endpoint configuration has exact version-1 fields: gate, incarnation, repo,
+artifacts, jobs, runtime, disk_floor, heavy, heavy_sha256, heavy_root, heavy_tmp.
+All paths are explicit absolute paths; runtime/checkout/stores are disjoint.
+Private stores/runtime/config use 0700/0600 and reject symlinks. Heavy's six
+runtime files are hashed separately; queue code uses its supported read-only
+`--completion-query`, never its state files. See `transport-operations.md`.
+
+Acceptance writes immutable request, self-contained bundle, exact claim with
+request digest/nonce/boot/incarnation/config, endpoint owner and a checkout
+`mq-transport-unresolved.json` marker before a launch intent and detached start.
+The accepted attempt is never rerun, including a crash before spawn. Same-job
+start/status are idempotent. Checkout exclusion passes the same open flock to
+the supervisor, so startup has no ownership gap. Legacy, preparation, workers
+and restart refuse that marker. The owner covers all checking and cleanup.
+
+The Linux supervisor becomes a child subreaper. Each command runs serially in
+its own process session. A returned direct child is insufficient: waitpid must
+reach ECHILD, including orphan descendants, before the next command or cleanup.
+The existing tools timeout remains red only after killing the owned group and
+reaping all descendants; uncertain completion remains INFRA. Every command has
+an immutable intent before spawn and completion journal after proof. Heavy
+commands use a unique request-digest/index label; the supported query must
+identify exactly one matching repo/argv/candidate task and immutable release,
+empty-containment receipt and sealed log. Token/id/queue and complete heavy log
+are persisted before the next command. A killed worker/client before this
+identity or completion is known retains UNKNOWN.
+
+After all children are reaped, the worker result/log, exact observed command
+sequence, runtime and final immutable checkout snapshot are checked. A terminal
+supervision receipt is published after closing checkout exclusion, while the
+persistent owner marker still blocks writers. Status independently verifies
+receipt/journals/heavy evidence/artifacts and removes only that exact marker
+under endpoint plus checkout exclusion, with a retained release audit. Result,
+checks log and full supervision/receipts/heavy logs are returned into immutable
+controller-owned storage before adjudication. Replay validates their hashes.
+Corruption cannot establish red or green; it retains ownership for explicit
+reconciliation. No client PID, released lock or missing service is release proof.
+
+There is no automatic safe recovery from a lost subreaper on the same boot.
+The explicit `reconcile-reboot` path requires a different kernel boot, then
+supported heavy recovery evidence for every journaled label: each match must
+be released and contained; ambiguity/unreleased jobs block. Zero matches is
+allowed only here, because the old boot cannot have a pending submit client.
+It writes a distinct immutable reconciliation receipt, retains all old bytes,
+checks exact markers and releases physical ownership without a check
+certificate. The controller records INFRA and never rejects those tips. Dirty
+inputs are retained for inspection; no reset, heavy unit stop or handwritten
+receipt is supported. A dedicated-host reboot is a separate operator/user
+decision, never an action performed by this tool.
+
+This is cooperative ownership, not a sandbox for hostile candidate code or
+external writers. Supported heavy launches are the exact planned direct heavy
+commands; arbitrary tools must not create detached external service jobs or
+independently submit heavy work. Same-boot recovery of a lost subreaper and
+incomplete preparation remain blocked. No arbitrary power-loss guarantee or
+real SSH/systemd/heavy proof is claimed by the offline tests.
+
+### 3.12 Train operation, drain and audited retirement (rollout OFF)
+
+`mq run|once --train-config PATH` selects `operation.py`; no option retains
+legacy Queue. `plan` remains legacy. Train config owns paths/policy; legacy
+path/policy overrides are refused. Exact private version-1 config fields are
+in the operator runbook. `train-operation.json`, train owner and snapshot freeze
+mode/config/batch/endpoints/runtime. Unknown versions/config changes refuse
+without migration. Snapshot version remains 1, with optional hashed returned
+supervision artifacts for this completion adapter.
+
+`mq train-status --train-config PATH` reads a validated snapshot without taking
+main authority or guessing fresh main/job status; unobserved main is `unknown`.
+`train-reconcile` takes authority, polls both physical owners, reconciles
+uncertain promotion intents and delivers the existing outbox, admitting
+nothing. It may explicitly release a proved physical owner whose check
+certificate was INFRA. It never manufactures a check outcome.
+
+`train-stop` durably writes the configured stop file and works while the
+controller holds authority. The run loop notices it through inotify while
+idle. Stop closes admission, starts no replacement/bisection, and finishes
+ordered admitted decisions plus invalidated physical owners. Pending bisection
+remains durable. `train-drain` runs that process explicitly; `train-resume`
+requires proved drain, resolved promotions/preparation and delivered outbox,
+then reopens the same configuration with pending bisection preserved. A completed
+prepared record interrupted before dispatch resumes its exact existing admission,
+including its validated completed-preparation marker; it admits no new group. The
+existing 60-second idle/error cycle and five-batch/hour/idle cadence remain.
+Cycle-error delivery has a separate private durable episode record and stable
+IDs; completed cycles clear the episode so recurrence alerts again.
+
+`restart --train-config PATH [--wait 1800] [--batch 16]` preserves the exact
+configured mode/batch/runtime; an explicit batch must match. It serializes
+restart, writes stop, waits for the common authority inode's actual holder via
+pidfd, then acquires authority and reconciles/drains BOTH gates. A dead
+controller grants inspection only. Unknown/unreachable ownership or timeout
+retains stop and performs no fetch, runtime update or launch. Replacement is
+the same frozen runtime/config, receives the same open authority description
+and acknowledges only after recovery; the existing three-second startup window
+is unchanged. Failure restores stop, including failures after resume but before opening the
+replacement output/launch. Runtime upgrades cannot mutate a live
+frozen generation: drain and explicitly retire it before deploying replacement
+code through the separately reviewed rollout. This helper does not fetch code.
+
+`train-retire` requires a valid matching snapshot, no active/unknown physical
+owners or incomplete preparation, no pending bisection, and every outbox item
+delivered. Under authority it stops admission and publishes immutable
+`retired.json` binding generation and snapshot/owner/operation hashes and UTC.
+All evidence remains. The same layout can then admit legacy writers only while
+that audit still matches. A retired generation cannot bind or start again;
+state deletion or process absence is never retirement. New train generation
+installation in a retired layout is deliberately unsupported; it needs a
+separately reviewed succession protocol. There is no retention policy or GC.
+
+
 ## 4. Later
 
-- Supervised SSH transport with stable job/incarnation identity, same-job
-  start/status, verified bundles/results/logs, and lifetime evidence across
-  client/controller/worker death and heavy recovery. Unknown ownership stays
-  blocked; neither absence nor an SSH error is quiescence.
-- Operational stop/drain/resume/restart and explicit generation retirement:
-  retain configuration and sequential recovery, prove both gates quiescent,
-  preserve stop on timeout, then permit legacy return/runtime updates.
-- Authorized real-tool validation and reviewed rollout. Both train provers
-  remain disabled; the executable train entry point belongs to part 5.
-- Reference-aware pin/artifact retention and operator repair, preserving all
-  immutable evidence until supported reconciliation permits removal.
-- Two gate machines with nextest's `--partition` once the full run's time matters.
-- Learning the selection's always-list from full runs' misses.
+- Separate authorized real SSH/systemd/heavy validation and reviewed activation
+  on dedicated hetzner8 and hetzner2; production remains OFF until then.
+- Same-boot containment recovery for a lost supervisor, incomplete preparation
+  reconciliation, and a reviewed generation succession/runtime upgrade protocol.
+- Reference-aware pin/artifact retention and GC without weakening ownership.
+- Partitioned full checks and learning selection gaps from full runs.
