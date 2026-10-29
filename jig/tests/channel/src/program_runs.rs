@@ -78,7 +78,7 @@ pub(crate) fn limits() -> smith_agent_service::Limits {
         limits.domain.run.host_reply_bytes = limits.domain.run.host_reply_bytes.min(4096);
         limits.domain.run.message_bytes = limits.domain.run.message_bytes.min(4096);
         limits.domain.session.delegated_result_bytes =
-            smith_domain::feedback_worst_case(&limits.domain.run).expect("bounded feedback");
+            smith_domain::feedback_bound(&limits.domain.run).expect("bounded feedback");
         limits
     })
 }
