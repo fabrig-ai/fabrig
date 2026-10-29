@@ -156,7 +156,7 @@ fn drop_with(
 
 #[expect(clippy::too_many_lines, reason = "one entry point fences each effect origin before describing it")]
 pub(crate) fn start(core: &mut Core, env: &Env<Limits>, owner: Token, number: u16, origin: EffectOrigin) -> Requests {
-    let mut out = Queue::with_capacity(5);
+    let mut out = Queue::uncapped();
     match origin {
         origin @ EffectOrigin::Projection { .. } => {
             if !origin_current(core, number, &origin) {
@@ -274,7 +274,7 @@ fn propose_start(
     reason: Box<[u8]>,
     as_holder: bool,
 ) -> Requests {
-    let mut out = Queue::with_capacity(5);
+    let mut out = Queue::uncapped();
     if let Some(part) = core.call_parts.get(&key) {
         out.push(Request::Held(Box::new(Held::CallAnswer { to, key, part: part.clone() })));
         drop_effect(&mut out, number, owner, authority::Answer::Refuse);
@@ -1456,7 +1456,7 @@ pub(crate) fn next_deadline(core: &Core) -> Option<Wall> {
 }
 
 pub(crate) fn deadline(core: &mut Core, env: &Env<Limits>) -> Requests {
-    let mut out = Queue::with_capacity(env.limits.call_records.checked_add(1).expect("deadline replies"));
+    let mut out = Queue::uncapped();
     let mut due = List::with_capacity(env.limits.call_records);
     for (&entry, waiting) in &core.effect_replies {
         if waiting.deadline <= env.wall {

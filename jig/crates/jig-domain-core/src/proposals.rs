@@ -266,7 +266,7 @@ impl Core {
     /// Revisit each pending holder after a project policy or role change.
     #[must_use]
     pub fn proposal_recheck_project(&self, limits: &Limits, project: u32, decision: Wall) -> Queue<tasks::Event> {
-        let mut out = Queue::with_capacity(limits.tasks.tasks);
+        let mut out = Queue::uncapped();
         for view in self.tasks.view_tasks() {
             if view.project != project {
                 continue;

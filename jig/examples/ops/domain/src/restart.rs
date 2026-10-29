@@ -115,9 +115,7 @@ pub(crate) fn store(
                 if !domain.core.settings_restored(&Env { now: env.now, wall: env.wall, limits: env.limits.core }) {
                     return;
                 }
-                work.push(Work::Core(core::Event::SettingsCommit {
-                    room: core::route_bound(&env.limits.core).expect("validated core room"),
-                }));
+                work.push(Work::Core(core::Event::SettingsCommit { room: env.limits.core.routes }));
                 // The completed core range is also the people's restoration
                 // terminal. Retain it when copying this cold-load adapter.
                 work.push(Work::Core(core::Event::People(people::Event::Restored)));

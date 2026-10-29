@@ -9,7 +9,7 @@ pub(crate) fn problem(task: u64, why: tasks::Refusal) -> StepRefusal {
 }
 
 pub(super) fn refused(core: &Core, task: u64, step: u64, why: StepRefusal) -> Requests {
-    let mut out = Queue::with_capacity(2);
+    let mut out = Queue::uncapped();
     if let Some(row) = core.tasks.task(task)
         && let tasks::Executor::Procedure { connector, .. } = row.executor
     {

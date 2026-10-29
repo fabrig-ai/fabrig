@@ -236,7 +236,7 @@ fn read_position(core: &mut Core, limits: &Limits, task: u64) {
     let identity = core.people.identity(PERSON).unwrap().clone();
     core.people = people::Domain::new(&limits.people, Box::new([]), core.settings.deployment_provider, Box::new([]));
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people };
-    let mut out = Queue::with_capacity(people::max_out(&limits.people));
+    let mut out = Queue::uncapped();
     for record in [
         people::Stored::Person { number: PERSON, identity },
         people::Stored::Roles {
@@ -253,7 +253,7 @@ fn read_position(core: &mut Core, limits: &Limits, task: u64) {
 fn cold_tasks(core: &mut Core, limits: &Limits) {
     let mut restored = fixtures::fresh_tasks(core, limits);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.tasks };
-    let mut out = Queue::with_capacity(tasks::max_out(&limits.tasks));
+    let mut out = Queue::uncapped();
     for (_, row) in core.tasks.funding_records() {
         tasks::step(&mut restored, &env, tasks::Event::Restore { record: tasks::Stored::Ledger(*row) }, &mut out);
     }

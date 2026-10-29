@@ -198,6 +198,8 @@ pub(super) const BUDGETS: core::CoreBriefBudgets = core::CoreBriefBudgets {
     notes: 2_048,
 };
 pub(super) const CORE: core::Limits = core::Limits {
+    // The sum of child route bounds when this configured hand-off bound was set.
+    routes: 20_783,
     settings: core::settings::Limits {
         revisions: 4,
         versions: 8,
