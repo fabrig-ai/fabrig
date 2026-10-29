@@ -2,13 +2,14 @@
 //! Contract: protocol/llm.md, sections 6 and 10.
 
 use core::net::Ipv4Addr;
+use std::collections::VecDeque;
 
 use skein_fake_llm_domain::{self as fake, api};
 use skein_fake_llm_protocol::{documents, provider};
 use skein_io::kernel::Addr;
 use skein_io::{Event as IoEvent, Request as IoRequest};
 use skein_lib::stream::{Down, Read, Up};
-use skein_lib::{Duration, Env, Intake, Queue, Time, Token};
+use skein_lib::{Duration, Env, Intake, Queue, Rng, Time, Token};
 use skein_llm::{Credential, Provider};
 use skein_tls_world::{drive::Wire, pki, server::Server};
 use smith_domain::{GrantName, llm, run, tools};
@@ -67,8 +68,189 @@ fn limits() -> ComponentLimits {
     }
 }
 
-#[expect(clippy::too_many_lines, reason = "the protocol story drives the component, io and fake peer")]
+// Three later owner entrances wait through each seeded sink hold.
+const LATER_ENTRANCES: u32 = 3;
+const ORDER_SEED: u64 = 0x504f_0102;
+const TRACE_SINK: Token = Token::new(400);
+// The Sinks unit fixture's record limits cover its fixed event vocabulary.
+const SINK_RECORDS: smith_events::Limits = smith_events::Limits { string: 64, content: 1024, items: 19 };
+// Four authoritative/teardown slots and a two-record fact handoff (Sinks::LINE_SLOTS).
+const SINK_LINES: u32 = 6;
+// The Sinks unit fixture's destination write deadline; virtual time stays at zero.
+const SINK_WRITE_DEADLINE: Duration = Duration::from_secs(30);
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Order {
+    Held,
+    Prompt,
+    Content,
+    Transport,
+    Drained,
+    Entrance,
+    Recorded,
+    Dispatched,
+    Terminal,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Pressure {
+    None,
+    Complete,
+}
+
+enum Entrance {
+    Io(IoEvent),
+    Yield,
+    Fire,
+}
+
+struct Story {
+    request: Vec<u8>,
+    order: Vec<Order>,
+    holds: u32,
+    connects: u32,
+}
+
+struct Recorder {
+    sink: smith_agent_service::sinks::Sinks,
+    pending: VecDeque<Entrance>,
+    order: Vec<Order>,
+    captured: Vec<smith_protocol_llm::Measure>,
+    rng: Rng,
+    pressure: Pressure,
+    hold: Option<u32>,
+    holds: u32,
+}
+
+impl Recorder {
+    fn new(pressure: Pressure, seed: u64) -> Self {
+        use smith_agent_service::sinks::{Capture, Delivery, Destination, SinkLimits, Sinks};
+        let records = SINK_RECORDS;
+        let mut bounds = SinkLimits {
+            destinations: 1,
+            output: 0,
+            records,
+            answer_bytes: records.content,
+            metadata_string: records.string,
+            metadata_items: records.items,
+            scalar_content: records.content,
+            observation_line: 0,
+            fact_extra: 0,
+            conversations: 1,
+        };
+        bounds.output =
+            bounds.line_ceiling(Capture::None).expect("marker line").checked_mul(SINK_LINES).expect("sink output");
+        let mut sink = Sinks::new(&bounds, Capture::None, bounds.output, SINK_WRITE_DEADLINE);
+        sink.add(Destination::Trace, TRACE_SINK, Delivery::Complete).expect("one complete sink");
+        Self {
+            sink,
+            pending: VecDeque::new(),
+            order: Vec::new(),
+            captured: Vec::new(),
+            rng: Rng::new(seed),
+            pressure,
+            hold: None,
+            holds: 0,
+        }
+    }
+
+    fn release_sink(&mut self) {
+        let mut output = Queue::uncapped();
+        loop {
+            self.sink.down(Time::ZERO, &mut output);
+            match output.pop() {
+                Some(IoRequest::Stream { down: Down::Demand { .. }, .. }) => {
+                    self.sink.up(Time::ZERO, IoEvent::Stream { owner: TRACE_SINK, up: Up::Room });
+                }
+                Some(IoRequest::Stream { down: Down::Send(_), .. }) => {}
+                None => break,
+                Some(other) => panic!("unexpected sink operation: {other:?}"),
+            }
+        }
+        assert!(self.sink.takes());
+        assert!(self.sink.pop_given_up().is_none(), "complete delivery never abandons the sink");
+    }
+
+    // The owner retains its upper terminals and entrances until its observation sink has credit.
+    fn drain(
+        &mut self,
+        component: &mut Component,
+        env: &Env<ComponentLimits>,
+        up: &mut Queue<ToDomain>,
+        io: &mut Queue<IoRequest>,
+    ) -> bool {
+        if self.pressure == Pressure::Complete && !component.measures_drained() {
+            let remaining = match self.hold {
+                None => {
+                    while self.sink.takes() {
+                        self.sink.record(&smith_events::Record {
+                            t_ms: 0,
+                            event: smith_events::Event::MessageUnread(smith_events::MessageUnread { run: 1, name: 0 }),
+                        });
+                    }
+                    self.order.push(Order::Held);
+                    self.holds += 1;
+                    for _ in 0..LATER_ENTRANCES {
+                        self.pending.push_back(Entrance::Yield);
+                    }
+                    LATER_ENTRANCES
+                        + u32::try_from(self.rng.next_u64() % u64::from(LATER_ENTRANCES)).expect("seeded hold")
+                }
+                Some(remaining) => remaining,
+            };
+            if remaining > 0 {
+                assert!(!self.sink.takes(), "the complete sink stays full across offered entrances");
+                self.hold = Some(remaining - 1);
+                return false;
+            }
+            self.release_sink();
+            self.hold = None;
+        }
+        while let Some(measure) = component.pop_measure() {
+            let prompt = match &measure {
+                smith_protocol_llm::Measure::Prompt { owner, .. } => {
+                    self.order.push(Order::Prompt);
+                    Some(*owner)
+                }
+                smith_protocol_llm::Measure::Terminal { .. } => {
+                    self.order.push(Order::Transport);
+                    None
+                }
+                smith_protocol_llm::Measure::Completion { .. }
+                | smith_protocol_llm::Measure::Call { .. }
+                | smith_protocol_llm::Measure::Arguments { .. }
+                | smith_protocol_llm::Measure::Delta { .. }
+                | smith_protocol_llm::Measure::Retried { .. } => {
+                    self.order.push(Order::Content);
+                    None
+                }
+            };
+            self.captured.push(measure);
+            if let Some(owner) = prompt {
+                self.order.push(Order::Recorded);
+                component.prompt_recorded(env, owner, up, io);
+                self.order.push(Order::Dispatched);
+            }
+        }
+        assert!(component.measures_drained());
+        self.order.push(Order::Drained);
+        true
+    }
+}
+
 fn run(dialect: Provider, calls: bool, observed: bool, owner_close: bool) {
+    run_story(dialect, calls, observed, owner_close, Pressure::None, ORDER_SEED);
+}
+
+#[expect(clippy::too_many_lines, reason = "the protocol story drives the component, io and fake peer")]
+fn run_story(
+    dialect: Provider,
+    calls: bool,
+    observed: bool,
+    owner_close: bool,
+    pressure: Pressure,
+    seed: u64,
+) -> Story {
     let mut call = skein_llm_world::call(7);
     match dialect {
         skein_llm::Provider::OpenAi => panic!("fixture exercises the withdrawn routes"),
@@ -172,7 +354,8 @@ fn run(dialect: Provider, calls: bool, observed: bool, owner_close: bool) {
     let mut closing = false;
     let mut close_terminals = 0;
     let mut completed = 0_u32;
-    let mut captured = Vec::new();
+    let mut recorder = Recorder::new(pressure, seed);
+    let mut connects = 0;
     provider::start(
         &mut peer,
         &mut service,
@@ -224,22 +407,23 @@ fn run(dialect: Provider, calls: bool, observed: bool, owner_close: bool) {
         assert!(!component.measures_drained(), "the held handoff owes its actual prompt observation");
     }
     for _ in 0_u32..40_000 {
-        while let Some(measure) = component.pop_measure() {
-            let prompt = match &measure {
-                smith_protocol_llm::Measure::Prompt { owner, .. } => Some(*owner),
-                smith_protocol_llm::Measure::Completion { .. }
-                | smith_protocol_llm::Measure::Call { .. }
-                | smith_protocol_llm::Measure::Arguments { .. }
-                | smith_protocol_llm::Measure::Delta { .. }
-                | smith_protocol_llm::Measure::Terminal { .. }
-                | smith_protocol_llm::Measure::Retried { .. } => None,
-            };
-            captured.push(measure);
-            if let Some(owner) = prompt {
-                component.prompt_recorded(&env, owner, &mut up, &mut io);
+        if !recorder.drain(&mut component, &env, &mut up, &mut io) {
+            continue;
+        }
+        // One entrance per owner pass; newly produced measures wait for the next drain.
+        if let Some(entrance) = recorder.pending.pop_front() {
+            recorder.order.push(Order::Entrance);
+            match entrance {
+                Entrance::Io(event) => component.from_below(&env, event, &mut up, &mut io),
+                Entrance::Yield => {
+                    component.from_domain(&env, FromDomain::Yield { owner: Token::new(7) }, &mut up, &mut io);
+                }
+                Entrance::Fire => component.fire(&env, &mut up, &mut io),
             }
         }
-        if let Some(event) = up.pop() {
+        if component.measures_drained()
+            && let Some(event) = up.pop()
+        {
             match event {
                 ToDomain::BuiltinResult { .. } => panic!("a direct backend emits no program result"),
                 ToDomain::Text { owner, bytes } => {
@@ -261,6 +445,7 @@ fn run(dialect: Provider, calls: bool, observed: bool, owner_close: bool) {
                             llm::Said::Text { text, .. } if text.as_ref() == b"scripted answer"
                         )));
                     }
+                    recorder.order.push(Order::Terminal);
                     completed += 1;
                 }
                 ToDomain::Failed { .. } | ToDomain::Cancelled { .. } => {
@@ -273,13 +458,11 @@ fn run(dialect: Provider, calls: bool, observed: bool, owner_close: bool) {
             match request {
                 IoRequest::Connect { owner: token, .. } => {
                     assert!(owner.replace(token).is_none());
-                    component.from_below(
-                        &env,
-                        IoEvent::Connecting { owner: token, socket: Token::new(100) },
-                        &mut up,
-                        &mut io,
-                    );
-                    component.from_below(&env, IoEvent::Connected { owner: token }, &mut up, &mut io);
+                    connects += 1;
+                    recorder
+                        .pending
+                        .push_back(Entrance::Io(IoEvent::Connecting { owner: token, socket: Token::new(100) }));
+                    recorder.pending.push_back(Entrance::Io(IoEvent::Connected { owner: token }));
                 }
                 IoRequest::Stream { stream, down } => {
                     assert_eq!(stream, Token::new(100));
@@ -289,12 +472,9 @@ fn run(dialect: Provider, calls: bool, observed: bool, owner_close: bool) {
                     assert_eq!(entity, Token::new(100));
                     assert!(!component.closed(), "the socket still owes its close terminal");
                     close_terminals += 1;
-                    component.from_below(
-                        &env,
-                        IoEvent::Closed { owner: owner.expect("connected owner") },
-                        &mut up,
-                        &mut io,
-                    );
+                    recorder
+                        .pending
+                        .push_back(Entrance::Io(IoEvent::Closed { owner: owner.expect("connected owner") }));
                 }
                 other @ (IoRequest::Listen { .. }
                 | IoRequest::Bind { .. }
@@ -311,12 +491,9 @@ fn run(dialect: Provider, calls: bool, observed: bool, owner_close: bool) {
             received = wire.server.received.len();
         }
         if let Some(answer) = wire.answer() {
-            component.from_below(
-                &env,
-                IoEvent::Stream { owner: owner.expect("connected owner"), up: answer },
-                &mut up,
-                &mut io,
-            );
+            recorder
+                .pending
+                .push_back(Entrance::Io(IoEvent::Stream { owner: owner.expect("connected owner"), up: answer }));
         }
         if let Some(event) = peer_up.pop() {
             match event {
@@ -387,25 +564,16 @@ fn run(dialect: Provider, calls: bool, observed: bool, owner_close: bool) {
         if domain.is_due(fake_env.now) {
             fake::fire(&mut domain, &fake_env, &mut replies);
         }
-        while let Some(measure) = component.pop_measure() {
-            let prompt = match &measure {
-                smith_protocol_llm::Measure::Prompt { owner, .. } => Some(*owner),
-                smith_protocol_llm::Measure::Completion { .. }
-                | smith_protocol_llm::Measure::Call { .. }
-                | smith_protocol_llm::Measure::Arguments { .. }
-                | smith_protocol_llm::Measure::Delta { .. }
-                | smith_protocol_llm::Measure::Terminal { .. }
-                | smith_protocol_llm::Measure::Retried { .. } => None,
-            };
-            captured.push(measure);
-            if let Some(owner) = prompt {
-                component.prompt_recorded(&env, owner, &mut up, &mut io);
-            }
+        if component.has_work() && recorder.pending.is_empty() {
+            recorder.pending.push_back(Entrance::Fire);
         }
-        if component.has_work() {
-            component.fire(&env, &mut up, &mut io);
-        }
-        if owner_close && completed == 1 && !closing && component.measures_drained() {
+        if owner_close
+            && completed == 1
+            && !closing
+            && recorder.pending.is_empty()
+            && io.is_empty()
+            && component.measures_drained()
+        {
             closing = true;
             assert!(!component.closed());
             component.close(&env, &mut up, &mut io);
@@ -413,6 +581,8 @@ fn run(dialect: Provider, calls: bool, observed: bool, owner_close: bool) {
         if (!owner_close || component.closed())
             && completed == 1
             && !component.has_work()
+            && recorder.pending.is_empty()
+            && component.measures_drained()
             && io.is_empty()
             && up.is_empty()
             && !peer.has_work()
@@ -429,7 +599,7 @@ fn run(dialect: Provider, calls: bool, observed: bool, owner_close: bool) {
     }
     let mut terminal_count = 0;
     let mut content = Vec::new();
-    for measure in captured {
+    for measure in recorder.captured {
         match measure {
             smith_protocol_llm::Measure::Terminal { owner, measures } => {
                 assert_eq!(owner, Token::new(7));
@@ -508,6 +678,7 @@ fn run(dialect: Provider, calls: bool, observed: bool, owner_close: bool) {
     } else {
         assert!(content.is_empty(), "disabled capture retains no content");
     }
+    Story { request: wire.server.received, order: recorder.order, holds: recorder.holds, connects }
 }
 
 #[test]
@@ -546,4 +717,51 @@ fn captured_native_anthropic_text_and_calls_keep_actual_prompt_and_deltas() {
 fn an_owner_close_reports_closed_once_every_socket_settled() {
     run(Provider::OpenAiCodex, false, false, true);
     run(Provider::Anthropic, false, false, true);
+}
+
+/// Order: `measures_drained` (phase C).
+#[test]
+fn measures_drain_before_terminals_and_later_entrances_under_pressure() {
+    for dialect in [Provider::OpenAiCodex, Provider::Anthropic] {
+        let story = run_story(dialect, false, true, false, Pressure::Complete, ORDER_SEED);
+        let mut held = false;
+        let mut content = false;
+        let mut transport = false;
+        for event in story.order {
+            match event {
+                Order::Held => held = true,
+                Order::Drained => held = false,
+                Order::Content => content = true,
+                Order::Transport => transport = true,
+                Order::Entrance => assert!(!held, "seed {ORDER_SEED}: observations precede re-entry"),
+                Order::Terminal => {
+                    assert!(
+                        !held && content && transport,
+                        "seed {ORDER_SEED}: content and transport precede the terminal"
+                    );
+                }
+                Order::Prompt | Order::Recorded | Order::Dispatched => {}
+            }
+        }
+        assert!(story.holds > 0, "seed {ORDER_SEED}: {dialect:?} reaches the full-sink observation gate");
+        println!("seed {ORDER_SEED:#x}, {dialect:?}: {} sink holds", story.holds);
+    }
+}
+
+/// Order: `prompt_recorded(owner)` (phase C).
+#[test]
+fn prompt_recording_releases_one_original_request_before_later_entrances() {
+    for dialect in [Provider::OpenAiCodex, Provider::Anthropic] {
+        let original = run_story(dialect, false, true, false, Pressure::None, ORDER_SEED);
+        let delayed = run_story(dialect, false, true, false, Pressure::Complete, ORDER_SEED);
+        assert_eq!(
+            delayed.request, original.request,
+            "seed {ORDER_SEED}: the exact original native request survives withholding"
+        );
+        assert_eq!(delayed.connects, 1, "one original dispatch");
+        let prefix = &delayed.order
+            [..delayed.order.iter().position(|event| *event == Order::Entrance).expect("offered entrance runs")];
+        assert_eq!(prefix, &[Order::Held, Order::Prompt, Order::Recorded, Order::Dispatched, Order::Drained]);
+        assert_eq!(delayed.order.iter().filter(|event| **event == Order::Dispatched).count(), 1);
+    }
 }
