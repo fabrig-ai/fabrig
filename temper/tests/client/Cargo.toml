@@ -61,4 +61,5 @@ disallowed_types = "deny"
 disallowed_methods = "deny"
 
 [dev-dependencies]
+skein-fake-forge-domain.workspace = true
 jig-boundary.workspace = true

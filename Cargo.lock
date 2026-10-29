@@ -4184,6 +4184,7 @@ dependencies = [
  "jig-protocol-config",
  "jig-protocol-transcript",
  "jig-test-domain",
+ "skein-fake-forge-domain",
  "skein-fake-person",
  "skein-forge",
  "skein-io",
