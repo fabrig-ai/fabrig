@@ -83,7 +83,7 @@ fn the_moved_codec_at_its_ceilings_fits_its_heap_bound() {
     value.encode(&mut writer).expect("measured writer");
     let input = writer.finish();
     drop(value);
-    let bound = Moved::worst_case_heap(&CEILINGS).expect("codec heap bound");
+    let bound = Moved::decoded_bound(&CEILINGS).expect("codec heap bound");
     let meter = Meter::new();
     meter.start();
     let decoded = Moved::decode(&CEILINGS, &mut Reader::new(&input)).expect("full codec value");
