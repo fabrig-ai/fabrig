@@ -10,19 +10,6 @@ use crate::hosted::{self, Hosted};
 use crate::limits::{self, Limits};
 use crate::turns::Turns;
 
-/// The most requests an entry point emits per call under `limits`: a run
-/// that leaves live answers each of its relayed calls in flight, then stops
-/// its agent, or, its agent gone, saves or releases its workspace and answers;
-/// and an agent that starts is handed every inbound event held for it. The parent
-/// reserves this much room in `out` before calling it.
-#[must_use]
-pub const fn max_out(limits: &Limits) -> u32 {
-    let cancelling = limits.run_calls.saturating_mul(2);
-    let starting = limits.held.saturating_add(limits.accounts);
-    let most = if starting > cancelling { starting } else { cancelling };
-    most.saturating_add(limits.program_sources).saturating_add(4).saturating_add(limits.turns.saturating_mul(2))
-}
-
 /// The host child domain's state.
 #[derive(Debug)]
 pub struct Domain {
@@ -241,7 +228,7 @@ impl Domain {
     }
 }
 
-/// Handles one event, emitting at most [`max_out`] requests.
+/// Handles one event and emits its requests.
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     match event {
         Event::SourceAnswered { owner, answer } => {
@@ -302,9 +289,8 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
     }
 }
 
-/// Cancels a run on the ready list, if one is, emitting at most [`max_out`]
-/// requests: one of those a `CancelAll` named, for its reason. Also fires due
-/// source checks, independently of the run slots, within the same output bound.
+/// Cancels a run on the ready list, if one is, for its `CancelAll` reason.
+/// Also fires due source checks, independently of the run slots.
 pub fn resume(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     resume_runs(domain, env, out);
     fire_sources(domain, env, out);
