@@ -15,6 +15,9 @@ const HISTORY: u32 = 2;
 const PRUNED_HISTORY: u32 = 1;
 const OWNER_PERSON: u64 = 1;
 const OTHER: u64 = 8;
+// Stock charter 1's 4,329-byte assignment bound plus 25% headroom,
+// rounded up to two significant digits (skein/docs/foundation/testing-strategy.md, 6).
+const STOCK_RUN_BYTES: u32 = 5_500;
 const POLICY_CAP: u64 = 16_384;
 const PRIOR_POLICY_CAP: u64 = POLICY_CAP + 1;
 const POLICY_NUMBER: u32 = 1;
@@ -257,6 +260,7 @@ fn stock_limits() -> engine::Limits {
     limits.notes.scopes = 32;
     limits.tasks.charters = 4;
     limits.journal.writes = journal::WALKING_WRITES;
+    limits.journal.run_bytes = STOCK_RUN_BYTES;
     limits
 }
 
