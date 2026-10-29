@@ -2,6 +2,7 @@
 //! the existing ordered fake store. Requests become later input events
 //! (domain/root.md, section 12).
 
+use crate::journal_limits as journal;
 use crate::protocol::{self, Protocol};
 use crate::store::Store;
 use crate::walking_referee::{FINAL_SPEND, QUESTION, REPORT, TURNS, WalkingReferee};
@@ -18,6 +19,9 @@ use std::{
 };
 use temper_engine_domain as engine;
 use temper_engine_domain::{Delivery, JournalLimits, Record, loads};
+
+// Deliveries for the walking world's fleet burst and continuation.
+const WALKING_DELIVERIES: u32 = 26;
 
 /// This world's funding span.
 pub const PERIOD_SPAN: Duration = Duration::from_secs(7 * 24 * 60 * 60);
@@ -130,7 +134,7 @@ pub fn limits() -> engine::Limits {
         facts: 2,
         history: 2,
     };
-    let deliveries = 20_u32.max(fleet::max_out(&fleet).checked_add(1).expect("fleet burst plus continuation"));
+    let deliveries = WALKING_DELIVERIES;
     let journal = JournalLimits {
         commits: 3,
         held: deliveries * 3 + 16,
@@ -226,10 +230,11 @@ pub fn limits() -> engine::Limits {
         },
         forge: temper_engine_forge_world::LIMITS,
     };
-    limits.journal.writes = writes(&limits);
+    limits.journal.writes = journal::WALKING_WRITES;
     limits
 }
 
+// Remove this helper when the two temper-client-world callers move.
 /// Root route room for these bounds, including continuations and call records.
 #[must_use]
 pub fn writes(limits: &engine::Limits) -> u32 {

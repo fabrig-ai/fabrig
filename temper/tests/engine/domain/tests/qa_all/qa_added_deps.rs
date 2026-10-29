@@ -2,6 +2,7 @@
 use jig_domain_tasks as tasks;
 use skein_lib::{Queue, ReplyTo, Token};
 use temper_engine_domain as engine;
+use temper_engine_domain_world::journal_limits as journal;
 use temper_engine_domain_world::{direct::Driver, fixtures, protocol, store::Store, walking};
 
 const CHANNEL: Token = Token::new(7);
@@ -36,7 +37,7 @@ fn limits() -> engine::Limits {
     bounds.fleet.slots = TASKS - 1;
     bounds.call_records = 8;
     bounds.brief.sections = 5;
-    bounds.journal.writes = walking::writes(&bounds).max(8192);
+    bounds.journal.writes = journal::TREE_WRITES;
     bounds.journal.held = 300;
     bounds.journal.deliveries = 100;
     bounds.watermark = engine::default_watermark(&bounds.journal);

@@ -2,6 +2,7 @@
 use skein_lib::{ReplyTo, Token};
 use temper_engine_domain as engine;
 use temper_engine_domain_forge as forge;
+use temper_engine_domain_world::journal_limits as journal;
 use temper_engine_domain_world::{direct::Driver, fixtures};
 use temper_engine_forge_world::changes::change_row;
 
@@ -336,10 +337,9 @@ fn restart_forgets_ci_until_the_next_step_reads_it() {
 // domain/root.md, 10 and domain/forge.md, 8.8: 32 marks bound notification, while each new document computes the current place.
 #[test]
 fn queue_entry_obeys_the_mark_bound_and_a_reopen_reads_the_new_place() {
-    use temper_engine_domain_world::walking;
     let mut limits = fixtures::forge_limits();
     limits.forge.changes = 40;
-    limits.journal.writes = walking::writes(&limits);
+    limits.journal.writes = journal::WALKING_WRITES;
     let (mut driver, sign_in) = driver_with_limits(&limits);
     for task in 51..=85 {
         driver.send(engine::Event::Forge(Box::new(forge::Event::Change { row: queued(task, 1, task) })));

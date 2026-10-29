@@ -1,5 +1,6 @@
 //! The walking root with real children, an ordered paged fake store, scripted
 //! person and worker, independent durable-delivery referee and restart cuts.
+pub mod journal_limits;
 /// The protocol layer the world plays: link records, tool decode and render, outcomes, accounts.
 pub mod protocol;
 pub mod store;
