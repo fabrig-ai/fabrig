@@ -60,7 +60,6 @@ skein-shell.workspace = true
 [dev-dependencies]
 skein-ui.workspace = true
 skein-ui-text.workspace = true
-temper-worker-domain-checkout.workspace = true
 
 [lints.rust]
 unsafe_code = "forbid"

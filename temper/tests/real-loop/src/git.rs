@@ -1,7 +1,7 @@
 //! Hosted fake git on the real filesystem, sharing the caller's pipe lifecycle.
 use crate::{calls::Caller, world::Proc};
 use skein_world::{HostedProgram, Inherited, StartupRoot, real::World};
-use std::{cell::RefCell, ffi::OsStr, os::unix::ffi::OsStrExt, path::PathBuf};
+use std::{cell::RefCell, ffi::OsStr, os::unix::ffi::OsStrExt};
 use temper_fake_git_hosted::{Answer, Typed, fixtures::Scenario};
 use temper_worker_protocol_git::invocation::Command;
 
@@ -19,22 +19,6 @@ impl Disk {
             std::fs::write(path, bytes).expect("checkout file");
         }
         disk
-    }
-    fn path(&self, name: &[u8]) -> PathBuf {
-        self.scratch.path().join(OsStr::from_bytes(&self.scenario.at)).join(OsStr::from_bytes(name))
-    }
-    pub fn write(&mut self, name: &[u8], bytes: &[u8]) {
-        let path = self.path(name);
-        std::fs::create_dir_all(path.parent().expect("file parent")).expect("file directories");
-        std::fs::write(path, bytes).expect("working file");
-    }
-    #[must_use]
-    pub fn read(&self, name: &[u8]) -> Vec<u8> {
-        std::fs::read(self.path(name)).expect("working file")
-    }
-    #[must_use]
-    pub fn exists(&self, name: &[u8]) -> bool {
-        self.path(name).exists()
     }
     #[must_use]
     pub fn forge(&self) -> std::cell::Ref<'_, skein_fake_peers::forge::Forge> {
