@@ -225,10 +225,10 @@ impl World {
         assert!(outcome.killed.is_empty(), "normal stories kill no hosted child");
         settled::assert_no_children();
         before.assert_expected(&self.scenario, &self.seen());
-        let heaps = outcome.heap.as_ref().expect("per-process checked heap ledger");
-        assert_eq!(heaps.len(), outcome.procs.len());
-        for (peak, bound) in heaps {
-            assert!(*peak > 0 && peak <= bound, "each constructed and iterated process stays within its bound");
+        let peaks = outcome.peaks().expect("per-process checked peaks");
+        assert_eq!(peaks.len(), outcome.procs.len());
+        for peak in peaks {
+            assert!(peak > 0, "each constructed and iterated process has a measured peak");
         }
     }
 

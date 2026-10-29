@@ -538,7 +538,7 @@ fn make_fake(spawn: &Spawn, inherited: &Inherited) -> Process {
 
 pub struct Run {
     #[allow(dead_code)]
-    pub heap: Option<Vec<(u64, u64)>>,
+    pub peaks: Option<Vec<u64>>,
     pub records: Vec<Record>,
     pub login: Option<Vec<u8>>,
     pub observations: Option<Vec<u8>>,
@@ -642,5 +642,5 @@ pub fn run_files_observing(
     let files = paths.iter().map(|path| File { path: path.to_vec(), bytes: read(path) }).collect();
     outcome.machine.files.close(base);
     assert_eq!(outcome.machine.files.open_handles(), 0, "all invocation descriptors settle");
-    Run { heap: outcome.heap.clone(), records, login, observations, signalled, calls, server_exit, files }
+    Run { peaks: outcome.peaks(), records, login, observations, signalled, calls, server_exit, files }
 }
