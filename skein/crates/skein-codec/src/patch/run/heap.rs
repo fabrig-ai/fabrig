@@ -3,12 +3,6 @@ use super::{Buffer, Capacity, Frame, List, Open, Patcher, Schema, Value, plan, s
 use skein_lib::Stack;
 
 impl Patcher {
-    /// The old name of [`workspace_bound`]; it goes once every tree calls the new name (wave 3).
-    #[must_use]
-    pub fn worst_case_heap(capacity: Capacity) -> Option<u64> {
-        Self::workspace_bound(capacity)
-    }
-
     /// Bounds one patch operation.
     /// The run, two records, kept schemas and plans, including their scratch.
     #[must_use]
