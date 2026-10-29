@@ -10,7 +10,7 @@ use skein_io::{
 };
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall, stream};
 use skein_shell::{Clock, Wait, open_root};
-use skein_world::ring::Ring;
+use skein_world::{Deadline, Expired, Starved, ring::Ring};
 use std::fmt::Write as _;
 use std::{collections::VecDeque, ffi::OsString, os::unix::ffi::OsStrExt, path::PathBuf};
 
@@ -180,8 +180,16 @@ impl Harness {
             Err(report) => return Outcome::Failed { person: 0, step: 0, report },
         };
         let profile = skein_scratch::Scratch::new("ui-browser");
-        let (outcome, kept) = Runtime::new(self, profile.path(), people, &peers.limits).run(self, people, &mut peers);
+        let (outcome, kept, starved) =
+            Runtime::new(self, profile.path(), people, &peers.limits).run(self, people, &mut peers);
         self.kept = kept;
+        drop(peers);
+        drop(profile);
+        if !matches!(outcome, Outcome::Failed { .. })
+            && let Some(starved) = starved
+        {
+            starved.pass();
+        }
         outcome
     }
 }
@@ -246,6 +254,11 @@ struct Runtime {
     snapshot: String,
     screenshot: Option<PathBuf>,
     closing: closing::Closing,
+    deadline: Option<Deadline>,
+    starved: Option<Starved>,
+    spawned_pids: VecDeque<Option<u32>>,
+    server_pid: Option<u32>,
+    browser_pid: Option<u32>,
 }
 impl Runtime {
     fn origins(setup: &Harness) -> Vec<crate::origins::Pages> {
@@ -370,6 +383,11 @@ impl Runtime {
             snapshot: String::new(),
             screenshot: None,
             closing: closing::Closing::new(),
+            deadline: None,
+            starved: None,
+            spawned_pids: VecDeque::new(),
+            server_pid: None,
+            browser_pid: None,
         }
     }
     fn ask(&mut self, request: Request) {
@@ -423,6 +441,52 @@ impl Runtime {
     fn fail(&mut self, person: usize, step: u32, report: String) {
         if !matches!(self.outcome, Some(Outcome::Failed { .. })) {
             self.outcome = Some(Outcome::Failed { person: u32::try_from(person).expect("person fits"), step, report });
+        }
+    }
+    fn expire(&mut self, person: usize, step: u32, report: &str, expired: Expired) {
+        let (figures, starved) = match &expired {
+            Expired::Failed(figures) => (figures, false),
+            Expired::Starved(starved) => (starved.figures(), true),
+        };
+        self.outcome = Some(deadline_outcome(
+            self.outcome.take(),
+            u32::try_from(person).expect("person fits"),
+            step,
+            report,
+            figures,
+            starved,
+        ));
+        match expired {
+            Expired::Failed(_) => {}
+            Expired::Starved(starved) => {
+                if self.starved.is_none() {
+                    self.starved = Some(starved);
+                }
+                if !self.closing.active() {
+                    self.close();
+                }
+            }
+        }
+    }
+    fn spawned_pid(&mut self, owner: Token) {
+        let pid = self.spawned_pids.pop_front().expect("one pid lookup per successful spawn");
+        if owner == SERVER || owner == PROCESS {
+            if owner == SERVER {
+                self.server_pid = pid;
+            } else {
+                self.browser_pid = pid;
+            }
+            if let Some(pid) = pid {
+                self.deadline.as_mut().expect("run deadline armed").watch_process(pid);
+                for command in self.commands.iter_mut().flatten() {
+                    command.watch_process(pid);
+                }
+            }
+        } else if let Some(command) = self.commands.iter_mut().flatten().find(|command| command.owner == owner) {
+            command.pid = pid;
+            if let Some(pid) = pid {
+                command.watch_process(pid);
+            }
         }
     }
     fn origin_event(&mut self, event: io::Event) -> Option<io::Event> {
@@ -489,6 +553,9 @@ impl Runtime {
         }
     }
     fn io_event(&mut self, event: io::Event, setup: &Harness) {
+        if let io::Event::Spawned { owner, .. } = &event {
+            self.spawned_pid(*owner);
+        }
         if self.command_event(&event) {
             let index = self
                 .commands
@@ -781,7 +848,7 @@ impl Runtime {
                 }
             }
             if let Some(action) = face.command_action() {
-                self.command_action(index, action, face, play.at(), now);
+                self.command_action(index, action, face, play.at());
             }
             if let Some(asked) = play.request() {
                 self.exchanges.push(request::Exchange::new(
@@ -814,6 +881,9 @@ impl Runtime {
         }
         while let Some(complete) = self.complete.pop() {
             if complete.op != ROOT && complete.op != SERVER_ROOT {
+                if let Ok(kernel::Done::Spawned { pidfd, .. }) = &complete.result {
+                    self.spawned_pids.push_back(pidfd_pid(*pidfd));
+                }
                 io::up(&mut self.io, &self.ienv, complete, &mut self.io_events, &mut self.submits);
             }
         }
@@ -910,16 +980,43 @@ impl Runtime {
             }
         }
     }
+    fn close_point(&mut self, report: &str, classified: &mut bool) {
+        if !*classified {
+            *classified = true;
+            if self.starved.is_none() {
+                self.expire(0, 0, report, self.deadline.as_ref().expect("run deadline armed").expired());
+            }
+        }
+        if !self.closing.active() {
+            self.close();
+        }
+        self.closing.force(&mut self.requests);
+    }
+    fn capture_or_close(&mut self, opening_page: bool) {
+        if self.outcome.is_some() && !self.closing.active() {
+            if matches!(self.outcome, Some(Outcome::Failed { .. }))
+                && self.opened.iter().any(|open| *open)
+                && self.capturing == 0
+            {
+                self.capturing = 1;
+                self.ask(Request::Snapshot { page: self.failure_page(), op: SNAPSHOT });
+            } else if (self.capturing == 0 && !opening_page) || self.capturing == 3 {
+                self.close();
+            }
+        }
+    }
     fn run(
         mut self,
         setup: &Harness,
         people: &mut [&mut dyn Play],
         peers: &mut peers::Peers<'_, '_>,
-    ) -> (Outcome, Vec<Kept>) {
-        let start = self.clock.now().now;
-        let deadline = start.saturating_add(Duration::from_secs(40));
+    ) -> (Outcome, Vec<Kept>, Option<Starved>) {
         // Reserve io's close window inside the run's forty-second horizon.
-        let close_at = start.saturating_add(Duration::from_secs(36));
+        let mut startup = Some(Deadline::arm("the lent peers' startup", Duration::from_secs(36)));
+        let close_at = Deadline::arm("the browser harness run", Duration::from_secs(36));
+        let deadline = close_at.until().saturating_add(Duration::from_secs(4));
+        self.deadline = Some(close_at);
+        let mut classified = false;
         let mut faces = Vec::new();
         let mut done = vec![false; people.len()];
         let mut began = false;
@@ -942,27 +1039,47 @@ impl Runtime {
             }
             if !started && peers.ready() && self.outcome.is_none() {
                 started = true;
+                startup = None;
                 self.start(setup, peers);
             }
-            if time.now >= close_at {
+            // Observe answers and bad exits before classifying an unanswered wait.
+            if self.tick(setup, &mut faces, time.now) {
+                opening_page = false;
+            }
+            self.drive_commands(&mut faces, people, time.now);
+            if self.outcome.is_none() {
+                for (index, face) in faces.iter_mut().enumerate() {
+                    if let Some(why) = face.failure() {
+                        self.fail(index, people[index].at().saturating_sub(1), why);
+                    }
+                }
+            }
+            if !started
+                && self.outcome.is_none()
+                && let Some(startup) = &startup
+                && startup.passed()
+            {
+                let report = format!("lent peer startup deadline: {}", peers.waiting());
+                self.expire(0, 0, &report, startup.expired());
+                classified = true;
+            }
+            if self.deadline.as_ref().expect("run deadline armed").passed() {
                 let report = if started {
                     self.stuck(people, &faces, &done, began, peers.empty())
                 } else {
                     format!("lent peer startup deadline: {}", peers.waiting())
                 };
-                self.fail(0, 0, report);
-                if !self.closing.active() {
-                    self.close();
-                }
-                self.closing.force(&mut self.requests);
+                self.close_point(&report, &mut classified);
                 if time.now >= deadline {
                     break;
                 }
             }
-            if self.tick(setup, &mut faces, time.now) {
-                opening_page = false;
-            }
-            if !began && self.ready && self.address.is_some() && self.origins.iter().all(|pages| pages.addr.is_some()) {
+            if !began
+                && !self.closing.active()
+                && self.ready
+                && self.address.is_some()
+                && self.origins.iter().all(|pages| pages.addr.is_some())
+            {
                 began = true;
                 faces = self.faces(setup, people.len());
                 if people.is_empty() {
@@ -977,21 +1094,10 @@ impl Runtime {
             if began && self.outcome.is_none() {
                 opening_page |= self.open_page(setup, &mut faces, opening_page);
             }
-            self.drive_commands(&mut faces, people, time.now);
             if began && self.outcome.is_none() {
                 self.play(people, &mut faces, &mut done, time.now, setup);
             }
-            if self.outcome.is_some() && !self.closing.active() {
-                if matches!(self.outcome, Some(Outcome::Failed { .. }))
-                    && self.opened.iter().any(|open| *open)
-                    && self.capturing == 0
-                {
-                    self.capturing = 1;
-                    self.ask(Request::Snapshot { page: self.failure_page(), op: SNAPSHOT });
-                } else if (self.capturing == 0 && !opening_page) || self.capturing == 3 {
-                    self.close();
-                }
-            }
+            self.capture_or_close(opening_page);
             self.flush(started, time.now, time.wall);
             if self.closing.active()
                 && self.closed == self.spawned
@@ -1046,7 +1152,9 @@ impl Runtime {
             .into_iter()
             .chain(self.browser.next_deadline())
             .chain(peers.deadline())
-            .chain(self.commands.iter().flatten().filter_map(|command| command.wait.as_ref().map(|wait| wait.0)))
+            .chain(
+                self.commands.iter().flatten().filter_map(|command| command.wait.as_ref().map(|wait| wait.0.until())),
+            )
             .fold(now.saturating_add(POLL), Time::min);
         while let Some(record) = self.submits.pop() {
             let host = usize::from(record.op == ROOT || record.op == SERVER_ROOT);
@@ -1087,7 +1195,7 @@ impl Runtime {
             self.requests.push_back(request);
         }
     }
-    fn report(self) -> (Outcome, Vec<Kept>) {
+    fn report(self) -> (Outcome, Vec<Kept>, Option<Starved>) {
         let mut outcome = self.outcome.expect("terminal outcome");
         if let Outcome::Failed { report, .. } = &mut outcome {
             write!(
@@ -1111,9 +1219,45 @@ impl Runtime {
                 }
             }
         }
-        (outcome, self.kept)
+        (outcome, self.kept, self.starved)
     }
 }
+fn deadline_outcome(
+    current: Option<Outcome>,
+    person: u32,
+    step: u32,
+    report: &str,
+    figures: &skein_world::Figures,
+    starved: bool,
+) -> Outcome {
+    match current {
+        Some(failed @ Outcome::Failed { .. }) => failed,
+        Some(Outcome::Done) | None => {
+            if starved {
+                Outcome::Done
+            } else {
+                Outcome::Failed { person, step, report: format!("{report}\n{figures}") }
+            }
+        }
+    }
+}
+
+/// io keeps process identity opaque; Linux exposes our owned child's PID on its pidfd.
+fn pidfd_pid(pidfd: kernel::Fd) -> Option<u32> {
+    let source = std::fs::read_to_string(format!("/proc/self/fdinfo/{}", pidfd.raw())).ok()?;
+    parse_pidfd_pid(&source)
+}
+fn parse_pidfd_pid(source: &str) -> Option<u32> {
+    for line in source.lines() {
+        if let Some(pid) = line.strip_prefix("Pid:") {
+            return pid.trim().parse::<u32>().ok().filter(|pid| *pid != 0);
+        }
+    }
+    None
+}
+
+#[cfg(test)]
+mod deadline_tests;
 fn page(index: usize) -> Token {
     Token::new(100 + u64::try_from(index).expect("person fits"))
 }

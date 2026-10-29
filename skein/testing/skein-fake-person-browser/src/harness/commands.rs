@@ -8,6 +8,7 @@ use skein_lib::{
     Time, Token,
     stream::{self, Down, Up},
 };
+use skein_world::Deadline;
 use std::{collections::VecDeque, os::unix::ffi::OsStrExt};
 
 // A complete command transcript may include diagnostics as well as a URL.
@@ -25,6 +26,7 @@ pub(super) struct Process {
     pub owner: Token,
     pub name: String,
     pub child: Option<Token>,
+    pub pid: Option<u32>,
     pipes: Vec<Token>,
     closed: [bool; 3],
     ended: [bool; 2],
@@ -36,7 +38,7 @@ pub(super) struct Process {
     pub output: [Vec<u8>; 2],
     pub stderr: Vec<u8>,
     opens: Option<Opens>,
-    pub wait: Option<(Time, WaitFor)>,
+    pub wait: Option<(Deadline, WaitFor)>,
     pub error: Option<String>,
     pub requests: VecDeque<io::Request>,
 }
@@ -46,12 +48,17 @@ pub(super) struct Context<'a> {
     pub root: Fd,
     pub address: &'a str,
     pub peers: &'a [(Box<[u8]>, String)],
-    pub now: Time,
     pub write_cap: usize,
+    pub server_pid: Option<u32>,
+    pub browser_pid: Option<u32>,
 }
 impl Process {
     pub fn new(serial: u64, command: Command, context: Context<'_>) -> Self {
-        let Context { held, root, address, peers, now, write_cap } = context;
+        let Context { held, root, address, peers, write_cap, server_pid, browser_pid } = context;
+        let mut deadline = Deadline::arm("the scenario command's readiness", command.within);
+        for pid in [server_pid, browser_pid].into_iter().flatten() {
+            deadline.watch_process(pid);
+        }
         let owner = Token::new(FIRST.checked_add(serial).expect("command identity fits"));
         let mut input = VecDeque::new();
         let mut error = None;
@@ -88,6 +95,7 @@ impl Process {
             owner,
             name: command.program.display().to_string(),
             child: None,
+            pid: None,
             pipes: Vec::new(),
             closed: [false; 3],
             ended: [false; 2],
@@ -99,13 +107,18 @@ impl Process {
             output: [Vec::new(), Vec::new()],
             stderr: Vec::new(),
             opens: command.opens,
-            wait: Some((now.saturating_add(command.within), WaitFor::Start)),
+            wait: Some((deadline, WaitFor::Start)),
             error,
             requests: VecDeque::from([io::Request::Spawn { owner, spawn }]),
         }
     }
     pub fn owns(&self, owner: Token) -> bool {
         owner == self.owner || self.pipes.contains(&owner)
+    }
+    pub fn watch_process(&mut self, pid: u32) {
+        if let Some((deadline, _)) = &mut self.wait {
+            deadline.watch_process(pid);
+        }
     }
     fn down(&mut self, pipe: Token, down: Down) {
         self.requests.push_back(io::Request::Stream { stream: pipe, down });
@@ -212,7 +225,7 @@ impl Process {
             self.wait = None;
             return Progress::Failed(error);
         }
-        let Some((until, wait)) = self.wait.take() else { return Progress::Idle };
+        let Some((deadline, wait)) = self.wait.take() else { return Progress::Idle };
         let pending = match wait {
             WaitFor::Start => {
                 if self.child.is_some() {
@@ -223,7 +236,7 @@ impl Process {
             }
             WaitFor::Link => {
                 if let Some(link) = self.link() {
-                    self.wait = Some((until, WaitFor::Navigation));
+                    self.wait = Some((deadline, WaitFor::Navigation));
                     return Progress::Open(link);
                 }
                 if self.exit.is_some() && self.selected_ended() {
@@ -253,18 +266,15 @@ impl Process {
             },
         };
         if let Some(wait) = pending {
-            if now >= until {
-                return Progress::Failed(
-                    match wait {
-                        WaitFor::Exit { .. } => "Exited deadline passed",
-                        WaitFor::Start | WaitFor::Link | WaitFor::Navigation => {
-                            "Run missing-link/start deadline passed"
-                        }
-                    }
-                    .into(),
-                );
+            let passed = now >= deadline.until();
+            let report = match wait {
+                WaitFor::Exit { .. } => "Exited deadline passed",
+                WaitFor::Start | WaitFor::Link | WaitFor::Navigation => "Run missing-link/start deadline passed",
+            };
+            self.wait = Some((deadline, wait));
+            if passed {
+                return Progress::TimedOut(report);
             }
-            self.wait = Some((until, wait));
         }
         Progress::Idle
     }
@@ -318,6 +328,7 @@ pub(super) enum Progress {
     Open(Box<[u8]>),
     Kept { name: Box<[u8]>, value: Box<[u8]> },
     Failed(String),
+    TimedOut(&'static str),
 }
 
 impl super::Runtime {
@@ -330,7 +341,6 @@ impl super::Runtime {
         action: super::CommandAction,
         face: &mut crate::BrowserFace<'_>,
         step: u32,
-        now: Time,
     ) {
         match action {
             super::CommandAction::Run(command) => {
@@ -354,8 +364,9 @@ impl super::Runtime {
                         root: self.roots[0],
                         address: self.address.as_deref().expect("server address"),
                         peers: &self.peer_addresses,
-                        now,
                         write_cap: usize::try_from(self.ienv.limits.output).expect("output fits"),
+                        server_pid: self.server_pid,
+                        browser_pid: self.browser_pid,
                     },
                 );
                 self.command_serial = self.command_serial.checked_add(1).expect("command serial fits");
@@ -363,7 +374,11 @@ impl super::Runtime {
             }
             super::CommandAction::Exit { code, within } => {
                 if let Some(command) = &mut self.commands[index] {
-                    command.wait = Some((now.saturating_add(within), WaitFor::Exit { code }));
+                    let mut deadline = Deadline::arm("the scenario command's expected exit", within);
+                    if let Some(pid) = command.pid {
+                        deadline.watch_process(pid);
+                    }
+                    command.wait = Some((deadline, WaitFor::Exit { code }));
                 } else {
                     face.command_complete();
                     self.fail(index, step, "Exited without a command".into());
@@ -382,7 +397,7 @@ impl super::Runtime {
                 && self.commands[index].as_ref().is_some_and(|previous| previous.settled)
                 && let Some(command) = self.pending_commands[index].take()
             {
-                self.command_action(index, super::CommandAction::Run(command), face, people[index].at(), now);
+                self.command_action(index, super::CommandAction::Run(command), face, people[index].at());
             }
             let Some(command) = &mut self.commands[index] else { continue };
             if self.closing.active() {
@@ -392,7 +407,12 @@ impl super::Runtime {
             match command.advance(now, face.navigating(), face.failed()) {
                 Progress::Idle => {}
                 Progress::Done => face.command_complete(),
-                Progress::Open(link) => face.absolute(link),
+                Progress::Open(link) => {
+                    if let Some(pid) = self.browser_pid {
+                        command.watch_process(pid);
+                    }
+                    face.absolute(link);
+                }
                 Progress::Kept { name, value } => {
                     self.kept.push(super::Kept { person: u32::try_from(index).expect("person fits"), name, value });
                     face.command_complete();
@@ -400,6 +420,11 @@ impl super::Runtime {
                 Progress::Failed(error) => {
                     face.command_complete();
                     self.fail(index, people[index].at(), format!("command {name}: {error}"));
+                }
+                Progress::TimedOut(report) => {
+                    let (deadline, _) = command.wait.take().expect("an unanswered command wait");
+                    face.command_complete();
+                    self.expire(index, people[index].at(), &format!("command {name}: {report}"), deadline.expired());
                 }
             }
             for request in face.requests() {
