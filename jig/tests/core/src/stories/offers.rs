@@ -99,10 +99,6 @@ pub fn world_with_policy(
     let room = limits.core.routes;
     let connectors = jig_test_connector::OUTPUTS_BOUND.checked_mul(2).expect("two connectors");
     limits.journal.writes = limits.journal.writes.max(room.checked_add(connectors).expect("writes"));
-    limits.journal.held = limits
-        .journal
-        .held
-        .max(room.checked_add(connectors).expect("held").checked_mul(limits.journal.commits).expect("flights"));
     let mut world = World::configured(seed, false, configuration, limits);
     let person = world
         .people_answers

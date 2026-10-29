@@ -960,8 +960,6 @@ mod tests {
         let connectors = jig_test_connector::OUTPUTS_BOUND.checked_mul(2).expect("two fixture connectors");
         owner_limits.journal.writes =
             owner_limits.journal.writes.max(room.checked_add(connectors).expect("fixture writes"));
-        owner_limits.journal.held =
-            owner_limits.journal.held.max(room.checked_add(connectors).expect("fixture deliveries"));
         let driver = Driver::new(configuration, owner_limits, peers, now, wall);
         let mut limits = crate::test::limits();
         limits.client.domain.rows = 32;

@@ -620,7 +620,7 @@ fn refusal_program_code(
     let mut world = real::World::new(Refusal::new(now, now.saturating_add(Duration::from_secs(2))));
     world.spawn_with_fds(binary.descriptors(), || Process::Binary(Box::new(binary)));
     world.spawn_with_fds(descriptors, || {
-        Process::Script(Proc::Terminal(Box::new(Terminal::attached(
+        Process::Script(Proc::Terminal(Box::new(Terminal::attached_to_a_refusal(
             stream,
             vec![smith_local_process_world::terminal::Action::Eof],
         ))))

@@ -28,6 +28,18 @@ pub struct Link {
     pub busy: Duration,
     pub facts: u32,
 }
+/// The journal's sizes (`domain/root.md` 4, 10).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct JournalSizes {
+    /// Commits in flight at once: the store's `sizes::Commits::in_flight` and the watermark's first term.
+    pub commits: u32,
+    /// Unique writes in one commit: the store's commit edge, `sizes::Commits::writes`.
+    pub writes: u32,
+    /// Outputs the journal's door holds (`Journal::now`): the watermark's second term.
+    pub door: u32,
+    /// Held outputs the journal releases in one call (`Journal::uncapped`).
+    pub release: u32,
+}
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Limits {
     pub core: core::Limits,
@@ -37,7 +49,7 @@ pub struct Limits {
     pub token: u32,
     pub driver: skein_oauth_accounts::Limits,
     pub io: skein_io::Limits,
-    pub journal: skein_lib::JournalLimits,
+    pub journal: JournalSizes,
     pub routes: u32,
     pub clients: jig_protocol_engine_clients::Limits,
     pub clients_http: jig_protocol_engine_clients_http::Limits,

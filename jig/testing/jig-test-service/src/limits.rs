@@ -63,12 +63,18 @@ pub fn for_profile(name: Profile, jig: &jig_protocol_config::Limits) -> Limits {
         Profile::Standard => STANDARD,
     };
     let accounts = jig.driver;
+    let journal = root::JournalSizes {
+        commits: jig.journal.commits,
+        writes: jig.journal.writes,
+        door: jig.journal.door,
+        release: jig.journal.release,
+    };
     Limits {
         root: root::Limits {
             core: jig.core,
             connector,
-            journal: jig.journal,
-            watermark: root::default_watermark(&jig.journal),
+            journal,
+            watermark: root::default_watermark(&journal),
             routes: jig.routes,
         },
         store: jig_protocol_store::Limits {

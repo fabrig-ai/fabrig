@@ -324,7 +324,7 @@ client.
   Progress below is a line of a head or of the framing, a piece of the
   body, or room granted, each a demand met.
 
-### 3.5 Limits and the worst case
+### 3.5 Limits and validity
 
 ```rust
 pub struct Limits {
@@ -337,19 +337,13 @@ pub struct Limits {
 }
 ```
 
-- **`worst_case(&limits)`** is the intake (`read`); the request head,
-  held until room comes for it, with the list of the response's fields
-  (`headers`); the head being read, its fields' bytes and the line that
-  holds the next within `head`, and as much again while a fold joins a
-  value; and, once the body is read, a delivery or the carry-over an
-  exchange leaves unread (`read`, a line of the framing being within the
-  `2 × head` already counted). A delivery is made to the client's
-  demand, so it counts it; a call and a piece of the request body are
-  counted by the side above, which made them, and the step that takes one
-  reads it and drops it or passes it on (testing.md, 5); what goes up is
-  handed out when it is emitted. `None` for a head shorter than a blank
-  line, a read of nothing, or room for nothing of a request body (`send`
-  of 0), which no upload could get past.
+- **Edges bound retained data:** `request` bounds the held request head,
+  `headers` the response's field list, `head` the head and parsing lines,
+  and `read` the body intake and current delivery. Calls and request-body
+  pieces belong to the side above; emitted values pass to their owner
+  (testing.md, 5). `valid(&limits)` requires a head of at least two bytes,
+  a positive read cap and positive request-body room (`send`). There is
+  no client heap sum; worlds check measured peaks under scenario ceilings.
 - **`largest_read`** is the larger of `head` and `read`, and at least 2;
   **`largest_room`** the larger of `request` and `send`.
 - **`up` emits at most** two events and two requests: a response and the
@@ -474,7 +468,7 @@ pub enum Error { LineTooLong, EventTooLong, FieldTooLong, Stream(Fault) }
   Nothing else is decoded: the data goes to a decoder that checks UTF-8
   (JSON does), and a type or an id is compared as bytes.
 
-### 4.2 Limits and the worst case
+### 4.2 Limits and validity
 
 ```rust
 pub struct Limits {
@@ -496,12 +490,11 @@ pub struct Limits {
   time, so an event of any size within `event` costs the reader no more
   than one of a few bytes. The LLM client sets both from its skip cap
   (llm.md, section 4.2).
-- **`worst_case(&limits)`** is the event's type, an `id` value, the last
-  event ID buffer and the last event ID (`field` each), and the data
-  intake (`chunk`), all allocated with the reader, and the delivery it
-  reads (`chunk`), dropped by the step that reads it. A dispatch's boxes
-  are handed out when it goes up, and so is each piece of data. `None`
-  for a chunk of zero.
+- **Edges bound retained data:** `field` bounds the event type and ID
+  buffers, and `chunk` the data intake and current delivery. A dispatch's
+  boxes and each piece of data pass to their owner when emitted. A chunk
+  must be positive. There is no reader heap sum; worlds check measured
+  peaks under scenario ceilings.
 - **`largest_demand`** is `chunk`, and so is the largest demand the data
   face meets: whoever stacks a tokenizer on it checks the tokenizer's
   largest demand against it at startup.

@@ -16,7 +16,7 @@ use alloc::boxed::Box;
 use core::mem::size_of;
 pub use jig_domain_core::{Counters, fresh};
 use jig_domain_people as people;
-use skein_lib::{Decision as SkeinDecision, Journal as SkeinJournal, JournalLimits, List, Queue, ReplyTo, Token};
+use skein_lib::{Decision as SkeinDecision, Journal as SkeinJournal, List, Queue, ReplyTo, Token};
 
 /// Store edges and admission bounds supplied by the root, immutable across
 /// journal calls (domain/root.md, 4 and 10). Its journal is uncapped.
@@ -25,7 +25,7 @@ pub struct Limits {
     /// The store's commits in flight: sent and unanswered, an edge enforced
     /// by the root. Also counted in the default admission watermark.
     pub commits: u32,
-    /// Held-delivery count supplied to `journal_limits`; the root's uncapped journal
+    /// Held-delivery count retained in root configuration; the root's uncapped journal
     /// does not use it for admission.
     pub held: u32,
     /// Maximum unique writes per commit, including its automatically saved deployment header; a
@@ -512,18 +512,6 @@ impl Decision {
     pub(crate) fn carry_delivery(&mut self, limits: &Limits, delivery: Delivery) {
         assert!(*limits == self.limits, "decision uses configured limits");
         self.deliveries.push(delivery);
-    }
-}
-
-/// Translate temper's limits to skein-lib's generic journal capacities.
-#[must_use]
-pub const fn journal_limits(limits: &Limits) -> JournalLimits {
-    JournalLimits {
-        commits: limits.commits,
-        writes: limits.writes,
-        held: limits.held,
-        now: limits.deliveries,
-        release: 1,
     }
 }
 

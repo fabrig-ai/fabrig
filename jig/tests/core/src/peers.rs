@@ -760,7 +760,6 @@ pub fn journal(limits: &mut root::Limits) {
     let room = limits.core.routes;
     let connectors = jig_test_connector::OUTPUTS_BOUND * 2;
     limits.journal.writes = (room + connectors).max(2000);
-    limits.journal.held = ((room + connectors) * limits.journal.commits).max(2000);
 }
 
 // Words and a named release share one atomic party request.

@@ -31,6 +31,8 @@ pub struct Terminal {
     terminal: Option<kernel::Fd>,
     terminal_reading: bool,
     terminal_writing: bool,
+    accept_failed_write: bool,
+    failed_write: Option<kernel::Error>,
     terminal_ended: bool,
     terminal_closing: bool,
     io: io::Io,
@@ -120,6 +122,8 @@ impl Terminal {
             terminal: None,
             terminal_reading: false,
             terminal_writing: false,
+            accept_failed_write: false,
+            failed_write: None,
             terminal_ended: false,
             terminal_closing: false,
             io: io::Io::new(&limits),
@@ -155,6 +159,20 @@ impl Terminal {
         person.root_closed = true;
         person.terminal = Some(stream);
         person
+    }
+
+    /// A startup-refusal script records failed input, then drains output and waits for exit.
+    #[must_use]
+    pub fn attached_to_a_refusal(stream: kernel::Fd, commands: Vec<Action>) -> Self {
+        let mut person = Self::attached(stream, commands);
+        person.accept_failed_write = true;
+        person
+    }
+
+    /// The input error observed by a startup-refusal script, before or after exit notification.
+    #[must_use]
+    pub fn failed_write(&self) -> Option<kernel::Error> {
+        self.failed_write
     }
 
     /// The same scripted person on a shipped binary's separate input and output pipes.
@@ -207,16 +225,23 @@ impl Terminal {
                 }
                 kernel::Op::PipeWrite { bytes: buf, .. } => {
                     self.terminal_writing = false;
-                    let Ok(kernel::Done::Count(count)) = complete.result else {
-                        panic!(
+                    match complete.result {
+                        Ok(kernel::Done::Count(count)) => {
+                            let count = usize::try_from(count).expect("terminal write size");
+                            assert!(count > 0 && count <= buf.len());
+                            if count < buf.len() {
+                                self.sending = Some(buf[count..].into());
+                            }
+                        }
+                        Err(error) if self.accept_failed_write => {
+                            self.failed_write = Some(error);
+                            self.commands.clear();
+                            self.sending = None;
+                        }
+                        result => panic!(
                             "terminal write failed: {:?}; exit: {:?}; terminal ended: {}",
-                            complete.result, self.exit, self.terminal_ended
-                        )
-                    };
-                    let count = usize::try_from(count).expect("terminal write size");
-                    assert!(count > 0 && count <= buf.len());
-                    if count < buf.len() {
-                        self.sending = Some(buf[count..].into());
+                            result, self.exit, self.terminal_ended
+                        ),
                     }
                 }
                 kernel::Op::Close { .. } => {
@@ -242,7 +267,7 @@ impl Terminal {
                 kind: kernel::Op::PipeRead { fd: stream, buf: vec![0; 4096].into() },
             });
         }
-        if !self.terminal_writing && self.exit.is_none() {
+        if !self.terminal_writing && self.exit.is_none() && self.failed_write.is_none() {
             if self.sending.is_none() {
                 for _ in 0..16 {
                     let Some(action) = self.commands.front() else { break };

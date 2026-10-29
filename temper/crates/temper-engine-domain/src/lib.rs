@@ -26,7 +26,7 @@ mod tests;
 mod translate;
 pub use decision::{
     Counters, Decision, Delivery, Journal, JournalOutput, Limits as JournalLimits, accept_routed, commit, committed,
-    fresh, journal_limits, resume, uncommitted, valid as journal_valid,
+    fresh, resume, uncommitted, valid as journal_valid,
 };
 pub use store::{
     CallAnswer, CallKey, CallRecord, Changed, CoreRange, Deployment, EscalationDecisionRecord, Family, Key,

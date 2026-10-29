@@ -16,7 +16,12 @@ descriptor or a kernel error. Below it is the kernel boundary
   completions into events about its entities, and requests about its
   entities into kernel operations, and absorbs the mechanics in between:
   buffers in flight, short transfers, cancellation, settling, graceful
-  close.
+  close. The backend absorbs an uncancelled transfer's `EINTR` before any
+  outward completion: `PipeWrite`, `Write`, `Append`, `Send`, `PipeRead`,
+  `Read`, `Recv` and `ReadSignal` are reissued with identical buffers,
+  offsets and token, without a retry bound (shell.md, 7.4). A requested
+  cancellation completes `Cancelled`; other errors and short counts keep
+  their usual results.
 - **Flow control is explicit.** A receive is in flight only while the
   intake has room, a send only for queued output under its cap, and an
   accept only while the listener's owner has room.
