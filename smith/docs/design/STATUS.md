@@ -2,26 +2,30 @@
 
 Updated 2026-10-29. How far smith's code is from its design.
 
+Each design document's status is in `<doc>.status.md` beside it:
+- [`domain/README.md`](domain/README.status.md)
+- [`domain/run.md`](domain/run.status.md)
+- [`domain/session.md`](domain/session.status.md)
+- [`domain/tools.md`](domain/tools.status.md)
+- [`domain/host.md`](domain/host.status.md)
+- [`protocol/README.md`](protocol/README.status.md)
+- [`protocol/channel.md`](protocol/channel.status.md)
+- [`protocol/charter.md`](protocol/charter.status.md)
+- [`protocol/transcript.md`](protocol/transcript.status.md)
+- [`protocol/llm.md`](protocol/llm.status.md)
+- [`protocol/agent.md`](protocol/agent.status.md)
+- [`protocol/events.md`](protocol/events.status.md)
+- [`protocol/limits.md`](protocol/limits.status.md)
+- [`protocol/hosts.md`](protocol/hosts.status.md)
+- [`protocol/programs.md`](protocol/programs.status.md)
+- [`shell.md`](shell.status.md)
+- [`testing.md`](testing.status.md)
+- [`benchmarks.md`](benchmarks.status.md)
+
+Not single documents:
+
 | Area | Built | Not yet |
 |---|---|---|
-| `domain/README.md` | The run, session, tools and local-host domains, including transcripts, resume, delivery and answered-call recovery. | 4: MCP and supervised processes with a view. |
-| `domain/run.md` | 3.1, 6, 9.1: explicit Open mode, text-only replies that listen, and native text-only final turns. 3.3, 5.3, 8.1, 9.1: framed compaction summaries, jobs, checks and budgets. 3.4: an Open run opens with its person's words as main's first user message. | 5.1: MCP tool source. 5.3, 15: work beside writing children and children from a parent prefix. 6, 9.2: mid-work messages and threshold notes. |
-| `domain/session.md` | 3 to 5, 8.1, 8.2: account grants, jobs, bounded prompt window, failed-write ordering and framed compaction with `ToolChoice::None`. | 11: provider-native compaction. |
-| `domain/tools.md` | 3 to 5: jobs and waits that yield to other calls. Other implementation detail unknown. | 5: containment. |
-| `domain/host.md` | 2, 3: main-conversation live text handed to the owner. 4, 8, 9: local host and inline agent; generated older-store admission is prepared. | 2, 9.1: in-process LLM deltas. 4: contained trees. 8: MCP host tools. 12: isolated mode. |
-| `protocol/README.md` | The codecs, channel halves, LLM/machine components, agent process and spawning/local hosts; 8: credential schemes and versioned account notices. | 4, 11: connected agent. 5: MCP. 9: contained trees, Codex routing extras and WebSocket. |
-| `protocol/channel.md` | 3 to 8: start's live-text ask and bounded best-effort main text pieces; credential grants with schemes and typed notices. | 2, 7: connected-agent credential/refusals. 4: reasoning/input live-content producers. |
-| `protocol/charter.md` | 2, 5, 6: charter/result codecs, credential forms and prompt-window material; recorded as built. | — |
-| `protocol/transcript.md` | 2 to 6: turns, jobs, failed-write ordering and account-aware transcripts; recorded as built. | — |
-| `protocol/llm.md` | 3 to 7: jobs, bounded prompts, compaction, channel live-text deltas and named credential dialects. | 6: reasoning/input live producers. 12: edit formats per dialect. |
-| `protocol/agent.md` | 2, 4: machine component, jobs and program-backed agents. | 3, 7: view and contained processes. |
-| `protocol/events.md` | 3.6, 3.9, 3.10, 6: job events, account/program notices and compaction material. | 3.2: `containment: "trees"`. |
-| `protocol/limits.md` | 2 to 7: derived edge limits, jobs, task role, prompt guard, account notices and bounded live text; memory returned when use ends. 3.6, 3.8: host-channel edge credit, agent and local watermarks, uncapped internal stages, hand-offs and sent-message timestamps, stated dispatch orders and shipped pacing; turn measurements and lossy live pieces capped at their edges. 5: edge validity without a process heap sum or startup memory fit check; declared memory parsed and handed on. 11: measured scenario ceilings. | — |
-| `protocol/hosts.md` | 2: on-demand reads, one record/piece/end each. 3: reap after demanded end. 5.2 to 5.6: program accounts and login/logout; 5.3: generated local-store layout admission is prepared. | 3: contained tree. 4: connecting to an agent later. |
-| `protocol/programs.md` | 1 to 9: Claude Code backend, its fake, sign-in, tools, stream, notices, budgets and sessions; live checks exist. 5.9: Open runs on a program backend (replies, listening, parking, wind-down; the domain's Yield request; the stream's JSON token bound from its line ceiling); the fake scripted per conversation by cue, reading by line, and its built-ins acting on the workspace. The real program's stream (system/init without the prompt tool, system notices passed over, a later init checked as the first, a thinking turn's records under one message id as one completion, its final usage), a result contract's StructuredOutput, the program's own call; and a turn interrupted by the control request, SIGINT a cancel's alone; an interrupt of the agent's says so in the next message; the live suite passes against Claude Code 2.1.311. every MCP tool schema an object with no top-level combinator, alternatives under `outcome`; one outcome path per run (StructuredOutput under a contract, finish without). | |
-| `shell.md` | 4 to 7: interactive/exec product, task role and account sources. 4.1, 4.3, 5.3: older-chat refusal words, exit 1 and trace admission are prepared. 2.5: the hosted face, portable, checked for wasm32. | 5.1: sync startup directories into parents. 8, 9: per-tree limits and `isolate`. |
-| `testing.md` | Simulated, real-loop, process and opt-in live tiers. 2.5, 6.1: real-directory adapter and separate QA profile are prepared. 2.5: whole upper assertions kept until lower seams exist. 6: measured total-peak ceilings. | 2.1, 2.2, 6: fault sweeps, real signals, richer referees, tiny limits, paired job ends, state-digest replay and containment. 2.3, 4, 8: own-account live checks exist but have not run. |
-| `benchmarks.md` | 3, 5, 6, 8 to 11, 16: tasks, pins, pricing, summaries and parity verdict; wall-clock comparison includes RT. Harness-login, Claude Code arm and credentials probe exist. | 3.1, 5.2: missing/outdated calibrations. 6, 7, 10, 11.1: Claude Code comparison, Anthropic probes and real harness-account runs; mid-work/build-environment probes. 11.3: delegation experiment. 15: concurrency. 16.6: projection excluding a change's own ratio. |
 
 ## Dynamic memory contracts
 
