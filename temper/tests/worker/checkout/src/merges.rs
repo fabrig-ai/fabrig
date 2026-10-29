@@ -6,7 +6,7 @@ use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use temper_fake_checkout::{Checkout, git::Remote};
 use temper_worker_domain_checkout::git::{Done, Fault, Op};
 use temper_worker_domain_checkout::{
-    Domain, Event, Landing, Limits, MAX_OUT, Message, Outcome, Prepared, Repository, Request, Spec, Start, step,
+    Domain, Event, Landing, Limits, Message, Outcome, Prepared, Repository, Request, Spec, Start, step,
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -85,7 +85,7 @@ impl World {
         Self {
             domain: Domain::new(&limits),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
-            out: Queue::with_capacity(MAX_OUT),
+            out: Queue::uncapped(),
             forge,
             disk: Checkout::new(),
             hold: None,
@@ -98,15 +98,17 @@ impl World {
 
     fn finish(&mut self, mut event: Event, mut ambiguous: bool) -> Request {
         for _ in 0..64 {
+            let preparing = matches!(event, Event::Prepare { .. });
             step(&mut self.domain, &self.env, event, &mut self.out);
             let mut pending = None;
             let mut terminal = None;
-            let mut count = 0;
+            let mut held = false;
             while let Some(request) = self.out.pop() {
-                count += 1;
                 self.trace.push(format!("{request:?}"));
                 match request {
                     Request::Held { hold, .. } => {
+                        assert!(!held, "one hold per prepare");
+                        held = true;
                         assert!(self.hold.replace(hold).is_none());
                     }
                     Request::Io { owner, op, deadline } => {
@@ -125,7 +127,7 @@ impl World {
                     Request::Cancel { .. } => panic!("these scenarios have no outstanding cancellation"),
                 }
             }
-            assert!(count <= MAX_OUT);
+            assert_eq!(held, preparing, "only a prepare emits a new hold");
             while self.domain.pop_fact().is_some() {}
             self.domain.reclaim();
             if let Some(terminal) = terminal {
