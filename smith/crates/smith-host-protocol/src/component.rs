@@ -3,6 +3,10 @@
 //! never host policy or read-ahead records. `open` runs the handshake; `read`
 //! demands one record, live piece or end; `send_*`, `from_below` and `fire`
 //! translate output and stream events without spending that demand.
+//! A withdrawal that crosses the host's answer settles the call: a decoded
+//! withdrawal naming no call in flight is ignored, leaving the read owed
+//! (smith/docs/design/protocol/channel.md, sections 3–4). Answered names are not
+//! retained, since answers need no withdrawal and those names grow with a run.
 use alloc::boxed::Box;
 use skein_channel::{Closed, Event, Lower, LowerEvent, Machine, Request, Role, Schema, StreamMode, frame_writer};
 use skein_lib::{Duration, Map, Queue, Reader, Time, Token, Writer};
@@ -473,7 +477,9 @@ impl Component {
                                     Some(call) => {
                                         self.deliver(OpenEvent::Withdraw { call: *call }, to_service);
                                     }
-                                    None => self.refuse_rules(b"invalid answer", below),
+                                    // A withdrawal crossing the host's answer settles the call.
+                                    // Keep the demand for the next record (protocol/channel.md, 3–4).
+                                    None => self.machine.down(Request::Read, &mut self.events, below),
                                 }
                             }
                             Err(_) => self.refuse_rules(b"invalid answer", below),
