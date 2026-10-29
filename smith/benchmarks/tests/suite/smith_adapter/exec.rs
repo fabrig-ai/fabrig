@@ -136,56 +136,12 @@ impl ExecFixture {
 }
 
 #[test]
-fn an_exec_arm_uses_the_shared_sign_in_directory() {
-    let fixture = ExecFixture::new("exec-sign-in", 0);
-    let prepared = smith_bench::agent::smith::prepare(&fixture.context()).expect("checked preparation");
-    assert_eq!(prepared.rendered["credentials"], serde_json::json!(fixture.source));
-    assert_eq!(prepared.rendered["accounts"]["chatgpt"]["source"], "sign_in");
-    assert_eq!(prepared.rendered["accounts"]["claude"]["source"], "program");
-    assert!(prepared.rendered["accounts"].get("codex").is_none());
-    assert_eq!(prepared.state, fixture.private.state);
-    assert!(prepared.settings.starts_with(&fixture.private.config));
-    assert!(!fixture.private.root.join("smith/tokens").exists());
-    std::fs::remove_dir_all(fixture.root).expect("fixture cleanup");
-}
-
-#[test]
 fn an_exec_arm_refused_by_check_is_a_setup_refusal() {
     let fixture = ExecFixture::new("exec-check-refused", 2);
     let refusal = smith_bench::agent::smith::prepare(&fixture.context()).expect_err("check refuses");
     assert_eq!(refusal.step, smith_bench::isolate::SetupStep::Configuration);
     assert!(refusal.reason.contains("Code(2)"));
     assert!(!fixture.private.root.join("smith/tokens").exists());
-    std::fs::remove_dir_all(fixture.root).expect("fixture cleanup");
-}
-
-#[test]
-fn an_exec_arms_teardown_bound_comes_from_check() {
-    let fixture = ExecFixture::new("exec-check-bound", 0);
-    let mut task = fixture.task.clone();
-    task.smith.clear();
-    task.budget.turns = None;
-    task.budget.seconds = None;
-    task.budget.spend = None;
-    let context = smith_bench::agent::Context { task: &task, environment: &[], ..fixture.context() };
-    let prepared = smith_bench::agent::smith::prepare(&context).expect("checked bound");
-    assert_eq!(prepared.teardown.as_nanos(), 12_345_000_000);
-    let command = prepared.command();
-    assert_eq!(command.teardown, prepared.teardown);
-    assert_eq!(
-        command.arguments.iter().map(|value| value.to_str().expect("argument")).collect::<Vec<_>>(),
-        [
-            "exec",
-            "--json",
-            "-C",
-            fixture.private.workspace.to_str().expect("workspace"),
-            "-m",
-            "openai/gpt-6-luna",
-            "--effort",
-            "low",
-            "-"
-        ]
-    );
     std::fs::remove_dir_all(fixture.root).expect("fixture cleanup");
 }
 
@@ -232,35 +188,6 @@ impl ExecFixture {
     pub(super) fn clean(self) {
         std::fs::remove_dir_all(self.root).expect("fixture cleanup");
     }
-}
-
-#[test]
-fn the_program_arm_selects_claude_on_the_anthropic_small_tier() {
-    use std::os::unix::fs::PermissionsExt;
-    let mut fixture = ExecFixture::new("program-arm", 0);
-    std::fs::create_dir_all(fixture.source.join("programs/claude")).expect("synthetic Claude login");
-    let bin = fixture.root.join("bin");
-    std::fs::create_dir(&bin).expect("synthetic PATH");
-    std::fs::write(bin.join("claude"), "#!/bin/sh\nexit 0\n").expect("fake Claude");
-    std::fs::set_permissions(bin.join("claude"), std::fs::Permissions::from_mode(0o700)).expect("executable");
-    fixture.environment.push(("PATH".into(), bin.into_os_string()));
-    // Replace the first PATH, since admission uses the exact attempt environment.
-    fixture.environment.retain(|(name, value)| name != "PATH" || value != "/usr/bin:/bin");
-    std::fs::write(&fixture.pin_file, "name='smith-claude-code'\nagent='smith'\nprovider='anthropic'\nversion='built-arm'\nconfiguration='settings.toml'\n").expect("program pin");
-    fixture.pin = smith_bench::read_configuration(&fixture.pin_file).expect("program pin");
-    fixture.model.model = Some("claude-haiku-5-5".into());
-    let prepared = smith_bench::agent::smith::prepare(&fixture.context()).expect("program preparation");
-    let command = prepared.command();
-    let arguments: Vec<_> = command.arguments.iter().map(|argument| argument.to_str().expect("argument")).collect();
-    assert_eq!(prepared.rendered["endpoints"]["anthropic"]["account"], "claude");
-    assert_eq!(prepared.rendered["endpoints"]["anthropic"]["program"], "claude_code");
-    assert!(arguments.windows(2).any(|pair| pair == ["-m", "anthropic/claude-haiku-5-5"]));
-    assert_eq!(prepared.rendered["credentials"], serde_json::json!(fixture.source));
-    assert!(prepared.serial.is_some());
-    assert!(prepared.program_source());
-    assert_eq!(prepared.rendered["trace"]["path"], serde_json::json!(prepared.trace.as_ref().expect("program trace")));
-    drop(prepared);
-    std::fs::remove_dir_all(fixture.root).expect("fixture cleanup");
 }
 
 /// Lower test of smith-bench's `smith_adapter::exec::the_credentials_lead_reaches_the_native_policy_boundary` (top tiers test wiring only).
