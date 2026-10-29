@@ -399,9 +399,6 @@ impl skein_shell::Host for Peer {
     fn is_empty(&self) -> bool {
         self.closing && self.io.is_empty() && self.completions.is_empty() && self.submissions.is_empty()
     }
-    fn worst_case(&self) -> u64 {
-        4_194_304
-    }
     fn operations(&self) -> u32 {
         skein_io::operations(&self.env.limits).expect("peer io")
     }
