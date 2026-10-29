@@ -1056,7 +1056,7 @@ pub struct Limits {
   Each comes to its expectation through the server's world under several
   seeds, read a byte at a time, and cut anywhere, as the reference reads
   the prefix.
-- **The machines stacked** (`tests/http/tests/stack.rs`), a small step
+- **The machines stacked** (`tests/http/tests/suite/stack.rs`), a small step
   towards the protocol worlds: the reader and a tokenizer per event over
   the client, as a connection routes between them, the request body
   written by the JSON writer and uploaded, over the LLM transcripts cut
@@ -1106,7 +1106,7 @@ pub struct Limits {
   simulator, through the kernel's records, which a world joined by bytes
   has none of, so these keep their own loop, of the same shape: the
   contracts as it goes, the referee beside it.
-- **Memory** (`tests/http/tests/memory.rs`, with the counting allocator,
+- **Memory** (`tests/http/tests/suite/memory.rs`, with the counting allocator,
   testing.md, 5): every call of an entry point a step of the meter. The
   client at its limits: a head at the head limit with folds among its
   fields, bodies by length, chunked with a trailer section at its limit,
@@ -1117,7 +1117,7 @@ pub struct Limits {
   every limit with lines ended every way, a line, an event and a type
   past theirs, each closed after every step; its peak is its worst case
   exactly. The server and the writer, in a binary of their own
-  (`tests/http/tests/memory_server.rs`): the server at its limits, a head
+  (`tests/http/tests/suite/memory_server.rs`): the server at its limits, a head
   at the head limit with its fields at theirs, bodies by length and
   chunked with a trailer section at its limit, a 100 (Continue),
   responses at the response limit by length, chunked and without a
@@ -1129,7 +1129,7 @@ pub struct Limits {
   its target's copy; and a response head at its limit, held while a
   discard reads a piece of the most a read is. The writer's peak at its
   limits is its worst case exactly.
-- **The fuzzy suite** (`tests/http/tests/fuzzy_*.rs`): 20,000 connections
+- **The fuzzy suite** (`tests/http/tests/suite/fuzzy/*.rs`): 20,000 connections
   of one to four generated exchanges, valid, mutated, and corrupted where
   a random edit seldom lands (another major version, a code past 599, an
   upgrade, conflicting framing, a chunk size past a `u64`, a trailer
@@ -1158,7 +1158,7 @@ pub struct Limits {
   reply withdrawn, pipelining and reuse fell. The writer's: 5,000 runs,
   every answer and refusal, an event in pieces, the end and room after
   it, a failure idle and while writing, and a close in each state. The
-  protocol worlds' (`tests/protocol/tests/fuzzy_worlds.rs`): 300 runs of
+  protocol worlds' (`tests/protocol/tests/suite/fuzzy/worlds.rs`): 300 runs of
   the scenarios under caps drawn down to the least the stacks allow,
   asserting that a writer and an upload were held back, an upload
   stopped, a writer heard its stream fail, a stream reset, a connection

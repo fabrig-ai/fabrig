@@ -45,8 +45,8 @@ clock values, limits and observations, bounds the work it scripts and
 checks quiescence. No helper performs IO or reads a clock.
 
 The referee regressions and utility contract tests are under
-`tests/world/tests/domain_{referee,utilities}.rs`:
+`tests/world/tests/suite/domain_{referee,utilities}.rs`:
 
 ```sh
-cargo nextest run -p skein-world-tests --test domain_referee --test domain_utilities
+cargo nextest run -p skein-world-tests --test suite -E 'test(domain_referee::) | test(domain_utilities::)'
 ```

@@ -57,8 +57,8 @@ and clock make faults, expiry and generated identities replayable.
 `Limits` bounds retained stores, HTTP buffers, document decoding and responses.
 `valid(&limits, &config)` checks semantic limits, edge bounds and derived capacities.
 Fixed scenarios keep measured peaks under named ceilings. Dedicated
-counting-allocator tests live in `tests/fake-forge/tests/github_memory.rs` and
-`tests/fake-peers/tests/github_memory.rs`. They fill the layer's stores while
+counting-allocator tests live in `tests/fake-forge/tests/suite/github_memory.rs` and
+`tests/fake-peers/tests/suite/github_memory.rs`. They fill the layer's stores while
 every domain repository holds a queued pull; the peer test also holds both
 connections and measures each iteration. Route and credential matrices,
 revocation, byte faults, browser flows and signed logs have focused tests.

@@ -71,7 +71,7 @@ four worlds:
 - **the joint world,** `tests/client/src/joint/`: the client before
   jig's core under its test root, through the clients' component's
   translation with no transport between. 257 tests (`rg -c '#\[test\]'
-  tests/client/src/joint tests/client/tests/fuzzy_joint.rs`), 126 of them
+  tests/client/src/joint tests/client/tests/suite/fuzzy/joint.rs`), 126 of them
   in `joint/wire/`, which compare each carrier with its engine source
   field by field: the check against `client/domain/contract.md` that the
   first look recommended;
@@ -79,7 +79,7 @@ four worlds:
   HTTP bytes, 60 tests;
 - **`ops`'s joint world,** `tests/ops/src/joint/`: `ops`'s client before
   its whole engine on the conformance world, in
-  `tests/ops/tests/fuzzy_joint.rs` (11 tests) and `client_stories.rs`
+  `tests/ops/tests/suite/fuzzy/joint.rs` (11 tests) and `client_stories.rs`
   (7);
 - **the browser tier,** `tests/client-browser`: Chromium against
   `jig-test`, 7 tests.
@@ -158,24 +158,24 @@ their assertions, long runs as several tests. Against them:
 - **The tasks world's lifecycle sweep: resolved.** Coverage is typed
   (`Reached` and `MARKERS`, `tests/tasks/src/coverage.rs`). The sweep
   enumerates the 48 story choices and draws 8 seeds of 256, instead of
-  running all 256 (`tests/tasks/tests/fuzzy_lifecycle.rs`). The trace is
+  running all 256 (`tests/tasks/tests/suite/fuzzy/lifecycle.rs`). The trace is
   off unless `JIG_WORLD_TRACE` is set (`tests/tasks/src/trace.rs`);
   when on, it is still formatted text.
 - **Conformance and `ops`'s alert story: in part.** Worst cases are
   computed once per harness (`testing/jig-conformance/src/harness.rs:242`),
   and inputs and outputs are formatted only when tracing. Cuts still
   cost the square of the number of commits:
-  - `tests/conformance/tests/fuzzy_cuts.rs` replays the story from the
+  - `tests/conformance/tests/suite/fuzzy/cuts.rs` replays the story from the
     start once per commit, for 4 seeds;
-  - `fuzzy_snapshot.rs`, for each cut, resumes from a snapshot, replays
+  - `tests/conformance/tests/suite/fuzzy/snapshot.rs`, for each cut, resumes from a snapshot, replays
     the same cut fresh with tracing on, and compares the two as `Debug`
     dumps of the whole world (`replay::outside`,
     `tests/conformance/src/replay.rs:190`);
-  - `fuzzy_scenarios.rs` resumes each cut from a cold snapshot, which
+  - `tests/conformance/tests/suite/fuzzy/scenarios.rs` resumes each cut from a cold snapshot, which
     saves the prefix but runs the rest of the story per cut
     (`replay.rs:124-160`);
   - `ops`'s alert story now takes 6 chosen cuts, one test each, and each
-    runs the baseline again (`tests/ops/tests/fuzzy_alert_cuts.rs`).
+    runs the baseline again (`tests/ops/tests/suite/fuzzy/alert_cuts.rs`).
 - **The client harness's view limits: resolved.** They are test-sized:
   `Limits::for_world` with 512 or 1,024 nodes and 256 slots
   (`tests/client/src/test.rs:147`;
@@ -221,21 +221,21 @@ unoptimized, except the repository's tools.
   is its worst case, capped at 16 MiB (`heap_bytes_per_client`,
   `tests/client/src/harness/world.rs:47,190,202`), and two tests show it
   catching a client past a 1,024-byte budget
-  (`tests/client/tests/memory.rs:7-19`).
+  (`tests/client/tests/suite/memory.rs:7-19`).
 - **Coverage by text search over `Debug` output: in part.** The tasks
   world records coverage as typed facts. Ten assertions in six files
   still find what happened by searching formatted trace lines, such as
   counting a store's loads as the lines containing `"out Load"`:
   `tests/client/src/joint/people_stories.rs:175`,
   `joint/stories/fault_stories.rs:233,340`,
-  `tests/notes/tests/simulation.rs:124,130`,
-  `tests/core/tests/store.rs:58,256`, `restore_pages.rs:126,132` and
+  `tests/notes/tests/suite/simulation.rs:124,130`,
+  `tests/core/tests/suite/store.rs:58,256`, `restore_pages.rs:126,132` and
   `restart.rs:130` (`rg -n -t rust
   '\.(contains|starts_with|ends_with|matches)\("[^"]*[A-Za-z]{3,}' tests
   testing | rg -v 'Find::text|b"'`, 80 lines, read one by one). A typed
   record of what was reached says the same thing exactly.
 - **The store's drift check sees only what codegen names.**
-  `tests/store-codecs/tests/drift.rs:24-31` compares the files codegen
+  `tests/store-codecs/tests/suite/drift.rs:24-31` compares the files codegen
   produces with a golden directory, so a stale file in a directory it
   reads goes unnoticed, and a directory it does not read, such as
   `core/v1`, is never looked at (section 12).
@@ -255,8 +255,8 @@ numbers, file by file:
   106 then (`rg -o -t rust
   '\b[a-z_]+\((&mut [a-z_]+,\s*)?[0-9]{2,}(_[0-9]+)?,\s*[0-9]+' tests |
   wc -l`). `world.call(1, 202)` and its like are still in
-  `tests/core/tests/effects.rs`; `ask(&mut world, <n>, …)` went from 41
-  calls to 66, most in `tests/core/tests/stories.rs` (17) and `reads.rs`
+  `tests/core/tests/suite/effects.rs`; `ask(&mut world, <n>, …)` went from 41
+  calls to 66, most in `tests/core/tests/suite/stories.rs` (17) and `reads.rs`
   (15) (`rg -c -t rust '\bask\(&mut world,\s*[0-9]+' tests`).
 - **Names are per file.** The worlds name 314 integer constants, against
   10 then (`rg -o -t rust '^\s*(pub(\(crate\))? )?const [A-Z_0-9]+:
@@ -270,7 +270,7 @@ numbers, file by file:
   lines (:379, :389) share 86 lines of fixture (`leaving_plan` and
   `committed_proposal`, :292 to :377).
 - **A helper dispatches on strings:** `special`, in
-  `tests/client/tests/text_pages.rs:68-114`, picks one of five pages by
+  `tests/client/tests/suite/text_pages.rs:68-114`, picks one of five pages by
   name, with an `unreachable!` arm (:111), where an enum would name them.
 
 **Recommendation:**
@@ -367,7 +367,7 @@ numbers, file by file:
   The longest:
   `jig-domain-core/src/tests/activity.rs:50` (189 lines),
   `tests/client/src/joint/engine_stories.rs:129` (156),
-  `tests/core/tests/activity.rs:31` (148). Of those jig-protocol's
+  `tests/core/tests/suite/activity.rs:31` (148). Of those jig-protocol's
   retrospective named, `tests/client/src/joint/stories/fault_stories.rs`
   now has five tests over 40 lines.
 - **Large files:** 66 hand-written files over 800 lines, against 48 then
@@ -380,7 +380,7 @@ numbers, file by file:
   - `jig-client-view/src/phrases/jig.rs`: 2,902 (2,821 then);
   - `testing/jig-client-scripted-engine/src/tests.rs`: 2,257;
   - `jig-client-view/src/tests/cards_objects.rs`: 2,042;
-  - `tests/core/tests/stories.rs`: 1,871;
+  - `tests/core/tests/suite/stories.rs`: 1,871;
   - `jig-domain-tasks/src/boundary.rs`: 1,857 (1,776);
   - `jig-domain-people/src/domain.rs`: 1,818 (1,873);
   - `examples/ops/client-view/src/tests.rs`: 1,760;
@@ -510,8 +510,8 @@ real side.
   would pay it back.
 - **The one-process world's power-loss cut is placed by a count:**
   `crash(skein_world::Cut::PowerLoss, 128)`, the 128th submission
-  (`tests/one-process/tests/one_process.rs:38`); its fuzzy variant draws
-  75 to 133 (`fuzzy_one_process.rs:9`). Any change in how many steps a
+  (`tests/one-process/tests/suite/one_process.rs:38`); its fuzzy variant draws
+  75 to 133 (`tests/one-process/tests/suite/fuzzy/one_process.rs:9`). Any change in how many steps a
   run takes moves it. Placed on an event, the first committed `Turn`
   with a live worker, as the signal stories already place theirs
   (`tests/one-process/src/referee.rs:280-293`), it would stay where its
