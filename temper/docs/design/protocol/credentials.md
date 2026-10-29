@@ -446,8 +446,12 @@ sources in its holder's order. temper configures the LLM providers
   a `GitToken` puts its installation's entry, replacing the one before;
   an `Installation` change `Deleted` or `Suspended`, or an installation
   no longer accepted, takes its entry out, when it has one. A forge that
-  stops keeps its entries, which lapse with the value's validity; a
-  forge connected again replaces them as its new tokens come.
+  stops (its access refused, whatever the `why`: section 5) takes all
+  its entries out at once, in one change, as skein's stopped component
+  holds no access (`forge-connection.md`, 8.3): temper routes no git
+  request with a token it can no longer vouch for. Its accepted
+  installations stay as they are; a forge connected again puts its
+  entries back as its new tokens come.
 - **Generations.** Each start gives each identity that has a value
   generation 1. Each change of value makes the next generation, strictly
   increasing per number: a Forgejo forge's `GitToken` replaced; on
