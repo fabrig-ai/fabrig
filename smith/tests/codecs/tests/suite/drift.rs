@@ -2,14 +2,14 @@
 
 use std::{fs, path::Path};
 
-use skein_codegen::{Names, Output, generate_named, parse};
+use skein_codegen::{Output, generate, parse};
 
 #[test]
 fn charter_schema_matches_generated_code_and_all_goldens() {
     let root = skein_scratch::paths::tree().join("crates/smith-charter");
     let source = fs::read_to_string(root.join("schema/charter-v4.schema")).expect("charter schema");
     let schema = parse(&source).expect("schema valid");
-    let output = generate_named(&schema, Names::Bounds);
+    let output = generate(&schema);
     write_generated_code_and_goldens(&root.join("src/generated/v4.rs"), &root.join("golden/v4"), &output);
     let committed = fs::read_to_string(root.join("src/generated/v4.rs")).expect("generated code");
     assert_eq!(committed, output.rust, "regenerate charter codec with skein-codegen");
@@ -24,7 +24,7 @@ fn transcript_schema_matches_generated_code_and_all_goldens() {
     let root = skein_scratch::paths::tree().join("crates/smith-transcript");
     let source = fs::read_to_string(root.join("schema/transcript-v6.schema")).expect("transcript schema");
     let schema = parse(&source).expect("schema valid");
-    let output = generate_named(&schema, Names::Bounds);
+    let output = generate(&schema);
     write_generated_code_and_goldens(&root.join("src/generated/v6.rs"), &root.join("golden/v6"), &output);
     let committed = fs::read_to_string(root.join("src/generated/v6.rs")).expect("generated code");
     assert_eq!(committed, output.rust, "regenerate transcript codec with skein-codegen");
@@ -39,7 +39,7 @@ fn channel_schema_matches_generated_code_and_all_goldens() {
     let root = skein_scratch::paths::tree().join("crates/smith-channel");
     let source = fs::read_to_string(root.join("schema/channel-v5.schema")).expect("channel schema");
     let schema = parse(&source).expect("schema valid");
-    let output = generate_named(&schema, Names::Bounds);
+    let output = generate(&schema);
     write_generated_code_and_goldens(&root.join("src/generated/v5.rs"), &root.join("golden/v5"), &output);
     let committed = fs::read_to_string(root.join("src/generated/v5.rs")).expect("generated code");
     assert_eq!(committed, output.rust, "regenerate channel codec with skein-codegen");
@@ -87,7 +87,7 @@ fn local_store_schema_and_layout_fingerprints_match_committed_code_and_goldens()
     let root = crates.join("smith-local-protocol");
     let source = fs::read_to_string(root.join("schema/local-store-v1.schema")).expect("local store schema");
     let schema = parse(&source).expect("local store schema valid");
-    let output = generate_named(&schema, Names::Bounds);
+    let output = generate(&schema);
     let write = std::env::var_os("SKEIN_CODEGEN_WRITE").as_deref() == Some(std::ffi::OsStr::new("1"));
     let generated = root.join("src/generated/local_store_v1.rs");
     let goldens = root.join("golden/v1");
