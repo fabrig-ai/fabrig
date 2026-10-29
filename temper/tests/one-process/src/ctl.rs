@@ -56,7 +56,7 @@ pub fn host(spawn: &Spawn, inherited: &Inherited) -> Recorded {
     .expect("shipped ctl limits");
     Recorded {
         host,
-        wire: if crate::m15::observer::enabled() && !spawn.args.get(1).is_some_and(|word| word.as_ref() == b"sign-in") {
+        wire: if crate::m15::observer::enabled() && spawn.args.get(1).is_none_or(|word| word.as_ref() != b"sign-in") {
             crate::referee::client::Wire::capturing()
         } else {
             crate::referee::client::Wire::default()

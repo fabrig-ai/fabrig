@@ -102,6 +102,10 @@ fn commands(caller: &mut Caller, link: Box<[u8]>, app: u64) -> usize {
     ]));
     10
 }
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "independent monotonic observations track renewal, delivery and client completion"
+)]
 struct Judge {
     controls: skein_world::Controls,
     store: Rc<RefCell<Store>>,

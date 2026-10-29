@@ -183,12 +183,12 @@ impl Observer {
                 }
             }
             (Op::Send { fd, bytes, from }, Ok(Done::Count(count))) if role == Role::Forge => {
-                self.wire(role, *fd, &bytes[*from as usize..(*from + *count) as usize])
+                self.wire(role, *fd, &bytes[*from as usize..(*from + *count) as usize]);
             }
             (Op::Recv { fd, buf }, Ok(Done::Count(count)))
                 if matches!(role, Role::Ctl | Role::Client | Role::Caller) =>
             {
-                self.wire(role, *fd, &buf[..*count as usize])
+                self.wire(role, *fd, &buf[..*count as usize]);
             }
             (Op::PipeWrite { fd, bytes, from }, Ok(Done::Count(count))) => {
                 if matches!(role, Role::Agent | Role::Git | Role::Shell) {
@@ -243,7 +243,13 @@ fn response(bytes: &[u8]) -> Option<(usize, &[u8])> {
     (bytes.len() >= used).then(|| (used, &bytes[end + 4..used]))
 }
 fn secret_path(path: &[u8]) -> bool {
-    path.split(|byte| *byte == b'/').any(|part| part == b"secrets") || path.starts_with(b"input/")
+    if path == b"state/secrets" || path.starts_with(b"state/secrets/") || path.starts_with(b"input/") {
+        return true;
+    }
+    let Some(generation) = path.strip_prefix(b"state/generations/") else { return false };
+    let mut segments = generation.split(|byte| *byte == b'/');
+    segments.next().is_some_and(|number| !number.is_empty() && number.iter().all(u8::is_ascii_digit))
+        && segments.next() == Some(b"secrets".as_slice())
 }
 pub(crate) fn root(role: Role, fd: Fd, path: &[u8]) {
     OBSERVER.with(|cell| {
@@ -485,5 +491,9 @@ mod tests {
             assert!(observer.leak(&bytes).is_some(), "the seeded representation is detected");
         }
         assert!(observer.leak(b"observer-control-other").is_none());
+        assert!(secret_path(b"state/generations/1/secrets"));
+        assert!(!secret_path(b"worker/workspaces/0/app/secrets/token"));
+        assert!(!secret_path(b"client/private/secrets/token"));
+        assert!(!secret_path(b"state/generations/1/secrets-public"));
     }
 }
