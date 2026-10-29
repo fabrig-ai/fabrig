@@ -778,7 +778,7 @@ pub fn release(domain: &mut Domain, _env: &Env<Limits>, out: &mut Queue<Request>
         domain.door_count = 0;
         return;
     }
-    // journal_limits fixes release to one held output before the next commit.
+    // The journal's release limit is one held output before the next commit.
     let _status: skein_lib::Released = release_one(domain, out);
     send_commit(domain, out);
 }
