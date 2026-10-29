@@ -75,7 +75,7 @@ impl World {
         self.domain.account_views().as_slice().to_vec()
     }
     pub fn step(&mut self, event: Event) -> Vec<Request> {
-        let mut out = Queue::with_capacity(accounts::max_out(&self.limits));
+        let mut out = Queue::uncapped();
         accounts::step(&mut self.domain, &Env { now: self.now, wall: self.wall, limits: self.limits }, event, &mut out);
         drain(&mut out)
     }
@@ -84,7 +84,7 @@ impl World {
         let now = Time::ZERO.saturating_add(Duration::from_secs(seconds));
         self.wall = Wall::from_nanos(self.wall.as_nanos().saturating_add(now.saturating_since(self.now).as_nanos()));
         self.now = now;
-        let mut out = Queue::with_capacity(accounts::max_out(&self.limits));
+        let mut out = Queue::uncapped();
         accounts::fire(&mut self.domain, &Env { now: self.now, wall: self.wall, limits: self.limits }, &mut out);
         drain(&mut out)
     }
