@@ -57,3 +57,25 @@ fn requester_ending_survives_restore_only_with_its_existing_person_authority() {
         assert!(refused);
     }
 }
+
+#[test]
+fn requester_ending_restores_without_rejudging_historical_authority() {
+    let mut h = Harness::new();
+    let mut open = task(1, &[]);
+    open.flags.conversation = true;
+    open.flags.ended_by = crate::EndedBy::Requester;
+    h.make([open].into());
+    h.restart();
+    let original = h.domain.task(1).expect("restored open task").clone();
+    assert_eq!(original.flags.ended_by, crate::EndedBy::Requester);
+    for requester in [Party::Person(0), Party::Task(1), Party::Deployment { project: 1 }] {
+        let mut broken = original.clone();
+        broken.requester = requester;
+        let mut cold = Harness::new();
+        cold.domain = Domain::new(&LIMITS, 91, 1, crate::tests::charters(), Box::new([0]));
+        cold.domain.start_restore();
+        let out = cold.send(Event::Restore { record: Stored::Live(Box::new(broken)) });
+        assert!(out.is_empty());
+        assert_eq!(cold.domain.task(1).unwrap().requester, requester);
+    }
+}

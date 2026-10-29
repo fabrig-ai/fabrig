@@ -786,7 +786,7 @@ pub enum Phase {
         /// Exact connector-owned cause, retained in lifecycle milestones.
         source: Option<Box<HoldSource>>,
     },
-    /// Historical outcome outside the live arena; restoring it as live is refused.
+    /// Historical outcome; default restoration refuses it in the live arena.
     Ended(/** Historical final ending; this phase is excluded from the live restore arena. */ Ending),
 }
 
@@ -1113,8 +1113,8 @@ pub struct TaskRecord {
     pub added: Box<[Added]>,
     /// `Exact` still-live subset of dependencies, bounded by `Limits::dependencies`; removed once
     /// per dependency end in the same decision. A waiting task waits for them; an active one is
-    /// kept by them (domain/tasks.md, 5.7). `Restore` checks count/uniqueness/subset before
-    /// retention and complete live coverage after all pages.
+    /// kept by them (domain/tasks.md, 5.7). Default restoration checks its shape and live
+    /// coverage; `Domain::start_restore` checks fit and required links.
     pub waiting_on: Box<[u64]>,
     /// Resources currently held or awaited; a connector may pass a failed delegate's hold to its tree root during release.
     pub holdings: Box<[Holding]>,
@@ -1199,10 +1199,7 @@ pub enum Stored {
     /// Committed change read on demand, never restored as live state.
     History(crate::History),
     /// Current bounded live task state, emitted on mutation and admitted once at startup.
-    Live(
-        /** Owned boxed bounded live task row; startup validates its shape and later validates graph/financial links. */
-         Box<TaskRecord>,
-    ),
+    Live(/** Owned boxed live task row; selected startup checks precede activation. */ Box<TaskRecord>),
     /// Historical final task state; root loads it for authenticated result reads, never as
     /// live startup state.
     Ended(
@@ -1211,8 +1208,7 @@ pub enum Stored {
     ),
     /// Compact durable pointer to a historical result named by live work.
     Stub(Stub),
-    /// Authentic finite external source accounting; restored links are checked with live
-    /// reservations.
+    /// Finite external source accounting; default startup checks its reservations.
     Ledger(
         /** Finite period/pool accounting owned by tasks and admitted at startup under `Limits::funders`. */
         crate::FundingRecord,
@@ -1335,8 +1331,8 @@ pub enum Refusal {
     /// Valid finishing declines to cancel still-live delegates; activation and charge remain
     /// unadmitted.
     LiveDelegates,
-    /// `Live` startup row shape, graph or financial links are invalid; historical rows
-    /// cannot be restored live.
+    /// Default startup shape, graph or funding refusal; the explicit `start_restore`
+    /// entry refuses configuration fit failures. Historical families stay outside startup.
     Restore,
     /// A turn's read fence was not an offered unread message.
     Read,

@@ -119,3 +119,45 @@ fn connector_accounts_are_nonempty_bounded_and_name_the_uncertain_entry() {
         assert!(!crate::hold_origin::valid(&limits, Hold::Uncertain { entry: 4 }, Some(&source)));
     }
 }
+
+#[test]
+fn hold_origin_admission_checks_semantics_and_restore_checks_bytes() {
+    let mut h = Harness::new();
+    h.make([task(1, &[])].into());
+    let before = h.domain.task(1).unwrap().clone();
+    for (why, source) in [
+        (Hold::Budget, Box::new(resource(b"wrong reason"))),
+        (Hold::Drift, Box::new(resource(&[1; 65]))),
+        (Hold::Uncertain { entry: 3 }, Box::new(HoldSource::Effect { connector: 7, entry: 4 })),
+        (Hold::EffectFailed, Box::new(HoldSource::Effect { connector: 7, entry: 0 })),
+    ] {
+        h.send(Event::HoldFrom { task: 1, why, source: source.clone() });
+        assert_eq!(h.domain.task(1), Some(&before));
+        let mut broken = before.clone();
+        broken.phase = Phase::Held { was: crate::Was::Active(Active::Due), why, source: Some(source) };
+        broken.revisions.hold = 1;
+        broken.escalation = crate::Escalation::Waiting {
+            revision: 1,
+            holder: crate::EscalationHolder::Person(9),
+            entry: 1,
+            since: Wall::EPOCH,
+        };
+        let mut cold = Harness::new();
+        cold.domain = Domain::new(&LIMITS, 91, 1, crate::tests::charters(), Box::new([0]));
+        cold.domain.start_restore();
+        let mut refused = false;
+        for request in cold.send(Event::Restore { record: Stored::Live(Box::new(broken)) }) {
+            let Request::RestoreRefused { .. } = request else { continue };
+            refused = true;
+        }
+        assert_eq!(refused, why == Hold::Drift, "only oversized resource bytes refuse");
+    }
+    h.send(Event::HoldFrom {
+        task: 1,
+        why: Hold::Uncertain { entry: 3 },
+        source: Box::new(HoldSource::Effect { connector: 7, entry: 3 }),
+    });
+    h.route(1, crate::EscalationHolder::Person(9), 1);
+    h.restart();
+    assert_eq!(origin(&h.domain.task(1).unwrap().phase), Some(&HoldSource::Effect { connector: 7, entry: 3 }));
+}

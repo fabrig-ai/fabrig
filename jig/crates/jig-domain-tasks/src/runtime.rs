@@ -14,7 +14,8 @@ pub enum RetryNotice {
     Refused { count: u32 },
 }
 
-pub(crate) fn valid(task: &TaskRecord) -> bool {
+// Default restoration keeps the stored judgments of domain/tasks.md, 12.
+pub(crate) fn startup_valid(task: &TaskRecord) -> bool {
     if task.run_since.is_some() && task.attempt == 0 {
         return false;
     }

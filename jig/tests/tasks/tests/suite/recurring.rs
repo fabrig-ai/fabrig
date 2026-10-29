@@ -302,3 +302,69 @@ fn recurring_and_accepted_creation_revisions_are_checked_by_the_world_referee() 
     assert_eq!(world.record(21).settings.task, 3);
     assert_eq!(world.record(20).settings.task, 2);
 }
+
+#[test]
+fn recurring_lifetime_funding_exceeds_live_capacity_and_restores_before_retirement() {
+    let limits = tasks::Limits { tasks: 3, project_tasks: 3, ..LIMITS };
+    let mut world = World::new_start_restore(219, limits);
+    assert_eq!(
+        world.make(Party::Deployment { project: 1 }, vec![recurring(9, RecurringOverlap::Skip)]),
+        Reply::Made(vec![9])
+    );
+    world.open_period(1, 100_000);
+    batch(&mut world, 9, 1, 10);
+    let funder = Funder::Recurring { project: 1, task: 9, period: 1 };
+    for child in 11..=15 {
+        let mut delegate = task(child, &[]);
+        delegate.funder = Funder::Task(10);
+        delegate.numbers.budget = 1;
+        delegate.authority.budget.spend = 1;
+        assert_eq!(world.make(Party::Task(10), vec![delegate]), Reply::Made(vec![child]));
+        assert_eq!(world.live(), 3, "simultaneous occupancy fits");
+        world.claim(child, child);
+        world.terminal_cause(
+            child,
+            tasks::End::Finished {
+                result: tasks::TaskResult::Report { words: Box::new([1]) },
+                cancel_delegates: false,
+            },
+            Cause::Priced { cumulative: 1 },
+        );
+        world.settle(child);
+        assert_eq!(world.live(), 2);
+    }
+    let Stored::Ledger(before) = world.records[&Key::Ledger(funder)].clone() else { panic!("open recurring ledger") };
+    assert!(before.made > limits.tasks);
+    assert_eq!(before.numbers.reserved, 30, "occurrence keeps its ledger live");
+    assert!(!world.records.contains_key(&Key::ClosedLedger(funder)));
+    let occurrence = world.record(10).clone();
+    world.restart();
+    let mut restored = jig_tasks_world::domain(&limits, 219);
+    restored.start_restore();
+    let mut out = skein_lib::Queue::uncapped();
+    for record in world.records.values().filter(|row| row.key().live()) {
+        tasks::step(&mut restored, &world.env, Event::Restore { record: record.clone() }, &mut out);
+    }
+    tasks::step(&mut restored, &world.env, Event::Check, &mut out);
+    assert!(restored.checked());
+    assert!(out.is_empty());
+    assert_eq!(restored.funding(funder), Some(&before));
+    assert_eq!(restored.task(10), Some(&occurrence));
+    assert_eq!(world.record(10), &occurrence);
+    assert_eq!(world.live(), 2);
+    let mut delegate = task(16, &[]);
+    delegate.funder = Funder::Task(10);
+    delegate.numbers.budget = 1;
+    delegate.authority.budget.spend = 1;
+    assert_eq!(world.make(Party::Task(10), vec![delegate]), Reply::Made(vec![16]));
+    world.claim(16, 16);
+    world.finish(16);
+    world.settle(16);
+    world.claim(10, 10);
+    world.finish(10);
+    world.settle(10);
+    world.open_period(2, 100_000);
+    batch(&mut world, 9, 2, 17);
+    world.restart();
+    assert_eq!(world.record(17).funder, Funder::Recurring { project: 1, task: 9, period: 2 });
+}

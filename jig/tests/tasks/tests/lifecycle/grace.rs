@@ -243,3 +243,35 @@ fn a_restored_finish_word_requires_its_matching_grace() {
         assert_eq!(refusals, [Refusal::Restore]);
     }
 }
+
+#[test]
+fn a_restored_finish_word_does_not_repeat_grace_consistency_checks() {
+    const RESTORE_SEED: u64 = 194;
+    let mut world = world();
+    cancel(&mut world, Some(Duration::from_secs(5)), b"wrap up");
+    let original = world.record(TASK).clone();
+    let mut missing = original.clone();
+    missing.grace = None;
+    let mut wrong_name = original.clone();
+    wrong_name.grace.as_mut().expect("grace fixture").message += 1;
+    let mut ordinary = original;
+    ordinary.inbox[0].kind = MessageKind::Words;
+    for record in [missing, wrong_name, ordinary] {
+        let mut domain = jig_tasks_world::domain(&LIMITS, RESTORE_SEED);
+        domain.start_restore();
+        let mut out = skein_lib::Queue::uncapped();
+        jig_domain_tasks::step(
+            &mut domain,
+            &world.env,
+            Event::Restore { record: Stored::Live(Box::new(record)) },
+            &mut out,
+        );
+        let mut refusals = Vec::new();
+        while let Some(request) = out.pop() {
+            if let jig_domain_tasks::Request::RestoreRefused { problem } = request {
+                refusals.push(problem.why);
+            }
+        }
+        assert!(refusals.is_empty());
+    }
+}

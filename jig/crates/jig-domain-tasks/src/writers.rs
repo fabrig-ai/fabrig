@@ -215,6 +215,35 @@ pub(crate) fn effect_settled(
 }
 
 pub(crate) fn restore(domain: &mut Domain, limits: &Limits, slot: WriterSlot) -> bool {
+    if !crate::holds::valid_name(limits, &slot.resource)
+        || domain.writers.contains_key(&slot.resource)
+        || domain.writers.len() == domain.writers.capacity()
+    {
+        return false;
+    }
+    domain.next_writer = domain.next_writer.max(slot.number);
+    domain.writers.insert(slot.resource.clone(), slot).is_ok()
+}
+
+pub(crate) fn link(domain: &Domain) {
+    for (_, slot) in &domain.writers {
+        let key = crate::Key::Writer(slot.number);
+        match slot.writer {
+            Writer::Run { task, .. } => {
+                assert!(record(domain, task).is_some(), "restore {key:?}: missing writer task {task}");
+            }
+            Writer::Effect { .. } => {}
+        }
+        assert!(
+            crate::holds::writer_holder(domain, &slot.resource).is_some(),
+            "restore {key:?}: missing hold owner for {:?}",
+            slot.resource
+        );
+    }
+}
+
+// Default restoration keeps the stored judgments of domain/tasks.md, 12.
+pub(crate) fn startup_restore(domain: &mut Domain, limits: &Limits, slot: WriterSlot) -> bool {
     if slot.number == 0
         || !crate::holds::valid_name(limits, &slot.resource)
         || domain.writers.contains_key(&slot.resource)
@@ -226,7 +255,7 @@ pub(crate) fn restore(domain: &mut Domain, limits: &Limits, slot: WriterSlot) ->
     domain.writers.insert(slot.resource.clone(), slot).is_ok()
 }
 
-pub(crate) fn valid_restored(domain: &Domain, limit: u32) -> bool {
+pub(crate) fn startup_valid_restored(domain: &Domain, limit: u32) -> bool {
     for (resource, slot) in &domain.writers {
         if slot.resource != *resource {
             return false;

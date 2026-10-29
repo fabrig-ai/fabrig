@@ -55,8 +55,8 @@ fn slot() -> Holding {
     Holding::Slot { pool: name(2), kind: 2 }
 }
 
-fn population(seed: u64) -> World {
-    let mut world = World::new(seed, LIMITS);
+fn population(seed: u64, load_fit_link: bool) -> World {
+    let mut world = if load_fit_link { World::new_start_restore(seed, LIMITS) } else { World::new(seed, LIMITS) };
     world.configure_holds(
         1,
         vec![
@@ -474,6 +474,15 @@ fn apply(world: &mut World, operation: Operation, seen: &mut BTreeSet<Reached>, 
 
 #[test]
 fn random_amendments_preserve_the_promise_and_leave_no_circle() {
+    sweep(false);
+}
+
+#[test]
+fn load_fit_link_random_amendments_preserve_the_promise_and_leave_no_circle() {
+    sweep(true);
+}
+
+fn sweep(load_fit_link: bool) {
     let mut random = Rng::new(DRAW_SOURCE);
     let mut seeds = BTreeSet::new();
     while seeds.len() < DRAWN_SEEDS {
@@ -484,7 +493,7 @@ fn random_amendments_preserve_the_promise_and_leave_no_circle() {
     let tracing = std::env::var_os("JIG_WORLD_TRACE").is_some();
     for seed in seeds {
         eprintln!("amendment seed={seed}");
-        let mut world = population(seed);
+        let mut world = population(seed, load_fit_link);
         let mut random = Rng::new(seed);
         let mut attempt = 0;
         let mut left = BTreeSet::new();

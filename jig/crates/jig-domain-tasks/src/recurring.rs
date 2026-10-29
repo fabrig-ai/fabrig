@@ -175,8 +175,8 @@ pub(crate) fn valid_template(limits: &Limits, project: u32, budget: u64, batch: 
     spend <= budget
 }
 
-/// A complete accepted batch may name ended or moved tasks; it is not a live delegate list.
-pub(crate) fn valid_last_batch(limits: &Limits, task: u64, state: &crate::RecurringState) -> bool {
+// Default restoration keeps the stored judgments of domain/tasks.md, 12.
+pub(crate) fn startup_valid_last_batch(limits: &Limits, task: u64, state: &crate::RecurringState) -> bool {
     if state.last_batch.is_empty() {
         return true;
     }

@@ -121,3 +121,56 @@ fn restoring_a_proposal_requires_its_open_members_shape() {
         }
     }
 }
+
+#[test]
+fn restoring_a_proposal_keeps_members_without_repeating_admission() {
+    let rows = [
+        ("person", Executor::Person(PersonAddress::Person(PERSON)), true),
+        ("procedure", Executor::Procedure { connector: 1, code: 1 }, true),
+        ("no conversation", Executor::Agent { charter: 1 }, false),
+        ("agent conversation", Executor::Agent { charter: 1 }, true),
+    ];
+    for (original, supporting) in proposals() {
+        for (name, executor, conversation) in rows {
+            let mut record = original.clone();
+            for member in batch(&mut record) {
+                member.executor = executor;
+                member.flags.ended_by = tasks::EndedBy::Requester;
+                member.flags.conversation = conversation;
+            }
+            let mut domain = jig_tasks_world::domain(&LIMITS, SEED);
+            domain.start_restore();
+            let env = skein_lib::Env { limits: LIMITS, now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH };
+            let mut out = Queue::uncapped();
+            tasks::step(&mut domain, &env, Event::Restore { record: record.clone() }, &mut out);
+            for record in &supporting {
+                tasks::step(&mut domain, &env, Event::Restore { record: record.clone() }, &mut out);
+            }
+            tasks::step(&mut domain, &env, Event::Check, &mut out);
+            tasks::step(&mut domain, &env, Event::Restored, &mut out);
+            let mut refusals = Vec::new();
+            let mut saves = Vec::new();
+            while let Some(request) = out.pop() {
+                if let tasks::Request::RestoreRefused { problem } = request {
+                    refusals.push(problem.why);
+                } else if let tasks::Request::Save { record } = request {
+                    saves.push(record);
+                }
+            }
+            {
+                assert!(refusals.is_empty(), "{name}: {refusals:?}");
+                if let Stored::PersonProposal(row) = record {
+                    assert_eq!(domain.person_proposals().len(), 1, "{name}");
+                    assert_eq!(domain.person_proposal(PERSON, PROPOSAL), Some(*row), "{name}");
+                    assert!(domain.task(OWNER).is_none(), "{name}");
+                } else if let Stored::Live(row) = record {
+                    assert_eq!(domain.person_proposals().len(), 0, "{name}");
+                    assert_eq!(domain.task(OWNER).expect("restored owner").proposal, row.proposal, "{name}");
+                    assert!(domain.task(MEMBER).is_none(), "a proposal creates no member");
+                } else {
+                    panic!("proposal fixture")
+                }
+            }
+        }
+    }
+}

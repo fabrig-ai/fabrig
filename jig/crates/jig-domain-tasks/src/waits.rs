@@ -942,11 +942,11 @@ pub(crate) fn pool_changed(domain: &mut Domain, _limits: &Limits) {
 }
 
 /// Judge the restored set whole; hold its earliest circling queue waiter (domain/tasks.md, 6.7).
-pub(crate) fn restore(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) -> bool {
+pub(crate) fn restore(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     for _ in 0..=env.limits.tasks {
         let remaining = eliminate(domain, &env.limits);
         if remaining.is_empty() {
-            return true;
+            return;
         }
         let mut earliest = None;
         for (number, _) in &remaining {
@@ -961,10 +961,9 @@ pub(crate) fn restore(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Re
                 }
             }
         }
-        let Some((number, problem)) = earliest else { return false };
+        let Some((number, problem)) = earliest else { return };
         hold_circle(domain, env, number, problem, out);
     }
-    false
 }
 
 fn eliminate(domain: &Domain, limits: &Limits) -> Map<u64, u32> {
@@ -1171,6 +1170,32 @@ pub(crate) fn check_waits(
         },
         limits,
     )
+}
+
+// Default restoration keeps the stored judgments of domain/tasks.md, 12.
+pub(crate) fn startup_restore(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) -> bool {
+    for _ in 0..=env.limits.tasks {
+        let remaining = eliminate(domain, &env.limits);
+        if remaining.is_empty() {
+            return true;
+        }
+        let mut earliest = None;
+        for (number, _) in &remaining {
+            let row = record(domain, *number).expect("remaining restored task");
+            if !crate::holds::queued(row) {
+                continue;
+            }
+            if let Err(problem) = check_queue(domain, &Staged::new(0), &env.limits, *number) {
+                match &earliest {
+                    Some((old, _)) if crate::holds::earlier(domain, *old, *number, &env.limits) => {}
+                    Some(_) | None => earliest = Some((*number, problem)),
+                }
+            }
+        }
+        let Some((number, problem)) = earliest else { return false };
+        hold_circle(domain, env, number, problem, out);
+    }
+    false
 }
 
 #[cfg(test)]

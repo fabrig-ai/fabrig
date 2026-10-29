@@ -297,3 +297,83 @@ fn a_circle_waiter_is_held_and_written_at_check() {
     );
     assert!(!out.iter().any(lifecycle), "no replay at Check");
 }
+
+fn cold_load_fit_link(source: &Harness) -> Harness {
+    let mut cold = Harness::new();
+    cold.domain = Domain::new(&LIMITS, 91, source.domain.newest(), super::charters(), Box::new([0]));
+    cold.domain.start_restore();
+    cold.stored.clear();
+    for (key, hold) in &source.domain.hold_kinds {
+        cold.send(Event::Kinds {
+            connector: key.connector,
+            kinds: Box::new([crate::Kind { connector: key.connector, kind: key.kind, hold: *hold }]),
+        });
+    }
+    for row in source.stored.values().filter(|row| row.key().live()) {
+        cold.send(Event::Restore { record: row.clone() });
+    }
+    cold
+}
+
+#[test]
+fn a_delegates_question_or_answer_does_not_repeat_sender_admission() {
+    for kind in [crate::MessageKind::Question, crate::MessageKind::Answer { question: WORD }] {
+        let source = delegate_with_person_word(kind);
+        loaded_delegate(&source);
+    }
+}
+
+#[test]
+fn a_delegates_words_do_not_repeat_person_admission() {
+    let mut source = delegate_with_person_word(crate::MessageKind::Words);
+    let Some(Stored::Live(row)) = source.stored.get_mut(&Key::Live(DELEGATE)) else { panic!("delegate fixture") };
+    row.inbox[0].from = crate::Party::Person(0);
+    loaded_delegate(&source);
+}
+
+fn loaded_delegate(source: &Harness) {
+    let mut restored = cold_load_fit_link(source);
+    assert!(restored.send(Event::Check).is_empty());
+    assert!(restored.domain.checked());
+    assert_eq!(
+        restored.domain.task(DELEGATE).expect("linked delegate"),
+        match &source.stored[&Key::Live(DELEGATE)] {
+            Stored::Live(row) => row.as_ref(),
+            _ => panic!("delegate row"),
+        }
+    );
+}
+
+#[test]
+#[should_panic(expected = "restore Live(1): missing task 99")]
+fn a_broken_task_link_panics_at_link() {
+    let mut source = one_task();
+    let Some(Stored::Live(row)) = source.stored.get_mut(&Key::Live(DUE)) else { panic!("live fixture") };
+    row.root = UNNAMED;
+    cold_load_fit_link(&source).send(Event::Check);
+}
+
+#[test]
+fn a_stub_is_retained_without_rejudging_reciprocal_references() {
+    let mut cold = cold_load_fit_link(&one_task());
+    cold.send(Event::Restore {
+        record: Stored::Stub(Stub { task: UNNAMED, phase: Status::Done, result: Token::new(UNNAMED) }),
+    });
+    assert!(cold.send(Event::Check).is_empty());
+    assert!(cold.domain.checked());
+}
+
+#[test]
+#[should_panic(expected = "restore Writer(1): missing hold owner")]
+fn a_writer_without_a_holder_panics_at_link() {
+    let mut cold = cold_load_fit_link(&one_task());
+    cold.send(Event::Restore {
+        record: Stored::Writer(WriterSlot {
+            number: 1,
+            resource: Name { connector: 1, path: Box::new([b"writer".as_slice().into()]) },
+            writer: Writer::Effect { entry: 1 },
+            lost: false,
+        }),
+    });
+    cold.send(Event::Check);
+}

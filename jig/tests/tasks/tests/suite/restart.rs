@@ -559,3 +559,469 @@ fn waiting_restore_requests_recheck_once_and_identical_recipient_changes_nothing
         assert_eq!(format!("{domain:?}"), before);
     }
 }
+
+#[test]
+fn waiting_restore_keeps_saved_recipient_entry_and_time_without_routing() {
+    use jig_domain_tasks::{Escalation, EscalationHolder, Hold, MessageKind, Request, Was, fire, step};
+    use skein_lib::Queue;
+    let mut source = World::new_start_restore(37, LIMITS);
+    source.make(Party::Person(1), vec![task(1, &[]), task(2, &[])]);
+    let since = Wall::from_nanos(7);
+    let entry = 41;
+    let states = [
+        Escalation::Waiting { revision: 4, holder: EscalationHolder::Task(2), entry, since },
+        Escalation::Waiting { revision: 4, holder: EscalationHolder::Person(1), entry, since },
+        Escalation::Waiting { revision: 4, holder: EscalationHolder::Role { project: 1, role: 0 }, entry, since },
+        Escalation::Rejected { revision: 4, by: 1, reason: b"no".as_slice().into() },
+    ];
+    for state in states {
+        for elapsed in [false, true] {
+            let mut env = skein_lib::Env { limits: LIMITS, now: source.env.now, wall: source.env.wall };
+            env.wall =
+                Wall::from_nanos(since.as_nanos() + if elapsed { LIMITS.escalation_stall.as_nanos() } else { 1 });
+            let mut domain = jig_tasks_world::domain(&LIMITS, 37);
+            domain.start_restore();
+            let mut out = Queue::uncapped();
+            for record in source.records.values().filter(|row| row.key().live()) {
+                let mut record = record.clone();
+                if let Stored::Live(task) = &mut record {
+                    if task.number == 1 {
+                        task.phase = Phase::Held { was: Was::Active(Active::Due), why: Hold::Deadline, source: None };
+                        task.revisions.hold = 4;
+                        task.escalation = state.clone();
+                    } else {
+                        task.phase = Phase::Active(Active::Idle);
+                    }
+                }
+                step(&mut domain, &env, Event::Restore { record }, &mut out);
+            }
+            assert!(out.is_empty());
+            step(&mut domain, &env, Event::Check, &mut out);
+            assert!(domain.checked());
+            step(&mut domain, &env, Event::Restored, &mut out);
+            let requests = std::iter::from_fn(|| out.pop()).collect::<Vec<_>>();
+            assert!(
+                !requests.iter().any(|row| matches!(
+                    row,
+                    Request::EscalationNeeded { .. }
+                        | Request::EscalationStalled { .. }
+                        | Request::RestoreRefused { .. }
+                )),
+                "restart routes nothing: {requests:?}"
+            );
+            assert_eq!(domain.task(1).expect("restored held task").escalation, state);
+            if matches!(state, Escalation::Waiting { holder: EscalationHolder::Task(2), .. }) {
+                let context = requests
+                    .iter()
+                    .find_map(|request| {
+                        if let Request::Activate { context } = request {
+                            (context.task == 2).then_some(context)
+                        } else {
+                            None
+                        }
+                    })
+                    .expect("saved task holder wakes");
+                let word = context
+                    .inbox
+                    .iter()
+                    .find(|word| matches!(word.kind, MessageKind::Escalation { task: 1, revision: 4 }))
+                    .expect("original virtual escalation");
+                assert_eq!(word.number, entry);
+                assert_eq!(word.at, since);
+                assert_eq!(domain.run_message(2), Some(entry));
+            }
+            fire(&mut domain, &env, &mut out);
+            let stalled = std::iter::from_fn(|| out.pop())
+                .filter(|row| matches!(row, Request::EscalationStalled { task: 1, revision: 4, .. }))
+                .count();
+            let timed = matches!(
+                state,
+                Escalation::Waiting { holder: EscalationHolder::Task(_) | EscalationHolder::Person(_), .. }
+            );
+            assert_eq!(stalled, usize::from(elapsed && timed));
+            assert_eq!(domain.task(1).expect("held after timer").escalation, state);
+        }
+    }
+}
+
+fn load_and_link(rows: Vec<Stored>, env: &skein_lib::Env<jig_domain_tasks::Limits>) -> jig_domain_tasks::Domain {
+    let mut domain = jig_tasks_world::domain(&env.limits, 38);
+    domain.start_restore();
+    let mut out = skein_lib::Queue::uncapped();
+    for record in rows.into_iter().filter(|row| row.key().live()) {
+        jig_domain_tasks::step(&mut domain, env, Event::Restore { record }, &mut out);
+    }
+    jig_domain_tasks::step(&mut domain, env, Event::Check, &mut out);
+    assert!(out.is_empty(), "loading and linking must not act: {out:?}");
+    assert!(domain.checked());
+    domain
+}
+
+#[test]
+#[should_panic(expected = "restore Live(1): missing task 99")]
+fn missing_root_panics_with_record_and_target_after_load() {
+    let mut source = World::new_start_restore(38, LIMITS);
+    source.make(Party::Person(1), vec![task(1, &[])]);
+    if let Some(Stored::Live(row)) = source.records.get_mut(&Key::Live(1)) {
+        row.root = 99;
+    }
+    load_and_link(source.records.values().cloned().collect(), &source.env);
+}
+
+#[test]
+#[should_panic(expected = "restore Live(2): missing task 1")]
+fn missing_waiting_dependency_panics_with_record_and_target_after_load() {
+    let mut source = World::new_start_restore(39, LIMITS);
+    source.make(Party::Person(1), vec![task(1, &[]), task(2, &[1])]);
+    source.records.remove(&Key::Live(1));
+    load_and_link(source.records.values().cloned().collect(), &source.env);
+}
+
+#[test]
+#[should_panic(expected = "restore Live(3): missing task or stub 2")]
+fn missing_ended_stub_panics_with_record_and_target_after_load() {
+    let mut source = World::new_start_restore(40, LIMITS);
+    source.make(Party::Person(1), vec![task(1, &[])]);
+    source.make(Party::Task(1), vec![task(2, &[]), task(3, &[])]);
+    let reply_to = source.to();
+    source.send(Event::Introduce { reply_to, by: 1, left: 2, right: 3 });
+    source.claim(2, 2);
+    source.finish(2);
+    source.settle(2);
+    assert!(source.record(3).references.contains(&2));
+    assert!(source.records.remove(&Key::Stub(2)).is_some());
+    load_and_link(source.records.values().cloned().collect(), &source.env);
+}
+
+#[test]
+#[should_panic(expected = "restore Live(1): missing funder Period { project: 1, period: 0 }")]
+fn missing_funder_panics_with_record_and_target_after_load() {
+    let mut source = World::new_start_restore(41, LIMITS);
+    source.make(Party::Person(1), vec![task(1, &[])]);
+    source.records.remove(&Key::Ledger(jig_domain_tasks::Funder::Period { project: 1, period: 0 }));
+    load_and_link(source.records.values().cloned().collect(), &source.env);
+}
+
+#[test]
+fn restore_fits_payload_and_collection_bounds_and_keeps_failure_sticky() {
+    use jig_domain_tasks::{Request, step};
+    let mut source = World::new_start_restore(42, LIMITS);
+    source.make(Party::Person(1), vec![task(1, &[])]);
+    for oversize in 0..5 {
+        let mut row = source.record(1).clone();
+        match oversize {
+            0 => row.waiting_on = vec![1; usize::try_from(LIMITS.dependencies + 1).expect("count")].into_boxed_slice(),
+            1 => row.spec.words = vec![b'x'; usize::try_from(LIMITS.spec_bytes + 1).expect("bytes")].into_boxed_slice(),
+            2 => {
+                row.escalation = jig_domain_tasks::Escalation::Rejected {
+                    revision: 1,
+                    by: 1,
+                    reason: vec![b'x'; usize::try_from(LIMITS.result_bytes + 1).expect("bytes")].into_boxed_slice(),
+                }
+            }
+            3 => row.contract = jig_domain_tasks::Contract::Report { words: LIMITS.result_bytes + 1 },
+            4 => {
+                row.numbers =
+                    jig_domain_tasks::Numbers { budget: u64::MAX, spent: u64::MAX, spent_below: 1, reserved: 0 }
+            }
+            _ => unreachable!(),
+        }
+        let mut domain = jig_tasks_world::domain(&LIMITS, 42);
+        domain.start_restore();
+        let mut out = skein_lib::Queue::uncapped();
+        step(&mut domain, &source.env, Event::Restore { record: Stored::Live(Box::new(row)) }, &mut out);
+        assert!(matches!(out.pop(), Some(Request::RestoreRefused { .. })));
+        assert!(out.is_empty());
+        step(&mut domain, &source.env, Event::Check, &mut out);
+        step(&mut domain, &source.env, Event::Restored, &mut out);
+        assert!(!domain.checked());
+        assert!(out.is_empty());
+    }
+}
+
+#[test]
+fn restore_does_not_rejudge_shape_phase_authorization_or_funding_conservation() {
+    use jig_domain_tasks::{Escalation, EscalationHolder, Funder, Hold, Was};
+    let mut source = World::new_start_restore(43, LIMITS);
+    source.make(Party::Person(1), vec![task(1, &[]), task(2, &[])]);
+    for change in 0..9 {
+        let mut rows = source.records.values().cloned().collect::<Vec<_>>();
+        for record in &mut rows {
+            if let Stored::Live(row) = record
+                && row.number == 1
+            {
+                match change {
+                    0 => {
+                        row.created_at = Wall::from_nanos(1);
+                        row.last_activity = Wall::EPOCH;
+                    }
+                    1 => row.run_since = Some(Wall::EPOCH),
+                    2 => row.phase = Phase::Active(Active::BackingOff { until: Wall::EPOCH }),
+                    3 => {
+                        row.phase = Phase::Active(Active::Running { attempt: 99 });
+                        row.attempt = 1;
+                    }
+                    4 => row.escalation = Escalation::Routing { revision: 1 },
+                    5 => {
+                        row.escalation = Escalation::Waiting {
+                            revision: 0,
+                            holder: EscalationHolder::Person(2),
+                            entry: 0,
+                            since: Wall::EPOCH,
+                        }
+                    }
+                    6 => row.phase = Phase::Held { was: Was::Active(Active::Due), why: Hold::Deadline, source: None },
+                    7 => row.funder = Funder::Task(2),
+                    8 => row.numbers.reserved = 1,
+                    _ => unreachable!(),
+                }
+            }
+        }
+        load_and_link(rows, &source.env);
+    }
+}
+
+#[test]
+fn live_writer_refuses_invalid_open_flags_and_funding_before_committing() {
+    let mut source = World::new_start_restore(44, LIMITS);
+    for executor in [
+        jig_domain_tasks::Executor::Person(jig_domain_tasks::PersonAddress::Person(1)),
+        jig_domain_tasks::Executor::Procedure { connector: 1, code: 1 },
+    ] {
+        let mut member = task(1, &[]);
+        member.executor = executor;
+        member.flags.conversation = true;
+        member.flags.ended_by = jig_domain_tasks::EndedBy::Requester;
+        assert!(matches!(source.make(Party::Person(1), vec![member]), Reply::Refused(_)));
+        assert_eq!(source.live(), 0);
+    }
+    source.make(Party::Person(1), vec![task(1, &[])]);
+    let before = source.records.clone();
+    let mut unrelated = task(2, &[]);
+    unrelated.funder = jig_domain_tasks::Funder::Task(1);
+    assert!(matches!(source.make(Party::Person(1), vec![unrelated]), Reply::Refused(_)));
+    assert_eq!(source.records, before);
+}
+
+#[test]
+#[should_panic(expected = "restore Writer(7): missing writer task 99")]
+fn missing_writer_task_panics_with_record_and_target_after_load() {
+    let mut source = World::new_start_restore(45, LIMITS);
+    source.make(Party::Person(1), vec![task(1, &[])]);
+    let mut rows = source.records.values().cloned().collect::<Vec<_>>();
+    rows.push(Stored::Writer(jig_domain_tasks::WriterSlot {
+        number: 7,
+        resource: jig_domain_tasks::Name { connector: 1, path: Box::new([b"r".as_slice().into()]) },
+        writer: jig_domain_tasks::Writer::Run { task: 99, attempt: 1 },
+        lost: false,
+    }));
+    load_and_link(rows, &source.env);
+}
+
+#[test]
+#[should_panic(expected = "restore PlacedHold(7): missing hold owner task 99")]
+fn missing_hold_owner_panics_with_record_and_target_after_load() {
+    let mut source = World::new_start_restore(46, LIMITS);
+    source.make(Party::Person(1), vec![task(1, &[])]);
+    let mut rows = source.records.values().cloned().collect::<Vec<_>>();
+    rows.push(Stored::PlacedHold(Box::new(jig_domain_tasks::PlacedHold {
+        number: 7,
+        project: 1,
+        owner: jig_domain_tasks::Owner::Task { task: 99 },
+        mode: jig_domain_tasks::Mode::Stop,
+        scope: jig_domain_tasks::Scope::Subtree { task: 1 },
+        reason: Box::new([]),
+        placed_at: 0,
+        revision: 1,
+        exempt: Box::new([]),
+        lifted: false,
+    })));
+    load_and_link(rows, &source.env);
+}
+
+#[test]
+fn writer_referee_catches_phase_observations_and_positions_that_restore_does_not_judge() {
+    let mut source = World::new_start_restore(47, LIMITS);
+    source.make(Party::Person(1), vec![task(1, &[])]);
+    for change in 0..3 {
+        let mut rows = source.records.clone();
+        let Some(Stored::Live(row)) = rows.get_mut(&Key::Live(1)) else { panic!("live fixture") };
+        match change {
+            0 => row.run_since = Some(Wall::EPOCH),
+            1 => row.question_lines = Box::new([jig_domain_tasks::QuestionLine { message: 0, line: 0, answer: None }]),
+            2 => {
+                row.phase = Phase::Closing(jig_domain_tasks::Closing {
+                    stage: jig_domain_tasks::Stage::Settled,
+                    ending: jig_domain_tasks::Ending::Failed { reason: Box::new([]) },
+                });
+            }
+            _ => unreachable!(),
+        }
+        let mut judge = jig_tasks_world::accounting_referee::Accounting::default();
+        judge.reset(&source.records);
+        assert!(judge.committed(&rows, &[]).is_err());
+        load_and_link(rows.values().cloned().collect(), &source.env);
+    }
+}
+
+#[test]
+fn lifetime_made_counters_do_not_size_retained_live_containers() {
+    let mut source = World::new_start_restore(48, LIMITS);
+    source.make(Party::Person(1), vec![task(1, &[])]);
+    let mut rows = source.records.values().cloned().collect::<Vec<_>>();
+    for row in &mut rows {
+        if let Stored::Live(row) = row {
+            row.made = u32::MAX;
+        }
+        if let Stored::Ledger(row) = row {
+            row.made = u32::MAX;
+        }
+    }
+    let restored = load_and_link(rows, &source.env);
+    assert_eq!(restored.task(1).expect("linked task").made, u32::MAX);
+    assert_eq!(
+        restored.funding(jig_domain_tasks::Funder::Period { project: 1, period: 0 }).expect("linked period").made,
+        u32::MAX
+    );
+}
+
+#[test]
+fn retained_llm_choices_must_fit_the_configured_executor_models() {
+    use jig_domain_tasks::{LlmChoice, ModelEffort, Request, step};
+    let mut source = World::new_start_restore(49, LIMITS);
+    source.make(Party::Person(1), vec![task(1, &[])]);
+    for main in [
+        ModelEffort { model: 0, effort: Some(1) },
+        ModelEffort { model: 3, effort: None },
+        ModelEffort { model: 0, effort: Some(2) },
+        ModelEffort { model: u8::MAX, effort: None },
+    ] {
+        let mut rows = source.records.values().filter(|row| row.key().live()).cloned().collect::<Vec<_>>();
+        for row in &mut rows {
+            if let Stored::Live(row) = row {
+                row.llm = Some(LlmChoice { account: None, main, subagents: Box::new([]) });
+            }
+        }
+        let mut domain = jig_tasks_world::domain(&LIMITS, 49);
+        domain.start_restore();
+        let mut out = skein_lib::Queue::uncapped();
+        for record in rows {
+            step(&mut domain, &source.env, Event::Restore { record }, &mut out);
+        }
+        assert!(out.is_empty());
+        step(&mut domain, &source.env, Event::Check, &mut out);
+        let fits = main == (ModelEffort { model: 0, effort: Some(1) });
+        assert_eq!(domain.checked(), fits);
+        let refusals =
+            std::iter::from_fn(|| out.pop()).filter(|row| matches!(row, Request::RestoreRefused { .. })).count();
+        assert_eq!(refusals, usize::from(!fits));
+    }
+}
+
+#[test]
+fn a_completed_dependency_loaded_for_amendment_restores_without_an_optional_stub() {
+    let mut source = World::new_start_restore(50, LIMITS);
+    source.make(Party::Person(1), vec![task(1, &[]), task(2, &[])]);
+    source.claim(1, 1);
+    source.finish(1);
+    source.settle(1);
+    assert!(!source.records.contains_key(&Key::Stub(1)));
+    let Some(Stored::Ended(ended)) = source.records.get(&Key::Ended(1)) else { panic!("ended dependency") };
+    let place = jig_domain_tasks::DependencyPlace {
+        number: 1,
+        project: ended.project,
+        requester: ended.requester,
+        root: ended.root,
+        depth: ended.depth,
+        status: jig_domain_tasks::Status::Done,
+    };
+    let reply_to = source.to();
+    let call = reply_to.into_token().raw();
+    source.send(Event::Amend {
+        reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(call)),
+        places: Box::new([place]),
+        by: Party::Person(1),
+        task: 2,
+        message: 1,
+        stop_run: false,
+        funder: None,
+        amendment: jig_domain_tasks::Amendment {
+            tracked: None,
+            addressed: None,
+            instructions: None,
+            release: None,
+            spec: None,
+            wake: None,
+            dependencies: Some(Box::new([1])),
+            authority: None,
+            llm: None,
+            reason: Box::new([]),
+        },
+    });
+    assert_eq!(source.replies[&call], Reply::Done);
+    assert_eq!(source.record(2).dependencies.as_ref(), [1]);
+    assert!(source.record(2).waiting_on.is_empty());
+    assert!(!source.records.contains_key(&Key::Stub(1)));
+    let before = source.record(2).clone();
+    source.restart();
+    assert_eq!(source.record(2), &before);
+}
+
+#[test]
+fn start_restore_selects_once_before_rows_check_or_activation() {
+    let mut source = World::new(51, LIMITS);
+    source.make(Party::Person(9), vec![task(1, &[])]);
+    let row = source.records[&Key::Live(1)].clone();
+    for explicit in [false, true] {
+        for phase in 0..5 {
+            let mut domain = jig_tasks_world::domain(&LIMITS, 51);
+            if explicit {
+                domain.start_restore();
+            }
+            let mut out = skein_lib::Queue::uncapped();
+            match phase {
+                0 => tasks_step_row(&mut domain, &source.env, row.clone(), &mut out),
+                1 => jig_domain_tasks::step(&mut domain, &source.env, Event::Check, &mut out),
+                2 => jig_domain_tasks::step(&mut domain, &source.env, Event::Restored, &mut out),
+                3 => {
+                    for record in source.records.values().filter(|record| record.key().live()) {
+                        tasks_step_row(&mut domain, &source.env, record.clone(), &mut out);
+                    }
+                    jig_domain_tasks::step(&mut domain, &source.env, Event::Check, &mut out);
+                    jig_domain_tasks::step(&mut domain, &source.env, Event::Restored, &mut out);
+                    assert!(
+                        std::iter::from_fn(|| out.pop())
+                            .any(|request| matches!(request, jig_domain_tasks::Request::Activate { .. }))
+                    );
+                }
+                4 => jig_domain_tasks::step(
+                    &mut domain,
+                    &source.env,
+                    Event::Activation {
+                        reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(1)),
+                        task: 1,
+                        attempt: 1,
+                        end: jig_domain_tasks::End::Parked,
+                        saved: None,
+                        cause: jig_domain_tasks::Cause::Unpriced,
+                    },
+                    &mut out,
+                ),
+                _ => unreachable!(),
+            }
+            assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| domain.start_restore())).is_err());
+        }
+    }
+    let mut domain = jig_tasks_world::domain(&LIMITS, 51);
+    domain.start_restore();
+    assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| domain.start_restore())).is_err());
+}
+
+fn tasks_step_row(
+    domain: &mut jig_domain_tasks::Domain,
+    env: &skein_lib::Env<jig_domain_tasks::Limits>,
+    record: Stored,
+    out: &mut skein_lib::Queue<jig_domain_tasks::Request>,
+) {
+    jig_domain_tasks::step(domain, env, Event::Restore { record }, out);
+}

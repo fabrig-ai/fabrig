@@ -180,3 +180,16 @@ fn clearing_the_preference_keeps_the_claimed_account() {
     amend_choice(&mut h, None);
     assert_eq!(h.domain.task(TASK).unwrap().kept_account, Some(SELECTED));
 }
+
+#[test]
+fn restoring_a_kept_account_does_not_repeat_claim_admission() {
+    let h = preparing();
+    let mut row = h.domain.task(TASK).unwrap().clone();
+    row.kept_account = Some(SELECTED);
+    let mut fresh = crate::Domain::new(&h.env.limits, 91, 1, crate::tests::charters(), Box::new([0]));
+    fresh.start_restore();
+    let mut out = skein_lib::Queue::uncapped();
+    crate::step(&mut fresh, &h.env, Event::Restore { record: crate::Stored::Live(Box::new(row)) }, &mut out);
+    assert!(out.is_empty());
+    assert_eq!(fresh.task(TASK).unwrap().kept_account, Some(SELECTED));
+}

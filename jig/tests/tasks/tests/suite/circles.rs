@@ -849,3 +849,117 @@ fn retaining_a_failed_childs_hold_judges_its_roots_queued_delegate() {
     release(&mut world, ROOT);
     finish_task(&mut world, ROOT);
 }
+
+#[test]
+fn load_fit_link_a_restored_circle_from_an_older_rule_holds_its_queue_waiter() {
+    let world = delayed(false, &LIMITS);
+    let mut rows: Vec<_> = world.records.values().filter(|row| row.key().live()).cloned().collect();
+    for row in &mut rows {
+        if let Stored::Live(waiter) = row
+            && waiter.number == WAITER
+        {
+            waiter.dependencies = Box::new([]);
+            waiter.waiting_on = Box::new([]);
+            waiter.hold_wait_since = Some(world.env.wall);
+        }
+    }
+    let mut domain = jig_tasks_world::domain(&LIMITS, SEED);
+    domain.start_restore();
+    let mut out = skein_lib::Queue::uncapped();
+    jig_domain_tasks::step(
+        &mut domain,
+        &world.env,
+        Event::Kinds {
+            connector: CONNECTOR,
+            kinds: Box::new([Kind {
+                connector: CONNECTOR,
+                kind: KIND,
+                hold: HoldKind::Exclusive { taken: Taken::Waits },
+            }]),
+        },
+        &mut out,
+    );
+    for row in rows {
+        jig_domain_tasks::step(&mut domain, &world.env, Event::Restore { record: row }, &mut out);
+    }
+    jig_domain_tasks::step(&mut domain, &world.env, Event::Check, &mut out);
+    assert!(domain.checked());
+    assert!(!out.iter().any(|request| matches!(
+        request,
+        jig_domain_tasks::Request::RestoreRefused { .. }
+            | jig_domain_tasks::Request::Activate { .. }
+            | jig_domain_tasks::Request::Adopt { .. }
+            | jig_domain_tasks::Request::Stop { .. }
+            | jig_domain_tasks::Request::Close { .. }
+            | jig_domain_tasks::Request::Release { .. }
+    )));
+    assert!(
+        out.iter().any(|request| matches!(request,
+            jig_domain_tasks::Request::Save { record: Stored::Live(row) }
+            if row.number == WAITER && matches!(row.phase, Phase::Held { why: Hold::Circle, .. })
+        )),
+        "the hold is written at Check"
+    );
+    let waiter = domain.task(WAITER).expect("restored waiter");
+    let Phase::Held { why: Hold::Circle, source: Some(source), .. } = &waiter.phase else { panic!("circle hold") };
+    let HoldSource::Circle(circle) = source.as_ref() else { panic!("circle source") };
+    assert_eq!(circle.tasks.as_ref(), [WAITER, HOLDER, DEPENDENT, REQUESTER]);
+    assert!(waiter.hold_wait_since.is_some());
+}
+
+#[test]
+fn load_fit_link_a_restored_two_holder_pool_circle_holds_its_waiter() {
+    let world = kept_pool_holders(&LIMITS);
+    let mut rows: Vec<_> = world.records.values().filter(|row| row.key().live()).cloned().collect();
+    for row in &mut rows {
+        if let Stored::Live(waiter) = row
+            && waiter.number == WAITER
+        {
+            waiter.dependencies = Box::new([]);
+            waiter.waiting_on = Box::new([]);
+            waiter.hold_wait_since = Some(world.env.wall);
+        }
+    }
+    let mut domain = jig_tasks_world::domain(&LIMITS, SEED);
+    domain.start_restore();
+    let mut out = skein_lib::Queue::uncapped();
+    jig_domain_tasks::step(
+        &mut domain,
+        &world.env,
+        Event::Kinds {
+            connector: CONNECTOR,
+            kinds: Box::new([Kind {
+                connector: CONNECTOR,
+                kind: KIND,
+                hold: HoldKind::Pooled { taken: Taken::Waits },
+            }]),
+        },
+        &mut out,
+    );
+    for row in rows {
+        jig_domain_tasks::step(&mut domain, &world.env, Event::Restore { record: row }, &mut out);
+    }
+    jig_domain_tasks::step(&mut domain, &world.env, Event::Check, &mut out);
+    assert!(domain.checked());
+    assert!(!out.iter().any(|request| matches!(
+        request,
+        jig_domain_tasks::Request::RestoreRefused { .. }
+            | jig_domain_tasks::Request::Activate { .. }
+            | jig_domain_tasks::Request::Adopt { .. }
+            | jig_domain_tasks::Request::Stop { .. }
+            | jig_domain_tasks::Request::Close { .. }
+            | jig_domain_tasks::Request::Release { .. }
+    )));
+    assert!(
+        out.iter().any(|request| matches!(request,
+            jig_domain_tasks::Request::Save { record: Stored::Live(row) }
+            if row.number == WAITER && matches!(row.phase, Phase::Held { why: Hold::Circle, .. })
+        )),
+        "the hold is written at Check"
+    );
+    let waiter = domain.task(WAITER).expect("restored waiter");
+    let Phase::Held { why: Hold::Circle, source: Some(source), .. } = &waiter.phase else { panic!("circle hold") };
+    let HoldSource::Circle(circle) = source.as_ref() else { panic!("circle source") };
+    assert_eq!(circle.tasks.as_ref(), [WAITER, HOLDER, OTHER_HOLDER]);
+    assert!(waiter.hold_wait_since.is_some());
+}
