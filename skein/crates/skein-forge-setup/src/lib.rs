@@ -12,7 +12,6 @@ pub mod given;
 pub mod host;
 pub mod item;
 pub mod limits;
-mod memory;
 pub mod reachable;
 pub mod reconcile;
 pub mod take_over;
