@@ -17,10 +17,10 @@ pub fn configuration(directory: &Path) {
     let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
     value["engine"]["llm"]["providers"] = serde_json::json!([{
         "name":"Fake", "signed_in_plan":true, "manage_usage":"https://usage.example/", "number":3, "models":["fake"], "sources":{"sign_in":{
-            "issuer":"http://127.0.0.1:31000", "client":"client", "scopes":["openid","read"],
-            "name_hint":"jig-test", "authorization":"http://127.0.0.1:31000/authorize",
-            "token":"http://127.0.0.1:31000/token", "revocation":"http://127.0.0.1:31000/revoke",
-            "keys":"http://127.0.0.1:31000/keys", "transport":"plaintext",
+            "issuer":"http://127.0.0.1:0", "client":"client", "scopes":["openid","read"],
+            "name_hint":"jig-test", "authorization":"http://127.0.0.1:0/authorize",
+            "token":"http://127.0.0.1:0/token", "revocation":"http://127.0.0.1:0/revoke",
+            "keys":"http://127.0.0.1:0/keys", "transport":"plaintext",
             "must_grant":["openid","read"], "resource":"api", "redirect_path":"callback"
         }}
     }]);
@@ -43,6 +43,8 @@ fn run_world<R: Referee<Process>>(
     clock: &Clock,
     patience: Duration,
 ) -> real::Outcome<Process> {
+    let (issuer, address, fd) = issuer();
+    crate::support::ports::configure(directory, Some(address), None);
     let mut binary = start(directory);
     let streams = binary.take_streams().expect("binary pipes");
     let fds = streams.descriptors();
@@ -68,7 +70,7 @@ fn run_world<R: Referee<Process>>(
             submissions: Queue::with_capacity(512),
         }))
     });
-    world.spawn(|| Process::Issuer(Box::new(issuer())));
+    world.spawn_with_fds(vec![fd], || Process::Issuer(Box::new(issuer)));
     world.spawn(|| Process::Visitor(Box::default()));
     world.run(clock, patience)
 }
