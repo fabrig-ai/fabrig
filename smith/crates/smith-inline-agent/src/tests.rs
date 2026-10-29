@@ -435,7 +435,7 @@ fn pending_counts_separate_root_content_from_lifecycle_and_native_facts() {
         assert_eq!(agent.pending_content(client), remaining);
     }
     assert!(agent.pop_content(client).is_none());
-    for _ in 0..3 {
+    for _ in 0_u32..3 {
         step(&mut agent, &env, Input::Parent(parent::Event::Spawn { client, start: start() }), &mut out);
     }
     let pending = agent.pending_slot_facts();

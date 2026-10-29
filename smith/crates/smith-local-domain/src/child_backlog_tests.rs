@@ -29,7 +29,7 @@ fn one_pass_drains_inline_lifecycle_facts_beyond_the_allowance() {
     let AgentLimits::Inline(child) = &mut limits.agent else { panic!("inline fixture") };
     child.facts = 1;
     let mut domain = Domain::new(crate::tests::config(), &limits, 11).expect("inline parent");
-    for _ in 0..4 {
+    for _ in 0_u32..4 {
         let start = start_without_workspace(&domain);
         command(&mut domain.agent, Time::ZERO, Wall::EPOCH, parent::Event::Spawn { client: Token::new(1), start });
     }
@@ -49,7 +49,7 @@ fn one_pass_drains_spawned_facts_beyond_the_allowance() {
     let child_limits = host::Limits { facts: 1, ..host_limits() };
     limits.agent = AgentLimits::Spawned(child_limits);
     let mut domain = Domain::new(crate::tests::config(), &limits, 11).expect("spawned parent");
-    for _ in 0..4 {
+    for _ in 0_u32..4 {
         let start = start_without_workspace(&domain);
         command(&mut domain.agent, Time::ZERO, Wall::EPOCH, parent::Event::Spawn { client: Token::new(1), start });
     }
