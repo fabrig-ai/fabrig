@@ -100,8 +100,7 @@ pub(crate) const fn run_out(limits: &Limits) -> u32 {
     run_steps(limits).saturating_mul(run::MAX_OUT)
 }
 
-/// The session contribution to the public root output allowance, also sizing
-/// the turn handoff slab pending a bound for retired slots as well as live turns.
+/// The session contribution to the public root output allowance.
 pub(crate) const fn session_out(limits: &Limits) -> u32 {
     session_steps(limits).saturating_mul(session::max_out(&limits.session))
 }

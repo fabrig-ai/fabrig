@@ -118,8 +118,8 @@ pub(crate) struct StartContext {
     pub(crate) refused: Option<run::TranscriptRefusal>,
 }
 
-/// Single-use ownership while a main turn crosses the sibling seam. Both
-/// queues can coexist; capacity and complete envelope/payload costs are priced.
+/// Single-use ownership while a main turn crosses the sibling seam.
+/// Its consumed slot remains retired until the iteration's reclaim.
 #[derive(Debug)]
 pub(crate) struct TurnHandoff {
     pub(crate) turn: Option<session::record::Turn>,
@@ -244,7 +244,9 @@ impl Domain {
             session: session::Domain::new(&limits.session, session_seed),
             peers: Slab::with_capacity(peers),
             starts: Slab::with_capacity(limits.run.runs),
-            turns: Slab::with_capacity(limits::session_out(limits)),
+            // The turn-handoff slab grows on demand; retired slots wait for the
+            // iteration's reclaim. u32::MAX is its uncapped form, with no output formula.
+            turns: Slab::with_capacity(u32::MAX),
             conversations: Map::with_capacity(peers),
             sessions: Map::with_capacity(peers),
             flights: Map::with_capacity(flights),
