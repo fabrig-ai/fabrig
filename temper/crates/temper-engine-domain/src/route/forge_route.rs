@@ -1851,6 +1851,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                 | tasks::MessageKind::Met { .. }
                 | tasks::MessageKind::Notice { .. }
                 | tasks::MessageKind::QuestionAnswered { .. }
+                | tasks::MessageKind::QuestionOwed
                 | tasks::MessageKind::QuestionEnded { .. }
                 | tasks::MessageKind::Timer { .. }
                 | tasks::MessageKind::PersonStalled { .. }
@@ -2114,6 +2115,7 @@ pub(crate) fn chat_change(
         deadline: tasks::Deadline::Named,
         executor: tasks::Executor::Procedure { connector: domain.config.forge_connector, code: CHANGE_CODE },
         spec: tasks::Spec {
+            asks: false,
             words,
             parameters: Box::new(change_parameters(
                 domain.config.forge_connector,
@@ -2296,7 +2298,7 @@ fn change_delegate(
         flags: tasks::Flags::PLAIN,
         budget: jig_domain_people::Budget::Named,
         executor,
-        spec: tasks::Spec { words, parameters: parameters.into_boxed(), inputs: Box::new([]) },
+        spec: tasks::Spec { asks: false, words, parameters: parameters.into_boxed(), inputs: Box::new([]) },
         contract,
         authority,
         symbolic_grants: Box::new([]),
@@ -2533,6 +2535,7 @@ fn change_replies(
             | tasks::MessageKind::Met { .. }
             | tasks::MessageKind::Notice { .. }
             | tasks::MessageKind::QuestionAnswered { .. }
+            | tasks::MessageKind::QuestionOwed
             | tasks::MessageKind::QuestionEnded { .. }
             | tasks::MessageKind::Timer { .. }
             | tasks::MessageKind::PersonStalled { .. }
@@ -2601,6 +2604,7 @@ fn start_queue_repair(domain: &mut Domain, env: &Env<Limits>, task: u64) -> bool
     let base = row.base.clone();
     let [repository_parameter, base_parameter] = change_parameters(domain.config.forge_connector, provider, base);
     let spec = tasks::Spec {
+        asks: false,
         words: Box::from(&b"Repair landing branch CI"[..]),
         parameters: Box::new([
             repository_parameter,

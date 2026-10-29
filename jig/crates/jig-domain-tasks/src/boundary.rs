@@ -122,6 +122,8 @@ pub enum MessageKind {
     QuestionEnded { question: u64 },
     /// Its person answered the question in their inbox (domain/people.md, 6).
     QuestionAnswered { question: u64 },
+    /// Its requester is owed a question before a done finish (domain/tasks.md, 5.7).
+    QuestionOwed,
 }
 
 /// Terminal shape carried with a delegate's bounded message words.
@@ -188,6 +190,7 @@ impl Word {
             | MessageKind::Result(_)
             | MessageKind::Met { .. }
             | MessageKind::QuestionAnswered { .. }
+            | MessageKind::QuestionOwed
             | MessageKind::QuestionEnded { .. } => false,
         }
     }
@@ -219,6 +222,7 @@ impl Word {
             | MessageKind::Amendment { .. }
             | MessageKind::Met { .. }
             | MessageKind::QuestionAnswered { .. }
+            | MessageKind::QuestionOwed
             | MessageKind::QuestionEnded { .. }
             | MessageKind::Question
             | MessageKind::Answer { .. }
@@ -424,6 +428,8 @@ pub struct Spec {
     /// Historical input identities, bounded by `Limits::inputs` for shape measurement;
     /// current `Make` and live restore require this slice empty.
     pub inputs: Box<[u64]>,
+    /// Immutable obligation to ask its requester a question (domain/tasks.md, 5.7).
+    pub asks: bool,
 }
 
 /// One required named machine field and its value byte cap.
@@ -1161,6 +1167,8 @@ pub struct TaskRecord {
     pub refusals: u32,
     /// Current lifecycle or the ended historical outcome.
     pub phase: Phase,
+    /// A question-form message to its requester has been admitted; never cleared.
+    pub asked_requester: bool,
 }
 
 pub use crate::index::Key;
@@ -1778,6 +1786,8 @@ pub enum Event {
     PersonStallNotice { task: u64, message: u64 },
     /// Root numbers each unanswered-question notice once.
     QuestionEndedNotice { task: u64, notices: Box<[QuestionNotice]> },
+    /// Root numbers the reminder for a run that finished before asking.
+    QuestionOwedNotice { task: u64, message: u64 },
     /// A caller cancels its own unanswered question.
     CancelQuestion { reply_to: ReplyTo, task: u64, question: u64 },
     /// Root numbers the notice that a kept task goes on (domain/tasks.md, 5.7 and 8.1).
@@ -1833,6 +1843,8 @@ pub enum Request {
     PersonStallDue { task: u64 },
     /// One continuation for each asker whose questions ended unanswered.
     QuestionEndedDue { task: u64, questions: Box<[u64]> },
+    /// Root supplies the next obligation reminder number.
+    QuestionOwedDue { task: u64 },
     /// Root supplies one message number for the notice that a kept task goes on (domain/tasks.md, 5.7 and 8.1).
     MetDue { task: u64, dependency: u64, removed: bool, by: Party },
     /// One nonfinal held decision passed its configured wait.

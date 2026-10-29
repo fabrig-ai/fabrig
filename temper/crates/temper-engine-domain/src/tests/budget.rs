@@ -159,6 +159,7 @@ fn turn_root() -> (Domain, Env<Limits>) {
                 executor: tasks::Executor::Agent { charter: 1 },
                 llm: None,
                 spec: tasks::Spec {
+                    asks: false,
                     words: b"turn task".as_slice().into(),
                     parameters: Box::new([]),
                     inputs: Box::new([]),

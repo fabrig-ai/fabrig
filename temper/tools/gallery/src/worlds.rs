@@ -2193,6 +2193,7 @@ fn base_frame(person: &str, project: &str) -> c::Me {
         redirect_bytes: 4096,
     }
 }
+#[expect(clippy::too_many_lines, reason = "the gallery's base task spells out every specification field")]
 fn base_task(number: u64, title: &str) -> c::Task {
     let wake = c::OwnerWakePolicy {
         words: c::WakeRule::Immediate,
@@ -2255,6 +2256,7 @@ fn base_task(number: u64, title: &str) -> c::Task {
         requester: c::OwnerRequester::Person(73),
         lineage: List::with_capacity(0),
         spec: c::SpecificationDocument::complete(c::Specification {
+            asks: false,
             words: text(""),
             parameters: List::with_capacity(0),
             inputs: List::with_capacity(0),
