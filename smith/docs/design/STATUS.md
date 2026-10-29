@@ -16,7 +16,7 @@ Updated 2026-10-29. How far smith's code is from its design.
 | `protocol/llm.md` | 3 to 7: jobs, bounded prompts, compaction, channel live-text deltas and named credential dialects. | 6: reasoning/input live producers. 12: edit formats per dialect. |
 | `protocol/agent.md` | 2, 4: machine component, jobs and program-backed agents. | 3, 7: view and contained processes. |
 | `protocol/events.md` | 3.6, 3.9, 3.10, 6: job events, account/program notices and compaction material. | 3.2: `containment: "trees"`. |
-| `protocol/limits.md` | 2 to 7: derived edge limits, jobs, task role, prompt guard, account notices and bounded live text; memory returned when use ends. 3.8: agent and local watermarks, uncapped internal stages and hand-offs, stated dispatch orders and shipped pacing. 5: edge validity without a process heap sum or startup memory fit check; declared memory parsed and handed on. 11: measured scenario ceilings. | 3.6, 3.8: lags: host-channel edge naming, until `ready/smith/d-channel-contract` lands. 3.8: lags: sent-message timestamps remain capped, until `ready/smith/lc6-live-queues` lands. Turn measurements and lossy live pieces stay capped at their edges. |
+| `protocol/limits.md` | 2 to 7: derived edge limits, jobs, task role, prompt guard, account notices and bounded live text; memory returned when use ends. 3.6, 3.8: host-channel edge credit, agent and local watermarks, uncapped internal stages, hand-offs and sent-message timestamps, stated dispatch orders and shipped pacing; turn measurements and lossy live pieces capped at their edges. 5: edge validity without a process heap sum or startup memory fit check; declared memory parsed and handed on. 11: measured scenario ceilings. | — |
 | `protocol/hosts.md` | 2: on-demand reads, one record/piece/end each. 3: reap after demanded end. 5.2 to 5.6: program accounts and login/logout; 5.3: generated local-store layout admission is prepared. | 3: contained tree. 4: connecting to an agent later. |
 | `protocol/programs.md` | 1 to 9: Claude Code backend, its fake, sign-in, tools, stream, notices, budgets and sessions; live checks exist. 5.9: Open runs on a program backend (replies, listening, parking, wind-down; the domain's Yield request; the stream's JSON token bound from its line ceiling); the fake scripted per conversation by cue, reading by line, and its built-ins acting on the workspace. The real program's stream (system/init without the prompt tool, system notices passed over, a later init checked as the first, a thinking turn's records under one message id as one completion, its final usage), a result contract's StructuredOutput, the program's own call; and a turn interrupted by the control request, SIGINT a cancel's alone; an interrupt of the agent's says so in the next message; the live suite passes against Claude Code 2.1.311. every MCP tool schema an object with no top-level combinator, alternatives under `outcome`; one outcome path per run (StructuredOutput under a contract, finish without). | |
 | `shell.md` | 4 to 7: interactive/exec product, task role and account sources. 4.1, 4.3, 5.3: older-chat refusal words, exit 1 and trace admission are prepared. 2.5: the hosted face, portable, checked for wasm32. | 5.1: sync startup directories into parents. 8, 9: per-tree limits and `isolate`. |
@@ -58,18 +58,17 @@ Updated 2026-10-29. How far smith's code is from its design.
 - `domain/host.md`, 2, and `protocol/channel.md`, 4 and 8: built: two
   edges filled by the agent process, `LIVE_SLOTS = 4` and received-turn
   measurements at the host's turn credit; sent-message timestamps uncapped.
-- `domain/README.md`, 4, and `domain/host.md`, 9.1: lags: per-entrance
-  output/fact allowances (`max_out`, `MAX_OUT`, `run_out`, `session_out`,
-  `max_facts`, `max_to_opener`, `run_steps`, `session_steps`) remain,
-  until `ready/smith/d-domain-contract` lands. The `run_out` and
-  `session_out` queue fields are hand-offs, distinct from the allowance
-  helpers of the same names.
+- `domain/README.md`, 4, `domain/run.md`, 11, `domain/session.md`, 9,
+  and `domain/tools.md`, 6: built: no per-entrance output or fact
+  allowances; uncapped request queues and lossless fact queues. Run,
+  session and tools expose `pending_facts()` for count-based drains.
 - `domain/host.md`, 9.1: built: the root and inline slot expose
   `pending_content()`; the local domain takes that count plus one empty
   content pop, marking the slot drained for reclaim. Root child facts
-  drain by `pending_facts()`. The inline wrapper has no `pending_facts()`
-  accessor: its native fact drain pops until empty; the agent service's
-  framed fact drain uses its work quantum.
+  drain by `pending_facts()`. The inline wrapper exposes
+  `pending_slot_facts()` for its lifecycle facts; its native root-fact
+  drain pops until empty. The agent service's framed fact drain uses its
+  work quantum.
 - kept: effective limits named in events v4 (`run.facts`,
   `session.facts`, `tools.facts`, `inline.facts`); removed or renamed with
   the next planned events version. `session.facts` caps the root's
@@ -82,11 +81,17 @@ Updated 2026-10-29. How far smith's code is from its design.
   only raised ceiling (from 150,000); other remeasured ceilings fell or
   stayed unchanged.
 
-`protocol/transcript.md`, 7: built: generated `encoded_bound` and
-`decoded_bound`. Lags: host `Delivered::worst_case` remains, until
-`ready/smith/d-host-contract` lands; transcript `Turn::worst_case_bytes`
-and the root's `feedback_worst_case` remain for jig's readers, until
-`ready/jig/smith-bound-readers` lands and smith drops them.
+`protocol/transcript.md`, 7, and `domain/host.md`, 3: built: generated
+`encoded_bound` and `decoded_bound`, and host `Delivered::owned_bound`.
+The transcript v6 generator uses `Names::Bounds`; its golden bytes are
+unchanged. The root's `feedback_bound` and `ConfiguredModel::owned_bound`
+have no old-name aliases, and jig and temper use the bound names.
+
+`testing.md`, 2 and 6: built: patch tests use
+`generate_named(.., Names::Bounds)`, with no unnamed generator caller;
+world stages ask for no room and the run world's order log keeps no room
+field. World content settings and calm fact inventories are named
+constants independent of entrance allowances.
 
 ## Top-tier assertions kept
 

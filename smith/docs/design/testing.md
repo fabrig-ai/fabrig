@@ -72,7 +72,9 @@ document's "The world" section.
 | end to end | the root package's binaries: `smith` and `smith-agent`, against fakes or, live, real backends (2.3) |
 | benchmarks | not a test tier: real agents on real models, measured (2.4) |
 
-Domain worlds use domains and fakes only, never protocol crates.
+Domain worlds use domains and fakes only, never protocol crates. Codec
+patch and drift tests use `generate_named(.., Names::Bounds)`, matching
+the generated `encoded_bound` and `decoded_bound` vocabulary.
 
 ### 2.1 Simulated worlds
 
@@ -487,7 +489,21 @@ Every world checks what the strategy lists (testing-strategy.md, section
 - **Domain output never waits for room.** Domain stages and their output
   queues are uncapped. No world exercises a domain's output flow
   control; load tests hold the named dispatch orders and the root's
-  watermark, and test credit only at real edges.
+  watermark, and test credit only at real edges. No smith world asks
+  skein-world's `Stage` for room, and the run world's order log keeps no
+  room field.
+- **World settings are named inventories.** The agent memory fixture
+  uses `MEMORY_CONTENT_EDGE_RECORDS = 98`, from two parallel tools,
+  sixteen completion blocks and four jobs. Its wider fuzzy scenario uses
+  `WIDE_CONTENT_EDGE_RECORDS = 105`, from three parallel tools with the
+  same blocks and jobs. The protocol-LLM root memory scenario uses
+  `ROOT_MEMORY_CONTENT_EDGE_RECORDS = 283`, from one parallel tool,
+  sixty-four completion blocks and four jobs. Calm fact settings use
+  `CALM_RUN_FACTS = 24` (two observations per eight messages plus eight
+  lifecycle facts) and `CALM_TOOLS_FACTS = 6` (four jobs plus two
+  lifecycle facts). Each constant has an origin comment beside it.
+  These settings are independent of any entrance allowance; the domain
+  fact queues remain uncapped.
 - **Memory returns when its use ends** (protocol/limits.md, sections 5
   and 11): in the agent's simulated world, the counting allocator shows
   the live heap falling once a compacted window's history is released,

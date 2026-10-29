@@ -487,8 +487,9 @@ A child a host embeds, beside or instead of `smith-host-domain`:
   chose. The root gathers child facts by `pending_facts()` counts and
   exposes `pending_content()` for captured content; neither drain uses
   an allowance for one entrance. The inline owner pops native facts
-  until empty. The local domain discards duplicate inline content by the
-  slot's `pending_content()` count. Its content drain ends with one
+  until empty and takes the `pending_slot_facts()` count of inline
+  lifecycle facts. The local domain discards duplicate inline content by
+  the slot's `pending_content()` count. Its content drain ends with one
   empty `pop_content()`, which marks the slot drained for reclaim;
   an empty fact pop marks its facts drained too. Reclaim waits for both.
 - **No watchdog on progress.** A composed domain does not hang as a
