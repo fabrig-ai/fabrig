@@ -49,6 +49,8 @@ fn core_children_routes_and_an_in_flight_decision_stay_under_the_scenario_ceilin
 fn invalid_limits_are_refused() {
     let limits = world::limits().core;
     assert!(core::valid(&core::Limits { connectors: 0, ..limits }));
+    assert!(core::valid(&core::Limits { routes: 1, ..limits }));
+    assert!(!core::valid(&core::Limits { routes: 0, ..limits }));
     assert!(!core::valid(&core::Limits { resume_bytes: 0, ..limits }));
     assert!(!core::valid(&core::Limits { call_records: 0, ..limits }));
     assert!(!core::valid(&core::Limits { tasks: tasks::Limits { tasks: u32::MAX, ..limits.tasks }, ..limits }));

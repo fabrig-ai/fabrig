@@ -339,6 +339,9 @@ pub enum Now {
 /// Limits of the core's child routes.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Limits {
+    /// The most hand-offs one core decision routes, sibling continuations included: the
+    /// bound of every drain within a step (skein's programming-model.md, 3 "Bounded"; 4.5).
+    pub routes: u32,
     pub settings: crate::settings::Limits,
     /// Configured templates and overrides per project policy.
     pub templates: u32,

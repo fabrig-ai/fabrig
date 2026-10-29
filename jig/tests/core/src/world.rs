@@ -139,6 +139,7 @@ fn profile() -> root::Limits {
         watermark: root::default_watermark(&journal),
         connector: jig_test_connector_world::LIMITS,
         core: core::Limits {
+            routes: 20_783,
             settings: core::settings::Limits {
                 revisions: 4,
                 versions: 8,
