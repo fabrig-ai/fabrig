@@ -525,7 +525,7 @@ impl Domain {
     }
 }
 
-pub(crate) fn output_bound(limits: &Limits) -> Option<u32> {
+fn output_bound(limits: &Limits) -> Option<u32> {
     limits
         .tasks
         .checked_mul(28)?
@@ -551,17 +551,17 @@ pub(crate) fn output_bound(limits: &Limits) -> Option<u32> {
         .checked_add(8)
 }
 
-/// Required free `Request` slots for one `step` or `fire` under validated `limits`, including
-/// a possible stale-stub erase for every bounded live name. Cascades are bounded by the live
-/// set; panics if bound arithmetic is invalid. Caller counts output payload copies separately.
+/// Compatibility output estimate for application callers that size their carriers.
+/// Task steps and timers use uncapped output queues. Panics if the estimate's arithmetic
+/// is unrepresentable; `valid` checks retained state and edge counts independently.
 #[must_use]
 pub fn max_out(limits: &Limits) -> u32 {
     output_bound(limits).expect("task limits admit output bound")
 }
 
 /// Apply one root-issued event to `domain` using the iteration clocks and immutable limits in
-/// `env`, then advance bounded dependency/closing cascades when ready. Caller reserves `max_out`
-/// free slots. Reply-bearing inputs produce one terminal reply; notifications may emit no output.
+/// `env`, then advance bounded dependency/closing cascades into an uncapped output queue.
+/// Reply-bearing inputs produce one terminal reply; notifications may emit no output.
 /// Root checks authority, fences exact transport replay and commits saves/erases with resulting
 /// effects before external replies.
 #[expect(clippy::too_many_lines, reason = "the closed task event vocabulary dispatches to focused handlers")]
@@ -804,8 +804,8 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
 }
 
 /// Expire at most one due retry deadline using `env.now` after successful restoration, then advance
-/// bounded closing/readiness cascades. Caller reserves `max_out` free `Request` slots and drives
-/// later iterations while due; wall correction does not reproject an already armed deadline.
+/// bounded closing/readiness cascades into an uncapped output queue. The caller drives later
+/// iterations while due; wall correction does not reproject an already armed deadline.
 pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     if !domain.ready() {
         return;

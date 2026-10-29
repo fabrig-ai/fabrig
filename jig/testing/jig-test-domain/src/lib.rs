@@ -458,7 +458,7 @@ impl Domain {
 
     /// Install the application's fixed hold vocabulary before its first input.
     pub fn configure_holds(&mut self, env: &Env<Limits>, connector: u16, kinds: Box<[tasks::Kind]>) {
-        let mut out = Queue::with_capacity(tasks::max_out(&env.limits.core.tasks));
+        let mut out = Queue::uncapped();
         tasks::step(
             &mut self.core.tasks,
             &Env { now: env.now, wall: env.wall, limits: env.limits.core.tasks },
@@ -1161,7 +1161,7 @@ pub fn restore_record(domain: &mut Domain, env: &Env<Limits>, record: Record) ->
             if !domain.core.restore_task_row(&row) {
                 return false;
             }
-            let mut out = Queue::with_capacity(tasks::max_out(&env.limits.core.tasks));
+            let mut out = Queue::uncapped();
             tasks::step(
                 &mut domain.core.tasks,
                 &Env { now: env.now, wall: env.wall, limits: env.limits.core.tasks },

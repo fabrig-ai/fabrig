@@ -125,14 +125,8 @@ fn profile() -> root::Limits {
         facts: 2,
         history: 2,
     };
-    let writes = tasks::max_out(&tasks) * 8
-        + people::max_out(&people) * 4
-        + people.pending * 2
-        + fleet::max_out(&fleet) * 4
-        + jig_test_connector::MAX_OUT * 2
-        + tasks.tasks
-        + 6;
-    let journal = JournalLimits { commits: 3, held: 2000, writes: writes.max(2000), now: 32, release: 32 };
+    // The uncapped journal's pricing is set from core routes and connectors below.
+    let journal = JournalLimits { commits: 3, held: 2000, writes: 2000, now: 32, release: 32 };
     let mut limits = root::Limits {
         journal,
         routes: 200,

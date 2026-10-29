@@ -269,7 +269,7 @@ fn a_task_query_lists_a_live_task_past_the_bound() {
         },
         &mut out,
     );
-    let mut out = Queue::with_capacity(tasks::max_out(&profile.core.tasks));
+    let mut out = Queue::uncapped();
     for task in &records {
         tasks::step(
             &mut core.tasks,
