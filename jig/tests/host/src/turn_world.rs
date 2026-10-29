@@ -122,7 +122,7 @@ impl World {
             limits,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             host: host::Domain::new(&limits),
-            out: Queue::with_capacity(host::max_out(&limits)),
+            out: Queue::uncapped(),
             events: VecDeque::new(),
             connected: true,
             owner: None,
