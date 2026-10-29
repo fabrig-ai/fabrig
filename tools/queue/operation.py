@@ -11,6 +11,7 @@ import shlex
 import subprocess
 import sys
 import time
+import uuid
 
 sys.dont_write_bytecode = True
 DIRECTORY = Path(__file__).resolve().parent
@@ -83,23 +84,203 @@ def open_controller(config, *, inherited=None, deadline=None):
 UNKNOWN_CLIENTS = []
 
 
-def quarantine_preparation(config, controller=None):
-    """An interrupted client is not proof its descendants stopped."""
+CLIENT_KIND = 'preparation-client-v1'
+CLIENT_KEYS = {'version', 'kind', 'client', 'attempt', 'generation', 'state',
+               'snapshot', 'candidate', 'command', 'preparation'}
+
+
+def client_identity(identity):
+    """Strict private intent; a completed preparation is never client proof."""
+    if (not isinstance(identity, dict) or set(identity) != CLIENT_KEYS or
+            type(identity['version']) is not int or identity['version'] != 1 or
+            identity['kind'] != CLIENT_KIND or
+            not isinstance(identity['client'], str) or len(identity['client']) != 32 or
+            any(c not in '0123456789abcdef' for c in identity['client']) or
+            not isinstance(identity['generation'], str) or not worker.TOKEN.fullmatch(identity['generation'])):
+        raise ValueError('unknown preparation client identity/version; no migration')
+    transport.absolute(identity['state'])
+    if identity['attempt'] is not None and (not isinstance(identity['attempt'], str) or
+                                           not worker.TOKEN.fullmatch(identity['attempt'])):
+        raise ValueError('invalid preparation client attempt')
+    if identity['candidate'] is not None and (not isinstance(identity['candidate'], str) or
+                                             not worker.OID.fullmatch(identity['candidate'])):
+        raise ValueError('invalid preparation client candidate')
+    command = identity['command']
+    if (not isinstance(command, dict) or set(command) != {'argv', 'cwd', 'input'} or
+            not isinstance(command['argv'], list) or not command['argv'] or
+            any(not isinstance(arg, str) or '\0' in arg for arg in command['argv'])):
+        raise ValueError('invalid preparation client command')
+    transport.absolute(command['cwd'])
+    for fingerprint in (identity['snapshot'], command['input']):
+        if fingerprint is not None and (not isinstance(fingerprint, dict) or set(fingerprint) != {'bytes', 'sha256'} or
+                type(fingerprint['bytes']) is not int or fingerprint['bytes'] < 0 or
+                not isinstance(fingerprint['sha256'], str) or len(fingerprint['sha256']) != 64 or
+                any(c not in '0123456789abcdef' for c in fingerprint['sha256'])):
+            raise ValueError('invalid preparation client fingerprint')
+    if identity['preparation'] is not None and identity['preparation'] != {
+            'attempt': identity['attempt'], 'generation': identity['generation'], 'state': identity['state']}:
+        raise ValueError('preparation client has mismatching preparation ownership')
+    return identity
+
+
+def begin_preparation_client(config, argv, options, body, *, controller=None, preparer=None):
     marker = Path(config['preparation']) / '.git/mq-preparation-unresolved.json'
     snapshot_path = Path(config['authority_dir']) / 'train/state.json'
+    snapshot = durable.read_bytes(snapshot_path) if snapshot_path.exists() else None
+    state = durable.read_json(snapshot) if snapshot is not None else None
+    previous = durable.read_json(durable.read_bytes(marker)) if marker.exists() or marker.is_symlink() else None
+    if previous is not None and ('kind' in previous or 'version' in previous):
+        client_identity(previous)
+        raise worker.UncertainCompletion('preparation client ownership unresolved; supported descendant completion proof required')
+    request = preparer._client_identity if preparer is not None else None
+    attempt = request['attempt'] if request is not None else previous['attempt'] if previous is not None else None
+    record = state['records'].get(attempt, {}) if state is not None else {}
+    identity = {'version': 1, 'kind': CLIENT_KIND, 'client': uuid.uuid4().hex,
+        'attempt': attempt, 'generation': config['generation'], 'state': str(snapshot_path),
+        'snapshot': durable.fingerprint(snapshot) if snapshot is not None else None,
+        'candidate': request['candidate'] if request is not None else record.get('candidate'),
+        'command': {'argv': [str(arg) for arg in argv], 'cwd': str(Path(options.get('cwd', os.getcwd())).resolve()),
+                    'input': durable.fingerprint(body.encode(options.get('encoding') or 'utf-8', options.get('errors') or 'strict') if isinstance(body, str) else body)
+                             if body is not None else None},
+        'preparation': previous}
+    client_identity(identity)
+    if (state is not None and state['config']['generation'] != config['generation'] or
+            attempt is not None and (attempt not in (state or {}).get('records', {}) or
+                request is not None and (request['generation'] != config['generation'] or
+                    record.get('candidate', request['candidate']) != request['candidate']))):
+        raise ValueError('preparation client differs from durable admission')
+    # The immutable intent may be orphaned before marker publication, but no
+    # client can start until BOTH durable publications have succeeded.
+    journal = Path(config['authority_dir']) / 'preparation-clients'
+    durable.directory(journal, create=True)
+    intent, proof = journal / (identity['client'] + '.intent.json'), journal / (identity['client'] + '.done.json')
+    if any(path.exists() or path.is_symlink() for path in (intent, proof)):
+        raise ValueError('preparation client identity already allocated')
+    data = durable.encoded(identity)
+    durable.publish(intent, data, immutable=True)
+    durable.publish(marker, data, private_parent=False)
+    return marker, intent, proof, identity
+
+
+def release_preparation_client(marker, proof, identity):
+    receipt = durable.read_json(durable.read_bytes(proof))
+    if (not isinstance(receipt, dict) or set(receipt) != {'version', 'kind', 'intent', 'reaped', 'returncode'} or
+            type(receipt['version']) is not int or receipt['version'] != 1 or
+            receipt['kind'] != CLIENT_KIND or receipt['intent'] != identity or
+            receipt['reaped'] is not True or type(receipt['returncode']) is not int):
+        raise ValueError('preparation client descendant completion proof differs')
+    if durable.read_json(durable.read_bytes(marker)) != identity:
+        raise ValueError('preparation client ownership changed before release')
+    if identity['preparation'] is not None:
+        durable.publish(marker, durable.encoded(identity['preparation']), private_parent=False)
+    else:
+        marker.unlink()
+        durable.sync_directory(marker.parent)
+    return receipt['returncode']
+
+
+class PreparationClient:
+    """One isolated subreaper; captured channels are private journal files."""
+    def __init__(self, argv, intent, proof, identity, inherited, options, body, endpoint, budget):
+        self.pid, self.returncode, self.pidfd = None, None, None
+        self.files = []
+        self.channels = {}
+        self.text = options.get('text', False) or options.get('universal_newlines', False) or options.get('encoding') is not None
+        self.encoding, self.errors = options.get('encoding') or 'utf-8', options.get('errors') or 'strict'
+        options = dict(options)
+        try:
+            for name in ('stdout', 'stderr'):
+                if options.get(name) == subprocess.PIPE:
+                    stream = intent.with_suffix('.' + name).open('x+b')
+                    os.fchmod(stream.fileno(), 0o600)
+                    self.files.append(stream)
+                    self.channels[name] = stream
+                    options[name] = stream
+            if body is not None:
+                stream = intent.with_suffix('.stdin').open('x+b')
+                os.fchmod(stream.fileno(), 0o600)
+                stream.write(body.encode(self.encoding, self.errors) if isinstance(body, str) else body)
+                stream.flush();stream.seek(0)
+                self.files.append(stream)
+                options['stdin'] = stream
+            transport.remaining(endpoint, budget)
+            self.pid = os.fork()
+            if self.pid == 0:
+                try:
+                    os.setsid()
+                    if ctypes.CDLL(None, use_errno=True).prctl(36, 1, 0, 0, 0):
+                        raise RuntimeError('Linux child subreaper unavailable')
+                    # Only the exact held leases and command channels survive
+                    # in this isolated owner, never unrelated controller FDs.
+                    keep = set(inherited) | {stream.fileno() for stream in self.files}
+                    for name in ('stdin', 'stdout', 'stderr'):
+                        stream = options.get(name)
+                        if hasattr(stream, 'fileno'):keep.add(stream.fileno())
+                        elif isinstance(stream, int) and stream >= 3:keep.add(stream)
+                    lower = 3
+                    for fd in sorted(fd for fd in keep if fd >= 3):
+                        os.closerange(lower, fd);lower = fd + 1
+                    os.closerange(lower, os.sysconf('SC_OPEN_MAX'))
+                    transport.remaining(endpoint, budget)
+                    child = subprocess.Popen(argv, pass_fds=tuple(inherited), **options)
+                    # This process has exactly one launched family. ECHILD
+                    # proves all adopted descendants ended, including setsid.
+                    while True:
+                        try:
+                            pid, status = os.waitpid(-1, 0)
+                        except ChildProcessError:
+                            break
+                        if pid == child.pid:
+                            child.returncode = os.waitstatus_to_exitcode(status)
+                    durable.publish(proof, durable.encoded({'version': 1, 'kind': CLIENT_KIND,
+                        'intent': identity, 'reaped': True, 'returncode': child.returncode}), immutable=True)
+                    os._exit(0)
+                except BaseException:
+                    os._exit(1)
+            self.pidfd = os.pidfd_open(self.pid)
+        except BaseException:
+            self.close()
+            raise
+
+    def poll(self):
+        if self.returncode is None:
+            pid, status = os.waitpid(self.pid, os.WNOHANG)
+            if pid:
+                self.returncode = os.waitstatus_to_exitcode(status)
+                if self.pidfd is not None:
+                    os.close(self.pidfd);self.pidfd = None
+        return self.returncode
+
+    def communicate(self, *, input=None, timeout=None):
+        if not select.select([self.pidfd], [], [], timeout)[0]:
+            raise subprocess.TimeoutExpired('preparation client', timeout)
+        os.waitid(os.P_PIDFD, self.pidfd, os.WEXITED | os.WNOWAIT)
+        self.poll()
+        result = []
+        for name in ('stdout', 'stderr'):
+            stream = self.channels.get(name)
+            if stream is None:
+                result.append(None)
+            else:
+                stream.seek(0);data = stream.read()
+                result.append(data.decode(self.encoding, self.errors).replace('\r\n', '\n').replace('\r', '\n')
+                              if self.text else data)
+        return tuple(result)
+
+    def close(self):
+        for stream in self.files:
+            stream.close()
+
+
+def quarantine_preparation(config, controller=None):
+    """The pre-launch client intent, never a preparation marker, retains ownership."""
+    marker = Path(config['preparation']) / '.git/mq-preparation-unresolved.json'
+    identity = client_identity(durable.read_json(durable.read_bytes(marker)))
+    snapshot_path = Path(identity['state'])
     state = controller.state if controller is not None else (
         train.recovery.validate_state(durable.read_json(durable.read_bytes(snapshot_path))) if snapshot_path.exists() else None)
-    records = state['records'] if state else {}
-    if marker.exists() or marker.is_symlink():
-        identity = durable.read_json(durable.read_bytes(marker))
-    else:
-        active = state['active'] if state else []
-        attempt = active[0] if active else max(records, key=lambda name: int(name.rsplit('-',1)[1]), default='unresolved-command')
-        identity = {'attempt': attempt, 'generation': state['config']['generation'] if state else config['generation'],
-                    'state': str(snapshot_path)}
-        durable.publish(marker, durable.encoded(identity), immutable=True, private_parent=False)
-    if identity.get('attempt') in records:
-        records[identity['attempt']]['preparation_unresolved'] = True
+    if state is not None and identity['attempt'] in state['records']:
+        state['records'][identity['attempt']]['preparation_unresolved'] = True
         if controller is not None:
             controller.save()
         else:
@@ -113,9 +294,6 @@ def preparation_budget(endpoint, config, *, controller=None, preparer=None, leas
     No global subprocess monkeypatch: each independently loaded policy module
     has one synchronous command boundary, restored when this scope ends.
     """
-    if getattr(endpoint, 'deadline', None) is None:
-        yield
-        return
     if controller is not None:
         preparer = controller.preparer
         lease = controller.authority.lock
@@ -138,28 +316,41 @@ def preparation_budget(endpoint, config, *, controller=None, preparer=None, leas
             options['stdin'] = subprocess.PIPE
         # Recheck after setup so an expired scope cannot launch another client.
         budget = transport.remaining(endpoint, budget)
-        child = subprocess.Popen(argv, start_new_session=True, pass_fds=tuple(set(inherited)), **options)
+        child = None
         try:
+            marker, intent, proof, identity = begin_preparation_client(config, argv, options, body,
+                controller=controller, preparer=preparer)
+            transport.remaining(endpoint, budget)
+            child = PreparationClient(argv, intent, proof, identity, tuple(set(inherited)), options, body, endpoint, budget)
             output, errors = child.communicate(input=body, timeout=transport.remaining(endpoint, budget))
             transport.remaining(endpoint, budget)
-        except (subprocess.TimeoutExpired, TimeoutError) as error:
+            if child.returncode != 0:
+                raise worker.UncertainCompletion('preparation client supervisor lost; descendant completion unknown')
+            code = release_preparation_client(marker, proof, identity)
+            return subprocess.CompletedProcess(argv, code, output, errors)
+        except BaseException as error:
+            if controller is not None and not isinstance(error, (subprocess.TimeoutExpired, TimeoutError)):
+                controller.failed = True
             try:
-                quarantine_preparation(config, controller)
+                if child is not None and isinstance(error, (subprocess.TimeoutExpired, TimeoutError)):
+                    quarantine_preparation(config, controller)
             finally:
-                # An unreaped leader still owns its session identity. Once it
-                # was reaped, never signal a potentially reused process group.
-                if child.returncode is None:
-                    try:
-                        os.killpg(child.pid, signal.SIGKILL)
-                    except ProcessLookupError:
-                        pass
-                for stream in (child.stdin, child.stdout, child.stderr):
-                    if stream is not None:
-                        stream.close()
-                if child.poll() is None:
-                    UNKNOWN_CLIENTS.append(child)
-            raise worker.UncertainCompletion('preparation/certificate client deadline; descendant completion unknown; retain preparation ownership') from error
-        return subprocess.CompletedProcess(argv, child.returncode, output, errors)
+                # No signal is completion proof. The distinct pre-launch marker
+                # survives timeout, controller loss and any publication failure.
+                if child is not None:
+                    if child.returncode is None:
+                        try:
+                            os.killpg(child.pid, signal.SIGKILL)
+                        except ProcessLookupError:
+                            pass
+                    if child.poll() is None:
+                        UNKNOWN_CLIENTS.append(child)
+            if isinstance(error, (subprocess.TimeoutExpired, TimeoutError)):
+                raise worker.UncertainCompletion('preparation/certificate client deadline; descendant completion unknown; retain preparation ownership') from error
+            raise
+        finally:
+            if child is not None:
+                child.close()
 
     def command(argv, cwd, *, check=True, body=None, separate_stderr=False):
         options = {'stdin': subprocess.DEVNULL} if body is None else {'input': body}
@@ -206,6 +397,9 @@ def cycle_owned(controller, config, *, admit=True):
     marker = controller.preparer.repo / '.git/mq-preparation-unresolved.json'
     if marker.exists() or marker.is_symlink():
         identity = durable.read_json(durable.read_bytes(marker))
+        if 'kind' in identity or 'version' in identity:
+            client_identity(identity)
+            raise worker.UncertainCompletion('incomplete preparation client ownership; supported descendant completion proof required')
         attempt = identity.get('attempt')
         if attempt not in controller.state['records']:
             raise RuntimeError('preparation command ownership unknown; retain marker and reconcile supported evidence')

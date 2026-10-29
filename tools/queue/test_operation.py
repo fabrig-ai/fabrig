@@ -328,6 +328,303 @@ class OperationTests(f.fixtures.TrainFixture,unittest.TestCase):
             launch.assert_not_called()
         self.assertFalse((self.prep/'.git/mq-preparation-unresolved.json').exists())
 
+    def test_certificate_controller_loss_before_timeout_retains_live_descendant_ownership(self):
+        self.client_crash_case('before-timeout')
+
+    def test_certificate_marker_without_snapshot_flag_retains_live_descendant_ownership(self):
+        self.client_crash_case('before-flag')
+
+    def test_zero_exit_certificate_client_does_not_release_live_escaped_descendant(self):
+        self.client_crash_case('normal-client-exit')
+
+    def test_certificate_controller_loss_without_deadline_retains_live_descendant_ownership(self):
+        self.client_crash_case('without-deadline')
+
+    def client_crash_case(self, stage):
+        self.branch('source',{'core/src/lib.rs':'source'})
+        attempt,record=self.admit();self.transport.finish(attempt)
+        ready,parent_go,descendant_go=[self.root/name for name in ('ready','parent-go','descendant-go')]
+        for path in (ready,parent_go,descendant_go):os.mkfifo(path,0o600)
+        ready_fd,parent_fd,descendant_fd=[os.open(path,os.O_RDWR) for path in (ready,parent_go,descendant_go)]
+        binary=self.root/'crash-bin';binary.mkdir(mode=0o700)
+        cargo=binary/'cargo'
+        cargo.write_text('''#!/usr/bin/env python3
+import json,os
+parent,guardian=os.getpid(),os.getppid()
+if os.fork()==0:
+ os.setsid()
+ os.closerange(0,65536)
+ with open(READY,'w') as f:f.write(json.dumps([os.getpid(),parent,guardian])+'\\n');f.flush()
+ fd=os.open(DESCENDANT_GO,os.O_RDONLY);os.read(fd,1);os._exit(0)
+fd=os.open(PARENT_GO,os.O_RDONLY);os.read(fd,1)
+print(METADATA)
+'''.replace('READY',repr(str(ready))).replace('DESCENDANT_GO',repr(str(descendant_go)))
+            .replace('PARENT_GO',repr(str(parent_go))).replace('METADATA',repr(__import__('json').dumps(self.metadata(self.prep)))))
+        cargo.chmod(0o700)
+        pid=os.fork()
+        if pid==0:
+            try:
+                self.authority.lock=self.layout.acquire(inherited=self.lease.fd)
+                self.preparer.metadata_loader=f.mq.load_metadata
+                os.environ['PATH']=str(binary)+':'+os.environ['PATH']
+                if stage=='before-flag':
+                    save=self.controller.save
+                    def crash():
+                        if self.controller.state['records'][attempt].get('preparation_unresolved'):
+                            os._exit(0)
+                        save()
+                    self.controller.save=crash
+                if stage=='without-deadline':
+                    op.stop(self.config);self.controller.stop()
+                    op.cycle(self.controller,self.config,admit=False)
+                else:
+                    op.drain(self.controller,self.config,20 if stage=='before-timeout' else 0.75)
+                os._exit(8)
+            except BaseException:os._exit(9)
+        controller_fd=os.pidfd_open(pid)
+        descendant_pidfd=client_fd=guardian_fd=None
+        try:
+            self.assertTrue(select.select([ready_fd],[],[],5)[0])
+            descendant,client,guardian=d.read_json(os.read(ready_fd,1024))
+            descendant_pidfd=os.pidfd_open(descendant);client_fd=os.pidfd_open(client)
+            if guardian!=pid:guardian_fd=os.pidfd_open(guardian)
+            if stage in ('before-timeout','without-deadline'):
+                __import__('signal').pidfd_send_signal(controller_fd,9)
+            elif stage=='normal-client-exit':
+                os.write(parent_fd,b'x')
+                self.assertTrue(select.select([client_fd],[],[],5)[0])
+            self.assertTrue(select.select([controller_fd],[],[],5)[0])
+            _,status=os.waitpid(pid,0);pid=None
+            expected=-9 if stage in ('before-timeout','without-deadline') else 9 if stage=='normal-client-exit' else 0
+            self.assertEqual(os.waitstatus_to_exitcode(status),expected)
+            # End the original client, and lose any isolated guardian too. The
+            # escaped child has closed every inherited lease and remains alive.
+            os.write(parent_fd,b'x')
+            self.assertTrue(select.select([client_fd],[],[],5)[0])
+            if guardian_fd is not None:
+                if not select.select([guardian_fd],[],[],0)[0]:__import__('signal').pidfd_send_signal(guardian_fd,9)
+                self.assertTrue(select.select([guardian_fd],[],[],5)[0])
+            self.assertFalse(select.select([descendant_pidfd],[],[],0)[0])
+            snapshot=self.store.load()
+            self.assertEqual(snapshot['records'][attempt].get('preparation_unresolved',False),stage=='normal-client-exit')
+            marker=self.prep/'.git/mq-preparation-unresolved.json'
+            self.assertTrue(marker.exists(),'live client descendant has no durable ownership')
+            identity=op.client_identity(d.read_json(d.read_bytes(marker)))
+            self.assertEqual(identity['attempt'],attempt)
+            self.assertEqual(identity['generation'],record['request']['generation'])
+            self.assertEqual(identity['state'],str(self.store.path))
+            self.assertEqual(identity['candidate'],record['candidate'])
+            self.assertEqual(identity['command']['argv'],['cargo','metadata','--no-deps','--format-version','1','--locked'])
+            self.assertEqual(identity['command']['cwd'],str(self.prep))
+            self.assertIsNone(identity['preparation'])
+            if stage!='normal-client-exit':
+                self.assertEqual(identity['snapshot'],d.fingerprint(d.read_bytes(self.store.path)))
+            intent=self.layout.root/'preparation-clients'/(identity['client']+'.intent.json')
+            self.assertEqual(d.read_json(d.read_bytes(intent)),identity)
+            restored=self.reload()
+            with self.assertRaises((RuntimeError,ValueError)):
+                op.cycle(restored,self.config,admit=False)
+            with self.assertRaises((RuntimeError,ValueError)):
+                restored.reconcile_preparation(attempt)
+            with self.assertRaises((RuntimeError,ValueError)):
+                with self.preparer.ownership():pass
+            self.assertTrue(marker.exists())
+            self.assertFalse(select.select([descendant_pidfd],[],[],0)[0])
+            self.assertEqual(restored.state['gates'][record['gate']],attempt)
+            self.assertEqual(self.authority.main(),self.base)
+            self.assertTrue(Path(self.config['stop']).exists())
+        finally:
+            os.write(parent_fd,b'x'*16);os.write(descendant_fd,b'x'*16)
+            if pid is not None:
+                __import__('signal').pidfd_send_signal(controller_fd,9);os.waitpid(pid,0)
+            if guardian_fd is not None and not select.select([guardian_fd],[],[],0)[0]:
+                __import__('signal').pidfd_send_signal(guardian_fd,9)
+            if descendant_pidfd is not None:self.assertTrue(select.select([descendant_pidfd],[],[],5)[0])
+            for fd in (ready_fd,parent_fd,descendant_fd,controller_fd,descendant_pidfd,client_fd,guardian_fd):
+                if fd is not None:os.close(fd)
+
+    def test_client_intent_encoding_failure_starts_nothing_and_preserves_leases(self):
+        self.client_publication_failure_case('encoding')
+
+    def test_client_marker_io_failure_starts_nothing_and_preserves_leases(self):
+        self.client_publication_failure_case('before-marker')
+
+    def test_client_marker_published_then_io_failure_starts_nothing_and_refuses_reuse(self):
+        self.client_publication_failure_case('after-marker')
+
+    def client_publication_failure_case(self, stage):
+        self.branch('source');attempt,record=self.admit();self.transport.finish(attempt)
+        op.stop(self.config);self.controller.stop()
+        snapshot=d.read_bytes(self.store.path)
+        marker=self.prep/'.git/mq-preparation-unresolved.json'
+        encoded,publish=op.durable.encoded,op.durable.publish
+        def encode(value):
+            if stage=='encoding' and isinstance(value,dict) and value.get('kind')==op.CLIENT_KIND:
+                raise ValueError('injected intent encoding failure')
+            return encoded(value)
+        def write(path,*args,**kwargs):
+            if Path(path)==marker:
+                if stage=='after-marker':publish(path,*args,**kwargs)
+                raise OSError('injected marker I/O failure')
+            return publish(path,*args,**kwargs)
+        self.transport.deadline=time.monotonic()+5
+        with self.preparer.ownership(),self.preparer.client_identity(record['request']),\
+             op.preparation_budget(self.transport,self.config,controller=self.controller),\
+             patch.object(op.durable,'encoded',side_effect=encode),patch.object(op.durable,'publish',side_effect=write),\
+             patch.object(op.os,'fork') as launch:
+            with self.assertRaisesRegex((ValueError,OSError),'injected'):
+                f.mq.git(self.prep,'status')
+            launch.assert_not_called()
+            self.lease.guard();self.preparer._ownership.guard()
+        self.assertTrue(self.controller.failed)
+        self.assertEqual(d.read_bytes(self.store.path),snapshot)
+        self.assertEqual(self.controller.state['gates'][record['gate']],attempt)
+        self.assertTrue(Path(self.config['stop']).exists())
+        self.assertEqual(marker.exists(),stage=='after-marker')
+        if stage=='after-marker':
+            restored=self.reload()
+            with self.assertRaises(RuntimeError):op.cycle(restored,self.config,admit=False)
+            with self.assertRaises(ValueError):restored.reconcile_preparation(attempt)
+            self.assertTrue(marker.exists())
+
+    def test_client_completion_publication_failure_retains_marker_and_gate(self):
+        self.branch('source');attempt,record=self.admit();self.transport.finish(attempt)
+        op.stop(self.config);self.controller.stop()
+        snapshot=d.read_bytes(self.store.path);publish=op.durable.publish
+        def write(path,*args,**kwargs):
+            if str(path).endswith('.done.json'):raise OSError('injected completion I/O failure')
+            return publish(path,*args,**kwargs)
+        self.transport.deadline=time.monotonic()+5
+        with self.preparer.ownership(),self.preparer.client_identity(record['request']),\
+             op.preparation_budget(self.transport,self.config,controller=self.controller),\
+             patch.object(op.durable,'publish',side_effect=write):
+            with self.assertRaisesRegex(RuntimeError,'supervisor lost'):f.mq.git(self.prep,'status')
+            self.lease.guard();self.preparer._ownership.guard()
+        marker=self.prep/'.git/mq-preparation-unresolved.json'
+        self.assertEqual(d.read_bytes(self.store.path),snapshot)
+        self.assertTrue(self.controller.failed)
+        self.assertTrue(marker.exists())
+        self.assertEqual(self.controller.state['gates'][record['gate']],attempt)
+        self.assertTrue(Path(self.config['stop']).exists())
+        restored=self.reload()
+        with self.assertRaises(RuntimeError):op.cycle(restored,self.config,admit=False)
+        with self.assertRaises(ValueError):restored.reconcile_preparation(attempt)
+
+    def test_deadline_expiring_during_intent_publication_starts_no_client(self):
+        self.branch('source');attempt,record=self.admit()
+        op.stop(self.config);self.controller.stop()
+        marker=self.prep/'.git/mq-preparation-unresolved.json'
+        publish=op.durable.publish
+        def write(path,*args,**kwargs):
+            publish(path,*args,**kwargs)
+            if Path(path)==marker:self.transport.deadline=0
+        self.transport.deadline=time.monotonic()+5
+        with self.preparer.client_identity(record['request']),\
+             op.preparation_budget(self.transport,self.config,controller=self.controller),\
+             patch.object(op.durable,'publish',side_effect=write),patch.object(op.os,'fork') as launch:
+            with self.assertRaisesRegex(RuntimeError,'deadline'):f.mq.git(self.prep,'status')
+            launch.assert_not_called()
+        self.assertTrue(marker.exists())
+        self.lease.guard()
+        self.assertTrue(Path(self.config['stop']).exists())
+        self.assertEqual(self.controller.state['gates'][record['gate']],attempt)
+
+    def test_normal_marker_restore_failure_retains_distinct_client_and_real_completion_proof(self):
+        self.branch('source');attempt,marker=self.completed_preparation_crash()
+        previous=d.read_bytes(marker);snapshot=d.read_bytes(self.store.path)
+        op.stop(self.config)
+        publish=op.durable.publish
+        def write(path,data,**kwargs):
+            if Path(path)==marker and data==previous:raise OSError('injected marker restore failure')
+            return publish(path,data,**kwargs)
+        self.transport.deadline=time.monotonic()+5
+        with op.preparation_budget(self.transport,self.config,controller=self.controller),\
+             patch.object(op.durable,'publish',side_effect=write):
+            with self.assertRaisesRegex(OSError,'restore failure'):f.mq.git(self.prep,'status')
+        identity=op.client_identity(d.read_json(d.read_bytes(marker)))
+        self.assertEqual(identity['preparation'],d.read_json(previous))
+        self.assertEqual(d.read_bytes(self.store.path),snapshot)
+        self.assertTrue(self.controller.failed)
+        self.assertTrue(Path(self.config['stop']).exists())
+        self.lease.guard()
+        proof=self.layout.root/'preparation-clients'/(identity['client']+'.done.json')
+        self.assertEqual(d.read_json(d.read_bytes(proof))['intent'],identity)
+        restored=self.reload()
+        with self.assertRaises(RuntimeError):op.cycle(restored,self.config,admit=False)
+        with self.assertRaises(ValueError):restored.reconcile_preparation(attempt)
+        self.assertTrue(marker.exists())
+
+    def test_certificate_marker_io_failure_preserves_returned_receipts_stop_and_physical_gate(self):
+        self.branch('source',{'core/src/lib.rs':'source'})
+        attempt,record=self.admit();self.transport.finish(attempt)
+        self.preparer.metadata_loader=f.mq.load_metadata
+        marker=self.prep/'.git/mq-preparation-unresolved.json'
+        publish=op.durable.publish
+        def write(path,data,**kwargs):
+            publish(path,data,**kwargs)
+            if Path(path)==marker:
+                identity=d.read_json(data)
+                if identity.get('kind')==op.CLIENT_KIND and identity['command']['argv'][0]=='cargo':
+                    raise OSError('injected certificate marker I/O failure')
+        with patch.object(op.durable,'publish',side_effect=write):
+            with self.assertRaisesRegex(RuntimeError,'publication failed'):
+                op.drain(self.controller,self.config,0.75)
+        self.lease.guard()
+        self.assertTrue(self.controller.failed)
+        self.assertTrue(Path(self.config['stop']).exists())
+        self.assertEqual(self.controller.state['gates'][record['gate']],attempt)
+        self.assertEqual(self.authority.main(),self.base)
+        job=self.transport.jobs[attempt]
+        for name,data in (('returned.json',job['result']),('returned.log',job['log'])):
+            self.assertEqual(d.read_bytes(self.artifacts/attempt/name),data)
+            self.assertEqual(record['returned'][name],d.fingerprint(data))
+        identity=op.client_identity(d.read_json(d.read_bytes(marker)))
+        self.assertEqual(identity['attempt'],attempt)
+        self.assertEqual(identity['candidate'],record['candidate'])
+        restored=self.reload()
+        with self.assertRaises(RuntimeError):op.cycle(restored,self.config,admit=False)
+        with self.assertRaises(ValueError):restored.reconcile_preparation(attempt)
+        self.assertTrue(marker.exists())
+
+    def test_proved_client_restores_only_exact_normal_preparation_marker(self):
+        self.branch('source');attempt,marker=self.completed_preparation_crash()
+        previous=d.read_bytes(marker)
+        self.transport.deadline=time.monotonic()+5
+        with op.preparation_budget(self.transport,self.config,controller=self.controller):
+            result=f.mq.command(['python3','-c','import sys;print(sys.stdin.read(),end="");print("error",file=sys.stderr)'],
+                                self.prep,body='payload\r\n',separate_stderr=True)
+        self.assertEqual((result.returncode,result.stdout,result.stderr),(0,'payload\n','error\n'))
+        self.assertEqual(d.read_bytes(marker),previous)
+        proofs=list((self.layout.root/'preparation-clients').glob('*.done.json'))
+        self.assertEqual(len(proofs),1)
+        proof=d.read_json(d.read_bytes(proofs[0]))
+        self.assertTrue(proof['reaped'])
+        self.assertEqual(proof['intent']['preparation'],d.read_json(previous))
+        self.assertEqual(proof['intent']['candidate'],self.controller.state['records'][attempt]['candidate'])
+        op.cycle(self.controller,self.config,admit=False)
+        self.assertFalse(marker.exists())
+
+    def test_normal_preparation_marker_with_corrupt_own_proof_still_refuses(self):
+        self.branch('source');attempt,marker=self.completed_preparation_crash()
+        identity=d.read_bytes(marker)
+        (self.artifacts/attempt/'prepare.log').write_bytes(b'corrupt retained preparation')
+        self.transport.deadline=time.monotonic()+5
+        with self.assertRaises(ValueError):op.cycle(self.controller,self.config,admit=False)
+        self.assertEqual(d.read_bytes(marker),identity)
+        self.assertFalse(self.transport.starts)
+
+    def test_client_private_version_and_identity_changes_refuse_without_clearing(self):
+        self.branch('source');attempt,record=self.admit()
+        marker,intent,proof,identity=op.begin_preparation_client(self.config,['git','status'],{'cwd':self.prep},None,
+            controller=self.controller,preparer=self.preparer)
+        for field,value in (('version',True),('version',2),('kind','unknown'),('candidate','bad'),('extra',1)):
+            altered={**identity,field:value};d.atomic_json(marker,altered,private_parent=False)
+            with patch.object(self.transport,'status') as poll,self.assertRaises(ValueError):
+                op.cycle(self.controller,self.config,admit=False)
+            poll.assert_not_called()
+            self.assertEqual(d.read_json(d.read_bytes(marker)),altered)
+        d.atomic_json(marker,identity,private_parent=False)
+
     def test_expired_drain_does_not_launch_git_or_post_effect_clients(self):
         endpoint=types.SimpleNamespace(deadline=0)
         with patch.object(op.subprocess,'run') as run, self.assertRaises(TimeoutError):

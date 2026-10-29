@@ -77,6 +77,7 @@ class Preparer:
         self.runner = None
         self.disk_floor = disk_floor
         self._ownership = None
+        self._client_identity = None
         if (not (self.repo / ".git").is_dir() or (self.repo / ".git").is_symlink() or
                 mq.git(self.repo, "rev-parse", "--show-toplevel").stdout.strip() != str(self.repo) or
                 Path(mq.git(self.repo, "rev-parse", "--path-format=absolute", "--git-common-dir").stdout.strip())
@@ -120,8 +121,17 @@ class Preparer:
 
     def expectation(self, request):
         """Compute from controller objects at exact C, never from worker claims."""
-        with self.ownership():
+        with self.client_identity(request), self.ownership():
             return self._expectation(request)
+
+    @contextmanager
+    def client_identity(self, request):
+        previous = self._client_identity
+        self._client_identity = request
+        try:
+            yield
+        finally:
+            self._client_identity = previous
 
     def _expectation(self, request):
         worker.runtime_unchanged()
@@ -336,6 +346,11 @@ def verify_chain(repo, record):
 
 def validate_result(preparer, record, result, log):
     """Validate controller expectations and complete returned bytes independently."""
+    with preparer.client_identity(record["request"]):
+        return _validate_result(preparer, record, result, log)
+
+
+def _validate_result(preparer, record, result, log):
     request = record["request"]
     worker.encoded(result)  # Refuse nonfinite values, including nested evidence.
     if type(result.get("version")) is not int or result["version"] != 1:
@@ -954,7 +969,6 @@ class Controller:
         record = self.state["records"][attempt]
         if record["phase"] == "preparing" or record.get("preparation_unresolved"):
             raise RuntimeError("incomplete preparation requires supported supervisor evidence")
-        self.check_artifacts()
         repo = self.preparer.repo
         with authority_module.Lock(repo.with_name(repo.name + ".queue.lock")):
             marker = repo / ".git/mq-preparation-unresolved.json"
@@ -962,5 +976,6 @@ class Controller:
                         "state": str(self.store.path)}
             if read_json(durable.read_bytes(marker)) != expected:
                 raise ValueError("preparation marker identity differs")
+            self.check_artifacts()
             marker.unlink()
             worker.sync_directory(marker.parent)
