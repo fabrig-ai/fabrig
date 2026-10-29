@@ -159,15 +159,48 @@ fn a_duplicate_token_makes_no_generation() {
     assert!(value(&service, 2).is_none());
 }
 #[test]
-fn a_stopped_forge_keeps_its_entries_and_a_second_connected_announces_nothing() {
-    let mut service = github();
-    route(&mut service, token(11, 111, b"owner", b"kept", 100));
-    route(&mut service, connection::Event::Connected { forge: 1 });
-    credentials(&mut service);
-    route(&mut service, connection::Event::Stopped { forge: 1, why: connection::Stopped::KeyRefused });
-    route(&mut service, connection::Event::Connected { forge: 1 });
-    assert!(credentials(&mut service).is_empty());
-    assert_eq!(entries(&service, 1)[0].2.as_ref(), b"kept");
+fn every_stopped_forge_withdraws_its_entries_in_one_generation() {
+    use connection::{StartRead, Stopped, Value};
+    for why in [
+        Stopped::Invalid { value: Value::Credential },
+        Stopped::Invalid { value: Value::Token },
+        Stopped::Invalid { value: Value::Key },
+        Stopped::Invalid { value: Value::User },
+        Stopped::Invalid { value: Value::Secret },
+        Stopped::KeyRefused,
+        Stopped::TokenRefused { installation: 11, status: 422 },
+        Stopped::OtherUser { user: 99 },
+        Stopped::Refused { read: StartRead::User, status: 401 },
+        Stopped::Refused { read: StartRead::ApiSettings, status: 403 },
+        Stopped::Refused { read: StartRead::Installations, status: 404 },
+        Stopped::Refused { read: StartRead::Mint, status: 422 },
+        Stopped::Refused { read: StartRead::Viewer, status: 403 },
+    ] {
+        let mut service = github();
+        route(&mut service, token(11, 111, b"first", b"first-token", 100));
+        route(&mut service, token(22, 222, b"second", b"second-token", 100));
+        route(&mut service, connection::Event::Connected { forge: 1 });
+        credentials(&mut service);
+        route(&mut service, connection::Event::Stopped { forge: 1, why });
+        assert_eq!(credentials(&mut service).as_ref(), [(2, Duration::from_nanos(u64::MAX))], "{why:?}");
+        assert!(entries(&service, 2).is_empty(), "{why:?}");
+        for owner in [b"first".as_slice(), b"second"] {
+            assert_eq!(
+                crate::forge::tokens::account(&service.engine.as_ref().unwrap().values.tokens, 1, owner),
+                None,
+                "{why:?}"
+            );
+        }
+        route(&mut service, connection::Event::Connected { forge: 1 });
+        assert!(credentials(&mut service).is_empty(), "{why:?}: no token restored by Connected");
+        route(&mut service, token(11, 111, b"first", b"fresh-token", 200));
+        assert_eq!(credentials(&mut service).as_ref(), [(3, Duration::from_nanos(200))], "{why:?}");
+        assert_eq!(
+            crate::forge::tokens::account(&service.engine.as_ref().unwrap().values.tokens, 1, b"first"),
+            Some(111),
+            "{why:?}"
+        );
+    }
 }
 #[test]
 fn the_values_validity_is_its_earliest_expiry() {

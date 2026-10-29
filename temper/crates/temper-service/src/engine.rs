@@ -744,6 +744,7 @@ pub(crate) fn forge_pass(engine: &mut Engine) {
             }
             skein_forge_connection::Event::ListenerLost => stop::hooks(engine),
             skein_forge_connection::Event::Stopped { forge, why } => {
+                crate::forge::tokens::accepted(engine, forge, &[]);
                 crate::setup::lifecycle::stopped_connection(engine, forge);
                 crate::setup::lifecycle::state(
                     engine,
