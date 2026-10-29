@@ -2271,10 +2271,10 @@ fn live_change_page(engine: std::net::SocketAddr, client: &std::path::Path, task
         opened: bool,
         closing: bool,
         page: &'a std::cell::Cell<String>,
-        until: skein_lib::Time,
+        until: super::patience::Patience,
     }
     impl Referee<NativeClient> for Judge<'_> {
-        fn act(&mut self, now: skein_lib::Time, clients: &mut [NativeClient]) {
+        fn act(&mut self, _now: skein_lib::Time, clients: &mut [NativeClient]) {
             let client = &mut clients[0];
             if client.started() && !self.opened {
                 client.go(temper_client_domain::Address::Task {
@@ -2293,7 +2293,12 @@ fn live_change_page(engine: std::net::SocketAddr, client: &std::path::Path, task
                 }
                 page.push('\n');
             }
-            if (page.contains("work/hello") && page.contains("CI at its head")) || now >= self.until {
+            if (page.contains("work/hello") && page.contains("CI at its head"))
+                || self.until.failed().is_some_and(|figures| {
+                    eprintln!("native change page incomplete: {figures}");
+                    true
+                })
+            {
                 self.page.set(page);
                 client.close();
                 self.closing = true;
@@ -2301,7 +2306,7 @@ fn live_change_page(engine: std::net::SocketAddr, client: &std::path::Path, task
         }
         fn observe(&mut self, _now: skein_lib::Time, _clients: &[NativeClient]) {}
         fn next_deadline(&self) -> Option<skein_lib::Time> {
-            (!self.closing).then_some(self.until)
+            if self.closing { None } else { self.until.until() }
         }
         fn overdue(&self, _now: skein_lib::Time) -> Option<String> {
             None
@@ -2318,7 +2323,10 @@ fn live_change_page(engine: std::net::SocketAddr, client: &std::path::Path, task
         opened: false,
         closing: false,
         page: &page,
-        until: clock.now().now.saturating_add(skein_lib::Duration::from_secs(10)),
+        until: super::patience::Patience::arm(
+            "the live forge's native change page",
+            skein_lib::Duration::from_secs(10),
+        ),
     });
     world.spawn_with_fds(vec![root], || {
         NativeClient::new(

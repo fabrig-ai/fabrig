@@ -514,10 +514,10 @@ pub fn change_page(config: &Path, client: &Path, task: u64) -> String {
         opened: bool,
         closing: bool,
         page: &'a std::cell::Cell<String>,
-        until: skein_lib::Time,
+        until: super::patience::Patience,
     }
     impl Referee<NativeClient> for Judge<'_> {
-        fn act(&mut self, now: skein_lib::Time, clients: &mut [NativeClient]) {
+        fn act(&mut self, _now: skein_lib::Time, clients: &mut [NativeClient]) {
             let client = &mut clients[0];
             if client.started() && !self.opened {
                 client.go(temper_client_domain::Address::Task {
@@ -537,7 +537,10 @@ pub fn change_page(config: &Path, client: &Path, task: u64) -> String {
                 page.push('\n');
             }
             if ((page.contains("work/hello") || page.contains("playground/widget")) && page.contains("CI at its head"))
-                || now >= self.until
+                || self.until.failed().is_some_and(|figures| {
+                    eprintln!("native change page incomplete: {figures}");
+                    true
+                })
             {
                 self.page.set(page);
                 client.close();
@@ -546,7 +549,7 @@ pub fn change_page(config: &Path, client: &Path, task: u64) -> String {
         }
         fn observe(&mut self, _now: skein_lib::Time, _clients: &[NativeClient]) {}
         fn next_deadline(&self) -> Option<skein_lib::Time> {
-            (!self.closing).then_some(self.until)
+            if self.closing { None } else { self.until.until() }
         }
         fn overdue(&self, _now: skein_lib::Time) -> Option<String> {
             None
@@ -571,7 +574,10 @@ pub fn change_page(config: &Path, client: &Path, task: u64) -> String {
         opened: false,
         closing: false,
         page: &page,
-        until: clock.now().now.saturating_add(skein_lib::Duration::from_secs(10)),
+        until: super::patience::Patience::arm(
+            "the first repository's native change page",
+            skein_lib::Duration::from_secs(10),
+        ),
     });
     world.spawn_with_fds(vec![root], || {
         NativeClient::new(

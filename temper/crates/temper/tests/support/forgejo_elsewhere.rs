@@ -256,7 +256,12 @@ fn life(root: &Path, restarted: bool) {
         stopped: false,
         settled: false,
         logged: 0,
-        deadline: clock.now().now.saturating_add(Duration::from_secs(240)),
+        deadline: super::patience::Patience::watching(
+            "the elsewhere deployment's life",
+            Duration::from_secs(240),
+            &engine,
+        ),
+        timed_out: None,
     });
     world.spawn_with_fds(engine.descriptors(), || Process::Binary(Box::new(engine)));
     world.spawn_with_fds(fds, || {
@@ -298,12 +303,19 @@ struct Judge {
     stopped: bool,
     settled: bool,
     logged: usize,
-    deadline: Time,
+    deadline: super::patience::Patience,
+    timed_out: Option<String>,
 }
 impl Referee<Process> for Judge {
-    fn act(&mut self, now: Time, procs: &mut [Process]) {
+    fn act(&mut self, _now: Time, procs: &mut [Process]) {
         let Process::Binary(engine) = &procs[0] else { panic!("engine") };
-        if engine.exit_status().is_some() && !self.stopped || now >= self.deadline {
+        self.deadline.watch(engine);
+        if !self.settled
+            && let Some(figures) = self.deadline.failed()
+        {
+            self.timed_out = Some(format!("elsewhere life deadline: {figures}"));
+        }
+        if engine.exit_status().is_some() && !self.stopped || self.timed_out.is_some() {
             eprintln!("engine stderr: {}", String::from_utf8_lossy(engine.stderr()));
         }
         assert!(self.stopped || engine.exit_status().is_none(), "engine ended before ctl completed");
@@ -387,10 +399,10 @@ impl Referee<Process> for Judge {
         self.settled = procs.iter().all(Host::is_empty);
     }
     fn next_deadline(&self) -> Option<Time> {
-        (!self.settled).then_some(self.deadline)
+        if self.settled { None } else { self.deadline.until() }
     }
-    fn overdue(&self, now: Time) -> Option<String> {
-        (!self.settled && now >= self.deadline).then(|| "elsewhere life deadline".into())
+    fn overdue(&self, _now: Time) -> Option<String> {
+        self.timed_out.clone()
     }
     fn passed(&self) -> bool {
         self.settled

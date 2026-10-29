@@ -207,14 +207,16 @@ impl Forge {
         assert_eq!(commit["parents"][0]["sha"], previous, "one person commit");
         assert_eq!(self.contents(".forgejo/workflows/ci.yml", head), WORKFLOW);
         assert_eq!(self.contents("CONTRIBUTING.md", head), CONTRIBUTING);
-        let until = now().saturating_add(Duration::from_secs(60));
+        let mut patience = super::patience::Patience::arm("the main gate's CI", Duration::from_secs(60));
         loop {
             let status = self.statuses(head);
             if status["state"] == "success" {
                 assert_contexts(&status, "push", "skipped");
                 break;
             }
-            assert!(now() < until, "main gate CI phase: {status}");
+            if let Some(figures) = patience.failed() {
+                panic!("main gate CI phase: {status}; {figures}");
+            }
             std::thread::sleep(std::time::Duration::from_millis(100));
         }
         let protection = self.get("branch_protections");
@@ -241,7 +243,7 @@ impl Forge {
         // ctl and the API are separate samples. Forgejo can publish another
         // pending context after a brief success containing only the first job.
         // Keep the reviewer held until both of this head's jobs have finished.
-        let until = now().saturating_add(Duration::from_secs(60));
+        let mut patience = super::patience::Patience::arm("the change head's two CI contexts", Duration::from_secs(60));
         let statuses = loop {
             let statuses = self.statuses(head);
             if changes == "failure"
@@ -252,7 +254,9 @@ impl Forge {
             {
                 break statuses;
             }
-            assert!(now() < until, "H2's two CI contexts phase: {statuses}");
+            if let Some(figures) = patience.failed() {
+                panic!("H2's two CI contexts phase: {statuses}; {figures}");
+            }
             std::thread::sleep(std::time::Duration::from_millis(100));
         };
         assert_eq!(statuses["state"], if changes == "failure" { "failure" } else { "success" });
