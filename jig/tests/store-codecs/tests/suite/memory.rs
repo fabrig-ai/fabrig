@@ -1,4 +1,4 @@
-//! Full golden rows decode within their heap worst cases (skein's codec.md, 6).
+//! Full golden rows decode within their decoded bounds (skein's codec.md, 6).
 use jig_protocol_store::{accounts_v2, component_v3, core_v6, notes_v1, people_v13, secrets_v1, tasks_v9};
 use skein_heap::Meter;
 use skein_lib::Reader;
@@ -19,39 +19,39 @@ fn check<T>(family: &str, record: &str, bound: u64, decode: impl FnOnce(&[u8]) -
 }
 
 #[test]
-fn a_full_notes_row_decodes_within_its_heap_worst_case() {
-    let bound = notes_v1::Row::worst_case_heap(&notes_v1::CEILINGS).expect("notes heap bound");
+fn a_full_notes_row_decodes_within_its_decoded_bound() {
+    let bound = notes_v1::Row::decoded_bound(&notes_v1::CEILINGS).expect("notes heap bound");
     check("notes", "row", bound, |golden| {
         notes_v1::Row::decode(&notes_v1::CEILINGS, &mut Reader::new(golden)).expect("full row")
     });
 }
 #[test]
-fn a_full_tasks_row_decodes_within_its_heap_worst_case() {
-    let bound = tasks_v9::Row::worst_case_heap(&tasks_v9::CEILINGS).expect("tasks heap bound");
+fn a_full_tasks_row_decodes_within_its_decoded_bound() {
+    let bound = tasks_v9::Row::decoded_bound(&tasks_v9::CEILINGS).expect("tasks heap bound");
     check("tasks", "row", bound, |golden| {
         tasks_v9::Row::decode(&tasks_v9::CEILINGS, &mut Reader::new(golden)).expect("full row")
     });
 }
 #[test]
-fn a_full_core_row_decodes_within_its_heap_worst_case() {
-    let bound = core_v6::Row::worst_case_heap(&core_v6::CEILINGS).expect("core heap bound");
+fn a_full_core_row_decodes_within_its_decoded_bound() {
+    let bound = core_v6::Row::decoded_bound(&core_v6::CEILINGS).expect("core heap bound");
     check("core", "row", bound, |golden| {
         core_v6::Row::decode(&core_v6::CEILINGS, &mut Reader::new(golden)).expect("full row")
     });
 }
 #[test]
-fn a_full_people_row_decodes_within_its_heap_worst_case() {
-    let bound = people_v13::Row::worst_case_heap(&people_v13::CEILINGS).expect("people heap bound");
+fn a_full_people_row_decodes_within_its_decoded_bound() {
+    let bound = people_v13::Row::decoded_bound(&people_v13::CEILINGS).expect("people heap bound");
     check("people", "row", bound, |golden| {
         people_v13::Row::decode(&people_v13::CEILINGS, &mut Reader::new(golden)).expect("full row")
     });
 }
 #[test]
-fn each_full_component_row_decodes_within_its_heap_worst_case() {
+fn each_full_component_row_decodes_within_its_decoded_bound() {
     check(
         "component",
         "layouts",
-        component_v3::Layouts::worst_case_heap(&component_v3::CEILINGS).expect("layouts bound"),
+        component_v3::Layouts::decoded_bound(&component_v3::CEILINGS).expect("layouts bound"),
         |golden| {
             component_v3::Layouts::decode(&component_v3::CEILINGS, &mut Reader::new(golden)).expect("full layouts")
         },
@@ -59,13 +59,13 @@ fn each_full_component_row_decodes_within_its_heap_worst_case() {
     check(
         "component",
         "format",
-        component_v3::Format::worst_case_heap(&component_v3::CEILINGS).expect("format bound"),
+        component_v3::Format::decoded_bound(&component_v3::CEILINGS).expect("format bound"),
         |golden| component_v3::Format::decode(&component_v3::CEILINGS, &mut Reader::new(golden)).expect("full format"),
     );
     check(
         "component",
         "transcript",
-        component_v3::Transcript::worst_case_heap(&component_v3::CEILINGS).expect("transcript bound"),
+        component_v3::Transcript::decoded_bound(&component_v3::CEILINGS).expect("transcript bound"),
         |golden| {
             component_v3::Transcript::decode(&component_v3::CEILINGS, &mut Reader::new(golden))
                 .expect("full transcript")
@@ -74,30 +74,30 @@ fn each_full_component_row_decodes_within_its_heap_worst_case() {
     check(
         "component",
         "attempt",
-        component_v3::Attempt::worst_case_heap(&component_v3::CEILINGS).expect("attempt bound"),
+        component_v3::Attempt::decoded_bound(&component_v3::CEILINGS).expect("attempt bound"),
         |golden| {
             component_v3::Attempt::decode(&component_v3::CEILINGS, &mut Reader::new(golden)).expect("full attempt")
         },
     );
 }
 #[test]
-fn a_full_installation_row_decodes_within_its_heap_worst_case() {
-    let bound = accounts_v2::Installation::worst_case_heap(&accounts_v2::CEILINGS).expect("installation bound");
+fn a_full_installation_row_decodes_within_its_decoded_bound() {
+    let bound = accounts_v2::Installation::decoded_bound(&accounts_v2::CEILINGS).expect("installation bound");
     check("accounts", "installation", bound, |golden| {
         accounts_v2::Installation::decode(&accounts_v2::CEILINGS, &mut Reader::new(golden)).expect("full installation")
     });
 }
 #[test]
-fn a_full_accounts_row_decodes_within_its_heap_worst_case() {
-    let bound = accounts_v2::Row::worst_case_heap(&accounts_v2::CEILINGS).expect("accounts heap bound");
+fn a_full_accounts_row_decodes_within_its_decoded_bound() {
+    let bound = accounts_v2::Row::decoded_bound(&accounts_v2::CEILINGS).expect("accounts heap bound");
     check("accounts", "row", bound, |golden| {
         accounts_v2::Row::decode(&accounts_v2::CEILINGS, &mut Reader::new(golden)).expect("full row")
     });
 }
 #[test]
-fn the_longest_accounts_rows_decode_within_the_rows_heap_worst_case() {
+fn the_longest_accounts_rows_decode_within_the_rows_decoded_bound() {
     let ceilings = accounts_v2::CEILINGS;
-    let bound = accounts_v2::Row::worst_case_heap(&ceilings).expect("accounts heap bound");
+    let bound = accounts_v2::Row::decoded_bound(&ceilings).expect("accounts heap bound");
     let bytes = |length: u32| vec![0xa5; usize::try_from(length).expect("ceiling fits")].into_boxed_slice();
     let party = accounts_v2::Party::new(&ceilings, accounts_v2::PartyParts { party: u64::MAX }).expect("a party");
     let account = accounts_v2::Account::new(
@@ -159,15 +159,15 @@ fn added_dependencies_kept_lines_and_circle_payloads_fit_their_heap_bounds() {
     check(
         "tasks",
         "task_definition",
-        tasks_v9::TaskDefinition::worst_case_heap(&limits).expect("definition bound"),
+        tasks_v9::TaskDefinition::decoded_bound(&limits).expect("definition bound"),
         |golden| {
             tasks_v9::TaskDefinition::decode(&limits, &mut Reader::new(golden)).expect("full definition with additions")
         },
     );
-    check("tasks", "kept_line", tasks_v9::KeptLine::worst_case_heap(&limits).expect("kept bound"), |golden| {
+    check("tasks", "kept_line", tasks_v9::KeptLine::decoded_bound(&limits).expect("kept bound"), |golden| {
         tasks_v9::KeptLine::decode(&limits, &mut Reader::new(golden)).expect("full pending list")
     });
-    check("tasks", "circle", tasks_v9::Circle::worst_case_heap(&limits).expect("circle bound"), |golden| {
+    check("tasks", "circle", tasks_v9::Circle::decoded_bound(&limits).expect("circle bound"), |golden| {
         tasks_v9::Circle::decode(&limits, &mut Reader::new(golden)).expect("full circle")
     });
 }
@@ -175,19 +175,16 @@ fn added_dependencies_kept_lines_and_circle_payloads_fit_their_heap_bounds() {
 #[test]
 fn each_full_secrets_row_decodes_within_its_heap_bound() {
     let limits = &secrets_v1::CEILINGS;
-    check("secrets", "digest", secrets_v1::Digest::worst_case_heap(limits).expect("digest heap"), |golden| {
+    check("secrets", "digest", secrets_v1::Digest::decoded_bound(limits).expect("digest heap"), |golden| {
         secrets_v1::Digest::decode(limits, &mut Reader::new(golden)).expect("full digest")
     });
-    check("secrets", "source", secrets_v1::Source::worst_case_heap(limits).expect("source heap"), |golden| {
+    check("secrets", "source", secrets_v1::Source::decoded_bound(limits).expect("source heap"), |golden| {
         secrets_v1::Source::decode(limits, &mut Reader::new(golden)).expect("full source")
     });
-    check("secrets", "carried", secrets_v1::Carried::worst_case_heap(limits).expect("carried heap"), |golden| {
+    check("secrets", "carried", secrets_v1::Carried::decoded_bound(limits).expect("carried heap"), |golden| {
         secrets_v1::Carried::decode(limits, &mut Reader::new(golden)).expect("full carried")
     });
-    check(
-        "secrets",
-        "next_carried",
-        secrets_v1::NextCarried::worst_case_heap(limits).expect("counter heap"),
-        |golden| secrets_v1::NextCarried::decode(limits, &mut Reader::new(golden)).expect("full counter"),
-    );
+    check("secrets", "next_carried", secrets_v1::NextCarried::decoded_bound(limits).expect("counter heap"), |golden| {
+        secrets_v1::NextCarried::decode(limits, &mut Reader::new(golden)).expect("full counter")
+    });
 }
