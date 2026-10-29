@@ -114,12 +114,6 @@ impl Domain {
     }
 }
 
-/// The most requests a step can emit: one per section plus a terminal.
-#[must_use]
-pub fn max_out(limits: &Limits) -> u32 {
-    limits.sections.saturating_add(1)
-}
-
 /// Representability of the child limits (programming-model.md, 6.3).
 #[must_use]
 pub fn valid(limits: &Limits) -> bool {
@@ -593,7 +587,7 @@ mod tests {
 
     fn outputs(domain: &mut Domain, event: Event) -> Box<[Request]> {
         let env = env();
-        let mut out = Queue::with_capacity(max_out(&env.limits));
+        let mut out = Queue::uncapped();
         step(domain, &env, event, &mut out);
         let mut list = List::with_capacity(out.len());
         for _ in 0..out.len() {
@@ -729,7 +723,7 @@ mod tests {
             },
         );
         env.now = deadline;
-        let mut out = Queue::with_capacity(max_out(&env.limits));
+        let mut out = Queue::uncapped();
         fire(&mut domain, &env, &mut out);
         assert_eq!(out.pop(), Some(Request::Drop { connector: 4, section }));
         assert_eq!(

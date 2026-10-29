@@ -192,14 +192,30 @@ fn a_name_longer_than_a_nodes_text_is_refused() {
 }
 
 #[test]
-fn the_worst_case_counts_each_application_line_at_its_bytes() {
+fn full_application_lines_stay_under_the_heap_ceiling() {
+    // The fixture holds two application lines, each at its byte limit.
+    const LINE_BYTES: usize = 65;
+    // Terminal construction and two full lines: 244 B peak plus 25%, rounded up.
+    const TERMINAL_PEAK_CEILING: u64 = 310;
+    let meter = skein_heap::Meter::new();
+    meter.start();
     let mut config = settings(32);
-    let bytes = Terminal::worst_case(&config, &fixtures::LIMITS).unwrap();
-    config.line_bytes = 65;
-    assert_eq!(Terminal::worst_case(&config, &fixtures::LIMITS), Some(bytes + 3));
+    config.line_bytes = u32::try_from(LINE_BYTES).unwrap();
+    let lines = config.lines;
+    let mut terminal = Terminal::new(config, &fixtures::LIMITS).unwrap();
+    for _ in 0..lines {
+        terminal.say(&[b'x'; LINE_BYTES]);
+    }
+    let peak = meter.end().peak();
+    assert_eq!(terminal.room(), 0, "every application line slot is occupied");
+    assert!(peak <= TERMINAL_PEAK_CEILING, "terminal peak: {peak}");
+}
+
+#[test]
+fn terminal_operations_validate_the_configuration() {
+    let mut config = settings(32);
     assert_eq!(Terminal::operations(&config, &fixtures::LIMITS), Some(10));
     config.name = skein_lib::bytes::zeroed(129);
-    assert_eq!(Terminal::worst_case(&config, &fixtures::LIMITS), None);
     assert_eq!(Terminal::operations(&config, &fixtures::LIMITS), None);
 }
 
@@ -236,7 +252,7 @@ fn closing_finishes_the_print_it_began() {
 #[test]
 fn large_limits_print_a_small_page_on_the_terminal() {
     let limits = skein_ui::Limits { depth: 100_000, text_bytes: 100_000, ..fixtures::LIMITS };
-    assert!(skein_ui_text::worst_case(&limits).unwrap().1 > u64::from(u32::MAX));
+    assert!(skein_ui_text::render_bound(&limits).unwrap().1 > u64::from(u32::MAX));
     let mut p = start_with_limits(32, 4096, &limits);
     assert_eq!(p.drain().as_ref(), b"== test == \n[1] Accept\n");
     p.feed(b"1\n");

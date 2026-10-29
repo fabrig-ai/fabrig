@@ -1,6 +1,6 @@
 use jig_domain_people::{
     Ask, Domain, Entry, EntryKind, Event, Holding, Identity, IdentityKey, Limits, Outcome, Request, Role, Whom, fire,
-    max_out, step,
+    step,
 };
 use jig_people_world::LIMITS;
 use skein_lib::{Env, Queue, ReplyTo, Time, Token, Wall};
@@ -17,7 +17,7 @@ impl Measured {
         Self::configured(limits, false)
     }
     fn configured(limits: Limits, deployment: bool) -> Measured {
-        let out = Queue::with_capacity(max_out(&limits));
+        let out = Queue::uncapped();
         let (owners, grants): (Box<[jig_domain_people::InitialOwner]>, Box<[jig_domain_people::ActGrant]>) =
             if deployment {
                 let owners = Box::new([jig_domain_people::InitialOwner {

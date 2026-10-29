@@ -530,12 +530,10 @@ impl Domain {
     }
 }
 
+/// Compatibility bound for application callers and the core's settings store-write allowance.
 /// Bootstrap writes one roles record per configured owner match, alongside person/sign-in records
 /// and reply, plus one expired sign-in's erase; completion answers every bounded waiter.
-/// Required free Request slots for one step/fire under validated `limits`: maximum of bootstrap
-/// owner matches plus four, waiters plus two, and sign-ins, holdings or people plus one.
-/// `valid` validates those additions before use; caller counts
-/// output payload bytes separately.
+/// Internal output queues are uncapped; callers count output payload bytes separately.
 #[must_use]
 pub fn max_out(limits: &Limits) -> u32 {
     limits
@@ -547,8 +545,8 @@ pub fn max_out(limits: &Limits) -> u32 {
         .max(limits.people.saturating_add(1))
 }
 
-/// Apply one root-issued `event` with iteration clocks and immutable configured bounds in `env`;
-/// caller reserves at least `max_out(&env.limits)` free `out` slots. Emits
+/// Apply one root-issued `event` with iteration clocks and immutable configured bounds in `env`
+/// to an uncapped `out` queue. Emits
 /// routing/persistence/replies, never IO; root completes each `Route` once and withholds replies
 /// until required atomic writes are durable. Restore admission validates role-success shape;
 /// `Restored` checks its project/person references without rechecking current membership or
@@ -625,9 +623,9 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
 }
 
 /// One expiration per fire; other expirations stay due for later iterations. Expire at most one
-/// sign-in due by either injected clock, emitting its `Erase`; no work before ready. Caller reserves
-/// `max_out(&env.limits)` free slots and calls again in later iterations while due; parent owns
-/// durability and secret cleanup.
+/// sign-in due by either injected clock, emitting its `Erase`; no work before ready. Caller supplies
+/// an uncapped output queue and calls again in later iterations while due; parent owns durability
+/// and secret cleanup.
 pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     if !domain.ready() {
         return;
