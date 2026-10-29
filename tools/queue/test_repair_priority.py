@@ -86,7 +86,7 @@ class RepairTests(unittest.TestCase):
     def repair(self, **kwargs):
         return {**self.branch("zz-repair", **kwargs), "reason": REASON}
 
-    def checker(self, repo, selection, paths, log):
+    def checker(self, repo, selection, paths, log, **kwargs):
         self.checks.append((selection, paths, self.tip(repo)))
         if self.result == "error":
             raise RuntimeError("fixture infrastructure failure")
@@ -236,9 +236,9 @@ class RepairTests(unittest.TestCase):
         original = queue.checker
         advanced = []
 
-        def checker(*args):
+        def checker(*args, **kwargs):
             advanced.append(self.branch("zz-repair", text="successor\n", parent=repair["tip"]))
-            return original(*args)
+            return original(*args, **kwargs)
 
         queue.checker = checker
         self.cycle(queue)
@@ -351,7 +351,7 @@ class RepairTests(unittest.TestCase):
                                        repair_ready=repair["name"], repair_tip=repair["tip"], repair_reason=REASON,
                                        repair_hold=True)
 
-    def unknown_heavy_consequence(self, code):
+    def unknown_heavy_consequence(self, code, *, fault=None):
         self.branch("older-ordinary")
         repair = self.repair()
         other = self.root / "other-clone"
@@ -369,16 +369,31 @@ class RepairTests(unittest.TestCase):
                 live.parent.mkdir(parents=True, exist_ok=True)
                 live.write_text("unknown job still owns these inputs\n")
                 live.chmod(0o700)
+                if fault == "utf8":
+                    os.write(kwargs["stdout"].fileno(), b"heavy fixture job token\n\xff\n")
+                elif fault in ("flush", "seek", "read"):
+                    setattr(kwargs["stdout"], fault, Mock(side_effect=OSError("fixture log I/O failure")))
                 return subprocess.CompletedProcess(argv, code)
             return subprocess.CompletedProcess(argv, 0)
-        def checker(repo, selected, paths, log):
+        def checker(repo, selected, paths, log, **kwargs):
             self.checks.append(selected)
-            return mq.run_checks(repo, selected, paths, log, runner=runner)
+            try:
+                return mq.run_checks(repo, selected, paths, log, runner=runner, **kwargs)
+            finally:
+                if fault == "checker":
+                    raise RuntimeError("fixture checker unwinding failure")
         queue.checker = checker
         with patch.object(mq, "prune_test_executables", return_value={}) as prune:
-            with self.assertRaises(RuntimeError):
+            with self.assertRaises(Exception) as caught:
                 self.cycle(queue)
             candidate = self.tip(self.repo)
+            self.assertIsNotNone(queue.unknown_marker)
+            if fault == "flush":
+                self.assertIsInstance(caught.exception, OSError)
+            elif fault == "checker":
+                self.assertRegex(str(caught.exception), "checker unwinding failure")
+            else:
+                self.assertIsInstance(caught.exception, mq.UnknownHeavyError)
             self.assertEqual(queue.state["tried"], tried)
             self.assertEqual(json.loads(self.state.read_text())["tried"], tried)
             self.assertFalse(queue.repair_consumed)
@@ -386,9 +401,19 @@ class RepairTests(unittest.TestCase):
             self.assertEqual(self.posts, [])
             self.assertEqual([argv[0] for argv in commands], ["cargo", "heavy"])
             marker = json.loads((self.repo / ".git/queue.unresolved").read_text())
+            self.assertEqual((self.layout.root / "queue.unresolved").read_bytes(),
+                             (self.repo / ".git/queue.unresolved").read_bytes())
             self.assertEqual(marker["repair"], repair)
             self.assertEqual(marker["record"]["candidate"], candidate)
+            self.assertEqual(marker["record"]["prepared_candidate"], candidate)
             self.assertEqual(marker["record"]["steps"][-1]["returncode"], code)
+            self.assertEqual(marker["record"]["steps"][-1]["command"], commands[-1])
+            self.assertEqual(mq.git(self.preparer, "ls-remote", "--heads", "origin",
+                                    "refs/heads/" + repair["name"]).stdout.split()[0], repair["tip"])
+            self.assertEqual(mq.git(self.preparer, "ls-remote", "origin", "refs/heads/main").stdout.split()[0],
+                             self.base)
+            if fault == "utf8":
+                self.assertIn(b"heavy fixture job token\n\xff\n", Path(marker["record"]["log"]).read_bytes())
             for action in (queue.cycle, queue.plan, lambda: queue.recover(RuntimeError("unknown"))):
                 with self.assertRaises(RuntimeError):
                     action()
@@ -418,12 +443,30 @@ class RepairTests(unittest.TestCase):
     def test_heavy_137_keeps_unknown_ownership_and_never_rejects(self):
         self.unknown_heavy_consequence(137)
 
+    def test_heavy_137_invalid_utf8_blocks_before_log_decoding(self):
+        self.unknown_heavy_consequence(137, fault="utf8")
+
+    def test_heavy_signal_invalid_utf8_blocks_before_log_decoding(self):
+        self.unknown_heavy_consequence(-9, fault="utf8")
+
+    def test_heavy_log_flush_failure_retains_unknown_ownership(self):
+        self.unknown_heavy_consequence(137, fault="flush")
+
+    def test_heavy_log_seek_failure_retains_unknown_ownership(self):
+        self.unknown_heavy_consequence(-9, fault="seek")
+
+    def test_heavy_log_read_failure_retains_unknown_ownership(self):
+        self.unknown_heavy_consequence(137, fault="read")
+
+    def test_heavy_checker_unwinding_failure_retains_unknown_ownership(self):
+        self.unknown_heavy_consequence(-9, fault="checker")
+
     def test_unknown_heavy_provenance_lookup_failure_cannot_recover_inputs(self):
         repair = self.repair()
         queue = self.queue(repair)
         returned = [False]
         git = mq.git
-        def checker(*args):
+        def checker(*args, **kwargs):
             returned[0] = True
             return [{"name": "build", "command": ["heavy", "cargo", "nextest"],
                      "returncode": 137, "green": False}]
@@ -436,11 +479,69 @@ class RepairTests(unittest.TestCase):
             self.cycle(queue)
         marker = json.loads((self.repo / ".git/queue.unresolved").read_text())
         self.assertEqual(marker["repair"], repair)
-        self.assertEqual(marker["record"]["candidate"], "unknown")
+        self.assertEqual(marker["record"]["candidate"], self.tip(self.repo))
         self.assertEqual(marker["record"]["prepared_candidate"], self.tip(self.repo))
         with self.assertRaises(RuntimeError):
             queue.recover(RuntimeError("client absent"))
         self.assertFalse(queue.repair_consumed)
+
+    def test_checker_cannot_swallow_unknown_status_and_adjudicate_green(self):
+        repair = self.repair()
+        queue = self.queue(repair)
+        def runner(argv, **kwargs):
+            return subprocess.CompletedProcess(argv, 137 if argv[0] == "heavy" else 0)
+        def checker(repo, selected, paths, log, **kwargs):
+            try:
+                mq.run_checks(repo, selected, paths, log, runner=runner, **kwargs)
+            except mq.UnknownHeavyError:
+                pass
+            return [{"name": "fixture", "green": True}]
+        queue.checker = checker
+        with patch.object(mq, "prune_test_executables") as prune, self.assertRaises(mq.UnknownHeavyError):
+            self.cycle(queue)
+        prune.assert_not_called()
+        self.assertEqual(queue.state["tried"], {})
+        self.assertFalse(queue.repair_consumed)
+        self.assertEqual(self.posts, [])
+        marker = json.loads((self.repo / ".git/queue.unresolved").read_text())
+        self.assertEqual(marker["record"]["steps"][-1]["returncode"], 137)
+        self.assertEqual((self.layout.root / "queue.unresolved").read_bytes(),
+                         (self.repo / ".git/queue.unresolved").read_bytes())
+
+    def test_unknown_receipt_encoding_failure_keeps_live_ownership_until_retry(self):
+        repair = self.repair()
+        queue = self.queue(repair)
+        def runner(argv, **kwargs):
+            return subprocess.CompletedProcess(argv, -9 if argv[0] == "heavy" else 0)
+        def checker(*args, **kwargs):
+            try:
+                return mq.run_checks(*args, runner=runner, **kwargs)
+            except ValueError:
+                return [{"name": "fixture", "green": True}]
+        queue.checker = checker
+        with patch.object(mq.authority.durable, "encoded", side_effect=ValueError("fixture encoding failure")), \
+                patch.object(mq, "prune_test_executables") as prune, self.assertRaises(mq.UnknownHeavyError):
+            self.cycle(queue)
+        prune.assert_not_called()
+        candidate = self.tip(self.repo)
+        self.assertIsNotNone(queue.unknown_marker)
+        self.assertFalse(queue.unknown_durable)
+        self.lease.guard()
+        self.checkout.guard()
+        with self.assertRaises(mq.UnknownHeavyError):
+            queue.recover(RuntimeError("receipt not yet encoded"))
+        stop = self.root / "stop"
+        stop.touch()
+        queue.run(stop, sleeper=lambda seconds: self.fail("receipt retry should complete before honoring stop"))
+        self.assertTrue(queue.unknown_durable)
+        self.assertEqual(self.tip(self.repo), candidate)
+        self.assertEqual(queue.state["tried"], {})
+        self.assertFalse(queue.repair_consumed)
+        marker = json.loads((self.repo / ".git/queue.unresolved").read_text())
+        self.assertEqual(marker["record"]["prepared_candidate"], candidate)
+        self.assertEqual(marker["record"]["steps"][-1]["returncode"], -9)
+        self.assertEqual((self.layout.root / "queue.unresolved").read_bytes(),
+                         (self.repo / ".git/queue.unresolved").read_bytes())
 
     def test_completed_green_restart_accepts_deleted_ready_pin(self):
         repair = self.repair()
@@ -591,8 +692,12 @@ class RepairTests(unittest.TestCase):
     def test_unknown_marker_publication_failure_retains_inputs_until_durable(self):
         repair = self.repair()
         queue = self.queue(repair)
-        queue.checker = lambda *args: [{"name": "build", "command": ["heavy", "cargo", "nextest"],
-                                       "returncode": 137, "green": False}]
+        def runner(argv, **kwargs):
+            if argv[0] == "heavy":
+                os.write(kwargs["stdout"].fileno(), b"\xff")
+                return subprocess.CompletedProcess(argv, 137)
+            return subprocess.CompletedProcess(argv, 0)
+        queue.checker = lambda *args, **kwargs: mq.run_checks(*args, runner=runner, **kwargs)
         publish = mq.authority.durable.publish
         def fail_local(path, *args, **kwargs):
             if path == self.repo / ".git/queue.unresolved":
@@ -604,6 +709,10 @@ class RepairTests(unittest.TestCase):
         candidate = self.tip(self.repo)
         self.assertFalse(queue.unknown_durable)
         self.assertFalse(queue.repair_consumed)
+        self.lease.guard()
+        self.checkout.guard()
+        with self.assertRaises(mq.UnknownHeavyError):
+            queue.recover(RuntimeError("storage unavailable"))
         stop = self.root / "stop"
         stop.touch()
         queue.run(stop, sleeper=lambda seconds: self.fail("publication retry should honor stop after durability"))
@@ -632,7 +741,7 @@ class RepairTests(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         kwargs['disk_floor'] = 0
         super().__init__(*args, **kwargs)
-        def checker(repo, selection, paths, log):
+        def checker(repo, selection, paths, log, **kwargs):
             with open({str(calls)!r}, 'a') as output:
                 output.write(json.dumps({{'selection': selection}}) + chr(10))
             return [{{'name': 'fixture', 'green': True, 'duration': 0}}]

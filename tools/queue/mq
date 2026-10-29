@@ -396,7 +396,12 @@ def tools_commands(repo):
     return commands
 
 
-def run_step(name, argv, cwd, log, *, runner, clock, timeout=None):
+def unknown_heavy(step):
+    return (step.get("command", [None])[0] == "heavy" and
+            (step.get("returncode", 0) < 0 or step.get("returncode") == 137))
+
+
+def run_step(name, argv, cwd, log, *, runner, clock, timeout=None, status_observer=None):
     log.write(f"\n[{name}] {shlex.join(argv)} (cwd {cwd})\n")
     log.flush()
     output_start = log.tell()
@@ -408,7 +413,6 @@ def run_step(name, argv, cwd, log, *, runner, clock, timeout=None):
             options["pass_fds"] = writer_fds()
         result = runner(argv, cwd=cwd, stdin=subprocess.DEVNULL,
                         stdout=log, stderr=subprocess.STDOUT, **options)
-        code = result.returncode
     except subprocess.TimeoutExpired:
         log.write(f"Timed out after {timeout} seconds\n")
         code = 124
@@ -416,6 +420,13 @@ def run_step(name, argv, cwd, log, *, runner, clock, timeout=None):
         log.write(f"{error}\n")
         code = 127
         launch_error = str(error)
+    else:
+        code = result.returncode
+        # Repair ownership must be blocked before log I/O or any later checker work.
+        # Observer failures are not command launch failures.
+        if status_observer is not None:
+            status_observer({"name": name, "command": argv, "cwd": str(cwd),
+                             "returncode": code, "green": code == 0})
     log.flush()
     log.seek(output_start)
     output = log.read()
@@ -431,12 +442,14 @@ def run_step(name, argv, cwd, log, *, runner, clock, timeout=None):
     return outcome
 
 
-def run_tools(repo, log, *, runner=subprocess.run, clock=time.monotonic, observer=None):
+def run_tools(repo, log, *, runner=subprocess.run, clock=time.monotonic, observer=None,
+              status_observer=None):
     """Run every tools suite before cargo, with a deadline per suite (design.md, 2.3)."""
     started = clock()
     suites = []
     for name, argv, cwd in tools_commands(repo):
-        suites.append(run_step(name, argv, cwd, log, runner=runner, clock=clock, timeout=TOOLS_TIMEOUT))
+        suites.append(run_step(name, argv, cwd, log, runner=runner, clock=clock, timeout=TOOLS_TIMEOUT,
+                               status_observer=status_observer))
         if observer is not None:
             observer(suites[-1])
     return {"name": "tools", "green": all(suite["green"] for suite in suites),
@@ -444,7 +457,7 @@ def run_tools(repo, log, *, runner=subprocess.run, clock=time.monotonic, observe
 
 
 def run_checks(repo, selected, paths, log_path, *, runner=subprocess.run, clock=time.monotonic,
-               check_only=False, metadata=None, observer=None, outcomes=None):
+               check_only=False, metadata=None, observer=None, outcomes=None, status_observer=None):
     """Run serially, logging output; nextest's empty selection is green."""
     outcomes = [] if outcomes is None else outcomes
     def record(outcome):
@@ -455,7 +468,7 @@ def run_checks(repo, selected, paths, log_path, *, runner=subprocess.run, clock=
     with log_path.open("a+") as log:
         os.chmod(log_path, 0o600)
         for name, argv, cwd in ratchet_commands(repo, paths, check_only=check_only):
-            record(run_step(name, argv, cwd, log, runner=runner, clock=clock))
+            record(run_step(name, argv, cwd, log, runner=runner, clock=clock, status_observer=status_observer))
             if not outcomes[-1]["green"]:
                 return outcomes
             baseline = f"{cwd.name}/scripts/old-forms.txt"
@@ -463,11 +476,12 @@ def run_checks(repo, selected, paths, log_path, *, runner=subprocess.run, clock=
                 git(repo, "add", "--", baseline)
                 git(repo, "commit", "-m", f"Lower {cwd.name} old-form baselines")
         if selected == "full" or any(path.startswith("tools/") for path in paths):
-            record(run_tools(repo, log, runner=runner, clock=clock, observer=observer))
+            record(run_tools(repo, log, runner=runner, clock=clock, observer=observer,
+                             status_observer=status_observer))
             if not outcomes[-1]["green"]:
                 return outcomes
         for name, argv, cwd in check_commands(repo, selected, paths, metadata=metadata):
-            record(run_step(name, argv, cwd, log, runner=runner, clock=clock))
+            record(run_step(name, argv, cwd, log, runner=runner, clock=clock, status_observer=status_observer))
             if not outcomes[-1]["green"]:
                 break
     return outcomes
@@ -738,30 +752,39 @@ class Queue:
             self.last_selection = selected
             record["selection"] = sorted(selected) if isinstance(selected, set) else selected
             record["changed_paths"] = paths
+            check_options = {}
             if repair is not None:
                 record["prepared_candidate"] = git(self.repo, "rev-parse", "HEAD").stdout.strip()
-                unknown_paths = (WRITER_LEASE.path.parent / "queue.unresolved",
-                                 self.repo / ".git/queue.unresolved")
-            record["steps"] = self.checker(self.repo, selected, paths, detail)
-            if repair is not None:
-                steps = [suite for step in record["steps"] for suite in step.get("suites", [step])]
-                unknown = next((step for step in steps if step.get("command", [None])[0] == "heavy" and
-                                (step.get("returncode", 0) < 0 or step.get("returncode") == 137)), None)
-                if unknown is not None:
-                    record["candidate"] = "unknown"
+                self.unknown_paths = (WRITER_LEASE.path.parent / "queue.unresolved",
+                                      self.repo / ".git/queue.unresolved")
+                provenance = {
+                    "version": 1, "kind": "repair-heavy-unknown", "repair": repair,
+                    "repo": str(self.repo), "runtime": str(CONFIG), "pid": os.getpid(), "record": record}
+
+                def block_unknown(step=None):
+                    # Set ownership before encoding, publication, or fallible provenance reads.
+                    self.unknown_marker = provenance
+                    if step is not None:
+                        record["steps"].append(step)
+                    record["candidate"] = record["prepared_candidate"]
                     record["error"] = "heavy client terminated; completion unknown; reconciliation unsupported"
-                    self.unknown_paths = unknown_paths
-                    provenance = {
-                        "version": 1, "kind": "repair-heavy-unknown", "repair": repair,
-                        "repo": str(self.repo), "runtime": str(CONFIG), "pid": os.getpid(), "record": record}
-                    self.unknown_marker = authority.durable.encoded(provenance)
-                    try:
-                        record["candidate"] = git(self.repo, "rev-parse", "HEAD").stdout.strip()
-                    except Exception as error:
-                        record["candidate_error"] = str(error)
-                    self.unknown_marker = authority.durable.encoded(provenance)
+                    provenance["record"] = {**record, "steps": list(record["steps"])}
                     self.publish_unknown()
                     raise UnknownHeavyError(record["error"])
+
+                def observe_status(step):
+                    if unknown_heavy(step):
+                        block_unknown(step)
+
+                check_options = {"status_observer": observe_status, "outcomes": record["steps"]}
+            record["steps"] = self.checker(self.repo, selected, paths, detail, **check_options)
+            if repair is not None:
+                if self.unknown_marker is not None:
+                    raise UnknownHeavyError("heavy completion unresolved; checker cannot adjudicate")
+                steps = [suite for step in record["steps"] for suite in step.get("suites", [step])]
+                unknown = next((step for step in steps if unknown_heavy(step)), None)
+                if unknown is not None:
+                    block_unknown()
                 launches = [suite for step in record["steps"] for suite in step.get("suites", [step])
                             if "launch_error" in suite]
                 if launches:
@@ -868,6 +891,8 @@ class Queue:
 
     def publish_unknown(self):
         self.unknown_durable = False
+        if isinstance(self.unknown_marker, dict):
+            self.unknown_marker = authority.durable.encoded(self.unknown_marker)
         for path in self.unknown_paths:
             authority.durable.publish(path, self.unknown_marker, immutable=True,
                                        private_parent=path.parent != self.repo / ".git")
