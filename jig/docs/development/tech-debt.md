@@ -217,11 +217,12 @@ unoptimized, except the repository's tools.
 
 ## 5. Checks that prove less than they appear to
 
-- **The heap check in the client sweeps: resolved.** Each client's bound
-  is its worst case, capped at 16 MiB (`heap_bytes_per_client`,
-  `tests/client/src/harness/world.rs:47,190,202`), and two tests show it
-  catching a client past a 1,024-byte budget
-  (`tests/client/tests/suite/memory.rs:7-19`).
+- **The heap check in the client sweeps: resolved.**
+  `jig-client-world` checks the measured peak of all clients in a fixed
+  scenario against `Settings::heap_ceiling`.
+  `World::measure_heap_within` starts measurement before admitting
+  clients and sets the scenario's ceiling. Without a ceiling, the
+  world imposes no heap cap; there is no per-client fallback.
 - **Coverage by text search over `Debug` output: in part.** The tasks
   world records coverage as typed facts. Ten assertions in six files
   still find what happened by searching formatted trace lines, such as

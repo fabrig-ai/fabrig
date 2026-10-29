@@ -8,12 +8,6 @@ use crate::facts::{Fact, Facts};
 use crate::hold::{self, Hold};
 use crate::limits::{self, Limits};
 
-/// The most requests a step emits: an admitted prepare's `Held` and its first
-/// operation, or a prepare's, a push's or a save's end and the `Released` of a
-/// hold released while it was under way. The parent reserves this much room in `out` before
-/// calling it.
-pub const MAX_OUT: u32 = 2;
-
 /// The checkout child domain's state.
 #[derive(Debug)]
 pub struct Domain {
@@ -79,7 +73,7 @@ impl Domain {
     }
 }
 
-/// Handles one event, emitting at most [`MAX_OUT`] requests.
+/// Handles one event, emitting git operations and client lifecycle answers.
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     match event {
         Event::Prepare { client, spec } => hold::prepare(domain, env, client, spec, out),

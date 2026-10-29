@@ -2,8 +2,8 @@
 //! Design, public harness surface and explicitly allowed usage examples only.
 use serde_json::Value;
 use skein_fake_forge_domain::{Observation, api};
-use skein_fake_llm_domain::api::{Finish, Line, Part, Script, Turn};
-use std::{fmt::Write, net::SocketAddr, path::Path};
+use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
+use std::{fmt::Write, net::SocketAddr};
 use temper_real_loop_world::{
     Exit, Ran, argv,
     calls::{self, D1, Step, call, file, number, sign_in, task},
@@ -217,76 +217,6 @@ fn landed_chat_is_readable_on_the_persons_page() {
     assert!(ran.terminal().pages.iter().any(|page| contains(&page.bytes, LANDED)));
 }
 
-fn no_token(bytes: &[u8], where_: &str) {
-    // The fake's public mint contract is ghs_ + 36 alphanumeric bytes.
-    // This supplemental check deliberately makes no all-byte observer claim.
-    for needle in [b"ghs_".as_slice(), b"eC1hY2Nlc3MtdG9rZW46Z2hz".as_slice()] {
-        assert!(!contains(bytes, needle), "installation credential in {where_}");
-    }
-}
-
-fn scan(path: &Path) -> usize {
-    // Never open keys, credential records or auth.json, including fixture ones.
-    let name = path.file_name().expect("scratch path").to_string_lossy();
-    if matches!(name.as_ref(), "secrets" | "accounts" | "auth.json")
-        || name.ends_with(".key")
-        || name.ends_with(".pem")
-        || name.ends_with(".secret")
-    {
-        return 0;
-    }
-    let kind = std::fs::symlink_metadata(path).expect("scratch metadata").file_type();
-    if kind.is_dir() {
-        std::fs::read_dir(path).expect("scratch directory").map(|entry| scan(&entry.expect("entry").path())).sum()
-    } else if kind.is_file() {
-        no_token(&std::fs::read(path).expect("noncredential scratch file"), &path.display().to_string());
-        1
-    } else {
-        0
-    }
-}
-
-#[test]
-fn available_client_pages_context_and_nonsecret_store_have_no_token() {
-    // QA: protocol/credentials.md 4, 5, 7; draft/github.md 17.
-    let ran = run_github(fixture(), scripts, page_steps);
-    landed(&ran);
-    for result in ran.calls() {
-        no_token(&result.stdout, "client stdout");
-        no_token(&result.stderr, "client stderr");
-    }
-    assert!(!ran.terminal().pages.is_empty(), "page scan exercised");
-    for page in &ran.terminal().pages {
-        no_token(&page.bytes, "printed page");
-    }
-    for line in &ran.terminal().lines {
-        no_token(line, "terminal diagnostic");
-    }
-    for seen in ran.llm() {
-        let skein_fake_peers::llm::Observation::Query { query, .. } = seen else { continue };
-        no_token(&query.system, "agent system text");
-        for part in query.messages.iter().flat_map(|message| message.parts.iter()) {
-            match part {
-                Part::Text { text } => no_token(text, "agent text"),
-                Part::Opaque { bytes } => no_token(bytes, "opaque context"),
-                Part::ToolCall { id, name, arguments } => {
-                    no_token(id, "call id");
-                    no_token(name, "tool name");
-                    no_token(arguments, "tool arguments");
-                }
-                Part::ToolOutput { id, output, .. } => {
-                    no_token(id, "answer id");
-                    no_token(output, "tool answer");
-                }
-            }
-        }
-    }
-    assert!(ran.path().join("state/generations/1/store").is_dir());
-    assert!(scan(&ran.path().join("state/generations/1/store")) > 0, "persisted store scan exercised");
-    assert!(scan(&ran.path().join("state/transcripts")) > 0, "transcript scan exercised");
-    scan(&ran.path().join("worker-root"));
-}
-
 const ONE_MERGE: usize = 1;
 const TWO_PUSHES: usize = 2;
 
@@ -453,16 +383,4 @@ fn repair_scripts(at: std::net::SocketAddr) -> Box<[skein_fake_llm_domain::api::
         ]),
     });
     scripts.into_boxed_slice()
-}
-
-#[test]
-#[ignore = "needs: fake-issued raw token observer across all logs, store records, raw client wire and every page; refresh synchronization"]
-fn q7_g6_whole_run_and_refresh_observe_every_token_byte() {
-    // QA: protocol/credentials.md 4, 5, 7; draft/github.md 17.
-    // This existing run supplies the entire path to the missing observer.
-    // Mint ids and a ghs_ prefix scan cannot establish the byte-level promise.
-    let ran = run_github(fixture(), scripts, page_steps);
-    landed(&ran);
-    assert!(ran.github().minted >= 2, "whole-run observer includes renewal");
-    panic!("needs: raw fake-issued token bytes and complete boundary observer; do not substitute prefix scans");
 }

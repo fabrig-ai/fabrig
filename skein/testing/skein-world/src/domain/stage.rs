@@ -12,9 +12,9 @@ use skein_lib::{Env, Queue, Time, Wall};
 /// events or alarms back.
 ///
 /// The world calls the domain itself, with `env` and `out`: for each event
-/// [`Stage::next_event`] hands it, then for each alarm due while
-/// [`Stage::has_room`]; and takes what the steps emitted from `out` at the end
-/// of the iteration, before the domain's reclaim point.
+/// [`Stage::next_event`] hands it, then for each alarm due; and takes what the
+/// steps emitted from `out` at the end of the iteration, before the domain's
+/// reclaim point.
 #[derive(Debug)]
 pub struct Stage<L, E, R> {
     /// Time and immutable domain limits supplied by the world for each step.
@@ -48,12 +48,6 @@ impl<L, E, R> Stage<L, E, R> {
     /// The next event for the domain, if there is one.
     pub fn next_event(&mut self) -> Option<E> {
         self.inbox.pop_front()
-    }
-
-    /// Always room for another step or alarm: the output queue is uncapped.
-    #[must_use]
-    pub fn has_room(&self) -> bool {
-        true
     }
 
     /// Whether events are waiting for the domain.

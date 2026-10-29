@@ -350,6 +350,10 @@ workspace that can write can remove, with no shell needed.
 
 ## 6. Below the domain
 
+Requests enter uncapped queues, without an output allowance for one
+entrance. Facts are lossless in an uncapped queue; `pending_facts()` gives
+the session its drain count, without a fact allowance for one entrance.
+
 `result_bound` bounds the dynamic ownership of one call's result, without
 its enclosing block or copied provider id, which the session reserves
 separately. `batch_result_bound` bounds one legal batch: adjacent reads

@@ -615,6 +615,11 @@ window, history only grows (section 3).
 
 ## 9. Below the domain
 
+Requests enter uncapped queues, without an output allowance for one
+entrance. Facts are lossless in an uncapped queue; `pending_facts()` gives
+the parent its drain count. The session gathers its tools' facts by the
+tools' `pending_facts()` count after each child step.
+
 - **LLM providers:** skein's shared client (`skein-llm`) for each
   provider's API and its failures, rendering the affinity and the tool
   choice in each dialect; smith's protocol layer for tool schemas and

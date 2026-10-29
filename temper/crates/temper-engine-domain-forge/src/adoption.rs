@@ -190,18 +190,6 @@ fn again(request: Token, why: people::Again, out: &mut Queue<Request>) {
     out.push(Request::ApplicationAgain { request, why });
 }
 
-pub(crate) fn worst_case(limits: &Limits) -> Option<u64> {
-    let payload = u64::from(limits.name_bytes).checked_mul(2)?.checked_add(u64::from(limits.client.answer_bytes))?;
-    let request = u64::from(limits.name_bytes)
-        .checked_mul(5)?
-        .checked_add(u64::from(limits.change_policy.gates).checked_mul(4)?)?
-        .checked_add(List::<api::Collaborator>::price(limits.collaborators)?)?;
-    Map::<Token, Pending>::price(limits.adoptions)?
-        .checked_add(Map::<Token, (Wall, ApplicationOutcome)>::price(limits.applications)?)?
-        .checked_add(request.checked_mul(u64::from(limits.adoptions))?)?
-        .checked_add(payload.checked_mul(u64::from(limits.adoptions).checked_add(u64::from(limits.applications))?)?)
-}
-
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum AdoptionStage {
     Locate,
