@@ -43,6 +43,27 @@ if name == "df":
 if name == "heavy":
     print("heavy: task fixture log /fixture/heavy.log", flush=True)
     if args[1] == "nextest":
+        if args[2] == "list":
+            if os.environ.get("BAD_LISTING"):
+                print("not JSON")
+            else:
+                tests = {"one": {"filter-match": {"status": "matches"}},
+                         "filtered": {"filter-match": {"status": "mismatch"}}}
+                if "--workspace" in args:
+                    tests["missing"] = {"filter-match": {"status": "matches"}}
+                    tests["missing-too"] = {"filter-match": {"status": "matches"}}
+                elif os.environ.get("MISMATCH"):
+                    tests["extra"] = {"filter-match": {"status": "matches"}}
+                    tests["extra-too"] = {"filter-match": {"status": "matches"}}
+                else:
+                    tests["missing"] = {"filter-match": {"status": "matches"}}
+                    tests["missing-too"] = {"filter-match": {"status": "matches"}}
+                print(json.dumps({"rust-suites": {
+                    "fixture::suite": {"package-name": "fixture", "binary-id": "fixture::suite",
+                                       "testcases": tests},
+                    "fixture::skipped": {"status": "skipped"}}}, indent=2))
+            print("heavy: task fixture exit log /fixture/list.log", flush=True)
+            sys.exit(int(os.environ.get("NEXTEST_EXIT", "0")))
         print("Summary: fixture tests", flush=True)
         sys.exit(int(os.environ.get("NEXTEST_EXIT", "0")))
     if os.environ.get("FAIL_BUILD") in args:
@@ -56,7 +77,7 @@ sys.exit(92)
 
 class RunnerTests(unittest.TestCase):
     def setUp(self):
-        self.temp = tempfile.TemporaryDirectory(prefix="tiers-test-", dir=RUN.parents[2].parent)
+        self.temp = tempfile.TemporaryDirectory(prefix="tiers-test-", dir=RUN.parents[2])
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         (self.root / ".config").mkdir()
@@ -64,6 +85,11 @@ class RunnerTests(unittest.TestCase):
         self.config.write_text(''.join(f'[profile.{name}]\n' for name in (
             "default", "fuzzy", "browser-skein", "browser-jig", "browser-temper",
             "qa-temper", "qa-smith", "process-jig", "exhaustive-skein")))
+        (self.root / "tools/tiers").mkdir(parents=True)
+        self.packages = self.root / "tools/tiers/packages.toml"
+        self.packages.write_text(''.join(f'{name} = ["a-package", "z-package"]\n' for name in (
+            "browser-skein", "browser-jig", "browser-temper", "qa-temper", "qa-smith",
+            "process-jig", "exhaustive-skein")))
         self.bin = self.root / "bin"
         self.bin.mkdir()
         self.target = self.root / "relocated artifacts"
@@ -77,12 +103,13 @@ class RunnerTests(unittest.TestCase):
                         ARTIFACTS=str(self.target), CALLS=str(self.calls),
                         TEMPER_BUNDLE="none", NEXTEST_DOUBLE_SPAWN="1")
         for key in ("FAIL_BUILD", "NEXTEST_EXIT", "BUNDLE_EXIT", "BAD_METADATA", "METADATA_EXIT",
-                    "SKEIN_UI_EXAMPLE_BUNDLE", "JIG_TEST_BUNDLE", "TEMPER_TEST_BUNDLE"):
+                    "SKEIN_UI_EXAMPLE_BUNDLE", "JIG_TEST_BUNDLE", "TEMPER_TEST_BUNDLE",
+                    "BAD_LISTING", "MISMATCH"):
             self.env.pop(key, None)
 
-    def invoke(self, tree, tier, *extra, **env):
+    def invoke(self, *arguments, **env):
         self.calls.unlink(missing_ok=True)
-        result = subprocess.run([sys.executable, "-I", "-B", str(RUN), tree, tier, *extra],
+        result = subprocess.run([sys.executable, "-I", "-B", str(RUN), *arguments],
                                 cwd=self.root, env=dict(self.env, **env),
                                 stdin=subprocess.DEVNULL, text=True, capture_output=True, timeout=15)
         calls = [json.loads(line) for line in self.calls.read_text().splitlines()] if self.calls.exists() else []
@@ -90,10 +117,11 @@ class RunnerTests(unittest.TestCase):
 
     def test_config_is_the_only_pair_inventory(self):
         self.config.write_text('[profile.default]\n[profile.new-tier-newtree]\n')
+        self.packages.write_text('new-tier-newtree = ["a-package", "z-package"]\n')
         result, calls = self.invoke("newtree", "new-tier", "--", "-E", "test(=one)")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual([call['name'] for call in calls], ["df", "heavy"])
-        self.assertEqual(calls[-1]['args'], ["cargo", "nextest", "run", "--workspace", "--profile",
+        self.assertEqual(calls[-1]['args'], ["cargo", "nextest", "run", "-p", "a-package", "-p", "z-package", "--profile",
                                             "new-tier-newtree", "--no-fail-fast", "-E", "test(=one)"])
         result, calls = self.invoke("skein", "browser")
         self.assertEqual(result.returncode, 2)
@@ -146,7 +174,7 @@ class RunnerTests(unittest.TestCase):
                     "--module", str(self.target / "wasm32-unknown-unknown/debug" / f"{module}.wasm"),
                     "--name", module, "--prefix", "/bundle/", *options, "--out", str(self.target / out)])
                 self.assertEqual(calls[7]['args'], ["cargo", "build", "-p", server])
-                self.assertEqual(calls[9]['args'], ["cargo", "nextest", "run", "--workspace", "--profile",
+                self.assertEqual(calls[9]['args'], ["cargo", "nextest", "run", "-p", "a-package", "-p", "z-package", "--profile",
                                                    f"{tier}-{tree}", "--no-fail-fast", "-E", "test(=one)"])
                 self.assertEqual(calls[9]['env'][variable], str(self.target / out))
                 for call in calls:
@@ -184,6 +212,70 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
         self.assertIn(".config/nextest.toml", result.stderr)
         self.assertEqual(calls, [])
+
+    def test_missing_and_invalid_package_maps_refuse_before_commands(self):
+        for contents in ('', 'qa-smith = []', 'qa-smith = ["z", "a"]',
+                         'qa-smith = ["a", "a"]', 'qa-smith = [1]',
+                         'qa-smith = "smith"', 'qa-smith = ['):
+            with self.subTest(contents=contents):
+                self.packages.write_text(contents)
+                result, calls = self.invoke("smith", "qa")
+                self.assertEqual(result.returncode, 2)
+                self.assertIn("tools/tiers/packages.toml", result.stderr)
+                self.assertEqual(calls, [])
+        self.packages.unlink()
+        result, calls = self.invoke("smith", "qa")
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(calls, [])
+
+    def test_verify_lists_both_selections_without_prerequisites(self):
+        result, calls = self.invoke("--verify", "temper", "qa")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual([call['name'] for call in calls], ["df", "heavy", "df", "heavy"])
+        prefix = ["cargo", "nextest", "list"]
+        suffix = ["--profile", "qa-temper", "--message-format", "json"]
+        self.assertEqual(calls[1]['args'], [*prefix, "--workspace", *suffix])
+        self.assertEqual(calls[3]['args'], [*prefix, "-p", "a-package", "-p", "z-package", *suffix])
+        self.assertIn("workspace 3 tests; packages 3 tests (2 packages)", result.stdout)
+        self.assertIn("/fixture/list.log", result.stdout)
+        self.assertNotIn('"rust-suites"', result.stdout)
+
+    def test_verify_names_every_missing_and_added_test(self):
+        result, calls = self.invoke("--verify", "smith", "qa", MISMATCH="1")
+        self.assertEqual(result.returncode, 1, result.stderr)
+        for name in ("missing", "missing-too"):
+            self.assertIn(f"package set misses fixture fixture::suite {name}\n", result.stderr)
+        for name in ("extra", "extra-too"):
+            self.assertIn(f"package set adds fixture fixture::suite {name}\n", result.stderr)
+        self.assertNotIn("filtered", result.stderr)
+        self.assertEqual(len(calls), 4)
+
+    def test_verify_all_checks_every_configured_pair_even_after_mismatch(self):
+        result, calls = self.invoke("--verify-all", MISMATCH="1")
+        self.assertEqual(result.returncode, 1, result.stderr)
+        heavy = [call for call in calls if call['name'] == "heavy"]
+        profiles = sorted(MODULE['tomllib'].loads(self.packages.read_text()))
+        self.assertEqual(len(heavy), 2 * len(profiles))
+        self.assertEqual([call['args'][call['args'].index('--profile') + 1] for call in heavy],
+                         [profile for profile in profiles for _ in range(2)])
+        self.packages.write_text('qa-smith = ["smith"]')
+        result, calls = self.invoke("--verify-all")
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(calls, [])
+
+    def test_verify_failures_and_arguments(self):
+        for env, message in (({"BAD_LISTING": "1"}, "missing nextest JSON listing"),
+                             ({"NEXTEST_EXIT": "17"}, "exit 17")):
+            result, calls = self.invoke("--verify", "smith", "qa", **env)
+            self.assertEqual(result.returncode, 2)
+            self.assertIn(message, result.stderr)
+            self.assertEqual(len(calls), 2)
+        for args in (("--verify-all", "smith", "qa"), ("--verify", "smith"),
+                     ("--verify", "smith", "qa", "--", "-E", "all()"),
+                     ("--verify-all", "--"), ("--verify-all", "--verify")):
+            result, calls = self.invoke(*args)
+            self.assertEqual(result.returncode, 2)
+            self.assertEqual(calls, [])
 
     def test_disk_wait_before_heavy(self):
         events = []

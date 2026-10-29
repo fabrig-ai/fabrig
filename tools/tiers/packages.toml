@@ -1,0 +1,81 @@
+# Generated from workspace nextest JSON listings; see design.md, 6.
+
+browser-jig = [
+    "jig-client-browser-world",
+]
+
+browser-skein = [
+    "skein-browser-world",
+    "skein-lab-browser",
+    "skein-ui-web-tests",
+]
+
+browser-temper = [
+    "temper-client-browser-world",
+]
+
+exhaustive-skein = [
+    "skein-forge-machine-world",
+]
+
+live-jig = [
+    "jig-test",
+]
+
+live-skein = [
+    "skein-llm-world",
+]
+
+live-smith = [
+    "smith",
+    "smith-agent-process-world",
+]
+
+live-temper = [
+    "temper",
+]
+
+process-jig = [
+    "jig-test",
+]
+
+process-temper = [
+    "temper",
+]
+
+qa-jig = [
+    "jig-channel-world",
+    "jig-conformance-world",
+    "jig-core-world",
+    "jig-fleet-world",
+    "jig-store-world",
+]
+
+qa-skein = [
+    "skein-browser-world",
+    "skein-codec-patches",
+    "skein-codec-tests",
+    "skein-lab-browser",
+    "skein-oauth-accounts-world",
+    "skein-oauth-world",
+]
+
+qa-smith = [
+    "smith-codecs-world",
+    "smith-local-protocol",
+]
+
+qa-temper = [
+    "temper",
+    "temper-client-browser-world",
+    "temper-client-domain",
+    "temper-client-view",
+    "temper-client-world",
+    "temper-codecs-world",
+    "temper-engine-domain-world",
+    "temper-engine-forge-world",
+    "temper-engine-protocol-forge-world",
+    "temper-real-loop-world",
+    "temper-service",
+    "temper-worker-protocol-git-world",
+]

@@ -6,11 +6,14 @@ Provisional, 2026-10-29. Run one tree's slow tier with its prerequisites.
 
 - **One entry point:** from a fabrig checkout root on a builder,
   `tools/tiers/run TREE TIER [-- NEXTEST_ARGS...]` builds prerequisites and
-  runs `heavy cargo nextest run --workspace --profile TIER-TREE --no-fail-fast`,
-  followed by the extra arguments unchanged.
+  runs `heavy cargo nextest run -p PKG ... --profile TIER-TREE --no-fail-fast`,
+  using the pair's sorted package names from `tools/tiers/packages.toml`,
+  followed by the extra arguments unchanged. The map is generated from the
+  packages with selected tests in each profile's workspace JSON listing.
 - **The config owns the pairs:** the root `.config/nextest.toml` profile
   tables whose names contain a hyphen supply the pairs, split at the last
-  hyphen into tier and tree. Unknown pairs fail before any command runs.
+  hyphen into tier and tree. Unknown pairs and pairs missing a valid package
+  set fail before any command runs.
 - **Builds are sequential:** every build and nextest command uses `heavy`;
   the built bundle tool runs directly. Cargo metadata builds nothing and
   runs directly to discover the target directory.
@@ -63,6 +66,8 @@ and prints another line only if disk remains low; there is no disk timeout.
 ## 4. Exit codes
 
 Return nextest's exit code, including a zero-selection or test-failure code.
+Verification returns 0 for identical selections and 1 for differences,
+naming every missing or added test by package, binary and test name.
 Return 2 for a refused pair, invalid invocation/configuration, failed metadata,
 failed disk check, command launch failure, or failed prerequisite; report the
 failed step and do not start later steps. The runner does not retry failures.
@@ -70,12 +75,34 @@ failed step and do not start later steps. The runner does not retry failures.
 ## 5. Offline checks
 
 `python3 -I -B tools/tiers/test_run.py` uses temporary fixture checkouts
-outside this checkout, fake commands on PATH, and a mocked disk sleep.
+inside this checkout, fake commands on PATH, and a mocked disk sleep.
 It checks configuration-derived pairs, prerequisite order, arguments and
-environment, disk admission and refusal/failure exit codes without builds,
+environment, map refusal and sorted package arguments, verification with fake
+JSON listings, disk admission and refusal/failure exit codes without builds,
 network access, Chromium or credentials. The suite's limit is 60 seconds.
 
-## 6. Later
+## 6. Package-map verification
+
+Run `tools/tiers/run --verify-all` with every green baseline. It checks all
+configured pairs, including live profiles and process-temper, without running
+their tests or building bundles. `tools/tiers/run --verify TREE TIER` checks
+one pair. Neither form accepts extra nextest arguments.
+
+For each pair, run `cargo nextest list --message-format json --profile TIER-TREE`
+through heavy, first over `--workspace`, then over the map's `-p` arguments.
+Compare the selected package/binary/test identities, ignoring filtered tests
+and build artifact paths. Print both counts for every pair, and continue
+checking the remaining pairs after a difference. Heavy's complete listing
+output is captured with `HEAVY_TAIL` set to retain all lines; its evidence
+around the JSON stays visible. A listing failure names its step and stops.
+
+Verification follows the same unchanged 80,000,000,000-byte admission rule
+before each heavy command. Workspace listings build the workspace test
+executables; ordinary tier runs build only their mapped packages' tests and
+the prerequisites in section 2. When profiles gain or lose packages, regenerate
+the sorted map from their workspace listings and verify it before the baseline.
+
+## 7. Later
 
 The after-landing runner calls this entry point. The trees' old
 `scripts/browser.sh` scripts retire in their own trees' branches.
