@@ -1,4 +1,4 @@
 # hetzner2 is reserved for the second gate and has no builder slots.
 hetzner3 1=pool 2=pool 3=pool 4=pool 5=pool 6=pool
 hetzner6 1=lead/temper 2=lead/smith 3=lead/temper 4=pool 5=pool 6=lead/skein 7=lead/skein 8=pool
-hetzner7 1=lead/jig 2=lead/jig 3=lead/jig 4=pool 5=pool 6=pool 7=pool 8=pool
+hetzner7 1=lead/jig 2=lead/jig 3=lead/jig 4=pool 5=pool 6=pool 7=pool 8=pool 9=pool

@@ -190,7 +190,8 @@ class ClaimTests(unittest.TestCase):
             ("hetzner6", "6"): "lead/skein", ("hetzner6", "7"): "lead/skein", ("hetzner6", "8"): "pool",
             ("hetzner7", "1"): "lead/jig", ("hetzner7", "2"): "lead/jig",
             ("hetzner7", "3"): "lead/jig", ("hetzner7", "4"): "pool", ("hetzner7", "5"): "pool",
-            ("hetzner7", "6"): "pool", ("hetzner7", "7"): "pool", ("hetzner7", "8"): "pool"})
+            ("hetzner7", "6"): "pool", ("hetzner7", "7"): "pool", ("hetzner7", "8"): "pool",
+            ("hetzner7", "9"): "pool"})
 
     def test_inventory_accepts_comments_blank_lines_and_normalizes_numbers(self):
         path = self.home / "hosts"
