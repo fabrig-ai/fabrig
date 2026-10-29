@@ -11,7 +11,7 @@
 //! (lib.md, 7). What a step emits, a token's box among it, is handed out:
 //! dropped before the check, as its receiver's.
 
-use skein_heap::{Counting, Meter};
+use skein_heap::Meter;
 use skein_json::Token;
 use skein_json::tokenizer::{self as json, Event, Limits, Request, Tokenizer};
 use skein_json::writer::{self, Encoder};
@@ -19,9 +19,6 @@ use skein_json_world::generate::{self, Shape};
 use skein_json_world::reference;
 use skein_lib::stream::{Down, Fault, Read, Up};
 use skein_lib::{Env, Intake, Queue, Rng, Time, Wall};
-
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 /// What a run does besides reading the document to its outcome.
 #[derive(Clone, Copy, Debug)]
