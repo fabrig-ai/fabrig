@@ -10,7 +10,7 @@ use smith_protocol_llm::{ConfiguredEndpoint, EndpointError, Endpoints, GrantErro
 fn destination(name: u32, _account: u32, provider: shared::Provider) -> ConfiguredEndpoint {
     let mut roots = skein_tls::RootCertStore::empty();
     roots
-        .add(skein_tls::CertificateDer::from(include_bytes!("../fixtures/root.der").to_vec()))
+        .add(skein_tls::CertificateDer::from(include_bytes!("../../fixtures/root.der").to_vec()))
         .expect("fixture TLS root");
     let llm = match provider {
         shared::Provider::OpenAi => shared::Endpoint::openai(),
