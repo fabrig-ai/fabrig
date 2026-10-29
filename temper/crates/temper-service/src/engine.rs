@@ -37,7 +37,55 @@ pub(crate) struct Engine {
     settled_revision: Option<u64>,
     aborted: Option<()>,
     max_out: u32,
+    #[cfg(test)]
+    pub(crate) release_trace: Option<ReleaseTrace>,
 }
+
+/// Test observations of the release/dispatch order (skein/docs/design/draft/dynamic-memory.md, 4.6).
+#[cfg(test)]
+pub(crate) enum ReleaseObservation {
+    Released { ordinal: u64, requests: List<Box<[u8]>> },
+    Dispatched { ordinal: Option<u64>, request: Box<[u8]> },
+}
+
+#[cfg(test)]
+pub(crate) struct ReleaseTrace {
+    pub(crate) observations: Queue<ReleaseObservation>,
+    ordinal: u64,
+    pending: Queue<u64>,
+}
+
+#[cfg(test)]
+impl ReleaseTrace {
+    pub(crate) fn new() -> Self {
+        Self { observations: Queue::uncapped(), ordinal: 0, pending: Queue::uncapped() }
+    }
+
+    fn released(&mut self, requests: &Queue<root::Request>, before: u32) {
+        self.ordinal = self.ordinal.checked_add(1).expect("test release ordinals");
+        let mut batch = List::with_capacity(requests.len().checked_sub(before).expect("release appends requests"));
+        for request in requests.iter().skip(usize::try_from(before).expect("test queue length")) {
+            batch.push(release_snapshot(request)).expect("released batch length");
+            self.pending.push(self.ordinal);
+        }
+        self.observations.push(ReleaseObservation::Released { ordinal: self.ordinal, requests: batch });
+    }
+
+    fn dispatched(&mut self, request: &root::Request) {
+        self.observations
+            .push(ReleaseObservation::Dispatched { ordinal: self.pending.pop(), request: release_snapshot(request) });
+    }
+}
+
+#[cfg(test)]
+#[expect(
+    clippy::disallowed_macros,
+    reason = "test-only observation copies the request's Debug representation without cloning or changing its ownership"
+)]
+fn release_snapshot(request: &root::Request) -> Box<[u8]> {
+    std::format!("{request:?}").into_bytes().into_boxed_slice()
+}
+
 pub(crate) struct Children {
     pub(crate) accounts: Option<crate::accounts::Accounts>,
     pub(crate) workers: crate::workers::Workers,
@@ -105,6 +153,8 @@ impl Engine {
             settled_revision: None,
             aborted: None,
             max_out,
+            #[cfg(test)]
+            release_trace: None,
         })
     }
     pub(crate) fn room(&self) -> bool {
@@ -397,11 +447,23 @@ fn release(engine: &mut Engine) {
         if !engine.room() || engine.end.is_some() {
             break;
         }
+        #[cfg(test)]
+        let before = engine.requests.len();
         root::release(&mut engine.domain, &engine.env, &mut engine.requests);
+        #[cfg(test)]
+        if let Some(trace) = &mut engine.release_trace {
+            trace.released(&engine.requests, before);
+        }
         if engine.requests.is_empty() {
             root::try_step(&mut engine.domain, &engine.env, root::Event::Resume).expect("owner continuation admitted");
             engine.drain_facts();
+            #[cfg(test)]
+            let before = engine.requests.len();
             root::release(&mut engine.domain, &engine.env, &mut engine.requests);
+            #[cfg(test)]
+            if let Some(trace) = &mut engine.release_trace {
+                trace.released(&engine.requests, before);
+            }
         }
         engine.drain_facts();
         if !engine.requests.is_empty() || engine.domain.quiescent() {
@@ -414,6 +476,10 @@ fn release(engine: &mut Engine) {
         }
         for _ in 0..engine.requests.len() {
             let request = engine.requests.pop().expect("root outputs");
+            #[cfg(test)]
+            if let Some(trace) = &mut engine.release_trace {
+                trace.dispatched(&request);
+            }
             route::request(engine, request);
             if engine.end.is_some() {
                 break;

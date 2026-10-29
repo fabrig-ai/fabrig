@@ -277,10 +277,10 @@ impl Worker {
             self.step(event);
         }
         for _ in 0..self.engine.len().min(self.env.limits.watermark) {
-            if self.held.room() == 0 {
+            let Some(event) = self.engine.iter().next() else { break };
+            if self.held.room() == 0 && !root::passes(event) {
                 break;
             }
-            let Some(event) = self.engine.iter().next() else { break };
             let hold = if self.held.is_empty() {
                 root::is_new_work(event) && !root::admits(&self.env.limits, self.backlog())
             } else {
