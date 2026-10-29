@@ -1190,7 +1190,7 @@ pub fn restore_record(domain: &mut Domain, env: &Env<Limits>, record: Record) ->
         Record::Core(core::Record::Accounts(record)) => {
             // A record breaking the child's rules is counted there and
             // dropped; it never refuses the start (store.md 4.4 item 9).
-            let mut out = Queue::with_capacity(jig_domain_accounts::max_out(&env.limits.core.accounts));
+            let mut out = Queue::uncapped();
             jig_domain_accounts::step(
                 &mut domain.core.accounts,
                 &Env { now: env.now, wall: env.wall, limits: env.limits.core.accounts },
