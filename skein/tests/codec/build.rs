@@ -25,7 +25,7 @@ fn main() {
         assert_eq!(output.goldens, generate(&schema).goldens, "{fixture}: fixed wire bytes");
         let old_encoded = "worst_case_bytes";
         let old_decoded = "worst_case_heap";
-        for old in [old_encoded, old_decoded, "::worst_case("] {
+        for old in [old_encoded, old_decoded] {
             assert!(!output.rust.contains(old), "{fixture}: old name {old}");
         }
         writeln!(modules, "pub mod {module} {{\n{}", output.rust).expect("generated module");

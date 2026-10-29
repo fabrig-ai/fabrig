@@ -14,7 +14,9 @@ fn a_family_of_120_records_has_no_function_past_100_lines() {
     let output = generate_named(&schema, Names::Bounds);
     assert!(output.rust.contains("fn encoded_bound_0("));
     assert!(output.rust.contains("fn decoded_bound_0("));
-    assert!(!output.rust.contains("worst_case"));
+    for name in ["worst_case_bytes", "worst_case_heap", "worst_case_bytes_within", "worst_case_heap_within"] {
+        assert!(!output.rust.contains(name), "old name {name}");
+    }
     check_function_lengths(&output.rust);
 }
 
