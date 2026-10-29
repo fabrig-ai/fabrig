@@ -74,7 +74,7 @@ class ClaimTests(unittest.TestCase):
         with redirect_stdout(io.StringIO()) as output:
             claim.list_claims(self.directory, claim.inventory(), later)
         rows = output.getvalue().splitlines()
-        self.assertEqual(len(rows), 10)
+        self.assertEqual(len(rows), 12)
         self.assertIn("lead: a task (since 2026-10-28T12:00:00+00:00); held 1d 02:03:04", rows[0])
         self.assertEqual(rows[-1], "hetzner7 3: free")
 
@@ -115,7 +115,8 @@ class ClaimTests(unittest.TestCase):
 
     def test_inventory_matches_assigned_builders(self):
         self.assertEqual(claim.inventory(), [
-            ("hetzner2", "1"), ("hetzner2", "2"), ("hetzner3", "1"), ("hetzner3", "2"),
+            ("hetzner2", "1"), ("hetzner2", "2"), ("hetzner2", "3"),
+            ("hetzner3", "1"), ("hetzner3", "2"), ("hetzner3", "3"),
             ("hetzner6", "1"), ("hetzner6", "2"), ("hetzner6", "3"),
             ("hetzner7", "1"), ("hetzner7", "2"), ("hetzner7", "3")])
 
