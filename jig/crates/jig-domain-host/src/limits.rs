@@ -65,22 +65,9 @@ pub fn valid(limits: &Limits) -> bool {
     if limits.turns > 0 && (limits.turn_bytes == 0 || limits.turn_queue_bytes < limits.turn_bytes) {
         return false;
     }
-    cancellations_bound(limits).is_some()
-        && calls(limits).is_some()
-        && turn_capacity(limits).is_some()
-        && crate::sources::valid(limits)
+    calls(limits).is_some() && turn_capacity(limits).is_some() && crate::sources::valid(limits)
 }
 
 fn turn_capacity(limits: &Limits) -> Option<u32> {
     limits.slots.checked_mul(limits.turns)?.checked_mul(2)
-}
-
-fn cancellations_bound(limits: &Limits) -> Option<u32> {
-    limits
-        .run_calls
-        .checked_mul(2)?
-        .max(limits.held.checked_add(limits.accounts)?)
-        .checked_add(limits.program_sources)?
-        .checked_add(4)?
-        .checked_add(limits.turns.checked_mul(2)?)
 }
