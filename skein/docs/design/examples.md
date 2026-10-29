@@ -11,7 +11,7 @@ them.
 ## 1. In one page
 
 - **Laid out as a service is** (section 10): a domain, a protocol
-  layer, a service with its `iterate` and the sum of its worst cases,
+  layer, a service with its `iterate` and admission checks,
   and a shell with its `main`, each a crate.
   The step crates are in the model's subset, under the workspace's lints.
 - **Their fakes are step machines** (testing-strategy.md, 4), so that the
@@ -32,7 +32,7 @@ them.
 ```
 examples/echo/domain        skein-echo-domain     sessions, and the answer to each line
 examples/echo/protocol      skein-echo-protocol   the listener and the connections: lines to calls and back
-examples/echo/service       skein-echo-service    iterate, the limits, the sum of the worst cases
+examples/echo/service       skein-echo-service    iterate, the limits, admission checks
 examples/echo/shell         skein-echo-shell      main: configuration, startup, the loop; the binary skein-echo
 testing/skein-echo-client   skein-echo-client     the fake echo client, a step machine
 testing/skein-world         skein-world           the world harness: simulated worlds and the real loop
@@ -93,7 +93,7 @@ A foreign-style line protocol, so scanned framing (programming-model.md,
 - **Past the protocol's slab** of connections, an accepted socket is
   rejected: io closes it without a word.
 
-### 3.2 Limits and the worst case
+### 3.2 Limits
 
 | Layer | Limit | What |
 |---|---|---|
@@ -103,22 +103,13 @@ A foreign-style line protocol, so scanned framing (programming-model.md,
 | protocol | `idle`, `spread` | the idle deadline, and how far it is spread |
 | protocol | `retry` | how long the listener waits to listen again after io refused it for want of resources |
 | io | io.md, 2 | `intake` and `output` at least `line`: the protocol's largest read and room |
-| service | `queue` | each queue between the stages, at least the largest `MAX_OUT` |
+| service | `queue` | kernel submission and completion capacity, at least `Limits::LEAST_QUEUE` for io's largest entrance |
 
-```
-worst case = io::worst_case(io)
-           + domain:   the slab of sessions
-           + protocol: the slab of connections, its deadlines and ready list,
-                       conns × line (one line in flight per connection:
-                       the bytes read, the domain's text, or the answer
-                       before io takes it), and one line more (a step's
-                       copy while it decodes or encodes)
-           + service:  its queues' containers
-```
-
-Startup refuses a worst case past the configured memory, and io limits
-that cannot meet the protocol's largest demand (io.md, 2): `line` past
-`intake` or `output`.
+Startup checks usable io limits and that the protocol's largest demand
+fits io (io.md, 2): `line` fits `intake` and `output`, and the kernel
+queues hold each io entrance's submissions. The service's
+internal queues grow as admitted work fills them. Worlds check measured
+process peaks under named scenario ceilings with headroom.
 
 ### 3.3 Entities
 
@@ -306,7 +297,8 @@ processes, each a host of an `iterate` (a service, or a fake client):
   process's heap, what grew within its own calls (building it, and each
   `iterate`), at its peak within each call, against the ceiling its
   scenario names, with headroom (shell.md, 12).
-  What grew within the simulator's calls and the harness's is left out,
+  What grew within the simulator's calls and the harness's own storage
+  is left out,
   by metering around the processes' calls rather than theirs; and as
   nothing one process allocates is freed by another or by the simulator,
   each process's growth is its own. A process frees in one call what it
@@ -315,13 +307,14 @@ processes, each a host of an `iterate` (a service, or a fake client):
   meter, which checks a step from a base it never falls below, cannot. A
   scenario's ceiling covers the box the harness keeps the process's state
   in.
+  Delivery into a process's containers and draining its submissions are
+  metered in that process's ledger span, including ring growth.
   Once settled, dropping the run's outcome drops each process under a
   span: it must free exactly what was metered as its own, which finds a
   leak, and heap made or freed outside its calls.
 - **Contracts:** each process keeps its own as it goes, as its loop is
-  its own: the echo's and the fake client's `iterate` assert each call
-  within its `MAX_OUT`, the protocol layer one reply per call, the fake
-  client the echo's contract; the simulator, the kernel boundary's.
+  its own: the protocol layer checks one reply per call, the fake client
+  the echo's contract, and the simulator the kernel boundary's.
 - **Settled:** once the referee passed and nothing is busy, every process
   holds nothing, the simulator has nothing in flight, and every
   descriptor is closed.
@@ -456,8 +449,7 @@ processes, each a host of an `iterate` (a service, or a fake client):
 
 - **Step tests** in each example crate: every cell of the connection and
   the listener, the domain's admission and refusal, `iterate` with its
-  `MAX_OUT` reserved at each stage, the worst case and the startup
-  checks; and the fake client's own cells.
+  edge room checks and the startup checks; and the fake client's own cells.
 - **Simulated worlds** (`tests/echo`): the echo and fake clients as
   processes of the simulator, under tiny limits, calm and chaotic: many
   clients; a line too long; a busy refusal at the entrance, and a
@@ -466,7 +458,8 @@ processes, each a host of an `iterate` (a service, or a fake client):
   rest; closes and resets in every state; a shutdown; a half-close with
   lines unanswered, every whole line answered before the end and a
   trailing piece of a line dropped (section 3.1's end, tested); and the
-  echo driven to its worst case. Calm, each scenario holds whole; under
+  echo filled to its entrance limits under a scenario ceiling. Calm,
+  each scenario holds whole; under
   faults, a stream may break, so each expects only that every connection
   finishes, while the fake clients still check every answer they get, and
   the idle deadline's "not before" is calm's alone: a server whose side of
@@ -549,7 +542,7 @@ and for `wasm32-unknown-unknown`:
 - **Its view,** built through skein-ui's builder from the state, with
   its bindings decoded into its actions (ui.md, sections 5 and 6), its
   drawing code (ui.md, 11.1), its codec for places, its limits from
-  skein-ui's and its worst case (ui.md, section 15).
+  skein-ui's (ui.md, section 15).
 - **Its records** are a codec family of its own (codec.md), a note, an
   add and the list, which the server names too. An exchange carries one
   record as `application/octet-stream`; the stream carries one in each
@@ -655,7 +648,7 @@ a service copies that.
   tree face adding a note, a required title refused in words, a label
   chosen, a note opened and left (ui.md, 17.1); golden scenes of the
   chart (ui.md, section 11); its places printed and parsed back; its
-  limits and worst case.
+  limits and memory under a scenario ceiling.
 - **Step tests** of the server: each route, an add made once per key,
   the bundle's headers and the policy on every answer, the page at any
   other path, a digest not the bundle's not found, a limit refused.
@@ -687,7 +680,7 @@ This section was the repository's `README.md` until 2026-10-19.
 | lib, io, the machines for foreign protocols | skein | `skein-lib`, `skein-io`, `skein-http`, `skein-json`, `skein-tls` |
 | the protocol layer: its connections, its own machines and decoders | the service | `protocol` |
 | the domain, and its child domains | the service | `domain` |
-| `iterate`, and the sum of the worst cases | the service | `service` |
+| `iterate`, and admission checks | the service | `service` |
 | `main`: configuration, startup, the loop | the service | `shell`, on `skein-shell` |
 | the simulator | skein | `skein-sim` |
 | the counting allocator, for memory tests | skein | `skein-heap` |
@@ -713,7 +706,7 @@ Before code:
 
 1. the wire protocol, sized, with every length and limit; or, for a
    foreign protocol, the skein machines it stacks;
-2. the limits of each layer, and the worst case they imply;
+2. the edges and admission limits of each layer;
 3. the entities of each layer, who owns each, and how they bind;
 4. the state machines: states, what each holds, the total transition
    table, and the demands and deadlines of each state.

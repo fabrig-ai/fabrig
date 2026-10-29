@@ -34,7 +34,7 @@ lib only.
 `skein-json` depends on lib only. A service's protocol layer stacks it
 over whatever carries the documents (an HTTP body, server-sent events'
 data) and under its own decoders (http.md, 2). It has its own `Limits`
-and `worst_case`, and each entry point declares its `MAX_OUT`.
+and edge bounds; each entry point emits into uncapped queues.
 
 ```rust
 // skein_json::tokenizer, the machine
@@ -188,7 +188,7 @@ pub struct Limits {
   `Skip` with a value that never ends.
 - **`string`** bounds only what is kept. A string skipped, or read past
   its `Text` cap, holds none of the text buffer.
-- **`worst_case(&limits)`** is the stack of open containers and one
+- **`tokenizer_bound(&limits)`** is the stack of open containers and one
   buffer for the text being read, the longer of `string` and `number`,
   both allocated with the tokenizer, and the delivery it reads, at most
   `largest_demand`: a delivery is made to the tokenizer's demand, so it
@@ -201,8 +201,8 @@ pub struct Limits {
   of `false`). Whoever stacks the tokenizer checks at startup that it fits
   the cap of the side below: a demand past that cap could never be met,
   and the side below asserts it (lib.md, 7).
-- **`UP_MAX_OUT` and `DOWN_MAX_OUT`** are one event above and one request
-  below each: a call emits at most one of each. Only a `Close` of a
+- **Outputs:** each entrance emits one event above and one request
+  below at most: a call emits at most one of each. Only a `Close` of a
   reading tokenizer emits both, `Closed` and the demand withdrawn; an end
   or a failure while idle, and anything after the outcome or the close,
   emit nothing.
@@ -272,7 +272,7 @@ pub struct Position {
   document's end, and a `length` below `u32::MAX` (section 3.3) keeps the
   end's column and line, at most `length + 1`, within `u32`.
 - **Three counters, no heap.** The tokenizer counts as it reads, and its
-  `worst_case` is unchanged. `Token`, `Event` and `Error` are unchanged
+  `tokenizer_bound` is unchanged. `Token`, `Event` and `Error` are unchanged
   (section 7).
 - **The collector's events and documents carry no positions.** A
   consumer that needs them reads through the tokenizer.
@@ -316,7 +316,7 @@ let body = write.finish();               // exactly len bytes
   met, and the length last. What only its code gets wrong (a key outside
   an object, an end that closes nothing, a second value, a writing pass
   of another length than its measuring pass) is a bug, asserted.
-- **`Limits { depth, length }`**, and `worst_case`: the stack and the
+- **`Limits { depth, length }`**, and `encoder_bound`: the stack and the
   document, which the writing pass holds until `finish` hands it over.
 - **Compact:** no whitespace. A string escapes `"`, `\` and the control
   characters, the common ones in their short forms and the rest as
@@ -443,7 +443,7 @@ pub struct Limits {
 - **Errors** are the tokenizer's, and `TooManyTokens`, `TooMuchText`
   (with the cap it passed, if a named one), `SkippedTooLong`, `Duplicate`
   and `NotTagged`; and, when it is built, `AmbiguousFilter`.
-- **`worst_case(&limits, &caps, &filter)`** is the tokenizer's, the walk
+- **`collector_bound(&limits, &caps, &filter)`** is the tokenizer's, the walk
   stack, and the buffers the document is kept in, at `tokens` and `text`.
   Each `Tagged` node of the filter adds its provisional candidates: one
   projection at `tokens` and `text` for each known variant past the
@@ -458,7 +458,7 @@ pub struct Limits {
   may be restarted on the next stream, keeping their buffers, so a stream
   of small documents (one per server-sent event) costs one allocation of
   each, not one per document.
-- **`UP_MAX_OUT` and `DOWN_MAX_OUT`** are the tokenizer's: one event
+- **Outputs:** the collector, like the tokenizer, emits at most one event
   above and one request below each.
 
 ### 5.2 Compact documents
@@ -494,6 +494,10 @@ pub enum Kind {
 - **Offsets are `u32`**, as a document's text is under the collector's
   `text` limit.
 
+`document_bound(&limits)` bounds a retained document's tables and text;
+`validation_bound(&limits)` bounds the tokenizer scratch for validating
+one whole input. These are edge and decoder bounds, not a process sum.
+
 ## 6. Testing
 
 - **Step tests** (`crates/skein-json/src/tests.rs`): each demand, each
@@ -528,8 +532,7 @@ pub enum Kind {
     for a while, so that the stream below fills to its cap with nothing
     demanded, and closes after the outcome, or at any moment: waiting for
     a `Next`, for bytes, or for the close.
-  - The world checks the contracts as it goes: `MAX_OUT` on each call;
-    one answer per `Next`, at most one outcome, `Closed` once and last;
+  - The world checks the contracts as it goes: one answer per `Next`, at most one outcome, `Closed` once and last;
     one demand at a time, none past the largest declared or the cap
     below, none of a stream that ended, one withdrawn only by a close;
     nothing sent down; and `waiting()` matching what the neighbours see.
@@ -580,7 +583,7 @@ pub enum Kind {
 - **Memory** (`tests/json/tests/suite/memory.rs`, with the counting allocator,
   testing.md, 5): every call of an entry point is a step of the meter, and
   what the tokenizer or the encoder held of its own is never more than its
-  `worst_case`. The connection's queues and stream are made before the
+  scenario's named ceiling with headroom. The connection's queues and stream are made before the
   meter; each delivery is made between steps and counts from when it is
   handed over; what a step emits is handed out. First the case that showed
   the delivery counts: a string at its limit and the delivery that closes
@@ -591,7 +594,7 @@ pub enum Kind {
   length. The collector under tiny limits (a handful of tokens, a few
   hundred bytes of text) over documents that skip megabytes: its high
   water is the same whatever it skipped, and a document kept at exactly
-  its `tokens` and `text` reaches its worst case.
+  its `tokens` and `text` stays under its scenario's ceiling.
 - **The fuzzy suite** (`tests/json/tests/suite/fuzzy/*.rs`): 20,000 generated
   documents, most of them mutated, and 5,000 transcripts cut and mutated,
   under limits and neighbours drawn from each seed, each against the

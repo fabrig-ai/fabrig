@@ -26,8 +26,8 @@ and the service, and the only step code that is not deterministic.
 `skein-tls` depends on lib and rustls, pinned, without its default
 features, with ring (programming-model.md, 2.1). A service's protocol
 layer stacks it between io's socket and the machines above it (http.md,
-2). It has its own `Limits` and `worst_case`, each entry point declares
-its `MAX_OUT`, and it says what it waits for:
+2). It has its own `Limits` and `valid`, emits into uncapped queues,
+and says what it waits for:
 
 ```rust
 // skein_tls::client, the machine
@@ -203,13 +203,11 @@ writes it in its own form.
   standard error, and refuses with `Refusal::Roots` when it took none.
 - **`Config::new`** takes a root store already built, for tests that make
   their own.
-- **The roots are counted once.** Every connection shares the
-  configuration, so its root store is in no connection's worst case. The
-  service counts it once, from the bounds the shell read the roots within
-  (shell.md, 6.2): their count and each one's bytes, at a factor measured
-  as rustls's other parts are (section 5).
+- **The roots are shared configuration.** Every connection shares the
+  root store, read within the shell's root count and byte limits
+  (shell.md, 6.2).
 
-### 3.5 Limits and the worst case
+### 3.5 Limits and their validity
 
 ```rust
 pub struct Limits {
@@ -219,24 +217,17 @@ pub struct Limits {
 }
 ```
 
-- **`worst_case(&limits)`** is the client's own: the intake, the records
-  held, `FLIGHT` (2,048 bytes) for what TLS owes, and the delivery it
-  reads, at most `LARGEST_READ`, which a step that encrypts holds as much
-  of rustls's instead; and rustls's, measured (section 5): 16 KB of its
-  own state, and the decoded form of the longest handshake message,
-  20 bytes for each of its bytes, which the fewer of `Limits::records` and
-  rustls's 64 KB (`MAX_HANDSHAKE`, 65,539 with its header) bound: a server
-  sends a message whole within the records held. The factor is a hostile
-  server's: a message of the shortest entries a list allows, 3 bytes each
-  in TLS 1.2 and 5 in TLS 1.3 (empty certificates, names of a byte),
-  decodes to an element of 24 or 48 bytes each, in a list that grows by
-  doubling and is copied once, and a chain is kept. `None` for a read or
-  room of nothing, or records shorter than one.
+- **`valid(&limits)`** checks nonempty read and send demands, records
+  large enough for one record, and representable derived intake and
+  output capacities. The encrypted records and plaintext demands keep
+  their caps. The handshake message remains bounded by the records held
+  and rustls's `MAX_HANDSHAKE` (65,539 bytes with its header); no sum of
+  client or root-store allocations is required at startup.
 - **`largest_room`** is the larger of `room_for(send)` and `FLIGHT`.
-- **`UP_MAX_OUT`** is two events and three requests: `Ready` or an answer,
+- **`up` emits at most** two events and three requests: `Ready` or an answer,
   or the stream told it failed and `Failed`; below, what TLS owes sent or
   a read the end crossed withdrawn, the stream finished, and the next
-  demand. **`DOWN_MAX_OUT`** is two and two.
+  demand. **`down` emits at most** two and two.
 
 ### 3.6 The native face
 
@@ -306,8 +297,8 @@ independence.
   right below's `Failed` and the stream below's `Failed` both arrive. A
   `Ready` that went up stays, even when running out of tokens fails the
   connection later in the same step.
-- **The most an entry point emits:** `native::UP_MAX_OUT` is four events
-  and three requests, `native::DOWN_MAX_OUT` three and three. The classic
+- **The most an entry point emits:** native `up` emits four events
+  and three requests; native `down`, three and three. The classic
   face's are section 3.5's.
 - **The owner closes the stream below.** The client keeps no timer and no
   descriptor: its owner closes or aborts the stream below, says so with
@@ -346,17 +337,10 @@ independence.
 - **What it waits for**, `waiting()`, is section 3.1's, with `Close` also
   after `TransportClosing`, and once a close has sent all it owes and
   waits for the owner's `Closed`.
-- **Memory.** `native::worst_case` is the classic `worst_case`, with its
-  delivery of `LARGEST_READ` replaced by the larger of `LARGEST_READ` and
-  `native::room_for(Limits::send)`, since the bytes read are dropped
-  before a record is deciphered or sealed, plus the client's own size,
-  its cells included. What TLS owes and what it sealed are counted
-  together, before they go below and on an error before they do;
-  allocations that overlap are counted as their sum. The plaintext the
-  side above sends stays the caller's, counted there. The buffers,
-  rustls's scratch, io's queues, the boxes in flight and the step's
-  queues are each counted once. The whole envelope reserved and
-  `FLIGHT`'s box stay counted even when less is sealed or owed.
+- **Memory.** The native face keeps the classic client's edge limits.
+  `native::valid` checks them; the caller's sent plaintext remains the
+  caller's. Worlds measure the native face, buffers and rustls scratch
+  under scenario ceilings with headroom.
 
 ## 4. The exception
 
@@ -495,7 +479,8 @@ a wall time each test chooses.
   every call of an entry point a step of the meter. The server runs on
   the same thread, between the client's steps; its heap and the
   harness's are measured with a span around what is done between steps,
-  and each step is checked against the bound plus that heap. This is how
+  and each step is checked under its scenario ceiling with that heap
+  accounted separately. This is how
   rustls's part was measured, past the client's buffers: 6 KB for a
   handshake, 10 KB with the longest ALPN list, 21 KB in a step that
   deciphers or encrypts a record of 16 KB, and 82 KB for the 39 KB chain,
@@ -505,8 +490,9 @@ a wall time each test chooses.
   length (298 and 303 KB for messages of 16 KB, 1.18 and 1.20 MB for
   64 KB), unknown extensions 3.5 times; a chain padded with empty
   certificates, which rustls accepts and keeps, 20 times in TLS 1.2 (1.30
-  MB past the buffers) and 18 in TLS 1.3. That chain reaches 97% of the
-  worst case. Dropped, the client frees what it held.
+  MB past the buffers) and 18 in TLS 1.3. Dropped, the client frees what
+  it held. The scenario ceiling takes the largest observed peak: handshake
+  randomness can vary it by a byte between runs.
 - **The fuzzy suite** (`tests/tls/tests/suite/fuzzy/world.rs`): 400 runs of
   scenarios and neighbours drawn from each seed: each version, retries,
   ALPN, the big chain, the server's key updates, each ending and each
@@ -523,7 +509,7 @@ a wall time each test chooses.
 - **The native face** (section 3.6): step tests in
   `crates/skein-tls/src/client/native/tests.rs`; a pair against a rustls
   server in memory (`tests/tls/tests/suite/native_output.rs`), the same over
-  io's sockets on the simulator, and memory against the worst case
+  io's sockets on the simulator, and memory under scenario ceilings
   (`native_memory.rs`); a fuzzy run of short and reordered reads and
   writes (`tests/tls/tests/suite/fuzzy/native.rs`). rustls 0.23.41 folds the TLS 1.3 key
   updates asked for while the side above holds its grant into one: the

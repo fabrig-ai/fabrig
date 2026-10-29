@@ -4,7 +4,7 @@ Provisional, 2026-10-06, revised 2026-10-26. How an application protocol
 built on skein encodes its records, and how its kept records follow its
 schemas from one version to the next. A schema says each record's fields
 and their bounds. skein's generator turns it into plain Rust codecs,
-limits, worst cases and golden bytes, and `skein-codec` holds the little
+limits, bounds and golden bytes, and `skein-codec` holds the little
 the generated code shares, and reads schemas and their records at run
 time. Codecs carry the bodies of a framed channel (channel.md), and
 records kept in files or stores.
@@ -20,7 +20,7 @@ records kept in files or stores.
   - limits, whose ceilings are the schema's bounds;
   - measured encoding;
   - bounded decoding with typed problems;
-  - each record's worst case;
+  - each record's encoded and decoded bounds;
   - golden bytes.
 - **Plain Rust of the subset** (programming-model.md, section 10):
   structs, enums, functions and `match`; no traits beyond derives, no
@@ -213,7 +213,7 @@ For each record and enumeration:
 
   Every box is allocated at its final length, once that length has passed
   its limit and what is left.
-- **Its worst case,** for given limits:
+- **Its bounds,** for given limits:
   - the most bytes it encodes to, which must fit a `u32` at the ceilings or
     the schema is refused;
   - the most heap its decoded value holds, as a function over the limits
@@ -222,8 +222,19 @@ For each record and enumeration:
 
   Each is `None` for limits past a ceiling. It checks the family's
   limits once, where it is asked, then reaches the types its fields name
-  without checking them again: a worst case costs the types it reaches,
+  without checking them again: a bound costs the types it reaches,
   not their number times the family's limits.
+
+The generator chooses the names per module with
+`generate_named(schema, Names::{WorstCase, Bounds, Both})`, or the CLI's
+`--names` choice. `Bounds` emits `encoded_bound` and `decoded_bound`,
+their `_within` forms and numbered helpers, using `List::price`.
+`WorstCase` emits the corresponding `worst_case_bytes` and
+`worst_case_heap` names and uses `List::worst_case`. `Both` emits the
+bounds and aliases only the old public `worst_case_bytes` and
+`worst_case_heap`; helpers keep the bound names. Both sets of names
+remain reserved for fields under every choice. The OAuth v3 module
+uses `Both`; the UI example and codec kit's fixtures use `Bounds`.
 
 ## 5. Versions
 
@@ -460,8 +471,9 @@ variant's.
   its limits, decodes it, and a refusal names the same field with the
   same reason. Limits below
   the ceilings stay the generated decoders'.
-- **Its room.** A value made with `with_room` allocates its entries
-  once and reuses them: decoding allocates nothing. A patch's machine
+- **Its room.** A value made with `with_room` sets an entry cap and
+  grows its entry tables as they fill, reusing their storage on later
+  decodes. A patch's machine
   grows its own entries (11.7). A record that needs more nodes than
   the room is refused with `Refusal::Room`, since a node may take no
   bytes (an empty record), so the bytes alone do not bound the count.
@@ -489,7 +501,7 @@ pub struct Misread { pub node: Node }          // the node is not of that kind
 
 impl Value {
     pub fn with_room(nodes: u32) -> Value;
-    pub fn worst_case_heap(nodes: u32) -> Option<u64>; // what with_room allocates
+    pub fn decoder_bound(nodes: u32) -> Option<u64>; // the decoder entry tables
     pub fn decode(&mut self, schema: &Schema, root: DeclIx, bytes: Box<[u8]>)
         -> Result<Node, Refusal>;              // the root; the bytes are dropped on a refusal
     pub fn bytes(&self) -> &[u8];              // the encoding
@@ -561,8 +573,9 @@ As the generated decoder's, with each bound at its ceiling:
   form the generated types' `Debug` takes, and compared with it.
 - **Goldens:** every golden of every skein schema decodes generically
   to its own bytes.
-- **Memory:** `with_room` allocates `worst_case_heap`, and decoding
-  allocates nothing, counted by the counting allocator.
+- **Memory:** the decoder entry tables stay within `decoder_bound`,
+  growing only past the room earlier decodes reached, counted by the
+  counting allocator.
 
 ## 9. Fingerprints
 
@@ -957,7 +970,7 @@ impl Diff {
   root or nested, has its version rewritten.
 - **Bounded:** a machine's heap is a worst case over its capacity (its
   versions, patches, texts, a record's bytes and nodes). A value made
-  with `with_room` allocates once; a patch's machine grows its own
+  with `with_room` grows within its entry cap; a patch's machine grows its own
   run's tables and keeps their room (11.7).
 
 ### 11.1 The text
@@ -1388,7 +1401,7 @@ impl Header {
 
 impl Patcher {
     pub fn new(capacity: Capacity) -> Patcher;
-    pub fn worst_case_heap(capacity: Capacity) -> Option<u64>;
+    pub fn workspace_bound(capacity: Capacity) -> Option<u64>;
     pub fn keep(&mut self, text: &[u8]) -> Result<u16, KeepError>; // its version
     pub fn schema(&self, version: u16) -> Option<&Schema>;
     pub fn plan(&mut self, patch: &[u8]) -> Result<Option<PlanIx>, PatchError>; // none: no block of its family
@@ -1478,7 +1491,7 @@ impl Build {                         // the new value, in preorder
   box; each further pass allocates that box, the last `finish`'s bytes
   at their exact length, and a held field's bytes are its caller's
   box for its family's machine.
-- **The worst case:** `worst_case_heap(capacity)` is the run's tables,
+- **The workspace bound:** `workspace_bound(capacity)` is the run's tables,
   two records' bytes, and the capacity's versions of kept texts and
   patches of plans, each at the capacity's `text`, parsing's and
   planning's scratch included, and what growth holds while it moves,
@@ -1525,7 +1538,7 @@ Step tests, in skein-lib and skein-codec, and the story in
   its results kept as goldens beside it, the shape of `patches/golden/`,
   and decoded by the new schema's generated code.
 - **Memory:** the heap the machine holds stays within
-  `worst_case_heap`, counted by the counting allocator through keeping,
+  `workspace_bound`, counted by the counting allocator through keeping,
   planning and many records. Large ceilings with small written and
   held records stay near the small records' price, through repeated
   reuse. Lists grow through several steps to the node and byte

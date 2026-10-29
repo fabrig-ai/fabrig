@@ -350,7 +350,7 @@ extension keys remain uninterpreted, including duplicates.
 `Replay::to_bytes` and `Replay::from_bytes` provide a versioned opaque durable
 envelope. Its seven-byte version/tag/length header is additional to the raw
 `opaque_bytes` allowance. `replay_bytes` exports the complete receiver cap;
-`replay_worst_case` includes temporary JSON and simultaneous raw/envelope
+`replay_bound` includes temporary JSON and simultaneous raw/envelope
 storage. A complete raw replay admitted at its cap still fits its envelope.
 Provider compatibility is validated by the real Client when replay is used.
 `Prompt::output_ceiling` applies configured dialect support: Codex omits its
@@ -407,20 +407,14 @@ native replay token wrappers and their owning bytes. Drained records become
 caller ownership; a moved vector's replacement capacity is reserved at the next
 physical entrance. Without `observe`, observation is unconstrained.
 
-`extra_worst_case` prices the peer, script domain, routing service, queues,
-intakes, delivery scratch, credential/target and configured observations. It
-excludes the one actual Client: callers add the Client or adapter price once,
-plus their own retained inputs, metadata clones and drained records. Checked
-arithmetic refuses impossible products without allocating the proposed cap.
 The driver reclaims retired service routes after draining their actual outputs;
 `Service::calls()` reports allocated live and retired slots without content.
 
-Memory stories compare the counting allocator's high water with production
-`worst_case` values plus the separately priced world intakes, wire tapes and
-observation copies: replay transit, extended opaque heads, a maximum-size
-scripted response, the exact joint script/menu cap with every delayed-call
-slot at its full answer cap (one over each cap is refused), and two
-connections sharing one delayed script domain. They establish shared
+Memory stories hold the counting allocator's high water under named
+scenario ceilings with headroom: replay transit, extended opaque heads,
+a maximum-size scripted response, the joint script/menu cap with every
+delayed-call slot at its full answer cap (one over each cap is refused),
+and two connections sharing one delayed script domain. They establish shared
 Client/peer ownership only: application worlds add their schema, result and
 replay copies and their outside effect ledger to this envelope.
 

@@ -45,6 +45,10 @@ so do the backends, for the kernel records. io's limits cap its edges:
 the shared entity slots, the operations in flight, each stream's intake
 and queued output, children's pipe lists, and the in-process names
 (3.5). The command buffers supplied to `Spawn` belong to the caller.
+`skein_io::valid` checks `Limits::is_usable()` and the derived operation,
+flight and timer capacities. A zero byte or admission limit that makes
+io unusable is refused; overflowing a sum of heap prices alone is no
+reason to refuse otherwise usable limits.
 
 ```rust
 // skein-io, the protocol side, for sockets
@@ -972,7 +976,11 @@ are the owner's (oauth.md, 6).
 - **Reading one checks what was opened:** a regular file, reached
   without following a link, with no group or other permission bits, one
   link, and the directory's owner. Anything else is refused unread. It is
-  read whole within a stated maximum (section 5).
+  read whole within a stated maximum (section 5). If a replace by rename
+  between opening and stat leaves the opened file with no links, a
+  private load closes it and reopens its path once. It checks the new
+  file's metadata by the same rules, then reads that version. A second
+  such replace is refused; every other private-file refusal is unchanged.
 - **What io does not do:** encrypt, lock, or keep a secret out of memory.
   A secret's bytes are its owner's, which keeps them out of logs, traces
   and `Debug` (oauth.md, 4).

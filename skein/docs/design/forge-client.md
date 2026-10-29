@@ -27,14 +27,14 @@ rest.
   before the write starts, so the search survives a restart (section 8).
 - **One writer per forge,** configured or given at runtime once, and
   kept as a row; another author is refused (section 7.1).
-- **Everything is bounded:** `worst_case` (section 2.2).
+- **Admission is bounded:** `valid` checks the limits (section 2.2).
 
 ## 2. Its owner, and how it is driven
 
 The owner is a domain: a service's forge connector, which keeps the
 service's durable records. The first is temper's. The client is its child
 domain (programming-model.md, section 4.5), with its own vocabulary,
-limits, worst case and tests; the owner translates between the two
+limits and tests; the owner translates between the two
 vocabularies with total functions and routes the client's output.
 
 - **Entry points,** each given `Env<Limits>`: `step(d, env, event, out)`
@@ -75,12 +75,12 @@ before it releases the `Request::Call`s the same decision made.
   sends it. After a crash that attempt says the write may have landed,
   and restart looks for it (section 8). A decision not committed sent
   nothing: the client rebuilds from the rows that did commit.
-- **Output room:** one decision pushes at most `max_out(l)` requests,
-  `max(4, 2 * resources + 2 * repositories + 3)`.
+- **Outputs:** a decision pushes into the owner's uncapped queue without
+  reserving room; the commit rule keeps its writes before its calls.
 
-### 2.2 Limits and the worst case
+### 2.2 Limits
 
-The owner chooses the limits and checks them against `worst_case` before
+The owner chooses the limits and checks `valid` before
 construction: `pending` and `calls` (at most `pending`), `op_bytes` and
 `answer_bytes`; `rate`, `reserve` (at most `rate`) and `window`;
 `read_attempts`, `backoff` and `backoff_max` (at least `backoff`);
@@ -88,12 +88,10 @@ construction: `pending` and `calls` (at most `pending`), `op_bytes` and
 least `poll`), `hinted`, `slow` and `settle`; `entries`,
 `write_attempts`, `lifetime` and `clock_margin`; `facts`.
 
-`worst_case(l)` is none when a limit is 0, except `op_bytes`,
-`answer_bytes`, `reserve`, `backoff_max`, `poll_max` and `facts`, or a
-pair above is out of order. Else it sums every table and queue at its
-limit: operations at `op_bytes`, held and again in flight, the entries,
-the writers, the working set at saturation, the deadlines and the
-diagnostics.
+`valid(l)` refuses a zero limit except `op_bytes`, `answer_bytes`,
+`reserve`, `backoff_max`, `poll_max` and `facts`, and refuses a pair above
+out of order or an unrepresentable derived capacity. Operations,
+answers, pending calls, rows and kept facts retain their edge caps.
 
 ### 2.3 Admission and answer checks
 
@@ -556,7 +554,8 @@ before it writes.
   restored after the writer was kept, made; a
   branch name taken by another writer is reported, not overwritten;
   every fresh read finishes once; no comment or review is delivered
-  twice; every table full at once, within `worst_case`.
+  twice; every table full at once, under a named scenario ceiling
+  with headroom.
 - **Its referee** reads no client state. It checks that every write
   released was planned by the parent and had its start and attempt saved
   first, that a keyed creation happens once on the fake, that news is

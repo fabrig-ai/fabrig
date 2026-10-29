@@ -77,7 +77,7 @@ per-call outcomes of section 2.4. Provider-owned
 `Replay` metadata travels with the block it belongs to and is tagged with
 its provider. `Replay` can be retained as a bounded durable envelope without
 exposing provider fields to a domain. The exported seven-byte header is
-additional to the raw opaque cap; `replay_bytes` and `replay_worst_case`
+additional to the raw opaque cap; `replay_bytes` and `replay_bound`
 state complete receiver/transit bounds. A replay value for a different provider
 is refused. Native tool calls keep the application call ID and provider item
 ID in separate owned fields. Both are bounded opaque strings: pipes, quotes and backslashes
@@ -445,9 +445,17 @@ ensure SSE demands fit HTTP's read cap and that each piece size fits the
 transport's (llm-connection.md, section 7). JSON is decoded as each
 event's data streams, selectively (section 4.4). HTTP read/room maxima are
 exported for the stream owner to check.
-`worst_case` adds the child machines, bounded routing queues, the
+`client::worst_case` estimates the child machines, bounded routing queues, the
 selective decoder's retained values and depth stack, request storage and
-held completion; no size computation may wrap.
+held completion; no size computation may wrap. The edge formulas name
+what they bound: `client::encoder_bound` and
+`openai::common::encoder_bound` bound request scratch;
+`openai::common::decoded_bound` and `anthropic::decoded_bound` bound
+retained decoded output, and `anthropic::response::decoder_bound`
+bounds its response decoder. `replay_bound` bounds the raw/envelope
+handoff. The neutral document's internal `document_bound` and OpenAI's
+response `decoder_bound` and `decoder_fixed_bound` size their retained
+tables and scratch.
 
 ### 4.1 Declared quantities
 
@@ -879,7 +887,7 @@ limits, error classification and every lifecycle boundary. Protocol worlds
 drive the real HTTP/SSE/JSON stack over a demand-checking in-memory stream,
 with fragmentation, slow reads, early response, truncation, transport faults,
 cancellation and reuse. Memory tests compare the counting allocator's high
-water with `worst_case`. Fuzzy cases live in the separate nextest profile.
+water with named scenario ceilings with headroom. Fuzzy cases live in the separate nextest profile.
 Archived provider transcripts retain their provenance; synthetic cases
 are labelled as such. Live admission, with a key or a plan's token, is not
 implied by offline tests and requires a caller-provided current credential. Worlds answer the

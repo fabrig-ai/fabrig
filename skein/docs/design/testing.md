@@ -174,6 +174,12 @@ own containers runs inside that process's ledger span: delivering
 completions, draining submissions, and the real loop's `ring.deliver`
 included. A ring that grows on a harness push is charged to its process.
 The host declares no ceiling or worst case (shell.md, 12).
+`skein_world::Memory::Checked` checks ownership and release and reports
+peaks without a ceiling; `Within(ceiling)` also checks that ceiling at
+every iteration; `Unchecked` uses the system allocator. `Outcome::peaks()`
+and `real::Outcome::peaks()` report each process's peak alone, and
+`Killed::peak()` reports the ended process's peak. An unchecked run
+reports no measurement, never a ceiling or a sentinel.
 
 **Who counts a payload handed to a step.** A step's measured heap covers
 what it keeps and what it allocates; what it hands out in its requests
@@ -224,32 +230,42 @@ second, which is why it is skein's (testing-strategy.md, 7).
   replaying tiers that is a jump of the clock to it; in the real loop, a
   wake for it. No service writes the check, and none opts out.
 - **It tells a starved run from a slow one** in the real loop
-  (testing-strategy.md, 2.8). `skein-world`'s real loop reads
-  `/proc/thread-self/schedstat` for its own thread when a run starts and
-  when it reaches its patience: the first field, the CPU time used, and
-  the second, the time spent runnable waiting for a CPU. At the patience
-  it compares the runnable wait's delta with the patience: at least one
-  half is **starved** (director 1351); anything else fails as it does
-  today, with the same diagnostic, now naming both figures. A
-  starved run cleans up as the forced path does (every host's tree
-  ended, the ring drained), prints one line to stderr,
-  `skein-world: starved: waited N ms runnable, used M ms of CPU, patience
-  P ms`, and ends the test process with success, so that no assertion
-  after the run reads a world that didn't finish. Ending the process is
-  a pass only where each test is its own process: under nextest (its
-  `NEXTEST` variable set); elsewhere a starved run fails as before.
-  Where the kernel keeps no such accounting (`schedstat` absent or
-  zeros), no run is starved. The verdicts find starved passes by that
-  line in each passing test's kept output, and count them by test.
-- **Every real-clock deadline is a patience of its own kind**
-  (testing-strategy.md, 2.10): skein-world gives the harnesses of every
-  tree one deadline on the real clock that classifies itself when it
-  passes, by the scheduler accounting of the thread and the owned
-  process tree it waits on, and ends as starved or failed by the rule
-  above; the real loop's patience, the conformance run's waits, the
-  end-to-end binary's start and the process tree's settling are each one.
-  A starved deadline writes its line as the real loop's does, with the
-  harness that kept it.
+  by `Deadline`, the same real-clock deadline every harness uses
+  (testing-strategy.md, 2.10). `skein_world::{Deadline, Expired, Starved,
+  Figures}` carry the wait and its scheduler accounting.
+  `Deadline::arm(what, patience)` starts the calling thread's account;
+  `watch(&Binary)` and `watch_process(pid)` add owned process trees,
+  preserving earlier watches. Descendants count; a thread first seen
+  after arming counts from zero only when its process provably began
+  after arming. Unreadable or vanished threads contribute nothing.
+  `passed`, `remaining` and `until` let the loop wait; `expired` classifies
+  an unanswered wait once it passes. The largest single runnable wait
+  decides, never the sum of waits from separate sources. At least half
+  the patience spent runnable is starved; absent accounting cannot prove
+  starvation. `Figures` records the patience, elapsed time, CPU time and
+  runnable waits.
+- **The real loop classifies its patience and the referee's overdue
+  liveness deadlines.** A liveness deadline's patience is its time less
+  the run's start. A referee can return its own starved verdict through
+  `Referee::starved() -> Option<Starved>`. The loop drains the forced
+  cleanup before passing that verdict on. `Starved::pass()` prints the
+  `skein-world: starved:` line, naming the wait with `, by <what>`, and
+  exits 0 under nextest; elsewhere it fails. Tree starvation also names
+  the tree's wait and accounting source. Conformance's `Backend` gives
+  `wait_begins`, `wait_unanswered` and `wait_figures`; the simulator uses
+  their defaults.
+- **A binary's counts mark tree settlement.** `Binary::counts()` is
+  present once the binary and its descendants settle, whatever stderr's
+  state. Stderr EOF and descriptor closes still drain before its observer
+  is empty. A cgroup is removed only after `populated 0`; after
+  `cgroup.kill` the keeper waits within a 2 s deadline. A group retaining
+  a leader is left for process exit. Removal errors while unwinding are
+  reported without raising another failure.
+- **The highest tiers check paths** through the real loop and shipped
+  binaries. The world harness tests ring routing, cleanup, observation
+  and settlement without a kernel in its unit tests and simulated
+  worlds. `skein_shell::drive` requires a real `Kernel` and `Clock`;
+  its three scheduling rows stay in the real tier as paths.
 - **It carries state digests** (lib.md, 5.1). `Host` (shell.md, 12) and
   `Machine`, the seam a world's fake machine plugs into, each give
   `state_digest() -> Option<[u8; 32]>`, `None` unless the process or the
@@ -307,7 +323,7 @@ testing/skein-fake-person-browser the person's face over the browser kit, and th
 tests/heap                      the counting allocator's own tests, skein-heap-tests
 tests/echo                      the echo's simulated worlds and its real loop, skein-echo-world
 tests/io                        io worlds: io over the simulator, a scripted owner, a referee, skein-io-world
-tests/lib                       lib's comparisons with naive functions, run long, and its worst cases against the counting allocator, skein-lib-tests
+tests/lib                       lib's comparisons with naive functions, run long, and its allocation prices against the counting allocator, skein-lib-tests
 tests/sim                       the simulator's own tests, skein-sim-tests
 tests/world                     the world harness's own tests, over scripted processes of raw records, skein-world-tests
 tests/ring                      the ring adapter's own tests, skein-ring-tests
@@ -356,17 +372,17 @@ protocol layer's fixtures are in its `src/tests/`. Such a crate is ordinary Rust
 simulator's harness and its scripted exchange, a backend of the suite,
 the naive functions lib is compared with, a machine's world and the
 reference parser it is checked against),
-and each file in its `tests/` is a test binary of its own, a fuzzy one
-when its name starts with `fuzzy_`. `tests/clippy.toml` bans what would
+and its tests share the `suite` binary: focused modules under
+`tests/suite/`, seeded sweeps under `tests/suite/fuzzy/`.
+`tests/clippy.toml` bans what would
 make a run unrepeatable: hash maps with a random seed, the system clocks,
 threads. Each backend of the conformance suite is implemented beside the
-tests that run the suite against it. A crate's memory tests are binaries
-of their own, as the global allocator a binary declares is the whole
-binary's: `tests/suite/memory.rs`, and `tests/suite/fuzzy/memory.rs` for a sweep
-under scenario ceilings (testing-strategy.md, 8). The crate's other tests
-run on the system allocator. A simulated world checks memory at every
-iteration, so each binary of `tests/echo` that runs one declares the
-counting allocator; its real loop runs on the system allocator.
+tests that run the suite against it. The global allocator a binary
+declares covers the whole binary; memory modules are `tests/suite/memory.rs`, and `tests/suite/fuzzy/memory.rs` for a sweep
+under scenario ceilings (testing-strategy.md, 8). A suite that checks
+memory declares the counting allocator once. `Memory` selects whether a
+world meters its processes; a simulated world checking memory meters
+every iteration.
 
 What a crate under `testing/` holds is shared by the tests of more than
 one crate, and is ordinary Rust held to the step crates' lints, each with
