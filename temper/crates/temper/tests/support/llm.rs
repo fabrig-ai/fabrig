@@ -14,7 +14,8 @@ impl Listening {
     #[must_use]
     pub fn new(mut peer: Peer) -> Self {
         let clock = Clock::new();
-        let deadline = clock.now().now.saturating_add(super::WITHIN);
+        let deadline = skein_world::Deadline::arm("the fake LLM listener binding", super::WITHIN);
+        let mut starved: Option<skein_world::Starved> = None;
         let mut kernel = Kernel::open(Config { operations: peer.operations() }).expect("fake listener kernel");
         let mut arrived = Queue::with_capacity(peer.operations());
         let mut listener = None;
@@ -27,15 +28,37 @@ impl Listening {
                 peer.completions().push(complete);
             }
             let stamp = clock.now();
-            assert!(stamp.now < deadline, "fake listener did not bind within its deadline");
             peer.iterate(stamp.now, stamp.wall);
-            if peer.address().is_some() {
+            if starved.is_some() && peer.is_empty() {
+                assert_eq!(kernel.in_flight(), 0, "listener cleanup has completed");
+                drop(peer);
+                drop(kernel);
+                starved.take().expect("classified starvation").pass();
+            }
+            if starved.is_none() && peer.address().is_some() {
                 // Accepts remain queued in the peer for the story's kernel. Nothing
                 // remains in flight on this startup kernel; the descriptor stays open.
                 assert_eq!(kernel.in_flight(), 0, "binding operations have completed");
                 return Self { peer, listener: listener.expect("listening socket") };
             }
-            kernel.submit(peer.submissions(), Wait::Until(deadline));
+            if starved.is_none() && deadline.passed() {
+                match deadline.expired() {
+                    skein_world::Expired::Starved(verdict) => {
+                        starved = Some(verdict);
+                        peer.shutdown();
+                        continue;
+                    }
+                    skein_world::Expired::Failed(figures) => panic!("fake listener did not bind: {figures}"),
+                }
+            }
+            let wait = if peer.work_pending(stamp.now) {
+                Wait::No
+            } else if starved.is_some() {
+                Wait::Forever
+            } else {
+                Wait::Until(deadline.until())
+            };
+            kernel.submit(peer.submissions(), wait);
         }
     }
 

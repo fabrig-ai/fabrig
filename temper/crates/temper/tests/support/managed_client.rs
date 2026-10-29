@@ -1,13 +1,11 @@
 //! The sitting's fake person uses Ready's real domain, view and HTTP transport.
+use super::patience::Patience;
 use jig_client_protocol_link::Signing;
 use skein_fake_person::{Doing, Find, Next, Step, TreeFace};
 use skein_lib::{Duration, Time};
 use skein_shell::{Clock, Host};
 use skein_ui::Role;
 use skein_world::{Referee, real};
-#[path = "patience.rs"]
-mod patience;
-use patience::Patience;
 use temper_client_domain::{Address, Choice};
 use temper_client_shell_terminal::client::{NativeClient, Settings, Start};
 

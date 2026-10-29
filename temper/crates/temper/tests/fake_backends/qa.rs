@@ -148,7 +148,7 @@ impl Fixture {
             self.scratch.path(),
             vec![ctl::Step::Run(ctl::Call::sign_in()), ctl::Step::Run(ctl::Call::new(&["account", "list", "--json"]))],
             boxed::BOX_DEADLINE,
-            check,
+            |_binary| check(),
         )
     }
 

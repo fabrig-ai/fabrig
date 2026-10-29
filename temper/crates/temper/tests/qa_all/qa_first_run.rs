@@ -94,7 +94,7 @@ fn qa_dormant_owned_forge_holds_its_port_before_any_setup() {
         scratch.path(),
         vec![Step::Run(Call::sign_in()), Step::Run(Call::new(&["forge", "list", "--json"]))],
         boxed::BOX_DEADLINE,
-        || {
+        |_binary| {
             let address = forge_address(&dirs[0]);
             let reservation = std::net::TcpListener::bind(address).err().map(|error| error.kind());
             (address, reservation, descendants_with(&["forge", "run"]))
