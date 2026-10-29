@@ -750,13 +750,13 @@ fn documents_clamp_oversized_windows_and_reject_invalid_bounds() {
     assert_eq!(tree.rows.get(0).unwrap().chip.number, 3);
     assert_eq!(tree.rows.get(1).unwrap().chip.number, 4);
     assert_eq!(tree.next, None);
-    assert!(document_worst_case(&limits.documents).is_some());
+    assert!(document_bound(&limits.documents).is_some());
     limits.documents.lines = 0;
-    assert_eq!(document_worst_case(&limits.documents), None);
+    assert_eq!(document_bound(&limits.documents), None);
     assert_eq!(make(&core, &limits, 1, &subject, &window(), Wall::EPOCH), Err(Missing::TooLarge));
     limits.documents.lines = u32::MAX;
     limits.documents.chips = u32::MAX;
-    assert_eq!(document_worst_case(&limits.documents), None);
+    assert_eq!(document_bound(&limits.documents), None);
 }
 
 fn tree_core() -> (Core, Limits) {
@@ -973,7 +973,7 @@ fn documents_part_keys_are_preserved_or_refused_whole() {
     };
     assert_eq!(task.authority.grants.get(0).unwrap().segments.get(0).unwrap().as_ref(), b"whole");
     assert_eq!(task.authority.grants.get(0).unwrap().last, PatternEnd::Exact(b"end".as_slice().into()));
-    assert!(document_worst_case(&limits.documents).is_some());
+    assert!(document_bound(&limits.documents).is_some());
     assert!(valid(&limits));
 }
 

@@ -1,5 +1,5 @@
 //! Independent allocator accounting of the whole recursive selection payload.
-use jig_domain_core::documents::{Cursor, InboxObject, InboxSelection, inbox_selection_worst_case};
+use jig_domain_core::documents::{Cursor, InboxObject, InboxSelection, inbox_selection_bound};
 use skein_lib::List;
 use skein_world::domain::heap::Meter;
 
@@ -10,7 +10,7 @@ const INBOX_SELECTION_PEAK_HEAP_CEILING: u64 = 1_500;
 fn inbox_selection_allocations_fit_the_whole_recursive_bound_including_empty_reserved_roots() {
     let rows = 7;
     let depth = 9;
-    let bound = inbox_selection_worst_case(rows, depth).expect("small recursive context bound");
+    let bound = inbox_selection_bound(rows, depth).expect("small recursive context bound");
     let meter = Meter::new();
     meter.start();
     let mut contexts = List::with_capacity(rows);

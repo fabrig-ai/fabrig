@@ -79,7 +79,7 @@ fn frame_deployment_role_preserves_every_builtin_and_admitted_policy_and_full_wi
         for project in &value.projects {
             held += List::<Template>::price(project.templates.capacity()).unwrap();
         }
-        assert!(document_with_context_worst_case(&limits).unwrap() >= held);
+        assert!(document_with_context_bound(&limits).unwrap() >= held);
         let Ok(Document::Deployment(_)) = make(&core, &limits, 1, &Subject::Deployment, &window(), Wall::EPOCH) else {
             panic!("deployment document admitted");
         };

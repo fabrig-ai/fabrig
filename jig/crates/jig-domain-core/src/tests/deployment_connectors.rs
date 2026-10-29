@@ -112,7 +112,7 @@ fn deployment_supplied_empty_connector_registry_is_complete_and_reserves_whole_d
         + List::<tasks::CapacityRefusal>::price(value.task_room_refusals.capacity()).unwrap()
         + List::<u16>::price(value.connectors.capacity()).unwrap();
     assert!(List::<u16>::price(value.connectors.capacity()).unwrap() > 0);
-    assert!(document_worst_case(&limits.documents).unwrap() >= allocated);
+    assert!(document_bound(&limits.documents).unwrap() >= allocated);
 }
 
 #[test]

@@ -211,7 +211,7 @@ pub(super) fn observe(
     Ok(())
 }
 
-pub(super) fn heap_worst_case(limits: &super::DocumentLimits) -> Option<u64> {
+pub(super) fn heap_bound(limits: &super::DocumentLimits) -> Option<u64> {
     let text = u64::from(limits.text_bytes);
     let lines = u64::from(limits.lines);
     let path = List::<Box<[u8]>>::price(limits.lines)?.checked_add(lines.checked_mul(text)?)?;

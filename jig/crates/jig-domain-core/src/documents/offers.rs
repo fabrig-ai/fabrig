@@ -65,7 +65,7 @@ fn list(
             .push(Offered { effect: effect(core, limits, *act, subject), act: *act, admission })
             .expect("one offer per listed act");
     }
-    if heap_bytes(&result).ok_or(Missing::TooLarge)? > heap_worst_case(&limits.documents).ok_or(Missing::TooLarge)? {
+    if heap_bytes(&result).ok_or(Missing::TooLarge)? > heap_bound(&limits.documents).ok_or(Missing::TooLarge)? {
         return Err(Missing::TooLarge);
     }
     Ok(result)
@@ -243,10 +243,10 @@ pub(super) fn note(core: &Core, party: u64, project: u32, scope: &people::NoteSc
     result
 }
 
-pub(super) fn heap_worst_case(limits: &DocumentLimits) -> Option<u64> {
-    let authority = super::task_tree::authority_worst_case(limits)?;
+pub(super) fn heap_bound(limits: &DocumentLimits) -> Option<u64> {
+    let authority = super::task_tree::authority_bound(limits)?;
     let grants = List::<super::GrantLine>::price(limits.grants)?
-        .checked_add(u64::from(limits.grants).checked_mul(super::task_tree::grant_worst_case(limits)?)?)?;
+        .checked_add(u64::from(limits.grants).checked_mul(super::task_tree::grant_bound(limits)?)?)?;
     let amended = authority
         .checked_add(u64::try_from(size_of::<super::AuthorityLine>()).ok()?)?
         .checked_mul(2)?
