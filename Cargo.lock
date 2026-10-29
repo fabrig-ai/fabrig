@@ -727,6 +727,7 @@ dependencies = [
  "skein-codegen",
  "skein-lib",
  "skein-scratch",
+ "skein-world",
 ]
 
 [[package]]
