@@ -13,7 +13,7 @@ const NODE_MIN: u64 = 5;
 /// bytes, aligned to `align`, takes: a node for every `NODE_MIN` entries and
 /// one for the root, each priced as an internal node, the larger kind. `None`
 /// past a `u64`.
-pub(crate) fn worst_case(entries: u32, key: usize, value: usize, align: usize) -> Option<u64> {
+pub(crate) fn price(entries: u32, key: usize, value: usize, align: usize) -> Option<u64> {
     let word = size_of::<usize>();
     let align = align.max(word);
     // A leaf node: its parent link, its index in the parent and its length,

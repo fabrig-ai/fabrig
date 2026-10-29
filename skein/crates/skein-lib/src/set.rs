@@ -14,7 +14,7 @@ use crate::btree;
 ///
 /// Inserting a new key into a full set hands it back; inserting one already
 /// present always works. Like a [`Map`](crate::Map), it allocates tree nodes
-/// as it fills, and [`Set::worst_case`] counts them.
+/// as it fills, and [`Set::price`] counts them.
 #[derive(Debug)]
 pub struct Set<K> {
     keys: BTreeSet<K>,
@@ -30,9 +30,16 @@ impl<K: Ord> Set<K> {
     /// The most heap a set of `capacity` keys takes, its tree nodes included,
     /// or `None` past a `u64`. What the keys own is the owner's to count.
     #[must_use]
-    pub fn worst_case(capacity: u32) -> Option<u64> {
+    pub fn price(capacity: u32) -> Option<u64> {
         // A set is a map whose values take no room.
-        btree::worst_case(capacity, size_of::<K>(), 0, align_of::<K>())
+        btree::price(capacity, size_of::<K>(), 0, align_of::<K>())
+    }
+
+    /// The old name of [`Self::price`]; it goes once
+    /// every tree calls `price` (wave 3).
+    #[must_use]
+    pub fn worst_case(capacity: u32) -> Option<u64> {
+        Self::price(capacity)
     }
 
     #[must_use]

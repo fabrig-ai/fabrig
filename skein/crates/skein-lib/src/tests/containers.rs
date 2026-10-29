@@ -3,8 +3,8 @@
 
 use alloc::boxed::Box;
 
-use crate::btree::worst_case;
-use crate::{List, Map, Queue, Set, Stack};
+use crate::btree::price;
+use crate::{Buffer, Intake, List, Map, Queue, Set, Stack};
 
 #[test]
 fn a_list_refuses_past_its_capacity() {
@@ -200,15 +200,103 @@ fn the_top_changes_in_place() {
 fn a_zero_capacity_stack_refuses_everything() {
     let mut stack = Stack::with_capacity(0);
     assert_eq!(stack.push(()), Err(()));
-    assert_eq!(Stack::<u64>::worst_case(4), Some(32));
-    assert_eq!(Stack::<u64>::worst_case(u32::MAX), Some(8 * u64::from(u32::MAX)));
+    assert_eq!(Stack::<u64>::price(4), Some(32));
+    assert_eq!(Stack::<u64>::price(u32::MAX), Some(8 * u64::from(u32::MAX)));
 }
 
 #[test]
 fn the_price_grows_with_the_entries_and_their_size() {
-    let empty = worst_case(0, 8, 8, 8).expect("fits");
+    let empty = price(0, 8, 8, 8).expect("fits");
     assert!(empty > 0, "the root is priced even before it is allocated");
-    assert!(worst_case(5, 8, 8, 8).expect("fits") > empty);
-    assert!(worst_case(5, 8, 16, 8).expect("fits") > worst_case(5, 8, 8, 8).expect("fits"));
-    assert_eq!(worst_case(u32::MAX, usize::MAX, 0, 8), None);
+    assert!(price(5, 8, 8, 8).expect("fits") > empty);
+    assert!(price(5, 8, 16, 8).expect("fits") > price(5, 8, 8, 8).expect("fits"));
+    assert_eq!(price(u32::MAX, usize::MAX, 0, 8), None);
+}
+
+// The migration's sample capacities, including an empty container.
+const PRICE_CAPACITIES: [u32; 4] = [0, 1, 7, 300];
+
+// Twice 2^32 bytes times u32::MAX exceeds u64::MAX, without allocating an item.
+// Such a type is representable only on a 64-bit target.
+#[cfg(target_pointer_width = "64")]
+type OversizedItem = [u8; 8_589_934_592];
+
+#[test]
+fn list_price_preserves_the_old_formula() {
+    for capacity in PRICE_CAPACITIES {
+        assert_eq!(List::<u64>::price(capacity), List::<u64>::worst_case(capacity));
+    }
+    #[cfg(target_pointer_width = "64")]
+    {
+        assert_eq!(List::<OversizedItem>::price(u32::MAX), None);
+        assert_eq!(List::<OversizedItem>::price(u32::MAX), List::<OversizedItem>::worst_case(u32::MAX));
+    }
+}
+
+#[test]
+fn queue_price_preserves_the_old_formula() {
+    for capacity in PRICE_CAPACITIES {
+        assert_eq!(Queue::<u64>::price(capacity), Queue::<u64>::worst_case(capacity));
+    }
+    #[cfg(target_pointer_width = "64")]
+    {
+        assert_eq!(Queue::<OversizedItem>::price(u32::MAX), None);
+        assert_eq!(Queue::<OversizedItem>::price(u32::MAX), Queue::<OversizedItem>::worst_case(u32::MAX));
+    }
+}
+
+#[test]
+fn intake_price_preserves_the_old_formula() {
+    for capacity in PRICE_CAPACITIES {
+        assert_eq!(Intake::price(capacity), Intake::worst_case(capacity));
+    }
+    // A byte buffer's u32 capacity cannot overflow its u64 price.
+    assert_eq!(Intake::price(u32::MAX), Some(u64::from(u32::MAX)));
+    assert_eq!(Intake::price(u32::MAX), Intake::worst_case(u32::MAX));
+}
+
+#[test]
+fn map_price_preserves_the_old_formula() {
+    for capacity in PRICE_CAPACITIES {
+        assert_eq!(Map::<u64, u64>::price(capacity), Map::<u64, u64>::worst_case(capacity));
+    }
+    #[cfg(target_pointer_width = "64")]
+    {
+        assert_eq!(Map::<u8, OversizedItem>::price(u32::MAX), None);
+        assert_eq!(Map::<u8, OversizedItem>::price(u32::MAX), Map::<u8, OversizedItem>::worst_case(u32::MAX));
+    }
+}
+
+#[test]
+fn set_price_preserves_the_old_formula() {
+    for capacity in PRICE_CAPACITIES {
+        assert_eq!(Set::<u64>::price(capacity), Set::<u64>::worst_case(capacity));
+    }
+    #[cfg(target_pointer_width = "64")]
+    {
+        assert_eq!(Set::<OversizedItem>::price(u32::MAX), None);
+        assert_eq!(Set::<OversizedItem>::price(u32::MAX), Set::<OversizedItem>::worst_case(u32::MAX));
+    }
+}
+
+#[test]
+fn stack_price_preserves_the_old_formula() {
+    for capacity in PRICE_CAPACITIES {
+        assert_eq!(Stack::<u64>::price(capacity), Stack::<u64>::worst_case(capacity));
+    }
+    #[cfg(target_pointer_width = "64")]
+    {
+        assert_eq!(Stack::<OversizedItem>::price(u32::MAX), None);
+        assert_eq!(Stack::<OversizedItem>::price(u32::MAX), Stack::<OversizedItem>::worst_case(u32::MAX));
+    }
+}
+
+#[test]
+fn buffer_price_preserves_the_old_formula() {
+    for capacity in PRICE_CAPACITIES {
+        assert_eq!(Buffer::price(capacity), Buffer::worst_case(capacity));
+    }
+    // A byte buffer's u32 capacity cannot overflow its u64 price.
+    assert_eq!(Buffer::price(u32::MAX), Some(u64::from(u32::MAX)));
+    assert_eq!(Buffer::price(u32::MAX), Buffer::worst_case(u32::MAX));
 }
