@@ -90,15 +90,15 @@ pub fn worst_case(l: &Limits) -> Option<u64> {
         return None;
     }
     Slab::<Call>::worst_case(l.pending)?
-        .checked_add(Map::<Token, Id<Call>>::worst_case(l.calls)?)?
-        .checked_add(Queue::<Id<Call>>::worst_case(l.pending)?.checked_mul(4)?)?
+        .checked_add(Map::<Token, Id<Call>>::price(l.calls)?)?
+        .checked_add(Queue::<Id<Call>>::price(l.pending)?.checked_mul(4)?)?
         .checked_add(u64::from(l.pending).checked_mul(u64::from(l.op_bytes))?)?
         .checked_add(Deadlines::<Alarm>::worst_case(
             l.pending.checked_add(l.entries)?.checked_add(l.resources)?.checked_add(l.repositories)?.checked_add(2)?,
         )?)?
         .checked_add(crate::outbox::worst_case(l)?)?
         .checked_add(crate::keep::worst_case(l)?)?
-        .checked_add(Map::<u16, u64>::worst_case(l.repositories)?)?
+        .checked_add(Map::<u16, u64>::price(l.repositories)?)?
         // The configured namespace and writers share one cap;
         // the writer table holds at most one per repository.
         .checked_add(u64::from(l.op_bytes))?
@@ -107,5 +107,5 @@ pub fn worst_case(l: &Limits) -> Option<u64> {
         .checked_add(u64::from(l.pending).checked_mul(u64::from(l.op_bytes).checked_mul(2)?)?)?
         // The final Settled request owns one number per entry.
         .checked_add(u64::from(l.entries).checked_mul(8)?)?
-        .checked_add(Queue::<Fact>::worst_case(l.facts)?)
+        .checked_add(Queue::<Fact>::price(l.facts)?)
 }
