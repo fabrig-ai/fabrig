@@ -16,7 +16,7 @@ pub(super) fn append_people(core: &mut Core, env: &Env<Limits>, event: people::E
     super::view_routes::touch_people_event(core, &env.limits, &event);
     let mut child = Queue::uncapped();
     people::step(&mut core.people, &Env { now: env.now, wall: env.wall, limits: env.limits.people }, event, &mut child);
-    let mut work = Queue::with_capacity(0);
+    let mut work = Queue::uncapped();
     let Requests::Out(mut routed) = tag_people(core, env, child, &mut work);
     assert!(work.is_empty(), "a keyed party terminal does not start a task route");
     for _ in 0..routed.len() {
@@ -447,7 +447,7 @@ fn run_failed(now: Time, turned: fleet::Turned) -> accounts::Event {
 }
 
 fn append_account(core: &mut Core, env: &Env<Limits>, event: accounts::Event, out: &mut Queue<Request>) {
-    let mut work = Queue::with_capacity(0);
+    let mut work = Queue::uncapped();
     let Requests::Out(mut routed) = route_account(core, env, &mut work, event);
     assert!(work.is_empty(), "a run's account turn answers no party");
     for _ in 0..routed.len() {

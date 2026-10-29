@@ -103,7 +103,7 @@ pub(super) fn made_outputs(core: &mut Core, env: &Env<Limits>, mut child: Queue<
 }
 
 fn refused(watcher: Token, why: WatchRefusal) -> Requests {
-    let mut out = Queue::with_capacity(2);
+    let mut out = Queue::uncapped();
     out.push(Request::Now(Box::new(Now::WatchRefused { watcher, why })));
     out.push(Request::Decided);
     Requests::Out(out)
@@ -112,7 +112,7 @@ fn refused(watcher: Token, why: WatchRefusal) -> Requests {
 fn refused_subject(watcher: Token, subject: &Subject, why: WatchRefusal) -> Requests {
     match subject {
         Subject::Application { connector, subject, .. } => {
-            let mut out = Queue::with_capacity(3);
+            let mut out = Queue::uncapped();
             out.push(Request::Ask { connector: *connector, ask: crate::Ask::DropDocument { subject: *subject } });
             out.push(Request::Now(Box::new(Now::WatchRefused { watcher, why })));
             out.push(Request::Decided);
@@ -393,7 +393,7 @@ pub(super) fn marked(core: &mut Core, connector: u16, subjects: List<Token>) -> 
             let _new = core.changed_views.insert(binding.subject).expect("bounded connector marks");
         }
     }
-    let mut out = Queue::with_capacity(1);
+    let mut out = Queue::uncapped();
     out.push(Request::Decided);
     Requests::Out(out)
 }

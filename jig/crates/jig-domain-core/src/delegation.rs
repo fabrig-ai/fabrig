@@ -228,7 +228,7 @@ impl Core {
             &mut findings,
         );
         if checked.answer != authority::Answer::Allow {
-            let mut found = List::with_capacity(authority::max_out(self.authority.limits()).expect("findings bound"));
+            let mut found = List::with_capacity(findings.len());
             for _ in 0..findings.len() {
                 found.push(findings.pop().expect("finding count")).expect("finding bound");
             }

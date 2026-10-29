@@ -190,7 +190,7 @@ fn assert_closed_prepares(tail_bytes: u32, body: &[u8], expected_tail: &[u8]) {
     let refusals = core.tasks.task(1).unwrap().refusals;
     core.current.test_charter_mut(1).policy.resume = true;
     run_choice::host(&mut core, &limits, Token::new(7), &[b"scripted"]);
-    let mut accounts_out = Queue::with_capacity(accounts::max_out(&limits.accounts));
+    let mut accounts_out = Queue::uncapped();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.accounts };
     accounts::step(&mut core.accounts, &env, accounts::Event::Want, &mut accounts_out);
     while accounts_out.pop().is_some() {}

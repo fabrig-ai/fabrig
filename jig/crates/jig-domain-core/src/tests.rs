@@ -466,7 +466,7 @@ pub(crate) fn config(seed: u64) -> Config {
 }
 
 fn restore_key_account(core: &mut Core, limits: &Limits, number: u32, source: u32, provider: u32) {
-    let mut out = Queue::with_capacity(accounts::max_out(&limits.accounts));
+    let mut out = Queue::uncapped();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.accounts };
     for record in [
         accounts::Stored::Account {
@@ -510,7 +510,7 @@ pub(crate) fn core() -> (Core, Limits) {
     let mut core = seeded_core(config(41), &limits).expect("fixture core configuration");
     core.counters.deployment.projects = 1;
     restore_key_account(&mut core, &limits, 0, 1, 1);
-    let mut out = Queue::with_capacity(people::max_out(&limits.people));
+    let mut out = Queue::uncapped();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people };
     people::step(
         &mut core.people,
@@ -547,7 +547,7 @@ pub(crate) fn make_task(core: &mut Core, limits: &Limits, number: u64) {
 }
 fn make_task_ended_by(core: &mut Core, limits: &Limits, number: u64, ended_by: tasks::EndedBy) {
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.tasks };
-    let mut out = Queue::with_capacity(limits.routes);
+    let mut out = Queue::uncapped();
     tasks::step(&mut core.tasks, &env, tasks::Event::Check, &mut out);
     tasks::step(&mut core.tasks, &env, tasks::Event::Restored, &mut out);
     while out.pop().is_some() {}
@@ -666,7 +666,7 @@ fn documents_chip_cuts_the_title_and_keeps_its_phase_facts() {
 fn documents_refuse_a_party_without_a_project_role() {
     let (mut core, limits) = core();
     make_task(&mut core, &limits, 1);
-    let mut out = Queue::with_capacity(people::max_out(&limits.people));
+    let mut out = Queue::uncapped();
     people::step(
         &mut core.people,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people },
@@ -792,7 +792,7 @@ fn tree_core() -> (Core, Limits) {
 }
 
 fn send_task(core: &mut Core, limits: &Limits, event: tasks::Event) {
-    let mut out = Queue::with_capacity(limits.routes);
+    let mut out = Queue::uncapped();
     tasks::step(&mut core.tasks, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.tasks }, event, &mut out);
     while let Some(request) = out.pop() {
         if let tasks::Request::Save { record: tasks::Stored::Activity(line) } = &request {
@@ -800,7 +800,7 @@ fn send_task(core: &mut Core, limits: &Limits, event: tasks::Event) {
         }
         if let tasks::Request::Save { record: tasks::Stored::Live(row) } = request {
             core.prune_questions(row.number);
-            let mut projections = Queue::with_capacity(limits.routes);
+            let mut projections = Queue::uncapped();
             projections::save(core, limits, &row, &mut projections);
         }
     }
@@ -1643,7 +1643,7 @@ fn documents_project_exposes_two_roles_members_pool_and_resource_parts() {
     let first_identity = core.people.identity(1).unwrap().clone();
     core.people = people::Domain::new(&limits.people, Box::new([]), core.settings.deployment_provider, Box::new([]));
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people };
-    let mut restored = Queue::with_capacity(people::max_out(&limits.people));
+    let mut restored = Queue::uncapped();
     for record in [
         people::Stored::Person { number: 1, identity: first_identity },
         people::Stored::Person {
@@ -1749,7 +1749,7 @@ fn restore_document_party(core: &mut Core, limits: &Limits, projects: &[u32]) {
     let identity = core.people.identity(1).unwrap().clone();
     core.people = people::Domain::new(&limits.people, Box::new([]), core.settings.deployment_provider, Box::new([]));
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people };
-    let mut out = Queue::with_capacity(people::max_out(&limits.people));
+    let mut out = Queue::uncapped();
     people::step(
         &mut core.people,
         &env,
@@ -1797,7 +1797,7 @@ fn documents_inbox_keeps_two_projects_groups_order_and_exact_cursor() {
         },
     );
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people };
-    let mut out = Queue::with_capacity(people::max_out(&limits.people));
+    let mut out = Queue::uncapped();
     let needs = [
         people::Entry {
             task: 1,
@@ -1898,7 +1898,7 @@ fn documents_deployment_keeps_lost_worker_attempts_and_translates_the_grace_cloc
     assert_eq!(make(&core, &limits, 1, &Subject::Deployment, &window(), Wall::EPOCH), Err(Missing::NotAllowed));
     restore_document_party(&mut core, &limits, &[0]);
     let env = Env { now: Time::from_nanos(100), wall: Wall::from_nanos(1000), limits: limits.fleet };
-    let mut out = Queue::with_capacity(fleet::max_out(&limits.fleet));
+    let mut out = Queue::uncapped();
     fleet::step(
         &mut core.fleet,
         &env,
@@ -1989,7 +1989,7 @@ fn documents_deployment_accounts_are_secret_free_and_show_unusable_state() {
     limits.people.projects = 2;
     restore_document_party(&mut core, &limits, &[0, 1]);
     let env = Env { now: Time::from_nanos(100), wall: Wall::from_nanos(1000), limits: limits.accounts };
-    let mut out = Queue::with_capacity(accounts::max_out(&limits.accounts));
+    let mut out = Queue::uncapped();
     accounts::step(&mut core.accounts, &env, accounts::Event::Want, &mut out);
     while out.pop().is_some() {}
     accounts::step(
@@ -2060,7 +2060,7 @@ fn watch_core() -> (Core, Limits) {
     let identity = core.people.identity(1).unwrap().clone();
     core.people = people::Domain::new(&limits.people, Box::new([]), core.settings.deployment_provider, Box::new([]));
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people };
-    let mut out = Queue::with_capacity(people::max_out(&limits.people));
+    let mut out = Queue::uncapped();
     let records = [
         people::Stored::Person { number: 1, identity },
         people::Stored::SignIn { number: 10, person: 1, expires: Wall::from_nanos(Duration::from_secs(60).as_nanos()) },
@@ -2159,7 +2159,7 @@ fn watch_admission_checks_each_subjects_project_or_owner() {
             | Watched::Application { .. } => {}
         }
         let (mut core, limits) = watch_core();
-        let mut out = Queue::with_capacity(people::max_out(&limits.people));
+        let mut out = Queue::uncapped();
         for project in [0, 1] {
             people::step(
                 &mut core.people,
@@ -2992,7 +2992,7 @@ fn a_load_completion_rechecks_current_project_visibility() {
     else {
         panic!()
     };
-    let mut out = Queue::with_capacity(people::max_out(&limits.people));
+    let mut out = Queue::uncapped();
     people::step(
         &mut core.people,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people },
@@ -3054,7 +3054,7 @@ fn invisible_and_absent_reads_have_the_same_unknown_answer() {
         assert_eq!(answer, reads::Answer::None(why));
     }
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people };
-    let mut out = Queue::with_capacity(people::max_out(&limits.people));
+    let mut out = Queue::uncapped();
     people::step(
         &mut core.people,
         &env,
@@ -3099,7 +3099,7 @@ fn deployment_capacity_carries_keyed_refusal_identity_time_and_bounded_omissions
     restore_document_party(&mut core, &limits, &[0, 1]);
     let identity = core.people.identity(1).unwrap().clone();
     let mut env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people };
-    let mut out = Queue::with_capacity(people::max_out(&limits.people));
+    let mut out = Queue::uncapped();
     people::step(
         &mut core.people,
         &env,
@@ -3626,7 +3626,7 @@ fn finishing_inspects_membership_role_and_query_visibility_without_clocks() {
                 core.view_subjects.get_mut(&watcher).unwrap().party = 2;
             }
             2 | 3 => {
-                let mut ignored = Queue::with_capacity(people::max_out(&limits.people));
+                let mut ignored = Queue::uncapped();
                 people::step(
                     &mut core.people,
                     &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people },

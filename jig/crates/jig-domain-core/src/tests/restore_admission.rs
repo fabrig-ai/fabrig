@@ -339,7 +339,7 @@ fn an_ended_chat_handed_twice_to_the_census_changes_nothing() {
 
 fn restore_census_people(core: &mut Core, env: &Env<Limits>) {
     let people_env = Env { now: env.now, wall: env.wall, limits: env.limits.people };
-    let mut out = Queue::with_capacity(people::max_out(&env.limits.people));
+    let mut out = Queue::uncapped();
     for party in [1, 7] {
         let mut who = identity();
         who.key.subject = Box::new([u8::try_from(party).expect("fixture party")]);
@@ -444,7 +444,7 @@ fn the_census_restores_unread_ended_replies_beside_the_result() {
     );
 
     // Authenticate the existing restored party through the people interface.
-    let mut out = Queue::with_capacity(people::max_out(&env.limits.people));
+    let mut out = Queue::uncapped();
     let identity = core.people.identity(PARTY).unwrap().clone();
     people::step(
         &mut core.people,

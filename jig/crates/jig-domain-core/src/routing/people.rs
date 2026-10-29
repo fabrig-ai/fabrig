@@ -94,7 +94,7 @@ pub(super) fn sign_in(
     identity: people::Identity,
     held: Option<u64>,
 ) -> Requests {
-    let mut out = Queue::with_capacity(2);
+    let mut out = Queue::uncapped();
     if !core.people.ready() {
         out.push(Request::Held(Box::new(Held::PeopleReply {
             to: reply_to,

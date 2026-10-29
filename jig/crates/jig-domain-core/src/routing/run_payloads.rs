@@ -19,7 +19,7 @@ pub(super) fn route_answer_payload(
     refused: &[u64],
 ) -> Requests {
     if !core.current_proof(run.raw(), attempt.raw()) {
-        let mut out = Queue::with_capacity(2);
+        let mut out = Queue::uncapped();
         out.push(Request::Now(Box::new(crate::Now::DropPayload { payload })));
         out.push(Request::Decided);
         return Requests::Out(out);
@@ -83,7 +83,7 @@ pub(super) fn route_answer_payload(
         end,
         saved,
     }));
-    let mut out = Queue::with_capacity(1);
+    let mut out = Queue::uncapped();
     out.push(Request::Decided);
     Requests::Out(out)
 }
@@ -108,7 +108,7 @@ pub(super) fn route_turn_payload(
         None => None,
     };
     if read < last_read || read > last_read && !proof.outstanding.contains(&read.expect("new read is present")) {
-        let mut out = Queue::with_capacity(2);
+        let mut out = Queue::uncapped();
         out.push(Request::Now(Box::new(crate::Now::RefusedPayload {
             request: body,
             problem: tasks::Problem {
@@ -134,7 +134,7 @@ pub(super) fn route_turn_payload(
         outstanding: proof.outstanding.clone(),
         cumulative,
     }));
-    let mut out = Queue::with_capacity(1);
+    let mut out = Queue::uncapped();
     out.push(Request::Decided);
     Requests::Out(out)
 }

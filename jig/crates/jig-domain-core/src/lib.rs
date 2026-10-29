@@ -522,12 +522,13 @@ impl Core {
     /// application erases these keys in the same decision and drops any
     /// connector-owned answer for them.
     pub fn retire_calls(&mut self, task: u64, attempt: u64, turn: u32, room: u32) -> Box<[CallKey]> {
-        let mut retired = List::with_capacity(room);
+        let mut retired = List::with_capacity(self.call_parts.len());
         for (&key, _) in &self.call_parts {
             if key.task == task && (key.attempt < attempt || (key.attempt == attempt && key.completion < turn)) {
                 retired.push(key).expect("all retained call names fit their configured bound");
             }
         }
+        assert!(retired.len() <= room, "retired calls fit their configured bound");
         for &key in &retired {
             self.call_settled.remove(&key);
             match self.call_parts.remove(&key) {
@@ -736,8 +737,8 @@ impl Core {
             restoring_proofs: Map::with_capacity(limits.tasks.tasks),
             unreported_restored: Map::with_capacity(limits.tasks.tasks),
             claiming: Map::with_capacity(limits.tasks.tasks),
-            due: Queue::with_capacity(limits.tasks.tasks),
-            adopted: Queue::with_capacity(limits.tasks.tasks.checked_mul(2).expect("adoption room representable")),
+            due: Queue::uncapped(),
+            adopted: Queue::uncapped(),
             tasks: tasks::Domain::new(
                 &settings::task_limits(limits),
                 config.seed,
