@@ -35,8 +35,14 @@ mod delegates;
 #[path = "forge_routes/change_tool.rs"]
 mod change_tool;
 
+#[path = "forge_routes/plain_change.rs"]
+mod plain_change;
+
 #[path = "forge_routes/landing.rs"]
 mod landing;
+#[path = "forge_routes/producer_failure.rs"]
+mod producer_failure;
+
 #[path = "forge_routes/result.rs"]
 mod result;
 

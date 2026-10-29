@@ -299,7 +299,7 @@ fn a_chats_advisor_is_refused_by_name() {
         &mut world,
         &chat,
         true,
-        b"a chat's goal is the work: call goal without advisor, and its goal asks for one",
+        b"to change a repository, call change; a goal is for work they want to agree first or a survey, and its goal asks for an advisor",
     );
 }
 

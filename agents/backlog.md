@@ -49,8 +49,20 @@ what, whose code, the evidence.
 ### 6.2 temper
 
 - **A custom charter's shell writes for a run that cannot deliver.** The rail "modify only with
-  deliver" (agent.md 4.3) does not cover `shell`; the stock gives shell only to charter 2 (change
-  coders). lead/q/temper, g-modify, 10-29.
+  deliver" (agent.md 4.3) does not cover `shell`; no stock charter grants `shell` (charter 2's is
+  false; only test fixtures set it). lead/q/temper, g-modify, 10-29.
+- **A custom Open change assignment checks and delivers with no deliver grant.** A requester-ended
+  (Open) assignment keeps `outcome.change` without `deliver`, and smith still runs its check and
+  delivery path at finish (`charter.rs`, `run.rs` `Declared::Change`, `land.rs`). Not a stock path.
+  lead/q/temper, g-modify, 10-29.
+- **An old store fails to open with no cause named.** After a pre-release schema change in place
+  (store version unchanged), a kept box's `serve` exits six times with "temper serve: commit 0
+  failed" and names no record or field; a store that cannot open should say why (protocol/store.md
+  4). For upgrades. Rung A walk 12 attempt 3, finding 3 (`a3-kept-serve-masked.txt`).
+- **ctl reads time out at 30 s while changes work.** Ordinary chat/task/change reads exited 1
+  ("did not answer within 30 s") while two changes worked, then recovered; seen on a debug build.
+  Rung A walk 12 attempt 3, finding 4; on the path if it recurs on main (github-pilot t33 is its
+  likely cause: two watches filling Small's streams).
 - **ctl names a not-yet-made task "unknown".** `task show N` before task N exists exits 2
   `{"error":"unknown"}`, not "no task N yet" (jig `documents/small.rs:24` Missing::Unknown to
   ctl's `jig/render.rs:272`). green's fixture investigation, 10-29.

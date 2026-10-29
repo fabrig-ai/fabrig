@@ -202,6 +202,44 @@ fn a_charters_mode_is_its_tasks_ending() {
 }
 
 #[test]
+fn a_report_run_cannot_modify_even_when_policy_allows_it() {
+    let mut assignment = assignment();
+    assignment.run.policy.modify = true;
+    let charter = crate::charter(&assignment);
+    assert_eq!(charter.mode, run::Mode::Finite);
+    assert!(charter.grants.deliver.is_none());
+    assert!(!charter.grants.tools.modify);
+    assert!(charter.grants.tools.inspect);
+}
+
+#[test]
+fn an_open_run_cannot_modify_even_with_a_change_contract() {
+    let mut assignment = assignment();
+    assignment.run.ended_by = tasks::EndedBy::Requester;
+    assignment.run.contract = tasks::Contract::Change { connector: 1, kind: 1, words: 128 };
+    assignment.run.policy.modify = true;
+    assignment.run.policy.shell = true;
+    let charter = crate::charter(&assignment);
+    assert_eq!(charter.mode, run::Mode::Open);
+    assert!(charter.grants.deliver.is_none());
+    assert!(!charter.grants.tools.modify);
+    assert!(charter.grants.tools.shell);
+}
+
+#[test]
+fn a_finite_change_run_keeps_its_modify_policy() {
+    for modify in [false, true] {
+        let mut assignment = assignment();
+        assignment.run.contract = tasks::Contract::Change { connector: 1, kind: 1, words: 128 };
+        assignment.run.policy.modify = modify;
+        let charter = crate::charter(&assignment);
+        assert_eq!(charter.mode, run::Mode::Finite);
+        assert!(charter.grants.deliver.is_some());
+        assert_eq!(charter.grants.tools.modify, modify);
+    }
+}
+
+#[test]
 fn a_starting_run_hears_its_met_dependency_by_name() {
     // A run resumed by its last dependency's end hears the Met notice that woke it (jig's
     // domain/tasks.md, section 8.1), as a live run does.
