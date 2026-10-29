@@ -1479,6 +1479,12 @@ pub(crate) mod pressure {
         }
         (queued, orders)
     }
+    /// More admitted policy inputs than a single step's lifecycle burst.
+    pub fn terminate_load(service: &mut Service) {
+        for _ in 0..64 {
+            service.events.push(Event::Shutdown { signal: skein_io::kernel::ServiceSignal::Terminate, from: None });
+        }
+    }
     pub fn fact_waits(service: &Service, fact: Fact, wall: Wall) -> bool {
         service.orders.iter().next() == Some(&Order::Terminal { fact })
             && service.order_walls.iter().next() == Some(&wall)
