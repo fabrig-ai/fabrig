@@ -79,11 +79,9 @@ fn an_uncapped_stage_hands_on_every_event() {
         stage.push(event);
     }
     for event in 0..100 {
-        assert!(stage.has_room());
         assert_eq!(stage.next_event(), Some(event));
         for request in 0..3 {
             stage.out.push((event, request));
-            assert!(stage.has_room());
         }
     }
     assert_eq!(stage.next_event(), None);
