@@ -85,10 +85,12 @@ def create_claim(path, owner, what, now, lent_by=None):
     print(f"{path.name} claimed by {owner}: {what}")
 
 
-def release_claim(path, owner):
+def release_claim(path, owner, what=None):
     record = read_record(path)
     if record["owner"] != owner:
         raise RuntimeError(f"{path.name} held by {holder(record)}; release requires that owner")
+    if what is not None and record["what"] != what:
+        raise RuntimeError(f"{path.name} held by {holder(record)}; release requires matching WHAT {what!r}")
     path.unlink()
     print(f"{path.name} released by {owner}")
 
@@ -142,6 +144,8 @@ def main():
         if name == "claim":
             sub.add_argument("what", type=text)
             sub.add_argument("--lent-by", type=text)
+        else:
+            sub.add_argument("--what", type=text, help="release only when the recorded work matches exactly")
     subparsers.add_parser("list").add_argument("--free", metavar="OWNER", type=text)
     args = parser.parse_args()
     try:
@@ -167,7 +171,7 @@ def main():
                 if args.action == "claim":
                     create_claim(path, args.owner, args.what, now, args.lent_by)
                 else:
-                    release_claim(path, args.owner)
+                    release_claim(path, args.owner, args.what)
         return 0
     except (OSError, ValueError, RuntimeError) as error:
         print(f"claim: {error}", file=sys.stderr)
