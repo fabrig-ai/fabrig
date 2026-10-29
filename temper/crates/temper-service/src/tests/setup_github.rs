@@ -317,6 +317,60 @@ fn paste_replay_and_refused_replacement_keep_the_connection_and_write_counts() {
     }
 }
 
+fn accepted_token() -> crate::Service {
+    let mut service = app_service();
+    let link = install(&mut service, 1);
+    accept_link(&mut service, &link);
+    let engine = service.engine.as_mut().unwrap();
+    engine.forge.above.push(connection::Event::GitToken {
+        forge: FORGE,
+        installation: INSTALLATION,
+        account: connection::Account { id: 122, login: b"account-fixture".as_slice().into() },
+        token: Secret::new(b"artificial-installation-token".as_slice().into()),
+        expires: Wall::from_nanos(3_600_000_000_000),
+    });
+    engine.forge.above.push(connection::Event::Connected { forge: FORGE });
+    crate::engine::forge_pass(engine);
+    let _settled = pump(&mut service);
+    service
+}
+
+#[test]
+fn suspension_withdraws_the_accepted_installations_git_access() {
+    let mut service = accepted_token();
+    installation(&mut service, INSTALLATION, Change::Suspended);
+    let _settled = pump(&mut service);
+    let engine = service.engine.as_ref().unwrap();
+    assert_eq!(crate::forge::tokens::account(&engine.values.tokens, FORGE, b"account-fixture"), None);
+    let rows = engine.domain.forges().rows;
+    assert!(rows[0].installations[0].1.suspended);
+    assert!(!rows[0].installations[0].1.stray);
+    for json in [false, true] {
+        let printed = render_tests::status(&service, json);
+        assert_eq!(printed.status, 0);
+        assert!(contains(&printed.stdout, b"suspended"));
+    }
+}
+
+#[test]
+fn key_revocation_is_shown_in_human_and_json_status() {
+    let mut service = accepted_token();
+    let engine = service.engine.as_mut().unwrap();
+    engine.forge.above.push(connection::Event::Stopped { forge: FORGE, why: connection::Stopped::KeyRefused });
+    crate::engine::forge_pass(engine);
+    let _settled = pump(&mut service);
+    let engine = service.engine.as_ref().unwrap();
+    assert_eq!(
+        engine.domain.forge_connection(FORGE),
+        domain::Connection::Stopped { reason: b"KeyRefused".as_slice().into() }
+    );
+    for json in [false, true] {
+        let printed = render_tests::status(&service, json);
+        assert_eq!(printed.status, 0);
+        assert!(contains(&printed.stdout, b"KeyRefused"));
+    }
+}
+
 fn adopt_request(owner: &[u8]) -> w::Request {
     w::Request::Adopt(
         w::Adopt::new(
