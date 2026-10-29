@@ -8,10 +8,9 @@ use skein_codec::{
 };
 use smith_transcript_patches::patches as fixture;
 
-#[path = "support/patches.rs"]
-mod patches;
+use crate::support::patches;
 
-const TRANSCRIPT: &str = include_str!("../../../crates/smith-transcript/schema/transcript-v6.schema");
+const TRANSCRIPT: &str = include_str!("../../../../crates/smith-transcript/schema/transcript-v6.schema");
 
 #[test]
 fn each_version_one_golden_patches_to_its_version_two_golden() {

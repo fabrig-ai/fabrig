@@ -4,8 +4,7 @@ use skein_codec::{patch::Halt, schema, value::Value};
 use skein_lib::Rng;
 use smith_transcript_patches::patches as fixture;
 
-#[path = "support/patches.rs"]
-mod patches;
+use crate::support::patches;
 
 /// A reproducible normal-gate draw, separate from the explicit seed sweep.
 const SEED: u64 = 0x51_17_70_01;

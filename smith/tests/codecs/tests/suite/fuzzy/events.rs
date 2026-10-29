@@ -1,7 +1,6 @@
 //! Mutated and truncated event lines never panic, for deterministic seeds.
 
-#[path = "support/events.rs"]
-mod fixtures;
+use crate::support::events as fixtures;
 
 use skein_lib::Rng;
 use smith_events::{Limits, read, write};

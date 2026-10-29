@@ -59,13 +59,13 @@ fn message_refusal_goldens_keep_each_typed_reason() {
 fn channel_start_goldens_seal_the_optional_fixed_sixteen_byte_identity() {
     let absent = Start::decode(
         &CEILINGS,
-        &mut Reader::new(include_bytes!("../../../crates/smith-channel/golden/v5/record_start_smallest.bin")),
+        &mut Reader::new(include_bytes!("../../../../crates/smith-channel/golden/v5/record_start_smallest.bin")),
     )
     .expect("absent identity golden");
     assert_eq!(absent.identity(), &None);
     let present = Start::decode(
         &CEILINGS,
-        &mut Reader::new(include_bytes!("../../../crates/smith-channel/golden/v5/record_start_full.bin")),
+        &mut Reader::new(include_bytes!("../../../../crates/smith-channel/golden/v5/record_start_full.bin")),
     )
     .expect("present identity golden");
     assert_eq!(present.identity(), &Some([165; 16]));
@@ -75,13 +75,13 @@ fn channel_start_goldens_seal_the_optional_fixed_sixteen_byte_identity() {
 fn channel_turn_goldens_keep_the_declared_window_flag() {
     let first = smith_channel::Turn::decode(
         &CEILINGS,
-        &mut Reader::new(include_bytes!("../../../crates/smith-channel/golden/v5/record_turn_full.bin")),
+        &mut Reader::new(include_bytes!("../../../../crates/smith-channel/golden/v5/record_turn_full.bin")),
     )
     .expect("window flag golden");
     assert!(first.opens_window());
     let ordinary = smith_channel::Turn::decode(
         &CEILINGS,
-        &mut Reader::new(include_bytes!("../../../crates/smith-channel/golden/v5/record_turn_smallest.bin")),
+        &mut Reader::new(include_bytes!("../../../../crates/smith-channel/golden/v5/record_turn_smallest.bin")),
     )
     .expect("ordinary flag golden");
     assert!(!ordinary.opens_window());

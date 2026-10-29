@@ -46,8 +46,7 @@ fn channel_schema_matches_generated_code_and_all_goldens() {
     }
 }
 
-#[path = "support/events.rs"]
-mod events;
+use crate::support::events;
 
 #[test]
 fn event_records_and_every_listed_value_match_frozen_version_four_goldens() {

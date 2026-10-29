@@ -1,14 +1,11 @@
 //! The largest text payloads admitted by the charter and turn codecs stay
 //! within their generated heap bounds (codec.md, sections 4 and 6).
 
-use skein_heap::{Counting, Meter};
+use skein_heap::Meter;
 use skein_lib::{List, Reader, Writer};
 
 use smith_charter::v4 as charter;
 use smith_transcript::v6 as transcript;
-
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 fn charter_limits() -> charter::Limits {
     charter::Limits {
@@ -193,8 +190,7 @@ fn turn_at_its_largest_text_payload_stays_within_the_configured_heap_bound() {
     assert_eq!(meter.held(), 0, "turn allocations released");
 }
 
-#[path = "support/events_max.rs"]
-mod events;
+use crate::support::events_max as events;
 
 #[test]
 fn every_event_at_its_largest_payload_stays_within_its_encoded_and_heap_bounds() {

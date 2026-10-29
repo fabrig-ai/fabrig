@@ -1,7 +1,6 @@
 //! The event vocabulary round trips exact integers and filters capture as specified.
 
-#[path = "support/events.rs"]
-mod fixtures;
+use crate::support::events as fixtures;
 
 use smith_events::{Capture, Error, Event, Limits, read, write};
 
@@ -304,7 +303,7 @@ fn configured_boundaries_and_unknown_content_kinds_are_checked() {
 
 #[test]
 fn a_reasoning_drop_notice_keeps_its_size_under_every_capture() {
-    let frozen = include_bytes!("../../../crates/smith-events/golden/v4/notice_kind_reasoning_dropped.jsonl");
+    let frozen = include_bytes!("../../../../crates/smith-events/golden/v4/notice_kind_reasoning_dropped.jsonl");
     let record = read(frozen, &limits()).expect("drop notice").expect("known event");
     for capture in [Capture::None, Capture::Calls, Capture::Everything] {
         assert_eq!(write(&record, &capture, &limits()).expect("write").expect("notice").as_ref(), frozen);
@@ -916,7 +915,7 @@ fn check_exit_tags_values_and_unknown_kinds_are_bounded() {
 
 #[test]
 fn failure_metadata_is_typed_and_detail_remains_capture_selected_and_bounded() {
-    let source = include_bytes!("../../../crates/smith-events/golden/v4/failure_phase_head.jsonl");
+    let source = include_bytes!("../../../../crates/smith-events/golden/v4/failure_phase_head.jsonl");
     let record = read(source, &limits()).expect("bounded failure fixture").expect("bounded failure fixture");
     for capture in [Capture::None, Capture::Calls, Capture::Everything] {
         let line =
@@ -975,7 +974,7 @@ fn budget_goldens_keep_the_usage_lines_call_under_every_capture() {
 
 #[test]
 fn a_budget_call_is_bounded_like_a_tool_call() {
-    let frozen = include_bytes!("../../../crates/smith-events/golden/v4/budget_told.jsonl");
+    let frozen = include_bytes!("../../../../crates/smith-events/golden/v4/budget_told.jsonl");
     let mut record = read(frozen, &limits()).expect("bounded budget record").expect("budget event");
     let Event::Budget(value) = &mut record.event else { panic!("budget") };
     value.call = Some(b"provider-child-7".as_slice().into());
@@ -1006,7 +1005,7 @@ fn session_started_chat_round_trips() {
 
 #[test]
 fn a_forced_exit_notice_keeps_the_kits_evidence_under_every_capture() {
-    let frozen = include_bytes!("../../../crates/smith-events/golden/v4/notice_forced_exit.jsonl");
+    let frozen = include_bytes!("../../../../crates/smith-events/golden/v4/notice_forced_exit.jsonl");
     let record = read(frozen, &limits()).expect("forced exit golden").expect("notice");
     let Event::Notice(notice) = &record.event else { panic!("notice") };
     assert_eq!(notice.kind, smith_events::NoticeKind::ForcedExit);

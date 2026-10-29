@@ -28,10 +28,10 @@ fn charter_rejects_an_unsupported_version_before_fields() {
 #[test]
 fn llm_goldens_keep_the_window_and_output_as_separate_quantities() {
     use smith_charter::v4::Llm;
-    let full = include_bytes!("../../../crates/smith-charter/golden/v4/record_llm_full.bin");
+    let full = include_bytes!("../../../../crates/smith-charter/golden/v4/record_llm_full.bin");
     let value = Llm::decode(&CEILINGS, &mut Reader::new(full)).expect("full LLM entry");
     assert_eq!((value.window(), value.output()), (u32::MAX, u32::MAX));
-    let smallest = include_bytes!("../../../crates/smith-charter/golden/v4/record_llm_smallest.bin");
+    let smallest = include_bytes!("../../../../crates/smith-charter/golden/v4/record_llm_smallest.bin");
     let value = Llm::decode(&CEILINGS, &mut Reader::new(smallest)).expect("smallest LLM entry");
     assert_eq!((value.window(), value.output()), (0, 0));
 }
@@ -39,10 +39,10 @@ fn llm_goldens_keep_the_window_and_output_as_separate_quantities() {
 #[test]
 fn prices_goldens_keep_an_optional_separate_cache_write_rate() {
     use smith_charter::v4::Prices;
-    let full = include_bytes!("../../../crates/smith-charter/golden/v4/record_prices_full.bin");
+    let full = include_bytes!("../../../../crates/smith-charter/golden/v4/record_prices_full.bin");
     let decoded = Prices::decode(&CEILINGS, &mut Reader::new(full)).expect("full prices");
     assert_eq!(*decoded.cache_write(), Some(u64::MAX));
-    let smallest = include_bytes!("../../../crates/smith-charter/golden/v4/record_prices_smallest.bin");
+    let smallest = include_bytes!("../../../../crates/smith-charter/golden/v4/record_prices_smallest.bin");
     let decoded = Prices::decode(&CEILINGS, &mut Reader::new(smallest)).expect("smallest prices");
     assert_eq!(*decoded.cache_write(), None, "absent write rate inherits input in the domain");
 }
@@ -50,8 +50,8 @@ fn prices_goldens_keep_an_optional_separate_cache_write_rate() {
 #[test]
 fn llm_goldens_carry_an_account_or_none() {
     for (bytes, expected) in [
-        (include_bytes!("../../../crates/smith-charter/golden/v4/record_llm_smallest.bin").as_slice(), None),
-        (include_bytes!("../../../crates/smith-charter/golden/v4/record_llm_full.bin").as_slice(), Some(u32::MAX)),
+        (include_bytes!("../../../../crates/smith-charter/golden/v4/record_llm_smallest.bin").as_slice(), None),
+        (include_bytes!("../../../../crates/smith-charter/golden/v4/record_llm_full.bin").as_slice(), Some(u32::MAX)),
     ] {
         let value = smith_charter::Llm::decode(&CEILINGS, &mut Reader::new(bytes)).expect("LLM golden");
         assert_eq!(*value.account(), expected);
@@ -72,10 +72,13 @@ fn earlier_charter_and_result_versions_are_refused() {
 fn both_modes_round_trip_in_the_version_four_charter() {
     use skein_lib::Writer;
     use smith_charter::Mode;
-    let smallest = include_bytes!("../../../crates/smith-charter/golden/v4/record_charter_smallest.bin");
+    let smallest = include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin");
     for (bytes, mode) in [
-        (include_bytes!("../../../crates/smith-charter/golden/v4/enum_mode_finite_full.bin").as_slice(), Mode::Finite),
-        (include_bytes!("../../../crates/smith-charter/golden/v4/enum_mode_open_full.bin").as_slice(), Mode::Open),
+        (
+            include_bytes!("../../../../crates/smith-charter/golden/v4/enum_mode_finite_full.bin").as_slice(),
+            Mode::Finite,
+        ),
+        (include_bytes!("../../../../crates/smith-charter/golden/v4/enum_mode_open_full.bin").as_slice(), Mode::Open),
     ] {
         assert_eq!(Mode::decode(&CEILINGS, &mut Reader::new(bytes)).expect("mode golden"), mode);
         let mut writer = Writer::new(usize::try_from(mode.measure()).expect("bounded mode"));
