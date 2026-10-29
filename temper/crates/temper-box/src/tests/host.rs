@@ -893,7 +893,7 @@ fn serve_overflow_is_refused_without_bytes_then_eof_link_and_diagnostic_drain() 
 }
 
 #[test]
-fn output_ack_bypasses_blocked_ordinary_events_without_spinning_or_losing_items() {
+fn output_ack_drains_loaded_orders_without_spinning_or_losing_items() {
     use skein_shell::Host;
     let mut harness = Harness::with_stubborn(&[long(b"serve", &[b"never"])], true);
     harness.hold_terminal_ack = true;
@@ -903,7 +903,7 @@ fn output_ack_bypasses_blocked_ordinary_events_without_spinning_or_losing_items(
     assert!(crate::host::pressure::blocked(&harness.service));
     assert!(!harness.service.work_pending(harness.sim.now()), "full queues without a credit are not runnable work");
     assert!(crate::host::pressure::bounded(&harness.service));
-    harness.release_terminal_ack(); // Its full-budget Room arrives behind both retained ordinary events.
+    harness.release_terminal_ack(); // Its full-budget Room advances the blocked policy orders.
     harness.run_until_idle();
     let output = harness.terminal_bytes();
     assert_eq!(bytes::count(&output, b"queued\n", queued.saturating_add(1)), queued);
@@ -1293,7 +1293,7 @@ fn record_diagnostics_precede_group_failure_notices_under_command_load() {
     let mut harness = Harness::grouped(grouped_steps(), &denied, true);
     harness.run_until_idle();
     let mut commands = List::uncapped();
-    for _ in 0..64 {
+    for _ in 0_u32..64 {
         for byte in b"start 3\n" {
             commands.push(*byte).unwrap();
         }
@@ -1319,4 +1319,44 @@ fn record_diagnostics_precede_group_failure_notices_under_command_load() {
     harness.sim.assert_quiescent(harness.pid);
     harness.sim.assert_no_open_fds(harness.pid);
     assert_eq!(harness.machine.open_handles(), 0);
+}
+
+#[test]
+fn output_ack_bypasses_request_blocked_ordinary_fifo_under_load() {
+    use crate::host::pressure;
+    let mut harness = Harness::with_stubborn(&[long(b"serve", &[b"never"])], true);
+    harness.hold_terminal_ack = true;
+    harness.run_until_idle();
+    pressure::saturate(&mut harness.service);
+    harness.run_until_idle();
+    pressure::ordinary_load(&mut harness.service);
+    harness.release_terminal_ack();
+    for _ in 0_u32..16 {
+        pressure::reserve_requests(&mut harness.service);
+        harness.turn();
+        assert!(pressure::ordinary_load_waits(&harness.service), "ordinary source walls stay in FIFO order");
+    }
+    assert!(Harness::contains(&harness.terminal_bytes(), b"queued\n"), "ACKs bypass the retained ordinary FIFO");
+    harness.run_until_idle();
+    assert!(!pressure::ordinary_load_waits(&harness.service));
+    assert!(pressure::bounded(&harness.service));
+    harness.terminate();
+    assert_eq!(harness.run_to_end(), Exit::Code(0));
+    harness.sim.assert_quiescent(harness.pid);
+    harness.sim.assert_no_open_fds(harness.pid);
+}
+
+#[test]
+fn a_ready_probe_deadline_waits_for_request_credit() {
+    use skein_shell::Host;
+    let mut harness =
+        Harness::with_stubborn(&[long(b"forgejo", &[b"never"]).with_ready(([127, 0, 0, 1], 3000).into())], true);
+    harness.run_until_idle();
+    assert!(harness.service.next_policy_deadline().is_some());
+    crate::host::pressure::reserve_requests(&mut harness.service);
+    assert_eq!(harness.service.next_policy_deadline(), None, "a blocked probe timer cannot keep waking the loop");
+    harness.terminate();
+    assert_eq!(harness.run_to_end(), Exit::Code(0));
+    harness.sim.assert_quiescent(harness.pid);
+    harness.sim.assert_no_open_fds(harness.pid);
 }

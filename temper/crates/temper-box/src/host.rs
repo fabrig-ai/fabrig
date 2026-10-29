@@ -209,12 +209,8 @@ impl Service {
         let stdout = io.adopt_write_pipe(settings.stdout, None).expect("stdout slot");
         let stderr = io.adopt_write_pipe(settings.stderr, None).expect("stderr slot");
         let listeners = adopt_listeners(&mut io, &settings.listeners);
-        let capacity = io::operations(&bounds)
-            .expect("bounded operations")
-            .checked_mul(4)
-            .expect("queue capacity")
-            .max(64)
-            .max(machine.max_out().checked_mul(2).expect("policy queue progress"));
+        let capacity =
+            io::operations(&bounds).expect("bounded operations").checked_mul(4).expect("queue capacity").max(64);
         let entries = count.checked_mul(2).expect("terminal entries").checked_add(1).expect("terminal entries").max(3);
         Ok(Self {
             io,
@@ -247,8 +243,8 @@ impl Service {
             events: Queue::uncapped(),
             told: Queue::uncapped(),
             requests: Queue::with_capacity(capacity),
-            orders: Queue::with_capacity(capacity),
-            order_walls: Queue::with_capacity(capacity),
+            orders: Queue::uncapped(),
+            order_walls: Queue::uncapped(),
         })
     }
     fn progress_event(&self, event: &Event) -> bool {
@@ -268,8 +264,25 @@ impl Service {
             | Event::Window { .. } => false,
         }
     }
+    /// Ordinary events keep FIFO while leaving two request slots for terminal
+    /// acknowledgements to progress past a blocked ordinary front.
+    fn ordinary_events_ready(&self) -> bool {
+        self.requests.room() >= 6
+    }
+    /// A command follows the dispatch of every order from earlier policy inputs.
+    fn orders_drained(&self) -> bool {
+        self.orders.is_empty()
+    }
+    /// The record diagnostic enters the notice FIFO before its policy answer.
+    fn record_notice_admitted(&self) -> bool {
+        !self.records.has_notice()
+    }
+    /// Admitted ordinary events precede policy timers, including due retries.
+    fn policy_timers_ready(&self) -> bool {
+        self.told.is_empty()
+    }
     fn events_runnable(&self) -> bool {
-        if self.requests.room() >= 6 && self.orders.room() >= self.machine.max_out() && !self.told.is_empty() {
+        if self.ordinary_events_ready() && !self.told.is_empty() {
             return true;
         }
         if self.requests.room() >= 2 {
@@ -718,9 +731,6 @@ impl Service {
     }
     fn withdrawn(&mut self) {
         for (step, state) in self.children.iter_mut().enumerate() {
-            if self.orders.room() < self.machine.max_out() {
-                break;
-            }
             if let Some(wall) = state.withdrawn.take() {
                 policy_input_at(
                     &mut self.machine,
@@ -760,7 +770,7 @@ impl Service {
         let failure = self.failure;
         let deferred = !self.deferred.is_empty();
         for step in 0..self.children.len() {
-            if self.requests.room() < 8 || self.orders.room() < self.machine.max_out() {
+            if self.requests.room() < 8 {
                 break;
             }
             self.child_ready(step);
@@ -910,8 +920,7 @@ impl Service {
         {
             self.notice(self.formatter.notice(&notice, self.env.wall));
         }
-        if !self.records.has_notice()
-            && self.orders.room() >= self.machine.max_out()
+        if self.record_notice_admitted()
             && let Some(answer) = self.records.take_answer()
         {
             policy_input_at(
@@ -930,10 +939,9 @@ impl Service {
             return false;
         };
         control.sink.drained()
-            && self.orders.is_empty()
+            && self.orders_drained()
             && self.failure.is_none()
             && self.deferred.is_empty()
-            && self.orders.room() >= self.machine.max_out()
             && (self.terminal.takes(1) || self.terminal.failed())
             && self.phase == Phase::Running
     }
@@ -973,7 +981,6 @@ impl Service {
             && !control.reading
             && control.line.is_none()
             && self.control_ready()
-            && self.orders.room() >= self.machine.max_out()
             && (self.terminal.takes(1) || self.terminal.failed())
             && self.phase == Phase::Running
     }
@@ -1056,9 +1063,9 @@ fn withdraw_queued(orders: &Queue<Order>, step: usize) -> bool {
     }
     false
 }
-// The companion queue has exactly the order queue's capacity. Every policy
-// entry stamps ALL newly emitted orders before another entry or consumption;
-// admission to the order queue therefore reserves its walls as well.
+// Both queues grow together. Each policy entry stamps its newly emitted
+// orders before another entry or consumption; pops and rotations keep the
+// source wall paired with its order.
 fn stamp_orders(orders: &Queue<Order>, walls: &mut Queue<Wall>, wall: Wall) {
     let added = orders.len().checked_sub(walls.len()).expect("paired policy orders");
     for _ in 0..added {
@@ -1193,17 +1200,13 @@ impl skein_shell::Host for Service {
         }
         self.record_work();
         self.log_work();
-        if self.phase == Phase::New
-            && self.logs.ready()
-            && self.records.ready()
-            && self.orders.room() >= self.machine.max_out()
-        {
+        if self.phase == Phase::New && self.logs.ready() && self.records.ready() {
             self.machine.start(now, self.records.recorded(), &mut self.orders);
             stamp_orders(&self.orders, &mut self.order_walls, wall);
             self.phase = Phase::Running;
         }
         // Capture wall time on intake, before an ordinary event can wait behind
-        // policy pressure. Scan once: progress bypasses a blocked ordinary front,
+        // request credit. Scan once: progress bypasses a blocked ordinary front,
         // while all ordinary events keep their relative order.
         for _ in 0..self.events.len() {
             let event = self.events.pop().expect("captured event");
@@ -1215,9 +1218,8 @@ impl skein_shell::Host for Service {
         for _ in 0..self.told.len() {
             let told = self.told.pop().expect("counted event");
             let progress = self.progress_event(&told.event);
-            if self.requests.room() < if progress { 2 } else { 6 }
-                || !progress && (blocked || self.orders.room() < self.machine.max_out())
-            {
+            let admitted = if progress { self.requests.room() >= 2 } else { !blocked && self.ordinary_events_ready() };
+            if !admitted {
                 if !progress {
                     blocked = true;
                 }
@@ -1228,11 +1230,11 @@ impl skein_shell::Host for Service {
             self.event(told.event);
             self.env.wall = wall;
         }
-        if self.terminate_pending && self.orders.room() >= self.machine.max_out() {
+        if self.terminate_pending {
             self.terminate_pending = false;
             self.input(Input::Terminate);
         }
-        if self.told.is_empty() && self.orders.room() >= self.machine.max_out() {
+        if self.policy_timers_ready() {
             self.machine.fire(now, &mut self.orders);
             stamp_orders(&self.orders, &mut self.order_walls, wall);
         }
@@ -1271,7 +1273,7 @@ impl skein_shell::Host for Service {
             || self.events_runnable()
             || !self.requests.is_empty() && self.io.takes() && self.submissions.room() >= io::MAX_OUT_DOWN.submissions
             || !self.orders.is_empty() && self.orders_runnable() && self.requests.room() >= 6
-            || self.terminate_pending && self.orders.room() >= self.machine.max_out()
+            || self.terminate_pending
             || self.io.is_ready() && self.submissions.room() >= io::MAX_OUT_RESUME.submissions
             || self.io.is_due(now) && self.submissions.room() >= io::MAX_OUT_FIRE.submissions
         {
@@ -1306,14 +1308,12 @@ impl skein_shell::Host for Service {
         if self.terminal.pending(self.phase == Phase::Closing) && self.requests.room() >= 2 {
             return true;
         }
-        if self.orders.room() >= self.machine.max_out() {
-            for state in &self.children {
-                if state.withdrawn.is_some() {
-                    return true;
-                }
+        for state in &self.children {
+            if state.withdrawn.is_some() {
+                return true;
             }
         }
-        if self.orders.room() < self.machine.max_out() || self.requests.room() < 8 {
+        if self.requests.room() < 8 {
             return false;
         }
         for (step, state) in self.children.iter().enumerate() {
@@ -1328,8 +1328,7 @@ impl skein_shell::Host for Service {
                 let entries = if plain { self.formatter.block_entries() } else { 1 };
                 let quiet = !plain && self.settings.echo == Echo::None && !self.logs.failed(step);
                 let visible = self.terminal_available(step, plain);
-                if self.orders.room() >= self.machine.max_out()
-                    && self.requests.room() >= 8
+                if self.requests.room() >= 8
                     && (plain || self.logs.takes())
                     && ((pipe.lines.ready()
                         && (quiet || visible && self.terminal.takes(entries) || self.terminal.failed()))
@@ -1369,12 +1368,13 @@ impl skein_shell::Host for Service {
         }
     }
     fn next_policy_deadline(&self) -> Option<Time> {
-        if self.orders.room() < self.machine.max_out() || !self.told.is_empty() {
+        if !self.policy_timers_ready() {
             return None;
         }
         let mut deadline = self.machine.next_deadline();
         for state in &self.children {
-            if let Some(ready) = &state.ready
+            if self.requests.room() >= 8
+                && let Some(ready) = &state.ready
                 && let Some(at) = ready.next_deadline()
             {
                 deadline = Some(deadline.unwrap_or(at).min(at));
@@ -1391,7 +1391,7 @@ impl skein_shell::Host for Service {
             && self.machine.is_idle()
             && self.io.is_empty()
             && self.requests.is_empty()
-            && self.orders.is_empty()
+            && self.orders_drained()
             && self.order_walls.is_empty()
             && self.events.is_empty()
             && self.told.is_empty()
@@ -1455,7 +1455,7 @@ pub(crate) mod pressure {
             pipes_settled: [state.pipes[0].settled(), state.pipes[1].settled()],
             ready_settled: state.ready_settled(),
             stdin_settled: state.stdin.is_none(),
-            room: service.requests.room() >= 8 && service.orders.room() >= service.machine.max_out(),
+            room: service.requests.room() >= 8,
             closing_control: service.closing_control,
             logs_take: service.logs.takes(),
             failure: service.failure.is_some(),
@@ -1468,12 +1468,12 @@ pub(crate) mod pressure {
             service.terminal.push(Item { target: Target::Stderr, bytes: bytes::copy_of(b"queued\n") });
             queued = queued.checked_add(1).unwrap();
         }
-        let orders = service.orders.room();
+        let orders = 64;
         for _ in 0..orders {
             service.orders.push(Order::Terminal { fact: Fact::Stopping });
             service.order_walls.push(service.env.wall);
         }
-        // These ordinary events must stay in this order while ACKs bypass them.
+        // Ordinary intake can drain while the terminal holds policy orders.
         for wall in [Wall::EPOCH, Wall::from_nanos(1)] {
             service.told.push(Told { event: Event::Resized, wall });
         }
@@ -1481,9 +1481,36 @@ pub(crate) mod pressure {
     }
     /// More admitted policy inputs than a single step's lifecycle burst.
     pub fn terminate_load(service: &mut Service) {
-        for _ in 0..64 {
+        for _ in 0_u32..64 {
             service.events.push(Event::Shutdown { signal: skein_io::kernel::ServiceSignal::Terminate, from: None });
         }
+    }
+    /// Valid redundant signals occupy request credit until the down pass.
+    pub fn reserve_requests(service: &mut Service) {
+        let child = service.children.first().expect("live child").process.expect("started child");
+        for _ in 0..service.requests.room().saturating_sub(4) {
+            service.requests.push(skein_io::Request::Signal {
+                child,
+                signal: skein_io::kernel::Signal::Terminate,
+                to: skein_io::kernel::Target::Child,
+            });
+        }
+    }
+    pub fn ordinary_load(service: &mut Service) {
+        for index in 0_u32..64 {
+            service.told.push(Told { event: Event::Resized, wall: Wall::from_nanos(u64::from(index)) });
+        }
+    }
+    pub fn ordinary_load_waits(service: &Service) -> bool {
+        if service.told.len() != 64 {
+            return false;
+        }
+        for (index, told) in service.told.iter().enumerate() {
+            if told.wall != Wall::from_nanos(u64::try_from(index).expect("load index")) {
+                return false;
+            }
+        }
+        true
     }
     pub fn fact_waits(service: &Service, fact: Fact, wall: Wall) -> bool {
         service.orders.iter().next() == Some(&Order::Terminal { fact })
@@ -1493,11 +1520,7 @@ pub(crate) mod pressure {
         service.machine.outcome()
     }
     pub fn blocked(service: &Service) -> bool {
-        service.orders.room() == 0
-            && !service.terminal.takes(1)
-            && service.told.len() == 2
-            && service.told.iter().next().expect("ordinary front").wall == Wall::EPOCH
-            && service.told.iter().nth(1).expect("ordinary second").wall == Wall::from_nanos(1)
+        !service.orders.is_empty() && !service.terminal.takes(1) && service.told.is_empty()
     }
     fn children_bounded(service: &Service) -> bool {
         for child in &service.children {
