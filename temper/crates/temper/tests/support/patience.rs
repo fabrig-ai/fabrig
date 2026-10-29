@@ -53,6 +53,7 @@ impl Patience {
         self.deadline.as_ref().map(Deadline::until)
     }
 
+    #[must_use]
     pub fn deferred(&self) -> bool {
         self.deadline.is_none()
     }
@@ -100,6 +101,7 @@ impl Patience {
 }
 
 /// Socket APIs reject zero and round their waits to the kernel's clock granularity.
+#[must_use]
 pub fn socket_timeout(deadline: &Deadline) -> std::time::Duration {
     std::time::Duration::from_nanos(deadline.remaining().as_nanos()).max(std::time::Duration::from_millis(1))
 }
