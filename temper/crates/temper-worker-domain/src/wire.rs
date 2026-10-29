@@ -85,7 +85,7 @@ pub enum Access {
 
 /// What a run is told of a push.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-#[expect(clippy::large_enum_variant, reason = "bounded diagnostics stay inline and are included in worst_case")]
+#[expect(clippy::large_enum_variant, reason = "diagnostics stay inline with a fixed byte capacity")]
 pub enum Push {
     Conflicted {
         repository: u32,
@@ -105,7 +105,7 @@ pub enum Push {
 
 /// What became of one repository in a push or a save.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-#[expect(clippy::large_enum_variant, reason = "bounded diagnostics stay inline and are included in worst_case")]
+#[expect(clippy::large_enum_variant, reason = "diagnostics stay inline with a fixed byte capacity")]
 pub enum Landing {
     Conflicted {
         files: Box<[Box<[u8]>]>,
