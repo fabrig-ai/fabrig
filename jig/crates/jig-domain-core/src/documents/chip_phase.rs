@@ -214,15 +214,15 @@ pub(super) fn observe(
 pub(super) fn heap_worst_case(limits: &super::DocumentLimits) -> Option<u64> {
     let text = u64::from(limits.text_bytes);
     let lines = u64::from(limits.lines);
-    let path = List::<Box<[u8]>>::worst_case(limits.lines)?.checked_add(lines.checked_mul(text)?)?;
+    let path = List::<Box<[u8]>>::price(limits.lines)?.checked_add(lines.checked_mul(text)?)?;
     u64::try_from(size_of::<ChipDetails>())
         .ok()?
         .checked_add(text.checked_mul(8)?)?
-        .checked_add(List::<u64>::worst_case(limits.lines)?)?
-        .checked_add(List::<u16>::worst_case(limits.lines)?)?
-        .checked_add(List::<super::task_tree::Dependency>::worst_case(limits.lines)?)?
+        .checked_add(List::<u64>::price(limits.lines)?)?
+        .checked_add(List::<u16>::price(limits.lines)?)?
+        .checked_add(List::<super::task_tree::Dependency>::price(limits.lines)?)?
         .checked_add(32 * 8)?
-        .checked_add(List::<ResourceLine>::worst_case(limits.lines)?)?
+        .checked_add(List::<ResourceLine>::price(limits.lines)?)?
         .checked_add(lines.checked_mul(path)?)?
         .checked_add(path)
 }

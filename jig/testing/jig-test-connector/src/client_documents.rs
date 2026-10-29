@@ -346,12 +346,12 @@ pub fn document_worst_case(limits: &Limits) -> Option<u64> {
     let path = u64::from(limits.path_segments).checked_mul(u64::from(limits.segment_bytes).checked_add(16)?)?;
     let paths = u64::from(limits.resources_per_effect)
         .checked_mul(path.checked_add(u64::try_from(size_of::<crate::Path>()).ok()?)?)?;
-    let effects = List::<crate::OutboxEntry>::worst_case(limits.entries)?
+    let effects = List::<crate::OutboxEntry>::price(limits.entries)?
         .checked_add(u64::from(limits.entries).checked_mul(paths)?)?;
-    let resources = List::<ClientResource>::worst_case(limits.resources_per_task)?
+    let resources = List::<ClientResource>::price(limits.resources_per_task)?
         .checked_add(u64::from(limits.resources_per_task).checked_mul(path)?)?;
     let panel = resources.checked_add(effects)?.checked_add(path)?;
-    let project = List::<ClientResource>::worst_case(limits.adoptions)?
-        .checked_add(u64::from(limits.adoptions).checked_mul(path)?)?;
+    let project =
+        List::<ClientResource>::price(limits.adoptions)?.checked_add(u64::from(limits.adoptions).checked_mul(path)?)?;
     u64::try_from(size_of::<ClientDocument>()).ok()?.checked_add(panel.max(project).max(paths.checked_mul(2)?))
 }

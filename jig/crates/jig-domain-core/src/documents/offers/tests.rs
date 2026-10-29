@@ -81,7 +81,7 @@ fn two_maximal_amendment_offers_attain_the_whole_declared_heap_including_the_kin
     offers.push(Offered { effect: None, act: Act::Amend, admission }).unwrap();
     let whole = heap_bytes(&offers).unwrap();
     assert_eq!(whole, heap_worst_case(&limits).unwrap());
-    let pair_heap = List::<jig_domain_authority::Implication>::worst_case(limits.lines).unwrap();
+    let pair_heap = List::<jig_domain_authority::Implication>::price(limits.lines).unwrap();
     for index in 0..offers.len() {
         let offer = offers.get_mut(index).unwrap();
         let Admission::Bounded { within: Bounds::Amend { implications, .. }, .. } = &mut offer.admission else {

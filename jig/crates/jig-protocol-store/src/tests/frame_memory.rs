@@ -52,7 +52,7 @@ fn frame_capacities_cover_real_and_kept_turns() {
         capacity.nodes = nodes;
         eprintln!(
             "smith nodes {nodes}: {} bytes (versions {}, patches {}, text {}, bytes {})",
-            Patcher::worst_case_heap(capacity).expect("heap"),
+            Patcher::workspace_bound(capacity).expect("heap"),
             capacity.versions,
             capacity.patches,
             capacity.text,
@@ -73,7 +73,7 @@ fn frame_capacities_cover_real_and_kept_turns() {
     let mut smaller = skein_codec::value::Value::with_room(TYPICAL_NODES.checked_sub(1).expect("nonempty"));
     assert_eq!(smaller.decode(&schema, root, typical.clone()), Err(skein_codec::value::Refusal::Room));
     eprintln!("typical smith 34-block tool-heavy turn {} bytes, {TYPICAL_NODES} nodes", typical.len());
-    eprintln!("real smith machine heap {}", Patcher::worst_case_heap(real).expect("real heap"));
+    eprintln!("real smith machine heap {}", Patcher::workspace_bound(real).expect("real heap"));
 }
 
 fn kept_turns_fit(sets: &crate::PatchSets, limits: &crate::Limits) {

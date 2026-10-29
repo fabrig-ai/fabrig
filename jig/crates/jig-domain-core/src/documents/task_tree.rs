@@ -1027,58 +1027,54 @@ pub(super) fn overview_worst_case(limits: &super::DocumentLimits) -> Option<u64>
     let lines = u64::from(limits.lines);
     let rows = u64::from(limits.rows);
     let chip = super::chip_phase::heap_worst_case(limits)?;
-    let path =
-        List::<Box<[u8]>>::worst_case(limits.segments)?.checked_add(u64::from(limits.segments).checked_mul(text)?)?;
+    let path = List::<Box<[u8]>>::price(limits.segments)?.checked_add(u64::from(limits.segments).checked_mul(text)?)?;
     let authority = authority_worst_case(limits)?;
-    let references = List::<TaskLink>::worst_case(limits.lines)?.checked_add(lines.checked_mul(chip)?)?;
+    let references = List::<TaskLink>::price(limits.lines)?.checked_add(lines.checked_mul(chip)?)?;
     let specification = text
-        .checked_add(List::<Parameter>::worst_case(limits.lines)?)?
+        .checked_add(List::<Parameter>::price(limits.lines)?)?
         .checked_add(lines.checked_mul(text)?)?
-        .checked_add(List::<u64>::worst_case(limits.lines)?)?;
-    let task = u64::try_from(size_of::<Task>())
-        .ok()?
-        .checked_add(specification)?
-        .checked_add(text.checked_mul(8)?)?
-        .checked_add(path.checked_mul(2)?)?
-        .checked_add(chip)?
-        .checked_add(List::<super::LiveDelegate>::worst_case(limits.lines)?)?
-        .checked_add(lines.checked_mul(chip)?)?
-        .checked_add(List::<Chip>::worst_case(limits.lines)?.checked_add(lines.checked_mul(chip)?)?.checked_mul(2)?)?
-        .checked_add(List::<Parameter>::worst_case(limits.lines)?.checked_add(lines.checked_mul(text)?)?)?
-        .checked_add(List::<ResourceLine>::worst_case(limits.lines)?.checked_add(lines.checked_mul(path)?)?)?
-        .checked_add(references.checked_mul(3)?)?
-        .checked_add(List::<tasks::Subscription>::worst_case(limits.lines)?)?
-        .checked_add(List::<tasks::Verdict>::worst_case(limits.lines)?)?
-        .checked_add(
-            lines.checked_mul(
+        .checked_add(List::<u64>::price(limits.lines)?)?;
+    let task =
+        u64::try_from(size_of::<Task>())
+            .ok()?
+            .checked_add(specification)?
+            .checked_add(text.checked_mul(8)?)?
+            .checked_add(path.checked_mul(2)?)?
+            .checked_add(chip)?
+            .checked_add(List::<super::LiveDelegate>::price(limits.lines)?)?
+            .checked_add(lines.checked_mul(chip)?)?
+            .checked_add(List::<Chip>::price(limits.lines)?.checked_add(lines.checked_mul(chip)?)?.checked_mul(2)?)?
+            .checked_add(List::<Parameter>::price(limits.lines)?.checked_add(lines.checked_mul(text)?)?)?
+            .checked_add(List::<ResourceLine>::price(limits.lines)?.checked_add(lines.checked_mul(path)?)?)?
+            .checked_add(references.checked_mul(3)?)?
+            .checked_add(List::<tasks::Subscription>::price(limits.lines)?)?
+            .checked_add(List::<tasks::Verdict>::price(limits.lines)?)?
+            .checked_add(lines.checked_mul(
                 lines.checked_mul(u64::try_from(size_of::<tasks::FieldRule>()).ok()?)?.checked_add(text)?,
-            )?,
-        )?
-        .checked_add(lines.checked_mul(u64::try_from(size_of::<tasks::ResultField>()).ok()?)?.checked_add(text)?)?
-        .checked_add(List::<Dependency>::worst_case(limits.lines)?)?
-        .checked_add(List::<u64>::worst_case(limits.lines)?)?
-        .checked_add(32 * 8)?
-        .checked_add(List::<ProposalRef>::worst_case(limits.lines)?)?
-        .checked_add(u64::from(tasks::MODELS).checked_mul(u64::try_from(size_of::<tasks::ModelEffort>()).ok()?)?)?
-        .checked_add(authority)?;
+            )?)?
+            .checked_add(lines.checked_mul(u64::try_from(size_of::<tasks::ResultField>()).ok()?)?.checked_add(text)?)?
+            .checked_add(List::<Dependency>::price(limits.lines)?)?
+            .checked_add(List::<u64>::price(limits.lines)?)?
+            .checked_add(32 * 8)?
+            .checked_add(List::<ProposalRef>::price(limits.lines)?)?
+            .checked_add(u64::from(tasks::MODELS).checked_mul(u64::try_from(size_of::<tasks::ModelEffort>()).ok()?)?)?
+            .checked_add(authority)?;
     let tree = chip
-        .checked_add(List::<TreeRow>::worst_case(limits.rows)?)?
-        .checked_add(
-            rows.checked_mul(chip.checked_add(references)?.checked_add(List::<ProposalRef>::worst_case(1)?)?)?,
-        )?
-        .checked_add(List::<FoldedCount>::worst_case(1)?)?;
+        .checked_add(List::<TreeRow>::price(limits.rows)?)?
+        .checked_add(rows.checked_mul(chip.checked_add(references)?.checked_add(List::<ProposalRef>::price(1)?)?)?)?
+        .checked_add(List::<FoldedCount>::price(1)?)?;
     Some(task.max(tree))
 }
 
 pub(super) fn grant_worst_case(limits: &super::DocumentLimits) -> Option<u64> {
-    List::<Box<[u8]>>::worst_case(limits.segments)?
+    List::<Box<[u8]>>::price(limits.segments)?
         .checked_add(u64::from(limits.segments).checked_add(1)?.checked_mul(u64::from(limits.text_bytes))?)
 }
 pub(super) fn authority_worst_case(limits: &super::DocumentLimits) -> Option<u64> {
-    List::<GrantLine>::worst_case(limits.grants)?
-        .checked_add(List::<NoteScope>::worst_case(limits.grants)?)?
+    List::<GrantLine>::price(limits.grants)?
+        .checked_add(List::<NoteScope>::price(limits.grants)?)?
         .checked_add(u64::from(limits.grants).checked_mul(grant_worst_case(limits)?)?.checked_mul(2)?)?
-        .checked_add(List::<tasks::AuthorityExecutor>::worst_case(limits.executors)?)
+        .checked_add(List::<tasks::AuthorityExecutor>::price(limits.executors)?)
 }
 
 pub(super) fn worst_case(limits: &super::DocumentLimits) -> Option<u64> {
