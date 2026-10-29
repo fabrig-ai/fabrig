@@ -59,7 +59,7 @@ fn the_native_limits_cover_wire_and_transport() {
     let limits = limits::native();
     assert_eq!(limits.client.client.domain.authority, 14);
     let wire = client::forge::wire_limits(&limits.client.forge).expect("client wire bounds");
-    let demo = temper_client_protocol_wire::v1::DemoAnswer::worst_case_bytes(&wire).expect("demo bound");
+    let demo = temper_client_protocol_wire::v1::DemoAnswer::encoded_bound(&wire).expect("demo bound");
     assert!(demo <= limits.client.client.domain.document_bytes, "family read answer fits");
     assert!(demo <= u64::from(limits.connections.body_bytes), "whole HTTP answer fits");
     assert!(limits.client.client.domain.text >= temper_client_protocol_wire::CUE_BYTES, "whole cue sends");
