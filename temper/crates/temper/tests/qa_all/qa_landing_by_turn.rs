@@ -45,7 +45,7 @@ fn a_change_lands_by_turn_on_the_owned_forge() {
             Step::Run(Call::new(&["forge", "list", "--until", "made:3", "--timeout", "60s", "--json"])),
         ],
         Duration::from_secs(180),
-        || landing_by_turn::configure_repository(root),
+        |_binary| landing_by_turn::configure_repository(root),
     );
     eprintln!("owned turn first sitting: {}", landing_by_turn::elapsed(&clock, sitting));
     assert_box(&first);

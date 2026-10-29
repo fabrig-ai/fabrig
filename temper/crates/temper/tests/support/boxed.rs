@@ -566,7 +566,7 @@ impl<F, T> CtlJudge<'_, F, T> {
         }
     }
 }
-impl<F: FnOnce(&[u8]) -> T, T> Referee<Process> for CtlJudge<'_, F, T> {
+impl<F: FnOnce(&Binary) -> T, T> Referee<Process> for CtlJudge<'_, F, T> {
     fn act(&mut self, now: Time, procs: &mut [Process]) {
         let Process::Calls(calls) = &procs[1] else { panic!("ctl") };
         let failed = calls.ends().iter().enumerate().any(|(index, call)| {
@@ -641,7 +641,7 @@ impl<F: FnOnce(&[u8]) -> T, T> Referee<Process> for CtlJudge<'_, F, T> {
                 eprintln!("pending scripted release: {:?}", calls.llm_release());
             }
             if calls.idle() && !failed && binary.exit_status().is_none() {
-                self.checked.set(Some(self.check.take().expect("one live check")(binary.stderr())));
+                self.checked.set(Some(self.check.take().expect("one live check")(binary)));
             }
             // A held batch keeps its root open for the reply referee. Release
             // it on failure too, so cancellation drains that descriptor.
@@ -693,6 +693,8 @@ impl<F: FnOnce(&[u8]) -> T, T> Referee<Process> for CtlJudge<'_, F, T> {
 }
 /// Uses the box's printed link for ctl sign-in, then drains the supervised tree.
 /// A refused call stops the story immediately and retains its diagnostic.
+/// The live check borrows the world's binary to watch its tree in classified
+/// waits. It defers starvation to the world and never passes from the callback.
 #[must_use]
 pub fn run_ctl<T>(
     directory: &Path,
@@ -700,9 +702,18 @@ pub fn run_ctl<T>(
     client_root: &Path,
     steps: Vec<super::ctl::Step>,
     deadline: Duration,
-    check: impl FnOnce() -> T,
+    check: impl FnOnce(&Binary) -> T,
 ) -> CtlOutcome<T> {
-    run_ctl_with_exits(directory, flags, client_root, steps, deadline, check, &[])
+    run_ctl_peers(
+        directory,
+        flags,
+        client_root,
+        steps,
+        deadline,
+        check,
+        CtlPeers { expected_exits: Vec::new(), model: CtlModel::None },
+    )
+    .0
 }
 /// Continues through the exact expected nonzero calls, keeping the normal early-stop rule otherwise.
 #[must_use]
@@ -806,7 +817,7 @@ pub fn run_ctl_with_llm<T>(
         client_root,
         steps,
         deadline,
-        check,
+        |binary| check(binary.stderr()),
         CtlPeers { expected_exits: llm.expected_exits.clone(), model: CtlModel::Llm(Box::new(llm)) },
     )
     .0
@@ -857,7 +868,7 @@ fn run_ctl_peers<T>(
     client_root: &Path,
     steps: Vec<super::ctl::Step>,
     deadline: Duration,
-    check: impl FnOnce(&[u8]) -> T,
+    check: impl FnOnce(&Binary) -> T,
     peers: CtlPeers,
 ) -> (CtlOutcome<T>, Option<super::forge_land::Seen>) {
     let account_probe = matches!(&peers.model, CtlModel::Account(_));

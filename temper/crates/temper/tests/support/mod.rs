@@ -16,6 +16,7 @@ pub mod landing_by_turn;
 pub mod owned;
 pub mod placed_holds;
 pub mod running_revision;
+pub mod socket;
 pub mod terminal;
 pub mod turn_restart;
 pub mod webhooks;

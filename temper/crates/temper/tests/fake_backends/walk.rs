@@ -79,7 +79,7 @@ impl Walk {
             self.scratch.path(),
             steps,
             crate::BOX_DEADLINE,
-            || (),
+            |_binary| (),
         );
         let diagnostic = String::from_utf8_lossy(&outcome.stderr);
         // A refused restart must fail on the box's terminal, before missing
