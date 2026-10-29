@@ -606,6 +606,7 @@ pub(super) fn spawn_client<R: Referee<Process>>(
     world.spawn_with_fds(binary.descriptors(), || Process::Binary(Box::new(binary)));
     world.spawn_with_fds(fds.into_iter().chain([root]).collect(), || {
         Process::Person(Box::new(Person {
+            phases: None,
             seed,
             client: None,
             root: Some(root),

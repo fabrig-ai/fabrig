@@ -1,4 +1,4 @@
-//! Binary, native person and independent provider on Skein's real ring.
+//! Binary, person and provider on the real ring (jig/docs/design/protocol/service.md, 8).
 pub mod ports;
 pub mod trace;
 use crate::account_sign_in_visitor::Visitor;
@@ -112,7 +112,22 @@ pub(super) fn client_settings(address: std::net::SocketAddr) -> jig_client_shell
         },
     }
 }
+#[derive(Clone, Copy)]
+pub(super) struct Phases {
+    started: Time,
+    run: &'static str,
+    answers: usize,
+    account_answered: bool,
+}
+impl Phases {
+    fn say(self, now: Time, phase: std::fmt::Arguments<'_>) {
+        eprintln!("jig-test {} elapsed={:?} {phase}", self.run, now.saturating_since(self.started));
+    }
+}
+const ACCOUNT_KEY: jig_client::Key = jig_client::Key { asker: jig_client::Asker(77), number: 1 };
+const ACCOUNT_NAME: [u8; 16] = [61; 16];
 pub(super) struct Person {
+    pub(super) phases: Option<Phases>,
     pub(super) seed: u64,
     pub(super) client: Option<NativeClient>,
     pub(super) root: Option<Fd>,
@@ -128,6 +143,45 @@ pub(super) struct Person {
     pub(super) submissions: Queue<Submit>,
 }
 impl Person {
+    fn observe_phases(phases: &mut Option<Phases>, llm_key: Option<bool>, client: &NativeClient, now: Time) {
+        if let Some(phases) = phases {
+            for answer in &client.sign_in_answers()[phases.answers..] {
+                phases.say(now, format_args!("sign-in answer {answer:?}; client={:?}", client.sign_in_state()));
+                assert!(
+                    matches!(
+                        answer,
+                        jig_client_protocol_world::native::wire::SignInOutcome::SignedIn
+                            | jig_client_protocol_world::native::wire::SignInOutcome::NotSignedIn(
+                                jig_client::NotSignedIn::NotReady
+                            )
+                    ),
+                    "{} phase sign-in: terminal {answer:?}; client={:?}",
+                    phases.run,
+                    client.sign_in_state()
+                );
+            }
+            phases.answers = client.sign_in_answers().len();
+            if llm_key == Some(true)
+                && !phases.account_answered
+                && let Some(outcome) = client.carried_terminal(ACCOUNT_KEY, ACCOUNT_NAME)
+            {
+                phases.say(now, format_args!("account setup outcome {outcome:?}"));
+                phases.account_answered = true;
+                assert!(
+                    matches!(
+                        outcome,
+                        jig_client::Outcome::Answered(jig_client::Answered::Jig(jig_client::contract::Answer::Done(
+                            jig_client::contract::Outcome::Owner(
+                                jig_client::contract::OwnerOutcome::AccountKeyKept { .. }
+                            )
+                        )))
+                    ),
+                    "{} phase account setup: terminal {outcome:?}",
+                    phases.run
+                );
+            }
+        }
+    }
     fn submit(&mut self, token: Token, kind: Op) {
         self.submissions.push(Submit { op: token, kind });
     }
@@ -165,6 +219,9 @@ impl Host for Person {
         if self.client.is_none()
             && let Some(link) = printed_link(&self.bytes)
         {
+            if let Some(phases) = self.phases {
+                phases.say(now, format_args!("link line read"));
+            }
             let text = std::str::from_utf8(link).expect("printed URL");
             let address = text
                 .strip_prefix("http://")
@@ -184,7 +241,13 @@ impl Host for Person {
             if self.account_sign_in || self.llm_key.is_some() {
                 client.hold_for_account_sign_in();
             }
+            if let Some(phases) = self.phases {
+                client.diagnose_script(phases.started, phases.run);
+            }
             client.sign_in(link).expect("printed sign-in link");
+            if let Some(phases) = self.phases {
+                phases.say(now, format_args!("sign-in sent"));
+            }
             self.client = Some(client);
         }
         if let Some(sent) = &mut self.llm_key
@@ -192,14 +255,17 @@ impl Host for Person {
         {
             if !*sent && client.account_sign_in_ready() {
                 client.account_request(jig_client::accounts::add_key(
-                    jig_client::Key { asker: jig_client::Asker(77), number: 1 },
-                    [61; 16],
+                    ACCOUNT_KEY,
+                    ACCOUNT_NAME,
                     jig_client::contract::AccountHolder::Deployment,
                     1,
                     None,
                     skein_lib::Secret::new(b"token".as_slice().into()),
                 ));
                 *sent = true;
+                if let Some(phases) = self.phases {
+                    phases.say(now, format_args!("account setup sent"));
+                }
             }
             if client.received.iter().any(|r| {
                 matches!(
@@ -224,6 +290,7 @@ impl Host for Person {
         }
         if let Some(client) = &mut self.client {
             client.iterate(now, wall);
+            Self::observe_phases(&mut self.phases, self.llm_key, client, now);
             while let Some(submit) = client.submissions().pop() {
                 self.submissions.push(submit);
             }
@@ -311,15 +378,18 @@ impl Host for Process {
     }
 }
 struct Judge {
+    phases: Phases,
+    reported_exit: bool,
     ended: bool,
     deadline: Time,
 }
 impl Referee<Process> for Judge {
-    fn act(&mut self, _now: Time, procs: &mut [Process]) {
+    fn act(&mut self, now: Time, procs: &mut [Process]) {
         let Process::Person(person) = &procs[1] else { panic!("native person") };
         if !self.ended && person.client.as_ref().is_some_and(Host::is_empty) {
             let Process::Binary(binary) = &mut procs[0] else { panic!("binary") };
             binary.signal(Signal::Kill);
+            self.phases.say(now, format_args!("binary killed"));
             for proc in procs {
                 if let Process::Peer(peer) = proc {
                     peer.shutdown();
@@ -328,8 +398,14 @@ impl Referee<Process> for Judge {
             self.ended = true;
         }
     }
-    fn observe(&mut self, _now: Time, procs: &[Process]) {
+    fn observe(&mut self, now: Time, procs: &[Process]) {
         let Process::Binary(binary) = &procs[0] else { panic!("binary") };
+        if !self.reported_exit
+            && let Some(status) = binary.exit_status()
+        {
+            self.phases.say(now, format_args!("binary ended {status:?}"));
+            self.reported_exit = true;
+        }
         assert!(
             binary.exit_status().is_none() || self.ended,
             "jig-test failed {:?}: {}",
@@ -354,22 +430,32 @@ pub fn run(
 ) -> (u32, u32) {
     let seconds = if std::env::var("NEXTEST_PROFILE").as_deref() == Ok("live") { 560 } else { 120 };
     let clock = Clock::new();
+    let phases = Phases {
+        started: clock.now().now,
+        run: if peer.is_some() { "first run" } else { "restart" },
+        answers: 0,
+        account_answered: false,
+    };
     if let Some((_, address, _)) = &peer {
         ports::configure(directory, None, Some(*address));
     }
     let mut binary = start(directory);
+    phases.say(clock.now().now, format_args!("binary started"));
     let streams = binary.take_streams().expect("binary pipes");
     let fds = streams.descriptors();
     let Streams::Pipes { input, output } = streams else { panic!("pipes mode") };
     let client_directory = tempfile::tempdir_in(directory).expect("fresh native client directory");
     let root = skein_shell::open_root(client_directory.path()).expect("client root");
     let mut world = real::World::new(Judge {
+        phases,
+        reported_exit: false,
         ended: false,
         deadline: clock.now().now.saturating_add(Duration::from_secs(seconds - 10)),
     });
     world.spawn_with_fds(binary.descriptors(), || Process::Binary(Box::new(binary)));
     world.spawn_with_fds(fds.into_iter().chain([root]).collect(), || {
         Process::Person(Box::new(Person {
+            phases: Some(phases),
             seed: CLIENT_SEED,
             client: None,
             root: Some(root),
