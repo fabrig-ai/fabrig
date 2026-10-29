@@ -219,7 +219,7 @@ impl<P: Host, R: Referee<P>, M: Machine> World<P, R, M> {
                 )),
             }
         }
-        let heap = self.inner.meter().0.as_ref().map(Heap::report);
+        let peaks = self.inner.meter().0.as_ref().map(Heap::report);
         let held = self.inner.meter().0.as_ref().map(Heap::held);
         let finished = self.inner.finish();
         Outcome {
@@ -230,7 +230,7 @@ impl<P: Host, R: Referee<P>, M: Machine> World<P, R, M> {
             procs: finished.procs,
             iterations: u32::try_from(finished.steps).expect("within STEPS"),
             end: finished.end,
-            heap,
+            peaks,
             held,
             submissions: finished.submissions,
         }

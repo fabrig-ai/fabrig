@@ -93,10 +93,8 @@ impl<P, M, H> Debug for World<P, M, H> {
 pub struct Killed {
     pub pid: Pid,
     pub exit: Exit,
-    /// Its separate peak and scenario ceiling, after exact ownership was checked
-    /// on drop; `u64::MAX` when checked without a ceiling.
-    /// The pair goes once callers read `peak()`; the ceiling a scenario named is its own constant.
-    pub heap: Option<(u64, u64)>,
+    /// Its peak after exact ownership was checked on drop, when memory was checked.
+    peak: Option<u64>,
 }
 
 impl Killed {
@@ -104,8 +102,7 @@ impl Killed {
     /// `None` when memory was not checked.
     #[must_use]
     pub fn peak(&self) -> Option<u64> {
-        let (peak, _) = self.heap?;
-        Some(peak)
+        self.peak
     }
 }
 
@@ -528,7 +525,7 @@ impl<P: Host, M: Machine, H: Meter> World<P, M, H> {
             });
         }
         let proc = self.procs.remove(at);
-        let heap = self.meter.release(at, proc);
+        let peak = self.meter.release(at, proc);
         self.pids.remove(at);
         self.hosted.remove(at);
         self.finished.remove(at);
@@ -543,7 +540,7 @@ impl<P: Host, M: Machine, H: Meter> World<P, M, H> {
         }
         self.sim.assert_quiescent(pid);
         self.sim.assert_no_open_fds(pid);
-        self.killed.push(Killed { pid, exit, heap });
+        self.killed.push(Killed { pid, exit, peak });
     }
 
     fn perform_cut(&mut self, planned: usize) {

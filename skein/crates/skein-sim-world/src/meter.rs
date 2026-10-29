@@ -5,7 +5,7 @@
 pub trait Meter {
     fn admit<T>(&mut self, make: impl FnOnce() -> T) -> T;
     fn around<T>(&mut self, at: usize, call: impl FnOnce() -> T) -> T;
-    fn release<T>(&mut self, at: usize, proc: T) -> Option<(u64, u64)>;
+    fn release<T>(&mut self, at: usize, proc: T) -> Option<u64>;
     fn restart<T>(&mut self, at: usize, proc: T, make: impl FnOnce() -> T) -> T;
 }
 
@@ -20,7 +20,7 @@ impl Meter for Bare {
     fn around<T>(&mut self, _at: usize, call: impl FnOnce() -> T) -> T {
         call()
     }
-    fn release<T>(&mut self, _at: usize, proc: T) -> Option<(u64, u64)> {
+    fn release<T>(&mut self, _at: usize, proc: T) -> Option<u64> {
         drop(proc);
         None
     }
