@@ -16,7 +16,7 @@ use skein_forge::github::{
     document::{App, Document},
     request::Request,
 };
-use skein_lib::{List, Queue, Wall};
+use skein_lib::{Queue, Wall};
 
 #[derive(Debug)]
 struct Checked {
@@ -205,27 +205,4 @@ pub(crate) fn halt(machine: &mut Reconcile, why: Why, out: &mut Queue<Need>) {
         State::Ended => return,
     };
     out.push(need);
-}
-
-/// Heap owned by the boxed machine, copied Given, up to three simultaneous key
-/// copies during hook repair, Accepted, bounded Lacking and its comparison
-/// scratch, hook slug/URL copies, the sweep's sets. The
-/// host counts its own reply and output storage separately.
-pub(crate) fn worst_case(given: &Given) -> Option<u64> {
-    let limits = &given.limits;
-    let mut total = u64::try_from(size_of::<Reconcile>()).ok()?;
-    for text in [&given.word, &given.web, &given.url, &given.redirect_url, &given.setup_url] {
-        total = total.checked_add(u64::try_from(text.len()).ok()?)?;
-    }
-    let accepted = List::<u64>::worst_case(limits.installations)?;
-    total = total.checked_add(checks::worst_case()?)?.checked_add(accepted)?.checked_add(accepted)?;
-    // Hook: checked and child each keep a key; the pending auth keeps a third.
-    // Checked slug, child slug, and desired URL retain three bounded names.
-    let hook = u64::from(limits.key_bytes)
-        .checked_mul(3)?
-        .checked_add(u64::from(limits.name_bytes).checked_mul(3)?)?
-        .checked_add(u64::try_from(b"https://.invalid/".len()).ok()?)?;
-    let sweep = installations::worst_case(limits)?;
-    // Decimal construction and its copied failure subject each use at most 20.
-    total.checked_add(40)?.checked_add(hook.max(sweep))
 }

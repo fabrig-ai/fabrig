@@ -2,7 +2,7 @@
 
 use core::fmt::Write;
 
-use crate::{generate, parse};
+use crate::{Names, generate, generate_named, parse};
 
 #[test]
 fn a_family_of_120_records_has_no_function_past_100_lines() {
@@ -11,19 +11,32 @@ fn a_family_of_120_records_has_no_function_past_100_lines() {
         writeln!(&mut records, "record Record{index} {{}}").expect("schema string");
     }
     let schema = parse(&format!("family many 1\n{records}")).expect("valid family");
-    let output = generate(&schema);
+    for names in [Names::WorstCase, Names::Bounds, Names::Both] {
+        let output = generate_named(&schema, names);
+        if names != Names::WorstCase {
+            assert!(output.rust.contains("fn encoded_bound_0("));
+            assert!(output.rust.contains("fn decoded_bound_0("));
+            for old in [Names::WorstCase.encoded(), Names::WorstCase.decoded()] {
+                assert!(!output.rust.contains(&format!("fn {old}_0(")));
+            }
+        }
+        check_function_lengths(&output.rust);
+    }
+}
+
+fn check_function_lengths(source: &str) {
     let mut function = None;
-    for (index, line) in output.rust.lines().enumerate() {
+    for (index, line) in source.lines().enumerate() {
         let trimmed = line.trim_start();
         if trimmed.starts_with("pub fn ") || trimmed.starts_with("pub(crate) fn ") || trimmed.starts_with("fn ") {
             let indent = line.len().checked_sub(trimmed.len()).expect("indent length");
-            function = Some((index, format!("{}}}", " ".repeat(indent)), 0));
+            function = Some((index, format!("{}}}", " ".repeat(indent)), 0_usize));
         }
         // Table rows count as cases, rather than function logic (testing-strategy.md, 8).
         if let Some((_, _, rows)) = &mut function
             && trimmed.starts_with("(\"")
         {
-            *rows += 1;
+            *rows = rows.checked_add(1).expect("table row count");
         }
         if let Some((start, closing, rows)) = &function
             && line == closing
@@ -134,18 +147,52 @@ fn an_optional_unbounded_record_needs_no_bound_check() {
 }
 
 #[test]
-fn a_worst_case_checks_its_familys_limits_once() {
-    let output = small_bound_family();
-    let mut functions = 0_usize;
-    for part in output.rust.split("fn worst_case_").skip(1) {
-        let (signature, body) = part.split_once(" {").expect("function body");
-        let checks = body.matches("check_limits(limits)").count();
-        if signature.contains("_within(") {
-            assert_eq!(checks, 0, "{signature}");
-        } else {
-            assert_eq!(checks, 1, "{signature}");
+fn a_bound_checks_its_familys_limits_once() {
+    let schema = parse("family tiny 1\nrecord Value { payload: bytes 64 }").expect("valid family");
+    for names in [Names::WorstCase, Names::Bounds, Names::Both] {
+        let output = generate_named(&schema, names);
+        let mut functions = 0_usize;
+        for name in [names.encoded(), names.decoded()] {
+            for part in output.rust.split(&format!("fn {name}")).skip(1) {
+                let (signature, body) = part.split_once(" {").expect("function body");
+                let (body, _) = body.split_once('}').expect("function closes");
+                let checks = body.matches("check_limits(limits)").count();
+                assert_eq!(checks, usize::from(!signature.contains("_within(")), "{signature}");
+                functions += 1;
+            }
         }
-        functions += 1;
+        assert_eq!(functions, 6, "two public type, two inner and two family functions");
     }
-    assert_eq!(functions, 6, "two public type, two inner and two family functions");
+}
+
+#[test]
+fn every_bound_name_is_reserved_before_choosing_names() {
+    for name in [Names::WorstCase.encoded(), Names::WorstCase.decoded(), "encoded_bound", "decoded_bound"] {
+        for suffix in ["", "_within"] {
+            let error = parse(&format!("family tiny 1\nrecord Value {{ {name}{suffix}: u8 }}"))
+                .expect_err("generated bound names are reserved for every generation mode");
+            assert!(error.message.contains("invalid generated field name"));
+        }
+    }
+}
+
+#[test]
+fn default_generation_is_the_explicit_compatibility_choice() {
+    let schema = parse("family tiny 1\nrecord Value { payload: bytes 64 }").expect("valid family");
+    assert_eq!(generate(&schema), generate_named(&schema, Names::WorstCase));
+}
+
+#[test]
+fn compatibility_aliases_cover_only_public_bounds() {
+    let schema =
+        parse("family tiny 1\nrecord Value { payload: bytes 64 }\nenum Choice { value: Value }").expect("valid family");
+    let output = generate_named(&schema, Names::Both);
+    for (old, new) in
+        [(Names::WorstCase.encoded(), Names::Bounds.encoded()), (Names::WorstCase.decoded(), Names::Bounds.decoded())]
+    {
+        assert_eq!(output.rust.matches(&format!("pub fn {old}(")).count(), 3, "two types and the family");
+        assert!(!output.rust.contains(&format!("fn {old}_within(")));
+        assert_eq!(output.rust.matches(&format!("{{ Self::{new}(limits) }}")).count(), 2, "type aliases delegate");
+        assert!(output.rust.contains(&format!("{{ {new}(limits) }}")), "family alias delegates");
+    }
 }

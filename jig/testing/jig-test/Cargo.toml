@@ -41,6 +41,8 @@ disallowed_types = "deny"
 disallowed_methods = "deny"
 
 [dev-dependencies]
+jig-client-test-records.workspace = true
+jig-client-protocol-link.workspace = true
 skein-scratch.workspace = true
 jig-core-world = { path = "../../tests/core" }
 jig-domain-core.workspace = true

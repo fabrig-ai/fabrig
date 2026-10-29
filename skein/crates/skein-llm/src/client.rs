@@ -1580,36 +1580,34 @@ pub fn worst_case(limits: &Limits) -> Option<u64> {
     let mut http_fixed = limits.http;
     http_fixed.request = 0; // The admitted encoded head belongs to the reservation.
     let native = limits.native();
-    let decoder = openai::response::decoder_fixed_worst_case(&native)?
-        .max(anthropic::decoder_worst_case(&native)?.checked_sub(u64::from(limits.answer))?);
+    let decoder = openai::response::decoder_fixed_bound(&native)?
+        .max(anthropic::decoder_bound(&native)?.checked_sub(u64::from(limits.answer))?);
     u64::try_from(size_of::<Client>())
         .ok()?
         .checked_add(http::worst_case(&http_fixed)?)?
         .checked_add(sse::worst_case(&event_stream(limits))?)?
         .checked_add(decoder)?
-        .checked_add(List::<Block>::worst_case(limits.output_items)?.checked_mul(3)?)?
+        .checked_add(List::<Block>::price(limits.output_items)?.checked_mul(3)?)?
         .checked_add(
-            collector::worst_case(&filter::collector(limits), &filter::caps(limits), &openai::filter::EVENT)?.max(
-                collector::worst_case(&filter::collector(limits), &filter::caps(limits), &anthropic::filter::EVENT)?,
+            collector::collector_bound(&filter::collector(limits), &filter::caps(limits), &openai::filter::EVENT)?.max(
+                collector::collector_bound(
+                    &filter::collector(limits),
+                    &filter::caps(limits),
+                    &anthropic::filter::EVENT,
+                )?,
             ),
         )?
         .checked_add(u64::from(limits.error_bytes).checked_mul(4)?)?
         .checked_add(u64::from(limits.error_bytes).checked_add(1)?)?
-        .checked_add(crate::document::worst_case(&error_document(limits))?)?
+        .checked_add(crate::document::document_bound(&error_document(limits))?)?
         .checked_add(u64::from(REPORT_BYTES).checked_mul(3)?)
 }
-/// The old name of [`encoder_bound`]; it goes once every tree calls the new name (wave 3).
-#[must_use]
-pub fn encoding_worst_case(limits: &Limits) -> Option<u64> {
-    encoder_bound(limits)
-}
-
 /// Bounds request encoding workspace.
 /// One borrowed request's fixed encoder/grammar scratch, excluding its reserved bytes.
 /// Neither document density nor request counts grow it (llm.md, section 4.2).
 #[must_use]
 pub fn encoder_bound(limits: &Limits) -> Option<u64> {
-    openai::encoding_worst_case(&limits.native())
+    openai::encoder_bound(&limits.native())
 }
 
 #[expect(clippy::manual_map, reason = "the strict subset excludes closure-taking maps")]
@@ -2022,7 +2020,7 @@ fn block_size(block: &Block) -> u64 {
     };
     if let Some(replay) = replay {
         let document = replay.value.document();
-        let records = List::<skein_json::Compact>::worst_case(document.len()).expect("u32 record count fits u64");
+        let records = List::<skein_json::Compact>::price(document.len()).expect("u32 record count fits u64");
         bytes = bytes.saturating_add(u64::from(document.text_len())).saturating_add(records);
     }
     bytes

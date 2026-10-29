@@ -4,6 +4,10 @@
 //! decoded from the host's channel.
 //! Scheduling, replay and process heaps belong to Skein (testing.md, 2–5).
 use crate::fake;
+
+mod coding;
+pub(crate) mod orders;
+pub use orders::{Order, OrderSnapshot};
 use skein_io::kernel::{self, Done, Fd, Op, Pipe, Spawn, Way};
 use skein_lib::{Duration, Queue, Time, Token, Wall, bytes};
 use skein_shell::Host;
@@ -37,6 +41,8 @@ pub(crate) struct Parent {
     pub(crate) cancel_pending: bool,
     pub(crate) program_host_answers: Option<usize>,
     pub(crate) program_message: bool,
+    order_messages_written: usize,
+    coding_deliveries: Option<usize>,
     pub(crate) program_messages: std::collections::VecDeque<skein_channel::Frame>,
 }
 
@@ -102,6 +108,8 @@ impl Parent {
             cancel_pending: false,
             program_host_answers: None,
             program_message: false,
+            order_messages_written: 0,
+            coding_deliveries: None,
             program_messages: std::collections::VecDeque::new(),
         };
         parent.submit(Op::Spawn {
@@ -267,6 +275,9 @@ impl Parent {
                     _ => panic!("agent write failed"),
                 };
                 let offset = from.checked_add(count).expect("bounded frame offset");
+                if usize::try_from(offset).expect("offset") == bytes.len() && bytes.get(..2) == Some(&[1, 1]) {
+                    self.order_messages_written += 1;
+                }
                 self.pending =
                     if usize::try_from(offset).expect("offset") == bytes.len() { None } else { Some((bytes, offset)) };
             }
@@ -320,6 +331,7 @@ impl Host for Parent {
             self.completed(complete);
         }
         crate::program_world::answer_host(self);
+        coding::answer_delivery(self);
         self.acknowledge();
         for _ in self.signalled..self.signal {
             self.signalled = self.signalled.checked_add(1).expect("finite requested signals");
@@ -474,7 +486,9 @@ impl Host for Proc {
 fn make(spawn: &Spawn, inherited: &Inherited) -> Proc {
     let fd = inherited.pipes.iter().find(|(child, _)| *child == 2).expect("stderr").1;
     let (errors, capture) = crate::AgentErrors::pipe(fd);
-    let mut configuration = if spawn.args.first().is_some_and(|arg| arg.as_ref() == b"openai") {
+    let mut configuration = if spawn.args.first().is_some_and(|arg| arg.as_ref() == b"coding") {
+        coding::configuration()
+    } else if spawn.args.first().is_some_and(|arg| arg.as_ref() == b"openai") {
         crate::configuration_for(skein_llm::Provider::OpenAi)
     } else {
         crate::configuration()
@@ -520,6 +534,10 @@ fn make_tracing(spawn: &Spawn, inherited: &Inherited) -> Proc {
     }
     configuration.limits.channel.channel.output_frames =
         std::str::from_utf8(&spawn.args[1]).expect("frame argument").parse().expect("frame allowance");
+    if spawn.args.get(5).is_some_and(|argument| argument.as_ref() == b"order-requests") {
+        configuration.limits.io.sends = orders::OUTPUT_SENDS;
+        configuration.limits.llm.connection.io.sends = orders::OUTPUT_SENDS;
+    }
     let capture = match spawn.args[2].as_ref() {
         b"none" => smith_agent_service::sinks::Capture::None,
         b"calls" => smith_agent_service::sinks::Capture::Calls,
@@ -557,6 +575,8 @@ struct Machine {
     next_root: u32,
     trace_root: Option<u32>,
     problem_file: bool,
+    coding: bool,
+    checked_files: Vec<Vec<u8>>,
 }
 impl skein_world::Machine for Machine {
     fn open_root(&mut self, path: &[u8]) -> Result<skein_sim::Handle, kernel::Error> {
@@ -565,7 +585,9 @@ impl skein_world::Machine for Machine {
             self.trace_root = Some(self.next_root);
         }
         self.next_root += 1;
-        let items = if self.problem_file && path == b"/unused-a" {
+        let items = if self.coding && path == b"/unused-a" {
+            coding::files()
+        } else if self.problem_file && path == b"/unused-a" {
             vec![skein_fake_machine::Item::file(b"problem.txt", b"problem")]
         } else {
             Vec::new()
@@ -578,6 +600,9 @@ impl skein_world::Machine for Machine {
     }
 
     fn step(&mut self, call: skein_sim::Call, answers: &mut Queue<skein_sim::Answer>) {
+        if self.coding && coding::check(self, &call, answers) {
+            return;
+        }
         if let skein_sim::Ask::Spawn { program, env, .. } = &call.ask {
             self.spawns.push(Spawned { program: program.clone(), environment: env.clone() });
             if program.as_ref() == b"/bin/sh" {
@@ -670,10 +695,14 @@ struct Referee {
     maximum_queries: usize,
     credential_story: CredentialStory,
     workspace_refusal: Option<smith_channel::InvalidStart>,
+    orders: Option<orders::Referee>,
     expected: skein_world::Expectations<Proc, Terminal>,
 }
 impl skein_world::Referee<Proc> for Referee {
     fn act(&mut self, now: Time, procs: &mut [Proc]) {
+        if let Some(orders) = &mut self.orders {
+            orders.act(now, procs);
+        }
         let mut release = None;
         if let Some(waiting) = &mut self.release {
             let queries = procs
@@ -805,7 +834,12 @@ impl skein_world::Referee<Proc> for Referee {
     }
     fn next_deadline(&self) -> Option<Time> {
         let release = self.release.as_ref().filter(|release| !release.released).and_then(|release| release.at);
-        self.expected.next_deadline().into_iter().chain(release).min()
+        self.expected
+            .next_deadline()
+            .into_iter()
+            .chain(release)
+            .chain(self.orders.as_ref().and_then(orders::Referee::deadline))
+            .min()
     }
     fn overdue(&self, now: Time) -> Option<String> {
         self.expected.overdue(now)
@@ -1035,8 +1069,22 @@ pub struct World {
     release: Option<Release>,
     saved_window: Option<Vec<Box<[u8]>>>,
     root_path: Option<Box<[u8]>>,
+    order: Option<Order>,
+    coding: bool,
 }
 impl World {
+    /// Hold one real output completion while the parent sends Message entrances.
+    pub fn order_pressure(&mut self, order: Order) {
+        self.observe_facts(TraceCase::Failed, orders::OUTPUT_FRAMES);
+        self.order = Some(order);
+    }
+
+    /// Observations taken before the held output completion is released.
+    #[must_use]
+    pub fn order_snapshot(&self) -> &OrderSnapshot {
+        &self.observations().pressure.as_ref().expect("order pressure configured").snapshot
+    }
+
     /// Prepare one Start; the harness owns startup and settlement.
     #[must_use]
     pub fn new(seed: u64, charter: &[u8]) -> Self {
@@ -1070,6 +1118,8 @@ impl World {
             release: None,
             saved_window: None,
             root_path: None,
+            order: None,
+            coding: false,
         }
     }
 
@@ -1352,7 +1402,9 @@ impl World {
         } else {
             1
         };
-        scenario.max(self.release.as_ref().map_or(0, |release| release.queries))
+        scenario
+            .max(self.script.as_ref().map_or(0, |turns| turns.len()))
+            .max(self.release.as_ref().map_or(0, |release| release.queries))
     }
     fn hang_up_case(&self) -> HangUp {
         match (self.hang_up, self.hang_up_mid_call) {
@@ -1387,6 +1439,7 @@ impl World {
             } else {
                 CredentialStory::Ordinary
             },
+            orders: self.order.map(orders::Referee::new),
             expected: skein_world::Expectations::new(
                 self.seed,
                 vec![Terminal { hang_up: self.hang_up || self.hang_up_mid_call || self.refreshing.is_some() }],
@@ -1407,6 +1460,8 @@ impl World {
             next_root: 1,
             trace_root: None,
             problem_file: self.root_path.is_some() || matches!(self.tracing, Some((TraceCase::StoppedReasoning, _))),
+            coding: self.coding,
+            checked_files: Vec::new(),
         });
         world.host_roots(
             HostedProgram {
@@ -1438,6 +1493,9 @@ impl World {
                 self.live.clone(),
                 self.output,
             );
+            if self.coding {
+                coding::start(&mut parent, &self.charter);
+            }
             if let Some(path) = &self.root_path {
                 parent.peer = crate::host();
                 parent.peer.play(crate::start_root(&self.charter, path));
@@ -1446,6 +1504,14 @@ impl World {
             if let Some(turns) = &self.saved_window {
                 parent.peer = crate::host();
                 parent.peer.play(crate::program_world::start_with_window(&self.charter, &self.grant_value(), turns));
+            }
+            if matches!(self.order, Some(Order::Requests)) {
+                let mut startup = parent.submissions.pop().expect("initial spawn");
+                let Op::Spawn { spawn } = &mut startup.kind else { panic!("initial spawn") };
+                let mut arguments = spawn.args.to_vec();
+                arguments.push(b"order-requests".as_slice().into());
+                spawn.args = arguments.into_boxed_slice();
+                parent.submissions.push(startup);
             }
             parent.hold_channel = self.hold_channel;
             parent.refreshing.clone_from(&self.refreshing);

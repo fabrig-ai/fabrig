@@ -197,10 +197,8 @@ fn fold_bytes(receiving: &jig_client::DomainLimits, words: &Words) -> Option<u32
 /// Refuses unrepresentable UI limits, account row counts and phrase capacity.
 #[must_use]
 pub fn valid(limits: &Limits, domain: &temper_client_domain::Limits, words: &Words) -> bool {
-    // skein's valid() replaces this at the set's repin
-    skein_ui::worst_case(&limits.tree).is_some()
-        // skein's valid() replaces this at the set's repin
-        && skein_ui::phrases::worst_case(words.book.limits()).is_some()
+    skein_ui::valid(&limits.tree)
+        && skein_ui::phrases::valid(words.book.limits())
         && words.capacity().is_some()
         && domain.client.domain.rows.checked_mul(3).is_some()
 }

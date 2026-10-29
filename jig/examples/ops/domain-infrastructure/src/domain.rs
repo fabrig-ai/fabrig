@@ -7,9 +7,6 @@ use crate::{
     Recovery, Request, Resource, Service, ServiceFact, StepDecision, SystemEvent, SystemRequest,
 };
 
-/// One fact may wake sixteen scale readers and report drift to sixteen tasks.
-pub const MAX_OUT: u32 = 64;
-
 /// Infrastructure's bounded working set and durable records.
 #[derive(Debug)]
 pub struct Domain {
@@ -39,14 +36,6 @@ impl Domain {
     #[must_use]
     pub fn new(backend: Backend, limits: &Limits) -> Self {
         assert!(crate::valid(limits), "connector limits fit");
-        assert!(
-            limits.tasks <= 16
-                && limits.effects <= 16
-                && limits.procedures <= 16
-                && limits.made <= 16
-                && limits.resources_per_task <= 16,
-            "MAX_OUT covers one step"
-        );
         Self {
             client_subjects: Map::with_capacity(limits.proposals),
             application: crate::application::State::new(limits),
@@ -880,10 +869,9 @@ fn stage(domain: &mut Domain, env: &Env<Limits>, token: Token, effect: Effect, o
     }
 }
 
-/// Routes one event with room reserved for its worst case.
+/// Routes one event.
 #[expect(clippy::too_many_lines, reason = "one exhaustive dispatcher routes the complete connector vocabulary")]
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
-    assert!(out.room() >= MAX_OUT, "the root reserves MAX_OUT slots");
     match event {
         Event::Closed { key, outcome } => match outcome {
             crate::CloseOutcome::NotOffered | crate::CloseOutcome::NoOwner | crate::CloseOutcome::Again => {}
@@ -1083,7 +1071,6 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     if domain.restoring {
         return;
     }
-    assert!(out.room() >= MAX_OUT, "the root reserves MAX_OUT slots");
     for (key, entry) in &domain.effects {
         if wall_seconds(env) >= entry.deadline && entry.phase == Phase::Uncertain {
             out.push(Request::System(SystemRequest::Look { key: *key, effect: entry.effect.clone() }));
@@ -1175,16 +1162,16 @@ fn read_afresh(domain: &mut Domain, out: &mut Queue<Request>) {
 }
 
 fn restart_complete(domain: &mut Domain, out: &mut Queue<Request>) {
-    let mut sent = List::with_capacity(MAX_OUT);
+    let mut sent = List::with_capacity(domain.refresh.len());
     for (resource, requested) in &domain.refresh {
-        if !*requested && out.room() > 1 {
+        if !*requested {
             let request = match resource {
                 Resource::Service(service) => SystemRequest::Service { service: service.clone() },
                 Resource::Environment(environment) => SystemRequest::Environment { environment: environment.clone() },
                 Resource::Pool(pool) | Resource::Quota(pool) => SystemRequest::Pool { pool: pool.clone() },
             };
             out.push(Request::System(request));
-            sent.push(resource.clone()).expect("output bound");
+            sent.push(resource.clone()).expect("refresh population");
         }
     }
     for resource in &sent {
@@ -1238,14 +1225,14 @@ impl Domain {
 }
 
 fn closing_complete(domain: &mut Domain, out: &mut Queue<Request>) {
-    let mut ready = List::with_capacity(MAX_OUT);
+    let mut ready = List::with_capacity(domain.closing.len());
     for (task, _) in &domain.closing {
         let mut pending = false;
         for (key, _) in &domain.effects {
             pending |= key.task == *task;
         }
-        if !pending && out.room() > 1 {
-            ready.push(*task).expect("output bound");
+        if !pending {
+            ready.push(*task).expect("closing population");
             out.push(Request::Closed { task: *task });
         }
     }

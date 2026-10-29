@@ -5,6 +5,16 @@ impl World {
     /// One prompt carried in Start; a wait parks without an interactive timeout.
     #[must_use]
     pub fn headless(seed: u64, prompt: &[u8]) -> Self {
+        Self::headless_with_budget(seed, prompt, None)
+    }
+
+    /// A headless chat with an explicit turn budget for actor admission stories.
+    #[must_use]
+    pub fn headless_with_turns(seed: u64, prompt: &[u8], turns: u32) -> Self {
+        Self::headless_with_budget(seed, prompt, Some(run::Budget { turns, ..agent_world::BUDGET }))
+    }
+
+    fn headless_with_budget(seed: u64, prompt: &[u8], budget: Option<run::Budget>) -> Self {
         Self::with_mode(
             seed,
             Store::default(),
@@ -12,7 +22,7 @@ impl World {
             (2, 64),
             Scenario::Chat,
             local::Mode::Headless { prompt: prompt.into() },
-            None,
+            budget,
         )
     }
 

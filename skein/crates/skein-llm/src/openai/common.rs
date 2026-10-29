@@ -55,19 +55,13 @@ impl Limits {
         tokenizer::Limits { depth: self.depth, string: self.strings, number: 32, chunk: 256, length: self.skip }
     }
 }
-/// The old name of [`encoder_bound`]; it goes once every tree calls the new name (wave 3).
-#[must_use]
-pub fn encoding_worst_case(limits: &Limits) -> Option<u64> {
-    encoder_bound(limits)
-}
-
 /// Bounds request encoding workspace.
 /// Fixed scratch for writing borrowed requests (llm.md, section 4.2).
 /// The body belongs to its reservation; nesting and grammar are the only heap.
 #[must_use]
 pub fn encoder_bound(limits: &Limits) -> Option<u64> {
-    let writer = writer::worst_case(&writer::Limits { depth: limits.depth, length: 0 })?;
-    let grammar = tokenizer::validation_worst_case(&tokenizer::Limits {
+    let writer = writer::encoder_bound(&writer::Limits { depth: limits.depth, length: 0 })?;
+    let grammar = tokenizer::validation_bound(&tokenizer::Limits {
         depth: limits.depth,
         string: 0,
         number: 32,
@@ -81,21 +75,15 @@ pub fn encoder_bound(limits: &Limits) -> Option<u64> {
         .checked_add(u64::try_from(size_of::<tokenizer::Tokenizer>()).ok()?)
 }
 
-/// The old name of [`decoded_bound`]; it goes once every tree calls the new name (wave 3).
-#[must_use]
-pub fn worst_case(limits: &Limits) -> Option<u64> {
-    decoded_bound(limits)
-}
-
 /// Bounds whole-value admission and decoded output.
 /// Conservative native whole-value admission and decoded output bounds.
-/// Request encoding uses `encoding_worst_case`, without compact copies.
+/// Request encoding uses `encoder_bound`, without compact copies.
 #[must_use]
 pub fn decoded_bound(limits: &Limits) -> Option<u64> {
     // Native temporary values belong to the request, answer or replay
     // budgets. A discarded wire event contributes no document-sized buffer.
     let temporary = limits.request.max(limits.answer).max(limits.input).max(limits.reasoning).max(limits.metadata);
-    let tokens = document::worst_case(&document::Limits { tokens: limits.tokens, text: temporary })?;
+    let tokens = document::document_bound(&document::Limits { tokens: limits.tokens, text: temporary })?;
     // Standalone whole-value request decoding admits caller documents here.
     // Every JSON token costs at least one byte in that request budget.
     // Its collector and the decoded native documents may briefly coexist.
@@ -108,7 +96,7 @@ pub fn decoded_bound(limits: &Limits) -> Option<u64> {
         .checked_mul(2)?;
     // Whole-value collection remains a neutral JSON admission entrance for
     // schemas and replay metadata. The client prices its error body separately.
-    let admission = collector::worst_case(
+    let admission = collector::collector_bound(
         &collector::Limits {
             tokenizer: limits.tokenizer_limits(),
             tokens: limits.tokens,
@@ -118,9 +106,8 @@ pub fn decoded_bound(limits: &Limits) -> Option<u64> {
         &[],
         &collector::Filter { root: collector::Keep::Value },
     )?;
-    let request_slots = List::<Input>::worst_case(limits.history_items)?
-        .checked_add(List::<Tool>::worst_case(limits.tools)?)?
-        .checked_mul(2)?;
+    let request_slots =
+        List::<Input>::price(limits.history_items)?.checked_add(List::<Tool>::price(limits.tools)?)?.checked_mul(2)?;
     let documents = u64::from(temporary).checked_mul(8)?;
     let answer = u64::from(limits.answer).checked_mul(4)?;
     tokens
@@ -132,9 +119,9 @@ pub fn decoded_bound(limits: &Limits) -> Option<u64> {
         .checked_add(documents)?
         .checked_add(answer)?
         .checked_add(u64::from(limits.request))?
-        .checked_add(tokenizer::worst_case(&limits.tokenizer_limits())?)?
-        .checked_add(writer::worst_case(&writer::Limits { depth: limits.depth, length: temporary })?)?
-        .checked_add(crate::openai::response::decoder_worst_case(limits)?)
+        .checked_add(tokenizer::tokenizer_bound(&limits.tokenizer_limits())?)?
+        .checked_add(writer::encoder_bound(&writer::Limits { depth: limits.depth, length: temporary })?)?
+        .checked_add(crate::openai::response::decoder_bound(limits)?)
 }
 /// A bounded document entrance refused its grammar, shape or receiving limits.
 /// These errors can arise during local admission or an active response decode.

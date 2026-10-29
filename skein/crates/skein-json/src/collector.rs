@@ -284,12 +284,6 @@ impl Collector {
     }
 }
 
-/// The old name of [`collector_bound`]; it goes once every tree calls the new name (wave 3).
-#[must_use]
-pub fn worst_case(limits: &Limits, caps: &[u32], filter: &Filter) -> Option<u64> {
-    collector_bound(limits, caps, filter)
-}
-
 /// Bounds one collection.
 /// The collector's retained buffers, bounded walk and transient ownership.
 #[must_use]
@@ -299,19 +293,19 @@ pub fn collector_bound(limits: &Limits, caps: &[u32], filter: &Filter) -> Option
     }
     let cap_bytes = u64::try_from(caps.len()).ok()?.checked_mul(u64::try_from(size_of::<u32>()).ok()?)?;
     let delivery = u64::from(json::largest_demand(&limits.tokenizer));
-    let tokenizer = json::worst_case(&limits.tokenizer)?.checked_sub(delivery)?;
-    let walk = Stack::<Frame>::worst_case(limits.tokenizer.depth)?;
-    let queue = Queue::<json::Event>::worst_case(1)?;
+    let tokenizer = json::tokenizer_bound(&limits.tokenizer)?.checked_sub(delivery)?;
+    let walk = Stack::<Frame>::price(limits.tokenizer.depth)?;
+    let queue = Queue::<json::Event>::price(1)?;
     let plan = tagged::describe(*filter).ok()?;
     let tags = &plan.tags;
-    let retained = document::worst_case(&tagged::projection_limits(limits, tags)?)?;
+    let retained = document::document_bound(&tagged::projection_limits(limits, tags)?)?;
     let candidates = tagged::candidate_bytes(limits, caps, tags)?;
     let token = u64::from(limits.tokenizer.string.max(limits.tokenizer.number));
     // A token's delivery and owned text coexist while the tokenizer emits it.
     // The output document is copied only after that delivery and token are gone.
     let planning = tagged::planning_bytes(&plan)?;
-    let output = document::worst_case(&document::Limits { tokens: limits.tokens, text: limits.text })?;
-    let description = List::<&Tagged>::worst_case(plan.tags.capacity())?;
+    let output = document::document_bound(&document::Limits { tokens: limits.tokens, text: limits.text })?;
+    let description = List::<&Tagged>::price(plan.tags.capacity())?;
     let transient = delivery.checked_add(token)?.max(output).max(description);
     let receiving = tokenizer
         .checked_add(walk)?

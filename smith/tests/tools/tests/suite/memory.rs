@@ -6,7 +6,7 @@
 
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
 use skein_world::domain::heap::Meter;
-use smith_domain_tools::{Domain, Done, Event, Limits, Request, Version, max_out};
+use smith_domain_tools::{Domain, Done, Event, Limits, Request, Version};
 use smith_tools_world::memory::{LIMITS, authority, edit, read, write};
 
 /// Fills every kit of a domain under `limits` to its limits, checking the peak
@@ -15,7 +15,7 @@ use smith_tools_world::memory::{LIMITS, authority, edit, read, write};
 /// once, writes of the files it knows and reads.
 fn fill(limits: Limits, bound: u64) {
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let mut out = Queue::with_capacity(max_out(&limits));
+    let mut out = Queue::uncapped();
     let meter = Meter::new();
     let mut domain = Domain::new(&limits);
     // Each step is an iteration of its own, ending at the reclaim point. The
@@ -101,14 +101,17 @@ fn fill(limits: Limits, bound: u64) {
     drop(domain);
 }
 
-// Peak ceiling for full kits with the default limits (programming-model.md, section 6.3).
-const FULL_KITS_CEILING: u64 = 73_000;
+// Peak 49,922 bytes measured 2026-10-29: full kits with default limits.
+// Ceiling adds a quarter, rounded up to two significant digits (testing-strategy.md, section 6).
+const FULL_KITS_CEILING: u64 = 63_000;
 
-// Peak ceiling for 16 full kits with eight calls and maximum paths (programming-model.md, section 6.3).
-const LARGE_KITS_CEILING: u64 = 2_100_000;
+// Peak 1,562,118 bytes measured 2026-10-29: 16 full kits, eight calls and maximum paths.
+// Ceiling adds a quarter, rounded up to two significant digits (testing-strategy.md, section 6).
+const LARGE_KITS_CEILING: u64 = 2_000_000;
 
-// Peak ceiling for four full kits with one call each (programming-model.md, section 6.3).
-const ONE_CALL_CEILING: u64 = 100_000;
+// Peak 68,526 bytes measured 2026-10-29: four full kits with one call each.
+// Ceiling adds a quarter, rounded up to two significant digits (testing-strategy.md, section 6).
+const ONE_CALL_CEILING: u64 = 86_000;
 
 #[test]
 fn a_domain_with_every_kit_full_stays_under_its_scenario_ceilings() {
@@ -139,13 +142,14 @@ fn job_step(
     std::iter::from_fn(|| out.pop()).collect()
 }
 
-// Peak ceiling for full held jobs and queued reads (programming-model.md, section 6.3).
-const HELD_JOBS_CEILING: u64 = 24_000;
+// Peak 11,242 bytes measured 2026-10-29: full held jobs and queued reads.
+// Ceiling adds a quarter, rounded up to two significant digits (testing-strategy.md, section 6).
+const HELD_JOBS_CEILING: u64 = 15_000;
 
 fn fill_jobs() {
     use smith_domain_tools::{Budget, Call, JobEnd, Timeout, Yield};
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: LIMITS };
-    let mut out = Queue::with_capacity(max_out(&LIMITS));
+    let mut out = Queue::uncapped();
     let meter = Meter::new();
     let mut domain = Domain::new(&LIMITS);
     let deadline = Time::from_nanos(u64::MAX);

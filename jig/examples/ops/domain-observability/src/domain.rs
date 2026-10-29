@@ -6,9 +6,6 @@ use crate::{
     Requirement, Service, SystemEvent, SystemRequest, Topic, Verdict, Watch,
 };
 
-/// One fact refresh can save thirty-two incident updates and answer sixteen judges.
-pub const MAX_OUT: u32 = 80;
-
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 struct Question {
     requirement: Requirement,
@@ -44,14 +41,6 @@ impl Domain {
     #[must_use]
     pub fn new(limits: &Limits) -> Self {
         assert!(crate::valid(limits), "connector limits fit");
-        assert!(
-            limits.judges <= 16 && limits.effects <= 16 && limits.services_per_watch <= 16,
-            "one step's outputs fit MAX_OUT"
-        );
-        assert!(
-            limits.watches <= 16 && crate::incidents::capacity(limits).expect("incident bound") <= 32,
-            "incident and watch saves fit MAX_OUT"
-        );
         Self {
             lead_templates: Map::with_capacity(limits.watches),
             delegations: Map::with_capacity(crate::watch_steps::capacity(limits).expect("step association bound")),
@@ -558,10 +547,9 @@ fn make(domain: &mut Domain, env: &Env<Limits>, key: Key, out: &mut Queue<Reques
     }
 }
 
-/// Handles one routed event after the root reserved output room.
+/// Handles one routed event.
 #[expect(clippy::too_many_lines, reason = "one exhaustive dispatcher routes the complete connector vocabulary")]
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
-    assert!(out.room() >= MAX_OUT, "the root reserves MAX_OUT slots");
     match event {
         Event::DocumentPrepare { token, subject } => {
             crate::client_documents::prepare(domain, &env.limits, token, subject);
@@ -739,7 +727,6 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     if domain.restoring {
         return;
     }
-    assert!(out.room() >= MAX_OUT, "the root reserves MAX_OUT slots");
     for (key, entry) in &domain.effects {
         if entry.phase == Phase::Uncertain && wall_seconds(env) >= entry.deadline {
             out.push(Request::System(SystemRequest::FindSilence { key: *key, rule: entry.effect.rule.clone() }));
@@ -793,11 +780,11 @@ fn read_afresh(domain: &mut Domain) {
 }
 
 fn restart_complete(domain: &mut Domain, out: &mut Queue<Request>) {
-    let mut sent = List::with_capacity(MAX_OUT);
+    let mut sent = List::with_capacity(domain.refresh.len());
     for (service, requested) in &domain.refresh {
-        if !*requested && out.room() > 1 {
+        if !*requested {
             out.push(Request::System(SystemRequest::Facts { service: service.clone() }));
-            sent.push(service.clone()).expect("output bound");
+            sent.push(service.clone()).expect("refresh population");
         }
     }
     for service in &sent {
@@ -824,14 +811,14 @@ fn restart_complete(domain: &mut Domain, out: &mut Queue<Request>) {
 }
 
 fn closing_complete(domain: &mut Domain, out: &mut Queue<Request>) {
-    let mut ready = List::with_capacity(MAX_OUT);
+    let mut ready = List::with_capacity(domain.closing.len());
     for (task, _) in &domain.closing {
         let mut pending = false;
         for (key, _) in &domain.effects {
             pending |= key.task == *task;
         }
-        if !pending && out.room() > 1 {
-            ready.push(*task).expect("output bound");
+        if !pending {
+            ready.push(*task).expect("closing population");
             out.push(Request::Closed { task: *task });
         }
     }

@@ -381,11 +381,8 @@ fn the_returned_slug_names_hook_repairs_and_failures() {
 }
 
 #[test]
-fn the_reconcile_constructor_checks_given_and_its_heap_bound() {
+fn the_reconcile_constructor_checks_given() {
     let mut given: Given = fixtures::given();
     given.limits.key_bytes = 0;
     assert_eq!(Reconcile::new(&given, NOW).err(), Some(Refused { place: Place::KeyBytes, other: None }));
-    assert!(reconcile::worst_case(&fixtures::given()).is_some());
-    given.limits.pages = u32::MAX;
-    assert_eq!(reconcile::worst_case(&given), None);
 }

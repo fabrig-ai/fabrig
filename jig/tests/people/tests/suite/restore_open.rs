@@ -1,6 +1,6 @@
 use jig_domain_people::{
     self as people, Ask, Domain, Event, Key, LimitKind, Outcome, Refusal, Reply, Request, RequestKey, Stored,
-    TaskExecutor, fire, max_out, step,
+    TaskExecutor, fire, step,
 };
 use jig_people_world::{LIMITS, fixtures::people_member, identity};
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
@@ -17,7 +17,7 @@ fn restoring() -> (Domain, Env<people::Limits>, Queue<Request>) {
     (
         Domain::new(&LIMITS, Box::new([]), 1, Box::new([])),
         Env { limits: LIMITS, now: Time::ZERO, wall: Wall::EPOCH },
-        Queue::with_capacity(max_out(&LIMITS)),
+        Queue::uncapped(),
     )
 }
 

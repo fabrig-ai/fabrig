@@ -177,7 +177,7 @@ fn derive_limits() -> agent::Limits {
     limits.llm.grant_value_bytes = 128;
     limits.machine.file_bytes = 16;
     limits.file_timeout = Duration::from_secs(1);
-    limits.queue = smith_domain::max_out(&limits.domain).max(256);
+    limits.queue = agent::profile::DEFAULT_PACING;
     limits
 }
 
@@ -494,7 +494,7 @@ pub fn charter() -> Box<[u8]> {
     writer.finish()
 }
 
-pub use world::{TraceCase, World};
+pub use world::{Order, OrderSnapshot, TraceCase, World};
 
 pub use events::{check as assert_event_conformance, check_program as assert_program_event_conformance};
 

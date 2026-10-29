@@ -11,7 +11,11 @@ use skein_ui::Role;
 use skein_world::domain::Verdict;
 #[path = "../client_stories/creating.rs"]
 mod creating;
+mod orders;
 const WITHIN: Duration = Duration::from_secs(1);
+
+// Peak 863,411 bytes measured 10-29; testing-strategy.md 6.
+const SCRIPTED_STARTUP_HEAP_CEILING: u64 = 1_100_000;
 
 #[test]
 fn scripted_client_starts_within_the_shell_heap_envelope() {
@@ -20,19 +24,25 @@ fn scripted_client_starts_within_the_shell_heap_envelope() {
     let state = Ops::new(501);
     let measured = meter.end();
     let peak = meter.check(measured, u64::MAX, &"scripted client startup");
-    let bound = jig_client_world::Settings::default().heap_bytes_per_client;
+    let bound = SCRIPTED_STARTUP_HEAP_CEILING;
     assert!(peak <= bound, "scripted client startup: {peak} bytes exceeds {bound}");
     drop(state);
 }
 
+// Peak 1,703,334 bytes measured 10-29; testing-strategy.md 6.
+const ACCEPT_RESTART_HEAP_CEILING: u64 = 2_200_000;
+
 #[test]
 fn p_accepts_a_restart_from_the_incidents_page() {
-    accept_restart(501);
+    accept_restart(501, ACCEPT_RESTART_HEAP_CEILING);
 }
+
+// Peak 1,703,334 bytes measured 10-29; testing-strategy.md 6.
+const ACCEPT_RESTART_SECOND_SEED_HEAP_CEILING: u64 = 2_200_000;
 
 #[test]
 fn p_accepts_a_restart_from_the_incidents_page_with_a_second_seed() {
-    accept_restart(502);
+    accept_restart(502, ACCEPT_RESTART_SECOND_SEED_HEAP_CEILING);
 }
 
 #[test]
@@ -72,9 +82,9 @@ fn p_accepts_the_restart_from_the_incidents_page_at_the_text_shell() {
     assert_eq!(world.front().engine.commits().iter().filter(|c| c.key.is_some()).count(), 1);
 }
 
-fn accept_restart(seed: u64) {
+fn accept_restart(seed: u64, ceiling: u64) {
     let mut world = stories::incident_world(seed);
-    world.measure_heap();
+    world.measure_heap_within(ceiling);
     let p = world.client(7, Address::Observability(obs::Address::Incidents { project: 1, open: true }));
     let inbox = world.client(7, Address::Jig(JigAddress::Inbox { project: None }));
     world.person(
@@ -126,11 +136,14 @@ fn accept_restart(seed: u64) {
     assert_eq!(lead.chip.task, 9);
 }
 
+// Peak 1,098,790 bytes measured 10-29; testing-strategy.md 6.
+const ENVIRONMENT_CHAT_HEAP_CEILING: u64 = 1_400_000;
+
 #[test]
 fn q_asks_for_an_environment_in_a_chat_and_accepts_what_it_costs() {
     for seed in [503, 504] {
         let mut world = stories::environment_world(seed);
-        world.measure_heap();
+        world.measure_heap_within(ENVIRONMENT_CHAT_HEAP_CEILING);
         let q = world.client(7, Address::Jig(JigAddress::Conversations { project: None }));
         world.person(
             q,

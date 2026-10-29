@@ -10,7 +10,7 @@ mod queue;
 mod recovery;
 mod settle;
 mod writer;
-use crate::{Domain, Event, Fact, Limits, Priority, Request, worst_case};
+use crate::{Domain, Event, Fact, Limits, Priority, Request};
 use alloc::boxed::Box;
 use skein_forge::api::{self, Answer, Error, Op, Read, Repository, Write};
 use skein_lib::{Duration, Time, Token};
@@ -349,11 +349,6 @@ fn diagnostics_can_overflow_without_changing_admission() {
     terminal(&h.answer(&sent, 1, Err(Error::Forbidden)), 1, Error::Forbidden);
     assert_eq!(h.domain.facts_lost(), 2);
     assert!(h.domain.pop_fact().is_none());
-}
-#[test]
-fn limits_reject_incoherent_budgets_and_account_for_capacity() {
-    assert!(crate::valid(&LIMITS));
-    assert!(worst_case(&Limits { pending: 9, ..LIMITS }).unwrap() > worst_case(&LIMITS).unwrap());
 }
 
 #[test]

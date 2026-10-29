@@ -42,6 +42,29 @@ enum Side {
     Write,
 }
 
+fn check_waiters(waiters: &BTreeMap<Fd, Waiters>, kind: &Op) {
+    if let Some((fd, side)) = side(kind) {
+        check_side(waiters, fd, side);
+    }
+    if let Op::Close { fd } = kind {
+        check_close(waiters, *fd);
+    }
+}
+
+fn check_close(waiters: &BTreeMap<Fd, Waiters>, fd: Fd) {
+    assert!(!waiters.contains_key(&fd), "no Close beside a waiter (skein_io::kernel, broken invariants)");
+}
+
+fn check_side(waiters: &BTreeMap<Fd, Waiters>, fd: Fd, side: Side) {
+    if let Some(waiters) = waiters.get(&fd) {
+        let existing = match side {
+            Side::Read => waiters.read,
+            Side::Write => waiters.write,
+        };
+        assert!(existing.is_none(), "at most one waiter per descriptor side (skein_io::kernel, broken invariants)");
+    }
+}
+
 impl Readiness {
     pub(crate) fn open(config: Config) -> Result<Self, OpenError> {
         if config.operations == 0 {
@@ -162,11 +185,8 @@ impl Readiness {
         assert!(!self.tokens.contains_key(&record.op), "io never reuses a token in flight (skein_io::kernel)");
         calls::check_path_access(&record.kind);
         let side = side(&record.kind);
-        if let Some((fd, side)) = side {
-            self.assert_side_free(fd, side);
-        }
+        check_waiters(&self.waiters, &record.kind);
         if let Op::Close { fd } = &record.kind {
-            assert!(!self.waiters.contains_key(fd), "no Close beside a waiter (skein_io::kernel, broken invariants)");
             let _removed = self.nonblocking.remove(fd);
         }
         let index = self.free.pop().expect("a slot is free before taking a record");
@@ -187,16 +207,6 @@ impl Readiness {
         }
         let (fd, side) = side.expect("only a stream operation can wait");
         self.add_waiter(fd, side, index);
-    }
-
-    fn assert_side_free(&self, fd: Fd, side: Side) {
-        if let Some(waiters) = self.waiters.get(&fd) {
-            let existing = match side {
-                Side::Read => waiters.read,
-                Side::Write => waiters.write,
-            };
-            assert!(existing.is_none(), "at most one waiter per descriptor side (skein_io::kernel, broken invariants)");
-        }
     }
 
     fn add_waiter(&mut self, fd: Fd, side: Side, index: u32) {
@@ -690,26 +700,6 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "at most one waiter per descriptor side")]
-    fn a_second_waiter_on_the_same_side_breaks_the_contract() {
-        let mut kernel = Readiness::open(Config { operations: 2 }).expect("the poller is usable");
-        let fd = listener();
-        assert!(kernel.nonblocking.insert(fd));
-        submit(&mut kernel, 1, Op::Accept { fd });
-        submit(&mut kernel, 2, Op::Accept { fd });
-    }
-
-    #[test]
-    #[should_panic(expected = "no Close beside a waiter")]
-    fn a_close_beside_a_waiter_breaks_the_contract() {
-        let mut kernel = Readiness::open(Config { operations: 2 }).expect("the poller is usable");
-        let fd = listener();
-        assert!(kernel.nonblocking.insert(fd));
-        submit(&mut kernel, 1, Op::Accept { fd });
-        submit(&mut kernel, 2, Op::Close { fd });
-    }
-
-    #[test]
     fn an_idle_deadline_does_not_wake_early() {
         let mut kernel = Readiness::open(Config { operations: 1 }).expect("the poller is usable");
         let clock = Clock::new();
@@ -720,3 +710,6 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+mod guards;

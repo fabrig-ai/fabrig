@@ -1,7 +1,7 @@
 //! The session child domain's state and its entry points (domain/session.md,
 //! sections 3–7; programming-model.md, sections 4.5 and 6.3). [`Domain`]
 //! retains sessions, tools, alarms, deferred ready work, injected randomness
-//! and bounded facts. [`step`], [`fire`] and [`resume`] emit bounded requests.
+//! and uncapped facts. [`step`], [`fire`] and [`resume`] emit owned requests.
 //! This module never knows run outcomes, host policy, credentials or provider
 //! wire syntax.
 
@@ -19,7 +19,9 @@ use crate::session::{self, Alarm, Calls, Ready, Session};
 /// the one batch of runs a step may start, a request each, or the withdraws
 /// and cancels closing sends for a batch; and what one step of the tools
 /// emits besides (an operation's next one, or the cancels of a kit's close).
-/// The parent reserves this much room in `out` before calling it.
+/// Compatibility allowance read by `smith-domain`'s handoff queues and by
+/// direct readers in the protocol-LLM, agent-service and jig channel tests
+/// until the root's queue migration. Session output needs no reservation.
 #[must_use]
 pub const fn max_out(limits: &Limits) -> u32 {
     4_u32.saturating_add(limits.parallel_tools).saturating_add(tools::max_out(&limits.tools))
@@ -30,13 +32,16 @@ pub const fn max_out(limits: &Limits) -> u32 {
 /// own four, and a batch of delegated calls, a request each, or the withdraws
 /// closing sends for one (a step starts a batch or cancels one, never both).
 /// The tools' operations and their cancels never reach the opener.
+/// `smith-domain` reads this compatibility allowance for its causal handoff
+/// formulas until the root's queue migration.
 #[must_use]
 pub const fn max_to_opener(limits: &Limits) -> u32 {
     4_u32.saturating_add(limits.parallel_tools)
 }
 
-/// Ordinary and program calls can start together in `session::advance`, so
-/// their reservations add (protocol/programs.md, sections 5.4–5.5).
+/// Compatibility observation allowance read by `smith-domain`'s gather
+/// formula until the root's queue migration. Ordinary and program calls can
+/// start together (protocol/programs.md, sections 5.4–5.5); facts are uncapped.
 #[must_use]
 pub const fn max_facts(limits: &Limits) -> u32 {
     let mut program = builtin_completed_facts(limits);
@@ -101,18 +106,15 @@ impl Domain {
     pub fn new(limits: &Limits, seed: u64) -> Domain {
         let alarms = limits::alarms(limits).expect("valid limits");
         let runs = limits::runs(limits).expect("valid limits");
-        let calls = Calls {
-            runs: Slab::with_capacity(runs),
-            tools: tools::Domain::new(&limits.tools),
-            out: Queue::with_capacity(tools::max_out(&limits.tools)),
-        };
+        let calls =
+            Calls { runs: Slab::with_capacity(runs), tools: tools::Domain::new(&limits.tools), out: Queue::uncapped() };
         Domain {
             sessions: Slab::with_capacity(limits.sessions),
             calls,
             alarms: Deadlines::with_capacity(alarms),
             ready: Ready::with_capacity(limits.sessions),
             rng: Rng::new(seed),
-            facts: Facts::with_capacity(limits.facts),
+            facts: Facts::new(),
         }
     }
 
@@ -172,15 +174,15 @@ impl Domain {
         self.ready.is_ready()
     }
 
-    /// The oldest reserved observation, including the tools' observations.
+    /// The oldest observation, including the tools' observations.
     pub fn pop_fact(&mut self) -> Option<Fact> {
         self.facts.pop()
     }
 
-    /// Free observation slots the parent reserves before each entrance.
+    /// The observations queued for the parent.
     #[must_use]
-    pub fn facts_room(&self) -> u32 {
-        self.facts.room()
+    pub fn pending_facts(&self) -> u32 {
+        self.facts.len()
     }
 
     /// The reclaim point: frees what closed in this iteration.
@@ -194,7 +196,6 @@ impl Domain {
 
 /// Handles one event, emitting at most [`max_out`] requests.
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
-    assert!(domain.facts_room() >= max_facts(&env.limits), "parent reserved fact step output");
     domain.facts.begin(env.now);
     match event {
         Event::Open { opener, opening } => session::open(domain, env, opener, *opening, out),
@@ -257,7 +258,6 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
 /// progress that arrived in the same iteration wins over a deadline that passed
 /// while the loop waited.
 pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
-    assert!(domain.facts_room() >= max_facts(&env.limits), "parent reserved fact step output");
     domain.facts.begin(env.now);
     let Some(alarm) = domain.alarms.expire(env.now) else {
         return;
@@ -273,7 +273,6 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 /// [`max_out`] requests: one that rested in an earlier iteration, after a
 /// batch the tools answered within the step that started it.
 pub fn resume(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
-    assert!(domain.facts_room() >= max_facts(&env.limits), "parent reserved fact step output");
     domain.facts.begin(env.now);
     let Some(id) = domain.ready.pop() else {
         return;

@@ -114,6 +114,10 @@ impl Private {
     }
 
     fn configured(story: Story, shared: bool) -> Self {
+        Self::with_accounts(story, shared, &[7])
+    }
+
+    fn with_accounts(story: Story, shared: bool, accounts: &[u32]) -> Self {
         let native = native_limits();
         let mut files = Machine::for_user(7);
         let mut items = List::with_capacity(2);
@@ -131,40 +135,43 @@ impl Private {
         let mut sim = skein_sim::Sim::new(61, sim_config);
         let pid = sim.spawn_process();
         let peer_pid = sim.spawn_process();
-        let descriptor = sim.root(pid, skein_sim::Handle::new(root.raw()));
-        let mut sources = List::with_capacity(1);
-        assert!(
-            sources
-                .push(Source::SignIn {
-                    account: 7,
-                    root: descriptor,
-                    user: 7,
-                    directory: b"tokens".as_slice().into(),
-                    file: b"record".as_slice().into(),
-                    registration: skein_oauth::Registration {
-                        terms: None,
-                        authorization_url: AUTHORIZE.into(),
-                        token_endpoint: ENDPOINT.into(),
-                        client_id: b"client".as_slice().into(),
-                        redirect_uri: REDIRECT.into(),
-                        scope: b"read".as_slice().into(),
-                        wire: skein_oauth::WireFormat::Form,
-                        client_secret: None,
-                        pkce_for_confidential: false,
-                        metadata_claim: Some(skein_oauth::ClaimSelector {
-                            object: b"https://api.openai.com/auth".as_slice().into(),
-                            field: b"chatgpt_account_id".as_slice().into(),
-                        }),
-                    },
-                    endpoint: oauth::Endpoint {
-                        address: kernel::Addr::from(([127, 0, 0, 1], 444)),
-                        transport: oauth::Transport::Plaintext
-                    },
-                    account_id: Box::new([]),
-                    interactive: story == Story::Interactive,
-                })
-                .is_ok()
-        );
+        let mut sources = List::with_capacity(native.accounts);
+        for &number in accounts {
+            let source_root = files.open(root, b".", How::Directory).expect("account root");
+            let descriptor = sim.root(pid, skein_sim::Handle::new(source_root.raw()));
+            assert!(
+                sources
+                    .push(Source::SignIn {
+                        account: number,
+                        root: descriptor,
+                        user: 7,
+                        directory: b"tokens".as_slice().into(),
+                        file: if number == 7 { b"record".as_slice() } else { b"second".as_slice() }.into(),
+                        registration: skein_oauth::Registration {
+                            terms: None,
+                            authorization_url: AUTHORIZE.into(),
+                            token_endpoint: ENDPOINT.into(),
+                            client_id: b"client".as_slice().into(),
+                            redirect_uri: REDIRECT.into(),
+                            scope: b"read".as_slice().into(),
+                            wire: skein_oauth::WireFormat::Form,
+                            client_secret: None,
+                            pkce_for_confidential: false,
+                            metadata_claim: Some(skein_oauth::ClaimSelector {
+                                object: b"https://api.openai.com/auth".as_slice().into(),
+                                field: b"chatgpt_account_id".as_slice().into(),
+                            }),
+                        },
+                        endpoint: oauth::Endpoint {
+                            address: kernel::Addr::from(([127, 0, 0, 1], 444)),
+                            transport: oauth::Transport::Plaintext
+                        },
+                        account_id: Box::new([]),
+                        interactive: story == Story::Interactive,
+                    })
+                    .is_ok()
+            );
+        }
         let mut owner =
             if shared { Accounts::shared(sources, native, [61; 32]) } else { Accounts::new(sources, native, [61; 32]) }
                 .expect("private driver");
@@ -201,6 +208,22 @@ impl Private {
         self.step_before(None);
     }
     fn step_before(&mut self, ceiling: Option<Time>) {
+        self.step_dispatching(ceiling, false);
+    }
+    fn loaded_pending(&self) -> bool {
+        if let Some(file::Event::Loaded { .. }) = self.owner.events.iter().next() {
+            return true;
+        }
+        false
+    }
+    fn advance_accounts(&mut self, hold_loaded: bool) -> Queue<CredentialRequest> {
+        let mut out = Queue::uncapped();
+        if !hold_loaded || !self.loaded_pending() {
+            self.owner.advance(self.sim.now(), self.sim.wall(), &mut out);
+        }
+        out
+    }
+    fn step_dispatching(&mut self, ceiling: Option<Time>, hold_loaded: bool) {
         let now = self.sim.now();
         let wall = self.sim.wall();
         self.sim.reap(self.peer_pid, self.peer.completions());
@@ -216,8 +239,7 @@ impl Private {
         while let Some(complete) = completions.pop() {
             self.owner.complete(complete);
         }
-        let mut out = Queue::with_capacity(ACCOUNTS_MAX_OUT);
-        self.owner.advance(now, wall, &mut out);
+        let mut out = self.advance_accounts(hold_loaded);
         while let Some(outcome) = out.pop() {
             match &outcome {
                 CredentialRequest::Visit { url } if self.story != Story::Cancel && self.story != Story::Unsafe => {
@@ -396,7 +418,7 @@ fn an_unsafe_private_record_is_refused_before_a_visit() {
 #[test]
 fn cancelling_a_queued_private_file_request_emits_its_terminal_without_starting_it() {
     let mut world = Private::new(Story::Cancel);
-    let mut out = Queue::with_capacity(ACCOUNTS_MAX_OUT);
+    let mut out = Queue::uncapped();
     world.owner.advance(world.sim.now(), world.sim.wall(), &mut out);
     assert!(!world.owner.files.takes());
     let owner = Token::new(99);
@@ -451,3 +473,43 @@ fn an_interactive_private_grant_waits_for_sign_in_and_keeping() {
 
 #[path = "lock.rs"]
 mod shared_tests;
+
+/// Order: `account_file_events_dispatched` (phase C).
+#[test]
+fn pending_account_file_events_precede_another_accounts_private_action() {
+    const FIRST: u32 = 7;
+    const SECOND: u32 = 8;
+    const SECOND_INDEX: u32 = 1;
+    // The private world's seed is 61; this is its existing transition bound.
+    const STEPS: u32 = 4000;
+    let mut world = Private::with_accounts(Story::Load, false, &[FIRST, SECOND]);
+    for _ in 0..STEPS {
+        world.step_dispatching(None, true);
+        if world.loaded_pending() {
+            break;
+        }
+    }
+    assert!(world.owner.files.takes(), "the first terminal has returned file-operation credit");
+    assert!(world.owner.request(SECOND));
+    world.owner.begin(SECOND_INDEX, world.sim.now(), world.sim.wall());
+    let queued = world.owner.file_requests.len();
+    assert!(queued > 0, "the second account has private-file work ready");
+    // Hold the first terminal's dispatch while offering the later account's action.
+    world.owner.private_files(world.sim.now(), world.sim.wall());
+    assert_eq!(world.owner.file_requests.len(), queued, "pending account events hold the later action");
+    assert!(world.owner.submissions.is_empty(), "no later file operation starts ahead of dispatch");
+    assert_eq!(world.owner.events.len(), 1, "the later action publishes no terminal");
+    assert!(world.loaded_pending(), "the first terminal stays first");
+    assert_eq!(world.count(Until::Ready), 0, "no grant passes the held terminal");
+    assert_eq!(world.count(Until::Failed), 0, "no failure passes the held terminal");
+    world.until(Until::Failed);
+    let [
+        CredentialRequest::Ready { event: local::Event::Credential { grant, .. }, .. },
+        CredentialRequest::Failed { event: local::Event::NoCredential { account, .. } },
+    ] = world.outcomes.as_slice()
+    else {
+        panic!("the loaded grant precedes the later missing record's failure");
+    };
+    assert_eq!([grant.name.account, *account], [FIRST, SECOND]);
+    world.close();
+}

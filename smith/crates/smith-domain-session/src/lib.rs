@@ -21,17 +21,17 @@
 //! The conversation is provider-neutral ([`llm`]): the protocol layer speaks
 //! each provider's wire format.
 //!
-//! What happens is also told as bounded [`Fact`]s. The parent reserves
-//! [`max_facts`] slots before each entrance and drains [`Domain::pop_fact`]
-//! before more work; every native observation is preserved.
+//! What happens is also told as [`Fact`]s in an uncapped queue. The parent
+//! drains [`Domain::pop_fact`] while the named sessions and runs still exist;
+//! every native observation keeps its emission time and call metadata.
 //!
 //! One concrete opening admits fresh or restored bounded messages. It keeps
 //! live call/descriptor tickets, completion/retry state,
 //! outstanding tool terminals, injected deadlines and accepted usage/pricing.
 //! It never knows the host's charter, outcome meanings, credential secrets,
 //! provider wire grammar, forge state or CI. [`resume`] drains bounded deferred
-//! tool handoffs; every entrance reserves [`max_out`] slots, then the caller
-//! delivers or discards owned records before reclaiming at iteration end
+//! tool handoffs; output queues are uncapped, and the caller delivers or
+//! discards owned records before reclaiming at iteration end
 //! (domain/session.md, sections 3–6; programming-model.md, sections
 //! 4.5 and 7).
 //! Exact own and inclusive activation spend are retained separately. The root's

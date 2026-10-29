@@ -476,14 +476,14 @@ pub fn document_worst_case(limits: &DocumentLimits) -> Option<u64> {
         return None;
     }
     let chip = chip_phase::heap_worst_case(limits)?;
-    let chips = List::<Chip>::worst_case(limits.chips)?.checked_add(u64::from(limits.chips).checked_mul(chip)?)?;
-    let charter = List::<u32>::worst_case(limits.lines)?;
+    let chips = List::<Chip>::price(limits.chips)?.checked_add(u64::from(limits.chips).checked_mul(chip)?)?;
+    let charter = List::<u32>::price(limits.lines)?;
     let creating = charter
-        .checked_add(List::<crate::acts::CreateProcedure>::worst_case(limits.lines)?)?
-        .checked_add(List::<u32>::worst_case(limits.roles)?)?
+        .checked_add(List::<crate::acts::CreateProcedure>::price(limits.lines)?)?
+        .checked_add(List::<u32>::price(limits.roles)?)?
         .checked_add(u64::try_from(size_of::<AuthorityLine>()).ok()?)?
         .checked_add(task_tree::authority_worst_case(limits)?)?;
-    let frame = List::<FrameProjectRole>::worst_case(limits.lines)?
+    let frame = List::<FrameProjectRole>::price(limits.lines)?
         .checked_add(u64::from(limits.lines).checked_mul(creating)?)?
         .checked_add(u64::from(limits.lines).checked_mul(u64::from(limits.text_bytes))?)?
         .checked_add(u64::from(limits.text_bytes).checked_mul(2)?)?

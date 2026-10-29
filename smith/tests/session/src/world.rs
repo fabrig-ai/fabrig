@@ -108,6 +108,15 @@ pub struct Count {
     pub max: u32,
 }
 
+/// The two observation points around the loop's reclaim, with no work between them.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Reclaim {
+    /// Retired entities remain present and newly resting batches are ineligible.
+    Before,
+    /// Retired entities are freed and newly resting batches become eligible.
+    After,
+}
+
 /// Immutable seeded peer behavior and component limits used to construct this world.
 ///
 /// World contract: domain/session.md, sections 10 and 12; testing-strategy.md, section 2.2.
@@ -872,7 +881,6 @@ pub struct World {
 
     stats: Stats,
     told: Told,
-    fact_holds: u64,
     trace: Trace,
 }
 
@@ -926,7 +934,6 @@ impl World {
             openers: BTreeMap::new(),
             stats: Stats::default(),
             told: Told::default(),
-            fact_holds: 0,
             trace: Trace::default(),
         }
     }
@@ -945,12 +952,6 @@ impl World {
     #[must_use]
     pub fn stats(&self) -> Stats {
         self.stats
-    }
-
-    /// Parent passes that left pending work untouched until native facts drained.
-    #[must_use]
-    pub fn fact_holds(&self) -> u64 {
-        self.fact_holds
     }
 
     /// Every native fact the sessions told, counted by kind.
@@ -1007,8 +1008,13 @@ impl World {
     ///
     /// World contract: domain/session.md, sections 10 and 12; testing-strategy.md, section 2.2.
     pub fn run(&mut self, iterations: u32) {
+        self.run_observed(iterations, |_, _| {});
+    }
+
+    /// Runs the same loop with a scenario observing both sides of each reclaim point.
+    pub fn run_observed(&mut self, iterations: u32, mut observe: impl FnMut(&mut Self, Reclaim)) {
         for _ in 0..iterations {
-            self.iterate();
+            self.iterate(&mut observe);
             if self.has_work_now() {
                 continue;
             }
@@ -1025,22 +1031,20 @@ impl World {
     /// One iteration of the loop, as the shell would run it.
     ///
     /// World contract: domain/session.md, sections 10 and 12; testing-strategy.md, section 2.2.
-    fn iterate(&mut self) {
+    fn iterate(&mut self, observe: &mut impl FnMut(&mut Self, Reclaim)) {
         self.agent_stage.tick(self.now);
         self.provider_stage.tick(self.now);
         self.deliver();
 
         // The agent resumes what is ready, then takes its events, then fires
-        // its alarms, while it has room for the facts one more may produce.
-        while self.agent.facts_room() >= agent::max_facts(&self.agent_stage.env.limits) && self.agent.is_ready() {
+        // its alarms, before draining observations and dispatching requests.
+        while self.agent.is_ready() {
             self.log("agent ready");
             let from = self.agent_stage.out.len();
             agent::resume(&mut self.agent, &self.agent_stage.env, &mut self.agent_stage.out);
             self.check_sent(from);
         }
-        while self.agent.facts_room() >= agent::max_facts(&self.agent_stage.env.limits)
-            && let Some(event) = self.agent_stage.next_event()
-        {
+        while let Some(event) = self.agent_stage.next_event() {
             self.log(&format!("agent <- {}", describe_agent_event(&event)));
             if let agent::Event::Close { session } = &event
                 && let Some(opener) = self.openers.get(session)
@@ -1061,16 +1065,11 @@ impl World {
                 self.runs.remove(&run);
             }
         }
-        while self.agent.facts_room() >= agent::max_facts(&self.agent_stage.env.limits) && self.agent.is_due(self.now) {
+        while self.agent.is_due(self.now) {
             self.log("agent alarm");
             let from = self.agent_stage.out.len();
             agent::fire(&mut self.agent, &self.agent_stage.env, &mut self.agent_stage.out);
             self.check_sent(from);
-        }
-        if self.agent.facts_room() < agent::max_facts(&self.agent_stage.env.limits)
-            && (self.agent_stage.has_events() || self.agent.is_due(self.now))
-        {
-            self.fact_holds += 1;
         }
         // The facts, drained as the shell would write them out.
         while let Some(fact) = self.agent.pop_fact() {
@@ -1079,7 +1078,7 @@ impl World {
         while let Some(event) = self.provider_stage.next_event() {
             provider::step(&mut self.provider, &self.provider_stage.env, event, &mut self.provider_stage.out);
         }
-        while self.provider_stage.has_room() && self.provider.is_due(self.now) {
+        while self.provider.is_due(self.now) {
             provider::fire(&mut self.provider, &self.provider_stage.env, &mut self.provider_stage.out);
         }
 
@@ -1099,8 +1098,60 @@ impl World {
         assert!(self.agent.kits() <= self.settings.agent.sessions, "a kit at most for each session");
         assert!(self.provider.calls() <= self.settings.provider.calls, "calls stay within their slots");
         self.stats.most_runs = self.stats.most_runs.max(self.agent.runs());
+        observe(self, Reclaim::Before);
         self.agent.reclaim();
         self.provider.reclaim();
+        observe(self, Reclaim::After);
+    }
+
+    /// The domain's boundary counters and readiness, for loop invariant observations.
+    #[must_use]
+    pub fn domain(&self) -> &agent::Domain {
+        &self.agent
+    }
+
+    /// Schedules the opener's close through the existing delivery queue at the current time.
+    pub fn close(&mut self, opener: u64) {
+        self.schedule(self.now, Delivery::Close { opener });
+    }
+
+    /// File operations still owed to an opener's session, observed at the machine boundary.
+    #[must_use]
+    pub fn pending_io(&self, opener: u64) -> Vec<(Token, &Op)> {
+        let session = self.sessions[&opener].session;
+        self.ops
+            .keys()
+            .filter_map(|&owner| {
+                let pending = self.ops.get(owner).expect("live operation");
+                match &pending.work {
+                    Work::File(op) if Some(pending.session) == session => Some((owner, op)),
+                    Work::File(_) | Work::Command(_) | Work::Ending(_) => None,
+                }
+            })
+            .collect()
+    }
+
+    /// Delegated calls still owed to an opener's session, in provider positions.
+    #[must_use]
+    pub fn pending_delegates(&self, opener: u64) -> Vec<(Token, agent::record::Origin)> {
+        let session = self.sessions[&opener].session;
+        self.tools
+            .keys()
+            .filter_map(|&owner| {
+                let pending = self.tools.get(owner).expect("live delegated call");
+                (Some(pending.session) == session).then_some((owner, pending.origin))
+            })
+            .collect()
+    }
+
+    /// Moves a machine terminal through the existing schedule, retaining its work and reply right.
+    /// Scenarios keep the chosen time before the request's deadline.
+    pub fn deliver_io_at(&mut self, owner: Token, at: Time) {
+        assert!(at > self.now, "the machine terminal arrives in a later iteration");
+        let key = self.ops.get(owner).expect("pending operation").delivery;
+        let delivery = self.wire.withdraw(key).expect("pending machine terminal");
+        let key = self.schedule(at, delivery);
+        self.ops.get_mut(owner).expect("pending operation").delivery = key;
     }
 
     /// The agent's requests, carried out the way its opener, its protocol

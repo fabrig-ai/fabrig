@@ -56,12 +56,6 @@ pub struct Limits {
     pub length: u32,
 }
 
-/// The old name of [`encoder_bound`]; it goes once every tree calls the new name (wave 3).
-#[must_use]
-pub fn worst_case(limits: &Limits) -> Option<u64> {
-    encoder_bound(limits)
-}
-
 /// Bounds the encoder stack and output.
 /// The most memory an encoder holds under `limits`, in bytes
 /// (programming-model.md, 6.3), or `None` if it does not fit a `u64`: its
@@ -69,7 +63,7 @@ pub fn worst_case(limits: &Limits) -> Option<u64> {
 /// until [`Encoder::finish`] hands it over.
 #[must_use]
 pub fn encoder_bound(limits: &Limits) -> Option<u64> {
-    Stack::<Container>::worst_case(limits.depth)?.checked_add(u64::from(limits.length))
+    Stack::<Container>::price(limits.depth)?.checked_add(u64::from(limits.length))
 }
 
 /// Why the measuring pass refused a document.

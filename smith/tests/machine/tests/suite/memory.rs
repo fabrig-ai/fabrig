@@ -10,8 +10,8 @@ use smith_protocol_machine::{self as machine, Below, BelowEvent, Component, From
 #[test]
 fn saturated_searches_and_pipe_routes_stay_within_the_machine_bound() {
     // Peak with two saturated searches and their four pipe routes.
-    // Measured 9_537 B on 2026-10-28; a quarter of headroom, rounded up.
-    const SEARCH_CEILING: u64 = 12_000;
+    // Measured 8_480 bytes on 2026-10-29; a quarter of headroom, rounded up.
+    const SEARCH_CEILING: u64 = 11_000;
 
     let limits = Limits {
         operations: 0,
@@ -146,7 +146,7 @@ fn shared_harness_meters_file_child_and_flood_runs_through_drop() {
 #[test]
 fn saturated_configured_environments_and_command_check_copies_fit_the_machine_bound() {
     // Peak of retained environments and command/check translation copies.
-    // Measured 8_870 B on 2026-10-28; a quarter of headroom, rounded up.
+    // Measured 9_094 bytes on 2026-10-29; a quarter of headroom, rounded up.
     const ENVIRONMENT_CEILING: u64 = 12_000;
 
     for many in [false, true] {

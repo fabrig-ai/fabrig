@@ -539,7 +539,7 @@ pub(crate) fn record_bytes(value: &Record) -> Option<u64> {
         Record::Notes(notes::Record::Entry(entry)) => u64::try_from(entry.body.len())
             .ok()?
             .checked_add(u64::try_from(entry.description.len()).ok()?)?
-            .checked_add(List::<u64>::worst_case(entry.references.len())?)?
+            .checked_add(List::<u64>::price(entry.references.len())?)?
             .checked_add(match &entry.scope {
                 notes::Scope::Deployment | notes::Scope::Project { .. } | notes::Scope::Goal { .. } => 0,
                 notes::Scope::Resources { pattern, .. } => {

@@ -7,7 +7,6 @@ use crate::protocol::{self, Protocol};
 use crate::store::Store;
 use crate::walking;
 use jig_domain_authority as authority;
-use jig_domain_fleet as fleet;
 use jig_domain_host as host;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -15,6 +14,9 @@ use skein_lib::{Env, Queue, ReplyTo, Time, Token, Wall};
 use std::collections::{BTreeMap, VecDeque};
 use temper_engine_domain as engine;
 use temper_engine_domain::{Delivery, Record, Write};
+
+// One decision's writes for the escalation world's tasks, people and fleet.
+const ESCALATION_WRITES: u32 = 2_122;
 
 /// One durable process cut, without changing the outside scripts or store
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -191,14 +193,7 @@ pub fn limits() -> engine::Limits {
     limits.tasks.retries.run.retries = 0;
     limits.people.initial_owners = 2;
     limits.people.requests = 8;
-    limits.journal.writes = tasks::max_out(&limits.tasks) * 8
-        + people::max_out(&limits.people) * 4
-        + limits.people.pending * 2
-        + fleet::max_out(&limits.fleet) * 4
-        + temper_engine_domain_forge::max_out(&limits.forge)
-        + 2 * limits.authority.projects
-        + limits.tasks.tasks
-        + 6;
+    limits.journal.writes = ESCALATION_WRITES;
     limits
 }
 
@@ -214,7 +209,7 @@ impl World {
         let mut world = World {
             domain: engine::Domain::new(config, &limits).expect("valid engine configuration"),
             environment: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
-            out: Queue::with_capacity(engine::max_out(&limits)),
+            out: Queue::uncapped(),
             events: VecDeque::new(),
             sessions: [None, None],
             people: [None, None],
@@ -490,7 +485,7 @@ impl World {
         self.domain = engine::Domain::new(config(self.settings.seed), &self.environment.limits)
             .expect("valid engine configuration");
         self.events.clear();
-        self.out = Queue::with_capacity(engine::max_out(&self.environment.limits));
+        self.out = Queue::uncapped();
         self.frozen_cut = None;
         self.recovery = Recovery::Pending;
         self.restarts += 1;
@@ -615,7 +610,6 @@ impl World {
     }
 
     fn observe(&mut self) {
-        assert!(self.out.len() <= engine::max_out(&self.environment.limits), "declared root output room");
         while let Some(request) = self.out.pop() {
             self.trace.push(format!("output {request:?}"));
             let request = match self.protocol.play(request) {

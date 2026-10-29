@@ -1,7 +1,6 @@
 use super::{Listing, Shared, Unusable, check, largest_row, page_size};
 use crate::tests::fixtures;
 use alloc::boxed::Box;
-use core::mem::size_of;
 use skein_forge::api;
 use skein_lib::{List, Time};
 
@@ -264,20 +263,6 @@ fn an_app_credential_on_a_forgejo_forge_is_the_other_dialects() {
 }
 
 #[test]
-fn a_forges_key_and_jwt_are_in_the_worst_case() {
-    let l = fixtures::limits();
-    let shared = fixtures::shared();
-    let forges = super::Forges { forgejo: 0, github: 2 };
-    let larger = super::Limits { key_bytes: l.key_bytes.checked_add(100).expect("key bound"), ..l };
-    let before = super::worst_case(&l, &shared, forges, 0).expect("fixture bound");
-    let after = super::worst_case(&larger, &shared, forges, 0).expect("larger bound");
-    assert_eq!(
-        after.checked_sub(before).expect("larger footprint"),
-        u64::from(forges.github).checked_mul(100).expect("key growth")
-    );
-}
-
-#[test]
 fn github_document_depth_needs_ten_only_for_github() {
     for (depth, expected) in
         [(9, Err(Unusable::GitHubDocuments(skein_forge::github::limits::Problem::Depth))), (10, Ok(()))]
@@ -321,127 +306,6 @@ fn installation_page_budget_refuses_checked_overflow() {
         Err(Unusable::StringBytes { string_bytes: l.string_bytes, name_bytes: past.name_bytes })
     );
 }
-#[test]
-fn installation_heap_covers_simultaneous_tables_and_page_payloads() {
-    const ROWS: u32 = 3;
-    const NAME: u32 = 128;
-    const TOKEN: u32 = 64;
-    const PEAK_PAYLOADS: u64 = 3 * (6 * 128 + 64) + 2 * 100 * 128 + 3 * 128 + 7 * 64;
-    let l = super::Limits { installations: ROWS, token_bytes: TOKEN, ..fixtures::limits() };
-    let s = Shared { name_bytes: NAME, ..fixtures::shared() };
-    let empty = super::installation_heap(&super::Limits { token_bytes: 0, ..l }, &Shared { name_bytes: 0, ..s })
-        .expect("scalar storage");
-    let peak = super::installation_heap(&l, &s).expect("payload storage");
-    // Old and staged metadata plus the live row, accepted/missing accounts,
-    // a full page and its handoff, cursor/event accounts and mint handoffs coexist.
-    assert_eq!(peak - empty, PEAK_PAYLOADS);
-    assert!(
-        peak >= PEAK_PAYLOADS
-            + List::<skein_forge::github::document::Installation>::worst_case(100).expect("page storage") * 2
-    );
-}
-#[test]
-fn installation_staging_and_page_accounting_refuse_overflow() {
-    let l = super::Limits { installations: u32::MAX, token_bytes: u32::MAX, ..fixtures::limits() };
-    let s = Shared { name_bytes: u32::MAX, ..fixtures::shared() };
-    assert_eq!(super::installation_heap(&l, &s), None);
-    assert_eq!(super::worst_case(&l, &s, super::Forges { forgejo: 0, github: 1 }, 0), None);
-}
-
-#[test]
-fn ready_candidate_and_held_token_fit_at_simultaneous_peak() {
-    const ROWS: u32 = 3;
-    const TOKEN: u32 = 64;
-    const NAME: u32 = 128;
-    // Live Full tokens, decoder/authorization handoffs, retry candidate and held Contents.
-    const TOKEN_COPIES: u64 = 3 + 7;
-    // Six bounded table accounts per row, two page buffers and three event accounts.
-    const NAME_COPIES: u64 = 3 * 6 + 2 * 100 + 3;
-    let l = super::Limits { installations: ROWS, token_bytes: TOKEN, ..fixtures::limits() };
-    let s = Shared { name_bytes: NAME, ..fixtures::shared() };
-    let scalar = super::installation_heap(&super::Limits { token_bytes: 0, ..l }, &Shared { name_bytes: 0, ..s })
-        .expect("scalar storage");
-    let peak = super::installation_heap(&l, &s).expect("simultaneous payloads");
-    assert_eq!(peak - scalar, TOKEN_COPIES * 64 + NAME_COPIES * 128);
-    assert!(
-        scalar >= skein_lib::Map::<u64, crate::installations::Row>::worst_case(ROWS).expect("states and revisions")
-    );
-}
-
-#[test]
-fn renewal_clocks_and_handoff_fit_at_peak() {
-    use crate::installations::{Clock, Row};
-    const ROWS: u32 = 3;
-    // One retained Full per row and seven handoff/candidate/held copies per forge.
-    const COPIES: u64 = 10;
-    let l = super::Limits { installations: ROWS, token_bytes: 0, ..fixtures::limits() };
-    let s = fixtures::shared();
-    let scalar = super::installation_heap(&l, &s).expect("scalar storage");
-    let payload = super::installation_heap(&super::Limits { token_bytes: 64, ..l }, &s).expect("handoff storage");
-    assert_eq!(payload - scalar, COPIES * 64);
-    assert!(size_of::<Row>() >= size_of::<Clock>() * 2 + 16);
-    assert!(scalar >= skein_lib::Map::<u64, Row>::worst_case(ROWS).expect("row clocks and revisions"));
-}
-#[test]
-fn renewal_handoff_checked_add_refuses_overflow() {
-    let l = fixtures::limits();
-    let s = fixtures::shared();
-    let base = super::worst_case(&l, &s, super::Forges { forgejo: 0, github: 1 }, 0).expect("bounded renewal storage");
-    assert_eq!(super::worst_case(&l, &s, super::Forges { forgejo: 0, github: 1 }, u64::MAX - base), Some(u64::MAX));
-    assert_eq!(super::worst_case(&l, &s, super::Forges { forgejo: 0, github: 1 }, u64::MAX - base + 1), None);
-}
-
-#[test]
-fn github_tables_and_discovery_plans_are_priced_at_simultaneous_peak() {
-    let l = fixtures::limits();
-    let s = fixtures::shared();
-    let fixed = super::github_tables_heap(&l, l.repositories, l.users).expect("full tables");
-    let staged = super::github_tables_heap(&l, 1, 1).expect("discovery staging");
-    assert!(
-        fixed
-            >= u64::from(l.repositories)
-                * u64::try_from(size_of::<skein_forge::github::plans::tables::Repository>()).expect("row size")
-    );
-    let base = super::worst_case(&l, &s, super::Forges { forgejo: 0, github: 1 }, 0).expect("complete bound");
-    assert!(base >= fixed + u64::from(s.calls) * (staged + u64::from(s.answer_bytes) * 4));
-    let more = super::Limits { repositories: l.repositories + 1, users: l.users + 1, ..l };
-    assert!(super::worst_case(&more, &s, super::Forges { forgejo: 0, github: 1 }, 0).expect("larger tables") > base);
-    assert_eq!(super::worst_case(&l, &s, super::Forges { forgejo: 0, github: 1 }, u64::MAX - base + 1), None);
-}
-
-#[test]
-fn discovery_candidates_fit_the_installation_bound_for_every_call() {
-    use crate::installations::Selected;
-    const ROWS: u32 = 3;
-    const CALLS: u32 = 2;
-    let l = super::Limits { installations: ROWS, ..fixtures::limits() };
-    let s = Shared { calls: CALLS, ..fixtures::shared() };
-    let empty = super::Limits { installations: 0, ..l };
-    let before = super::github_call_heap(&empty, &s).expect("no candidate storage");
-    let after = super::github_call_heap(&l, &s).expect("candidate storage for a call");
-    assert_eq!(after - before, List::<Selected>::worst_case(ROWS).expect("candidate list"));
-    let total = super::worst_case(&l, &s, super::Forges { forgejo: 0, github: 1 }, 0).expect("all calls");
-    assert!(total >= u64::from(CALLS) * after);
-}
-#[test]
-fn discovery_handoff_prices_two_live_read_plans_and_the_retained_operation() {
-    let l = fixtures::limits();
-    let s = fixtures::shared();
-    let reads = u64::try_from(size_of::<skein_forge::github::plans::reads::Plan>()).expect("read size");
-    let staged = super::github_tables_heap(&l, 1, 1).expect("staged row");
-    let candidates = List::<crate::installations::Selected>::worst_case(l.installations).expect("candidate storage");
-    let heap = super::github_call_heap(&l, &s).expect("discovery and handoff");
-    assert!(heap >= reads * 2 + staged + candidates + u64::from(s.answer_bytes) * 3);
-    let base = super::worst_case(&l, &s, super::Forges { forgejo: 0, github: 1 }, 0).expect("all calls");
-    assert!(base >= heap * u64::from(s.calls) + u64::from(s.op_bytes) * 3 * u64::from(s.calls));
-}
-#[test]
-fn discovery_candidate_storage_refuses_checked_overflow() {
-    let l = super::Limits { installations: u32::MAX, ..fixtures::limits() };
-    let s = Shared { calls: u32::MAX, ..fixtures::shared() };
-    assert_eq!(super::worst_case(&l, &s, super::Forges { forgejo: 0, github: 1 }, 0), None);
-}
-
 fn maximal_run(string: usize) -> api::Run {
     api::Run {
         id: 1,

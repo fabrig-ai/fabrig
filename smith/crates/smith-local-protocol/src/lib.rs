@@ -2,8 +2,8 @@
 //! domain/host.md, section 8). It retains one bounded, possibly continued
 //! line and whether an interrupt has already cancelled the current run. It
 //! never knows the chat, the agent, or how the terminal is opened. `feed`,
-//! `interrupt`, `answer_finished`, and `show` are its entry points. Their
-//! caller reserves `max_out` and settles each output before feeding more.
+//! `interrupt`, `answer_finished`, and `show` are its entry points. The
+//! terminal pushes its events; its caller drains them.
 //!
 //! | State | Input | Output |
 //! |---|---|---|
@@ -46,6 +46,6 @@ pub use store::{
     decode_state, decode_turns, save_state, save_turn, turn_name, turn_opens_window,
 };
 pub use terminal::{
-    Entered, Event as TerminalEvent, Limits as TerminalLimits, Slash, Terminal, entered, max_out as terminal_max_out,
-    notice_text, run_failure_text, valid as terminal_valid,
+    Entered, Event as TerminalEvent, Limits as TerminalLimits, Slash, Terminal, entered, notice_text, run_failure_text,
+    valid as terminal_valid,
 };

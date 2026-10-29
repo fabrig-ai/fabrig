@@ -413,34 +413,23 @@ pub(super) fn engine_startup(
     parsed.limits.store = store_limits;
     parsed.first.deployment = seeds.deployment;
     parsed.second.deployment = seeds.deployment;
-    let max = root::max_out(&parsed.limits.root);
     let accounts = if parsed.accounts {
         Some(crate::accounts::Accounts::new(
             ACCOUNT_APPLICATION.into(),
             &parsed.engine,
             seeds,
             runtime,
-            max.checked_mul(6).expect("account routing room"),
             &store_limits.secrets,
         )?)
     } else {
         None
     };
     let workers = if parsed.workers {
-        Some(crate::workers::Workers::new(
-            &parsed.engine,
-            files,
-            seeds.deployment,
-            &parsed.limits.workers,
-            max.checked_mul(2)
-                .expect("engine routes")
-                .checked_mul(jig_protocol_engine_workers::MAX_OUT_DOWN)
-                .expect("worker routing room"),
-        )?)
+        Some(crate::workers::Workers::new(&parsed.engine, files, seeds.deployment, &parsed.limits.workers)?)
     } else {
         None
     };
-    let clients = clients_child(&parsed, seeds, max)?;
+    let clients = clients_child(&parsed, seeds)?;
     let values = crate::values::Values {
         application: application(&parsed, files)?,
         accounts: jig_protocol_accounts::table::Table::new(
@@ -483,18 +472,9 @@ pub(super) fn engine_startup(
     Ok((engine, parsed.limits.io))
 }
 
-fn clients_child(parsed: &Parsed, seeds: &Seeds, max: u32) -> Result<Option<crate::clients::Clients>, Problems> {
+fn clients_child(parsed: &Parsed, seeds: &Seeds) -> Result<Option<crate::clients::Clients>, Problems> {
     Ok(if parsed.clients {
-        Some(crate::clients::Clients::new(
-            &parsed.engine,
-            parsed.listener,
-            seeds,
-            max.checked_mul(2)
-                .expect("engine routes")
-                .checked_mul(jig_protocol_engine_clients::MAX_OUT_DOWN)
-                .expect("client routing room"),
-            &parsed.limits.server,
-        )?)
+        Some(crate::clients::Clients::new(&parsed.engine, parsed.listener, seeds, &parsed.limits.server)?)
     } else {
         None
     })
@@ -640,10 +620,7 @@ pub fn startup(
         }
     };
     let mut workers = List::with_capacity(specs.len());
-    let mut queue = match &engine {
-        Some((engine, _)) => engine.max_out.checked_mul(2).expect("service queue"),
-        None => 1,
-    };
+    let mut queue = 1;
     for (index, spec) in specs.into_boxed().into_iter().enumerate() {
         let path = indexed(&Path::root().member(b"application").member(b"workers"), index).member(b"root");
         let index = u32::try_from(index).expect("worker index");
@@ -674,9 +651,10 @@ pub fn startup(
         io.output = io.output.max(spec.config.limits.io.output);
         io.sends = io.sends.max(spec.config.limits.io.sends);
         let worker = crate::Worker::new(spec.config, agent, files, directory, index, seeds.seed)?;
-        queue = queue.max(worker.queue_room());
+        queue = queue.max(crate::Worker::queue_room());
         workers.push(worker).expect("worker count");
     }
+    queue = queue.max(crate::kernel_queue(&io));
     let mut service = match engine {
         Some((engine, _)) => Service::new(Some(engine), workers, io, queue),
         None => Service::new(None, workers, io, queue),

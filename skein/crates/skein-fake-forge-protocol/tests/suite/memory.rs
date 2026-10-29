@@ -31,7 +31,7 @@ mod tests {
         files.into_boxed()
     }
     // Bounds the hosted git scenario, including its driver and shared domain.
-    const FAKE_FORGEJO_GIT_SCENARIO_PEAK_CEILING: u64 = 560_000;
+    const FAKE_FORGEJO_GIT_SCENARIO_PEAK_CEILING: u64 = 75_000;
 
     #[test]
     fn maximal_trees_and_merge_history_stay_under_the_scenario_peak_ceiling() {
@@ -40,9 +40,6 @@ mod tests {
         let mut config = fixtures::config();
         let domain_limits = fixtures::fake_config().limits;
         config.max_response_items = domain_limits.commits;
-        let bound = FAKE_FORGEJO_GIT_SCENARIO_PEAK_CEILING
-            .checked_add(domain::worst_case(&domain_limits).expect("domain bound"))
-            .expect("combined bound");
         // Driver buffers and the shared domain are included in the scenario peak.
         let mut h = fixtures::Harness::new(config);
         let mut tip = 1_u64;
@@ -67,7 +64,11 @@ mod tests {
         assert_eq!(h.status(), 200);
         assert!(skein_lib::bytes::find(&h.body(), b"\"graph\":[{\"commit\":15,").is_some());
         let measured = meter.end();
-        let peak = meter.check(measured, bound, &"maximal git trees and both-parent frontier");
+        let peak = meter.check(
+            measured,
+            FAKE_FORGEJO_GIT_SCENARIO_PEAK_CEILING,
+            &"maximal git trees and both-parent frontier",
+        );
         assert!(peak <= FAKE_FORGEJO_GIT_SCENARIO_PEAK_CEILING);
     }
     #[test]
@@ -94,13 +95,13 @@ mod tests {
         let body =
             git::server::encode(&git::Answer::Objects { objects: objects.into_boxed(), graph: Box::new([]) }, &limits)
                 .expect("five largest trees fit the wire");
-        let bound = git::decoder_worst_case(&limits)
+        let bound = git::decoder_bound(&limits)
             .expect("decoder bound")
-            .checked_add(json::worst_case(&limits.documents.json).expect("tokenizer bound"))
+            .checked_add(json::tokenizer_bound(&limits.documents.json).expect("tokenizer bound"))
             .expect("combined bound")
-            .checked_add(Queue::<json::Event>::worst_case(1).expect("event slot"))
+            .checked_add(Queue::<json::Event>::price(1).expect("event slot"))
             .expect("combined bound")
-            .checked_add(Queue::<Down>::worst_case(1).expect("demand slot"))
+            .checked_add(Queue::<Down>::price(1).expect("demand slot"))
             .expect("combined bound");
         let meter = Meter::new();
         meter.start();

@@ -74,7 +74,7 @@ impl Owner {
         owner.phase = Phase::Lock;
         owner
     }
-    /// One owner observes a lock through two independent opens over the ring.
+    /// One owner observes a lock through two independent opens.
     #[must_use]
     pub fn pair(first: Fd, second: Fd) -> Self {
         let mut owner = Self::new(&[first, second], None, Role::Pair);
@@ -303,5 +303,28 @@ pub fn world(seed: u64, peers: bool) -> World<Owner, Judge, FileSystem> {
         let root = single.expect("one root");
         world.spawn_root(root, Owner::again);
     }
+    world
+}
+
+fn make_pair(inherited: &Inherited) -> Owner {
+    let mut owner = Owner::pair(inherited.roots[0].1, inherited.roots[1].1);
+    owner.signal = Some(inherited.signal);
+    owner
+}
+
+/// Two independently opened roots contend until the first root closes (skein/docs/design/io.md, 5).
+#[must_use]
+pub fn pair_world(seed: u64) -> World<Owner, Judge, FileSystem> {
+    let mut files = Files::new();
+    let root = files.lay(&[]);
+    files.close(root);
+    let mut world =
+        World::new(seed, Config::calm(), Judge::single(), Memory::Checked).with_machine(FileSystem { files });
+    world.spawn_restartable(
+        [b"first".as_slice(), b"second".as_slice()]
+            .map(|name| StartupRoot { name: Box::from(name), path: Box::from(&b"root-0"[..]) })
+            .into(),
+        make_pair,
+    );
     world
 }

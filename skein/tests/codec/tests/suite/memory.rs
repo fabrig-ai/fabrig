@@ -1,4 +1,4 @@
-//! A decoded value at every ceiling stays within its declared heap worst case
+//! A decoded value at every ceiling stays within its declared heap bound
 //! (codec.md, sections 4 and 6; testing-strategy.md, section 6).
 
 #[cfg(test)]
@@ -31,18 +31,18 @@ mod tests {
     }
 
     #[test]
-    fn full_record_decoder_at_its_limits_stays_within_heap_worst_case() {
+    fn full_record_decoder_at_its_limits_stays_within_decoded_bound() {
         let value = full_report();
         assert_eq!(
             value.measure(),
-            u32::try_from(Report::worst_case_bytes(&CEILINGS).expect("wire bound")).expect("u32 ceiling")
+            u32::try_from(Report::encoded_bound(&CEILINGS).expect("wire bound")).expect("u32 ceiling")
         );
         let mut writer = Writer::new(usize::try_from(value.measure()).expect("u32 fits usize"));
         value.encode(&mut writer).expect("measured room");
         let wire = writer.finish();
         drop(value);
 
-        let bound = Report::worst_case_heap(&CEILINGS).expect("heap bound");
+        let bound = Report::decoded_bound(&CEILINGS).expect("heap bound");
         let meter = Meter::new();
         meter.start();
         let decoded = Report::decode(&CEILINGS, &mut Reader::new(&wire)).expect("full record");
@@ -187,7 +187,7 @@ mod tests {
         let schema = skein_codec::schema::parse(include_bytes!("../../schema/every-v1.schema")).expect("schema");
         let root = schema.find(b"Every").expect("root");
         let full = full_every();
-        assert_eq!(u64::from(full.measure()), Every::worst_case_bytes(&CEILINGS).expect("wire bound"));
+        assert_eq!(u64::from(full.measure()), Every::encoded_bound(&CEILINGS).expect("wire bound"));
         let mut writer = Writer::new(usize::try_from(full.measure()).expect("wire length"));
         full.encode(&mut writer).expect("measured room");
         let wire = writer.finish();
@@ -197,7 +197,7 @@ mod tests {
         meter.start();
         let mut value = Value::with_room(ROOM);
         let measured = meter.end();
-        let bound = Value::worst_case_heap(ROOM).expect("heap bound");
+        let bound = Value::decoder_bound(ROOM).expect("heap bound");
         assert_eq!(measured.peak(), 0, "empty room allocates nothing");
         assert_eq!(measured.held(), 0, "empty room holds nothing");
 
@@ -330,13 +330,13 @@ mod patch_memory {
 
     #[test]
     fn patcher_stays_within_its_heap_bound_after_every_call() {
-        small_records(CAPACITY, Patcher::worst_case_heap(CAPACITY).expect("bound"), false);
+        small_records(CAPACITY, Patcher::workspace_bound(CAPACITY).expect("bound"), false);
     }
 
     #[test]
     fn large_ceilings_keep_small_records_near_their_own_price() {
         let small = Capacity { nodes: CAPACITY.nodes, bytes: CAPACITY.bytes, ..LARGE };
-        small_records(LARGE, Patcher::worst_case_heap(small).expect("small bound") + FLOOR, true);
+        small_records(LARGE, Patcher::workspace_bound(small).expect("small bound") + FLOOR, true);
     }
 
     fn list_wire(items: u32, version: u16) -> Box<[u8]> {
@@ -374,7 +374,7 @@ mod patch_memory {
     }
 
     fn ceiling_story(capacity: Capacity, items: u32, refusal: skein_codec::patch::Halt) {
-        let bound = Patcher::worst_case_heap(capacity).expect("bound");
+        let bound = Patcher::workspace_bound(capacity).expect("bound");
         let meter = Meter::new();
         let (mut patcher, plan, mut peak) = setup(&meter, capacity, bound, LIST_OLD, LIST_NEW, LIST_PATCH);
         for &length in RISING {

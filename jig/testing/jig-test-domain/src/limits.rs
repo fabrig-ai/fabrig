@@ -1,9 +1,10 @@
-//! The test root's output room and edge validity (service.md, 4).
+//! The test root's forwarding output bound and edge validity (service.md, 4).
 use crate::Limits;
 use jig_domain_core as core;
 use jig_test_connector as connector;
 
-/// Room for one release, including the door, deferred inputs and a commit.
+/// Compatibility bound for external release carriers, including the door,
+/// deferred inputs and a commit.
 #[must_use]
 pub fn max_out(limits: &Limits) -> u32 {
     limits
@@ -23,17 +24,10 @@ pub fn valid(limits: &Limits) -> bool {
     checked_valid(limits).is_some()
 }
 fn checked_valid(limits: &Limits) -> Option<()> {
-    let room = core::route_bound(&limits.core)?;
-    let connectors = connector::MAX_OUT.checked_mul(2)?;
-    if limits.routes == 0
-        || room.checked_add(connectors)? > limits.journal.writes
-        || room.checked_add(connectors)? > limits.journal.held
-        || !core::valid(&limits.core)
-        || !connector::valid(&limits.connector)
-    {
+    if limits.routes == 0 || !core::valid(&limits.core) || !connector::valid(&limits.connector) {
         return None;
     }
     core::reads::answer_worst_case(&limits.core)?;
-    connector::document_worst_case(&limits.connector)?;
+    connector::document_bound(&limits.connector)?;
     Some(())
 }

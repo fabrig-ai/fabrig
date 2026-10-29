@@ -61,8 +61,8 @@ pub(super) fn io_up(service: &mut Service) {
 pub(super) fn lower_events(service: &mut Service) {
     for _ in 0..service.limits.queue {
         if service.channel.is_some()
-            && (service.channel_events.room() < channel::max_out(&service.limits.channel).to_domain
-                || service.channel_below.room() < channel::max_out(&service.limits.channel).below)
+            && (service.channel_events.room() < channel::edge_room(&service.limits.channel).to_domain
+                || service.channel_below.room() < channel::edge_room(&service.limits.channel).below)
         {
             break;
         }
@@ -168,7 +168,7 @@ pub(super) fn live_step(service: &mut Service, action: crate::live::Action<'_>) 
         below: &mut service.channel_below,
         next: &mut service.next_send,
         failed: false,
-        maximum: channel::max_out(&service.limits.channel),
+        room: channel::edge_room(&service.limits.channel),
         ending,
     };
     service.live.act(action, service.io_env.now, &mut room);
@@ -178,20 +178,28 @@ pub(super) fn live_step(service: &mut Service, action: crate::live::Action<'_>) 
 }
 
 fn llm_measures(service: &mut Service) {
-    let routed = llm::MAX_OUT.above.checked_mul(2).expect("content and transport measures per routed event");
-    let maximum = routed.checked_add(1).expect("one start plus the bounded routed batch");
-    for _ in 0..maximum {
+    let pending = program::pending_measures(service);
+    if !llm_measure_batch(service, pending, false) {
+        return;
+    }
+    // Recording the one prepared prompt can append one finite child batch.
+    // The second snapshot drains it; further work needs another gated entrance.
+    for _ in 0_u32..2 {
+        let pending = service.llm.pending_measures();
+        if !llm_measure_batch(service, pending, true) {
+            return;
+        }
+    }
+}
+
+fn llm_measure_batch(service: &mut Service, pending: u32, direct: bool) -> bool {
+    for _ in 0..pending {
         match &service.events {
-            Some(events) if !events.sinks.takes() => break,
+            Some(events) if !events.sinks.takes() => return false,
             Some(_) | None => {}
         }
-        let (measure, direct) = match program::pop_measure(service) {
-            Some(measure) => (measure, false),
-            None => match service.llm.pop_measure() {
-                Some(measure) => (measure, true),
-                None => break,
-            },
-        };
+        let measure = if direct { service.llm.pop_measure() } else { program::pop_measure(service) }
+            .expect("the batch retains its counted observations");
         let prompt_owner = match &measure {
             llm::Measure::Prompt { owner, .. } => Some(*owner),
             llm::Measure::Completion { .. }
@@ -233,14 +241,15 @@ fn llm_measures(service: &mut Service) {
             service.llm.prompt_recorded(&service.llm_env, owner, &mut service.llm_events, &mut service.llm_below);
         }
     }
+    true
 }
 
 pub(super) fn component_up(service: &mut Service) {
     program::fire(service);
     llm_measures(service);
-    let channel_max = channel::max_out(&service.limits.channel);
-    if service.channel_events.room() >= channel_max.to_domain
-        && service.channel_below.room() >= channel_max.below
+    let channel_room = channel::edge_room(&service.limits.channel);
+    if service.channel_events.room() >= channel_room.to_domain
+        && service.channel_below.room() >= channel_room.below
         && let Some(channel) = &mut service.channel
     {
         channel.fire(&mut service.channel_events, &mut service.channel_below);
@@ -284,8 +293,8 @@ fn llm_events_up(service: &mut Service) {
         }
         if !service.llm.measures_drained()
             || (service.channel.is_some()
-                && (service.channel_events.room() < channel::max_out(&service.limits.channel).to_domain
-                    || service.channel_below.room() < channel::max_out(&service.limits.channel).below))
+                && (service.channel_events.room() < channel::edge_room(&service.limits.channel).to_domain
+                    || service.channel_below.room() < channel::edge_room(&service.limits.channel).below))
         {
             break;
         }

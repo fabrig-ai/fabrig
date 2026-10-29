@@ -8,8 +8,12 @@ use std::collections::BTreeSet;
 use temper_engine_domain as engine;
 use temper_engine_domain::{Delivery, Key, Record};
 use temper_engine_domain_world::direct::Driver;
+use temper_engine_domain_world::journal_limits as journal;
 use temper_engine_domain_world::store::Store;
-use temper_engine_domain_world::walking::{config, limits, writes};
+use temper_engine_domain_world::walking::{config, limits};
+
+// Writes for the fuzzy ending world with a four-task child subtree.
+const ENDING_CHILD_WRITES: u32 = 3_738;
 
 const WORKER: Token = Token::new(7);
 const DELEGATE: u64 = 90;
@@ -44,7 +48,7 @@ fn chat(seed: u64, child: bool) -> (Driver, engine::Assignment) {
         bounds.fleet.attempts = 5;
         bounds.call_records = 4;
         bounds.brief.sections = 5;
-        bounds.journal.writes = writes(&bounds);
+        bounds.journal.writes = if child { ENDING_CHILD_WRITES } else { journal::EXTENDED_WALKING_WRITES };
         bounds.journal.deliveries = 100;
         bounds.journal.held = 300;
         (configuration, bounds)

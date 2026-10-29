@@ -12,6 +12,10 @@ use jig_test_domain as root;
 use skein_lib::{Duration, Env, JournalLimits, Queue, ReplyTo, Time, Token, Wall};
 use std::collections::VecDeque;
 
+// Four people hand-offs allow five requests apiece: one bootstrap owner plus
+// four sign-in/terminal outputs. This is the fixture's store-write allowance.
+const PEOPLE_WRITE_ALLOWANCE: u32 = 20;
+
 #[must_use]
 pub fn limits() -> root::Limits {
     static LIMITS: std::sync::OnceLock<root::Limits> = std::sync::OnceLock::new();
@@ -126,7 +130,7 @@ fn profile() -> root::Limits {
         history: 2,
     };
     let writes = tasks::max_out(&tasks) * 8
-        + people::max_out(&people) * 4
+        + PEOPLE_WRITE_ALLOWANCE
         + people.pending * 2
         + fleet::max_out(&fleet) * 4
         + jig_test_connector::MAX_OUT * 2
@@ -139,6 +143,7 @@ fn profile() -> root::Limits {
         watermark: root::default_watermark(&journal),
         connector: jig_test_connector_world::LIMITS,
         core: core::Limits {
+            routes: 20_783,
             settings: core::settings::Limits {
                 revisions: 4,
                 versions: 8,
@@ -220,7 +225,7 @@ fn profile() -> root::Limits {
             },
         },
     };
-    let room = core::route_bound(&limits.core).expect("fixture core bounds");
+    let room = limits.core.routes;
     let connectors = jig_test_connector::MAX_OUT.checked_mul(2).expect("two connectors");
     limits.journal.writes = limits.journal.writes.max(room.checked_add(connectors).expect("fixture writes"));
     limits.journal.held = limits.journal.held.max(

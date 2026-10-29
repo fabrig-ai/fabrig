@@ -622,25 +622,11 @@ fn date(value: Wall, writer: &mut Writer) {
     decimal(day, writer);
 }
 
-/// Loaded metadata, literal bytes, capacities and the largest saying's heap.
+/// Whether these limits are representable: every edge bound they size is finite
+/// and every capacity they derive fits (programming-model.md, 6.3).
+/// Checks room for two forms per phrase. Individual forms' byte capacities
+/// are checked against their loaded data by [`Phrasebook::load`].
 #[must_use]
-pub fn worst_case(limits: &PhraseLimits) -> Option<u64> {
-    let phrases = u64::from(limits.phrases);
-    let languages = u64::from(limits.languages);
-    let shapes = List::<PhraseShape>::worst_case(limits.phrases)?
-        .checked_add(List::<HoleShape>::worst_case(u32::from(limits.holes))?.checked_mul(phrases)?)?;
-    let words = List::<Language>::worst_case(u32::from(limits.languages))?
-        .checked_add(List::<Phrase>::worst_case(limits.phrases)?.checked_mul(languages)?)?
-        .checked_add(List::<Form>::worst_case(limits.phrases.checked_mul(2)?)?.checked_mul(languages)?)?
-        .checked_add(List::<Segment>::worst_case(limits.segments)?)?
-        .checked_add(u64::from(limits.text_bytes))?;
-    let saying = u64::from(limits.hole_bytes.max(20))
-        .checked_mul(u64::from(limits.holes))?
-        .checked_add(u64::from(limits.text_bytes))?
-        .checked_add(List::<ReferenceSpan>::worst_case(u32::from(limits.holes))?)?;
-    shapes
-        .checked_add(words)?
-        .checked_add(List::<PhraseId>::worst_case(limits.phrases)?)?
-        .checked_add(List::<Capacity>::worst_case(limits.phrases)?)?
-        .checked_add(saying)
+pub fn valid(limits: &PhraseLimits) -> bool {
+    limits.phrases.checked_mul(2).is_some()
 }

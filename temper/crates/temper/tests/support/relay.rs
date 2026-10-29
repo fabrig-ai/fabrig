@@ -1,4 +1,6 @@
 //! Owner-run GitHub relay: bounded HTTP, skein TLS, one guard and ledger (domain/testing.md, 2.7).
+use super::socket::Socket;
+use skein_lib::Duration;
 use std::{
     fs::{self, File, OpenOptions},
     io::{self, Read, Write},
@@ -10,7 +12,6 @@ use std::{
         atomic::{AtomicBool, Ordering},
     },
     thread::{self, JoinHandle},
-    time::Duration,
 };
 
 pub const CAP: usize = 400;
@@ -399,9 +400,14 @@ impl Shared {
         let answer = match &self.upstream {
             Upstream::Tls(tls) => tls_exchange(tls, host, &wire, method),
             Upstream::Plain(address) => {
-                let mut socket = TcpStream::connect_timeout(address, Duration::from_secs(30))?;
-                socket.set_read_timeout(Some(Duration::from_secs(30)))?;
-                socket.set_write_timeout(Some(Duration::from_secs(30)))?;
+                let mut socket = Socket::connect(
+                    *address,
+                    "the relay upstream's connection",
+                    Duration::from_secs(30),
+                    ["the relay upstream's reply", "the relay upstream's request"],
+                    true,
+                    None,
+                )?;
                 socket.write_all(&wire)?;
                 read_message(&mut io::BufReader::new(socket), Some(method))?.ok_or_else(invalid)
             }
@@ -443,10 +449,13 @@ impl Shared {
     }
 }
 fn serve(shared: &Shared, listener: &str, socket: TcpStream) {
-    let mut socket = io::BufReader::new(socket);
+    // The relay serves world-owned children; only their owner can pass after cleanup.
+    let mut socket = io::BufReader::new(Socket::deferred(
+        socket,
+        Duration::from_secs(60),
+        ["the relay client's request", "the relay client's reply"],
+    ));
     let result = (|| -> Result<()> {
-        socket.get_mut().set_read_timeout(Some(Duration::from_mins(1)))?;
-        socket.get_mut().set_write_timeout(Some(Duration::from_mins(1)))?;
         while !shared.stop.load(Ordering::Acquire) {
             let Some(mut request) = read_head(&mut socket)? else { break };
             if request.header("expect")?.is_some_and(|s| s.eq_ignore_ascii_case("100-continue")) {
@@ -673,7 +682,7 @@ fn read_body(reader: &mut impl Read, message: &mut Message, answer: bool) -> Res
 /// Blocking adapter drives the same skein TLS machine as conformance's Connector.
 /// A buffered reader above it parses each byte once, including close-delimited answers.
 struct TlsReader {
-    socket: TcpStream,
+    socket: Socket<'static>,
     tls: skein_tls::client::Client,
     env: skein_lib::Env<skein_tls::client::Limits>,
     above: skein_lib::Queue<skein_tls::client::Event>,
@@ -769,9 +778,14 @@ impl Read for TlsReader {
 fn tls_exchange(config: &skein_tls::Config, host: &str, wire: &[u8], method: &str) -> Result<Message> {
     use skein_tls::client::{self, Request};
     let address = (host, 443).to_socket_addrs()?.next().ok_or_else(invalid)?;
-    let socket = TcpStream::connect_timeout(&address, Duration::from_secs(30))?;
-    socket.set_read_timeout(Some(Duration::from_secs(30)))?;
-    socket.set_write_timeout(Some(Duration::from_secs(30)))?;
+    let socket = Socket::connect(
+        address,
+        "the TLS relay upstream's connection",
+        Duration::from_secs(30),
+        ["the TLS relay upstream's reply", "the TLS relay upstream's request"],
+        true,
+        None,
+    )?;
     let limits = client::Limits { read: 16384, send: 16384, records: 131_072 };
     let env = skein_lib::Env { now: skein_lib::Time::ZERO, wall: skein_shell::Clock::new().now().wall, limits };
     let mut stream = TlsReader {
@@ -793,11 +807,11 @@ fn tls_exchange(config: &skein_tls::Config, host: &str, wire: &[u8], method: &st
 
 /// Transport adapters for the managed sitting. The existing relay and its guard are unchanged.
 pub mod managed_transport {
-    use super::{Message, Result, Upstream, invalid, read_message, tls_exchange};
+    use super::{Message, Result, Socket, Upstream, invalid, read_message, tls_exchange};
+    use skein_lib::Duration;
     use std::{
         io::{self, Write},
-        net::{SocketAddr, TcpStream},
-        time::Duration,
+        net::SocketAddr,
     };
 
     pub struct Request(Message);
@@ -805,9 +819,7 @@ pub mod managed_transport {
         pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
             read_message(&mut io::Cursor::new(bytes), None)?.map(Self).ok_or_else(invalid)
         }
-        pub fn read(socket: &mut TcpStream) -> Result<Self> {
-            socket.set_read_timeout(Some(Duration::from_secs(30)))?;
-            socket.set_write_timeout(Some(Duration::from_secs(30)))?;
+        pub fn read(socket: &mut Socket<'_>) -> Result<Self> {
             read_message(&mut io::BufReader::new(socket), None)?.map(Self).ok_or_else(invalid)
         }
         pub fn route(&self) -> Result<(&str, &str)> {
@@ -835,7 +847,7 @@ pub mod managed_transport {
         pub fn refuse() -> Self {
             Self(Message::answer(403, b"managed relay refused request"))
         }
-        pub fn send(&self, socket: &mut TcpStream, method: &str) -> Result<()> {
+        pub fn send(&self, socket: &mut Socket<'_>, method: &str) -> Result<()> {
             let mut wire = self.0.framed(method)?;
             // One request per connection: closing is explicit even for git's persistent client.
             let at = wire.windows(4).position(|s| s == b"\r\n\r\n").ok_or_else(invalid)?;
@@ -867,9 +879,14 @@ pub mod managed_transport {
             let answer = match &self.0 {
                 Upstream::Tls(tls) => tls_exchange(tls, host, &wire, method)?,
                 Upstream::Plain(address) => {
-                    let mut socket = TcpStream::connect_timeout(address, Duration::from_secs(30))?;
-                    socket.set_read_timeout(Some(Duration::from_secs(30)))?;
-                    socket.set_write_timeout(Some(Duration::from_secs(30)))?;
+                    let mut socket = Socket::connect(
+                        *address,
+                        "the managed relay upstream's connection",
+                        Duration::from_secs(30),
+                        ["the managed relay upstream's reply", "the managed relay upstream's request"],
+                        true,
+                        None,
+                    )?;
                     socket.write_all(&wire)?;
                     read_message(&mut io::BufReader::new(socket), Some(method))?.ok_or_else(invalid)?
                 }

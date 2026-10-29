@@ -514,3 +514,236 @@ fn clients_claim_a_listener_adopted_before_the_first_down() {
     }
     assert_eq!(closed, 1);
 }
+
+#[test]
+fn a_blocked_told_head_holds_later_events_for_other_destinations() {
+    use skein_io::kernel::{Complete, Done, Fd, Op};
+    let mut service = fixtures::ready();
+    while service.listening().pop().is_some() {}
+    service.adopt_box(Fd::new(3), Fd::new(4), fixtures::system::BOX_BYTES).unwrap();
+    crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
+    crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
+    let mut read = None;
+    for _ in 0..service.submissions.len() {
+        let mut submit = service.submissions.pop().unwrap();
+        if let Op::PipeRead { fd, buf } = &mut submit.kind
+            && *fd == Fd::new(4)
+        {
+            for (target, source) in buf.iter_mut().zip(b"bad\n") {
+                *target = *source;
+            }
+            read = Some(submit);
+        } else {
+            service.submissions.push(submit);
+        }
+    }
+    let read = read.expect("box read published to the kernel");
+    for _ in 0..service.notes().capacity() {
+        service.notes().push(crate::Note::ForgeUnconfigured { number: 1 });
+    }
+    service.completions.push(Complete { op: read.op, kind: read.kind, result: Ok(Done::Count(4)) });
+    crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
+    assert_eq!(service.told.len(), 1, "the box event waits at its full diagnostics sink");
+    let addr = ([127, 0, 0, 1], 41735).into();
+    service.told.push(skein_io::Event::Listening {
+        owner: Token::new(crate::tokens::SERVER),
+        listener: Token::new(77),
+        addr: skein_io::Addr::Ip(addr),
+    });
+    crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
+    assert_eq!(service.notes().room(), 0);
+    assert!(service.listening().is_empty(), "the later clients event cannot pass the box head");
+    assert_eq!(service.told.len(), 2);
+    while service.notes().pop().is_some() {}
+    crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
+    let Some(crate::Note::BoxLink { .. }) = service.notes().pop() else {
+        panic!("the box owner receives its line");
+    };
+    assert_eq!(service.listening().pop(), Some(crate::Note::Listening { listener: crate::Listening::Clients, addr }));
+    assert!(service.told.is_empty());
+}
+
+#[test]
+fn a_source_is_marked_closing_only_once_its_close_is_queued() {
+    use skein_io::kernel::{Fd, Op, Submit};
+    use skein_lib::Queue;
+    let mut service = fixtures::ready();
+    let fd = Fd::new(90);
+    service.adopt_listener(fd, ([127, 0, 0, 1], 41736).into()).unwrap();
+    let capacity = service.completions.capacity();
+    // Stage a complete raw batch through the store's existing kernel entrance.
+    let store = &mut service.engine.as_mut().unwrap().store;
+    store.submitted = Queue::with_capacity(capacity);
+    for index in 0..capacity {
+        store.submitted.push(Submit { op: Token::new(u64::from(index) + 1000), kind: Op::Close { fd: Fd::new(91) } });
+    }
+    service.submissions = Queue::with_capacity(capacity);
+    for index in 0..capacity {
+        service
+            .submissions
+            .push(Submit { op: Token::new(u64::from(index) + 2000), kind: Op::Close { fd: Fd::new(92) } });
+    }
+    crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
+    assert_eq!(service.pending(Time::ZERO).raw_submissions, capacity, "raw kernel staging is at its cap");
+    service.engine.as_mut().unwrap().end = Some(End::Aborted);
+    crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
+    assert_eq!(service.wait_state().listener_closes, 0, "the source stays open without close-output credit");
+    while service.submissions.pop().is_some() {}
+    crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
+    assert_eq!(service.wait_state().listener_closes, 0, "publication returns credit after the close stage");
+    reap_staged_closes(&mut service);
+    crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
+    assert_eq!(service.wait_state().listener_closes, 1);
+    let mut closes = 0_u32;
+    for submit in &service.submissions {
+        if let Op::Close { fd: found } = submit.kind
+            && found == fd
+        {
+            closes += 1;
+        }
+    }
+    assert_eq!(closes, 1, "the kernel observes the close when the source is marked closing");
+}
+
+#[test]
+fn an_io_continuation_reaches_its_owner_before_a_later_completion() {
+    use skein_io::kernel::{Complete, Done, Fd, Op, Submit};
+    use skein_lib::Queue;
+    let mut service = fixtures::ready();
+    service.adopt_box(Fd::new(3), Fd::new(4), fixtures::system::BOX_BYTES).unwrap();
+    crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
+    crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
+    let mut read = None;
+    for _ in 0..service.submissions.len() {
+        let mut submit = service.submissions.pop().unwrap();
+        if let Op::PipeRead { fd, buf } = &mut submit.kind
+            && *fd == Fd::new(4)
+        {
+            for (target, source) in buf.iter_mut().zip(b"bad\n") {
+                *target = *source;
+            }
+            read = Some(submit);
+        } else {
+            service.submissions.push(submit);
+        }
+    }
+    let read = read.expect("box read");
+    while service.notes().pop().is_some() {}
+    let capacity = service.completions.capacity();
+    let store = &mut service.engine.as_mut().unwrap().store;
+    store.submitted = Queue::with_capacity(capacity);
+    for index in 0..capacity {
+        store.submitted.push(Submit { op: Token::new(u64::from(index) + 1000), kind: Op::Close { fd: Fd::new(91) } });
+    }
+    while service.submissions.room() > 0 {
+        service.submissions.push(Submit { op: Token::new(9000), kind: Op::Close { fd: Fd::new(92) } });
+    }
+    crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
+    assert_eq!(service.pending(Time::ZERO).raw_submissions, capacity);
+    service.adopt_signals(Fd::new(95)).unwrap();
+    crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
+    assert!(service.pending(Time::ZERO).io_ready, "the signal source has a ready continuation");
+    service.completions.push(Complete { op: read.op, kind: read.kind, result: Ok(Done::Count(4)) });
+    crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
+    assert_eq!(service.completions.len(), 1);
+    // Publication at the end of this iteration returns exactly one raw slot.
+    let _submission = service.submissions.pop().unwrap();
+    crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
+    assert_eq!(service.pending(Time::ZERO).raw_submissions, capacity - 1);
+    crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
+    assert!(!service.pending(Time::ZERO).io_ready, "the continuation spends the returned credit first");
+    assert_eq!(service.completions.len(), 1, "the later completion cannot spend that continuation's credit");
+    assert!(service.notes().is_empty(), "the box owner has not received the later line");
+    // Return route credit for the synthetic full batch, then publish the
+    // continuation before letting the service take the later completion.
+    reap_staged_closes(&mut service);
+    service.publish_staged();
+    reap_staged_closes(&mut service);
+    service.publish_staged();
+    let mut signal_reads = 0_u32;
+    for submit in &service.submissions {
+        if let Op::ReadSignal { fd } = submit.kind
+            && fd == Fd::new(95)
+        {
+            signal_reads += 1;
+        }
+    }
+    assert_eq!(signal_reads, 1, "the signal source reaches the kernel before the box completion is routed");
+    assert!(service.notes().is_empty());
+    crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
+    let Some(crate::Note::BoxLink { .. }) = service.notes().pop() else {
+        panic!("the later completion reaches the box owner");
+    };
+    assert!(service.completions.is_empty());
+}
+
+#[test]
+fn queued_completions_are_taken_before_a_due_io_timer() {
+    use skein_io::kernel::{Complete, Error, Fd, Op};
+    use skein_lib::Queue;
+    let mut service = fixtures::ready();
+    service.adopt_signals(Fd::new(95)).unwrap();
+    crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
+    crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
+    let mut accept = None;
+    let mut read = None;
+    for _ in 0..service.submissions.len() {
+        let submit = service.submissions.pop().unwrap();
+        if let Op::Accept { .. } = submit.kind
+            && accept.is_none()
+        {
+            accept = Some(submit);
+        } else if let Op::ReadSignal { fd } = submit.kind
+            && fd == Fd::new(95)
+        {
+            read = Some(submit);
+        } else {
+            service.submissions.push(submit);
+        }
+    }
+    let accept = accept.expect("the clients listener's accept");
+    let Op::Accept { fd: listener } = accept.kind else { panic!("accept") };
+    service.completions.push(Complete { op: accept.op, kind: accept.kind, result: Err(Error::TooManyOpenFiles) });
+    crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
+    let due = service.next_deadline().expect("the listener retries its exhausted descriptor budget");
+    assert!(service.pending(due).io_due, "the retry is an IO timer");
+    let read = read.expect("signal read");
+    // A one-entry shell completion queue makes this one completion a full reap batch.
+    service.completions = Queue::with_capacity(1);
+    service.completions.push(Complete { op: read.op, kind: read.kind, result: Err(Error::BrokenPipe) });
+    assert_eq!(service.completions.room(), 0);
+    crate::iterate(&mut service, due, Wall::EPOCH);
+    let mut close_at = None;
+    let mut retry_at = None;
+    for (position, submit) in service.submissions.iter().enumerate() {
+        if let Op::Close { fd } = submit.kind
+            && fd == Fd::new(95)
+        {
+            close_at = Some(position);
+        }
+        if let Op::Accept { fd } = submit.kind
+            && fd == listener
+        {
+            retry_at = Some(position);
+        }
+    }
+    let close_at = close_at.expect("the completion's signal source closes its failed input");
+    let retry_at = retry_at.expect("the due listener timer retries accept");
+    assert!(close_at < retry_at, "the kernel sees the completion owner's output before the timer owner's output");
+    assert!(service.completions.is_empty());
+}
+
+// Synthetic closes fill staging without an io owner. Reaping their published
+// records returns route credit just as a shell completion does.
+fn reap_staged_closes(service: &mut crate::Service) {
+    use skein_io::kernel::{Complete, Done, Fd, Op};
+    for _ in 0..service.submissions.len() {
+        let submit = service.submissions.pop().unwrap();
+        if let Op::Close { fd } = submit.kind
+            && fd == Fd::new(91)
+        {
+            let _complete =
+                service.complete_staged(Complete { op: submit.op, kind: submit.kind, result: Ok(Done::Nothing) });
+        }
+    }
+}

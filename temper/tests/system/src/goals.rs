@@ -12,6 +12,9 @@ use temper_engine_domain as engine;
 use temper_engine_domain::{Delivery, Key, Record};
 use temper_engine_domain_world::{direct::Driver, store::Store, walking};
 
+// Writes for the system goal world's approval, planning and five-task route.
+const GOAL_WRITES: u32 = 4_735;
+
 const PLAN: &[u8] = br#"{"batch":[{"executor":{"kind":"agent","charter":1},"spec":{"words":"@report Complete the goal's first task"},"contract":{"kind":"report","words":128},"authority":{"tools":0,"grants":[],"delegation":{"kinds":[],"tasks":0,"depth":0},"budget":{"spend":10},"notes":0}}]}"#;
 
 fn plan_script() -> Script {
@@ -102,8 +105,8 @@ fn configured() -> Driver {
         config.core.defaults.rules = domain.rules().clone();
         config
     });
-    // Size journal writes from the placed subtree's complete child route.
-    limits.journal.writes = limits.journal.writes.max(walking::writes(&limits));
+    // Keep room for the goal world's complete decision.
+    limits.journal.writes = GOAL_WRITES;
     Driver::configured(Store::new(), config, &limits)
 }
 

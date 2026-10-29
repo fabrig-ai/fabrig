@@ -20,7 +20,7 @@ pub(super) fn route_accepted_turn(
     let refused = &core.tasks.task(task).expect("accepted turn task live").refused;
     let proof = core.proofs.get_mut(&task).expect("turn proof reserved before child mutation");
     assert!(proof.attempt == attempt, "turn callback retains its claim");
-    let mut out = Queue::with_capacity(env.limits.call_records.checked_add(6).expect("turn route room"));
+    let mut out = Queue::uncapped();
     match accepted {
         tasks::Accepted::New => {
             let mut outstanding = skein_lib::List::with_capacity(env.limits.tasks.run_inbox);

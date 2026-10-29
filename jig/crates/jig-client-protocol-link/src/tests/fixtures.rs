@@ -109,7 +109,7 @@ pub struct Harness {
 }
 impl Harness {
     pub fn new(limits: &Limits) -> Self {
-        Self { link: Link::new(limits).unwrap(), out: Queue::with_capacity(32) }
+        Self { link: Link::new(limits).unwrap(), out: Queue::uncapped() }
     }
     pub fn send(&mut self, attempt: Token, key: RequestKey, ask: c::Ask) -> Token {
         self.link.step(
@@ -282,7 +282,7 @@ impl Harness {
         values
     }
     pub fn sign_out(&mut self) -> Token {
-        self.out = Queue::with_capacity(32);
+        self.out = Queue::uncapped();
         self.link.step(Time::ZERO, Event::SignOut, &mut self.out);
         for request in &self.out {
             if let Request::Exchange { exchange, .. } = request {

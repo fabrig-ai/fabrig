@@ -304,14 +304,15 @@ fn an_owed_result_is_forgotten_by_compaction() {
 
 #[test]
 fn program_results_leave_the_turn_cell_bounded() {
-    // Ceiling on Turn and Kind cells together: a quarter above 10-28's figure, moved by hand when a real change passes it.
-    const BUILTIN_RECORD_CELLS_CEILING: usize = 240;
+    // Type-size contract check on the Turn and Kind cells together.
+    // A change of either type's size is a deliberate edit of this number.
+    const TURN_KIND_SIZE: usize = 240;
     let cells = size_of::<crate::record::Turn>() + size_of::<crate::record::Kind>();
-    assert!(cells <= BUILTIN_RECORD_CELLS_CEILING, "record cells {cells} exceed {BUILTIN_RECORD_CELLS_CEILING}");
+    assert!(cells <= TURN_KIND_SIZE, "record cells {cells} exceed {TURN_KIND_SIZE}");
 }
 
 #[test]
-fn replacing_a_full_builtin_batch_stays_within_the_fact_reservation() {
+fn replacing_a_full_builtin_batch_keeps_every_observation() {
     let mut limits = LIMITS;
     limits.parallel_tools = 1;
     limits.tools.jobs = 0;
@@ -327,24 +328,21 @@ fn replacing_a_full_builtin_batch_stays_within_the_fact_reservation() {
     drop(next_prompt(&mut harness));
     // A live replacement leaves its new results owed, rather than settling them.
     let bound = limits.completion_blocks.checked_mul(3).unwrap().checked_add(2).unwrap();
-    reserve_facts(&mut harness, bound);
+    begin_facts(&mut harness);
     let mut answer = completion(blocks(), Stop::ToolUse);
     answer.reasoning_dropped = vec![1; usize::try_from(limits.completion_blocks).unwrap()].into_boxed_slice();
     crate::session::completed(&mut harness.domain, &harness.env, session, answer, &mut harness.out);
-    assert_full_facts(&mut harness, bound);
+    assert_fact_count(&mut harness, bound);
 }
 
-fn reserve_facts(harness: &mut Harness, bound: u32) {
+fn begin_facts(harness: &mut Harness) {
     harness.keep_facts();
-    assert!(bound <= crate::max_facts(&harness.env.limits));
-    harness.domain.facts = crate::facts::Facts::with_capacity(bound);
     harness.domain.facts.begin(harness.env.now);
 }
 
-fn assert_full_facts(harness: &mut Harness, bound: u32) {
-    assert_eq!(harness.domain.facts_room(), 0, "the entrance has no spare fact slots");
+fn assert_fact_count(harness: &mut Harness, count: u32) {
     let facts: Vec<_> = core::iter::from_fn(|| harness.domain.pop_fact()).collect();
-    assert_eq!(facts.len(), usize::try_from(bound).unwrap());
+    assert_eq!(facts.len(), usize::try_from(count).unwrap());
 }
 
 fn full_batch(limits: &Limits) -> Box<[Block]> {
@@ -355,20 +353,20 @@ fn full_batch(limits: &Limits) -> Box<[Block]> {
 }
 
 #[test]
-fn closing_a_full_builtin_batch_fills_its_fact_bound() {
+fn closing_a_full_builtin_batch_keeps_every_observation() {
     let mut limits = LIMITS;
     limits.tools.jobs = 0;
     limits.delegated_result_bytes = 64;
     let mut harness = Harness::new(&limits);
     let session = begin(&mut harness, full_batch(&limits));
     let bound = crate::domain::builtin_close_facts(&limits);
-    reserve_facts(&mut harness, bound);
+    begin_facts(&mut harness);
     crate::session::close(&mut harness.domain, &harness.env, session, &mut harness.out);
-    assert_full_facts(&mut harness, bound);
+    assert_fact_count(&mut harness, bound);
 }
 
 #[test]
-fn failing_after_a_full_builtin_batch_fills_its_fact_bound() {
+fn failing_after_a_full_builtin_batch_keeps_every_observation() {
     let mut limits = LIMITS;
     limits.tools.jobs = 0;
     limits.delegated_result_bytes = 64;
@@ -376,7 +374,7 @@ fn failing_after_a_full_builtin_batch_fills_its_fact_bound() {
     let session = begin(&mut harness, full_batch(&limits));
     drop(next_prompt(&mut harness));
     let bound = crate::domain::builtin_failure_facts(&limits);
-    reserve_facts(&mut harness, bound);
+    begin_facts(&mut harness);
     crate::session::failed(
         &mut harness.domain,
         &harness.env,
@@ -387,7 +385,7 @@ fn failing_after_a_full_builtin_batch_fills_its_fact_bound() {
         true,
         &mut harness.out,
     );
-    assert_full_facts(&mut harness, bound);
+    assert_fact_count(&mut harness, bound);
 }
 
 #[test]
@@ -400,7 +398,7 @@ fn an_expired_completion_fills_every_fact_inventory() {
     limits.parallel_tools = 1;
     limits.tools.jobs = 0;
     limits.delegated_result_bytes = 64;
-    limits.facts = crate::max_facts(&limits);
+    limits.facts = 0;
     let mut harness = Harness::new(&limits);
     let session = begin(&mut harness, full_batch(&limits));
     drop(next_prompt(&mut harness));
@@ -408,12 +406,12 @@ fn an_expired_completion_fills_every_fact_inventory() {
     // Old stand-ins, new starts, new stand-ins and independent reasoning;
     // CompletionAnswered, Used, the kit's Closed and the session's Ended.
     let bound = limits.completion_blocks.checked_mul(4).unwrap().checked_add(4).unwrap();
-    reserve_facts(&mut harness, bound);
+    begin_facts(&mut harness);
     let mut answer = completion(full_batch(&limits), Stop::ToolUse);
     answer.reasoning_dropped = vec![1; usize::try_from(limits.completion_blocks).unwrap()].into_boxed_slice();
     crate::session::completed(&mut harness.domain, &harness.env, session, answer, &mut harness.out);
     crate::session::pass_on_facts(&mut harness.domain, &harness.env);
-    assert_full_facts(&mut harness, bound);
+    assert_fact_count(&mut harness, bound);
 }
 
 #[test]

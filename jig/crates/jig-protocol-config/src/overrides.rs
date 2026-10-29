@@ -490,6 +490,7 @@ fn set_documents(limits: &mut jig_domain_core::documents::DocumentLimits, name: 
 
 fn set_core(limits: &mut jig_domain_core::Limits, name: &[u8], value: u64) -> Result<(), What> {
     let jig_domain_core::Limits {
+        routes: _,
         settings,
         templates,
         fill_mark,
@@ -783,5 +784,5 @@ fn driver_fits(driver: &skein_oauth_accounts::Limits) -> bool {
         && driver.listeners > 0
         && sockets <= driver.io.sockets
         && driver.client.sign_in_time > Duration::ZERO
-        && skein_oauth_accounts::worst_case(driver).is_some()
+        && skein_oauth_accounts::valid(driver)
 }

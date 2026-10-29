@@ -340,6 +340,7 @@ pub struct World {
 
     jobs: BTreeMap<Token, jobs::Job>,
     job_outputs: BTreeMap<Vec<u8>, Vec<(Duration, Vec<u8>)>>,
+    job_acts: Vec<(Time, Token, tools::JobAct)>,
     stats: Stats,
     trace: Trace,
 }
@@ -352,14 +353,13 @@ impl World {
     #[must_use]
     pub fn new(settings: Settings, checkout: Checkout) -> World {
         assert!(tools::valid(&settings.tools), "the shell refuses invalid limits");
-        let room = tools::max_out(&settings.tools).saturating_mul(2);
         World {
             now: Time::ZERO,
             rng: Rng::new(settings.seed),
             settings,
             checkout,
             tools: tools::Domain::new(&settings.tools),
-            stage: Stage::new(settings.tools, tools::max_out(&settings.tools), room),
+            stage: Stage::uncapped(settings.tools),
             wire: Schedule::new(),
             sessions: BTreeMap::new(),
             calls: BTreeMap::new(),
@@ -374,6 +374,7 @@ impl World {
             untouched: None,
             jobs: BTreeMap::new(),
             job_outputs: BTreeMap::new(),
+            job_acts: Vec::new(),
             stats: Stats::default(),
             trace: Trace::default(),
         }
@@ -500,11 +501,8 @@ impl World {
         self.stage.tick(self.now);
         self.deliver();
 
-        // The tools take their events while they have room for what one more
-        // may produce.
-        while self.tools.facts_room() >= tools::max_facts(&self.stage.env.limits)
-            && let Some(event) = self.stage.next_event()
-        {
+        // The tools take events in FIFO order; their output and facts are uncapped.
+        while let Some(event) = self.stage.next_event() {
             self.log(&format!("tools <- {event:?}"));
             // The operations a step asks for are for the kit of the call, or
             // of the operation, the event is about.

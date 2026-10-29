@@ -252,7 +252,7 @@ impl Service {
             ending: Ending::Live { shell_closed: true },
             terminal,
             line_mode: None,
-            terminal_events: Queue::with_capacity(queue),
+            terminal_events: Queue::uncapped(),
             output: Queue::with_capacity(queue),
             local_events: Queue::uncapped(),
             local_requests: Queue::uncapped(),
@@ -635,7 +635,7 @@ impl Service {
     }
 
     fn local_request_ready(&self) -> bool {
-        self.shell.room() > 0 && self.terminal_events.room() >= protocol::terminal_max_out()
+        self.shell.room() > 0
     }
 
     // Admission and FIFO head readiness are shared by the drain and readiness.
@@ -1070,7 +1070,14 @@ impl Service {
     }
 
     fn drain_terminal(&mut self) {
-        for _ in 0..self.terminal_events.capacity() {
+        // A line can append one refusal notice; writing a notice appends nothing.
+        // The second batch drains the appended notices to the output edge.
+        self.drain_terminal_batch();
+        self.drain_terminal_batch();
+    }
+
+    fn drain_terminal_batch(&mut self) {
+        for _ in 0..self.terminal_events.len() {
             if !self.terminal_head_ready() || self.output.room() == 0 {
                 break;
             }

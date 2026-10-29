@@ -400,7 +400,7 @@ fn resources(values: &List<ClientResource>, limits: &super::Limits) -> Option<u6
     if values.capacity() > limits.rows {
         return None;
     }
-    let mut bytes = List::<ClientResource>::worst_case(values.capacity())?;
+    let mut bytes = List::<ClientResource>::price(values.capacity())?;
     for value in values {
         bytes = bytes.checked_add(resource(&value.named.resource, limits)?)?;
         match &value.fact {
@@ -418,7 +418,7 @@ fn effects(values: &List<Entry>, limits: &super::Limits) -> Option<u64> {
     if values.capacity() > limits.rows {
         return None;
     }
-    let mut bytes = List::<Entry>::worst_case(values.capacity())?;
+    let mut bytes = List::<Entry>::price(values.capacity())?;
     for value in values {
         bytes = bytes.checked_add(effect(&value.effect, limits)?)?;
     }
@@ -447,9 +447,10 @@ pub fn price(document: &Document, limits: &super::Limits) -> Option<u64> {
             if drift.capacity() > limits.rows {
                 return None;
             }
-            let mut bytes = resources(values, limits)?
-                .checked_add(effects(entries, limits)?)?
-                .checked_add(List::<DriftAccount>::worst_case(drift.capacity())?)?;
+            let mut bytes =
+                resources(values, limits)?
+                    .checked_add(effects(entries, limits)?)?
+                    .checked_add(List::<DriftAccount>::price(drift.capacity())?)?;
             for account in drift {
                 bytes = bytes.checked_add(resource(&account.resource, limits)?)?;
                 if let Some(by) = &account.by {
@@ -462,8 +463,8 @@ pub fn price(document: &Document, limits: &super::Limits) -> Option<u64> {
             if environments.capacity() > limits.rows {
                 return None;
             }
-            let mut bytes = resources(values, limits)?
-                .checked_add(List::<ClientEnvironment>::worst_case(environments.capacity())?)?;
+            let mut bytes =
+                resources(values, limits)?.checked_add(List::<ClientEnvironment>::price(environments.capacity())?)?;
             for value in environments {
                 bytes = bytes.checked_add(environment_price(&value.environment, limits)?)?;
             }

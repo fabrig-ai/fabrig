@@ -45,7 +45,7 @@ pub fn head(b: &mut Builder, chip: &Chip, words: &Words, bindings: &mut JigBindi
 /// Build all kept dependency chips with a bounded work list, never recursive traversal.
 pub fn chip(b: &mut Builder, client: &Borrowed<'_>, chip: &Chip, words: &Words, bindings: &mut JigBindings) {
     let count = client.objects().len();
-    let mut pending = skein_lib::Queue::with_capacity(count);
+    let mut pending = skein_lib::Queue::uncapped();
     let mut seen = skein_lib::Set::with_capacity(count.checked_add(1).expect("one external root chip fits"));
     seen.insert(chip.task).expect("root fits");
     region(b, client, chip, words, bindings, &mut pending, &mut seen);

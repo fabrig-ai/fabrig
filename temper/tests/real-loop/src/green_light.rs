@@ -1,8 +1,6 @@
-//! B0's first passing walk, replayed on the fake peers (domain/testing.md, 2.4).
+//! B0's approval and landing path on the fake peers (domain/testing.md, 2.4).
 //! Until temper-playground exists, its story documents live in tests/fixtures/b0.
-//! Regenerate the scripts, including the fresh fake commit identities, from the workspace root:
-//! `sh tests/real-loop/tests/fixtures/b0/regenerate.sh [DEPLOYMENT]`.
-//! The command runs tools/twin over walk 1's five model tasks; opaque reasoning is omitted.
+//! The recorded documents retain the question, CSV edit and successful source review.
 use crate::{
     Exit, ForgeRecipe, Ran, argv,
     calls::{self, D1, number},
@@ -16,13 +14,11 @@ use std::{
     sync::LazyLock,
 };
 
-pub const TASKS: [u64; 5] = [1, 2, 4, 5, 6];
-pub const CUES: [&str; 5] = [
+const CUES: [&str; 4] = [
     "## Replying",
     "[Requested by task 1]",
     "Implement the approved CSV export for widget.",
     "Review this change at the named head",
-    "This review is asked again at the same head",
 ];
 const CHAT_CUE: &str = CUES[0];
 const WORK_CUE: &str = CUES[1];
@@ -132,10 +128,9 @@ const ANSWERED: usize = 9;
 const LANDED: usize = 11;
 const WORK_ENDED: usize = 10;
 const PRODUCED: usize = 12;
-const FIRST_REVIEW: usize = 13;
-const RETRY_REVIEW: usize = 14;
-const LAST_WORD: usize = 16;
-const INBOX_EMPTY: usize = 19;
+const REVIEWED: usize = 13;
+const LAST_WORD: usize = 15;
+const INBOX_EMPTY: usize = 18;
 
 #[must_use]
 pub fn acts() -> Vec<calls::Step> {
@@ -172,7 +167,6 @@ pub fn acts() -> Vec<calls::Step> {
         call(D1, argv!["change", "show", number(CHANGE), "--until", "landed", "--json"]),
         call(D1, argv!["task", "show", number(PRODUCER), "--until", "ended", "--json"]),
         call(D1, argv!["task", "show", "5", "--json"]),
-        call(D1, argv!["task", "show", "6", "--until", "ended", "--json"]),
         call(D1, argv!["task", "show", number(CHAT), "--until", "phase:idle"]),
         call(D1, argv!["chat", "show", number(CHAT), "--json"]),
         call(D1, argv!["chat", "close", number(CHAT), "--key", "close-green"]),
@@ -222,7 +216,7 @@ fn heard_tool(query: &Query, words: &str) -> bool {
 }
 
 pub fn check(ran: &Ran) {
-    assert_eq!(ran.calls().len(), 20);
+    assert_eq!(ran.calls().len(), 19);
     for (position, call) in ran.calls().iter().enumerate() {
         assert_eq!(call.exit, Some(Exit::Code(0)), "ctl call {position}: {call:?}");
     }
@@ -248,9 +242,9 @@ pub fn check(ran: &Ran) {
     let question_at = relay.find(person("question")).expect("chat hears the plan");
     let answer_at = relay.find(person("answer")).expect("chat hears the answer");
     assert!(question_at < answer_at);
-    assert!(heard_tool(query_at(ran, WORK_CUE, 4), "Message 1 sent"));
-    assert!(told(query_at(ran, WORK_CUE, 5)).contains(person("answer")), "work hears approval before change");
-    assert!(heard_tool(query_at(ran, WORK_CUE, 6), "Delegated tasks: 3"));
+    assert!(heard_tool(query_at(ran, WORK_CUE, 2), "Message 1 sent"));
+    assert!(told(query_at(ran, WORK_CUE, 3)).contains(person("answer")), "work hears approval before change");
+    assert!(heard_tool(query_at(ran, WORK_CUE, 4), "Delegated tasks: 3"));
     assert!(ran.calls()[ANSWERED].ended <= ran.calls()[LANDED].ended);
     let seed = &ran.forge().snapshots()[0];
     assert_eq!(seed.branches.len(), 1);
@@ -259,11 +253,11 @@ pub fn check(ran: &Ran) {
         assert_eq!(snapshot.branches, seed.branches, "no branch pushed before approval");
         assert!(snapshot.pulls.is_empty(), "no pull before approval");
     }
-    let reviewed = query_at(ran, CUES[4], 7);
-    assert!(heard_tool(reviewed, "fn write_table"), "the retry actually read the produced source: {}", told(reviewed));
-    assert_eq!(told(reviewed).matches("Error:").count(), 1, "only the walk's padded lookup fails");
+    let reviewed = query_at(ran, CUES[3], 1);
+    assert!(heard_tool(reviewed, "fn write_table"), "the reviewer read the produced source: {}", told(reviewed));
+    assert!(!told(reviewed).contains("Error:"), "the source review succeeds");
     assert!(ran.forge().merged_green(), "CI passed at the merged head");
-    let delivered = told(query_at(ran, WORK_CUE, 7));
+    let delivered = told(query_at(ran, WORK_CUE, 5));
     let merge = delivered
         .split_once("Result from task 3:")
         .expect("change's landing result")
@@ -278,13 +272,20 @@ pub fn check(ran: &Ran) {
     assert!(source.contains("writeln!(output, \"fruit,count\")?;"), "CSV header landed: {source}");
     let scripts: Value =
         serde_json::from_slice(include_bytes!("../tests/fixtures/b0/llm.json")).expect("recorded scripts");
-    let expected =
-        scripts["cued"][2]["turns"][3]["lines"][0]["arguments"]["content"].as_str().expect("recorded main write");
+    let expected = scripts["cued"][2]["turns"]
+        .as_array()
+        .expect("producer turns")
+        .iter()
+        .flat_map(|turn| turn["lines"].as_array().expect("turn lines"))
+        .find(|line| line["call"] == "write" && line["arguments"]["path"] == "src/main.rs")
+        .expect("recorded main write")["arguments"]["content"]
+        .as_str()
+        .expect("program source");
     assert_eq!(source, expected, "the walk's whole program landed");
     assert_eq!(document(ran, WORK_ENDED)["chip"]["phase"], "ended");
     assert_eq!(document(ran, PRODUCED)["chip"]["phase"], "ended");
-    assert!(document(ran, FIRST_REVIEW).to_string().contains("cannot complete the mandated review"));
-    assert!(document(ran, RETRY_REVIEW).to_string().contains("Approve."));
+    assert_eq!(document(ran, REVIEWED)["chip"]["phase"], "ended");
+    assert!(document(ran, REVIEWED).to_string().contains("Approve."));
     assert!(String::from_utf8_lossy(&ran.calls()[LAST_WORD].stdout).contains(person("last_word")));
     assert!(document(ran, INBOX_EMPTY)["needs"]["rows"].as_array().expect("last questions").is_empty());
 }

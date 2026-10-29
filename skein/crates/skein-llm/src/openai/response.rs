@@ -1238,29 +1238,19 @@ fn write_item(out: &mut Encoder, item: &Item) {
     }
 }
 
-/// The old name of [`decoder_fixed_bound`]; it goes once every tree calls the new name (wave 3).
-pub(crate) fn decoder_fixed_worst_case(limits: &Limits) -> Option<u64> {
-    decoder_fixed_bound(limits)
-}
-
 /// Bounds decoder retention without answer bytes.
 /// Fixed slot and argument-buffer capacities, excluding admitted answer bytes.
 pub(crate) fn decoder_fixed_bound(limits: &Limits) -> Option<u64> {
-    let slots = List::<(u32, Opened)>::worst_case(limits.output_items)?;
+    let slots = List::<(u32, Opened)>::price(limits.output_items)?;
     let identifiers =
         u64::from(limits.output_items).checked_mul(u64::from(limits.strings.min(limits.retained)))?.checked_mul(3)?;
     let inputs = u64::from(limits.output_items).checked_mul(u64::from(limits.input))?;
     slots.checked_add(identifiers)?.checked_add(inputs)
 }
 
-/// The old name of [`decoder_bound`]; it goes once every tree calls the new name (wave 3).
-pub(crate) fn decoder_worst_case(limits: &Limits) -> Option<u64> {
-    decoder_bound(limits)
-}
-
 /// Bounds stream decoder retention.
 pub(crate) fn decoder_bound(limits: &Limits) -> Option<u64> {
-    decoder_fixed_worst_case(limits)?.checked_add(u64::from(limits.answer))
+    decoder_fixed_bound(limits)?.checked_add(u64::from(limits.answer))
 }
 
 /// Fake-server completion with the instructions/tools echo that the real Codex

@@ -64,11 +64,11 @@ fn historical_ended_whole_boxes_reserved_rows_nested_reasons_and_read_bytes_refu
         ended_bytes(&empty, &bounds),
         u64::try_from(size_of::<OwnerEndedPage>())
             .ok()
-            .and_then(|n| n.checked_add(List::<OwnerEndedDelegate>::worst_case(3).expect("reserved rows")))
+            .and_then(|n| n.checked_add(List::<OwnerEndedDelegate>::price(3).expect("reserved rows")))
     );
     let too_many = OwnerEndedPage { rows: List::with_capacity(4), ..empty.clone() };
     assert!(!ended_fits(&too_many, &bounds));
-    assert!(worst_case(&bounds).expect("admitted envelope") >= ended_bytes(&source, &bounds).expect("whole bytes"));
+    assert!(heap_bound(&bounds).expect("admitted envelope") >= ended_bytes(&source, &bounds).expect("whole bytes"));
 }
 #[test]
 fn historical_funding_all_four_source_kinds_keep_period_parent_counters_and_reserved_capacity() {
@@ -130,7 +130,7 @@ fn historical_funding_all_four_source_kinds_keep_period_parent_counters_and_rese
         spend_bytes(&empty, &bounds),
         u64::try_from(size_of::<OwnerSpendPage>())
             .ok()
-            .and_then(|n| n.checked_add(List::<OwnerFundingRecord>::worst_case(3).expect("reserved rows")))
+            .and_then(|n| n.checked_add(List::<OwnerFundingRecord>::price(3).expect("reserved rows")))
     );
     assert!(!spend_fits(&OwnerSpendPage { rows: List::with_capacity(4), ..empty }, &bounds));
 }

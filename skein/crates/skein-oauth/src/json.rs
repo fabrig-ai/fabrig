@@ -396,13 +396,7 @@ fn tokenizer_error(error: tokenizer::Error) -> DecodeError {
     }
 }
 
-/// The old name of [`validation_bound`]; it goes once every tree
-/// calls the new name (wave 3).
-pub(crate) fn validation_worst_case(limits: &Limits) -> Option<u64> {
-    validation_bound(limits)
-}
-
 /// Bounds JSON validation workspace.
 pub(crate) fn validation_bound(limits: &Limits) -> Option<u64> {
-    Stack::<Frame>::worst_case(limits.depth)
+    Stack::<Frame>::price(limits.depth)
 }

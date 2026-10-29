@@ -32,7 +32,7 @@ pub(super) fn dialect(declared: &Declared, constants: &Constants) -> Result<clie
         .max(reasoning)
         .checked_add(constants.fixed_text)
         .ok_or(Violation::Overflow { rule: Rule::Retained })?;
-    let event = document::worst_case(&document::Limits { tokens, text: retained })
+    let event = document::document_bound(&document::Limits { tokens, text: retained })
         .ok_or(Violation::Overflow { rule: Rule::Receiving })?;
     let event = u32::try_from(event).or(Err(Violation::Overflow { rule: Rule::Receiving }))?;
     let reasoning_reservation =

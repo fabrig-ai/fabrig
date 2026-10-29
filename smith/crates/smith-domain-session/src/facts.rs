@@ -1,10 +1,10 @@
 //! What the sessions tell whoever watches the agent (domain/session.md,
 //! sections 3–5): a fact for each thing that happened: bounded provider identity, counts and
-//! classifications, never prompts, tool inputs or results, in a bounded
-//! queue the parent drains at its own pace.
+//! classifications, never prompts, tool inputs or results, in an uncapped
+//! queue the parent drains while the named sessions and runs still exist.
 //!
-//! Facts are a separate step output: the parent reserves [`crate::max_facts`]
-//! slots before each entrance and drains them before taking more work.
+//! Facts are a separate step output; every observation keeps its emission time
+//! and call metadata until the parent drains it.
 
 use alloc::boxed::Box;
 
@@ -161,7 +161,7 @@ pub enum FactKind {
     },
 }
 
-/// Reserved step observations not yet drained by the parent.
+/// Step observations not yet drained by the parent.
 #[derive(Debug)]
 pub(crate) struct Facts {
     queue: Queue<Fact>,
@@ -169,8 +169,8 @@ pub(crate) struct Facts {
 }
 
 impl Facts {
-    pub(crate) fn with_capacity(capacity: u32) -> Facts {
-        Facts { queue: Queue::with_capacity(capacity), now: Time::ZERO }
+    pub(crate) fn new() -> Facts {
+        Facts { queue: Queue::uncapped(), now: Time::ZERO }
     }
 
     pub(crate) const fn now(&self) -> Time {
@@ -181,7 +181,7 @@ impl Facts {
         self.now = now;
     }
 
-    /// Keeps one fact in the room the parent reserved for this entry point.
+    /// Keeps one fact at this entry point's injected time.
     pub(crate) fn push(&mut self, kind: FactKind) {
         let fact = Fact { at: self.now, kind, call: None, response: None };
         self.queue.push(fact);
@@ -192,7 +192,6 @@ impl Facts {
     }
 
     pub(crate) fn push_call(&mut self, at: Time, kind: FactKind, call: &ToolCall) {
-        assert!(self.queue.room() > 0, "parent reserved call observation before cloning");
         self.queue.push(Fact { at, kind, call: Some(call.clone()), response: None });
     }
 
@@ -204,8 +203,8 @@ impl Facts {
         self.queue.pop()
     }
 
-    pub(crate) fn room(&self) -> u32 {
-        self.queue.room()
+    pub(crate) fn len(&self) -> u32 {
+        self.queue.len()
     }
 }
 

@@ -885,18 +885,16 @@ impl World {
             while let Some(delivery) = self.schedule.next(self.now) {
                 self.deliver(delivery);
             }
-            while self.agent.facts_room() >= agent::max_facts(&self.stage.env.limits) && self.agent.is_ready() {
+            while self.agent.is_ready() {
                 agent::resume(&mut self.agent, &self.stage.env, &mut self.stage.out);
                 self.gather();
             }
-            while self.agent.facts_room() >= agent::max_facts(&self.stage.env.limits)
-                && let Some(event) = self.stage.next_event()
-            {
+            while let Some(event) = self.stage.next_event() {
                 self.trace.log(self.now, format!("agent <- {event:?}"));
                 agent::step(&mut self.agent, &self.stage.env, event, &mut self.stage.out);
                 self.gather();
             }
-            while self.agent.facts_room() >= agent::max_facts(&self.stage.env.limits) && self.agent.is_due(self.now) {
+            while self.agent.is_due(self.now) {
                 agent::fire(&mut self.agent, &self.stage.env, &mut self.stage.out);
                 self.gather();
             }
@@ -973,7 +971,8 @@ impl World {
                 while let Some(event) = stage.next_event() {
                     provider::step(provider, &stage.env, event, &mut stage.out);
                 }
-                while stage.has_room() && provider.is_due(self.now) {
+                // Each due firing advances a retained call's finite response.
+                while provider.is_due(self.now) {
                     provider::fire(provider, &stage.env, &mut stage.out);
                 }
             }

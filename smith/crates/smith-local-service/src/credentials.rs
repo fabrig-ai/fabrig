@@ -104,9 +104,7 @@ pub struct Accounts {
 /// Whether account file routing, socket tables and OAuth documents can be represented.
 #[must_use]
 pub fn accounts_valid(limits: &oauth::Limits) -> bool {
-    let Some(file_requests) = limits.accounts.checked_mul(2) else { return false };
     limits.accounts.checked_mul(4).is_some()
-        && file_requests.checked_add(1).is_some()
         && crate::native_io_valid(&limits.io)
         // Skein's client owns the document/record codec and parser checks.
         && skein_oauth::Client::new(limits.client).is_ok()
@@ -251,19 +249,12 @@ impl Accounts {
             socket_events: Queue::uncapped(),
             socket_requests: Queue::uncapped(),
             socket_completions: Queue::with_capacity(io::operations(&limits.io).ok_or(crate::Error::Memory)?),
-            socket_submissions: Queue::with_capacity(8),
-            file_requests: Queue::with_capacity(
-                limits
-                    .accounts
-                    .checked_mul(2)
-                    .ok_or(crate::Error::Memory)?
-                    .checked_add(1)
-                    .ok_or(crate::Error::Memory)?,
-            ),
+            socket_submissions: Queue::uncapped(),
+            file_requests: Queue::uncapped(),
             limits: *limits,
             entries: accounts,
             files,
-            events: Queue::with_capacity(3),
+            events: Queue::uncapped(),
             failed: None,
             submissions: Queue::with_capacity(8),
             out: Queue::uncapped(),
@@ -484,10 +475,12 @@ impl Accounts {
     }
 }
 
-/// Caller-reserved room for one driver advance, including its file failures.
-pub const ACCOUNTS_MAX_OUT: u32 = 6;
-
 impl Accounts {
+    /// Dispatch file terminals before another account action can publish one.
+    fn account_file_events_dispatched(&self) -> bool {
+        self.events.is_empty()
+    }
+
     /// Directory identifiers accompany grants without putting them in traces.
     #[must_use]
     pub fn account_id(&self, number: u32) -> Option<&[u8]> {
@@ -522,9 +515,8 @@ impl Accounts {
         }
     }
 
-    /// Advance serial file reads and translate driver events, reserving `ACCOUNTS_MAX_OUT`.
+    /// Advance serial file reads and translate driver events into uncapped output.
     pub fn advance(&mut self, now: Time, wall: Wall, out: &mut Queue<CredentialRequest>) {
-        assert!(out.room() >= ACCOUNTS_MAX_OUT, "caller reserves a complete account advance");
         if self.closed() {
             return;
         }
@@ -532,9 +524,6 @@ impl Accounts {
             file_layer::expire(&mut self.files, now, &mut self.submissions);
         }
         for _ in 0..3_u32 {
-            if self.out.room() < 3 || self.socket_requests.room() < 3 || self.file_requests.room() == 0 {
-                break;
-            }
             match self.events.pop() {
                 Some(event) => self.filed(event, now, wall),
                 None => break,
@@ -544,7 +533,7 @@ impl Accounts {
             }
         }
         self.socket_up(now, wall);
-        if self.out.is_empty() && self.socket_requests.room() >= 3 && self.file_requests.room() > 0 {
+        if self.out.is_empty() {
             self.settle_close(now, wall);
             self.progress(now, wall);
             if self.out.is_empty() {

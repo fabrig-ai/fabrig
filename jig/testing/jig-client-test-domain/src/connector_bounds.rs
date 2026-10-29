@@ -25,14 +25,14 @@ fn paths_heap(paths: &[Path]) -> Option<u64> {
     Some(bytes)
 }
 fn resource_heap(rows: &List<ClientResource>) -> Option<u64> {
-    let mut bytes = List::<ClientResource>::worst_case(rows.capacity())?;
+    let mut bytes = List::<ClientResource>::price(rows.capacity())?;
     for row in rows {
         bytes = bytes.checked_add(path_heap(&row.path)?)?;
     }
     Some(bytes)
 }
 fn entries_heap(rows: &List<OutboxEntry>) -> Option<u64> {
-    let mut bytes = List::<OutboxEntry>::worst_case(rows.capacity())?;
+    let mut bytes = List::<OutboxEntry>::price(rows.capacity())?;
     for row in rows {
         bytes = bytes.checked_add(paths_heap(&row.effect.resources)?)?;
     }
@@ -170,7 +170,7 @@ pub fn answer_fits(value: &ConnectorAnswer, bounds: &Bounds) -> bool {
 /// Largest complete document admitted by the structural envelope. The configured
 /// byte ceiling may admit fewer values; this still bounds every admitted value.
 #[must_use]
-pub fn document_worst_case(bounds: &Bounds) -> Option<u64> {
+pub fn document_bound(bounds: &Bounds) -> Option<u64> {
     let path = u64::from(bounds.segments).checked_mul(
         u64::try_from(size_of::<Box<[u8]>>())
             .expect("inline carrier size fits u64")
@@ -179,9 +179,8 @@ pub fn document_worst_case(bounds: &Bounds) -> Option<u64> {
     let paths = u64::from(bounds.paths)
         .checked_mul((u64::try_from(size_of::<Path>()).expect("inline carrier size fits u64")).checked_add(path)?)?;
     let resources =
-        List::<ClientResource>::worst_case(bounds.rows)?.checked_add(u64::from(bounds.rows).checked_mul(path)?)?;
-    let effects =
-        List::<OutboxEntry>::worst_case(bounds.rows)?.checked_add(u64::from(bounds.rows).checked_mul(paths)?)?;
+        List::<ClientResource>::price(bounds.rows)?.checked_add(u64::from(bounds.rows).checked_mul(path)?)?;
+    let effects = List::<OutboxEntry>::price(bounds.rows)?.checked_add(u64::from(bounds.rows).checked_mul(paths)?)?;
     let nested = path.checked_add(resources)?.checked_add(effects)?.max(paths.checked_mul(2)?);
     (u64::try_from(size_of::<ConnectorDocument>()).expect("inline carrier size fits u64"))
         .checked_add(u64::try_from(size_of::<ClientDocument>()).expect("inline carrier size fits u64"))?

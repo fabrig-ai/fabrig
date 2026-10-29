@@ -655,6 +655,6 @@ fn output_bounds_cover_replacement_and_a_full_panel() {
     assert_eq!(root.forge().panel().unwrap().state, State::Shown(Box::new(panel.clone())));
     let wire = forge::wire_limits(&limits.forge).unwrap();
     let panel_heap =
-        u64::try_from(size_of::<w::ChangePanel>()).unwrap() + w::ChangePanel::worst_case_heap(&wire).unwrap();
+        u64::try_from(size_of::<w::ChangePanel>()).unwrap() + w::ChangePanel::decoded_bound(&wire).unwrap();
     assert!(panel_heap <= PANEL_HEAP_CEILING);
 }

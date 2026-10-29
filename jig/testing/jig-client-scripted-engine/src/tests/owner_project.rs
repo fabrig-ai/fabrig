@@ -46,20 +46,20 @@ fn owner_project_kit_prices_every_empty_reserved_list_at_exact_bytes_and_refuses
     let value = source();
     let bytes = core::mem::size_of::<OwnerProject>() as u64
         + PROJECT_NAME_BYTES
-        + List::<Offered>::worst_case(2).unwrap()
-        + List::<OwnerProjectResource>::worst_case(2).unwrap()
-        + List::<OwnerGrant>::worst_case(2).unwrap()
-        + List::<OwnerProjectPolicyRole>::worst_case(2).unwrap()
-        + List::<PolicyRequirement>::worst_case(2).unwrap()
-        + List::<OwnerProjectMember>::worst_case(2).unwrap()
-        + List::<PoolLedger>::worst_case(2).unwrap()
-        + List::<PoolLedger>::worst_case(2).unwrap()
-        + List::<OwnerProjectSpend>::worst_case(2).unwrap()
-        + List::<Recurring>::worst_case(2).unwrap();
+        + List::<Offered>::price(2).unwrap()
+        + List::<OwnerProjectResource>::price(2).unwrap()
+        + List::<OwnerGrant>::price(2).unwrap()
+        + List::<OwnerProjectPolicyRole>::price(2).unwrap()
+        + List::<PolicyRequirement>::price(2).unwrap()
+        + List::<OwnerProjectMember>::price(2).unwrap()
+        + List::<PoolLedger>::price(2).unwrap()
+        + List::<PoolLedger>::price(2).unwrap()
+        + List::<OwnerProjectSpend>::price(2).unwrap()
+        + List::<Recurring>::price(2).unwrap();
     let mut bounds = Bounds { rows: 2, segments: 2, document_bytes: bytes, ..Bounds::default() };
     assert_eq!(owner_project::bytes(&value, &bounds), Some(bytes));
     assert!(owner_project::fits(&value, &bounds));
-    assert_eq!(owner_project::worst_case(&bounds), Some(bytes));
+    assert_eq!(owner_project::heap_bound(&bounds), Some(bytes));
     let before = value.clone();
     bounds.document_bytes -= 1;
     assert!(!owner_project::fits(&value, &bounds));
@@ -149,7 +149,7 @@ fn owner_project_kit_distinguishes_missing_empty_and_full_width_permission_capac
     let mut bounds = Bounds { rows: 2, segments: 2, text: 4, document_bytes: u64::MAX, ..Bounds::default() };
     let absent = owner_project::bytes(&value, &bounds).unwrap();
     value.policy.permissions = Some(List::with_capacity(2));
-    assert_eq!(owner_project::bytes(&value, &bounds), Some(absent + List::<PolicyPermission>::worst_case(2).unwrap()));
+    assert_eq!(owner_project::bytes(&value, &bounds), Some(absent + List::<PolicyPermission>::price(2).unwrap()));
     value
         .policy
         .permissions
@@ -179,15 +179,15 @@ fn owner_project_kit_distinguishes_missing_empty_and_full_width_permission_capac
 fn reserved_project_bytes(offer_slots: u32) -> u64 {
     u64::try_from(core::mem::size_of::<OwnerProject>()).unwrap()
         + PROJECT_NAME_BYTES
-        + List::<Offered>::worst_case(offer_slots).unwrap()
-        + List::<OwnerProjectResource>::worst_case(2).unwrap()
-        + List::<OwnerGrant>::worst_case(2).unwrap()
-        + List::<OwnerProjectPolicyRole>::worst_case(2).unwrap()
-        + List::<PolicyRequirement>::worst_case(2).unwrap()
-        + List::<OwnerProjectMember>::worst_case(2).unwrap()
-        + List::<PoolLedger>::worst_case(2).unwrap() * 2
-        + List::<OwnerProjectSpend>::worst_case(2).unwrap()
-        + List::<Recurring>::worst_case(2).unwrap()
+        + List::<Offered>::price(offer_slots).unwrap()
+        + List::<OwnerProjectResource>::price(2).unwrap()
+        + List::<OwnerGrant>::price(2).unwrap()
+        + List::<OwnerProjectPolicyRole>::price(2).unwrap()
+        + List::<PolicyRequirement>::price(2).unwrap()
+        + List::<OwnerProjectMember>::price(2).unwrap()
+        + List::<PoolLedger>::price(2).unwrap() * 2
+        + List::<OwnerProjectSpend>::price(2).unwrap()
+        + List::<Recurring>::price(2).unwrap()
 }
 fn project_offers(populated: u32, capacity: u32) -> List<Offered> {
     let kinds = [ActKind::Reorder, ActKind::ChangePolicy, ActKind::SetRoles, ActKind::MakeService, ActKind::SetPool];
@@ -281,8 +281,8 @@ fn owner_project_last_of_twenty_five_offers_keeps_recursive_rows_and_source_orde
     };
     let original = value.clone();
     let bytes = reserved_project_bytes(MAX_OFFERED_ACTS)
-        + List::<u32>::worst_case(2).unwrap() * 2
-        + List::<CreateProcedure>::worst_case(2).unwrap()
+        + List::<u32>::price(2).unwrap() * 2
+        + List::<CreateProcedure>::price(2).unwrap()
         + u64::try_from(core::mem::size_of::<OwnerAuthorityDocument>()).unwrap();
     let mut bounds = Bounds { rows: 2, segments: 2, document_bytes: bytes, ..Bounds::default() };
     assert_eq!(owner_project::bytes(&value, &bounds), Some(bytes));

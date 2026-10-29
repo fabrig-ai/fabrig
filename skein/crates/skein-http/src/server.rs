@@ -170,8 +170,8 @@ pub fn worst_case(limits: &Limits) -> Option<u64> {
     if !valid(limits) {
         return None;
     }
-    let intake = Intake::worst_case(limits.read)?;
-    let fields = List::<Header>::worst_case(limits.headers)?;
+    let intake = Intake::price(limits.read)?;
+    let fields = List::<Header>::price(limits.headers)?;
     let line = u64::from(limits.head).checked_add(u64::from(limits.head.saturating_sub(head::LINE_BUT_TARGET)))?;
     let reading = fields.checked_add(line)?;
     let exchanging = u64::from(limits.response).checked_add(u64::from(limits.read.max(limits.head)))?;

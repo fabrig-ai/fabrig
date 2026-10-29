@@ -1,11 +1,10 @@
 //! What the runs tell whoever watches the agent (domain/run.md, section 11):
 //! a fact for each thing that happened, content-free (tokens, counts and
 //! classifications, never what an LLM, the charter or the host said), in a
-//! bounded queue the parent drains at its own pace.
+//! uncapped queue the parent drains at its own pace.
 //!
-//! Facts are a separate step output. The parent reserves [`crate::max_facts`]
-//! slots before each entrance, holding work while its drain is behind; every
-//! observation is preserved. Facts change no decision: the host's watchdog
+//! Facts are a separate step output; every observation is preserved with its
+//! entrance's time, without reserving room. Facts change no decision: the host's watchdog
 //! hears of a check's deadline from `Request::Checking`.
 //!
 //! A start refused at the entrance tells nothing: no run was. Each step of an
@@ -305,11 +304,11 @@ pub(crate) struct Facts {
 }
 
 impl Facts {
-    pub(crate) fn with_capacity(capacity: u32) -> Facts {
-        Facts { queue: Queue::with_capacity(capacity), now: Time::ZERO, about: None }
+    pub(crate) fn new() -> Facts {
+        Facts { queue: Queue::uncapped(), now: Time::ZERO, about: None }
     }
 
-    /// Keeps one fact in the room the parent reserved for this entry point.
+    /// Keeps one fact with the time of this entry point.
     pub(crate) fn push(&mut self, kind: FactKind) {
         let fact = Fact { at: self.now, kind };
         self.queue.push(fact);
@@ -319,8 +318,8 @@ impl Facts {
         self.queue.pop()
     }
 
-    pub(crate) fn room(&self) -> u32 {
-        self.queue.room()
+    pub(crate) fn len(&self) -> u32 {
+        self.queue.len()
     }
 
     pub(crate) fn now(&self) -> Time {
@@ -480,7 +479,7 @@ mod carrier_tests {
             used,
             left: Budget { turns: 3, spend: 11, time: Duration::from_secs(1) },
         };
-        let mut facts = Facts::with_capacity(1);
+        let mut facts = Facts::new();
         facts.begin(Time::from_nanos(23_000_000));
         child_returned(&mut facts, Token::new(31), Token::new(43), &actual, used);
         let fact = facts.pop().expect("one actual child terminal");

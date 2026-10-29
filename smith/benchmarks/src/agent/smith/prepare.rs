@@ -156,33 +156,14 @@ fn exec(
     }
     let serial =
         if account == "claude" { Some(crate::credential::logins::serial(context.guard, context.home)?) } else { None };
-    let login = context.home;
-    let mut rendered = settings::product(context, base, login)?;
-    let trace = if registry.shape == super::events::Shape::Chat || settings::program(context)? {
-        let trace = context.private.root.join("smith/trace.jsonl");
-        write(context, &trace, &[])?;
-        Some(trace)
-    } else {
-        None
-    };
-    chat_trace(&mut rendered, trace.as_deref());
-    let directory = context.private.config.join("smith");
-    crate::run::private_parent(context.guard, &directory).map_err(configuration)?;
-    let settings = directory.join("config.toml");
-    let mut layer = rendered.clone();
-    layer.as_object_mut().expect("product layer").remove("invocation");
-    let document: toml::Value = serde_json::from_value(layer).map_err(|error| configuration(error.to_string()))?;
-    write(
-        context,
-        &settings,
-        toml::to_string(&document).map_err(|error| configuration(error.to_string()))?.as_bytes(),
-    )?;
-    let mut check_arguments = check_arguments(registry.shape, &rendered);
+    let prepared = render(context, base, program, registry, serial)?;
+    let directory = prepared.settings.parent().expect("private settings directory");
+    let mut check_arguments = check_arguments(prepared.face, &prepared.rendered);
     crate::batch::settings_arguments(&mut check_arguments, overrides);
     let receipt = crate::process::execute(
         &skein_shell::Clock::new(),
         skein_world::end_to_end::Command {
-            program: program.clone(),
+            program: prepared.program.clone(),
             arguments: check_arguments,
             environment: context.environment.to_vec(),
             directory: context.private.workspace.clone(),
@@ -205,9 +186,42 @@ fn exec(
     if receipt.error.is_some() || receipt.forced != crate::Forced::No {
         return Err(configuration("Smith check did not settle within its process bounds"));
     }
-    let refused = receipt.exit != crate::Exit::Code(0);
-    let teardown = if refused { skein_lib::Duration::ZERO } else { teardown_from_check(&receipt.stdout)? };
-    let prepared = Prepared {
+    if receipt.exit != crate::Exit::Code(0) {
+        return Ok((prepared, Some(receipt)));
+    }
+    Ok((accept_check(prepared, &receipt.stdout)?, None))
+}
+
+// Source identity, account admission and the selected face are supplied by prepare_checked.
+fn render(
+    context: &Context<'_>,
+    base: &serde_json::Value,
+    program: PathBuf,
+    registry: FaceSince,
+    serial: Option<std::fs::File>,
+) -> Result<Prepared, Setup> {
+    let login = context.home;
+    let mut rendered = settings::product(context, base, login)?;
+    let trace = if registry.shape == super::events::Shape::Chat || settings::program(context)? {
+        let trace = context.private.root.join("smith/trace.jsonl");
+        write(context, &trace, &[])?;
+        Some(trace)
+    } else {
+        None
+    };
+    chat_trace(&mut rendered, trace.as_deref());
+    let directory = context.private.config.join("smith");
+    crate::run::private_parent(context.guard, &directory).map_err(configuration)?;
+    let settings = directory.join("config.toml");
+    let mut layer = rendered.clone();
+    layer.as_object_mut().expect("product layer").remove("invocation");
+    let document: toml::Value = serde_json::from_value(layer).map_err(|error| configuration(error.to_string()))?;
+    write(
+        context,
+        &settings,
+        toml::to_string(&document).map_err(|error| configuration(error.to_string()))?.as_bytes(),
+    )?;
+    Ok(Prepared {
         face: registry.shape,
         registry,
         rendered,
@@ -216,9 +230,14 @@ fn exec(
         state: context.private.state.clone(),
         serial,
         trace,
-        teardown,
-    };
-    Ok((prepared, refused.then_some(receipt)))
+        teardown: skein_lib::Duration::ZERO,
+    })
+}
+
+// The external check's successful stdout is the only source of this invocation's bound.
+fn accept_check(mut prepared: Prepared, bytes: &[u8]) -> Result<Prepared, Setup> {
+    prepared.teardown = teardown_from_check(bytes)?;
+    Ok(prepared)
 }
 
 fn chat_trace(rendered: &mut serde_json::Value, path: Option<&Path>) {
@@ -446,3 +465,7 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "prepare/lower_tests.rs"]
+mod lower_tests;

@@ -31,7 +31,7 @@ impl LongWorld {
         Self {
             domain: agent::Domain::new(&limits, configuration(), 97),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
-            out: Queue::with_capacity(agent::max_out(&limits).checked_mul(4).expect("fixture output room")),
+            out: Queue::uncapped(),
             wire,
             host,
             run: None,

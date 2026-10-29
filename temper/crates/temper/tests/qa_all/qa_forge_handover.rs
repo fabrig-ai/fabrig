@@ -383,7 +383,7 @@ fn fake_box(scratch: &Path, client: &str, credentials: &[Vec<u8>]) {
             ctl::Step::Run(ctl::Call::new(&["forge", "list", "--json"])),
         ],
         support::boxed::BOX_DEADLINE,
-        || {
+        |_binary| {
             let permission = owned::answer(
                 address.port(),
                 "/api/v1/repos/qa-owner/widget/collaborators/temper/permission",
@@ -527,7 +527,7 @@ fn asked_owned_setup_connects_and_box_record_restarts_it() {
             ctl::Step::Run(ctl::Call::new(&["forge", "list", "--json"])),
         ],
         support::boxed::BOX_DEADLINE,
-        || (forge_directory(scratch.path()).join("admin_token").exists(), secrets(scratch.path())),
+        |_binary| (forge_directory(scratch.path()).join("admin_token").exists(), secrets(scratch.path())),
     );
     let (left_handover, credentials) = first.checked.as_ref().expect("first box's evidence");
     no_secrets(&first.stdout, credentials);
@@ -561,7 +561,7 @@ fn asked_owned_setup_connects_and_box_record_restarts_it() {
             ctl::Step::Run(ctl::Call::new(&["forge", "list", "--json"])),
         ],
         support::boxed::BOX_DEADLINE,
-        || forge_directory(scratch.path()).join("admin_token").exists(),
+        |_binary| forge_directory(scratch.path()).join("admin_token").exists(),
     );
     no_secrets(&second.stdout, credentials);
     no_secrets(&second.stderr, credentials);

@@ -2,6 +2,7 @@
 //! the existing ordered fake store. Requests become later input events
 //! (domain/root.md, section 12).
 
+use crate::journal_limits as journal;
 use crate::protocol::{self, Protocol};
 use crate::store::Store;
 use crate::walking_referee::{FINAL_SPEND, QUESTION, REPORT, TURNS, WalkingReferee};
@@ -18,6 +19,9 @@ use std::{
 };
 use temper_engine_domain as engine;
 use temper_engine_domain::{Delivery, JournalLimits, Record, loads};
+
+// Deliveries for the walking world's fleet burst and continuation.
+const WALKING_DELIVERIES: u32 = 26;
 
 /// This world's funding span.
 pub const PERIOD_SPAN: Duration = Duration::from_secs(7 * 24 * 60 * 60);
@@ -130,7 +134,7 @@ pub fn limits() -> engine::Limits {
         facts: 2,
         history: 2,
     };
-    let deliveries = 20_u32.max(fleet::max_out(&fleet).checked_add(1).expect("fleet burst plus continuation"));
+    let deliveries = WALKING_DELIVERIES;
     let journal = JournalLimits {
         commits: 3,
         held: deliveries * 3 + 16,
@@ -141,6 +145,7 @@ pub fn limits() -> engine::Limits {
         run_bytes: 4096,
     };
     let mut limits = engine::Limits {
+        routes: jig_protocol_config::profile(jig_protocol_config::Profile::Small).routes,
         policy_bytes: jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.policy_bytes,
         call_answer_bytes: jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.call_answer_bytes,
         settings: jig_domain_core::settings::Limits {
@@ -226,22 +231,8 @@ pub fn limits() -> engine::Limits {
         },
         forge: temper_engine_forge_world::LIMITS,
     };
-    limits.journal.writes = writes(&limits);
+    limits.journal.writes = journal::WALKING_WRITES;
     limits
-}
-
-/// Root route room for these bounds, including continuations and call records.
-#[must_use]
-pub fn writes(limits: &engine::Limits) -> u32 {
-    tasks::max_out(&limits.tasks) * 8
-        + people::max_out(&limits.people) * 4
-        + limits.people.pending * 2
-        + fleet::max_out(&limits.fleet) * 4
-        + temper_engine_domain_forge::max_out(&limits.forge)
-        + 2 * limits.authority.projects
-        + limits.tasks.tasks
-        + 4
-        + limits.call_records
 }
 
 fn authority_limits() -> authority::Limits {
@@ -533,7 +524,7 @@ impl World {
         let mut world = World {
             domain: engine::Domain::new(config, &limits).expect("valid engine configuration"),
             environment: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
-            out: Queue::with_capacity(engine::max_out(&limits)),
+            out: Queue::uncapped(),
             events: VecDeque::new(),
             store,
             referee: WalkingReferee::default(),
@@ -746,7 +737,6 @@ impl World {
     }
 
     fn observe(&mut self) {
-        assert!(self.out.len() <= engine::max_out(&self.environment.limits));
         while let Some(request) = self.out.pop() {
             self.trace.push(format!("output {request:?}"));
             let request = match self.protocol.play(request) {
@@ -1003,7 +993,7 @@ mod tests {
     use super::{Settings, World};
     use crate::walking_referee::REPORT;
     use skein_lib::Queue;
-    use temper_engine_domain::{self as engine, Delivery, PartyRequest, Request};
+    use temper_engine_domain::{Delivery, PartyRequest, Request};
 
     #[test]
     #[should_panic(expected = "committed result reaches person once: \"person received result twice\"")]
@@ -1012,7 +1002,7 @@ mod tests {
         world.run();
         let person = world.referee.person().expect("story's person");
         let task = world.assignment.as_ref().expect("script retained assignment").task;
-        world.out = Queue::with_capacity(engine::max_out(&world.environment.limits) + 1);
+        world.out = Queue::uncapped();
         world.out.push(Request::Party(PartyRequest::Deliver(Delivery::Result { person, task, words: REPORT.into() })));
         assert!(!world.settled(), "queued outward work cannot be hidden by completed story counters");
         world.run();

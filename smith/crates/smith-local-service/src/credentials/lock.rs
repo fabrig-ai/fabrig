@@ -131,7 +131,7 @@ impl Accounts {
     }
 
     pub(super) fn lock_progress(&mut self, now: Time) {
-        if !self.files.takes() || self.events.room() < 3 || self.submissions.room() < 2 {
+        if !self.files.takes() || !self.account_file_events_dispatched() || self.submissions.room() < 2 {
             return;
         }
         for index in 0..self.locks.len() {

@@ -51,7 +51,7 @@ fn a_window_opened_at_its_largest_makes_its_first_completion() {
         let mut world = World::new(4606 + u64::from(window), 256);
         world.env.limits = limits.domain.session;
         world.domain = session::Domain::new(&world.env.limits, 4606 + u64::from(window));
-        world.out = Queue::with_capacity(session::max_out(&world.env.limits));
+        world.out = Queue::uncapped();
         let mut start = opening(None, world.env.limits.spend);
         start.spec.delegated = Box::new([]);
         start.spec.budget = world.env.limits.budget;
@@ -79,7 +79,7 @@ fn a_window_opened_at_its_largest_makes_its_first_completion() {
         let mut final_world = World::new(4611 + u64::from(window), 256);
         final_world.env.limits = limits.domain.session;
         final_world.domain = session::Domain::new(&final_world.env.limits, 4611 + u64::from(window));
-        final_world.out = Queue::with_capacity(session::max_out(&final_world.env.limits));
+        final_world.out = Queue::uncapped();
         let mut final_start = opening(None, final_world.env.limits.spend);
         final_start.spec.budget = final_world.env.limits.budget;
         final_start.spec.budget.turns = 1;

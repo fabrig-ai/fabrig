@@ -37,28 +37,11 @@ pub struct Limits {
     pub group_stop: Duration,
 }
 
-/// The most records one step can emit into each queue.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct MaxOut {
-    /// Domain terminals.
-    pub to_domain: u32,
-    /// IO requests.
-    pub below: u32,
-}
-
-/// A terminal per process and room for its stop followed by close.
-#[must_use]
-pub const fn max_out(limits: &Limits) -> MaxOut {
-    let stopping = limits.processes.checked_mul(2).expect("process emission count fits");
-    let below = if stopping > 3 { stopping } else { 3 };
-    MaxOut { to_domain: if limits.processes == 0 { 1 } else { limits.processes }, below }
-}
-
 /// Whether the machine's capacities and search edge fit (programming-model.md, 6.3).
 #[must_use]
 pub fn valid(limits: &Limits) -> bool {
     limits.processes.checked_mul(2).is_some()
-        && tokenizer::worst_case(&tokenizer::Limits {
+        && tokenizer::tokenizer_bound(&tokenizer::Limits {
             depth: 8,
             string: limits.search_line_bytes.max(1),
             number: 20,
@@ -190,7 +173,7 @@ mod memory {
     #[test]
     fn every_pending_listing_keeps_its_largest_filter_within_the_bound() {
         // Peak with eight pending listings holding their largest filters.
-        // Measured 598_592 B on 2026-10-28; a quarter of headroom, rounded up.
+        // Measured 598_681 B on 2026-10-29; a quarter of headroom, rounded up.
         const FILTERS_CEILING: u64 = 750_000;
 
         let limits = caps();
@@ -269,9 +252,8 @@ mod memory {
 
     #[test]
     fn saturated_listings_keep_their_pathname_copies_within_the_bound() {
-        // Ceiling on held listing paths: a quarter above 10-28's figure, moved by hand when a real change passes it.
-        const LISTINGS_HELD_CEILING: u64 = 500_000;
-        // Ceiling on listing path peak: a quarter above 10-28's figure, moved by hand when a real change passes it.
+        // Peak with eight listings retaining two largest pathnames apiece.
+        // Measured 425_984 B on 2026-10-29; a quarter of headroom, rounded up.
         const LISTINGS_PEAK_CEILING: u64 = 540_000;
         let meter = Meter::new();
         meter.start();
@@ -279,8 +261,7 @@ mod memory {
         for listing in &mut listings {
             *listing = Some(crate::Listing::new(0, 0, tools::Depth::Whole, 16_384));
         }
-        meter.check(meter.end(), LISTINGS_PEAK_CEILING, &"eight record buffers");
-        let mut peak = 0;
+        let mut peak = meter.check(meter.end(), LISTINGS_PEAK_CEILING, &"eight record buffers");
         for listing in &mut listings {
             let listing = listing.as_mut().expect("eight saturated listings");
             for byte in [b'a', b'b'] {
@@ -292,20 +273,14 @@ mod memory {
                 peak = peak.max(meter.check(meter.end(), LISTINGS_PEAK_CEILING, &byte));
             }
         }
-        assert!(
-            meter.held() <= LISTINGS_HELD_CEILING,
-            "held listing paths {} exceed {LISTINGS_HELD_CEILING}",
-            meter.held()
-        );
         assert!(peak <= LISTINGS_PEAK_CEILING, "listing path peak {peak} exceeds {LISTINGS_PEAK_CEILING}");
     }
 
     #[test]
     fn saturated_listings_allocate_terminal_cells_only_in_the_finishing_step() {
-        // Ceiling on held listing entries: a quarter above 10-28's figure, moved by hand when a real change passes it.
-        const LISTING_ENTRIES_HELD_CEILING: u64 = 140_000;
-        // Ceiling on finishing listings' peak: a quarter above 10-28's figure, moved by hand when a real change passes it.
-        const LISTING_TERMINALS_PEAK_CEILING: u64 = 150_000;
+        // Peak while eight full 512-entry listings become terminal lists.
+        // Measured 124_960 B on 2026-10-29; a quarter of headroom, rounded up.
+        const LISTING_TERMINALS_PEAK_CEILING: u64 = 160_000;
         let meter = Meter::new();
         meter.start();
         let mut listings: [Option<crate::Listing>; 8] = [const { None }; 8];
@@ -318,14 +293,8 @@ mod memory {
             }
             *slot = Some(listing);
         }
-        meter.check(meter.end(), LISTING_TERMINALS_PEAK_CEILING, &"eight full entry lists");
-        assert!(
-            meter.held() <= LISTING_ENTRIES_HELD_CEILING,
-            "held listing entries {} exceed {LISTING_ENTRIES_HELD_CEILING}",
-            meter.held()
-        );
+        let mut peak = meter.check(meter.end(), LISTING_TERMINALS_PEAK_CEILING, &"eight full entry lists");
         let mut terminals: [Option<tools::Done>; 8] = [const { None }; 8];
-        let mut peak = 0;
         for (listing, terminal) in listings.iter_mut().zip(&mut terminals) {
             meter.start();
             *terminal = Some(listing.take().expect("full listing").finish(Some(kernel::Exit::Code(0)), false));

@@ -15,6 +15,7 @@ use skein_io::{
 };
 use skein_lib::{Duration, Env, Queue, Token, Writer};
 use skein_shell::{Clock, Config, Kernel, Wait};
+use skein_world::{Deadline, Expired};
 use std::{
     fs,
     os::unix::fs::PermissionsExt,
@@ -47,7 +48,7 @@ fn plant(directory: &Path, ops: Box<[skein_kv::Op]>) {
         let now = clock.now();
         let env = Env { now: now.now, wall: now.wall, limits };
         skein_kv::down(&mut kv, &env, request, &mut above, &mut below);
-        let until = now.now.checked_add(Duration::from_secs(5)).unwrap();
+        let deadline = Deadline::arm("the planted store request", Duration::from_secs(5));
         loop {
             if let Some(event) = above.pop() {
                 let (skein_kv::Event::Opened { .. }
@@ -58,7 +59,15 @@ fn plant(directory: &Path, ops: Box<[skein_kv::Op]>) {
                 };
                 break;
             }
-            assert!(clock.now().now < until, "plant completes within five seconds");
+            if deadline.passed() {
+                match deadline.expired() {
+                    Expired::Starved(starved) => {
+                        drop(kernel);
+                        starved.pass();
+                    }
+                    Expired::Failed(figures) => panic!("plant completes within five seconds: {figures}"),
+                }
+            }
             if io.takes()
                 && let Some(request) = below.pop()
             {
@@ -67,7 +76,7 @@ fn plant(directory: &Path, ops: Box<[skein_kv::Op]>) {
             kernel.submit(&mut submitted, Wait::No);
             kernel.reap(&mut completed);
             if completed.is_empty() && events.is_empty() && !io.takes() {
-                kernel.submit(&mut submitted, Wait::Until(until));
+                kernel.submit(&mut submitted, Wait::Until(deadline.until()));
                 kernel.reap(&mut completed);
             }
             while let Some(complete) = completed.pop() {
@@ -124,7 +133,7 @@ fn inventory(root: &Path) -> BTreeMap<PathBuf, Option<Vec<u8>>> {
 /// Existing data is untouched; skein-kv open starts a new empty segment before
 /// the first version refusal. A second start leaves that whole inventory unchanged.
 fn pre_settings_refusals_leave_the_whole_directory_unchanged() {
-    let directory = skein_scratch::paths::tree().join("target").join(format!("pre-settings-{}", std::process::id()));
+    let directory = skein_scratch::paths::target_tmp().join(format!("pre-settings-{}", std::process::id()));
     fs::create_dir(&directory).expect("new deployment directory");
     for name in ["store", "secrets", "transcripts"] {
         let path = directory.join(name);
@@ -192,11 +201,28 @@ fn refuse(directory: &Path, root: &temper_engine_domain::Limits, limits: &jig_pr
     let mut service = fixtures::start_with_store(&[(1, 100)], Some(store));
     let mut kernel = Kernel::open(Config { operations: 32 }).expect("file kernel");
     let clock = Clock::new();
-    let until = clock.now().now.checked_add(Duration::from_secs(5)).unwrap();
+    let deadline = Deadline::arm("the refused startup drain", Duration::from_secs(5));
     let mut completed: Queue<Complete> = Queue::with_capacity(128);
     for _ in 0_u32..10_000 {
         let now = clock.now();
-        assert!(now.now < until, "refused startup drains within five seconds");
+        if let Some(end) = service.end() {
+            assert_eq!(
+                end,
+                &End::Stopped(Stop::StoreOpen {
+                    why: jig_protocol_store::OpenRefusal::OlderBuild { why: jig_protocol_store::Older::Directory }
+                }),
+                "unexpected startup end"
+            );
+        }
+        if deadline.passed() {
+            match deadline.expired() {
+                Expired::Starved(starved) => {
+                    drop(kernel);
+                    starved.pass();
+                }
+                Expired::Failed(figures) => panic!("refused startup drains within five seconds: {figures}"),
+            }
+        }
         let engine = service.engine.as_mut().unwrap();
         crate::engine::iterate(engine, now.now, now.wall);
         if engine.end.is_some() {
@@ -205,7 +231,7 @@ fn refuse(directory: &Path, root: &temper_engine_domain::Limits, limits: &jig_pr
         kernel.submit(&mut engine.store.submitted, Wait::No);
         kernel.reap(&mut completed);
         if completed.is_empty() && kernel.in_flight() > 0 {
-            kernel.submit(&mut engine.store.submitted, Wait::Until(until));
+            kernel.submit(&mut engine.store.submitted, Wait::Until(deadline.until()));
             kernel.reap(&mut completed);
         }
         while let Some(complete) = completed.pop() {

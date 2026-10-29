@@ -202,7 +202,7 @@ fn a_document_past_the_limits_is_refused_when_measured() {
 }
 
 #[test]
-fn the_worst_case_is_the_stack_and_the_document() {
+fn the_encoder_bound_counts_stack_and_document() {
     assert_eq!(writer::encoder_bound(&Limits { depth: 8, length: 1000 }), Some(8 + 1000));
 }
 

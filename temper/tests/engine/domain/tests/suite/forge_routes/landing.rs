@@ -13,6 +13,115 @@ fn task_row(world: &World, task: u64) -> Option<&tasks::TaskRecord> {
     })
 }
 
+#[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one producer lifecycle follows saved work through parking, resumption and its committed finish"
+)]
+fn a_parked_producers_existing_change_waits_for_its_resumed_terminal_to_commit() {
+    let (mut world, chat, producer, branch) = change_world(false, 1000, None);
+    let tasks::Party::Task(change) = live_task(&world, producer.task).requester else {
+        panic!("producer belongs to its change")
+    };
+    world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 }));
+    let pushed = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"existing edit", 1)
+        .expect("worker saved and delivered its edit");
+    let tag = forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository);
+    let saved_branch = format!("temper/{}/s{}", live_task(&world, producer.task).root, producer.task).into_bytes();
+    world.external(2, raw::Op::Git(raw::Git::Create { branch: saved_branch.clone().into(), commit: pushed }));
+    let parked = world.protocol.answer(
+        Token::new(7),
+        producer.task,
+        producer.attempt,
+        0,
+        tasks::End::Parked,
+        engine::Parts {
+            saved: Some(Box::new([tag])),
+            pushed: Box::new([forge_top::Pushed { tag, commit: translate::commit(pushed) }]),
+            preparation: None,
+        },
+    );
+    world.send(parked);
+    world.until(Until::Ready);
+    assert_eq!(live_task(&world, producer.task).phase, tasks::Phase::Active(tasks::Active::Idle));
+    assert_eq!(world.merges, 0);
+    let ask = people::Ask::Say {
+        project: 1,
+        task: producer.task,
+        words: b"Finish the existing change without another edit".as_slice().into(),
+    };
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(950)),
+        sign_in: world.signed_in.expect("person"),
+        key: [95; 16],
+        ask,
+    }));
+    for _ in 0..200 {
+        world.tick();
+        if world.assigned.iter().any(|run| run.task == producer.task && run.attempt > producer.attempt) {
+            break;
+        }
+    }
+    let resumed = world
+        .assigned
+        .iter()
+        .find(|run| run.task == producer.task && run.attempt > producer.attempt)
+        .expect("parked producer resumed")
+        .clone();
+    assert_eq!(resumed.saved.as_ref(), [tag]);
+    assert!(
+        matches!(&resumed.workspace.repositories[0].start, engine::ForgeStart::Saved(name) if name.as_ref() == saved_branch)
+    );
+    assert_eq!(resumed.workspace.repositories[0].push.as_deref(), Some(branch.as_ref()));
+    for _ in 0..200 {
+        world.tick();
+    }
+    assert_eq!(world.fake.branch(b"org/repo", &branch), Some(pushed), "no extra edit or commit");
+    assert_eq!(world.merges, 0, "withheld terminal keeps the existing change unlanded");
+    assert!(!matches!(task_row(&world, change).expect("change").phase, tasks::Phase::Ended(_)));
+    let terminal = world.protocol.answer(
+        Token::new(7),
+        resumed.task,
+        resumed.attempt,
+        0,
+        tasks::End::Finished {
+            result: tasks::TaskResult::Change {
+                connector: 0,
+                kind: 2,
+                resource: tag,
+                words: b"existing edit delivered".as_slice().into(),
+            },
+            cancel_delegates: false,
+        },
+        engine::Parts {
+            saved: None,
+            pushed: Box::new([forge_top::Pushed { tag, commit: translate::commit(pushed) }]),
+            preparation: None,
+        },
+    );
+    world.send(terminal);
+    for _ in 0..200 {
+        world.tick();
+        if matches!(task_row(&world, change).expect("change").phase, tasks::Phase::Ended(_)) {
+            break;
+        }
+    }
+    assert!(world.store.rows.contains_key(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(producer.task)))));
+    assert!(matches!(
+        task_row(&world, change).expect("landed change").phase,
+        tasks::Phase::Ended(tasks::Ending::Done(_))
+    ));
+    assert_eq!(world.merges, 1);
+    let main = world.fake.branch(b"org/repo", b"main").expect("landed main");
+    assert_eq!(
+        world.fake.object(main).expect("merge object").tree.get(b"file".as_slice()).map(AsRef::as_ref),
+        Some(b"existing edit".as_slice())
+    );
+    assert!(live_task(&world, chat.task).inbox.iter().any(|word| word.from == tasks::Party::Task(change)
+        && matches!(word.kind, tasks::MessageKind::Result(tasks::ResultKind::Change { .. }))));
+}
+
 fn produced_turn_change(landing_members: Option<u32>) -> (World, u64) {
     let mut world = World::configured_limits(
         true,

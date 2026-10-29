@@ -35,7 +35,7 @@ fn decoding_at_every_ceiling_stays_within_the_heap_bound() {
     record.encode(&mut writer).expect("measured room");
     let encoded = writer.finish();
     drop(record);
-    let bound = SavedToken::worst_case_heap(&CEILINGS).expect("schema heap bound");
+    let bound = SavedToken::decoded_bound(&CEILINGS).expect("schema heap bound");
     let meter = Meter::new();
     meter.start();
     let decoded = SavedToken::decode(&CEILINGS, &mut Reader::new(&encoded)).expect("full record");

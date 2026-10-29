@@ -51,6 +51,10 @@ pub const ENDPOINTS: u32 = 3;
 /// The count of distinct credential accounts the standard profile admits.
 pub const ACCOUNTS: u32 = 4;
 
+/// Default entries for the backlog watermark and per-stage work quantum, also
+/// sizing pending-message room (skein/docs/foundation/programming-model.md, 7.1).
+pub const DEFAULT_PACING: u32 = 2_302;
+
 /// Compose layer limits from the selected profile and endpoint declarations.
 pub fn derive(profile: &Profile, configuration: &Configuration) -> Result<service::Limits, Refusal> {
     validate::declarations(profile, configuration)?;
@@ -117,7 +121,6 @@ pub fn derive(profile: &Profile, configuration: &Configuration) -> Result<servic
     charter.verdict_rule_fields = policy.fields;
     charter.change_rule_fields = policy.fields;
     let transcript = transcript(&domain, &client)?;
-    let queue = domain::max_out(&domain).max(256);
     let operations = io::operations(&io).ok_or(derived(Layer::Service, "routes"))?;
     let routes = operations.checked_add(64).ok_or(derived(Layer::Service, "routes"))?;
     let limits = service::Limits {
@@ -132,7 +135,7 @@ pub fn derive(profile: &Profile, configuration: &Configuration) -> Result<servic
         file_bytes: domain.session.tools.file_bytes,
         file_timeout: domain.session.tools.file_timeout,
         live_interval: policy.live_interval,
-        queue,
+        queue: DEFAULT_PACING,
         routes,
         memory,
         events: None,
@@ -279,7 +282,7 @@ fn channel_bodies(domain: &domain::Limits, policy: &Policy) -> Result<smith_chan
     let run = domain.run;
     let refusal = derived(Layer::Channel, "turn_body");
     let session = domain.session;
-    let results = tools::batch_result_worst_case(&session.tools, run.calls).ok_or(refusal)?;
+    let results = tools::batch_result_bound(&session.tools, run.calls).ok_or(refusal)?;
     let delegated = session.delegated_result_bytes.checked_mul(u64::from(run.calls)).ok_or(refusal)?;
     // One completion, every result it can cause, and its first/window opening
     // share a turn. A window's earlier settled completions are not this turn.
@@ -543,7 +546,7 @@ fn derive_domain(
         u32::try_from(parts.host.min(u64::from(declared.guide))).or(Err(derived(Layer::Run, "guide_bytes")))?;
     let delegated = domain::feedback_worst_case(&run).ok_or(derived(Layer::Session, "delegated_result_bytes"))?;
     let parallel = policy.parallel_tools.min(declared.calls_per_response);
-    let owned = tools::batch_result_worst_case(&tools, parallel).ok_or(derived(Layer::Session, "batch_results"))?;
+    let owned = tools::batch_result_bound(&tools, parallel).ok_or(derived(Layer::Session, "batch_results"))?;
     let batch = owned.max(delegated.checked_mul(u64::from(parallel)).ok_or(derived(Layer::Session, "batch_results"))?);
     let line_bytes = line_bytes(configuration, run.compaction_material)?;
     let session = match session::derive(&session::Derivation {

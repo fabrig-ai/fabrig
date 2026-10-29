@@ -69,40 +69,38 @@ pub fn fits(value: &OwnerHistoryLine, bounds: &Bounds) -> bool {
 }
 /// Finite maximum across all retained actions, states and two stored snapshots.
 #[must_use]
-pub fn worst_case(bounds: &Bounds) -> Option<u64> {
+pub fn heap_bound(bounds: &Bounds) -> Option<u64> {
     let rows = u64::from(bounds.rows);
     let text = u64::from(bounds.text);
-    let authority = crate::owner_authority::worst_case(bounds)?
+    let authority = crate::owner_authority::heap_bound(bounds)?
         .checked_sub(u64::try_from(size_of::<OwnerAuthorityDocument>()).ok()?)?;
-    let part =
-        List::<Box<[u8]>>::worst_case(bounds.segments)?.checked_add(u64::from(bounds.segments).checked_mul(text)?)?;
-    let spec = List::<ParameterDocument>::worst_case(bounds.rows)?
+    let part = List::<Box<[u8]>>::price(bounds.segments)?.checked_add(u64::from(bounds.segments).checked_mul(text)?)?;
+    let spec = List::<ParameterDocument>::price(bounds.rows)?
         .checked_add(rows.checked_mul(text)?)?
-        .checked_add(List::<u64>::worst_case(bounds.rows)?)?
+        .checked_add(List::<u64>::price(bounds.rows)?)?
         .checked_add(text)?;
-    let verdict = List::<VerdictChoice>::worst_case(bounds.rows)?.checked_add(
-        rows.checked_mul(List::<FieldRule>::worst_case(bounds.rows)?.checked_add(rows.checked_mul(text)?)?)?,
-    )?;
+    let verdict = List::<VerdictChoice>::price(bounds.rows)?
+        .checked_add(rows.checked_mul(List::<FieldRule>::price(bounds.rows)?.checked_add(rows.checked_mul(text)?)?)?)?;
     let contract = verdict.max(text.checked_add(part)?);
     let proposed = spec
         .checked_add(authority)?
         .checked_add(contract)?
-        .checked_add(List::<u64>::worst_case(bounds.rows)?)?
-        .checked_add(List::<OwnerPart>::worst_case(bounds.rows)?)?
+        .checked_add(List::<u64>::price(bounds.rows)?)?
+        .checked_add(List::<OwnerPart>::price(bounds.rows)?)?
         .checked_add(rows.checked_mul(part)?)?;
-    let batch = List::<ProposedTask>::worst_case(bounds.rows)?.checked_add(rows.checked_mul(proposed)?)?;
+    let batch = List::<ProposedTask>::price(bounds.rows)?.checked_add(rows.checked_mul(proposed)?)?;
     let amendment = u64::try_from(size_of::<OwnerRetainedAmendment>())
         .ok()?
         .checked_add(spec)?
         .checked_add(authority)?
-        .checked_add(List::<u64>::worst_case(bounds.rows)?)?
+        .checked_add(List::<u64>::price(bounds.rows)?)?
         .checked_add(text.checked_mul(2)?)?;
     let action = batch.max(amendment).max(part.checked_add(authority)?).max(authority);
     u64::try_from(size_of::<OwnerHistoryLine>())
         .ok()?
         .checked_add(action)?
         .checked_add(text.checked_mul(2)?)?
-        .checked_add(crate::owner_amendment::worst_case(bounds)?.checked_mul(2)?)
+        .checked_add(crate::owner_amendment::heap_bound(bounds)?.checked_mul(2)?)
 }
 #[cfg(test)]
 mod tests;

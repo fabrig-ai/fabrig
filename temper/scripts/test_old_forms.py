@@ -1,6 +1,7 @@
 """The gate ratchets old forms in tracked Rust without raising a baseline."""
 
 from pathlib import Path
+import runpy
 import subprocess
 import sys
 import tempfile
@@ -79,12 +80,45 @@ let marker = "/*"; journal.takes(&room); payload.worst_case();
 '''}, counts=(1, 1, 1, 1))
         self.run_script(root)
 
-    def test_io_edge_constants_do_not_count_as_max_out(self):
+    def test_bare_edge_constants_count_as_max_out(self):
         root = self.repository({"src/lib.rs": """
 let edges = (MAX_OUT_DOWN, MAX_OUT_UP);
-let internal = (MAX_OUT, max_out_events, MAX_OUT_DOWNSTREAM);
-"""}, counts=(3, 0, 0, 0))
+"""}, counts=(2, 0, 0, 0))
         self.run_script(root)
+
+    def test_only_kernel_qualified_edge_constants_are_exempt(self):
+        root = self.repository({"src/lib.rs": """
+let edges = (io::MAX_OUT_DOWN, io::MAX_OUT_UP, io::MAX_OUT_RESUME, io::MAX_OUT_FIRE,
+             skein_io::MAX_OUT_DOWN, skein_io::MAX_OUT_UP,
+             skein_io::MAX_OUT_RESUME, skein_io::MAX_OUT_FIRE);
+"""})
+        self.run_script(root)
+
+    def test_other_qualified_and_longer_edge_names_count(self):
+        root = self.repository({"src/lib.rs": """
+let internal = (kit::MAX_OUT_DOWN, link::MAX_OUT_DOWN, link::MAX_OUT_FIRE, MAX_OUT_DOWN,
+                io::MAX_OUT_DOWNWARD, MAX_OUT_DOWNWARD, other_io::MAX_OUT_DOWN,
+                other::io::MAX_OUT_DOWN);
+"""}, counts=(8, 0, 0, 0))
+        self.run_script(root)
+
+    def test_ordinary_string_escapes_separate_words(self):
+        root = self.repository({"src/lib.rs": r'''
+let words = "\nJournalRoom \x20JournalRoom \u{20}JournalRoom \nmax_out";
+'''}, counts=(1, 3, 0, 0))
+        self.run_script(root)
+
+    def test_raw_string_escapes_stay_literal(self):
+        root = self.repository({"src/lib.rs": r'''
+let words = r#"\nJournalRoom \x20JournalRoom \u{20}JournalRoom \nmax_out"#;
+'''}, counts=(1, 1, 0, 0))
+        self.run_script(root)
+
+    def test_character_escapes_become_separators(self):
+        without_comments = runpy.run_path(str(SCRIPT))["without_comments"]
+        for source in (r"'\n'", r"'\x20'", r"'\u{20}'"):
+            with self.subTest(source=source):
+                self.assertEqual(without_comments(source), "' '")
 
     def test_generated_directories_and_untracked_files_do_not_count(self):
         root = self.repository({

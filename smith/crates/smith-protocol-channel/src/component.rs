@@ -131,7 +131,7 @@ impl Component {
         Ok(Component {
             machine,
             schema,
-            events: Queue::with_capacity(8),
+            events: Queue::uncapped(),
             phase: Phase::Opening,
             ended: false,
             bodies: limits.bodies,
@@ -499,8 +499,8 @@ impl Component {
         let length = u64::try_from(piece.bytes.len()).expect("piece length fits u64");
         if self.last_sent_turn.checked_add(1) != Some(piece.turn)
             || !self.takes_live(piece.kind, u32::try_from(length).unwrap_or(u32::MAX))
-            || to_service.room() < crate::limits::MAX_OUT.to_domain
-            || below.room() < crate::limits::MAX_OUT.below
+            || to_service.room() < crate::limits::EDGE_ROOM.to_domain
+            || below.room() < crate::limits::EDGE_ROOM.below
         {
             self.lose_live(length);
             return Ok(false);
@@ -540,8 +540,8 @@ impl Component {
     ) -> Result<bool, Error> {
         if self.phase != Phase::Admitted
             || self.ended
-            || to_service.room() < crate::limits::MAX_OUT.to_domain
-            || below.room() < crate::limits::MAX_OUT.below
+            || to_service.room() < crate::limits::EDGE_ROOM.to_domain
+            || below.room() < crate::limits::EDGE_ROOM.below
         {
             self.lost_facts = self.lost_facts.saturating_add(1);
             return Ok(false);
@@ -673,6 +673,8 @@ impl Component {
 
     #[expect(clippy::too_many_lines, reason = "bounded event dispatch keeps channel order in one place")]
     fn drain(&mut self, to_service: &mut Queue<OpenEvent>, below: &mut Queue<Lower>) {
+        // Eight child transitions bound opening/terms, one demanded record or
+        // refusal, and the resulting output and close notifications.
         for _ in 0_u8..8_u8 {
             let event = self.events.pop();
             match event {

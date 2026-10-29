@@ -5,8 +5,8 @@
 //! neither the root nor any other connector. The
 //! root translates its own vocabulary into the core's and commits each
 //! [`Request::Save`] or [`Request::Erase`] with the decision that caused it.
-//! `step` emits at most [`MAX_OUT`] requests. At restart, the root restores
-//! records before allowing system hints or task work.
+//! Output carriers are uncapped. At restart, the root restores records before
+//! allowing system hints or task work.
 //!
 //! | State | Event | Next state | Emits |
 //! | --- | --- | --- | --- |
@@ -32,7 +32,7 @@ mod client_documents;
 mod client_marks;
 pub use client_documents::{
     ClientCursor, ClientDocument, ClientResource, ClientScope, ClientSubject, ClientWindow, DiagnosticAvailability,
-    DocumentMissing, document_worst_case,
+    DocumentMissing, document_bound,
 };
 pub mod application_core;
 pub use application::{

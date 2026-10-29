@@ -162,6 +162,7 @@ impl World {
     /// Constructs empty bounded state under the supplied immutable limits; no IO or clocks are consulted.
     ///
     /// World contract: domain/session.md, sections 10 and 12; testing-strategy.md, section 2.2.
+    /// `facts` supplies the compatibility limit; observations themselves are uncapped.
     #[must_use]
     pub fn new(seed: u64, facts: u32) -> World {
         let mut limits = crate::Settings::calm(seed).agent;
@@ -172,7 +173,7 @@ impl World {
         World {
             domain: session::Domain::new(&limits, seed),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
-            out: Queue::with_capacity(session::max_out(&limits)),
+            out: Queue::uncapped(),
             session: None,
             completing: None,
             delegated: vec![],
@@ -223,12 +224,21 @@ impl World {
             }
             session::Event::Done { owner, done } => {
                 if self.held.contains(owner) {
-                    let position = self
-                        .job_acts
-                        .iter()
-                        .position(|(pending, _)| pending == owner)
-                        .expect("one terminal per job act");
-                    self.job_acts.remove(position);
+                    if let Some(position) = self.job_acts.iter().position(|(pending, _)| pending == owner) {
+                        self.job_acts.remove(position);
+                    } else {
+                        assert!(
+                            self.cancelled_operations.contains(owner),
+                            "a held job ends after an act or cancellation"
+                        );
+                        assert!(
+                            !matches!(
+                                done,
+                                smith_domain_tools::Done::Job { end: smith_domain_tools::JobEnd::Running, .. }
+                            ),
+                            "a cancellation terminal ends its held job"
+                        );
+                    }
                     if !matches!(done, smith_domain_tools::Done::Job { end: smith_domain_tools::JobEnd::Running, .. }) {
                         assert!(self.held.remove(owner));
                     }
@@ -253,7 +263,6 @@ impl World {
         }
         self.domain.reclaim();
         session::step(&mut self.domain, &self.env, event, &mut self.out);
-        assert!(self.out.len() <= session::max_out(&self.env.limits));
         self.collect_outputs();
     }
 
@@ -261,7 +270,6 @@ impl World {
     pub fn resume(&mut self) {
         self.domain.reclaim();
         session::resume(&mut self.domain, &self.env, &mut self.out);
-        assert!(self.out.len() <= session::max_out(&self.env.limits));
         self.collect_outputs();
     }
 

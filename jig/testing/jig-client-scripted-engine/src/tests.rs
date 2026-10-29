@@ -1078,7 +1078,7 @@ fn recurring_optional_boundaries_keep_whole_value_and_allocated_list_limits() {
         };
         let bytes = u64::try_from(core::mem::size_of::<Recurring>()).unwrap()
             + u64::try_from(core::mem::size_of::<ChipPhase>()).unwrap()
-            + List::<u64>::worst_case(2).unwrap()
+            + List::<u64>::price(2).unwrap()
             + 3;
         bounds.document_bytes = bytes;
         assert!(crate::payload::fits(&row, &bounds));
@@ -1118,8 +1118,7 @@ fn collective_policy_recipients_accept_any_listed_role_and_price_the_whole_list(
         &Answer::Done(Outcome::Decided { by: Actor::Party(1), how: Decision::Accepted, at: Wall::EPOCH })
     );
     let mut bounds = Bounds { rows: 2, ..Bounds::default() };
-    bounds.document_bytes =
-        u64::try_from(core::mem::size_of::<Recipient>()).unwrap() + List::<u32>::worst_case(2).unwrap();
+    bounds.document_bytes = u64::try_from(core::mem::size_of::<Recipient>()).unwrap() + List::<u32>::price(2).unwrap();
     assert!(crate::payload::fits(&recipient, &bounds));
     bounds.document_bytes = bounds.document_bytes.checked_sub(1).unwrap();
     assert!(!crate::payload::fits(&recipient, &bounds));
@@ -1244,7 +1243,7 @@ fn moved_hold_refusal_prices_the_complete_reason_allocation_and_each_nested_fail
             .unwrap()
             .checked_add(u64::try_from(core::mem::size_of::<HoldReason>()).unwrap())
             .unwrap()
-            .checked_add(List::<AttemptFailure>::worst_case(2).unwrap())
+            .checked_add(List::<AttemptFailure>::price(2).unwrap())
             .unwrap()
             .checked_add(11)
             .unwrap(),
@@ -1273,8 +1272,8 @@ fn verdict_documents_price_whole_machine_field_arrays_and_bytes() {
     };
     let mut bounds = Bounds { text: 8, rows: 1, ..Bounds::default() };
     bounds.document_bytes = u64::try_from(core::mem::size_of::<ResultValue>()).unwrap()
-        + List::<ResultField>::worst_case(1).unwrap()
-        + List::<Chip>::worst_case(0).unwrap()
+        + List::<ResultField>::price(1).unwrap()
+        + List::<Chip>::price(0).unwrap()
         + 10;
     assert!(crate::payload::fits(&value, &bounds));
     bounds.document_bytes -= 1;
@@ -1309,7 +1308,7 @@ fn owner_verdict_payload_prices_reserved_field_rows_and_only_supplied_payload() 
         text: 5,
         rows: 2,
         document_bytes: u64::try_from(core::mem::size_of::<ResultValue>()).unwrap()
-            + List::<ResultField>::worst_case(2).unwrap()
+            + List::<ResultField>::price(2).unwrap()
             + 10,
         ..Bounds::default()
     };
@@ -1379,8 +1378,8 @@ fn whole_specification_prices_parameter_and_input_capacity_and_refuses_partial_v
         document
     };
     let allocated = u64::try_from(core::mem::size_of::<SpecificationDocument>() + 5 + 3).unwrap()
-        + List::<ParameterDocument>::worst_case(4).unwrap()
-        + List::<u64>::worst_case(3).unwrap();
+        + List::<ParameterDocument>::price(4).unwrap()
+        + List::<u64>::price(3).unwrap();
     let mut bounds = Bounds { text: 5, rows: 4, document_bytes: allocated, ..Bounds::default() };
     assert!(crate::payload::fits(&value, &bounds));
     assert!(value.cut, "actual owner marker remains a fact");
@@ -1540,8 +1539,8 @@ fn procedure_goal_bounds_price_allocated_pairs_and_judge_the_exact_executor() {
     };
     let bytes = u64::try_from(core::mem::size_of::<Admission>()).unwrap()
         + u64::try_from(core::mem::size_of::<OwnerAuthorityDocument>()).unwrap()
-        + List::<u32>::worst_case(0).unwrap()
-        + List::<CreateProcedure>::worst_case(2).unwrap();
+        + List::<u32>::price(0).unwrap()
+        + List::<CreateProcedure>::price(2).unwrap();
     let mut bounds = Bounds { rows: 2, document_bytes: bytes, ..Bounds::default() };
     assert!(crate::payload::fits(&offer, &bounds));
     bounds.document_bytes = bytes.checked_sub(1).unwrap();
@@ -1630,8 +1629,8 @@ fn document_text_loss_is_preserved_and_priced_with_whole_document_parameter_capa
     assert_eq!(whole.parameters.capacity(), 4);
     assert_eq!(whole.inputs.capacity(), 2);
     let size = u64::try_from(core::mem::size_of::<SpecificationDocument>() + 1 + 3).unwrap()
-        + List::<ParameterDocument>::worst_case(4).unwrap()
-        + List::<u64>::worst_case(2).unwrap();
+        + List::<ParameterDocument>::price(4).unwrap()
+        + List::<u64>::price(2).unwrap();
     let mut bounds = Bounds { text: 3, rows: 4, document_bytes: size, ..Bounds::default() };
     assert!(crate::payload::fits(&value, &bounds));
     bounds.document_bytes -= 1;
@@ -1756,7 +1755,7 @@ fn note_corrections_price_the_whole_scope_and_allocated_reference_capacity() {
     };
     let mut bounds = Bounds { text: 4, rows: 4, document_bytes: u64::MAX, ..Bounds::default() };
     bounds.document_bytes =
-        u64::try_from(core::mem::size_of::<Ask>() + 3 + 3 + 4).unwrap() + List::<u64>::worst_case(4).unwrap();
+        u64::try_from(core::mem::size_of::<Ask>() + 3 + 3 + 4).unwrap() + List::<u64>::price(4).unwrap();
     assert!(crate::payload::fits(&ask, &bounds));
     bounds.document_bytes -= 1;
     assert!(!crate::payload::fits(&ask, &bounds));
@@ -1848,11 +1847,8 @@ fn result_document_loss_and_raw_change_paths_are_admitted_whole_at_exact_allocat
         part: OwnerPart { connector: u16::MAX, kind: OwnerPartKind::Resource, key: OwnerPartKey::Path(path) },
         words: DocumentText { bytes: text(b"why"), cut: true },
     };
-    let exact = u64::try_from(core::mem::size_of::<ResultValue>()).unwrap()
-        + List::<Box<[u8]>>::worst_case(4).unwrap()
-        + 3
-        + 2
-        + 3;
+    let exact =
+        u64::try_from(core::mem::size_of::<ResultValue>()).unwrap() + List::<Box<[u8]>>::price(4).unwrap() + 3 + 2 + 3;
     let mut bounds = Bounds { rows: 2, segments: 4, text: 3, document_bytes: exact, ..Bounds::default() };
     assert!(crate::payload::fits(&value, &bounds));
     bounds.document_bytes -= 1;
@@ -1894,8 +1890,8 @@ fn result_metadata_boxes_price_unfilled_delegate_and_followup_capacity_without_i
     }));
     let exact = base
         + u64::try_from(core::mem::size_of::<ResultDetails>()).unwrap()
-        + List::<OwnerTaskLink>::worst_case(3).unwrap()
-        + List::<OwnerTaskLink>::worst_case(4).unwrap();
+        + List::<OwnerTaskLink>::price(3).unwrap()
+        + List::<OwnerTaskLink>::price(4).unwrap();
     bounds.document_bytes = exact;
     assert!(crate::payload::fits(&result, &bounds));
     assert_eq!(result.at, None);
@@ -2213,7 +2209,7 @@ fn task_subscription_capacity_is_priced_separately_from_whole_activation_replace
     ] {
         row.subscriptions.entries.push(Subscription { number: u64::MAX, kind }).unwrap();
     }
-    assert_eq!(row.heap(&bounds).unwrap(), baseline + List::<Subscription>::worst_case(4).unwrap());
+    assert_eq!(row.heap(&bounds).unwrap(), baseline + List::<Subscription>::price(4).unwrap());
     let exact = u64::try_from(core::mem::size_of::<Task>()).unwrap() + row.heap(&bounds).unwrap();
     let mut limited = Bounds { document_bytes: exact, ..bounds };
     assert!(crate::payload::fits(&row, &limited));
@@ -2332,10 +2328,10 @@ fn named_authority_models_price_their_full_allocated_list_and_bytes() {
     let before = crate::owner_authority::document_bytes(&value, &bounds).unwrap();
     let mut names = List::with_capacity(64);
     names.push(Box::from([b'x'; 4096].as_slice())).unwrap();
-    let allocated = List::<Box<[u8]>>::worst_case(64).unwrap() + 4096;
+    let allocated = List::<Box<[u8]>>::price(64).unwrap() + 4096;
     value.authority.models = Some(AuthorityModels::Named(names));
     assert_eq!(crate::owner_authority::document_bytes(&value, &bounds), Some(before + allocated));
-    assert!(crate::owner_authority::worst_case(&bounds).unwrap() >= before + allocated);
+    assert!(crate::owner_authority::heap_bound(&bounds).unwrap() >= before + allocated);
     let mut over = List::with_capacity(65);
     over.push(Box::from(b"model".as_slice())).unwrap();
     value.authority.models = Some(AuthorityModels::Named(over));

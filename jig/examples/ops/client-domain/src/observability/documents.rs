@@ -236,8 +236,8 @@ fn incident_price(incident: &Incident, limits: &super::Limits) -> Option<u64> {
         return None;
     }
     let mut bytes = service_price(&incident.service, limits)?;
-    bytes = bytes.checked_add(List::<Point>::worst_case(incident.timeline.capacity())?)?;
-    bytes.checked_add(List::<ProposalKey>::worst_case(incident.proposals.capacity())?)
+    bytes = bytes.checked_add(List::<Point>::price(incident.timeline.capacity())?)?;
+    bytes.checked_add(List::<ProposalKey>::price(incident.proposals.capacity())?)
 }
 fn service_price(service: &Service, limits: &super::Limits) -> Option<u64> {
     if service.environment.len() > usize::try_from(limits.text).ok()?
@@ -254,7 +254,7 @@ fn price(document: &Document, limits: &super::Limits) -> Option<u64> {
             if incidents.capacity() > limits.rows {
                 return None;
             }
-            let mut bytes = List::<Incident>::worst_case(incidents.capacity())?;
+            let mut bytes = List::<Incident>::price(incidents.capacity())?;
             for incident in incidents {
                 bytes = bytes.checked_add(incident_price(incident, limits)?)?;
             }
@@ -270,9 +270,9 @@ fn price(document: &Document, limits: &super::Limits) -> Option<u64> {
             }
             let mut bytes = u64::try_from(size_of::<PartDocument>())
                 .ok()?
-                .checked_add(List::<Effect>::worst_case(part.effects.capacity())?)?
-                .checked_add(List::<Incident>::worst_case(part.incidents.capacity())?)?
-                .checked_add(List::<ServiceState>::worst_case(part.services.capacity())?)?;
+                .checked_add(List::<Effect>::price(part.effects.capacity())?)?
+                .checked_add(List::<Incident>::price(part.incidents.capacity())?)?
+                .checked_add(List::<ServiceState>::price(part.services.capacity())?)?;
             for incident in &part.incidents {
                 bytes = bytes.checked_add(incident_price(incident, limits)?)?;
             }

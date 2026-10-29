@@ -49,7 +49,7 @@ impl Service {
             // One live request per account; stale requests are refused before enqueueing.
             // Cancelled waiters drain before routing new requests. The active check
             // may still be stale and settling, so all N accounts can be waiting.
-            waiting: Queue::with_capacity(self.limits.local.smith.accounts),
+            waiting: Queue::uncapped(),
             next_owner: 1_u64 << 60,
             active: None,
             interrupted: 0,

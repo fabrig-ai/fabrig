@@ -228,7 +228,7 @@ impl World {
     /// One connector step followed by its journal commit. Returned requests
     /// are still behind the release door.
     pub fn event(&mut self, event: Event) -> Vec<Request> {
-        let mut out = Queue::with_capacity(connector::MAX_OUT);
+        let mut out = Queue::uncapped();
         let env = self.env();
         connector::step(&mut self.domain, &env, event, &mut out);
         let requests = Self::collected(&mut out);
@@ -239,7 +239,7 @@ impl World {
 
     /// One timer turn, committed before its system calls are released.
     pub fn fire(&mut self) -> Vec<Request> {
-        let mut out = Queue::with_capacity(connector::MAX_OUT);
+        let mut out = Queue::uncapped();
         let env = self.env();
         connector::fire(&mut self.domain, &env, &mut out);
         let requests = Self::collected(&mut out);

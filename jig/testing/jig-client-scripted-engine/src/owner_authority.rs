@@ -48,7 +48,7 @@ impl Payload for AuthorityModels {
                 if names.capacity() > jig_client_domain::contract::AUTHORITY_MODELS {
                     return None;
                 }
-                let mut bytes = List::<Box<[u8]>>::worst_case(names.capacity())?;
+                let mut bytes = List::<Box<[u8]>>::price(names.capacity())?;
                 for name in names {
                     let len = u64::try_from(name.len()).ok()?;
                     if len > u64::from(bounds.text.min(jig_client_domain::contract::AUTHORITY_MODEL_BYTES)) {
@@ -98,17 +98,17 @@ pub fn document_fits(value: &OwnerAuthorityDocument, bounds: &Bounds) -> bool {
 /// Maximum whole document allocation at the configured authority and byte bounds.
 /// An unrepresentable total is rejected explicitly.
 #[must_use]
-pub fn worst_case(bounds: &Bounds) -> Option<u64> {
+pub fn heap_bound(bounds: &Bounds) -> Option<u64> {
     let entries = u64::from(bounds.authority);
-    let pattern = List::<Box<[u8]>>::worst_case(bounds.segments)?
+    let pattern = List::<Box<[u8]>>::price(bounds.segments)?
         .checked_add(u64::from(bounds.segments).checked_mul(u64::from(bounds.text))?)?
         .checked_add(u64::from(bounds.text))?;
     let nested = pattern.checked_mul(entries)?.checked_mul(2)?;
-    List::<OwnerGrant>::worst_case(bounds.authority)?
-        .checked_add(List::<OwnerResourceScope>::worst_case(bounds.authority)?)?
-        .checked_add(List::<OwnerAuthorityExecutor>::worst_case(bounds.authority)?)?
+    List::<OwnerGrant>::price(bounds.authority)?
+        .checked_add(List::<OwnerResourceScope>::price(bounds.authority)?)?
+        .checked_add(List::<OwnerAuthorityExecutor>::price(bounds.authority)?)?
         .checked_add(nested)?
-        .checked_add(List::<Box<[u8]>>::worst_case(jig_client_domain::contract::AUTHORITY_MODELS)?)?
+        .checked_add(List::<Box<[u8]>>::price(jig_client_domain::contract::AUTHORITY_MODELS)?)?
         .checked_add(
             u64::from(jig_client_domain::contract::AUTHORITY_MODELS)
                 .checked_mul(u64::from(bounds.text.min(jig_client_domain::contract::AUTHORITY_MODEL_BYTES)))?,

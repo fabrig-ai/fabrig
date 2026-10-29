@@ -43,7 +43,7 @@ pub(crate) fn work(
             host_out(domain, env, decision, &mut hub_out, work);
         }
         Work::Infrastructure(event) => {
-            let mut out = Queue::with_capacity(infrastructure::MAX_OUT);
+            let mut out = Queue::uncapped();
             infrastructure::step(
                 &mut domain.infrastructure,
                 &Env { now: env.now, wall: env.wall, limits: env.limits.infrastructure },
@@ -53,7 +53,7 @@ pub(crate) fn work(
             infrastructure_out(domain, env, decision, &mut out, work);
         }
         Work::Observability(event) => {
-            let mut out = Queue::with_capacity(observability::MAX_OUT);
+            let mut out = Queue::uncapped();
             observability::step(
                 &mut domain.observability,
                 &Env { now: env.now, wall: env.wall, limits: env.limits.observability },
@@ -206,7 +206,7 @@ fn event_in(
         }
         Event::TurnTimer => crate::turn_backoff::fire(domain, env, decision, work),
         Event::InfrastructureTimer => {
-            let mut out = Queue::with_capacity(infrastructure::MAX_OUT);
+            let mut out = Queue::uncapped();
             infrastructure::fire(
                 &mut domain.infrastructure,
                 &Env { now: env.now, wall: env.wall, limits: env.limits.infrastructure },
@@ -215,7 +215,7 @@ fn event_in(
             infrastructure_out(domain, env, decision, &mut out, work);
         }
         Event::ObservabilityTimer => {
-            let mut out = Queue::with_capacity(observability::MAX_OUT);
+            let mut out = Queue::uncapped();
             observability::fire(
                 &mut domain.observability,
                 &Env { now: env.now, wall: env.wall, limits: env.limits.observability },

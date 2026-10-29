@@ -5,6 +5,9 @@ use alloc::boxed::Box;
 use skein_lib::{Env, List, Queue, Time, Wall};
 use temper_engine_domain as root;
 
+// A pass keeps the shipped small profile's 22 release/resume cycles.
+const RELEASE_CYCLES: u32 = 22;
+
 pub(crate) struct Engine {
     pub(crate) domain: root::Domain,
     pub(crate) env: Env<root::Limits>,
@@ -33,11 +36,70 @@ pub(crate) struct Engine {
     passing: Option<Box<root::Event>>,
     begin: bool,
     pub(crate) credentials: List<u32>,
-    ready: bool,
+    pub(crate) ready: bool,
     settled_revision: Option<u64>,
     aborted: Option<()>,
-    max_out: u32,
+    #[cfg(test)]
+    pub(crate) release_trace: Option<ReleaseTrace>,
 }
+
+/// Test observations of the release/dispatch order (skein/docs/design/draft/dynamic-memory.md, 4.6).
+#[cfg(test)]
+pub(crate) enum ReleaseObservation {
+    Released { ordinal: u64, requests: List<Box<[u8]>>, waiting_answers: u32 },
+    Dispatched { ordinal: Option<u64>, request: Box<[u8]> },
+}
+
+#[cfg(test)]
+pub(crate) struct ReleaseTrace {
+    pub(crate) observations: Queue<ReleaseObservation>,
+    pub(crate) inputs: Queue<root::Event>,
+    pub(crate) cycles: u32,
+    ordinal: u64,
+    pending: Queue<u64>,
+}
+
+#[cfg(test)]
+impl ReleaseTrace {
+    pub(crate) fn new() -> Self {
+        Self {
+            observations: Queue::uncapped(),
+            inputs: Queue::uncapped(),
+            cycles: 0,
+            ordinal: 0,
+            pending: Queue::uncapped(),
+        }
+    }
+
+    fn released(&mut self, requests: &Queue<root::Request>, before: u32, waiting_answers: u32) {
+        self.ordinal = self.ordinal.checked_add(1).expect("test release ordinals");
+        let mut batch = List::with_capacity(requests.len().checked_sub(before).expect("release appends requests"));
+        for request in requests.iter().skip(usize::try_from(before).expect("test queue length")) {
+            batch.push(release_snapshot(request)).expect("released batch length");
+            self.pending.push(self.ordinal);
+        }
+        self.observations.push(ReleaseObservation::Released {
+            ordinal: self.ordinal,
+            requests: batch,
+            waiting_answers,
+        });
+    }
+
+    fn dispatched(&mut self, request: &root::Request) {
+        self.observations
+            .push(ReleaseObservation::Dispatched { ordinal: self.pending.pop(), request: release_snapshot(request) });
+    }
+}
+
+#[cfg(test)]
+#[expect(
+    clippy::disallowed_macros,
+    reason = "test-only observation copies the request's Debug representation without cloning or changing its ownership"
+)]
+fn release_snapshot(request: &root::Request) -> Box<[u8]> {
+    std::format!("{request:?}").into_bytes().into_boxed_slice()
+}
+
 pub(crate) struct Children {
     pub(crate) accounts: Option<crate::accounts::Accounts>,
     pub(crate) workers: crate::workers::Workers,
@@ -62,7 +124,6 @@ impl Engine {
         let forge_records = crate::forge::records::Loader::new(&children.limits, &children.workers.forges);
         let Children { accounts, workers, mut clients, demo, forge, setup, notes, limits: own } = children;
         clients.query_bytes = own.routes.query_bytes;
-        let max_out = root::max_out(limits);
         let credentials = values.identities.numbers();
         let mut domain = match root::Domain::new(config, limits) {
             Ok(domain) => domain,
@@ -91,7 +152,7 @@ impl Engine {
             facts: 0,
             values,
             events: Queue::uncapped(),
-            requests: Queue::with_capacity(max_out),
+            requests: Queue::uncapped(),
             end: None,
             listening: Queue::with_capacity(3),
             notes,
@@ -104,17 +165,12 @@ impl Engine {
             ready: true,
             settled_revision: None,
             aborted: None,
-            max_out,
+            #[cfg(test)]
+            release_trace: None,
         })
     }
     pub(crate) fn room(&self) -> bool {
-        self.workers.batch_room(self.max_out)
-            && self.clients.room(self.max_out)
-            && self.clients.commit_room()
-            && match &self.accounts {
-                Some(accounts) => accounts.batch_room(self.max_out),
-                None => true,
-            }
+        self.clients.commit_room()
     }
     fn release_pending(&self) -> bool {
         self.end.is_none() && (self.ready || self.settled_revision != Some(self.domain.revision()))
@@ -291,9 +347,7 @@ pub(crate) fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
     );
     clients_pass(engine);
     for _ in 0..engine.clients.early.len() {
-        // A not-ready key returns its carried value before replying.
-        let replies = if open { 1 } else { 2 };
-        if !engine.clients.room(replies) || engine.events.room() == 0 {
+        if engine.events.room() == 0 {
             break;
         }
         let event = engine.clients.early.pop().expect("staged client input");
@@ -376,7 +430,7 @@ fn clients_pass(engine: &mut Engine) {
     }
     engine.clients.advance(&mut engine.events, &engine.workers.forges, engine.demo.as_ref(), &mut engine.accounts);
 }
-fn release(engine: &mut Engine) {
+pub(crate) fn release(engine: &mut Engine) {
     // Clocks are inputs too: Resume can observe a due timer even when normal
     // input admission is blocked. Recompute wall-to-monotonic mapping now.
     if !engine.release_pending() {
@@ -393,15 +447,33 @@ fn release(engine: &mut Engine) {
     }
     engine.ready = true;
     let mut empty = 0_u32;
-    for _ in 0..root::max_out(&engine.env.limits) {
+    for _ in 0..RELEASE_CYCLES {
         if !engine.room() || engine.end.is_some() {
             break;
         }
+        // Route every request from the previous batch before releasing again.
+        assert!(engine.requests.is_empty(), "release follows routing of the previous batch");
+        #[cfg(test)]
+        if let Some(trace) = &mut engine.release_trace {
+            trace.cycles = trace.cycles.checked_add(1).expect("test release cycles");
+        }
+        #[cfg(test)]
+        let before = engine.requests.len();
         root::release(&mut engine.domain, &engine.env, &mut engine.requests);
+        #[cfg(test)]
+        if let Some(trace) = &mut engine.release_trace {
+            trace.released(&engine.requests, before, engine.store.above.len());
+        }
         if engine.requests.is_empty() {
             root::try_step(&mut engine.domain, &engine.env, root::Event::Resume).expect("owner continuation admitted");
             engine.drain_facts();
+            #[cfg(test)]
+            let before = engine.requests.len();
             root::release(&mut engine.domain, &engine.env, &mut engine.requests);
+            #[cfg(test)]
+            if let Some(trace) = &mut engine.release_trace {
+                trace.released(&engine.requests, before, engine.store.above.len());
+            }
         }
         engine.drain_facts();
         if !engine.requests.is_empty() || engine.domain.quiescent() {
@@ -414,7 +486,18 @@ fn release(engine: &mut Engine) {
         }
         for _ in 0..engine.requests.len() {
             let request = engine.requests.pop().expect("root outputs");
+            #[cfg(test)]
+            if let Some(trace) = &mut engine.release_trace {
+                trace.dispatched(&request);
+            }
             route::request(engine, request);
+            // A scripted neighbour keeps the real root productive across release cycles.
+            #[cfg(test)]
+            if let Some(trace) = &mut engine.release_trace
+                && let Some(input) = trace.inputs.pop()
+            {
+                engine.step(input);
+            }
             if engine.end.is_some() {
                 break;
             }

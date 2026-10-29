@@ -994,13 +994,6 @@ pub fn head_bytes(headers: &[Header]) -> Option<u64> {
     Some(bytes)
 }
 
-/// The old name of [`head_bound`]; it goes once every tree
-/// calls the new name (wave 3).
-#[must_use]
-pub fn head_worst_case(limits: &Limits) -> Option<u64> {
-    head_bound(limits)
-}
-
 /// Bounds one HTTP request head.
 /// Checked maximum ownership of one admitted HTTP request head.
 #[must_use]
@@ -1034,7 +1027,7 @@ pub fn valid(limits: &Limits) -> bool {
 }
 
 fn document_bounds(limits: &Limits) -> Option<(u64, u64)> {
-    Some((openai::worst_case(&limits.documents.openai)?, anthropic::worst_case(&limits.documents.anthropic)?))
+    Some((openai::decoded_bound(&limits.documents.openai)?, anthropic::decoded_bound(&limits.documents.anthropic)?))
 }
 
 #[cfg(test)]

@@ -195,9 +195,9 @@ pub(crate) fn worst_case(limits: &Limits) -> Option<u64> {
     let request = u64::from(limits.name_bytes)
         .checked_mul(5)?
         .checked_add(u64::from(limits.change_policy.gates).checked_mul(4)?)?
-        .checked_add(List::<api::Collaborator>::worst_case(limits.collaborators)?)?;
-    Map::<Token, Pending>::worst_case(limits.adoptions)?
-        .checked_add(Map::<Token, (Wall, ApplicationOutcome)>::worst_case(limits.applications)?)?
+        .checked_add(List::<api::Collaborator>::price(limits.collaborators)?)?;
+    Map::<Token, Pending>::price(limits.adoptions)?
+        .checked_add(Map::<Token, (Wall, ApplicationOutcome)>::price(limits.applications)?)?
         .checked_add(request.checked_mul(u64::from(limits.adoptions))?)?
         .checked_add(payload.checked_mul(u64::from(limits.adoptions).checked_add(u64::from(limits.applications))?)?)
 }

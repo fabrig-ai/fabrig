@@ -1,7 +1,7 @@
-//! io's worst case against the counting allocator (programming-model.md,
+//! io's scenario ceilings against the counting allocator (programming-model.md,
 //! 6.3; io.md, 3.4): io driven by hand, every call a step of the meter, to
-//! its limits and back, and what it held of its own at a step's peak never
-//! more than `worst_case(limits)`.
+//! its limits and back, with each step's own peak checked against its
+//! scenario's ceiling.
 //!
 //! The test plays the kernel and the owner, with storage it makes before the
 //! meter's base, so that only io's heap is measured. What io submits stays
@@ -21,14 +21,14 @@ use std::net::{Ipv4Addr, SocketAddr};
 
 use skein_heap::Meter;
 use skein_io::kernel::{Complete, Done, Error, Fd, Op, Submit};
-use skein_io::{Event, Io, Limits, Request, worst_case};
+use skein_io::{Event, Io, Limits, Request};
 use skein_lib::stream::{Down, OutputDown, OutputOutcome, OutputUp, Read};
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 
 /// io, and the storage of the test that drives it.
 struct Driver {
     meter: Meter,
-    bound: u64,
+    ceiling: u64,
     limits: Limits,
     io: Option<Io>,
     env: Env<Limits>,
@@ -62,11 +62,10 @@ const ROOM: usize = 4096;
 impl Driver {
     /// The driver's storage, made before the meter's base; then io, made in
     /// the first step.
-    fn new(limits: Limits) -> Driver {
-        let bound = worst_case(&limits).expect("the test's limits are priced");
+    fn new(limits: Limits, ceiling: u64) -> Driver {
         let mut driver = Driver {
             meter: Meter::new(),
-            bound,
+            ceiling,
             limits,
             io: None,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
@@ -130,7 +129,7 @@ impl Driver {
                 }
             }
         }
-        let own = self.meter.check(measured, self.bound, &(what, self.limits));
+        let own = self.meter.check(measured, self.ceiling, &(what, self.limits));
         self.most = self.most.max(own);
         while let Some(submit) = self.subs.pop() {
             assert!(self.flights.len() < ROOM, "room for every operation in flight");
@@ -351,9 +350,9 @@ fn stopped(op: &mut Op, fd: &mut i32) -> Result<Done, Error> {
 }
 
 /// Fills io to its limits, then winds it down; returns the most it held of
-/// its own in a step, and its worst case.
-fn fill_and_drain(limits: Limits) -> (u64, u64) {
-    let mut driver = Driver::new(limits);
+/// its own in a step.
+fn fill_and_drain(limits: Limits, ceiling: u64) -> u64 {
+    let mut driver = Driver::new(limits, ceiling);
     let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, 80));
     // Every socket connects, and the refusals past them are held.
     for owner in 0..u64::from(limits.sockets + limits.refusals) {
@@ -404,7 +403,7 @@ fn fill_and_drain(limits: Limits) -> (u64, u64) {
         driver.down(Request::Abort { entity: socket });
     }
     drain(&mut driver);
-    (driver.most, driver.bound)
+    driver.most
 }
 
 /// Completes every operation in flight, cancels stopping their targets,
@@ -425,11 +424,10 @@ fn drain(driver: &mut Driver) {
 /// A listener's life: its first socket rejected, the next bound until one
 /// slot is left, which a connect takes while an accept is in flight, so that
 /// the socket it accepts is discarded; then the listener and every socket
-/// closed. Returns the most io held of its own in a step, and its worst
-/// case.
-fn listen_accept_and_discard(limits: Limits) -> (u64, u64) {
+/// closed. Returns the most io held of its own in a step.
+fn listen_accept_and_discard(limits: Limits, ceiling: u64) -> u64 {
     assert!(limits.sockets >= 2, "a listener and the connect that takes the last slot");
-    let mut driver = Driver::new(limits);
+    let mut driver = Driver::new(limits, ceiling);
     let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, 80));
     driver.down(Request::Listen { owner: Token::new(0), addr: skein_io::Addr::Ip(addr) });
     driver.complete_all(is_socket, succeed);
@@ -468,16 +466,20 @@ fn listen_accept_and_discard(limits: Limits) -> (u64, u64) {
     }
     driver.down(Request::Close { entity: driver.listener.expect("told Listening") });
     drain(&mut driver);
-    (driver.most, driver.bound)
+    driver.most
 }
 
 #[test]
-fn io_never_holds_more_than_its_worst_case_filled_to_its_limits() {
+fn full_socket_buffers_and_listener_admission_stay_under_their_ceilings() {
+    // Full socket buffers: 111,680 B peak plus 25%, rounded up to two significant digits.
+    const FILL_CEILING: u64 = 140_000;
+    // Listener admission and discards: 20,764 B peak with the same headroom.
+    const LISTENER_CEILING: u64 = 26_000;
     for limits in workloads() {
-        let (most, bound) = fill_and_drain(limits);
-        assert!(most <= bound, "{limits:?}: filled, io held {most} within {bound}");
-        let (most, bound) = listen_accept_and_discard(limits);
-        assert!(most <= bound, "{limits:?}: a listener's life held {most} of {bound}");
+        let peak = fill_and_drain(limits, FILL_CEILING);
+        assert!(peak <= FILL_CEILING, "{limits:?}: full socket buffers held {peak}");
+        let peak = listen_accept_and_discard(limits, LISTENER_CEILING);
+        assert!(peak <= LISTENER_CEILING, "{limits:?}: a listener's life held {peak}");
     }
 }
 
@@ -541,9 +543,11 @@ fn workloads() -> [Limits; 4] {
 }
 
 #[test]
-fn native_output_fills_the_same_actual_payload_and_slot_maxima_with_pending_and_staged_terminals() {
+fn native_output_fills_payload_and_send_slots_under_its_ceiling() {
+    // Full native output and staged terminals: 111,648 B peak plus 25%, rounded up to two significant digits.
+    const CEILING: u64 = 140_000;
     for limits in workloads() {
-        let mut driver = Driver::new(limits);
+        let mut driver = Driver::new(limits, CEILING);
         let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, 80));
         for owner in 0..u64::from(limits.sockets) {
             driver.down(Request::Connect { owner: Token::new(owner), addr: skein_io::Addr::Ip(addr) });
@@ -615,14 +619,16 @@ fn native_output_fills_the_same_actual_payload_and_slot_maxima_with_pending_and_
             driver.down(Request::Abort { entity: socket });
         }
         drain(&mut driver);
-        assert!(driver.most <= driver.bound, "native maximal scene stays within its bound");
+        assert!(driver.most <= CEILING, "native maximal scene stays within its ceiling");
     }
 }
 
 #[test]
-fn a_full_append_output_and_armed_deadline_stay_within_ios_worst_case() {
+fn full_append_output_and_its_deadline_stay_under_the_ceiling() {
+    // Full append output through deadline expiry: 13,920 B peak plus 25%, rounded up to two significant digits.
+    const CEILING: u64 = 18_000;
     let limits = Limits { sockets: 1, output: 12_288, sends: 2, ..workloads()[0] };
-    let mut driver = Driver::new(limits);
+    let mut driver = Driver::new(limits, CEILING);
     driver.meter.start();
     let stream = driver.io().adopt_append(Fd::new(40), Duration::from_millis(10)).expect("append slot");
     driver.end("append adoption");
@@ -639,14 +645,14 @@ fn a_full_append_output_and_armed_deadline_stay_within_ios_worst_case() {
     skein_io::fire(driver.io.as_mut().expect("the append owner"), &driver.env, &mut driver.up, &mut driver.subs);
     driver.end("append write deadline");
     drain(&mut driver);
-    assert!(driver.most <= driver.bound);
+    assert!(driver.most <= CEILING);
 }
 
 /// Names fill first; their listeners then give their slots to joined ends.
-fn joined_fill_and_drain(limits: Limits) {
+fn joined_fill_and_drain(limits: Limits, ceiling: u64) -> u64 {
     let mut listeners = Vec::with_capacity(ROOM);
     let mut ends = Vec::with_capacity(ROOM);
-    let mut driver = Driver::new(limits);
+    let mut driver = Driver::new(limits, ceiling);
     for index in 0..limits.names {
         let addr = skein_io_world::joined::name(&index.to_le_bytes());
         driver.down(Request::Listen { owner: Token::new(u64::from(index)), addr });
@@ -695,6 +701,7 @@ fn joined_fill_and_drain(limits: Limits) {
     joined_passes(&mut driver);
     assert!(driver.flights.is_empty(), "joined names and ends submit no operations");
     assert!(driver.io().is_empty(), "every name and joined slot reclaimed");
+    driver.most
 }
 
 fn fill_joined_end(driver: &mut Driver, socket: Token) {
@@ -723,10 +730,13 @@ fn fill_joined_end(driver: &mut Driver, socket: Token) {
 }
 
 #[test]
-fn every_name_held_and_every_slot_a_joined_end_fit_worst_case() {
+fn full_names_and_joined_ends_stay_under_the_ceiling() {
+    // Full names, joined intakes and output: 150,312 B peak plus 25%, rounded up to two significant digits.
+    const CEILING: u64 = 190_000;
     for limits in workloads() {
         let sockets = limits.sockets.max(5) | 1;
-        joined_fill_and_drain(Limits { sockets, names: 2, ..limits });
+        let peak = joined_fill_and_drain(Limits { sockets, names: 2, ..limits }, CEILING);
+        assert!(peak <= CEILING);
     }
 }
 

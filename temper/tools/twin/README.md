@@ -53,11 +53,14 @@ The small codec fixtures are actual Jig frames recorded from the original
 hand-written green-light story before B0 replaced it. They contain synthetic
 test data only, no credential files.
 
-The current round trip records B0's generated twin, converts those five tasks'
-completions, and replays the same acts and checks on a fresh deployment. It
-checks converter stability through recording/replay and the story's outcome;
-it does not independently check model judgement or changed prompts. Normal
-tests never rewrite fixtures. Regenerate B0's document from its cleanly stopped
+The converter's round-trip tests reuse the checked green-light frames. They
+play each converted task's cued script through the fake LLM domain, encode and
+decode OpenAI response events, then encode Smith turns into Jig frames and
+convert again. Normalized text, calls, finish modes, token counts and task/cue
+mapping stay equal; opaque drops and argument replacements are counted across
+both conversions. These tests run without a service, ring or world. The B0
+real-loop smoke checks the story's landing path. Normal tests never rewrite
+fixtures. Regenerate B0's document from its cleanly stopped
 passing walk using the command named in `tests/real-loop/src/green_light.rs`.
 Task, question and pull numbers and fake-git identities recur. The scripts'
 forge reads infer their repository; no grant carries a listener address.
@@ -66,5 +69,5 @@ forge reads infer their repository; no grant carries a listener address.
 heavy env TEMPER_BUNDLE=none NEXTEST_DOUBLE_SPAWN=0 cargo nextest run -p temper-twin
 heavy env TEMPER_BUNDLE=none NEXTEST_DOUBLE_SPAWN=0 cargo nextest run \
   -p temper-real-loop-world --profile fuzzy \
-  --test fuzzy_twin_round_trip --test fuzzy_green_light
+  --test suite -E 'test(fuzzy::green_light::)'
 ```

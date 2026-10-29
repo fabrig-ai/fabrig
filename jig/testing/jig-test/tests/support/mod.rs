@@ -1,4 +1,5 @@
 //! Binary, native person and independent provider on Skein's real ring.
+pub mod ports;
 pub mod trace;
 use crate::account_sign_in_visitor::Visitor;
 use jig_client_protocol_world::native::{NativeClient, Script};
@@ -32,7 +33,7 @@ pub(super) fn agent_value(directory: &Path) -> serde_json::Value {
         "profile":{"name":"standard","declared":{"tool_payload":512,"read_window":256},
             "policy":{"max_turns":5,"group_stop":10}},
         "endpoints":[{"name":"fake","number":0,"dialect":3,"account":1,"provider":"openai",
-            "address":"127.0.0.1:34443","transport":"tls","server_name":"skein.test","trust_der":directory.join("root.der"),"identity":"plain","connect":1000,"handshake":1000,
+            "address":"127.0.0.1:0","transport":"tls","server_name":"skein.test","trust_der":directory.join("root.der"),"identity":"plain","connect":1000,"handshake":1000,
             "models":[{"name":"fake","window":1_048_576,"output":1024,"reasoning_item":64,"prices":{"input":1,"cached":1,"output":1,"unit":1000},"head":60000,"idle":30000}]}],
         "environment":[]})
 }
@@ -68,7 +69,7 @@ pub(super) fn configuration_value(directory: &Path) -> serde_json::Value {
     value["service"]["components"] = serde_json::json!(["accounts", "workers", "clients"]);
     value["engine"]["hosts"]["listener"] = serde_json::json!([{"in_process":"workers"}]);
     value["application"]["server"]["listener"] = serde_json::json!({"socket":"127.0.0.1:0"});
-    value["engine"]["llm"]["endpoints"][0]["address"] = serde_json::json!({"socket":"127.0.0.1:34443"});
+    value["engine"]["llm"]["endpoints"][0]["address"] = serde_json::json!({"socket":"127.0.0.1:0"});
     value["engine"]["llm"]["endpoints"][0]["dialect"] = 3.into();
     value["engine"]["limits"]["overrides"]["core.load_slots"] = 8.into();
     value["engine"]["limits"]["overrides"]["people.sign_ins"] = 2.into();
@@ -346,9 +347,16 @@ impl Referee<Process> for Judge {
         self.ended
     }
 }
-pub fn run(directory: &Path, script: Script, peer: Option<skein_fake_peers::llm::Peer>) -> (u32, u32) {
+pub fn run(
+    directory: &Path,
+    script: Script,
+    peer: Option<(skein_fake_peers::llm::Peer, std::net::SocketAddr, Fd)>,
+) -> (u32, u32) {
     let seconds = if std::env::var("NEXTEST_PROFILE").as_deref() == Ok("live") { 560 } else { 120 };
     let clock = Clock::new();
+    if let Some((_, address, _)) = &peer {
+        ports::configure(directory, None, Some(*address));
+    }
     let mut binary = start(directory);
     let streams = binary.take_streams().expect("binary pipes");
     let fds = streams.descriptors();
@@ -377,8 +385,8 @@ pub fn run(directory: &Path, script: Script, peer: Option<skein_fake_peers::llm:
             submissions: Queue::with_capacity(512),
         }))
     });
-    if let Some(peer) = peer {
-        world.spawn(|| Process::Peer(Box::new(peer)));
+    if let Some((peer, _, fd)) = peer {
+        world.spawn_with_fds(vec![fd], || Process::Peer(Box::new(peer)));
     }
     let outcome = world.run(&clock, Duration::from_secs(seconds));
     assert!(outcome.procs.iter().all(Host::is_empty), "all real io settles");
@@ -387,10 +395,8 @@ pub fn run(directory: &Path, script: Script, peer: Option<skein_fake_peers::llm:
     (client.signed_in, client.chats_made)
 }
 
-pub(super) fn issuer() -> oauth::Peer {
-    issuer_with_plans(accounts::issuer_plans(Story::AccountSignInVaryingPort))
-}
-pub(super) fn issuer_with_plans(plans: Vec<skein_fake_oauth::Plan>) -> oauth::Peer {
+pub(super) fn issuer() -> (oauth::Peer, std::net::SocketAddr, Fd) {
+    let plans = accounts::issuer_plans(Story::AccountSignInVaryingPort);
     let profile = accounts::limits();
     let limits = skein_fake_oauth::Limits {
         document: profile.client.document,
@@ -402,8 +408,16 @@ pub(super) fn issuer_with_plans(plans: Vec<skein_fake_oauth::Plan>) -> oauth::Pe
         plans: u32::try_from(plans.len()).expect("fixture plans fit"),
     };
     let response = oauth::least_response(&limits).expect("issuer response");
+    let listener = ports::listener();
+    let address = listener.local_addr().expect("issuer address");
+    let base = format!("http://{address}");
+    let mut terms = accounts::issuer_terms(Story::AccountSignInVaryingPort).expect("issuer terms");
+    terms.revocation_endpoint = Some(format!("{base}/revoke").into_bytes().into());
+    let openid = terms.openid.as_mut().expect("OpenID issuer");
+    openid.issuer = base.as_bytes().into();
+    openid.key_set_url = format!("{base}/keys").into_bytes().into();
     let mut peer = oauth::Peer::new(
-        "127.0.0.1:31000".parse().expect("issuer socket"),
+        address,
         Transport::Plaintext,
         skein_fake_peers::Limits {
             io: profile.io,
@@ -415,9 +429,9 @@ pub(super) fn issuer_with_plans(plans: Vec<skein_fake_oauth::Plan>) -> oauth::Pe
             observation_bytes: 4096,
         },
         skein_fake_oauth::Config {
-            terms: accounts::issuer_terms(Story::AccountSignInVaryingPort),
-            authorization_url: accounts::AUTHORIZE.into(),
-            token_endpoint: accounts::TOKEN.into(),
+            terms: Some(terms),
+            authorization_url: format!("{base}/authorize").into_bytes().into(),
+            token_endpoint: format!("{base}/token").into_bytes().into(),
             client_id: b"client".as_slice().into(),
             client_secret: None,
             redirect_uri: accounts::PARTY_REDIRECT.into(),
@@ -430,5 +444,7 @@ pub(super) fn issuer_with_plans(plans: Vec<skein_fake_oauth::Plan>) -> oauth::Pe
     for plan in plans {
         peer.queue(plan).expect("issuer plan");
     }
-    peer
+    let fd = ports::descriptor(listener);
+    peer.adopt_listener(fd, address).expect("issuer adopts listener");
+    (peer, address, fd)
 }

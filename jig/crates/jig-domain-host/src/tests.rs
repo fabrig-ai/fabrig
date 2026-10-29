@@ -6,7 +6,7 @@ use skein_lib::{Env, List, Queue, Time, Token, Wall};
 
 use crate::{
     Delivery, DeliveryOutcome, Domain, Event, Failure, Finish, Invalid, Limits, MessageRefusal, Preparation, Reason,
-    Refusal, Refused, Reply, Request, RunAssignment, Work, Workspace, max_out, step,
+    Refusal, Refused, Reply, Request, RunAssignment, Work, Workspace, step,
 };
 
 const LIMITS: Limits = Limits {
@@ -43,13 +43,13 @@ impl Harness {
         Self {
             domain: Domain::new(&LIMITS),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: LIMITS },
-            out: Queue::with_capacity(max_out(&LIMITS)),
+            out: Queue::uncapped(),
         }
     }
 
     fn step(&mut self, event: Event) -> Box<[Request]> {
         step(&mut self.domain, &self.env, event, &mut self.out);
-        let mut requests = List::with_capacity(max_out(&LIMITS));
+        let mut requests = List::with_capacity(self.out.len());
         while let Some(request) = self.out.pop() {
             requests.push(request).expect("bounded output");
         }
@@ -940,11 +940,11 @@ fn valid_refuses_each_unrepresentable_limit() {
         ("fixture", LIMITS, true),
         ("turn bytes", Limits { turn_bytes: 0, ..LIMITS }, false),
         ("turn queue", Limits { turn_queue_bytes: LIMITS.turn_bytes - 1, ..LIMITS }, false),
-        ("cancel count", Limits { run_calls: u32::MAX, ..LIMITS }, false),
-        ("start count", Limits { held: u32::MAX, ..LIMITS }, false),
-        ("source output", Limits { program_sources: u32::MAX, ..LIMITS }, false),
-        ("turn output", Limits { turns: u32::MAX, ..LIMITS }, false),
-        ("output total", Limits { program_sources: u32::MAX - 4, ..LIMITS }, false),
+        ("call count", Limits { run_calls: u32::MAX, ..LIMITS }, false),
+        ("held count", Limits { held: u32::MAX, ..LIMITS }, true),
+        ("source count", Limits { program_sources: u32::MAX, ..LIMITS }, true),
+        ("turn window", Limits { turns: u32::MAX, ..LIMITS }, false),
+        ("output total", Limits { program_sources: u32::MAX - 4, ..LIMITS }, true),
         ("call capacity", Limits { slots: u32::MAX, run_calls: 2, turns: 0, ..LIMITS }, false),
         ("turn capacity", Limits { slots: u32::MAX, turns: 1, run_calls: 0, ..LIMITS }, false),
         ("source_interval", Limits { source_interval: skein_lib::Duration::ZERO, ..LIMITS }, false),

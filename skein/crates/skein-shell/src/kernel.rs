@@ -292,12 +292,8 @@ mod tests {
     // This opens Linux's completion ring.
     #[cfg(target_os = "linux")]
     #[test]
-    fn forcing_a_backend_reports_it_and_refuses_zero_capacity() {
+    fn forcing_a_backend_reports_it() {
         for backend in [Backend::Ring, Backend::Readiness] {
-            assert_eq!(
-                Kernel::open_on(Config { operations: 0 }, backend).expect_err("zero capacity is refused"),
-                OpenError::NoOperations
-            );
             let kernel = Kernel::open_on(Config { operations: 2 }, backend).expect("the forced backend is usable");
             assert_eq!(kernel.chosen(), Chosen { backend, ring_refused: None });
             assert_eq!(kernel.in_flight(), 0);

@@ -62,7 +62,7 @@ fn eight_entries_end_with_an_empty_third_page() {
     }
 }
 #[test]
-fn a_page_of_max_entries_stays_within_file_ios_worst_case() {
+fn a_full_directory_page_returns_each_entry_once() {
     for seed in [0, 1, 17] {
         let outcome = pages::world(seed, pages::ENTRIES, pages::ENTRIES).run();
         assert_eq!(outcome.procs[0].pages.iter().map(|page| page.len()).collect::<Vec<_>>(), [4, 0]);
@@ -78,6 +78,14 @@ fn a_second_owner_hears_busy_until_the_first_is_killed() {
         let outcome = locks::world(seed, true).run();
         assert_eq!(outcome.procs[1].heard, [Heard::Busy, Heard::Locked], "seed {seed}");
         assert!(outcome.procs[0].heard.is_empty(), "the fresh holder locks nothing");
+        assert_eq!(outcome.machine.files.open_handles(), 0);
+    }
+}
+#[test]
+fn a_second_independent_root_hears_busy_until_the_first_closes() {
+    for seed in [0, 1, 17] {
+        let outcome = locks::pair_world(seed).run();
+        assert_eq!(outcome.procs[0].heard, [Heard::Locked, Heard::Busy, Heard::Locked], "seed {seed}");
         assert_eq!(outcome.machine.files.open_handles(), 0);
     }
 }

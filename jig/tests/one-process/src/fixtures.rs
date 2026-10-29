@@ -1,6 +1,7 @@
 //! Named chat deployments and provider replies shared by this world's stories.
 use crate::{Script, world::Settings};
 use jig_channel_world::fixtures as channel;
+pub(crate) use jig_protocol_accounts_world::fixtures::{ROOM, limits};
 
 pub const SEED: u64 = 7;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

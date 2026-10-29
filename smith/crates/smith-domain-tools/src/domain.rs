@@ -1,6 +1,6 @@
 //! The tools child domain's state and its entry point (domain/tools.md,
 //! sections 3–6; programming-model.md, sections 4.5 and 6.3). [`Domain`]
-//! retains kits, pending IO flights and bounded facts. [`step`] emits the kit's
+//! retains kits, pending IO flights and uncapped facts. [`step`] emits the kit's
 //! bounded requests and accepts its typed terminals. This module never knows
 //! provider text, run outcomes, credentials or filesystem contents beyond
 //! what typed IO terminals supply.
@@ -15,8 +15,9 @@ use crate::limits::Limits;
 
 /// The most requests one call of [`step`] emits under `limits`: closing a kit
 /// cancels its ordinary calls and held owners. An ended job can invalidate
-/// the reads queued behind its answer, then close its kit. The parent reserves
+/// the reads queued behind its answer, then close its kit. The allowance covers
 /// all calls plus two outputs per job, or two outputs when that is larger.
+/// The session reads this compatibility allowance in its parent-facing formula.
 #[must_use]
 pub const fn max_out(limits: &Limits) -> u32 {
     let owners = limits.calls.saturating_add(limits.jobs.saturating_mul(2));
@@ -42,11 +43,7 @@ impl Domain {
     #[must_use]
     pub fn new(limits: &Limits) -> Domain {
         let flights = flight::slots(limits).expect("valid limits");
-        Domain {
-            kits: Slab::with_capacity(limits.kits),
-            flights: Slab::with_capacity(flights),
-            facts: Facts::with_capacity(limits.facts),
-        }
+        Domain { kits: Slab::with_capacity(limits.kits), flights: Slab::with_capacity(flights), facts: Facts::new() }
     }
 
     /// Kits present, closed ones included until they are reclaimed.
@@ -67,15 +64,15 @@ impl Domain {
         flight::io_session(self, owner)
     }
 
-    /// The oldest reserved observation; the parent drains it before more work.
+    /// The oldest observation queued for the parent.
     pub fn pop_fact(&mut self) -> Option<Fact> {
         self.facts.pop()
     }
 
-    /// Free fact slots the parent reserves before each entrance.
+    /// The observations queued for the parent.
     #[must_use]
-    pub fn facts_room(&self) -> u32 {
-        self.facts.room()
+    pub fn pending_facts(&self) -> u32 {
+        self.facts.len()
     }
 
     /// The reclaim point: frees what closed in this iteration.
@@ -87,7 +84,6 @@ impl Domain {
 
 /// Handles one event, emitting at most [`max_out`] requests.
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
-    assert!(domain.facts_room() >= max_facts(&env.limits), "parent reserved fact step output");
     domain.facts.begin(env.now);
     match event {
         Event::Open { session, jobs, authority } => kit::open(domain, env, session, jobs, authority, out),

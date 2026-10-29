@@ -12,7 +12,7 @@ use skein_io::kernel::{Complete, Done, Exit, Fd, Op, Pipe, ServiceSignal, Spawn,
 use skein_lib::{Duration, Queue, Time, Token, Wall};
 use skein_shell::{Clock, Host, HostedPipes, close_keeper_fd, hosted_pipes, open_root};
 use skein_world::{
-    HostedProgram, Inherited, Referee,
+    Deadline, Expired, HostedProgram, Inherited, Referee,
     real::{Controls, World},
 };
 use temper_box::host::{Service, Settings};
@@ -275,7 +275,8 @@ fn child(spawn: &Spawn, inherited: &Inherited) -> Proc {
 #[derive(Debug)]
 struct Judge {
     controls: Controls,
-    deadline: Time,
+    deadline: Option<Deadline>,
+    deferred: bool,
     wake: Option<Time>,
     stage: u8,
     settled: bool,
@@ -342,10 +343,23 @@ impl Judge {
             _ => false,
         }
     }
+    fn check_deadline(&mut self) {
+        let deadline = self.deadline.as_ref().expect("the first act arms patience");
+        if !self.settled && !self.deferred && deadline.passed() {
+            match deadline.expired() {
+                // The world owns the hosts' teardown and its final patience verdict.
+                Expired::Starved(_) => self.deferred = true,
+                Expired::Failed(figures) => panic!("shared-terminal stage {} did not settle: {figures}", self.stage),
+            }
+        }
+    }
 }
 impl Referee<Proc> for Judge {
     fn act(&mut self, _now: Time, procs: &mut [Proc]) {
         self.wake = None;
+        if self.deadline.is_none() {
+            self.deadline = Some(Deadline::arm("the shared-terminal stages", PATIENCE));
+        }
         // Only the first prefix is initially runnable, regardless of spawn order.
         for proc in &mut *procs {
             if let Proc::Serve(host) = proc {
@@ -353,6 +367,7 @@ impl Referee<Proc> for Judge {
             }
         }
         if !self.ready(procs) {
+            self.check_deadline();
             return;
         }
         for proc in &mut *procs {
@@ -378,6 +393,7 @@ impl Referee<Proc> for Judge {
             self.settled = true;
         }
         self.stage = self.stage.checked_add(1).expect("seven causal stages");
+        self.check_deadline();
     }
     fn observe(&mut self, now: Time, procs: &[Proc]) {
         if self.ready(procs) {
@@ -385,14 +401,18 @@ impl Referee<Proc> for Judge {
         }
     }
     fn next_deadline(&self) -> Option<Time> {
-        if self.settled { None } else { Some(self.wake.unwrap_or(self.deadline).min(self.deadline)) }
-    }
-    fn overdue(&self, now: Time) -> Option<String> {
-        if now >= self.deadline && !self.settled {
-            Some(format!("shared-terminal stage {} did not settle", self.stage))
-        } else {
+        if self.settled {
             None
+        } else {
+            let until = match (&self.deadline, self.deferred) {
+                (Some(deadline), false) => Some(deadline.until()),
+                (None, _) | (Some(_), true) => None,
+            };
+            self.wake.into_iter().chain(until).min()
         }
+    }
+    fn overdue(&self, _now: Time) -> Option<String> {
+        None
     }
     fn passed(&self) -> bool {
         self.settled
@@ -451,9 +471,14 @@ fn a_split_sign_in_link_stays_whole_on_the_shared_terminal() {
     let root = open_root(scratch.path()).expect("box startup root");
     let (reader, stdout, stderr) = shared_terminal(root);
     let clock = Clock::new();
-    let deadline = clock.now().now.saturating_add(PATIENCE);
-    let mut world =
-        World::new_controlled(|controls| Judge { controls, deadline, wake: None, stage: 0, settled: false });
+    let mut world = World::new_controlled(|controls| Judge {
+        controls,
+        deadline: None,
+        deferred: false,
+        wake: None,
+        stage: 0,
+        settled: false,
+    });
     world.host(HostedProgram { program: PROGRAM.into(), make: child, instances: 2, operations: OPERATIONS });
     world.spawn_signals(|signals| {
         let steps = Steps {

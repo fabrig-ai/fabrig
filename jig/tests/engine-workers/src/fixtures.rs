@@ -93,7 +93,7 @@ pub fn channel_limits() -> skein_channel::Limits {
     skein_channel::Limits {
         chunk: 64,
         credential: u32::try_from(
-            jig_protocol_worker_wire::Credential::worst_case_bytes(&codec).expect("small credential"),
+            jig_protocol_worker_wire::Credential::encoded_bound(&codec).expect("small credential"),
         )
         .expect("fits"),
         skip: 64,

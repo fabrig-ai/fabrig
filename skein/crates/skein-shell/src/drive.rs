@@ -5,10 +5,6 @@
 use skein_io::kernel::{Complete, Exit, Submit};
 use skein_lib::{Queue, Time, Wall};
 
-/// No per-process heap bound. The largest signed heap measurement fits this
-/// stand-in, including the meter's conversion to `i64` (programming-model.md, 6.3).
-pub const NO_BOUND: u64 = i64::MAX.unsigned_abs();
-
 /// A process a world hosts: a service, or a fake, each a step machine with a
 /// loop of its own (programming-model.md, section 2). The harness reaps its
 /// completions into [`Host::completions`], calls [`Host::iterate`], and
@@ -48,13 +44,6 @@ pub trait Host {
     /// with a failure status override the successful empty-host default.
     fn exit(&self) -> Option<Exit> {
         if self.is_empty() { Some(Exit::Code(0)) } else { None }
-    }
-
-    /// No bound: a host states none (programming-model.md, 6.3). The world's
-    /// scenario ceiling replaces it, and the method goes in skein's part of
-    /// the window. A host that still states a bound overrides it.
-    fn worst_case(&self) -> u64 {
-        NO_BOUND
     }
 
     /// The most operations it has in flight at once: the size of its ring.

@@ -117,10 +117,7 @@ pub fn environment_world(seed: u64) -> World<Client, Joint> {
 }
 fn world_for(seed: u64, story: Story) -> World<Client, Joint> {
     let front = Joint::for_story(seed, limits(), story);
-    let mut world = World::new(
-        Settings { seed, heap_bytes_per_client: 64 * 1024 * 1024, iterations: 4096, ..Settings::default() },
-        front,
-    );
+    let mut world = World::new(Settings { seed, iterations: 4096, ..Settings::default() }, front);
     // Draw transport faults explicitly from the real fault sources below;
     // the generic person still explores every kind of displayed binding.
     world.randomness(2, 0, 0);

@@ -415,7 +415,7 @@ impl Core {
     }
 
     pub(crate) fn commit_restored_settings(&mut self, env: &Env<Limits>, room: u32) -> Requests {
-        let mut out = Queue::with_capacity(room);
+        let mut out = Queue::uncapped();
         // First start and completed starts have no staged defaults left.
         if self.settings_restore.ready && self.settings_restore.defaults.is_empty() {
             return Requests::Out(out);

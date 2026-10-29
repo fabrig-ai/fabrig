@@ -141,11 +141,11 @@ pub(crate) fn valid(
 pub(crate) fn list_worst_case(limits: &crate::Limits) -> Option<u64> {
     let fields = u64::from(limits.tasks.result_bytes)
         .checked_mul(u64::try_from(size_of::<jig_domain_tasks::FieldRule>()).ok()?.checked_add(1)?)?;
-    let choices = skein_lib::List::<jig_domain_tasks::Verdict>::worst_case(limits.tasks.contract_choices)?
+    let choices = skein_lib::List::<jig_domain_tasks::Verdict>::price(limits.tasks.contract_choices)?
         .checked_add(u64::from(limits.tasks.contract_choices).checked_mul(fields)?)?;
     let models = u64::from(jig_domain_tasks::MODELS)
         .checked_mul(u64::try_from(size_of::<jig_domain_tasks::ModelEffort>()).ok()?)?;
-    skein_lib::List::<Template>::worst_case(limits.templates)?.checked_add(
+    skein_lib::List::<Template>::price(limits.templates)?.checked_add(
         u64::from(limits.templates)
             .checked_mul(u64::from(limits.documents.text_bytes).checked_add(choices)?.checked_add(models)?)?,
     )

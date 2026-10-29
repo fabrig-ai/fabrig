@@ -26,7 +26,7 @@ impl Payload for OwnerInboxSelection {
     fn heap(&self, bounds: &Bounds) -> Option<u64> {
         // Source requester depth is independent of the ordinary page row bound.
         // Charge its whole allocated capacity against the receiving byte ceiling.
-        let allocated = List::<u64>::worst_case(self.goals.capacity())?;
+        let allocated = List::<u64>::price(self.goals.capacity())?;
         if allocated > bounds.document_bytes { None } else { Some(allocated) }
     }
 }
@@ -77,7 +77,7 @@ pub fn page_fits(value: &OwnerInboxPage, bounds: &Bounds) -> bool {
     crate::payload::fits(value, bounds)
 }
 #[must_use]
-pub fn worst_case(bounds: &Bounds) -> Option<u64> {
+pub fn heap_bound(bounds: &Bounds) -> Option<u64> {
     if bounds.document_bytes < u64::try_from(size_of::<OwnerInbox>()).ok()? {
         None
     } else {

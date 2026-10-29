@@ -268,7 +268,6 @@ impl Accounts {
         config: &config::Engine,
         seeds: &Seeds,
         mut runtime: Option<AccountsRuntime>,
-        room: u32,
         secrets: &skein_kv::Limits,
     ) -> Result<Self, Problems> {
         let limits = config.limits.driver;
@@ -289,15 +288,15 @@ impl Accounts {
             records: records::Records::new(limits.accounts),
             keys: keys::Keys::new(limits.accounts, limits.client.document.token_bytes),
             finishes: finishes::Finishes::new(limits.accounts),
-            finish_out: Queue::with_capacity(room),
+            finish_out: Queue::uncapped(),
             moves: moves::Moves::new(application, limits.accounts),
             source_providers: Map::with_capacity(limits.accounts),
-            move_out: Queue::with_capacity(room),
+            move_out: Queue::uncapped(),
             inventory,
-            key_out: Queue::with_capacity(room),
-            key_events: Queue::with_capacity(room),
-            forgotten: Queue::with_capacity(room),
-            early: Queue::with_capacity(room),
+            key_out: Queue::uncapped(),
+            key_events: Queue::uncapped(),
+            forgotten: Queue::uncapped(),
+            early: Queue::uncapped(),
             io: Queue::uncapped(),
             above: Queue::uncapped(),
             files: Queue::uncapped(),
@@ -309,14 +308,6 @@ impl Accounts {
         if let Some(component) = &mut self.component {
             component.down(&self.env, request, &mut self.above, &mut self.io, &mut self.files);
         }
-    }
-    pub fn batch_room(&self, batch: u32) -> bool {
-        self.move_out.room() >= batch
-            && self.finish_out.room() >= batch
-            && self.key_out.room() >= batch
-            && self.key_events.room() >= batch
-            && self.forgotten.room() >= batch
-            && self.early.room() >= batch
     }
     /// The domain's request: to the driver once it runs, held until then.
     pub fn request(&mut self, request: domain::Request) {
@@ -593,9 +584,6 @@ impl Accounts {
     fn driver_events(&mut self, values: &mut Values, events: &mut Queue<root::Event>, store: &mut crate::store::Store) {
         let now = self.env.now;
         for _ in 0..self.above.len() {
-            if events.room() == 0 || self.move_out.room() == 0 {
-                break;
-            }
             let event = self.above.pop().expect("account events");
             let number = event_account(&event);
             let required = match number {
@@ -696,11 +684,7 @@ impl Accounts {
         values.accounts.remove(source);
     }
     fn fire_driver(&mut self) {
-        if let Some(component) = &mut self.component
-            && self.above.room() >= 3
-            && self.io.room() >= 3
-            && self.files.room() >= 1
-        {
+        if let Some(component) = &mut self.component {
             component.fire(&self.env, &mut self.above, &mut self.io, &mut self.files);
         }
     }
@@ -728,9 +712,6 @@ impl Accounts {
             return;
         }
         for _ in 0..self.move_out.len() {
-            if events.room() == 0 {
-                break;
-            }
             match self.move_out.pop().expect("move steps") {
                 moves::Next::Driver(request) => self.down(request),
                 moves::Next::Child(event) => events.push(root::Event::Core(core::Event::Account(event))),
@@ -868,9 +849,6 @@ impl Accounts {
             );
         }
         for _ in 0..self.key_out.len() {
-            if events.room() == 0 {
-                break;
-            }
             match self.key_out.pop().expect("LLM key steps") {
                 keys::Next::Store { exchange, request } => {
                     let owner = Token::new(KEY_EXCHANGE | exchange.raw());
@@ -918,18 +896,12 @@ impl Accounts {
             }
         }
         for _ in 0..self.key_events.len() {
-            if events.room() == 0 {
-                break;
-            }
             let event = self.key_events.pop().expect("LLM key grant events");
             events.push(root::Event::Core(core::Event::Account(domain::Event::Component(event))));
         }
     }
     fn finish_steps(&mut self, events: &mut Queue<root::Event>, store: &mut crate::store::Store) {
         for _ in 0..self.finish_out.len() {
-            if events.room() == 0 {
-                break;
-            }
             match self.finish_out.pop().expect("finish steps") {
                 finishes::Next::Get { exchange, carried } => {
                     if let Some(store::Event::Secret { value, .. }) = store.secrets(
@@ -1003,13 +975,6 @@ impl Accounts {
     /// kept (store.md 9).
     fn answers(&mut self, store: &mut crate::store::Store, events: &mut Queue<root::Event>) {
         for _ in 0..store.sources.len() {
-            if events.room() == 0
-                || self.finish_out.room() == 0
-                || self.key_out.room() == 0
-                || self.move_out.room() == 0
-            {
-                break;
-            }
             match store.sources.pop().expect("source answers") {
                 store::Event::Secret { owner, value } if owner.raw() & FINISH_EXCHANGE == FINISH_EXCHANGE => {
                     let Ok(value) = self.secret(store, value, SecretKind::Held) else {
@@ -1110,12 +1075,8 @@ impl Accounts {
             }
             Phase::Running => {
                 for _ in 0..self.early.len() {
-                    if !self.move_out.is_empty()
-                        || self.finish_out.room() == 0
-                        || self.key_out.room() == 0
-                        || self.key_events.room() == 0
-                        || self.forgotten.room() == 0
-                    {
+                    // move_requests_dispatched: finish the previous move before another entrance.
+                    if !self.move_out.is_empty() {
                         break;
                     }
                     let request = self.early.pop().expect("early requests");

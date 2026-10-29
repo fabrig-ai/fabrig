@@ -194,12 +194,12 @@ fn readiness(core: &Core, payer: tasks::Payer, provider: u32) -> (Readiness, boo
 }
 
 pub(super) fn offers_worst_case(limits: &DocumentLimits) -> Option<u64> {
-    let heap = List::<Box<[u8]>>::worst_case(limits.lines)?
+    let heap = List::<Box<[u8]>>::price(limits.lines)?
         .checked_add(u64::from(limits.lines).checked_mul(32)?)?
         .checked_add(u64::from(limits.text_bytes))?
         .checked_add(u64::from(accounts::MANAGE_USAGE))?;
-    List::<ProviderOffer>::worst_case(limits.lines)?.checked_add(u64::from(limits.lines).checked_mul(heap)?)
+    List::<ProviderOffer>::price(limits.lines)?.checked_add(u64::from(limits.lines).checked_mul(heap)?)
 }
 pub(super) fn rows_worst_case(limits: &DocumentLimits) -> Option<u64> {
-    List::<PayerReadiness>::worst_case(limits.lines)
+    List::<PayerReadiness>::price(limits.lines)
 }

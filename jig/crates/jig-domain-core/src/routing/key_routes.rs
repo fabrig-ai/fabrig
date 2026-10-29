@@ -30,7 +30,7 @@ pub(super) fn start(
         None
     };
     if digest != Some(carried.digest) {
-        let mut out = Queue::with_capacity(2);
+        let mut out = Queue::uncapped();
         out.push(Request::Held(Box::new(Held::PeopleReply {
             to: reply_to,
             reply: people::Reply::Refused(people::Refusal::NotOffered),

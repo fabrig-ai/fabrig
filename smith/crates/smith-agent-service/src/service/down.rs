@@ -18,7 +18,7 @@ pub(super) fn domain_down(service: &mut Service) {
         Some(domain) if domain.has_facts() => return,
         Some(_) | None => {}
     }
-    let channel_max = channel::max_out(&service.limits.channel);
+    let channel_room = channel::edge_room(&service.limits.channel);
     if let Some(run) = service.admitted {
         for _ in 0..service.pending_messages.capacity() {
             if !super::admits(service) {
@@ -39,8 +39,8 @@ pub(super) fn domain_down(service: &mut Service) {
         if !channel_takes(service)
             || !service.llm.measures_drained()
             || (service.channel.is_some()
-                && (service.channel_events.room() < channel_max.to_domain
-                    || service.channel_below.room() < channel_max.below))
+                && (service.channel_events.room() < channel_room.to_domain
+                    || service.channel_below.room() < channel_room.below))
         {
             break;
         }

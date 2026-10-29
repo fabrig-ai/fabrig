@@ -49,7 +49,7 @@ const LIMITS: Limits = Limits {
 
 const ALL: Grants = Grants { inspect: true, modify: true, shell: true };
 
-/// The domain, its environment, and room for one step's output.
+/// The domain, its environment, and its queued output.
 struct Harness {
     observed: Queue<crate::facts::Fact>,
     domain: Domain,
@@ -73,10 +73,10 @@ impl Harness {
 
     fn new(limits: Limits) -> Harness {
         Harness {
-            observed: Queue::with_capacity(4096),
+            observed: Queue::uncapped(),
             domain: Domain::new(&limits),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
-            out: Queue::with_capacity(max_out(&limits)),
+            out: Queue::uncapped(),
         }
     }
 
@@ -92,14 +92,10 @@ impl Harness {
     fn emit(&mut self, event: Event) -> Box<[Request]> {
         self.keep_facts();
         step(&mut self.domain, &self.env, event, &mut self.out);
-        let max_out = max_out(&self.env.limits);
-        let mut requests = List::with_capacity(max_out);
-        for _ in 0..max_out {
-            if let Some(request) = self.out.pop() {
-                requests.push(request).expect("no more than max_out");
-            }
+        let mut requests = List::with_capacity(self.out.len());
+        while let Some(request) = self.out.pop() {
+            requests.push(request).expect("collected output length");
         }
-        assert!(self.out.is_empty(), "no more than max_out");
         requests.into_boxed()
     }
 
@@ -591,8 +587,8 @@ fn invalid_limits_are_refused() {
     assert!(valid(&Limits { list_bytes: u64::MAX, ..LIMITS }));
     // One shell capture's head and tail share a u32 byte budget.
     assert!(!valid(&Limits { shell_head: u32::MAX, ..LIMITS }));
-    // Every native entrance can emit its reserved observations.
-    assert!(!valid(&Limits { facts: crate::max_facts(&LIMITS) - 1, ..LIMITS }));
+    // Observations need no configured allowance.
+    assert!(valid(&Limits { facts: 0, ..LIMITS }));
     // One listing entry and its nonempty name must fit.
     assert!(!valid(&Limits { list_bytes: u64::try_from(size_of::<Entry>()).expect("entry fits"), ..LIMITS }));
     // A kit's active and retained flight counts must add without overflow.
@@ -1519,30 +1515,30 @@ fn a_kit_tells_what_happens_as_facts() {
 }
 
 #[test]
-fn a_minimum_fact_reserve_keeps_every_native_entrance_observation() {
-    assert!(!valid(&Limits { facts: 1, ..LIMITS }));
-    let mut h = Harness::new(Limits { facts: crate::max_facts(&LIMITS), ..LIMITS });
+fn native_entrances_keep_every_observation_without_a_fact_allowance() {
+    let mut h = Harness::new(Limits { facts: 0, ..LIMITS });
     let kit = h.open(5, authority(ALL));
-    assert!(h.domain.facts_room() < crate::max_facts(&LIMITS));
+    assert_eq!(h.domain.pending_facts(), 1);
     assert_eq!(
         h.call(kit, read(b"/etc/passwd")),
         Outcome::Outside { path: path::Resolved::Outside { path: bytes(b"etc/passwd") } }
     );
     assert_eq!(h.step(Event::Close { kit }), Some(Request::Closed { session: Token::new(5) }));
-    assert_eq!(h.observed.len() + h.env.limits.facts - h.domain.facts_room(), 3);
+    assert_eq!(h.observed.len() + h.domain.pending_facts(), 3);
     assert_eq!(told(&mut h).len(), 3);
+    assert_eq!(h.domain.pending_facts(), 0);
 }
 
 #[test]
-fn the_last_cancelled_operation_fills_the_complete_two_fact_reserve() {
-    let mut h = Harness::new(Limits { jobs: 0, facts: 2, ..LIMITS });
+fn the_last_cancelled_operation_reports_its_answer_before_the_kit_closes() {
+    let mut h = Harness::new(Limits { jobs: 0, facts: 0, ..LIMITS });
     let kit = h.open(5, authority(ALL));
     let (owner, _) = h.start(kit, 1, read(b"src/lib.rs"));
     drop(h.emit(Event::Close { kit }));
     h.keep_facts();
     let before = h.observed.len();
     drop(h.emit(Event::Done { owner, done: Done::Cancelled }));
-    assert_eq!(h.domain.facts_room(), 0, "the terminal uses its complete reserved output");
+    assert_eq!(h.domain.pending_facts(), 2, "the terminal retains both observations");
     h.keep_facts();
     assert_eq!(h.observed.len() - before, 2);
     let mut tail = List::with_capacity(2);
@@ -1770,7 +1766,7 @@ fn failed_paths_are_normalized_and_stay_at_the_admitted_path_bound() {
     };
     let call = Call::Read { path: absolute, offset: 1, window: crate::Budget::Default };
     assert_eq!(h.call(kit, call.clone()), Outcome::Outside { path: path::Resolved::Outside { path: bytes(&outside) } });
-    assert!(crate::result_worst_case(&call, &LIMITS).expect("checked credit") >= 64);
+    assert!(crate::result_bound(&call, &LIMITS).expect("checked credit") >= 64);
     assert_eq!(h.call(kit, read(&[b'x'; 63])), Outcome::TooLong, "normalized mount plus file exceeds 64");
     let call = Call::Write { path: path(b"/d/a/../guide.md"), content: bytes(b"x") };
     assert_eq!(

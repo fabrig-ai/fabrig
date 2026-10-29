@@ -55,24 +55,6 @@ pub(crate) fn collect_limited(bytes: &[u8], limits: collector::Limits) -> Option
     None
 }
 
-#[expect(dead_code, reason = "programming-model.md 6.3: preserve the independent edge workspace bound")]
-pub(crate) fn worst_case(bound: u32) -> Option<u64> {
-    bound.checked_add(2)?;
-    worst_case_limited(limits(bound))
-}
-
-pub(crate) fn worst_case_limited(limits: collector::Limits) -> Option<u64> {
-    let bound = limits.tokenizer.length;
-    collector::worst_case(&limits, &[], &FILTER)?
-        .checked_add(Intake::worst_case(bound)?)?
-        .checked_add(Queue::<collector::Event>::worst_case(1)?)?
-        .checked_add(Queue::<stream::Down>::worst_case(1)?)?
-        .checked_add(skein_json::writer::worst_case(&skein_json::writer::Limits {
-            depth: limits.tokenizer.depth,
-            length: bound,
-        })?)
-}
-
 pub(crate) fn after(document: &Document, start: u32) -> Option<u32> {
     let mut depth = 0_u32;
     for index in start..document.len() {

@@ -10,7 +10,7 @@ const PERIOD: u64 = 1;
 
 fn restore_account(core: &mut Core, limits: &Limits, uses: Option<Box<[Use]>>) {
     core.accounts = accounts::Domain::new(&limits.accounts, core.settings.llm_providers.clone());
-    let mut out = Queue::with_capacity(accounts::max_out(&limits.accounts));
+    let mut out = Queue::uncapped();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.accounts };
     for record in [
         accounts::Stored::Account {
@@ -167,7 +167,7 @@ fn narrowed_recurring() -> (Core, Limits, u64) {
     limits.people = auth_limits.people;
     restore_account(&mut core, &limits, Some(Box::new([Use::Project(PROJECT)])));
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.accounts };
-    let mut out = Queue::with_capacity(accounts::max_out(&limits.accounts));
+    let mut out = Queue::uncapped();
     accounts::step(&mut core.accounts, &env, accounts::Event::Want, &mut out);
     let mut parent = new_row(&core, RECURRING_TASK, tasks::Funder::Period { project: PROJECT, period: PERIOD }, None);
     parent.executor = tasks::Executor::Procedure { connector: RECURRING, code: 1 };

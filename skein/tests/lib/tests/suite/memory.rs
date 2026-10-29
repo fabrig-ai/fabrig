@@ -169,7 +169,7 @@ fn slab<T: Item>(capacity: u32) {
 /// Fills a queue to its capacity, refuses one more, and takes half of it
 /// before filling it again, so that it wraps around; then takes all of it.
 fn queue<T: Item>(capacity: u32) {
-    let mut metered = Metered::growing("Queue", type_name::<T>(), capacity, Queue::<T>::worst_case(capacity));
+    let mut metered = Metered::growing("Queue", type_name::<T>(), capacity, Queue::<T>::price(capacity));
     metered.start();
     let mut queue = Queue::with_capacity(capacity);
     metered.end(());
@@ -202,7 +202,7 @@ fn queue<T: Item>(capacity: u32) {
 /// Fills a list to its capacity, refuses one more and copies it out; then
 /// fills half of it again, and moves that out.
 fn list<T: Item>(capacity: u32) {
-    let mut metered = Metered::growing("List", type_name::<T>(), capacity, List::<T>::worst_case(capacity));
+    let mut metered = Metered::growing("List", type_name::<T>(), capacity, List::<T>::price(capacity));
     metered.start();
     let mut list = List::with_capacity(capacity);
     metered.end(());
@@ -235,7 +235,7 @@ fn list<T: Item>(capacity: u32) {
 /// Fills a stack to its capacity, refuses one more, pops half of it and fills
 /// it again; then pops all of it.
 fn stack<T: Item>(capacity: u32) {
-    let mut metered = Metered::growing("Stack", type_name::<T>(), capacity, Stack::<T>::worst_case(capacity));
+    let mut metered = Metered::growing("Stack", type_name::<T>(), capacity, Stack::<T>::price(capacity));
     metered.start();
     let mut stack = Stack::with_capacity(capacity);
     metered.end(());
@@ -269,7 +269,7 @@ const BYTES: [u8; 512] = [b'a'; 512];
 /// with none; then appends and meets at random, wrapping around its buffer.
 fn intake(capacity: u32) {
     let cap = index(capacity);
-    let mut metered = Metered::growing("Intake", "u8", capacity, Intake::worst_case(capacity));
+    let mut metered = Metered::growing("Intake", "u8", capacity, Intake::price(capacity));
     metered.start();
     let mut intake = Intake::with_capacity(capacity);
     metered.end(());
@@ -329,7 +329,7 @@ fn intake(capacity: u32) {
 /// value; thins it to leaves of five; empties it, fills it in reverse and
 /// empties it again; then drives it at random.
 fn map<K: Item, V: Item>(capacity: u32) {
-    let bound = Map::<K, V>::worst_case(capacity);
+    let bound = Map::<K, V>::price(capacity);
     let mut metered = Metered::new("Map", type_name::<(K, V)>(), capacity, bound);
     metered.start();
     let mut map = Map::<K, V>::with_capacity(capacity);
@@ -378,7 +378,7 @@ fn map<K: Item, V: Item>(capacity: u32) {
 
 /// A set, driven as a map is, and emptied from its least key.
 fn set<K: Item>(capacity: u32) {
-    let mut metered = Metered::new("Set", type_name::<K>(), capacity, Set::<K>::worst_case(capacity));
+    let mut metered = Metered::new("Set", type_name::<K>(), capacity, Set::<K>::price(capacity));
     metered.start();
     let mut set = Set::<K>::with_capacity(capacity);
     metered.end(());
@@ -850,7 +850,7 @@ fn a_queue_grows_to_its_capacity_exactly() {
     for capacity in [1, 3, 5, 300] {
         // Both entry points share the same growth rule.
         for fallible in [false, true] {
-            let bound = Queue::<u64>::worst_case(capacity).expect("test capacity fits");
+            let bound = Queue::<u64>::price(capacity).expect("test capacity fits");
             let mut metered = Metered::growing("Queue", "u64", capacity, Some(bound));
             let mut queue = Queue::with_capacity(capacity);
             for n in 0..capacity {
@@ -876,7 +876,7 @@ fn a_queue_grows_to_its_capacity_exactly() {
 fn an_intake_grows_to_its_capacity_exactly() {
     for capacity in [1, 3, 5, 300] {
         for chunk in [1, 3, 11] {
-            let bound = Intake::worst_case(capacity).expect("test capacity fits");
+            let bound = Intake::price(capacity).expect("test capacity fits");
             let mut metered = Metered::growing("Intake", "u8", capacity, Some(bound));
             let mut intake = Intake::with_capacity(capacity);
             while intake.room() > 0 {
@@ -922,7 +922,7 @@ fn an_unused_stack_holds_nothing() {
 #[test]
 fn a_list_grows_to_its_capacity_exactly() {
     for capacity in [1, 3, 5, 300] {
-        let bound = List::<u64>::worst_case(capacity).expect("test capacity fits");
+        let bound = List::<u64>::price(capacity).expect("test capacity fits");
         let mut metered = Metered::growing("List", "u64", capacity, Some(bound));
         let mut list = List::with_capacity(capacity);
         for n in 0..capacity {
@@ -953,7 +953,7 @@ fn a_list_grows_to_its_capacity_exactly() {
 #[test]
 fn a_stack_grows_to_its_capacity_exactly() {
     for capacity in [1, 3, 5, 300] {
-        let bound = Stack::<u64>::worst_case(capacity).expect("test capacity fits");
+        let bound = Stack::<u64>::price(capacity).expect("test capacity fits");
         let mut metered = Metered::growing("Stack", "u64", capacity, Some(bound));
         let mut stack = Stack::with_capacity(capacity);
         for n in 0..capacity {
@@ -983,7 +983,7 @@ fn a_list_clone_holds_only_its_items_and_grows_as_it_fills() {
         for n in 0..len {
             list.push(u64::from(n)).expect("room for the source items");
         }
-        let mut metered = Metered::growing("List clone", "u64", capacity, List::<u64>::worst_case(capacity));
+        let mut metered = Metered::growing("List clone", "u64", capacity, List::<u64>::price(capacity));
         metered.start();
         let mut cloned = list.clone();
         metered.end(());
@@ -1060,5 +1060,41 @@ fn an_unused_slab_holds_nothing() {
         assert_eq!(slab.capacity(), capacity);
         assert!(slab.is_empty());
         assert!(!slab.is_full());
+    }
+}
+
+#[test]
+fn an_uncapped_map_allocates_only_as_entries_arrive() {
+    // Twelve entries cross a B-tree leaf's eleven-entry capacity.
+    const ENTRIES: u32 = 12;
+    let meter = Meter::new();
+    let mut map = std::hint::black_box(Map::<u32, u32>::uncapped());
+    assert_eq!(meter.held(), 0);
+    assert_eq!(map.capacity(), u32::MAX);
+    for key in 0..ENTRIES {
+        assert_eq!(map.insert(key, key), Ok(None));
+    }
+    assert_eq!(map.len(), ENTRIES);
+    assert!(meter.held() > 0);
+    for key in 0..ENTRIES {
+        assert_eq!(map.get(&key), Some(&key));
+    }
+}
+
+#[test]
+fn an_uncapped_list_allocates_only_as_items_arrive() {
+    // Twelve items require growth beyond the four-item initial buffer.
+    const ITEMS: u32 = 12;
+    let meter = Meter::new();
+    let mut list = std::hint::black_box(List::<u32>::uncapped());
+    assert_eq!(meter.held(), 0);
+    assert_eq!(list.capacity(), u32::MAX);
+    for item in 0..ITEMS {
+        assert_eq!(list.push(item), Ok(()));
+    }
+    assert_eq!(list.len(), ITEMS);
+    assert!(meter.held() > 0);
+    for item in 0..ITEMS {
+        assert_eq!(list.get(item), Some(&item));
     }
 }

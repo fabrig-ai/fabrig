@@ -58,10 +58,8 @@ skein-lib.workspace = true
 skein-shell.workspace = true
 
 [dev-dependencies]
-temper-twin = { path = "../../tools/twin" }
 skein-ui.workspace = true
 skein-ui-text.workspace = true
-skein-forge-client.workspace = true
 temper-worker-domain-checkout.workspace = true
 
 [lints.rust]

@@ -318,7 +318,6 @@ fn host(config: &config::Engine, runtime: AccountsRuntime) -> Accounts {
         config,
         &fixtures::seeds(),
         Some(runtime),
-        64,
         &config.limits.store.secrets,
     )
     .expect("public registration fits")
@@ -393,7 +392,6 @@ fn missing_registration_runtime_is_refused_before_start() {
             &config,
             &fixtures::seeds(),
             None,
-            64,
             &config.limits.store.secrets
         )
         .is_err()

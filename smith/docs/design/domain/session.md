@@ -219,6 +219,25 @@ child domain `smith-domain-session`, whose own child is the tools domain
 
 ## 5. Tools in a session
 
+- **One tools entrance is dispatched before the next batch starts.**
+  `tools_requests_dispatched` requires every request made by the tools
+  entrance to be handed on before another batch starts, including
+  cancellations and job polls. The session world holds this under load in
+  `smith-session-world`, `orders::tools_requests_dispatched_before_the_next_batch`.
+- **A successor batch starts after reclaim.**
+  `batch_promoted_after_reclaim` makes an immediately answered batch's
+  successor ready in the next iteration; a close at that boundary
+  prevents the unstarted tail from running. The session world holds this
+  in `smith-session-world`,
+  `orders::immediate_batches_are_promoted_after_reclaim_before_close`.
+- **Batch admission preserves effects and result order.**
+  `batch_accepts(effect)` admits adjacent reads together and a write
+  alone; `batch_settled` requires every call's terminal before the next
+  batch starts, with owned and delegated results kept in call order.
+  The session world reverses read terminals under load in
+  `smith-session-world`,
+  `orders::reverse_read_terminals_preserve_write_isolation_and_result_order`.
+
 - **Tools run in parallel where that is safe.** Each tool has an effect,
   read or write. Adjacent reads in one turn run together, up to
   `parallel_tools` at once, or `calls_per_response` where that is

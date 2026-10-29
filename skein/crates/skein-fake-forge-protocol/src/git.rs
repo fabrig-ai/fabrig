@@ -149,13 +149,6 @@ impl Decoder {
         Self { records: List::with_capacity(cap), text: List::with_capacity(cap), over: false }
     }
 }
-/// The old name of [`decoder_bound`]; it goes once every tree
-/// calls the new name (wave 3).
-#[must_use]
-pub fn decoder_worst_case(limits: &Limits) -> Option<u64> {
-    decoder_bound(limits)
-}
-
 /// Bounds Git document decoder retention.
 /// Decoder buffers, the final compact document, decoded lists and payload,
 /// transient base64 text, and one incoming tokenizer token. Both sides use
@@ -163,11 +156,11 @@ pub fn decoder_worst_case(limits: &Limits) -> Option<u64> {
 #[must_use]
 pub fn decoder_bound(limits: &Limits) -> Option<u64> {
     let cap = limits.documents.body_bytes.min(limits.documents.json.length);
-    let records = List::<skein_json::Compact>::worst_case(cap)?;
-    let lists = List::<Object>::worst_case(limits.documents.inner)?
-        .checked_add(List::<Parents>::worst_case(limits.documents.inner)?)?
-        .checked_add(List::<api::Head>::worst_case(limits.documents.inner)?)?
-        .checked_add(List::<api::File>::worst_case(cap)?)?;
+    let records = List::<skein_json::Compact>::price(cap)?;
+    let lists = List::<Object>::price(limits.documents.inner)?
+        .checked_add(List::<Parents>::price(limits.documents.inner)?)?
+        .checked_add(List::<api::Head>::price(limits.documents.inner)?)?
+        .checked_add(List::<api::File>::price(cap)?)?;
     records
         .checked_mul(2)?
         .checked_add(u64::from(cap).checked_mul(6)?)?

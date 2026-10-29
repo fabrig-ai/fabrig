@@ -1,4 +1,4 @@
-use super::{bytes, fits, worst_case};
+use super::{bytes, fits, heap_bound};
 use crate::{Bounds, payload};
 use core::mem::size_of;
 use jig_client_domain::contract::*;
@@ -71,25 +71,25 @@ fn person_owner_admission_prices_reserved_slots_boxes_and_optional_whole_results
     let untouched = value.clone();
     let chip_heap = 4
         + u64::try_from(size_of::<ChipPhase>()).expect("size fits")
-        + List::<u64>::worst_case(3).expect("dependencies fit");
+        + List::<u64>::price(3).expect("dependencies fit");
     let expected = u64::try_from(size_of::<OwnerPersonTask>()).expect("size fits")
         + chip_heap
         + 4
-        + List::<ParameterDocument>::worst_case(2).expect("parameters fit")
-        + List::<u64>::worst_case(3).expect("inputs fit")
-        + List::<VerdictChoice>::worst_case(3).expect("choices fit")
-        + List::<FieldRule>::worst_case(2).expect("fields fit")
+        + List::<ParameterDocument>::price(2).expect("parameters fit")
+        + List::<u64>::price(3).expect("inputs fit")
+        + List::<VerdictChoice>::price(3).expect("choices fit")
+        + List::<FieldRule>::price(2).expect("fields fit")
         + 3
-        + List::<OwnerShownResult>::worst_case(3).expect("shown results fit")
+        + List::<OwnerShownResult>::price(3).expect("shown results fit")
         + chip_heap
         + u64::try_from(size_of::<Result>()).expect("result size fits")
         + chip_heap
         + 3
-        + List::<ResultField>::worst_case(3).expect("result fields fit")
+        + List::<ResultField>::price(3).expect("result fields fit")
         + 5
         + 2
-        + List::<Offered>::worst_case(3).expect("result acts fit")
-        + List::<Offered>::worst_case(3).expect("person acts fit");
+        + List::<Offered>::price(3).expect("result acts fit")
+        + List::<Offered>::price(3).expect("person acts fit");
     assert_eq!(bytes(&value, &b), Some(expected));
     for (size, accepted) in [(expected - 1, false), (expected, true), (expected + 1, true)] {
         assert_eq!(fits(&value, &Bounds { document_bytes: size, ..b }), accepted);
@@ -99,7 +99,7 @@ fn person_owner_admission_prices_reserved_slots_boxes_and_optional_whole_results
     assert!(payload::fits(&read, &Bounds { document_bytes: read_bytes, ..b }));
     assert!(!payload::fits(&read, &Bounds { document_bytes: read_bytes - 1, ..b }));
     assert_eq!(value, untouched);
-    assert_eq!(worst_case(&b), Some(65536));
+    assert_eq!(heap_bound(&b), Some(65536));
 }
 #[test]
 fn person_owner_nested_reserved_overflow_refuses_whole_without_cut_or_missing_result_shortening() {
@@ -157,7 +157,7 @@ fn person_owner_empty_reserved_results_and_opaque_approval_parts_remain_distinct
     v.results = List::with_capacity(0);
     assert_eq!(
         reserved - bytes(&v, &b).expect("empty document fits"),
-        List::<OwnerShownResult>::worst_case(3).expect("shown slots fit")
+        List::<OwnerShownResult>::price(3).expect("shown slots fit")
     );
     let mut path = List::with_capacity(3);
     path.push(copy_of(b"a/b")).expect("part path fits");
@@ -170,7 +170,7 @@ fn person_owner_empty_reserved_results_and_opaque_approval_parts_remain_distinct
     assert_eq!(
         full - bytes(&OwnerPersonTask { contract: TaskContractDocument::Report { words: 0 }, ..v.clone() }, &b)
             .expect("report fits"),
-        3 + List::<Box<[u8]>>::worst_case(3).expect("path slots fit") + 3 + 2
+        3 + List::<Box<[u8]>>::price(3).expect("path slots fit") + 3 + 2
     );
     assert!(fits(&v, &Bounds { document_bytes: full, ..b }));
     assert!(!fits(&v, &Bounds { document_bytes: full - 1, ..b }));
@@ -192,8 +192,8 @@ fn person_owner_reserved_offer_slots_use_the_closed_ceiling_at_whole_byte_bounda
         .acts
         .push(Offered { effect: None, act: ActKind::Seen, admission: Admission::Refused(Refusal::NotWaiting) })
         .expect("refused offer fits");
-    let slots = List::<Offered>::worst_case(MAX_OFFERED_ACTS).expect("closed offer slots fit")
-        - List::<Offered>::worst_case(3).expect("initial offer slots fit");
+    let slots = List::<Offered>::price(MAX_OFFERED_ACTS).expect("closed offer slots fit")
+        - List::<Offered>::price(3).expect("initial offer slots fit");
     let expected = baseline + slots * 2;
     let original = value.clone();
     assert_eq!(bytes(&value, &b), Some(expected));

@@ -384,20 +384,20 @@ pub(crate) fn read(
 
 /// Includes nested names, versions, description resources, retained facts and outboxes.
 #[must_use]
-pub fn document_worst_case(limits: &Limits) -> Option<u64> {
+pub fn document_bound(limits: &Limits) -> Option<u64> {
     let name = u64::from(limits.name_bytes);
-    let task = List::<ClientResource>::worst_case(limits.resources_per_task)?
+    let task = List::<ClientResource>::price(limits.resources_per_task)?
         .checked_add(u64::from(limits.resources_per_task).checked_mul(name.checked_mul(3)?)?)?;
-    let effects = List::<crate::Entry>::worst_case(limits.effects)?
+    let effects = List::<crate::Entry>::price(limits.effects)?
         .checked_add(u64::from(limits.effects).checked_mul(name.checked_mul(4)?)?)?;
-    let drift = List::<crate::DriftAccount>::worst_case(limits.resources_per_task)?
+    let drift = List::<crate::DriftAccount>::price(limits.resources_per_task)?
         .checked_add(u64::from(limits.resources_per_task).checked_mul(name.checked_mul(3)?)?)?;
     let panel = task.checked_add(effects)?.checked_add(name.checked_mul(2)?)?;
     let hold = task.checked_add(effects)?.checked_add(drift)?;
     let project_count = limits.tasks.checked_mul(limits.resources_per_task)?;
-    let project = List::<ClientResource>::worst_case(project_count)?
+    let project = List::<ClientResource>::price(project_count)?
         .checked_add(u64::from(project_count).checked_mul(name.checked_mul(3)?)?)?
-        .checked_add(List::<ClientEnvironment>::worst_case(limits.environments)?)?
+        .checked_add(List::<ClientEnvironment>::price(limits.environments)?)?
         .checked_add(u64::from(limits.environments).checked_mul(name.checked_mul(3)?)?)?;
     let effect = name.checked_mul(7)?.checked_add(u64::try_from(size_of::<Resource>()).ok()?.checked_mul(2)?)?;
     u64::try_from(size_of::<ClientDocument>()).ok()?.checked_add(panel.max(hold).max(project).max(effect))

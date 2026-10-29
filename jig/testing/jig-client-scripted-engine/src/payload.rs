@@ -80,7 +80,7 @@ impl<T: Payload> Payload for List<T> {
         if self.capacity() > bounds.rows {
             return None;
         }
-        let mut total = Self::worst_case(self.capacity())?;
+        let mut total = Self::price(self.capacity())?;
         for item in self {
             total = total.checked_add(item.heap(bounds)?)?;
         }

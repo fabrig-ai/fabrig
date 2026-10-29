@@ -31,16 +31,16 @@ pub fn fits(value: &OwnerAmendmentState, bounds: &Bounds) -> bool {
 }
 /// Maximum storage at the configured row and per-text bounds, including optional instructions.
 #[must_use]
-pub fn worst_case(bounds: &Bounds) -> Option<u64> {
-    let authority = crate::owner_authority::worst_case(bounds)?
+pub fn heap_bound(bounds: &Bounds) -> Option<u64> {
+    let authority = crate::owner_authority::heap_bound(bounds)?
         .checked_sub(u64::try_from(size_of::<OwnerAuthorityDocument>()).ok()?)?;
     let text = u64::from(bounds.text);
     u64::try_from(size_of::<OwnerAmendmentState>())
         .ok()?
         .checked_add(authority)?
-        .checked_add(List::<ParameterDocument>::worst_case(bounds.rows)?)?
+        .checked_add(List::<ParameterDocument>::price(bounds.rows)?)?
         .checked_add(u64::from(bounds.rows).checked_mul(text)?)?
-        .checked_add(List::<u64>::worst_case(bounds.rows)?.checked_mul(2)?)?
+        .checked_add(List::<u64>::price(bounds.rows)?.checked_mul(2)?)?
         .checked_add(text.checked_mul(2)?)
 }
 

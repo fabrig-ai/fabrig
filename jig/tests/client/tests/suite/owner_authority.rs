@@ -55,7 +55,7 @@ fn saturated_authority_prices_every_capacity_and_byte_exactly() {
     let total =
         held.checked_add(u64::try_from(core::mem::size_of::<OwnerAuthorityDocument>()).expect("size")).expect("sum");
     assert_eq!(price::document_bytes(&value, &bounds()), Some(total));
-    assert!(total <= price::worst_case(&bounds()).expect("valid bounds"), "{total}");
+    assert!(total <= price::heap_bound(&bounds()).expect("valid bounds"), "{total}");
     assert_eq!(meter.held(), held, "pricing borrows without allocation");
     let mut exact = bounds();
     exact.document_bytes = total;
@@ -94,7 +94,7 @@ fn nested_bounds_check_reserved_empty_lists_terminal_bytes_and_overflow() {
         .expect("segment")
         .clone_from(&Box::from(*b"large"));
     assert_eq!(price::bytes(&value, &bounds()), None, "resource scope bytes bounded");
-    assert_eq!(price::worst_case(&Bounds { rows: u32::MAX, authority: u32::MAX, text: u32::MAX, ..bounds() }), None);
+    assert_eq!(price::heap_bound(&Bounds { rows: u32::MAX, authority: u32::MAX, text: u32::MAX, ..bounds() }), None);
 }
 #[test]
 fn authority_document_cut_is_separate_from_whole_payload_and_keeps_exact_codes() {
@@ -128,7 +128,7 @@ fn saturated_owner_authority_renderer_fits_its_fragment_envelope() {
         .expect("closed English authority words");
 
     let value = OwnerAuthorityDocument { authority: authority(), cut: true };
-    let envelope = view::worst_case(3, 3, 4, &words).expect("full view envelope");
+    let envelope = view::fragment_bound(3, 3, 4, &words).expect("full view envelope");
     let required = view::document_required(&value, &words, 3).expect("value capacity");
     assert_eq!(required.nodes, 63, "full three-by-three patterns and executor rows");
     assert_eq!(required.nodes, envelope.nodes);
@@ -182,7 +182,7 @@ fn a_whole_authority_is_admitted_independently_of_document_rows() {
     let cap = Bounds { rows: DISPLAY_ROWS, ..bounds() };
     assert!(price::fits(&value, &cap));
     assert_eq!(
-        price::worst_case(&cap),
+        price::heap_bound(&cap),
         price::document_bytes(&OwnerAuthorityDocument { authority: value, cut: false }, &cap)
     );
 }

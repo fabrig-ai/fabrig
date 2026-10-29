@@ -541,6 +541,7 @@ pub struct Run {
     pub peaks: Option<Vec<u64>>,
     pub records: Vec<Record>,
     pub login: Option<Vec<u8>>,
+    pub config_exists: bool,
     pub observations: Option<Vec<u8>>,
     pub signalled: bool,
     #[allow(dead_code)]
@@ -568,6 +569,10 @@ pub fn run(story: Option<Story>, login: Option<&[u8]>, invocations: Vec<Invocati
     run_files(story, login, invocations, Vec::new())
 }
 
+pub fn run_without_directory(invocation: Invocation) -> Run {
+    run_items(vec![Item::directory(b"home")], vec![invocation], &[], false)
+}
+
 fn run_files(story: Option<Story>, login: Option<&[u8]>, invocations: Vec<Invocation>, extra: Vec<Item>) -> Run {
     run_files_observing(story, login, invocations, extra, &[])
 }
@@ -587,6 +592,10 @@ pub fn run_files_observing(
         items.push(Item::file(b"config/fake-claude.login", login));
     }
     items.extend(extra);
+    run_items(items, invocations, paths, true)
+}
+
+fn run_items(items: Vec<Item>, invocations: Vec<Invocation>, paths: &[&[u8]], config_present: bool) -> Run {
     let mut files = Files::new();
     let base = files.lay(&items);
     let mut machine = MachineFiles { files, base };
@@ -609,16 +618,25 @@ pub fn run_files_observing(
         operations: server.operations,
     });
     let factory = smith_fake_claude::hosted(b"claude");
-    world.host_startup(
-        HostedProgram {
-            program: factory.program,
-            make: make_fake,
-            instances: factory.instances,
-            operations: factory.operations,
-        },
-        |spawn| smith_fake_claude::config_root(spawn).into_iter().chain(smith_fake_claude::mcp_root(spawn)).collect(),
-        |spawn| smith_fake_claude::observation_append(spawn).into_iter().collect(),
-    );
+    let program = HostedProgram {
+        program: factory.program,
+        make: make_fake,
+        instances: factory.instances,
+        operations: factory.operations,
+    };
+    if config_present {
+        world.host_startup(
+            program,
+            |spawn| {
+                smith_fake_claude::config_root(spawn).into_iter().chain(smith_fake_claude::mcp_root(spawn)).collect()
+            },
+            |spawn| smith_fake_claude::observation_append(spawn).into_iter().collect(),
+        );
+    } else {
+        // The binary admits ENOENT at startup with no configuration or append
+        // descriptor; the command still receives CLAUDE_CONFIG_DIR=config.
+        world.host(program);
+    }
     world.spawn_root(root, |fd| Process::Parent(Box::new(Parent::new(fd, invocations.clone()))));
     let mut outcome = world.run();
     let Process::Parent(parent) = &outcome.procs[0] else { panic!("parent process") };
@@ -640,7 +658,15 @@ pub fn run_files_observing(
     let login = read(b"config/fake-claude.login");
     let observations = read(b"config/fake-claude.observations");
     let files = paths.iter().map(|path| File { path: path.to_vec(), bytes: read(path) }).collect();
+    let config_exists = match outcome.machine.files.open(base, b"config", How::PathNoFollow) {
+        Ok(config) => {
+            outcome.machine.files.close(config);
+            true
+        }
+        Err(skein_fake_machine::Refusal::NotFound) => false,
+        Err(error) => panic!("configuration directory: {error:?}"),
+    };
     outcome.machine.files.close(base);
     assert_eq!(outcome.machine.files.open_handles(), 0, "all invocation descriptors settle");
-    Run { peaks: outcome.peaks(), records, login, observations, signalled, calls, server_exit, files }
+    Run { peaks: outcome.peaks(), records, login, config_exists, observations, signalled, calls, server_exit, files }
 }

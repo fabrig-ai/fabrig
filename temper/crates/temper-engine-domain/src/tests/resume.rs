@@ -50,7 +50,7 @@ fn released_continuations_are_taken_in_arrival_order_at_the_watermark() {
 #[test]
 fn every_public_mutating_entry_advances_the_root_revision() {
     let (mut domain, env) = root();
-    let mut out = Queue::with_capacity(crate::max_out(&env.limits));
+    let mut out = Queue::uncapped();
     let mut revisions = List::with_capacity(9);
     revisions.push(domain.revision()).unwrap();
     crate::step(&mut domain, &env, Event::Resume);
@@ -80,7 +80,7 @@ fn empty_release_and_resume_probes_allocate_nothing() {
     use skein_world::domain::heap::Meter;
 
     let (mut domain, env) = root();
-    let mut out = Queue::with_capacity(crate::max_out(&env.limits));
+    let mut out = Queue::uncapped();
     let meter = Meter::new();
     meter.start();
     for _ in 0..RESUMES {
@@ -158,7 +158,7 @@ fn resume(domain: &mut Domain, env: &Env<Limits>) {
 #[test]
 fn settled_resumes_skip_all_empty_decisions_across_clock_pairs() {
     let (mut domain, mut env) = root();
-    let mut out = Queue::with_capacity(crate::max_out(&env.limits));
+    let mut out = Queue::uncapped();
     let mut counts = List::with_capacity(CLOCK_PAIRS);
     for (now, wall) in [(0, 0), (1, 0), (1, 1)] {
         env.now = Time::from_nanos(now);
@@ -207,7 +207,7 @@ fn a_commit_completion_preserves_quiet_without_an_empty_pass() {
     let (mut domain, env) = root();
     crate::fresh(&mut domain.core.counters, crate::Family::Message).unwrap();
     resume(&mut domain, &env);
-    let mut out = Queue::with_capacity(crate::max_out(&env.limits));
+    let mut out = Queue::uncapped();
     crate::release(&mut domain, &env, &mut out);
     let Some(Request::Store(crate::StoreRequest::Commit { number, .. })) = out.pop() else { panic!("header commit") };
     crate::try_step(&mut domain, &env, Event::Store(StoreInput::Committed { number, fill: 0 })).unwrap();
@@ -258,7 +258,7 @@ fn finishing_frees_retained_text_without_any_watcher() {
 fn watched_root() -> (Domain, Env<Limits>) {
     use jig_domain_people as people;
     let (mut domain, env) = root();
-    let mut out = Queue::with_capacity(people::max_out(&env.limits.people));
+    let mut out = Queue::uncapped();
     domain.core.people = people::Domain::new(&env.limits.people, Box::new([]), 1, Box::new([]));
     for record in [
         people::Stored::Person {
@@ -299,7 +299,7 @@ fn watched_root() -> (Domain, Env<Limits>) {
         }),
     )
     .unwrap();
-    let mut released = Queue::with_capacity(crate::max_out(&env.limits));
+    let mut released = Queue::uncapped();
     crate::release(&mut domain, &env, &mut released);
     crate::release(&mut domain, &env, &mut released);
     crate::try_step(&mut domain, &env, Event::Party(crate::PartyInput::Delivered { watcher: WATCHER })).unwrap();
@@ -334,7 +334,7 @@ fn a_projection_feed_then_committed_resume_delivers_the_watch() {
         Event::Party(crate::PartyInput::Period { project: 1, period: 1, budget: 100, next: None }),
     )
     .unwrap();
-    let mut out = Queue::with_capacity(crate::max_out(&env.limits));
+    let mut out = Queue::uncapped();
     crate::release(&mut domain, &env, &mut out);
     let Some(Request::Store(crate::StoreRequest::Commit { number, writes })) = out.pop() else {
         panic!("projection and period commit")
@@ -367,7 +367,7 @@ fn advancing_wall_time_ends_a_settled_watch() {
     let (mut domain, mut env) = watched_root();
     env.wall = Wall::from_nanos(100);
     crate::try_step(&mut domain, &env, Event::Resume).unwrap();
-    let mut out = Queue::with_capacity(crate::max_out(&env.limits));
+    let mut out = Queue::uncapped();
     crate::release(&mut domain, &env, &mut out);
     crate::release(&mut domain, &env, &mut out);
     assert_eq!(
@@ -388,7 +388,7 @@ fn stop_from_settled_still_releases_the_drain_terminal() {
     let (mut domain, env) = root();
     resume(&mut domain, &env);
     crate::try_step(&mut domain, &env, Event::Stop).unwrap();
-    let mut out = Queue::with_capacity(crate::max_out(&env.limits));
+    let mut out = Queue::uncapped();
     crate::release(&mut domain, &env, &mut out);
     crate::release(&mut domain, &env, &mut out);
     assert_eq!(out.pop(), Some(Request::Drained));
@@ -450,7 +450,7 @@ fn stopping_continues_projection_deferred_finishing_without_new_commits() {
     let requests = core::step(&mut domain.core, &core_env, core::Event::Stopping);
     crate::route::route_core_requests(&mut domain, &env, &mut decision, requests);
     crate::route::route_into(&mut domain, &env, &mut decision);
-    let mut out = Queue::with_capacity(crate::max_out(&env.limits));
+    let mut out = Queue::uncapped();
     crate::domain::close(&mut domain, &env, decision, &mut out);
     assert!(domain.core.finish_owed(), "projection defers watch finishing");
     crate::release(&mut domain, &env, &mut out);
@@ -557,7 +557,7 @@ fn refused_people_timer_stays_due_without_child_mutation_until_room_returns() {
     assert_eq!(domain.empty_resumes, empty);
     assert_eq!(domain.core.people.sign_in_person(SIGN_IN), Some(1));
     assert_eq!(domain.next_deadline(&env), Some(env.now));
-    let mut out = Queue::with_capacity(crate::max_out(&env.limits));
+    let mut out = Queue::uncapped();
     crate::release(&mut domain, &env, &mut out);
     let Some(Request::Store(crate::StoreRequest::Commit { number, .. })) = out.pop() else {
         panic!("first admitted commit")

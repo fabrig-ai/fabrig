@@ -1,15 +1,15 @@
-//! The client's and the reader's worst cases against the counting
+//! The client's and the reader's scenario ceilings against the counting
 //! allocator (http.md, 3.5 and 4.2; programming-model.md, 6.3): every call of
 //! an entry point a step of the meter, and what the machine held of its own
-//! never more than its `worst_case`.
+//! never more than the scenario's ceiling.
 //!
 //! The connection owns the stream below and its buffer before the meter.
 //! Its uncapped output queues leave with each step's emitted values. An input
 //! moved into a step was counted by whoever made it (testing.md, 5). Each delivery is made between steps, by
-//! the stream below, to the machine's demand: the machine's worst case
+//! the stream below, to the machine's demand: the scenario's ceiling
 //! covers it. A call, and a piece of the request body, which the client
 //! passes on in the same step, are the side above's, which made them: the
-//! step that takes one is checked against the worst case and the input's
+//! step that takes one is checked against the ceiling and the input's
 //! own size. What a step emits is handed out: dropped before the check, as
 //! the next step's input.
 
@@ -52,7 +52,15 @@ struct Ran {
 }
 
 /// The steps of one exchange, each checked.
-fn exchange(limits: Limits, call: &Call, upload: usize, response: &[u8], read: Read, interrupt: Interrupt) -> Ran {
+fn exchange(
+    limits: Limits,
+    call: &Call,
+    upload: usize,
+    response: &[u8],
+    read: Read,
+    interrupt: Interrupt,
+    ceiling: u64,
+) -> Ran {
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let mut above = Queue::uncapped();
     let mut below = Queue::uncapped();
@@ -60,12 +68,11 @@ fn exchange(limits: Limits, call: &Call, upload: usize, response: &[u8], read: R
     let mut intake = Intake::with_capacity(cap);
     intake.append(response).expect("the stream holds it");
     let what = format!("{limits:?} {interrupt:?} {read:?} reading {}", response.escape_ascii());
-    let bound = client::worst_case(&limits).expect("the limits are honoured");
 
     let meter = Meter::new();
     meter.start();
     let mut client = Client::new(&limits);
-    let mut most = meter.check(meter.end(), bound, &what);
+    let mut most = meter.check(meter.end(), ceiling, &what);
     // The call, made between steps, and read by the first.
     let call = call.clone();
     let call_size = size_of_call(&call);
@@ -78,7 +85,7 @@ fn exchange(limits: Limits, call: &Call, upload: usize, response: &[u8], read: R
     // Caller-owned handoff storage leaves the machine-only measurement.
     drop(core::mem::replace(&mut above, Queue::uncapped()));
     drop(core::mem::replace(&mut below, Queue::uncapped()));
-    most = most.max(meter.check(step, bound + call_size, &what));
+    most = most.max(meter.check(step, ceiling + call_size, &what).saturating_sub(call_size));
 
     for steps in 1..100_000 {
         if flags.closed {
@@ -99,7 +106,7 @@ fn exchange(limits: Limits, call: &Call, upload: usize, response: &[u8], read: R
         // Caller-owned handoff storage leaves the machine-only measurement.
         drop(core::mem::replace(&mut above, Queue::uncapped()));
         drop(core::mem::replace(&mut below, Queue::uncapped()));
-        most = most.max(meter.check(step, bound + input_size, &what));
+        most = most.max(meter.check(step, ceiling + input_size, &what).saturating_sub(input_size));
     }
     panic!("{what}: an exchange is read in a few steps a byte");
 }
@@ -277,7 +284,10 @@ fn full_head(limits: &Limits, framing: &[u8]) -> Vec<u8> {
 const LIMITS: Limits = Limits { request: 256, head: 512, headers: 10, read: 96, send: 64 };
 
 #[test]
-fn every_entry_point_holds_no_more_than_its_worst_case_at_its_limits() {
+fn client_entry_points_stay_under_the_memory_ceiling() {
+    // Client peak across full heads, body framings, uploads and interruptions.
+    const CEILING: u64 = 1_500;
+    let mut peak = 0;
     let read_whole = Read::Fill(LIMITS.read);
     let body: Vec<u8> = (0..400).map(|n| b'a' + u8::try_from(n % 26).unwrap()).collect();
     let mut by_length = full_head(&LIMITS, format!("Content-Length: {}\r\n", body.len()).as_bytes());
@@ -308,33 +318,38 @@ fn every_entry_point_holds_no_more_than_its_worst_case_at_its_limits() {
     ];
     for (call, upload, response, done, what) in cases {
         for read in [read_whole, Read::Fill(1), Read::Scan { until: Delimiter::LF, max: LIMITS.read }] {
-            let ran = exchange(LIMITS, call, upload, response, read, Interrupt::Nothing);
+            let ran = exchange(LIMITS, call, upload, response, read, Interrupt::Nothing, CEILING);
+            peak = peak.max(ran.most);
             assert_eq!(ran.done, Some(done), "{what}, {read:?}");
         }
         for at in 0..60 {
-            let _ = exchange(LIMITS, call, upload, response, read_whole, Interrupt::Close(at));
-            let _ = exchange(LIMITS, call, upload, response, read_whole, Interrupt::Fail(at));
-            let _ = exchange(LIMITS, call, upload, response, read_whole, Interrupt::Discard(at));
+            peak = peak.max(exchange(LIMITS, call, upload, response, read_whole, Interrupt::Close(at), CEILING).most);
+            peak = peak.max(exchange(LIMITS, call, upload, response, read_whole, Interrupt::Fail(at), CEILING).most);
+            peak = peak.max(exchange(LIMITS, call, upload, response, read_whole, Interrupt::Discard(at), CEILING).most);
         }
     }
+    assert!(peak <= CEILING, "client peak: {peak}");
 }
 
 #[test]
 fn the_carry_over_counts_with_the_head_and_a_delivery() {
+    // Client peak while carry-over and the next delivery coexist.
+    const CEILING: u64 = 240;
     // The intake full but for a byte, and a delivery that fills it: the
     // carry-over and the delivery are held at once.
     let mut response = b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n".to_vec();
     response.extend_from_slice(format!("{:x}\r\n{}\r\n", 95, "b".repeat(95)).as_bytes());
     response.extend_from_slice(b"1\r\nc\r\n0\r\n\r\n");
-    let ran = exchange(LIMITS, &get(), 0, &response, Read::Fill(LIMITS.read), Interrupt::Nothing);
+    let ran = exchange(LIMITS, &get(), 0, &response, Read::Fill(LIMITS.read), Interrupt::Nothing, CEILING);
+    assert!(ran.most <= CEILING, "{ran:?}");
     assert_eq!(ran.done, Some(true));
     assert!(ran.most > u64::from(LIMITS.read) + 95, "the intake and the delivery at once: {}", ran.most);
 }
 
 /// The steps of a stream read to its outcome, each checked: the most the
 /// reader held of its own in a step.
-fn events(limits: sse::Limits, stream: &[u8], close: Option<u32>) -> u64 {
-    event_memory(limits, stream, close).most
+fn events(limits: sse::Limits, stream: &[u8], close: Option<u32>, ceiling: u64) -> u64 {
+    event_memory(limits, stream, close, ceiling).most
 }
 
 struct EventMemory {
@@ -344,7 +359,7 @@ struct EventMemory {
     id: usize,
 }
 
-fn event_memory(limits: sse::Limits, stream: &[u8], close: Option<u32>) -> EventMemory {
+fn event_memory(limits: sse::Limits, stream: &[u8], close: Option<u32>, ceiling: u64) -> EventMemory {
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let mut above = Queue::uncapped();
     let mut below = Queue::uncapped();
@@ -352,12 +367,11 @@ fn event_memory(limits: sse::Limits, stream: &[u8], close: Option<u32>) -> Event
     let mut intake = Intake::with_capacity(cap);
     intake.append(stream).expect("the stream holds it");
     let what = format!("{limits:?} {close:?} reading {}", stream.escape_ascii());
-    let bound = sse::worst_case(&limits).expect("the limits are honoured");
 
     let meter = Meter::new();
     meter.start();
     let mut reader = Reader::new(&limits);
-    let mut most = meter.check(meter.end(), bound, &what);
+    let mut most = meter.check(meter.end(), ceiling, &what);
     let mut demanded: Option<Read> = None;
     let mut over = false;
     let mut observed = EventMemory { most: 0, chunk: 0, name: 0, id: 0 };
@@ -418,9 +432,9 @@ fn event_memory(limits: sse::Limits, stream: &[u8], close: Option<u32>) -> Event
         drop(core::mem::replace(&mut above, Queue::uncapped()));
         drop(core::mem::replace(&mut below, Queue::uncapped()));
         // A growing reader ring counts old and new buffers at the peak;
-        // after handoff its held storage remains within the formula.
-        most = most.max(meter.check(step, 2 * bound, &what));
-        assert!(meter.held() <= bound, "{what}: held storage within the formula");
+        // after handoff its held storage remains within the ceiling.
+        most = most.max(meter.check(step, 2 * ceiling, &what));
+        assert!(meter.held() <= ceiling, "{what}: held storage within the ceiling");
         if closed {
             observed.most = most;
             return observed;
@@ -430,7 +444,10 @@ fn event_memory(limits: sse::Limits, stream: &[u8], close: Option<u32>) -> Event
 }
 
 #[test]
-fn the_reader_holds_no_more_than_its_worst_case_at_its_limits() {
+fn reader_entry_points_stay_under_the_held_memory_ceiling() {
+    // Reader held storage with full fields and chunks, and interrupted input.
+    const CEILING: u64 = 120;
+    let mut peak = 0;
     let limits = sse::Limits { line: 64, event: 200, field: 16, chunk: 24 };
     let mut at_limits = Vec::new();
     // An event at its limit, its data one line at the line limit and more,
@@ -457,40 +474,46 @@ fn the_reader_holds_no_more_than_its_worst_case_at_its_limits() {
         (&never_ends, "an event that never ends"),
         (b"event: 01234567890123456789\ndata\n\n", "a type past its limit"),
     ];
-    let bound = sse::worst_case(&limits).expect("the limits are honoured");
-    let observed = event_memory(limits, &at_limits, None);
+    let observed = event_memory(limits, &at_limits, None, CEILING);
     assert_eq!(observed.chunk, usize::try_from(limits.chunk).expect("chunk fits"));
     assert_eq!(observed.name, usize::try_from(limits.field).expect("field fits"));
     assert_eq!(observed.id, usize::try_from(limits.field).expect("field fits"));
-    assert!(observed.most <= 2 * bound, "growth peak within twice the full-buffer formula");
+    assert!(observed.most <= 2 * CEILING, "growth peak: {}", observed.most);
     for (stream, what) in cases {
-        let most = events(limits, stream, None);
+        let most = events(limits, stream, None, CEILING);
+        peak = peak.max(most);
         assert!(most > 0, "{what}");
         for at in 0..40 {
-            let _ = events(limits, stream, Some(at));
+            peak = peak.max(events(limits, stream, Some(at), CEILING));
         }
     }
+    assert!(peak <= 2 * CEILING, "reader growth peak: {peak}");
 }
 
 #[test]
 fn a_large_event_holds_only_its_intake_piece_and_delivery() {
+    // Reader held storage while a long data line is delivered in pieces.
+    const CEILING: u64 = 160;
     let limits = sse::Limits { line: 256, event: 256, field: 8, chunk: 64 };
     let mut stream = b"data: ".to_vec();
     stream.extend_from_slice(&[b'x'; 240]);
     stream.extend_from_slice(b"\n\n");
-    let most = events(limits, &stream, None);
-    assert!(most <= 2 * sse::worst_case(&limits).expect("valid limits"), "bounded growth: {most}");
+    let most = events(limits, &stream, None, CEILING);
+    assert!(most <= 2 * CEILING, "bounded growth: {most}");
     assert!(most < 240, "no full event buffer: {most}");
 }
 
 #[test]
 fn an_event_far_longer_than_its_chunk_costs_the_same_reader_memory_as_a_small_one() {
+    // Reader held storage with full fields and a four-byte chunk.
+    const CEILING: u64 = 45;
     let limits = sse::Limits { line: 2 << 20, event: 2 << 20, field: 8, chunk: 4 };
     let small = format!("event: 12345678\nid: 12345678\ndata: {}\n\n", "a".repeat(64));
     let large = format!("event: 12345678\nid: 12345678\ndata: {}\n\n", "a".repeat(1 << 14));
-    let small = events(limits, small.as_bytes(), None);
-    let observed = event_memory(limits, large.as_bytes(), None);
+    let small = events(limits, small.as_bytes(), None, CEILING);
+    let observed = event_memory(limits, large.as_bytes(), None, CEILING);
     let large = observed.most;
+    assert!(large <= 2 * CEILING, "reader growth peak: {large}");
     assert_eq!(small, large, "the reader holds no event buffer");
     assert_eq!(observed.name, usize::try_from(limits.field).expect("field fits"));
     assert_eq!(observed.id, usize::try_from(limits.field).expect("field fits"));

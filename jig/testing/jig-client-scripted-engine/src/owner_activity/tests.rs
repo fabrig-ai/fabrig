@@ -32,7 +32,7 @@ fn line(line: OwnerActivity) -> OwnerActivityLine {
 fn owner_activity_whole_word_and_line_price_every_inline_reserved_field_and_opaque_byte_at_plus_minus_one() {
     let value = word(OwnerMessageKind::Result(OwnerWordResult::Verdict { code: u32::MAX, fields: fields() }));
     let saved = value.clone();
-    let heap = List::<ResultField>::worst_case(3).unwrap() + 2 + 6 + 3 + 2 + 2;
+    let heap = List::<ResultField>::price(3).unwrap() + 2 + 6 + 3 + 2 + 2;
     let expected = u64::try_from(size_of::<OwnerWord>()).unwrap() + heap;
     assert_eq!(word_bytes(&value, &bounds()), Some(expected));
     for (limit, admitted) in [(expected - 1, false), (expected, true), (expected + 1, true)] {
@@ -171,7 +171,7 @@ fn owner_activity_reserved_empty_fields_and_each_nested_text_overflow_refuse_who
         let value =
             word(OwnerMessageKind::Result(OwnerWordResult::Verdict { code: 0, fields: List::with_capacity(capacity) }));
         let expected =
-            u64::try_from(size_of::<OwnerWord>()).unwrap() + List::<ResultField>::worst_case(capacity).unwrap() + 2;
+            u64::try_from(size_of::<OwnerWord>()).unwrap() + List::<ResultField>::price(capacity).unwrap() + 2;
         assert_eq!(word_bytes(&value, &bounds()), Some(expected));
         assert!(word_fits(&value, &Bounds { document_bytes: expected, ..bounds() }));
         assert!(!word_fits(&value, &Bounds { document_bytes: expected - 1, ..bounds() }));
@@ -211,7 +211,7 @@ fn owner_activity_reserved_empty_fields_and_each_nested_text_overflow_refuse_who
     }
 }
 #[test]
-fn owner_activity_full_fields_and_approved_state_reach_the_declared_whole_worst_case() {
+fn owner_activity_full_fields_and_approved_state_reach_the_declared_whole_heap_bound() {
     for rows in [0_u32, 2] {
         let bounds = Bounds { rows, text: 3, ..bounds() };
         let kind = if rows == 0 {
@@ -224,18 +224,18 @@ fn owner_activity_full_fields_and_approved_state_reach_the_declared_whole_worst_
             OwnerMessageKind::Result(OwnerWordResult::Verdict { code: u32::MAX, fields })
         };
         let value = OwnerWord { words: text(b"xxx"), ..word(kind) };
-        let maximum = word_worst_case(&bounds).unwrap();
+        let maximum = word_heap_bound(&bounds).unwrap();
         assert_eq!(word_bytes(&value, &bounds), Some(maximum));
         assert!(word_fits(&value, &Bounds { document_bytes: maximum, ..bounds }));
         assert!(!word_fits(&value, &Bounds { document_bytes: maximum - 1, ..bounds }));
         let value = line(OwnerActivity::Heard(value));
-        let maximum = worst_case(&bounds).unwrap();
+        let maximum = heap_bound(&bounds).unwrap();
         assert_eq!(bytes(&value, &bounds), Some(maximum));
         assert!(fits(&value, &Bounds { document_bytes: maximum, ..bounds }));
         assert!(!fits(&value, &Bounds { document_bytes: maximum - 1, ..bounds }));
     }
-    assert_eq!(worst_case(&Bounds { rows: u32::MAX, text: u32::MAX, ..bounds() }), None);
-    assert_eq!(word_worst_case(&Bounds { rows: u32::MAX, text: u32::MAX, ..bounds() }), None);
+    assert_eq!(heap_bound(&Bounds { rows: u32::MAX, text: u32::MAX, ..bounds() }), None);
+    assert_eq!(word_heap_bound(&Bounds { rows: u32::MAX, text: u32::MAX, ..bounds() }), None);
 }
 
 const UTF8_TEXTS: [&[u8]; 2] = [b"~\0", b"!\0"];

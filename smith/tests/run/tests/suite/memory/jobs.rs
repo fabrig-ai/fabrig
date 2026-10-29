@@ -1,8 +1,8 @@
 //! A waiting writer owns one opening under its run's lease (domain/run.md, 5.3).
 
 use super::{
-    Ask, Asked, BUDGET, Domain, Env, Event, Families, LIMITS, Limits, MAX_OUT, Meter, Queue, Read, ReplyTo, Request,
-    Time, Token, Tools, Wall, bytes, charter, measured_step, workspace,
+    Ask, Asked, BUDGET, Domain, Env, Event, Families, LIMITS, Limits, Meter, Queue, Read, ReplyTo, Request, Time,
+    Token, Tools, Wall, bytes, charter, measured_step, workspace,
 };
 
 const HOST_RUN: Token = Token::new(88);
@@ -14,9 +14,11 @@ const SMALL_BRIEF: u64 = 1;
 const LARGE_BRIEF: u64 = SMALL_BRIEF + 65_536;
 
 // Peak ceiling for a waiting writer with a one-byte brief (programming-model.md, section 6.3).
-const SMALL_WRITER_CEILING: u64 = 15_000;
+// Measured peak: 8_470 bytes on 2026-10-29; a quarter of headroom, rounded up.
+const SMALL_WRITER_CEILING: u64 = 11_000;
 
 // Peak ceiling for a waiting writer with a 65537-byte brief (programming-model.md, section 6.3).
+// Measured peak: 139_542 bytes on 2026-10-29; a quarter of headroom, rounded up.
 const LARGE_WRITER_CEILING: u64 = 180_000;
 
 #[test]
@@ -32,7 +34,7 @@ fn waiting_writer_bytes(limits: &Limits, brief: u64, bound: u64) -> u64 {
     let meter = Meter::new();
     let mut domain = Domain::new(limits, 0);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits };
-    let mut out = Queue::with_capacity(MAX_OUT);
+    let mut out = Queue::uncapped();
     let conversation = open_main_for_waiting_writer(&mut domain, &env, &mut out, bound);
     let event = Event::Delegated {
         name: smith_domain_run::CallName { activation: 1, completion: 1, position: 0 },

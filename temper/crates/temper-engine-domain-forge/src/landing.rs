@@ -1861,8 +1861,8 @@ pub(crate) fn worst_case(l: &Limits) -> Option<u64> {
     // plus their root. Price their nodes through the same lib bound, with a
     // 64-byte value covering either of key.rs's Pending variants.
     let walk_nodes = l.key_entries.checked_mul(l.trees_in_flight)?.checked_add(1)?;
-    let walker = Map::<Box<[u8]>, [u8; 64]>::worst_case(walk_nodes)?
-        .checked_add(Map::<[u8; 32], ()>::worst_case(l.trees_in_flight)?)?
+    let walker = Map::<Box<[u8]>, [u8; 64]>::price(walk_nodes)?
+        .checked_add(Map::<[u8; 32], ()>::price(l.trees_in_flight)?)?
         .checked_add(
             u64::from(walk_nodes)
                 .checked_mul(u64::from(l.trees_in_flight.checked_add(1)?).checked_mul(u64::from(l.name_bytes))?)?,
@@ -1898,23 +1898,23 @@ pub(crate) fn worst_case(l: &Limits) -> Option<u64> {
                 .checked_mul(u64::try_from(size_of::<(u16, u16, u8, policy::Status)>()).ok()?)?,
         )?
         .checked_add(u64::from(l.changes).checked_mul(24)?)?;
-    Map::<u64, LandingRow>::worst_case(l.landings)?
+    Map::<u64, LandingRow>::price(l.landings)?
         .checked_add(remapping)?
-        .checked_add(Map::<u64, Wall>::worst_case(l.landings)?)?
+        .checked_add(Map::<u64, Wall>::price(l.landings)?)?
         .checked_add(rows.checked_mul(4)?)?
-        .checked_add(Map::<ReceiptKey, Receipt>::worst_case(receipt_slots(l)?)?)?
+        .checked_add(Map::<ReceiptKey, Receipt>::price(receipt_slots(l)?)?)?
         .checked_add(u64::from(receipt_slots(l)?).checked_mul(32 + 2048)?)?
-        .checked_add(Map::<u32, (change::Way, Box<[RepositoryGates]>)>::worst_case(l.judge_projects)?)?
+        .checked_add(Map::<u32, (change::Way, Box<[RepositoryGates]>)>::price(l.judge_projects)?)?
         .checked_add(u64::from(l.judge_projects).checked_mul(u64::from(l.repositories).checked_mul(
             u64::try_from(size_of::<RepositoryGates>()).ok()?.checked_add(u64::from(l.gates).checked_mul(gate)?)?,
         )?)?)?
-        .checked_add(Map::<Token, Pending>::worst_case(l.landings)?)?
+        .checked_add(Map::<Token, Pending>::price(l.landings)?)?
         .checked_add(u64::from(l.landings).checked_mul(pending)?)?
-        .checked_add(Map::<Position, (api::Commit, policy::Key)>::worst_case(slots)?)?
-        .checked_add(Map::<RepositoryGate, KeyAt>::worst_case(l.repositories.checked_mul(l.gates)?)?)?
+        .checked_add(Map::<Position, (api::Commit, policy::Key)>::price(slots)?)?
+        .checked_add(Map::<RepositoryGate, KeyAt>::price(l.repositories.checked_mul(l.gates)?)?)?
         .checked_add(u64::from(l.repositories.checked_mul(l.gates)?).checked_mul(32)?)?
-        .checked_add(Map::<Position, runs::Follow>::worst_case(slots)?)?
-        .checked_add(Map::<ReceiptKey, runs::Follow>::worst_case(slots)?)?
+        .checked_add(Map::<Position, runs::Follow>::price(slots)?)?
+        .checked_add(Map::<ReceiptKey, runs::Follow>::price(slots)?)?
         .checked_add(
             u64::from(slots).checked_mul(
                 u64::from(l.client.op_bytes)
@@ -1923,7 +1923,7 @@ pub(crate) fn worst_case(l: &Limits) -> Option<u64> {
                     .checked_add(32)?,
             )?,
         )?
-        .checked_add(Map::<(u64, u16, u16, u8), policy::Status>::worst_case(result_slots(l)?)?)
+        .checked_add(Map::<(u64, u16, u16, u8), policy::Status>::price(result_slots(l)?)?)
 }
 
 fn wake_proved(d: &mut Domain, project: u32, out: &mut Queue<Request>) {

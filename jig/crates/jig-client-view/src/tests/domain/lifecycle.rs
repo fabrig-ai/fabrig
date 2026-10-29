@@ -34,7 +34,7 @@ fn intents_join_progress_and_one_terminal_and_refuse_past_the_limit() {
     delivered(&mut domain, Time::ZERO, f, frame(7));
     let key = ObjectKey::Task(8);
     let id = domain.objects.name(key, Source::Window { number: 1 }).unwrap();
-    let mut out = Queue::with_capacity(16);
+    let mut out = Queue::uncapped();
     let request = send_card(
         &mut domain.ui,
         key,
@@ -104,7 +104,7 @@ fn fields_count_only_domain_writes_and_records_restore_save_and_erase() {
         .is_empty()
     );
     assert_eq!(domain.fields().get(Purpose::NewChat).unwrap().writes, 0);
-    let mut out = Queue::with_capacity(16);
+    let mut out = Queue::uncapped();
     assert!(store::save(&mut domain, draft.clone(), &mut out));
     store::erase(&mut domain, StoreKey::Draft { task: 8 }, &mut out);
     assert_eq!(

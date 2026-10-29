@@ -224,6 +224,6 @@ pub fn valid(limits: &Limits) -> bool {
         && limits.client.watches != 0
         && limits.client.heartbeat != Duration::ZERO
         && crate::store::valid(limits)
-        && w::Authorize::worst_case_bytes(&limits.wire).is_some()
-        && w::AuthorizeAnswer::worst_case_bytes(&limits.wire).is_some()
+        && w::Authorize::encoded_bound(&limits.wire).is_some()
+        && w::AuthorizeAnswer::encoded_bound(&limits.wire).is_some()
 }

@@ -363,12 +363,9 @@ impl Binary {
         }
     }
 
-    /// The terminal counts, present once the tree settles and stderr and descriptor closures drain.
+    /// The terminal counts, present only once the binary and every descendant settled.
     #[must_use]
     pub const fn counts(&self) -> Option<Counts> {
-        if self.stderr.is_some() || self.reading.is_some() || self.closing != 0 {
-            return None;
-        }
         self.counts
     }
 
@@ -712,7 +709,7 @@ mod tests {
     }
 
     #[test]
-    fn a_supervised_streams_eof_and_drain_precede_terminal_counts() {
+    fn supervised_observation_waits_for_stderr_eof_and_descriptor_closures() {
         for exit_first in [false, true] {
             let mut binary = observer(Expectation::Supervise);
             // Drive observation without a keeper: tree settlement is supplied below.
@@ -732,24 +729,27 @@ mod tests {
             if exit_first {
                 binary.completed(exit.take().expect("one leader exit"));
                 binary.finished(Ok(Some(terminal_counts())));
+                assert_eq!(binary.counts(), Some(terminal_counts()), "settlement publishes counts before closure");
+                assert!(!binary.is_empty(), "the leader closure and stderr read remain pending");
                 close_completions(&mut binary);
-                assert_eq!(binary.counts(), None, "tree counts stay hidden while stderr has a read in flight");
+                assert_eq!(binary.counts(), Some(terminal_counts()), "a pending stderr read cannot hide settlement");
             }
             binary.completed(data);
             assert_eq!(binary.stderr(), b"diagnostic");
-            assert_eq!(binary.counts(), None, "captured bytes precede EOF");
+            assert!(!binary.is_empty(), "captured bytes precede EOF");
             binary.iterate(Time::ZERO, Wall::EPOCH);
             let eof = binary.submissions.pop().expect("next stderr read");
             assert!(matches!(eof.kind, Op::PipeRead { .. }));
             binary.completed(Complete { op: eof.op, kind: eof.kind, result: Ok(Done::Count(0)) });
             assert!(binary.stderr.is_none() && binary.reading.is_none(), "EOF ends the stream");
-            assert_eq!(binary.counts(), None, "the EOF closure still has to drain");
+            assert!(!binary.is_empty(), "the EOF closure still has to drain");
             close_completions(&mut binary);
             if !exit_first {
                 assert_eq!(binary.counts(), None, "EOF alone cannot publish terminal counts before exit");
                 binary.completed(exit.take().expect("one leader exit"));
                 binary.finished(Ok(Some(terminal_counts())));
-                assert_eq!(binary.counts(), None, "the leader descriptor still has to close");
+                assert_eq!(binary.counts(), Some(terminal_counts()), "settlement publishes counts before closure");
+                assert!(!binary.is_empty(), "the leader descriptor still has to close");
                 close_completions(&mut binary);
             }
             assert_eq!(binary.exit_status(), Some(Exit::Code(0)));

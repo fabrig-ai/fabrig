@@ -18,15 +18,15 @@ impl InboxSelection {
     /// Heap held by the roots, including reserved unused capacity.
     #[must_use]
     pub fn owned_bytes(&self) -> Option<u64> {
-        List::<u64>::worst_case(self.goals.capacity())
+        List::<u64>::price(self.goals.capacity())
     }
 }
 
 /// Heap bound of a whole parallel context list and all its root allocations.
 #[must_use]
 pub fn inbox_selection_worst_case(rows: u32, depth: u32) -> Option<u64> {
-    let roots = List::<u64>::worst_case(depth.checked_add(1)?)?;
-    List::<InboxSelection>::worst_case(rows)?.checked_add(u64::from(rows).checked_mul(roots)?)
+    let roots = List::<u64>::price(depth.checked_add(1)?)?;
+    List::<InboxSelection>::price(rows)?.checked_add(u64::from(rows).checked_mul(roots)?)
 }
 
 pub(super) fn live(core: &Core, limits: &Limits, task: u64, cursor: Cursor) -> Result<InboxSelection, Missing> {

@@ -220,7 +220,7 @@ fn unshown_records_do_not_use_a_view_slot_or_count_as_lost() {
 
 #[test]
 fn each_shown_projection_stays_within_its_owned_payload_bound() {
-    let bound = View::worst_case(8192).expect("projection bound");
+    let bound = View::owned_bound(8192).expect("projection bound");
     for record in shown() {
         let span = skein_heap::Span::start();
         let projection = View::project(&record).expect("shown record");

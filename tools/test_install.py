@@ -36,10 +36,19 @@ class InstallTests(unittest.TestCase):
         self.claim_tool = self.source / "tools/slots/claim"
         self.claim_tool.write_text("#!/bin/bash\necho claim-fixture\n")
         self.claim_tool.chmod(0o700)
+        (self.source / "tools/queue").mkdir()
+        self.precheck_tool = self.source / "tools/queue/precheck"
+        self.precheck_tool.write_text("#!/usr/bin/env python3\nprint('precheck-fixture')\n")
+        self.precheck_tool.chmod(0o700)
+        self.ready_check_tool = self.source / "tools/queue/ready-check"
+        self.ready_check_tool.write_text("#!/usr/bin/env python3\nprint('ready-check-fixture')\n")
+        self.ready_check_tool.chmod(0o700)
         self.commit()
         self.checkout = self.home / "src/fabrig/main"
         self.link = self.home / ".local/bin/codex-run"
         self.claim_link = self.home / ".local/bin/claim"
+        self.precheck_link = self.home / ".local/bin/precheck"
+        self.ready_check_link = self.home / ".local/bin/ready-check"
 
     def git(self, directory, *args):
         return subprocess.check_output(["git", "-C", str(directory), *args],
@@ -61,6 +70,8 @@ class InstallTests(unittest.TestCase):
         self.assertIn("git clone", output)
         self.assertIn("(absent) -> " + str(self.checkout / "tools/codex-run/codex-run"), output)
         self.assertIn("(absent) -> " + str(self.checkout / "tools/slots/claim"), output)
+        self.assertIn("(absent) -> " + str(self.checkout / "tools/queue/precheck"), output)
+        self.assertIn("(absent) -> " + str(self.checkout / "tools/queue/ready-check"), output)
         self.assertFalse((self.home / "src").exists())
         self.assertFalse((self.home / ".local").exists())
 
@@ -85,6 +96,22 @@ class InstallTests(unittest.TestCase):
         self.assertEqual(self.claim_link.read_text(), self.claim_tool.read_text())
         self.assertEqual(self.git(self.checkout, "rev-parse", "HEAD"),
                          self.git(self.source, "rev-parse", "main"))
+
+    def test_precheck_executable_link(self):
+        self.install()
+        self.assertEqual(self.precheck_link.readlink(), self.checkout / "tools/queue/precheck")
+        self.assertTrue(os.access(self.precheck_link, os.X_OK))
+        result = subprocess.run([str(self.precheck_link)], text=True, capture_output=True,
+                                stdin=subprocess.DEVNULL)
+        self.assertEqual((result.returncode, result.stdout), (0, "precheck-fixture\n"))
+
+    def test_ready_check_executable_link(self):
+        self.install()
+        self.assertEqual(self.ready_check_link.readlink(), self.checkout / "tools/queue/ready-check")
+        self.assertTrue(os.access(self.ready_check_link, os.X_OK))
+        result = subprocess.run([str(self.ready_check_link)], text=True, capture_output=True,
+                                stdin=subprocess.DEVNULL)
+        self.assertEqual((result.returncode, result.stdout), (0, "ready-check-fixture\n"))
 
     def test_dirty_clone_is_preserved(self):
         self.install()

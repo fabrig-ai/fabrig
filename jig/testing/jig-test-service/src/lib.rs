@@ -79,6 +79,14 @@ pub struct AccountStartup {
     pub granted: bool,
 }
 
+/// Kernel operations and the store's independent file-driver handoffs.
+fn kernel_queue(limits: &io::Limits) -> u32 {
+    io::operations(limits)
+        .expect("kernel operation bound")
+        .checked_add(store::KERNEL_HANDOFF_ENTRIES)
+        .expect("kernel handoff entries")
+}
+
 impl Service {
     #[must_use]
     pub fn account_startup(&self, source: u32, generation: u64, now: Time) -> Option<AccountStartup> {
@@ -119,7 +127,7 @@ impl Service {
             signals: None,
             signals_closing: false,
             shutdowns: 0,
-            links: Queue::with_capacity(queue),
+            links: Queue::uncapped(),
         }
     }
     /// Inject private host-operation resources before the worker's loop starts.
@@ -347,9 +355,6 @@ impl Service {
             && let Some(clients) = &mut engine.clients
         {
             for _ in 0..clients.links.len() {
-                if self.links.room() == 0 {
-                    break;
-                }
                 let link = clients.links.pop().expect("client link count");
                 self.links.push(link);
             }
@@ -439,14 +444,6 @@ impl Service {
         }
         true
     }
-    fn io_room(&self) -> bool {
-        if let Some(engine) = &self.engine
-            && !engine.io_room()
-        {
-            return false;
-        }
-        true
-    }
     fn close_signals(&mut self) {
         if self.end().is_some()
             && !self.signals_closing
@@ -532,9 +529,6 @@ mod tests;
 
 fn route_events(service: &mut Service, now: Time) {
     for _ in 0..service.told.len() {
-        if !service.io_room() {
-            break;
-        }
         let event = service.told.pop().expect("io event count");
         if let io::Event::Shutdown { .. } = event {
             service.shutdown();

@@ -382,7 +382,7 @@ pub(crate) fn seen_conversation_loaded(
     busy: bool,
 ) -> crate::Requests {
     let Some((party, people::Seen::Conversation { task, .. })) = core.people.seen_context(request) else {
-        return crate::Requests::Out(skein_lib::Queue::with_capacity(0));
+        return crate::Requests::Out(skein_lib::Queue::uncapped());
     };
     let event = if busy {
         people::Event::Decided { request, outcome: people::Outcome::Again(people::Again::Busy) }
@@ -410,7 +410,7 @@ pub(crate) fn seen_conversation_loaded(
                     .is_ok(),
                 "one header per pending mark"
             );
-            let mut out = skein_lib::Queue::with_capacity(2);
+            let mut out = skein_lib::Queue::uncapped();
             out.push(crate::Request::Held(Box::new(crate::Held::Load(Box::new(crate::Now::LoadEndedRead {
                 request,
                 task,
@@ -423,7 +423,7 @@ pub(crate) fn seen_conversation_loaded(
         people::Event::Decided { request, outcome: people::Outcome::Refused(people::Refusal::Unknown) }
     };
     work.push(crate::Event::People(event));
-    let mut out = skein_lib::Queue::with_capacity(1);
+    let mut out = skein_lib::Queue::uncapped();
     out.push(crate::Request::Decided);
     crate::Requests::Out(out)
 }

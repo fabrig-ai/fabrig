@@ -1,4 +1,4 @@
-use super::{bytes, fits, page_bytes, page_fits, worst_case};
+use super::{bytes, fits, heap_bound, page_bytes, page_fits};
 use crate::Bounds;
 use core::mem::size_of;
 use jig_client_domain::contract::*;
@@ -96,9 +96,9 @@ fn bounds() -> Bounds {
 fn owner_inbox_recursive_reserved_groups_reply_and_link_boxes_fit_exact_and_refuse_one_under_unchanged() {
     let source = whole();
     let unchanged = source.clone();
-    let chip_heap = u64::try_from(size_of::<ChipPhase>()).unwrap() + List::<u64>::worst_case(3).unwrap() + 4;
+    let chip_heap = u64::try_from(size_of::<ChipPhase>()).unwrap() + List::<u64>::price(3).unwrap() + 4;
     let expected = u64::try_from(size_of::<OwnerInbox>()).unwrap()
-        + List::<OwnerInboxEntry>::worst_case(3).unwrap() * 2
+        + List::<OwnerInboxEntry>::price(3).unwrap() * 2
         + chip_heap
         + u64::try_from(size_of::<TaskLine>()).unwrap()
         + chip_heap
@@ -107,7 +107,7 @@ fn owner_inbox_recursive_reserved_groups_reply_and_link_boxes_fit_exact_and_refu
     for (amount, admitted) in [(expected - 1, false), (expected, true), (expected + 1, true)] {
         let b = Bounds { document_bytes: amount, ..bounds() };
         assert_eq!(fits(&source, &b), admitted);
-        assert_eq!(worst_case(&b), Some(amount));
+        assert_eq!(heap_bound(&b), Some(amount));
     }
     assert_eq!(source, unchanged);
     assert!(bytes(&source, &Bounds { rows: 2, ..bounds() }).is_none());
@@ -128,7 +128,7 @@ fn owner_inbox_whole_page_opaque_bytes_allocation_boundaries_and_stored_links_ar
         after: Some(Cursor::new(copy_of(UTF8_TEXTS[1]), 8).unwrap()),
     };
     let expected =
-        u64::try_from(size_of::<OwnerInboxPage>()).unwrap() + List::<OwnerInboxEntry>::worst_case(3).unwrap() + 16;
+        u64::try_from(size_of::<OwnerInboxPage>()).unwrap() + List::<OwnerInboxEntry>::price(3).unwrap() + 16;
     let unchanged = page.clone();
     assert_eq!(page_bytes(&page, &bounds()), Some(expected));
     assert!(page_fits(&page, &Bounds { document_bytes: expected, ..bounds() }));
@@ -148,8 +148,8 @@ fn owner_inbox_whole_page_opaque_bytes_allocation_boundaries_and_stored_links_ar
         selection: None,
     };
     let root = u64::try_from(size_of::<OwnerInbox>()).unwrap();
-    assert_eq!(bytes(&source, &bounds()), Some(root + List::<OwnerInboxEntry>::worst_case(3).unwrap() * 2));
-    assert!(worst_case(&Bounds { document_bytes: root - 1, ..bounds() }).is_none());
+    assert_eq!(bytes(&source, &bounds()), Some(root + List::<OwnerInboxEntry>::price(3).unwrap() * 2));
+    assert!(heap_bound(&Bounds { document_bytes: root - 1, ..bounds() }).is_none());
 }
 #[test]
 fn owner_inbox_selection_roots_exceed_page_rows_without_clipping_and_price_whole_reserved_capacity() {
@@ -163,7 +163,7 @@ fn owner_inbox_selection_roots_exceed_page_rows_without_clipping_and_price_whole
     selection.push(OwnerInboxSelection { cursor: source.updates.get(0).unwrap().cursor, goals }).unwrap();
     source.selection = Some(selection);
     let original = source.clone();
-    let expected = before + List::<OwnerInboxSelection>::worst_case(3).unwrap() + List::<u64>::worst_case(5).unwrap();
+    let expected = before + List::<OwnerInboxSelection>::price(3).unwrap() + List::<u64>::price(5).unwrap();
     assert_eq!(bytes(&source, &bounds()), Some(expected));
     assert!(fits(&source, &Bounds { document_bytes: expected, ..bounds() }));
     assert!(!fits(&source, &Bounds { document_bytes: expected - 1, ..bounds() }));
@@ -175,7 +175,7 @@ fn owner_inbox_selection_roots_exceed_page_rows_without_clipping_and_price_whole
     let mut supplied = absent.clone();
     supplied.selection = Some(List::with_capacity(3));
     assert_ne!(absent, supplied);
-    assert_eq!(bytes(&supplied, &bounds()), Some(absent_bytes + List::<OwnerInboxSelection>::worst_case(3).unwrap()));
+    assert_eq!(bytes(&supplied, &bounds()), Some(absent_bytes + List::<OwnerInboxSelection>::price(3).unwrap()));
     assert!(bytes(&supplied, &Bounds { rows: 2, ..bounds() }).is_none());
 }
 

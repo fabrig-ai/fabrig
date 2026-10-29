@@ -38,14 +38,15 @@ tabs and people. `go`, `back`, `forward`, `reload`, `act`, `event`, `fault`,
 `run` yields the referee verdict, judged checks, virtual time, callbacks,
 faults, dropped old-epoch callbacks, trace and heap evidence. Configure
 `Settings` at construction; story fixtures may call `randomness` and
-`measure_heap` before admitting clients. Random people wait between actions
+`measure_heap_within` with the scenario's measured ceiling before admitting clients;
+worlds without a ceiling retain the per-client guards' sum. Random people wait between actions
 using the configured latency, so they act on delivered pages. Heap-counted
 binaries install `skein_world::domain::heap::Counting` as their allocator.
 
 `stories` exposes the bounded truth fixtures; `random` replays six starting
 states and random whole task/family documents. The focused binaries retain
 all scripted stories, fourteen separate faults, both incident variants,
-negative referee cases, shell/store and memory cases. `fuzzy_client` keeps
+negative referee cases, shell/store and memory cases. `suite::fuzzy::client` keeps
 six independent 16-seed story sweeps and one 32-seed random-truth sweep.
 
 The test application's root holds `jig_client::Client`, passes its transport

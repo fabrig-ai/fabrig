@@ -68,7 +68,8 @@ impl Checks {
                 None => {}
             }
         }
-        for _ in 0..self.waiting.capacity() {
+        // Only the waiters present at entry can start during this pass.
+        for _ in 0..self.waiting.len() {
             if self.active.is_some() || shell.room() == 0 {
                 break;
             }

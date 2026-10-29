@@ -113,7 +113,7 @@ impl World {
     pub fn event(&mut self, input: obs::Event) -> Vec<obs::Request> {
         let wall = self.now.checked_mul(1_000_000_000).expect("world time fits");
         let env = Env { now: Time::from_nanos(self.now), wall: Wall::from_nanos(wall), limits: self.limits };
-        let mut out = Queue::with_capacity(obs::MAX_OUT);
+        let mut out = Queue::uncapped();
         obs::step(&mut self.domain, &env, input, &mut out);
         let mut requests = Vec::new();
         while let Some(request) = out.pop() {
@@ -312,7 +312,7 @@ impl World {
     pub fn fire(&mut self) -> Vec<obs::Request> {
         let wall = self.now.checked_mul(1_000_000_000).expect("world time fits");
         let env = Env { now: Time::from_nanos(self.now), wall: Wall::from_nanos(wall), limits: self.limits };
-        let mut out = Queue::with_capacity(obs::MAX_OUT);
+        let mut out = Queue::uncapped();
         obs::fire(&mut self.domain, &env, &mut out);
         let mut requests = Vec::new();
         while let Some(request) = out.pop() {

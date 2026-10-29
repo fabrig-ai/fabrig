@@ -91,8 +91,7 @@
 //! entrance, without asking io anything (a path outside the checkout, a family
 //! not granted, a file not read first). Were a parent to go on from such an
 //! answer at once, starting the next piece of work, hand-offs would chain
-//! within one step: what it emits would follow the length of the chain rather
-//! than [`crate::max_out`], and what it holds for work ended in the iteration
+//! within one step, and what it holds for work ended in the iteration
 //! (reclaimed only at the reclaim point) would outgrow its slabs. So a step
 //! starts one batch at most, and a batch the tools answer entirely within the
 //! step that started it rests (Resting): its results are kept, and the
@@ -1079,11 +1078,12 @@ pub(crate) fn rested(domain: &mut Domain, env: &Env<Limits>, id: Id<Session>, ou
 
 /// Passes the tools' facts on among the session's own, as the tools' parent,
 /// each with the opener of the session whose kit it is of. Each pass drains
-/// the tools' queue, which holds no more facts than it takes, so a fact goes
-/// on at the end of the entry point that told it, while its session is there
-/// still: a session is reclaimed at the reclaim point at the earliest.
-pub(crate) fn pass_on_facts(domain: &mut Domain, env: &Env<Limits>) {
-    for _ in 0..env.limits.tools.facts {
+/// the tools' queue by its count at entry; translating facts adds none to
+/// that queue. Each fact goes on at the end of the entry point that told it,
+/// while its session is there still: a session is reclaimed at the reclaim
+/// point at the earliest.
+pub(crate) fn pass_on_facts(domain: &mut Domain, _env: &Env<Limits>) {
+    for _ in 0..domain.calls.tools.pending_facts() {
         let Some(fact) = domain.calls.tools.pop_fact() else {
             break;
         };
@@ -1160,11 +1160,11 @@ enum News {
 /// at most one call: an open, a close or an operation's end concerns one kit,
 /// and a call is answered at the entrance or later.
 fn tools_step(calls: &mut Calls, env: &Env<Limits>, event: tools::Event, out: &mut Queue<Request>) -> Heard {
-    assert!(calls.tools.facts_room() >= tools::max_facts(&env.limits.tools), "session reserved child observations");
     let tools_env = Env { now: env.now, wall: env.wall, limits: env.limits.tools };
     tools::step(&mut calls.tools, &tools_env, event, &mut calls.out);
     let mut heard = Heard { answer: None, kit: None, cancelled: None };
-    for _ in 0..tools::max_out(&env.limits.tools) {
+    // This entrance has finished: translation never appends to the child queue.
+    for _ in 0..calls.out.len() {
         let Some(request) = calls.out.pop() else {
             break;
         };
@@ -1190,7 +1190,7 @@ fn tools_step(calls: &mut Calls, env: &Env<Limits>, event: tools::Event, out: &m
             tools::Request::JobsCancelled { session } => heard.cancelled = Some(session),
         }
     }
-    assert!(calls.out.is_empty(), "the tools emit no more than their max_out");
+    assert!(calls.out.is_empty(), "tools_requests_dispatched");
     heard
 }
 
@@ -2661,7 +2661,7 @@ fn receive_completion(conversation: &mut Conversation, content: &[Block], calls:
 }
 
 fn owned_credit(call: &Call, limits: &Limits) -> u64 {
-    tools::result_worst_case(call, &limits.tools).expect("admitted result bounds")
+    tools::result_bound(call, &limits.tools).expect("admitted result bounds")
 }
 
 fn delegated_credit(limits: &Limits) -> u64 {

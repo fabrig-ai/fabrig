@@ -72,7 +72,7 @@ fn whole_history_page_prices_all_boxes_stored_presence_and_reserved_rows_without
         after: Some(Cursor::new(Box::from(b"opaque after".as_slice()), 1024).expect("bounded opaque cursor")),
     };
     let mut expected = u64::try_from(size_of::<HistoryPage>()).unwrap()
-        + List::<HistoryRow>::worst_case(3).unwrap()
+        + List::<HistoryRow>::price(3).unwrap()
         + u64::try_from(b"opaque before".len() + b"opaque after".len()).unwrap();
     for value in &values {
         match value {
@@ -166,7 +166,7 @@ fn a_history_hold_prices_its_box_and_nested_reason_before_admission() {
     }));
     let required = u64::try_from(size_of::<HistoryRow>() + size_of::<HistoryLine>() + size_of::<Hold>()).unwrap()
         + u64::try_from(reason.len()).unwrap()
-        + List::<SpendLine>::worst_case(0).unwrap();
+        + List::<SpendLine>::price(0).unwrap();
     assert_eq!(row.heap(&bounds).unwrap() + u64::try_from(size_of::<HistoryRow>()).unwrap(), required);
     let source = Source {
         party: 1,

@@ -11,7 +11,7 @@ pub fn heap(value: &List<Offered>, bounds: &Bounds) -> Option<u64> {
     if value.capacity() > MAX_OFFERED_ACTS {
         return None;
     }
-    let mut total = List::<Offered>::worst_case(value.capacity())?;
+    let mut total = List::<Offered>::price(value.capacity())?;
     for offer in value {
         total = total.checked_add(offer.heap(bounds)?)?;
     }

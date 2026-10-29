@@ -34,7 +34,7 @@ fn key() -> Key {
 fn event(domain: &mut Domain, seconds: u64, input: Event) -> Queue<Request> {
     let wall = seconds.checked_mul(1_000_000_000).expect("world time fits");
     let env = Env { now: Time::from_nanos(seconds), wall: Wall::from_nanos(wall), limits: limits() };
-    let mut out = Queue::with_capacity(MAX_OUT);
+    let mut out = Queue::uncapped();
     step(domain, &env, input, &mut out);
     out
 }
@@ -374,7 +374,7 @@ fn a_committed_person_retry_opens_restart_but_waits_for_the_old_deadline() {
     assert_eq!(restart.pop(), Some(Request::Make { key: key() }));
     assert_eq!(restart.pop(), Some(Request::Restarted { stage: RestartStage::Outbox }));
     assert!(event(&mut restored, 3, Event::Make { key: key() }).is_empty());
-    let mut out = Queue::with_capacity(MAX_OUT);
+    let mut out = Queue::uncapped();
     fire(&mut restored, &Env { now: Time::ZERO, wall: Wall::from_nanos(30_000_000_000), limits: limits() }, &mut out);
     let Some(Request::Save { record: Record::Outbox(row) }) = out.pop() else {
         panic!("new attempt saved before write");
@@ -491,10 +491,10 @@ fn provision_wakes_at_supplied_readiness_and_keeps_deadline_and_holding_behavior
             Event::System(SystemEvent::Environment { environment: environment(), fact, other_hand: false }),
         );
         let mut out = event(&mut domain, 0, Event::Procedure { task: 7, signal: ProcedureSignal::Step });
-        let mut decisions = skein_lib::List::with_capacity(MAX_OUT);
+        let mut decisions = skein_lib::List::with_capacity(out.len());
         while let Some(request) = out.pop() {
             if let Request::Step { task: 7, decision } = request {
-                decisions.push(decision).expect("finite decisions fit the output bound");
+                decisions.push(decision).expect("decisions came from this queue");
             }
         }
         assert_eq!(decisions.as_slice(), &[StepDecision::Wait { until: deadline.min(5) }]);
@@ -506,7 +506,7 @@ fn provision_wakes_at_supplied_readiness_and_keeps_deadline_and_holding_behavior
                 wall: Wall::from_nanos(seconds * 1_000_000_000),
                 limits: limits(),
             };
-            let mut timer = Queue::with_capacity(MAX_OUT);
+            let mut timer = Queue::uncapped();
             fire(&mut domain, &env, &mut timer);
             if seconds == 4 {
                 assert!(timer.is_empty());
@@ -526,10 +526,10 @@ fn provision_wakes_at_supplied_readiness_and_keeps_deadline_and_holding_behavior
             }
         }
         let mut out = event(&mut domain, 5, Event::Procedure { task: 7, signal: ProcedureSignal::Step });
-        let mut decisions = skein_lib::List::with_capacity(MAX_OUT);
+        let mut decisions = skein_lib::List::with_capacity(out.len());
         while let Some(request) = out.pop() {
             if let Request::Step { task: 7, decision } = request {
-                decisions.push(decision).expect("finite decisions fit the output bound");
+                decisions.push(decision).expect("decisions came from this queue");
             }
         }
         assert_eq!(
@@ -558,7 +558,7 @@ fn assert_restored_provision_timer(domain: &Domain, fact: Option<EnvironmentFact
     );
     assert_eq!(next_deadline(&restored), Some(Time::from_nanos(5_000_000_000)));
     let env = Env { now: Time::from_nanos(5_000_000_000), wall: Wall::from_nanos(5_000_000_000), limits: limits() };
-    let mut out = Queue::with_capacity(MAX_OUT);
+    let mut out = Queue::uncapped();
     fire(&mut restored, &env, &mut out);
     assert_eq!(out.pop(), Some(Request::Wake { task: 7 }));
     assert!(out.is_empty(), "restoring a time condition makes no effect and invents no fact change");
@@ -655,7 +655,7 @@ fn restored_effect_timers_wait_for_read_afresh() {
         },
     );
     let env = Env { now: Time::from_nanos(2_000_000_000), wall: Wall::from_nanos(2_000_000_000), limits: limits() };
-    let mut out = Queue::with_capacity(MAX_OUT);
+    let mut out = Queue::uncapped();
     fire(&mut domain, &env, &mut out);
     assert!(out.is_empty(), "no system lookup before the scripted post-mark step");
     assert_eq!(next_deadline(&domain), None);

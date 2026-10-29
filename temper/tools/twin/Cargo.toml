@@ -42,3 +42,6 @@ disallowed_methods = "deny"
 [dev-dependencies]
 skein-scratch.workspace = true
 jig-domain-core.workspace = true
+skein-fake-llm-domain.workspace = true
+skein-fake-llm-protocol.workspace = true
+skein-llm.workspace = true

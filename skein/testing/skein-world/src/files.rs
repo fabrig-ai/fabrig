@@ -27,7 +27,6 @@ pub struct Driver {
     queue: VecDeque<Queued>,
     events: Queue<Event>,
     submissions: Queue<Submit>,
-    max: u32,
     closing: bool,
 }
 
@@ -44,7 +43,6 @@ impl Driver {
             queue: VecDeque::with_capacity(usize::try_from(ROOM).expect("room")),
             events: Queue::with_capacity(ROOM),
             submissions: Queue::with_capacity(ROOM),
-            max,
             closing: false,
         }
     }
@@ -191,22 +189,6 @@ impl Driver {
             && self.queue.is_empty()
             && self.events.is_empty()
             && self.submissions.is_empty()
-    }
-
-    /// The file driver, queued request payloads and output cells at this world's limits.
-    #[must_use]
-    pub fn worst_case(&self, files: u32) -> u64 {
-        let payload = 4095_u64
-            .checked_add(u64::from(self.max))
-            .and_then(|bytes| bytes.checked_add(u64::try_from(size_of::<Queued>()).expect("queued cell")))
-            .and_then(|bytes| bytes.checked_mul(u64::from(ROOM)))
-            .expect("bounded queued payload");
-        FileIo::worst_case(files, 32, 4, self.max)
-            .expect("file driver bound")
-            .checked_add(payload)
-            .and_then(|bytes| bytes.checked_add(Queue::<Event>::worst_case(ROOM).expect("terminal queue")))
-            .and_then(|bytes| bytes.checked_add(Queue::<Submit>::worst_case(ROOM).expect("kernel queue")))
-            .expect("bounded file owner")
     }
 }
 

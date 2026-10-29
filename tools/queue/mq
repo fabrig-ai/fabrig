@@ -220,10 +220,17 @@ def load_metadata(repo):
     return metadata
 
 
-def changed_paths(repo, tip="HEAD"):
+def changed_paths(repo, candidate="HEAD", *, base="origin/main"):
+    """Compare checked parent and candidate trees (design.md, 2)."""
     # Include both sides of a rename, so moving a file cannot hide its old owner.
-    output = git(repo, "diff", "--name-only", "--no-renames", "-z", f"origin/main...{tip}").stdout
+    output = git(repo, "diff", "--name-only", "--no-renames", "-z", base, candidate, "--").stdout
     return output.split("\0")[:-1] if output else []
+
+
+def preview_changed_paths(repo, tip, *, base="origin/main"):
+    """Preview an unmerged tip from its merge base (design.md, 2)."""
+    ancestor = git(repo, "merge-base", base, tip).stdout.strip()
+    return changed_paths(repo, tip, base=ancestor)
 
 
 def check_commands(repo, selected, paths, *, metadata=None):
@@ -253,14 +260,18 @@ def check_commands(repo, selected, paths, *, metadata=None):
             ("default", ["heavy", "--gate", "cargo", "nextest", "run", *scope, "--no-fail-fast"], repo),
             ("fuzzy", ["heavy", "--gate", "cargo", "nextest", "run", *scope, "--no-fail-fast", "--profile", "fuzzy"], repo),
         ])
-    trees = {path.split("/", 1)[0] for path in paths} & set(TREES)
-    steps.extend((f"ratchet:{tree}", ["python3", "-I", "-B", str(repo / tree / "scripts/old_forms.py")], repo / tree)
-                 for tree in sorted(trees))
     return steps
 
 
+def ratchet_commands(repo, paths, *, check_only=False):
+    trees = {path.split("/", 1)[0] for path in paths} & set(TREES)
+    return [(f"ratchet:{tree}", ["python3", "-I", "-B", str(repo / tree / "scripts/old_forms.py"),
+                              *([] if check_only else ["--write"])],
+             repo / tree) for tree in sorted(trees)]
+
+
 def tools_commands(repo):
-    """Discover tracked suites, including executable Bash suites (design.md, 2.3)."""
+    """Discover tracked offline suites, honoring executable shebangs (design.md, 2.3)."""
     commands = []
     for entry in git(repo, "ls-files", "--stage", "-z", "--", "tools/").stdout.split("\0"):
         if not entry:
@@ -268,10 +279,13 @@ def tools_commands(repo):
         attributes, path = entry.split("\t", 1)
         mode = attributes.split()[0]
         name = PurePosixPath(path).name
+        # This suite installs real systemd units; run it manually on a builder.
+        if path == "tools/heavy/test-heavy-recovery":
+            continue
         if fnmatch.fnmatchcase(name, "test_*.py"):
             commands.append((path, ["python3", "-I", "-B", path], repo))
         elif name.startswith("test-") and mode == "100755":
-            commands.append((path, ["bash", path], repo))
+            commands.append((path, ["./" + path], repo))
     return commands
 
 
@@ -280,6 +294,7 @@ def run_step(name, argv, cwd, log, *, runner, clock, timeout=None):
     log.flush()
     output_start = log.tell()
     started = clock()
+    launch_error = None
     try:
         options = {} if timeout is None else {"timeout": timeout}
         result = runner(argv, cwd=cwd, stdin=subprocess.DEVNULL,
@@ -291,6 +306,7 @@ def run_step(name, argv, cwd, log, *, runner, clock, timeout=None):
     except OSError as error:
         log.write(f"{error}\n")
         code = 127
+        launch_error = str(error)
     log.flush()
     log.seek(output_start)
     output = log.read()
@@ -298,32 +314,51 @@ def run_step(name, argv, cwd, log, *, runner, clock, timeout=None):
     refused = code == 2 and "below the disk floor" in output and argv[0] == "heavy"
     green = code == 0 or (name in ("build", "default", "fuzzy") and code == 4)
     outcome = {"name": name, "command": argv, "returncode": code,
-               "green": green, "duration": clock() - started}
+               "cwd": str(cwd), "green": green, "duration": clock() - started}
     if refused:
         outcome["error"] = output.strip()
+    if launch_error is not None:
+        outcome["launch_error"] = launch_error
     return outcome
 
 
-def run_tools(repo, log, *, runner=subprocess.run, clock=time.monotonic):
+def run_tools(repo, log, *, runner=subprocess.run, clock=time.monotonic, observer=None):
     """Run every tools suite before cargo, with a deadline per suite (design.md, 2.3)."""
     started = clock()
-    suites = [run_step(name, argv, cwd, log, runner=runner, clock=clock, timeout=TOOLS_TIMEOUT)
-              for name, argv, cwd in tools_commands(repo)]
+    suites = []
+    for name, argv, cwd in tools_commands(repo):
+        suites.append(run_step(name, argv, cwd, log, runner=runner, clock=clock, timeout=TOOLS_TIMEOUT))
+        if observer is not None:
+            observer(suites[-1])
     return {"name": "tools", "green": all(suite["green"] for suite in suites),
             "duration": clock() - started, "suites": suites}
 
 
-def run_checks(repo, selected, paths, log_path, *, runner=subprocess.run, clock=time.monotonic):
+def run_checks(repo, selected, paths, log_path, *, runner=subprocess.run, clock=time.monotonic,
+               check_only=False, metadata=None, observer=None, outcomes=None):
     """Run serially, logging output; nextest's empty selection is green."""
-    outcomes = []
+    outcomes = [] if outcomes is None else outcomes
+    def record(outcome):
+        outcomes.append(outcome)
+        if observer is not None:
+            observer(outcome)
+
     with log_path.open("a+") as log:
         os.chmod(log_path, 0o600)
-        if selected == "full" or any(path.startswith("tools/") for path in paths):
-            outcomes.append(run_tools(repo, log, runner=runner, clock=clock))
+        for name, argv, cwd in ratchet_commands(repo, paths, check_only=check_only):
+            record(run_step(name, argv, cwd, log, runner=runner, clock=clock))
             if not outcomes[-1]["green"]:
                 return outcomes
-        for name, argv, cwd in check_commands(repo, selected, paths):
-            outcomes.append(run_step(name, argv, cwd, log, runner=runner, clock=clock))
+            baseline = f"{cwd.name}/scripts/old-forms.txt"
+            if not check_only and git(repo, "diff", "--name-only", "--", baseline).stdout:
+                git(repo, "add", "--", baseline)
+                git(repo, "commit", "-m", f"Lower {cwd.name} old-form baselines")
+        if selected == "full" or any(path.startswith("tools/") for path in paths):
+            record(run_tools(repo, log, runner=runner, clock=clock, observer=observer))
+            if not outcomes[-1]["green"]:
+                return outcomes
+        for name, argv, cwd in check_commands(repo, selected, paths, metadata=metadata):
+            record(run_step(name, argv, cwd, log, runner=runner, clock=clock))
             if not outcomes[-1]["green"]:
                 break
     return outcomes
@@ -468,7 +503,8 @@ class Queue:
         return (self.now() - self.state.get("idle_since", self.now()) >= 600 and
                 main != self.state.get("last_full_main"))
 
-    def choose(self, paths, *, preview=False):
+    def choose(self, paths, *, base="origin/main", candidate="HEAD", preview=False):
+        """Use parent/candidate lock blobs and the candidate checkout's graph (design.md, 2.1)."""
         if self.full_due() or full_inputs(paths):
             return "full"
         # A plan has not merged the batch, so its checkout cannot resolve changed manifests.
@@ -480,12 +516,16 @@ class Queue:
                set(PurePosixPath(path).parts[:-1]) & {"src", "tests", "benches", "examples"})
                for path in paths):
             return selection(paths, {})
+        if not preview:
+            head, expected = git(self.repo, "rev-parse", "HEAD", f"{candidate}^{{commit}}").stdout.splitlines()
+            if head != expected:
+                raise ValueError("checked selection requires the candidate checkout")
         metadata = self.metadata_loader(self.repo)
         locked = None
         if "Cargo.lock" in paths:
-            base = git(self.repo, "show", "origin/main:Cargo.lock").stdout
-            head = git(self.repo, "show", "HEAD:Cargo.lock").stdout
-            locked = lock_changes(base, head, metadata)
+            before = git(self.repo, "show", f"{base}:Cargo.lock").stdout
+            after = git(self.repo, "show", f"{candidate}:Cargo.lock").stdout
+            locked = lock_changes(before, after, metadata)
         return selection(paths, metadata, locked=locked)
 
     def notify(self, record, lead, subject, body):
@@ -660,7 +700,7 @@ class Queue:
         if not branches and not self.idle_due():
             print("nothing to do")
             return
-        paths = sorted({path for branch in branches for path in changed_paths(self.repo, branch["tip"])})
+        paths = sorted({path for branch in branches for path in preview_changed_paths(self.repo, branch["tip"])})
         selected = self.choose(paths, preview=True) if branches else "full"
         print(json.dumps({"branches": branches,
                           "selection": sorted(selected) if isinstance(selected, set) else selected,

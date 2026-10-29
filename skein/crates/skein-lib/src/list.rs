@@ -24,6 +24,13 @@ impl<T> List<T> {
         List { items: Vec::new(), capacity }
     }
 
+    /// For a service's own correlation and collection, never for what a peer can
+    /// push. It grows as it fills, up to `u32::MAX` items.
+    #[must_use]
+    pub fn uncapped() -> List<T> {
+        Self::with_capacity(u32::MAX)
+    }
+
     /// The heap a list of `capacity` takes for its items, or `None` past a
     /// `u64`. What the items own is theirs to count.
     #[must_use]

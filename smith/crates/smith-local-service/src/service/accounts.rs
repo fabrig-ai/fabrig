@@ -4,6 +4,9 @@ use super::{Close, Error, Service, local};
 use alloc::boxed::Box;
 use skein_lib::{List, Queue, Time, Wall, Writer};
 
+// Shell and terminal destinations reserve six slots before an account pass.
+const ACCOUNT_EDGE_ROOM: u32 = 6;
+
 impl Service {
     /// Install the selected account sources before the first service pass.
     pub fn handed_accounts(
@@ -13,7 +16,7 @@ impl Service {
         entropy: [u8; 32],
     ) -> Result<(), Error> {
         assert!(self.accounts.is_none(), "one account driver");
-        if self.limits.queue < crate::ACCOUNTS_MAX_OUT {
+        if self.limits.queue < ACCOUNT_EDGE_ROOM {
             return Err(Error::Queue);
         }
         if sources.len() > self.limits.local.smith.accounts {
@@ -37,16 +40,17 @@ impl Service {
     }
 
     pub(super) fn accounts_pass(&mut self, now: Time, wall: Wall) {
-        if self.shell.room() < crate::ACCOUNTS_MAX_OUT || self.output.room() < crate::ACCOUNTS_MAX_OUT {
+        if self.shell.room() < ACCOUNT_EDGE_ROOM || self.output.room() < ACCOUNT_EDGE_ROOM {
             return;
         }
         let Some(mut accounts) = self.accounts.take() else { return };
         if self.closing() {
             accounts.close(if self.aborted() { Close::Aborted } else { Close::Graceful }, now, wall);
         }
-        let mut out = Queue::with_capacity(crate::ACCOUNTS_MAX_OUT);
+        let mut out = Queue::uncapped();
         accounts.advance(now, wall, &mut out);
-        for _ in 0..crate::ACCOUNTS_MAX_OUT {
+        // One advance's finite output drains to empty; dispatch never adds to this queue.
+        for _ in 0..out.len() {
             match out.pop() {
                 Some(crate::CredentialRequest::Ready { event: local::Event::Credential { grant, .. }, value }) => {
                     let identifier = accounts.account_id(grant.name.account).expect("selected account");

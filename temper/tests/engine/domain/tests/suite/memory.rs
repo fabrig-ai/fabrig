@@ -5,6 +5,9 @@ use temper_engine_domain::{
 };
 use temper_engine_domain_world::store::{HEADER, LIMITS};
 
+// Measured peak: 1,480 bytes; 25% headroom, rounded up to two significant digits.
+const PARTIAL_LOAD_HEAP_CEILING: u64 = 1_900;
+
 #[test]
 fn retired_and_abandoned_load_slots_and_a_partial_page_fit_without_payload_clones() {
     use root::{Range, loads};
@@ -77,7 +80,7 @@ fn retired_and_abandoned_load_slots_and_a_partial_page_fit_without_payload_clone
         assert_eq!(row.transcript.as_ptr(), original, "owned bytes moved directly");
     }
     drop(rows);
-    meter.check(measured, loads::worst_case(&limits).expect("valid bound"), &limits);
+    meter.check(measured, PARTIAL_LOAD_HEAP_CEILING, &limits);
     assert!(
         loads::begin(
             &mut domain,
@@ -106,6 +109,9 @@ fn retired_and_abandoned_load_slots_and_a_partial_page_fit_without_payload_clone
     loads::unloaded(&mut domain, second, &mut out);
     assert!(out.is_empty(), "abandoned terminal does not wake its old waiter");
 }
+
+// Measured peak: 733,184 bytes; 25% headroom, rounded up to two significant digits.
+const PARTIAL_DELIVERY_HEAP_CEILING: u64 = 920_000;
 
 #[test]
 fn partial_delivery_transfer_never_allocates_a_second_shrinking_container() {
@@ -141,7 +147,7 @@ fn partial_delivery_transfer_never_allocates_a_second_shrinking_container() {
     }
     let measured = meter.end();
     assert!(out.is_empty(), "clean header and no writes");
-    meter.check(measured, root::journal_worst_case(&limits).expect("valid bounds"), &limits);
+    meter.check(measured, PARTIAL_DELIVERY_HEAP_CEILING, &limits);
     assert!(!journal.idle());
 }
 

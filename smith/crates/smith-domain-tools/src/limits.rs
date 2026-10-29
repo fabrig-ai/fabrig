@@ -67,7 +67,7 @@ pub struct Limits {
     pub search_bytes: u32,
     /// How long a search may take, within its call's deadline.
     pub search_timeout: Duration,
-    /// Reserved observations buffered until the parent drains them; at least [`crate::max_facts`].
+    /// Compatibility setting; observations are uncapped and this does not limit them.
     pub facts: u32,
 }
 
@@ -84,19 +84,19 @@ pub fn valid(limits: &Limits) -> bool {
         Err(_) => return false,
     };
     limits.shell_head.checked_add(limits.shell_tail).is_some()
-        && limits.facts >= crate::max_facts(limits)
         && limits.list_bytes >= smallest_entry
         && flight::slots(limits).is_some()
         && limits.path_bytes.checked_add(1).is_some()
         && limits.host_path_bytes.checked_add(1).is_some()
 }
 
-/// Maximum dynamic ownership of this call's outcome, excluding its
-/// enclosing result block and copied provider ID, which the session reserves
-/// separately. The parent uses this before dispatch, including for a terminal
-/// that wins cancellation; `None` means a configured bound overflowed.
+/// Bound on dynamic ownership of one admitted call's result, in bytes,
+/// excluding its enclosing result block and copied provider ID, which the
+/// session reserves separately. The parent holds this receiving credit before
+/// dispatch, including for a terminal that wins cancellation; `None` means a
+/// configured bound overflowed.
 #[must_use]
-pub fn result_worst_case(call: &Call, limits: &Limits) -> Option<u64> {
+pub fn result_bound(call: &Call, limits: &Limits) -> Option<u64> {
     let result = match call {
         Call::Read { window, .. } => {
             let bytes = match window {
@@ -124,11 +124,11 @@ pub fn result_worst_case(call: &Call, limits: &Limits) -> Option<u64> {
     Some(result.max(u64::from(limits.path_bytes)))
 }
 
-/// Largest dynamic result ownership of one legal owned batch, supplied to
-/// the parent's startup check. Reads may run together; writes run alone.
-/// Returns `None` when any receiving bound overflows.
+/// Bound on dynamic result ownership of one legal batch, in bytes.
+/// The parent holds this receiving credit before dispatch. Reads may run
+/// together; writes run alone. Returns `None` when any receiving bound overflows.
 #[must_use]
-pub fn batch_result_worst_case(limits: &Limits, parallel: u32) -> Option<u64> {
+pub fn batch_result_bound(limits: &Limits, parallel: u32) -> Option<u64> {
     let path = u64::from(limits.path_bytes);
     let search = u64::try_from(size_of::<Hit>())
         .ok()?

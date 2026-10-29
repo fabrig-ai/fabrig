@@ -20,7 +20,7 @@ pub(super) fn delegate_refused(
     task: Option<u64>,
     why: tasks::Refusal,
 ) -> Requests {
-    let mut out = Queue::with_capacity(3);
+    let mut out = Queue::uncapped();
     call_decision(
         core,
         &mut out,
@@ -46,13 +46,13 @@ pub(super) fn delegate_validated(
 ) -> Requests {
     assert!(core.current_proof(key.task, key.attempt), "delegation belongs to current claim");
     if let Some(part) = core.call_parts.get(&key) {
-        let mut out = Queue::with_capacity(2);
+        let mut out = Queue::uncapped();
         out.push(Request::Held(Box::new(crate::Held::CallAnswer { to, key, part: part.clone() })));
         out.push(Request::Decided);
         return Requests::Out(out);
     }
     if let Some(part) = core.authorize_tool(key, ToolKind::Delegate) {
-        let mut out = Queue::with_capacity(3);
+        let mut out = Queue::uncapped();
         call_decision(core, &mut out, to, key, part);
         out.push(Request::Decided);
         return Requests::Out(out);
@@ -63,7 +63,7 @@ pub(super) fn delegate_validated(
         return delegate_refused(core, to, key, None, why);
     }
     if let Err(part) = core.delegate_preflight(&env.limits.tasks, key, &batch, env.wall) {
-        let mut out = Queue::with_capacity(3);
+        let mut out = Queue::uncapped();
         call_decision(core, &mut out, to, key, part);
         out.push(Request::Decided);
         return Requests::Out(out);
@@ -165,7 +165,7 @@ pub(super) fn delegate_validated(
             .is_ok(),
         "one named delegation flight"
     );
-    let mut out = Queue::with_capacity(remaining.checked_add(1).expect("connector handoff room"));
+    let mut out = Queue::uncapped();
     for &connector in core.connectors.as_ref() {
         out.push(Request::Ask {
             connector,
@@ -185,7 +185,7 @@ pub(super) fn delegate_holdings(
     holdings: Option<Box<[Box<[tasks::Holding]>]>>,
 ) -> Requests {
     let Some(flight) = core.creating_delegates.get_mut(&request) else {
-        let mut out = Queue::with_capacity(1);
+        let mut out = Queue::uncapped();
         out.push(Request::Decided);
         return Requests::Out(out);
     };
@@ -212,7 +212,7 @@ pub(super) fn delegate_holdings(
         Some(_) | None => flight.failed = true,
     }
     if flight.remaining > 0 {
-        let mut out = Queue::with_capacity(1);
+        let mut out = Queue::uncapped();
         out.push(Request::Decided);
         return Requests::Out(out);
     }
@@ -239,7 +239,7 @@ pub(super) fn delegate_holdings(
                 creator: tasks::Party::Task(flight.key.task),
                 batch: flight.members,
             }));
-            let mut out = Queue::with_capacity(1);
+            let mut out = Queue::uncapped();
             out.push(Request::Decided);
             Requests::Out(out)
         }
@@ -356,7 +356,7 @@ pub(super) fn propose_batch(
             .is_ok(),
         "one proposal holdings flight"
     );
-    let mut out = Queue::with_capacity(remaining.checked_add(1).expect("connector handoff room"));
+    let mut out = Queue::uncapped();
     for &connector in core.connectors.as_ref() {
         out.push(Request::Ask {
             connector,
@@ -391,7 +391,7 @@ pub(super) fn procedure_step(
                 super::procedure_steps::problem(task, tasks::Refusal::Attempt),
             );
         }
-        let mut out = Queue::with_capacity(1);
+        let mut out = Queue::uncapped();
         out.push(Request::Decided);
         return Requests::Out(out);
     }
@@ -405,9 +405,7 @@ pub(super) fn procedure_step(
         Err(why) => return super::procedure_steps::refused(core, task, step, why),
     };
     let batch = decision.batch;
-    let mut out = Queue::with_capacity(
-        u32::try_from(core.connectors.len()).expect("bounded connectors").checked_add(1).expect("handoff room"),
-    );
+    let mut out = Queue::uncapped();
     match batch.as_ref() {
         [] => {
             work.push(Event::Tasks(tasks::Event::Procedure {
@@ -560,7 +558,7 @@ pub(super) fn procedure_holdings(
     holdings: Option<Box<[Box<[tasks::Holding]>]>>,
 ) -> Requests {
     let Some(flight) = core.creating_procedures.get_mut(&(task, step)) else {
-        let mut out = Queue::with_capacity(1);
+        let mut out = Queue::uncapped();
         out.push(Request::Decided);
         return Requests::Out(out);
     };
@@ -586,7 +584,7 @@ pub(super) fn procedure_holdings(
         }
         Some(_) | None => flight.failed = true,
     }
-    let mut out = Queue::with_capacity(2);
+    let mut out = Queue::uncapped();
     if flight.remaining == 0 {
         let flight = core.creating_procedures.remove(&(task, step)).expect("completed procedure holdings");
         if flight.failed {
@@ -697,7 +695,7 @@ pub(super) fn route_period(
             work.push(Event::Tasks(tasks::Event::RenewStanding { task, period }));
         }
     }
-    let mut out = Queue::with_capacity(1);
+    let mut out = Queue::uncapped();
     out.push(Request::Decided);
     Requests::Out(out)
 }
@@ -710,7 +708,7 @@ pub(super) fn route_start_recurring(
     template: tasks::RecurringTemplate,
 ) -> Requests {
     start_recurring(core, work, project, authority, template);
-    let mut out = Queue::with_capacity(1);
+    let mut out = Queue::uncapped();
     out.push(Request::Decided);
     Requests::Out(out)
 }
@@ -726,7 +724,7 @@ pub(super) fn delegate_input_failed(work: &mut Queue<Event>, to: ReplyTo, key: C
             capacity: None,
         }),
     });
-    let mut out = Queue::with_capacity(1);
+    let mut out = Queue::uncapped();
     out.push(Request::Decided);
     Requests::Out(out)
 }

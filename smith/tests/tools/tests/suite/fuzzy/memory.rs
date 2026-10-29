@@ -5,7 +5,7 @@
 use skein_lib::{Duration, Env, Queue, ReplyTo, Rng, Time, Token, Wall};
 use skein_world::domain::heap::Meter;
 use smith_domain_tools::{
-    Call, Domain, Done, Entry, Event, Exit, Expect, Fault, Hit, Kind, Limits, Op, Request, Version, max_out,
+    Call, Domain, Done, Entry, Event, Exit, Expect, Fault, Hit, Kind, Limits, Op, Request, Version,
 };
 use smith_tools_world::memory::{LIMITS, authority, name, path, read, write};
 
@@ -33,7 +33,7 @@ fn churn(limits: Limits, seed: u64, rounds: u32, bound: u64) {
     let mut kits: Vec<Token> = Vec::with_capacity(usize::try_from(limits.kits).expect("small") + 1);
     let slots = usize::try_from(limits.kits * limits.calls * 2).expect("small");
     let mut ops: Vec<(Token, Asked)> = Vec::with_capacity(slots);
-    let mut out = Queue::with_capacity(max_out(&limits));
+    let mut out = Queue::uncapped();
     let mut counted = [0; 6];
     let meter = Meter::new();
     let mut domain = Domain::new(&limits);
@@ -202,11 +202,13 @@ fn random_done(limits: &Limits, rng: &mut Rng, asked: Asked) -> Done {
     }
 }
 
-// Peak ceiling for random tools with default limits across twenty seeds (programming-model.md, section 6.3).
-const RANDOM_TOOLS_CEILING: u64 = 21_000;
+// Peak 8,331 bytes measured 2026-10-29: random tools with default limits, maximum over all 20 seeds.
+// Ceiling adds a quarter, rounded up to two significant digits (testing-strategy.md, section 6).
+const RANDOM_TOOLS_CEILING: u64 = 11_000;
 
-// Peak ceiling for random tools with four small kits across twenty seeds (programming-model.md, section 6.3).
-const SMALL_RANDOM_TOOLS_CEILING: u64 = 34_000;
+// Peak 13,847 bytes measured 2026-10-29: random tools with four small kits, maximum over all 20 seeds.
+// Ceiling adds a quarter, rounded up to two significant digits (testing-strategy.md, section 6).
+const SMALL_RANDOM_TOOLS_CEILING: u64 = 18_000;
 
 #[test]
 fn a_domain_driven_at_random_stays_under_its_scenario_ceilings_at_every_step() {

@@ -55,7 +55,7 @@ fn dense_request_encoding(provider: skein_llm::Provider) {
         }
         input.prompt.messages = Box::new([Message { role: Role::Assistant, content: blocks.into_boxed_slice() }]);
         let original = input.prompt.clone();
-        let scratch = client::encoding_worst_case(&bounds).expect("fixed scratch is representable");
+        let scratch = client::encoder_bound(&bounds).expect("fixed scratch is representable");
         let measuring = Span::start();
         let measured =
             client::measure(&input.prompt, Some(skein_llm_world::credential_of(&input)), &input.endpoint, &bounds)
@@ -560,7 +560,7 @@ fn opaque_envelope_and_extended_thinking_transit_fit_counted_bounds() {
             value: skein_llm::Json::from_bytes(metadata.as_bytes(), &bounds.native().document())
                 .expect("bounded extended opaque value"),
         };
-        let bound = skein_llm::replay_worst_case(&bounds.native().document()).expect("checked replay transit bound");
+        let bound = skein_llm::replay_bound(&bounds.native().document()).expect("checked replay transit bound");
         let span = Span::start();
         let encoded = replay.to_bytes(&bounds.native().document());
         match encoded {
@@ -956,8 +956,8 @@ fn twenty_five_thousand_history_items_allocate_only_the_declared_translation_tab
     // Translation owns native table capacity and may overlap its exact boxed
     // result. The owner's prompt is outside this span; empty text allocates no
     // payload. Small fixed writer/header scratch is independently bounded.
-    let tables = skein_lib::List::<openai::Input>::worst_case(declared.history_items).unwrap()
-        + skein_lib::List::<openai::Tool>::worst_case(declared.tools).unwrap();
+    let tables = skein_lib::List::<openai::Input>::price(declared.history_items).unwrap()
+        + skein_lib::List::<openai::Tool>::price(declared.tools).unwrap();
     let bound = 2 * tables + 64 * 1024;
     let span = Span::start();
     let measured =

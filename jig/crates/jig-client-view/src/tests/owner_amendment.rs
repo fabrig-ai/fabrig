@@ -390,8 +390,8 @@ fn owner_amendment_whole_tree_envelope_checks_full_nested_capacities_and_overflo
         assert!(view::required(&larger, &crate::Limits { rows: 4, segments: 4, ..limits }, words).is_some());
     }
     assert!(view::required(&value, &crate::Limits { text: 4, ..limits }, words).is_none());
-    assert!(view::worst_case(&crate::Limits { text: u32::MAX, ..limits }, words).is_none());
-    assert!(view::worst_case(&crate::Limits { rows: u32::MAX, ..limits }, words).is_none());
+    assert!(view::fragment_bound(&crate::Limits { text: u32::MAX, ..limits }, words).is_none());
+    assert!(view::fragment_bound(&crate::Limits { rows: u32::MAX, ..limits }, words).is_none());
     let mut full = value;
     full.instructions = Some(doc(b"12345678", true));
     full.spec.specification.words = doc(b"12345678", true);

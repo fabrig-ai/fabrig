@@ -580,8 +580,8 @@ pub(super) fn worst_case(limits: &super::DocumentLimits) -> Option<u64> {
     super::task_tree::overview_worst_case(limits)?
         .checked_mul(carriers)?
         .checked_add(super::offers::heap_worst_case(limits)?)?
-        .checked_add(List::<people::PermissionRole>::worst_case(limits.lines)?)?
-        .checked_add(List::<Ledger>::worst_case(limits.lines)?)?
+        .checked_add(List::<people::PermissionRole>::price(limits.lines)?)?
+        .checked_add(List::<Ledger>::price(limits.lines)?)?
         .checked_add(u64::try_from(size_of::<Project>()).ok()?)?
         .checked_add(u64::from(limits.text_bytes))
 }

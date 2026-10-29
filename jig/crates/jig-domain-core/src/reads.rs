@@ -138,7 +138,7 @@ impl Pending {
 }
 
 fn terminal(reply: ReplyTo, answer: Answer) -> Requests {
-    let mut out = Queue::with_capacity(2);
+    let mut out = Queue::uncapped();
     out.push(Request::Held(Box::new(Held::Read { reply, answer })));
     out.push(Request::Decided);
     Requests::Out(out)
@@ -260,7 +260,7 @@ fn backwards(scope: &Scope) -> bool {
 fn refused_application(reply: ReplyTo, read: &Read, why: Why) -> Requests {
     match read {
         Read::Application { connector, read, .. } => {
-            let mut out = Queue::with_capacity(3);
+            let mut out = Queue::uncapped();
             out.push(Request::Ask { connector: *connector, ask: crate::Ask::DropDocument { subject: *read } });
             out.push(Request::Held(Box::new(Held::Read { reply, answer: Answer::None(why) })));
             out.push(Request::Decided);
@@ -305,7 +305,7 @@ pub(crate) fn start(core: &mut Core, env: &Env<Limits>, reply: ReplyTo, sign_in:
             {
                 return refused_application(reply, &read, Why::Unknown);
             }
-            let mut out = Queue::with_capacity(2);
+            let mut out = Queue::uncapped();
             out.push(Request::Ask {
                 connector: *connector,
                 ask: crate::Ask::Read { reply, scope: *scope, read: *name, party, window: *window },
@@ -523,7 +523,7 @@ fn start_jig(core: &mut Core, env: &Env<Limits>, reply: ReplyTo, sign_in: u64, p
         Ok(load) => load.token(),
         Err(mut pending) => return terminal(pending.take_reply(), Answer::None(Why::Busy)),
     };
-    let mut out = Queue::with_capacity(2);
+    let mut out = Queue::uncapped();
     out.push(Request::Held(Box::new(Held::ReadLoad { load, range: Box::new(emitted) })));
     out.push(Request::Decided);
     Requests::Out(out)
@@ -532,13 +532,13 @@ fn start_jig(core: &mut Core, env: &Env<Limits>, reply: ReplyTo, sign_in: u64, p
 pub(crate) fn loaded(core: &mut Core, env: &Env<Limits>, load: Token, result: Loaded) -> Requests {
     let name = Id::<Pending>::from_token(load);
     let Some(pending) = core.reads.get(name) else {
-        return Requests::Out(Queue::with_capacity(0));
+        return Requests::Out(Queue::uncapped());
     };
     match &pending.destination {
         Destination::Watch(watcher) => return watch_loaded(core, env, name, *watcher, result),
         Destination::Settings { .. } => return settings::run_loaded(core, env, name, result),
         Destination::Read(_) => {}
-        Destination::Done => return Requests::Out(Queue::with_capacity(0)),
+        Destination::Done => return Requests::Out(Queue::uncapped()),
     }
     let answer = if core.people.person(pending.sign_in, env.now, env.wall) != Some(pending.party) {
         Answer::None(Why::SignedOut)
@@ -645,7 +645,7 @@ pub(super) fn load_settings(core: &mut Core, env: &Env<Limits>, pending: Pending
         Ok(load) => load.token(),
         Err(pending) => return settings::answer(pending.destination, Answer::None(Why::Busy)),
     };
-    let mut out = Queue::with_capacity(2);
+    let mut out = Queue::uncapped();
     out.push(Request::Held(Box::new(Held::ReadLoad { load, range: Box::new(emitted) })));
     out.push(Request::Decided);
     Requests::Out(out)
