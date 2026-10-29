@@ -47,9 +47,19 @@ meta_get() {
 # Each event gains "ts", when it arrived, UTC to the millisecond, as its first
 # key, so that a run's steps can be timed; other lines pass unchanged.
 stamp() {
-    perl -MPOSIX=strftime -MTime::HiRes=time -ne 'BEGIN { $| = 1 }
+    perl -MTime::HiRes=time -ne 'BEGIN { $| = 1 }
         my $t = time;
-        my $ts = strftime("%Y-%m-%dT%H:%M:%S", gmtime $t) . sprintf(".%03dZ", ($t - int $t) * 1000);
+        my @utc = gmtime $t;
+        my $ts;
+        if ($utc[5] < -1899) {
+            # strftime normalizes years before 1 differently from Perl gmtime.
+            require POSIX;
+            $ts = POSIX::strftime("%Y-%m-%dT%H:%M:%S", @utc) . sprintf(".%03dZ", ($t - int $t) * 1000);
+        } else {
+            $ts = sprintf("%d-%02d-%02dT%02d:%02d:%02d.%03dZ",
+                $utc[5] + 1900, $utc[4] + 1, $utc[3], $utc[2], $utc[1], $utc[0],
+                ($t - int $t) * 1000);
+        }
         s/^\{(\s*\})?/defined $1 ? "{\"ts\":\"$ts\"$1" : "{\"ts\":\"$ts\","/e;
         print'
 }
