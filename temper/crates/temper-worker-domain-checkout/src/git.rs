@@ -117,7 +117,7 @@ pub enum Want {
 
 /// io's terminal for an operation.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-#[expect(clippy::large_enum_variant, reason = "bounded diagnostics stay inline and are included in worst_case")]
+#[expect(clippy::large_enum_variant, reason = "diagnostics stay inline with a fixed byte capacity")]
 pub enum Done {
     /// The standalone local ancestry query.
     IsAncestor { contains: bool },
