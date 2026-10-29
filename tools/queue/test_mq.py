@@ -1440,6 +1440,42 @@ print('tools fixture passed')
         self.assertEqual(self.records()[-1]["outcome"], "green")
         self.assertEqual([address for address, subject, _ in self.posts if subject == "queue error"], ["ops@hel8"])
 
+    def test_same_error_alerts_again_after_completed_batch(self):
+        queue = self.queue()
+        outcomes = iter([RuntimeError("repeated dirty tree"), True,
+                         RuntimeError("repeated dirty tree")])
+
+        def cycle():
+            outcome = next(outcomes)
+            if isinstance(outcome, Exception):
+                raise outcome
+            return outcome
+
+        queue.cycle = cycle
+        self.assertEqual(self.run_cycles(queue, 2), [60, 60])
+        alerts = [body for _, subject, body in self.posts if subject == "queue error"]
+        self.assertEqual(len(alerts), 2)
+        self.assertTrue(all(body.startswith("repeated dirty tree") for body in alerts))
+
+    def test_idle_recovery_clears_persisted_error_episode(self):
+        queue = self.queue()
+        outcomes = iter([RuntimeError("repeated dirty tree"), False])
+
+        def cycle():
+            outcome = next(outcomes)
+            if isinstance(outcome, Exception):
+                raise outcome
+            return outcome
+
+        queue.cycle = cycle
+        self.assertEqual(self.run_cycles(queue, 2), [60, 60])
+        reloaded = self.queue()
+        self.assertEqual(reloaded.state.get("reported_errors"), [])
+        (self.directory / "stop").unlink()
+        reloaded.cycle = lambda: (_ for _ in ()).throw(RuntimeError("repeated dirty tree"))
+        self.assertEqual(self.run_cycles(reloaded, 1), [60])
+        self.assertEqual(len([1 for _, subject, _ in self.posts if subject == "queue error"]), 2)
+
     def test_run_survives_recovery_log_failure(self):
         queue = self.queue()
         queue.cycle = lambda: (_ for _ in ()).throw(RuntimeError("git failed"))
