@@ -10,6 +10,7 @@ publish.workspace = true
 [[bin]]
 name = "temper"
 path = "src/main.rs"
+test = false
 
 [dependencies]
 settings-form.workspace = true
@@ -95,28 +96,8 @@ name = "process"
 path = "tests/process.rs"
 
 [[test]]
-name = "qa_account_move"
-path = "tests/qa_account_move.rs"
-
-[[test]]
 name = "live"
 path = "tests/live.rs"
-
-[[test]]
-name = "qa_serving"
-path = "tests/qa_serving.rs"
-
-[[test]]
-name = "qa_delegation"
-path = "tests/qa_delegation.rs"
-
-[[test]]
-name = "qa_adoption"
-path = "tests/qa_adoption.rs"
-
-[[test]]
-name = "qa_forge_handover"
-path = "tests/qa_forge_handover.rs"
 
 [lints.rust]
 unsafe_code = "forbid"
@@ -137,25 +118,17 @@ disallowed_methods = "deny"
 
 
 [[test]]
-name = "qa_plan_chat_start"
-path = "tests/qa_plan_chat_start.rs"
-
-[[test]]
-name = "qa_sign_in"
-path = "tests/qa_sign_in.rs"
-
-[[test]]
 name = "live_github"
 path = "tests/live_github.rs"
 
 [[test]]
-name = "relay"
-path = "tests/relay.rs"
-
-[[test]]
-name = "qa_account_file"
-path = "tests/qa_account_file.rs"
-
-[[test]]
 name = "live_github_managed"
 path = "tests/live_github_managed.rs"
+
+[[test]]
+name = "suite"
+path = "tests/suite/main.rs"
+
+[[test]]
+name = "qa_all"
+path = "tests/qa_all/main.rs"
