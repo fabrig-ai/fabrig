@@ -48,6 +48,8 @@ what, whose code, the evidence.
 
 ### 6.2 temper
 
+- **The conversation omits the inbox-answer activity.** The client conversation view does not render jig's "Person answered question in inbox: N" activity; R2 dropped the one UI assertion expecting it (`temper/tests/client/tests/suite/inbox.rs`). Off the ladder's path: walks answer through ctl. lead/q/temper, R2, 10-29.
+
 - **A custom charter's shell writes for a run that cannot deliver.** The rail "modify only with
   deliver" (agent.md 4.3) does not cover `shell`; no stock charter grants `shell` (charter 2's is
   false; only test fixtures set it). lead/q/temper, g-modify, 10-29.
