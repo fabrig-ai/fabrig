@@ -521,9 +521,13 @@ class RepairTests(unittest.TestCase):
             marker.write_bytes(b"unknown ownership")
             try:
                 with self.subTest(marker=marker.name), patch.object(sys, "argv", argv), \
+                        patch.object(Path, "home", return_value=self.home), \
                         patch.object(module, "Queue") as queue, redirect_stderr(io.StringIO()):
                     self.assertEqual(module.main(), 1)
                     queue.assert_not_called()
+                record = json.loads((self.home / "src/fabrig/notes/queue.jsonl").read_text().splitlines()[-1])
+                self.assertEqual(record["repair"], repair)
+                self.assertEqual(record["event"], "repair-refusal")
                 with self.assertRaisesRegex(RuntimeError, "reconciliation"):
                     self.launch_restart(repair, runtime)
                 self.assertEqual(self.restart_calls, [["git", "rev-parse", "--show-toplevel"]])
@@ -541,9 +545,13 @@ class RepairTests(unittest.TestCase):
         argv = ["mq", "once", "--repo", str(other), "--authority-dir", str(layout.root),
                 "--repair-ready", repair["name"], "--repair-tip", repair["tip"], "--repair-reason", REASON]
         with layout.acquire(), patch.object(sys, "argv", argv), patch.object(module, "Queue") as queue, \
+                patch.object(Path, "home", return_value=self.home), \
                 redirect_stderr(io.StringIO()):
             self.assertEqual(module.main(), 1)
             queue.assert_not_called()
+        record = json.loads((self.home / "src/fabrig/notes/queue.jsonl").read_text())
+        self.assertEqual(record["repair"], repair)
+        self.assertEqual(record["event"], "repair-refusal")
 
     def test_external_real_child_adopts_authority_and_checkout_before_acknowledgement(self):
         repair = self.repair()
@@ -575,6 +583,7 @@ Queue = FixtureQueue
         def launch(argv, **kwargs):
             if argv[0] != "git":
                 kwargs["pass_fds"] += (ready_w, release_r)
+                kwargs["env"] = dict(os.environ, HOME=str(self.home))
             child = real_popen(argv, **kwargs)
             if argv[0] != "git":
                 children.append(child)

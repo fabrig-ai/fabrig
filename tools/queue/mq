@@ -934,6 +934,9 @@ def main():
             if shutil.which(name) is None:
                 print(f"mq: missing {name} on PATH; invoke from bash -lc", file=sys.stderr)
                 return 2
+    admitted = False
+    refusal_logged = False
+    repair = None
     try:
         repo = args.repo.expanduser().resolve()
         repair = {"name": args.repair_ready, "tip": args.repair_tip, "reason": args.repair_reason}
@@ -941,6 +944,7 @@ def main():
             repair = validate_repair(repo, args.repair_ready, args.repair_tip, args.repair_reason)
         except ValueError as error:
             log_repair_refusal(Path.home() / "src/fabrig/notes/queue.jsonl", repair, error)
+            refusal_logged = True
             raise
         if git(repo, "rev-parse", "--show-toplevel").stdout.strip() != str(repo):
             raise RuntimeError("--repo must name the checkout root")
@@ -954,6 +958,7 @@ def main():
             queue = Queue(repo, batch=args.batch, full_every=args.full_every, disk_floor=args.disk_floor,
                           dry=getattr(args, "dry", False), repair=repair,
                           writer_guard=lambda: (lease.guard(), layout.legacy_guard(repo)))
+            admitted = True
             if args.action == "plan":
                 queue.plan()
                 return 0
@@ -967,6 +972,8 @@ def main():
             queue.run(stop)
         return 0
     except (OSError, ValueError, RuntimeError) as error:
+        if repair is not None and not admitted and not refusal_logged:
+            log_repair_refusal(Path.home() / "src/fabrig/notes/queue.jsonl", repair, error)
         print(f"mq: {error}", file=sys.stderr)
         return 1
 

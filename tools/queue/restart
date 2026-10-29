@@ -125,80 +125,81 @@ def restart(repo, wait, home, *, batch=8, authority_dir=None, runtime=None,
             raise
     def guard_runtime():
         if runtime is not None:
-            try:
-                runtime_unchanged(directory, frozen)
-            except RuntimeError as error:
-                module.log_repair_refusal(home / "src/fabrig/notes/queue.jsonl", repair, error)
-                raise
+            runtime_unchanged(directory, frozen)
 
-    layout = selected_authority.Layout(authority_dir, home=home)
-    with layout.restart_lock():
-        if command(["git", "rev-parse", "--show-toplevel"], repo) != str(repo):
-            raise RuntimeError("--repo must name the checkout root")
-        pid = queue_pid(repo)
-        process_fd = None
-        if pid is not None:
-            try:
-                process_fd = os.pidfd_open(pid)
-            except ProcessLookupError:
-                pass
-        stop = home / "src/fabrig/queue.stop"
-        selected_authority.durable.publish(stop, b"", private_parent=False)
-        print(f"waiting up to {wait:g}s for mq run pid {pid}; stop file {stop}", flush=True)
-        if process_fd is not None:
-            try:
-                if not select.select([process_fd], [], [], wait)[0]:
-                    raise RuntimeError(f"timed out waiting for mq run pid {pid}; stop file retained")
-            finally:
-                os.close(process_fd)
-        # Never hold main authority while asking the existing writer to drain.
-        # A competing direct writer may win this acquisition: then refuse safely.
-        with layout.acquire() as lease:
-            layout.legacy_guard(repo)
-            guard_runtime()
-            with selected_authority.checkout_lock(repo) as checkout:
-                inherited = (lease.fd, checkout.fd)
-                command(["git", "fetch", "origin"], repo, pass_fds=inherited)
-                command(["git", "switch", "--detach", "origin/main"], repo, pass_fds=inherited)
-                commit = command(["git", "rev-parse", "HEAD"], repo, pass_fds=inherited)
-            output = home / "src/fabrig/notes/queue.out"
-            output.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-            read_fd, write_fd = os.pipe()
-            try:
-                with output.open("a") as log:
-                    os.chmod(output, 0o600)
-                    script = str(directory / "mq") if runtime is not None else "tools/queue/mq"
-                    argv = ["python3", "-B", "-u", script, "run", "--repo", str(repo),
-                            "--authority-dir", str(layout.root), "--authority-fd", str(lease.fd),
-                            "--startup-fd", str(write_fd)]
-                    if batch != 8 or repair is not None:
-                        argv.extend(["--batch", str(batch)])
-                    if repair is not None:
-                        argv.extend(["--repair-ready", repair["name"], "--repair-tip", repair["tip"],
-                                     "--repair-reason", repair["reason"]])
+    try:
+        layout = selected_authority.Layout(authority_dir, home=home)
+        with layout.restart_lock():
+            if command(["git", "rev-parse", "--show-toplevel"], repo) != str(repo):
+                raise RuntimeError("--repo must name the checkout root")
+            pid = queue_pid(repo)
+            process_fd = None
+            if pid is not None:
+                try:
+                    process_fd = os.pidfd_open(pid)
+                except ProcessLookupError:
+                    pass
+            stop = home / "src/fabrig/queue.stop"
+            selected_authority.durable.publish(stop, b"", private_parent=False)
+            print(f"waiting up to {wait:g}s for mq run pid {pid}; stop file {stop}", flush=True)
+            if process_fd is not None:
+                try:
+                    if not select.select([process_fd], [], [], wait)[0]:
+                        raise RuntimeError(f"timed out waiting for mq run pid {pid}; stop file retained")
+                finally:
+                    os.close(process_fd)
+            # Never hold main authority while asking the existing writer to drain.
+            # A competing direct writer may win this acquisition: then refuse safely.
+            with layout.acquire() as lease:
+                layout.legacy_guard(repo)
+                guard_runtime()
+                with selected_authority.checkout_lock(repo) as checkout:
+                    inherited = (lease.fd, checkout.fd)
+                    command(["git", "fetch", "origin"], repo, pass_fds=inherited)
+                    command(["git", "switch", "--detach", "origin/main"], repo, pass_fds=inherited)
+                    commit = command(["git", "rev-parse", "HEAD"], repo, pass_fds=inherited)
+                output = home / "src/fabrig/notes/queue.out"
+                output.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+                read_fd, write_fd = os.pipe()
+                try:
+                    with output.open("a") as log:
+                        os.chmod(output, 0o600)
+                        script = str(directory / "mq") if runtime is not None else "tools/queue/mq"
+                        argv = ["python3", "-B", "-u", script, "run", "--repo", str(repo),
+                                "--authority-dir", str(layout.root), "--authority-fd", str(lease.fd),
+                                "--startup-fd", str(write_fd)]
+                        if batch != 8 or repair is not None:
+                            argv.extend(["--batch", str(batch)])
+                        if repair is not None:
+                            argv.extend(["--repair-ready", repair["name"], "--repair-tip", repair["tip"],
+                                         "--repair-reason", repair["reason"]])
+                        try:
+                            guard_runtime()
+                            stop.unlink()
+                            selected_authority.durable.sync_directory(stop.parent)
+                            child = subprocess.Popen(argv, cwd=repo, stdin=subprocess.DEVNULL,
+                                stdout=log, stderr=log, start_new_session=True,
+                                pass_fds=(lease.fd, write_fd))
+                        except BaseException:
+                            selected_authority.durable.publish(stop, b"", private_parent=False)
+                            raise
+                    os.close(write_fd)
+                    write_fd = None
                     try:
-                        guard_runtime()
-                        stop.unlink()
-                        selected_authority.durable.sync_directory(stop.parent)
-                        child = subprocess.Popen(argv, cwd=repo, stdin=subprocess.DEVNULL,
-                            stdout=log, stderr=log, start_new_session=True,
-                            pass_fds=(lease.fd, write_fd))
+                        await_start(child, read_fd, output)
                     except BaseException:
                         selected_authority.durable.publish(stop, b"", private_parent=False)
                         raise
-                os.close(write_fd)
-                write_fd = None
-                try:
-                    await_start(child, read_fd, output)
-                except BaseException:
-                    selected_authority.durable.publish(stop, b"", private_parent=False)
-                    raise
-            finally:
-                os.close(read_fd)
-                if write_fd is not None:
-                    os.close(write_fd)
-            # Close our duplicate, never LOCK_UN the child's open description.
-            print(f"mq run pid {child.pid}, main {commit}; output {output}")
+                finally:
+                    os.close(read_fd)
+                    if write_fd is not None:
+                        os.close(write_fd)
+                # Close our duplicate, never LOCK_UN the child's open description.
+                print(f"mq run pid {child.pid}, main {commit}; output {output}")
+    except BaseException as error:
+        if runtime is not None or repair is not None:
+            module.log_repair_refusal(home / "src/fabrig/notes/queue.jsonl", repair, error)
+        raise
 
 
 def seconds(value):
