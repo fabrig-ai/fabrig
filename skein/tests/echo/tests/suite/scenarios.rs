@@ -9,14 +9,10 @@ use skein_echo_world::scenarios::{
     EchoWorld, backpressure, busy, clients, clients_with_memory, closes, half_close, idle, shutdown, shutdown_abort,
     shutdown_line, too_long, worst_with_memory,
 };
-use skein_heap::Counting;
 use skein_sim::Config;
 use skein_world::{Memory, Outcome};
 
 use skein_echo_world::proc::Proc;
-
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 const CALM: [u64; 3] = [1, 2, 3];
 const CHAOS: [u64; 3] = [4, 5, 6];
@@ -252,7 +248,7 @@ fn a_seed_replays_to_the_same_digests_after_every_iteration() {
     assert!(digests.len() > 1, "sessions coming and going change the echo's state");
 }
 
-#[path = "../../../examples/echo/service/src/io_stage.rs"]
+#[path = "../../../../examples/echo/service/src/io_stage.rs"]
 mod io_stage;
 
 #[test]

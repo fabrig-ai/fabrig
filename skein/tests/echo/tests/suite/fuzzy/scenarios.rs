@@ -8,11 +8,7 @@ use std::collections::BTreeSet;
 
 use skein_echo_world::census::{FAULTS, OUTCOMES, faults, outcomes};
 use skein_echo_world::scenarios::SCENARIOS;
-use skein_heap::Counting;
 use skein_sim::Config;
-
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 /// Seeds per scenario, calm and chaotic.
 const SEEDS: u64 = 300;
