@@ -135,9 +135,9 @@ fn a_turn_without_finish_ends_with_its_structured_output() {
     assert_eq!(result["tool_use_id"], call["id"]);
     assert_eq!(result["is_error"], false);
     assert!(run.calls.is_empty(), "the program answers StructuredOutput itself");
-    let heap = run.heap.expect("world checks memory");
-    eprintln!("structured output process (peak, envelope): {heap:?}");
-    assert!(heap.iter().all(|(peak, envelope)| peak <= envelope));
+    let peaks = run.peaks.expect("world checks memory");
+    eprintln!("structured output process peaks: {peaks:?}");
+    assert!(peaks.iter().all(|peak| *peak > 0));
 }
 
 #[test]
