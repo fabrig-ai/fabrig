@@ -72,7 +72,7 @@ impl World {
         self.referee.before(&event);
         self.trace.log(self.now, format!("in {event:?}"));
         let env = Env { now: self.now, wall: Wall::EPOCH, limits: self.limits };
-        let mut out = Queue::with_capacity(views::max_out(&self.limits));
+        let mut out = Queue::uncapped();
         views::step(&mut self.domain, &env, event, &mut out);
         let mut requests = Vec::new();
         while let Some(request) = out.pop() {
