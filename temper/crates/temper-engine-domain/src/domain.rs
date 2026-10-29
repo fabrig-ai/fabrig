@@ -15,7 +15,6 @@ use jig_domain_core::Core;
 use jig_domain_fleet as fleet;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
-use jig_domain_views as views;
 use skein_lib::{Env, Id, List, Map, Queue, ReplyTo, Slab, Time, Token, Wall};
 use temper_engine_domain_calendar as calendar;
 use temper_engine_domain_forge as forge;
@@ -565,16 +564,6 @@ impl Domain {
     pub const fn facts_lost(&self) -> u64 {
         self.facts_lost
     }
-}
-
-/// Retiring output estimate retained for callers while their reservations go.
-/// The root's scratch and output routing no longer reserve this room.
-#[must_use]
-/// The views' share is fixed by [`crate::limits::VIEWS`].
-pub const fn max_out(limits: &Limits) -> u32 {
-    let viewed = views::max_out(&crate::limits::VIEWS).saturating_add(4);
-    let stopped = limits.forge.entries.saturating_add(4);
-    if viewed > stopped { viewed } else { stopped }
 }
 
 pub(crate) fn internal(number: u64) -> ReplyTo {

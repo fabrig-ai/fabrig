@@ -36,7 +36,7 @@ pub use store::{
 pub use admission::{completes, try_step};
 pub use boundary::Request as Output;
 pub use boundary::*;
-pub use domain::{Domain, Refused, fire, max_out, refused, release, step};
+pub use domain::{Domain, Refused, fire, refused, release, step};
 pub use jig_domain_core::{Charter, Delegate, Dependency, Model, ProcedureStep, RunCharter, RunPolicy, StepEnd};
 pub use limits::{
     BriefBudgets, BriefLimits, FACTS, Limits, TRANSCRIPT_TAIL_BYTES, VIEWS, WATCHES_PER_STREAM, core_limits,
