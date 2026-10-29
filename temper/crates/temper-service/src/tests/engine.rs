@@ -706,13 +706,12 @@ fn a_root_productive_past_one_quantum_lets_a_waiting_answer_in() {
     const INPUTS: u32 = 13;
     let mut service = fixtures::ready();
     let engine = service.engine.as_mut().expect("engine");
-    // Leave enough client staging room that only the scheduling quantum yields.
+    // The client staging queues leave the scheduling quantum as the yield point.
     let settings = fixtures::engine();
     engine.clients = crate::clients::Clients::new(
         &settings.jig,
         &settings.clients,
         &fixtures::seeds(),
-        4096,
         &settings.limits.root.journal,
         None,
         &[],

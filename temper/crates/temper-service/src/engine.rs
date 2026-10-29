@@ -39,7 +39,6 @@ pub(crate) struct Engine {
     pub(crate) ready: bool,
     settled_revision: Option<u64>,
     aborted: Option<()>,
-    max_out: u32,
     #[cfg(test)]
     pub(crate) release_trace: Option<ReleaseTrace>,
 }
@@ -125,7 +124,6 @@ impl Engine {
         let forge_records = crate::forge::records::Loader::new(&children.limits, &children.workers.forges);
         let Children { accounts, workers, mut clients, demo, forge, setup, notes, limits: own } = children;
         clients.query_bytes = own.routes.query_bytes;
-        let max_out = root::max_out(limits);
         let credentials = values.identities.numbers();
         let mut domain = match root::Domain::new(config, limits) {
             Ok(domain) => domain,
@@ -154,7 +152,7 @@ impl Engine {
             facts: 0,
             values,
             events: Queue::uncapped(),
-            requests: Queue::with_capacity(max_out),
+            requests: Queue::uncapped(),
             end: None,
             listening: Queue::with_capacity(3),
             notes,
@@ -167,19 +165,12 @@ impl Engine {
             ready: true,
             settled_revision: None,
             aborted: None,
-            max_out,
             #[cfg(test)]
             release_trace: None,
         })
     }
     pub(crate) fn room(&self) -> bool {
-        self.workers.batch_room(self.max_out)
-            && self.clients.room(self.max_out)
-            && self.clients.commit_room()
-            && match &self.accounts {
-                Some(accounts) => accounts.batch_room(self.max_out),
-                None => true,
-            }
+        self.clients.commit_room()
     }
     fn release_pending(&self) -> bool {
         self.end.is_none() && (self.ready || self.settled_revision != Some(self.domain.revision()))
@@ -356,9 +347,7 @@ pub(crate) fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
     );
     clients_pass(engine);
     for _ in 0..engine.clients.early.len() {
-        // A not-ready key returns its carried value before replying.
-        let replies = if open { 1 } else { 2 };
-        if !engine.clients.room(replies) || engine.events.room() == 0 {
+        if engine.events.room() == 0 {
             break;
         }
         let event = engine.clients.early.pop().expect("staged client input");
@@ -462,6 +451,8 @@ pub(crate) fn release(engine: &mut Engine) {
         if !engine.room() || engine.end.is_some() {
             break;
         }
+        // Route every request from the previous batch before releasing again.
+        assert!(engine.requests.is_empty(), "release follows routing of the previous batch");
         #[cfg(test)]
         if let Some(trace) = &mut engine.release_trace {
             trace.cycles = trace.cycles.checked_add(1).expect("test release cycles");

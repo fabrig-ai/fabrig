@@ -70,13 +70,8 @@ pub(crate) fn world_settings(
         .unwrap();
     config.jig.providers = providers.into_boxed();
     config.jig.clients.provider = provider;
-    let room = temper_engine_domain::max_out(&service.engine.as_ref().unwrap().env.limits)
-        .checked_add(1)
-        .unwrap()
-        .checked_mul(jig_protocol_engine_clients::MAX_OUT_DOWN)
-        .unwrap();
     let mut clients =
-        Clients::new(&config.jig, &config.clients, &fixtures::seeds(), room, &config.limits.root.journal, None, files)
+        Clients::new(&config.jig, &config.clients, &fixtures::seeds(), &config.limits.root.journal, None, files)
             .unwrap();
     let mut limits = config.limits.sign_in;
     limits.pending = pending;

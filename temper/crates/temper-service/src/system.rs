@@ -195,8 +195,7 @@ impl Service {
         };
         let operations =
             startup_operations(&io_limits, queue, worker_operations).ok_or(start_problem(b"limits", What::Bound))?;
-        let room = max.checked_mul(6).expect("account routing room");
-        let accounts = accounts_driver(&settings, seeds, accounts, room, &store_limits.secrets)?;
+        let accounts = accounts_driver(&settings, seeds, accounts, &store_limits.secrets)?;
         let mut values =
             values::Values::new(settings.jig.limits.driver.accounts, values::credential_bytes(&settings.jig));
         let wire = translate::limits(&settings.limits).ok_or(start_problem(b"limits", What::Bound))?;
@@ -208,16 +207,10 @@ impl Service {
                 .push((project.number, project.policy.period_spend))
                 .or(Err(start_problem(b"projects", What::Bound)))?;
         }
-        let client_room = max
-            .checked_add(1)
-            .expect("client pass headroom")
-            .checked_mul(jig_protocol_engine_clients::MAX_OUT_DOWN)
-            .expect("client routing room");
         let mut clients = clients::Clients::new(
             &settings.jig,
             &settings.clients,
             seeds,
-            client_room,
             &limits.journal,
             settings.sign_in.as_ref(),
             settings.files.entries.as_slice(),
@@ -237,7 +230,7 @@ impl Service {
             Some(demo) => Some(demo.domain(&settings.forges, settings.limits.setup.deadline)),
             None => None,
         };
-        let workers = workers::Workers::configured(&mut settings, seeds.deployment, max)?;
+        let workers = workers::Workers::configured(&mut settings, seeds.deployment)?;
         let config = temper_engine_domain::Config {
             period_span: crate::stock::PERIOD_SPAN,
             core: jig_protocol_config::core(&settings.jig, seeds.deployment, seeds.seed),
@@ -722,13 +715,12 @@ fn accounts_driver(
     settings: &settings::Engine,
     seeds: &settings::Seeds,
     runtime: Option<AccountsRuntime>,
-    room: u32,
     secrets: &skein_kv::Limits,
 ) -> Result<Option<accounts::Accounts>, Problems> {
     if settings.jig.llm.providers.is_empty() {
         return Ok(None);
     }
-    Ok(Some(accounts::Accounts::new(ACCOUNT_APPLICATION.into(), &settings.jig, seeds, runtime, room, secrets)?))
+    Ok(Some(accounts::Accounts::new(ACCOUNT_APPLICATION.into(), &settings.jig, seeds, runtime, secrets)?))
 }
 /// Drive store terminals, account events, one root input and released outputs.
 pub fn iterate(service: &mut Service, now: Time, wall: Wall) {
@@ -861,11 +853,6 @@ fn held_listener_closed(service: &Service, event: &io::Event) -> bool {
 }
 fn route_events(service: &mut Service) {
     for _ in 0..service.told.len() {
-        if let Some(engine) = &service.engine
-            && (!engine.workers.room() || !engine.clients.room(1))
-        {
-            break;
-        }
         if let Some(worker) = &service.worker
             && !worker.room()
         {

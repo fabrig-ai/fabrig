@@ -206,7 +206,7 @@ impl Store {
             temper_protocol_store::bounds(&application.forge, application.tasks.spec_bytes)
                 .expect("checked family bounds"),
         );
-        let mut drivers = [driver(limits, room), driver(limits, room), driver(limits, room)];
+        let mut drivers = [driver(limits), driver(limits), driver(limits)];
         let [store, secrets, transcripts] = &mut drivers;
         let seeded = protocol::seed(
             [&mut store.io, &mut secrets.io, &mut transcripts.io],
@@ -610,10 +610,10 @@ fn check_read_page(limits: &protocol::Limits) -> Option<()> {
     }
     Some(())
 }
-fn driver(limits: &protocol::Limits, capacity: u32) -> Driver {
+fn driver(limits: &protocol::Limits) -> Driver {
     Driver {
         io: FileIo::with_whole_limit(handles(limits), max_read(limits), 32, max_whole(limits), limits.store.deadline),
-        above: Queue::with_capacity(capacity),
+        above: Queue::uncapped(),
         handles: Map::with_capacity(handles(limits)),
     }
 }
