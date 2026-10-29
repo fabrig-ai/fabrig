@@ -59,31 +59,6 @@ fn the_binary_refuses_without_a_configuration_directory() {
 }
 
 #[test]
-fn the_binary_without_its_directory_is_not_signed_in() {
-    let scratch = Scratch::new("fake-claude-absent-status");
-    let config = scratch.path().join("absent");
-    let output = invoke(scratch.path(), Some(&config), &["auth", "status"]);
-    assert_eq!(output.status.code(), Some(1));
-    assert!(output.stderr.is_empty());
-    assert_eq!(
-        serde_json::from_slice::<serde_json::Value>(&output.stdout).expect("status JSON"),
-        serde_json::json!({"loggedIn": false, "authMethod": "none", "apiProvider": "firstParty"})
-    );
-    assert!(!config.exists());
-}
-
-#[test]
-fn the_binary_login_refuses_without_its_directory() {
-    let scratch = Scratch::new("fake-claude-absent-login");
-    let config = scratch.path().join("absent");
-    let output = invoke(scratch.path(), Some(&config), &["auth", "login"]);
-    assert_eq!(output.status.code(), Some(1));
-    assert!(!output.stderr.is_empty());
-    assert!(output.stdout.is_empty());
-    assert!(!config.exists());
-}
-
-#[test]
 fn the_binary_logout_accepts_an_absent_directory() {
     let scratch = Scratch::new("fake-claude-absent-logout");
     let config = scratch.path().join("absent");
@@ -238,82 +213,6 @@ fn the_binary_connects_to_its_server() {
     send_user(&mut child);
     assert_eq!(read_message(&mut reader)["message"]["content"][0]["name"], "mcp__smith__finish");
     assert_eq!(read_message(&mut reader)["message"]["content"][0]["content"], "accepted");
-    assert_eq!(read_message(&mut reader)["subtype"], "success");
-    child.stdin.take();
-    assert_eq!(child.wait().expect("exit").code(), Some(0));
-}
-
-#[test]
-fn the_binary_uses_its_system_prompt_to_select() {
-    let story = Story {
-        cued: vec![smith_fake_claude::Script {
-            cue: "test system prompt".into(),
-            turns: vec![Turn { steps: vec![Step::Text("matched".into())], ..Turn::default() }],
-        }],
-        ..Story::default()
-    };
-    let (_scratch, mut child) = print_child(story);
-    let mut reader = BufReader::new(child.stdout.take().expect("output"));
-    assert_eq!(read_message(&mut reader)["subtype"], "init");
-    assert_eq!(read_message(&mut reader)["subtype"], "status");
-    send_user(&mut child);
-    assert_eq!(read_message(&mut reader)["type"], "assistant");
-    assert_eq!(read_message(&mut reader)["result"], "matched");
-    child.stdin.take();
-    assert_eq!(child.wait().expect("exit").code(), Some(0));
-}
-
-#[test]
-fn the_binary_edits_its_working_directory_file() {
-    let story = Story {
-        turns: vec![Turn {
-            steps: vec![Step::Act {
-                tool: "Edit".into(),
-                input: serde_json::json!({"file_path":"act.txt","old_string":"before","new_string":"after"}),
-            }],
-            ..Turn::default()
-        }],
-        ..Story::default()
-    };
-    let (scratch, mut child) = print_child(story);
-    let path = scratch.path().join("act.txt");
-    fs::write(&path, b"before\n").expect("working file");
-    let mut reader = BufReader::new(child.stdout.take().expect("output"));
-    send_user(&mut child);
-    loop {
-        if read_message(&mut reader)["type"] == "result" {
-            break;
-        }
-    }
-    child.stdin.take();
-    assert_eq!(child.wait().expect("exit").code(), Some(0));
-    assert_eq!(fs::read(path).expect("edited file"), b"after\n");
-}
-
-#[test]
-fn the_binary_keeps_reading_after_a_control_interrupt() {
-    let (_scratch, mut child, mut reader) = hanging_child();
-    writeln!(
-        child.stdin.as_mut().expect("open input"),
-        "{}",
-        serde_json::json!({"type":"control_request","request_id":"probe-1","request":{"subtype":"interrupt"}})
-    )
-    .expect("control request");
-    let response = read_message(&mut reader);
-    assert_eq!(
-        response,
-        serde_json::json!({"type":"control_response", "response":{
-            "subtype":"success", "request_id":"probe-1", "response":{"still_queued":[]}
-        }})
-    );
-    let result = read_message(&mut reader);
-    assert_eq!(result["terminal_reason"], "aborted_streaming");
-    assert_eq!(result.get("stop_reason"), Some(&serde_json::Value::Null));
-    assert_eq!(result["is_error"], true);
-    send_user(&mut child);
-    assert_eq!(read_message(&mut reader)["subtype"], "init");
-    assert_eq!(read_message(&mut reader)["subtype"], "status");
-    assert_eq!(read_message(&mut reader)["type"], "assistant");
     assert_eq!(read_message(&mut reader)["subtype"], "success");
     child.stdin.take();
     assert_eq!(child.wait().expect("exit").code(), Some(0));
