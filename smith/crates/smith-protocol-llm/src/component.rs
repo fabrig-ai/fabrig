@@ -100,7 +100,7 @@ fn clients_valid(limits: &ComponentLimits, endpoints: &Endpoints) -> bool {
     for endpoint in endpoints.destinations() {
         let native = endpoint.limits;
         let maximum = limits.adapter.client;
-        let completion_fits = match crate::completion_worst_case(&native, limits.receiving.decoded_call_bytes) {
+        let completion_fits = match crate::completion_bound(&native, limits.receiving.decoded_call_bytes) {
             Some(bytes) => bytes <= limits.receiving.max_completion_bytes,
             None => false,
         };

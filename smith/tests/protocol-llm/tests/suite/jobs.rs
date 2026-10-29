@@ -26,7 +26,7 @@ fn world(configuration: wire::Configuration, job_input: &[u8]) -> World {
     client.request = 32768;
     client.http.request = 32768;
     settings.limits.session.completion_bytes =
-        adapter::completion_worst_case(&client, settings.limits.decoded_call_bytes).expect("native receiving");
+        adapter::completion_bound(&client, settings.limits.decoded_call_bytes).expect("native receiving");
     settings.limits.session.completion_blocks = client.output_items;
     settings.limits.session.failure_bytes = client.detail_bytes;
     let bounds = adapter::Limits {

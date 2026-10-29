@@ -51,7 +51,7 @@ pub use endpoints::{
 pub use failure::{cancelled, failed, refusal};
 pub use framing::prompt_allowance;
 pub use grants::{GrantError, Grants};
-pub use limits::{Limits, Receiving, completion_worst_case, render_worst_case, valid};
+pub use limits::{Limits, Receiving, completion_bound, render_bound, valid};
 pub use prompt::{prepare_prompt, prompt};
 pub use render::{CUT_MARKER_BYTES, render_outcome};
 pub use schema_costs::schema_costs;

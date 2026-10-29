@@ -72,7 +72,7 @@ fn input(configuration: &Configuration) -> Input {
         },
         application: Box::new([schema(ToolKind::Wait, b"wait")]),
         receiving: Receiving {
-            max_completion_bytes: adapter::completion_worst_case(&bounds.client, decoded_call_bytes)
+            max_completion_bytes: adapter::completion_bound(&bounds.client, decoded_call_bytes)
                 .expect("compatible full completion receiving allowance"),
             max_completion_blocks: bounds.client.output_items,
             decoded_call_bytes,

@@ -60,15 +60,17 @@ pub(crate) fn replay_limits(client: &client::Limits) -> Option<skein_llm::Docume
     })
 }
 
-/// Complete translated ownership for every completion admitted by the shared Client.
+/// Bounds the translated ownership of one completion admitted by the shared Client.
 /// Original text/IDs/arguments are under `answer_bytes`; reasoning shares one
 /// aggregate allowance, beside each block's metadata and durable header.
 /// Decoded ownership is one aggregate allowance, never multiplied per block.
 /// It must first cover one full fallback `Decoded` cell per possible output part.
 /// Returns None on overflow or an invalid shared-client configuration.
 #[must_use]
-pub fn completion_worst_case(client_limits: &client::Limits, decoded_call_bytes: u64) -> Option<u64> {
-    client::worst_case(client_limits)?;
+pub fn completion_bound(client_limits: &client::Limits, decoded_call_bytes: u64) -> Option<u64> {
+    if !client::valid(client_limits) {
+        return None;
+    }
     let parts = u64::from(client_limits.output_items);
     let decoded_cells = parts.checked_mul(u64::try_from(size_of::<llm::Decoded>()).ok()?)?;
     if decoded_call_bytes < decoded_cells {
@@ -95,7 +97,7 @@ pub fn valid(limits: &Limits, receiving: &Receiving) -> bool {
     if limits.rendered_result < crate::CUT_MARKER_BYTES {
         return false;
     }
-    let Some(completion) = completion_worst_case(&limits.client, receiving.decoded_call_bytes) else {
+    let Some(completion) = completion_bound(&limits.client, receiving.decoded_call_bytes) else {
         return false;
     };
     if completion > receiving.max_completion_bytes
@@ -114,13 +116,13 @@ pub fn valid(limits: &Limits, receiving: &Receiving) -> bool {
         && skein_llm::replay_bound(&replay).is_some()
 }
 
-/// Derive one result's rendering from the workspace caps and host/delegated text.
+/// Bounds one rendered result from the workspace caps and host/delegated text.
 /// Every invalid byte expands to four visible escape bytes; a read's every
 /// byte may be a line, with a ten-digit number, colon and space. Fixed room
 /// holds counts, separators, status words and the explicit omitted-byte marker.
 /// Contract: protocol/limits.md, section 3.4; protocol/llm.md, section 5.
 #[must_use]
-pub fn render_worst_case(tools: &smith_domain::tools::Limits, host_answer: u32, delegated_answer: u64) -> Option<u32> {
+pub fn render_bound(tools: &smith_domain::tools::Limits, host_answer: u32, delegated_answer: u64) -> Option<u32> {
     let read = u64::from(tools.tool_payload).checked_mul(16)?.checked_add(192)?;
     let listed = tools
         .list_bytes
@@ -146,8 +148,8 @@ pub fn render_worst_case(tools: &smith_domain::tools::Limits, host_answer: u32, 
         .max(host)
         .max(delegated_answer)
         .max(failure_path)
-        .max(crate::render::size_refusal_worst_case()?)
-        .max(crate::failure::job_problem_worst_case()?)
+        .max(crate::render::size_refusal_bound()?)
+        .max(crate::failure::job_problem_bound()?)
         .max(128);
     u32::try_from(largest.checked_add(u64::from(crate::render::CUT_MARKER_BYTES))?).ok()
 }

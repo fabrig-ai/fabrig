@@ -7,9 +7,9 @@ use smith_domain::{llm, run};
 pub use smith_protocol_llm::{
     Below, BelowEvent, Component, ComponentError, ComponentLimits, ConfiguredEndpoint, Context, EndpointError,
     EndpointOptions, Endpoints, Error, FromDomain, GrantError, Grants, IdentityProfile, Limits, Receiving,
-    ResolvedCall, Stated, ToDomain, ToolKind, ToolSchema, cancelled, completion, completion_worst_case,
+    ResolvedCall, Stated, ToDomain, ToolKind, ToolSchema, cancelled, completion, completion_bound,
     component_valid, decode, decode_deliver, decode_finish, deliver_schema, failed, finish_schema, prompt, refusal,
-    render_outcome, render_worst_case, schemas, schemas_for_contract, valid,
+    render_outcome, render_bound, schemas, schemas_for_contract, valid,
 };
 
 /// All owned input to one preparation. Caller credentials are consumed as a grant;

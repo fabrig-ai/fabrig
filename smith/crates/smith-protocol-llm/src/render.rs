@@ -588,9 +588,9 @@ fn size_refusal(what: tools::SizePart, size: u64, bound: u32, output: &mut Sink)
     }
 }
 
-// Measure the actual longest refusal at both integer maxima, using the same
-// words as live and resumed rendering. No independent word-cap constant.
-pub(crate) fn size_refusal_worst_case() -> Option<u64> {
+/// Bounds one rendered size refusal at both integer maxima, using the same
+/// words as live and resumed rendering.
+pub(crate) fn size_refusal_bound() -> Option<u64> {
     let mut largest = 0;
     for what in [
         tools::SizePart::File,

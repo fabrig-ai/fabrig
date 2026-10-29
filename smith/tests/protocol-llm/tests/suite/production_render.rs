@@ -22,7 +22,7 @@ fn a_refused_write_names_its_payload_bound_and_the_piece_then_edits_route() {
     let mut settings = Settings::calm(42020);
     settings.tools.tool_payload = 40_960;
     settings.tools.file_bytes = 1_048_576;
-    let maximum = adapter::render_worst_case(&settings.tools, 4096, 4096).expect("derived result bound");
+    let maximum = adapter::render_bound(&settings.tools, 4096, 4096).expect("derived result bound");
     let mut world = World::new(settings, fixture.checkout);
     let session = world.session(
         skein_lib::Time::ZERO,

@@ -80,7 +80,7 @@ pub fn derive(profile: &Profile, configuration: &Configuration) -> Result<servic
         )
         .ok_or(derived(Layer::Session, "decoded_call_bytes"))?;
     let completion =
-        llm::completion_worst_case(&client, decoded_call_bytes).ok_or(derived(Layer::Session, "completion_bytes"))?;
+        llm::completion_bound(&client, decoded_call_bytes).ok_or(derived(Layer::Session, "completion_bytes"))?;
     let domain = derive_domain(profile, configuration, &path, completion, decoded_call_bytes)?;
     client.history_items = domain
         .session
@@ -92,7 +92,7 @@ pub fn derive(profile: &Profile, configuration: &Configuration) -> Result<servic
     validate::window_first(profile, configuration, &domain.session)?;
     // The result bound holds whole capped outcomes; native outgoing text has
     // no receiving-string cap. Cutting remains a safeguard at this layer.
-    let rendered_result = llm::render_worst_case(
+    let rendered_result = llm::render_bound(
         &domain.session.tools,
         domain.run.host_reply_bytes.max(domain.run.message_bytes),
         domain.session.delegated_result_bytes,

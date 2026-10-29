@@ -86,7 +86,7 @@ fn observation_limits(limits: &adapter::Limits) -> ObservationLimits {
 
 fn bounds(messages: u32) -> Limits {
     let decoded_call_bytes = 32_768;
-    let completion_bytes = adapter::completion_worst_case(&wire_limits().client, decoded_call_bytes)
+    let completion_bytes = adapter::completion_bound(&wire_limits().client, decoded_call_bytes)
         .expect("explicit native fixture receiving ownership")
         .max(131_072);
     let mut limits = Limits {
@@ -752,7 +752,7 @@ impl Counted {
     fn with_window(limits: &Limits, window: u32, ceiling: u64) -> Self {
         let meter = Meter::new();
         meter.start();
-        let out = Queue::with_capacity(root::max_out(limits));
+        let out = Queue::uncapped();
         let domain = Domain::new(
             limits,
             root::Config {
