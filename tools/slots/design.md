@@ -56,15 +56,29 @@ slots to be inspected. Trimming does not touch caches or incremental state.
 
 ### 3.1 Ownership and inventory
 
-`hosts` lists a host followed by its slot numbers. Only configured pairs
-can be claimed or released. Owner and work description are nonempty text;
-quote a description containing spaces. Records hold owner, what, and an
-ISO 8601 UTC creation time. Claims use `O_CREAT|O_EXCL` with mode 0600;
+`hosts` lists `HOST N=OWNER ...`, one host per line; each slot's share is
+a post name such as `lead/jig`, or `pool`. Blank lines and `#` comments
+are ignored; malformed entries, duplicate pairs and empty owners fail.
+Only configured pairs can be claimed or released. Owner and work
+description are nonempty text; quote a description containing spaces.
+A claim may take its owner's share or a pool slot. Another owner's share
+requires that owner's agreement and `--lent-by SHARE_OWNER`; the value
+must equal the configured share owner. Refusal exits 1 and names the
+share owner and the lend option. Records hold owner, what, and an
+ISO 8601 UTC creation time, plus `lent_by` when supplied; records without
+it stay valid. Claims use `O_CREAT|O_EXCL` with mode 0600;
 an existing claim exits 1 and prints the holder. Release checks the owner
 and refuses another owner's claim. Missing claims also exit 1.
 
-List prints every configured pair, with `free` or the owner, description,
-UTC creation time, and elapsed age. All operations coordinate through a
+List prints every configured pair and its `[share]`, with `free` or the
+owner, description, UTC creation time, elapsed age and lender when present.
+`list --free OWNER` prints only free slots claimable without a lend,
+the owner's share first, then the pool, in inventory order within each;
+one `HOST N` per line, exit 0 even when empty.
+
+Run `claim` from PATH on hel8: `tools/install` links it to the dedicated
+main clone (`tools/codex-run/design.md, 6`), so its adjacent `hosts` comes
+from main rather than the caller's clone. All operations coordinate through a
 local advisory lock so readers and release cannot race a record's creation
 or replacement. This lock also lives under the claims directory. There is
 no expiry or automatic stealing: a holder releases its claim explicitly.

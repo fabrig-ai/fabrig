@@ -99,7 +99,7 @@ then switches it to detached `origin/main`. It refuses symlink checkouts,
 dirty checkouts, different origins and directories inside another checkout.
 The task's checkout and the agents repository are left in place.
 
-`tools/installed` lists `TOOL DIRECTORY`, currently `codex-run codex-run`.
+`tools/installed` lists `TOOL DIRECTORY`: `codex-run codex-run` and `claim slots`.
 The installer points `~/.local/bin/TOOL` at the corresponding executable in
 the dedicated clone, printing each link's old and new target. Existing
 non-symlink programs are refused. Dry-run prints proposed git commands and

@@ -7,7 +7,7 @@ Provisional, 2026-10-28. The machines' and the pipeline's facts every role works
 - **hel8 runs sessions and surveys, never builds:** the coordinator's and the leads' Claude sessions, their clones, and read-only Codex surveys. Builders (hetzner2, 3, 6, 7) build in slots; hetzner8 is the merge queue's alone.
 - **A lead** is a Claude session on hel8 named `lead/<area>`, started from a directory Claude trusts (under `~/src/rust/`), with its scratch and clones in `~/src/fabrig/leads/<area>/`: `repo/` (read main, mark branches ready) and `survey/` (surveys).
 - **Implementers are Codex runs** on a builder, one task in one slot, launched by `codex-run`; their end is posted to whoever launched them.
-- **Slots are for builds:** a fixed share per lead, the rest a free pool claimed with `tools/slots/claim`; every task trims its slot first (`tools/slots/trim`).
+- **Slots are for builds:** a fixed share per lead, the rest a free pool claimed with `claim` from PATH on hel8; every task trims its slot first (`tools/slots/trim`).
 - **Surveys take no slot:** a read-only run builds nothing and runs on hel8 in a survey clone moved to the commit it reads.
 - **The queue restarts only through `tools/queue/restart`,** in a login shell on hetzner8.
 
@@ -20,7 +20,8 @@ Provisional, 2026-10-28. The machines' and the pipeline's facts every role works
 
 ## 3. Slots
 
-- `tools/slots/claim list` shows every slot and its holder; `claim HOST N OWNER WHAT` before a task goes to a pool slot, `release HOST N OWNER` when its report is in.
+- Run installed `claim` from PATH on hel8, not from a lead's clone: it reads main's `tools/slots/hosts`. `claim list` shows shares and holders; `claim list --free OWNER` lists free slots of that share, then the pool.
+- `claim claim HOST N OWNER WHAT` before a task takes a slot, `claim release HOST N OWNER` when its report is in. Another lead's share needs its owner's agreement and `--lent-by SHARE_OWNER`; a free slot in that share is not pool space.
 - A slot's target stays warm across tasks: a task switches the slot's checkout in place, never a fresh clone. Stale test executables fill a builder's disk (one reached zero bytes on 10-28, and heavy then fails its own bookkeeping), so the task's first step is `python3 -I tools/slots/trim <slot>` (or `ssh HOST 'bash -lc "python3 -I - SLOT"' < tools/slots/trim` from hel8).
 
 ## 4. Surveys
