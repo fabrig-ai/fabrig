@@ -202,6 +202,12 @@ impl Component {
         })
     }
 
+    /// The number of observations waiting for the owner to drain.
+    #[must_use]
+    pub fn pending_measures(&self) -> u32 {
+        self.measures.len()
+    }
+
     /// The oldest content or transport observation; drained before routing terminals.
     pub fn pop_measure(&mut self) -> Option<crate::Measure> {
         self.measures.pop()
