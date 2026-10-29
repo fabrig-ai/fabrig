@@ -35,14 +35,14 @@ mod tests {
         let value = full_report();
         assert_eq!(
             value.measure(),
-            u32::try_from(Report::worst_case_bytes(&CEILINGS).expect("wire bound")).expect("u32 ceiling")
+            u32::try_from(Report::encoded_bound(&CEILINGS).expect("wire bound")).expect("u32 ceiling")
         );
         let mut writer = Writer::new(usize::try_from(value.measure()).expect("u32 fits usize"));
         value.encode(&mut writer).expect("measured room");
         let wire = writer.finish();
         drop(value);
 
-        let bound = Report::worst_case_heap(&CEILINGS).expect("heap bound");
+        let bound = Report::decoded_bound(&CEILINGS).expect("heap bound");
         let meter = Meter::new();
         meter.start();
         let decoded = Report::decode(&CEILINGS, &mut Reader::new(&wire)).expect("full record");
@@ -187,7 +187,7 @@ mod tests {
         let schema = skein_codec::schema::parse(include_bytes!("../../schema/every-v1.schema")).expect("schema");
         let root = schema.find(b"Every").expect("root");
         let full = full_every();
-        assert_eq!(u64::from(full.measure()), Every::worst_case_bytes(&CEILINGS).expect("wire bound"));
+        assert_eq!(u64::from(full.measure()), Every::encoded_bound(&CEILINGS).expect("wire bound"));
         let mut writer = Writer::new(usize::try_from(full.measure()).expect("wire length"));
         full.encode(&mut writer).expect("measured room");
         let wire = writer.finish();

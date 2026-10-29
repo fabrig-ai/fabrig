@@ -174,8 +174,5 @@ fn emit_aliases(names: Names, associated: bool, out: &mut String) {
         out.push_str(&format!(
             "\n{indent}#[must_use]\n{indent}pub fn {old}(limits: &Limits) -> Option<u64> {{ {scope}{new}(limits) }}\n"
         ));
-        if associated {
-            out.push_str(&format!("\n{indent}pub(crate) fn {old}_within(limits: &Limits) -> Option<u64> {{ Self::{new}_within(limits) }}\n"));
-        }
     }
 }

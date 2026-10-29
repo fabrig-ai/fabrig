@@ -181,3 +181,18 @@ fn default_generation_is_the_explicit_compatibility_choice() {
     let schema = parse("family tiny 1\nrecord Value { payload: bytes 64 }").expect("valid family");
     assert_eq!(generate(&schema), generate_named(&schema, Names::WorstCase));
 }
+
+#[test]
+fn compatibility_aliases_cover_only_public_bounds() {
+    let schema =
+        parse("family tiny 1\nrecord Value { payload: bytes 64 }\nenum Choice { value: Value }").expect("valid family");
+    let output = generate_named(&schema, Names::Both);
+    for (old, new) in
+        [(Names::WorstCase.encoded(), Names::Bounds.encoded()), (Names::WorstCase.decoded(), Names::Bounds.decoded())]
+    {
+        assert_eq!(output.rust.matches(&format!("pub fn {old}(")).count(), 3, "two types and the family");
+        assert!(!output.rust.contains(&format!("fn {old}_within(")));
+        assert_eq!(output.rust.matches(&format!("{{ Self::{new}(limits) }}")).count(), 2, "type aliases delegate");
+        assert!(output.rust.contains(&format!("{{ {new}(limits) }}")), "family alias delegates");
+    }
+}
