@@ -114,11 +114,8 @@ fn a_stock_goal_cannot_modify_but_its_change_producer_can() {
     assert!(!charter.grants.tools.modify);
     assert!(charter.grants.deliver.is_none());
 
-    let change = delegated(
-        &mut world,
-        &work,
-        engine::Tool::Change { words: b"Small fix".as_slice().into(), repository: None },
-    );
+    let change =
+        delegated(&mut world, &work, engine::Tool::Change { words: b"Small fix".as_slice().into(), repository: None });
     advance(&mut world);
     let producer = admitted(&world, next_child(&world, change, change));
     assert_eq!(producer.charter, 2);
