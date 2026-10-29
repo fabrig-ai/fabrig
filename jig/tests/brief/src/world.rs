@@ -1,8 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
-use jig_domain_brief::{
-    GatherDomain, GatherEvent, GatherPlaced, GatherRequest, Limits, gather_fire, gather_max_out, gather_step,
-};
+use jig_domain_brief::{GatherDomain, GatherEvent, GatherPlaced, GatherRequest, Limits, gather_fire, gather_step};
 use skein_lib::{Env, Queue, Time, Token, Wall};
 
 pub const LIMITS: Limits = Limits { briefs: 3, sections: 5, read_bytes: 128, brief_bytes: 192 };
@@ -24,7 +22,7 @@ impl World {
         Self {
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             domain: GatherDomain::new(&limits),
-            out: Queue::with_capacity(gather_max_out(&limits)),
+            out: Queue::uncapped(),
             held: BTreeMap::new(),
             paused: BTreeSet::new(),
             closed: BTreeSet::new(),
