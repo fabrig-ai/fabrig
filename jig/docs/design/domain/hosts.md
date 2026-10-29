@@ -236,7 +236,11 @@ keeps nothing durable (programming-model.md, 7.1).
   from passing it; a held process record also fences later records of
   that agent. The channel world holds the assignment order under load
   in `jig-channel-world`,
-  `worker_orders::link_records_follow_the_assignment_they_name_under_load`.
+  `worker_orders::link_records_follow_the_assignment_they_name_under_load`,
+  and the process fence in
+  `worker_orders::a_held_call_never_acts_after_its_run_ended`; the
+  reference service holds the fence in `jig-test-service`,
+  `worker::admission_tests::a_process_record_stops_the_walk_behind_its_held_call`.
 - **A run's end follows its last hand-out.**
   `payload_handouts_complete`, the absence of a pending hand-out for the
   run (`!hand_out_pending`), requires the final turn and result to
