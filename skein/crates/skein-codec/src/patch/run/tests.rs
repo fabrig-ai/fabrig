@@ -719,7 +719,7 @@ fn value_counts_lists_and_names_each_parent() {
 #[test]
 fn heap_arithmetic_refuses_overflow() {
     assert_eq!(
-        Patcher::worst_case_heap(Capacity {
+        Patcher::workspace_bound(Capacity {
             versions: u32::MAX,
             patches: u32::MAX,
             text: u32::MAX,
@@ -898,7 +898,7 @@ const SMALL: Capacity = Capacity { nodes: 8, bytes: 64, ..LARGE };
 
 fn run_price(nodes: u32, bytes: u32) -> u64 {
     use skein_lib::{Buffer, Stack};
-    Value::worst_case_heap(nodes)
+    Value::decoder_bound(nodes)
         .expect("entries")
         .checked_add(Buffer::worst_case(bytes).expect("output"))
         .expect("run fits u64")
@@ -915,11 +915,11 @@ fn eager_price(capacity: Capacity) -> u64 {
         u64::from(capacity.bytes).checked_mul(2).expect("records"),
         List::<schema::Schema>::worst_case(capacity.versions).expect("schemas"),
         List::<crate::patch::plan::Plan>::worst_case(capacity.patches).expect("plans"),
-        schema::worst_case_heap(capacity.text)
+        schema::schema_bound(capacity.text)
             .expect("schema scratch")
             .checked_mul(u64::from(capacity.versions))
             .expect("schemas"),
-        crate::patch::plan::worst_case_heap(capacity.text)
+        crate::patch::plan::plan_bound(capacity.text)
             .expect("plan scratch")
             .checked_mul(u64::from(capacity.patches.max(1)))
             .expect("plans"),
@@ -934,7 +934,7 @@ fn growth_adds_at_most_a_sixteenth_to_the_price() {
     for capacity in [LARGE, NODE_CEILING, BYTE_CEILING, CAPACITY, STORE, SMALL] {
         let eager = eager_price(capacity);
         let run = run_price(capacity.nodes, capacity.bytes);
-        let growing = Patcher::worst_case_heap(capacity).expect("price");
+        let growing = Patcher::workspace_bound(capacity).expect("price");
         assert!(eager <= growing);
         assert!(growing <= eager + run.div_ceil(16));
     }
@@ -942,9 +942,9 @@ fn growth_adds_at_most_a_sixteenth_to_the_price() {
 
 fn run_held(patcher: &Patcher) -> u64 {
     use skein_lib::{Buffer, List};
-    Value::worst_case_heap(patcher.old.value.room())
+    Value::decoder_bound(patcher.old.value.room())
         .expect("old")
-        .checked_add(Value::worst_case_heap(patcher.build.reserve.room()).expect("reserved entries"))
+        .checked_add(Value::decoder_bound(patcher.build.reserve.room()).expect("reserved entries"))
         .expect("held fits u64")
         .checked_add(Buffer::worst_case(patcher.build.out.capacity()).expect("output"))
         .expect("held fits u64")

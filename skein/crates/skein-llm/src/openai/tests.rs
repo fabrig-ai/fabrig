@@ -7,8 +7,8 @@
 #![expect(clippy::disallowed_macros, reason = "ordinary tests format synthetic provider documents")]
 use crate::openai::{
     DecodeError, Event, Failure, Input, Item, Json, Limits, Output, Part, ProviderError, RateLimit, Request, Role,
-    Stop, StreamDecoder, Tool, Usage, classify, decode_error, decode_event, decode_request, encode_error, encode_event,
-    encode_request, json, worst_case,
+    Stop, StreamDecoder, Tool, Usage, classify, decode_error, decode_event, decode_request, decoded_bound,
+    encode_error, encode_event, encode_request, json,
 };
 use alloc::boxed::Box;
 use alloc::format;
@@ -480,17 +480,17 @@ fn malformed_tokens_duplicates_and_every_document_limit_are_refused() {
         decode_event(&value(br#"{"type":"response.created","type":"error"}"#), &LIMITS),
         Err(DecodeError::Malformed)
     );
-    assert!(worst_case(&LIMITS).unwrap() > u64::from(LIMITS.answer));
+    assert!(decoded_bound(&LIMITS).unwrap() > u64::from(LIMITS.answer));
     let oversized = Limits { output_items: u32::MAX, ..LIMITS };
     assert!(
-        worst_case(&oversized).unwrap() > worst_case(&LIMITS).unwrap(),
+        decoded_bound(&oversized).unwrap() > decoded_bound(&LIMITS).unwrap(),
         "large finite bounds must be reported to the caller"
     );
     let large = Limits { output_items: u32::MAX, tokens: u32::MAX, reasoning: u32::MAX, ..LIMITS };
-    assert!(worst_case(&large).unwrap() > worst_case(&LIMITS).unwrap());
+    assert!(decoded_bound(&large).unwrap() > decoded_bound(&LIMITS).unwrap());
     let overflowing =
         Limits { output_items: u32::MAX, input: u32::MAX, strings: u32::MAX, retained: u32::MAX, ..large };
-    assert_eq!(worst_case(&overflowing), None);
+    assert_eq!(decoded_bound(&overflowing), None);
 }
 
 fn assert_archive_deltas(trace: &[Output]) {
@@ -921,7 +921,7 @@ fn zero_capacity_limits_refuse_without_panicking_and_diagnostics_obey_the_cap() 
         receiving: 1_048_576,
         skip: 0,
     };
-    assert!(worst_case(&limits).is_some(), "zero capacities still have a finite scratch bound");
+    assert!(decoded_bound(&limits).is_some(), "zero capacities still have a finite scratch bound");
 }
 
 #[test]

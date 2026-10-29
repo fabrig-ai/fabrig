@@ -91,6 +91,13 @@ pub fn largest_demand(limits: &Limits) -> u32 {
     limits.chunk.max(Literal::False.len())
 }
 
+/// The old name of [`tokenizer_bound`]; it goes once every tree calls the new name (wave 3).
+#[must_use]
+pub fn worst_case(limits: &Limits) -> Option<u64> {
+    tokenizer_bound(limits)
+}
+
+/// Bounds the tokenizer stack and text.
 /// The most memory a tokenizer holds under `limits`, in bytes
 /// (programming-model.md, 6.3), or `None` if it does not fit a `u64` or the
 /// limits cannot be honoured: a [`Limits::chunk`] of zero or a
@@ -103,7 +110,7 @@ pub fn largest_demand(limits: &Limits) -> u32 {
 /// [`largest_demand`] bytes. A
 /// token's box is the side above's to count from when it is emitted.
 #[must_use]
-pub fn worst_case(limits: &Limits) -> Option<u64> {
+pub fn tokenizer_bound(limits: &Limits) -> Option<u64> {
     if limits.chunk == 0 || limits.length == u32::MAX {
         return None;
     }
@@ -112,10 +119,17 @@ pub fn worst_case(limits: &Limits) -> Option<u64> {
     open.checked_add(text)?.checked_add(u64::from(largest_demand(limits)))
 }
 
+/// The old name of [`validation_bound`]; it goes once every tree calls the new name (wave 3).
+#[must_use]
+pub fn validation_worst_case(limits: &Limits) -> Option<u64> {
+    validation_bound(limits)
+}
+
+/// Bounds grammar validation.
 /// Heap used to validate borrowed JSON without retaining any token or string.
 /// Only nesting, the fixed number grammar and one delivery are held.
 #[must_use]
-pub fn validation_worst_case(limits: &Limits) -> Option<u64> {
+pub fn validation_bound(limits: &Limits) -> Option<u64> {
     let bounded = Limits { string: 0, ..*limits };
     worst_case(&bounded)?.checked_add(Queue::<Event>::worst_case(1)?)?.checked_add(Queue::<Down>::worst_case(1)?)
 }
