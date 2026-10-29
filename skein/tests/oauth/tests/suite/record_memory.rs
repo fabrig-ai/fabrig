@@ -1,11 +1,8 @@
 //! A decoded schema record at every ceiling (codec.md, 6).
 
-use skein_heap::{Counting, Meter};
+use skein_heap::Meter;
 use skein_lib::{Reader, Secret, Writer};
 use skein_oauth::v3::{CEILINGS, SavedToken, SavedTokenParts};
-
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 fn field(length: u32) -> Box<[u8]> {
     vec![b'a'; usize::try_from(length).expect("ceiling fits usize")].into_boxed_slice()

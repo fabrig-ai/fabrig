@@ -1,11 +1,8 @@
 use skein_fake_oauth as fake;
-use skein_heap::{Counting, Meter};
+use skein_heap::Meter;
 use skein_lib::{Duration, Queue, Time, Wall};
 use skein_oauth as oauth;
 use skein_oauth_world::{boxed, client_limits, documents, issued, registration, terms, visit};
-
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 #[test]
 fn client_and_rotating_issuer_steps_fit_declared_heap_bounds() {

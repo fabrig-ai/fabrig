@@ -3,7 +3,8 @@
 use std::fs;
 use std::path::Path;
 
-const REGENERATE: &str = "run SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p skein-oauth-world --test drift";
+const REGENERATE: &str =
+    "run SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p skein-oauth-world --test suite -E 'test(/^drift::/)'";
 
 fn check(path: &Path, bytes: &[u8], write: bool) {
     if write {
