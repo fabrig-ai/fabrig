@@ -17,9 +17,6 @@ use crate::boundary::{Author, Change, Entry, Event, Key, Line, New, Range, Recor
 use crate::limits::Limits;
 use crate::read::{self, Cached, ReadPending};
 
-/// The largest number of requests one step emits.
-pub const MAX_OUT: u32 = 3;
-
 /// One write waiting for the store.
 #[derive(Debug)]
 pub(crate) struct Pending {
@@ -85,12 +82,6 @@ impl Domain {
     pub(crate) fn invalidate(&mut self, scope: &Scope) {
         drop(self.indexes.remove(scope));
     }
-}
-
-/// Room the parent reserves before stepping the child.
-#[must_use]
-pub const fn max_out(_limits: &Limits) -> u32 {
-    MAX_OUT
 }
 
 /// Decide one event and emit writes or a store load.
@@ -408,5 +399,5 @@ fn valid_text(bytes: &[u8], bound: u32, one_line: bool) -> bool {
 }
 
 pub(crate) fn push(out: &mut Queue<Request>, request: Request) {
-    out.try_push(request).expect("parent reserved max_out before stepping notes");
+    out.push(request);
 }
