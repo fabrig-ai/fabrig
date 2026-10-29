@@ -16,6 +16,8 @@ pub(crate) struct Patience {
     figures: Option<String>,
     report: Option<String>,
     deferred: bool,
+    #[cfg(test)]
+    forced: bool,
 }
 
 enum Verdict {
@@ -35,12 +37,24 @@ impl Patience {
         let margin = Duration::from_secs(1);
         let after = patience.as_nanos().checked_sub(margin.as_nanos()).expect("patience exceeds diagnostic margin");
         assert!(after > 0, "a positive diagnostic window");
-        Self { after: Duration::from_nanos(after), deadline: None, figures: None, report: None, deferred: false }
+        Self {
+            after: Duration::from_nanos(after),
+            deadline: None,
+            figures: None,
+            report: None,
+            deferred: false,
+            #[cfg(test)]
+            forced: false,
+        }
     }
     /// The first act arms the real-clock deadline after all fixture admission.
     pub(crate) fn due(&mut self) -> bool {
         if self.deferred {
             return false;
+        }
+        #[cfg(test)]
+        if self.forced {
+            return self.handle(Verdict::Failed("forced failed deadline figures".into()));
         }
         let Some(deadline) = &self.deadline else {
             self.deadline = Some(Deadline::arm("the temper judge's verdict", self.after));
@@ -53,7 +67,7 @@ impl Patience {
     }
     #[cfg(test)]
     pub(crate) fn force_failed(&mut self) {
-        assert!(self.handle(Verdict::Failed("forced failed deadline figures".into())));
+        self.forced = true;
     }
     fn handle(&mut self, verdict: Verdict) -> bool {
         match verdict {

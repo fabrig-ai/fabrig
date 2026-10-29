@@ -24,6 +24,11 @@ impl Proc {
 impl Host for Proc {
     fn iterate(&mut self, now: Time, wall: Wall) {
         self.diagnostics.complete(self.kind.completions(), now);
+        if let Kind::Service(host) = &mut self.kind
+            && host.service.as_ref().is_some_and(|service| service.engine_domain().is_some())
+        {
+            self.diagnostics.terminals.observe(host.completions());
+        }
         self.kind.iterate(now, wall);
     }
     fn drain(&mut self) {
@@ -839,7 +844,7 @@ impl Referee<Proc> for Judge {
                 && let Some(service) = &host.service
                 && let Some(engine) = service.engine_domain()
             {
-                self.tasks.observe(engine);
+                self.tasks.observe(engine, &proc.diagnostics.terminals);
             }
         }
         if let Some(failure) = &mut self.failure {
