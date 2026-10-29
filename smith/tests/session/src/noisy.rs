@@ -10,6 +10,9 @@ use smith_domain_tools as tools;
 
 use crate::{BUDGET, Count, Settings, Span, World, spec};
 
+// Calm tools fixture inventory: four jobs plus two lifecycle facts.
+const CALM_TOOLS_FACTS: u32 = 6;
+
 /// Settings drawn from `seed`: small limits, faults, latencies that race the
 /// deadlines, and an opener that nudges, dawdles and abandons.
 ///
@@ -86,7 +89,7 @@ pub fn noisy(seed: u64) -> Settings {
         ..calm
     };
     settings.agent.tools.facts =
-        settings.agent.tools.facts.saturating_add((parallel_tools + 2) * tools::max_facts(&settings.agent.tools));
+        settings.agent.tools.facts.saturating_add((parallel_tools + 2) * CALM_TOOLS_FACTS);
     // Keep the original 2000..8000 draw and every RNG operation above. The
     // original draw pressures retained payload; canonical terminals additionally
     // require pre-effect provider/result credit (domain/session.md, sections 3, 5

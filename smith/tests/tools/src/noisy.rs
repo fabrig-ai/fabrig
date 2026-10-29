@@ -36,6 +36,9 @@ const PATHS: [&[u8]; 22] = [
 
 const HOT: [&[u8]; 3] = [b"src/lib.rs", b"Cargo.toml", b"src/new.rs"];
 
+// Calm tools fixture inventory: four jobs plus two lifecycle facts.
+const CALM_TOOLS_FACTS: u32 = 6;
+
 /// What commands the LLM runs.
 ///
 /// World contract: domain/tools.md, sections 7 and 9; testing-strategy.md, section 2.2.
@@ -72,7 +75,7 @@ pub fn noisy_world(seed: u64) -> World {
             read_bytes: pick(16, 2048),
             list_entries: pick(1, 12),
             list_bytes: 4096,
-            facts: pick(1, 64).max(smith_domain_tools::max_facts(&calm.tools)),
+            facts: pick(1, 64).max(CALM_TOOLS_FACTS),
             file_timeout,
             ..calm.tools
         },

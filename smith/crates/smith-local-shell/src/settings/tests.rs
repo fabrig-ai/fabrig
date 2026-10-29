@@ -783,7 +783,7 @@ fn three_dirs_start_beside_the_working_directory() {
     resolved.local.mode = smith_local_domain::Mode::Headless { prompt: b"Do the work".as_slice().into() };
     let charter = smith_local_domain::charter(&resolved.local);
     let mut domain = run::Domain::new(&native.run, 0);
-    let mut out = Queue::with_capacity(run::MAX_OUT);
+    let mut out = Queue::uncapped();
     run::step(
         &mut domain,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: native.run },
