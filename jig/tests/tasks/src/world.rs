@@ -219,6 +219,7 @@ pub struct World {
     commit: u64,
     priced: Option<(u64, u64)>,
     restoring: bool,
+    load_fit_link: bool,
     deadlines: BTreeMap<u64, (Wall, Time)>,
     kinds: Vec<tasks::Kind>,
     reports: BTreeMap<tasks::Name, tasks::HoldKind>,
@@ -227,10 +228,16 @@ pub struct World {
 impl World {
     #[must_use]
     pub fn new(seed: u64, limits: Limits) -> World {
-        Self::start(seed, &limits, Trace::default())
+        Self::start(seed, &limits, Trace::default(), false)
     }
 
-    fn start(seed: u64, limits: &Limits, trace: Trace) -> World {
+    /// Select the explicit load/fit/link entry for this world and its cold restarts.
+    #[must_use]
+    pub fn new_start_restore(seed: u64, limits: Limits) -> World {
+        Self::start(seed, &limits, Trace::default(), true)
+    }
+
+    fn start(seed: u64, limits: &Limits, trace: Trace, load_fit_link: bool) -> World {
         let mut world = World {
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits },
             domain: domain(limits, seed),
@@ -257,10 +264,14 @@ impl World {
             commit: 0,
             priced: None,
             restoring: true,
+            load_fit_link,
             deadlines: BTreeMap::new(),
             kinds: Vec::new(),
             reports: BTreeMap::new(),
         };
+        if load_fit_link {
+            world.domain.start_restore();
+        }
         world.observe(Seen::Newest { revision: 1 });
         world.send(Event::Check);
         world.send(Event::Restored);
@@ -1298,6 +1309,9 @@ impl World {
         self.deadlines.clear();
         self.accounting_referee.reset(&self.records);
         self.domain = domain(&self.env.limits, self.seed);
+        if self.load_fit_link {
+            self.domain.start_restore();
+        }
         let kinds = self.kinds.clone();
         for configured in kinds {
             self.send(Event::Kinds { connector: configured.connector, kinds: Box::new([configured]) });
@@ -1394,7 +1408,7 @@ pub fn run_story_choices(seed: u64, choices: Story) -> (Trace, Frozen) {
 }
 
 fn story(seed: u64, consume_facts: bool, trace: Trace, choices: Option<Story>) -> (Trace, Frozen) {
-    let mut w = World::start(seed, &LIMITS, trace);
+    let mut w = World::start(seed, &LIMITS, trace, false);
     w.consume_facts = consume_facts;
     std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| story_run(seed, &mut w, choices))).unwrap_or_else(
         |cause| {

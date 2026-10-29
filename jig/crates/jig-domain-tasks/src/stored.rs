@@ -7,6 +7,7 @@ use crate::{
 };
 use skein_lib::{Env, Queue};
 
+pub(crate) mod admission;
 pub(crate) mod fit;
 
 pub(crate) fn restore(domain: &mut Domain, env: &Env<Limits>, stored: Stored, out: &mut Queue<Request>) {

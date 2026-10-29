@@ -306,7 +306,7 @@ fn recurring_and_accepted_creation_revisions_are_checked_by_the_world_referee() 
 #[test]
 fn recurring_lifetime_funding_exceeds_live_capacity_and_restores_before_retirement() {
     let limits = tasks::Limits { tasks: 3, project_tasks: 3, ..LIMITS };
-    let mut world = World::new(219, limits);
+    let mut world = World::new_start_restore(219, limits);
     assert_eq!(
         world.make(Party::Deployment { project: 1 }, vec![recurring(9, RecurringOverlap::Skip)]),
         Reply::Made(vec![9])
@@ -340,6 +340,7 @@ fn recurring_lifetime_funding_exceeds_live_capacity_and_restores_before_retireme
     let occurrence = world.record(10).clone();
     world.restart();
     let mut restored = jig_tasks_world::domain(&limits, 219);
+    restored.start_restore();
     let mut out = skein_lib::Queue::uncapped();
     for record in world.records.values().filter(|row| row.key().live()) {
         tasks::step(&mut restored, &world.env, Event::Restore { record: record.clone() }, &mut out);

@@ -585,3 +585,60 @@ fn an_inbox_too_small_for_the_fixed_reminder_refuses_asks_at_creation() {
     assert!(matches!(reply, Reply::Refused(problem) if problem.why == Refusal::Spec));
     assert!(!world.records.contains_key(&Key::Live(REQUESTER)));
 }
+
+fn pair_with_asks_start_restore(asks: bool) -> World {
+    let mut world = World::new_start_restore(880, LIMITS);
+    let mut parent = task(REQUESTER, &[]);
+    parent.numbers.budget = 1_000;
+    parent.authority.budget.spend = 1_000;
+    world.make(Party::Person(PERSON), vec![parent]);
+    let mut child = task(ASKER, &[]);
+    child.spec.asks = asks;
+    child.funder = Funder::Task(REQUESTER);
+    child.wake.answers = false;
+    world.make(Party::Task(REQUESTER), vec![child]);
+    world.claim(ASKER, ATTEMPT);
+    world
+}
+
+#[test]
+fn load_fit_link_a_task_owing_a_question_parks_on_finish_and_wakes_with_a_notice() {
+    let mut world = pair_with_asks_start_restore(true);
+    world.terminal(ASKER, report());
+    let row = world.record(ASKER);
+    assert_eq!(row.phase, Phase::Active(Active::Due));
+    assert_eq!(row.tries.run, 1);
+    assert!(row.inbox.iter().any(|word| word.kind == MessageKind::QuestionOwed && word.words.as_ref() == OWED));
+    assert!(world.records.values().any(|row| matches!(
+        row,
+        Stored::Activity(ActivityLine {
+            task: ASKER,
+            line: Line::RunEnded { attempt: ATTEMPT, end: EndKind::Parked, .. },
+            ..
+        })
+    )));
+    world.restart();
+    assert_eq!(world.record(ASKER).tries.run, 1);
+    assert!(world.record(ASKER).inbox.iter().any(|word| word.words.as_ref() == OWED));
+    world.claim(ASKER, ATTEMPT + 1);
+}
+
+#[test]
+fn load_fit_link_once_asked_the_owing_task_is_kept_by_its_question() {
+    let mut world = pair_with_asks_start_restore(true);
+    message(&mut world, Party::Task(ASKER), REQUESTER, QUESTION, MessageKind::Question);
+    world.terminal(ASKER, report());
+    world.restart();
+    assert!(world.record(ASKER).asked_requester);
+    assert_eq!(world.record(ASKER).phase, Phase::Active(Active::Idle));
+    assert_eq!(world.record(ASKER).questions[0].number, QUESTION);
+    assert!(!world.record(ASKER).inbox.iter().any(|word| word.kind == MessageKind::QuestionOwed));
+    message(&mut world, Party::Task(REQUESTER), ASKER, ANSWER, MessageKind::Answer { question: QUESTION });
+    world.restart();
+    assert!(world.record(ASKER).asked_requester);
+    assert!(world.record(ASKER).questions.is_empty());
+    world.claim(ASKER, ATTEMPT + 1);
+    world.finish(ASKER);
+    world.settle(ASKER);
+    assert!(matches!(world.results[&ASKER], Ending::Done(_)));
+}

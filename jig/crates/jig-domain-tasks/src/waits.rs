@@ -1172,6 +1172,32 @@ pub(crate) fn check_waits(
     )
 }
 
+// Default restoration keeps the stored judgments of domain/tasks.md, 12.
+pub(crate) fn startup_restore(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) -> bool {
+    for _ in 0..=env.limits.tasks {
+        let remaining = eliminate(domain, &env.limits);
+        if remaining.is_empty() {
+            return true;
+        }
+        let mut earliest = None;
+        for (number, _) in &remaining {
+            let row = record(domain, *number).expect("remaining restored task");
+            if !crate::holds::queued(row) {
+                continue;
+            }
+            if let Err(problem) = check_queue(domain, &Staged::new(0), &env.limits, *number) {
+                match &earliest {
+                    Some((old, _)) if crate::holds::earlier(domain, *old, *number, &env.limits) => {}
+                    Some(_) | None => earliest = Some((*number, problem)),
+                }
+            }
+        }
+        let Some((number, problem)) = earliest else { return false };
+        hold_circle(domain, env, number, problem, out);
+    }
+    false
+}
+
 #[cfg(test)]
 mod tests {
     use super::CircleChanges;

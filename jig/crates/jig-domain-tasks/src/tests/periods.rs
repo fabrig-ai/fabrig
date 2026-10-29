@@ -40,7 +40,7 @@ fn supplied_period_boundaries_preserve_the_opening_wall_across_duplicates_and_re
 }
 
 #[test]
-fn cold_restore_retains_period_facts_without_rejudging_family_shape() {
+fn cold_restore_refuses_a_period_without_its_actual_opening_fact() {
     let test = Harness::new();
     let mut row = *test.domain.funding(Funder::Period { project: 1, period: 0 }).unwrap();
     let original = row;
@@ -61,8 +61,7 @@ fn cold_restore_retains_period_facts_without_rejudging_family_shape() {
                 refused = true;
             }
         }
-        assert!(!refused);
-        assert_eq!(domain.funding(row.funder), Some(&row));
+        assert!(refused);
     }
 }
 
@@ -198,4 +197,32 @@ fn a_period_resize_before_ready_is_refused() {
         &[Request::Refused { reply_to: to(), problem: crate::Problem::new(None, crate::Refusal::NotReady) }]
     );
     assert!(test.domain.funding(Funder::Period { project: 1, period: 0 }).is_none());
+}
+
+#[test]
+fn cold_restore_retains_period_facts_without_rejudging_family_shape() {
+    let test = Harness::new();
+    let mut row = *test.domain.funding(Funder::Period { project: 1, period: 0 }).unwrap();
+    let original = row;
+    for invalid in [false, true] {
+        row = original;
+        if invalid {
+            row.funder = Funder::Pool { project: 1, period: 0, person: 9 };
+            row.parent = Some(original.funder);
+        } else {
+            row.period = None;
+        }
+        let mut domain = Domain::new(&LIMITS, 91, 1, crate::tests::charters(), Box::new([0]));
+        domain.start_restore();
+        let mut out = Queue::uncapped();
+        step(&mut domain, &test.env, Event::Restore { record: Stored::Ledger(row) }, &mut out);
+        let mut refused = false;
+        while let Some(request) = out.pop() {
+            if let Request::RestoreRefused { .. } = request {
+                refused = true;
+            }
+        }
+        assert!(!refused);
+        assert_eq!(domain.funding(row.funder), Some(&row));
+    }
 }

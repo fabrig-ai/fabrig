@@ -109,7 +109,7 @@ fn the_complete_last_batch_survives_skips_endings_restart_and_rejected_replaceme
 }
 
 #[test]
-fn cold_restore_bounds_last_batch_storage_without_repeating_writer_rules() {
+fn cold_restore_rejects_partial_duplicate_zero_self_and_oversized_last_batches() {
     let test = accepted();
     let original = test.domain.task(100).unwrap();
     let invalid: [Box<[u64]>; 5] = [
@@ -121,7 +121,6 @@ fn cold_restore_bounds_last_batch_storage_without_repeating_writer_rules() {
     ];
     for numbers in invalid {
         let mut row = original.clone();
-        let oversized = numbers.len() > usize::try_from(LIMITS.batch).unwrap();
         row.recurring.as_mut().unwrap().last_batch = numbers;
         let mut domain = Domain::new(&LIMITS, 91, 1, crate::tests::charters(), Box::new([0]));
         let mut out = Queue::uncapped();
@@ -132,7 +131,7 @@ fn cold_restore_bounds_last_batch_storage_without_repeating_writer_rules() {
                 refused = true;
             }
         }
-        assert_eq!(refused, oversized);
+        assert!(refused);
     }
 }
 
@@ -160,4 +159,33 @@ fn taking_over_a_batch_member_preserves_its_original_batch_identity_after_restar
     assert_eq!(test.domain.task(100).unwrap().recurring.as_ref().unwrap().last_batch.as_ref(), [10, 11]);
     test.restart();
     assert_eq!(test.domain.task(100).unwrap().recurring.as_ref().unwrap().last_batch.as_ref(), [10, 11]);
+}
+
+#[test]
+fn cold_restore_bounds_last_batch_storage_without_repeating_writer_rules() {
+    let test = accepted();
+    let original = test.domain.task(100).unwrap();
+    let invalid: [Box<[u64]>; 5] = [
+        Box::new([10]),
+        Box::new([10, 10]),
+        Box::new([0, 11]),
+        Box::new([100, 11]),
+        Box::new([1, 2, 3, 4, 5, 6, 7, 8, 9]),
+    ];
+    for numbers in invalid {
+        let mut row = original.clone();
+        let oversized = numbers.len() > usize::try_from(LIMITS.batch).unwrap();
+        row.recurring.as_mut().unwrap().last_batch = numbers;
+        let mut domain = Domain::new(&LIMITS, 91, 1, crate::tests::charters(), Box::new([0]));
+        domain.start_restore();
+        let mut out = Queue::uncapped();
+        step(&mut domain, &test.env, Event::Restore { record: Stored::Live(Box::new(row)) }, &mut out);
+        let mut refused = false;
+        while let Some(request) = out.pop() {
+            if let Request::RestoreRefused { .. } = request {
+                refused = true;
+            }
+        }
+        assert_eq!(refused, oversized);
+    }
 }

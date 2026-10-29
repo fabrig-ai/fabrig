@@ -168,3 +168,50 @@ pub(crate) fn sent_answer(
         crate::domain::publish(domain, env, number, out);
     }
 }
+
+// Default restoration keeps the stored judgments of domain/tasks.md, 12.
+pub(crate) fn startup_valid(task: &TaskRecord, bound: u32) -> bool {
+    let bound = usize::try_from(bound).expect("u32 fits usize");
+    if task.hold > task.milestone || task.question_lines.len() > bound || task.proposal_rows.len() > bound {
+        return false;
+    }
+    for (index, line) in task.question_lines.iter().enumerate() {
+        if line.message == 0 || line.message > task.last_message || line.line == 0 || line.line > task.activity {
+            return false;
+        }
+        if let Some(answer) = line.answer
+            && (answer.task == 0
+                || answer.position == 0
+                || (answer.task == task.number && (answer.position <= line.line || answer.position > task.activity)))
+        {
+            return false;
+        }
+        // Older records interleave answered positions in activity order.
+        // Each group stays newest first, with no position or message repeated.
+        for old in task.question_lines.iter().take(index) {
+            if old.message == line.message
+                || old.line == line.line
+                || (old.answer.is_some() == line.answer.is_some() && old.line < line.line)
+            {
+                return false;
+            }
+        }
+    }
+    let mut previous = u64::MAX;
+    for (index, row) in task.proposal_rows.iter().enumerate() {
+        if row.proposal == 0
+            || row.revision == 0
+            || row.revision > task.revision
+            || (index != 0 && row.revision >= previous)
+        {
+            return false;
+        }
+        for old in task.proposal_rows.iter().take(index) {
+            if old.proposal == row.proposal {
+                return false;
+            }
+        }
+        previous = row.revision;
+    }
+    true
+}

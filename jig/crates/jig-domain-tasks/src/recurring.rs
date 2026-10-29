@@ -174,3 +174,27 @@ pub(crate) fn valid_template(limits: &Limits, project: u32, budget: u64, batch: 
     }
     spend <= budget
 }
+
+// Default restoration keeps the stored judgments of domain/tasks.md, 12.
+pub(crate) fn startup_valid_last_batch(limits: &Limits, task: u64, state: &crate::RecurringState) -> bool {
+    if state.last_batch.is_empty() {
+        return true;
+    }
+    if state.last_period == 0
+        || state.last_batch.len() != state.template.batch.len()
+        || state.last_batch.len() > usize::try_from(limits.batch).expect("batch bound fits")
+    {
+        return false;
+    }
+    for (index, number) in state.last_batch.iter().enumerate() {
+        if *number == 0 || *number == task {
+            return false;
+        }
+        for earlier in state.last_batch.iter().take(index) {
+            if earlier == number {
+                return false;
+            }
+        }
+    }
+    true
+}
