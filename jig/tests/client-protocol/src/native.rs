@@ -1,4 +1,4 @@
-//! The test application's native client over simulated or real io.
+//! The test application's native client (jig/docs/design/protocol/service.md, 8).
 use jig_client_shell_native::{Settings, Shell};
 use jig_client_test_domain::{self as client, Request};
 use jig_client_view::address::{Address, TaskSection};
@@ -90,6 +90,7 @@ pub enum Received {
     reason = "independent native lifecycle and externally driven account sign-in script"
 )]
 pub struct NativeClient {
+    script_diagnostics: Option<(Time, &'static str, Option<u32>)>,
     shell: Shell,
     wire: wire::Wire,
     credential: Option<skein_lib::Secret>,
@@ -115,6 +116,32 @@ pub struct NativeClient {
     pub chats_made: u32,
 }
 impl NativeClient {
+    /// Enable boundary diagnostics and phase lines for each script instruction when it first runs.
+    pub fn diagnose_script(&mut self, started: Time, run: &'static str) {
+        self.wire.diagnose();
+        self.script_diagnostics = Some((started, run, None));
+    }
+    /// All completed sign-in exchanges, including retryable answers.
+    #[must_use]
+    pub fn sign_in_answers(&self) -> &[wire::SignInOutcome] {
+        &self.wire.sign_in_answers
+    }
+    /// The client's link state and printed-link failure reason, without credentials.
+    #[must_use]
+    pub fn sign_in_state(&self) -> (jig_client::Link, Option<jig_client::NotSignedIn>) {
+        let link = self.root.client().link();
+        (link.state, link.not_signed_in)
+    }
+    /// A carried request's terminal once it leaves the client's pending set.
+    /// `Unknown` denotes a local refusal without an exchange at the wire boundary.
+    #[must_use]
+    pub fn carried_terminal(&self, key: jig_client::Key, name: skein_lib::RequestKey) -> Option<jig_client::Outcome> {
+        if self.root.client().pending(key).is_some() {
+            None
+        } else {
+            Some(self.wire.carried_terminal(name).cloned().unwrap_or(jig_client::Outcome::Unknown))
+        }
+    }
     /// The provisional text retained by the client's run watch.
     pub fn text(&self, handle: jig_client::Handle) -> Option<&jig_client::contract::RunText> {
         self.root.client().text(handle)
@@ -131,6 +158,7 @@ impl NativeClient {
         let patches = Queue::with_capacity(Test::patch_limit(&view));
         let complete = Queue::with_capacity(shell.operations() + 10);
         Self {
+            script_diagnostics: None,
             terminal: None,
             pipes: None.into(),
             complete,
@@ -346,6 +374,15 @@ impl Host for NativeClient {
             if self.terminal.is_none() && !self.account_sign_in_controlled {
                 self.wake = None;
                 let before = self.person.at();
+                if let Some((started, run, last)) = &mut self.script_diagnostics
+                    && *last != Some(before)
+                {
+                    eprintln!(
+                        "jig-test {run} elapsed={:?} script step {before} started",
+                        now.saturating_since(*started)
+                    );
+                    *last = Some(before);
+                }
                 match self.person.next(&mut TreeFace::new(Test::tree(&self.view)), now) {
                     Next::Do(Doing::Act { node, act }) => {
                         let event = Test::act(&mut self.view, node, act).expect("offered person action");
