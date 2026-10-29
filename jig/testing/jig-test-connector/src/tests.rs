@@ -2,7 +2,7 @@ use alloc::boxed::Box;
 use skein_lib::{Env, List, Queue, Time, Wall};
 
 use crate::{
-    Adoption, Class, Classed, Config, Domain, Event, Hold, HoldMode, Limits, MAX_OUT, Origin, Path, PoolSpec, Record,
+    Adoption, Class, Classed, Config, Domain, Event, Hold, HoldMode, Limits, Origin, Path, PoolSpec, Record,
     Request, ResourceRole, ResourceSpec, SystemEvent, TopicSpec, step,
 };
 
@@ -109,9 +109,9 @@ fn domain_with_limits(limits: &Limits) -> Domain {
 
 fn run(domain: &mut Domain, event: Event) -> Box<[Request]> {
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: LIMITS };
-    let mut out = Queue::with_capacity(MAX_OUT);
+    let mut out = Queue::uncapped();
     step(domain, &env, event, &mut out);
-    let mut requests = List::with_capacity(MAX_OUT);
+    let mut requests = List::with_capacity(out.len());
     while let Some(request) = out.pop() {
         requests.push(request).expect("the request came from this queue");
     }
@@ -120,9 +120,9 @@ fn run(domain: &mut Domain, event: Event) -> Box<[Request]> {
 
 fn run_at(domain: &mut Domain, wall: u64, event: Event) -> Box<[Request]> {
     let env = Env { now: Time::ZERO, wall: Wall::from_nanos(wall), limits: LIMITS };
-    let mut out = Queue::with_capacity(MAX_OUT);
+    let mut out = Queue::uncapped();
     step(domain, &env, event, &mut out);
-    let mut requests = List::with_capacity(MAX_OUT);
+    let mut requests = List::with_capacity(out.len());
     while let Some(request) = out.pop() {
         requests.push(request).expect("the request came from this queue");
     }
@@ -552,7 +552,7 @@ fn a_prepared_client_subject_checks_its_actual_scope_and_echoes_only_its_owner_n
 fn an_offered_topic_names_the_resources_it_concerns() {
     let mut domain = domain();
     let env = Env { now: Time::ZERO, wall: Wall::from_nanos(1), limits: LIMITS };
-    let mut out = Queue::with_capacity(MAX_OUT);
+    let mut out = Queue::uncapped();
     step(&mut domain, &env, Event::DescribeTopic { token: skein_lib::Token::new(81), topic: 7 }, &mut out);
     assert_eq!(out.pop(), Some(Request::Topic { token: skein_lib::Token::new(81), resources: Box::new([service()]) }));
 }
@@ -562,7 +562,7 @@ fn a_topic_not_offered_to_agents_is_refused() {
     let mut domain = domain();
     domain.config.topics[0].offered = false;
     let env = Env { now: Time::ZERO, wall: Wall::from_nanos(1), limits: LIMITS };
-    let mut out = Queue::with_capacity(MAX_OUT);
+    let mut out = Queue::uncapped();
     step(&mut domain, &env, Event::DescribeTopic { token: skein_lib::Token::new(82), topic: 7 }, &mut out);
     assert_eq!(out.pop(), Some(Request::TopicRefused { token: skein_lib::Token::new(82) }));
 }
@@ -714,7 +714,7 @@ fn restored_outboxes_wait_for_the_scripted_settlement() {
     let limits = Limits { entries: 1, ..LIMITS };
     let mut cold = domain_with_limits(&limits);
     let env = Env { now: Time::ZERO, wall: Wall::from_nanos(9), limits };
-    let mut out = Queue::with_capacity(MAX_OUT);
+    let mut out = Queue::uncapped();
     step(
         &mut cold,
         &env,
