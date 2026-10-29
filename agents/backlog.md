@@ -27,7 +27,7 @@ Provisional, 2026-10-29. Kept by the coordinator and the operator: what is decid
 - **Tiers we dropped for the spike:** browser, process, live, qa: their scripts assume per-tree targets and profiles the root `.config` lacks; restore the ones worth it once the spike's numbers are in.
 
 ## 5. More than one designer
-- **An operator** (done, 10-29): operations apart from design.
+- **An operator** (done, 10-29): operations apart from design. It runs as a Codex owner (`codex-run owner`, gpt-6.1-sol at high), not a Claude session at xhigh, which was slower to respond than operations need (the user, 10-29); medium if high proves more than it needs, measured by its response times and missed incidents.
 - **Crate leases (1):** one writer per crate across designers: a registry like the slots' claims, per wave.
 - **Interfaces by expand, move, contract (1):** additive upstream changes let designers work at once; a skein lead shared by the designers orders the removals.
 - **Mailboxes per designer;** the queue posts the branch's lead; the operator gets the rest; the ledger and operations are shared.
