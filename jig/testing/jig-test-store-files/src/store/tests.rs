@@ -4,7 +4,7 @@ use jig_test_domain as root;
 use jig_test_store::{StoreOut, Up};
 use std::collections::BTreeMap;
 
-// Nine captured first pages exceed the route carrier's eight entries.
+// Nine captured first pages exercise more than eight concurrent routes.
 const FLIGHTS: u16 = 9;
 // The route asks for two rows per page, so three rows require a continuation.
 const ROWS: u64 = 3;

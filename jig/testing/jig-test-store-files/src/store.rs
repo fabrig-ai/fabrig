@@ -529,7 +529,7 @@ impl Store {
         }
     }
     fn route(&mut self, event: Event, requests: &mut VecDeque<Request>) {
-        let mut outputs = Queue::with_capacity(8);
+        let mut outputs = Queue::uncapped();
         route::up(&mut self.routes, event, &mut outputs);
         while let Some(output) = outputs.pop() {
             match output {
@@ -546,7 +546,7 @@ impl Store {
         if self.pages_paused {
             return;
         }
-        let mut ready = Queue::with_capacity(u32::try_from(self.delayed.len()).expect("bounded flight table"));
+        let mut ready = Queue::uncapped();
         let count = self.delayed.len();
         for _ in 0..count {
             let mut delayed = self.delayed.pop_front().expect("counted pages");
