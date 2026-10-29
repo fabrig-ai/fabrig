@@ -253,7 +253,7 @@ fn standalone_oauth_signs_in_and_answers_the_first_model_chat() {
     );
     let clock = Clock::new();
     let began = clock.now().now;
-    let (mut members, hosts) = description.members();
+    let (mut members, hosts) = description.members_within(WITHIN);
     members.up(&["issuer", "model"]);
     let mut world = real::World::new(Judge {
         members,

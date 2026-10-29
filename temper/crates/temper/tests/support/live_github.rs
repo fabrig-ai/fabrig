@@ -229,7 +229,7 @@ fn story(inputs: &Inputs, relay: &Relay) {
     description.bind("story.clients", &clients.to_string());
     description.prepare("llm");
     configure_llm(&description.dir("llm").join("llm.json"), inputs);
-    let (mut members, hosts) = description.members();
+    let (mut members, hosts) = description.members_within(WITHIN);
     members.up(&["llm"]);
     let seen = Rc::new(RefCell::new(Seen::default()));
     let mut world = real::World::new(Judge {
