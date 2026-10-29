@@ -80,11 +80,26 @@ let marker = "/*"; journal.takes(&room); payload.worst_case();
 '''}, counts=(1, 1, 1, 1))
         self.run_script(root)
 
-    def test_io_edge_constants_do_not_count_as_max_out(self):
+    def test_bare_edge_constants_count_as_max_out(self):
         root = self.repository({"src/lib.rs": """
 let edges = (MAX_OUT_DOWN, MAX_OUT_UP);
-let internal = (MAX_OUT, max_out_events, MAX_OUT_DOWNSTREAM);
-"""}, counts=(3, 0, 0, 0))
+"""}, counts=(2, 0, 0, 0))
+        self.run_script(root)
+
+    def test_only_kernel_qualified_edge_constants_are_exempt(self):
+        root = self.repository({"src/lib.rs": """
+let edges = (io::MAX_OUT_DOWN, io::MAX_OUT_UP, io::MAX_OUT_RESUME, io::MAX_OUT_FIRE,
+             skein_io::MAX_OUT_DOWN, skein_io::MAX_OUT_UP,
+             skein_io::MAX_OUT_RESUME, skein_io::MAX_OUT_FIRE);
+"""})
+        self.run_script(root)
+
+    def test_other_qualified_and_longer_edge_names_count(self):
+        root = self.repository({"src/lib.rs": """
+let internal = (kit::MAX_OUT_DOWN, link::MAX_OUT_DOWN, link::MAX_OUT_FIRE, MAX_OUT_DOWN,
+                io::MAX_OUT_DOWNWARD, MAX_OUT_DOWNWARD, other_io::MAX_OUT_DOWN,
+                other::io::MAX_OUT_DOWN);
+"""}, counts=(8, 0, 0, 0))
         self.run_script(root)
 
     def test_ordinary_string_escapes_separate_words(self):
