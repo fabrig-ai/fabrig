@@ -84,7 +84,13 @@ fn a_service_exit_before_its_link_fails_after_the_caller_settles() {
     let Err(payload) = result else { panic!("a service exit before its link must fail the story") };
     let message = payload.downcast_ref::<String>().expect("failure message");
     assert!(message.contains("service 1 exited before caller release: Code(1)"), "{message}");
-    assert!(message.contains("stderr tail:\ntemper serve: client listener failed\n"), "{message}");
+    assert!(
+        message.contains(&format!(
+            "stderr tail:\ntemper serve: client listener {} failed: other\n",
+            listener.local_addr().expect("held address")
+        )),
+        "{message}"
+    );
     assert!(!receipt.passed.get(), "failed startup never passes the referee");
     assert!(receipt.settled.get(), "the failure is reported after every host empties");
     assert_eq!(receipt.calls.get(), 0, "no CLI command ran before release");

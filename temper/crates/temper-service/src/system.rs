@@ -876,6 +876,10 @@ fn route_events(service: &mut Service) {
             | io::Event::Closed { owner } => Some(*owner),
             io::Event::Resized | io::Event::Shutdown { .. } => None,
         };
+        let error = match &event {
+            io::Event::Failed { error, .. } => Some(*error),
+            _ => None,
+        };
         if owner == Some(Token::new(1)) {
             if let io::Event::Closed { .. } = event {
                 service.signals = None;
@@ -909,8 +913,12 @@ fn route_events(service: &mut Service) {
             } else if let Some(owner) = owner
                 && clients::owns(owner)
             {
-                if !engine.clients.up(event) {
-                    engine.end = Some(End::Stopped(Stop::Listener));
+                if !engine.clients.up(event) && engine.end.is_none() {
+                    engine.end = Some(End::Stopped(Stop::Listener {
+                        listener: crate::Listening::Clients,
+                        address: Some(engine.clients.address),
+                        error,
+                    }));
                 }
             } else if let Some(owner) = owner
                 && accounts::owns(owner)
@@ -918,8 +926,12 @@ fn route_events(service: &mut Service) {
                 if let Some(accounts) = &mut engine.accounts {
                     accounts.up(accounts::untag(event));
                 }
-            } else if !engine.workers.up(service.io_env.now, event, &mut engine.events) {
-                engine.end = Some(End::Stopped(Stop::Listener));
+            } else if !engine.workers.up(service.io_env.now, event, &mut engine.events) && engine.end.is_none() {
+                engine.end = Some(End::Stopped(Stop::Listener {
+                    listener: crate::Listening::Workers,
+                    address: engine.workers.listener_address(owner),
+                    error,
+                }));
             }
             for (listener, addr) in [
                 (crate::Listening::Clients, engine.clients.listening.take()),

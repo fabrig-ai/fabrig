@@ -281,7 +281,14 @@ fn a_clients_listener_failure_stops_the_engine() {
     let mut service = super::fixtures::started();
     service.told.push(skein_io::Event::Closed { owner: Token::new(crate::tokens::SERVER) });
     super::fixtures::turn(&mut service);
-    assert_eq!(service.end(), Some(&crate::End::Stopped(crate::Stop::Listener)));
+    assert_eq!(
+        service.end(),
+        Some(&crate::End::Stopped(crate::Stop::Listener {
+            listener: crate::Listening::Clients,
+            address: Some(skein_io::Addr::Ip("127.0.0.1:7100".parse().unwrap())),
+            error: None
+        }))
+    );
 }
 
 #[test]
@@ -317,7 +324,14 @@ fn failed_clients_bind(opened: bool, closed: bool) {
             break;
         }
     }
-    assert_eq!(service.end(), Some(&crate::End::Stopped(crate::Stop::Listener)));
+    assert_eq!(
+        service.end(),
+        Some(&crate::End::Stopped(crate::Stop::Listener {
+            listener: crate::Listening::Clients,
+            address: Some(skein_io::Addr::Ip("127.0.0.1:7100".parse().unwrap())),
+            error: if closed { None } else { Some(skein_io::Error::Refused) }
+        }))
+    );
     assert!(service.is_empty(), "every child and kernel route closes");
     assert!(!service.work_pending(Time::from_nanos(1)), "the loop needs no further turn");
     assert_eq!(service.next_deadline(), None, "no timer remains armed");

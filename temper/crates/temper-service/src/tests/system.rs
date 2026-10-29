@@ -67,7 +67,15 @@ fn io_events_and_completions_reach_the_layer_whose_tokens_they_carry() {
     assert_eq!(stand.kernel.files, 6);
     stand.service.told.push(skein_io::Event::Closed { owner: Token::new(crate::tokens::SERVER) });
     crate::iterate(&mut stand.service, Time::ZERO, Wall::EPOCH);
-    assert_eq!(stand.service.end(), Some(&End::Stopped(Stop::Listener)), "clients event reached engine");
+    assert_eq!(
+        stand.service.end(),
+        Some(&End::Stopped(Stop::Listener {
+            listener: crate::Listening::Clients,
+            address: Some(skein_io::Addr::Ip("127.0.0.1:7100".parse().unwrap())),
+            error: None
+        })),
+        "clients event reached engine"
+    );
     assert!(stand.service.worker.as_ref().unwrap().aborted.is_some());
 }
 #[test]

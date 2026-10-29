@@ -185,7 +185,28 @@ pub fn ending(
             ),
             Stop::CommitFailed { number } => format!("temper serve: commit {number} failed\n"),
             Stop::Hooks => "temper serve: webhooks listener failed\n".into(),
-            Stop::Listener => "temper serve: client listener failed\n".into(),
+            Stop::Listener { listener, address, error } => {
+                let name = match listener {
+                    temper_service::Listening::Clients => "client",
+                    temper_service::Listening::Workers => "worker",
+                    temper_service::Listening::Webhooks => "webhooks",
+                };
+                let address = match address {
+                    Some(skein_io::Addr::Ip(socket)) => socket.to_string(),
+                    Some(skein_io::Addr::InProcess(name)) => String::from_utf8_lossy(name.as_bytes()).into_owned(),
+                    None => "unknown".into(),
+                };
+                let why = match error {
+                    Some(skein_io::Error::Refused) => "refused",
+                    Some(skein_io::Error::Unreachable) => "unreachable",
+                    Some(skein_io::Error::TimedOut) => "timed out",
+                    Some(skein_io::Error::Reset) => "reset",
+                    Some(skein_io::Error::Busy) => "busy",
+                    Some(skein_io::Error::Other) => "other",
+                    None => "closed",
+                };
+                format!("temper serve: {name} listener {address} failed: {why}\n")
+            }
         },
         None | Some(End::Drained | End::Aborted) => String::new(),
     };
@@ -484,7 +505,26 @@ fn other_endings_keep_their_exit_behavior() {
             1,
         ),
         (Some(End::Stopped(Stop::Hooks)), false, "temper serve: webhooks listener failed\n", 1),
-        (Some(End::Stopped(Stop::Listener)), false, "temper serve: client listener failed\n", 1),
+        (
+            Some(End::Stopped(Stop::Listener {
+                listener: temper_service::Listening::Clients,
+                address: Some(skein_io::Addr::Ip("127.0.0.1:7100".parse().unwrap())),
+                error: Some(skein_io::Error::Other),
+            })),
+            false,
+            "temper serve: client listener 127.0.0.1:7100 failed: other\n",
+            1,
+        ),
+        (
+            Some(End::Stopped(Stop::Listener {
+                listener: temper_service::Listening::Workers,
+                address: Some(skein_io::Addr::InProcess(skein_io::Name::new(b"workers").unwrap())),
+                error: None,
+            })),
+            false,
+            "temper serve: worker listener workers failed: closed\n",
+            1,
+        ),
         (Some(End::Drained), false, "", 0),
         (Some(End::Drained), true, "", 1),
         (Some(End::Aborted), false, "", 1),
