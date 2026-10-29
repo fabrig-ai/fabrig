@@ -152,7 +152,7 @@ impl Person {
                         answer,
                         jig_client_protocol_world::native::wire::SignInOutcome::SignedIn
                             | jig_client_protocol_world::native::wire::SignInOutcome::NotSignedIn(
-                                jig_client::NotSignedIn::NotReady
+                                jig_client::NotSignedIn::NotReady | jig_client::NotSignedIn::Busy
                             )
                     ),
                     "{} phase sign-in: terminal {answer:?}; client={:?}",
