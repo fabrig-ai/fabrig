@@ -3,11 +3,8 @@
 use skein_browser::Limits;
 use skein_browser::boundary::Request;
 use skein_browser_world::world::{Fault, World};
-use skein_heap::{Counting, Meter};
+use skein_heap::Meter;
 use skein_lib::{Time, Token};
-
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 // Whole-world ceiling across seeds 0..96, using the largest measured peak
 // (16,987 B), plus a quarter rounded up to two significant digits.
@@ -61,8 +58,7 @@ fn random_load_stays_under_the_peak_ceiling() {
     }
 }
 
-#[path = "support/look_memory.rs"]
-mod look_memory;
+use crate::support::look_memory;
 // Whole-world ceiling across seeds 0..48, using the largest measured peak
 // (58,372 B), plus a quarter rounded up to two significant digits.
 const BROWSER_SEEDED_LOOK_PEAK_CEILING: u64 = 73_000;

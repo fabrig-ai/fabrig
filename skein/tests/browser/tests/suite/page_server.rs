@@ -1,7 +1,7 @@
 //! The fixed page server's HTTP state flow without sockets or Chromium.
 
 use skein_fake_person_browser::origins as serve;
-#[path = "../src/pages.rs"]
+#[path = "../../src/pages.rs"]
 mod pages;
 
 use std::net::{Ipv4Addr, SocketAddr};

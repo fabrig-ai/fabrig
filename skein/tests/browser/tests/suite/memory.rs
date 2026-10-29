@@ -3,11 +3,8 @@
 use skein_browser::Limits;
 use skein_browser::boundary::Request;
 use skein_browser_world::world::{Fault, World};
-use skein_heap::{Counting, Meter};
+use skein_heap::Meter;
 use skein_lib::Token;
-
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 pub fn compact_limits() -> Limits {
     Limits {
@@ -95,8 +92,7 @@ fn selector_and_attribute_storage_stays_under_the_peak_ceiling() {
     assert_eq!(meter.held(), 0);
 }
 
-#[path = "support/look_memory.rs"]
-mod look_memory;
+use crate::support::look_memory;
 // Whole-world peak for this scenario: 83,602 B measured, plus a quarter, rounded up
 // to two significant digits.
 const BROWSER_LOOK_PEAK_CEILING: u64 = 110_000;
