@@ -404,7 +404,10 @@ fn settle_file_io(
     let mut terminal =
         smith_local_protocol::Terminal::new(smith_local_protocol::TerminalLimits { line_bytes: 256, show_bytes: 1024 })
             .unwrap();
-    for _ in 0_u32..400 {
+    // A full plain snapshot admits 256 entries; allow sixteen IO passes per
+    // entry for open/stat/read/close and their dispatches, including teardown.
+    const FILE_IO_PASSES: u32 = 256 * 16;
+    for _ in 0..FILE_IO_PASSES {
         sim.reap(pid, process.completions());
         process.io_up(&process.at(sim.now(), sim.wall()));
         process.up(
@@ -488,6 +491,8 @@ fn plain_status_uses_the_runs_snapshot_and_refreshes_it_before_the_next_run() {
 )]
 mod plain {
     use super::*;
+
+    mod simulated;
 
     // process.rs's plain_limits: the bounded snapshot includes its root entry.
     const PLAIN_FILE_BYTES: usize = 65_536;
