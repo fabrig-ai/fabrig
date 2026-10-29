@@ -5,7 +5,7 @@ use smith_domain::tools;
 use smith_machine_world::World;
 use smith_protocol_machine::{FromDomain, ToDomain};
 
-fn spawn(root: Token, command: &[u8], head: u32, tail: u32, deadline: Time) -> FromDomain {
+pub(super) fn spawn(root: Token, command: &[u8], head: u32, tail: u32, deadline: Time) -> FromDomain {
     FromDomain::Op {
         owner: Token::new(10),
         op: tools::Op::Spawn {
@@ -19,11 +19,11 @@ fn spawn(root: Token, command: &[u8], head: u32, tail: u32, deadline: Time) -> F
     }
 }
 
-fn read(head: u32, tail: u32, wait: Duration) -> FromDomain {
+pub(super) fn read(head: u32, tail: u32, wait: Duration) -> FromDomain {
     FromDomain::Job { owner: Token::new(10), act: tools::JobAct::Read { head, tail, wait } }
 }
 
-fn done(terminal: &ToDomain) -> tools::Done {
+pub(super) fn done(terminal: &ToDomain) -> tools::Done {
     match terminal {
         ToDomain::Done { owner, done } => {
             assert_eq!(*owner, Token::new(10));
@@ -35,7 +35,7 @@ fn done(terminal: &ToDomain) -> tools::Done {
     }
 }
 
-fn far() -> Time {
+pub(super) fn far() -> Time {
     Time::from_nanos(5_000_000_000)
 }
 
