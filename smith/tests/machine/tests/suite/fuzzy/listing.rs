@@ -1,13 +1,10 @@
 //! Selected-file streams against an independent whole-tree set and checked heap bound.
 
 use skein_lib::Rng;
-use skein_world::domain::heap::{Counting, Meter};
+use skein_world::domain::heap::Meter;
 use smith_domain::tools;
 use smith_protocol_machine::Listing;
 use std::collections::{BTreeMap, BTreeSet};
-
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 #[test]
 fn seeded_selected_paths_keep_the_exact_tree_prefix_and_omitted_count_within_memory() {

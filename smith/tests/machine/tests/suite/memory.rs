@@ -3,12 +3,9 @@
 
 use skein_lib::stream::Up;
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
-use skein_world::domain::heap::{Counting, Meter};
+use skein_world::domain::heap::Meter;
 use smith_domain::{run, tools};
 use smith_protocol_machine::{self as machine, Below, BelowEvent, Component, FromDomain, Limits, ToDomain};
-
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 #[test]
 fn saturated_searches_and_pipe_routes_stay_within_the_machine_bound() {
