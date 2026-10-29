@@ -13,6 +13,9 @@ fn client_and_rotating_issuer_steps_stay_under_their_heap_ceilings() {
     check_issuer(document);
 }
 
+// Bounds the refresh step with retained registration, prior token and request workspace.
+const CLIENT_REFRESH_HEAP_CEILING: u64 = 1_900;
+
 fn check_client(document: oauth::Limits) {
     let client_limits = oauth::ClientLimits {
         document,
@@ -36,8 +39,6 @@ fn check_client(document: oauth::Limits) {
         backoff_ceiling: Duration::from_secs(8),
         max_attempts: 3,
     };
-    // Bounds the refresh step with retained registration, prior token and request workspace.
-    const CLIENT_REFRESH_HEAP_CEILING: u64 = 1_900;
     let meter = Meter::new();
     let mut client = oauth::Client::new(client_limits).expect("client");
     let mut out = Queue::with_capacity(1);
@@ -72,11 +73,12 @@ fn check_client(document: oauth::Limits) {
     meter.check(measured, CLIENT_REFRESH_HEAP_CEILING, &"OAuth client refresh");
 }
 
+// Bounds the rotating issuer step with issued ids, carried names and its token plan.
+const ISSUER_ROTATION_HEAP_CEILING: u64 = 19_000;
+
 fn check_issuer(document: oauth::Limits) {
     let fake_limits =
         fake::Limits { document, uri_bytes: 256, request_bytes: 16384, codes: 8, rotations: 8, plans: 8, carried: 8 };
-    // Bounds the rotating issuer step with issued ids, carried names and its token plan.
-    const ISSUER_ROTATION_HEAP_CEILING: u64 = 19_000;
     let meter = Meter::new();
     let mut issuer = fake::Issuer::new(
         fake::Config {
@@ -132,12 +134,13 @@ fn check_issuer(document: oauth::Limits) {
     meter.check(measured, ISSUER_ROTATION_HEAP_CEILING, &"OAuth issuer rotation");
 }
 
+// Bounds sign-in with a parameter array filled to its admitted entry count.
+const TERMS_HEAP_CEILING: u64 = 35_000;
+
 #[test]
 fn terms_at_their_most_entries_stay_under_their_heap_ceiling() {
     let mut limits = client_limits();
     limits.url_bytes = 2048;
-    // Bounds sign-in with a parameter array filled to its admitted entry count.
-    const TERMS_HEAP_CEILING: u64 = 35_000;
     let meter = Meter::new();
     let mut client = oauth::Client::new(limits).expect("client");
     meter.start();
@@ -156,12 +159,13 @@ fn terms_at_their_most_entries_stay_under_their_heap_ceiling() {
     meter.check(measured, TERMS_HEAP_CEILING, &"OAuth terms at their most entries");
 }
 
+// Bounds a sign-in retaining the admitted number of decoded issuer keys.
+const SIGN_IN_KEYS_HEAP_CEILING: u64 = 9_300;
+
 #[test]
 fn a_sign_in_holding_its_keys_stays_under_its_heap_ceiling() {
     use skein_oauth_world::{begin, fake_step, http, openid_issuer, openid_registration, response, time, wall};
     let limits = client_limits();
-    // Bounds a sign-in retaining the admitted number of decoded issuer keys.
-    const SIGN_IN_KEYS_HEAP_CEILING: u64 = 9_300;
     let meter = Meter::new();
     let mut client = oauth::Client::new(limits).expect("client");
     let mut issuer = openid_issuer(None);
@@ -190,12 +194,13 @@ fn a_sign_in_holding_its_keys_stays_under_its_heap_ceiling() {
     meter.check(measured, SIGN_IN_KEYS_HEAP_CEILING, &"OAuth sign-in holding its keys");
 }
 
+// Bounds an issuer with maximal account fields retained in every code slot.
+const CODE_ACCOUNTS_HEAP_CEILING: u64 = 42_000;
+
 #[test]
 fn accounts_at_every_code_slot_stay_under_their_heap_ceiling() {
     use skein_oauth_world::{fake_limits, openid_issuer};
     let limits = fake_limits();
-    // Bounds an issuer with maximal account fields retained in every code slot.
-    const CODE_ACCOUNTS_HEAP_CEILING: u64 = 42_000;
     let string_bytes = usize::try_from(limits.document.string_bytes).expect("u32 fits");
     let meter = Meter::new();
     meter.start();
