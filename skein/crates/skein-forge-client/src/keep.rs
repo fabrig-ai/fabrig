@@ -162,20 +162,20 @@ pub(crate) fn worst_case(l: &Limits) -> Option<u64> {
         .checked_add(u64::from(l.answer_bytes).checked_mul(2)?)?
         .checked_add(u64::from(l.rows).checked_mul(u64::try_from(size_of::<Echo>()).ok()?)?)?
         .checked_add(u64::from(l.inbox).checked_mul(u64::try_from(size_of::<Delivery>()).ok()?.checked_mul(2)?)?)?;
-    Map::<Resource, Live>::worst_case(l.resources)?
-        .checked_add(Map::<Repository, Repo>::worst_case(l.repositories)?)?
-        .checked_add(List::<Resource>::worst_case(l.resources)?.checked_mul(2)?)?
-        .checked_add(List::<Repository>::worst_case(l.repositories)?.checked_mul(2)?)?
+    Map::<Resource, Live>::price(l.resources)?
+        .checked_add(Map::<Repository, Repo>::price(l.repositories)?)?
+        .checked_add(List::<Resource>::price(l.resources)?.checked_mul(2)?)?
+        .checked_add(List::<Repository>::price(l.repositories)?.checked_mul(2)?)?
         .checked_add(u64::from(l.resources).checked_mul(per)?)?
         // A response is checked before cloning. Replacement can briefly own
         // old cache, incoming data and its retained copy. Delivered row lists
         // reserve rows, independently of the byte cap on one answer.
         .checked_add(u64::from(l.answer_bytes).checked_mul(2)?)?
         .checked_add(u64::from(l.op_bytes).checked_mul(2)?)?
-        .checked_add(List::<api::Comment>::worst_case(l.rows)?)?
-        .checked_add(List::<api::Review>::worst_case(l.rows)?)?
-        .checked_add(List::<Echo>::worst_case(l.rows)?)?
-        .checked_add(List::<Delivery>::worst_case(l.inbox)?)
+        .checked_add(List::<api::Comment>::price(l.rows)?)?
+        .checked_add(List::<api::Review>::price(l.rows)?)?
+        .checked_add(List::<Echo>::price(l.rows)?)?
+        .checked_add(List::<Delivery>::price(l.inbox)?)
 }
 fn valid_resource(r: &Resource, l: &Limits) -> bool {
     match &r.what {

@@ -1309,7 +1309,7 @@ fn a_command_whose_child_outlives_it_ends_with_its_group_at_the_deadline() {
     };
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let mut domain = tools::Domain::new(&limits);
-    let mut out = Queue::with_capacity(tools::max_out(&limits));
+    let mut out = Queue::uncapped();
     tools::step(
         &mut domain,
         &env,

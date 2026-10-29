@@ -353,14 +353,13 @@ impl World {
     #[must_use]
     pub fn new(settings: Settings, checkout: Checkout) -> World {
         assert!(tools::valid(&settings.tools), "the shell refuses invalid limits");
-        let room = tools::max_out(&settings.tools).saturating_mul(2);
         World {
             now: Time::ZERO,
             rng: Rng::new(settings.seed),
             settings,
             checkout,
             tools: tools::Domain::new(&settings.tools),
-            stage: Stage::new(settings.tools, tools::max_out(&settings.tools), room),
+            stage: Stage::uncapped(settings.tools),
             wire: Schedule::new(),
             sessions: BTreeMap::new(),
             calls: BTreeMap::new(),
@@ -502,8 +501,7 @@ impl World {
         self.stage.tick(self.now);
         self.deliver();
 
-        // The tools take their events while they have room for what one more
-        // may produce.
+        // The tools take events in FIFO order while their facts can be retained.
         while self.tools.facts_room() >= tools::max_facts(&self.stage.env.limits)
             && let Some(event) = self.stage.next_event()
         {

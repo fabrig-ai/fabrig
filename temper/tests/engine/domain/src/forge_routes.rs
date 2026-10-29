@@ -2,6 +2,7 @@
 #![expect(clippy::wildcard_enum_match_arm, reason = "the fixture selects only the forge rows relevant to each story")]
 use crate as temper_engine_domain_world;
 use crate::forge_routes as paths;
+use crate::journal_limits as journal;
 use jig_domain_authority as authority;
 use jig_domain_core::documents;
 use jig_domain_host as host;
@@ -16,6 +17,27 @@ use temper_engine_domain_forge as forge_top;
 use temper_engine_domain_world::protocol::{self, Protocol};
 use temper_engine_domain_world::{store::Store, walking};
 use temper_engine_forge_world::{self as forge_world, translate};
+
+// in the connector's fixture output cohorts.
+const FORGE_OUTPUT: u32 = 80;
+
+// Writes for the forge change world with no landing members.
+const EMPTY_LANDING_WRITES: u32 = 8_696;
+
+// Writes for the twelve-task forge change and landing worlds.
+const CHANGE_WRITES: u32 = 8_698;
+
+// Writes for the twelve-task forge change world with eight fleet slots.
+const EIGHT_SLOT_FORGE_WRITES: u32 = 8_730;
+
+// Writes for the forge worlds using the deployment's effective limits.
+const DEPLOYMENT_FORGE_WRITES: u32 = 12_288;
+
+// The world's existing bound for a durable round trip (until).
+const STEPS: u32 = 200;
+
+// Writes for the stock forge world before deployment limits are applied.
+const STOCK_FORGE_WRITES: u32 = 9_754;
 
 /// Which outward write’s decoded answer the story retains.
 #[derive(Clone, Copy)]
@@ -229,8 +251,6 @@ impl World {
         stock: Option<(&jig_domain_core::settings::Defaults, &engine::Model, Option<&engine::Limits>)>,
     ) -> Self {
         // Sizes subscription/hold notifications and workspace-resource bookkeeping
-        // in the connector's fixture output cohorts.
-        const FORGE_OUTPUT: u32 = 80;
         let StoryLimits {
             brief,
             stall,
@@ -257,7 +277,7 @@ impl World {
             if owner_gate {
                 limits.people.amendment_bytes = 2048;
             }
-            limits.journal.writes += (people::max_out(&limits.people) - people::max_out(&walking::limits().people)) * 4;
+            limits.journal.writes = journal::WALKING_WRITES;
             let mut config = walking::config(71);
             if approval.is_some() || agent_gate || owner_gate {
                 limits.authority.roles = 3;
@@ -631,7 +651,7 @@ impl World {
             limits.notes.scopes = 3 + limits.authority.grants;
             if stock.is_some() {
                 // The larger resource route needs its full declared journal-write burst.
-                limits.journal.writes = limits.journal.writes.max(walking::writes(&limits));
+                limits.journal.writes = STOCK_FORGE_WRITES;
             }
             if let Some((_, _, Some(deployment))) = stock {
                 limits = *deployment;
@@ -708,8 +728,22 @@ impl World {
         if let Some(documents) = documents {
             limits.documents = paths::document_limits(documents, &limits);
         }
-        // Size journal writes from the placed subtree's complete child route.
-        limits.journal.writes = limits.journal.writes.max(walking::writes(&limits));
+        // Keep each forge scenario's complete decision in one journal cohort.
+        limits.journal.writes = if stock.is_some_and(|(_, _, deployment)| deployment.is_some()) {
+            DEPLOYMENT_FORGE_WRITES
+        } else if stock.is_some() {
+            STOCK_FORGE_WRITES
+        } else if tasks == Some(8) {
+            journal::TREE_WRITES
+        } else if !with_change {
+            journal::WALKING_WRITES
+        } else if landing_members == Some(0) {
+            EMPTY_LANDING_WRITES
+        } else if slots == Some(8) {
+            EIGHT_SLOT_FORGE_WRITES
+        } else {
+            CHANGE_WRITES
+        };
         // Keep the world's broad page bounds and align its message codec with the root.
         let mut store_limits = match stock {
             Some((_, _, Some(deployment))) => *deployment,
@@ -1740,8 +1774,6 @@ impl World {
     #[must_use]
     pub fn party_read(&mut self, read: jig_domain_core::reads::Read) -> jig_domain_core::reads::Answer {
         const REPLY: Token = Token::new(0x4e31);
-        // The world's existing bound for a durable round trip (until).
-        const STEPS: u32 = 200;
         self.reads.clear();
         self.send(engine::Event::Party(engine::PartyInput::Read {
             reply_to: ReplyTo::new(REPLY),

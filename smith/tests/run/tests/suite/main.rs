@@ -7,6 +7,7 @@ mod jobs;
 mod lease;
 mod memory;
 mod messages;
+mod orders;
 mod reserve;
 mod simulation;
 mod wind_down;

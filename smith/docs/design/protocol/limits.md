@@ -475,15 +475,24 @@ backlog, the entries in its uncapped queues, is at `queue`; everything
 that advances admitted work is taken at any backlog, still waiting on
 real credit (a destination's, the channel's to the host, the file
 table, the kernel's queue). `queue` also bounds each drain's work per
-iteration. One order the room checks used to impose is stated instead:
-a domain entrance (a resume, an event, a timer) waits until the
-previous entrance's requests have been dispatched, so its facts never
-overtake the turn they follow; and a domain entrance waits until the
-previous one's facts have reached the event sinks (`has_facts`). The
-domain's facts queue is uncapped, so that wait is the facts' only bound,
-and the domain events it holds meanwhile fill the backlog. The children
-below (the domain, the inline agent, the host domain) reserve no room
-for their own children; each exposes `backlog()` for the root above it,
+iteration.
+
+- **Requests precede the next domain entrance.**
+  `domain_requests_dispatched` requires the previous entrance's requests
+  to be dispatched before a resume, event or timer enters the domain,
+  so later facts cannot overtake the turn they follow. The agent process
+  world holds this under load in `smith-agent-process-world`,
+  `orders::domain_requests_dispatch_before_a_later_entrances_facts`.
+- **Facts precede the next domain entrance.**
+  `domain_facts_dispatched` requires the previous entrance's facts to
+  reach the event sinks before the next entrance. The domain's facts
+  queue is uncapped; waiting entrances contribute to the backlog. The
+  agent process world holds this with a complete sink held in
+  `smith-agent-process-world`,
+  `orders::domain_facts_reach_the_sink_before_the_next_entrance`.
+
+The children below (the domain, the inline agent, the host domain)
+reserve no room for their own children; each exposes `backlog()` for the root above it,
 and only the service has a watermark.
 
 In the local service, a person's line or slash command is its new work:
@@ -495,10 +504,25 @@ Queue`) and the terminal's input. The backlog counts the queues between
 the service's children, and what a child holds through its `backlog()`
 (the local domain's counts its agent's, and drains its spawned agent's
 host facts, which nothing local reads); the inline effects expose
-theirs, and the credential owner keeps its queues. Two orders are stated:
-a local entrance waits for the previous entrance's requests (an
-interrupt or a drop passes it), and a store's actions go out before the
-next file terminal.
+theirs, and the credential owner keeps its queues.
+
+- **Requests precede the next local entrance.**
+  `local_requests_dispatched` requires the previous local entrance's
+  requests to be dispatched before a later entrance; an interrupt or
+  drop passes this wait. The local service's simulated world holds this
+  under load in `smith-local-service`,
+  `tests::a_later_entrance_keeps_its_facts_behind_the_earlier_entrances_requests`.
+- **Store actions precede the next file terminal.**
+  `store_actions_dispatched` requires the store's actions to reach the
+  chat before another file terminal or marker result enters. The local
+  service's simulated world holds this in `smith-local-service`,
+  `process::tests::simulated_store_failure_reaches_chat_before_a_later_marker`.
+- **Account file events precede another private action.**
+  `account_file_events_dispatched` requires a pending account file event
+  to be dispatched before another account's private action, even with
+  file credit available. The credential world holds this in
+  `smith-local-service`,
+  `credentials::tests::private::pending_account_file_events_precede_another_accounts_private_action`.
 
 ### 3.9 A window's room
 

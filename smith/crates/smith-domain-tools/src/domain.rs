@@ -17,6 +17,8 @@ use crate::limits::Limits;
 /// cancels its ordinary calls and held owners. An ended job can invalidate
 /// the reads queued behind its answer, then close its kit. The parent reserves
 /// all calls plus two outputs per job, or two outputs when that is larger.
+/// The session reads this allowance until its output reservations move to
+/// uncapped queues.
 #[must_use]
 pub const fn max_out(limits: &Limits) -> u32 {
     let owners = limits.calls.saturating_add(limits.jobs.saturating_mul(2));

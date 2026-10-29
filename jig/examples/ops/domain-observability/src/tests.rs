@@ -30,7 +30,7 @@ fn service() -> Service {
 fn event(domain: &mut Domain, seconds: u64, input: Event) -> Queue<Request> {
     let wall = seconds.checked_mul(1_000_000_000).expect("world clock fits");
     let env = Env { now: Time::from_nanos(seconds), wall: Wall::from_nanos(wall), limits: limits() };
-    let mut out = Queue::with_capacity(MAX_OUT);
+    let mut out = Queue::uncapped();
     step(domain, &env, input, &mut out);
     out
 }
@@ -224,7 +224,7 @@ fn an_uncertain_silence_waits_for_its_durable_deadline_before_retry() {
     );
     assert!(early.is_empty(), "no retry before the deadline");
     let env = Env { now: Time::from_nanos(31), wall: Wall::from_nanos(31_000_000_000), limits: limits() };
-    let mut due = Queue::with_capacity(MAX_OUT);
+    let mut due = Queue::uncapped();
     fire(&mut domain, &env, &mut due);
     assert_eq!(due.pop(), Some(Request::System(SystemRequest::FindSilence { key, rule: effect.rule.clone() })));
     let mut after = event(&mut domain, 31, Event::System(SystemEvent::Found { key, found: false }));
@@ -595,7 +595,7 @@ fn restored_effect_timers_wait_for_read_afresh() {
         },
     );
     let env = Env { now: Time::from_nanos(2_000_000_000), wall: Wall::from_nanos(2_000_000_000), limits: limits() };
-    let mut out = Queue::with_capacity(MAX_OUT);
+    let mut out = Queue::uncapped();
     fire(&mut domain, &env, &mut out);
     assert!(out.is_empty(), "no system lookup before the scripted post-mark step");
     assert_eq!(next_deadline(&domain), None);

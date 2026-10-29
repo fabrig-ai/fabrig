@@ -59,9 +59,9 @@ pub fn worst_case(limits: &Limits) -> Option<u64> {
     }
     let name = u64::from(limits.name_bytes);
     let workspaces = Slab::<Workspace>::worst_case(limits.workspaces)?;
-    let keys = Map::<Box<[u8]>, Id<Workspace>>::worst_case(limits.workspaces)?;
-    let idle = Map::<u64, Id<Workspace>>::worst_case(limits.workspaces)?;
-    let names = List::<Cloned>::worst_case(limits.repositories)?
+    let keys = Map::<Box<[u8]>, Id<Workspace>>::price(limits.workspaces)?;
+    let idle = Map::<u64, Id<Workspace>>::price(limits.workspaces)?;
+    let names = List::<Cloned>::price(limits.repositories)?
         .checked_add(u64::from(limits.repositories).checked_mul(name.checked_mul(2)?)?)?;
     let workspace = name.checked_mul(2)?.checked_add(names)?;
     let cache = u64::from(limits.workspaces).checked_mul(workspace)?;
@@ -70,22 +70,19 @@ pub fn worst_case(limits: &Limits) -> Option<u64> {
     // A repository's name, remote, starting branch, push branch and landing
     // branch, plus its program. Inline fields are in List<Repository>.
     let repository = name.checked_mul(5)?.checked_add(u64::from(PROGRAM_BYTES))?;
-    let spec = List::<Repository>::worst_case(limits.repositories)?
+    let spec = List::<Repository>::price(limits.repositories)?
         .checked_add(u64::from(limits.repositories).checked_mul(repository)?)?;
-    let push = List::<Landing>::worst_case(limits.repositories)?
-        .checked_add(u64::from(limits.message_bytes))?
-        .checked_add(name)?;
-    let paths = List::<Box<[u8]>>::worst_case(limits.conflicts)?
+    let push =
+        List::<Landing>::price(limits.repositories)?.checked_add(u64::from(limits.message_bytes))?.checked_add(name)?;
+    let paths = List::<Box<[u8]>>::price(limits.conflicts)?
         .checked_add(u64::from(limits.conflicts).checked_mul(u64::from(limits.path_bytes))?)?;
     let path_sets = u64::from(limits.repositories).checked_mul(paths)?;
-    let preparing = List::<Conflicts>::worst_case(limits.repositories)?.checked_add(path_sets)?;
+    let preparing = List::<Conflicts>::price(limits.repositories)?.checked_add(path_sets)?;
     let pushing = push.checked_add(path_sets)?;
-    let each = spec
-        .checked_add(List::<Tips>::worst_case(limits.repositories)?)?
-        .checked_add(preparing)?
-        .checked_add(pushing)?;
+    let each =
+        spec.checked_add(List::<Tips>::price(limits.repositories)?)?.checked_add(preparing)?.checked_add(pushing)?;
     let held = u64::from(hold_slots).checked_mul(each)?;
-    let facts = Queue::<Fact>::worst_case(limits.facts)?;
+    let facts = Queue::<Fact>::price(limits.facts)?;
     workspaces
         .checked_add(keys)?
         .checked_add(idle)?

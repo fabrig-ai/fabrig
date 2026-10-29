@@ -88,7 +88,7 @@ pub fn word_fits(value: &OwnerWord, bounds: &Bounds) -> bool {
 }
 fn word_heap(bounds: &Bounds) -> Option<u64> {
     let text = u64::from(bounds.text);
-    let fields = List::<ResultField>::worst_case(bounds.rows)?
+    let fields = List::<ResultField>::price(bounds.rows)?
         .checked_add(u64::from(bounds.rows).checked_mul(text)?.checked_mul(2)?)?;
     text.checked_add(text.max(fields))
 }
@@ -97,7 +97,7 @@ fn word_heap(bounds: &Bounds) -> Option<u64> {
 pub fn worst_case(bounds: &Bounds) -> Option<u64> {
     u64::try_from(size_of::<OwnerActivityLine>())
         .ok()?
-        .checked_add(word_heap(bounds)?.max(List::<u64>::worst_case(bounds.rows)?))
+        .checked_add(word_heap(bounds)?.max(List::<u64>::price(bounds.rows)?))
 }
 #[must_use]
 pub fn word_worst_case(bounds: &Bounds) -> Option<u64> {

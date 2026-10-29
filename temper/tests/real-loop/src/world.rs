@@ -1034,6 +1034,8 @@ mod tests {
             observed_at: None,
             tries: 0,
             early: 0,
+            answer: std::cell::RefCell::new(None),
+            timeout: std::cell::RefCell::new(None),
         });
         caller
     }

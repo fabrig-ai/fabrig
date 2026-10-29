@@ -6,6 +6,9 @@ use temper_engine_domain::{self as engine, Delivery};
 use temper_engine_domain_forge as forge;
 use temper_engine_domain_world::{direct::Driver, fixtures, forge_stand::ForgeStand, store::Store, walking};
 
+// Writes for the demo's two starts, account reply and adoption admission.
+const DEMO_WRITES: u32 = 2_126;
+
 fn config(under_box: bool) -> engine::Config {
     let mut config = walking::config(71);
     config.under_box = under_box;
@@ -66,7 +69,7 @@ fn driver_grant(connected: bool, under_box: bool, granted: bool) -> (Driver, u64
     // Two starts, one account reply awaiting reclaim, and the adoption's admission.
     limits.people.pending = 4;
     limits.people.requests = 8;
-    limits.journal.writes = walking::writes(&limits) + 4;
+    limits.journal.writes = DEMO_WRITES;
     limits.journal.deliveries += 4;
     limits.journal.held += 12;
     let configuration = std::array::from_fn(|_| {

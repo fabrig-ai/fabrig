@@ -5,7 +5,7 @@
 use skein_lib::{Duration, Env, Queue, ReplyTo, Rng, Time, Token, Wall};
 use skein_world::domain::heap::Meter;
 use smith_domain_tools::{
-    Call, Domain, Done, Entry, Event, Exit, Expect, Fault, Hit, Kind, Limits, Op, Request, Version, max_out,
+    Call, Domain, Done, Entry, Event, Exit, Expect, Fault, Hit, Kind, Limits, Op, Request, Version,
 };
 use smith_tools_world::memory::{LIMITS, authority, name, path, read, write};
 
@@ -33,7 +33,7 @@ fn churn(limits: Limits, seed: u64, rounds: u32, bound: u64) {
     let mut kits: Vec<Token> = Vec::with_capacity(usize::try_from(limits.kits).expect("small") + 1);
     let slots = usize::try_from(limits.kits * limits.calls * 2).expect("small");
     let mut ops: Vec<(Token, Asked)> = Vec::with_capacity(slots);
-    let mut out = Queue::with_capacity(max_out(&limits));
+    let mut out = Queue::uncapped();
     let mut counted = [0; 6];
     let meter = Meter::new();
     let mut domain = Domain::new(&limits);

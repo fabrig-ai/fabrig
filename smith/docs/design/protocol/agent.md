@@ -228,8 +228,10 @@ spawns one (hosts.md, section 5.2).
 - **One drain.** Each pass, the service takes the domain's facts, up to
   its queue's bound, whatever the channel's phase or room. Inside the
   process, facts are lossless: the domain's fact queue is a step's
-  output, with its room reserved like any other (domain/run.md, section
-  11; programming-model.md, section 3).
+  output in an uncapped queue (domain/run.md, section 11;
+  programming-model.md, section 3). The next domain entrance waits until
+  the previous entrance's requests and facts have been dispatched
+  (limits.md, 3.8).
 - **Two sinks, each with its own policy and its own count of loss:**
   - **the channel** projects facts, content-free, only while the run is
     admitted and has not answered, and only with room to spare. The rest

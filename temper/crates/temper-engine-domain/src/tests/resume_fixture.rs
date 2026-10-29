@@ -13,6 +13,9 @@ use temper_engine_domain_forge as forge;
 // A commit's unique writes in this fixture, including its deployment header.
 const COMMIT_WRITES: u32 = 2118;
 
+// Twelve fleet program sources can emit 25 requests; one continuation needs the next slot.
+const DELIVERIES: u32 = 26;
+
 #[expect(clippy::too_many_lines, reason = "one fixture lists the real children's tiny admission limits together")]
 pub fn limits() -> engine::Limits {
     let retry = tasks::Retry { retries: 1, base: Duration::from_millis(10), max: Duration::from_secs(1) };
@@ -119,12 +122,11 @@ pub fn limits() -> engine::Limits {
         facts: 2,
         history: 2,
     };
-    let deliveries = 20_u32.max(fleet::max_out(&fleet).checked_add(1).expect("fleet burst plus continuation"));
     let journal = JournalLimits {
         commits: 3,
-        held: deliveries.checked_mul(3).unwrap().checked_add(16).unwrap(),
+        held: DELIVERIES.checked_mul(3).unwrap().checked_add(16).unwrap(),
         writes: COMMIT_WRITES,
-        deliveries,
+        deliveries: DELIVERIES,
         transcript_bytes: 8192,
         result_bytes: 384,
         run_bytes: 4096,
@@ -266,10 +268,7 @@ pub fn config_with_project_room(seed: u64, projects: u32) -> engine::Config {
     let mut policy_limits = authority_limits();
     policy_limits.projects = projects;
     // Check the same fixture bounds without allocating a discarded live policy table.
-    assert!(
-        authority::max_out(&policy_limits).is_some() && authority::valid_rules(&rules, &policy_limits),
-        "valid authority configuration"
-    );
+    assert!(authority::valid_rules(&rules, &policy_limits), "valid authority configuration");
     let policy = authority::Policy {
         projections: ceiling.grants.clone(),
         escalation_role: Some(0),

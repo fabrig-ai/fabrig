@@ -449,9 +449,8 @@ fn a_chats_failed_github_check_is_repaired_at_a_new_head_and_lands_once() {
 
 fn repair_acts() -> Vec<Step> {
     let mut steps = connect_adopt_and_ask_for_a_change();
-    let wait = steps.len() - 1;
-    let Step::Call { argv, .. } = &mut steps[wait] else { panic!("final chat join after the landing") };
-    argv.0.extend(["--timeout".into(), "4s".into()]);
+    let wait = steps.pop().expect("final chat join after the landing");
+    steps.push(wait.timeout(4));
     steps
 }
 
@@ -526,9 +525,9 @@ fn silent_steps() -> Vec<Step> {
         // Synchronize on actual task creation and the worker's completed push,
         // then observe both sides of the short stall through client reads.
         call(D1, argv!["task", "show", task(CHAT_CALL), "--until", "replied"]),
-        call(D1, argv!["task", "show", number(WORKER), "--until", "ended", "--timeout", "2s"]),
+        call(D1, argv!["task", "show", number(WORKER), "--until", "ended"]).timeout(2),
         call(D1, argv!["task", "show", number(CHANGE), "--json"]),
-        call(D1, argv!["task", "show", number(CHANGE), "--until", "held", "--timeout", "2s", "--json"]),
+        call(D1, argv!["task", "show", number(CHANGE), "--until", "held", "--json"]).timeout(2),
         call(D1, argv!["task", "show", number(CHANGE), "--json"]),
         calls::until(D1, argv!["chat", "show", task(CHAT_CALL), "--json"], HELD_REPLY, b"Change requested"),
         // Reading the service again after the hold also checks it still serves.

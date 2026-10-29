@@ -956,8 +956,8 @@ fn twenty_five_thousand_history_items_allocate_only_the_declared_translation_tab
     // Translation owns native table capacity and may overlap its exact boxed
     // result. The owner's prompt is outside this span; empty text allocates no
     // payload. Small fixed writer/header scratch is independently bounded.
-    let tables = skein_lib::List::<openai::Input>::worst_case(declared.history_items).unwrap()
-        + skein_lib::List::<openai::Tool>::worst_case(declared.tools).unwrap();
+    let tables = skein_lib::List::<openai::Input>::price(declared.history_items).unwrap()
+        + skein_lib::List::<openai::Tool>::price(declared.tools).unwrap();
     let bound = 2 * tables + 64 * 1024;
     let span = Span::start();
     let measured =

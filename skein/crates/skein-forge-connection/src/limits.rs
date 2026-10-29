@@ -709,13 +709,13 @@ fn installation_heap(l: &Limits, s: &Shared) -> Option<u64> {
     use skein_lib::{List, Map, Set};
     let cap = l.installations;
     let page = skein_forge::github::pin::PAGE_CAP;
-    Map::<u64, Row>::worst_case(cap)?
-        .checked_add(Map::<u64, Metadata>::worst_case(cap)?.checked_mul(2)?)?
-        .checked_add(Map::<u64, Accepted>::worst_case(cap)?.checked_mul(2)?)?
-        .checked_add(Map::<u64, Option<crate::Account>>::worst_case(cap)?)?
-        .checked_add(Set::<u64>::worst_case(cap)?.checked_mul(3)?)?
-        .checked_add(List::<u64>::worst_case(cap)?.checked_mul(2)?)?
-        .checked_add(List::<skein_forge::github::document::Installation>::worst_case(page)?.checked_mul(2)?)?
+    Map::<u64, Row>::price(cap)?
+        .checked_add(Map::<u64, Metadata>::price(cap)?.checked_mul(2)?)?
+        .checked_add(Map::<u64, Accepted>::price(cap)?.checked_mul(2)?)?
+        .checked_add(Map::<u64, Option<crate::Account>>::price(cap)?)?
+        .checked_add(Set::<u64>::price(cap)?.checked_mul(3)?)?
+        .checked_add(List::<u64>::price(cap)?.checked_mul(2)?)?
+        .checked_add(List::<skein_forge::github::document::Installation>::price(page)?.checked_mul(2)?)?
         .checked_add(u64::from(page).checked_mul(u64::from(s.name_bytes))?.checked_mul(2)?)?
         .checked_add(
             u64::from(cap)
@@ -726,8 +726,8 @@ fn installation_heap(l: &Limits, s: &Shared) -> Option<u64> {
         .checked_add(u64::from(s.name_bytes).checked_mul(3)?)
 }
 fn log_origin_heap(l: &Limits) -> Option<u64> {
-    skein_lib::List::<crate::settings::LogOrigin>::worst_case(l.log_origins)?
-        .checked_add(skein_lib::Queue::<skein_forge::github::redirect::Origin>::worst_case(l.log_origins)?)?
+    skein_lib::List::<crate::settings::LogOrigin>::price(l.log_origins)?
+        .checked_add(skein_lib::Queue::<skein_forge::github::redirect::Origin>::price(l.log_origins)?)?
         .checked_add(u64::from(l.log_origins).checked_mul(253_u64.checked_add(u64::from(l.target_bytes))?)?)
 }
 fn github_forge_heap(l: &Limits, s: &Shared, forges: u32) -> Option<u64> {
@@ -767,10 +767,10 @@ pub fn worst_case(l: &Limits, s: &Shared, forges: Forges, owned_bytes: u64) -> O
     } else {
         0
     };
-    let socket = Intake::worst_case(s.io.intake)?
+    let socket = Intake::price(s.io.intake)?
         .checked_add(u64::from(s.io.receive))?
         .checked_add(u64::from(s.io.output))?
-        .checked_add(Queue::<Box<[u8]>>::worst_case(s.io.sends)?)?;
+        .checked_add(Queue::<Box<[u8]>>::price(s.io.sends)?)?;
     let connection = skein_http::client::worst_case(&http(l, true, &s.io))?
         .max(skein_http::client::worst_case(&http(l, false, &s.io))?)
         .checked_add(skein_tls::client::worst_case(&l.tls)?)?
@@ -784,7 +784,7 @@ pub fn worst_case(l: &Limits, s: &Shared, forges: Forges, owned_bytes: u64) -> O
         .checked_add(exchange)?
         // The local JSON intake and the delivery copied from it can coexist.
         // HTTP already counts the incoming refill's box.
-        .checked_add(Intake::worst_case(l.chunk.max(5))?)?
+        .checked_add(Intake::price(l.chunk.max(5))?)?
         .checked_add(u64::from(l.chunk.max(5)))?
         .checked_add(u64::from(l.tls.send.max(s.io.output)))?
         .checked_add(u64::from(l.body_bytes).checked_mul(6)?.checked_add(1024)?)?
@@ -797,45 +797,44 @@ pub fn worst_case(l: &Limits, s: &Shared, forges: Forges, owned_bytes: u64) -> O
     let forgejo_call = if forges.forgejo > 0 { forgejo_call_heap(l, s)? } else { 0 };
     let github_call = if forges.github > 0 { github_call_heap(l, s)? } else { 0 };
     let calls = Slab::<Waiting>::worst_case(s.calls)?
-        .checked_add(Map::<Token, Token>::worst_case(connections)?)?
-        .checked_add(List::<(Token, Id<Waiting>)>::worst_case(s.calls)?)?
-        .checked_add(Map::<Token, Id<Waiting>>::worst_case(s.calls)?)?
+        .checked_add(Map::<Token, Token>::price(connections)?)?
+        .checked_add(List::<(Token, Id<Waiting>)>::price(s.calls)?)?
+        .checked_add(Map::<Token, Id<Waiting>>::price(s.calls)?)?
         .checked_add(
             u64::from(s.calls)
                 .checked_mul(u64::from(s.op_bytes).checked_mul(3)?.checked_add(forgejo_call.max(github_call))?)?,
         )?;
-    let held = Map::<Token, Held>::worst_case(s.calls)?
-        .checked_add(u64::from(s.calls).checked_mul(u64::from(s.answer_bytes))?)?;
+    let held =
+        Map::<Token, Held>::price(s.calls)?.checked_add(u64::from(s.calls).checked_mul(u64::from(s.answer_bytes))?)?;
     let repositories = if forges.forgejo > 0 {
-        Map::<api::Repository, RepositoryEntry>::worst_case(l.repositories)?
+        Map::<api::Repository, RepositoryEntry>::price(l.repositories)?
             .checked_add(u64::from(l.repositories).checked_mul(u64::from(l.string_bytes).checked_mul(3)?)?)?
     } else {
         0
     };
     let users = if forges.forgejo > 0 {
-        Map::<(u16, u64), UserEntry>::worst_case(l.users)?
+        Map::<(u16, u64), UserEntry>::price(l.users)?
             .checked_add(u64::from(l.users).checked_mul(u64::from(l.string_bytes))?)?
     } else {
         0
     };
     let github_tables = if forges.github > 0 { github_tables_heap(l, l.repositories, l.users)? } else { 0 };
-    let configured =
-        List::<Forge>::worst_case(l.forges)?.checked_add(List::<Start>::worst_case(l.forges)?)?.checked_add(
-            u64::from(count).checked_mul(
-                u64::from(l.token_bytes)
-                    .checked_add(u64::from(l.hook_secret_bytes))?
-                    .checked_add(u64::from(l.tls.send.max(s.io.output)))?
-                    .checked_add(skein_tls::client::worst_case(&l.tls)?)?,
-            )?,
-        )?;
+    let configured = List::<Forge>::price(l.forges)?.checked_add(List::<Start>::price(l.forges)?)?.checked_add(
+        u64::from(count).checked_mul(
+            u64::from(l.token_bytes)
+                .checked_add(u64::from(l.hook_secret_bytes))?
+                .checked_add(u64::from(l.tls.send.max(s.io.output)))?
+                .checked_add(skein_tls::client::worst_case(&l.tls)?)?,
+        )?,
+    )?;
     connection
         .checked_mul(u64::from(connections))?
-        .checked_add(List::<Option<Box<crate::installations::GitHub>>>::worst_case(l.forges)?)?
+        .checked_add(List::<Option<Box<crate::installations::GitHub>>>::price(l.forges)?)?
         .checked_add(github)?
-        .checked_add(Map::<Token, Id<crate::connection::Connection>>::worst_case(connections)?)?
+        .checked_add(Map::<Token, Id<crate::connection::Connection>>::price(connections)?)?
         .checked_add(Slab::<crate::connection::Connection>::worst_case(connections)?)?
-        .checked_add(List::<Option<Token>>::worst_case(l.forges)?)?
-        .checked_add(List::<Option<crate::component::OwnPlan>>::worst_case(l.forges)?)?
+        .checked_add(List::<Option<Token>>::price(l.forges)?)?
+        .checked_add(List::<Option<crate::component::OwnPlan>>::price(l.forges)?)?
         .checked_add(hooks)?
         .checked_add(calls)?
         .checked_add(held)?
@@ -855,17 +854,17 @@ fn forgejo_call_heap(l: &Limits, s: &Shared) -> Option<u64> {
     u64::try_from(size_of::<skein_forge::forgejo::plans::reads::Plan>())
         .ok()?
         .checked_add(u64::try_from(size_of::<skein_forge::forgejo::plans::writes::Plan>()).ok()?)?
-        .checked_add(List::<u64>::worst_case(s.op_bytes.checked_div(8)?)?)?
-        .checked_add(List::<Box<[u8]>>::worst_case(s.op_bytes.checked_div(8)?.checked_add(l.inner)?)?)?
+        .checked_add(List::<u64>::price(s.op_bytes.checked_div(8)?)?)?
+        .checked_add(List::<Box<[u8]>>::price(s.op_bytes.checked_div(8)?.checked_add(l.inner)?)?)?
         .checked_add(
             u64::from(s.op_bytes.checked_div(8)?.checked_add(l.inner)?).checked_mul(u64::from(l.string_bytes))?,
         )?
         .checked_add(u64::from(s.answer_bytes))?
         .checked_add(directory_heap(s)?)?
-        .checked_add(List::<skein_forge::forgejo::document::ChangedFile>::worst_case(s.rows)?)?
+        .checked_add(List::<skein_forge::forgejo::document::ChangedFile>::price(s.rows)?)?
         .checked_add(u64::from(s.rows).checked_mul(u64::from(l.string_bytes).checked_mul(2)?)?)?
-        .checked_add(List::<api::File>::worst_case(s.rows)?)?
-        .checked_add(List::<api::Commit>::worst_case(s.rows)?)?
+        .checked_add(List::<api::File>::price(s.rows)?)?
+        .checked_add(List::<api::Commit>::price(s.rows)?)?
         .checked_add(u64::from(l.string_bytes).checked_mul(4)?)?
         .checked_add(u64::from(l.string_bytes).checked_mul(u64::from(l.inner).checked_add(5)?)?)?
         .checked_add(
@@ -901,20 +900,20 @@ pub(crate) fn github_call_heap(l: &Limits, s: &Shared) -> Option<u64> {
     let files = github_read_capacity(s, measure::FILE_BYTES)?;
     let commits = github_read_capacity(s, measure::COMMIT_BYTES)?;
     let names = u64::from(files).checked_mul(u64::from(l.string_bytes))?.checked_mul(2)?;
-    let mut read = Queue::<github::document::File>::worst_case(files)?
-        .checked_add(List::<api::File>::worst_case(files)?)?
-        .checked_add(List::<api::Commit>::worst_case(commits)?)?
+    let mut read = Queue::<github::document::File>::price(files)?
+        .checked_add(List::<api::File>::price(files)?)?
+        .checked_add(List::<api::Commit>::price(commits)?)?
         .checked_add(names.min(u64::from(s.answer_bytes)))?;
     // STATUS_BYTES covers Checks' status and pending-job slot together.
     let statuses = github_read_capacity(s, measure::STATUS_BYTES)?;
     for storage in [
-        List::<Box<[u8]>>::worst_case(github_read_capacity(s, measure::STRING_BYTES)?)?,
-        List::<api::Summary>::worst_case(github_read_capacity(s, measure::SUMMARY_BYTES)?)?,
-        List::<api::Comment>::worst_case(github_read_capacity(s, measure::COMMENT_BYTES)?)?,
-        List::<api::Status>::worst_case(statuses)?.checked_add(List::<(u32, u64)>::worst_case(statuses)?)?,
-        List::<api::Collaborator>::worst_case(github_read_capacity(s, measure::COLLABORATOR_BYTES)?)?,
-        List::<api::Remark>::worst_case(github_read_capacity(s, measure::REMARK_BYTES)?)?,
-        List::<api::Review>::worst_case(github_read_capacity(s, measure::REVIEW_BYTES)?)?,
+        List::<Box<[u8]>>::price(github_read_capacity(s, measure::STRING_BYTES)?)?,
+        List::<api::Summary>::price(github_read_capacity(s, measure::SUMMARY_BYTES)?)?,
+        List::<api::Comment>::price(github_read_capacity(s, measure::COMMENT_BYTES)?)?,
+        List::<api::Status>::price(statuses)?.checked_add(List::<(u32, u64)>::price(statuses)?)?,
+        List::<api::Collaborator>::price(github_read_capacity(s, measure::COLLABORATOR_BYTES)?)?,
+        List::<api::Remark>::price(github_read_capacity(s, measure::REMARK_BYTES)?)?,
+        List::<api::Review>::price(github_read_capacity(s, measure::REVIEW_BYTES)?)?,
     ] {
         read = read.max(storage);
     }
@@ -925,18 +924,18 @@ pub(crate) fn github_call_heap(l: &Limits, s: &Shared) -> Option<u64> {
     let reviewers = u64::try_from(size_of::<(List<u64>, List<Box<[u8]>>, u64)>())
         .ok()?
         .checked_mul(2)?
-        .checked_add(List::<u64>::worst_case(desired)?)?
-        .checked_add(List::<u64>::worst_case(current)?)?
-        .checked_add(List::<Box<[u8]>>::worst_case(logins)?)?;
+        .checked_add(List::<u64>::price(desired)?)?
+        .checked_add(List::<u64>::price(current)?)?
+        .checked_add(List::<Box<[u8]>>::price(logins)?)?;
     u64::try_from(size_of::<github::plans::reads::Plan>())
         .ok()?
         .checked_mul(2)?
         .checked_add(u64::try_from(size_of::<github::plans::writes::Plan>()).ok()?)?
         .checked_add(github_tables_heap(l, 1, 1)?)?
-        .checked_add(List::<crate::installations::Selected>::worst_case(l.installations)?)?
+        .checked_add(List::<crate::installations::Selected>::price(l.installations)?)?
         .checked_add(read.max(directory_heap(s)?))?
         // Protection keeps distinct ruleset ids beside its context union.
-        .checked_add(List::<u64>::worst_case(l.inner)?)?
+        .checked_add(List::<u64>::price(l.inner)?)?
         .checked_add(reviewers)?
         // Two repository rows (probe/original), request owner/name and three
         // strings for Permission's login/request, a raw path or Merge's id.
@@ -956,8 +955,8 @@ pub(crate) fn github_call_heap(l: &Limits, s: &Shared) -> Option<u64> {
 fn github_write_heap(l: &Limits, s: &Shared) -> Option<u64> {
     use skein_lib::List;
     let logins = s.rows.min(s.answer_bytes.checked_div(8)?);
-    List::<Box<[u8]>>::worst_case(logins)?
-        .checked_add(List::<u64>::worst_case(l.inner)?)?
+    List::<Box<[u8]>>::price(logins)?
+        .checked_add(List::<u64>::price(l.inner)?)?
         .checked_add(u64::from(l.string_bytes).checked_mul(6)?)
 }
 // reads::size::capacity: the backing allocation precedes page_size admission.
@@ -968,9 +967,9 @@ fn github_read_capacity(s: &Shared, width: usize) -> Option<u32> {
 // Discovery's one-row staging coexists with both full public tables.
 fn github_tables_heap(l: &Limits, repositories: u32, users: u32) -> Option<u64> {
     use skein_lib::Map;
-    Map::<api::Repository, (skein_forge::github::plans::tables::Repository, u64)>::worst_case(repositories)?
+    Map::<api::Repository, (skein_forge::github::plans::tables::Repository, u64)>::price(repositories)?
         .checked_add(u64::from(repositories).checked_mul(u64::from(l.string_bytes).checked_mul(3)?)?)?
-        .checked_add(Map::<(u16, u64), (Box<[u8]>, u64)>::worst_case(users)?)?
+        .checked_add(Map::<(u16, u64), (Box<[u8]>, u64)>::price(users)?)?
         .checked_add(u64::from(users).checked_mul(u64::from(l.string_bytes))?)
 }
 
@@ -1018,6 +1017,6 @@ mod tests;
 // A directory reserves by bytes alone; its names fit the answer payload envelope.
 fn directory_heap(s: &Shared) -> Option<u64> {
     let entries = s.answer_bytes.checked_div(u32::try_from(skein_forge::measure::ENTRY_BYTES).ok()?)?;
-    skein_lib::List::<api::Entry>::worst_case(entries)?
+    skein_lib::List::<api::Entry>::price(entries)?
         .checked_add(u64::try_from(size_of::<(skein_lib::List<api::Entry>, u32, bool)>()).ok()?)
 }

@@ -114,7 +114,7 @@ mod tests {
             entries.push(Subscription { number: u64::MAX, kind }).unwrap();
         }
         let value = Subscriptions { entries };
-        let bytes = u64::try_from(size_of::<Subscriptions>()).unwrap() + List::<Subscription>::worst_case(7).unwrap();
+        let bytes = u64::try_from(size_of::<Subscriptions>()).unwrap() + List::<Subscription>::price(7).unwrap();
         assert!(subscriptions_fits(&value, &Bounds { rows: 7, document_bytes: bytes, ..Bounds::default() }));
         assert!(!subscriptions_fits(&value, &Bounds { rows: 7, document_bytes: bytes - 1, ..Bounds::default() }));
         assert!(!subscriptions_fits(&value, &Bounds { rows: 6, document_bytes: bytes, ..Bounds::default() }));

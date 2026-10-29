@@ -5,6 +5,15 @@ use skein_lib::{Duration, Queue};
 use temper_engine_domain as engine;
 use temper_engine_domain_world::walking;
 
+// Writes for the compact native stories and merge scenarios.
+const STORY_WRITES: u32 = 4_505;
+// Writes for the full conformance scenarios, including three-slot compound runs.
+const SCENARIO_WRITES: u32 = 13_122;
+// Deliveries for the compact native stories and merge scenarios.
+const STORY_DELIVERIES: u32 = 32;
+// Deliveries for the full conformance scenarios, including three-slot compound runs.
+const SCENARIO_DELIVERIES: u32 = 76;
+
 #[expect(clippy::too_many_lines, reason = "the fixture specifies its policy and child bounds together")]
 pub fn root(
     seed: u64,
@@ -82,7 +91,8 @@ pub fn root(
 
     // Native stories and merge scenarios use at most four tasks and two runs. Keep
     // the bound small without shortening their every-commit sweeps.
-    if story.is_some() || matches!(scenario, Some(Scenario::ChangedJudge | Scenario::OtherHand)) {
+    let compact = story.is_some() || matches!(scenario, Some(Scenario::ChangedJudge | Scenario::OtherHand));
+    if compact {
         limits.tasks.tasks = 5;
         limits.tasks.project_tasks = 5;
         limits.tasks.tree_tasks = 16;
@@ -106,25 +116,13 @@ pub fn root(
     limits.people.inbox_tasks = limits.tasks.tasks * 2;
     limits.people.inbox_recipients = limits.tasks.inbox_messages * 2 + limits.authority.roles + 4;
 
-    limits.journal.deliveries = (limits.tasks.tasks * 4 + 8 + limits.people.pending * limits.people.waiters)
-        .max(limits.fleet.workers * jig_domain_fleet::max_out(&limits.fleet) + 1)
-        .max(limits.brief.sections)
-        .max(limits.tasks.saved_resources);
+    limits.journal.deliveries = if compact { STORY_DELIVERIES } else { SCENARIO_DELIVERIES };
     // Admission reserves three cohorts before routing; retain three more
     // for already committed callbacks while the next cohort runs.
     limits.journal.held = limits.journal.deliveries * 6;
 
-    // Match the root's declared whole-route reserve instead of allocating
-    // arbitrary extra record slots for every input (root limits.rs).
-    limits.journal.writes = jig_domain_tasks::max_out(&limits.tasks) * 8
-        + jig_domain_people::max_out(&limits.people) * 4
-        + limits.people.pending * 2
-        + jig_domain_fleet::max_out(&limits.fleet) * 4
-        + temper_engine_domain_forge::max_out(&limits.forge)
-        + 2 * limits.authority.projects
-        + limits.tasks.tasks
-        + 4
-        + limits.call_records;
+    // Each scenario keeps room for one complete decision's writes.
+    limits.journal.writes = if compact { STORY_WRITES } else { SCENARIO_WRITES };
 
     let mut config = walking::config(seed);
     let pattern = authority::Pattern {

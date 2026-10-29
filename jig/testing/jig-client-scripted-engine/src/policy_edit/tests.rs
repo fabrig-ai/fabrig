@@ -60,7 +60,7 @@ fn policy_edits_price_whole_lists_reserved_capacity_and_every_literal_boundary()
     let value = PolicyEdit::Requirements { requirements: List::with_capacity(4) };
     assert_eq!(
         bytes(&value, &Bounds::default()),
-        Some(u64::try_from(size_of::<PolicyEdit>()).unwrap() + List::<PolicyRequirement>::worst_case(4).unwrap())
+        Some(u64::try_from(size_of::<PolicyEdit>()).unwrap() + List::<PolicyRequirement>::price(4).unwrap())
     );
     assert!(!fits(&value, &Bounds { rows: 3, segments: 3, ..Bounds::default() }));
     let mut rows = List::with_capacity(1);

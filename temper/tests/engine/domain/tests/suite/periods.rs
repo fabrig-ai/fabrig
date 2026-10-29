@@ -5,6 +5,7 @@ use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{ReplyTo, Token, Wall};
 use temper_engine_domain::{self as engine, Key, Record, Write};
+use temper_engine_domain_world::journal_limits as journal;
 use temper_engine_domain_world::{
     direct::Driver,
     store::Store,
@@ -132,7 +133,7 @@ fn two_projects_due_at_once_are_renewed_in_one_decision() {
     let mut limits = limits();
     limits.authority.projects = 2;
     limits.people.projects = 3;
-    limits.journal.writes = temper_engine_domain_world::walking::writes(&limits);
+    limits.journal.writes = journal::EXTENDED_WALKING_WRITES;
     let configs = [config(10404), config(10404)].map(|mut config| {
         let second = core::SeedProject {
             number: 2,

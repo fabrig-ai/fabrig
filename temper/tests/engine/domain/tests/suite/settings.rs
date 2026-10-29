@@ -1,5 +1,6 @@
 //! Settings cross the root's journal and real store, including cold restoration.
 use crate::stock;
+use temper_engine_domain_world::journal_limits as journal;
 
 use jig_domain_authority as authority;
 use jig_domain_core::{self as core, settings as s};
@@ -47,7 +48,7 @@ fn policy_limits(policy_bytes: u64) -> engine::Limits {
     limits.notes.scopes = 3 + limits.authority.grants;
     limits.authority.projects = MADE_PROJECT;
     limits.people.projects = MADE_PROJECT + 1; // Includes the deployment roster.
-    limits.journal.writes = walking::writes(&limits);
+    limits.journal.writes = journal::EXTENDED_WALKING_WRITES;
     limits
 }
 
@@ -255,7 +256,7 @@ fn stock_limits() -> engine::Limits {
     limits.documents.executors = 8;
     limits.notes.scopes = 32;
     limits.tasks.charters = 4;
-    limits.journal.writes = walking::writes(&limits);
+    limits.journal.writes = journal::WALKING_WRITES;
     limits
 }
 

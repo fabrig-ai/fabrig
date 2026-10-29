@@ -9,6 +9,9 @@ const CHANNEL: Token = Token::new(7);
 
 use super::stock::box_model;
 
+// Writes for the stock B2 world's sixteen tasks, people and fleet.
+const B2_WRITES: u32 = 12_186;
+
 fn configuration() -> engine::Config {
     let mut config = stock_config();
     let model = box_model();
@@ -92,7 +95,7 @@ fn limits() -> engine::Limits {
     limits.brief.budgets.ci = 384;
     limits.brief.brief_bytes = 1024;
     limits.call_records = 8;
-    limits.journal.writes = walking::writes(&limits);
+    limits.journal.writes = B2_WRITES;
     limits
 }
 

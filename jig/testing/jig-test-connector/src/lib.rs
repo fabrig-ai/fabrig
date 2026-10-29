@@ -5,8 +5,8 @@
 //! neither the root nor any other connector. The
 //! root translates its own vocabulary into the core's and commits each
 //! [`Request::Save`] or [`Request::Erase`] with the decision that caused it.
-//! `step` emits at most [`MAX_OUT`] requests. At restart, the root restores
-//! records before allowing system hints or task work.
+//! Output carriers are uncapped. At restart, the root restores records before
+//! allowing system hints or task work.
 //!
 //! | State | Event | Next state | Emits |
 //! | --- | --- | --- | --- |

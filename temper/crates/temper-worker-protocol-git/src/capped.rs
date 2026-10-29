@@ -42,6 +42,6 @@ impl Capped {
     }
     #[must_use]
     pub fn worst_case(cap: u32) -> Option<u64> {
-        List::<u8>::worst_case(cap)
+        List::<u8>::price(cap)
     }
 }

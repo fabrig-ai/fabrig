@@ -87,13 +87,13 @@ fn owner_amendment_whole_admission_counts_inline_nested_lists_and_every_opaque_b
     let value = fixture();
     let original = value.clone();
     let expected = u64::try_from(size_of::<OwnerAmendmentState>()).unwrap()
-        + List::<ParameterDocument>::worst_case(3).unwrap()
-        + 2 * List::<u64>::worst_case(3).unwrap()
-        + List::<OwnerGrant>::worst_case(3).unwrap()
-        + List::<OwnerResourceScope>::worst_case(3).unwrap()
-        + List::<OwnerAuthorityExecutor>::worst_case(3).unwrap()
-        + List::<Box<[u8]>>::worst_case(3).unwrap()
-        + List::<Box<[u8]>>::worst_case(0).unwrap()
+        + List::<ParameterDocument>::price(3).unwrap()
+        + 2 * List::<u64>::price(3).unwrap()
+        + List::<OwnerGrant>::price(3).unwrap()
+        + List::<OwnerResourceScope>::price(3).unwrap()
+        + List::<OwnerAuthorityExecutor>::price(3).unwrap()
+        + List::<Box<[u8]>>::price(3).unwrap()
+        + List::<Box<[u8]>>::price(0).unwrap()
         + 4
         + 4
         + 5

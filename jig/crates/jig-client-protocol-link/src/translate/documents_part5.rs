@@ -304,7 +304,7 @@ pub(crate) fn owner_host_piece(
     if count > bound {
         return Err(too_large());
     }
-    super::charge(room, List::<c::OwnerHost>::worst_case(bound))?;
+    super::charge(room, List::<c::OwnerHost>::price(bound))?;
     let mut rows = List::with_capacity(bound);
     let mut reader = Reader::new(bytes);
     for _ in 0..count {

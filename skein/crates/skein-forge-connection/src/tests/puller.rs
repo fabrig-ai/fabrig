@@ -621,7 +621,7 @@ fn puller_holding_a_hint_fits_its_counting_allocator_ledger() {
     assert!(u64::try_from(heap.peak).expect("positive peak") <= 2 * bound, "{} > 2 * {bound}", heap.peak);
     assert!(
         u64::try_from(heap.peak).expect("positive peak")
-            < List::<skein_json::tokenizer::Event>::worst_case(h.env.limits.delivery_bytes).expect("event buffer size")
+            < List::<skein_json::tokenizer::Event>::price(h.env.limits.delivery_bytes).expect("event buffer size")
     );
     println!("puller holding hint: peak {} <= twice puller heap {bound}", heap.peak);
 }

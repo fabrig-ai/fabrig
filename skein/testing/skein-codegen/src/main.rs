@@ -8,13 +8,13 @@ use std::process::{Command, ExitCode};
 
 use skein_codegen::diff::Rename;
 use skein_codegen::patch::{self, Landed, Options};
-use skein_codegen::{generate, parse};
+use skein_codegen::{Names, generate_named, parse};
 
-const USAGE: &str = "usage: skein-codegen <schema> <out-dir> | patch <crate> [--baseline] [--owner <name>] [--after <upstream> <level>] [--rename <family> <old> <new>] [--base <ref>] [--check]";
+const USAGE: &str = "usage: skein-codegen <schema> <out-dir> [--names worst-case|bounds|both] | patch <crate> [--baseline] [--owner <name>] [--after <upstream> <level>] [--rename <family> <old> <new>] [--base <ref>] [--check]";
 
 #[derive(Debug, PartialEq, Eq)]
 enum Arguments {
-    Generate { schema: PathBuf, out: PathBuf },
+    Generate { schema: PathBuf, out: PathBuf, names: Names },
     Patch { owner: PathBuf, options: Options, base: Option<String>, check: bool },
 }
 
@@ -23,11 +23,20 @@ fn arguments(args: &[String]) -> Result<Arguments, &'static str> {
     let first = args.next().ok_or(USAGE)?;
     let second = args.next().ok_or(USAGE)?;
     if first != "patch" {
-        return if args.next().is_none() {
-            Ok(Arguments::Generate { schema: first.into(), out: second.into() })
-        } else {
-            Err(USAGE)
+        let names = match args.next().map(String::as_str) {
+            None => Names::WorstCase,
+            Some("--names") => match args.next().map(String::as_str) {
+                Some("worst-case") => Names::WorstCase,
+                Some("bounds") => Names::Bounds,
+                Some("both") => Names::Both,
+                _ => return Err(USAGE),
+            },
+            Some(_) => return Err(USAGE),
         };
+        if args.next().is_some() {
+            return Err(USAGE);
+        }
+        return Ok(Arguments::Generate { schema: first.into(), out: second.into(), names });
     }
     let mut options = Options::default();
     let mut base = None;
@@ -82,8 +91,8 @@ fn main() -> ExitCode {
 fn execute() -> Result<u8, Box<dyn core::error::Error>> {
     let args = std::env::args().skip(1).collect::<Vec<_>>();
     match arguments(&args)? {
-        Arguments::Generate { schema, out } => {
-            generate_files(&schema, &out)?;
+        Arguments::Generate { schema, out, names } => {
+            generate_files(&schema, &out, names)?;
             Ok(0)
         }
         Arguments::Patch { owner, options, base, check } => {
@@ -133,11 +142,11 @@ fn landed(owner: &Path, base: Option<&str>) -> Result<Landed, Box<dyn core::erro
     Ok(Landed::new(files))
 }
 
-fn generate_files(schema_path: &Path, out_dir: &Path) -> Result<(), Box<dyn core::error::Error>> {
+fn generate_files(schema_path: &Path, out_dir: &Path, names: Names) -> Result<(), Box<dyn core::error::Error>> {
     let source = std::fs::read_to_string(schema_path)?;
     let schema = parse(&source)?;
     std::fs::create_dir_all(out_dir)?;
-    let output = generate(&schema);
+    let output = generate_named(&schema, names);
     let path = out_dir.join(format!("v{}.rs", schema.version));
     std::fs::write(path, output.rust)?;
     let schema_directory = schema_path.parent().ok_or("schema has no parent directory")?;
@@ -153,6 +162,7 @@ fn generate_files(schema_path: &Path, out_dir: &Path) -> Result<(), Box<dyn core
 #[cfg(test)]
 mod tests {
     use super::{Arguments, USAGE, arguments};
+    use skein_codegen::Names;
     use skein_codegen::diff::Rename;
     use skein_codegen::patch::Options;
 
@@ -162,7 +172,20 @@ mod tests {
 
     #[test]
     fn schema_generation_keeps_its_two_positional_arguments() {
-        assert_eq!(read(&["schema", "out"]), Ok(Arguments::Generate { schema: "schema".into(), out: "out".into() }));
+        assert_eq!(
+            read(&["schema", "out"]),
+            Ok(Arguments::Generate { schema: "schema".into(), out: "out".into(), names: Names::WorstCase })
+        );
+    }
+
+    #[test]
+    fn generation_selects_each_bound_vocabulary() {
+        for (value, names) in [("worst-case", Names::WorstCase), ("bounds", Names::Bounds), ("both", Names::Both)] {
+            assert_eq!(
+                read(&["schema", "out", "--names", value]),
+                Ok(Arguments::Generate { schema: "schema".into(), out: "out".into(), names })
+            );
+        }
     }
 
     #[test]
@@ -223,6 +246,9 @@ mod tests {
             vec![],
             vec!["schema"],
             vec!["schema", "out", "extra"],
+            vec!["schema", "out", "--names"],
+            vec!["schema", "out", "--names", "unknown"],
+            vec!["schema", "out", "--names", "bounds", "extra"],
             vec!["patch", "crate", "--owner"],
             vec!["patch", "crate", "--after", "up", "no"],
             vec!["patch", "crate", "--rename", "shelf", "Old"],

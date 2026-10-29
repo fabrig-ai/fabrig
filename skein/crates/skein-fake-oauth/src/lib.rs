@@ -63,12 +63,12 @@ pub fn worst_case(limits: &Limits) -> Option<u64> {
     let fields = 10_u32.checked_add(limits.carried)?;
     skein_oauth::worst_case(&limits.document)?
         .checked_add(terms::worst_case(limits)?)?
-        .checked_add(List::<Field>::worst_case(fields)?)?
+        .checked_add(List::<Field>::price(fields)?)?
         .checked_add(
             u64::from(limits.codes)
                 .checked_mul(u64::from(limits.uri_bytes).checked_add(u64::from(limits.document.string_bytes))?)?,
         )?
-        .checked_add(List::<Code>::worst_case(limits.codes)?)?
+        .checked_add(List::<Code>::price(limits.codes)?)?
         .checked_add(
             u64::from(limits.codes)
                 .checked_add(1)?
@@ -76,8 +76,8 @@ pub fn worst_case(limits: &Limits) -> Option<u64> {
                 .checked_mul(u64::from(limits.document.string_bytes))?,
         )?
         .checked_add(u64::from(limits.codes).checked_mul(59)?)?
-        .checked_add(List::<Box<[u8]>>::worst_case(limits.rotations)?)?
-        .checked_add(Queue::<Plan>::worst_case(limits.plans)?)?
+        .checked_add(List::<Box<[u8]>>::price(limits.rotations)?)?
+        .checked_add(Queue::<Plan>::price(limits.plans)?)?
         .checked_add(u64::from(limits.document.token_bytes).checked_mul(u64::from(limits.rotations).checked_add(8)?)?)?
         .checked_add(u64::from(limits.document.document_bytes).checked_mul(u64::from(limits.plans).checked_add(2)?)?)?
         .checked_add(u64::from(limits.uri_bytes).checked_mul(4)?)?

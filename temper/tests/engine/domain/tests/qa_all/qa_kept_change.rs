@@ -2,6 +2,7 @@
 use jig_domain_tasks as tasks;
 use skein_lib::Token;
 use temper_engine_domain as engine;
+use temper_engine_domain_world::journal_limits as journal;
 use temper_engine_domain_world::{direct::Driver, fixtures, protocol, walking};
 
 const CHANNEL: Token = Token::new(7);
@@ -31,7 +32,7 @@ fn limits() -> engine::Limits {
     bounds.brief.read_bytes = 512;
     bounds.brief.brief_bytes = 1024;
     bounds.journal.result_bytes = 1024;
-    bounds.journal.writes = walking::writes(&bounds).max(8192);
+    bounds.journal.writes = journal::TREE_WRITES;
     bounds.journal.held = 300;
     bounds.journal.deliveries = 100;
     assert!(engine::valid(&bounds), "QA bounds must admit the engine root");

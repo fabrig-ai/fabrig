@@ -150,8 +150,8 @@ fn connector_values_price_unused_list_capacity_every_box_and_each_literal_path_b
         document_heap(&document),
         Some(
             size_of::<ClientDocument>() as u64
-                + List::<ClientResource>::worst_case(3).unwrap()
-                + List::<OutboxEntry>::worst_case(2).unwrap()
+                + List::<ClientResource>::price(3).unwrap()
+                + List::<OutboxEntry>::price(2).unwrap()
         )
     );
     let path_price = 2 * size_of::<Box<[u8]>>() as u64 + 13 + 2;

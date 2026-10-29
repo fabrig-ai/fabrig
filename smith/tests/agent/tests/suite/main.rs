@@ -15,6 +15,7 @@ mod memory_returns;
 mod messages;
 mod messages_referee;
 mod models;
+mod orders;
 mod parallel_children;
 mod referee;
 mod simulation;

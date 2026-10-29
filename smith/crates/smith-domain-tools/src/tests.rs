@@ -49,7 +49,7 @@ const LIMITS: Limits = Limits {
 
 const ALL: Grants = Grants { inspect: true, modify: true, shell: true };
 
-/// The domain, its environment, and room for one step's output.
+/// The domain, its environment, and its queued output.
 struct Harness {
     observed: Queue<crate::facts::Fact>,
     domain: Domain,
@@ -73,10 +73,10 @@ impl Harness {
 
     fn new(limits: Limits) -> Harness {
         Harness {
-            observed: Queue::with_capacity(4096),
+            observed: Queue::uncapped(),
             domain: Domain::new(&limits),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
-            out: Queue::with_capacity(max_out(&limits)),
+            out: Queue::uncapped(),
         }
     }
 
@@ -92,14 +92,10 @@ impl Harness {
     fn emit(&mut self, event: Event) -> Box<[Request]> {
         self.keep_facts();
         step(&mut self.domain, &self.env, event, &mut self.out);
-        let max_out = max_out(&self.env.limits);
-        let mut requests = List::with_capacity(max_out);
-        for _ in 0..max_out {
-            if let Some(request) = self.out.pop() {
-                requests.push(request).expect("no more than max_out");
-            }
+        let mut requests = List::with_capacity(self.out.len());
+        while let Some(request) = self.out.pop() {
+            requests.push(request).expect("collected output length");
         }
-        assert!(self.out.is_empty(), "no more than max_out");
         requests.into_boxed()
     }
 

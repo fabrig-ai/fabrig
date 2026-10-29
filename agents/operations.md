@@ -13,6 +13,7 @@ Provisional, 2026-10-28. The machines' and the pipeline's facts every role works
 
 ## 2. Launching a task
 
+- One writer per checkout: the coordinator edits in `~/src/fabrig/coord/mine`, and each Codex run has its own checkout. Do not edit, stage or commit in a checkout while its run is writing there.
 - The task file and anything it must read go to the builder (`~/src/fabrig/tasks/<area>/`), written with `ssh HOST 'umask 077; cat > PATH' < FILE`; the report and log land in `~/src/fabrig/notes/<area>/` there.
 - `ssh HOST 'bash -lc "codex-run task --effort high --to lead/<area>@hel8 TASK SLOT REPORT </dev/null"'`; `--effort medium` for mechanical work; never xhigh. A question or a repair resumes the same run: `--resume <run id>`, a new task file and a NEW report path.
 - Remote commands run in a login shell (`bash -lc`), or `cargo`, `heavy`, `codex-run` and `post` are not on PATH.

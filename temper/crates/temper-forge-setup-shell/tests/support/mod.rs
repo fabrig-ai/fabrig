@@ -1,3 +1,5 @@
+//! Real-clock peer waits (skein/docs/foundation/testing-strategy.md, 2.10).
+use skein_world::{Deadline, Expired, Starved};
 use std::{
     fs,
     os::unix::fs::PermissionsExt,
@@ -113,7 +115,7 @@ impl Peer {
     pub fn address(&self) -> std::net::SocketAddr {
         self.listener.local_addr().expect("address")
     }
-    pub fn serve_after(self, ms: u64, replies: &[(u16, &[u8])]) -> Heard {
+    pub fn serve_after(self, ms: u64, replies: &[(u16, &[u8])]) -> Result<Heard, Starved> {
         use std::io::{Read, Write};
         std::thread::sleep(std::time::Duration::from_millis(ms));
         let listener = self.listener;
@@ -121,28 +123,57 @@ impl Peer {
         let clock = skein_shell::Clock::new();
         let mut requests = Vec::new();
         for response in replies.iter().map(Some).chain(std::iter::once(None)) {
-            let end = clock.now().now.saturating_add(skein_lib::Duration::from_millis(if response.is_some() {
-                400
-            } else {
-                30
-            }));
+            let required = response.map(|_| {
+                let mut deadline =
+                    Deadline::arm("the setup peer's next request", skein_lib::Duration::from_millis(400));
+                deadline.watch_process(std::process::id());
+                deadline
+            });
+            // No further request is expected: this window observes the request count.
+            let observation =
+                required.is_none().then(|| clock.now().now.saturating_add(skein_lib::Duration::from_millis(30)));
             let mut socket = loop {
-                if let Ok((socket, _)) = listener.accept() {
-                    break socket;
+                match listener.accept() {
+                    Ok((socket, _)) => break socket,
+                    Err(why) if why.kind() == std::io::ErrorKind::WouldBlock => {}
+                    Err(why) => panic!("setup peer accept: {why}"),
                 }
-                if clock.now().now >= end {
-                    return Heard { requests };
+                if let Some(deadline) = &required {
+                    if deadline.passed() {
+                        return Err(expired(deadline));
+                    }
+                } else if observation.is_some_and(|end| clock.now().now >= end) {
+                    return Ok(Heard { requests });
                 }
                 std::thread::sleep(std::time::Duration::from_millis(1));
             };
-            socket.set_read_timeout(Some(std::time::Duration::from_millis(350))).expect("read timeout");
+            let mut deadline = Deadline::arm("the setup peer's request head", skein_lib::Duration::from_millis(350));
+            deadline.watch_process(std::process::id());
             let mut bytes = Vec::new();
             let mut byte = [0];
             while !bytes.ends_with(b"\r\n\r\n") {
-                if socket.read(&mut byte).unwrap_or(0) == 0 {
-                    break;
+                if deadline.passed() {
+                    if response.is_none() {
+                        break;
+                    }
+                    return Err(expired(&deadline));
                 }
-                bytes.push(byte[0]);
+                socket.set_read_timeout(Some(timeout(&deadline))).expect("read timeout");
+                match socket.read(&mut byte) {
+                    Ok(0) => break,
+                    Ok(_) => bytes.push(byte[0]),
+                    Err(why) if why.kind() == std::io::ErrorKind::Interrupted => {}
+                    Err(why) if matches!(why.kind(), std::io::ErrorKind::TimedOut | std::io::ErrorKind::WouldBlock) => {
+                        if deadline.passed() {
+                            // An extra accepted request already invalidates the observation.
+                            if response.is_none() {
+                                break;
+                            }
+                            return Err(expired(&deadline));
+                        }
+                    }
+                    Err(why) => panic!("setup peer request head: {why}"),
+                }
             }
             let text = String::from_utf8(bytes).expect("request head");
             let mut lines = text.lines();
@@ -162,10 +193,11 @@ impl Peer {
                 .expect("response head");
                 socket.write_all(body).expect("response body");
             } else {
+                socket.set_read_timeout(Some(timeout(&deadline))).expect("observation read timeout");
                 let _ = socket.read(&mut byte);
             }
         }
-        Heard { requests }
+        Ok(Heard { requests })
     }
 }
 /// One refused answer and the requests it allowed the host to make.
@@ -175,9 +207,24 @@ pub fn refused(status: u16, body: &[u8], expected: &str) -> Heard {
     let settings = settings(peer.address());
     std::thread::scope(|scope| {
         let server = scope.spawn(|| peer.serve_after(0, &[(status, body)]));
-        let refused = temper_forge_setup_shell::reconcile::reconcile(settings, &skein_shell::Clock::new())
-            .expect_err("request refused");
-        assert_eq!(refused.line(), expected);
-        server.join().expect("peer thread")
+        let result = temper_forge_setup_shell::reconcile::reconcile(settings, &skein_shell::Clock::new());
+        let heard = server.join().expect("peer thread").unwrap_or_else(|starved| starved.pass());
+        assert_eq!(result.expect_err("request refused").line(), expected);
+        heard
     })
+}
+
+/// Socket waits use the harness deadline, including the kernel's positive minimum.
+#[must_use]
+pub fn timeout(deadline: &Deadline) -> std::time::Duration {
+    std::time::Duration::from_nanos(deadline.remaining().as_nanos()).max(std::time::Duration::from_millis(1))
+}
+
+/// The caller returns this verdict to the test thread after its sockets close.
+#[must_use]
+pub fn expired(deadline: &Deadline) -> Starved {
+    match deadline.expired() {
+        Expired::Starved(starved) => starved,
+        Expired::Failed(figures) => panic!("the setup peer did not answer: {figures}"),
+    }
 }
