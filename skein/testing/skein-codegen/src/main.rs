@@ -10,7 +10,7 @@ use skein_codegen::diff::Rename;
 use skein_codegen::patch::{self, Landed, Options};
 use skein_codegen::{Names, generate_named, parse};
 
-const USAGE: &str = "usage: skein-codegen <schema> <out-dir> [--names worst-case|bounds|both] | patch <crate> [--baseline] [--owner <name>] [--after <upstream> <level>] [--rename <family> <old> <new>] [--base <ref>] [--check]";
+const USAGE: &str = "usage: skein-codegen <schema> <out-dir> [--names bounds] | patch <crate> [--baseline] [--owner <name>] [--after <upstream> <level>] [--rename <family> <old> <new>] [--base <ref>] [--check]";
 
 #[derive(Debug, PartialEq, Eq)]
 enum Arguments {
@@ -24,11 +24,9 @@ fn arguments(args: &[String]) -> Result<Arguments, &'static str> {
     let second = args.next().ok_or(USAGE)?;
     if first != "patch" {
         let names = match args.next().map(String::as_str) {
-            None => Names::WorstCase,
+            None => Names::Bounds,
             Some("--names") => match args.next().map(String::as_str) {
-                Some("worst-case") => Names::WorstCase,
                 Some("bounds") => Names::Bounds,
-                Some("both") => Names::Both,
                 _ => return Err(USAGE),
             },
             Some(_) => return Err(USAGE),
@@ -174,18 +172,16 @@ mod tests {
     fn schema_generation_keeps_its_two_positional_arguments() {
         assert_eq!(
             read(&["schema", "out"]),
-            Ok(Arguments::Generate { schema: "schema".into(), out: "out".into(), names: Names::WorstCase })
+            Ok(Arguments::Generate { schema: "schema".into(), out: "out".into(), names: Names::Bounds })
         );
     }
 
     #[test]
-    fn generation_selects_each_bound_vocabulary() {
-        for (value, names) in [("worst-case", Names::WorstCase), ("bounds", Names::Bounds), ("both", Names::Both)] {
-            assert_eq!(
-                read(&["schema", "out", "--names", value]),
-                Ok(Arguments::Generate { schema: "schema".into(), out: "out".into(), names })
-            );
-        }
+    fn generation_selects_bound_names() {
+        assert_eq!(
+            read(&["schema", "out", "--names", "bounds"]),
+            Ok(Arguments::Generate { schema: "schema".into(), out: "out".into(), names: Names::Bounds })
+        );
     }
 
     #[test]
@@ -248,6 +244,8 @@ mod tests {
             vec!["schema", "out", "extra"],
             vec!["schema", "out", "--names"],
             vec!["schema", "out", "--names", "unknown"],
+            vec!["schema", "out", "--names", "worst-case"],
+            vec!["schema", "out", "--names", "both"],
             vec!["schema", "out", "--names", "bounds", "extra"],
             vec!["patch", "crate", "--owner"],
             vec!["patch", "crate", "--after", "up", "no"],
