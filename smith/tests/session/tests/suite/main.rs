@@ -8,6 +8,7 @@ mod child_final;
 mod compaction;
 mod jobs;
 mod memory;
+mod orders;
 mod paths;
 mod recorded;
 mod referee;

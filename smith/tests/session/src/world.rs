@@ -108,6 +108,15 @@ pub struct Count {
     pub max: u32,
 }
 
+/// The two observation points around the loop's reclaim, with no work between them.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Reclaim {
+    /// Retired entities remain present and newly resting batches are ineligible.
+    Before,
+    /// Retired entities are freed and newly resting batches become eligible.
+    After,
+}
+
 /// Immutable seeded peer behavior and component limits used to construct this world.
 ///
 /// World contract: domain/session.md, sections 10 and 12; testing-strategy.md, section 2.2.
@@ -1007,8 +1016,13 @@ impl World {
     ///
     /// World contract: domain/session.md, sections 10 and 12; testing-strategy.md, section 2.2.
     pub fn run(&mut self, iterations: u32) {
+        self.run_observed(iterations, |_, _| {});
+    }
+
+    /// Runs the same loop with a scenario observing both sides of each reclaim point.
+    pub fn run_observed(&mut self, iterations: u32, mut observe: impl FnMut(&mut Self, Reclaim)) {
         for _ in 0..iterations {
-            self.iterate();
+            self.iterate(&mut observe);
             if self.has_work_now() {
                 continue;
             }
@@ -1025,7 +1039,7 @@ impl World {
     /// One iteration of the loop, as the shell would run it.
     ///
     /// World contract: domain/session.md, sections 10 and 12; testing-strategy.md, section 2.2.
-    fn iterate(&mut self) {
+    fn iterate(&mut self, observe: &mut impl FnMut(&mut Self, Reclaim)) {
         self.agent_stage.tick(self.now);
         self.provider_stage.tick(self.now);
         self.deliver();
@@ -1099,8 +1113,60 @@ impl World {
         assert!(self.agent.kits() <= self.settings.agent.sessions, "a kit at most for each session");
         assert!(self.provider.calls() <= self.settings.provider.calls, "calls stay within their slots");
         self.stats.most_runs = self.stats.most_runs.max(self.agent.runs());
+        observe(self, Reclaim::Before);
         self.agent.reclaim();
         self.provider.reclaim();
+        observe(self, Reclaim::After);
+    }
+
+    /// The domain's boundary counters and readiness, for loop invariant observations.
+    #[must_use]
+    pub fn domain(&self) -> &agent::Domain {
+        &self.agent
+    }
+
+    /// Schedules the opener's close through the existing delivery queue at the current time.
+    pub fn close(&mut self, opener: u64) {
+        self.schedule(self.now, Delivery::Close { opener });
+    }
+
+    /// File operations still owed to an opener's session, observed at the machine boundary.
+    #[must_use]
+    pub fn pending_io(&self, opener: u64) -> Vec<(Token, &Op)> {
+        let session = self.sessions[&opener].session;
+        self.ops
+            .keys()
+            .filter_map(|&owner| {
+                let pending = self.ops.get(owner).expect("live operation");
+                match &pending.work {
+                    Work::File(op) if Some(pending.session) == session => Some((owner, op)),
+                    Work::File(_) | Work::Command(_) | Work::Ending(_) => None,
+                }
+            })
+            .collect()
+    }
+
+    /// Delegated calls still owed to an opener's session, in provider positions.
+    #[must_use]
+    pub fn pending_delegates(&self, opener: u64) -> Vec<(Token, agent::record::Origin)> {
+        let session = self.sessions[&opener].session;
+        self.tools
+            .keys()
+            .filter_map(|&owner| {
+                let pending = self.tools.get(owner).expect("live delegated call");
+                (Some(pending.session) == session).then_some((owner, pending.origin))
+            })
+            .collect()
+    }
+
+    /// Moves a machine terminal through the existing schedule, retaining its work and reply right.
+    /// Scenarios keep the chosen time before the request's deadline.
+    pub fn deliver_io_at(&mut self, owner: Token, at: Time) {
+        assert!(at > self.now, "the machine terminal arrives in a later iteration");
+        let key = self.ops.get(owner).expect("pending operation").delivery;
+        let delivery = self.wire.withdraw(key).expect("pending machine terminal");
+        let key = self.schedule(at, delivery);
+        self.ops.get_mut(owner).expect("pending operation").delivery = key;
     }
 
     /// The agent's requests, carried out the way its opener, its protocol
