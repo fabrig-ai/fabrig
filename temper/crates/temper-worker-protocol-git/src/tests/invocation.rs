@@ -280,6 +280,18 @@ fn limits_breaking_git_md_s_rules_are_refused_naming_the_limit() {
     assert_eq!(limits::check(&valid, &checkout), Err(Unfit::StdoutBytes));
 }
 #[test]
+fn check_accepts_limits_whose_payload_sum_exceeds_u64() {
+    let limits = crate::Limits {
+        operations: 1_000_000_000,
+        stdout_bytes: u32::MAX,
+        stderr_bytes: u32::MAX,
+        read_bytes: u32::MAX,
+        ..fixtures::limits()
+    };
+    let checkout = temper_worker_domain_checkout::Limits { message_bytes: u32::MAX, ..fixtures::checkout() };
+    assert_eq!(limits::check(&limits, &checkout), Ok(()));
+}
+#[test]
 fn the_identity_s_debug_shows_no_token_byte() {
     let printed = alloc::fmt::format(format_args!("{:?}", fixtures::identity()));
     assert!(printed.contains("Secret { len: 5 }"));
