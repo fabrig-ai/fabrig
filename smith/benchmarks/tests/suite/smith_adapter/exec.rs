@@ -16,6 +16,14 @@ pub(super) struct ExecFixture {
 
 impl ExecFixture {
     pub(super) fn new(name: &str, check_code: i32) -> Self {
+        Self::fixture(name, Some(check_code))
+    }
+
+    pub(super) fn rendering(name: &str) -> Self {
+        Self::fixture(name, None)
+    }
+
+    fn fixture(name: &str, check_code: Option<i32>) -> Self {
         use sha2::{Digest, Sha256};
         use std::os::unix::fs::{DirBuilderExt, PermissionsExt};
         let root = root(&format!("{name}-outside-repository"));
@@ -42,28 +50,34 @@ impl ExecFixture {
             assert!(output.status.success());
             String::from_utf8(output.stdout).expect("fixture identity text").trim().to_owned()
         };
-        git(&["init", "-q"]);
-        git(&[
-            "-c",
-            "user.name=Fixture",
-            "-c",
-            "user.email=fixture@example.test",
-            "-c",
-            "core.hooksPath=/dev/null",
-            "commit",
-            "--allow-empty",
-            "-qm",
-            "Exec fixture",
-        ]);
-        let commit = git(&["rev-parse", "HEAD"]);
-        let program = format!(
-            "#!/bin/sh\nif [ \"$1\" = check ]; then\n/usr/bin/printf '%s\\n' '{{\"version\":1,\"limits\":[{{\"name\":\"service.teardown\",\"value\":12345,\"unit\":\"ms\"}}]}}'\nexit {check_code}\nfi\n/bin/cat >/dev/null\n"
-        );
+        let (commit, program) = if let Some(check_code) = check_code {
+            git(&["init", "-q"]);
+            git(&[
+                "-c",
+                "user.name=Fixture",
+                "-c",
+                "user.email=fixture@example.test",
+                "-c",
+                "core.hooksPath=/dev/null",
+                "commit",
+                "--allow-empty",
+                "-qm",
+                "Exec fixture",
+            ]);
+            let program = format!(
+                "#!/bin/sh\nif [ \"$1\" = check ]; then\n/usr/bin/printf '%s\\n' '{{\"version\":1,\"limits\":[{{\"name\":\"service.teardown\",\"value\":12345,\"unit\":\"ms\"}}]}}'\nexit {check_code}\nfi\n/bin/cat >/dev/null\n"
+            );
+            (git(&["rev-parse", "HEAD"]), program)
+        } else {
+            ("a".repeat(40), "synthetic verified identity; never executed\n".into())
+        };
         let digest = format!("{:x}", Sha256::digest(program.as_bytes()));
         let built = root.join(smith_bench::arm::arm_name(&commit, &digest).expect("arm name"));
         std::fs::create_dir(&built).expect("arm directory");
         std::fs::write(built.join("smith"), &program).expect("fixture check executable");
-        std::fs::set_permissions(built.join("smith"), std::fs::Permissions::from_mode(0o700)).expect("executable");
+        if check_code.is_some() {
+            std::fs::set_permissions(built.join("smith"), std::fs::Permissions::from_mode(0o700)).expect("executable");
+        }
         let manifest = serde_json::json!({"version":1,"commit":commit,"sha256":digest,"toolchain":"scripted fixture",
             "binaries":[{"name":"smith","sha256":digest}]});
         std::fs::write(built.join("arm.json"), serde_json::to_vec(&manifest).expect("arm manifest")).expect("manifest");
@@ -249,9 +263,10 @@ fn the_program_arm_selects_claude_on_the_anthropic_small_tier() {
     std::fs::remove_dir_all(fixture.root).expect("fixture cleanup");
 }
 
+/// Lower test of smith-bench's smith_adapter::exec::the_credentials_lead_reaches_the_native_policy_boundary (top tiers test wiring only).
 #[test]
 fn the_credentials_lead_reaches_the_native_policy_boundary() {
-    let fixture = ExecFixture::new("credentials-policy", 0);
+    let fixture = ExecFixture::rendering("credentials-policy");
     let task = super::authored_task("credentials");
     let context = smith_bench::agent::Context { task: &task, ..fixture.context() };
     let arguments = super::product_arguments(&context).expect("credentials flags");
