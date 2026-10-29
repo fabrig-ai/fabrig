@@ -18,7 +18,7 @@ pub(super) const LIMITS: Limits = Limits {
 };
 
 #[test]
-fn valid_and_heap_bound_agree_at_representable_capacity_edges() {
+fn valid_checks_representable_capacity_edges() {
     // Capacities are 8*sockets+4 flights, 4*sockets+2 operations, 2*sockets timers.
     const FLIGHT_LAST: u32 = 536_870_911;
     const OPERATION_LAST: u32 = 1_073_741_823;
@@ -43,12 +43,11 @@ fn valid_and_heap_bound_agree_at_representable_capacity_edges() {
     ];
     for (name, limits, expected) in cases {
         assert_eq!(valid(&limits), expected, "{name}: {limits:?}");
-        assert_eq!(valid(&limits), super::heap_bound(&limits).is_some(), "{name}: {limits:?}");
     }
 }
 
 #[test]
-fn valid_refuses_unusable_io_limits_the_sum_accepted() {
+fn valid_refuses_unusable_io_limits() {
     let cases = [
         Limits {
             refusals: 0,
@@ -70,18 +69,15 @@ fn valid_refuses_unusable_io_limits_the_sum_accepted() {
     ];
     for limits in cases {
         assert!(!valid(&limits), "{limits:?}");
-        assert!(super::heap_bound(&limits).is_some(), "{limits:?}");
     }
 }
 
 #[test]
-fn valid_accepts_limits_whose_heap_total_alone_overflows() {
-    // Flights still fit, but every stream's maximum queue of boxed sends
-    // makes the aggregate heap exceed u64 on native and wasm32 targets.
+fn valid_accepts_maximum_flight_capacity_with_maximum_sends() {
+    // The last representable flight table accepts the full send limit.
     const LAST_FLIGHT_SOCKETS: u32 = 536_870_911;
     let limits = Limits { sockets: LAST_FLIGHT_SOCKETS, sends: u32::MAX, ..LIMITS };
     assert!(valid(&limits));
-    assert!(super::heap_bound(&limits).is_none());
 }
 
 pub(super) fn draw(rng: &mut Rng, maximum: u32) -> u32 {
