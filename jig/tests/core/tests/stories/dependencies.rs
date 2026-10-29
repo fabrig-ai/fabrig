@@ -140,7 +140,7 @@ fn member_world(seed: u64) -> World {
     member.requests = authority::Requests(8);
     policy.roles = Box::new([owner, member]);
     let mut domain = authority::Domain::new(rules, limits.core.authority).expect("bounded member policy");
-    let mut out = Queue::with_capacity(authority::POLICY_MAX_OUT);
+    let mut out = Queue::uncapped();
     authority::step(&mut domain, authority::Event::Policy { project: 1, policy }, &mut out);
     configuration.core.seed_projects[0].policy.policy = domain.policy(1).expect("checked seed policy").clone();
     configuration.core.defaults.rules = (jig_domain_authority::Domain::new(domain.rules().clone(), *domain.limits())
