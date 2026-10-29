@@ -1,7 +1,5 @@
 use jig_conformance::{Harness, referee::Promise, scenarios::Scenario};
 use jig_conformance_world::{Config, Testing, actions, negative::Fault};
-#[global_allocator]
-static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
 
 fn world(fault: Fault) -> Harness<Testing> {
     let scenario = (fault == Fault::StaleVerdict).then_some(Scenario::ChangedJudge);

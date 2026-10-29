@@ -7,9 +7,6 @@ use jig_ops_domain_infrastructure as infra;
 use jig_ops_world::conformance::{Config, Ops, Story, chat};
 use skein_lib::{ReplyTo, Token};
 
-#[global_allocator]
-static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
-
 fn provisioning(granted: bool) -> Harness<Ops> {
     let config = Config::new(915, Story::Environment);
     let config = if granted { config } else { config.without_close_grant() };

@@ -1,7 +1,5 @@
 use jig_conformance::Harness;
 use jig_conformance_world::{Config, Testing};
-#[global_allocator]
-static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
 
 #[test]
 fn a_testing_engine_runs_against_independent_parties_workers_and_two_systems() {

@@ -4,8 +4,6 @@ use jig_conformance::{
 };
 use jig_conformance_world::{Testing, replay};
 use std::time::Instant;
-#[global_allocator]
-static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
 
 #[test]
 fn every_shared_story_survives_every_commit_and_seeded_random_cuts() {

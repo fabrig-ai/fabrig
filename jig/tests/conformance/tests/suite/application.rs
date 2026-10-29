@@ -6,9 +6,6 @@ use jig_test_domain as root;
 use sha2::{Digest, Sha256};
 use skein_lib::{ReplyTo, Token};
 
-#[global_allocator]
-static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
-
 fn ask(sign_in: u64, key: u8, value: connector::ApplicationRequest) -> root::Event {
     let mut bytes = Vec::new();
     bytes.extend(value.object.to_be_bytes());

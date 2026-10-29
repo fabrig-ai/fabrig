@@ -3,9 +3,7 @@ use jig_client_view::address::Address as JigAddress;
 use jig_client_world::Until;
 use jig_ops_client_domain::{Address, observability as obs};
 use jig_ops_world::client::stories;
-use skein_world::domain::{Verdict, heap::Counting};
-#[global_allocator]
-static HEAP: Counting = Counting;
+use skein_world::domain::Verdict;
 fn sweep(incident: bool) {
     let mut faults = 0;
     let mut judged = 0;

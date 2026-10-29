@@ -8,8 +8,6 @@ const GRACE_RESTART_COMMIT: u64 = 7;
 const COMPOUND_ANSWER_COMMIT: u64 = 10;
 const COMPOUND_DELEGATION_COMMIT: u64 = 7;
 const COMPOUND_RUNNING_COMMIT: u64 = 9;
-#[global_allocator]
-static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
 
 #[test]
 fn every_shared_adversarial_story_runs_on_the_testing_application() {

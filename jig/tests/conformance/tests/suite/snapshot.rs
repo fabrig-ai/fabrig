@@ -1,7 +1,5 @@
 use jig_conformance::{Cut, scenarios::Scenario};
 use jig_conformance_world::{Testing, replay};
-#[global_allocator]
-static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
 
 #[test]
 fn a_forked_snapshot_replays_to_the_durable_rows() {

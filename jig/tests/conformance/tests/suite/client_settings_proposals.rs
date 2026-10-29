@@ -93,7 +93,7 @@ fn pending_reviews_keep_origins_values_sizes_and_the_cut_fact() {
     let mut parts = w::OwnerProposal::decode(
         &limits.wire,
         &mut Reader::new(include_bytes!(
-            "../../../crates/jig-client-protocol-wire/golden/record_owner_proposal_smallest.bin"
+            "../../../../crates/jig-client-protocol-wire/golden/record_owner_proposal_smallest.bin"
         )),
     )
     .expect("proposal envelope")
@@ -140,7 +140,7 @@ fn retained_settings_actions_keep_the_revision_they_made() {
     let mut proposal = w::OwnerProposalHistory::decode(
         &limits.wire,
         &mut Reader::new(include_bytes!(
-            "../../../crates/jig-client-protocol-wire/golden/record_owner_proposal_history_smallest.bin"
+            "../../../../crates/jig-client-protocol-wire/golden/record_owner_proposal_history_smallest.bin"
         )),
     )
     .expect("history envelope")
@@ -182,7 +182,7 @@ fn retained_settings_actions_keep_the_revision_they_made() {
     let mut historical = w::OwnerHistorical::decode(
         &limits.wire,
         &mut Reader::new(include_bytes!(
-            "../../../crates/jig-client-protocol-wire/golden/record_owner_historical_smallest.bin"
+            "../../../../crates/jig-client-protocol-wire/golden/record_owner_historical_smallest.bin"
         )),
     )
     .expect("historical envelope")
