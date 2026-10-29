@@ -445,11 +445,13 @@ ensure SSE demands fit HTTP's read cap and that each piece size fits the
 transport's (llm-connection.md, section 7). JSON is decoded as each
 event's data streams, selectively (section 4.4). HTTP read/room maxima are
 exported for the stream owner to check.
-`client::worst_case` estimates the child machines, bounded routing queues, the
-selective decoder's retained values and depth stack, request storage and
-held completion; no size computation may wrap. The edge formulas name
-what they bound: `client::encoder_bound` and
-`openai::common::encoder_bound` bound request scratch;
+`client::valid` checks the edge bounds and derived capacities, including
+HTTP, SSE and JSON demands fitting their lower streams, tagged projections,
+error documents and tokenizer lengths. Internal handoff queues grow with
+admitted work. There is no client heap sum; worlds check measured peaks
+under scenario ceilings. The edge formulas name what they bound:
+`client::encoder_bound` and `openai::common::encoder_bound` bound request
+scratch;
 `openai::common::decoded_bound` and `anthropic::decoded_bound` bound
 retained decoded output, and `anthropic::response::decoder_bound`
 bounds its response decoder. `replay_bound` bounds the raw/envelope

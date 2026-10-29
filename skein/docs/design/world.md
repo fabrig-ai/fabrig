@@ -178,6 +178,10 @@ simulator.md; a world run in a browser is playground.md.
   - a clock moved short of the next due instant turns no process;
   - an input entered at a step and an instant, replayed at the same
     step and instant, gives the same trace.
+- **Domain worlds use an uncapped stage:** `skein_world::domain::Stage`
+  owns the environment, inbox and output queue, constructed by
+  `Stage::uncapped(limits)` (testing.md, 2). Events and due alarms run
+  without output-room checks; the world bounds incoming work.
 - **The harness's unit tests and simulated worlds** check its routing,
   cleanup, observation and settlement mechanics without a real kernel.
   Real-loop and end-to-end tests cover paths through those backends and
