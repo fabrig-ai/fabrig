@@ -45,6 +45,6 @@ mod tests;
 pub use boundary::{
     Conflicts, Event, Failure, Landing, Message, Outcome, Prepared, Refusal, Repository, Request, Spec, Start,
 };
-pub use domain::{Domain, MAX_OUT, step};
+pub use domain::{Domain, step};
 pub use facts::{Cached, Ending, Fact, Preparation, Tally, Target};
-pub use limits::{Limits, PROGRAM_BYTES, valid, worst_case};
+pub use limits::{Limits, PROGRAM_BYTES, valid};
