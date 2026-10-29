@@ -60,7 +60,7 @@ pub use call::{
     Budget, BytesClamp, Call, Cut, Depth, Effect, Entry, Exit, Fault, Hit, JobEnd, JobNumber, Kind, Mismatch, Next,
     Occurrences, Outcome, Replacement, SizePart, Timeout, TimeoutClamp, Tool, Wait, Yield, effect, tool,
 };
-pub use domain::{Domain, max_facts, max_out, step};
+pub use domain::{Domain, max_facts, step};
 pub use facts::{CallInfo, Fact, FactKind, Verdict};
 pub use limits::{Derivation, Field, Limits, batch_result_bound, derive, result_bound, valid};
 pub use path::{Name, Namespace, Part, Path, Place, Resolved};

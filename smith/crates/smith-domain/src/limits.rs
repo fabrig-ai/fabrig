@@ -94,17 +94,6 @@ pub(crate) fn handoffs(limits: &Limits) -> Option<u32> {
     limits.run.conversations.checked_add(flights(limits)?)
 }
 
-/// Room for what the run emits in an entry point: its most, for each step it
-/// takes (see the domain module). Retained for the public root output allowance.
-pub(crate) const fn run_out(limits: &Limits) -> u32 {
-    run_steps(limits).saturating_mul(run::MAX_OUT)
-}
-
-/// The session contribution to the public root output allowance.
-pub(crate) const fn session_out(limits: &Limits) -> u32 {
-    session_steps(limits).saturating_mul(session::max_out(&limits.session))
-}
-
 /// The most steps an entry point takes of the session child domain: its own, if
 /// it is for the sessions, and one for each hand-off the run makes at once in
 /// answer to what that step sent it (an `Open` or a `Say`: as many as the run

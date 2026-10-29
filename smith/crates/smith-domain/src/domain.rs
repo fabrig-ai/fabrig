@@ -32,8 +32,7 @@
 //! pair in addition to the child domain it is
 //! for (a session's step, say), the run's steps for what that emitted, the
 //! sessions' steps for what the run opened or said at once, and the run's for
-//! what those emitted; [`max_out`] follows from the child domains' along that
-//! chain.
+//! what those emitted. Requests go through uncapped queues along that chain.
 
 use alloc::boxed::Box;
 use skein_lib::{Env, Id, Map, Queue, ReplyTo, Rng, Set, Slab, Time, Token};
@@ -46,22 +45,6 @@ use crate::facts::Fact;
 use crate::limits::{self, Limits};
 use crate::peer::Peer;
 use crate::route;
-
-/// The most requests an entry point emits per call under `limits`: what the
-/// child domains emit in the most steps it takes of each (see the module), as
-/// each of their requests is one of ours or a hand-off. The agent service's
-/// profile uses it for its queue default; channel and protocol-llm harnesses
-/// use it for output storage. Internal handoff queues need no reservation.
-#[must_use]
-pub const fn max_out(limits: &Limits) -> u32 {
-    // A session step issues at most one completion and one writer command;
-    // commands run alone (domain/session.md, section 6). Each adds one `Long`.
-    // Two notices cover the actual terminal or held completion handoff.
-    limits::run_out(limits)
-        .saturating_add(limits::session_out(limits))
-        .saturating_add(limits::session_steps(limits).saturating_mul(2))
-        .saturating_add(2)
-}
 
 /// The child observations along every bounded causal handoff of one entrance.
 #[must_use]
@@ -372,14 +355,14 @@ impl Domain {
     }
 }
 
-/// Handles one event, emitting at most [`max_out`] requests.
+/// Handles one event, emitting requests into an uncapped queue.
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     route::event(domain, env, event);
     settle(domain, env, out);
 }
 
 /// Fires the earliest alarm due at `env.now`, the run's or a session's, if
-/// there is one, emitting at most [`max_out`] requests. On a tie, the run's
+/// there is one, emitting into an uncapped queue. On a tie, the run's
 /// goes first. A stage fires its alarms after its input events, so progress
 /// that arrived in the same iteration wins over a deadline that passed while
 /// the loop waited.
@@ -395,8 +378,7 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     settle(domain, env, out);
 }
 
-/// Goes on with one thing that waits, if there is one, emitting at most
-/// [`max_out`] requests: a session after a batch its tools answered within
+/// Goes on with one thing that waits, emitting into an uncapped queue: a session after a batch its tools answered within
 /// the step that started it, or a hand-off from the run deferred in an earlier
 /// iteration.
 pub fn resume(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {

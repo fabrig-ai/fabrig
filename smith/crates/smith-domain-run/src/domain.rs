@@ -18,8 +18,7 @@ use crate::run::{self, Alarm, Conversation, Run};
 /// The most requests an entry point emits per call: an admitted start names
 /// the run and opens its main conversation or asks io for its first look; a
 /// check goes with its notice to the host; a call returns as main is
-/// closed. The root domain still uses this allowance to reserve its child
-/// handoff queue until that queue becomes uncapped.
+/// closed. The root fact formula reads this allowance; child handoff queues are uncapped.
 pub const MAX_OUT: u32 = 3;
 
 /// A terminal may observe every offered and queued message, its end and

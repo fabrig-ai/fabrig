@@ -13,17 +13,6 @@ use crate::flight::{self, Flight};
 use crate::kit::{self, Kit};
 use crate::limits::Limits;
 
-/// The most requests one call of [`step`] emits under `limits`: closing a kit
-/// cancels its ordinary calls and held owners. An ended job can invalidate
-/// the reads queued behind its answer, then close its kit. The allowance covers
-/// all calls plus two outputs per job, or two outputs when that is larger.
-/// The session reads this compatibility allowance in its parent-facing formula.
-#[must_use]
-pub const fn max_out(limits: &Limits) -> u32 {
-    let owners = limits.calls.saturating_add(limits.jobs.saturating_mul(2));
-    if owners > 2 { owners } else { 2 }
-}
-
 /// Close can report every retained terminal beside its lifecycle facts.
 #[must_use]
 pub const fn max_facts(limits: &Limits) -> u32 {
@@ -82,7 +71,7 @@ impl Domain {
     }
 }
 
-/// Handles one event, emitting at most [`max_out`] requests.
+/// Handles one event, emitting requests into an uncapped queue.
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     domain.facts.begin(env.now);
     match event {

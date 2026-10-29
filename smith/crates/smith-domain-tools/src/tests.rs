@@ -14,7 +14,7 @@ use crate::path;
 use crate::window::{self, Span};
 use crate::{
     Authority, Call, Domain, Done, Effect, Entry, Event, Exit, Expect, Fault, Grants, Hit, Kind, Limits, Name, Op,
-    Outcome, Part, Path, Place, Refusal, Repo, Request, Version, effect, max_out, step, valid,
+    Outcome, Part, Path, Place, Refusal, Repo, Request, Version, effect, step, valid,
 };
 use crate::{FactKind as Fact, Tool, Verdict};
 
@@ -568,16 +568,6 @@ fn calls_are_refused_at_the_entrance() {
         let kit = h.open(u64::try_from(index).expect("a small index"), authority(grants));
         assert_eq!(h.call(kit, call.clone()), expected, "{call:?}");
     }
-}
-
-#[test]
-fn the_most_a_step_emits_covers_closing_a_busy_kit() {
-    assert_eq!(max_out(&LIMITS), 12);
-}
-
-#[test]
-fn a_small_call_limit_reserves_held_job_outputs() {
-    assert_eq!(max_out(&Limits { calls: 1, ..LIMITS }), 9);
 }
 
 #[test]
