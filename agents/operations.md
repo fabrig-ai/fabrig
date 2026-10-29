@@ -23,6 +23,7 @@ Provisional, 2026-10-28. The machines' and the pipeline's facts every role works
 ## 3. Slots
 
 - Run installed `claim` from PATH on hel8, not from a lead's clone: it reads main's `tools/slots/hosts`. `claim list` shows shares and holders; `claim list --free OWNER` lists free slots of that share, then the pool.
+- Builder-side validation runs `claim list` over SSH on hel8, never against the builder's local store. If the central request fails, stop before changing the slot; a local empty list does not establish that it is free. The installed CLI refuses off-authority operations before opening claim state (ledger109).
 - `claim claim HOST N OWNER WHAT` before a task takes a slot, `claim release HOST N OWNER` when its report is in. Another lead's share needs its owner's agreement and `--lent-by SHARE_OWNER`; a free slot in that share is not pool space.
 - Automated tasks save a unique `WHAT` per claim lifetime and release with `claim release HOST N OWNER --what WHAT`. Owner and work are compared atomically under the central lock; a mismatch preserves the successor. A prior list/check is not a substitute.
 - QA walks use hetzner6 shares 4 and 8 as `s/qa`, claiming before checkout changes or builds and releasing after the box and give-back finish. Switch the named slot in place and retain its warm target; do not create additional walk worktrees with independent cargo targets. A held claim is not available, including one held by another walk of the same owner. The ordinary heavy cap and decimal 80 GB admission checks still apply.

@@ -8,10 +8,18 @@ import fcntl
 import json
 import os
 from pathlib import Path
+import socket
 import sys
 
 
 HOSTS = Path(__file__).resolve().with_name("hosts")
+
+
+def require_authority():
+    hostname = socket.gethostname().split(".", 1)[0]
+    if hostname not in ("hel8", "debian-8gb-hel1-1"):
+        raise RuntimeError(f"claim authority is hel8; run claim there via SSH "
+                           f"(this host is {hostname!r}; local claims are not authoritative)")
 
 
 def inventory(path=HOSTS):
@@ -149,6 +157,7 @@ def main():
     subparsers.add_parser("list").add_argument("--free", metavar="OWNER", type=text)
     args = parser.parse_args()
     try:
+        require_authority()
         slots = inventory()
         if args.action != "list" and (args.host, args.number) not in slots:
             raise ValueError(f"unknown slot: {args.host} {args.number}")
