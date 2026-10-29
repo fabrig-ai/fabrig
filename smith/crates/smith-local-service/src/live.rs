@@ -131,7 +131,6 @@ pub(crate) struct Timing {
 
 impl Timing {
     pub(crate) fn new(limits: &smith_local_domain::AgentLimits) -> Self {
-        let turns = Self::bounds(limits);
         Self {
             generation: 0,
             started: Time::ZERO,
@@ -142,11 +141,12 @@ impl Timing {
             sent: Queue::uncapped(),
             read: None,
             measured: Time::ZERO,
-            turns: Queue::with_capacity(turns),
+            turns: Queue::with_capacity(Self::turn_edge_bound(limits)),
         }
     }
 
-    const fn bounds(limits: &smith_local_domain::AgentLimits) -> u32 {
+    // The process-output edge retains at most the host's unacknowledged-turn credit.
+    const fn turn_edge_bound(limits: &smith_local_domain::AgentLimits) -> u32 {
         match limits {
             smith_local_domain::AgentLimits::Spawned(host) => host.turns,
             smith_local_domain::AgentLimits::Inline(_) => 0,
@@ -269,8 +269,8 @@ impl Timing {
             Some(sent) => self.measured.max(sent),
             None => self.measured,
         };
-        // A full queue can only follow invalid turn credit. Such records never
-        // acquire a SaveTurn; the domain owns their fault and teardown.
+        // A turn past the host's turn credit is not measured: its record never
+        // gets a SaveTurn, and the domain faults it.
         if self.turns.room() > 0 {
             self.turns.push((number, read, now, now.saturating_since(baseline)));
         }
@@ -497,6 +497,22 @@ mod tests {
         timing.told(2, Some(Token::new(2)), clock(2200));
         assert_eq!(timing.elapsed, Duration::from_millis(500));
         assert_eq!(timing.previous, clock(2000));
+    }
+
+    #[test]
+    fn an_over_credit_turn_preserves_the_queued_measurements() {
+        let mut timing = timing();
+        send(&mut timing, 1, 100);
+        let credit = timing.turns.capacity();
+        for number in 1..=credit {
+            receive_turn(&mut timing, number, 1, u64::from(number) * 1000);
+        }
+        let queued: Vec<_> = timing.turns.iter().copied().collect();
+        receive_turn(&mut timing, credit.checked_add(1).unwrap(), 1, u64::from(credit) * 1000 + 500);
+        assert_eq!(timing.turns.iter().copied().collect::<Vec<_>>(), queued);
+        timing.told(1, Some(Token::new(1)), clock(u64::from(credit) * 1000 + 1000));
+        assert_eq!(timing.elapsed, Duration::from_millis(900));
+        assert_eq!(timing.previous, clock(1000));
     }
 
     #[test]
