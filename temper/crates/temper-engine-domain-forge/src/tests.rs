@@ -111,7 +111,7 @@ fn client_limits_must_be_coherent_and_their_capacities_representable() {
         (skein_forge_client::Limits { calls: 0, ..CLIENT }, false),
         (skein_forge_client::Limits { pending: u32::MAX, ..CLIENT }, false),
     ] {
-        assert_eq!(worst_case(&Limits { client, ..LIMITS }).is_some(), admitted, "{client:?}");
+        assert_eq!(skein_forge_client::valid(&client), admitted, "{client:?}");
     }
 }
 
