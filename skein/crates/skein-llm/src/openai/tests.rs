@@ -1422,7 +1422,7 @@ fn both_native_filters_and_their_receiving_bounds_are_unambiguous() {
         let filter = crate::dialect::event_filter(provider);
         assert!(collector::Collector::new(filter, &bounds, &[3, 128, 64]).is_ok(), "static filter constructs");
         assert!(
-            collector::worst_case(&bounds, &[3, 128, 64], &filter).is_some(),
+            collector::collector_bound(&bounds, &[3, 128, 64], &filter).is_some(),
             "static filter has a checked receiving bound"
         );
     }
