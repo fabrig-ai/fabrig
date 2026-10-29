@@ -69,3 +69,5 @@ Provisional, 2026-10-29. One Codex owner on hel8 (`codex-run owner`, at high), p
 - Codex leads count as live by their owner unit, full identity and post holder; a Claude-only session list does not establish that a Codex lead ended. Preserve owner state and in-flight task/claim handovers on stop or succession; a same-name restart resumes its saved thread.
 
 - A collector's successful service exit does not by itself prove publication. Confirm its saved pending batch reached the remote with exact event identities, then its cursor advanced; preserve producer files and pending evidence through push contention. Repeated deferral remains visible even when it exits successfully (ledger98).
+
+- When migrating agents gates to the shared native lock, let an old externally locked land finish or unwind before launching the updated tools/land directly. An old land that rebases to a locking check can wait on its own ancestor; preserve commits and have its owner stop the exact blocked waiter. Do not nest an external flock around updated land or bypass its lock marker (ledger99).
