@@ -21,6 +21,7 @@ Provisional, 2026-10-28. The machines' and the pipeline's facts every role works
 
 ## 3. Slots
 
+- Until the operator confirms the final inventory is installed, use `python3 -I ~/src/fabrig/ops/bin/claim` on hel8: it knows the replacement slots and hetzner7 slot 9, and excludes drained hetzner2. The installed main inventory is catching up through the queue.
 - Run installed `claim` from PATH on hel8, not from a lead's clone: it reads main's `tools/slots/hosts`. `claim list` shows shares and holders; `claim list --free OWNER` lists free slots of that share, then the pool.
 - `claim claim HOST N OWNER WHAT` before a task takes a slot, `claim release HOST N OWNER` when its report is in. Another lead's share needs its owner's agreement and `--lent-by SHARE_OWNER`; a free slot in that share is not pool space.
 - A guard on each builder (`tools/slots/guard --timer`) trims idle slots when free space falls below 80 GB.
@@ -31,6 +32,8 @@ Provisional, 2026-10-28. The machines' and the pipeline's facts every role works
 - `cd ~/src/fabrig/leads/<area>/survey && git fetch -q origin && git switch -q --detach <commit>`, then `codex-run task --read-only --effort medium --to lead/<area>@hel8 TASK <survey clone> REPORT` with the task and report in the lead's scratch. A read-only run cannot fetch: the clone is moved first and the task names the commit.
 
 ## 5. The merge queue
+
+- The current trial uses batches of 16. Preserve it on every restart with `tools/queue/restart --repo ~/src/fabrig/queue --batch 16`; omitting the option restores the default of 8. The operator keeps or reverts the trial from measured throughput and bisection costs.
 
 - `tools/queue/design.md`. Branches `<area>/<task>`, ready as `ready/<area>/<task>`, marked by the lead after a skim of the diff, from its `repo/`: `git fetch origin && git push origin <sha>:refs/heads/ready/<area>/<task>`; a rebased branch gets a new name. The queue posts a rejection (step, log path on hetzner8) to the branch's lead; a rejection is a repair task, a conflict a rebase task.
 - Tasks need not lower `scripts/old-forms.txt`: after merging, the queue runs each touched tree's `old_forms.py --write` and commits lower baselines before checks. A raised count rejects or bisects the batch. Branch baseline changes still merge; a conflict confined to baselines merges by itself through a recount, which refuses a raise.
