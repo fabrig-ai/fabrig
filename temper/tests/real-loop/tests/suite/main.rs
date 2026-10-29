@@ -6,7 +6,6 @@ static HEAP: Counting = Counting;
 
 mod account_key;
 mod case_5_3;
-mod case_traffic;
 mod cluster;
 mod forge;
 mod git;
