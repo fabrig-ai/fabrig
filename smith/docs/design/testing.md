@@ -73,8 +73,8 @@ document's "The world" section.
 | benchmarks | not a test tier: real agents on real models, measured (2.4) |
 
 Domain worlds use domains and fakes only, never protocol crates. Codec
-patch and drift tests use `generate_named(.., Names::Bounds)`, matching
-the generated `encoded_bound` and `decoded_bound` vocabulary.
+patch and drift tests check the generated `encoded_bound` and
+`decoded_bound` vocabulary.
 
 ### 2.1 Simulated worlds
 
