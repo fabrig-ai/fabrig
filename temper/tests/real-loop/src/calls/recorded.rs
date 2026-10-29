@@ -203,6 +203,8 @@ mod tests {
             observed_at: None,
             tries: 0,
             early: 0,
+            answer: std::cell::RefCell::new(None),
+            timeout: std::cell::RefCell::new(None),
         });
         let mut changes = LockChanges::default();
         let retry = LockChange { setup: false, call: 0, locked: None, released: None, busy: 0 };

@@ -1,4 +1,5 @@
 //! Hosted commands observed through their pipes, exit and a service watch cue.
+//! Answer bounds follow skein/docs/foundation/testing-strategy.md, 2.10.
 use crate::fixtures;
 mod browse;
 pub use browse::Browsed;
@@ -6,9 +7,15 @@ use browse::Browser;
 const BROWSER: usize = usize::MAX - 1;
 const SIGN_IN_HTTP: usize = usize::MAX - 2;
 use skein_io::kernel::{Complete, Done, Exit, Fd, Op, OpenHow, Pipe, Signal, Spawn, Submit, Way};
-use skein_lib::{Queue, Time, Token, Wall};
+use skein_lib::{Duration, Queue, Time, Token, Wall};
 use skein_shell::Host;
-use std::{cell::Cell, collections::BTreeMap, os::unix::ffi::OsStrExt, path::PathBuf};
+use skein_world::{Deadline, Expired};
+use std::{
+    cell::{Cell, RefCell},
+    collections::BTreeMap,
+    os::unix::ffi::OsStrExt,
+    path::PathBuf,
+};
 #[derive(Clone, Copy)]
 pub struct Dir(pub u8);
 pub const D1: Dir = Dir(1);
@@ -29,9 +36,15 @@ impl From<&'static str> for Arg {
         Self::Lit(word)
     }
 }
-pub struct Argv(pub Vec<Arg>);
+pub struct Argv(pub Vec<Arg>, Bounds);
+impl Argv {
+    #[must_use]
+    pub fn new(words: Vec<Arg>) -> Self {
+        Self(words, Bounds::default())
+    }
+}
 #[macro_export]
-macro_rules! argv { ($($word:expr),* $(,)?) => { $crate::calls::Argv(vec![$($crate::calls::Arg::from($word)),*]) }; }
+macro_rules! argv { ($($word:expr),* $(,)?) => { $crate::calls::Argv::new(vec![$($crate::calls::Arg::from($word)),*]) }; }
 pub enum Step {
     /// Declare the exact work this story intentionally leaves at its stop.
     EndsLeaving(&'static [crate::ending::Leftover]),
@@ -110,6 +123,33 @@ pub enum Step {
         holds: ReadCondition,
         early: &'static [u8],
     },
+}
+/// Harness bounds on a command's answer and its CLI timeout.
+#[derive(Default)]
+struct Bounds {
+    answer: Option<Duration>,
+    timeout: Option<Duration>,
+}
+impl Step {
+    /// Require an answer within this harness bound, or a starved verdict.
+    #[must_use]
+    pub fn within(mut self, after: Duration) -> Self {
+        let (Self::Call { argv, .. } | Self::Start { argv, .. }) = &mut self else {
+            panic!("only a call or start has an answer bound")
+        };
+        argv.1.answer = Some(after);
+        self
+    }
+    /// Set the CLI timeout and its matching harness bound from the same seconds.
+    #[must_use]
+    pub fn timeout(mut self, seconds: u64) -> Self {
+        let (Self::Call { argv, .. } | Self::Start { argv, .. }) = &mut self else {
+            panic!("only a call or start has a CLI timeout")
+        };
+        argv.0.extend([Arg::Lit("--timeout"), Arg::Number(seconds)]);
+        argv.1.timeout = Some(Duration::from_secs(seconds));
+        self
+    }
 }
 /// A condition on one genuine ctl response, shared by both observation adapters.
 #[derive(Clone, Copy, Debug)]
@@ -378,6 +418,45 @@ pub struct Called {
     pub observed_at: Option<Wall>,
     pub tries: u32,
     pub early: u32,
+    pub(crate) answer: RefCell<Option<Verdict>>,
+    pub(crate) timeout: RefCell<Option<Verdict>>,
+}
+#[derive(Debug)]
+pub(crate) enum Verdict {
+    InTime,
+    Expired(Expired),
+}
+impl Verdict {
+    fn finish(deadline: &Deadline) -> Self {
+        if deadline.passed() { Self::Expired(deadline.expired()) } else { Self::InTime }
+    }
+    fn assert_answered(self, call: &Called) {
+        match self {
+            Self::InTime => {}
+            Self::Expired(Expired::Starved(starved)) => starved.pass(),
+            Self::Expired(Expired::Failed(figures)) => panic!("prompt answer: {call:?}\n{figures}"),
+        }
+    }
+}
+impl Called {
+    /// Check the recorded answer bound after the world's cleanup and exit assertions.
+    pub fn assert_answered_within_bound(&self) {
+        self.answer.borrow_mut().take().expect("call carries an answer bound").assert_answered(self);
+    }
+    /// Only an explicit CLI timeout can use its timeout's starvation verdict.
+    pub(crate) fn assert_no_timeout(&self) {
+        if self.exit != Some(Exit::Code(3)) || self.timeout.borrow().is_none() {
+            return;
+        }
+        let timed_out = match serde_json::from_slice::<serde_json::Value>(&self.stdout) {
+            Ok(value) => value["met"] == false && value["why"] == "timeout",
+            Err(_) => self.stdout.split(|byte| *byte == b'\n').any(|line| line == b"not met: timeout"),
+        };
+        if timed_out {
+            self.timeout.borrow_mut().take().expect("CLI timeout bound").assert_answered(self);
+            panic!("CLI timed out before its harness bound: {self:?}");
+        }
+    }
 }
 // A complete small rendered turn fits; a pipe chunk alone could miss a split reply.
 const OUTPUT: usize = 65_536;
@@ -390,6 +469,8 @@ struct Running {
     pidfd: Option<Fd>,
     stdout: Option<Fd>,
     stderr: Option<Fd>,
+    answer: Option<Deadline>,
+    timeout: Option<Deadline>,
 }
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Recording {
@@ -839,6 +920,8 @@ impl Caller {
                 observed_at: None,
                 tries: 0,
                 early: 0,
+                answer: RefCell::new(None),
+                timeout: RefCell::new(None),
             });
             self.running.push(None);
         }
@@ -848,7 +931,12 @@ impl Caller {
         call.exit = None;
         call.observed_at = None;
         call.tries += 1;
-        self.running[index] = Some(Running::default());
+        let mut running = Running::default();
+        if let Some(Step::Call { argv, .. } | Step::Start { argv, .. }) = self.steps.get(self.next) {
+            running.answer = argv.1.answer.map(|after| Deadline::arm("the temper call's answer", after));
+            running.timeout = argv.1.timeout.map(|after| Deadline::arm("the temper call's CLI wait", after));
+        }
+        self.running[index] = Some(running);
         if matches!(self.steps.get(self.next), Some(Step::Start { .. }))
             && matches!(self.steps.get(self.next + 1), Some(Step::Watching { call }) if *call == index)
         {
@@ -938,6 +1026,9 @@ impl Caller {
                 self.submit(index, Op::Wait { pidfd, reap: true });
             }
             (Op::Wait { pidfd, reap: true }, Done::Exit(exit)) => {
+                let running = self.running[index].as_mut().expect("running command");
+                *self.calls[index].answer.get_mut() = running.answer.as_ref().map(Verdict::finish);
+                *self.calls[index].timeout.get_mut() = running.timeout.as_ref().map(Verdict::finish);
                 self.calls[index].exit = Some(exit);
                 self.calls[index].ended = now;
                 self.calls[index].observed_at = Some(wall);
@@ -1323,6 +1414,97 @@ mod read_condition_tests {
     use super::*;
     use serde_json::json;
 
+    // The prompt-answer stories use two seconds; these figures exercise its failed side without sleeping.
+    const ANSWER_BOUND: Duration = Duration::from_secs(2);
+    fn bounded_call() -> Called {
+        let mut caller = Caller::new(
+            vec![call(D1, crate::argv!["task", "show", "1", "--until", "ended"]).timeout(10).within(ANSWER_BOUND)],
+            PathBuf::new(),
+            Fd::new(0),
+        );
+        caller.advance(Time::ZERO);
+        caller.calls.remove(0)
+    }
+    fn failed_answer() -> skein_world::Figures {
+        skein_world::Figures {
+            what: "the temper call's answer",
+            patience: ANSWER_BOUND,
+            elapsed: Duration::from_secs(3),
+            thread_waited: Some(Duration::from_nanos(7)),
+            thread_cpu: Some(Duration::from_nanos(11)),
+            tree_waited: None,
+        }
+    }
+    fn failure_text(action: impl FnOnce()) -> String {
+        let error = std::panic::catch_unwind(std::panic::AssertUnwindSafe(action)).expect_err("failed bound");
+        *error.downcast::<String>().expect("formatted deadline failure")
+    }
+    #[test]
+    fn a_late_answer_fails_with_its_scheduler_figures() {
+        let call = bounded_call();
+        let figures = failed_answer();
+        let expected = figures.to_string();
+        *call.answer.borrow_mut() = Some(Verdict::Expired(Expired::Failed(figures)));
+        let message = failure_text(|| call.assert_answered_within_bound());
+        assert!(message.contains("prompt answer:"), "{message}");
+        assert!(message.contains(&expected), "{message}");
+    }
+    #[test]
+    fn an_in_time_answer_passes_its_bound() {
+        let call = bounded_call();
+        *call.answer.borrow_mut() = Some(Verdict::InTime);
+        call.assert_answered_within_bound();
+    }
+    #[test]
+    fn a_cli_timeout_fails_with_its_recorded_scheduler_figures() {
+        for stdout in [b"task 1\nnot met: timeout\n".as_slice(), br#"{"met":false,"why":"timeout"}"#] {
+            let mut call = bounded_call();
+            call.exit = Some(Exit::Code(3));
+            call.stdout = stdout.into();
+            let figures = failed_answer();
+            let expected = figures.to_string();
+            *call.timeout.borrow_mut() = Some(Verdict::Expired(Expired::Failed(figures)));
+            let message = failure_text(|| call.assert_no_timeout());
+            assert!(message.contains(&expected), "{message}");
+        }
+    }
+    #[test]
+    fn exits_other_than_a_cli_timeout_keep_their_original_assertions() {
+        for (exit, stdout) in [
+            (Exit::Code(0), b"met\n".as_slice()),
+            (Exit::Code(2), b"not met: timeout\n"),
+            (Exit::Signal(9), b"not met: timeout\n"),
+            (Exit::Code(3), b"not met: ended: cancelled\n"),
+            (Exit::Code(3), br#"{"met":false,"why":"ended: cancelled"}"#),
+            (Exit::Code(3), br#"{"met":true,"why":"timeout"}"#),
+        ] {
+            let mut call = bounded_call();
+            call.exit = Some(exit);
+            call.stdout = stdout.into();
+            *call.timeout.borrow_mut() = Some(Verdict::Expired(Expired::Failed(failed_answer())));
+            call.assert_no_timeout();
+            assert!(matches!(*call.timeout.borrow(), Some(Verdict::Expired(Expired::Failed(_)))));
+        }
+    }
+    #[test]
+    fn a_cli_timeout_and_its_harness_deadline_share_the_same_bound() {
+        const TIMEOUT_SECONDS: u64 = 5; // The kept-dependency story's CLI bound.
+        let mut caller = Caller::new(
+            vec![start(D1, crate::argv!["task", "show", "1", "--until", "ended"]).timeout(TIMEOUT_SECONDS)],
+            PathBuf::new(),
+            Fd::new(0),
+        );
+        let Step::Start { argv, .. } = &caller.steps[0] else { panic!("started call") };
+        assert_eq!(argv.1.timeout, Some(Duration::from_secs(TIMEOUT_SECONDS)));
+        let words = caller.words();
+        assert_eq!(&*words[words.len() - 2], b"--timeout");
+        assert_eq!(&*words[words.len() - 1], b"5");
+        caller.advance(Time::ZERO);
+        let deadline = caller.running[0].as_ref().expect("running call").timeout.as_ref().expect("CLI deadline");
+        // The deadline's remaining time cannot exceed the CLI's five seconds.
+        assert!(deadline.remaining() <= Duration::from_secs(TIMEOUT_SECONDS));
+        assert!(matches!(Verdict::finish(&Deadline::arm("in-time call", Duration::from_secs(20))), Verdict::InTime));
+    }
     #[test]
     fn an_unreleased_caller_closes_its_root_and_probe_without_running_commands() {
         let root = Fd::new(3);
@@ -1532,8 +1714,11 @@ mod read_condition_tests {
     }
     #[test]
     fn real_loop_completion_uses_its_wall_input() {
-        let mut caller =
-            Caller::new(vec![call(D1, crate::argv!["account", "list", "--json"])], PathBuf::new(), Fd::new(0));
+        let mut caller = Caller::new(
+            vec![call(D1, crate::argv!["account", "list", "--json"]).within(Duration::from_secs(20))],
+            PathBuf::new(),
+            Fd::new(0),
+        );
         caller.advance(Time::from_nanos(1));
         caller.owners.insert(Token::new(100), 0);
         caller.complete(
@@ -1547,5 +1732,6 @@ mod read_condition_tests {
         );
         assert_eq!(caller.calls[0].observed_at, Some(Wall::from_nanos(123)));
         assert_eq!(caller.calls[0].ended, Time::from_nanos(2));
+        caller.calls[0].assert_answered_within_bound();
     }
 }
