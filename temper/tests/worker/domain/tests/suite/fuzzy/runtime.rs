@@ -1,7 +1,4 @@
 //! Small retained-turn windows and body budgets; deterministic seeds.
-#[global_allocator]
-static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
-
 use temper_worker_domain_world::runtime::{Close, Settings, World};
 
 // Measured peak: 34,264 bytes; 25% headroom, rounded up to two significant digits.
