@@ -14,8 +14,7 @@ use skein_llm::{Credential, Provider};
 use skein_tls_world::{drive::Wire, pki, server::Server};
 use smith_domain::{GrantName, llm, run, tools};
 use smith_protocol_llm_world::adapter::{
-    self as adapter, Component, ComponentLimits, ConfiguredEndpoint, Endpoints, FromDomain, MAX_OUT, Receiving,
-    ToDomain,
+    self as adapter, Component, ComponentLimits, ConfiguredEndpoint, Endpoints, FromDomain, Receiving, ToDomain,
 };
 
 fn limits() -> ComponentLimits {
@@ -340,8 +339,8 @@ fn run_story(
     let env = Env { now: Time::ZERO, wall: pki::VALID, limits: limits() };
     let peer_env = Env { now: Time::ZERO, wall: pki::VALID, limits: peer_limits };
     let fake_env = Env { now: Time::ZERO, wall: pki::VALID, limits: fake_limits };
-    let mut up = Queue::with_capacity(MAX_OUT.above);
-    let mut io = Queue::with_capacity(MAX_OUT.below);
+    let mut up = Queue::uncapped();
+    let mut io = Queue::uncapped();
     let mut peer_up = Queue::uncapped();
     let mut peer_down = Queue::uncapped();
     let mut replies = Queue::uncapped();
@@ -453,8 +452,8 @@ fn run_story(
                 }
             }
         }
-        for _ in 0..MAX_OUT.below {
-            let Some(request) = io.pop() else { break };
+        // This entrance's finite IO batch only queues later owner entrances.
+        while let Some(request) = io.pop() {
             match request {
                 IoRequest::Connect { owner: token, .. } => {
                     assert!(owner.replace(token).is_none());

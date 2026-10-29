@@ -96,27 +96,6 @@ impl fmt::Debug for Component {
     }
 }
 
-/// Output room required before one component entrance.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct MaxOut {
-    /// Domain events from one entrance.
-    pub above: u32,
-    /// Io requests from one entrance.
-    pub below: u32,
-}
-
-/// A fire pass may issue one pending Next and advance one child phase.
-pub const MAX_OUT: MaxOut = MaxOut { above: 128, below: 128 };
-
-// One prompt plus at most completion content and terminal measures for each
-// routed event. Text, call-start and argument deltas each need one cell. The service drains before re-entry.
-const MEASURES: u32 = MAX_OUT
-    .above
-    .checked_mul(2)
-    .expect("two measure cells per routed event")
-    .checked_add(1)
-    .expect("one translated prompt beside routed measures");
-
 fn clients_valid(limits: &ComponentLimits, endpoints: &Endpoints) -> bool {
     for endpoint in endpoints.destinations() {
         let native = endpoint.limits;
@@ -216,11 +195,17 @@ impl Component {
             active: Map::with_capacity(limits.connection.connections),
             next: Set::with_capacity(limits.connection.connections),
             connection,
-            events: Queue::with_capacity(MAX_OUT.above),
-            measures: Queue::with_capacity(MEASURES),
+            events: Queue::uncapped(),
+            measures: Queue::uncapped(),
             prepared: None,
             closed: false,
         })
+    }
+
+    /// The number of observations waiting for the owner to drain.
+    #[must_use]
+    pub fn pending_measures(&self) -> u32 {
+        self.measures.len()
     }
 
     /// The oldest content or transport observation; drained before routing terminals.
@@ -540,7 +525,9 @@ impl Component {
     }
 
     fn route(&mut self, now: Time, to_domain: &mut Queue<ToDomain>) {
-        for _ in 0..MAX_OUT.above {
+        // One finite child entrance produced these events; routing never adds
+        // child events, so draining this snapshot empties the hand-off.
+        for _ in 0..self.events.len() {
             let event = match self.events.pop() {
                 Some(event) => event,
                 None => break,

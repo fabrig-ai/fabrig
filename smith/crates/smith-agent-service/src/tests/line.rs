@@ -175,8 +175,8 @@ fn submit(prompt: llm::Prompt, provider: skein_llm::Provider) -> (Vec<adapter::T
         )
         .unwrap();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let mut above = Queue::with_capacity(adapter::MAX_OUT.above);
-    let mut below = Queue::with_capacity(adapter::MAX_OUT.below);
+    let mut above = Queue::uncapped();
+    let mut below = Queue::uncapped();
     component.from_domain(
         &env,
         adapter::FromDomain::Complete {
