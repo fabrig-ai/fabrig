@@ -1,7 +1,5 @@
 use skein_oauth_accounts_world::sign_in::{self, Story};
 use skein_world::Memory;
-#[global_allocator]
-static HEAP: skein_heap::Counting = skein_heap::Counting;
 #[test]
 fn a_public_client_signs_in_through_its_loopback_listener() {
     drop(sign_in::run(43, Story::Public, false, false, Memory::Checked));

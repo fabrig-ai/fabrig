@@ -2,9 +2,6 @@ use skein_oauth_accounts::{Ends, Failure};
 use skein_oauth_accounts_world::accounts::{self, Fact, Story};
 use skein_world::Memory;
 
-#[global_allocator]
-static HEAP: skein_heap::Counting = skein_heap::Counting;
-
 const SEED: u64 = 131;
 const ACCOUNT: u32 = 7;
 

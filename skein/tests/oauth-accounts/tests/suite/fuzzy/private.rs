@@ -1,9 +1,6 @@
 use skein_lib::Rng;
 use skein_oauth_accounts_world::private::{self, Story};
 
-#[global_allocator]
-static HEAP: skein_heap::Counting = skein_heap::Counting;
-
 #[test]
 fn seeded_private_file_failures_and_keeper_settlement_replay() {
     let stories = [

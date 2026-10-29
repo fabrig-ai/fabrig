@@ -1,12 +1,9 @@
-use skein_heap::{Counting, Meter};
+use skein_heap::Meter;
 use skein_io::file;
 use skein_lib::Token;
 use skein_lib::{Duration, Env, List, Queue, Time, Wall, bytes};
 use skein_oauth::{ClientLimits, SavedToken};
 use skein_oauth_accounts::{Account, Component, Endpoint, FileLower, Keeper, Limits, Request, Transport, worst_case};
-
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 #[test]
 fn every_account_holds_a_maximal_record_within_the_heap_bound() {

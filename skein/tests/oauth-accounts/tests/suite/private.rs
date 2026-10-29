@@ -2,9 +2,6 @@ use skein_oauth_accounts::{Failure, Place, Unloaded};
 use skein_oauth_accounts_world::private::{self, Story};
 use skein_oauth_accounts_world::world::Fact;
 
-#[global_allocator]
-static HEAP: skein_heap::Counting = skein_heap::Counting;
-
 #[test]
 fn a_record_refused_as_sign_in_again_is_dropped_and_its_replacement_lent() {
     let mut outcome = private::run(97, Story::SignInAgain);

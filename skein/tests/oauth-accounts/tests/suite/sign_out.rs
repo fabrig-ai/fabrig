@@ -4,8 +4,6 @@ use skein_oauth_accounts_world::{
     world::Fact,
 };
 use skein_world::Memory;
-#[global_allocator]
-static HEAP: skein_heap::Counting = skein_heap::Counting;
 #[test]
 fn a_sign_out_settles_for_both_keepers() {
     for (seed, (story, revoked)) in

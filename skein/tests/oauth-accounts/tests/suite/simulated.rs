@@ -1,9 +1,6 @@
 use skein_oauth_accounts_world::world::{self, Story};
 use skein_world::Memory;
 
-#[global_allocator]
-static HEAP: skein_heap::Counting = skein_heap::Counting;
-
 #[test]
 fn a_held_grant_is_refreshed_at_its_lead_and_granted_again() {
     drop(world::run(23, Story::Lead, false, Memory::Checked));

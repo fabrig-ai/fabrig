@@ -4,8 +4,6 @@ use skein_oauth_accounts_world::{
     world::Fact,
 };
 use skein_world::Memory;
-#[global_allocator]
-static HEAP: skein_heap::Counting = skein_heap::Counting;
 struct Row<'a> {
     name: &'static str,
     facts: &'a [Fact],
