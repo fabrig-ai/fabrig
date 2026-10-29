@@ -1,10 +1,9 @@
 //! Real inherited-fd handoffs without unsafe pre-exec hooks.
 use std::{
     io::{self, BufRead, BufReader, Read, Write},
-    net::{SocketAddr, TcpListener, TcpStream},
+    net::{SocketAddr, TcpListener},
     os::fd::{AsRawFd, OwnedFd},
     process::{Command, ExitStatus, Stdio},
-    time::Duration,
 };
 
 #[must_use]
@@ -39,15 +38,21 @@ pub struct Probed {
 #[must_use]
 pub fn probe(mut command: Command, address: SocketAddr, marker: &str) -> Probed {
     let mut child = command.spawn().expect("listener claimant");
-    let clock = skein_shell::Clock::new();
-    let deadline = clock.now().now.saturating_add(crate::support::WITHIN);
+    let mut deadline = skein_world::Deadline::arm("the inherited listener's printed marker", crate::support::WITHIN);
+    deadline.watch_process(child.id());
     let mut stdout = Vec::new();
     let mut ready = None;
     loop {
         let pipe = child.stdout.as_mut().expect("stdout pipe");
-        let left = deadline.saturating_since(clock.now().now);
+        let left = deadline.remaining();
         if !skein_shell::wait_readable(skein_io::kernel::Fd::new(pipe.as_raw_fd()), left).expect("stdout readiness") {
-            break;
+            if child.try_wait().expect("claimant status").is_some() {
+                break;
+            }
+            if marker_expired(&deadline, &mut child) {
+                break;
+            }
+            continue;
         }
         let mut bytes = [0; 1024];
         let count = pipe.read(&mut bytes).expect("stdout read");
@@ -60,7 +65,7 @@ pub fn probe(mut command: Command, address: SocketAddr, marker: &str) -> Probed 
             ready = Some(text.into_owned());
             break;
         }
-        if clock.now().now >= deadline || stdout.len() > 65_536 {
+        if stdout.len() > 65_536 || deadline.passed() && marker_expired(&deadline, &mut child) {
             break;
         }
     }
@@ -71,10 +76,32 @@ pub fn probe(mut command: Command, address: SocketAddr, marker: &str) -> Probed 
     Probed { ready, reply, status: output.status, stdout, stderr: output.stderr }
 }
 
+fn marker_expired(deadline: &skein_world::Deadline, child: &mut std::process::Child) -> bool {
+    if !deadline.passed() {
+        return false;
+    }
+    match deadline.expired() {
+        skein_world::Expired::Starved(starved) => {
+            crate::support::parent::end_child(child);
+            starved.pass();
+        }
+        skein_world::Expired::Failed(figures) => {
+            eprintln!("listener marker did not arrive: {figures}");
+            true
+        }
+    }
+}
+
 pub fn request(address: SocketAddr) -> io::Result<Vec<u8>> {
-    let mut socket = TcpStream::connect_timeout(&address, Duration::from_nanos(crate::support::WITHIN.as_nanos()))?;
-    socket.set_read_timeout(Some(Duration::from_nanos(crate::support::WITHIN.as_nanos())))?;
-    socket.set_write_timeout(Some(Duration::from_nanos(crate::support::WITHIN.as_nanos())))?;
+    // Callers retain the claimant or its world; this probe cannot end it.
+    let mut socket = crate::support::socket::Socket::connect(
+        address,
+        "the inherited listener's connection",
+        crate::support::WITHIN,
+        ["the inherited listener's HTTP reply", "the inherited listener's HTTP request"],
+        true,
+        None,
+    )?;
     socket.write_all(b"GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n")?;
     let mut bytes = Vec::new();
     BufReader::new(socket.take(32)).read_until(b'\n', &mut bytes)?;
