@@ -960,7 +960,7 @@ baseline.write_text(str(count) + '\n')
         self.assertEqual(len(calls), 2)
         self.assertTrue((self.repo / "a").exists())
         self.assertEqual(self.records()[-1]["outcome"], "green")
-        self.assertEqual(len([subject for _, subject, _ in self.posts if subject == "queue error"]), 1)
+        self.assertEqual([address for address, subject, _ in self.posts if subject == "queue error"], ["ops@hel8"])
 
     def test_run_survives_recovery_log_failure(self):
         queue = self.queue()
@@ -1107,7 +1107,8 @@ baseline.write_text(str(count) + '\n')
         queue = self.queue()
         queue.state["selected_passed"] = True
         self.assertFalse(queue.attempt([branch]))
-        self.assertTrue(any(subject == "possible queue selection gap" for _, subject, _ in self.posts))
+        self.assertIn(("ops@hel8", "possible queue selection gap"),
+                      [(address, subject) for address, subject, _ in self.posts])
 
     def test_dirty_checkout_is_rejected_without_overwriting_it(self):
         branch = self.branch("a")
