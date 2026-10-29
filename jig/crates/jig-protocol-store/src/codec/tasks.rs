@@ -21,7 +21,7 @@ pub fn limits(domain: &domain::Limits) -> Option<wire::Limits> {
     let empty = wire::Limits { field_rule_name: 0, result_field_name: 0, result_field_value: 0, ..wire::CEILINGS };
     let rules = domain.result_bytes.checked_mul(
         u32::try_from(
-            wire::FieldRule::worst_case_bytes(&empty)?
+            wire::FieldRule::encoded_bound(&empty)?
                 .checked_add(u64::try_from(size_of::<u32>()).expect("length size"))?
                 .checked_add(1)?,
         )
@@ -29,7 +29,7 @@ pub fn limits(domain: &domain::Limits) -> Option<wire::Limits> {
     )?;
     let fields = domain.result_bytes.checked_mul(
         u32::try_from(
-            wire::ResultField::worst_case_bytes(&empty)?
+            wire::ResultField::encoded_bound(&empty)?
                 .checked_add(u64::try_from(size_of::<u32>()).expect("length size"))?
                 .checked_add(1)?,
         )
