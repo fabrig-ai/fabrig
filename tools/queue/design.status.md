@@ -60,6 +60,10 @@ uses expected-tip deletion leases, and local mutating children inherit both
 main authority and checkout exclusion through parent death. Restart restores
 stop across the unlink/fsync/launch boundary. Error reporting resets after a
 completed cycle so a new error episode alerts again. Authority/recovery/worker
-and mq fixture roots are outside the checked source; controller-suite fixture
-and split integration remains separate. No timeout or completion evidence is
+and mq fixture roots are outside the checked source. The controller fixture
+is shared without test inheritance across preparation (19), decision (22) and
+recovery (22) entries; two isolation/discovery cases verify external roots and
+exactly-once coverage. The manifest preserves all 63 part4 case bodies, including
+its two completion-adapter changes. Part3 split suites passed real h8 validation;
+the combined part4 integration still awaits validation. No timeout or completion evidence is
 weakened, and part 5's remote lifetime/activation boundaries remain blocked.

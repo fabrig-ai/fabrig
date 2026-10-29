@@ -14,16 +14,14 @@ import unittest
 from unittest.mock import patch
 
 DIRECTORY = Path(__file__).resolve().parent
-SPEC = importlib.util.spec_from_file_location("recovery_fixture", DIRECTORY / "test_train.py")
+SPEC = importlib.util.spec_from_file_location("recovery_fixture", DIRECTORY / "train_fixture.py")
 fixtures = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(fixtures)
-# Keep inherited disposable worlds outside the checked source without editing its suite.
-fixtures.ROOT = DIRECTORY.parent.parent.parent
 train, worker, mq = fixtures.train, fixtures.worker, fixtures.mq
 recovery, durable = train.recovery, train.durable
 
 
-class RecoveryTests(fixtures.TrainTests):
+class RecoveryTests(fixtures.TrainFixture, unittest.TestCase):
     def test_fixture_root_is_outside_checked_source(self):
         self.assertNotIn(DIRECTORY.parent.parent, self.root.parents)
 

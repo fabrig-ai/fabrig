@@ -16,11 +16,9 @@ import unittest
 from unittest.mock import patch
 
 DIRECTORY = Path(__file__).resolve().parent
-SPEC = importlib.util.spec_from_file_location("authority_fixture", DIRECTORY / "test_train.py")
+SPEC = importlib.util.spec_from_file_location("authority_fixture", DIRECTORY / "train_fixture.py")
 fixtures = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(fixtures)
-# Keep inherited disposable worlds outside the checked source without editing its suite.
-fixtures.ROOT = DIRECTORY.parent.parent.parent
 train, mq, worker = fixtures.train, fixtures.mq, fixtures.worker
 authority = mq.authority
 RESTART = importlib.util.spec_from_file_location("restart_fixture", DIRECTORY / "test_mq.py")
@@ -39,7 +37,7 @@ with (layout.restart_lock() if sys.argv[3] == 'restart' else layout.acquire()) a
 '''
 
 
-class EffectsTests(fixtures.TrainTests):
+class EffectsTests(fixtures.TrainFixture, unittest.TestCase):
     def setUp(self):
         super().setUp()
         self.batch = getattr(self, "batch_size", self.batch)

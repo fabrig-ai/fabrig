@@ -78,6 +78,28 @@ The step records its total elapsed time. Run every suite even if one fails;
 any nonzero exit, missing interpreter, or timeout makes the step red and stops
 later checks. Rejection and bisection follow section 1.
 
+Queue tests allocate private disposable fixtures beside the tested checkout,
+under its resolved root's parent, never inside the checkout. In operational
+clones under `~/src/fabrig/`, the fixtures stay under that same hierarchy.
+Train fixtures use `.mq-train-test-` plus a random suffix and mode 0700;
+queue/restart/worker fixtures follow the same external-parent rule. Hard
+termination can leave only external test artifacts, which are not queue input.
+Cleanup removes only the fixture directory owned by that test. Python entries
+and child processes use `-I -B`; shared controller imports also disable bytecode
+before loading source so they cannot dirty the tested checkout with caches.
+
+The controller's 63 cases run as three cohesive automatic entries:
+`test_train.py` (19 preparation/evidence/policy cases),
+`test_train_decisions.py` (22 ordering/conflict/bisection cases) and
+`test_train_recovery.py` (22 ownership/replay/drain cases).
+`train_fixture.py` is a test-free mixin outside automatic discovery.
+`test_train_isolation.py` adds a pipe-synchronized real-fixture SIGKILL check
+and a discovery check. `train_cases.json` fixes all 63 reviewed case names and
+AST fingerprints; the discovery check proves every case is in exactly one
+queue-discovered entry with an unchanged body and no inherited duplicates.
+Each entry retains the fixed 60-second limit; gate timings require separate
+operator validation with margin for overhead on the gate machine.
+
 ## 3. Running it
 
 - `tools/queue/mq run` loops (a cycle every 60 seconds, or at once after a batch); `mq once` runs one cycle; `mq plan` prints the next batch and its selection without merging or pushing. Python 3, standard library only, plus `git`, `cargo`, `heavy` and `post` on `PATH`.
