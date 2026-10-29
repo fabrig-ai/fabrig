@@ -159,8 +159,7 @@ impl Observer {
     }
     fn complete(&mut self, role: Role, complete: &Complete) {
         match (&complete.kind, &complete.result) {
-            (Op::Connect { .. }, Ok(Done::Nothing)) => self.wires.retain(|(owner, _), _| *owner != role),
-            (Op::Accept { .. }, Ok(Done::Accepted { fd, .. })) => {
+            (Op::Connect { fd, .. }, Ok(Done::Nothing)) | (Op::Accept { .. }, Ok(Done::Accepted { fd, .. })) => {
                 self.wires.remove(&(role, fd.raw()));
             }
             (Op::Open { root, path, .. }, Ok(Done::Fd(fd))) => {
@@ -476,6 +475,32 @@ pub(crate) fn public_output(bytes: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn opening_a_socket_preserves_other_response_streams() {
+        let mut observer = Observer::default();
+        let control = b"observer-control-value";
+        observer.token(control);
+        let first = Fd::new(10);
+        let second = Fd::new(11);
+        observer.wire(Role::Client, first, &control[..8]);
+        observer.complete(
+            Role::Client,
+            &Complete {
+                op: skein_lib::Token::new(1),
+                kind: Op::Connect { fd: second, addr: fixtures::CLIENTS },
+                result: Ok(Done::Nothing),
+            },
+        );
+        observer.wire(Role::Client, second, b"unrelated response");
+        observer.wire(Role::Client, first, &control[8..]);
+        observer.complete(
+            Role::Client,
+            &Complete { op: skein_lib::Token::new(2), kind: Op::Close { fd: first }, result: Ok(Done::Nothing) },
+        );
+        assert!(observer.streams.iter().any(|stream| observer.leak(&stream.bytes).is_some()));
+        assert!(!observer.wires.contains_key(&(Role::Client, first.raw())));
+        assert!(observer.wires.contains_key(&(Role::Client, second.raw())));
+    }
     #[test]
     fn exact_secret_scans_cover_binary_debug_and_basic_encodings() {
         let mut observer = Observer::default();
