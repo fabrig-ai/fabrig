@@ -3,6 +3,8 @@
 //! baseline, never service state. `prepare` chooses containment, `refresh` finds adopted children,
 //! and `finish` kills leftovers, settles every owned pidfd and returns counts.
 //! An abandoned keeper performs the same settlement before releasing its paths.
+//! Cgroups with retained leaders or members beyond the kill deadline stay owned
+//! until the test process exits.
 //! The last Linux keeper restores the observer's prior subreaper setting, so later
 //! fixture descendants are not adopted on that binary's behalf.
 //! Supervised scenarios keep identities before adoption, survey live members,
@@ -16,7 +18,7 @@ use core::cell::RefCell;
 #[cfg(target_os = "linux")]
 use std::fs;
 #[cfg(target_os = "linux")]
-use std::io::{Read, Seek};
+use std::io::{Read, Seek, Write};
 #[cfg(target_os = "linux")]
 use std::os::fd::AsRawFd;
 #[cfg(target_os = "linux")]
@@ -843,7 +845,7 @@ impl LinuxTree {
         };
         self.finished = true;
         if let Some(group) = self.cgroup.take() {
-            group.remove();
+            group.remove(wait == LeaderWait::Retain);
         }
         if expectation == Expectation::EndsWithBinary && !lingering.is_empty() {
             lingering.sort_unstable();
@@ -911,7 +913,7 @@ impl LinuxTree {
                 self.children.clear();
             }
             if let Some(group) = self.cgroup.take() {
-                group.remove();
+                group.remove(retain_leader && !self.leader_reaped);
             }
             self.finished = true;
         }
@@ -1187,10 +1189,31 @@ impl Cgroup {
         })
     }
 
-    fn remove(self) {
+    fn remove(mut self, retain_leader: bool) {
+        let mut empty = !self.populated();
+        if !empty {
+            let mut deadline = Deadline::arm("the abandoned tree cgroup", Duration::from_secs(2));
+            deadline.watch_cgroup(self.binary.join("cpu.pressure"));
+            let _killed = fs::write(self.binary.join("cgroup.kill"), b"1");
+            loop {
+                if !self.populated() {
+                    empty = true;
+                    break;
+                }
+                if deadline.passed() || skein_shell::wait_cgroup_change(Fd::new(self.events.as_raw_fd()), 10).is_err() {
+                    break;
+                }
+            }
+        }
         skein_shell::close_keeper_fd(self.descriptor);
         drop(self.events);
-        fs::remove_dir(&self.binary).expect("the binary's empty cgroup is removed");
+        if !empty || retain_leader {
+            // The shared kernel owns a retained leader's reap. Keep this
+            // directory's share of the base, including the observer, until
+            // process exit; the same holds when killed members outlive the wait.
+            return;
+        }
+        remove_cgroup(&self.binary);
         let last = CGROUP_BASE.with(|base| {
             let mut base = base.borrow_mut();
             let shared = base.as_mut().expect("a prepared cgroup base");
@@ -1200,8 +1223,19 @@ impl Cgroup {
         if let Some(base) = last {
             fs::write(base.original.join("cgroup.procs"), std::process::id().to_string())
                 .expect("the observer returns to its original cgroup");
-            fs::remove_dir(&base.observer).expect("the observer's empty cgroup is removed");
-            fs::remove_dir(&base.parent).expect("the test's empty cgroup is removed");
+            remove_cgroup(&base.observer);
+            remove_cgroup(&base.parent);
+        }
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn remove_cgroup(path: &Path) {
+    if let Err(error) = fs::remove_dir(path) {
+        if std::thread::panicking() {
+            let _reported = writeln!(std::io::stderr().lock(), "removing cgroup {}: {error}", path.display());
+        } else {
+            crate::fail(&format!("removing cgroup {}: {error}", path.display()));
         }
     }
 }
@@ -1214,7 +1248,7 @@ impl Drop for LinuxTree {
             WALK_ACTIVE.set(false);
         }
         if let Some(group) = self.cgroup.take() {
-            group.remove();
+            group.remove(self.leader.is_some() && !self.leader_reaped);
         }
         if ACTIVE.get() == 0 && SUBREAPER_OWNED.replace(false) {
             skein_shell::set_subreaper(SUBREAPER_BEFORE.get()).expect("the observer restores its subreaper setting");
@@ -1225,6 +1259,27 @@ impl Drop for LinuxTree {
 #[cfg(test)]
 mod tests {
     use super::{BUSY, Choice, Containment, NOT_SUPPORTED, choose};
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    #[should_panic(expected = "removing cgroup /missing-skein-cgroup:")]
+    fn a_cgroup_removal_error_fails_outside_unwinding() {
+        super::remove_cgroup(std::path::Path::new("/missing-skein-cgroup"));
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    #[should_panic(expected = "the scenario's failure")]
+    fn a_cgroup_removal_error_preserves_the_unwinding_panic() {
+        struct RemoveCgroup;
+        impl Drop for RemoveCgroup {
+            fn drop(&mut self) {
+                super::remove_cgroup(std::path::Path::new("/missing-skein-cgroup"));
+            }
+        }
+        let _remove = RemoveCgroup;
+        crate::fail("the scenario's failure");
+    }
 
     #[test]
     fn group_signals_precede_the_leaders_reap() {
