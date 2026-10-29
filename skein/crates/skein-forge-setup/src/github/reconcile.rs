@@ -217,8 +217,8 @@ pub(crate) fn worst_case(given: &Given) -> Option<u64> {
     for text in [&given.word, &given.web, &given.url, &given.redirect_url, &given.setup_url] {
         total = total.checked_add(u64::try_from(text.len()).ok()?)?;
     }
-    let accepted = List::<u64>::worst_case(limits.installations)?;
-    total = total.checked_add(checks::worst_case()?)?.checked_add(accepted)?.checked_add(accepted)?;
+    let accepted = List::<u64>::price(limits.installations)?;
+    total = total.checked_add(checks::missing_access_bound()?)?.checked_add(accepted)?.checked_add(accepted)?;
     // Hook: checked and child each keep a key; the pending auth keeps a third.
     // Checked slug, child slug, and desired URL retain three bounded names.
     let hook = u64::from(limits.key_bytes)

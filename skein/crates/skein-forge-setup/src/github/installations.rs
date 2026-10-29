@@ -241,10 +241,10 @@ pub(crate) fn step(machine: &mut Sweep, event: Event, out: &mut Queue<Progress>)
 /// are counted there.
 pub(crate) fn worst_case(limits: &Limits) -> Option<u64> {
     let capacity = limits.pages.checked_mul(PAGE_CAP)?;
-    Set::<u64>::worst_case(capacity)?
+    Set::<u64>::price(capacity)?
         .checked_mul(2)?
-        .checked_add(Set::<u64>::worst_case(limits.installations)?)?
-        .checked_add(List::<u64>::worst_case(limits.installations)?.checked_mul(3)?)?
+        .checked_add(Set::<u64>::price(limits.installations)?)?
+        .checked_add(List::<u64>::price(limits.installations)?.checked_mul(3)?)?
         .checked_add(u64::from(limits.key_bytes).checked_mul(2)?)?
         .checked_add(40)
 }
