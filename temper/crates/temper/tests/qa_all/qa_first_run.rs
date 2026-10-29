@@ -94,7 +94,7 @@ fn qa_dormant_owned_forge_holds_its_port_before_any_setup() {
         scratch.path(),
         vec![Step::Run(Call::sign_in()), Step::Run(Call::new(&["forge", "list", "--json"]))],
         boxed::BOX_DEADLINE,
-        || {
+        |_binary| {
             let address = forge_address(&dirs[0]);
             let reservation = std::net::TcpListener::bind(address).err().map(|error| error.kind());
             (address, reservation, descendants_with(&["forge", "run"]))
@@ -321,7 +321,7 @@ fn parent_shutdown(signal: &str) {
         steps,
         boxed::BOX_DEADLINE,
         || {
-            let guard = parent::Guard::observing_test();
+            let mut guard = parent::Guard::observing_test();
             let runners = matching_arguments(guard.pids(), &["forge", "run"]);
             let forge_parent = runners
                 .into_iter()

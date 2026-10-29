@@ -1,13 +1,14 @@
 //! Offline proof of the live relay; every upstream socket is loopback plaintext.
 use crate::support;
+use skein_lib::Duration;
 use std::{
     fs,
     io::{Read, Write},
     net::{TcpListener, TcpStream},
     thread,
-    time::Duration,
 };
 use support::relay::{CAP, Counter, Guard, Relay};
+use support::socket::Socket;
 fn guard() -> Guard {
     Guard { owner: "owner".into(), repository: "probe".into(), installation: 17, prefix: "temper/live-1/".into() }
 }
@@ -159,7 +160,7 @@ fn counter_reserves_twenty_requests_for_teardown() {
     assert_eq!(counter.count(), CAP);
     assert_eq!(counter.take(true), Err(429));
 }
-fn head(socket: &mut TcpStream) -> Vec<u8> {
+fn head(socket: &mut impl Read) -> Vec<u8> {
     let mut bytes = Vec::new();
     while !bytes.ends_with(b"\r\n\r\n") {
         let mut b = [0];
@@ -168,7 +169,7 @@ fn head(socket: &mut TcpStream) -> Vec<u8> {
     }
     bytes
 }
-fn answer(socket: &mut TcpStream) -> Vec<u8> {
+fn answer(socket: &mut impl Read) -> Vec<u8> {
     let bytes = head(socket);
     let text = std::str::from_utf8(&bytes).expect("head");
     let length: usize =
@@ -191,8 +192,8 @@ fn framing_preserves_requests_and_keeps_the_client_alive() {
             b"HTTP/1.1 200 OK\r\nContent-Length: 3\r\n\r\ntwo",
             b"HTTP/1.1 200 OK\r\nConnection: close\r\n\r\nthree",
         ] {
-            let (mut socket, _) = upstream.accept().expect("stub accepts");
-            socket.set_read_timeout(Some(Duration::from_secs(2))).expect("timeout");
+            let (socket, _) = upstream.accept().expect("stub accepts");
+            let mut socket = Socket::reading(socket, Duration::from_secs(2), "the offline relay stub's request");
             let mut request = head(&mut socket);
             let mut body = vec![
                 0;
@@ -211,8 +212,8 @@ fn framing_preserves_requests_and_keeps_the_client_alive() {
         }
         seen
     });
-    let mut client = TcpStream::connect(relay.api).expect("client");
-    client.set_read_timeout(Some(Duration::from_secs(2))).expect("timeout");
+    let client = TcpStream::connect(relay.api).expect("client");
+    let mut client = Socket::reading(client, Duration::from_secs(2), "the offline relay client's reply");
     client.write_all(b"POST /repos/owner/probe/pulls?token=NEVER_LOG_QUERY HTTP/1.1\r\nHost: original\r\nAuthorization: SECRET_HEADER\r\nContent-Length: 3\r\n\r\nabc").expect("first request");
     assert_eq!(answer(&mut client), b"one");
     client.write_all(b"POST /repos/owner/probe/pulls HTTP/1.1\r\nHost: original\r\nAuthorization: SECRET_HEADER\r\nTransfer-Encoding: chunked\r\n\r\n3\r\nxyz\r\n0\r\n\r\n").expect("second request");
@@ -265,8 +266,8 @@ fn bodyless_answers_and_minted_tokens_stay_in_their_lanes() {
         ];
         let mut last = Vec::new();
         for response in responses {
-            let (mut socket, _) = upstream.accept().expect("accept");
-            socket.set_read_timeout(Some(Duration::from_secs(2))).expect("timeout");
+            let (socket, _) = upstream.accept().expect("accept");
+            let mut socket = Socket::reading(socket, Duration::from_secs(2), "the offline relay stub's request");
             last = head(&mut socket);
             if last.starts_with(b"POST /owner/") {
                 let mut chunks = vec![0; expected.len()];
@@ -288,8 +289,8 @@ fn bodyless_answers_and_minted_tokens_stay_in_their_lanes() {
             (status, vec![])
         );
     }
-    let mut git = TcpStream::connect(relay.git).expect("git client");
-    git.set_read_timeout(Some(Duration::from_secs(2))).expect("timeout");
+    let git = TcpStream::connect(relay.git).expect("git client");
+    let mut git = Socket::reading(git, Duration::from_secs(2), "the offline relay git client's reply");
     git.write_all(b"POST /owner/probe.git/git-receive-pack HTTP/1.1\r\nHost: local\r\nAuthorization: Basic GIT_SECRET\r\nExpect: 100-continue\r\nTransfer-Encoding: chunked\r\n\r\n").expect("git head");
     assert_eq!(head(&mut git), b"HTTP/1.1 100 Continue\r\n\r\n");
     git.write_all(&chunked).expect("git body");
@@ -317,20 +318,20 @@ fn a_closing_client_hears_the_relay_end_its_connection() {
     let relay = Relay::plaintext(guard(), scratch.path(), upstream.local_addr().expect("stub address"));
     let stub = thread::spawn(move || {
         for _ in 0..2 {
-            let (mut socket, _) = upstream.accept().expect("stub accepts");
-            socket.set_read_timeout(Some(Duration::from_secs(2))).expect("timeout");
+            let (socket, _) = upstream.accept().expect("stub accepts");
+            let mut socket = Socket::reading(socket, Duration::from_secs(2), "the offline relay stub's request");
             head(&mut socket);
             socket.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok").expect("stub response");
         }
     });
     // The engine's setup host asks with Connection: close, then half-closes and drains until the peer ends.
-    let mut asked = TcpStream::connect(relay.api).expect("client");
-    asked.set_read_timeout(Some(Duration::from_secs(2))).expect("timeout");
+    let asked = TcpStream::connect(relay.api).expect("client");
+    let mut asked = Socket::reading(asked, Duration::from_secs(2), "the relay's requested close");
     asked.write_all(b"GET /app HTTP/1.1\r\nHost: original\r\nConnection: close\r\n\r\n").expect("request");
     assert_eq!(answer(&mut asked), b"ok");
     assert_eq!(asked.read(&mut [0; 1]).expect("the relay ends an asked close"), 0);
-    let mut halved = TcpStream::connect(relay.api).expect("client");
-    halved.set_read_timeout(Some(Duration::from_secs(2))).expect("timeout");
+    let halved = TcpStream::connect(relay.api).expect("client");
+    let mut halved = Socket::reading(halved, Duration::from_secs(2), "the relay's half-close response");
     halved.write_all(b"GET /app HTTP/1.1\r\nHost: original\r\n\r\n").expect("request");
     assert_eq!(answer(&mut halved), b"ok");
     halved.shutdown(std::net::Shutdown::Write).expect("half-close");

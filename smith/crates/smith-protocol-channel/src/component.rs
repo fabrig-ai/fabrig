@@ -131,7 +131,7 @@ impl Component {
         Ok(Component {
             machine,
             schema,
-            events: Queue::with_capacity(8),
+            events: Queue::uncapped(),
             phase: Phase::Opening,
             ended: false,
             bodies: limits.bodies,
@@ -673,6 +673,8 @@ impl Component {
 
     #[expect(clippy::too_many_lines, reason = "bounded event dispatch keeps channel order in one place")]
     fn drain(&mut self, to_service: &mut Queue<OpenEvent>, below: &mut Queue<Lower>) {
+        // Eight child transitions bound opening/terms, one demanded record or
+        // refusal, and the resulting output and close notifications.
         for _ in 0_u8..8_u8 {
             let event = self.events.pop();
             match event {

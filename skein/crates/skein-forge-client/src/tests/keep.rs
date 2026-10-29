@@ -760,3 +760,35 @@ fn missing_pull_stays_absent_across_successful_item_phases() {
     missing(&mut h, read);
     assert_eq!(h.failures.as_slice(), &[Error::Missing, Error::Missing]);
 }
+
+#[test]
+fn repository_listing_waits_for_hints_within_the_poll_interval() {
+    // temper's timer fixture: a 20 s story, polling one ms beyond it,
+    // 10 ms hints and 100 ms slow reconciliation (case.rs, fixture_check).
+    const STORY: skein_lib::Duration = skein_lib::Duration::from_secs(20);
+    const POLL: skein_lib::Duration = skein_lib::Duration::from_millis(20_001);
+    const HINTED: skein_lib::Duration = skein_lib::Duration::from_millis(10);
+    const SLOW: skein_lib::Duration = skein_lib::Duration::from_millis(100);
+    let mut h = Harness::with_limits(Limits { poll: POLL, poll_max: POLL, hinted: HINTED, slow: SLOW, ..LIMITS });
+    h.keep(Box::new([watch(Resource { repository: REPO, what: What::Repository }, false)]));
+    h.clock();
+    let end = h.env.now.saturating_add(STORY);
+    // Cross several of the ordinary five-second poll deadlines without
+    // shortening the timer fixture's configured poll interval.
+    for now in [105, 110, 115, 120] {
+        h.fire(now);
+        assert!(h.send().is_none(), "elapsed time adds no listing");
+    }
+    h.event(Event::Hint { hint: api::Hint { repository: REPO, change: Change::Item(1), key: None } });
+    assert!(h.send().is_none(), "the hint waits its coalescing delay");
+    h.env.now = end.saturating_add(HINTED);
+    while h.domain.is_due(h.env.now) {
+        let mut out = skein_lib::Queue::uncapped();
+        crate::fire(&mut h.domain, &h.env, &mut out);
+        h.take(&mut out);
+    }
+    let listing = h.one();
+    assert_eq!(listing.op, Op::Read(Read::Items { since: at(100), page: 1, kind: None }));
+    h.answer(listing, Answer::Items { items: Box::new([]), more: false, now: h.env.now });
+    assert!(h.send().is_none(), "one hint makes one listing");
+}

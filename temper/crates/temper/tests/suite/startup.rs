@@ -1928,7 +1928,7 @@ exit 38
     let mut command = listeners::command(listener, "exec \"$@\" 3<&0 0</dev/null");
     command.args(["forge", "run"]).args(support::configuration::flags(scratch.path())).args(["1", "forgejo"]);
     let mut guard = Guard::new(command.spawn().expect("forge run"));
-    wait(|| pid_file.exists());
+    wait(&mut guard, |_| pid_file.exists());
     let fake = fs::read_to_string(&pid_file).expect("fake pid").parse().expect("pid");
     guard.record(fake, guard.child.as_ref().expect("parent").id());
     // Record the helper while its shell is held at the release FIFO. Send only
@@ -1940,10 +1940,10 @@ exit 38
     // fake's response instead of polling HTTP with a separate wall clock.
     let reply = listeners::request(address).expect("inherited listener response");
     assert!(reply.starts_with(b"HTTP/1.1 200 "), "{}", String::from_utf8_lossy(&reply));
-    wait(|| pid_file.with_extension("pid.sent").exists());
+    wait(&mut guard, |_| pid_file.with_extension("pid.sent").exists());
     // Standard signals coalesce while pending. The child's TERM must have
     // reached signalfd before a separate external TERM can test forwarding.
-    wait(|| support::parent::term_consumed(guard.child.as_ref().expect("parent")));
+    wait(&mut guard, |guard| support::parent::term_consumed(guard.child.as_ref().expect("parent")));
     assert!(!pid_file.with_extension("pid.term").exists(), "the child's TERM was not relayed");
     let parent = guard.child.as_mut().expect("parent");
     assert!(parent.try_wait().expect("status").is_none(), "Forgejo's SIGTERM leaves forge run running");
@@ -1952,7 +1952,7 @@ exit 38
     if !kill {
         // The trap records the relayed TERM; the owner signals the helper by
         // pidfd so even a helper reaped early cannot turn into another target.
-        wait(|| pid_file.with_extension("pid.term").exists());
+        wait(&mut guard, |_| pid_file.with_extension("pid.term").exists());
         eprintln!("parent story: external TERM relayed");
         guard.signal(helper, skein_io::kernel::Signal::Terminate);
     }

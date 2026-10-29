@@ -2,10 +2,14 @@
 #![expect(dead_code, reason = "the existing relay also serves other test binaries")]
 #[path = "support/managed_client.rs"]
 mod managed_client;
+#[path = "support/patience.rs"]
+mod patience;
 #[path = "support/relay.rs"]
 mod relay;
 #[path = "support/relay_managed.rs"]
 mod relay_managed;
+#[path = "support/socket.rs"]
+mod socket;
 
 fn write_private(path: &std::path::Path, bytes: &[u8]) {
     use std::{io::Write, os::unix::fs::OpenOptionsExt};

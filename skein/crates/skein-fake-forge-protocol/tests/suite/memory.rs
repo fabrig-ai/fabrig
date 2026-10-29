@@ -94,13 +94,13 @@ mod tests {
         let body =
             git::server::encode(&git::Answer::Objects { objects: objects.into_boxed(), graph: Box::new([]) }, &limits)
                 .expect("five largest trees fit the wire");
-        let bound = git::decoder_worst_case(&limits)
+        let bound = git::decoder_bound(&limits)
             .expect("decoder bound")
-            .checked_add(json::worst_case(&limits.documents.json).expect("tokenizer bound"))
+            .checked_add(json::tokenizer_bound(&limits.documents.json).expect("tokenizer bound"))
             .expect("combined bound")
-            .checked_add(Queue::<json::Event>::worst_case(1).expect("event slot"))
+            .checked_add(Queue::<json::Event>::price(1).expect("event slot"))
             .expect("combined bound")
-            .checked_add(Queue::<Down>::worst_case(1).expect("demand slot"))
+            .checked_add(Queue::<Down>::price(1).expect("demand slot"))
             .expect("combined bound");
         let meter = Meter::new();
         meter.start();

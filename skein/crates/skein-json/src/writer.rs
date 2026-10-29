@@ -69,7 +69,7 @@ pub fn worst_case(limits: &Limits) -> Option<u64> {
 /// until [`Encoder::finish`] hands it over.
 #[must_use]
 pub fn encoder_bound(limits: &Limits) -> Option<u64> {
-    Stack::<Container>::worst_case(limits.depth)?.checked_add(u64::from(limits.length))
+    Stack::<Container>::price(limits.depth)?.checked_add(u64::from(limits.length))
 }
 
 /// Why the measuring pass refused a document.

@@ -1,5 +1,5 @@
 //! Drives the box through its pipes, signals and supervised process tree.
-use super::{Process, StdoutReader, printed_link};
+use super::{Process, StdoutReader, patience::Patience, printed_link};
 use skein_io::kernel::{Exit, Signal};
 use skein_lib::{Duration, Time};
 use skein_shell::{Clock, Host};
@@ -57,7 +57,7 @@ struct Judge {
     phase: Phase,
     next_probe: Time,
     cleanup: bool,
-    deadline: Time,
+    deadline: Patience,
     settled: bool,
 }
 impl Judge {
@@ -127,16 +127,22 @@ impl Referee<Process> for Judge {
             self.next_probe = now.saturating_add(Duration::from_millis(200));
         }
         let left = binary.tree_status().live_at_leader_exit.as_ref().is_some_and(|pids| !pids.is_empty());
-        if !self.cleanup && (left || now >= self.deadline) && !binary.is_empty() {
+        if !self.cleanup && left && !binary.is_empty() {
             binary.signal_tree(Signal::Kill);
             self.cleanup = true;
         }
     }
     fn observe(&mut self, _now: Time, procs: &[Process]) {
         self.settled = procs.iter().all(Host::is_empty);
+        if !self.settled
+            && let Some(figures) = self.deadline.failed()
+        {
+            let Process::Binary(binary) = &procs[0] else { panic!("binary") };
+            panic!("box did not finish and settle: {}; {figures}", String::from_utf8_lossy(binary.stderr()));
+        }
     }
     fn next_deadline(&self) -> Option<Time> {
-        (!self.cleanup && !self.settled).then_some(self.deadline)
+        if self.cleanup || self.settled { None } else { self.deadline.until() }
     }
     fn overdue(&self, _now: Time) -> Option<String> {
         None
@@ -206,9 +212,13 @@ pub fn run_command(command: Command, forgejo: Option<SocketAddr>, plan: Plan, de
         phase: Phase::Linked,
         next_probe: Time::ZERO,
         cleanup: false,
-        deadline: clock.now().now.saturating_add(Duration::from_nanos(
-            deadline.as_nanos().saturating_sub(Duration::from_secs(10).as_nanos()).max(deadline.as_nanos() / 2),
-        )),
+        deadline: Patience::watching(
+            "the box's action",
+            Duration::from_nanos(
+                deadline.as_nanos().saturating_sub(Duration::from_secs(10).as_nanos()).max(deadline.as_nanos() / 2),
+            ),
+            &binary,
+        ),
         settled: false,
     });
     world.spawn_with_fds(binary.descriptors(), || Process::Binary(Box::new(binary)));
@@ -229,14 +239,55 @@ pub fn run_command(command: Command, forgejo: Option<SocketAddr>, plan: Plan, de
 /// The status line of a plain request, or none when no server answers.
 #[must_use]
 pub fn status(address: SocketAddr, target: &str) -> Option<u16> {
-    let timeout = std::time::Duration::from_millis(100);
-    let mut socket = TcpStream::connect_timeout(&address, timeout).ok()?;
-    socket.set_read_timeout(Some(timeout)).ok()?;
-    socket.set_write_timeout(Some(timeout)).ok()?;
-    write!(socket, "GET {target} HTTP/1.1\r\nHost: {address}\r\nConnection: close\r\n\r\n").ok()?;
+    match status_reply(address, target) {
+        Ok(status) => status,
+        Err(error) => {
+            if matches!(error.kind(), std::io::ErrorKind::TimedOut | std::io::ErrorKind::WouldBlock) {
+                eprintln!("HTTP status probe did not answer: {error}");
+            }
+            None
+        }
+    }
+}
+fn status_reply(address: SocketAddr, target: &str) -> std::io::Result<Option<u16>> {
+    let within = Duration::from_millis(100);
+    let mut connect = Patience::arm("the box status probe's connection", within);
+    let mut socket = loop {
+        let result = match connect.socket_timeout() {
+            Some(timeout) => TcpStream::connect_timeout(&address, timeout),
+            None => TcpStream::connect(address),
+        };
+        match result {
+            Ok(socket) => break socket,
+            Err(error) => connect.socket_retry(error)?,
+        }
+    };
+    let mut write = Patience::arm("the box status probe's request", within);
+    let request = format!("GET {target} HTTP/1.1\r\nHost: {address}\r\nConnection: close\r\n\r\n");
+    let mut written = 0;
+    while written < request.len() {
+        socket.set_write_timeout(write.socket_timeout())?;
+        match socket.write(&request.as_bytes()[written..]) {
+            Ok(0) => return Err(std::io::ErrorKind::WriteZero.into()),
+            Ok(count) => written += count,
+            Err(error) => write.socket_retry(error)?,
+        }
+    }
+    let mut read = Patience::arm("the box status probe's reply", within);
     let mut bytes = [0_u8; 128];
-    let length = socket.read(&mut bytes).ok()?;
-    std::str::from_utf8(&bytes[..length]).ok()?.split_whitespace().nth(1)?.parse().ok()
+    let length = loop {
+        socket.set_read_timeout(read.socket_timeout())?;
+        match socket.read(&mut bytes) {
+            Ok(count) => break count,
+            Err(error) => read.socket_retry(error)?,
+        }
+    };
+    Ok(std::str::from_utf8(&bytes[..length]).ok().and_then(|line| line.split_whitespace().nth(1)?.parse().ok()))
+}
+
+fn action_deadline(what: &'static str, budget: Duration, binary: &Binary) -> Patience {
+    let within = Duration::from_nanos(budget.as_nanos().saturating_sub(Duration::from_secs(10).as_nanos()));
+    Patience::watching(what, within, binary)
 }
 
 /// The first run's evidence, including a check made while the box still serves.
@@ -257,10 +308,10 @@ struct StoryJudge<'a, F, T> {
     stopping: bool,
     cleanup: bool,
     settled: bool,
-    deadline: Time,
+    deadline: Patience,
 }
 impl<F: FnOnce() -> T, T> Referee<Process> for StoryJudge<'_, F, T> {
-    fn act(&mut self, now: Time, procs: &mut [Process]) {
+    fn act(&mut self, _now: Time, procs: &mut [Process]) {
         let Process::Person(person) = &procs[1] else { panic!("native person") };
         let finished = person.finished && person.client.as_ref().is_some_and(Host::is_empty);
         let Process::Binary(binary) = &mut procs[0] else { panic!("binary") };
@@ -270,12 +321,12 @@ impl<F: FnOnce() -> T, T> Referee<Process> for StoryJudge<'_, F, T> {
             self.stopping = true;
         }
         let left = binary.tree_status().live_at_leader_exit.as_ref().is_some_and(|pids| !pids.is_empty());
-        if !self.cleanup && (left || now >= self.deadline) && !binary.is_empty() {
+        if !self.cleanup && left && !binary.is_empty() {
             binary.signal_tree(Signal::Kill);
             self.cleanup = true;
         }
     }
-    fn observe(&mut self, now: Time, procs: &[Process]) {
+    fn observe(&mut self, _now: Time, procs: &[Process]) {
         self.settled = self.stopping && procs.iter().all(Host::is_empty);
         let Process::Binary(binary) = &procs[0] else { panic!("binary") };
         let Process::Person(person) = &procs[1] else { panic!("native person") };
@@ -305,13 +356,17 @@ impl<F: FnOnce() -> T, T> Referee<Process> for StoryJudge<'_, F, T> {
         assert!(binary.exit_status().is_none() || self.stopping, "temper box ended before the person: {stderr}");
         assert!(binary.exit_status().is_none_or(|exit| exit == Exit::Code(0)), "temper box failed: {stderr}");
         assert!(!binary.stderr_overflowed(), "temper box overflowed stderr: {stderr}");
-        assert!(now < self.deadline || self.settled, "native person did not settle: {stderr}");
+        if !self.settled
+            && let Some(figures) = self.deadline.failed()
+        {
+            panic!("native person did not settle: {stderr}; {figures}");
+        }
     }
     fn next_deadline(&self) -> Option<Time> {
-        (!self.settled).then_some(self.deadline)
+        if self.settled { None } else { self.deadline.until() }
     }
-    fn overdue(&self, now: Time) -> Option<String> {
-        (!self.settled && now >= self.deadline).then(|| "box's person did not finish and settle".into())
+    fn overdue(&self, _now: Time) -> Option<String> {
+        None
     }
     fn passed(&self) -> bool {
         self.settled
@@ -361,9 +416,7 @@ pub fn run_story<T>(
         stopping: false,
         cleanup: false,
         settled: false,
-        deadline: clock.now().now.saturating_add(Duration::from_nanos(
-            deadline.as_nanos().saturating_sub(Duration::from_secs(10).as_nanos()),
-        )),
+        deadline: action_deadline("the box person's settlement", deadline, &binary),
     });
     world.spawn_with_fds(binary.descriptors(), || Process::Binary(Box::new(binary)));
     world.spawn_with_fds(fds, || Process::Person(Box::new(super::person::Person::new(root, input, output, script))));
@@ -411,7 +464,7 @@ struct CtlJudge<'a, F, T> {
     stopping: bool,
     cleanup: bool,
     settled: bool,
-    deadline: Time,
+    deadline: Patience,
     cleanup_deadline: Time,
 }
 enum Visit {
@@ -497,7 +550,23 @@ fn restart_engine(
         }
     }
 }
-impl<F: FnOnce(&[u8]) -> T, T> Referee<Process> for CtlJudge<'_, F, T> {
+impl<F, T> CtlJudge<'_, F, T> {
+    fn bound(&mut self, calls: &super::ctl::Calls, binary: &Binary, failed: bool) {
+        if !self.stopping
+            && !calls.idle()
+            && !failed
+            && binary.exit_status().is_none()
+            && let Some(figures) = self.deadline.failed()
+        {
+            if let Some(read) = calls.last_unmet() {
+                eprintln!("last unmet ctl read: {}", String::from_utf8_lossy(&read.stdout));
+            }
+            report_face_stop(calls, binary.stderr(), false, true);
+            panic!("box ctl story did not finish: {figures}");
+        }
+    }
+}
+impl<F: FnOnce(&Binary) -> T, T> Referee<Process> for CtlJudge<'_, F, T> {
     fn act(&mut self, now: Time, procs: &mut [Process]) {
         let Process::Calls(calls) = &procs[1] else { panic!("ctl") };
         let failed = calls.ends().iter().enumerate().any(|(index, call)| {
@@ -565,20 +634,14 @@ impl<F: FnOnce(&[u8]) -> T, T> Referee<Process> for CtlJudge<'_, F, T> {
         let failed = failed
             || self.fail_on_panic.is_some()
                 && binary.stderr().windows(b"panicked at".len()).any(|part| part == b"panicked at");
-        let expired = now >= self.deadline;
-        if expired
-            && !self.stopping
-            && let Some(read) = calls.last_unmet()
-        {
-            eprintln!("last unmet ctl read: {}", String::from_utf8_lossy(&read.stdout));
-        }
-        if !self.stopping && (calls.idle() || failed || expired || binary.exit_status().is_some()) {
-            if self.face.is_some() || failed || expired {
-                report_face_stop(calls, binary.stderr(), failed, expired);
+        self.bound(calls, binary, failed);
+        if !self.stopping && (calls.idle() || failed || binary.exit_status().is_some()) {
+            if self.face.is_some() || failed {
+                report_face_stop(calls, binary.stderr(), failed, false);
                 eprintln!("pending scripted release: {:?}", calls.llm_release());
             }
-            if calls.idle() && !failed && !expired && binary.exit_status().is_none() {
-                self.checked.set(Some(self.check.take().expect("one live check")(binary.stderr())));
+            if calls.idle() && !failed && binary.exit_status().is_none() {
+                self.checked.set(Some(self.check.take().expect("one live check")(binary)));
             }
             // A held batch keeps its root open for the reply referee. Release
             // it on failure too, so cancellation drains that descriptor.
@@ -618,7 +681,7 @@ impl<F: FnOnce(&[u8]) -> T, T> Referee<Process> for CtlJudge<'_, F, T> {
         } else if self.stopping {
             Some(self.cleanup_deadline)
         } else {
-            [Some(self.deadline), self.next_release, self.restart_at].into_iter().flatten().min()
+            [self.deadline.until(), self.next_release, self.restart_at].into_iter().flatten().min()
         }
     }
     fn overdue(&self, _now: Time) -> Option<String> {
@@ -630,6 +693,8 @@ impl<F: FnOnce(&[u8]) -> T, T> Referee<Process> for CtlJudge<'_, F, T> {
 }
 /// Uses the box's printed link for ctl sign-in, then drains the supervised tree.
 /// A refused call stops the story immediately and retains its diagnostic.
+/// The live check borrows the world's binary to watch its tree in classified
+/// waits. It defers starvation to the world and never passes from the callback.
 #[must_use]
 pub fn run_ctl<T>(
     directory: &Path,
@@ -637,9 +702,18 @@ pub fn run_ctl<T>(
     client_root: &Path,
     steps: Vec<super::ctl::Step>,
     deadline: Duration,
-    check: impl FnOnce() -> T,
+    check: impl FnOnce(&Binary) -> T,
 ) -> CtlOutcome<T> {
-    run_ctl_with_exits(directory, flags, client_root, steps, deadline, check, &[])
+    run_ctl_peers(
+        directory,
+        flags,
+        client_root,
+        steps,
+        deadline,
+        check,
+        CtlPeers { expected_exits: Vec::new(), model: CtlModel::None },
+    )
+    .0
 }
 /// Continues through the exact expected nonzero calls, keeping the normal early-stop rule otherwise.
 #[must_use]
@@ -743,7 +817,7 @@ pub fn run_ctl_with_llm<T>(
         client_root,
         steps,
         deadline,
-        check,
+        |binary| check(binary.stderr()),
         CtlPeers { expected_exits: llm.expected_exits.clone(), model: CtlModel::Llm(Box::new(llm)) },
     )
     .0
@@ -794,7 +868,7 @@ fn run_ctl_peers<T>(
     client_root: &Path,
     steps: Vec<super::ctl::Step>,
     deadline: Duration,
-    check: impl FnOnce(&[u8]) -> T,
+    check: impl FnOnce(&Binary) -> T,
     peers: CtlPeers,
 ) -> (CtlOutcome<T>, Option<super::forge_land::Seen>) {
     let account_probe = matches!(&peers.model, CtlModel::Account(_));
@@ -861,9 +935,7 @@ fn run_ctl_peers<T>(
         cleanup: false,
         settled: false,
         // Leave ten seconds for cancellation, pipe drain and reaping.
-        deadline: clock.now().now.saturating_add(Duration::from_nanos(
-            deadline.as_nanos().saturating_sub(Duration::from_secs(10).as_nanos()),
-        )),
+        deadline: action_deadline("the box ctl story's actions", deadline, &binary),
         cleanup_deadline: clock.now().now.saturating_add(deadline),
     });
     world.spawn_with_fds(binary.descriptors(), || Process::Binary(Box::new(binary)));

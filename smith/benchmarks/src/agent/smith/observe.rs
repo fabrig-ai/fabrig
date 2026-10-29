@@ -277,7 +277,7 @@ impl Observing {
 
 #[cfg(test)]
 #[path = "../../../tests/common/events.rs"]
-mod test_events;
+pub(crate) mod test_events;
 
 #[cfg(test)]
 pub(crate) mod tests {

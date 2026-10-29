@@ -2,6 +2,43 @@ use super::*;
 use crate::credentials::{Directory, tests::Files};
 use std::os::unix::fs::PermissionsExt;
 
+/// Lower test of smith's `end_to_end::login_refuses_the_same_invalid_declarations_as_startup` (top tiers test wiring only).
+#[test]
+fn credential_commands_refuse_the_startup_declaration_matrix() {
+    for (text, diagnostic) in [
+        ("credentials='relative'\n[accounts.work]\nsource='key'\n", "credentials"),
+        ("[accounts.acct-78235]\nsource='none'\n[accounts.acct-124172]\nsource='none'\n", "accounts.acct-78235"),
+        ("[accounts.'\"']\nsource='none'\n[accounts.work]\nsource='none'\n", "account name"),
+        ("[accounts.work]\nsource='program'\n[endpoints.extra]\naccount='work'\n", "accounts.work.source"),
+    ] {
+        let decoded = settings(&[source(Layer::User, text)]).expect("decoded declarations");
+        let refusal = resolve::checked(&decoded).expect_err("invalid credential declaration");
+        assert!(refusal.line().contains(diagnostic), "{text}: {}", refusal.line());
+        assert!(refusal.line().contains("fixture.toml"), "declaration retains its file: {}", refusal.line());
+    }
+}
+
+/// Lower test of smith's `end_to_end::a_repository_layer_setting_an_account_is_refused_naming_the_file` (top tiers test wiring only).
+#[test]
+fn repository_accounts_name_the_file_and_authority() {
+    let refusal =
+        settings(&[source(Layer::Repository, "[accounts.codex]\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n")])
+            .expect_err("repository account authority");
+    assert_eq!(refusal.key, "accounts", "authority belongs to the accounts table");
+    assert_eq!(refusal.problem, super::super::Problem::RepositoryAuthority, "authority refusal");
+    assert!(refusal.line().contains("fixture.toml:1") && refusal.line().contains("authority"), "{}", refusal.line());
+}
+
+/// Lower test of smith's `end_to_end::an_override_past_its_bound_is_refused_naming_the_override` (top tiers test wiring only).
+#[test]
+fn an_oversized_override_keeps_its_index_and_key() {
+    let shared = crate::command::Shared { overrides: vec!["budget.turns=4294967296".into()], ..Default::default() };
+    let refusal = super::super::from_sources(&shared, "/workspace".into(), &[]).expect_err("count bound");
+    assert_eq!(refusal.key, "budget.turns", "bounded key");
+    assert_eq!(refusal.origin, super::super::Origin::Override { index: 1 }, "override index");
+    assert!(refusal.line().contains("-c override 1") && refusal.line().contains("bound"), "{}", refusal.line());
+}
+
 #[test]
 fn malformed_account_names_are_refused_without_disappearing() {
     for name in ["\"", "\\", "\"broken", "", "bad.name", "bad name"] {

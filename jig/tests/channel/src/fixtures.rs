@@ -277,6 +277,30 @@ pub fn provider(
     transport: skein_fake_peers::Transport,
     dialect: skein_fake_llm_protocol::documents::Provider,
 ) -> skein_fake_peers::llm::Peer {
+    provider_at(
+        (
+            smith_agent_process_world::fake::loopback(),
+            if transport == skein_fake_peers::Transport::Tls { 34_443 } else { 443 },
+        )
+            .into(),
+        scripts,
+        credential,
+        latency,
+        transport,
+        dialect,
+    )
+}
+
+/// The same scripted provider at an address chosen by its caller.
+#[must_use]
+pub fn provider_at(
+    address: std::net::SocketAddr,
+    scripts: Box<[skein_fake_llm_domain::api::Script]>,
+    credential: skein_llm::Credential,
+    latency: Duration,
+    transport: skein_fake_peers::Transport,
+    dialect: skein_fake_llm_protocol::documents::Provider,
+) -> skein_fake_peers::llm::Peer {
     use skein_fake_llm_protocol::{documents, provider};
     let mut config = skein_llm_world::fake::config();
     config.latency_min = latency;
@@ -294,11 +318,7 @@ pub fn provider(
     protocol.documents.openai.output_items = 256;
     protocol.documents.anthropic.output_items = 256;
     skein_fake_peers::llm::Peer::new(
-        (
-            smith_agent_process_world::fake::loopback(),
-            if transport == skein_fake_peers::Transport::Tls { 34_443 } else { 443 },
-        )
-            .into(),
+        address,
         transport,
         smith_agent_process_world::fake::limits(),
         provider::Config {

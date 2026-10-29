@@ -222,3 +222,119 @@ fn a_cut_question_is_answered_through_the_tools_and_reaches_the_chat() {
             && word.words.as_ref() == b"Go ahead."
     }));
 }
+
+const CLOSING_QUESTION: &[u8] = b"Close this running conversation";
+const CLOSING_PREFIX: &[u8] = b"An uncommitted reply";
+const CLOSING_COMMITTED: &[u8] = b"The committed conversation before closing";
+
+fn chat_with_a_turn_in_flight() -> (World<Temper, Joint>, u64) {
+    use temper_engine_domain as engine;
+    let mut world = fixtures::open_world(fixtures::SEED);
+    let task = fixtures::chat(world.front(), CLOSING_QUESTION);
+    let attempt = world.front().engine.task(task).expect("running chat").attempt;
+    let mut turn = temper_worker_domain_world::protocol::session_turn(1, 0, CLOSING_COMMITTED.len(), true);
+    turn.messages[0].content =
+        Box::new([smith_domain_session::llm::Block::Text { text: CLOSING_COMMITTED.into(), replay: None }]);
+    let body = smith_protocol_channel::encode_turn(
+        &turn,
+        &smith_transcript::CEILINGS,
+        &temper_worker_domain_world::protocol::endpoints(),
+    )
+    .expect("committed reply encodes");
+    world.front().engine.send(temper_engine_domain_world::protocol::turn(
+        skein_lib::Token::new(7),
+        task,
+        attempt,
+        1,
+        0,
+        None,
+        &body,
+    ));
+    world.front().engine.settle();
+    world.front().engine.send(temper_engine_domain_world::protocol::up(
+        skein_lib::Token::new(7),
+        jig_domain_host::LinkUp::Piece {
+            run: skein_lib::Token::new(task),
+            attempt: skein_lib::Token::new(attempt),
+            piece: jig_domain_host::Piece {
+                turn: 2,
+                retry: 0,
+                kind: jig_domain_host::LiveKind::Text,
+                offset: 0,
+                bytes: CLOSING_PREFIX.into(),
+            },
+        },
+        engine::Parts::none(),
+    ));
+    world.front().engine.settle();
+    (world, task)
+}
+
+// temper/docs/design/client/tools.md, 4; client/README.md, 3.5–3.6.
+#[test]
+fn closing_during_a_turn_keeps_the_cancelled_conversation_readable() {
+    use jig_domain_tasks as tasks;
+    use skein_lib::Duration;
+    use skein_ui::Role;
+    use temper_engine_domain as engine;
+
+    const REASON: &[u8] = b"Close this chat during its turn";
+    const IN_FLIGHT_AND_ONE_CLOSING: u64 = 2;
+    let (mut world, task) = chat_with_a_turn_in_flight();
+    let person = world.client(fixtures::PARTY, fixtures::chat_page(task));
+    world.person(person, vec![Step::See { find: Find::text(CLOSING_PREFIX), within: fixtures::WITHIN }]);
+    assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
+    let in_flight = world.front().engine.task(task).expect("running chat").attempt;
+    let agent = fixtures::agent(&mut world);
+    let closed = call(
+        &mut world,
+        agent,
+        &[b"chat", b"close", task.to_string().as_bytes(), b"--reason", REASON, b"--key", b"close-running"],
+    );
+    assert_eq!(closed.status, 0, "{closed:?}");
+    let grace =
+        world.front().engine.task(task).expect("chat finishing its turn").grace.as_ref().expect("finish grace").until;
+    let settled_by =
+        skein_lib::Time::from_nanos(grace.as_nanos()).saturating_add(world.front().engine.env.limits.fleet.grace);
+    let waiting =
+        fixtures::give(&mut world, agent, &[b"task", b"show", task.to_string().as_bytes(), b"--until", b"ended"]);
+    assert_eq!(world.run(Until::Time(settled_by)).verdict, Verdict::Passed);
+    let ended = fixtures::answered(&mut world, agent, waiting);
+    assert_eq!(ended.status, 0, "{ended:?}");
+    assert!(world.now() <= settled_by.saturating_add(fixtures::WITHIN), "closing settles within its configured graces");
+    let key = engine::Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(task)));
+    let Some(engine::Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ended(row)))) =
+        world.front().engine.store.rows.get(&key)
+    else {
+        panic!("the cancelled conversation is retained");
+    };
+    assert!(
+        matches!(&row.phase, tasks::Phase::Ended(tasks::Ending::Cancelled { by: tasks::Party::Person(fixtures::PARTY), reason, result: None, .. }) if reason.as_ref() == REASON),
+        "{:?}",
+        row.phase
+    );
+    assert!(row.attempt < in_flight + IN_FLIGHT_AND_ONE_CLOSING, "at most one closing run");
+    assert!(world.front().engine.task(task).is_none());
+    assert_eq!(world.front().runs_answered, 0, "uncommitted text is no completed result");
+
+    let conversation = call(&mut world, agent, &[b"chat", b"show", task.to_string().as_bytes()]);
+    assert_eq!(conversation.status, 0, "{conversation:?}");
+    let text = std::str::from_utf8(&conversation.stdout).expect("conversation UTF-8");
+    assert!(text.contains(std::str::from_utf8(CLOSING_COMMITTED).expect("committed UTF-8")), "{text}");
+    assert!(
+        !text.contains(std::str::from_utf8(CLOSING_PREFIX).expect("prefix UTF-8")),
+        "provisional text is not committed: {text}"
+    );
+    world.go(person, fixtures::chat_page(task));
+    world.person(
+        person,
+        vec![
+            Step::See { find: Find::text(CLOSING_QUESTION), within: fixtures::WITHIN },
+            Step::Gone { find: Find::named(Role::TextArea, b"Message"), within: fixtures::WITHIN },
+        ],
+    );
+    assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
+    let until = world.now().saturating_add(Duration::from_millis(100));
+    assert_eq!(world.run(Until::Time(until)).verdict, Verdict::Passed);
+    assert!(world.front().engine.task(task).is_none(), "reading does not restart closing work");
+}

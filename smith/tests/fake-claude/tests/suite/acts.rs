@@ -36,10 +36,13 @@ fn observations(run: &Run) -> Vec<Seen> {
     seen(run.observations.as_ref().expect("observations"))
 }
 
+/// Lower test of binary::the_binary_edits_its_working_directory_file
+/// (top tiers test wiring only).
 #[test]
 fn an_allowed_edit_changes_the_file() {
     let run = run(vec![edit("before", "after", false)], Some(ORIGINAL), Vec::new());
     assert_eq!(run.file(FILE), Some(b"after\n".as_slice()));
+    assert_eq!(run.records[0].exit, Some(skein_io::kernel::Exit::Code(0)));
     assert_eq!(result(&run)["is_error"], false);
     assert!(
         observations(&run)

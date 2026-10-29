@@ -567,16 +567,26 @@ fn control_input() -> Value {
     json!({"type":"control_request","request_id":"probe-1","request":{"subtype":"interrupt"}})
 }
 
+/// Lower test of binary::the_binary_keeps_reading_after_a_control_interrupt
+/// (top tiers test wiring only).
 #[test]
 fn a_control_interrupt_ends_a_turn_and_keeps_reading() {
     let user = json!({"type":"user","message":{"role":"user","content":"hello"}});
     let input = format!("{user}\n{}\n{user}\n", control_input());
     let run = print::run(story(vec![Step::Hang], End::default()), print::unpaced(input.as_bytes()), None, Some(MCP));
     let output = messages(&run);
-    assert_eq!(output[2]["type"], "control_response");
-    assert_eq!(output[2]["response"]["request_id"], "probe-1");
-    assert_eq!(output[2]["response"]["subtype"], "success");
+    assert_eq!(
+        output[2],
+        json!({"type":"control_response", "response":{
+            "subtype":"success", "request_id":"probe-1", "response":{"still_queued":[]}
+        }})
+    );
     assert_eq!(results(&run)[0]["terminal_reason"], "aborted_streaming");
+    assert_eq!(results(&run)[0].get("stop_reason"), Some(&Value::Null));
+    assert_eq!(results(&run)[0]["is_error"], true);
+    assert_eq!(output[4]["subtype"], "init");
+    assert_eq!(output[5]["subtype"], "status");
+    assert_eq!(output[6]["type"], "assistant");
     assert_eq!(results(&run)[1]["subtype"], "success");
     assert_eq!(run.records[0].exit, Some(Exit::Code(0)));
 }

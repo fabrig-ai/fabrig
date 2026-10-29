@@ -209,6 +209,28 @@ step its last answer arrives.
 
 ### 4.4 The usual routes
 
+- **Sibling routes finish within their decision.**
+  `sibling_routes_drained` requires every sibling continuation to finish
+  before the core returns its decision, so a later entrance cannot split
+  the decision's writes. The core world holds this under load in
+  `jig-core-world`,
+  `route_orders::a_wide_route_finishes_within_its_decision_before_a_later_entrance`.
+- **A task's generated requests finish within its decision.**
+  `task_routes_drained` requires the requests a task route generates to
+  be routed before that decision ends. The core world holds this in
+  `jig-core-world`,
+  `route_orders::a_task_route_finishes_its_generated_requests_within_its_decision`.
+- **A party's continuation finishes within its decision.**
+  `party_routes_drained` requires the people route's continuation and
+  answer to stay in the decision that admitted the request. The core
+  world holds this in `jig-core-world`,
+  `route_orders::a_people_route_finishes_its_continuation_within_its_decision`.
+- **The fleet's follow-ups finish within their decision.**
+  `fleet_routes_drained` requires the fleet route's generated follow-ups
+  to finish before that decision ends. The core world holds this in
+  `jig-core-world`,
+  `route_orders::a_fleet_route_finishes_its_follow_ups_within_its_decision`.
+
 | What arrives | Route | Then |
 |---|---|---|
 | a run's turn | fleet (fenced) → tasks (the inbox taken) → authority (spend) → views | commit; the turn acknowledged |

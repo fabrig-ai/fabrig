@@ -86,7 +86,7 @@ impl Process {
         let output = io.adopt_write_pipe(faces.stdout, None).expect("relay output slot");
         let error = faces.stderr.map(|fd| io.adopt_write_pipe(fd, None).expect("relay stderr slot"));
         let signal = io.adopt_signals(faces.signal).expect("relay signal slot");
-        let mut requests = Queue::with_capacity(QUEUE);
+        let mut requests = Queue::uncapped();
         let (relay, diagnostic, code) = if let Ok(target) = relay::parse(arguments, environment) {
             (Some(Relay::new(target, input, output, SOCKET, &mut requests)), None, None)
         } else {
@@ -106,7 +106,7 @@ impl Process {
             code,
             completions: Queue::with_capacity(QUEUE),
             submissions: Queue::with_capacity(QUEUE),
-            events: Queue::with_capacity(QUEUE),
+            events: Queue::uncapped(),
             requests,
         }
     }
@@ -292,5 +292,65 @@ pub fn main() -> ExitCode {
     match skein_shell::drive(&mut kernel, &skein_shell::Clock::new(), &mut process) {
         Exit::Code(code) => ExitCode::from(code),
         Exit::Signal(_) => ExitCode::FAILURE,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Faces, Process};
+    use skein_io::{Event, kernel};
+    use skein_lib::{Time, Wall};
+    use skein_shell::Host;
+
+    #[test]
+    fn a_signal_burst_settles_each_relay_descriptor_once() {
+        // Half the kernel queue's entries arrive together, before connect completes.
+        const BURST: u32 = super::QUEUE / 2;
+        // Socket refusal, pipe closes, relay exit and signal close each need a pass.
+        const SETTLE_PASSES: u32 = 8;
+        let arguments = [Box::from(super::FLAG.as_bytes()), Box::from(b"127.0.0.1:1".as_slice())];
+        let environment = [Box::from(
+            b"SMITH_MCP_SECRET=0000000000000000000000000000000000000000000000000000000000000000".as_slice(),
+        )];
+        let mut process = Process::new(
+            &arguments,
+            &environment,
+            Faces {
+                stdin: kernel::Fd::new(10),
+                stdout: kernel::Fd::new(11),
+                stderr: None,
+                signal: kernel::Fd::new(12),
+            },
+        );
+        for _ in 0..BURST {
+            process.events.push(Event::Shutdown { signal: kernel::ServiceSignal::Terminate, from: None });
+        }
+        let mut closed = Vec::new();
+        for _ in 0..SETTLE_PASSES {
+            process.iterate(Time::ZERO, Wall::EPOCH);
+            while let Some(submission) = process.submissions.pop() {
+                #[expect(clippy::wildcard_enum_match_arm, reason = "test reports an unexpected backend operation")]
+                let result = match &submission.kind {
+                    kernel::Op::Socket { .. } => Err(kernel::Error::NoBufferSpace),
+                    kernel::Op::ReadSignal { .. } => Ok(kernel::Done::Signalled(kernel::Signalled::Termination {
+                        signal: kernel::ServiceSignal::Terminate,
+                        sender: None,
+                    })),
+                    kernel::Op::Cancel { .. } => Ok(kernel::Done::Nothing),
+                    kernel::Op::Close { fd } => {
+                        closed.push(*fd);
+                        Ok(kernel::Done::Nothing)
+                    }
+                    other => panic!("unexpected relay teardown operation: {other:?}"),
+                };
+                process.completions.push(kernel::Complete { op: submission.op, kind: submission.kind, result });
+            }
+        }
+        closed.sort();
+        assert_eq!(closed, [kernel::Fd::new(10), kernel::Fd::new(11), kernel::Fd::new(12)]);
+        assert_eq!(process.exit(), Some(kernel::Exit::Code(143)));
+        assert!(process.events.is_empty());
+        assert!(process.requests.is_empty());
+        assert!(process.is_empty());
     }
 }

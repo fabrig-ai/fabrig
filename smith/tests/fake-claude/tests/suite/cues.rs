@@ -61,6 +61,8 @@ fn selected(run: &Run) -> Vec<Seen> {
     selections(run.observations.as_ref().expect("observations"))
 }
 
+/// Lower test of binary::the_binary_uses_its_system_prompt_to_select
+/// (top tiers test wiring only).
 #[test]
 fn a_system_cue_selects_its_script() {
     let story =
@@ -77,6 +79,7 @@ fn a_system_cue_selects_its_script() {
         ],
     );
     assert_eq!(answers(&run), [json!("written"), json!("reviewed")]);
+    assert!(run.records.iter().all(|record| record.exit == Some(skein_io::kernel::Exit::Code(0))));
     assert_eq!(
         selected(&run),
         [

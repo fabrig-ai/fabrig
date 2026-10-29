@@ -41,27 +41,27 @@ pub fn valid(limits: &Limits) -> bool {
 /// Readers that check representability use [`valid`].
 #[must_use]
 pub fn worst_case(limits: &Limits) -> Option<u64> {
-    let nodes = List::<Node>::worst_case(limits.nodes)?;
-    let states = List::<State>::worst_case(10)?.checked_mul(u64::from(limits.nodes))?;
-    let styles = List::<Style>::worst_case(limits.styles_per_node)?.checked_mul(u64::from(limits.nodes))?;
-    let runs = List::<TextRun>::worst_case(limits.text_per_node)?.checked_mul(u64::from(limits.nodes))?;
+    let nodes = List::<Node>::price(limits.nodes)?;
+    let states = List::<State>::price(10)?.checked_mul(u64::from(limits.nodes))?;
+    let styles = List::<Style>::price(limits.styles_per_node)?.checked_mul(u64::from(limits.nodes))?;
+    let runs = List::<TextRun>::price(limits.text_per_node)?.checked_mul(u64::from(limits.nodes))?;
     let drawings = u64::from(limits.drawing_bytes).checked_mul(u64::from(limits.nodes))?;
     let payloads = u64::from(limits.text_bytes).checked_add(drawings)?;
     let tree = nodes.checked_add(states)?.checked_add(styles)?.checked_add(runs)?.checked_add(payloads)?;
     // The page and fragment each need a node list for splicing only with slots.
     let splice = if limits.slots > 0 { nodes.checked_mul(2)? } else { 0 };
     let trees = tree.checked_mul(5)?.checked_add(splice)?;
-    let stacks = Stack::<u32>::worst_case(limits.depth)?.checked_mul(3)?;
-    let slots = List::<PlacedSlot>::worst_case(limits.slots)?
+    let stacks = Stack::<u32>::price(limits.depth)?.checked_mul(3)?;
+    let slots = List::<PlacedSlot>::price(limits.slots)?
         .checked_mul(3)?
-        .checked_add(List::<Slot>::worst_case(limits.slots)?.checked_mul(2)?)?;
+        .checked_add(List::<Slot>::price(limits.slots)?.checked_mul(2)?)?;
     // Each matched node emits at most one boxed attribute (ui.md, 7).
     let attributes = u64::from(limits.nodes).checked_mul(u64::try_from(size_of::<Attribute>()).ok()?)?;
-    let patches = Queue::<Patch>::worst_case(limits.patches)?.checked_add(attributes)?;
-    let made = List::<Made>::worst_case(limits.nodes)?;
-    let maps = List::<Option<u32>>::worst_case(limits.nodes)?.checked_mul(4)?;
-    let children = List::<u32>::worst_case(limits.nodes)?;
-    let ancestry = Stack::<Open>::worst_case(limits.depth)?.checked_mul(2)?;
+    let patches = Queue::<Patch>::price(limits.patches)?.checked_add(attributes)?;
+    let made = List::<Made>::price(limits.nodes)?;
+    let maps = List::<Option<u32>>::price(limits.nodes)?.checked_mul(4)?;
+    let children = List::<u32>::price(limits.nodes)?;
+    let ancestry = Stack::<Open>::price(limits.depth)?.checked_mul(2)?;
     let markdown = crate::markdown::markdown_bound(limits.text_bytes, limits.markdown_depth)?;
     trees
         .checked_add(crate::scene::worst_case(limits)?)?

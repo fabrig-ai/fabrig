@@ -211,7 +211,7 @@ impl Producer {
             names,
             programs: Box::default(),
             calls: crate::calls::Book::new(&limits.domain.session, events.capture),
-            messages: crate::messages::Book::new(limits, events.capture),
+            messages: crate::messages::Book::new(events.capture),
             capture: events.capture,
             origin: None,
             start: None,
@@ -618,9 +618,7 @@ fn message_refusal(reason: run::MessageRefusal) -> smith_events::MessageRefusal 
 pub fn valid(limits: &crate::Limits) -> bool {
     match limits.events {
         Some(events) => {
-            crate::sinks::valid(&events.sinks, events.capture)
-                && crate::messages::valid(limits, events.capture)
-                && crate::calls::valid(&limits.domain.session)
+            crate::sinks::valid(&events.sinks, events.capture) && crate::calls::valid(&limits.domain.session)
         }
         None => true,
     }
@@ -653,9 +651,6 @@ mod tests {
         assert!(valid(&limits));
         let base = limits;
         limits.events.as_mut().unwrap().sinks.output = 0;
-        assert!(!valid(&limits));
-        limits = base;
-        limits.channel.bodies.start_messages = u32::MAX;
         assert!(!valid(&limits));
         limits = base;
         limits.domain.session.answer_bytes = u64::MAX;

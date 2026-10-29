@@ -1034,7 +1034,7 @@ pub fn valid(limits: &Limits) -> bool {
 }
 
 fn document_bounds(limits: &Limits) -> Option<(u64, u64)> {
-    Some((openai::worst_case(&limits.documents.openai)?, anthropic::worst_case(&limits.documents.anthropic)?))
+    Some((openai::decoded_bound(&limits.documents.openai)?, anthropic::decoded_bound(&limits.documents.anthropic)?))
 }
 
 #[cfg(test)]

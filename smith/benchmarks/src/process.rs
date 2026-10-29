@@ -181,6 +181,12 @@ impl Output {
         self.line.clear();
     }
 
+    fn stderr_overflow(&mut self, overflowed: bool) {
+        if overflowed {
+            self.error.get_or_insert_with(|| "stderr exceeds the attempt log bound".into());
+        }
+    }
+
     fn receive(&mut self, bytes: &[u8], now: Time) {
         let available = self.maximum.saturating_sub(self.bytes.len());
         let retained = bytes.len().min(available);
@@ -485,39 +491,51 @@ struct Policy {
     settled: bool,
 }
 
+impl Policy {
+    // Settlement and answer observations arrive from the shared supervisor and output host.
+    fn advance(&mut self, now: Time, answered: Option<Time>, settled: bool, fault: bool) -> Option<Signal> {
+        if settled {
+            self.settled = true;
+            self.deadline = None;
+            return None;
+        }
+        if !self.answer_seen
+            && let Some(answered) = answered
+        {
+            self.answer_seen = true;
+            self.deadline = Some(answered.checked_add(self.teardown).expect("validated teardown deadline"));
+        }
+        let due = self.deadline.is_some_and(|deadline| deadline <= now) || fault;
+        if due && self.ladder == Ladder::Watching {
+            self.ladder = Ladder::Terminated;
+            self.deadline = Some(now.checked_add(self.grace).expect("validated grace deadline"));
+            Some(Signal::Terminate)
+        } else if self.ladder == Ladder::Terminated && self.deadline.is_some_and(|deadline| deadline <= now) {
+            self.ladder = Ladder::Killed;
+            self.deadline = None;
+            Some(Signal::Kill)
+        } else {
+            None
+        }
+    }
+}
+
 impl Referee<Process> for Policy {
     fn act(&mut self, now: Time, processes: &mut [Process]) {
         let (binaries, outputs) = processes.split_at_mut(1);
         let Process::Binary(binary) = &mut binaries[0] else { unreachable!("first host is Binary") };
         let Process::Output(output) = &mut outputs[0] else { unreachable!("second host is output") };
-        if binary.stderr_overflowed() {
-            output.error.get_or_insert_with(|| "stderr exceeds the attempt log bound".into());
-        }
-        if binary.counts().is_some() {
+        output.stderr_overflow(binary.stderr_overflowed());
+        let settled = binary.counts().is_some();
+        if settled {
             output.tree = Tree::Settled;
             output.trace_poll = None;
-            self.settled = true;
-            self.deadline = None;
-            return;
         }
-        if !self.answer_seen
-            && let Some(answered) = output.answered
-        {
-            self.answer_seen = true;
-            let teardown = answered.checked_add(self.teardown).expect("validated teardown deadline");
-            self.deadline = Some(teardown);
-        }
-        let due = self.deadline.is_some_and(|deadline| deadline <= now) || output.error.is_some();
-        if due && self.ladder == Ladder::Watching {
-            binary.signal_tree(Signal::Terminate);
-            self.ladder = Ladder::Terminated;
-            self.deadline = Some(now.checked_add(self.grace).expect("validated grace deadline"));
-        } else if self.ladder == Ladder::Terminated && self.deadline.is_some_and(|deadline| deadline <= now) {
-            binary.signal_tree(Signal::Kill);
-            self.ladder = Ladder::Killed;
-            self.deadline = None;
+        if let Some(signal) = self.advance(now, output.answered, settled, output.error.is_some()) {
+            binary.signal_tree(signal);
         }
     }
+
     fn observe(&mut self, _now: Time, processes: &[Process]) {
         let Process::Binary(binary) = &processes[0] else { unreachable!("first host is Binary") };
         if binary.counts().is_some() {
@@ -637,11 +655,9 @@ pub fn execute_script(
     let mut processes = outcome.procs.into_iter();
     let Process::Binary(binary) = processes.next().expect("retained Binary") else { unreachable!("first host") };
     let Process::Output(output) = processes.next().expect("retained output") else { unreachable!("second host") };
-    let error = if binary.stderr_overflowed() {
-        output.error.or_else(|| Some("stderr exceeds the attempt log bound".into()))
-    } else {
-        output.error
-    };
+    let mut output = output;
+    output.stderr_overflow(binary.stderr_overflowed());
+    let error = output.error;
     let forced = match binary.tree_status().cleanup() {
         skein_world::end_to_end::Cleanup::None => crate::Forced::No,
         skein_world::end_to_end::Cleanup::Terminate => crate::Forced::Terminated,
@@ -690,3 +706,7 @@ pub fn execute_script(
         },
     })
 }
+
+#[cfg(test)]
+#[path = "process/lower_tests.rs"]
+mod lower_tests;

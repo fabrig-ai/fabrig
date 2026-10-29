@@ -138,12 +138,12 @@ listed in section 9.
   and every component, and fires each where it fires its own
   (programming-model.md, section 9); it reports the same apart from io's
   own, as the policy deadline (section 4).
-- **Room.** `iterate` hands the root an event only while the root's
-  output queues have room for the most that event's entry point may
-  produce (programming-model.md, section 2). Whether a decision fits the
-  journal is the root's to say: it answers busy, through the door, an
-  event the journal cannot take (`../domain/root.md`, section 3), and the
-  component that sent it holds its peer back until it may send again.
+- **Admission.** Internal hand-offs are uncapped. The root takes
+  completions of admitted work at any backlog, and hands new external
+  work back while its backlog is at the watermark. The component that
+  sent it keeps it until admission resumes (`../domain/root.md`,
+  section 3). Completions may pass a held call, in arrival order, until
+  the next new event.
 
 ## 3. Starting
 
@@ -226,7 +226,12 @@ down:  released and door outputs → components → io submissions
      and their held outputs released, until nothing waits for a commit,
      which the core says.
   4. **Each component closes,** its peers told, and reports closed; the
-     store closes last. A stop before the start's mark (the switch
+     store closes last: `other_store_drivers_closed` holds its root open
+     until the other drivers' handles are closed, their io ready and
+     their terminal queues empty. The reference service holds this with
+     delayed driver completions in `jig-test-service`,
+     `tests::engine::the_store_root_closes_after_delayed_driver_completions`.
+     A stop before the start's mark (the switch
      step's wires commit, `../domain/engine.md`, section 6) finds the
      components that wait for it never made, the accounts' driver and
      the secrets' gate among them: each closes at once as closed, with

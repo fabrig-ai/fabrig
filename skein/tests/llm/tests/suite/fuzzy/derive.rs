@@ -26,7 +26,7 @@ fn ten_thousand_declarations_preserve_all_client_relationships() {
                     assert!(bounds.output_items >= declared.calls_per_response);
                     assert!(bounds.strings >= bounds.input);
                     assert!(bounds.strings >= bounds.reasoning);
-                    let event = skein_json::document::worst_case(&skein_json::document::Limits {
+                    let event = skein_json::document::document_bound(&skein_json::document::Limits {
                         tokens: bounds.tokens,
                         text: bounds.retained,
                     })

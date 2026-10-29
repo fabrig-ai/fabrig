@@ -78,6 +78,7 @@ struct Judge<'a> {
     deadline: Time,
     phase: Phase,
     signing_until: Time,
+    signing: Option<super::patience::Patience>,
     checked: usize,
 }
 fn files(directory: &Path, output: &mut Vec<PathBuf>) {
@@ -287,7 +288,15 @@ impl Referee<Process> for Judge<'_> {
             "serve failed: {}",
             String::from_utf8_lossy(binary.stderr())
         );
-        assert!(self.running() || now < self.signing_until, "ChatGPT sign-in deadline");
+        if !self.running()
+            && let Some(patience) = &mut self.signing
+            && let Some(figures) = patience.failed()
+        {
+            panic!("ChatGPT sign-in deadline: {figures}");
+        }
+        if !self.running() && self.signing.is_none() {
+            assert!(now < self.signing_until, "ChatGPT sign-in deadline");
+        }
         assert!(
             now < self.deadline || self.phase == Phase::Settled,
             "live story deadline; pushed={}",
@@ -296,7 +305,11 @@ impl Referee<Process> for Judge<'_> {
     }
     fn next_deadline(&self) -> Option<Time> {
         (self.phase != Phase::Settled).then_some(if !self.running() {
-            self.signing_until.min(self.deadline)
+            self.signing
+                .as_ref()
+                .and_then(super::patience::Patience::until)
+                .unwrap_or(if self.signing.is_some() { self.deadline } else { self.signing_until })
+                .min(self.deadline)
         } else if self.stopping() {
             self.deadline
         } else {
@@ -334,6 +347,9 @@ pub fn run(directory: &Path, forge: &Throwaway, instructions: &str, deadline: Du
         deadline: started.saturating_add(deadline),
         phase: Phase::Starting,
         signing_until: started.saturating_add(sign_in_within()),
+        signing: (sign_in_within() < deadline).then(|| {
+            super::patience::Patience::watching("the live story's ChatGPT sign-in", sign_in_within(), &binary)
+        }),
         checked: 0,
     });
     world.spawn_with_fds(binary.descriptors(), || Process::Binary(Box::new(binary)));

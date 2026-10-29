@@ -38,6 +38,8 @@ pub struct Joint {
     pub answer_runs: bool,
     pub reply_runs: bool,
     pub runs_answered: u32,
+    /// Worker assignments retained for assertions about requester notifications.
+    pub assignments: Vec<engine::Assignment>,
     reply_pieces: Option<&'static [&'static [u8]]>,
     held_reply: Option<HeldReply>,
     hold_demo_read: bool,
@@ -729,6 +731,7 @@ impl Joint {
             answer_runs: false,
             reply_runs: false,
             runs_answered: 0,
+            assignments: Vec::new(),
             reply_pieces: None,
             held_reply: None,
             hold_demo_read: false,
@@ -1311,6 +1314,7 @@ impl Joint {
                 );
             }
             if let engine::Delivery::Assigned { assignment, .. } = &delivery {
+                self.assignments.push(assignment.clone());
                 let read = assignment.messages.last().map(|word| word.number);
                 if let Some(pieces) = self.reply_pieces.take() {
                     self.held_reply = Some(HeldReply {
