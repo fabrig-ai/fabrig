@@ -6,6 +6,8 @@ import importlib.machinery
 import os
 from pathlib import Path
 import select
+import signal
+import shlex
 import subprocess
 import sys
 import time
@@ -66,13 +68,118 @@ def open_controller(config, *, inherited=None, deadline=None):
         endpoint.deadline = deadline
         effects = authority.GitAuthority(layout, lease, Path(config['authority_repo']), config['origin'], config['leads'],
             runner=lambda *args, **kwargs: effect_run(endpoint, *args, **kwargs))
-        preparer = train.Preparer(Path(config['preparation']), Path(config['artifacts']),
-            metadata_loader=worker.mq.load_metadata, disk_floor=config['disk_floor'])
-        controller = train.Controller(preparer, train.StateStore(layout.train), endpoint, effects,
-            generation=config['generation'], gates=list(config['endpoints']),
-            runtime=worker.runtime_identity(config['disk_floor']), now=time.time,
-            batch=config['batch'], full_every=config['full_every'], completion_adapter=endpoint)
-        yield controller, lease
+        with preparation_budget(endpoint, config, lease=lease):
+            preparer = train.Preparer(Path(config['preparation']), Path(config['artifacts']),
+                metadata_loader=worker.mq.load_metadata, disk_floor=config['disk_floor'])
+        with preparation_budget(endpoint, config, preparer=preparer, lease=lease):
+            controller = train.Controller(preparer, train.StateStore(layout.train), endpoint, effects,
+                generation=config['generation'], gates=list(config['endpoints']),
+                runtime=worker.runtime_identity(config['disk_floor']), now=time.time,
+                batch=config['batch'], full_every=config['full_every'], completion_adapter=endpoint)
+        with preparation_budget(endpoint, config, controller=controller):
+            yield controller, lease
+
+
+UNKNOWN_CLIENTS = []
+
+
+def quarantine_preparation(config, controller=None):
+    """An interrupted client is not proof its descendants stopped."""
+    marker = Path(config['preparation']) / '.git/mq-preparation-unresolved.json'
+    snapshot_path = Path(config['authority_dir']) / 'train/state.json'
+    state = controller.state if controller is not None else (
+        train.recovery.validate_state(durable.read_json(durable.read_bytes(snapshot_path))) if snapshot_path.exists() else None)
+    records = state['records'] if state else {}
+    if marker.exists() or marker.is_symlink():
+        identity = durable.read_json(durable.read_bytes(marker))
+    else:
+        active = state['active'] if state else []
+        attempt = active[0] if active else max(records, key=lambda name: int(name.rsplit('-',1)[1]), default='unresolved-command')
+        identity = {'attempt': attempt, 'generation': state['config']['generation'] if state else config['generation'],
+                    'state': str(snapshot_path)}
+        durable.publish(marker, durable.encoded(identity), immutable=True, private_parent=False)
+    if identity.get('attempt') in records:
+        records[identity['attempt']]['preparation_unresolved'] = True
+        if controller is not None:
+            controller.save()
+        else:
+            durable.atomic_json(snapshot_path, state)
+
+
+@contextmanager
+def preparation_budget(endpoint, config, *, controller=None, preparer=None, lease=None):
+    """Scope every policy Git/metadata call, including nested certificate checks.
+
+    No global subprocess monkeypatch: each independently loaded policy module
+    has one synchronous command boundary, restored when this scope ends.
+    """
+    if getattr(endpoint, 'deadline', None) is None:
+        yield
+        return
+    if controller is not None:
+        preparer = controller.preparer
+        lease = controller.authority.lock
+    commands = preparer.commands if preparer is not None else worker.mq
+    original = commands.command
+    original_runner = preparer.runner if preparer is not None else None
+
+    def run(argv, **options):
+        timeout = options.pop('timeout', None)
+        budget = transport.remaining(endpoint, timeout)
+        inherited = list(options.pop('pass_fds', ()))
+        if lease is not None:
+            lease.guard()
+            inherited.append(lease.fd)
+        if preparer is not None and preparer._ownership is not None:
+            preparer._ownership.guard()
+            inherited.append(preparer._ownership.fd)
+        body = options.pop('input', None)
+        if body is not None:
+            options['stdin'] = subprocess.PIPE
+        # Recheck after setup so an expired scope cannot launch another client.
+        budget = transport.remaining(endpoint, budget)
+        child = subprocess.Popen(argv, start_new_session=True, pass_fds=tuple(set(inherited)), **options)
+        try:
+            output, errors = child.communicate(input=body, timeout=transport.remaining(endpoint, budget))
+            transport.remaining(endpoint, budget)
+        except (subprocess.TimeoutExpired, TimeoutError) as error:
+            try:
+                quarantine_preparation(config, controller)
+            finally:
+                # An unreaped leader still owns its session identity. Once it
+                # was reaped, never signal a potentially reused process group.
+                if child.returncode is None:
+                    try:
+                        os.killpg(child.pid, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+                for stream in (child.stdin, child.stdout, child.stderr):
+                    if stream is not None:
+                        stream.close()
+                if child.poll() is None:
+                    UNKNOWN_CLIENTS.append(child)
+            raise worker.UncertainCompletion('preparation/certificate client deadline; descendant completion unknown; retain preparation ownership') from error
+        return subprocess.CompletedProcess(argv, child.returncode, output, errors)
+
+    def command(argv, cwd, *, check=True, body=None, separate_stderr=False):
+        options = {'stdin': subprocess.DEVNULL} if body is None else {'input': body}
+        if commands.WRITER_LEASE is not None:
+            options['pass_fds'] = commands.writer_fds()
+        result = run(argv, cwd=cwd, text=True, stdout=subprocess.PIPE,
+                     stderr=subprocess.PIPE if separate_stderr else subprocess.STDOUT, **options)
+        if check and result.returncode:
+            raise RuntimeError(f'{shlex.join(argv)} exited {result.returncode}:\n{result.stdout}{result.stderr or ""}')
+        return result
+
+    commands.command = command
+    if preparer is not None:
+        preparer.runner = run
+    try:
+        yield
+    finally:
+        commands.command = original
+        if preparer is not None:
+            preparer.runner = original_runner
 
 
 def effect_run(endpoint, *args, **kwargs):
@@ -87,9 +194,23 @@ def stop(config):
 
 
 def cycle(controller, config, *, admit=True):
+    with preparation_budget(controller.transport, config, controller=controller):
+        return cycle_owned(controller, config, admit=admit)
+
+
+def cycle_owned(controller, config, *, admit=True):
     if Path(config['stop']).exists() and not controller.state['stopping']:
         controller.stop()
-    # Both physical gates, including invalidated descendants, are polled first.
+    # Resolve a completed preparation's exact snapshot-backed marker before
+    # any predecessor certificate can need the preparation checkout.
+    marker = controller.preparer.repo / '.git/mq-preparation-unresolved.json'
+    if marker.exists() or marker.is_symlink():
+        identity = durable.read_json(durable.read_bytes(marker))
+        attempt = identity.get('attempt')
+        if attempt not in controller.state['records']:
+            raise RuntimeError('preparation command ownership unknown; retain marker and reconcile supported evidence')
+        controller.reconcile_preparation(attempt)
+    # Both physical gates, including invalidated descendants, are then polled.
     for owner in list(controller.state['gates'].values()):
         if owner:
             controller.poll(owner)
@@ -99,9 +220,6 @@ def cycle(controller, config, *, admit=True):
         for attempt in list(controller.state['active']):
             record = controller.state['records'][attempt]
             if record['phase'] == 'prepared' and record['outcome'] is None and not record.get('invalidated'):
-                marker = controller.preparer.repo / '.git/mq-preparation-unresolved.json'
-                if marker.exists() or marker.is_symlink():
-                    controller.reconcile_preparation(attempt)
                 controller.dispatch(attempt)
     # Includes uncertain promotion-intents: fresh main must be exact P or C.
     while controller.adjudicate_head():
@@ -273,25 +391,26 @@ def drain(controller, config, wait, *, now=time.monotonic, tick=None):
         deadline = min(deadline, previous)
     controller.transport.deadline = deadline
     try:
-        while True:
-            if controller.drained():
-                return
-            left = deadline - now()
-            if left <= 0:
-                raise TimeoutError('train drain timed out; stop retained, runtime unchanged')
-            cycle(controller, config, admit=False)
-            if controller.drained():
-                return
-            if controller.unreconciled_gates or any(r.get('error') for r in controller.state['records'].values()
-                    if r['id'] in controller.state['gates'].values()):
-                raise RuntimeError('physical drain unknown; inspect status and endpoint reconciliation; stop retained')
-            left = deadline - now()
-            if left <= 0:
-                raise TimeoutError('train drain timed out; stop retained, runtime unchanged')
-            if tick:
-                tick()
-            else:
-                select.select([], [], [], min(60, left))
+        with preparation_budget(controller.transport, config, controller=controller):
+            while True:
+                if controller.drained():
+                    return
+                left = deadline - now()
+                if left <= 0:
+                    raise TimeoutError('train drain timed out; stop retained, runtime unchanged')
+                cycle(controller, config, admit=False)
+                if controller.drained():
+                    return
+                if controller.unreconciled_gates or any(r.get('error') for r in controller.state['records'].values()
+                        if r['id'] in controller.state['gates'].values()):
+                    raise RuntimeError('physical drain unknown; inspect status and endpoint reconciliation; stop retained')
+                left = deadline - now()
+                if left <= 0:
+                    raise TimeoutError('train drain timed out; stop retained, runtime unchanged')
+                if tick:
+                    tick()
+                else:
+                    select.select([], [], [], min(60, left))
     finally:
         controller.transport.deadline = previous
 

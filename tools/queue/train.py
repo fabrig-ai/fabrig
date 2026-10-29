@@ -73,6 +73,8 @@ class Preparer:
         self.repo = worker.canonical_directory(repo)
         self.artifacts = private_directory(artifacts)
         self.metadata_loader = metadata_loader
+        self.commands = mq
+        self.runner = None
         self.disk_floor = disk_floor
         self._ownership = None
         if (not (self.repo / ".git").is_dir() or (self.repo / ".git").is_symlink() or
@@ -162,7 +164,7 @@ class Preparer:
             os.fchmod(log.fileno(), 0o600)
             for name, argv, cwd in mq.ratchet_commands(repo, paths):
                 prior_head = mq.git(repo, "rev-parse", "HEAD").stdout.strip()
-                step = mq.run_step(name, argv, cwd, log, runner=mq.subprocess.run, clock=mq.time.monotonic)
+                step = mq.run_step(name, argv, cwd, log, runner=self.runner or mq.subprocess.run, clock=mq.time.monotonic)
                 steps.append(step)
                 if mq.git(repo, "rev-parse", "HEAD").stdout.strip() != prior_head:
                     raise RuntimeError("ratchet changed prepared HEAD")
@@ -920,7 +922,8 @@ class Controller:
         self.save()
 
     def drained(self):
-        if (self.failed or self.state["active"] or any(self.state["gates"].values()) or
+        marker = self.preparer.repo / ".git/mq-preparation-unresolved.json"
+        if (marker.exists() or marker.is_symlink() or self.failed or self.state["active"] or any(self.state["gates"].values()) or
                 any(r.get("preparation_unresolved") or r["phase"] == "preparing"
                     for r in self.state["records"].values())):
             return False

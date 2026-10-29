@@ -39,7 +39,8 @@ class OperationTests(f.fixtures.TrainFixture,unittest.TestCase):
         self.controller=self.reload()
         self.controller.state['last_full']=self.clock
         self.controller.save()
-        self.config={'authority_dir':str(self.layout.root),'stop':str(self.root/'queue.stop')}
+        self.config={'authority_dir':str(self.layout.root),'stop':str(self.root/'queue.stop'),
+                     'preparation':str(self.prep),'generation':self.controller.config['generation']}
         d.publish(self.layout.root/'train-operation.json',d.encoded(self.config),immutable=True)
 
     def test_stop_zero_safe_retirement_is_audited_and_generation_cannot_revive(self):
@@ -164,6 +165,168 @@ class OperationTests(f.fixtures.TrainFixture,unittest.TestCase):
         self.assertEqual(restored.state['active'],[attempt])
         self.assertEqual(restored.state['serial'],1)
         self.assertEqual(self.transport.jobs[attempt]['request'],record['request'])
+
+    def completed_preparation_crash(self):
+        save=self.controller.save
+        def crash():
+            save()
+            if any(r['phase']=='prepared' for r in self.controller.state['records'].values()):
+                raise RuntimeError('crash after completed preparation snapshot')
+        with patch.object(self.controller,'save',side_effect=crash):
+            with self.assertRaisesRegex(RuntimeError,'crash after completed'):
+                self.controller.admit()
+        marker=self.prep/'.git/mq-preparation-unresolved.json'
+        self.assertTrue(marker.exists())
+        attempt=d.read_json(d.read_bytes(marker))['attempt']
+        self.assertEqual(self.controller.state['records'][attempt]['phase'],'prepared')
+        return attempt,marker
+
+    def test_completed_successor_marker_reconciles_before_predecessor_certificate(self):
+        self.branch('a');a,ra=self.admit()
+        self.branch('b');b,marker=self.completed_preparation_crash()
+        self.transport.finish(a)
+        restored=self.reload()
+        op.stop(self.config);op.cycle(restored,self.config,admit=False)
+        self.assertFalse(marker.exists())
+        self.assertEqual(restored.state['records'][a]['decision'],'green')
+        self.assertFalse(restored.state['records'][b].get('invalidated'))
+        self.assertEqual(self.authority.main(),ra['candidate'])
+        self.assertEqual(self.transport.starts,[a,b])
+
+    def test_completed_red_preparation_marker_reconciles_before_adjudication(self):
+        self.ratchet_base()
+        self.branch('raise',{'skein/src/c.rs':'old old old'})
+        attempt,marker=self.completed_preparation_crash()
+        self.assertEqual(self.controller.state['records'][attempt]['outcome'],'red')
+        restored=self.reload();op.stop(self.config);op.cycle(restored,self.config,admit=False)
+        self.assertFalse(marker.exists())
+        self.assertEqual(restored.state['records'][attempt]['decision'],'red')
+        self.assertEqual(self.transport.starts,[])
+
+    def test_completed_conflict_marker_reconciles_before_adjudication(self):
+        self.branch('conflict',{'README.md':'left'})
+        f.mq.git(self.prep,'switch','--detach',self.base)
+        self.write('README.md','right');self.commit('advance main')
+        parent=self.tip();f.mq.git(self.prep,'push','origin',parent+':main')
+        attempt,marker=self.completed_preparation_crash()
+        self.assertEqual(self.controller.state['records'][attempt]['outcome'],'conflict')
+        restored=self.reload();op.stop(self.config);op.cycle(restored,self.config,admit=False)
+        self.assertFalse(marker.exists())
+        self.assertEqual(restored.state['records'][attempt]['decision'],'conflict')
+        self.assertEqual(self.authority.main(),parent)
+        self.assertEqual(self.transport.starts,[])
+
+    def test_completed_invalidated_marker_reconciles_outside_active(self):
+        self.branch('a');a,_=self.admit()
+        self.branch('b');b,marker=self.completed_preparation_crash()
+        self.controller.infra(a,'ancestor transport error')
+        self.assertNotIn(b,self.controller.state['active'])
+        restored=self.reload();op.stop(self.config);op.cycle(restored,self.config,admit=False)
+        self.assertFalse(marker.exists())
+        self.assertTrue(restored.state['records'][b]['invalidated'])
+        self.assertEqual(self.transport.starts,[a])
+
+    def test_mismatching_completed_marker_refuses_before_polling(self):
+        self.branch('a');a,_=self.admit()
+        self.branch('b');b,marker=self.completed_preparation_crash()
+        identity=d.read_json(d.read_bytes(marker));identity['state']=str(self.root/'wrong-state')
+        w.atomic_json(marker,identity)
+        restored=self.reload()
+        with patch.object(self.transport,'status') as poll,self.assertRaises(ValueError):
+            op.cycle(restored,self.config,admit=False)
+        poll.assert_not_called()
+        self.assertTrue(marker.exists())
+
+    def test_drain_metadata_deadline_retains_unknown_preparation_and_gate(self):
+        self.preparation_deadline_case('metadata')
+
+    def test_drain_git_deadline_retains_unknown_preparation_and_gate(self):
+        self.preparation_deadline_case('git')
+
+    def test_certificate_timeout_retains_ownership_with_escaped_metadata_descendant(self):
+        self.preparation_deadline_case('metadata',escape=True)
+
+    def preparation_deadline_case(self, tool, *, escape=False):
+        self.branch('source',{'core/src/lib.rs':'source'})
+        attempt,record=self.admit();self.transport.finish(attempt)
+        ready,go=self.root/'metadata-ready',self.root/'metadata-go'
+        os.mkfifo(ready,0o600);os.mkfifo(go,0o600)
+        ready_fd,go_fd=os.open(ready,os.O_RDWR),os.open(go,os.O_RDWR)
+        self.addCleanup(os.close,ready_fd);self.addCleanup(os.close,go_fd)
+        binary=self.root/'metadata-bin';binary.mkdir(mode=0o700)
+        cargo=binary/('cargo' if tool=='metadata' else 'git')
+        metadata=self.metadata(self.prep)
+        cargo.write_text('#!/usr/bin/env python3\nimport os\nwith open('+repr(str(ready))+',"w") as f:f.write(str(os.getpid())+"\\n");f.flush()\nf=os.open('+repr(str(go))+',os.O_RDONLY);os.read(f,1);os.close(f)\nprint('+repr(__import__('json').dumps(metadata))+')\n')
+        if escape:
+            text=cargo.read_text().replace('import os\n','import os,signal\nif os.fork()!=0:\n signal.pause();os._exit(0)\nos.setsid()\n')
+            cargo.write_text(text)
+        if tool=='git':
+            import shutil
+            real=shutil.which('git')
+            wait='with open('+repr(str(ready))+',"w") as f:f.write(str(os.getpid())+"\\n");f.flush()\nf=os.open('+repr(str(go))+',os.O_RDONLY);os.read(f,1);os.close(f)\n'
+            cargo.write_text('#!/usr/bin/env python3\nimport os,sys\nif "--format=%P" in sys.argv:\n'+''.join(' '+line+'\n' for line in wait.splitlines())+'os.execv('+repr(real)+',['+repr(real)+',*sys.argv[1:]])\n')
+        cargo.chmod(0o700)
+        status=self.root/'metadata-status.json'
+        pid=os.fork()
+        if pid==0:
+            try:
+                lease=self.layout.acquire(inherited=self.lease.fd)
+                self.authority.lock=lease
+                if tool=='metadata':self.preparer.metadata_loader=f.mq.load_metadata
+                os.environ['PATH']=str(binary)+':'+os.environ['PATH']
+                error=None
+                try:op.drain(self.controller,self.config,0.75)
+                except Exception as exc:error=type(exc).__name__+': '+str(exc)
+                r=self.controller.state['records'][attempt]
+                d.publish(status,d.encoded({'error':error,'outcome':r['outcome'],
+                    'preparation_unresolved':r.get('preparation_unresolved',False),
+                    'gate':self.controller.state['gates'][r['gate']],
+                    'drained':self.controller.drained()}),immutable=True)
+                os._exit(0)
+            except BaseException:os._exit(9)
+        fd=os.pidfd_open(pid)
+        try:
+            self.assertTrue(select.select([ready_fd],[],[],5)[0])
+            metadata_pid=int(os.read(ready_fd,64).strip())
+            metadata_fd=os.pidfd_open(metadata_pid)
+            try:
+                bounded=bool(select.select([fd],[],[],1.5)[0])
+                escaped_alive=not bool(select.select([metadata_fd],[],[],0)[0])
+                os.write(go_fd,b'x'*64)
+                self.assertTrue(select.select([fd],[],[],5)[0])
+                _,code=os.waitpid(pid,0);pid=None
+                self.assertEqual(os.waitstatus_to_exitcode(code),0)
+                evidence=d.read_json(d.read_bytes(status))
+                self.assertTrue(bounded,'certificate '+tool+' ran past enclosing drain budget')
+                if escape:self.assertTrue(escaped_alive,'escaped descendant ended before uncertain ownership was recorded')
+                self.assertIsNotNone(evidence['error'])
+                self.assertTrue(evidence['preparation_unresolved'],evidence)
+                self.assertEqual(evidence['gate'],attempt)
+                self.assertFalse(evidence['drained'])
+                self.assertTrue((self.prep/'.git/mq-preparation-unresolved.json').exists())
+                self.assertTrue(select.select([metadata_fd],[],[],5)[0])
+                self.assertEqual(self.authority.main(),self.base)
+                self.assertTrue(Path(self.config['stop']).exists())
+                restored=self.reload()
+                with self.assertRaisesRegex(RuntimeError,'incomplete preparation'):
+                    op.cycle(restored,self.config,admit=False)
+                self.assertTrue((self.prep/'.git/mq-preparation-unresolved.json').exists())
+            finally:os.close(metadata_fd)
+        finally:
+            os.write(go_fd,b'x'*64)
+            if pid is not None:
+                os.kill(pid,9);os.waitpid(pid,0)
+            os.close(fd)
+
+    def test_expired_preparation_scope_starts_no_git_metadata_or_ratchet_client(self):
+        self.controller.transport.deadline=0
+        endpoint=self.controller.transport
+        with op.preparation_budget(endpoint,self.config,controller=self.controller),patch.object(op.subprocess,'Popen') as launch:
+            for call in (lambda:f.mq.git(self.prep,'status'),lambda:f.mq.load_metadata(self.prep),
+                         lambda:self.preparer.runner(['python3','-c','pass'],stdin=subprocess.DEVNULL)):
+                with self.assertRaises(TimeoutError):call()
+            launch.assert_not_called()
+        self.assertFalse((self.prep/'.git/mq-preparation-unresolved.json').exists())
 
     def test_expired_drain_does_not_launch_git_or_post_effect_clients(self):
         endpoint=types.SimpleNamespace(deadline=0)
