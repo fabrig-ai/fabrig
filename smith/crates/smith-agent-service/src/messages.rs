@@ -21,32 +21,33 @@ pub(crate) struct Message {
 /// Decoded content waiting for one actual run receipt, under Everything only.
 #[derive(Debug)]
 pub(crate) struct Book {
+    capture_enabled: bool,
     pending: Queue<Message>,
 }
 
 impl Book {
     #[cfg(test)]
     pub(crate) fn disabled() -> Book {
-        Book { pending: Queue::with_capacity(0) }
+        Book::new(Capture::None)
     }
 
-    pub(crate) fn new(limits: &crate::Limits, capture: Capture) -> Book {
-        let slots = match capture {
-            Capture::None | Capture::Calls => 0,
-            Capture::Everything => slots(limits).expect("admitted message observation cells fit"),
+    pub(crate) fn new(capture: Capture) -> Book {
+        let capture_enabled = match capture {
+            Capture::None | Capture::Calls => false,
+            Capture::Everything => true,
         };
-        Book { pending: Queue::with_capacity(slots) }
+        Book { capture_enabled, pending: Queue::uncapped() }
     }
 
     pub(crate) fn received(&mut self, name: Token, label: &[u8], text: &[u8]) {
-        if self.pending.capacity() == 0 {
+        if !self.capture_enabled {
             return;
         }
         self.pending.push(Message { name, label: Box::from(label), text: Box::from(text) });
     }
 
     pub(crate) fn take(&mut self, name: Token) -> Option<Message> {
-        if self.pending.capacity() == 0 {
+        if !self.capture_enabled {
             return None;
         }
         let message = self.pending.pop().expect("the service observed the actual message before its receipt");
@@ -55,51 +56,19 @@ impl Book {
     }
 
     pub(crate) fn clear(&mut self) {
-        for _ in 0..self.pending.capacity() {
-            match self.pending.pop() {
-                Some(_) => {}
-                None => break,
-            }
+        for _ in 0..self.pending.len() {
+            self.pending.pop().expect("each captured message present at entry is cleared once");
         }
-    }
-}
-
-fn slots(limits: &crate::Limits) -> Option<u32> {
-    limits.channel.bodies.start_messages.checked_add(1)
-}
-
-/// Whether captured message slots fit (programming-model.md, 6.3).
-#[must_use]
-pub(crate) fn valid(limits: &crate::Limits, capture: Capture) -> bool {
-    match capture {
-        Capture::None | Capture::Calls => true,
-        Capture::Everything => slots(limits).is_some(),
     }
 }
 
 #[cfg(test)]
 mod tests {
-    #![allow(
-        clippy::disallowed_macros,
-        clippy::disallowed_types,
-        reason = "programming-model.md section 10.2: deterministic receipt fixtures use ordinary Rust"
-    )]
-
     use super::*;
 
     #[test]
-    fn invalid_limits_are_refused() {
-        let mut limits = crate::service::tests::configuration().limits;
-        assert!(valid(&limits, Capture::Everything));
-        limits.channel.bodies.start_messages = u32::MAX;
-        assert!(!valid(&limits, Capture::Everything));
-        assert!(valid(&limits, Capture::None));
-        assert!(valid(&limits, Capture::Calls));
-    }
-
-    #[test]
     fn repeated_names_keep_each_original_label_and_text_until_its_receipt() {
-        let mut book = Book { pending: Queue::with_capacity(2) };
+        let mut book = Book::new(Capture::Everything);
         let name = Token::new(4);
         book.received(name, b"task", b"first actual input");
         book.received(name, b"relay", b"second, refused input");
@@ -113,13 +82,17 @@ mod tests {
         book.received(name, b"never admitted", b"start refused");
         book.clear();
         assert!(book.pending.is_empty());
+        book.received(name, b"task", b"next run");
+        assert_eq!(book.take(name).unwrap().text.as_ref(), b"next run");
     }
 
     #[test]
     fn absent_content_selection_owns_no_message_copy() {
-        let mut book = Book { pending: Queue::with_capacity(0) };
-        book.received(Token::new(4), b"task", b"text");
-        assert!(book.take(Token::new(4)).is_none());
-        assert_eq!(book.pending.capacity(), 0);
+        for capture in [Capture::None, Capture::Calls] {
+            let mut book = Book::new(capture);
+            book.received(Token::new(4), b"task", b"text");
+            assert!(book.take(Token::new(4)).is_none());
+            assert!(book.pending.is_empty());
+        }
     }
 }
