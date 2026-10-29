@@ -482,7 +482,7 @@ processes, each a host of an `iterate` (a service, or a fake client):
   one, asserting that every fault fell. Every binary checks memory at
   every iteration, and that each process frees what it held once
   settled; io holds the echo to the room it was granted in every world.
-- **The real loop** (`tests/echo/tests/real.rs`): the echo and its fake
+- **The real loop** (`tests/echo/tests/suite/real.rs`): the echo and its fake
   clients in one loop over the shell's ring, on loopback, quick, failing
   clearly where `io_uring` is unusable.
 - **End to end** (`tests/echo/tests/end_to_end.rs`, built with the

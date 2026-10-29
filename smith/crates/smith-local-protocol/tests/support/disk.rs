@@ -8,6 +8,7 @@ use skein_io::{
 use skein_lib::{Duration, List, Queue, Token};
 use skein_scratch::Scratch;
 use skein_shell::{Backend, Clock, Config, Kernel, Wait};
+use skein_world::{Deadline, Expired};
 use smith_local_domain as local;
 use smith_local_protocol::{Action, Store, StoreLimits, StoreRequest};
 use std::{
@@ -204,10 +205,16 @@ impl Disk {
     }
 
     fn pump(&mut self) -> Option<local::Event> {
-        let deadline = self.clock.now().now.saturating_add(Duration::from_secs(5));
+        let deadline = Deadline::arm("a tiny Store operation", Duration::from_secs(5));
         loop {
+            if deadline.passed() {
+                match deadline.expired() {
+                    // No child or peer is owned; files and kernel operations end with this process.
+                    Expired::Starved(starved) => starved.pass(),
+                    Expired::Failed(figures) => panic!("a tiny Store operation settles promptly: {figures}"),
+                }
+            }
             let now = self.clock.now().now;
-            assert!(now < deadline, "a tiny Store operation settles promptly");
             self.kernel.reap(&mut self.completions);
             while let Some(complete) = self.completions.pop() {
                 file_layer::up(&mut self.io, complete, &mut self.events, &mut self.submissions);
@@ -247,7 +254,7 @@ impl Disk {
             if self.io.is_due(now) {
                 file_layer::expire(&mut self.io, now, &mut self.submissions);
             }
-            let wait = if self.events.is_empty() { Wait::Until(deadline) } else { Wait::No };
+            let wait = if self.events.is_empty() { Wait::Until(deadline.until()) } else { Wait::No };
             self.kernel.submit(&mut self.submissions, wait);
         }
     }

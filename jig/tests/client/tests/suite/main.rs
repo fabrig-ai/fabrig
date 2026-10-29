@@ -7,6 +7,7 @@ mod client_construction;
 mod faults;
 mod incident;
 mod memory;
+mod orders;
 mod owner_authority;
 mod owner_budget;
 mod person_confirmation;

@@ -1,17 +1,18 @@
 //! The reference root's store transport (protocol/store.md, 3 and 7).
 use crate::{StoreOut, Up, keys, live, records};
 use alloc::boxed::Box;
+use alloc::collections::BTreeMap;
 use jig_domain_core as core;
 use jig_domain_notes as notes;
 use jig_domain_people as people;
 use jig_protocol_store::{self as store, Event, Request, Restore, Row};
 use jig_test_domain as root;
-use skein_lib::{List, Map, Queue, Token};
+use skein_lib::{List, Queue, Token};
 
-/// A bounded owner table, configured once with its root's admitted limits.
+/// An ordered owner table that grows with admitted store operations.
 #[derive(Debug)]
 pub struct Routes {
-    pending: Map<Token, Flight>,
+    pending: BTreeMap<Token, Flight>,
     next: u64,
     commit: u64,
     limits: Option<root::Limits>,
@@ -25,9 +26,10 @@ enum Flight {
     Window { task: u64, attempt: u64, turn: u32 },
 }
 impl Routes {
+    /// The supplied size does not limit the retained continuations.
     #[must_use]
-    pub fn new(table: u32) -> Routes {
-        Routes { pending: Map::with_capacity(table), next: 0, commit: 0, limits: None }
+    pub fn new(_table: u32) -> Routes {
+        Routes { pending: BTreeMap::new(), next: 0, commit: 0, limits: None }
     }
     /// Give the routing the configured decode and page bounds before use.
     pub fn configure(&mut self, limits: &root::Limits) {
@@ -39,11 +41,11 @@ impl Routes {
     pub fn idle(&self) -> bool {
         self.pending.is_empty()
     }
-    fn keep(&mut self, flight: Flight) -> Option<Token> {
-        self.next = self.next.checked_add(1)?;
+    fn keep(&mut self, flight: Flight) -> Token {
+        self.next = self.next.checked_add(1).expect("store route owner exhausted");
         let owner = Token::new(self.next);
-        self.pending.insert(owner, flight).ok()?;
-        Some(owner)
+        assert!(self.pending.insert(owner, flight).is_none(), "unique store route owner");
+        owner
     }
 }
 /// Translate one root request, retaining only its continuation's identity.
@@ -73,7 +75,7 @@ pub fn down(routes: &mut Routes, out: StoreOut) -> Option<Request> {
         }
         StoreOut::Restart { step, census } => {
             if step == core::RestartStep::Switch {
-                let owner = routes.keep(Flight::Restart { step, census })?;
+                let owner = routes.keep(Flight::Restart { step, census });
                 return Some(Request::Switch { owner });
             }
             match &step {
@@ -87,15 +89,15 @@ pub fn down(routes: &mut Routes, out: StoreOut) -> Option<Request> {
                 | core::RestartStep::SettleOutbox { .. }
                 | core::RestartStep::Open => return None,
             }
-            let owner = routes.keep(Flight::Restart { step, census })?;
+            let owner = routes.keep(Flight::Restart { step, census });
             restart(routes, owner, None)?
         }
         StoreOut::ReadLoad { load, range } => {
-            let owner = routes.keep(Flight::Read(load))?;
+            let owner = routes.keep(Flight::Read(load));
             Request::Read { owner, range: *range }
         }
         StoreOut::NotesLoad { owner, range } => {
-            let owner = routes.keep(Flight::Notes(owner))?;
+            let owner = routes.keep(Flight::Notes(owner));
             Request::Load {
                 owner,
                 range: store::Load::Notes(range),
@@ -106,11 +108,11 @@ pub fn down(routes: &mut Routes, out: StoreOut) -> Option<Request> {
         }
         StoreOut::Now(now) => {
             if let Some(key) = store::historical::key(&now) {
-                let owner = routes.keep(Flight::Historical(now))?;
+                let owner = routes.keep(Flight::Historical(now));
                 return Some(Request::Get { owner, key: store::Get::Jig(key) });
             }
             let (task, attempt, turn) = window(now)?;
-            let owner = routes.keep(Flight::Window { task, attempt, turn })?;
+            let owner = routes.keep(Flight::Window { task, attempt, turn });
             transcript(routes, owner, None)?
         }
     })
@@ -220,7 +222,10 @@ pub fn up(routes: &mut Routes, event: Event, into: &mut Queue<Up>) {
                     }
                 };
                 if let Some(key) = store::historical::next(&now, &row) {
-                    assert!(routes.pending.insert(owner, Flight::Historical(now)).is_ok(), "historical slot retained");
+                    assert!(
+                        routes.pending.insert(owner, Flight::Historical(now)).is_none(),
+                        "historical owner retained"
+                    );
                     into.push(Up::Ask(Request::Get { owner, key: store::Get::Jig(key) }));
                     return;
                 }

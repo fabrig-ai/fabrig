@@ -51,13 +51,10 @@ fn landed_report() -> Ran {
                 ],
             ),
             calls::call(D1, argv!["chat", "start", "--project", "1", "--key", "qa-kept", "@kept_chat"]),
-            calls::call(D1, argv!["task", "show", calls::task(CHAT_CALL), "--until", "phase:idle", "--timeout", "5"]),
-            calls::call(
-                D1,
-                argv!["task", "show", calls::number(landing::kept::A3), "--until", "ended", "--timeout", "5"],
-            ),
+            calls::call(D1, argv!["task", "show", calls::task(CHAT_CALL), "--until", "phase:idle"]).timeout(5),
+            calls::call(D1, argv!["task", "show", calls::number(landing::kept::A3), "--until", "ended"]).timeout(5),
             calls::call(D1, argv!["task", "show", calls::number(landing::kept::A3), "--json"]),
-            calls::call(D1, argv!["task", "show", calls::task(CHAT_CALL), "--until", "ended", "--timeout", "5"]),
+            calls::call(D1, argv!["task", "show", calls::task(CHAT_CALL), "--until", "ended"]).timeout(5),
         ]
     })
 }
@@ -186,16 +183,13 @@ fn refusal_story(scripts: fn(SocketAddr) -> Box<[Script]>, outside: bool) -> Ran
             const OUTSIDE_CHAT: usize = 1;
             steps.extend([
                 calls::call(D1, argv!["chat", "start", "--project", "1", "--key", "qa-outside", "@qa-outside"]),
-                calls::call(
-                    D1,
-                    argv!["task", "show", calls::task(OUTSIDE_CHAT), "--until", "phase:idle", "--timeout", "5"],
-                ),
+                calls::call(D1, argv!["task", "show", calls::task(OUTSIDE_CHAT), "--until", "phase:idle"]).timeout(5),
             ]);
         }
         let parent_call = if outside { PARENT_CALL_AFTER_OUTSIDE } else { FIRST_PARENT_CALL };
         steps.extend([
             calls::call(D1, argv!["chat", "start", "--project", "1", "--key", "qa-parent", "@qa-parent"]),
-            calls::call(D1, argv!["task", "show", calls::task(parent_call), "--until", "ended", "--timeout", "5"]),
+            calls::call(D1, argv!["task", "show", calls::task(parent_call), "--until", "ended"]).timeout(5),
         ]);
         steps
     })

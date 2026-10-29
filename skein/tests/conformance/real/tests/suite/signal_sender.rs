@@ -1,6 +1,9 @@
 //! Sender attribution through the shell and io on the Linux kernel.
 #![cfg(target_os = "linux")]
 
+use super::given_listener::deadlines::Patience;
+use skein_world::Expired;
+
 fn service(sender: &str) {
     for backend in ["ring", "readiness"] {
         let output = std::process::Command::new(skein_scratch::paths::binary("signal_sender_fixture"))
@@ -13,6 +16,17 @@ fn service(sender: &str) {
             output.status,
             String::from_utf8_lossy(&output.stderr)
         );
+        forward_starved(&output.stderr);
+    }
+}
+
+fn forward_starved(stderr: &[u8]) {
+    if std::env::var_os("NEXTEST").is_some()
+        && let Some(line) =
+            String::from_utf8_lossy(stderr).lines().find(|line| line.starts_with("skein-world: starved:"))
+    {
+        eprintln!("{line}");
+        std::process::exit(0);
     }
 }
 
@@ -26,7 +40,7 @@ fn a_self_sigterm_has_no_child_token() {
     service("self");
 }
 
-// This helper releases only recording senders: no signal is sent even on failure.
+// Recording senders never signal their selected target; teardown ends only the owned sender.
 fn recorded_orphan(selection: &str) -> String {
     use skein_io::kernel::Exit;
     use std::io::{BufRead, Write};
@@ -60,15 +74,29 @@ fn recorded_orphan(selection: &str) -> String {
         .parse()
         .expect("parent PID");
     assert_eq!(adopter, std::process::id(), "prove adoption before releasing the recording sender");
+    let mut deadline = Patience::new("the recording sender exiting", skein_lib::Duration::from_secs(3));
+    deadline.watch_process(pid);
     barrier.write_all(b"go\n").expect("release recording sender");
-    let clock = skein_shell::Clock::new();
-    let deadline = clock.now().now.saturating_add(skein_lib::Duration::from_secs(3));
     let exit = loop {
         if let Some(exit) = skein_shell::poll_child(sender, true).expect("wait recording sender") {
             break exit;
         }
-        assert!(clock.now().now < deadline, "recording sender must settle promptly");
-        std::thread::sleep(std::time::Duration::from_millis(1));
+        if deadline.passed() {
+            let expired = deadline.expired();
+            drop(barrier);
+            let _killed =
+                skein_shell::signal_kept_child(sender, skein_io::kernel::Signal::Kill, skein_io::kernel::Target::Child);
+            skein_shell::abandon_binary(Some(sender), &[sender]);
+            drop(parent);
+            drop(scratch);
+            match expired {
+                Expired::Starved(starved) => starved.pass(),
+                Expired::Failed(figures) => panic!("recording sender must settle promptly: {figures}"),
+            }
+        }
+        std::thread::sleep(std::time::Duration::from_nanos(
+            deadline.remaining().min(skein_lib::Duration::from_millis(1)).as_nanos(),
+        ));
     };
     skein_shell::close_keeper_fd(sender);
     assert_eq!(exit, Exit::Code(0), "recording sender exits without a signal");

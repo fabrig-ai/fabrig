@@ -22,6 +22,14 @@ fn check(family: &str, version: u16) {
     } else {
         assert_eq!(fs::read_to_string(&code).expect("generated code committed"), output.rust, "{again}");
     }
+    // Historical schemas share golden names with the current family version.
+    // Their writer owns only code; the current version owns the golden directory.
+    if matches!(
+        (family, version),
+        ("accounts", 1) | ("component", 2) | ("core", 4 | 5) | ("people", 7..=12) | ("tasks", 7)
+    ) {
+        return;
+    }
     for golden in output.goldens {
         let path = goldens.join(golden.name);
         if write {
@@ -64,10 +72,20 @@ fn the_core_familys_code_and_goldens_have_no_drift() {
 
 #[test]
 fn the_test_connectors_code_and_goldens_have_no_drift() {
+    check_test_connector(2);
+}
+
+#[test]
+fn the_test_connector_v1_code_has_no_drift() {
+    check_test_connector(1);
+}
+
+fn check_test_connector(version: u16) {
     let root = skein_scratch::paths::tree().join("testing/jig-test-store");
-    let source = fs::read_to_string(root.join("schema/test-connector-v2.schema")).expect("schema readable");
+    let source =
+        fs::read_to_string(root.join(format!("schema/test-connector-v{version}.schema"))).expect("schema readable");
     let output = generate(&parse(&source).expect("schema valid"));
-    let code = root.join("src/generated/v2.rs");
+    let code = root.join(format!("src/generated/v{version}.rs"));
     let goldens = root.join("golden");
     let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
     if write {
@@ -75,6 +93,10 @@ fn the_test_connectors_code_and_goldens_have_no_drift() {
         fs::create_dir_all(&goldens).expect("golden directory");
     } else {
         assert_eq!(fs::read_to_string(code).expect("code committed"), output.rust);
+    }
+    // Both versions use the same golden names; v2 owns those bytes.
+    if version == 1 {
+        return;
     }
     for golden in output.goldens {
         let path = goldens.join(golden.name);
@@ -142,4 +164,59 @@ fn the_stores_layouts_have_no_drift() {
 #[test]
 fn the_secrets_familys_code_and_goldens_have_no_drift() {
     check("secrets", 1);
+}
+
+#[test]
+fn the_accounts_v1_code_has_no_drift() {
+    check("accounts", 1);
+}
+
+#[test]
+fn the_component_v2_code_has_no_drift() {
+    check("component", 2);
+}
+
+#[test]
+fn the_core_v4_code_has_no_drift() {
+    check("core", 4);
+}
+
+#[test]
+fn the_core_v5_code_has_no_drift() {
+    check("core", 5);
+}
+
+#[test]
+fn the_people_v7_code_has_no_drift() {
+    check("people", 7);
+}
+
+#[test]
+fn the_people_v8_code_has_no_drift() {
+    check("people", 8);
+}
+
+#[test]
+fn the_people_v9_code_has_no_drift() {
+    check("people", 9);
+}
+
+#[test]
+fn the_people_v10_code_has_no_drift() {
+    check("people", 10);
+}
+
+#[test]
+fn the_people_v11_code_has_no_drift() {
+    check("people", 11);
+}
+
+#[test]
+fn the_people_v12_code_has_no_drift() {
+    check("people", 12);
+}
+
+#[test]
+fn the_tasks_v7_code_has_no_drift() {
+    check("tasks", 7);
 }

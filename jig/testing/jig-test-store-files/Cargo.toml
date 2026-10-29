@@ -20,6 +20,9 @@ skein-kv.workspace = true
 skein-fake-machine.workspace = true
 skein-sim.workspace = true
 
+[dev-dependencies]
+jig-core-world = { path = "../../tests/core" }
+
 # This is a test kit, not a step crate.
 [lints.rust]
 unsafe_code = "forbid"

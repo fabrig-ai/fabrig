@@ -13,6 +13,7 @@ Provisional, 2026-10-28. The machines' and the pipeline's facts every role works
 
 ## 2. Launching a task
 
+- One writer per checkout: the coordinator edits in `~/src/fabrig/coord/mine`, and each Codex run has its own checkout. Do not edit, stage or commit in a checkout while its run is writing there.
 - The task file and anything it must read go to the builder (`~/src/fabrig/tasks/<area>/`), written with `ssh HOST 'umask 077; cat > PATH' < FILE`; the report and log land in `~/src/fabrig/notes/<area>/` there.
 - `ssh HOST 'bash -lc "codex-run task --effort high --to lead/<area>@hel8 TASK SLOT REPORT </dev/null"'`; `--effort medium` for mechanical work; never xhigh. A question or a repair resumes the same run: `--resume <run id>`, a new task file and a NEW report path.
 - Remote commands run in a login shell (`bash -lc`), or `cargo`, `heavy`, `codex-run` and `post` are not on PATH.
@@ -22,7 +23,8 @@ Provisional, 2026-10-28. The machines' and the pipeline's facts every role works
 
 - Run installed `claim` from PATH on hel8, not from a lead's clone: it reads main's `tools/slots/hosts`. `claim list` shows shares and holders; `claim list --free OWNER` lists free slots of that share, then the pool.
 - `claim claim HOST N OWNER WHAT` before a task takes a slot, `claim release HOST N OWNER` when its report is in. Another lead's share needs its owner's agreement and `--lent-by SHARE_OWNER`; a free slot in that share is not pool space.
-- A slot's target stays warm across tasks: a task switches the slot's checkout in place, never a fresh clone. Stale test executables fill a builder's disk (one reached zero bytes on 10-28, and heavy then fails its own bookkeeping), so the task's first step is `python3 -I tools/slots/trim <slot>` (or `ssh HOST 'bash -lc "python3 -I - SLOT"' < tools/slots/trim` from hel8).
+- A guard on each builder (`tools/slots/guard --timer`) trims idle slots when free space falls below 80 GB.
+- A slot's target stays warm across tasks: a task switches the slot's checkout in place, never a fresh clone. Stale test executables fill a builder's disk (one reached zero bytes on 10-28, and heavy then fails its own bookkeeping), so `codex-run` trims a writable task's slot before Codex starts (`tools/slots/trim`; by hand: `ssh HOST 'bash -lc "python3 -I - SLOT"' < tools/slots/trim` from hel8).
 
 ## 4. Surveys
 

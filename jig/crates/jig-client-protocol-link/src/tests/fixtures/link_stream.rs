@@ -65,7 +65,7 @@ pub fn past_two_heartbeats() -> Time {
 }
 impl Harness {
     pub fn clear(&mut self) {
-        self.out = Queue::with_capacity(32);
+        self.out = Queue::uncapped();
     }
     pub fn open(&mut self, watch: Token, subject: Watchable) -> Token {
         self.link.step(Time::ZERO, Event::Open { watch, subject }, &mut self.out);

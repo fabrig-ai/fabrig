@@ -60,7 +60,7 @@ fn an_assignment_for_a_channel_leaves_as_the_hub_s_record() {
     let env = fixtures::env();
     domain.assignments.insert(fixtures::RUN.raw(), fixtures::assignment()).expect("one prepared run");
     let mut decision = domain.journal.decide();
-    let mut out = Queue::with_capacity(1);
+    let mut out = Queue::uncapped();
     out.push(core::Request::Held(Box::new(core::Held::Assign {
         channel: fixtures::CHANNEL,
         run: fixtures::RUN,
@@ -70,7 +70,7 @@ fn an_assignment_for_a_channel_leaves_as_the_hub_s_record() {
     })));
     crate::routes::route_core(&mut domain, &env, &mut decision, core::Requests::Out(out), &mut fixtures::work());
     domain.journal.accept(decision);
-    let mut released = Queue::with_capacity(8);
+    let mut released = Queue::uncapped();
     crate::release(&mut domain, &env, &mut released);
     let Request::Deliver(Delivery::Assigned { channel, assignment }) = released.pop().expect("assignment leaves")
     else {
@@ -163,7 +163,7 @@ fn a_start_refusal_reaches_the_core_as_invalid_without_reading_a_result() {
 }
 
 fn core_request(request: core::Request) -> core::Requests {
-    let mut out = Queue::with_capacity(1);
+    let mut out = Queue::uncapped();
     out.push(request);
     core::Requests::Out(out)
 }
@@ -194,7 +194,7 @@ fn gather_brief(
     let crate::Work::Core(core::Event::Brief(event)) = work.pop().expect("brief planned") else {
         panic!("brief child");
     };
-    let mut completed = Queue::with_capacity(jig_domain_brief::gather_max_out(&env.limits.core.brief));
+    let mut completed = Queue::uncapped();
     jig_domain_brief::gather_step(
         &mut domain.core.brief,
         &skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.core.brief },
@@ -262,7 +262,7 @@ fn an_assignment_carries_its_brief_s_sections_in_order() {
     gather_brief(&mut domain, &env, &mut decision, &mut work);
     prepare_brief_assignment(&mut domain, &env, &mut decision, &mut work);
     domain.journal.accept(decision);
-    let mut released = Queue::with_capacity(8);
+    let mut released = Queue::uncapped();
     crate::release(&mut domain, &env, &mut released);
     let Request::Deliver(Delivery::Assigned { assignment, .. }) = released.pop().expect("assignment") else {
         panic!("typed assignment");
@@ -331,8 +331,8 @@ fn program_source_lifecycle_routes_without_run_payloads() {
 fn stopping_continues_a_projection_deferred_watch_without_another_commit() {
     use skein_lib::{Env, Wall};
     let (mut domain, env, watcher) = settled_frame_watch(Wall::from_nanos(u64::MAX));
-    let mut out = Queue::with_capacity(env.limits.journal.held);
-    let mut policy_out = Queue::with_capacity(jig_domain_authority::POLICY_MAX_OUT);
+    let mut out = Queue::uncapped();
+    let mut policy_out = Queue::uncapped();
     jig_domain_authority::step(
         &mut domain.core.authority,
         jig_domain_authority::Event::Policy {
@@ -464,7 +464,7 @@ fn settled_frame_watch(expiry: skein_lib::Wall) -> (crate::Domain, skein_lib::En
     let mut domain = fixtures::domain();
     let env = fixtures::env();
     let people_env = Env { now: env.now, wall: env.wall, limits: env.limits.core.people };
-    let mut ignored = Queue::with_capacity(people::max_out(&people_env.limits));
+    let mut ignored = Queue::uncapped();
     for record in [
         people::Stored::Person {
             number: 1,
@@ -490,7 +490,7 @@ fn settled_frame_watch(expiry: skein_lib::Wall) -> (crate::Domain, skein_lib::En
             window: core::documents::Window { rows: 1, after: None },
         }),
     );
-    let mut out = Queue::with_capacity(env.limits.journal.held);
+    let mut out = Queue::uncapped();
     crate::release(&mut domain, &env, &mut out);
     while let Some(request) = out.pop() {
         if let Request::Commit { number, .. } = request {
@@ -512,7 +512,7 @@ fn direct_resume_observes_wall_expiry_without_firing_or_reordering_the_people_ti
     env.wall = expiry;
     assert!(!domain.core.finish_owed(), "expiry belongs to a due timer, not a clocked finishing query");
     assert!(crate::timers_due(&domain, &env));
-    let mut out = Queue::with_capacity(env.limits.journal.held);
+    let mut out = Queue::uncapped();
     crate::release(&mut domain, &env, &mut out);
     crate::release(&mut domain, &env, &mut out);
     let Request::Deliver(Delivery::Core(core::Held::WatchEnded { watcher: got, why })) =

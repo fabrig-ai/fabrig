@@ -47,7 +47,7 @@ def identity(info):
     return (info.st_dev, info.st_ino, info.st_mode, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
 
 
-def trim(slot, cutoff, *, held_files=open_files):
+def trim(slot, cutoff, *, held_files=open_files, dry_run=False):
     deps = slot / "target/debug/deps"
     # Do not traverse a symlink in the supplied slot or its target path.
     if any(path.is_symlink() for path in (deps, *deps.parents)):
@@ -73,7 +73,8 @@ def trim(slot, cutoff, *, held_files=open_files):
             current = path.lstat()
             if identity(current) != identity(before) or not eligible(path, current, cutoff):
                 continue
-            path.unlink()
+            if not dry_run:
+                path.unlink()
         except FileNotFoundError:
             continue
         count += 1

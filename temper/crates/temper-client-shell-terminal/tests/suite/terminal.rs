@@ -1,4 +1,4 @@
-mod support;
+use crate::support;
 use skein_lib::{Duration, Time};
 use temper_client_shell_terminal::terminal::Notice;
 

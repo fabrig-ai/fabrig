@@ -28,7 +28,7 @@ fn a_page_reads_its_documents_from_the_client_by_handle() {
     let (mut fixture, handle) = ready(&LIMITS);
     let mut changed = frame(ME);
     changed.party.name = jig_client::contract::DocumentText::complete(super::objects::text(b"fresh client name"));
-    let mut out = Queue::with_capacity(512);
+    let mut out = Queue::uncapped();
     fixture.client.step(
         Time::ZERO,
         Wall::EPOCH,

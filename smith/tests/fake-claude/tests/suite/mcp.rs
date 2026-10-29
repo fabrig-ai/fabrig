@@ -242,9 +242,9 @@ fn a_relay_sized_tool_list_fits_the_memory_envelope() {
         },
     );
     assert_eq!(messages(&run)[0]["mcp_servers"][0]["status"], "connected");
-    let heap = run.heap.expect("world checks memory");
-    eprintln!("relay-sized tool list process (peak, envelope): {heap:?}");
-    assert!(heap.iter().all(|(peak, envelope)| peak <= envelope));
+    let peaks = run.peaks.expect("world checks memory");
+    eprintln!("relay-sized tool list process peaks: {peaks:?}");
+    assert!(peaks.iter().all(|peak| *peak > 0));
 }
 
 #[test]

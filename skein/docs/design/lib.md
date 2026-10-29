@@ -514,10 +514,10 @@ Their step tests are `src/tests/sha256.rs` and `src/tests/digest.rs`.
 
 The request table's step tests are `src/tests/requests.rs`; its independent
 obligation model, replay and seeded sweep are in `tests/lib/src/request_table.rs`
-and `tests/lib/tests/{request_table,fuzzy_request_table}.rs`.
+and `tests/lib/tests/suite/{request_table,fuzzy/request_table}.rs`.
 
 Each capped container's `worst_case` is checked against the counting
-allocator (testing.md, 5), in `tests/lib/tests/memory.rs`, in the
+allocator (testing.md, 5), in `tests/lib/tests/suite/memory.rs`, in the
 focused suite. Every capped container is built at capacities from 0 to
 300, filled to them, emptied and filled again, every operation a step of
 the meter, and what it held of its own is never more than

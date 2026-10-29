@@ -1,5 +1,5 @@
 use super::fixtures;
-use crate::{Print, render, worst_case};
+use crate::{Print, render, render_bound};
 use skein_lib::Queue;
 use skein_ui::{Builder, EntryKind, Limits, Role, Run, Spans, State, Tree};
 
@@ -91,8 +91,8 @@ fn full_page(byte: u8) -> Tree {
 }
 
 #[test]
-fn the_print_of_a_full_page_fits_its_worst_case() {
-    let (lines, bytes) = worst_case(&LIMITS).unwrap();
+fn the_print_of_a_full_page_fits_its_render_bound() {
+    let (lines, bytes) = render_bound(&LIMITS).unwrap();
     for &(name, byte) in ROWS {
         let tree = full_page(byte);
         let mut print = Print::new(&LIMITS).unwrap();
@@ -106,14 +106,14 @@ fn the_print_of_a_full_page_fits_its_worst_case() {
         assert!(actual_lines <= lines, "{name}: {actual_lines} > {lines}");
         assert!(u64::from(print.text.len()) <= bytes, "{name}: {} > {bytes}", print.text.len());
         assert!(print.text.len() <= print.text.capacity(), "{name}: The tree fits its own room");
-        assert!(u64::from(print.text.capacity()) <= bytes, "{name}: The tree's room fits its worst case");
+        assert!(u64::from(print.text.capacity()) <= bytes, "{name}: The tree's room fits its render bound");
     }
 }
 
 #[test]
 fn a_small_print_takes_its_room_from_its_tree() {
     let large = Limits { depth: 100_000, text_bytes: 100_000, ..fixtures::LIMITS };
-    assert!(worst_case(&large).unwrap().1 > u64::from(u32::MAX));
+    assert!(render_bound(&large).unwrap().1 > u64::from(u32::MAX));
     let tree = fixtures::page(|b| fixtures::button(b, b"Accept", true));
     let mut small = Print::new(&fixtures::LIMITS).unwrap();
     let mut print = Print::new(&large).unwrap();

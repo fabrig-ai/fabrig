@@ -21,8 +21,6 @@ pub struct Limits {
     pub link_span: Duration,
 }
 pub const MAX_OUT_DOWN: u32 = 4;
-pub const MAX_OUT_UP: u32 = 3;
-pub const MAX_OUT_FIRE: u32 = 1;
 /// Whether these limits are representable: every edge bound they size
 /// is finite and every capacity they derive fits (programming-model.md, 6.3).
 #[must_use]

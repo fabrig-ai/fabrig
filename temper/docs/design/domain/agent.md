@@ -600,7 +600,7 @@ today's, until those land.
   it changes and finishes as any goal; a person who declines is
   answered by a report, changing nothing. So a model that writes its
   plan as its result, or changes first, is turned back to the inbox.
-- **Its stories:** `fuzzy_green_light` on fakes (testing.md, 2.4), and
+- **Its stories:** `suite::fuzzy::green_light` on fakes (testing.md, 2.4), and
   rung B0 walked on real backends (`../draft/v0.1.0.md`, 2.1).
 
 ### 8.3 The golden: rung D

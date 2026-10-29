@@ -54,7 +54,7 @@ fn both_counts_are_checked_at_and_past_their_limits() {
     assert_eq!(Document::from_tokens(&tokens, &Limits { text: 2, ..limits }), Err(Error::TooMuchText));
     let empty = Document::from_tokens(&[], &Limits { tokens: 0, text: 0 }).unwrap();
     assert!(empty.is_empty());
-    assert_eq!(document::worst_case(&Limits { tokens: 0, text: 0 }), Some(0));
+    assert_eq!(document::document_bound(&Limits { tokens: 0, text: 0 }), Some(0));
 }
 
 #[test]

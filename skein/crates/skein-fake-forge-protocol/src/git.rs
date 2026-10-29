@@ -149,11 +149,19 @@ impl Decoder {
         Self { records: List::with_capacity(cap), text: List::with_capacity(cap), over: false }
     }
 }
+/// The old name of [`decoder_bound`]; it goes once every tree
+/// calls the new name (wave 3).
+#[must_use]
+pub fn decoder_worst_case(limits: &Limits) -> Option<u64> {
+    decoder_bound(limits)
+}
+
+/// Bounds Git document decoder retention.
 /// Decoder buffers, the final compact document, decoded lists and payload,
 /// transient base64 text, and one incoming tokenizer token. Both sides use
 /// this same bound; the server adds it once per connection.
 #[must_use]
-pub fn decoder_worst_case(limits: &Limits) -> Option<u64> {
+pub fn decoder_bound(limits: &Limits) -> Option<u64> {
     let cap = limits.documents.body_bytes.min(limits.documents.json.length);
     let records = List::<skein_json::Compact>::worst_case(cap)?;
     let lists = List::<Object>::worst_case(limits.documents.inner)?

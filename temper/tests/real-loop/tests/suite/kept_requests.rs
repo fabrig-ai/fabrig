@@ -1,10 +1,14 @@
 //! A retained adoption at capacity cannot hold another act in its ctl directory.
 use skein_fake_llm_domain::api::{Finish, Line, Piece, Script, Turn};
+use skein_lib::Duration;
 use temper_real_loop_world::{
     self as world, Exit, argv,
     calls::{self, D1},
     forge, landing,
 };
+
+// The kept request must not delay another act beyond the story's two-second answer bound.
+const ANSWER_BOUND: Duration = Duration::from_secs(2);
 
 fn fixture() -> forge::Fixture {
     forge::Fixture {
@@ -102,11 +106,11 @@ fn an_unanswered_fifth_adoption_holds_no_close_or_export_after_landing() {
             calls::until(D1, argv!["pending"], b"adopt, party 1, first sent ", b"not sent"), // 10
             calls::kill(KEPT_ADOPTION),
             calls::join(KEPT_ADOPTION),
-            calls::call(D1, argv!["chat", "close", "1", "--key", "close"]), // 11
+            calls::call(D1, argv!["chat", "close", "1", "--key", "close"]).within(ANSWER_BOUND), // 11
             // The fixture's account is a key: a prompt 'not signed in' refusal proves admission.
-            calls::call(D1, argv!["account", "export", "1", calls::file("returned")]), // 12
-            calls::call(D1, argv!["pending"]),                                         // 13
-            calls::call(D1, argv!["task", "show", "1", "--until", "ended"]),           // 14
+            calls::call(D1, argv!["account", "export", "1", calls::file("returned")]).within(ANSWER_BOUND), // 12
+            calls::call(D1, argv!["pending"]),                                                              // 13
+            calls::call(D1, argv!["task", "show", "1", "--until", "ended"]),                                // 14
         ]
     });
     for (index, status) in [
@@ -133,7 +137,6 @@ fn an_unanswered_fifth_adoption_holds_no_close_or_export_after_landing() {
     );
     for index in [CLOSED, EXPORTED] {
         let call = &ran.calls()[index];
-        assert!(call.ended.as_nanos() - call.spawned.as_nanos() < 2_000_000_000, "prompt answer: {call:?}");
         assert!(calls::occurrences(&call.stderr, b"kept: adopt, first sent ") == 1, "{call:?}");
         assert!(
             calls::occurrences(
@@ -143,6 +146,9 @@ fn an_unanswered_fifth_adoption_holds_no_close_or_export_after_landing() {
         );
     }
     assert!(calls::occurrences(&ran.calls()[EXPORTED].stderr, b"not signed in") == 1);
+    for index in [CLOSED, EXPORTED] {
+        ran.calls()[index].assert_answered_within_bound();
+    }
 }
 
 fn cancelling_scripts(at: std::net::SocketAddr) -> Box<[Script]> {
@@ -170,7 +176,9 @@ fn cancelling_a_change_answers_its_landing_wait_with_its_ended_panel() {
             calls::call(D1, argv!["chat", "start", "--project", "1", "--key", "change", "@forge_chat Make a change"]),
             calls::call(D1, argv!["task", "show", "1", "--until", "replied"]), // 3
             calls::call(D1, argv!["change", "show", "2", "--json"]),           // 4
-            calls::start(D1, argv!["change", "show", "2", "--until", "landed", "--timeout", "10s", "--json"]), // 5
+            calls::start(D1, argv!["change", "show", "2", "--until", "landed", "--json"])
+                .timeout(10)
+                .within(ANSWER_BOUND), // 5
             calls::watching(LANDING_WAIT),
             calls::call(D1, argv!["chat", "close", "1", "--key", "close"]), // 6
             calls::release_hold(b"producing"),
@@ -186,5 +194,5 @@ fn cancelling_a_change_answers_its_landing_wait_with_its_ended_panel() {
     assert_eq!(answer["change"]["step"], "ended");
     assert!(answer["change"]["digest"].is_string());
     let wait = &ran.calls()[LANDING_WAIT];
-    assert!(wait.ended.as_nanos() - wait.spawned.as_nanos() < 2_000_000_000, "{wait:?}");
+    wait.assert_answered_within_bound();
 }

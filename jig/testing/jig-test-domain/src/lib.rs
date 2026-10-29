@@ -458,7 +458,7 @@ impl Domain {
 
     /// Install the application's fixed hold vocabulary before its first input.
     pub fn configure_holds(&mut self, env: &Env<Limits>, connector: u16, kinds: Box<[tasks::Kind]>) {
-        let mut out = Queue::with_capacity(tasks::max_out(&env.limits.core.tasks));
+        let mut out = Queue::uncapped();
         tasks::step(
             &mut self.core.tasks,
             &Env { now: env.now, wall: env.wall, limits: env.limits.core.tasks },
@@ -476,7 +476,7 @@ impl Domain {
     /// Build the testing application without issuing a store request.
     #[must_use]
     pub fn new(config: Config, limits: &Limits) -> Domain {
-        assert!(limits.routes > 0, "synchronous route capacity is positive");
+        assert!(limits.routes > 0, "synchronous route bound is positive");
         Domain {
             pieces_dropped: 0,
             core: core::Core::new(config.core, &limits.core).expect("fixture core configuration"),
@@ -670,7 +670,7 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
     let mut decision = domain.journal.decide();
     domain.decision_wrote = false;
     let mut finish_only = false;
-    let mut work = Queue::with_capacity(env.limits.routes);
+    let mut work = Queue::uncapped();
     work.push(first);
     for _ in 0..env.limits.routes {
         let Some(next) = work.pop() else {
@@ -729,7 +729,7 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
                 }));
             }
             Work::ConnectorFire { number } => {
-                let mut out = Queue::with_capacity(connector::MAX_OUT);
+                let mut out = Queue::uncapped();
                 connector::fire(
                     numbered(domain, number),
                     &Env { now: env.now, wall: env.wall, limits: env.limits.connector },
@@ -851,7 +851,7 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
                 }
             }
             Work::Connector { number, event } => {
-                let mut requests = Queue::with_capacity(connector::MAX_OUT);
+                let mut requests = Queue::uncapped();
                 let connector = numbered(domain, number);
                 connector::step(
                     connector,
@@ -862,7 +862,7 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
                 route_connector(domain, env, &mut decision, number, &mut requests, &mut work);
             }
             Work::ConnectorResume { number } => {
-                let mut requests = Queue::with_capacity(connector::MAX_OUT);
+                let mut requests = Queue::uncapped();
                 connector::resume(numbered(domain, number), &mut requests);
                 route_connector(domain, env, &mut decision, number, &mut requests, &mut work);
             }
@@ -877,7 +877,7 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
             }
         }
     }
-    assert!(work.is_empty(), "synchronous routes fit configured room");
+    assert!(work.is_empty(), "decision_work_finished: synchronous hand-offs finish before the next entrance");
     if finish_only {
         assert!(!domain.decision_wrote && !domain.core.counters.dirty(), "stopping continuation makes no commit");
     }
@@ -934,7 +934,7 @@ pub fn release(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>)
     if let Some(commit) = domain.journal.commit() {
         out.push(Request::Commit { number: commit.number, writes: commit.writes });
     }
-    let mut ready = Queue::with_capacity(env.limits.journal.release);
+    let mut ready = Queue::uncapped();
     let _released = domain.journal.release(&mut ready);
     for _ in 0..ready.len() {
         let delivery = ready.pop().expect("release count");
@@ -1161,7 +1161,7 @@ pub fn restore_record(domain: &mut Domain, env: &Env<Limits>, record: Record) ->
             if !domain.core.restore_task_row(&row) {
                 return false;
             }
-            let mut out = Queue::with_capacity(tasks::max_out(&env.limits.core.tasks));
+            let mut out = Queue::uncapped();
             tasks::step(
                 &mut domain.core.tasks,
                 &Env { now: env.now, wall: env.wall, limits: env.limits.core.tasks },
@@ -1177,7 +1177,7 @@ pub fn restore_record(domain: &mut Domain, env: &Env<Limits>, record: Record) ->
             if !domain.core.restore_people_row(&row) {
                 return false;
             }
-            let mut out = Queue::with_capacity(jig_domain_people::max_out(&env.limits.core.people));
+            let mut out = Queue::uncapped();
             jig_domain_people::step(
                 &mut domain.core.people,
                 &Env { now: env.now, wall: env.wall, limits: env.limits.core.people },
@@ -1190,7 +1190,7 @@ pub fn restore_record(domain: &mut Domain, env: &Env<Limits>, record: Record) ->
         Record::Core(core::Record::Accounts(record)) => {
             // A record breaking the child's rules is counted there and
             // dropped; it never refuses the start (store.md 4.4 item 9).
-            let mut out = Queue::with_capacity(jig_domain_accounts::max_out(&env.limits.core.accounts));
+            let mut out = Queue::uncapped();
             jig_domain_accounts::step(
                 &mut domain.core.accounts,
                 &Env { now: env.now, wall: env.wall, limits: env.limits.core.accounts },
@@ -1233,7 +1233,7 @@ fn restore_connector(domain: &mut Domain, env: &Env<Limits>, number: u16, record
         | connector::Record::Pool { .. }
         | connector::Record::Made { .. } => {}
     }
-    let mut out = Queue::with_capacity(connector::MAX_OUT);
+    let mut out = Queue::uncapped();
     connector::step(
         numbered(domain, number),
         &Env { now: env.now, wall: env.wall, limits: env.limits.connector },

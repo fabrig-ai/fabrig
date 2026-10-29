@@ -35,7 +35,6 @@ impl Workers {
         files: &Files,
         deployment: [u8; 16],
         limits: &kit::Limits,
-        room: u32,
     ) -> Result<Self, Problems> {
         let mut workers = List::with_capacity(limits.names);
         for worker in &config.hosts.workers {
@@ -51,7 +50,7 @@ impl Workers {
             return Err(invalid(What::Bound));
         }
         let mut listeners = List::with_capacity(count);
-        let mut io = Queue::with_capacity(room);
+        let mut io = Queue::uncapped();
         for (index, address) in config.hosts.listener.iter().enumerate() {
             let config::Address::Addr(address) = address else {
                 return Err(invalid(What::Form));
@@ -74,7 +73,7 @@ impl Workers {
         }
         Ok(Self {
             component,
-            out: Queue::with_capacity(kit::MAX_OUT_DOWN),
+            out: Queue::uncapped(),
             io,
             listeners,
             sockets: Map::with_capacity(limits.workers.checked_add(limits.opening).expect("connections")),
@@ -91,12 +90,6 @@ impl Workers {
     }
     pub fn opened(&self) -> bool {
         self.opened
-    }
-    pub fn batch_room(&self, batch: u32) -> bool {
-        self.io.room() >= batch.checked_mul(kit::MAX_OUT_DOWN).expect("worker route room")
-    }
-    pub fn room(&self) -> bool {
-        self.io.room() >= kit::MAX_OUT_DOWN
     }
     pub fn work_pending(&self, now: Time) -> bool {
         !self.io.is_empty()
@@ -251,10 +244,8 @@ impl Workers {
         }
     }
     pub fn iterate(&mut self, now: Time, events: &mut Queue<root::Event>) {
-        if self.room() && events.room() >= kit::MAX_OUT_FIRE {
-            self.component.fire(now, &mut self.out);
-            self.drain(events);
-        }
+        self.component.fire(now, &mut self.out);
+        self.drain(events);
     }
     pub fn abort(&mut self, now: Time, events: &mut Queue<root::Event>) {
         if self.ending != Some(crate::stop::Closing::Abort) {

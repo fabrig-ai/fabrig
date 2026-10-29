@@ -241,7 +241,7 @@ fn cap_values_are_owned_and_restarts_reuse_the_same_table() {
     assert_eq!(machine.read(br#""ab""#), expected(&[string(b"ab")]));
     machine.collector.restart();
     assert_eq!(machine.read(br#""ab""#), expected(&[string(b"ab")]));
-    assert_eq!(collector::worst_case(&LIMITS, &[0; 257], &FILTER), None);
+    assert_eq!(collector::collector_bound(&LIMITS, &[0; 257], &FILTER), None);
 }
 
 const TAGGED: collector::Tagged = collector::Tagged {

@@ -339,8 +339,8 @@ tests/tls/fixtures              its certificates and key, and the script that ma
 tests/ui                        skein-ui's peaks under scenario ceilings with the counting allocator, and its comparisons with naive functions, skein-ui-tests (ui.md, 17)
 tests/ui-text                   the text shell's terminal on the simulated machine, skein-ui-text-tests (ui-text.md, 8)
 tests/ui-web                    the browser parts' host tests that need more than a crate's step tests, and the UI example's browser tier, skein-ui-web-tests (ui-web.md, 14)
-tests/**/tests/*.rs             a crate's focused tests
-tests/**/tests/fuzzy_*.rs       its fuzzy tests: sweeps over many seeds
+tests/**/tests/suite/*.rs             a crate's focused tests
+tests/**/tests/suite/fuzzy/*.rs       its fuzzy tests: sweeps over many seeds
 tests/clippy.toml               what the crates under tests/ may not use
 examples/echo/*                 the echo: its domain, protocol layer, service and shell, a crate each (examples.md, 2)
 examples/ui/*                   the UI example: its view, its browser shell and its server, a crate each (examples.md, 9)
@@ -362,7 +362,7 @@ make a run unrepeatable: hash maps with a random seed, the system clocks,
 threads. Each backend of the conformance suite is implemented beside the
 tests that run the suite against it. A crate's memory tests are binaries
 of their own, as the global allocator a binary declares is the whole
-binary's: `tests/memory.rs`, and `tests/fuzzy_memory.rs` for a sweep
+binary's: `tests/suite/memory.rs`, and `tests/suite/fuzzy/memory.rs` for a sweep
 under scenario ceilings (testing-strategy.md, 8). The crate's other tests
 run on the system allocator. A simulated world checks memory at every
 iteration, so each binary of `tests/echo` that runs one declares the
@@ -410,8 +410,8 @@ document; the echo's worlds are examples.md, 7.
 The two suites of testing-strategy.md, section 8, are
 `.config/nextest.toml`'s profiles, each with its budget as a global timeout:
 the focused suite by default, within 30 seconds (15 seconds before the
-user's doubling of 10-22, provisional), and the fuzzy suite, the `fuzzy_*`
-binaries, with `--profile fuzzy`, within two minutes (a minute before the
+user's doubling of 10-22, provisional), and the fuzzy suite, the `suite::fuzzy::*`
+tests, with `--profile fuzzy`, within two minutes (a minute before the
 user's doubling of 10-22, provisional). Two profiles stay out of both:
 `browser`, the browser kit against real Chromium and the UI example's
 browser tier, within four minutes (two minutes before the user's doubling of

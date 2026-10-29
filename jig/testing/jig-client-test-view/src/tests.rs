@@ -135,7 +135,7 @@ fn view() -> View<'static> {
     View::new(&bounds, &limits(), jig, first, first::Address { project: 3, item: 5 })
 }
 fn patches(view: &mut View<'_>, root: &Domain) -> Vec<Patch> {
-    let mut out = Queue::with_capacity(view.limits().tree.patches);
+    let mut out = Queue::uncapped();
     build(view, root, &mut out);
     let mut rows = Vec::new();
     while let Some(row) = out.pop() {

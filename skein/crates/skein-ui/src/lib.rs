@@ -19,7 +19,7 @@ mod view;
 pub use binding::{Act, Binding, BoundAct, number, takes};
 pub use builder::{Builder, Slot, SlotId};
 pub use diff::{Attribute, Made, Patch, diff};
-pub use limits::{Limits, worst_case};
+pub use limits::{Limits, valid, worst_case};
 pub use tree::{
     Drawing, DrawingKind, EntryKind, Key, Modifier, Node, NodeId, Owner, Picture, Region, Role, Run, Shortcut, SlotRef,
     Sort, Source, Spans, State, Style, TextRun, Tree, Value,

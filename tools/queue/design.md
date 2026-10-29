@@ -6,20 +6,20 @@ Provisional, 2026-10-28. How a branch reaches `main`: a script on the gate machi
 
 - **Input:** remote branches `ready/<lead>/<task>` on `origin`, each pushed by its lead.
 - **A batch:** from `origin/main`, the ready branches not yet tried at their current tip, oldest tip first, at most `batch` (8) of them, each merged with `git merge --no-ff -m "Merge <branch name>"`; ratchet-only conflicts are resolved by recounting against HEAD (section 3.3); any other conflict is aborted, reported, and left out.
-- **The checks run on a selection** (section 2), not always the whole workspace: `cargo fmt --check`, clippy with `-D warnings`, a nextest `build`, the focused (`default`) and `fuzzy` nextest profiles, and each tree's `scripts/old_forms.py` (the ratchet). Build and test commands run through `heavy --gate` on the gate machine, which nothing else builds on. Lockfile and member manifest changes select affected packages (section 2.1); formatting covers changed Rust owners (section 2.2). Build and test durations are recorded separately (section 3.6).
+- **The checks run on a selection** (section 2), not always the whole workspace: the tools' suites (section 2.3), `cargo fmt --check`, clippy with `-D warnings`, a nextest `build`, the focused (`default`) and `fuzzy` nextest profiles, and each tree's `scripts/old_forms.py` (the ratchet). Cargo build and test commands run through `heavy --gate` on the gate machine, which nothing else builds on. Lockfile and member manifest changes select affected packages (section 2.1); formatting covers changed Rust owners (section 2.2). Step durations are recorded separately (section 3.6).
 - **Green:** `git push origin HEAD:main` (fast-forward only); the batch's `ready/` branches are deleted; each lead is told which commit holds its task.
 - **Red:** a batch of one is rejected (its lead gets the failing step and the log's path, and the branch isn't retried until its tip changes); a larger batch is halved and each half tried from `main`, recursively, so the green branches still land.
 - **Capacity refusal:** a heavy exit 2 containing `below the disk floor` is an error, with no rejection or bisection. Before every batch, free space below `--disk-floor` (45 GB by default) defers work to the next cycle.
 - **Error:** an exception logs the batch as `error`; its tips remain eligible. `run` restores `origin/main`, reports each distinct error to the operator (`ops`) once, waits a cycle, and continues. `once` raises to its caller.
-- **Docs-only batches** whose files no test reads skip formatting and builds; only the touched trees' ratchets run.
+- **Batches selecting no packages** skip Cargo checks. Tools changes run the tools step; touched trees run their ratchets. Unread Markdown outside package source directories selects no package, even beside code or tools changes.
 - **Every batch is logged** as one JSON line (`~/src/fabrig/notes/queue.jsonl`): start and end, branches, outcome, the selection's packages, each step's duration, and test executable cleanup counts and GB.
 
 ## 2. The selection
 
 1. **Changed paths:** `git diff --name-only origin/main...HEAD` for the batch.
-2. **Everything** when a changed path is outside every package's `src/`, `tests/`, `benches/`, `examples/`, `build.rs` and member `Cargo.toml`, except the root `Cargo.lock` (section 2.1). The root `Cargo.toml`, `.config/`, `rust-toolchain*`, `rustfmt.toml`, `clippy.toml`, scripts, docs read by tests, and fixtures force everything. Also run everything every `full_every` (5) batches, when the last full run is older than an hour, or when the gate machine has been idle for 10 minutes and main has changed since the last full run.
+2. **Everything** when a changed path is outside every package's `src/`, `tests/`, `benches/`, `examples/`, `build.rs` and member `Cargo.toml`, except the root `Cargo.lock` (section 2.1), `tools/`, and unread Markdown (`*.md`). The root `Cargo.toml`, `.config/`, `rust-toolchain*`, `rustfmt.toml`, `clippy.toml`, docs read by tests, and other scripts and fixtures force everything. Also run everything every `full_every` (5) batches, when the last full run is older than an hour, or when the gate machine has been idle for 10 minutes and main has changed since the last full run.
 3. **Otherwise,** the packages that own a changed path (the longest manifest directory that prefixes it, from `cargo metadata --no-deps`), their reverse dependencies' closure (normal, build and dev dependencies, from `cargo metadata`'s resolve graph), and the packages listed in `tools/queue/always.txt` (tests that read files by path).
-4. **Docs read by tests** are globs in `tools/queue/read-by-tests.txt`; a Markdown-only batch that matches none of them is docs-only (section 1).
+4. **Docs read by tests** are globs in `tools/queue/read-by-tests.txt`; a matching path forces everything. A path under `tools/` contributes no package. Otherwise package source ownership still selects its package, including Markdown under `src/`, `tests/`, `benches/` and `examples/`. Unread Markdown outside those directories contributes no package. A batch with no package inputs and no full input selects `docs`: no Cargo checks or `always.txt` packages, plus tools and touched trees' ratchets as applicable.
 5. A full run that fails where the selections before it passed points at a gap in `always.txt` or `read-by-tests.txt`: the queue reports it to the operator.
 
 ### 2.1 Lockfiles and member manifests
@@ -49,6 +49,19 @@ Reverse dependencies and `always.txt` do not expand formatting. Both sides
 of renames and deleted paths count. Without changed Rust paths, including
 docs-only, manifest-only, and lockfile-only batches, skip formatting. A full
 run keeps `cargo fmt --all --check`. A batch with no checks to run is green.
+
+### 2.3 Tools suites
+
+A change under `tools/`, or any full run, runs step `tools` before Cargo.
+Discover suites from the checkout's tracked files: every `tools/**/test_*.py`
+runs with `python3 -I -B`, including `tools/test_install.py`; every executable
+`tools/**/test-*` runs with `bash`. Run serially from the checkout root with
+stdin from `/dev/null` and a 60-second timeout per suite. The longest suite
+measures about 13 seconds. Each suite's command and output go to the batch
+log; its exit code and elapsed time go in the tools step's `suites` records.
+The step records its total elapsed time. Run every suite even if one fails;
+any nonzero exit, missing interpreter, or timeout makes the step red and stops
+later checks. Rejection and bisection follow section 1.
 
 ## 3. Running it
 

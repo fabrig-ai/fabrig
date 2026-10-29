@@ -88,7 +88,7 @@ fn an_old_sign_out_cannot_end_a_new_held_credential() {
         assert_eq!(h.sign_in(held()), None);
         let exchange = h.sign_out();
         h.link.step(Time::ZERO, Event::SignIn { with: With::Held(Secret::new(Box::new(NEW_CREDENTIAL))) }, &mut h.out);
-        h.out = Queue::with_capacity(32);
+        h.out = Queue::uncapped();
         if lost {
             h.link.step(Time::ZERO, Event::Lost { exchange }, &mut h.out);
         } else {

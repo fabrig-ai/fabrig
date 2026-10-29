@@ -20,13 +20,13 @@ fn no_agents(_: SocketAddr) -> Box<[skein_fake_llm_domain::api::Script]> {
 }
 
 fn call(words: &[&'static str]) -> Step {
-    calls::call(D1, Argv(words.iter().map(|word| Arg::Lit(word)).collect()))
+    calls::call(D1, Argv::new(words.iter().map(|word| Arg::Lit(word)).collect()))
 }
 
 fn connect(app: Arg, key: &'static str) -> Step {
     calls::call(
         D1,
-        Argv(vec![
+        Argv::new(vec![
             Arg::Lit("forge"),
             Arg::Lit("connect"),
             Arg::Lit("1"),

@@ -35,9 +35,8 @@ pub(super) struct Clients {
     pending: bool,
     pub(super) starting: Option<()>,
     pub(super) early: Queue<root::Event>,
-    endings: Map<u64, Endings>,
+    endings: Map<u64, List<u64>>,
     durable: u64,
-    writes: u32,
     secret_owners: Map<Token, Asked>,
     next_secret: u64,
 }
@@ -47,11 +46,6 @@ pub(super) struct Clients {
 enum Asked {
     Owner(kit::SecretOwner),
     Carry(Token),
-}
-#[derive(Debug)]
-struct Endings {
-    numbers: List<u64>,
-    next: u32,
 }
 #[derive(Debug)]
 pub(super) enum Routed {
@@ -90,7 +84,6 @@ impl Clients {
         config: &config::Engine,
         listener: io::Addr,
         seeds: &Seeds,
-        room: u32,
         transport: &crate::server::Limits,
     ) -> Result<Self, Problems> {
         if jig_protocol_accounts::moved::bound(&config.limits.driver.client.document)
@@ -165,7 +158,7 @@ impl Clients {
             moved_bytes: jig_protocol_accounts::moved::bound(&config.limits.driver.client.document),
         };
         let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: config.limits.clients };
-        let out = Queue::with_capacity(room);
+        let out = Queue::uncapped();
         Ok(Self {
             refused: Map::with_capacity(transport.connections),
             component: None,
@@ -173,24 +166,24 @@ impl Clients {
             server: crate::server::Server::new(listener, transport),
             mount: http::Mount::new(http_settings(), &config.limits.clients_http),
             mount_env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: config.limits.clients_http },
-            mount_out: Queue::with_capacity(room),
-            server_out: Queue::with_capacity(room),
+            mount_out: Queue::uncapped(),
+            server_out: Queue::uncapped(),
             component_closed: false,
             secret: None,
             env,
             out,
-            io: Queue::with_capacity(room),
-            links: Queue::with_capacity(room),
-            secrets: Queue::with_capacity(room),
+            io: Queue::uncapped(),
+            links: Queue::uncapped(),
+            secrets: Queue::uncapped(),
             closed: false,
             pending: true,
             starting: Some(()),
-            early: Queue::with_capacity(room),
-            endings: Map::with_capacity(config.limits.journal.commits),
-            secret_owners: Map::with_capacity(room),
+            early: Queue::uncapped(),
+            // Correlations grow with admitted work; the map allocates only retained entries.
+            endings: Map::with_capacity(u32::MAX),
+            secret_owners: Map::with_capacity(u32::MAX),
             next_secret: 1,
             durable: 0,
-            writes: config.limits.journal.writes,
         })
     }
     pub fn start(&mut self, now: Time, wall: Wall) -> Result<(), Problems> {
@@ -208,13 +201,6 @@ impl Clients {
         {
             self.links.push(printed(listener, &secret));
         }
-    }
-    pub fn room(&self, batch: u32) -> bool {
-        let count = batch.checked_mul(kit::MAX_OUT_DOWN).expect("client routing room");
-        self.out.room() >= count
-            && self.io.room() >= count
-            && self.links.room() >= count
-            && self.secrets.room() >= count
     }
     pub fn opened(&self) -> bool {
         self.server.opened()
@@ -278,9 +264,6 @@ impl Clients {
     }
     pub(super) fn server_requests(&mut self) {
         for _ in 0..self.server_out.len() {
-            if self.io.room() == 0 || self.out.room() < kit::MAX_OUT_DOWN {
-                break;
-            }
             match self.server_out.pop().expect("server requests") {
                 crate::server::Routed::Io(request) => self.io.push(tag(request)),
                 crate::server::Routed::Call { call, head } => {
@@ -339,14 +322,6 @@ impl Clients {
         accounts: &mut Option<crate::accounts::Accounts>,
     ) {
         for _ in 0..self.out.len() {
-            if self.io.room() == 0
-                || self.links.room() == 0
-                || self.secrets.room() == 0
-                || (self.starting.is_some() && self.early.room() == 0)
-                || (self.starting.is_none() && events.room() == 0)
-            {
-                break;
-            }
             match to_root(self.out.pop().expect("client requests")) {
                 Routed::Transport(message) => {
                     self.mount.down(&self.mount_env, http::Event::Component(message), &mut self.mount_out);
@@ -386,7 +361,7 @@ impl Clients {
         self.mount_env.now = now;
         self.mount_env.wall = wall;
         self.server.clock(now, wall);
-        if self.closed || !self.room(1) || self.early.room() < kit::MAX_OUT_DOWN || events.room() < kit::MAX_OUT_DOWN {
+        if self.closed {
             return;
         }
         self.server.fire(&mut self.server_out);
@@ -498,7 +473,7 @@ impl Clients {
 
 impl Clients {
     pub fn commit(&mut self, number: u64, writes: &Queue<root::Write>) {
-        let mut endings = List::with_capacity(self.writes);
+        let mut endings = List::with_capacity(writes.len());
         for write in writes {
             match write {
                 root::Write::Erase(key) => {
@@ -512,18 +487,18 @@ impl Clients {
             }
         }
         if !endings.is_empty() {
-            self.endings.insert(number, Endings { numbers: endings, next: 0 }).expect("bounded commits in flight");
+            self.endings.insert(number, endings).expect("ending commit correlation");
         }
     }
     pub fn committed(&mut self, number: u64) {
         self.durable = self.durable.max(number);
     }
-    pub fn commit_room(&self) -> bool {
-        self.endings.len() < self.endings.capacity()
+    fn ending_commit_durable(&self, number: u64) -> bool {
+        number <= self.durable
     }
     fn endings_ready(&self) -> bool {
         for (number, _) in &self.endings {
-            if *number <= self.durable {
+            if self.ending_commit_durable(*number) {
                 return true;
             }
         }
@@ -536,23 +511,17 @@ impl Clients {
         rows: u32,
         accounts: &mut Option<crate::accounts::Accounts>,
     ) {
-        while self.room(1) && events.room() >= kit::MAX_OUT_DOWN {
-            let mut ready = None;
-            for (number, _) in &self.endings {
-                if *number <= self.durable {
-                    ready = Some(*number);
-                    break;
-                }
+        // Only the commits retained when this stage starts can end sign-ins here.
+        for _ in 0..self.endings.len() {
+            let Some((&number, _)) = self.endings.first() else { return };
+            if !self.ending_commit_durable(number) {
+                return;
             }
-            let Some(number) = ready else { return };
-            let endings = self.endings.get_mut(&number).expect("durable endings");
-            let sign_in = *endings.numbers.get(endings.next).expect("one sign-in per erased key");
-            endings.next = endings.next.checked_add(1).expect("bounded erase index");
-            if endings.next == endings.numbers.len() {
-                self.endings.remove(&number);
+            let endings = self.endings.remove(&number).expect("durable endings");
+            for sign_in in &endings {
+                self.down(kit::Event::SignInEnded { sign_in: *sign_in });
+                self.advance(events, bound, rows, accounts);
             }
-            self.down(kit::Event::SignInEnded { sign_in });
-            self.advance(events, bound, rows, accounts);
         }
     }
 }
@@ -623,10 +592,8 @@ impl Clients {
 
 impl Clients {
     pub(super) fn secrets_step(&mut self, store: &mut crate::store::Store) {
+        // Answer retained requests before creating the next correlations.
         for _ in 0..store.secrets.len() {
-            if self.out.room() < kit::MAX_OUT_DOWN {
-                break;
-            }
             let answer = store.secrets.pop().expect("secrets terminals");
             self.secret_answer(answer);
         }
@@ -634,14 +601,11 @@ impl Clients {
     }
     fn advance_secrets(&mut self, store: &mut crate::store::Store) {
         for _ in 0..self.secrets.len() {
-            if self.out.room() < kit::MAX_OUT_DOWN || self.secret_owners.len() == self.secret_owners.capacity() {
-                break;
-            }
             let request = self.secrets.pop().expect("client secrets requests");
             let (owner, request) = secret_request(request);
             let token = Token::new(PREFIX.checked_add(self.next_secret).expect("secret routing name"));
             self.next_secret = self.next_secret.checked_add(1).expect("secret routing sequence");
-            self.secret_owners.insert(token, owner).expect("bounded secrets in flight");
+            self.secret_owners.insert(token, owner).expect("secret request correlation");
             if let Some(answer) = store.secrets(token, request) {
                 self.secret_answer(answer);
             }

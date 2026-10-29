@@ -24,8 +24,14 @@ impl DocumentLimits {
     }
 }
 
-/// Heap bound for neutral whole-value admission and writing.
+/// The old name of [`document_bound`]; it goes once every tree calls the new name (wave 3).
 pub(crate) fn worst_case(limits: &DocumentLimits) -> Option<u64> {
+    document_bound(limits)
+}
+
+/// Bounds one native document.
+/// Heap bound for neutral whole-value admission and writing.
+pub(crate) fn document_bound(limits: &DocumentLimits) -> Option<u64> {
     use skein_json::{collector, document};
     let collector = collector::worst_case(
         &collector::Limits {

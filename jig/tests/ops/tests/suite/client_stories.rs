@@ -11,6 +11,7 @@ use skein_ui::Role;
 use skein_world::domain::Verdict;
 #[path = "../client_stories/creating.rs"]
 mod creating;
+mod orders;
 const WITHIN: Duration = Duration::from_secs(1);
 
 #[test]
