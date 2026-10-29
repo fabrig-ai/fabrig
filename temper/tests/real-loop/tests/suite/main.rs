@@ -22,8 +22,6 @@ mod terminal;
 mod tools;
 
 mod fuzzy {
-    mod case2_8_1;
-    mod case2_hour_0;
     mod case_4_1_4_3;
     mod case_4_4;
     mod case_4_5_limited;

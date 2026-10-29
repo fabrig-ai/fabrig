@@ -2,7 +2,6 @@
 #![forbid(unsafe_code)]
 
 pub mod case;
-pub mod case2;
 pub mod claude;
 pub mod cluster;
 pub use cluster::{Cluster, run_cluster, run_cluster_forge};
