@@ -55,13 +55,23 @@ Ownership holds nonblocking flocks for the slot's sibling `.queue.lock` and
 through restoration. These coordinate with the queue's existing lock and
 workers using those paths; they cannot fence an uncooperative writer. The
 lead must own the slot and have no concurrent task writer. Durable
+`mq-worker-unresolved.json` (the queue worker's existing marker),
 `precheck.unresolved`, `worker.unresolved`, or `queue.unresolved` markers in
-the Git directory, or sibling `<slot>.<kind>.unresolved`, refuse reuse.
+the Git directory, or sibling `<slot>.<kind>.unresolved`, refuse reuse,
+including dangling symlinks. Refusal precedes preparation, logging and
+restoration; existing markers are never removed or migrated.
 No lock is reclaimed by PID. When a user systemd bus is available, active
-heavy units' WorkingDirectory values are checked using the slot guard's
-unit naming convention. An unavailable bus is recorded explicitly, not
-reported as proof of heavy quiescence. No heavy state or process environment
-is read.
+heavy services' WorkingDirectory values are checked using the slot guard's
+unit naming convention. Listing requests `--type=service`; non-`.service`
+names are ignored defensively, so reconcile timers need no WorkingDirectory.
+A service collected between listing and inspection is ignored only after
+a successful show explicitly reports `LoadState=not-found` and
+`ActiveState=inactive`; this observation is recorded, not treated as build
+completion. Failed inspection, missing/unknown properties, or a potentially
+running service without an absolute WorkingDirectory fail closed. A stopping
+service in the slot still blocks reuse. An unavailable bus is recorded
+explicitly, not reported as proof of heavy quiescence. No heavy state or
+process environment is read.
 
 Before mutation, a private, fsynced `precheck.unresolved` in the worktree's
 Git directory points at the durable run log and records original branch or
@@ -117,7 +127,9 @@ and cancel with `heavy --cancel TOKEN` when needed; the operator uses
 heavy units or edit heavy state. Establish completion first, then restore
 the recorded original HEAD and index and verify clean source and original
 branch refs before removing `precheck.unresolved`. There is deliberately no
-automatic recovery/force option.
+automatic recovery/force option. A worker's `mq-worker-unresolved.json`
+belongs to its separate operational reconciliation: leave it intact, and
+do not use precheck restoration or process absence to clear that ownership.
 
 ## 5. Later
 

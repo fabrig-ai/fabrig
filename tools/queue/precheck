@@ -82,8 +82,8 @@ def lock(path):
 
 
 def heavy_busy(repo):
-    """Use unit WorkingDirectory, not client absence, when systemd is available."""
-    result = subprocess.run(["systemctl", "--user", "list-units", "--plain", "--no-legend",
+    """Observe service WorkingDirectory, not client absence, when systemd is available."""
+    result = subprocess.run(["systemctl", "--user", "list-units", "--type=service", "--plain", "--no-legend",
                              "--state=active,activating"], text=True, capture_output=True,
                             stdin=subprocess.DEVNULL)
     if result.returncode:
@@ -91,21 +91,33 @@ def heavy_busy(repo):
         if "Failed to connect to bus" in result.stderr:
             return "unavailable (no user bus); slot ownership is required"
         raise InfrastructureError(f"cannot inspect heavy units: {result.stderr.strip()}")
+    vanished = 0
     for row in result.stdout.splitlines():
         name = row.split()[0]
-        if "-heavy-" not in name:
+        if not name.endswith(".service") or "-heavy-" not in name:
             continue
         detail = subprocess.run(["systemctl", "--user", "show", "-p",
-                                 "WorkingDirectory,ActiveState", name], text=True,
+                                 "WorkingDirectory,ActiveState,LoadState", name], text=True,
                                 capture_output=True, stdin=subprocess.DEVNULL)
         properties = dict(line.split("=", 1) for line in detail.stdout.splitlines() if "=" in line)
-        if detail.returncode or not {"WorkingDirectory", "ActiveState"} <= properties.keys():
+        # A collected service can disappear between list and show. Only a successful,
+        # explicit unloaded + inactive observation permits ignoring that service.
+        if (detail.returncode == 0 and properties.get("LoadState") == "not-found"
+                and properties.get("ActiveState") == "inactive"):
+            vanished += 1
+            continue
+        states = {"active", "activating", "reloading", "deactivating", "refreshing", "inactive", "failed"}
+        if (detail.returncode or not {"WorkingDirectory", "ActiveState", "LoadState"} <= properties.keys()
+                or properties["LoadState"] != "loaded" or properties["ActiveState"] not in states):
             raise InfrastructureError(f"cannot inspect heavy unit {name}")
         directory = properties["WorkingDirectory"]
-        if (directory and properties["ActiveState"] in ("active", "activating")
-                and Path(directory).resolve().is_relative_to(repo)):
-            raise InfrastructureError(f"live heavy unit uses this slot: {name}")
-    return "no active heavy unit observed; slot ownership is required"
+        if properties["ActiveState"] not in ("inactive", "failed"):
+            if not directory or not Path(directory).is_absolute():
+                raise InfrastructureError(f"cannot inspect heavy unit {name}: missing absolute WorkingDirectory")
+            if Path(directory).resolve().is_relative_to(repo):
+                raise InfrastructureError(f"live heavy unit uses this slot: {name}")
+    return (f"no active heavy service observed; {vanished} unloaded inactive service(s); "
+            "slot ownership is required")
 
 
 class Executor:
@@ -334,7 +346,8 @@ class Precheck:
                 "heavy status inspection / heavy --cancel TOKEN, and operator heavy --check-recovery / "
                 "--reconcile as needed. Never kill units or edit heavy state. Establish build "
                 "completion before restoring the recorded original HEAD and index; verify clean "
-                "checkout and original branch refs before removing precheck.unresolved.")
+                "checkout and original branch refs before removing precheck.unresolved. Leave "
+                "mq-worker-unresolved.json intact for separate worker reconciliation.")
 
     def started(self, argv, cwd):
         self.record["active_command"] = {"argv": argv, "cwd": str(cwd), "completion": "unknown"}
@@ -485,7 +498,8 @@ class Precheck:
                          self.repo.with_name(self.repo.name + ".worker.lock"),
                          self.state_path("worker.lock"), self.state_path("precheck.lock")):
                 stack.enter_context(lock(path))
-            markers = [self.marker, self.state_path("worker.unresolved"), self.state_path("queue.unresolved")]
+            markers = [self.marker, self.state_path("mq-worker-unresolved.json"),
+                       self.state_path("worker.unresolved"), self.state_path("queue.unresolved")]
             markers.extend(self.repo.with_name(self.repo.name + suffix) for suffix in
                            (".precheck.unresolved", ".worker.unresolved", ".queue.unresolved"))
             for marker in markers:

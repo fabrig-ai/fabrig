@@ -574,6 +574,44 @@ class RefusalTests(Fixture):
         (self.repo / ".git/precheck.unresolved").write_text("retained\n")
         self.refuse("unresolved")
 
+    def assert_worker_marker_refused(self, marker):
+        branch = self.git("symbolic-ref", "HEAD")
+        head = self.git("rev-parse", "HEAD")
+        index = (self.repo / ".git/index").read_bytes()
+        contents = (self.repo / "README.md").read_bytes()
+        with patch.object(precheck.Precheck, "prepare") as prepare, \
+                patch.object(precheck.Precheck, "restore") as restore, \
+                patch.object(precheck.Precheck, "protect_ignored") as preview, \
+                patch.object(precheck.Precheck, "save") as save:
+            with self.assertRaisesRegex(RuntimeError, "mq-worker-unresolved.json"):
+                self.run_tool()
+        for operation in (prepare, restore, preview, save):
+            operation.assert_not_called()
+        self.assertIsNone(self.tool.log_directory)
+        self.assertFalse(self.repo.with_name(self.repo.name + ".precheck-logs").exists())
+        self.assertFalse((self.repo / ".git/precheck.unresolved").exists())
+        self.assertEqual(self.git("symbolic-ref", "HEAD"), branch)
+        self.assertEqual(self.git("rev-parse", "HEAD"), head)
+        self.assertEqual((self.repo / ".git/index").read_bytes(), index)
+        self.assertEqual((self.repo / "README.md").read_bytes(), contents)
+        self.assertTrue(marker.exists() or marker.is_symlink())
+        self.assertEqual(self.calls, [])
+
+    def test_existing_worker_marker_refuses_before_preparation_or_logging(self):
+        marker = self.repo / ".git/mq-worker-unresolved.json"
+        body = json.dumps({"attempt": "fixture-attempt", "generation": 1,
+                           "artifacts": str(self.root / "job"), "candidate": self.ancestor}) + "\n"
+        marker.write_text(body)
+        self.assert_worker_marker_refused(marker)
+        self.assertEqual(marker.read_text(), body)
+
+    def test_dangling_worker_marker_refuses_without_following_or_removing_link(self):
+        marker = self.repo / ".git/mq-worker-unresolved.json"
+        marker.symlink_to("missing-worker-evidence")
+        self.assert_worker_marker_refused(marker)
+        self.assertEqual(marker.readlink(), Path("missing-worker-evidence"))
+        self.assertFalse(marker.exists())
+
     def test_competing_separate_process_locks_refuse(self):
         for path in (self.repo.with_name(self.repo.name + ".queue.lock"),
                      self.repo.with_name(self.repo.name + ".worker.lock"),
@@ -686,9 +724,68 @@ tool.run()
 
 
 class ObservationTests(unittest.TestCase):
+    LISTING = ("fixture-heavy-reconcile.timer loaded active waiting Heavy reconciliation\n"
+               "fixture-heavy-build.service loaded active running Heavy build\n"
+               "fixture-heavy-wrapper.service loaded activating start Heavy wrapper\n"
+               "unrelated.service loaded active running Unrelated service\n")
+
     def test_unit_observation_uses_working_directory(self):
-        results = [subprocess.CompletedProcess([], 0, "fixture-heavy-build.service loaded active running\n", ""),
-                   subprocess.CompletedProcess([], 0, "WorkingDirectory=/slot\nActiveState=active\n", "")]
+        results = [subprocess.CompletedProcess([], 0, self.LISTING, ""),
+                   subprocess.CompletedProcess([], 0, "LoadState=loaded\nWorkingDirectory=/slot\nActiveState=active\n", "")]
+        with patch.object(subprocess, "run", side_effect=results) as run:
+            with self.assertRaisesRegex(RuntimeError, "live heavy.*build.service"):
+                precheck.heavy_busy(Path("/slot"))
+        self.assertIn("--type=service", run.call_args_list[0].args[0])
+        self.assertEqual(run.call_args_list[1].args[0][-1], "fixture-heavy-build.service")
+        self.assertEqual(run.call_count, 2)
+
+    def test_timer_listing_without_services_needs_no_working_directory(self):
+        listing = "fixture-heavy-reconcile.timer loaded active waiting Heavy reconciliation\n"
+        with patch.object(subprocess, "run", return_value=subprocess.CompletedProcess([], 0, listing, "")) as run:
+            self.assertIn("no active heavy service observed", precheck.heavy_busy(Path("/slot")))
+        run.assert_called_once()
+        self.assertIn("--type=service", run.call_args.args[0])
+
+    def test_wrapper_in_slot_is_refused_after_unrelated_payload(self):
+        results = [subprocess.CompletedProcess([], 0, self.LISTING, ""),
+                   subprocess.CompletedProcess([], 0, "LoadState=loaded\nWorkingDirectory=/other\nActiveState=active\n", ""),
+                   subprocess.CompletedProcess([], 0, "LoadState=loaded\nWorkingDirectory=/slot/child\nActiveState=activating\n", "")]
+        with patch.object(subprocess, "run", side_effect=results) as run:
+            with self.assertRaisesRegex(RuntimeError, "live heavy.*wrapper.service"):
+                precheck.heavy_busy(Path("/slot"))
+        self.assertEqual(run.call_count, 3)
+
+    def test_unloaded_inactive_service_is_recorded_as_vanished(self):
+        results = [subprocess.CompletedProcess([], 0, self.LISTING, ""),
+                   subprocess.CompletedProcess([], 0, "LoadState=not-found\nActiveState=inactive\n", ""),
+                   subprocess.CompletedProcess([], 0, "LoadState=loaded\nWorkingDirectory=/other\nActiveState=active\n", "")]
+        with patch.object(subprocess, "run", side_effect=results):
+            observation = precheck.heavy_busy(Path("/slot"))
+        self.assertIn("1 unloaded inactive service", observation)
+        self.assertIn("slot ownership is required", observation)
+
+    def test_vanished_payload_does_not_hide_live_wrapper(self):
+        results = [subprocess.CompletedProcess([], 0, self.LISTING, ""),
+                   subprocess.CompletedProcess([], 0, "LoadState=not-found\nActiveState=inactive\n", ""),
+                   subprocess.CompletedProcess([], 0, "LoadState=loaded\nWorkingDirectory=/slot\nActiveState=active\n", "")]
+        with patch.object(subprocess, "run", side_effect=results):
+            with self.assertRaisesRegex(RuntimeError, "live heavy.*wrapper.service"):
+                precheck.heavy_busy(Path("/slot"))
+
+    def test_failed_or_incomplete_inspection_is_not_quiescence(self):
+        listing = subprocess.CompletedProcess([], 0, "fixture-heavy-build.service loaded active running\n", "")
+        for code, body in ((1, "LoadState=not-found\nActiveState=inactive\n"),
+                           (0, "WorkingDirectory=/slot\n"),
+                           (0, "LoadState=not-found\nActiveState=active\n"),
+                           (0, "LoadState=loaded\nWorkingDirectory=\nActiveState=active\n")):
+            with self.subTest(code=code, body=body), patch.object(subprocess, "run", side_effect=[
+                    listing, subprocess.CompletedProcess([], code, body, "inspection unavailable")]):
+                with self.assertRaisesRegex(RuntimeError, "cannot inspect heavy unit"):
+                    precheck.heavy_busy(Path("/slot"))
+
+    def test_stopping_service_in_slot_remains_busy(self):
+        results = [subprocess.CompletedProcess([], 0, self.LISTING, ""),
+                   subprocess.CompletedProcess([], 0, "LoadState=loaded\nWorkingDirectory=/slot\nActiveState=deactivating\n", "")]
         with patch.object(subprocess, "run", side_effect=results):
             with self.assertRaisesRegex(RuntimeError, "live heavy"):
                 precheck.heavy_busy(Path("/slot"))
