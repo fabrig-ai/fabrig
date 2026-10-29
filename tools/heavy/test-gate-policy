@@ -1,0 +1,1616 @@
+#!/usr/bin/env python3
+"""Gate policy and land evidence in disposable local Git repositories."""
+from case_runner import HUNG_TOOL_S
+import hashlib
+import json
+import os
+from pathlib import Path
+import runpy
+import re
+import select
+import shutil
+import shlex
+import stat
+import sys
+import subprocess
+import tempfile
+import time
+import unittest
+from unittest.mock import patch
+from contextlib import redirect_stderr
+import io
+
+sys.dont_write_bytecode = True
+KIT = Path(__file__).resolve().parent
+# Hang detection for local land work and its fixture barriers, not a speed check.
+HUNG_LAND_S = HUNG_TOOL_S
+from gate_policy_fixture import submission_header, completion_output
+
+
+RECEIPT_FAULTS = (
+    "old_build_same_id", "missing_header", "duplicate_header", "missing_receipt_line",
+    "legacy_header", "non_gate_header", "malformed_header_token", "relative_receipt",
+    "malformed_receipt_line", "missing_receipt_file", "wrong_line_token", "wrong_token",
+    "wrong_id", "numeric_id", "wrong_lane",
+    "wrong_tree", "wrong_policy", "wrong_args", "cancelled", "failed_code", "boolean_code",
+    "payload_not_started", "payload_not_ended", "release_incomplete", "scope_not_empty",
+    "missing_duration", "duration_string", "duration_bool", "duration_negative", "duration_nan",
+    "duration_infinite", "empty_queue", "non_string_queue", "wrong_schema", "malformed_json",
+    "duplicate_field", "non_object_json", "extra_field", "mutated_log", "missing_log",
+    "wrong_log_name", "relative_log", "wrong_digest", "wrong_filename", "duplicate_receipt",
+    "output_after_receipt", "receipt_symlink", "receipt_directory", "receipt_fifo",
+    "log_symlink", "log_directory", "log_fifo", "malformed_head", "non_string_inputs",
+)
+UNREADABLE_RECEIPT_FAULTS = ("unreadable_log", "unreadable_receipt")
+
+
+class FixtureFiles(unittest.TestCase):
+    def setUp(self):
+        evidence = os.environ.get("GATE_POLICY_FIXTURE_EVIDENCE")
+        self.temp = tempfile.TemporaryDirectory(prefix="skein-gate-policy-")
+        self.root = Path(self.temp.name)
+        self.addCleanup(self.temp.cleanup)
+        if evidence:
+            destination = Path(evidence).resolve() / self._testMethodName
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            self.assertFalse(destination.exists())
+            destination.mkdir(mode=0o700)
+            (destination / "EVIDENCE.TAG").write_text("agents fixture evidence\ntest-gate-policy\n")
+            # Execute below /tmp so host ancestor Cargo configs cannot mask
+            # the fixture's own config. Retain the complete execution directory.
+            def retain():
+                (self.root / "execution-root.txt").write_text(str(self.root) + "\n")
+                def retain_file(source, target):
+                    mode = stat.S_IMODE(os.stat(source, follow_symlinks=False).st_mode)
+                    if stat.S_ISFIFO(os.stat(source, follow_symlinks=False).st_mode):
+                        os.mkfifo(target, mode)
+                        return target
+                    # Cross-filesystem retention must preserve deliberately
+                    # unreadable receipts/logs and their modes after assertions.
+                    try:
+                        os.chmod(source, mode | stat.S_IRUSR)
+                        shutil.copy2(source, target)
+                    finally:
+                        os.chmod(source, mode)
+                        if Path(target).exists():
+                            os.chmod(target, mode)
+                    return target
+                for entry in self.root.iterdir():
+                    shutil.move(str(entry), destination / entry.name, copy_function=retain_file)
+            self.addCleanup(retain)
+        self.retain = bool(evidence)
+
+
+class PolicyFixtures(FixtureFiles):
+    def setUp(self):
+        super().setUp()
+        self.command_serial = 0
+        self.home = self.root / "home"
+        self.kit = self.root / "kit"
+        self.repo = self.root / "repo"
+        self.bin = self.root / "bin"
+        for path in (self.home, self.kit, self.repo, self.bin):
+            path.mkdir()
+        self.env = {"PATH": str(self.bin) + ":" + os.defpath, "HOME": str(self.home),
+                    "DEV_ROOT": str(self.root), "DEV_TMP": str(self.root / "tmp"),
+                    "LAND_PREBUILD": "", "LAND_TIDY": "", "GIT_CONFIG_GLOBAL": os.devnull,
+                    "GIT_CONFIG_NOSYSTEM": "1", "FIXTURE_CALLS": str(self.root / "calls"),
+                    "GIT_CONFIG_COUNT": "2", "GIT_CONFIG_KEY_0": "maintenance.auto",
+                    "GIT_CONFIG_VALUE_0": "false", "GIT_CONFIG_KEY_1": "gc.auto",
+                    "GIT_CONFIG_VALUE_1": "0"}
+        for name in ("land", "tidy-hooks.py", "gate-policy.sh", "kit.sh", "land-capture.py", "recovery_message.py", "receipt_inputs.py", "land-feed.py"):
+            shutil.copy(KIT / name, self.kit / name)
+        shutil.copy(KIT / "gate_policy_fixture.py", self.kit / "gate_policy_fixture.py")
+        self.script(self.kit / "heavy", r'''#!/usr/bin/env python3
+import os
+from pathlib import Path
+import subprocess
+import sys
+import uuid
+
+sys.dont_write_bytecode = True
+from gate_policy_fixture import submission_header, completion_output
+
+os.umask(0o077)
+args = sys.argv[1:]
+if args == ["--installed"]:
+    with open(os.environ["FIXTURE_CALLS"], "a") as calls:
+        calls.write("installed\n")
+    status = int(os.environ.get("FIXTURE_HEAVY_INSTALLED", "0"))
+    if status == 2:
+        print("heavy: cannot tell whether heavy is installed: fixture", file=sys.stderr)
+    sys.exit(status)
+lane = "build"
+while args:
+    if args[0] in ("--gate", "--land"):
+        lane = "gate"
+        args = args[1:]
+    elif args[0] == "--tail":
+        args = args[2:]
+    else:
+        break
+with open(os.environ["FIXTURE_CALLS"], "a") as calls:
+    calls.write(f'{lane} {os.environ["SKEIN_TEST_CHROMIUM"]} {os.environ["SKEIN_GATE_POLICY_ID"]}\n')
+if lane == "gate" and os.environ.get("FIXTURE_HEAVY_REFUSE") == "1":
+    print("heavy: refused for the fixture", file=sys.stderr)
+    sys.exit(2)
+token = uuid.uuid4().hex
+fault = os.environ.get("FIXTURE_RECEIPT_FAULT", "")
+print(submission_header(token, lane, fault), end="", flush=True)
+tree = subprocess.check_output(["git", "rev-parse", "HEAD^{tree}"], text=True).strip()
+result = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+if lane == "build":
+    sys.stdout.buffer.write(result.stdout)
+    sys.exit(result.returncode)
+head = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+state = Path(os.environ["DEV_TMP"]) / "isolated queue"
+sys.stdout.buffer.write(completion_output(state, token, args, tree, os.environ["SKEIN_GATE_POLICY_ID"],
+                                        head, result.stdout, result.returncode, fault))
+sys.exit(result.returncode)
+''')
+        for name, version in (("rustc", "rustc 1.fixture"), ("cargo", "cargo 1.fixture"),
+                              ("rustdoc", "rustdoc 1.fixture")):
+            self.script(self.bin / name, f"#!/bin/sh\nprintf '%s\\n' '{version}'\n")
+        self.script(self.bin / "rustup", "#!/bin/sh\nexit 1\n")
+        self.runtime = self.home / ".local/opt/chromium-147.0.7727.101/usr/lib/chromium/chromium"
+        self.script(self.runtime, "#!/bin/sh\necho 'Chromium 147.0.7727.101'\n")
+        self.launcher = self.home / ".local/opt/chromium-147.0.7727.101/bin/chromium"
+        self.script(self.launcher, "#!/bin/sh\nexit 92\n")
+        # PATH's browser must never enter the kit policy.
+        self.script(self.bin / "chromium", "#!/bin/sh\necho 'Chromium 155.0.0.0'\n")
+        self.fonts = self.root / "fonts"
+        self.fonts.mkdir()
+        (self.fonts / "DejaVuSans.ttf").write_bytes(b"fixture font")
+        self.env["SKEIN_TEST_FONTS"] = str(self.fonts)
+        self.git("init", "-q", "-b", "main")
+        self.git("config", "user.email", "fixture@example.test")
+        self.git("config", "user.name", "fixture")
+        (self.repo / "code").write_text("base\n")
+        self.git("add", ".")
+        self.git("commit", "-qm", "base")
+        self.base = self.git("rev-parse", "HEAD").strip()
+        self.git("switch", "-qc", "work")
+        (self.repo / "code").write_text("work\n")
+        self.git("commit", "-qam", "work")
+
+    def script(self, path, text):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text)
+        path.chmod(0o700)
+
+    def run_command(self, args, check=True, extra=None):
+        result = subprocess.run(args, cwd=self.repo, env=self.env | (extra or {}),
+                                text=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=HUNG_LAND_S)
+        if self.retain:
+            self.command_serial += 1
+            (self.root / f"command-{self.command_serial:04}.json").write_text(json.dumps({
+                "args": [str(arg) for arg in args], "code": result.returncode,
+                "stdout": result.stdout, "stderr": result.stderr}, indent=2) + "\n")
+        self.assertNotIn("land: warning: the landing feed was not written", result.stderr)
+        if check:
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        return result
+
+    def git(self, *args):
+        return self.run_command(["git", *args]).stdout
+
+    def identity(self, extra=None, check=True):
+        return self.run_command(["bash", "-c", 'source "$1"; gate_policy_identity',
+                                 "fixture", str(self.kit / "gate-policy.sh")], check, extra)
+
+    def land(self, extra=None, check=True, gate="true"):
+        return self.run_command([str(self.kit / "land"), "--local", "--gate", gate], check, extra)
+
+    def retry(self):
+        self.git("update-ref", "refs/heads/main", self.base)
+
+    def all_calls(self):
+        path = self.root / "calls"
+        return path.read_text().splitlines() if path.exists() else []
+
+    def calls(self):
+        return [line for line in self.all_calls() if line != "installed"]
+
+    def installed_calls(self):
+        return [line for line in self.all_calls() if line == "installed"]
+
+    def evidence_gate(self):
+        path = self.bin / "fixture-gate"
+        self.script(path, r'''#!/usr/bin/env python3
+import os
+from pathlib import Path
+import sys
+print("Summary [ 1.234s] 3 tests run: 3 passed, 0 skipped")
+print("gate-step fixture 1.234 0 0.5")
+with (Path(os.environ["DEV_ROOT"]) / "gate-marker").open("a") as marker:
+    marker.write(os.environ["SKEIN_GATE_POLICY_ID"] + " " + os.environ["SKEIN_TEST_CHROMIUM"] + "\n")
+sys.exit(int(os.environ.get("FIXTURE_GATE_EXIT", "0")))
+''')
+        return str(path)
+
+    def marker_lines(self):
+        return (self.root / "gate-marker").read_text().splitlines()
+
+    def cargo_candidate(self):
+        (self.repo / "Cargo.toml").write_text("# plain prebuild fixture\n")
+        self.git("add", "Cargo.toml")
+        self.git("commit", "-qm", "prebuild")
+
+    def assert_no_plain_evidence(self, result):
+        self.assertEqual(self.git("rev-parse", "main").strip(), self.base)
+        self.assertFalse((self.root / "tmp/gates/repo").exists())
+        self.assertEqual(self.result_json(result)["exit"], 4)
+
+    def advance_main_docs(self, path="docs/new.md"):
+        self.git("switch", "-qc", "docs-main", self.base)
+        page = self.repo / path
+        page.parent.mkdir(parents=True, exist_ok=True)
+        page.write_text("documentation\n")
+        self.git("add", "docs")
+        self.git("commit", "-qm", "docs")
+        self.git("update-ref", "refs/heads/main", self.git("rev-parse", "HEAD").strip())
+        self.git("switch", "-q", "work")
+
+    def linked_worktree(self):
+        primary = self.repo
+        self.repo = self.root / "linked"
+        self.repo.mkdir()
+        self.run_command(["git", "-C", str(primary), "switch", "-q", "main"])
+        self.run_command(["git", "-C", str(primary), "worktree", "add", str(self.repo), "work"])
+        return primary
+
+    def target(self):
+        self.ignore_target()
+        (self.repo / "target").mkdir()
+        (self.repo / "target/build").write_text("build")
+
+    def ignore_target(self):
+        exclude = self.repo / self.git("rev-parse", "--git-path", "info/exclude").strip()
+        with exclude.open('a') as stream:
+            stream.write('\n/target\n')
+
+    def result_json(self, result):
+        return json.loads(next(line.removeprefix('land: result ') for line in result.stdout.splitlines()
+                               if line.startswith('land: result ')))
+
+    def tidy_stub(self):
+        path = self.root / "tidy stub"
+        self.script(path, '#!/bin/sh\nprintf "%s\\n" "$@" > "$DEV_ROOT/tidy.args"\n'
+                    'echo tidy-output\necho tidy-error >&2\n')
+        return shlex.quote(str(path))
+
+    def test_plain_landing_runs_gate_and_records_runner(self):
+        result = self.land({"FIXTURE_HEAVY_INSTALLED": "1"}, gate=self.evidence_gate())
+        trailers = self.git("log", "-1", "--format=%B")
+        self.assertIn("Gate-Runner: plain", trailers)
+        self.assertRegex(trailers, r"Gate-Result: .* passed: 3 tests / 1.234 s; [0-9]+\.[0-9]{3} s in all")
+        self.assertEqual(self.calls(), [])
+        self.assertEqual(len(self.installed_calls()), 1)
+        line = next(line for line in result.stdout.splitlines() if line.startswith("land: plain gate "))
+        found = re.fullmatch(r"land: plain gate exit 0, ran ([0-9]+\.[0-9]{3}) s, log (.+)", line)
+        self.assertIsNotNone(found)
+        log = Path(found[2])
+        self.assertEqual(log.parent, self.root / "tmp/logs/land")
+        self.assertEqual(log.stat().st_mode & 0o777, 0o600)
+        self.assertEqual(log.parent.stat().st_mode & 0o777, 0o700)
+        record = self.result_json(result)
+        self.assertEqual(record["runner"], "plain")
+        self.assertEqual(record["gate"]["kind"], "ran")
+        self.assertIsNone(record["gate"]["receipt"])
+        self.assertEqual(record["gate"]["wait_s"], 0)
+        self.assertEqual(record["gate"]["run_s"], float(found[1]))
+        self.assertEqual(record["gate"]["steps"], {"fixture": 1.234})
+        self.assertEqual(record["gate"]["cpu"], {"fixture": 0.5})
+        policy = self.git("log", "-1", "--format=%(trailers:key=Gate-Policy,valueonly)").strip()
+        self.assertEqual(self.marker_lines(), [policy + " " + str(self.runtime)])
+
+    def test_plain_failed_gate_exits_4(self):
+        result = self.land({"FIXTURE_HEAVY_INSTALLED": "1", "FIXTURE_GATE_EXIT": "3"},
+                           check=False, gate=self.evidence_gate())
+        self.assertEqual(result.returncode, 4, result.stdout + result.stderr)
+        self.assert_no_plain_evidence(result)
+        self.assertIn("3 tests run: 3 passed", result.stdout)
+        self.assertIn("land: plain gate exit 3", result.stdout)
+        self.assertEqual(self.result_json(result)["gate"]["exit"], 3)
+        # Measurement failures must never turn a successful child into
+        # evidence with an invented zero duration (plain_run runs under ||).
+        for phase in ("start", "end"):
+            with self.subTest(timing_failure=phase):
+                (self.root / "gate-marker").unlink(missing_ok=True)
+                self.script(self.bin / "date", "#!/bin/sh\n" + (
+                    "exit 1\n" if phase == "start" else
+                    'if [ -e "$DEV_ROOT/date-started" ]; then exit 1; fi\n'
+                    'touch "$DEV_ROOT/date-started"\nexec /bin/date "$@"\n'))
+                result = self.land({"FIXTURE_HEAVY_INSTALLED": "1"},
+                                   check=False, gate=str(self.bin / "fixture-gate"))
+                self.assertEqual(result.returncode, 4, result.stdout + result.stderr)
+                self.assertIn("cannot measure the plain gate " + phase, result.stderr)
+                self.assert_no_plain_evidence(result)
+                marker = self.root / "gate-marker"
+                self.assertEqual(marker.exists(), phase == "end")
+
+    def test_plain_prebuild_failure_stops_before_gate(self):
+        self.cargo_candidate()
+        result = self.land({"FIXTURE_HEAVY_INSTALLED": "1", "LAND_PREBUILD": "exit 5"},
+                           check=False, gate=self.evidence_gate())
+        self.assertEqual(result.returncode, 4, result.stdout + result.stderr)
+        self.assert_no_plain_evidence(result)
+        self.assertFalse((self.root / "gate-marker").exists())
+        self.assertIn("plainly; the gate did not run", result.stderr)
+        self.assertEqual(self.result_json(result)["prebuild"]["exit"], 5)
+
+    def test_plain_prebuild_then_gate(self):
+        self.cargo_candidate()
+        result = self.land({"FIXTURE_HEAVY_INSTALLED": "1", "LAND_PREBUILD": "true"}, gate=self.evidence_gate())
+        record = self.result_json(result)
+        self.assertEqual(record["prebuild"], {"wait_s": 0, "run_s": record["prebuild"]["run_s"], "exit": 0})
+        self.assertGreaterEqual(record["prebuild"]["run_s"], 0)
+        self.assertIn("land: plain build exit 0", result.stdout)
+        self.assertEqual(len(self.marker_lines()), 1)
+        self.assertEqual(self.calls(), [])
+
+    def test_plain_record_serves_the_next_plain_gate(self):
+        gate = self.evidence_gate()
+        self.land({"FIXTURE_HEAVY_INSTALLED": "1"}, gate=gate)
+        self.retry()
+        result = self.land({"FIXTURE_HEAVY_INSTALLED": "1"}, gate=gate)
+        self.assertEqual(self.result_json(result)["gate"]["kind"], "cached")
+        self.assertEqual(len(self.marker_lines()), 1)
+        self.assertEqual(len(self.installed_calls()), 2)
+
+    def test_plain_record_never_serves_a_contained_gate(self):
+        gate = self.evidence_gate()
+        self.land({"FIXTURE_HEAVY_INSTALLED": "1"}, gate=gate)
+        self.retry()
+        result = self.land(gate=gate)
+        self.assertIn("heavy: receipt ", result.stdout)
+        self.assertEqual([line.split()[0] for line in self.calls()], ["gate"])
+        self.assertEqual(len(self.marker_lines()), 2)
+        self.assertEqual(self.git("log", "-1", "--format=%(trailers:key=Gate-Runner,valueonly)").strip(), "heavy")
+
+    def test_contained_record_never_serves_a_plain_gate(self):
+        gate = self.evidence_gate()
+        self.land(gate=gate)
+        self.retry()
+        result = self.land({"FIXTURE_HEAVY_INSTALLED": "1"}, gate=gate)
+        self.assertEqual(self.result_json(result)["gate"]["kind"], "ran")
+        self.assertEqual(len(self.calls()), 1)
+        self.assertEqual(len(self.marker_lines()), 2)
+        self.assertEqual(self.git("log", "-1", "--format=%(trailers:key=Gate-Runner,valueonly)").strip(), "plain")
+
+    def test_plain_docs_only_reuse(self):
+        gate = self.evidence_gate()
+        self.land({"FIXTURE_HEAVY_INSTALLED": "1"}, gate=gate)
+        before = self.git("rev-parse", "HEAD^{tree}").strip()
+        self.advance_main_docs()
+        result = self.land({"FIXTURE_HEAVY_INSTALLED": "1"}, gate=gate)
+        self.assertIn("differs from this tree only in docs/ Markdown", result.stderr)
+        self.assertEqual(self.result_json(result)["gate"]["kind"], "cached")
+        self.assertEqual(len(self.marker_lines()), 1)
+        self.assertEqual(self.calls(), [])
+        self.assertEqual(self.git("log", "-1", "--format=%(trailers:key=Gate-Tree,valueonly)").strip(), before)
+
+    def test_plain_candidate_mutation_during_gate_refuses(self):
+        gate = self.evidence_gate() + '; printf "changed\\n" >> code'
+        result = self.land({"FIXTURE_HEAVY_INSTALLED": "1"}, check=False, gate=gate)
+        self.assertEqual(result.returncode, 4, result.stdout + result.stderr)
+        self.assertIn("candidate index/worktree changed", result.stderr)
+        self.assert_no_plain_evidence(result)
+
+    def test_cannot_tell_refuses_with_9(self):
+        before = self.git("rev-parse", "HEAD").strip()
+        result = self.land({"FIXTURE_HEAVY_INSTALLED": "2"}, check=False, gate=self.evidence_gate())
+        self.assertEqual(result.returncode, 9, result.stdout + result.stderr)
+        self.assertIn("heavy cannot tell whether it is installed", result.stderr)
+        self.assertEqual(self.git("rev-parse", "HEAD").strip(), before)
+        self.assertEqual(self.git("rev-parse", "main").strip(), self.base)
+        self.assertFalse((self.root / "gate-marker").exists())
+        self.assertEqual(self.calls(), [])
+        self.assertEqual(len(self.installed_calls()), 1)
+
+    def test_installed_refusal_never_falls_back_to_plain(self):
+        result = self.land({"FIXTURE_HEAVY_REFUSE": "1"}, check=False, gate=self.evidence_gate())
+        self.assertEqual(result.returncode, 9, result.stdout + result.stderr)
+        self.assertIn("heavy: refused for the fixture", result.stdout + result.stderr)
+        self.assertFalse((self.root / "gate-marker").exists())
+        self.assertNotIn("land: plain", result.stdout)
+        self.assertEqual(self.result_json(result)["runner"], "heavy")
+        self.assertEqual(self.git("rev-parse", "main").strip(), self.base)
+        self.assertFalse((self.root / "tmp/gates/repo").exists())
+
+    def test_contained_landing_records_heavy_runner(self):
+        result = self.land(gate=self.evidence_gate())
+        self.assertEqual(self.result_json(result)["runner"], "heavy")
+        self.assertEqual(self.git("log", "-1", "--format=%(trailers:key=Gate-Runner,valueonly)").strip(), "heavy")
+        self.assertEqual(len(self.installed_calls()), 1)
+
+    def test_docs_landing_records_no_runner(self):
+        self.git("reset", "--hard", self.base)
+        (self.repo / "notes.md").write_text("documentation\n")
+        self.git("add", "notes.md")
+        self.git("commit", "-qm", "docs")
+        result = self.run_command([str(self.kit / "land"), "--local", "--docs"],
+                                  extra={"FIXTURE_HEAVY_INSTALLED": "1"})
+        self.assertEqual(self.git("log", "-1", "--format=%(trailers:key=Gate-Runner,valueonly)").strip(), "")
+        self.assertIsNone(self.result_json(result)["runner"])
+        self.assertEqual(self.installed_calls(), [])
+        self.assertEqual(self.calls(), [])
+
+    def declare_gate_docs(self, declaration="docs/help/\ndocs/exact.md\n"):
+        self.git("reset", "--hard", self.base)
+        (self.repo / "scripts").mkdir()
+        (self.repo / "scripts/gated-docs").write_text(declaration)
+        self.git("add", "scripts/gated-docs")
+        self.git("commit", "-qm", "declare gate inputs")
+        self.base = self.git("rev-parse", "HEAD").strip()
+        self.git("update-ref", "refs/heads/main", self.base)
+
+    def docs_policy(self, path, refused, declaration="docs/help/\ndocs/exact.md\n"):
+        self.declare_gate_docs(declaration)
+        page = self.repo / path
+        page.parent.mkdir(parents=True, exist_ok=True)
+        page.write_text("documentation\n")
+        self.git("add", ".")
+        self.git("commit", "-qm", "docs change")
+        result = self.run_command([str(self.kit / "land"), "--local", "--docs"], check=False)
+        self.assertEqual(result.returncode, 2 if refused else 0, result.stdout + result.stderr)
+        self.assertEqual(self.calls(), [])
+        if refused:
+            self.assertIn("use land", result.stderr)
+            self.assertEqual(self.git("rev-parse", "main").strip(), self.base)
+        else:
+            self.assertEqual(self.result_json(result)["gate"]["kind"], "none")
+
+    def test_declared_directory_refuses_docs(self):
+        self.docs_policy("docs/help/page.md", True)
+
+    def test_declared_directory_covers_reference(self):
+        self.docs_policy("docs/help/reference/page.md", True)
+
+    def test_declared_file_refuses_docs(self):
+        self.docs_policy("docs/exact.md", True)
+
+    def test_undeclared_markdown_stays_docs_only(self):
+        self.docs_policy("docs/helpful/page.md", False)
+
+    def test_declaration_comments_and_literal_paths(self):
+        self.docs_policy("docs/a*/page.md", True, "# gate inputs\n\ndocs/a*/\n")
+
+    def test_declared_mockup_refuses_docs(self):
+        self.docs_policy("docs/design/mockups/page.html", True, "docs/design/mockups/\n")
+
+    def test_invalid_declaration_refuses_docs(self):
+        self.docs_policy("docs/page.md", True, "../docs/help/\n")
+
+    def cache_docs_policy(self, installed, path, declared):
+        self.declare_gate_docs()
+        # A real content change is proved first; then main moves in Markdown.
+        (self.repo / "code").write_text("work\n")
+        self.git("commit", "-qam", "work")
+        extra = {"FIXTURE_HEAVY_INSTALLED": installed}
+        gate = self.evidence_gate()
+        self.land(extra, gate=gate)
+        self.advance_main_docs(path)
+        result = self.land(extra, gate=gate)
+        if not declared or installed == "1":
+            self.assertEqual(self.result_json(result)["gate"]["kind"], "ran" if declared else "cached")
+        self.assertEqual(len(self.marker_lines()), 2 if declared else 1)
+        self.assertEqual(len(self.calls()), (2 if declared else 1) if installed == "0" else 0)
+
+    def test_declared_directory_invalidates_contained_cache(self):
+        self.cache_docs_policy("0", "docs/help/reference/page.md", True)
+
+    def test_declared_file_invalidates_plain_cache(self):
+        self.cache_docs_policy("1", "docs/exact.md", True)
+
+    def test_undeclared_markdown_reuses_contained_cache(self):
+        self.cache_docs_policy("0", "docs/helpful/page.md", False)
+
+    def test_undeclared_markdown_reuses_plain_cache(self):
+        self.cache_docs_policy("1", "docs/helpful/page.md", False)
+
+    def test_removed_declared_input_refuses_docs(self):
+        self.declare_gate_docs()
+        page = self.repo / "docs/help/page.md"
+        page.parent.mkdir(parents=True)
+        page.write_text("input\n")
+        self.git("add", ".")
+        self.git("commit", "-qm", "input")
+        self.base = self.git("rev-parse", "HEAD").strip()
+        self.git("update-ref", "refs/heads/main", self.base)
+        self.git("rm", "docs/help/page.md")
+        self.git("commit", "-qm", "remove input")
+        result = self.run_command([str(self.kit / "land"), "--local", "--docs"], check=False)
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertIn("declared gate input; use land", result.stderr)
+
+    def test_landed_mark_push(self):
+        origin = self.root / "origin.git"
+        self.git("clone", "--bare", str(self.repo), str(origin))
+        self.git("remote", "add", "origin", str(origin))
+        result = self.run_command([str(self.kit / "land"), "--gate", "true"])
+        self.assertEqual(self.git("config", "branch.work.landed").strip(),
+                         self.git("rev-parse", "origin/main").strip())
+        self.assertTrue(self.result_json(result)["pushed"])
+
+    def test_landed_mark_local(self):
+        self.land()
+        self.assertEqual(self.git("config", "branch.work.landed").strip(), self.git("rev-parse", "main").strip())
+
+    def test_landed_no_push(self):
+        origin = self.root / "origin.git"
+        self.git("clone", "--bare", str(self.repo), str(origin))
+        self.git("remote", "add", "origin", str(origin))
+        self.target()
+        self.run_command([str(self.kit / "land"), "--no-push", "--gate", "true"],
+                         extra={"LAND_TIDY": self.tidy_stub()})
+        self.assertEqual(self.run_command(["git", "config", "branch.work.landed"], check=False).returncode, 1)
+        self.assertTrue((self.repo / "target/build").is_file())
+        self.assertFalse((self.root / "tidy.args").exists())
+
+    def test_landed_failed_gate(self):
+        self.target()
+        result = self.land({"LAND_TIDY": self.tidy_stub()}, check=False, gate="false")
+        self.assertEqual(result.returncode, 4)
+        self.assertEqual(self.run_command(["git", "config", "branch.work.landed"], check=False).returncode, 1)
+        self.assertTrue((self.repo / "target/build").is_file())
+        self.assertFalse((self.root / "tidy.args").exists())
+
+    def test_landed_target_linked(self):
+        primary = self.linked_worktree()
+        self.target()
+        elsewhere = self.root / "shared-target"
+        elsewhere.mkdir()
+        (elsewhere / "build").touch()
+        self.land({"CARGO_TARGET_DIR": str(elsewhere)})
+        self.assertFalse((self.repo / "target").exists())
+        self.assertTrue((elsewhere / "build").exists())
+        self.assertEqual(self.run_command(["git", "-C", str(primary), "config", "branch.work.landed"]).stdout.strip(),
+                         self.git("rev-parse", "HEAD").strip())
+
+    def test_landed_target_primary(self):
+        self.target()
+        self.land()
+        self.assertTrue((self.repo / "target/build").is_file())
+
+    def test_landed_target_failure_warns(self):
+        self.linked_worktree()
+        self.target()
+        (self.repo / 'target').chmod(0o500)
+        try:
+            result = self.land()
+            self.assertIn('warning: cannot clear', result.stderr)
+            self.assertEqual(self.result_json(result)['exit'], 0)
+        finally:
+            (self.repo / 'target').chmod(0o700)
+
+    def test_landed_target_stat_failure_warns(self):
+        hooks = runpy.run_path(str(self.kit / 'tidy-hooks.py'))
+        warning = io.StringIO()
+        with patch.object(Path, 'is_file', side_effect=PermissionError('fixture stat denied')):
+            with redirect_stderr(warning):
+                hooks['clear_target']('land-set', self.repo)
+        self.assertIn('land-set: warning: cannot clear', warning.getvalue())
+
+    def test_landed_target_symlink(self):
+        self.linked_worktree()
+        self.ignore_target()
+        elsewhere = self.root / "shared-target"
+        elsewhere.mkdir()
+        (elsewhere / "build").touch()
+        (self.repo / "target").symlink_to(elsewhere, target_is_directory=True)
+        self.land()
+        self.assertTrue((elsewhere / "build").exists())
+        self.assertTrue((self.repo / "target").is_symlink())
+
+    def test_landed_tidy(self):
+        log = self.root / "tmp/logs/tidy.log"
+        log.parent.mkdir(parents=True)
+        log.write_text('previous\n')
+        result = self.land({"LAND_TIDY": self.tidy_stub()})
+        deadline = time.monotonic() + HUNG_TOOL_S
+        while not log.exists() or 'tidy-error' not in log.read_text():
+            self.assertLess(time.monotonic(), deadline)
+            time.sleep(.01)
+        self.assertEqual((self.root / "tidy.args").read_text(), "repo\n")
+        self.assertIn("tidy-output", log.read_text())
+        self.assertTrue(log.read_text().startswith('previous\n'))
+        self.assertEqual(self.result_json(result)["exit"], 0)
+
+    def test_landed_tidy_empty(self):
+        self.script(self.kit / "tidy", '#!/bin/sh\ntouch "$DEV_ROOT/unwanted-tidy"\n')
+        self.land()
+        self.assertFalse((self.root / "unwanted-tidy").exists())
+        self.assertFalse((self.root / "tmp/logs/tidy.log").exists())
+
+    def test_landed_tidy_missing(self):
+        self.env.pop('LAND_TIDY')
+        result = self.land()
+        self.assertIn("warning: cannot start tidy", result.stderr)
+        self.assertEqual(self.result_json(result)["exit"], 0)
+        self.assertFalse((self.root / 'tmp/logs/tidy.log').exists())
+
+    def test_landed_tidy_not_executable(self):
+        self.env.pop('LAND_TIDY')
+        (self.kit / 'tidy').write_text('#!/bin/sh\nexit 99\n')
+        (self.kit / 'tidy').chmod(0o600)
+        result = self.land()
+        self.assertIn('warning: cannot start tidy', result.stderr)
+        self.assertEqual(self.result_json(result)['exit'], 0)
+        self.assertFalse((self.root / 'tmp/logs/tidy.log').exists())
+
+    def test_landed_tidy_default(self):
+        self.env.pop('LAND_TIDY')
+        shutil.copy(shlex.split(self.tidy_stub())[0], self.kit / 'tidy')
+        result = self.land()
+        self.assertNotIn('warning: cannot start tidy', result.stderr)
+        calls = self.root / 'tidy.args'
+        deadline = time.monotonic() + HUNG_TOOL_S
+        while not calls.exists() or not calls.read_text().endswith('repo\n'):
+            self.assertLess(time.monotonic(), deadline)
+            time.sleep(.01)
+        self.assertEqual(calls.read_text(), 'repo\n')
+
+    def test_landed_tidy_override_missing(self):
+        result = self.land({'LAND_TIDY': '/missing-fixture-tidy --flag'})
+        self.assertNotIn('warning: cannot start tidy', result.stderr)
+        self.assertEqual(self.result_json(result)['exit'], 0)
+        log = self.root / 'tmp/logs/tidy.log'
+        deadline = time.monotonic() + HUNG_TOOL_S
+        while not log.exists() or 'No such file or directory' not in log.read_text():
+            self.assertLess(time.monotonic(), deadline)
+            time.sleep(.01)
+        self.assertIn('/missing-fixture-tidy', log.read_text())
+
+    def test_landed_tidy_shell_expansion(self):
+        stub = shlex.split(self.tidy_stub())[0]
+        result = self.land({'LAND_TIDY': '"$FIXTURE_TIDY" --fixture-flag', 'FIXTURE_TIDY': stub})
+        self.assertNotIn('warning: cannot start tidy', result.stderr)
+        deadline = time.monotonic() + HUNG_TOOL_S
+        calls = self.root / 'tidy.args'
+        while not calls.exists() or not calls.read_text().endswith('repo\n'):
+            self.assertLess(time.monotonic(), deadline)
+            time.sleep(.01)
+        self.assertEqual(calls.read_text(), '--fixture-flag\nrepo\n')
+
+    def test_landed_tidy_detached(self):
+        stub = self.root / 'waiting-tidy'
+        ready, release = self.root / 'tidy.ready', self.root / 'tidy.release'
+        os.mkfifo(ready)
+        os.mkfifo(release)
+        # Keep both ends available before tidy starts; readiness and release
+        # block on pipes, and the pidfd becomes readable only at process exit.
+        ready_fd = os.open(ready, os.O_RDWR | os.O_NONBLOCK)
+        release_fd = os.open(release, os.O_RDWR | os.O_NONBLOCK)
+        pidfd = None
+        self.script(stub, '#!/usr/bin/python3\nimport os,sys,json\n'
+                    'assert sys.stdin.read() == ""\n'
+                    f'with open({str(ready)!r}, "w") as out:\n'
+                    '    out.write(json.dumps([os.getpid(), os.getsid(0)])); out.flush()\n'
+                    f'    with open({str(release)!r}, "rb", buffering=0) as release:\n'
+                    '        assert release.read(1) == b"x"\n')
+        try:
+            self.land({'LAND_TIDY': shlex.quote(str(stub))})
+            self.assertTrue(select.select([ready_fd], [], [], HUNG_TOOL_S)[0], "tidy readiness")
+            pid, session = json.loads(os.read(ready_fd, 4096))
+            pidfd = os.pidfd_open(pid)
+            self.assertEqual(pid, session)
+        finally:
+            os.write(release_fd, b"x")
+            try:
+                if pidfd is not None:
+                    self.assertTrue(select.select([pidfd], [], [], HUNG_TOOL_S)[0], "tidy child exit")
+            finally:
+                if pidfd is not None:
+                    os.close(pidfd)
+                os.close(release_fd)
+                os.close(ready_fd)
+
+    def test_after_landing_needs_the_runner_machine(self):
+        result = self.run_command([str(KIT / "after-landing"), "follow", "skein"], check=False)
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(result.stdout, "")
+        self.assertEqual(result.stderr,
+                         "after-landing: this is not the runner's machine "
+                         "(no ~/.config/agents-after-landing/director)\n")
+        self.assertFalse((self.root / "tmp/after-landing").exists())
+        self.assertFalse((self.root / "tmp/director").exists())
+        self.assertEqual(self.calls(), [])
+
+    def test_no_push_then_lands_identical_commit(self):
+        origin = self.root / "origin.git"
+        self.run_command(["git", "clone", "--bare", str(self.repo), str(origin)])
+        self.git("remote", "add", "origin", origin.as_uri())
+        self.git("--git-dir=" + str(origin), "update-ref", "refs/heads/main", self.base)
+        # An executable tier makes scheduling visible in land's stderr.
+        self.script(self.repo / "scripts/after-landing.sh", "#!/bin/sh\nexit 99\n")
+        self.git("add", "scripts")
+        self.git("commit", "-qm", "after-landing fixture")
+        refs = self.git("--git-dir=" + str(origin), "show-ref")
+        result = self.run_command([str(self.kit / "land"), "--no-push", "--gate", "true"])
+        self.assertEqual(self.git("--git-dir=" + str(origin), "show-ref"), refs)
+        self.assertIn("not pushed", result.stdout)
+        self.assertNotIn("queued scripts/after-landing", result.stderr)
+        self.assertEqual(self.git("rev-parse", "main").strip(), self.base)
+        self.assertEqual(self.git("--git-dir=" + str(origin), "rev-parse", "main").strip(), self.base)
+        candidate = self.git("rev-parse", "HEAD").strip()
+        # Force a different committer time: a redundant amend must change SHA.
+        pushed = self.run_command([str(self.kit / "land"), "--gate", "true"],
+                                  extra={"GIT_COMMITTER_DATE": "2030-01-01T00:00:00Z"})
+        # Nor does a landing that pushes, until the tier's design (the user, 2026-10-25).
+        self.assertNotIn("after-landing", pushed.stderr)
+        self.assertEqual(self.git("rev-parse", "HEAD").strip(), candidate)
+        self.assertEqual(self.git("rev-parse", "main").strip(), candidate)
+        self.assertEqual(self.git("--git-dir=" + str(origin), "rev-parse", "main").strip(), candidate)
+        self.assertEqual(len(self.calls()), 1)
+
+    def test_no_push_rejects_docs_and_local(self):
+        before = self.git("rev-parse", "HEAD")
+        for option in ("--docs", "--local"):
+            result = self.run_command([str(self.kit / "land"), "--no-push", option], check=False)
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("--no-push cannot be combined", result.stderr)
+        self.assertEqual(self.git("rev-parse", "HEAD"), before)
+        self.assertEqual(self.calls(), [])
+
+    def main_checkout_follow(self, populated, local, index_error=False):
+        origin = self.root / "origin.git"
+        self.run_command(["git", "clone", "--bare", str(self.repo), str(origin)])
+        self.git("--git-dir=" + str(origin), "symbolic-ref", "HEAD", "refs/heads/main")
+        anchor = self.root / "anchor with spaces"
+        self.run_command(["git", "clone", "--no-checkout", origin.as_uri(), str(anchor)])
+        self.git("-C", str(anchor), "config", "user.email", "fixture@example.test")
+        self.git("-C", str(anchor), "config", "user.name", "fixture")
+        if populated:
+            self.git("-C", str(anchor), "reset", "--hard", "main")
+            (anchor / "code").write_text("uncommitted main changes\n")
+        else:
+            (anchor / "untracked").write_text("leave this alone\n")
+        self.assertEqual(self.git("-C", str(anchor), "symbolic-ref", "HEAD").strip(),
+                         "refs/heads/main")
+        self.assertEqual(bool(self.git("-C", str(anchor), "ls-files")), populated)
+        work = self.root / "anchor-work"
+        self.git("-C", str(anchor), "worktree", "add", str(work), "work")
+        self.repo = work
+        if index_error:
+            real_git = shutil.which("git", path=os.defpath)
+            self.script(self.bin / "git", '#!/bin/sh\nif [ "$1" = -C ] && [ "$2" = '
+                        + shlex.quote(str(anchor)) + ' ] && [ "$3" = ls-files ]; then\n'
+                        + '    exit 1\nfi\nexec ' + shlex.quote(real_git) + ' "$@"\n')
+        args = [str(self.kit / "land"), "--gate", "true"]
+        if local:
+            args.append("--local")
+        result = self.run_command(args, check=False)
+        if index_error:
+            (self.bin / "git").unlink()
+        self.assertEqual(result.returncode, 5 if populated or index_error else 0,
+                         result.stdout + result.stderr)
+        commit = self.git("rev-parse", "HEAD").strip()
+        self.assertEqual(self.git("-C", str(anchor), "rev-parse", "main").strip(),
+                         self.base if populated or index_error else commit)
+        self.assertEqual(self.git("--git-dir=" + str(origin), "rev-parse", "main").strip(),
+                         self.base if local else commit)
+        if populated:
+            self.assertIn("a checkout of main has changes", result.stderr)
+            self.assertEqual((anchor / "code").read_text(), "uncommitted main changes\n")
+        else:
+            self.assertEqual(self.git("-C", str(anchor), "ls-files"), "")
+            self.assertFalse((anchor / "code").exists())
+            self.assertEqual((anchor / "untracked").read_text(), "leave this alone\n")
+        return result
+
+    def test_landed_pushed_follow_failure(self):
+        self.env['LAND_TIDY'] = self.tidy_stub()
+        result = self.main_checkout_follow(populated=True, local=False)
+        self.assertEqual(self.git('config', 'branch.work.landed').strip(),
+                         self.git('rev-parse', 'HEAD').strip())
+        self.assertEqual(self.result_json(result)['exit'], 5)
+        self.assertTrue(self.result_json(result)['pushed'])
+        deadline = time.monotonic() + HUNG_TOOL_S
+        while not (self.root / 'tidy.args').exists():
+            self.assertLess(time.monotonic(), deadline)
+            time.sleep(.01)
+
+    def test_no_checkout_anchor_follows_pushed_landing(self):
+        self.main_checkout_follow(populated=False, local=False)
+
+    def test_no_checkout_anchor_follows_local_landing(self):
+        self.main_checkout_follow(populated=False, local=True)
+
+    def test_dirty_main_checkout_refuses_pushed_follow(self):
+        self.main_checkout_follow(populated=True, local=False)
+
+    def test_dirty_main_checkout_refuses_local_landing(self):
+        self.env['LAND_TIDY'] = self.tidy_stub()
+        self.main_checkout_follow(populated=True, local=True)
+        self.assertEqual(self.run_command(['git', 'config', 'branch.work.landed'], check=False).returncode, 1)
+        self.assertFalse((self.root / 'tidy.args').exists())
+
+    def test_main_index_read_failure_refuses_local_landing(self):
+        self.main_checkout_follow(populated=False, local=True, index_error=True)
+
+    def test_same_policy_reuses_and_propagates_runtime(self):
+        self.land()
+        policy = self.git("log", "-1", "--format=%(trailers:key=Gate-Policy,valueonly)").strip()
+        self.assertRegex(policy, r"^sha256:[0-9a-f]{64}$")
+        self.assertIn(str(self.runtime), self.calls()[0])
+        self.assertIn(policy, self.calls()[0])
+        self.retry()
+        self.land()
+        self.assertEqual(len(self.calls()), 1)
+        cache = next((self.root / "tmp/gates/repo").iterdir())
+        self.assertEqual(cache.read_text().splitlines()[:2], ["gate-evidence-v3", policy])
+        self.assertEqual(cache.stat().st_mode & 0o777, 0o600)
+
+    def test_receipt_without_inputs_lands(self):
+        # heavy records the head and inputs only when it can read the checkout.
+        self.land({"FIXTURE_RECEIPT_FAULT": "no_inputs"})
+        self.assertEqual(self.git("rev-parse", "main").strip(), self.git("rev-parse", "HEAD").strip())
+        self.assertEqual(len(self.calls()), 1)
+
+    def test_docs_only_same_policy_reuses(self):
+        self.land()
+        before = self.git("rev-parse", "HEAD^{tree}").strip()
+        self.advance_main_docs()
+        result = self.land()
+        self.assertIn("differs from this tree only in docs/ Markdown", result.stderr)
+        self.assertEqual(len(self.calls()), 1)
+        self.assertEqual(self.git("log", "-1", "--format=%(trailers:key=Gate-Tree,valueonly)").strip(), before)
+
+    def test_docs_only_different_policy_cannot_reuse(self):
+        self.land()
+        self.advance_main_docs()
+        with self.runtime.open("a") as output:
+            output.write("# new executable content\n")
+        result = self.land()
+        self.assertNotIn("differs from this tree only in docs/ Markdown", result.stderr)
+        self.assertEqual(len(self.calls()), 2)
+
+    def test_runtime_content_and_path_invalidate(self):
+        self.land()
+        self.retry()
+        with self.runtime.open("a") as output:
+            output.write("# content changes at the same version\n")
+        self.land()
+        self.assertEqual(len(self.calls()), 2)
+        self.retry()
+        other = self.root / "other147"
+        shutil.copy(self.runtime, other)
+        self.land({"SKEIN_TEST_CHROMIUM": str(other)})
+        self.assertEqual(len(self.calls()), 3)
+
+    def test_wrong_version_refuses_even_with_cached_evidence(self):
+        self.land()
+        self.retry()
+        result = self.land({"SKEIN_TEST_CHROMIUM": str(self.bin / "chromium")}, check=False)
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(len(self.calls()), 1)
+        self.script(self.runtime, "#!/bin/sh\necho 'Chromium 155.0.0.0'\n")
+        self.assertEqual(self.land(check=False).returncode, 2)
+        self.assertEqual(len(self.calls()), 1)
+
+    def test_legacy_and_mismatched_records_are_invalid(self):
+        self.land()
+        cache = next((self.root / "tmp/gates/repo").iterdir())
+        policy = self.git("log", "-1", "--format=%(trailers:key=Gate-Policy,valueonly)").strip()
+        for record in ("true passed: legacy\n", f"gate-evidence-v2\n{policy}\ntrue passed: ? s in all\n",
+                       "gate-evidence-v3\nsha256:wrong\ntrue passed: 0 s in all\n",
+                       f"gate-evidence-v3\n{policy}\ntrue passed: ? s in all\n"):
+            cache.write_text(record)
+            self.retry()
+            before = len(self.calls())
+            self.land()
+            self.assertEqual(len(self.calls()), before + 1)
+
+    def test_legacy_compiler_key_cannot_reuse(self):
+        tree = self.git("rev-parse", "HEAD^{tree}").strip()
+        cache = self.root / "tmp/gates/repo"
+        cache.mkdir(parents=True)
+        old_key = hashlib.sha1(f"{tree}\ntrue\nrustc 1.fixture\n".encode()).hexdigest()
+        (cache / old_key).write_text("legacy passed\n")
+        self.land()
+        self.assertEqual(len(self.calls()), 1)
+
+    def test_receipt_fault_missing_receipt_line_refuses_before_cache_amend_or_main(self):
+        fault = "missing_receipt_line"
+        head = self.git("rev-parse", "HEAD").strip()
+        result = self.land({"FIXTURE_RECEIPT_FAULT": fault}, check=False)
+        self.assertEqual(result.returncode, 4, result.stdout + result.stderr)
+        self.assertIn("invalid gate receipt:", result.stderr)
+        self.assertIn("completion evidence was not accepted", result.stderr)
+        self.assertEqual(self.git("rev-parse", "main").strip(), self.base)
+        self.assertEqual(self.git("rev-parse", "HEAD").strip(), head)
+        self.assertFalse((self.root / "tmp/gates/repo").exists())
+
+    def test_stale_valid_receipt_with_same_numeric_id_cannot_reuse(self):
+        self.land()
+        cache = next((self.root / "tmp/gates/repo").iterdir())
+        cache.unlink()
+        self.retry()
+        head = self.git("rev-parse", "HEAD").strip()
+        result = self.land({"FIXTURE_RECEIPT_FAULT": "stale_valid_receipt"}, check=False)
+        self.assertEqual(result.returncode, 4, result.stdout + result.stderr)
+        self.assertIn("receipt line token differs", result.stderr)
+        self.assertEqual(self.git("rev-parse", "main").strip(), self.base)
+        self.assertEqual(self.git("rev-parse", "HEAD").strip(), head)
+        self.assertFalse(list(cache.parent.iterdir()))
+
+    def test_receipt_duration_and_completed_log_supply_summary(self):
+        gate = "printf '\\033[32mSummary [ 1.2s] 3 tests run: 3 passed\\033[0m\\n'"
+        result = self.land(gate=gate)
+        self.assertIn("gate passed: 3 tests / 1.2 s; 0.25 s in all", result.stdout)
+        self.assertNotIn("? s", result.stdout)
+        self.retry()
+        self.land(gate=gate)
+        self.assertEqual(len(self.calls()), 1)
+
+    def test_docs_only_v2_record_cannot_reuse(self):
+        self.land()
+        cache = next((self.root / "tmp/gates/repo").iterdir())
+        cache.write_text(cache.read_text().replace("gate-evidence-v3", "gate-evidence-v2"))
+        self.advance_main_docs()
+        result = self.land()
+        self.assertNotIn("differs from this tree only in docs/ Markdown", result.stderr)
+        self.assertEqual(len(self.calls()), 2)
+
+    def test_default_gate_requires_receipt_for_new_candidate(self):
+        self.script(self.repo / "scripts/check.sh", "#!/bin/sh\nexit 0\n")
+        self.git("add", "scripts/check.sh")
+        self.git("commit", "-qm", "gate")
+        head = self.git("rev-parse", "HEAD").strip()
+        result = self.run_command([str(self.kit / "land"), "--local"], check=False,
+                                  extra={"FIXTURE_RECEIPT_FAULT": "missing_receipt_line"})
+        self.assertEqual(result.returncode, 4, result.stdout + result.stderr)
+        self.assertEqual(self.git("rev-parse", "HEAD").strip(), head)
+        self.assertEqual(self.git("rev-parse", "main").strip(), self.base)
+        result = self.run_command([str(self.kit / "land"), "--local"])
+        self.assertIn("scripts/check.sh passed: 0.25 s in all", result.stdout)
+        self.assertEqual(len(self.calls()), 2)
+
+    def test_prebuild_header_cannot_supply_gate_evidence(self):
+        (self.repo / "Cargo.toml").write_text("# prebuild boundary fixture\n")
+        self.git("add", "Cargo.toml")
+        self.git("commit", "-qm", "prebuild boundary")
+        result = self.land({"LAND_PREBUILD": "true"})
+        self.assertEqual([line.split()[0] for line in self.calls()], ["build", "gate"])
+        self.assertIn("true passed: 0.25 s in all", result.stdout)
+
+    def test_policy_mutation_during_gate_refuses_evidence(self):
+        gate = 'printf "# mutation\\n" >> "$SKEIN_TEST_CHROMIUM"'
+        result = self.land(check=False, gate=gate)
+        self.assertEqual(result.returncode, 4, result.stdout + result.stderr)
+        self.assertIn("gate policy changed", result.stderr)
+        self.assertEqual(self.git("rev-parse", "main").strip(), self.base)
+        self.assertFalse((self.root / "tmp/gates/repo").exists())
+
+    def test_flags_configs_wrappers_and_fixtures_change_identity(self):
+        baseline = self.identity().stdout
+        for variable in ("RUSTFLAGS", "CARGO_ENCODED_RUSTFLAGS", "CARGO_BUILD_RUSTFLAGS", "RUSTC_BOOTSTRAP", "CARGO_PROFILE_DEV_OPT_LEVEL",
+                         "CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS", "RUSTUP_TOOLCHAIN"):
+            with self.subTest(variable=variable):
+                result = self.identity({variable: "private fixture setting"})
+                self.assertNotEqual(result.stdout, baseline)
+                self.assertNotIn("private fixture setting", result.stdout + result.stderr)
+        config = self.home / ".cargo/config.toml"
+        config.parent.mkdir()
+        wrapper = self.bin / "wrapper"
+        self.script(wrapper, "#!/bin/sh\nexit 0\n")
+        config.write_text(f'[build]\nrustc-wrapper = "{wrapper}"\nrustflags = ["--cfg=global"]\n')
+        configured = self.identity().stdout
+        self.assertNotEqual(configured, baseline)
+        self.script(wrapper, "#!/bin/sh\nexit 0\n# changed\n")
+        self.assertNotEqual(self.identity().stdout, configured)
+        # Empty dedicated wrapper variables disable configuration wrappers.
+        disabled = self.identity({"RUSTC_WRAPPER": ""}).stdout
+        wrapper.unlink()
+        self.assertEqual(self.identity({"RUSTC_WRAPPER": ""}).stdout, disabled)
+        config.write_text('[build]\nrustflags = ["--cfg=global"]\n')
+        (self.repo / ".cargo").mkdir()
+        local = self.repo / ".cargo/config.toml"
+        local.write_text('[build]\nrustflags = ["--cfg=local"]\n')
+        local_id = self.identity().stdout
+        local.write_text('[build]\nrustflags = ["--cfg=other"]\n')
+        self.assertNotEqual(self.identity().stdout, local_id)
+        fixture_id = self.identity().stdout
+        (self.fonts / "DejaVuSans.ttf").write_bytes(b"different fixture font")
+        self.assertNotEqual(self.identity().stdout, fixture_id)
+        resource_id = self.identity().stdout
+        (self.runtime.parent / "icudtl.dat").write_bytes(b"browser resource")
+        self.assertNotEqual(self.identity().stdout, resource_id)
+
+    def test_config_precedence_and_private_values(self):
+        (self.repo / ".cargo").mkdir()
+        config = self.repo / ".cargo/config"
+        config.write_text('[build]\nrustflags = ["--cfg=selected"]\n[registries.private]\ntoken = "do-not-read-or-print"\n')
+        alias = self.repo / ".cargo/config.toml"
+        alias.write_text('[build]\nrustc-wrapper = "missing-wrapper"\n')
+        baseline = self.identity().stdout
+        config.write_text('[build]\nrustflags = ["--cfg=selected"]\n[registries.private]\ntoken = "different-private-value"\n')
+        self.assertEqual(self.identity().stdout, baseline)
+        config.write_text('malformed = ["private-invalid-config"\n')
+        result = self.identity(check=False)
+        self.assertEqual(result.returncode, 2)
+        self.assertNotIn("private-invalid-config", result.stdout + result.stderr)
+
+    def test_implementation_and_tool_contents_invalidate(self):
+        for path in (self.kit / "gate-policy.sh", self.kit / "land", self.kit / "heavy", self.kit / "heavy-recovery.py",
+                     self.kit / "kit.sh", self.kit / "land-capture.py", self.kit / "recovery_message.py", self.kit / "receipt_inputs.py", self.bin / "rustc", self.bin / "cargo"):
+            with self.subTest(path=path.name):
+                baseline = self.identity().stdout
+                with path.open("a") as output:
+                    output.write("\n# implementation change\n")
+                self.assertNotEqual(self.identity().stdout, baseline)
+
+    def test_preparation_is_stable_and_identity_is_safe(self):
+        result = self.run_command(["bash", "-c", '''source "$1"
+gate_policy_prepare || exit
+before=$SKEIN_GATE_POLICY_ID
+gate_policy_prepare || exit
+[[ $before == "$SKEIN_GATE_POLICY_ID" ]] || exit 90
+[[ $(gate_policy_identity) == "$before" ]] || exit 91
+printf '%s\\n' "$before"
+''', "fixture", str(self.kit / "gate-policy.sh")])
+        self.assertRegex(result.stdout, r"^sha256:[0-9a-f]{64}\n$")
+
+    def test_docs_only_semantic_policy_cannot_reuse(self):
+        self.land()
+        self.advance_main_docs()
+        result = self.land({"RUSTFLAGS": "--cfg=policy_fixture"})
+        self.assertNotIn("differs from this tree only in docs/ Markdown", result.stderr)
+        self.assertEqual(len(self.calls()), 2)
+
+    def test_legacy_policyless_trailer_cannot_reuse_prior_tree(self):
+        self.land()
+        self.git("commit", "--amend", "-qm", self.git("log", "-1", "--format=%B").split("Gate-Policy:")[0])
+        self.advance_main_docs()
+        self.land()
+        self.assertEqual(len(self.calls()), 2)
+
+    def test_empty_wrapper_override_is_accepted_by_land(self):
+        config = self.home / ".cargo/config.toml"
+        config.parent.mkdir()
+        config.write_text('[build]\nrustc-wrapper = "missing-wrapper"\n')
+        self.land({"RUSTC_WRAPPER": ""})
+        self.assertEqual(len(self.calls()), 1)
+
+    def test_markdown_landing_needs_no_runtime(self):
+        self.git("reset", "--hard", self.base)
+        (self.repo / "README.md").write_text("documentation\n")
+        self.git("add", "README.md")
+        self.git("commit", "-qm", "docs only")
+        self.run_command([str(self.kit / "land"), "--local", "--docs"],
+                         extra={"SKEIN_TEST_CHROMIUM": str(self.bin / "chromium")})
+        self.assertFalse(self.calls())
+        self.assertIn("none (Markdown and mockups only)", self.git("log", "-1", "--format=%(trailers:key=Gate-Policy,valueonly)"))
+
+    def test_check_boundary_does_not_prepare_gate_policy(self):
+        script = self.repo / "scripts/check.sh"
+        script.parent.mkdir()
+        shutil.copy(KIT.parent / "check.sh", script)
+        (script.parent / "devel").mkdir()
+        shutil.copy(KIT / "gate-shares.py", script.parent / "devel/gate-shares.py")
+        self.script(self.repo / "scripts/devel/gate-policy.sh", "#!/bin/sh\nexit 91\n")
+        self.script(self.bin / "shellcheck", "#!/bin/sh\nexit 0\n")
+        self.script(self.repo / "scripts/devel/test-post",
+                    "#!/bin/sh\necho 'fixture: checks reached'\nexit 73\n")
+        result = self.run_command(["bash", "scripts/check.sh"], check=False, extra={
+            "SKEIN_GATE_POLICY_ID": "sha256:wrong",
+            "SKEIN_GATE_POLICY_HELPER": str(self.kit / "gate-policy.sh")})
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("fixture: checks reached", result.stdout)
+        self.assertRegex(result.stderr, r"(?m)^gate-step test-post [0-9.]+ 73 [0-9]+\.[0-9]{3}$")
+        self.assertNotIn("gate_policy_prepare", script.read_text())
+
+    def test_configured_path_and_inactive_target_commands(self):
+        alternate = self.root / "alternate-bin"
+        shutil.copytree(self.bin, alternate)
+        wrapper = alternate / "config-wrapper"
+        self.script(wrapper, "#!/bin/sh\nexit 0\n")
+        config = self.home / ".cargo/config.toml"
+        config.parent.mkdir()
+        config.write_text(f'''[env]
+PATH = {{ value = "{alternate}:{os.defpath}", force = true }}
+RUSTFLAGS = {{ value = "--cfg=forced", force = true }}
+[build]
+rustc-wrapper = "config-wrapper"
+[target.unused-target]
+runner = "missing-inactive-runner"
+''')
+        baseline = self.identity().stdout
+        self.assertEqual(self.identity({"RUSTFLAGS": "--cfg=masked"}).stdout, baseline)
+        with wrapper.open("a") as output:
+            output.write("# wrapper changes\n")
+        self.assertNotEqual(self.identity().stdout, baseline)
+
+    def test_missing_rustup_toolchain_fails_before_shim_execution(self):
+        for name in ("rustc", "cargo"):
+            (self.bin / name).unlink()
+            (self.bin / name).symlink_to(self.bin / "rustup")
+        self.script(self.bin / "rustup", '''#!/bin/sh
+if [ "$1" = which ]; then exit 1; fi
+echo attempted >> "$HOME/shim-invoked"
+exit 97
+''')
+        result = self.identity(check=False)
+        self.assertEqual(result.returncode, 2)
+        self.assertFalse((self.home / "shim-invoked").exists())
+
+    def test_external_gate_implementation_change_invalidates_cache(self):
+        gate = self.root / "gate"
+        self.script(gate, "#!/bin/sh\nexit 0\n")
+        self.land(gate=str(gate))
+        self.retry()
+        with gate.open("a") as output:
+            output.write("# gate implementation changes\n")
+        self.land(gate=str(gate))
+        self.assertEqual(len(self.calls()), 2)
+
+    def test_unmodeled_config_includes_refuse_without_reading_them(self):
+        config = self.home / ".cargo/config.toml"
+        config.parent.mkdir()
+        config.write_text('include = "private-unopened-config"\n')
+        result = self.identity(check=False)
+        self.assertEqual(result.returncode, 2)
+        self.assertNotIn("private-unopened-config", result.stdout + result.stderr)
+
+    def test_missing_prior_tree_cannot_claim_docs_only_reuse(self):
+        self.land()
+        policy = self.git("log", "-1", "--format=%(trailers:key=Gate-Policy,valueonly)").strip()
+        tree = self.git("log", "-1", "--format=%(trailers:key=Gate-Tree,valueonly)").strip()
+        missing = "f" * len(tree)
+        key = hashlib.sha256(f"{missing}\0true\0{policy}\0".encode()).hexdigest()
+        cache_dir = self.root / "tmp/gates/repo"
+        record = next(cache_dir.iterdir()).read_text()
+        (cache_dir / key).write_text(record)
+        message = self.git("log", "-1", "--format=%B").replace("Gate-Tree: " + tree, "Gate-Tree: " + missing)
+        self.git("commit", "--amend", "-qm", message)
+        self.advance_main_docs()
+        self.land()
+        self.assertEqual(len(self.calls()), 2)
+
+    def candidate_mutation(self, mode):
+        if mode == "replacement":
+            head = self.git("rev-parse", "HEAD").strip()
+            message = self.git("log", "-1", "--format=%B")
+            parents = self.git("show", "-s", "--format=%P").split()
+            (self.repo / "code").write_text("ungated replacement\n")
+            self.git("add", "code")
+            replacement_tree = self.git("write-tree").strip()
+            arguments = ["commit-tree", replacement_tree, "-m", message]
+            for parent in parents:
+                arguments += ["-p", parent]
+            replacement = self.git(*arguments).strip()
+            self.git("replace", head, replacement)
+            self.git("read-tree", "--reset", "-u", "HEAD")
+            self.assertEqual(self.git("rev-parse", "HEAD").strip(), head)
+            self.assertNotEqual(self.git("rev-parse", "HEAD^{tree}").strip(), self.captured_tree)
+            self.assertFalse(self.git("status", "--porcelain").strip())
+        elif mode == "relocated-merge-state":
+            moved = self.root / "moved-primary"
+            self.primary.rename(moved)
+            self.run_command(["git", "-C", str(moved), "worktree", "repair"])
+            state = Path(self.git("rev-parse", "--git-path", "MERGE_HEAD").strip())
+            self.assertNotEqual(state, self.captured_merge_state)
+            self.assertFalse(self.captured_merge_state.exists())
+            state.write_text(self.git("rev-parse", "HEAD"))
+            self.assertTrue(state.is_file())
+            self.assertFalse(self.git("status", "--porcelain").strip())
+        elif mode == "same-tree":
+            self.git("commit", "--allow-empty", "-qm", "same tree B")
+        elif mode == "rebase":
+            self.git("switch", "-qc", "concurrent-base", self.base)
+            (self.repo / "upstream-code").write_text("ungated upstream change\n")
+            self.git("add", "upstream-code")
+            self.git("commit", "-qm", "concurrent upstream change")
+            new_base = self.git("rev-parse", "HEAD").strip()
+            self.git("switch", "-q", "work")
+            self.git("rebase", "--onto", new_base, self.base)
+        elif mode in ("rebase-state", "rebase-apply-state", "merge-state"):
+            state = {"rebase-state": "rebase-merge", "rebase-apply-state": "rebase-apply",
+                     "merge-state": "MERGE_HEAD"}[mode]
+            path = self.repo / self.git("rev-parse", "--git-path", state).strip()
+            if mode == "merge-state":
+                path.write_text(self.git("rev-parse", "HEAD"))
+            else:
+                path.mkdir()
+        elif mode == "ref":
+            self.git("branch", "moved-ref")
+            self.git("symbolic-ref", "HEAD", "refs/heads/moved-ref")
+        elif mode == "detached":
+            self.git("checkout", "--detach", "-q")
+        elif mode == "head-unavailable":
+            self.git("symbolic-ref", "HEAD", "refs/heads/unborn")
+        elif mode == "untracked":
+            (self.repo / "untracked").write_text("ungated file\n")
+        elif mode == "status-error":
+            (self.root / "fail-status").touch()
+        elif mode == "tree-error":
+            (self.root / "fail-tree").touch()
+        else:
+            (self.repo / "code").write_text("ungated B\n")
+            if mode in ("commit", "index"):
+                self.git("add", "code")
+            if mode == "commit":
+                self.git("commit", "-qm", "ungated B")
+
+    def concurrent_candidate(self, point, mode):
+        if mode == "relocated-merge-state":
+            self.primary = self.linked_worktree()
+            self.env["LAND_LOCK"] = str(self.root / "stable-land.lock")
+            self.captured_merge_state = Path(self.git("rev-parse", "--git-path", "MERGE_HEAD").strip())
+        if mode == "replacement":
+            self.captured_tree = self.git("rev-parse", "HEAD^{tree}").strip()
+        faults = self.root / "tmp/faults"
+        faults.mkdir(parents=True, exist_ok=True)
+        (faults / ("continue-" + point)).unlink(missing_ok=True)
+        (faults / ("land-" + point)).unlink(missing_ok=True)
+        (faults / ("arm-" + point)).touch()
+        extra = {"HEAVY_RECOVERY_FIXTURE": "1", "HEAVY_FAULT_DIR": str(faults)}
+        output = self.root / (point + "-" + mode + ".txt")
+        original = self.git("rev-parse", "HEAD").strip()
+        if mode == "status-error":
+            # Install before Bash caches Git's path; arm only at the barrier.
+            real_git = shutil.which("git", path=os.defpath)
+            self.script(self.bin / "git", '#!/bin/bash\n'
+                        f'if [[ $1 == status && -e {shlex.quote(str(self.root / "fail-status"))} ]]; then exit 128; fi\n'
+                        f'exec {shlex.quote(real_git)} "$@"\n')
+        elif mode == "tree-error":
+            real_git = shutil.which("git", path=os.defpath)
+            self.script(self.bin / "git", '#!/bin/bash\n'
+                        f'if [[ $1 == rev-parse && $2 == "HEAD^{{tree}}" && -e {shlex.quote(str(self.root / "fail-tree"))} ]]; then exit 128; fi\n'
+                        f'exec {shlex.quote(real_git)} "$@"\n')
+        with output.open("w") as out:
+            child = subprocess.Popen([str(self.kit / "land"), "--local", "--gate", "true"],
+                cwd=self.repo, env=self.env | extra, stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT)
+        try:
+            deadline = time.monotonic() + HUNG_LAND_S
+            while not (faults / ("land-" + point)).exists():
+                self.assertIsNone(child.poll(), output.read_text())
+                self.assertLess(time.monotonic(), deadline, "candidate fixture barrier")
+                time.sleep(.02)
+            self.candidate_mutation(mode)
+            changed = self.run_command(["git", "rev-parse", "--verify", "HEAD"], check=False)
+            (faults / ("continue-" + point)).touch()
+            self.assertEqual(child.wait(timeout=HUNG_LAND_S), 4, output.read_text())
+            reason = ("candidate HEAD is unavailable" if mode == "head-unavailable" else
+                      "candidate index/worktree cannot be checked" if mode == "status-error" else
+                      "candidate merge/rebase state changed" if mode in ("rebase-state", "rebase-apply-state", "merge-state", "relocated-merge-state") else
+                      "candidate index/worktree changed" if mode in ("index", "worktree", "untracked") else
+                      "candidate ref changed during amendment" if point == "before_candidate_cas" else
+                      "candidate HEAD or tree changed")
+            self.assertIn(reason + "; rerun land", output.read_text())
+            current = self.run_command(["git", "rev-parse", "--verify", "HEAD"], check=False)
+            self.assertEqual((current.returncode, current.stdout), (changed.returncode, changed.stdout))
+            self.assertEqual(self.git("rev-parse", "main").strip(), self.base)
+            log_target = original if mode == "head-unavailable" else "HEAD"
+            trailer = self.git("log", "-1", "--format=%(trailers:key=Gate-Tree,valueonly)", log_target).strip()
+            if mode == "replacement":
+                self.assertEqual(trailer, self.captured_tree)
+            else:
+                self.assertFalse(trailer)
+            if point == "after_receipt":
+                self.assertFalse((self.root / "tmp/gates").exists())
+            print(f"consumer {point}/{mode}: PASS", file=sys.stderr)
+        finally:
+            (faults / ("continue-" + point)).touch()
+            if child.poll() is None:
+                child.terminate()
+                child.wait(timeout=HUNG_LAND_S)
+
+    def test_expected_old_candidate_ref_cas_refuses_concurrent_commit(self):
+        self.concurrent_candidate("before_candidate_cas", "commit")
+
+    def test_candidate_drift_before_push_refuses(self):
+        self.concurrent_candidate("before_push", "commit")
+
+    def test_replacement_tree_before_push_refuses(self):
+        self.concurrent_candidate("before_push", "replacement")
+
+    def test_relocated_primary_merge_state_after_receipt_refuses(self):
+        self.concurrent_candidate("after_receipt", "relocated-merge-state")
+
+    def test_newline_primary_merge_state_after_admission_refuses(self):
+        primary = self.root / "primary\nline"
+        self.repo.rename(primary)
+        self.repo = primary
+        self.linked_worktree()
+        # Leave main without a checkout so a buggy candidate check cannot be
+        # masked later by parsing a newline-bearing worktree-list entry.
+        self.run_command(["git", "-C", str(primary), "switch", "--detach", "-q", "main"])
+        real_git = shutil.which("git", path=os.defpath)
+        marker = self.root / "merge-started"
+        self.script(self.bin / "git", '#!/bin/bash\n'
+                    'if [[ $1 == rebase ]]; then\n'
+                    f'    {shlex.quote(real_git)} "$@" || exit $?\n'
+                    f'    state=$({shlex.quote(real_git)} rev-parse --git-path MERGE_HEAD) || exit $?\n'
+                    f'    {shlex.quote(real_git)} rev-parse HEAD >"$state" || exit $?\n'
+                    f'    : >{shlex.quote(str(marker))}\n'
+                    '    exit 0\nfi\n'
+                    f'exec {shlex.quote(real_git)} "$@"\n')
+        result = self.land(check=False)
+        self.assertTrue(marker.is_file(), result.stdout + result.stderr)
+        self.assertTrue(Path(self.git("rev-parse", "--git-path", "MERGE_HEAD").strip()).is_file())
+        self.assertEqual(result.returncode, 4, result.stdout + result.stderr)
+        self.assertIn("candidate merge/rebase state cannot be checked; rerun land", result.stderr)
+        self.assertEqual(self.git("rev-parse", "main").strip(), self.base)
+
+    def newline_primary_combined_fault(self, mode):
+        primary = self.root / "primary\nline"
+        self.repo.rename(primary)
+        self.repo = primary
+        self.linked_worktree()
+        head = self.git("rev-parse", "HEAD").strip()
+        tree = self.git("rev-parse", "HEAD^{tree}").strip()
+        real_git = shutil.which("git", path=os.defpath)
+        marker = self.root / "combined-fault-started"
+        # The first v2 status follows candidate/tree capture. Mutate there,
+        # after admission, so the newline layout cannot mask the old refusal.
+        mutation = '    printf "ungated combined fault\\n" >code\n'
+        if mode == "tree":
+            mutation += ('    head=$("$real_git" rev-parse HEAD)\n'
+                         '    parent=$("$real_git" rev-parse HEAD^)\n'
+                         '    "$real_git" add code\n'
+                         '    tree=$("$real_git" write-tree)\n'
+                         '    replacement=$("$real_git" commit-tree "$tree" -p "$parent" -m replacement)\n'
+                         '    "$real_git" replace "$head" "$replacement"\n'
+                         '    "$real_git" read-tree --reset -u HEAD\n')
+        self.script(self.bin / "git", '#!/bin/bash\nset -e\n'
+                    f'real_git={shlex.quote(real_git)}\n'
+                    f'if [[ $1 == status && $2 == --porcelain=v2 && ! -e {shlex.quote(str(marker))} ]]; then\n'
+                    + mutation + f'    : >{shlex.quote(str(marker))}\n'
+                    'fi\nexec "$real_git" "$@"\n')
+        result = self.land(check=False)
+        self.assertTrue(marker.is_file(), result.stdout + result.stderr)
+        self.assertEqual(self.git("rev-parse", "HEAD").strip(), head)
+        if mode == "tree":
+            self.assertNotEqual(self.git("rev-parse", "HEAD^{tree}").strip(), tree)
+            self.assertFalse(self.git("status", "--porcelain").strip())
+            message = "candidate HEAD or tree changed; rerun land"
+        else:
+            self.assertEqual((self.repo / "code").read_text(), "ungated combined fault\n")
+            self.assertTrue(self.git("status", "--porcelain").strip())
+            message = "candidate index/worktree changed; rerun land"
+        self.assertEqual(result.returncode, 4, result.stdout + result.stderr)
+        self.assertEqual(self.git("rev-parse", "main").strip(), self.base)
+        self.assertIn(message, result.stderr)
+
+    def test_newline_primary_changed_effective_tree_refuses_before_paths(self):
+        self.newline_primary_combined_fault("tree")
+
+    def test_newline_primary_dirty_worktree_refuses_before_paths(self):
+        self.newline_primary_combined_fault("worktree")
+
+    def test_candidate_literal_detached_branch_lands(self):
+        self.git("branch", "-m", "(detached)")
+        self.land()
+        self.assertEqual(self.git("rev-parse", "main"), self.git("rev-parse", "HEAD"))
+
+    def test_candidate_detached_from_literal_detached_branch_refuses(self):
+        self.git("branch", "-m", "(detached)")
+        self.concurrent_candidate("after_receipt", "detached")
+
+    def test_candidate_with_upstream_lands(self):
+        self.git("branch", "--set-upstream-to=main", "work")
+        self.land()
+        self.assertEqual(self.git("rev-parse", "main"), self.git("rev-parse", "HEAD"))
+
+    def test_amendment_preserves_candidate_author_parents_and_message(self):
+        self.git("commit", "--amend", "--no-edit", "--author=Other Author <other@localhost>")
+        candidate = self.git("rev-parse", "HEAD").strip()
+        before = self.git("show", "-s", "--format=%an%n%ae%n%aI%n%P", candidate)
+        message = self.git("log", "-1", "--format=%B", candidate).strip()
+        self.land()
+        self.assertEqual(self.git("show", "-s", "--format=%an%n%ae%n%aI%n%P", "HEAD"), before)
+        self.assertTrue(self.git("log", "-1", "--format=%B").startswith(message + "\n"))
+
+    def test_mutation_after_last_check_cannot_change_explicit_push_object(self):
+        original_tree = self.git("rev-parse", "HEAD^{tree}").strip()
+        self.git("update-ref", "refs/remotes/origin/main", self.base)
+        real_git = shutil.which("git", path=os.defpath)
+        proof = self.root / "explicit-push.json"
+        # Only push needs Python: land runs git dozens of times, and every
+        # other call execs the real git straight from sh.
+        push = self.root / "push-fixture.py"
+        self.script(push, "import json,subprocess,sys\nfrom pathlib import Path\n" +
+            "real=" + repr(real_git) + "\n" +
+            "selected=sys.argv[-1].split(':')[0]\n" +
+            "Path('code').write_text('uncooperative late B\\n')\n" +
+            "subprocess.run([real,'add','code'],check=True)\n" +
+            "subprocess.run([real,'commit','-qm','late B'],check=True)\n" +
+            "query=lambda *args: subprocess.check_output([real,*args],text=True).strip()\n" +
+            "Path(" + repr(str(proof)) + ").write_text(json.dumps({'args':sys.argv[1:], 'commit':selected, " +
+            "'tree':query('rev-parse',selected+'^{tree}'),'candidate_B':query('rev-parse','HEAD')}))\n")
+        self.script(self.bin / "git", "#!/bin/sh\ncase $1 in\nfetch) exit 0 ;;\n" +
+            "push) exec python3 " + shlex.quote(str(push)) + ' "$@" ;;\nesac\n' +
+            "exec " + shlex.quote(real_git) + ' "$@"\n')
+        self.run_command([str(self.kit / "land"), "--gate", "true"])
+        pushed = json.loads(proof.read_text())
+        self.assertEqual(pushed["tree"], original_tree)
+        self.assertNotEqual(pushed["commit"], pushed["candidate_B"])
+        self.assertEqual(pushed["args"], ["push", "--quiet", "origin", pushed["commit"] + ":refs/heads/main"])
+        self.assertEqual(self.git("rev-parse", "main").strip(), pushed["commit"])
+        self.assertEqual(self.git("rev-parse", "HEAD").strip(), pushed["candidate_B"])
+        self.assertNotEqual(self.git("rev-parse", "HEAD^{tree}").strip(), original_tree)
+        self.assertFalse(self.git("log", "-1", "--format=%(trailers:key=Gate-Tree,valueonly)").strip())
+        self.assertEqual(self.git("log", "-1", "--format=%(trailers:key=Gate-Tree,valueonly)", pushed["commit"]).strip(), original_tree)
+
+
+# Every former whole-landing fault keeps its refusal at the validator boundary.
+# The landing test above separately proves exit 4 and no cache/amend/main change.
+RECEIPT_REFUSALS = {
+    "old_build_same_id": "expected exactly one receipt line",
+    "missing_header": "expected exactly one queued gate header",
+    "duplicate_header": "expected exactly one queued gate header",
+    "missing_receipt_line": "expected exactly one receipt line",
+    "legacy_header": "malformed queued gate header or non-gate lane",
+    "non_gate_header": "malformed queued gate header or non-gate lane",
+    "malformed_header_token": "malformed queued gate header or non-gate lane",
+    "relative_receipt": "malformed receipt line",
+    "malformed_receipt_line": "malformed receipt line",
+    "missing_receipt_file": "receipt is missing, unreadable or a symlink",
+    "wrong_line_token": "receipt line token differs from queued gate token",
+    "wrong_token": "receipt token differs from requested gate",
+    "wrong_id": "receipt id differs from requested gate",
+    "numeric_id": "receipt id differs from requested gate",
+    "wrong_lane": "receipt lane differs from requested gate",
+    "wrong_tree": "receipt tree differs from requested gate",
+    "wrong_policy": "receipt policy differs from requested gate",
+    "wrong_args": "receipt args differs from requested gate",
+    "cancelled": "receipt outcome differs from requested gate",
+    "failed_code": "receipt code is not zero",
+    "boolean_code": "receipt code is not zero",
+    "payload_not_started": "receipt payload_started is not true",
+    "payload_not_ended": "receipt payload_ended is not true",
+    "release_incomplete": "receipt release_complete is not true",
+    "scope_not_empty": "receipt cgroup_empty is not true",
+    "missing_duration": "receipt schema fields are invalid",
+    "duration_string": "receipt elapsed_s is not numeric",
+    "duration_bool": "receipt elapsed_s is not numeric",
+    "duration_negative": "receipt elapsed_s is not finite and nonnegative",
+    "duration_nan": "receipt JSON has a non-finite number",
+    "duration_infinite": "receipt JSON has a non-finite number",
+    "empty_queue": "receipt queue identity is missing",
+    "non_string_queue": "receipt queue identity is missing",
+    "wrong_schema": "receipt schema differs from requested gate",
+    "malformed_json": "receipt JSON is malformed",
+    "duplicate_field": "receipt JSON has duplicate fields",
+    "non_object_json": "receipt schema fields are invalid",
+    "extra_field": "receipt schema fields are invalid",
+    "mutated_log": "receipt log SHA-256 differs",
+    "missing_log": "receipt log is missing, unreadable or a symlink",
+    "wrong_log_name": "receipt log path does not name the token-owned absolute log",
+    "relative_log": "receipt log path does not name the token-owned absolute log",
+    "wrong_digest": "receipt log SHA-256 differs",
+    "wrong_filename": "receipt filename differs from queued gate token",
+    "duplicate_receipt": "expected exactly one receipt line",
+    "output_after_receipt": "receipt line must be the final heavy output",
+    "receipt_symlink": "receipt is missing, unreadable or a symlink",
+    "receipt_directory": "receipt is missing, unreadable or a symlink",
+    "receipt_fifo": "receipt is not a regular file",
+    "log_symlink": "receipt log is missing, unreadable or a symlink",
+    "log_directory": "receipt log is missing, unreadable or a symlink",
+    "log_fifo": "receipt log is not a regular file",
+    "malformed_head": "receipt head is malformed",
+    "non_string_inputs": "receipt inputs is malformed",
+    "unreadable_log": "receipt log is missing, unreadable or a symlink",
+    "unreadable_receipt": "receipt is missing, unreadable or a symlink",
+}
+
+
+class ReceiptRows(FixtureFiles):
+    def test_receipt_fault_rows(self):
+        self.assertEqual(set(RECEIPT_REFUSALS), set(RECEIPT_FAULTS + UNREADABLE_RECEIPT_FAULTS))
+        # Exercise the shipped shell function, including its isolated Python
+        # invocation and exit handling. Do not copy its validation into tests.
+        land = (KIT / "land").read_text()
+        start = land.index("evidence() {\n")
+        end = land.index("\n# heavy's own lines", start)
+        evidence = land[start:end]
+        tree = "1" * 40
+        policy = "sha256:" + "2" * 64
+        token = "3" * 32
+        head = "4" * 40
+        env = {"PATH": os.defpath, "HOME": str(self.root),
+               "tree": tree, "policy": policy, "gate": "true"}
+        # A valid control must reach the same validator successfully.
+        for fault, reason in [("valid", None), *RECEIPT_REFUSALS.items()]:
+            with self.subTest(fault=fault):
+                if fault in UNREADABLE_RECEIPT_FAULTS and os.geteuid() == 0:
+                    self.skipTest("root reads unreadable files")
+                state = self.root / fault / "isolated queue"
+                output = submission_header(token, "gate", fault).encode()
+                output += completion_output(state, token, ["bash", "-c", "true"],
+                                            tree, policy, head, b"", fault=fault)
+                capture = self.root / fault / "capture"
+                capture.write_bytes(output)
+                result = subprocess.run(["bash", "-c", evidence + '\nevidence receipt "$1"',
+                                         "fixture", str(capture)], env=env, text=True,
+                                        capture_output=True, stdin=subprocess.DEVNULL, timeout=HUNG_TOOL_S)
+                # Retained rows carry both the actual result and its input files.
+                if self.retain:
+                    (capture.parent / "result.json").write_text(json.dumps({
+                        "code": result.returncode, "stdout": result.stdout,
+                        "stderr": result.stderr}, indent=2) + "\n")
+                self.assertEqual(result.returncode, 1 if reason else 0, result.stdout + result.stderr)
+                if reason:
+                    self.assertEqual(result.stderr, "land: invalid gate receipt: " + reason + "\n")
+                    self.assertEqual(result.stdout, "")
+                else:
+                    self.assertEqual(result.stdout, "true passed: 0.25 s in all\n")
+                    self.assertEqual(result.stderr, "")
+
+
+# A concurrent commit, rebase or dirty candidate after the receipt, each in
+# its own fixture.
+for _mode in ("commit", "rebase", "same-tree", "index", "worktree", "rebase-state",
+              "rebase-apply-state", "merge-state", "ref", "detached", "head-unavailable",
+              "untracked", "status-error", "tree-error"):
+    setattr(PolicyFixtures, f"test_concurrent_{_mode.replace('-', '_')}_candidate_after_receipt_refuses",
+            lambda self, mode=_mode: self.concurrent_candidate("after_receipt", mode))
+
+
+def run_isolated(name):
+    """Runs one test in this worker; returns its outcome and its whole output."""
+    with tempfile.TemporaryFile() as capture:
+        sys.stdout.flush()
+        sys.stderr.flush()
+        saved = os.dup(1), os.dup(2)
+        os.dup2(capture.fileno(), 1)
+        os.dup2(capture.fileno(), 2)
+        start = time.monotonic()
+        try:
+            suite = unittest.defaultTestLoader.loadTestsFromName(name, sys.modules[__name__])
+            result = unittest.TextTestRunner(stream=sys.stderr, verbosity=2).run(suite)
+            outcome = ("ok" if not result.skipped else "skipped") if result.wasSuccessful() else "FAIL"
+        except BaseException:
+            import traceback
+            traceback.print_exc()
+            outcome = "FAIL"
+        finally:
+            sys.stdout.flush()
+            sys.stderr.flush()
+            os.dup2(saved[0], 1)
+            os.dup2(saved[1], 2)
+            os.close(saved[0])
+            os.close(saved[1])
+        elapsed = time.monotonic() - start
+        capture.seek(0)
+        return outcome, elapsed, capture.read().decode(errors="replace")
+
+
+def run_parallel():
+    """Runs every test in its own fixture over a pool of os.cpu_count() workers.
+
+    Prints one line per test in name order, a failing test's whole output,
+    and exits nonzero on any failure."""
+    from concurrent.futures import ProcessPoolExecutor
+    import multiprocessing
+    names = [f"{fixture.__name__}.{name}"
+             for fixture in (PolicyFixtures, ReceiptRows)
+             for name in unittest.defaultTestLoader.getTestCaseNames(fixture)]
+    start = time.monotonic()
+    failed = 0
+    with ProcessPoolExecutor(max_workers=os.cpu_count() or 1,
+                             mp_context=multiprocessing.get_context("spawn"),
+                             initializer=os.umask, initargs=(0o077,)) as pool:
+        futures = [pool.submit(run_isolated, name) for name in names]
+        for name, future in zip(names, futures):
+            try:
+                outcome, elapsed, output = future.result()
+            except Exception as error:
+                outcome, elapsed, output = "FAIL", 0.0, f"worker failed: {error!r}\n"
+            print(f"{name} ... {outcome} ({elapsed:.1f} s)", flush=True)
+            if outcome == "FAIL":
+                failed += 1
+                print(output, end="" if output.endswith("\n") else "\n", flush=True)
+    print(f"Ran {len(names)} tests in {time.monotonic() - start:.1f} s: "
+          + (f"FAILED ({failed})" if failed else "OK"), flush=True)
+    return 1 if failed else 0
+
+
+if __name__ == "__main__":
+    os.umask(0o077)
+    if len(sys.argv) > 1:
+        # A selection or unittest option runs serially, as unittest.main does.
+        unittest.main(verbosity=2)
+    sys.exit(run_parallel())
