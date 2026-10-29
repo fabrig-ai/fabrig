@@ -654,6 +654,8 @@ pub struct ChangeRow {
     pub producing_charter: u32,
     pub review_charter: u32,
     pub effect_account: Option<EffectAccount>,
+    /// Producer failure words retained within the hold account bound (domain/forge.md, 8.4).
+    pub producer_failure: Option<Box<[u8]>>,
 }
 impl ChangeRow {
     pub(crate) fn terminal(&self) -> bool {
