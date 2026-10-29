@@ -698,7 +698,7 @@ pub fn workers() -> crate::workers::Workers {
     }
     let encoding = encoding(&settings);
     let limits = crate::workers::limits(&settings).unwrap();
-    crate::workers::Workers::new(&settings.jig, &settings::Files { entries }, encoding, settings.forges, &limits, 256)
+    crate::workers::Workers::new(&settings.jig, &settings::Files { entries }, encoding, settings.forges, &limits)
         .unwrap()
 }
 
@@ -924,7 +924,7 @@ pub use worker_git::{
 };
 pub fn clients() -> crate::clients::Clients {
     let engine = engine();
-    crate::clients::Clients::new(&engine.jig, &engine.clients, &seeds(), 64, &engine.limits.root.journal, None, &[])
+    crate::clients::Clients::new(&engine.jig, &engine.clients, &seeds(), &engine.limits.root.journal, None, &[])
         .unwrap()
 }
 mod startup;

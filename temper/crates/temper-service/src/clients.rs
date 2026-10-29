@@ -143,7 +143,6 @@ impl Clients {
         config: &config::Engine,
         clients: &crate::startup::application::Clients,
         seeds: &Seeds,
-        room: u32,
         journal: &root::JournalLimits,
         sign_in: Option<&crate::settings::SignIn>,
         files: &[(Box<[u8]>, skein_lib::Secret)],
@@ -234,7 +233,7 @@ impl Clients {
             })
         };
         let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: config.limits.clients };
-        let mut out = Queue::with_capacity(room);
+        let mut out = Queue::uncapped();
         let initial = settings()?;
         let provider_documents = match &initial.provider {
             Some(issuer) => Some(provider::Documents { discovery: issuer.discovery(), keys: issuer.key_set() }),
@@ -252,8 +251,8 @@ impl Clients {
             server: crate::server::Server::new(*listener, &crate::limits::server(&config.limits)),
             mount: http::Mount::new(http_settings(clients.public.as_ref()), &config.limits.clients_http),
             mount_env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: config.limits.clients_http },
-            mount_out: Queue::with_capacity(room),
-            server_out: Queue::with_capacity(room),
+            mount_out: Queue::uncapped(),
+            server_out: Queue::uncapped(),
             replies: Map::with_capacity(crate::limits::server(&config.limits).connections),
             google: None,
             google_replies: Map::with_capacity(crate::limits::server(&config.limits).connections),
@@ -268,13 +267,13 @@ impl Clients {
             secret: None,
             env,
             out,
-            io: Queue::with_capacity(room),
-            links: Queue::with_capacity(room),
-            secrets: Queue::with_capacity(room),
+            io: Queue::uncapped(),
+            links: Queue::uncapped(),
+            secrets: Queue::uncapped(),
             closed: false,
             pending: true,
             starting: Some(()),
-            early: Queue::with_capacity(room),
+            early: Queue::uncapped(),
             endings: Map::with_capacity(journal.commits),
             secret_owners: Map::with_capacity(u32::MAX),
             next_secret: 1,
@@ -299,14 +298,6 @@ impl Clients {
         {
             self.links.push(printed::link_public(listener, self.public.as_ref(), &secret));
         }
-    }
-    #[must_use]
-    pub fn room(&self, batch: u32) -> bool {
-        let count = batch.checked_mul(kit::MAX_OUT_DOWN).expect("client routing room");
-        self.out.room() >= count
-            && self.io.room() >= count
-            && self.links.room() >= count
-            && self.secrets.room() >= count
     }
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
@@ -361,7 +352,7 @@ impl Clients {
     pub(crate) fn abort(&mut self, unstarted: bool) {
         self.down(kit::Event::Abort);
         if unstarted {
-            self.io = Queue::with_capacity(self.io.capacity());
+            self.io = Queue::uncapped();
             self.closed = true;
         }
     }
@@ -408,9 +399,6 @@ impl Clients {
     }
     fn server_requests(&mut self) {
         for _ in 0..self.server_out.len() {
-            if self.io.room() == 0 || self.out.room() < kit::MAX_OUT_DOWN {
-                break;
-            }
             match self.server_out.pop().expect("server requests") {
                 crate::server::Routed::Io(request) => self.io.push(tag(request)),
                 crate::server::Routed::Call { call, head } => {
@@ -465,18 +453,14 @@ impl Clients {
         accounts: &mut Option<crate::accounts::Accounts>,
     ) {
         for _ in 0..self.demo_ready.len() {
-            if events.room() == 0 || (self.starting.is_some() && self.early.room() == 0) {
+            if events.room() == 0 {
                 break;
             }
             let value = self.demo_ready.pop().expect("ready demo start");
             self.root(value, events);
         }
         for _ in 0..self.out.len() {
-            if self.io.room() == 0
-                || self.demo_starts.len().saturating_add(self.demo_ready.len()) >= DEMO_STARTS
-                || self.links.room() == 0
-                || self.secrets.room() == 0
-                || (self.starting.is_some() && self.early.room() == 0)
+            if self.demo_starts.len().saturating_add(self.demo_ready.len()) >= DEMO_STARTS
                 || (self.starting.is_none() && events.room() == 0)
             {
                 break;
@@ -563,11 +547,11 @@ impl Clients {
         self.clock(now, wall);
         if let Some(settings) = self.initial.take() {
             // Link lifetimes start on the supplied clock, which need not start at zero.
-            self.out = Queue::with_capacity(self.out.capacity());
+            self.out = Queue::uncapped();
             self.component =
                 kit::Component::new(settings, &self.env, &mut self.out).expect("validated client settings");
         }
-        if self.closed || !self.room(1) || self.early.room() < kit::MAX_OUT_DOWN || events.room() < kit::MAX_OUT_DOWN {
+        if self.closed || events.room() < kit::MAX_OUT_DOWN {
             return;
         }
         self.server.fire(&mut self.server_out);
@@ -693,7 +677,7 @@ impl Clients {
         accounts: &mut Option<crate::accounts::Accounts>,
     ) {
         for _ in 0..self.endings.len().checked_mul(self.writes).expect("bounded sign-in endings") {
-            if !self.room(1) || events.room() < kit::MAX_OUT_DOWN {
+            if events.room() < kit::MAX_OUT_DOWN {
                 break;
             }
             let mut ready = None;
@@ -753,9 +737,6 @@ impl Clients {
 impl Clients {
     pub fn secrets_step(&mut self, store: &mut crate::store::Store) {
         for _ in 0..store.secrets.len() {
-            if self.out.room() < kit::MAX_OUT_DOWN {
-                break;
-            }
             let answer = store.secrets.pop().expect("secrets terminals");
             self.secret_answer(answer);
         }
@@ -763,16 +744,10 @@ impl Clients {
     }
     fn advance_secrets(&mut self, store: &mut crate::store::Store) {
         for _ in 0..self.demo_carries.len() {
-            if self.secrets.room() == 0 {
-                break;
-            }
             let request = self.demo_carries.pop().expect("pending demo carries");
             self.secrets.push(request);
         }
         for _ in 0..self.secrets.len() {
-            if self.out.room() < kit::MAX_OUT_DOWN {
-                break;
-            }
             let request = self.secrets.pop().expect("client secrets requests");
             let (owner, request) = secret_request(request);
             let token = Token::new(PREFIX.checked_add(self.next_secret).expect("secret routing name"));

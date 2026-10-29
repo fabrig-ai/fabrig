@@ -263,7 +263,6 @@ impl Accounts {
         config: &config::Engine,
         seeds: &Seeds,
         mut runtime: Option<AccountsRuntime>,
-        room: u32,
         secrets: &skein_kv::Limits,
     ) -> Result<Self, Problems> {
         let limits = config.limits.driver;
@@ -284,15 +283,15 @@ impl Accounts {
             records: records::Records::new(limits.accounts),
             keys: keys::Keys::new(limits.accounts, limits.client.document.token_bytes),
             finishes: finishes::Finishes::new(limits.accounts),
-            finish_out: Queue::with_capacity(room),
+            finish_out: Queue::uncapped(),
             moves: moves::Moves::new(application, limits.accounts),
             source_providers: Map::with_capacity(limits.accounts),
-            move_out: Queue::with_capacity(room),
+            move_out: Queue::uncapped(),
             inventory,
-            key_out: Queue::with_capacity(room),
-            key_events: Queue::with_capacity(room),
-            forgotten: Queue::with_capacity(room),
-            early: Queue::with_capacity(room),
+            key_out: Queue::uncapped(),
+            key_events: Queue::uncapped(),
+            forgotten: Queue::uncapped(),
+            early: Queue::uncapped(),
             io: Queue::uncapped(),
             above: Queue::uncapped(),
             files: Queue::uncapped(),
@@ -304,15 +303,6 @@ impl Accounts {
         if let Some(component) = &mut self.component {
             component.down(&self.env, request, &mut self.above, &mut self.io, &mut self.files);
         }
-    }
-    #[must_use]
-    pub fn batch_room(&self, batch: u32) -> bool {
-        self.move_out.room() >= batch
-            && self.finish_out.room() >= batch
-            && self.key_out.room() >= batch
-            && self.key_events.room() >= batch
-            && self.forgotten.room() >= batch
-            && self.early.room() >= batch
     }
     /// The domain's request: to the driver once it runs, held until then.
     pub fn request(&mut self, request: domain::Request) {
@@ -596,7 +586,7 @@ impl Accounts {
     fn driver_events(&mut self, values: &mut Values, events: &mut Queue<root::Event>, store: &mut crate::store::Store) {
         let now = self.env.now;
         for _ in 0..self.above.len() {
-            if events.room() == 0 || self.move_out.room() == 0 {
+            if events.room() == 0 {
                 break;
             }
             let event = self.above.pop().expect("account events");
@@ -1012,11 +1002,7 @@ impl Accounts {
     /// kept (store.md 9).
     fn answers(&mut self, store: &mut crate::store::Store, events: &mut Queue<root::Event>) {
         for _ in 0..store.sources.len() {
-            if events.room() == 0
-                || self.finish_out.room() == 0
-                || self.key_out.room() == 0
-                || self.move_out.room() == 0
-            {
+            if events.room() == 0 {
                 break;
             }
             match store.sources.pop().expect("source answers") {
@@ -1119,12 +1105,7 @@ impl Accounts {
             }
             Phase::Running => {
                 for _ in 0..self.early.len() {
-                    if !self.move_out.is_empty()
-                        || self.finish_out.room() == 0
-                        || self.key_out.room() == 0
-                        || self.key_events.room() == 0
-                        || self.forgotten.room() == 0
-                    {
+                    if !self.move_out.is_empty() {
                         break;
                     }
                     let request = self.early.pop().expect("early requests");

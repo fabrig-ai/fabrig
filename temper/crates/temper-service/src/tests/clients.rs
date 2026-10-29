@@ -164,7 +164,6 @@ fn a_sign_in_ending_waits_for_its_erase_to_commit() {
         &config,
         &super::fixtures::engine().clients,
         &super::fixtures::seeds(),
-        64,
         &journal,
         None,
         &[],
@@ -361,7 +360,6 @@ fn clients_public_admits_the_public_and_listener_hosts_and_refuses_an_unknown_ho
             &config.jig,
             &config.clients,
             &super::fixtures::seeds(),
-            64,
             &config.limits.root.journal,
             None,
             &[],
@@ -469,8 +467,7 @@ fn a_moved_file_at_its_forms_bound_passes_and_one_byte_past_is_refused() {
 #[test]
 fn secret_asks_in_flight_each_get_their_own_terminal() {
     use skein_lib::{List, Queue};
-    // More owners than the fixture's 64-slot client staging queues, without
-    // delivering a terminal until every request has left the clients.
+    // Every request leaves the clients before any terminal is delivered.
     const ASKS: u32 = 67;
     let mut clients = super::fixtures::clients();
     let mut store = super::fixtures::marked_store();
