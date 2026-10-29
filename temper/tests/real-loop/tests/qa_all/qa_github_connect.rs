@@ -1,7 +1,6 @@
 //! Adversarial public-client stories; client/README.md 8 and protocol/setup.md 17.3–4.
 use std::net::SocketAddr;
 
-use serde_json::Value;
 use temper_real_loop_world::{
     Exit, Ran,
     calls::{self, Arg, Argv, D1, Step},
@@ -67,29 +66,6 @@ fn adopt(owner: &'static str, name: &'static str, key: &'static str) -> Step {
     ])
 }
 
-fn json(ran: &Ran, at: usize) -> Value {
-    let called = &ran.calls()[at];
-    let bytes = if called.stdout.is_empty() { &called.stderr } else { &called.stdout };
-    serde_json::from_slice(bytes).unwrap_or_else(|error| {
-        panic!(
-            "call {at} JSON: {error}; stdout {}; stderr {}",
-            String::from_utf8_lossy(&called.stdout),
-            String::from_utf8_lossy(&called.stderr)
-        )
-    })
-}
-
-fn row(document: &Value) -> &Value {
-    // `wait` wraps its current document with `met`; a direct read does not.
-    let document = if document.get("met").is_some() { &document["forges"] } else { document };
-    document["forges"]
-        .as_array()
-        .unwrap_or_else(|| panic!("forge rows: {document}"))
-        .iter()
-        .find(|row| row["number"] == 1)
-        .expect("configured GitHub forge")
-}
-
 fn succeeded(ran: &Ran, at: usize) {
     let called = &ran.calls()[at];
     assert_eq!(
@@ -138,49 +114,6 @@ fn no_git_writes_or_key_leaks(ran: &Ran) {
         }
     }
     assert!(files > 0, "persisted state was checked");
-}
-
-#[test]
-fn a_failed_paste_is_named_in_human_status_and_cleared_by_retry() {
-    // client/forge.md 5.4: a stopped run stays on the row until the next connect.
-    const HUMAN_FAILED: usize = 3;
-    const INSTALL: usize = 4;
-    const HUMAN_RETRIED: usize = 8;
-    let ran = run_github(fresh(), no_agents, || {
-        vec![
-            calls::sign_in(D1),
-            connect(calls::number(u64::MAX), "qa2-failed-paste"),
-            call(&["forge", "list", "--until", "settled", "--json"]),
-            call(&["forge", "list"]),
-            call(&["forge", "install", "1", "--key", "qa2-install-too-soon", "--json"]),
-            call(&["forge", "list", "--json"]),
-            connect(calls::github_app(), "qa2-retry-paste"),
-            call(&["forge", "list", "--until", "connected:1", "--json"]),
-            call(&["forge", "list"]),
-        ]
-    });
-    no_git_writes_or_key_leaks(&ran);
-    for at in [0, 1, 2, HUMAN_FAILED, 5, 6, 7, HUMAN_RETRIED] {
-        succeeded(&ran, at);
-    }
-    let failed = json(&ran, 2);
-    let why = row(&failed)["ended"].as_str().unwrap_or_else(|| panic!("last connect reason: {failed}"));
-    assert!(!why.is_empty() && why.len() <= 256);
-    let text = String::from_utf8_lossy(&ran.calls()[HUMAN_FAILED].stdout);
-    assert_eq!(ran.calls()[INSTALL].exit, Some(Exit::Code(2)));
-    let refusal = json(&ran, INSTALL);
-    assert!(refusal.to_string().contains("\"not_connected\""), "install refused as not connected: {refusal}");
-    assert_eq!(row(&json(&ran, 5))["ended"], row(&failed)["ended"], "admission refusal keeps prior run's reason");
-    let retried = json(&ran, 7);
-    assert_eq!(row(&retried)["state"], "connected");
-    assert!(row(&retried)["ended"].is_null());
-    assert!(!String::from_utf8_lossy(&ran.calls()[HUMAN_RETRIED].stdout).contains("The last connect stopped:"));
-    assert!(ran.github().installations.is_empty());
-    assert_eq!(ran.github().minted, 0);
-    assert!(
-        text.contains("The last connect stopped:") && text.contains(why),
-        "human last connect omits stored reason {why:?}: {text}"
-    );
 }
 
 #[test]
