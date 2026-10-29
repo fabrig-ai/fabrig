@@ -180,6 +180,8 @@ pub struct Program {
 /// (`lib.rs:36-41`); 09 builds the worker's host half from it.
 #[derive(Debug)]
 pub struct Agent {
+    /// Receiving run bounds, including the protocol's measured schema costs.
+    pub run_limits: smith_domain_run::Limits,
     pub tool_payload: u32,
     pub programs: Box<[Program]>,
     pub endpoints: smith_protocol_channel::Endpoints,
