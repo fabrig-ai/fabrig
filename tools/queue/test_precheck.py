@@ -446,8 +446,7 @@ class CandidateTests(Fixture):
     def test_policy_code_and_lists_survive_switching_their_own_checkout(self):
         import shutil
         self.git("switch", "original")
-        for name in ("precheck", "mq", "always.txt", "read-by-tests.txt",
-                     *(name for name in ("authority.py", "durable.py") if (DIRECTORY / name).is_file())):
+        for name in ("precheck", "mq", "authority.py", "durable.py", "always.txt", "read-by-tests.txt"):
             target = self.repo / "tools/queue" / name
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(DIRECTORY / name, target)

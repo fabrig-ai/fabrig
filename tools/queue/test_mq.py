@@ -49,13 +49,15 @@ class RestartTests(unittest.TestCase):
         self.addCleanup(self.temporary.cleanup)
         self.home = Path(self.temporary.name)
         self.repo = self.home / "src/fabrig/queue"
-        self.repo.mkdir(parents=True)
+        self.repo.mkdir(parents=True, mode=0o700)
+        self.repo.parent.chmod(0o700)
+        (self.repo / ".git").mkdir(mode=0o700)
         self.stop = self.home / "src/fabrig/queue.stop"
 
     def run_restart(self, *, ready=True, returncode=None, batch=8):
         calls = []
 
-        def command(argv, repo):
+        def command(argv, repo, **ignored):
             calls.append(argv)
             if argv[1] in ("fetch", "switch"):
                 self.assertTrue(self.stop.exists())
@@ -63,7 +65,11 @@ class RestartTests(unittest.TestCase):
 
         def launch(argv, **kwargs):
             self.assertFalse(self.stop.exists())
-            expected = ["python3", "-u", "tools/queue/mq", "run", "--repo", str(self.repo)]
+            expected = ["python3", "-B", "-u", "tools/queue/mq", "run", "--repo", str(self.repo)]
+            expected.extend(["--authority-dir", str(self.home / "src/fabrig/queue-authority"),
+                             "--authority-fd", str(kwargs["pass_fds"][0]),
+                             "--startup-fd", str(kwargs["pass_fds"][1])])
+            os.write(kwargs["pass_fds"][1], b"READY\n")
             if batch != 8:
                 expected.extend(["--batch", str(batch)])
             self.assertEqual(argv, expected)
@@ -79,12 +85,13 @@ class RestartTests(unittest.TestCase):
                 patch.object(restart, "queue_pid", return_value=41), \
                 patch.object(os, "pidfd_open", return_value=123), \
                 patch.object(os, "close", side_effect=lambda fd: None if fd == 123 else close_fd(fd)) as close, \
-                patch.object(restart.select, "select", return_value=([123] if ready else [], [], [])), \
+                patch.object(restart.select, "select", side_effect=lambda fds, *args: (
+                    (fds if ready else [], [], []))), \
                 patch.object(subprocess, "Popen", side_effect=launch) as popen, \
                 patch.object(restart.time, "sleep") as sleep, redirect_stdout(io.StringIO()) as output:
             restart.restart(self.repo, 10, self.home, batch=batch)
         close.assert_any_call(123)
-        sleep.assert_called_once_with(3)
+        sleep.assert_not_called()
         popen.assert_called_once()
         return calls, output.getvalue()
 
@@ -132,6 +139,29 @@ class RestartTests(unittest.TestCase):
         self.assertTrue(self.stop.exists())
         popen.assert_not_called()
 
+    def test_stop_unlink_directory_fsync_failure_restores_stop_before_launch(self):
+        sync = restart.authority.durable.sync_directory
+        failed, updated = [], []
+        def command(argv, repo, **ignored):
+            if argv[:2] == ["git", "fetch"]:
+                self.assertTrue(self.stop.exists())
+                updated.append(True)
+            return str(repo)
+        def fail_after_unlink(path):
+            if updated and path == self.stop.parent and not self.stop.exists() and not failed:
+                failed.append(True)
+                raise OSError("stop directory fsync failed")
+            sync(path)
+        with patch.object(restart, "command", side_effect=command), \
+                patch.object(restart, "queue_pid", return_value=None), \
+                patch.object(restart.authority.durable, "sync_directory", side_effect=fail_after_unlink), \
+                patch.object(subprocess, "Popen") as popen, redirect_stdout(io.StringIO()):
+            with self.assertRaisesRegex(OSError, "stop directory fsync"):
+                restart.restart(self.repo, 0, self.home)
+        self.assertEqual(failed, [True])
+        self.assertTrue(self.stop.exists())
+        popen.assert_not_called()
+
     def test_lock_holder_is_preferred_to_pgrep(self):
         lock = self.repo.with_name("queue.queue.lock")
         lock.touch()
@@ -141,15 +171,10 @@ class RestartTests(unittest.TestCase):
             self.assertEqual(restart.queue_pid(self.repo), 41)
         run.assert_not_called()
 
-    def test_fallback_requires_exactly_one_process(self):
-        for output, expected in (("", None), ("41\n42\n", None), ("41\n", 41)):
-            with self.subTest(output=output), patch.object(subprocess, "run", return_value=(
-                    subprocess.CompletedProcess([], 0 if output else 1, output, ""))):
-                if expected is None:
-                    with self.assertRaisesRegex(RuntimeError, "exactly one"):
-                        restart.queue_pid(self.repo)
-                else:
-                    self.assertEqual(restart.queue_pid(self.repo), expected)
+    def test_absent_holder_does_not_use_broad_process_fallback(self):
+        with patch.object(subprocess, "run") as run:
+            self.assertIsNone(restart.queue_pid(self.repo))
+        run.assert_not_called()
 
     def test_wait_rejects_negative_and_nonfinite_values(self):
         for value in ("-1", "inf", "nan"):
@@ -656,6 +681,7 @@ class RepositoryTests(unittest.TestCase):
     def queue(self, **kwargs):
         kwargs.setdefault("disk_floor", 0)
         return mq.Queue(self.repo, state_path=self.directory / "state.json",
+                        writer_guard=lambda: mq.authority.checkout_guard(self.repo),
                         log_path=self.directory / "queue.jsonl", checker=self.checker,
                         poster=self.poster, metadata_loader=lambda repo: metadata(repo), **kwargs)
 
@@ -1460,6 +1486,42 @@ print('tools fixture passed')
         self.assertEqual(self.records()[-1]["outcome"], "green")
         self.assertEqual([address for address, subject, _ in self.posts if subject == "queue error"], ["ops@hel8"])
 
+    def test_same_error_alerts_again_after_completed_batch(self):
+        queue = self.queue()
+        outcomes = iter([RuntimeError("repeated dirty tree"), True,
+                         RuntimeError("repeated dirty tree")])
+
+        def cycle():
+            outcome = next(outcomes)
+            if isinstance(outcome, Exception):
+                raise outcome
+            return outcome
+
+        queue.cycle = cycle
+        self.assertEqual(self.run_cycles(queue, 2), [60, 60])
+        alerts = [body for _, subject, body in self.posts if subject == "queue error"]
+        self.assertEqual(len(alerts), 2)
+        self.assertTrue(all(body.startswith("repeated dirty tree") for body in alerts))
+
+    def test_idle_recovery_clears_persisted_error_episode(self):
+        queue = self.queue()
+        outcomes = iter([RuntimeError("repeated dirty tree"), False])
+
+        def cycle():
+            outcome = next(outcomes)
+            if isinstance(outcome, Exception):
+                raise outcome
+            return outcome
+
+        queue.cycle = cycle
+        self.assertEqual(self.run_cycles(queue, 2), [60, 60])
+        reloaded = self.queue()
+        self.assertEqual(reloaded.state.get("reported_errors"), [])
+        (self.directory / "stop").unlink()
+        reloaded.cycle = lambda: (_ for _ in ()).throw(RuntimeError("repeated dirty tree"))
+        self.assertEqual(self.run_cycles(reloaded, 1), [60])
+        self.assertEqual(len([1 for _, subject, _ in self.posts if subject == "queue error"]), 2)
+
     def test_run_survives_recovery_log_failure(self):
         queue = self.queue()
         queue.cycle = lambda: (_ for _ in ()).throw(RuntimeError("git failed"))
@@ -1571,6 +1633,34 @@ print('tools fixture passed')
         _, cleanup = mq.push_and_cleanup(self.repo, [branch])
         self.assertIn("preserved", cleanup[0]["outcome"])
         self.assertEqual(mq.git(self.repo, "ls-remote", "origin", "refs/heads/" + branch["name"]).stdout.split()[0], advanced)
+
+    def test_tip_advanced_between_observation_and_delete_survives_legacy_cleanup(self):
+        branch = self.branch("a", publish=True)
+        self.write("advance", "advanced ready\n")
+        self.commit("advance ready")
+        advanced = self.tip()
+        mq.build_batch(self.repo, [branch])
+        ref = "refs/heads/" + branch["name"]
+        git, pushes, observed = mq.git, [], []
+        def race(repo, *args, **kwargs):
+            if args[0] == "push":
+                pushes.append(args)
+                if "--delete" in args or args[-1] == ":" + ref:
+                    self.assertEqual(observed, [branch["tip"]])
+                    git(self.repo, "push", "origin", advanced + ":" + ref)
+            result = git(repo, *args, **kwargs)
+            if args[0] == "ls-remote" and args[-1] == ref:
+                observed.append(result.stdout.split()[0])
+            return result
+        with patch.object(mq, "git", side_effect=race):
+            commit, cleanup = mq.push_and_cleanup(self.repo, [branch])
+        self.assertEqual(git(self.origin, "rev-parse", ref).stdout.strip(), advanced)
+        self.assertEqual(git(self.origin, "rev-parse", "refs/heads/main").stdout.strip(), commit)
+        self.assertNotEqual(cleanup[0]["returncode"], 0)
+        main_push, delete = pushes
+        self.assertFalse(any("--force" in arg or "--lease" in arg for arg in main_push))
+        self.assertEqual(delete, ("push", "--force-with-lease=" + ref + ":" + branch["tip"],
+                                  "origin", ":" + ref))
 
     def test_push_failure_does_not_delete_ready_branch(self):
         branch = self.branch("a", publish=True)

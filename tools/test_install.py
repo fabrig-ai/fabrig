@@ -13,7 +13,7 @@ TOOLS = Path(__file__).resolve().parent
 
 class InstallTests(unittest.TestCase):
     def setUp(self):
-        self.temp = tempfile.TemporaryDirectory(prefix="test-install-", dir=TOOLS)
+        self.temp = tempfile.TemporaryDirectory(prefix="test-install-", dir=TOOLS.parent.parent)
         self.addCleanup(self.temp.cleanup)
         self.base = Path(self.temp.name)
         self.home = self.base / "home"

@@ -24,7 +24,8 @@ class ToolsIsolationTests(fixtures.Fixture):
     def setUp(self):
         super().setUp()
         # Copy only the suite and its inputs: discovery must not recurse into this suite.
-        for name in ("test_mq.py", "mq", "restart", "always.txt", "read-by-tests.txt", "leads.txt"):
+        for name in ("test_mq.py", "mq", "restart", "authority.py", "durable.py",
+                     "always.txt", "read-by-tests.txt", "leads.txt"):
             self.write("tools/queue/" + name, (DIRECTORY / name).read_text())
         for prefix in ("", "skein/", "smith/", "jig/", "temper/"):
             self.write(prefix + ".gitignore", (ROOT / prefix / ".gitignore").read_text())
@@ -87,7 +88,7 @@ Path('scripts/old-forms.txt').write_text('9\\n')
         before = self.snapshot()
         result = self.run_suite()
         self.assertEqual(result.returncode, 0, result.stdout)
-        self.assertIn("Ran 113 tests", result.stdout)
+        self.assertIn("Ran 117 tests", result.stdout)
         self.assert_unchanged(before)
 
     def test_precheck_runs_real_mq_suite_after_ratchet_and_restores_exactly(self):
@@ -124,7 +125,7 @@ Path('scripts/old-forms.txt').write_text('9\\n')
         log = (tool.log_directory / "commands.log").read_text()
         self.assertEqual(result, 0, str(tool.record) + "\n" + log)
         self.assertEqual(len(observations), 1)
-        self.assertIn("Ran 113 tests", log)
+        self.assertIn("Ran 117 tests", log)
         self.assertEqual(tool.record["selection"], "docs")
         self.assertEqual(tool.record["selection_paths"], ["jig/README.md", "tools/candidate.md"])
         self.assertEqual(tool.record["paths"],
