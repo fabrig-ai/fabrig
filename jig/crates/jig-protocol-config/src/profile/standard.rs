@@ -191,7 +191,7 @@ pub(super) const CLIENTS: jig_protocol_engine_clients::Limits = jig_protocol_eng
 
 // One extra Sources output at hello adds eight core route positions.
 // Close cancellation adds one output per pending sign-in: four in Standard (protocol/llm.md, 5.2).
-// Account moves add 56 core route positions (accounts::max_out: 206 -> 262).
+// Account moves count 56 core route positions for their emitted outputs.
 // Retained-revision release adds 2 * 8 heads + 16 versions + one extent = 33.
 // Placed holds: tightened core room plus 18 connector slots needs 151,673 writes.
 const JOURNAL: skein_lib::JournalLimits =

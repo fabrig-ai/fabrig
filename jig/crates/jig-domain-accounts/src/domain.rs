@@ -6,21 +6,6 @@ use crate::{
 use alloc::boxed::Box;
 use skein_lib::{Deadlines, Duration, Env, List, Map, Queue, Time, Wall};
 
-/// Forwarding bound for application callers: restart normalization, source names and wants, removal, and close.
-#[must_use]
-pub fn max_out(limits: &Limits) -> u32 {
-    out_bound(limits).expect("account output bound")
-}
-const fn out_bound(limits: &Limits) -> Option<u32> {
-    let Some(per_account) = limits.sources.checked_mul(4) else { return None };
-    let Some(per_account) = per_account.checked_add(3) else { return None };
-    let Some(all) = limits.accounts.checked_mul(per_account) else { return None };
-    let Some(all) = all.checked_add(limits.sign_ins) else { return None };
-    let Some(all) = all.checked_add(limits.sign_ins) else { return None };
-    let Some(all) = all.checked_add(limits.sign_ins) else { return None };
-    all.checked_add(10)
-}
-
 /// An account (accounts.md, 3.1): its provider, its holder, the subject a signed-in source gave
 /// it, the display name its holder gives it, and its sources' numbers by place, in its holder's
 /// order, with its explicit payers or the default uses (4.2).
