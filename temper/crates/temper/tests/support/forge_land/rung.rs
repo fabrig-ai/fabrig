@@ -659,10 +659,8 @@ fn twin_peer() -> super::super::llm::Listening {
     )))
     .expect("checked-in B0 twin");
     let scripts = document["cued"].as_array_mut().expect("twin scripts");
-    assert_eq!(scripts.len(), 5, "chat, goal, coder, failed review and retry");
+    assert_eq!(scripts.len(), 4, "chat, goal, coder and review");
     assert_eq!(scripts[3]["cue"], "Review this change at the named head");
-    assert_eq!(scripts[4]["cue"], "This review is asked again at the same head");
-    scripts.pop();
     scripts[3]["turns"] = json!([{
         "lines":[{"call":"finish","arguments":{
             "form":"verdict","label":"1","text":"Approved for the driver replay.","fields":{},"items":[]
