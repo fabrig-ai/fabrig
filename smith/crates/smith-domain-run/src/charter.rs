@@ -319,16 +319,21 @@ pub(crate) fn check(charter: &Charter, workspace: Option<&crate::Workspace>, lim
     check_window_parts(charter, workspace, limits)
 }
 
-fn check_window_parts(
-    charter: &Charter,
-    workspace: Option<&crate::Workspace>,
-    limits: &Limits,
-) -> Result<u32, Invalid> {
+/// Bytes of the host part left for a run's brief after all other charter and
+/// workspace bytes counted at admission (domain/run.md, section 4), including
+/// empty-guide scaffolding. Compare with `brief_bytes`; the current brief is
+/// ignored. Returns `None` if the non-brief bytes exceed `limits.host_part`,
+/// the count overflows, or the remaining room cannot be represented as a `u32`.
+#[must_use]
+pub fn brief_room(charter: &Charter, workspace: Option<&crate::Workspace>, limits: &Limits) -> Option<u32> {
+    let remaining = limits.host_part.checked_sub(non_brief_host_bytes(charter, workspace, limits)?)?;
+    u32::try_from(remaining).ok()
+}
+
+fn non_brief_host_bytes(charter: &Charter, workspace: Option<&crate::Workspace>, limits: &Limits) -> Option<u64> {
     let outcome = &charter.outcome;
     let grants = &charter.grants;
-    let llm = &charter.llm;
-    let models = &charter.models;
-    let mut host = crate::prompt::host_bytes(charter, workspace, 0);
+    let mut host = crate::prompt::non_brief_host_bytes(charter, workspace, 0);
     match charter.mode {
         Mode::Finite => {
             host = match host {
@@ -367,6 +372,23 @@ fn check_window_parts(
             };
         }
     }
+    host
+}
+
+fn check_window_parts(
+    charter: &Charter,
+    workspace: Option<&crate::Workspace>,
+    limits: &Limits,
+) -> Result<u32, Invalid> {
+    let llm = &charter.llm;
+    let models = &charter.models;
+    let host = match non_brief_host_bytes(charter, workspace, limits) {
+        Some(bytes) => match crate::prompt::brief_bytes(&charter.brief) {
+            Some(brief) => bytes.checked_add(brief),
+            None => None,
+        },
+        None => None,
+    };
     let remaining = match host {
         Some(bytes) if bytes <= limits.host_part => limits.host_part.checked_sub(bytes).expect("host fits"),
         Some(_) | None => return Err(Invalid::HostPart { bound: limits.host_part }),

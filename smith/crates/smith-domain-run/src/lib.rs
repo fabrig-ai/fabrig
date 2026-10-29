@@ -73,6 +73,7 @@ pub use budget::{
     Budget, BudgetRefusal, Ceiling, CompletionPermit, Exhausted, Granted, Overflow, Part, Prices, Rate, ReceivingLimit,
     Set, Share, Spend, Stage, admit, most_costly, reserve_spend,
 };
+pub use charter::brief_room;
 pub use charter::{Brief, Charter, Conventions, Mode, Section};
 pub use domain::{
     Domain, completion_overflow, completion_permit, conversation_charter, fire, host_name, owner, reserve, resume,
@@ -81,7 +82,7 @@ pub use domain::{
 pub use identity::Identity;
 pub use inbox::rendered_bytes;
 pub use limits::{Derivation, Field, Limits, derive, valid};
-pub use prompt::{fixed_prompt, fixed_prompt_bytes, role_host_bytes, summary_bytes};
+pub use prompt::{brief_bytes, fixed_prompt, fixed_prompt_bytes, role_host_bytes, summary_bytes};
 pub use run::Most;
 pub use schema_costs::SchemaCosts;
 pub use workspace::{Directory, Workspace};

@@ -15,7 +15,7 @@
 use alloc::boxed::Box;
 
 use crate::budget::{Budget, Granted};
-use crate::charter::{Mode, Reserve};
+use crate::charter::{Brief, Mode, Reserve};
 use skein_lib::{Duration, Writer};
 
 use crate::boundary::Stop;
@@ -147,12 +147,12 @@ pub(crate) fn opening(charter: &Charter, resumed: bool, messages: Option<Box<[u8
     match charter.mode {
         Mode::Open if !resumed && !charter.brief.sections.is_empty() => {
             let mut measured = Text::measuring();
-            render_brief(&mut measured, charter);
+            render_brief(&mut measured, &charter.brief);
             if let Some(messages) = &messages {
                 measured.put(messages);
             }
             let mut text = measured.writing();
-            render_brief(&mut text, charter);
+            render_brief(&mut text, &charter.brief);
             if let Some(messages) = &messages {
                 text.put(messages);
             }
@@ -219,7 +219,17 @@ fn render_wind_down(mode: Mode, cause: crate::wind_down::Cause, text: &mut Text,
 
 /// Count every charter-dependent system byte, with the selected guide bound.
 /// This pass renders into a counter and retains no text or filesystem state.
+#[cfg(test)]
 pub(crate) fn host_bytes(charter: &Charter, mounted: Option<&Workspace>, guide_bytes: u32) -> Option<u64> {
+    count_host_bytes(charter, mounted, guide_bytes, true)
+}
+
+/// Count charter-dependent system bytes without the brief, including empty-guide scaffolding.
+pub(crate) fn non_brief_host_bytes(charter: &Charter, mounted: Option<&Workspace>, guide_bytes: u32) -> Option<u64> {
+    count_host_bytes(charter, mounted, guide_bytes, false)
+}
+
+fn count_host_bytes(charter: &Charter, mounted: Option<&Workspace>, guide_bytes: u32, brief: bool) -> Option<u64> {
     let repositories = workspace::directories(mounted);
     let mut found = Found::with_capacity(u32::try_from(repositories.len()).ok()?);
     for (index, directory) in repositories.iter().enumerate() {
@@ -228,13 +238,24 @@ pub(crate) fn host_bytes(charter: &Charter, mounted: Option<&Workspace>, guide_b
         }
     }
     let mut text = Text::measuring();
-    // The brief consumes the same host part regardless of its message role.
-    render_main_prefix(&mut text, charter, true);
+    render_main_prefix(&mut text, charter, brief);
     render_system(&mut text, charter, mounted, &found, Families::of(&charter.grants), true);
     for directory in repositories {
         let name = if repositories.len() == 1 { None } else { Some(directory.name.as_ref()) };
         count_guide(&mut text, conventions::guide(charter), name, guide_bytes)?;
     }
+    text.host_bytes
+}
+
+/// Bytes a brief adds to the host part, including each section's heading and
+/// paragraph termination (domain/run.md, sections 3.1 and 4). An empty brief
+/// adds zero bytes, in either message role; the count is additive with the
+/// non-brief host bytes. Returns `None` on overflow.
+#[must_use]
+pub fn brief_bytes(brief: &Brief) -> Option<u64> {
+    let mut text = Text::measuring();
+    text.host = true;
+    render_brief(&mut text, brief);
     text.host_bytes
 }
 
@@ -406,15 +427,15 @@ fn render_main_prefix(text: &mut Text, charter: &Charter, brief: bool) {
         end_paragraph(text, &charter.instructions);
     }
     if brief {
-        render_brief(text, charter);
+        render_brief(text, &charter.brief);
     }
     text.host = false;
 }
 
 /// Each section keeps its literal title/text and existing paragraph termination.
 /// The delimiter bound is seven bytes per section, in either message role.
-fn render_brief(text: &mut Text, charter: &Charter) {
-    for section in &charter.brief.sections {
+fn render_brief(text: &mut Text, brief: &Brief) {
+    for section in &brief.sections {
         text.put(b"## ");
         text.put(&section.title);
         text.put(b"\n\n");
