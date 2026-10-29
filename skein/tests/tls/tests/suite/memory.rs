@@ -1,17 +1,17 @@
-//! The client's worst case against the counting allocator (tls.md, 5;
+//! The client's scenario ceilings against the counting allocator (tls.md, 5;
 //! programming-model.md, 6.3): every call of an entry point a step of the
 //! meter, and what the client held of its own, rustls's heap included,
-//! never more than its `worst_case`.
+//! never more than the scenario's ceiling.
 //!
 //! The server runs on the same thread, between the client's steps, and
 //! allocates as it goes. Its heap, and the harness's, is measured with a
 //! span around everything done between steps, and each step is checked
-//! against the client's bound plus that heap, which no step of the client's
+//! against the client's ceiling plus that heap, which no step of the client's
 //! touches: what the meter finds past it is the client's own. An input moved
 //! into a step was counted by whoever made it (testing.md, 5): a delivery
-//! from below is made between steps, to the client's demand, and its worst
-//! case covers it; a `Send` from above is the side above's, and the step
-//! that takes it is checked against the bound and its size. What a step
+//! from below is made between steps, to the client's demand, and its ceiling
+//! covers it; a `Send` from above is the side above's, and the step
+//! that takes it is checked against the ceiling and its size. What a step
 //! emits is handed out: its bytes copied into buffers reserved beforehand,
 //! and dropped before the check.
 
@@ -24,7 +24,7 @@ use skein_heap::{Meter, Span};
 use skein_lib::stream::{Down, Fault, Read, Up};
 use skein_lib::{Env, Queue, Rng, Time};
 use skein_tls::client::{self, Client, Error, Event, Limits, Request};
-use skein_tls::{Config, Name, Parsed, roots_worst_case};
+use skein_tls::{Config, Name, Parsed};
 use skein_tls_world::pki::{self, Chain, Versions};
 use skein_tls_world::server::Server;
 use skein_tls_world::world;
@@ -34,20 +34,20 @@ use skein_tls_world::{
 };
 
 #[test]
-fn shared_roots_at_their_bounds_fit_the_measured_factor() {
+fn shared_roots_and_alpn_stay_under_the_memory_ceiling() {
+    // Construction peak for up to 129 DER roots and 128 ALPN protocols.
+    const CEILING: i64 = 66_000;
     let root = pki::ROOT;
     // One-byte protocols maximize the ALPN vector's element count at its
     // 256-byte wire bound. Counts beside growth boundaries price slack.
     let alpn = [b"a".as_slice(); 128];
     for count in [1_u32, 3, 4, 5, 8, 9, 16, 17, 128, 129] {
         let certificates: Vec<Box<[u8]>> = (0..count).map(|_| root.into()).collect();
-        let each = u32::try_from(root.len()).expect("fixture fits");
-        let bound = roots_worst_case(count, each).expect("bounds fit");
         let span = Span::start();
         let (config, parsed) = Config::from_der(&certificates, &alpn).expect("DER roots");
         let grown = span.end();
         assert_eq!(parsed, Parsed { taken: count, skipped: 0 }, "all roots are retained");
-        assert!(grown.peak <= i64::try_from(bound).expect("bound fits"), "{count} roots: {grown:?}, bound {bound}");
+        assert!(grown.peak <= CEILING, "{count} roots: {grown:?}");
         let span = Span::start();
         let shared = config.clone();
         assert_eq!(span.end().net, 0, "connections share their configuration's roots");
@@ -107,7 +107,6 @@ struct Measured {
     most: u64,
     ready: bool,
     exchanged: bool,
-    bound: u64,
     failed: Option<Error>,
     limits: Limits,
 }
@@ -163,17 +162,16 @@ struct Harness {
     steps: u32,
 }
 
-/// Runs `case`, every step checked against the client's worst case.
-fn measure(case: &Case, seed: u64) -> Measured {
+/// Runs `case`, every step checked against its scenario's ceiling.
+fn measure(case: &Case, seed: u64, ceiling: u64) -> Measured {
     let mut rng = Rng::new(seed);
     let alpn: Vec<&[u8]> = case.alpn.iter().map(Vec::as_slice).collect();
     let config: Config = pki::client(&alpn);
     let name = Name::new(case.name).expect("a name");
-    let bound = client::worst_case(&case.limits).expect("the limits are honoured");
     let server_config = case.server.config();
     let mut harness = Harness {
         case: case.clone(),
-        metered: Steps::new(bound),
+        metered: Steps::new(ceiling),
         client: None,
         env: Env { now: Time::ZERO, wall: pki::VALID, limits: case.limits },
         events: Queue::with_capacity(8),
@@ -397,7 +395,6 @@ impl Harness {
             most,
             ready: self.ready,
             exchanged: self.received == self.response && self.server.received == self.request,
-            bound: self.metered.bound(),
             failed: self.failed,
             limits: self.case.limits,
         }
@@ -406,33 +403,37 @@ impl Harness {
 
 #[test]
 fn handshakes_and_exchanges_at_their_limits() {
+    // The client peak with one-byte and multi-record exchanges and a key update.
+    const CEILING: u64 = 210_000;
     for versions in [Versions::Tls13, Versions::Tls12] {
         // Records of 16 KB each way, three to a send, and a key update.
         let mut large = Case::plain(LARGE, 100_000, 100_000);
         large.server.versions = versions;
         large.key_update = true;
-        let measured = measure(&large, 1);
+        let measured = measure(&large, 1, CEILING);
         assert_eq!(measured.failed, None, "{large:?}");
         assert!(past(&measured) > 16_384, "{versions:?}: a record's work, past the buffers: {measured:?}");
         // A byte at a time each way.
         let mut small = Case::plain(SMALL, 300, 2_000);
         small.server.versions = versions;
-        assert_eq!(measure(&small, 1).failed, None, "{small:?}");
+        assert_eq!(measure(&small, 1, CEILING).failed, None, "{small:?}");
     }
 }
 
 #[test]
 fn a_retry_and_the_longest_alpn_list() {
+    // The client peak during a retry and maximum-length ALPN negotiation.
+    const CEILING: u64 = 85_000;
     let mut retry = Case::plain(LARGE, 1_000, 1_000);
     retry.server.retry = true;
     retry.alpn = vec![b"h2".to_vec(), b"http/1.1".to_vec()];
     retry.server.alpn = vec![b"http/1.1".to_vec()];
-    assert_eq!(measure(&retry, 2).failed, None);
+    assert_eq!(measure(&retry, 2, CEILING).failed, None);
     // 64 protocols of three bytes: ALPN's bytes in all.
     let mut alpn = Case::plain(LARGE, 1_000, 1_000);
     alpn.alpn = (0..64).map(|n| format!("p{n:02}").into_bytes()).collect();
     alpn.server.alpn = vec![b"p63".to_vec()];
-    assert_eq!(measure(&alpn, 2).failed, None);
+    assert_eq!(measure(&alpn, 2, CEILING).failed, None);
 }
 
 #[test]
@@ -445,7 +446,7 @@ fn a_large_chain_is_verified_within_its_memory_ceiling() {
             big.server.chain = Chain::Big;
             big.server.versions = versions;
             big.name = "big.skein.test";
-            let measured = measure(&big, 3);
+            let measured = measure(&big, 3, CEILING);
             assert_eq!(measured.failed, None, "{big:?}");
             assert!(pki::BIG.len() + pki::INTERMEDIATE.len() > 38_000, "the presented chain spans records");
             assert!(measured.ready && measured.exchanged, "the chain was verified and both payloads exchanged");
@@ -455,24 +456,26 @@ fn a_large_chain_is_verified_within_its_memory_ceiling() {
     let mut short = Case::plain(SMALL, 10, 10);
     short.server.chain = Chain::Big;
     short.name = "big.skein.test";
-    assert_eq!(measure(&short, 4).failed, Some(Error::TooLong));
+    assert_eq!(measure(&short, 4, CEILING).failed, Some(Error::TooLong));
 }
 
 #[test]
 fn failures_and_closes_in_every_state() {
+    // The client peak under truncation, corruption, close and stream failure.
+    const CEILING: u64 = 210_000;
     for versions in [Versions::Tls13, Versions::Tls12] {
         for (ending, error) in [(Ending::Truncate, Error::Truncated), (Ending::Corrupt, Error::Decrypt)] {
             let mut case = Case::plain(LARGE, 1_000, 50_000);
             case.server.versions = versions;
             case.ending = ending;
-            assert_eq!(measure(&case, 5).failed, Some(error), "{case:?}");
+            assert_eq!(measure(&case, 5, CEILING).failed, Some(error), "{case:?}");
         }
         for at in 0..30 {
             for ending in [Ending::Close(at), Ending::Fail(at)] {
                 let mut case = Case::plain(LARGE, 1_000, 20_000);
                 case.server.versions = versions;
                 case.ending = ending;
-                let _: Measured = measure(&case, 6);
+                let _: Measured = measure(&case, 6, CEILING);
             }
         }
     }
@@ -482,11 +485,10 @@ fn failures_and_closes_in_every_state() {
 /// of 16 KB, every call a step of the meter: rustls decodes a handshake
 /// message whole before it judges it, in TLS 1.2's forms until a version is
 /// agreed.
-fn hostile(limits: Limits, message: &[u8]) -> Measured {
+fn hostile(limits: Limits, message: &[u8], ceiling: u64) -> Measured {
     let config = pki::client(&[]);
     let name = Name::new("skein.test").expect("a name");
     let env = Env { now: Time::ZERO, wall: pki::VALID, limits };
-    let bound = client::worst_case(&limits).expect("the limits are honoured");
     let mut pieces = Vec::new();
     for chunk in message.chunks(16_384) {
         let mut header = vec![22, 3, 3];
@@ -501,7 +503,7 @@ fn hostile(limits: Limits, message: &[u8]) -> Measured {
     meter.start();
     let mut tls = Client::new(&config, name, &limits);
     let step = meter.end();
-    most = most.max(meter.check(step, bound, &limits));
+    most = most.max(meter.check(step, ceiling, &limits));
     let mut failed = None;
     let mut inputs = vec![Input::Down(Request::Handshake), Input::Up(Up::Room)];
     inputs.extend(pieces.iter().map(|piece| Input::Up(Up::Bytes(piece.as_slice().into()))));
@@ -520,12 +522,12 @@ fn hostile(limits: Limits, message: &[u8]) -> Measured {
         while let Some(request) = requests.pop() {
             drop(request);
         }
-        most = most.max(meter.check(step, bound, &limits));
+        most = most.max(meter.check(step, ceiling, &limits));
         if failed.is_some() {
             break;
         }
     }
-    Measured { most, ready: false, exchanged: false, bound, failed, limits }
+    Measured { most, ready: false, exchanged: false, failed, limits }
 }
 
 /// A handshake message of `kind` and `body`.
@@ -565,14 +567,14 @@ fn hostile_messages(size: usize) -> [(&'static str, Vec<u8>); 3] {
 }
 
 #[test]
-fn hostile_messages_sent_first_are_priced() {
+fn hostile_first_messages_stay_under_the_memory_ceiling() {
     // The client's peak decoding the largest hostile certificate, name and extension lists.
     const CEILING: u64 = 1_600_000;
     // The records of one record's message, and of the longest rustls reads.
     for (records, size) in [(client::MAX_RECORD, 16_384), (4 * client::MAX_RECORD, 65_539)] {
         let limits = Limits { records, ..SMALL };
         for (what, message) in hostile_messages(size) {
-            let measured = hostile(limits, &message);
+            let measured = hostile(limits, &message, CEILING);
             // Decoded whole, then refused: a hello of TLS 1.2 is expected.
             assert_eq!(measured.failed, Some(Error::Protocol), "{what}");
             assert!(message.len() <= size && size - message.len() < 4, "only an incomplete list element is omitted");
@@ -582,7 +584,9 @@ fn hostile_messages_sent_first_are_priced() {
 }
 
 #[test]
-fn a_hostile_chain_of_empty_certificates_is_priced_and_kept() {
+fn padded_certificate_chains_stay_under_the_memory_ceiling() {
+    // The client peak retaining the padded TLS 1.2 and 1.3 certificate chains.
+    const CEILING: u64 = 1_800_000;
     for versions in [Versions::Tls12, Versions::Tls13] {
         // Empty certificates after the leaf and the intermediate, to fill
         // the records held, and the longest message rustls reads; rustls
@@ -592,9 +596,9 @@ fn a_hostile_chain_of_empty_certificates_is_priced_and_kept() {
             let mut case = Case::plain(Limits { records, ..LARGE }, 1_000, 1_000);
             case.server.chain = Chain::Padded(empty / per);
             case.server.versions = versions;
-            let measured = measure(&case, 7);
+            let measured = measure(&case, 7, CEILING);
             assert_eq!(measured.failed, None, "{case:?}");
-            assert!(measured.most <= measured.bound, "the padded chain stays within its bound: {measured:?}");
+            assert!(measured.most <= CEILING, "the padded chain stays within its ceiling: {measured:?}");
         }
     }
 }
