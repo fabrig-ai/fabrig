@@ -17,6 +17,7 @@ import time
 sys.dont_write_bytecode = True
 L = runpy.run_path(str(Path(__file__).resolve().with_name("lifetime.py")))
 no_links, identity = L["no_links"], L["identity"]
+canonical = L["canonical"]
 read, write, locked = L["read"], L["write"], L["locked"]
 
 
@@ -54,7 +55,7 @@ def units(slot, *, codex=False):
         directory = props.get("WorkingDirectory", "").removeprefix("-")
         if heavy and (not directory or not Path(directory).is_absolute()):
             raise RuntimeError(f"missing heavy unit properties: {name}")
-        if directory and Path(directory).is_absolute() and Path(directory).resolve().is_relative_to(slot):
+        if directory and Path(directory).is_absolute() and canonical(directory).is_relative_to(slot):
             raise RuntimeError(f"live service {name} cwd={directory}")
         # Codex units have no systemd cwd. Run metadata and /proc are mandatory too.
         if is_codex and codex and not directory:
@@ -101,14 +102,14 @@ def processes(slot, proc=Path("/proc")):
                         "ssh-agent.service").splitlines() if "=" in line)
                     wd = props.get("WorkingDirectory", "").removeprefix("!").removeprefix("-")
                     if (props.get("LoadState") == "loaded" and props.get("ActiveState") == "active"
-                            and Path(wd).is_absolute() and not Path(wd).resolve().is_relative_to(slot.parent)):
+                            and Path(wd).is_absolute() and not canonical(wd).is_relative_to(slot.parent)):
                         evidence.append(f"protected pid={entry.name} ssh-agent cwd={wd}")
                         continue
                 raise RuntimeError(f"unreadable own-user cwd pid={entry.name} comm={comm} cgroup={cgroup}")
             if not directory.startswith("/"):
                 raise RuntimeError(f"unknown own-user cwd pid={entry.name}")
             directory = directory.removesuffix(" (deleted)")
-            if Path(directory).is_relative_to(slot):
+            if canonical(directory).is_relative_to(slot):
                 raise RuntimeError(f"own-user process pid={entry.name} cwd={directory}")
         except (FileNotFoundError, ProcessLookupError):
             # A vanished process cannot start work; its surviving children are scanned.
@@ -143,7 +144,7 @@ def maintenance(slot, home, *, release_hold=None):
             no_links(path)
             if (path.name.endswith(".hold") and release_hold is None or path.name.startswith(".write-")):
                 raise RuntimeError(f"durable uncertain/live lifetime: {path}")
-            if path.name not in ("lease", "ack.json", "reclaim.json", "owner-notice.json") and not re.fullmatch(
+            if path.name not in ("lease", "completion.lock", "completed.json", "ack.json", "reclaim.json", "owner-notice.json") and not re.fullmatch(
                     r"[0-9a-f]{32}\.(hold|released\.json)", path.name):
                 raise RuntimeError(f"unknown maintenance state: {path}")
             if path.suffix == ".json":
@@ -175,9 +176,19 @@ def maintenance(slot, home, *, release_hold=None):
         yield directory
 
 
+def evidence_path(path, slot):
+    supplied = Path(path)
+    if not supplied.is_absolute():
+        raise RuntimeError(f"unknown protected evidence path: {path}")
+    path = canonical(supplied)
+    target = slot / "target"
+    if path.is_relative_to(target) or target.is_relative_to(path):
+        raise RuntimeError(f"protected evidence overlaps target: {path}")
+    return path
+
+
 def history(slot, home):
-    root = Path(os.path.abspath(os.environ.get("DEV_ROOT", str(Path(home) / "src/rust")))) / "tmp/codex-run"
-    no_links(root)
+    root = evidence_path(canonical(Path(os.environ.get("DEV_ROOT", str(Path(home) / "src/rust"))) / "tmp/codex-run"), slot)
     if not root.is_dir():
         raise RuntimeError("no trustworthy Codex run history")
     matches, by_id = [], {}
@@ -195,10 +206,14 @@ def history(slot, home):
             if not separator or key in values:
                 raise RuntimeError(f"corrupt run metadata: {meta}")
             values[key] = value
-        directory = Path(values.get("dir", ""))
-        if not directory.is_absolute():
+        supplied = Path(values.get("dir", ""))
+        if not supplied.is_absolute():
             raise RuntimeError(f"unknown run directory: {run}")
-        no_links(directory)
+        directory = canonical(supplied)
+        # Report protection applies to every run, including a different slot's.
+        report = evidence_path(values["report"], slot)
+        if L["fingerprint"](meta) != meta_id:
+            raise RuntimeError(f"run changed: {run}")
         by_id[run.name] = directory
         if not directory.is_relative_to(slot):
             continue
@@ -206,9 +221,6 @@ def history(slot, home):
         if started.utcoffset() is None:
             raise RuntimeError(f"unknown start time: {run}")
         ended = L["fingerprint"](run / "ended")
-        report = Path(values["report"])
-        if not report.is_absolute():
-            raise RuntimeError(f"unknown report: {run}")
         report_id = L["fingerprint"](report)
         if ended["identity"][3] < int(started.timestamp() * 1e9):
             raise RuntimeError(f"completion predates start: {run}")
@@ -221,8 +233,15 @@ def history(slot, home):
     if not matches:
         raise RuntimeError("no completed slot run; old slots require explicit evidence")
     latest = max(matches, key=lambda run: (run["started"], run["id"]))
+    completed = max(run["ended"]["identity"][3] for run in matches)
+    lifetime = None
+    completion = L["state_root"](home) / slot.name / "completed.json"
+    record = L["read_completed"](completion.parent, slot)
+    if record is not None:
+        lifetime = {"record": record, "file": L["fingerprint"](completion)}
+        completed = max(completed, record["completed_ns"])
     return {"runs": matches, "latest": latest["id"], "owner": latest["owner"],
-            "completed_ns": max(run["ended"]["identity"][3] for run in matches)}, by_id
+            "completed_lifetime": lifetime, "completed_ns": completed}, by_id
 
 
 def target_identity(slot):
@@ -281,6 +300,7 @@ def release_hold(number, token, home, by, reason):
         write(directory / (token + ".released.json"),
               {"hold": hold, "by": by, "reason": reason, "evidence": evidence,
                "assertion": "all commands completed; no pending resume", "time": time.time_ns()})
+        L["completed_lifetime"](directory, slot, token, "operator lifetime reconciliation")
         (directory / name).unlink()
         L["sync"](directory)
         return f"slot {number}: hold {token} released by={by} reason={reason}; fresh report acknowledgement required"

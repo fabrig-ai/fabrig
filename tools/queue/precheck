@@ -123,7 +123,7 @@ def heavy_busy(repo):
         if properties["ActiveState"] not in ("inactive", "failed"):
             if not directory or not Path(directory).is_absolute():
                 raise InfrastructureError(f"cannot inspect heavy unit {name}: missing absolute WorkingDirectory")
-            if Path(directory).resolve().is_relative_to(repo):
+            if SLOT_LIFETIME["canonical"](directory).is_relative_to(repo):
                 raise InfrastructureError(f"live heavy unit uses this slot: {name}")
     return (f"no active heavy service observed; {vanished} unloaded inactive service(s); "
             "slot ownership is required")

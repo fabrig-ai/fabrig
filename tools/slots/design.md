@@ -99,8 +99,10 @@ trimming runs first, largest slot first by allocated regular-file bytes.
 It keeps its existing threshold plus 40 GB recovery margin. Only after
 ordinary trimming is exhausted and free space remains below the threshold
 can whole-target recovery run. Whole-target recovery orders slots by oldest
-proven completion, then slot name, and stops immediately when measured free
-space is above the configured threshold. It has no extra 40 GB deletion aim. The operator's manual fallback remains
+proven idle completion, then slot name, and stops immediately when measured
+free space is above the configured threshold. Idle completion is the later
+of Codex completion and the latest completed manual/precheck/task lifetime.
+It has no extra 40 GB deletion aim. The operator's manual fallback remains
 largest-first.
 Neither file sizes nor allocated sizes promise reclaimed bytes; every
 operation remeasures filesystem free space. Dry-run uses the same eligibility
@@ -137,7 +139,8 @@ not acknowledge it: automatic whole-target deletion stays blocked. This
 assertion does not claim control over arbitrary external commands.
 
 Acknowledgements bind the exact canonical slot and slots-root device/inode,
-target device/inode, checkout HEAD identity/digest, builder host/inventory, every matching run's metadata,
+target device/inode, checkout HEAD identity/digest, builder host/inventory,
+every matching run's metadata,
 ended marker and report identity (including modification/change times) and
 SHA-256 digest, latest run identity, owner/recipient, and completion time.
 The run history is `${DEV_ROOT:-$HOME/src/rust}/tmp/codex-run`; only run
@@ -151,15 +154,32 @@ A new run, changed report/ended marker, replaced slot/target or source/build
 lease invalidates acknowledgement. Nonzero and capacity-stop reports require
 the same explicit fresh assertion after pending work is resolved.
 
+Launcher, lifetime, legacy history and service matching share one path
+validator. It inspects the supplied components for symlinks before
+normalizing `.`/`..` and repeated leading separators, so an equivalent slot
+alias cannot escape leasing or history attribution. A symlink followed by
+`..` is refused even when lexical normalization would cancel that component.
+Launcher metadata records the canonical directory before detached startup;
+retry sleep remains protected while Codex has exited and the parent cwd is
+outside the slot. History validation applies this rule to legacy records too.
+
+Every history record's protected report path is inspected before filtering
+by slot. Eligibility refuses any report or run-history path overlapping
+the candidate target, including another slot's report or a path alias.
+Symlink evidence paths refuse recovery. These checks apply to existing
+metadata and are repeated before mutation. Updated launchers also refuse
+new report/run-history destinations inside any numeric slot's target, so
+another slot cannot publish new protected evidence into a reclaiming target.
+
 ### 5.2 Source/build lifetime interlock
 
 State lives outside sources and generated data in
 `~/src/fabrig/slot-maintenance/N/` (0700), with 0600 lock, acknowledgement,
-hold, journal and notice files. Symlink paths and unsafe state modes are
+hold, completion, journal and notice files. Symlink paths and unsafe state modes are
 refused. One global `sweep.lock` serializes sweeps, acknowledgements, notices
 and hold reconciliation. The per-slot `lease` uses shared flock for source/
-build lifetimes and exclusive flock for maintenance. Contention refuses
-immediately; no command or timeout is cancelled or changed.
+build lifetimes and exclusive flock for maintenance. Entrance contention
+refuses immediately; no command or timeout is cancelled or changed.
 
 `codex-run task` takes a lease before report reservation and run creation.
 A durable launch hold bridges detached systemd startup, including a queued
@@ -198,7 +218,23 @@ kernel exclusion and a durable hold. A nonzero/signal exit leaves a hold;
 a normal zero completion removes only its own hold. A failed/timed-out stop
 callback marks its hold uncertain even though callback failure stays advisory
 for the systemd unit. `launch`, `verify` and `uncertain`
-are launcher support modes; operators use `run`.
+are launcher support modes; `canonical`, `directory`, `protect` and `root`
+validate paths for the launcher. Operators use `run`. Path-only modes use
+the same validation functions without loading supervisor dependencies.
+
+Before removing a normally completed hold, its holder fsyncs
+`completed.json`, containing exact slot identity, completion time, hold
+identity and purpose. `completion.lock` serializes short completion writes
+from shared lease holders. Its released flock grants no maintenance
+eligibility: exclusive slot ownership and absence of uncertain holds remain
+required. Precheck publishes completion only after restoration. Recovery
+binds the completion record and its file identity/digest into acknowledgement
+and uses the most recent finished activity for idle ordering and age.
+Missing completion records permit explicit acknowledgement of legacy runs;
+corrupt, future-dated or replaced completion evidence refuses eligibility
+and cannot be overwritten by a successful new lifetime. A crash before hold
+removal remains blocked even if the completion record was published. The
+expanded history evidence requires fresh acknowledgement after upgrading.
 
 Released flock, absent controller and process absence never clear a hold.
 After independently establishing completion and handling the report/resume,
@@ -213,6 +249,8 @@ python3 -I -B ~/src/fabrig/main/tools/slots/guard --release-hold N --hold TOKEN 
 This requires exclusive maintenance ownership, matching slot identity,
 completed run history and all normal live-work observations. It leaves a
 private release receipt and does not grant eligibility; run `--ack` again.
+Reconciliation also records a completed lifetime at the time of the explicit
+completion attestation, conservatively refreshing idle age.
 Missing/corrupt history, unresolved precheck/worker state or an interrupted
 reclaim still refuse this API and require operator investigation. Never
 remove heavy state or stop units to make these checks pass.
@@ -284,7 +322,12 @@ Offline suites: `python3 -I -B tools/slots/test_{guard,recovery,trim,claim}.py`
 `python3 -I -B tools/queue/test_precheck.py`, `tools/queue/test_mq.py`, and
 `tools/test_install.py`. Fixtures use real disposable files/processes/flocks,
 FIFO barriers, synthetic service metadata and private proc inventories.
-They build nothing. A builder dry run with a threshold above current free
+They build nothing. Guard/recovery, trim, claim, precheck and launcher
+fixtures allocate scratch in the checked source directory's Fabrig parent,
+never inside the checked source. Cleanup removes only each fixture's exact
+directory; a SIGKILL regression verifies that abandoned scratch stays
+outside source. Automatic entries retain the fixed 60-second gate limit;
+the launcher also retains its existing CPU check. A builder dry run with a threshold above current free
 space exercises pressure and busy checks without deleting. An ordinary
 above-threshold sweep does not inspect services. No heavy floor, admission
 cap, budget, timeout, cache or heavy-state policy changes here.

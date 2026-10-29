@@ -5,52 +5,117 @@ The flock excludes maintenance; durable holds survive loss of the supervisor.
 No process absence, released flock, or report text clears a durable hold.
 """
 
+import os
+import sys
+
+sys.dont_write_bytecode = True
+
+
+def checked_path_text(path, *, collapse=True):
+    """Check supplied components, including those later cancelled by dot-dot."""
+    supplied = os.fspath(path)
+    if not os.path.isabs(supplied):
+        supplied = os.path.join(os.getcwd(), supplied)
+    prefix = os.path.sep
+    for component in supplied.split(os.path.sep):
+        prefix = os.path.join(prefix, component)
+        if os.path.islink(prefix):
+            raise RuntimeError(f"symlink path: {prefix}")
+    if not collapse:
+        return supplied
+    return os.path.sep + os.path.abspath(supplied).lstrip(os.path.sep)
+
+
+def slot_text(directory, home=None):
+    home = checked_path_text(home or os.path.expanduser("~"))
+    root = os.path.join(home, "src/fabrig/slots")
+    supplied = checked_path_text(directory)
+    if not supplied.startswith(root + os.path.sep):
+        return None
+    number = supplied[len(root) + 1:].split(os.path.sep)[0]
+    if not number.isascii() or not number.isdecimal():
+        return None
+    slot = os.path.join(root, number)
+    if not os.path.isdir(slot):
+        raise RuntimeError(f"not a slot directory: {slot}")
+    return slot
+
+
+def protected_text(path, home=None):
+    path = checked_path_text(path)
+    slot = slot_text(path, home)
+    if slot is not None:
+        target = os.path.join(slot, "target")
+        if path == target or path.startswith(target + os.path.sep):
+            raise RuntimeError(f"protected evidence overlaps target: {path}")
+    return path
+
+
+def history_root_text(path):
+    path = checked_path_text(path)
+    protected_text(os.path.join(path, "tmp/codex-run"))
+    return path
+
+
+def directory_text(path):
+    directory = checked_path_text(path)
+    membership = "slot" if slot_text(directory) is not None else "other"
+    return f"{directory}\n{membership}"
+
+
+def no_links(path):
+    return Path(checked_path_text(path, collapse=False))
+
+
+def canonical(path):
+    return Path(checked_path_text(path))
+
+
+def protected_output(path, home=None):
+    return Path(protected_text(path, home))
+
+
+def slot_path(directory, home=None):
+    """Map any cwd within a numeric slot; other checkouts need no slot lease."""
+    slot = slot_text(directory, home)
+    return None if slot is None else Path(slot)
+
+
+# Path validation needs only filesystem metadata; supervisor imports belong to
+# commands that hold lifetimes, keeping repeated launcher validation inexpensive.
+PATH_MODES = {"canonical": checked_path_text, "protect": protected_text,
+              "root": history_root_text, "directory": directory_text}
+
+if __name__ == "__main__" and len(sys.argv) > 1 and sys.argv[1] in PATH_MODES:
+    os.umask(0o077)
+    try:
+        if len(sys.argv) != 3:
+            raise RuntimeError("path validation requires exactly one path")
+        print(PATH_MODES[sys.argv[1]](sys.argv[2]))
+        sys.exit(0)
+    except (OSError, ValueError, RuntimeError) as error:
+        sys.exit(f"slot lifetime: {error}")
+
+
+from pathlib import Path
 import argparse
 from contextlib import contextmanager
 import fcntl
 import hashlib
 import json
-import os
-from pathlib import Path
 import signal
 import stat
 import subprocess
-import sys
 import tempfile
+import time
 import uuid
 
-sys.dont_write_bytecode = True
-
-
-def no_links(path):
-    path = Path(path).absolute()
-    for part in (*reversed(path.parents), path):
-        if part.is_symlink():
-            raise RuntimeError(f"symlink path: {part}")
-    return path
 
 
 def identity(path):
     no_links(path)
     info = path.lstat()
     return [info.st_dev, info.st_ino]
-
-
-def slot_path(directory, home=None):
-    """Map any cwd within a numeric slot; other checkouts need no slot lease."""
-    home = Path(home or Path.home()).absolute()
-    root = home / "src/fabrig/slots"
-    supplied = Path(os.path.abspath(directory))
-    if not supplied.is_relative_to(root):
-        return None
-    relative = supplied.relative_to(root)
-    if not relative.parts or not relative.parts[0].isascii() or not relative.parts[0].isdecimal():
-        return None
-    no_links(supplied)
-    slot = root / relative.parts[0]
-    if not slot.is_dir():
-        raise RuntimeError(f"not a slot directory: {slot}")
-    return slot
 
 
 def private_directory(path):
@@ -113,7 +178,7 @@ def read(path):
 
 
 @contextmanager
-def locked(path, exclusive=True):
+def locked(path, exclusive=True, *, wait=False):
     no_links(path)
     fd = os.open(path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
     try:
@@ -122,7 +187,7 @@ def locked(path, exclusive=True):
                 or stat.S_IMODE(info.st_mode) != 0o600 or info.st_nlink != 1):
             raise RuntimeError(f"unsafe lock: {path}")
         try:
-            fcntl.flock(fd, (fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH) | fcntl.LOCK_NB)
+            fcntl.flock(fd, (fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH) | (0 if wait else fcntl.LOCK_NB))
         except BlockingIOError as error:
             raise RuntimeError(f"slot maintenance lease busy: {path}") from error
         if identity(path) != [info.st_dev, info.st_ino]:
@@ -136,6 +201,32 @@ def state_root(home):
     root = Path(home) / "src/fabrig/slot-maintenance"
     private_directory(root)
     return root
+
+
+def read_completed(directory, slot):
+    path = directory / "completed.json"
+    no_links(path)
+    if not path.exists():
+        return None
+    record = read(path)
+    timestamp, token = record.get("completed_ns"), record.get("token")
+    if (record.get("slot") != str(slot) or record.get("identity") != identity(slot)
+            or type(timestamp) is not int or not 0 < timestamp <= time.time_ns()
+            or not isinstance(token, str) or len(token) != 32
+            or any(c not in "0123456789abcdef" for c in token)
+            or not isinstance(record.get("purpose"), str) or not record["purpose"].strip()):
+        raise RuntimeError("unknown completed lifetime identity/time")
+    return record
+
+
+def completed_lifetime(directory, slot, token, purpose):
+    """Publish completion before removing ownership, serializing shared holders."""
+    with locked(directory / "completion.lock", wait=True):
+        previous = read_completed(directory, slot)
+        completed = max(time.time_ns(), previous["completed_ns"] if previous else 0)
+        write(directory / "completed.json", {"slot": str(slot), "identity": identity(slot),
+                                             "completed_ns": completed, "token": token,
+                                             "purpose": purpose})
 
 
 class Lease:
@@ -182,6 +273,9 @@ class Lease:
         try:
             if (self.clean and kind is None and self.hold.exists()
                     and not read(self.hold).get("uncertain")):
+                if read(self.hold)["identity"] != identity(self.slot):
+                    raise RuntimeError("slot replaced during lifetime")
+                completed_lifetime(self.directory, self.slot, self.token, "source/build lifetime")
                 self.hold.unlink()
                 sync(self.directory)
         finally:
@@ -205,10 +299,13 @@ def inherited(slot):
 def main():
     os.umask(0o077)
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("mode", choices=("run", "launch", "verify", "uncertain"))
+    parser.add_argument("mode", choices=("run", "launch", "verify", "uncertain", *PATH_MODES))
     parser.add_argument("directory", type=Path)
     parser.add_argument("--adopt", default="")
     args, command = parser.parse_known_args()
+    if args.mode in PATH_MODES:
+        print(PATH_MODES[args.mode](args.directory))
+        return 0
     slot = slot_path(args.directory)
     if args.mode == "verify":
         return 0 if slot is None or inherited(slot) else 1

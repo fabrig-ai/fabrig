@@ -1066,11 +1066,12 @@ chmod +x "$t/bin/sleep"
 printf 'capacity-once\n' >"$fake/scenario"
 report=$t/reports/slot-retry.md
 printf '%s\n' "$report" >"$fake/report"
-output=$("$kit/codex-run" task "$t/task file.md" "$slot" "$report")
+output=$("$kit/codex-run" task "$t/task file.md" "$HOME/src/fabrig/slots/../slots/1" "$report")
 read -r id state <<<"$output"
 IFS= read -r -t "$HUNG_CASE_S" ready <&"$retry_ready"
 [[ $ready == ready ]]
 checks=$((checks + 1))
+expect 'alias retry metadata names canonical slot' "$(sed -n 's/^dir=//p' "$state/meta")" "$slot"
 if flock -n "$HOME/src/fabrig/slot-maintenance/1/lease" true; then
     echo 'FAIL reclaim entered during capacity retry' >&2
     exit 1

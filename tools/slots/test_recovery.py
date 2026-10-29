@@ -123,6 +123,226 @@ class RecoveryTests(unittest.TestCase):
         self.assertIn("ack.json", result)
         self.assertTrue((slot / "target/cache").exists())
 
+    def test_legacy_alias_retry_outside_slot_vetoes_recovery(self):
+        slot = self.slot()
+        self.ack(slot)
+        alias = self.slots / ".." / "slots" / "1"
+        self.add_run(alias, "retry", 1_700_000_010, ended=False)
+        self.state(units={"codex-run-retry.service": {"ActiveState": "active", "WorkingDirectory": ""}})
+        self.assertNotIn(": reclaimed ", self.recover([slot]))
+        self.assertTrue((slot / "target/cache").exists())
+
+    def launch_directory(self, directory, report):
+        task = self.home / "task.md"
+        task.write_text("fixture\n")
+        return subprocess.run(["bash", str(DIRECTORY.parent / "codex-run/codex-run"), "task",
+                               "--to", "lead/fixture", str(task), str(directory), str(report)],
+                              text=True, capture_output=True, stdin=subprocess.DEVNULL)
+
+    def test_new_alias_launch_invalidates_ack_and_records_canonical_directory(self):
+        slot = self.slot()
+        self.ack(slot)
+        alias = self.slots / ".." / "slots" / "1"
+        child = self.launch_directory(alias, self.home / "alias-report.md")
+        self.assertEqual(child.returncode, 0, child.stderr)
+        self.assertFalse((self.home / "src/fabrig/slot-maintenance/1/ack.json").exists())
+        _, state = child.stdout.strip().split(" ", 1)
+        meta = dict(line.split("=", 1) for line in (Path(state) / "meta").read_text().splitlines())
+        self.assertEqual(meta["dir"], str(slot))
+        self.assertIn("durable uncertain/live lifetime", self.recover([slot]))
+
+    def move_report(self, run_name, destination):
+        meta = self.runs / run_name / "meta"
+        old = self.home / (run_name + "-report.md")
+        old.rename(destination)
+        meta.write_text(meta.read_text().replace(f"report={old}\n", f"report={destination}\n"))
+
+    def test_own_report_inside_target_cannot_be_acknowledged_or_deleted(self):
+        slot = self.slot()
+        report = slot / "target/report.md"
+        self.move_report("run-1", report)
+        with self.assertRaisesRegex(RuntimeError, "protected.*target"):
+            self.ack(slot)
+        self.assertTrue(report.exists())
+
+    def test_other_slot_report_inside_candidate_target_vetoes_recovery(self):
+        slot, other = self.slot("1"), self.slot("2")
+        self.ack(slot)
+        report = slot / "target/other-report.md"
+        self.move_report("run-2", report)
+        self.assertNotIn(": reclaimed ", self.recover([slot]))
+        self.assertTrue(report.exists())
+
+    def test_history_root_inside_target_cannot_be_acknowledged(self):
+        slot = self.slot()
+        destination = slot / "target/run-root"
+        self.runs_root.rename(destination)
+        with patch.dict(os.environ, DEV_ROOT=str(destination)):
+            with self.assertRaisesRegex(RuntimeError, "protected.*target"):
+                self.ack(slot)
+        self.assertTrue((destination / "tmp/codex-run/run-1/meta").exists())
+
+    def test_recent_manual_completion_moves_old_codex_slot_after_idle_slot(self):
+        recent = self.slot("1", completed=1_700_000_000)
+        idle = self.slot("2", completed=1_700_000_010)
+        with L["Lease"](recent, self.home) as lease:
+            lease.clean = True
+        for slot in (recent, idle):
+            self.ack(slot)
+        result = self.recover([recent, idle], free=lambda: 60 if (idle / "target").exists() else 81)
+        self.assertIn("slot 2: reclaimed", result)
+        self.assertNotIn("slot 1: reclaimed", result)
+        self.assertTrue((recent / "target/cache").exists())
+
+    def test_alias_service_and_finished_legacy_run_still_veto_recovery(self):
+        slot = self.slot()
+        alias = self.slots / ".." / "slots" / "1"
+        self.add_run(alias, "retry", 1_700_000_010)
+        self.ack(slot)
+        self.state(units={"codex-run-retry.service": {"ActiveState": "active", "WorkingDirectory": ""}})
+        self.assertIn("live Codex run: retry", self.recover([slot]))
+        self.state(units={"job-heavy-wrapper.service": {"ActiveState": "active", "WorkingDirectory": str(alias)}})
+        self.assertIn("live service", self.recover([slot]))
+        self.assertTrue((slot / "target/cache").exists())
+
+    def test_symlink_alias_cancelled_by_dot_dot_is_refused_before_launch(self):
+        slot = self.slot()
+        self.ack(slot)
+        link = self.home / "alias"
+        link.symlink_to(self.slots)
+        child = self.launch_directory(link / ".." / "slots" / "1", self.home / "alias-report.md")
+        self.assertNotEqual(child.returncode, 0)
+        self.assertIn("symlink path", child.stderr)
+        self.assertFalse((self.home / "alias-report.md").exists())
+        self.assertTrue((self.home / "src/fabrig/slot-maintenance/1/ack.json").exists())
+
+    def test_legacy_symlink_alias_and_other_report_alias_preserve_evidence(self):
+        slot, other = self.slot("1"), self.slot("2")
+        self.ack(slot)
+        link = self.home / "alias"
+        link.symlink_to(self.slots)
+        meta = self.runs / "run-2/meta"
+        original = meta.read_text()
+        meta.write_text(original.replace(f"dir={other}\n", f"dir={link}/../slots/2\n"))
+        self.assertIn("symlink path", self.recover([slot]))
+        meta.write_text(original)
+        report = slot / "target/other-report.md"
+        self.move_report("run-2", report)
+        report_link = self.home / "report-alias"
+        report_link.symlink_to(slot / "target")
+        meta.write_text(meta.read_text().replace(f"report={report}\n", f"report={report_link}/other-report.md\n"))
+        self.assertIn("symlink path", self.recover([slot]))
+        self.assertTrue(report.exists())
+
+    def test_existing_ack_cannot_delete_its_report_moved_under_target_alias(self):
+        slot = self.slot()
+        self.ack(slot)
+        report = slot / "target/report.md"
+        self.move_report("run-1", report)
+        meta = self.runs / "run-1/meta"
+        alias = slot / "target/.." / "target/report.md"
+        meta.write_text(meta.read_text().replace(f"report={report}\n", f"report={alias}\n"))
+        self.assertIn("protected evidence overlaps target", self.recover([slot]))
+        self.assertTrue(report.exists())
+
+    def test_history_alias_and_symlink_inside_target_preserve_all_history(self):
+        slot = self.slot()
+        self.ack(slot)
+        destination = slot / "target/run-root"
+        self.runs_root.rename(destination)
+        alias = slot / "target/.." / "target/run-root"
+        with patch.dict(os.environ, DEV_ROOT=str(alias)):
+            self.assertIn("protected evidence overlaps target", self.recover([slot]))
+        link = self.home / "history-link"
+        link.symlink_to(destination)
+        with patch.dict(os.environ, DEV_ROOT=str(link)):
+            self.assertIn("symlink path", self.recover([slot]))
+        self.assertTrue((destination / "tmp/codex-run/run-1/meta").exists())
+
+    def test_launcher_refuses_report_and_history_outputs_inside_targets(self):
+        slot = self.slot()
+        report = slot / "target/new-report.md"
+        child = self.launch_directory(slot, report)
+        self.assertNotEqual(child.returncode, 0)
+        self.assertIn("protected evidence overlaps target", child.stderr)
+        self.assertFalse(report.exists())
+        with patch.dict(os.environ, DEV_ROOT=str(slot / "target/run-root")):
+            child = self.launch_directory(slot, self.home / "new-report.md")
+        self.assertNotEqual(child.returncode, 0)
+        self.assertFalse((slot / "target/run-root").exists())
+
+    def test_completed_lifetime_digest_and_identity_are_bound_to_acknowledgement(self):
+        slot = self.slot()
+        with L["Lease"](slot, self.home) as lease:
+            lease.clean = True
+        self.ack(slot)
+        completion = self.home / "src/fabrig/slot-maintenance/1/completed.json"
+        record = L["read"](completion)
+        L["write"](completion, {**record, "purpose": "changed completion evidence"})
+        self.assertIn("acknowledgement stale", self.recover([slot]))
+        L["write"](completion, {**record, "identity": [0, 0]})
+        self.assertIn("unknown completed lifetime", self.recover([slot]))
+
+    def test_new_lifetime_does_not_overwrite_unknown_completion_evidence(self):
+        slot = self.slot()
+        with L["Lease"](slot, self.home) as lease:
+            lease.clean = True
+        completion = self.home / "src/fabrig/slot-maintenance/1/completed.json"
+        L["write"](completion, {**L["read"](completion), "identity": [0, 0]})
+        original = completion.read_bytes()
+        with self.assertRaisesRegex(RuntimeError, "unknown completed lifetime"):
+            with L["Lease"](slot, self.home) as lease:
+                lease.clean = True
+        self.assertEqual(completion.read_bytes(), original)
+        self.assertEqual(len(list(completion.parent.glob("*.hold"))), 1)
+        self.assertTrue((slot / "target/cache").exists())
+
+    def test_completed_precheck_refreshes_idle_order_after_restoration(self):
+        recent = self.slot("1", completed=1_700_000_000)
+        idle = self.slot("2", completed=1_700_000_010)
+        shutil.rmtree(recent / ".git")
+        (recent / ".gitignore").write_text("target/\n")
+        env = dict(os.environ, GIT_CONFIG_GLOBAL="/dev/null", GIT_CONFIG_NOSYSTEM="1")
+        for args in (("init", "-b", "original"), ("config", "user.name", "Fixture"),
+                     ("config", "user.email", "fixture@example.invalid"), ("add", "."),
+                     ("commit", "-m", "fixture")):
+            subprocess.run(["git", "-C", str(recent), *args], env=env, check=True,
+                           stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+        child = subprocess.run([sys.executable, "-I", "-B", str(DIRECTORY.parent / "queue/precheck"),
+                                "--base", "HEAD", str(recent), "HEAD"], env=env,
+                               text=True, capture_output=True, stdin=subprocess.DEVNULL)
+        self.assertEqual(child.returncode, 0, child.stdout + child.stderr)
+        for slot in (recent, idle):
+            self.ack(slot)
+        result = self.recover([recent, idle], free=lambda: 60 if (idle / "target").exists() else 81)
+        self.assertIn("slot 2: reclaimed", result)
+        self.assertNotIn("slot 1: reclaimed", result)
+        self.assertTrue((recent / "target/cache").exists())
+
+    def test_killed_guard_fixture_leaves_scratch_outside_checked_source(self):
+        root = FIXTURE["ROOT"]
+        before = {path.name for path in root.iterdir()}
+        code = ("import runpy,sys; C=runpy.run_path(sys.argv[1])['GuardTests']; "
+                "t=C('test_above_threshold_does_not_inspect_units_or_trim'); t.setUp(); "
+                "print(t.home,flush=True); sys.stdin.read(1)")
+        child = subprocess.Popen([sys.executable, "-I", "-B", "-c", code, str(DIRECTORY / "test_guard.py")],
+                                 stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        try:
+            scratch = Path(child.stdout.readline().decode().strip())
+            self.assertTrue(scratch.is_absolute())
+            self.assertEqual(scratch.parent, root.parent)
+            self.assertTrue(scratch.name.startswith(".guard-test-"))
+            self.addCleanup(lambda: shutil.rmtree(scratch) if scratch.is_dir() else None)
+        finally:
+            if child.poll() is None:
+                child.kill()
+            child.communicate(timeout=10)
+        self.assertEqual(child.returncode, -signal.SIGKILL)
+        self.assertTrue(scratch.is_dir())
+        self.assertEqual(scratch.parent, root.parent)
+        self.assertFalse(scratch.is_relative_to(root))
+        self.assertEqual({path.name for path in root.iterdir()}, before)
+
     def test_explicit_ack_handles_nonzero_done_and_capacity_report(self):
         for number, report in (("1", "Done\nexit 1: capacity; pending resume\n"), ("2", "Done\nexit 7\n")):
             slot = self.slot(number, report=report)

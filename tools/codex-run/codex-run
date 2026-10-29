@@ -10,7 +10,7 @@ umask 077
 script=$(readlink -f "${BASH_SOURCE[0]}")
 kit=$(dirname "$script")
 fabrig=$(cd "$kit/../.." && pwd)
-root=$(realpath -m "${DEV_ROOT:-$HOME/src/rust}")
+root=${DEV_ROOT:-$HOME/src/rust}
 runs=$root/tmp/codex-run
 search_rule='Before any command, read the rules in the text below. Search only your worktree and the paths it names: never run rg, find, ls -R or grep -r from ~/src/rust/tmp or any directory above it, and never in ~/.local, ~/.config or /run/user. '
 ON_STOP_SECONDS=60
@@ -247,6 +247,7 @@ task_launch() {
     model=${model:-gpt-6.1-sol} effort=${effort:-high} read_only=${read_only:-0}
     settings
     absolute "$task" TASK; absolute "$dir" DIR; absolute "$report" REPORT
+    report=$(python3 -I -B "$fabrig/tools/slots/lifetime.py" protect "$report" 2>&1) || refuse "$report"
     [[ -f $task && -r $task ]] || refuse 'TASK is not readable'
     [[ -d $dir ]] || refuse 'DIR is not a directory'
     [[ ! -e $report && ! -L $report ]] || refuse 'REPORT already exists'
@@ -281,11 +282,11 @@ task_launch() {
 
 # tools/slots/design.md, 5.2: inherited locks cover shell, retries and children.
 lease_task() {
-    local purpose=$1 expected=$1 number helper=$fabrig/tools/slots/lifetime.py adopt=''
-    # Test lexical membership before resolving: symlink slots must be refused.
-    [[ $dir == "$HOME/src/fabrig/slots/"* ]] || return 0
-    number=${dir#"$HOME/src/fabrig/slots/"}; number=${number%%/*}
-    [[ $number =~ ^[0-9]+$ ]] || return 0
+    local purpose=$1 expected=$1 validated helper=$fabrig/tools/slots/lifetime.py adopt=''
+    # Inspect symlink components before normalizing aliases and slot membership.
+    validated=$(python3 -I -B "$helper" directory "$dir" 2>&1) || refuse "$validated"
+    dir=${validated%$'\n'*}
+    [[ ${validated##*$'\n'} == slot ]] || return 0
     [[ -f $helper ]] || refuse 'missing slot lifetime helper'
     [[ $expected != stop ]] || expected=run
     if [[ ${FABRIG_SLOT_LEASE_MODE:-} == "$expected" ]] &&
@@ -509,6 +510,8 @@ stale() {
     return "$result"
 }
 
+root=$(python3 -I -B "$fabrig/tools/slots/lifetime.py" root "$root" 2>&1) || refuse "$root"
+runs=$root/tmp/codex-run
 mode=${1:-}
 (($# == 0)) || shift
 case $mode in
