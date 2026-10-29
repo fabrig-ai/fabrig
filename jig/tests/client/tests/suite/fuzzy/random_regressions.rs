@@ -1,8 +1,6 @@
 //! Retained named random regressions, with their complete seeds and heap checks.
 use jig_client_world::random::{self, Start};
-use skein_world::domain::{Verdict, heap::Counting};
-#[global_allocator]
-static HEAP: Counting = Counting;
+use skein_world::domain::Verdict;
 #[test]
 fn random_people_smoke_newchat_story_boundaries() {
     let outcome = random::story(71, Start::NewChat);

@@ -1,9 +1,6 @@
 use jig_client_view::address::{Address, ProjectSection as P, TaskSection as T};
 use jig_client_world::{Settings, Until, stories};
 use skein_lib::{Time, Wall};
-use skein_world::domain::heap::Counting;
-#[global_allocator]
-static HEAP: Counting = Counting;
 fn full_contract() -> jig_client_domain::contract::TaskContractDocument {
     use jig_client_domain::contract::{FieldRule, TaskContractDocument, VerdictChoice};
     let fields = jig_client_world::test::list([

@@ -1,6 +1,4 @@
 use jig_client_world::{Settings, stories};
-#[global_allocator]
-static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
 
 /// A real client allocation crosses a deliberately small declared budget.
 /// The same callback guard used by the full fixture must catch it.

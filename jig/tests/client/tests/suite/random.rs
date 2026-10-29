@@ -1,7 +1,5 @@
 //! Focused visibility checks through the person’s scripted actions.
-use skein_world::domain::{Verdict, heap::Counting};
-#[global_allocator]
-static HEAP: Counting = Counting;
+use skein_world::domain::Verdict;
 #[test]
 fn clearing_the_filter_shows_the_same_still_waiting_proposal() {
     use jig_client_world::{Until, stories};

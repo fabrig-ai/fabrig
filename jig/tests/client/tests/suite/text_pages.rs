@@ -34,11 +34,11 @@ fn ready(mut w: PageWorld, address: RootAddress, label: &str, golden: &[u8]) {
 }
 #[test]
 fn the_inbox_prints_as_its_golden_text() {
-    ready(stories::text_pages::inbox(), stories::inbox(), "inbox", include_bytes!("golden/inbox.txt"));
+    ready(stories::text_pages::inbox(), stories::inbox(), "inbox", include_bytes!("../golden/inbox.txt"));
 }
 #[test]
 fn a_task_page_with_its_conversation_prints_as_its_golden_text() {
-    ready(stories::proposal_world(92), stories::chat(), "task", include_bytes!("golden/task.txt"));
+    ready(stories::proposal_world(92), stories::chat(), "task", include_bytes!("../golden/task.txt"));
 }
 #[test]
 fn a_projects_sections_print_as_their_golden_text() {
@@ -46,7 +46,7 @@ fn a_projects_sections_print_as_their_golden_text() {
         stories::goal_world(93),
         RootAddress::Jig(Address::Project { project: 1, section: ProjectSection::Settings }),
         "project",
-        include_bytes!("golden/project.txt"),
+        include_bytes!("../golden/project.txt"),
     );
 }
 #[test]
@@ -56,16 +56,16 @@ fn the_deployment_prints_as_its_golden_text() {
         .engine
         .act(Time::ZERO, Wall::EPOCH, jig_client_scripted_engine::Change::Deployment(stories::deployment()))
         .expect("deployment fits");
-    ready(w, RootAddress::Jig(Address::Deployment), "deployment", include_bytes!("golden/deployment.txt"));
+    ready(w, RootAddress::Jig(Address::Deployment), "deployment", include_bytes!("../golden/deployment.txt"));
 }
 #[test]
 fn each_page_not_about_the_work_prints_as_its_golden_text() {
     for (page, golden) in [
-        ("starting", include_bytes!("golden/starting.txt").as_slice()),
-        ("signing_in", include_bytes!("golden/signing_in.txt")),
-        ("missing", include_bytes!("golden/missing.txt")),
-        ("out_of_date", include_bytes!("golden/out_of_date.txt")),
-        ("someone_else", include_bytes!("golden/someone_else.txt")),
+        ("starting", include_bytes!("../golden/starting.txt").as_slice()),
+        ("signing_in", include_bytes!("../golden/signing_in.txt")),
+        ("missing", include_bytes!("../golden/missing.txt")),
+        ("out_of_date", include_bytes!("../golden/out_of_date.txt")),
+        ("someone_else", include_bytes!("../golden/someone_else.txt")),
     ] {
         let (w, c) = special(page);
         print(&w, c, page, golden);
