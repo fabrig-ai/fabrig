@@ -37,22 +37,7 @@
         {
           "lines": [
             {
-              "call": "message",
-              "arguments": {
-                "target": 2,
-                "form": "answer",
-                "question": 1,
-                "words": "Go ahead. The CSV's first line must be the header fruit,count."
-              }
-            }
-          ],
-          "finish": "tool_calls",
-          "tokens": 43
-        },
-        {
-          "lines": [
-            {
-              "text": "Sent approval and header rule."
+              "text": "Your approval and the required fruit,count header reached the work from your inbox."
             }
           ],
           "finish": "stop",
