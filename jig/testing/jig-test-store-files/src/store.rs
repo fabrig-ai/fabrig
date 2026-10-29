@@ -7,6 +7,9 @@ use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use std::collections::{BTreeMap, VecDeque};
 use std::fmt;
 
+#[cfg(test)]
+mod tests;
+
 /// The installation's identifier these worlds draw: an empty store keeps it,
 /// and a reopened one answers the one it kept (configuration.md, 8).
 const INSTALLATION: [u8; 16] = [0; 16];

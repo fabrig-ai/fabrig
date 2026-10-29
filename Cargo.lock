@@ -1668,6 +1668,7 @@ name = "jig-test-store-files"
 version = "0.0.0"
 dependencies = [
  "jig-conformance",
+ "jig-core-world",
  "jig-domain-core",
  "jig-protocol-store",
  "jig-test-connector",
