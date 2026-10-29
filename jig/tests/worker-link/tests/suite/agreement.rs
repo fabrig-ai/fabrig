@@ -1,5 +1,5 @@
-#[path = "../src/joined.rs"]
-pub mod joined;
+use crate::joined_world as joined;
+#[expect(clippy::module_inception, reason = "Keep the existing test paths under the suite file module.")]
 mod agreement {
     use super::joined::{Joined, application, credential, form, received, sent, values};
     use jig_domain_host as host;

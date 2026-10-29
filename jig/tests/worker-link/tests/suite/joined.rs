@@ -1,5 +1,4 @@
-#[path = "../src/joined.rs"]
-pub mod joined;
+use crate::joined_world as joined;
 mod joined_story {
     use super::joined::{Joined, application, credential, received, sent, values};
     use jig_domain_host as host;
