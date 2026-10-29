@@ -2159,6 +2159,7 @@ dependencies = [
  "skein-lib",
  "skein-scratch",
  "skein-shell",
+ "skein-world",
 ]
 
 [[package]]

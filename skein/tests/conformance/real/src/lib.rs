@@ -4,6 +4,7 @@
 //! root a scratch directory of its own. The tests are
 //! `tests/conformance.rs`.
 
+use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::OsStr;
 use std::fs;
 use std::os::unix::ffi::OsStrExt;
@@ -12,13 +13,17 @@ use std::path::Path;
 use std::process::Command;
 
 use skein_conformance::{Backend as ConformanceBackend, Item, Made};
-use skein_io::kernel::{Complete, Error, Fd, Submit};
-use skein_lib::{Duration, Queue, Time};
+use skein_io::kernel::{Complete, Done, Error, Fd, Op, Signal, Submit, Target};
+use skein_lib::{Duration, Queue, Time, Token};
 use skein_scratch::Scratch;
 use skein_shell::{Backend, Clock, Config, Kernel, Wait, open_root};
+use skein_world::{Deadline, Expired, Figures};
 
 /// Operations in flight per process: a scenario has a few at most.
 const OPERATIONS: u32 = 16;
+
+/// Sixteen scenario operations plus one slot for cleanup's cancellation.
+const KERNEL_OPERATIONS: u32 = 17;
 
 /// The longest one wait blocks on one process's ring before the others are
 /// entered: their deferred completions run only when they are.
@@ -28,15 +33,17 @@ const SLICE: Duration = Duration::from_millis(5);
 /// with the backend.
 pub struct Real {
     backend: Backend,
-    kernels: Vec<Kernel>,
+    kernels: Vec<OwnedKernel>,
     clock: Clock,
     scratches: Vec<Scratch>,
+    deadline: Option<Deadline>,
+    figures: Option<Figures>,
 }
 
 impl Real {
     #[must_use]
     pub fn new(backend: Backend) -> Real {
-        Real { backend, kernels: Vec::new(), clock: Clock::new(), scratches: Vec::new() }
+        Real { backend, kernels: Vec::new(), clock: Clock::new(), scratches: Vec::new(), deadline: None, figures: None }
     }
 
     /// Whether the kernel checks this process's permissions on its files:
@@ -47,8 +54,22 @@ impl Real {
         fs::metadata(scratch.path()).expect("a scratch directory has metadata").uid() != 0
     }
 
-    fn kernel(&mut self, process: usize) -> &mut Kernel {
+    fn kernel(&mut self, process: usize) -> &mut OwnedKernel {
         self.kernels.get_mut(process).expect("a process of this backend")
+    }
+
+    fn end(&mut self) {
+        for kernel in &mut self.kernels {
+            kernel.end();
+        }
+        self.kernels.clear();
+        self.scratches.clear();
+    }
+}
+
+impl Drop for Real {
+    fn drop(&mut self) {
+        self.end();
     }
 }
 
@@ -56,11 +77,16 @@ impl ConformanceBackend for Real {
     type Process = usize;
 
     fn open(&mut self) -> usize {
-        let kernel = match Kernel::open_on(Config { operations: OPERATIONS }, self.backend) {
+        let kernel = match Kernel::open_on(Config { operations: KERNEL_OPERATIONS }, self.backend) {
             Ok(kernel) => kernel,
             Err(error) => panic!("{:?} is not usable here, so it cannot be tested: {error}", self.backend),
         };
-        self.kernels.push(kernel);
+        self.kernels.push(OwnedKernel {
+            kernel,
+            flights: BTreeMap::new(),
+            descriptors: BTreeSet::new(),
+            children: BTreeSet::new(),
+        });
         self.kernels.len().checked_sub(1).expect("the kernel just pushed")
     }
 
@@ -70,6 +96,27 @@ impl ConformanceBackend for Real {
 
     fn reap(&mut self, process: usize, completions: &mut Queue<Complete>) {
         self.kernel(process).reap(completions);
+    }
+
+    fn wait_begins(&mut self, what: &'static str, patience: Duration) {
+        let mut deadline = Deadline::arm(what, patience);
+        deadline.watch_process(std::process::id());
+        self.deadline = Some(deadline);
+        self.figures = None;
+    }
+
+    fn wait_unanswered(&mut self) {
+        match self.deadline.take().expect("a must-complete wait began").expired() {
+            Expired::Starved(starved) => {
+                self.end();
+                starved.pass();
+            }
+            Expired::Failed(figures) => self.figures = Some(figures),
+        }
+    }
+
+    fn wait_figures(&self) -> Option<String> {
+        self.figures.as_ref().map(ToString::to_string)
     }
 
     fn now(&self) -> Time {
@@ -100,24 +147,35 @@ impl ConformanceBackend for Real {
     }
 
     fn wait_for_connection(&mut self, process: usize, listener: Fd, bound: Duration) {
-        let readable = skein_shell::wait_readable(listener, bound)
+        self.wait_begins("the conformance listener's queued connection", bound);
+        let remaining = self.deadline.as_ref().expect("the listener wait began").remaining();
+        let readable = skein_shell::wait_readable(listener, remaining)
             .unwrap_or_else(|errno| panic!("polling listener {listener:?} of process {process} failed: errno {errno}"));
-        assert!(readable, "no connection arrived on listener {listener:?} of process {process} within {bound:?}");
+        if !readable {
+            self.wait_unanswered();
+        }
+        assert!(
+            readable,
+            "no connection arrived on listener {listener:?} of process {process} within {bound:?}: {}",
+            self.wait_figures().unwrap_or_default()
+        );
     }
 
     fn assert_settled(&self, process: usize) {
         let kernel = self.kernels.get(process).expect("a process of this backend");
-        assert_eq!(kernel.in_flight(), 0, "nothing in flight on process {process}");
+        assert_eq!(kernel.kernel.in_flight(), 0, "nothing in flight on process {process}");
     }
 
-    fn append(&mut self, _process: usize, root: Fd, path: &[u8], mode: u32) -> Result<Fd, Error> {
-        skein_shell::open_append(root, path, mode)
+    fn append(&mut self, process: usize, root: Fd, path: &[u8], mode: u32) -> Result<Fd, Error> {
+        let fd = skein_shell::open_append(root, path, mode)?;
+        self.kernel(process).descriptors.insert(fd);
+        Ok(fd)
     }
 
     /// A scratch directory holding `root`, laid out as `tree` says, and
     /// `outside` beside it, for a link to lead out to; opened as the shell
     /// opens a root.
-    fn root(&mut self, _process: usize, tree: &[Item]) -> Fd {
+    fn root(&mut self, process: usize, tree: &[Item]) -> Fd {
         let scratch = Scratch::new("conformance");
         let outside = scratch.path().join("outside");
         fs::create_dir(&outside).expect("a directory beside the root");
@@ -152,10 +210,156 @@ impl ConformanceBackend for Real {
         }
         let fd = open_root(&root).expect("a scratch directory opens as a root");
         self.scratches.push(scratch);
+        self.kernel(process).descriptors.insert(fd);
         fd
     }
 }
 
 fn mode(path: &Path, mode: u32) {
     fs::set_permissions(path, fs::Permissions::from_mode(mode)).expect("a mode given");
+}
+
+/// Records and resources owned by one scenario process, retained for the
+/// starved exit (skein/docs/foundation/testing-strategy.md, 2.10).
+struct OwnedKernel {
+    kernel: Kernel,
+    flights: BTreeMap<Token, Flight>,
+    descriptors: BTreeSet<Fd>,
+    children: BTreeSet<Fd>,
+}
+
+#[derive(Clone, Copy)]
+enum Flight {
+    Cancellable,
+    Cancel(Token),
+    Other,
+}
+
+impl OwnedKernel {
+    fn submit(&mut self, records: &mut Queue<Submit>, wait: Wait) {
+        for record in &*records {
+            let flight = match record.kind {
+                Op::Accept { .. }
+                | Op::Connect { .. }
+                | Op::Recv { .. }
+                | Op::Send { .. }
+                | Op::Open { .. }
+                | Op::Read { .. }
+                | Op::Write { .. }
+                | Op::Append { .. }
+                | Op::Sync { .. }
+                | Op::Wait { .. }
+                | Op::ReadSignal { .. }
+                | Op::PipeRead { .. }
+                | Op::PipeWrite { .. } => Flight::Cancellable,
+                Op::Cancel { target } => Flight::Cancel(target),
+                Op::Socket { .. }
+                | Op::Bind { .. }
+                | Op::Listen { .. }
+                | Op::Shutdown { .. }
+                | Op::Close { .. }
+                | Op::Truncate { .. }
+                | Op::Lock { .. }
+                | Op::Stat { .. }
+                | Op::Rename { .. }
+                | Op::Remove { .. }
+                | Op::MakeDirectory { .. }
+                | Op::List { .. }
+                | Op::Spawn { .. }
+                | Op::Signal { .. }
+                | Op::Usage
+                | Op::Window { .. } => Flight::Other,
+            };
+            self.flights.insert(record.op, flight);
+        }
+        self.kernel.submit(records, wait);
+        // A scenario submits no more than its kernel can take.
+        for record in &*records {
+            self.flights.remove(&record.op);
+        }
+    }
+
+    fn reap(&mut self, out: &mut Queue<Complete>) {
+        let before = usize::try_from(out.len()).expect("the completion count fits usize");
+        self.kernel.reap(out);
+        for complete in out.iter().skip(before) {
+            self.flights.remove(&complete.op);
+            match (&complete.kind, &complete.result) {
+                (Op::Close { fd }, _) => {
+                    self.descriptors.remove(fd);
+                    self.children.remove(fd);
+                }
+                (Op::Wait { pidfd, reap: true }, Ok(Done::Exit(_))) => {
+                    self.children.remove(pidfd);
+                }
+                (_, Ok(Done::Fd(fd) | Done::Accepted { fd, .. })) => {
+                    self.descriptors.insert(*fd);
+                }
+                (Op::Spawn { spawn }, Ok(Done::Spawned { pidfd, .. })) => {
+                    self.descriptors.insert(*pidfd);
+                    self.children.insert(*pidfd);
+                    for pipe in &spawn.pipes {
+                        self.descriptors.insert(pipe.parent.expect("a spawned pipe has its parent end"));
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn end(&mut self) {
+        let mut completions = Queue::with_capacity(OPERATIONS);
+        let mut records = Queue::with_capacity(1);
+        let mut next = u64::MAX;
+        loop {
+            self.reap(&mut completions);
+            while completions.pop().is_some() {}
+            for child in &self.children {
+                let _sent = skein_shell::signal_kept_child(*child, Signal::Kill, Target::Group);
+            }
+            if self.flights.is_empty() {
+                break;
+            }
+            let cancelling: BTreeSet<Token> = self
+                .flights
+                .values()
+                .filter_map(|flight| match flight {
+                    Flight::Cancel(target) => Some(*target),
+                    Flight::Cancellable | Flight::Other => None,
+                })
+                .collect();
+            let targets: Vec<Token> = self
+                .flights
+                .iter()
+                .filter_map(|(token, flight)| {
+                    if matches!(flight, Flight::Cancellable) && !cancelling.contains(token) {
+                        Some(*token)
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            for target in targets {
+                if self.kernel.room() == 0 {
+                    break;
+                }
+                while self.flights.contains_key(&Token::new(next)) {
+                    next = next.checked_sub(1).expect("cleanup tokens in reach");
+                }
+                records.push(Submit { op: Token::new(next), kind: Op::Cancel { target } });
+                next = next.checked_sub(1).expect("cleanup tokens in reach");
+                self.submit(&mut records, Wait::No);
+            }
+            let until = Clock::new().now().now.saturating_add(SLICE);
+            self.submit(&mut records, Wait::Until(until));
+        }
+        for child in &self.children {
+            skein_shell::abandon_binary(Some(*child), &[]);
+        }
+        self.children.clear();
+        for descriptor in &self.descriptors {
+            skein_shell::close_keeper_fd(*descriptor);
+        }
+        self.descriptors.clear();
+    }
 }
