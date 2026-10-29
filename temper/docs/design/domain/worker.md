@@ -1,6 +1,6 @@
 # The worker
 
-Provisional, 2026-10-04, revised 2026-10-28. What temper's worker does,
+Provisional, 2026-10-04, revised 2026-10-29. What temper's worker does,
 as a domain layer: its root, which composes jig's hub with smith's host
 domain and temper's checkout; the items an assignment gives a run's
 workspace; and the checkout, which is temper's own. The worker hosts the
@@ -196,9 +196,11 @@ temper's workspace items beside it:
     identity's value authenticates git on it (`../protocol/channel.md`,
     sections 4 and 6), carried with the identity into each git operation
     that reaches the forge, which the domain copies and never reads.
-- **Saving.** Whether to save unfinished work, and to which branch.
-  The engine asks it for every run whose charter resumes its transcript
-  (a chat's, a coding agent's: agent.md, section 4), and the next
+- **Saving.** The assignment's typed resume policy requests saving
+  unfinished work from the first attempt, before a transcript exists
+  (a chat's, a coding agent's: agent.md, section 4). Each writable
+  repository has its own optional saved-work destination, belonging to
+  the running task (forge.md, section 11), and the next
   attempt starts from the saved work: the tree follows the transcript,
   so a retry that remembers a write finds the file it wrote, and a run
   that starts fresh from its brief starts from a clean checkout. A run
@@ -245,7 +247,8 @@ A hosted run's lifecycle is the hub's, in nine steps (jig's
   lands counts (section 5).
 - **Step 7, save,** if the assignment asks, at park, at an unfinished end
   and at cancel: commit what the writable repositories hold and push it
-  to the saved-work branch, so a later run on any worker starts from it.
+  to each repository's own saved-work destination, where one is named,
+  so a later run on any worker starts from it.
   A run that ended with a landed change has nothing left to save, and
   nor has one whose agent never started, nor one that started from a
   merge in progress, whose next attempt prepares the merge again; one
@@ -412,8 +415,9 @@ runs as contained processes and whose output it parses.
   the branch moved incompatibly with the run's commit, the push fails and
   the run is told. When the assignment names an expected head, the
   remote must also still be at that exact head, so no movement of the
-  branch since the run started goes unseen; without one, a rewind of the
-  branch to an ancestor does (section 12).
+  branch since the run started goes unseen. Saved starts use the fetched
+  delivery head when none was supplied; for other starts without one,
+  a rewind of the branch to an ancestor goes unseen (section 12).
 - **Each repository lands on its own.** Pushing several is not atomic:
   the run is told done only if every repository with a change landed it,
   moved if a branch cannot take the commit as a fast-forward, and nothing
@@ -437,7 +441,19 @@ runs as contained processes and whose output it parses.
   verified against the forge, by fetching its branch.
 - **Saved work** is ordinary commits on the saved-work branch, pushed the
   same way. A run that resumes from saved work starts where the last one
-  stopped. Work done since the last save is lost if the worker dies.
+  stopped: prepare rebuilds the cached workspace from an empty directory,
+  clones the repositories again and checks out the saved commit's tree,
+  leaving no cached tracked edits or untracked files. The saved commit
+  is the checkout's start and head; its pushed baseline is the fetched
+  delivery branch's head, or absent if that branch does not yet exist
+  and no expected head was required. An explicit expected head stays in
+  force; otherwise the fetched delivery head guards the push. A saved
+  tree is deliverable without another edit, even if its head is already
+  on the delivery branch: this hold establishes its landing through a
+  push against that baseline, which later finishes reuse. Saving still
+  compares with the checkout's start. A fresh start resets and cleans
+  the checkout.
+  Work done since the last save is lost if the worker dies.
 - **No credentials on disk.** Every git operation that reaches the forge,
   or commits, names the repository's identity, which the protocol layer
   maps to credentials or an author for that invocation only, never into a

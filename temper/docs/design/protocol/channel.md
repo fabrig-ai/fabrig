@@ -1,6 +1,6 @@
 # temper's parts on jig's channel
 
-Provisional, 2026-10-03, revised 2026-10-21. What temper carries on the
+Provisional, 2026-10-03, revised 2026-10-29. What temper carries on the
 channel between its engine and a worker: its parts inside jig's records,
 under its payload version, and a git identity's value inside a credential
 grant. The channel is jig's (jig's `protocol/channel.md`), and this
@@ -17,8 +17,8 @@ tested. What is open is listed in section 10.
   a record goes down or up, and decodes them before a root sees the
   record, so each root routes typed values only.
 - **Four parts and one value:**
-  - **down,** in an assignment: the workspace items, with the saved-work
-    branch;
+  - **down,** in an assignment: the workspace items, with each
+    repository's optional saved-work branch;
   - **up,** beside a run's answer: what the run left (the heads its
     pushes landed), what it saved, and a failed preparation's repository
     and reason;
@@ -56,12 +56,12 @@ jig-protocol-engine-workers  ◄──── the worker's link, jig's channel �
   ▼ jig's Part { token, bytes }                                           ▼
 worker's routing   decodes Items                                          encodes Left, Saved, Preparation
   ▼                                                                       ▼
-worker's root      Event::Assign { assignment, items, save }            Request::Answer { answer, work, preparation }
+worker's root      Event::Assign { assignment, items }                  Request::Answer { answer, work, preparation }
 ```
 
 | Part | In jig's record (jig's `protocol/channel.md`, section 5) | Way | temper's record | The engine's side | The worker's side |
 |---|---|---|---|---|---|
-| the workspace items | the assignment's `workspace.items` | down | `Items` | `Assignment.workspace` and the saved-work branch | `wire::Workspace` and `save` |
+| the workspace items | the assignment's `workspace.items` | down | `Items` | `Assignment.workspace`, with per-repository save destinations selected by `run.policy.resume` | `wire::Workspace`, with each repository's `save` |
 | what a run left | an answer's `work.left` | up | `Left` | `Parts.pushed` | `wire::Work.landed` |
 | what it saved | an answer's `work.saved` | up | `Saved` | `Parts.saved` | `wire::Work.saved` |
 | a failed preparation | a failed answer's `unprepared`, `permanent`'s `resource` | up | `Preparation` | `Parts.preparation` | `wire::Preparation` |
@@ -82,9 +82,9 @@ worker's root      Event::Assign { assignment, items, save }            Request:
 
 - **`PAYLOAD_VERSION`,** in `temper-protocol-worker-wire`, covers every
   encoding of temper's carried on the channel: the workspace items with
-  the saved-work branch, the left and saved work, the preparation, a git
-  identity's value, and a delivery's evidence, smith's record as the
-  smith temper links encodes it.
+  per-repository saved-work branches, the left and saved work, the
+  preparation, a git identity's value, and a delivery's evidence,
+  smith's record as the smith temper links encodes it.
 - **Checked at the opening.** The services give it to both channel
   components as they make them, and a worker whose credential names
   another is refused before any part crosses (jig's
@@ -108,8 +108,8 @@ In the schema's terms (each byte field and list has its limit, section
 8; enums are numbered in this order):
 
 ```
-record Items       { repositories: list Repository  save: option bytes }
-record Repository  { tag: u64  name: bytes  remote: bytes  git: option bytes  start: Start  access: Access  identity: u32  account: option u64 }
+record Items       { repositories: list Repository }
+record Repository  { tag: u64  name: bytes  remote: bytes  git: option bytes  start: Start  access: Access  identity: u32  account: option u64  save: option bytes }
 enum   Start       { merge: Merge, base: Branch, branch: Branch, commit: Commit, saved: Branch }
 record Merge       { branch: bytes  base: fixed 32 }
 record Branch      { branch: bytes }
@@ -128,7 +128,7 @@ record Writable    { push: bytes  expected: option fixed 32  landing: option byt
 | `access` | `push: Some(branch)` is `writable { push: branch, expected: none, landing }`; `landing` is the change's landing branch only for an inherited writable producer starting on its push branch; `None` push is `read_only` | `Access`; landing is bounded by the branch-name limit |
 | `identity` | `identity`: the number of the forge's git identity, the credential jig grants the attempt (credentials.md, section 4) | `identity`, the grant's number in the application's table |
 | `account` | made by the routing, on a GitHub forge: the `account` of the entry in the forge's identity value, as the routing last made it (section 6), whose `account_login` equals `owner`, compared ASCII case-insensitively; none when no entry matches, and none on Forgejo | `account`, by which the worker's routing picks the identity's entry for each git operation on the repository (section 6) |
-| `save` | the saved-work branch, when the root asks for a save | `save` beside `Event::Assign` |
+| `save` | this repository's `save`, when `run.policy.resume` requests saving | `wire::Repository.save`, its optional saved-work destination, bounded by the same name limit as a branch |
 
 - **Ids** are the full object id in 32 bytes: a SHA-256 id as it is, a
   SHA-1 id followed by twelve zero bytes (git.md, section 3).
@@ -138,10 +138,15 @@ record Writable    { push: bytes  expected: option fixed 32  landing: option byt
   (`../domain/worker.md`, section 5). A missing landing branch fails
   preparation. This field changes only fresh assignments; stored heads,
   receipts, delivery evidence and resumed conversations keep their encoding.
-- **Saving.** The engine's routing sets jig's `save` and temper's `save`
-  together, both or neither; the worker's root saves only when both say
-  so, and never for a workspace that starts a merge
-  (`../domain/worker.md`, 4.2).
+- **Saving.** The engine's routing sets jig's `save` from the typed
+  `run.policy.resume`, including the first attempt before a transcript
+  exists, and carries each repository's destination in its `save`
+  option. The worker enables saving only when jig requests it and at
+  least one writable repository has a destination. A workspace with any
+  merge start saves nothing; read-only repositories save nothing
+  (`../domain/worker.md`, 4.2). `Items` carries only repositories in
+  `worker-wire-v1.schema`; the schema family and `PAYLOAD_VERSION` stay
+  at 4 under section 3's pre-release rule.
 - **The remote and the git** are the fields the routing makes rather
   than copies; everything a worker needs to reach the forge, but the
   credential, is in them. The credential is the grant's (section 6).
@@ -289,10 +294,10 @@ the routing in the step that routes the record:
 
 | Side | Function | From | To |
 |---|---|---|---|
-| engine | items | the root's `Assignment` (its workspace, its saved-work branch) and the configured forges' `git` bases | `Items`, or none for an empty workspace |
+| engine | items | the root's `Assignment` (its workspace's per-repository save destinations and `run.policy.resume`) and the configured forges' `git` bases | `Items`, or none for an empty workspace |
 | engine | parts | `Left`, `Saved`, `Preparation`, each if present | `Parts` |
 | engine | identity | the forge's records (Forgejo) or the GitHub forge's minted installation tokens (in memory), with the identity's configured login and author | `Identity`'s bytes |
-| worker | workspace | `Items`, or none | `wire::Workspace`, `save` |
+| worker | workspace | `Items`, or none | `wire::Workspace`, with per-repository `save` options |
 | worker | work | `wire::Work`, with each repository's tag and start | `Left`, `Saved` |
 | worker | preparation | `wire::Preparation`, with the repository's tag | `Preparation`, or none for a transient one |
 | worker | value | a grant's value | an identity for the worker's identities' table |
@@ -337,6 +342,18 @@ the routing in the step that routes the record:
 - **Within jig's ceilings.** Each must fit the ceiling jig's schema gives
   its field; `temper serve` refuses a start whose limits pass one, naming
   the limit.
+- **Workspace bounds.** The worker wire's `CEILINGS` allow 64
+  repositories, 1,024 bytes for each name, remote and save destination,
+  and 4,096 bytes for each optional git program. Each repository pays
+  for its own save option. At these ceilings,
+  `Items::encoded_bound(&CEILINGS)` is 662,980 bytes: 64 repositories of
+  10,359 bytes and the four-byte list length. The generated
+  `Items::decoded_bound` counts the repository list's allocation plus
+  655,360 bytes of owned payload at these ceilings; it uses
+  `List::<Repository>::price(64)` for the list's storage, so its heap
+  bound follows the target's type layout. These are codec bounds, not
+  process memory measurements. Each side derives smaller bounds from
+  its own limits, with `repository_save_some` taking `Bounds.name_bytes`.
 - **Credential capacity.** The engine uses max(`accounts.token`, jig's 4,096-byte
   key ceiling) when a configured provider offers keys. The worker has no
   provider declarations and reserves that key ceiling unconditionally.
@@ -371,8 +388,9 @@ Within the suites' budgets (`../domain/testing.md`, section 2):
 
 - **Step tests in `temper-protocol-worker-wire`,** those skein's
   `codec.md`, section 6 generates for each record, and `Identity`'s
-  `Debug` holding no byte of its tokens, of either kind. Golden bytes fail when an
-  encoding changes, which is when `PAYLOAD_VERSION` moves.
+  `Debug` holding no byte of its tokens, of either kind. Golden bytes
+  fail when an encoding changes; before the first release they are
+  updated in place under section 3's version rule.
 - **Step tests of the translation** in `temper-service`: each function
   both ways for every variant; an engine's workspace through `Items` to
   the worker's, field for field, with its remote made from the base, the
