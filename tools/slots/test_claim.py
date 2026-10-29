@@ -183,8 +183,6 @@ class ClaimTests(unittest.TestCase):
 
     def test_inventory_matches_assigned_builders(self):
         self.assertEqual(claim.inventory(), {
-            ("hetzner2", "1"): "ops", ("hetzner2", "2"): "ops",
-            ("hetzner2", "3"): "ops", ("hetzner2", "4"): "ops", ("hetzner2", "5"): "ops",
             ("hetzner3", "1"): "pool", ("hetzner3", "2"): "pool", ("hetzner3", "3"): "pool",
             ("hetzner3", "4"): "pool", ("hetzner3", "5"): "pool", ("hetzner3", "6"): "pool",
             ("hetzner6", "1"): "lead/temper", ("hetzner6", "2"): "lead/smith",
@@ -201,7 +199,7 @@ class ClaimTests(unittest.TestCase):
             ("hetzner2", "1"): "lead/skein", ("hetzner2", "2"): "pool"})
 
     def test_draining_builder_refuses_new_work_but_existing_holder_can_release(self):
-        slots = claim.inventory()
+        slots = {**claim.inventory(), ("hetzner2", "1"): "ops", ("hetzner2", "2"): "ops"}
         self.create(owner="lead/skein")
         before = self.path.read_bytes()
         code, _, error = self.cli("claim", "hetzner2", "2", "lead/skein", "new task", inventory=slots)
