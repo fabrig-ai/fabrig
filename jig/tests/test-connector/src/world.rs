@@ -130,6 +130,8 @@ pub fn config(seed: u8) -> Config {
 #[derive(Debug)]
 pub struct World {
     pub seed: u8,
+    configuration: Config,
+    limits: Limits,
     pub wall: u64,
     pub domain: Domain,
     pub system: System,
@@ -143,10 +145,18 @@ impl World {
     /// Start a deployment with a fresh system and store.
     #[must_use]
     pub fn new(seed: u8) -> World {
+        Self::with_config(seed, config(seed), LIMITS)
+    }
+
+    /// Builds the scripted root with explicit resources and bounds for load scenarios.
+    #[must_use]
+    pub fn with_config(seed: u8, configuration: Config, limits: Limits) -> World {
         World {
             seed,
             wall: 0,
-            domain: Domain::new(config(seed), &LIMITS),
+            domain: Domain::new(configuration.clone(), &limits),
+            configuration,
+            limits,
             system: System::new(),
             records: BTreeMap::new(),
             seen: Vec::new(),
@@ -156,7 +166,7 @@ impl World {
     }
 
     fn env(&self) -> Env<Limits> {
-        Env { now: Time::ZERO, wall: Wall::from_nanos(self.wall), limits: LIMITS }
+        Env { now: Time::ZERO, wall: Wall::from_nanos(self.wall), limits: self.limits }
     }
 
     fn collected(out: &mut Queue<Request>) -> Vec<Request> {
@@ -306,6 +316,14 @@ impl World {
     /// Rebuild from committed records, then refresh each live resource before
     /// a procedure can step. The outbox remains to be settled by the caller.
     pub fn cold_restart(&mut self) {
+        let requests = self.begin_restart();
+        self.release(&requests, &mut VecDeque::new());
+    }
+
+    /// Restore and request every live fact, letting the scripted root hold their replies.
+    /// The caller completes these fresh reads before requesting outbox settlement.
+    /// Passive restored resource reports stay in `seen`; every other restoration output is rejected.
+    pub fn begin_restart(&mut self) -> Vec<Request> {
         let mut live = BTreeSet::new();
         for record in self.records.values() {
             match record {
@@ -329,17 +347,20 @@ impl World {
                 | Record::Result { .. } => {}
             }
         }
-        self.domain = Domain::new(config(self.seed), &LIMITS);
+        self.domain = Domain::new(self.configuration.clone(), &self.limits);
         for record in self.records.values().cloned().collect::<Vec<_>>() {
             let restored = self.event(Event::Restore { record });
-            assert!(restored.is_empty(), "restoration makes no external call");
+            for request in restored {
+                assert!(matches!(request, Request::Resource { .. }), "restoration only reports passive resources");
+            }
         }
         let records = self.event(Event::Restart(RestartStep::Records));
         assert!(records.is_empty(), "record phase makes no external call");
+        let mut requests = Vec::new();
         for resource in live {
-            let calls = self.event(Event::Restart(RestartStep::FreshRead { resource }));
-            self.release(&calls, &mut VecDeque::new());
+            requests.extend(self.event(Event::Restart(RestartStep::FreshRead { resource })));
         }
+        requests
     }
 
     /// Ask the connector to settle one more outbox step after fresh reads.

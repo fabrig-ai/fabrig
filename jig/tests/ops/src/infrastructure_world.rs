@@ -90,6 +90,7 @@ pub struct InfrastructureWorld {
     /// Every output the scripted root saw.
     pub seen: Vec<infra::Request>,
     domain: infra::Domain,
+    limits: infra::Limits,
     backend: infra::Backend,
     records: BTreeMap<infra::RecordKey, infra::Record>,
     /// Commits containing a record change.
@@ -100,6 +101,12 @@ impl InfrastructureWorld {
     /// Builds one connector with a service, pool and shared fake production.
     #[must_use]
     pub fn new(seed: u64, backend: infra::Backend) -> Self {
+        Self::with_limits(seed, backend, infrastructure_limits())
+    }
+
+    /// Builds a world with explicit connector bounds for load scenarios.
+    #[must_use]
+    pub fn with_limits(seed: u64, backend: infra::Backend, limits: infra::Limits) -> Self {
         let fake_backend = match backend {
             infra::Backend::OperationIds => production::Backend::Fake,
             infra::Backend::NoOperationIds => production::Backend::NoOperationIds,
@@ -111,7 +118,8 @@ impl InfrastructureWorld {
             production,
             now: 0,
             seen: Vec::new(),
-            domain: infra::Domain::new(backend, &infrastructure_limits()),
+            domain: infra::Domain::new(backend, &limits),
+            limits,
             backend,
             records: BTreeMap::new(),
             commits: 0,
@@ -121,8 +129,7 @@ impl InfrastructureWorld {
     /// One step with its writes committed before any output is released.
     pub fn event(&mut self, input: infra::Event) -> Vec<infra::Request> {
         let wall = self.now.checked_mul(1_000_000_000).expect("world clock fits");
-        let env =
-            Env { now: Time::from_nanos(self.now), wall: Wall::from_nanos(wall), limits: infrastructure_limits() };
+        let env = Env { now: Time::from_nanos(self.now), wall: Wall::from_nanos(wall), limits: self.limits };
         let mut out = Queue::with_capacity(infra::MAX_OUT);
         infra::step(&mut self.domain, &env, input, &mut out);
         let mut requests = Vec::new();
@@ -211,7 +218,7 @@ impl InfrastructureWorld {
     }
 
     /// One fake production call, translated from infrastructure's own vocabulary.
-    fn system(&mut self, call: infra::SystemRequest) -> infra::SystemEvent {
+    pub fn system(&mut self, call: infra::SystemRequest) -> infra::SystemEvent {
         match call {
             infra::SystemRequest::Service { service } => {
                 let fact = self.production.read_service(&service_name(&service)).expect("world service exists");
@@ -343,14 +350,19 @@ impl InfrastructureWorld {
         }
     }
 
+    /// Rebuild only the connector from committed records, leaving restart hand-offs to the caller.
+    pub fn restore(&mut self) {
+        self.domain = infra::Domain::new(self.backend, &self.limits);
+        for record in self.records.values().cloned().collect::<Vec<_>>() {
+            let requests = self.event(infra::Event::Restore { record });
+            assert!(requests.is_empty(), "restoration makes no call");
+        }
+    }
+
     /// Restore records and refresh named resources before settling the outbox.
     pub fn restart(&mut self) -> Vec<infra::Request> {
-        self.domain = infra::Domain::new(self.backend, &infrastructure_limits());
+        self.restore();
         let records: Vec<_> = self.records.values().cloned().collect();
-        for record in &records {
-            let restored = self.event(infra::Event::Restore { record: record.clone() });
-            assert!(restored.is_empty(), "restoration makes no call");
-        }
         let mut live = BTreeSet::new();
         for record in records {
             match record {
@@ -403,8 +415,7 @@ impl InfrastructureWorld {
     /// Recheck uncertain effects when their saved absolute deadlines pass.
     pub fn fire(&mut self) -> Vec<infra::Request> {
         let wall = self.now.checked_mul(1_000_000_000).expect("world clock fits");
-        let env =
-            Env { now: Time::from_nanos(self.now), wall: Wall::from_nanos(wall), limits: infrastructure_limits() };
+        let env = Env { now: Time::from_nanos(self.now), wall: Wall::from_nanos(wall), limits: self.limits };
         let mut out = Queue::with_capacity(infra::MAX_OUT);
         infra::fire(&mut self.domain, &env, &mut out);
         let mut requests = Vec::new();
