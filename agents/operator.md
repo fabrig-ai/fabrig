@@ -35,6 +35,7 @@ Provisional, 2026-10-29. One Codex owner on hel8 (`codex-run owner`, at high), p
 
 - A tool moves into `tools/<name>/` with its design and tests, then joins `tools/installed`; `tools/install` on each machine links `~/.local/bin/<tool>` to `~/src/fabrig/main`. Runs already in flight keep the path they started with.
 - A delegated tool task names its physical hostname and operator address separately; a post address such as `ops@hel8` is not a literal host restriction. State explicitly which local offline checks are authorized, while retaining the no-build rule on the session host.
+- Validation that compares every Git ref runs in an independent disposable clone: linked worktrees share refs with other tasks. Retain raw evidence of any drift and verify caller source/index separately; do not freeze unrelated writers or mask their ref changes.
 - A tool's task ends with one real, harmless run on a builder: fakes test only what was imagined (ledger 17).
 - After a tool's change lands, the operator reruns `tools/install` on every machine that uses it.
 
