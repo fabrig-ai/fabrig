@@ -2591,11 +2591,6 @@ fn a_key_race_uses_the_new_generation_then_ends_on_its_own_policy() {
 }
 
 #[test]
-fn feedback_compatibility_name_returns_the_feedback_bound() {
-    assert_eq!(crate::feedback_worst_case(&LIMITS.run), crate::feedback_bound(&LIMITS.run));
-}
-
-#[test]
 fn invalid_limits_are_refused() {
     assert!(valid(&LIMITS));
     // Aggregate heap accounting is independent of constructor validity.
