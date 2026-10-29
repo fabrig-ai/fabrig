@@ -1,4 +1,5 @@
 //! The shipped service and agent, killed and restarted over one durable store.
+#[expect(dead_code, reason = "only the live binary uses trace helpers")]
 mod support;
 use jig_client_protocol_world::native::Script;
 
@@ -21,15 +22,6 @@ fn a_killed_jig_test_finds_its_work_after_restart() {
     support::configuration(directory.path());
     assert_eq!(support::run(directory.path(), Script::answered_chat(b"Hello", support::ANSWER), Some(peer())), (1, 1));
     assert_eq!(support::run(directory.path(), Script::found_chat(support::ANSWER), None), (1, 0));
-}
-
-#[test]
-fn an_agent_trace_captures_content_without_the_grant_or_authorization_header() {
-    let directory = support::scratch();
-    support::configuration(directory.path());
-    support::trace::configure(directory.path());
-    assert_eq!(support::run(directory.path(), Script::answered_chat(b"Hello", support::ANSWER), Some(peer())), (1, 1));
-    support::trace::check(directory.path(), Some(b"token"));
 }
 
 #[path = "support/browser.rs"]

@@ -1,6 +1,5 @@
 //! Binary, native person and independent provider on Skein's real ring.
 pub mod ports;
-#[expect(dead_code, reason = "process and live binaries use different trace helpers")]
 pub mod trace;
 use crate::account_sign_in_visitor::Visitor;
 use jig_client_protocol_world::native::{NativeClient, Script};
