@@ -276,7 +276,7 @@ impl Clients {
             starting: Some(()),
             early: Queue::with_capacity(room),
             endings: Map::with_capacity(journal.commits),
-            secret_owners: Map::with_capacity(room),
+            secret_owners: Map::with_capacity(u32::MAX),
             next_secret: 1,
             #[cfg(test)]
             secret_terminals: None,
@@ -770,14 +770,14 @@ impl Clients {
             self.secrets.push(request);
         }
         for _ in 0..self.secrets.len() {
-            if self.out.room() < kit::MAX_OUT_DOWN || self.secret_owners.len() == self.secret_owners.capacity() {
+            if self.out.room() < kit::MAX_OUT_DOWN {
                 break;
             }
             let request = self.secrets.pop().expect("client secrets requests");
             let (owner, request) = secret_request(request);
             let token = Token::new(PREFIX.checked_add(self.next_secret).expect("secret routing name"));
             self.next_secret = self.next_secret.checked_add(1).expect("secret routing sequence");
-            self.secret_owners.insert(token, owner).expect("bounded secrets in flight");
+            self.secret_owners.insert(token, owner).expect("secret owner count fits u32");
             if let Some(answer) = store.secrets(token, request) {
                 self.secret_answer(answer);
             }
