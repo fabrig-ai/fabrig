@@ -368,7 +368,8 @@ impl Worker {
     }
     fn drain_link(&mut self, now: Time) {
         // One link invocation's finite batch; dispatch does not invoke the link.
-        while let Some(request) = self.link_out.pop() {
+        for _ in 0..self.link_out.len() {
+            let request = self.link_out.pop().expect("link output");
             self.link(now, request);
         }
         self.values.expire(now);
