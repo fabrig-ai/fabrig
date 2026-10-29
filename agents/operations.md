@@ -44,7 +44,7 @@ Provisional, 2026-10-28. The machines' and the pipeline's facts every role works
 ## 7. Succession of long-running sessions
 
 - **Who:** every session that outlives its tasks: the coordinator, the operator, a lead. A session's context is finite; a session that compacts loses what it knew in its own words.
-- **When:** at about three quarters of the context window (or the second compaction, whichever comes first), the session starts its successor; it never waits for the window to fill.
+- **When:** at about three quarters of the context window the session starts its successor, which usually comes before any compaction; if a compaction happens first, the handover starts right after it, never after a second. It never waits for the window to fill.
 - **How:**
   1. The incumbent brings its handover file up to date (where things stand, what is in flight with run ids and branches, decisions pending and whose, what it was about to do) and starts the successor with its role file, the handover and the same mailbox name to inherit.
   2. **Warm-up, read-only:** the successor reads the handover, the role and operations files, the plans and the ledger, and follows the mailbox without acting (reading delivered messages' copies, never `post read` of the incumbent's box); it asks the incumbent what is unclear under a temporary name (`<role>-next`), and says when it is ready.
