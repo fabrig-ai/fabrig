@@ -1766,7 +1766,7 @@ fn failed_paths_are_normalized_and_stay_at_the_admitted_path_bound() {
     };
     let call = Call::Read { path: absolute, offset: 1, window: crate::Budget::Default };
     assert_eq!(h.call(kit, call.clone()), Outcome::Outside { path: path::Resolved::Outside { path: bytes(&outside) } });
-    assert!(crate::result_worst_case(&call, &LIMITS).expect("checked credit") >= 64);
+    assert!(crate::result_bound(&call, &LIMITS).expect("checked credit") >= 64);
     assert_eq!(h.call(kit, read(&[b'x'; 63])), Outcome::TooLong, "normalized mount plus file exceeds 64");
     let call = Call::Write { path: path(b"/d/a/../guide.md"), content: bytes(b"x") };
     assert_eq!(

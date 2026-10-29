@@ -202,11 +202,13 @@ fn random_done(limits: &Limits, rng: &mut Rng, asked: Asked) -> Done {
     }
 }
 
-// Peak ceiling for random tools with default limits across twenty seeds (programming-model.md, section 6.3).
-const RANDOM_TOOLS_CEILING: u64 = 21_000;
+// Peak 8,331 bytes measured 2026-10-29: random tools with default limits, maximum over all 20 seeds.
+// Ceiling adds a quarter, rounded up to two significant digits (testing-strategy.md, section 6).
+const RANDOM_TOOLS_CEILING: u64 = 11_000;
 
-// Peak ceiling for random tools with four small kits across twenty seeds (programming-model.md, section 6.3).
-const SMALL_RANDOM_TOOLS_CEILING: u64 = 34_000;
+// Peak 13,847 bytes measured 2026-10-29: random tools with four small kits, maximum over all 20 seeds.
+// Ceiling adds a quarter, rounded up to two significant digits (testing-strategy.md, section 6).
+const SMALL_RANDOM_TOOLS_CEILING: u64 = 18_000;
 
 #[test]
 fn a_domain_driven_at_random_stays_under_its_scenario_ceilings_at_every_step() {

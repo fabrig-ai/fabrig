@@ -544,8 +544,7 @@ fn window_first_holds_owned_and_delegated_batches_at_the_exact_byte_edge() {
     limits.tools.list_bytes = RESULT_BYTES;
     limits.delegated_result_bytes = 1;
     let reserve = smith_domain::session::completion_reserve(&limits).expect("completion reserve");
-    let batch =
-        smith_domain::tools::batch_result_worst_case(&limits.tools, limits.parallel_tools).expect("owned batch");
+    let batch = smith_domain::tools::batch_result_bound(&limits.tools, limits.parallel_tools).expect("owned batch");
     assert_eq!(batch, 200_000, "two largest read results coexist");
     limits.history_bytes = LINE_BYTES + reserve + batch;
     validate::window_first(&profile, &configuration, &limits).expect("exact receiving edge");
