@@ -25576,12 +25576,6 @@ impl MovedPlacedHold {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl HoldOwnerParty {
@@ -25610,12 +25604,6 @@ impl HoldOwnerParty {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl HoldOwnerTask {
@@ -25644,12 +25632,6 @@ impl HoldOwnerTask {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl HoldOwner {
@@ -25678,12 +25660,6 @@ impl HoldOwner {
         biggest = biggest.max(HoldOwnerParty::decoded_bound_within(limits)?).max(HoldOwnerTask::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AskLift {
@@ -25714,12 +25690,6 @@ impl AskLift {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl OutcomeLifted {
@@ -25748,12 +25718,6 @@ impl OutcomeLifted {
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl LackHoldOwner {
@@ -25782,12 +25746,6 @@ impl LackHoldOwner {
         heap = heap.checked_add(0_u64)?.checked_add(HoldOwner::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl Segment {
@@ -25816,12 +25774,6 @@ impl Segment {
         heap = heap.checked_add(u64::from(limits.segment_bytes))?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl Number64 {
@@ -25850,12 +25802,6 @@ impl Number64 {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl RolePolicy {
@@ -25884,12 +25830,6 @@ impl RolePolicy {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl Role {
@@ -25918,12 +25858,6 @@ impl Role {
         biggest = biggest.max(RolePolicy::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl Holding {
@@ -25952,12 +25886,6 @@ impl Holding {
         heap = heap.checked_add(0_u64)?.checked_add(Role::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl IdentityKey {
@@ -25986,12 +25914,6 @@ impl IdentityKey {
         heap = heap.checked_add(0_u64)?.checked_add(u64::from(limits.identity_key_subject))?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl Identity {
@@ -26022,12 +25944,6 @@ impl Identity {
         heap = heap.checked_add(u64::from(limits.identity_name))?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl RequestKey {
@@ -26056,12 +25972,6 @@ impl RequestKey {
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl LastExact {
@@ -26090,12 +26000,6 @@ impl LastExact {
         heap = heap.checked_add(u64::from(limits.last_exact_value))?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl LastOpen {
@@ -26124,12 +26028,6 @@ impl LastOpen {
         heap = heap.checked_add(u64::from(limits.last_open_value))?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl Last {
@@ -26158,12 +26056,6 @@ impl Last {
         biggest = biggest.max(LastExact::decoded_bound_within(limits)?).max(LastOpen::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl Pattern {
@@ -26192,12 +26084,6 @@ impl Pattern {
         heap = heap.checked_add(u64::from(limits.pattern_segments))?.checked_add(Last::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl Grant {
@@ -26228,12 +26114,6 @@ impl Grant {
         heap = heap.checked_add(Pattern::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl ResourceScope {
@@ -26262,12 +26142,6 @@ impl ResourceScope {
         heap = heap.checked_add(0_u64)?.checked_add(Pattern::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl ExecutorCharter {
@@ -26296,12 +26170,6 @@ impl ExecutorCharter {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl ExecutorProcedure {
@@ -26330,12 +26198,6 @@ impl ExecutorProcedure {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl ExecutorRole {
@@ -26364,12 +26226,6 @@ impl ExecutorRole {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl Executor {
@@ -26400,12 +26256,6 @@ impl Executor {
         biggest = biggest.max(ExecutorRole::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl Delegation {
@@ -26436,12 +26286,6 @@ impl Delegation {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl ModelSetNamed {
@@ -26470,12 +26314,6 @@ impl ModelSetNamed {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl ModelSet {
@@ -26504,12 +26342,6 @@ impl ModelSet {
         biggest = biggest.max(ModelSetNamed::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl Authority {
@@ -26544,12 +26376,6 @@ impl Authority {
         heap = heap.checked_add(0_u64)?.checked_add(u64::from(limits.authority_note_resources))?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl Judge {
@@ -26580,12 +26406,6 @@ impl Judge {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl GuardObserved {
@@ -26614,12 +26434,6 @@ impl GuardObserved {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl Guard {
@@ -26648,12 +26462,6 @@ impl Guard {
         biggest = biggest.max(GuardObserved::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl Requirement {
@@ -26686,12 +26494,6 @@ impl Requirement {
         heap = heap.checked_add(Guard::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl PermissionRole {
@@ -26722,12 +26524,6 @@ impl PermissionRole {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl PolicyRole {
@@ -26760,12 +26556,6 @@ impl PolicyRole {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl TemplateExecutorCharter {
@@ -26794,12 +26584,6 @@ impl TemplateExecutorCharter {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl TemplateExecutor {
@@ -26828,12 +26612,6 @@ impl TemplateExecutor {
         biggest = biggest.max(TemplateExecutorCharter::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl TemplateBudgetAmount {
@@ -26862,12 +26640,6 @@ impl TemplateBudgetAmount {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl TemplateBudgetAsAllowed {
@@ -26896,12 +26668,6 @@ impl TemplateBudgetAsAllowed {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl TemplateBudget {
@@ -26930,12 +26696,6 @@ impl TemplateBudget {
         biggest = biggest.max(TemplateBudgetAmount::decoded_bound_within(limits)?).max(TemplateBudgetAsAllowed::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl TemplateDeadlineSpan {
@@ -26964,12 +26724,6 @@ impl TemplateDeadlineSpan {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl TemplateDeadline {
@@ -26998,12 +26752,6 @@ impl TemplateDeadline {
         biggest = biggest.max(TemplateDeadlineSpan::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl TemplateOverride {
@@ -27036,12 +26784,6 @@ impl TemplateOverride {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl PolicyValue {
@@ -27076,12 +26818,6 @@ impl PolicyValue {
         heap = heap.checked_add(u64::from(limits.policy_value_permissions))?.checked_add(List::<TemplateOverride>::price(limits.policy_value_templates)?.checked_add(u64::from(limits.policy_value_templates).checked_mul(TemplateOverride::decoded_bound_within(limits)?)?)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl PolicyChangeProjectSpend {
@@ -27110,12 +26846,6 @@ impl PolicyChangeProjectSpend {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl PolicyChangeRoleSpend {
@@ -27144,12 +26874,6 @@ impl PolicyChangeRoleSpend {
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl PolicyChangeRole {
@@ -27178,12 +26902,6 @@ impl PolicyChangeRole {
         heap = heap.checked_add(PolicyRole::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl PolicyChangeRequirements {
@@ -27212,12 +26930,6 @@ impl PolicyChangeRequirements {
         heap = heap.checked_add(u64::from(limits.policy_change_requirements_requirements))?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl PolicyChangeProjections {
@@ -27246,12 +26958,6 @@ impl PolicyChangeProjections {
         heap = heap.checked_add(u64::from(limits.policy_change_projections_grants))?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl PolicyChangePermissions {
@@ -27280,12 +26986,6 @@ impl PolicyChangePermissions {
         heap = heap.checked_add(u64::from(limits.policy_change_permissions_mappings))?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl PolicyChangeTemplates {
@@ -27314,12 +27014,6 @@ impl PolicyChangeTemplates {
         heap = heap.checked_add(List::<TemplateOverride>::price(limits.policy_change_templates_overrides)?.checked_add(u64::from(limits.policy_change_templates_overrides).checked_mul(TemplateOverride::decoded_bound_within(limits)?)?)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl PolicyChange {
@@ -27354,12 +27048,6 @@ impl PolicyChange {
         biggest = biggest.max(PolicyChangeRoleSpend::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl SeenResults {
@@ -27388,12 +27076,6 @@ impl SeenResults {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl SeenConversation {
@@ -27422,12 +27104,6 @@ impl SeenConversation {
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl Seen {
@@ -27456,12 +27132,6 @@ impl Seen {
         biggest = biggest.max(SeenResults::decoded_bound_within(limits)?).max(SeenConversation::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl NoteScopeTask {
@@ -27490,12 +27160,6 @@ impl NoteScopeTask {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl NoteScopeResources {
@@ -27524,12 +27188,6 @@ impl NoteScopeResources {
         heap = heap.checked_add(0_u64)?.checked_add(Pattern::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl NoteScope {
@@ -27558,12 +27216,6 @@ impl NoteScope {
         biggest = biggest.max(NoteScopeTask::decoded_bound_within(limits)?).max(NoteScopeResources::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl NoteChangeCorrect {
@@ -27594,12 +27246,6 @@ impl NoteChangeCorrect {
         heap = heap.checked_add(u64::from(limits.note_change_correct_references))?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl NoteChangeDelete {
@@ -27628,12 +27274,6 @@ impl NoteChangeDelete {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl NoteChange {
@@ -27662,12 +27302,6 @@ impl NoteChange {
         biggest = biggest.max(NoteChangeCorrect::decoded_bound_within(limits)?).max(NoteChangeDelete::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl ResourceRole {
@@ -27694,12 +27328,6 @@ impl ResourceRole {
         let biggest = 0_u64;
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl ResourceName {
@@ -27728,12 +27356,6 @@ impl ResourceName {
         heap = heap.checked_add(0_u64)?.checked_add(u64::from(limits.resource_name_path))?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl Adoption {
@@ -27764,12 +27386,6 @@ impl Adoption {
         heap = heap.checked_add(u64::from(limits.adoption_options))?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl PersonResultApproved {
@@ -27798,12 +27414,6 @@ impl PersonResultApproved {
         heap = heap.checked_add(u64::from(limits.person_result_approved_state))?.checked_add(u64::from(limits.person_result_approved_words_some))?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl PersonResultReport {
@@ -27832,12 +27442,6 @@ impl PersonResultReport {
         heap = heap.checked_add(u64::from(limits.person_result_report_words))?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl PersonResultVerdict {
@@ -27866,12 +27470,6 @@ impl PersonResultVerdict {
         heap = heap.checked_add(0_u64)?.checked_add(u64::from(limits.person_result_verdict_words))?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl PersonResultFailure {
@@ -27900,12 +27498,6 @@ impl PersonResultFailure {
         heap = heap.checked_add(u64::from(limits.person_result_failure_reason))?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl PersonResult {
@@ -27936,12 +27528,6 @@ impl PersonResult {
         biggest = biggest.max(PersonResultVerdict::decoded_bound_within(limits)?).max(PersonResultFailure::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl ProposerTask {
@@ -27970,12 +27556,6 @@ impl ProposerTask {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl ProposerParty {
@@ -28004,12 +27584,6 @@ impl ProposerParty {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl Proposer {
@@ -28038,12 +27612,6 @@ impl Proposer {
         biggest = biggest.max(ProposerTask::decoded_bound_within(limits)?).max(ProposerParty::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl ProposalDecisionReject {
@@ -28072,12 +27640,6 @@ impl ProposalDecisionReject {
         heap = heap.checked_add(u64::from(limits.proposal_decision_reject_reason))?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl ProposalDecision {
@@ -28106,12 +27668,6 @@ impl ProposalDecision {
         biggest = biggest.max(ProposalDecisionReject::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl EscalationDecisionReject {
@@ -28140,12 +27696,6 @@ impl EscalationDecisionReject {
         heap = heap.checked_add(u64::from(limits.escalation_decision_reject_reason))?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl EscalationDecision {
@@ -28174,12 +27724,6 @@ impl EscalationDecision {
         biggest = biggest.max(EscalationDecisionReject::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl PersonAddressPerson {
@@ -28208,12 +27752,6 @@ impl PersonAddressPerson {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl PersonAddressRole {
@@ -28242,12 +27780,6 @@ impl PersonAddressRole {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl PersonAddress {
@@ -28276,12 +27808,6 @@ impl PersonAddress {
         biggest = biggest.max(PersonAddressPerson::decoded_bound_within(limits)?).max(PersonAddressRole::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AddressChange {
@@ -28310,12 +27836,6 @@ impl AddressChange {
         heap = heap.checked_add(0_u64)?.checked_add(PersonAddress::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl ParameterNumber {
@@ -28344,12 +27864,6 @@ impl ParameterNumber {
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl ParameterBytes {
@@ -28378,12 +27892,6 @@ impl ParameterBytes {
         heap = heap.checked_add(0_u64)?.checked_add(u64::from(limits.parameter_bytes_value))?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl ParameterResource {
@@ -28414,12 +27922,6 @@ impl ParameterResource {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl Parameter {
@@ -28450,12 +27952,6 @@ impl Parameter {
         biggest = biggest.max(ParameterResource::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl Spec {
@@ -28486,12 +27982,6 @@ impl Spec {
         heap = heap.checked_add(u64::from(limits.spec_inputs))?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl WakeRuleBatch {
@@ -28520,12 +28010,6 @@ impl WakeRuleBatch {
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl WakeRule {
@@ -28554,12 +28038,6 @@ impl WakeRule {
         biggest = biggest.max(WakeRuleBatch::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl ResultsWake {
@@ -28586,12 +28064,6 @@ impl ResultsWake {
         let biggest = 0_u64;
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl WakePolicy {
@@ -28626,12 +28098,6 @@ impl WakePolicy {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl TrackingTracked {
@@ -28660,12 +28126,6 @@ impl TrackingTracked {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl Tracking {
@@ -28694,12 +28154,6 @@ impl Tracking {
         biggest = biggest.max(TrackingTracked::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl ModelEffort {
@@ -28728,12 +28182,6 @@ impl ModelEffort {
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl LlmChoice {
@@ -28764,12 +28212,6 @@ impl LlmChoice {
         heap = heap.checked_add(List::<ModelEffort>::price(limits.llm_choice_subagents)?.checked_add(u64::from(limits.llm_choice_subagents).checked_mul(ModelEffort::decoded_bound_within(limits)?)?)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl Amendment {
@@ -28806,12 +28248,6 @@ impl Amendment {
         heap = heap.checked_add(u64::from(limits.amendment_reason))?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl TaskExecutorAgent {
@@ -28840,12 +28276,6 @@ impl TaskExecutorAgent {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl TaskExecutorProcedure {
@@ -28874,12 +28304,6 @@ impl TaskExecutorProcedure {
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl TaskExecutorPerson {
@@ -28908,12 +28332,6 @@ impl TaskExecutorPerson {
         heap = heap.checked_add(PersonAddress::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl TaskExecutor {
@@ -28944,12 +28362,6 @@ impl TaskExecutor {
         biggest = biggest.max(TaskExecutorPerson::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl BudgetAsAllowed {
@@ -28978,12 +28390,6 @@ impl BudgetAsAllowed {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl Budget {
@@ -29012,12 +28418,6 @@ impl Budget {
         biggest = biggest.max(BudgetAsAllowed::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl DependencyBatch {
@@ -29046,12 +28446,6 @@ impl DependencyBatch {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl DependencyExisting {
@@ -29080,12 +28474,6 @@ impl DependencyExisting {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl Dependency {
@@ -29114,12 +28502,6 @@ impl Dependency {
         biggest = biggest.max(DependencyBatch::decoded_bound_within(limits)?).max(DependencyExisting::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl FieldRule {
@@ -29148,12 +28530,6 @@ impl FieldRule {
         heap = heap.checked_add(u64::from(limits.field_rule_name))?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl Verdict {
@@ -29184,12 +28560,6 @@ impl Verdict {
         heap = heap.checked_add(0_u64)?.checked_add(u64::from(limits.verdict_fields))?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl ContractReport {
@@ -29218,12 +28588,6 @@ impl ContractReport {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl ContractVerdict {
@@ -29252,12 +28616,6 @@ impl ContractVerdict {
         heap = heap.checked_add(u64::from(limits.contract_verdict_choices))?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl ContractChange {
@@ -29288,12 +28646,6 @@ impl ContractChange {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl Contract {
@@ -29324,12 +28676,6 @@ impl Contract {
         biggest = biggest.max(ContractChange::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl Retention {
@@ -29356,12 +28702,6 @@ impl Retention {
         let biggest = 0_u64;
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl EndedBy {
@@ -29388,12 +28728,6 @@ impl EndedBy {
         let biggest = 0_u64;
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl Flags {
@@ -29424,12 +28758,6 @@ impl Flags {
         heap = heap.checked_add(Retention::decoded_bound_within(limits)?)?.checked_add(EndedBy::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl DeadlineSpan {
@@ -29458,12 +28786,6 @@ impl DeadlineSpan {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl Deadline {
@@ -29492,12 +28814,6 @@ impl Deadline {
         biggest = biggest.max(DeadlineSpan::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl Member {
@@ -29540,12 +28856,6 @@ impl Member {
         heap = heap.checked_add(LlmChoice::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl OperationCancel {
@@ -29576,12 +28886,6 @@ impl OperationCancel {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl OperationMove {
@@ -29610,12 +28914,6 @@ impl OperationMove {
         heap = heap.checked_add(0_u64)?.checked_add(u64::from(limits.operation_move_reason))?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl OperationAmend {
@@ -29646,12 +28944,6 @@ impl OperationAmend {
         heap = heap.checked_add(Amendment::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl OperationRelease {
@@ -29682,12 +28974,6 @@ impl OperationRelease {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl OperationMessage {
@@ -29716,12 +29002,6 @@ impl OperationMessage {
         heap = heap.checked_add(0_u64)?.checked_add(u64::from(limits.operation_message_words))?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl OperationStop {
@@ -29750,12 +29030,6 @@ impl OperationStop {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl Operation {
@@ -29788,12 +29062,6 @@ impl Operation {
         biggest = biggest.max(OperationMessage::decoded_bound_within(limits)?).max(OperationStop::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AskCompound {
@@ -29822,12 +29090,6 @@ impl AskCompound {
         heap = heap.checked_add(0_u64)?.checked_add(List::<Operation>::price(limits.ask_compound_operations)?.checked_add(u64::from(limits.ask_compound_operations).checked_mul(Operation::decoded_bound_within(limits)?)?)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AskCreate {
@@ -29856,12 +29118,6 @@ impl AskCreate {
         heap = heap.checked_add(0_u64)?.checked_add(List::<Member>::price(limits.ask_create_batch)?.checked_add(u64::from(limits.ask_create_batch).checked_mul(Member::decoded_bound_within(limits)?)?)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AskMarkSeen {
@@ -29890,12 +29146,6 @@ impl AskMarkSeen {
         heap = heap.checked_add(Seen::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl ScopeProject {
@@ -29924,12 +29174,6 @@ impl ScopeProject {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl ApplicationScope {
@@ -29958,12 +29202,6 @@ impl ApplicationScope {
         biggest = biggest.max(ScopeProject::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AskApplication {
@@ -29994,12 +29232,6 @@ impl AskApplication {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AskEditNote {
@@ -30030,12 +29262,6 @@ impl AskEditNote {
         heap = heap.checked_add(NoteScope::decoded_bound_within(limits)?)?.checked_add(NoteChange::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AskMakeService {
@@ -30066,12 +29292,6 @@ impl AskMakeService {
         heap = heap.checked_add(Role::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AskAdopt {
@@ -30100,12 +29320,6 @@ impl AskAdopt {
         heap = heap.checked_add(0_u64)?.checked_add(Adoption::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl ActionBatch {
@@ -30134,12 +29348,6 @@ impl ActionBatch {
         heap = heap.checked_add(List::<Member>::price(limits.action_batch_members)?.checked_add(u64::from(limits.action_batch_members).checked_mul(Member::decoded_bound_within(limits)?)?)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl ActionAmend {
@@ -30170,12 +29378,6 @@ impl ActionAmend {
         heap = heap.checked_add(Amendment::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl ActionSettings {
@@ -30204,12 +29406,6 @@ impl ActionSettings {
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl Action {
@@ -30240,12 +29436,6 @@ impl Action {
         biggest = biggest.max(ActionSettings::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AskPropose {
@@ -30276,12 +29466,6 @@ impl AskPropose {
         heap = heap.checked_add(u64::from(limits.ask_propose_reason))?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AskWithdraw {
@@ -30310,12 +29494,6 @@ impl AskWithdraw {
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AskStop {
@@ -30344,12 +29522,6 @@ impl AskStop {
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AskCancel {
@@ -30380,12 +29552,6 @@ impl AskCancel {
         heap = heap.checked_add(u64::from(limits.ask_cancel_reason))?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AskRelease {
@@ -30416,12 +29582,6 @@ impl AskRelease {
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AskTakePerson {
@@ -30450,12 +29610,6 @@ impl AskTakePerson {
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AskHandBackPerson {
@@ -30484,12 +29638,6 @@ impl AskHandBackPerson {
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AskAnswerPerson {
@@ -30520,12 +29668,6 @@ impl AskAnswerPerson {
         heap = heap.checked_add(0_u64)?.checked_add(PersonResult::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AskMove {
@@ -30556,12 +29698,6 @@ impl AskMove {
         heap = heap.checked_add(u64::from(limits.ask_move_reason))?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl Running {
@@ -30588,12 +29724,6 @@ impl Running {
         let biggest = 0_u64;
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AskDecideProposal {
@@ -30626,12 +29756,6 @@ impl AskDecideProposal {
         heap = heap.checked_add(Running::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AskSay {
@@ -30662,12 +29786,6 @@ impl AskSay {
         heap = heap.checked_add(u64::from(limits.ask_say_words))?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AskAnswerQuestion {
@@ -30698,12 +29816,6 @@ impl AskAnswerQuestion {
         heap = heap.checked_add(0_u64)?.checked_add(u64::from(limits.ask_answer_question_words))?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AskAmend {
@@ -30736,12 +29848,6 @@ impl AskAmend {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AskSetRoles {
@@ -30770,12 +29876,6 @@ impl AskSetRoles {
         heap = heap.checked_add(0_u64)?.checked_add(List::<Holding>::price(limits.ask_set_roles_holdings)?.checked_add(u64::from(limits.ask_set_roles_holdings).checked_mul(Holding::decoded_bound_within(limits)?)?)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AskRename {
@@ -30804,12 +29904,6 @@ impl AskRename {
         heap = heap.checked_add(0_u64)?.checked_add(u64::from(limits.ask_rename_name))?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AskChangeSettings {
@@ -30838,12 +29932,6 @@ impl AskChangeSettings {
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl SettingNumber {
@@ -30872,12 +29960,6 @@ impl SettingNumber {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl Setting {
@@ -30908,12 +29990,6 @@ impl Setting {
         biggest = biggest.max(SettingNumber::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl SettingFault {
@@ -30940,12 +30016,6 @@ impl SettingFault {
         let biggest = 0_u64;
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl MalformedSettings {
@@ -30974,12 +30044,6 @@ impl MalformedSettings {
         heap = heap.checked_add(Setting::decoded_bound_within(limits)?)?.checked_add(SettingFault::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl RefusalStale {
@@ -31008,12 +30072,6 @@ impl RefusalStale {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl RefusalFull {
@@ -31044,12 +30102,6 @@ impl RefusalFull {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl OutcomeSettingsChanged {
@@ -31078,12 +30130,6 @@ impl OutcomeSettingsChanged {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AskMakeProject {
@@ -31112,12 +30158,6 @@ impl AskMakeProject {
         heap = heap.checked_add(u64::from(limits.ask_make_project_name))?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AskChangePolicy {
@@ -31146,12 +30186,6 @@ impl AskChangePolicy {
         heap = heap.checked_add(0_u64)?.checked_add(PolicyChange::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AskSetPool {
@@ -31182,12 +30216,6 @@ impl AskSetPool {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AskDecideEscalation {
@@ -31218,12 +30246,6 @@ impl AskDecideEscalation {
         heap = heap.checked_add(0_u64)?.checked_add(EscalationDecision::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AccountHolder {
@@ -31250,12 +30272,6 @@ impl AccountHolder {
         let biggest = 0_u64;
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AskAccountSignIn {
@@ -31284,12 +30300,6 @@ impl AskAccountSignIn {
         heap = heap.checked_add(AccountHolder::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AskAccountSignOut {
@@ -31318,12 +30328,6 @@ impl AskAccountSignOut {
         heap = heap.checked_add(AccountHolder::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AccountUseParty {
@@ -31352,12 +30356,6 @@ impl AccountUseParty {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AccountUseProject {
@@ -31386,12 +30384,6 @@ impl AccountUseProject {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AccountUse {
@@ -31420,12 +30412,6 @@ impl AccountUse {
         biggest = biggest.max(AccountUseParty::decoded_bound_within(limits)?).max(AccountUseProject::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AccountChangeDeclareProgram {
@@ -31456,12 +30442,6 @@ impl AccountChangeDeclareProgram {
         heap = heap.checked_add(u64::from(limits.account_change_declare_program_name))?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AccountChangeCheckProgram {
@@ -31490,12 +30470,6 @@ impl AccountChangeCheckProgram {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AccountChangeAddKey {
@@ -31526,12 +30500,6 @@ impl AccountChangeAddKey {
         heap = heap.checked_add(u64::from(limits.account_change_add_key_digest))?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AccountChangeReplaceKey {
@@ -31560,12 +30528,6 @@ impl AccountChangeReplaceKey {
         heap = heap.checked_add(0_u64)?.checked_add(u64::from(limits.account_change_replace_key_digest))?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AccountChangeRemoveKey {
@@ -31594,12 +30556,6 @@ impl AccountChangeRemoveKey {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AccountChangeResume {
@@ -31628,12 +30584,6 @@ impl AccountChangeResume {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AccountChangeRemove {
@@ -31662,12 +30612,6 @@ impl AccountChangeRemove {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AccountChangeMoveAccount {
@@ -31696,12 +30640,6 @@ impl AccountChangeMoveAccount {
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AccountChangeMoveSource {
@@ -31732,12 +30670,6 @@ impl AccountChangeMoveSource {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AccountChangeSetUses {
@@ -31766,12 +30698,6 @@ impl AccountChangeSetUses {
         heap = heap.checked_add(0_u64)?.checked_add(List::<AccountUse>::price(limits.account_change_set_uses_uses_some)?.checked_add(u64::from(limits.account_change_set_uses_uses_some).checked_mul(AccountUse::decoded_bound_within(limits)?)?)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AccountChangeMoveOut {
@@ -31800,12 +30726,6 @@ impl AccountChangeMoveOut {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AccountChangeWritten {
@@ -31834,12 +30754,6 @@ impl AccountChangeWritten {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AccountChangeMoveIn {
@@ -31868,12 +30782,6 @@ impl AccountChangeMoveIn {
         heap = heap.checked_add(u64::from(limits.account_change_move_in_digest))?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AccountChangeFinishSignIn {
@@ -31902,12 +30810,6 @@ impl AccountChangeFinishSignIn {
         heap = heap.checked_add(0_u64)?.checked_add(u64::from(limits.account_change_finish_sign_in_digest))?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AccountChange {
@@ -31948,12 +30850,6 @@ impl AccountChange {
         biggest = biggest.max(AccountChangeMoveIn::decoded_bound_within(limits)?).max(AccountChangeFinishSignIn::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AskAccountChange {
@@ -31982,12 +30878,6 @@ impl AskAccountChange {
         heap = heap.checked_add(AccountHolder::decoded_bound_within(limits)?)?.checked_add(AccountChange::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AskMoveToNewest {
@@ -32016,12 +30906,6 @@ impl AskMoveToNewest {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl Ask {
@@ -32080,12 +30964,6 @@ impl Ask {
         biggest = biggest.max(AskMoveToNewest::decoded_bound_within(limits)?).max(AskLift::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl StoredPerson {
@@ -32114,12 +30992,6 @@ impl StoredPerson {
         heap = heap.checked_add(0_u64)?.checked_add(Identity::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl StoredReadResults {
@@ -32148,12 +31020,6 @@ impl StoredReadResults {
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl StoredReadConversation {
@@ -32184,12 +31050,6 @@ impl StoredReadConversation {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl EndedRead {
@@ -32220,12 +31080,6 @@ impl EndedRead {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl StoredSignIn {
@@ -32256,12 +31110,6 @@ impl StoredSignIn {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl StoredRoles {
@@ -32290,12 +31138,6 @@ impl StoredRoles {
         heap = heap.checked_add(0_u64)?.checked_add(List::<Holding>::price(limits.stored_roles_holdings)?.checked_add(u64::from(limits.stored_roles_holdings).checked_mul(Holding::decoded_bound_within(limits)?)?)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl ModelName {
@@ -32324,12 +31166,6 @@ impl ModelName {
         heap = heap.checked_add(u64::from(limits.model_name_name))?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl StoredPolicy {
@@ -32360,12 +31196,6 @@ impl StoredPolicy {
         heap = heap.checked_add(PolicyValue::decoded_bound_within(limits)?)?.checked_add(List::<ModelName>::price(limits.stored_policy_models)?.checked_add(u64::from(limits.stored_policy_models).checked_mul(ModelName::decoded_bound_within(limits)?)?)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl Again {
@@ -32392,12 +31222,6 @@ impl Again {
         let biggest = 0_u64;
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl FailureClass {
@@ -32424,12 +31248,6 @@ impl FailureClass {
         let biggest = 0_u64;
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl HoldReasonFailures {
@@ -32458,12 +31276,6 @@ impl HoldReasonFailures {
         heap = heap.checked_add(FailureClass::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl HoldReasonDependency {
@@ -32492,12 +31304,6 @@ impl HoldReasonDependency {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl HoldReasonPlaced {
@@ -32526,12 +31332,6 @@ impl HoldReasonPlaced {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl HoldReasonUncertain {
@@ -32560,12 +31360,6 @@ impl HoldReasonUncertain {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl HoldReasonPoolLost {
@@ -32594,12 +31388,6 @@ impl HoldReasonPoolLost {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl Bound {
@@ -32626,12 +31414,6 @@ impl Bound {
         let biggest = 0_u64;
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl Exceeded {
@@ -32660,12 +31442,6 @@ impl Exceeded {
         heap = heap.checked_add(Bound::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl HoldReason {
@@ -32698,12 +31474,6 @@ impl HoldReason {
         biggest = biggest.max(HoldReasonPoolLost::decoded_bound_within(limits)?).max(Exceeded::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl MovedHold {
@@ -32732,12 +31502,6 @@ impl MovedHold {
         heap = heap.checked_add(0_u64)?.checked_add(HoldReason::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl MovedSpec {
@@ -32766,12 +31530,6 @@ impl MovedSpec {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl MovedPerson {
@@ -32800,12 +31558,6 @@ impl MovedPerson {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl MovedNote {
@@ -32834,12 +31586,6 @@ impl MovedNote {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl Moved {
@@ -32872,12 +31618,6 @@ impl Moved {
         biggest = biggest.max(MovedPlacedHold::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl PartyPerson {
@@ -32906,12 +31646,6 @@ impl PartyPerson {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl PartyTask {
@@ -32940,12 +31674,6 @@ impl PartyTask {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl PartyDeployment {
@@ -32974,12 +31702,6 @@ impl PartyDeployment {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl Party {
@@ -33010,12 +31732,6 @@ impl Party {
         biggest = biggest.max(PartyDeployment::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl EndingCancelled {
@@ -33044,12 +31760,6 @@ impl EndingCancelled {
         heap = heap.checked_add(Party::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl EndingDecided {
@@ -33078,12 +31788,6 @@ impl EndingDecided {
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl Ending {
@@ -33112,12 +31816,6 @@ impl Ending {
         biggest = biggest.max(EndingCancelled::decoded_bound_within(limits)?).max(EndingDecided::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl LackBudget {
@@ -33146,12 +31844,6 @@ impl LackBudget {
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl LackGrant {
@@ -33180,12 +31872,6 @@ impl LackGrant {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl LackDepth {
@@ -33214,12 +31900,6 @@ impl LackDepth {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl LackTasks {
@@ -33248,12 +31928,6 @@ impl LackTasks {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl LackAgain {
@@ -33282,12 +31956,6 @@ impl LackAgain {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl LackRequired {
@@ -33316,12 +31984,6 @@ impl LackRequired {
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl LackFailed {
@@ -33350,12 +32012,6 @@ impl LackFailed {
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl LackUnguarded {
@@ -33384,12 +32040,6 @@ impl LackUnguarded {
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl LackTaskKind {
@@ -33418,12 +32068,6 @@ impl LackTaskKind {
         heap = heap.checked_add(TaskExecutor::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl Lack {
@@ -33460,12 +32104,6 @@ impl Lack {
         biggest = biggest.max(LackUnguarded::decoded_bound_within(limits)?).max(LackHoldOwner::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl LimitKind {
@@ -33492,12 +32130,6 @@ impl LimitKind {
         let biggest = 0_u64;
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl RefusalRole {
@@ -33526,12 +32158,6 @@ impl RefusalRole {
         heap = heap.checked_add(Role::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AccepterRole {
@@ -33560,12 +32186,6 @@ impl AccepterRole {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl Accepter {
@@ -33594,12 +32214,6 @@ impl Accepter {
         biggest = biggest.max(AccepterRole::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl RefusalAuthority {
@@ -33628,12 +32242,6 @@ impl RefusalAuthority {
         heap = heap.checked_add(Lack::decoded_bound_within(limits)?)?.checked_add(Accepter::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl RefusalLimit {
@@ -33662,12 +32270,6 @@ impl RefusalLimit {
         heap = heap.checked_add(LimitKind::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl RefusalMoved {
@@ -33696,12 +32298,6 @@ impl RefusalMoved {
         heap = heap.checked_add(Moved::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl RefusalEnded {
@@ -33730,12 +32326,6 @@ impl RefusalEnded {
         heap = heap.checked_add(Ending::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl RefusalTaken {
@@ -33764,12 +32354,6 @@ impl RefusalTaken {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl NameRule {
@@ -33796,12 +32380,6 @@ impl NameRule {
         let biggest = 0_u64;
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl MalformedName {
@@ -33830,12 +32408,6 @@ impl MalformedName {
         heap = heap.checked_add(NameRule::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl Malformed {
@@ -33864,12 +32436,6 @@ impl Malformed {
         biggest = biggest.max(MalformedName::decoded_bound_within(limits)?).max(MalformedSettings::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl RefusalNotWellFormed {
@@ -33898,12 +32464,6 @@ impl RefusalNotWellFormed {
         heap = heap.checked_add(0_u64)?.checked_add(Malformed::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl LlmWhy {
@@ -33930,12 +32490,6 @@ impl LlmWhy {
         let biggest = 0_u64;
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl RefusalLlm {
@@ -33964,12 +32518,6 @@ impl RefusalLlm {
         heap = heap.checked_add(0_u64)?.checked_add(LlmWhy::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AccountWhy {
@@ -33996,12 +32544,6 @@ impl AccountWhy {
         let biggest = 0_u64;
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl RefusalAccount {
@@ -34030,12 +32572,6 @@ impl RefusalAccount {
         heap = heap.checked_add(0_u64)?.checked_add(AccountWhy::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl DependencyStatus {
@@ -34062,12 +32598,6 @@ impl DependencyStatus {
         let biggest = 0_u64;
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl RefusalCircle {
@@ -34096,12 +32626,6 @@ impl RefusalCircle {
         heap = heap.checked_add(List::<u64>::price(limits.refusal_circle_tasks)?.checked_add(u64::from(limits.refusal_circle_tasks).checked_mul(0_u64)?)?)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl RefusalDependency {
@@ -34130,12 +32654,6 @@ impl RefusalDependency {
         heap = heap.checked_add(0_u64)?.checked_add(DependencyStatus::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl RefusalKept {
@@ -34164,12 +32682,6 @@ impl RefusalKept {
         heap = heap.checked_add(List::<u64>::price(limits.refusal_kept_pending)?.checked_add(u64::from(limits.refusal_kept_pending).checked_mul(0_u64)?)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl SignInRedirectWhy {
@@ -34196,12 +32708,6 @@ impl SignInRedirectWhy {
         let biggest = 0_u64;
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl RefusalSignInRedirect {
@@ -34230,12 +32736,6 @@ impl RefusalSignInRedirect {
         heap = heap.checked_add(SignInRedirectWhy::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AccountMoveWhy {
@@ -34262,12 +32762,6 @@ impl AccountMoveWhy {
         let biggest = 0_u64;
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl RefusalAccountMove {
@@ -34296,12 +32790,6 @@ impl RefusalAccountMove {
         heap = heap.checked_add(AccountMoveWhy::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl Refusal {
@@ -34344,12 +32832,6 @@ impl Refusal {
         biggest = biggest.max(RefusalFull::decoded_bound_within(limits)?).max(RefusalSignInRedirect::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl ProposalChoice {
@@ -34376,12 +32858,6 @@ impl ProposalChoice {
         let biggest = 0_u64;
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl EscalationChoice {
@@ -34408,12 +32884,6 @@ impl EscalationChoice {
         let biggest = 0_u64;
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl OutcomeCompound {
@@ -34444,12 +32914,6 @@ impl OutcomeCompound {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl OutcomeCompoundRefused {
@@ -34478,12 +32942,6 @@ impl OutcomeCompoundRefused {
         heap = heap.checked_add(0_u64)?.checked_add(Refusal::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl OutcomeMarkedSeen {
@@ -34512,12 +32970,6 @@ impl OutcomeMarkedSeen {
         heap = heap.checked_add(Seen::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl OutcomeApplied {
@@ -34546,12 +32998,6 @@ impl OutcomeApplied {
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl OutcomeAgain {
@@ -34580,12 +33026,6 @@ impl OutcomeAgain {
         heap = heap.checked_add(Again::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl OutcomeNoteEdited {
@@ -34614,12 +33054,6 @@ impl OutcomeNoteEdited {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl OutcomeServiceMade {
@@ -34648,12 +33082,6 @@ impl OutcomeServiceMade {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl OutcomeAdopted {
@@ -34682,12 +33110,6 @@ impl OutcomeAdopted {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl OutcomeProposed {
@@ -34716,12 +33138,6 @@ impl OutcomeProposed {
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl OutcomeWithdrawn {
@@ -34750,12 +33166,6 @@ impl OutcomeWithdrawn {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl OutcomeStopped {
@@ -34784,12 +33194,6 @@ impl OutcomeStopped {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl OutcomeCancelled {
@@ -34818,12 +33222,6 @@ impl OutcomeCancelled {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl OutcomeReleased {
@@ -34852,12 +33250,6 @@ impl OutcomeReleased {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl OutcomePersonTaken {
@@ -34886,12 +33278,6 @@ impl OutcomePersonTaken {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl OutcomePersonHandedBack {
@@ -34920,12 +33306,6 @@ impl OutcomePersonHandedBack {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl OutcomePersonAnswered {
@@ -34954,12 +33334,6 @@ impl OutcomePersonAnswered {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl OutcomeMoved {
@@ -34988,12 +33362,6 @@ impl OutcomeMoved {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl OutcomeProposalDecided {
@@ -35026,12 +33394,6 @@ impl OutcomeProposalDecided {
         heap = heap.checked_add(ProposalChoice::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl OutcomeSaid {
@@ -35060,12 +33422,6 @@ impl OutcomeSaid {
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl OutcomeQuestionAnswered {
@@ -35096,12 +33452,6 @@ impl OutcomeQuestionAnswered {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl OutcomeAmended {
@@ -35130,12 +33480,6 @@ impl OutcomeAmended {
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl OutcomeRolesSet {
@@ -35164,12 +33508,6 @@ impl OutcomeRolesSet {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl OutcomeRenamed {
@@ -35198,12 +33536,6 @@ impl OutcomeRenamed {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl OutcomeProjectMade {
@@ -35232,12 +33564,6 @@ impl OutcomeProjectMade {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl OutcomePolicyChanged {
@@ -35266,12 +33592,6 @@ impl OutcomePolicyChanged {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl OutcomePoolSet {
@@ -35300,12 +33620,6 @@ impl OutcomePoolSet {
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl OutcomeEscalationDecided {
@@ -35338,12 +33652,6 @@ impl OutcomeEscalationDecided {
         heap = heap.checked_add(EscalationChoice::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl OutcomeRefused {
@@ -35372,12 +33680,6 @@ impl OutcomeRefused {
         heap = heap.checked_add(Refusal::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl OutcomeAccountSignInStarted {
@@ -35406,12 +33708,6 @@ impl OutcomeAccountSignInStarted {
         heap = heap.checked_add(0_u64)?.checked_add(u64::from(limits.outcome_account_sign_in_started_address))?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AccountHostWhy {
@@ -35438,12 +33734,6 @@ impl AccountHostWhy {
         let biggest = 0_u64;
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl AccountHostFailure {
@@ -35472,12 +33762,6 @@ impl AccountHostFailure {
         heap = heap.checked_add(u64::from(limits.account_host_failure_name))?.checked_add(AccountHostWhy::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl OutcomeAccountProgramDeclared {
@@ -35506,12 +33790,6 @@ impl OutcomeAccountProgramDeclared {
         heap = heap.checked_add(0_u64)?.checked_add(u64::from(limits.outcome_account_program_declared_name))?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl OutcomeAccountSignedOut {
@@ -35540,12 +33818,6 @@ impl OutcomeAccountSignedOut {
         heap = heap.checked_add(0_u64)?.checked_add(List::<AccountHostFailure>::price(limits.outcome_account_signed_out_failed_hosts)?.checked_add(u64::from(limits.outcome_account_signed_out_failed_hosts).checked_mul(AccountHostFailure::decoded_bound_within(limits)?)?)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl OutcomeAccountKeyKept {
@@ -35574,12 +33846,6 @@ impl OutcomeAccountKeyKept {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl OutcomeAccountRemoved {
@@ -35608,12 +33874,6 @@ impl OutcomeAccountRemoved {
         heap = heap.checked_add(0_u64)?.checked_add(List::<AccountHostFailure>::price(limits.outcome_account_removed_failed_hosts)?.checked_add(u64::from(limits.outcome_account_removed_failed_hosts).checked_mul(AccountHostFailure::decoded_bound_within(limits)?)?)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl Given {
@@ -35642,12 +33902,6 @@ impl Given {
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl OutcomeCreated {
@@ -35678,12 +33932,6 @@ impl OutcomeCreated {
         heap = heap.checked_add(Given::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl OutcomeAccountMovingOut {
@@ -35714,12 +33962,6 @@ impl OutcomeAccountMovingOut {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl OutcomeAccountMovedIn {
@@ -35748,12 +33990,6 @@ impl OutcomeAccountMovedIn {
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl OutcomeAccountFinishing {
@@ -35782,12 +34018,6 @@ impl OutcomeAccountFinishing {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl OutcomeMovedToNewest {
@@ -35818,12 +34048,6 @@ impl OutcomeMovedToNewest {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl Outcome {
@@ -35890,12 +34114,6 @@ impl Outcome {
         biggest = biggest.max(OutcomeMovedToNewest::decoded_bound_within(limits)?).max(OutcomeLifted::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl ActKey {
@@ -35924,12 +34142,6 @@ impl ActKey {
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl ActClose {
@@ -35960,12 +34172,6 @@ impl ActClose {
         heap = heap.checked_add(0_u64)?.checked_add(u64::from(limits.act_close_reason))?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl ActAddKey {
@@ -35996,12 +34202,6 @@ impl ActAddKey {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl ActRemoveAccount {
@@ -36030,12 +34230,6 @@ impl ActRemoveAccount {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl ActAdopt {
@@ -36064,12 +34258,6 @@ impl ActAdopt {
         heap = heap.checked_add(0_u64)?.checked_add(Adoption::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl ActMakeProject {
@@ -36100,12 +34288,6 @@ impl ActMakeProject {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl Act {
@@ -36138,12 +34320,6 @@ impl Act {
         biggest = biggest.max(ActAdopt::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl StoredActed {
@@ -36174,12 +34350,6 @@ impl StoredActed {
         heap = heap.checked_add(Outcome::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl StoredAnswer {
@@ -36212,12 +34382,6 @@ impl StoredAnswer {
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl Value {
@@ -36254,12 +34418,6 @@ impl Value {
         biggest = biggest.max(StoredActed::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 impl Row {
@@ -36288,12 +34446,6 @@ impl Row {
         heap = heap.checked_add(Value::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
-
-    #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { Self::encoded_bound(limits) }
-
-    #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> { Self::decoded_bound(limits) }
 }
 
 /// Maximum wire bytes among this family's top-level types.
@@ -36967,12 +35119,6 @@ fn decoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(Row::decoded_bound_within(limits)?);
     Some(biggest)
 }
-
-#[must_use]
-pub fn worst_case_bytes(limits: &Limits) -> Option<u64> { encoded_bound(limits) }
-
-#[must_use]
-pub fn worst_case_heap(limits: &Limits) -> Option<u64> { decoded_bound(limits) }
 
 #[cfg(test)]
 mod golden_tests {
