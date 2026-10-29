@@ -392,7 +392,7 @@ pub(crate) fn down(
     body: &[u8],
     limits: &wire::v9::Limits,
     now: Time,
-    parts: &mut List<Part>,
+    parts: &mut Queue<Part>,
     next: &mut u64,
     out: &mut Queue<Request>,
 ) -> Option<host::LinkDown> {
@@ -537,7 +537,7 @@ fn transcript(bytes: &[u8]) -> Box<[Box<[u8]>]> {
 fn assignment(
     record: wire::Assignment,
     now: Time,
-    parts: &mut List<Part>,
+    parts: &mut Queue<Part>,
     next: &mut u64,
     out: &mut Queue<Request>,
 ) -> Option<host::Assignment> {
@@ -553,7 +553,7 @@ fn assignment(
             let workspace = workspace.into_parts();
             let items = Token::new(*next);
             *next = next.checked_add(1).expect("part tokens never wrap");
-            parts.push(Part { token: items, bytes: workspace.items }).expect("one workspace part per assignment");
+            parts.push(Part { token: items, bytes: workspace.items });
             Some(host::Workspace { workstream: workspace.workstream, items })
         }
         None => None,

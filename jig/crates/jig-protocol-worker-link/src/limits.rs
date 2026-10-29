@@ -21,7 +21,6 @@ pub struct Limits {
     pub busy: Duration,
 }
 pub const MAX_OUT_DOWN: u32 = 96;
-pub const MAX_OUT_FIRE: u32 = 12;
 pub fn channel_limits(limits: &Limits) -> Result<channel::Limits, Unusable> {
     let bodies = sizes::limits(&limits.sizes).ok_or(Unusable::Limits)?;
     let cap = sizes::worker_cap(&limits.sizes).ok_or(Unusable::Limits)?;
