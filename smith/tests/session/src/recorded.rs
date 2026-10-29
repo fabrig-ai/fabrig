@@ -223,12 +223,21 @@ impl World {
             }
             session::Event::Done { owner, done } => {
                 if self.held.contains(owner) {
-                    let position = self
-                        .job_acts
-                        .iter()
-                        .position(|(pending, _)| pending == owner)
-                        .expect("one terminal per job act");
-                    self.job_acts.remove(position);
+                    if let Some(position) = self.job_acts.iter().position(|(pending, _)| pending == owner) {
+                        self.job_acts.remove(position);
+                    } else {
+                        assert!(
+                            self.cancelled_operations.contains(owner),
+                            "a held job ends after an act or cancellation"
+                        );
+                        assert!(
+                            !matches!(
+                                done,
+                                smith_domain_tools::Done::Job { end: smith_domain_tools::JobEnd::Running, .. }
+                            ),
+                            "a cancellation terminal ends its held job"
+                        );
+                    }
                     if !matches!(done, smith_domain_tools::Done::Job { end: smith_domain_tools::JobEnd::Running, .. }) {
                         assert!(self.held.remove(owner));
                     }
