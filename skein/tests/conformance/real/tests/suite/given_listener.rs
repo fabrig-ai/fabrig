@@ -1,6 +1,6 @@
 //! Given listeners survive exec, retain their backlog and remain the parent's.
 
-#[path = "support/given_listener.rs"]
+#[path = "../support/given_listener.rs"]
 mod support;
 
 use std::net::{Ipv4Addr, TcpStream};

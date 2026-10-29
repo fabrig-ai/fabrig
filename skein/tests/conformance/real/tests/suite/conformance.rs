@@ -29,7 +29,7 @@ fn on<S: Check>(backend: Backend, scenario: fn(&mut Real) -> S) {
 
 // The conformance on the ring (shell.md, 9).
 #[cfg(target_os = "linux")]
-#[path = "cases"]
+#[path = "../cases"]
 mod ring {
     const BACKEND: skein_shell::Backend = skein_shell::Backend::Ring;
     #[path = "files.rs"]
@@ -40,7 +40,7 @@ mod ring {
     mod sockets;
 }
 
-#[path = "cases"]
+#[path = "../cases"]
 mod readiness {
     const BACKEND: skein_shell::Backend = skein_shell::Backend::Readiness;
     #[path = "files.rs"]
