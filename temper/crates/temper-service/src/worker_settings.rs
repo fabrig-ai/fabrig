@@ -31,8 +31,9 @@ pub(crate) fn problem(member: &[u8], what: What) -> Problems {
 
 /// Check the root, host adapter and link before any state is allocated.
 pub fn prepare(worker: &settings::Worker, agent: &settings::Agent, own: &limits::Limits) -> Result<Prepared, Problems> {
-    // skein's valid() replaces this at the set's repin
-    io::worst_case(&worker.jig.limits.io).ok_or(problem(b"limits", What::Bound))?;
+    if !io::valid(&worker.jig.limits.io) {
+        return Err(problem(b"limits", What::Bound));
+    }
     let address = match worker.jig.engine {
         config::Address::Addr(address) => address,
         config::Address::Host { .. } => return Err(problem(b"engine", What::Form)),
