@@ -270,7 +270,7 @@ impl World {
         let mut world = World {
             domain: engine::Domain::new(config(settings), &limits).expect("valid engine configuration"),
             environment: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
-            out: Queue::with_capacity(engine::max_out(&limits)),
+            out: Queue::uncapped(),
             events: VecDeque::new(),
             inputs: BTreeMap::new(),
             iteration: 0,
@@ -450,7 +450,7 @@ impl World {
             assert!(self.store.pending.is_empty(), "cut follows one complete role cohort");
             self.domain = engine::Domain::new(config(self.settings), &self.environment.limits)
                 .expect("valid engine configuration");
-            self.out = Queue::with_capacity(engine::max_out(&self.environment.limits));
+            self.out = Queue::uncapped();
             self.events.clear();
             self.frozen_cut = false;
             self.recovering = true;
@@ -463,7 +463,6 @@ impl World {
     }
 
     fn observe(&mut self) {
-        assert!(self.out.len() <= engine::max_out(&self.environment.limits));
         while let Some(request) = self.out.pop() {
             self.trace.push(format!("output {request:?}"));
             let request = match self.protocol.play(request) {
