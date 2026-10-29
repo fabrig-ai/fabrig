@@ -325,6 +325,8 @@ impl Domain {
         let root_config =
             RootConfig { forge_connector, forge_charter: config.forge_charter, landings: config.landing.landings };
         let mut core = Core::new(config.core, &core_limits(limits))?;
+        // temper/docs/design/domain/agent.md, 8.2: the person answers in their inbox.
+        core.person_answers();
         let core_env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: core_limits(limits) };
         let configured = jig_domain_core::step(
             &mut core,

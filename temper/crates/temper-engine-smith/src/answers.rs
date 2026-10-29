@@ -541,7 +541,12 @@ fn task_problem(text: &mut Text, problem: &jig_domain_tasks::Problem) -> Result<
         }
         Refusal::Circle { .. } => text.add(b"circle"),
         Refusal::DependencyEnded { .. } => text.add(b"dependency"),
-        Refusal::Kept | Refusal::KeptQuestion { .. } | Refusal::PersonAnswers { .. } => text.add(b"kept"),
+        Refusal::Kept | Refusal::KeptQuestion { .. } => text.add(b"kept"),
+        Refusal::PersonAnswers { question } => {
+            text.add(b"your person answers question ")?;
+            text.number(question)?;
+            text.add(b" in their inbox")
+        }
         Refusal::Executor => text.add(b"executor"),
         Refusal::Spec => text.add(b"specification"),
         Refusal::Contract => text.add(b"result contract"),
