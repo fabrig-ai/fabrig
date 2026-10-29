@@ -4,9 +4,7 @@ use jig_client_domain::contract::{
 };
 use jig_client_scripted_engine::{Bounds, owner_authority as price};
 use skein_lib::{List, Wall};
-use skein_world::domain::heap::{Counting, Meter};
-#[global_allocator]
-static HEAP: Counting = Counting;
+use skein_world::domain::heap::Meter;
 fn list<T: core::fmt::Debug>(items: impl IntoIterator<Item = T>) -> List<T> {
     let items: Vec<T> = items.into_iter().collect();
     let mut result = List::with_capacity(u32::try_from(items.len()).expect("fixture size"));

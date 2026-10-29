@@ -7,9 +7,6 @@ use skein_ui::{Key, NodeId, Patch, Role, Run, Tree, View};
 
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 
-#[global_allocator]
-static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
-
 struct Broken<const BAD: u8>;
 struct Root {
     answered: bool,

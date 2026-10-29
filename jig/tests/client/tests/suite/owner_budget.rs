@@ -1,9 +1,7 @@
 use jig_client_domain::contract::{Funder, OwnerBudget, OwnerNumbers, PoolLedger};
 use jig_client_scripted_engine::{Bounds, owner_budget as price};
 use skein_lib::Wall;
-use skein_world::domain::heap::{Counting, Meter};
-#[global_allocator]
-static HEAP: Counting = Counting;
+use skein_world::domain::heap::Meter;
 
 fn sources() -> [Funder; 4] {
     [

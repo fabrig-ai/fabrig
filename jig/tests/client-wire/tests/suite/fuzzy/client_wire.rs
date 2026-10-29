@@ -13,7 +13,7 @@ macro_rules! check {
     };
 }
 
-#[path = "fuzzy_client_wire/documents.rs"]
+#[path = "../../fuzzy_client_wire/documents.rs"]
 mod documents;
 
 fn records_1(bytes: &[u8]) {

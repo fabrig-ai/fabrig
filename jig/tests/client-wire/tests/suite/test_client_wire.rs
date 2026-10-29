@@ -27,7 +27,7 @@ fn test_client_wire_schema_matches_generated_code_and_goldens() {
     }
 }
 
-mod fixtures;
+use super::fixtures;
 use jig_client_test_domain::family;
 
 #[test]

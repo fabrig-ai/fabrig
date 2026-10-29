@@ -486,6 +486,7 @@ dependencies = [
  "skein-scratch",
  "skein-ui",
  "skein-ui-bundle",
+ "skein-world",
 ]
 
 [[package]]
@@ -642,6 +643,7 @@ dependencies = [
  "jig-test-connector",
  "skein-lib",
  "skein-ui",
+ "skein-world",
 ]
 
 [[package]]
@@ -727,6 +729,7 @@ dependencies = [
  "skein-codegen",
  "skein-lib",
  "skein-scratch",
+ "skein-world",
 ]
 
 [[package]]

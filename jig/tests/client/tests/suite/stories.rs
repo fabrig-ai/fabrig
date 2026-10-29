@@ -1,6 +1,6 @@
-#[path = "stories/closing.rs"]
+#[path = "../stories/closing.rs"]
 mod closing;
-#[path = "stories/goals.rs"]
+#[path = "../stories/goals.rs"]
 mod goals;
 use jig_client_world::{Until, stories, test};
 use skein_fake_person::{Find, Step, Target};
@@ -552,5 +552,5 @@ fn the_frame_shows_no_conversations_entry_without_a_chat_template() {
     );
 }
 
-#[path = "stories/projects.rs"]
+#[path = "../stories/projects.rs"]
 mod projects;
