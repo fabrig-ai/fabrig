@@ -5,12 +5,15 @@ No origin effects. Receipt publication follows child reap, supported heavy
 release queries, immutable artifacts and final checkout verification.
 """
 import argparse
+from contextlib import contextmanager
 import ctypes
 import importlib.util
 import os
 from pathlib import Path
 import subprocess
 import signal
+import select
+import time
 import sys
 import uuid
 
@@ -51,14 +54,65 @@ def subreaper():
         raise RuntimeError('Linux child subreaper unavailable')
 
 
-def reap():
-    # ECHILD proves this subreaper has no remaining fork descendants. A terminal
-    # direct child alone does not. Heavy has its separate containment proof.
-    while True:
+@contextmanager
+def child_events():
+    read_fd, write_fd = os.pipe2(os.O_CLOEXEC | os.O_NONBLOCK)
+    old_handler = signal.signal(signal.SIGCHLD, lambda *_: None)
+    old_wakeup = signal.set_wakeup_fd(write_fd)
+    try:
+        yield read_fd
+    finally:
+        signal.set_wakeup_fd(old_wakeup)
+        signal.signal(signal.SIGCHLD, old_handler)
+        os.close(read_fd)
+        os.close(write_fd)
+
+
+def kill_children():
+    # Adopted descendants can escape the original process group. Signal only
+    # pidfd identities proved to remain direct children of this subreaper.
+    path = Path('/proc/self/task') / str(os.getpid()) / 'children'
+    for value in path.read_text().split():
         try:
-            os.waitpid(-1, 0)
-        except ChildProcessError:
-            return
+            fd = os.pidfd_open(int(value))
+        except ProcessLookupError:
+            continue
+        try:
+            try:
+                exited = os.waitid(os.P_PIDFD, fd, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+            except ChildProcessError:
+                continue
+            if exited is None:
+                try:
+                    signal.pidfd_send_signal(fd, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+        finally:
+            os.close(fd)
+
+
+def reap(deadline=None, *, child=None):
+    # ECHILD, after cancellation if necessary, is the release proof. Deadline
+    # expiry is never a green completion or permission to abandon descendants.
+    expired = False
+    with child_events() as events:
+        while True:
+            if deadline is not None and time.monotonic() >= deadline:
+                expired = True
+            if expired:
+                kill_children()
+            try:
+                pid, status = os.waitpid(-1, os.WNOHANG)
+            except ChildProcessError:
+                return expired
+            if pid:
+                if child is not None and pid == child.pid:
+                    child.returncode = os.waitstatus_to_exitcode(status)
+                continue
+            left = None if deadline is None or expired else max(0, deadline - time.monotonic())
+            if select.select([events], [], [], left)[0]:
+                os.read(events, 65536)
+
 
 
 def load_config(path, expected):
@@ -135,6 +189,8 @@ class Commands:
         self.sequence = []
 
     def run(self, argv, **kwargs):
+        timeout = kwargs.pop('timeout', None)
+        deadline = None if timeout is None else time.monotonic() + timeout
         index = len(self.sequence)
         heavy = argv[0] == 'heavy'
         label = 'mq-' + self.claim['job'] + '-' + str(index)
@@ -148,22 +204,17 @@ class Commands:
         if heavy:
             argv = [self.config['heavy'], *argv[1:]]
             env.update(HEAVY_LABEL=label, DEV_ROOT=self.config['heavy_root'], DEV_TMP=self.config['heavy_tmp'])
-        timeout = kwargs.pop('timeout', None)
         timed_out = False
         try:
-            with subprocess.Popen(argv, env=env, start_new_session=True, **kwargs) as child:
-                try:
-                    code = child.wait(timeout=timeout)
-                except subprocess.TimeoutExpired:
-                    # The tools timeout remains red after the entire owned group
-                    # and any adopted descendants have been proved ended.
-                    os.killpg(child.pid, signal.SIGKILL)
-                    child.wait()
-                    timed_out, code = True, 124
-                result = subprocess.CompletedProcess(argv, code)
-        except BaseException:
-            raise worker.UncertainCompletion('command interrupted; supervisor reconciliation required')
-        reap()
+            if deadline is not None and time.monotonic() >= deadline:
+                timed_out, code = True, 124
+            else:
+                with subprocess.Popen(argv, env=env, start_new_session=True, **kwargs) as child:
+                    timed_out = reap(deadline, child=child)
+                    code = 124 if timed_out else child.returncode
+            result = subprocess.CompletedProcess(argv, code)
+        except BaseException as error:
+            raise worker.UncertainCompletion('command interrupted; supervisor reconciliation required') from error
         evidence = None
         if heavy:
             evidence = self.query(self.config, label)

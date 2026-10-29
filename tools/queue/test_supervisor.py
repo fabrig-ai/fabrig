@@ -206,6 +206,55 @@ with s.authority.Lock(repo.with_name(repo.name+'.queue.lock')):
                 stderr=subprocess.STDOUT,timeout=0.01)
         self.assertEqual(commands.evidence()[0]['done']['returncode'],124)
 
+    def test_tools_deadline_covers_orphans_and_retains_ownership_until_reap(self):
+        config,job,claim=self.command_world()
+        pairs=[os.pipe() for _ in range(4)]
+        (ready_r,ready_w),(go_r,go_w),(notice_r,notice_w),(allow_r,allow_w)=pairs
+        for pair in pairs:
+            for fd in pair:self.addCleanup(os.close,fd)
+        payload='import os\nif os.fork()==0:\n os.setsid(); os.write('+str(ready_w)+',str(os.getpid()).encode()); os.read('+str(go_r)+',1); os._exit(0)\nos._exit(0)'
+        helper="""import importlib.util,sys,pathlib,subprocess,os,signal
+spec=importlib.util.spec_from_file_location('s',sys.argv[1]);s=importlib.util.module_from_spec(spec);spec.loader.exec_module(s)
+c=s.durable.read_json(s.durable.read_bytes(sys.argv[2]));job=pathlib.Path(sys.argv[3]);claim=s.durable.read_json(s.durable.read_bytes(job/'claim.json'));s.subreaper()
+real=signal.pidfd_send_signal
+notified=False
+def kill(fd,sig,*args):
+ global notified
+ if not notified:
+  notified=True;os.write(int(sys.argv[7]),b'kill');os.read(int(sys.argv[8]),1)
+ return real(fd,sig,*args)
+signal.pidfd_send_signal=kill
+repo=pathlib.Path(c['repo'])
+with s.authority.Lock(repo.with_name(repo.name+'.queue.lock')):
+ with (job/'output').open('w') as out:
+  try:s.Commands(c,claim,job).run(['python3','-I','-B','-c',sys.argv[4]],cwd=repo,stdin=subprocess.DEVNULL,stdout=out,stderr=subprocess.STDOUT,pass_fds=(int(sys.argv[5]),int(sys.argv[6])),timeout=0.5)
+  except subprocess.TimeoutExpired:pass
+"""
+        child=subprocess.Popen(['python3','-I','-B','-c',helper,str(f.DIRECTORY/'supervisor.py'),
+            self.endpoints[config['gate']]['config'],str(job),payload,str(ready_w),str(go_r),str(notice_w),str(allow_r)],
+            stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.PIPE,pass_fds=(ready_w,go_r,notice_w,allow_r))
+        try:
+            self.assertTrue(select.select([ready_r],[],[],5)[0])
+            orphan=int(os.read(ready_r,64));orphan_fd=self.pid_exit(orphan)
+            expired=bool(select.select([notice_r],[],[],1.5)[0])
+            if expired:
+                self.assertEqual(os.read(notice_r,64),b'kill')
+                self.assertFalse((job/'command-0.done').exists())
+                self.assertTrue((Path(config['repo'])/'.git'/s.MARKER).exists())
+                with self.assertRaises(RuntimeError):
+                    with f.mq.authority.checkout_lock(Path(config['repo'])):self.fail('released during containment')
+            os.write(allow_w,b'x');os.write(go_w,b'x')
+            out,err=child.communicate(timeout=5)
+            self.assertEqual(child.returncode,0,(out,err))
+            self.assertTrue(expired,'direct zero exit allowed orphan to outlive tools deadline')
+            self.assertTrue(select.select([orphan_fd],[],[],5)[0])
+            done=d.read_json(d.read_bytes(job/'command-0.done'))
+            self.assertEqual(done['returncode'],124)
+        finally:
+            os.write(allow_w,b'x');os.write(go_w,b'x')
+            if child.poll() is None:child.kill()
+            child.communicate(timeout=5)
+
     def test_subreaper_waits_for_orphan_grandchild_after_direct_command_exits(self):
         config,job,claim=self.command_world()
         ready_r,ready_w=os.pipe(); go_r,go_w=os.pipe()
