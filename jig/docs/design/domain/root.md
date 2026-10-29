@@ -117,7 +117,22 @@ iterate, after the step:
   engine.md, 5.1 says. What finishes admitted work is always taken, so
   the backlog drains. An event that carries both is split: the root
   steps the admitted part and hands back the rest, an event of its own
-  holding only the new work. No route reserves room, and an order a
+  holding only the new work. The connector captures the rest's baseline
+  from its kept state before settlement and names it in the rest:
+  observability's `HealthChanged { from }` holds the healthy replica
+  count; infrastructure's `ServiceDrift { from }` holds the revision,
+  and `EnvironmentDrift { from }` holds the optional cached presence or
+  absence (`Option<Option<EnvironmentFact>>`). When the rest runs, it
+  compares that baseline with the kept state: matching replica counts
+  or revisions send no news. An environment rest acts only while a made
+  environment is kept absent; a baseline of cached absence suppresses
+  another deletion record, but still notifies reliant tasks
+  (connectors.md, section 11; ../examples.md). Below the watermark, the
+  connector steps the whole event as settlement then rest through the
+  same step function, within one decision; verdicts precede health news.
+  The split takes the connector's environment to check validity: an
+  invalid mixed fact settles without changing state and leaves no rest.
+  No route reserves room, and an order a
   room check once kept is a named predicate with its test
   (programming-model.md, 7.2).
 - **One decision per event.** Hand-offs complete within the step;
