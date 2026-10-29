@@ -22,7 +22,7 @@ fn full_retained_leads_alert_accounts_and_maximum_templates_keep_their_associati
         })
         .collect();
     let mut domain = obs::Domain::with_templates(&limits, templates).with_leads(&limits, leads);
-    let mut out = Queue::with_capacity(obs::MAX_OUT);
+    let mut out = Queue::uncapped();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     fill_incidents(&mut domain, &env, &mut out);
     for watch in 0..limits.watches {
