@@ -231,10 +231,20 @@ keeps nothing durable (programming-model.md, 7.1).
 - **Due source checks** are a separate new event, held at the watermark;
   the timer continues to advance admitted work without starting them
   (accounts.md, 3.4).
-- **Orders are explicit:** a link's records follow the assignment they
-  name, and a run's end follows its last hand-out. The root drains hub
-  outputs before agent outputs, and hand-out returns follow their
-  pending FIFO (6.8; programming-model.md, 7.2).
+- **A link's records follow the assignment they name.** `must_follow`
+  prevents a link record naming a held assignment's run and attempt
+  from passing it; a held process record also fences later records of
+  that agent. The channel world holds the assignment order under load
+  in `jig-channel-world`,
+  `worker_orders::link_records_follow_the_assignment_they_name_under_load`.
+- **A run's end follows its last hand-out.**
+  `payload_handouts_complete`, the absence of a pending hand-out for the
+  run (`!hand_out_pending`), requires the final turn and result to
+  return before the hub hears that the agent is gone. The root drains
+  hub outputs before agent outputs, and hand-out returns follow their
+  pending FIFO (6.8; programming-model.md, 7.2). The channel world holds
+  this under load in `jig-channel-world`,
+  `worker_orders::a_run_ends_after_its_last_hand_out_under_load`.
 
 In the engine, the hub and `smith-inline-agent` are children of the
 engine's root, beside the core: what the hub sends up goes to the core's

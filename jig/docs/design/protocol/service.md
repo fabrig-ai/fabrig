@@ -138,12 +138,12 @@ listed in section 9.
   and every component, and fires each where it fires its own
   (programming-model.md, section 9); it reports the same apart from io's
   own, as the policy deadline (section 4).
-- **Room.** `iterate` hands the root an event only while the root's
-  output queues have room for the most that event's entry point may
-  produce (programming-model.md, section 2). Whether a decision fits the
-  journal is the root's to say: it answers busy, through the door, an
-  event the journal cannot take (`../domain/root.md`, section 3), and the
-  component that sent it holds its peer back until it may send again.
+- **Admission.** Internal hand-offs are uncapped. The root takes
+  completions of admitted work at any backlog, and hands new external
+  work back while its backlog is at the watermark. The component that
+  sent it keeps it until admission resumes (`../domain/root.md`,
+  section 3). Completions may pass a held call, in arrival order, until
+  the next new event.
 
 ## 3. Starting
 

@@ -119,6 +119,14 @@ fire(root, now):
   its exchange, and sends it only once the record is stored (client.md,
   section 11); the root passes the client's requests out in the order
   the client gives them, and never reorders them.
+- **Child records precede transport within a step.**
+  `child_records_dispatched` requires the children's records, facts and
+  shows to precede the transport requests that step produces, while
+  keeping each group's order. The client world holds this with storage
+  and exchanges held in `jig-client-world`,
+  `orders::child_records_precede_transport_within_a_step`;
+  the ops world holds it in `jig-ops-world`,
+  `client_stories::orders::ops_child_records_precede_transport_within_a_step`.
 - **The documents are the client's.** A child that watches a subject
   reads its latest document from the client, by its handle, and keeps
   no copy of it across steps (section 5).
@@ -133,6 +141,15 @@ records: a child asks the client to send, and the root routes each
 request's progress and answer by its key's asker (section 5).
 
 ## 5. Routing
+
+- **Nested routes finish before their caller continues.**
+  `child_requests_dispatched` requires a child's generated requests to
+  finish routing before its caller continues, including routes through
+  the client and another child. The client world holds interleaved jig
+  and family entrances in `jig-client-world`,
+  `orders::nested_routes_finish_before_their_caller_continues`;
+  the ops world holds both connectors' routes in `jig-ops-world`,
+  `client_stories::orders::ops_client_routes_finish_before_their_caller_continues`.
 
 - **By asker.** Each handle and each key a child gives the client
   carries its asker, the child's owner number (section 15), which the

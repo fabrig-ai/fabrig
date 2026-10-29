@@ -305,6 +305,12 @@ procedure.
 
 ### 4.6 Releases
 
+- **A task closes after its effects settle.** `task_effects_settled`
+  requires every pending effect of the task to settle before the
+  connector reports it closed. The ops world holds this under load in
+  `jig-ops-world`,
+  `connector_checks::infrastructure_orders::a_task_closes_after_its_effects_settle_under_load`.
+
 When a task that held resources closes, its connector releases them
 with effects of its own, after every other effect of the task has
 settled (tasks.md, 6.5): per kind of resource and per way the task
@@ -775,6 +781,18 @@ asks for each step:
 
 Then, as decisions open, it steps each of its procedures once, on what
 it read. Nothing it held in memory before the restart is needed.
+
+- **A restart reports completion after every refresh and the outbox
+  settle.** `read_afresh_complete` requires all fresh reads to finish
+  before their restart stage reports done; `outbox_settled` requires
+  every uncertain entry to settle before the outbox stage reports done.
+  The ops world holds this under load in `jig-ops-world`,
+  `connector_checks::observability_orders::a_restart_reports_only_after_every_refresh_settles`
+  and
+  `connector_checks::infrastructure_orders::a_restart_reports_only_after_every_refresh_settles`.
+  The reference connector world holds the root's fresh-read ordering
+  and the connector's outbox completion in `jig-test-connector-world`,
+  `restart_orders::a_restart_reports_only_after_every_refresh_settles`.
 
 ## 15. The world
 
