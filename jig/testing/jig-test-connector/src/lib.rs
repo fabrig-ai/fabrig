@@ -53,7 +53,7 @@ pub use boundary::{
     RequirementSpec, ResourceRole, ResourceSpec, RestartStep, StepDecision, StepRefusal, SystemEvent, SystemRequest,
     TopicSpec, Verdict, split,
 };
-pub use domain::{Domain, MAX_OUT, closing_ready, fire, next_deadline, resume, step};
+pub use domain::{Domain, OUTPUTS_BOUND, closing_ready, fire, next_deadline, resume, step};
 pub use limits::{Limits, valid};
 
 #[cfg(test)]
