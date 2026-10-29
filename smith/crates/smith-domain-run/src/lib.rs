@@ -27,8 +27,8 @@
 //! settled wait/park state and activation-local turn numbering
 //! (domain/run.md, sections 6 and 13).
 //! The run never knows authentication, provider dialect bytes,
-//! credential secrets, forge state, CI or the host's delivery policy. The root
-//! still reserves [`MAX_OUT`] child handoff slots, and the caller delivers pending terminals
+//! credential secrets, forge state, CI or the host's delivery policy. Output
+//! goes into an uncapped queue, and the caller delivers pending terminals
 //! even while cancellation is settling (domain/run.md, sections 2, 10;
 //! programming-model.md, sections 5.2, 5.3 and 7).
 
@@ -75,8 +75,8 @@ pub use budget::{
 };
 pub use charter::{Brief, Charter, Conventions, Mode, Section};
 pub use domain::{
-    Domain, MAX_OUT, completion_overflow, completion_permit, conversation_charter, fire, host_name, max_facts, owner,
-    reserve, resume, settle_reservation, step,
+    Domain, completion_overflow, completion_permit, conversation_charter, fire, host_name, owner, reserve, resume,
+    settle_reservation, step,
 };
 pub use identity::Identity;
 pub use inbox::rendered_bytes;

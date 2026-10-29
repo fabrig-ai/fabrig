@@ -123,7 +123,7 @@ pub struct Limits {
     pub wrap_up: Duration,
     /// The most bytes of a failed check's output the LLM is shown: its tail.
     pub check_tail: u32,
-    /// The root's transitional fact-drain allowance; the run buffers facts without a cap.
+    /// Compatibility setting; facts are kept losslessly and drained by count.
     pub facts: u32,
 }
 

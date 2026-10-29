@@ -2,6 +2,7 @@
 //! sections 3–7; programming-model.md, sections 4.5 and 6.3). [`Domain`]
 //! retains sessions, tools, alarms, deferred ready work, injected randomness
 //! and uncapped facts. [`step`], [`fire`] and [`resume`] emit owned requests.
+//! Facts are kept losslessly and drained by their queued count.
 //! This module never knows run outcomes, host policy, credentials or provider
 //! wire syntax.
 
@@ -12,80 +13,6 @@ use crate::boundary::{Event, Request};
 use crate::facts::{Fact, Facts};
 use crate::limits::{self, Limits};
 use crate::session::{self, Alarm, Calls, Ready, Session};
-
-/// The most requests an entry point emits per call under `limits`, following
-/// the chain to the tools (programming-model.md, section 4.5): the session's own four (a completion's `Used`, priced spend and told turn
-/// and what follows it, or an admitted `Open`'s `Opened` and first call);
-/// the one batch of runs a step may start, a request each, or the withdraws
-/// and cancels closing sends for a batch; and what one step of the tools
-/// emits besides (an operation's next one, or the cancels of a kit's close).
-/// Compatibility allowance read by `smith-domain`'s handoff queues and by
-/// direct readers in the protocol-LLM, agent-service and jig channel tests
-/// until the root's queue migration. Session output needs no reservation.
-#[must_use]
-pub const fn max_out(limits: &Limits) -> u32 {
-    4_u32.saturating_add(limits.parallel_tools).saturating_add(tools::max_out(&limits.tools))
-}
-
-/// The most of those requests that are for the opener (the session's records
-/// that name it, and its delegated calls and their withdraws): the session's
-/// own four, and a batch of delegated calls, a request each, or the withdraws
-/// closing sends for one (a step starts a batch or cancels one, never both).
-/// The tools' operations and their cancels never reach the opener.
-/// `smith-domain` reads this compatibility allowance for its causal handoff
-/// formulas until the root's queue migration.
-#[must_use]
-pub const fn max_to_opener(limits: &Limits) -> u32 {
-    4_u32.saturating_add(limits.parallel_tools)
-}
-
-/// Compatibility observation allowance read by `smith-domain`'s gather
-/// formula until the root's queue migration. Ordinary and program calls can
-/// start together (protocol/programs.md, sections 5.4–5.5); facts are uncapped.
-#[must_use]
-pub const fn max_facts(limits: &Limits) -> u32 {
-    let mut program = builtin_completed_facts(limits);
-    if builtin_close_facts(limits) > program {
-        program = builtin_close_facts(limits);
-    }
-    if builtin_failure_facts(limits) > program {
-        program = builtin_failure_facts(limits);
-    }
-    // Completed's two own facts already appear in ordinary_facts.
-    ordinary_facts(limits).saturating_add(program.saturating_sub(2))
-}
-
-// session::tell, tools/kit.rs::call and jobs.rs::call; close/drain paths retain the full child allowance.
-const fn ordinary_facts(limits: &Limits) -> u32 {
-    8_u32
-        .saturating_add(limits.parallel_tools)
-        .saturating_add(tools::max_facts(&limits.tools).saturating_mul(limits.parallel_tools.saturating_add(2)))
-}
-
-// session::completed and builtin::flush: each inventory can fill independently.
-pub(crate) const fn builtin_completed_facts(limits: &Limits) -> u32 {
-    let old_stand_ins = limits.completion_blocks;
-    let new_starts = limits.completion_blocks;
-    let new_stand_ins = limits.completion_blocks;
-    let dropped_reasoning = limits.completion_blocks;
-    // CompletionAnswered in completed, Used in tell; ordinary_facts holds terminal/drain facts.
-    old_stand_ins
-        .saturating_add(new_starts)
-        .saturating_add(new_stand_ins)
-        .saturating_add(dropped_reasoning)
-        .saturating_add(2)
-}
-
-// session::close/conclude and tools/kit.rs::close: stand-ins, kit drain and Ended.
-pub(crate) const fn builtin_close_facts(limits: &Limits) -> u32 {
-    let drain = if limits.tools.jobs == 0 { 1 } else { tools::max_facts(&limits.tools) };
-    limits.completion_blocks.saturating_add(drain).saturating_add(1)
-}
-
-// session::failed/conclude: stand-ins, CompletionFailed, kit drain and Ended.
-pub(crate) const fn builtin_failure_facts(limits: &Limits) -> u32 {
-    builtin_close_facts(limits).saturating_add(1)
-}
 
 /// The session child domain's state.
 #[derive(Debug)]
@@ -194,7 +121,7 @@ impl Domain {
     }
 }
 
-/// Handles one event, emitting at most [`max_out`] requests.
+/// Handles one event, emitting requests into an uncapped queue.
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     domain.facts.begin(env.now);
     match event {
@@ -253,8 +180,8 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
     session::pass_on_facts(domain, env);
 }
 
-/// Fires the earliest alarm due at `env.now`, if there is one, emitting at most
-/// [`max_out`] requests. A stage fires its alarms after its input events, so
+/// Fires the earliest alarm due at `env.now` into an uncapped request queue.
+/// A stage fires its alarms after its input events, so
 /// progress that arrived in the same iteration wins over a deadline that passed
 /// while the loop waited.
 pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
@@ -269,9 +196,9 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     session::pass_on_facts(domain, env);
 }
 
-/// Starts a session on the ready list again, if one is, emitting at most
-/// [`max_out`] requests: one that rested in an earlier iteration, after a
-/// batch the tools answered within the step that started it.
+/// Starts a session on the ready list again, emitting into an uncapped request
+/// queue: one that rested in an earlier iteration, after a batch the tools
+/// answered within the step that started it.
 pub fn resume(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     domain.facts.begin(env.now);
     let Some(id) = domain.ready.pop() else {

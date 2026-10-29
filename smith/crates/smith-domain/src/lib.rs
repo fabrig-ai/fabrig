@@ -7,8 +7,8 @@
 //! (domain/run.md, section 13).
 //!
 //! [`step`], [`fire`] and [`resume`] accept typed host, provider and IO events
-//! with injected clocks and seed. They emit owned [`Request`] values within
-//! [`max_out`]; internal handoffs drain completely through uncapped queues.
+//! with injected clocks and seed. They emit owned [`Request`] values into an
+//! uncapped queue; internal handoffs drain completely through uncapped queues.
 //! The caller returns each request's one typed terminal. Iteration-end
 //! reclamation follows output delivery.
 //! The root translates run conversations into sessions; siblings share no
@@ -47,7 +47,7 @@ mod waking;
 
 pub use boundary::{Answered, AnsweredCall, Event, Grant, GrantName, Operation, Request, Window};
 pub use config::{Config, ConfiguredModel, Program};
-pub use domain::{Domain, fire, max_facts, max_out, resume, step};
+pub use domain::{Domain, fire, resume, step};
 pub use facts::{Content, Fact, Opening};
 
 pub use feedback::{Feedback, FeedbackRefusal, feedback, feedback_bound, feedback_worst_case};

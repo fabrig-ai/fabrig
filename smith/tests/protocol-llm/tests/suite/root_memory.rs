@@ -22,6 +22,10 @@ use smith_protocol_llm_world::{
     wire::{self, Configuration, Observed, Wire},
 };
 
+// Content capture setting from the session observation inventory:
+// one parallel tool, sixty-four completion blocks and four jobs.
+const ROOT_MEMORY_CONTENT_EDGE_RECORDS: u32 = 283;
+
 const WORKER: Token = Token::new(91);
 const PARENT: Token = Token::new(92);
 const LARGE: usize = 8192;
@@ -164,7 +168,7 @@ fn bounds(messages: u32) -> Limits {
         },
         ..LIMITS
     };
-    limits.session.facts = session::max_facts(&limits.session);
+    limits.session.facts = ROOT_MEMORY_CONTENT_EDGE_RECORDS;
     limits
 }
 
