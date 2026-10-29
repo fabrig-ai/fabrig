@@ -2623,6 +2623,7 @@ dependencies = [
  "skein-scratch",
  "skein-shell",
  "skein-sim",
+ "skein-world",
 ]
 
 [[package]]

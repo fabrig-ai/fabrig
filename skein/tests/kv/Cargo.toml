@@ -17,6 +17,9 @@ skein-shell.workspace = true
 skein-scratch.workspace = true
 skein-heap.workspace = true
 
+[dev-dependencies]
+skein-world.workspace = true
+
 [lints.rust]
 unsafe_code = "forbid"
 elided_lifetimes_in_paths = "deny"
