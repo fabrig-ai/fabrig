@@ -122,14 +122,14 @@ fn a_crash_before_finished_decision_resumes_current_attempt() {
 
 #[test]
 fn restore_rejects_corrupt_links_cycles_and_contracts_without_panicking() {
-    use jig_domain_tasks::{Request, max_out, step};
+    use jig_domain_tasks::{Request, step};
     use skein_lib::{Env, Queue, Time, Wall};
     let mut source = World::new(25, LIMITS);
     source.make(Party::Person(1), vec![task(1, &[]), task(2, &[])]);
     for corrupt in 0..13 {
         let mut domain = jig_tasks_world::domain(&LIMITS, 25);
         let env = Env { limits: LIMITS, now: Time::ZERO, wall: Wall::EPOCH };
-        let mut out = Queue::with_capacity(max_out(&LIMITS));
+        let mut out = Queue::uncapped();
         for number in [1, 2] {
             let mut record = source.record(number).clone();
             match corrupt {
@@ -331,7 +331,7 @@ fn restore_refuses_unrepresentable_eventual_funding_postings() {
         }
     }
     let mut domain = jig_tasks_world::domain(&LIMITS, 30);
-    let mut out = Queue::with_capacity(jig_domain_tasks::max_out(&LIMITS));
+    let mut out = Queue::uncapped();
     for record in rows {
         step(&mut domain, &source.env, Event::Restore { record }, &mut out);
     }
@@ -352,7 +352,7 @@ fn malformed_unfinished_dependencies_refuse_at_restore_entrance() {
         let mut record = source.record(1).clone();
         record.waiting_on = waiting;
         let mut domain = jig_tasks_world::domain(&LIMITS, 31);
-        let mut out = Queue::with_capacity(jig_domain_tasks::max_out(&LIMITS));
+        let mut out = Queue::uncapped();
         step(&mut domain, &source.env, Event::Restore { record: Stored::Live(Box::new(record)) }, &mut out);
         assert!(
             matches!(out.pop(), Some(Request::RestoreRefused { .. })),
@@ -379,7 +379,7 @@ fn restore_refuses_a_missing_unfinished_live_dependency_before_activation() {
             }
         }
         let mut domain = jig_tasks_world::domain(&LIMITS, 32);
-        let mut out = Queue::with_capacity(jig_domain_tasks::max_out(&LIMITS));
+        let mut out = Queue::uncapped();
         for record in rows {
             step(&mut domain, &source.env, Event::Restore { record }, &mut out);
         }
@@ -425,7 +425,7 @@ fn impossible_settled_live_and_inconsistent_ledger_states_refuse_at_restore_entr
     }
     for record in invalid {
         let mut domain = jig_tasks_world::domain(&LIMITS, 33);
-        let mut out = Queue::with_capacity(jig_domain_tasks::max_out(&LIMITS));
+        let mut out = Queue::uncapped();
         step(&mut domain, &source.env, Event::Restore { record }, &mut out);
         assert!(matches!(out.pop(), Some(Request::RestoreRefused { .. })));
         assert!(out.pop().is_none());
@@ -465,7 +465,7 @@ fn restore_refuses_task_funding_outside_its_requester_ancestry() {
         }
     }
     let mut domain = jig_tasks_world::domain(&LIMITS, 34);
-    let mut out = Queue::with_capacity(jig_domain_tasks::max_out(&LIMITS));
+    let mut out = Queue::uncapped();
     for record in rows {
         step(&mut domain, &source.env, Event::Restore { record }, &mut out);
     }
@@ -502,7 +502,7 @@ fn unresolved_or_inconsistent_escalation_rows_refuse_before_retention() {
             _ => unreachable!(),
         };
         let mut domain = jig_tasks_world::domain(&LIMITS, 36);
-        let mut out = Queue::with_capacity(jig_domain_tasks::max_out(&LIMITS));
+        let mut out = Queue::uncapped();
         step(&mut domain, &source.env, Event::Restore { record: Stored::Live(Box::new(task)) }, &mut out);
         assert!(matches!(out.pop(), Some(Request::RestoreRefused { .. })));
         assert!(out.pop().is_none());
@@ -517,7 +517,7 @@ fn waiting_restore_requests_recheck_once_and_identical_recipient_changes_nothing
     source.make(Party::Person(1), vec![task(1, &[])]);
     for rejected in [false, true] {
         let mut domain = jig_tasks_world::domain(&LIMITS, 37);
-        let mut out = Queue::with_capacity(jig_domain_tasks::max_out(&LIMITS));
+        let mut out = Queue::uncapped();
         for record in source.records.values() {
             if matches!(record, Stored::Milestone(_) | Stored::Activity(_) | Stored::History(_) | Stored::Ended(_)) {
                 continue;

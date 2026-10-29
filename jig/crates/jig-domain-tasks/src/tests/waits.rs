@@ -57,7 +57,7 @@ fn a_pool_only_propagates_stuckness_at_its_slot_threshold() {
     let other = &mut crate::domain::task_mut(&mut test.domain, OTHER).expect("other holder").record;
     other.dependencies = Box::new([HOLDER]);
     other.waiting_on = Box::new([HOLDER]);
-    let mut out = skein_lib::Queue::with_capacity(crate::max_out(&LIMITS));
+    let mut out = skein_lib::Queue::uncapped();
     crate::domain::publish(&mut test.domain, &test.env, OTHER, &mut out);
     let problem =
         crate::waits::check_added(&test.domain, &crate::compound::Staged::new(0), &LIMITS, HOLDER, &[REQUESTER])

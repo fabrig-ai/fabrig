@@ -1,6 +1,6 @@
 //! Period inputs and their durable output records, through the child entry points.
 use super::revisions::{Harness, LIMITS, to};
-use crate::{Domain, Event, Funder, PeriodTimes, Request, Stored, max_out, step};
+use crate::{Domain, Event, Funder, PeriodTimes, Request, Stored, step};
 use skein_lib::{Queue, Wall};
 
 #[test]
@@ -53,7 +53,7 @@ fn cold_restore_refuses_a_period_without_its_actual_opening_fact() {
             row.period = None;
         }
         let mut domain = Domain::new(&LIMITS, 91, 1, crate::tests::charters(), Box::new([0]));
-        let mut out = Queue::with_capacity(max_out(&LIMITS));
+        let mut out = Queue::uncapped();
         step(&mut domain, &test.env, Event::Restore { record: Stored::Ledger(row) }, &mut out);
         let mut refused = false;
         while let Some(request) = out.pop() {
@@ -92,7 +92,7 @@ fn a_restored_closed_ledger_refuses_the_start() {
     let mut row = *test.domain.funding(Funder::Period { project: 1, period: 0 }).unwrap();
     row.closed = true;
     let mut domain = Domain::new(&LIMITS, 91, 1, crate::tests::charters(), Box::new([0]));
-    let mut out = Queue::with_capacity(max_out(&LIMITS));
+    let mut out = Queue::uncapped();
     step(&mut domain, &test.env, Event::Restore { record: Stored::ClosedLedger(row) }, &mut out);
     let mut refused = false;
     while let Some(request) = out.pop() {

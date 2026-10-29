@@ -129,8 +129,7 @@ fn profile() -> root::Limits {
         facts: 2,
         history: 2,
     };
-    let writes = tasks::max_out(&tasks) * 8
-        + PEOPLE_WRITE_ALLOWANCE
+    let writes = PEOPLE_WRITE_ALLOWANCE
         + people.pending * 2
         + jig_test_connector::MAX_OUT * 2
         + tasks.tasks

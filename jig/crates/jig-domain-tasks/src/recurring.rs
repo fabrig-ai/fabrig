@@ -123,7 +123,7 @@ pub(crate) fn make_batch(
         member.dependencies = dependencies.into_boxed();
     }
     let Some(parent) = domain.funding.get(&Funder::Period { project, period }).copied() else { return };
-    let mut saves = Queue::with_capacity(crate::max_out(&env.limits));
+    let mut saves = Queue::uncapped();
     if !crate::funders::carve_recurring(domain, project, task, period, budget, &mut saves) {
         return;
     }
