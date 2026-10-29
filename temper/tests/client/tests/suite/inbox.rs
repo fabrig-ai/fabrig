@@ -56,10 +56,7 @@ fn a_delegates_question_answered_in_the_inbox_reaches_the_delegate() {
             .any(|word| word.kind == jig_domain_tasks::MessageKind::QuestionAnswered { question })
     );
     world.go(person, fixtures::chat_page(chat));
-    world.person(
-        person,
-        vec![Step::See { find: Find::text(QUESTION), within: fixtures::WITHIN }],
-    );
+    world.person(person, vec![Step::See { find: Find::text(QUESTION), within: fixtures::WITHIN }]);
     let outcome = world.run(Until::Done);
     assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
     let tree = world.tree(person);
