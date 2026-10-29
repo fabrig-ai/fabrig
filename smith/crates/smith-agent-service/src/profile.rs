@@ -101,7 +101,7 @@ pub fn derive(profile: &Profile, configuration: &Configuration) -> Result<servic
     validate::render_in_result(rendered_result, rendered_result)?;
     let bodies = channel_bodies(&domain, &policy)?;
     let fact =
-        u32::try_from(smith_channel::Fact::worst_case_bytes(&bodies).ok_or(derived(Layer::Channel, "output_bytes"))?)
+        u32::try_from(smith_channel::Fact::encoded_bound(&bodies).ok_or(derived(Layer::Channel, "output_bytes"))?)
             .or(Err(derived(Layer::Channel, "output_bytes")))?;
     let output_bytes = channel_output(&bodies)?
         .checked_add(fact.checked_add(8).ok_or(derived(Layer::Channel, "output_bytes"))?)
@@ -250,9 +250,9 @@ fn transcript(
     ] {
         validate::transcript_field(field, Value::Count(u64::from(required)), Value::Count(u64::from(available)))?;
     }
-    let bytes = smith_transcript::Turn::worst_case_bytes(&limits).ok_or(derived(Layer::Transcript, "turn_bytes"))?;
+    let bytes = smith_transcript::Turn::encoded_bound(&limits).ok_or(derived(Layer::Transcript, "turn_bytes"))?;
     let available =
-        smith_transcript::Turn::worst_case_bytes(&ceiling).ok_or(derived(Layer::Transcript, "turn_bytes"))?;
+        smith_transcript::Turn::encoded_bound(&ceiling).ok_or(derived(Layer::Transcript, "turn_bytes"))?;
     validate::turn_in_transcript(bytes, available)?;
     Ok(limits)
 }
@@ -350,7 +350,7 @@ fn channel_bodies(domain: &domain::Limits, policy: &Policy) -> Result<smith_chan
 // Rule 6: saved turns share one whole window. Scalar and length fields
 // fit twice their owning record cells; individual codec bounds stay sealed.
 fn channel_start_bytes(bodies: &smith_channel::Limits) -> Result<u32, Refusal> {
-    let bytes = smith_channel::Start::worst_case_bytes(bodies).ok_or(derived(Layer::Channel, "start_bytes"))?;
+    let bytes = smith_channel::Start::encoded_bound(bodies).ok_or(derived(Layer::Channel, "start_bytes"))?;
     u32::try_from(bytes).or(Err(derived(Layer::Channel, "start_bytes")))
 }
 
@@ -383,11 +383,11 @@ fn channel_limits(
         .checked_add(3)
         .ok_or(refusal)?;
     let authority = channel_output(&bodies)?;
-    let fact = u32::try_from(smith_channel::Fact::worst_case_bytes(&bodies).ok_or(refusal)?)
+    let fact = u32::try_from(smith_channel::Fact::encoded_bound(&bodies).ok_or(refusal)?)
         .or(Err(refusal))?
         .checked_add(8)
         .ok_or(refusal)?;
-    let live = u32::try_from(smith_channel::Live::worst_case_bytes(&bodies).ok_or(refusal)?)
+    let live = u32::try_from(smith_channel::Live::encoded_bound(&bodies).ok_or(refusal)?)
         .or(Err(refusal))?
         .checked_add(8)
         .ok_or(refusal)?;
