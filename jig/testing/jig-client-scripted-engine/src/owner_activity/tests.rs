@@ -32,7 +32,7 @@ fn line(line: OwnerActivity) -> OwnerActivityLine {
 fn owner_activity_whole_word_and_line_price_every_inline_reserved_field_and_opaque_byte_at_plus_minus_one() {
     let value = word(OwnerMessageKind::Result(OwnerWordResult::Verdict { code: u32::MAX, fields: fields() }));
     let saved = value.clone();
-    let heap = List::<ResultField>::worst_case(3).unwrap() + 2 + 6 + 3 + 2 + 2;
+    let heap = List::<ResultField>::price(3).unwrap() + 2 + 6 + 3 + 2 + 2;
     let expected = u64::try_from(size_of::<OwnerWord>()).unwrap() + heap;
     assert_eq!(word_bytes(&value, &bounds()), Some(expected));
     for (limit, admitted) in [(expected - 1, false), (expected, true), (expected + 1, true)] {
@@ -171,7 +171,7 @@ fn owner_activity_reserved_empty_fields_and_each_nested_text_overflow_refuse_who
         let value =
             word(OwnerMessageKind::Result(OwnerWordResult::Verdict { code: 0, fields: List::with_capacity(capacity) }));
         let expected =
-            u64::try_from(size_of::<OwnerWord>()).unwrap() + List::<ResultField>::worst_case(capacity).unwrap() + 2;
+            u64::try_from(size_of::<OwnerWord>()).unwrap() + List::<ResultField>::price(capacity).unwrap() + 2;
         assert_eq!(word_bytes(&value, &bounds()), Some(expected));
         assert!(word_fits(&value, &Bounds { document_bytes: expected, ..bounds() }));
         assert!(!word_fits(&value, &Bounds { document_bytes: expected - 1, ..bounds() }));

@@ -12,7 +12,7 @@ fn me_prices_memberships_offers_and_required_project_names() {
     row.party.name = DocumentText::complete(text(&[b'n'; 32]));
     row.projects.get_mut(0).unwrap().name = DocumentText::complete(text(&[b'p'; 32]));
     let mut bounds = Bounds { rows: 2, text: 32, document_bytes: u64::MAX, ..Bounds::default() };
-    let expected = u64::try_from(core::mem::size_of::<Me>()).unwrap() + List::<MeProject>::worst_case(1).unwrap() + 96;
+    let expected = u64::try_from(core::mem::size_of::<Me>()).unwrap() + List::<MeProject>::price(1).unwrap() + 96;
     assert_eq!(row.heap(&bounds).unwrap() + u64::try_from(core::mem::size_of::<Me>()).unwrap(), expected);
     bounds.document_bytes = expected;
     assert!(fits(&row, &bounds));

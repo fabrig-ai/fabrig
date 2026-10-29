@@ -119,7 +119,7 @@ fn reserved_closed_offer_ceiling_is_priced_and_one_more_is_refused_whole() {
         let mut value = seven();
         value.acts = offered(if populated { &[ActKind::Message] } else { &[] }, MAX_OFFERED_ACTS);
         let before = value.clone();
-        assert_eq!(crate::offered::heap(&value.acts, &bounds), List::<Offered>::worst_case(MAX_OFFERED_ACTS));
+        assert_eq!(crate::offered::heap(&value.acts, &bounds), List::<Offered>::price(MAX_OFFERED_ACTS));
         exact_packets(&value, &bounds);
         value.acts = offered(if populated { &[ActKind::Message] } else { &[] }, MAX_OFFERED_ACTS + 1);
         let oversized = value.clone();
@@ -211,22 +211,19 @@ fn recursive_goal_and_amend_offers_keep_full_width_holders_rows_and_opaque_bytes
     value.acts = nested();
     let before = value.clone();
     // Independent allocation arithmetic, including three authority boxes and all raw pattern bytes.
-    let pattern = List::<Box<[u8]>>::worst_case(2).unwrap() + 9;
-    let grants = List::<OwnerGrant>::worst_case(2).unwrap() + 2 * pattern;
+    let pattern = List::<Box<[u8]>>::price(2).unwrap() + 9;
+    let grants = List::<OwnerGrant>::price(2).unwrap() + 2 * pattern;
     let authority = grants
-        + List::<OwnerAuthorityExecutor>::worst_case(2).unwrap()
-        + List::<OwnerResourceScope>::worst_case(2).unwrap()
+        + List::<OwnerAuthorityExecutor>::price(2).unwrap()
+        + List::<OwnerResourceScope>::price(2).unwrap()
         + 2 * pattern;
-    let goal = List::<u32>::worst_case(2).unwrap() * 2
-        + List::<CreateProcedure>::worst_case(2).unwrap()
+    let goal = List::<u32>::price(2).unwrap() * 2
+        + List::<CreateProcedure>::price(2).unwrap()
         + u64::try_from(size_of::<OwnerAuthorityDocument>()).unwrap();
     let amend = grants
-        + List::<OwnerKindImplication>::worst_case(2).unwrap()
+        + List::<OwnerKindImplication>::price(2).unwrap()
         + 2 * (u64::try_from(size_of::<OwnerAuthorityDocument>()).unwrap() + authority);
-    assert_eq!(
-        crate::offered::heap(&value.acts, &bounds),
-        Some(List::<Offered>::worst_case(7).unwrap() + goal + amend)
-    );
+    assert_eq!(crate::offered::heap(&value.acts, &bounds), Some(List::<Offered>::price(7).unwrap() + goal + amend));
     exact_packets(&value, &bounds);
     assert_eq!(value, before);
 }

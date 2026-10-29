@@ -38,11 +38,11 @@ fn owner_milestone_recursive_heap_counts_reserved_fields_parts_and_bytes_at_exac
     });
     let expected = u64::try_from(size_of::<OwnerMilestoneLine>())
         .unwrap()
-        .checked_add(List::<Box<[u8]>>::worst_case(3).unwrap())
+        .checked_add(List::<Box<[u8]>>::price(3).unwrap())
         .unwrap()
         .checked_add(5)
         .unwrap()
-        .checked_add(List::<ResultField>::worst_case(3).unwrap())
+        .checked_add(List::<ResultField>::price(3).unwrap())
         .unwrap()
         .checked_add(9)
         .unwrap()
@@ -72,7 +72,7 @@ fn owner_milestone_reserved_empty_lists_optional_approval_and_every_nested_capac
         words: doc(b"", false),
         fields: fields.clone(),
     })));
-    assert_eq!(bytes(&source, &base), Some(root.checked_add(List::<ResultField>::worst_case(3).unwrap()).unwrap()));
+    assert_eq!(bytes(&source, &base), Some(root.checked_add(List::<ResultField>::price(3).unwrap()).unwrap()));
     assert!(bytes(&source, &Bounds { rows: 2, segments: 2, ..base }).is_none());
     fields.push(ResultField { name: copy_of(&[255; 8]), value: copy_of(&[254; 8]) }).unwrap();
     source.phase = OwnerMilestonePhase::Ended(OwnerChipEnding::Done(ResultValue::OwnerVerdict {
@@ -118,10 +118,8 @@ fn owner_milestone_verdict_followup_allocations_remain_whole_and_no_terminal_clo
         tasks,
         proposal: None,
     })));
-    let expected = u64::try_from(size_of::<OwnerMilestoneLine>())
-        .unwrap()
-        .checked_add(List::<Chip>::worst_case(3).unwrap())
-        .unwrap();
+    let expected =
+        u64::try_from(size_of::<OwnerMilestoneLine>()).unwrap().checked_add(List::<Chip>::price(3).unwrap()).unwrap();
     assert_eq!(bytes(&value, &base), Some(expected));
     assert!(bytes(&value, &Bounds { rows: 2, segments: 2, ..base }).is_none());
     assert_eq!(value.at, None);

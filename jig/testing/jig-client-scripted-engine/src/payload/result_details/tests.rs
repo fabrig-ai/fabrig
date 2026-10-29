@@ -50,23 +50,22 @@ fn result_metadata_prices_allocated_lists_nested_chips_and_verdict_field_bytes()
     let mut choices = List::with_capacity(2);
     choices.push(VerdictChoice { code: u32::MAX, words: u32::MAX, followups: u32::MAX, fields }).unwrap();
     let mut value = metadata(TaskContractDocument::Verdict { choices, cut: true });
-    let contract = List::<VerdictChoice>::worst_case(2)
+    let contract = List::<VerdictChoice>::price(2)
         .unwrap()
-        .checked_add(List::<FieldRule>::worst_case(3).unwrap())
+        .checked_add(List::<FieldRule>::price(3).unwrap())
         .unwrap()
         .checked_add(3)
         .unwrap();
     let chip = 3_u64
         .checked_add(u64::try_from(size_of::<ChipPhase>()).unwrap())
         .unwrap()
-        .checked_add(List::<u64>::worst_case(3).unwrap())
+        .checked_add(List::<u64>::price(3).unwrap())
         .unwrap();
-    let delegates = List::<OwnerTaskLink>::worst_case(4).unwrap().checked_add(chip).unwrap();
-    let heap =
-        contract.checked_add(delegates).unwrap().checked_add(List::<OwnerTaskLink>::worst_case(2).unwrap()).unwrap();
+    let delegates = List::<OwnerTaskLink>::price(4).unwrap().checked_add(chip).unwrap();
+    let heap = contract.checked_add(delegates).unwrap().checked_add(List::<OwnerTaskLink>::price(2).unwrap()).unwrap();
     let mut bounds = Bounds { text: 3, rows: 4, segments: 4, ..Bounds::default() };
     at_bound(&value, &mut bounds, heap);
-    let followup_allocation = List::<OwnerTaskLink>::worst_case(2).unwrap();
+    let followup_allocation = List::<OwnerTaskLink>::price(2).unwrap();
     value.followups = Some(List::with_capacity(2));
     at_bound(&value, &mut bounds, heap);
     value.followups = None;
@@ -90,16 +89,16 @@ fn result_metadata_prices_opaque_approval_paths_and_every_task_link_form() {
     });
     let mut bounds = Bounds { text: 3, rows: 4, segments: 4, ..Bounds::default() };
     let base = 8_u64
-        .checked_add(List::<Box<[u8]>>::worst_case(3).unwrap())
+        .checked_add(List::<Box<[u8]>>::price(3).unwrap())
         .unwrap()
-        .checked_add(List::<OwnerTaskLink>::worst_case(4).unwrap())
+        .checked_add(List::<OwnerTaskLink>::price(4).unwrap())
         .unwrap()
-        .checked_add(List::<OwnerTaskLink>::worst_case(2).unwrap())
+        .checked_add(List::<OwnerTaskLink>::price(2).unwrap())
         .unwrap();
     let chip_heap = 3_u64
         .checked_add(u64::try_from(size_of::<ChipPhase>()).unwrap())
         .unwrap()
-        .checked_add(List::<u64>::worst_case(3).unwrap())
+        .checked_add(List::<u64>::price(3).unwrap())
         .unwrap();
     for link in [
         OwnerTaskLink::Live(chip()),
