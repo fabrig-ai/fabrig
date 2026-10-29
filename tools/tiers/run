@@ -1,0 +1,144 @@
+#!/usr/bin/env python3
+"""Run a tree's slow tier with its prerequisites (tools/tiers/design.md)."""
+
+import argparse
+import json
+import os
+from pathlib import Path
+import shlex
+import subprocess
+import sys
+import time
+import tomllib
+
+
+DISK_BYTES = 80_000_000_000
+
+
+class FailedStep(Exception):
+    pass
+
+
+def wait_for_disk(env):
+    while True:
+        result = subprocess.run(["df", "-B1", "--output=avail", "/"],
+                                check=True, text=True, capture_output=True, env=env,
+                                stdin=subprocess.DEVNULL)
+        available = int(result.stdout.splitlines()[-1].strip())
+        if available >= DISK_BYTES:
+            return
+        print(f"tiers: waiting for disk: {available} bytes available; "
+              f"need {DISK_BYTES}; checking in 60s", flush=True)
+        time.sleep(60)
+
+
+def step(name, command, env, *, heavy=True):
+    try:
+        if heavy:
+            wait_for_disk(env)
+        print(f"tiers: {name}: {shlex.join(command)}", flush=True)
+        return subprocess.run(command, env=env, stdin=subprocess.DEVNULL).returncode
+    except (OSError, ValueError, subprocess.SubprocessError) as error:
+        raise FailedStep(f"{name}: {error}") from error
+
+
+def build(name, arguments, env):
+    code = step(name, ["heavy", "cargo", "build", *arguments], env)
+    if code:
+        raise FailedStep(f"{name}: exit {code}")
+
+
+def bundle(tree, target, env):
+    if tree == "skein":
+        package = "skein-ui-example-shell-web"
+        out = target / "ui-example-bundle"
+        variable = "SKEIN_UI_EXAMPLE_BUNDLE"
+        options = ["--stylesheet", "skein/examples/ui/shell-web/notes.css",
+                   "--noscript", "Notes needs WebAssembly and scripts."]
+        features = []
+        server = "skein-ui-example-server"
+    elif tree == "jig":
+        package = "jig-client-test-shell-web"
+        out = target / "jig-test-bundle"
+        variable = "JIG_TEST_BUNDLE"
+        options = ["--stylesheet", "jig/crates/jig-client-shell-web/jig.css",
+                   "--stylesheet", "jig/testing/jig-client-test-shell-web/jig_client_test_shell_web.css",
+                   "--pictures", "jig=jig/crates/jig-client-shell-web/pictures",
+                   "--pictures", "jig-test=jig/testing/jig-client-test-shell-web/pictures",
+                   "--files", "jig/testing/jig-client-test-shell-web/files",
+                   "--noscript", "jig needs WebAssembly and scripts."]
+        features = []
+        server = "jig-test"
+    else:
+        package = "temper-client-shell-web"
+        out = target / "temper-bundle"
+        variable = "TEMPER_TEST_BUNDLE"
+        shell = "temper/crates/temper-client-shell-web"
+        options = ["--stylesheet", f"{shell}/temper.css",
+                   "--stylesheet", f"{shell}/task-pages.css",
+                   "--files", f"{shell}/files",
+                   "--noscript", "temper needs WebAssembly and scripts."]
+        features = ["--features", "loopback-navigation"]
+        server = "temper"
+    build("wasm module", ["--target", "wasm32-unknown-unknown", *features, "-p", package], env)
+    build("bundle tool", ["-p", "skein-ui-bundle"], env)
+    module = package.replace("-", "_")
+    command = [str(target / "debug/skein-ui-bundle"),
+               "--module", str(target / "wasm32-unknown-unknown/debug" / f"{module}.wasm"),
+               "--name", module, "--prefix", "/bundle/", *options, "--out", str(out)]
+    code = step("browser bundle", command, env, heavy=False)
+    if code:
+        raise FailedStep(f"browser bundle: exit {code}")
+    build("browser server", ["-p", server], env)
+    env[variable] = str(out)
+
+
+def target_directory(env):
+    name = "cargo metadata"
+    command = ["cargo", "metadata", "--format-version", "1", "--no-deps"]
+    print(f"tiers: {name}: {shlex.join(command)}", flush=True)
+    try:
+        result = subprocess.run(command, env=env, stdin=subprocess.DEVNULL,
+                                text=True, stdout=subprocess.PIPE, check=True)
+        return Path(json.loads(result.stdout)["target_directory"]).resolve()
+    except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError) as error:
+        raise FailedStep(f"{name}: {error}") from error
+
+
+def main(argv=None):
+    os.umask(0o077)
+    parser = argparse.ArgumentParser(description=__doc__, usage="%(prog)s TREE TIER [-- NEXTEST_ARGS...]")
+    parser.add_argument("tree")
+    parser.add_argument("tier")
+    argv = sys.argv[1:] if argv is None else argv
+    separator = argv.index("--") if "--" in argv else len(argv)
+    args = parser.parse_args(argv[:separator])
+    extra = argv[separator + 1:]
+    try:
+        with Path(".config/nextest.toml").open("rb") as source:
+            profiles = tomllib.load(source)["profile"]
+        pairs = {(name.rsplit("-", 1)[1], name.rsplit("-", 1)[0]): name
+                 for name in profiles if "-" in name}
+        profile = pairs.get((args.tree, args.tier))
+        if profile is None:
+            print(f"tiers: refused unknown pair {args.tree} {args.tier}; "
+                  f"configured profiles: {', '.join(sorted(pairs.values()))}", file=sys.stderr)
+            return 2
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        print(f"tiers: read .config/nextest.toml from the checkout root: {error}", file=sys.stderr)
+        return 2
+    env = dict(os.environ)
+    env["NEXTEST_DOUBLE_SPAWN"] = "0"
+    try:
+        if (args.tier == "browser" and args.tree in ("skein", "jig", "temper")) or profile == "qa-temper":
+            bundle(args.tree, target_directory(env), env)
+        command = ["heavy", "cargo", "nextest", "run", "--workspace", "--profile", profile,
+                   "--no-fail-fast", *extra]
+        return step("nextest", command, env)
+    except FailedStep as error:
+        print(f"tiers: failed step {error}", file=sys.stderr)
+        return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main())
