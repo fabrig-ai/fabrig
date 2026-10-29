@@ -622,7 +622,17 @@ fn date(value: Wall, writer: &mut Writer) {
     decimal(day, writer);
 }
 
+/// Whether these limits are representable: every edge bound they size is finite
+/// and every capacity they derive fits (programming-model.md, 6.3).
+/// Checks room for two forms per phrase. Individual forms' byte capacities
+/// are checked against their loaded data by [`Phrasebook::load`].
+#[must_use]
+pub fn valid(limits: &PhraseLimits) -> bool {
+    limits.phrases.checked_mul(2).is_some()
+}
+
 /// Loaded metadata, literal bytes, capacities and the largest saying's heap.
+/// Readers that check representability use [`valid`].
 #[must_use]
 pub fn worst_case(limits: &PhraseLimits) -> Option<u64> {
     let phrases = u64::from(limits.phrases);

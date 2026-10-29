@@ -21,7 +21,7 @@ use std::net::{Ipv4Addr, SocketAddr};
 
 use skein_heap::Meter;
 use skein_io::kernel::{Complete, Done, Error, Fd, Op, Submit};
-use skein_io::{Event, Io, Limits, Request, worst_case};
+use skein_io::{Event, Io, Limits, Request};
 use skein_lib::stream::{Down, OutputDown, OutputOutcome, OutputUp, Read};
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 
@@ -63,7 +63,7 @@ impl Driver {
     /// The driver's storage, made before the meter's base; then io, made in
     /// the first step.
     fn new(limits: Limits) -> Driver {
-        let bound = worst_case(&limits).expect("the test's limits are priced");
+        let bound = super::heap_bound(&limits).expect("the test's limits are priced");
         let mut driver = Driver {
             meter: Meter::new(),
             bound,

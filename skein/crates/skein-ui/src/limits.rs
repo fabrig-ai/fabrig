@@ -27,7 +27,18 @@ pub struct Limits {
     pub scene_bytes: u32,
 }
 
+/// Whether these limits are representable: every edge bound they size is finite
+/// and every capacity they derive fits (programming-model.md, 6.3).
+/// Checks the scene's style capacity and one line's Markdown workspace bound.
+/// The remaining capacities are already represented by `u32` limits.
+#[must_use]
+pub fn valid(limits: &Limits) -> bool {
+    limits.scene_marks.checked_mul(limits.styles_per_node).is_some()
+        && crate::markdown::markdown_bound(limits.text_bytes, limits.markdown_depth).is_some()
+}
+
 /// Heap for rendering, splicing, diff scratch, patch payloads and one scene.
+/// Readers that check representability use [`valid`].
 #[must_use]
 pub fn worst_case(limits: &Limits) -> Option<u64> {
     let nodes = List::<Node>::worst_case(limits.nodes)?;
@@ -51,7 +62,7 @@ pub fn worst_case(limits: &Limits) -> Option<u64> {
     let maps = List::<Option<u32>>::worst_case(limits.nodes)?.checked_mul(4)?;
     let children = List::<u32>::worst_case(limits.nodes)?;
     let ancestry = Stack::<Open>::worst_case(limits.depth)?.checked_mul(2)?;
-    let markdown = crate::markdown::worst_case(limits.text_bytes, limits.markdown_depth)?;
+    let markdown = crate::markdown::markdown_bound(limits.text_bytes, limits.markdown_depth)?;
     trees
         .checked_add(crate::scene::worst_case(limits)?)?
         .checked_add(markdown)?

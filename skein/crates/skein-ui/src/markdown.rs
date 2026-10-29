@@ -697,12 +697,20 @@ fn flush(line: &[u8], start: usize, end: usize, run: Run, cell: bool, builder: &
     }
 }
 
-/// Scratch heap for one line's token tables and bounded block/emphasis stacks.
+/// Scratch heap for one line's token tables and block and emphasis stacks
+/// (programming-model.md, 6.3).
 #[must_use]
-pub fn worst_case(bytes: u32, depth: u32) -> Option<u64> {
+pub fn markdown_bound(bytes: u32, depth: u32) -> Option<u64> {
     List::<Range>::worst_case(bytes)?
         .checked_add(List::<Marker>::worst_case(bytes)?)?
         .checked_add(Stack::<u32>::worst_case(depth)?)?
         .checked_add(Stack::<Run>::worst_case(depth)?)?
         .checked_add(Stack::<ListLevel>::worst_case(depth)?)
+}
+
+/// The old name of [`markdown_bound`]; it goes once every tree calls the
+/// new name (wave 3).
+#[must_use]
+pub fn worst_case(bytes: u32, depth: u32) -> Option<u64> {
+    markdown_bound(bytes, depth)
 }

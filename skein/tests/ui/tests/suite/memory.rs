@@ -2,7 +2,7 @@
 use skein_heap::Meter;
 use skein_lib::Queue;
 use skein_ui::scene::{Anchor, Point, Scene};
-use skein_ui::{Builder, Limits, Node, Owner, Patch, Role, SlotRef, Style, View, markdown, worst_case};
+use skein_ui::{Builder, Limits, Node, Owner, Patch, Role, SlotRef, Style, View, markdown};
 use skein_ui_tests::full_page;
 
 const LIMITS: Limits = Limits {
@@ -28,7 +28,7 @@ fn full_scene(limits: &Limits) -> Scene {
     scene
 }
 fn peak() -> (u64, u64) {
-    let bound = worst_case(&LIMITS).expect("fixture capacities fit");
+    let bound = super::heap_bound(&LIMITS).expect("fixture capacities fit");
     let meter = Meter::new();
     meter.start();
     let mut builder = Builder::new(&LIMITS);
