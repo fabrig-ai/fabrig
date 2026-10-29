@@ -3,8 +3,7 @@
 use super::*;
 use crate::agent::{Close, Cue, Person, Script, Seen, Trigger};
 
-#[path = "../../tests/common/events.rs"]
-mod events;
+use crate::agent::smith::recorded_events as events;
 
 // The capture boundary is the eight-byte prefix asserted by the runner counterpart.
 const CAPTURE_BYTES: usize = 8;
@@ -44,7 +43,7 @@ fn read(output: &mut Output, bytes: &[u8]) {
     output.iterate(Time::ZERO, Wall::EPOCH);
 }
 
-/// Lower test of smith-bench's runner::an_overflowing_stdout_retains_its_prefix_and_settles_the_tree (top tiers test wiring only).
+/// Lower test of smith-bench's `runner::an_overflowing_stdout_retains_its_prefix_and_settles_the_tree` (top tiers test wiring only).
 #[test]
 fn stdout_at_its_bound_retains_every_byte_without_fault() {
     let mut output = raw_output();
@@ -54,7 +53,7 @@ fn stdout_at_its_bound_retains_every_byte_without_fault() {
     assert_eq!(output.error, None);
 }
 
-/// Lower test of smith-bench's runner::an_overflowing_stdout_retains_its_prefix_and_settles_the_tree (top tiers test wiring only).
+/// Lower test of smith-bench's `runner::an_overflowing_stdout_retains_its_prefix_and_settles_the_tree` (top tiers test wiring only).
 #[test]
 fn stdout_one_past_its_bound_keeps_its_prefix_and_fault() {
     let mut output = raw_output();
@@ -64,7 +63,7 @@ fn stdout_one_past_its_bound_keeps_its_prefix_and_fault() {
     assert_eq!(output.error.as_deref(), Some("stdout exceeds the attempt log bound"));
 }
 
-/// Lower test of smith-bench's runner::stderr_at_its_bound_is_complete_and_a_settled_overflow_still_fails (top tiers test wiring only).
+/// Lower test of smith-bench's `runner::stderr_at_its_bound_is_complete_and_a_settled_overflow_still_fails` (top tiers test wiring only).
 #[test]
 fn settled_stderr_overflow_still_reports_a_capture_failure() {
     let mut output = raw_output();
@@ -77,7 +76,7 @@ fn settled_stderr_overflow_still_reports_a_capture_failure() {
     assert_eq!(output.error.as_deref(), Some("stderr exceeds the attempt log bound"));
 }
 
-/// Lower test of smith-bench's runner::stderr_at_its_bound_is_complete_and_a_settled_overflow_still_fails (top tiers test wiring only).
+/// Lower test of smith-bench's `runner::stderr_at_its_bound_is_complete_and_a_settled_overflow_still_fails` (top tiers test wiring only).
 #[test]
 fn complete_stderr_capture_does_not_report_overflow() {
     let mut output = raw_output();
@@ -85,7 +84,7 @@ fn complete_stderr_capture_does_not_report_overflow() {
     assert_eq!(output.error, None);
 }
 
-/// Lower test of smith-bench's runner::an_answer_near_the_hard_deadline_receives_its_full_teardown_allowance (top tiers test wiring only).
+/// Lower test of smith-bench's `runner::an_answer_near_the_hard_deadline_receives_its_full_teardown_allowance` (top tiers test wiring only).
 #[test]
 fn late_answer_receives_teardown_beyond_the_hard_deadline() {
     let mut policy = policy();
@@ -98,7 +97,7 @@ fn late_answer_receives_teardown_beyond_the_hard_deadline() {
     assert_eq!(policy.deadline, None);
 }
 
-/// Lower test of smith-bench's runner::an_answer_with_a_lingering_grandchild_keeps_its_forced_teardown (top tiers test wiring only).
+/// Lower test of smith-bench's `runner::an_answer_with_a_lingering_grandchild_keeps_its_forced_teardown` (top tiers test wiring only).
 #[test]
 fn teardown_expiry_terminates_then_kills_after_full_grace() {
     let mut policy = policy();
@@ -110,7 +109,7 @@ fn teardown_expiry_terminates_then_kills_after_full_grace() {
     assert_eq!(policy.advance(KILL_AT, Some(ANSWER_AT), false, false), None);
 }
 
-/// Lower test of smith-bench's runner::a_program_without_an_answer_ends_at_the_hard_deadline (top tiers test wiring only).
+/// Lower test of smith-bench's `runner::a_program_without_an_answer_ends_at_the_hard_deadline` (top tiers test wiring only).
 #[test]
 fn unanswered_program_terminates_exactly_at_its_hard_deadline() {
     let mut policy = policy();
@@ -157,7 +156,7 @@ fn acknowledge(output: &mut Output, expected: &[u8]) {
     }
 }
 
-/// Lower test of smith-bench's smith_adapter::a_task_person_line_follows_its_tool_cue_at_the_terminal (top tiers test wiring only).
+/// Lower test of smith-bench's `smith_adapter::a_task_person_line_follows_its_tool_cue_at_the_terminal` (top tiers test wiring only).
 #[test]
 fn matching_tool_cue_releases_one_line_and_then_eof() {
     let mut output = terminal_output(vec![start(), cue("finish", "done\n")], Close::AfterLastCue, Capture::Raw);
@@ -171,7 +170,7 @@ fn matching_tool_cue_releases_one_line_and_then_eof() {
     assert!(writes(&mut output).is_empty());
 }
 
-/// Lower test of smith-bench's smith_adapter::a_later_person_line_waits_for_its_named_tool_cue_and_eof_follows_that_line (top tiers test wiring only).
+/// Lower test of smith-bench's `smith_adapter::a_later_person_line_waits_for_its_named_tool_cue_and_eof_follows_that_line` (top tiers test wiring only).
 #[test]
 fn later_line_waits_for_named_cue_before_terminal_eof() {
     let mut output = terminal_output(
@@ -197,9 +196,11 @@ fn failed_capture() -> (Capture, Vec<u8>) {
     let failed = events::record(include_str!("../../../crates/smith-events/golden/v4/answer_class_budget.jsonl"));
     let smith_events::Event::RunCompleted(failed) = failed.event else { panic!("run terminal") };
     let mut edited = 0;
+    let mut modes = 0;
     for record in &mut records {
         if let smith_events::Event::SessionStarted(value) = &mut record.event {
             value.mode = smith_events::Mode::Chat;
+            modes += 1;
         }
         if let smith_events::Event::RunCompleted(value) = &mut record.event {
             value.status = smith_events::Status::Failed;
@@ -210,6 +211,7 @@ fn failed_capture() -> (Capture, Vec<u8>) {
         }
     }
     assert_eq!(edited, 1, "one main terminal changed");
+    assert_eq!(modes, 1, "one session mode changed");
     let mut prepared = crate::agent::smith::recorded_program().prepared;
     prepared.face = crate::agent::smith::events::Shape::Chat;
     prepared.registry.shape = prepared.face;
@@ -218,7 +220,7 @@ fn failed_capture() -> (Capture, Vec<u8>) {
     (Capture::Agent(Box::new(crate::agent::Observing::Smith(observing))), events::bytes(&records))
 }
 
-/// Lower test of smith-bench's smith_adapter::a_failed_main_answer_also_closes_person_input_and_preserves_its_budget_end (top tiers test wiring only).
+/// Lower test of smith-bench's `smith_adapter::a_failed_main_answer_also_closes_person_input_and_preserves_its_budget_end` (top tiers test wiring only).
 #[test]
 fn failed_main_closes_input_and_retains_its_budget_end() {
     let (capture, records) = failed_capture();
@@ -234,7 +236,7 @@ fn failed_main_closes_input_and_retains_its_budget_end() {
     );
 }
 
-/// Lower test of smith-bench's runner::an_overflowing_stderr_retains_its_prefix_and_settles_the_tree (top tiers test wiring only).
+/// Lower test of smith-bench's `runner::an_overflowing_stderr_retains_its_prefix_and_settles_the_tree` (top tiers test wiring only).
 #[test]
 fn capture_fault_starts_termination_before_the_hard_deadline() {
     let mut output = raw_output();

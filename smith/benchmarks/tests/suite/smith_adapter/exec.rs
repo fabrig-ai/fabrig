@@ -263,7 +263,7 @@ fn the_program_arm_selects_claude_on_the_anthropic_small_tier() {
     std::fs::remove_dir_all(fixture.root).expect("fixture cleanup");
 }
 
-/// Lower test of smith-bench's smith_adapter::exec::the_credentials_lead_reaches_the_native_policy_boundary (top tiers test wiring only).
+/// Lower test of smith-bench's `smith_adapter::exec::the_credentials_lead_reaches_the_native_policy_boundary` (top tiers test wiring only).
 #[test]
 fn the_credentials_lead_reaches_the_native_policy_boundary() {
     let fixture = ExecFixture::rendering("credentials-policy");

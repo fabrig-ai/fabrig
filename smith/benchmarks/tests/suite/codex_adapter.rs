@@ -420,7 +420,7 @@ fn pinned_adapters_usage_collection_and_private_credentials() {
     captured_native_child_headers_and_usage_keep_each_response_in_its_own_scope();
 }
 
-/// Lower test of smith-bench's codex_adapter::paths_use_the_declared_working_directory_and_refuse_escaped_paths_before_credentials (top tiers test wiring only).
+/// Lower test of smith-bench's `codex_adapter::paths_use_the_declared_working_directory_and_refuse_escaped_paths_before_credentials` (top tiers test wiring only).
 #[test]
 fn paths_use_the_declared_working_directory_and_refuse_escaped_paths_before_credentials() {
     use smith_bench::agent::Context;

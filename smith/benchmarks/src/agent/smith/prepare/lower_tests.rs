@@ -87,7 +87,7 @@ impl Fixture {
     }
 }
 
-/// Lower test of smith-bench's smith_adapter::exec::an_exec_arm_uses_the_shared_sign_in_directory (top tiers test wiring only).
+/// Lower test of smith-bench's `smith_adapter::exec::an_exec_arm_uses_the_shared_sign_in_directory` (top tiers test wiring only).
 #[test]
 fn admitted_sign_in_keeps_shared_credentials_and_private_state() {
     let fixture = Fixture::new("sign-in", Provider::Codex, "gpt-6-luna");
@@ -103,7 +103,7 @@ fn admitted_sign_in_keeps_shared_credentials_and_private_state() {
     fixture.clean();
 }
 
-/// Lower test of smith-bench's smith_adapter::exec::an_exec_arms_teardown_bound_comes_from_check (top tiers test wiring only).
+/// Lower test of smith-bench's `smith_adapter::exec::an_exec_arms_teardown_bound_comes_from_check` (top tiers test wiring only).
 #[test]
 fn supplied_check_bound_reaches_the_prepared_exec_command() {
     let fixture = Fixture::new("check", Provider::Codex, "gpt-6-luna");
@@ -129,7 +129,7 @@ fn supplied_check_bound_reaches_the_prepared_exec_command() {
     fixture.clean();
 }
 
-/// Lower test of smith-bench's smith_adapter::exec::the_program_arm_selects_claude_on_the_anthropic_small_tier (top tiers test wiring only).
+/// Lower test of smith-bench's `smith_adapter::exec::the_program_arm_selects_claude_on_the_anthropic_small_tier` (top tiers test wiring only).
 #[test]
 fn admitted_program_keeps_its_model_trace_and_serial_guard() {
     let fixture = Fixture::new("program", Provider::Anthropic, "claude-haiku-5-5");

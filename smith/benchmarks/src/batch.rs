@@ -839,20 +839,22 @@ mod tests {
         (suite, requests)
     }
 
-    /// Lower test of smith-bench's batch::tests::prepared_blocks_preserve_seeded_order_unique_ids_and_token_gaps (top tiers test wiring only).
+    /// Lower test of smith-bench's `batch::tests::prepared_blocks_preserve_seeded_order_unique_ids_and_token_gaps` (top tiers test wiring only).
     #[test]
     fn seeded_blocks_replay_with_one_request_per_arm() {
         let (suite, requests) = block_requests();
         let first = ordered(&suite, requests.clone(), BLOCK_SEED).expect("interleaving");
         let second = ordered(&suite, requests, BLOCK_SEED).expect("same seed");
-        assert_eq!(first.iter().map(|request| &request.identity.attempt).collect::<Vec<_>>(),
-            second.iter().map(|request| &request.identity.attempt).collect::<Vec<_>>());
+        assert_eq!(
+            first.iter().map(|request| &request.identity.attempt).collect::<Vec<_>>(),
+            second.iter().map(|request| &request.identity.attempt).collect::<Vec<_>>()
+        );
         for block in first.chunks_exact(BLOCK_ARMS.len()) {
             assert_ne!(block[0].identity.arm, block[1].identity.arm);
         }
     }
 
-    /// Lower test of smith-bench's batch::tests::prepared_blocks_preserve_seeded_order_unique_ids_and_token_gaps (top tiers test wiring only).
+    /// Lower test of smith-bench's `batch::tests::prepared_blocks_preserve_seeded_order_unique_ids_and_token_gaps` (top tiers test wiring only).
     #[test]
     fn duplicate_attempt_ids_refuse_before_dispatch() {
         let (suite, mut requests) = block_requests();
@@ -860,7 +862,7 @@ mod tests {
         assert!(ordered(&suite, requests, BLOCK_SEED).expect_err("duplicate").contains("unique"));
     }
 
-    /// Lower test of smith-bench's batch::tests::prepared_blocks_preserve_seeded_order_unique_ids_and_token_gaps (top tiers test wiring only).
+    /// Lower test of smith-bench's `batch::tests::prepared_blocks_preserve_seeded_order_unique_ids_and_token_gaps` (top tiers test wiring only).
     #[test]
     fn mixed_runs_refuse_before_dispatch() {
         let (suite, mut requests) = block_requests();
@@ -868,7 +870,7 @@ mod tests {
         assert!(ordered(&suite, requests, BLOCK_SEED).expect_err("mixed runs").contains("one run"));
     }
 
-    /// Lower test of smith-bench's batch::tests::prepared_blocks_preserve_seeded_order_unique_ids_and_token_gaps (top tiers test wiring only).
+    /// Lower test of smith-bench's `batch::tests::prepared_blocks_preserve_seeded_order_unique_ids_and_token_gaps` (top tiers test wiring only).
     #[test]
     fn incomplete_repetition_blocks_refuse_before_dispatch() {
         let (suite, mut requests) = block_requests();
@@ -886,7 +888,7 @@ mod tests {
         result
     }
 
-    /// Lower test of smith-bench's batch::tests::prepared_blocks_preserve_seeded_order_unique_ids_and_token_gaps (top tiers test wiring only).
+    /// Lower test of smith-bench's `batch::tests::prepared_blocks_preserve_seeded_order_unique_ids_and_token_gaps` (top tiers test wiring only).
     #[test]
     fn observed_token_scopes_sum_before_dispatch() {
         // The supplied total contains 10 fresh, 20 cache-read and 30 output tokens.
@@ -894,7 +896,7 @@ mod tests {
         assert_eq!(known_tokens(&token_result()), Some(TOKENS));
     }
 
-    /// Lower test of smith-bench's batch::tests::prepared_blocks_preserve_seeded_order_unique_ids_and_token_gaps (top tiers test wiring only).
+    /// Lower test of smith-bench's `batch::tests::prepared_blocks_preserve_seeded_order_unique_ids_and_token_gaps` (top tiers test wiring only).
     #[test]
     fn missing_token_scopes_keep_the_total_unknown() {
         let mut result = token_result();
