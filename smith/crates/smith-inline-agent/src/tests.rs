@@ -391,6 +391,64 @@ fn lifecycle_fact_estimates_do_not_restrict_valid_limits() {
 }
 
 #[test]
+fn pending_counts_separate_root_content_from_lifecycle_and_native_facts() {
+    let mut env = env();
+    env.limits.facts = 1;
+    let mut agent = Domain::new(&env.limits, configuration(), 3);
+    let mut out = Queue::uncapped();
+    let client = Token::new(1);
+    assert_eq!(agent.pending_content(client), 0);
+    assert_eq!(agent.pending_slot_facts(), 0);
+    step(&mut agent, &env, Input::Parent(parent::Event::Spawn { client, start: start() }), &mut out);
+    let mut completion = None;
+    while let Some(output) = out.pop() {
+        if let Output::Lower { agent, request: Lower::Complete { owner, .. } } = output {
+            completion = Some((agent, owner));
+        }
+    }
+    assert_eq!(agent.pending_content(client), 0);
+    let (handle, owner) = completion.expect("provider request");
+    step(
+        &mut agent,
+        &env,
+        Input::Below {
+            agent: handle,
+            terminal: Below::Completed {
+                owner,
+                completion: smith::llm::Completion {
+                    reasoning_dropped: Box::default(),
+                    content: Box::new([
+                        smith::llm::Said::Text { text: b"one".as_slice().into(), replay: None },
+                        smith::llm::Said::Text { text: b"two".as_slice().into(), replay: None },
+                    ]),
+                    stop: smith::llm::Stop::EndTurn,
+                    usage: smith::llm::Usage::ZERO,
+                },
+            },
+        },
+        &mut out,
+    );
+    assert_eq!(agent.pending_content(client), 3, "two text records and usage");
+    assert_eq!(agent.pending_content(Token::new(2)), 0, "another client has no slot");
+    for remaining in (0..3).rev() {
+        assert!(agent.pop_content(client).is_some());
+        assert_eq!(agent.pending_content(client), remaining);
+    }
+    assert!(agent.pop_content(client).is_none());
+    for _ in 0..3 {
+        step(&mut agent, &env, Input::Parent(parent::Event::Spawn { client, start: start() }), &mut out);
+    }
+    let pending = agent.pending_slot_facts();
+    assert!(pending > env.limits.facts);
+    for remaining in (0..pending).rev() {
+        assert!(agent.pop_slot_fact().is_some());
+        assert_eq!(agent.pending_slot_facts(), remaining);
+    }
+    assert!(agent.pop_slot_fact().is_none());
+    assert!(agent.backlog() > 0, "native facts remain independent of both counts");
+}
+
+#[test]
 fn workspace_routes_keep_equal_tokens_in_separate_lower_families() {
     let env = env();
     let mut agent = Domain::new(&env.limits, configuration(), 91);
