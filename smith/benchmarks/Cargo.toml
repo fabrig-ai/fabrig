@@ -9,8 +9,14 @@ publish.workspace = true
 default-run = "smith-bench"
 
 [[bin]]
+name = "smith-bench"
+path = "src/main.rs"
+test = false
+
+[[bin]]
 name = "test-peer"
 path = "src/bin/test_peer.rs"
+test = false
 
 [dependencies]
 skein-fail-stop.workspace = true
