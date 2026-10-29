@@ -57,7 +57,7 @@ fn a_change_lands_by_turn_on_the_owned_forge() {
     let task = first_repository::Task { project: setup.project, ..first_repository::FIRST };
     let mut steps = first_repository::task_steps_for(root, task);
     let remaining = steps.split_off(TASK_START_STEPS);
-    steps.push(Step::TaskExists { project: task.project, task: task.producer });
+    steps.push(Step::TaskExists { project: task.project, parent: task.change, task: task.producer });
     steps.push(Step::Until(Call::new(&["task", "show", &task.producer.to_string(), "--json"]), br#""phase":"ended""#));
     steps.push(Step::Until(Call::new(&["change", "show", &task.change.to_string(), "--json"]), br#""pull":{"#));
     let advanced = Rc::new(Cell::new(None));

@@ -204,7 +204,7 @@ fn initial_steps(scratch: &Path) -> Vec<Step> {
             "hold-chat",
             "@hold-chat Delegate and wait",
         ])), // 9
-        Step::TaskExists { project: 2, task: 3 },
+        Step::TaskExists { project: 2, parent: 2, task: 3 },
         Step::Until(Call::new(&["task", "show", "3", "--json"]), PARKED_CHILD), // 10
         Step::Until(Call::new(&["task", "show", "2", "--json"]), PARKED_GOAL),  // 11
         Step::Until(Call::new(&["task", "show", "1", "--json"]), b"\"phase\":\"idle\""), // 12

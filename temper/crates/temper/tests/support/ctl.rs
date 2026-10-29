@@ -100,6 +100,7 @@ pub enum Step {
     /// Establish a child's existence without recording a call in the story's results.
     TaskExists {
         project: u64,
+        parent: u64,
         task: u64,
     },
     Cut,
@@ -870,8 +871,9 @@ impl Calls {
             },
         });
     }
-    fn wait_for_task(&mut self, project: u64, task: u64) {
-        let call = Call::new(&["task", "list", "--project", &project.to_string()]).json();
+    fn wait_for_task(&mut self, project: u64, parent: u64, task: u64) {
+        let call =
+            Call::new(&["task", "list", "--project", &project.to_string(), "--parent", &parent.to_string()]).json();
         self.action = Some(Action::TaskExists(call.clone(), task));
         self.start(call, false);
     }
@@ -961,7 +963,7 @@ impl Calls {
                 self.action = Some(Action::Until(call.clone(), condition));
                 self.start(call, false);
             }
-            Some(Step::TaskExists { project, task }) => self.wait_for_task(project, task),
+            Some(Step::TaskExists { project, parent, task }) => self.wait_for_task(project, parent, task),
             Some(Step::Cut) => self.cut_started(),
             Some(step @ (Step::Pause | Step::Resume)) => {
                 self.action = Some(Action::Signal);
@@ -1284,28 +1286,33 @@ mod read_condition_tests {
     #[test]
     fn a_child_prerequisite_reads_later_pages_and_polls_again_from_the_start() {
         let mut calls = Calls::new(Fd::new(0), Vec::new(), None, None);
-        calls.action = Some(Action::TaskExists(Call::new(&["task", "list", "--project", "1", "--json"]), 3));
+        calls.action =
+            Some(Action::TaskExists(Call::new(&["task", "list", "--project", "1", "--parent", "1", "--json"]), 3));
         calls.child = Some(completed(
-            br#"{"tasks":{"rows":[{"chip":{"task":1}}]},"read_on":"task list --project 1 --after 0102"}"#,
+            br#"{"tasks":{"rows":[{"chip":{"task":1}}]},"read_on":"task list --project 1 --parent 1 --after 0102"}"#,
         ));
         calls.finish(Time::ZERO);
         assert_eq!(calls.retry, Some(Time::ZERO));
         let Some(Action::TaskExists(call, _)) = &calls.action else { panic!("next list page") };
         assert_eq!(
             call.arguments,
-            Call::new(&["task", "list", "--project", "1", "--after", "0102", "--json"]).arguments
+            Call::new(&["task", "list", "--project", "1", "--parent", "1", "--after", "0102", "--json"]).arguments
         );
         calls.child = Some(completed(br#"{"live":[],"read_on":null}"#));
         calls.finish(Time::ZERO);
         assert_eq!(calls.retry, Some(Time::ZERO));
         let Some(Action::TaskExists(call, _)) = &calls.action else { panic!("ended list") };
-        assert_eq!(call.arguments, Call::new(&["task", "list", "--project", "1", "--ended", "--json"]).arguments);
+        assert_eq!(
+            call.arguments,
+            Call::new(&["task", "list", "--project", "1", "--parent", "1", "--ended", "--json"]).arguments
+        );
         calls.child = Some(completed(br#"{"ended":{"rows":{"rows":[]}},"read_on":null}"#));
         calls.finish(Time::ZERO);
         assert_eq!(calls.retry, Some(Time::ZERO.saturating_add(PACE)));
         let Some(Action::TaskExists(call, _)) = &calls.action else { panic!("poll from the first page") };
-        assert_eq!(call.arguments, Call::new(&["task", "list", "--project", "1", "--json"]).arguments);
-        calls.child = Some(completed(br#"{"tasks":{"rows":[]},"read_on":"task list --project 1 --after 0102"}"#));
+        assert_eq!(call.arguments, Call::new(&["task", "list", "--project", "1", "--parent", "1", "--json"]).arguments);
+        calls.child =
+            Some(completed(br#"{"tasks":{"rows":[]},"read_on":"task list --project 1 --parent 1 --after 0102"}"#));
         calls.finish(Time::ZERO.saturating_add(PACE));
         calls.child = Some(completed(br#"{"live":[{"chip":{"task":3}}],"read_on":null}"#));
         calls.finish(Time::ZERO.saturating_add(PACE));
@@ -1317,11 +1324,11 @@ mod read_condition_tests {
     fn a_child_prerequisite_accepts_live_and_ended_identities_without_shifting_story_calls() {
         for (arguments, present) in [
             (
-                vec!["task", "list", "--project", "1", "--json"],
+                vec!["task", "list", "--project", "1", "--parent", "1", "--json"],
                 br#"{"tasks":{"rows":[{"chip":{"task":2}}]}}"#.as_slice(),
             ),
             (
-                vec!["task", "list", "--project", "1", "--ended", "--json"],
+                vec!["task", "list", "--project", "1", "--parent", "1", "--ended", "--json"],
                 br#"{"ended":{"rows":{"rows":[{"chip":{"task":2}}]}}}"#.as_slice(),
             ),
         ] {
@@ -1339,7 +1346,8 @@ mod read_condition_tests {
     #[should_panic(expected = "task-list prerequisite")]
     fn a_failed_child_prerequisite_stops_before_retrying() {
         let mut calls = Calls::new(Fd::new(0), Vec::new(), None, None);
-        calls.action = Some(Action::TaskExists(Call::new(&["task", "list", "--project", "1", "--json"]), 2));
+        calls.action =
+            Some(Action::TaskExists(Call::new(&["task", "list", "--project", "1", "--parent", "1", "--json"]), 2));
         let mut child = completed(b"");
         child.ended.exit = Some(Exit::Code(2));
         child.ended.stderr = b"unknown".to_vec();
