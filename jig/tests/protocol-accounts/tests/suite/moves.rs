@@ -3,8 +3,6 @@ use jig_protocol_accounts_world::{
     world,
 };
 use skein_fake_peers::oauth::Observation;
-#[global_allocator]
-static HEAP: skein_heap::Counting = skein_heap::Counting;
 
 fn assert_exchanges(observed: &[Observation], statuses: &[u16]) {
     let posts = observed.iter().filter(|event| matches!(event, Observation::Post { .. })).count();

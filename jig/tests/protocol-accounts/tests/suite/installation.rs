@@ -6,9 +6,6 @@ use jig_protocol_accounts::installation;
 use jig_protocol_accounts_world::world::{self, Installation, Story};
 use skein_fake_peers::oauth as peer;
 
-#[global_allocator]
-static HEAP: skein_heap::Counting = skein_heap::Counting;
-
 const FIRST: [u8; 16] = [5; 16];
 const LATER: [u8; 16] = [6; 16];
 
