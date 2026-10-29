@@ -96,7 +96,7 @@ fn charter_at_its_largest_instruction_payload_stays_within_the_configured_heap_b
     wire.extend(std::iter::repeat_n(b'x', usize::try_from(size).expect("ceiling fits")));
     wire.extend_from_slice(smallest.get(6..).expect("rest of charter"));
 
-    let bound = charter::Charter::worst_case_heap(&limits).expect("charter heap bound");
+    let bound = charter::Charter::decoded_bound(&limits).expect("charter heap bound");
     let meter = Meter::new();
     meter.start();
     let decoded =
@@ -178,7 +178,7 @@ fn turn_at_its_largest_text_payload_stays_within_the_configured_heap_bound() {
     let wire = writer.finish();
     drop(value);
 
-    let bound = transcript::Turn::worst_case_heap(&limits).expect("turn heap bound");
+    let bound = transcript::Turn::decoded_bound(&limits).expect("turn heap bound");
     let meter = Meter::new();
     meter.start();
     let decoded = transcript::Turn::decode(&limits, &mut Reader::new(&wire)).expect("turn with ceiling text");
@@ -238,7 +238,7 @@ fn a_resolved_failure_attains_its_configured_path_payload_heap_bound() {
     value.encode(&mut writer).expect("measured wire");
     let wire = writer.finish();
     drop(value);
-    let bound = transcript::Outcome::worst_case_heap(&limits).expect("configured failure bound");
+    let bound = transcript::Outcome::decoded_bound(&limits).expect("configured failure bound");
     let meter = Meter::new();
     meter.start();
     let decoded = transcript::Outcome::decode(&limits, &mut Reader::new(&wire)).expect("ceiling failure");
