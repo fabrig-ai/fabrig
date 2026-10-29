@@ -525,8 +525,9 @@ projection.
   lost; `session.ended` says how many, and `emitted` says how many of
   each type were made, so a reader compares.
 - **Lossless before the sinks.** Inside the process nothing is dropped:
-  the domain's facts are a step's output, with room reserved
-  (agent.md, section 5).
+  the domain's facts are a step's output in an uncapped queue. The next
+  domain entrance waits until those facts reach the sinks
+  (limits.md, 3.8; agent.md, section 5).
 
 ### 5.2 A sink's policy
 

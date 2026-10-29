@@ -349,6 +349,19 @@ A completion's prompt is built from what the domain gives:
 
 ## 6. Completions and failures
 
+- **Measures precede terminals and later entrances.** `measures_drained`
+  requires the component's queued measures to reach the event sink before
+  a call terminal or a later entrance is handled. The protocol world
+  holds this with a complete sink held, in both native dialects, in
+  `smith-protocol-llm-world`,
+  `component_peer::measures_drain_before_terminals_and_later_entrances_under_pressure`.
+- **A prompt is recorded before its request is released.**
+  `prompt_recorded(owner)` requires the original encoded prompt to be
+  recorded before that owner's request is sent; a later entrance cannot
+  overtake it. The protocol world withholds recording and checks one
+  byte-identical request in order in `smith-protocol-llm-world`,
+  `component_peer::prompt_recording_releases_one_original_request_before_later_entrances`.
+
 - **Blocks** come up as skein's client completes them: text, refusals,
   calls, oversized and cut calls, dropped reasoning, replay. The completion follows, with the stop
   reason (the LLM ended, called tools, ran out of tokens, or refused) and
