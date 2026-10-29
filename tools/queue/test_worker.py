@@ -23,9 +23,12 @@ mq = worker.mq
 
 
 class WorkerTests(unittest.TestCase):
+    def test_fixture_root_is_outside_checked_source(self):
+        self.assertNotIn(ROOT, self.root.parents)
+
     def setUp(self):
         os.umask(0o077)
-        self.temporary = tempfile.TemporaryDirectory(dir=ROOT, prefix=".worker-test-")
+        self.temporary = tempfile.TemporaryDirectory(dir=ROOT.parent, prefix=".worker-test-")
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
         self.origin = self.root / "origin.git"
@@ -491,8 +494,8 @@ Path('scripts/old-forms.txt').write_text('rewritten baseline')
         with self.assertRaisesRegex(ValueError, "duplicate"):
             worker.read_request(path)
 
-    def test_atomic_publication_does_not_expose_partial_result(self):
-        result = self.artifacts / "result.json"
+    def test_atomic_publication_does_not_expose_partial_snapshot(self):
+        result = self.artifacts / "snapshot.json"
         worker.atomic_json(result, {"old": True})
         replace = os.replace
         def inspect(source, destination):

@@ -19,7 +19,8 @@ import time
 
 
 DIRECTORY = Path(__file__).resolve().parent
-RUNTIME_FILES = ("worker.py", "mq", "always.txt", "read-by-tests.txt", "leads.txt")
+RUNTIME_FILES = ("worker.py", "mq", "always.txt", "read-by-tests.txt", "leads.txt",
+                 "train.py", "authority.py", "recovery.py", "durable.py", "restart")
 FROZEN = {name: (DIRECTORY / name).read_bytes() for name in RUNTIME_FILES}
 LOADER = importlib.machinery.SourceFileLoader("worker_mq", str(DIRECTORY / "mq"))
 SPEC = importlib.util.spec_from_loader(LOADER.name, LOADER)
@@ -125,16 +126,7 @@ def validate_command_plan(step):
 
 
 def read_request(path):
-    def pairs(items):
-        result = {}
-        for key, value in items:
-            if key in result:
-                raise ValueError(f"duplicate JSON field: {key}")
-            result[key] = value
-        return result
-    return validate_request(json.loads(path.read_text(), object_pairs_hook=pairs,
-                                       parse_constant=lambda value: (_ for _ in ()).throw(
-                                           ValueError(f"invalid JSON constant: {value}"))))
+    return validate_request(mq.authority.durable.read_json(mq.authority.durable.read_bytes(path)))
 
 
 def canonical_directory(path):
@@ -155,35 +147,14 @@ def sync_directory(path):
 
 
 def atomic_json(path, value):
-    fd, temporary = tempfile.mkstemp(prefix=".publish-", dir=path.parent)
-    try:
-        with os.fdopen(fd, "wb") as output:
-            os.fchmod(output.fileno(), 0o600)
-            output.write(encoded(value))
-            output.flush()
-            os.fsync(output.fileno())
-        os.replace(temporary, path)
-        sync_directory(path.parent)
-    finally:
-        if os.path.exists(temporary):
-            os.unlink(temporary)
+    mq.authority.durable.publish(path, encoded(value), immutable=path.name in {"request.json", "result.json"},
+                                private_parent=path.parent.name != ".git")
 
 
 @contextmanager
 def checkout_ownership(repo):
-    # Share the legacy queue's exclusion lock; never unlink a flock inode.
-    path = repo.with_name(repo.name + ".queue.lock")
-    fd = os.open(path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
-    with os.fdopen(fd, "a") as lock:
-        os.fchmod(lock.fileno(), 0o600)
-        try:
-            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError as error:
-            raise RuntimeError("another queue/worker holds this checkout") from error
-        marker = repo / ".git/mq-worker-unresolved.json"
-        if marker.exists() or marker.is_symlink():
-            raise RuntimeError("unresolved worker ownership; explicit operational reconciliation required")
-        yield marker
+    with mq.authority.checkout_lock(repo):
+        yield repo / ".git/mq-worker-unresolved.json"
 
 
 def snapshot(repo):
@@ -344,7 +315,7 @@ def run_job(repo, artifacts, request, *, gate, disk_floor=45, checker=mq.run_che
         job = artifacts / request["attempt"]
         job.mkdir(mode=0o700)  # Existing attempts are never overwritten or rerun.
         sync_directory(artifacts)
-        log = job / "checks.log"
+        log = job / ".checks.partial"
         with log.open("x"):
             pass
         record = {"version": 1, "requested": request, "observed": {"gate": gate,
@@ -462,7 +433,11 @@ def run_job(repo, artifacts, request, *, gate, disk_floor=45, checker=mq.run_che
                 os.fsync(source.fileno())
                 log_digest = hashlib.file_digest(source, "sha256").hexdigest()
                 log_bytes = source.tell()
-            record["log"] = {"path": str(log), "bytes": log_bytes, "sha256": log_digest,
+            final_log = job / "checks.log"
+            mq.authority.durable.publish(final_log, mq.authority.durable.read_bytes(log), immutable=True)
+            log.unlink()
+            sync_directory(job)
+            record["log"] = {"path": str(final_log), "bytes": log_bytes, "sha256": log_digest,
                              "complete": record["completion_known"]}
             record["reconciliation_required"] = admitted and (not record["completion_known"] or
                 "identity_violation" in record or record["before"] is None or record["after"] != record["before"])

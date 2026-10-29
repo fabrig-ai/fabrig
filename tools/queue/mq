@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 import fcntl
 import fnmatch
 import json
+import importlib.util
 import os
 from pathlib import Path, PurePosixPath
 import re
@@ -23,9 +24,33 @@ import uuid
 
 sys.dont_write_bytecode = True
 CONFIG = Path(__file__).resolve().parent
+AUTH_SPEC = importlib.util.spec_from_file_location("mq_authority", CONFIG / "authority.py")
+authority = importlib.util.module_from_spec(AUTH_SPEC)
+AUTH_SPEC.loader.exec_module(authority)
 TREES = ("skein", "smith", "jig", "temper")
 GB = 1_000_000_000
 TOOLS_TIMEOUT = 60
+WRITER_LEASE = None
+WRITER_CHECKOUT = None
+
+
+@contextmanager
+def writer_authority(lease, checkout):
+    global WRITER_LEASE, WRITER_CHECKOUT
+    previous = WRITER_LEASE, WRITER_CHECKOUT
+    WRITER_LEASE, WRITER_CHECKOUT = lease, checkout
+    try:
+        yield
+    finally:
+        WRITER_LEASE, WRITER_CHECKOUT = previous
+
+
+def writer_fds():
+    if WRITER_LEASE is None:
+        return ()
+    WRITER_LEASE.guard()
+    WRITER_CHECKOUT.guard()
+    return (WRITER_LEASE.fd, WRITER_CHECKOUT.fd)
 
 
 class DiskFloorError(RuntimeError):
@@ -82,6 +107,8 @@ def lines(path):
 
 def command(argv, cwd, *, check=True, body=None, separate_stderr=False):
     kwargs = {"stdin": subprocess.DEVNULL} if body is None else {"input": body}
+    if WRITER_LEASE is not None:
+        kwargs["pass_fds"] = writer_fds()
     result = subprocess.run(argv, cwd=cwd, text=True, stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE if separate_stderr else subprocess.STDOUT, **kwargs)
     if check and result.returncode:
@@ -334,6 +361,8 @@ def run_step(name, argv, cwd, log, *, runner, clock, timeout=None):
     launch_error = None
     try:
         options = {} if timeout is None else {"timeout": timeout}
+        if WRITER_LEASE is not None:
+            options["pass_fds"] = writer_fds()
         result = runner(argv, cwd=cwd, stdin=subprocess.DEVNULL,
                         stdout=log, stderr=subprocess.STDOUT, **options)
         code = result.returncode
@@ -466,7 +495,8 @@ def push_and_cleanup(repo, branches):
         if current.returncode:
             cleanup.append({"branch": branch["name"], "error": current.stdout})
         elif current.stdout.split()[:1] == [branch["tip"]]:
-            result = git(repo, "push", "origin", "--delete", branch["name"], check=False)
+            result = git(repo, "push", "--force-with-lease=" + ref + ":" + branch["tip"],
+                         "origin", ":" + ref, check=False)
             cleanup.append({"branch": branch["name"], "returncode": result.returncode,
                             "output": result.stdout})
         else:
@@ -498,8 +528,9 @@ class Queue:
 
     def __init__(self, repo, *, batch=8, full_every=5, dry=False,
                  state_path=None, log_path=None, checker=run_checks, poster=post,
-                 metadata_loader=load_metadata, now=time.time, disk_floor=45, repair=None):
+                 metadata_loader=load_metadata, now=time.time, disk_floor=45, repair=None, writer_guard=None):
         self.repo = Path(repo).resolve()
+        self._writer_guard = writer_guard
         self.batch = batch
         self.disk_floor = disk_floor
         self.full_every = full_every
@@ -528,7 +559,14 @@ class Queue:
         self.state.setdefault("tried", {})
         self.state.setdefault("batches_since_full", 0)
 
+    def writer_guard(self):
+        authority.checkout_guard(self.repo)
+        if self._writer_guard is None:
+            raise RuntimeError("Queue mutation requires an injected sole authority/startup guard")
+        self._writer_guard()
+
     def save(self):
+        self.writer_guard()
         if self.dry:
             return
         temporary = self.state_path.with_suffix(self.state_path.suffix + ".tmp")
@@ -594,6 +632,7 @@ class Queue:
                     "Push a new tip to retry.\n")
 
     def attempt(self, branches, *, idle=False, force_full=False, skip_conflicts=False, repair=None):
+        self.writer_guard()
         available = free_gb(self.repo)
         if available < self.disk_floor:
             host = socket.gethostname()
@@ -675,6 +714,7 @@ class Queue:
                 if self.dry:
                     self.base = git(self.repo, "rev-parse", "HEAD").stdout.strip()
                 if not self.dry and merged:
+                    self.writer_guard()
                     commit, cleanup = push_and_cleanup(self.repo, merged)
                     record["commit"], record["cleanup"] = commit, cleanup
                     for branch in merged:
@@ -709,6 +749,7 @@ class Queue:
             raise
         finally:
             try:
+                self.writer_guard()
                 record["target_cleanup"] = prune_test_executables(self.repo, self.disk_floor, batch_started_ns)
             except Exception as cleanup_error:
                 record["target_cleanup"] = {"error": str(cleanup_error)}
@@ -716,7 +757,8 @@ class Queue:
             log_batch(self.log_path, record)
 
     def recover(self, error):
-        """Restore main and report each distinct cycle error once (design.md, 3.1)."""
+        """Restore main and report each distinct error once per episode (design.md, 3.1)."""
+        self.writer_guard()
         record = {**self.error_record, "event": "recovery"} if self.error_record else {
             "start": utc_now(), "branches": [], "steps": [], "posts": [],
             "outcome": "error", "error": str(error), "dry": self.dry,
@@ -744,9 +786,13 @@ class Queue:
 
     def run(self, stop, *, sleeper=time.sleep):
         while not stop.exists():
+            self.writer_guard()
             self.error_record = None
             try:
                 worked = self.cycle()
+                if self.state.get("reported_errors"):
+                    self.state["reported_errors"] = []
+                    self.save()
             except Exception as error:
                 try:
                     self.recover(error)
@@ -757,6 +803,7 @@ class Queue:
                 sleeper(60)
 
     def plan(self):
+        self.writer_guard()
         git(self.repo, "fetch", "--prune", "origin")
         branches, repair = self.next_batch()
         if not branches and not self.idle_due():
@@ -804,6 +851,7 @@ class Queue:
             raise
 
     def cycle_once(self):
+        self.writer_guard()
         git(self.repo, "fetch", "--prune", "origin")
         branches, repair = self.next_batch()
         if not branches:
@@ -852,12 +900,7 @@ class Queue:
 
 @contextmanager
 def queue_lock(path):
-    with path.open("a") as lock:
-        os.chmod(path, 0o600)
-        try:
-            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError as error:
-            raise RuntimeError("another queue process holds this checkout") from error
+    with authority.Lock(path):
         yield
 
 
@@ -875,6 +918,10 @@ def main():
     for name in ("run", "once", "plan"):
         sub = subparsers.add_parser(name)
         sub.add_argument("--repo", type=Path, default=Path.home() / "src/fabrig/queue")
+        sub.add_argument("--authority-dir", type=Path,
+                         help="shared queue authority directory; never per clone")
+        sub.add_argument("--authority-fd", type=int, help=argparse.SUPPRESS)
+        sub.add_argument("--startup-fd", type=int, help=argparse.SUPPRESS)
         sub.add_argument("--batch", type=positive, default=8)
         sub.add_argument("--full-every", type=positive, default=5)
         sub.add_argument("--disk-floor", type=positive, default=45)
@@ -897,13 +944,22 @@ def main():
             raise
         if git(repo, "rev-parse", "--show-toplevel").stdout.strip() != str(repo):
             raise RuntimeError("--repo must name the checkout root")
-        if args.action == "plan":
-            Queue(repo, batch=args.batch, full_every=args.full_every, disk_floor=args.disk_floor,
-                  repair=repair).plan()
-            return 0
-        with queue_lock(repo.with_name(repo.name + ".queue.lock")):
+        layout = authority.Layout(args.authority_dir)
+        with (layout.acquire(inherited=args.authority_fd) as lease,
+              authority.checkout_lock(repo) as checkout, writer_authority(lease, checkout)):
+            if args.authority_fd is not None:
+                os.close(args.authority_fd)
+            lease.guard()
+            layout.legacy_guard(repo)
             queue = Queue(repo, batch=args.batch, full_every=args.full_every, disk_floor=args.disk_floor,
-                          dry=getattr(args, "dry", False), repair=repair)
+                          dry=getattr(args, "dry", False), repair=repair,
+                          writer_guard=lambda: (lease.guard(), layout.legacy_guard(repo)))
+            if args.action == "plan":
+                queue.plan()
+                return 0
+            if args.startup_fd is not None:
+                os.write(args.startup_fd, b"READY\n")
+                os.close(args.startup_fd)
             if args.action == "once":
                 queue.cycle()
                 return 0

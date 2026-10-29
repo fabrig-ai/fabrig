@@ -98,8 +98,18 @@ class RepairTests(unittest.TestCase):
         return [{"name": "fixture", "green": self.result == "green", "duration": 0}]
 
     def queue(self, repair=None, **kwargs):
+        if not hasattr(self, "lease"):
+            self.layout = mq.authority.Layout(self.root / "authority")
+            self.lease = self.enterContext(self.layout.acquire())
+            self.checkout = self.enterContext(mq.authority.checkout_lock(self.repo))
+            self.enterContext(mq.writer_authority(self.lease, self.checkout))
+        def guard():
+            self.lease.guard()
+            self.checkout.guard()
+            self.layout.legacy_guard(self.repo)
         return mq.Queue(self.repo, batch=16, repair=repair, state_path=self.state, log_path=self.audit,
-                        disk_floor=0, checker=self.checker, poster=self.poster, now=lambda: 100, **kwargs)
+                        disk_floor=0, checker=self.checker, poster=self.poster, now=lambda: 100,
+                        writer_guard=guard, **kwargs)
 
     def poster(self, address, subject, body):
         self.posts.append((address, subject, body))
@@ -304,10 +314,10 @@ class RepairTests(unittest.TestCase):
                     argv += [flag, value]
             with self.subTest(argv=argv), patch.object(sys, "argv", argv), \
                     patch.object(Path, "home", return_value=self.home), patch.object(mq, "Queue") as queue, \
-                    patch.object(mq, "queue_lock") as lock, redirect_stderr(io.StringIO()):
+                    redirect_stderr(io.StringIO()):
                 self.assertEqual(mq.main(), 1)
                 queue.assert_not_called()
-                lock.assert_not_called()
+                self.assertFalse((self.home / "src/fabrig/queue-authority").exists())
         records = (self.home / "src/fabrig/notes/queue.jsonl").read_text().splitlines()
         self.assertEqual(len(records), len(rows))
         self.assertTrue(all(json.loads(record)["event"] == "repair-refusal" and
@@ -317,6 +327,7 @@ class RepairTests(unittest.TestCase):
         repair = self.repair()
         for action, method in (("once", "cycle"), ("run", "run"), ("plan", "plan")):
             argv = ["mq", action, "--repo", str(self.repo), "--batch", "16",
+                    "--authority-dir", str(self.root / "cli-authority"),
                     "--repair-ready", repair["name"], "--repair-tip", repair["tip"], "--repair-reason", REASON]
             with self.subTest(action=action), patch.object(sys, "argv", argv), \
                     patch.object(mq.shutil, "which", return_value="/fixture/tool"), \
@@ -334,7 +345,7 @@ class RepairTests(unittest.TestCase):
         with patch.object(sys, "argv", argv), patch.object(restart.shutil, "which", return_value="/fixture/tool"), \
                 patch.object(Path, "home", return_value=self.home), patch.object(restart, "restart") as launch:
             self.assertEqual(restart.main(), 0)
-        launch.assert_called_once_with(self.repo, 1800, self.home, batch=16, runtime=runtime,
+        launch.assert_called_once_with(self.repo, 1800, self.home, batch=16, runtime=runtime, authority_dir=None,
                                        repair_ready=repair["name"], repair_tip=repair["tip"], repair_reason=REASON)
 
     def runtime(self, name="runtime"):
@@ -344,25 +355,47 @@ class RepairTests(unittest.TestCase):
             shutil.copyfile(DIRECTORY / name, directory / name)
         return directory
 
-    def launch_restart(self, repair, runtime, *, result=None, launch_error=None, mutate=False):
+    def launch_restart(self, repair, runtime, *, result=None, launch_error=None, mutate=None):
         stop = self.home / "src/fabrig/queue.stop"
         stop.parent.mkdir(parents=True, exist_ok=True)
         calls = []
+        self.restart_calls = calls
         real_popen = subprocess.Popen
+        real_select = restart.select.select
+        adopted = []
+        process_fds = []
+        layout = mq.authority.Layout(self.home / "src/fabrig/queue-authority")
 
-        def command(argv, repo):
+        def command(argv, repo, *, pass_fds=()):
             calls.append(argv)
             if argv[1] in ("fetch", "switch"):
                 self.assertTrue(stop.exists())
-            if argv[1] == "switch" and mutate:
-                (runtime / "always.txt").write_text("changed-package\n")
+                self.assertEqual(len(pass_fds), 2)
+                for fd in pass_fds:
+                    os.fstat(fd)
             return str(repo) if "--show-toplevel" in argv else self.base
+
+        def pidfd(pid):
+            read_fd, write_fd = os.pipe()
+            os.write(write_fd, b"D")
+            os.close(write_fd)
+            process_fds.append(read_fd)
+            return read_fd
+
+        def select(fds, *args):
+            if fds == process_fds and mutate:
+                self.assertTrue(stop.exists())
+                mutate(runtime)
+            return real_select(fds, *args)
 
         def launch(argv, **kwargs):
             if argv[0] == "git":
                 return real_popen(argv, **kwargs)
             self.assertFalse(stop.exists())
+            authority_fd, startup_fd = kwargs["pass_fds"]
             self.assertEqual(argv, ["python3", "-B", "-u", str(runtime / "mq"), "run", "--repo", str(self.repo),
+                                    "--authority-dir", str(layout.root), "--authority-fd", str(authority_fd),
+                                    "--startup-fd", str(startup_fd),
                                     "--batch", "16", "--repair-ready", repair["name"],
                                     "--repair-tip", repair["tip"], "--repair-reason", REASON])
             self.assertEqual(kwargs["cwd"], self.repo)
@@ -370,16 +403,29 @@ class RepairTests(unittest.TestCase):
             self.assertTrue(kwargs["start_new_session"])
             if launch_error:
                 raise launch_error
+            held = layout.acquire(inherited=authority_fd)
+            adopted.append(held)
+            with mq.authority.checkout_lock(self.repo):
+                held.guard()
+                layout.legacy_guard(self.repo)
+                os.write(startup_fd, b"READY\n")
             return Mock(pid=123, returncode=result, poll=lambda: result)
 
-        with patch.object(restart, "command", side_effect=command), \
-                patch.object(restart, "queue_pid", return_value=42), \
-                patch.object(os, "pidfd_open", side_effect=ProcessLookupError), \
-                patch.object(subprocess, "Popen", side_effect=launch), \
-                patch.object(restart.time, "sleep") as sleep, redirect_stdout(io.StringIO()):
-            restart.restart(self.repo, 1800, self.home, batch=16, runtime=runtime,
-                            repair_ready=repair["name"], repair_tip=repair["tip"], repair_reason=REASON)
-        sleep.assert_called_once_with(3)
+        try:
+            with patch.object(restart, "command", side_effect=command), \
+                    patch.object(restart, "queue_pid", return_value=42), \
+                    patch.object(os, "pidfd_open", side_effect=pidfd), \
+                    patch.object(restart.select, "select", side_effect=select), \
+                    patch.object(subprocess, "Popen", side_effect=launch), \
+                    patch.object(restart.time, "sleep") as sleep, redirect_stdout(io.StringIO()):
+                restart.restart(self.repo, 1800, self.home, batch=16, runtime=runtime,
+                                repair_ready=repair["name"], repair_tip=repair["tip"], repair_reason=REASON)
+            sleep.assert_not_called()
+            with self.assertRaises(RuntimeError):
+                layout.acquire()
+        finally:
+            for held in adopted:
+                held.close()
         self.assertEqual(calls[1:3], [["git", "fetch", "origin"], ["git", "switch", "--detach", "origin/main"]])
 
     def test_external_restart_forwards_triplet_batch_and_uses_external_lists(self):
@@ -390,6 +436,13 @@ class RepairTests(unittest.TestCase):
         (runtime / "always.txt").write_text("external-package\n")
         module, _ = restart.runtime_module(runtime, self.repo, external=True)
         self.assertEqual(module.CONFIG, runtime)
+        self.assertEqual(Path(module.authority.__file__), runtime / "authority.py")
+        self.assertEqual(Path(module.authority.durable.__file__), runtime / "durable.py")
+        worker = load("repair_worker", runtime / "worker.py")
+        train = load("repair_train", runtime / "train.py")
+        self.assertEqual(set(restart.RUNTIME_FILES), set(worker.RUNTIME_FILES))
+        self.assertEqual(Path(train.recovery.__file__), runtime / "recovery.py")
+        self.assertEqual(Path(train.recovery.durable.__file__), runtime / "durable.py")
         self.assertEqual(module.lines(module.CONFIG / "always.txt"), ["external-package"])
         self.assertEqual(list(runtime.rglob("__pycache__")), [])
         self.assertEqual(list(self.repo.rglob("__pycache__")), [])
@@ -406,7 +459,8 @@ class RepairTests(unittest.TestCase):
         repair = self.repair()
         runtime = self.runtime()
         with self.assertRaisesRegex(RuntimeError, "runtime changed"):
-            self.launch_restart(repair, runtime, mutate=True)
+            self.launch_restart(repair, runtime, mutate=lambda root: (root / "always.txt").write_text("changed\n"))
+        self.assertEqual(self.restart_calls, [["git", "rev-parse", "--show-toplevel"]])
         self.assertTrue((self.home / "src/fabrig/queue.stop").exists())
         record = json.loads((self.home / "src/fabrig/notes/queue.jsonl").read_text())
         self.assertEqual(record["repair"], repair)
@@ -440,6 +494,119 @@ class RepairTests(unittest.TestCase):
             alter(directory)
             with self.subTest(name=name), self.assertRaises(error):
                 restart.runtime_module(directory, self.repo, external=True)
+
+    def test_all_external_dependencies_missing_or_changed_during_drain_refuse_before_update(self):
+        repair = self.repair()
+        for index, name in enumerate(restart.RUNTIME_FILES):
+            for action, alter in (("missing", lambda path: path.unlink()),
+                                  ("changed", lambda path: path.write_bytes(path.read_bytes() + b"\n"))):
+                runtime = self.runtime(f"dependency-{index}-{action}")
+                with self.subTest(name=name, action=action), self.assertRaisesRegex(RuntimeError, "runtime"):
+                    self.launch_restart(repair, runtime, mutate=lambda root: alter(root / name))
+                self.assertTrue((self.home / "src/fabrig/queue.stop").exists())
+                self.assertEqual(self.restart_calls, [["git", "rev-parse", "--show-toplevel"]])
+
+    def test_external_priority_startup_and_restart_respect_persistent_ownership(self):
+        repair = self.repair()
+        runtime = self.runtime()
+        module, _ = restart.runtime_module(runtime, self.repo, external=True)
+        (self.home / "src/fabrig").mkdir(parents=True)
+        layout = mq.authority.Layout(self.home / "src/fabrig/queue-authority")
+        markers = [self.repo / ".git" / name for name in
+                   ("mq-worker-unresolved.json", "precheck.unresolved", "mq-preparation-unresolved.json")]
+        markers += [layout.root / "train-owner.json", layout.train / "state.json"]
+        argv = ["mq", "once", "--repo", str(self.repo), "--authority-dir", str(layout.root),
+                "--repair-ready", repair["name"], "--repair-tip", repair["tip"], "--repair-reason", REASON]
+        for marker in markers:
+            marker.write_bytes(b"unknown ownership")
+            try:
+                with self.subTest(marker=marker.name), patch.object(sys, "argv", argv), \
+                        patch.object(module, "Queue") as queue, redirect_stderr(io.StringIO()):
+                    self.assertEqual(module.main(), 1)
+                    queue.assert_not_called()
+                with self.assertRaisesRegex(RuntimeError, "reconciliation"):
+                    self.launch_restart(repair, runtime)
+                self.assertEqual(self.restart_calls, [["git", "rev-parse", "--show-toplevel"]])
+                self.assertTrue((self.home / "src/fabrig/queue.stop").exists())
+            finally:
+                marker.unlink()
+
+    def test_external_priority_cannot_enter_a_shared_authority_held_for_another_clone(self):
+        repair = self.repair()
+        runtime = self.runtime()
+        module, _ = restart.runtime_module(runtime, self.repo, external=True)
+        layout = mq.authority.Layout(self.root / "shared")
+        other = self.root / "other"
+        mq.git(self.root, "clone", "-b", "main", str(self.origin), str(other))
+        argv = ["mq", "once", "--repo", str(other), "--authority-dir", str(layout.root),
+                "--repair-ready", repair["name"], "--repair-tip", repair["tip"], "--repair-reason", REASON]
+        with layout.acquire(), patch.object(sys, "argv", argv), patch.object(module, "Queue") as queue, \
+                redirect_stderr(io.StringIO()):
+            self.assertEqual(module.main(), 1)
+            queue.assert_not_called()
+
+    def test_external_real_child_adopts_authority_and_checkout_before_acknowledgement(self):
+        repair = self.repair()
+        runtime = self.runtime()
+        ready_r, ready_w = os.pipe()
+        release_r, release_w = os.pipe()
+        child_queue = f'''class FixtureQueue(Queue):
+    def run(self, stop):
+        self.writer_guard()
+        os.write({ready_w}, b'R')
+        os.read({release_r}, 1)
+Queue = FixtureQueue
+
+'''
+        script = runtime / "mq"
+        script.write_text(script.read_text().replace('if __name__ == "__main__":',
+                                                    child_queue + 'if __name__ == "__main__":'))
+        fake_bin = self.root / "bin"
+        fake_bin.mkdir()
+        for name in ("cargo", "heavy", "post"):
+            path = fake_bin / name
+            path.write_text("#!/bin/sh\nexit 99\n")
+            path.chmod(0o700)
+        (self.home / "src/fabrig").mkdir(parents=True)
+        layout = mq.authority.Layout(self.home / "src/fabrig/queue-authority")
+        real_popen = subprocess.Popen
+        children = []
+
+        def launch(argv, **kwargs):
+            if argv[0] != "git":
+                kwargs["pass_fds"] += (ready_w, release_r)
+            child = real_popen(argv, **kwargs)
+            if argv[0] != "git":
+                children.append(child)
+            return child
+
+        def command(argv, repo, **kwargs):
+            return str(repo) if "--show-toplevel" in argv else self.base
+
+        try:
+            with patch.object(restart, "command", side_effect=command), \
+                    patch.object(restart, "queue_pid", return_value=None), \
+                    patch.object(subprocess, "Popen", side_effect=launch), \
+                    patch.dict(os.environ, {"PATH": str(fake_bin) + os.pathsep + os.environ["PATH"]}), \
+                    redirect_stdout(io.StringIO()):
+                restart.restart(self.repo, 1800, self.home, batch=16, runtime=runtime,
+                                repair_ready=repair["name"], repair_tip=repair["tip"], repair_reason=REASON)
+            self.assertTrue(restart.select.select([ready_r], [], [], 10)[0])
+            self.assertEqual(os.read(ready_r, 1), b"R")
+            with self.assertRaises(RuntimeError):
+                layout.acquire()
+            with self.assertRaises(RuntimeError), mq.authority.checkout_lock(self.repo):
+                pass
+        finally:
+            os.close(release_w)
+            os.close(release_r)
+            os.close(ready_r)
+            os.close(ready_w)
+            for child in children:
+                child.wait(timeout=10)
+        self.assertEqual(children[0].returncode, 0)
+        with layout.acquire(), mq.authority.checkout_lock(self.repo):
+            pass
 
     def test_restart_malformed_triplets_refuse_before_requesting_stop(self):
         repair = self.repair()

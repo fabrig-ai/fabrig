@@ -7,10 +7,10 @@ Provisional, 2026-10-28. How a branch reaches `main`: a script on the gate machi
 - **Input:** remote branches `ready/<lead>/<task>` on `origin`, each pushed by its lead.
 - **A batch:** from `origin/main`, the ready branches not yet tried at their current tip, oldest tip first, at most `batch` (8) of them, each merged with `git merge --no-ff -m "Merge <branch name>"`; ratchet-only conflicts are resolved by recounting against HEAD (section 3.3); any other conflict is aborted, reported, and left out. After merging, the queue writes and commits lower old-form baselines for touched trees before checks. Branches need not change those baselines.
 - **The checks run on a selection** (section 2), not always the whole workspace: touched trees' `scripts/old_forms.py --write` (the ratchet, section 3.3), then the tools' suites (section 2.3), `cargo fmt --check`, clippy with `-D warnings`, a nextest `build`, and the focused (`default`) and `fuzzy` nextest profiles. Cargo build and test commands run through `heavy --gate` on the gate machine, which nothing else builds on. Lockfile and member manifest changes select affected packages (section 2.1); formatting covers changed Rust owners (section 2.2). Step durations are recorded separately (section 3.6).
-- **Green:** `git push origin HEAD:main` (fast-forward only); the batch's `ready/` branches are deleted; each lead is told which commit holds its task.
+- **Green:** `git push origin HEAD:main` (fast-forward only); the batch's `ready/` branches are deleted only under an explicit expected-tip deletion lease; each lead is told which commit holds its task.
 - **Red:** a batch of one is rejected (its lead gets the failing step and the log's path, and the branch isn't retried until its tip changes); a larger batch is halved and each half tried from `main`, recursively, so the green branches still land.
 - **Capacity refusal:** a heavy exit 2 containing `below the disk floor` is an error, with no rejection or bisection. Before every batch, free space below `--disk-floor` (45 GB by default) defers work to the next cycle.
-- **Error:** an exception logs the batch as `error`; its tips remain eligible. `run` restores `origin/main`, reports each distinct error to the operator (`ops`) once, waits a cycle, and continues. `once` raises to its caller.
+- **Error:** an exception logs the batch as `error`; its tips remain eligible. `run` restores `origin/main`, reports each distinct error to the operator (`ops`) once per uninterrupted error episode, waits a cycle, and continues. A completed cycle, including an idle check, clears the persisted episode so recurrence alerts again. `once` raises to its caller.
 - **Batches selecting no packages** skip Cargo checks. Tools changes run the tools step; touched trees run their ratchets. Unread Markdown outside package source directories selects no package, even beside code or tools changes.
 - **Every batch is logged** as one JSON line (`~/src/fabrig/notes/queue.jsonl`): start and end, branches, outcome, the selection's packages, each step's duration, and test executable cleanup counts and GB.
 
@@ -78,6 +78,28 @@ The step records its total elapsed time. Run every suite even if one fails;
 any nonzero exit, missing interpreter, or timeout makes the step red and stops
 later checks. Rejection and bisection follow section 1.
 
+Queue tests allocate private disposable fixtures beside the tested checkout,
+under its resolved root's parent, never inside the checkout. In operational
+clones under `~/src/fabrig/`, the fixtures stay under that same hierarchy.
+Train fixtures use `.mq-train-test-` plus a random suffix and mode 0700;
+queue/restart/worker fixtures follow the same external-parent rule. Hard
+termination can leave only external test artifacts, which are not queue input.
+Cleanup removes only the fixture directory owned by that test. Python entries
+and child processes use `-I -B`; shared controller imports also disable bytecode
+before loading source so they cannot dirty the tested checkout with caches.
+
+The controller's 63 cases run as three cohesive automatic entries:
+`test_train.py` (19 preparation/evidence/policy cases),
+`test_train_decisions.py` (22 ordering/conflict/bisection cases) and
+`test_train_recovery.py` (22 ownership/replay/drain cases).
+`train_fixture.py` is a test-free mixin outside automatic discovery.
+`test_train_isolation.py` adds a pipe-synchronized real-fixture SIGKILL check
+and a discovery check. `train_cases.json` fixes all 63 reviewed case names and
+AST fingerprints; the discovery check proves every case is in exactly one
+queue-discovered entry with an unchanged body and no inherited duplicates.
+Each entry retains the fixed 60-second limit; gate timings require separate
+operator validation with margin for overhead on the gate machine.
+
 ## 3. Running it
 
 - `tools/queue/mq run` loops (a cycle every 60 seconds, or at once after a batch); `mq once` runs one cycle; `mq plan` prints the next batch and its selection without merging or pushing. Python 3, standard library only, plus `git`, `cargo`, `heavy` and `post` on `PATH`.
@@ -94,7 +116,9 @@ cover build output. An errored attempt logs its error without marking its
 branches tried. Recovery diagnostics and the operator's delivery are logged as a
 separate `event: "recovery"` record; errors outside an attempt get their own
 error record. Distinct error texts already reported to `ops` in `leads.txt`
-are kept in state, so a repeated error does not post every cycle. Recovery
+are kept in state for the current uninterrupted error episode, so a repeated
+error does not post every cycle. A completed cycle, including an idle cycle,
+clears that persisted episode; recurrence alerts again. Recovery
 failures are logged and the loop waits 60 seconds before trying again. If
 recovery itself cannot append its record, it reports that failure on stderr
 and keeps the loop running.
@@ -184,21 +208,29 @@ activate a discovery change before queuing suites that require it.
 exits 2 and names it; `mq run` performs the same check before its first git
 command. `once` and `plan` keep their existing behavior.
 
-Restart finds the queue lock's holder through `/proc/locks`, falling back
-to `pgrep -f` for exactly one `tools/queue/mq run`. An absent or ambiguous
-process is an error. It writes `~/src/fabrig/queue.stop`, prints the pid and
-stop path, and waits for that process to exit, using a pidfd so pid reuse
-cannot change the wait. `--wait` bounds this wait in seconds (default 1800).
-A timeout retains the stop file and does not fetch or start a replacement.
+Restart serializes invocations with the shared layout's `restart.lock`. It
+finds the checkout lock's holder through `/proc/locks`; there is no broad
+process-name fallback. It writes `~/src/fabrig/queue.stop` and waits through a
+pidfd when a holder exists. `--wait` bounds this wait (default 1800 seconds).
+A timeout retains stop and performs no fetch or replacement. Process absence
+permits only an attempt to acquire authority and inspect persistent ownership.
 
-After the process exits, restart fetches origin and switches the clone to
-detached `origin/main`. Only then does it remove the stop file and start
-`python3 -u tools/queue/mq run --repo <clone>` in a new session with stdin
-from `/dev/null` and both outputs appended to
-`~/src/fabrig/notes/queue.out` (0600). After three seconds it checks for an
-early exit, then prints the new pid and main's commit. `--repo` defaults to
-the current directory and must name the clone root. Run only one restart
-at a time; a failed update leaves the stop file for inspection.
+After the old process exits, restart acquires the common authority lock and
+checks section 3.10's persistent guards before any update. It locks the
+checkout, fetches origin and switches to detached `origin/main`. The Git
+children inherit both locks. A competing direct writer or unresolved ownership
+causes refusal with stop retained. Restart does not hold main authority while
+waiting for the old controller to drain.
+
+It then removes stop and starts `python3 -B -u tools/queue/mq run --repo <clone>`
+in a new session, stdin `/dev/null`, both outputs appended to
+`~/src/fabrig/notes/queue.out` (0600). Internal arguments pass the same open
+flock description and an acknowledgement pipe to the child. The child adopts
+that inode, acquires checkout exclusion and checks persistent guards before
+acknowledging startup. Restart waits up to the existing three-second startup
+window for that acknowledgement and checks for early exit. Unconfirmed startup
+retains stop and reports failure. Closing the parent's duplicate does not
+unlock the child's authority. `--repo` defaults to the current clone root.
 
 `restart --batch N` sets the replacement queue's positive batch size; the
 default remains 8. Pass the option on each restart to retain a nondefault
@@ -234,15 +266,20 @@ No additional persistent state format or in-checkout audit file is introduced.
 
 `restart` forwards the same triplet and explicit batch size. Its optional
 `--runtime DIRECTORY` selects a complete queue runtime directory outside the
-live checkout, containing regular `mq`, `restart`, `worker.py`, `always.txt`,
-`read-by-tests.txt` and `leads.txt` files. It validates Python syntax, repair
-support, lists and the advertised pin before requesting stop, then checks that
-the external files stayed unchanged during the drain. The replacement loads
-its code and lists from that directory, with bytecode writes disabled, while
-operating on `--repo`. Without `--runtime`, the installed path stays unchanged.
-The existing pidfd drain, 1800-second default wait, adjacent checkout flock and
-update sequence remain in use. A failed launch restores the stop file. Stop
-is observed between whole bisection cycles; restart cannot interrupt heavy.
+live checkout, containing regular `mq`, `restart`, `worker.py`, `train.py`,
+`authority.py`, `recovery.py`, `durable.py`, `always.txt`, `read-by-tests.txt`
+and `leads.txt` files. This manifest covers all imported policy/effect modules
+and lists, matching the worker's frozen runtime. It validates Python syntax,
+repair and shared-authority support, lists and the advertised pin before
+requesting stop. Missing or changed files during drain refuse before checkout
+update; the manifest is checked again before launch. The replacement loads
+its code, authority dependencies and lists from that directory, with bytecode
+writes disabled, while operating on `--repo`. Without `--runtime`, the installed
+path stays unchanged. Section 3.10's shared lock, persistent startup guards,
+dual-lock effect inheritance and acknowledged same-inode handoff apply to the
+external runtime too. The pidfd drain and 1800-second default wait remain in
+use. A failed launch restores stop. Stop is observed between whole bisection
+cycles; restart cannot interrupt heavy.
 The external runtime is an interim Ops choice until this option is installed.
 
 ### 3.8 Local immutable-candidate worker (disabled rollout)
@@ -394,17 +431,334 @@ startup guards are a later obligation. The flock is cooperative ownership,
 not a sandbox against arbitrary external writers or hostile candidate code.
 
 The worker never fetches/pushes origin, posts, changes queue counters, deletes
-ready refs, or promotes a candidate. Transport, durable controller state,
-reservations and full-check cadence, result/log ingestion and validation,
-merge-chain evidence, ordered adjudication, promotion, notification recovery,
-conditional ready cleanup, supervised remote job lifetime, controller startup
-guards, draining and train-aware restart remain unimplemented. This proposal
-cannot activate or safely supervise a merge train by itself.
+ready refs, or promotes a candidate. Section 3.9 supplies a disabled controller
+library around this contract. Production transport, authoritative effects,
+shared startup guards, supervision, reconciliation tooling and train-aware
+restart remain absent. The worker cannot activate or supervise a train alone.
+
+### 3.9 Controller library (disabled, unready)
+
+`train.py` has no CLI, production transport or authority implementation. Neither
+`mq` nor `restart` imports it. Ordinary Queue behavior remains unchanged; both
+live train gates remain off. **Production activation is prohibited** until the
+authority/startup and recovery obligations below, followed by supervised
+transport and rollout validation, are implemented and reviewed.
+
+`Controller` receives `Preparer`, `StateStore`, transport, authority, time,
+generation, two gate names, frozen worker runtime and batch/full cadence.
+The metadata loader is mandatory: preparation has no implicit Cargo command.
+The disposable harness injects candidate metadata and fake checkers; real Git
+merges, bundles, ratchet fixtures and local-origin pushes exercise the boundary.
+
+Preparation and reservations:
+
+- Preparation owns an independent clone root, separate from both gates.
+  Discovery retains `list_candidates`' oldest-tip order and tried-tip semantics.
+  Gate endpoints/configuration, controller source digest, worker/list runtime
+  identity and policy are frozen in the generation's state. No runtime edits
+  or changed configuration can continue that generation silently.
+- `admit` persists pinned inputs, explicit parent and a preparation intent
+  before mutation. At most two records have adjudication authority; a completed
+  successor occupies its place until its predecessor lands. Branch names are
+  reserved across those records, pending bisection groups and invalidated jobs
+  still draining. Advancing or deleting a ready ref does not change its pinned
+  selection or prevent that selected commit landing.
+- `prepare_candidate` calls `build_batch` on explicit P, then only writing
+  ratchets. It commits lower baselines before freezing C, paths, metadata,
+  selection and the normalized complete check plan. Successor P is exact C of
+  its predecessor while origin/main may still lag. Workers check the original
+  C; they cannot rewrite or generate a substitute.
+- The record preserves ordered input/merge identities, each merge's previous
+  commit and complete message (including Git's conflict annotations), explicit
+  already-contained inputs and baseline commits. `verify_chain` validates the
+  input partition/order, exact merge parents/messages and baseline-only suffix.
+  Parent-relative paths and lock blobs and candidate-resolved metadata drive
+  selection. Train paths include generated baseline commits; these may cause a
+  conservative full escalation rather than the one-gate selection in 3.3.
+- Parent, inputs and candidate stay pinned under local `refs/mq/jobs/<id>/`.
+  `export_bundle` writes a self-contained immutable bundle, recording size,
+  SHA-256 and every ref/OID. `import_bundle` checks bytes, heads, prerequisites
+  and requested objects without changing checkout HEAD or publishing refs to
+  origin. Transport must hold ownership while importing. Pins/artifacts have
+  no automatic deletion in this part.
+- Conflicts block successors throughout preparation, checking and adjudication.
+  When some inputs merge, dispatch that exact merged subset in the same attempt
+  against its pinned P/C; the conflicts remain provisional. A valid green lands
+  C and records merged inputs' tried marks and conflict rejections in one
+  durable decision. A valid red rejects the conflicts and bisects only the
+  checked merged inputs, preserving the current full requirement. Preparation,
+  transport, capacity, checker or result INFRA retains no branch rejection or
+  tried mark from that attempt, and uncertain gate ownership stays unresolved.
+  When all inputs conflict and the merge chain is empty, an immediate conflict
+  decision needs no worker check. An unchecked partial-conflict decision is
+  refused. Ratchet exit 1 is a preparation red; other exits, missing objects,
+  metadata or preparation errors are INFRA. Preparation red conservatively
+  requires full checks for its later bisection groups.
+
+Transport and evidence:
+
+- `identity()` supplies the frozen gate configuration; each entry names `repo`
+  and optionally `host` (default `local`). Gate endpoints are distinct and a
+  local endpoint cannot be the preparation clone. Adapters must establish that
+  their endpoints are independent clones, not aliases for shared storage.
+- `start(request, bundle)` must be idempotent for generation/attempt, always
+  naming the same supervised job. `dispatch` persists `dispatch-intent` and
+  gate ownership first. Transfer/start/status exceptions are INFRA, never red,
+  and never establish that the gate is free. Retrying start uses the same
+  request, candidate and attempt identity.
+- `status(request)` returns `running`, `unknown`, or `terminal`. Terminal
+  includes its exact request, full result/log bytes, `quiescent` and
+  identity-bound `evidence`. A boolean alone cannot release ownership. The
+  frozen completion adapter must verify that evidence independently of outcome;
+  part 4's only production adapter accepts local empty-plan jobs. Part 5 must
+  supply supervised heavy/SSH evidence. Process/SSH absence, a terminal client
+  and a released flock are insufficient.
+- `ingest` stores immutable returned bytes, including malformed or incomplete
+  evidence, in controller-owned 0700/0600 storage. `validate_result` separately
+  recomputes objects, chain, paths, metadata graph, selection and complete plan
+  from the preparation clone and controller-owned request. It compares request,
+  generation/attempt/gate/runtime, P/C/tree, ordered inputs, exact normalized
+  commands/cwd, clean initial and unchanged before/after snapshots, observer
+  snapshots after every command/suite, and full log SHA-256/length/completeness.
+- Step validation retains the worker's first-red-prefix rule, all-tools-suite
+  accounting, and nextest exit-4 interpretation. Green needs the entire plan;
+  only an expected empty plan permits empty green evidence. INFRA, malformed
+  or mismatched evidence grants no rejection/bisection authority and retains
+  gate ownership until explicit reconciliation. Valid terminal evidence with
+  established quiescence can release a gate; an invalidated result cannot
+  regain adjudication authority.
+
+Adjudication and effects:
+
+- `adjudicate_head` holds out-of-order results without counters or effects.
+  Non-INFRA decisions require fresh main equal to certified P. A red head
+  immediately revokes descendants' authority; their physical jobs drain.
+  No replacement is admitted while invalidated or adjudicated uncertain jobs
+  own gates. Sequential bisection persists left-before-right groups, prepares
+  each group on actual main after earlier groups land, rejects only singleton
+  check failures, and inherits full requirements until recovery ends.
+- `full_due` charges unresolved predecessors as attempts without assuming
+  an unresolved full resets state. It preserves the fifth-batch/hourly policy;
+  idle full checks retain the ten-minute/main-change rule and use P == C with
+  no push. Adjudicated green/red checks update cadence, including checks of
+  partial-conflict merged subsets; all-conflict decisions, INFRA and invalidated
+  speculation do not. Full red after selected successes enqueues the
+  selection-gap event.
+- Green first persists `promotion-intent` with explicit P, C and stable id.
+  `authority.guard()` must establish one sole main authority and startup guard
+  across legacy, train and restart. `main()` reads fresh authoritative main.
+  `promote(P, C, id)` must recheck P under that same authority and push explicit
+  certified C with a normal fast-forward push. There is no main force-push or
+  HEAD/reconstruction fallback. After uncertain push, main == C finishes the
+  recorded landing; main == P retries the identical intent; unexpected main
+  blocks adjudication/admission for reconciliation.
+- `apply_decision_once` atomically records the applied decision, tried tips,
+  counters, pending bisection and outbox in one state snapshot. Replaying a
+  recorded landing changes these once. `flush_outbox` delivers separately;
+  failures cannot change the gate decision. Posts are at-least-once, with the
+  stable event id in every message body; adapter post exits 0 and 3 mean
+  delivered. A crash after acceptance but before state acknowledgement may
+  deliver that same id again.
+- `authority.cleanup(name, expected_tip, id)` performs expected-tip deletion
+  only. A changed/deleted/recreated ready ref is a harmless cleanup disposition;
+  it cannot change a landing. The disposable adapter exercises explicit
+  expected-OID leases on deletions only. Section 3.10 supplies the concrete
+  adapter; workers still have no main writer.
+
+Persistence and remaining recovery boundaries:
+
+- `StateStore` uses version 1, refuses unknown versions and does no migration.
+  Its private JSON snapshot is the recovery source; any future JSONL audit is
+  descriptive only. State publication uses a private temporary file, file
+  fsync, rename and directory fsync. Requests and returned evidence use private
+  durable files; repeated identical evidence is accepted without overwriting,
+  and different bytes under an existing identity require reconciliation.
+- A publication failure poisons the in-memory controller: reload/reconciliation
+  is required before more work. The fake suite injects failures at preparation,
+  pre/post dispatch publication, returned-evidence publication, decision after
+  push, lost push acknowledgement, and post acknowledgement. These prove model
+  replay properties, not arbitrary-machine-crash or remote-job safety.
+- `recovery_inventory` exposes main, gate owners, unresolved preparation,
+  promotion intents and pending outbox. `reconcile_job` requires explicit
+  quiescence and operational evidence; it does not reset a checkout or infer
+  heavy completion. An interrupted preparation remains reserved and blocks
+  admission. Section 3.10 hardens these boundaries; interrupted preparation
+  without a completed snapshot remains blocked for supervised reconciliation.
+- `stop` durably closes admission. `drained` requires no active records and no
+  gate owners, including invalidated/uncertain owners. Existing jobs adjudicate
+  in order; stop starts no replacements or pending bisection groups. Those
+  groups remain durable. There is no production resume/restart integration.
+
+Section 3.10 implements shared local authority and concrete effects. Part 5
+supplies SSH/supervised job transport, operational drain/resume/restart and the
+reviewed rollout. No local test asserts real heavy quiescence, real-service
+authority, arbitrary machine-crash durability or remote transport safety.
+
+### 3.10 Shared authority, effects and fail-closed recovery (train disabled)
+
+The source adapters are production-capable primitives, with no executable
+train mode, network job transport, second-prover activation or installation.
+All queue modes on the same production host must use one authority directory,
+including alternate preparation/worker clone names. The default is
+`~/src/fabrig/queue-authority`; `--authority-dir ABSOLUTE` on `mq`/`restart`, or
+`MQ_AUTHORITY_DIR`, selects an isolated queue layout. An override denotes a
+queue identity, never a per-clone lock. It must name an owned 0700 directory
+without symlink components; its parent must exist. Tests pass private fixture
+layouts and never use the production default.
+
+`authority.Layout.acquire()` holds `authority.lock` (0600); `restart_lock()`
+holds a separate `restart.lock`. `Lock.guard()` checks the owning process and
+inode. Locks are never unlinked or explicitly unlocked during handoff. Legacy
+`run`, `once`, dry cycles and `plan` acquire common authority before fetching,
+then their checkout's sibling `<clone>.queue.lock`. `Queue` mutations require
+an injected authority/startup guard; the CLI supplies it for the entire run,
+including error recovery, bisection and pruning. Local Git/check/post children
+inherit both the common authority and checkout locks, so controller exit
+cannot permit another main writer or local worker to reuse the checkout while
+those effect clients still run. This proves no remote heavy lifetime.
+
+`Layout.legacy_guard(repo)` refuses any `train/state.json` or
+`train-owner.json`, even corrupt state or a drained-looking snapshot. The
+concrete train adapter binds its state to `<layout>/train/state.json` and
+publishes an immutable generation/configuration ownership receipt before any
+train mutation. Missing state cannot erase that startup refusal. Returning to
+legacy requires explicit supported retirement in part 5, never deleting a
+snapshot to infer safety.
+
+Checkout exclusion recognizes the existing `.git/mq-worker-unresolved.json`
+and `.git/precheck.unresolved`, plus preparation ownership at
+`.git/mq-preparation-unresolved.json`. It checks `.git/precheck.lock`, sibling
+`<clone>.precheck.lock` when present, and the shared sibling queue lock.
+Markers block without parsing their contents; invalid markers and missing
+processes cannot grant reuse. Worker and preparer use the same checkout guard.
+Preparation holds checkout exclusion through its completed state publication;
+a durable marker survives a hard exit or failed publication. Recovery refuses
+fetch/reset/switch/cleanup while unresolved. Ordinary one-gate notifications
+and check/outcome policy retain their existing behavior.
+
+`authority.GitAuthority(layout, lock, repo, origin, leads, runner=...)` supplies
+`guard`, `identity`, `bind`, `main`, `promote`, `cleanup` and `post`. Caller
+configuration freezes the explicit origin and copied area/address mapping;
+`bind` requires the shared train state and an independent authority clone
+(which may be the preparation clone). Origin must
+be an absolute local path or validated SSH/HTTPS address; subprocesses use
+argv, full refs and full lowercase OIDs, with no shell interpolation.
+
+- `main()` freshly reads exactly `refs/heads/main` through `ls-remote`.
+- `promote(P,C,id)` loads and matches the durable head's promotion intent,
+  freshly requires main == P, imports the original verified bundle into a
+  separate controller clone when needed, verifies commit types and P ancestry
+  of C, freshly compares P again under the same authority, then performs `git push -- ORIGIN C:refs/heads/main`. There is no force, main lease,
+  HEAD substitution, reconstruction, recount or rebase. P/C/unexpected replay
+  stays in `Controller.promote`: C applies the landing once, P retries the same
+  intent, unexpected main blocks. Main authority must still be unique among
+  compliant writers; this is no server-side expected-parent extension.
+- `cleanup(name,tip,id)` validates the full ready ref, then pushes only its
+  deletion with `--force-with-lease=refs/heads/ready/...:TIP`. A fresh differing
+  tip or absence completes cleanup harmlessly; unreadable state/transport
+  remains pending. The lease compares OIDs; ref recreation at the same OID is
+  indistinguishable under this approved contract. No main update uses a lease.
+- `post(event)` routes landed/rejected to the frozen branch area and
+  infrastructure/selection-gap to ops. Every body carries `Event: ID` and its
+  controller-owned evidence directory. Content goes through stdin. Exits 0/3
+  acknowledge delivery; other exits/exceptions leave the durable outbox
+  pending. Replays retain ID and never change a landing or rejection.
+
+Legacy `push_and_cleanup` uses the same deletion-only expected-tip lease after
+its observation. A lead can advance a ready tip between observation and push;
+the server rejects that deletion and preserves the replacement. Its main push
+remains an ordinary fast-forward with no force or lease.
+
+`durable.py` implements owned 0700 directories and 0600 regular files, strict
+JSON parsing, temp-file fsync, atomic rename and containing-directory fsync.
+Immutable publications serialize check/rename on the directory's stable flock
+inode and reject different existing bytes; identical replay also syncs the
+directory. State/marker replacement refuses unsafe targets. Logs are written
+as private partial files and published before terminal results. Bundles and
+requests are immutable. Validation refuses missing, public, symlinked,
+truncated or digest-mismatching referenced evidence. Pins use create-only
+expected-old-OID updates and cannot silently change identity.
+
+`StateStore.load()` and `recovery.validate_state()` refuse unknown versions,
+wrong structural types, changed exact generation/runtime/helper/configuration
+identity, malformed P/C/input/pin identities, phases and gate ownership,
+request/result mismatches, decision/tried/outbox/cadence inconsistencies and
+invalid sequential bisection frontiers/full inheritance. Version 1 is retained;
+there is no automatic migration or acceptance of an old runtime's generation.
+The frozen runtime includes train, authority, recovery, durable and restart
+sources as well as mq, worker and policy lists.
+
+`validate_artifacts()` checks every completed record's request, bundle,
+preparation log, pins, merge chain and returned evidence before replay effects.
+Accepted certificates are independently recomputed at decision/promotion.
+A failed snapshot/evidence publication or failed certificate recheck poisons
+that controller instance. Reload/reconciliation is required before further
+effects; malformed evidence is INFRA, never a test red. Missing snapshots with
+retained evidence/pins refuse new-generation initialization. Snapshot JSON is
+the recovery source; JSONL summaries have audit meaning only.
+
+`Controller.startup_inventory` / `recovery_inventory()` expose fresh main,
+P/C/unexpected promotion dispositions, preparing records, dispatch/physical
+owners (including adjudicated or invalidated draining jobs), evidence and
+pending cleanup/post events. Artifact inventory lists orphan/partial and
+unrecorded returned publications without following symlinks or deleting data.
+A reloaded controller blocks new preparation until each recorded gate has an
+identity-matching status observation or supported completion reconciliation.
+Every preparation/dispatch also requires fresh main consistent with recorded
+ancestry. A prepared record is dispatched/reconciled before another admission.
+
+`reconcile_preparation(attempt)` can clear only the exact completion marker
+backed by a validated completed snapshot. Incomplete preparation remains
+reserved, without reconstructing certified C or changing checkout/target.
+`reconcile_job(..., quiescent=True, evidence=...)` requires the frozen completion
+adapter to return its verified identity-bound evidence object. A generic
+boolean/string/PID fails. The built-in `local-empty-plan-v1` evidence names the
+exact private worker result path and SHA-256, matches the durable request,
+checks complete result/log and absence of checkout markers while holding its
+lock, and requires an empty plan. All heavy/nonempty/remote plans remain
+blocked until part 5 supplies supervised lifetime evidence. Tests inject an
+explicit fake-completion adapter whose events attest synchronous fake checks;
+this is not a production supervisor.
+
+Snapshot validation replays each admitted bisection group as consumption of
+the first pending group, checks its ordered inputs and inherited full
+requirement, then applies any red split or INFRA requeue. Thus an admitted
+left group is absent from pending across reload and concrete promotion; its
+right group retains the accepted left ancestry. Nested reds and INFRA retries
+follow the same replay rule.
+
+Applied INFRA decisions retain `decided` through late unknown/status failures
+while their gate remains owned. Verified reconciliation releases that owner
+into `discarded`, preserving the applied outcome, counters and outbox. A
+terminal reply has the same release behavior. `drained()` requires a valid
+loadable snapshot matching memory in addition to no active/physical ownership
+or unresolved preparation; an unloadable snapshot cannot authorize drain.
+Restart restores stop if unlink, directory fsync or replacement launch fails.
+
+Authority/recovery/worker/mq tests place their disposable repositories and
+publication files beside the checked source, so a hard test-process exit leaves
+no fixture inside the candidate checkout. Test suite timeouts are unchanged.
+
+No pin, artifact or snapshot GC is provided. Retain all objects/evidence;
+removal requires a later proof covering active, draining, bisection, decision,
+outbox and recovery references. There is no age-only removal or retention
+budget. Disposable processes inject crashes around file fsync, rename,
+dispatch, push/decision and post acknowledgements; tests prove those local
+boundaries and shared flock lifetime, not arbitrary machine power-loss or
+remote-supervisor guarantees.
 
 ## 4. Later
 
-- A merge-train controller and supervised transport around the opt-in local
-  worker, with pinned objects, independent result validation, durable decisions,
-  ordered promotion, ownership recovery guards and train-aware restart.
+- Supervised SSH transport with stable job/incarnation identity, same-job
+  start/status, verified bundles/results/logs, and lifetime evidence across
+  client/controller/worker death and heavy recovery. Unknown ownership stays
+  blocked; neither absence nor an SSH error is quiescence.
+- Operational stop/drain/resume/restart and explicit generation retirement:
+  retain configuration and sequential recovery, prove both gates quiescent,
+  preserve stop on timeout, then permit legacy return/runtime updates.
+- Authorized real-tool validation and reviewed rollout. Both train provers
+  remain disabled; the executable train entry point belongs to part 5.
+- Reference-aware pin/artifact retention and operator repair, preserving all
+  immutable evidence until supported reconciliation permits removal.
 - Two gate machines with nextest's `--partition` once the full run's time matters.
 - Learning the selection's always-list from full runs' misses.
