@@ -128,21 +128,21 @@ pub fn worst_case(limits: &Limits) -> Option<u64> {
     let joined = if limits.names == 0 {
         0
     } else {
-        Map::<crate::Name, Id<Entity>>::worst_case(limits.names)?
-            .checked_add(Map::<(Id<Entity>, u64), Id<Entity>>::worst_case(sockets)?)?
+        Map::<crate::Name, Id<Entity>>::price(limits.names)?
+            .checked_add(Map::<(Id<Entity>, u64), Id<Entity>>::price(sockets)?)?
     };
-    let tables = Map::<Token, crate::kernel::Sender>::worst_case(sockets)?
+    let tables = Map::<Token, crate::kernel::Sender>::price(sockets)?
         .checked_add(Slab::<Entity>::worst_case(sockets)?)?
         .checked_add(Slab::<Flight>::worst_case(flights(limits)?)?)?
         .checked_add(Deadlines::<(Id<Entity>, Timer)>::worst_case(timers(limits)?)?)?
-        .checked_add(Set::<Id<Entity>>::worst_case(sockets)?.checked_mul(3)?)?
-        .checked_add(Queue::<Token>::worst_case(limits.refusals)?)?
+        .checked_add(Set::<Id<Entity>>::price(sockets)?.checked_mul(3)?)?
+        .checked_add(Queue::<Token>::price(limits.refusals)?)?
         .checked_add(joined)?
-        .checked_add(Map::<crate::kernel::Addr, Id<Entity>>::worst_case(sockets)?)?;
-    let stream = Intake::worst_case(limits.intake)?
+        .checked_add(Map::<crate::kernel::Addr, Id<Entity>>::price(sockets)?)?;
+    let stream = Intake::price(limits.intake)?
         .checked_add(u64::from(limits.receive))?
         .checked_add(u64::from(limits.output))?
-        .checked_add(Queue::<Box<[u8]>>::worst_case(limits.sends)?)?;
+        .checked_add(Queue::<Box<[u8]>>::price(limits.sends)?)?;
     // All children together can own at most `sockets` pipes. On spawn
     // completion, the child retains its IDs while a clone, the result's FDs,
     // and the event's tokens coexist. List-to-box conversion can likewise
