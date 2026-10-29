@@ -137,16 +137,13 @@ pub fn seeds() -> Seeds {
     Seeds { deployment: [7; 16], installation: [9; 16], seed: 7, crypto: Secret::new(Box::new([7; 32])) }
 }
 pub fn journal(limits: &jig_test_domain::Limits) -> skein_lib::JournalLimits {
+    // The two reference connectors each write at most nine records per decision.
+    const CONNECTOR_COMMIT_WRITES: u32 = 18;
     let room = core::route_bound(&limits.core).expect("final core limits");
-    let connector = jig_test_connector::MAX_OUT * 2;
+    let writes = room.checked_add(CONNECTOR_COMMIT_WRITES).expect("fixture commit write edge").max(2000);
     skein_lib::JournalLimits {
-        writes: room.checked_add(connector).expect("journal writes").max(2000),
-        held: room
-            .checked_add(connector)
-            .expect("journal held")
-            .max(2000)
-            .checked_mul(limits.journal.commits)
-            .expect("journal commits"),
+        writes,
+        held: writes.checked_mul(limits.journal.commits).expect("journal commits"),
         ..limits.journal
     }
 }
@@ -156,12 +153,7 @@ pub fn started(document: &[u8]) -> Service {
     let (mut engine, io) =
         crate::startup::engine_startup(parsed, &files(document), None, &seeds(), None, false).expect("fixture startup");
     memory_store(&mut engine);
-    Service::new(Some(engine), List::with_capacity(0), io, engine_queue())
-}
-fn engine_queue() -> u32 {
-    jig_test_domain::max_out(&crate::limits::profile_limits(jig_protocol_config::Profile::Small).root)
-        .checked_mul(2)
-        .expect("engine queue")
+    Service::new(Some(engine), List::with_capacity(0), io, crate::kernel_queue(&io))
 }
 pub fn memory_store(engine: &mut crate::Engine) {
     let limits = crate::store::limits(
@@ -375,7 +367,7 @@ pub fn values() -> crate::values::Values {
 }
 pub fn workers(config: &jig_protocol_config::Engine) -> crate::workers::Workers {
     let limits = crate::limits::for_profile(jig_protocol_config::Profile::Small, &config.limits).workers;
-    crate::workers::Workers::new(config, &files(&[]), seeds().deployment, &limits, 64).expect("fixture workers")
+    crate::workers::Workers::new(config, &files(&[]), seeds().deployment, &limits).expect("fixture workers")
 }
 pub fn assignment(config: &jig_protocol_config::Engine) -> jig_test_domain::Assignment {
     use jig_domain_accounts::{Form, Grant, Scheme};

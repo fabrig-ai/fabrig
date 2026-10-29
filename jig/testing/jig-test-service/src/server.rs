@@ -126,7 +126,7 @@ impl Server {
                     out.push(Routed::Io(io::Request::Reject { socket }));
                 } else {
                     let owner = self.name();
-                    let mut requests = Queue::with_capacity(8);
+                    let mut requests = Queue::uncapped();
                     requests.push(http::Request::Next);
                     self.connections
                         .insert(
@@ -134,9 +134,9 @@ impl Server {
                             Connection {
                                 socket,
                                 http: http::Server::new(&self.env.limits.http),
-                                events: Queue::with_capacity(8),
+                                events: Queue::uncapped(),
                                 requests,
-                                below: Queue::with_capacity(8),
+                                below: Queue::uncapped(),
                                 call: None,
                                 reply: None,
                                 reuse: None,
@@ -357,9 +357,9 @@ fn end(connection: &mut Connection, drain: bool, out: &mut Queue<Routed>) {
         connection.closing = true;
         connection.reply = None;
         connection.draining = drain;
-        connection.events = Queue::with_capacity(8);
-        connection.requests = Queue::with_capacity(8);
-        connection.below = Queue::with_capacity(8);
+        connection.events = Queue::uncapped();
+        connection.requests = Queue::uncapped();
+        connection.below = Queue::uncapped();
         out.push(Routed::Io(if drain {
             io::Request::Close { entity: connection.socket }
         } else {

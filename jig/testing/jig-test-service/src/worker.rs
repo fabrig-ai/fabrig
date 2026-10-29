@@ -11,8 +11,7 @@ use skein_lib::{Env, List, Map, Queue, Time, Token, Wall, stream};
 use smith_host_domain as smith;
 use smith_host_protocol as host;
 
-/// Bounds the shared kernel hand-offs, which stay capped: twice the old
-/// small-profile output room of 1,053 entries.
+/// The worker's kernel handoff budget, shared by its IO and root closure.
 const KERNEL_HANDOFF_ENTRIES: u32 = 2_106;
 
 /// Complete the worker's back-and-forth hand-offs across payload translation
@@ -120,9 +119,9 @@ impl Worker {
                 host_limits: agent.host_limits,
             },
             sources: crate::program_sources::Component::new(limits.detail_bytes),
-            source_events: Queue::with_capacity(2),
+            source_events: Queue::uncapped(),
             link,
-            link_out: Queue::with_capacity(link::MAX_OUT_DOWN),
+            link_out: Queue::uncapped(),
             out: Queue::uncapped(),
             events: Queue::uncapped(),
             process_events: Queue::uncapped(),
@@ -207,8 +206,8 @@ impl Worker {
             None => false,
         }
     }
-    pub(super) fn queue_room(&self) -> u32 {
-        self.link_out.capacity().max(KERNEL_HANDOFF_ENTRIES)
+    pub(super) fn queue_room() -> u32 {
+        KERNEL_HANDOFF_ENTRIES
     }
     pub(super) fn room(&self) -> bool {
         self.backlog() < u64::from(self.env.limits.watermark)
@@ -299,10 +298,7 @@ impl Worker {
         self.drain_link(now);
     }
     fn drain_link(&mut self, now: Time) {
-        for _ in 0..self.link_out.capacity() {
-            if self.link_out.is_empty() {
-                break;
-            }
+        for _ in 0..self.link_out.len() {
             match self.link_out.pop().expect("link output") {
                 link::Request::Ready => self.events.push(root::Event::Ready),
                 link::Request::Lost => self.events.push(root::Event::Lost),
@@ -434,7 +430,7 @@ impl Worker {
             self.agent.endpoints.clone(),
         )
         .expect("startup checks process limits");
-        let mut spawned = Queue::with_capacity(1);
+        let mut spawned = Queue::uncapped();
         process.spawn(
             host::Launch {
                 program: self.program.clone(),
@@ -676,6 +672,7 @@ impl Worker {
     }
     pub(super) fn work_pending(&self, now: Time) -> bool {
         !self.started
+            || !self.link_out.is_empty()
             || !self.io.is_empty()
             || !self.events.is_empty()
             || !self.process_events.is_empty()
