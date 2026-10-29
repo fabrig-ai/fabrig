@@ -1282,9 +1282,9 @@ temper box
   Captured ordinary events precede policy timers. An unsent spawn respects
   a queued withdrawal even when a terminal notice holds it back.
   Runnability and deadlines wait on the real destination's credit, so
-  blocked output does not spin the loop. The footprint counts all queue containers and owned payloads,
-  per-pipe assembly and retained chunks, formatter overlap, legacy handoff,
-  control replies and io operations, within the existing startup accounting.
+  blocked output does not spin the loop. Its internal queues grow as they
+  fill; what bounds the box is at its edges: terminal entries, pipe bytes
+  and kernel operations, as above.
 
   The machine emits typed terminal facts, without words or wall time:
   Starting for an always step; a requested group's starting, started, failed
@@ -1315,8 +1315,7 @@ temper box
   completion wall time is retained across output backpressure, rather than
   replaced with its later write time. Policy facts retain their decision's
   supplied wall time across order and terminal queues. Their admission and
-  item-size bounds include labels and the longest failure/restart line; the
-  startup footprint counts every owned label and the new fact state.
+  item-size bounds include labels and the longest failure/restart line.
 - **Its logs,** `<data>/box/logs/`, mode 0700, made as needed: one file
   per step, its name with each space a `-` and `.log` after it
   (`serve.log`, `prepare-3.log`), mode 0600, holding every line the
