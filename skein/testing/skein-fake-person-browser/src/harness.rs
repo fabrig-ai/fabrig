@@ -812,9 +812,8 @@ impl Runtime {
             if self.exchanges.iter().filter(|exchange| exchange.person == index).count() >= 2 {
                 continue;
             }
-            play.check_deadline(face, now);
-            if let Some(why) = face.failure() {
-                self.fail(index, play.at().saturating_sub(1), why);
+            if let Some((step, why)) = step_failure(*play, face, now) {
+                self.fail(index, step, why);
                 break;
             }
             for request in face.requests() {
@@ -1049,8 +1048,8 @@ impl Runtime {
             self.drive_commands(&mut faces, people, time.now);
             if self.outcome.is_none() {
                 for (index, face) in faces.iter_mut().enumerate() {
-                    if let Some(why) = face.failure() {
-                        self.fail(index, people[index].at().saturating_sub(1), why);
+                    if let Some((step, why)) = step_failure(people[index], face, time.now) {
+                        self.fail(index, step, why);
                     }
                 }
             }
@@ -1222,6 +1221,11 @@ impl Runtime {
         (outcome, self.kept, self.starved)
     }
 }
+fn step_failure(play: &mut dyn Play, face: &mut BrowserFace<'_>, now: Time) -> Option<(u32, String)> {
+    // A completed Keep advances the script before its failure names that step.
+    play.check_deadline(face, now);
+    face.failure().map(|why| (play.at().saturating_sub(1), why))
+}
 fn deadline_outcome(
     current: Option<Outcome>,
     person: u32,
@@ -1258,6 +1262,8 @@ fn parse_pidfd_pid(source: &str) -> Option<u32> {
 
 #[cfg(test)]
 mod deadline_tests;
+#[cfg(test)]
+mod failure_tests;
 fn page(index: usize) -> Token {
     Token::new(100 + u64::try_from(index).expect("person fits"))
 }
