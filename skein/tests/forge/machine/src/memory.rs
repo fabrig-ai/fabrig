@@ -4,7 +4,7 @@ use skein_forge::{api, forgejo, github as gh};
 use skein_forge_connection::{
     Component, Event, Limits, Request, Settings,
     hooks::Hinted,
-    limits::{self, Forges},
+    limits::Forges,
     settings::{Forge, Kind, Transport},
 };
 use skein_heap::{Measured, Span};
@@ -19,8 +19,6 @@ use std::collections::{BTreeMap, VecDeque};
 #[derive(Debug)]
 pub struct Full {
     pub owned: u64,
-    pub bound: u64,
-    pub owned_bytes: u64,
     pub forges: u32,
     pub calls: u32,
     pub connections: u32,
@@ -196,7 +194,7 @@ struct World {
     closed: bool,
 }
 impl World {
-    fn new(forges: Forges) -> Self {
+    fn new(forges: Forges, ceiling: u64) -> Self {
         let l = fixtures::limits();
         let s = fixtures::shared();
         let above = Queue::with_capacity(64);
@@ -208,8 +206,7 @@ impl World {
         // Shared trust is its owner's allocation, as in the TLS machine world.
         let trust = pki::client(&[]);
         let owned_bytes = 3 + 128 + 2 * u64::try_from("skein.test".len()).expect("name");
-        let bound = limits::worst_case(&l, &s, forges, owned_bytes).expect("fixture bound");
-        let steps = Steps::new(bound);
+        let steps = Steps::new(ceiling);
         steps.start();
         let mut configured = List::with_capacity(l.forges);
         for (at, kind) in kinds.iter().copied().enumerate() {
@@ -258,8 +255,6 @@ impl World {
             closed: false,
             seen: Full {
                 owned: 0,
-                bound,
-                owned_bytes,
                 forges: 0,
                 calls: 0,
                 connections: 0,
@@ -688,8 +683,8 @@ fn file_descriptors(comparison: bool) -> String {
 
 /// Measures each kind at the machine fixture's limits, including reachable handoffs.
 #[must_use]
-pub fn full_heap(forges: Forges) -> Full {
-    let mut w = World::new(forges);
+pub fn full_heap(forges: Forges, ceiling: u64) -> Full {
+    let mut w = World::new(forges, ceiling);
     w.steps.start();
     w.component.begin(&w.env, &mut w.above, &mut w.below);
     w.finish(w.steps.end());

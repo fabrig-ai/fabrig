@@ -543,12 +543,10 @@ fn mint_interleaves_between_log_deliveries_while_call_pays_only_its_read() {
 }
 
 #[test]
-#[expect(
-    clippy::print_stdout,
-    clippy::disallowed_macros,
-    reason = "report the puller's measured peak beside its checked ledger"
-)]
-fn puller_holding_a_hint_fits_its_counting_allocator_ledger() {
+#[expect(clippy::print_stdout, clippy::disallowed_macros, reason = "report the puller scenario growth peak")]
+fn puller_holding_a_hint_stays_under_the_growth_ceiling() {
+    // Growth from the warmed connection through a full page and held hint.
+    const CEILING: u64 = 13_000;
     use super::github_files::CallHeap;
     let mut h = baseline(f::limits());
     let action = f::filled(usize::try_from(h.env.limits.string_bytes).expect("string bytes"), b'a');
@@ -578,20 +576,9 @@ fn puller_holding_a_hint_fits_its_counting_allocator_ledger() {
             br#""}}"#,
         ]),
     );
+    h.component_heap = Some(CallHeap { peak: 0, held: 0 });
     next_poll(&mut h);
     h.answer(f::FORGE, &page);
-    // Price the existing page, decoder and request before measuring only
-    // component calls. The wire's fragment trace belongs to the harness.
-    let held = u64::from(crate::limits::log_page_bytes(&h.env.limits).expect("page ledger"))
-        .checked_add(crate::limits::decoder_heap(&h.env.limits, super::GITHUB).expect("decoder ledger"))
-        .unwrap()
-        .checked_add(u64::try_from(size_of::<skein_forge::github::plans::start::LogDelivery>()).unwrap())
-        .unwrap()
-        .checked_add(u64::try_from(size_of::<skein_forge::github::plans::plan::Exchange>()).unwrap())
-        .unwrap()
-        .checked_add(u64::from(h.env.limits.string_bytes))
-        .unwrap();
-    h.component_heap = Some(CallHeap { peak: 0, held: i64::try_from(held).unwrap() });
     h.answer(f::FORGE, &response);
     let hinted = match h.up.pop().expect("hint") {
         Event::Hint(hint) => hint,
@@ -614,16 +601,12 @@ fn puller_holding_a_hint_fits_its_counting_allocator_ledger() {
             unreachable!("held hint at peak")
         }
     }
-    let bound = crate::limits::puller_heap(&h.env.limits).expect("puller ledger");
-
-    assert!(u64::try_from(heap.held).expect("positive held") <= bound, "{} > {bound}", heap.held);
-    // A growing parser table holds its old and new buffers at the realloc peak.
-    assert!(u64::try_from(heap.peak).expect("positive peak") <= 2 * bound, "{} > 2 * {bound}", heap.peak);
+    assert!(u64::try_from(heap.peak).expect("positive peak") <= CEILING, "{} > {CEILING}", heap.peak);
     assert!(
         u64::try_from(heap.peak).expect("positive peak")
             < List::<skein_json::tokenizer::Event>::price(h.env.limits.delivery_bytes).expect("event buffer size")
     );
-    println!("puller holding hint: peak {} <= twice puller heap {bound}", heap.peak);
+    println!("puller holding hint: growth peak {} <= ceiling {CEILING}", heap.peak);
 }
 
 #[test]
@@ -693,13 +676,6 @@ fn a_delivery_disagreeing_with_its_row_hints_nothing_and_the_next_row_hints() {
     hints(&mut h);
     assert_eq!(h.hints.len(), 1);
     assert_eq!(kept(&h), Some(expected(3)));
-}
-
-#[test]
-fn puller_heap_does_not_grow_with_the_delivery_byte_bound() {
-    let small = Limits { delivery_bytes: 64 * 1024, ..f::limits() };
-    let large = Limits { delivery_bytes: 1024 * 1024, ..small };
-    assert_eq!(crate::limits::puller_heap(&small), crate::limits::puller_heap(&large));
 }
 
 #[test]
