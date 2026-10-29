@@ -108,11 +108,10 @@ pub fn root(
         limits.journal.held = 1024;
     }
 
-    // The demo's end may select every live task (temper's `worst_case`).
+    // The demo's end may select every live task; engine::valid checks coverage.
     limits.forge.tasks = limits.tasks.tasks;
 
-    // The core's inbox census and waiting entries cover every live task
-    // (jig's core `worst_case`).
+    // Core valid checks the inbox census and waiting-entry capacities.
     limits.people.inbox_tasks = limits.tasks.tasks * 2;
     limits.people.inbox_recipients = limits.tasks.inbox_messages * 2 + limits.authority.roles + 4;
 
