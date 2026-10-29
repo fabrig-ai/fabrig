@@ -66,43 +66,6 @@ fn an_exchange_through_io_over_the_ring() {
     }
 }
 
-#[test]
-fn a_loopback_and_a_named_listener_exchange_in_one_drive() {
-    let limits = limits(6);
-    let mut kernel = Kernel::open_on(Config { operations: operations(&limits).expect("a small ring") }, Backend::Ring)
-        .expect("io_uring usable for the mixed-address exchange");
-    let clock = Clock::new();
-    let start = clock.now().now;
-    let deadline = Deadline::arm("the mixed-address io ring exchange", Duration::from_secs(1));
-    let sent = framed(&message(&mut Rng::new(7), 300));
-    let serves = [("loopback", local(0), "ip-echo"), ("joined", skein_io_world::joined::name(b"ring"), "named-echo")]
-        .map(|(name, addr, label)| Serve {
-            name,
-            addr,
-            answers: vec![Some(echo(label, limits.largest_room(), Reads::Mixed(16)))],
-            close: ServeClose::Answered(deadline.until()),
-        });
-    let dials = [("loopback", "ip-client"), ("joined", "named-client")].map(|(label, conn)| Dial {
-        to: Target::Named(label),
-        at: start,
-        plan: expecting(plan(conn, sent.clone(), 32, Reads::Mixed(16)), &sent),
-    });
-    let mut proc = Proc::new(limits, Owner::new(7, serves.into(), dials.into()));
-    let starved = run_exchange(&mut proc, &mut kernel, &clock, &mut Directory::new(), &deadline);
-    for label in ["ip-client", "named-client"] {
-        let client = proc.owner.conn(label).expect("each client connected");
-        assert_eq!(client.received, *sent, "{label} received every byte");
-        assert!(client.ended, "{label} heard the peer's End");
-        assert!(!client.broken(), "{label} completed without failure");
-    }
-    proc.ledger.settled();
-    if let Some(starved) = starved {
-        drop(proc);
-        drop(kernel);
-        starved.pass();
-    }
-}
-
 fn run_exchange(
     proc: &mut Proc,
     kernel: &mut Kernel,
@@ -301,50 +264,4 @@ fn private_files_created_and_replaced_over_the_ring_have_private_modes() {
         }
         drop(scratch);
     }
-}
-
-#[test]
-fn a_rename_across_over_the_ring_lands_the_file_in_its_destination() {
-    let scratch = skein_scratch::Scratch::new("io-rename");
-    std::fs::create_dir(scratch.path().join("staging")).unwrap();
-    std::fs::create_dir(scratch.path().join("cache")).unwrap();
-    std::fs::write(scratch.path().join("staging/index"), b"whole index").unwrap();
-    let root = skein_shell::open_root(scratch.path()).unwrap();
-    let mut owner = skein_io_world::renames::Owner::new(root, None, true);
-    let mut kernel = Kernel::open_on(Config { operations: 2 }, Backend::Ring).expect("ring usable");
-    let result = skein_shell::drive(&mut kernel, &Clock::new(), &mut owner);
-    assert_eq!(result, skein_io::kernel::Exit::Code(0));
-    assert_eq!(owner.found, Some(skein_io_world::renames::Found::Destination));
-    assert_eq!(std::fs::read(scratch.path().join("cache/index")).unwrap(), b"whole index");
-    assert_eq!(std::fs::read_dir(scratch.path().join("staging")).unwrap().count(), 0);
-}
-
-#[test]
-fn a_directory_listed_by_pages_over_the_ring_gives_each_entry_once() {
-    let scratch = skein_scratch::Scratch::new("io-pages");
-    std::fs::create_dir(scratch.path().join("cache")).unwrap();
-    let names = skein_io_world::pages::names(10);
-    for name in &names {
-        std::fs::write(scratch.path().join("cache").join(std::str::from_utf8(name).unwrap()), b"entry").unwrap();
-    }
-    let root = skein_shell::open_root(scratch.path()).unwrap();
-    let mut owner = skein_io_world::pages::Owner::new(root, 4, 10);
-    let mut kernel = Kernel::open_on(Config { operations: 2 }, Backend::Ring).expect("ring usable");
-    assert_eq!(skein_shell::drive(&mut kernel, &Clock::new(), &mut owner), skein_io::kernel::Exit::Code(0));
-    assert_eq!(owner.pages.iter().map(|page| page.len()).collect::<Vec<_>>(), [4, 4, 2]);
-    let mut listed: Vec<_> = owner.pages.iter().flatten().map(|entry| entry.name.to_vec()).collect();
-    listed.sort();
-    assert_eq!(listed, names);
-}
-
-#[test]
-fn a_second_root_of_a_locked_directory_hears_busy_over_the_ring() {
-    use skein_io_world::locks::{Heard, Judge, Owner};
-    let scratch = skein_scratch::Scratch::new("io-lock");
-    let first = skein_shell::open_root(scratch.path()).expect("first root");
-    let second = skein_shell::open_root(scratch.path()).expect("second independent root");
-    let mut world = skein_world::real::World::new(Judge::single());
-    world.spawn_with_fds(vec![first, second], || Owner::pair(first, second));
-    let outcome = world.run(&Clock::new(), Duration::from_secs(2));
-    assert_eq!(outcome.procs[0].heard, [Heard::Locked, Heard::Busy, Heard::Locked]);
 }

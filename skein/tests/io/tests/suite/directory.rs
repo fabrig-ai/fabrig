@@ -82,6 +82,14 @@ fn a_second_owner_hears_busy_until_the_first_is_killed() {
     }
 }
 #[test]
+fn a_second_independent_root_hears_busy_until_the_first_closes() {
+    for seed in [0, 1, 17] {
+        let outcome = locks::pair_world(seed).run();
+        assert_eq!(outcome.procs[0].heard, [Heard::Locked, Heard::Busy, Heard::Locked], "seed {seed}");
+        assert_eq!(outcome.machine.files.open_handles(), 0);
+    }
+}
+#[test]
 fn a_lock_asked_again_through_its_root_is_locked() {
     for seed in [0, 1, 17] {
         let outcome = locks::world(seed, false).run();
