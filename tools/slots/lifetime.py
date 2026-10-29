@@ -72,6 +72,27 @@ def task_paths(root, report, directory):
     return root, report, directory, membership
 
 
+def worker_paths(root, identifier):
+    """Validate history before loading one worker's metadata and directory."""
+    root = history_root_text(root)
+    with open(root + "/tmp/codex-run/" + identifier + "/meta", "rb") as source:
+        metadata = source.read().replace(b"\0", b"")
+    directory = ""
+    # Match `while IFS='=' read -r key value`: NULs are ignored, the final
+    # unterminated line is not read, and the last complete dir field wins.
+    for line in metadata.split(b"\n")[:-1]:
+        key, _, value = line.partition(b"=")
+        if key == b"dir":
+            # A lone final delimiter terminates the second field; further
+            # delimiters belong to its remaining text.
+            if value.endswith(b"=") and value.count(b"=") == 1:
+                value = value[:-1]
+            directory = os.fsdecode(value)
+    directory = checked_path_text(directory)
+    membership = "slot" if slot_text(directory) is not None else "other"
+    return root, metadata, directory, membership
+
+
 def no_links(path):
     return Path(checked_path_text(path, collapse=False))
 
@@ -96,10 +117,14 @@ PATH_MODES = {"canonical": checked_path_text, "protect": protected_text,
               "root": history_root_text, "directory": directory_text}
 
 if (__name__ == "__main__" and len(sys.argv) > 1
-        and (sys.argv[1] in PATH_MODES or sys.argv[1] == "task-paths")):
+        and (sys.argv[1] in PATH_MODES or sys.argv[1] in ("task-paths", "worker-paths"))):
     os.umask(0o077)
     try:
-        if sys.argv[1] == "task-paths":
+        if sys.argv[1] == "worker-paths":
+            if len(sys.argv) != 4:
+                raise RuntimeError("worker path validation requires root and run identifier")
+            sys.stdout.buffer.write(b"\0".join(os.fsencode(value) for value in worker_paths(*sys.argv[2:])) + b"\0")
+        elif sys.argv[1] == "task-paths":
             if len(sys.argv) != 5:
                 raise RuntimeError("task path validation requires root, report and directory")
             # Publish only after every check succeeds. NUL preserves path newlines.

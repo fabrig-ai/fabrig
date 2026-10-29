@@ -434,6 +434,45 @@ ln -s "$kit/codex-run" "$t/bin/aliased-run"
 output=$("$t/bin/aliased-run" stale)
 [[ -z $output && ! -e $DEV_ROOT/tmp/codex-run && ! -e $fake/launch.args ]]
 checks=$((checks + 1))
+# A worker must check both framing and helper status before parsing metadata.
+python3 -I -B - "$kit/../slots/lifetime.py" "$t" <<'PYWORKERPATHS'
+import os
+from pathlib import Path
+import subprocess
+import sys
+
+helper, fixture = sys.argv[1:]
+root = Path(fixture) / 'worker-history'
+meta = root / 'tmp/codex-run/fixture/meta'
+meta.parent.mkdir(parents=True)
+directory = os.fsencode(Path(fixture) / 'work dir')
+metadata = (b'dir=' + directory + b'=\nunknown=retained\n' +
+            b'dir=' + directory + b'\xff\0==\n' + b'dir=unterminated')
+meta.write_bytes(metadata)
+result = subprocess.run([sys.executable, '-I', '-S', '-B', helper, 'worker-paths',
+                         str(root), 'fixture'], stdin=subprocess.DEVNULL,
+                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+assert result.stdout.split(b'\0') == [os.fsencode(root), metadata.replace(b'\0', b''),
+                                      directory + b'\xff==', b'other', b'']
+assert meta.read_bytes() == metadata
+PYWORKERPATHS
+checks=$((checks + 1))
+cp "$kit/../slots/lifetime.py" "$t/worker-lifetime.saved"
+cat >"$kit/../slots/lifetime.py" <<'PYWORKERFAULT'
+import os
+import sys
+short = os.path.exists(os.path.join(os.path.dirname(__file__), 'short-worker-result'))
+values = [sys.argv[2], '', sys.argv[2], 'other']
+sys.stdout.write('\0'.join(values[:3] if short else values) + '\0')
+sys.exit(0 if short else 7)
+PYWORKERFAULT
+refusal 'failed worker path helper refuses complete output' _run absent
+[[ ! -e $fake/codex.calls && ! -e $DEV_ROOT/tmp/codex-run ]]
+touch "$kit/../slots/short-worker-result"
+refusal 'incomplete worker path output refuses successful helper' _run absent
+[[ ! -e $fake/codex.calls && ! -e $DEV_ROOT/tmp/codex-run ]]
+rm "$kit/../slots/short-worker-result"
+mv "$t/worker-lifetime.saved" "$kit/../slots/lifetime.py"
 refusal 'owner invalid name' owner ../oops "$t/brief.md"
 refusal 'owner relative brief' owner o/fixture relative
 refusal 'owner unreadable brief' owner o/fixture "$t/missing"

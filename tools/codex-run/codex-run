@@ -343,12 +343,24 @@ trim_slot() {
 
 task_run() {
     (($# == 1)) || refuse 'usage: codex-run _run ID'
-    local id=$1 state=$runs/$1 key value
+    local id=$1 state key value paths_fd paths_pid
     local model='' effort='' read_only='' task='' dir='' report='' to='' started='' on_stop='' tries=0 run_exit=0
+    local -a paths=()
+    # Validate history before reading metadata, then the metadata's directory,
+    # in one helper. The framed snapshot is also what this worker parses.
+    exec {paths_fd}< <(python3 -I -S -B "$fabrig/tools/slots/lifetime.py" worker-paths "$root" "$id" 2>&1)
+    paths_pid=$!
+    mapfile -d '' -t paths <&"$paths_fd"
+    exec {paths_fd}<&-
+    wait "$paths_pid" || refuse "${paths[*]}"
+    ((${#paths[@]} == 4)) || refuse 'incomplete worker path validation'
+    root=${paths[0]} runs=${paths[0]}/tmp/codex-run
+    state=$runs/$id
     while IFS='=' read -r key value; do
         case $key in model|effort|read_only|task|dir|report|to|started|on_stop) printf -v "$key" '%s' "$value" ;; esac
-    done <"$state/meta"
-    lease_task run
+    done < <(printf '%s' "${paths[1]}")
+    dir=${paths[2]}
+    lease_task run "${paths[3]}"
     touch "$state/events.jsonl" "$state/stderr.log"
     trap 'finish_task "$?"' EXIT
     trap 'terminate 143' TERM
@@ -548,7 +560,7 @@ mode=${1:-}
 if [[ $mode == _run && ${CODEX_RUN_SUBREAPER:-} != "$$" ]] && (($# == 2)); then
     exec python3 -I -c 'import ctypes, os, sys; libc = ctypes.CDLL(None, use_errno=True); libc.prctl(36, 1, 0, 0, 0) == 0 or sys.exit("codex-run: cannot become child subreaper: " + os.strerror(ctypes.get_errno())); os.environ["CODEX_RUN_SUBREAPER"] = str(os.getpid()); os.execv(sys.argv[1], sys.argv[1:])' "$script" "${original_args[@]}"
 fi
-if [[ $mode != task ]]; then normalize_root; fi
+if [[ $mode != task && $mode != _run ]]; then normalize_root; fi
 (($# == 0)) || shift
 case $mode in
     task) task_launch "$@" ;;
