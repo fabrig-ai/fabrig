@@ -71,7 +71,7 @@ fn io_events_and_completions_reach_the_layer_whose_tokens_they_carry() {
         stand.service.end(),
         Some(&End::Stopped(Stop::Listener {
             listener: crate::Listening::Clients,
-            address: Some(skein_io::Addr::Ip("127.0.0.1:7100".parse().unwrap())),
+            address: Some(skein_io::Addr::Ip(([127, 0, 0, 1], 7100).into())),
             error: None
         })),
         "clients event reached engine"
@@ -128,7 +128,7 @@ fn an_in_process_workers_bind_has_no_listening_note() {
     service.told.push(skein_io::Event::Listening {
         owner: Token::new(crate::tokens::WORKER_LISTENERS),
         listener: Token::new(77),
-        addr: skein_io::Addr::InProcess(skein_io::Name::new(b"workers").unwrap()),
+        addr: skein_io::Addr::InProcess(skein_io::Name::new(b"workers").expect("configured worker listener")),
     });
     crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
     assert!(service.listening().is_empty());

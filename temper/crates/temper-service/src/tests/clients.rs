@@ -285,7 +285,7 @@ fn a_clients_listener_failure_stops_the_engine() {
         service.end(),
         Some(&crate::End::Stopped(crate::Stop::Listener {
             listener: crate::Listening::Clients,
-            address: Some(skein_io::Addr::Ip("127.0.0.1:7100".parse().unwrap())),
+            address: Some(skein_io::Addr::Ip(([127, 0, 0, 1], 7100).into())),
             error: None
         }))
     );
@@ -328,7 +328,7 @@ fn failed_clients_bind(opened: bool, closed: bool) {
         service.end(),
         Some(&crate::End::Stopped(crate::Stop::Listener {
             listener: crate::Listening::Clients,
-            address: Some(skein_io::Addr::Ip("127.0.0.1:7100".parse().unwrap())),
+            address: Some(skein_io::Addr::Ip(([127, 0, 0, 1], 7100).into())),
             error: if closed { None } else { Some(skein_io::Error::Refused) }
         }))
     );

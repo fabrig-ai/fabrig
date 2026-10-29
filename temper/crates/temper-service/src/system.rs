@@ -876,10 +876,7 @@ fn route_events(service: &mut Service) {
             | io::Event::Closed { owner } => Some(*owner),
             io::Event::Resized | io::Event::Shutdown { .. } => None,
         };
-        let error = match &event {
-            io::Event::Failed { error, .. } => Some(*error),
-            _ => None,
-        };
+        let error = if let io::Event::Failed { error, .. } = &event { Some(*error) } else { None };
         if owner == Some(Token::new(1)) {
             if let io::Event::Closed { .. } = event {
                 service.signals = None;

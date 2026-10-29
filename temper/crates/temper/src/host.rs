@@ -508,7 +508,7 @@ fn other_endings_keep_their_exit_behavior() {
         (
             Some(End::Stopped(Stop::Listener {
                 listener: temper_service::Listening::Clients,
-                address: Some(skein_io::Addr::Ip("127.0.0.1:7100".parse().unwrap())),
+                address: Some(skein_io::Addr::Ip(([127, 0, 0, 1], 7100).into())),
                 error: Some(skein_io::Error::Other),
             })),
             false,
@@ -518,7 +518,9 @@ fn other_endings_keep_their_exit_behavior() {
         (
             Some(End::Stopped(Stop::Listener {
                 listener: temper_service::Listening::Workers,
-                address: Some(skein_io::Addr::InProcess(skein_io::Name::new(b"workers").unwrap())),
+                address: Some(skein_io::Addr::InProcess(
+                    skein_io::Name::new(b"workers").expect("configured worker listener"),
+                )),
                 error: None,
             })),
             false,

@@ -256,7 +256,9 @@ fn an_io_listener_failure_stops_the_engine() {
         service.end(),
         Some(&crate::End::Stopped(crate::Stop::Listener {
             listener: crate::Listening::Workers,
-            address: Some(skein_io::Addr::InProcess(skein_io::Name::new(b"workers").unwrap())),
+            address: Some(skein_io::Addr::InProcess(
+                skein_io::Name::new(b"workers").expect("configured worker listener")
+            )),
             error: None
         }))
     );
