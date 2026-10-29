@@ -713,7 +713,7 @@ fn paste_row(limits: &domain::Limits, request: Token, connected: bool, why: Opti
     )
     .unwrap();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits };
-    let mut out = Queue::with_capacity(domain::max_out(limits));
+    let mut out = Queue::uncapped();
     domain::step(
         &mut forge,
         &env,
