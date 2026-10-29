@@ -1,11 +1,5 @@
 //! The shipped box, first repository and first landed task across a restart.
-#[expect(
-    dead_code,
-    clippy::unused_self,
-    clippy::struct_field_names,
-    reason = "shared process support includes unused fixtures for other stories"
-)]
-mod support;
+use crate::support;
 
 use serde_json::{Value, json};
 use std::fs;

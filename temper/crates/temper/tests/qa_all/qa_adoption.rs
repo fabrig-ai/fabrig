@@ -1,5 +1,5 @@
 //! Checks demo adoption and its listener, secret and handover against protocol/setup.md, 5.1, 5.3, 5.4, 8.2–8.4 and 13.1; a QA pass run by `--profile qa`.
-pub mod support;
+use crate::support;
 
 use std::{fs, net::TcpListener, os::unix::fs::PermissionsExt, path::PathBuf, process::Command};
 

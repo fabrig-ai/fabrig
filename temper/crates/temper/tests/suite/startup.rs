@@ -1,6 +1,4 @@
-#[path = "support/listeners.rs"]
-pub mod listeners;
-pub mod support;
+use crate::{listeners, support};
 use std::{
     fmt::Write,
     fs,
@@ -1898,7 +1896,7 @@ fi
 test "$LISTEN_FDS" = 1 || exit 22
 test -S /proc/self/fd/3 || exit 23
 export TEMPER_FORGE_PARENT_HELPER=1
-'{}' --exact forge_parent_listener_helper --nocapture &
+'{}' --exact startup::forge_parent_listener_helper --nocapture &
 helper=$!
 trap 'printf term > "{pid}.term"; wait "$helper"; exit 37' TERM
 printf '%s' "$helper" > '{pid}.helper'

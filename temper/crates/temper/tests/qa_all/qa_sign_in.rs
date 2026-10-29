@@ -1,6 +1,6 @@
 //! Signing in by the printed link (client/README.md 6.1, 6.7, 7; client/tools.md 8.1; jig's domain/people.md 3): a QA pass run by `--profile qa`.
 #![expect(clippy::unwrap_used, reason = "Test fixtures may panic (skein testing-strategy.md 4).")]
-pub mod support;
+use crate::support;
 
 use skein_io::kernel::Exit;
 use std::{

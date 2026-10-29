@@ -1,5 +1,5 @@
 //! M5 QA-B: FILE refusals and an open client during an account move.
-pub mod support;
+use crate::support;
 
 const MOVED_PARTS: usize = 6; // protocol/llm.md 5.6: five outer fields and a record
 

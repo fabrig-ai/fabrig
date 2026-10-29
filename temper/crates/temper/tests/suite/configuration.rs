@@ -1,4 +1,4 @@
-pub mod support;
+use crate::support;
 
 // The process configuration reader admits a MiB, 64K tokens and 32 levels.
 const DOCUMENT: jig_protocol_config::DocumentLimits =
@@ -81,7 +81,7 @@ fn assert_owned_limits(limits: &serde_json::Value) {
         "tasks.authority_bytes":512,"tasks.batch":1
     }}}});
     let agent: serde_json::Value =
-        serde_json::from_slice(include_bytes!("../../../docs/examples/owned/agent.json")).expect("owned agent");
+        serde_json::from_slice(include_bytes!("../../../../docs/examples/owned/agent.json")).expect("owned agent");
     support::configuration::turn_bounds::apply(&mut expected, support::configuration::turn_bounds::turn_body(&agent));
     assert_eq!(limits, &expected["engine"]["limits"]);
 }

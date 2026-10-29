@@ -1,5 +1,5 @@
 //! A chat's turn and resume admission edges (protocol/configuration.md, 5, 7, 11; protocol/setup.md, 8.1); a QA pass run by `--profile qa`.
-pub mod support;
+use crate::support;
 
 use serde_json::{Value, json};
 use std::{fs, mem::size_of};

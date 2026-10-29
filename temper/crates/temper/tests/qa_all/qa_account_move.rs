@@ -1,6 +1,6 @@
 //! QA-A: interrupted and refused account moves; client/tools.md 5.5, 6.3, 15;
 //! jig's domain/accounts.md 6 and protocol/llm.md 5.6. All records are fake.
-pub mod support;
+use crate::support;
 
 use std::{fs, thread, time::Duration};
 use support::account_move_qa::{Boundary, DEADLINE_MS, Fixture, refused, success};

@@ -1,12 +1,6 @@
 //! Design-only process QA: protocol/setup.md 6.4–7.3, 8.4 and 13.4;
 //! draft/first-run.md 2.3 and step 4; client/forge.md 5.4.
-#[expect(
-    dead_code,
-    clippy::unused_self,
-    clippy::struct_field_names,
-    reason = "Unchanged shared process harness; this binary exercises the first run only."
-)]
-mod support;
+use crate::support;
 
 use serde_json::Value;
 use skein_io::kernel::Exit;

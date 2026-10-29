@@ -1,7 +1,5 @@
 //! Design-only QA of protocol/setup.md, 6.5, 7.1 and 8.2–8.3, through the shipped binary.
-#[path = "support/listeners.rs"]
-pub mod listeners;
-pub mod support;
+use crate::{listeners, support};
 
 use std::{collections::BTreeSet, fs, net::TcpListener, path::Path, process::Command};
 

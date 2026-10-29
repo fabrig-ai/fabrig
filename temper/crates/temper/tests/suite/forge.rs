@@ -1,4 +1,4 @@
-pub mod support;
+use crate::support;
 use std::{fs, os::unix::fs::PermissionsExt, process::Command};
 use temper_forge_setup_shell::process;
 #[test]

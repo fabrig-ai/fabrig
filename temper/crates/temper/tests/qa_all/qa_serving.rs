@@ -1,6 +1,6 @@
 //! What temper's clients' listener promises a browser (client/browser.md, 2.2): its routes, its bundle, the
 //! page's policy and the start's refusals of a bad bundle. A QA pass: aimed at the design, run by `--profile qa`.
-pub mod support;
+use crate::support;
 use skein_io::kernel::{Exit, Signal};
 use skein_lib::Duration;
 use skein_world::end_to_end::Binary;

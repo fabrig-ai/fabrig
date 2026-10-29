@@ -1,4 +1,4 @@
-pub mod support;
+use crate::support;
 
 use serde_json::{Value, json};
 use std::collections::BTreeSet;

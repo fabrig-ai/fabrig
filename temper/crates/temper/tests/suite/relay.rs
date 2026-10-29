@@ -1,5 +1,5 @@
 //! Offline proof of the live relay; every upstream socket is loopback plaintext.
-pub mod support;
+use crate::support;
 use std::{
     fs,
     io::{Read, Write},

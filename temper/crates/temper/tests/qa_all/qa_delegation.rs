@@ -1,5 +1,5 @@
 //! A chat's delegation card through the shipped terminal, against client/README.md, 5.7: a QA pass run by `--profile qa`.
-pub mod support;
+use crate::support;
 
 use skein_world::end_to_end::{Binary, Command, Mode};
 use support::{Scratch, WITHIN, configuration, terminal};

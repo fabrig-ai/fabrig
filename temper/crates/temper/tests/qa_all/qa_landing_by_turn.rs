@@ -1,11 +1,5 @@
 //! The shipped box lands the owner's first change by turn on its owned Forgejo.
-#[expect(
-    dead_code,
-    clippy::unused_self,
-    clippy::struct_field_names,
-    reason = "shared process support includes unused fixtures for other stories"
-)]
-mod support;
+use crate::support;
 
 use serde_json::{Value, json};
 use skein_io::kernel::Exit;

@@ -1,11 +1,5 @@
 //! Startup refusals promised by protocol/sign-in.md 9.2 and 9.7.
-#[expect(
-    dead_code,
-    clippy::unused_self,
-    clippy::struct_field_names,
-    reason = "shared process support includes unused fixtures for other stories"
-)]
-mod support;
+use crate::support;
 
 use std::{
     fs,

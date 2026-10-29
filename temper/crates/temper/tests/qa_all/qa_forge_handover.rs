@@ -1,12 +1,6 @@
 //! Design-only QA of protocol/setup.md 6.5: the engine owns the handover.
 //! These tests inspect processes, files, the forge API and the client's rows.
-#[expect(
-    dead_code,
-    clippy::unused_self,
-    clippy::struct_field_names,
-    reason = "Unchanged shared process harness APIs; this QA binary exercises handover only."
-)]
-mod support;
+use crate::support;
 
 use skein_io::kernel::Exit;
 use std::{

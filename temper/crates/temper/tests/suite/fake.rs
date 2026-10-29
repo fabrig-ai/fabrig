@@ -1,7 +1,5 @@
 //! The QA runner starts the shipped binary, then reads files and serves requests.
-#[path = "support/listeners.rs"]
-pub mod listeners;
-pub mod support;
+use crate::{listeners, support};
 use serde_json::{Value, json};
 use std::{
     fs,

@@ -1,4 +1,4 @@
-pub mod support;
+use crate::support;
 
 use skein_fake_person::{Face, Find, Found, Step, TreeFace};
 use skein_lib::Queue;
