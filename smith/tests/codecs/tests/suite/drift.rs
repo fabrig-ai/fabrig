@@ -24,8 +24,7 @@ fn transcript_schema_matches_generated_code_and_all_goldens() {
     let root = skein_scratch::paths::tree().join("crates/smith-transcript");
     let source = fs::read_to_string(root.join("schema/transcript-v6.schema")).expect("transcript schema");
     let schema = parse(&source).expect("schema valid");
-    // jig still reads Turn::worst_case_bytes until its caller migration lands.
-    let output = generate_named(&schema, Names::Both);
+    let output = generate_named(&schema, Names::Bounds);
     write_generated_code_and_goldens(&root.join("src/generated/v6.rs"), &root.join("golden/v6"), &output);
     let committed = fs::read_to_string(root.join("src/generated/v6.rs")).expect("generated code");
     assert_eq!(committed, output.rust, "regenerate transcript codec with skein-codegen");
