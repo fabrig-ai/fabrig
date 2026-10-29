@@ -507,9 +507,12 @@ mod tests {
         for number in 1..=credit {
             receive_turn(&mut timing, number, 1, u64::from(number) * 1000);
         }
-        let queued: Vec<_> = timing.turns.iter().copied().collect();
+        let mut queued = skein_lib::List::with_capacity(credit);
+        for measurement in &timing.turns {
+            queued.push(*measurement).unwrap();
+        }
         receive_turn(&mut timing, credit.checked_add(1).unwrap(), 1, u64::from(credit) * 1000 + 500);
-        assert_eq!(timing.turns.iter().copied().collect::<Vec<_>>(), queued);
+        assert!(timing.turns.iter().eq(queued.iter()), "over-credit input leaves every queued measurement intact");
         timing.told(1, Some(Token::new(1)), clock(u64::from(credit) * 1000 + 1000));
         assert_eq!(timing.elapsed, Duration::from_millis(900));
         assert_eq!(timing.previous, clock(1000));
