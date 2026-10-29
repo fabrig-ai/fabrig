@@ -148,8 +148,11 @@ impl Client {
         self.requests.clear();
     }
     pub fn step(&mut self, event: Event) {
+        self.step_at(Time::ZERO, event);
+    }
+    pub fn step_at(&mut self, now: Time, event: Event) {
         self.requests.clear();
-        self.machine.step(Time::ZERO, Wall::EPOCH, event, &mut self.out);
+        self.machine.step(now, Wall::EPOCH, event, &mut self.out);
         self.requests = List::with_capacity(self.out.len());
         while let Some(request) = self.out.pop() {
             self.requests.push(request).unwrap();
