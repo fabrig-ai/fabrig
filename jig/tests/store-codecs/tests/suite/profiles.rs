@@ -67,8 +67,14 @@ fn both_shipped_profiles_are_admitted_by_the_store() {
     for profile_name in [Profile::Small, Profile::Standard] {
         let limits = profile(profile_name);
         assert!(codec::limits(&limits.core).is_some(), "{profile_name:?}");
-        let sizes = jig_protocol_store::sizes::check(&limits.core, &application, &limits.journal, &STORE, 1)
-            .expect("shipped profile fits the map-budget commit envelope");
+        let sizes = jig_protocol_store::sizes::check_commits(
+            &limits.core,
+            &application,
+            &jig_protocol_store::sizes::commits(&limits.journal),
+            &STORE,
+            1,
+        )
+        .expect("shipped profile fits the map-budget commit envelope");
         println!(
             "{profile_name:?}: largest key={}, value={}, commit={}, ops={}",
             sizes.key, sizes.value, sizes.commit, sizes.ops

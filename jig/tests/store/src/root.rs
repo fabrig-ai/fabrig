@@ -243,7 +243,8 @@ pub fn limits() -> Limits {
         page: skein_kv::Page { rows: 2, bytes: 525_312 },
         deadline: Duration::from_secs(1),
     };
-    let sizes = sizes::check(&CORE_LIMITS, &APPLICATION, &journal, &map, 1).expect("scripted record bounds fit");
+    let sizes = sizes::check_commits(&CORE_LIMITS, &APPLICATION, &sizes::commits(&journal), &map, 1)
+        .expect("scripted record bounds fit");
     map.key = sizes.key;
     map.value = sizes.value;
     map.ops = sizes.ops;

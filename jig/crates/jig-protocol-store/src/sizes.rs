@@ -40,6 +40,21 @@ pub struct Sizes {
     pub commit: u32,
 }
 
+/// The store's commit edge (protocol/store.md, 5.4): commits it queues at
+/// once and writes in one commit.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Commits {
+    pub in_flight: u32,
+    pub writes: u32,
+}
+
+/// The commit edge read from skein's journal limits, until the store's
+/// `Limits` holds a `Commits` of its own.
+#[must_use]
+pub const fn commits(journal: &skein_lib::JournalLimits) -> Commits {
+    Commits { in_flight: journal.commits, writes: journal.writes }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum SizeRefusal {
     Key { needs: u32, has: u32 },
@@ -70,6 +85,7 @@ pub fn is_patching(store: &crate::Store) -> bool {
     store.directory.patch.is_some() || crate::directory::patching(store).is_some()
 }
 
+/// The former form of [`check_commits`], kept until its application callers move.
 pub fn check(
     domain: &core::Limits,
     application: &Application,
@@ -77,7 +93,17 @@ pub fn check(
     store: &skein_kv::Limits,
     orphan_erases: u32,
 ) -> Result<Sizes, SizeRefusal> {
-    let sizes = largest(domain, application, journal, orphan_erases, store.budget).ok_or(SizeRefusal::Ceiling)?;
+    check_commits(domain, application, &commits(journal), store, orphan_erases)
+}
+
+pub fn check_commits(
+    domain: &core::Limits,
+    application: &Application,
+    commits: &Commits,
+    store: &skein_kv::Limits,
+    orphan_erases: u32,
+) -> Result<Sizes, SizeRefusal> {
+    let sizes = largest(domain, application, commits, orphan_erases, store.budget).ok_or(SizeRefusal::Ceiling)?;
     if sizes.key > store.key {
         return Err(SizeRefusal::Key { needs: sizes.key, has: store.key });
     }
@@ -95,20 +121,21 @@ pub fn check(
     if page > store.page.bytes {
         return Err(SizeRefusal::Page { needs: page, has: store.page.bytes });
     }
-    if journal.commits > store.queued {
-        return Err(SizeRefusal::Queue { needs: journal.commits, has: store.queued });
+    if commits.in_flight > store.queued {
+        return Err(SizeRefusal::Queue { needs: commits.in_flight, has: store.queued });
     }
-    let queued = u64::from(journal.commits).checked_mul(u64::from(sizes.commit)).ok_or(SizeRefusal::Ceiling)?;
+    let queued = u64::from(commits.in_flight).checked_mul(u64::from(sizes.commit)).ok_or(SizeRefusal::Ceiling)?;
     if queued > store.queued_bytes {
         return Err(SizeRefusal::QueuedBytes { needs: queued, has: store.queued_bytes });
     }
     Ok(sizes)
 }
 
+#[expect(clippy::trivially_copy_pass_by_ref, reason = "borrow the commit edge consistently with check_commits")]
 fn largest(
     domain: &core::Limits,
     application: &Application,
-    journal: &skein_lib::JournalLimits,
+    commits: &Commits,
     orphan_erases: u32,
     budget: u64,
 ) -> Option<Sizes> {
@@ -145,7 +172,7 @@ fn largest(
     // inserts Format, Layouts and the installation's identifier. Each put
     // costs a tag and two u32 lengths; a skein-kv frame costs 22 header bytes
     // and four checksum bytes.
-    let ops = crate::commits::most_ops(journal.writes, orphan_erases)?;
+    let ops = crate::commits::most_ops(commits.writes, orphan_erases)?;
     let commit = u32::try_from(
         budget.checked_add(u64::from(key).checked_add(9)?.checked_mul(u64::from(ops))?)?.checked_add(26)?,
     )

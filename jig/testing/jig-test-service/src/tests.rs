@@ -26,10 +26,10 @@ fn both_jig_profiles_have_usable_store_edges() {
         ("standard", jig_protocol_config::Profile::Standard, 10_664_775, 901_830_282, 303_350),
     ] {
         let limits = crate::limits::profile_limits(name);
-        let sizes = jig_protocol_store::sizes::check(
+        let sizes = jig_protocol_store::sizes::check_commits(
             &limits.root.core,
             &jig_test_store::application(&limits.root.connector),
-            &limits.root.journal,
+            &jig_protocol_store::sizes::commits(&limits.root.journal),
             &limits.store.store,
             limits.store.orphan_erases,
         )
