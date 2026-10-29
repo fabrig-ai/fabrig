@@ -313,23 +313,91 @@ fn native_provider_failure_keeps_status_and_capture_selected_detail_in_every_ter
     }
 }
 
+/// Lower test of jig-test's `process::an_agent_trace_captures_content_without_the_grant_or_authorization_header` (top tiers test wiring only).
 #[test]
 fn no_grant_value_reaches_a_turn_fact_or_trace() {
-    use smith_agent_process_world::{PRIVATE_GRANT, bearer, key};
+    use smith_agent_process_world::{PRIVATE_GRANT, bearer, key, withdrawn};
     let charter = charter();
     let secret = PRIVATE_GRANT;
-    let rows = [(bearer(secret), (true, false)), (key(secret), (true, false))];
-    for (index, (value, expected)) in rows.into_iter().enumerate() {
+    let account = b"native-private-account-02.6";
+    let rows = [(bearer(secret), true), (key(secret), true), (withdrawn(account, secret), false)];
+    for (index, (value, anthropic)) in rows.into_iter().enumerate() {
         let mut world = World::new(39, &charter);
         world.private_grant();
-        world.anthropic();
+        if anthropic {
+            world.anthropic();
+        }
         world.granting(value);
         world.observe_facts(TraceCase::ChildAnswered, 4);
+        world.initial_message(908, b"task", b"Trace policy prompt sentinel");
         let settled = world.settle();
         let leaked = world.observed().iter().any(|frame| frame.body.windows(secret.len()).any(|bytes| bytes == secret))
             || world.trace_bytes().windows(secret.len()).any(|bytes| bytes == secret);
-        assert_eq!((settled, leaked), expected, "row {index}");
+        assert_eq!((settled, leaked), (true, false), "row {index}");
+        assert_trace_policy(&world, &[secret, account]);
         world.assert_agent_clean();
+    }
+}
+
+fn assert_trace_policy(world: &World, secrets: &[&[u8]]) {
+    // Main, its child and resumed main each start a captured provider request.
+    const REQUESTS: usize = 3;
+
+    world.assert_event_conformance();
+    let mut records = 0;
+    let mut prompts = 0;
+    let mut task_captured = false;
+    for line in world.trace_bytes().split(|byte| *byte == b'\n').filter(|line| !line.is_empty()) {
+        let record: serde_json::Value = serde_json::from_slice(line).expect("trace record JSON");
+        trace_fields(&record, secrets);
+        if let Some(prompt) = record.get("prompt").filter(|value| value.is_object()) {
+            prompts += 1;
+            task_captured |= prompt.to_string().contains("Trace policy prompt sentinel");
+        }
+        records += 1;
+    }
+    assert_eq!(records, world.records().len(), "every emitted record was checked recursively");
+    assert!(task_captured, "a captured provider prompt retains the task text");
+    assert_eq!(prompts, REQUESTS, "everything capture includes provider prompts");
+}
+
+fn trace_fields(value: &serde_json::Value, secrets: &[&[u8]]) {
+    match value {
+        serde_json::Value::Object(fields) => {
+            for (name, value) in fields {
+                assert!(
+                    ![
+                        "authorization",
+                        "access_token",
+                        "refresh_token",
+                        "id_token",
+                        "credential",
+                        "credentials",
+                        "grant",
+                        "grants",
+                        "api_key"
+                    ]
+                    .contains(&name.to_ascii_lowercase().as_str()),
+                    "credential field in trace: {name}"
+                );
+                trace_text(name, secrets);
+                trace_fields(value, secrets);
+            }
+        }
+        serde_json::Value::Array(values) => {
+            for value in values {
+                trace_fields(value, secrets);
+            }
+        }
+        serde_json::Value::String(text) => trace_text(text, secrets),
+        serde_json::Value::Null | serde_json::Value::Bool(_) | serde_json::Value::Number(_) => {}
+    }
+}
+
+fn trace_text(text: &str, secrets: &[&[u8]]) {
+    assert!(!text.to_ascii_lowercase().contains("authorization:"), "Authorization header in trace");
+    for secret in secrets {
+        assert!(!text.as_bytes().windows(secret.len()).any(|bytes| bytes == *secret), "grant bytes in trace text");
     }
 }
 

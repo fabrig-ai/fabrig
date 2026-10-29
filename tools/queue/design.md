@@ -204,9 +204,166 @@ at a time; a failed update leaves the stop file for inspection.
 default remains 8. Pass the option on each restart to retain a nondefault
 size. It changes batch capacity, not checks, rejection or bisection policy.
 
+### 3.8 Local immutable-candidate worker (disabled rollout)
+
+`worker.py` is an opt-in, synchronous local entry point and a review proposal
+for the request/result contract. It is not installed, dispatched by `mq`, or
+started by `restart`. Ops review, coordinator contract review and a dedicated
+gate validation precede activation. Existing one-gate behavior remains the
+default. No second prover is activated by this code.
+
+Run the policy from a frozen runtime copy **outside** the worker checkout.
+The configured checkout must be an independent clone, its root, with no
+symlink in its directory path; linked worktrees are refused. The configured
+artifact directory must already exist, outside the checkout, owned by the
+worker's user and mode 0700. Invocation is explicit:
+
+```text
+python3 -I -B /frozen/tools/queue/worker.py identity
+python3 -I -B /frozen/tools/queue/worker.py run --enable-local \
+  --repo /gate/checkout --artifacts /gate/artifacts \
+  --request /gate/request.json --gate gate-name
+```
+
+`--disk-floor` is a global option, default 45 decimal GB, as in `mq`. It is
+part of the runtime identity; a request cannot change it. `identity` prints
+JSON without touching the checkout. `run` prints the result path and exits
+0 for green, 1 for red, 2 for INFRA/refusal. A malformed request, invalid
+configuration, occupied checkout, or existing attempt directory is refused
+before admission and has no new terminal result. Diagnostics go to stderr.
+There is no implicit path, host, fetch, or request discovery.
+
+The version-1 request has exactly these fields:
+
+| Field | Contract |
+|---|---|
+| `version` | Integer 1. Unknown fields and duplicate JSON keys are refused. |
+| `attempt`, `generation`, `gate` | Nonempty ASCII names, starting with an alphanumeric, then alphanumerics, `_`, `.`, `-`; at most 128 characters. `gate` must match local configuration. Attempts are unique within the configured artifact directory, across generations. |
+| `parent`, `candidate` | Full lowercase commit OIDs (40 or 64 hex digits), already transferred into this clone. |
+| `branches` | Ordered list of exactly `{name, tip}` objects: unique valid `ready/<lead>/<task>` refs and full pinned commit OIDs. |
+| `selection` | `"full"`, `"docs"`, or a sorted unique list of package names. An empty list is distinct from docs. |
+| `runtime` | Exact object printed by this runtime's `identity` command. |
+| `plan` | Complete ordered plan from `check_plan`: command entries `{name, command, cwd}` and a tools entry `{name: "tools", suites: [command entries]}`. |
+
+The future preparer computes the plan with this frozen policy against its
+prepared candidate. Commands are full argv arrays; cwd is checkout-relative
+(`.` at the root). Absolute ratchet script paths normalize to
+`./<tree>/scripts/old_forms.py`, so host paths do not affect plan identity.
+The worker independently recomputes and compares the entire plan. It never
+executes commands supplied by the request. There is no shell interpolation.
+
+Before checkout mutation the worker verifies a clean checkout, all requested
+objects are commits, the parent and each pinned input tip are ancestors of
+the candidate, disk capacity, exclusive ownership, and runtime identity.
+Local replacement/graft histories and index flags that hide worktree changes
+are refused. It does not consult moving ready refs or `origin/main`. Object import and
+merge-chain preparation are the future controller/transport's job; ancestry
+and pinned identities here do not attest the controller's merge construction.
+An idle full check may have parent equal to candidate and no branches.
+
+Under ownership, it detaches to exactly the requested candidate, then
+computes changed paths from parent to candidate. Candidate metadata is loaded
+at that HEAD for full/package selections, including the resolved dependency
+graph. Root, members, manifests and graph completeness are checked; a digest
+of package identities, relative member manifests and dependency edges removes
+host-specific Cargo IDs and paths. Docs selections need no Cargo metadata.
+Package/docs selection must equal the recomputed selection using the frozen
+lists and explicit parent/candidate lock blobs. Full is always an allowed
+escalation; deciding when a full run is due belongs to the future controller.
+
+Checks retain the same order, tools discovery, manual recovery-suite
+exclusion, suite timeout, nextest exit-4 interpretation and serial
+`heavy --gate` commands from sections 2.3 and 3.6. The small shared
+`run_checks(check_only=True)` mode omits ratchets' `--write` and never stages
+or commits a baseline. Its default remains the one-gate writing/committing
+behavior. Candidate preparation must lower baselines before dispatch; the
+read-only invocation uses each candidate ratchet script's existing comparison
+semantics, including lower-count advisory output. It cannot certify a
+rewritten replacement commit. The same candidate metadata supplies formatting
+ownership, avoiding a second metadata graph during checking.
+
+Runtime identity freezes the loaded bytes of `worker.py`, `mq`, `always.txt`,
+`read-by-tests.txt` and `leads.txt`, the Python major/minor/micro version, disk
+floor and check-only ratchet policy. Those files are checked against their
+startup bytes before admission and after every command and final cleanup.
+This identity binds the **running** checker and lists independently of
+checkout paths. Candidate code, tools suites and ratchet scripts are inputs
+from the certified tree; their presence does not make them the running worker
+policy. PATH tools (`git`, Cargo, heavy, interpreters), machine configuration,
+installed tool versions and heavy's supervision are operational prerequisites,
+not attested by these source digests. Runtime copies must not be edited while
+in use. Injectable Python checker/metadata arguments are test seams, not a
+production plugin or a request capability.
+
+Each attempt creates `<artifacts>/<attempt>/` (0700), `checks.log` (0600) and
+`result.json` (0600). Existing attempts are never overwritten or rerun. A
+result is fsynced to a private temporary file, atomically replaced, then its
+directory fsynced. The log is fsynced and its path, byte count and SHA-256 are
+recorded. Logs with completion unknown are explicitly marked incomplete.
+The version-1 result includes:
+
+- The complete `requested` object and `observed` gate/runtime identities,
+  start/end times, computed changed paths, selection, plan and metadata digest
+  when available. Unreached preflight fields are absent or null.
+- `initial`, `before`, `after` snapshots with exact HEAD, tree, clean flag and
+  porcelain status. Before checking, after every command (including individual
+  tools suites), and after cleanup, HEAD/tree/worktree must remain identical.
+  Ignored build output is outside the tracked/untracked cleanliness check.
+- Ordered `steps` with commands, cwd, return codes, green flags and durations;
+  tools steps include every suite. `events` preserves completed command/suite
+  evidence if an observer aborts the enclosing step. A red may stop the plan
+  at its first failed step; later planned steps are unrun. A tools red still
+  runs every suite. A green requires the entire exact plan, including all
+  suites. Only a recomputed empty plan can certify an empty step list.
+- `target_cleanup` evidence using the existing floor-plus-40-GB and batch-start
+  protection rules, `completion_known`, `reconciliation_required`, `outcome`
+  (`green`, `red`, `INFRA`) and `error` (null only on ordinary success/red).
+  Cleanup deletion errors are recorded without changing check outcome, as
+  in the one-gate queue.
+
+Ordinary nonzero test/check exits are red. Metadata failures, missing objects,
+identity/selection/plan errors, dirty or rewritten candidates, launch errors,
+checker exceptions, malformed/incomplete evidence and recognized heavy disk
+refusals are INFRA. They provide no basis for rejection or bisection. A
+signal-terminated heavy client (also exit 137) is INFRA with completion unknown.
+The worker never resets or repairs unexpected writes; it preserves them and
+records the final identity. Any result publication failure retains ownership
+ambiguity rather than certifying success.
+
+Ownership uses the same adjacent `.queue.lock` flock as one-gate `mq`, held
+for the whole invocation through commands, cleanup and result publication.
+Before detaching, it durably writes `.git/mq-worker-unresolved.json`, naming
+the attempt, generation, candidate and artifacts. A second worker cannot
+enter even after process death: this marker refuses reuse until explicit
+operational reconciliation. A normal complete invocation removes and fsyncs
+the marker only after publishing its result and confirming unchanged inputs.
+An unexpected write also retains the marker, even if the command returned.
+Checker exceptions or interruption leave completion unknown and skip target
+cleanup. A crash after result publication but before marker removal still
+requires reconciliation. Process absence, a lost client, or a released flock
+never proves that heavy is quiescent.
+
+There is deliberately no automatic reconciliation command. Ops must establish
+heavy job completion through its supported recovery procedure, inspect the
+candidate/worktree and result/log evidence, then explicitly reconcile the
+ownership marker before reusing this dedicated checkout. Do not remove heavy
+state or stop its units. Do not run legacy queue/restart or any other checkout
+writer on a worker clone with unresolved ownership: persistent controller-wide
+startup guards are a later obligation. The flock is cooperative ownership,
+not a sandbox against arbitrary external writers or hostile candidate code.
+
+The worker never fetches/pushes origin, posts, changes queue counters, deletes
+ready refs, or promotes a candidate. Transport, durable controller state,
+reservations and full-check cadence, result/log ingestion and validation,
+merge-chain evidence, ordered adjudication, promotion, notification recovery,
+conditional ready cleanup, supervised remote job lifetime, controller startup
+guards, draining and train-aware restart remain unimplemented. This proposal
+cannot activate or safely supervise a merge train by itself.
+
 ## 4. Later
 
-- A merge-train controller and workers using explicit parent/candidate selection,
-  with pinned objects, validated results, durable decisions, and ordered promotion.
+- A merge-train controller and supervised transport around the opt-in local
+  worker, with pinned objects, independent result validation, durable decisions,
+  ordered promotion, ownership recovery guards and train-aware restart.
 - Two gate machines with nextest's `--partition` once the full run's time matters.
 - Learning the selection's always-list from full runs' misses.

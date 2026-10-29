@@ -22,6 +22,70 @@ fn assignments(driver: &Driver, task: u64) -> usize {
 }
 
 #[test]
+fn both_prerequisite_orders_and_completion_orders_gate_only_the_fourth_delegate() {
+    // Five tasks: the director, two prerequisites, unrelated work and their waiter.
+    const PLAN_WRITES: u32 = 6_200;
+    for (prerequisites, completions) in [([0, 1], [0, 1]), ([1, 0], [0, 1]), ([0, 1], [1, 0]), ([1, 0], [1, 0])] {
+        let (mut configuration, mut bounds) = batch_settings(5, 1, 500, false, false, false);
+        for config in &mut configuration {
+            config.core.defaults.rules.ceiling.delegation.tasks = 5;
+            let policy = &mut config.core.seed_projects[0].policy.policy;
+            policy.ceiling.delegation.tasks = 5;
+            policy.roles[0].authority.delegation.tasks = 5;
+        }
+        bounds.tasks.tasks = 5;
+        bounds.tasks.project_tasks = 5;
+        bounds.tasks.tree_tasks = 5;
+        bounds.tasks.delegates = 4;
+        bounds.forge.tasks = 5;
+        bounds.people.inbox_tasks = 10;
+        bounds.tasks.inbox_messages = 12;
+        bounds.tasks.inbox_bytes = 768;
+        bounds.people.inbox_recipients = 29;
+        bounds.journal.writes = PLAN_WRITES;
+        let mut driver = Driver::configured(Store::new(), configuration, &bounds);
+        driver.send(hello_with(Token::new(7), 5, Duration::from_secs(1), Box::new([])));
+        driver.settle();
+        driver.sign_in();
+        driver.settle();
+        chat(&mut driver, 12);
+        driver.settle();
+        let parent = assigned(&driver);
+        let children = call_batch(
+            &mut driver,
+            &parent,
+            920,
+            Box::new([
+                report_delegate(b"first prerequisite", Box::new([])),
+                report_delegate(b"second prerequisite", Box::new([])),
+                report_delegate(b"unrelated third work", Box::new([])),
+            ]),
+        );
+        let runs = [assigned_task(&driver, children[0]), assigned_task(&driver, children[1])];
+        let unrelated = assigned_task(&driver, children[2]);
+        let dependencies = prerequisites.map(|index| engine::Dependency::Existing(children[index]));
+        let fourth = call_batch(
+            &mut driver,
+            &parent,
+            921,
+            Box::new([report_delegate(b"fourth delegate", Box::new(dependencies))]),
+        )[0];
+        assert_eq!(assignments(&driver, fourth), 0);
+        assert_eq!(live(&driver, fourth).waiting_on.len(), 2);
+        finish_report(&mut driver, &runs[completions[0]], b"first completion");
+        assert_eq!(assignments(&driver, fourth), 0);
+        assert_eq!(live(&driver, fourth).waiting_on.as_ref(), [runs[completions[1]].task]);
+        assert!(matches!(live(&driver, unrelated.task).phase,
+            tasks::Phase::Active(tasks::Active::Running { attempt }) if attempt == unrelated.attempt));
+        finish_report(&mut driver, &runs[completions[1]], b"second completion");
+        assert_eq!(assignments(&driver, fourth), 1);
+        assert!(live(&driver, fourth).waiting_on.is_empty());
+        assert!(matches!(live(&driver, unrelated.task).phase,
+            tasks::Phase::Active(tasks::Active::Running { attempt }) if attempt == unrelated.attempt));
+    }
+}
+
+#[test]
 fn a_live_delegate_is_kept_until_both_added_dependencies_are_met() {
     let (mut driver, parent) = batch_fixture_with(4, 1);
     let children = call_batch(

@@ -1274,6 +1274,7 @@ pub enum Refusal {
     /// Subscription count, identity, target or timer shape was refused.
     Subscription,
     /// `Dependency` count, uniqueness or current-live/same-batch identity is invalid.
+    /// An unreachable dependency is named in `blocked_by`; count and duplicate refusals name none.
     Dependencies,
     /// The new waits would close a circle of waits; `blocked_by` names its tasks in order, each
     /// waiting for the next, at most `Limits::circle` (domain/tasks.md, 6.7).
@@ -1332,8 +1333,8 @@ pub struct Problem {
     /// Bounded structural, lifecycle, financial or restore admission reason.
     pub why: Refusal,
     /// The tasks the refusal names: the live delegates that prevented a finish, in the requester's
-    /// current order; a circle's tasks; an ended dependency; or the pending dependencies keeping
-    /// the task. Absent for every other refusal.
+    /// current order; a circle's tasks; an unreachable dependency; an ended dependency; or the
+    /// pending dependencies keeping the task. Absent for every other refusal.
     pub blocked_by: Option<Box<[u64]>>,
     /// Exact room check metadata; absent for shape, state and other refusals.
     pub capacity: Option<crate::Capacity>,

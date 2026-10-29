@@ -165,24 +165,35 @@ fn open_service(inherited: &Inherited) -> Proc {
 fn service_chat(inherited: &Inherited, chat: fixtures::Chat) -> Proc {
     let root = inherited.roots.iter().find(|(name, _)| name.as_ref() == b"state").expect("store root").1;
     let worker = inherited.roots.iter().find(|(name, _)| name.as_ref() == b"worker").expect("worker root").1;
+    Proc::Service(Box::new(start_service(root, worker, Some(inherited.signal), &fixtures::document(chat), None)))
+}
+pub(super) fn start_service(
+    root: skein_io::kernel::Fd,
+    worker: skein_io::kernel::Fd,
+    signal: Option<skein_io::kernel::Fd>,
+    document: &[u8],
+    accounts: Option<jig_test_service::AccountsRuntime>,
+) -> ServiceHost {
     let mut roots = List::with_capacity(1);
     roots.push(worker).expect("worker root");
     let mut service = jig_test_service::startup(
-        &fixtures::document(chat),
+        document,
         &fixtures::files(),
         Some(&channel::agent()),
         &channel::seeds(),
-        None,
+        accounts,
         Some(jig_test_service::WorkerRuntime { roots }),
     )
     .expect("one-process startup");
     service.adopt_store(root, 1000).expect("actual deployment store");
-    service.adopt_signals(inherited.signal).expect("service signals");
+    if let Some(signal) = signal {
+        service.adopt_signals(signal).expect("service signals");
+    }
     let mut capture = Capture::default();
     capture.root(root);
     let limits = fixtures::store_limits();
     let codec = jig_protocol_store::codec::limits(&limits.root.core).expect("admitted fixture codecs");
-    Proc::Service(Box::new(ServiceHost {
+    ServiceHost {
         service,
         capture,
         store: Rc::new(RefCell::new(Store::new())),
@@ -195,15 +206,15 @@ fn service_chat(inherited: &Inherited, chat: fixtures::Chat) -> Proc {
         early_connections: 0,
         codec,
         connector: limits.root.connector,
-    }))
+    }
 }
-fn agent(_spawn: &skein_io::kernel::Spawn, inherited: &Inherited) -> Proc {
+pub(super) fn agent(_spawn: &skein_io::kernel::Spawn, inherited: &Inherited) -> Proc {
     let stderr = inherited.pipes.iter().find(|(child, _)| *child == 2).expect("agent stderr").1;
     let (errors, capture) = smith_agent_process_world::AgentErrors::pipe(stderr);
     let host = smith_agent_process_world::configured(channel::agent_configuration(), fixtures::SEED, inherited, errors);
     Proc::Agent { host: Box::new(capture.host(host)) }
 }
-struct Machine(skein_fake_machine::Machine);
+pub(super) struct Machine(pub(super) skein_fake_machine::Machine);
 impl skein_world::Machine for Machine {
     fn cut(&mut self, cut: skein_world::Cut, held: &[skein_sim::Handle], seed: u64) {
         match cut {
@@ -288,7 +299,7 @@ fn client(inherited: &Inherited) -> Proc {
 fn peer(inherited: &Inherited) -> Proc {
     Proc::Peer(Box::new(SignalHost::new(fixtures::provider(fixtures::Chat::Finite), Some(inherited.signal))))
 }
-fn machine() -> skein_fake_machine::Machine {
+pub(super) fn machine() -> skein_fake_machine::Machine {
     let mut machine = skein_fake_machine::Machine::for_user(1000);
     for _ in 0..3 {
         let _root = machine.lay(&[]);

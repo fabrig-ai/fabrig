@@ -540,7 +540,7 @@ pub(super) fn describe(filter: Filter) -> Result<Plan, AmbiguousFilter> {
 }
 
 pub(super) fn planning_bytes(plan: &Plan) -> Option<u64> {
-    Stack::<Cursor>::worst_case(plan.depth)?.checked_add(List::<&Tagged>::worst_case(plan.tags.capacity())?)
+    Stack::<Cursor>::price(plan.depth)?.checked_add(List::<&Tagged>::price(plan.tags.capacity())?)
 }
 
 pub(super) fn build(filter: Filter, limits: &Limits, caps: &[u32]) -> Result<List<Pending>, AmbiguousFilter> {
@@ -565,15 +565,15 @@ pub(super) fn projection_limits(limits: &Limits, tags: &List<&'static Tagged>) -
 }
 
 pub(super) fn candidate_bytes(limits: &Limits, caps: &[u32], tags: &List<&'static Tagged>) -> Option<u64> {
-    let mut bytes = List::<Pending>::worst_case(tags.len())?;
+    let mut bytes = List::<Pending>::price(tags.len())?;
     for tag in tags {
         let variants = u32::try_from(tag.known.len()).ok()?;
         let fields = limits.tokens.checked_mul(variants.max(1))?;
         let cap = *caps.get(usize::from(tag.unknown.index()))?;
         bytes = bytes
-            .checked_add(List::<Candidate>::worst_case(variants)?)?
-            .checked_add(List::<Field>::worst_case(fields)?)?
-            .checked_add(document::worst_case(&document::Limits { tokens: limits.tokens, text: cap })?)?;
+            .checked_add(List::<Candidate>::price(variants)?)?
+            .checked_add(List::<Field>::price(fields)?)?
+            .checked_add(document::document_bound(&document::Limits { tokens: limits.tokens, text: cap })?)?;
     }
     Some(bytes)
 }

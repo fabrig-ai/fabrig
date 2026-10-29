@@ -1,4 +1,5 @@
 //! The sitting's fake person uses Ready's real domain, view and HTTP transport.
+use super::patience::Patience;
 use jig_client_protocol_link::Signing;
 use skein_fake_person::{Doing, Find, Next, Step, TreeFace};
 use skein_lib::{Duration, Time};
@@ -12,7 +13,7 @@ struct Person {
     actor: skein_fake_person::Person<Address>,
     sign_in: bool,
     finished: bool,
-    until: Time,
+    until: Patience,
     wake: Option<Time>,
     link: Box<[u8]>,
     retry: Option<Time>,
@@ -40,7 +41,12 @@ impl Referee<NativeClient> for Person {
             self.retry = None;
             client.sign_in(&self.link).expect("retry the same printed link");
         }
-        if self.finished || !client.started() || self.sign_in {
+        if !self.finished
+            && let Some(figures) = self.until.failed()
+        {
+            panic!("signed-in Ready timed out: {figures}");
+        }
+        if self.until.deferred() || self.finished || !client.started() || self.sign_in {
             return;
         }
         self.wake = Some(now);
@@ -56,12 +62,18 @@ impl Referee<NativeClient> for Person {
             Next::Failed { step, .. } => panic!("Ready failed at semantic step {step}"),
         }
     }
-    fn observe(&mut self, _now: Time, _clients: &[NativeClient]) {}
-    fn next_deadline(&self) -> Option<Time> {
-        if self.finished { None } else { [Some(self.until), self.wake, self.retry].into_iter().flatten().min() }
+    fn observe(&mut self, _now: Time, _clients: &[NativeClient]) {
+        if !self.finished
+            && let Some(figures) = self.until.failed()
+        {
+            panic!("signed-in Ready timed out: {figures}");
+        }
     }
-    fn overdue(&self, now: Time) -> Option<String> {
-        (!self.finished && now >= self.until).then(|| "signed-in Ready timed out".into())
+    fn next_deadline(&self) -> Option<Time> {
+        if self.finished { None } else { [self.until.until(), self.wake, self.retry].into_iter().flatten().min() }
+    }
+    fn overdue(&self, _now: Time) -> Option<String> {
+        None
     }
     fn passed(&self) -> bool {
         self.finished
@@ -100,7 +112,7 @@ pub fn run() {
         actor: skein_fake_person::Person::new(steps),
         sign_in,
         finished: false,
-        until: clock.now().now.saturating_add(within),
+        until: Patience::arm("signed-in Ready", within),
         wake: None,
         link: link.as_bytes().into(),
         retry: None,

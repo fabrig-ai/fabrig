@@ -866,3 +866,36 @@ fn refusal_note(reason: crate::Refusal) -> crate::Note {
         reason,
     }
 }
+
+#[test]
+fn worker_preparation_accepts_large_representable_io_edges() {
+    let mut settings = fixtures::worker_settings();
+    settings.jig.limits.io.sockets = 1 << 28_u32;
+    settings.jig.limits.io.sends = u32::MAX;
+    worker_settings::prepare(&settings, &fixtures::worker_agent(), &fixtures::worker_limits()).unwrap();
+}
+
+#[test]
+fn worker_preparation_refuses_unusable_io_and_overflowing_operation_counts() {
+    let mut settings = fixtures::worker_settings();
+    let stock = settings.jig.limits.io;
+    for io in [
+        io::Limits { refusals: 0, ..stock },
+        io::Limits { retry: Duration::ZERO, ..stock },
+        io::Limits { sockets: u32::MAX, ..stock },
+    ] {
+        settings.jig.limits.io = io;
+        let refused =
+            worker_settings::prepare(&settings, &fixtures::worker_agent(), &fixtures::worker_limits()).unwrap_err();
+        assert_eq!(refused.problems.len(), 1);
+        let problem = refused.problems.get(0).unwrap();
+        assert_eq!(problem.what, jig_protocol_config::What::Bound);
+        assert_eq!(
+            problem.path,
+            jig_protocol_config::Path::root()
+                .member(b"workers")
+                .child(jig_protocol_config::Segment::Index(0))
+                .member(b"limits")
+        );
+    }
+}

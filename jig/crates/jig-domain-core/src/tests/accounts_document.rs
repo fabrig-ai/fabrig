@@ -46,7 +46,7 @@ pub(super) fn fixture(records: Vec<accounts::Stored>) -> (Core, Env<Limits>) {
     core.connectors = Box::new([]);
     core.accounts = accounts::Domain::new(&limits.accounts, core.settings.llm_providers.clone());
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let mut out = Queue::with_capacity(people::max_out(&limits.people));
+    let mut out = Queue::uncapped();
     let people_env = Env { now: env.now, wall: env.wall, limits: limits.people };
     for (person, sign_in) in [(ALICE, ALICE_SIGN_IN), (BOB, BOB_SIGN_IN)] {
         let identity = people::Identity {
@@ -345,7 +345,7 @@ fn the_deployment_document_lists_only_the_deployments_accounts_with_their_source
 }
 
 fn change_account(core: &mut Core, env: &Env<Limits>, holder: accounts::Holder, change: accounts::Change) {
-    let mut out = Queue::with_capacity(accounts::max_out(&env.limits.accounts));
+    let mut out = Queue::uncapped();
     accounts::step(
         &mut core.accounts,
         &Env { now: env.now, wall: env.wall, limits: env.limits.accounts },
@@ -516,7 +516,7 @@ fn the_providers_uses_rule_checks_people_and_projects_for_plans_and_llm_keys() {
         limits.holdings = 3;
         core.people = people::Domain::new(&limits, Box::new([]), core.settings.deployment_provider, Box::new([]));
         let penv = Env { now: env.now, wall: env.wall, limits };
-        let mut out = Queue::with_capacity(people::max_out(&limits));
+        let mut out = Queue::uncapped();
         for (party, provider) in [(ALICE, 0), (BOB, 0), (SERVICE, core.settings.deployment_provider)] {
             people::step(
                 &mut core.people,

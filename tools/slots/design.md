@@ -97,9 +97,12 @@ space is above the threshold plus 40 GB or every idle slot was inspected.
 Directory and file symlinks are not followed when measuring size; a numeric
 slot symlink is an error. Non-numeric names are ignored.
 
-An idle slot has no active or activating user unit whose name contains
+An idle slot has no active or activating user service whose name contains
 `-heavy-` and whose `WorkingDirectory` is the slot or a descendant. Read
-these two properties with `systemctl --user show` after listing units.
+these two properties with `systemctl --user show` after listing service
+units with `--type=service`. Ignore non-service names defensively, including
+heavy's reconciler timer, which has no working directory. Missing properties
+on a heavy service still fail the sweep without trimming that slot.
 Check again immediately before trimming each slot. No heavy state or
 process environment is read. A Codex run between builds is idle; its next
 build relinks what it needs. Unit properties are snapshots, so a build
@@ -136,6 +139,10 @@ there is no `slot-guard` link in `tools/installed`.
 `python3 -I -B tools/slots/test_guard.py` uses disposable slots and fake
 systemd commands; `test_trim.py` checks the shared deletion policy and
 `test_claim.py` checks bookkeeping. They build nothing and run on hel8.
+Verify idle detection on a real builder with a dry run whose `--below`
+value exceeds its current free space; an above-threshold run does not
+inspect services. Exit 2 is expected if the dry run remains below that
+chosen value. Confirm busy slots are skipped and no property error occurs.
 
 ## 4. Later
 

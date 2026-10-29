@@ -68,7 +68,7 @@ pub(crate) fn run(
 }
 
 fn refused(to: ReplyTo, key: crate::CallKey, part: crate::CallPart) -> Requests {
-    let mut out = skein_lib::Queue::with_capacity(2);
+    let mut out = skein_lib::Queue::uncapped();
     out.push(crate::Request::Now(Box::new(crate::Now::EffectAnswer { to, key, part })));
     out.push(crate::Request::Decided);
     Requests::Out(out)
@@ -93,7 +93,7 @@ pub(super) fn answer(destination: super::Destination, value: Answer) -> Requests
             unreachable!("settings reads answer settings documents")
         }
     };
-    let mut out = skein_lib::Queue::with_capacity(2);
+    let mut out = skein_lib::Queue::uncapped();
     out.push(crate::Request::Now(Box::new(crate::Now::SettingsAnswer { to, key, answer: Box::new(value) })));
     out.push(crate::Request::Decided);
     Requests::Out(out)

@@ -768,6 +768,6 @@ pub fn decoder_bound(limits: &Limits) -> Option<u64> {
         .checked_add(u64::from(limits.input).checked_mul(2)?)?
         .checked_add(u64::from(limits.reasoning).checked_mul(4)?)?
         .checked_add(u64::from(limits.strings).checked_mul(2)?)?
-        .checked_add(List::<skein_json::Compact>::worst_case(limits.tokens)?.checked_mul(2)?)?
+        .checked_add(List::<skein_json::Compact>::price(limits.tokens)?.checked_mul(2)?)?
         .checked_add(u64::from(limits.retained).checked_mul(2)?)
 }

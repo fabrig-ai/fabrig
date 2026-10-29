@@ -591,7 +591,7 @@ fn a_source_is_marked_closing_only_once_its_close_is_queued() {
     while service.submissions.pop().is_some() {}
     crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
     assert_eq!(service.wait_state().listener_closes, 0, "publication returns credit after the close stage");
-    while service.submissions.pop().is_some() {}
+    reap_staged_closes(&mut service);
     crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
     assert_eq!(service.wait_state().listener_closes, 1);
     let mut closes = 0_u32;
@@ -654,8 +654,12 @@ fn an_io_continuation_reaches_its_owner_before_a_later_completion() {
     assert!(!service.pending(Time::ZERO).io_ready, "the continuation spends the returned credit first");
     assert_eq!(service.completions.len(), 1, "the later completion cannot spend that continuation's credit");
     assert!(service.notes().is_empty(), "the box owner has not received the later line");
-    while service.submissions.pop().is_some() {}
-    crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
+    // Return route credit for the synthetic full batch, then publish the
+    // continuation before letting the service take the later completion.
+    reap_staged_closes(&mut service);
+    service.publish_staged();
+    reap_staged_closes(&mut service);
+    service.publish_staged();
     let mut signal_reads = 0_u32;
     for submit in &service.submissions {
         if let Op::ReadSignal { fd } = submit.kind
@@ -727,4 +731,19 @@ fn queued_completions_are_taken_before_a_due_io_timer() {
     let retry_at = retry_at.expect("the due listener timer retries accept");
     assert!(close_at < retry_at, "the kernel sees the completion owner's output before the timer owner's output");
     assert!(service.completions.is_empty());
+}
+
+// Synthetic closes fill staging without an io owner. Reaping their published
+// records returns route credit just as a shell completion does.
+fn reap_staged_closes(service: &mut crate::Service) {
+    use skein_io::kernel::{Complete, Done, Fd, Op};
+    for _ in 0..service.submissions.len() {
+        let submit = service.submissions.pop().unwrap();
+        if let Op::Close { fd } = submit.kind
+            && fd == Fd::new(91)
+        {
+            let _complete =
+                service.complete_staged(Complete { op: submit.op, kind: submit.kind, result: Ok(Done::Nothing) });
+        }
+    }
 }

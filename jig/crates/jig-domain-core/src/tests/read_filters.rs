@@ -146,7 +146,7 @@ fn scoped_note_reads_bound_the_query_before_retaining_it_and_recheck_the_role() 
     else {
         panic!("deployment role admits")
     };
-    let mut out = Queue::with_capacity(people::max_out(&limits.people));
+    let mut out = Queue::uncapped();
     people::step(
         &mut core.people,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people },
@@ -200,7 +200,7 @@ fn each_inbox_kind_selects_its_owner_objects_and_the_cursor_keeps_that_kind() {
         },
     );
     assert_eq!(core.tasks.task(1).unwrap().replies.len(), 1, "the reply has an owner-issued activity position");
-    let mut out = Queue::with_capacity(people::max_out(&limits.people));
+    let mut out = Queue::uncapped();
     let kinds = [
         people::EntryKind::Proposal { number: 1 },
         people::EntryKind::Escalation { revision: 1 },

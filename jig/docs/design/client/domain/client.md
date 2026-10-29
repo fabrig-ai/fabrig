@@ -125,14 +125,17 @@ jig-client                        jig_client::Client: the domain and the link, c
   `words` module alone, whose phrases are skein-ui's phrasebook types;
   it builds no tree, so the client stays presentation-agnostic.
 - **Internal hand-offs are uncapped.** The domain's and link's output
-  queues and the deferred-read queue grow as they fill. Each step
-  settles the domain's and link's outputs (`client_settled`); only
-  deferred reads wait between steps, on exchange credit. Each event's
-  fan-out is bounded by admitted state, so the settlement drain ends.
-  Link outputs are dispatched before the next domain request
-  (`link_requests_dispatched`), including a credential boundary's
-  consequences before a deferred read is sent (programming-model.md,
-  7.2).
+  queues and the deferred-read queue grow as they fill. Each event's
+  fan-out is bounded by admitted state, so the settlement drain ends
+  (programming-model.md, 7.2).
+- **Link consequences settle before the next entrance.**
+  `link_requests_dispatched` requires link outputs to be dispatched
+  before the next domain request, including a credential boundary's
+  consequences before a deferred read is sent. `client_settled`
+  requires both output queues to be empty when the step returns; only
+  deferred reads may wait on exchange credit. The client world holds
+  this under load in `jig-client-world`,
+  `orders::link_consequences_settle_before_the_next_entrance_under_load`.
 - **Builds:** the three crates and the helpers are step code under the
   strict subset, built for the host and for wasm32 (programming-model.md,
   section 10). Only `jig-protocol-transcript` links smith, the client's
@@ -267,6 +270,13 @@ and 12.5. What a section reads and watches, it opens through the client's
 handles, as every presentation does (sections 7 and 8).
 
 ## 6. Keyed requests
+
+- **Records precede their sends across visits.**
+  `request_records_dispatched` requires the request table's pending
+  records to be dispatched before eligible sends, even when its cursor
+  yields only one item per visit. The client world holds this through
+  restoration, retirement and retry in `jig-client-world`,
+  `orders::request_records_precede_their_sends_across_visits`.
 
 - **What a request is:**
   - an operation of the API (contract.md, 3.2): `Create`, `Propose`,
@@ -433,6 +443,12 @@ handles, as every presentation does (sections 7 and 8).
   it at start (section 11).
 
 ## 7. Reads and windows
+
+- **Deferred reads leave in order.** `deferred_reads_dispatched`
+  requires current deferred demands to keep FIFO precedence over a
+  fresh read when exchange credit returns. Cancelled or obsolete
+  demands cannot return. The client world holds this under load in
+  `jig-client-world`, `orders::deferred_reads_leave_in_order_under_load`.
 
 - **A read** asks for one document (a task, a proposal, `me`, a
   family's) or one page of a list (a task query's lines, a task's
@@ -762,6 +778,12 @@ for any presentation of a chat or of any agent task's activity.
   loses an ordinary kept request the engine may have made. A request
   carrying a value is sent once without a record, and its caller asks
   again (section 6).
+- **A later write holds its requests.** `request_records_durable`
+  requires pending writes to finish before held requests are sent; an
+  earlier write's completion cannot release a later write's requests.
+  A failed write ends its own obligations as not kept. The client
+  world holds this under load in `jig-client-world`,
+  `orders::a_later_write_holds_its_requests_under_load`.
 - **The durability hold is uncapped.** Held exchanges are bounded by
   admitted attempts, never refused as not kept for a full hold. Once
   the write is durable, live attempts leave in FIFO order; stale

@@ -37,28 +37,11 @@ pub struct Limits {
     pub group_stop: Duration,
 }
 
-/// The most records one step can emit into each queue.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct MaxOut {
-    /// Domain terminals.
-    pub to_domain: u32,
-    /// IO requests.
-    pub below: u32,
-}
-
-/// A terminal per process and room for its stop followed by close.
-#[must_use]
-pub const fn max_out(limits: &Limits) -> MaxOut {
-    let stopping = limits.processes.checked_mul(2).expect("process emission count fits");
-    let below = if stopping > 3 { stopping } else { 3 };
-    MaxOut { to_domain: if limits.processes == 0 { 1 } else { limits.processes }, below }
-}
-
 /// Whether the machine's capacities and search edge fit (programming-model.md, 6.3).
 #[must_use]
 pub fn valid(limits: &Limits) -> bool {
     limits.processes.checked_mul(2).is_some()
-        && tokenizer::worst_case(&tokenizer::Limits {
+        && tokenizer::tokenizer_bound(&tokenizer::Limits {
             depth: 8,
             string: limits.search_line_bytes.max(1),
             number: 20,

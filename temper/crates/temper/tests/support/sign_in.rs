@@ -232,33 +232,14 @@ pub(super) fn start(directory: &Path) -> skein_world::end_to_end::Binary {
 }
 
 struct Judge {
-    sent: Option<Time>,
-    killed: bool,
-    deadline: Time,
+    sent: bool,
+    deadline: super::patience::Patience,
     settled: bool,
 }
 impl Referee<Process> for Judge {
-    fn act(&mut self, now: Time, procs: &mut [Process]) {
-        if self.sent.is_none() && now >= self.deadline {
-            let Process::Calls(calls) = &mut procs[1] else { panic!("ctl calls") };
-            for ended in calls.ends().iter().chain(calls.pending()) {
-                eprintln!(
-                    "setup call {:?}: stdout {}; stderr {}",
-                    ended.exit,
-                    String::from_utf8_lossy(&ended.stdout),
-                    String::from_utf8_lossy(&ended.stderr)
-                );
-            }
-            calls.cancel();
-            let Process::Binary(binary) = &mut procs[0] else { panic!("temper") };
-            eprintln!("serve setup stderr: {}", String::from_utf8_lossy(binary.stderr()));
-            binary.signal(Signal::Kill);
-            self.sent = Some(now);
-            self.killed = true;
-            self.deadline = now.saturating_add(STOPS_WITHIN);
-        }
+    fn act(&mut self, _now: Time, procs: &mut [Process]) {
         let Process::Calls(calls) = &procs[1] else { panic!("ctl calls") };
-        if self.sent.is_none()
+        if !self.sent
             && let [signed, connected] = calls.ends()
         {
             assert_eq!(signed.exit, Some(Exit::Code(0)), "sign-in answered");
@@ -276,35 +257,57 @@ impl Referee<Process> for Judge {
             // Nobody visits this address. Keep the issuer alive until temper exits.
             let Process::Binary(binary) = &mut procs[0] else { panic!("temper") };
             binary.signal(Signal::Terminate);
-            self.sent = Some(now);
-            self.deadline = now.saturating_add(STOPS_WITHIN);
+            self.sent = true;
+            self.deadline = super::patience::Patience::watching("sign-in's SIGTERM stop", STOPS_WITHIN, binary);
         }
-        let Process::Binary(binary) = &mut procs[0] else { panic!("temper") };
+        let Process::Binary(binary) = &procs[0] else { panic!("temper") };
         if binary.exit_status().is_some() {
-            assert!(self.killed || now <= self.deadline, "SIGTERM exceeded {STOPS_WITHIN:?}");
             let Process::Issuer(issuer) = &mut procs[2] else { panic!("issuer") };
             issuer.shutdown();
-        } else if self.sent.is_some() && now >= self.deadline && !self.killed {
-            // Reap our owned child even in the deliberately broken regression run.
-            binary.signal(Signal::Kill);
-            self.killed = true;
-            self.deadline = now.saturating_add(STOPS_WITHIN);
         }
     }
     fn observe(&mut self, _now: Time, procs: &[Process]) {
         let Process::Binary(binary) = &procs[0] else { panic!("temper") };
         assert!(
-            binary.exit_status().is_none() || self.sent.is_some(),
+            binary.exit_status().is_none() || self.sent,
             "serve exited early: {}",
             String::from_utf8_lossy(binary.stderr())
         );
-        self.settled = self.sent.is_some() && procs.iter().all(Host::is_empty);
+        if self.sent
+            && let Some(exit) = binary.exit_status()
+        {
+            assert_eq!(exit, Exit::Code(0), "SIGTERM stops serve: {}", String::from_utf8_lossy(binary.stderr()));
+        }
+        let Process::Calls(calls) = &procs[1] else { panic!("ctl calls") };
+        for ended in calls.ends() {
+            assert_eq!(
+                ended.exit,
+                Some(Exit::Code(0)),
+                "setup call failed: {}",
+                String::from_utf8_lossy(&ended.stderr)
+            );
+        }
+        self.settled = self.sent && procs.iter().all(Host::is_empty);
+        if !self.settled
+            && let Some(figures) = self.deadline.failed()
+        {
+            let Process::Calls(calls) = &procs[1] else { panic!("ctl calls") };
+            for ended in calls.ends().iter().chain(calls.pending()) {
+                eprintln!(
+                    "setup call {:?}: stdout {}; stderr {}",
+                    ended.exit,
+                    String::from_utf8_lossy(&ended.stdout),
+                    String::from_utf8_lossy(&ended.stderr)
+                );
+            }
+            panic!("sign-in setup or stop did not settle: {}; {figures}", String::from_utf8_lossy(binary.stderr()));
+        }
     }
     fn next_deadline(&self) -> Option<Time> {
-        (!self.settled).then_some(self.deadline)
+        if self.settled { None } else { self.deadline.until() }
     }
-    fn overdue(&self, now: Time) -> Option<String> {
-        (!self.settled && now >= self.deadline).then(|| "sign-in stop did not settle".into())
+    fn overdue(&self, _now: Time) -> Option<String> {
+        None
     }
     fn passed(&self) -> bool {
         self.settled
@@ -319,9 +322,8 @@ pub fn run(directory: &Path, issuer: oauth::Peer) {
     let root = skein_shell::open_root(directory).expect("scratch root");
     fds.push(root);
     let mut world = real::World::new(Judge {
-        sent: None,
-        killed: false,
-        deadline: clock.now().now.saturating_add(super::WITHIN),
+        sent: false,
+        deadline: super::patience::Patience::watching("sign-in's setup", super::WITHIN, &binary),
         settled: false,
     });
     world.spawn_with_fds(binary.descriptors(), || Process::Binary(Box::new(binary)));

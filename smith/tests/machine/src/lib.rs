@@ -5,6 +5,7 @@
 //! `World::request`; IO completion routing remains the application's pass.
 
 mod jobs;
+mod simulated_jobs;
 
 use std::cell::RefCell;
 use std::collections::{BTreeSet, VecDeque};

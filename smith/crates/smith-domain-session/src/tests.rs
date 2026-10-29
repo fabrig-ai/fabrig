@@ -913,7 +913,8 @@ fn a_maximum_legal_batch_dispatches_every_call() {
 
 #[test]
 fn a_maximum_refused_batch_keeps_every_call_observation_without_a_fact_allowance() {
-    let mut h = Harness::new(&Limits { facts: 0, parallel_tools: MAX_PARALLEL, ..LIMITS });
+    let tools = tools::Limits { facts: 0, ..TOOLS };
+    let mut h = Harness::new(&Limits { facts: 0, tools, parallel_tools: MAX_PARALLEL, ..LIMITS });
     let (owner, _) = h.open(1);
     let mut content = List::with_capacity(MAX_PARALLEL);
     for _ in 0..MAX_PARALLEL {
@@ -935,7 +936,7 @@ fn a_maximum_refused_batch_keeps_every_call_observation_without_a_fact_allowance
     }
     assert_eq!(facts, MAX_PARALLEL + 2, "one terminal per call plus response and use");
     assert_eq!(answered, MAX_PARALLEL);
-    assert!(h.domain.calls.tools.pop_fact().is_none(), "every child observation passed to its parent");
+    assert_eq!(h.domain.calls.tools.pending_facts(), 0, "every child observation passed to its parent");
 }
 
 #[test]

@@ -111,7 +111,7 @@ fn limits() -> Limits {
         file_bytes: 512,
         file_timeout: Duration::from_secs(1),
         live_interval: crate::profile::standard().policy.live_interval,
-        queue: domain::max_out(&smith_agent_world::LIMITS).max(256),
+        queue: crate::profile::DEFAULT_PACING,
         routes: io::operations(&io).expect("bounded test IO").checked_add(2).expect("file routes fit"),
         memory: u64::MAX,
         events: None,
@@ -751,7 +751,7 @@ fn pending_messages_wait_at_the_watermark() {
 }
 
 #[test]
-fn startup_accepts_a_queue_below_its_childrens_max_out() {
+fn a_one_entry_watermark_keeps_the_host_edge_capped_and_effects_progressing() {
     let mut config = configuration();
     config.limits.queue = 1;
     let service = Service::new(config, 1).expect("one-entry watermark builds");

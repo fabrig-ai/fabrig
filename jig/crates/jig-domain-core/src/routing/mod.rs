@@ -313,51 +313,15 @@ impl Core {
     }
 }
 
-/// The most one route of the core writes, or holds, including a sibling
-/// callback reached after a connector's own event. Pricing and the
-/// finite fan-out loops read it; admission never does (a root
-/// admits by its watermark, `domain/root.md` 3).
-#[must_use]
-pub fn route_bound(limits: &Limits) -> Option<u32> {
-    if !accounts::valid(&limits.accounts) || !tasks::valid(&crate::settings::task_limits(limits)) {
-        return None;
-    }
-    let tasks = crate::settings::task_route_room(limits).checked_mul(16)?;
-    let people = people::max_out(&limits.people).checked_mul(8)?;
-    let fleet = fleet::max_out(&limits.fleet).checked_mul(8)?;
-    let brief = brief::gather_max_out(&limits.brief).checked_mul(4)?;
-    let bound = tasks
-        .checked_add(people)?
-        .checked_add(limits.people.inbox_tasks)?
-        .checked_add(fleet)?
-        .checked_add(brief)?
-        .checked_add(accounts::max_out(&limits.accounts))?
-        .checked_add(limits.people.pending.checked_mul(2)?)?
-        .checked_add(limits.authority.projects.checked_mul(2)?)?
-        .checked_add(limits.people.initial_owners)?
-        .checked_add(
-            limits.tasks.tasks.checked_mul(limits.tasks.tree_tasks.checked_add(limits.connectors)?.checked_add(4)?)?,
-        )?
-        .checked_add(limits.views.watchers.checked_mul(4)?)?
-        .checked_add(crate::settings::release_writes(limits)?)?
-        .checked_add(8)?;
-    Some(bound.max(settings::route_writes(limits)?))
-}
-
-fn route_room(limits: &Limits) -> u32 {
-    route_bound(limits).expect("validated core route bound")
-}
-
 /// Route one child event and each sibling continuation within one core decision.
 pub fn step(core: &mut Core, env: &Env<Limits>, event: Event) -> Requests {
     let oldest = core.current.oldest;
     core.run_now = env.now;
     core.run_wall = env.wall;
-    let room = route_room(&env.limits);
     let mut work = Queue::uncapped();
     let mut out = Queue::uncapped();
     work.push(event);
-    for _ in 0..room {
+    for _ in 0..env.limits.routes {
         let Some(next) = work.pop() else { break };
         let Requests::Out(mut batch) = step_one(core, env, next, &mut work);
         for _ in 0..batch.len() {
@@ -373,7 +337,7 @@ pub fn step(core: &mut Core, env: &Env<Limits>, event: Event) -> Requests {
             }
         }
     }
-    assert!(work.is_empty(), "finite sibling routes fit their bound");
+    assert!(work.is_empty(), "sibling_routes_drained");
     core.finish_extent(oldest, &mut out);
     out.push(Request::Decided);
     Requests::Out(out)
@@ -384,7 +348,7 @@ pub fn want_accounts(core: &mut Core, env: &Env<Limits>) -> Requests {
     let oldest = core.current.oldest;
     core.run_now = env.now;
     core.run_wall = env.wall;
-    let mut work = Queue::with_capacity(0);
+    let mut work = Queue::uncapped();
     let Requests::Out(mut out) = route_account(core, env, &mut work, accounts::Event::Want);
     assert!(work.is_empty(), "wanting the accounts answers no party");
     core.finish_extent(oldest, &mut out);
@@ -405,8 +369,9 @@ pub fn resume_fleet(core: &mut Core, env: &Env<Limits>) -> Requests {
         core.touch_deployment();
         core.touch_run_waits();
     }
-    let Requests::Out(mut out) =
-        tag_fleet(core, env, &mut Queue::with_capacity(0), child, fleet::max_out(&env.limits.fleet));
+    let mut work = Queue::uncapped();
+    let Requests::Out(mut out) = tag_fleet(core, env, &mut work, child);
+    assert!(work.is_empty(), "fleet resumption produces no sibling continuations");
     core.finish_extent(oldest, &mut out);
     Requests::Out(out)
 }
@@ -553,7 +518,7 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<E
         Event::HistoricalPersonTask { request, person, project, task, row, busy } => {
             let outcome = core.person_task_ended(person, project, task, row, busy);
             work.push(Event::People(people::Event::Decided { request, outcome }));
-            let mut out = Queue::with_capacity(1);
+            let mut out = Queue::uncapped();
             out.push(Request::Decided);
             Requests::Out(out)
         }
@@ -610,7 +575,10 @@ pub fn fire(core: &mut Core, env: &Env<Limits>, timer: Timer) -> Requests {
                 core.touch_run_waits();
                 core.touch_accounts(None);
             }
-            tag_fleet(core, env, &mut Queue::with_capacity(0), out, fleet::max_out(&env.limits.fleet))
+            let mut work = Queue::uncapped();
+            let requests = tag_fleet(core, env, &mut work, out);
+            assert!(work.is_empty(), "fleet expirations produce no sibling continuations");
+            requests
         }
         Timer::Brief => {
             let mut out = Queue::uncapped();
@@ -631,7 +599,7 @@ pub fn fire(core: &mut Core, env: &Env<Limits>, timer: Timer) -> Requests {
             core.touch_deployment();
             core.touch_run_waits();
             core.touch_accounts(None);
-            let mut work = Queue::with_capacity(0);
+            let mut work = Queue::uncapped();
             let requests = tag_account(core, env, &mut work, out);
             assert!(work.is_empty(), "an account's alarm answers no party");
             requests

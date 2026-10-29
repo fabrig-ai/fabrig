@@ -13,7 +13,7 @@ use smith_domain::run::outcome::{Verdict, VerdictRule};
 use smith_domain::run::{self, Ask, Charter};
 use smith_domain::run::{Directory, Workspace};
 use smith_domain::tools::{Call, Done, Entry, Exit, Fault, Hit, Kind, Name, Op, Part, Path, Version};
-use smith_domain::{Domain, Event, Limits, Request, fire, max_out, resume, step};
+use smith_domain::{Domain, Event, Limits, Request, fire, resume, step};
 
 use fixture::{charter, workspace};
 use random::completion_owned;
@@ -410,7 +410,7 @@ fn served(prompt: &Prompt) -> (bool, bool) {
 pub fn churn(limits: &Limits, seed: u64, rounds: u32, bound: u64) -> [u32; 18] {
     let limits = *limits;
     let mut env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let mut out = Queue::with_capacity(max_out(&limits));
+    let mut out = Queue::uncapped();
     let mut driver = Driver {
         rng: Rng::new(seed),
         asked: Vec::with_capacity(4096),

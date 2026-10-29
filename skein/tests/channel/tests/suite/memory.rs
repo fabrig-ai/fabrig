@@ -1,7 +1,7 @@
-//! Heap bound while a full input body and a queued output frame coexist.
+//! Heap ceilings while a largest input body and a full output byte queue coexist.
 use skein_channel::{
     Control, Direction, Event, Kind, Limits, Lower, LowerEvent, MAX_DOWN, MAX_UP, Machine, Request, Role, Schema, Term,
-    Version, control_frame, frame_writer, worst_case,
+    Version, control_frame, frame_writer,
 };
 use skein_heap::Meter;
 use skein_lib::{List, Queue, Token, stream};
@@ -87,11 +87,14 @@ fn feed(
     panic!("frame did not settle");
 }
 
+// Bounds the channel and boundary queues with a 120-byte input body and full output bytes.
+// Measured peak: 664 bytes; a quarter of headroom, rounded up to two significant digits.
+const FULL_FRAME_HEAP_CEILING: u64 = 830;
+
 #[test]
-fn largest_input_body_with_full_output_frame_stays_within_worst_case() {
+fn largest_input_with_full_output_stays_under_heap_ceiling() {
     let source = schema();
     let limits = limits();
-    let bound = worst_case(&source, Role::Responder, &limits).expect("checked bound");
     let open = control_frame(
         &Control::Open { magic: *b"heap", lowest: 1, highest: 1, features: 0, credential: Box::from([]) },
         &limits,
@@ -155,17 +158,21 @@ fn largest_input_body_with_full_output_frame_stays_within_worst_case() {
         (0x0100, 120),
     );
     assert!(body_seen);
+    assert_eq!(machine.room().bytes, 0, "the queued frame fills the output byte capacity");
     let measured = meter.end();
-    assert!(measured.peak() >= 240, "both largest bodies were held");
-    assert!(measured.peak() <= bound, "peak {} exceeds bound {bound}", measured.peak());
+    assert!(measured.peak() <= FULL_FRAME_HEAP_CEILING, "peak {} exceeds ceiling", measured.peak());
     drop(machine);
     drop(above);
     drop(below);
     assert_eq!(meter.held(), 0);
 }
 
+// Bounds either role and its boundary queues with a 4096-byte input and full 128-byte output.
+// Each role peaked at 4696 bytes; a quarter of headroom, rounded up to two significant digits.
+const LARGE_RECEIVE_HEAP_CEILING: u64 = 5900;
+
 #[test]
-fn role_aware_large_receive_with_small_output_fits_the_checked_heap_bound() {
+fn large_receive_with_full_output_stays_under_heap_ceiling() {
     for role in [Role::Initiator, Role::Responder] {
         let mut source = schema();
         let limits = Limits { chunk: 64, ..limits() };
@@ -174,7 +181,6 @@ fn role_aware_large_receive_with_small_output_fits_the_checked_heap_bound() {
             Role::Responder => (0x0101, 0x0100),
         };
         source.versions.get_mut(0).unwrap().kinds.get_mut(u32::from(received - 0x0100)).unwrap().largest = 4096;
-        let bound = worst_case(&source, role, &limits).expect("large receive and small output have a finite bound");
         let opening = match role {
             Role::Initiator => Control::Accept { version: 1, features: 0 },
             Role::Responder => {
@@ -238,10 +244,9 @@ fn role_aware_large_receive_with_small_output_fits_the_checked_heap_bound() {
             (received, 4096),
         );
         assert!(body_seen);
+        assert_eq!(machine.room().bytes, 0, "the queued frame fills the output byte capacity");
         let measured = meter.end();
-        assert!(measured.peak() >= 4096 + 128, "large input and full small output coexist");
-        assert!(measured.peak() <= bound, "{role:?} peak {} exceeds {bound}", measured.peak());
-        eprintln!("{role:?} large receive4096/output128 peak={} bound={bound}", measured.peak());
+        assert!(measured.peak() <= LARGE_RECEIVE_HEAP_CEILING, "{role:?} peak {} exceeds ceiling", measured.peak());
         drop(machine);
         drop(above);
         drop(below);

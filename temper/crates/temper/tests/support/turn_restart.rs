@@ -79,7 +79,7 @@ struct Judge<'a> {
     retry: bool,
     advanced: Option<(String, String)>,
     poll: Time,
-    progress: (u32, Time),
+    progress: (u32, super::patience::Patience),
 }
 impl Judge<'_> {
     fn sample(&mut self) -> bool {
@@ -173,9 +173,15 @@ impl Referee<Process> for Judge<'_> {
         }
         let Process::Person(person) = &procs[1] else { panic!("native person") };
         if person.steps_seen() != self.progress.0 {
-            self.progress = (person.steps_seen(), now);
+            let Process::Binary(binary) = &procs[0] else { panic!("serve") };
+            self.progress = (
+                person.steps_seen(),
+                super::patience::Patience::watching("the restarted turn's progress", WITHIN, binary),
+            );
         }
-        if !self.chat.stopping() && now >= self.progress.1.saturating_add(WITHIN) {
+        if !self.chat.stopping()
+            && let Some(figures) = self.progress.1.failed()
+        {
             let setup = procs.iter().find_map(|proc| match proc {
                 Process::Calls(calls) => Some(calls.ends().iter().map(|call| call.exit).collect::<Vec<_>>()),
                 Process::Binary(_)
@@ -199,7 +205,7 @@ impl Referee<Process> for Judge<'_> {
                 .collect();
             eprintln!("stalled runs: {runs:?}");
             panic!(
-                "turn restart stalled: native step {}, finished={}, setup={setup:?}, forge={}",
+                "turn restart stalled: native step {}, finished={}, setup={setup:?}, forge={}; {figures}",
                 person.steps_seen(),
                 person.finished,
                 self.chat.forge.expect("forge").failure_state()
@@ -265,11 +271,12 @@ fn run_to(root: &Path, forge: &Throwaway, previous: Option<&Proof>, retry: bool)
     let person_root = skein_shell::open_root(root).expect("native root");
     let proof = Cell::new(None);
     let landed = Cell::new(None);
+    let progress = super::patience::Patience::watching("the restarted turn's progress", WITHIN, &binary);
     let mut world = real::World::new(Judge {
         chat: ChatJudge {
             phase: if first { ChatPhase::SettingUp } else { ChatPhase::Running },
             ending: Ending::Stop,
-            deadline: clock.now().now.saturating_add(LANDING),
+            deadline: super::patience::Patience::watching("the restarted turn's landing", LANDING, &binary),
             forge: Some(forge),
             poll: clock.now().now,
             merged: false,
@@ -281,7 +288,7 @@ fn run_to(root: &Path, forge: &Throwaway, previous: Option<&Proof>, retry: bool)
         retry,
         advanced: None,
         poll: clock.now().now,
-        progress: (0, clock.now().now),
+        progress: (0, progress),
     });
     world.spawn_with_fds(binary.descriptors(), || Process::Binary(Box::new(binary)));
     if first {

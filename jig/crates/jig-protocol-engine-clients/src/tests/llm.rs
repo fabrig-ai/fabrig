@@ -332,7 +332,7 @@ fn assert_task_refusal_round_trip(
     let mut writer = Writer::new(usize::try_from(record.measure()).unwrap());
     record.encode(&mut writer).unwrap();
     let bytes = writer.finish();
-    assert!(u64::from(record.measure()) <= w::Task::worst_case_bytes(&limits).unwrap());
+    assert!(u64::from(record.measure()) <= w::Task::encoded_bound(&limits).unwrap());
     let decoded = w::Task::decode(&limits, &mut Reader::new(&bytes)).unwrap();
     assert_eq!(decoded, record);
     let client = jig_client_protocol_link::translate::documents::task(decoded, &client_limits).unwrap();

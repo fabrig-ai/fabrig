@@ -24,7 +24,7 @@ pub const MAX_OUT_DOWN: u32 = 32;
 pub const MAX_OUT_FIRE: u32 = 16;
 pub(crate) fn channel(limits: &Limits) -> Option<skein_channel::Limits> {
     let codec = sizes::limits(&limits.sizes)?;
-    let credential = u32::try_from(wire::Credential::worst_case_bytes(&codec)?).ok()?;
+    let credential = u32::try_from(wire::Credential::encoded_bound(&codec)?).ok()?;
     let cap = sizes::engine_cap(&limits.sizes)?;
     Some(skein_channel::Limits {
         chunk: limits.chunk,
@@ -62,7 +62,7 @@ pub fn valid(limits: &Limits) -> bool {
     limits.workers.checked_add(limits.opening).is_some()
         && schema.check(Role::Responder, &channel).is_ok()
         && channel_capacity(&channel).is_some()
-        && wire::v9::worst_case_heap(&codec).is_some()
+        && wire::v9::decoded_bound(&codec).is_some()
 }
 
 // The channel has no separate validity API at this pin. Keep its derived

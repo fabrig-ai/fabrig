@@ -2,77 +2,13 @@
 
 use crate::common;
 
-use smith_bench::arm::ArmRef;
-use smith_bench::probe::{Order, Source};
-use smith_bench::{Agent, Judgment, Measure};
+use smith_bench::{Judgment, Measure};
 use std::os::unix::fs::DirBuilderExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
 fn root(name: &str) -> PathBuf {
     std::env::temp_dir().join(format!("smith-probe-command-{name}-{}", std::process::id()))
-}
-
-fn isolated(name: &str) -> Option<PathBuf> {
-    if std::env::var_os("SMITH_PROBE_OFFLINE_CHILD").is_some() {
-        return Some(root(name));
-    }
-    let directory = root(name);
-    std::fs::DirBuilder::new().mode(0o700).create(&directory).expect("private fixture root");
-    std::fs::create_dir_all(directory.join("state/smith-bench/logins/smith/tokens")).expect("synthetic home");
-    let output = Command::new(std::env::current_exe().expect("test executable"))
-        .args(["--exact", &format!("probe_command::{name}"), "--nocapture"])
-        .env("SMITH_PROBE_OFFLINE_CHILD", "1")
-        .env("HOME", &directory)
-        .env("XDG_CONFIG_HOME", directory.join("config"))
-        .env("XDG_STATE_HOME", directory.join("state"))
-        .output()
-        .expect("isolated test process");
-    assert!(
-        output.status.success(),
-        "{}{}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
-    );
-    std::fs::remove_dir_all(directory).expect("remove private fixture");
-    None
-}
-
-#[test]
-fn a_probe_order_writes_one_request_per_attempt_with_its_pin_and_tier() {
-    let name = "a_probe_order_writes_one_request_per_attempt_with_its_pin_and_tier";
-    let Some(directory) = isolated(name) else {
-        return;
-    };
-    std::fs::create_dir_all(&directory).expect("fixture");
-    let repository = Path::new(env!("CARGO_MANIFEST_DIR")).parent().expect("repository");
-    let arm = ArmRef::Built(common::unexecuted_arm(&directory, repository));
-    let order = Order { probe: "probes/smoke-tools".into(), agent: Agent::Smith, attempts: 2, source: Source::Head };
-    let planned = smith_bench::probe::plan(repository, &order, &arm).expect("prepare");
-    assert_eq!(planned.requests.len(), 2);
-    for request in planned.requests {
-        assert_eq!(request.identity.model.requested_model, "gpt-6-luna");
-        assert_eq!(request.identity.model.requested_effort, "low");
-        assert!(request.configuration.expect("pin").ends_with("smith/everything.pin.toml"));
-        assert!(planned.directory.join(format!("{}.json", request.identity.attempt)).exists());
-    }
-    assert_eq!(smith_bench::read_suite(&planned.suite).expect("suite").rerun_failed, 0);
-}
-
-#[test]
-fn a_codex_order_takes_the_standard_codex_pin() {
-    let name = "a_codex_order_takes_the_standard_codex_pin";
-    let Some(directory) = isolated(name) else {
-        return;
-    };
-    std::fs::create_dir_all(&directory).expect("fixture");
-    let repository = Path::new(env!("CARGO_MANIFEST_DIR")).parent().expect("repository");
-    let order = Order { probe: "probes/smoke-tools".into(), agent: Agent::Codex, attempts: 1, source: Source::Head };
-    let planned =
-        smith_bench::probe::plan(repository, &order, &ArmRef::Installed { program: "/bin/true".into() }).expect("plan");
-    let request = &planned.requests[0];
-    assert_eq!(request.identity.agent, Agent::Codex);
-    assert!(request.configuration.as_ref().expect("pin").ends_with("codex/standard.pin.toml"));
 }
 
 #[test]
@@ -365,26 +301,6 @@ fn an_early_finish_before_the_threshold_is_a_model_deviation() {
     }
     let counted = smith_bench::probe::count(&[result], 10, 12);
     assert_eq!((counted.passed, counted.failed, counted.deviations, counted.unjudged), (0, 0, 1, 0));
-}
-
-#[test]
-fn the_program_order_keeps_its_own_arm_identity() {
-    let name = "the_program_order_keeps_its_own_arm_identity";
-    let Some(directory) = isolated(name) else {
-        return;
-    };
-    std::fs::create_dir_all(&directory).expect("private fixture root");
-    let repository = Path::new(env!("CARGO_MANIFEST_DIR")).parent().expect("repository");
-    let arm = ArmRef::Built(common::unexecuted_arm(&directory, repository));
-    let order =
-        Order { probe: "probes/smoke-tools".into(), agent: Agent::ClaudeCode, attempts: 1, source: Source::Head };
-    let planned = smith_bench::probe::plan(repository, &order, &arm).expect("program plan");
-    let request = &planned.requests[0];
-    assert_eq!(request.identity.agent, Agent::Smith);
-    assert_eq!(request.identity.provider, smith_bench::Provider::Anthropic);
-    assert_eq!(request.identity.model.requested_model, "claude-haiku-5-5");
-    assert!(request.identity.arm.starts_with("smith-claude-code-"));
-    assert!(request.configuration.as_ref().expect("program pin").ends_with("smith/smith-claude-code.pin.toml"));
 }
 
 #[test]

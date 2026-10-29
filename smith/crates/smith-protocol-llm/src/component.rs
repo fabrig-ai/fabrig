@@ -149,7 +149,7 @@ pub fn component_valid(limits: &ComponentLimits, endpoints: &Endpoints) -> bool 
             Some(reservation) => reservation,
             None => return false,
         };
-        if reservation > pool.memory || shared::client::encoding_worst_case(&native).is_none() {
+        if reservation > pool.memory || shared::client::encoder_bound(&native).is_none() {
             return false;
         }
         match &endpoint.transport {

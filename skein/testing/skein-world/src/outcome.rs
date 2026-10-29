@@ -13,6 +13,7 @@ use std::thread;
 /// or something it allocated was never accounted, or never freed. A test
 /// that panicked skips it.
 #[derive(Debug)]
+#[expect(clippy::partial_pub_fields, reason = "metered peaks are read only through the outcome accessor")]
 pub struct Outcome<P, M = NoMachine> {
     /// The fake machine after every non-hosted call has been answered.
     pub machine: M,
@@ -28,10 +29,8 @@ pub struct Outcome<P, M = NoMachine> {
     pub iterations: u32,
     /// When the world settled.
     pub end: Time,
-    /// Each process's peak and scenario ceiling, by index, when checked;
-    /// `u64::MAX` when checked without a ceiling.
-    /// The pair goes once callers read `peaks()`; the ceiling a scenario named is its own constant.
-    pub heap: Option<Vec<(u64, u64)>>,
+    /// Each surviving process's peak, by index, when memory was checked.
+    pub(crate) peaks: Option<Vec<u64>>,
     /// What each process held of its own once settled, by index, when memory
     /// was checked: what dropping it must free.
     pub held: Option<Vec<i64>>,
@@ -44,12 +43,7 @@ impl<P, M> Outcome<P, M> {
     /// `None` when memory was not checked.
     #[must_use]
     pub fn peaks(&self) -> Option<Vec<u64>> {
-        let heap = self.heap.as_ref()?;
-        let mut peaks = Vec::new();
-        for (peak, _) in heap {
-            peaks.push(*peak);
-        }
-        Some(peaks)
+        self.peaks.clone()
     }
 }
 

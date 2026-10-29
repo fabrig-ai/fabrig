@@ -31,7 +31,7 @@ pub fn worst_case(limits: &Limits) -> Option<u64> {
 /// and provider request/response ownership.
 #[must_use]
 pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-    crate::openai::worst_case(limits)?
-        .checked_add(decoder_worst_case(limits)?)?
-        .checked_add(skein_lib::List::<Mark>::worst_case(4)?.checked_mul(2)?)
+    crate::openai::decoded_bound(limits)?
+        .checked_add(decoder_bound(limits)?)?
+        .checked_add(skein_lib::List::<Mark>::price(4)?.checked_mul(2)?)
 }

@@ -46,7 +46,7 @@ fn github_fake_full_installations_stay_under_their_held_ceiling() {
         held = held.checked_add(token.secret.len()).expect("token bytes");
     }
     held = held
-        .checked_add(usize::try_from(Queue::<super::Changed>::worst_case(store.event_capacity()).unwrap()).unwrap())
+        .checked_add(usize::try_from(Queue::<super::Changed>::price(store.event_capacity()).unwrap()).unwrap())
         .unwrap();
     assert_eq!(store.events.len(), store.events.capacity());
     for event in &store.events {

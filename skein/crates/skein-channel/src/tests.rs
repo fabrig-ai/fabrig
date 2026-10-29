@@ -856,18 +856,6 @@ fn role_aware_schema_accepts_large_received_kinds_and_refuses_large_sent_kinds()
 }
 
 #[test]
-fn role_aware_worst_case_prices_only_received_application_bodies() {
-    let mut source = schema();
-    source.versions.get_mut(0).unwrap().kinds.get_mut(0).unwrap().largest = 4096;
-    let bounds = Limits { output_bytes: 8192, ..limits() };
-    let initiator = super::worst_case(&source, Role::Initiator, &bounds).unwrap();
-    let responder = super::worst_case(&source, Role::Responder, &bounds).unwrap();
-    // Initiator's receive bound is the fixed 262-byte control body; its
-    // 4096-byte application body belongs to its output queue, never input.
-    assert_eq!(responder - initiator, 4096 - 262);
-}
-
-#[test]
 fn valid_accepts_test_limits() {
     for role in [Role::Initiator, Role::Responder] {
         assert!(super::valid(&schema(), role, &limits()));

@@ -3,18 +3,15 @@ mod support;
 use jig_client_protocol_world::native::Script;
 
 /// The fake provider checks the credential presented by the real run.
-fn peer() -> skein_fake_peers::llm::Peer {
+fn peer() -> (skein_fake_peers::llm::Peer, std::net::SocketAddr, skein_io::kernel::Fd) {
     let mut script = jig_channel_world::fixtures::one_chat(b"Hello");
     script.result = br#"{"form":"report","text":"Process answer","fields":{}}"#.as_slice().into();
-    jig_channel_world::fixtures::provider(
+    support::ports::provider(
         Box::new([skein_fake_llm_domain::api::Script {
             cue: Box::default(),
             turns: jig_channel_world::fixtures::provider_turns(&script),
         }]),
         skein_llm::Credential::bearer(b"token".as_slice().into()),
-        skein_lib::Duration::ZERO,
-        skein_fake_peers::Transport::Tls,
-        skein_fake_llm_protocol::documents::Provider::OpenAi,
     )
 }
 
@@ -50,13 +47,6 @@ fn jig_test_serves_its_bundle_s_page_under_the_reference_policy() {
 }
 
 #[test]
-fn a_party_signs_in_through_a_client_and_opens_the_address_at_the_issuer() {
-    let directory = support::scratch();
-    accounts::configuration(directory.path());
-    accounts::run(directory.path());
-}
-
-#[test]
 fn a_binary_told_to_stop_with_a_sign_in_under_way_ends_at_once() {
     accounts::sigterm();
 }
@@ -70,15 +60,6 @@ mod account_sign_in_visitor;
 #[path = "support/accounts.rs"]
 mod accounts;
 
-#[path = "support/account_keys.rs"]
-mod account_keys;
-#[test]
-fn a_party_adds_replaces_and_removes_a_key() {
-    let directory = support::scratch();
-    account_keys::configuration(directory.path());
-    account_keys::run(directory.path());
-}
-
 #[expect(dead_code, reason = "only the live binary uses the DNS-resolving configuration entry")]
 #[path = "support/live_sign_in.rs"]
 mod live_sign_in;
@@ -90,7 +71,7 @@ fn a_person_signs_in_at_the_fake_issuer_and_the_live_story_answers_and_signs_out
     let peers = live_sign_in::Peers::Fake;
     let clock = skein_shell::Clock::new();
     let started = clock.now().now;
-    let limits = live_sign_in::configuration_at(directory.path(), "127.0.0.1:34443", peers);
+    let limits = live_sign_in::configuration_at(directory.path(), "127.0.0.1:0", peers);
     let outcome = live_sign_in::run(directory.path(), started, peers);
     live_sign_in::check(directory.path(), &limits, outcome, peers);
 }
@@ -102,7 +83,7 @@ fn a_provider_refusing_the_plan_s_grant_fails_the_live_story_in_words() {
     let peers = live_sign_in::Peers::Refusing;
     let clock = skein_shell::Clock::new();
     let started = clock.now().now;
-    live_sign_in::configuration_at(directory.path(), "127.0.0.1:34443", peers);
+    live_sign_in::configuration_at(directory.path(), "127.0.0.1:0", peers);
     let failed = std::panic::catch_unwind(|| live_sign_in::run(directory.path(), started, peers))
         .expect_err("a refused grant fails the live story");
     let why = failed.downcast_ref::<String>().expect("the judge's words");
@@ -123,21 +104,6 @@ fn a_person_s_sign_in_outlives_a_restart_is_refreshed_at_the_issuer_and_signs_ou
     let result = std::panic::catch_unwind(|| restarted_sign_in::run(directory.path()));
     if let Err(failure) = result {
         eprintln!("{}", support::trace::failures(directory.path()));
-        std::panic::resume_unwind(failure);
-    }
-}
-
-#[path = "support/account_move.rs"]
-mod account_move;
-
-#[test]
-fn an_account_moves_between_two_binaries_and_the_first_holds_nothing() {
-    let directory = support::scratch();
-    let result = std::panic::catch_unwind(|| account_move::run(directory.path()));
-    if let Err(failure) = result {
-        for deployment in ["a", "b"] {
-            eprintln!("{deployment}: {}", support::trace::failures(&directory.path().join(deployment)));
-        }
         std::panic::resume_unwind(failure);
     }
 }

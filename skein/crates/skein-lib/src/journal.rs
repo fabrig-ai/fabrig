@@ -25,9 +25,8 @@ use core::hash::{Hash, Hasher};
 
 use crate::Queue;
 
-/// Container sizes retained for downstream per-process sums (lib.md, section 11).
-/// The journal reads only `release`; it ignores the other fields, which
-/// `Journal::worst_case` reads to price capped containers.
+/// Container sizes kept by callers (lib.md, section 11).
+/// The journal reads only `release`; the other fields are sizes its callers keep.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct JournalLimits {
     /// Commits made but not yet answered.
@@ -88,7 +87,7 @@ impl<W, O> Decision<W, O> {
     }
 
     /// Adds a write; an uncapped decision never refuses, so this always
-    /// returns `Ok`. Kept while temper's engine domain still calls it;
+    /// returns `Ok`. Kept while temper's engine-domain world test calls it;
     /// `push_write` is the form.
     pub fn write(&mut self, write: W) -> Result<(), W> {
         self.push_write(write);
@@ -96,7 +95,7 @@ impl<W, O> Decision<W, O> {
     }
 
     /// Holds an output; an uncapped decision never refuses, so this always
-    /// returns `Ok`. Kept while temper's engine domain still calls it;
+    /// returns `Ok`. Kept while temper's engine-domain world test calls it;
     /// `push_held` is the form.
     pub fn hold(&mut self, output: O) -> Result<(), O> {
         self.push_held(output);
@@ -270,24 +269,6 @@ impl<W, O> Journal<W, O> {
             && self.outstanding.is_empty()
             && self.held.is_empty()
             && self.now.is_empty()
-    }
-
-    /// Prices capped containers that a downstream per-process sum still reads.
-    /// The journal itself no longer allocates by these sizes.
-    #[must_use]
-    pub fn worst_case(limits: &JournalLimits) -> Option<u64> {
-        let commits = Queue::<Commit<W>>::price(limits.commits)?;
-        let outstanding = Queue::<u64>::price(limits.commits)?;
-        let held = Queue::<Held<O>>::price(limits.held)?;
-        let now = Queue::<O>::price(limits.now)?;
-        let writes = Queue::<W>::price(limits.writes)?.checked_mul(u64::from(limits.commits).checked_add(1)?)?;
-        let decision_held = Queue::<O>::price(limits.held)?;
-        commits
-            .checked_add(outstanding)?
-            .checked_add(held)?
-            .checked_add(now)?
-            .checked_add(writes)?
-            .checked_add(decision_held)
     }
 }
 

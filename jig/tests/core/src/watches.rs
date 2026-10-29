@@ -540,7 +540,7 @@ pub fn world(seed: u64, automatic: bool) -> crate::effects::World {
     let (configuration, mut limits) = crate::effects::fixture(seed, false);
     limits.core.views.watchers = 8;
     limits.core.views.watchers_per_party = 8;
-    let room = core::route_bound(&limits.core).expect("watch story room");
+    let room = limits.core.routes;
     let connectors = jig_test_connector::MAX_OUT * 2;
     limits.journal.writes = (room + connectors) * 2;
     limits.journal.held = (room + connectors) * 2;

@@ -330,10 +330,10 @@ impl Ring {
     }
 
     fn start(&mut self, record: Submit) {
+        check_record(&record);
         let Submit { op, kind } = record;
-        assert!(kind.is_valid(), "io submits only valid records (skein_io::kernel, broken invariants)");
         check_path_access(&kind);
-        assert!(!self.table.tokens.contains_key(&op), "io never reuses a token in flight (skein_io::kernel)");
+        self.table.check_token(op);
         let index = self.table.free.pop().expect("a record is taken only while a slot is free");
         let Table { slots, tokens, cancelled, ready, listing, .. } = &mut self.table;
         let slot = slots.get_mut(slot_index(index)).expect("a free index names a slot");
@@ -384,10 +384,7 @@ impl Ring {
             }
             Wait::No | Wait::Until(_) => self.enter_plain(pending, 0),
             Wait::Forever => {
-                assert!(
-                    !blocks || !self.table.tokens.is_empty(),
-                    "waiting forever with nothing in flight never returns"
-                );
+                self.table.check_forever();
                 self.enter_plain(pending, u32::from(blocks))
             }
         };
@@ -426,7 +423,22 @@ impl Drop for Ring {
     }
 }
 
+fn check_record(record: &Submit) {
+    assert!(record.kind.is_valid(), "io submits only valid records (skein_io::kernel, broken invariants)");
+}
+
 impl Table {
+    fn check_token(&self, op: Token) {
+        assert!(!self.tokens.contains_key(&op), "io never reuses a token in flight (skein_io::kernel)");
+    }
+
+    fn check_forever(&self) {
+        assert!(
+            !self.ready.is_empty() || !self.tokens.is_empty(),
+            "waiting forever with nothing in flight never returns"
+        );
+    }
+
     /// The next entry for an `Open` whose raw completion asked for a retry.
     fn resubmission(&self, index: u32) -> squeue::Entry {
         let slot = self.slots.get(slot_index(index)).expect("an index in flight names a slot");
@@ -771,6 +783,7 @@ mod tests {
     use crate::Clock;
     use crate::open_termination_signals;
 
+    mod guards;
     mod open_retries;
 
     #[test]

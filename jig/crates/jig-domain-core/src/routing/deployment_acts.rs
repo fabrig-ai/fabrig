@@ -29,7 +29,7 @@ pub(super) fn start(
         None => digest.is_none(),
     };
     if !valid {
-        let mut out = Queue::with_capacity(2);
+        let mut out = Queue::uncapped();
         out.push(Request::Held(Box::new(Held::Acted {
             to: reply_to,
             outcome: people::Outcome::Refused(people::Refusal::NotOffered),

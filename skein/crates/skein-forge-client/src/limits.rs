@@ -1,12 +1,9 @@
-//! Capacity limits and the client's heap bound (forge-client.md, section 5).
+//! Capacity limits and representability checks (forge-client.md, section 5).
 //!
 //! The limits bound retained calls, live rows and in-flight writes. This
-//! module retains no state and knows no task policy. `worst_case` rejects
-//! incoherent limits and bounds allocations at simultaneous saturation.
-use crate::Fact;
-use crate::calls::Call;
-use crate::domain::Alarm;
-use skein_lib::{Deadlines, Duration, Id, Map, Queue, Slab, Token};
+//! module retains no state and knows no task policy. `valid` rejects
+//! incoherent limits and capacities that do not fit their types.
+use skein_lib::Duration;
 /// Caps on retained calls, live rows, writes and reply bytes.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
@@ -79,33 +76,4 @@ fn capacity_bound(l: &Limits) -> Option<()> {
     l.pending.checked_add(l.entries)?.checked_add(l.resources)?.checked_add(l.repositories)?.checked_add(2)?;
     l.resources.checked_mul(2)?.checked_add(l.repositories.checked_mul(2)?)?.checked_add(1)?;
     Some(())
-}
-
-/// Retained operations, four class queues, budget timers and diagnostics.
-/// A sent operation is cloned from its bounded retained retry value; its
-/// outward copy belongs to the parent's output queue, counted there.
-#[must_use]
-pub fn worst_case(l: &Limits) -> Option<u64> {
-    if !valid(l) {
-        return None;
-    }
-    Slab::<Call>::worst_case(l.pending)?
-        .checked_add(Map::<Token, Id<Call>>::price(l.calls)?)?
-        .checked_add(Queue::<Id<Call>>::price(l.pending)?.checked_mul(4)?)?
-        .checked_add(u64::from(l.pending).checked_mul(u64::from(l.op_bytes))?)?
-        .checked_add(Deadlines::<Alarm>::worst_case(
-            l.pending.checked_add(l.entries)?.checked_add(l.resources)?.checked_add(l.repositories)?.checked_add(2)?,
-        )?)?
-        .checked_add(crate::outbox::worst_case(l)?)?
-        .checked_add(crate::keep::worst_case(l)?)?
-        .checked_add(Map::<u16, u64>::price(l.repositories)?)?
-        // The configured namespace and writers share one cap;
-        // the writer table holds at most one per repository.
-        .checked_add(u64::from(l.op_bytes))?
-        // Owner names and in-flight operation copies are
-        // independently owned; bound them even at simultaneous saturation.
-        .checked_add(u64::from(l.pending).checked_mul(u64::from(l.op_bytes).checked_mul(2)?)?)?
-        // The final Settled request owns one number per entry.
-        .checked_add(u64::from(l.entries).checked_mul(8)?)?
-        .checked_add(Queue::<Fact>::price(l.facts)?)
 }

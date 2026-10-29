@@ -33,7 +33,7 @@ pub(super) fn escalation_refused(
     task: u64,
     why: tasks::Refusal,
 ) -> Requests {
-    let mut out = Queue::with_capacity(3);
+    let mut out = Queue::uncapped();
     call_decision(
         core,
         &mut out,
@@ -46,7 +46,7 @@ pub(super) fn escalation_refused(
 }
 
 pub(super) fn proposal_refused(core: &mut Core, to: ReplyTo, key: CallKey, why: tasks::Refusal) -> Requests {
-    let mut out = Queue::with_capacity(3);
+    let mut out = Queue::uncapped();
     call_decision(
         core,
         &mut out,
@@ -70,7 +70,7 @@ pub(super) fn named_proposal_accept(
     let token = to.into_token();
     let to = ReplyTo::new(token);
     if super::proposal_revisions::call(core, work, token, key, &proposal) {
-        let mut out = Queue::with_capacity(1);
+        let mut out = Queue::uncapped();
         out.push(Request::Decided);
         return Requests::Out(out);
     }
@@ -102,7 +102,7 @@ pub(super) fn named_proposal_accept(
             by: tasks::Party::Task(key.task),
             decision: tasks::ProposalDecision::Accept,
         }));
-        let mut out = Queue::with_capacity(1);
+        let mut out = Queue::uncapped();
         out.push(Request::Decided);
         return Requests::Out(out);
     }
@@ -222,7 +222,7 @@ pub(super) fn named_proposal_accept(
         "one acceptance route"
     );
     work.push(Event::Tasks(event));
-    let mut out = Queue::with_capacity(1);
+    let mut out = Queue::uncapped();
     out.push(Request::Decided);
     Requests::Out(out)
 }
@@ -282,7 +282,7 @@ pub(super) fn named_proposal_decide(
         by: tasks::Party::Task(key.task),
         decision: next,
     }));
-    let mut out = Queue::with_capacity(1);
+    let mut out = Queue::uncapped();
     out.push(Request::Decided);
     Requests::Out(out)
 }
@@ -312,7 +312,7 @@ pub(crate) fn named_propose(
         && let Err(why) = core.release_proposal_admit(key.task, *task, *hold, *revision, env.limits.tasks.depth)
     {
         if let tasks::Refusal::HoldRevision { revision } = why {
-            let mut out = Queue::with_capacity(3);
+            let mut out = Queue::uncapped();
             call_decision(
                 core,
                 &mut out,
@@ -328,7 +328,7 @@ pub(crate) fn named_propose(
     if let tasks::ProposalAction::Amend { task, revision, amendment } = &action
         && let Err(jig_domain_people::Refusal::Moved { now }) = core.party_amend_revision(*task, *revision, amendment)
     {
-        let mut out = Queue::with_capacity(3);
+        let mut out = Queue::uncapped();
         call_decision(core, &mut out, to, key, CallPart::Moved { task: *task, now });
         out.push(Request::Decided);
         return Requests::Out(out);
@@ -360,7 +360,7 @@ pub(crate) fn named_propose(
             state: tasks::ProposalState::Pending { holder, since: env.wall },
         },
     }));
-    let mut out = Queue::with_capacity(1);
+    let mut out = Queue::uncapped();
     out.push(Request::Decided);
     Requests::Out(out)
 }
@@ -386,7 +386,7 @@ pub(super) fn named_escalation(
         }
     };
     if let Err(jig_domain_people::Refusal::Moved { now }) = core.hold_revision(task, revision) {
-        let mut out = Queue::with_capacity(3);
+        let mut out = Queue::uncapped();
         call_decision(core, &mut out, to, key, CallPart::Moved { task, now });
         out.push(Request::Decided);
         return Requests::Out(out);
@@ -437,7 +437,7 @@ pub(super) fn named_escalation(
         entry,
         decision: semantic,
     }));
-    let mut out = Queue::with_capacity(1);
+    let mut out = Queue::uncapped();
     out.push(Request::Decided);
     Requests::Out(out)
 }
@@ -456,24 +456,24 @@ pub(super) fn named_action(
         return crate::reads::settings::run(core, env, to, key, read);
     }
     if let Some(part) = core.call_parts.get(&key) {
-        let mut out = Queue::with_capacity(2);
+        let mut out = Queue::uncapped();
         out.push(Request::Held(Box::new(Held::CallAnswer { to, key, part: part.clone() })));
         out.push(Request::Decided);
         return Requests::Out(out);
     }
     if super::amendment_reads::waiting(core, key) {
-        let mut out = Queue::with_capacity(1);
+        let mut out = Queue::uncapped();
         out.push(Request::Decided);
         return Requests::Out(out);
     }
     if let Some(part) = core.authorize_tool(key, named_tool_kind(&action)) {
-        let mut out = Queue::with_capacity(3);
+        let mut out = Queue::uncapped();
         call_decision(core, &mut out, to, key, part);
         out.push(Request::Decided);
         return Requests::Out(out);
     }
     let token = to.into_token();
-    let mut out = Queue::with_capacity(3);
+    let mut out = Queue::uncapped();
     match action {
         NamedAction::Settings(_) => unreachable!("settings reads use the unrecorded path"),
         NamedAction::ProposeSettings { against, items, reason } => {
@@ -760,7 +760,7 @@ pub(super) fn named_tool_kind(action: &NamedAction) -> ToolKind {
 
 pub(super) fn route_named_answer(core: &mut Core, to: ReplyTo, key: CallKey, part: CallPart) -> Requests {
     assert!(core.current_proof(key.task, key.attempt), "named call belongs to current claim");
-    let mut out = Queue::with_capacity(3);
+    let mut out = Queue::uncapped();
     call_decision(core, &mut out, to, key, part);
     out.push(Request::Decided);
     Requests::Out(out)
@@ -785,7 +785,7 @@ pub(super) fn route_refused_payload(
             if problem.task == Some(task) && core.current_proof(task, attempt) =>
         {
             if core.committed_terminal(task, attempt).is_some() {
-                let mut out = Queue::with_capacity(1);
+                let mut out = Queue::uncapped();
                 out.push(Request::Decided);
                 return Requests::Out(out);
             }
@@ -810,7 +810,7 @@ pub(super) fn route_refused_payload(
         }
         Some(PayloadRefusal::Turn { .. } | PayloadRefusal::Answer { .. }) | None => {}
     }
-    let mut out = Queue::with_capacity(1);
+    let mut out = Queue::uncapped();
     out.push(Request::Decided);
     Requests::Out(out)
 }
@@ -827,7 +827,7 @@ pub(super) fn named_amend(
     mut amendment: tasks::Amendment,
     evidence: super::amendment_reads::Evidence,
 ) -> Requests {
-    let mut out = Queue::with_capacity(3);
+    let mut out = Queue::uncapped();
     if let Some(part) = core.authorize_tool(key, ToolKind::Control) {
         call_decision(core, &mut out, ReplyTo::new(token), key, part);
         out.push(Request::Decided);

@@ -24,7 +24,7 @@ pub(crate) fn empty() -> Requests {
     answer(None)
 }
 fn answer(value: Option<Request>) -> Requests {
-    let mut out = Queue::with_capacity(3);
+    let mut out = Queue::uncapped();
     if let Some(value) = value {
         out.push(value);
     }

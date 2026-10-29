@@ -16,8 +16,7 @@ use std::{
     sync::LazyLock,
 };
 
-pub const TASKS: [u64; 5] = [1, 2, 4, 5, 6];
-pub const CUES: [&str; 5] = [
+const CUES: [&str; 5] = [
     "## Replying",
     "[Requested by task 1]",
     "Implement the approved CSV export for widget.",
