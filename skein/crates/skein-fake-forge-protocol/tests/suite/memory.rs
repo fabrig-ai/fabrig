@@ -31,7 +31,7 @@ mod tests {
         files.into_boxed()
     }
     // Bounds the hosted git scenario, including its driver and shared domain.
-    const FAKE_FORGEJO_GIT_SCENARIO_PEAK_CEILING: u64 = 560_000;
+    const FAKE_FORGEJO_GIT_SCENARIO_PEAK_CEILING: u64 = 75_000;
 
     #[test]
     fn maximal_trees_and_merge_history_stay_under_the_scenario_peak_ceiling() {
@@ -40,9 +40,6 @@ mod tests {
         let mut config = fixtures::config();
         let domain_limits = fixtures::fake_config().limits;
         config.max_response_items = domain_limits.commits;
-        let bound = FAKE_FORGEJO_GIT_SCENARIO_PEAK_CEILING
-            .checked_add(domain::worst_case(&domain_limits).expect("domain bound"))
-            .expect("combined bound");
         // Driver buffers and the shared domain are included in the scenario peak.
         let mut h = fixtures::Harness::new(config);
         let mut tip = 1_u64;
@@ -67,7 +64,11 @@ mod tests {
         assert_eq!(h.status(), 200);
         assert!(skein_lib::bytes::find(&h.body(), b"\"graph\":[{\"commit\":15,").is_some());
         let measured = meter.end();
-        let peak = meter.check(measured, bound, &"maximal git trees and both-parent frontier");
+        let peak = meter.check(
+            measured,
+            FAKE_FORGEJO_GIT_SCENARIO_PEAK_CEILING,
+            &"maximal git trees and both-parent frontier",
+        );
         assert!(peak <= FAKE_FORGEJO_GIT_SCENARIO_PEAK_CEILING);
     }
     #[test]
