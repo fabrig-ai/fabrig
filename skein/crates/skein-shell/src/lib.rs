@@ -66,7 +66,7 @@ pub use clock::{Clock, Now};
 pub(crate) use darwin as system;
 #[cfg(unix)]
 pub use drive::drive;
-pub use drive::{Host, NO_BOUND};
+pub use drive::Host;
 #[cfg(all(unix, target_os = "linux"))]
 pub(crate) use linux as system;
 
