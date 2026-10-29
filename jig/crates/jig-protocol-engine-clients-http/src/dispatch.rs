@@ -42,8 +42,7 @@ pub(crate) fn route(prefix: &[u8], call: &skein_http::server::Call) -> Route {
 pub(crate) fn body_bound(route: Route, configured: u32) -> u32 {
     match route {
         Route::Authorize => configured.min(
-            u32::try_from(w::Authorize::encoded_bound(&w::CEILINGS).expect("record bound"))
-                .expect("record fits u32"),
+            u32::try_from(w::Authorize::encoded_bound(&w::CEILINGS).expect("record bound")).expect("record fits u32"),
         ),
         Route::Link
         | Route::Service

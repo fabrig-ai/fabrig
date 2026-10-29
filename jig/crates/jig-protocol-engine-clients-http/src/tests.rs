@@ -601,8 +601,7 @@ fn authorize_maps_under_the_prefix_and_uses_record_error_statuses() {
     }
     let mut mount = fixtures::mount();
     let mut out = Queue::with_capacity(32);
-    let length =
-        usize::try_from(w::Authorize::encoded_bound(&w::CEILINGS).unwrap()).unwrap().checked_add(1).unwrap();
+    let length = usize::try_from(w::Authorize::encoded_bound(&w::CEILINGS).unwrap()).unwrap().checked_add(1).unwrap();
     let call = fixtures::call(
         &mut mount,
         &mut out,
