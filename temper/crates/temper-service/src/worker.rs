@@ -130,7 +130,7 @@ impl Worker {
                 host_limits: agent.host_limits,
             },
             link,
-            link_out: Queue::with_capacity(link::MAX_OUT_DOWN),
+            link_out: Queue::uncapped(),
             out: Queue::uncapped(),
             events: Queue::uncapped(),
             engine: Queue::with_capacity(ENGINE_EVENTS),
@@ -367,10 +367,8 @@ impl Worker {
         self.drain_link(now);
     }
     fn drain_link(&mut self, now: Time) {
-        for _ in 0..self.link_out.capacity() {
-            if self.link_out.is_empty() {
-                break;
-            }
+        // One link invocation's finite batch; dispatch does not invoke the link.
+        for _ in 0..self.link_out.len() {
             let request = self.link_out.pop().expect("link output");
             self.link(now, request);
         }
