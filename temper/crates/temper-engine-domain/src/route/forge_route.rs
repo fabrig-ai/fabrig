@@ -1079,6 +1079,7 @@ pub(crate) fn subscribe_goal(domain: &mut Domain, env: &Env<Limits>, goal: u64, 
             | Work::StartBrief { .. }
             | Work::Forge(_)
             | Work::ProjectGoal(_)
+            | Work::AgreedGoal(_)
             | Work::Activate(_)
             | Work::EscalationLoaded { .. }
             | Work::EscalationFailed { .. }
