@@ -141,6 +141,7 @@ pub fn limits() -> engine::Limits {
         run_bytes: 4096,
     };
     let mut limits = engine::Limits {
+        routes: jig_protocol_config::profile(jig_protocol_config::Profile::Small).routes,
         policy_bytes: jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.policy_bytes,
         call_answer_bytes: jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.call_answer_bytes,
         settings: jig_domain_core::settings::Limits {
