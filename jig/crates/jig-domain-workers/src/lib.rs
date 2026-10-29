@@ -1,4 +1,4 @@
-//! Shared admitted program names and fixed worker membership (domain/root.md, 2).
+//! Shared program names and fixed worker membership (domain/root.md, 2).
 //! These are configuration values; the crate holds no channel or domain state.
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
@@ -26,9 +26,21 @@ impl SourceName {
         }
         Some(Self { length: u8::try_from(value.len()).ok()?, bytes })
     }
+    /// Reconstruct stored bytes that fit the carrier without judging their spelling (engine.md, 6).
+    #[must_use]
+    pub fn from_stored(value: &[u8]) -> Option<Self> {
+        if value.len() > 32 {
+            return None;
+        }
+        let mut bytes = [0; 32];
+        for (index, byte) in value.iter().enumerate() {
+            *bytes.get_mut(index)? = *byte;
+        }
+        Some(Self { length: u8::try_from(value.len()).ok()?, bytes })
+    }
     #[must_use]
     pub fn as_bytes(&self) -> &[u8] {
-        self.bytes.get(..usize::from(self.length)).expect("validated name")
+        self.bytes.get(..usize::from(self.length)).expect("name fits fixed carrier")
     }
 }
 
