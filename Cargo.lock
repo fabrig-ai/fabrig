@@ -1536,6 +1536,7 @@ dependencies = [
  "jig-test-connector",
  "jig-test-system",
  "sha2",
+ "skein-heap",
  "skein-lib",
 ]
 

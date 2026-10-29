@@ -7,7 +7,12 @@ license.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 
+[lib]
+test = false
+doctest = false
+
 [dependencies]
+skein-heap.workspace = true
 jig-test-connector.workspace = true
 jig-test-system.workspace = true
 skein-lib.workspace = true
