@@ -98,6 +98,25 @@ fn new_calls_start_above_all_kept_call_numbers() {
     assert_eq!(root.answer(call).expect("new read answered").status, 0);
 }
 #[test]
+fn an_unanswered_adoption_is_named_after_its_me_watch_drops() {
+    let records = fixtures::restored_adoption(fixtures::PARTY);
+    let mut root = fixtures::started(records.clone());
+    root.deliver(c::Delivery::Me(Box::new(fixtures::me(fixtures::PARTY))));
+    let watch = root.watch_token(&client::Watchable::Jig(c::Subject::Me));
+    root.watches.remove(&watch).expect("stream's me watch");
+    root.client(client::Event::Up { up: client::Up::WatchEnded { watch, end: c::WatchEnd::Dropped } });
+    let me = root.root.client().document(client::Handle { asker: super::RUNNER.asker(), number: 0 }).expect("me");
+    assert_eq!(me.state, client::State::Behind);
+    for record in &records {
+        assert!(root.root.client().pending(record.request.key).is_some(), "restored adoption stays pending");
+    }
+    assert_eq!(
+        root.root.unanswered().as_ref(),
+        b"kept: adopt, first sent 00:00 UTC, unanswered: it clears when the engine answers it, or past its retention; pending lists it\n"
+    );
+}
+
+#[test]
 fn call_number_exhaustion_exits_1_without_sending() {
     let mut root = fixtures::started(fixtures::kept(u32::MAX));
     root.deliver(c::Delivery::Me(Box::new(fixtures::me(fixtures::PARTY))));
