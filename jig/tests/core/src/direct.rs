@@ -41,6 +41,16 @@ impl Driver {
         Self::configured_chat(world::config(seed), &world::limits())
     }
 
+    /// A live chat whose worker can reconnect listing its run and one stray.
+    #[must_use]
+    pub fn reconnecting_chat(seed: u64) -> Self {
+        // The current run and the stale listing each occupy one host slot.
+        const HOSTED: u32 = 2;
+        let mut limits = world::limits();
+        limits.core.fleet.slots = HOSTED;
+        Self::configured_chat(world::config(seed), &limits)
+    }
+
     /// A chat fixture with room and a configured policy for two more projects.
     #[must_use]
     pub fn project_maker(seed: u64) -> Self {
