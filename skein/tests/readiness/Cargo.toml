@@ -16,6 +16,9 @@ skein-lib.workspace = true
 skein-io.workspace = true
 skein-shell.workspace = true
 
+[dev-dependencies]
+skein-world.workspace = true
+
 # Ordinary Rust (programming-model.md, 10.2), so not the step crates' lints.
 # tests/clippy.toml bans what would make a run unrepeatable.
 [lints.rust]

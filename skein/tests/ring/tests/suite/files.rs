@@ -20,6 +20,7 @@ use skein_lib::Token;
 use skein_ring_tests::{World, pattern};
 use skein_scratch::Scratch;
 use skein_shell::open_root;
+use skein_world::Deadline;
 
 fn root(dir: &Path) -> Fd {
     open_root(dir).expect("a scratch directory opens as a root")
@@ -249,10 +250,12 @@ fn an_open_through_dot_dot_racing_renames_is_submitted_again() {
     }
     let mut closing = BTreeSet::new();
     let (mut opened, mut refused) = (0_u32, Vec::new());
-    let deadline = world.later(skein_lib::Duration::from_secs(60));
+    let deadline = Deadline::arm("the ring racing file opens", skein_lib::Duration::from_secs(60));
     while !renaming.is_empty() || !opening.is_empty() || !closing.is_empty() {
+        assert!(refused.is_empty(), "an Open raced to EAGAIN is submitted again: {refused:?}");
+        world.check_deadline(&deadline, "the racing file opens finished in time");
         let racing = opened < OPENS && world.kernel.resubmitted() == 0 && refused.is_empty();
-        world.turn(deadline);
+        world.turn(deadline.until());
         for (token, complete) in std::mem::take(&mut world.arrived) {
             if let Some(n) = renaming.remove(&token) {
                 assert_eq!(complete.result, Ok(Done::Nothing), "a rename of a file of its own");
