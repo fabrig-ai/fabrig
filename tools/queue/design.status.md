@@ -51,3 +51,15 @@ flocks never retire ownership. No real main authority, queue restart, SSH,
 post, install, Cargo/build, systemd operation or second-gate activation was
 performed by this change. Disposable Git/process tests cover explicit crash
 boundaries, not arbitrary machine power loss or remote supervision.
+
+Bisection recovery consumes admitted groups before replaying red splits or
+INFRA requeues, including concrete promotion's snapshot load. Applied INFRA
+ownership stays in a valid decision phase through late status failures and
+verified release; drain requires a loadable matching snapshot. Legacy cleanup
+uses expected-tip deletion leases, and local mutating children inherit both
+main authority and checkout exclusion through parent death. Restart restores
+stop across the unlink/fsync/launch boundary. Error reporting resets after a
+completed cycle so a new error episode alerts again. Authority/recovery/worker
+and mq fixture roots are outside the checked source; controller-suite fixture
+and split integration remains separate. No timeout or completion evidence is
+weakened, and part 5's remote lifetime/activation boundaries remain blocked.

@@ -7,7 +7,7 @@ Provisional, 2026-10-28. How a branch reaches `main`: a script on the gate machi
 - **Input:** remote branches `ready/<lead>/<task>` on `origin`, each pushed by its lead.
 - **A batch:** from `origin/main`, the ready branches not yet tried at their current tip, oldest tip first, at most `batch` (8) of them, each merged with `git merge --no-ff -m "Merge <branch name>"`; ratchet-only conflicts are resolved by recounting against HEAD (section 3.3); any other conflict is aborted, reported, and left out. After merging, the queue writes and commits lower old-form baselines for touched trees before checks. Branches need not change those baselines.
 - **The checks run on a selection** (section 2), not always the whole workspace: touched trees' `scripts/old_forms.py --write` (the ratchet, section 3.3), then the tools' suites (section 2.3), `cargo fmt --check`, clippy with `-D warnings`, a nextest `build`, and the focused (`default`) and `fuzzy` nextest profiles. Cargo build and test commands run through `heavy --gate` on the gate machine, which nothing else builds on. Lockfile and member manifest changes select affected packages (section 2.1); formatting covers changed Rust owners (section 2.2). Step durations are recorded separately (section 3.6).
-- **Green:** `git push origin HEAD:main` (fast-forward only); the batch's `ready/` branches are deleted; each lead is told which commit holds its task.
+- **Green:** `git push origin HEAD:main` (fast-forward only); the batch's `ready/` branches are deleted only under an explicit expected-tip deletion lease; each lead is told which commit holds its task.
 - **Red:** a batch of one is rejected (its lead gets the failing step and the log's path, and the branch isn't retried until its tip changes); a larger batch is halved and each half tried from `main`, recursively, so the green branches still land.
 - **Capacity refusal:** a heavy exit 2 containing `below the disk floor` is an error, with no rejection or bisection. Before every batch, free space below `--disk-floor` (45 GB by default) defers work to the next cycle.
 - **Error:** an exception logs the batch as `error`; its tips remain eligible. `run` restores `origin/main`, reports each distinct error to the operator (`ops`) once per uninterrupted error episode, waits a cycle, and continues. A completed cycle, including an idle check, clears the persisted episode so recurrence alerts again. `once` raises to its caller.
@@ -94,7 +94,9 @@ cover build output. An errored attempt logs its error without marking its
 branches tried. Recovery diagnostics and the operator's delivery are logged as a
 separate `event: "recovery"` record; errors outside an attempt get their own
 error record. Distinct error texts already reported to `ops` in `leads.txt`
-are kept in state, so a repeated error does not post every cycle. Recovery
+are kept in state for the current uninterrupted error episode, so a repeated
+error does not post every cycle. A completed cycle, including an idle cycle,
+clears that persisted episode; recurrence alerts again. Recovery
 failures are logged and the loop waits 60 seconds before trying again. If
 recovery itself cannot append its record, it reports that failure on stderr
 and keeps the loop running.
@@ -543,7 +545,8 @@ inode. Locks are never unlinked or explicitly unlocked during handoff. Legacy
 then their checkout's sibling `<clone>.queue.lock`. `Queue` mutations require
 an injected authority/startup guard; the CLI supplies it for the entire run,
 including error recovery, bisection and pruning. Local Git/check/post children
-inherit the common lock so controller exit cannot release authority while
+inherit both the common authority and checkout locks, so controller exit
+cannot permit another main writer or local worker to reuse the checkout while
 those effect clients still run. This proves no remote heavy lifetime.
 
 `Layout.legacy_guard(repo)` refuses any `train/state.json` or
@@ -592,6 +595,11 @@ argv, full refs and full lowercase OIDs, with no shell interpolation.
   controller-owned evidence directory. Content goes through stdin. Exits 0/3
   acknowledge delivery; other exits/exceptions leave the durable outbox
   pending. Replays retain ID and never change a landing or rejection.
+
+Legacy `push_and_cleanup` uses the same deletion-only expected-tip lease after
+its observation. A lead can advance a ready tip between observation and push;
+the server rejects that deletion and preserves the replacement. Its main push
+remains an ordinary fast-forward with no force or lease.
 
 `durable.py` implements owned 0700 directories and 0600 regular files, strict
 JSON parsing, temp-file fsync, atomic rename and containing-directory fsync.
@@ -643,6 +651,25 @@ lock, and requires an empty plan. All heavy/nonempty/remote plans remain
 blocked until part 5 supplies supervised lifetime evidence. Tests inject an
 explicit fake-completion adapter whose events attest synchronous fake checks;
 this is not a production supervisor.
+
+Snapshot validation replays each admitted bisection group as consumption of
+the first pending group, checks its ordered inputs and inherited full
+requirement, then applies any red split or INFRA requeue. Thus an admitted
+left group is absent from pending across reload and concrete promotion; its
+right group retains the accepted left ancestry. Nested reds and INFRA retries
+follow the same replay rule.
+
+Applied INFRA decisions retain `decided` through late unknown/status failures
+while their gate remains owned. Verified reconciliation releases that owner
+into `discarded`, preserving the applied outcome, counters and outbox. A
+terminal reply has the same release behavior. `drained()` requires a valid
+loadable snapshot matching memory in addition to no active/physical ownership
+or unresolved preparation; an unloadable snapshot cannot authorize drain.
+Restart restores stop if unlink, directory fsync or replacement launch fails.
+
+Authority/recovery/worker/mq tests place their disposable repositories and
+publication files beside the checked source, so a hard test-process exit leaves
+no fixture inside the candidate checkout. Test suite timeouts are unchanged.
 
 No pin, artifact or snapshot GC is provided. Retain all objects/evidence;
 removal requires a later proof covering active, draining, bisection, decision,
