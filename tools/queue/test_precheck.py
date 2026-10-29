@@ -111,7 +111,8 @@ class Fixture(unittest.TestCase):
         self.tool = precheck.Precheck(self.repo, base, tip, mq=mq, always=["always"],
                                      read_by_tests=PATTERNS,
                                      runner=None if production_runner else self.runner,
-                                     metadata=self.load_metadata, busy=lambda _: "fixture observation")
+                                     metadata=self.load_metadata, busy=lambda _: "fixture observation",
+                                     min_free_bytes=1)
         with redirect_stdout(io.StringIO()) as output:
             result = self.tool.run()
         self.printed = output.getvalue()
@@ -445,7 +446,8 @@ class CandidateTests(Fixture):
     def test_policy_code_and_lists_survive_switching_their_own_checkout(self):
         import shutil
         self.git("switch", "original")
-        for name in ("precheck", "mq", "always.txt", "read-by-tests.txt"):
+        for name in ("precheck", "mq", "always.txt", "read-by-tests.txt",
+                     *(name for name in ("authority.py", "durable.py") if (DIRECTORY / name).is_file())):
             target = self.repo / "tools/queue" / name
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(DIRECTORY / name, target)
