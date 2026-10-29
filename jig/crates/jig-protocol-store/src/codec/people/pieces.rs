@@ -390,7 +390,7 @@ pub(super) fn split(reader: &mut Reader<'_>) -> Result<Option<Box<[u8]>>, wire::
 }
 
 pub(super) fn shared_sum(limits: &wire::Limits) -> u32 {
-    let framing = wire::Grant::worst_case_bytes(&EMPTY)
+    let framing = wire::Grant::encoded_bound(&EMPTY)
         .expect("fixed grant")
         .checked_add(u64::try_from(size_of::<u32>()).expect("length size"))
         .expect("fixed framing");
@@ -401,7 +401,7 @@ pub(super) fn shared_sum(limits: &wire::Limits) -> u32 {
     limits.authority_grants.checked_add(u32::try_from(overhead).expect("grant overhead")).expect("schema bounds sum")
 }
 pub(super) fn permission_sum(limits: &wire::Limits) -> u32 {
-    let framing = wire::PermissionRole::worst_case_bytes(&EMPTY)
+    let framing = wire::PermissionRole::encoded_bound(&EMPTY)
         .expect("fixed permission")
         .checked_add(u64::try_from(size_of::<u32>()).expect("length size"))
         .expect("fixed framing");

@@ -61,7 +61,7 @@ pub(crate) fn capacity(set: &PatchSet, ix: usize, limits: &Limits) -> Option<Cap
     let root = family.frames?;
     let codec = codec::limits(&limits.core)?;
     let bytes = match set.owner {
-        Owner::Jig => u32::try_from(crate::core_v6::TurnRecord::worst_case_bytes(&codec.core)?).ok()?,
+        Owner::Jig => u32::try_from(crate::core_v6::TurnRecord::encoded_bound(&codec.core)?).ok()?,
         Owner::Smith => codec.core.turn_record_transcript,
         Owner::Skein | Owner::Application => return None,
     };
