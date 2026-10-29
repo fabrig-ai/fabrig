@@ -17,8 +17,6 @@ use skein_lib::{
     base64::{self, Alphabet},
     bytes,
 };
-/// One request is emitted per step.
-pub const MAX_OUT: u32 = 1;
 /// A completed process's status.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Exit {
