@@ -45,7 +45,7 @@ class StartupTests(unittest.TestCase):
 
 class RestartTests(unittest.TestCase):
     def setUp(self):
-        self.temporary = tempfile.TemporaryDirectory(dir=ROOT, prefix=".restart-test-")
+        self.temporary = tempfile.TemporaryDirectory(dir=ROOT.parent, prefix=".restart-test-")
         self.addCleanup(self.temporary.cleanup)
         self.home = Path(self.temporary.name)
         self.repo = self.home / "src/fabrig/queue"
@@ -136,6 +136,29 @@ class RestartTests(unittest.TestCase):
                 patch.object(subprocess, "Popen") as popen, redirect_stdout(io.StringIO()):
             with self.assertRaisesRegex(RuntimeError, "fetch failed"):
                 restart.restart(self.repo, 10, self.home)
+        self.assertTrue(self.stop.exists())
+        popen.assert_not_called()
+
+    def test_stop_unlink_directory_fsync_failure_restores_stop_before_launch(self):
+        sync = restart.authority.durable.sync_directory
+        failed, updated = [], []
+        def command(argv, repo, **ignored):
+            if argv[:2] == ["git", "fetch"]:
+                self.assertTrue(self.stop.exists())
+                updated.append(True)
+            return str(repo)
+        def fail_after_unlink(path):
+            if updated and path == self.stop.parent and not self.stop.exists() and not failed:
+                failed.append(True)
+                raise OSError("stop directory fsync failed")
+            sync(path)
+        with patch.object(restart, "command", side_effect=command), \
+                patch.object(restart, "queue_pid", return_value=None), \
+                patch.object(restart.authority.durable, "sync_directory", side_effect=fail_after_unlink), \
+                patch.object(subprocess, "Popen") as popen, redirect_stdout(io.StringIO()):
+            with self.assertRaisesRegex(OSError, "stop directory fsync"):
+                restart.restart(self.repo, 0, self.home)
+        self.assertEqual(failed, [True])
         self.assertTrue(self.stop.exists())
         popen.assert_not_called()
 
@@ -363,7 +386,7 @@ class CheckTests(unittest.TestCase):
             self.assertEqual(kwargs["stdin"], subprocess.DEVNULL)
             return subprocess.CompletedProcess(argv, 4 if "nextest" in argv else 0)
 
-        with tempfile.TemporaryDirectory(dir=ROOT, prefix=".mq-test-") as directory:
+        with tempfile.TemporaryDirectory(dir=ROOT.parent, prefix=".mq-test-") as directory:
             log = Path(directory) / "checks.log"
             times = iter(range(8))
             steps = mq.run_checks(ROOT, {"core"}, [], log, runner=runner, clock=lambda: next(times))
@@ -373,7 +396,7 @@ class CheckTests(unittest.TestCase):
 
     def test_build_default_and_fuzzy_have_independent_durations(self):
         times = iter([0, 2, 10, 18, 20, 23, 30, 35])
-        with tempfile.TemporaryDirectory(dir=ROOT, prefix=".mq-test-") as directory:
+        with tempfile.TemporaryDirectory(dir=ROOT.parent, prefix=".mq-test-") as directory:
             steps = mq.run_checks(ROOT, {"core"}, [], Path(directory) / "checks.log",
                                   runner=lambda *args, **kwargs: subprocess.CompletedProcess(args, 0),
                                   clock=lambda: next(times))
@@ -381,7 +404,7 @@ class CheckTests(unittest.TestCase):
                          [("clippy", 2), ("build", 8), ("default", 3), ("fuzzy", 5)])
 
     def test_failure_stops_checks_and_four_is_not_green_for_fmt(self):
-        with tempfile.TemporaryDirectory(dir=ROOT, prefix=".mq-test-") as directory, \
+        with tempfile.TemporaryDirectory(dir=ROOT.parent, prefix=".mq-test-") as directory, \
                 patch.object(mq, "tools_commands", return_value=[]):
             steps = mq.run_checks(ROOT, "full", [], Path(directory) / "checks.log",
                                   runner=lambda *args, **kwargs: subprocess.CompletedProcess(args, 4))
@@ -402,7 +425,7 @@ class CheckTests(unittest.TestCase):
                 raise subprocess.TimeoutExpired(argv, mq.TOOLS_TIMEOUT)
             return subprocess.CompletedProcess(argv, 0)
 
-        with tempfile.TemporaryDirectory(dir=ROOT, prefix=".mq-test-") as directory, \
+        with tempfile.TemporaryDirectory(dir=ROOT.parent, prefix=".mq-test-") as directory, \
                 patch.object(mq, "tools_commands", return_value=commands):
             log = Path(directory) / "checks.log"
             steps = mq.run_checks(ROOT, "full", [], log, runner=runner)
@@ -416,7 +439,7 @@ class CheckTests(unittest.TestCase):
         commands = [("tools/test_first.py", ["python3", "-I", "-B", "tools/test_first.py"], ROOT)]
         for result in (subprocess.CompletedProcess([], 4), FileNotFoundError("missing interpreter")):
             with self.subTest(result=result), \
-                    tempfile.TemporaryDirectory(dir=ROOT, prefix=".mq-test-") as directory, \
+                    tempfile.TemporaryDirectory(dir=ROOT.parent, prefix=".mq-test-") as directory, \
                     patch.object(mq, "tools_commands", return_value=commands):
                 log = Path(directory) / "checks.log"
                 runner = Mock(side_effect=result) if isinstance(result, OSError) else Mock(return_value=result)
@@ -427,7 +450,7 @@ class CheckTests(unittest.TestCase):
                     self.assertIn("missing interpreter", log.read_text())
 
     def test_tools_and_docs_keep_touched_tree_ratchets_without_cargo(self):
-        with tempfile.TemporaryDirectory(dir=ROOT, prefix=".mq-test-") as directory, \
+        with tempfile.TemporaryDirectory(dir=ROOT.parent, prefix=".mq-test-") as directory, \
                 patch.object(mq, "tools_commands", return_value=[]):
             steps = mq.run_checks(ROOT, "docs", ["tools/x.py", "jig/README.md"],
                                   Path(directory) / "checks.log",
@@ -438,7 +461,7 @@ class CheckTests(unittest.TestCase):
     def test_check_only_ratchets_never_stage_or_commit_and_observe_each_step(self):
         observed = []
         outcomes = []
-        with tempfile.TemporaryDirectory(dir=ROOT, prefix=".mq-test-") as directory, \
+        with tempfile.TemporaryDirectory(dir=ROOT.parent, prefix=".mq-test-") as directory, \
                 patch.object(mq, "git", side_effect=AssertionError("check-only mutated git")):
             steps = mq.run_checks(ROOT, "docs", ["jig/README.md"], Path(directory) / "checks.log",
                                   runner=lambda *a, **kw: subprocess.CompletedProcess(a, 0),
@@ -459,7 +482,7 @@ class CheckTests(unittest.TestCase):
                         kwargs["stdout"].write(output)
                     return subprocess.CompletedProcess(argv, code if heavy else 0)
 
-                with tempfile.TemporaryDirectory(dir=ROOT, prefix=".mq-test-") as directory:
+                with tempfile.TemporaryDirectory(dir=ROOT.parent, prefix=".mq-test-") as directory:
                     steps = mq.run_checks(ROOT, "full", [], Path(directory) / "checks.log", runner=runner)
                 self.assertEqual("error" in steps[-1], refused)
                 self.assertEqual([step["name"] for step in steps], ["tools", "fmt", "clippy"])
@@ -467,7 +490,7 @@ class CheckTests(unittest.TestCase):
 
 class CleanupTests(unittest.TestCase):
     def setUp(self):
-        self.temporary = tempfile.TemporaryDirectory(dir=ROOT, prefix=".mq-test-")
+        self.temporary = tempfile.TemporaryDirectory(dir=ROOT.parent, prefix=".mq-test-")
         self.addCleanup(self.temporary.cleanup)
         self.repo = Path(self.temporary.name)
         self.deps = self.repo / "target/debug/deps"
@@ -571,7 +594,7 @@ class BisectTests(unittest.TestCase):
 
 class RepositoryTests(unittest.TestCase):
     def setUp(self):
-        self.temporary = tempfile.TemporaryDirectory(dir=ROOT, prefix=".mq-test-")
+        self.temporary = tempfile.TemporaryDirectory(dir=ROOT.parent, prefix=".mq-test-")
         self.addCleanup(self.temporary.cleanup)
         self.directory = Path(self.temporary.name)
         self.repo = self.directory / "queue"
@@ -1585,6 +1608,34 @@ print('tools fixture passed')
         _, cleanup = mq.push_and_cleanup(self.repo, [branch])
         self.assertIn("preserved", cleanup[0]["outcome"])
         self.assertEqual(mq.git(self.repo, "ls-remote", "origin", "refs/heads/" + branch["name"]).stdout.split()[0], advanced)
+
+    def test_tip_advanced_between_observation_and_delete_survives_legacy_cleanup(self):
+        branch = self.branch("a", publish=True)
+        self.write("advance", "advanced ready\n")
+        self.commit("advance ready")
+        advanced = self.tip()
+        mq.build_batch(self.repo, [branch])
+        ref = "refs/heads/" + branch["name"]
+        git, pushes, observed = mq.git, [], []
+        def race(repo, *args, **kwargs):
+            if args[0] == "push":
+                pushes.append(args)
+                if "--delete" in args or args[-1] == ":" + ref:
+                    self.assertEqual(observed, [branch["tip"]])
+                    git(self.repo, "push", "origin", advanced + ":" + ref)
+            result = git(repo, *args, **kwargs)
+            if args[0] == "ls-remote" and args[-1] == ref:
+                observed.append(result.stdout.split()[0])
+            return result
+        with patch.object(mq, "git", side_effect=race):
+            commit, cleanup = mq.push_and_cleanup(self.repo, [branch])
+        self.assertEqual(git(self.origin, "rev-parse", ref).stdout.strip(), advanced)
+        self.assertEqual(git(self.origin, "rev-parse", "refs/heads/main").stdout.strip(), commit)
+        self.assertNotEqual(cleanup[0]["returncode"], 0)
+        main_push, delete = pushes
+        self.assertFalse(any("--force" in arg or "--lease" in arg for arg in main_push))
+        self.assertEqual(delete, ("push", "--force-with-lease=" + ref + ":" + branch["tip"],
+                                  "origin", ":" + ref))
 
     def test_push_failure_does_not_delete_ready_branch(self):
         branch = self.branch("a", publish=True)

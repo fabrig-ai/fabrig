@@ -685,9 +685,11 @@ class Controller:
 
     def infra(self, attempt, error):
         record = self.state["records"][attempt]
-        record["outcome"], record["error"] = "INFRA", str(error)
-        record["phase"] = "unknown" if attempt in self.state["gates"].values() else "terminal"
-        self.invalidate_descendants(attempt, "ancestor infrastructure failure")
+        record["error"] = str(error)
+        if not record["applied"]:
+            record["outcome"] = "INFRA"
+            record["phase"] = "unknown" if attempt in self.state["gates"].values() else "terminal"
+            self.invalidate_descendants(attempt, "ancestor infrastructure failure")
         self.save()
 
     def verify_completion(self, record, evidence):
@@ -714,7 +716,7 @@ class Controller:
         record["reconciliation"] = clone(evidence)
         self.unreconciled_gates.discard(attempt)
         self.state["gates"][record["gate"]] = None
-        record["phase"] = "discarded" if record.get("invalidated") else "terminal"
+        record["phase"] = "discarded" if record.get("invalidated") or record["applied"] else "terminal"
         if record["outcome"] is None:
             record["outcome"] = "INFRA"
         self.save()
@@ -898,9 +900,15 @@ class Controller:
         self.save()
 
     def drained(self):
-        return (not self.failed and not self.state["active"] and not any(self.state["gates"].values()) and
-                not any(r.get("preparation_unresolved") or r["phase"] == "preparing"
-                        for r in self.state["records"].values()))
+        if (self.failed or self.state["active"] or any(self.state["gates"].values()) or
+                any(r.get("preparation_unresolved") or r["phase"] == "preparing"
+                    for r in self.state["records"].values())):
+            return False
+        try:
+            snapshot = self.store.load()
+            return snapshot is not None and worker.encoded(snapshot) == worker.encoded(self.state)
+        except (OSError, ValueError, TypeError):
+            return False
 
     def recovery_inventory(self):
         """No mutation: next-part startup must reconcile every returned boundary."""

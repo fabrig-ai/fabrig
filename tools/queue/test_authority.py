@@ -19,6 +19,8 @@ DIRECTORY = Path(__file__).resolve().parent
 SPEC = importlib.util.spec_from_file_location("authority_fixture", DIRECTORY / "test_train.py")
 fixtures = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(fixtures)
+# Keep inherited disposable worlds outside the checked source without editing its suite.
+fixtures.ROOT = DIRECTORY.parent.parent.parent
 train, mq, worker = fixtures.train, fixtures.mq, fixtures.worker
 authority = mq.authority
 RESTART = importlib.util.spec_from_file_location("restart_fixture", DIRECTORY / "test_mq.py")
@@ -40,6 +42,7 @@ with (layout.restart_lock() if sys.argv[3] == 'restart' else layout.acquire()) a
 class EffectsTests(fixtures.TrainTests):
     def setUp(self):
         super().setUp()
+        self.batch = getattr(self, "batch_size", self.batch)
         self.layout = authority.Layout(self.root / "shared-authority")
         self.lease = self.layout.acquire()
         self.addCleanup(self.lease.close)
@@ -264,10 +267,207 @@ with layout.acquire() as held:
             self.effect.main()
 
 
+class BisectionEffectsTests(EffectsTests):
+    batch_size = 2
+
+    def red_pair(self):
+        return self.red_inputs(("a", "b"))
+
+    def red_inputs(self, names):
+        inputs = [self.branch(name, {f"core/src/{name}.rs": name}) for name in names]
+        self.controller.state["batches_since_full"] = 4
+        attempt, record = self.admit()
+        self.assertEqual(record["request"]["selection"], "full")
+        self.finish(attempt, code=1)
+        self.assertTrue(self.controller.adjudicate_head())
+        self.controller = self.reload()
+        middle = len(inputs) // 2
+        self.assertEqual(self.controller.state["pending"], [inputs[:middle], inputs[middle:]])
+        return inputs
+
+    def complete_group(self, attempt, *, code=0):
+        self.controller = self.reload()
+        self.finish(attempt, code=code)
+        self.controller = self.reload()
+        self.assertTrue(self.controller.adjudicate_head())
+        self.controller = self.reload()
+
+    def test_admitted_left_reloads_and_concrete_promotions_preserve_right_parent(self):
+        inputs = self.red_pair()
+        a, left = self.admit()
+        self.assertEqual(self.controller.state["pending"], [[inputs[1]]])
+        self.complete_group(a)
+        self.assertEqual(self.effect.main(), left["candidate"])
+        b, right = self.admit()
+        self.assertEqual(right["parent"], left["candidate"])
+        self.complete_group(b)
+        self.assertEqual(self.effect.main(), right["candidate"])
+        self.assertTrue(self.controller.drained())
+        self.assertIsNone(self.controller.admit())
+        self.controller = self.reload()
+        self.assertFalse(self.controller.state["bisecting"])
+        self.assertEqual(self.controller.state["pending"], [])
+
+    def test_admitted_singleton_red_reloads_then_right_lands_on_unchanged_main(self):
+        inputs = self.red_pair()
+        a, _ = self.admit()
+        self.complete_group(a, code=1)
+        self.assertEqual(self.controller.state["tried"], {inputs[0]["name"]: inputs[0]["tip"]})
+        b, right = self.admit()
+        self.assertEqual(right["parent"], self.base)
+        self.assertEqual(right["request"]["selection"], "full")
+        self.complete_group(b)
+        self.assertEqual(self.effect.main(), right["candidate"])
+
+    def test_admitted_infra_requeues_once_after_verified_release_and_reload(self):
+        inputs = self.red_pair()
+        a, left = self.admit()
+        self.controller = self.reload()
+        self.transport.fail_status = True
+        self.controller.poll(a)
+        self.controller.adjudicate_head()
+        self.controller = self.reload()
+        self.assertEqual(self.controller.state["pending"], [[inputs[0]], [inputs[1]]])
+        self.assertEqual(self.controller.state["gates"][left["gate"]], a)
+        self.assertFalse(self.controller.drained())
+        self.transport.fail_status = False
+        self.transport.finish(a)
+        self.controller.reconcile_job(a, quiescent=True, evidence=self.transport.jobs[a]["evidence"])
+        self.controller = self.reload()
+        self.assertEqual(self.controller.state["tried"], {})
+        retry, accepted = self.admit()
+        self.assertEqual(accepted["inputs"], [inputs[0]])
+        self.complete_group(retry)
+        b, right = self.admit()
+        self.assertEqual(right["parent"], accepted["candidate"])
+        self.complete_group(b)
+        self.assertEqual(self.effect.main(), right["candidate"])
+
+
+class NestedBisectionEffectsTests(BisectionEffectsTests):
+    batch_size = 4
+
+    def test_nested_red_infra_retry_and_singleton_red_reload_each_frontier(self):
+        inputs = self.red_inputs(("a", "b", "c", "d"))
+        left, _ = self.admit()
+        self.complete_group(left, code=1)
+        self.assertEqual(self.controller.state["pending"], [[inputs[0]], [inputs[1]], inputs[2:]])
+        for branch in inputs[:2]:
+            attempt, record = self.admit()
+            self.assertEqual(record["inputs"], [branch])
+            self.complete_group(attempt)
+        parent = self.effect.main()
+        right, record = self.admit()
+        self.assertEqual(record["inputs"], inputs[2:])
+        self.transport.fail_status = True
+        self.controller.poll(right)
+        self.controller.adjudicate_head()
+        self.controller = self.reload()
+        self.assertEqual(self.controller.state["pending"], [inputs[2:]])
+        self.transport.fail_status = False
+        self.transport.finish(right)
+        self.controller.reconcile_job(right, quiescent=True, evidence=self.transport.jobs[right]["evidence"])
+        self.controller = self.reload()
+        retry, _ = self.admit()
+        self.complete_group(retry, code=1)
+        self.assertEqual(self.controller.state["pending"], [[inputs[2]], [inputs[3]]])
+        rejected, _ = self.admit()
+        self.complete_group(rejected, code=1)
+        self.assertEqual(self.effect.main(), parent)
+        final, record = self.admit()
+        self.assertEqual(record["parent"], parent)
+        self.complete_group(final)
+        self.assertEqual(self.effect.main(), record["candidate"])
+        self.assertEqual(self.controller.state["tried"], {b["name"]: b["tip"] for b in inputs})
+        self.assertTrue(self.controller.drained())
+
+
 class GuardTests(unittest.TestCase):
+    def legacy_ratchet_survives_parent(self, launch):
+        ready_r, ready_w = os.pipe()
+        release_r, release_w = os.pipe()
+        script = self.repo / "jig/scripts/old_forms.py"
+        script.parent.mkdir(parents=True)
+        script.write_text('''import os, pathlib, sys
+os.write(int(sys.argv[2]), str(os.getpid()).encode() + bytes([10]))
+os.read(int(sys.argv[3]), 1)
+pathlib.Path(sys.argv[4]).write_text('ratchet completed')
+''')
+        output = self.repo / "ratchet-finished"
+        code = '''import importlib.machinery, importlib.util, pathlib, subprocess, sys, time
+settings=sys.argv[:]
+loader=importlib.machinery.SourceFileLoader('mq',settings[1]);spec=importlib.util.spec_from_loader(loader.name,loader)
+mq=importlib.util.module_from_spec(spec);loader.exec_module(mq)
+real_run=subprocess.run
+def run(argv, **kwargs):
+ kwargs['pass_fds']=(*kwargs.get('pass_fds',()),int(settings[5]),int(settings[6]))
+ return real_run(argv,**kwargs)
+mq.subprocess.run=run
+class RatchetQueue:
+ def __init__(self,repo,writer_guard,**kwargs): self.repo,self.guard=repo,writer_guard
+ def cycle(self):
+  self.guard()
+  argv=[sys.executable,'-I','-B',settings[4],'--write',settings[5],settings[6],settings[7]]
+  if settings[8]=='command': mq.command(argv,self.repo)
+  else:
+   with (pathlib.Path(settings[7]).parent/'ratchet.log').open('x+') as log:
+    mq.run_step('ratchet:jig',argv,self.repo,log,runner=mq.subprocess.run,clock=time.monotonic)
+mq.Queue=RatchetQueue
+sys.argv=['mq','once','--repo',settings[2],'--authority-dir',settings[3]]
+sys.exit(mq.main())
+'''
+        parent = subprocess.Popen([sys.executable, "-I", "-B", "-c", code, str(DIRECTORY / "mq"),
+            str(self.repo), str(self.layout.root), str(script), str(ready_w), str(release_r), str(output), launch],
+            pass_fds=(ready_w, release_r), stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        os.close(ready_w)
+        os.close(release_r)
+        worker_code = '''import importlib.util, pathlib, sys
+s=importlib.util.spec_from_file_location('w',sys.argv[1]);w=importlib.util.module_from_spec(s);s.loader.exec_module(w)
+try:
+ with w.checkout_ownership(pathlib.Path(sys.argv[2])): print('admitted')
+except RuntimeError as error:
+ print(str(error),file=sys.stderr);sys.exit(2)
+'''
+        def worker_admission():
+            return subprocess.run([sys.executable, "-I", "-B", "-c", worker_code,
+                str(DIRECTORY / "worker.py"), str(self.repo)], stdin=subprocess.DEVNULL, capture_output=True)
+        pid_fd = None
+        try:
+            self.assertTrue(select.select([ready_r], [], [], 10)[0])
+            ready = os.read(ready_r, 32)
+            if not ready:
+                out, err = parent.communicate(timeout=10)
+                self.fail((out, err))
+            pid_fd = os.pidfd_open(int(ready))
+            parent.kill()
+            parent.communicate(timeout=10)
+            self.assertFalse(output.exists())
+            with self.assertRaises(RuntimeError):
+                self.layout.acquire()
+            competitor = worker_admission()
+            self.assertEqual(competitor.returncode, 2, competitor.stdout + competitor.stderr)
+            self.assertIn(b"holds this checkout", competitor.stderr)
+        finally:
+            os.close(ready_r)
+            os.close(release_w)
+            if parent.poll() is None:
+                parent.kill()
+                parent.communicate(timeout=10)
+            if pid_fd is not None:
+                self.assertTrue(select.select([pid_fd], [], [], 10)[0])
+                os.close(pid_fd)
+        self.assertEqual(output.read_text(), "ratchet completed")
+        self.assertEqual(worker_admission().returncode, 0)
+
+    def test_legacy_command_child_retains_checkout_after_parent_death(self):
+        self.legacy_ratchet_survives_parent("command")
+
+    def test_legacy_step_child_retains_checkout_after_parent_death(self):
+        self.legacy_ratchet_survives_parent("step")
+
     def setUp(self):
         os.umask(0o077)
-        self.tmp = tempfile.TemporaryDirectory(dir=DIRECTORY.parent.parent, prefix=".authority-test-")
+        self.tmp = tempfile.TemporaryDirectory(dir=DIRECTORY.parent.parent.parent, prefix=".authority-test-")
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
         self.home = self.root / "home"
@@ -276,6 +476,9 @@ class GuardTests(unittest.TestCase):
         self.repo.mkdir(mode=0o700)
         mq.git(self.repo, "init", "-b", "main")
         self.layout = authority.Layout(home=self.home)
+
+    def test_fixture_root_is_outside_checked_source(self):
+        self.assertNotIn(DIRECTORY.parent.parent, self.root.parents)
 
     def holder(self, kind="writer"):
         ready_r, ready_w = os.pipe()
@@ -502,7 +705,8 @@ effect.main()
 
 def suite():
     # Reuse the disposable Git world without rerunning its inherited suite.
-    return unittest.TestSuite(cls(name) for cls in (EffectsTests, GuardTests)
+    return unittest.TestSuite(cls(name) for cls in (
+        EffectsTests, BisectionEffectsTests, NestedBisectionEffectsTests, GuardTests)
                               for name in cls.__dict__ if name.startswith("test_"))
 
 

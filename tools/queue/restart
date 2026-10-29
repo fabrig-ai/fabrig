@@ -95,9 +95,9 @@ def restart(repo, wait, home, *, batch=8, authority_dir=None):
                             "--startup-fd", str(write_fd)]
                     if batch != 8:
                         argv.extend(["--batch", str(batch)])
-                    stop.unlink()
-                    authority.durable.sync_directory(stop.parent)
                     try:
+                        stop.unlink()
+                        authority.durable.sync_directory(stop.parent)
                         child = subprocess.Popen(argv, cwd=repo, stdin=subprocess.DEVNULL,
                             stdout=log, stderr=log, start_new_session=True,
                             pass_fds=(lease.fd, write_fd))

@@ -126,6 +126,12 @@ def validate_state(state, *, validate_request=None):
         branches(record.get("inputs"))
         for field in ("full", "idle", "applied", "bisection"):
             require(type(record.get(field)) is bool, "record " + field)
+        if record["bisection"]:
+            require(bool(frontier) and record["inputs"] == frontier[0], "bisection admission order")
+            frontier.pop(0)
+            require(not recovery_full or record["full"], "inherited full requirement")
+        elif not record.get("invalidated") and not frontier:
+            recovery_full = False
         require(isinstance(record.get("phase"), str) and record["phase"] in PHASES, "phase")
         require(record.get("outcome") is None or isinstance(record["outcome"], str), "outcome type")
         require(record.get("outcome") in OUTCOMES, "outcome")

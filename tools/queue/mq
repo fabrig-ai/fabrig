@@ -30,24 +30,26 @@ TREES = ("skein", "smith", "jig", "temper")
 GB = 1_000_000_000
 TOOLS_TIMEOUT = 60
 WRITER_LEASE = None
+WRITER_CHECKOUT = None
 
 
 @contextmanager
-def writer_authority(lease):
-    global WRITER_LEASE
-    previous = WRITER_LEASE
-    WRITER_LEASE = lease
+def writer_authority(lease, checkout):
+    global WRITER_LEASE, WRITER_CHECKOUT
+    previous = WRITER_LEASE, WRITER_CHECKOUT
+    WRITER_LEASE, WRITER_CHECKOUT = lease, checkout
     try:
         yield
     finally:
-        WRITER_LEASE = previous
+        WRITER_LEASE, WRITER_CHECKOUT = previous
 
 
 def writer_fds():
     if WRITER_LEASE is None:
         return ()
     WRITER_LEASE.guard()
-    return (WRITER_LEASE.fd,)
+    WRITER_CHECKOUT.guard()
+    return (WRITER_LEASE.fd, WRITER_CHECKOUT.fd)
 
 
 class DiskFloorError(RuntimeError):
@@ -457,7 +459,8 @@ def push_and_cleanup(repo, branches):
         if current.returncode:
             cleanup.append({"branch": branch["name"], "error": current.stdout})
         elif current.stdout.split()[:1] == [branch["tip"]]:
-            result = git(repo, "push", "origin", "--delete", branch["name"], check=False)
+            result = git(repo, "push", "--force-with-lease=" + ref + ":" + branch["tip"],
+                         "origin", ":" + ref, check=False)
             cleanup.append({"branch": branch["name"], "returncode": result.returncode,
                             "output": result.stdout})
         else:
@@ -836,7 +839,8 @@ def main():
         if git(repo, "rev-parse", "--show-toplevel").stdout.strip() != str(repo):
             raise RuntimeError("--repo must name the checkout root")
         layout = authority.Layout(args.authority_dir)
-        with layout.acquire(inherited=args.authority_fd) as lease, authority.checkout_lock(repo), writer_authority(lease):
+        with (layout.acquire(inherited=args.authority_fd) as lease,
+              authority.checkout_lock(repo) as checkout, writer_authority(lease, checkout)):
             if args.authority_fd is not None:
                 os.close(args.authority_fd)
             lease.guard()

@@ -17,11 +17,64 @@ DIRECTORY = Path(__file__).resolve().parent
 SPEC = importlib.util.spec_from_file_location("recovery_fixture", DIRECTORY / "test_train.py")
 fixtures = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(fixtures)
+# Keep inherited disposable worlds outside the checked source without editing its suite.
+fixtures.ROOT = DIRECTORY.parent.parent.parent
 train, worker, mq = fixtures.train, fixtures.worker, fixtures.mq
 recovery, durable = train.recovery, train.durable
 
 
 class RecoveryTests(fixtures.TrainTests):
+    def test_fixture_root_is_outside_checked_source(self):
+        self.assertNotIn(DIRECTORY.parent.parent, self.root.parents)
+
+    def applied_infra(self):
+        self.branch("a")
+        attempt, record = self.admit()
+        self.transport.fail_status = True
+        self.controller.poll(attempt)
+        self.controller.adjudicate_head()
+        self.controller = self.reload()
+        self.assertTrue(record["applied"])
+        self.assertFalse(self.controller.drained())
+        return attempt
+
+    def test_applied_infra_late_status_failure_preserves_reloadable_decision(self):
+        attempt = self.applied_infra()
+        self.controller.poll(attempt)
+        self.controller = self.reload()
+        record = self.controller.state["records"][attempt]
+        self.assertEqual(record["phase"], "decided")
+        self.assertEqual(self.controller.state["gates"][record["gate"]], attempt)
+        self.assertEqual(record["decision"], "INFRA")
+
+    def test_applied_infra_verified_reconciliation_reloads_before_drain(self):
+        attempt = self.applied_infra()
+        self.transport.fail_status = False
+        self.transport.finish(attempt)
+        self.controller.reconcile_job(attempt, quiescent=True, evidence=self.transport.jobs[attempt]["evidence"])
+        self.controller = self.reload()
+        self.assertEqual(self.controller.state["records"][attempt]["phase"], "discarded")
+        self.assertEqual(self.controller.state["tried"], {})
+        self.assertTrue(self.controller.drained())
+
+    def test_applied_infra_verified_terminal_reloads_without_new_decision(self):
+        attempt = self.applied_infra()
+        outbox = copy.deepcopy(self.controller.state["outbox"])
+        self.transport.fail_status = False
+        self.finish(attempt)
+        self.controller = self.reload()
+        self.assertEqual(self.controller.state["records"][attempt]["decision"], "INFRA")
+        self.assertEqual(self.controller.state["outbox"], outbox)
+        self.assertEqual(self.controller.state["tried"], {})
+        self.assertTrue(self.controller.drained())
+
+    def test_unloadable_snapshot_cannot_report_drained(self):
+        self.assertTrue(self.controller.drained())
+        state = self.store.load()
+        state["version"] = 99
+        self.store.save(state)
+        self.assertFalse(self.controller.drained())
+
     def assert_refuses_before_mutation(self):
         calls = []
         git = mq.git
@@ -341,7 +394,7 @@ class RecoveryTests(fixtures.TrainTests):
 class PublicationTests(unittest.TestCase):
     def setUp(self):
         os.umask(0o077)
-        self.tmp = tempfile.TemporaryDirectory(dir=DIRECTORY.parent.parent, prefix=".publication-test-")
+        self.tmp = tempfile.TemporaryDirectory(dir=DIRECTORY.parent.parent.parent, prefix=".publication-test-")
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
 
