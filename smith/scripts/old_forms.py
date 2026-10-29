@@ -3,6 +3,7 @@
 Count matches in tracked Rust files, excluding generated/ components and
 comments, while keeping string literals. Compare each form independently
 with scripts/old-forms.txt; --write can initialize or lower that baseline.
+The frozen shell-cwd grader directory is excluded because smith does not own its names.
 Escapes separate words in ordinary strings and chars; raw strings stay literal.
 The max_out form exempts only the exact identifiers in EXEMPT:
 the provider wire field max_output_tokens and
@@ -33,6 +34,9 @@ EXEMPT = {
         'max_output_bytes',
     ),
 }
+# A frozen benchmark repository's own crate, outside smith's workspace,
+# whose names smith does not own.
+EXEMPT_DIRECTORIES = ('benchmarks/tasks/repository/shell-cwd/grader/',)
 BASELINE = Path('scripts/old-forms.txt')
 HEADER = (
     "# Uses of the old forms (skein's docs/design/draft/dynamic-memory.md, 7): each count may only fall.\n"
@@ -94,7 +98,10 @@ def counts():
     for path in paths:
         if not path or b'generated' in path.split(b'/'):
             continue
-        source = Path(path.decode('utf-8')).read_text(encoding='utf-8')
+        decoded_path = path.decode('utf-8')
+        if decoded_path.startswith(EXEMPT_DIRECTORIES):
+            continue
+        source = Path(decoded_path).read_text(encoding='utf-8')
         if not any(marker in source for marker in (*FORMS, 'MAX_OUT')):
             continue
         source = without_comments(source)
