@@ -1,0 +1,31 @@
+mod account_reads;
+mod account_tools;
+mod accounts;
+mod accounts_page;
+mod adoption;
+mod agent;
+mod agent_recovery;
+mod agent_turn;
+mod amend_tools;
+mod b2;
+mod change_panel;
+mod chat;
+mod choice;
+mod connect_forge;
+mod connect_model;
+mod demo_start;
+mod forges;
+mod hold_commands;
+mod inbox;
+mod inbox_observation;
+mod names;
+mod open_chat;
+mod project_fund;
+mod recovery;
+mod stories;
+mod task;
+mod task_tree;
+mod welcome;
+mod fuzzy {
+    mod client;
+}

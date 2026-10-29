@@ -1,6 +1,5 @@
 //! Accounts disclosures and acts, checked against the design alone.
-mod qa_model;
-use qa_model::*;
+use super::qa_model::*;
 use skein_ui::{Role, State};
 const DEPLOYMENT_ROW: &[u8] = "Scripted API key · held by the deployment".as_bytes();
 
