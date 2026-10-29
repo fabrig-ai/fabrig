@@ -1,6 +1,6 @@
 //! Focused controls for the real probes' private state, without a program.
 use std::os::unix::fs::PermissionsExt;
-#[path = "live/probe.rs"]
+#[path = "../live/probe.rs"]
 mod probe;
 use probe::Probe;
 

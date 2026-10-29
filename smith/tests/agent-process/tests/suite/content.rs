@@ -3,12 +3,8 @@
 use std::collections::BTreeMap;
 
 use skein_fake_llm_domain::api;
-use skein_world::domain::heap::Counting;
 use smith_agent_process_world::{TraceCase, World, charter};
 use smith_events::{Block, Event, Message, Role};
-
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 fn part(block: &Block) -> api::Part {
     match block {

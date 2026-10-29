@@ -1,12 +1,8 @@
 //! Native trace observations remain complete across host output pressure and
 //! every admitted terminal. The independent channel peer supplies the answer.
-use skein_world::domain::heap::Counting;
 use smith_agent_process_world::{TraceCase, World, charter};
 use smith_channel::RunResult;
 use smith_events::{Event, RunCompleted, Status};
-
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 fn terminal(world: &World) -> &RunCompleted {
     world.assert_event_conformance();

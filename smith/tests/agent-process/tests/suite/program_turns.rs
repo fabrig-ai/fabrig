@@ -1,6 +1,3 @@
-#[global_allocator]
-static HEAP: skein_heap::Counting = skein_heap::Counting;
-
 use serde_json::json;
 use smith_agent_process_world::{
     charter, program,

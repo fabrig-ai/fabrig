@@ -1,13 +1,9 @@
 //! Open conversations on one program input (protocol/programs.md 5.9).
-#[global_allocator]
-static HEAP: skein_heap::Counting = skein_heap::Counting;
-
 use skein_lib::{Duration, Reader, Writer};
 use smith_agent_process_world::program_world::{self, HostMessage, Run, When};
 use smith_fake_claude::{Seen, Step, Story, Turn};
 
-#[path = "support/opening.rs"]
-mod opening;
+use crate::opening;
 
 // Three reserve completions cover the interrupted turn, a refused wait, and text.
 const RESERVE_TURNS: u32 = 3;
