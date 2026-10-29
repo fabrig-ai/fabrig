@@ -92,6 +92,7 @@ impl<'a> Socket<'a> {
     }
 
     /// Keep the receiver's absolute bound across its accepted socket's operations.
+    #[must_use]
     pub fn until(socket: TcpStream, deadline: Option<Deadline>) -> Self {
         Self {
             stream: Some(socket),
