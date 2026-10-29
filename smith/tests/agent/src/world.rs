@@ -421,6 +421,8 @@ pub struct World {
     messages_seen: Vec<(Time, crate::messages_referee::Seen)>,
     turn_metadata: Vec<(u32, Option<Token>, run::Spend)>,
     auto_ack: bool,
+    orders: Option<crate::orders::Recorder>,
+    held_facts: Option<Vec<Fact>>,
     waiting: Vec<(Time, Option<Token>)>,
     facts: Vec<Fact>,
     agent_facts_not_written: u64,
@@ -761,6 +763,8 @@ impl World {
             messages_seen,
             turn_metadata: Vec::new(),
             auto_ack: false,
+            orders: None,
+            held_facts: None,
             waiting: Vec::new(),
             facts: Vec::new(),
             agent_facts_not_written: 0,
@@ -1025,6 +1029,49 @@ impl World {
         self.auto_ack = true;
     }
 
+    /// Record root entrance outputs and facts without changing their scheduling.
+    /// Contract: dynamic-memory.md, section 4.6; domain/run.md, section 14.
+    pub fn record_entrances(&mut self) {
+        self.orders = Some(crate::orders::Recorder::default());
+    }
+
+    /// Recorded entrance boundaries in iteration order.
+    #[must_use]
+    pub fn entrances(&self) -> &[crate::orders::EntranceObservation] {
+        self.orders.as_ref().map(|orders| orders.entrances.as_slice()).unwrap_or_default()
+    }
+
+    /// Hold the outer sink's writes while continuing to drain root facts normally.
+    /// Contract: domain/run.md, section 11; testing-strategy.md, section 7.
+    pub fn hold_fact_writes(&mut self) {
+        assert!(self.held_facts.is_none(), "one pending outer fact sink");
+        self.held_facts = Some(Vec::new());
+    }
+
+    /// Write the held facts to the recorded outer sink in their original order.
+    pub fn flush_fact_writes(&mut self) {
+        self.facts.extend(self.held_facts.take().expect("outer writes were held"));
+    }
+
+    fn record_entrance(&mut self, entrance: crate::orders::Entrance, mark: u32) {
+        if let Some(orders) = &mut self.orders {
+            orders.entrances.push(crate::orders::EntranceObservation {
+                round: orders.round,
+                at: self.now,
+                entrance,
+                ready: self.agent.is_ready(),
+                facts: std::mem::take(&mut orders.facts),
+                requests: self
+                    .stage
+                    .out
+                    .iter()
+                    .skip(usize::try_from(mark).expect("queue index fits"))
+                    .filter_map(crate::orders::HandoffRequest::from_request)
+                    .collect(),
+            });
+        }
+    }
+
     /// Runs at most `iterations` deterministic shell rounds. Success means the
     /// one start answered, every boundary settled, and every expectation passed.
     ///
@@ -1047,6 +1094,9 @@ impl World {
     /// Contract: domain/host.md, section 9; testing-strategy.md, section 2.3.
     pub fn drive(&mut self, iterations: u32) -> bool {
         for _ in 0..iterations {
+            if let Some(orders) = &mut self.orders {
+                orders.round += 1;
+            }
             self.stage.tick(self.now);
             match &mut self.backend {
                 Backend::Typed { stage, .. } => stage.tick(self.now),
@@ -1055,22 +1105,31 @@ impl World {
                 self.deliver(delivery);
             }
             while self.agent.facts_room() >= agent::max_facts(&self.stage.env.limits) && self.agent.is_ready() {
+                let mark = self.stage.out.len();
                 agent::resume(&mut self.agent, &self.stage.env, &mut self.stage.out);
                 self.gather();
+                self.record_entrance(crate::orders::Entrance::Resume, mark);
             }
             while self.agent.facts_room() >= agent::max_facts(&self.stage.env.limits)
                 && let Some(mut event) = self.stage.next_event()
             {
                 self.log_event(&mut event);
-                if matches!(&event, Event::Cancel { .. }) {
+                let entrance = if matches!(&event, Event::Cancel { .. }) {
                     self.messages_seen.push((self.now, crate::messages_referee::Seen::ParentCancelled));
-                }
+                    crate::orders::Entrance::Cancel
+                } else {
+                    crate::orders::Entrance::Step
+                };
+                let mark = self.stage.out.len();
                 agent::step(&mut self.agent, &self.stage.env, event, &mut self.stage.out);
                 self.gather();
+                self.record_entrance(entrance, mark);
             }
             while self.agent.facts_room() >= agent::max_facts(&self.stage.env.limits) && self.agent.is_due(self.now) {
+                let mark = self.stage.out.len();
                 agent::fire(&mut self.agent, &self.stage.env, &mut self.stage.out);
                 self.gather();
+                self.record_entrance(crate::orders::Entrance::Fire, mark);
             }
             while let Some(request) = self.stage.out.pop() {
                 self.trace.log(self.now, format!("agent -> {request:?}"));
@@ -1078,6 +1137,7 @@ impl World {
             }
             self.advance_provider();
             self.agent.reclaim();
+            self.record_entrance(crate::orders::Entrance::Reclaim, self.stage.out.len());
             match &mut self.backend {
                 Backend::Typed { provider, .. } => provider.reclaim(),
             }
@@ -1219,12 +1279,19 @@ impl World {
 
     fn gather(&mut self) {
         while let Some(fact) = self.agent.pop_fact() {
+            if let Some(orders) = &mut self.orders {
+                orders.facts.push(fact.clone());
+            }
             match &fact {
                 Fact::Session { fact } => self.observe(Seen::Jobs { fact: fact.kind.clone() }),
                 Fact::Run { .. } => {}
             }
             if self.settings.drain_facts {
-                self.facts.push(fact);
+                if let Some(held) = &mut self.held_facts {
+                    held.push(fact);
+                } else {
+                    self.facts.push(fact);
+                }
             } else {
                 self.agent_facts_not_written += 1;
             }
@@ -1914,7 +1981,7 @@ impl World {
         use agent::{run::facts as rf, session::Fact as sf};
         let mut used = run::Spend::ZERO;
         let (mut opened, mut ended, mut answered) = (0_u32, 0_u32, 0_u32);
-        for fact in &self.facts {
+        for fact in self.facts.iter().chain(self.held_facts.iter().flatten()) {
             match fact {
                 Fact::Session { fact: sf { kind: smith_domain::session::FactKind::Used { usage, .. }, .. } } => {
                     used = used
