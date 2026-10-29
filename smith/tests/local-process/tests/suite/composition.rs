@@ -79,3 +79,32 @@ fn a_plain_snapshot_at_and_past_its_bound_answers() {
         }
     }
 }
+
+/// Lower test of smith's end_to_end::slash_effort_reaches_the_next_request (top tiers test wiring only).
+#[test]
+fn an_accepted_effort_change_reaches_the_next_response() {
+    use smith_local_process_world::terminal::Action;
+    let files = Files::new();
+    let mut world = World::new(84, &files, Placement::InProcess, b"Second answer");
+    world.interactive();
+    world.scenario.launch.choices = true;
+    world.scenario.launch.traced = true;
+    world.scenario.commands = vec![
+        Action::Send(b"/effort low\nhello\n".as_slice().into()),
+        Action::Wait(b"First answer".as_slice().into()),
+        Action::Send(b"/effort high\nnext\n".as_slice().into()),
+        Action::Eof,
+    ];
+    world.settle();
+    review(&world.seen(), &world, Ending::Report(b"Second answer".to_vec())).assert_passed(84);
+    let queries = world.queries();
+    // The script has one finish response for each of the two activations.
+    const RESPONSES: usize = 2;
+    assert_eq!(queries.len(), RESPONSES);
+    let efforts: Vec<_> = world.records().into_iter().filter_map(|record| match record.event {
+        Event::ResponseStarted(response) => Some(response.model.effort),
+        _ => None,
+    }).collect();
+    assert_eq!(efforts, [Some(b"low".as_slice().into()), Some(b"high".as_slice().into())]);
+    assert_eq!(world.exit(), Some(kernel::Exit::Code(0)));
+}
