@@ -1,8 +1,8 @@
 //! A waiting writer owns one opening under its run's lease (domain/run.md, 5.3).
 
 use super::{
-    Ask, Asked, BUDGET, Domain, Env, Event, Families, LIMITS, Limits, MAX_OUT, Meter, Queue, Read, ReplyTo, Request,
-    Time, Token, Tools, Wall, bytes, charter, measured_step, workspace,
+    Ask, Asked, BUDGET, Domain, Env, Event, Families, LIMITS, Limits, Meter, Queue, Read, ReplyTo, Request, Time,
+    Token, Tools, Wall, bytes, charter, measured_step, workspace,
 };
 
 const HOST_RUN: Token = Token::new(88);
@@ -32,7 +32,7 @@ fn waiting_writer_bytes(limits: &Limits, brief: u64, bound: u64) -> u64 {
     let meter = Meter::new();
     let mut domain = Domain::new(limits, 0);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits };
-    let mut out = Queue::with_capacity(MAX_OUT);
+    let mut out = Queue::uncapped();
     let conversation = open_main_for_waiting_writer(&mut domain, &env, &mut out, bound);
     let event = Event::Delegated {
         name: smith_domain_run::CallName { activation: 1, completion: 1, position: 0 },

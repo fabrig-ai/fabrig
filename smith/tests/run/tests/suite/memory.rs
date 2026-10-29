@@ -12,8 +12,7 @@ use skein_world::domain::heap::Meter;
 use smith_domain_run::charter::{Endpoint, Families, Grants, HostTool, Llm, Tools};
 use smith_domain_run::outcome::{Change, ChangeSpec, Declared, Field, FieldRule, ItemRule, OutcomeSpec, VerdictRule};
 use smith_domain_run::{
-    Answer, Ask, Budget, Charter, Domain, End, Event, Exit, Invalid, Limits, MAX_OUT, Ran, Read, Refusal, Request,
-    Spend, Stop,
+    Answer, Ask, Budget, Charter, Domain, End, Event, Exit, Invalid, Limits, Ran, Read, Refusal, Request, Spend, Stop,
 };
 use smith_domain_run::{Directory, Workspace};
 
@@ -343,7 +342,7 @@ fn measured_step(
 
 fn fill_selected(limits: &Limits, selected: Option<&smith_domain_run::Conventions>, bound: u64) {
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits };
-    let mut out = Queue::with_capacity(MAX_OUT);
+    let mut out = Queue::uncapped();
     let meter = Meter::new();
     let mut domain = Domain::new(limits, 0);
     // The requests are the parent's to route and their receivers' to count:
@@ -630,7 +629,7 @@ fn full_receipt_delivery_settles_before_a_cancelled_answer() {
         ..LIMITS
     };
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let mut out = Queue::with_capacity(MAX_OUT);
+    let mut out = Queue::uncapped();
     let meter = Meter::new();
     let mut domain = Domain::new(&limits, 0);
     let mut take = |event| delivery_memory_step(&mut domain, &env, &mut out, &meter, event, DELIVERY_CEILING);
@@ -805,7 +804,7 @@ const HOST_RELAY_CEILING: u64 = 94_000;
 fn complete_declaration_and_maximum_opaque_input_answer_retries_reach_the_measured_ownership_bound() {
     let limits = Limits { run_bytes: 4096, ..LIMITS };
     let mut env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let mut out = Queue::with_capacity(MAX_OUT);
+    let mut out = Queue::uncapped();
     let meter = Meter::new();
     let mut domain = Domain::new(&limits, 0);
     let mut take =
@@ -908,7 +907,7 @@ const AWAITING_CEILING: u64 = 7_600;
 fn an_awaiting_run_retains_its_full_charter_without_allocating_a_session() {
     let limits = LIMITS;
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let mut out = Queue::with_capacity(MAX_OUT);
+    let mut out = Queue::uncapped();
     let meter = Meter::new();
     let mut domain = Domain::new(&limits, 0);
     let mut charter = charter(limits.run_bytes);
@@ -966,7 +965,7 @@ fn a_run_at_scalar_maxima_emits_its_largest_final_note_within_its_ownership_boun
     let budget = Budget { turns: u32::MAX, spend: u64::MAX, time: Duration::from_nanos(u64::MAX) };
     let limits = Limits { budget, ..LIMITS };
     let mut env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let mut out = Queue::with_capacity(MAX_OUT);
+    let mut out = Queue::uncapped();
     let meter = Meter::new();
     let mut domain = Domain::new(&limits, 77);
     let bound = FINAL_NOTE_CEILING;

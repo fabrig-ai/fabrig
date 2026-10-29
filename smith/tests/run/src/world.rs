@@ -7,12 +7,6 @@ use smith_domain_run as run;
 use crate::host::{self, Host};
 use crate::partner::{Out, Partner, Script, Tally};
 
-/// Room in each domain's output queue. Small, so the loop's flow control (take
-/// an event only while there is room for what it may produce) is exercised.
-///
-/// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
-const OUT: u32 = 4;
-
 /// Immutable seeded peer behavior and component limits used to construct this world.
 ///
 /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
@@ -619,7 +613,6 @@ pub struct World {
     message_answers: Vec<(Token, Option<Token>)>,
     deadline_cells: BTreeMap<&'static str, u32>,
     iteration: u64,
-    fact_holds: u64,
     order_log: Option<Vec<crate::order_log::Record>>,
     /// The run the last request answered, for the iteration's attribution;
     /// the call the step being attributed took, if it asked for a sub-agent,
@@ -655,7 +648,7 @@ impl World {
             share_seen: Vec::new(),
             workspace_of_call: BTreeMap::new(),
             run: run::Domain::new(&settings.run, settings.seed),
-            run_stage: Stage::new(settings.run, run::MAX_OUT, OUT),
+            run_stage: Stage::uncapped(settings.run),
             host,
             partner,
             permits: Vec::new(),
@@ -704,7 +697,6 @@ impl World {
             message_answers: Vec::new(),
             deadline_cells: BTreeMap::new(),
             iteration: 0,
-            fact_holds: 0,
             order_log: None,
             just_answered: None,
             asked: None,
@@ -870,12 +862,6 @@ impl World {
         }
     }
 
-    /// Parent passes that left pending work untouched until native facts drained.
-    #[must_use]
-    pub fn fact_holds(&self) -> u64 {
-        self.fact_holds
-    }
-
     /// What crossed between the domains and the world, in order, with times.
     ///
     /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
@@ -936,14 +922,12 @@ impl World {
         self.run_stage.tick(self.now);
         self.deliver();
 
-        // Each stage takes its events, then fires its alarms, while it has room
-        // for what one more may produce.
+        // The pass takes its queued input, fires alarms, then resumes at most
+        // once. Requests reach peers only after these entrances finish.
         self.iteration += 1;
         self.order_queued();
         let mut made = Vec::new();
-        while self.run.facts_room() >= run::max_facts(&self.run_stage.env.limits)
-            && let Some(event) = self.run_stage.next_event()
-        {
+        while let Some(event) = self.run_stage.next_event() {
             self.order(crate::order_log::Seen::Taken(crate::order_log::Input::of(&event)));
             self.log(&format!("run <- {event:?}"));
             let run = self.run_of(&event);
@@ -964,10 +948,8 @@ impl World {
             made.push(Made { run, requests: self.run_stage.out.len() - before, cancel, asked });
         }
         self.order_pending();
-        while self.run.facts_room() >= run::max_facts(&self.run_stage.env.limits)
-            && self.run_stage.has_room()
-            && self.run.is_due(self.now)
-        {
+        let run_inputs_drained = !self.run_stage.has_events();
+        while run_inputs_drained && self.run.is_due(self.now) {
             self.order(crate::order_log::Seen::Alarm);
             self.log("run alarm");
             let run = self.deadline_due();
@@ -976,20 +958,12 @@ impl World {
             made.push(Made { run, requests: self.run_stage.out.len() - before, cancel: None, asked: None });
         }
 
-        if !self.run_stage.has_events()
-            && self.run.is_ready()
-            && self.run_stage.has_room()
-            && self.run.facts_room() >= run::max_facts(&self.run_stage.env.limits)
-        {
+        let run_inputs_drained = !self.run_stage.has_events();
+        if run_inputs_drained && self.run.is_ready() {
             let before = self.run_stage.out.len();
             self.order(crate::order_log::Seen::Resume);
             run::resume(&mut self.run, &self.run_stage.env, &mut self.run_stage.out);
             made.push(Made { run: None, requests: self.run_stage.out.len() - before, cancel: None, asked: None });
-        }
-        if self.run.facts_room() < run::max_facts(&self.run_stage.env.limits)
-            && (self.run_stage.has_events() || self.run.is_due(self.now))
-        {
-            self.fact_holds += 1;
         }
         // What the steps asked for, submitted at the end of the iteration, each
         // attributed to the run its step was about.

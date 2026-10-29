@@ -20,7 +20,7 @@ use crate::outcome::{
 use crate::prepare::{Found, Guide};
 use crate::{
     Answer, Ask, AskRefusal, Budget, Charter, Delivery, Domain, End, Event, Exhausted, Exit, Failure, Fault, Invalid,
-    Limits, MAX_OUT, Opening, Place, Policy, Ran, Read, Refusal, Request, Returned, Spend, Stop, fire, step, valid,
+    Limits, Opening, Place, Policy, Ran, Read, Refusal, Request, Returned, Spend, Stop, fire, step, valid,
 };
 use crate::{Directory, Workspace};
 
@@ -83,7 +83,7 @@ pub(crate) const LIMITS: Limits = Limits {
     waiting: Duration::from_secs(300),
 };
 
-/// The domain, its environment, and room for one step's output.
+/// The domain, its environment, and its pending output.
 struct Harness {
     observed: Queue<crate::facts::Fact>,
     domain: Domain,
@@ -117,7 +117,7 @@ impl Harness {
             observed: Queue::with_capacity(4096),
             domain: Domain::new(&limits, 0),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
-            out: Queue::with_capacity(MAX_OUT),
+            out: Queue::uncapped(),
             prices: alloc::collections::BTreeMap::new(),
             checks_ended: 0,
             peers: alloc::collections::BTreeMap::new(),
@@ -161,9 +161,14 @@ impl Harness {
     }
 
     fn drain(&mut self) -> Box<[Request]> {
-        let mut requests = List::with_capacity(MAX_OUT);
-        for _ in 0..MAX_OUT.saturating_mul(2) {
-            let Some(request) = self.out.pop() else { break };
+        #[expect(
+            clippy::disallowed_types,
+            reason = "programming-model.md, section 10.2: the deterministic harness collects an uncapped output drain"
+        )]
+        let mut requests = Vec::new();
+        // Each cancellation settles the writer's jobs once; its finite follow-up
+        // requests are translated before this entrance returns.
+        while let Some(request) = self.out.pop() {
             match request {
                 Request::CancelJobs { peer } => {
                     let conversation = self.peers[&peer];
@@ -191,11 +196,10 @@ impl Harness {
                 | Request::Abort { .. }
                 | Request::Checking { .. }
                 | Request::Deliver { .. }
-                | Request::Return { .. }) => requests.push(request).expect("room for MAX_OUT"),
+                | Request::Return { .. }) => requests.push(request),
             }
         }
-        assert!(self.out.is_empty(), "a step emits at most MAX_OUT");
-        requests.into_boxed()
+        requests.into_boxed_slice()
     }
 
     /// Starts a run of `charter` for call `call`: what it emitted.
@@ -996,12 +1000,9 @@ fn invalid_limits_are_refused() {
     assert!(valid(&LIMITS));
     // Heap-total overflow alone is not constructor invalidity.
     assert!(valid(&Limits { run_bytes: u64::MAX, ..LIMITS }));
-    // The fact reserve must hold both message observations and the terminal.
-    assert!(!valid(&Limits { facts: crate::max_facts(&LIMITS) - 1, ..LIMITS }));
-    // Doubling the message count must not overflow.
-    assert!(!valid(&Limits { messages: u32::MAX / 2 + 1, facts: u32::MAX, ..LIMITS }));
-    // Adding the terminal reserve must not overflow.
-    assert!(!valid(&Limits { messages: u32::MAX / 2, facts: u32::MAX, ..LIMITS }));
+    // Internal facts need no reservation or message-derived capacity.
+    assert!(valid(&Limits { facts: 0, ..LIMITS }));
+    assert!(valid(&Limits { messages: u32::MAX, facts: 0, ..LIMITS }));
     // Every yield can offer a message.
     assert!(!valid(&Limits { offer_messages: 0, ..LIMITS }));
     // The offer holds at least one maximum message.
@@ -2522,10 +2523,8 @@ fn a_run_tells_what_it_did_as_content_free_facts() {
 }
 
 #[test]
-fn a_minimum_fact_reserve_keeps_the_admitted_terminal_and_every_prior_fact() {
-    let required = crate::max_facts(&LIMITS);
-    assert!(!valid(&Limits { facts: required - 1, ..LIMITS }));
-    let mut h = Harness::new(Limits { facts: required, ..LIMITS });
+fn uncapped_facts_keep_the_admitted_terminal_and_every_prior_fact() {
+    let mut h = Harness::new(Limits { facts: 0, ..LIMITS });
     let (run, conversation) = h.running(1, 100);
     assert_eq!(&*h.step(Event::Cancel { run }), &[Request::Close { peer: Token::new(100) }]);
     let emitted = h.step(Event::Ended { conversation, end: End::Closed, spend: Spend::ZERO, detail: Box::default() });
