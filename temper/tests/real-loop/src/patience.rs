@@ -1,58 +1,74 @@
-//! Temper-only detail at the world's patience boundary. No report is built on a passing path.
+//! Temper-only detail at the world's patience boundary
+//! (skein/docs/foundation/testing-strategy.md, 2.8 and 2.10).
 use crate::{calls::Caller, world::Proc};
 use skein_lib::{Duration, Time};
 use skein_shell::Host;
-use skein_world::{Controls, Referee};
+use skein_world::{Deadline, Expired, Referee};
 use std::fmt::Write;
 
 #[derive(Debug)]
 pub(crate) struct Patience {
-    limit: Duration,
     after: Duration,
-    deadline: Time,
+    deadline: Option<Deadline>,
+    figures: Option<String>,
     report: Option<String>,
     deferred: bool,
 }
+
+enum Verdict {
+    Starved,
+    Failed(String),
+}
+
+fn verdict(expired: Expired) -> Verdict {
+    match expired {
+        Expired::Starved(_) => Verdict::Starved,
+        Expired::Failed(figures) => Verdict::Failed(figures.to_string()),
+    }
+}
+
 impl Patience {
     pub(crate) fn new(patience: Duration) -> Self {
         let margin = Duration::from_secs(1);
         let after = patience.as_nanos().checked_sub(margin.as_nanos()).expect("patience exceeds diagnostic margin");
         assert!(after > 0, "a positive diagnostic window");
-        Self {
-            limit: patience,
-            after: Duration::from_nanos(after),
-            deadline: Time::ZERO,
-            report: None,
-            deferred: false,
-        }
+        Self { after: Duration::from_nanos(after), deadline: None, figures: None, report: None, deferred: false }
     }
-    /// The first act uses the same pass clock as the world, after all fixture admission.
-    pub(crate) fn due(&mut self, now: Time) -> bool {
-        if self.deferred || now < self.deadline {
+    /// The first act arms the real-clock deadline after all fixture admission.
+    pub(crate) fn due(&mut self) -> bool {
+        if self.deferred {
             return false;
         }
-        if self.deadline == Time::ZERO {
-            self.deadline = now.saturating_add(self.after);
+        let Some(deadline) = &self.deadline else {
+            self.deadline = Some(Deadline::arm("the temper judge's verdict", self.after));
+            return false;
+        };
+        if !deadline.passed() {
             return false;
         }
-        true
+        self.handle(verdict(deadline.expired()))
     }
-    /// Read scheduler accounting only when the early diagnostic falls due.
-    pub(crate) fn due_in_world(&mut self, now: Time, controls: &Controls) -> bool {
-        self.due(now) && !self.defer_if_starved(controls.runnable_wait(), std::env::var_os("NEXTEST").is_some())
-    }
-    /// Leave starvation classification and forced cleanup to the world's own
-    /// patience. The threshold uses the full patience, not our diagnostic margin.
-    fn defer_if_starved(&mut self, waited: Option<Duration>, nextest: bool) -> bool {
-        if nextest && waited.is_some_and(|waited| waited.as_nanos() >= self.limit.as_nanos().div_ceil(2)) {
-            self.deferred = true;
+    fn handle(&mut self, verdict: Verdict) -> bool {
+        match verdict {
+            Verdict::Starved => {
+                self.defer();
+                false
+            }
+            Verdict::Failed(figures) => {
+                self.figures = Some(figures);
+                true
+            }
         }
-        self.deferred
+    }
+    /// The world owns process teardown and the final starvation verdict.
+    pub(crate) fn defer(&mut self) {
+        self.deferred = true;
     }
     pub(crate) fn deadline(&self) -> Option<Time> {
-        (!self.deferred && self.deadline != Time::ZERO).then_some(self.deadline)
+        if self.deferred { None } else { self.deadline.as_ref().map(Deadline::until) }
     }
-    pub(crate) fn capture(&mut self, report: String) {
+    pub(crate) fn capture(&mut self, mut report: String) {
+        writeln!(report, "{}", self.figures.as_ref().expect("failed deadline figures")).expect("string writer");
         self.report = Some(report);
     }
     pub(crate) fn overdue(&self) -> Option<String> {
@@ -178,12 +194,12 @@ pub(crate) fn describe(id: usize, proc: &mut Proc, now: Time, out: &mut String) 
 
 #[cfg(test)]
 mod tests {
-    use super::{Patience, fail_overdue, header};
+    use super::{Patience, Verdict, fail_overdue, header, verdict};
     use crate::service::ServiceHost;
     use skein_io::kernel::{Complete, Exit, Fd, Submit};
     use skein_lib::{Duration, Queue, Time, Wall};
     use skein_shell::Host;
-    use skein_world::{Referee, real::World};
+    use skein_world::{Expired, Figures, Referee, real::World};
 
     /// Deliberately never advances a prepared service's startup store work.
     struct Frozen {
@@ -225,7 +241,7 @@ mod tests {
     }
     impl Referee<Frozen> for Judge {
         fn act(&mut self, now: Time, procs: &mut [Frozen]) {
-            if self.patience.due(now) {
+            if self.patience.due() {
                 let frozen = &procs[0];
                 let mut report = String::new();
                 header(0, "service", &frozen.service, frozen.service.pending_streak.passes(), now, &mut report);
@@ -274,6 +290,8 @@ mod tests {
         assert!(message.contains("settled_revision:"), "{message}");
         assert!(message.contains("pending_passes="), "{message}");
         assert!(!message.contains("pending_passes=0 "), "the busy passes were counted: {message}");
+        assert!(message.contains("the temper judge's verdict: patience 10000000 ns; elapsed"), "{message}");
+        assert!(message.contains("thread runnable wait"), "{message}");
     }
 
     #[test]
@@ -299,54 +317,52 @@ mod tests {
         assert!(first.contains("waits_for=ctl response and exit: wait task 3 --until ended"), "{first}");
     }
 
-    // A 20-second world, with the one-second diagnostic margin and a nonzero origin.
-    const START: Time = Time::from_nanos(7);
-    const EARLY: Time = Time::from_nanos(19_000_000_007);
-    const LIMIT: Time = Time::from_nanos(20_000_000_007);
-
     fn armed_guard() -> Patience {
         let mut guard = Patience::new(Duration::from_secs(20));
-        let _armed = guard.due(START);
+        assert!(!guard.due());
         guard
     }
 
     #[test]
     fn a_starved_loop_leaves_both_deadline_moments_to_the_world() {
         let mut guard = armed_guard();
-        assert!(guard.due(EARLY));
-        assert!(guard.defer_if_starved(Some(Duration::from_secs(10)), true));
-        for now in [EARLY, LIMIT] {
-            assert!(!guard.due(now), "the world's patience owns the starved verdict");
+        let early = guard.deadline().expect("armed deadline");
+        assert!(!guard.handle(Verdict::Starved));
+        for now in [early, early.saturating_add(Duration::from_secs(1))] {
+            assert!(!guard.due(), "the world's patience owns the starved verdict");
             assert_eq!(guard.deadline(), None, "the early deadline cannot keep waking the loop");
             assert_eq!(guard.overdue(), None);
-        }
-    }
-
-    #[test]
-    fn idle_and_spinning_loops_keep_the_early_diagnostic() {
-        for waited in [None, Some(Duration::ZERO), Some(Duration::from_nanos(9_999_999_999))] {
-            let mut guard = armed_guard();
-            assert!(guard.due(EARLY));
-            assert!(!guard.defer_if_starved(waited, true));
-            guard.capture("held service component".into());
-            assert_eq!(guard.deadline(), Some(EARLY));
-            assert!(guard.due(LIMIT));
             let judge = Judge { patience: guard };
-            let error = std::panic::catch_unwind(|| fail_overdue::<Frozen, _>(&judge, EARLY))
-                .expect_err("a non-starved loop still fails before patience");
-            let message = error.downcast_ref::<String>().expect("formatted early diagnostic");
-            assert!(message.contains("the referee failed the real loop before patience"), "{message}");
-            assert!(message.contains("held service component"), "{message}");
+            fail_overdue::<Frozen, _>(&judge, now);
+            guard = judge.patience;
         }
     }
 
     #[test]
-    fn starvation_outside_nextest_keeps_the_early_deadline() {
+    fn a_failed_verdict_keeps_the_early_diagnostic_with_its_report_and_figures() {
         let mut guard = armed_guard();
-        assert!(guard.due(EARLY));
-        assert!(!guard.defer_if_starved(Some(Duration::from_secs(10)), false));
-        assert_eq!(guard.deadline(), Some(EARLY));
-        assert!(guard.due(LIMIT));
+        let early = guard.deadline().expect("armed deadline");
+        let figures = Figures {
+            what: "the temper judge's verdict",
+            patience: Duration::from_secs(19),
+            elapsed: Duration::from_secs(20),
+            thread_waited: Some(Duration::from_nanos(7)),
+            thread_cpu: Some(Duration::from_nanos(11)),
+            tree_waited: None,
+        };
+        let expected = figures.to_string();
+        assert!(guard.handle(verdict(Expired::Failed(figures))));
+        guard.capture("held service component".into());
+        assert_eq!(guard.deadline(), Some(early));
+        let judge = Judge { patience: guard };
+        let error = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            fail_overdue::<Frozen, _>(&judge, early);
+        }))
+        .expect_err("a failed verdict still fails before patience");
+        let message = error.downcast_ref::<String>().expect("formatted early diagnostic");
+        assert!(message.contains("the referee failed the real loop before patience"), "{message}");
+        assert!(message.contains("held service component"), "{message}");
+        assert!(message.contains(&expected), "{message}");
     }
 
     #[test]
@@ -398,13 +414,15 @@ mod tests {
         for seconds in [3, 20, 40] {
             let mut guard = Patience::new(Duration::from_secs(seconds));
             assert_eq!(guard.deadline(), None);
-            let start = Time::from_nanos(7);
-            assert!(!guard.due(start));
-            let at = start.saturating_add(Duration::from_secs(seconds - 1));
-            assert_eq!(guard.deadline(), Some(at));
-            assert!(!guard.due(Time::from_nanos(at.as_nanos() - 1)));
+            let clock = skein_shell::Clock::new();
+            let before = clock.now().now;
+            assert!(!guard.due());
+            let after = clock.now().now;
+            let patience = Duration::from_secs(seconds - 1);
+            let deadline = guard.deadline().expect("armed deadline");
+            assert!(deadline >= before.saturating_add(patience));
+            assert!(deadline <= after.saturating_add(patience));
             assert!(guard.overdue().is_none(), "no message or snapshot before it fires");
-            assert!(guard.due(at));
         }
     }
 }
