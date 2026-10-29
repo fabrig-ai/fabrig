@@ -315,6 +315,7 @@ impl skein_world::Referee<Proc> for Referee {
             Proc::Service(_)
             | Proc::Agent(_)
             | Proc::Peer(_)
+            | Proc::GitRoute(_)
             | Proc::Git(_)
             | Proc::Shell(_)
             | Proc::Forge(_)
@@ -597,12 +598,13 @@ fn client_receipts(event: &client::Received, store: &Store, party: Option<u64>) 
     }
 }
 
-fn shutdown_peer(proc: &mut Proc) {
+pub(crate) fn shutdown_peer(proc: &mut Proc) {
     match proc {
         Proc::Peer(peer) => peer.shutdown(),
         Proc::Forge(forge) => forge.shutdown(),
         Proc::Service(_)
         | Proc::Agent(_)
+        | Proc::GitRoute(_)
         | Proc::Git(_)
         | Proc::Shell(_)
         | Proc::Client(_)

@@ -1,4 +1,5 @@
 //! Lower owners of service composition behaviors (temper/docs/design/domain/testing.md, 2.4).
+pub mod github;
 mod paging;
 use crate::{
     ctl::{Caller, Command},

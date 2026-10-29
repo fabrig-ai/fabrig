@@ -190,6 +190,7 @@ pub(crate) enum Proc {
     Ctl(Box<crate::ctl::Recorded>),
     Calls(Box<crate::ctl::Caller>),
     Agent(Box<skein_world::PipeHost<smith_agent_shell::Agent>>),
+    GitRoute(Box<temper_fake_git::Git<temper_fake_git::Route>>),
     Git(Box<temper_fake_git_hosted::Git<temper_fake_git_hosted::Typed>>),
     Shell(Box<stories::Shell>),
     Peer(Box<SignalHost<skein_fake_peers::llm::Peer>>),
@@ -204,6 +205,7 @@ impl Proc {
             Self::Calls(h) => h.as_ref(),
             Self::Agent(h) => h.as_ref(),
             Self::Git(h) => h.as_ref(),
+            Self::GitRoute(h) => h.as_ref(),
             Self::Shell(h) => h.as_ref(),
             Self::Peer(h) => h.as_ref(),
             Self::Forge(h) => h.as_ref(),
@@ -217,6 +219,7 @@ impl Proc {
             Self::Calls(h) => h.as_mut(),
             Self::Agent(h) => h.as_mut(),
             Self::Git(h) => h.as_mut(),
+            Self::GitRoute(h) => h.as_mut(),
             Self::Shell(h) => h.as_mut(),
             Self::Peer(h) => h.as_mut(),
             Self::Forge(h) => h.as_mut(),
@@ -703,6 +706,13 @@ fn agent(_spawn: &skein_io::kernel::Spawn, inherited: &Inherited) -> Proc {
     ))
 }
 fn git(spawn: &skein_io::kernel::Spawn, inherited: &Inherited) -> Proc {
+    if crate::lower::github::active() {
+        return Proc::GitRoute(Box::new(temper_fake_git::Git::new(
+            spawn,
+            temper_fake_git_hosted::start(inherited),
+            temper_fake_git::Route::new(crate::lower::github::protocol()),
+        )));
+    }
     Proc::Git(Box::new(temper_fake_git_hosted::git(spawn, inherited, transport())))
 }
 fn shell(spawn: &skein_io::kernel::Spawn, inherited: &Inherited) -> Proc {
@@ -1062,6 +1072,7 @@ fn run_phase(
             Proc::Client(person) => Some(person.signed_in),
             Proc::Service(_)
             | Proc::Agent(_)
+            | Proc::GitRoute(_)
             | Proc::Git(_)
             | Proc::Shell(_)
             | Proc::Peer(_)

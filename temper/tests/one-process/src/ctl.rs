@@ -7,6 +7,8 @@ use temper_client_shell_cli::{
     arguments,
     host::{Invocation, OneShot, Startup},
 };
+#[path = "../../real-loop/src/calls/browse.rs"]
+mod browse;
 pub const PROGRAM: &[u8] = b"/world/temper-ctl";
 const OUTPUT: usize = 65_536;
 const TAG: u64 = 0xfffe_0000_0000_0000;
@@ -62,10 +64,14 @@ pub fn host(spawn: &Spawn, inherited: &Inherited) -> Recorded {
 pub(crate) struct Command {
     pub words: Vec<Box<[u8]>>,
     pub input: Box<[u8]>,
+    browse: Option<usize>,
 }
 impl Command {
+    pub(crate) fn browse(answer: usize) -> Self {
+        Self { words: Vec::new(), input: Box::default(), browse: Some(answer) }
+    }
     pub(crate) fn new(words: &[&[u8]]) -> Self {
-        Self { words: words.iter().map(|word| (*word).into()).collect(), input: Box::default() }
+        Self { words: words.iter().map(|word| (*word).into()).collect(), input: Box::default(), browse: None }
     }
 }
 pub(crate) struct Answer {
@@ -76,6 +82,8 @@ pub(crate) struct Answer {
 pub(crate) struct Caller {
     root: Fd,
     close_root: Option<Fd>,
+    expected: Option<Exit>,
+    browser: Option<browse::Browser>,
     link: Option<Box<[u8]>>,
     pub commands: std::collections::VecDeque<Command>,
     pub answers: Vec<Answer>,
@@ -111,12 +119,15 @@ impl Caller {
         caller.commands.push_back(Command::new(words));
         caller.closed = true;
         caller.close_root = None;
+        caller.expected = Some(Exit::Code(0));
         caller
     }
     pub(crate) fn scripted(root: Fd) -> Self {
         Self {
             root,
             close_root: Some(root),
+            expected: None,
+            browser: None,
             link: None,
             commands: std::collections::VecDeque::new(),
             answers: Vec::new(),
@@ -150,10 +161,52 @@ impl Caller {
         }
     }
 }
+impl Caller {
+    fn launch(&mut self, command: Command) {
+        if let Some(answer) = command.browse {
+            let browser = browse::Browser::new(answer, &self.answers[answer].output);
+            assert_eq!(browser.seen.call, answer, "browser follows its named call");
+            let kind = browser.start();
+            self.browser = Some(browser);
+            self.started = true;
+            self.submit(kind);
+            return;
+        }
+        let mut words = vec![b"/client/private".as_slice().into()];
+        words.extend(command.words);
+        self.link = Some(command.input);
+        self.started = true;
+        self.submit(Op::Spawn {
+            spawn: Box::new(Spawn {
+                program: PROGRAM.into(),
+                args: words.into_boxed_slice(),
+                env: Box::new([]),
+                root: self.root,
+                dir: Box::new([]),
+                pipes: [(0, Way::In), (1, Way::Out), (2, Way::Out)]
+                    .map(|(child, way)| Pipe { child, way, parent: None })
+                    .into(),
+            }),
+        });
+    }
+}
+
 impl Host for Caller {
     fn iterate(&mut self, _now: Time, _wall: Wall) {
         while let Some(complete) = self.completions.pop() {
             self.pending -= 1;
+            if let Some(browser) = &mut self.browser {
+                let next = browser.complete(complete);
+                if browser.done {
+                    self.output = browser.seen.body.clone();
+                    self.exit = Some(Exit::Code(0));
+                    self.browser = None;
+                }
+                if let Some(kind) = next {
+                    self.submit(kind);
+                }
+                continue;
+            }
             match (complete.kind, complete.result.expect("ctl setup operation")) {
                 (Op::Spawn { spawn }, Done::Spawned { pidfd, .. }) => {
                     self.pidfd = Some(pidfd);
@@ -218,22 +271,7 @@ impl Host for Caller {
             }
             return;
         };
-        let mut words = vec![b"/client/private".as_slice().into()];
-        words.extend(command.words);
-        self.link = Some(command.input);
-        self.started = true;
-        self.submit(Op::Spawn {
-            spawn: Box::new(Spawn {
-                program: PROGRAM.into(),
-                args: words.into_boxed_slice(),
-                env: Box::new([]),
-                root: self.root,
-                dir: Box::new([]),
-                pipes: [(0, Way::In), (1, Way::Out), (2, Way::Out)]
-                    .map(|(child, way)| Pipe { child, way, parent: None })
-                    .into(),
-            }),
-        });
+        self.launch(command);
     }
     fn completions(&mut self) -> &mut Queue<Complete> {
         &mut self.completions
@@ -252,8 +290,10 @@ impl Host for Caller {
         None
     }
     fn is_empty(&self) -> bool {
-        if self.closed && self.finished {
-            assert!(self.answers.iter().all(|answer| answer.exit == Exit::Code(0)), "ctl setup accepted");
+        if self.finished
+            && let Some(expected) = self.expected
+        {
+            assert!(self.answers.iter().all(|answer| answer.exit == expected), "ctl setup accepted");
         }
         self.finished && self.submissions.is_empty() && self.completions.is_empty()
     }
