@@ -163,6 +163,7 @@ fn checked_valid(limits: &Limits) -> Option<()> {
         || limits.settings.versions == 0
         || limits.settings.history == 0
         || limits.settings.proposals == 0
+        || limits.routes == 0
         || limits.templates == 0
         || limits.resume_bytes == 0
         || limits.run_bytes == 0

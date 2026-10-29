@@ -139,6 +139,7 @@ pub(crate) fn limits() -> Limits {
         history: 2,
     };
     Limits {
+        routes: 20_783,
         settings: settings::Limits {
             revisions: 4,
             versions: 8,

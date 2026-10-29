@@ -490,6 +490,7 @@ fn set_documents(limits: &mut jig_domain_core::documents::DocumentLimits, name: 
 
 fn set_core(limits: &mut jig_domain_core::Limits, name: &[u8], value: u64) -> Result<(), What> {
     let jig_domain_core::Limits {
+        routes: _,
         settings,
         templates,
         fill_mark,
