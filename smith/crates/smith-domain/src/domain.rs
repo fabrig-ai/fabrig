@@ -371,9 +371,9 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     settle(domain, env, out);
 }
 
-/// Goes on with one thing that waits, emitting into an uncapped queue: a session after a batch its tools answered within
-/// the step that started it, or a hand-off from the run deferred in an earlier
-/// iteration.
+/// Goes on with one thing that waits, emitting into an uncapped queue: a session
+/// after a batch its tools answered within the step that started it, or a
+/// hand-off from the run deferred in an earlier iteration.
 pub fn resume(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     if domain.run.is_ready() {
         run::resume(&mut domain.run, &route::run_env(env), &mut domain.run_out);

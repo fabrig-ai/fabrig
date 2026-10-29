@@ -196,8 +196,9 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     session::pass_on_facts(domain, env);
 }
 
-/// Starts a session on the ready list again, emitting into an uncapped request queue: one that rested in an earlier iteration, after a
-/// batch the tools answered within the step that started it.
+/// Starts a session on the ready list again, emitting into an uncapped request
+/// queue: one that rested in an earlier iteration, after a batch the tools
+/// answered within the step that started it.
 pub fn resume(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     domain.facts.begin(env.now);
     let Some(id) = domain.ready.pop() else {
