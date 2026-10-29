@@ -54,6 +54,25 @@ fn retained_row_counts_and_landing_indices_must_be_representable() {
 #[test]
 fn internal_output_envelopes_do_not_constrain_admission() {
     for output in [0, 1, u32::MAX] {
-        assert!(valid(&Limits { output, ..LIMITS }));
+        let limits = Limits { output, ..LIMITS };
+        assert!(valid(&limits));
+        let mut domain = Domain::new(
+            &limits,
+            4,
+            skein_forge_client::Config { namespace: Box::from(&b"test"[..]), writers: Box::new([]) },
+            &[],
+            &[],
+            false,
+        )
+        .expect("internal output does not bound admission");
+        let environment = Env { limits, ..env() };
+        let mut out = Queue::uncapped();
+        step(&mut domain, &environment, Event::Restore { record: Stored::Repository(adopted()) }, &mut out);
+        step(
+            &mut domain,
+            &environment,
+            Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic },
+            &mut out,
+        );
     }
 }

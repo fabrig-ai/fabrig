@@ -69,7 +69,7 @@ fn a_pending_prepare_rebase_is_not_branch_drift() {
         );
         let mut later = env();
         later.now = later.now.saturating_add(LIMITS.client.hinted);
-        let mut out = Queue::with_capacity(max_out(&LIMITS));
+        let mut out = Queue::uncapped();
         fire(&mut d, &later, &mut out);
         let (call, op) = fixtures::next_call(&mut d);
         assert_eq!(op, Op::Read(Read::Branch { branch: Box::from(b"temper/51".as_slice()) }));
@@ -459,7 +459,7 @@ fn named_pull_verdict(number: u64) -> Box<[Request]> {
             resources: Box::new([Name { forge: REPO.forge, repository: REPO.repository, what: What::Pull(number) }]),
         },
     );
-    let mut seen = skein_lib::List::with_capacity(max_out(&LIMITS).checked_mul(4).expect("four bounded output passes"));
+    let mut seen = alloc::vec::Vec::new();
     // At most a repository listing, the item, and the pull itself.
     for _ in 0_u32..3 {
         let (call, op) = fixtures::next_call(&mut d);
@@ -468,12 +468,12 @@ fn named_pull_verdict(number: u64) -> Box<[Request]> {
             pull.number = number;
             pull.ci = Ci::Passed;
             for request in fixtures::answer(&mut d, call, Ok(Answer::Pull(pull))) {
-                seen.push(request).expect("four bounded output passes");
+                seen.push(request);
             }
             for request in ready(&mut d) {
-                seen.push(request).expect("four bounded output passes");
+                seen.push(request);
             }
-            return seen.into_boxed();
+            return seen.into_boxed_slice();
         }
         let answer = if let Op::Read(Read::Items { .. }) = op {
             Answer::Items { items: Box::new([]), more: false, now: env().now }
@@ -497,7 +497,7 @@ fn named_pull_verdict(number: u64) -> Box<[Request]> {
             }
         };
         for request in fixtures::answer(&mut d, call, Ok(answer)) {
-            seen.push(request).expect("four bounded output passes");
+            seen.push(request);
         }
     }
     panic!("the named pull must be read");

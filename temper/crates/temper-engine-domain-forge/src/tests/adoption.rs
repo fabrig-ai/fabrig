@@ -413,7 +413,7 @@ fn thirty_two_adoptions_are_answered_during_retention() {
         false,
     )
     .expect("valid connector");
-    let mut out = Queue::with_capacity(max_out(&limits));
+    let mut out = Queue::uncapped();
     for number in 1..=32 {
         let request = Token::new(number);
         let mut adoption = fixtures::adoption();

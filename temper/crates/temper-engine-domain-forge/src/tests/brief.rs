@@ -71,7 +71,7 @@ fn gather(checks: Box<[Status]>, log: &[u8], budget: u32) -> Domain {
     };
     assert_eq!(*read, Read::Checks { commit: HEAD });
     let owner = *owner;
-    let mut out = Queue::with_capacity(max_out(&LIMITS));
+    let mut out = Queue::uncapped();
     assert!(brief::brief_answer(&mut d, owner, Ok(Answer::Checks(checks)), &mut out));
     for _ in 0..LIMITS.client.rows.saturating_add(1) {
         let Some(request) = out.pop() else { break };

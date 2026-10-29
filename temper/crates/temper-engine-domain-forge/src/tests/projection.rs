@@ -9,7 +9,7 @@ const FINISHED: u64 = NEXT + 1;
 const CLOSE: u64 = FINISHED + 1;
 
 fn requests(d: &mut Domain, environment: &Env<Limits>, event: Option<Event>) -> Box<[Request]> {
-    let mut out = Queue::with_capacity(max_out(&environment.limits));
+    let mut out = Queue::uncapped();
     match event {
         Some(event) => step(d, environment, event, &mut out),
         None => resume(d, environment, &mut out),

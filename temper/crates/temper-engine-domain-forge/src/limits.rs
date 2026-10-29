@@ -290,6 +290,11 @@ fn issue_payload(l: &Limits) -> Option<u64> {
     )
 }
 
+/// Whether the connection owner's installation row count fits its table capacity.
+pub(crate) const fn connection_valid(forges: u32, installations: u32) -> bool {
+    forges.checked_mul(installations).is_some()
+}
+
 /// Volatile tables when the protocol owner supplies its own connection bounds.
 #[must_use]
 pub fn connection_worst_case(forges: u32, installations: u32, name_bytes: u32) -> Option<u64> {
