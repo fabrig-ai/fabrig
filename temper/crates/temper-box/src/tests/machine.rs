@@ -658,7 +658,7 @@ fn a_link_takes_the_first_line_once_across_restarts_and_stop() {
             }]),
         });
         let mut machine = Machine::new(&limits::small(), &steps).unwrap();
-        let mut out = Queue::with_capacity(machine.max_out());
+        let mut out = Queue::uncapped();
         let mut now = Time::ZERO;
         machine.start(now, &[], &mut out);
         assert_eq!(pop_effect(&mut out), Some(Spawn { step: PREPARE }), "{name}");
@@ -913,7 +913,7 @@ fn an_unrecorded_group_runs_only_when_asked_even_with_a_stale_record() {
     });
     for records in [&[][..], &[1][..]] {
         let mut machine = Machine::new(&limits::small(), &placed).unwrap();
-        let mut out = Queue::with_capacity(machine.max_out());
+        let mut out = Queue::uncapped();
         machine.start(Time::ZERO, records, &mut out);
         assert_eq!(pop_effect(&mut out), Some(Order::Spawn { step: 3 }));
         machine.input(Time::ZERO, Input::Started { step: 3 }, &mut out);
@@ -960,7 +960,7 @@ fn stoppable_group(recorded: bool) -> Rig {
         }),
     )
     .unwrap();
-    let out = skein_lib::Queue::with_capacity(machine.max_out());
+    let out = skein_lib::Queue::uncapped();
     let mut rig = Rig { machine, out, now: skein_lib::Time::ZERO };
     rig.machine.start(rig.now, &[], &mut rig.out);
     assert_eq!(&*rig.effects(), &[Order::Spawn { step: 3 }]);
@@ -1107,7 +1107,7 @@ fn lifecycle_facts_interleave_with_spawn_and_actual_stop_settlement() {
     let placed =
         layout::flatten(Steps { always: Box::new([super::fixtures::step(b"serve", Kind::Long)]), asked: Box::new([]) });
     let mut machine = Machine::new(&limits::small(), &placed).unwrap();
-    let mut out = Queue::with_capacity(machine.max_out());
+    let mut out = Queue::uncapped();
     machine.start(Time::ZERO, &[], &mut out);
     assert_eq!(out.pop(), Some(Order::Terminal { fact: Fact::Starting { step: 0 } }));
     assert_eq!(out.pop(), Some(Order::Spawn { step: 0 }));
@@ -1215,7 +1215,7 @@ fn group_failure_facts_keep_exit_spawn_readiness_and_record_reasons_until_closur
         (Input::Exited { step: 0, exit: Exit::Signal(9) }, Why::Exited { step: 0, exit: Exit::Signal(9) }),
     ] {
         let machine = Machine::new(&limits::small(), &placed).unwrap();
-        let mut rig = Rig { out: Queue::with_capacity(machine.max_out()), machine, now: Time::ZERO };
+        let mut rig = Rig { out: Queue::uncapped(), machine, now: Time::ZERO };
         rig.machine.start(rig.now, &[], &mut rig.out);
         rig.input(Input::Ask { forge: 7 });
         take_facts(&mut rig.out);
@@ -1311,7 +1311,7 @@ fn retry_preparation_and_readiness_give_up_keep_the_actual_step_reason() {
         asked: Box::new([]),
     });
     let mut machine = Machine::new(&limits::small(), &placed).unwrap();
-    let mut out = Queue::with_capacity(machine.max_out());
+    let mut out = Queue::uncapped();
     machine.start(Time::ZERO, &[], &mut out);
     machine.input(Time::ZERO, Input::Started { step: 0 }, &mut out);
     take_facts(&mut out);
@@ -1384,36 +1384,44 @@ fn intentional_stop_exits_and_spawn_refusals_emit_no_restart_or_give_up() {
     assert_eq!(rig.machine.outcome(), Some(Outcome::Stopped));
 }
 
-#[test]
-fn max_out_covers_simultaneous_retry_and_group_failure_emissions() {
+fn lifecycle_load_steps(grouped: bool, count: u32) -> Box<[crate::layout::Placed]> {
     use super::fixtures::step;
-    use crate::{layout, machine::Machine};
-    use skein_lib::{List, Queue, Time, bytes};
+    use skein_lib::{List, bytes};
     use temper_forge_setup::{Group, Stage, Steps};
-    const COUNT: u32 = 64;
-    let mut longs = List::with_capacity(COUNT);
-    let mut group_steps = List::with_capacity(COUNT);
-    for _ in 0..COUNT {
+    let mut longs = List::with_capacity(count);
+    let mut group_steps = List::with_capacity(count);
+    for _ in 0..count {
         longs.push(step(b"long", Kind::Long)).unwrap();
         group_steps.push((Stage::Run, step(b"long", Kind::Long))).unwrap();
     }
+    crate::layout::flatten(if grouped {
+        Steps {
+            always: Box::new([]),
+            asked: Box::new([Group {
+                forge: 7,
+                before: 0,
+                recorded: true,
+                label: bytes::copy_of(b"many"),
+                steps: group_steps.into_boxed(),
+            }]),
+        }
+    } else {
+        Steps { always: longs.into_boxed(), asked: Box::new([]) }
+    })
+}
+
+#[test]
+fn simultaneous_retries_and_group_failure_emit_ordered_lifecycle_events() {
+    use crate::{
+        machine::{Machine, Said, Why},
+        terminal::Fact,
+    };
+    use skein_lib::{Queue, Time};
+    const COUNT: u32 = 64;
     for grouped in [false, true] {
-        let placed = layout::flatten(if grouped {
-            Steps {
-                always: Box::new([]),
-                asked: Box::new([Group {
-                    forge: 7,
-                    before: 0,
-                    recorded: true,
-                    label: bytes::copy_of(b"many"),
-                    steps: Box::from(group_steps.as_slice()),
-                }]),
-            }
-        } else {
-            Steps { always: Box::from(longs.as_slice()), asked: Box::new([]) }
-        });
+        let placed = lifecycle_load_steps(grouped, COUNT);
         let mut machine = Machine::new(&limits::small(), &placed).unwrap();
-        let mut out = Queue::with_capacity(machine.max_out());
+        let mut out = Queue::uncapped();
         machine.start(Time::ZERO, &[], &mut out);
         while out.pop().is_some() {}
         if grouped {
@@ -1422,30 +1430,64 @@ fn max_out_covers_simultaneous_retry_and_group_failure_emissions() {
         }
         for step in 0..usize::try_from(COUNT).unwrap() {
             machine.input(Time::ZERO, Input::Started { step }, &mut out);
-            assert!(out.len() <= machine.max_out());
-            while out.pop().is_some() {}
+            let next = step + 1;
+            if next < usize::try_from(COUNT).unwrap() {
+                assert_eq!(out.pop(), Some(Order::Terminal { fact: Fact::Starting { step: next } }));
+                assert_eq!(out.pop(), Some(Order::Spawn { step: next }));
+                if grouped {
+                    assert_eq!(out.pop(), Some(Order::Say { said: Said::Step { step: next } }));
+                }
+            } else if grouped {
+                assert_eq!(out.pop(), Some(Order::Record { forge: 7 }));
+            }
+            assert!(out.is_empty());
         }
         if grouped {
             machine.input(Time::ZERO, Input::NotWritten { forge: 7 }, &mut out);
-            assert_eq!(out.len(), COUNT, "failure closes every live group member within the reservation");
-            while out.pop().is_some() {}
+            for step in 0..usize::try_from(COUNT).unwrap() {
+                assert_eq!(out.pop(), Some(Order::Close { step }));
+            }
+            assert!(out.is_empty(), "the failure notice waits for child settlement");
         } else {
             for step in 0..usize::try_from(COUNT).unwrap() {
                 machine.input(Time::ZERO, Input::Exited { step, exit: Exit::Signal(9) }, &mut out);
-                while out.pop().is_some() {}
+                assert_eq!(out.pop(), Some(Order::Close { step }));
+                assert!(out.is_empty());
             }
         }
         for step in 0..usize::try_from(COUNT).unwrap() {
             machine.input(Time::ZERO, Input::Closed { step }, &mut out);
-            assert!(out.len() <= machine.max_out());
-            while out.pop().is_some() {}
+            if grouped {
+                if step + 1 == usize::try_from(COUNT).unwrap() {
+                    assert_eq!(
+                        out.pop(),
+                        Some(Order::Terminal { fact: Fact::GroupFailed { forge: 7, why: Why::NotWritten } })
+                    );
+                    assert_eq!(out.pop(), Some(Order::Say { said: Said::Failed { forge: 7, why: Why::NotWritten } }));
+                }
+            } else {
+                assert_eq!(
+                    out.pop(),
+                    Some(Order::Terminal {
+                        fact: Fact::Restarting {
+                            step,
+                            why: Why::Exited { step, exit: Exit::Signal(9) },
+                            delay: limits::small().backoff,
+                        }
+                    })
+                );
+            }
+            assert!(out.is_empty());
         }
         if !grouped {
             machine.fire(Time::ZERO.saturating_add(limits::small().backoff), &mut out);
-            assert_eq!(out.len(), COUNT.checked_mul(2).unwrap(), "one Starting and Spawn per simultaneous retry");
-            while out.pop().is_some() {}
+            for step in 0..usize::try_from(COUNT).unwrap() {
+                assert_eq!(out.pop(), Some(Order::Terminal { fact: Fact::Starting { step } }));
+                assert_eq!(out.pop(), Some(Order::Spawn { step }));
+            }
+            assert!(out.is_empty());
             machine.input(Time::ZERO, Input::Terminate, &mut out);
-            assert!(out.len() <= machine.max_out());
+            assert_eq!(out.pop(), Some(Order::Terminal { fact: Fact::Stopping }));
             let effects = take_effects(&mut out);
             assert_eq!(effects.len(), usize::try_from(COUNT).unwrap(), "one Withdraw per starting retry");
             for (step, effect) in effects.iter().enumerate() {
@@ -1505,7 +1547,7 @@ fn an_owned_forge_starting_with_the_box_announces_its_hands_only_after_readiness
         };
         let placed = layout::flatten(steps);
         let mut machine = Machine::new(&limits::small(), &placed).unwrap();
-        let mut out = Queue::with_capacity(machine.max_out());
+        let mut out = Queue::uncapped();
         machine.start(Time::ZERO, &[37], &mut out);
         take_facts(&mut out);
         machine.input(Time::ZERO, Input::Started { step: 0 }, &mut out);
