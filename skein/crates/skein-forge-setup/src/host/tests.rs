@@ -31,7 +31,7 @@ fn abort_upgrades_a_graceful_close_already_sent_to_io() {
     assert!(!c.pump(&env, &mut io));
 }
 #[test]
-fn a_listing_past_the_priced_page_is_refused_at_open() {
+fn a_listing_past_the_configured_page_is_refused_at_open() {
     use skein_forge::forgejo::request::{Page, Request};
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: crate::tests::host::limits() };
     let forge = Forge {
@@ -45,7 +45,7 @@ fn a_listing_past_the_priced_page_is_refused_at_open() {
         auth: crate::call::Auth::Token(fixtures::secret(fixtures::ADMIN)),
     };
     let inner = env.limits.inner;
-    open(Token::new(1), &forge, b"kit", &send(inner), &env).expect("a page at inner is priced");
+    open(Token::new(1), &forge, b"kit", &send(inner), &env).expect("a page at inner fits");
     assert_eq!(open(Token::new(1), &forge, b"kit", &send(inner + 1), &env).err(), Some(Refused::Unexpected));
 }
 

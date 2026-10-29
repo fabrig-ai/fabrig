@@ -125,10 +125,11 @@ fn creation_with_a_decoder_bound_admin_login_stays_under_its_peak_ceiling() {
     use skein_heap::Meter;
     use skein_lib::Queue;
 
-    let given = fixtures::given();
-    let limits = super::host::limits();
     // Bounds creation with full file/path inputs and a decoder-sized admin login.
     const CREATION_PEAK_CEILING: u64 = 8_500;
+
+    let given = fixtures::given();
+    let limits = super::host::limits();
     let meter = Meter::new();
     meter.start();
     let mut machine = Box::new(
@@ -155,7 +156,6 @@ fn creation_with_a_decoder_bound_admin_login_stays_under_its_peak_ceiling() {
     drop(out.pop());
     create::step(&mut machine, Event::Reply(Reply::Status(404)), &mut out);
     let measured = meter.end();
-    println!("creation peak={}", measured.peak());
     assert!(measured.peak() <= CREATION_PEAK_CEILING, "{} exceeds {CREATION_PEAK_CEILING}", measured.peak());
     let Some(Need::Send { request: crate::call::Call::Forgejo(Request::CreateOrg { person, .. }), .. }) = out.pop()
     else {

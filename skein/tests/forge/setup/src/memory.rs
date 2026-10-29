@@ -201,6 +201,7 @@ fn forge(kind: skein_forge_setup::host::Kind) -> skein_forge_setup::host::Forge 
 
 /// Runs the configured host with every run and connection slot occupied at
 /// once, then completes through its in-memory peers and releases every state.
+/// Each host step checks its peak against the scenario's ceiling.
 #[must_use]
 pub fn full_heap(kinds: Kinds, tls: bool, ceiling: u64) -> Full {
     let l = fixtures::host_limits();
