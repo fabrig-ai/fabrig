@@ -107,7 +107,7 @@ fn a_work_path_is_refused_when_its_scratch_is_not_empty() {
     fs::remove_dir_all(root).expect("removed");
 }
 
-mod support;
+use crate::support;
 #[test]
 fn attach_reads_the_admin_login_and_id() {
     let fixture = support::attached("kit-owner", 37);
