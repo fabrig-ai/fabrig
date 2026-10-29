@@ -5,6 +5,7 @@
 //! Scheduling, replay and process heaps belong to Skein (testing.md, 2–5).
 use crate::fake;
 
+mod coding;
 pub(crate) mod orders;
 pub use orders::{Order, OrderSnapshot};
 use skein_io::kernel::{self, Done, Fd, Op, Pipe, Spawn, Way};
@@ -41,6 +42,7 @@ pub(crate) struct Parent {
     pub(crate) program_host_answers: Option<usize>,
     pub(crate) program_message: bool,
     order_messages_written: usize,
+    coding_deliveries: Option<usize>,
     pub(crate) program_messages: std::collections::VecDeque<skein_channel::Frame>,
 }
 
@@ -107,6 +109,7 @@ impl Parent {
             program_host_answers: None,
             program_message: false,
             order_messages_written: 0,
+            coding_deliveries: None,
             program_messages: std::collections::VecDeque::new(),
         };
         parent.submit(Op::Spawn {
@@ -328,6 +331,7 @@ impl Host for Parent {
             self.completed(complete);
         }
         crate::program_world::answer_host(self);
+        coding::answer_delivery(self);
         self.acknowledge();
         for _ in self.signalled..self.signal {
             self.signalled = self.signalled.checked_add(1).expect("finite requested signals");
@@ -482,7 +486,9 @@ impl Host for Proc {
 fn make(spawn: &Spawn, inherited: &Inherited) -> Proc {
     let fd = inherited.pipes.iter().find(|(child, _)| *child == 2).expect("stderr").1;
     let (errors, capture) = crate::AgentErrors::pipe(fd);
-    let mut configuration = if spawn.args.first().is_some_and(|arg| arg.as_ref() == b"openai") {
+    let mut configuration = if spawn.args.first().is_some_and(|arg| arg.as_ref() == b"coding") {
+        coding::configuration()
+    } else if spawn.args.first().is_some_and(|arg| arg.as_ref() == b"openai") {
         crate::configuration_for(skein_llm::Provider::OpenAi)
     } else {
         crate::configuration()
@@ -569,6 +575,8 @@ struct Machine {
     next_root: u32,
     trace_root: Option<u32>,
     problem_file: bool,
+    coding: bool,
+    checked_files: Vec<Vec<u8>>,
 }
 impl skein_world::Machine for Machine {
     fn open_root(&mut self, path: &[u8]) -> Result<skein_sim::Handle, kernel::Error> {
@@ -577,7 +585,9 @@ impl skein_world::Machine for Machine {
             self.trace_root = Some(self.next_root);
         }
         self.next_root += 1;
-        let items = if self.problem_file && path == b"/unused-a" {
+        let items = if self.coding && path == b"/unused-a" {
+            coding::files()
+        } else if self.problem_file && path == b"/unused-a" {
             vec![skein_fake_machine::Item::file(b"problem.txt", b"problem")]
         } else {
             Vec::new()
@@ -590,6 +600,9 @@ impl skein_world::Machine for Machine {
     }
 
     fn step(&mut self, call: skein_sim::Call, answers: &mut Queue<skein_sim::Answer>) {
+        if self.coding && coding::check(self, &call, answers) {
+            return;
+        }
         if let skein_sim::Ask::Spawn { program, env, .. } = &call.ask {
             self.spawns.push(Spawned { program: program.clone(), environment: env.clone() });
             if program.as_ref() == b"/bin/sh" {
@@ -1057,6 +1070,7 @@ pub struct World {
     saved_window: Option<Vec<Box<[u8]>>>,
     root_path: Option<Box<[u8]>>,
     order: Option<Order>,
+    coding: bool,
 }
 impl World {
     /// Hold one real output completion while the parent sends Message entrances.
@@ -1105,6 +1119,7 @@ impl World {
             saved_window: None,
             root_path: None,
             order: None,
+            coding: false,
         }
     }
 
@@ -1387,7 +1402,9 @@ impl World {
         } else {
             1
         };
-        scenario.max(self.release.as_ref().map_or(0, |release| release.queries))
+        scenario
+            .max(self.script.as_ref().map_or(0, |turns| turns.len()))
+            .max(self.release.as_ref().map_or(0, |release| release.queries))
     }
     fn hang_up_case(&self) -> HangUp {
         match (self.hang_up, self.hang_up_mid_call) {
@@ -1443,6 +1460,8 @@ impl World {
             next_root: 1,
             trace_root: None,
             problem_file: self.root_path.is_some() || matches!(self.tracing, Some((TraceCase::StoppedReasoning, _))),
+            coding: self.coding,
+            checked_files: Vec::new(),
         });
         world.host_roots(
             HostedProgram {
@@ -1474,6 +1493,9 @@ impl World {
                 self.live.clone(),
                 self.output,
             );
+            if self.coding {
+                coding::start(&mut parent, &self.charter);
+            }
             if let Some(path) = &self.root_path {
                 parent.peer = crate::host();
                 parent.peer.play(crate::start_root(&self.charter, path));
