@@ -54,7 +54,7 @@ pub fn valid(limits: &Limits) -> bool {
     {
         return false;
     }
-    let Some(feedback) = crate::feedback_worst_case(run_limits) else {
+    let Some(feedback) = crate::feedback_bound(run_limits) else {
         return false;
     };
     if session_limits.spend == 0 || feedback > session_limits.delegated_result_bytes {

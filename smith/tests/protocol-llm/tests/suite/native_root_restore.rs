@@ -133,7 +133,7 @@ fn settings(seed: u64, resume: bool, bounds: &Limits) -> Settings {
         ..Settings::calm(seed)
     };
     settings.limits.session.completion_bytes =
-        adapter::completion_worst_case(&bounds.client, settings.limits.decoded_call_bytes)
+        adapter::completion_bound(&bounds.client, settings.limits.decoded_call_bytes)
             .expect("complete actual translated reservation before Start");
     settings.limits.session.completion_blocks = bounds.client.output_items;
     settings.limits.session.failure_bytes = bounds.client.detail_bytes;

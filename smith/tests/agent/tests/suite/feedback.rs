@@ -178,7 +178,7 @@ fn child_usage_has_exact_scalar_values_flooring_and_complete_cap() {
 fn largest_usage_suffix_and_answer_fit_the_declared_feedback_bound() {
     let mut limits = smith_agent_world::TIGHT.run;
     limits.answer_bytes = 8192;
-    let cap = smith_domain::feedback_worst_case(&limits).expect("checked bound");
+    let cap = smith_domain::feedback_bound(&limits).expect("checked bound");
     let used = run::facts::Used { turns: u32::MAX, time: Duration::from_nanos(u64::MAX), spend: u64::MAX };
     let left = run::Budget { turns: u32::MAX, time: Duration::from_nanos(u64::MAX), spend: u64::MAX };
     let answer = || run::Returned::Answered {

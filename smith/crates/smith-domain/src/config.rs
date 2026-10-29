@@ -37,9 +37,9 @@ pub struct ConfiguredModel {
 }
 
 impl ConfiguredModel {
-    /// Owned declaration, model name and effort-name cells and bytes.
+    /// Bound on bytes owned by one declaration: its cell, model name and effort-name cells and bytes.
     #[must_use]
-    pub fn worst_case(model_bytes: usize, efforts: &[smith_domain_run::charter::Effort]) -> Option<u64> {
+    pub fn owned_bound(model_bytes: usize, efforts: &[smith_domain_run::charter::Effort]) -> Option<u64> {
         let mut bytes = u64::try_from(size_of::<Self>()).ok()?.checked_add(u64::try_from(model_bytes).ok()?)?;
         for effort in efforts {
             if effort.is_empty() || effort.len() > 32 {
@@ -148,7 +148,7 @@ impl Config {
             {
                 return false;
             }
-            let owned = match ConfiguredModel::worst_case(model.model.len(), &model.efforts) {
+            let owned = match ConfiguredModel::owned_bound(model.model.len(), &model.efforts) {
                 Some(owned) => owned,
                 None => return false,
             };

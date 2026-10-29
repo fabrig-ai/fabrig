@@ -98,7 +98,7 @@ fn unchanged(text: Box<[u8]>, error: bool, max_bytes: u64) -> Result<Feedback, F
 /// Returned None means arithmetic overflow; callers refuse before effects.
 /// Semantic ownership and this text are separately priced during construction.
 #[must_use]
-pub fn feedback_worst_case(limits: &run::Limits) -> Option<u64> {
+pub fn feedback_bound(limits: &run::Limits) -> Option<u64> {
     let fields = limits.run_bytes.max(limits.outcome_bytes).checked_mul(4)?;
     // Rules 1 and 2: all problem names share the contract/declaration total;
     // only the names' arbitrary bytes need the invalid-UTF-8 expansion.
@@ -126,6 +126,12 @@ pub fn feedback_worst_case(limits: &run::Limits) -> Option<u64> {
     let suffix = u64::try_from(usage.len?).ok()?;
     let child = u64::from(limits.answer_bytes).checked_add(128)?.checked_add(suffix)?;
     Some(problems.max(checks).max(receipts).max(refusal).max(child).max(u64::from(limits.host_reply_bytes)).max(4096))
+}
+
+/// The name jig's channel world reads; returns [`feedback_bound`]'s value.
+#[must_use]
+pub fn feedback_worst_case(limits: &run::Limits) -> Option<u64> {
+    feedback_bound(limits)
 }
 
 fn render(text: &mut Text, returned: &Returned) {

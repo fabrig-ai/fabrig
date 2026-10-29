@@ -1053,7 +1053,7 @@ fn an_opening_larger_than_a_session_holds_refuses_main_as_invalid() {
             completion_bytes: 128,
             answer_bytes: 128,
             completion_blocks: 1,
-            delegated_result_bytes: crate::feedback_worst_case(&run).expect("complete compatible feedback"),
+            delegated_result_bytes: crate::feedback_bound(&run).expect("complete compatible feedback"),
             ..LIMITS.session
         },
         ..LIMITS
@@ -1889,7 +1889,7 @@ fn maximum_custom_guide_headings_obey_the_session_receiving_limit_after_discover
                 completion_bytes: 128,
                 answer_bytes: 128,
                 completion_blocks: 1,
-                delegated_result_bytes: crate::feedback_worst_case(&run).unwrap(),
+                delegated_result_bytes: crate::feedback_bound(&run).unwrap(),
                 ..LIMITS.session
             },
             ..LIMITS
@@ -2591,6 +2591,11 @@ fn a_key_race_uses_the_new_generation_then_ends_on_its_own_policy() {
 }
 
 #[test]
+fn feedback_compatibility_name_returns_the_feedback_bound() {
+    assert_eq!(crate::feedback_worst_case(&LIMITS.run), crate::feedback_bound(&LIMITS.run));
+}
+
+#[test]
 fn invalid_limits_are_refused() {
     assert!(valid(&LIMITS));
     // Aggregate heap accounting is independent of constructor validity.
@@ -2620,7 +2625,7 @@ fn invalid_limits_are_refused() {
         session: session::Limits { spend: 0, ..LIMITS.session },
         ..LIMITS
     }));
-    let feedback = crate::feedback_worst_case(&LIMITS.run).expect("representable feedback");
+    let feedback = crate::feedback_bound(&LIMITS.run).expect("representable feedback");
     assert!(valid(&Limits {
         session: session::Limits { delegated_result_bytes: feedback, ..LIMITS.session },
         ..LIMITS

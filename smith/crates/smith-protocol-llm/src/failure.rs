@@ -252,7 +252,8 @@ fn job_problem(prefix: &[u8], number: u32, suffix: &[u8], maximum: u32) -> Resul
     Ok(writer.finish())
 }
 
-pub(crate) fn job_problem_worst_case() -> Option<u64> {
+/// Bounds the rendered bytes of one job problem at the largest job count or identifier.
+pub(crate) fn job_problem_bound() -> Option<u64> {
     let mut largest = 0;
     for problem in [llm::Problem::JobsFull { jobs: u32::MAX }, llm::Problem::UnknownJob { job: u32::MAX }] {
         let rendered = self::problem(problem, u32::MAX).ok()?;

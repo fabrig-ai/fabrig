@@ -187,7 +187,7 @@ fn configuration(case: Case) -> smith_agent_service::Config {
         config.limits.domain.run.check_tail = 64;
     }
     config.limits.domain.session.delegated_result_bytes =
-        smith_domain::feedback_worst_case(&config.limits.domain.run).expect("complete bounded feedback");
+        smith_domain::feedback_bound(&config.limits.domain.run).expect("complete bounded feedback");
     if matches!(case, Case::Tools | Case::Events) {
         config.limits.events = Some(
             smith_agent_service::EventLimits::derive(

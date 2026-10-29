@@ -50,7 +50,7 @@ pub use config::{Config, ConfiguredModel, Program};
 pub use domain::{Domain, fire, max_facts, max_out, resume, step};
 pub use facts::{Content, Fact, Opening};
 
-pub use feedback::{Feedback, FeedbackRefusal, feedback, feedback_worst_case};
+pub use feedback::{Feedback, FeedbackRefusal, feedback, feedback_bound, feedback_worst_case};
 pub use limits::{Limits, max_turn_bytes, valid};
 // The payloads are the children's: a parent may use its children's types.
 pub use smith_domain_run as run;

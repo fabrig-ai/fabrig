@@ -483,7 +483,7 @@ fn five_native_completions_keep_the_wire_prefix_and_replay_each_previous_answer(
             ..Settings::calm(1103)
         };
         settings.limits.session.completion_bytes =
-            adapter::completion_worst_case(&bounds.client, settings.limits.decoded_call_bytes)
+            adapter::completion_bound(&bounds.client, settings.limits.decoded_call_bytes)
                 .expect("actual receiving reservation");
         settings.limits.session.completion_blocks = bounds.client.output_items;
         settings.limits.session.failure_bytes = bounds.client.detail_bytes;
@@ -590,7 +590,7 @@ fn anthropic_breakpoints_account_for_thinking_and_a_large_tool_batch() {
         })
         .expect("actual batch inputs plus fallback cells");
     settings.limits.session.completion_bytes =
-        adapter::completion_worst_case(&bounds.client, settings.limits.decoded_call_bytes)
+        adapter::completion_bound(&bounds.client, settings.limits.decoded_call_bytes)
             .expect("actual batch and history receiving reservation");
     settings.limits.session.completion_blocks = bounds.client.output_items;
     settings.limits.session.failure_bytes = bounds.client.detail_bytes;
@@ -752,7 +752,7 @@ fn structured_brief_native_wait_park_and_genuine_transcript_restore_in_both_wire
             ..Settings::calm(1102)
         };
         settings.limits.session.completion_bytes =
-            adapter::completion_worst_case(&bounds.client, settings.limits.decoded_call_bytes)
+            adapter::completion_bound(&bounds.client, settings.limits.decoded_call_bytes)
                 .expect("Client receiving reservation before original Start");
         settings.limits.session.completion_blocks = bounds.client.output_items;
         settings.limits.session.failure_bytes = bounds.client.detail_bytes;
@@ -849,7 +849,7 @@ fn identityless_resume_keeps_the_recorded_run_key_for_main_and_a_new_child() {
             ..Settings::calm(1110)
         };
         settings.limits.session.completion_bytes =
-            adapter::completion_worst_case(&bounds.client, settings.limits.decoded_call_bytes)
+            adapter::completion_bound(&bounds.client, settings.limits.decoded_call_bytes)
                 .expect("actual receiving reservation");
         settings.limits.session.completion_blocks = bounds.client.output_items;
         settings.limits.session.failure_bytes = bounds.client.detail_bytes;

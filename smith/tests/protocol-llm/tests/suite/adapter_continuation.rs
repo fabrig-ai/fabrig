@@ -88,7 +88,7 @@ fn limits() -> Limits {
 
 fn receiving(bounds: &Limits) -> Receiving {
     Receiving {
-        max_completion_bytes: adapter::completion_worst_case(&bounds.client, 4096).expect("full receiving contract"),
+        max_completion_bytes: adapter::completion_bound(&bounds.client, 4096).expect("full receiving contract"),
         max_completion_blocks: bounds.client.output_items,
         decoded_call_bytes: 4096,
         max_failure_bytes: bounds.client.detail_bytes,
@@ -495,7 +495,7 @@ fn root_malformed_call_has_no_effect_and_corrected_call_runs_once() {
     let mut settings =
         Settings { job: Job::HostTools, writable: false, network: Span::millis(1, 1), ..Settings::calm(71) };
     settings.limits.session.completion_bytes =
-        adapter::completion_worst_case(&bounds.client, settings.limits.decoded_call_bytes)
+        adapter::completion_bound(&bounds.client, settings.limits.decoded_call_bytes)
             .expect("full translated reservation");
     settings.limits.session.completion_blocks = bounds.client.output_items;
     settings.limits.session.failure_bytes = bounds.client.detail_bytes;

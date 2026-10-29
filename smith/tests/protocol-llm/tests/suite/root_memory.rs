@@ -86,7 +86,7 @@ fn observation_limits(limits: &adapter::Limits) -> ObservationLimits {
 
 fn bounds(messages: u32) -> Limits {
     let decoded_call_bytes = 32_768;
-    let completion_bytes = adapter::completion_worst_case(&wire_limits().client, decoded_call_bytes)
+    let completion_bytes = adapter::completion_bound(&wire_limits().client, decoded_call_bytes)
         .expect("explicit native fixture receiving ownership")
         .max(131_072);
     let mut limits = Limits {
@@ -752,7 +752,7 @@ impl Counted {
     fn with_window(limits: &Limits, window: u32, ceiling: u64) -> Self {
         let meter = Meter::new();
         meter.start();
-        let out = Queue::with_capacity(root::max_out(limits));
+        let out = Queue::uncapped();
         let domain = Domain::new(
             limits,
             root::Config {
@@ -1622,7 +1622,7 @@ fn a_restored_run_keeps_full_brief_and_custom_paths_with_two_clients() {
     // The receiving root must retain every rendered actual run result. Select
     // the public checked feedback bound exactly, rather than widening the
     // original history/actual completion caps or bypassing root admission.
-    receiving.session.delegated_result_bytes = root::feedback_worst_case(&receiving.run)
+    receiving.session.delegated_result_bytes = root::feedback_bound(&receiving.run)
         .expect("maximum path charter has a finite exact receiving feedback bound")
         .max(receiving.session.delegated_result_bytes);
     let mut counted = Counted::with_window(&receiving, 65_536, BRIEF_CEILING);

@@ -80,7 +80,7 @@ pub fn derive(profile: &Profile, configuration: &Configuration) -> Result<servic
         )
         .ok_or(derived(Layer::Session, "decoded_call_bytes"))?;
     let completion =
-        llm::completion_worst_case(&client, decoded_call_bytes).ok_or(derived(Layer::Session, "completion_bytes"))?;
+        llm::completion_bound(&client, decoded_call_bytes).ok_or(derived(Layer::Session, "completion_bytes"))?;
     let domain = derive_domain(profile, configuration, &path, completion, decoded_call_bytes)?;
     client.history_items = domain
         .session
@@ -92,7 +92,7 @@ pub fn derive(profile: &Profile, configuration: &Configuration) -> Result<servic
     validate::window_first(profile, configuration, &domain.session)?;
     // The result bound holds whole capped outcomes; native outgoing text has
     // no receiving-string cap. Cutting remains a safeguard at this layer.
-    let rendered_result = llm::render_worst_case(
+    let rendered_result = llm::render_bound(
         &domain.session.tools,
         domain.run.host_reply_bytes.max(domain.run.message_bytes),
         domain.session.delegated_result_bytes,
@@ -543,7 +543,7 @@ fn derive_domain(
     // own directories (protocol/limits.md, section 3.9); this is only the cap.
     run.guide_bytes =
         u32::try_from(parts.host.min(u64::from(declared.guide))).or(Err(derived(Layer::Run, "guide_bytes")))?;
-    let delegated = domain::feedback_worst_case(&run).ok_or(derived(Layer::Session, "delegated_result_bytes"))?;
+    let delegated = domain::feedback_bound(&run).ok_or(derived(Layer::Session, "delegated_result_bytes"))?;
     let parallel = policy.parallel_tools.min(declared.calls_per_response);
     let owned = tools::batch_result_bound(&tools, parallel).ok_or(derived(Layer::Session, "batch_results"))?;
     let batch = owned.max(delegated.checked_mul(u64::from(parallel)).ok_or(derived(Layer::Session, "batch_results"))?);
@@ -576,7 +576,7 @@ fn derive_domain(
         let count = u32::try_from(endpoint.models.len()).or(Err(derived(Layer::Run, "models")))?;
         model_count = model_count.checked_add(count).ok_or(derived(Layer::Run, "models"))?;
         for model in &endpoint.models {
-            let owned = domain::ConfiguredModel::worst_case(model.name.len(), &model.efforts)
+            let owned = domain::ConfiguredModel::owned_bound(model.name.len(), &model.efforts)
                 .ok_or(derived(Layer::Service, "configured_model_bytes"))?;
             configured_model_bytes =
                 configured_model_bytes.checked_add(owned).ok_or(derived(Layer::Service, "configured_model_bytes"))?;
