@@ -1168,14 +1168,8 @@ fn open_queues_attempts_whose_transcript_place_is_gone() {
 #[test]
 fn orphan_erases_are_included_in_the_commits_operation_bound() {
     let limits = fixtures::store_limits();
-    let sizes = crate::sizes::check_commits(
-        &limits.core,
-        &fixtures::APPLICATION,
-        &crate::sizes::commits(&limits.journal),
-        &limits.store,
-        1,
-    )
-    .expect("fits");
+    let sizes = crate::sizes::check_commits(&limits.core, &fixtures::APPLICATION, &limits.commits, &limits.store, 1)
+        .expect("fits");
     assert_eq!(sizes.ops, 12);
 }
 #[test]

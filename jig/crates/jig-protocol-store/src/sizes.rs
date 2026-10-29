@@ -48,13 +48,6 @@ pub struct Commits {
     pub writes: u32,
 }
 
-/// The commit edge read from skein's journal limits, until the store's
-/// `Limits` holds a `Commits` of its own.
-#[must_use]
-pub const fn commits(journal: &skein_lib::JournalLimits) -> Commits {
-    Commits { in_flight: journal.commits, writes: journal.writes }
-}
-
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum SizeRefusal {
     Key { needs: u32, has: u32 },
@@ -85,17 +78,6 @@ pub fn is_patching(store: &crate::Store) -> bool {
     store.directory.patch.is_some() || crate::directory::patching(store).is_some()
 }
 
-/// The former form of [`check_commits`], kept until its application callers move.
-pub fn check(
-    domain: &core::Limits,
-    application: &Application,
-    journal: &skein_lib::JournalLimits,
-    store: &skein_kv::Limits,
-    orphan_erases: u32,
-) -> Result<Sizes, SizeRefusal> {
-    check_commits(domain, application, &commits(journal), store, orphan_erases)
-}
-
 pub fn check_commits(
     domain: &core::Limits,
     application: &Application,
@@ -103,7 +85,7 @@ pub fn check_commits(
     store: &skein_kv::Limits,
     orphan_erases: u32,
 ) -> Result<Sizes, SizeRefusal> {
-    let sizes = largest(domain, application, commits, orphan_erases, store.budget).ok_or(SizeRefusal::Ceiling)?;
+    let sizes = largest(domain, application, *commits, orphan_erases, store.budget).ok_or(SizeRefusal::Ceiling)?;
     if sizes.key > store.key {
         return Err(SizeRefusal::Key { needs: sizes.key, has: store.key });
     }
@@ -131,11 +113,10 @@ pub fn check_commits(
     Ok(sizes)
 }
 
-#[expect(clippy::trivially_copy_pass_by_ref, reason = "borrow the commit edge consistently with check_commits")]
 fn largest(
     domain: &core::Limits,
     application: &Application,
-    commits: &Commits,
+    commits: Commits,
     orphan_erases: u32,
     budget: u64,
 ) -> Option<Sizes> {

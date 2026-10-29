@@ -87,7 +87,7 @@ impl State {
     }
 }
 pub(crate) fn reservation_count(limits: &Limits) -> Option<u32> {
-    limits.queue.checked_add(1)?.checked_add(limits.store.queued)?.checked_mul(limits.journal.writes)
+    limits.queue.checked_add(1)?.checked_add(limits.store.queued)?.checked_mul(limits.commits.writes)
 }
 pub(crate) fn place(
     store: &mut Store,

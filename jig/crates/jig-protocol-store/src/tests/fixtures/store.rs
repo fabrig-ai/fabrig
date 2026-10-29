@@ -8,7 +8,7 @@ use crate::{Event, Limits, Request, Store, Stores, Write, codec, format, keys};
 use alloc::boxed::Box;
 use jig_domain_core::{CoreKey, CoreRecord, Key, Record};
 use skein_io::{file, kernel::Fd};
-use skein_lib::{Duration, Env, JournalLimits, List, Queue, Token};
+use skein_lib::{Duration, Env, List, Queue, Token};
 
 pub const OTHER_DEPLOYMENT: [u8; 16] = [9; 16];
 pub const ROOT: Root = Root { token: Token::new(900), fd: Fd::new(3) };
@@ -35,7 +35,7 @@ pub fn limits() -> Limits {
         core: CORE_LIMITS,
         store: kv_limits(),
         secrets: kv_limits(),
-        journal: JournalLimits { commits: 2, writes: 4, held: 4, now: 4, release: 4 },
+        commits: crate::sizes::Commits { in_flight: 2, writes: 4 },
         joins: 32,
         queue: 2,
         files: 2,
