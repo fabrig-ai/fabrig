@@ -437,7 +437,9 @@ The harness checks, in every world and in the simulator:
   the simulator checks at every iteration that it stays under the
   scenario's ceiling (programming-model.md, 6.3). A ceiling is an upper
   bound with headroom, a named constant beside the one test that checks
-  it, with no write mode: it moves by hand when a real change passes it,
+  it, set a quarter above the peak measured when it is made, rounded up
+  to two significant digits (a 79,584-byte peak takes 100,000), with no
+  write mode: it moves by hand when a real change passes it,
   never on a type's size, and a figure split into terms is one ceiling on
   its total. Exact checks are for contracts only: nothing held after a
   release, the ledger's account of what a process freed, a byte price
