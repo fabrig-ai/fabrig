@@ -4,8 +4,10 @@
 //! outlives the test on interruption so proof-live's final return hook can still
 //! export the held account before terminating the box. Credentials go to ctl
 //! and curl by path alone. No bot credential or store is read by the driver.
+use super::super::patience::Patience;
 use serde_json::{Value, json};
 use skein_lib::{Duration, Time};
+use skein_world::{Deadline, Expired, Starved};
 
 use std::{
     fs,
@@ -182,6 +184,11 @@ struct Driver {
     client: PathBuf,
     sequence: usize,
     until: Time,
+    deadline: Option<Deadline>,
+    phases: Vec<(&'static str, Deadline)>,
+    active: Option<usize>,
+    starved: Option<Starved>,
+    in_world: bool,
     phase: &'static str,
     requested: Option<Time>,
     api: String,
@@ -197,6 +204,11 @@ impl Driver {
             client: client.into(),
             sequence: 0,
             until: now().saturating_add(Duration::from_secs(300)),
+            deadline: None,
+            phases: Vec::new(),
+            active: None,
+            starved: None,
+            in_world: true,
             phase: "setup",
             requested: None,
             api: String::new(),
@@ -205,7 +217,75 @@ impl Driver {
         }
     }
 
-    fn execute(&mut self, mut command: Command, input: Option<&str>, keep: bool) -> Result<Vec<u8>, String> {
+    fn owned(store: &Path, client: &Path) -> Self {
+        let mut driver = Self::new(store, client);
+        driver.in_world = false;
+        driver.arm("the rung's setup", Duration::from_secs(300));
+        driver
+    }
+
+    fn arm(&mut self, phase: &'static str, within: Duration) {
+        self.phase = phase;
+        let deadline = Deadline::arm(phase, within);
+        self.until = deadline.until();
+        self.deadline = Some(deadline);
+        self.active = None;
+    }
+
+    fn deadline(&mut self) -> Option<&mut Deadline> {
+        match self.active {
+            Some(index) => Some(&mut self.phases[index].1),
+            None => self.deadline.as_mut(),
+        }
+    }
+
+    fn check_wait(&mut self) -> Result<(), String> {
+        if now() < self.until {
+            return Ok(());
+        }
+        let message = format!("phase {} exceeded its bound", self.phase);
+        match self.deadline().map(|deadline| deadline.expired()) {
+            Some(Expired::Starved(starved)) => {
+                let message = format!("{message}: {}", starved.figures());
+                self.starved = Some(starved);
+                Err(message)
+            }
+            Some(Expired::Failed(figures)) => Err(format!("{message}: {figures}")),
+            // The offline setup's 300 s bound exceeds its 240 s world patience.
+            None => Err(message),
+        }
+    }
+
+    fn request(&mut self) {
+        self.requested = Some(now());
+        self.phases = [
+            ("inbox question", 40_480),
+            ("person's answer sent", 186_660),
+            ("answer reached goal", 190_910),
+            ("change delegated", 214_930),
+            ("first code write", 257_930),
+            ("pull request and head CI", 286_410),
+            ("agent review approved", 363_470),
+            ("landed", 364_410),
+            ("main CI passed", 367_410),
+            ("chat's last word and whole", WHOLE),
+        ]
+        .into_iter()
+        .map(|(phase, milliseconds)| (phase, Deadline::arm(phase, Duration::from_millis(milliseconds))))
+        .collect();
+    }
+
+    fn execute(&mut self, command: Command, input: Option<&str>, keep: bool) -> Result<Vec<u8>, String> {
+        self.execute_within(command, input, keep, None)
+    }
+
+    fn execute_within(
+        &mut self,
+        mut command: Command,
+        input: Option<&str>,
+        keep: bool,
+        within: Option<Duration>,
+    ) -> Result<Vec<u8>, String> {
         let number = self.sequence;
         self.sequence += 1;
         let stdout = self.store.join(format!("call-{number}.out"));
@@ -215,7 +295,20 @@ impl Driver {
             .stdin(if input.is_some() { Stdio::piped() } else { Stdio::null() })
             .stdout(fs::File::create(&stdout).map_err(|e| e.to_string())?)
             .stderr(fs::File::create(&stderr).map_err(|e| e.to_string())?);
+        let mut request_wait =
+            within.filter(|_| !self.in_world).map(|within| Deadline::arm("the rung's forge request", within));
+        let mut world_request =
+            within.filter(|_| self.in_world).map(|within| Patience::arm("the rung's forge request", within));
         let mut child = command.spawn().map_err(|e| e.to_string())?;
+        if let Some(deadline) = self.deadline() {
+            deadline.watch_process(child.id());
+        }
+        if let Some(deadline) = &mut request_wait {
+            deadline.watch_process(child.id());
+        }
+        if let Some(patience) = &mut world_request {
+            patience.watch_process(child.id());
+        }
         if let Some(input) = input {
             child
                 .stdin
@@ -228,14 +321,34 @@ impl Driver {
             if let Some(status) = child.try_wait().map_err(|e| e.to_string())? {
                 break status;
             }
-            if now() >= self.until {
-                let _ = child.kill();
-                let _ = child.wait();
-                return Err(format!("phase {} exceeded its bound; call {number}", self.phase));
+            if let Err(message) = self.check_wait() {
+                super::super::parent::end_child(&mut child);
+                return Err(format!("{message}; call {number}"));
+            }
+            if let Some(patience) = &mut world_request
+                && let Some(figures) = patience.failed()
+            {
+                super::super::parent::end_child(&mut child);
+                return Err(format!("forge request exceeded its bound: {figures}"));
+            }
+            if let Some(deadline) = &request_wait
+                && deadline.passed()
+            {
+                match deadline.expired() {
+                    Expired::Starved(starved) => {
+                        let message = format!("forge request exceeded its bound: {}", starved.figures());
+                        self.starved = Some(starved);
+                        super::super::parent::end_child(&mut child);
+                        return Err(message);
+                    }
+                    Expired::Failed(figures) => {
+                        super::super::parent::end_child(&mut child);
+                        return Err(format!("forge request exceeded its bound: {figures}"));
+                    }
+                }
             }
             std::thread::sleep(std::time::Duration::from_millis(5));
         };
-        require(now() <= self.until, &format!("phase {} exceeded its bound", self.phase))?;
         require(
             status.success(),
             &format!("phase {}: call {number} failed ({status}); see {}", self.phase, stderr.display()),
@@ -268,19 +381,20 @@ impl Driver {
 
     fn forge(&mut self, route: &str) -> Result<Vec<u8>, String> {
         let mut command = Command::new("curl");
-        command.args(["-fsS", "--max-time", "10", "-H"]).arg(format!("@{}", self.header.display()));
+        command.args(["-fsS", "-H"]).arg(format!("@{}", self.header.display()));
         command.arg(format!("{}/repos/playground/widget/{route}", self.api));
-        self.execute(command, None, true)
+        self.execute_within(command, None, true, Some(Duration::from_secs(10)))
     }
 
     fn forge_json(&mut self, route: &str) -> Result<Value, String> {
         serde_json::from_slice(&self.forge(route)?).map_err(|e| format!("forge JSON: {e}"))
     }
 
-    fn phase(&mut self, phase: &'static str, milliseconds: u64) {
+    fn phase(&mut self, phase: &'static str) {
         self.phase = phase;
-        self.until =
-            self.requested.expect("request clock").saturating_add(Duration::from_nanos(milliseconds * 1_000_000));
+        let index = self.phases.iter().position(|(name, _)| *name == phase).expect("a named rung phase");
+        self.until = self.phases[index].1.until();
+        self.active = Some(index);
     }
 
     fn met(&self, bound: u64) {
@@ -294,7 +408,7 @@ impl Driver {
 
     fn wait(&mut self, args: &[&str], condition: &str) -> Result<Value, String> {
         let left = self.until.saturating_since(now()).as_nanos() / 1_000_000;
-        require(left > 0, &format!("phase {} exceeded its bound", self.phase))?;
+        self.check_wait()?;
         // ctl accepts whole seconds. The child is still killed at this
         // driver's exact millisecond deadline, including its final fraction.
         let timeout = left.div_ceil(1_000).to_string();
@@ -510,14 +624,14 @@ fn run_walk(store: &Path, paths: &[PathBuf; 3], account: &Path, offline: bool) {
     let client = store.join("client");
     fs::create_dir(&client).expect("fresh client");
     fs::set_permissions(&client, fs::Permissions::from_mode(0o700)).expect("private client");
-    let mut driver = Driver::new(store, &client);
+    let mut driver = Driver::owned(store, &client);
     return_hook(&driver.binary, store, &driver.client, account);
     let mut boxed = start_box(store, paths);
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| walk(&mut driver, paths, account, offline)));
     // No ordinary failure or panic bypasses the return. The launcher's copy of
     // this act covers a signal to the test process itself.
-    driver.phase = "return held login";
-    driver.until = now().saturating_add(Duration::from_secs(60));
+    let starved = driver.starved.take();
+    driver.arm("the rung's held login return", Duration::from_secs(60));
     let returned = driver.execute(Command::new(store.join("give-back")), None, true);
     if let Err(message) = returned {
         super::super::live::notice(&format!("LOGIN NOT BACK: {message}; box retained for recovery"));
@@ -526,11 +640,15 @@ fn run_walk(store: &Path, paths: &[PathBuf; 3], account: &Path, offline: bool) {
     super::super::live::notice("MUST login at its original path; stat regular, nonempty, 0600");
     let stopped = stop_box(&mut boxed);
     let result = result.unwrap_or_else(|panic| std::panic::resume_unwind(panic));
+    stopped.expect("box stopped after login return");
+    if let Some(starved) = starved {
+        super::super::parent::end_child(&mut boxed);
+        starved.pass();
+    }
     result.unwrap_or_else(|message| {
         super::super::live::notice(&format!("FAILURE {message}"));
         panic!("{message}")
     });
-    stopped.expect("box stopped after login return");
 }
 
 fn twin_peer() -> super::super::llm::Listening {
@@ -695,7 +813,7 @@ fn setup(driver: &mut Driver, paths: &[PathBuf; 3], account: &Path) -> Result<Va
         if let Some(link) = output.lines().find(|line| line.starts_with("http://") && line.contains("secret=")) {
             break link.to_owned();
         }
-        require(now() < driver.until, "setup: box sign-in link timeout; see box.err")?;
+        driver.check_wait().map_err(|message| format!("setup: box sign-in link timeout; see box.err; {message}"))?;
         std::thread::sleep(std::time::Duration::from_millis(20));
     };
     driver.ctl(&["sign-in", "-"], Some(&link))?;
@@ -881,8 +999,8 @@ fn walk(driver: &mut Driver, paths: &[PathBuf; 3], account: &Path, offline: bool
         )?;
     }
     let project = driver.project.clone();
-    driver.requested = Some(now());
-    driver.phase("inbox question", 40_480);
+    driver.request();
+    driver.phase("inbox question");
     let created = driver.ctl(
         &[
             "chat",
@@ -902,7 +1020,7 @@ fn walk(driver: &mut Driver, paths: &[PathBuf; 3], account: &Path, offline: bool
     let chat = created_chat(&created)?.to_string();
     driver.wait(&["inbox"], "waiting")?;
     driver.met(40_480);
-    driver.phase("person's answer sent", 186_660);
+    driver.phase("person's answer sent");
     let inbox = driver.ctl(&["inbox", "--kind", "questions"], None)?;
     let rows = inbox["needs"]["rows"].as_array().ok_or("inbox questions missing")?;
     require(rows.len() == 1, "one question in the person's inbox")?;
@@ -911,7 +1029,7 @@ fn walk(driver: &mut Driver, paths: &[PathBuf; 3], account: &Path, offline: bool
         "question is on the person's chat",
     )?;
     let question = rows[0]["object"]["question"]["message"].as_u64().ok_or("inbox question number")?.to_string();
-    driver.phase("person's answer sent", 186_660);
+    driver.phase("person's answer sent");
     let goal = driver.unchanged(&chat, &baseline)?;
     let question_rows = driver.activity(chat.parse().map_err(|_| "chat number")?)?;
     let asked = plan_question(&question_rows, goal, question.parse().map_err(|_| "question number")?)?;
@@ -931,7 +1049,7 @@ fn walk(driver: &mut Driver, paths: &[PathBuf; 3], account: &Path, offline: bool
 
 fn follow(driver: &mut Driver, chat: &str, goal: u64) -> Result<(), String> {
     let goal_text = goal.to_string();
-    driver.phase("answer reached goal", 190_910);
+    driver.phase("answer reached goal");
     let answer_at = loop {
         let read = driver.ctl(&["task", "show", &goal_text], None)?;
         let rows = driver.activity(goal)?;
@@ -943,7 +1061,7 @@ fn follow(driver: &mut Driver, chat: &str, goal: u64) -> Result<(), String> {
         driver.wait(&["task", "show", &goal_text, "--since", digest], "changed")?;
     };
     driver.met(190_910);
-    driver.phase("change delegated", 214_930);
+    driver.phase("change delegated");
     let change = loop {
         let read = driver.ctl(&["task", "show", &goal_text, "--tree"], None)?;
         let children = driver.children(&goal_text)?;
@@ -973,7 +1091,7 @@ fn follow(driver: &mut Driver, chat: &str, goal: u64) -> Result<(), String> {
 }
 
 fn first_edit(driver: &mut Driver, change: &str, answer_at: u64) -> Result<(), String> {
-    driver.phase("first code write", 257_930);
+    driver.phase("first code write");
     loop {
         let tree = driver.ctl(&["task", "show", change, "--tree"], None)?;
         for row in driver.children(change)? {
@@ -996,7 +1114,7 @@ fn first_edit(driver: &mut Driver, change: &str, answer_at: u64) -> Result<(), S
 }
 
 fn landing(driver: &mut Driver, chat: &str, goal_text: &str, change: &str) -> Result<(), String> {
-    driver.phase("pull request and head CI", 286_410);
+    driver.phase("pull request and head CI");
     driver.wait(&["change", "show", change], "pull")?;
     let panel = driver.wait(&["change", "show", change], "ci:passed")?;
     let number = panel["pull"]["number"].as_u64().ok_or("pull number")?;
@@ -1024,7 +1142,7 @@ fn landing(driver: &mut Driver, chat: &str, goal_text: &str, change: &str) -> Re
     let log = driver.forge(&format!("actions/jobs/{job}/logs"))?;
     require(String::from_utf8_lossy(&log).contains("Job succeeded"), "the box runner's job log agrees with green CI")?;
     driver.met(286_410);
-    driver.phase("agent review approved", 363_470);
+    driver.phase("agent review approved");
     let mut panel = panel;
     while !panel["gates"]
         .as_array()
@@ -1034,7 +1152,7 @@ fn landing(driver: &mut Driver, chat: &str, goal_text: &str, change: &str) -> Re
         panel = driver.wait(&["change", "show", change, "--since", digest], "changed")?;
     }
     driver.met(363_470);
-    driver.phase("landed", 364_410);
+    driver.phase("landed");
     let panel = driver.wait(&["change", "show", change], "landed")?;
     let pull = driver.forge_json(&format!("pulls/{number}"))?;
     let main = driver.forge_json("branches/main")?;
@@ -1048,7 +1166,7 @@ fn landing(driver: &mut Driver, chat: &str, goal_text: &str, change: &str) -> Re
     )?;
     driver.forge_json(&format!("pulls/{number}/reviews"))?;
     driver.met(364_410);
-    driver.phase("main CI passed", 367_410);
+    driver.phase("main CI passed");
     let merge = pull["merge_commit_sha"].as_str().ok_or("merge hash")?;
     loop {
         if driver.forge_json(&format!("commits/{merge}/status"))?["state"] == "success" {
@@ -1057,7 +1175,7 @@ fn landing(driver: &mut Driver, chat: &str, goal_text: &str, change: &str) -> Re
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
     driver.met(367_410);
-    driver.phase("chat's last word and whole", WHOLE);
+    driver.phase("chat's last word and whole");
     let source = driver.forge(&format!("raw/src/main.rs?ref={merge}"))?;
     require(
         source.windows(b"fruit,count".len()).any(|s| s == b"fruit,count"),
@@ -1088,8 +1206,29 @@ fn landing(driver: &mut Driver, chat: &str, goal_text: &str, change: &str) -> Re
     }
     driver.met(WHOLE);
     super::super::live::notice("MUST chat says the change landed");
-    driver.phase = "close chat";
-    driver.until = now().saturating_add(Duration::from_secs(30));
+    driver.arm("the rung's chat closing", Duration::from_secs(30));
     driver.ctl(&["chat", "close", chat, "--key", "rung-close"], None)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Driver;
+    use std::path::Path;
+
+    #[test]
+    fn rung_phases_keep_the_request_deadlines_when_selected_again() {
+        let mut driver = Driver::owned(Path::new("."), Path::new("client"));
+        driver.request();
+        assert_eq!(driver.phases.len(), 10);
+        let question = driver.phases[0].1.until();
+        let answer = driver.phases[1].1.until();
+        assert!(question < answer);
+        driver.phase("inbox question");
+        assert_eq!(driver.until, question);
+        driver.phase("person's answer sent");
+        assert_eq!(driver.until, answer);
+        driver.phase("person's answer sent");
+        assert_eq!(driver.until, answer);
+    }
 }
