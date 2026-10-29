@@ -68,7 +68,7 @@ fn historical_ended_whole_boxes_reserved_rows_nested_reasons_and_read_bytes_refu
     );
     let too_many = OwnerEndedPage { rows: List::with_capacity(4), ..empty.clone() };
     assert!(!ended_fits(&too_many, &bounds));
-    assert!(worst_case(&bounds).expect("admitted envelope") >= ended_bytes(&source, &bounds).expect("whole bytes"));
+    assert!(heap_bound(&bounds).expect("admitted envelope") >= ended_bytes(&source, &bounds).expect("whole bytes"));
 }
 #[test]
 fn historical_funding_all_four_source_kinds_keep_period_parent_counters_and_reserved_capacity() {

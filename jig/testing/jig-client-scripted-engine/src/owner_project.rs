@@ -69,7 +69,7 @@ pub fn fits(value: &OwnerProject, bounds: &Bounds) -> bool {
 }
 /// All admitted recursive values remain below this exact byte ceiling.
 #[must_use]
-pub fn worst_case(bounds: &Bounds) -> Option<u64> {
+pub fn heap_bound(bounds: &Bounds) -> Option<u64> {
     if bounds.document_bytes < u64::try_from(size_of::<OwnerProject>()).ok()? {
         None
     } else {

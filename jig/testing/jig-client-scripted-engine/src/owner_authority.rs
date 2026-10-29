@@ -98,7 +98,7 @@ pub fn document_fits(value: &OwnerAuthorityDocument, bounds: &Bounds) -> bool {
 /// Maximum whole document allocation at the configured authority and byte bounds.
 /// An unrepresentable total is rejected explicitly.
 #[must_use]
-pub fn worst_case(bounds: &Bounds) -> Option<u64> {
+pub fn heap_bound(bounds: &Bounds) -> Option<u64> {
     let entries = u64::from(bounds.authority);
     let pattern = List::<Box<[u8]>>::price(bounds.segments)?
         .checked_add(u64::from(bounds.segments).checked_mul(u64::from(bounds.text))?)?

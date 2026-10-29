@@ -1,4 +1,4 @@
-use super::{bytes, fits, worst_case};
+use super::{bytes, fits, heap_bound};
 use crate::{Bounds, payload};
 use core::mem::size_of;
 use jig_client_domain::contract::*;
@@ -99,7 +99,7 @@ fn person_owner_admission_prices_reserved_slots_boxes_and_optional_whole_results
     assert!(payload::fits(&read, &Bounds { document_bytes: read_bytes, ..b }));
     assert!(!payload::fits(&read, &Bounds { document_bytes: read_bytes - 1, ..b }));
     assert_eq!(value, untouched);
-    assert_eq!(worst_case(&b), Some(65536));
+    assert_eq!(heap_bound(&b), Some(65536));
 }
 #[test]
 fn person_owner_nested_reserved_overflow_refuses_whole_without_cut_or_missing_result_shortening() {

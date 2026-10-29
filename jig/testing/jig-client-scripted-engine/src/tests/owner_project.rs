@@ -59,7 +59,7 @@ fn owner_project_kit_prices_every_empty_reserved_list_at_exact_bytes_and_refuses
     let mut bounds = Bounds { rows: 2, segments: 2, document_bytes: bytes, ..Bounds::default() };
     assert_eq!(owner_project::bytes(&value, &bounds), Some(bytes));
     assert!(owner_project::fits(&value, &bounds));
-    assert_eq!(owner_project::worst_case(&bounds), Some(bytes));
+    assert_eq!(owner_project::heap_bound(&bounds), Some(bytes));
     let before = value.clone();
     bounds.document_bytes -= 1;
     assert!(!owner_project::fits(&value, &bounds));

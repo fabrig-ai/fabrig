@@ -1,4 +1,4 @@
-use super::{bytes, fits, page_bytes, page_fits, worst_case};
+use super::{bytes, fits, heap_bound, page_bytes, page_fits};
 use crate::Bounds;
 use core::mem::size_of;
 use jig_client_domain::contract::*;
@@ -107,7 +107,7 @@ fn owner_inbox_recursive_reserved_groups_reply_and_link_boxes_fit_exact_and_refu
     for (amount, admitted) in [(expected - 1, false), (expected, true), (expected + 1, true)] {
         let b = Bounds { document_bytes: amount, ..bounds() };
         assert_eq!(fits(&source, &b), admitted);
-        assert_eq!(worst_case(&b), Some(amount));
+        assert_eq!(heap_bound(&b), Some(amount));
     }
     assert_eq!(source, unchanged);
     assert!(bytes(&source, &Bounds { rows: 2, ..bounds() }).is_none());
@@ -149,7 +149,7 @@ fn owner_inbox_whole_page_opaque_bytes_allocation_boundaries_and_stored_links_ar
     };
     let root = u64::try_from(size_of::<OwnerInbox>()).unwrap();
     assert_eq!(bytes(&source, &bounds()), Some(root + List::<OwnerInboxEntry>::price(3).unwrap() * 2));
-    assert!(worst_case(&Bounds { document_bytes: root - 1, ..bounds() }).is_none());
+    assert!(heap_bound(&Bounds { document_bytes: root - 1, ..bounds() }).is_none());
 }
 #[test]
 fn owner_inbox_selection_roots_exceed_page_rows_without_clipping_and_price_whole_reserved_capacity() {
