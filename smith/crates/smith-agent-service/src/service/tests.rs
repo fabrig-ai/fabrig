@@ -751,7 +751,7 @@ fn pending_messages_wait_at_the_watermark() {
 }
 
 #[test]
-fn startup_accepts_a_queue_below_its_childrens_max_out() {
+fn a_one_entry_watermark_keeps_the_host_edge_capped_and_effects_progressing() {
     let mut config = configuration();
     config.limits.queue = 1;
     let service = Service::new(config, 1).expect("one-entry watermark builds");

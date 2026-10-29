@@ -85,12 +85,6 @@ impl Effects {
         }
     }
 
-    /// Room in the uncapped typed-request queue for the owning host.
-    #[must_use]
-    pub fn request_room(&self) -> u32 {
-        self.service.domain_requests.room()
-    }
-
     /// Queue one effect emitted by the host's in-process agent domain.
     pub fn request(&mut self, request: domain::Request) {
         match request {
@@ -209,12 +203,6 @@ impl Effects {
     /// Requests for the product's one IO owner.
     pub fn io_requests(&mut self) -> &mut Queue<io::Request> {
         &mut self.service.io_requests
-    }
-
-    /// Room for one terminal from the common IO owner.
-    #[must_use]
-    pub fn io_takes(&self) -> bool {
-        self.service.io_events.room() > 0
     }
 
     /// A native IO terminal routed by the product to these effects.
