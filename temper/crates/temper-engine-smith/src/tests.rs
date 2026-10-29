@@ -1186,10 +1186,20 @@ fn a_refused_effect_names_its_pending_dependencies() {
 }
 
 #[test]
+fn an_unreachable_dependency_refusal_names_the_dependency_to_the_agent() {
+    refusal_words(
+        tasks::Refusal::Dependencies,
+        Some(Box::new([4])),
+        b"Refused: task 99 dependency T4 is outside your reach",
+    );
+}
+
+#[test]
 fn dependency_refusals_without_tasks_are_plain_lines() {
     let lists: [Option<Box<[u64]>>; 2] = [None, Some(Box::new([]))];
     for blocked in lists {
         for (why, expected) in [
+            (tasks::Refusal::Dependencies, b"Refused: task 99 dependencies".as_slice()),
             (tasks::Refusal::Circle { cut: false }, b"Refused: these tasks would wait for one another".as_slice()),
             (tasks::Refusal::Circle { cut: true }, b"Refused: these tasks would wait for one another"),
             (tasks::Refusal::DependencyEnded { how: tasks::Status::Failed }, b"Refused: a dependency has ended"),
