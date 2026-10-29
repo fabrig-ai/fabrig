@@ -426,7 +426,7 @@ fn set<K: Item>(capacity: u32) {
 /// A deadline table, its two trees driven as a map is: armed in order, by
 /// key and by time, thinned, moved and expired; then at random.
 fn deadlines<K: Item>(capacity: u32) {
-    let bound = Deadlines::<K>::worst_case(capacity);
+    let bound = Deadlines::<K>::price(capacity);
     let mut metered = Metered::new("Deadlines", type_name::<K>(), capacity, bound);
     metered.start();
     let mut table = Deadlines::<K>::with_capacity(capacity);
@@ -546,7 +546,7 @@ fn a_set_holds_no_more_than_its_price() {
 }
 
 #[test]
-fn a_deadline_table_holds_no_more_than_its_worst_case() {
+fn a_deadline_table_holds_no_more_than_its_price() {
     for capacity in CAPACITIES {
         deadlines::<u16>(capacity);
         deadlines::<u64>(capacity);
@@ -638,10 +638,10 @@ fn request_table_memory<O: Item + Copy + std::fmt::Debug + PartialEq, T: Item + 
     let mut keys = Vec::with_capacity(index(capacity));
     let mut saved = vec![None; index(capacity)];
     let mut attempts = Vec::with_capacity(index(capacity));
-    // A slab realloc counts both buffers: held storage stays within the
-    // formula, and a step's peak within twice it.
+    // A slab realloc counts both buffers: held storage stays within
+    // its price, and a step's peak within twice it.
     let mut metered =
-        Metered::growing("RequestTable", type_name::<(O, T)>(), capacity, RequestTable::<O, T>::worst_case(&limits));
+        Metered::growing("RequestTable", type_name::<(O, T)>(), capacity, RequestTable::<O, T>::price(&limits));
     metered.start();
     let mut table = RequestTable::new(&limits, 0xB5_7A);
     metered.end(());
@@ -998,9 +998,9 @@ fn a_list_clone_holds_only_its_items_and_grows_as_it_fills() {
 }
 
 // Growth holds the old and new buffers at a realloc: held storage stays
-// within the formula, and each step's peak within twice it.
+// within its price, and each step's peak within twice it.
 fn slab_meter<T>(capacity: u32) -> Metered {
-    Metered::growing("Slab", type_name::<T>(), capacity, Slab::<T>::worst_case(capacity))
+    Metered::growing("Slab", type_name::<T>(), capacity, Slab::<T>::price(capacity))
 }
 
 #[test]
