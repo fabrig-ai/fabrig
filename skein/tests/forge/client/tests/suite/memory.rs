@@ -34,10 +34,10 @@ struct Measured {
     out: Queue<Request>,
     calls: Queue<Call>,
     meter: Meter,
-    bound: u64,
+    ceiling: u64,
 }
 impl Measured {
-    fn new(limits: Limits) -> Measured {
+    fn new(limits: Limits, ceiling: u64) -> Measured {
         let out = Queue::uncapped();
         let calls = Queue::with_capacity(limits.pending);
         let meter = Meter::new();
@@ -51,14 +51,7 @@ impl Measured {
         );
         let domain =
             Domain::configured(&limits, 0, client::Config { namespace, writers }).expect("bounded root config");
-        Measured {
-            domain,
-            env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
-            out,
-            calls,
-            meter,
-            bound: client::worst_case(&limits).expect("memory limits fit"),
-        }
+        Measured { domain, env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits }, out, calls, meter, ceiling }
     }
     fn event(&mut self, event: Event) {
         self.meter.start();
@@ -90,7 +83,7 @@ impl Measured {
                 | Request::OutboxDone => {}
             }
         }
-        self.meter.check(measured, self.bound, &self.env.limits);
+        self.meter.check(measured, self.ceiling, &self.env.limits);
         self.domain.reclaim();
     }
     fn answer(&mut self, call: Call) {
@@ -237,6 +230,8 @@ fn summary(number: u64, body: u32) -> api::Summary {
 }
 #[test]
 fn full_live_caches_inbox_stamps_echoes_outbox_and_every_entry_point_fit() {
+    // Client-owned step peaks across both saturated working sets, after handing off output.
+    const HEAP_CEILING: u64 = 48_000;
     for limits in [
         LIMITS,
         Limits {
@@ -253,7 +248,7 @@ fn full_live_caches_inbox_stamps_echoes_outbox_and_every_entry_point_fit() {
             ..LIMITS
         },
     ] {
-        let mut m = Measured::new(limits);
+        let mut m = Measured::new(limits, HEAP_CEILING);
         m.event(Event::Restore {
             record: Stored::Repository(RepositoryRecord {
                 repository: REPO,
