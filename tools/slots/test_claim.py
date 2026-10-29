@@ -185,13 +185,14 @@ class ClaimTests(unittest.TestCase):
     def test_inventory_matches_assigned_builders(self):
         self.assertEqual(claim.inventory(), {
             ("hetzner2", "1"): "lead/skein", ("hetzner2", "2"): "lead/skein",
-            ("hetzner2", "3"): "pool", ("hetzner2", "4"): "pool",
+            ("hetzner2", "3"): "pool", ("hetzner2", "4"): "pool", ("hetzner2", "5"): "pool",
             ("hetzner3", "1"): "pool", ("hetzner3", "2"): "pool", ("hetzner3", "3"): "pool",
-            ("hetzner3", "4"): "pool",
+            ("hetzner3", "4"): "pool", ("hetzner3", "5"): "pool",
             ("hetzner6", "1"): "lead/temper", ("hetzner6", "2"): "lead/smith",
             ("hetzner6", "3"): "lead/temper",
             ("hetzner7", "1"): "lead/jig", ("hetzner7", "2"): "lead/jig",
-            ("hetzner7", "3"): "lead/jig", ("hetzner7", "4"): "pool", ("hetzner7", "5"): "pool"})
+            ("hetzner7", "3"): "lead/jig", ("hetzner7", "4"): "pool", ("hetzner7", "5"): "pool",
+            ("hetzner7", "6"): "pool"})
 
     def test_inventory_accepts_comments_blank_lines_and_normalizes_numbers(self):
         path = self.home / "hosts"
