@@ -75,17 +75,17 @@ fn rung_b0s_walk_passes_offline_on_its_twin() {
 
 #[test]
 fn a_held_clients_listener_stops_serve() {
-    held_listener_stops_serve("clients", "temper serve: client listener failed\n");
+    held_listener_stops_serve("clients", "client");
 }
 
 #[test]
 fn a_held_webhooks_listener_stops_serve() {
-    held_listener_stops_serve("webhooks", "temper serve: webhooks listener failed\n");
+    held_listener_stops_serve("webhooks", "webhooks");
 }
 
 #[test]
 fn a_held_workers_listener_stops_serve() {
-    held_listener_stops_serve("workers", "temper serve: client listener failed\n");
+    held_listener_stops_serve("workers", "worker");
 }
 
 fn held_listener_stops_serve(listener: &str, expected: &str) {
@@ -125,8 +125,13 @@ fn held_listener_stops_serve(listener: &str, expected: &str) {
         BOX_DEADLINE,
     );
     let diagnostic = String::from_utf8_lossy(&ended.stderr);
+    let expected = if listener == "webhooks" {
+        "temper serve: webhooks listener failed\n".into()
+    } else {
+        format!("temper serve: {expected} listener {} failed: other\n", held.local_addr().expect("held address"))
+    };
     assert_eq!(ended.exit, Some(Exit::Code(1)), "{diagnostic}");
-    assert!(diagnostic.contains(expected), "{diagnostic}");
+    assert!(diagnostic.contains(&expected), "{diagnostic}");
     assert_eq!(ended.left, Some(Vec::new()), "no surviving child: {diagnostic}");
     scratch.remove();
 }
