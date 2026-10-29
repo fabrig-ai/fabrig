@@ -58,5 +58,5 @@ disallowed_types = "deny"
 disallowed_methods = "deny"
 
 [[test]]
-name = "qa_sign_in_browser"
-path = "tests/qa_sign_in_browser.rs"
+name = "qa_all"
+path = "tests/qa_all/main.rs"
