@@ -18,7 +18,10 @@ A chat is a conversation between a party and an agent in a project: an untracked
   the code must be read first, since the change's coder reads it: a
   change task, its delegate, writes it, opens its pull request and
   lands it, and the chat hears its result (temper help task). Until a
-  delegate reports, the chat says it is started, nothing more.
+  delegate reports, the chat says it is started, nothing more. When
+  the change holds, the chat tells the party why, in the hold's words,
+  and that the party decides: release it or cancel it (temper help
+  change).
 - **Work agreed first.** Asked to agree a plan before anything is
   changed, the chat's run never calls `change` for it, never writes the
   plan or asks for the go-ahead in its own reply, and never sets `advisor`:
