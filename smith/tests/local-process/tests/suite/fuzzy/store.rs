@@ -162,12 +162,6 @@ impl Host for Owner {
             && self.actions.is_empty()
             && self.events.is_empty()
     }
-    fn worst_case(&self) -> u64 {
-        // Peak across generated turn loading and every recovery/cut scenario.
-        // Measured 20_926 B on 2026-10-28; a quarter of headroom, rounded up.
-        const STORE_SCENARIOS_CEILING: u64 = 27_000;
-        STORE_SCENARIOS_CEILING
-    }
     fn operations(&self) -> u32 {
         4
     }
@@ -331,7 +325,11 @@ fn configured_mode(seed: u64, fresh: bool, initial: Initial, config: skein_sim::
     let mut files = Files::new();
     let root = files.lay(&initial_files(initial));
     files.close(root);
-    let mut world = World::new(seed, config, Judge::default(), Memory::Checked).with_machine(Disk(files));
+    // Peak across generated turn loading and every recovery/cut scenario.
+    // Measured 20_926 B on 2026-10-28; a quarter of headroom, rounded up.
+    const STORE_SCENARIOS_CEILING: u64 = 27_000;
+    let mut world =
+        World::new(seed, config, Judge::default(), Memory::Within(STORE_SCENARIOS_CEILING)).with_machine(Disk(files));
     world.spawn_restartable(
         vec![StartupRoot {
             name: if matches!(initial, Initial::Unrecorded | Initial::StoreLayout | Initial::TranscriptLayout) {
