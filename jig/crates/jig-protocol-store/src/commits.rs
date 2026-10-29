@@ -35,10 +35,10 @@ pub(crate) fn operations(
     writes: Box<[Write]>,
     format_due: bool,
 ) -> Result<crate::transcripts::Pending, Refusal> {
-    if writes.len() > usize::try_from(store.limits.journal.writes).ok().ok_or(Refusal::Failed)? {
+    if writes.len() > usize::try_from(store.limits.commits.writes).ok().ok_or(Refusal::Failed)? {
         return Err(Refusal::Failed);
     }
-    let capacity = most_ops(store.limits.journal.writes, store.limits.orphan_erases).ok_or(Refusal::Failed)?;
+    let capacity = most_ops(store.limits.commits.writes, store.limits.orphan_erases).ok_or(Refusal::Failed)?;
     let mut ops = List::with_capacity(capacity);
     let mut frames = Queue::uncapped();
     let mut drops = Queue::uncapped();

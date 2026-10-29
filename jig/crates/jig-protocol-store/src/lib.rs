@@ -33,7 +33,8 @@ pub struct Limits {
     pub secrets: skein_kv::Limits,
     /// The clients component's carried values at once (store.md, section 9).
     pub held: u32,
-    pub journal: skein_lib::JournalLimits,
+    /// The store's commit edge (protocol/store.md, 5.4).
+    pub commits: sizes::Commits,
     /// Point gets available to a party page's joins (store.md, 13).
     pub joins: u32,
     pub queue: u32,
@@ -235,8 +236,8 @@ pub fn valid(limits: &Limits) -> bool {
         && decoded_records_bound(limits).is_some()
         && frame_bound(limits).is_some()
         && transcripts::reservation_count(limits).is_some()
-        && commits::most_ops(limits.journal.writes, limits.orphan_erases).is_some()
-        && limits.journal.writes.checked_add(1).is_some()
+        && commits::most_ops(limits.commits.writes, limits.orphan_erases).is_some()
+        && limits.commits.writes.checked_add(1).is_some()
         && limits.core.tasks.tasks.checked_mul(limits.core.tasks.inbox_messages).is_some()
         && limits.core.load_slots.checked_add(limits.core.tasks.tasks).is_some()
 }

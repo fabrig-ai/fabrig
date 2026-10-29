@@ -38,7 +38,7 @@ fn frame_capacities_cover_real_and_kept_turns() {
         core: source.core,
         store: source.store,
         secrets: source.secrets,
-        journal: source.journal,
+        commits: crate::sizes::Commits { in_flight: source.commits.in_flight, writes: source.commits.writes },
         joins: source.joins,
         queue: source.queue,
         files: source.files,

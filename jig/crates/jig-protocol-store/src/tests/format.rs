@@ -3,10 +3,10 @@ use super::fixtures;
 use crate::boundary::{Family, OpenRefusal};
 use crate::{codec, format, sizes};
 use jig_domain_core as core;
-use skein_lib::{Duration, JournalLimits};
+use skein_lib::Duration;
 
 // People v11 retains the whole project authority as well as its roles.
-const JOURNAL: JournalLimits = JournalLimits { commits: 2, writes: 4, held: 4, now: 4, release: 4 };
+const COMMITS: sizes::Commits = sizes::Commits { in_flight: 2, writes: 4 };
 fn wanted() -> codec::component::Format {
     format::current(fixtures::APPLICATION.version, fixtures::DEPLOYMENT)
 }
@@ -27,7 +27,7 @@ fn store() -> skein_kv::Limits {
     }
 }
 fn check(store: &skein_kv::Limits) -> Result<sizes::Sizes, sizes::SizeRefusal> {
-    sizes::check_commits(&fixtures::CORE_LIMITS, &fixtures::APPLICATION, &sizes::commits(&JOURNAL), store, 0)
+    sizes::check_commits(&fixtures::CORE_LIMITS, &fixtures::APPLICATION, &COMMITS, store, 0)
 }
 #[test]
 fn a_format_row_of_another_tasks_version_is_refused_naming_tasks() {
@@ -104,9 +104,9 @@ fn too_few_in_flight_slots_are_refused() {
     assert_eq!(check(&limits), Err(sizes::SizeRefusal::Queue { needs: 2, has: 1 }));
 }
 fn a_journal_bound_past_the_queue_is_refused_at_start() {
-    let journal = JournalLimits { commits: 3, ..JOURNAL };
+    let commits = sizes::Commits { in_flight: 3, ..COMMITS };
     assert_eq!(
-        sizes::check_commits(&fixtures::CORE_LIMITS, &fixtures::APPLICATION, &sizes::commits(&journal), &store(), 0),
+        sizes::check_commits(&fixtures::CORE_LIMITS, &fixtures::APPLICATION, &commits, &store(), 0),
         Err(sizes::SizeRefusal::Queue { needs: 3, has: 2 }),
     );
 }
@@ -120,7 +120,7 @@ fn a_domain_limit_past_its_family_ceiling_is_refused_at_start() {
     let mut domain = fixtures::CORE_LIMITS;
     domain.notes.body_bytes = u32::MAX;
     assert_eq!(
-        sizes::check_commits(&domain, &fixtures::APPLICATION, &sizes::commits(&JOURNAL), &store(), 0),
+        sizes::check_commits(&domain, &fixtures::APPLICATION, &COMMITS, &store(), 0),
         Err(sizes::SizeRefusal::Ceiling)
     );
 }
@@ -128,7 +128,7 @@ fn a_domain_limit_past_its_family_ceiling_is_refused_at_start() {
 fn an_application_key_that_cannot_hold_its_tag_is_refused() {
     let application = sizes::Application { key: u32::MAX, ..fixtures::APPLICATION };
     assert_eq!(
-        sizes::check_commits(&fixtures::CORE_LIMITS, &application, &sizes::commits(&JOURNAL), &store(), 0),
+        sizes::check_commits(&fixtures::CORE_LIMITS, &application, &COMMITS, &store(), 0),
         Err(sizes::SizeRefusal::Ceiling)
     );
 }
@@ -184,15 +184,15 @@ fn the_largest_note_line_key_reaches_its_calculated_bound() {
 fn larger_application_encodings_are_included_in_the_bounds() {
     let application = sizes::Application { version: 1, key: 256, value: 9_000_000 };
     assert_eq!(
-        sizes::check_commits(&fixtures::CORE_LIMITS, &application, &sizes::commits(&JOURNAL), &store(), 0),
+        sizes::check_commits(&fixtures::CORE_LIMITS, &application, &COMMITS, &store(), 0),
         Ok(sizes::Sizes { key: 257, value: 9_000_000, ops: 11, commit: 19_336 }),
     );
 }
 #[test]
 fn a_journal_whose_operation_count_overflows_is_refused() {
-    let journal = JournalLimits { writes: u32::MAX, ..JOURNAL };
+    let commits = sizes::Commits { writes: u32::MAX, ..COMMITS };
     assert_eq!(
-        sizes::check_commits(&fixtures::CORE_LIMITS, &fixtures::APPLICATION, &sizes::commits(&journal), &store(), 0),
+        sizes::check_commits(&fixtures::CORE_LIMITS, &fixtures::APPLICATION, &commits, &store(), 0),
         Err(sizes::SizeRefusal::Ceiling),
     );
 }

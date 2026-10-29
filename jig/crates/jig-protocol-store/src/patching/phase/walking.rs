@@ -525,7 +525,7 @@ fn finish(walking: &mut Walking, running: Running) -> Option<()> {
 
 fn puts(limits: &Limits, map: KeptMap) -> u32 {
     match map {
-        KeptMap::Store => limits.journal.writes.min(limits.store.ops),
+        KeptMap::Store => limits.commits.writes.min(limits.store.ops),
         KeptMap::Secrets => limits.secrets.ops,
     }
 }

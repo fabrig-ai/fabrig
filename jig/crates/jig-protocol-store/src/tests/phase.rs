@@ -985,7 +985,7 @@ const ONE: crate::PatchSets = crate::PatchSets {
 };
 fn fixture_store(disk: &Harness, writes: u32, commit: u32, wanted: crate::patching::plan::Levels) -> Store {
     let mut store = disk.store(false);
-    store.limits.journal.writes = writes;
+    store.limits.commits.writes = writes;
     store.limits.store.commit = commit;
     store.patch_sets(if wanted == levels(1, 0) { ONE } else { SETS });
     store
@@ -1677,7 +1677,7 @@ fn fresh_baseline() -> Vec<Item> {
 }
 fn fresh_store(disk: &Harness, after: bool) -> Store {
     let mut store = disk.store(false);
-    store.limits.journal.writes = 2;
+    store.limits.commits.writes = 2;
     store.patch_sets(if after { FRESH_AFTER } else { FRESH_BEFORE });
     store
 }
