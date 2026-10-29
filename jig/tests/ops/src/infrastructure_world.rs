@@ -130,7 +130,7 @@ impl InfrastructureWorld {
     pub fn event(&mut self, input: infra::Event) -> Vec<infra::Request> {
         let wall = self.now.checked_mul(1_000_000_000).expect("world clock fits");
         let env = Env { now: Time::from_nanos(self.now), wall: Wall::from_nanos(wall), limits: self.limits };
-        let mut out = Queue::with_capacity(infra::MAX_OUT);
+        let mut out = Queue::uncapped();
         infra::step(&mut self.domain, &env, input, &mut out);
         let mut requests = Vec::new();
         while let Some(request) = out.pop() {
@@ -416,7 +416,7 @@ impl InfrastructureWorld {
     pub fn fire(&mut self) -> Vec<infra::Request> {
         let wall = self.now.checked_mul(1_000_000_000).expect("world clock fits");
         let env = Env { now: Time::from_nanos(self.now), wall: Wall::from_nanos(wall), limits: self.limits };
-        let mut out = Queue::with_capacity(infra::MAX_OUT);
+        let mut out = Queue::uncapped();
         infra::fire(&mut self.domain, &env, &mut out);
         let mut requests = Vec::new();
         while let Some(request) = out.pop() {

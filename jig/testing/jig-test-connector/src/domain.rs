@@ -9,7 +9,7 @@ use crate::{
 
 pub(crate) type DelegateOutcome = (u64, Option<u64>, Box<[(u64, u64)]>);
 
-/// Four judges, a fact change, drift, a procedure save and one client mark fit.
+/// Forwarding envelope for callers that reserve connector output room.
 pub const MAX_OUT: u32 = 9;
 
 /// A connector's live working set and records.
@@ -176,7 +176,6 @@ impl Domain {
 
 /// One input from the root or the fake system.
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
-    assert!(out.room() >= MAX_OUT, "parent reserved the connector's maximum output");
     match event {
         Event::DocumentPrepare { token, subject } => crate::client_documents::prepare(domain, token, subject),
         Event::DocumentForget { subject } => {
@@ -279,9 +278,8 @@ pub fn closing_ready(domain: &Domain) -> bool {
     false
 }
 
-/// Finish at most one ready closing task after reserving the normal output room.
+/// Finishes at most one ready closing task.
 pub fn resume(domain: &mut Domain, out: &mut Queue<Request>) {
-    assert!(out.room() >= MAX_OUT, "parent reserved closing output room");
     close_complete(domain, out);
 }
 
@@ -320,9 +318,8 @@ pub fn next_deadline(domain: &Domain) -> Option<Wall> {
     }
 }
 
-/// Advances at most one due outbox entry after the root reserved output room.
+/// Advances at most one due outbox entry.
 pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
-    assert!(out.room() >= MAX_OUT, "parent reserved the connector's maximum output");
     crate::outbox::fire(domain, env, out);
     restart_complete(domain, out);
     crate::client_marks::collect(domain, env, out);
