@@ -1,0 +1,105 @@
+"""Exercise installation against local fixture repositories, never fleet state."""
+
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import tempfile
+import unittest
+
+
+TOOLS = Path(__file__).resolve().parent
+
+
+class InstallTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory(prefix="test-install-", dir=TOOLS)
+        self.addCleanup(self.temp.cleanup)
+        self.base = Path(self.temp.name)
+        self.home = self.base / "home"
+        self.home.mkdir()
+        self.env = dict(os.environ, HOME=str(self.home), GIT_CONFIG_GLOBAL="/dev/null",
+                        GIT_CONFIG_NOSYSTEM="1")
+        self.source = self.base / "source"
+        self.source.mkdir()
+        self.git(self.source, "init", "-b", "main")
+        self.git(self.source, "config", "user.name", "Fixture")
+        self.git(self.source, "config", "user.email", "fixture@example.invalid")
+        self.git(self.source, "remote", "add", "origin", str(self.source))
+        (self.source / "tools/codex-run").mkdir(parents=True)
+        shutil.copy2(TOOLS / "install", self.source / "tools/install")
+        shutil.copy2(TOOLS / "installed", self.source / "tools/installed")
+        self.tool = self.source / "tools/codex-run/codex-run"
+        self.tool.write_text("#!/bin/bash\necho fixture\n")
+        self.tool.chmod(0o700)
+        self.commit()
+        self.checkout = self.home / "src/fabrig/main"
+        self.link = self.home / ".local/bin/codex-run"
+
+    def git(self, directory, *args):
+        return subprocess.check_output(["git", "-C", str(directory), *args],
+                                       env=self.env, text=True, stderr=subprocess.DEVNULL).strip()
+
+    def commit(self):
+        self.git(self.source, "add", ".")
+        self.git(self.source, "commit", "-m", "Fixture tool")
+
+    def install(self, *args, success=True):
+        result = subprocess.run(["python3", "-I", str(self.source / "tools/install"), *args],
+                                env=self.env, text=True, capture_output=True,
+                                stdin=subprocess.DEVNULL)
+        self.assertEqual(result.returncode == 0, success, result.stdout + result.stderr)
+        return result.stdout + result.stderr
+
+    def test_dry_run_creates_nothing(self):
+        output = self.install("--dry-run")
+        self.assertIn("git clone", output)
+        self.assertIn("(absent) -> " + str(self.checkout / "tools/codex-run/codex-run"), output)
+        self.assertFalse((self.home / "src").exists())
+        self.assertFalse((self.home / ".local").exists())
+
+    def test_clone_update_and_detached_main(self):
+        self.link.parent.mkdir(parents=True)
+        self.link.symlink_to("/fixture/old-codex-run")
+        output = self.install()
+        self.assertIn("/fixture/old-codex-run -> ", output)
+        self.assertEqual(self.link.readlink(), self.checkout / "tools/codex-run/codex-run")
+        self.assertEqual(self.git(self.checkout, "rev-parse", "--abbrev-ref", "HEAD"), "HEAD")
+        before = self.git(self.checkout, "rev-parse", "HEAD")
+        self.tool.write_text("#!/bin/bash\necho updated-fixture\n")
+        self.commit()
+        self.install("--dry-run")
+        self.assertEqual(self.git(self.checkout, "rev-parse", "HEAD"), before)
+        self.install()
+        self.assertEqual(self.link.read_text(), self.tool.read_text())
+        self.assertEqual(self.git(self.checkout, "rev-parse", "HEAD"),
+                         self.git(self.source, "rev-parse", "main"))
+
+    def test_dirty_clone_is_preserved(self):
+        self.install()
+        self.link.write_text("local changes\n")
+        output = self.install(success=False)
+        self.assertIn("dedicated clone is dirty", output)
+        self.assertEqual(self.link.read_text(), "local changes\n")
+
+    def test_checkout_symlink_is_refused(self):
+        self.checkout.parent.mkdir(parents=True)
+        self.checkout.symlink_to(self.source, target_is_directory=True)
+        self.assertIn("refusing a symlink checkout", self.install(success=False))
+        self.assertFalse(self.link.exists())
+
+    def test_regular_program_is_preserved(self):
+        self.link.parent.mkdir(parents=True)
+        self.link.write_text("keep program\n")
+        self.assertIn("refusing to replace a non-symlink", self.install(success=False))
+        self.assertEqual(self.link.read_text(), "keep program\n")
+
+    def test_bad_manifest_cannot_escape_tools(self):
+        (self.source / "tools/installed").write_text("codex-run ../escape\n")
+        self.commit()
+        self.assertIn("invalid tools/installed entry", self.install(success=False))
+        self.assertFalse(self.link.exists())
+
+
+if __name__ == "__main__":
+    unittest.main()

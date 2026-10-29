@@ -1,0 +1,93 @@
+#!/usr/bin/env python3
+"""Install fleet tools from the dedicated fabrig main clone (codex-run/design.md, 6)."""
+
+import argparse
+import os
+from pathlib import Path
+import shlex
+import subprocess
+import sys
+
+
+def git(*args):
+    return subprocess.check_output(["git", "--no-optional-locks", *map(str, args)], text=True).strip()
+
+
+def entries(repo):
+    result = []
+    for line in (repo / "tools/installed").read_text().splitlines():
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        fields = line.split()
+        if len(fields) != 2 or any(
+            not part or part in (".", "..") or "/" in part for part in fields
+        ):
+            raise ValueError(f"invalid tools/installed entry: {line}")
+        tool, directory = fields
+        if tool in [name for name, _ in result]:
+            raise ValueError(f"duplicate installed tool: {tool}")
+        result.append((tool, directory))
+    return result
+
+
+def main():
+    os.umask(0o077)
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--dry-run", action="store_true")
+    args = parser.parse_args()
+    source = Path(__file__).resolve().parent.parent
+    checkout = Path.home() / "src/fabrig/main"
+    bindir = Path.home() / ".local/bin"
+    if checkout.is_symlink():
+        raise ValueError(f"refusing a symlink checkout: {checkout}")
+    origin = git("-C", source, "remote", "get-url", "origin")
+    commands = []
+    if checkout.exists():
+        if Path(git("-C", checkout, "rev-parse", "--show-toplevel")).resolve() != checkout.resolve():
+            raise ValueError(f"not a dedicated clone: {checkout}")
+        if git("-C", checkout, "remote", "get-url", "origin") != origin:
+            raise ValueError("dedicated clone has a different origin")
+        if git("-C", checkout, "status", "--porcelain"):
+            raise ValueError(f"dedicated clone is dirty: {checkout}")
+        commands.append(["-C", str(checkout), "fetch", "origin"])
+    else:
+        commands.append(["clone", "--", origin, str(checkout)])
+    commands.append(["-C", str(checkout), "switch", "--detach", "origin/main"])
+    for command in commands:
+        if args.dry_run:
+            print(shlex.join(["git", *command]))
+        else:
+            checkout.parent.mkdir(parents=True, exist_ok=True)
+            subprocess.run(["git", *command], check=True, stdin=subprocess.DEVNULL)
+
+    manifest_repo = source if args.dry_run else checkout
+    links = []
+    for tool, directory in entries(manifest_repo):
+        link = bindir / tool
+        target = checkout / "tools" / directory / tool
+        candidate = manifest_repo / "tools" / directory / tool
+        if not candidate.is_file() or not os.access(candidate, os.X_OK):
+            raise ValueError(f"tool is missing or not executable: {candidate}")
+        if not candidate.resolve().is_relative_to(manifest_repo.resolve()):
+            raise ValueError(f"tool leaves the repository: {candidate}")
+        if link.is_symlink():
+            old = os.readlink(link)
+        elif link.exists():
+            raise ValueError(f"refusing to replace a non-symlink: {link}")
+        else:
+            old = "(absent)"
+        print(f"{link}: {old} -> {target}")
+        links.append((link, target))
+    if not args.dry_run:
+        bindir.mkdir(parents=True, exist_ok=True)
+        for link, target in links:
+            if link.is_symlink():
+                link.unlink()
+            link.symlink_to(target)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (OSError, ValueError, subprocess.CalledProcessError) as error:
+        sys.exit(f"install: {error}")
