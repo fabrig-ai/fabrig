@@ -49,5 +49,7 @@ mod tests;
 
 pub use addr::{Addr, Name};
 pub use layer::{Io, down, fire, resume, up};
-pub use limits::{Limits, MAX_OUT_DOWN, MAX_OUT_FIRE, MAX_OUT_RESUME, MAX_OUT_UP, MaxOut, operations, worst_case};
+pub use limits::{
+    Limits, MAX_OUT_DOWN, MAX_OUT_FIRE, MAX_OUT_RESUME, MAX_OUT_UP, MaxOut, operations, valid, worst_case,
+};
 pub use records::{Error, Event, Measured, Request, Window};

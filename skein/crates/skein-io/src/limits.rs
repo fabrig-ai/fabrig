@@ -104,6 +104,15 @@ pub(crate) fn flights(limits: &Limits) -> Option<u32> {
     operations(limits)?.checked_mul(2)
 }
 
+/// Whether these limits are representable: every edge bound they size is finite
+/// and every capacity they derive fits (programming-model.md, 6.3).
+/// Checks io's usable byte and admission limits, and its operation, flight and
+/// timer capacities. The byte bounds are already represented by `u32` limits.
+#[must_use]
+pub fn valid(limits: &Limits) -> bool {
+    limits.is_usable() && operations(limits).is_some() && flights(limits).is_some() && timers(limits).is_some()
+}
+
 /// The most heap io holds under `limits`, or `None` past a `u64`
 /// (programming-model.md, 6.3): its tables as their containers report them,
 /// per stream an intake, a receive buffer, and the output with its queue,
@@ -111,6 +120,7 @@ pub(crate) fn flights(limits: &Limits) -> Option<u32> {
 /// The caller's command buffers (`Spawn::program`, arguments, environment,
 /// directory and pipe specifications) are input moved through io, so their
 /// size belongs to the caller's bound.
+/// Readers that check representability use [`valid`].
 #[must_use]
 pub fn worst_case(limits: &Limits) -> Option<u64> {
     let sockets = limits.sockets;
