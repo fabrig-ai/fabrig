@@ -15,6 +15,7 @@ runs=$root/tmp/codex-run
 search_rule='Before any command, read the rules in the text below. Search only your worktree and the paths it names: never run rg, find, ls -R or grep -r from ~/src/rust/tmp or any directory above it, and never in ~/.local, ~/.config or /run/user. '
 ON_STOP_SECONDS=60
 capacity='Selected model is at capacity. Please try a different model.'
+original_args=("$@")
 
 refuse() {
     local reason=${1//$'\n'/ }
@@ -256,6 +257,9 @@ task_launch() {
     if [[ -n $on_stop && $script == *[\$%\"\\$' \t\n']* ]]; then
         refuse "the kit's path is unsafe in a stop command"
     fi
+    # The launcher hold bridges systemd's detached startup; _run adopts it.
+    # A missing helper on a numeric slot is a refusal, never an unlocked start.
+    lease_task launch
     mkdir -p "$runs"
     while :; do
         id=$(date -u +%Y%m%dT%H%M%SZ)-$(od -An -N2 -tx1 /dev/urandom | tr -d ' \n')
@@ -268,11 +272,29 @@ task_launch() {
         refuse 'REPORT already exists or cannot be reserved'
     fi
     started=$(date -u +%FT%TZ)
-    printf 'caller=%s\nto=%s\nmodel=%s\neffort=%s\nread_only=%s\ntask=%s\ndir=%s\nreport=%s\nresume_of=%s\nstarted=%s\non_stop=%s\n' \
-        "$caller" "$to" "$model" "$effort" "$read_only" "$task" "$dir" "$report" "$resume" "$started" "$on_stop" >"$state/meta"
+    printf 'caller=%s\nto=%s\nmodel=%s\neffort=%s\nread_only=%s\ntask=%s\ndir=%s\nreport=%s\nresume_of=%s\nstarted=%s\non_stop=%s\nslot_hold=%s\n' \
+        "$caller" "$to" "$model" "$effort" "$read_only" "$task" "$dir" "$report" "$resume" "$started" "$on_stop" "${FABRIG_SLOT_HOLD:-}" >"$state/meta"
     [[ -z $previous ]] || printf '%s\n' "$resume_thread" >"$state/thread"
     launch "codex-run-$id" _run "$id"
     printf '%s %s\n' "$id" "$state"
+}
+
+# tools/slots/design.md, 5.2: inherited locks cover shell, retries and children.
+lease_task() {
+    local purpose=$1 expected=$1 number helper=$fabrig/tools/slots/lifetime.py adopt=''
+    # Test lexical membership before resolving: symlink slots must be refused.
+    [[ $dir == "$HOME/src/fabrig/slots/"* ]] || return 0
+    number=${dir#"$HOME/src/fabrig/slots/"}; number=${number%%/*}
+    [[ $number =~ ^[0-9]+$ ]] || return 0
+    [[ -f $helper ]] || refuse 'missing slot lifetime helper'
+    [[ $expected != stop ]] || expected=run
+    if [[ ${FABRIG_SLOT_LEASE_MODE:-} == "$expected" ]] &&
+        python3 -I -B "$helper" verify "$dir" </dev/null; then return 0; fi
+    if [[ $purpose == stop || ( $purpose == run && -z ${on_stop:-} ) ]]; then
+        adopt=$(meta_get "$state/meta" slot_hold)
+    fi
+    [[ $purpose != stop ]] || purpose=run
+    exec python3 -I -B "$helper" "$purpose" "$dir" --adopt "$adopt" -- "$script" "${original_args[@]}"
 }
 
 # tools/codex-run/design.md, 4: trim only this task's writable slot.
@@ -295,10 +317,11 @@ task_run() {
         exec python3 -I -c 'import ctypes, os, sys; libc = ctypes.CDLL(None, use_errno=True); libc.prctl(36, 1, 0, 0, 0) == 0 or sys.exit("codex-run: cannot become child subreaper: " + os.strerror(ctypes.get_errno())); os.environ["CODEX_RUN_SUBREAPER"] = str(os.getpid()); os.execv(sys.argv[1], sys.argv[1:])' "$script" _run "$@"
     fi
     local id=$1 state=$runs/$1 key value
-    local model='' effort='' read_only='' task='' dir='' report='' to='' started='' tries=0 run_exit=0
+    local model='' effort='' read_only='' task='' dir='' report='' to='' started='' on_stop='' tries=0 run_exit=0
     while IFS='=' read -r key value; do
-        case $key in model|effort|read_only|task|dir|report|to|started) printf -v "$key" '%s' "$value" ;; esac
+        case $key in model|effort|read_only|task|dir|report|to|started|on_stop) printf -v "$key" '%s' "$value" ;; esac
     done <"$state/meta"
+    lease_task run
     touch "$state/events.jsonl" "$state/stderr.log"
     trap 'finish_task "$?"' EXIT
     trap 'terminate 143' TERM
@@ -318,11 +341,17 @@ task_stop() {
     set +e
     (($# == 1)) || return 0
     local state=$runs/$1 f status=0
+    local dir
+    dir=$(meta_get "$state/meta" dir)
+    lease_task stop
     f=$(meta_get "$state/meta" on_stop)
     if [[ -f $f && ! -L $f && -x $f ]]; then
         (cd -- "$(dirname -- "$f")" && timeout --signal=KILL "$ON_STOP_SECONDS" "$f") \
             </dev/null >>"$state/on-stop.log" 2>&1 || status=$?
         printf 'exit %s\n' "$status" >"$state/on-stop"
+        if ((status != 0)); then
+            python3 -I -B "$fabrig/tools/slots/lifetime.py" uncertain "$dir" </dev/null || true
+        fi
     else
         printf 'absent\n' >"$state/on-stop"
     fi

@@ -18,6 +18,12 @@ import sys
 import tempfile
 import time
 
+sys.dont_write_bytecode = True
+# Load the lifetime implementation before a candidate can switch this checkout.
+SLOT_LIFETIME = {"__name__": "slot_lifetime"}
+exec(compile((Path(__file__).resolve().parents[1] / "slots/lifetime.py").read_text(),
+             "tools/slots/lifetime.py", "exec"), SLOT_LIFETIME)
+
 
 def policy():
     # Load code and lists before a slot containing this executable can be switched.
@@ -497,6 +503,7 @@ class Precheck:
         no_symlinks(self.state_path("HEAD"))
         self.marker = self.state_path("precheck.unresolved")
         with ExitStack() as stack:
+            lifetime = stack.enter_context(SLOT_LIFETIME["Lease"](self.repo))
             for path in (self.repo.with_name(self.repo.name + ".queue.lock"),
                          self.repo.with_name(self.repo.name + ".worker.lock"),
                          self.state_path("worker.lock"), self.state_path("precheck.lock")):
@@ -593,6 +600,7 @@ class Precheck:
                                            reconciliation=self.reconciliation())
                 self.save()
             print(json.dumps(self.record, indent=2), flush=True)
+            lifetime.clean = self.record["restored"] and self.record["outcome"] != "unresolved"
             return 0 if self.record["outcome"] == "passed" and self.record["restored"] else 1
 
 
