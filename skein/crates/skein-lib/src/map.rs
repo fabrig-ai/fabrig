@@ -21,7 +21,7 @@ use crate::btree;
 /// The capacity bounds the map, but unlike a slab or a list it is not allocated
 /// up front: the B-tree allocates nodes as it fills (programming-model.md,
 /// 6.1), and
-/// [`Map::worst_case`] counts those nodes.
+/// [`Map::price`] counts those nodes.
 #[derive(Debug)]
 pub struct Map<K, V> {
     entries: BTreeMap<K, V>,
@@ -38,8 +38,15 @@ impl<K: Ord, V> Map<K, V> {
     /// included, or `None` past a `u64`. What the keys and values own, such as
     /// the bytes of a `Box<[u8]>`, is the owner's to count.
     #[must_use]
+    pub fn price(capacity: u32) -> Option<u64> {
+        btree::price(capacity, size_of::<K>(), size_of::<V>(), align_of::<(K, V)>())
+    }
+
+    /// The old name of [`Self::price`]; it goes once
+    /// every tree calls `price` (wave 3).
+    #[must_use]
     pub fn worst_case(capacity: u32) -> Option<u64> {
-        btree::worst_case(capacity, size_of::<K>(), size_of::<V>(), align_of::<(K, V)>())
+        Self::price(capacity)
     }
 
     #[must_use]

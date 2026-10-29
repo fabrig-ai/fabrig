@@ -27,7 +27,7 @@ pub use document::DocumentLimits;
 /// See `docs/design/llm.md`, Vocabulary and ownership.
 pub use openai::DecodeError as DocumentError;
 pub use openai::Json;
-pub use replay::{REPLAY_HEADER_BYTES, replay_bytes, replay_worst_case};
+pub use replay::{REPLAY_HEADER_BYTES, replay_bound, replay_bytes, replay_worst_case};
 pub use translate::decode as document_error;
 pub use types::{
     Affinity, Block, Call, Cap, Completion, Credential, Delta, Encoding, Endpoint, Error, Failure, Message, Phase,

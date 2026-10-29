@@ -282,7 +282,7 @@ fn aborting_does_not_submit_an_llm_key_adoption_to_the_closing_store() {
     };
 }
 
-fn restarted_signed_in_source() -> (crate::Service, Accounts) {
+fn restarted_signed_in_source(want: bool) -> (crate::Service, Accounts) {
     use jig_protocol_accounts_world::{fixtures as account_fixtures, world::Story};
     let mut service = fixtures::started(&fixtures::accounts_document());
     for _ in 0_u32..8 {
@@ -325,14 +325,16 @@ fn restarted_signed_in_source() -> (crate::Service, Accounts) {
         provider: 1,
         kind: domain::Kind::SignIn,
     }));
-    accounts.request(domain::Request::Component(domain::ToComponent::Want { account: 9001 }));
+    if want {
+        accounts.request(domain::Request::Component(domain::ToComponent::Want { account: 9001 }));
+    }
     accounts.request(domain::Request::Signing(domain::Signing::Restored));
     (service, accounts)
 }
 
 #[test]
 fn a_restart_restores_a_party_signed_in_source_under_its_number_and_lends_a_bearer() {
-    let (mut service, mut accounts) = restarted_signed_in_source();
+    let (mut service, mut accounts) = restarted_signed_in_source(true);
     let engine = fixtures::engine(&mut service);
     let mut granted = None;
     for event in &pump_accounts(&mut accounts, engine) {
@@ -348,7 +350,7 @@ fn a_restart_restores_a_party_signed_in_source_under_its_number_and_lends_a_bear
 
 #[test]
 fn a_restart_keeps_the_named_signed_in_record_and_sweeps_an_unnamed_record() {
-    let (mut service, mut accounts) = restarted_signed_in_source();
+    let (mut service, mut accounts) = restarted_signed_in_source(true);
     let engine = fixtures::engine(&mut service);
     let _later = engine.store.secrets(
         Token::new(123),
@@ -368,6 +370,56 @@ fn a_restart_keeps_the_named_signed_in_record_and_sweeps_an_unnamed_record() {
         };
         assert_eq!(value.is_some(), exists, "source {number}");
     }
+}
+
+/// `move_requests_dispatched`: the early queue's Forget follows every step of
+/// Withdraw. A full one-event carrier holds its driver removal and store read;
+/// unrelated erase completions drain when that carrier reopens.
+#[test]
+fn an_early_account_request_waits_for_the_previous_moves_dispatch() {
+    const SOURCE: u32 = 9001; // restarted_signed_in_source's restored source.
+    const OTHER: u32 = 9002; // An unrelated source's late erase acknowledgement.
+    const EVENT_SLOT: u32 = 1; // Hold the sole root-event slot through the delay.
+    const WAITING_REQUESTS: u32 = 1; // Only the queued Forget remains after Withdraw starts.
+    const DELAY: u32 = 8; // The accounts fixture's startup settlement turns.
+    let (mut service, mut accounts) = restarted_signed_in_source(false);
+    let engine = fixtures::engine(&mut service);
+    pump_accounts(&mut accounts, engine);
+    let mut events = Queue::with_capacity(EVENT_SLOT);
+    events.push(root::Event::Core(core::Event::Period { project: 1, period: 1, budget: 100, next: None }));
+    accounts.request(domain::Request::Signing(domain::Signing::Withdraw {
+        source: SOURCE,
+        display: bytes::copy_of(b"Moved"),
+    }));
+    accounts.request(domain::Request::Signing(domain::Signing::Forget { source: SOURCE }));
+    for _ in 0..DELAY {
+        accounts.iterate(Time::from_nanos(1), Wall::from_nanos(1), &mut engine.values, &mut events, &mut engine.store);
+        assert_eq!(accounts.early.len(), WAITING_REQUESTS, "Forget cannot overtake the undispatched removal");
+        assert!(accounts.take_moved(SOURCE).is_none(), "the store read is still held");
+    }
+    let _pressure = events.pop().expect("held root event");
+    engine.store.above.push(store::Event::Erased { owner: Token::new(PREFIX | u64::from(OTHER)) });
+    crate::store::answer(engine);
+    accounts.iterate(Time::from_nanos(1), Wall::from_nanos(1), &mut engine.values, &mut events, &mut engine.store);
+    assert!(engine.store.sources.is_empty(), "unrelated completions drain before the second operation");
+    assert_eq!(accounts.early.len(), WAITING_REQUESTS, "the removal's store read has not dispatched");
+    accounts.iterate(Time::from_nanos(1), Wall::from_nanos(1), &mut engine.values, &mut events, &mut engine.store);
+    assert!(events.is_empty(), "the read's child output is still undispatched: {events:?}");
+    for _ in 0..DELAY {
+        accounts.iterate(Time::from_nanos(1), Wall::from_nanos(1), &mut engine.values, &mut events, &mut engine.store);
+        if !events.is_empty() {
+            break;
+        }
+    }
+    let Some(root::Event::Core(core::Event::Account(domain::Event::Withdrawn { source: SOURCE, readable: true }))) =
+        events.pop()
+    else {
+        panic!("the withdrawal's readable record is delivered before Forget");
+    };
+    assert!(accounts.take_moved(SOURCE).is_some(), "the first operation's record survived until dispatch");
+    accounts.iterate(Time::from_nanos(1), Wall::from_nanos(1), &mut engine.values, &mut events, &mut engine.store);
+    assert!(accounts.early.is_empty(), "Forget runs after the move's last request dispatched");
+    assert!(accounts.take_moved(SOURCE).is_none(), "Forget then retires the move");
 }
 
 #[test]

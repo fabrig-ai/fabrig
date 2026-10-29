@@ -1708,8 +1708,14 @@ pub(super) fn identity(tables: &Tables, index: u32) -> Result<Plan, PatchWrong> 
     Ok(plan)
 }
 
-/// Retained conversions plus the parser, matching and change scratch at text's bound.
+/// The old name of [`plan_bound`]; it goes once every tree calls the new name (wave 3).
 pub(super) fn worst_case_heap(text: u32) -> Option<u64> {
+    plan_bound(text)
+}
+
+/// Bounds one patch plan.
+/// Retained conversions plus the parser, matching and change scratch at text's bound.
+pub(super) fn plan_bound(text: u32) -> Option<u64> {
     let tokens = text.checked_add(1)?;
     let mut total = u64::from(text);
     for bytes in [

@@ -61,6 +61,14 @@ pub fn largest_room(limits: &Limits) -> u32 {
     limits.chunk
 }
 
+/// The old name of [`frame_bound`]; it goes once every tree
+/// calls the new name (wave 3).
+#[must_use]
+pub fn worst_case(limits: &Limits) -> Option<u64> {
+    frame_bound(limits)
+}
+
+/// Bounds one framed SSE output event.
 /// The most memory a writer holds under `limits`, in bytes
 /// (programming-model.md, 6.3), or `None` if the limits cannot be
 /// honoured: a chunk of nothing.
@@ -70,7 +78,7 @@ pub fn largest_room(limits: &Limits) -> u32 {
 /// above's to count, and a piece of the event is handed out when it is
 /// sent.
 #[must_use]
-pub fn worst_case(limits: &Limits) -> Option<u64> {
+pub fn frame_bound(limits: &Limits) -> Option<u64> {
     if limits.chunk == 0 {
         return None;
     }

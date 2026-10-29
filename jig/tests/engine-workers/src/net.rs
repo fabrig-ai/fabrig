@@ -78,6 +78,9 @@ impl Net {
             },
         }
     }
+    pub fn buffered_input(&self) -> bool {
+        !self.bytes.is_empty() || !self.intake.is_empty()
+    }
     pub fn tick(&mut self, rng: &mut Rng) -> Option<LowerEvent> {
         if self.gone || !self.taken {
             return None;

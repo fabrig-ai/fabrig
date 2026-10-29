@@ -27,8 +27,15 @@ impl Buffer {
 
     /// The heap `with_capacity(capacity)` allocates, or `None` past a `u64`.
     #[must_use]
-    pub fn worst_case(capacity: u32) -> Option<u64> {
+    pub fn price(capacity: u32) -> Option<u64> {
         Some(u64::from(capacity))
+    }
+
+    /// The old name of [`Self::price`]; it goes once
+    /// every tree calls `price` (wave 3).
+    #[must_use]
+    pub fn worst_case(capacity: u32) -> Option<u64> {
+        Self::price(capacity)
     }
 
     #[must_use]

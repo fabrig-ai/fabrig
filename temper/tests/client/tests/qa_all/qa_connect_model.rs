@@ -1,6 +1,5 @@
 //! Design-led accounts flow QA with the existing joined world's fakes.
-mod qa_model;
-use qa_model::*;
+use super::qa_model::*;
 use skein_fake_person::Step;
 use skein_ui::Role;
 use temper_client_domain::{Address, address};

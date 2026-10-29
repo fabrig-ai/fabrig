@@ -3,6 +3,7 @@ static HEAP: skein_heap::Counting = skein_heap::Counting;
 
 mod application;
 mod application_documents;
+mod restart_orders;
 mod stories;
 
 mod fuzzy {

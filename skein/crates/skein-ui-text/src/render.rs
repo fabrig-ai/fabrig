@@ -20,9 +20,17 @@ impl Print {
         })
     }
 }
-/// Maximum output lines and bytes, including replacement bytes and indentation.
+/// The old name of [`render_bound`]; it goes once every tree
+/// calls the new name (wave 3).
 #[must_use]
 pub fn worst_case(limits: &Limits) -> Option<(u32, u64)> {
+    render_bound(limits)
+}
+
+/// Bounds rendered line count and output bytes.
+/// Maximum output lines and bytes, including replacement bytes and indentation.
+#[must_use]
+pub fn render_bound(limits: &Limits) -> Option<(u32, u64)> {
     let text = u64::from(limits.text_bytes).checked_add(u64::from(limits.text_per_node))?;
     room(limits.nodes, limits.depth, text)
 }

@@ -4,6 +4,9 @@ use jig_ops_fake_production as production;
 use jig_ops_world::{InfrastructureWorld, World, infra_environment, infra_service, service};
 use skein_lib::Token;
 
+mod infrastructure_orders;
+mod observability_orders;
+
 fn infra_key() -> infra::Key {
     infra::Key::procedure([1; 16], 7, 3)
 }
