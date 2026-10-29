@@ -197,30 +197,95 @@ fn a_cut_question_is_answered_through_the_tools_and_reaches_the_chat() {
         (question.number, asking)
     };
     let agent = fixtures::agent(&mut world);
-    let inbox = call(&mut world, agent, &[b"inbox", b"--kind", b"questions"]);
+    answer_question_from_plain_inbox(&mut world, agent, chat, question, asking, &words, Some(TEXT_BOUND));
+}
+
+fn answer_question_from_plain_inbox(
+    world: &mut World<Temper, Joint>,
+    agent: ClientId,
+    chat: u64,
+    question: u64,
+    asking: u64,
+    words: &[u8],
+    cut_at: Option<u32>,
+) {
+    use jig_domain_tasks::{MessageKind, Party};
+    let inbox = call(world, agent, &[b"inbox"]);
     assert_eq!(inbox.status, 0, "{inbox:?}");
     let shown = std::str::from_utf8(&inbox.stdout).expect("UTF-8");
-    assert!(shown.contains(&format!("{} (cut)\n", "q".repeat(usize::try_from(TEXT_BOUND).expect("bound")))), "{shown}");
-    assert!(shown.contains(&format!("read whole: temper ctl DIR task activity {asking}")), "{shown}");
-    let answer = call(
-        &mut world,
-        agent,
-        &[
-            b"task",
-            b"answer",
-            chat.to_string().as_bytes(),
-            question.to_string().as_bytes(),
-            b"Go ahead.",
-            b"--key",
-            b"long-question-answer",
-        ],
-    );
+    if let Some(bound) = cut_at {
+        let words = std::str::from_utf8(&words[..usize::try_from(bound).expect("bound")]).expect("question words");
+        assert!(shown.contains(&format!("{words} (cut)\n")), "{shown}");
+        assert!(shown.contains(&format!("read whole: temper ctl DIR task activity {asking}\n")), "{shown}");
+    } else {
+        let words = std::str::from_utf8(words).expect("question words");
+        assert!(shown.contains(&format!("{words}\n")), "{shown}");
+        assert!(!shown.contains(" (cut)"), "{shown}");
+        assert!(!shown.contains("read whole:"), "{shown}");
+    }
+    assert_ne!(chat, asking, "answer and whole-read calls name different tasks");
+    assert!(shown.contains(&format!("answer: temper ctl DIR task answer {chat} {question} TEXT\n")), "{shown}");
+    let line = shown.lines().find_map(|line| line.strip_prefix("answer: temper ctl DIR ")).expect("answer call");
+    let mut words: Vec<&[u8]> = Vec::new();
+    for word in line.split_ascii_whitespace() {
+        words.push(if word == "TEXT" { b"Go ahead." } else { word.as_bytes() });
+    }
+    let answer = call(world, agent, &words);
     assert_eq!(answer.status, 0, "{answer:?}");
     assert!(world.front().engine.task(chat).expect("answered chat").inbox.iter().any(|word| {
         word.from == Party::Person(fixtures::PARTY)
             && word.kind == MessageKind::Answer { question }
             && word.words.as_ref() == b"Go ahead."
     }));
+}
+
+#[test]
+fn a_waiting_question_is_answered_from_its_plain_inbox_call() {
+    const QUESTION: &[u8] = b"May I make this change?";
+    let mut world = fixtures::world(fixtures::SEED);
+    let chat = fixtures::question(world.front(), QUESTION);
+    let (question, asking) = {
+        let task = world.front().engine.task(chat).expect("asked chat");
+        let question =
+            task.inbox.iter().find(|word| word.kind == jig_domain_tasks::MessageKind::Question).expect("question");
+        let jig_domain_tasks::Party::Task(asking) = question.from else { panic!("asking delegate") };
+        (question.number, asking)
+    };
+    let agent = fixtures::agent(&mut world);
+    answer_question_from_plain_inbox(&mut world, agent, chat, question, asking, QUESTION, None);
+}
+
+fn run_ended_without_waiting(world: &mut World<Temper, Joint>, agent: ClientId, task: u64) {
+    // One second is well below the explicit sixty-second wait timeout.
+    const IMMEDIATE: skein_lib::Duration = skein_lib::Duration::from_secs(1);
+    let start = world.now();
+    let printed =
+        call(world, agent, &[b"task", b"run", task.to_string().as_bytes(), b"--until", b"ended", b"--timeout", b"60"]);
+    assert_eq!(printed.status, 0, "{printed:?}");
+    assert!(printed.stdout.starts_with(b"run: none\n"), "{printed:?}");
+    assert!(printed.stdout.ends_with(b"met\n"), "{printed:?}");
+    assert!(world.now() < start.saturating_add(IMMEDIATE), "answers before the timeout");
+}
+
+#[test]
+fn run_until_ended_answers_at_once_after_the_chats_run_ended() {
+    let (mut world, agent, task, _) = chat(true);
+    wait_for_reply(&mut world, agent, task);
+    let current = world.front().engine.task(task).expect("parked chat");
+    assert!(current.attempt > 0, "a run took place");
+    assert_eq!(current.phase, jig_domain_tasks::Phase::Active(jig_domain_tasks::Active::Idle));
+    run_ended_without_waiting(&mut world, agent, task);
+}
+
+#[test]
+fn run_until_ended_answers_at_once_for_a_task_that_never_had_a_run() {
+    let mut world = fixtures::refused_hello_world(fixtures::SEED);
+    let agent = fixtures::agent(&mut world);
+    let printed = call(&mut world, agent, &[b"chat", b"start", b"--project", b"1", b"--key", b"no-run", b"Hello"]);
+    let task = fixtures::done_task(&printed);
+    assert_eq!(world.front().engine.task(task).expect("unstarted chat").attempt, 0);
+    run_ended_without_waiting(&mut world, agent, task);
+    assert_eq!(world.front().engine.task(task).expect("unstarted chat").attempt, 0);
 }
 
 const CLOSING_QUESTION: &[u8] = b"Close this running conversation";

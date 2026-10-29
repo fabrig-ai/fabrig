@@ -21,7 +21,7 @@ pub const ME: Tool = Tool {
 pub const INBOX: Tool = Tool {
     name: b"inbox",
     line: b"Read what waits on your party, then its updates",
-    prints: b"A line per item, its task and what waits, then `read on with: inbox ... --after CURSOR` or `no more`, and, unfiltered, `digest: inbox`",
+    prints: b"A line per item, its task and what waits; a question's words, cut and marked past the line's bound, then `read whole: task activity TASK` when cut and `answer: task answer TASK N TEXT`; then `read on with: inbox ... --after CURSOR` or `no more`, and, unfiltered, `digest: inbox`",
     result: b"inbox",
     forms: &[&[
         flag(b"project", b"PROJECT", Kind::Project { empty: false }, Optional, b"Only this project"),
@@ -137,7 +137,7 @@ pub const RUN: Tool = Tool {
     ]],
     keyed: Keyed::Never,
     area: 1,
-    notes: b"With `--until ended`, it returns when the run ends.\n",
+    notes: b"With `--until ended`, it returns when the run ends, or at once when the task has no live run.\n",
 };
 pub const SIGN_IN: Tool = Tool {
     name: b"sign-in",

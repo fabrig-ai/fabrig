@@ -95,7 +95,7 @@ Read a task's live run: its attempt, its call in flight, its words so far
 Prints: `run: A` or `run: none`, the call in flight, the words so far, and `digest: run`
 --json: the record run.
 Key: none.
-With `--until ended`, it returns when the run ends.
+With `--until ended`, it returns when the run ends, or at once when the task has no live run.
 ```
 
 ## task message
