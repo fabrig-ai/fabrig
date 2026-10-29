@@ -1,4 +1,5 @@
 //! The box holds serve's clients port before any forge is asked to start.
+use skein_world::{Deadline, Expired};
 use std::{
     fs,
     net::{SocketAddr, TcpListener},
@@ -35,7 +36,9 @@ fn a_fresh_box_holds_serves_clients_port() {
     let document = root.join("config/temper.json");
     let mut address = None;
     let mut owned = None;
-    for _ in 0..600 {
+    let mut deadline = Deadline::arm("the box's listener document", skein_lib::Duration::from_secs(3));
+    deadline.watch_process(child.id());
+    loop {
         if let Ok(bytes) = fs::read(&document)
             && let Ok(document) = serde_json::from_slice(&bytes)
         {
@@ -51,6 +54,16 @@ fn a_fresh_box_holds_serves_clients_port() {
         }
         if child.try_wait().expect("status").is_some() {
             break;
+        }
+        if deadline.passed() {
+            let expired = deadline.expired();
+            child.kill().expect("stop fixture box after unanswered listener wait");
+            child.wait().expect("box reaped after unanswered listener wait");
+            fs::remove_dir_all(&root).expect("cleanup after unanswered listener wait");
+            match expired {
+                Expired::Starved(starved) => starved.pass(),
+                Expired::Failed(figures) => panic!("the configured listener did not arrive: {figures}"),
+            }
         }
         std::thread::sleep(Duration::from_millis(5));
     }

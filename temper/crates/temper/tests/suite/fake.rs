@@ -1,7 +1,9 @@
 //! The QA runner starts the shipped binary, then reads files and serves requests.
 use crate::{listeners, support};
 use serde_json::{Value, json};
+use skein_world::{Deadline, Expired};
 use std::{
+    cell::RefCell,
     fs,
     io::{Read, Write},
     net::{SocketAddr, TcpStream},
@@ -36,7 +38,8 @@ fn document(path: &Path, value: &Value) {
     fs::write(path, serde_json::to_vec(value).expect("valid fixture")).expect("valid fixture");
 }
 struct Running {
-    child: Option<Child>,
+    child: RefCell<Option<Child>>,
+    sockets: RefCell<Vec<Option<TcpStream>>>,
     address: SocketAddr,
     control: Option<SocketAddr>,
 }
@@ -50,15 +53,26 @@ impl Running {
             command.arg("--observations").arg(path);
         }
         let child = command.spawn().expect("valid fixture");
-        let mut run =
-            Self { child: Some(child), address: "127.0.0.1:0".parse().expect("valid fixture"), control: None };
+        let mut run = Self {
+            child: RefCell::new(Some(child)),
+            sockets: RefCell::new(Vec::new()),
+            address: "127.0.0.1:0".parse().expect("valid fixture"),
+            control: None,
+        };
         let mut bytes = Vec::new();
         for _ in 0..128 {
             let mut byte = [0_u8; 1];
-            let read =
-                run.child.as_mut().expect("running fake").stdout.as_mut().expect("stdout pipe").read_exact(&mut byte);
+            let read = run
+                .child
+                .get_mut()
+                .as_mut()
+                .expect("running fake")
+                .stdout
+                .as_mut()
+                .expect("stdout pipe")
+                .read_exact(&mut byte);
             if let Err(why) = read {
-                let mut child = run.child.take().expect("running fake");
+                let mut child = run.child.get_mut().take().expect("running fake");
                 if why.kind() != std::io::ErrorKind::UnexpectedEof {
                     child.kill().expect("stop fake after readiness failure");
                 }
@@ -90,7 +104,8 @@ impl Running {
         run
     }
     fn stop(mut self) {
-        let child = self.child.take().expect("valid fixture");
+        self.sockets.get_mut().clear();
+        let child = self.child.get_mut().take().expect("valid fixture");
         assert!(
             Command::new("/bin/kill")
                 .args(["-TERM", &child.id().to_string()])
@@ -103,10 +118,39 @@ impl Running {
         assert!(ended.stdout.is_empty(), "stdout holds only the ready line");
         assert!(ended.stderr.is_empty(), "{}", String::from_utf8_lossy(&ended.stderr));
     }
+    fn deadline(&self, what: &'static str) -> Deadline {
+        let mut deadline = Deadline::arm(what, skein_lib::Duration::from_millis(300));
+        deadline.watch_process(self.child.borrow().as_ref().expect("running fake").id());
+        deadline
+    }
+    fn end(&self) {
+        assert!(
+            self.child.borrow_mut().as_mut().expect("running fake").try_wait().expect("fake status").is_none(),
+            "the fake exited before teardown"
+        );
+        self.sockets.borrow_mut().clear();
+        if let Some(mut child) = self.child.borrow_mut().take() {
+            child.kill().expect("stop the unanswered fake");
+            child.wait().expect("reap the unanswered fake");
+        }
+    }
+    fn expired(&self, deadline: &Deadline) -> ! {
+        assert!(
+            self.child.borrow_mut().as_mut().expect("running fake").try_wait().expect("fake status").is_none(),
+            "the fake exited before answering"
+        );
+        match deadline.expired() {
+            Expired::Starved(starved) => {
+                self.end();
+                starved.pass();
+            }
+            Expired::Failed(figures) => panic!("the fake did not answer: {figures}"),
+        }
+    }
 }
 impl Drop for Running {
     fn drop(&mut self) {
-        if let Some(child) = &mut self.child {
+        if let Some(child) = self.child.get_mut().as_mut() {
             let _killed = child.kill();
             let _ended = child.wait();
         }
@@ -124,11 +168,101 @@ fn readiness_eof_reports_child_status_and_stderr() {
         .stderr(Stdio::piped());
     let _run = Running::command(command, None);
 }
-fn stream(address: SocketAddr) -> TcpStream {
-    let stream = TcpStream::connect_timeout(&address, Duration::from_millis(300)).expect("valid fixture");
-    stream.set_read_timeout(Some(Duration::from_millis(300))).expect("valid fixture");
-    stream.set_write_timeout(Some(Duration::from_millis(300))).expect("valid fixture");
-    stream
+/// The fake owns its sockets so a starved control request also closes a held query
+/// (skein/docs/foundation/testing-strategy.md, 2.10).
+struct Socket<'a> {
+    run: &'a Running,
+    slot: usize,
+    deadline: Deadline,
+    nonblocking: bool,
+}
+impl Socket<'_> {
+    fn reset(&mut self, what: &'static str) {
+        self.deadline = self.run.deadline(what);
+    }
+    fn set_nonblocking(&mut self, value: bool) -> std::io::Result<()> {
+        self.run.sockets.borrow()[self.slot].as_ref().expect("open socket").set_nonblocking(value)?;
+        self.nonblocking = value;
+        Ok(())
+    }
+}
+fn timeout(deadline: &Deadline) -> Duration {
+    Duration::from_nanos(deadline.remaining().as_nanos()).max(Duration::from_millis(1))
+}
+fn timed_out(why: &std::io::Error) -> bool {
+    matches!(why.kind(), std::io::ErrorKind::TimedOut | std::io::ErrorKind::WouldBlock)
+}
+impl Read for Socket<'_> {
+    fn read(&mut self, bytes: &mut [u8]) -> std::io::Result<usize> {
+        if bytes.is_empty() {
+            return Ok(0);
+        }
+        loop {
+            if !self.nonblocking && self.deadline.passed() {
+                self.run.expired(&self.deadline);
+            }
+            let result = {
+                let mut sockets = self.run.sockets.borrow_mut();
+                let socket = sockets[self.slot].as_mut().expect("open socket");
+                socket.set_read_timeout(Some(timeout(&self.deadline)))?;
+                socket.read(bytes)
+            };
+            match result {
+                Err(why) if !self.nonblocking && timed_out(&why) => {}
+                other => return other,
+            }
+        }
+    }
+}
+impl Write for Socket<'_> {
+    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+        if bytes.is_empty() {
+            return Ok(0);
+        }
+        loop {
+            if self.deadline.passed() {
+                self.run.expired(&self.deadline);
+            }
+            let result = {
+                let mut sockets = self.run.sockets.borrow_mut();
+                let socket = sockets[self.slot].as_mut().expect("open socket");
+                socket.set_write_timeout(Some(timeout(&self.deadline)))?;
+                socket.write(bytes)
+            };
+            match result {
+                Err(why) if timed_out(&why) => {}
+                other => return other,
+            }
+        }
+    }
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+impl Drop for Socket<'_> {
+    fn drop(&mut self) {
+        if let Some(socket) = self.run.sockets.borrow_mut().get_mut(self.slot) {
+            let _closed = socket.take();
+        }
+    }
+}
+fn stream(run: &Running, address: SocketAddr) -> Socket<'_> {
+    let deadline = run.deadline("the fake socket's connection");
+    let socket = loop {
+        match TcpStream::connect_timeout(&address, timeout(&deadline)) {
+            Ok(socket) => break socket,
+            Err(why) if timed_out(&why) => {
+                if deadline.passed() {
+                    run.expired(&deadline);
+                }
+            }
+            Err(why) => panic!("fake socket connection: {why}"),
+        }
+    };
+    let mut sockets = run.sockets.borrow_mut();
+    let slot = sockets.len();
+    sockets.push(Some(socket));
+    Socket { run, slot, deadline: run.deadline("the fake socket's request"), nonblocking: false }
 }
 fn http(method: &str, target: &str, authorization: &str, body: &[u8]) -> Vec<u8> {
     let mut request=format!("{method} {target} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nContent-Type: application/json\r\nContent-Length: {}\r\n",body.len()).into_bytes();
@@ -139,10 +273,18 @@ fn http(method: &str, target: &str, authorization: &str, body: &[u8]) -> Vec<u8>
     request.extend_from_slice(body);
     request
 }
-fn request(address: SocketAddr, method: &str, target: &str, authorization: &str, body: &[u8]) -> Vec<u8> {
-    let mut stream = stream(address);
+fn request(
+    run: &Running,
+    address: SocketAddr,
+    method: &str,
+    target: &str,
+    authorization: &str,
+    body: &[u8],
+) -> Vec<u8> {
+    let mut stream = stream(run, address);
     stream.write_all(&http(method, target, authorization, body)).expect("valid fixture");
     let mut response = Vec::new();
+    stream.reset("the fake socket's reply");
     stream.read_to_end(&mut response).expect("valid fixture");
     response
 }
@@ -516,10 +658,10 @@ fn forge_run() {
             "no seed observations"
         );
         let auth = format!("token {}", std::str::from_utf8(&token).expect("valid fixture"));
-        let user = request(run.address, "GET", "/api/v1/user", &auth, b"");
+        let user = request(&run, run.address, "GET", "/api/v1/user", &auth, b"");
         assert!(user.starts_with(b"HTTP/1.1 200"));
         assert_eq!(body(&user)["login"], "temper-admin");
-        let repository = request(run.address, "GET", "/api/v1/repositories/1", &auth, b"");
+        let repository = request(&run, run.address, "GET", "/api/v1/repositories/1", &auth, b"");
         assert!(repository.starts_with(b"HTTP/1.1 200"));
         let repository = body(&repository);
         for (member, expected) in
@@ -527,7 +669,7 @@ fn forge_run() {
         {
             assert_eq!(repository[member], expected, "{member}");
         }
-        let objects = request(run.address, "POST", "/.fake/git/objects", "", br#"{"commits":[1]}"#);
+        let objects = request(&run, run.address, "POST", "/.fake/git/objects", "", br#"{"commits":[1]}"#);
         assert!(objects.starts_with(b"HTTP/1.1 200"));
         let objects = body(&objects);
         assert_eq!(objects["objects"][0]["commit"], 1);
@@ -550,6 +692,7 @@ fn forge_run() {
         // Setup's admin flag and the domain's repository permission are separate.
         // Grant through the API, as a runner would, rather than seeding a grant.
         let grant = request(
+            &run,
             run.address,
             "PUT",
             "/api/v1/repos/fake/widget/collaborators/temper-admin",
@@ -558,6 +701,7 @@ fn forge_run() {
         );
         assert!(grant.starts_with(b"HTTP/1.1 204"), "{}", String::from_utf8_lossy(&grant));
         let branch = request(
+            &run,
             run.address,
             "POST",
             "/api/v1/repos/fake/widget/branches",
@@ -693,9 +837,10 @@ fn llm_run() {
                     rustls::pki_types::ServerName::try_from("skein.test").expect("valid fixture"),
                 )
                 .expect("valid fixture");
-                let mut stream = rustls::StreamOwned::new(connection, stream(run.address));
+                let mut stream = rustls::StreamOwned::new(connection, stream(&run, run.address));
                 stream.write_all(&http("POST", "/v1/responses", credential, &chat)).expect("valid fixture");
                 let mut response = Vec::new();
+                stream.sock.reset("the fake TLS socket's reply");
                 match stream.read_to_end(&mut response) {
                     Ok(_) => {}
                     Err(why) if why.kind() == std::io::ErrorKind::UnexpectedEof => {}
@@ -703,7 +848,7 @@ fn llm_run() {
                 }
                 response
             } else {
-                request(run.address, "POST", "/v1/responses", credential, &chat)
+                request(&run, run.address, "POST", "/v1/responses", credential, &chat)
             };
             assert!(response.starts_with(status), "{}", String::from_utf8_lossy(&response));
             assert!(String::from_utf8_lossy(&response).contains(text), "{}", String::from_utf8_lossy(&response));
@@ -712,6 +857,7 @@ fn llm_run() {
             let mut other: Value = serde_json::from_slice(&chat).expect("valid fixture");
             other["model"] = json!("another-model");
             let response = request(
+                &run,
                 run.address,
                 "POST",
                 "/v1/responses",
@@ -726,6 +872,7 @@ fn llm_run() {
         other["input"][0]["content"][0]["text"] = json!("another request");
         if !tls {
             let response = request(
+                &run,
                 run.address,
                 "POST",
                 "/v1/responses",
@@ -788,31 +935,79 @@ enum GitEndpoint {
 
 /// Answers the one request the row's git makes with an empty, unnamed 404,
 /// on the test's own thread, between the spawn and the exit it waits for.
-fn no_git_route(listener: &std::net::TcpListener) {
-    use std::io::{BufRead, BufReader};
+fn no_git_route(listener: std::net::TcpListener, child: &mut Child, forge: &Running) {
+    use std::io::BufReader;
     let (stream, _) = listener.accept().expect("no-route request");
-    stream.set_read_timeout(Some(Duration::from_millis(300))).expect("valid fixture");
-    stream.set_write_timeout(Some(Duration::from_millis(300))).expect("valid fixture");
+    let mut deadline = forge.deadline("the no-route git request and answer");
+    deadline.watch_process(child.id());
     let mut reader = BufReader::new(stream);
-    let mut length = None;
-    loop {
-        let mut line = String::new();
-        assert_ne!(reader.read_line(&mut line).expect("request head"), 0, "complete head");
-        if line == "\r\n" {
-            break;
+    let result = (|| -> std::io::Result<()> {
+        let mut length = None;
+        loop {
+            let mut line = Vec::new();
+            loop {
+                let mut byte = [0];
+                assert_ne!(no_git_read(&mut reader, &deadline, &mut byte)?, 0, "complete head");
+                line.push(byte[0]);
+                if byte[0] == b'\n' {
+                    break;
+                }
+            }
+            let line = String::from_utf8(line).expect("request head text");
+            if line == "\r\n" {
+                break;
+            }
+            if let Some((name, value)) = line.split_once(':')
+                && name.eq_ignore_ascii_case("content-length")
+            {
+                length = Some(value.trim().parse::<usize>().expect("body length"));
+            }
         }
-        if let Some((name, value)) = line.split_once(':')
-            && name.eq_ignore_ascii_case("content-length")
-        {
-            length = Some(value.trim().parse::<usize>().expect("body length"));
+        let mut body = vec![0; length.expect("Content-Length")];
+        let mut read = 0;
+        while read < body.len() {
+            let count = no_git_read(&mut reader, &deadline, &mut body[read..])?;
+            assert_ne!(count, 0, "complete request body");
+            read += count;
         }
+        if deadline.passed() {
+            return Err(std::io::ErrorKind::TimedOut.into());
+        }
+        reader.get_ref().set_write_timeout(Some(timeout(&deadline)))?;
+        reader.get_mut().write_all(b"HTTP/1.1 404 Not Found\r\ncontent-length: 0\r\nconnection: close\r\n\r\n")
+    })();
+    if result.is_err() {
+        assert!(child.try_wait().expect("git status").is_none(), "git exited before its no-route answer");
     }
-    let mut body = vec![0; length.expect("Content-Length")];
-    reader.read_exact(&mut body).expect("complete request body");
-    reader
-        .get_mut()
-        .write_all(b"HTTP/1.1 404 Not Found\r\ncontent-length: 0\r\nconnection: close\r\n\r\n")
-        .expect("no-route answer");
+    drop(reader);
+    drop(listener);
+    if let Err(why) = result {
+        if timed_out(&why) && deadline.passed() {
+            let expired = deadline.expired();
+            child.kill().expect("stop unanswered git");
+            child.wait().expect("reap unanswered git");
+            match expired {
+                Expired::Starved(starved) => {
+                    forge.end();
+                    starved.pass();
+                }
+                Expired::Failed(figures) => panic!("no-route request or answer: {why}; {figures}"),
+            }
+        }
+        panic!("no-route request or answer: {why}");
+    }
+}
+
+fn no_git_read(
+    reader: &mut std::io::BufReader<TcpStream>,
+    deadline: &Deadline,
+    bytes: &mut [u8],
+) -> std::io::Result<usize> {
+    if deadline.passed() {
+        return Err(std::io::ErrorKind::TimedOut.into());
+    }
+    reader.get_ref().set_read_timeout(Some(timeout(deadline)))?;
+    reader.read(bytes)
 }
 
 struct GitRow {
@@ -1008,6 +1203,7 @@ fn git_run() {
         let auth = format!("token {}", std::str::from_utf8(&token).expect("hex token"));
         // Setup's admin flag does not itself grant repository access.
         let grant = request(
+            &forge,
             forge.address,
             "PUT",
             "/api/v1/repos/fake/widget/collaborators/temper-admin",
@@ -1089,8 +1285,8 @@ fn git_run() {
             }
             let mut child = command.spawn().expect("git process");
             child.stdin.take().expect("git stdin").write_all(step.input).expect("commit message");
-            if let Some(listener) = &no_route {
-                no_git_route(listener);
+            if let Some(listener) = no_route.take() {
+                no_git_route(listener, &mut child, &forge);
             }
             let output = child.wait_with_output().expect("git exit");
             assert_eq!(
@@ -1117,8 +1313,14 @@ fn git_run() {
             assert_eq!(snapshot(&dir.join("work")), before, "{}: nothing written", row.name);
         }
         if let Some(branch) = row.branch {
-            let response =
-                request(forge.address, "GET", &format!("/api/v1/repos/fake/widget/branches/{branch}"), &auth, b"");
+            let response = request(
+                &forge,
+                forge.address,
+                "GET",
+                &format!("/api/v1/repos/fake/widget/branches/{branch}"),
+                &auth,
+                b"",
+            );
             assert!(response.starts_with(b"HTTP/1.1 200"));
             assert_eq!(body(&response)["commit"]["id"], std::str::from_utf8(STORED).expect("hex id"));
         }
@@ -1185,9 +1387,10 @@ fn llm_holds_a_piece_until_control_releases_it() {
     let control = run.control.expect("control bound before ready");
     let key = fs::read(scratch.path().join("key")).expect("generated key");
     let authorization = format!("Bearer {}", std::str::from_utf8(&key).expect("key is hex"));
-    let mut query = stream(run.address);
+    let mut query = stream(&run, run.address);
     query.write_all(&http("POST", "/v1/responses", &authorization, CHAT)).expect("send query");
     let mut response = Vec::new();
+    query.reset("the held fake stream's first piece");
     // Read through the first complete delta event, so the assertion observes
     // the provider's bytes, without a timer or a sleep.
     for _ in 0..16_384 {
@@ -1202,7 +1405,7 @@ fn llm_holds_a_piece_until_control_releases_it() {
     assert!(String::from_utf8_lossy(&response).contains("first piece"));
     assert!(!String::from_utf8_lossy(&response).contains("second piece"));
     assert!(!String::from_utf8_lossy(&response).contains("response.completed"));
-    let unknown = request(control, "GET", "/", "", b"");
+    let unknown = request(&run, control, "GET", "/", "", b"");
     assert!(unknown.starts_with(b"HTTP/1.1 404 "));
     // The control response is an event barrier. A nonblocking read observes
     // any bytes already delivered and proves the stream has not ended.
@@ -1219,16 +1422,18 @@ fn llm_holds_a_piece_until_control_releases_it() {
     query.set_nonblocking(false).expect("blocking event reads");
     assert!(!String::from_utf8_lossy(&response).contains("second piece"));
     assert!(!String::from_utf8_lossy(&response).contains("response.completed"));
-    let released = request(control, "POST", "/release/gate", "", b"");
+    let released = request(&run, control, "POST", "/release/gate", "", b"");
     assert!(released.starts_with(b"HTTP/1.1 204 No Content\r\n"));
+    query.reset("the released fake stream's reply");
     query.read_to_end(&mut response).expect("released stream completes");
     let text = String::from_utf8_lossy(&response);
     assert!(text.contains("second piece"), "{text}");
     assert!(text.contains("first piecesecond piece"), "{text}");
     assert_eq!(text.matches("event: response.completed").count(), 1);
-    assert!(request(control, "POST", "/release/gate", "", b"").starts_with(b"HTTP/1.1 204 No Content\r\n"));
+    assert!(request(&run, control, "POST", "/release/gate", "", b"").starts_with(b"HTTP/1.1 204 No Content\r\n"));
     let mut after = [0];
     assert_eq!(query.read(&mut after).expect("stream stays complete"), 0);
+    drop(query);
     run.stop();
     scratch.remove();
 }
@@ -1267,16 +1472,16 @@ fn llm_fails_a_credential_its_line_names_and_accepts_the_added_key() {
     private_hex(&dir.join("second.key"), &second);
     assert_ne!(primary, second);
     let auth = |key: &[u8]| format!("Bearer {}", std::str::from_utf8(key).expect("hex key"));
-    let refused = request(run.address, "POST", "/v1/responses", &auth(&primary), CHAT);
+    let refused = request(&run, run.address, "POST", "/v1/responses", &auth(&primary), CHAT);
     assert!(refused.starts_with(b"HTTP/1.1 401 "), "{}", String::from_utf8_lossy(&refused));
     assert_eq!(body(&refused)["error"]["code"], "invalid_api_key");
-    let accepted = request(run.address, "POST", "/v1/responses", &auth(&second), CHAT);
+    let accepted = request(&run, run.address, "POST", "/v1/responses", &auth(&second), CHAT);
     assert!(accepted.starts_with(b"HTTP/1.1 200 "), "{}", String::from_utf8_lossy(&accepted));
     assert!(String::from_utf8_lossy(&accepted).contains("\"text\":\"ok\""));
     let mut limited: Value = serde_json::from_slice(CHAT).expect("query");
     limited["instructions"] = json!("limited");
     let limited = serde_json::to_vec(&limited).expect("query");
-    let exhausted = request(run.address, "POST", "/v1/responses", &auth(&primary), &limited);
+    let exhausted = request(&run, run.address, "POST", "/v1/responses", &auth(&primary), &limited);
     assert!(exhausted.starts_with(b"HTTP/1.1 429 "), "{}", String::from_utf8_lossy(&exhausted));
     assert_eq!(body(&exhausted)["error"]["resets_in_seconds"], 1);
     run.stop();
