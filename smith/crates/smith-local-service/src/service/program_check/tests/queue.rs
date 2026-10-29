@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn the_queue_at_its_bound_preserves_arrival_order() {
+fn waiting_accounts_preserve_arrival_order() {
     let mut fixture = Fixture::new();
     for account in 1..=3 {
         fixture.request(account);
@@ -56,7 +56,7 @@ fn interruption_answers_the_queue_before_the_live_child_settles() {
 }
 
 #[test]
-fn a_settling_check_leaves_room_for_every_live_account() {
+fn a_settling_check_accepts_a_later_request_for_the_same_account() {
     let mut service = service();
     let mut fixture = Fixture::new();
     fixture.checks = *service.below.process_mut().programs.take().unwrap();

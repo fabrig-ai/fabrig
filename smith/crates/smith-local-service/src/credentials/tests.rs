@@ -129,7 +129,7 @@ fn an_env_account_lends_the_handed_in_value_without_a_file_operation() {
         let mut borrowed = borrowed();
         borrowed.account_id = Box::from(identifier);
         let mut owner = accounts(Source::Env { account: 7, borrowed });
-        let mut out = Queue::with_capacity(ACCOUNTS_MAX_OUT);
+        let mut out = Queue::uncapped();
         assert!(owner.request(7));
         settle(&mut owner, Time::ZERO, &mut out);
         ready(&mut out, 1, 20, b"header.eyJleHAiOjEyMH0.signature", form);
@@ -140,7 +140,7 @@ fn an_env_account_lends_the_handed_in_value_without_a_file_operation() {
 #[test]
 fn an_env_grant_announces_expiry() {
     let mut owner = accounts(source());
-    let mut out = Queue::with_capacity(ACCOUNTS_MAX_OUT);
+    let mut out = Queue::uncapped();
     assert!(owner.request(7));
     settle(&mut owner, Time::ZERO, &mut out);
     ready(&mut out, 1, 20, b"header.eyJleHAiOjEyMH0.signature", smith_host_domain::Form::Withdrawn);
@@ -162,7 +162,7 @@ fn an_env_grant_announces_expiry() {
 #[test]
 fn releasing_a_finished_runs_grants_prevents_a_later_grant_failure() {
     let mut owner = accounts(source());
-    let mut out = Queue::with_capacity(ACCOUNTS_MAX_OUT);
+    let mut out = Queue::uncapped();
     assert!(owner.request(7));
     settle(&mut owner, Time::ZERO, &mut out);
     ready(&mut out, 1, 20, b"header.eyJleHAiOjEyMH0.signature", smith_host_domain::Form::Withdrawn);

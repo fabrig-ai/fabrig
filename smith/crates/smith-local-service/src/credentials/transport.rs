@@ -21,15 +21,13 @@ impl Accounts {
 
     pub(super) fn socket_up(&mut self, now: Time, wall: Wall) {
         let env = Env { now, wall, limits: self.limits.io };
-        if self.socket_submissions.room() >= io::MAX_OUT_RESUME.submissions && self.sockets.is_ready() {
+        if self.sockets.is_ready() {
             io::resume(&mut self.sockets, &env, &mut self.socket_events, &mut self.socket_submissions);
         }
-        if self.socket_submissions.room() >= io::MAX_OUT_UP.submissions
-            && let Some(complete) = self.socket_completions.pop()
-        {
+        if let Some(complete) = self.socket_completions.pop() {
             io::up(&mut self.sockets, &env, complete, &mut self.socket_events, &mut self.socket_submissions);
         }
-        if self.socket_submissions.room() >= io::MAX_OUT_FIRE.submissions && self.sockets.is_due(now) {
+        if self.sockets.is_due(now) {
             io::fire(&mut self.sockets, &env, &mut self.socket_events, &mut self.socket_submissions);
         }
         if let Some(event) = self.socket_events.pop() {
@@ -41,12 +39,12 @@ impl Accounts {
     pub(super) fn socket_down(&mut self, now: Time, wall: Wall) {
         let env = Env { now, wall, limits: self.limits.io };
         if self.sockets.takes()
-            && self.socket_submissions.room() >= io::MAX_OUT_DOWN.submissions
             && let Some(request) = self.socket_requests.pop()
         {
             io::down(&mut self.sockets, &env, request, &mut self.socket_submissions);
         }
-        for _ in 0..self.socket_submissions.capacity() {
+        // Forward only submissions staged at entry; the kernel-facing queue keeps its credit.
+        for _ in 0..self.socket_submissions.len() {
             if self.submissions.room() == 0 {
                 break;
             }

@@ -55,6 +55,10 @@ impl core::fmt::Debug for Checks {
 }
 
 impl Checks {
+    fn program_waiters_first(&self) -> bool {
+        self.active.is_some() || !self.waiting.is_empty()
+    }
+
     pub(crate) fn request(
         &mut self,
         account: u32,
@@ -65,7 +69,7 @@ impl Checks {
         if self.account_index(account).is_none() {
             return false;
         }
-        if self.active.is_some() || !self.waiting.is_empty() {
+        if self.program_waiters_first() {
             self.waiting.push(account);
         } else {
             self.start(account, now, below, shell);

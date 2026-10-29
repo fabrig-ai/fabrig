@@ -20,7 +20,7 @@ impl Fixture {
         Self {
             checks: Checks {
                 accounts,
-                waiting: Queue::with_capacity(3),
+                waiting: Queue::uncapped(),
                 programs: Programs { directory: b"/programs".as_slice().into(), claude: b"/claude".as_slice().into() },
                 base: Box::new([]),
                 root: Some(kernel::Fd::new(3)),
