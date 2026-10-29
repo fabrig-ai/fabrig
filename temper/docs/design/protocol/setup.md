@@ -1273,11 +1273,16 @@ temper box
   starts. A small write grant alone is not that acknowledgement.
 
   Full output pauses new child read demands; already admitted reads retain
-  their bounded per-pipe chunk. Admission checks precede line extraction,
-  policy input and order consumption, reserving every destination the input
-  can produce. Output acknowledgements and io settlement can progress while
-  ordinary work waits for room; blocked queues alone do not make the loop
-  runnable. The footprint counts all queue containers and owned payloads,
+  their bounded per-pipe chunk. Policy orders and their source wall times
+  grow in paired internal FIFOs. Ordinary events keep their relative order
+  while terminal acknowledgements may bypass a front blocked on request
+  credit. A control command waits until earlier orders and control replies
+  have dispatched; a record diagnostic enters the notice FIFO before its
+  policy answer, and the record itself settles before started is announced.
+  Captured ordinary events precede policy timers. An unsent spawn respects
+  a queued withdrawal even when a terminal notice holds it back.
+  Runnability and deadlines wait on the real destination's credit, so
+  blocked output does not spin the loop. The footprint counts all queue containers and owned payloads,
   per-pipe assembly and retained chunks, formatter overlap, legacy handoff,
   control replies and io operations, within the existing startup accounting.
 
