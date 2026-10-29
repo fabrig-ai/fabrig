@@ -562,11 +562,11 @@ pub(super) fn worst_case(limits: &super::DocumentLimits) -> Option<u64> {
         .checked_add(4)?;
     // One nested host-run/task/account carrier is smaller than a task page,
     // whose bound prices all its chip/part/list children. Hosts nest run lists.
-    let account_heap = List::<super::SourceLine>::worst_case(limits.lines)?
+    let account_heap = List::<super::SourceLine>::price(limits.lines)?
         .checked_add(u64::from(limits.lines).checked_mul(u64::from(accounts::NAME))?)?
         .checked_add(u64::from(limits.text_bytes).checked_mul(2)?)?
         .checked_add(u64::from(accounts::MANAGE_USAGE))?
-        .checked_add(List::<accounts::Use>::worst_case(accounts::USES)?)?;
+        .checked_add(List::<accounts::Use>::price(accounts::USES)?)?;
     super::task_tree::worst_case(limits)?
         .checked_mul(carriers)?
         .checked_add(
@@ -575,12 +575,12 @@ pub(super) fn worst_case(limits: &super::DocumentLimits) -> Option<u64> {
         )?
         // HostRule's tag and u64 payload occupy 16 aligned bytes per host.
         .checked_add(u64::from(limits.lines).checked_mul(u64::try_from(size_of::<crate::HostRule>()).ok()?)?)?
-        .checked_add(List::<Account>::worst_case(limits.lines)?)?
+        .checked_add(List::<Account>::price(limits.lines)?)?
         .checked_add(u64::from(limits.lines).checked_mul(account_heap)?)?
-        .checked_add(List::<HelloRefusalLine>::worst_case(limits.lines)?)?
-        .checked_add(List::<people::CapacityRefusal>::worst_case(limits.lines)?)?
-        .checked_add(List::<tasks::CapacityRefusal>::worst_case(limits.lines)?)?
-        .checked_add(List::<u16>::worst_case(limits.lines)?)?
+        .checked_add(List::<HelloRefusalLine>::price(limits.lines)?)?
+        .checked_add(List::<people::CapacityRefusal>::price(limits.lines)?)?
+        .checked_add(List::<tasks::CapacityRefusal>::price(limits.lines)?)?
+        .checked_add(List::<u16>::price(limits.lines)?)?
         .checked_add(u64::try_from(size_of::<Deployment>()).ok()?)?
         .checked_add(super::catalogue::offers_worst_case(limits)?)?
         .checked_add(super::catalogue::rows_worst_case(limits)?)

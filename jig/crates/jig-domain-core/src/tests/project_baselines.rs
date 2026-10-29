@@ -22,7 +22,7 @@ fn project_permission_baselines_keep_missing_and_supplied_empty_entries_distinct
     assert_eq!(mappings.len(), 0);
     assert_eq!(mappings.capacity(), limits.documents.lines);
     assert!(
-        List::<people::PermissionRole>::worst_case(mappings.capacity()).unwrap()
+        List::<people::PermissionRole>::price(mappings.capacity()).unwrap()
             > u64::try_from(size_of_val(mappings.as_slice())).unwrap()
     );
     assert!(!empty.policy.permissions_cut);

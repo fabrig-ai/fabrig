@@ -180,17 +180,17 @@ fn serves_work(core: &Core, party: u64) -> bool {
 }
 
 pub(super) fn worst_case(limits: &DocumentLimits) -> Option<u64> {
-    let account_heap = List::<SourceLine>::worst_case(limits.lines)?
+    let account_heap = List::<SourceLine>::price(limits.lines)?
         .checked_add(u64::from(limits.lines).checked_mul(u64::from(accounts::NAME))?)?
         .checked_add(u64::from(limits.text_bytes).checked_mul(2)?)?
         .checked_add(u64::from(accounts::MANAGE_USAGE))?
-        .checked_add(List::<accounts::Use>::worst_case(accounts::USES)?)?;
+        .checked_add(List::<accounts::Use>::price(accounts::USES)?)?;
     u64::try_from(size_of::<Accounts>())
         .ok()?
         .checked_add(super::programs::hosts_worst_case(limits)?)?
-        .checked_add(List::<AccountLine>::worst_case(limits.lines)?)?
+        .checked_add(List::<AccountLine>::price(limits.lines)?)?
         .checked_add(u64::from(limits.lines).checked_mul(account_heap)?)?
-        .checked_add(List::<SignInLine>::worst_case(limits.lines)?)?
+        .checked_add(List::<SignInLine>::price(limits.lines)?)?
         .checked_add(super::catalogue::rows_worst_case(limits)?)
 }
 

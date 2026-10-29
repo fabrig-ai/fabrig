@@ -71,8 +71,8 @@ pub(super) fn review(
 pub(super) fn worst_case(limits: &Limits) -> Option<u64> {
     s::set_worst_case(limits)?
         .checked_mul(2)?
-        .checked_add(List::<ReviewItem>::worst_case(t::SETTINGS_ITEMS)?)?
-        .checked_add(List::<crate::reads::RevisionItemHead>::worst_case(t::SETTINGS_ITEMS)?)?
+        .checked_add(List::<ReviewItem>::price(t::SETTINGS_ITEMS)?)?
+        .checked_add(List::<crate::reads::RevisionItemHead>::price(t::SETTINGS_ITEMS)?)?
         .checked_add(u64::try_from(size_of::<SettingsReview>()).ok()?)
 }
 
