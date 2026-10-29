@@ -100,12 +100,6 @@ pub(super) fn seeded_world_with_receiving(
     let room = owner.core.routes;
     let connectors = jig_test_connector::OUTPUTS_BOUND.checked_mul(2).expect("two connector routes");
     owner.journal.writes = owner.journal.writes.max(room.checked_add(connectors).expect("whole writes"));
-    owner.journal.held = owner.journal.held.max(
-        room.checked_add(connectors)
-            .expect("whole held deliveries")
-            .checked_mul(owner.journal.commits)
-            .expect("bounded journal flights"),
-    );
     let worker = Worker::new(
         1,
         1,

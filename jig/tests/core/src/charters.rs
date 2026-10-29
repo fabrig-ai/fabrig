@@ -55,7 +55,6 @@ pub fn two_charters(seed: u64) -> (root::Config, root::Limits) {
     let room = limits.core.routes;
     let connectors = jig_test_connector::OUTPUTS_BOUND * 2;
     limits.journal.writes = limits.journal.writes.max(room + connectors);
-    limits.journal.held = limits.journal.held.max(room + connectors);
     (config, limits)
 }
 
