@@ -900,11 +900,11 @@ fn run_price(nodes: u32, bytes: u32) -> u64 {
     use skein_lib::{Buffer, Stack};
     Value::decoder_bound(nodes)
         .expect("entries")
-        .checked_add(Buffer::worst_case(bytes).expect("output"))
+        .checked_add(Buffer::price(bytes).expect("output"))
         .expect("run fits u64")
-        .checked_add(Stack::<super::Frame>::worst_case(nodes).expect("walk"))
+        .checked_add(Stack::<super::Frame>::price(nodes).expect("walk"))
         .expect("run fits u64")
-        .checked_add(Stack::<super::Open>::worst_case(nodes).expect("build"))
+        .checked_add(Stack::<super::Open>::price(nodes).expect("build"))
         .expect("run fits u64")
 }
 
@@ -913,8 +913,8 @@ fn eager_price(capacity: Capacity) -> u64 {
     let mut total = run_price(capacity.nodes, capacity.bytes);
     for bytes in [
         u64::from(capacity.bytes).checked_mul(2).expect("records"),
-        List::<schema::Schema>::worst_case(capacity.versions).expect("schemas"),
-        List::<crate::patch::plan::Plan>::worst_case(capacity.patches).expect("plans"),
+        List::<schema::Schema>::price(capacity.versions).expect("schemas"),
+        List::<crate::patch::plan::Plan>::price(capacity.patches).expect("plans"),
         schema::schema_bound(capacity.text)
             .expect("schema scratch")
             .checked_mul(u64::from(capacity.versions))
@@ -946,11 +946,11 @@ fn run_held(patcher: &Patcher) -> u64 {
         .expect("old")
         .checked_add(Value::decoder_bound(patcher.build.reserve.room()).expect("reserved entries"))
         .expect("held fits u64")
-        .checked_add(Buffer::worst_case(patcher.build.out.capacity()).expect("output"))
+        .checked_add(Buffer::price(patcher.build.out.capacity()).expect("output"))
         .expect("held fits u64")
-        .checked_add(List::<super::Frame>::worst_case(patcher.build.walk.capacity()).expect("walk"))
+        .checked_add(List::<super::Frame>::price(patcher.build.walk.capacity()).expect("walk"))
         .expect("held fits u64")
-        .checked_add(List::<super::Open>::worst_case(patcher.build.opened.capacity()).expect("build"))
+        .checked_add(List::<super::Open>::price(patcher.build.opened.capacity()).expect("build"))
         .expect("held fits u64")
 }
 

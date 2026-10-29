@@ -103,7 +103,7 @@ fn github_fake_blob_record_and_origins_stay_within_admitted_bounds() {
     }
     let records = service.blob_records();
     assert_eq!(records.len(), limits.blob_records);
-    let mut held = skein_lib::Queue::<crate::logs::Record>::worst_case(limits.blob_records).unwrap();
+    let mut held = skein_lib::Queue::<crate::logs::Record>::price(limits.blob_records).unwrap();
     for row in records {
         held = held.checked_add(u64::try_from(row.path.len()).unwrap()).unwrap();
     }

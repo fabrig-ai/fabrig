@@ -111,7 +111,7 @@ fn hex(value: u8) -> u8 {
 
 impl super::Host {
     pub(super) fn states_table_worst_case(capacity: u32) -> Option<u64> {
-        Queue::<Entry>::worst_case(capacity)
+        Queue::<Entry>::price(capacity)
     }
     /// Queue slots plus the sole retained 32-byte spelling per binding.
     pub(crate) fn github_states_worst_case(capacity: u32) -> Option<u64> {

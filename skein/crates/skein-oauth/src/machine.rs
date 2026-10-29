@@ -66,7 +66,7 @@ pub fn client_worst_case(limits: &ClientLimits) -> Option<u64> {
         .checked_add(
             u64::from(limits.parameter_bytes).checked_mul(u64::try_from(size_of::<crate::Parameter>()).ok()?)?,
         )?
-        .checked_add(List::<Option<(&[u8], &[u8])>>::worst_case(limits.parameter_bytes.checked_add(11)?)?)?
+        .checked_add(List::<Option<(&[u8], &[u8])>>::price(limits.parameter_bytes.checked_add(11)?)?)?
         .checked_add(u64::from(limits.resource_bytes))?
         .checked_add(u64::from(limits.nonce_bytes))?
         .checked_add(u64::from(limits.state_bytes).checked_mul(2)?)?
@@ -74,7 +74,7 @@ pub fn client_worst_case(limits: &ClientLimits) -> Option<u64> {
         .checked_add(u64::from(limits.url_bytes))?
         .checked_add(u64::from(limits.request_bytes).checked_mul(2)?)?
         .checked_add(u64::from(limits.metadata_bytes.max(limits.key_set_bytes)).checked_mul(2)?)?
-        .checked_add(List::<crate::keys::Key>::worst_case(limits.keys)?)?
+        .checked_add(List::<crate::keys::Key>::price(limits.keys)?)?
         .checked_add(
             u64::from(limits.keys).checked_mul(
                 u64::from(limits.modulus_bits.checked_div(8)?)

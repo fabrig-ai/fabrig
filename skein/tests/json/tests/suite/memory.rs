@@ -55,7 +55,7 @@ fn read_demand(document: &[u8], limits: Limits, interrupt: Interrupt, first: Req
     let mut intake = Intake::with_capacity(cap);
     intake.append(document).expect("the stream holds all of it");
     let what = format!("{limits:?} reading {}", document.escape_ascii());
-    let bound = json::worst_case(&limits).expect("the limits are honoured");
+    let bound = json::tokenizer_bound(&limits).expect("the limits are honoured");
 
     let meter = Meter::new();
     meter.start();
@@ -188,7 +188,7 @@ fn generated_documents_under_tiny_limits_hold_no_more_than_the_worst_case() {
 /// own in a step. The document `finish` returns is handed out.
 fn write(tokens: &[Token], limits: writer::Limits) -> u64 {
     let what = format!("{limits:?} writing {tokens:?}");
-    let bound = writer::worst_case(&limits).expect("the limits are priced");
+    let bound = writer::encoder_bound(&limits).expect("the limits are priced");
     let meter = Meter::new();
     meter.start();
     let mut measure = Encoder::measure(&limits);
@@ -238,7 +238,7 @@ fn the_writer_holds_no_more_than_its_worst_case_at_its_limits() {
         }
         let limits = writer::Limits { depth: deepest, length: u32::try_from(len).unwrap() };
         let most = write(&tokens, limits);
-        assert!(most <= 2 * writer::worst_case(&limits).unwrap(), "seed {seed}: bounded writing growth");
+        assert!(most <= 2 * writer::encoder_bound(&limits).unwrap(), "seed {seed}: bounded writing growth");
     }
 }
 
@@ -280,7 +280,7 @@ fn a_compact_document_at_its_counts_stays_within_its_storage_and_growth_bounds()
             })
             .sum::<usize>();
         let limits = Limits { tokens: tokens.len().try_into().unwrap(), text: text.try_into().unwrap() };
-        let bound = document::worst_case(&limits).unwrap();
+        let bound = document::document_bound(&limits).unwrap();
         let meter = Meter::new();
         meter.start();
         let document = skein_json::Document::from_tokens(&tokens, &limits).unwrap();
