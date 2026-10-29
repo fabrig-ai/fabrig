@@ -1,18 +1,19 @@
 use jig_client_world::{Settings, stories};
 
-/// A real client allocation crosses a deliberately small declared budget.
+/// A real client allocation crosses a deliberately small scenario ceiling.
 /// The same callback guard used by the full fixture must catch it.
 #[test]
 #[should_panic(expected = "bounded: client and view exceeded the heap envelope")]
 fn a_client_that_exceeds_its_declared_heap_budget_is_caught() {
-    let mut world = stories::configured(Settings { memory: true, heap_bytes_per_client: 1024, ..Settings::default() });
+    let mut world = stories::configured(Settings { memory: true, heap_ceiling: Some(1024), ..Settings::default() });
     world.client(7, stories::inbox());
 }
 
+/// A supplied client constructor also checks the scenario ceiling.
 #[test]
 #[should_panic(expected = "bounded: client and view exceeded the heap envelope")]
 fn a_supplied_client_constructor_keeps_the_declared_heap_budget_guard() {
     use stories::client_construction as fixture;
-    let mut world = fixture::world(Settings { memory: true, heap_bytes_per_client: 1024, ..Settings::default() });
+    let mut world = fixture::world(Settings { memory: true, heap_ceiling: Some(1024), ..Settings::default() });
     world.client_with(7, stories::inbox(), fixture::limits(), fixture::client);
 }
