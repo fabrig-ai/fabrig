@@ -124,7 +124,7 @@ pub fn document_required_words(value: &OwnerAuthorityDocument, words: &Words, ro
 }
 /// Configured envelope for full rows of grants, resource scopes and pattern segments.
 #[must_use]
-pub fn worst_case_words(rows: u32, segments: u32, text: u32, words: &Words) -> Option<AuthorityFragment> {
+pub fn fragment_bound_words(rows: u32, segments: u32, text: u32, words: &Words) -> Option<AuthorityFragment> {
     let mut phrase = 0;
     for id in crate::owner_authority_words::ALL {
         phrase = phrase.max(words.book().capacity(id.id())?);
@@ -252,8 +252,8 @@ pub fn document_required(
 }
 /// Standalone configured envelope includes escaped literal presentation.
 #[must_use]
-pub fn worst_case(rows: u32, segments: u32, text: u32, words: &OwnerAuthorityWords) -> Option<AuthorityFragment> {
-    worst_case_words(rows, segments, text, words.words())
+pub fn fragment_bound(rows: u32, segments: u32, text: u32, words: &OwnerAuthorityWords) -> Option<AuthorityFragment> {
+    fragment_bound_words(rows, segments, text, words.words())
 }
 /// Render a standalone authority with its selected checked language.
 pub fn render(b: &mut Builder, value: &OwnerAuthority, words: &OwnerAuthorityWords, text_limit: u32, rows: u32) {

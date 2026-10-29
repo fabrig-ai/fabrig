@@ -103,7 +103,7 @@ pub fn required(value: &OwnerProposal, limits: &Limits, words: &Words) -> Option
             }
         }
     }
-    worst_case(limits, words)
+    fragment_bound(limits, words)
 }
 /// Closed action alternatives, with brief linked chips rather than expanded task cards.
 #[must_use]
@@ -132,7 +132,7 @@ pub fn max_nodes(limits: &Limits) -> Option<u32> {
 }
 /// Whole checked saying/literal/Markdown envelope, including name and text storage.
 #[must_use]
-pub fn worst_case(limits: &Limits, words: &Words) -> Option<ProposalFragment> {
+pub fn fragment_bound(limits: &Limits, words: &Words) -> Option<ProposalFragment> {
     let nodes = max_nodes(limits)?;
     let phrase = words.jig_capacity()?;
     let text_per_node = phrase.max(crate::literal_segment::max_bytes(limits.text)?).checked_mul(2)?;

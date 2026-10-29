@@ -207,7 +207,7 @@ fn budget_and_shared_funder_sayings_borrow_selected_normal_words_and_person_offs
     assert!(!contains(&tree, b"Ledger source"));
     assert!(
         crate::owner_words::phrase_bytes(words.book()).expect("whole normal saying envelope")
-            >= view::ledger_worst_case(&words).expect("whole ledger envelope").text_per_node
+            >= view::ledger_fragment_bound(&words).expect("whole ledger envelope").text_per_node
     );
     let mut value = budget();
     value.deadline = Some(Wall::EPOCH);
@@ -258,6 +258,6 @@ fn normal_budget_sizing_refuses_a_book_without_shared_funder_sayings() {
     let words = Words::new(book, 0, 0);
     assert_eq!(view::required(&budget(), &words), None);
     assert_eq!(view::ledger_required(&ledger(), &words), None);
-    assert_eq!(view::worst_case(&words), None);
-    assert_eq!(view::ledger_worst_case(&words), None);
+    assert_eq!(view::fragment_bound(&words), None);
+    assert_eq!(view::ledger_fragment_bound(&words), None);
 }
