@@ -5,9 +5,6 @@ use temper_real_loop_world::{
     fixtures,
 };
 
-#[global_allocator]
-static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
-
 const EXPECTED_REQUESTS: usize = 2;
 const IN_FLIGHT_AND_ONE_CLOSING: usize = 2;
 const PERSON: Dir = Dir(1);

@@ -1,7 +1,4 @@
 //! The tools' real pipes meet the standalone service and hosted agent.
-use skein_world::domain::heap::Counting;
-#[global_allocator]
-static HEAP: Counting = Counting;
 // Each story signs in first; a chat, when present, is the next call.
 const SIGN_IN: usize = 0;
 const CHAT: usize = 1;

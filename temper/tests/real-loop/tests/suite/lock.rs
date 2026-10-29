@@ -1,12 +1,9 @@
 //! Two native acts serialize on the real directory lock.
-use skein_world::domain::heap::Counting;
 use temper_real_loop_world::{
     Exit, argv,
     calls::{D1, contended, join, probe, release, sign_in, start, task, until},
     fixtures, run, scripts,
 };
-#[global_allocator]
-static HEAP: Counting = Counting;
 // Two calls must contend together; a single call cannot expose overlapping ownership.
 const ACTS: usize = 2;
 // Sign-in is call zero, so the first competing act occupies the next call.

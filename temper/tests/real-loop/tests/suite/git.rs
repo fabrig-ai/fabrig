@@ -1,11 +1,8 @@
 //! The fake's hosted file operations against the real kernel.
-use skein_world::domain::heap::Counting;
 use temper_fake_git_hosted::fixtures;
 use temper_real_loop_world::git::Disk;
 use temper_worker_domain_checkout::git;
 use temper_worker_protocol_git::invocation::{self, Command};
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 // The transcript's base and topic commits are counted objects 1 and 2.
 const BASE: u64 = 1;

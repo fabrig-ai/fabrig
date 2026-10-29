@@ -1,7 +1,4 @@
 //! The real engine's webhook listener meets skein's forge peer.
-use skein_world::domain::heap::Counting;
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 #[test]
 fn a_forge_delivery_is_accepted_by_the_engines_listener() {

@@ -1,12 +1,9 @@
 //! The person's sign-in ends by the real listener or by the pasted address.
-use skein_world::domain::heap::Counting;
 use temper_real_loop_world::{
     Exit, argv,
     calls::{D1, Step, call, sign_in},
     run_sign_in, terminal,
 };
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 /// The ctl calls each story reads: `me` after the sign-in, the accounts at its end.
 const ME: usize = 1;

@@ -1,7 +1,4 @@
 //! The fake peer's listener comes from the kernel, not a fixture port.
-use skein_world::domain::heap::Counting;
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 #[test]
 fn the_scripted_peer_listens_on_a_kernel_assigned_port() {

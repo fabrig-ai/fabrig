@@ -1,9 +1,5 @@
 //! Design-led QA on the fake issuer and the assembled standalone service.
-use skein_world::domain::heap::Counting;
 use temper_real_loop_world::{Exit, calls, run_sign_in, terminal};
-
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 const FIELD: &[u8] = b"Address of the page that couldn't be reached";
 // A varying-port callback may fail its address check before its state check.

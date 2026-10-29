@@ -21,7 +21,7 @@ fn twin_recipe(_address: SocketAddr, source: &Path) -> llm::Recipe {
     }
     let input = Input {
         data: data(source),
-        base: include_bytes!("fixtures/b0/llm-base.json").as_slice().into(),
+        base: include_bytes!("../../fixtures/b0/llm-base.json").as_slice().into(),
         takes: takes.into_boxed_slice(),
         // goal and change carry words alone: no forge grant address to replace.
         replaces: Box::new([]),

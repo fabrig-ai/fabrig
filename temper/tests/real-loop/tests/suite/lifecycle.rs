@@ -1,7 +1,4 @@
 //! Standalone startup and termination share the real kernel and checked ownership.
-use skein_world::domain::heap::Counting;
-#[global_allocator]
-static HEAP: Counting = Counting;
 #[test]
 fn a_started_service_drains_on_termination() {
     use temper_real_loop_world::{End, run, scripts};

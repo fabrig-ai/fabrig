@@ -1,7 +1,4 @@
 //! The cluster's two one-slot workers each run a chat to its end.
-use skein_world::domain::heap::Counting;
-#[global_allocator]
-static HEAP: Counting = Counting;
 use temper_real_loop_world::{
     End, Exit, argv,
     calls::{D1, D2, file, join, same_party, start, task, watching},
