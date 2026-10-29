@@ -711,7 +711,7 @@ fn every_application_outcome_preserves_its_complete_record() {
         assert_eq!(bytes[2], 15, "the Application family tag");
     }
     assert!(
-        jig_protocol_store::people_v13::Refusal::worst_case_bytes(&jig_protocol_store::people_v13::CEILINGS)
+        jig_protocol_store::people_v13::Refusal::encoded_bound(&jig_protocol_store::people_v13::CEILINGS)
             .expect("bounded facts")
             <= u64::from(v10::CEILINGS.core_refused_refusal)
     );
