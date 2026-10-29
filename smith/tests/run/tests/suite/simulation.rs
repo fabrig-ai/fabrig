@@ -138,7 +138,7 @@ fn a_completion_whose_maximum_does_not_fit_is_not_made_and_the_run_ends_for_its_
     let mut host = CrashHost::new();
     let limits = Settings::calm(606).run;
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let mut out = Queue::with_capacity(run::MAX_OUT);
+    let mut out = Queue::uncapped();
     let mut domain = run::Domain::new(&limits, 0);
     let (_, main) = crash_open(&mut domain, &env, &mut out, reserved_start(&mut host, 100), 1);
     assert_eq!(run::reserve(&mut domain, main, Token::new(801), run::Most::Bounded(101)), Err(Exhausted::Spend));
@@ -163,7 +163,7 @@ fn sub_agents_reserve_from_the_runs_budget_and_spend_never_passes_it() {
     let mut host = CrashHost::new();
     let limits = Settings::calm(606).run;
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let mut out = Queue::with_capacity(run::MAX_OUT);
+    let mut out = Queue::uncapped();
     let mut domain = run::Domain::new(&limits, 0);
     let (_, main) = crash_open(&mut domain, &env, &mut out, reserved_start(&mut host, 100), 1);
     let asked = crash_take(
@@ -250,7 +250,7 @@ fn answered_host_call_before_turn_crash_wakes_as_host_text_with_new_call_namespa
     let mut host = CrashHost::new();
     let limits = Settings::calm(606).run;
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let mut out = Queue::with_capacity(run::MAX_OUT);
+    let mut out = Queue::uncapped();
     let mut first = run::Domain::new(&limits, 0);
     let (_, conversation) = crash_open(&mut first, &env, &mut out, host.start(1), 1);
     let old_name = run::CallName { activation: 1, completion: 1, position: 0 };
@@ -912,18 +912,14 @@ fn a_cancelled_run_closes_its_sub_agents_down_the_tree() {
     panic!("no cancellation found a live child");
 }
 
-/// A bounded native queue holds pending inputs and preserves every observation.
+/// Uncapped facts preserve every observation and settle every admitted run.
 #[test]
-fn a_fact_queue_at_its_bound_holds_the_step_and_loses_nothing() {
+fn uncapped_facts_lose_no_observations_and_settle_every_run() {
     let settings = asking(40);
     let settings = Settings { checkout: Checkouts { checks: 1000, ..settings.checkout }, ..settings };
     let roomy = settled(&Settings { run: Limits { facts: 100_000, ..settings.run }, ..settings });
-    let tight = settled(&Settings {
-        run: Limits { facts: smith_domain_run::max_facts(&settings.run), ..settings.run },
-        ..settings
-    });
-    assert_eq!(roomy.fact_holds(), 0);
-    assert!(tight.fact_holds() > 0, "actual pending work was held for the native fact drain");
+    let tight = settled(&Settings { run: Limits { facts: 0, ..settings.run }, ..settings });
+    assert_eq!(roomy.facts_seen(), tight.facts_seen(), "the allowance changes no fact or original time");
     for world in [&roomy, &tight] {
         let told = world.facts();
         let stats = world.stats();
@@ -977,10 +973,7 @@ fn empty_reports_and_declared_failures_are_terminal_results_without_delivery() {
         }
         assert_eq!((world.stats().checks, world.stats().pushes), (0, 0));
         assert_eq!(world.stats().partner.accepted, 4);
-        let silent = settled(&Settings {
-            run: Limits { facts: smith_domain_run::max_facts(&settings.run), ..settings.run },
-            ..settings
-        });
+        let silent = settled(&Settings { run: Limits { facts: 0, ..settings.run }, ..settings });
         assert_eq!(silent.trace(), world.trace(), "facts never decide text-result behavior");
         assert_eq!(answers(&silent), answers(&world));
         assert_eq!(silent.facts(), world.facts());
