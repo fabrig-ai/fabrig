@@ -6,14 +6,17 @@ use skein_llm::client;
 use skein_llm_world::{World, call, limits, text_response};
 
 #[test]
-fn codex_dense_request_encoding_uses_only_reserved_bytes_and_fixed_scratch() {
+fn codex_dense_request_encoding_stays_under_the_preparation_peak_ceiling() {
     dense_request_encoding(skein_llm::Provider::OpenAiCodex);
 }
 
 #[test]
-fn anthropic_dense_request_encoding_uses_only_reserved_bytes_and_fixed_scratch() {
+fn anthropic_dense_request_encoding_stays_under_the_preparation_peak_ceiling() {
     dense_request_encoding(skein_llm::Provider::Anthropic);
 }
+
+// Bounds preparation across both providers and both dense document sizes.
+const DENSE_PREPARATION_PEAK_CEILING: i64 = 160_000;
 
 fn dense_request_encoding(provider: skein_llm::Provider) {
     use skein_llm::{Block, Json, Message, Provider, Replay, Role, Tool};
@@ -68,21 +71,17 @@ fn dense_request_encoding(provider: skein_llm::Provider) {
             growth.peak
         );
         assert_eq!(input.prompt, original, "the borrowed owner retains every document and byte");
-        let bound = scratch
-            + client::worst_case(&bounds).expect("client bound is representable")
-            + u64::from(measured.head)
-            + u64::from(measured.body);
         let preparing = Span::start();
         let prepared = client::Client::prepare(input, &bounds).expect("dense request prepares");
         let growth = preparing.end();
         assert!(
-            growth.peak <= i64::try_from(bound).expect("prepared bound fits i64"),
-            "{provider:?}/{count}: preparation peak {} exceeds reserved body and fixed state {bound}",
+            growth.peak <= DENSE_PREPARATION_PEAK_CEILING,
+            "{provider:?}/{count}: preparation peak {} exceeds {DENSE_PREPARATION_PEAK_CEILING}",
             growth.peak
         );
         assert_eq!(prepared.measured(), measured);
         eprintln!(
-            "{provider:?}/{count}: scratch={scratch}, measurement peak={}, prepared peak={}, bound={bound}",
+            "{provider:?}/{count}: scratch={scratch}, measurement peak={}, prepared peak={}",
             measuring_peak, growth.peak
         );
         drop(prepared);

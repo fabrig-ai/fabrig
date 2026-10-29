@@ -81,7 +81,7 @@ fn read_head(limits: http::Limits, wire: &[u8]) -> Result<http::Response, http::
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let mut above = Queue::uncapped();
     let mut below = Queue::uncapped();
-    let mut intake = Intake::with_capacity(u32::try_from(wire.len()).unwrap());
+    let mut intake = Intake::with_capacity(limits.head.max(u32::try_from(wire.len()).unwrap()));
     intake.append(wire).unwrap();
     http::down(
         &mut machine,
@@ -141,7 +141,7 @@ fn derived_response_heads_accept_both_bounds_and_refuse_one_byte_or_field_over()
 }
 
 #[test]
-fn headroom_flows_into_fixed_client_memory_without_changing_the_call_reservation() {
+fn derived_headroom_accepts_larger_heads_without_changing_the_call_reservation() {
     for (provider, head, fields) in [(Provider::OpenAiCodex, 1935, 42), (Provider::Anthropic, 1435, 31)] {
         let mut limits = Limits::derive(&DECLARED).unwrap().dialect(provider);
         limits.http.request = 256;
@@ -151,9 +151,12 @@ fn headroom_flows_into_fixed_client_memory_without_changing_the_call_reservation
         let mut captured = limits;
         captured.http.head = head;
         captured.http.headers = fields;
-        let delta = http::worst_case(&limits.http).unwrap() - http::worst_case(&captured.http).unwrap();
-        assert!(delta > 0);
-        assert_eq!(client::worst_case(&limits).unwrap() - client::worst_case(&captured).unwrap(), delta);
+        let wire = response_head(head + 1, fields);
+        assert!(read_head(limits.http, &wire).is_ok(), "derived byte headroom admits a larger head");
+        assert_eq!(read_head(captured.http, &wire), Err(http::Error::HeadTooLong));
+        let wire = response_head(head, fields + 1);
+        assert!(read_head(limits.http, &wire).is_ok(), "derived field headroom admits another field");
+        assert_eq!(read_head(captured.http, &wire), Err(http::Error::TooManyHeaders));
         assert_eq!(client::largest_reservation(&limits), client::largest_reservation(&captured));
     }
 }

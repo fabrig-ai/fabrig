@@ -88,14 +88,12 @@ fn measurement_and_preparation_make_the_same_entrance_refusals() {
 }
 
 #[test]
-fn request_payload_limits_belong_to_the_reservation_not_fixed_client_state() {
+fn request_payload_limits_increase_the_largest_reservation() {
     let bounds = limits();
-    let fixed = client::worst_case(&bounds).unwrap();
     let largest = client::largest_reservation(&bounds).unwrap();
     let mut larger = bounds;
     larger.http.request += 99;
     larger.request += 1234;
-    assert_eq!(client::worst_case(&larger).unwrap(), fixed);
     // 99 head and 1234 body bytes: a compressed body and its room together
     // stay within the request bound, so the room adds nothing (llm.md, 4.8).
     assert_eq!(client::largest_reservation(&larger).unwrap() - largest, 1333);
