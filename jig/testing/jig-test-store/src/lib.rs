@@ -29,7 +29,7 @@ pub fn application(limits: &connector::Limits) -> jig_protocol_store::sizes::App
     jig_protocol_store::sizes::Application {
         version: STORE_VERSION,
         key: path.saturating_add(17).max(83),
-        value: u32::try_from(v2::Row::worst_case_bytes(&bounds).expect("checked codec bounds"))
+        value: u32::try_from(v2::Row::encoded_bound(&bounds).expect("checked codec bounds"))
             .expect("row fits store length"),
     }
 }
