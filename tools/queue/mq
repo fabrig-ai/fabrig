@@ -263,7 +263,7 @@ def ratchet_commands(repo, paths):
 
 
 def tools_commands(repo):
-    """Discover tracked suites, including executable Bash suites (design.md, 2.3)."""
+    """Discover tracked offline suites, honoring executable shebangs (design.md, 2.3)."""
     commands = []
     for entry in git(repo, "ls-files", "--stage", "-z", "--", "tools/").stdout.split("\0"):
         if not entry:
@@ -271,10 +271,13 @@ def tools_commands(repo):
         attributes, path = entry.split("\t", 1)
         mode = attributes.split()[0]
         name = PurePosixPath(path).name
+        # This suite installs real systemd units; run it manually on a builder.
+        if path == "tools/heavy/test-heavy-recovery":
+            continue
         if fnmatch.fnmatchcase(name, "test_*.py"):
             commands.append((path, ["python3", "-I", "-B", path], repo))
         elif name.startswith("test-") and mode == "100755":
-            commands.append((path, ["bash", path], repo))
+            commands.append((path, ["./" + path], repo))
     return commands
 
 
