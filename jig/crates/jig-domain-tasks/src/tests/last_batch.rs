@@ -2,9 +2,17 @@
 use super::revisions::{Harness, LIMITS, task, to};
 use crate::{
     Contract, Control, Domain, Event, Executor, Funder, New, Numbers, Party, RecurringOverlap, RecurringTemplate,
-    Request, Stored, max_out, step, task_bytes,
+    Request, Stored, step, task_bytes,
 };
 use skein_lib::Queue;
+
+const MASTER: u64 = 100;
+const FIRST_MEMBER: u64 = 10;
+const SECOND_MEMBER: u64 = 11;
+const PROJECT: u32 = 1;
+const FIRST_PERIOD: u64 = 1;
+// The pending fixture retains only its recurring master.
+const MASTER_PLACES: u32 = 1;
 
 fn master() -> New {
     let mut first = task(1, &[]);
@@ -12,7 +20,7 @@ fn master() -> New {
     first.authority.budget.spend = 20;
     let mut second = first.clone();
     second.number = 2;
-    let mut parent = task(100, &[]);
+    let mut parent = task(MASTER, &[]);
     parent.executor = Executor::Procedure { connector: 1, code: 1 };
     parent.contract = Contract::Report { words: 0 };
     parent.numbers = Numbers { budget: 0, spent: 0, spent_below: 0, reserved: 0 };
@@ -21,12 +29,16 @@ fn master() -> New {
     parent
 }
 
-fn accepted() -> Harness {
+fn pending() -> Harness {
     let mut test = Harness::new();
     test.send(Event::Make { reply_to: to(), creator: Party::Deployment { project: 1 }, batch: Box::new([master()]) });
-    assert!(test.domain.task(100).unwrap().recurring.as_ref().unwrap().last_batch.is_empty());
     test.send(Event::OpenPeriod { reply_to: to(), project: 1, period: 1, budget: 1000 });
     test.send(Event::TickRecurring { task: 100, period: 1 });
+    test
+}
+
+fn accepted() -> Harness {
+    let mut test = pending();
     for numbers in [Box::new([0, 11]), Box::new([10, 10]), Box::new([100, 11])] {
         test.send(Event::RecurringBatch { task: 100, period: 1, numbers });
         assert!(test.domain.task(100).unwrap().recurring.as_ref().unwrap().last_batch.is_empty());
@@ -37,6 +49,26 @@ fn accepted() -> Harness {
     assert!(test.domain.task(11).is_some());
     assert_eq!(test.domain.task(100).unwrap().recurring.as_ref().unwrap().last_batch.as_ref(), [10, 11]);
     test
+}
+
+#[test]
+fn a_rejected_recurring_batch_restores_funding_without_emitting_writes() {
+    let mut test = pending();
+    let period = Funder::Period { project: PROJECT, period: FIRST_PERIOD };
+    let before = *test.domain.funding(period).unwrap();
+    let stored = test.stored.clone();
+    // The master fills the project's one place, so admission fails after carving.
+    test.env.limits.project_tasks = MASTER_PLACES;
+    let out = test.send(Event::RecurringBatch {
+        task: MASTER,
+        period: FIRST_PERIOD,
+        numbers: Box::new([FIRST_MEMBER, SECOND_MEMBER]),
+    });
+    assert!(out.is_empty());
+    assert_eq!(test.domain.funding(period), Some(&before));
+    assert!(test.domain.funding(Funder::Recurring { project: PROJECT, task: MASTER, period: FIRST_PERIOD }).is_none());
+    assert!(test.domain.task(MASTER).unwrap().recurring.as_ref().unwrap().last_batch.is_empty());
+    assert_eq!(test.stored, stored);
 }
 
 #[test]
@@ -91,7 +123,7 @@ fn cold_restore_rejects_partial_duplicate_zero_self_and_oversized_last_batches()
         let mut row = original.clone();
         row.recurring.as_mut().unwrap().last_batch = numbers;
         let mut domain = Domain::new(&LIMITS, 91, 1, crate::tests::charters(), Box::new([0]));
-        let mut out = Queue::with_capacity(max_out(&LIMITS));
+        let mut out = Queue::uncapped();
         step(&mut domain, &test.env, Event::Restore { record: Stored::Live(Box::new(row)) }, &mut out);
         let mut refused = false;
         while let Some(request) = out.pop() {

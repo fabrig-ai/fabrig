@@ -666,7 +666,7 @@ fn a_compound_cannot_stop_and_release_the_same_subtree_in_one_decision() {
 
 fn check_rows(rows: Vec<Stored>, env: &skein_lib::Env<tasks::Limits>) -> Vec<tasks::Request> {
     let mut domain = jig_tasks_world::domain(&env.limits, 920);
-    let mut out = skein_lib::Queue::with_capacity(tasks::max_out(&env.limits));
+    let mut out = skein_lib::Queue::uncapped();
     for record in rows {
         tasks::step(&mut domain, env, Event::Restore { record }, &mut out);
     }

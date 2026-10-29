@@ -234,7 +234,7 @@ impl World {
         let mut world = World {
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits },
             domain: domain(limits, seed),
-            out: Queue::with_capacity(tasks::max_out(limits)),
+            out: Queue::uncapped(),
             pending: Vec::new(),
             records: BTreeMap::new(),
             replies: BTreeMap::new(),
