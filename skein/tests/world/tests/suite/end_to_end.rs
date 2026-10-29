@@ -4,7 +4,7 @@ use skein_io::kernel::{Complete, Exit, Op, Signal, Submit};
 use skein_lib::{Duration, Queue, Time, Wall};
 use skein_shell::Clock;
 use skein_world::end_to_end::{Binary, Cleanup, Command, Containment, Mode, StartError};
-use skein_world::{Host, Referee, real};
+use skein_world::{Deadline, Expired, Host, Referee, real};
 use skein_world_tests::hosted::{Act, Script};
 
 const WORLD_PATIENCE: Duration = Duration::from_secs(2);
@@ -362,11 +362,20 @@ fn an_already_exited_descendant_that_left_its_session_is_still_reaped() {
         .expect("the exited-descendant fixture starts");
         let pidfd = binary.descriptors()[0];
         let clock = Clock::new();
-        let until = clock.now().now.saturating_add(Duration::from_secs(2));
+        let mut deadline = Deadline::arm("the exited-descendant fixture exit", Duration::from_secs(2));
+        deadline.watch(&binary);
         // No Binary iteration runs until the parent and its escaped descendant
         // exited. Discovery must handle the exit-before-first-refresh race.
         while skein_shell::poll_child(pidfd, false).expect("the binary remains a child").is_none() {
-            assert!(clock.now().now < until, "the fixture exits before its deadline");
+            if deadline.passed() {
+                match deadline.expired() {
+                    Expired::Starved(starved) => {
+                        drop(binary);
+                        starved.pass();
+                    }
+                    Expired::Failed(figures) => panic!("the fixture exits before its deadline: {figures}"),
+                }
+            }
         }
         let mut world = real::World::new(TreeJudge { end: false, sent: false });
         world.spawn_with_fds(binary.descriptors(), || Process::Child(binary));
@@ -457,13 +466,19 @@ fn abandoned_observer(backend: Option<skein_shell::Backend>, cancels_first: bool
         }
         .expect("a real kernel");
         let clock = Clock::new();
-        let until = clock.now().now.saturating_add(Duration::from_secs(2));
+        let mut deadline = Deadline::arm("the abandoned observer readiness and drain", Duration::from_secs(2));
+        deadline.watch(&child);
         while ready_descendant(child.stderr()).is_none() {
             let now = clock.now();
-            assert!(now.now < until, "the fixture became ready before its deadline");
+            if deadline.passed() {
+                expired_binary(&deadline, &mut child, &mut kernel, &clock);
+            }
             kernel.reap(child.completions());
             child.iterate(now.now, now.wall);
-            kernel.submit(child.submissions(), Wait::Until(now.now.saturating_add(Duration::from_millis(1))));
+            kernel.submit(
+                child.submissions(),
+                Wait::Until(deadline.until().min(now.now.saturating_add(Duration::from_millis(1)))),
+            );
         }
         let pid = descendant(child.stderr());
         let descriptors = child.descriptors();
@@ -482,9 +497,14 @@ fn abandoned_observer(backend: Option<skein_shell::Backend>, cancels_first: bool
         while kernel.in_flight() > 0 {
             kernel.reap(&mut completed);
             if kernel.in_flight() > 0 {
-                kernel.submit(&mut Queue::with_capacity(0), Wait::Until(until));
+                kernel.submit(&mut Queue::with_capacity(0), Wait::Until(deadline.until()));
             }
-            assert!(clock.now().now < until, "the killed tree completes its interrupted operations");
+            if kernel.in_flight() > 0 && deadline.passed() {
+                while let Some(complete) = completed.pop() {
+                    child.completions().push(complete);
+                }
+                expired_binary(&deadline, &mut child, &mut kernel, &clock);
+            }
         }
         let mut held = Queue::with_capacity(child.operations());
         while let Some(complete) = completed.pop() {
@@ -504,7 +524,7 @@ fn abandoned_observer(backend: Option<skein_shell::Backend>, cancels_first: bool
         while let Some(complete) = held.pop() {
             child.completions().push(complete);
         }
-        drain_abandoned(&mut child, &mut kernel, &clock, until);
+        drain_abandoned(&mut child, &mut kernel, &clock, &deadline);
         drop(child);
         assert_eq!(skein_shell::process_live(pid), Ok(false), "the abandoned descendant was reaped");
         for fd in descriptors {
@@ -513,15 +533,33 @@ fn abandoned_observer(backend: Option<skein_shell::Backend>, cancels_first: bool
     }
 }
 
-fn drain_abandoned(child: &mut Binary, kernel: &mut skein_shell::Kernel, clock: &Clock, until: Time) {
+fn expired_binary(deadline: &Deadline, child: &mut Binary, kernel: &mut skein_shell::Kernel, clock: &Clock) -> ! {
+    match deadline.expired() {
+        Expired::Starved(starved) => {
+            child.abandon();
+            while !child.is_empty() || kernel.in_flight() > 0 {
+                kernel.reap(child.completions());
+                let now = clock.now();
+                child.iterate(now.now, now.wall);
+                kernel.submit(child.submissions(), skein_shell::Wait::No);
+            }
+            starved.pass();
+        }
+        Expired::Failed(figures) => panic!("the binary observation settles before its deadline: {figures}"),
+    }
+}
+
+fn drain_abandoned(child: &mut Binary, kernel: &mut skein_shell::Kernel, clock: &Clock, deadline: &Deadline) {
     while !child.is_empty() || kernel.in_flight() > 0 {
         kernel.reap(child.completions());
         let now = clock.now();
         child.iterate(now.now, now.wall);
         if !child.is_empty() || kernel.in_flight() > 0 {
-            kernel.submit(child.submissions(), skein_shell::Wait::Until(until));
+            kernel.submit(child.submissions(), skein_shell::Wait::Until(deadline.until()));
         }
-        assert!(clock.now().now < until, "the killed tree completes its interrupted operations");
+        if (!child.is_empty() || kernel.in_flight() > 0) && deadline.passed() {
+            expired_binary(deadline, child, kernel, clock);
+        }
     }
 }
 
@@ -548,13 +586,14 @@ fn an_observer_can_be_abandoned_before_its_first_submission() {
                 .expect("a real kernel");
                 let clock = Clock::new();
                 let now = clock.now();
-                let until = now.now.saturating_add(Duration::from_secs(2));
+                let mut deadline = Deadline::arm("the unsubmitted observer abandonment", Duration::from_secs(2));
+                deadline.watch(&child);
                 if queued {
                     child.iterate(now.now, now.wall);
                 }
                 child.abandon();
                 assert!(child.work_pending(now.now), "abandonment has submission or settlement work");
-                drain_abandoned(&mut child, &mut kernel, &clock, until);
+                drain_abandoned(&mut child, &mut kernel, &clock, &deadline);
                 for fd in descriptors {
                     assert!(!is_open(fd));
                 }
@@ -585,7 +624,9 @@ fn emergency_drop_leaves_outstanding_descriptors_and_the_waited_leader_owned() {
             .expect("a real kernel");
             let clock = Clock::new();
             let now = clock.now();
-            let until = now.now.saturating_add(Duration::from_secs(2));
+            let mut deadline = Deadline::arm("the dropped observer interrupted operations", Duration::from_secs(2));
+            deadline.watch(&child);
+            let mut starved = None;
             child.iterate(now.now, now.wall);
             kernel.submit(child.submissions(), Wait::No);
             let descriptors = child.descriptors();
@@ -598,9 +639,16 @@ fn emergency_drop_leaves_outstanding_descriptors_and_the_waited_leader_owned() {
                 kernel.reap(&mut completions);
                 while completions.pop().is_some() {}
                 if kernel.in_flight() > 0 {
-                    kernel.submit(&mut Queue::with_capacity(0), Wait::Until(until));
+                    kernel.submit(&mut Queue::with_capacity(0), Wait::Until(deadline.until()));
                 }
-                assert!(clock.now().now < until, "the killed binary completes observation through open descriptors");
+                if kernel.in_flight() > 0 && starved.is_none() && deadline.passed() {
+                    match deadline.expired() {
+                        Expired::Starved(expired) => starved = Some(expired),
+                        Expired::Failed(figures) => {
+                            panic!("the killed binary completes observation through open descriptors: {figures}");
+                        }
+                    }
+                }
             }
             assert_eq!(
                 skein_shell::poll_child(leader, false),
@@ -610,6 +658,10 @@ fn emergency_drop_leaves_outstanding_descriptors_and_the_waited_leader_owned() {
             skein_shell::abandon_binary(Some(leader), &descriptors);
             for fd in descriptors {
                 assert!(!is_open(fd));
+            }
+            if let Some(starved) = starved {
+                drop(kernel);
+                starved.pass();
             }
         }
     }
