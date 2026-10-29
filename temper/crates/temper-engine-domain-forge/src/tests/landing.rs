@@ -124,7 +124,7 @@ fn landing_deadline_wakes_once_and_an_offered_step_clears_it() {
     outputs(&mut d, Event::SettleOutbox);
     d.wait_landing(&env(), 61, Some(env().wall));
     assert_eq!(d.next_wall_deadline(), Some(env().wall));
-    let mut out = Queue::with_capacity(max_out(&LIMITS));
+    let mut out = Queue::uncapped();
     fire(&mut d, &env(), &mut out);
     let mut wakes = 0_u32;
     while let Some(request) = out.pop() {

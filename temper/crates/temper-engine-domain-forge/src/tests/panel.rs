@@ -147,7 +147,7 @@ fn a_long_queue_counts_every_place_but_carries_only_the_nearest_ahead() {
     )
     .expect("long queue bounds");
     let environment = Env { limits, ..env() };
-    let mut out = Queue::with_capacity(max_out(&limits));
+    let mut out = Queue::uncapped();
     step(&mut d, &environment, Event::Restore { record: Stored::Repository(adopted()) }, &mut out);
     for task in 1..=u64::from(CHANGES) {
         step(&mut d, &environment, Event::Restore { record: Stored::Change(queued(task, 0, 95)) }, &mut out);
@@ -266,18 +266,20 @@ fn a_fresh_ci_read_marks_a_changed_verdict_and_restart_forgets_it() {
     assert_eq!(panel(&restarted).ci, change::Status::Unknown);
 }
 #[test]
-fn output_bounds_include_marks_and_shared_demo_answers() {
-    assert_eq!(
-        max_out(&LIMITS),
-        LIMITS.output * 2
-            + LIMITS.applications
-            + demo_act_bound(&LIMITS).unwrap() * 2
-            + LIMITS.landings
-            + LIMITS.landing_members
-            + LIMITS.entries
-    );
-    assert_eq!(worst_case(&Limits { output: u32::MAX, ..LIMITS }), None);
-    assert!(worst_case(&LIMITS).is_some());
+fn admission_accepts_large_internal_output_and_rejects_oversized_panel_names() {
+    let limits = Limits { output: u32::MAX, ..LIMITS };
+    assert!(valid(&limits));
+    Domain::new(
+        &limits,
+        4,
+        skein_forge_client::Config { namespace: Box::from(&b"test"[..]), writers: Box::new([]) },
+        &[],
+        &[],
+        false,
+    )
+    .expect("large internal output does not limit admission");
+    assert!(!valid(&Limits { name_bytes: PANEL_NAME_BYTES + 1, ..LIMITS }));
+    assert!(valid(&LIMITS));
 }
 
 #[test]
@@ -294,7 +296,7 @@ fn priority_moves_mark_the_nearest_followers_and_stop_at_the_mark_bound() {
     )
     .expect("queue bounds");
     let environment = Env { limits, ..env() };
-    let mut out = Queue::with_capacity(max_out(&limits));
+    let mut out = Queue::uncapped();
     step(&mut d, &environment, Event::Restore { record: Stored::Repository(adopted()) }, &mut out);
     for task in 1..=u64::from(CHANGES) {
         step(&mut d, &environment, Event::Restore { record: Stored::Change(queued(task, 0, 95)) }, &mut out);
@@ -320,7 +322,7 @@ fn priority_moves_mark_the_nearest_followers_and_stop_at_the_mark_bound() {
 #[test]
 fn ci_replacements_mark_once_and_repeated_reads_are_inert() {
     let mut d = with_row(fixtures::opening_row());
-    let mut out = Queue::with_capacity(max_out(&LIMITS));
+    let mut out = Queue::uncapped();
     for status in [change::Status::Pending, change::Status::Passed, change::Status::Failed] {
         let read = change::Ci { head: fixtures::HEAD, status };
         domain::keep_panel_ci(&mut d, fixtures::CHANGE, read, &mut out);
@@ -358,7 +360,7 @@ fn ending_a_change_saves_its_last_ci_without_an_extra_write() {
     outputs(&mut d, Event::ReadAfresh);
     outputs(&mut d, Event::SettleOutbox);
     let read = change::Ci { head: fixtures::HEAD, status: change::Status::Failed };
-    let mut out = Queue::with_capacity(max_out(&LIMITS));
+    let mut out = Queue::uncapped();
     domain::keep_panel_ci(&mut d, fixtures::CHANGE, read, &mut out);
     let requests = outputs(
         &mut d,
