@@ -12,6 +12,10 @@ use jig_test_domain as root;
 use skein_lib::{Duration, Env, JournalLimits, Queue, ReplyTo, Time, Token, Wall};
 use std::collections::VecDeque;
 
+// Four people hand-offs allow five requests apiece: one bootstrap owner plus
+// four sign-in/terminal outputs. This is the fixture's store-write allowance.
+const PEOPLE_WRITE_ALLOWANCE: u32 = 20;
+
 #[must_use]
 pub fn limits() -> root::Limits {
     static LIMITS: std::sync::OnceLock<root::Limits> = std::sync::OnceLock::new();
@@ -126,7 +130,7 @@ fn profile() -> root::Limits {
         history: 2,
     };
     let writes = tasks::max_out(&tasks) * 8
-        + people::max_out(&people) * 4
+        + PEOPLE_WRITE_ALLOWANCE
         + people.pending * 2
         + fleet::max_out(&fleet) * 4
         + jig_test_connector::MAX_OUT * 2
