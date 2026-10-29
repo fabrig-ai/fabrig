@@ -114,6 +114,9 @@ signals and trimming against fake Codex, post and systemd executables.
 `python3 -I tools/test_install.py` tests installation using local fixture
 repositories and a temporary home. Neither command uses real fleet state.
 These scripts run directly on hel8; they build nothing.
+The queue also runs the installer and offline tool suites automatically
+(`tools/queue/design.md, 2.3`); executable `test-*` files use their shebangs.
+Heavy's real-systemd recovery suite is explicitly excluded from that step.
 
 ## 7. Later
 

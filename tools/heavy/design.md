@@ -241,6 +241,13 @@ python3 -I -B tools/test_install.py
 tools/install --dry-run
 ```
 
+The queue's automatic tools step includes `test-heavy-plain`,
+`test-gate-policy`, `test-receipt-inputs` and the installer tests. It runs
+executable `test-*` suites directly through their shebangs. Exactly
+`tools/heavy/test-heavy-recovery` is excluded because it installs real
+systemd units; it runs manually on a builder, never automatically on the
+gate machine (`tools/queue/design.md, 2.3`).
+
 The plain suite uses temporary homes and hand-written ledgers, and installs
 no unit. Its two layouts are `home/src/rust/agents/scripts/devel` and
 `home/src/fabrig/main/tools/heavy`. The former runs the unchanged agents

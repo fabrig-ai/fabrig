@@ -5,6 +5,9 @@ runtime files named in section 7, the four `test-*` suites, `tools/install`,
 `tools/installed` and `tools/test_install.py`. Landing/check scripts in this
 directory support tests and are not installed tools.
 
+The queue discovers the three offline heavy suites through their executable
+shebangs and explicitly omits `test-heavy-recovery` from its automatic step.
+
 Fleet installation and reconciler repointing remain operator steps. The
 agents copy and default workspace/state paths are retained. No stored
 format or queue identity is changed by relocating the executable.
