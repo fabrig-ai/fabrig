@@ -30,14 +30,14 @@ pub fn worst_case(schema: &Schema, role: Role, limits: &Limits) -> Option<u64> {
         return None;
     }
     let queue_capacity = limits.output_frames.checked_add(3)?;
-    let mut schema_heap = List::<Version>::worst_case(schema.versions.capacity())?;
+    let mut schema_heap = List::<Version>::price(schema.versions.capacity())?;
     let received = match role {
         Role::Initiator => Direction::FromResponder,
         Role::Responder => Direction::FromInitiator,
     };
     let mut largest_body = 0_u32;
     for version in &schema.versions {
-        schema_heap = schema_heap.checked_add(List::<Kind>::worst_case(version.kinds.capacity())?)?;
+        schema_heap = schema_heap.checked_add(List::<Kind>::price(version.kinds.capacity())?)?;
         for kind in &version.kinds {
             if kind.direction == received {
                 largest_body = largest_body.max(kind.largest);
@@ -50,10 +50,10 @@ pub fn worst_case(schema: &Schema, role: Role, limits: &Limits) -> Option<u64> {
     let control_frame = u64::from(control_body.checked_add(8)?);
     let control_reserve = control_frame.checked_mul(3)?;
     let body = u64::from(largest_body.max(control_body));
-    let terms = List::<Term>::worst_case(limits.kinds)?.checked_mul(2)?;
-    let queues = Queue::<Queued>::worst_case(queue_capacity)?
-        .checked_add(Queue::<Event>::worst_case(MAX_UP)?)?
-        .checked_add(Queue::<Lower>::worst_case(MAX_DOWN)?)?;
+    let terms = List::<Term>::price(limits.kinds)?.checked_mul(2)?;
+    let queues = Queue::<Queued>::price(queue_capacity)?
+        .checked_add(Queue::<Event>::price(MAX_UP)?)?
+        .checked_add(Queue::<Lower>::price(MAX_DOWN)?)?;
     let state = u64::try_from(size_of::<Machine>()).ok()?;
     schema_heap
         .checked_add(queues)?

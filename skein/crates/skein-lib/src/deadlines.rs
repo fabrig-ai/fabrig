@@ -35,7 +35,7 @@ impl<K: Ord + Copy> Deadlines<K> {
     /// `u64`.
     #[must_use]
     pub fn worst_case(capacity: u32) -> Option<u64> {
-        Set::<(Time, K)>::worst_case(capacity)?.checked_add(Map::<K, Time>::worst_case(capacity)?)
+        Set::<(Time, K)>::price(capacity)?.checked_add(Map::<K, Time>::price(capacity)?)
     }
 
     #[must_use]

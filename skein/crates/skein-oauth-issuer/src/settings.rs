@@ -72,7 +72,7 @@ pub fn worst_case(limits: &Limits) -> Option<u64> {
     let held = uri
         .checked_mul(5)?
         .checked_add(u64::from(limits.clients).checked_mul(client.checked_mul(2)?.checked_add(uri)?)?)?
-        .checked_add(List::<Client>::worst_case(limits.clients)?)?
+        .checked_add(List::<Client>::price(limits.clients)?)?
         .checked_add(u64::try_from(skein_tls::RS256_PKCS8_KEY_BYTES).ok()?)?
         .checked_add(683 + 7 + 43)?;
     // Compact signing input, encoded payload, raw claims, JWT and answer
@@ -81,7 +81,7 @@ pub fn worst_case(limits: &Limits) -> Option<u64> {
     let signing = claims.checked_add(jwt.checked_mul(3)?)?.checked_add(answer)?.checked_add(32_768)?;
     // Every form field owns its decoded name and value. Empty fields are
     // ignored; at most request_bytes + 1 slots, and two copies for Basic.
-    let parsing = List::<form::Field>::worst_case(limits.request_bytes.checked_add(1)?)?
+    let parsing = List::<form::Field>::price(limits.request_bytes.checked_add(1)?)?
         .checked_add(u64::from(limits.request_bytes).checked_mul(4)?)?;
     let redirect = uri.checked_add(token.checked_add(state)?.checked_mul(3)?)?.checked_add(64)?;
     let discovery = uri.checked_mul(30)?.checked_add(2048)?;

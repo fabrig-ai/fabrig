@@ -560,8 +560,8 @@ impl<O: Copy, R> RequestTable<O, R> {
     #[must_use]
     pub fn worst_case(limits: &RequestLimits) -> Option<u64> {
         Slab::<Entry<O, R>>::worst_case(limits.requests)?
-            .checked_add(Map::<u64, Id<Entry<O, R>>>::worst_case(limits.requests)?)?
-            .checked_add(Map::<RequestKey, Id<Entry<O, R>>>::worst_case(limits.requests)?)
+            .checked_add(Map::<u64, Id<Entry<O, R>>>::price(limits.requests)?)?
+            .checked_add(Map::<RequestKey, Id<Entry<O, R>>>::price(limits.requests)?)
     }
 
     fn fits(&self, size: u64) -> bool {
