@@ -220,7 +220,21 @@ fn a_page_keeps_the_longest_prefix_within_the_roots_bounds() {
 }
 
 #[test]
-fn a_row_that_does_not_decode_stops_the_engine() {
+fn a_corrupt_store_answer_fails_its_original_load_once() {
+    let mut routes = fixtures::routes();
+    let Some(store::Request::Restore { owner, .. }) =
+        route::down(&mut routes, load(engine::Range::Forge, None, 4, 4096))
+    else {
+        panic!("restore")
+    };
+    assert_ne!(owner, fixtures::OWNER, "store tokens differ from root owners");
+    let mut out = Queue::with_capacity(2);
+    route::up(&mut routes, store::Event::Corrupt { owner }, &mut out);
+    failed_load(&mut routes, owner, &mut out);
+}
+
+#[test]
+fn a_row_that_does_not_decode_fails_its_original_load_once() {
     let rows = [
         store::Row::Application { key: Box::new([0]), value: Box::new([255]) },
         store::Row::Application {
@@ -236,14 +250,30 @@ fn a_row_that_does_not_decode_stops_the_engine() {
         else {
             panic!("restore")
         };
+        assert_ne!(owner, fixtures::OWNER, "store tokens differ from root owners");
         let mut out = Queue::with_capacity(2);
-        route::up(&mut routes, store::Event::Restored { owner, rows: Box::new([row]), next: None }, &mut out);
-        let Some(Up::Root(event)) = out.pop() else { panic!("root event") };
-        let engine::Event::Store(engine::StoreInput::Uncommitted { number: 7 }) = *event else {
-            panic!("failed commit")
-        };
-        assert!(routes.idle());
+        route::up(
+            &mut routes,
+            store::Event::Restored { owner, rows: Box::new([forge_row(7), row]), next: None },
+            &mut out,
+        );
+        failed_load(&mut routes, owner, &mut out);
     }
+}
+
+fn failed_load(routes: &mut route::Routes, owner: Token, out: &mut Queue<Up>) {
+    let Some(Up::Root(event)) = out.pop() else { panic!("failed load terminal") };
+    let engine::Event::Store(engine::StoreInput::Unloaded { owner: root }) = *event else {
+        panic!("failed load terminal: {event:?}")
+    };
+    assert_eq!(root, fixtures::OWNER);
+    assert!(out.is_empty(), "one terminal, without a generic uncommitted event");
+    assert!(routes.idle(), "failed load retired");
+    route::up(routes, store::Event::Corrupt { owner }, out);
+    route::up(routes, store::Event::Unread { owner }, out);
+    route::up(routes, store::Event::Restored { owner, rows: Box::new([forge_row(8)]), next: None }, out);
+    assert!(out.is_empty(), "late load answers have no owner or duplicate terminal");
+    assert!(routes.idle());
 }
 
 fn call_row() -> core::Record {

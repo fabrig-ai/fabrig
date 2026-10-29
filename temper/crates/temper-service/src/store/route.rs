@@ -184,7 +184,7 @@ pub fn up(routes: &mut Routes, event: store::Event, into: &mut Queue<Up>) {
             }
             page(routes, owner, rows.into_boxed(), None, next, into);
         }
-        store::Event::Unread { owner } => {
+        store::Event::Unread { owner } | store::Event::Corrupt { owner } => {
             if let Some(flight) = routes.pending.remove(&owner) {
                 root(into, engine::StoreInput::Unloaded { owner: flight.root });
             }
@@ -193,10 +193,6 @@ pub fn up(routes: &mut Routes, event: store::Event, into: &mut Queue<Up>) {
             if let Some(load) = routes.reads.remove(&owner) {
                 root(into, engine::StoreInput::ReadLoaded { load, result });
             }
-        }
-        store::Event::Corrupt { owner } => {
-            routes.pending.remove(&owner);
-            stop(routes, into);
         }
         store::Event::Site { owner, of, site, patcher, .. } => {
             into.push(Up::Ask(dispatch(owner, of, site, patcher)));
@@ -239,7 +235,7 @@ fn page(
     let mut scanned = flight.after.clone();
     for row in rows {
         let Some(record) = decode(row, &routes.families) else {
-            stop(routes, into);
+            root(into, engine::StoreInput::Unloaded { owner: flight.root });
             return;
         };
         let key = record.key();
