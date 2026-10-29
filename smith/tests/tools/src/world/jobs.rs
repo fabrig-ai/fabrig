@@ -26,6 +26,13 @@ impl World {
         self.job_outputs.insert(command.to_vec(), writes.iter().map(|(at, bytes)| (*at, bytes.to_vec())).collect());
     }
 
+    /// Machine job acts in dispatch order, with their injected time and spawn owner.
+    /// World contract: domain/tools.md, section 5, Reading it.
+    #[must_use]
+    pub fn job_acts(&self) -> &[(Time, Token, JobAct)] {
+        &self.job_acts
+    }
+
     pub(super) fn start_yielded(&mut self, owner: Token, op: &Op, deadline: Time) -> bool {
         let Op::Spawn { cwd, command, head, tail, after: Some(after) } = op else { return false };
         self.stats.commands += 1;
@@ -64,6 +71,7 @@ impl World {
     }
 
     pub(super) fn job_act(&mut self, owner: Token, act: JobAct) {
+        self.job_acts.push((self.now, owner, act));
         let mut job = self.jobs.remove(&owner).expect("an act names a held owner");
         if act == JobAct::Hasten {
             if matches!(job.response, Response::Read { .. }) {

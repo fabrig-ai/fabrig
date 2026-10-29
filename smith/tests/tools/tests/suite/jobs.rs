@@ -389,6 +389,122 @@ fn two_reads_of_one_job_wait_their_turn() {
     );
 }
 
+// Distinct waits identify each read in the machine's dispatch log.
+const FIRST_READ_SECONDS: u64 = 1;
+const LATER_READ_SECONDS: u64 = 2;
+const LONG_READ_SECONDS: u64 = 5;
+
+fn reads_under_load(seed: u64) -> (Vec<Result<Outcome, JobProblem>>, World) {
+    // Four reads leave three queued behind the first delayed terminal.
+    const BUILD_MILLIS: u64 = 6_000;
+    const OTHER_MILLIS: u64 = 4_000;
+    const FIRST_WRITE_MILLIS: u64 = 500;
+    const SECOND_WRITE_SECONDS: u64 = 2;
+    const LAST_WRITE_SECONDS: u64 = 5;
+    // Two yields precede the reads; the second read is still queued at t=0.
+    const QUEUED_CALL: usize = 3;
+    // The edit overlaps the remaining reads; teardown follows both job ends.
+    const EDIT_MILLIS: u64 = 1_500;
+    const SETTLE_SECONDS: u64 = 7;
+    const FILE_IO_MIN_MILLIS: u64 = 200;
+    const FILE_IO_MAX_MILLIS: u64 = 300;
+    let mut settings = settings();
+    settings.seed = seed;
+    settings.io = Span::millis(FILE_IO_MIN_MILLIS, FILE_IO_MAX_MILLIS);
+    let mut fixture = Fixture::new();
+    fixture.checkout.program(b"cargo build", program(BUILD_MILLIS, b"first\nsecond\nlast\n", Exit::Code(0), &[]));
+    fixture.checkout.program(b"cargo test", program(OTHER_MILLIS, b"other\n", Exit::Code(0), &[]));
+    let writes = [
+        (Duration::from_millis(FIRST_WRITE_MILLIS), b"first\n".as_slice()),
+        (Duration::from_secs(SECOND_WRITE_SECONDS), b"second\n"),
+        (Duration::from_secs(LAST_WRITE_SECONDS), b"last\n"),
+    ];
+    let script = vec![
+        Step::Calls(vec![shell_after(b"cargo build", 0)]),
+        Step::Calls(vec![shell_after(b"cargo test", 0)]),
+        Step::Send(vec![
+            job(1, FIRST_READ_SECONDS),
+            job(1, LONG_READ_SECONDS),
+            job(1, LATER_READ_SECONDS),
+            job(1, LONG_READ_SECONDS),
+            job(2, LONG_READ_SECONDS),
+            read(b"src/lib.rs"),
+        ]),
+        Step::EndWait(QUEUED_CALL),
+        Step::Sleep(Duration::from_millis(EDIT_MILLIS)),
+        Step::Calls(vec![edit(b"src/lib.rs", b"one", b"four", false)]),
+        Step::Sleep(Duration::from_secs(SETTLE_SECONDS)),
+    ];
+    run(settings, fixture, &writes, script)
+}
+
+/// Order: `job_reader_idle` (phase C), with monotonic read admission order.
+#[test]
+fn same_job_reads_consume_output_in_admission_order_under_load() {
+    // Two yields, four same-job reads, another job read, a file read and an edit.
+    const ANSWERS: usize = 9;
+    const YIELDS: usize = 2;
+    const SEED: u64 = 1;
+    const OTHER_SEED: u64 = 2;
+    // The first read waits one second, the hastened read none, the third two.
+    const LAST_READ_START_SECONDS: u64 = 3;
+    let (answers, world) = reads_under_load(SEED);
+    assert_eq!(answers.len(), ANSWERS);
+    assert_eq!(
+        answers[YIELDS..],
+        [
+            Ok(job_answer(b"first\n", JobEnd::Running)),
+            Ok(job_answer(b"", JobEnd::Running)),
+            Ok(job_answer(b"second\n", JobEnd::Running)),
+            Ok(job_answer(b"last\n", JobEnd::Ended(tools::Exit::Code { code: 0 }))),
+            Ok(Outcome::Job {
+                job: JobNumber(2),
+                head: b"other\n".as_slice().into(),
+                tail: Box::default(),
+                dropped: 0,
+                output: BytesClamp::Within,
+                wait: TimeoutClamp::Within,
+                end: JobEnd::Ended(tools::Exit::Code { code: 0 }),
+            }),
+            Ok(Outcome::Read {
+                content: LIB.into(),
+                first: 1,
+                lines: 3,
+                total: 3,
+                next: tools::Next::End,
+                cut: tools::Cut::Whole,
+                window: BytesClamp::Within,
+            }),
+            Ok(Outcome::Edited { replaced: 1 }),
+        ]
+    );
+    // The world's machine boundary asserts one act at a time per job, and
+    // its answer ledger asserts one answer per call through settled teardown.
+    // Distinct waits identify admission order, including the queued hasten.
+    let reads: Vec<_> = world
+        .job_acts()
+        .iter()
+        .map(|(at, _, act)| {
+            let tools::JobAct::Read { wait, .. } = act else { panic!("only admitted reads reach the machine") };
+            (at.saturating_since(Time::ZERO), *wait)
+        })
+        .collect();
+    assert_eq!(
+        reads,
+        vec![
+            (Duration::ZERO, Duration::from_secs(FIRST_READ_SECONDS)),
+            (Duration::ZERO, Duration::from_secs(LONG_READ_SECONDS)),
+            (Duration::from_secs(FIRST_READ_SECONDS), Duration::ZERO),
+            (Duration::from_secs(FIRST_READ_SECONDS), Duration::from_secs(LATER_READ_SECONDS)),
+            (Duration::from_secs(LAST_READ_START_SECONDS), Duration::from_secs(LONG_READ_SECONDS)),
+        ]
+    );
+    skein_world::domain::assert_replays(SEED, OTHER_SEED, |seed| {
+        let (answers, world) = reads_under_load(seed);
+        (world.trace().to_vec(), answers)
+    });
+}
+
 fn stop(number: u32) -> Call {
     let mut call = job(number, 5);
     if let Call::Job { stop, .. } = &mut call {
