@@ -746,7 +746,8 @@ have one, an engine alone none. Each:
     and the forge's names and branches, within the checkout's
     `name_bytes`;
   - the worker's, against the agent's configuration
-    (`temper-worker-domain`'s `worst_case`), among its rules: the
+    (`temper-worker-domain::valid`, entrance constraints and count
+    representability, with no heap sum), among its rules: the
     checkout's repositories, names, conflicts and paths within the
     agent's directories, their names, conflicts and paths; the agent's
     largest call within the checkout's commit message; and, of the hub's
@@ -1805,8 +1806,8 @@ section 2), by jig's charter documents (jig's `domain/engine.md`, 17.9).
   section's allotment at the last line end within it, saying how many
   bytes were left out, as the brief's other cuts do. Its budget is
   `document`, a limit of the forge's beside `ci`, `reviews` and `pull`
-  (section 7), 4,096 bytes in `small`, priced in the forge's worst case
-  for the documents of every run it prepares at once. A repository not
+  (section 7), 4,096 bytes in `small`, bounding each document section
+  the forge prepares. A repository not
   adopted, a file or heading not there, or a read that failed, is a
   section saying so.
 - **In a settings file** (`../client/tools.md`, 5.3), a charter's value

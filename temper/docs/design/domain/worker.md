@@ -120,9 +120,9 @@ taken; a host's channel and the kernel's queues stay capped.
 
 - **The backlog** is the entries in the uncapped queues between the
   service's components and the root's children; **the watermark** a
-  field of the root's `Limits`, at twice one entrance's largest output
-  (`2 × max_out` at the stock `small` profile), set where the worker's
-  limits are, with no key in temper's documents.
+  field of the root's `Limits`, defaulting to
+  `temper_worker_domain::WATERMARK`, 10,198 entries, set where the
+  worker's limits are, with no key in temper's documents.
 - **New work waits:** an assignment, a message, a check and a sign-out
   from the engine wait at the watermark, in the link's capped queue in
   order. **Everything else is always taken**: the children's

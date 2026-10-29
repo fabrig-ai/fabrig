@@ -235,8 +235,7 @@ opens, the rows of each window, the composer's bytes, the acts in flight.
   No client has a watermark: new work enters through capped edges,
   the engine link's exchanges, the kernel's queues and terminal or
   browser input (programming-model.md, 7.1). The terminal, browser and
-  CLI shells use uncapped internal hand-offs too; `max_out` functions
-  size no internal queue and reserve no room.
+  CLI shells use uncapped internal hand-offs too.
 
 ### 3.2 Its modules
 

@@ -1710,7 +1710,7 @@ runs it (section 7).
     (above), and small's 4 hold none of that work; with `notes.scopes`
     15, since jig's core admits an authority's grants only with 3 notes'
     scopes more, and refuses every override of the core's otherwise
-    (`jig-domain-core`'s `worst_case`);
+    (`jig-domain-core::valid`);
   - `tasks.authority_bytes` 512 and `tasks.batch` 1, the process
     tier's: the bounds above widen a task's stored row past the small
     profile's store, whose bounds no override changes, so the start

@@ -565,7 +565,8 @@ sources in its holder's order. temper configures the LLM providers
   user, ends in `Stopped { forge, why }` from the forge component; the
   routing hands it to the root, the deployment's page names it, and the
   client offers Replace. That forge's calls fail as forge.md classifies a
-  stopped forge; other forges, the engine and its runs go on. A wrong
+  stopped forge; its git identity entries are withdrawn at once. Other
+  forges, the engine and its runs go on. A wrong
   credential would make temper act as someone else, so the stop holds
   until a replacement answers as the forge's user: never a degraded mode.
   A failure of jig's secrets' store itself stops the engine, as the main
