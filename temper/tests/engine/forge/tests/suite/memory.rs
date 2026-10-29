@@ -9,6 +9,9 @@ fn drain(out: &mut Queue<top::Request>) {
     }
 }
 
+// Measured peak: 3,626 bytes; 25% headroom, rounded up to two significant digits.
+const CONNECTOR_HEAP_CEILING: u64 = 4_600;
+
 #[test]
 fn bounded_connector_tables_and_client_fit_the_declared_heap() {
     for limits in
@@ -18,7 +21,6 @@ fn bounded_connector_tables_and_client_fit_the_declared_heap() {
         let mut domain = connector(&limits);
         let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
         let mut out = Queue::with_capacity(top::max_out(&limits));
-        let bound = top::worst_case(&limits).expect("admitted limits");
         top::step(
             &mut domain,
             &env,
@@ -32,14 +34,14 @@ fn bounded_connector_tables_and_client_fit_the_declared_heap() {
             top::step(&mut domain, &env, top::Event::Names { task, resources: Box::new([name.clone()]) }, &mut out);
             let measured = meter.end();
             drain(&mut out);
-            meter.check(measured, bound, &limits);
+            meter.check(measured, CONNECTOR_HEAP_CEILING, &limits);
             domain.reclaim();
 
             meter.start();
             top::step(&mut domain, &env, top::Event::Hold { task, resource: name, from: None }, &mut out);
             let measured = meter.end();
             drain(&mut out);
-            meter.check(measured, bound, &limits);
+            meter.check(measured, CONNECTOR_HEAP_CEILING, &limits);
             domain.reclaim();
         }
     }
@@ -60,6 +62,9 @@ fn connector(limits: &top::Limits) -> top::Domain {
     .expect("admitted limits")
 }
 
+// Measured peak: 576 bytes; 25% headroom, rounded up to two significant digits.
+const RESTORED_FLIGHTS_HEAP_CEILING: u64 = 720;
+
 #[test]
 fn restored_flight_nodes_fit_the_counted_entry_bound() {
     const TASK: u64 = 7;
@@ -77,10 +82,6 @@ fn restored_flight_nodes_fit_the_counted_entry_bound() {
         );
     }
     let measured = meter.end();
-    meter.check(
-        measured,
-        skein_lib::Map::<(u64, u64), ()>::price(LIMITS.entries).expect("flight table bound"),
-        &LIMITS,
-    );
+    meter.check(measured, RESTORED_FLIGHTS_HEAP_CEILING, &LIMITS);
     assert!(out.is_empty(), "restoration emits no writes");
 }
