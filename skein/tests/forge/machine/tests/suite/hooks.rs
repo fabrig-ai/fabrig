@@ -151,7 +151,7 @@ fn a_failed_listener_is_told_to_the_root_as_lost() {
 fn a_recorded_forgejo_push_signed_by_the_world_is_hinted() {
     let mut world = world();
     let peer = world.accept();
-    let request = include_bytes!("../../conformance/deliveries/push/request");
+    let request = include_bytes!("../../../conformance/deliveries/push/request");
     let offset = bytes::find(request, b"\r\n\r\n").expect("recorded head") + 4;
     world.send(peer, &deliveries::signed(b"/hooks/1", b"push", &request[offset..]));
     assert_eq!(world.status(peer), Some(204));

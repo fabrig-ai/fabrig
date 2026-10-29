@@ -167,7 +167,7 @@ fn late_wrong_viewer_stops_an_already_connected_generation() {
 #[test]
 fn replacement_after_late_refusal_has_its_own_single_answers() {
     let mut script = wrong_script();
-    script.extend(crate::script(&[PAGE_ONE, PAGE_TWO, MINT, MINT, VIEWER]));
+    script.extend(crate::github_installation_loss::script(&[PAGE_ONE, PAGE_TWO, MINT, MINT, VIEWER]));
     let mut world = Machine::github(SEED, fixtures::limits(), settings(), script);
     world.run_for(SECOND);
     accepted(&mut world, &[1]);
@@ -183,7 +183,7 @@ fn replacement_after_late_refusal_has_its_own_single_answers() {
 #[test]
 fn replaced_viewer_answer_cannot_stop_the_new_generation() {
     let mut script = wrong_script();
-    script.extend(crate::script(&[PAGE_ONE, PAGE_TWO, MINT, MINT, VIEWER]));
+    script.extend(crate::github_installation_loss::script(&[PAGE_ONE, PAGE_TWO, MINT, MINT, VIEWER]));
     let mut world = Machine::github(SEED, fixtures::limits(), settings(), script);
     world.run_for(SECOND);
     // Two pages and two mints precede the old Viewer.

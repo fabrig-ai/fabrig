@@ -1,9 +1,6 @@
 use skein_forge_connection::limits::{self, Forges};
 use skein_forge_machine_world::{fixtures, memory};
 
-#[global_allocator]
-static HEAP: skein_heap::Counting = skein_heap::Counting;
-
 #[test]
 fn full_forgejo_holders_fit_the_declared_worst_case() {
     check(Forges { forgejo: 2, github: 0 }, [2, 2, 2, 2, 8, 4, 0, 0, 2, 8, 8, 0, 0, 65408, 4]);
