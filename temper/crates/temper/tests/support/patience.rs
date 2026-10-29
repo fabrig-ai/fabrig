@@ -65,6 +65,9 @@ impl Patience {
     /// A probe can run in a referee; its caller's world owns the final verdict.
     /// A starved operation retries with its deadline disarmed.
     pub fn socket_retry(&mut self, error: std::io::Error) -> std::io::Result<()> {
+        if error.kind() == std::io::ErrorKind::Interrupted {
+            return Ok(());
+        }
         if matches!(error.kind(), std::io::ErrorKind::TimedOut | std::io::ErrorKind::WouldBlock)
             && self.deadline.as_ref().is_some_and(Deadline::passed)
         {
@@ -146,5 +149,14 @@ mod tests {
         let mut patience = Patience::arm("the socket's answer", Duration::ZERO);
         let error = patience.socket_retry(std::io::ErrorKind::ConnectionRefused.into()).expect_err("a refusal fails");
         assert_eq!(error.kind(), std::io::ErrorKind::ConnectionRefused);
+    }
+
+    #[test]
+    fn an_interrupted_socket_retries_with_the_same_deadline() {
+        let mut patience = Patience::arm("the socket's answer", Duration::from_secs(2));
+        let until = patience.until();
+        patience.socket_retry(std::io::ErrorKind::Interrupted.into()).expect("retry the interrupted operation");
+        assert_eq!(patience.until(), until);
+        assert!(!patience.deferred());
     }
 }
