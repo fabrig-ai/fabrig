@@ -979,7 +979,10 @@ Startup also checks the seed policy after enforced landing requirements are join
 - **Validity:** `temper_engine_domain::valid` checks child validity,
   entrance constraints, payload capacities and count representability.
   The journal requires nonzero `commits`, `writes`, `deliveries` and
-  `run_bytes`; `writes = 1` admits a header-only commit. Its `held`
+  `run_bytes`; `writes = 1` admits a header-only commit. `deliveries`
+  caps no queue (decision deliveries queue uncapped): it is the outputs
+  at the journal's door, and the default watermark is `commits` plus
+  `deliveries` (`default_watermark`). Its `held`
   field and memory estimates impose no admission condition. The root
   accepts `forge.output = 0`: the forge's internal output envelope
   does not constrain the parent. No heap sum admits the root.
