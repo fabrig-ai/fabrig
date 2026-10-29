@@ -34,15 +34,9 @@ Updated 2026-10-29. How far smith's code is from its design.
 - `domain/run.md`, 8.2, `domain/host.md`, 3, and `protocol/events.md`, 5.2:
   built: delivery `owned_bound()` beside `owned_bytes()`, the front
   projection's `View::owned_bound`, and `codec_bound` for event records.
-- `protocol/llm.md`, 8: lags: completion, rendering, job-problem and
-  size-refusal functions retain their old names, until
-  `ready/smith/d-domain-names` lands; that branch supplies
-  `completion_bound`, `render_bound`, `job_problem_bound` and
-  `size_refusal_bound`. `domain/README.md`, 4: lags: the root's feedback
-  function retains its old name, until `ready/smith/d-domain-names` lands,
-  supplying `feedback_bound`. `protocol/agent.md`, 4: lags:
-  `ConfiguredModel` retains `worst_case`, until `ready/smith/d-domain-names`
-  lands with `ConfiguredModel::owned_bound`.
+- `protocol/llm.md`, 8, `domain/README.md`, 4, and `protocol/agent.md`, 4:
+  built: `completion_bound`, `render_bound`, `job_problem_bound`,
+  `size_refusal_bound`, `feedback_bound` and `ConfiguredModel::owned_bound`.
 - `domain/tools.md`, 6: built: `result_bound` and `batch_result_bound`
   describe result receiving ownership.
 - `testing.md`, 6, and `protocol/limits.md`, 5 and 11: built: remeasured
@@ -51,37 +45,31 @@ Updated 2026-10-29. How far smith's code is from its design.
   world exercises a domain's output flow control. The hosted-process
   ErrorTail case shares the scenario's measured total ceiling; it has no
   separate 4,096-byte allowance.
-- `domain/session.md`, 10: built: the two `TURN_KIND_SIZE = 240` checks
-  in `smith/crates/smith-domain-session/src/tests/builtin.rs` and
-  `smith/crates/smith-domain-session/src/tests/program.rs` are exact
-  type-size contract checks on `size_of(Turn) + size_of(Kind)`, not
-  allocator ceilings. Both assert `<= TURN_KIND_SIZE`.
-- `protocol/limits.md`, 3.6 and 3.8: lags: channel output allowances
-  remain, until `ready/smith/d-channel-contract` lands. Its
-  `EdgeRoom { to_domain: 1, below: 6 }`, `EDGE_ROOM` and `edge_room(&Limits)`
-  describe one host-channel entrance's credit, with no `max_out` alias.
-  `ready/smith/d-channel-edge` supplies the edge names but retains that
-  alias. Past the credit an entrance waits; `send_live` and `offer_fact`
-  drop and count the piece's bytes or fact instead.
-- `domain/host.md`, 2, and `protocol/channel.md`, 4 and 8: lags:
-  sent-message timestamps remain capped, until `ready/smith/lc6-live-queues`
-  lands. That branch leaves two edges filled by the agent process:
-  `LIVE_SLOTS = 4` and received-turn measurements at the host's turn
-  credit. Sent-message timestamps are then uncapped.
-- `domain/README.md`, 4, and `domain/host.md`, 9.1: lags: until smith's
-  domain contract change lands. Per-entrance output/fact allowances
-  (`max_out`, `MAX_OUT`, `run_out`, `session_out`, `max_facts`,
-  `max_to_opener`, `run_steps`, `session_steps`) remain in code;
-  `d-domain-contract` has no ready tip yet. Child request and fact queues
-  are already uncapped. The `run_out` and `session_out` queue fields
-  are hand-offs, distinct from the allowance helpers of the same names.
-- `domain/host.md`, 9.1: lags: content drains use fact-limit allowances,
-  until `ready/smith/d-facts-drains` lands. The root and inline slot then
-  expose `pending_content()`; the local domain takes that count plus
-  one empty content pop, marking the slot drained for reclaim. Root
-  child facts already drain by `pending_facts()`. The inline wrapper has
-  no `pending_facts()` accessor: its native fact drain still pops until
-  empty; the agent service's framed fact drain uses its work quantum.
+- `domain/session.md`, 10: built: one exact type-size contract check,
+  `TURN_KIND_SIZE` = 192 bytes on x86_64 for `size_of(Turn) +
+  size_of(Kind)`, an `assert_eq` in
+  `smith/crates/smith-domain-session/src/tests/builtin.rs`
+  (`the_turn_and_kind_cells_keep_their_size`), not an allocator ceiling.
+- `protocol/limits.md`, 3.6 and 3.8: built: `EdgeRoom { to_domain: 1,
+  below: 6 }`, `EDGE_ROOM` and `edge_room(&Limits)`, one host-channel
+  entrance's credit, with no `max_out` alias. Past the credit an entrance
+  waits; `send_live` and `offer_fact` drop and count the piece's bytes or
+  fact instead.
+- `domain/host.md`, 2, and `protocol/channel.md`, 4 and 8: built: two
+  edges filled by the agent process, `LIVE_SLOTS = 4` and received-turn
+  measurements at the host's turn credit; sent-message timestamps uncapped.
+- `domain/README.md`, 4, and `domain/host.md`, 9.1: lags: per-entrance
+  output/fact allowances (`max_out`, `MAX_OUT`, `run_out`, `session_out`,
+  `max_facts`, `max_to_opener`, `run_steps`, `session_steps`) remain,
+  until `ready/smith/d-domain-contract` lands. The `run_out` and
+  `session_out` queue fields are hand-offs, distinct from the allowance
+  helpers of the same names.
+- `domain/host.md`, 9.1: built: the root and inline slot expose
+  `pending_content()`; the local domain takes that count plus one empty
+  content pop, marking the slot drained for reclaim. Root child facts
+  drain by `pending_facts()`. The inline wrapper has no `pending_facts()`
+  accessor: its native fact drain pops until empty; the agent service's
+  framed fact drain uses its work quantum.
 - kept: effective limits named in events v4 (`run.facts`,
   `session.facts`, `tools.facts`, `inline.facts`); removed or renamed with
   the next planned events version. `session.facts` caps the root's
@@ -94,10 +82,11 @@ Updated 2026-10-29. How far smith's code is from its design.
   only raised ceiling (from 150,000); other remeasured ceilings fell or
   stayed unchanged.
 
-`protocol/transcript.md`, 7: lags: generated `encoded_bound` and
-`decoded_bound` names, until `ready/smith/b-gen-1` lands; old wrappers
-remain alongside them on that tip. Host `Delivered::worst_case` and
-transcript `Turn::worst_case_bytes` also remain for their readers.
+`protocol/transcript.md`, 7: built: generated `encoded_bound` and
+`decoded_bound`. Lags: host `Delivered::worst_case` remains, until
+`ready/smith/d-host-contract` lands; transcript `Turn::worst_case_bytes`
+and the root's `feedback_worst_case` remain for jig's readers, until
+`ready/jig/smith-bound-readers` lands and smith drops them.
 
 ## Top-tier assertions kept
 
