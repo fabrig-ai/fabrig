@@ -72,17 +72,13 @@ pub fn authority() -> authority::Authority {
     }
 }
 pub fn env() -> Env<Limits> {
-    let core = jig_protocol_config::profile::profile(jig_protocol_config::profile::Profile::Small).core;
-    let room = core::route_bound(&core).expect("small profile has room");
-    let connectors = jig_test_connector::MAX_OUT.checked_mul(2).expect("two connector outputs");
-    let writes = room.checked_add(connectors).expect("write room");
-    let held = room.checked_add(connectors).expect("delivery room");
-    let journal = JournalLimits { commits: 2, writes, held, now: held, release: held };
+    let profile = jig_protocol_config::profile::profile(jig_protocol_config::profile::Profile::Small);
+    let journal = JournalLimits { commits: 2, ..profile.journal };
     Env {
         now: Time::from_nanos(1),
         wall: Wall::from_nanos(1),
         limits: Limits {
-            core,
+            core: profile.core,
             connector: jig_test_connector_world::LIMITS,
             routes: 512,
             watermark: crate::default_watermark(&journal),
@@ -227,7 +223,7 @@ pub fn assignment() -> Assignment {
     }
 }
 pub fn work() -> Queue<crate::Work> {
-    Queue::with_capacity(32)
+    Queue::uncapped()
 }
 
 pub fn channel_records() -> Box<[(crate::Delivery, host::LinkDown)]> {
