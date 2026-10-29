@@ -20,13 +20,6 @@ impl Print {
         })
     }
 }
-/// The old name of [`render_bound`]; it goes once every tree
-/// calls the new name (wave 3).
-#[must_use]
-pub fn worst_case(limits: &Limits) -> Option<(u32, u64)> {
-    render_bound(limits)
-}
-
 /// Bounds rendered line count and output bytes.
 /// Maximum output lines and bytes, including replacement bytes and indentation.
 #[must_use]

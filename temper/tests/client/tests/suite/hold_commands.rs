@@ -50,12 +50,7 @@ fn a_holds_offered_commands_are_ones_ctl_takes() {
     front.engine.forge.as_mut().expect("fake forge").push_branch(7, b"temper/held");
     let task = fixtures::goal_with_pushed_change_with_tasks(&mut front, b"temper/held", 0);
     let mut world = World::<Temper, Joint>::new(
-        Settings {
-            seed: fixtures::SEED,
-            words: fixtures::decision_words(),
-            heap_bytes_per_client: 64 * 1024 * 1024,
-            ..Settings::default()
-        },
+        Settings { seed: fixtures::SEED, words: fixtures::decision_words(), ..Settings::default() },
         front,
     );
     assert!(world.front().engine.task(task).is_some(), "created change exists");
@@ -124,15 +119,7 @@ fn refused_change(open: bool) -> (ClientWorld, u64) {
         fixtures::goal_with_pushed_change_without_review_authority(&mut front, b"temper/refused")
     };
     (
-        World::new(
-            Settings {
-                seed: fixtures::SEED,
-                words: fixtures::decision_words(),
-                heap_bytes_per_client: 64 * 1024 * 1024,
-                ..Settings::default()
-            },
-            front,
-        ),
+        World::new(Settings { seed: fixtures::SEED, words: fixtures::decision_words(), ..Settings::default() }, front),
         task,
     )
 }

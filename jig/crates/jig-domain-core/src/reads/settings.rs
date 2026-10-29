@@ -326,7 +326,7 @@ fn load(core: &mut Core, env: &Env<Limits>, recipient: Recipient, first: u32, la
 /// A selected revision is decoded whole before its values are admitted separately.
 #[must_use]
 pub fn load_bytes(limits: &Limits, rows: u32) -> Option<u64> {
-    settings::revision_worst_case(limits)?
+    settings::revision_bound(limits)?
         .checked_add(u64::try_from(size_of::<Row>()).ok()?)?
         .checked_add(u64::try_from(size_of::<Record>()).ok()?)?
         .checked_mul(u64::from(rows))

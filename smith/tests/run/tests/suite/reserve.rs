@@ -5,6 +5,9 @@ use skein_lib::Duration;
 use skein_world::domain::Verdict;
 use smith_run_world::{Settings, World, share_referee::judge};
 
+// Calm fixture inventory: two observations per eight messages plus eight lifecycle facts.
+const CALM_RUN_FACTS: u32 = 24;
+
 #[test]
 fn a_child_share_crossing_any_ordinary_part_is_rejected() {
     let mut settings = Settings::calm(34);
@@ -134,10 +137,8 @@ fn actual_facts_tell_child_shares_and_budget_without_deciding_work() {
         assert!(matches!(judge(&bad), Verdict::Failed(_)), "budget part {part}");
     }
     check_child_returns(&world);
-    let mut tight = World::new(Settings {
-        run: smith_domain_run::Limits { facts: smith_domain_run::max_facts(&settings.run), ..settings.run },
-        ..settings
-    });
+    let mut tight =
+        World::new(Settings { run: smith_domain_run::Limits { facts: CALM_RUN_FACTS, ..settings.run }, ..settings });
     tight.run(1_000_000);
     // The iterator batches input before submitting output. Drain pressure may
     // change their same-clock interleaving, but never either boundary's sequence.

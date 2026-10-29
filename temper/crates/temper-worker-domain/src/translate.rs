@@ -91,7 +91,7 @@ const fn missing(missing: git::Missing) -> wire::Missing {
 /// Why a prepare was refused at the checkout's entrance, as the host tells the
 /// engine: a workstream whose workspace another run holds, or a disk with
 /// every workspace held, may have room later. The host admits no workspace
-/// the checkout cannot take, as `worst_case` checks their limits agree.
+/// the checkout cannot take, as `valid` checks their limits agree.
 pub(crate) fn checkout_refusal(refusal: checkout::Refusal) -> wire::Preparation {
     match refusal {
         checkout::Refusal::Busy | checkout::Refusal::Full => wire::Preparation::Transient,

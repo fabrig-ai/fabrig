@@ -187,9 +187,10 @@ pub struct Domain {
 
 impl Domain {
     /// Before the first input, size the volatile routing tables by the connection component's bounds.
-    /// The caller charges `connection_worst_case` beside the ordinary domain bound.
+    /// The product of the connection bounds must fit the installation row count.
     pub fn connection_limits(&mut self, forges: u32, installations: u32) {
         assert!(self.connections.is_empty() && self.installations.is_empty(), "connection limits before inputs");
+        assert!(crate::limits::connection_valid(forges, installations), "connection bounds");
         self.connections = Map::with_capacity(forges);
         self.first = Map::with_capacity(forges);
         self.ended = Map::with_capacity(forges);
@@ -503,7 +504,7 @@ impl Domain {
         forges: &[crate::Configured],
         under_box: bool,
     ) -> Result<Domain, skein_forge::api::Error> {
-        if crate::worst_case(l).is_none()
+        if !crate::valid(l)
             || (crate::purpose::EffectPurpose::Release { task: 0, resource: Box::from(b"reason".as_slice()) })
                 .key(&config.namespace, l.client.op_bytes)
                 .is_none()
@@ -4851,7 +4852,7 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
             }
         }
         Stored::Writer(row) => {
-            let mut discarded = Queue::with_capacity(env.limits.output);
+            let mut discarded = Queue::uncapped();
             child(
                 d,
                 env,
@@ -4862,7 +4863,7 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
             d.writers.insert(row.forge, row.author).expect("restored writer within limits");
         }
         Stored::Client(row) => {
-            let mut discarded = Queue::with_capacity(env.limits.output);
+            let mut discarded = Queue::uncapped();
             child(d, env, skein_forge_client::Event::Restore { record: row }, &mut discarded);
             assert!(discarded.is_empty(), "restoration emits no output");
         }

@@ -28,7 +28,7 @@ fn a_deadline_kills_the_group_and_ends_timed_out_after_the_close() {
     component.fire(fixtures::DEADLINE);
     assert_eq!(&*component.signals(), &[(child, kernel::Signal::Kill, kernel::Target::Group)]);
     assert_eq!(component.done(), None);
-    component.below.out.io = skein_lib::Queue::with_capacity(crate::MAX_OUT.io);
+    component.below.out.io = skein_lib::Queue::uncapped();
     component.component.up(
         component.now,
         skein_io::Event::Stream { owner: pipes[0], up: skein_lib::stream::Up::Failed(skein_lib::stream::Fault::Other) },

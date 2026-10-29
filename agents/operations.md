@@ -22,8 +22,7 @@ Provisional, 2026-10-28. The machines' and the pipeline's facts every role works
 
 ## 3. Slots
 
-- Until the operator confirms the final inventory is installed, use `python3 -I ~/src/fabrig/ops/bin/claim` on hel8: it knows the replacement slots and hetzner7 slot 9, and excludes drained hetzner2. The installed main inventory is catching up through the queue.
-- After that confirmation, run installed `claim` from PATH on hel8, not from a lead's clone: it reads main's `tools/slots/hosts`. `claim list` shows shares and holders; `claim list --free OWNER` lists free slots of that share, then the pool.
+- Run installed `claim` from PATH on hel8, not from a lead's clone: it reads main's `tools/slots/hosts`. `claim list` shows shares and holders; `claim list --free OWNER` lists free slots of that share, then the pool.
 - `claim claim HOST N OWNER WHAT` before a task takes a slot, `claim release HOST N OWNER` when its report is in. Another lead's share needs its owner's agreement and `--lent-by SHARE_OWNER`; a free slot in that share is not pool space.
 - A guard on each builder (`tools/slots/guard --timer`) trims idle slots when free space falls below 80 GB.
 - A slot's target stays warm across tasks: a task switches the slot's checkout in place, never a fresh clone. Stale test executables fill a builder's disk (one reached zero bytes on 10-28, and heavy then fails its own bookkeeping), so `codex-run` trims a writable task's slot before Codex starts (`tools/slots/trim`; by hand: `ssh HOST 'bash -lc "python3 -I - SLOT"' < tools/slots/trim` from hel8).
@@ -46,7 +45,7 @@ Provisional, 2026-10-28. The machines' and the pipeline's facts every role works
 ## 7. Succession of long-running sessions
 
 - **Who:** every session that outlives its tasks: the coordinator and the operator (leads end instead: the last bullet). A session's context is finite; a session that compacts loses what it knew in its own words.
-- **When:** at about three quarters of the context window the session starts its successor, which usually comes before any compaction; if a compaction happens first, the handover starts right after it, never after a second. It never waits for the window to fill.
+- **When:** at about three quarters of the context window, measured by `session-context` (`tools/session`, installed on every machine: the session's own transcript, the latest call's tokens), the session starts its successor, which usually comes before any compaction; if a compaction happens first, the handover starts right after it, never after a second. It never waits for the window to fill.
 - **How:**
   1. The incumbent brings its handover file up to date (where things stand, what is in flight with run ids and branches, decisions pending and whose, what it was about to do) and starts the successor with its role file, the handover and the same mailbox name to inherit.
   2. **Warm-up, read-only:** the successor reads the handover, the role and operations files, the plans and the ledger, and follows the mailbox without acting (reading delivered messages' copies, never `post read` of the incumbent's box); it asks the incumbent what is unclear under a temporary name (`<role>-next`), and says when it is ready.

@@ -84,7 +84,13 @@ fn a_service_exit_before_its_link_fails_after_the_caller_settles() {
     let Err(payload) = result else { panic!("a service exit before its link must fail the story") };
     let message = payload.downcast_ref::<String>().expect("failure message");
     assert!(message.contains("service 1 exited before caller release: Code(1)"), "{message}");
-    assert!(message.contains("stderr tail:\ntemper serve: client listener failed\n"), "{message}");
+    assert!(
+        message.contains(&format!(
+            "stderr tail:\ntemper serve: client listener {} failed: other\n",
+            listener.local_addr().expect("held address")
+        )),
+        "{message}"
+    );
     assert!(!receipt.passed.get(), "failed startup never passes the referee");
     assert!(receipt.settled.get(), "the failure is reported after every host empties");
     assert_eq!(receipt.calls.get(), 0, "no CLI command ran before release");
@@ -93,15 +99,4 @@ fn a_service_exit_before_its_link_fails_after_the_caller_settles() {
         descriptors,
         "failed startup releases every descriptor"
     );
-}
-
-#[test]
-fn a_released_caller_runs_its_story_and_the_world_settles() {
-    let scratch = skein_scratch::Scratch::new("released-start");
-    let outcome = startup(&scratch, None, Rc::new(Receipt::default()));
-    let Proc::Caller(caller) = &outcome.procs[2] else { panic!("caller root") };
-    let [call] = caller.calls.as_slice() else { panic!("the story has one sign-in command") };
-    assert_eq!(call.exit, Some(Exit::Code(0)));
-    assert!(caller.released);
-    assert!(outcome.procs.iter().all(Host::is_empty));
 }

@@ -17,7 +17,7 @@ struct Measured {
 impl Measured {
     fn new(limits: &Limits) -> Measured {
         let limits = *limits;
-        let out = Queue::with_capacity(tasks::max_out(&limits));
+        let out = Queue::uncapped();
         let d = jig_tasks_world::domain(&limits, 1);
         Measured { d, env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits }, out, serial: 0, refused: false }
     }

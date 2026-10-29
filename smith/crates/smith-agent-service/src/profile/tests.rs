@@ -110,7 +110,7 @@ fn start_with_workspace(
     use skein_lib::{Env, Queue, ReplyTo, Time, Token, Wall};
     use smith_domain::run;
     let mut domain = run::Domain::new(limits, 0);
-    let mut out = Queue::with_capacity(run::MAX_OUT);
+    let mut out = Queue::uncapped();
     run::step(
         &mut domain,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits },

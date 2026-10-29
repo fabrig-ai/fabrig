@@ -106,12 +106,6 @@ impl Delivered {
             )
             .expect("fixed terminal size")
     }
-
-    /// Kept for readers outside smith until they move to `owned_bound`.
-    #[must_use]
-    pub fn worst_case() -> u64 {
-        Self::owned_bound()
-    }
 }
 
 /// Named file retaining conflict markers, supplied by the host as correctable

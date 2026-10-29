@@ -1,7 +1,8 @@
 //! The tools child domain's state and its entry point (domain/tools.md,
 //! sections 3–6; programming-model.md, sections 4.5 and 6.3). [`Domain`]
 //! retains kits, pending IO flights and uncapped facts. [`step`] emits the kit's
-//! bounded requests and accepts its typed terminals. This module never knows
+//! requests into an uncapped queue and accepts its typed terminals. Facts are
+//! kept losslessly and drained by count. This module never knows
 //! provider text, run outcomes, credentials or filesystem contents beyond
 //! what typed IO terminals supply.
 
@@ -12,23 +13,6 @@ use crate::facts::{Fact, Facts};
 use crate::flight::{self, Flight};
 use crate::kit::{self, Kit};
 use crate::limits::Limits;
-
-/// The most requests one call of [`step`] emits under `limits`: closing a kit
-/// cancels its ordinary calls and held owners. An ended job can invalidate
-/// the reads queued behind its answer, then close its kit. The allowance covers
-/// all calls plus two outputs per job, or two outputs when that is larger.
-/// The session reads this compatibility allowance in its parent-facing formula.
-#[must_use]
-pub const fn max_out(limits: &Limits) -> u32 {
-    let owners = limits.calls.saturating_add(limits.jobs.saturating_mul(2));
-    if owners > 2 { owners } else { 2 }
-}
-
-/// Close can report every retained terminal beside its lifecycle facts.
-#[must_use]
-pub const fn max_facts(limits: &Limits) -> u32 {
-    limits.jobs.saturating_add(2)
-}
 
 /// The tools child domain's state.
 #[derive(Debug)]
@@ -82,7 +66,7 @@ impl Domain {
     }
 }
 
-/// Handles one event, emitting at most [`max_out`] requests.
+/// Handles one event, emitting requests into an uncapped queue.
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     domain.facts.begin(env.now);
     match event {

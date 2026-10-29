@@ -25,7 +25,7 @@ pub fn limits() -> Limits {
         messages: 8,
         calls: 8,
         call_bytes: 65_536,
-        answer_bytes: smith::Delivered::worst_case(),
+        answer_bytes: smith::Delivered::owned_bound(),
         turns: 8,
         turn_bytes: 65_536,
         unacknowledged_bytes: 524_288,

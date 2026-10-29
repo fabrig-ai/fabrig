@@ -38,7 +38,7 @@ fn project_permission_baselines_copy_restored_full_width_mappings_and_independen
     policy.roles = Box::new([policy.roles[0].clone(), full_width]);
     limits.authority.roles = 2;
     core.authority = authority::Domain::new(core.authority.rules().clone(), limits.authority).unwrap();
-    let mut facts = Queue::with_capacity(authority::POLICY_MAX_OUT);
+    let mut facts = Queue::uncapped();
     authority::step(&mut core.authority, authority::Event::Policy { project: 1, policy }, &mut facts);
     assert_eq!(facts.pop(), Some(authority::PolicyFact::Added { project: 1 }));
     let mappings = [

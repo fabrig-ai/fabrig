@@ -184,7 +184,8 @@ product's own settings are `docs/design/shell.md`'s.
     2.1); and its efforts, the reasoning efforts it accepts, optional. A
     charter may name only a declared model, at most its declared window
     and output, and one of its declared efforts when it declares any
-    (charter.md, section 2).
+    (charter.md, section 2). `ConfiguredModel::owned_bound` bounds that
+    declaration's owned model name, effort-name cells and effort bytes.
 - ***Withdrawn,*** accepted from a host that still writes them, and
   written by none of smith's:
   - the `codex` dialect, with the account's id its grants carry
@@ -226,7 +227,7 @@ spawns one (hosts.md, section 5.2).
 ## 5. Facts and events
 
 - **One drain.** Each pass, the service takes the domain's facts, up to
-  its queue's bound, whatever the channel's phase or room. Inside the
+  its work quantum, whatever the channel's phase or room. Inside the
   process, facts are lossless: the domain's fact queue is a step's
   output in an uncapped queue (domain/run.md, section 11;
   programming-model.md, section 3). The next domain entrance waits until
@@ -402,8 +403,9 @@ spawns one (hosts.md, section 5.2).
 - **Configuration:** every refusal of a malformed one, and of each
   relationship of limits.md, section 4; an endpoint naming a program
   with no path; each withdrawn field accepted.
-- **Memory:** the process at its worst case, against skein's counting
-  allocator (limits.md, section 11).
+- **Memory:** fixed process scenarios against skein's counting
+  allocator, one measured total peak under a ceiling with headroom per
+  scenario (limits.md, section 11).
 
 ## 9. From temper
 

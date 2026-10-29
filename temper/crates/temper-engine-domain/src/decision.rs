@@ -18,15 +18,15 @@ pub use jig_domain_core::{Counters, fresh};
 use jig_domain_people as people;
 use skein_lib::{Decision as SkeinDecision, Journal as SkeinJournal, JournalLimits, List, Queue, ReplyTo, Token};
 
-/// Store edges and memory estimates supplied by the root, immutable across
+/// Store edges and admission bounds supplied by the root, immutable across
 /// journal calls (domain/root.md, 4 and 10). Its journal is uncapped.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
     /// The store's commits in flight: sent and unanswered, an edge enforced
-    /// by the root. Also counted in the default admission watermark and memory estimate.
+    /// by the root. Also counted in the default admission watermark.
     pub commits: u32,
-    /// Pricing estimate of deliveries held across decisions until durability permits release;
-    /// it need not cover the door's outputs.
+    /// Held-delivery count supplied to `journal_limits`; the root's uncapped journal
+    /// does not use it for admission.
     pub held: u32,
     /// Maximum unique writes per commit, including its automatically saved deployment header; a
     /// decision has one fewer slot.
@@ -276,7 +276,7 @@ impl Decision {
     /// The write buffer retains the store's per-commit write edge; outputs are uncapped.
     #[must_use]
     pub fn decide(journal: &mut Journal, limits: &Limits) -> Decision {
-        assert!(worst_case(limits).is_some(), "valid root journal limits");
+        assert!(valid(limits), "valid root journal limits");
         Decision {
             limits: *limits,
             writes: List::with_capacity(limits.writes.checked_sub(1).expect("header slot reserved")),
@@ -655,29 +655,13 @@ pub fn uncommitted(journal: &mut Journal, number: u64, out: &mut Queue<Output>) 
     out.push(Output::Stop);
 }
 
-/// Pure startup heap calculation for the root's containers and simultaneously owned
-/// decision/commit/held payloads, excluding allocator overhead. Invalid bounds or arithmetic
-/// overflow return `None`; no state or effect is created.
+/// Whether the journal's store and admission limits are usable
+/// (temper/docs/design/domain/root.md, sections 4 and 10).
+/// Commits, writes, deliveries and run bytes must be nonzero; one write slot
+/// is reserved for the deployment header. Heap sums do not constrain admission.
 #[must_use]
-pub fn worst_case(limits: &Limits) -> Option<u64> {
-    if limits.commits == 0 || limits.writes == 0 || limits.deliveries == 0 || limits.run_bytes == 0 {
-        return None;
-    }
-    List::<Write>::price(limits.writes)?
-        .checked_mul(2)?
-        .checked_add(Queue::<Delivery>::price(limits.deliveries)?)?
-        .checked_add(u64::from(limits.writes).checked_mul(2)?.checked_mul(u64::from(limits.transcript_bytes))?)?
-        .checked_add(
-            u64::from(limits.held).checked_add(u64::from(limits.deliveries))?.checked_mul(
-                u64::from(limits.result_bytes)
-                    .max(u64::from(limits.transcript_bytes))
-                    .checked_add(u64::from(limits.run_bytes))?
-                    .checked_add(
-                        List::<crate::BriefSection>::price(limits.deliveries)?
-                            .max(u64::try_from(size_of::<jig_domain_tasks::EscalationContext>()).ok()?),
-                    )?,
-            )?,
-        )
+pub const fn valid(limits: &Limits) -> bool {
+    limits.commits != 0 && limits.writes != 0 && limits.deliveries != 0 && limits.run_bytes != 0
 }
 
 fn fleet_delivery_within(event: &jig_domain_fleet::Event) -> bool {
@@ -791,7 +775,7 @@ fn assignment_within(assignment: &crate::Assignment, limits: &Limits) -> bool {
 fn host_within(host: &crate::HostDelivery, limits: &Limits) -> bool {
     match host {
         // The core admits these with the same document bounds as Delivery::Read.
-        // Their held-output payload is priced by core reads::answer_worst_case.
+        // Their held-output payload is priced by core reads::answer_bound.
         crate::HostDelivery::Settings { .. } => true,
         crate::HostDelivery::Render { name, tool, answer, .. } => {
             !name.is_empty()

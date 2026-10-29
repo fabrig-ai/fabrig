@@ -31,7 +31,7 @@ fn config() -> engine::Config {
     }
     let mut authority =
         a::Domain::new(rules, temper_engine_domain_world::walking::limits().authority).expect("forge-number policy");
-    let mut out = skein_lib::Queue::with_capacity(a::POLICY_MAX_OUT);
+    let mut out = skein_lib::Queue::uncapped();
     a::step(&mut authority, a::Event::Policy { project: 1, policy }, &mut out);
     assert_eq!(out.pop(), Some(a::PolicyFact::Added { project: 1 }));
     config.core.seed_projects[0].policy.policy = authority.policy(1).expect("configured seed policy").clone();

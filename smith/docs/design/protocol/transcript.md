@@ -279,6 +279,9 @@ jobs of every earlier window and activation.
   the most a session holds in a window (protocol/limits.md), so every
   transcript a live session leaves can be resumed, however long its
   conversation.
+- **Generated bounds** describe one value: `encoded_bound` bounds its
+  wire encoding, and `decoded_bound` its decoded ownership. Neither is
+  a process heap sum (limits.md, section 3).
 - **A host that keeps turns** bounds what it keeps unacknowledged with the
   channel's window (channel.md, section 7).
 
@@ -316,7 +319,7 @@ jobs of every earlier window and activation.
   - `opens_window` on a conversation's first turn and on each window
     turn, and on no other, and a host resuming from the last of them.
 - **A large transcript:** at the resume limit, one window at its largest,
-  measured against the worst case.
+  its measured total peak under a scenario ceiling with headroom.
 
 ## 10. From temper
 

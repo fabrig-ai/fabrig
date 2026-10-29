@@ -15,7 +15,7 @@ mod watch;
 pub use boundary::{
     Call, CallIdentity, End, Event, Follow, Made, Refusal, Request, TurnName, Window, Writing, WritingCall,
 };
-pub use domain::{Domain, fire, max_out, step};
+pub use domain::{Domain, fire, step};
 pub use facts::Fact;
 pub use limits::{Limits, valid};
 pub use text::{RetainedRun, current_call, has_current_call, position, retained_attempt, revision, writing};

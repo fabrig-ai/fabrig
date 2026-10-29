@@ -294,14 +294,15 @@ at every iteration (testing-strategy.md, 6), with the counting allocator,
 `skein-heap` (testing.md, 5). The harness checks each hosted process's
 measured peak against the ceiling its scenario names, with headroom
 (shell.md, 12). One thread, one heap: a process's part is what grew within
-the calls that run its code (making it, and each `iterate`), metered with a span, at its peak
-within each call. The simulator's submit and reap, the referee and the
+the calls that run its code, including construction, each `iterate`,
+delivery and draining its containers, metered with a span at each call's
+peak. The simulator's submit and reap, the referee and the
 harness run between those calls, so the simulator's trace and network and
 the harness's heap are left out. This holds while nothing a process owns
 is allocated or freed outside its calls: the backend hands every buffer
 back and never drops, copies or replaces one (kernel.md); the queues it
-fills and drains are the process's own, bounded and made with it; and the
-referee changes a process only through flags that allocate nothing. Once
+fills and drains are the process's own, grown within its ledger span;
+and the referee changes a process only through flags that allocate nothing. Once
 settled, the harness checks it: each process, dropped, frees exactly what
 was metered as its own, which also finds a leak.
 

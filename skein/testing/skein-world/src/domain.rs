@@ -7,8 +7,8 @@
 //! their boundary observations. This is separate from the process/simulator
 //! `World` at the crate root, whose API is unchanged.
 //!
-//! `Schedule` delivers once in time/serial order; `Stage` reserves `max_out`
-//! room before handing over an event, or hands every event on when uncapped;
+//! `Schedule` delivers once in time/serial order; `Stage` hands every event
+//! on with an uncapped output queue;
 //! `Ledger` checks one terminal per open key.
 //! `Referee` observes safety and arms liveness, emitting immediate or timed
 //! stimuli; `assert_replays` compares both boundary trace and scenario outcome.

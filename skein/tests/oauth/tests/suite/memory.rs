@@ -5,13 +5,16 @@ use skein_oauth as oauth;
 use skein_oauth_world::{boxed, client_limits, documents, issued, registration, terms, visit};
 
 #[test]
-fn client_and_rotating_issuer_steps_fit_declared_heap_bounds() {
+fn client_and_rotating_issuer_steps_stay_under_their_heap_ceilings() {
     let mut document = documents();
     document.document_bytes = 2048;
     document.string_bytes = 1024;
     check_client(document);
     check_issuer(document);
 }
+
+// Bounds the refresh step with retained registration, prior token and request workspace.
+const CLIENT_REFRESH_HEAP_CEILING: u64 = 1_900;
 
 fn check_client(document: oauth::Limits) {
     let client_limits = oauth::ClientLimits {
@@ -36,7 +39,6 @@ fn check_client(document: oauth::Limits) {
         backoff_ceiling: Duration::from_secs(8),
         max_attempts: 3,
     };
-    let bound = oauth::client_worst_case(&client_limits).expect("bound");
     let meter = Meter::new();
     let mut client = oauth::Client::new(client_limits).expect("client");
     let mut out = Queue::with_capacity(1);
@@ -68,13 +70,15 @@ fn check_client(document: oauth::Limits) {
     client.step(event, &mut out);
     let measured = meter.end();
     drop(out.pop());
-    meter.check(measured, bound, &"OAuth client refresh");
+    meter.check(measured, CLIENT_REFRESH_HEAP_CEILING, &"OAuth client refresh");
 }
+
+// Bounds the rotating issuer step with issued ids, carried names and its token plan.
+const ISSUER_ROTATION_HEAP_CEILING: u64 = 19_000;
 
 fn check_issuer(document: oauth::Limits) {
     let fake_limits =
         fake::Limits { document, uri_bytes: 256, request_bytes: 16384, codes: 8, rotations: 8, plans: 8, carried: 8 };
-    let bound = fake::worst_case(&fake_limits).expect("bound");
     let meter = Meter::new();
     let mut issuer = fake::Issuer::new(
         fake::Config {
@@ -112,7 +116,8 @@ fn check_issuer(document: oauth::Limits) {
     }
     let mut authorization = Queue::uncapped();
     issuer.step(fake::Event::Authorize { url: url.into_boxed_slice(), now: Time::ZERO }, &mut authorization);
-    drop(authorization.pop());
+    assert!(matches!(authorization.pop(), Some(fake::Request::Redirect { .. })));
+    assert_eq!(issuer.carried().len(), usize::try_from(fake_limits.carried).expect("u32 fits"));
     let request = oauth::HttpRequest {
         method: oauth::Method::Post,
         id: 1,
@@ -126,14 +131,16 @@ fn check_issuer(document: oauth::Limits) {
     issuer.step(fake::Event::Post { request, now: Time::ZERO, wall: Wall::EPOCH }, &mut out);
     let measured = meter.end();
     drop(out.pop());
-    meter.check(measured, bound, &"OAuth issuer rotation");
+    meter.check(measured, ISSUER_ROTATION_HEAP_CEILING, &"OAuth issuer rotation");
 }
 
+// Bounds sign-in with a parameter array filled to its admitted entry count.
+const TERMS_HEAP_CEILING: u64 = 35_000;
+
 #[test]
-fn terms_at_their_most_entries_fit_the_worst_case() {
+fn terms_at_their_most_entries_stay_under_their_heap_ceiling() {
     let mut limits = client_limits();
     limits.url_bytes = 2048;
-    let bound = oauth::client_worst_case(&limits).expect("bound");
     let meter = Meter::new();
     let mut client = oauth::Client::new(limits).expect("client");
     meter.start();
@@ -143,19 +150,22 @@ fn terms_at_their_most_entries_fit_the_worst_case() {
     for _ in 0..limits.parameter_bytes {
         parameters.push(oauth::Parameter { name: boxed(b"a"), value: boxed(b""), sent: oauth::Sent::EverySignIn });
     }
+    assert_eq!(parameters.len(), usize::try_from(limits.parameter_bytes).expect("u32 fits"));
     additions.parameters = parameters.into_boxed_slice();
     registration.terms = Some(additions);
     let url = visit(&mut client, registration, None, None);
     let measured = meter.end();
     drop(url);
-    meter.check(measured, bound, &"OAuth terms at their most entries");
+    meter.check(measured, TERMS_HEAP_CEILING, &"OAuth terms at their most entries");
 }
 
+// Bounds a sign-in retaining the admitted number of decoded issuer keys.
+const SIGN_IN_KEYS_HEAP_CEILING: u64 = 9_300;
+
 #[test]
-fn a_sign_in_holding_its_keys_fits_the_worst_case() {
+fn a_sign_in_holding_its_keys_stays_under_its_heap_ceiling() {
     use skein_oauth_world::{begin, fake_step, http, openid_issuer, openid_registration, response, time, wall};
     let limits = client_limits();
-    let bound = oauth::client_worst_case(&limits).expect("bound");
     let meter = Meter::new();
     let mut client = oauth::Client::new(limits).expect("client");
     let mut issuer = openid_issuer(None);
@@ -181,14 +191,16 @@ fn a_sign_in_holding_its_keys_fits_the_worst_case() {
     let measured = meter.end();
     let visit = matches!(out.pop(), Some(oauth::Request::Visit { .. }));
     assert!(visit);
-    meter.check(measured, bound, &"OAuth sign-in holding its keys");
+    meter.check(measured, SIGN_IN_KEYS_HEAP_CEILING, &"OAuth sign-in holding its keys");
 }
 
+// Bounds an issuer with maximal account fields retained in every code slot.
+const CODE_ACCOUNTS_HEAP_CEILING: u64 = 42_000;
+
 #[test]
-fn accounts_at_every_code_slot_fit_the_worst_case() {
+fn accounts_at_every_code_slot_stay_under_their_heap_ceiling() {
     use skein_oauth_world::{fake_limits, openid_issuer};
     let limits = fake_limits();
-    let bound = fake::worst_case(&limits).expect("bound");
     let string_bytes = usize::try_from(limits.document.string_bytes).expect("u32 fits");
     let meter = Meter::new();
     meter.start();
@@ -209,5 +221,5 @@ fn accounts_at_every_code_slot_fit_the_worst_case() {
         let Some(fake::Request::Redirect { .. }) = out.pop() else { panic!("code retained") };
     }
     let measured = meter.end();
-    meter.check(measured, bound, &"OAuth accounts at every code slot");
+    meter.check(measured, CODE_ACCOUNTS_HEAP_CEILING, &"OAuth accounts at every code slot");
 }

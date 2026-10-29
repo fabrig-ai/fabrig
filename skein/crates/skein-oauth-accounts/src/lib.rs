@@ -21,7 +21,7 @@ mod route;
 pub use accounts::{Account, Endpoint, Keeper, Origin, Transport};
 pub use boundary::{Asked, Ends, Event, Failure, Keeping, Locked, Place, Refusal, Request, Unloaded};
 pub use component::{Component, FileLower, Lower, LowerEvent, Unusable};
-pub use limits::{Limits, valid, worst_case};
+pub use limits::{Limits, valid};
 
 /// The largest return location for one sign-in (oauth.md, section 6.5).
 pub const RETURN_BYTES: usize = 2048;

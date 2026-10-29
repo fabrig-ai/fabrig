@@ -55,7 +55,7 @@ fn limits() -> ComponentLimits {
             },
         },
         receiving: Receiving {
-            max_completion_bytes: adapter::completion_worst_case(&client, decoded_call_bytes).expect("receiving bound"),
+            max_completion_bytes: adapter::completion_bound(&client, decoded_call_bytes).expect("receiving bound"),
             max_completion_blocks: client.output_items,
             decoded_call_bytes,
             max_failure_bytes: client.detail_bytes,

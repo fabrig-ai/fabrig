@@ -67,7 +67,7 @@ fn fixture(provider: skein_llm::Provider) -> Fixture {
     .expect("native history derives");
     let decoded = u64::from(client.input)
         + u64::from(client.output_items) * u64::try_from(size_of::<llm::Decoded>()).expect("decoded cell");
-    limits.completion_bytes = adapter::completion_worst_case(&client, decoded).expect("native completion ownership");
+    limits.completion_bytes = adapter::completion_bound(&client, decoded).expect("native completion ownership");
     Fixture { declared, client, limits, decoded, allowance }
 }
 
@@ -87,7 +87,7 @@ fn history_edge(provider: skein_llm::Provider) {
         let mut world = World::new(4800 + extra, 256);
         world.env.limits = limits;
         world.domain = session::Domain::new(&limits, 4800 + extra);
-        world.out = Queue::with_capacity(session::max_out(&limits));
+        world.out = Queue::uncapped();
         let mut start = opening(None, u64::MAX);
         start.spec.model = b"a".as_slice().into();
         start.spec.system = system.as_slice().into();

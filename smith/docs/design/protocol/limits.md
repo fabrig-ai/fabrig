@@ -6,7 +6,7 @@ made:
 - the quantities a deployment declares;
 - how every limit below them is derived, layer by layer;
 - the relationships checked at startup, each by name;
-- memory, as admission to a shared LLM pool against a real target;
+- memory, as dynamic ownership, edge reservations and measured ceilings;
 - what happens to one call at a limit, and the deadlines that measure
   progress;
 - how a limit that fires is reported.
@@ -44,11 +44,11 @@ the rules and the arithmetic's shape, not the values.
   violation refuses the configuration and names the relationship and the
   values that broke it. What startup can find is never found in the
   middle of a run.
-- **Memory is a real target** (section 5). LLM calls are admitted to a
-  shared pool of declared size and wait while it is full, so the worst
-  case is the pool's size, not a product of independent maxima. The sum
-  of every worst case must fit the declared memory, which is real
-  memory.
+- **Memory follows ownership** (section 5). Containers grow as they
+  fill, and internal queues have no cap. LLM calls reserve against a
+  shared pool and wait while it is full. Edge formulas must be
+  representable, and fixed scenarios' measured peaks stay under ceilings;
+  there is no process-wide heap sum or startup memory fit check.
 - **A limit meets one call, not the conversation** (section 6). An
   oversized call is that call's problem, told to the model as one it can
   fix. Oversized rendered output is cut with a marker. A call that finds
@@ -102,7 +102,7 @@ settings override them (`docs/design/shell.md`).
 | `jobs` | count | the most jobs one session may hold at once: a job counts from the answer that names it `running` until an answer reports its end, or its session closes (domain/tools.md, section 5) |
 | render caps | bytes, count | what a tool's output may hold (below) |
 | `llm_pool` | bytes | the memory every LLM call in flight shares, sending and receiving (section 5) |
-| `memory` | bytes | the process's real memory: every worst case must fit within it (section 5) |
+| `memory` | bytes | declared process memory, carried without a startup fit check (section 5) |
 
 The render caps, each the default or the ceiling a tool states to the
 model (domain/tools.md, section 4):
@@ -191,9 +191,9 @@ relationships between layers (section 4). Domains derive from what they
 are given and never from a lower layer's types: the service passes each
 the numbers it needs.
 
-**How bounds compose.** A worst case is the most that can hold at once,
-not the product of maxima that cannot. Every derivation follows these
-rules:
+**How bounds compose.** Formulas size an edge or the ownership admitted
+for one value, never a process-wide sum (programming-model.md, 6.3).
+Every derivation follows these rules:
 
 1. **Joint bounds are charged at their shared total.** Items drawn from
    one shared quantity are charged at that quantity, plus a fixed cell
@@ -205,11 +205,10 @@ rules:
    rendering's expansion apply to bytes on the wire or in rendered text.
    Decoded content held in memory is charged as decoded. The ×4
    rendering of invalid UTF-8 applies only to bytes that may be invalid.
-3. **Counts come from in-memory items.** skein's containers allocate
-   their capacity when made, so a count is memory. A count bounded by a
-   byte budget is that budget over the smallest item as it is held in
-   memory (its cell), never over the smallest item as encoded on the
-   wire.
+3. **Counts come from in-memory items.** A count bounded by a byte
+   budget is that budget over the smallest item as it is held in memory
+   (its cell), never over the smallest item as encoded on the wire.
+   Containers allocate as they fill, not at their declared cap.
 4. **One factor per direction.** Where a token count bounds bytes (a
    window's history at its threshold, an answer, a request), a token is
    `TOKEN_BYTES` bytes. Where a byte count bounds tokens (a fresh
@@ -218,10 +217,10 @@ rules:
    `smith-domain-session::ENCODED_BYTES` is the 5/4 allowance for escaping
    and framing in a batch's estimate of room below the line
    (domain/session.md, 8.1). The guard still measures the exact encoding.
-5. **Queues are charged at what can be queued at once:** their capacity
-   in cells, plus the payload all their producers can have queued at
-   once (sessions times one record, say). Never their capacity times the
-   largest payload.
+5. **An edge queue's bound follows what can be queued at once:** its
+   cells and the payload its producers can have queued together, never
+   its capacity times the largest payload. Internal queues grow without
+   a cap and take no part in an edge reservation.
 6. **Frames follow this side's limits.** The channel's and io's limits
    are derived from the agent's own derived limits and from the
    direction a frame travels. A stream's output holds the largest frame
@@ -229,15 +228,16 @@ rules:
    never what is reserved. The product's values set them: where a
    profile's value would pass a ceiling, the ceiling rises in place while
    formats are pre-release (README.md, section 8), as far as the codec's
-   worst case at the ceilings allows (skein's `codec.md`, section 4).
+   encoded and decoded bounds at the ceilings allow (skein's `codec.md`,
+   section 4).
    Many large items are bounded jointly, as one field of bytes at their
    total, as the start's transcript is (3.6), where a list's count times
-   its largest item would pass that worst case.
+   its largest item would pass that bound.
 
 Each derivation states which rule it follows where it combines bounds.
-The service's tests hold, for the product's values, that every check
-passes and that the complete worst case fits `memory`, recording the
-number.
+The service's tests hold, for the product's values, that every edge
+compatibility check passes and each bound is representable. Fixed
+scenarios measure heap peaks separately (section 5).
 
 ### 3.1 The LLM path: skein
 
@@ -436,15 +436,21 @@ terms (channel.md, sections 2 and 7):
     and counted (channel.md, section 7). A piece is cut from the held
     bytes, so nothing else in this path is charged. The queue's reserve
     for pieces is one piece's frame, since the agent sends one piece at
-    a time. The service's sum adds the held bytes once (3.8, section 5).
+    a time. The held bytes have one owner (3.8, section 5).
     Identities are bounded at 16,385: one per retained byte plus the open
     call, each with at most 256 id bytes and 64 tool bytes. Their map
-    cells, payload and the held bytes' stream/offset cursors are counted
-    by `live::worst_case`; the host keeps one bounded input identity;
+    cells, payload and the held bytes' stream/offset cursors belong to
+    the scenario's measured total; the host keeps one bounded input identity;
 - **by direction,** by rule 6. What the agent writes is bounded by its
   own derived limits. What it reads is bounded by what it admits: a
   start within the charter's run bound, a message within its bound. The
   schema's ceilings only bound what may be declared.
+
+One entrance at the host-channel seam needs `EdgeRoom { to_domain: 1,
+below: 6 }`: one owner event and six lower operations. `EDGE_ROOM` holds
+that edge credit, exposed by `edge_room(&Limits)`. An entrance waits
+until both destinations have that room; `send_live` and `offer_fact`
+instead drop the piece or fact and count the loss.
 
 The host's terms are checked against these at the opening, not at
 startup: a host that takes less finds out before a run starts.
@@ -459,9 +465,8 @@ that record and the room it reserves for authoritative records.
 ### 3.8 The service
 
 `smith-agent-service`, and `smith-local-service` for a run in one
-process, compose the chain, run the startup checks, and sum the worst
-cases (section 5). Each holds its profiles as step code (README.md,
-section 5).
+process, compose the chain and check the edge bounds before the loop
+(section 5). Each holds its profiles as step code (README.md, section 5).
 
 **Admission by a watermark** (skein's programming-model.md, 7.1). The queues between the service's own children (the
 domain's events and requests, the LLM's, the machine's, IO's and the
@@ -475,7 +480,12 @@ backlog, the entries in its uncapped queues, is at `queue`; everything
 that advances admitted work is taken at any backlog, still waiting on
 real credit (a destination's, the channel's to the host, the file
 table, the kernel's queue). `queue` also bounds each drain's work per
-iteration.
+iteration. The agent service ships `DEFAULT_PACING = 2_302` as the
+backlog watermark, per-stage work quantum and pending-message room
+(programming-model.md, 7.1). It is a pacing choice, independent of a
+domain's largest output. At the host-channel seam, the service keeps
+`edge_room(&Limits)`, `EdgeRoom { to_domain: 1, below: 6 }` (3.6), before
+entering the channel; this credit belongs to that edge.
 
 - **Requests precede the next domain entrance.**
   `domain_requests_dispatched` requires the previous entrance's requests
@@ -504,7 +514,21 @@ Queue`) and the terminal's input. The backlog counts the queues between
 the service's children, and what a child holds through its `backlog()`
 (the local domain's counts its agent's, and drains its spawned agent's
 host facts, which nothing local reads); the inline effects expose
-theirs, and the credential owner keeps its queues.
+theirs, and the credential owner keeps its queues. The terminal's
+hand-off to the local service is uncapped: consuming a completed input
+never waits for internal output room.
+
+The local service retains caps where excess input has a defined result.
+Two edges are filled by the agent process: the live text slots
+(`LIVE_SLOTS = 4`), which drop text past them or for another run and count
+it in `lost`, and received-turn measurements, bounded by the host's
+unacknowledged-turn credit. Reasoning and input pieces are never kept.
+An over-credit turn is not measured, never gets a `SaveTurn`, and is
+faulted by the domain. Sent-message timestamps, filled by the service's
+own sends, queue without a cap until a read fence releases them. Before an
+account pass, the private `ACCOUNT_EDGE_ROOM` requires six free slots in both shell and
+terminal destinations. This is destination credit, not a child's output
+reservation.
 
 - **Requests precede the next local entrance.**
   `local_requests_dispatched` requires the previous local entrance's
@@ -672,7 +696,7 @@ Anthropic's output within what its route accepts. smith checks the rest:
 | `resume-holds-window` | the resume limit holds the most a session holds in one window |
 | `turn-in-transcript` | the largest turn fits the transcript schema's ceilings |
 | `turn-in-channel` | the largest turn, start and message fit the channel's frame ceilings |
-| `render-in-result` | every tool's outcome at its caps, a host's answer, a message and a sub-agent's result render uncut within one rendered result's bound: the cut is a safeguard, never what a cap relies on (llm.md, section 5). A bound held below its derived worst case by any other limit breaks it |
+| `render-in-result` | every tool's outcome at its caps, a host's answer, a message and a sub-agent's result render uncut within one rendered result's bound: the cut is a safeguard, never what a cap relies on (llm.md, section 5). A bound held below the derived render bound by any other limit breaks it |
 | `read-in-payload` | `read_window` is at most `tool_payload` |
 | `payload-in-file` | `tool_payload` is at most `file_bytes` |
 | `machine-holds-tools` | the machine's output, file, scan, search and path limits hold the tools', and its processes hold the listings, searches, commands and checks that run at once, and `jobs` for each of `conversations` beside them (3.5) |
@@ -680,7 +704,6 @@ Anthropic's output within what its route accepts. smith checks the rest:
 | `request-head` | a request's head holds a credential at its bound (2.4), the affinity's headers and the endpoint's configured headers, none of which is a reserved name |
 | `ceilings-in-vocabulary` | the policy ceilings fit the charter's and the channel's schemas |
 | `deadlines` | every deadline is positive, `shell_timeout` ≤ `tool_deadline`, so no command's deadline, asked for or not, passes what the session allows one tool call, and `job_poll` ≤ `job_wait` ≤ `tool_deadline`, so no yield or wait does either, the default included |
-| `memory` | the sum of every worst case, with the LLM pool at its size, fits `memory` |
 | `cancel-over-close` | `cancel_grace` is at least twice io's `close`: a cancelled call settles within one `close` against a peer that keeps its connection open (skein's `shell.md`, section 13), so a grace no longer than `close` drops a run whose cancel would have settled; the second `close` is the margin |
 
 Two more hold across processes, and the side that knows both checks
@@ -704,70 +727,39 @@ reserve against the budget.
 
 ## 5. Memory
 
-- **A real target.** `memory` is what the process may use. The product's
-  presets keep it within the real memory a person's machine can spare
-  (`docs/design/shell.md`). The shell refuses to start when the worst
-  case exceeds it (programming-model.md, section 6.3). Within what a
-  machine can spare, the cap is as large as the work needs (below).
-- **A cap, not an allocation.** What the process allocates follows what
-  it holds, not the worst case:
-  - bytes are allocated when they arrive, at their final length, and
-    freed with their owner when its use ends: a compacted window's
-    history once the new window opens, a job's kept output once an
-    answer has carried it, a closed conversation's history and calls;
-  - capacity reserved up front, slabs' and queues' (programming-model.md,
-    section 6.1), is the exception: sized by the limits, counted in the
-    worst case, held for the process's life. A queue whose cap holds more
-    than 1 MiB grows to it instead, priced at its growth peak, and the
-    service's uncapped queues (3.8) are priced at `queue` entries each,
-    an estimate (skein's lib.md 5).
-- **Room is made by raising the cap.** A change that grows the worst
-  case names, in its commit, each part that grew, by how many bytes, and
-  what the worst case leaves under `memory`. One whose worst case passes
-  `memory` raises the profile's `memory` to hold it; one whose worst
-  case still fits leaves `memory` as it is, with no margin of its own
-  kept above the worst case. A change never shaves another part's
-  accounting to fit. The startup check of the worst case stays.
-- **Use is measured, beside the cap.** The worlds' counting allocator
-  holds the live heap within the worst case at every iteration, and
-  shows it returning when a use ends (section 11). The benchmarks read
-  smith's own peak resident memory beside its time and cost
-  (benchmarks.md, 16.1).
+- **Dynamic ownership.** Slabs and queues grow as they fill; internal
+  queues have no cap. Owned bytes arrive at their final length and leave
+  with their owner: a compacted window's history once the new window
+  opens, a job's output once its answer carries it, a closed
+  conversation's history and calls. The declared `memory` is carried
+  without a startup fit check.
+- **Formulas size edges and admitted values** (programming-model.md,
+  6.3). A codec's workspace, a completion's receiving bound, a rendered
+  result and a delivery's ownership each have their own bound, with
+  checked arithmetic. `valid(limits)` checks representability and
+  compatibility; it does not sum the heap. Limits whose edge bounds
+  overflow are invalid.
+- **Use is measured.** The counting allocator holds each fixed
+  scenario's total peak under its named ceiling with headroom, throughout
+  construction, iterations and teardown (testing.md, section 6). The
+  total includes caller-held outputs and transient allocations; no
+  doubled formula or separate held/peak allowance substitutes for it.
+  A ceiling moves by hand when a real change passes it, never with a
+  type's size. Benchmarks measure peak resident memory beside time and
+  cost (benchmarks.md, 16.1).
 - **Admission to the LLM pool.** Every LLM call in flight draws on
   `llm_pool`, which skein's connection component keeps (skein's
   `llm-connection.md`, section 7). At admission a call reserves its
-  request, measured exactly before it is encoded, and its receiving
-  reservation, which skein derives (skein's `llm.md`, section 4.2); it
-  releases both at its terminal. A call that does not fit what is left
-  waits, in order of arrival, within its deadline (section 6).
-- **So the LLM path's worst case** is the pool's size, plus each
-  connection's own state (its socket's buffers, TLS) and the component's
-  tables. It no longer grows with the request's bound times the number of
-  connections.
-- **The rest is counted at its derived limits:** each conversation's
-  window of history; the channel's queue and frames; the machine's
-  captures, with `jobs` for each of `conversations`, each at its kept
-  output and its process record (3.5); each write in flight's file and
-  its result, `file_bytes` each; io's buffers; the event sink's output
-  cap. Each layer's `worst_case` adds what its containers report
-  (programming-model.md, section 6.3).
-- **Waiting is the backpressure.** A full pool slows the run's calls; it
-  never refuses one that fits the pool alone (programming-model.md,
-  section 7).
-- **One process counts each part once.** The product in one process
-  (`docs/design/shell.md`, section 9) has one loop, one ring and no
-  channel. Its worst case is the sum of what it owns, each part once:
-  - the local host's domain with the inline agent, which holds the run's
-    domains;
-  - the effects the run uses (the LLM component, the machine, the files,
-    the event sink), built from their own parts, never as a whole agent
-    service built and then stripped, so nothing is allocated or priced
-    for a domain or a channel they do not hold;
-  - one io, for the local host and the effects together;
-  - the chat store, the terminal and delivery.
-
-  No agent process and no host channel are priced. Construction holds no
-  more than the worst case: what is never kept is never built.
+  request, measured exactly before encoding, and its derived receiving
+  bound (skein's `llm.md`, 4.2), releasing both at its terminal. A call
+  that fits alone waits for room, in arrival order and within its
+  deadline (section 6).
+- **One process owns each part once.** The product in one process
+  (`docs/design/shell.md`, section 9) has one loop, one ring and no host
+  channel. Its local domain owns the inline agent; their effects, io,
+  chat store, terminal and delivery are built directly, without building
+  an agent service and stripping it. Scenario measurements cover this
+  composition as one process, without a synthetic agent or channel sum.
 
 ## 6. One call at a limit
 
@@ -885,7 +877,8 @@ version of it (events.md, section 6).
   - waiting for a connection or for room in the memory pool, the expired
     phase in `TimedOut`, and a pool sized from the owner's concurrency
     (skein's `llm-connection.md`, sections 4.1, 6 and 7);
-  - each container's `worst_case` (programming-model.md, section 6.3).
+  - encoded, decoded and workspace bounds for edges, and allocation
+    prices charged at admission (programming-model.md, 6.3).
 
 ## 11. The world
 
@@ -897,7 +890,7 @@ version of it (events.md, section 6).
   4 that breaks it, refused with its name.
 - **Every profile:** each shipped profile, with every preset model
   declared, derives, passes every check, `fresh-window` and
-  `compaction-headroom` included, and its worst case fits its `memory`.
+  `compaction-headroom` included; its edge bounds are representable.
 - **A window's room,** in the session's world with small windows: a
   window just opened at its largest, its first completion made; more
   messages queued than one offer holds, the rest offered at the next
@@ -917,10 +910,11 @@ version of it (events.md, section 6).
   channel with no room, dropped past the bound and counted; pieces never
   larger than the piece bound; a piece sent at the interval's end with
   fewer bytes than the bound (channel.md, section 10).
-- **Memory:** skein's counting allocator against the formula, with the
-  LLM pool full and every conversation open, each holding `jobs` jobs at
-  their kept output's ceiling, in the agent's simulated world (agent.md,
-  section 8).
+- **Memory:** skein's counting allocator under fixed scenarios' measured
+  ceilings, with the LLM pool full and every conversation open, each
+  holding `jobs` jobs at their kept output's cap, in the agent's simulated
+  world (agent.md, section 8). Domain output is uncapped; worlds test the
+  dispatch orders and edge credit, never domain output flow control.
 - **Memory returns** (section 5), with the same allocator, in the
   agent's simulated world:
   - **a compaction:** the live heap falls, once the new window opens, by
@@ -939,18 +933,13 @@ version of it (events.md, section 6).
 
 ## 12. From temper
 
-- **Kept:** limits per layer, refusal at the entrance, and the worst case
-  checked at startup (programming-model.md, sections 6 and 7).
+- **Kept:** limits per layer and refusal at the entrance
+  (programming-model.md, sections 6 and 7).
 - **New:** declared quantities and their derivation, relationships
   checked by name, the LLM pool, and limits as per-call outcomes.
 
 ## 13. Open questions
 
-- **Capacity reserved up front:** how much of smith's measured peak is
-  slabs' and queues' capacity, allocated at startup at the limits'
-  bounds (programming-model.md, section 6.1). Whether that rule should
-  give way to capacity allocated as it fills is skein's question, which
-  jig and temper share; smith measures first.
 - **Calls past `calls_per_response`:** whether skein marks the calls
   beyond the bound as calls of their own, answered as not run, so the
   completion completes, as an oversized call's does.
@@ -966,4 +955,4 @@ version of it (events.md, section 6).
   `docs/design/shell.md`'s, 6.1.
 - **The rest of the codecs' ceilings:** whether the channel's and the
   transcript's decoding also draws on a shared pool, as LLM calls do, or
-  its worst case at its derived limits stays small enough.
+  its decoded bound at its derived limits stays small enough.

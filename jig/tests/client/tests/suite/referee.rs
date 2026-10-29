@@ -127,9 +127,6 @@ impl<const BAD: u8> App for Broken<BAD> {
     fn patch_limit(_: &View) -> u32 {
         LIMITS.patches
     }
-    fn heap_bound((): &()) -> u64 {
-        if BAD == 7 { 0 } else { 65536 }
-    }
     fn sent(_: &Wire) -> Option<Sent> {
         Some(Sent {
             attempt: Token::new(1),
@@ -242,6 +239,7 @@ impl<const BAD: u8> Front<Broken<BAD>> for FrontOf<BAD> {
 fn run<const BAD: u8>() {
     let settings = Settings {
         memory: BAD == 7,
+        heap_ceiling: if BAD == 7 { Some(0) } else { None },
         heartbeat: Duration::from_millis(5),
         request_within: Duration::from_millis(20),
         link_within: Duration::from_millis(5),

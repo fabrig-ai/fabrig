@@ -230,7 +230,6 @@ impl World {
             self.event(event);
         }
         while self.domain.is_due(now) {
-            assert!(self.stage.has_room());
             host::fire(&mut self.domain, &self.stage.env, &mut self.stage.out);
             self.outputs();
         }

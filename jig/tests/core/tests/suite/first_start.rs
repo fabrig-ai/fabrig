@@ -130,7 +130,7 @@ fn numbered_projects(people_projects: u32, second: u32) -> (root::Config, root::
     limits.core.people.projects = people_projects;
     // Reprice this fixture's journal for the second policy, as world::limits does.
     let room = limits.core.routes;
-    let connectors = jig_test_connector::MAX_OUT * 2;
+    let connectors = jig_test_connector::OUTPUTS_BOUND * 2;
     limits.journal.writes = room + connectors;
     limits.journal.held = limits.journal.held.max(room + connectors);
     configuration.core.defaults.rules =

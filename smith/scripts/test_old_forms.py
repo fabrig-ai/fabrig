@@ -82,6 +82,14 @@ class OldForms(unittest.TestCase):
         self.run_script("--write")
         self.assertEqual(self.counts(), {"max_out": 1, "JournalRoom": 1, "takes": 1, "worst_case": 1})
 
+    def test_frozen_grader_directory_alone_is_not_counted(self):
+        forms = "fn max_out() { JournalRoom; queue.takes(&input); worst_case(); }\n"
+        self.source(forms, "benchmarks/tasks/repository/shell-cwd/grader/src/lib.rs")
+        self.source(forms, "benchmarks/tasks/repository/shell-cwd/graders/x.rs")
+        self.source(forms, "benchmarks/tasks/repository/shell-cwd/x.rs")
+        self.run_script("--write")
+        self.assertEqual(self.counts(), {"max_out": 2, "JournalRoom": 2, "takes": 2, "worst_case": 2})
+
     def test_edge_identifiers_are_exempt_only_as_whole_identifiers(self):
         self.source('MAX_OUT_DOWN MAX_OUT_UP max_output_tokens max_output_bytes '
                     'my_max_output_tokens\n')

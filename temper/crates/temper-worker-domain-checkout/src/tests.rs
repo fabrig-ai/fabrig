@@ -1,15 +1,14 @@
 //! Feed the domain events, inspect the requests that come out.
 
 use alloc::boxed::Box;
-use core::mem::size_of;
 
 use skein_lib::bytes::copy_of;
 use skein_lib::{Duration, Env, List, Queue, Time, Token, Wall, Writer};
 
 use crate::git::{Commit, Done, Fault, Kind, Missing, Op, Place, Want};
 use crate::{
-    Cached, Domain, Event, Fact, Failure, Landing, Limits, MAX_OUT, Message, Outcome, Prepared, Refusal, Repository,
-    Request, Spec, Start, Tally, Target, step, worst_case,
+    Cached, Domain, Event, Fact, Failure, Landing, Limits, Message, Outcome, Prepared, Refusal, Repository, Request,
+    Spec, Start, Tally, Target, step, valid,
 };
 
 const LIMITS: Limits = Limits {
@@ -35,7 +34,7 @@ fn merge_spec() -> Spec {
     Spec { key: bytes(b"merge"), repositories: Box::new([repo]) }
 }
 
-/// The domain, its environment and room for one step's output.
+/// The domain, its environment and its output queue.
 struct Harness {
     domain: Domain,
     env: Env<Limits>,
@@ -44,22 +43,21 @@ struct Harness {
 
 impl Harness {
     fn new(limits: Limits) -> Harness {
-        assert!(worst_case(&limits).is_some(), "the test limits fit");
+        assert!(valid(&limits), "the test limits are valid");
         Harness {
             domain: Domain::new(&limits),
             env: Env { now: NOW, wall: Wall::EPOCH, limits },
-            out: Queue::with_capacity(MAX_OUT),
+            out: Queue::uncapped(),
         }
     }
 
-    /// Steps the domain with `event`, and takes what it emitted, at most
-    /// `MAX_OUT`, then reclaims, as the loop would at the end of the
-    /// iteration.
+    /// Steps the domain with `event`, takes what it emitted, then reclaims,
+    /// as the loop would at the end of the iteration.
     fn step(&mut self, event: Event) -> List<Request> {
         step(&mut self.domain, &self.env, event, &mut self.out);
-        let mut requests = List::with_capacity(MAX_OUT);
+        let mut requests = List::uncapped();
         while let Some(request) = self.out.pop() {
-            requests.push(request).expect("a step emits at most MAX_OUT requests");
+            requests.push(request).expect("the request collection can grow");
         }
         self.domain.reclaim();
         requests
@@ -1088,17 +1086,12 @@ fn the_facts_tell_what_happened_and_drop_what_does_not_fit() {
 }
 
 #[test]
-fn the_worst_case_is_bounded_or_refused() {
-    let bytes = worst_case(&LIMITS).expect("the test limits fit");
-    let named = u64::from(LIMITS.name_bytes);
-    // Every workspace's key, twice, and every hold's spec at its limits.
-    assert!(bytes > u64::from(LIMITS.workspaces) * 6 * named, "the payloads are counted");
-    let told = worst_case(&Limits { facts: LIMITS.facts + 1, ..LIMITS }).expect("the test limits fit");
-    let fact = u64::try_from(size_of::<Fact>()).expect("a size fits");
-    assert_eq!(told - bytes, fact, "the facts' queue is counted, and nothing else of theirs");
-    assert_eq!(worst_case(&Limits { workspaces: 0, ..LIMITS }), None);
-    assert_eq!(worst_case(&Limits { repositories: 0, ..LIMITS }), None);
-    assert_eq!(worst_case(&Limits { workspaces: u32::MAX, name_bytes: u32::MAX, ..LIMITS }), None);
+fn limits_require_workspaces_repositories_and_representable_hold_slots() {
+    assert!(valid(&LIMITS));
+    assert!(!valid(&Limits { workspaces: 0, ..LIMITS }));
+    assert!(!valid(&Limits { repositories: 0, ..LIMITS }));
+    assert!(valid(&Limits { workspaces: u32::MAX / 2, ..LIMITS }));
+    assert!(!valid(&Limits { workspaces: u32::MAX / 2 + 1, ..LIMITS }));
 }
 
 fn explained(fault: Fault) -> Landing {

@@ -551,7 +551,7 @@ fn demo_act_room_is_tasks_plus_one_and_reclaimed_on_answer() {
     let mut overflowing = LIMITS;
     overflowing.tasks = u32::MAX;
     assert_eq!(demo_act_bound(&overflowing), None);
-    assert_eq!(worst_case(&overflowing), None);
+    assert!(!valid(&overflowing));
 }
 
 #[test]

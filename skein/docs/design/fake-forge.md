@@ -53,7 +53,7 @@ its own types, close to forge.md, section 3; the layers above translate.
   `Request::Reply`, exactly one per call; `Request::Hook`, best effort, with
   no terminal event.
 - **Entry points:** `step` takes an event, `fire` the clock, the only way
-  time moves. Each emits at most `MAX_OUT` = 1 request; `next_deadline` says
+  time moves. Each emits at most one request; `next_deadline` says
   when to fire.
 - **A call is decided as it arrives:** refused for its rate, failed before
   it is made, made and then timed out, or made and answered after a drawn
@@ -344,7 +344,7 @@ domain, and holds no clock of its own.
   18). `Service::new(config, &limits, seed)` owns routing, the tally and the
   setup store; `Service::target` hands a domain reply to its connection, or
   returns it whole when that connection has gone. Its `Limits` sit beside
-  the domain's, and `new` refuses limits whose `worst_case` is none.
+  the domain's, and `new` checks `valid` before constructing the service.
 - **The scenario's tables** (`Config`): the hooks' `Endpoint { forge, host,
   secret }`, if any, `host` being the loopback `ip:port` the forge peer
   connects to and sends as `Host` (section 5), and with none the setup's
@@ -518,6 +518,9 @@ domain, and holds no clock of its own.
   application's demo needs (temper's `protocol/setup.md`, 8.4). Only the
   grant crosses: the store's other rows stay its own.
 
+The git decoder's `decoder_bound` bounds retained input scratch;
+`tree_bound` gives the largest admitted tree's entries and bytes.
+
 ## 5. The forge peer
 
 `skein_fake_peers::forge::Peer` hosts the protocol layer as the LLM and OAuth
@@ -529,9 +532,8 @@ peers host theirs. The real loop hosts the same one.
   `address()` is the bound address, known after io's listening event.
   `observations()` holds frozen records under the world's caps. `shutdown()`
   closes admission, then each connection once its client has settled. It
-  implements `Host` (shell.md, section 12), and a checked `worst_case` sums
-  the face, the protocol layer, the shared forge, the connections and the
-  observations. By default it records connections, request heads, calls
+  implements `Host` (shell.md, section 12). Edge limits bound the
+  connections, decoded inputs and observations. By default it records connections, request heads, calls
   with their terminals, and deliveries with their outcomes: two records
   for each connection (its opening and its close), two for each call (its
   head and its terminal) and one for each delivery. Nothing drains them, and none
@@ -544,8 +546,8 @@ peers host theirs. The real loop hosts the same one.
   runs the fake as a product, such as a demo's forge (temper's
   `protocol/setup.md`, 8.4), lives longer than any story's caps.
   `without_records()`, called on a fresh peer before its first pass,
-  makes it keep none: `observations()` stays empty, `worst_case` leaves
-  the observations out, and the assertion never runs. A cap of zero
+  makes it keep none: `observations()` stays empty and the assertion
+  never runs. A cap of zero
   still means a story that records nothing, and fails at its first
   record. The LLM and OAuth peers have the same mode (fake-llm.md,
   section 3).
@@ -598,7 +600,7 @@ peers host theirs. The real loop hosts the same one.
   is due. Until then, and for a `host` that is no loopback `ip:port`,
   there is no address; a setup hook that takes none (section 4) is no
   delivery. The deliveries in flight are bounded by the connections, and
-  the peer's `worst_case` sizes each by the longest it can be: the
+  each delivery is sized by the longest it can be: the
   endpoint's, or a setup hook's whose URL and secret are the longest the
   setup routes decode. Delivery is best effort:
   one that cannot be written (no address, no room, the connection refused
@@ -716,7 +718,7 @@ relies on (forge.md, section 9). It makes its own admin user and tokens.
   one, a branch made again after its deletion, one made for the first
   time, and one whose deletion the writer forgot.
 - **Memory:** a forge filled to its limits, and a long merge history walked
-  through both parents, stay within `worst_case`, in binaries of their own
+  through both parents, stay under named scenario ceilings with headroom
   under the counting allocator (testing.md, section 6).
 - **Replay and the peer:** a seed replays the names, replies, observations
   and deliveries. The peer's tests run a client over loopback against the
@@ -762,7 +764,7 @@ relies on (forge.md, section 9). It makes its own admin user and tokens.
 dialect's pin (forge-github.md), over the same domain, beside the Forgejo
 layer and in its shape (section 4): a `Server` per connection, a
 `Service` that owns routing, the tally and the layer's own stores, a
-`Config` of the scenario's tables, and `Limits` with a `worst_case`.
+`Config` of the scenario's tables, and `Limits` checked by `valid`.
 Each route is decoded by the server side of `skein_forge::github` and
 answered as GitHub answers. GitHub's quirks live here. The domain gains
 only what GitHub has and Forgejo lacks (10.2).

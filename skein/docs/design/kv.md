@@ -164,11 +164,10 @@ transcripts), and so are not held in memory:
   queued commits, the frames being written, a snapshot's chunk, and
   recovery's buffers. Recovery that would pass it fails the start, saying
   so.
-- **The worst case is declared** (programming-model.md) from the limits:
-  key and value sizes, ops and bytes per commit, queued bytes, segment
-  size, chunk size, and the budget itself. `budget` limits the map; the
-  `worst_case` declaration includes queue, recovery, snapshot and page
-  buffers in addition to the map.
+- **`Limits::is_usable` checks the limits:** key and value sizes, operations and
+  bytes per commit, queued bytes, segment and chunk sizes and derived
+  capacities remain checked at the entrance. The map's byte budget is
+  admission, not a sum of all the process's allocations.
 - **Loop latency** stays bounded: a commit applies its ops to the map, a
   load returns a page, a snapshot writes a chunk per step.
 

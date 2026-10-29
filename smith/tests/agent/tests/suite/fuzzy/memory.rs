@@ -5,6 +5,10 @@ use skein_world::domain::heap::Meter;
 use smith_agent_world::memory::{LIMITS, churn};
 use smith_domain::{Limits, run};
 
+// Content capture setting from the session observation inventory:
+// three parallel tools, sixteen completion blocks and four jobs.
+const WIDE_CONTENT_EDGE_RECORDS: u32 = 105;
+
 // Peak for 3_000 rounds of default-limit root-domain churn over seeds 0..12 (highest: seed 4).
 // Measured 187_897 B on 2026-10-29; a quarter of headroom, rounded up.
 const RANDOM_AGENT_CEILING: u64 = 240_000;
@@ -36,7 +40,7 @@ fn a_domain_driven_at_random_stays_under_its_scenario_ceilings_at_every_entry_po
             ..LIMITS.session
         },
     };
-    wider.session.facts = smith_domain::session::max_facts(&wider.session);
+    wider.session.facts = WIDE_CONTENT_EDGE_RECORDS;
     let mut seen = [0; 18];
     for seed in 0..12 {
         for (limits, ceiling) in [(LIMITS, RANDOM_AGENT_CEILING), (wider, WIDE_RANDOM_AGENT_CEILING)] {
@@ -56,7 +60,7 @@ fn a_domain_driven_at_random_stays_under_its_scenario_ceilings_at_every_entry_po
 fn longest_child_usage_feedback_stays_within_its_measured_reservation() {
     let mut limits = LIMITS.run;
     limits.answer_bytes = 8192;
-    let bound = smith_domain::feedback_worst_case(&limits).expect("checked receiving bound");
+    let bound = smith_domain::feedback_bound(&limits).expect("checked receiving bound");
     let used = run::facts::Used { turns: u32::MAX, time: Duration::from_nanos(u64::MAX), spend: u64::MAX };
     let left = run::Budget { turns: u32::MAX, time: Duration::from_nanos(u64::MAX), spend: u64::MAX };
     let meter = Meter::new();

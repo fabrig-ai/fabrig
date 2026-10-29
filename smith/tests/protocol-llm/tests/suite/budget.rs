@@ -262,7 +262,7 @@ fn bounds(settings: &mut Settings) -> Limits {
     bounds.client.http.request = 16384;
     bounds.client.request = 16384;
     settings.limits.session.completion_bytes =
-        adapter::completion_worst_case(&bounds.client, settings.limits.decoded_call_bytes)
+        adapter::completion_bound(&bounds.client, settings.limits.decoded_call_bytes)
             .expect("actual translated reservation");
     settings.limits.session.completion_blocks = bounds.client.output_items;
     settings.limits.session.failure_bytes = bounds.client.detail_bytes;

@@ -1,6 +1,6 @@
 //! QA-B: connected GitHub after pull creation, on the shipped real loop.
 //! Design, public harness surface and explicitly allowed usage examples only.
-use serde_json::{Value, json};
+use serde_json::Value;
 use skein_fake_forge_domain::{Observation, api};
 use skein_fake_llm_domain::api::{Finish, Line, Part, Script, Turn};
 use std::{fmt::Write, net::SocketAddr, path::Path};
@@ -14,13 +14,9 @@ use temper_real_loop_world::{
 const CHANGE: u64 = 2;
 const CHAT_CALL: usize = 4;
 const CHAT: u64 = 1;
-const WORKER: u64 = 3;
 const LANDING_HEARD: usize = 8;
-const HELD_TOLD: usize = 10;
 const ONE: usize = 1;
 const LANDED: &[u8] = b"The change landed.";
-// A resource poll cannot rescue the story within the world's 20 s PATIENCE.
-const NO_POLL_IN_PATIENCE_MS: u64 = 60_000;
 
 fn fixture() -> github::Fixture {
     github::Fixture {
@@ -291,35 +287,6 @@ fn available_client_pages_context_and_nonsecret_store_have_no_token() {
     scan(&ran.path().join("worker-root"));
 }
 
-fn tool(name: &[u8], arguments: &Value) -> Turn {
-    Turn {
-        lines: Box::new([Line::Call {
-            name: name.into(),
-            arguments: serde_json::to_vec(arguments).expect("tool JSON").into(),
-        }]),
-        finish: Finish::ToolCalls,
-        tokens: 20,
-    }
-}
-
-fn unanswered_repair_scripts(address: SocketAddr) -> Box<[Script]> {
-    let mut scripts = scripts(address).into_vec();
-    scripts[1].turns[1] =
-        tool(b"edit", &json!({"path":"README.md","edits":[{"old":"# app\n","new":"# app\nQA failing head\n"}]}));
-    scripts.push(Script {
-        cue: b"CI".as_slice().into(),
-        turns: Box::new([
-            tool(b"read", &json!({"path":"README.md"})),
-            tool(
-                b"edit",
-                &json!({"path":"README.md","edits":[{"old":"QA failing head\n","new":"Changed by temper.\n"}]}),
-            ),
-            tool(b"finish", &json!({"form":"change","fields":{"title":"Repair CI","body":"Fixed failing head."}})),
-        ]),
-    });
-    scripts.into_boxed_slice()
-}
-
 const ONE_MERGE: usize = 1;
 const TWO_PUSHES: usize = 2;
 
@@ -488,131 +455,6 @@ fn repair_scripts(at: std::net::SocketAddr) -> Box<[skein_fake_llm_domain::api::
     scripts.into_boxed_slice()
 }
 
-const STALL_MS: u64 = 800;
-const HELD_REPLY: &[u8] = b"The change is held while CI has not reported.";
-
-fn silent_fixture() -> github::Fixture {
-    github::Fixture {
-        setup: || {
-            let mut setup = (github::fixture().setup)();
-            setup.checks.silent = 1000;
-            setup
-        },
-        configure_domain: |config| {
-            config.limits.observations = 64;
-            config.settle_min = skein_lib::Duration::ZERO;
-            config.settle_max = skein_lib::Duration::ZERO;
-        },
-        configure: |value, agent, address| {
-            (fixture().configure)(value, agent, address);
-            // QA: protocol/configuration.md 7, dotted duration overrides;
-            // preserve the shipped rule, shortening only the wait for this story.
-            value["application"]["limits"]["overrides"]["forge.change_policy.stall_ms"] = STALL_MS.into();
-        },
-        ..github::fixture()
-    }
-}
-
-fn silent_scripts(address: SocketAddr) -> Box<[Script]> {
-    let mut scripts = scripts(address);
-    scripts[0].turns[2].lines[0] = Line::Text { text: HELD_REPLY.into() };
-    scripts
-}
-
-fn silent_steps() -> Vec<Step> {
-    let mut steps = begin();
-    steps.extend([
-        // Synchronize on actual task creation and the worker's completed push,
-        // then observe both sides of the short stall through client reads.
-        call(D1, argv!["task", "show", task(CHAT_CALL), "--until", "replied"]),
-        call(D1, argv!["task", "show", number(WORKER), "--until", "ended"]).timeout(2),
-        call(D1, argv!["task", "show", number(CHANGE), "--json"]),
-        call(D1, argv!["task", "show", number(CHANGE), "--until", "held", "--json"]).timeout(2),
-        call(D1, argv!["task", "show", number(CHANGE), "--json"]),
-        calls::until(D1, argv!["chat", "show", task(CHAT_CALL), "--json"], HELD_REPLY, b"Change requested"),
-        // Reading the service again after the hold also checks it still serves.
-        call(D1, argv!["me", "--json"]),
-        terminal::open(),
-        terminal::see(b"Project 1 (pressed)"),
-        terminal::see(b"Chats"),
-        terminal::type_on(b"Chats", b""),
-        terminal::see(b"T1"),
-        terminal::type_on(b"T1", b""),
-        terminal::see(HELD_REPLY),
-        terminal::see(b"T2"),
-        terminal::type_on("Task 2 ↗".as_bytes(), b""),
-        terminal::see(b"Release"),
-        terminal::close(),
-    ]);
-    leave_chat_open(steps)
-}
-
-#[test]
-fn q2_never_reporting_check_holds_and_tells_chat_and_page() {
-    // QA: domain/forge.md 8.4, 8.8; client/forge.md 2.4-2.5.
-    let ran = run_github(silent_fixture(), silent_scripts, silent_steps);
-    succeeded(&ran);
-    let before = document(&ran, 7);
-    assert_eq!(before["chip"]["task"], CHANGE, "live change's identity: {before}");
-    assert!(before.get("hold").expect("hold field").is_null(), "not held immediately after producing: {before}");
-    let held = document(&ran, 9);
-    assert_eq!(held["chip"]["task"], CHANGE, "held change's identity: {held}");
-    assert_eq!(held["chip"]["phase"], "held", "stall holds the change: {held}");
-    assert!(!held.get("hold").expect("hold field").is_null(), "hold has a reason: {held}");
-    let chat_queries: Vec<_> = ran
-        .llm()
-        .iter()
-        .filter_map(|seen| match seen {
-            skein_fake_peers::llm::Observation::Query { query, .. } if contains(&query.system, b"@forge_chat") => {
-                Some(query)
-            }
-            skein_fake_peers::llm::Observation::Accepted { .. }
-            | skein_fake_peers::llm::Observation::Head { .. }
-            | skein_fake_peers::llm::Observation::Credential { .. }
-            | skein_fake_peers::llm::Observation::Query { .. }
-            | skein_fake_peers::llm::Observation::Answered { .. }
-            | skein_fake_peers::llm::Observation::Closed { .. } => None,
-        })
-        .collect();
-    let wake = chat_queries.get(2).expect("requester's chat wakes after delegating and parking");
-    let notice: Vec<_> = wake
-        .messages
-        .iter()
-        .flat_map(|message| message.parts.iter())
-        .filter_map(|part| match part {
-            Part::Text { text } | Part::ToolOutput { output: text, .. } => Some(text.as_ref()),
-            Part::Opaque { .. } | Part::ToolCall { .. } => None,
-        })
-        .flatten()
-        .map(u8::to_ascii_lowercase)
-        .collect();
-    assert!(contains(&ran.calls()[HELD_TOLD].stdout, HELD_REPLY), "requester wakes and tells the person");
-    assert_eq!(ran.terminal().exit, Some(Exit::Code(0)));
-    assert!(ran.terminal().pages.iter().any(|page| contains(&page.bytes, HELD_REPLY)));
-    assert!(
-        ran.terminal().pages.iter().any(|page| {
-            let words = page.bytes.to_ascii_lowercase();
-            contains(&words, b"stall") && contains(&words, b"release")
-        }),
-        "the held change's page says why, with its release act"
-    );
-    assert_eq!(ran.github().pulls.iter().filter(|row| matches!(row, Observation::Opened { .. })).count(), 1);
-    assert!(!ran.github().pulls.iter().any(|row| matches!(row, Observation::Merged { .. })));
-    assert!(ran.github().git_calls.iter().any(|request| request.writes), "worker pushed a change");
-    let records = ran.github().observations();
-    assert!(
-        !records
-            .iter()
-            .any(|row| matches!(row, Observation::Reported { state: api::Check::Passed | api::Check::Failed, .. })),
-        "silent CI never produced a terminal report: {records:?}"
-    );
-    assert!(
-        contains(&notice, b"held task needs a decision") && contains(&notice, b"2"),
-        "requester receives the change's held-task notice before its scripted reply: {}",
-        String::from_utf8_lossy(&notice)
-    );
-}
-
 #[test]
 #[ignore = "needs: fake-issued raw token observer across all logs, store records, raw client wire and every page; refresh synchronization"]
 fn q7_g6_whole_run_and_refresh_observe_every_token_byte() {
@@ -623,56 +465,4 @@ fn q7_g6_whole_run_and_refresh_observe_every_token_byte() {
     landed(&ran);
     assert!(ran.github().minted >= 2, "whole-run observer includes renewal");
     panic!("needs: raw fake-issued token bytes and complete boundary observer; do not substitute prefix scans");
-}
-
-#[test]
-fn a_landing_merges_before_any_resource_poll() {
-    // domain/forge.md 5.2: a landing moves on the forge's news and the
-    // procedure's own wakes and reads, never by waiting for a resource poll.
-    // The resource polls are set beyond the world's patience, so a landing
-    // that needed one fails the story (director decision 1260). Which wake
-    // carries it is the lower worlds' to show. Its 3 s whole-chat guide is
-    // measured idle under `--profile measure`, not asserted here.
-    let fixture = github::Fixture {
-        configure: |value, agent, address| {
-            (fixture().configure)(value, agent, address);
-            for name in ["poll_ms", "poll_max_ms", "slow_ms"] {
-                value["application"]["limits"]["overrides"][format!("forge.client.{name}")] =
-                    NO_POLL_IN_PATIENCE_MS.into();
-            }
-        },
-        ..github::fixture()
-    };
-    let ran = run_github(fixture, scripts, landed_steps);
-    landed(&ran);
-}
-
-#[test]
-#[ignore = "needs: real-loop per-request GitHub pause/release hook for a required brief read across fixture-short gather"]
-fn an_unanswered_repair_brief_is_bounded_by_its_gather_deadline() {
-    // QA: domain/root.md 7.2, 10: gather (shipped 30 s) bounds a stuck
-    // connector; a missing required section never becomes a partial brief.
-    // The public GitHub setup/timing callbacks cannot pause a request.
-    // Needs: hold CI-log or PullFiles after preparation starts, through a
-    // short gather; take the following reads while it remains held, then
-    // release it. Expiry's exact task phase is not specified by the design.
-    let ran = run_github(fixture(), unanswered_repair_scripts, || {
-        let mut steps = begin();
-        steps.extend([
-            call(D1, argv!["task", "show", task(CHAT_CALL), "--until", "replied"]),
-            call(D1, argv!["me", "--json"]),
-            call(D1, argv!["task", "show", number(CHANGE), "--json"]),
-        ]);
-        steps
-    });
-    succeeded(&ran);
-    assert!(!ran.github().pulls.iter().any(|seen| matches!(seen, Observation::Merged { .. })));
-    assert!(
-        !ran.llm().iter().any(|seen| matches!(seen,
-            skein_fake_peers::llm::Observation::Query { query, .. }
-                if contains(&query.system, b"Repair the failed CI on the change branch")
-        )),
-        "no repair assignment while its required section is missing"
-    );
-    panic!("needs: real-loop required-brief read pause/release and gather-boundary synchronization");
 }

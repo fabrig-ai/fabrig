@@ -615,22 +615,27 @@ fn task_live(
 
 /// Maximum answer payload retained in a root's held-output slot.
 #[must_use]
-pub fn answer_worst_case(limits: &Limits) -> Option<u64> {
-    let document = documents::document_with_context_worst_case(limits)?;
+pub fn answer_bound(limits: &Limits) -> Option<u64> {
+    let document = documents::document_with_context_bound(limits)?;
     // Run settings answers own the same documents, in an inline sum carrier.
     u64::try_from(size_of::<Answer>().max(size_of::<SettingsAnswer>())).ok()?.checked_add(
         document
             .checked_mul(u64::from(limits.documents.rows).checked_add(3)?)?
             .checked_add(limits.load_bytes.checked_mul(2)?)?
-            .checked_add(List::<PageRow>::worst_case(limits.documents.rows)?)?
+            .checked_add(List::<PageRow>::price(limits.documents.rows)?)?
             .checked_add(u64::try_from(size_of::<Page>()).ok()?)?
-            .checked_add(query_worst_case(limits)?)?
+            .checked_add(query_bound(limits)?)?
             .checked_add(settings::load_bytes(limits, limits.documents.rows)?.checked_mul(2)?)?,
     )
 }
+/// The former name of [`answer_bound`], kept until its application readers move.
+#[must_use]
+pub fn answer_worst_case(limits: &Limits) -> Option<u64> {
+    answer_bound(limits)
+}
 
 // Resource pattern segments and literal bytes, plus one description query.
-pub(crate) fn query_worst_case(limits: &Limits) -> Option<u64> {
+pub(crate) fn query_bound(limits: &Limits) -> Option<u64> {
     u64::from(limits.notes.pattern_bytes)
         .checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?.checked_add(1)?)?
         .checked_add(u64::from(limits.notes.description_bytes))

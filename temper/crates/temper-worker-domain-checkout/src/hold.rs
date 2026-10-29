@@ -132,7 +132,7 @@ pub(crate) struct Tips {
 }
 
 #[derive(Debug)]
-#[expect(clippy::large_enum_variant, reason = "bounded diagnostics stay inline and are included in worst_case")]
+#[expect(clippy::large_enum_variant, reason = "diagnostics stay inline with a fixed byte capacity")]
 enum State {
     /// Preparing the workspace: `step` is in flight.
     Preparing { step: PrepareStep, asked: Asked },
@@ -215,7 +215,7 @@ enum To {
 
 /// The operation a pushing hold waits for.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-#[expect(clippy::large_enum_variant, reason = "bounded diagnostics stay inline and are included in worst_case")]
+#[expect(clippy::large_enum_variant, reason = "diagnostics stay inline with a fixed byte capacity")]
 enum PushStep {
     CompareLanding {
         repository: u32,

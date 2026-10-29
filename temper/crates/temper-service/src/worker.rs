@@ -27,10 +27,9 @@ pub struct WorkerRuntime {
 }
 /// The filesystem's absolute path envelope, including the worker root.
 pub(crate) const WORKER_PATH_BYTES: usize = 4096;
-/// The link's entrance holds two link steps' outputs.
-pub(crate) const ENGINE_EVENTS: u32 = 2 * link::MAX_OUT_DOWN;
-/// Two link steps' notes; each link request makes at most one note.
-pub(crate) const NOTES: u32 = 2 * link::MAX_OUT_DOWN;
+/// The link's capped edge holds new engine work at the watermark
+/// (`temper/docs/design/domain/worker.md`, 3.1).
+pub(crate) const HELD_ENTRANCE: u32 = 192;
 /// smith-host-protocol's `Process::new` caps `channel_below` at 16 entries.
 const PROCESS_CHANNEL_REQUESTS: u32 = 16;
 #[derive(Debug)]
@@ -77,7 +76,7 @@ pub struct Worker {
     pub(super) aborted: Option<()>,
 }
 // In-process workers keep no operator diagnostics; socket workers own their
-// endpoint, bounded notes and service ending together (protocol/README.md, 15).
+// endpoint, notes and service ending together (protocol/README.md, 15).
 #[derive(Debug)]
 enum Connection {
     InProcess(io::Name),
@@ -133,8 +132,8 @@ impl Worker {
             link_out: Queue::uncapped(),
             out: Queue::uncapped(),
             events: Queue::uncapped(),
-            engine: Queue::with_capacity(ENGINE_EVENTS),
-            held: Queue::with_capacity(ENGINE_EVENTS),
+            engine: Queue::uncapped(),
+            held: Queue::with_capacity(HELD_ENTRANCE),
             process_events: Queue::uncapped(),
             processes: Map::with_capacity(slots),
             owners: Map::with_capacity(slots),
@@ -153,7 +152,7 @@ impl Worker {
                 io::Addr::Ip(address) => Connection::Socket(Box::new(Remote {
                     address,
                     worker: config.name.clone(),
-                    notes: Queue::with_capacity(NOTES),
+                    notes: Queue::uncapped(),
                     end: None,
                     hello_pending: false,
                     last_refusal: None,
@@ -248,16 +247,19 @@ impl Worker {
             None => false,
         }
     }
-    /// Credit for one link step, including its engine events and socket notes.
-    pub(crate) fn room(&self) -> bool {
-        self.engine.room() >= link::MAX_OUT_DOWN
+    /// A link step's whole output is dispatched before the link steps again
+    /// (`temper/docs/design/domain/worker.md`, 3.1, order 8): its engine records
+    /// are taken and its socket notes drained. The engine's records wait in
+    /// the socket while the held entrance is full.
+    pub(crate) fn link_taken(&self) -> bool {
+        self.engine.is_empty()
             && match &self.connection {
                 Connection::InProcess(_) => true,
-                Connection::Socket(remote) => remote.notes.room() >= link::MAX_OUT_DOWN,
+                Connection::Socket(remote) => remote.notes.is_empty(),
             }
     }
-    /// Entries waiting between the worker's components. The capped engine
-    /// and held queues are excluded so new work cannot hold itself at the watermark.
+    /// Entries waiting between the worker's components. The engine entrance
+    /// and capped held queue are excluded so new work cannot hold itself at the watermark.
     fn backlog(&self) -> u32 {
         self.events
             .len()
@@ -688,7 +690,7 @@ impl Worker {
             self.git.component.fire(now, &mut self.git.out);
             self.git_drain();
         }
-        if self.git.ready && self.room() {
+        if self.git.ready && self.link_taken() {
             self.link.fire(now, &mut self.link_out);
             self.drain_link(now);
         }

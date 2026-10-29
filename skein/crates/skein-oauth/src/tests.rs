@@ -367,7 +367,7 @@ fn jwt_rotation_keeps_claims_and_expiry_but_checked_overflow_never_reuses_a_name
 }
 
 #[test]
-fn token_collector_rejects_malformed_grammar_and_counts_all_document_caps() {
+fn token_collector_rejects_malformed_grammar() {
     assert_eq!(
         Json::from_tokens(&[Token::ObjectStart, Token::Key(boxed(b"x")), Token::ObjectEnd], &limits()),
         Err(DecodeError::Malformed)
@@ -377,8 +377,6 @@ fn token_collector_rejects_malformed_grammar_and_counts_all_document_caps() {
     collector.push(Token::ObjectStart).expect("start");
     collector.push(Token::Key(boxed(b"x"))).expect("key");
     assert_eq!(collector.finish(&limits()), Err(DecodeError::Malformed));
-    let bound = worst_case(&limits()).expect("checked bound");
-    assert!(bound > 15_000, "formula includes tokens, candidates, two generations, documents and saved buffers");
 }
 
 fn additions(present: [bool; 5]) -> SavedToken {
@@ -469,14 +467,14 @@ fn ceiling_rows() -> [(&'static str, Limits); 5] {
 }
 
 #[test]
-fn limits_at_a_ceiling_have_a_worst_case() {
+fn record_limits_at_each_schema_ceiling_are_representable() {
     for (name, limits) in ceiling_rows() {
-        assert!(worst_case(&limits).is_some(), "{name}");
+        assert!(record::record_limits(&limits).is_some(), "{name}");
     }
 }
 
 #[test]
-fn limits_one_past_a_ceiling_have_none() {
+fn record_limits_one_past_each_schema_ceiling_are_refused() {
     for (name, limits) in [
         (
             "tokens and metadata",
@@ -490,7 +488,7 @@ fn limits_one_past_a_ceiling_have_none() {
         ("granted scopes", Limits { granted_bytes: TEXT_CEILING.checked_add(1).expect("ceiling fits"), ..limits() }),
         ("subject", Limits { subject_bytes: TEXT_CEILING.checked_add(1).expect("ceiling fits"), ..limits() }),
     ] {
-        assert_eq!(worst_case(&limits), None, "{name}");
+        assert!(record::record_limits(&limits).is_none(), "{name}");
     }
 }
 

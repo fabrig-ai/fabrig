@@ -51,15 +51,6 @@ pub(super) fn valid(openid: Option<&OpenId>, limits: &Limits) -> bool {
         && openid.key_set_url.len() <= usize::try_from(limits.uri_bytes).expect("u32 fits")
         && openid.subject.len() <= usize::try_from(limits.document.string_bytes).expect("u32 fits")
 }
-pub(super) fn worst_case(limits: &Limits) -> Option<u64> {
-    // The decoded fixed key, RSA signing workspace and encoded signature fit 32 KiB.
-    u64::from(limits.uri_bytes)
-        .checked_mul(2)?
-        .checked_add(u64::from(limits.document.string_bytes))?
-        .checked_add(u64::from(limits.document.id_token_bytes).checked_mul(4)?)?
-        .checked_add(32_768)
-}
-
 pub(super) fn get(
     config: &Config,
     limits: &Limits,

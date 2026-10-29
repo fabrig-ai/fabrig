@@ -1066,6 +1066,9 @@ pub fn run(seed: u64, story: Story, faulted: bool, memory: Memory) -> Outcome<Pr
 
 /// Runs a rotating refresh through TLS on the actual shared ring and loopback fake issuer.
 pub fn real_refresh() {
+    // Rotation is owned by simulated::a_rotated_refresh_token_is_kept_before_it_is_lent.
+    // Lead waits 20 seconds for its refresh, beyond this real world's 10-second patience;
+    // Rotate exercises one TLS refresh with the shared judge and issuer.
     let mut world = skein_world::real::World::new(Judge {
         wake: None,
         deadline: None,

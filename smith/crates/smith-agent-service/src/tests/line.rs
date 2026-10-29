@@ -25,7 +25,7 @@ fn read_prompt(calls: u8, line: u64, usage: llm::Usage) -> (llm::Prompt, Vec<usi
     limits.tools.path_bytes = 64;
     let mut domain = session::Domain::new(&limits, 1);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let mut out = Queue::with_capacity(session::max_out(&limits));
+    let mut out = Queue::uncapped();
     let opening = opening(line, limits.budget);
     session::step(&mut domain, &env, session::Event::Open { opener: OWNER, opening: Box::new(opening) }, &mut out);
     let mut session_owner = None;

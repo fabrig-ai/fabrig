@@ -11,7 +11,7 @@ use crate::{ClaimSelector, DecodeError, Failure, Json, Limits, OAuthError, Refre
 use crate::{classify, decode_error, decode_response, rotate};
 use alloc::boxed::Box;
 use skein_json::writer::Encoder;
-use skein_lib::{Duration, List, Queue, Time, Wall, bytes};
+use skein_lib::{Duration, Queue, Time, Wall, bytes};
 
 /// Startup bounds for one client and exchange.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -51,37 +51,6 @@ pub fn client_valid(limits: &ClientLimits) -> bool {
         && crate::record::record_limits(&limits.document).is_some()
         && limits.document.document_bytes < u32::MAX
         && limits.parameter_bytes.checked_add(11).is_some()
-}
-
-/// Upper bound for retained registration, exchange, request and answer bytes.
-#[must_use]
-pub fn client_worst_case(limits: &ClientLimits) -> Option<u64> {
-    if !client_valid(limits) {
-        return None;
-    }
-    crate::worst_case(&limits.document)?
-        .checked_add(u64::from(limits.uri_bytes).checked_mul(7)?)?
-        .checked_add(u64::from(limits.scope_bytes).checked_mul(2)?)?
-        .checked_add(u64::from(limits.parameter_bytes))?
-        .checked_add(
-            u64::from(limits.parameter_bytes).checked_mul(u64::try_from(size_of::<crate::Parameter>()).ok()?)?,
-        )?
-        .checked_add(List::<Option<(&[u8], &[u8])>>::price(limits.parameter_bytes.checked_add(11)?)?)?
-        .checked_add(u64::from(limits.resource_bytes))?
-        .checked_add(u64::from(limits.nonce_bytes))?
-        .checked_add(u64::from(limits.state_bytes).checked_mul(2)?)?
-        .checked_add(u64::from(limits.code_bytes))?
-        .checked_add(u64::from(limits.url_bytes))?
-        .checked_add(u64::from(limits.request_bytes).checked_mul(2)?)?
-        .checked_add(u64::from(limits.metadata_bytes.max(limits.key_set_bytes)).checked_mul(2)?)?
-        .checked_add(List::<crate::keys::Key>::price(limits.keys)?)?
-        .checked_add(
-            u64::from(limits.keys).checked_mul(
-                u64::from(limits.modulus_bits.checked_div(8)?)
-                    .checked_add(u64::from(limits.document.string_bytes).checked_mul(2)?)?,
-            )?,
-        )?
-        .checked_add(4096)
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]

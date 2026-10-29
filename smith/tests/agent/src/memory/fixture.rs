@@ -5,6 +5,10 @@ use super::{
     Tools, VerdictRule, Workspace, bytes, run,
 };
 
+// Content capture setting from the session observation inventory:
+// two parallel tools, sixteen completion blocks and four jobs.
+const MEMORY_CONTENT_EDGE_RECORDS: u32 = 98;
+
 /// Small limits, so that every bound is met often: few runs and sessions,
 /// few bytes each.
 pub const LIMITS: Limits = {
@@ -61,7 +65,7 @@ pub const LIMITS: Limits = {
             ..TIGHT.session
         },
     };
-    limits.session.facts = smith_domain::session::max_facts(&limits.session);
+    limits.session.facts = MEMORY_CONTENT_EDGE_RECORDS;
     limits
 };
 

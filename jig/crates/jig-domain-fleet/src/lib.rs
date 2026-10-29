@@ -79,7 +79,7 @@ pub use boundary::{
     HostView, Hosted, Kinds, Message, Phase, Placement, PlacementConstraint, Refusal, Request, Scheme, Turned,
     Undelivered, Withdrawal,
 };
-pub use domain::{Domain, fire, max_out, resume, step};
+pub use domain::{Domain, fire, resume, step};
 pub use facts::Fact;
 pub use history::{HelloRefusal, HelloRefusalRecord};
 pub use limits::{Limits, valid};

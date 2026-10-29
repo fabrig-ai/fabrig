@@ -378,7 +378,7 @@ impl Joint {
             let mut domain =
                 jig_domain_authority::Domain::new(rules, temper_engine_domain_world::walking::limits().authority)
                     .expect("goal authority");
-            let mut out = skein_lib::Queue::with_capacity(jig_domain_authority::POLICY_MAX_OUT);
+            let mut out = skein_lib::Queue::uncapped();
             jig_domain_authority::step(
                 &mut domain,
                 jig_domain_authority::Event::Policy { project: 1, policy },
@@ -411,7 +411,7 @@ impl Joint {
             policy.roles[0].authority.delegation.depth = 2;
             let mut domain = authority::Domain::new(rules, temper_engine_domain_world::walking::limits().authority)
                 .expect("question authority");
-            let mut out = skein_lib::Queue::with_capacity(authority::POLICY_MAX_OUT);
+            let mut out = skein_lib::Queue::uncapped();
             authority::step(
                 &mut domain,
                 authority::Event::Policy { project: fixtures::QUESTION_PROJECT, policy },
@@ -451,7 +451,7 @@ impl Joint {
             let mut authority_limits = temper_engine_domain_world::walking::limits().authority;
             authority_limits.batch = delegates;
             let mut domain = authority::Domain::new(rules, authority_limits).expect("delegate authority");
-            let mut out = skein_lib::Queue::with_capacity(authority::POLICY_MAX_OUT);
+            let mut out = skein_lib::Queue::uncapped();
             authority::step(
                 &mut domain,
                 authority::Event::Policy { project: fixtures::QUESTION_PROJECT, policy },
@@ -491,7 +491,6 @@ impl Joint {
         const PROJECT: u32 = 1;
         const PROCEDURE: u32 = 2;
         const EXECUTORS: u32 = 1;
-        const POLICY_OUT: u32 = a::POLICY_MAX_OUT;
         let mut config = walking::config(seed);
         config.core.connectors = Box::new([1]);
         for role in &mut config.core.seed_projects[0].policy.permissions {
@@ -506,7 +505,7 @@ impl Joint {
         let mut authority_limits = temper_engine_domain_world::walking::limits().authority;
         authority_limits.executors = EXECUTORS;
         let mut domain = a::Domain::new(rules, authority_limits).expect("procedure policy limits");
-        let mut out = skein_lib::Queue::with_capacity(POLICY_OUT);
+        let mut out = skein_lib::Queue::uncapped();
         a::step(&mut domain, a::Event::Policy { project: PROJECT, policy }, &mut out);
         assert_eq!(out.pop(), Some(a::PolicyFact::Added { project: PROJECT }));
         config.core.seed_projects[0].policy.policy = domain.policy(1).expect("configured seed policy").clone();
@@ -638,7 +637,7 @@ impl Joint {
             limits.brief.budgets.pull = 384;
             limits.brief.budgets.ci = 384;
             let mut domain = a::Domain::new(rules, limits.authority).expect("landing authority");
-            let mut out = skein_lib::Queue::with_capacity(a::POLICY_MAX_OUT);
+            let mut out = skein_lib::Queue::uncapped();
             a::step(&mut domain, a::Event::Policy { project: 1, policy }, &mut out);
             assert_eq!(out.pop(), Some(a::PolicyFact::Added { project: 1 }));
             config.core.seed_projects[0].policy.policy = domain.policy(1).expect("configured seed policy").clone();

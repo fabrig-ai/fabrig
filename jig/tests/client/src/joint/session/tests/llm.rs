@@ -23,7 +23,7 @@ fn configuration() -> root::Config {
 
 fn install_policy(rules: authority::Rules, policy: authority::Policy, limits: authority::Limits) -> authority::Domain {
     let mut domain = authority::Domain::new(rules, limits).expect("bounded authority policy");
-    let mut out = Queue::with_capacity(authority::POLICY_MAX_OUT);
+    let mut out = Queue::uncapped();
     authority::step(&mut domain, authority::Event::Policy { project: 1, policy }, &mut out);
     domain
 }

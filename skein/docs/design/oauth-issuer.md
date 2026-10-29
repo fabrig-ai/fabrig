@@ -39,8 +39,8 @@ lives, are its caller's: in jig, the clients' component's provider.
   forms itself, so that its world, the client against it (section 9),
   checks two readings of the protocol against each other.
 - **Bounded.** Each input is bounded by `Limits` and refused past it;
-  each output is measured before it is allocated; `worst_case` prices
-  the issuer and its largest call.
+  each output is measured before it is allocated; `valid` checks the
+  limits and derived capacities.
 
 ## 2. The issuer and its entities
 
@@ -81,7 +81,7 @@ impl Issuer {
 - **The key** is one `sign_rs256_pkcs8` signs with; `new` reads its public
   half with `rs256_public` and refuses a key it gives none for.
 - **`Error`**, `new`'s and the encoders': `Limits` (a value past its
-  bound, or the settings past `worst_case`'s arithmetic), `Address` (a
+  bound, or an unrepresentable derived capacity), `Address` (a
   URL off its rules), `Client` (an id or secret off its rules, a
   repeated id, no client), `Key` (a key `rs256_public` refuses),
   `Claims` (a `Person` off section 6's rules), `Sign` (`sign_rs256_pkcs8`
@@ -367,7 +367,7 @@ pub struct Limits {
     /// Each of a person's subject, username, address and name.
     pub claim_bytes: u32,
 }
-pub fn worst_case(limits: &Limits) -> Option<u64>;
+pub fn valid(limits: &Limits) -> bool;
 ```
 
 - **Refused at the entrance:** every input is measured against its
@@ -375,14 +375,9 @@ pub fn worst_case(limits: &Limits) -> Option<u64>;
   pass, its values decoded into allocations of their final length.
 - **Measured, then written:** each document, answer and token is
   measured with `skein-json`'s encoder before its one allocation.
-- **`worst_case`** is, with checked arithmetic, the issuer held (its
-  settings at their bounds, every client's id, secret and redirect URI,
-  the key at `RS256_PKCS8_KEY_BYTES`, its public half at 4096 bits and
-  `kid`) plus the
-  largest single call's allocations, its output and temporaries
-  together: the token answer's, an ID token of a person at its bounds,
-  in practice. A call allocates nothing that outlives it but what it
-  returns.
+- **`valid`** checks input limits and the capacities needed
+  for their escaped and encoded forms. A call allocates nothing that
+  outlives it but what it returns; no per-process heap sum is required.
 - **Numbers** are the caller's: jig's profiles hold its provider's.
 
 ## 9. Testing
@@ -401,7 +396,7 @@ pub fn worst_case(limits: &Limits) -> Option<u64>;
   and without a nonce and each of the person's claims, its signature
   checked by `skein_tls::verify_rs256`; the userinfo answer and
   `bearer`'s refusals; every bound from both sides; and memory at the
-  bounds within `worst_case`, by the counting allocator.
+  bounds under scenario ceilings with headroom, by the counting allocator.
 - **Its world,** `tests/oauth-issuer` (`skein-oauth-issuer-world`):
   `skein-oauth`'s real `Client` against the real `Issuer`, each the
   other's peer, as `tests/oauth` runs the client against the fake. The
@@ -412,7 +407,7 @@ pub fn worst_case(limits: &Limits) -> Option<u64>;
   issuer and no key set, so the client reads the discovery document and
   then the key set. Clocks and seeds are the world's; a seed replays to
   the same trace and state digest; the issuer's and the client's memory
-  are held to their worst cases. Its stories:
+  are held under named scenario ceilings with headroom. Its stories:
   - a sign-in: the client's record holds the person's subject, its ID
     token carries the person's claims, and the userinfo answer for its
     access token, which the world asks for as Forgejo would, names the

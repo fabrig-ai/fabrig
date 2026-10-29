@@ -530,12 +530,12 @@ impl Domain {
     }
 }
 
-/// Compatibility bound for application callers and the core's settings store-write allowance.
+/// The most outputs one step emits.
 /// Bootstrap writes one roles record per configured owner match, alongside person/sign-in records
 /// and reply, plus one expired sign-in's erase; completion answers every bounded waiter.
 /// Internal output queues are uncapped; callers count output payload bytes separately.
 #[must_use]
-pub fn max_out(limits: &Limits) -> u32 {
+pub fn outputs_bound(limits: &Limits) -> u32 {
     limits
         .initial_owners
         .saturating_add(4)

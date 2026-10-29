@@ -38,6 +38,4 @@ mod respond;
 #[cfg(test)]
 mod tests;
 
-pub use limits::worst_case;
-
 pub use domain::{Config, Domain, Event, Request, fire, step};

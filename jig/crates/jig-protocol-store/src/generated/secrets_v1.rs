@@ -850,12 +850,12 @@ impl NextCarried {
 impl Digest {
     /// Maximum encoded bytes under these limits.
     #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> {
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
         if check_limits(limits).is_err() { return None; }
-        Self::worst_case_bytes_within(limits)
+        Self::encoded_bound_within(limits)
     }
 
-    pub(crate) fn worst_case_bytes_within(_limits: &Limits) -> Option<u64> {
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
         let mut size = 2_u64;
         size = size.checked_add(8_u64)?.checked_add(u64::from(32_u32))?;
         size.checked_add(0)
@@ -863,12 +863,12 @@ impl Digest {
 
     /// Maximum heap held by one decoded value under these limits.
     #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> {
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
         if check_limits(limits).is_err() { return None; }
-        Self::worst_case_heap_within(limits)
+        Self::decoded_bound_within(limits)
     }
 
-    pub(crate) fn worst_case_heap_within(_limits: &Limits) -> Option<u64> {
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap.checked_add(0)
@@ -878,12 +878,12 @@ impl Digest {
 impl SourceRecord {
     /// Maximum encoded bytes under these limits.
     #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> {
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
         if check_limits(limits).is_err() { return None; }
-        Self::worst_case_bytes_within(limits)
+        Self::encoded_bound_within(limits)
     }
 
-    pub(crate) fn worst_case_bytes_within(limits: &Limits) -> Option<u64> {
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut size = 0_u64;
         size = size.checked_add(4_u64.checked_add(u64::from(limits.source_record_record))?)?;
         size.checked_add(0)
@@ -891,12 +891,12 @@ impl SourceRecord {
 
     /// Maximum heap held by one decoded value under these limits.
     #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> {
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
         if check_limits(limits).is_err() { return None; }
-        Self::worst_case_heap_within(limits)
+        Self::decoded_bound_within(limits)
     }
 
-    pub(crate) fn worst_case_heap_within(limits: &Limits) -> Option<u64> {
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
         heap = heap.checked_add(u64::from(limits.source_record_record))?;
         heap.checked_add(0)
@@ -906,12 +906,12 @@ impl SourceRecord {
 impl SourceKey {
     /// Maximum encoded bytes under these limits.
     #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> {
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
         if check_limits(limits).is_err() { return None; }
-        Self::worst_case_bytes_within(limits)
+        Self::encoded_bound_within(limits)
     }
 
-    pub(crate) fn worst_case_bytes_within(limits: &Limits) -> Option<u64> {
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut size = 0_u64;
         size = size.checked_add(4_u64.checked_add(u64::from(limits.source_key_key))?)?;
         size.checked_add(0)
@@ -919,12 +919,12 @@ impl SourceKey {
 
     /// Maximum heap held by one decoded value under these limits.
     #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> {
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
         if check_limits(limits).is_err() { return None; }
-        Self::worst_case_heap_within(limits)
+        Self::decoded_bound_within(limits)
     }
 
-    pub(crate) fn worst_case_heap_within(limits: &Limits) -> Option<u64> {
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
         heap = heap.checked_add(u64::from(limits.source_key_key))?;
         heap.checked_add(0)
@@ -934,27 +934,27 @@ impl SourceKey {
 impl SourceValue {
     /// Maximum encoded bytes among variants.
     #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> {
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
         if check_limits(limits).is_err() { return None; }
-        Self::worst_case_bytes_within(limits)
+        Self::encoded_bound_within(limits)
     }
 
-    pub(crate) fn worst_case_bytes_within(limits: &Limits) -> Option<u64> {
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut biggest = 0_u64;
-        biggest = biggest.max(SourceRecord::worst_case_bytes_within(limits)?).max(SourceKey::worst_case_bytes_within(limits)?);
+        biggest = biggest.max(SourceRecord::encoded_bound_within(limits)?).max(SourceKey::encoded_bound_within(limits)?);
         1_u64.checked_add(biggest)
     }
 
     /// Maximum heap held by any decoded variant.
     #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> {
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
         if check_limits(limits).is_err() { return None; }
-        Self::worst_case_heap_within(limits)
+        Self::decoded_bound_within(limits)
     }
 
-    pub(crate) fn worst_case_heap_within(limits: &Limits) -> Option<u64> {
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut biggest = 0_u64;
-        biggest = biggest.max(SourceRecord::worst_case_heap_within(limits)?).max(SourceKey::worst_case_heap_within(limits)?);
+        biggest = biggest.max(SourceRecord::decoded_bound_within(limits)?).max(SourceKey::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
 }
@@ -962,27 +962,27 @@ impl SourceValue {
 impl Source {
     /// Maximum encoded bytes under these limits.
     #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> {
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
         if check_limits(limits).is_err() { return None; }
-        Self::worst_case_bytes_within(limits)
+        Self::encoded_bound_within(limits)
     }
 
-    pub(crate) fn worst_case_bytes_within(limits: &Limits) -> Option<u64> {
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut size = 2_u64;
-        size = size.checked_add(SourceValue::worst_case_bytes_within(limits)?)?;
+        size = size.checked_add(SourceValue::encoded_bound_within(limits)?)?;
         size.checked_add(0)
     }
 
     /// Maximum heap held by one decoded value under these limits.
     #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> {
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
         if check_limits(limits).is_err() { return None; }
-        Self::worst_case_heap_within(limits)
+        Self::decoded_bound_within(limits)
     }
 
-    pub(crate) fn worst_case_heap_within(limits: &Limits) -> Option<u64> {
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
-        heap = heap.checked_add(SourceValue::worst_case_heap_within(limits)?)?;
+        heap = heap.checked_add(SourceValue::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
 }
@@ -990,12 +990,12 @@ impl Source {
 impl CarriedKey {
     /// Maximum encoded bytes under these limits.
     #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> {
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
         if check_limits(limits).is_err() { return None; }
-        Self::worst_case_bytes_within(limits)
+        Self::encoded_bound_within(limits)
     }
 
-    pub(crate) fn worst_case_bytes_within(limits: &Limits) -> Option<u64> {
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut size = 0_u64;
         size = size.checked_add(4_u64.checked_add(u64::from(limits.carried_key_key))?)?;
         size.checked_add(0)
@@ -1003,12 +1003,12 @@ impl CarriedKey {
 
     /// Maximum heap held by one decoded value under these limits.
     #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> {
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
         if check_limits(limits).is_err() { return None; }
-        Self::worst_case_heap_within(limits)
+        Self::decoded_bound_within(limits)
     }
 
-    pub(crate) fn worst_case_heap_within(limits: &Limits) -> Option<u64> {
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
         heap = heap.checked_add(u64::from(limits.carried_key_key))?;
         heap.checked_add(0)
@@ -1018,12 +1018,12 @@ impl CarriedKey {
 impl CarriedValue {
     /// Maximum encoded bytes under these limits.
     #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> {
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
         if check_limits(limits).is_err() { return None; }
-        Self::worst_case_bytes_within(limits)
+        Self::encoded_bound_within(limits)
     }
 
-    pub(crate) fn worst_case_bytes_within(limits: &Limits) -> Option<u64> {
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut size = 0_u64;
         size = size.checked_add(4_u64.checked_add(u64::from(limits.carried_value_value))?)?;
         size.checked_add(0)
@@ -1031,12 +1031,12 @@ impl CarriedValue {
 
     /// Maximum heap held by one decoded value under these limits.
     #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> {
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
         if check_limits(limits).is_err() { return None; }
-        Self::worst_case_heap_within(limits)
+        Self::decoded_bound_within(limits)
     }
 
-    pub(crate) fn worst_case_heap_within(limits: &Limits) -> Option<u64> {
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
         heap = heap.checked_add(u64::from(limits.carried_value_value))?;
         heap.checked_add(0)
@@ -1046,12 +1046,12 @@ impl CarriedValue {
 impl CarriedMoved {
     /// Maximum encoded bytes under these limits.
     #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> {
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
         if check_limits(limits).is_err() { return None; }
-        Self::worst_case_bytes_within(limits)
+        Self::encoded_bound_within(limits)
     }
 
-    pub(crate) fn worst_case_bytes_within(limits: &Limits) -> Option<u64> {
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut size = 0_u64;
         size = size.checked_add(4_u64.checked_add(u64::from(limits.carried_moved_moved))?)?;
         size.checked_add(0)
@@ -1059,12 +1059,12 @@ impl CarriedMoved {
 
     /// Maximum heap held by one decoded value under these limits.
     #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> {
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
         if check_limits(limits).is_err() { return None; }
-        Self::worst_case_heap_within(limits)
+        Self::decoded_bound_within(limits)
     }
 
-    pub(crate) fn worst_case_heap_within(limits: &Limits) -> Option<u64> {
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
         heap = heap.checked_add(u64::from(limits.carried_moved_moved))?;
         heap.checked_add(0)
@@ -1074,29 +1074,29 @@ impl CarriedMoved {
 impl Carrying {
     /// Maximum encoded bytes among variants.
     #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> {
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
         if check_limits(limits).is_err() { return None; }
-        Self::worst_case_bytes_within(limits)
+        Self::encoded_bound_within(limits)
     }
 
-    pub(crate) fn worst_case_bytes_within(limits: &Limits) -> Option<u64> {
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut biggest = 0_u64;
-        biggest = biggest.max(CarriedKey::worst_case_bytes_within(limits)?).max(CarriedValue::worst_case_bytes_within(limits)?);
-        biggest = biggest.max(CarriedMoved::worst_case_bytes_within(limits)?);
+        biggest = biggest.max(CarriedKey::encoded_bound_within(limits)?).max(CarriedValue::encoded_bound_within(limits)?);
+        biggest = biggest.max(CarriedMoved::encoded_bound_within(limits)?);
         1_u64.checked_add(biggest)
     }
 
     /// Maximum heap held by any decoded variant.
     #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> {
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
         if check_limits(limits).is_err() { return None; }
-        Self::worst_case_heap_within(limits)
+        Self::decoded_bound_within(limits)
     }
 
-    pub(crate) fn worst_case_heap_within(limits: &Limits) -> Option<u64> {
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut biggest = 0_u64;
-        biggest = biggest.max(CarriedKey::worst_case_heap_within(limits)?).max(CarriedValue::worst_case_heap_within(limits)?);
-        biggest = biggest.max(CarriedMoved::worst_case_heap_within(limits)?);
+        biggest = biggest.max(CarriedKey::decoded_bound_within(limits)?).max(CarriedValue::decoded_bound_within(limits)?);
+        biggest = biggest.max(CarriedMoved::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
 }
@@ -1104,27 +1104,27 @@ impl Carrying {
 impl Carried {
     /// Maximum encoded bytes under these limits.
     #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> {
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
         if check_limits(limits).is_err() { return None; }
-        Self::worst_case_bytes_within(limits)
+        Self::encoded_bound_within(limits)
     }
 
-    pub(crate) fn worst_case_bytes_within(limits: &Limits) -> Option<u64> {
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut size = 2_u64;
-        size = size.checked_add(Carrying::worst_case_bytes_within(limits)?)?;
+        size = size.checked_add(Carrying::encoded_bound_within(limits)?)?;
         size.checked_add(0)
     }
 
     /// Maximum heap held by one decoded value under these limits.
     #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> {
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
         if check_limits(limits).is_err() { return None; }
-        Self::worst_case_heap_within(limits)
+        Self::decoded_bound_within(limits)
     }
 
-    pub(crate) fn worst_case_heap_within(limits: &Limits) -> Option<u64> {
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
-        heap = heap.checked_add(Carrying::worst_case_heap_within(limits)?)?;
+        heap = heap.checked_add(Carrying::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
 }
@@ -1132,12 +1132,12 @@ impl Carried {
 impl NextCarried {
     /// Maximum encoded bytes under these limits.
     #[must_use]
-    pub fn worst_case_bytes(limits: &Limits) -> Option<u64> {
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
         if check_limits(limits).is_err() { return None; }
-        Self::worst_case_bytes_within(limits)
+        Self::encoded_bound_within(limits)
     }
 
-    pub(crate) fn worst_case_bytes_within(_limits: &Limits) -> Option<u64> {
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
         let mut size = 2_u64;
         size = size.checked_add(8_u64)?;
         size.checked_add(0)
@@ -1145,12 +1145,12 @@ impl NextCarried {
 
     /// Maximum heap held by one decoded value under these limits.
     #[must_use]
-    pub fn worst_case_heap(limits: &Limits) -> Option<u64> {
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
         if check_limits(limits).is_err() { return None; }
-        Self::worst_case_heap_within(limits)
+        Self::decoded_bound_within(limits)
     }
 
-    pub(crate) fn worst_case_heap_within(_limits: &Limits) -> Option<u64> {
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
@@ -1159,39 +1159,39 @@ impl NextCarried {
 
 /// Maximum wire bytes among this family's top-level types.
 #[must_use]
-pub fn worst_case_bytes(limits: &Limits) -> Option<u64> {
+pub fn encoded_bound(limits: &Limits) -> Option<u64> {
     if check_limits(limits).is_err() { return None; }
     let mut biggest = 0_u64;
-    biggest = biggest.max(Digest::worst_case_bytes_within(limits)?);
-    biggest = biggest.max(SourceRecord::worst_case_bytes_within(limits)?);
-    biggest = biggest.max(SourceKey::worst_case_bytes_within(limits)?);
-    biggest = biggest.max(SourceValue::worst_case_bytes_within(limits)?);
-    biggest = biggest.max(Source::worst_case_bytes_within(limits)?);
-    biggest = biggest.max(CarriedKey::worst_case_bytes_within(limits)?);
-    biggest = biggest.max(CarriedValue::worst_case_bytes_within(limits)?);
-    biggest = biggest.max(CarriedMoved::worst_case_bytes_within(limits)?);
-    biggest = biggest.max(Carrying::worst_case_bytes_within(limits)?);
-    biggest = biggest.max(Carried::worst_case_bytes_within(limits)?);
-    biggest = biggest.max(NextCarried::worst_case_bytes_within(limits)?);
+    biggest = biggest.max(Digest::encoded_bound_within(limits)?);
+    biggest = biggest.max(SourceRecord::encoded_bound_within(limits)?);
+    biggest = biggest.max(SourceKey::encoded_bound_within(limits)?);
+    biggest = biggest.max(SourceValue::encoded_bound_within(limits)?);
+    biggest = biggest.max(Source::encoded_bound_within(limits)?);
+    biggest = biggest.max(CarriedKey::encoded_bound_within(limits)?);
+    biggest = biggest.max(CarriedValue::encoded_bound_within(limits)?);
+    biggest = biggest.max(CarriedMoved::encoded_bound_within(limits)?);
+    biggest = biggest.max(Carrying::encoded_bound_within(limits)?);
+    biggest = biggest.max(Carried::encoded_bound_within(limits)?);
+    biggest = biggest.max(NextCarried::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
 /// Maximum heap held by one decoded top-level value.
 #[must_use]
-pub fn worst_case_heap(limits: &Limits) -> Option<u64> {
+pub fn decoded_bound(limits: &Limits) -> Option<u64> {
     if check_limits(limits).is_err() { return None; }
     let mut biggest = 0_u64;
-    biggest = biggest.max(Digest::worst_case_heap_within(limits)?);
-    biggest = biggest.max(SourceRecord::worst_case_heap_within(limits)?);
-    biggest = biggest.max(SourceKey::worst_case_heap_within(limits)?);
-    biggest = biggest.max(SourceValue::worst_case_heap_within(limits)?);
-    biggest = biggest.max(Source::worst_case_heap_within(limits)?);
-    biggest = biggest.max(CarriedKey::worst_case_heap_within(limits)?);
-    biggest = biggest.max(CarriedValue::worst_case_heap_within(limits)?);
-    biggest = biggest.max(CarriedMoved::worst_case_heap_within(limits)?);
-    biggest = biggest.max(Carrying::worst_case_heap_within(limits)?);
-    biggest = biggest.max(Carried::worst_case_heap_within(limits)?);
-    biggest = biggest.max(NextCarried::worst_case_heap_within(limits)?);
+    biggest = biggest.max(Digest::decoded_bound_within(limits)?);
+    biggest = biggest.max(SourceRecord::decoded_bound_within(limits)?);
+    biggest = biggest.max(SourceKey::decoded_bound_within(limits)?);
+    biggest = biggest.max(SourceValue::decoded_bound_within(limits)?);
+    biggest = biggest.max(Source::decoded_bound_within(limits)?);
+    biggest = biggest.max(CarriedKey::decoded_bound_within(limits)?);
+    biggest = biggest.max(CarriedValue::decoded_bound_within(limits)?);
+    biggest = biggest.max(CarriedMoved::decoded_bound_within(limits)?);
+    biggest = biggest.max(Carrying::decoded_bound_within(limits)?);
+    biggest = biggest.max(Carried::decoded_bound_within(limits)?);
+    biggest = biggest.max(NextCarried::decoded_bound_within(limits)?);
     Some(biggest)
 }
 

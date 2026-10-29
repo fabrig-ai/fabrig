@@ -4,7 +4,8 @@
 //! alarms, deferred wind-down effects and uncapped facts.
 //! [`step`] accepts parent events, [`fire`] handles due alarms and [`resume`]
 //! emits deferred child closures and main's yield after a reclaim point. All three emit
-//! bounded requests. This module never knows provider syntax, credential
+//! requests into uncapped queues. Facts are kept losslessly and drained by count.
+//! This module never knows provider syntax, credential
 //! secrets, host policy or the contents of a delivered receipt.
 
 use skein_lib::{Deadlines, Env, Queue, Rng, Slab, Time, Token};
@@ -14,21 +15,6 @@ use crate::call::Calls;
 use crate::facts::{self, Fact, Facts};
 use crate::limits::Limits;
 use crate::run::{self, Alarm, Conversation, Run};
-
-/// The most requests an entry point emits per call: an admitted start names
-/// the run and opens its main conversation or asks io for its first look; a
-/// check goes with its notice to the host; a call returns as main is
-/// closed. The root domain still uses this allowance to reserve its child
-/// handoff queue until that queue becomes uncapped.
-pub const MAX_OUT: u32 = 3;
-
-/// A terminal may observe every offered and queued message, its end and
-/// answer; other entrances observe no more. The root domain still uses this
-/// allowance in its observation formulas; the run's fact queue is uncapped.
-#[must_use]
-pub const fn max_facts(limits: &Limits) -> u32 {
-    limits.messages.saturating_mul(2).saturating_add(8)
-}
 
 /// The run child domain's state.
 #[derive(Debug)]
@@ -119,7 +105,7 @@ impl Domain {
     }
 }
 
-/// Handles one event, emitting at most [`MAX_OUT`] requests.
+/// Handles one event, emitting requests into an uncapped queue.
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     domain.facts.begin(env.now);
     let mark = out.len();
@@ -188,8 +174,8 @@ fn take(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Re
     }
 }
 
-/// Fires the earliest alarm due at `env.now`, if there is one, emitting at most
-/// [`MAX_OUT`] requests. A stage fires its alarms after its input events, so
+/// Fires the earliest alarm due at `env.now` into an uncapped request queue.
+/// A stage fires its alarms after its input events, so
 /// progress that arrived in the same iteration wins over a deadline that passed
 /// while the loop waited.
 pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {

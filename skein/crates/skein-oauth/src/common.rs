@@ -1,6 +1,6 @@
 use alloc::boxed::Box;
-use skein_json::{Token, tokenizer, writer};
-use skein_lib::{Duration, List, bytes};
+use skein_json::{tokenizer, writer};
+use skein_lib::{Duration, bytes};
 
 /// Bounds for one token exchange and its saved record (oauth.md §5).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -105,26 +105,6 @@ pub fn classify(status: u16, error: Option<&crate::OAuthError>, retry_after: Dur
         400 | 404 | 405 | 422 => Failure::Malformed,
         _ => Failure::TimedOut,
     }
-}
-/// Includes an exchange, tokenized JWT payload, two saved generations and a
-/// candidate/record being handed to the durability owner. Checked on startup.
-#[must_use]
-pub fn worst_case(limits: &Limits) -> Option<u64> {
-    let _record_limits = crate::record::record_limits(limits)?;
-    List::<Token>::price(limits.tokens)?
-        .checked_mul(3)?
-        .checked_add(u64::from(limits.document_bytes).checked_mul(6)?)?
-        .checked_add(u64::from(limits.token_bytes).checked_mul(12)?)?
-        .checked_add(u64::from(limits.client_bytes))?
-        .checked_add(u64::from(limits.issued_client_bytes).checked_mul(6)?)?
-        .checked_add(u64::from(limits.granted_bytes).checked_mul(6)?)?
-        .checked_add(u64::from(limits.subject_bytes).checked_mul(6)?)?
-        .checked_add(u64::from(limits.id_token_bytes).checked_mul(6)?)?
-        .checked_add(u64::from(limits.detail_bytes).checked_mul(2)?)?
-        .checked_add(u64::from(limits.record_bytes).checked_mul(2)?)?
-        .checked_add(crate::json::validation_bound(limits)?)?
-        .checked_add(tokenizer::tokenizer_bound(&limits.tokenizer_limits())?)?
-        .checked_add(writer::encoder_bound(&limits.writer_limits())?)
 }
 pub(crate) fn measured(encoder: writer::Encoder) -> Result<u32, DecodeError> {
     match encoder.measured() {

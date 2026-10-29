@@ -850,8 +850,8 @@ fn whole_inbox_context_distinguishes_unsupplied_from_empty_and_refuses_depth_ove
     };
     assert!(page.inbox_selection.as_ref().unwrap().is_empty());
     limits.tasks.depth = u32::MAX;
-    assert_eq!(inbox_selection_worst_case(16, limits.tasks.depth), None);
-    assert_eq!(document_with_context_worst_case(&limits), None);
+    assert_eq!(inbox_selection_bound(16, limits.tasks.depth), None);
+    assert_eq!(document_with_context_bound(&limits), None);
     assert_eq!(
         make(&core, &limits, 1, &Subject::Inbox { party: 1 }, &Window { rows: 16, after: None }, Wall::EPOCH),
         Err(Missing::TooLarge)
@@ -898,9 +898,9 @@ fn inbox_context_memory_prices_every_reserved_container_and_complete_document_en
     );
     let value = inbox(&core, &limits, 16);
     let contexts = value.selection.as_ref().unwrap();
-    let reserved = List::<InboxSelection>::worst_case(contexts.capacity()).unwrap();
-    let roots = List::<u64>::worst_case(limits.tasks.depth + 1).unwrap();
-    let bound = inbox_selection_worst_case(16, limits.tasks.depth).unwrap();
+    let reserved = List::<InboxSelection>::price(contexts.capacity()).unwrap();
+    let roots = List::<u64>::price(limits.tasks.depth + 1).unwrap();
+    let bound = inbox_selection_bound(16, limits.tasks.depth).unwrap();
     assert_eq!(bound, reserved + 16 * roots);
     let mut held = reserved;
     for context in contexts {
@@ -910,9 +910,9 @@ fn inbox_context_memory_prices_every_reserved_container_and_complete_document_en
     assert!(held <= bound);
     assert!(roots > u64::try_from(size_of_val(contexts.get(0).unwrap().goals.as_slice())).unwrap());
     assert_eq!(
-        document_with_context_worst_case(&limits),
-        Some(document_worst_case(&limits.documents).unwrap() + bound + TEMPLATE_ENVELOPES + SETTINGS_DOCUMENT)
+        document_with_context_bound(&limits),
+        Some(document_bound(&limits.documents).unwrap() + bound + TEMPLATE_ENVELOPES + SETTINGS_DOCUMENT)
     );
-    assert!(reads::answer_worst_case(&limits).unwrap() >= document_with_context_worst_case(&limits).unwrap());
+    assert!(reads::answer_bound(&limits).unwrap() >= document_with_context_bound(&limits).unwrap());
     assert!(valid(&limits));
 }

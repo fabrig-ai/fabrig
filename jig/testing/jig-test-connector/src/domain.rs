@@ -9,8 +9,8 @@ use crate::{
 
 pub(crate) type DelegateOutcome = (u64, Option<u64>, Box<[(u64, u64)]>);
 
-/// Forwarding envelope for callers that reserve connector output room.
-pub const MAX_OUT: u32 = 9;
+/// The most outputs one test-connector step emits; fixtures size their journal writes from it.
+pub const OUTPUTS_BOUND: u32 = 9;
 
 /// A connector's live working set and records.
 #[derive(Debug)]

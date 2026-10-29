@@ -100,7 +100,7 @@ fn a_released_reply_keeps_its_terminal_and_destination() {
 #[test]
 fn the_component_prints_one_sign_in_link_at_start() {
     let mut clients = super::fixtures::clients();
-    let mut events = skein_lib::Queue::with_capacity(64);
+    let mut events = skein_lib::Queue::uncapped();
     clients.iterate(skein_lib::Time::ZERO, skein_lib::Wall::EPOCH, &mut events, &[], None, &mut None);
     let Some(skein_io::Request::Listen { owner, addr }) = clients.io.pop() else { panic!("listen") };
     assert!(clients.up(skein_io::Event::Listening { owner, listener: LISTENER, addr }));
@@ -114,7 +114,7 @@ fn the_component_prints_one_sign_in_link_at_start() {
 #[test]
 fn closing_a_listener_during_start_closes_the_component() {
     let mut clients = super::fixtures::clients();
-    let mut events = skein_lib::Queue::with_capacity(64);
+    let mut events = skein_lib::Queue::uncapped();
     clients.iterate(skein_lib::Time::ZERO, skein_lib::Wall::EPOCH, &mut events, &[], None, &mut None);
     let Some(skein_io::Request::Listen { owner, addr }) = clients.io.pop() else { panic!("listen") };
     clients.down(kit::Event::Close);
@@ -171,7 +171,7 @@ fn a_sign_in_ending_waits_for_its_erase_to_commit() {
     .unwrap();
     clients.commit(3, &[root::Write::Erase(root::Key::Core(core::Key::People(people::Key::SignIn(7))))]);
     assert!(!clients.commit_room());
-    let mut events = skein_lib::Queue::with_capacity(64);
+    let mut events = skein_lib::Queue::uncapped();
     clients.iterate(skein_lib::Time::ZERO, skein_lib::Wall::EPOCH, &mut events, &[], None, &mut None);
     assert!(!clients.commit_room());
     clients.committed(3);
@@ -281,7 +281,14 @@ fn a_clients_listener_failure_stops_the_engine() {
     let mut service = super::fixtures::started();
     service.told.push(skein_io::Event::Closed { owner: Token::new(crate::tokens::SERVER) });
     super::fixtures::turn(&mut service);
-    assert_eq!(service.end(), Some(&crate::End::Stopped(crate::Stop::Listener)));
+    assert_eq!(
+        service.end(),
+        Some(&crate::End::Stopped(crate::Stop::Listener {
+            listener: crate::Listening::Clients,
+            address: Some(skein_io::Addr::Ip(([127, 0, 0, 1], 7100).into())),
+            error: None
+        }))
+    );
 }
 
 #[test]
@@ -317,7 +324,14 @@ fn failed_clients_bind(opened: bool, closed: bool) {
             break;
         }
     }
-    assert_eq!(service.end(), Some(&crate::End::Stopped(crate::Stop::Listener)));
+    assert_eq!(
+        service.end(),
+        Some(&crate::End::Stopped(crate::Stop::Listener {
+            listener: crate::Listening::Clients,
+            address: Some(skein_io::Addr::Ip(([127, 0, 0, 1], 7100).into())),
+            error: if closed { None } else { Some(skein_io::Error::Refused) }
+        }))
+    );
     assert!(service.is_empty(), "every child and kernel route closes");
     assert!(!service.work_pending(Time::from_nanos(1)), "the loop needs no further turn");
     assert_eq!(service.next_deadline(), None, "no timer remains armed");

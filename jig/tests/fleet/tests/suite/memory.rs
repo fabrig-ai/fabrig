@@ -1,6 +1,6 @@
 //! Saturated fleet lifecycle, refusals and exact ownership observations.
 
-use jig_domain_fleet::{Answer, Domain, Event, Hello, Hosted, Limits, Phase, Request, fire, max_out, resume, step};
+use jig_domain_fleet::{Answer, Domain, Event, Hello, Hosted, Limits, Phase, Request, fire, resume, step};
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
 use skein_world::domain::heap::Meter;
 
@@ -43,7 +43,7 @@ impl Measured {
     fn with_needs(limits: Limits, needs: impl FnOnce() -> jig_domain_fleet::Needs) -> Measured {
         let meter = Meter::new();
         let domain = jig_fleet_world::fixtures::domain(&limits, needs());
-        let out = Queue::with_capacity(max_out(&limits));
+        let out = Queue::uncapped();
         Measured { domain, env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits }, out, meter, names: 0 }
     }
 

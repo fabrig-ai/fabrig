@@ -27,6 +27,7 @@ pub(crate) const DEMO_STARTS: u32 = 8;
 pub struct Clients {
     /// Bound address awaiting the system's note routing.
     pub(crate) listening: Option<::core::net::SocketAddr>,
+    pub(crate) address: io::Addr,
     public: Option<crate::startup::application::Origin>,
     component: kit::Component,
     initial: Option<kit::Settings>,
@@ -242,6 +243,7 @@ impl Clients {
         let component = kit::Component::new(initial, &env, &mut out).or(Err(invalid(What::Bound)))?;
         Ok(Self {
             listening: None,
+            address: *listener,
             public: clients.public.clone(),
             component,
             initial: Some(settings()?),
@@ -551,7 +553,7 @@ impl Clients {
             self.component =
                 kit::Component::new(settings, &self.env, &mut self.out).expect("validated client settings");
         }
-        if self.closed || events.room() < kit::MAX_OUT_DOWN {
+        if self.closed {
             return;
         }
         self.server.fire(&mut self.server_out);
@@ -677,9 +679,6 @@ impl Clients {
         accounts: &mut Option<crate::accounts::Accounts>,
     ) {
         for _ in 0..self.endings.len().checked_mul(self.writes).expect("bounded sign-in endings") {
-            if events.room() < kit::MAX_OUT_DOWN {
-                break;
-            }
             let mut ready = None;
             for (number, _) in &self.endings {
                 if *number <= self.durable {

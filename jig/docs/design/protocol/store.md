@@ -1165,7 +1165,7 @@ nothing is written.
   waiting at a site holds the component's read, commits wait behind it
   as behind any read (`transcripts/write.rs`), and a machine serves one
   frame from `start` to `finish`.
-- **Memory:** each machine's `Patcher::worst_case_heap` of its capacity,
+- **Memory:** each machine's `Patcher::workspace_bound` of its capacity,
   in serving's worst case (section 13), priced at startup; none for sets
   with no kept text. A capacity's versions, patches and text are its
   owner's kept versions, patches and largest text. Its bytes and nodes
@@ -1694,7 +1694,7 @@ Event::Switched { owner: Token }   // or `OpenRefused`, or `Failed` with the ren
   until there is room: checking the free space before the copy is open
   (section 16). In memory: one map at a time (`A`'s closed before the
   copy's opens) and one machine per kept family (10.3), each
-  `Patcher::worst_case_heap` of its capacity. Section 13's worst case
+  `Patcher::workspace_bound` of its capacity. Section 13's worst case
   counts the larger of patching's peak and serving's, never both.
 - **The domain sees** the copy as any restart's store, pending until it
   asks for the switch (step 7), with the windows a fresh mark closed and
@@ -2105,7 +2105,7 @@ was made (`../domain/tasks.md`, section 3):
   patches. The sets are the shell's, so `worst_case_with_patches(limits, sets)`
   prices their machines, and `worst_case(limits)` prices `PatchSets::NONE`.
   Serving's holds the frames' machines (8.6), at most two, each its
-  `Patcher::worst_case_heap`, and none for sets with no kept text: their
+  `Patcher::workspace_bound`, and none for sets with no kept text: their
   bytes the frames' bounds and their nodes the most their kept texts
   allow (8.6). The tests price smith's real turn's machine against
   serving's (`tests/frame_memory.rs`), from a copy of smith's schema
@@ -2316,7 +2316,7 @@ Each within jig's suites' budgets.
     spare that walk;
   - smith's machine is priced for the most nodes its kept turn allows
     (8.6): from the baseline on, about 298 MB per serving store
-    (`Patcher::worst_case_heap` at 2,109,520 nodes), though a typical
+    (`Patcher::workspace_bound` at 2,109,520 nodes), though a typical
     turn takes a few hundred nodes. Its tables grow in bounded steps
     (skein's `codec.md`, 11.7), so a store holds what its largest turn
     needed, not the price; but it keeps that room until the machine

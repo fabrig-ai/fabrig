@@ -119,15 +119,15 @@ pub(super) fn hosts(core: &Core, limits: &crate::Limits, holder: accounts::Holde
     }
     (hosts, cut)
 }
-pub(super) fn logins_worst_case(limits: &DocumentLimits) -> Option<u64> {
+pub(super) fn logins_bound(limits: &DocumentLimits) -> Option<u64> {
     List::<ProgramLogin>::price(limits.lines)?.checked_add(
         u64::from(limits.lines).checked_mul(
             u64::from(accounts::NAME).checked_add(u64::from(limits.text_bytes.min(4_096)).checked_mul(2)?)?,
         )?,
     )
 }
-pub(super) fn hosts_worst_case(limits: &DocumentLimits) -> Option<u64> {
+pub(super) fn hosts_bound(limits: &DocumentLimits) -> Option<u64> {
     List::<ProgramHost>::price(limits.lines)?.checked_add(
-        u64::from(limits.lines).checked_mul(u64::from(fleet::WORKER_NAME).checked_add(logins_worst_case(limits)?)?)?,
+        u64::from(limits.lines).checked_mul(u64::from(fleet::WORKER_NAME).checked_add(logins_bound(limits)?)?)?,
     )
 }

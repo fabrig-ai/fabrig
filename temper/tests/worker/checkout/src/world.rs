@@ -6,18 +6,13 @@ use temper_fake_checkout::Checkout;
 use temper_fake_checkout::git::{Created, Remote, Tree};
 use temper_worker_domain_checkout::git::{Done, Fault, Kind, Missing, Op, Want};
 use temper_worker_domain_checkout::{
-    Cached, Domain, Event, Fact, Failure, Landing, Limits, MAX_OUT, Message, Outcome, Prepared, Refusal, Repository,
-    Request, Spec, Start, worst_case,
+    Cached, Domain, Event, Fact, Failure, Landing, Limits, Message, Outcome, Prepared, Refusal, Repository, Request,
+    Spec, Start, valid,
 };
 
 use crate::client::{Client, Interrupt, Operation, Pick, Plan, Release, Repo};
 use crate::forge::{Forge, Move};
 use crate::translate;
-
-/// Room in the domain's output queue beyond what one step may emit. Small, so
-/// the loop's flow control (take an event only while there is room for what
-/// it may produce) is exercised.
-const SLACK: u32 = 3;
 
 /// Who the worker is to the forge, in every spec.
 pub const IDENTITY: u32 = 0;
@@ -296,7 +291,7 @@ pub struct World {
 impl World {
     #[must_use]
     pub fn new(settings: Settings) -> World {
-        assert!(worst_case(&settings.checkout).is_some(), "the shell refuses limits it cannot provision");
+        assert!(valid(&settings.checkout), "the checkout limits are valid");
         let mut rng = Rng::new(settings.seed);
         let mut forge = Forge::new(settings.seed);
         let mut repositories = Vec::new();
@@ -327,7 +322,7 @@ impl World {
             rng,
             settings,
             domain: Domain::new(&settings.checkout),
-            stage: Stage::new(settings.checkout, MAX_OUT, MAX_OUT + SLACK),
+            stage: Stage::uncapped(settings.checkout),
             wire: Schedule::new(),
             disk,
             forge,

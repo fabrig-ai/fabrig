@@ -113,9 +113,6 @@ impl Lacks {
     }
 }
 
-/// Maximum deficits emitted by one fitting query: one for each of nine components.
-pub const FITS_MAX_OUT: u32 = 9;
-
 /// On one connector, granting `kind` also grants `implies`.
 /// Root-configured connector-kind inclusion pair, validated as part of `Implies`.
 /// (domain/authority.md, sections 4–5).
@@ -280,11 +277,10 @@ pub(crate) fn at_most_but_models(a: &Authority, b: &Authority, implies: &Implies
 }
 
 /// Whether the child's authority fits, with spend and lifetime task capacity taken from separate
-/// current inputs. The caller reserves `FITS_MAX_OUT` queue slots. A batch additionally consumes
+/// current inputs. A batch additionally consumes
 /// one task slot for each immediate child and sums reservations. Pure fitting query over
 /// caller-admitted child and creator values, current `numbers` and separate `tasks_left`; returns a
-/// boolean and all deficits in `lacks`. Reserve `FITS_MAX_OUT` free slots; no mutation of inputs or
-/// allocation.
+/// boolean and appends all deficits to the uncapped `lacks` queue without mutating inputs.
 #[must_use]
 pub fn fits(
     child: &Authority,
@@ -294,7 +290,6 @@ pub fn fits(
     implies: &Implies,
     lacks: &mut Queue<Lack>,
 ) -> bool {
-    assert!(lacks.room() >= FITS_MAX_OUT, "caller reserves every fitting finding");
     let parts = fit_lacks(child, creator, numbers, tasks_left, implies);
     if parts.tools {
         lacks.push(Lack::Tools);

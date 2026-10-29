@@ -511,10 +511,8 @@ pub(crate) struct Caller {
     completions: Queue<Complete>,
     submissions: Queue<Submit>,
     serial: u64,
-    command: Option<Spawn>,
     fixture_calls: usize,
     settings_files: fixtures::SettingsFiles,
-    input: Box<[u8]>,
 }
 fn is_settings(argv: &Argv) -> bool {
     matches!(argv.0.as_slice(), [Arg::Lit("settings"), Arg::Lit("apply"), ..])
@@ -775,20 +773,9 @@ impl Caller {
             completions: Queue::with_capacity(ROOM),
             submissions: Queue::with_capacity(ROOM),
             serial: 0,
-            command: None,
             fixture_calls: 0,
             settings_files,
-            input: Box::new([]),
         }
-    }
-    pub(crate) fn command(mut spawn: Spawn, input: &[u8], root: Fd) -> Self {
-        assert!(input.len() <= OUTPUT, "bounded command input");
-        spawn.root = root;
-        let mut caller = Self::new(Vec::new(), PathBuf::new(), root);
-        caller.command = Some(spawn);
-        caller.input = input.into();
-        caller.released = true;
-        caller
     }
     fn submit(&mut self, call: usize, kind: Op) {
         self.serial += 1;
@@ -986,8 +973,7 @@ impl Caller {
                     let fd = pipe.parent.expect("parent pipe");
                     match pipe.child {
                         0 => {
-                            let bytes = std::mem::take(&mut self.input);
-                            self.write(index, fd, bytes, 0);
+                            self.write(index, fd, Box::new([]), 0);
                         }
                         1 => {
                             self.running[index].as_mut().expect("running command").stdout = Some(fd);
@@ -1380,11 +1366,7 @@ impl Host for Caller {
         if self.closing {
             self.finish();
         } else if self.released {
-            if let Some(spawn) = self.command.take() {
-                self.launch(now, 0, spawn);
-            } else {
-                self.advance(now);
-            }
+            self.advance(now);
         }
     }
     fn completions(&mut self) -> &mut Queue<Complete> {

@@ -22,7 +22,7 @@ fn declare(
     join: Option<u32>,
     name: &[u8],
 ) -> (Result<u32, programs::DeclarationRefusal>, Vec<Request>) {
-    let mut out = Queue::with_capacity(jig_domain_accounts::max_out(&LIMITS));
+    let mut out = Queue::uncapped();
     let env = Env { now: world.now, wall: world.wall, limits: LIMITS };
     let result = programs::declare(&mut world.domain, &env, holder, provider, join, name.into(), &mut out);
     let mut requests = Vec::new();
@@ -292,7 +292,7 @@ fn an_explicit_holder_check_permits_signing_in_again() {
     assert_eq!(declare(&mut world, HOLDER, PROVIDER, None, b"personal").0, Ok(1));
     sign_out(&mut world, HOLDER);
     targets(&mut world, &[]);
-    let mut out = Queue::with_capacity(jig_domain_accounts::max_out(&LIMITS));
+    let mut out = Queue::uncapped();
     assert_eq!(programs::check(&mut world.domain, HOLDER, 1, &mut out), Ok(()));
     let mut requests = Vec::new();
     while let Some(request) = out.pop() {
@@ -469,7 +469,7 @@ fn a_pending_program_sign_out_blocks_a_holder_check() {
     let mut world = fresh();
     declare(&mut world, HOLDER, PROVIDER, None, b"personal").0.expect("declaration");
     sign_out(&mut world, HOLDER);
-    let mut out = Queue::with_capacity(jig_domain_accounts::max_out(&LIMITS));
+    let mut out = Queue::uncapped();
     assert_eq!(
         programs::check(&mut world.domain, HOLDER, 1, &mut out),
         Err(Refusal::Limit { bound: jig_domain_accounts::Bound::Sources })
@@ -648,7 +648,7 @@ fn a_login_check_with_an_exhausted_epoch_changes_nothing() {
     ];
     let mut world = World::with(configured(), &rows);
     world.step(Event::Want);
-    let mut out = Queue::with_capacity(jig_domain_accounts::max_out(&LIMITS));
+    let mut out = Queue::uncapped();
     assert_eq!(programs::check(&mut world.domain, HOLDER, 1, &mut out), Err(Refusal::Numbers));
     assert!(out.is_empty());
     assert_eq!(world.domain.source_grant(1, world.now), Some(named_grant(1, u64::from(u32::MAX))));

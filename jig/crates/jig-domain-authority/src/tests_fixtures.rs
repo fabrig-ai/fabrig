@@ -1,8 +1,7 @@
 //! Shared admitted policy values for the authority unit tests.
 use crate::{
     Authority, Budget, Delegation, Domain, Event, Grant, Guard, Implication, Implies, Judge, Last, Limits, Models,
-    Numbers, POLICY_MAX_OUT, Pattern, Policy, PolicyFact, Proposals, Requests, Requirement, Role, Rules, Scopes, Tools,
-    step,
+    Numbers, Pattern, Policy, PolicyFact, Proposals, Requests, Requirement, Role, Rules, Scopes, Tools, step,
 };
 use alloc::boxed::Box;
 use skein_lib::{Duration, Queue, bytes::copy_of};
@@ -92,9 +91,11 @@ pub(crate) fn policy(ceiling: Authority) -> Policy {
 }
 
 pub(crate) fn apply(domain: &mut Domain, event: Event) -> PolicyFact {
-    let mut out = Queue::with_capacity(POLICY_MAX_OUT);
+    let mut out = Queue::uncapped();
     step(domain, event, &mut out);
-    out.pop().unwrap()
+    let fact = out.pop().unwrap();
+    assert!(out.is_empty(), "one policy event emits exactly one terminal");
+    fact
 }
 
 pub(crate) fn domain_with(deployment: Authority, project: Authority) -> Domain {

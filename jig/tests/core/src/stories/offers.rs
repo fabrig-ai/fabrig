@@ -32,7 +32,7 @@ pub fn member_configuration(seed: u64) -> root::Config {
     policy.roles = Box::new([policy.roles[0].clone(), member]);
     let mut domain =
         authority::Domain::new(configuration.core.defaults.rules.clone(), limits).expect("member policy limits");
-    let mut facts = Queue::with_capacity(authority::POLICY_MAX_OUT);
+    let mut facts = Queue::uncapped();
     authority::step(&mut domain, authority::Event::Policy { project: 1, policy }, &mut facts);
     assert_eq!(facts.pop(), Some(authority::PolicyFact::Added { project: 1 }));
     configuration.core.seed_projects[0].policy.policy = domain.policy(1).expect("checked seed policy").clone();
@@ -71,7 +71,7 @@ pub fn world_with_policy(
         policy.roles = Box::new([policy.roles[0].clone(), added]);
         let mut domain = authority::Domain::new(configuration.core.defaults.rules.clone(), limits.core.authority)
             .expect("role bounds");
-        let mut facts = Queue::with_capacity(authority::POLICY_MAX_OUT);
+        let mut facts = Queue::uncapped();
         authority::step(&mut domain, authority::Event::Policy { project: 1, policy }, &mut facts);
         assert_eq!(facts.pop(), Some(authority::PolicyFact::Added { project: 1 }));
         configuration.core.seed_projects[0].policy.policy = domain.policy(1).expect("checked seed policy").clone();
@@ -88,7 +88,7 @@ pub fn world_with_policy(
     let mut rules = configuration.core.defaults.rules.clone();
     edit(&mut limits, &mut rules, &mut policy);
     let mut domain = authority::Domain::new(rules, limits.core.authority).expect("edited authority bounds");
-    let mut facts = Queue::with_capacity(authority::POLICY_MAX_OUT);
+    let mut facts = Queue::uncapped();
     authority::step(&mut domain, authority::Event::Policy { project: 1, policy }, &mut facts);
     assert_eq!(facts.pop(), Some(authority::PolicyFact::Added { project: 1 }));
     configuration.core.seed_projects[0].policy.policy = domain.policy(1).expect("checked seed policy").clone();
@@ -97,7 +97,7 @@ pub fn world_with_policy(
     .rules()
     .clone();
     let room = limits.core.routes;
-    let connectors = jig_test_connector::MAX_OUT.checked_mul(2).expect("two connectors");
+    let connectors = jig_test_connector::OUTPUTS_BOUND.checked_mul(2).expect("two connectors");
     limits.journal.writes = limits.journal.writes.max(room.checked_add(connectors).expect("writes"));
     limits.journal.held = limits
         .journal
@@ -146,7 +146,7 @@ pub fn no_acceptor_fixture(seed: u64) -> (root::Config, root::Limits) {
     policy.roles = Box::new([policy.roles[0].clone(), member]);
     let mut domain =
         authority::Domain::new(configuration.core.defaults.rules.clone(), limits.core.authority).expect("valid roles");
-    let mut out = Queue::with_capacity(authority::POLICY_MAX_OUT);
+    let mut out = Queue::uncapped();
     authority::step(&mut domain, authority::Event::Policy { project: 1, policy }, &mut out);
     assert_eq!(out.pop(), Some(authority::PolicyFact::Added { project: 1 }));
     configuration.core.seed_projects[0].policy.policy = domain.policy(1).expect("checked seed policy").clone();

@@ -418,6 +418,70 @@ fn before_restart_is_not_ready(engine: &mut crate::Engine) {
     assert_eq!(value, w::SignInAnswer::NotReady);
 }
 
+const RESTART_TURNS: u32 = 64; // The real-store restart fixture's settlement budget.
+
+fn restore_people(engine: &mut crate::Engine) {
+    for _ in 0..RESTART_TURNS {
+        crate::store::answer(engine);
+        if let Some(root::Event::Core(core::Event::People(people::Event::Restored))) = engine.events.iter().next() {
+            engine::iterate(engine, Time::ZERO, Wall::EPOCH);
+            return;
+        }
+        engine::iterate(engine, Time::ZERO, Wall::EPOCH);
+    }
+    panic!("the real store restores people before decisions open");
+}
+
+fn withhold_store(engine: &mut crate::Engine, held: &mut skein_lib::Queue<jig_protocol_store::Event>) {
+    while let Some(event) = engine.store.above.pop() {
+        held.push(event);
+    }
+}
+
+fn sign_in_answer(engine: &crate::Engine, peer: &Peer) -> jig_client_protocol_wire::v19::SignInAnswer {
+    assert!(peer.wire.received.starts_with(b"HTTP/1.1 200 "), "HTTP answer: {:?}", peer.wire.received);
+    jig_client_protocol_wire::v19::SignInAnswer::decode(
+        &engine.clients.as_ref().expect("clients").env.limits.wire,
+        &mut skein_lib::Reader::new(response_body(peer)),
+    )
+    .expect("sign-in answer")
+}
+
+#[test]
+fn sign_in_is_not_ready_until_restart_decisions_open() {
+    use jig_client_protocol_wire::v19 as w;
+    let mut service = started(true);
+    let engine = ready_client(&mut service);
+    let body = link_body(engine);
+    restore_people(engine);
+    // One withheld commit is enough to hold ordinary admission at its watermark.
+    engine.env.limits.watermark = 1;
+    let mut held = skein_lib::Queue::uncapped();
+    withhold_store(engine, &mut held);
+    let mut peer = Peer::new(engine, b"POST", b"/jig/v1/sign-in/link", &body, None);
+    for _ in 0..RESTART_TURNS {
+        engine::iterate(engine, Time::ZERO, Wall::EPOCH);
+        peer.pump(engine);
+        withhold_store(engine, &mut held);
+    }
+    assert!(!engine.begin, "RestartBegin was submitted");
+    assert!(!engine.domain.ready(), "remaining store completions still hold decisions closed");
+    assert!(!held.is_empty(), "store completions remain withheld");
+    assert_eq!(sign_in_answer(engine, &peer), w::SignInAnswer::NotReady);
+    while let Some(event) = held.pop() {
+        engine.store.above.push(event);
+    }
+    decisions_open(engine);
+    let mut peer = Peer::new(engine, b"POST", b"/jig/v1/sign-in/link", &body, None);
+    for _ in 0..RESTART_TURNS {
+        engine::iterate(engine, Time::ZERO, Wall::EPOCH);
+        peer.pump(engine);
+    }
+    let w::SignInAnswer::SignedIn(_) = sign_in_answer(engine, &peer) else {
+        panic!("the same printed-link sign-in succeeds after decisions open");
+    };
+}
+
 fn waiting_workers(engine: &mut crate::Engine) {
     let config = f::config();
     assert!(engine.events.is_empty());

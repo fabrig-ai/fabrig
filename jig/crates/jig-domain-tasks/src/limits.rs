@@ -153,7 +153,10 @@ pub fn valid(limits: &Limits) -> bool {
             return false;
         }
     }
-    crate::domain::output_bound(limits).is_some()
+    stub_capacity(limits).is_some()
+        && limits.tasks.checked_mul(limits.subscriptions).is_some()
+        && limits.tasks.checked_mul(limits.holdings).is_some()
+        && limits.revisions.checked_add(1).is_some()
         && crate::activity::line_bytes_limit(limits).is_some()
         && crate::waits::valid(limits)
         && limits.tasks.checked_mul(4).is_some()

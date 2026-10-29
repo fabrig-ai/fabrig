@@ -29,8 +29,8 @@
 //! # Bounds
 //!
 //! An event or a comment is at most [`Limits::event`] bytes framed, its
-//! blank line included. The writer holds the one it writes, and nothing
-//! else: [`worst_case`]. Whoever stacks it checks [`largest_room`] against
+//! blank line included. The writer holds the framed event until it has
+//! sent all of it. Whoever stacks it checks [`largest_room`] against
 //! the side below's at startup: the server's `Limits::send`.
 
 use core::mem;

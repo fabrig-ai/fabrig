@@ -123,7 +123,7 @@ impl Drive {
         Self {
             runner: owned.runner.is_some(),
             machine: crate::prepare::Prepare::new(owned, place(), None),
-            out: skein_lib::Queue::with_capacity(crate::prepare::MAX_OUT),
+            out: skein_lib::Queue::uncapped(),
         }
     }
     pub fn send(&mut self, event: crate::prepare::Event) -> crate::prepare::Request {

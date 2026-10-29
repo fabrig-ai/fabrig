@@ -30,11 +30,9 @@ pub struct Settings {
     pub store_records: usize,
     pub iterations: u32,
     pub memory: bool,
-    /// Owned-heap guard per client when no scenario ceiling is supplied.
-    pub heap_bytes_per_client: u64,
     /// The scenario's memory ceiling: the most its clients hold together at any
     /// iteration (testing-strategy.md, 6), a named constant beside the one test
-    /// that checks it. `None` checks the per-client guards' sum instead.
+    /// that checks it. `None` leaves the measured heap without a ceiling.
     pub heap_ceiling: Option<u64>,
     pub random_steps: u32,
     pub word_bytes: u32,
@@ -53,7 +51,6 @@ impl Default for Settings {
             store_records: 32,
             iterations: 4096,
             memory: false,
-            heap_bytes_per_client: 16 * 1024 * 1024,
             heap_ceiling: None,
             random_steps: 32,
             word_bytes: 32,
@@ -95,7 +92,6 @@ struct TextShell {
 struct Client<A: App> {
     constructor: ClientConstructor<A>,
     limits: A::Limits,
-    heap_bound: u64,
     root: A::Root,
     view: A::View,
     model: Model,
@@ -149,7 +145,6 @@ pub struct World<A: App, F: Front<A>> {
     quota_failure: bool,
     meter: Option<skein_world::domain::heap::Meter>,
     heap_peak: u64,
-    default_heap_bound: Option<u64>,
 }
 impl<A: App, F: Front<A>> World<A, F> {
     /// Creates one seeded loop in front of the supplied engine boundary.
@@ -158,7 +153,6 @@ impl<A: App, F: Front<A>> World<A, F> {
         let meter = if settings.memory { Some(skein_world::domain::heap::Meter::new()) } else { None };
         Self {
             meter,
-            default_heap_bound: None,
             heap_peak: 0,
             rng: Rng::new(settings.seed),
             referee: Referee::new(super::referee::Rules::with_words(
@@ -202,10 +196,7 @@ impl<A: App, F: Front<A>> World<A, F> {
     }
     /// Starts a device with an empty small store.
     pub fn client(&mut self, party: u64, address: A::Address) -> ClientId {
-        let bound = *self
-            .default_heap_bound
-            .get_or_insert_with(|| A::heap_bound(&A::limits()).min(self.settings.heap_bytes_per_client));
-        self.make_client(party, address, Vec::new(), A::limits(), A::new, bound)
+        self.make_client(party, address, Vec::new(), A::limits(), A::new)
     }
     /// Starts a device with supplied receiving bounds and a root/view fixture.
     /// The constructor must use the same bounds; tabs and reloads retain both.
@@ -216,8 +207,7 @@ impl<A: App, F: Front<A>> World<A, F> {
         limits: A::Limits,
         constructor: ClientConstructor<A>,
     ) -> ClientId {
-        let heap_bound = A::heap_bound(&limits).min(self.settings.heap_bytes_per_client);
-        self.make_client(party, address, Vec::new(), limits, constructor, heap_bound)
+        self.make_client(party, address, Vec::new(), limits, constructor)
     }
     /// Play this client's subsequent person acts through the printed numbers.
     pub fn at_text_shell(&mut self, client: ClientId) {
@@ -233,7 +223,6 @@ impl<A: App, F: Front<A>> World<A, F> {
         kept: Vec<A::Record>,
         limits: A::Limits,
         constructor: ClientConstructor<A>,
-        heap_bound: u64,
     ) -> ClientId {
         if let Some(meter) = &self.meter {
             meter.start();
@@ -246,7 +235,6 @@ impl<A: App, F: Front<A>> World<A, F> {
         self.clients.push(Client {
             constructor,
             limits,
-            heap_bound,
             patches,
             out,
             root,
@@ -277,14 +265,7 @@ impl<A: App, F: Front<A>> World<A, F> {
     /// Starts another tab with this tab’s address and kept records.
     pub fn tab(&mut self, of: ClientId) -> ClientId {
         let c = &self.clients[of.0];
-        self.make_client(
-            c.party,
-            c.history[c.at].clone(),
-            c.kept.clone(),
-            c.limits.clone(),
-            c.constructor,
-            c.heap_bound,
-        )
+        self.make_client(c.party, c.history[c.at].clone(), c.kept.clone(), c.limits.clone(), c.constructor)
     }
     /// Adds a person whose script acts only through the visible tree.
     pub fn person(&mut self, client: ClientId, steps: Vec<Step<A::Address>>) -> PersonId {
@@ -692,13 +673,7 @@ impl<A: App, F: Front<A>> World<A, F> {
         }
     }
     fn heap_bound(&self) -> u64 {
-        if let Some(ceiling) = self.settings.heap_ceiling {
-            return ceiling;
-        }
-        self.clients
-            .iter()
-            .try_fold(0_u64, |sum, client| sum.checked_add(client.heap_bound))
-            .expect("world heap bound fits")
+        self.settings.heap_ceiling.unwrap_or(u64::MAX)
     }
     fn text_act(&mut self, id: ClientId, node: NodeId, act: Act, step: u32) {
         let client = &mut self.clients[id.0];

@@ -187,25 +187,6 @@ impl Machine {
             stop_notice: StopNotice::Unrequested,
         })
     }
-    /// Conservative reservation for start/input/fire: each of N steps can
-    /// contribute a hold, spawn, Starting and progress reply (4N). Closing or
-    /// signalling visits each step once instead of spawning it. Teardown also
-    /// withdraws each starting step once (at most N); this and the reverse stop
-    /// visit fit within 4N, including a failure's closes and a give-up's stop.
-    /// A group transition adds at most one fact and one reply (or one record); restart adds one fact;
-    /// giving up adds one fact and visits the stop range. These alternatives and
-    /// the two stop facts fit the remaining six. Fire visits each state once and
-    /// emits at most four orders per state, with no group completion transitions.
-    /// Reserve this before consuming any policy input.
-    #[must_use]
-    pub fn max_out(&self) -> u32 {
-        u32::try_from(self.states.len())
-            .expect("steps fit u32")
-            .checked_mul(4)
-            .expect("order bound")
-            .checked_add(6)
-            .expect("lifecycle facts")
-    }
     /// Starts the first step once.
     pub fn start(&mut self, _now: Time, recorded: &[u16], orders: &mut Queue<Order>) {
         if !self.begun && self.outcome.is_none() {
@@ -875,7 +856,7 @@ impl Machine {
         }
         true
     }
-    /// Fires all expired waits; the caller reserves `max_out` orders.
+    /// Fires each expired wait once, appending its lifecycle orders.
     pub fn fire(&mut self, now: Time, orders: &mut Queue<Order>) {
         for step in 0..self.states.len() {
             let phase = self.states.get(step).expect("bounded step").phase;

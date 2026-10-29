@@ -189,8 +189,10 @@ These are the roles of programming-model.md, section 4:
   skein's machines and compositions, and the domain whose vocabulary it
   translates: `smith-domain`, the root, for the agent's components, which
   keeps 4.5's rule that only a root faces the protocol layer. Like a child
-  domain, it has its own limits, worst case and most outputs per step, its
-  own deadlines, and its own tests.
+  domain, it has its own entrance limits, a finite fan-out per event,
+  its own deadlines and its own tests. Internal hand-offs are uncapped;
+  formulas bound the edges and scenario ceilings check the measured heap
+  (programming-model.md, 6.3).
 - **Records are smith's own types,** not its domains'. A host needs no
   agent domain to write a charter, a consumer needs none to read events,
   and each component translates between records and its domain with
@@ -392,7 +394,7 @@ it.
   - bounded records with versions;
   - measured encoding;
   - bounded decoding with typed problems;
-  - each record's worst case;
+  - each record's encoded and decoded bounds;
   - golden bytes.
 
   Designed in skein's `codec.md`.

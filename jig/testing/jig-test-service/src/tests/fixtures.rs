@@ -472,7 +472,7 @@ pub fn agent() -> crate::Agent {
         messages: 2,
         calls: 1,
         call_bytes: 65_536,
-        answer_bytes: smith_host_domain::Delivered::worst_case(),
+        answer_bytes: smith_host_domain::Delivered::owned_bound(),
         turns: 1,
         turn_bytes: 65_536,
         unacknowledged_bytes: 65_536,

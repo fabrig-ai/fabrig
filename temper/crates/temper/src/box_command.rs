@@ -1,4 +1,4 @@
-//! The checked configuration's steps, supervised on one skein-io loop.
+//! The checked configuration's steps, supervised on one skein-io loop (protocol/setup.md, 7.1).
 use skein_io::kernel::{Exit, Fd};
 use skein_shell::{Clock, Config, Host, Kernel};
 use std::os::unix::ffi::OsStrExt;
@@ -53,6 +53,13 @@ pub(crate) fn run_configuration(
 ) -> Result<Exit, String> {
     let mut owned = held.iter().map(|(fd, _)| *fd).collect::<Vec<_>>();
     let opened = (|| {
+        let inherited = skein_shell::inherited_listeners().map_err(super::listeners_refusal)?;
+        owned.extend(inherited.iter().map(|(fd, _)| *fd));
+        let held = held
+            .into_iter()
+            .map(|(fd, _)| skein_shell::listener_at(fd).map(|address| (fd, address)))
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(super::listeners_refusal)?;
         let super::setup::Deployment { named, checked, demo, limits } = super::setup::check(bytes, &directories.jig())?;
         let directory = super::path(&directories.data);
         let program = std::env::current_exe().map_err(|why| why.to_string())?;
@@ -77,45 +84,7 @@ pub(crate) fn run_configuration(
             first,
         );
         owned_notices(&mut steps, &checked.setup);
-        let mut listeners = Vec::new();
-        for step in
-            steps.always.iter().chain(steps.asked.iter().flat_map(|group| group.steps.iter().map(|(_, step)| step)))
-        {
-            for addr in step.listeners() {
-                if listeners.iter().any(|(_, previous)| previous == addr) {
-                    return Err(format!(
-                        "{}: port {} ({addr}): two steps name the same listener",
-                        directories.document().display(),
-                        addr.port()
-                    ));
-                }
-                let fd = if let Some((fd, _)) = held.iter().find(|(_, port)| port.get() == addr.port()) {
-                    *fd
-                } else {
-                    let (fd, _) = skein_shell::open_listener(
-                        *addr,
-                        jig_protocol_config::profile(jig_protocol_config::Profile::Small).io.backlog,
-                    )
-                    .map_err(|why| {
-                        format!(
-                            "{}: port {} ({addr}): cannot listen: {why:?}",
-                            directories.document().display(),
-                            addr.port()
-                        )
-                    })?;
-                    owned.push(fd);
-                    fd
-                };
-                listeners.push((fd, *addr));
-            }
-        }
-        // Forgejo's port must be free for Forgejo to bind (M3a, protocol/setup.md 7.1).
-        for (fd, _) in held {
-            if !listeners.iter().any(|(listener, _)| *listener == fd) {
-                super::close(vec![fd]);
-                owned.retain(|owned| *owned != fd);
-            }
-        }
+        let listeners = open_listeners(directories, &steps, held, &inherited, &mut owned)?;
         let signals = skein_shell::open_termination_signals().map_err(|errno| format!("signals: errno {errno}"))?;
         owned.push(signals);
         let root = skein_shell::open_root(directory).map_err(|errno| format!("directory: errno {errno}"))?;
@@ -151,6 +120,68 @@ pub(crate) fn run_configuration(
         }
     };
     Ok(skein_shell::drive(&mut kernel, &Clock::new(), &mut service))
+}
+
+fn open_listeners(
+    directories: &super::Directories,
+    steps: &temper_forge_setup::Steps,
+    held: Vec<(Fd, std::net::SocketAddr)>,
+    inherited: &[(Fd, std::net::SocketAddr)],
+    owned: &mut Vec<Fd>,
+) -> Result<Vec<(Fd, std::net::SocketAddr)>, String> {
+    for (fd, address) in inherited {
+        if !steps
+            .always
+            .iter()
+            .chain(steps.asked.iter().flat_map(|group| group.steps.iter().map(|(_, step)| step)))
+            .any(|step| step.listeners().contains(address))
+        {
+            return Err(format!(
+                "{}: inherited listener fd {} at {address}: no step names this listener",
+                directories.document().display(),
+                fd.raw()
+            ));
+        }
+    }
+    let mut listeners = Vec::new();
+    for step in steps.always.iter().chain(steps.asked.iter().flat_map(|group| group.steps.iter().map(|(_, step)| step)))
+    {
+        for addr in step.listeners() {
+            if listeners.iter().any(|(_, previous)| previous == addr) {
+                return Err(format!(
+                    "{}: port {} ({addr}): two steps name the same listener",
+                    directories.document().display(),
+                    addr.port()
+                ));
+            }
+            let fd = if let Some((fd, _)) = inherited.iter().chain(&held).find(|(_, address)| address == addr) {
+                *fd
+            } else {
+                let (fd, _) = skein_shell::open_listener(
+                    *addr,
+                    jig_protocol_config::profile(jig_protocol_config::Profile::Small).io.backlog,
+                )
+                .map_err(|why| {
+                    format!(
+                        "{}: port {} ({addr}): cannot listen: {why:?}",
+                        directories.document().display(),
+                        addr.port()
+                    )
+                })?;
+                owned.push(fd);
+                fd
+            };
+            listeners.push((fd, *addr));
+        }
+    }
+    // Forgejo's port must be free for Forgejo to bind (M3a, protocol/setup.md 7.1).
+    for (fd, _) in held {
+        if !listeners.iter().any(|(listener, _)| *listener == fd) {
+            super::close(vec![fd]);
+            owned.retain(|owned| *owned != fd);
+        }
+    }
+    Ok(listeners)
 }
 
 /// The checked setup supplies the identity and paths; the box keeps only opaque

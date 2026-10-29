@@ -3,7 +3,7 @@ use crate::transcripts::{self, Transcript};
 use skein_io::{self as records, kernel};
 use skein_lib::{Queue, Token, stream};
 use std::collections::{BTreeMap, VecDeque};
-use temper_worker_protocol_git::{MAX_OUT, Outputs};
+use temper_worker_protocol_git::{KERNEL_SUBMISSIONS, Outputs};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Fault {
@@ -78,9 +78,9 @@ impl Below {
     pub fn new(script: Script) -> Self {
         Self {
             out: Outputs {
-                events: Queue::with_capacity(MAX_OUT.events),
-                io: Queue::with_capacity(MAX_OUT.io),
-                kernel: Queue::with_capacity(MAX_OUT.kernel),
+                events: Queue::uncapped(),
+                io: Queue::uncapped(),
+                kernel: Queue::with_capacity(KERNEL_SUBMISSIONS),
             },
             script,
             tree: BTreeMap::from([(Vec::new(), Node::Directory)]),

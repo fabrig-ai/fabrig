@@ -45,9 +45,10 @@ fn found(place: &Place) -> Result<Found, Failed> {
 pub fn run(limits: &skein_io::Limits, place: &Place, mut machine: Prepare) -> Result<(), Failed> {
     let mut locks = vec![locked(place, File::ForgejoLock)?];
     let mut event = Event::Found(found(place)?);
-    let mut out = Queue::with_capacity(prepare::MAX_OUT);
+    let mut out = Queue::uncapped();
     loop {
         prepare::step(&mut machine, event, &mut out);
+        assert_eq!(out.len(), 1, "one preparation request per event");
         event = match out.pop().expect("one preparation request") {
             Request::Version { spec, .. } => {
                 let ran = command::run_one(limits, &spec).map_err(Failed::Command)?;

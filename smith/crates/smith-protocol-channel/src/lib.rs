@@ -38,7 +38,7 @@ mod tests;
 pub use charter::encode_charter;
 pub use component::{Component, OpenEvent};
 pub use credentials::{GrantValue, program_name};
-pub use limits::{EdgeRoom, Error, Limits, edge_room, max_out, schema, schema_for_start, valid};
+pub use limits::{EdgeRoom, Error, Limits, edge_room, schema, schema_for_start, valid};
 pub use live::{Piece, PieceKind};
 pub use result::decode_declared;
 pub use transcript::{decode_transcript, decode_turn, transcript_piece};

@@ -138,7 +138,7 @@ pub(crate) fn valid(
     true
 }
 
-pub(crate) fn list_worst_case(limits: &crate::Limits) -> Option<u64> {
+pub(crate) fn list_bound(limits: &crate::Limits) -> Option<u64> {
     let fields = u64::from(limits.tasks.result_bytes)
         .checked_mul(u64::try_from(size_of::<jig_domain_tasks::FieldRule>()).ok()?.checked_add(1)?)?;
     let choices = skein_lib::List::<jig_domain_tasks::Verdict>::price(limits.tasks.contract_choices)?

@@ -14,7 +14,7 @@ this document says what lib holds and what each part promises.
   reads, and the digest of a state that replay compares.
 - **Limits at the edges, growth inside.** Containers grow as they fill;
   an edge's container keeps its cap and refuses past it. A capped
-  container's `worst_case(capacity)` prices its bookkeeping too; sums
+  container's `price(capacity)` prices its bookkeeping too; sums
   of those prices are estimates, not process-wide bounds
   (programming-model.md, 6.3). The queues and journal inside a service
   have no cap of their own (sections 5 and 11).
@@ -54,7 +54,9 @@ them (testing.md, section 6).
   `Id::<T>::from_token(t)` convert to and from the name that crosses a
   boundary.
 - **`Slab<T>`** holds one entity kind and grows as it fills, costing
-  what it holds. A kind created from outside has a cap from the limits;
+  what it holds. It starts with no slots allocated; growth preserves slot
+  reuse order and generations. A kind created from outside has a cap
+  from the limits;
   a kind that admitted work makes has no cap of its own
   (programming-model.md, 6.1).
   - `insert` returns the new `Id`, or hands the value back when the slab
@@ -91,12 +93,15 @@ rather than panicking, with one exception: `Queue::push` on a full capped
 queue is a bug, asserted; `Queue::try_push` is the refusing form.
 `Queue::with_capacity` keeps its cap but allocates as it fills, growing
 exactly and never past the cap. A B-tree allocates as it fills, so its
-`worst_case(capacity)` counts its nodes at capacity, not its entries.
+`price(capacity)` counts its nodes at capacity, not its entries.
+`List`, `Queue`, `Intake`, `Map`, `Set`, `Stack` and `Buffer` give this
+allocation price; their `worst_case(capacity)` delegates to it.
 
-**`Queue::uncapped()`** has no cap of its own (its capacity is
-`u32::MAX`), starts empty and grows, so `push` cannot fail: it is for the
-hops between a service's own components, never for what a peer can push
-in. It has no `worst_case`.
+**`Queue::uncapped()`, `Map::uncapped()` and `List::uncapped()`**
+start empty and grow, with `u32::MAX` as their capacity. They hold the
+hops, correlations and collections inside a service, never what a peer
+can push in. An uncapped queue's `push` cannot fail; its allocation
+price is for a chosen capacity, not a bound on the queue.
 
 ### 5.1 State digests
 
@@ -169,7 +174,7 @@ where it holds it.
   is an assertion.
 - **`Buffer`** builds bytes whose length is learnt as they are put, and
   is reused from one to the next: `Buffer::with_capacity(n)` allocates
-  its n bytes once (`Buffer::worst_case(n)`), `put` appends or refuses
+  its n bytes once (`Buffer::price(n)`), `put` appends or refuses
   whole past the capacity (`Overflow`), writing nothing, and `set_u32`
   back-patches a big-endian `u32` over four bytes already put, a count
   or a length known only later (asserted in range). `len`, `room`,
@@ -516,12 +521,13 @@ The request table's step tests are `src/tests/requests.rs`; its independent
 obligation model, replay and seeded sweep are in `tests/lib/src/request_table.rs`
 and `tests/lib/tests/suite/{request_table,fuzzy/request_table}.rs`.
 
-Each capped container's `worst_case` is checked against the counting
+Each capped container's allocation price is checked against the counting
 allocator (testing.md, 5), in `tests/lib/tests/suite/memory.rs`, in the
 focused suite. Every capped container is built at capacities from 0 to
 300, filled to them, emptied and filled again, every operation a step of
 the meter, and what it held of its own is never more than
-`worst_case(capacity)`. What an item owns is its owner's to count, so
+`price(capacity)` for the containers of section 5, or its table formula
+for a slab or deadline table. What an item owns is its owner's to count, so
 the items own no heap; they come in several sizes and alignments, up to
 64 bytes, as a container's price depends on both. An input moved into a
 step is accounted for as testing.md, 5 states. What an operation hands
@@ -537,10 +543,10 @@ the container's, and the meter takes it off.
   left behind holding six entries, then thinned to five a leaf, the fewest
   a leaf holds: a tree within a few nodes of the most its capacity allows,
   and driven at random. Their
-  worst case prices every node as an internal one, the larger kind, so at
+  allocation price counts every node as an internal one, the larger kind, so at
   a capacity of 12 or more they hold from about 30% of it, for small
   entries, whose nodes are mostly edges, to 96%, for 64-byte keys and
-  values. Below 12, a tree is at most one leaf, and the worst case counts
+  values. Below 12, a tree is at most one leaf, and the price counts
   up to three nodes.
 
 ## 11. The journal

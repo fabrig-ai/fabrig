@@ -20,7 +20,7 @@ pub(super) fn start(
     let room = route_writes(&env.limits)
         .expect("validated settings room")
         .saturating_sub(1)
-        .saturating_sub(people::max_out(&env.limits.people));
+        .saturating_sub(people::outputs_bound(&env.limits.people));
     core.settings_input = Some((
         match s::change_shape(&change.items, &env.limits) {
             Ok(()) => Ok(change),
@@ -187,7 +187,7 @@ pub(super) fn decide(
 }
 
 pub(super) fn route_writes(limits: &Limits) -> Option<u32> {
-    s::writes_worst_case(limits)?.checked_add(people::max_out(&limits.people))
+    s::writes_bound(limits)?.checked_add(people::outputs_bound(&limits.people))
 }
 
 #[expect(clippy::too_many_arguments, reason = "one keyed proposal envelope and its held value")]
@@ -566,7 +566,7 @@ pub(super) fn accept(
     let room = route_writes(&env.limits)
         .expect("settings decision room")
         .saturating_sub(1)
-        .saturating_sub(people::max_out(&env.limits.people));
+        .saturating_sub(people::outputs_bound(&env.limits.people));
     decide(
         core,
         env,

@@ -111,7 +111,7 @@ The machine refuses a schema in which:
   output cap. A side that receives large frames (a responder's whole
   restore, say) and sends only small ones keeps a small output cap.
 
-The machine's worst case follows the same split: its output holds the
+The machine's edge limits follow the same split: its output holds the
 largest frame this role sends, and its input the largest it receives.
 
 ## 5. Opening
@@ -339,7 +339,7 @@ the output stream is finished once what is queued has gone.
     and writing (frames queued, nothing). The owner's deadlines follow
     from these.
 
-## 10. Limits and the worst case
+## 10. Limits
 
 | Limit | What it bounds |
 |---|---|
@@ -351,13 +351,10 @@ the output stream is finished once what is queued has gone.
 
 A refusal's text is fixed at 256 bytes (5.1).
 
-The worst case per channel is the sum of:
-
-- the intake below, a chunk plus a header, which the stream's owner keeps;
-- one body being read, the largest this side takes;
-- the output queue, at its cap, and the room for the channel's own frames;
-- each side's terms;
-- the machine's state.
+`valid(schema, role, limits)` checks the limits and the schema's
+representable frame and term capacities. Input is bounded by what this
+role receives and output by what it sends (section 4); the chunk,
+credential, skip and output caps remain admission checks.
 
 ## 11. Testing
 
@@ -376,7 +373,7 @@ The worst case per channel is the sum of:
   - Both directions move at once.
   - A last word reaches the peer even when the writer's stream then fails.
 - **Memory:** each world's channels, measured with the counting allocator
-  against their worst case.
+  under each scenario's named ceiling with headroom.
 - **A scripted peer,** for services' worlds: it speaks the opening, then
   plays frames from a script and checks those it receives.
 

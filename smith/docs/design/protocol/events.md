@@ -557,7 +557,11 @@ projection.
 - **One destination, one sink.** With standard output and a trace file,
   each has its own policy state and its own count, and each gets its own
   `session.ended`.
-- **A front end in the process is not a destination.** It asks the sink
+- **A front end in the process is not a destination.** `View::owned_bound`
+  bounds one queued projection, its cell and largest displayed payload.
+  The codec's `codec_bound` bounds the workspace needed to encode or
+  decode a record; neither is a process heap formula
+  (programming-model.md, 6.3). The front asks the sink
   for the records it shows (`text.delta`, a tool's records, a response's
   usage), typed, through a bounded queue, whatever the destinations'
   capture. It is best effort: what it cannot hold is dropped and counted,

@@ -7,12 +7,9 @@ use jig_domain_tasks as tasks;
 use skein_lib::{Duration, Env, Time, Wall};
 use skein_world::domain::heap::Meter;
 
-// The core world's existing fixed scenario ceiling.
-const CORE_HEAP_CEILING: u64 = 12_000_000;
-
 fn core_children_routes_and_an_in_flight_decision_stay_under_the_scenario_ceiling() {
     let limits = world::limits();
-    let bound = CORE_HEAP_CEILING;
+    let bound = SCENARIO_FAMILY_HEAP_CEILING;
     let configuration = world::config(91);
     let mut observer = jig_core_world::observations::Observer::new(&configuration);
     let config = configuration.core;
@@ -66,6 +63,9 @@ fn both_worlds_check_the_counted_heap_at_every_iteration() {
     effects.restart(191, false);
 }
 
+// Peak 14,080 bytes measured 10-29; testing-strategy.md 6.
+const SCENARIO_FAMILY_HEAP_CEILING: u64 = 18_000;
+
 // Each named scenario preserves its own fixture and original assertions.
 #[test]
 fn memory_scenario_family() {
@@ -78,6 +78,9 @@ fn memory_scenario_family() {
 /// to two significant digits.
 const EMPTY_CLOSURE_HEAP_CEILING: u64 = 1_300;
 
+// Peak 4,255 bytes measured 10-29; testing-strategy.md 6.
+const FINISHING_QUERIES_HEAP_CEILING: u64 = 5_400;
+
 #[test]
 fn settled_finishing_queries_allocate_nothing_and_empty_closure_holds_one_output() {
     let limits = world::limits().core;
@@ -86,7 +89,7 @@ fn settled_finishing_queries_allocate_nothing_and_empty_closure_holds_one_output
     let mut domain = core::Core::new(world::config(192).core, &limits).expect("fixture core");
     domain.counters = core::Counters::new(domain.counters.deployment());
     let setup = meter.end();
-    let bound = CORE_HEAP_CEILING;
+    let bound = FINISHING_QUERIES_HEAP_CEILING;
     meter.check(setup, bound, &limits);
     let held = meter.held();
     meter.start();

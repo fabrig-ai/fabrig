@@ -643,11 +643,15 @@ The host answers in smith's terms:
   out, broken, too large, missing, busy, unavailable, cancelled, unknown)
   and the tail of the host's diagnostic output with the number of bytes
   dropped before it, within a cap the vocabulary seals
-  (`protocol/limits.md`) and the domains' memory bounds count; with
+  (`protocol/limits.md`); with
   several directories, the first that failed in workspace order;
 - **stale:** where the change goes has moved under the run, so every
   later delivery of this run would find the same. It ends the run as
   stale, and the host decides afresh.
+
+The delivery value, `Delivered`, reports what it owns through
+`owned_bytes()`; `owned_bound()` bounds its receipt cells and opaque
+receipt bytes (programming-model.md, 6.3).
 
 Every answer but delivered and stale goes back to the LLM. A delivery
 that lands is the result, even if the run was ending meanwhile; a

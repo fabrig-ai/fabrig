@@ -44,15 +44,13 @@ fn queued_message(name: Token, words: &[u8]) -> root::Event {
     })
 }
 
-/// Socket notes are an edge. Hold their consumer's credit while translating
-/// a real process record; the root entrance then waits in events.
+/// Leave a socket note untaken while translating a real process record;
+/// the link waits until its consumer drains the note.
 fn hold_notes_while_translating(stand: &mut fixtures::WorkerStand) {
-    while stand.worker.notes().room() > 0 {
-        stand.worker.notes().push(crate::Note::Linked {
-            worker: Box::from(&b"worker-a"[..]),
-            address: Box::new(([127, 0, 0, 1], 7100).into()),
-        });
-    }
+    stand.worker.notes().push(crate::Note::Linked {
+        worker: Box::from(&b"worker-a"[..]),
+        address: Box::new(([127, 0, 0, 1], 7100).into()),
+    });
     stand.worker.iterate(fixtures::NOW, Wall::EPOCH);
     while stand.worker.notes().pop().is_some() {}
 }
@@ -211,6 +209,8 @@ fn retained_turns_at_a_reconnect() -> (fixtures::WorkerStand, LinkPeer) {
             link.turn(&mut stand.worker);
         }
     }
+    // The shell takes the opening's diagnostics before the link steps again.
+    while stand.worker.notes().pop().is_some() {}
     let prefix = crate::worker_settings::prepare(&settings, &agent, &fixtures::worker_limits()).unwrap().prefix;
     stand.worker.up(fixtures::NOW, io::Event::Closed { owner: Token::new(prefix) });
     stand.worker.iterate(fixtures::NOW, Wall::EPOCH);

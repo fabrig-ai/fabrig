@@ -31,7 +31,7 @@ pub fn host_limits(
                 .ok_or(Refusal::Derived { limit: LimitName::deployment(Layer::Service, "answered_bytes") })?,
         )
         .ok_or(Refusal::Derived { limit: LimitName::deployment(Layer::Service, "answered_bytes") })?;
-    let fact_bytes = smith_channel::Fact::worst_case_bytes(&agent.channel.bodies)
+    let fact_bytes = smith_channel::Fact::encoded_bound(&agent.channel.bodies)
         .ok_or(Refusal::Derived { limit: LimitName::deployment(Layer::Service, "fact_bytes") })?;
     let name = LimitName::deployment(Layer::Service, "silence");
     let silence = smith_agent_service::profile::silence_bound(agent).ok_or(Refusal::Derived { limit: name })?;

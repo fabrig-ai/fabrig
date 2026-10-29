@@ -155,7 +155,7 @@ pub(crate) fn facts(limits: &Limits) -> Option<u32> {
 pub fn valid(limits: &Limits) -> bool {
     unfit(limits).is_empty()
         && host::valid(&limits.host)
-        && checkout::worst_case(&limits.checkout).is_some()
+        && checkout::valid(&limits.checkout)
         && limits.agent.agents.checked_mul(limits.agent.calls).is_some()
         && limits.host.slots.checked_add(1).is_some()
         && facts(limits).is_some()

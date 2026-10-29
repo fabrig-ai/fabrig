@@ -12,7 +12,7 @@ pub fn frame(domain: &core::Limits, transcript_bytes: u32) -> Option<u32> {
         return None;
     }
     limits.turn_record_transcript = transcript_bytes;
-    let body = u32::try_from(core_v6::TurnRecord::worst_case_bytes(&limits)?).ok()?;
+    let body = u32::try_from(core_v6::TurnRecord::encoded_bound(&limits)?).ok()?;
     body.checked_add(crate::transcripts::frame::WRAPPER_BYTES)
 }
 
@@ -38,6 +38,21 @@ pub struct Sizes {
     pub value: u32,
     pub ops: u32,
     pub commit: u32,
+}
+
+/// The store's commit edge (protocol/store.md, 5.4): commits it queues at
+/// once and writes in one commit.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Commits {
+    pub in_flight: u32,
+    pub writes: u32,
+}
+
+/// The commit edge read from skein's journal limits, until the store's
+/// `Limits` holds a `Commits` of its own.
+#[must_use]
+pub const fn commits(journal: &skein_lib::JournalLimits) -> Commits {
+    Commits { in_flight: journal.commits, writes: journal.writes }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -70,6 +85,7 @@ pub fn is_patching(store: &crate::Store) -> bool {
     store.directory.patch.is_some() || crate::directory::patching(store).is_some()
 }
 
+/// The former form of [`check_commits`], kept until its application callers move.
 pub fn check(
     domain: &core::Limits,
     application: &Application,
@@ -77,7 +93,17 @@ pub fn check(
     store: &skein_kv::Limits,
     orphan_erases: u32,
 ) -> Result<Sizes, SizeRefusal> {
-    let sizes = largest(domain, application, journal, orphan_erases, store.budget).ok_or(SizeRefusal::Ceiling)?;
+    check_commits(domain, application, &commits(journal), store, orphan_erases)
+}
+
+pub fn check_commits(
+    domain: &core::Limits,
+    application: &Application,
+    commits: &Commits,
+    store: &skein_kv::Limits,
+    orphan_erases: u32,
+) -> Result<Sizes, SizeRefusal> {
+    let sizes = largest(domain, application, commits, orphan_erases, store.budget).ok_or(SizeRefusal::Ceiling)?;
     if sizes.key > store.key {
         return Err(SizeRefusal::Key { needs: sizes.key, has: store.key });
     }
@@ -95,20 +121,21 @@ pub fn check(
     if page > store.page.bytes {
         return Err(SizeRefusal::Page { needs: page, has: store.page.bytes });
     }
-    if journal.commits > store.queued {
-        return Err(SizeRefusal::Queue { needs: journal.commits, has: store.queued });
+    if commits.in_flight > store.queued {
+        return Err(SizeRefusal::Queue { needs: commits.in_flight, has: store.queued });
     }
-    let queued = u64::from(journal.commits).checked_mul(u64::from(sizes.commit)).ok_or(SizeRefusal::Ceiling)?;
+    let queued = u64::from(commits.in_flight).checked_mul(u64::from(sizes.commit)).ok_or(SizeRefusal::Ceiling)?;
     if queued > store.queued_bytes {
         return Err(SizeRefusal::QueuedBytes { needs: queued, has: store.queued_bytes });
     }
     Ok(sizes)
 }
 
+#[expect(clippy::trivially_copy_pass_by_ref, reason = "borrow the commit edge consistently with check_commits")]
 fn largest(
     domain: &core::Limits,
     application: &Application,
-    journal: &skein_lib::JournalLimits,
+    commits: &Commits,
     orphan_erases: u32,
     budget: u64,
 ) -> Option<Sizes> {
@@ -123,14 +150,14 @@ fn largest(
     let mut map_core = limits.core;
     map_core.turn_record_transcript = 0;
     let value = u32::try_from(
-        core_v6::Row::worst_case_bytes(&map_core)?
-            .max(tasks_v9::Row::worst_case_bytes(&limits.tasks)?)
-            .max(people_v13::Row::worst_case_bytes(&limits.people)?)
-            .max(notes_v1::Row::worst_case_bytes(&limits.notes)?)
-            .max(component_v3::worst_case_bytes(&component_v3::CEILINGS)?)
-            .max(accounts_v2::worst_case_bytes(&accounts_v2::CEILINGS)?)
+        core_v6::Row::encoded_bound(&map_core)?
+            .max(tasks_v9::Row::encoded_bound(&limits.tasks)?)
+            .max(people_v13::Row::encoded_bound(&limits.people)?)
+            .max(notes_v1::Row::encoded_bound(&limits.notes)?)
+            .max(component_v3::encoded_bound(&component_v3::CEILINGS)?)
+            .max(accounts_v2::encoded_bound(&accounts_v2::CEILINGS)?)
             .max(
-                core::settings::revision_worst_case(domain)?.checked_add(16)?.checked_add(
+                core::settings::revision_bound(domain)?.checked_add(16)?.checked_add(
                     u64::from(jig_domain_tasks::MODELS)
                         .checked_mul(u64::from(core::MODEL_NAME_BYTES).checked_add(4)?.checked_add(4)?.checked_add(
                             u64::from(core::EFFORTS).checked_mul(u64::from(core::EFFORT_BYTES).checked_add(4)?)?,
@@ -145,7 +172,7 @@ fn largest(
     // inserts Format, Layouts and the installation's identifier. Each put
     // costs a tag and two u32 lengths; a skein-kv frame costs 22 header bytes
     // and four checksum bytes.
-    let ops = crate::commits::most_ops(journal.writes, orphan_erases)?;
+    let ops = crate::commits::most_ops(commits.writes, orphan_erases)?;
     let commit = u32::try_from(
         budget.checked_add(u64::from(key).checked_add(9)?.checked_mul(u64::from(ops))?)?.checked_add(26)?,
     )

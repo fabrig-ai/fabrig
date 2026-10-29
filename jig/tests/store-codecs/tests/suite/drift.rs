@@ -1,5 +1,5 @@
 //! The committed codecs and golden bytes against their schemas (skein's codec.md, 6).
-use skein_codegen::{generate, parse};
+use skein_codegen::{Names, generate_named, parse};
 use std::fmt::Write as _;
 use std::fs;
 use std::path::PathBuf;
@@ -8,10 +8,10 @@ fn store() -> PathBuf {
     skein_scratch::paths::tree().join("crates/jig-protocol-store")
 }
 
-fn check(family: &str, version: u16) {
+fn check(family: &str, version: u16, names: Names) {
     let source =
         fs::read_to_string(store().join(format!("schema/{family}-v{version}.schema"))).expect("schema readable");
-    let output = generate(&parse(&source).expect("schema valid"));
+    let output = generate_named(&parse(&source).expect("schema valid"), names);
     let code = store().join(format!("src/generated/{family}_v{version}.rs"));
     let goldens = store().join(format!("golden/{family}"));
     let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
@@ -42,49 +42,49 @@ fn check(family: &str, version: u16) {
 
 #[test]
 fn the_notes_familys_code_and_goldens_have_no_drift() {
-    check("notes", 1);
+    check("notes", 1, Names::Bounds);
 }
 
 #[test]
 fn the_component_familys_code_and_goldens_have_no_drift() {
-    check("component", 3);
+    check("component", 3, Names::Bounds);
 }
 
 #[test]
 fn the_accounts_familys_code_and_goldens_have_no_drift() {
-    check("accounts", 2);
+    check("accounts", 2, Names::Bounds);
 }
 
 #[test]
 fn the_tasks_familys_code_and_goldens_have_no_drift() {
-    check("tasks", 9);
+    check("tasks", 9, Names::Bounds);
 }
 
 #[test]
 fn the_people_familys_code_and_goldens_have_no_drift() {
-    check("people", 13);
+    check("people", 13, Names::Bounds);
 }
 
 #[test]
 fn the_core_familys_code_and_goldens_have_no_drift() {
-    check("core", 6);
+    check("core", 6, Names::Bounds);
 }
 
 #[test]
 fn the_test_connectors_code_and_goldens_have_no_drift() {
-    check_test_connector(2);
+    check_test_connector(2, Names::Bounds);
 }
 
 #[test]
 fn the_test_connector_v1_code_has_no_drift() {
-    check_test_connector(1);
+    check_test_connector(1, Names::Bounds);
 }
 
-fn check_test_connector(version: u16) {
+fn check_test_connector(version: u16, names: Names) {
     let root = skein_scratch::paths::tree().join("testing/jig-test-store");
     let source =
         fs::read_to_string(root.join(format!("schema/test-connector-v{version}.schema"))).expect("schema readable");
-    let output = generate(&parse(&source).expect("schema valid"));
+    let output = generate_named(&parse(&source).expect("schema valid"), names);
     let code = root.join(format!("src/generated/v{version}.rs"));
     let goldens = root.join("golden");
     let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
@@ -110,7 +110,7 @@ fn check_test_connector(version: u16) {
 
 #[test]
 fn the_settings_familys_code_and_goldens_have_no_drift() {
-    check("settings", 1);
+    check("settings", 1, Names::Bounds);
 }
 
 /// The layouts' fingerprints the store keeps (store.md 5.3), from the schemas.
@@ -163,60 +163,60 @@ fn the_stores_layouts_have_no_drift() {
 
 #[test]
 fn the_secrets_familys_code_and_goldens_have_no_drift() {
-    check("secrets", 1);
+    check("secrets", 1, Names::Bounds);
 }
 
 #[test]
 fn the_accounts_v1_code_has_no_drift() {
-    check("accounts", 1);
+    check("accounts", 1, Names::Bounds);
 }
 
 #[test]
 fn the_component_v2_code_has_no_drift() {
-    check("component", 2);
+    check("component", 2, Names::Bounds);
 }
 
 #[test]
 fn the_core_v4_code_has_no_drift() {
-    check("core", 4);
+    check("core", 4, Names::Bounds);
 }
 
 #[test]
 fn the_core_v5_code_has_no_drift() {
-    check("core", 5);
+    check("core", 5, Names::Bounds);
 }
 
 #[test]
 fn the_people_v7_code_has_no_drift() {
-    check("people", 7);
+    check("people", 7, Names::Bounds);
 }
 
 #[test]
 fn the_people_v8_code_has_no_drift() {
-    check("people", 8);
+    check("people", 8, Names::Bounds);
 }
 
 #[test]
 fn the_people_v9_code_has_no_drift() {
-    check("people", 9);
+    check("people", 9, Names::Bounds);
 }
 
 #[test]
 fn the_people_v10_code_has_no_drift() {
-    check("people", 10);
+    check("people", 10, Names::Bounds);
 }
 
 #[test]
 fn the_people_v11_code_has_no_drift() {
-    check("people", 11);
+    check("people", 11, Names::Bounds);
 }
 
 #[test]
 fn the_people_v12_code_has_no_drift() {
-    check("people", 12);
+    check("people", 12, Names::Bounds);
 }
 
 #[test]
 fn the_tasks_v7_code_has_no_drift() {
-    check("tasks", 7);
+    check("tasks", 7, Names::Bounds);
 }

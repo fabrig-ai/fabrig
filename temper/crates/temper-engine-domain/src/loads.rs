@@ -184,7 +184,7 @@ impl Loads {
     /// per-request saturation is a refusal.
     #[must_use]
     pub fn new(limits: &Limits) -> Loads {
-        assert!(worst_case(limits).is_some(), "valid root load limits");
+        assert!(valid(limits), "valid root load limits");
         Loads { limits: *limits, entries: Slab::with_capacity(limits.loads) }
     }
 
@@ -461,20 +461,15 @@ fn valid_range(range: &Range) -> bool {
     }
 }
 
-/// Startup heap bound, including decoded IO and temporary prefix slots. Pure checked calculation,
-/// excluding allocator overhead; invalid limits or arithmetic return `None`, with no allocation,
-/// request or terminal.
+/// Whether paged-read entrance limits are usable
+/// (temper/docs/design/domain/root.md, section 8).
+/// Read bytes, load slots and page rows must be nonzero. The decoded reply
+/// covers the kept prefix, whose byte bound fits at least one record slot.
 #[must_use]
-pub fn worst_case(limits: &Limits) -> Option<u64> {
-    if limits.read_bytes == 0
-        || limits.loads == 0
-        || limits.rows == 0
-        || limits.reply_bytes < limits.bytes
-        || u64::from(limits.bytes) < u64::try_from(size_of::<Record>()).ok()?
-    {
-        return None;
-    }
-    Slab::<Entry>::worst_case(limits.loads)?
-        .checked_add(List::<Record>::price(limits.rows)?)?
-        .checked_add(u64::from(limits.reply_bytes))
+pub fn valid(limits: &Limits) -> bool {
+    limits.read_bytes != 0
+        && limits.loads != 0
+        && limits.rows != 0
+        && limits.reply_bytes >= limits.bytes
+        && u64::from(limits.bytes) >= u64::try_from(size_of::<Record>()).expect("usize fits u64")
 }

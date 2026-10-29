@@ -24,7 +24,7 @@ pub struct Workers {
     pub(crate) component: kit::Component,
     out: Queue<kit::Request>,
     pub(crate) io: Queue<io::Request>,
-    pub(crate) listeners: List<(Token, Option<Token>)>,
+    pub(crate) listeners: List<(Token, io::Addr, Option<Token>)>,
     pub(crate) sockets: Map<Token, Token>,
     next: u64,
     pub(crate) opened: bool,
@@ -71,12 +71,12 @@ impl Workers {
                 LISTENERS.checked_add(u64::try_from(index).expect("listener count")).expect("listener owner"),
             );
             io.push(io::Request::Listen { owner, addr: *address });
-            listeners.push((owner, None)).expect("listener count");
+            listeners.push((owner, *address, None)).expect("listener count");
         }
         Ok(Self {
             listening: None,
             component,
-            out: Queue::with_capacity(kit::MAX_OUT_DOWN),
+            out: Queue::uncapped(),
             io,
             listeners,
             sockets: Map::with_capacity(limits.workers.checked_add(limits.opening).expect("connections")),
@@ -171,7 +171,7 @@ impl Workers {
             io::Event::Listening { listener, addr, .. } => {
                 self.listening = addr.socket();
                 for index in 0..self.listeners.len() {
-                    let (name, slot) = self.listeners.get_mut(index).expect("listener index");
+                    let (name, _, slot) = self.listeners.get_mut(index).expect("listener index");
                     if *name == owner {
                         *slot = Some(listener);
                     }
@@ -261,15 +261,13 @@ impl Workers {
         }
     }
     pub fn iterate(&mut self, now: Time, events: &mut Queue<root::Event>) {
-        if events.room() >= kit::MAX_OUT_FIRE {
-            self.component.fire(now, &mut self.out);
-            self.drain(events);
-        }
+        self.component.fire(now, &mut self.out);
+        self.drain(events);
     }
     pub fn abort(&mut self, now: Time, events: &mut Queue<root::Event>) {
         if self.ending != Some(Closing::Abort) {
             self.ending = Some(Closing::Abort);
-            for (_, listener) in &self.listeners {
+            for (_, _, listener) in &self.listeners {
                 if let Some(listener) = listener {
                     self.io.push(io::Request::Abort { entity: *listener });
                 }
@@ -278,8 +276,8 @@ impl Workers {
         }
     }
 }
-fn listeners_open(listeners: &List<(Token, Option<Token>)>) -> bool {
-    for (_, entity) in listeners {
+fn listeners_open(listeners: &List<(Token, io::Addr, Option<Token>)>) -> bool {
+    for (_, _, entity) in listeners {
         if entity.is_none() {
             return false;
         }
@@ -338,9 +336,17 @@ impl Workers {
         };
         events.push(root::Event::Worker(root::WorkerInput::Link { channel, link: root::Link::Up { up, parts } }));
     }
+    pub(crate) fn listener_address(&self, owner: Option<Token>) -> Option<io::Addr> {
+        for (name, address, _) in &self.listeners {
+            if Some(*name) == owner {
+                return Some(*address);
+            }
+        }
+        None
+    }
     fn listener_closed(&mut self, owner: Token) -> bool {
         for index in 0..self.listeners.len() {
-            let (name, listener) = self.listeners.get_mut(index).expect("listener index");
+            let (name, _, listener) = self.listeners.get_mut(index).expect("listener index");
             if *name == owner {
                 *listener = None;
                 return true;
@@ -358,7 +364,7 @@ impl Workers {
     /// Close listeners and drain the channel component.
     pub fn close(&mut self, now: Time, events: &mut Queue<root::Event>) {
         self.ending = Some(Closing::Drain);
-        for (_, listener) in &self.listeners {
+        for (_, _, listener) in &self.listeners {
             if let Some(listener) = listener {
                 self.io.push(io::Request::Close { entity: *listener });
             }
@@ -371,7 +377,7 @@ impl Workers {
         if !self.component_closed || !self.sockets.is_empty() || !self.io.is_empty() {
             return false;
         }
-        for (_, listener) in &self.listeners {
+        for (_, _, listener) in &self.listeners {
             if listener.is_some() {
                 return false;
             }
@@ -488,16 +494,16 @@ pub fn limits(settings: &crate::settings::Engine) -> Option<kit::Limits> {
         detail: hub.detail_bytes,
         grant: crate::worker_settings::grant_bytes(
             crate::values::credential_bytes(&settings.jig),
-            u32::try_from(wire::Identity::worst_case_bytes(&wire)?).ok()?,
+            u32::try_from(wire::Identity::encoded_bound(&wire)?).ok()?,
         )?,
         name: link.name,
         secret: link.secret,
         model_name: ceilings.model_bound_name,
-        items: u32::try_from(wire::Items::worst_case_bytes(&wire)?).ok()?,
-        left: u32::try_from(wire::Left::worst_case_bytes(&wire)?).ok()?,
-        saved: u32::try_from(wire::Saved::worst_case_bytes(&wire)?).ok()?,
+        items: u32::try_from(wire::Items::encoded_bound(&wire)?).ok()?,
+        left: u32::try_from(wire::Left::encoded_bound(&wire)?).ok()?,
+        saved: u32::try_from(wire::Saved::encoded_bound(&wire)?).ok()?,
         evidence: u32::try_from(hub.delivery_evidence_bytes).ok()?,
-        resource: u32::try_from(wire::Preparation::worst_case_bytes(&wire)?).ok()?,
+        resource: u32::try_from(wire::Preparation::encoded_bound(&wire)?).ok()?,
         slots: core.fleet.slots,
         calls: hub.run_calls,
         turns: hub.turns,
@@ -588,7 +594,7 @@ mod tests {
             hosting: Box::new([]),
             bounds: crate::tests::fixtures::worker_agent().bounds,
         };
-        let mut events = Queue::with_capacity(1);
+        let mut events = Queue::uncapped();
         service.engine.as_mut().expect("engine").workers.out.push(kit::Request::Hello { channel, worker: 1, hello });
         service.engine.as_mut().expect("engine").workers.drain(&mut events);
         let Some(root::Event::Worker(root::WorkerInput::Link {

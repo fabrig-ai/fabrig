@@ -33,8 +33,8 @@
 //! remain the root's route (domain/tasks.md, section 5.6; domain/engine.md, sections 5.6, 7.1 and 9).
 //!
 //! `fire` expires at most one projected retry timer per call and advances bounded
-//! cascades. Caller reserves free `Request` room from `max_out`; `valid`
-//! checks edge and derived-count representability. `stored_bytes` measures existing row heap
+//! cascades into an uncapped output queue. `valid` checks edge and retained-count
+//! representability. `stored_bytes` measures existing row heap
 //! without cloning; `Domain::funding` borrows authentic finite accounting without
 //! creating a mutable root shadow (domain/tasks.md, section 10).
 //! Current chat construction supplies a report contract and empty parameters.
@@ -139,7 +139,7 @@ pub use control::{
     AddressChange, Amendment, AmendmentHistory, Change, Control, DependencyPlace, History, Milestone, Settings,
     Tracking, address_admit, instruction_admit,
 };
-pub use domain::{Domain, ViewTask, fire, max_out, step, view_phase};
+pub use domain::{Domain, ViewTask, fire, step, view_phase};
 pub use escalation::{Escalation, EscalationContext, EscalationDecision, EscalationHolder, EscalationOutcome};
 pub use facts::Fact;
 pub use failures::{Class, Retries, Retry, Tries};

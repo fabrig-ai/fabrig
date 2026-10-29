@@ -1024,8 +1024,10 @@ every service's `main`.
   `Host` is portable: it builds for `wasm32-unknown-unknown`, where a
   world hosts a service with everything handed to it (section 14).
 - **A host declares no heap ceiling or worst case.** The simulated
-  world checks each host's measured peak against the ceiling its
-  scenario names, with headroom (testing-strategy.md, 6).
+  and real worlds meter each host independently of this interface.
+  A scenario may check its measured peak under a named ceiling with
+  headroom; the outcomes report the measured peak alone
+  (testing-strategy.md, 6; testing.md, 5).
 - **`drive(kernel, clock, host)`** is the loop: reap, read the clock,
   iterate, drain; then return the host's exit once it holds nothing
   (section 13), or else submit, waiting not at all while work is pending,

@@ -11,28 +11,6 @@ use crate::limits::{self, Limits};
 use crate::turn::{self, Pending};
 use alloc::boxed::Box;
 
-/// The most requests a step, an alarm or a resume emits under `limits`: a
-/// request for each run a hello lists, up to twice the slots (a cancel, an
-/// acknowledgement, or the parent told an attempt is found or listed); or an
-/// adoption's three (the replaced claim's cancel and its withdrawal, and the
-/// adopted attempt's placing or answer). The parent reserves this much room
-/// in `out` before calling it. A turn emits at most two (busy or
-/// acknowledgement, and drop); adoption and cleanup release one held turn
-/// per resume, within the same bound. A lost channel ends both the direct and
-/// holder reply for each joined source operation, plus a possible fault refusal.
-#[must_use]
-pub const fn max_out(limits: &Limits) -> u32 {
-    let listed = limits.slots.saturating_mul(limits.grants.saturating_add(2)).saturating_add(1);
-    let tracked = limits.attempts.saturating_add(limits.workers.saturating_mul(limits.slots));
-    let adopting = limits.grants.saturating_add(3);
-    let other = if tracked > adopting { tracked } else { adopting };
-    let runs = if listed > other { listed } else { other };
-    let sources = limits.program_sources.saturating_mul(2).saturating_add(1);
-    let workers = limits.configured_workers.saturating_add(1);
-    let sources = if sources > workers { sources } else { workers };
-    if runs > sources { runs } else { sources }
-}
-
 /// The engine's construction hello is reserved once heard, even if it fails admission.
 #[derive(Debug)]
 pub(crate) enum EngineHello {
@@ -491,7 +469,7 @@ impl Domain {
     }
 }
 
-/// Handles one event, emitting at most [`max_out`] requests.
+/// Handles one event and emits its requests.
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     match event {
         Event::Needs(needs) => crate::needs::replace(domain, &env.limits, needs),
@@ -584,8 +562,8 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
     }
 }
 
-/// Fires the earliest alarm due at `env.now`, if there is one, emitting at
-/// most [`max_out`] requests. A stage fires its alarms after its input
+/// Fires the earliest alarm due at `env.now`, if there is one.
+/// A stage fires its alarms after its input
 /// events, so a hello that arrived in the same iteration wins over a grace
 /// that passed while the loop waited.
 pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
@@ -594,8 +572,8 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     }
 }
 
-/// Releases one held turn or places a waiting attempt, emitting at most
-/// [`max_out`] requests; with none, waits until something changes.
+/// Releases one held turn or places a waiting attempt; with none, waits
+/// until something changes.
 pub fn resume(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     if crate::programs::ready(domain) {
         crate::programs::resume(domain, out);

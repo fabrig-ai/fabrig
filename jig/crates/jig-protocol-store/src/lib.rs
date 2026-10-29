@@ -232,7 +232,7 @@ impl Store {
 pub fn valid(limits: &Limits) -> bool {
     limits.store.is_usable()
         && limits.secrets.is_usable()
-        && decoded_worst_case(limits).is_some()
+        && decoded_records_bound(limits).is_some()
         && frame_bound(limits).is_some()
         && transcripts::reservation_count(limits).is_some()
         && commits::most_ops(limits.journal.writes, limits.orphan_erases).is_some()
@@ -243,19 +243,19 @@ pub fn valid(limits: &Limits) -> bool {
 
 fn frame_bound(limits: &Limits) -> Option<u64> {
     let codec = codec::limits(&limits.core)?;
-    core_v6::TurnRecord::worst_case_bytes(&codec.core)?.checked_add(12)
+    core_v6::TurnRecord::encoded_bound(&codec.core)?.checked_add(12)
 }
 
-// Two decoded records, including their wire values and the census's joined task.
-pub(crate) fn decoded_worst_case(limits: &Limits) -> Option<u64> {
+// Bound for two decoded records, including their wire values and the census's joined task.
+pub(crate) fn decoded_records_bound(limits: &Limits) -> Option<u64> {
     let codec = codec::limits(&limits.core)?;
-    core_v6::Row::worst_case_heap(&codec.core)?
-        .checked_add(tasks_v9::Row::worst_case_heap(&codec.tasks)?)?
-        .checked_add(people_v13::Row::worst_case_heap(&codec.people)?)?
-        .checked_add(notes_v1::Row::worst_case_heap(&codec.notes)?)?
-        .checked_add(accounts_v2::Row::worst_case_heap(&accounts_v2::CEILINGS)?)?
-        .checked_add(settings_v1::Revision::worst_case_heap(&codec.settings)?)?
-        .checked_add(jig_domain_core::settings::revision_worst_case(&limits.core)?)?
+    core_v6::Row::decoded_bound(&codec.core)?
+        .checked_add(tasks_v9::Row::decoded_bound(&codec.tasks)?)?
+        .checked_add(people_v13::Row::decoded_bound(&codec.people)?)?
+        .checked_add(notes_v1::Row::decoded_bound(&codec.notes)?)?
+        .checked_add(accounts_v2::Row::decoded_bound(&accounts_v2::CEILINGS)?)?
+        .checked_add(settings_v1::Revision::decoded_bound(&codec.settings)?)?
+        .checked_add(jig_domain_core::settings::revision_bound(&limits.core)?)?
         .checked_add(u64::try_from(size_of::<jig_domain_tasks::TaskRecord>()).ok()?)?
         .checked_mul(2)
 }

@@ -22,6 +22,7 @@ temper-engine-domain-forge-issues.workspace = true
 temper-engine-domain-forge-landing = { path = "../temper-engine-domain-forge-landing" }
 
 [dev-dependencies]
+skein-world.workspace = true
 temper-engine-domain.workspace = true
 jig-domain-core.workspace = true
 jig-domain-tasks.workspace = true

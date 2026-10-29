@@ -301,7 +301,7 @@ impl Config {
                     return Err(Invalid::Models);
                 }
             }
-            let owned = match smith_domain::ConfiguredModel::worst_case(
+            let owned = match smith_domain::ConfiguredModel::owned_bound(
                 model.model.len(),
                 self.efforts.get(index).expect("matched effort inventory"),
             ) {

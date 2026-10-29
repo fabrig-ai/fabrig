@@ -84,7 +84,7 @@ pub(crate) fn build(core: &Core) -> Settings {
     Settings { newest: current.newest(), settings, held, pending: List::with_capacity(0) }
 }
 
-pub(super) fn worst_case(limits: &Limits) -> Option<u64> {
+pub(super) fn document_bound(limits: &Limits) -> Option<u64> {
     let count = crate::settings::capacity(limits)?.checked_mul(2)?;
     List::<SettingLine>::price(count)?
         .checked_add(u64::from(limits.templates).checked_mul(2)?.checked_mul(u64::from(limits.documents.text_bytes))?)?

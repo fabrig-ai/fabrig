@@ -528,7 +528,7 @@ pub fn fixture(seed: u64, engine_slots: u32) -> (root::Config, root::Limits) {
     observer.decides = policy::Proposals(0);
     project.roles = Box::new([owner, maintainer, member, observer]);
     let mut checked = policy::Domain::new(rules, limits.core.authority).expect("peer policy limits");
-    let mut out = skein_lib::Queue::with_capacity(policy::POLICY_MAX_OUT);
+    let mut out = skein_lib::Queue::uncapped();
     policy::step(&mut checked, policy::Event::Policy { project: 1, policy: project }, &mut out);
     assert_eq!(out.pop(), Some(policy::PolicyFact::Added { project: 1 }));
     configuration.core.seed_projects[0].policy.policy = checked.policy(1).expect("checked seed policy").clone();
@@ -758,7 +758,7 @@ pub use crate::watches::Parties as WatchParties;
 /// Derive the admitted journal room after a peer fixture's final limits.
 pub fn journal(limits: &mut root::Limits) {
     let room = limits.core.routes;
-    let connectors = jig_test_connector::MAX_OUT * 2;
+    let connectors = jig_test_connector::OUTPUTS_BOUND * 2;
     limits.journal.writes = (room + connectors).max(2000);
     limits.journal.held = ((room + connectors) * limits.journal.commits).max(2000);
 }

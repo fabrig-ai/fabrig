@@ -573,13 +573,13 @@ pub fn note_from_entry(core: &Core, limits: &Limits, party: u64, value: &notes::
     })
 }
 
-pub(super) fn worst_case(limits: &super::DocumentLimits) -> Option<u64> {
+pub(super) fn document_bound(limits: &super::DocumentLimits) -> Option<u64> {
     // Nested project carriers have no task steering offers of their own.
     let count = u64::from(limits.lines);
     let carriers = count.checked_mul(count)?.checked_add(count.checked_mul(8)?)?.checked_add(8)?;
-    super::task_tree::overview_worst_case(limits)?
+    super::task_tree::overview_bound(limits)?
         .checked_mul(carriers)?
-        .checked_add(super::offers::heap_worst_case(limits)?)?
+        .checked_add(super::offers::heap_bound(limits)?)?
         .checked_add(List::<people::PermissionRole>::price(limits.lines)?)?
         .checked_add(List::<Ledger>::price(limits.lines)?)?
         .checked_add(u64::try_from(size_of::<Project>()).ok()?)?

@@ -244,6 +244,9 @@ struct Access {
 // Issuer construction and calls, including retained heap, output and temporaries,
 // across the focused and seeded sign-in, expiry, signature and grant-refusal stories.
 const ISSUER_HEAP_CEILING: u64 = 7_800;
+// Client construction and steps, including retained heap, output and temporaries,
+// across the focused and seeded sign-in, expiry and signature-refusal stories.
+const CLIENT_HEAP_CEILING: u64 = 6_600;
 
 struct World {
     issuer: issuer::Issuer,
@@ -267,7 +270,7 @@ impl World {
         let mut client_live = 0;
         let client = measured(
             &mut client_live,
-            oauth::client_worst_case(&client_limits()).expect("client bound"),
+            CLIENT_HEAP_CEILING,
             |_| 0,
             || oauth::Client::new(client_limits()).expect("client"),
         );
@@ -310,13 +313,12 @@ impl World {
     fn client_step(&mut self, event: oauth::Event) -> Option<oauth::Request> {
         let input_bytes = event_bytes(&event);
         // Http bodies were handed to the client before its call. Other event
-        // allocations are supplied at their configured maxima in this bound.
+        // allocations are included at their admitted sizes in the measured heap.
         self.client_live =
             self.client_live.checked_add(i64::try_from(input_bytes).expect("input")).expect("input heap");
-        let bound = oauth::client_worst_case(&client_limits()).expect("bound");
         measured::<Option<oauth::Request>>(
             &mut self.client_live,
-            bound,
+            CLIENT_HEAP_CEILING,
             |requests| request_bytes(requests.as_ref()),
             || {
                 // The temporary output queue grows and releases inside this call.

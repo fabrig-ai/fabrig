@@ -66,7 +66,7 @@ pub fn limits() -> Limits {
             messages: 2,
             calls: 2,
             call_bytes: 512,
-            answer_bytes: agent::Delivered::worst_case(),
+            answer_bytes: agent::Delivered::owned_bound(),
             turns: 2,
             turn_bytes: 64,
             unacknowledged_bytes: 128,

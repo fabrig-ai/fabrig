@@ -4,6 +4,9 @@ use crate::setup::lifecycle;
 use skein_forge_connection::{self as connection, Change};
 use temper_engine_domain_forge as domain;
 
+#[path = "setup_github.rs"]
+mod github_tests;
+
 fn keep_next(service: &mut crate::Service, item: Item) {
     let owner = *service.engine.as_mut().expect("engine").setup.writes.first().unwrap().0;
     assert_eq!(
@@ -710,7 +713,7 @@ fn paste_row(limits: &domain::Limits, request: Token, connected: bool, why: Opti
     )
     .unwrap();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits };
-    let mut out = Queue::with_capacity(domain::max_out(limits));
+    let mut out = Queue::uncapped();
     domain::step(
         &mut forge,
         &env,

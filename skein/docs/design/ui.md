@@ -46,7 +46,7 @@ fake person. What waits is in section 18, and what is open in section
   effect is a request to the platform outside the tree, answered by
   exactly one report.
 - **One outline,** of landmarks a screen reader moves through, checked by
-  `outline::check`; **sized from limits,** priced by `worst_case`.
+  `outline::check`; **sized from limits,** checked by `valid`.
 - **Shells map it.** A shell is the only impure code, and one callback
   is one step; skein has a text shell and a browser's parts (section 16).
 - **Tested as a person uses it.** The fake person finds nodes only by
@@ -56,14 +56,14 @@ fake person. What waits is in section 18, and what is open in section
 
 | Crate | Kind | Holds | Depends on |
 |---|---|---|---|
-| `skein-ui`, `crates/skein-ui` | step code under the subset; builds for wasm32 too | the tree, its vocabulary, owners; the builder, slots and splicing; bindings and acts; the diff and patches; the view (the last tree, the spare, an act to its binding); tokens, region names and the look's names; the phrasebook machinery; the Markdown reader; scenes; the outline's rules; limits and the worst case | `skein-lib` |
+| `skein-ui`, `crates/skein-ui` | step code under the subset; builds for wasm32 too | the tree, its vocabulary, owners; the builder, slots and splicing; bindings and acts; the diff and patches; the view (the last tree, the spare, an act to its binding); tokens, region names and the look's names; the phrasebook machinery; the Markdown reader; scenes; the outline's rules; limits and their validity | `skein-lib` |
 | `skein-ui-text`, `crates/skein-ui-text` | the renderer and command reader: step code; the terminal: ordinary Rust, as shells are | the text shell (ui-text.md) | `skein-ui`, `skein-lib`, `skein-io` |
 | `skein-ui-web`, `crates/skein-ui-web` | ordinary Rust, forbidding `unsafe`; each part's pure half builds for the host, its platform half for wasm32 only | the browser parts (ui-web.md, 5.1) and the default mapping of roles to elements (ui-web.md, section 6) | `skein-ui`, `skein-lib`; on wasm32 the glue, `wasm-bindgen`, `js-sys`, `web-sys`, pinned to exact versions in skein's workspace |
 | `skein-ui-bundle`, `crates/skein-ui-bundle` | a tool: ordinary Rust, a library with a small binary, built optimized, never linked into a service or a module | the bundler: the page, the starter and `skein-ui.css` (ui-web.md, 4.2) | `wasm-bindgen-cli-support`, pinned to the macros' exact version |
 | `skein-fake-person`, `testing/skein-fake-person` | ordinary Rust, shaped as a step machine | the person, the tree face, the random person (17.1) | `skein-ui`, `skein-lib` |
 | `skein-fake-person-browser`, `testing/skein-fake-person-browser` | ordinary Rust | the person's face over `skein-browser`; the harness; skein's stories for a browser shell (ui-web.md, 14.2) | `skein-fake-person`, `skein-browser`, `skein-ui-web`'s host half, `skein-io` |
 | the UI example, `examples/ui/{view,shell-web,server}`: `skein-ui-example-view`, `-shell-web`, `-server` | example crates | a small notes application: its state and view; its browser shell, the **reference shell** applications copy; its server (examples.md, section 9) | skein's crates |
-| `tests/ui`, `tests/ui-text`, `tests/ui-web` | test crates | skein-ui's worst case against the counting allocator; the terminal on the simulated machine; the parts' host tests beyond a crate's step tests, and the example's browser tier (testing.md, section 6) | |
+| `tests/ui`, `tests/ui-text`, `tests/ui-web` | test crates | skein-ui's peaks under scenario ceilings with the counting allocator; the terminal on the simulated machine; the parts' host tests beyond a crate's step tests, and the example's browser tier (testing.md, section 6) | |
 
 - **Step code and ordinary Rust.** `skein-ui`, the text shell's renderer
   and command reader, and an application's views and drawing code are
@@ -616,7 +616,7 @@ nodes by a bounded reader of skein-ui's own:
   their newlines, are 30 bytes making 11 nodes and 4 bytes of text. A
   cell's text is its bytes, a link's label twice, less a `\|`'s
   backslash. Cells are found by a scan of their line, keeping no
-  offsets, so a table adds no scratch to the reader's worst case;
+  offsets, so a table adds no scratch to the reader's `markdown_bound`;
 - **fed real text:** its tests read texts kept as files beside them.
 
 ## 11. Scenes
@@ -782,7 +782,7 @@ that is missing).
   an application's tests, on its pages; a world's referee, on every tree
   a person sees (testing-strategy.md, section 7).
 
-## 15. Limits and the worst case
+## 15. Limits and their validity
 
 `skein_ui::Limits` bounds what a tree, a diff and a scene hold; the
 builder asserts each before it allocates.
@@ -801,13 +801,14 @@ builder asserts each before it allocates.
 | `markdown_depth` | the Markdown reader's nesting |
 | `scene_marks`, `scene_bytes` | a scene's marks, groups included; its texts, hints, acts and path commands |
 
-- **`worst_case(&Limits)`** gives the most heap skein-ui's own containers
-  hold under them, bookkeeping included and allocator overhead excluded:
-  the view's two trees and a builder's, splicing's scratch when the
-  limits allow slots, the diff's
-  tables and patches (the queue's slots, and the boxed attributes of at
-  most one attribute patch a node), the Markdown reader's scratch, a
-  scene; nothing when a product overflows.
+- **`skein_ui::valid(&Limits)`** checks the edges and derived capacities,
+  including Markdown scratch and the scene's style capacity.
+  `skein_ui::phrases::valid` checks room for two forms per phrase;
+  loading checks individual forms against their admitted data. A sum of
+  heap prices overflowing `u64`
+  does not make otherwise representable limits invalid.
+- **`markdown_bound(bytes, depth)`** bounds the reader's scratch for the
+  admitted text and nesting.
 - **An owner derives the numbers;** skein-ui holds none (policy above,
   numbers below). An application derives its limits from its own: every
   window of its state full and every text at its most bytes, each phrase
@@ -815,10 +816,8 @@ builder asserts each before it allocates.
   kit's views by the counts the kit gives, each slot by the most its
   fragment builds. The limit on patches follows from the limit on nodes
   (section 7).
-- **The owner adds its own scratch** (its views' tables of meanings, its
-  phrasebook's worst case), and the whole must fit, checked at start
-  (programming-model.md, 6.3). A world checks the most each part held
-  against it (testing-strategy.md, section 6).
+- **Worlds measure the tree, scenes and phrasebook** under their
+  scenarios' named ceilings with headroom (testing-strategy.md, 6).
 - **Shells bound their own from them:** the text shell's output
   (ui-text.md, section 3), the browser parts' (ui-web.md, section 13).
 
@@ -1027,7 +1026,7 @@ style tokens interpreted as hints, by the names it knows.
   act per role in the refusal table, a fault per outline rule, a name
   per role in the fake person. A light-path addition (4.3) is a row in
   each.
-- **The worst case** is checked against the counting allocator at the
+- **Memory** is checked under scenario ceilings with the counting allocator at the
   limits, in `tests/ui`, with skein-ui's comparisons with naive
   functions, if any (testing.md, section 6).
 - **The wasm32 build** of `skein-ui` and of `skein-ui-web`'s platform

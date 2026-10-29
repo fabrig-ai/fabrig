@@ -18,7 +18,7 @@ and says so. A service that works on a forge writes no connection code.
 ## 1. In one page
 
 - **A component of a protocol layer:** a step machine with its own
-  state, limits, worst case, deadlines and most outputs per entry point,
+  state, limits, deadlines and most outputs per entry point,
   which a service's protocol layer owns and routes to
   (programming-model.md, sections 4 and 4.2).
 - **Calls in, answers out.** A call goes out once; its one terminal is
@@ -102,8 +102,8 @@ the token's expiry in wall seconds, as the forge said it. A `fact` is
 is a diagnostic: the owner logs it, and no decision, the component's or
 the owner's, rests on it.
 
-An entry point emits at most 16 events up and 16 requests to io, and the
-owner leaves room for them before it.
+Events up and requests to io enter uncapped queues. The owner reserves
+room only where io submits to the kernel or a stream sends to its peer.
 
 ### 2.2 Room, and the drain
 
@@ -646,7 +646,7 @@ in no call's cost, one at a time.
   (3.3). Anything else ends the poll, which the next `log_poll` asks
   again; the guid kept stays.
 
-## 7. Entities, limits and the worst case
+## 7. Entities and limits
 
 ### 7.1 Entities
 
@@ -723,7 +723,7 @@ bytes fit `answer_bytes` (forge-github.md, 4.1).
 
 Each refusal names both limits:
 
-- every limit is above 0, and the worst case fits a `u64`;
+- every required limit is above 0, and derived capacities are representable;
 - `connections` equals `calls`, and `deadline` is at most `lifetime`;
 - `body_bytes` is at least 2 * `op_bytes` + the word's length + 15: a
   marker writes the key twice over, in hexadecimal (forge.md, 6);
@@ -749,57 +749,14 @@ Each refusal names both limits:
   below it: HTTP over TLS and io, TLS over io, JSON over HTTP, and the
   listener's server over io and JSON over it.
 
-### 7.5 The worst case
+### 7.5 Memory at the edges
 
-It is the sum of:
-
-- for each of `connections`: its stack, its intake and output caps, its
-  connection-local JSON intake and one delivery overlap, each at
-  `max(chunk, 5)`, its decoder and the answer as it is built (twice `answer_bytes`, for a
-  body kept raw while it grows), TLS priced on every connection, since
-  the bound knows each kind's count, not their transports;
-- with a GitHub forge configured, for each call or forge-owned connection:
-  one boxed GitHub exchange, retaining its request, raw retention and
-  comparison selection together;
-- for each of `calls`: its record, plan and copy of the operation, and
-  its held answer, at most `answer_bytes`;
-- each configured dialect's repository/user tables, full and shared across
-  its forges by forge key. The bound takes each kind's count and prices a
-  dialect's tables, decoder share and call terms only when a forge of that
-  kind is configured, each call slot at the larger dialect's terms. Discovery's
-  staged row, retained operation, route revisions and exchange/header
-  handoffs coexist with the plans, row copies and held answers. Each
-  active call's discovery also holds at most `installations` ids with
-  eligibility revisions and a cursor; the successful probe plan and
-  original plan may overlap at handoff; GitHub files state holds its bounded
-  descriptor queue, File and Commit lists, current file, previous path and
-  their owned paths and raw bodies;
-  each forge's credential, secret and name, a
-  TLS name's DNS text or a plaintext name (an IP name holds none); and
-  the word and the user agent;
-- for each of `hooks`: its stack, HMAC state, decoded fields and held
-  hint; and the listener;
-- each GitHub forge's own connection, priced in addition to `connections`;
-- for each GitHub forge: its key at `key_bytes` and its JWT at
-  `JWT_BYTES`; its installations' table full, each row's login at
-  `name_bytes`, its API token at `token_bytes` and two expiries; both
-  bounded metadata tables, old-row seen flags and accepted/missing-id
-  bookkeeping with known accounts; a 100-row page and its handoff
-  overlap, one overflow fact and the diff cursor's held account; private
-  row states, eligibility and Full-token revisions, each scope's monotonic
-  expiry and due time, pending work, selected work and retry state,
-  a deferred Identity candidate and one held git token at `token_bytes`
-  with its account and the old/new API token handoff, all at simultaneous
-  peak; its log origins, each a host of 253 bytes and an address, and its
-  said origins, each a host bounded by `target_bytes` (the dialect
-  bounds Location, including the host), both at `log_origins`; and its
-  puller, its validator and cursor at the dialect's bounds, a guid, the
-  page of log rows and its handoff, the delivery's streaming decoder
-  and its row's bounded event word, the payload's repository path at
-  39 owner bytes and 100 name bytes, and the hint it holds.
-
-A long thread or a large payload costs time, not memory. The owner
-counts its io's worst case once.
+The configuration checks every stack's demands and room, the admitted
+operation and answer sizes, the per-forge credentials and tables, and
+the listener's input. A long thread or a large payload is streamed
+within those caps. Internal collections grow with admitted work; a
+sum of all their possible allocations is not an admission check.
+Worlds hold measured peaks under named scenario ceilings with headroom.
 
 ## 8. State machines
 
@@ -1024,15 +981,11 @@ The owner's domain owes:
   renewed ones too. The fuzzy runs take seeds and stay within 10 seconds (5
   seconds before the user's doubling of 10-22, provisional) (testing.md,
   section 7).
-- **The worst case,** against the counting allocator (skein-heap): every
-  limit at its maximum, all `calls` outstanding, the tables full, every
-  webhook connection holding a hint, and every holder filled: the
-  access handed at runtime, an App's key and JWT, each installation's
-  tokens and each puller's held hint, metered against `worst_case`.
-  The machine world's `full_forgejo_holders_fit_the_declared_worst_case`,
-  `full_github_holders_fit_the_declared_worst_case` and
-  `full_mixed_holders_fit_the_declared_worst_case` tests measure this per
-  kind and with both kinds together.
+- **Memory,** against the counting allocator (skein-heap): all `calls`
+  outstanding, tables full and each webhook holding a hint, with runtime
+  access, App keys and JWTs, installation tokens and pullers' hints held
+  together. Scenarios check each kind and both kinds together under
+  named ceilings with headroom.
 - **The conformance** drives the component against a real Forgejo
   (fake-forge.md, section 7).
 

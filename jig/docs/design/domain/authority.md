@@ -69,6 +69,13 @@ section 3); the core gives them with each question, and authority's
 answer says what they become. Each child domain has its own type for
 authority, which the core translates.
 
+`stored_finding_limit(&Limits)` bounds the findings retained in one
+stored denial value. It is the largest of the batch, run and effect
+finding counts, with every independent reason included; arithmetic that
+cannot represent the count refuses the limits. The core's stored-value
+checks and the store codec use this bound. A check's output queue is
+uncapped, so this count reserves no room between authority and its caller.
+
 Its questions, each a pure function of what the core gathers:
 
 - is this authority at most that one (section 5)?

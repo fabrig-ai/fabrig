@@ -80,7 +80,7 @@ fn set_run_allowance(config: &mut root::Config) {
     let policy = config.core.seed_projects[0].policy.policy.clone();
     let mut domain =
         authority::Domain::new(rules, fixtures::owner_limits().core.authority).expect("small run allowance");
-    let mut out = skein_lib::Queue::with_capacity(authority::POLICY_MAX_OUT);
+    let mut out = skein_lib::Queue::uncapped();
     authority::step(&mut domain, authority::Event::Policy { project: 1, policy }, &mut out);
     assert_eq!(out.pop(), Some(authority::PolicyFact::Added { project: 1 }));
     config.core.seed_projects[0].policy.policy = domain.policy(1).expect("checked seed policy").clone();

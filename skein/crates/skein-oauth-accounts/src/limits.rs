@@ -1,9 +1,6 @@
-//! Account storage, exchange and transport bounds (oauth.md, section 6.7).
+//! Account limits and edge capacity validation (oauth.md, section 6.7).
 
-use crate::accounts::Source;
-use crate::component::{Name, State};
-use crate::exchange::Exchange;
-use skein_lib::{Duration, Id, List, Slab};
+use skein_lib::Duration;
 use skein_oauth::ClientLimits;
 
 pub(crate) const MAX_ORIGINS: u32 = 3;
@@ -26,7 +23,7 @@ pub struct Limits {
     pub client: ClientLimits,
     pub http: skein_http::client::Limits,
     pub tls: skein_tls::client::Limits,
-    /// The owner's socket bounds, included conservatively once in this footprint.
+    /// The owner's socket limits for transport admission and demands.
     pub io: skein_io::Limits,
 }
 
@@ -64,66 +61,6 @@ pub fn valid(limits: &Limits) -> bool {
         && skein_http::client::valid(&limits.http)
         && skein_tls::client::valid(&limits.tls)
         && io_capacity_bound(limits).is_some()
-}
-
-/// Account generations and registration, each exchange's queues and child machines, and socket buffers.
-/// The owner's shared trust roots are counted once by the owner (tls.md, section 3.4).
-#[must_use]
-pub fn worst_case(limits: &Limits) -> Option<u64> {
-    let record = u64::from(limits.client.document.record_bytes);
-    // The client and the prepared SignIn each own a bounded registration and hints.
-    let exchange = skein_oauth::client_worst_case(&limits.client)?
-        .checked_mul(2)?
-        .checked_add(skein_http::client::worst_case(&limits.http)?)?
-        .checked_add(skein_tls::client::worst_case(&limits.tls)?)?
-        .checked_add(u64::from(limits.client.scope_bytes))?
-        .checked_add(u64::from(limits.client.document.subject_bytes))?
-        .checked_add(u64::try_from(crate::RETURN_BYTES).ok()?)?
-        .checked_add(
-            u64::from(
-                limits
-                    .client
-                    .document
-                    .document_bytes
-                    .max(limits.client.metadata_bytes)
-                    .max(limits.client.key_set_bytes),
-            )
-            .checked_mul(2)?,
-        )?
-        .checked_add(
-            u64::from(
-                limits
-                    .client
-                    .document
-                    .document_bytes
-                    .max(limits.client.metadata_bytes)
-                    .max(limits.client.key_set_bytes),
-            )
-            .checked_add(1)?,
-        )?;
-    let listener = if limits.listeners == 0 {
-        0
-    } else {
-        skein_http::server::worst_case(&limits.server)?.checked_add(crate::listener::worst_case(limits)?)?
-    };
-    // Directory, filename and one outstanding request path, plus encoded load/store bytes.
-    let private = 4095_u64.checked_mul(3)?.checked_add(record.checked_mul(2)?)?;
-    let origins = List::<crate::Origin>::price(MAX_ORIGINS)?
-        .checked_add(u64::from(MAX_ORIGINS).checked_mul(u64::from(limits.client.uri_bytes).checked_add(253)?)?)?;
-    List::<Name>::price(limits.accounts)?
-        .checked_add(List::<State>::price(limits.accounts)?)?
-        .checked_add(List::<Source>::price(limits.accounts)?)?
-        .checked_add(List::<crate::keeper::Store>::price(limits.accounts)?)?
-        .checked_add(u64::from(limits.accounts).checked_mul(private.checked_add(origins)?)?)?
-        .checked_add(List::<Option<Id<Exchange>>>::price(limits.accounts)?)?
-        .checked_add(
-            u64::from(limits.accounts)
-                .checked_mul(record.checked_mul(3)?.checked_add(skein_oauth::client_worst_case(&limits.client)?)?)?,
-        )?
-        .checked_add(Slab::<Exchange>::worst_case(limits.exchanges)?)?
-        .checked_add(u64::from(limits.exchanges).checked_mul(exchange)?)?
-        .checked_add(u64::from(limits.listeners).checked_mul(listener)?)?
-        .checked_add(skein_io::worst_case(&limits.io)?)
 }
 
 fn socket_count(limits: &Limits) -> Option<u32> {

@@ -129,13 +129,7 @@ fn profile() -> root::Limits {
         facts: 2,
         history: 2,
     };
-    let writes = tasks::max_out(&tasks) * 8
-        + PEOPLE_WRITE_ALLOWANCE
-        + people.pending * 2
-        + fleet::max_out(&fleet) * 4
-        + jig_test_connector::MAX_OUT * 2
-        + tasks.tasks
-        + 6;
+    let writes = PEOPLE_WRITE_ALLOWANCE + people.pending * 2 + jig_test_connector::OUTPUTS_BOUND * 2 + tasks.tasks + 6;
     let journal = JournalLimits { commits: 3, held: 2000, writes: writes.max(2000), now: 32, release: 32 };
     let mut limits = root::Limits {
         journal,
@@ -226,7 +220,7 @@ fn profile() -> root::Limits {
         },
     };
     let room = limits.core.routes;
-    let connectors = jig_test_connector::MAX_OUT.checked_mul(2).expect("two connectors");
+    let connectors = jig_test_connector::OUTPUTS_BOUND.checked_mul(2).expect("two connectors");
     limits.journal.writes = limits.journal.writes.max(room.checked_add(connectors).expect("fixture writes"));
     limits.journal.held = limits.journal.held.max(
         room.checked_add(connectors)

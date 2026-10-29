@@ -16,7 +16,7 @@ fn world(dialect: usize, turns: Box<[Turn]>, reserve: run::charter::Reserve, bud
     };
     let mut settings = Settings { job: Job::Waiting, network: Span::millis(1, 1), ..Settings::calm(306) };
     settings.limits.session.completion_bytes =
-        adapter::completion_worst_case(&bounds.client, settings.limits.decoded_call_bytes).expect("native receiving");
+        adapter::completion_bound(&bounds.client, settings.limits.decoded_call_bytes).expect("native receiving");
     settings.limits.session.completion_blocks = bounds.client.output_items;
     settings.limits.session.failure_bytes = bounds.client.detail_bytes;
     let mut selected = charter(&settings, CUE);

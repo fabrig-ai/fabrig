@@ -28,7 +28,7 @@ pub struct Limits {
 #[must_use]
 pub fn valid(limits: &Limits) -> bool {
     if limits.accounts == 0
-        || crate::domain::out_bound(limits).is_none()
+        || limits.accounts.checked_mul(limits.sources).is_none()
         || limits.holder_accounts == 0
         || limits.holder_accounts > limits.accounts
         || limits.program_hosts == 0

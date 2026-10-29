@@ -1,7 +1,511 @@
 //! Refusal cleanup through the service's actual handler and routed store answers.
+#![expect(
+    clippy::disallowed_types,
+    clippy::disallowed_macros,
+    clippy::disallowed_methods,
+    reason = "ordinary host tests construct and inspect scripted protocol streams"
+)]
 use super::*;
 use crate::tests::fixtures;
+use skein_fake_oauth as fake;
 use skein_lib::{Duration, bytes};
+
+// temper/docs/design/protocol/credentials.md, 3; skein/docs/design/oauth.md, 6.5.
+// The host runs over scripted streams; the independent issuer checks OAuth.
+struct SignInWorld {
+    service: crate::Service,
+    accounts: Accounts,
+    issuer: fake::Issuer,
+    sockets: Vec<SignInSocket>,
+    listeners: Vec<(Token, Token, io::Addr)>,
+    events: Queue<root::Event>,
+    now: Time,
+    exchanges: u32,
+    closed_listeners: u32,
+}
+
+struct SignInSocket {
+    token: Token,
+    owner: Token,
+    input: skein_lib::Intake,
+    demand: Option<(skein_lib::stream::Read, u32)>,
+    granted: Option<u32>,
+    sent: Vec<u8>,
+    answered: bool,
+    closed: bool,
+    native: bool,
+}
+
+impl SignInSocket {
+    fn new(token: Token, owner: Token, native: bool) -> Self {
+        Self {
+            token,
+            owner,
+            input: skein_lib::Intake::with_capacity(65_536),
+            demand: None,
+            granted: None,
+            sent: Vec::new(),
+            answered: false,
+            closed: false,
+            native,
+        }
+    }
+
+    fn down(&mut self, down: skein_lib::stream::Down) {
+        use skein_lib::stream::{Down, Read};
+        match down {
+            Down::Demand { read: Read::Nothing, room: 0 } => {
+                assert!(self.demand.take().is_some());
+            }
+            Down::Demand { read, room } => {
+                assert!(self.demand.replace((read, room)).is_none());
+            }
+            Down::Send(value) => {
+                assert!(value.len() <= usize::try_from(self.granted.take().expect("granted room")).unwrap());
+                self.sent.extend_from_slice(&value);
+            }
+            Down::Finish => {}
+        }
+    }
+
+    fn up(&mut self) -> Option<skein_lib::stream::Up> {
+        let (read, room) = self.demand?;
+        if let Some(value) = self.input.meet(read) {
+            self.demand = None;
+            Some(skein_lib::stream::Up::Bytes(value))
+        } else if room > 0 {
+            self.demand = None;
+            self.granted = Some(room);
+            Some(skein_lib::stream::Up::Room)
+        } else {
+            None
+        }
+    }
+}
+
+impl SignInWorld {
+    fn new() -> Self {
+        let (config, runtime) = registered();
+        let document = config.limits.driver.client.document;
+        let issuer = fake::Issuer::new(
+            fake::Config {
+                authorization_url: b"http://127.0.0.1:7102/authorize".as_slice().into(),
+                token_endpoint: b"http://127.0.0.1:7102/token".as_slice().into(),
+                client_id: b"client".as_slice().into(),
+                client_secret: None,
+                redirect_uri: b"http://127.0.0.1:0/callback".as_slice().into(),
+                refresh_token: b"throwaway-refresh".as_slice().into(),
+                terms: Some(fake::Terms {
+                    issued: Box::new([b"issued-client".as_slice().into()]),
+                    omit_issued: false,
+                    revocation_endpoint: None,
+                    varying_port: true,
+                    openid: Some(fake::OpenId {
+                        issuer: b"http://127.0.0.1:7102".as_slice().into(),
+                        key_set_url: b"http://127.0.0.1:7102/keys".as_slice().into(),
+                        subject: b"account-subject".as_slice().into(),
+                        lifetime: Duration::from_secs(3600),
+                        header_kid: true,
+                        fault: None,
+                    }),
+                }),
+            },
+            fake::Limits {
+                document,
+                uri_bytes: 8192,
+                request_bytes: 16_384,
+                codes: 2,
+                rotations: 2,
+                plans: 2,
+                carried: 4,
+            },
+        )
+        .unwrap();
+        let mut service = fixtures::started();
+        fixtures::restart(&mut service);
+        let mut accounts = host(&config, runtime);
+        pump_accounts(&mut accounts, service.engine.as_mut().unwrap());
+        Self {
+            service,
+            accounts,
+            issuer,
+            sockets: Vec::new(),
+            listeners: Vec::new(),
+            events: Queue::uncapped(),
+            now: Time::from_nanos(1),
+            exchanges: 0,
+            closed_listeners: 0,
+        }
+    }
+
+    fn turn(&mut self) {
+        let engine = self.service.engine.as_mut().unwrap();
+        while let Some(event) = engine.store.above.pop() {
+            engine.store.sources.push(event);
+        }
+        self.accounts.iterate(
+            self.now,
+            Wall::from_nanos(self.now.as_nanos()),
+            &mut engine.values,
+            &mut self.events,
+            &mut engine.store,
+        );
+        // Each turn consumes only the io it began with.
+        for _ in 0..self.accounts.io.len() {
+            match self.accounts.io.pop().unwrap() {
+                io::Request::Listen { owner, addr } => {
+                    let io::Addr::Ip(mut address) = addr else { panic!("IP listener") };
+                    address.set_port(41000_u16.checked_add(u16::try_from(self.listeners.len()).unwrap()).unwrap());
+                    let listener =
+                        Token::new(100_u64.checked_add(u64::try_from(self.listeners.len()).unwrap()).unwrap());
+                    let addr = io::Addr::Ip(address);
+                    self.listeners.push((owner, listener, addr));
+                    self.accounts.up(io::Event::Listening { owner, listener, addr });
+                }
+                io::Request::Connect { owner, .. } => {
+                    let socket = Token::new(1000_u64.checked_add(u64::try_from(self.sockets.len()).unwrap()).unwrap());
+                    self.sockets.push(SignInSocket::new(socket, owner, false));
+                    self.accounts.up(io::Event::Connecting { owner, socket });
+                    self.accounts.up(io::Event::Connected { owner });
+                }
+                io::Request::Bind { socket, owner } => {
+                    self.sockets.iter_mut().find(|peer| peer.token == socket).unwrap().owner = owner;
+                }
+                io::Request::Stream { stream, down } => {
+                    self.sockets.iter_mut().find(|peer| peer.token == stream).unwrap().down(down);
+                }
+                io::Request::Close { entity } | io::Request::Abort { entity } => {
+                    let owner = if let Some(peer) = self.sockets.iter_mut().find(|peer| peer.token == entity) {
+                        assert!(!peer.closed);
+                        peer.closed = true;
+                        peer.owner
+                    } else {
+                        self.closed_listeners = self.closed_listeners.checked_add(1).unwrap();
+                        self.listeners.iter().find(|(_, token, _)| *token == entity).unwrap().0
+                    };
+                    self.accounts.up(io::Event::Closed { owner });
+                }
+                io::Request::Reject { socket } => {
+                    self.sockets.iter_mut().find(|peer| peer.token == socket).unwrap().closed = true;
+                }
+                io::Request::Output { .. }
+                | io::Request::Spawn { .. }
+                | io::Request::Signal { .. }
+                | io::Request::Usage { .. }
+                | io::Request::Window { .. } => panic!("only sign-in socket io"),
+            }
+        }
+        for peer in &mut self.sockets {
+            if !peer.closed {
+                if !peer.native
+                    && !peer.answered
+                    && let Some(request) = issuer_request(&peer.sent, self.now)
+                {
+                    if request.method == oauth::Method::Post {
+                        self.exchanges = self.exchanges.checked_add(1).unwrap();
+                    }
+                    let mut out = Queue::uncapped();
+                    let event = match request.method {
+                        oauth::Method::Get => fake::Event::Get {
+                            id: request.id,
+                            endpoint: request.endpoint,
+                            now: self.now,
+                            wall: Wall::from_nanos(self.now.as_nanos()),
+                        },
+                        oauth::Method::Post => {
+                            fake::Event::Post { request, now: self.now, wall: Wall::from_nanos(self.now.as_nanos()) }
+                        }
+                    };
+                    self.issuer.step(event, &mut out);
+                    let Some(fake::Request::Http(answer)) = out.pop() else { panic!("issuer HTTP answer") };
+                    assert_eq!(answer.status, 200, "issuer accepts the host's request");
+                    let head = format!(
+                        "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                        answer.body.len()
+                    );
+                    peer.input.append(head.as_bytes()).unwrap();
+                    peer.input.append(&answer.body).unwrap();
+                    peer.answered = true;
+                }
+                if let Some(up) = peer.up() {
+                    self.accounts.up(io::Event::Stream { owner: peer.owner, up });
+                }
+            }
+        }
+    }
+
+    fn settle(&mut self) {
+        // Each bounded HTTP document and its body take fewer than 512 host steps.
+        for _ in 0_u32..512 {
+            self.turn();
+        }
+        assert!(!self.accounts.work_pending(self.now), "the host settles at the supplied instant");
+    }
+
+    fn approve(&mut self, source: u32) -> Box<[u8]> {
+        let visit = self.visit(source);
+        self.approved_callback(visit)
+    }
+
+    fn visit(&mut self, source: u32) -> Box<[u8]> {
+        self.accounts.request(domain::Request::Signing(domain::Signing::SignIn { source, provider: 3 }));
+        self.settle();
+        let mut visit = None;
+        while let Some(event) = self.events.pop() {
+            if let root::Event::Account(domain::Event::Visited { source: visited, address }) = event {
+                assert_eq!(visited, source);
+                visit = Some(address);
+            }
+        }
+        visit.expect("visit before approval")
+    }
+
+    fn approved_callback(&mut self, visit: Box<[u8]>) -> Box<[u8]> {
+        let mut out = Queue::uncapped();
+        self.issuer.step(fake::Event::Authorize { url: visit, now: self.now }, &mut out);
+        let Some(fake::Request::Redirect { uri, state, code, client_id }) = out.pop() else {
+            panic!("issuer approval")
+        };
+        let mut callback = uri.to_vec();
+        callback.extend_from_slice(b"?state=");
+        callback.extend_from_slice(&state);
+        callback.extend_from_slice(b"&code=");
+        callback.extend_from_slice(&code);
+        callback.extend_from_slice(b"&client_id=");
+        callback.extend_from_slice(&client_id.expect("issued client"));
+        callback.into_boxed_slice()
+    }
+
+    fn paste(&mut self, source: u32, callback: Box<[u8]>) -> u64 {
+        let engine = self.service.engine.as_mut().unwrap();
+        let number = carried(engine, store::Secrets::Hold { value: Secret::new(callback) });
+        self.accounts.request(domain::Request::Signing(domain::Signing::Redirected { source, carried: number }));
+        number
+    }
+
+    fn forget_paste(&mut self, number: u64) {
+        let engine = self.service.engine.as_mut().unwrap();
+        // The clients component owns this erase after the finish's terminal.
+        let _erased = engine
+            .store
+            .secrets(Token::new(123), store::Secrets::Erase { owner: store::SecretOwner::Application, number });
+        let Some(store::Event::Erased { .. }) = engine.store.above.pop() else { panic!("held address erased") };
+        assert!(engine.store.above.is_empty());
+        let Some(store::Event::Secret { value: None, .. }) = engine
+            .store
+            .secrets(Token::new(124), store::Secrets::Get { owner: store::SecretOwner::Application, number })
+        else {
+            panic!("no carried address remains")
+        };
+        assert!(!self.accounts.finishes.pending());
+        assert!(self.accounts.finish_out.is_empty());
+    }
+
+    fn grant_plan(&mut self) {
+        self.issuer
+            .queue(fake::Plan {
+                status: 200,
+                body: fake::Body::Token(oauth::TokenResponse {
+                    access_token: b"throwaway-access".as_slice().into(),
+                    refresh_token: None,
+                    expires_in: 3600,
+                    scope: Some(b"openid read".as_slice().into()),
+                    id_token: None,
+                    earliest_refresh_at: None,
+                }),
+                delay: Duration::ZERO,
+                retry_after: Duration::ZERO,
+            })
+            .unwrap();
+    }
+
+    fn native_socket(&mut self) -> Token {
+        let (owner, _, addr) = self.listeners.last().unwrap();
+        let socket = Token::new(1000_u64.checked_add(u64::try_from(self.sockets.len()).unwrap()).unwrap());
+        self.sockets.push(SignInSocket::new(socket, *owner, true));
+        self.accounts.up(io::Event::Accepted { owner: *owner, socket, peer: *addr });
+        self.settle();
+        socket
+    }
+
+    fn native_return(&mut self, socket: Token, callback: &[u8]) {
+        // The already accepted browser may send after the listener stops waiting.
+        let rest = callback.strip_prefix(b"http://").unwrap();
+        let slash = bytes::find(rest, b"/").unwrap();
+        let mut head = b"GET ".to_vec();
+        head.extend_from_slice(&rest[slash..]);
+        head.extend_from_slice(b" HTTP/1.1\r\nHost: ");
+        head.extend_from_slice(&rest[..slash]);
+        head.extend_from_slice(b"\r\nConnection: close\r\n\r\n");
+        self.sockets.iter_mut().find(|peer| peer.token == socket).unwrap().input.append(&head).unwrap();
+    }
+
+    fn nothing_held(&self) {
+        assert!(!self.accounts.finishes.pending());
+        assert!(self.accounts.finish_out.is_empty());
+        assert!(self.accounts.above.is_empty());
+        assert!(self.accounts.io.is_empty());
+        assert!(self.sockets.iter().all(|peer| peer.closed));
+        assert_eq!(usize::try_from(self.closed_listeners).unwrap(), self.listeners.len());
+    }
+}
+
+// Decode only a complete host HTTP request, without formatting its body.
+fn issuer_request(sent: &[u8], now: Time) -> Option<oauth::HttpRequest> {
+    let head_end = bytes::find(sent, b"\r\n\r\n")?.checked_add(4).unwrap();
+    let head = core::str::from_utf8(&sent[..head_end]).unwrap();
+    let mut lines = head.split("\r\n");
+    let mut first = lines.next().unwrap().split(' ');
+    let method = match first.next().unwrap() {
+        "GET" => oauth::Method::Get,
+        "POST" => oauth::Method::Post,
+        _ => panic!("issuer GET or POST"),
+    };
+    let target = first.next().unwrap();
+    let mut length = 0;
+    for line in lines {
+        if let Some((name, value)) = line.split_once(':')
+            && name.eq_ignore_ascii_case("content-length")
+        {
+            length = value.trim().parse::<usize>().unwrap();
+        }
+    }
+    if sent.len() < head_end.checked_add(length).unwrap() {
+        return None;
+    }
+    Some(oauth::HttpRequest {
+        id: 1,
+        method,
+        endpoint: format!("http://127.0.0.1:7102{target}").into_bytes().into_boxed_slice(),
+        content_type: b"application/x-www-form-urlencoded",
+        body: sent[head_end..].into(),
+        deadline: now,
+    })
+}
+
+#[test]
+fn restarting_after_approval_then_pasting_the_new_callback_succeeds() {
+    let mut world = SignInWorld::new();
+    let old = world.approve(71);
+    world.accounts.request(domain::Request::Signing(domain::Signing::CancelSignIn { source: 71 }));
+    let fresh = world.approve(72);
+    let old_paste = world.paste(71, old);
+    world.settle();
+    assert_eq!(world.exchanges, 0, "the approved superseded code is never exchanged");
+    let Some(root::Event::Account(domain::Event::FinishRefused {
+        source: 71,
+        why: domain::SignInRedirectWhy::NotWaiting,
+    })) = world.events.pop()
+    else {
+        panic!("the superseded callback is refused")
+    };
+    assert!(world.events.is_empty());
+    world.forget_paste(old_paste);
+    world.grant_plan();
+    let fresh_paste = world.paste(72, fresh);
+    world.settle();
+    let mut signed_in = 0_u32;
+    let mut redirects = 0_u32;
+    while let Some(event) = world.events.pop() {
+        if let root::Event::Account(domain::Event::SignedIn { source: 72, .. }) = event {
+            signed_in += 1;
+        }
+        if let root::Event::Account(domain::Event::Finishing { source: 72 }) = event {
+            redirects += 1;
+        }
+    }
+    assert_eq!(signed_in, 1);
+    assert_eq!(redirects, 1);
+    assert_eq!(world.exchanges, 1, "only the replacement callback reaches the issuer");
+    assert_eq!(world.issuer.posts(), 1);
+    world.forget_paste(fresh_paste);
+    world.nothing_held();
+}
+
+#[test]
+fn expiry_and_native_paste_race_take_at_most_one_redirect() {
+    const SEED: u64 = 21;
+    // 0: deadline tick, 1: native return, 2: paste. Shuffle ties from this test's seed.
+    let mut orders = [[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]];
+    let mut rng = skein_lib::Rng::new(SEED);
+    for index in (1..orders.len()).rev() {
+        let other = usize::try_from(rng.below(u64::try_from(index.checked_add(1).unwrap()).unwrap())).unwrap();
+        orders.swap(index, other);
+    }
+    let mut schedules = 0_u32;
+    for native_offset in [-1_i8, 0, 1] {
+        for paste_offset in [-1_i8, 0, 1] {
+            for order in orders {
+                let context = format!("seed={SEED}, native={native_offset}, paste={paste_offset}, order={order:?}");
+                let mut world = SignInWorld::new();
+                let visit = world.visit(71);
+                let deadline = world.accounts.next_deadline().expect("waiting sign-in's deadline").as_nanos();
+                // Approve near the attempt's deadline so the issuer's shorter code
+                // lifetime cannot expire first. The attempt's deadline stays fixed.
+                world.now = Time::from_nanos(deadline.checked_sub(Duration::from_secs(1).as_nanos()).unwrap());
+                let callback = world.approved_callback(visit);
+                let socket = world.native_socket();
+                world.grant_plan();
+                let at = |offset| match offset {
+                    -1 => deadline.checked_sub(1).unwrap(),
+                    0 => deadline,
+                    1 => deadline.checked_add(1).unwrap(),
+                    _ => unreachable!(),
+                };
+                let times = [deadline, at(native_offset), at(paste_offset)];
+                let mut schedule = order;
+                // Stable ordering preserves the seeded permutation at equal instants.
+                schedule.sort_by_key(|action| times[*action]);
+                let mut held = None;
+                for action in schedule {
+                    world.now = Time::from_nanos(times[action]);
+                    world.accounts.clock(world.now, Wall::from_nanos(world.now.as_nanos()));
+                    match action {
+                        0 => {}
+                        1 => world.native_return(socket, &callback),
+                        2 => held = Some(world.paste(71, callback.clone())),
+                        _ => unreachable!(),
+                    }
+                    world.settle();
+                }
+                let mut pasted_redirects = 0;
+                let mut signed_in = 0_u32;
+                let mut expired = 0_u32;
+                let mut refused = 0;
+                while let Some(event) = world.events.pop() {
+                    if let root::Event::Account(domain::Event::Finishing { source: 71 }) = event {
+                        pasted_redirects += 1;
+                    } else if let root::Event::Account(domain::Event::SignedIn { source: 71, .. }) = event {
+                        signed_in += 1;
+                    } else if let root::Event::Account(domain::Event::SignInFailed { source: 71, failure }) = event {
+                        // The host translates the driver's TimedOut to Later (translate.rs).
+                        assert_eq!(failure, domain::Failure::Later { after: None }, "{context}");
+                        expired += 1;
+                    } else if let root::Event::Account(domain::Event::FinishRefused { source: 71, why }) = event {
+                        assert_eq!(why, domain::SignInRedirectWhy::NotWaiting, "{context}");
+                        refused += 1;
+                    }
+                }
+                let native_redirects =
+                    world.sockets.iter().filter(|peer| peer.native && peer.sent.starts_with(b"HTTP/1.1 200")).count();
+                let redirects = native_redirects.checked_add(pasted_redirects).unwrap();
+                assert!(redirects <= 1, "{context}");
+                assert!(world.exchanges <= 1, "{context}");
+                assert_eq!(world.issuer.posts(), u64::from(world.exchanges), "{context}");
+                if native_offset < 0 || paste_offset < 0 {
+                    assert_eq!((redirects, world.exchanges, signed_in, expired), (1, 1, 1, 0), "{context}");
+                    assert_eq!(pasted_redirects + refused, 1, "{context}");
+                } else {
+                    assert_eq!((redirects, world.exchanges, signed_in, expired, refused), (0, 0, 0, 1, 1), "{context}");
+                }
+                world.forget_paste(held.expect("one paste per schedule"));
+                world.nothing_held();
+                schedules += 1;
+            }
+        }
+    }
+    assert_eq!(schedules, 54);
+}
 
 #[test]
 fn a_revoked_record_waits_for_erased_and_coalesces_a_sign_out() {
