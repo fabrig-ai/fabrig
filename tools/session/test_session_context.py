@@ -116,6 +116,27 @@ class SessionContext(unittest.TestCase):
                                   env=env, text=True, capture_output=True)
         self.assertEqual(by_owner.stdout, result.stdout)
 
+    def test_owner_uses_the_latest_started_thread(self):
+        retired = "01a10000-0000-7000-8000-000000000001"
+        current = "01a10000-0000-7000-8000-000000000002"
+        self.codex_rollout(retired, 380_000, 475_000)
+        self.codex_rollout(current, 95_000, 475_000)
+        owner = self.base / "dev/tmp/owners/ops/codex"
+        owner.mkdir(parents=True)
+        rows = [{"type": "thread.started", "thread_id": retired},
+                {"type": "thread.started", "thread_id": current},
+                {"type": "thread.started"},
+                {"type": "turn.completed", "thread_id": retired}]
+        (owner / "events.jsonl").write_text(
+            "".join(json.dumps(row) + "\n" for row in rows) + "not json\n")
+        env = dict(os.environ, HOME=str(self.home), DEV_ROOT=str(self.base / "dev"))
+        result = subprocess.run(["python3", "-I", str(TOOL), "--owner", "ops"],
+                                cwd=self.cwd, env=env, stdin=subprocess.DEVNULL,
+                                text=True, capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("95,000 of 475,000 tokens (20%)", result.stdout)
+        self.assertNotIn("REACHED", result.stdout)
+
     def test_no_transcript_is_refused(self):
         result = self.run_tool("eeee")
         self.assertNotEqual(result.returncode, 0)

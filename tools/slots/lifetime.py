@@ -72,6 +72,27 @@ def task_paths(root, report, directory):
     return root, report, directory, membership
 
 
+def worker_paths(root, identifier):
+    """Validate history before loading one worker's metadata and directory."""
+    root = history_root_text(root)
+    with open(root + "/tmp/codex-run/" + identifier + "/meta", "rb") as source:
+        metadata = source.read().replace(b"\0", b"")
+    directory = ""
+    # Match `while IFS='=' read -r key value`: NULs are ignored, the final
+    # unterminated line is not read, and the last complete dir field wins.
+    for line in metadata.split(b"\n")[:-1]:
+        key, _, value = line.partition(b"=")
+        if key == b"dir":
+            # A lone final delimiter terminates the second field; further
+            # delimiters belong to its remaining text.
+            if value.endswith(b"=") and value.count(b"=") == 1:
+                value = value[:-1]
+            directory = os.fsdecode(value)
+    directory = checked_path_text(directory)
+    membership = "slot" if slot_text(directory) is not None else "other"
+    return root, metadata, directory, membership
+
+
 def no_links(path):
     return Path(checked_path_text(path, collapse=False))
 
@@ -96,10 +117,14 @@ PATH_MODES = {"canonical": checked_path_text, "protect": protected_text,
               "root": history_root_text, "directory": directory_text}
 
 if (__name__ == "__main__" and len(sys.argv) > 1
-        and (sys.argv[1] in PATH_MODES or sys.argv[1] == "task-paths")):
+        and (sys.argv[1] in PATH_MODES or sys.argv[1] in ("task-paths", "worker-paths"))):
     os.umask(0o077)
     try:
-        if sys.argv[1] == "task-paths":
+        if sys.argv[1] == "worker-paths":
+            if len(sys.argv) != 4:
+                raise RuntimeError("worker path validation requires root and run identifier")
+            sys.stdout.buffer.write(b"\0".join(os.fsencode(value) for value in worker_paths(*sys.argv[2:])) + b"\0")
+        elif sys.argv[1] == "task-paths":
             if len(sys.argv) != 5:
                 raise RuntimeError("task path validation requires root, report and directory")
             # Publish only after every check succeeds. NUL preserves path newlines.
@@ -114,17 +139,11 @@ if (__name__ == "__main__" and len(sys.argv) > 1
 
 
 from pathlib import Path
-import argparse
 from contextlib import contextmanager
 import fcntl
 import hashlib
 import json
-import signal
 import stat
-import subprocess
-import tempfile
-import time
-import uuid
 
 
 
@@ -151,6 +170,8 @@ def sync(path):
 
 
 def write(path, value):
+    import tempfile
+
     no_links(path)
     fd, temporary = tempfile.mkstemp(prefix=".write-", dir=path.parent)
     try:
@@ -220,6 +241,8 @@ def state_root(home):
 
 
 def read_completed(directory, slot):
+    import time
+
     path = directory / "completed.json"
     no_links(path)
     if not path.exists():
@@ -237,6 +260,8 @@ def read_completed(directory, slot):
 
 def completed_lifetime(directory, slot, token, purpose):
     """Publish completion before removing ownership, serializing shared holders."""
+    import time
+
     with locked(directory / "completion.lock", wait=True):
         previous = read_completed(directory, slot)
         completed = max(time.time_ns(), previous["completed_ns"] if previous else 0)
@@ -253,6 +278,8 @@ class Lease:
         self.clean = False
 
     def __enter__(self):
+        import uuid
+
         if self.slot is None:
             return self
         self.directory = state_root(self.home) / self.slot.name
@@ -314,6 +341,14 @@ def inherited(slot):
 
 def main():
     os.umask(0o077)
+    # Descriptor verification needs no command parser or child-process modules.
+    if (len(sys.argv) == 3 and sys.argv[1] == "verify"
+            and not sys.argv[2].startswith("-")):
+        slot = slot_path(Path(sys.argv[2]))
+        return 0 if slot is None or inherited(slot) else 1
+
+    import argparse
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("mode", choices=("run", "launch", "verify", "uncertain", *PATH_MODES))
     parser.add_argument("directory", type=Path)
@@ -333,6 +368,9 @@ def main():
         hold = state_root(Path.home()) / slot.name / (os.environ["FABRIG_SLOT_HOLD"] + ".hold")
         write(hold, {**read(hold), "uncertain": True})
         return 0
+    import signal
+    import subprocess
+
     if command[:1] == ["--"]:
         command = command[1:]
     if not command:
