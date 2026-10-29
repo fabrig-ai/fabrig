@@ -300,3 +300,80 @@ fn hello_endpoints_keep_uniqueness_and_count_checks() {
     limits.bounds.program_endpoints = endpoints.into_boxed();
     assert!(!crate::valid(&limits));
 }
+
+/// The failed decode keeps hub owner zero without allocating a Smith agent.
+/// The next hub owner therefore maps to Smith agent zero, in a different token space.
+#[test]
+fn admission_dependencies_translate_hand_out_owners_to_agents() {
+    use skein_lib::Token;
+    let mut worker = Worker::new(fixtures::limits());
+    worker.assign();
+    let (owner, _) = worker.take_decode();
+    worker.step(Event::Decoded { agent: owner, start: Err(Invalid::Charter) });
+    worker.clear();
+    let mut assignment = fixtures::assignment(fixtures::charter_bytes());
+    assignment.assignment.run = Token::new(42);
+    worker.step(Event::Link(host::LinkDown::Assign { assignment }));
+    let (owner, source) = worker.take_decode();
+    worker.step(Event::Decoded { agent: owner, start: Ok(Box::new(fixtures::start(source))) });
+    worker.step(Event::Process(Box::new(smith::process::Event::Spawned {
+        owner: fixtures::AGENT,
+        process: fixtures::AGENT,
+    })));
+    let held = Event::Process(Box::new(smith::process::Event::Received {
+        owner: fixtures::AGENT,
+        message: smith::Up::Call {
+            call: fixtures::CALL,
+            name: smith::CallName { activation: 1, completion: 1, position: 0 },
+            deadline: worker.env.now,
+            ask: fixtures::delivery(),
+        },
+    }));
+    for (event, expected) in [
+        (Event::Activity { owner, activity: None }, true),
+        (Event::Encoded { owner, encoded: Encoded::Undecodable }, true),
+        (Event::Decoded { agent: owner, start: Err(Invalid::Charter) }, true),
+        (Event::Activity { owner: fixtures::AGENT, activity: None }, false),
+        (Event::Encoded { owner: fixtures::AGENT, encoded: Encoded::Undecodable }, false),
+        (Event::Process(Box::new(smith::process::Event::Exited { owner: fixtures::AGENT, exit: None })), true),
+        (Event::Live { agent: fixtures::AGENT, piece: live_piece() }, true),
+        (Event::Live { agent: owner, piece: live_piece() }, false),
+    ] {
+        assert_eq!(worker.domain.must_follow(&held, &event), expected, "{event:?}");
+    }
+}
+
+#[test]
+fn admission_classes_calls_checks_and_lifecycle_by_payload() {
+    use crate::Class;
+    for (event, expected) in [
+        (Event::Ready, Class::Admitted),
+        (Event::Lost, Class::Admitted),
+        (Event::Timer, Class::Admitted),
+        (Event::Checks, Class::New),
+        (Event::Shutdown, Class::Admitted),
+        (Event::Link(host::LinkDown::Sources { sources: Box::default() }), Class::New),
+        (Event::Link(host::LinkDown::Cancel { run: fixtures::RUN, attempt: fixtures::ATTEMPT }), Class::Admitted),
+        (
+            Event::Process(Box::new(smith::process::Event::Received {
+                owner: fixtures::AGENT,
+                message: smith::Up::Call {
+                    call: fixtures::CALL,
+                    name: smith::CallName { activation: 1, completion: 1, position: 0 },
+                    deadline: skein_lib::Time::ZERO,
+                    ask: fixtures::delivery(),
+                },
+            })),
+            Class::New,
+        ),
+        (
+            Event::Process(Box::new(smith::process::Event::Received {
+                owner: fixtures::AGENT,
+                message: smith::Up::Turn { turn: fixtures::turn() },
+            })),
+            Class::Admitted,
+        ),
+    ] {
+        assert_eq!(crate::class(&event), expected, "{event:?}");
+    }
+}

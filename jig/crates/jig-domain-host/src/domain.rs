@@ -306,6 +306,27 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
 /// requests: one of those a `CancelAll` named, for its reason. Also fires due
 /// source checks, independently of the run slots, within the same output bound.
 pub fn resume(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    resume_runs(domain, env, out);
+    fire_sources(domain, env, out);
+}
+
+/// Cancels a run on the ready list, if one is: `resume` without the
+/// source checks, for a root that admits those as new work.
+pub fn resume_runs(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     hosted::resume(domain, env, out);
+}
+
+/// Fires the source checks that are due: new work, which a root admits
+/// at its watermark; a check not fired stays due.
+pub fn fire_sources(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     crate::sources::fire(&mut domain.sources, env, out);
+}
+
+/// Whether a source check is due at `now`.
+#[must_use]
+pub fn sources_due(domain: &Domain, now: skein_lib::Time) -> bool {
+    match domain.sources.next_deadline() {
+        Some(deadline) => deadline <= now,
+        None => false,
+    }
 }

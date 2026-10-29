@@ -20,6 +20,7 @@ pub enum Event {
     Activity { owner: Token, activity: Option<host::Activity> },
     Shutdown,
     Timer,
+    Checks,
 }
 
 #[derive(PartialEq, Eq, Debug)]

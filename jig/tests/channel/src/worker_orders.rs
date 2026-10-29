@@ -1,4 +1,6 @@
 //! Worker FIFO and hand-out orders over the actual services and agent processes.
+pub(crate) mod probe;
+
 use crate::{
     account_setup, fixtures,
     processes::{self, Proc},
@@ -21,12 +23,15 @@ pub struct Outcome {
     pub starts: usize,
     pub starts_after_cancel: usize,
     pub admission_waits: u64,
+    pub marker_passed: bool,
+    pub call_held: bool,
 }
 
 enum Cancel {
     None,
     Ready,
     Sent,
+    AwaitCall,
 }
 
 struct Judge {
@@ -46,6 +51,14 @@ impl skein_world::Referee<Proc> for Judge {
         self.accounts.act(procs, Story::Chat, self.done);
         if !self.done {
             self.accounts.party(now, procs, &mut self.party, &mut self.views, Story::Chat);
+        }
+        if matches!(self.cancel, Cancel::AwaitCall)
+            && procs.iter().any(|proc| {
+                let Proc::Worker(host) = proc else { return false };
+                host.order_probe.as_ref().is_some_and(probe::Probe::waiting_for_cancel)
+            })
+        {
+            self.cancel = Cancel::Ready;
         }
         if matches!(self.cancel, Cancel::Ready) {
             let assignment = procs.iter().find_map(|proc| {
@@ -98,6 +111,10 @@ impl skein_world::Referee<Proc> for Judge {
                 Proc::Worker(host) => {
                     self.outcome.borrow_mut().admission_waits =
                         host.service.worker(0).expect("worker").admission_waits();
+                    if let Some(probe) = &host.order_probe {
+                        self.outcome.borrow_mut().marker_passed = probe.marker_passed;
+                        self.outcome.borrow_mut().call_held = probe.call_held;
+                    }
                     if self.done && !host.stopping {
                         host.stopping = true;
                         host.service.shutdown();
@@ -123,8 +140,9 @@ impl skein_world::Referee<Proc> for Judge {
             .iter()
             .filter(|(_, kind, _)| *kind == wire::Kind::Answer.number())
             .map(|(_, _, bytes)| wire::Answer::decode(&wire::CEILINGS, &mut Reader::new(bytes)).expect("answer"))
+            .filter(|answer| answer.task() != probe::OTHER_RUN)
             .collect();
-        outcome.acknowledgements = worker.acknowledgements.len();
+        outcome.acknowledgements = worker.acknowledgements.iter().filter(|(run, _)| *run != probe::OTHER_RUN).count();
         outcome.starts = procs.iter().filter(|proc| matches!(proc, Proc::Agent { .. })).count();
         if worker.frames.iter().any(|(_, kind, _)| *kind == wire::Kind::Cancel.number()) {
             let before = *self.starts_at_cancel.get_or_insert(outcome.starts);
@@ -154,15 +172,38 @@ fn worker(root: skein_io::kernel::Fd) -> Proc {
     let mut proc = processes::worker(root);
     let Proc::Worker(host) = &mut proc else { unreachable!("worker factory") };
     host.service.worker(0).expect("worker").set_watermark(WATERMARK);
+    host.order_probe = Some(probe::Probe::new(false));
     proc
 }
 
 /// Run the original order stories with a one-entry admission watermark.
 #[must_use]
 pub fn run(cancel: bool) -> Outcome {
+    run_story(cancel, false)
+}
+
+fn calling_worker(root: skein_io::kernel::Fd) -> Proc {
+    let mut proc = processes::worker_calls(root);
+    let Proc::Worker(host) = &mut proc else { unreachable!("worker factory") };
+    host.service.worker(0).expect("worker").set_watermark(WATERMARK);
+    host.order_probe = Some(probe::Probe::new(true));
+    proc
+}
+
+/// Hold a real process call while its engine cancellation enters the worker.
+#[must_use]
+pub fn held_call() -> Outcome {
+    run_story(true, true)
+}
+
+fn run_story(cancel: bool, calls: bool) -> Outcome {
     let mut script = fixtures::one_chat(b"Hello");
     if cancel {
         script.latency = Duration::from_secs(1);
+    }
+    if calls {
+        script.story = Story::Call;
+        script.leading_turns = 2;
     }
     let outcome = Rc::new(RefCell::new(Outcome::default()));
     let judge = Judge {
@@ -172,7 +213,13 @@ pub fn run(cancel: bool) -> Outcome {
         rules: Rules::default(),
         views: Views::default(),
         period: false,
-        cancel: if cancel { Cancel::Ready } else { Cancel::None },
+        cancel: if calls {
+            Cancel::AwaitCall
+        } else if cancel {
+            Cancel::Ready
+        } else {
+            Cancel::None
+        },
         done: false,
         outcome: outcome.clone(),
         starts_at_cancel: None,
@@ -192,9 +239,9 @@ pub fn run(cancel: bool) -> Outcome {
     });
     harness.spawn_restartable(
         vec![skein_world::StartupRoot { name: b"state".as_slice().into(), path: b"state".as_slice().into() }],
-        processes::engine,
+        if calls { processes::engine_calls } else { processes::engine },
     );
-    harness.spawn_root(skein_sim::Handle::new(worker_root.raw()), worker);
+    harness.spawn_root(skein_sim::Handle::new(worker_root.raw()), if calls { calling_worker } else { worker });
     harness.spawn_root(skein_sim::Handle::new(client_root.raw()), |root| {
         let mut client = jig_client_protocol_world::native::NativeClient::new(
             jig_client_protocol_world::native::settings(),
