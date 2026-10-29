@@ -91,58 +91,200 @@ no expiry or automatic stealing: a holder releases its claim explicitly.
 ## 5. Disk guard
 
 `tools/slots/guard [--below GB] [--dry-run]` checks the filesystem holding
-`~/src/fabrig/slots`. Below 80 decimal GB by default, it trims numeric slot
-directories, largest first by allocated regular-file bytes, until free
-space is above the threshold plus 40 GB or every idle slot was inspected.
-Directory and file symlinks are not followed when measuring size; a numeric
-slot symlink is an error. Non-numeric names are ignored.
+`~/src/fabrig/slots`. Below 80 decimal GB by default, ordinary executable
+trimming runs first, largest slot first by allocated regular-file bytes.
+It keeps its existing threshold plus 40 GB recovery margin. Only after
+ordinary trimming is exhausted and free space remains below the threshold
+can whole-target recovery run. Whole-target recovery orders slots by oldest
+proven completion, then slot name, and stops immediately when measured free
+space is above the configured threshold. It has no extra 40 GB deletion aim. The operator's manual fallback remains
+largest-first.
+Neither file sizes nor allocated sizes promise reclaimed bytes; every
+operation remeasures filesystem free space. Dry-run uses the same eligibility
+checks and order without deleting; it cannot assume future freed blocks.
 
-An idle slot has no active or activating user service whose name contains
-`-heavy-` and whose `WorkingDirectory` is the slot or a descendant. Read
-these two properties with `systemctl --user show` after listing service
-units with `--type=service`. Ignore non-service names defensively, including
-heavy's reconciler timer, which has no working directory. Missing properties
-on a heavy service still fail the sweep without trimming that slot.
-Check again immediately before trimming each slot. No heavy state or
-process environment is read. A Codex run between builds is idle; its next
-build relinks what it needs. Unit properties are snapshots, so a build
-starting after the last check can overlap the trim.
+Ordinary trim retains `trim`'s policy, age-zero cutoff, descriptor protection
+and identity rechecks (section 2). Its heavy observation lists service units,
+ignores non-service names and the reserved heavy `-reconcile.service`
+observer, and checks payload and queued wrapper working directories. A
+successful explicit inactive loaded/not-found service observation permits a
+vanished/inactive unit; unknown or incomplete active properties refuse the
+operation. Active, activating, reloading, deactivating and refreshing slot
+services remain busy. Codex between builds may still have executables
+trimmed; whole-target recovery has the stricter rules below.
 
-The guard loads the sibling `trim` by resolved file path, including under
-Python's isolated mode. Both files must travel together; `trim` remains
-standalone for task-start use through ssh stdin. The guard calls its trim
-function with the current time as cutoff (age zero), sharing eligibility,
-descriptor protection and candidate identity checks. Dry-run uses the same
-checks and reports counts and sizes without unlinking. It checks every idle
-slot while space remains low, without assuming that candidate file sizes
-would become free blocks.
+### 5.1 Explicit report acknowledgement
 
-Each sweep prints one UTC line with free GB before and after, slots trimmed
-(count and GB) or skipped as busy, and `ok` or `still below GB`. It appends
-the same line to `~/src/fabrig/notes/slot-guard.log`, creating it as 0600
-and enforcing that mode on an existing file. Symlink logs are refused.
-Exit 0 means space is at least the threshold or there are no numeric slots;
-exit 1 means an error; exit 2 means space remains below the threshold after
-all idle slots, including a dry-run. Once triggered, a sweep continues
-toward the extra 40 GB even after crossing the threshold.
+No pre-existing slot is automatically eligible. Ended metadata, a `Done`
+report, a zero exit, and post delivery do not establish that a lead handled
+the report or resolved a capacity resume. On the builder, after checking the
+latest report and ownership, an operator/lead explicitly attests:
 
-`guard --timer` replaces the transient user timer `fabrig-slot-guard` using
-`systemd-run --user --unit fabrig-slot-guard --on-calendar '*:0/5' --collect`.
-It runs the guard's resolved path through `bash -lc` every five minutes,
-with the requested threshold, collecting the service when inactive.
-`guard --timer --stop` stops its timer and service. Timer control lists and
-stops only these named units; it does not trim slots. Start the timer from
-`~/src/fabrig/main/tools/slots/guard` so periodic runs use the installed
-clone. The install manifest requires identical link and file names, so
-there is no `slot-guard` link in `tools/installed`.
+```sh
+python3 -I -B ~/src/fabrig/main/tools/slots/guard --ack N \
+  --by lead/AREA --reason 'review and ownership evidence' \
+  --report-handled --no-pending-resume --exclusive-lease-use
+```
 
-`python3 -I -B tools/slots/test_guard.py` uses disposable slots and fake
-systemd commands; `test_trim.py` checks the shared deletion policy and
-`test_claim.py` checks bookkeeping. They build nothing and run on hel8.
-Verify idle detection on a real builder with a dry run whose `--below`
-value exceeds its current free space; an above-threshold run does not
-inspect services. Exit 2 is expected if the dry run remains below that
-chosen value. Confirm busy slots are skipped and no property error occurs.
+`N` is a numeric slot number, never an arbitrary path. `--exclusive-lease-use`
+asserts that subsequent direct/manual work uses the lifetime entry point
+(section 5.2), and that legacy launchers or other uncoordinated commands are
+excluded for this slot. If the operator cannot establish that coverage, do
+not acknowledge it: automatic whole-target deletion stays blocked. This
+assertion does not claim control over arbitrary external commands.
+
+Acknowledgements bind the exact canonical slot and slots-root device/inode,
+target device/inode, checkout HEAD identity/digest, builder host/inventory, every matching run's metadata,
+ended marker and report identity (including modification/change times) and
+SHA-256 digest, latest run identity, owner/recipient, and completion time.
+The run history is `${DEV_ROOT:-$HOME/src/rust}/tmp/codex-run`; only run
+metadata, ended markers and named reports are inspected. Missing, corrupt,
+symlinked or unknown history refuses recovery; every matching run must have
+ended. Other slots' incomplete runs do not authorize this slot. A live
+Codex unit mapped to this slot vetoes recovery even with an ended marker;
+a live unit without trustworthy run metadata also vetoes it. Owner units
+without a working directory cannot establish exclusion and fail closed.
+A new run, changed report/ended marker, replaced slot/target or source/build
+lease invalidates acknowledgement. Nonzero and capacity-stop reports require
+the same explicit fresh assertion after pending work is resolved.
+
+### 5.2 Source/build lifetime interlock
+
+State lives outside sources and generated data in
+`~/src/fabrig/slot-maintenance/N/` (0700), with 0600 lock, acknowledgement,
+hold, journal and notice files. Symlink paths and unsafe state modes are
+refused. One global `sweep.lock` serializes sweeps, acknowledgements, notices
+and hold reconciliation. The per-slot `lease` uses shared flock for source/
+build lifetimes and exclusive flock for maintenance. Contention refuses
+immediately; no command or timeout is cancelled or changed.
+
+`codex-run task` takes a lease before report reservation and run creation.
+A durable launch hold bridges detached systemd startup, including a queued
+unit. `_run` adopts that hold only after recording its own durable hold and
+acquiring its inherited lock. The lease covers initial trim, shell, Codex,
+all retry sleeps, child drainage and final report/post handling. With an
+`--on-stop` callback, the launch hold remains until `_stop` acquires its own
+lease and adopts it, covering the callback entrance too. A missing helper
+refuses numeric-slot startup. Nested numeric-slot working directories and
+read-only numeric-slot tasks participate as well.
+
+Precheck loads the lifetime implementation before switching source. It
+holds its shared lease through ownership checks, source preparation, every
+selected command, verification and restoration. Existing selection,
+restoration, worker/precheck markers and locks remain authoritative. An
+unknown completion or unresolved restoration leaves its durable hold.
+The reclaimer also acquires sibling `.queue.lock`/`.worker.lock` and any
+existing `.git/worker.lock`/`.git/precheck.lock`, and refuses
+`.git/mq-worker-unresolved.json`, `.git/precheck.unresolved`, worker/queue
+unresolved markers and `.git/index.lock`, including dangling symlinks.
+It creates no source metadata or claim files.
+
+Manual commands use the foreground entry point:
+
+```sh
+python3 -I -B ~/src/fabrig/main/tools/slots/lifetime.py run SLOT -- COMMAND ARG...
+```
+
+The command chooses its cwd; `SLOT` selects its numeric-slot lease. For
+example, put a source switch and all its builds inside one foreground shell
+under this entry point, rather than releasing ownership between commands.
+Do not detach work or deliberately close inherited lease descriptors.
+The wrapper passes its lock descriptor through exec into the shell and
+children. A supervisor killed while children live therefore retains both
+kernel exclusion and a durable hold. A nonzero/signal exit leaves a hold;
+a normal zero completion removes only its own hold. A failed/timed-out stop
+callback marks its hold uncertain even though callback failure stays advisory
+for the systemd unit. `launch`, `verify` and `uncertain`
+are launcher support modes; operators use `run`.
+
+Released flock, absent controller and process absence never clear a hold.
+After independently establishing completion and handling the report/resume,
+Ops can release one exact hold token (the 32-hex basename of `*.hold`):
+
+```sh
+python3 -I -B ~/src/fabrig/main/tools/slots/guard --release-hold N --hold TOKEN \
+  --by ops --reason 'completion and ownership evidence' \
+  --report-handled --no-pending-resume --exclusive-lease-use
+```
+
+This requires exclusive maintenance ownership, matching slot identity,
+completed run history and all normal live-work observations. It leaves a
+private release receipt and does not grant eligibility; run `--ack` again.
+Missing/corrupt history, unresolved precheck/worker state or an interrupted
+reclaim still refuse this API and require operator investigation. Never
+remove heavy state or stop units to make these checks pass.
+
+### 5.3 Final observations and deletion boundary
+
+Only inventory slots on hetzner3/6/7 qualify. Hetzner2 and hetzner8 cannot
+acknowledge or reclaim whole targets. Each candidate is checked under its
+exclusive lease, then checked again after ordering and immediately before
+mutation. Heavy payloads and queued wrappers, legacy Codex runs (including
+retry sleep), durable holds, unresolved ownership and own-user cwd usage
+veto recovery. `/proc` inspection reads uid, cwd links, comm and cgroup
+metadata only, never environment or descriptor contents. Unreadable own-user
+cwds fail closed except exact protected host parents: systemd/(sd-pam) in
+the uid's init.scope, sshd-session in a session scope, and ssh-agent in its
+service with a verified active loaded working directory outside slots.
+Shells/task children in those scopes remain subject to ordinary checks.
+A vanished process is harmless; unavailable enumeration or unknown
+unreadable processes refuse recovery. The reserved heavy reconciler is an
+observer, never a build payload.
+
+Only `target/` beneath the validated numeric slot can be removed. Slot/root/
+target identity is verified again using an open slot directory descriptor.
+Deletion uses fd-relative symlink-resistant `rmtree`; target symlinks,
+symlink ancestors, mountpoints (including same-device bind mounts) beneath
+target and device boundaries are refused. Internal generated-data symlinks
+are unlinked, never followed. Source, `.git`, refs, reports and claims stay.
+Cooperating starters cannot replace paths under the exclusive lease; the
+explicit operator exclusion covers direct commands outside that protocol.
+
+A private fsynced `reclaim.json` records intent and acknowledgement before
+mutation, and the acknowledgement is consumed before deletion. Interrupts
+or errors leave uncertain intent and block subsequent automatic recovery;
+there is no automatic partial-deletion retry. Operators must establish
+quiescence before reconciling such a journal; no surviving target inputs
+are cleaned merely because the previous process died.
+
+### 5.4 Evidence, notices, installation and validation
+
+`~/src/fabrig/notes/slot-guard.log` is private (0600). Each whole-target
+attempt is logged durably before deletion; completion records owner,
+acknowledger/provenance, run identity, target, idle age, allocated size,
+measured free space before/after, reason and safety evidence. Each success
+also leaves an addressed `N/owner-notice.json`; `guard --notices` prints
+these local owner notices as JSON lines. The latest notice is retained per
+slot; the log and reclaim journal retain the evidence. Ops/lead forwards
+this evidence using existing post routing and tells the owner the target
+is cold. Cleanup success never depends on network notification delivery.
+
+The ordinary CLI and timer interface remain: `guard --timer [--below GB]`
+replaces the five-minute transient `fabrig-slot-guard` timer, and
+`guard --timer --stop` stops just its timer/service. Run from the dedicated
+main clone. Exit 0 means space is at least threshold (or no numeric slots),
+exit 2 means space remains low, including no trustworthy eligible targets
+and dry-run, and exit 1 indicates a sweep infrastructure error. Per-slot
+whole-target refusals log their reason and leave space low with exit 2.
+
+Deploy `guard`, `trim`, `recovery.py`, `lifetime.py` and `hosts` together.
+Normal `tools/install` updates the dedicated clone and existing codex-run/
+precheck links; no new PATH link is required. Refresh/start the guard timer
+from main on builders after review. Update callers to the installed launcher
+and precheck before any `--exclusive-lease-use` attestation. Legacy live runs
+are protected by metadata, services and cwd observations; legacy/manual
+future starts must be excluded explicitly. No old slot becomes eligible on
+installation, and no production install is part of the offline tests.
+
+Offline suites: `python3 -I -B tools/slots/test_{guard,recovery,trim,claim}.py`
+(run each separately), `bash tools/codex-run/test-codex-run`,
+`python3 -I -B tools/queue/test_precheck.py`, `tools/queue/test_mq.py`, and
+`tools/test_install.py`. Fixtures use real disposable files/processes/flocks,
+FIFO barriers, synthetic service metadata and private proc inventories.
+They build nothing. A builder dry run with a threshold above current free
+space exercises pressure and busy checks without deleting. An ordinary
+above-threshold sweep does not inspect services. No heavy floor, admission
+cap, budget, timeout, cache or heavy-state policy changes here.
 
 ## 4. Later
 
