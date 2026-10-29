@@ -489,7 +489,7 @@ impl Component {
 
     /// Advance the group deadline, termination, kill and close stages.
     pub fn fire(&mut self, env: &Env<Limits>, to_domain: &mut Queue<ToDomain>, below: &mut Queue<Below>) {
-        let mut owners = List::with_capacity(self.processes.capacity());
+        let mut owners = List::with_capacity(self.processes.len());
         for (owner, _) in &self.processes {
             owners.push(*owner).expect("one key per process");
         }
@@ -525,7 +525,7 @@ impl Component {
     /// Close held jobs through io's child close; in-flight calls still drain.
     pub fn close(&mut self, below: &mut Queue<Below>) {
         self.closing = true;
-        let mut owners = List::with_capacity(self.processes.capacity());
+        let mut owners = List::with_capacity(self.processes.len());
         for (owner, _) in &self.processes {
             owners.push(*owner).expect("one owner per process");
         }

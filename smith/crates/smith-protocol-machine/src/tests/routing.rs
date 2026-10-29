@@ -22,11 +22,10 @@ struct Listings {
 
 impl Listings {
     fn new() -> Self {
-        let emissions = crate::max_out(&env().limits);
         Self {
             component: component(),
-            above: Queue::with_capacity(emissions.to_domain),
-            below: Queue::with_capacity(emissions.below),
+            above: Queue::uncapped(),
+            below: Queue::uncapped(),
             next_directory_file: FIRST.raw(),
         }
     }
