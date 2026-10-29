@@ -31,13 +31,6 @@ impl Buffer {
         Some(u64::from(capacity))
     }
 
-    /// The old name of [`Self::price`]; it goes once
-    /// every tree calls `price` (wave 3).
-    #[must_use]
-    pub fn worst_case(capacity: u32) -> Option<u64> {
-        Self::price(capacity)
-    }
-
     #[must_use]
     pub const fn capacity(&self) -> u32 {
         self.capacity
