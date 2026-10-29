@@ -134,6 +134,9 @@ pub fn message_kind(source: &domain::MessageKind, limits: &wire::Limits) -> Resu
                 wire::DecisionMessageParts { proposal: *proposal, accepted: *accepted },
             )?)
         }
+        domain::MessageKind::QuestionAnswered { question } => wire::MessageKind::QuestionAnswered(
+            wire::AnswerMessage::new(limits, wire::AnswerMessageParts { question: *question })?,
+        ),
         domain::MessageKind::QuestionEnded { question } => wire::MessageKind::QuestionEnded(wire::AnswerMessage::new(
             limits,
             wire::AnswerMessageParts { question: *question },
@@ -211,6 +214,9 @@ pub fn read_message_kind(
         wire::MessageKind::ProposalDecision(source) => {
             let wire::DecisionMessageParts { proposal, accepted } = source.into_parts();
             domain::MessageKind::ProposalDecision { proposal, accepted }
+        }
+        wire::MessageKind::QuestionAnswered(source) => {
+            domain::MessageKind::QuestionAnswered { question: source.question() }
         }
         wire::MessageKind::QuestionEnded(source) => domain::MessageKind::QuestionEnded { question: source.question() },
         wire::MessageKind::Words => domain::MessageKind::Words,

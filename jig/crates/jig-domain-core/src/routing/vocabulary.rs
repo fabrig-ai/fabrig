@@ -924,6 +924,8 @@ fn tasks_new_work(event: &tasks::Event) -> bool {
         | tasks::Event::Notice { .. }
         | tasks::Event::Introduce { .. }
         | tasks::Event::Message { .. }
+        | tasks::Event::PersonQuestion { .. }
+        | tasks::Event::PersonQuestionAnswer { .. }
         | tasks::Event::AuthorizedMessage { .. }
         | tasks::Event::PeriodNext { .. }
         | tasks::Event::OpenPeriod { .. }

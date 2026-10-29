@@ -35,6 +35,7 @@ fn merge_key(kind: &MessageKind) -> Option<(u8, u64)> {
         | MessageKind::EffectNotMade { .. }
         | MessageKind::Words
         | MessageKind::Question
+        | MessageKind::QuestionAnswered { .. }
         | MessageKind::QuestionEnded { .. }
         | MessageKind::Answer { .. }
         | MessageKind::Proposal { .. }
@@ -138,6 +139,7 @@ pub(crate) fn prepare_staged(
                 | MessageKind::FinishRequested { .. }
                 | MessageKind::Amendment { .. }
                 | MessageKind::Met { .. }
+                | MessageKind::QuestionAnswered { .. }
                 | MessageKind::QuestionEnded { .. }
                 | MessageKind::News { class: NewsClass::Kept | NewsClass::Dropped, .. } => {}
             }
@@ -198,7 +200,8 @@ pub(crate) fn room_staged(
                 extra_count = extra_count.checked_add(1).expect("bounded merged slots");
                 extra_bytes = extra_bytes.checked_add(word.words.len()).expect("bounded amendment bytes");
             }
-            MessageKind::QuestionEnded { .. }
+            MessageKind::QuestionAnswered { .. }
+            | MessageKind::QuestionEnded { .. }
             | MessageKind::EffectNotMade { .. }
             | MessageKind::Words
             | MessageKind::Question
@@ -321,6 +324,7 @@ pub(crate) fn check_message(
         | MessageKind::FinishRequested { .. }
         | MessageKind::Amendment { .. }
         | MessageKind::Met { .. }
+        | MessageKind::QuestionAnswered { .. }
         | MessageKind::QuestionEnded { .. }
         | MessageKind::SettingsDecision { .. }
         | MessageKind::ProposalDecision { .. }
@@ -431,6 +435,7 @@ pub(crate) fn check_message(
         | MessageKind::FinishRequested { .. }
         | MessageKind::Amendment { .. }
         | MessageKind::Met { .. }
+        | MessageKind::QuestionAnswered { .. }
         | MessageKind::QuestionEnded { .. }
         | MessageKind::SettingsDecision { .. }
         | MessageKind::ProposalDecision { .. }
@@ -573,6 +578,7 @@ pub(crate) fn delegate_result(
         | MessageKind::FinishRequested { .. }
         | MessageKind::Amendment { .. }
         | MessageKind::Met { .. }
+        | MessageKind::QuestionAnswered { .. }
         | MessageKind::QuestionEnded { .. }
         | MessageKind::Question
         | MessageKind::Answer { .. }

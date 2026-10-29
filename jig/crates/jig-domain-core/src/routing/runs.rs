@@ -487,6 +487,23 @@ pub(super) fn named_action(
             );
         }
         NamedAction::Message { target, kind, words } => {
+            if core.person_answers
+                && let tasks::MessageKind::Answer { question } = kind
+                && core.people.question_person(key.task, question).is_some()
+            {
+                call_decision(
+                    core,
+                    &mut out,
+                    ReplyTo::new(token),
+                    key,
+                    CallPart::MessageRefused(tasks::Problem::new(
+                        Some(target),
+                        tasks::Refusal::PersonAnswers { question },
+                    )),
+                );
+                out.push(Request::Decided);
+                return Requests::Out(out);
+            }
             let Some(context) = core.tasks.delegation(key.task) else {
                 call_decision(
                     core,
