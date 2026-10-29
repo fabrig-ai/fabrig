@@ -74,6 +74,12 @@ ISO 8601 UTC creation time, plus `lent_by` when supplied; records without
 it stay valid. Claims use `O_CREAT|O_EXCL` with mode 0600;
 an existing claim exits 1 and prints the holder. Release checks the owner
 and refuses another owner's claim. Missing claims also exit 1.
+`release HOST N OWNER --what WHAT` also requires an exact match of the
+recorded work description. Both comparisons and deletion hold the same
+claims lock. A mismatch exits 1 without changing the record. Automated
+callers use a unique WHAT for each claim lifetime and supply it on release;
+a prior `list` check alone cannot protect a successor with the same owner.
+Owner-only release remains available for existing manual callers.
 
 List prints every configured pair and its `[share]`, with `free` or the
 owner, description, UTC creation time, elapsed age and lender when present.

@@ -77,6 +77,29 @@ class ClaimTests(unittest.TestCase):
         self.assertIn("released by lead", output)
         self.assertFalse(self.path.exists())
 
+    def test_conditional_release_preserves_same_owner_successor(self):
+        self.create(what="old walk")
+        self.assertEqual(self.cli("release", "hetzner2", "1", "lead")[0], 0)
+        self.create(what="new walk")
+        before = self.path.read_bytes()
+        code, _, error = self.cli("release", "hetzner2", "1", "lead", "--what", "old walk")
+        self.assertEqual(code, 1)
+        self.assertIn("release requires matching WHAT", error)
+        self.assertIn("new walk", error)
+        self.assertEqual(self.path.read_bytes(), before)
+
+    def test_conditional_release_checks_owner_and_releases_exact_work(self):
+        self.create(what="walk 13")
+        before = self.path.read_bytes()
+        code, _, error = self.cli("release", "hetzner2", "1", "other", "--what", "walk 13")
+        self.assertEqual(code, 1)
+        self.assertIn("release requires that owner", error)
+        self.assertEqual(self.path.read_bytes(), before)
+        code, output, error = self.cli("release", "hetzner2", "1", "lead", "--what", "walk 13")
+        self.assertEqual(code, 0, error)
+        self.assertIn("released by lead", output)
+        self.assertFalse(self.path.exists())
+
     def test_list_shows_inventory_free_slots_holder_and_age(self):
         self.create()
         later = datetime(2026, 10, 29, 14, 3, 4, tzinfo=timezone.utc)
