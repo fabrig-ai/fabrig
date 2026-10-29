@@ -572,7 +572,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event) {
             if step == core::RestartStep::LoadCore {
                 let restored_env = Env { now: env.now, wall: env.wall, limits: env.limits.core };
                 if domain.core.settings_restored(&restored_env) {
-                    let room = core::route_bound(&env.limits.core).expect("validated core room");
+                    let room = env.limits.core.routes;
                     decide(domain, env, Work::Core(core::Event::SettingsCommit { room }));
                 }
             }

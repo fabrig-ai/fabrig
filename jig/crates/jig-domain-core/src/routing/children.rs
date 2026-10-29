@@ -106,15 +106,13 @@ pub(super) fn tag_fleet(
     env: &Env<Limits>,
     work: &mut Queue<Event>,
     mut child: Queue<fleet::Request>,
-    room: u32,
 ) -> Requests {
-    let marked = room.checked_mul(4).expect("bounded fleet routes");
     let mut out = Queue::uncapped();
     let mut pending = Queue::uncapped();
     for _ in 0..child.len() {
         pending.push(child.pop().expect("fleet output count"));
     }
-    for _ in 0..marked {
+    for _ in 0..env.limits.routes {
         let Some(next) = pending.pop() else { break };
         let request = match next {
             fleet::Request::ProgramTargets { source, workers } => {
@@ -423,7 +421,7 @@ pub(super) fn tag_fleet(
         };
         out.push(request);
     }
-    assert!(pending.is_empty(), "finite fleet routes fit their bound");
+    assert!(pending.is_empty(), "fleet_routes_drained");
     out.push(Request::Decided);
     Requests::Out(out)
 }
@@ -709,7 +707,7 @@ pub(super) fn route_fleet(
     if shape || draining != draining_hosts(core) {
         core.touch_accounts(None);
     }
-    tag_fleet(core, env, work, out, fleet::max_out(&env.limits.fleet))
+    tag_fleet(core, env, work, out)
 }
 
 pub(super) fn route_projection_settled(core: &mut Core, goal: u64, connector: u16) -> Requests {
