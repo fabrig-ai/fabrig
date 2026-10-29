@@ -395,8 +395,3 @@ fn tokenizer_error(error: tokenizer::Error) -> DecodeError {
         | tokenizer::Error::Stream(_) => DecodeError::Malformed,
     }
 }
-
-/// Bounds JSON validation workspace.
-pub(crate) fn validation_bound(limits: &Limits) -> Option<u64> {
-    Stack::<Frame>::price(limits.depth)
-}
