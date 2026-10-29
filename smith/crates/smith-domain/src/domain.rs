@@ -349,6 +349,12 @@ impl Domain {
         self.content.pop()
     }
 
+    /// Content records queued for the owner to drain.
+    #[must_use]
+    pub fn pending_content(&self) -> u32 {
+        self.content.len()
+    }
+
     /// Optional content observations omitted by the current capture buffer.
     #[must_use]
     pub fn content_lost(&self) -> u64 {

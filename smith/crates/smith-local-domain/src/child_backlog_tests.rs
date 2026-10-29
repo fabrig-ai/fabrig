@@ -3,6 +3,119 @@ use super::*;
 use crate::tests::{drain_requests, host_limits, saved_window_turn, spawned_chat_with_saved_hello};
 use smith_host_domain::{self as host, process};
 
+fn start_without_workspace(domain: &Domain) -> host::Start {
+    let mut charter = charter(&domain.config);
+    charter.conventions = None;
+    charter.llm.account = None;
+    domain
+        .agent
+        .prepare(RunStart {
+            live_text: false,
+            messages: Box::default(),
+            identity: agent::run::Identity::new([1; 16]),
+            activation: 1,
+            charter,
+            workspace: None,
+            transcript: None,
+            answered: Box::default(),
+            grants: Box::default(),
+        })
+        .expect("bounded start")
+}
+
+#[test]
+fn one_pass_drains_inline_lifecycle_facts_beyond_the_allowance() {
+    let mut limits = crate::tests::limits();
+    let AgentLimits::Inline(child) = &mut limits.agent else { panic!("inline fixture") };
+    child.facts = 1;
+    let mut domain = Domain::new(crate::tests::config(), &limits, 11).expect("inline parent");
+    for _ in 0_u32..4 {
+        let start = start_without_workspace(&domain);
+        command(&mut domain.agent, Time::ZERO, Wall::EPOCH, parent::Event::Spawn { client: Token::new(1), start });
+    }
+    let Agent::Inline { domain: child, limits, .. } = &domain.agent else { panic!("inline child") };
+    assert_eq!(child.pending_slot_facts(), 4, "one opened slot and three refusals");
+    assert!(child.pending_slot_facts() > limits.facts);
+    drain_agent_content(&mut domain);
+    let Agent::Inline { domain: child, .. } = &mut domain.agent else { panic!("inline child") };
+    assert_eq!(child.pending_slot_facts(), 0);
+    assert!(child.pop_slot_fact().is_none());
+    assert!(child.backlog() > 0, "the service still owns the native facts");
+}
+
+#[test]
+fn one_pass_drains_spawned_facts_beyond_the_allowance() {
+    let mut limits = crate::tests::limits();
+    let child_limits = host::Limits { facts: 1, ..host_limits() };
+    limits.agent = AgentLimits::Spawned(child_limits);
+    let mut domain = Domain::new(crate::tests::config(), &limits, 11).expect("spawned parent");
+    for _ in 0_u32..4 {
+        let start = start_without_workspace(&domain);
+        command(&mut domain.agent, Time::ZERO, Wall::EPOCH, parent::Event::Spawn { client: Token::new(1), start });
+    }
+    assert!(spawned_backlog(&domain) > child_limits.facts);
+    drain_agent_content(&mut domain);
+    assert_eq!(spawned_backlog(&domain), 0);
+    let Agent::Spawned { domain: child, .. } = &mut domain.agent else { panic!("spawned child") };
+    assert!(child.pop_fact().is_none());
+}
+
+#[test]
+fn one_content_drain_reclaims_an_ended_inline_slot_with_zero_or_several_records() {
+    use smith_inline_agent::{Below, Lower};
+    for records in [0, 3] {
+        let limits = crate::tests::limits();
+        let mut domain = Domain::new(crate::tests::config(), &limits, 11).expect("inline parent");
+        let start = start_without_workspace(&domain);
+        command(&mut domain.agent, Time::ZERO, Wall::EPOCH, parent::Event::Spawn { client: Token::new(1), start });
+        let mut completion = None;
+        while let Some(output) = domain.agent.pop() {
+            if let Output::Lower { agent, request: Lower::Complete { owner, .. } } = output {
+                completion = Some((agent, owner));
+            }
+        }
+        let (handle, owner) = completion.expect("provider request");
+        if records > 0 {
+            domain.agent.below(
+                Time::ZERO,
+                Wall::EPOCH,
+                handle,
+                Below::Completed {
+                    owner,
+                    completion: agent::llm::Completion {
+                        reasoning_dropped: Box::default(),
+                        content: Box::new([
+                            agent::llm::Said::Text { text: b"one".as_slice().into(), replay: None },
+                            agent::llm::Said::Text { text: b"two".as_slice().into(), replay: None },
+                        ]),
+                        stop: agent::llm::Stop::EndTurn,
+                        usage: agent::llm::Usage::ZERO,
+                    },
+                },
+            );
+        }
+        command(&mut domain.agent, Time::ZERO, Wall::EPOCH, parent::Event::Drop { agent: handle });
+        while let Some(output) = domain.agent.pop() {
+            if let Output::Lower { agent, request: Lower::Cancel { owner } } = output {
+                domain.agent.below(Time::ZERO, Wall::EPOCH, agent, Below::Cancelled { owner });
+            }
+        }
+        while domain.pop_run_fact().is_some() {}
+        let Agent::Inline { domain: child, .. } = &domain.agent else { panic!("inline child") };
+        assert_eq!(child.pending_content(Token::new(1)), records);
+        domain.reclaim();
+        let Agent::Inline { domain: child, .. } = &domain.agent else { panic!("inline child") };
+        assert_eq!(child.hosted(), 1, "content has not had its empty probe");
+        drain_agent_content(&mut domain);
+        let Agent::Inline { domain: child, .. } = &domain.agent else { panic!("inline child") };
+        assert_eq!(child.pending_content(Token::new(1)), 0);
+        assert_eq!(child.pending_slot_facts(), 0);
+        domain.reclaim();
+        let Agent::Inline { domain: child, .. } = &domain.agent else { panic!("inline child") };
+        assert_eq!(child.hosted(), 0, "one drain permits terminal-slot reclaim");
+    }
+}
+
 fn spawned_backlog(domain: &Domain) -> u32 {
     let Agent::Spawned { domain: child, .. } = &domain.agent else { panic!("spawned child") };
     child.backlog()
