@@ -90,6 +90,36 @@ fn store_answered(service: &crate::Service) -> bool {
     }
     false
 }
+
+#[test]
+fn a_corrupt_pending_restart_load_keeps_its_restore_kind() {
+    let mut service = fixtures::started();
+    for _ in 0_u32..16 {
+        fixtures::turn(&mut service);
+        if store_answered(&service) {
+            break;
+        }
+    }
+    let event = service.engine.as_mut().expect("engine").store.above.pop();
+    let Some(jig_protocol_store::Event::Restored { owner, .. }) = event else {
+        panic!("first restart load: {event:?}")
+    };
+    service.engine.as_mut().expect("engine").store.above.push(jig_protocol_store::Event::Corrupt { owner });
+    for _ in 0_u32..256 {
+        fixtures::turn(&mut service);
+        if service.end().is_some() {
+            break;
+        }
+    }
+    assert_eq!(
+        service.end(),
+        Some(&crate::End::Stopped(crate::Stop::RestoreLoad(crate::RestoreFailure {
+            range: crate::RestoreRangeKind::Deployment,
+            failure: crate::LoadFailure::Store,
+        })))
+    );
+}
+
 #[test]
 fn a_store_answer_is_taken_at_the_backlog_watermark() {
     let mut service = fixtures::ready();
