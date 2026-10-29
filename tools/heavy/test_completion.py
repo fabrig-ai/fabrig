@@ -107,6 +107,11 @@ class CompletionQueryTests(unittest.TestCase):
         self.assertEqual(self.query().returncode, 2)
         self.assertEqual(self.query('../token').returncode, 2)
 
+    def test_oversized_sealed_log_refused_before_read(self):
+        with Path(self.task['log']).open('wb') as log:
+            log.truncate(64 * 1024 * 1024 + 1)
+        self.assertEqual(self.query().returncode,2)
+
     def test_missing_receipt_refuses_without_mutating_history(self):
         (self.base / 'receipts' / (self.token + '.json')).unlink()
         self.assertEqual(self.query().returncode, 2)

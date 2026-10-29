@@ -1320,7 +1320,10 @@ def completion_query(label):
                         receipt.get('cgroup_empty') is not True or
                         receipt.get('row_durable') is not True):
                     raise Refusal('incomplete or mismatched release receipt')
-                log = Path(receipt['log']).read_bytes()
+                log_path = Path(receipt['log'])
+                if log_path.stat().st_size > 64 * 1024 * 1024:
+                    raise Refusal('completion log exceeds 64 MiB query limit')
+                log = log_path.read_bytes()
                 if hashlib.sha256(log).hexdigest() != receipt['log_sha256']:
                     raise Refusal('completion log digest mismatch')
                 item['receipt'] = receipt

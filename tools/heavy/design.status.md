@@ -29,3 +29,5 @@ receipts/logs, unresolved/absent identities, corruption/version/queue refusal,
 and byte/mtime invariance on success and failure. This new behavior requires
 fresh operator validation; previous identical-runtime migration proofs do not
 validate it. No real recovery/systemd operation was run for this addition.
+The query's sealed-log read is bounded at 64 MiB; the added oversized-log case
+brings its offline entry to eight cases. This does not change stored formats.

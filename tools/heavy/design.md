@@ -390,3 +390,7 @@ queue must bind the label to its durable command intent and exact candidate,
 refuse ambiguity/reuse, and separately prove its local supervisor descendants
 ended. A killed client before admission identity is established stays unknown.
 No caller may replace heavy evidence with a handwritten receipt.
+
+Completion queries refuse sealed logs above 64 MiB before reading them. Queue
+transport additionally bounds the complete response and retains uncertainty
+when a response cannot be returned. Eight offline query cases cover this API.
