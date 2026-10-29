@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 """Heavy's optional installation and plain execution in disposable trees."""
+import sys
+
+sys.dont_write_bytecode = True
 from case_runner import HUNG_TOOL_S
 import hashlib
 import json

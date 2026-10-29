@@ -5,6 +5,9 @@ No queue daemon is needed.
 No global queue/cache mutations, task-record APIs, or environment dumps.
 Raw evidence is retained in --evidence (a new directory).
 """
+import sys
+
+sys.dont_write_bytecode = True
 from case_runner import HUNG_TOOL_S
 import argparse
 import contextlib
@@ -19,7 +22,6 @@ import shlex
 import shutil
 import statistics
 import subprocess
-import sys
 import time
 from types import SimpleNamespace
 from unittest.mock import patch

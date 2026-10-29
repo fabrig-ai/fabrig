@@ -16,3 +16,9 @@ Recovery-suite rollback covers the current queue across installation
 paths, without agents Git history. Runtime/cache fixtures use private
 version launchers and fonts. A historical daemon rollback and real browser
 package validation are deferred in the design's Later section.
+
+Executable suites disable bytecode before importing local helpers. The offline
+bytecode regression invokes their real entry points in a disposable clean Git
+checkout with global configuration disabled, so generated Python caches cannot
+be hidden by a developer’s excludes. The real-systemd recovery suite remains
+manual-only.
