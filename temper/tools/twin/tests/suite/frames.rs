@@ -377,17 +377,7 @@ fn an_open_chats_user_cue_replays_its_converted_turns() {
     use skein_fake_llm_domain::{self as fake, api};
     use skein_lib::{Env, Queue, ReplyTo, Time, Token, Wall};
     let (_scratch, input) = fixture(&TASKS);
-    let mut parts = first(&input);
-    let mut blocks = List::with_capacity(1);
-    blocks.push(text(CUES[0])).expect("one request");
-    let user = Message::new(&smith::CEILINGS, MessageParts { role: Role::User, blocks }).expect("opening request");
-    let mut messages = List::with_capacity(2);
-    messages.push(user).expect("request");
-    messages
-        .push(parts.messages.iter().find(|message| *message.role() == Role::Assistant).expect("completion").clone())
-        .expect("completion");
-    parts.messages = messages;
-    save_first(&input, parts);
+    opening_request(&input, CUES[0]);
     let converted = twin(&input).expect("Open chat conversion");
     let value: Value = serde_json::from_slice(&converted.document).expect("converted JSON");
     assert_eq!(value["asked"][0]["cue"], CUES[0]);
@@ -457,5 +447,30 @@ fn an_open_chats_user_cue_replays_its_converted_turns() {
         history.push(api::Message { role: api::Role::Assistant, parts: answer.parts });
         history.push(api::Message { role: api::Role::User, parts: results.into_boxed_slice() });
         domain.reclaim();
+    }
+}
+
+fn opening_request(input: &Input, words: &str) {
+    let mut parts = first(input);
+    let mut blocks = List::with_capacity(1);
+    blocks.push(text(words)).expect("one request");
+    let user = Message::new(&smith::CEILINGS, MessageParts { role: Role::User, blocks }).expect("opening request");
+    let mut messages = List::with_capacity(2);
+    messages.push(user).expect("request");
+    messages
+        .push(parts.messages.iter().find(|message| *message.role() == Role::Assistant).expect("completion").clone())
+        .expect("completion");
+    parts.messages = messages;
+    save_first(input, parts);
+}
+
+#[test]
+fn a_finite_opening_keeps_its_system_cue_when_messages_quote_it() {
+    for begin in ["Begin the work your brief describes.", "Begin the work your instructions describe."] {
+        let (_scratch, input) = fixture(&[CHAT]);
+        opening_request(&input, &format!("{begin}\n\n{}", CUES[0]));
+        let doc = document(&input);
+        assert_eq!(doc["cued"][0]["cue"], CUES[0]);
+        assert_eq!(doc["asked"], json!([]));
     }
 }

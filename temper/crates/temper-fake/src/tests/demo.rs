@@ -618,7 +618,7 @@ fn opening(words: &str, mode: run::Mode) -> run::Opening {
         },
         &mut out,
     );
-    assert!(matches!(out.pop(), Some(run::Request::Admitted { .. })), "run admitted: {out:?}");
+    let Some(run::Request::Admitted { .. }) = out.pop() else { panic!("run admitted: {out:?}") };
     let Some(run::Request::Open { opening, .. }) = out.pop() else { panic!("main opening: {out:?}") };
     assert!(out.is_empty());
     opening
@@ -632,10 +632,8 @@ fn suggested_chats_select_their_scripts_from_smiths_opening() {
         ("Fix widget's empty search state", "I would have widget say"),
     ] {
         let answer = answers(words, run::Mode::Open, 1).remove(0);
-        assert!(
-            answer.parts.iter().any(|part| matches!(part, Part::Text { text } if text.starts_with(prefix.as_bytes()))),
-            "{words}: {answer:?}"
-        );
+        let Some(Part::Text { text }) = answer.parts.first() else { panic!("{words}: {answer:?}") };
+        assert!(text.starts_with(prefix.as_bytes()), "{words}: {answer:?}");
     }
 }
 
