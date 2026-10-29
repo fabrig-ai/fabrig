@@ -1,6 +1,14 @@
 //! A single-threaded service: block SIGTERM before spawning its sender.
 
 #[cfg(target_os = "linux")]
+#[path = "../../tests/support/deadline.rs"]
+#[expect(
+    dead_code,
+    reason = "the fixture shares deadline and io cleanup support with the test process's polling waits"
+)]
+mod deadlines;
+
+#[cfg(target_os = "linux")]
 #[expect(
     clippy::too_many_lines,
     reason = "the single-threaded signal fixture owns startup and drains io to settlement"
@@ -8,7 +16,7 @@
 fn main() {
     use skein_io::kernel::{Pipe, ServiceSignal, Spawn, Way};
     use skein_io::{self as io, Event, Request};
-    use skein_lib::{Duration, Env, Queue, Token};
+    use skein_lib::{Duration, Env, Token};
     use skein_shell::{Backend, Clock, Config, Kernel, Wait};
     use std::os::unix::ffi::OsStrExt;
 
@@ -109,10 +117,13 @@ fn main() {
     let mut kernel = Kernel::open_on(Config { operations: io::operations(&limits).expect("operation bound") }, backend)
         .expect("kernel backend");
     let clock = Clock::new();
-    let deadline = clock.now().now.saturating_add(Duration::from_secs(3));
-    let mut submissions = Queue::with_capacity(RECORDS);
-    let mut completions = Queue::with_capacity(RECORDS);
-    let mut events = Queue::with_capacity(RECORDS);
+    let mut patience = std::env::var_os("NEXTEST")
+        .map(|_| deadlines::Patience::new("the signal sender service settling", Duration::from_secs(3)));
+    let deadline = match &patience {
+        Some(patience) => patience.until(),
+        None => clock.now().now.saturating_add(Duration::from_secs(3)),
+    };
+    let (mut submissions, mut completions, mut events) = deadlines::records(RECORDS);
     let now = clock.now();
     let env = Env { now: now.now, wall: now.wall, limits };
     let executable = std::env::current_exe().expect("sender fixture path");
@@ -152,13 +163,15 @@ fn main() {
     state.reclaim();
     loop {
         let now = clock.now();
-        assert!(now.now < deadline, "signal sender service must settle: child {child:?}, heard {heard}");
         let env = Env { now: now.now, wall: now.wall, limits };
         while state.is_ready() {
             io::resume(&mut state, &env, &mut events, &mut submissions);
         }
         kernel.reap(&mut completions);
         while let Some(complete) = completions.pop() {
+            if let Some(patience) = &mut patience {
+                patience.watch_spawn(&complete);
+            }
             io::up(&mut state, &env, complete, &mut events, &mut submissions);
         }
         while let Some(event) = events.pop() {
@@ -208,6 +221,33 @@ fn main() {
             assert_eq!(kernel.in_flight(), 0);
             skein_shell::close_keeper_fd(root);
             return;
+        }
+        if now.now >= deadline {
+            if let Some(patience) = &patience {
+                match patience.expired() {
+                    skein_world::Expired::Starved(starved) => {
+                        let mut owned = vec![source];
+                        owned.extend(child);
+                        owned.extend(input);
+                        deadlines::end_io(
+                            &mut kernel,
+                            &mut state,
+                            limits,
+                            &mut submissions,
+                            &mut completions,
+                            &mut events,
+                            &owned,
+                        );
+                        drop(kernel);
+                        skein_shell::close_keeper_fd(root);
+                        starved.pass();
+                    }
+                    skein_world::Expired::Failed(figures) => {
+                        panic!("signal sender service must settle: child {child:?}, heard {heard}: {figures}");
+                    }
+                }
+            }
+            panic!("signal sender service must settle: child {child:?}, heard {heard}");
         }
         let wait = if state.is_ready() || !events.is_empty() { Wait::No } else { Wait::Until(deadline) };
         kernel.submit(&mut submissions, wait);

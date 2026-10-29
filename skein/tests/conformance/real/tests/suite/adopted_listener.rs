@@ -4,8 +4,11 @@ use std::net::{Ipv4Addr, TcpListener, TcpStream};
 use std::os::fd::IntoRawFd;
 
 use skein_io::{self as io, Addr, Event, Request, kernel::Fd};
-use skein_lib::{Duration, Env, Queue, Token};
+use skein_lib::{Duration, Env, Token};
 use skein_shell::{Backend, Clock, Config, Kernel, Wait};
+use skein_world::Expired;
+
+use super::given_listener::deadlines;
 
 fn limits() -> io::Limits {
     io::Limits {
@@ -23,22 +26,31 @@ fn limits() -> io::Limits {
     }
 }
 
-fn queued_before_claim(backend: Backend) {
+fn startup_listener() -> (TcpListener, std::net::SocketAddr) {
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).expect("startup listener");
     listener.set_nonblocking(true).expect("nonblocking listener");
     let address = listener.local_addr().expect("bound address");
-    let client = TcpStream::connect(address).expect("connection queued before the loop");
-    let peer = client.local_addr().expect("queued client's address");
+    (listener, address)
+}
+
+fn adopt(backend: Backend, listener: TcpListener, address: std::net::SocketAddr) -> (io::Io, Token, Kernel) {
     let limits = limits();
     let mut state = io::Io::new(&limits);
     let token = state.adopt_listener(Fd::new(listener.into_raw_fd()), address).expect("listener adopted");
-    let mut kernel = Kernel::open_on(Config { operations: io::operations(&limits).expect("operation bound") }, backend)
+    let kernel = Kernel::open_on(Config { operations: io::operations(&limits).expect("operation bound") }, backend)
         .expect("real backend");
+    (state, token, kernel)
+}
+
+fn queued_before_claim(backend: Backend) {
+    let (listener, address) = startup_listener();
+    let client = TcpStream::connect(address).expect("connection queued before the loop");
+    let peer = client.local_addr().expect("queued client's address");
+    let limits = limits();
+    let (mut state, token, mut kernel) = adopt(backend, listener, address);
     let clock = Clock::new();
-    let deadline = clock.now().now.saturating_add(Duration::from_secs(2));
-    let mut submissions = Queue::with_capacity(16);
-    let mut completions = Queue::with_capacity(16);
-    let mut events = Queue::with_capacity(16);
+    let deadline = deadlines::Patience::new("the adopted listener settling", Duration::from_secs(2));
+    let (mut submissions, mut completions, mut events) = deadlines::records(16);
     let now = clock.now();
     io::down(
         &mut state,
@@ -50,10 +62,9 @@ fn queued_before_claim(backend: Backend) {
     let mut listening = false;
     let mut accepted = false;
     let mut closed = false;
-    for _ in 0..1000 {
+    loop {
         state.reclaim();
         let now = clock.now();
-        assert!(now.now < deadline, "listener adoption must settle");
         let env = Env { now: now.now, wall: now.wall, limits };
         while state.is_ready() {
             io::resume(&mut state, &env, &mut events, &mut submissions);
@@ -100,9 +111,28 @@ fn queued_before_claim(backend: Backend) {
             assert_eq!(kernel.in_flight(), 0);
             return;
         }
-        kernel.submit(&mut submissions, Wait::Until(now.now.saturating_add(Duration::from_millis(5))));
+        if deadline.passed() {
+            match deadline.expired() {
+                Expired::Starved(starved) => {
+                    deadlines::end_io(
+                        &mut kernel,
+                        &mut state,
+                        limits,
+                        &mut submissions,
+                        &mut completions,
+                        &mut events,
+                        &[token],
+                    );
+                    drop(kernel);
+                    drop(client);
+                    starved.pass();
+                }
+                Expired::Failed(figures) => panic!("listener adoption must settle: {figures}"),
+            }
+        }
+        let until = now.now.saturating_add(Duration::from_millis(5)).min(deadline.until());
+        kernel.submit(&mut submissions, Wait::Until(until));
     }
-    panic!("listener adoption must settle");
 }
 
 #[test]
@@ -114,4 +144,38 @@ fn a_held_listener_accepts_a_connection_queued_before_claim_on_readiness() {
 #[test]
 fn a_held_listener_accepts_a_connection_queued_before_claim_on_ring() {
     queued_before_claim(Backend::Ring);
+}
+
+#[test]
+fn cleanup_cancels_an_adopted_listeners_pending_accept() {
+    let backends = [
+        Backend::Readiness,
+        #[cfg(target_os = "linux")]
+        Backend::Ring,
+    ];
+    for backend in backends {
+        let (listener, address) = startup_listener();
+        let limits = limits();
+        let mut state = io::Io::new(&limits);
+        let token = state.adopt_listener(Fd::new(listener.into_raw_fd()), address).expect("listener adopted");
+        let mut kernel =
+            Kernel::open_on(Config { operations: io::operations(&limits).expect("operation bound") }, backend)
+                .expect("real backend");
+        let now = Clock::new().now();
+        let env = Env { now: now.now, wall: now.wall, limits };
+        let (mut submissions, mut completions, mut events) = deadlines::records(16);
+        io::down(
+            &mut state,
+            &env,
+            Request::Listen { owner: Token::new(100), addr: Addr::Ip(address) },
+            &mut submissions,
+        );
+        while state.is_ready() {
+            io::resume(&mut state, &env, &mut events, &mut submissions);
+        }
+        kernel.submit(&mut submissions, Wait::No);
+        deadlines::end_io(&mut kernel, &mut state, limits, &mut submissions, &mut completions, &mut events, &[token]);
+        assert!(state.is_empty(), "cleanup closes the listener");
+        assert_eq!(kernel.in_flight(), 0, "cleanup drains the pending accept and cancellation");
+    }
 }
