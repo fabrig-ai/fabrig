@@ -61,6 +61,19 @@ fn result_slots(l: &Limits) -> Option<u32> {
 fn receipt_slots(l: &Limits) -> Option<u32> {
     l.repositories.checked_mul(l.gates)?.checked_mul(l.receipts_per_gate)
 }
+// Landing row indices and retained table counts must fit before construction.
+pub(crate) fn valid(l: &Limits) -> bool {
+    if l.landing_members > u32::from(u16::MAX)
+        || l.gates > u32::from(u16::MAX)
+        || l.receipts_per_gate < 2
+        || l.trees_in_flight == 0
+        || l.key_entries == 0
+        || l.key_path_bytes == 0
+    {
+        return false;
+    }
+    slots(l).is_some() && result_slots(l).is_some() && receipt_slots(l).is_some()
+}
 impl State {
     pub fn new(l: &Limits) -> Self {
         let slots = slots(l).expect("landing bounds checked");
@@ -1824,13 +1837,7 @@ pub(crate) fn receipt_bytes(key: &ReceiptKey, receipt: &Receipt) -> Option<u64> 
 /// The bounded tables, nested payloads, transient read snapshots and key walker.
 pub(crate) fn worst_case(l: &Limits) -> Option<u64> {
     let slots = slots(l)?;
-    if l.landing_members > u32::from(u16::MAX)
-        || l.gates > u32::from(u16::MAX)
-        || l.receipts_per_gate < 2
-        || l.trees_in_flight == 0
-        || l.key_entries == 0
-        || l.key_path_bytes == 0
-    {
+    if !valid(l) {
         return None;
     }
     let gate = u64::try_from(size_of::<policy::Gate>())

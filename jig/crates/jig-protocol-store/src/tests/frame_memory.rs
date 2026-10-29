@@ -106,8 +106,8 @@ fn the_real_copy_is_smiths_schema() {
     let root = schema.find(smith_transcript::ROOT.as_bytes()).expect("Turn");
     assert_eq!(
         Some(u64::from(schema.most_bytes(root))),
-        smith_transcript::Turn::worst_case_bytes(&smith_transcript::CEILINGS),
-        "the copy's worst case is smith's"
+        smith_transcript::Turn::encoded_bound(&smith_transcript::CEILINGS),
+        "the copy's bound is smith's"
     );
     assert_eq!(u64::from(schema.version()), smith_transcript::Turn::FORMAT_VERSION);
     assert_eq!(schema.spelled(schema.family()), smith_transcript::FAMILY.as_bytes());

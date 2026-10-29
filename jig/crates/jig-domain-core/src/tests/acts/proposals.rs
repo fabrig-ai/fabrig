@@ -14,7 +14,7 @@ fn procedure_fixture() -> (Core, Limits, connector::EffectDescription) {
     value.ceiling.grants = Box::new([grant]);
     value.roles[0].decides = authority::Proposals(16);
     core.authority = authority::Domain::new(rules, limits.authority).unwrap();
-    let mut out = Queue::with_capacity(authority::POLICY_MAX_OUT);
+    let mut out = Queue::uncapped();
     authority::step(&mut core.authority, authority::Event::Policy { project: 1, policy: value }, &mut out);
     assert_eq!(out.pop(), Some(authority::PolicyFact::Added { project: 1 }));
     let mut row = new_row(&core, 1, tasks::Funder::Period { project: 1, period: 1 }, None);

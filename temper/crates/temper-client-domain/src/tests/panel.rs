@@ -620,8 +620,10 @@ fn a_late_tell_from_the_previous_subject_changes_nothing() {
 #[test]
 fn output_bounds_cover_replacement_and_a_full_panel() {
     const PANEL_REPLACEMENT_REQUESTS: u32 = 2; // Unwatch followed by watch.
-    // A full decoded change panel, a quarter above 10-28's 5,408 bytes.
-    const PANEL_HEAP_CEILING: u64 = 6_800;
+    // Scenario peak 32,419 bytes, including fixtures and replacement, plus 25%, rounded up.
+    const PANEL_HEAP_CEILING: u64 = 41_000;
+    let meter = skein_world::domain::heap::Meter::new();
+    meter.start();
     let limits = f::limits();
     let mut side = forge::Side::new(&limits.forge, f::SEED);
     let mut out = Queue::uncapped();
@@ -653,8 +655,11 @@ fn output_bounds_cover_replacement_and_a_full_panel() {
     let panel = w::ChangePanel::new(&w::CEILINGS, parts).unwrap();
     deliver(&mut root, watch, &panel);
     assert_eq!(root.forge().panel().unwrap().state, State::Shown(Box::new(panel.clone())));
-    let wire = forge::wire_limits(&limits.forge).unwrap();
-    let panel_heap =
-        u64::try_from(size_of::<w::ChangePanel>()).unwrap() + w::ChangePanel::decoded_bound(&wire).unwrap();
-    assert!(panel_heap <= PANEL_HEAP_CEILING);
+    let mut replacement = panel.clone().into_parts();
+    replacement.step = w::Step::Producing;
+    let replacement = w::ChangePanel::new(&w::CEILINGS, replacement).unwrap();
+    assert!(deliver(&mut root, watch, &replacement).is_empty());
+    assert_eq!(root.forge().panel().unwrap().state, State::Shown(Box::new(replacement)));
+    let peak = meter.end().peak();
+    assert!(peak <= PANEL_HEAP_CEILING, "panel replacement: {peak} <= {PANEL_HEAP_CEILING}");
 }

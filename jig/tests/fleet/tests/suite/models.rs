@@ -26,7 +26,7 @@ impl Fleet {
     }
 
     fn send(&mut self, event: Event) -> Vec<Request> {
-        let mut out = Queue::with_capacity(fleet::max_out(&self.env.limits));
+        let mut out = Queue::uncapped();
         fleet::step(&mut self.domain, &self.env, event, &mut out);
         self.domain.reclaim();
         let mut requests = Vec::new();
@@ -65,7 +65,7 @@ impl Fleet {
 
     fn settle(&mut self) -> Vec<Token> {
         let mut assigned = Vec::new();
-        let mut out = Queue::with_capacity(fleet::max_out(&self.env.limits));
+        let mut out = Queue::uncapped();
         while self.domain.is_ready() {
             fleet::resume(&mut self.domain, &self.env, &mut out);
             while let Some(request) = out.pop() {

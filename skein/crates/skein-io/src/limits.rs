@@ -1,11 +1,7 @@
-//! io's limits, what they imply for memory (programming-model.md, 6.3), and
+//! io's limits and capacity checks (programming-model.md, 6.3), and
 //! the most each entry point emits (programming-model.md, section 2).
 
-use alloc::boxed::Box;
-
-use skein_lib::{Deadlines, Duration, Id, Intake, Map, Queue, Set, Slab, Token};
-
-use crate::layer::{Entity, Flight, Timer};
+use skein_lib::Duration;
 
 /// io's limits: the admission limits of its entities, and the caps on each
 /// stream's bytes (programming-model.md, section 7).
@@ -111,51 +107,6 @@ pub(crate) fn flights(limits: &Limits) -> Option<u32> {
 #[must_use]
 pub fn valid(limits: &Limits) -> bool {
     limits.is_usable() && operations(limits).is_some() && flights(limits).is_some() && timers(limits).is_some()
-}
-
-/// The most heap io holds under `limits`, or `None` past a `u64`
-/// (programming-model.md, 6.3): its tables as their containers report them,
-/// per stream an intake, a receive buffer, and the output with its queue,
-/// plus the pipe lists held by children and made while a spawn completes.
-/// The caller's command buffers (`Spawn::program`, arguments, environment,
-/// directory and pipe specifications) are input moved through io, so their
-/// size belongs to the caller's bound.
-/// Readers that check representability use [`valid`].
-#[must_use]
-pub fn worst_case(limits: &Limits) -> Option<u64> {
-    let sockets = limits.sockets;
-    // Without named listeners neither tree can allocate a node (io.md, 3.5).
-    let joined = if limits.names == 0 {
-        0
-    } else {
-        Map::<crate::Name, Id<Entity>>::price(limits.names)?
-            .checked_add(Map::<(Id<Entity>, u64), Id<Entity>>::price(sockets)?)?
-    };
-    let tables = Map::<Token, crate::kernel::Sender>::price(sockets)?
-        .checked_add(Slab::<Entity>::worst_case(sockets)?)?
-        .checked_add(Slab::<Flight>::worst_case(flights(limits)?)?)?
-        .checked_add(Deadlines::<(Id<Entity>, Timer)>::worst_case(timers(limits)?)?)?
-        .checked_add(Set::<Id<Entity>>::price(sockets)?.checked_mul(3)?)?
-        .checked_add(Queue::<Token>::price(limits.refusals)?)?
-        .checked_add(joined)?
-        .checked_add(Map::<crate::kernel::Addr, Id<Entity>>::price(sockets)?)?;
-    let stream = Intake::price(limits.intake)?
-        .checked_add(u64::from(limits.receive))?
-        .checked_add(u64::from(limits.output))?
-        .checked_add(Queue::<Box<[u8]>>::price(limits.sends)?)?;
-    // All children together can own at most `sockets` pipes. On spawn
-    // completion, the child retains its IDs while a clone, the result's FDs,
-    // and the event's tokens coexist. List-to-box conversion can likewise
-    // momentarily hold two ID arrays.
-    let pipe = size_of::<Id<Entity>>()
-        .checked_mul(2)?
-        .checked_add(size_of::<crate::kernel::Fd>())?
-        .checked_add(size_of::<Token>())?;
-    let process = u64::try_from(pipe)
-        .ok()?
-        .checked_add(u64::try_from(size_of::<crate::kernel::Spawn>()).ok()?)?
-        .checked_mul(u64::from(sockets))?;
-    tables.checked_add(stream.checked_mul(u64::from(sockets))?)?.checked_add(process)
 }
 
 /// The most kernel submissions an entry point emits in one call. The loop

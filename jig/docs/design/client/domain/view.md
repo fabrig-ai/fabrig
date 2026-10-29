@@ -127,7 +127,7 @@ jig-client-view/src/
 ├── sections/       each section of jig's pages, and the pages' headers (section 4.1)
 ├── pages.rs        jig's default arrangement, `after_page` and the owed cards; the pages not about the work
 ├── draw.rs         jig's drawing code, which draws no kind (section 17)
-├── limits.rs       its limits and worst case, jig's constructors of skein-ui's limits, and jig's scratch (sections 10 and 18.9)
+├── limits.rs       jig's constructors of skein-ui's limits and fragment envelopes (sections 10 and 18.9)
 └── tests.rs
 ```
 
@@ -454,12 +454,14 @@ tests feed it agents' replies and results kept as files beside them.
 
 ## 10. Sized from limits
 
-`skein_ui::Limits` and `skein_ui::worst_case` are skein-ui's (skein's
-`ui.md`, section 15). jig's are the constructors that derive the numbers
-from the reference UI's limits (18.9) and the client's (client.md,
+`skein_ui::Limits` is skein-ui's (skein's `ui.md`, section 15).
+jig's are the constructors that derive the numbers from the reference
+UI's limits (18.9) and the client's (client.md,
 section 14) (`jig_client_view::limits::of`, `compose`, `of_words` and
-`envelope`, each returning `skein_ui::Limits`), and jig's own scratch,
-which jig's worst case adds to skein-ui's.
+`envelope`, each returning `skein_ui::Limits`). A part's
+`fragment_bound` counts its largest fragment's nodes, labels and bytes
+at the receiving limits. These envelopes size the tree's edges; they
+do not sum a process's heap.
 
 Each of jig's parts, sections and pages has a companion that counts the
 most nodes it may build with every window full and every text at its
@@ -1043,9 +1045,9 @@ read by the application: ui.sections(), ui.shown()
 - **Bounded:** the drafts kept, a draft's bytes and a place's are
   limits.
 
-### 18.9 Limits and the worst case
+### 18.9 Limits and envelopes
 
-Each is configured and part of its worst case:
+Each is configured and bounds what the view accepts or builds:
 
 - objects in a page's working set; rows per window; turns a
   conversation's window holds; nodes of a plan held; the pages its reads
@@ -1067,11 +1069,9 @@ Each is configured and part of its worst case:
   turn;
 - the linger, a notice's life, the drafts' coalescing.
 
-`worst_case` sums the containers' own and the bytes each entity may hold
-(programming-model.md, 6.3), and bounds what the view builds: the
-view's limits derive from these and the client's, so a tree always fits
-(section 10). An application's worst case adds it to the client's
-(client.md, section 14).
+The view's limits derive from these and the client's, so a tree always
+fits (section 10). Containers grow as they fill; fixed scenarios check
+the measured heap peak against a named ceiling (testing.md, section 6).
 
 ### 18.10 Its world
 

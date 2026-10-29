@@ -465,7 +465,7 @@ fn fetch_machine() {
             _ => unreachable!(),
         };
         let mut machine = fetch::Fetch::new(pins.into_boxed_slice(), bound);
-        let mut out = Queue::with_capacity(fetch::MAX_OUT);
+        let mut out = Queue::uncapped();
         for (event, expected) in steps {
             fetch::step(&mut machine, event, &mut out);
             assert_eq!(out.pop(), Some(expected), "{name}");

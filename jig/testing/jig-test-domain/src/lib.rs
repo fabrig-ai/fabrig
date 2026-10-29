@@ -1119,7 +1119,7 @@ mod stopping;
 use routes::{route_connector, route_core};
 
 mod limits;
-pub use limits::{max_out, valid};
+pub use limits::valid;
 mod admission;
 pub use admission::{Class, class, try_step};
 

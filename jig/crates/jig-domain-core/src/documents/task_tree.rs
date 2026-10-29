@@ -1022,13 +1022,13 @@ pub(super) fn tree(core: &Core, limits: &Limits, party: u64, number: u64, window
     })
 }
 
-pub(super) fn overview_worst_case(limits: &super::DocumentLimits) -> Option<u64> {
+pub(super) fn overview_bound(limits: &super::DocumentLimits) -> Option<u64> {
     let text = u64::from(limits.text_bytes);
     let lines = u64::from(limits.lines);
     let rows = u64::from(limits.rows);
-    let chip = super::chip_phase::heap_worst_case(limits)?;
+    let chip = super::chip_phase::heap_bound(limits)?;
     let path = List::<Box<[u8]>>::price(limits.segments)?.checked_add(u64::from(limits.segments).checked_mul(text)?)?;
-    let authority = authority_worst_case(limits)?;
+    let authority = authority_bound(limits)?;
     let references = List::<TaskLink>::price(limits.lines)?.checked_add(lines.checked_mul(chip)?)?;
     let specification = text
         .checked_add(List::<Parameter>::price(limits.lines)?)?
@@ -1066,19 +1066,19 @@ pub(super) fn overview_worst_case(limits: &super::DocumentLimits) -> Option<u64>
     Some(task.max(tree))
 }
 
-pub(super) fn grant_worst_case(limits: &super::DocumentLimits) -> Option<u64> {
+pub(super) fn grant_bound(limits: &super::DocumentLimits) -> Option<u64> {
     List::<Box<[u8]>>::price(limits.segments)?
         .checked_add(u64::from(limits.segments).checked_add(1)?.checked_mul(u64::from(limits.text_bytes))?)
 }
-pub(super) fn authority_worst_case(limits: &super::DocumentLimits) -> Option<u64> {
+pub(super) fn authority_bound(limits: &super::DocumentLimits) -> Option<u64> {
     List::<GrantLine>::price(limits.grants)?
         .checked_add(List::<NoteScope>::price(limits.grants)?)?
-        .checked_add(u64::from(limits.grants).checked_mul(grant_worst_case(limits)?)?.checked_mul(2)?)?
+        .checked_add(u64::from(limits.grants).checked_mul(grant_bound(limits)?)?.checked_mul(2)?)?
         .checked_add(List::<tasks::AuthorityExecutor>::price(limits.executors)?)
 }
 
-pub(super) fn worst_case(limits: &super::DocumentLimits) -> Option<u64> {
-    overview_worst_case(limits)?.checked_add(super::offers::heap_worst_case(limits)?)
+pub(super) fn document_bound(limits: &super::DocumentLimits) -> Option<u64> {
+    overview_bound(limits)?.checked_add(super::offers::heap_bound(limits)?)
 }
 
 pub(super) fn dependency_facts(core: &Core, limits: &Limits, row: &tasks::TaskRecord) -> List<Dependency> {

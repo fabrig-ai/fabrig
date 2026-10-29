@@ -46,7 +46,7 @@ pub use deployment::{
 pub use programs::{ProgramHost, ProgramLogin};
 mod inbox_selection;
 pub(crate) use inbox_selection::retained as inbox_selection_from_ancestry;
-pub use inbox_selection::{InboxSelection, inbox_selection_worst_case};
+pub use inbox_selection::{InboxSelection, inbox_selection_bound};
 mod objects;
 mod offers;
 mod project_note;
@@ -391,7 +391,7 @@ pub fn make(
     window: &Window,
     decision: Wall,
 ) -> Result<Document, Missing> {
-    if document_worst_case(&limits.documents).is_none() {
+    if document_bound(&limits.documents).is_none() {
         return Err(Missing::TooLarge);
     }
     let window = &Window { rows: window.rows.min(limits.documents.rows), ..*window };
@@ -463,9 +463,9 @@ pub fn make(
 
 /// Checked allocation bound for one document; parents price each retained delivery separately.
 #[must_use]
-/// The inbox selection roots additionally require `document_with_context_worst_case`,
+/// The inbox selection roots additionally require `document_with_context_bound`,
 /// because their configured requester depth belongs to the task limits.
-pub fn document_worst_case(limits: &DocumentLimits) -> Option<u64> {
+pub fn document_bound(limits: &DocumentLimits) -> Option<u64> {
     if limits.rows == 0
         || limits.text_bytes == 0
         || limits.chips == 0
@@ -475,40 +475,40 @@ pub fn document_worst_case(limits: &DocumentLimits) -> Option<u64> {
     {
         return None;
     }
-    let chip = chip_phase::heap_worst_case(limits)?;
+    let chip = chip_phase::heap_bound(limits)?;
     let chips = List::<Chip>::price(limits.chips)?.checked_add(u64::from(limits.chips).checked_mul(chip)?)?;
     let charter = List::<u32>::price(limits.lines)?;
     let creating = charter
         .checked_add(List::<crate::acts::CreateProcedure>::price(limits.lines)?)?
         .checked_add(List::<u32>::price(limits.roles)?)?
         .checked_add(u64::try_from(size_of::<AuthorityLine>()).ok()?)?
-        .checked_add(task_tree::authority_worst_case(limits)?)?;
+        .checked_add(task_tree::authority_bound(limits)?)?;
     let frame = List::<FrameProjectRole>::price(limits.lines)?
         .checked_add(u64::from(limits.lines).checked_mul(creating)?)?
         .checked_add(u64::from(limits.lines).checked_mul(u64::from(limits.text_bytes))?)?
         .checked_add(u64::from(limits.text_bytes).checked_mul(2)?)?
-        .checked_add(catalogue::offers_worst_case(limits)?)?;
+        .checked_add(catalogue::offers_bound(limits)?)?;
     u64::try_from(size_of::<Document>()).ok()?.checked_add(
         chips
             .max(frame)
             .max(u64::from(limits.text_bytes).checked_mul(3)?)
-            .max(task_tree::worst_case(limits)?)
-            .max(task_query::worst_case(limits)?)
-            .max(objects::worst_case(limits)?)
-            .max(project_note::worst_case(limits)?)
-            .max(deployment::worst_case(limits)?)
-            .max(accounts::worst_case(limits)?),
+            .max(task_tree::document_bound(limits)?)
+            .max(task_query::document_bound(limits)?)
+            .max(objects::document_bound(limits)?)
+            .max(project_note::document_bound(limits)?)
+            .max(deployment::document_bound(limits)?)
+            .max(accounts::document_bound(limits)?),
     )
 }
 
 /// Bound of a document including the inbox's requester selection context.
 #[must_use]
-pub fn document_with_context_worst_case(limits: &Limits) -> Option<u64> {
-    document_worst_case(&limits.documents)?
-        .checked_add(settings::worst_case(limits)?)?
-        .checked_add(settings_review::worst_case(limits)?)?
-        .checked_add(inbox_selection_worst_case(limits.documents.rows, limits.tasks.depth)?)?
-        .checked_add(u64::from(limits.documents.lines).checked_mul(crate::templates::list_worst_case(limits)?)?)
+pub fn document_with_context_bound(limits: &Limits) -> Option<u64> {
+    document_bound(&limits.documents)?
+        .checked_add(settings::document_bound(limits)?)?
+        .checked_add(settings_review::document_bound(limits)?)?
+        .checked_add(inbox_selection_bound(limits.documents.rows, limits.tasks.depth)?)?
+        .checked_add(u64::from(limits.documents.lines).checked_mul(crate::templates::list_bound(limits)?)?)
 }
 
 /// Join volatile live observations to a loaded owner row. The reader checks
@@ -517,8 +517,8 @@ pub fn chip_from_row_with_core(core: &Core, limits: &Limits, row: &tasks::TaskRe
     small::chip_with_core(core, limits, 0, row)
 }
 
-pub(crate) fn chip_heap_worst_case(limits: &DocumentLimits) -> Option<u64> {
-    chip_phase::heap_worst_case(limits)
+pub(crate) fn chip_heap_bound(limits: &DocumentLimits) -> Option<u64> {
+    chip_phase::heap_bound(limits)
 }
 
 /// Construct a bounded chip from a loaded owner row, without live observations

@@ -394,6 +394,46 @@ ln -s "$DEV_ROOT" "$t/history-link"
 output=$(DEV_ROOT="$t/history-link/../workspace" "$kit/codex-run" _run absent 2>&1) && status=0 || status=$?
 [[ $status == 2 && ! -e $fake/launch.args && ! -e $DEV_ROOT/tmp/codex-run ]]
 expect 'bootstrapped worker refuses a cancelled history symlink' "$output" 'symlink path'
+
+# A framed result must preserve paths, and success requires both all fields and
+# a successful helper exit before report reservation or detached startup.
+python3 -I -B - "$kit/../slots/lifetime.py" "$t" <<'PYPATHS'
+import os
+from pathlib import Path
+import subprocess
+import sys
+
+helper, fixture = sys.argv[1:]
+root = os.path.join(fixture, 'history\nwith a line')
+report = os.path.join(fixture, 'reports', 'framed.md')
+directory = os.path.join(fixture, 'work dir')
+result = subprocess.run([sys.executable, '-I', '-S', '-B', helper, 'task-paths',
+                         root, report, directory], stdin=subprocess.DEVNULL,
+                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+assert result.stdout.split(b'\0') == [os.fsencode(root), os.fsencode(report),
+                                      os.fsencode(directory), b'other', b'']
+PYPATHS
+checks=$((checks + 1))
+cp "$kit/../slots/lifetime.py" "$t/lifetime.saved"
+cat >"$kit/../slots/lifetime.py" <<'PYFAULT'
+import os
+import sys
+values = [*sys.argv[2:], 'other']
+short = os.path.exists(os.path.join(os.path.dirname(__file__), 'short-result'))
+sys.stdout.write('\0'.join(values[:3] if short else values) + '\0')
+sys.exit(0 if short else 7)
+PYFAULT
+refusal 'complete path result with failed status refuses launch' task "$t/task file.md" "$t/work dir" "$t/reports/framed.md"
+[[ ! -e $t/reports/framed.md && ! -e $fake/launch.args ]]
+touch "$kit/../slots/short-result"
+refusal 'successful incomplete path result refuses launch' task "$t/task file.md" "$t/work dir" "$t/reports/framed.md"
+[[ ! -e $t/reports/framed.md && ! -e $fake/launch.args ]]
+rm "$kit/../slots/short-result"
+mv "$t/lifetime.saved" "$kit/../slots/lifetime.py"
+ln -s "$kit/codex-run" "$t/bin/aliased-run"
+output=$("$t/bin/aliased-run" stale)
+[[ -z $output && ! -e $DEV_ROOT/tmp/codex-run && ! -e $fake/launch.args ]]
+checks=$((checks + 1))
 refusal 'owner invalid name' owner ../oops "$t/brief.md"
 refusal 'owner relative brief' owner o/fixture relative
 refusal 'owner unreadable brief' owner o/fixture "$t/missing"

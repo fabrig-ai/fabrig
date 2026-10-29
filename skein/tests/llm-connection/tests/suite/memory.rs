@@ -38,8 +38,8 @@ fn full_pool_limits() -> Limits {
     }
 }
 
-// Bounds two admitted TLS calls, a refused third call and the pool tables.
-const POOL_PEAK_CEILING: u64 = 1_300_000;
+// Bounds two admitted TLS calls, a refused third call and the pool tables; measured peak 53,236 B.
+const POOL_PEAK_CEILING: u64 = 67_000;
 
 #[test]
 fn full_pool_stays_under_its_peak_ceiling() {
@@ -137,9 +137,11 @@ fn full_pool_stays_under_its_peak_ceiling() {
     assert_eq!(meter.held(), 0, "all pool allocations released");
 }
 
-// Bound the largest separate process peaks across plaintext and TLS at seed 37.
-const SIMULATED_CLIENT_PEAK_CEILING: u64 = 3_200_000;
-const SIMULATED_PEER_PEAK_CEILING: u64 = 1_600_000;
+// Bounds the client across plaintext and TLS at seed 37; measured peak 198,500 B.
+// TLS peaks vary by a byte between runs.
+const SIMULATED_CLIENT_PEAK_CEILING: u64 = 250_000;
+// Bounds the peer across plaintext and TLS at seed 37; measured peak 105,216 B.
+const SIMULATED_PEER_PEAK_CEILING: u64 = 140_000;
 
 #[test]
 fn full_fake_process_and_connection_pool_fit_and_free_their_separate_heaps() {
@@ -160,9 +162,10 @@ fn full_fake_process_and_connection_pool_fit_and_free_their_separate_heaps() {
     }
 }
 
-// Bound separate process peaks for the 1500-byte batched upload at seed 23.
-const BATCHED_CLIENT_PEAK_CEILING: u64 = 1_700_000;
-const BATCHED_PEER_PEAK_CEILING: u64 = 830_000;
+// Bounds the client for the 1500-byte batched upload at seed 23; measured peak 54,253 B.
+const BATCHED_CLIENT_PEAK_CEILING: u64 = 68_000;
+// Bounds the peer for the 1500-byte batched upload at seed 23; measured peak 19,784 B.
+const BATCHED_PEER_PEAK_CEILING: u64 = 25_000;
 
 #[test]
 fn bounded_request_batches_preserve_exact_upload_latency_replay_and_separate_heaps() {
@@ -182,8 +185,8 @@ fn bounded_request_batches_preserve_exact_upload_latency_replay_and_separate_hea
     assert!(*peer > 0 && *peer <= BATCHED_PEER_PEAK_CEILING);
 }
 
-// Bounds the largest peak across all seven owner-close phases at seed 53.
-const OWNER_CLOSE_PEAK_CEILING: u64 = 2_600_000;
+// Bounds all seven owner-close phases at seed 53; measured peak 105,072 B.
+const OWNER_CLOSE_PEAK_CEILING: u64 = 140_000;
 
 #[test]
 fn an_owner_close_in_each_phase_stays_under_the_peak_ceiling() {
@@ -216,8 +219,8 @@ fn an_owner_close_in_each_phase_stays_under_the_peak_ceiling() {
     }
 }
 
-// Bounds eight declared starts, including connection and memory waits, at seed 59.
-const WAITING_STARTS_PEAK_CEILING: u64 = 2_900_000;
+// Bounds eight declared starts, including connection and memory waits, at seed 59; measured peak 331,662 B.
+const WAITING_STARTS_PEAK_CEILING: u64 = 420_000;
 
 #[test]
 fn every_declared_waiting_start_stays_under_the_peak_ceiling() {
@@ -264,8 +267,8 @@ fn every_declared_waiting_start_stays_under_the_peak_ceiling() {
     assert_eq!(meter.held(), 0);
 }
 
-// Bounds calls at two endpoints with different limits at seed 89.
-const TWO_ENDPOINTS_PEAK_CEILING: u64 = 4_200_000;
+// Bounds calls at two endpoints with different limits at seed 89; measured peak 163,592 B.
+const TWO_ENDPOINTS_PEAK_CEILING: u64 = 210_000;
 
 #[test]
 fn two_endpoints_with_different_limits_stay_under_the_peak_ceiling() {

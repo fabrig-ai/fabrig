@@ -110,12 +110,7 @@ impl Domain {
         self.watchers.reclaim();
     }
 }
-/// One request per watcher, plus admission's two outputs.
-#[must_use]
-pub const fn max_out(limits: &Limits) -> u32 {
-    limits.watchers.saturating_add(2)
-}
-/// Apply one parent event with `max_out` room reserved.
+/// Apply one parent event and emit its requests.
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     match event {
         Event::EndWatch { watcher, end } => watch::close(domain, watcher, end, out),

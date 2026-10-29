@@ -438,11 +438,3 @@ impl Callback {
         io.push(if abort { Request::Abort { entity: self.socket } } else { Request::Close { entity: self.socket } });
     }
 }
-
-pub(crate) fn worst_case(limits: &Limits) -> Option<u64> {
-    u64::from(limits.client.url_bytes)
-        .checked_mul(2)?
-        .checked_add(u64::from(limits.client.uri_bytes))?
-        .checked_add(u64::from(limits.client.document.issued_client_bytes))?
-        .checked_add(512)
-}

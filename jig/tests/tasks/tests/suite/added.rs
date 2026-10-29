@@ -641,7 +641,7 @@ fn restore_refuses_added_entries_outside_or_out_of_order_in_the_dependency_list(
         let mut row = world.record(1).clone();
         row.added = added.into_boxed_slice();
         let mut domain = jig_tasks_world::domain(&LIMITS, 859);
-        let mut out = skein_lib::Queue::with_capacity(tasks::max_out(&LIMITS));
+        let mut out = skein_lib::Queue::uncapped();
         tasks::step(&mut domain, &world.env, Event::Restore { record: Stored::Live(Box::new(row)) }, &mut out);
         assert!(
             matches!(out.pop(), Some(tasks::Request::RestoreRefused { problem }) if problem.why == Refusal::Restore)

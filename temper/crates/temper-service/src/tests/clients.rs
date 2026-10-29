@@ -100,7 +100,7 @@ fn a_released_reply_keeps_its_terminal_and_destination() {
 #[test]
 fn the_component_prints_one_sign_in_link_at_start() {
     let mut clients = super::fixtures::clients();
-    let mut events = skein_lib::Queue::with_capacity(64);
+    let mut events = skein_lib::Queue::uncapped();
     clients.iterate(skein_lib::Time::ZERO, skein_lib::Wall::EPOCH, &mut events, &[], None, &mut None);
     let Some(skein_io::Request::Listen { owner, addr }) = clients.io.pop() else { panic!("listen") };
     assert!(clients.up(skein_io::Event::Listening { owner, listener: LISTENER, addr }));
@@ -114,7 +114,7 @@ fn the_component_prints_one_sign_in_link_at_start() {
 #[test]
 fn closing_a_listener_during_start_closes_the_component() {
     let mut clients = super::fixtures::clients();
-    let mut events = skein_lib::Queue::with_capacity(64);
+    let mut events = skein_lib::Queue::uncapped();
     clients.iterate(skein_lib::Time::ZERO, skein_lib::Wall::EPOCH, &mut events, &[], None, &mut None);
     let Some(skein_io::Request::Listen { owner, addr }) = clients.io.pop() else { panic!("listen") };
     clients.down(kit::Event::Close);
@@ -171,7 +171,7 @@ fn a_sign_in_ending_waits_for_its_erase_to_commit() {
     .unwrap();
     clients.commit(3, &[root::Write::Erase(root::Key::Core(core::Key::People(people::Key::SignIn(7))))]);
     assert!(!clients.commit_room());
-    let mut events = skein_lib::Queue::with_capacity(64);
+    let mut events = skein_lib::Queue::uncapped();
     clients.iterate(skein_lib::Time::ZERO, skein_lib::Wall::EPOCH, &mut events, &[], None, &mut None);
     assert!(!clients.commit_room());
     clients.committed(3);

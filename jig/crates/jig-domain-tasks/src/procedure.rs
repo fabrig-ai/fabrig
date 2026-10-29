@@ -24,7 +24,7 @@ pub(crate) fn stepped(
     out: &mut Queue<Request>,
 ) {
     let token = to.into_token();
-    let mut requests = Queue::with_capacity(crate::max_out(&env.limits));
+    let mut requests = Queue::uncapped();
     apply(domain, env, Fence { to: ReplyTo::new(token), number, step, read }, decision, &mut requests);
     let mut terminal = false;
     for _ in 0..requests.len() {

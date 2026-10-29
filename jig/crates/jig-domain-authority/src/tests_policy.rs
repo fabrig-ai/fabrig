@@ -7,16 +7,29 @@ use skein_lib::{Duration, Queue, Wall, bytes::copy_of};
 
 use crate::{
     Action, Answer, Authority, BatchAsk, Call, CallAsk, Delegate, Domain, Effect, EffectAccess, EffectAsk,
-    EffectResource, Event, FITS_MAX_OUT, Finding, Given, Grant, Guard, Holder, Judge, Lack, Last, Limits, Models, Name,
-    Numbers, Pattern, PersonAsk, PersonRequest, PolicyFact, PolicyRefusal, ProposalKind, Proposals, Requests,
-    Requirement, RunAsk, Scopes, Source, Tools, Verdict, Write, Writer, at_most, check_batch, check_call, check_effect,
-    check_request, check_run, covers, fits, max_out, needs, resolve_task_grants,
+    EffectResource, Event, Finding, Given, Grant, Guard, Holder, Judge, Lack, Last, Limits, Models, Name, Numbers,
+    Pattern, PersonAsk, PersonRequest, PolicyFact, PolicyRefusal, ProposalKind, Proposals, Requests, Requirement,
+    RunAsk, Scopes, Source, Tools, Verdict, Write, Writer, at_most, check_batch, check_call, check_effect,
+    check_request, check_run, covers, fits, needs, resolve_task_grants, stored_finding_limit,
 };
 
 use crate::tests_fixtures::*;
 
-fn findings(domain: &Domain) -> Queue<Finding> {
-    Queue::with_capacity(max_out(domain.limits()).unwrap())
+// One deficit for each independent component compared by fits (domain/authority.md, 5).
+const FITTING_DEFICITS: [Lack; 9] = [
+    Lack::Tools,
+    Lack::Grants,
+    Lack::Executors,
+    Lack::Tasks,
+    Lack::Depth,
+    Lack::Spend,
+    Lack::Deadline,
+    Lack::Notes,
+    Lack::Models,
+];
+
+fn findings() -> Queue<Finding> {
+    Queue::uncapped()
 }
 
 fn effect() -> Effect {
@@ -85,7 +98,7 @@ fn effect_cells_use_pinned_facts_and_the_independent_strictest_statement() {
                     if !pinned {
                         reported.state = [2; 32];
                     }
-                    let mut why = findings(&domain);
+                    let mut why = findings();
                     let actual = check_effect(&domain, &ask, &[reported, fact(8, Verdict::Met)], &mut why);
                     let expected = if !project_granted || (pinned && status == Verdict::Refuse) {
                         Answer::Refuse
@@ -100,7 +113,7 @@ fn effect_cells_use_pinned_facts_and_the_independent_strictest_statement() {
                         actual, expected,
                         "task={task_granted}, project={project_granted}, status={status:?}, pinned={pinned}"
                     );
-                    assert!(why.len() <= max_out(&LIMITS).unwrap(), "all findings fit their bound");
+                    assert!(why.len() <= stored_finding_limit(&LIMITS).unwrap(), "all findings fit their bound");
                 }
             }
         }
@@ -120,10 +133,10 @@ fn effect_cells_use_pinned_facts_and_the_independent_strictest_statement() {
             1 => reported.judge.requirement = 9,
             _ => reported.judge.parameters = 9,
         }
-        let mut why = findings(&domain);
+        let mut why = findings();
         assert_eq!(check_effect(&domain, &ask, &[reported, fact(8, Verdict::Met)], &mut why), Answer::Wait);
     }
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(
         check_effect(
             &domain,
@@ -133,16 +146,16 @@ fn effect_cells_use_pinned_facts_and_the_independent_strictest_statement() {
         ),
         Answer::Refuse
     );
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(
         check_effect(&domain, &ask, &[fact(7, Verdict::Met), fact(7, Verdict::Wait), fact(8, Verdict::Met)], &mut why),
         Answer::Wait
     );
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(check_effect(&domain, &ask, &[], &mut why), Answer::Wait);
     let mut different = ask.clone();
     different.effect.kind = 2;
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(
         check_effect(&domain, &different, &[], &mut why),
         Answer::Allow,
@@ -150,17 +163,17 @@ fn effect_cells_use_pinned_facts_and_the_independent_strictest_statement() {
     );
     let mut different = ask.clone();
     different.effect.connector = 2;
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(check_effect(&domain, &different, &[], &mut why), Answer::Refuse);
     assert!(saw(&why, Finding::Grant { source: Source::Deployment }), "deployment ceiling is independently checked");
     let mut missing = ask.clone();
     missing.project = 99;
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(check_effect(&domain, &missing, &[], &mut why), Answer::Refuse);
     assert!(saw(&why, Finding::UnknownProject), "missing policy is a refusal");
     let mut huge = ask;
     huge.effect.name.segments = Box::new([copy_of(b"too-long-name")]);
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(check_effect(&domain, &huge, &[], &mut why), Answer::Refuse);
     assert!(saw(&why, Finding::Oversized), "names are refused at admission");
 }
@@ -183,7 +196,7 @@ fn effective_effect_access_and_price_follow_live_ceiling_and_remaining_funding()
         (Some(101), Answer::Refuse, Some(Finding::Price { source: Source::Project })),
     ] {
         ask.effect.price = price;
-        let mut why = findings(&domain);
+        let mut why = findings();
         assert_eq!(check_effect(&domain, &ask, &given, &mut why), expected);
         if let Some(finding) = finding {
             assert!(saw(&why, finding));
@@ -197,7 +210,7 @@ fn effective_effect_access_and_price_follow_live_ceiling_and_remaining_funding()
         (EffectAccess::Unavailable, Answer::Refuse),
     ] {
         ask.effect.access = access;
-        let mut why = findings(&domain);
+        let mut why = findings();
         assert_eq!(check_effect(&domain, &ask, &given, &mut why), expected);
         if expected == Answer::Refuse {
             assert!(saw(&why, Finding::ResourceAccess));
@@ -210,7 +223,7 @@ fn effective_effect_access_and_price_follow_live_ceiling_and_remaining_funding()
         apply(&mut domain, Event::Policy { project: 1, policy: policy(narrowed) }),
         PolicyFact::Changed { project: 1 }
     );
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(check_effect(&domain, &ask, &given, &mut why), Answer::Refuse);
     assert!(saw(&why, Finding::Grant { source: Source::Project }));
     assert_eq!(
@@ -218,7 +231,7 @@ fn effective_effect_access_and_price_follow_live_ceiling_and_remaining_funding()
         PolicyFact::Changed { project: 1 }
     );
     ask.authority.grants = Box::new([]);
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(check_effect(&domain, &ask, &given, &mut why), Answer::Propose);
     assert!(saw(&why, Finding::Grant { source: Source::Task }), "widening does not change a live task");
 }
@@ -233,17 +246,17 @@ fn an_effect_checks_every_resource_and_proposes_every_exact_grant() {
         access: EffectAccess::Participant,
     }]);
     let given = [fact(7, Verdict::Met), fact(8, Verdict::Met)];
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(check_effect(&domain, &ask, &given, &mut why), Answer::Allow);
     let needed = needs(&Action::Effect(ask.effect.clone())).unwrap();
     assert_eq!(needed.grants.len(), 2);
     assert_eq!(needed.grants[1].pattern.last, Last::Exact(copy_of(b"other")));
     ask.authority.grants = Box::new([needed.grants[0].clone()]);
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(check_effect(&domain, &ask, &given, &mut why), Answer::Propose);
     assert!(saw(&why, Finding::Grant { source: Source::Task }));
     ask.effect.additional[0].access = EffectAccess::Context;
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(check_effect(&domain, &ask, &given, &mut why), Answer::Refuse);
     assert!(saw(&why, Finding::ResourceAccess));
 }
@@ -272,13 +285,13 @@ fn priced_effect_proposals_need_and_charge_the_accepter() {
         tasks_left: 10,
         request: PersonRequest::Accept(Action::Effect(effect)),
     };
-    let mut why = findings(&domain);
+    let mut why = findings();
     let checked = check_request(&domain, &ask, &mut why);
     assert_eq!(checked.answer, Answer::Allow);
     assert_eq!(checked.numbers.unwrap().spent, 75, "acceptance charges the maximum to the accepter");
     let mut short = ask;
     short.pool.spent = 70;
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(check_request(&domain, &short, &mut why).answer, Answer::Refuse);
     assert!(saw(&why, Finding::Price { source: Source::Role }));
 }
@@ -315,7 +328,7 @@ fn generic_judges_obey_guard_and_observation_cells() {
                         Given { judge, verdict, at: Wall::from_nanos(2_000_000_000 - age), state: ask.effect.state };
                     let mut project_given = fact(8, Verdict::Met);
                     project_given.at = ask.now;
-                    let mut why = findings(&domain);
+                    let mut why = findings();
                     let actual = check_effect(&domain, &ask, &[given, project_given], &mut why);
                     let expected = if guarded && !effect_guards || verdict == Verdict::Refuse {
                         Answer::Refuse
@@ -328,7 +341,7 @@ fn generic_judges_obey_guard_and_observation_cells() {
                         actual, expected,
                         "guarded={guarded}, effect_guards={effect_guards}, verdict={verdict:?}, age={age}"
                     );
-                    assert!(why.len() <= max_out(&LIMITS).unwrap());
+                    assert!(why.len() <= stored_finding_limit(&LIMITS).unwrap());
                 }
             }
         }
@@ -366,7 +379,7 @@ fn generated_verdicts_freshness_and_prices_choose_the_strictest_answer() {
         } else {
             Answer::Allow
         };
-        let mut why = findings(&domain);
+        let mut why = findings();
         assert_eq!(check_effect(&domain, &ask, &[deployment, project], &mut why), expected, "seed {seed}");
     }
 }
@@ -382,7 +395,7 @@ fn generated_live_tasks_observe_policy_narrowing_and_replacement() {
         let ask = EffectAsk { project: 1, authority: task, numbers: numbers(100), effect: effect(), now: Wall::EPOCH };
         let given = [fact(7, Verdict::Met), fact(8, Verdict::Met)];
         let initial = if seed % 2 == 0 { Answer::Allow } else { Answer::Propose };
-        let mut why = findings(&domain);
+        let mut why = findings();
         assert_eq!(check_effect(&domain, &ask, &given, &mut why), initial);
         let mut narrowed = authority();
         narrowed.grants = Box::new([]);
@@ -390,13 +403,13 @@ fn generated_live_tasks_observe_policy_narrowing_and_replacement() {
             apply(&mut domain, Event::Policy { project: 1, policy: policy(narrowed) }),
             PolicyFact::Changed { project: 1 }
         );
-        let mut why = findings(&domain);
+        let mut why = findings();
         assert_eq!(check_effect(&domain, &ask, &given, &mut why), Answer::Refuse);
         assert_eq!(
             apply(&mut domain, Event::Policy { project: 1, policy: policy(authority()) }),
             PolicyFact::Changed { project: 1 }
         );
-        let mut why = findings(&domain);
+        let mut why = findings();
         assert_eq!(check_effect(&domain, &ask, &given, &mut why), initial, "policy widening does not edit task {seed}");
     }
 }
@@ -411,7 +424,7 @@ fn batch_cells_count_direct_creation_and_reserve_only_after_every_check_allows()
         tasks_left: 10,
         tasks: Box::new([child(10), child(20)]),
     };
-    let mut why = findings(&domain);
+    let mut why = findings();
     let allowed = check_batch(&domain, &base, &mut why);
     assert_eq!(allowed.answer, Answer::Allow);
     assert_eq!(allowed.numbers.unwrap().reserved, 30, "budgets are summed once and carved together");
@@ -426,14 +439,14 @@ fn batch_cells_count_direct_creation_and_reserve_only_after_every_check_allows()
             4 => ask.creator.tools = Tools(0),
             _ => ask.creator.budget.deadline = Some(Wall::EPOCH),
         }
-        let mut why = findings(&domain);
+        let mut why = findings();
         let result = check_batch(&domain, &ask, &mut why);
         assert_eq!(result.answer, Answer::Propose, "cause {cause} remains within the hard ceiling");
         assert_eq!(result.numbers, None, "proposals never reserve funding");
     }
     let mut ask = base.clone();
     ask.tasks[0].authority.budget.spend = 101;
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(
         check_batch(&domain, &ask, &mut why).answer,
         Answer::Refuse,
@@ -441,7 +454,7 @@ fn batch_cells_count_direct_creation_and_reserve_only_after_every_check_allows()
     );
     let mut ask = base.clone();
     ask.tasks[0].executor = crate::Executor::Charter(99);
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(check_batch(&domain, &ask, &mut why).answer, Answer::Refuse);
     assert!(
         saw(&why, Finding::Executor { source: Source::Deployment }),
@@ -449,18 +462,18 @@ fn batch_cells_count_direct_creation_and_reserve_only_after_every_check_allows()
     );
     let mut ask = base.clone();
     ask.tasks[0].authority.delegation.tasks = u32::MAX;
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(check_batch(&domain, &ask, &mut why).answer, Answer::Refuse);
     assert!(saw(&why, Finding::Arithmetic), "subtree task-count overflow is a refusal");
     let mut ask = base.clone();
     ask.tasks = Box::new([child(u64::MAX), child(u64::MAX)]);
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(check_batch(&domain, &ask, &mut why).answer, Answer::Refuse);
     assert!(saw(&why, Finding::Arithmetic), "batch budget sums cannot wrap");
     let mut ask = base.clone();
     ask.numbers.spent = u64::MAX;
     ask.numbers.spent_below = 1;
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(
         check_batch(&domain, &ask, &mut why).answer,
         Answer::Refuse,
@@ -468,12 +481,12 @@ fn batch_cells_count_direct_creation_and_reserve_only_after_every_check_allows()
     );
     let mut ask = base.clone();
     ask.tasks = Box::new([child(0), child(0), child(0), child(0)]);
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(check_batch(&domain, &ask, &mut why).answer, Answer::Refuse);
     assert!(saw(&why, Finding::Oversized), "batch admission precedes element scans");
     let mut ask = base;
     ask.project = 99;
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(check_batch(&domain, &ask, &mut why).answer, Answer::Refuse);
 }
 
@@ -492,7 +505,7 @@ fn symbolic_grants_are_checked_as_prefixes_then_narrowed_by_task_number() {
         tasks_left: 10,
         tasks: Box::new([child.clone()]),
     };
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(check_batch(&domain, &ask, &mut why).answer, Answer::Allow);
     let resolved = resolve_task_grants(&child.symbolic, 42, &LIMITS).expect("bounded task number");
     assert_eq!(resolved[0].pattern.last, Last::Exact(copy_of(b"b42")));
@@ -520,10 +533,10 @@ fn symbolic_grants_are_checked_as_prefixes_then_narrowed_by_task_number() {
     ));
     let mut missing = ask;
     missing.creator.grants = Box::new([]);
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(check_batch(&domain, &missing, &mut why).answer, Answer::Propose);
     child.symbolic[0].pattern.last = Last::Exact(copy_of(b"b"));
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(
         check_batch(&domain, &BatchAsk { tasks: Box::new([child]), ..missing }, &mut why).answer,
         Answer::Refuse
@@ -549,7 +562,7 @@ fn run_cells_hold_for_readiness_propose_grants_and_refuse_hard_caps() {
         }]),
         writes: Box::new([Write { effect: effect(), held: Writer::Task }]),
     };
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(check_run(&domain, &base, &mut why).verdict(), Answer::Allow);
     for cause in 0_u8..6 {
         let mut ask = base.clone();
@@ -583,14 +596,14 @@ fn run_cells_hold_for_readiness_propose_grants_and_refuse_hard_caps() {
                 Finding::Writer
             }
         };
-        let mut why = findings(&domain);
+        let mut why = findings();
         assert_eq!(check_run(&domain, &ask, &mut why).verdict(), Answer::Wait, "cause {cause}");
         assert!(saw(&why, expected_finding), "readiness refusal states its reason");
     }
     let mut ask = base.clone();
     ask.writes[0].held = Writer::Ancestor;
     ask.authority.budget.deadline = Some(ask.wall);
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(
         check_run(&domain, &ask, &mut why).verdict(),
         Answer::Allow,
@@ -599,7 +612,7 @@ fn run_cells_hold_for_readiness_propose_grants_and_refuse_hard_caps() {
     let mut ask = base.clone();
     ask.authority.grants = Box::new([]);
     ask.accounts[0].usable = false;
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(
         check_run(&domain, &ask, &mut why).verdict(),
         Answer::Propose,
@@ -608,22 +621,22 @@ fn run_cells_hold_for_readiness_propose_grants_and_refuse_hard_caps() {
     let mut ask = base.clone();
     ask.budget = 81;
     ask.accounts[0].usable = false;
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(check_run(&domain, &ask, &mut why).verdict(), Answer::Refuse);
     assert!(saw(&why, Finding::RunCap), "run cap wins over readiness wait");
     let mut ask = base.clone();
     ask.numbers.spent = u64::MAX;
     ask.numbers.spent_below = 1;
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(check_run(&domain, &ask, &mut why).verdict(), Answer::Refuse);
     assert!(saw(&why, Finding::Arithmetic), "invalid accounting never becomes a readiness-only wait");
     let mut ask = base.clone();
     ask.accounts = Box::new([base.accounts[0]; 3]);
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(check_run(&domain, &ask, &mut why).verdict(), Answer::Refuse);
     let mut ask = base;
     ask.project = 99;
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(check_run(&domain, &ask, &mut why).verdict(), Answer::Refuse);
 }
 
@@ -651,7 +664,7 @@ fn run_checks_the_resources_it_writes_after_policy_narrows() {
         }]),
         writes: Box::new([Write { effect: effect(), held: Writer::Task }]),
     };
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(check_run(&domain, &ask, &mut why).verdict(), Answer::Allow);
     let mut ceiling = authority();
     ceiling.grants = Box::new([Grant { connector: 1, kind: 3, pattern: pattern() }]);
@@ -659,7 +672,7 @@ fn run_checks_the_resources_it_writes_after_policy_narrows() {
         apply(&mut domain, Event::Policy { project: 1, policy: policy(ceiling) }),
         PolicyFact::Changed { project: 1 }
     );
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(
         check_run(&domain, &ask, &mut why).verdict(),
         Answer::Allow,
@@ -667,7 +680,7 @@ fn run_checks_the_resources_it_writes_after_policy_narrows() {
     );
     let mut denied = ask;
     denied.writes[0].effect.access = EffectAccess::Context;
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(check_run(&domain, &denied, &mut why).verdict(), Answer::Refuse);
     assert!(saw(&why, Finding::ResourceAccess));
 }
@@ -681,33 +694,33 @@ fn call_cells_check_family_reads_references_scopes_and_ceiling_precedence() {
     {
         let mut ask = base.clone();
         ask.call = call;
-        let mut why = findings(&domain);
+        let mut why = findings();
         assert_eq!(check_call(&domain, &ask, &mut why), Answer::Allow);
     }
     let mut ask = base.clone();
     ask.authority.tools = Tools(0);
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(check_call(&domain, &ask, &mut why), Answer::Propose);
     assert!(saw(&why, Finding::Tool), "family membership is checked");
     let mut ask = base.clone();
     ask.call = Call::Read(effect());
     ask.authority.grants = Box::new([]);
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(check_call(&domain, &ask, &mut why), Answer::Propose);
     let mut ask = base.clone();
     ask.call = Call::Note(crate::NoteScope::Project);
     ask.authority.notes = Scopes(0);
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(check_call(&domain, &ask, &mut why), Answer::Propose);
     let mut ask = base.clone();
     ask.call = Call::Note(crate::NoteScope::Resources(crate::ResourceScope {
         connector: 1,
         pattern: Pattern { segments: Box::new([]), last: Last::Exact(copy_of(b"report")) },
     }));
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(check_call(&domain, &ask, &mut why), Answer::Allow);
     ask.authority.note_resources = Box::new([]);
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(check_call(&domain, &ask, &mut why), Answer::Propose);
     assert!(saw(&why, Finding::Scope { source: Source::Task }));
     let mut ask = base.clone();
@@ -715,12 +728,12 @@ fn call_cells_check_family_reads_references_scopes_and_ceiling_precedence() {
         connector: 2,
         pattern: Pattern { segments: Box::new([]), last: Last::Exact(copy_of(b"report")) },
     }));
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(check_call(&domain, &ask, &mut why), Answer::Refuse);
     let mut ask = base.clone();
     ask.authority.tools = Tools(0);
     ask.call = Call::Message { referenced: false };
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(check_call(&domain, &ask, &mut why), Answer::Refuse, "missing standing wins over a family proposal");
     assert!(saw(&why, Finding::Reference), "messages need a reference");
     let mut limited = authority();
@@ -731,12 +744,12 @@ fn call_cells_check_family_reads_references_scopes_and_ceiling_precedence() {
     for call in [Call::Tool, Call::Read(effect()), Call::Note(crate::NoteScope::Deployment)] {
         let mut ask = base.clone();
         ask.call = call;
-        let mut why = findings(&restricted);
+        let mut why = findings();
         assert_eq!(check_call(&restricted, &ask, &mut why), Answer::Refuse);
     }
     let mut ask = base.clone();
     ask.family = Tools(3);
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(check_call(&domain, &ask, &mut why), Answer::Refuse, "one call names exactly one configured family");
     let mut ask = base.clone();
     ask.call = Call::Note(crate::NoteScope::Resources(crate::ResourceScope {
@@ -746,11 +759,11 @@ fn call_cells_check_family_reads_references_scopes_and_ceiling_precedence() {
             last: Last::Open(copy_of(b"")),
         },
     }));
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(check_call(&domain, &ask, &mut why), Answer::Refuse, "a resource note pattern obeys the segment limit");
     let mut ask = base;
     ask.project = 99;
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(check_call(&domain, &ask, &mut why), Answer::Refuse);
 }
 
@@ -776,13 +789,13 @@ fn person_cells_check_each_request_role_rights_funding_and_proposal_rights() {
         PersonRequest::Accept(Action::Escalate { release: Some(giving.clone()) }),
     ] {
         let ask = PersonAsk { request, ..base.clone() };
-        let mut why = findings(&domain);
+        let mut why = findings();
         assert_eq!(check_request(&domain, &ask, &mut why).answer, Answer::Allow, "request={:?}", ask.request);
     }
     let mut ask = base.clone();
     ask.request = PersonRequest::Allot(giving.clone());
     ask.pool.reserved = 90;
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(
         check_request(&domain, &ask, &mut why).answer,
         Answer::Propose,
@@ -791,16 +804,16 @@ fn person_cells_check_each_request_role_rights_funding_and_proposal_rights() {
     let mut ask = base.clone();
     ask.request = PersonRequest::Allot(giving.clone());
     ask.pool.budget = 101;
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(check_request(&domain, &ask, &mut why).answer, Answer::Refuse);
     assert!(saw(&why, Finding::PeriodSpend), "a funding pool cannot bypass its role's period cap");
     let mut ask = base.clone();
     ask.role = 99;
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(check_request(&domain, &ask, &mut why).answer, Answer::Refuse);
     let mut ask = base.clone();
     ask.project = 99;
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(check_request(&domain, &ask, &mut why).answer, Answer::Refuse);
     let mut replacement = policy(authority());
     replacement.roles[0].requests = Requests(0);
@@ -808,25 +821,25 @@ fn person_cells_check_each_request_role_rights_funding_and_proposal_rights() {
         apply(&mut domain, Event::Policy { project: 1, policy: replacement }),
         PolicyFact::Changed { project: 1 }
     );
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(check_request(&domain, &base, &mut why).answer, Answer::Refuse);
     assert!(saw(&why, Finding::Unpermitted), "roles govern non-funding requests too");
     let mut replacement = policy(authority());
     replacement.roles[0].decides = Proposals(0);
     apply(&mut domain, Event::Policy { project: 1, policy: replacement });
     let ask = PersonAsk { request: PersonRequest::Accept(Action::Effect(effect())), ..base.clone() };
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(check_request(&domain, &ask, &mut why).answer, Answer::Refuse);
     assert!(saw(&why, Finding::Undecidable), "accept needs rights for that proposal kind");
     let mut replacement = policy(authority());
     replacement.roles[0].authority.grants = Box::new([]);
     apply(&mut domain, Event::Policy { project: 1, policy: replacement });
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(check_request(&domain, &ask, &mut why).answer, Answer::Refuse);
     assert!(saw(&why, Finding::Grant { source: Source::Role }), "an accepter needs its own grant");
     let mut huge = base;
     huge.request = PersonRequest::Create(Box::new([child(0), child(0), child(0), child(0)]));
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(check_request(&domain, &huge, &mut why).answer, Answer::Refuse);
     assert!(saw(&why, Finding::Oversized), "person requests are admitted before scans");
 }
@@ -835,7 +848,7 @@ fn person_cells_check_each_request_role_rights_funding_and_proposal_rights() {
 fn fitting_laws_needs_and_holder_depth_use_separate_current_inputs() {
     let domain = domain();
     let creator = authority();
-    let mut lacks = Queue::with_capacity(FITS_MAX_OUT);
+    let mut lacks = Queue::uncapped();
     for spent in 0..5_u64 {
         for tasks_left in 0..4_u32 {
             for task_count in 0..3_u32 {
@@ -859,10 +872,8 @@ fn fitting_laws_needs_and_holder_depth_use_separate_current_inputs() {
                         "fitting never exceeds adjusted authority"
                     );
                 }
-                for _ in 0..FITS_MAX_OUT {
-                    if lacks.pop().is_none() {
-                        break;
-                    }
+                for _ in 0..lacks.len() {
+                    lacks.pop().unwrap();
                 }
             }
         }
@@ -875,14 +886,10 @@ fn fitting_laws_needs_and_holder_depth_use_separate_current_inputs() {
     bottom.notes = Scopes(0);
     bottom.models = Models::NONE;
     assert!(!fits(&creator, &bottom, &numbers(0), 0, &domain.rules().implies, &mut lacks), "all deficits are reported");
-    assert_eq!(lacks.len(), FITS_MAX_OUT);
-    let mut depth_lacked = false;
-    for lack in &lacks {
-        if *lack == Lack::Depth {
-            depth_lacked = true;
-        }
+    for expected in FITTING_DEFICITS {
+        assert_eq!(lacks.pop(), Some(expected), "all independent deficits retain their order");
     }
-    assert!(depth_lacked, "zero creator depth does not permit even a depth-zero child");
+    assert!(lacks.is_empty());
 
     let mut first = child(10);
     first.authority.delegation.tasks = 1;
@@ -1068,7 +1075,7 @@ fn check_full_policy_admission() {
         accounts: u32::MAX,
         writes: u32::MAX,
     };
-    assert_eq!(max_out(&enormous), None, "overflowing queue bounds are never wrapped");
+    assert_eq!(stored_finding_limit(&enormous), None, "overflowing stored finding counts are never wrapped");
 }
 
 #[test]
@@ -1103,7 +1110,7 @@ fn escalation_fallback_requires_accept_and_decide_but_not_direct_release() {
             tasks_left: 0,
             request: PersonRequest::Accept(Action::Escalate { release: None }),
         },
-        &mut Queue::with_capacity(max_out(domain.limits()).unwrap()),
+        &mut Queue::uncapped(),
     );
     assert_eq!(checked.answer, Answer::Allow, "Accept+Escalation needs no direct Release permission");
 }
@@ -1126,19 +1133,12 @@ fn projection_grants_are_policy_owned_require_verdicts_and_have_no_task_price() 
             &write,
             Wall::from_nanos(0),
             &[fact(7, Verdict::Met), fact(8, Verdict::Met)],
-            &mut findings(&domain)
+            &mut findings()
         ),
         Answer::Allow
     );
     assert_eq!(
-        crate::check_projection(
-            &domain,
-            1,
-            &write,
-            Wall::from_nanos(0),
-            &[fact(7, Verdict::Met)],
-            &mut findings(&domain)
-        ),
+        crate::check_projection(&domain, 1, &write, Wall::from_nanos(0), &[fact(7, Verdict::Met)], &mut findings()),
         Answer::Wait
     );
     assert_eq!(
@@ -1148,7 +1148,7 @@ fn projection_grants_are_policy_owned_require_verdicts_and_have_no_task_price() 
             &write,
             Wall::from_nanos(0),
             &[fact(7, Verdict::Met), fact(8, Verdict::Refuse)],
-            &mut findings(&domain)
+            &mut findings()
         ),
         Answer::Refuse
     );
@@ -1163,7 +1163,7 @@ fn projection_grants_are_policy_owned_require_verdicts_and_have_no_task_price() 
             &write,
             Wall::from_nanos(0),
             &[fact(7, Verdict::Met), fact(8, Verdict::Met)],
-            &mut findings(&domain)
+            &mut findings()
         ),
         Answer::Refuse
     );
@@ -1176,7 +1176,7 @@ fn projection_grants_are_policy_owned_require_verdicts_and_have_no_task_price() 
             &effect(),
             Wall::from_nanos(0),
             &[fact(7, Verdict::Met), fact(8, Verdict::Met)],
-            &mut findings(&domain)
+            &mut findings()
         ),
         Answer::Refuse
     );
@@ -1232,7 +1232,7 @@ fn selected_run() -> RunAsk {
 #[test]
 fn run_allowance_retains_exact_bindings_and_checked_spend() {
     let domain = domain();
-    let mut why = findings(&domain);
+    let mut why = findings();
     assert_eq!(
         check_run(&domain, &selected_run(), &mut why),
         crate::RunAnswer::Allow {
@@ -1257,7 +1257,7 @@ fn run_evidence_waits_for_main_host_source_and_credentials() {
     let mut credential = selected_run();
     credential.credentials[0] = false;
     for ask in [missing, unusable, host, credential] {
-        let mut why = findings(&domain);
+        let mut why = findings();
         assert_eq!(check_run(&domain, &ask, &mut why), crate::RunAnswer::Wait);
     }
 }
@@ -1272,7 +1272,7 @@ fn malformed_or_over_bound_run_evidence_is_refused() {
     let mut credentials = selected_run();
     credentials.credentials = Box::new([true; 3]);
     for ask in [duplicate, accounts, credentials] {
-        let mut why = findings(&domain);
+        let mut why = findings();
         assert_eq!(check_run(&domain, &ask, &mut why), crate::RunAnswer::Refuse);
     }
 }
@@ -1285,7 +1285,7 @@ fn replacement_rules_and_restore_preserve_a_project_above_the_new_ceiling() {
     rules.ceiling.tools = Tools(0);
     rules.ceiling.models = Models::NONE;
     rules.period_spend = 1;
-    let mut out = Queue::with_capacity(crate::POLICY_MAX_OUT);
+    let mut out = Queue::uncapped();
     crate::step(&mut domain, Event::Rules(Box::new(rules.clone())), &mut out);
     assert!(out.is_empty());
     assert_eq!(domain.policy(1), Some(&original));
@@ -1301,8 +1301,8 @@ fn replacement_rules_and_restore_preserve_a_project_above_the_new_ceiling() {
         tasks_left: 1,
         request: PersonRequest::Policy,
     };
-    let mut before = findings(&domain);
-    let mut after = findings(&restored);
+    let mut before = findings();
+    let mut after = findings();
     assert_eq!(check_request(&domain, &ask, &mut before), check_request(&restored, &ask, &mut after));
     while let Some(finding) = before.pop() {
         assert_eq!(Some(finding), after.pop());

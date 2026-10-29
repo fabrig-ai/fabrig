@@ -315,7 +315,7 @@ fn start(
         });
         return;
     }
-    let compatible = match crate::feedback_worst_case(&env.limits.run) {
+    let compatible = match crate::feedback_bound(&env.limits.run) {
         Some(bytes) => bytes <= env.limits.session.delegated_result_bytes && env.limits.session.spend > 0,
         None => false,
     };

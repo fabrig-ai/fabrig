@@ -513,7 +513,7 @@ impl World {
                 endpoints: 1,
                 channel,
                 start_bytes: u32::try_from(
-                    smith_channel::Start::worst_case_bytes(&host_bodies).expect("fixture Start bound"),
+                    smith_channel::Start::encoded_bound(&host_bodies).expect("fixture Start bound"),
                 )
                 .expect("fixture frame"),
                 calls: 8,
@@ -524,7 +524,7 @@ impl World {
             &agent::Limits {
                 bodies: agent_bodies,
                 start_bytes: u32::try_from(
-                    smith_channel::Start::worst_case_bytes(&agent_bodies).expect("fixture Start bound"),
+                    smith_channel::Start::encoded_bound(&agent_bodies).expect("fixture Start bound"),
                 )
                 .expect("fixture frame"),
                 charter: smith_charter::CEILINGS,

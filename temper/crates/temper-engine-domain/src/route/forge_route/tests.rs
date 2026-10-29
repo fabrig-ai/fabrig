@@ -186,7 +186,7 @@ fn saved_resources_keep_the_forge_in_their_path() {
 fn two_forges() -> (super::Domain, skein_lib::Env<super::Limits>) {
     use super::forge;
     let (mut domain, env) = crate::tests::resume_fixture::root();
-    let mut out = skein_lib::Queue::with_capacity(forge::max_out(&env.limits.forge));
+    let mut out = skein_lib::Queue::uncapped();
     for number in [1, 3] {
         forge::step(
             &mut domain.forge,
@@ -203,7 +203,7 @@ fn pushed_heads_route_only_to_their_own_forges_hold() {
     use super::{Work, forge};
     let (mut domain, env) = two_forges();
     let forge_env = skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.forge };
-    let mut out = skein_lib::Queue::with_capacity(forge::max_out(&env.limits.forge));
+    let mut out = skein_lib::Queue::uncapped();
     for number in [1, 3] {
         let name = forge::Name {
             forge: number,
@@ -250,7 +250,7 @@ fn writable_repositories_include_only_the_requested_project() {
 fn writable_repositories_exclude_context_and_missing_push() {
     use super::forge;
     let (mut domain, env) = two_forges();
-    let mut out = skein_lib::Queue::with_capacity(forge::max_out(&env.limits.forge));
+    let mut out = skein_lib::Queue::uncapped();
     let mut context = adopted(1);
     context.role = forge::Role::Context;
     let mut read_only = adopted(3);
@@ -288,7 +288,7 @@ fn writable_repositories_exclude_an_ended_forge() {
         },
         deadline: skein_lib::Duration::from_secs(60),
     }));
-    let mut out = skein_lib::Queue::with_capacity(forge::max_out(&env.limits.forge));
+    let mut out = skein_lib::Queue::uncapped();
     forge::step(
         &mut domain.forge,
         &skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.forge },
@@ -372,7 +372,7 @@ fn a_changes_saved_pull_replaces_its_base_watch_within_two_names() {
     let (mut domain, mut env) = two_forges();
     env.limits.forge.resources_per_task = 2;
     let forge_env = skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.forge };
-    let mut out = skein_lib::Queue::with_capacity(forge::max_out(&env.limits.forge));
+    let mut out = skein_lib::Queue::uncapped();
     forge::step(
         &mut domain.forge,
         &forge_env,
@@ -417,7 +417,7 @@ fn a_restored_changes_wake_names_its_known_pull_again() {
     let (mut domain, mut env) = two_forges();
     env.limits.forge.resources_per_task = 2;
     let forge_env = skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.forge };
-    let mut out = skein_lib::Queue::with_capacity(forge::max_out(&env.limits.forge));
+    let mut out = skein_lib::Queue::uncapped();
     // An old store, or a restart between saving the pull and saving its names.
     for record in
         [forge::Stored::Change(change_row(Some(23))), forge::Stored::Names { task: 7, resources: change_names(None) }]
@@ -467,7 +467,7 @@ fn restored_change(
     let (mut domain, mut env) = two_forges();
     env.limits.forge.resources_per_task = 2;
     let forge_env = skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.forge };
-    let mut out = skein_lib::Queue::with_capacity(forge::max_out(&env.limits.forge));
+    let mut out = skein_lib::Queue::uncapped();
     for record in records {
         forge::step(&mut domain.forge, &forge_env, forge::Event::Restore { record }, &mut out);
     }
@@ -633,7 +633,7 @@ fn a_small_landed_result_cuts_only_evidence_and_keeps_both_identity_lines() {
         7,
         domain.forge.configured(row.repository.forge),
     );
-    let mut out = skein_lib::Queue::with_capacity(super::forge::max_out(&env.limits.forge));
+    let mut out = skein_lib::Queue::uncapped();
     super::forge::step(
         &mut domain.forge,
         &super::super::environment_forge(&env),

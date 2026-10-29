@@ -35,11 +35,10 @@ pub struct Limits {
     pub writes: u32,
 }
 
-/// Room for the largest check, including every independent reason. Checked free-slot bound for any
-/// one `check_*` finding output; caller reserves that room before the query. Returns `None` on
-/// bound arithmetic overflow; policy lifecycle outputs use `POLICY_MAX_OUT` separately.
+/// Maximum findings retained in one stored denial value, including every independent reason.
+/// Returns `None` when the stored count cannot be represented.
 #[must_use]
-pub fn max_out(limits: &Limits) -> Option<u32> {
+pub fn stored_finding_limit(limits: &Limits) -> Option<u32> {
     let batch = limits.batch.checked_mul(9)?.checked_add(12)?;
     let run = limits.writes.checked_mul(6)?.checked_add(limits.accounts.checked_mul(2)?)?.checked_add(12)?;
     let effect = limits.requirements.checked_mul(4)?.checked_add(9)?;
@@ -135,7 +134,7 @@ pub(crate) fn requirements_within(requirements: &[Requirement], limits: &Limits)
 
 /// The rules' owned heap, separately priced by the settings overlay (engine.md, 17.8).
 #[must_use]
-pub fn rules_worst_case(limits: &Limits) -> Option<u64> {
+pub fn rules_bound(limits: &Limits) -> Option<u64> {
     authority_heap(limits)?
         .checked_add(requirement_heap(limits)?)?
         .checked_add(bytes(u64::from(limits.implications), size_of::<Implication>())?)

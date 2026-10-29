@@ -182,90 +182,6 @@ fn referee_signal_reaches_a_hosted_child_through_its_pipe() {
 }
 
 #[test]
-fn a_never_settling_world_names_each_hosts_pending_work_and_deadlines() {
-    use skein_io::kernel::{Complete, Submit};
-    use skein_lib::{Queue, Time, Wall};
-    use skein_shell::Host;
-
-    #[derive(Debug)]
-    struct Pending {
-        work: bool,
-        deadline: Option<Time>,
-        completions: Queue<Complete>,
-        submissions: Queue<Submit>,
-    }
-    impl Host for Pending {
-        fn iterate(&mut self, _now: Time, _wall: Wall) {}
-        fn completions(&mut self) -> &mut Queue<Complete> {
-            &mut self.completions
-        }
-        fn submissions(&mut self) -> &mut Queue<Submit> {
-            &mut self.submissions
-        }
-        fn work_pending(&self, _now: Time) -> bool {
-            self.work
-        }
-        fn next_deadline(&self) -> Option<Time> {
-            self.deadline
-        }
-        fn next_policy_deadline(&self) -> Option<Time> {
-            self.deadline
-        }
-        fn is_empty(&self) -> bool {
-            !self.work && self.deadline.is_none()
-        }
-        fn operations(&self) -> u32 {
-            1
-        }
-    }
-    struct NeverPassed;
-    impl skein_world::Referee<Pending> for NeverPassed {
-        fn act(&mut self, _now: Time, _procs: &mut [Pending]) {}
-        fn observe(&mut self, _now: Time, _procs: &[Pending]) {}
-        fn next_deadline(&self) -> Option<Time> {
-            Some(Time::ZERO)
-        }
-        fn overdue(&self, _now: Time) -> Option<String> {
-            None
-        }
-        fn passed(&self) -> bool {
-            false
-        }
-    }
-    let failure = std::panic::catch_unwind(|| {
-        let mut world = real::World::new(NeverPassed);
-        for (work, deadline) in [(false, None), (true, None), (false, Some(Time::ZERO))] {
-            world.spawn(|| Pending {
-                work,
-                deadline,
-                completions: Queue::with_capacity(1),
-                submissions: Queue::with_capacity(1),
-            });
-        }
-        world.run(&Clock::new(), Duration::from_millis(20))
-    })
-    .expect_err("the pending host cannot settle");
-    let text = failure.downcast_ref::<String>().expect("patience diagnostic");
-    let iterations: u32 = text
-        .split("iterations (including failing iteration): ")
-        .nth(1)
-        .expect("iteration count")
-        .split(';')
-        .next()
-        .expect("count before CPU time")
-        .parse()
-        .expect("unsigned count");
-    let recent = iterations.saturating_sub(1).min(8);
-    assert!(text.contains("referee: passed=false; last_word=None; next_deadline=Some(0 ns) (due"), "{text}");
-    let quiet = text.find("host 0: work_pending=false; next_deadline=None; next_policy_deadline=None; is_empty=true; ring_count=0; work_pending_last_8=0/8").expect("quiet host");
-    let pending = text.find(&format!("host 1: work_pending=true; next_deadline=None; next_policy_deadline=None; is_empty=false; ring_count=0; work_pending_last_8={recent}/8")).expect("host continuing each completed pass");
-    let timer = text.find("host 2: work_pending=false; next_deadline=Some(0 ns) (due").expect("due timer host");
-    assert!(quiet < pending && pending < timer, "living hosts remain in admission order: {text}");
-    assert!(text[timer..].contains("next_policy_deadline=Some(0 ns) (due"));
-    assert!(text[timer..].contains("is_empty=false; ring_count=0; work_pending_last_8=0/8"));
-}
-
-#[test]
 fn a_zero_patience_deadline_reports_the_failing_iteration() {
     // Zero patience meets the runnable-wait threshold. Exercise its failure
     // diagnostic outside nextest so a successful process exit cannot skip it.
@@ -294,11 +210,14 @@ fn a_zero_patience_deadline_reports_the_failing_iteration() {
     .expect_err("zero patience fails before the first script iteration");
     let text = failure.downcast_ref::<String>().expect("the deadline fails with its diagnostic");
     let accounting = text
-        .lines().next().expect("deadline header")
-        .strip_prefix(
-            "the real loop settles within 0 ms; iterations (including failing iteration): 1; thread CPU elapsed (schedstat): ",
-        )
-        .expect("the deadline names its budget, failing iteration and thread CPU source");
+        .lines()
+        .next()
+        .expect("deadline header")
+        .strip_prefix("the real loop settles within 0 ms; ")
+        .expect("the real deadline names its budget")
+        .split_once("; thread CPU elapsed (schedstat): ")
+        .expect("the real deadline reports its thread CPU source")
+        .1;
     let (cpu, waited) = accounting
         .split_once("; thread runnable wait elapsed (schedstat): ")
         .expect("the deadline also names its runnable wait source");

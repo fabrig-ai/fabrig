@@ -1,6 +1,6 @@
 //! The layer's scripted routing around the component.
 use crate::net::{Net, WriteRoom};
-use jig_protocol_engine_workers::{Component, Event, Limits, MAX_OUT_DOWN, Request, Worker};
+use jig_protocol_engine_workers::{Component, Event, Limits, Request, Worker};
 use skein_fake_channel::ScriptedPeer;
 use skein_lib::{Duration, Queue, Rng, Time, Token};
 use std::collections::BTreeMap;
@@ -21,7 +21,7 @@ impl World {
             component: Component::new(limits, workers.to_vec().into_boxed_slice(), crate::fixtures::PAYLOAD)
                 .expect("valid engine"),
             nets: BTreeMap::new(),
-            out: Queue::with_capacity(MAX_OUT_DOWN),
+            out: Queue::uncapped(),
             root: Vec::new(),
             now: Time::ZERO,
             rng: Rng::new(seed),

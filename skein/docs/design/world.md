@@ -70,7 +70,10 @@ simulator.md; a world run in a browser is playground.md.
   ledger span, and the playground's loop calls bare. Delivering
   completions and draining submissions run inside the same span, as
   does the real loop's `ring.deliver`: a ring that grows on a harness
-  push is charged to its process (testing-strategy.md, 6).
+  push is charged to its process (testing-strategy.md, 6). The harness
+  chooses `Memory::Checked`, `Within(ceiling)` or `Unchecked` and reports
+  measured peaks alone through `Outcome::peaks()`, `real::Outcome::peaks()`
+  and `Killed::peak()` (testing.md, 5); the product world has no meter.
 
 ## 3. Steps
 
@@ -175,8 +178,11 @@ simulator.md; a world run in a browser is playground.md.
   - a clock moved short of the next due instant turns no process;
   - an input entered at a step and an instant, replayed at the same
     step and instant, gives the same trace.
-- **The harness's tests** are unchanged, and every world in skein, smith,
-  jig and temper runs as before.
+- **The harness's unit tests and simulated worlds** check its routing,
+  cleanup, observation and settlement mechanics without a real kernel.
+  Real-loop and end-to-end tests cover paths through those backends and
+  binaries. Its real-clock `Deadline`, starvation verdict and a settled
+  binary's counts are the contracts of testing.md, section 5.
 - **For the portable target:** the gate checks `skein-sim-world`, the
   simulator, the fake machine and the shell's portable face with
   clippy for `wasm32-unknown-unknown` (testing.md, 10).

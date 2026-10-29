@@ -103,6 +103,15 @@ own vocabulary, limits and world; a parent owns its children's state and
 routes between them; siblings share no domain types, and the core
 translates between them with small total functions.
 
+The queues between the core and its children are uncapped. Their
+hand-offs finish within the decision (4.4), without a reservation for a
+child's largest output. Accounts, fleet, views, brief and notes
+have no `max_out` allowance. Authority's stored denial count is
+`stored_finding_limit` (authority.md, section 2); people's
+`outputs_bound` is reserved by the settings route at the store's commit
+edge (people.md, section 2). Authority, tasks and people also expose
+`max_out` as a compatibility name for consumers outside jig.
+
 - **`tasks` is the center of the core:** it keeps every live task, and
   knows a task's lifecycle and nothing of runs, connectors or clients.
 - **`authority` is policy:** decisions over data, keeping only the rules

@@ -50,8 +50,8 @@ its look reads (5.1).
   violation among them), crashes and the native dialogs it dismissed.
   Whether one fails the test is the test's call.
 - **Bounded like the rest of skein.** Persons, pages, operations,
-  commands in flight and each message are counted under limits, and
-  `worst_case` covers them.
+  commands in flight and each message are counted under limits, checked
+  by `valid`.
 - **Held to the real browser.** The kit is tested against a fake browser
   in a machine world, and the facts that fake relies on are checked
   against real Chromium, as the simulator is held to the kernel.
@@ -87,7 +87,7 @@ pub enum Below { Commands(stream::Up), Replies(stream::Up), Errors(stream::Up) }
 pub enum Down  { Commands(stream::Down), Replies(stream::Down), Errors(stream::Down) }
 ```
 
-Each entry point declares its `MAX_OUT`. At startup the owner checks
+Entrances emit into uncapped queues. At startup the owner checks
 that the kit's largest read and room fit the pipes' intake and output
 caps, as for any machine stacked on a stream (io.md, 2).
 
@@ -514,11 +514,11 @@ value, a snapshot, a screenshot, a look's tree entries and properties
 stderr's tail.
 They also set the poll interval and the answer deadline. Commands are
 sized before they are written, and replies are kept only as their
-decoders' fields. `worst_case` adds the slabs, the command table, the
-queues, one message being read, the largest command and the largest
-screenshot, and a look's largest answer; no size computation may wrap. The memory test drives the
-kit to its limits against the fake browser and checks the counting
-allocator's high water against `worst_case`.
+decoders' fields. `valid` checks usable command and message sizes,
+representable framed read and output room, and positive poll and answer
+deadlines. The memory test drives the kit to its limits against the
+fake browser and checks the counting allocator's high water under a
+named scenario ceiling with headroom.
 
 ## 9. Testing
 

@@ -96,7 +96,7 @@ fn standard_profile_admits_the_priced_shell_run_defaults() {
     let limits = crate::profile::derive(&profile, &declarations(0)).expect("standard profile").domain;
     let charter = priced_charter();
     let mut domain = run::Domain::new(&limits.run, 0);
-    let mut out = Queue::with_capacity(run::MAX_OUT);
+    let mut out = Queue::uncapped();
     run::step(
         &mut domain,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.run },
@@ -129,7 +129,7 @@ fn actual_entrance_answer(
     use skein_lib::{Env, Queue, ReplyTo, Time, Token, Wall};
     use smith_domain::run;
     let mut domain = run::Domain::new(limits, 0);
-    let mut out = Queue::with_capacity(run::MAX_OUT);
+    let mut out = Queue::uncapped();
     run::step(
         &mut domain,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits },
@@ -398,7 +398,7 @@ fn the_measured_large_contract_is_admitted_at_the_host_edge_and_refused_one_byte
                 .into_boxed_slice(),
         });
         let mut domain = run::Domain::new(&limits, 0);
-        let mut out = Queue::with_capacity(run::MAX_OUT);
+        let mut out = Queue::uncapped();
         run::step(
             &mut domain,
             &Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
@@ -473,7 +473,7 @@ fn an_admitted_opening_fits_the_derived_request_with_escaped_host_text() {
     let mut selected = priced_charter();
     selected.outcome.report = Some(run::outcome::TextSpec { max: 32, fields: Box::default() });
     let mut domain = run::Domain::new(&limits.domain.run, 0);
-    let mut out = Queue::with_capacity(run::MAX_OUT);
+    let mut out = Queue::uncapped();
     selected.instructions = vec![1; 3500].into();
     run::step(
         &mut domain,

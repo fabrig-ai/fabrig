@@ -140,7 +140,7 @@ fn member_world(seed: u64) -> World {
     member.requests = authority::Requests(8);
     policy.roles = Box::new([owner, member]);
     let mut domain = authority::Domain::new(rules, limits.core.authority).expect("bounded member policy");
-    let mut out = Queue::with_capacity(authority::POLICY_MAX_OUT);
+    let mut out = Queue::uncapped();
     authority::step(&mut domain, authority::Event::Policy { project: 1, policy }, &mut out);
     configuration.core.seed_projects[0].policy.policy = domain.policy(1).expect("checked seed policy").clone();
     configuration.core.defaults.rules = (jig_domain_authority::Domain::new(domain.rules().clone(), *domain.limits())
@@ -313,7 +313,7 @@ fn wait_for_dependency(world: &mut World, seed: u64, parent: (u64, u64), target:
     });
     world.observer.inbound(&world.store, now.as_nanos(), &mut event);
     root::step(&mut world.domain, &env, event);
-    let mut out = Queue::with_capacity(root::max_out(&limits));
+    let mut out = Queue::uncapped();
     root::release(&mut world.domain, &env, &mut out);
     let mut load = None;
     while let Some(output) = out.pop() {

@@ -26,7 +26,7 @@ fn limits() -> Limits {
 fn receiving(bounds: &Limits) -> Receiving {
     let decoded_call_bytes = 4096;
     Receiving {
-        max_completion_bytes: adapter::completion_worst_case(&bounds.client, decoded_call_bytes)
+        max_completion_bytes: adapter::completion_bound(&bounds.client, decoded_call_bytes)
             .expect("full translated completion reservation"),
         max_completion_blocks: bounds.client.output_items,
         decoded_call_bytes,
@@ -473,7 +473,7 @@ fn reservation_control(configuration: &Configuration, exact: bool) {
     let payload = u64::try_from(b"opaque_host".len() + BODY.len()).expect("bounded actual host payload");
     let decoded_call_bytes = cells + payload - u64::from(!exact);
     let receiving = Receiving {
-        max_completion_bytes: adapter::completion_worst_case(&bounds.client, decoded_call_bytes)
+        max_completion_bytes: adapter::completion_bound(&bounds.client, decoded_call_bytes)
             .expect("wrapper floor admitted before actual call"),
         max_completion_blocks: 2,
         decoded_call_bytes,
@@ -526,7 +526,7 @@ fn oversized_first_decoding_retains_its_cell_before_exact_residual_host_admissio
         reservation_control(configuration, true);
         reservation_control(configuration, false);
         let bounds = limits();
-        assert!(adapter::completion_worst_case(&bounds.client, 0).is_none());
+        assert!(adapter::completion_bound(&bounds.client, 0).is_none());
         let mut no_cells = receiving(&bounds);
         no_cells.decoded_call_bytes = 0;
         assert!(
@@ -546,7 +546,7 @@ fn unknown_call_uses_its_full_secured_fallback_cell() {
         bounds.client.output_items = 1;
         let floor = u64::try_from(core::mem::size_of::<llm::Decoded>()).expect("fixed fallback cell");
         let secured = Receiving {
-            max_completion_bytes: adapter::completion_worst_case(&bounds.client, floor).expect("full cell is secured"),
+            max_completion_bytes: adapter::completion_bound(&bounds.client, floor).expect("full cell is secured"),
             max_completion_blocks: 1,
             decoded_call_bytes: floor,
             max_failure_bytes: bounds.client.detail_bytes,

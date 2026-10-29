@@ -507,11 +507,14 @@ A completion's prompt is built from what the domain gives:
   by a window's room (limits.md, 3.9).
 - **Stated to the LLM.** The limits a call can meet are written into the
   tools' descriptions from these effective values (section 3).
-- **The worst case:**
-  - the LLM memory pool, to which calls are admitted (section 6), in
-    place of each call's maximum times the number of calls;
-  - the decoding stack;
-  - one rendered result at a time.
+- **Receiving and rendering bounds** (programming-model.md, 6.3):
+  `completion_bound` bounds the complete translated completion, including
+  decoded calls, replay envelopes and block cells; `render_bound` bounds
+  one rendered result. Its diagnostic alternatives have their own
+  `job_problem_bound` and `size_refusal_bound`, included in the rendering
+  bound. Each uses checked arithmetic and names the value it bounds.
+  Calls still reserve against the LLM memory pool (section 6); the
+  component has no process-wide heap sum.
 
 ## 9. What the domain is owed, and what skein owes
 

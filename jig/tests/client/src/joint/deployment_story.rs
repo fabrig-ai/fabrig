@@ -10,7 +10,7 @@ fn world() -> World<Test, Joint> {
     owner.core.documents.chips = 2;
     owner.core.documents.text_bytes = 32;
     let room = owner.core.routes;
-    let connectors = jig_test_connector::MAX_OUT.checked_mul(2).expect("two connector outputs");
+    let connectors = jig_test_connector::OUTPUTS_BOUND.checked_mul(2).expect("two connector outputs");
     owner.journal.writes = owner.journal.writes.max(room.checked_add(connectors).expect("fixture writes"));
     owner.journal.held = owner.journal.held.max(
         room.checked_add(connectors)

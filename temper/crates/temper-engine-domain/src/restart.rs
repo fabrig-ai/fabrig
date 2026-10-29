@@ -282,7 +282,7 @@ pub(crate) fn startup_page(
     if range != Range::Forge {
         domain.work.push(Work::Core(jig_domain_core::Event::SettingsCommit {
             // Leave the rest of the root route's room for restart callbacks.
-            room: jig_domain_core::settings::writes_worst_case(&core_limits(&env.limits))
+            room: jig_domain_core::settings::writes_bound(&core_limits(&env.limits))
                 .expect("validated settings write room"),
         }));
     }

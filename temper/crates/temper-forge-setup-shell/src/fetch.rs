@@ -106,9 +106,10 @@ pub fn run(limits: &skein_io::Limits, trust: &Trust, mut machine: Fetch) -> Resu
     let mut part_file: Option<fs::File> = None;
     let mut part_path: Box<[u8]> = Box::new([]);
     let mut event = Event::Begin;
-    let mut out = Queue::with_capacity(fetch::MAX_OUT);
+    let mut out = Queue::uncapped();
     let result = loop {
         fetch::step(&mut machine, event, &mut out);
+        assert_eq!(out.len(), 1, "one fetch request per event");
         let answer = match out.pop().expect("one fetch request") {
             Request::Hash { file } => hash(&file).map(Event::Hashed),
             Request::Get { origin, path } => {

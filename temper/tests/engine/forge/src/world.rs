@@ -308,7 +308,7 @@ impl World {
             to_forge: Queue::with_capacity(32),
             forge_out: Queue::uncapped(),
             to_top: Queue::with_capacity(32),
-            top_out: Queue::with_capacity(top::max_out(&limits)),
+            top_out: Queue::uncapped(),
             pending: Map::with_capacity(32),
             stored: Map::with_capacity(128),
             seen: List::with_capacity(256),
@@ -741,7 +741,7 @@ impl World {
                     top::step(&mut self.top, &self.env, top::Event::Client(event), &mut self.top_out);
                 }
                 top::Request::ProjectionEffect { row, entry, .. } => {
-                    let mut kept = Queue::with_capacity(top::max_out(&self.env.limits));
+                    let mut kept = Queue::uncapped();
                     top::step(&mut self.top, &self.env, top::Event::KeepProjection { row, entry }, &mut kept);
                     for _ in 0..kept.len() {
                         let top::Request::Save { record, .. } = kept.pop().expect("projection keep count") else {

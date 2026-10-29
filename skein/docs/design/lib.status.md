@@ -1,5 +1,6 @@
 # lib: status
 
-2026-10-28. Where `skein-lib` lags or departs from [lib.md](lib.md).
+2026-10-29. Where `skein-lib` lags or departs from [lib.md](lib.md).
 
-- **11, the journal:** `Decision::write` and `hold` remain beside `push_write` and `push_held`, always `Ok`, for temper's engine root until it moves to the push forms; `JournalLimits` remains (the journal reads only its `release`) and `Journal::worst_case` with it, for jig's and temper's last readers. All three go with dynamic memory's last set.
+- **11, the journal:** lags: `Decision::write` and `hold` remain beside the push forms, until `ready/skein/a21-decision-compat` lands. `JournalLimits` keeps all five fields; the journal reads only `release`. Its other four fields await their last jig and temper readers moving them into their own types.
+- **5, containers:** the allocation prices also retain their delegating `worst_case` names for generated callers; `Slab`, `Deadlines` and `RequestTable` keep their table formulas for temper's remaining sums.

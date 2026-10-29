@@ -849,7 +849,7 @@ fn held_listener_closed(service: &Service, event: &io::Event) -> bool {
 fn route_events(service: &mut Service) {
     for _ in 0..service.told.len() {
         if let Some(worker) = &service.worker
-            && !worker.room()
+            && !worker.link_taken()
         {
             break;
         }

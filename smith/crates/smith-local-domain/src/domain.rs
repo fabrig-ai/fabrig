@@ -358,7 +358,7 @@ impl Domain {
 /// Handle one typed event and its immediate child handoffs.
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     let reading = domain.reading();
-    drain_agent_content(domain, env);
+    drain_agent_content(domain);
     match event {
         Event::Line { text } => receive_line(domain, env, text, out),
         Event::Slash(choice) => crate::choices::receive(domain, choice, env, out),
@@ -388,26 +388,24 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
 
 /// Release duplicate capture content, inline lifecycle observations and unused host facts.
 /// The service alone takes native run facts into its event producer.
-fn drain_agent_content(domain: &mut Domain, env: &Env<Limits>) {
-    let maximum = agent::max_facts(&env.limits.smith)
-        .saturating_add(env.limits.smith.run.facts)
-        .saturating_add(env.limits.smith.session.facts)
-        .saturating_add(1);
+fn drain_agent_content(domain: &mut Domain) {
     match &mut domain.agent {
-        Agent::Inline { domain: child, limits, .. } => {
-            for _ in 0..maximum {
-                if child.pop_content(Token::new(1)).is_none() {
+        Agent::Inline { domain: child, .. } => {
+            let client = Token::new(1);
+            // The extra empty pop marks content drained so an ended slot can be reclaimed.
+            for _ in 0..=child.pending_content(client) {
+                if child.pop_content(client).is_none() {
                     break;
                 }
             }
-            for _ in 0..limits.facts {
+            for _ in 0..child.pending_slot_facts() {
                 if child.pop_slot_fact().is_none() {
                     break;
                 }
             }
         }
-        Agent::Spawned { domain: child, limits, .. } => {
-            for _ in 0..limits.facts {
+        Agent::Spawned { domain: child, .. } => {
+            for _ in 0..child.backlog() {
                 if child.pop_fact().is_none() {
                     break;
                 }
@@ -430,7 +428,7 @@ fn agent_terminal(domain: &mut Domain, env: &Env<Limits>, agent: Token, terminal
     if completion && domain.turns.unsaved.room() == 0 {
         domain.held.push(Held { agent, terminal });
     } else {
-        drain_agent_content(domain, env);
+        drain_agent_content(domain);
         domain.agent.below(env.now, env.wall, agent, terminal);
     }
 }
@@ -440,7 +438,7 @@ fn release_held(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>
         return;
     }
     if let Some(held) = domain.held.pop() {
-        drain_agent_content(domain, env);
+        drain_agent_content(domain);
         domain.agent.below(env.now, env.wall, held.agent, held.terminal);
         route_agent(domain, env, out);
     }
@@ -448,7 +446,7 @@ fn release_held(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>
 
 /// Fire one child deadline and route its output.
 pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
-    drain_agent_content(domain, env);
+    drain_agent_content(domain);
     if domain.pressured() {
         if let Some(deadline) = domain.wall_deadline
             && deadline <= env.now
@@ -465,7 +463,7 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 
 /// Ask for the initial transcript or advance one ready child handoff.
 pub fn resume(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
-    drain_agent_content(domain, env);
+    drain_agent_content(domain);
     if domain.chat.phase == Phase::Loading && !domain.chat.load_requested {
         domain.chat.load_requested = true;
         out.push(Request::Load);
@@ -1103,7 +1101,7 @@ fn route_agent(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>)
     for _ in 0..domain.agent.backlog() {
         match domain.agent.pop() {
             Some(Output::Parent(request)) => {
-                drain_agent_content(domain, env);
+                drain_agent_content(domain);
                 parent_request(domain, env, request, out);
             }
             Some(Output::Lower { agent, request }) => match request {
@@ -1122,7 +1120,7 @@ fn route_agent(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>)
             None => break,
         }
     }
-    drain_agent_content(domain, env);
+    drain_agent_content(domain);
 }
 
 fn accept_turn(

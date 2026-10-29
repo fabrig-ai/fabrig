@@ -858,6 +858,43 @@ fn an_unanswered_adopt_holds_no_close_export_or_unrelated_adopt() {
     }
 }
 #[test]
+fn a_kept_adoption_is_named_at_finish_after_the_stream_drops() {
+    let mut f = fixtures::Frame::act_words_with(
+        &[b"chat", b"close", b"7", b"--key", b"close"],
+        fixtures::recovery::unanswered_adopt(),
+    );
+    let original = f.initial_records().into_iter().find(|row| row.key.len() == 16).expect("restored adoption");
+    f.answer_new_act();
+    f.drop_stream();
+    let me = f
+        .host
+        .root
+        .client()
+        .document(jig_client::Handle { asker: temper_client_tools::root::RUNNER.asker(), number: 0 })
+        .expect("retained me");
+    assert_eq!(me.state, jig_client::State::Behind);
+    assert!(f.act_sent(), "close dispatched beside the replayed adoption");
+    assert_eq!(f.exit(), None, "close waits for its erase acknowledgment");
+    f.store_erase();
+    assert_eq!(f.exit(), Some(Exit::Code(0)));
+    assert_eq!(f.stdout(), b"done: task 41, close\n");
+    let mut pending = fixtures::Frame::act_words_with(&[b"pending"], f.store_snapshot());
+    assert!(pending.initial_records().contains(&original), "kept adoption remains byte identical");
+    pending.drain();
+    assert_eq!(pending.exit(), Some(Exit::Code(0)));
+    assert!(skein_lib::bytes::find(pending.stdout(), b"adopt, party 7, first sent ").is_some());
+    let stderr = std::str::from_utf8(f.stderr()).expect("notice text");
+    assert_eq!(stderr.lines().count(), 1, "{stderr:?}");
+    assert_eq!(stderr.matches("kept: adopt, first sent ").count(), 1);
+    assert_eq!(
+        stderr
+            .matches("unanswered: it clears when the engine answers it, or past its retention; pending lists it")
+            .count(),
+        1
+    );
+}
+
+#[test]
 fn a_rerun_under_a_kept_name_waits_for_that_answer_and_a_different_ask_is_held() {
     use fixtures::recovery::{ADOPT, unanswered_adopt};
     let mut f = fixtures::Frame::act_words_with(ADOPT, unanswered_adopt());

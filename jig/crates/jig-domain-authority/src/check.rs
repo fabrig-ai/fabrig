@@ -10,13 +10,8 @@ use crate::{
     Action, Answer, Authority, BatchAsk, Budget, Call, CallAsk, Checked, Delegate, Delegation, Domain, Effect,
     EffectAccess, EffectAsk, Finding, Given, Grant, Guard, Holder, Judge, Last, Limits, Models, NoteScope, PersonAsk,
     PersonRequest, Policy, ProposalKind, RequestKind, Requirement, Role, RunAsk, Scopes, Source, Tools, Verdict,
-    Writer, at_most, carve, charge, grant_at_most, grant_covers, left, max_out, pattern_at_most, pattern_covers,
+    Writer, at_most, carve, charge, grant_at_most, grant_covers, left, pattern_at_most, pattern_covers,
 };
-
-fn room(domain: &Domain, why: &Queue<Finding>) {
-    let count = max_out(domain.limits()).expect("domain validates its output bound");
-    assert!(why.room() >= count, "caller reserves every finding before a check");
-}
 
 fn find(answer: &mut Answer, why: &mut Queue<Finding>, strict: Answer, finding: Finding) {
     *answer = (*answer).max(strict);
@@ -108,11 +103,10 @@ fn matches_resource(effect: &Effect, pattern: &crate::Pattern) -> bool {
 /// Batch reservations are all-or-nothing. Every direct child consumes one lifetime task slot in
 /// addition to the capacity allotted below that child. Root's pure bounded creation check,
 /// returning the strictest answer and proposed replacement funding numbers only on allowance.
-/// Reserve `max_out(domain.limits())` free finding slots; no ledger mutation, allocation or child
-/// request. Commit reservation with task admission once.
+/// Append findings to an uncapped queue; no ledger mutation or child request. Commit reservation
+/// with task admission once.
 #[must_use]
 pub fn check_batch(domain: &Domain, ask: &BatchAsk, why: &mut Queue<Finding>) -> Checked {
-    room(domain, why);
     if !authority_within(&ask.creator, domain.limits()) || !delegates_within(&ask.tasks, domain.limits()) {
         return checked(refuse(why, Finding::Oversized), None);
     }
@@ -407,12 +401,10 @@ pub fn needed_judges(domain: &Domain, project: u32, effect: &Effect) -> Option<L
 }
 
 /// Root's pure effect check over one coherent snapshot of connector verdicts.
-/// Returns the strictest answer and findings, refusing oversized inputs; reserve
-/// `max_out(domain.limits())` free slots. No connector call or retained state; carry the checked
-/// pin into execution.
+/// Returns the strictest answer and appends findings to an uncapped queue, refusing oversized
+/// inputs. No connector call or retained state; carry the checked pin into execution.
 #[must_use]
 pub fn check_effect(domain: &Domain, ask: &EffectAsk, given: &[Given], why: &mut Queue<Finding>) -> Answer {
-    room(domain, why);
     if !authority_within(&ask.authority, domain.limits())
         || !effect_within(&ask.effect, domain.limits())
         || !within(given.len(), domain.limits().facts)
@@ -433,7 +425,7 @@ pub fn check_effect(domain: &Domain, ask: &EffectAsk, given: &[Given], why: &mut
 }
 
 /// Check a connector-described projection under live project grants and requirements.
-/// No task authority or funding participates; reserve `max_out` finding slots.
+/// No task authority or funding participates; append findings to an uncapped queue.
 #[must_use]
 pub fn check_projection(
     domain: &Domain,
@@ -443,7 +435,6 @@ pub fn check_projection(
     given: &[Given],
     why: &mut Queue<Finding>,
 ) -> Answer {
-    room(domain, why);
     if !effect_within(effect, domain.limits()) || !within(given.len(), domain.limits().facts) {
         return refuse(why, Finding::Oversized);
     }
@@ -482,11 +473,10 @@ fn projection_grant(
 }
 
 /// Root's pure run-admission check over offered budget, clock/account reports and root-verified
-/// writer holds. Returns the strictest answer and findings; reserve `max_out(domain.limits())` free
-/// slots. No claim, run start, allocation or ledger mutation.
+/// writer holds. Returns the strictest answer and appends findings to an uncapped queue.
+/// No claim, run start or ledger mutation.
 #[must_use]
 pub fn check_run(domain: &Domain, ask: &RunAsk, why: &mut Queue<Finding>) -> crate::RunAnswer {
-    room(domain, why);
     if !authority_within(&ask.authority, domain.limits())
         || !within(ask.accounts.len(), domain.limits().accounts)
         || !within(ask.credentials.len(), domain.limits().accounts)
@@ -580,11 +570,10 @@ pub fn check_run(domain: &Domain, ask: &RunAsk, why: &mut Queue<Finding>) -> cra
 }
 
 /// Root's pure tool-call check over one configured family bit, read grant, message standing or note
-/// scope. Returns the strictest answer and bounded findings; reserve `max_out(domain.limits())`
-/// free slots. Makes no external call or state change.
+/// scope. Returns the strictest answer and appends findings to an uncapped queue.
+/// Makes no external call or state change.
 #[must_use]
 pub fn check_call(domain: &Domain, ask: &CallAsk, why: &mut Queue<Finding>) -> Answer {
-    room(domain, why);
     if !authority_within(&ask.authority, domain.limits()) || ask.family.0.count_ones() != 1 {
         return refuse(why, Finding::Oversized);
     }
@@ -721,8 +710,8 @@ fn give(
 
 /// A person's request checks their role and funding. An accepted effect must additionally pass
 /// `check_effect` on pinned facts in the same commit. Root's pure person-role/funding check
-/// returning a strict answer and replacement numbers only when allowed. Reserve
-/// `max_out(domain.limits())` free finding slots; caller verifies person membership, checks
+/// returning a strict answer and replacement numbers only when allowed. Append findings to an
+/// uncapped queue; caller verifies person membership, checks
 /// accepted effect facts and commits the decision atomically.
 #[must_use]
 pub fn check_request(domain: &Domain, ask: &PersonAsk, why: &mut Queue<Finding>) -> Checked {
@@ -743,7 +732,6 @@ pub fn check_request_with_standing(
     standing: bool,
     why: &mut Queue<Finding>,
 ) -> Checked {
-    room(domain, why);
     let admitted = match &ask.request {
         PersonRequest::Create(tasks) => delegates_within(tasks, domain.limits()),
         PersonRequest::Allot(authority) | PersonRequest::Amend(authority) | PersonRequest::Move(authority) => {

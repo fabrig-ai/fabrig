@@ -74,12 +74,12 @@ fn frame_deployment_role_preserves_every_builtin_and_admitted_policy_and_full_wi
         assert_eq!(value.projects.get(0).unwrap().role, people::Role::Policy { role: 4 });
         assert_eq!(value.projects.get(1).unwrap().project, u32::MAX);
         let mut held = u64::try_from(size_of::<Document>()).unwrap()
-            + List::<FrameProjectRole>::worst_case(value.projects.capacity()).unwrap()
+            + List::<FrameProjectRole>::price(value.projects.capacity()).unwrap()
             + u64::try_from(value.login.bytes.len() + value.name.bytes.len()).unwrap();
         for project in &value.projects {
-            held += List::<Template>::worst_case(project.templates.capacity()).unwrap();
+            held += List::<Template>::price(project.templates.capacity()).unwrap();
         }
-        assert!(document_with_context_worst_case(&limits).unwrap() >= held);
+        assert!(document_with_context_bound(&limits).unwrap() >= held);
         let Ok(Document::Deployment(_)) = make(&core, &limits, 1, &Subject::Deployment, &window(), Wall::EPOCH) else {
             panic!("deployment document admitted");
         };

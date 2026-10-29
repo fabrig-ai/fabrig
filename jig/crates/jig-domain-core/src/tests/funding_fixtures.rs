@@ -10,7 +10,7 @@ pub(super) fn set_role_authority(domain: &mut authority::Domain, value: authorit
     policy.ceiling.delegation.depth = policy.ceiling.delegation.depth.max(delegation.depth);
     let bounds = *domain.limits();
     *domain = authority::Domain::new(rules, bounds).unwrap();
-    let mut out = Queue::with_capacity(authority::POLICY_MAX_OUT);
+    let mut out = Queue::uncapped();
     authority::step(domain, authority::Event::Policy { project: 1, policy }, &mut out);
     assert_eq!(out.pop(), Some(authority::PolicyFact::Added { project: 1 }));
 }

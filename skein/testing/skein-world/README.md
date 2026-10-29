@@ -30,7 +30,7 @@ The `domain` module is the shared machinery of domain worlds:
 
 - `Schedule`, `Key` and latency `Span`: deterministic delivery times,
   FIFO ties, withdrawal and unique names from the world's injected seed.
-- `Stage`: admits an event only with room for the whole step's `max_out`;
+- `Stage`: hands every event on with an uncapped output queue;
   the world calls the domain and manages its iteration and reclaim point.
 - `Ledger`: opens requests by key and checks their one terminal obligation.
 - `Trace` and `assert_replays`: compare boundary order and final outcome.

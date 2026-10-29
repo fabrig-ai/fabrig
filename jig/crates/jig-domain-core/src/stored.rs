@@ -222,7 +222,8 @@ impl CallPart {
                 *answer != jig_domain_authority::Answer::Allow
                     && findings.len()
                         <= usize::try_from(
-                            jig_domain_authority::max_out(authority_limits).expect("valid authority bound"),
+                            jig_domain_authority::stored_finding_limit(authority_limits)
+                                .expect("valid authority bound"),
                         )
                         .expect("u32 fits usize")
             }

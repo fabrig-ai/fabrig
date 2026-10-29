@@ -26,6 +26,7 @@ pub fn roots(spawn: &Spawn) -> Vec<StartupRoot> {
     roots
 }
 pub fn host(spawn: &Spawn, inherited: &Inherited) -> Recorded {
+    crate::m15::observer::process(crate::m15::observer::Role::Ctl, inherited, b"client");
     let parsed =
         arguments::parse(&spawn.args[1..].iter().map(AsRef::as_ref).collect::<Vec<_>>()).expect("setup arguments");
     let pipe = |number| inherited.pipes.iter().find(|(child, _)| *child == number).expect("standard pipe").1;
@@ -55,7 +56,11 @@ pub fn host(spawn: &Spawn, inherited: &Inherited) -> Recorded {
     .expect("shipped ctl limits");
     Recorded {
         host,
-        wire: crate::referee::client::Wire::default(),
+        wire: if crate::m15::observer::enabled() && spawn.args.get(1).is_none_or(|word| word.as_ref() != b"sign-in") {
+            crate::referee::client::Wire::capturing()
+        } else {
+            crate::referee::client::Wire::default()
+        },
         seen: 0,
         sign_in: spawn.args.get(1).is_some_and(|word| word.as_ref() == b"sign-in"),
     }
@@ -312,7 +317,7 @@ pub(crate) struct Recorded {
 impl Host for Recorded {
     fn iterate(&mut self, now: Time, wall: Wall) {
         for complete in self.host.completions().iter() {
-            if self.sign_in {
+            if self.sign_in || crate::m15::observer::enabled() {
                 self.wire.complete(complete);
             }
         }

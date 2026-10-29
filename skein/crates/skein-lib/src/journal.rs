@@ -85,22 +85,6 @@ impl<W, O> Decision<W, O> {
     pub fn push_held(&mut self, output: O) {
         self.held.push(output);
     }
-
-    /// Adds a write; an uncapped decision never refuses, so this always
-    /// returns `Ok`. Kept while temper's engine-domain world test calls it;
-    /// `push_write` is the form.
-    pub fn write(&mut self, write: W) -> Result<(), W> {
-        self.push_write(write);
-        Ok(())
-    }
-
-    /// Holds an output; an uncapped decision never refuses, so this always
-    /// returns `Ok`. Kept while temper's engine-domain world test calls it;
-    /// `push_held` is the form.
-    pub fn hold(&mut self, output: O) -> Result<(), O> {
-        self.push_held(output);
-        Ok(())
-    }
 }
 
 /// A growing commit barrier with bounded release per call (lib.md, section 11).

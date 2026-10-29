@@ -857,7 +857,6 @@ impl World {
                 inputs: self.run_stage.inbox.iter().map(crate::order_log::Input::of).collect(),
                 due: self.run.is_due(self.now),
                 ready: self.run.is_ready(),
-                room: self.run_stage.has_room(),
             });
         }
     }

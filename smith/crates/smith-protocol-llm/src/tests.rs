@@ -9,7 +9,7 @@
 use skein_lib::{Duration, Rng};
 use smith_domain::tools;
 
-use crate::{CUT_MARKER_BYTES, render_outcome, render_worst_case};
+use crate::{CUT_MARKER_BYTES, render_bound, render_outcome};
 
 #[test]
 fn replay_admits_an_ordered_run_beyond_one_reasoning_item() {
@@ -34,13 +34,13 @@ fn completion_prices_one_reasoning_share_and_refuses_its_overflow() {
     let mut client = skein_llm_world::limits();
     client.output_items = 4;
     client.reasoning = 32;
-    let smaller = crate::completion_worst_case(&client, 4096).expect("one share");
+    let smaller = crate::completion_bound(&client, 4096).expect("one share");
     client.reasoning = 64;
-    let larger = crate::completion_worst_case(&client, 4096).expect("larger share");
+    let larger = crate::completion_bound(&client, 4096).expect("larger share");
     assert_eq!(larger - smaller, 128);
     client.output_items = u32::MAX;
     assert_eq!(crate::limits::replay_limits(&client), None);
-    assert_eq!(crate::completion_worst_case(&client, 4096), None);
+    assert_eq!(crate::completion_bound(&client, 4096), None);
 }
 
 fn tools() -> tools::Limits {
@@ -85,7 +85,7 @@ fn random_outcomes_at_random_caps_fit_their_derived_render_bound() {
         caps.shell_tail = u32::try_from(rng.next_u64() % 1024).unwrap();
         caps.search_hits = u32::try_from(rng.next_u64() % 32).unwrap();
         caps.search_bytes = u32::try_from(rng.next_u64() % 1024).unwrap();
-        let bound = render_worst_case(&caps, 1024, 2048).unwrap();
+        let bound = render_bound(&caps, 1024, 2048).unwrap();
         smallest_bound = smallest_bound.min(bound);
         if case % 8 == 0 {
             read_cuts.push(CUT_MARKER_BYTES + u32::try_from(rng.next_u64() % 128).unwrap());
@@ -245,7 +245,7 @@ fn cuts_preserve_every_utf8_character_boundary() {
 fn rendering_derivation_refuses_arithmetic_overflow() {
     let mut caps = tools();
     caps.list_bytes = u64::MAX;
-    assert_eq!(render_worst_case(&caps, 1, 1), None);
+    assert_eq!(render_bound(&caps, 1, 1), None);
 }
 
 #[test]
@@ -622,7 +622,7 @@ fn every_size_refusal_at_numeric_maxima_fits_the_derived_result_with_its_units()
     caps.shell_tail = 0;
     caps.match_lines = 0;
     caps.path_bytes = 1;
-    let maximum = render_worst_case(&caps, 0, 0).expect("longest feedback");
+    let maximum = render_bound(&caps, 0, 0).expect("longest feedback");
     let table = [
         (tools::SizePart::File, "file", "bytes"),
         (tools::SizePart::WriteContent, "write content", "bytes"),

@@ -643,14 +643,14 @@ impl World {
                 self.inject(stimulus);
             }
         }
-        while self.stage.has_room() && self.domain.is_ready() {
+        while self.domain.is_ready() {
             fleet::resume(&mut self.domain, &self.stage.env, &mut self.stage.out);
         }
         while let Some(event) = self.stage.next_event() {
             self.log(format!("fleet <- {}", describe(&event)));
             fleet::step(&mut self.domain, &self.stage.env, event, &mut self.stage.out);
         }
-        while self.stage.has_room() && self.domain.is_due(now) {
+        while self.domain.is_due(now) {
             fleet::fire(&mut self.domain, &self.stage.env, &mut self.stage.out);
         }
         // What the steps asked for, at the end of the iteration.

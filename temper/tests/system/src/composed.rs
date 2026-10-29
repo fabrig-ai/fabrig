@@ -1095,7 +1095,7 @@ fn grant_read(config: &mut engine::Config, limits: &mut engine::Limits) {
     }
     policy.roles = roles.into_boxed_slice();
     let mut domain = authority::Domain::new(authority_rules, limits.authority).expect("read authority");
-    let mut out = Queue::with_capacity(authority::POLICY_MAX_OUT);
+    let mut out = Queue::uncapped();
     authority::step(&mut domain, authority::Event::Policy { project: 1, policy }, &mut out);
     assert_eq!(out.pop(), Some(authority::PolicyFact::Added { project: 1 }));
     config.core.seed_projects[0].policy.policy = domain.policy(1).expect("configured seed policy").clone();

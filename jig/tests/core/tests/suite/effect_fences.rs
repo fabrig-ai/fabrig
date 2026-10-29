@@ -157,7 +157,7 @@ fn a_delayed_judge_is_checked_against_the_policy_that_exists_when_it_completes()
     let mut policy = core.authority.policy(1).expect("policy").clone();
     policy.requirements[0].must_be_guarded = true;
     policy.requirements[0].guard = authority::Guard::Guarded;
-    let mut facts = Queue::with_capacity(authority::POLICY_MAX_OUT);
+    let mut facts = Queue::uncapped();
     authority::step(&mut core.authority, authority::Event::Policy { project: 1, policy }, &mut facts);
     assert_eq!(facts.pop(), Some(authority::PolicyFact::Changed { project: 1 }));
     let before = core.tasks.task(key.task).expect("live task").numbers;
@@ -580,7 +580,7 @@ fn a_dependency_added_while_judges_answer_refuses_a_waiting_effect() {
     let (mut core, env) = plan_core(&world, SEED);
     let (configuration, _) = fixture(SEED, true);
     let policy = configuration.core.seed_projects[0].policy.policy.clone();
-    let mut facts = Queue::with_capacity(authority::POLICY_MAX_OUT);
+    let mut facts = Queue::uncapped();
     authority::step(&mut core.authority, authority::Event::Policy { project: 1, policy }, &mut facts);
     let key = core::CallKey { task, attempt, completion: 1, position: 0 };
     let origin = core::EffectOrigin::Call { to: ReplyTo::new(Token::new(9952)), key, deadline: env.wall };

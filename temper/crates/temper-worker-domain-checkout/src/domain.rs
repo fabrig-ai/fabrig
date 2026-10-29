@@ -26,7 +26,7 @@ impl Domain {
     /// A domain with room for `limits`.
     #[must_use]
     pub fn new(limits: &Limits) -> Domain {
-        let holds = limits::holds(limits).expect("worst_case accepted the limits");
+        let holds = limits::holds(limits).expect("validated hold-slot limits");
         Domain {
             cache: Cache::with_capacity(limits.workspaces),
             holds: Slab::with_capacity(holds),

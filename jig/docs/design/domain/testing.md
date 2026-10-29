@@ -282,8 +282,12 @@ becomes observations:
   task's revision in the store was the newest when it was made or
   moved; every change of settings is in the store whole or not at all,
   and a refused one left nothing.
-- **Bounded:** the heap within the worst case at every iteration, and
-  every story ending within its bound.
+- **Bounded:** each fixed scenario's measured heap peak stays under
+  its named ceiling at every iteration (testing-strategy.md, section 6),
+  and every story ends within its bound. The core world's empty closure
+  uses `EMPTY_CLOSURE_HEAP_CEILING`, 1,300 bytes of additional heap.
+  An uncapped queue grows from a floor of four entries, so one output
+  need not allocate only one entry; the ceiling includes that growth.
 
 ## 7. Fakes and kits
 

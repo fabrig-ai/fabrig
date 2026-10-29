@@ -121,7 +121,13 @@ fn config_layer() -> layer::Config {
         faults: layer::Faults { reset: 0, drop: 0, server_error: 0 },
     }
 }
-fn peer() -> (Rc<RefCell<Forge>>, Peer) {
+pub(crate) fn peer() -> (Rc<RefCell<Forge>>, Peer) {
+    peer_options(layer::installations::TOKEN_LIFE, false)
+}
+pub(crate) fn peer_with_ci(life: Duration) -> (Rc<RefCell<Forge>>, Peer) {
+    peer_options(life, true)
+}
+fn peer_options(life: Duration, ci: bool) -> (Rc<RefCell<Forge>>, Peer) {
     let wire = protocol();
     let mut config = temper_fake_git_hosted::fixtures::CONFIG;
     config.limits.files = 4;
@@ -149,7 +155,7 @@ fn peer() -> (Rc<RefCell<Forge>>, Peer) {
                 hooked: false,
                 checks: api::Checks {
                     cues: Box::default(),
-                    contexts: Box::default(),
+                    contexts: if ci { Box::new([b"ci".as_slice().into()]) } else { Box::default() },
                     latency_min: Duration::ZERO,
                     latency_max: Duration::ZERO,
                     silent: 0,
@@ -183,11 +189,13 @@ fn peer() -> (Rc<RefCell<Forge>>, Peer) {
     };
     let mut hosted = fixtures::peer_limits();
     hosted.connections = wire.calls + 3;
+    let mut github = config_layer();
+    github.token_life = life;
     let mut peer = Peer::github(
         fixtures::FORGE,
         ([127, 0, 0, 1], 3001).into(),
         hosted,
-        config_layer(),
+        github,
         limits,
         forge.clone(),
         fixtures::SEED,
@@ -476,4 +484,8 @@ pub fn run(scenario: Scenario) {
     }
     world::lower_store(None);
     ACTIVE.with(|active| active.set(false));
+}
+
+pub(crate) fn set_active(active: bool) {
+    ACTIVE.with(|slot| slot.set(active));
 }

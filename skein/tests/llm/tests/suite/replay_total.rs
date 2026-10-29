@@ -3,10 +3,9 @@ use skein_llm::{Block, Cap, Declared, Failure, Limits, Provider, client};
 use skein_llm_world::{TERMINAL, World, call, events, limits, response};
 
 #[test]
-fn standard_client_bound_excludes_per_item_replay_capacity() {
-    // 64 MiB leaves headroom above the standard client's 51 MiB fixed state;
-    // multiplying replay capacity by every output item exceeds this ceiling.
-    const STANDARD_CLIENT_CEILING: u64 = 64 * 1024 * 1024;
+fn standard_client_preparation_stays_under_the_peak_ceiling() {
+    // Bounds standard-client preparation across both provider dialects.
+    const STANDARD_CLIENT_PEAK_CEILING: i64 = 2_000;
     let declared = Declared {
         window: 272_000,
         output: 32_000,
@@ -24,8 +23,16 @@ fn standard_client_bound_excludes_per_item_replay_capacity() {
         bounds.http.read = 256;
         bounds.http.send = 31;
         bounds.sse.chunk = 128;
-        let bound = client::worst_case(&bounds).unwrap();
-        assert!(bound <= STANDARD_CLIENT_CEILING);
+        let mut input = call(1);
+        if provider == Provider::Anthropic {
+            input.endpoint = skein_llm::Endpoint::anthropic();
+            input.credential = Some(skein_llm::Credential::anthropic(b"fixture".as_slice().into()));
+        }
+        let span = skein_heap::Span::start();
+        let prepared = client::Client::prepare(input, &bounds).expect("standard client prepares");
+        let peak = span.end().peak;
+        assert!(peak <= STANDARD_CLIENT_PEAK_CEILING, "{provider:?}: {peak}");
+        drop(prepared);
         assert_eq!(bounds.output_items, 34);
         assert_eq!(bounds.reasoning, 65_536);
         assert_eq!(bounds.receiving, receiving);

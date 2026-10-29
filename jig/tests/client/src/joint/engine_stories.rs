@@ -35,7 +35,7 @@ fn a_note_written_corrected_by_a_person_and_recalled() {
         policy.ceiling.notes = jig_domain_authority::Scopes::PROJECT;
         policy.roles[2].authority.notes = jig_domain_authority::Scopes::PROJECT;
         let mut checked = jig_domain_authority::Domain::new(rules, owner.core.authority).expect("bounded note policy");
-        let mut out = skein_lib::Queue::with_capacity(jig_domain_authority::POLICY_MAX_OUT);
+        let mut out = skein_lib::Queue::uncapped();
         jig_domain_authority::step(&mut checked, jig_domain_authority::Event::Policy { project: 1, policy }, &mut out);
         assert_eq!(out.pop(), Some(jig_domain_authority::PolicyFact::Added { project: 1 }));
         configuration.core.seed_projects[0].policy.policy = checked.policy(1).expect("checked seed policy").clone();

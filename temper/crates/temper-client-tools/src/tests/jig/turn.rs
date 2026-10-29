@@ -92,7 +92,7 @@ fn a_document_sized_turn_prints_escaped_tool_names_with_the_shipped_limits() {
         blocks
             .push(c::Block::Call(c::Call {
                 number: u64::from(number),
-                tool: c::Text::new(fixtures::worst_case_json_text(tool_bytes), limits::TEXT)
+                tool: c::Text::new(fixtures::maximally_escaped_json_text(tool_bytes), limits::TEXT)
                     .expect("tool within shipped text bound"),
                 input: c::Text::new(Box::default(), limits::TEXT).expect("empty input"),
                 outcome: None,

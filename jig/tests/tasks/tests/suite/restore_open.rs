@@ -81,7 +81,7 @@ fn restoring_a_proposal_requires_its_open_members_shape() {
             }
             let mut domain = jig_tasks_world::domain(&LIMITS, SEED);
             let env = skein_lib::Env { limits: LIMITS, now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH };
-            let mut out = Queue::with_capacity(tasks::max_out(&LIMITS));
+            let mut out = Queue::uncapped();
             tasks::step(&mut domain, &env, Event::Restore { record: record.clone() }, &mut out);
             for record in &supporting {
                 tasks::step(&mut domain, &env, Event::Restore { record: record.clone() }, &mut out);

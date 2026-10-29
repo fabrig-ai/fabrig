@@ -703,7 +703,7 @@ fn current_and_patched_frames_share_the_exact_direct_read_bound() {
 #[test]
 fn configured_read_room_and_frame_capacity_are_measured_separately() {
     use jig_protocol_config::{Profile, profile};
-    // The frame bound is TurnRecord::worst_case_bytes + 12, including
+    // The frame bound is TurnRecord::encoded_bound + 12, including
     // version, optional read, transcript length, checksum and both lengths.
     const MAX_FRAME: u64 = 8_388_672;
     // Standard's map page includes the task/run revisions and placed reference;
@@ -713,7 +713,7 @@ fn configured_read_room_and_frame_capacity_are_measured_separately() {
         let codec = crate::codec::limits(&configured.core).expect("profile codec");
         assert_eq!(u64::from(configured.core.resume_bytes), request);
         assert_eq!(configured.store.store.page.bytes, page);
-        assert_eq!(crate::core_v6::TurnRecord::worst_case_bytes(&codec.core).expect("body") + 12, MAX_FRAME);
+        assert_eq!(crate::core_v6::TurnRecord::encoded_bound(&codec.core).expect("body") + 12, MAX_FRAME);
         assert!(request.min(u64::from(page)) < MAX_FRAME);
     }
     let limits = fixtures::store_limits();
@@ -1168,8 +1168,14 @@ fn open_queues_attempts_whose_transcript_place_is_gone() {
 #[test]
 fn orphan_erases_are_included_in_the_commits_operation_bound() {
     let limits = fixtures::store_limits();
-    let sizes =
-        crate::sizes::check(&limits.core, &fixtures::APPLICATION, &limits.journal, &limits.store, 1).expect("fits");
+    let sizes = crate::sizes::check_commits(
+        &limits.core,
+        &fixtures::APPLICATION,
+        &crate::sizes::commits(&limits.journal),
+        &limits.store,
+        1,
+    )
+    .expect("fits");
     assert_eq!(sizes.ops, 12);
 }
 #[test]

@@ -7,22 +7,22 @@
 //! deployment's rules, project policies and their admission limits. It keeps
 //! no task, funding numbers, connector or clock. The tasks child keeps the
 //! numbers; accounting answers say what they become. Connector kind orders
-//! are supplied as validated [`Implies`] data. Checks allocate nothing,
-//! refuse oversized inputs at admission and write every independent reason
-//! into caller-reserved bounded queues. [`needs`] constructs an owned value;
-//! policy events update the bounded table and emit one lifecycle fact.
+//! are supplied as validated [`Implies`] data. Checks refuse oversized inputs
+//! at admission and append every independent reason to uncapped queues.
+//! [`needs`] constructs an owned value; policy events update the bounded table
+//! and emit one lifecycle fact.
 
 //!
 //! Entry contracts: `check_*` borrow admitted snapshots, return one answer
-//! and write bounded findings; the root supplies connector verdicts and commits
-//! allowed numbers with actions exactly once (domain/authority.md, sections
-//! 7–9). `at_most`, coverage and accounting functions are pure value queries,
+//! and append findings to uncapped queues; the root supplies connector verdicts
+//! and commits allowed numbers with actions exactly once (domain/authority.md,
+//! sections 7–9). `at_most`, coverage and accounting functions are pure value queries,
 //! not child event protocols. Callers bound owned inputs before these queries;
 //! `needs` copies bounded data and its output is counted by the caller.
 //! `step` alone updates the policy table and emits one terminal `PolicyFact`
-//! per event, with free room `POLICY_MAX_OUT` (domain/authority.md, section 6).
-//! `max_out` bounds finding room;
-//! callers count question payloads and queues (domain/authority.md, section 11).
+//! per event into an uncapped queue (domain/authority.md, section 6).
+//! `stored_finding_limit` bounds each retained denial value; callers bound question payloads
+//! (domain/authority.md, section 11).
 //! This child never authenticates people, discovers task standing or funding
 //! links, executes effects, or recognizes duplicate settlements.
 #![cfg_attr(not(test), no_std)]
@@ -61,13 +61,13 @@ pub use check::{
     check_batch, check_call, check_effect, check_projection, check_request, check_request_with_standing, check_run,
     covers, needed_judges, needs,
 };
-pub use domain::{Domain, Event, POLICY_MAX_OUT, PolicyFact, PolicyRefusal, policy_refusal, step, valid_rules};
-pub use limits::{Limits, max_out, rules_worst_case};
+pub use domain::{Domain, Event, PolicyFact, PolicyRefusal, policy_refusal, step, valid_rules};
+pub use limits::{Limits, rules_bound, stored_finding_limit};
 pub use numbers::{Numbers, carve, charge, left, settle};
-pub use order::{FITS_MAX_OUT, Lack, Lacks, fits};
 pub use order::{
     Implication, Implies, at_most, grant_at_most, grant_covers, pattern_at_most, pattern_covers, resolve_task_grants,
 };
+pub use order::{Lack, Lacks, fits};
 pub use rules::{Guard, Judge, Policy, ProposalKind, Proposals, RequestKind, Requests, Requirement, Role, Rules};
 pub use value::{
     Authority, Budget, Delegation, Executor, Grant, Last, Models, Name, Pattern, ResourceScope, Scopes, Tools,

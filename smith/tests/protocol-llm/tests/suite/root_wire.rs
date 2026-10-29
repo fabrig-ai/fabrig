@@ -127,7 +127,7 @@ fn root_story(configuration: Configuration, tool_name: &'static [u8]) {
         Settings { job: Job::HostTools, writable: false, network: Span::millis(1, 1), ..Settings::calm(71) };
     settings.host_tool_name = tool_name;
     settings.limits.session.completion_bytes =
-        adapter::completion_worst_case(&bounds.client, settings.limits.decoded_call_bytes)
+        adapter::completion_bound(&bounds.client, settings.limits.decoded_call_bytes)
             .expect("complete actual translated reservation");
     settings.limits.session.completion_blocks = bounds.client.output_items;
     settings.limits.session.failure_bytes = bounds.client.detail_bytes;

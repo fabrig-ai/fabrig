@@ -32,7 +32,7 @@ use crate::git::{Commit, Done, Missing, Op};
 
 /// parent -> checkout
 #[derive(PartialEq, Eq, Debug)]
-#[expect(clippy::large_enum_variant, reason = "bounded diagnostics stay inline and are included in worst_case")]
+#[expect(clippy::large_enum_variant, reason = "diagnostics stay inline with a fixed byte capacity")]
 pub enum Event {
     /// Prepare a workspace for `spec`, on behalf of `client`, which holds it
     /// until it releases it. Answered by exactly one `Prepared`, after a
@@ -211,7 +211,7 @@ pub enum Outcome {
 /// the way) is checked by fetching its branch: it landed if the branch is at
 /// its commit.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-#[expect(clippy::large_enum_variant, reason = "bounded diagnostics stay inline and are included in worst_case")]
+#[expect(clippy::large_enum_variant, reason = "diagnostics stay inline with a fixed byte capacity")]
 pub enum Landing {
     /// Originally conflicted paths still contain a merge marker. No commit
     /// or push was made for this repository.

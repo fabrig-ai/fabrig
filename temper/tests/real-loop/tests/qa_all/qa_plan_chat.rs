@@ -6,7 +6,6 @@ use temper_real_loop_world::{
 };
 
 const EXPECTED_REQUESTS: usize = 2;
-const IN_FLIGHT_AND_ONE_CLOSING: usize = 2;
 const PERSON: Dir = Dir(1);
 const CHAT: usize = 1;
 const LATEST_ACTIVITY_CALL: usize = 6;
@@ -96,35 +95,6 @@ fn words_during_a_turn_are_answered_once() {
     );
 }
 
-fn closing_scripts() -> Box<[api::Script]> {
-    let mut scripts = scripts();
-    scripts[0].turns[1] = api::Turn {
-        lines: Box::from([api::Line::Call {
-            name: Box::from(&b"finish"[..]),
-            arguments: Box::from(&b"{\"fields\":{},\"form\":\"report\",\"text\":\"The QA chat is closed.\"}"[..]),
-        }]),
-        finish: api::Finish::ToolCalls,
-        tokens: 20,
-    };
-    scripts
-}
-
-#[test]
-#[ignore = "backlog: ctl reads a chat through its watch, which an ended chat ends (jig client contract 6)"]
-fn close_during_a_turn_keeps_the_cancelled_conversation_readable() {
-    let ran = temper_real_loop_world::run_forge(chat_fixture(), |_| closing_scripts(), close_steps);
-    let task: serde_json::Value =
-        serde_json::from_slice(&ran.calls().last().expect("task read").stdout).expect("task JSON");
-    let cancelled =
-        task["chip"]["details"]["owner"]["details"]["ending"].get("cancelled").expect("requester cancellation");
-    assert_eq!(cancelled["by"]["person"], 1);
-    assert_eq!(cancelled["reason"]["bytes"], "Close this QA chat.");
-    assert!(cancelled.get("result").expect("partial result").is_null());
-    assert!(task["result"].get("value").expect("result value").is_null());
-    assert!(queries(&ran).len() <= IN_FLIGHT_AND_ONE_CLOSING, "Close permits at most one further turn");
-    calls_succeed(&ran);
-}
-
 fn queries(ran: &temper_real_loop_world::Ran) -> Vec<&api::Query> {
     ran.llm()
         .iter()
@@ -185,40 +155,6 @@ fn queued_steps() -> Vec<calls::Step> {
                 calls::task(CHAT),
                 "--before".into(),
                 calls::activity_before(LATEST_ACTIVITY_CALL),
-            ]),
-        ),
-        calls::call(PERSON, Argv::new(vec!["chat".into(), "show".into(), calls::task(CHAT)])),
-        calls::call(PERSON, Argv::new(vec!["task".into(), "show".into(), calls::task(CHAT), "--json".into()])),
-    ]);
-    steps
-}
-
-fn close_steps() -> Vec<calls::Step> {
-    let mut steps = fixtures::signed_chat("qa-plan-chat-close-running");
-    steps.extend([
-        calls::until(PERSON, Argv::new(vec!["task".into(), "run".into(), calls::task(CHAT)]), PREFIX, b"not expected"),
-        calls::call(
-            PERSON,
-            Argv::new(vec![
-                "chat".into(),
-                "close".into(),
-                calls::task(CHAT),
-                "--reason".into(),
-                "Close this QA chat.".into(),
-                "--key".into(),
-                "qa-close-running".into(),
-            ]),
-        ),
-        calls::release_hold(HOLD),
-        calls::call(
-            PERSON,
-            Argv::new(vec![
-                "task".into(),
-                "show".into(),
-                calls::task(CHAT),
-                "--until".into(),
-                "ended".into(),
-                "--json".into(),
             ]),
         ),
         calls::call(PERSON, Argv::new(vec!["chat".into(), "show".into(), calls::task(CHAT)])),

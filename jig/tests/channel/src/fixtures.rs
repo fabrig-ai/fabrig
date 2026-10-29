@@ -181,7 +181,7 @@ pub(crate) fn agent_with_limits(agent_limits: &smith_agent_service::Limits) -> j
         messages: 8,
         calls: 1,
         call_bytes: 65_536,
-        answer_bytes: smith_host_domain::Delivered::worst_case(),
+        answer_bytes: smith_host_domain::Delivered::owned_bound(),
         turns: 8,
         turn_bytes: 8192,
         unacknowledged_bytes: smith_domain::max_turn_bytes(&agent_limits.domain).expect("one concrete agent turn"),

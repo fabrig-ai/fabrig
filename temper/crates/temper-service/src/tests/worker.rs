@@ -22,7 +22,7 @@ fn the_worker_sizes_each_part_from_its_payload_codec() {
     assert_eq!(prepared.root.host.slots, 1);
     assert_eq!(prepared.root.checkout.repositories, 1);
     assert_eq!(prepared.prefix, (3_u64 << 60_u32) + (1_u64 << 48_u32));
-    assert_eq!(u64::from(prepared.link.sizes.items), v1::Items::worst_case_bytes(&prepared.payload).unwrap());
+    assert_eq!(u64::from(prepared.link.sizes.items), v1::Items::encoded_bound(&prepared.payload).unwrap());
     assert_eq!(prepared.payload.repository_git_some, 4096);
 }
 
@@ -432,7 +432,7 @@ fn grant_sizes_take_credentials_source_names_and_generated_identities() {
         let left = crate::workers::limits(&engine).unwrap();
         let right = worker_settings::link_limits(&worker.jig, &payload).unwrap();
         let wire = crate::translate::limits(&engine.limits).unwrap();
-        let identity = u32::try_from(v1::Identity::worst_case_bytes(&wire).unwrap()).unwrap();
+        let identity = u32::try_from(v1::Identity::encoded_bound(&wire).unwrap()).unwrap();
         assert_eq!(left.sizes.grant, credential.max(name).max(identity));
         let root = crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap();
         let effective = temper_engine_domain::core_limits(&root);

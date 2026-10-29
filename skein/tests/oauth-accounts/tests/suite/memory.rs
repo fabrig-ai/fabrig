@@ -3,12 +3,14 @@ use skein_io::file;
 use skein_lib::Token;
 use skein_lib::{Duration, Env, List, Queue, Time, Wall, bytes};
 use skein_oauth::{ClientLimits, SavedToken};
-use skein_oauth_accounts::{Account, Component, Endpoint, FileLower, Keeper, Limits, Request, Transport, worst_case};
+use skein_oauth_accounts::{Account, Component, Endpoint, FileLower, Keeper, Limits, Request, Transport};
+
+// Bounds four shared accounts holding maximal records and their pending lock reads.
+const SHARED_RECORDS_CEILING: u64 = 23_000;
 
 #[test]
-fn every_account_holds_a_maximal_record_within_the_heap_bound() {
+fn every_account_holds_a_maximal_record_under_its_heap_ceiling() {
     let limits = shared_memory_limits();
-    let bound = worst_case(&limits).expect("heap bound");
     let meter = Meter::new();
     meter.start();
     let configured = shared_memory_accounts(&limits);
@@ -33,8 +35,11 @@ fn every_account_holds_a_maximal_record_within_the_heap_bound() {
     }
     assert_eq!(shared_reads.len(), limits.accounts, "every pending lock owns its bounded read");
     let measured = meter.end();
-    meter.check(measured, bound, &"OAuth shared accounts and their reads");
+    assert!(measured.peak() <= SHARED_RECORDS_CEILING, "OAuth shared accounts and their reads: {measured:?}");
 }
+
+// Bounds four refresh slots holding maximal records and one TLS connection each.
+const REFRESH_SLOTS_CEILING: u64 = 700_000;
 
 #[test]
 fn every_refresh_slot_holds_its_maximal_records_and_tls_connection() {
@@ -44,7 +49,6 @@ fn every_refresh_slot_holds_its_maximal_records_and_tls_connection() {
     limits.exchanges = 4;
     limits.io.sockets = 6;
     let trust = skein_tls_world::pki::client(&[]);
-    let bound = worst_case(&limits).expect("component heap bound");
     let meter = Meter::new();
     meter.start();
     let mut configured = List::with_capacity(limits.accounts);
@@ -113,11 +117,14 @@ fn every_refresh_slot_holds_its_maximal_records_and_tls_connection() {
     }
     assert_eq!(connects, limits.exchanges, "one TLS connection in every slot");
     let measured = meter.end();
-    meter.check(measured, bound, &"all OAuth TLS exchange slots");
+    assert!(measured.peak() <= REFRESH_SLOTS_CEILING, "all OAuth TLS exchange slots: {measured:?}");
 }
 
+// Bounds four sign-in listeners holding partial heads, return locations and maximal origins.
+const LISTENER_HEADS_CEILING: u64 = 180_000;
+
 #[test]
-fn every_listener_slot_keeps_a_bounded_partial_head_within_the_heap_bound() {
+fn every_listener_slot_keeps_a_bounded_partial_head_under_its_heap_ceiling() {
     let mut limits = skein_oauth_accounts_world::world::limits();
     limits.accounts = 4;
     limits.exchanges = 4;
@@ -130,7 +137,6 @@ fn every_listener_slot_keeps_a_bounded_partial_head_within_the_heap_bound() {
         format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", keys.len()).into_bytes();
     let mut response = response;
     response.extend_from_slice(&keys);
-    let bound = worst_case(&limits).expect("all listener bounds");
     let meter = Meter::new();
     meter.start();
     let configured = listener_accounts(&limits);
@@ -139,7 +145,7 @@ fn every_listener_slot_keeps_a_bounded_partial_head_within_the_heap_bound() {
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     drive_partial_heads(&mut component, &env, response);
     let measured = meter.end();
-    meter.check(measured, bound, &"every OAuth listener and partial head");
+    assert!(measured.peak() <= LISTENER_HEADS_CEILING, "every OAuth listener and partial head: {measured:?}");
 }
 
 const LISTENER_TURNS: usize = 2048;
@@ -290,6 +296,9 @@ impl ListenerSockets {
     }
 }
 
+// Bounds four private keepers with maximal paths, pending loads, records and sign-in slots.
+const PRIVATE_KEEPERS_CEILING: u64 = 83_000;
+
 #[test]
 fn every_private_keeper_retains_its_maximal_paths_and_pending_load() {
     let mut limits = skein_oauth_accounts_world::world::limits();
@@ -297,7 +306,6 @@ fn every_private_keeper_retains_its_maximal_paths_and_pending_load() {
     limits.exchanges = 4;
     limits.listeners = 0;
     limits.io.sockets = 4;
-    let bound = worst_case(&limits).expect("private account bound");
     let meter = Meter::new();
     meter.start();
     let mut configured = List::with_capacity(4);
@@ -392,7 +400,7 @@ fn every_private_keeper_retains_its_maximal_paths_and_pending_load() {
     }
     assert_eq!(above.len(), 4, "every sign-in slot starts only after its maximal record loaded");
     let measured = meter.end();
-    meter.check(measured, bound, &"all private paths, pending roots, records and sign-in slots");
+    assert!(measured.peak() <= PRIVATE_KEEPERS_CEILING, "private keeper paths, loads, records and slots: {measured:?}");
 }
 
 fn registration(
@@ -448,7 +456,7 @@ fn handed_in_record(account: u32) -> SavedToken {
 }
 
 #[test]
-fn an_added_and_removed_place_fits_the_heap_bound() {
+fn an_added_and_removed_place_passes_memory_checks() {
     drop(skein_oauth_accounts_world::accounts::run(
         131,
         skein_oauth_accounts_world::accounts::Story::Keeping,
@@ -457,7 +465,7 @@ fn an_added_and_removed_place_fits_the_heap_bound() {
 }
 
 #[test]
-fn two_varying_sign_ins_fit_the_heap_bound() {
+fn two_varying_sign_ins_pass_memory_checks() {
     drop(skein_oauth_accounts_world::sign_in::run(
         73,
         skein_oauth_accounts_world::sign_in::Story::TwoPorts,

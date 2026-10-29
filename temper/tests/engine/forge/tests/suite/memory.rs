@@ -20,7 +20,7 @@ fn bounded_connector_tables_and_client_fit_the_declared_heap() {
         let meter = Meter::new();
         let mut domain = connector(&limits);
         let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-        let mut out = Queue::with_capacity(top::max_out(&limits));
+        let mut out = Queue::uncapped();
         top::step(
             &mut domain,
             &env,
@@ -70,7 +70,7 @@ fn restored_flight_nodes_fit_the_counted_entry_bound() {
     const TASK: u64 = 7;
     let mut domain = connector(&LIMITS);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: LIMITS };
-    let mut out = Queue::with_capacity(top::max_out(&LIMITS));
+    let mut out = Queue::uncapped();
     let meter = Meter::new();
     meter.start();
     for entry in 0..u64::from(LIMITS.entries) {

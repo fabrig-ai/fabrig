@@ -9,8 +9,7 @@ use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use skein_world::domain::heap::Meter;
 use temper_worker_domain_checkout::git::{Commit, Done, Fault, Kind, Missing};
 use temper_worker_domain_checkout::{
-    Domain, Event, Limits, MAX_OUT, Message, Outcome, Preparation, Prepared, Refusal, Repository, Request, Spec, Start,
-    step,
+    Domain, Event, Limits, Message, Outcome, Preparation, Prepared, Refusal, Repository, Request, Spec, Start, step,
 };
 
 const LIMITS: Limits = Limits {
@@ -97,7 +96,7 @@ struct Fill {
 impl Fill {
     fn new(limits: Limits, heap_ceiling: u64) -> Fill {
         let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-        let out = Queue::with_capacity(MAX_OUT);
+        let out = Queue::uncapped();
         let meter = Meter::new();
         let domain = Domain::new(&limits);
         Fill { domain, env, out, meter, heap_ceiling }
@@ -246,7 +245,7 @@ fn fill(limits: Limits, heap_ceiling: u64) {
     let mut domain = Domain::new(&limits);
     let mut spec = full_spec(&limits, 0);
     spec.key = bytes(limits.name_bytes + 1);
-    let mut out = Queue::with_capacity(MAX_OUT);
+    let mut out = Queue::uncapped();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     temper_worker_domain_checkout::step(&mut domain, &env, Event::Prepare { client: Token::new(0), spec }, &mut out);
     let Some(Request::Prepared { prepared, .. }) = out.pop() else { panic!("expected an answer") };

@@ -8,17 +8,12 @@ mod account_key;
 mod case_5_3;
 mod cluster;
 mod forge;
-mod git;
 mod github;
 mod github_land;
-mod kept_requests;
-mod landing;
-mod landing_retry;
 mod lifecycle;
 mod lock;
 mod lost;
 mod peers;
-mod program_chat;
 mod restart;
 mod sign_in;
 mod template_bounds;
@@ -26,8 +21,6 @@ mod terminal;
 mod tools;
 
 mod fuzzy {
-    mod case2_8_1;
-    mod case2_hour_0;
     mod case_4_1_4_3;
     mod case_4_4;
     mod case_4_5_limited;

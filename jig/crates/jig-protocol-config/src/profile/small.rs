@@ -286,7 +286,7 @@ pub(super) const IO: skein_io::Limits = skein_io::Limits {
 // The root adds 18 positions to core's 18,572. Joined direct/holder terminals
 // raise fleet max_out 21 -> 25 and core room by 8 * 4 = 32 positions.
 // Close cancels each of Small's two pending sign-ins (protocol/llm.md, 5.2).
-// Account moves add 18 core route positions (accounts::max_out: 58 -> 76).
+// Account moves count 18 core route positions for their emitted outputs.
 // Retained-revision release adds 2 * 4 heads + 8 versions + one extent = 17.
 // Held room covers three decisions: 3 * 20,801 = 62,403.
 // Placed holds: tightened core room plus 18 connector slots needs 20,801 writes.

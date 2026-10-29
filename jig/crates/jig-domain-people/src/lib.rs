@@ -65,8 +65,7 @@ mod names;
 pub use names::{NAME_BYTES, NameRule, name_rule, same_name};
 mod models;
 pub use models::{
-    MODEL_DESCRIPTION_BYTES, MODEL_NAME_BYTES, Models, model_names_worst_case, remap_models, valid_model_context,
-    valid_model_names,
+    MODEL_DESCRIPTION_BYTES, MODEL_NAME_BYTES, Models, remap_models, valid_model_context, valid_model_names,
 };
 mod batch;
 pub use batch::{
@@ -104,7 +103,7 @@ pub use boundary::{
 };
 pub use capacity::{CapacityAction, CapacityCause, CapacityRefusal};
 pub use decisions::{Bound, Exceeded, FailureClass, HoldReason, Moved};
-pub use domain::{Domain, application_part, application_part_done, fire, max_out, step};
+pub use domain::{Domain, application_part, application_part_done, fire, outputs_bound, step};
 pub use facts::Fact;
 pub use limits::{Limits, outcome_bytes, valid};
 pub use policy_value::{

@@ -16,13 +16,17 @@ Provisional, 2026-10-29. One Codex owner on hel8 (`codex-run owner`, at high), p
 - The batch-size trial is 16. Restart with explicit `--batch 16`; the helper defaults to 8 and does not infer the previous setting.
 
 - The queue runs on hetzner8 from `~/src/fabrig/queue` (`tools/queue/design.md`); never touch that clone while `mq run` runs. It restarts only through `tools/queue/restart`, in `bash -lc`; a change to `tools/queue/` or its lists takes effect at the restart after it lands.
+- A dirty-checkout error is infrastructure failure. Drain the queue before inspection; preserve unexpected files and quarantine only confirmed generated artifacts outside the checkout. A passing tools suite must leave the source tree clean, including when executable Python entry points inherit no bytecode settings or Git excludes.
 - Its batches are logged in `~/src/fabrig/notes/queue.jsonl` there: steps and durations, the selection, the outcome. A batch that errors, a full run that fails where selections passed (a gap in `always.txt` or `read-by-tests.txt`), or a queue busy most of the hour is the operator's to act on.
 - When the queue's own code stops it landing its fix, the operator runs the fixed `tools/queue/` from a copy outside the clone until the fix lands (`agents/operations.md`, 5), then removes the copy.
+
+- If a transient systemd service wraps the restart helper, set `RemainAfterExit=yes`: the helper exits after starting a child in its cgroup. After it returns, verify that the queue daemon survives and holds both authority and checkout locks. Exit 0 acknowledges startup, not a completed gate.
 
 ## 3. Machines and slots
 
 - Builders: hetzner3, 6, 7 (slots); hetzner8 runs the gate, and hetzner2 is drained and reserved for its second prover. Free disk stays above heavy's floor: a slot is trimmed when its task starts (`codex-run` does it), and an idle slot can be trimmed by hand (`tools/slots/trim`); the operator never frees another's cache, `~/.cargo` or `~/.cache`.
 - Manage each builder’s five-minute idle-slot guard with `python3 -I ~/src/fabrig/main/tools/slots/guard --timer`; it trims idle slots below 80 GB. During a temporary guard repair, replace the timer’s source with main only after the repair lands and installation refreshes it; never remove a file still used by its timer. Hetzner2 has no builder-slot guard.
+- During disk pressure, admit each new heavy command only with at least 80000000000 available bytes (`df -B1 --output=avail /`), matching the guard’s decimal 80 GB. Human-readable `df -h` uses binary units and cannot be compared directly with that number.
 - If targets keep growing after idle executable trimming is exhausted, redirect new builds while current commands drain. With the target owner’s or coordinator’s agreement, reclaim a confirmed idle slot’s generated target only after checking live Codex runs, heavy use and pending resumes. Preserve sources, refs, reports and claims; report the cold rebuild cost. Heavy’s disk admission floor does not reserve space for already admitted growth.
 - heavy's state is never touched: `heavy --check-recovery` and `--reconcile` are the operator's tools when it misbehaves.
 - Shares and the pool are in `tools/slots/hosts`; leads claim pool slots themselves. A lead's question about a slot or a disk goes to the operator, who claims a freed pool slot for the first lead waiting, or lends a share's slot with its owner's agreement. Slots are added where disk allows: heavy admits at most three builds at once on a 15 GB builder (`HEAVY_BUILD_SLOTS=3` in `~/src/rust/tmp/machine.env`), so a slot past the third costs a wait in heavy, never memory, while its Codex run thinks.
@@ -30,6 +34,8 @@ Provisional, 2026-10-29. One Codex owner on hel8 (`codex-run owner`, at high), p
 ## 4. Tools
 
 - A tool moves into `tools/<name>/` with its design and tests, then joins `tools/installed`; `tools/install` on each machine links `~/.local/bin/<tool>` to `~/src/fabrig/main`. Runs already in flight keep the path they started with.
+- A delegated tool task names its physical hostname and operator address separately; a post address such as `ops@hel8` is not a literal host restriction. State explicitly which local offline checks are authorized, while retaining the no-build rule on the session host.
+- Validation that compares every Git ref runs in an independent disposable clone: linked worktrees share refs with other tasks. Retain raw evidence of any drift and verify caller source/index separately; do not freeze unrelated writers or mask their ref changes.
 - A tool's task ends with one real, harmless run on a builder: fakes test only what was imagined (ledger 17).
 - After a tool's change lands, the operator reruns `tools/install` on every machine that uses it.
 

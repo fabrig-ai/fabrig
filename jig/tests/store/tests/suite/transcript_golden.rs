@@ -65,8 +65,14 @@ fn written() -> World {
     let mut limits = root::limits();
     limits.store.page.bytes = PAGE;
     limits.store.chunk = limits.store.chunk.max(PAGE + KV_CHUNK_OVERHEAD);
-    sizes::check(&limits.core, &root::APPLICATION, &limits.journal, &limits.store, limits.orphan_erases)
-        .expect("fixed golden page still covers the world's row floor");
+    sizes::check_commits(
+        &limits.core,
+        &root::APPLICATION,
+        &sizes::commits(&limits.journal),
+        &limits.store,
+        limits.orphan_erases,
+    )
+    .expect("fixed golden page still covers the world's row floor");
     let mut world = World::unopened_observed(SEED, limits, None);
     world.open().expect("golden world opens");
     world.commit(root::first()).expect("task committed");

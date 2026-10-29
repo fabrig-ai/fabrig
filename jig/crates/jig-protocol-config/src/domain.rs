@@ -207,7 +207,7 @@ pub(crate) fn whole(engine: &crate::Engine, problems: &mut Problems) {
     if limits.settings.history == 0 {
         problems.push(settings_path, What::Bound);
     }
-    if match jig_domain_core::settings::writes_worst_case(limits) {
+    if match jig_domain_core::settings::writes_bound(limits) {
         Some(writes) => writes > engine.limits.journal.writes,
         None => true,
     } {
@@ -291,7 +291,7 @@ fn check_policy(
         else {
             return false;
         };
-        let mut facts = skein_lib::Queue::with_capacity(jig_domain_authority::POLICY_MAX_OUT);
+        let mut facts = skein_lib::Queue::uncapped();
         jig_domain_authority::step(
             &mut authority,
             jig_domain_authority::Event::Policy { project: number, policy: policy.clone() },

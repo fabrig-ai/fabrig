@@ -162,7 +162,7 @@ fn inbox_reply(
 
 #[expect(clippy::too_many_lines, reason = "one bounded projection preserves both groups and their parallel contexts")]
 pub(super) fn inbox(core: &Core, limits: &Limits, party: u64, window: &Window) -> Result<Inbox, Missing> {
-    super::inbox_selection_worst_case(window.rows, limits.tasks.depth).ok_or(Missing::TooLarge)?;
+    super::inbox_selection_bound(window.rows, limits.tasks.depth).ok_or(Missing::TooLarge)?;
     let entries = core.people.inbox_needs(&limits.people, party).ok_or(Missing::Unknown)?;
     let recent = core.people.cached_updates(&limits.people, party).ok_or(Missing::Unknown)?;
     let mut ordered = Map::with_capacity(

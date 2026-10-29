@@ -271,7 +271,7 @@ pub fn drawn(seed: u64) -> Scenario {
 }
 
 /// Fill every operation slot and both output caps under the counting allocator.
-/// The bound also covers this small driver's allocations, a stronger check.
+/// The peak includes the driver's allocations.
 #[must_use]
 pub fn memory_peak() -> u64 {
     use crate::io::{Below, Input};
@@ -331,10 +331,5 @@ pub fn memory_peak() -> u64 {
             Input::Kernel(complete) => component.complete(Time::ZERO, complete, &mut below.out),
         }
     }
-    let measured = meter.end();
-    meter.check(
-        measured,
-        temper_worker_protocol_git::worst_case(&limits(), &checkout()).expect("bound"),
-        &"git and its driver",
-    )
+    meter.end().peak()
 }

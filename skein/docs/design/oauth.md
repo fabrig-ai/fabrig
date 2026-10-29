@@ -384,11 +384,9 @@ expiry. Encoders measure the complete escaped URL or
 body before allocating. Readers reject overflow before storing. A
 registration whose terms hold an empty parameter name or an empty error
 name is refused as `Limit`: each entry then holds at least one byte of the
-terms' sum, so that sum also bounds how many entries there are. `worst_case`
-counts the in-progress machine with its registration (each of the terms'
-entries with its own storage, beside its bytes), one request and answer,
-parsing temporaries, candidate record and prior record, with checked
-arithmetic. The caller adds HTTP/TLS and its own account table and queues.
+terms' sum, so that sum also bounds how many entries there are. Limits
+keep every input and encoded output representable; the client and its
+common data have no per-process heap sum.
 The maximum output per step is one demand plus one terminal in the case
 where an answer completes an
 exchange; exact values are exported with the implementation.
@@ -416,7 +414,7 @@ the caller retains the descriptor. The peer owns an accepted descriptor
 through ordinary shutdown. A simulated peer test serves an issuer document
 on the adopted address and checks settled io and no open descriptors.
 Randomized cases use the fuzzy profile. Memory high water is checked
-against `worst_case`.
+under named scenario ceilings with headroom.
 
 **The issuer's terms** are tested the same way: a new registration and
 signing in again, each sending what section 2.1 says and nothing else; an
@@ -430,7 +428,7 @@ record read, refreshed and kept as version 3, and refused under an issued
 client id; revocation confirmed and unconfirmed; each added error name on
 a refresh, with each status; an empty parameter name or error name refused,
 and a parameter with an empty value sent; and terms at their most entries
-within `worst_case`.
+under a named scenario ceiling with headroom.
 
 **The fake issuer's additions,** each scriptable and observed:
 
@@ -640,8 +638,8 @@ never renames or reuses one on its own. An account has:
   bytes, the issued client id, the scopes and the subject 4,096, the
   times nanoseconds of wall time. The owner's `Limits` stay its runtime
   limits, under those ceilings, refused past one where the owner makes
-  them, and `record_bytes` still bounds the whole: every worst case and
-  figure is the runtime limits', never the schema's ceilings. From the first release skein keeps each
+  them, and `record_bytes` still bounds the whole: every bound is the
+  runtime limits', never the schema's ceilings. From the first release skein keeps each
   version's text and its patches (codec.md, section 12), so an owner
   whose store keeps records patches them with the store's own records,
   by skein's patch set, and hands the component records of the current
@@ -877,7 +875,7 @@ The component follows programming-model.md, 5.2.
   when the exchange ends: exchanges are minutes apart, and a pool would
   only add a keep time to close.
 
-### 6.7 Limits and the worst case
+### 6.7 Limits
 
 | Limit | What it bounds |
 |---|---|
@@ -893,15 +891,11 @@ deadline is, fired by the owner; once it passes, the write fails as busy,
 and a `locked` that comes later is answered by `unlock` at once, until
 `closed`, after which it is the owner's to release (6.4).
 
-The client's own limits are section 5's. The worst case is each account's
-registration, its terms' entries counted as section 5 counts them, its
-current and candidate records, a shared record's read under its lock beside
-them, per sign-in its return (`RETURN_BYTES`), and per exchange the client's worst case, the issuer's key set among it,
-`skein-http`'s, TLS's and io's buffers for one connection; per listener, one
-accepted connection and its request head, a settling listener among them
-(6.5); the redirects it refuses, whatever their reason, take nothing more.
-The trusted roots are shared
-configuration, counted once.
+The client's own limits are section 5's. `skein_oauth_accounts::valid`
+checks account, exchange and listener capacities, client limits and the
+HTTP, TLS and io edges. The redirects it refuses take no additional
+connection slot. Trusted roots are shared configuration. Neither the
+accounts component nor its listener requires a sum of heap prices.
 
 ### 6.8 Testing
 
@@ -946,7 +940,8 @@ configuration, counted once.
   or another subject; exactly one `unlock` for each `locked` before
   `closed`, and none after it, a `locked` answered past `closed` left to
   the owner.
-- **Memory:** every limit at once, against the worst case.
+- **Memory:** every limit at once, under named scenario ceilings with
+  headroom.
 - **Transports:** the replaying tiers run plaintext issuers on loopback; TLS
   to an issuer runs in the real loop (tls.md).
 - **For an application's real loop** (testing-strategy.md, 2.8), the fake

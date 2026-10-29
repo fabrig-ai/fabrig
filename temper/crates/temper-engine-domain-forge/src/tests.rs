@@ -12,6 +12,7 @@ mod fixtures;
 mod flight;
 #[path = "tests/landing.rs"]
 mod landing_routes;
+mod limits;
 mod panel;
 mod projection;
 mod purpose;
@@ -134,7 +135,7 @@ fn domain() -> Domain {
     .expect("valid connector")
 }
 fn outputs(d: &mut Domain, event: Event) -> Box<[Request]> {
-    let mut out = Queue::with_capacity(max_out(&LIMITS));
+    let mut out = Queue::uncapped();
     step(d, &env(), event, &mut out);
     let mut values = skein_lib::List::with_capacity(out.len());
     for _ in 0..out.len() {
@@ -143,7 +144,7 @@ fn outputs(d: &mut Domain, event: Event) -> Box<[Request]> {
     values.into_boxed()
 }
 fn ready(d: &mut Domain) -> Box<[Request]> {
-    let mut out = Queue::with_capacity(max_out(&LIMITS));
+    let mut out = Queue::uncapped();
     resume(d, &env(), &mut out);
     let mut values = skein_lib::List::with_capacity(out.len());
     for _ in 0..out.len() {
@@ -1488,8 +1489,8 @@ fn routing_tables_take_every_installation_with_the_connection_components_bounds(
         }
     }
     assert!(d.installation(2, 8).unwrap().stray);
-    assert!(connection_worst_case(2, 8, LIMITS.name_bytes).is_some());
-    assert_eq!(connection_worst_case(u32::MAX, u32::MAX, LIMITS.name_bytes), None);
+    assert!(crate::limits::connection_valid(2, 8));
+    assert!(!crate::limits::connection_valid(u32::MAX, u32::MAX));
 }
 
 fn setup_application(forge: u16, request: Token, token: Token) -> Event {
@@ -1566,7 +1567,7 @@ fn setup_answers_reserve_room_until_retention_ends() {
     );
     let mut later = env();
     later.wall = Wall::from_nanos(later.wall.as_nanos() + Duration::from_secs(60).as_nanos());
-    let mut out = Queue::with_capacity(max_out(&LIMITS));
+    let mut out = Queue::uncapped();
     step(&mut d, &later, setup_application(1, request, request), &mut out);
     assert_eq!(d.application_answer(Token::new(1)), None, "expired answer released");
     assert_eq!(out.pop(), Some(Request::MarkedForges));
@@ -1752,7 +1753,7 @@ fn setup_names_are_validated_at_admission_on_both_sides_of_the_name_bound() {
                     repository: repository.clone(),
                     project: SetUpProject::Existing(1),
                 };
-                let mut emitted = Queue::with_capacity(max_out(&env.limits));
+                let mut emitted = Queue::uncapped();
                 step(
                     &mut d,
                     &env,

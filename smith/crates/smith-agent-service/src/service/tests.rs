@@ -36,7 +36,7 @@ fn limits() -> Limits {
         channel: channel::Limits {
             bodies: channel_bodies,
             start_bytes: u32::try_from(
-                smith_channel::Start::worst_case_bytes(&channel_bodies).expect("fixture Start bound"),
+                smith_channel::Start::encoded_bound(&channel_bodies).expect("fixture Start bound"),
             )
             .expect("fixture frame"),
             charter: smith_charter::CEILINGS,
@@ -78,7 +78,7 @@ fn limits() -> Limits {
                 tls: skein_tls::client::Limits { read: 4096, send: 4096, records: skein_tls::client::MAX_RECORD },
             },
             receiving: llm::Receiving {
-                max_completion_bytes: llm::completion_worst_case(&client, decoded_call_bytes).expect("receiving bound"),
+                max_completion_bytes: llm::completion_bound(&client, decoded_call_bytes).expect("receiving bound"),
                 max_completion_blocks: client.output_items,
                 decoded_call_bytes,
                 max_failure_bytes: client.detail_bytes,

@@ -19,7 +19,13 @@ const REFUSED: u64 = 3;
 const KV_CHUNK_OVERHEAD: u32 = 20;
 
 fn checked(limits: &Limits) -> Result<sizes::Sizes, sizes::SizeRefusal> {
-    sizes::check(&limits.core, &root::APPLICATION, &limits.journal, &limits.store, limits.orphan_erases)
+    sizes::check_commits(
+        &limits.core,
+        &root::APPLICATION,
+        &sizes::commits(&limits.journal),
+        &limits.store,
+        limits.orphan_erases,
+    )
 }
 
 fn row_floor() -> u32 {

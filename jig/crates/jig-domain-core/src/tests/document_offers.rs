@@ -24,7 +24,7 @@ fn document_offers_fit_the_object_and_preserve_actor_specific_refusals() {
     observer.decides = authority::Proposals(0);
     policy.roles = Box::new([policy.roles[0].clone(), observer]);
     core.authority = authority::Domain::new(core.authority.rules().clone(), limits.authority).unwrap();
-    let mut facts = Queue::with_capacity(authority::POLICY_MAX_OUT);
+    let mut facts = Queue::uncapped();
     authority::step(&mut core.authority, authority::Event::Policy { project: 1, policy }, &mut facts);
     let Document::Task(value) = make(&core, &limits, 1, &Subject::Task { task: 2 }, &window(), Wall::EPOCH).unwrap()
     else {
@@ -73,7 +73,7 @@ fn complete_policy_recipients_refuse_a_shortened_receiving_form() {
     second.number = 4;
     policy.roles = Box::new([policy.roles[0].clone(), second]);
     core.authority = authority::Domain::new(core.authority.rules().clone(), limits.authority).unwrap();
-    let mut out = Queue::with_capacity(authority::POLICY_MAX_OUT);
+    let mut out = Queue::uncapped();
     authority::step(&mut core.authority, authority::Event::Policy { project: 1, policy }, &mut out);
     assert_eq!(out.pop(), Some(authority::PolicyFact::Added { project: 1 }));
     limits.documents.lines = 1;
@@ -213,7 +213,7 @@ fn full_grants() -> (Core, Limits, tasks::TaskRecord) {
     policy.ceiling.grants = grants.clone();
     policy.roles[0].authority.grants = grants;
     core.authority = authority::Domain::new(rules, limits.authority).unwrap();
-    let mut out = Queue::with_capacity(authority::POLICY_MAX_OUT);
+    let mut out = Queue::uncapped();
     authority::step(&mut core.authority, authority::Event::Policy { project: PROJECT, policy }, &mut out);
     assert_eq!(out.pop(), Some(authority::PolicyFact::Added { project: PROJECT }));
     let mut row = core.tasks.task(TASK).unwrap().clone();

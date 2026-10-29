@@ -98,7 +98,7 @@ fn unchanged(text: Box<[u8]>, error: bool, max_bytes: u64) -> Result<Feedback, F
 /// Returned None means arithmetic overflow; callers refuse before effects.
 /// Semantic ownership and this text are separately priced during construction.
 #[must_use]
-pub fn feedback_worst_case(limits: &run::Limits) -> Option<u64> {
+pub fn feedback_bound(limits: &run::Limits) -> Option<u64> {
     let fields = limits.run_bytes.max(limits.outcome_bytes).checked_mul(4)?;
     // Rules 1 and 2: all problem names share the contract/declaration total;
     // only the names' arbitrary bytes need the invalid-UTF-8 expansion.

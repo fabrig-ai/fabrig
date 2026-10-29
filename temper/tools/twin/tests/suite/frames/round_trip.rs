@@ -38,7 +38,7 @@ fn wire_limits() -> documents::Limits {
     }
 }
 
-fn decoded(answer: &api::Answer) -> (Vec<Block>, smith::Usage) {
+pub(super) fn decoded(answer: &api::Answer) -> (Vec<Block>, smith::Usage) {
     let limits = wire_limits();
     let mut decoder = openai::StreamDecoder::new(skein_llm::Provider::OpenAi, &limits.openai);
     let mut out = Queue::uncapped();

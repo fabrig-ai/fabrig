@@ -23,6 +23,34 @@ fn quoted(bytes: &[u8]) -> Result<String, Refusal> {
     Ok(serde_json::to_string(text).expect("text JSON"))
 }
 
+/// Smith's fresh Open brief is the opening request (smith/docs/design/domain/run.md, 3.4).
+/// The transcript records messages, not the system text or the run mode.
+pub(crate) fn asked(take: &Take, turns: &[smith_transcript::Turn]) -> bool {
+    // frames::read admits at least one turn.
+    for message in turns[0].messages() {
+        match message.role() {
+            Role::Assistant => break,
+            Role::User => {
+                for block in message.blocks() {
+                    if let Block::Text(text) = block {
+                        // Finite main and delegate openings carry the begin instruction,
+                        // even when an offered message also quotes the cue.
+                        if text.text().starts_with(b"Begin the work your brief describes.")
+                            || text.text().starts_with(b"Begin the work your instructions describe.")
+                        {
+                            return false;
+                        }
+                        if skein_lib::bytes::find(text.text(), &take.cue).is_some() {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    false
+}
+
 pub(crate) fn script(
     take: &Take,
     turns: &[smith_transcript::Turn],
@@ -110,12 +138,14 @@ fn replace(input: &[u8], replaces: &[Replace], counts: &mut [u32]) -> Result<Vec
     Ok(arguments)
 }
 
-pub(crate) fn finish(base: &mut Base, scripts: &[String]) -> Result<Box<[u8]>, Refusal> {
-    let scripts = format!("[{}]", scripts.join(","));
-    let Ok(scripts) = RawValue::from_string(scripts) else {
-        return Err(Refusal::Bounds { what: "scripts" });
-    };
-    base.insert(String::from("cued"), scripts);
+pub(crate) fn finish(base: &mut Base, cued: &[String], asked: &[String]) -> Result<Box<[u8]>, Refusal> {
+    for (name, scripts) in [("cued", cued), ("asked", asked)] {
+        let scripts = format!("[{}]", scripts.join(","));
+        let Ok(scripts) = RawValue::from_string(scripts) else {
+            return Err(Refusal::Bounds { what: "scripts" });
+        };
+        base.insert(String::from(name), scripts);
+    }
     let bytes = serde_json::to_vec(base).expect("raw JSON members");
     if temper_fake::llm::Document::decode(&bytes).is_err() {
         return Err(Refusal::Bounds { what: "fake document" });

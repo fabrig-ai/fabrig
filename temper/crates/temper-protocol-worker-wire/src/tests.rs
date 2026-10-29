@@ -90,7 +90,7 @@ fn saved_conflicts_past_their_count_are_refused() {
 }
 
 #[test]
-fn largest_parts_are_the_generated_worst_cases() {
+fn largest_parts_are_the_generated_encoded_bounds() {
     let limits = fixtures::limits();
     let sizes = crate::largest(&limits).expect("test limits fit");
     assert_eq!(u64::from(sizes.items), v1::Items::encoded_bound(&limits).expect("items"));

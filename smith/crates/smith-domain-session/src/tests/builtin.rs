@@ -303,12 +303,12 @@ fn an_owed_result_is_forgotten_by_compaction() {
 }
 
 #[test]
-fn program_results_leave_the_turn_cell_bounded() {
-    // Type-size contract check on the Turn and Kind cells together.
+fn the_turn_and_kind_cells_keep_their_size() {
+    // Type-size contract on the Turn and Kind cells together, measured on x86_64.
     // A change of either type's size is a deliberate edit of this number.
-    const TURN_KIND_SIZE: usize = 240;
+    const TURN_KIND_SIZE: usize = 192;
     let cells = size_of::<crate::record::Turn>() + size_of::<crate::record::Kind>();
-    assert!(cells <= TURN_KIND_SIZE, "record cells {cells} exceed {TURN_KIND_SIZE}");
+    assert_eq!(cells, TURN_KIND_SIZE, "record cells must keep their contracted size");
 }
 
 #[test]
@@ -359,10 +359,11 @@ fn closing_a_full_builtin_batch_keeps_every_observation() {
     limits.delegated_result_bytes = 64;
     let mut harness = Harness::new(&limits);
     let session = begin(&mut harness, full_batch(&limits));
-    let bound = crate::domain::builtin_close_facts(&limits);
+    // Every builtin answer, the closed kit and the ended session.
+    let observations = limits.completion_blocks + 2;
     begin_facts(&mut harness);
     crate::session::close(&mut harness.domain, &harness.env, session, &mut harness.out);
-    assert_fact_count(&mut harness, bound);
+    assert_fact_count(&mut harness, observations);
 }
 
 #[test]
@@ -373,7 +374,8 @@ fn failing_after_a_full_builtin_batch_keeps_every_observation() {
     let mut harness = Harness::new(&limits);
     let session = begin(&mut harness, full_batch(&limits));
     drop(next_prompt(&mut harness));
-    let bound = crate::domain::builtin_failure_facts(&limits);
+    // Every builtin answer, the failed completion, the closed kit and the ended session.
+    let observations = limits.completion_blocks + 3;
     begin_facts(&mut harness);
     crate::session::failed(
         &mut harness.domain,
@@ -385,7 +387,7 @@ fn failing_after_a_full_builtin_batch_keeps_every_observation() {
         true,
         &mut harness.out,
     );
-    assert_fact_count(&mut harness, bound);
+    assert_fact_count(&mut harness, observations);
 }
 
 #[test]

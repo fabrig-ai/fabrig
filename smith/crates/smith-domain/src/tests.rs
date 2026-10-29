@@ -23,7 +23,7 @@ use smith_domain_session as session;
 use crate::limits;
 use crate::llm::{Block, Completion, Decoded, Message, Problem, Prompt, Returned, Role, Said, Served, Stop, Usage};
 use crate::tools::{self, Call, Name, Op, Part, Path, Place};
-use crate::{Domain, Event, Fact, Limits, Request, fire, max_out, resume, step, valid};
+use crate::{Domain, Event, Fact, Limits, Request, fire, resume, step, valid};
 
 #[test]
 fn oversized_saved_answer_says_the_call_was_decided() {
@@ -948,28 +948,6 @@ fn the_limits_fit_and_a_session_must_take_what_the_run_asks() {
 }
 
 #[test]
-fn what_an_entry_point_may_emit_grows_with_the_tools_cancels_only_once() {
-    let base = Limits {
-        session: session::Limits { tools: tools::Limits { jobs: 0, ..LIMITS.session.tools }, ..LIMITS.session },
-        ..LIMITS
-    };
-    assert_eq!(max_out(&base), 1142);
-    // A kit's close cancels as many operations as the tools run, which go out
-    // to io and lead nowhere else: what the run is sent does not grow with
-    // them.
-    let tools = tools::Limits { calls: 256, ..base.session.tools };
-    let wide = Limits { session: session::Limits { parallel_tools: 8, tools, ..base.session }, ..base };
-    // Four session records plus eight delegated calls may reach the run;
-    // each can open/say at most MAX_OUT sessions. The kit's io cancels do not.
-    assert_eq!(limits::session_steps(&wide), 74);
-    assert_eq!(max_out(&wide), 22646);
-    let wider =
-        Limits { session: session::Limits { tools: tools::Limits { calls: 512, ..tools }, ..wide.session }, ..wide };
-    assert_eq!(limits::run_out(&wider), limits::run_out(&wide), "io cancels never multiply run hand-offs");
-    assert_eq!(max_out(&wider) - max_out(&wide), 74 * 256, "one additional kit cancel per session step");
-}
-
-#[test]
 fn a_run_opens_main_as_a_session_through_to_its_first_call_to_the_llm() {
     let mut h = Harness::new();
     let (_, main, prompt) = h.admit(7, charter());
@@ -1053,7 +1031,7 @@ fn an_opening_larger_than_a_session_holds_refuses_main_as_invalid() {
             completion_bytes: 128,
             answer_bytes: 128,
             completion_blocks: 1,
-            delegated_result_bytes: crate::feedback_worst_case(&run).expect("complete compatible feedback"),
+            delegated_result_bytes: crate::feedback_bound(&run).expect("complete compatible feedback"),
             ..LIMITS.session
         },
         ..LIMITS
@@ -1889,7 +1867,7 @@ fn maximum_custom_guide_headings_obey_the_session_receiving_limit_after_discover
                 completion_bytes: 128,
                 answer_bytes: 128,
                 completion_blocks: 1,
-                delegated_result_bytes: crate::feedback_worst_case(&run).unwrap(),
+                delegated_result_bytes: crate::feedback_bound(&run).unwrap(),
                 ..LIMITS.session
             },
             ..LIMITS
@@ -2620,7 +2598,7 @@ fn invalid_limits_are_refused() {
         session: session::Limits { spend: 0, ..LIMITS.session },
         ..LIMITS
     }));
-    let feedback = crate::feedback_worst_case(&LIMITS.run).expect("representable feedback");
+    let feedback = crate::feedback_bound(&LIMITS.run).expect("representable feedback");
     assert!(valid(&Limits {
         session: session::Limits { delegated_result_bytes: feedback, ..LIMITS.session },
         ..LIMITS

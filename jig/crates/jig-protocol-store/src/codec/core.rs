@@ -23,13 +23,11 @@ pub fn limits(domain: &domain::Limits) -> Option<Limits> {
     let tasks = crate::codec::tasks::limits(&domain.tasks)?;
     let notes = crate::codec::notes::limits(&domain.notes)?;
     let core = wire::Limits {
-        settings_refusal_value: u32::try_from(crate::people_v13::Refusal::worst_case_bytes(
-            &crate::people_v13::CEILINGS,
-        )?)
-        .ok()?,
-        phase_bytes_value: u32::try_from(crate::tasks_v9::PhaseRecord::worst_case_bytes(&tasks)?).ok()?,
-        change_bytes_value: u32::try_from(crate::tasks_v9::ChangeRecord::worst_case_bytes(&tasks)?).ok()?,
-        end_bytes_value: u32::try_from(crate::tasks_v9::EndRecord::worst_case_bytes(&tasks)?).ok()?,
+        settings_refusal_value: u32::try_from(crate::people_v13::Refusal::encoded_bound(&crate::people_v13::CEILINGS)?)
+            .ok()?,
+        phase_bytes_value: u32::try_from(crate::tasks_v9::PhaseRecord::encoded_bound(&tasks)?).ok()?,
+        change_bytes_value: u32::try_from(crate::tasks_v9::ChangeRecord::encoded_bound(&tasks)?).ok()?,
+        end_bytes_value: u32::try_from(crate::tasks_v9::EndRecord::encoded_bound(&tasks)?).ok()?,
         projection_goal_words: domain.tasks.spec_bytes,
         projection_task_words: domain.tasks.spec_bytes,
         projection_milestone_words: domain.tasks.message_bytes.max(domain.tasks.result_bytes),
@@ -43,13 +41,13 @@ pub fn limits(domain: &domain::Limits) -> Option<Limits> {
         settled_answer_host_body: domain.call_answer_bytes,
         settled_answer_delivery_evidence: domain.call_answer_bytes,
         settled_call_tool: domain.call_answer_bytes,
-        call_part_effect_denied_findings: jig_domain_authority::max_out(&domain.authority)?,
-        call_part_tool_denied_findings: jig_domain_authority::max_out(&domain.authority)?,
+        call_part_effect_denied_findings: jig_domain_authority::stored_finding_limit(&domain.authority)?,
+        call_part_tool_denied_findings: jig_domain_authority::stored_finding_limit(&domain.authority)?,
         call_part_delegated_value: domain.tasks.batch,
-        call_part_delegation_denied_findings: jig_domain_authority::max_out(&domain.authority)?,
+        call_part_delegation_denied_findings: jig_domain_authority::stored_finding_limit(&domain.authority)?,
         call_part_note_recalled_entries: domain.notes.recalled,
-        task_bytes_value: u32::try_from(crate::tasks_v9::TaskProblem::worst_case_bytes(&tasks)?).ok()?,
-        note_bytes_value: u32::try_from(crate::notes_v1::Row::worst_case_bytes(&notes)?).ok()?,
+        task_bytes_value: u32::try_from(crate::tasks_v9::TaskProblem::encoded_bound(&tasks)?).ok()?,
+        note_bytes_value: u32::try_from(crate::notes_v1::Row::encoded_bound(&notes)?).ok()?,
     };
     wire::check_limits(&core).ok()?;
     Some(Limits { core, tasks, notes })

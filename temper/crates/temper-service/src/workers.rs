@@ -76,7 +76,7 @@ impl Workers {
         Ok(Self {
             listening: None,
             component,
-            out: Queue::with_capacity(kit::MAX_OUT_DOWN),
+            out: Queue::uncapped(),
             io,
             listeners,
             sockets: Map::with_capacity(limits.workers.checked_add(limits.opening).expect("connections")),
@@ -261,10 +261,8 @@ impl Workers {
         }
     }
     pub fn iterate(&mut self, now: Time, events: &mut Queue<root::Event>) {
-        if events.room() >= kit::MAX_OUT_FIRE {
-            self.component.fire(now, &mut self.out);
-            self.drain(events);
-        }
+        self.component.fire(now, &mut self.out);
+        self.drain(events);
     }
     pub fn abort(&mut self, now: Time, events: &mut Queue<root::Event>) {
         if self.ending != Some(Closing::Abort) {
@@ -496,16 +494,16 @@ pub fn limits(settings: &crate::settings::Engine) -> Option<kit::Limits> {
         detail: hub.detail_bytes,
         grant: crate::worker_settings::grant_bytes(
             crate::values::credential_bytes(&settings.jig),
-            u32::try_from(wire::Identity::worst_case_bytes(&wire)?).ok()?,
+            u32::try_from(wire::Identity::encoded_bound(&wire)?).ok()?,
         )?,
         name: link.name,
         secret: link.secret,
         model_name: ceilings.model_bound_name,
-        items: u32::try_from(wire::Items::worst_case_bytes(&wire)?).ok()?,
-        left: u32::try_from(wire::Left::worst_case_bytes(&wire)?).ok()?,
-        saved: u32::try_from(wire::Saved::worst_case_bytes(&wire)?).ok()?,
+        items: u32::try_from(wire::Items::encoded_bound(&wire)?).ok()?,
+        left: u32::try_from(wire::Left::encoded_bound(&wire)?).ok()?,
+        saved: u32::try_from(wire::Saved::encoded_bound(&wire)?).ok()?,
         evidence: u32::try_from(hub.delivery_evidence_bytes).ok()?,
-        resource: u32::try_from(wire::Preparation::worst_case_bytes(&wire)?).ok()?,
+        resource: u32::try_from(wire::Preparation::encoded_bound(&wire)?).ok()?,
         slots: core.fleet.slots,
         calls: hub.run_calls,
         turns: hub.turns,
@@ -596,7 +594,7 @@ mod tests {
             hosting: Box::new([]),
             bounds: crate::tests::fixtures::worker_agent().bounds,
         };
-        let mut events = Queue::with_capacity(1);
+        let mut events = Queue::uncapped();
         service.engine.as_mut().expect("engine").workers.out.push(kit::Request::Hello { channel, worker: 1, hello });
         service.engine.as_mut().expect("engine").workers.drain(&mut events);
         let Some(root::Event::Worker(root::WorkerInput::Link {

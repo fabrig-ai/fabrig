@@ -182,7 +182,7 @@ fn no_workspace_host_answer_wait_park_and_native_transcript_resume() {
             ..Settings::calm(1001)
         };
         settings.limits.session.completion_bytes =
-            adapter::completion_worst_case(&bounds.client, settings.limits.decoded_call_bytes)
+            adapter::completion_bound(&bounds.client, settings.limits.decoded_call_bytes)
                 .expect("actual Client completion reservation");
         settings.limits.session.completion_blocks = bounds.client.output_items;
         settings.limits.session.failure_bytes = bounds.client.detail_bytes;
@@ -475,8 +475,7 @@ fn utf8_read_feedback_can_be_copied_into_an_edit_in_both_wire_dialects() {
         bounds.client.request = 16384;
         let mut settings = Settings { job: Job::Reporting, ..Settings::calm(1013) };
         settings.limits.session.completion_bytes =
-            adapter::completion_worst_case(&bounds.client, settings.limits.decoded_call_bytes)
-                .expect("completion room");
+            adapter::completion_bound(&bounds.client, settings.limits.decoded_call_bytes).expect("completion room");
         settings.limits.session.completion_blocks = bounds.client.output_items;
         settings.limits.session.failure_bytes = bounds.client.detail_bytes;
         let mut world =
@@ -567,7 +566,7 @@ fn the_descriptions_state_each_effective_workspace_limit_on_both_native_wires() 
             stated: adapter::Stated::from_tools(caps, client.input).expect("actual numeric quantities"),
         };
         settings.limits.session.completion_bytes =
-            adapter::completion_worst_case(&client, settings.limits.decoded_call_bytes).expect("receiving");
+            adapter::completion_bound(&client, settings.limits.decoded_call_bytes).expect("receiving");
         settings.limits.session.completion_blocks = client.output_items;
         settings.limits.session.failure_bytes = client.detail_bytes;
         let scripts = Box::new([Script {
@@ -654,7 +653,7 @@ fn namespace_descriptions_and_list_slash_reach_both_native_provider_dialects() {
                     .expect("valid namespace fixture"),
             };
             settings.limits.session.completion_bytes =
-                adapter::completion_worst_case(&client, settings.limits.decoded_call_bytes)
+                adapter::completion_bound(&client, settings.limits.decoded_call_bytes)
                     .expect("valid namespace fixture");
             settings.limits.session.completion_blocks = client.output_items;
             settings.limits.session.failure_bytes = client.detail_bytes;

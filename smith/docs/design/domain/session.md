@@ -697,6 +697,13 @@ budgets.
   - a sub-agent's spend counted once; cache writes priced at their own
     rate; usage not reported, told apart from zero; a prompt's size
     taken as the sum of its disjoint input and cache counts.
+- **Memory:** fixed scenarios measure one total peak each, including
+  ownership handed to the parent until it releases it, under a ceiling
+  with headroom (programming-model.md, 6.3). The recorded turn's `Turn`
+  and `Kind` cells have one exact type-size contract check,
+  `TURN_KIND_SIZE`, 192 bytes together on x86_64, for every recorded
+  turn. It uses neither an allocator peak nor a scenario ceiling;
+  a type's size never moves a memory ceiling.
 - **Its referee:**
   - every call answered once, in call order;
   - turns told in order, each after its calls settled;

@@ -4,9 +4,9 @@ use skein_lib::{Env, List, Queue, Time, Token, Wall};
 const LIMITS: Limits =
     Limits { runs: 2, watchers: 4, watchers_per_party: 2, subjects_per_change: 4, text_bytes: 16, facts: 32 };
 fn drive(domain: &mut Domain, event: Event) -> Box<[Request]> {
-    let mut out = Queue::with_capacity(max_out(&LIMITS));
+    let mut out = Queue::uncapped();
     step(domain, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: LIMITS }, event, &mut out);
-    let mut requests = List::with_capacity(max_out(&LIMITS));
+    let mut requests = List::with_capacity(out.len());
     for _ in 0..out.len() {
         requests.push(out.pop().expect("output count")).expect("bounded output");
     }

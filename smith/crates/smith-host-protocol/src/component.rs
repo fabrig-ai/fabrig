@@ -727,7 +727,7 @@ mod tests {
             endpoints: 1,
             calls: 1,
             start_bytes: u32::try_from(
-                smith_channel::v5::Start::worst_case_bytes(&smith_channel::CEILINGS).expect("Start ceiling"),
+                smith_channel::v5::Start::encoded_bound(&smith_channel::CEILINGS).expect("Start ceiling"),
             )
             .expect("Start frame range"),
             channel: skein_channel::Limits {

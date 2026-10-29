@@ -146,9 +146,24 @@ impl Domain {
         content
     }
 
+    /// Content records queued in the client's retained root, or zero for no slot.
+    #[must_use]
+    pub fn pending_content(&self, client: Token) -> u32 {
+        match self.clients.get(&client) {
+            Some(id) => self.slots.get(*id).expect("client binding names its retained slot").root.pending_content(),
+            None => 0,
+        }
+    }
+
     /// Drain one inline lifecycle observation for the parent.
     pub fn pop_slot_fact(&mut self) -> Option<Fact> {
         self.facts.pop()
+    }
+
+    /// Inline lifecycle observations queued for the parent to drain.
+    #[must_use]
+    pub fn pending_slot_facts(&self) -> u32 {
+        self.facts.len()
     }
 
     /// Entries held for the parent to drain (skein's draft

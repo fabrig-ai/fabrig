@@ -553,7 +553,7 @@ impl Clients {
             self.component =
                 kit::Component::new(settings, &self.env, &mut self.out).expect("validated client settings");
         }
-        if self.closed || events.room() < kit::MAX_OUT_DOWN {
+        if self.closed {
             return;
         }
         self.server.fire(&mut self.server_out);
@@ -679,9 +679,6 @@ impl Clients {
         accounts: &mut Option<crate::accounts::Accounts>,
     ) {
         for _ in 0..self.endings.len().checked_mul(self.writes).expect("bounded sign-in endings") {
-            if events.room() < kit::MAX_OUT_DOWN {
-                break;
-            }
             let mut ready = None;
             for (number, _) in &self.endings {
                 if *number <= self.durable {

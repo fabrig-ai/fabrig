@@ -27,8 +27,8 @@ unsupported token caps and sampling settings.
 
 To drive one call:
 
-1. Configure `client::Limits`; check `worst_case` against available memory
-   and `largest_read`/`largest_room` against the lower stream's caps.
+1. Configure `client::Limits` with `client::valid`; check
+   `largest_read`/`largest_room` against the lower stream's caps.
 2. Build a `Call` with its owner token, endpoint, credential and prompt.
    `Client::prepare(call, &limits)` validates it before touching the stream.
 3. Use uncapped upper and lower queues for each
@@ -133,9 +133,8 @@ Codex's successful subscription responses can omit `Content-Type`; the client
 accepts that omission for Codex while validating any explicitly supplied type.
 
 Applications can retain `Replay::to_bytes` envelopes without owning provider
-codecs. Configure the receiving cap with `replay_bytes`: its seven-byte header
-is additional to `DocumentLimits::opaque_bytes`. `replay_worst_case` covers
-temporary JSON and raw/envelope copies. `Prompt::output_ceiling` handles the
+codecs. `replay_bytes` bounds the receiving envelope: its seven-byte header
+is additional to `DocumentLimits::bytes`. `Prompt::output_ceiling` handles the
 configured dialect's supported wire option, while local output limits remain
 caller-owned. Shared independent scripts and HTTP/SSE peers are described in
 [fake-llm.md](../../docs/design/fake-llm.md).

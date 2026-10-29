@@ -93,7 +93,7 @@ impl Domain {
     /// # Errors
     /// The core's configured workers exceed the priced membership bounds.
     pub fn new(config: Config, limits: &Limits) -> Result<Self, core::Problem> {
-        assert!(limits.routes > 0 && limits.journal.now > 0, "nonempty route and door");
+        assert!(limits.routes > 0, "nonempty route");
         assert!(limits.host.slots == limits.core.fleet.engine_slots, "engine slot agreement");
         assert!(
             config.charter_endpoints.len() <= usize::try_from(limits.endpoints).expect("endpoint count"),
@@ -156,7 +156,7 @@ impl Domain {
                 .with_leads(&limits.observability, config.lead_templates),
             infrastructure: infrastructure::Domain::new(config.backend, &limits.infrastructure),
             host: host::Domain::new(&limits.host),
-            journal: Journal::uncapped(limits.journal.release, 0),
+            journal: Journal::uncapped(limits.release, 0),
             charter_endpoints: config.charter_endpoints,
             assignments: Map::with_capacity(limits.core.tasks.tasks),
             briefs: Map::with_capacity(limits.core.tasks.tasks),
@@ -333,7 +333,7 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
     domain.journal.accept(decision);
     if let Some(commits) = domain.restored_commits.take() {
         assert!(domain.journal.idle(), "the deployment header is the first cold-start row");
-        domain.journal = Journal::uncapped(env.limits.journal.release, commits);
+        domain.journal = Journal::uncapped(env.limits.release, commits);
     }
 }
 

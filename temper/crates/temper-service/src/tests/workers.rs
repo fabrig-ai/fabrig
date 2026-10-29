@@ -330,7 +330,7 @@ fn decoded_charter(bytes: &[u8]) -> smith_charter::Charter {
 #[test]
 fn a_part_that_does_not_decode_gives_no_parts_and_is_counted() {
     let mut workers = fixtures::workers();
-    let mut events = skein_lib::Queue::with_capacity(32);
+    let mut events = skein_lib::Queue::uncapped();
     for (bytes, expected) in [(b"".as_slice(), 1), (&[0, 0, 0, 1], 2)] {
         let up = fixtures::answer(host::Ending::Ended {
             outcome: Box::new([]),
@@ -366,7 +366,7 @@ fn a_part_that_does_not_decode_gives_no_parts_and_is_counted() {
 fn the_workers_listener_and_accepted_socket_have_their_own_prefixes() {
     let mut workers = fixtures::workers();
     let owner = Token::new(crate::tokens::WORKER_LISTENERS);
-    let mut events = skein_lib::Queue::with_capacity(32);
+    let mut events = skein_lib::Queue::uncapped();
     let Some(skein_io::Request::Listen { owner: requested, addr: addr @ skein_io::Addr::InProcess(_) }) =
         workers.io.pop()
     else {
@@ -391,7 +391,7 @@ fn the_workers_listener_and_accepted_socket_have_their_own_prefixes() {
 fn a_listener_that_opens_during_closing_is_closed_immediately() {
     let mut workers = fixtures::workers();
     let _listen = workers.io.pop().unwrap();
-    let mut events = skein_lib::Queue::with_capacity(32);
+    let mut events = skein_lib::Queue::uncapped();
     workers.close(Time::ZERO, &mut events);
     assert!(workers.up(
         Time::ZERO,
@@ -415,7 +415,7 @@ fn a_listener_that_opens_during_closing_is_closed_immediately() {
 #[test]
 fn an_assignment_that_cannot_encode_is_answered_invalid_through_the_link() {
     let mut workers = fixtures::workers();
-    let mut events = skein_lib::Queue::with_capacity(32);
+    let mut events = skein_lib::Queue::uncapped();
     let mut assignment = fixtures::assignment_with(fixtures::repository(7, b"acme", b"shop"));
     assignment.workspace.repositories[0].provider.forge = 99;
     workers.assignment(
@@ -471,7 +471,7 @@ fn the_roots_facts_are_drained_and_counted_after_each_step() {
             parts: root::Parts { saved: None, pushed: Box::new([]), preparation: Some(preparation) },
         },
     }));
-    fixtures::settle_root(&mut service, &mut skein_lib::Queue::with_capacity(32));
+    fixtures::settle_root(&mut service, &mut skein_lib::Queue::uncapped());
     assert_eq!(service.engine.as_ref().expect("engine").facts, 1);
     assert_eq!(service.engine.as_mut().expect("engine").domain.pop_fact(), None);
     assert_eq!(service.engine.as_ref().expect("engine").domain.facts_lost(), 0);
