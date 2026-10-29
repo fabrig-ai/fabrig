@@ -222,6 +222,55 @@ release(root):   (the service's iterate)
   first, after the step that staged them. A released output addressed to
   a child (a fleet's start, a relayed message, a forge entry to make, a
   load) comes back as `Event::Released`, one more step of this shape.
+- **A released batch precedes the next release.** `requests.is_empty()`
+  requires every request from the previous release to be dispatched
+  before the service calls the root's release again. The service world
+  holds this with a multi-request release and a later input waiting in
+  `temper-service`,
+  `tests::engine::a_released_batch_is_routed_before_the_next_release`.
+- **An io continuation precedes a later completion.** `!io.is_ready()`
+  requires io's ready continuations to finish before the service takes
+  another queued completion. The service world holds this with kernel
+  output credit held in `temper-service`,
+  `tests::system::an_io_continuation_reaches_its_owner_before_a_later_completion`.
+- **Queued completions precede a due io timer.**
+  `completions.is_empty()` requires the service's queued completions to
+  be taken before `io::fire`. The service world holds this with a full
+  completion batch and a timer due in `temper-service`,
+  `tests::system::queued_completions_are_taken_before_a_due_io_timer`.
+- **Io events keep their arrival order.** `destination_can_take(told_head)`
+  requires the head of `told` to be dispatched before a later event,
+  even one for another destination. A blocked head holds the FIFO. The
+  service world holds this with a diagnostics sink full in
+  `temper-service`,
+  `tests::system::a_blocked_told_head_holds_later_events_for_other_destinations`.
+- **A source's closing state keeps its close.**
+  `close_enqueued_before_source_marked_closing` requires the service to
+  hand the close to io in the same stage that marks its source closing;
+  without output credit the source stays open. The service world holds
+  this with kernel output credit held in `temper-service`,
+  `tests::system::a_source_is_marked_closing_only_once_its_close_is_queued`.
+- **An unpublished cancellation keeps its target's route.**
+  `queued_cancel(target) => retained_target_route` requires a completed
+  target's external route to survive until its queued cancellation is
+  published, so the cancellation's terminal still reaches its owner.
+  The service world holds this with publication stalled in
+  `temper-service`,
+  `tests::engine::a_cancellation_waiting_unpublished_keeps_its_completed_targets_route`.
+- **A productive root yields between scheduling quanta.**
+  `RELEASE_CYCLES` bounds one service pass to 22 release/resume cycles.
+  Exhausting the quantum leaves `ready` set, so the loop stays awake;
+  the next pass takes waiting answers before resuming root work. The
+  service world holds this with the root productive across the quantum
+  in `temper-service`,
+  `tests::engine::a_root_productive_past_one_quantum_lets_a_waiting_answer_in`.
+- **Each secret request keeps its own terminal.** `secret_owners`
+  grows with the requests in flight and retains each routing token's
+  owner until its terminal, without a fixed concurrency cap. The
+  service world holds this with more requests in flight than client
+  staging slots and terminals returned in reverse order in
+  `temper-service`,
+  `tests::clients::secret_asks_in_flight_each_get_their_own_terminal`.
 - **Owner progress is a step of its own.** `Resume` admits one: the
   forge's continuation when it has one, else a due task's activation,
   else the fleet's.

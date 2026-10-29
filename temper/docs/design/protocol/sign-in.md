@@ -318,6 +318,14 @@ clients' generator. Its requests go out as the client asks: `Http` to
 the fetcher, `Visit` to the held start's answer; its terminals end the
 sign-in: `Tokens` with the checked record, or `Failed`.
 
+- **Printed links wait for the binary in order.** `links.room() > 0`
+  is the service's predicate for passing a printed link to the binary.
+  That channel is an edge, bounded by `sign_in.pending`; a stalled
+  consumer holds the producer, drops no link and preserves FIFO order.
+  The service world holds this with the binary's consumer stalled in
+  `temper-service`,
+  `tests::clients::a_stalled_link_consumer_drops_nothing_and_keeps_order`.
+
 ### 6.2 The claims
 
 A small reader in `clients::google` over the record's ID token, already

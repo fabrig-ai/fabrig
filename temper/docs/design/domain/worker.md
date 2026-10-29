@@ -134,7 +134,18 @@ channel and the kernel's queues are its edges and stay capped.
   and the link's own state (ready, lost, a grace passed), since each must
   follow an assignment sent before it: a cancel that passed would be
   dropped as unknown and its run started after, and a run would start
-  after its grace passed or across a new hello.
+  after its grace passed or across a new hello. The service's entrance
+  predicate, `held.room() > 0 || root::passes(head)`, lets a passing
+  answer through even when `held` is full; a new record at the engine
+  head waits, with everything behind it. The service world holds this
+  with a full held entrance in `temper-service`,
+  `tests::worker_admission::a_full_held_entrance_lets_a_passing_answer_pass`.
+- **A link invocation's output precedes the next invocation.**
+  `drain_link` dispatches the whole batch, bounded by `link_out.len()`
+  at entry; dispatch does not invoke the link. The service's reconnect
+  order is held in `temper-service`,
+  `tests::worker_orders::the_hello_precedes_the_replayed_turns_at_a_reconnect`;
+  the complete-batch boundary has no direct test.
 - **Its orders, stated** (programming-model.md, 7.2), each a world test
   under load: a hand-off before the next entrance's; a capability's
   hand-outs in order, and an end after its last hand-out; one entrance
