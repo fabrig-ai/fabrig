@@ -54,7 +54,7 @@ pub enum Seen {
     /// An input enters the real run step.
     Taken(Input),
     /// Input left after the input phase, with alarm and resume eligibility.
-    Pending { inputs: Vec<Input>, due: bool, ready: bool, room: bool },
+    Pending { inputs: Vec<Input>, due: bool, ready: bool },
     /// The scheduler enters the real alarm function.
     Alarm,
     /// The scheduler enters the real deferred-work function.
