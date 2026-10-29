@@ -27,7 +27,7 @@ pub(crate) fn read(data: &Path, task: u64) -> Result<Vec<smith::Turn>, Refusal> 
     let mut at = 0;
     let mut turns = Vec::new();
     let limits = limits();
-    let maximum = store::core_v6::TurnRecord::worst_case_bytes(&limits.core).expect("schema ceilings") + 12;
+    let maximum = store::core_v6::TurnRecord::encoded_bound(&limits.core).expect("schema ceilings") + 12;
     loop {
         let mut head = [0; 4];
         // A whole EOF ends the file; an incomplete header is an unheld frame.
