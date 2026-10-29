@@ -1622,7 +1622,7 @@ fn a_restored_run_keeps_full_brief_and_custom_paths_with_two_clients() {
     // The receiving root must retain every rendered actual run result. Select
     // the public checked feedback bound exactly, rather than widening the
     // original history/actual completion caps or bypassing root admission.
-    receiving.session.delegated_result_bytes = root::feedback_worst_case(&receiving.run)
+    receiving.session.delegated_result_bytes = root::feedback_bound(&receiving.run)
         .expect("maximum path charter has a finite exact receiving feedback bound")
         .max(receiving.session.delegated_result_bytes);
     let mut counted = Counted::with_window(&receiving, 65_536, BRIEF_CEILING);

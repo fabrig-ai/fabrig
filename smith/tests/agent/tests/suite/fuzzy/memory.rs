@@ -54,7 +54,7 @@ fn a_domain_driven_at_random_stays_under_its_scenario_ceilings_at_every_entry_po
 fn longest_child_usage_feedback_stays_within_its_measured_reservation() {
     let mut limits = LIMITS.run;
     limits.answer_bytes = 8192;
-    let bound = smith_domain::feedback_worst_case(&limits).expect("checked receiving bound");
+    let bound = smith_domain::feedback_bound(&limits).expect("checked receiving bound");
     let used = run::facts::Used { turns: u32::MAX, time: Duration::from_nanos(u64::MAX), spend: u64::MAX };
     let left = run::Budget { turns: u32::MAX, time: Duration::from_nanos(u64::MAX), spend: u64::MAX };
     let meter = Meter::new();

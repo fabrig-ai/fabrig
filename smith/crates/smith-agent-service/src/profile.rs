@@ -544,7 +544,7 @@ fn derive_domain(
     // own directories (protocol/limits.md, section 3.9); this is only the cap.
     run.guide_bytes =
         u32::try_from(parts.host.min(u64::from(declared.guide))).or(Err(derived(Layer::Run, "guide_bytes")))?;
-    let delegated = domain::feedback_worst_case(&run).ok_or(derived(Layer::Session, "delegated_result_bytes"))?;
+    let delegated = domain::feedback_bound(&run).ok_or(derived(Layer::Session, "delegated_result_bytes"))?;
     let parallel = policy.parallel_tools.min(declared.calls_per_response);
     let owned = tools::batch_result_worst_case(&tools, parallel).ok_or(derived(Layer::Session, "batch_results"))?;
     let batch = owned.max(delegated.checked_mul(u64::from(parallel)).ok_or(derived(Layer::Session, "batch_results"))?);
