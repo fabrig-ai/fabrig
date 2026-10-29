@@ -33,6 +33,14 @@ of `tools/heavy/test-heavy-recovery`; every discovered suite runs after an
 ordinary suite failure, before stopping Cargo checks. No new budget or
 command timeout is introduced.
 
+Tools suites must keep their Git operations and temporary outputs outside
+the caller's checkout. `test_mq.py` uses disposable sibling repositories,
+including when exercising real ratchet stage/commit behavior.
+`test_precheck_tools_isolation.py` runs that suite against an uncommitted
+merge with a staged candidate and an unstaged lower baseline, compares the
+caller's exact index, HEAD, refs, merge state and tracked contents/modes,
+and verifies precheck restoration after the real suite finishes.
+
 Immediately before each heavy clippy or nextest build command, the helper
 checks `shutil.disk_usage(SLOT).free >= --min-free-bytes`. The default is
 80000000000 bytes, enforcing Ops' temporary night admission policy. The

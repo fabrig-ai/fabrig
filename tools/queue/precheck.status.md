@@ -27,3 +27,13 @@ deterministic free bytes to cover deferral, exact restoration, retained
 completed results, unchanged commands and CLI validation. This helper
 scheduling threshold leaves heavy and queue floors unchanged; Ops validates
 and deploys after review/landing.
+
+The first real Jig check exposed a tools-test isolation failure:
+`test_mq.py` ran queue ratchet stage/commit logic against its caller's Git
+repository. Its effectful cases and scratch now use disposable sibling
+fixtures; ratchet commit semantics remain tested with real Git.
+`test_precheck_tools_isolation.py` covers the offending case, all 113 mq
+cases over a staged candidate plus unstaged lower baseline, and precheck
+restoration after running the real mq suite. Cargo/heavy remain fake in
+this regression. Reconciliation of the retained real builder candidate
+and a repeated real Jig check remain Ops' proof to collect.
