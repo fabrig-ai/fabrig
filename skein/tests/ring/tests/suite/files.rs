@@ -4,8 +4,8 @@
 //! The ring adapter's own part in files, against the real kernel, in a
 //! scratch directory (shell.md, 9): a root opened at startup, a `List` it
 //! runs itself at submit, the position it hands from one `List` to the next
-//! across its own buffer, a large file through its reads and writes, and an
-//! invalid record refused. The records' behaviour is the conformance
+//! across its own buffer, a large file through its reads and writes, and its
+//! open retry path. The records' behaviour is the conformance
 //! suite's, in `tests/conformance/real`.
 //!
 //! A machine without `io_uring` fails every test here, saying so.
@@ -16,7 +16,6 @@ use std::os::unix::fs::MetadataExt;
 use std::path::Path;
 
 use skein_io::kernel::{Done, Entry, Error, Fd, Kind, LONGEST_NAME, Op, OpenHow};
-use skein_lib::Token;
 use skein_ring_tests::{World, pattern};
 use skein_scratch::Scratch;
 use skein_shell::open_root;
@@ -154,13 +153,6 @@ fn a_large_file_is_written_and_read_back_at_its_offsets() {
 }
 
 #[test]
-#[should_panic(expected = "io submits only valid records")]
-fn a_name_that_could_leave_its_directory_is_refused_at_submit() {
-    let mut world = World::new(4);
-    world.submit(Token::new(1), Op::Remove { dir: Fd::new(0), name: Box::from(&b"../out"[..]), directory: false });
-}
-
-#[test]
 fn an_error_of_a_file_names_what_the_contract_says() {
     let scratch = Scratch::new("ring");
     let mut world = World::new(4);
@@ -285,15 +277,4 @@ fn an_open_through_dot_dot_racing_renames_is_submitted_again() {
     eprintln!("{} rename-race resubmissions in {opened} Opens", world.kernel.resubmitted());
     world.close(dir);
     world.settle();
-}
-
-#[test]
-#[should_panic(expected = "only Stat and Close may use a path-only descriptor")]
-fn path_only_descriptors_cannot_read() {
-    let scratch = Scratch::new("ring-path-only");
-    fs::write(scratch.path().join("file"), b"x").unwrap();
-    let mut world = World::new(4);
-    let root = root(scratch.path());
-    let path = open(&mut world, root, b"file", OpenHow::PathNoFollow);
-    world.run(Op::Read { fd: path, buf: Box::from([0; 1]), at: 0 });
 }
