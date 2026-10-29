@@ -60,3 +60,22 @@ fn a_named_read_only_root_refuses_the_agents_write() {
         assert_eq!(world.file(b"extra/notes.txt"), None);
     }
 }
+
+/// Lower test of smith's end_to_end::a_writable_plain_dir_past_snapshot_bounds_starts_and_answers (top tiers test wiring only).
+#[test]
+fn a_plain_snapshot_at_and_past_its_bound_answers() {
+    // smith-local-service's process::plain_limits().file_bytes.
+    const SNAPSHOT_FILE_BYTES: usize = 65_536;
+    for bytes in [SNAPSHOT_FILE_BYTES, SNAPSHOT_FILE_BYTES + 1] {
+        for placement in [Placement::Spawned, Placement::InProcess] {
+            let files = Files::new();
+            let mut world = directory(83, &files, placement, "plan", true);
+            world.fixture_file(b"extra/large", &vec![b'x'; bytes]);
+            world.settle();
+            review(&world.seen(), &world, Ending::Report(b"Wrote it".to_vec())).assert_passed(83);
+            assert_eq!(world.exit(), Some(kernel::Exit::Code(0)));
+            assert_eq!(world.file(b"extra/notes.txt").as_deref(), Some(b"noted\n".as_slice()));
+            assert!(!String::from_utf8_lossy(world.errors()).contains("could not be saved"));
+        }
+    }
+}
