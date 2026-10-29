@@ -64,9 +64,9 @@ mod tests;
 pub use clock::{Clock, Now};
 #[cfg(all(unix, target_os = "macos"))]
 pub(crate) use darwin as system;
+pub use drive::Host;
 #[cfg(unix)]
 pub use drive::drive;
-pub use drive::Host;
 #[cfg(all(unix, target_os = "linux"))]
 pub(crate) use linux as system;
 
