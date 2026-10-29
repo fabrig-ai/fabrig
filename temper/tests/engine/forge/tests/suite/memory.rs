@@ -1,10 +1,7 @@
 use skein_lib::{Env, Queue, Time, Wall};
-use skein_world::domain::heap::{self, Meter};
+use skein_world::domain::heap::Meter;
 use temper_engine_domain_forge as top;
 use temper_engine_forge_world::{LIMITS, REPO};
-
-#[global_allocator]
-static HEAP: heap::Counting = heap::Counting;
 
 fn drain(out: &mut Queue<top::Request>) {
     for _ in 0..out.len() {
