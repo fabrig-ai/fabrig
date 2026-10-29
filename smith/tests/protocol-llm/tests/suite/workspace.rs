@@ -475,8 +475,7 @@ fn utf8_read_feedback_can_be_copied_into_an_edit_in_both_wire_dialects() {
         bounds.client.request = 16384;
         let mut settings = Settings { job: Job::Reporting, ..Settings::calm(1013) };
         settings.limits.session.completion_bytes =
-            adapter::completion_bound(&bounds.client, settings.limits.decoded_call_bytes)
-                .expect("completion room");
+            adapter::completion_bound(&bounds.client, settings.limits.decoded_call_bytes).expect("completion room");
         settings.limits.session.completion_blocks = bounds.client.output_items;
         settings.limits.session.failure_bytes = bounds.client.detail_bytes;
         let mut world =

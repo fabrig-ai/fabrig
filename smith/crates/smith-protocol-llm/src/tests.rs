@@ -9,7 +9,7 @@
 use skein_lib::{Duration, Rng};
 use smith_domain::tools;
 
-use crate::{CUT_MARKER_BYTES, render_outcome, render_bound};
+use crate::{CUT_MARKER_BYTES, render_bound, render_outcome};
 
 #[test]
 fn replay_admits_an_ordered_run_beyond_one_reasoning_item() {
