@@ -188,21 +188,30 @@ fn a_link_sign_in_answered_not_ready_retries_until_signed_in() {
     const BACKOFF_SPANS_MS: [u64; 5] = [10, 20, 40, 80, 80];
     for held in [None, Some(fixtures::credential(&CREDENTIAL))] {
         let mut c = Client::new();
-        c.step(Event::SignIn { with: With::Link { secret: fixtures::credential(&NEW_CREDENTIAL), held: held.clone() } });
+        c.step(Event::SignIn {
+            with: With::Link { secret: fixtures::credential(&NEW_CREDENTIAL), held: held.clone() },
+        });
         let [Request::Exchange { exchange, message, .. }] = c.requests() else {
             panic!("one link sign-in: {:?}", c.requests());
         };
         let mut previous = *exchange;
-        let expected_message = match message {
-            Message::SignInLink(bytes) => Message::SignInLink(bytes.clone()),
-            other => panic!("link sign-in message: {other:?}"),
+        let Message::SignInLink(bytes) = message else {
+            panic!("link sign-in message: {message:?}");
         };
+        let expected_message = Message::SignInLink(bytes.clone());
         let mut now = Time::ZERO;
         let mut jittered = false;
         for span_ms in BACKOFF_SPANS_MS {
-            c.step_at(now, Event::Reply { exchange: previous, message: fixtures::sign_in_answer(&w::SignInAnswer::NotReady) });
+            c.step_at(
+                now,
+                Event::Reply { exchange: previous, message: fixtures::sign_in_answer(&w::SignInAnswer::NotReady) },
+            );
             assert_eq!(c.machine.link().not_signed_in, Some(NotSignedIn::NotReady));
-            assert!(c.requests().iter().all(|request| matches!(request, Request::Told { .. })));
+            if now == Time::ZERO {
+                assert_link_told(&c);
+            } else {
+                assert!(c.requests().is_empty());
+            }
             let until = c.machine.next_deadline().expect("not-ready link sign-in schedules a retry");
             let delay = until.saturating_since(now);
             assert!(delay >= Duration::from_millis(span_ms / 2));
@@ -225,7 +234,14 @@ fn a_link_sign_in_answered_not_ready_retries_until_signed_in() {
         assert_eq!(c.machine.link().not_signed_in, None);
         assert_eq!(c.machine.link().state, Link::Starting);
         assert_eq!(c.machine.link().credential, Some(&fixtures::credential(&NEW_CREDENTIAL)));
-        assert!(c.requests().iter().any(|request| matches!(request, Request::OpenStream { .. })));
+        let mut opened = false;
+        for request in c.requests() {
+            if let Request::OpenStream { credential } = request {
+                assert_eq!(credential, &Some(fixtures::credential(&NEW_CREDENTIAL)));
+                opened = true;
+            }
+        }
+        assert!(opened, "successful sign-in opens its stream");
     }
 }
 
@@ -499,9 +515,9 @@ fn assert_link_told(c: &Client) {
 
 #[test]
 fn each_link_retry_answer_is_visible_and_told_until_the_next_sign_in() {
-    for (answer, why) in [
-        (w::SignInAnswer::NotReady, NotSignedIn::NotReady),
-        (w::SignInAnswer::Busy, NotSignedIn::Busy),
+    for (answer, why, backoff) in [
+        (w::SignInAnswer::NotReady, NotSignedIn::NotReady, Some((LEAST_BACKOFF, FIRST_BACKOFF))),
+        (w::SignInAnswer::Busy, NotSignedIn::Busy, None),
         (
             full_sign_in_answer(),
             NotSignedIn::Full {
@@ -509,6 +525,7 @@ fn each_link_retry_answer_is_visible_and_told_until_the_next_sign_in() {
                 earliest: skein_lib::Wall::from_nanos(400),
                 link_until: skein_lib::Wall::from_nanos(300),
             },
+            None,
         ),
     ] {
         let mut c = Client::new();
@@ -517,11 +534,22 @@ fn each_link_retry_answer_is_visible_and_told_until_the_next_sign_in() {
         assert_eq!(c.machine.link().not_signed_in, Some(why));
         assert!(c.machine.link().credential.is_none());
         assert_link_told(&c);
-        assert!(c.machine.next_deadline().is_none(), "link never retries itself");
+        match backoff {
+            Some((least, most)) => {
+                let until = c.machine.next_deadline().expect("not-ready link is sent again");
+                assert!(until >= Time::ZERO.saturating_add(least));
+                assert!(until <= Time::ZERO.saturating_add(most));
+            }
+            None => assert!(c.machine.next_deadline().is_none(), "link never retries itself"),
+        }
         c.step(Event::SignIn { with: link_attempt() });
+        let exchange = c.exchange();
+        assert!(c.machine.next_deadline().is_none(), "new sign-in cancels the scheduled send-again");
         assert_eq!(c.machine.link().not_signed_in, None);
         assert_link_told(&c);
-        c.step(Event::Reply { exchange: c.exchange(), message: fixtures::signed_in(&NEW_CREDENTIAL) });
+        c.fire(Time::ZERO.saturating_add(FIRST_BACKOFF));
+        assert!(c.requests().is_empty(), "the cancelled sign-in is not sent again");
+        c.step(Event::Reply { exchange, message: fixtures::signed_in(&NEW_CREDENTIAL) });
         assert_eq!(c.machine.link().not_signed_in, None);
         assert_eq!(c.machine.link().credential, Some(&fixtures::credential(&NEW_CREDENTIAL)));
         assert_link_told(&c);

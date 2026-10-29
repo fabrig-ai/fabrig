@@ -82,6 +82,19 @@ pub(crate) struct DeferredRead {
     what: Readable,
 }
 #[derive(Debug)]
+enum SendAgain {
+    Service(Secret),
+    Link { secret: Secret, held: Option<Secret> },
+}
+impl SendAgain {
+    fn with(&self) -> With {
+        match self {
+            Self::Service(credential) => With::Service(credential.clone()),
+            Self::Link { secret, held } => With::Link { secret: secret.clone(), held: held.clone() },
+        }
+    }
+}
+#[derive(Debug)]
 pub struct Client {
     domain: domain::Domain,
     link: Option<link::Link>,
@@ -89,7 +102,7 @@ pub struct Client {
     domain_out: Queue<domain::Request>,
     link_out: Queue<link::Request>,
     store: crate::store::Store,
-    service: Option<Secret>,
+    send_again: Option<SendAgain>,
     signing_link: bool,
     not_signed_in: Option<NotSignedIn>,
     signing_until: Option<Time>,
@@ -147,7 +160,7 @@ impl Client {
             domain_out: Queue::uncapped(),
             link_out: Queue::uncapped(),
             store: crate::store::Store::new(limits.domain.requests.requests),
-            service: None,
+            send_again: None,
             signing_link: false,
             not_signed_in: None,
             signing_until: None,
@@ -190,9 +203,10 @@ impl Client {
                     With::Service(_) | With::Held(_) | With::Transport => false,
                 };
                 self.not_signed_in(None);
-                self.service = match &with {
-                    With::Service(credential) if credential.len() == 40 => Some(credential.clone()),
-                    With::Service(_) | With::Held(_) | With::Link { .. } | With::Transport => None,
+                self.send_again = match &with {
+                    With::Service(credential) if credential.len() == 40 => Some(SendAgain::Service(credential.clone())),
+                    With::Link { secret, held } => Some(SendAgain::Link { secret: secret.clone(), held: held.clone() }),
+                    With::Service(_) | With::Held(_) | With::Transport => None,
                 };
                 self.signing_until = None;
                 self.signing_span = None;
@@ -233,8 +247,13 @@ impl Client {
             && now >= until
         {
             self.signing_until = None;
-            if let Some(credential) = &self.service {
-                self.link_step(now, link::Event::SignIn { with: With::Service(credential.clone()) });
+            if let Some(send_again) = &self.send_again {
+                let with = send_again.with();
+                self.signing_link = match send_again {
+                    SendAgain::Link { .. } => true,
+                    SendAgain::Service(_) => false,
+                };
+                self.link_step(now, link::Event::SignIn { with });
             }
         }
         if let Some(link) = &mut self.link {
@@ -359,20 +378,20 @@ impl Client {
         match signing {
             link::Signing::SignedIn { .. } => {
                 self.not_signed_in(None);
-                self.service = None;
+                self.send_again = None;
                 self.signing_until = None;
                 self.signing_out = false;
                 self.sign_out_lost = false;
                 self.up(env, Up::SignedIn);
             }
             link::Signing::SignedOut => {
-                self.service = None;
+                self.send_again = None;
                 self.signing_until = None;
                 self.signing_out = false;
                 self.sign_out_lost = false;
                 self.up(env, Up::SignedOut);
             }
-            link::Signing::Again if !self.signing_out && self.service.is_some() => {
+            link::Signing::Again if !self.signing_out && self.send_again.is_some() => {
                 let span = match self.signing_span {
                     Some(span) => core::cmp::min(span.saturating_mul(2), env.limits.backoff.most),
                     None => env.limits.backoff.first,
@@ -388,7 +407,7 @@ impl Client {
             | link::Signing::Lost
             | link::Signing::Refused => {
                 self.sign_out_failed();
-                self.service = None;
+                self.send_again = None;
                 self.signing_until = None;
             }
         }
