@@ -129,7 +129,12 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   `deliver`, for a change's contract, and mid-run for a run with a
   repository it may write, as a chat delivers a small fix (jig's
   `domain/hosts.md`, section 8; smith's `domain/run.md`, 8.4), but
-  never in an Open run (4.6).
+  never in an Open run (4.6). A run that cannot deliver cannot write:
+  `modify` is granted only with `deliver`, so a chat's, a goal's, an
+  advisor's and a reviewer's runs inspect alone, whatever their
+  charter's `modify`, and no run leaves edits that nothing delivers (a
+  rail, not an instruction). Where mid-run delivery is granted, `modify`
+  comes with it.
 - **Every host tool below,** declared in every charter, each with the
   charter's call timeout, but those of the `settings` family, declared
   only where the run's charter names that family in its `tools` (jig's
