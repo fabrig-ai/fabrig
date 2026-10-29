@@ -898,8 +898,8 @@ fn inbox_context_memory_prices_every_reserved_container_and_complete_document_en
     );
     let value = inbox(&core, &limits, 16);
     let contexts = value.selection.as_ref().unwrap();
-    let reserved = List::<InboxSelection>::worst_case(contexts.capacity()).unwrap();
-    let roots = List::<u64>::worst_case(limits.tasks.depth + 1).unwrap();
+    let reserved = List::<InboxSelection>::price(contexts.capacity()).unwrap();
+    let roots = List::<u64>::price(limits.tasks.depth + 1).unwrap();
     let bound = inbox_selection_worst_case(16, limits.tasks.depth).unwrap();
     assert_eq!(bound, reserved + 16 * roots);
     let mut held = reserved;
