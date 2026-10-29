@@ -353,17 +353,166 @@ startup guards are a later obligation. The flock is cooperative ownership,
 not a sandbox against arbitrary external writers or hostile candidate code.
 
 The worker never fetches/pushes origin, posts, changes queue counters, deletes
-ready refs, or promotes a candidate. Transport, durable controller state,
-reservations and full-check cadence, result/log ingestion and validation,
-merge-chain evidence, ordered adjudication, promotion, notification recovery,
-conditional ready cleanup, supervised remote job lifetime, controller startup
-guards, draining and train-aware restart remain unimplemented. This proposal
-cannot activate or safely supervise a merge train by itself.
+ready refs, or promotes a candidate. Section 3.9 supplies a disabled controller
+library around this contract. Production transport, authoritative effects,
+shared startup guards, supervision, reconciliation tooling and train-aware
+restart remain absent. The worker cannot activate or supervise a train alone.
+
+### 3.9 Controller library (disabled, unready)
+
+`train.py` has no CLI, production transport or authority implementation. Neither
+`mq` nor `restart` imports it. Ordinary Queue behavior remains unchanged; both
+live train gates remain off. **Production activation is prohibited** until the
+authority/startup and recovery obligations below, followed by supervised
+transport and rollout validation, are implemented and reviewed.
+
+`Controller` receives `Preparer`, `StateStore`, transport, authority, time,
+generation, two gate names, frozen worker runtime and batch/full cadence.
+The metadata loader is mandatory: preparation has no implicit Cargo command.
+The disposable harness injects candidate metadata and fake checkers; real Git
+merges, bundles, ratchet fixtures and local-origin pushes exercise the boundary.
+
+Preparation and reservations:
+
+- Preparation owns an independent clone root, separate from both gates.
+  Discovery retains `list_candidates`' oldest-tip order and tried-tip semantics.
+  Gate endpoints/configuration, controller source digest, worker/list runtime
+  identity and policy are frozen in the generation's state. No runtime edits
+  or changed configuration can continue that generation silently.
+- `admit` persists pinned inputs, explicit parent and a preparation intent
+  before mutation. At most two records have adjudication authority; a completed
+  successor occupies its place until its predecessor lands. Branch names are
+  reserved across those records, pending bisection groups and invalidated jobs
+  still draining. Advancing or deleting a ready ref does not change its pinned
+  selection or prevent that selected commit landing.
+- `prepare_candidate` calls `build_batch` on explicit P, then only writing
+  ratchets. It commits lower baselines before freezing C, paths, metadata,
+  selection and the normalized complete check plan. Successor P is exact C of
+  its predecessor while origin/main may still lag. Workers check the original
+  C; they cannot rewrite or generate a substitute.
+- The record preserves ordered input/merge identities, each merge's previous
+  commit and complete message (including Git's conflict annotations), explicit
+  already-contained inputs and baseline commits. `verify_chain` validates the
+  input partition/order, exact merge parents/messages and baseline-only suffix.
+  Parent-relative paths and lock blobs and candidate-resolved metadata drive
+  selection. Train paths include generated baseline commits; these may cause a
+  conservative full escalation rather than the one-gate selection in 3.3.
+- Parent, inputs and candidate stay pinned under local `refs/mq/jobs/<id>/`.
+  `export_bundle` writes a self-contained immutable bundle, recording size,
+  SHA-256 and every ref/OID. `import_bundle` checks bytes, heads, prerequisites
+  and requested objects without changing checkout HEAD or publishing refs to
+  origin. Transport must hold ownership while importing. Pins/artifacts have
+  no automatic deletion in this part.
+- Conflicts block successors. Their rejections wait until all preparation
+  succeeds and that record is head on its expected main. Unaffected merged
+  inputs then enter sequential recovery. Ratchet exit 1 is a preparation red;
+  other exits, missing objects, metadata or preparation errors are INFRA.
+  An error after conflicts produces no retained rejection intent. Preparation
+  red conservatively requires full checks for its later bisection groups.
+
+Transport and evidence:
+
+- `identity()` supplies the frozen gate configuration; each entry names `repo`
+  and optionally `host` (default `local`). Gate endpoints are distinct and a
+  local endpoint cannot be the preparation clone. Adapters must establish that
+  their endpoints are independent clones, not aliases for shared storage.
+- `start(request, bundle)` must be idempotent for generation/attempt, always
+  naming the same supervised job. `dispatch` persists `dispatch-intent` and
+  gate ownership first. Transfer/start/status exceptions are INFRA, never red,
+  and never establish that the gate is free. Retrying start uses the same
+  request, candidate and attempt identity.
+- `status(request)` returns `running`, `unknown`, or `terminal`. Terminal
+  includes full result/log bytes and an explicit `quiescent` boolean. True
+  requires supported confirmation of supervised command completion and resolved
+  checkout ownership, independently of the worker's outcome. Process/SSH
+  absence, a terminal client and a released flock are insufficient.
+- `ingest` stores immutable returned bytes, including malformed or incomplete
+  evidence, in controller-owned 0700/0600 storage. `validate_result` separately
+  recomputes objects, chain, paths, metadata graph, selection and complete plan
+  from the preparation clone and controller-owned request. It compares request,
+  generation/attempt/gate/runtime, P/C/tree, ordered inputs, exact normalized
+  commands/cwd, clean initial and unchanged before/after snapshots, observer
+  snapshots after every command/suite, and full log SHA-256/length/completeness.
+- Step validation retains the worker's first-red-prefix rule, all-tools-suite
+  accounting, and nextest exit-4 interpretation. Green needs the entire plan;
+  only an expected empty plan permits empty green evidence. INFRA, malformed
+  or mismatched evidence grants no rejection/bisection authority and retains
+  gate ownership until explicit reconciliation. Valid terminal evidence with
+  established quiescence can release a gate; an invalidated result cannot
+  regain adjudication authority.
+
+Adjudication and effects:
+
+- `adjudicate_head` holds out-of-order results without counters or effects.
+  Non-INFRA decisions require fresh main equal to certified P. A red head
+  immediately revokes descendants' authority; their physical jobs drain.
+  No replacement is admitted while invalidated or adjudicated uncertain jobs
+  own gates. Sequential bisection persists left-before-right groups, prepares
+  each group on actual main after earlier groups land, rejects only singleton
+  check failures, and inherits full requirements until recovery ends.
+- `full_due` charges unresolved predecessors as attempts without assuming
+  an unresolved full resets state. It preserves the fifth-batch/hourly policy;
+  idle full checks retain the ten-minute/main-change rule and use P == C with
+  no push. Adjudicated green/red checks update cadence; conflicts, INFRA and
+  invalidated speculation do not. Full red after selected successes enqueues
+  the selection-gap event.
+- Green first persists `promotion-intent` with explicit P, C and stable id.
+  `authority.guard()` must establish one sole main authority and startup guard
+  across legacy, train and restart. `main()` reads fresh authoritative main.
+  `promote(P, C, id)` must recheck P under that same authority and push explicit
+  certified C with a normal fast-forward push. There is no main force-push or
+  HEAD/reconstruction fallback. After uncertain push, main == C finishes the
+  recorded landing; main == P retries the identical intent; unexpected main
+  blocks adjudication/admission for reconciliation.
+- `apply_decision_once` atomically records the applied decision, tried tips,
+  counters, pending bisection and outbox in one state snapshot. Replaying a
+  recorded landing changes these once. `flush_outbox` delivers separately;
+  failures cannot change the gate decision. Posts are at-least-once, with the
+  stable event id in every message body; adapter post exits 0 and 3 mean
+  delivered. A crash after acceptance but before state acknowledgement may
+  deliver that same id again.
+- `authority.cleanup(name, expected_tip, id)` performs expected-tip deletion
+  only. A changed/deleted/recreated ready ref is a harmless cleanup disposition;
+  it cannot change a landing. The disposable adapter exercises explicit
+  expected-OID leases on deletions only. Production effects remain adapters
+  to implement; neither the controller nor workers contain a main writer.
+
+Persistence and remaining recovery boundaries:
+
+- `StateStore` uses version 1, refuses unknown versions and does no migration.
+  Its private JSON snapshot is the recovery source; any future JSONL audit is
+  descriptive only. State publication uses a private temporary file, file
+  fsync, rename and directory fsync. Requests and returned evidence use private
+  durable files; repeated identical evidence is accepted without overwriting,
+  and different bytes under an existing identity require reconciliation.
+- A publication failure poisons the in-memory controller: reload/reconciliation
+  is required before more work. The fake suite injects failures at preparation,
+  pre/post dispatch publication, returned-evidence publication, decision after
+  push, lost push acknowledgement, and post acknowledgement. These prove model
+  replay properties, not arbitrary-machine-crash or remote-job safety.
+- `recovery_inventory` exposes main, gate owners, unresolved preparation,
+  promotion intents and pending outbox. `reconcile_job` requires explicit
+  quiescence and operational evidence; it does not reset a checkout or infer
+  heavy completion. An interrupted preparation remains reserved and blocks
+  admission. Automatic preparation recovery, artifact repair/retention, state
+  structural hardening and complete startup reconciliation are part 4.
+- `stop` durably closes admission. `drained` requires no active records and no
+  gate owners, including invalidated/uncertain owners. Existing jobs adjudicate
+  in order; stop starts no replacements or pending bisection groups. Those
+  groups remain durable. There is no production resume/restart integration.
+
+The injected authority guard is a required interface, not an implemented
+cross-process lock. Part 4 must make legacy/train/restart share one authority
+lock and persistent startup guard, implement production authoritative effects,
+and validate recovery before a production entry point exists. Part 5 supplies
+SSH/supervised job transport, operational drain/resume/restart integration and
+the reviewed rollout. No local test asserts real heavy quiescence, real-service
+authority, machine-crash durability, or remote transport safety.
 
 ## 4. Later
 
-- A merge-train controller and supervised transport around the opt-in local
-  worker, with pinned objects, independent result validation, durable decisions,
-  ordered promotion, ownership recovery guards and train-aware restart.
+- Production authority/effects and startup reconciliation around section 3.9,
+  then supervised remote transport, ownership recovery, train-aware restart
+  and an explicitly reviewed rollout. The library stays disabled until then.
 - Two gate machines with nextest's `--partition` once the full run's time matters.
 - Learning the selection's always-list from full runs' misses.

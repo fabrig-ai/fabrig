@@ -15,10 +15,33 @@ empty-plan job on the dedicated second gate: exact bundle import, candidate
 identity, checkout exclusion and private atomic evidence passed. This smoke
 ran no Cargo checks and does not validate a second prover.
 
-The controller, transport, durable train state, independent result ingestion,
-ordered promotion, full-check reservations, notification replay, conditional
-ready deletion, remote command supervision, persistent legacy startup guards,
-reconciliation tooling, drain and train-aware restart are absent (section 4).
-An unresolved worker clone requires explicit operational reconciliation; the
-local ownership marker cannot establish heavy quiescence. No production
-validation or real Cargo/systemd run is claimed by the disposable fake suites.
+Section 3.9 is implemented as a **disabled, unready library** in `train.py`,
+with 51 disposable tests in `test_train.py`. It prepares exact chained Git
+candidates in a separate clone, writes ratchets before freezing, pins/exports
+objects, reserves names/full cadence, records dispatch ownership, independently
+validates complete worker/log evidence, and adjudicates in order. Sequential
+bisection, stop/drain state, version-1 atomic snapshots, explicit promotion
+intents, applied-once accounting, stable at-least-once outbox and injected
+reconciliation/effect interfaces are present. There are no changes to Queue's
+CLI/default behavior and no production adapter or train entry point.
+
+The train compares the full parent/candidate trees, including generated lower
+baselines; this can conservatively escalate to full rather than retaining the
+one-gate pre-baseline selection in 3.3. Ratchet preparation reds conservatively
+force subsequent bisection full. Exact worker plan validation remains intact.
+
+Part 4 remains required: common legacy/train/restart authority lock and
+persistent startup guards; production fresh-parent/explicit-OID effects and
+conditional cleanup/post adapters; preparation and worker reconciliation;
+state structural hardening, artifact repair/retention and recovery validation.
+The core's injected guard and explicit evidence hooks do not supply those
+production guarantees. Unknown state versions refuse without migration.
+
+Part 5 remains required: SSH and supervised job transport with proved lifetime
+ownership, operational stop/drain/resume/restart integration and rollout. Both
+live train gates stay off; production activation is prohibited. An unresolved
+worker clone requires explicit operational reconciliation; a local marker or
+process absence cannot establish heavy quiescence. Fake tests include real
+local Git bundles/merges/lease deletions and injected publication failures,
+not production services, remote supervision, real Cargo/systemd or arbitrary
+machine-crash proof.
