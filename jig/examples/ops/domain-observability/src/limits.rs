@@ -1,4 +1,4 @@
-/// Bounds for observability's working set and one step's outputs.
+/// Bounds for observability's working set and system values.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
     /// Cached service facts.
