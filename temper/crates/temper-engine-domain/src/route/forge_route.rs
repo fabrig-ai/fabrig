@@ -2810,6 +2810,15 @@ fn wait_change_decision(
     ProcedureStep::new(StepEnd::Wait)
 }
 
+// A landed change waits for its live delegates' terminals before offering its
+// result, so their completion wakes an idle procedure rather than a refused step.
+fn change_has_live_delegates(domain: &Domain, task: u64) -> bool {
+    match domain.core.tasks.task(task) {
+        Some(row) => !row.delegates.is_empty(),
+        None => false,
+    }
+}
+
 fn change_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, choice: forge_change::Decision) {
     let Some((connector, code, step)) = domain.core.tasks.procedure_due(task) else { return };
     if connector != domain.config.forge_connector || code != CHANGE_CODE {
@@ -2818,6 +2827,10 @@ fn change_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, choice: fo
     domain.forge.offered_change(task);
     let mut again = false;
     let decision = match choice {
+        forge_change::Decision::Finish { .. } if change_has_live_delegates(domain, task) => {
+            domain.forge.wait_change(&super::environment_forge(env), task, None);
+            ProcedureStep::new(StepEnd::Wait)
+        }
         forge_change::Decision::Finish { merge } => {
             let pull = match domain.forge.change(task) {
                 Some(row) => row.pull,
