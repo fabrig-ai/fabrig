@@ -58,7 +58,7 @@ impl<T> Slab<T> {
     /// free and retired slots, or `None` past a `u64`. What its entities own
     /// is theirs to count.
     #[must_use]
-    pub fn worst_case(capacity: u32) -> Option<u64> {
+    pub fn price(capacity: u32) -> Option<u64> {
         let slot = u64::try_from(size_of::<Slot<T>>()).ok()?;
         let lists = u64::try_from(size_of::<u32>()).ok()?.checked_mul(2)?;
         u64::from(capacity).checked_mul(slot.checked_add(lists)?)

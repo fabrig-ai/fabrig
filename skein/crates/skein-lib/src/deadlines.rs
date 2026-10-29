@@ -17,7 +17,7 @@ use crate::{Map, Set, Time};
 ///
 /// The capacity bounds the table, but unlike a slab or a queue it is not
 /// allocated up front: its two indexes are B-trees that allocate nodes as they
-/// fill (programming-model.md, 6.1), and [`Deadlines::worst_case`] counts those
+/// fill (programming-model.md, 6.1), and [`Deadlines::price`] counts those
 /// nodes.
 #[derive(Debug)]
 pub struct Deadlines<K> {
@@ -31,10 +31,10 @@ impl<K: Ord + Copy> Deadlines<K> {
         Deadlines { by_time: Set::with_capacity(capacity), by_key: Map::with_capacity(capacity) }
     }
 
-    /// The most heap a table of `capacity` timers takes, or `None` past a
-    /// `u64`.
+    /// The heap a table of `capacity` timers takes itself, or `None` past a
+    /// `u64`. What its entries own is theirs to count.
     #[must_use]
-    pub fn worst_case(capacity: u32) -> Option<u64> {
+    pub fn price(capacity: u32) -> Option<u64> {
         Set::<(Time, K)>::price(capacity)?.checked_add(Map::<K, Time>::price(capacity)?)
     }
 

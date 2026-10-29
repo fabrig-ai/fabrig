@@ -525,10 +525,9 @@ Each capped container's allocation price is checked against the counting
 allocator (testing.md, 5), in `tests/lib/tests/suite/memory.rs`, in the
 focused suite. Every capped container is built at capacities from 0 to
 300, filled to them, emptied and filled again, every operation a step of
-the meter, and what it held of its own is never more than
-`price(capacity)` for the containers of section 5, or its table formula
-for a slab or deadline table. What an item owns is its owner's to count, so
-the items own no heap; they come in several sizes and alignments, up to
+the meter, and what it held of its own is never more than its price:
+`price(capacity)`, or `RequestTable::price(&limits)` for a request table.
+What an item owns is its owner's to count, so the items own no heap; they come in several sizes and alignments, up to
 64 bytes, as a container's price depends on both. An input moved into a
 step is accounted for as testing.md, 5 states. What an operation hands
 out (an item taken, a delivery, a list moved into a box) is no longer

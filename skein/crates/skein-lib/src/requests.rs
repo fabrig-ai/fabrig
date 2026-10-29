@@ -556,10 +556,12 @@ impl<O: Copy, R> RequestTable<O, R> {
         Some(self.entries.get(id).expect("index names a held entry").size)
     }
 
-    /// Container heap including each owner value, excluding owned payload bytes.
+    /// The heap the table takes itself at `limits.requests` capacity, including
+    /// each owner value, or `None` past a `u64`. What its entries own is theirs
+    /// to count.
     #[must_use]
-    pub fn worst_case(limits: &RequestLimits) -> Option<u64> {
-        Slab::<Entry<O, R>>::worst_case(limits.requests)?
+    pub fn price(limits: &RequestLimits) -> Option<u64> {
+        Slab::<Entry<O, R>>::price(limits.requests)?
             .checked_add(Map::<u64, Id<Entry<O, R>>>::price(limits.requests)?)?
             .checked_add(Map::<RequestKey, Id<Entry<O, R>>>::price(limits.requests)?)
     }
