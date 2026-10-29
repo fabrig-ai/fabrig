@@ -66,5 +66,5 @@ forge reads infer their repository; no grant carries a listener address.
 heavy env TEMPER_BUNDLE=none NEXTEST_DOUBLE_SPAWN=0 cargo nextest run -p temper-twin
 heavy env TEMPER_BUNDLE=none NEXTEST_DOUBLE_SPAWN=0 cargo nextest run \
   -p temper-real-loop-world --profile fuzzy \
-  --test fuzzy_twin_round_trip --test fuzzy_green_light
+  --test suite --test system_alloc -E 'test(fuzzy::twin_round_trip::) | test(fuzzy::green_light::)'
 ```

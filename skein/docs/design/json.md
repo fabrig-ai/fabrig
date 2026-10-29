@@ -577,7 +577,7 @@ pub enum Kind {
   generated documents, written and read back the same through the world;
   every byte a string may hold; and what the tokenizer refuses, the writer
   refuses to write.
-- **Memory** (`tests/json/tests/memory.rs`, with the counting allocator,
+- **Memory** (`tests/json/tests/suite/memory.rs`, with the counting allocator,
   testing.md, 5): every call of an entry point is a step of the meter, and
   what the tokenizer or the encoder held of its own is never more than its
   `worst_case`. The connection's queues and stream are made before the
@@ -592,7 +592,7 @@ pub enum Kind {
   hundred bytes of text) over documents that skip megabytes: its high
   water is the same whatever it skipped, and a document kept at exactly
   its `tokens` and `text` reaches its worst case.
-- **The fuzzy suite** (`tests/json/tests/fuzzy_*.rs`): 20,000 generated
+- **The fuzzy suite** (`tests/json/tests/suite/fuzzy/*.rs`): 20,000 generated
   documents, most of them mutated, and 5,000 transcripts cut and mutated,
   under limits and neighbours drawn from each seed, each against the
   reference. Each sweep asserts that what it injects fell

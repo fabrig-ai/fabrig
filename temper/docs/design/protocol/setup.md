@@ -1746,7 +1746,7 @@ runs it (section 7).
   derivation from their agent, and its writer rewrites them:
 
   ```sh
-  SKEIN_CODEGEN_WRITE=1 cargo nextest run --locked -p temper --test startup -E 'test(turn_bounds)'
+  SKEIN_CODEGEN_WRITE=1 cargo nextest run --locked -p temper --test suite -E 'test(startup::turn_bounds)'
   ```
 
   jig's store and its KV bounds and the worker wire's ceilings stay as
@@ -3145,7 +3145,7 @@ it checks of this document:
   so the story reads no credential. The test prints each box run's
   time, asserting no time. It reads no hook, since the fake's hook
   read takes a token. A delivery's acceptance is shown by
-  `tests/real-loop/tests/forge.rs`'s
+  `tests/real-loop/tests/suite/forge.rs`'s
   `a_forge_delivery_is_accepted_by_the_engines_listener`; its secret's
   matching is checked by the step tests. A second box on the same
   directories finds the demo running, starts its fakes at serve's ask
