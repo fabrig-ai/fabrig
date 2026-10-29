@@ -126,4 +126,8 @@ pub struct MaxOut {
     pub kernel: u32,
 }
 /// One terminal, a spawn or kill and closes, and one file operation.
-pub const MAX_OUT: MaxOut = MaxOut { events: 1, io: 5, kernel: 1 };
+pub const MAX_OUT: MaxOut = MaxOut { events: 1, io: 5, kernel: KERNEL_SUBMISSIONS };
+
+/// Kernel submissions one entry point makes: one file operation at the
+/// queue's edge toward skein-io's kernel.
+pub const KERNEL_SUBMISSIONS: u32 = 1;
