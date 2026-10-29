@@ -782,7 +782,7 @@ pub fn valid(limits: &Limits) -> bool {
     limits.retry != skein_lib::Duration::ZERO
         && limits.objects.checked_mul(2).is_some()
         && limits.rows.checked_add(1).is_some()
-        && crate::connector_bounds::document_worst_case(&limits.connector).is_some()
+        && crate::connector_bounds::document_bound(&limits.connector).is_some()
 }
 
 fn read_result(side: &mut Side, env: &Env<Limits>, read: Token, result: ReadResult, out: &mut Queue<Request>) {

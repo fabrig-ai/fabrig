@@ -122,7 +122,7 @@ fn connector_values_keep_all_eight_whole_variants_and_only_the_actual_object_rev
         assert_eq!(document.clone(), document);
         assert_eq!(document.revision(), if index == 0 { Some(u64::MAX) } else { None });
         assert!(document_fits(&document, &bounds()));
-        assert!(document_bytes(&document).unwrap() <= document_worst_case(&bounds()).unwrap());
+        assert!(document_bytes(&document).unwrap() <= document_bound(&bounds()).unwrap());
     }
 }
 #[test]
@@ -254,7 +254,7 @@ fn connector_values_every_terminal_retains_the_complete_value_and_exact_refusal(
     }
 }
 #[test]
-fn connector_values_the_full_panel_attains_the_priced_structural_worst_case() {
+fn connector_values_the_full_panel_attains_the_priced_structural_bound() {
     let bound = Bounds { rows: 2, paths: 2, segments: 2, segment_bytes: 12, bytes: u64::MAX };
     let full_path = || Path::new(list(2, [Box::<[u8]>::from([0xff; 12]), Box::<[u8]>::from([0xff; 12])]), 12).unwrap();
     let mut outbox = entry();
@@ -271,13 +271,13 @@ fn connector_values_the_full_panel_attains_the_priced_structural_worst_case() {
         effects: list(2, [outbox.clone(), outbox]),
     });
     assert!(document_fits(&value, &bound));
-    assert_eq!(document_bytes(&value), document_worst_case(&bound));
+    assert_eq!(document_bytes(&value), document_bound(&bound));
     let mut overflow = bound;
     overflow.rows = u32::MAX;
     overflow.paths = u32::MAX;
     overflow.segments = u32::MAX;
     overflow.segment_bytes = u32::MAX;
-    assert!(document_worst_case(&overflow).is_none());
+    assert!(document_bound(&overflow).is_none());
 }
 
 #[path = "../connector_values/deployment_diagnostics.rs"]
