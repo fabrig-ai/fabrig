@@ -142,7 +142,7 @@ impl Component {
             machine,
             schema,
             bodies: limits.bodies,
-            events: Queue::with_capacity(8),
+            events: Queue::uncapped(),
             phase: Phase::Opening,
             ended: false,
             reading: false,
@@ -381,6 +381,8 @@ impl Component {
         reason = "bounded channel event dispatch uses explicit matches"
     )]
     fn drain(&mut self, to_service: &mut Queue<OpenEvent>, below: &mut Queue<Lower>) {
+        // Eight child transitions bound an entrance: opening/terms, one demanded
+        // record or refusal, and its output and close notifications.
         for _ in 0_u8..8_u8 {
             let event = self.events.pop();
             match event {
