@@ -421,7 +421,7 @@ pub fn valid(limits: &Limits) -> bool {
     }
     jig_domain_core::valid(&core_limits(limits))
         && forge::worst_case(&limits.forge).is_some()
-        && loads::worst_case(&limits.loads).is_some()
+        && loads::valid(&limits.loads)
         && crate::journal_valid(&limits.journal)
         && jig_domain_core::settings::revision_worst_case(&core_limits(limits)).is_some()
         && jig_domain_core::reads::answer_worst_case(&core_limits(limits)).is_some()
