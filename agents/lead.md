@@ -29,6 +29,7 @@ Provisional, 2026-10-28. A lead is a Claude session (Opus 5.5, at xhigh) for one
 - **Counted baselines are the queue's:** tasks need not lower `scripts/old-forms.txt`, and a count never rises (`agents/operations.md` 5).
 - **A read-only run cannot fetch:** move the survey clone to the commit it reads before launching it, and name that commit in the task (`agents/operations.md` 4).
 - **Bind the check, not the syntax,** for tool configuration (coordinator.md, 3).
+- **A branch stays in its tree,** but for a required field (coordinator.md, 3): the producer's branch carries the other tree's lines that name the field, each edited only in the field's name, type path or value, with values from that tree's lead, who agrees to the exact downstream diff before ready (a disagreement goes to the coordinator); the precheck covers every touched tree, and the downstream readers' tests run on the checked tip merged with the same main, the slot claimed through them.
 - **Effort:** implementers run at high by default, medium for mechanical work (renames, repetitive edits, removing dead code). Surveys and investigations are read-only Codex runs (`codex-run task --read-only`), at medium, or high when the question is subtle.
 - After two failed tries at the same task, a read-only Codex run advises before the third.
 
