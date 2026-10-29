@@ -251,15 +251,29 @@ fn a_stock_policy_past_its_limit_is_refused_while_naming_files() {
     );
 }
 #[test]
+fn the_chats_words_send_plain_changes_to_change() {
+    let words = include_str!("../stock/chat.txt");
+    assert!(words.starts_with("Help the person with their work.\n"));
+    assert!(words.contains("When they ask for a change to a repository, call change, even where the code must be read first: its coder reads it; then tell them what landed."));
+    assert!(words.contains("Call goal only when they want to hear a plan or give a go-ahead before anything changes"));
+    assert!(words.contains("never call change for work they want agreed first"));
+    assert!(!words.contains("never call change yourself"));
+    assert!(words.contains("Only if your words ask to agree the work first"));
+    assert!(words.contains("Otherwise do the work without asking."));
+    assert!(words.contains("If a task, not a person, requested you, you are a goal, and this paragraph alone is yours; the next is the chat's, not yours."));
+    assert!(words.contains("Otherwise you are the person's chat, and this paragraph alone is yours."));
+}
+
+#[test]
 fn the_chats_words_send_work_agreed_first_to_a_goal() {
     let words = include_str!("../stock/chat.txt");
-    assert!(words.contains("When a task, not a person, requested you"), "a goal is told apart by its requester");
+    assert!(words.contains("If a task, not a person, requested you"), "a goal is told apart by its requester");
     assert!(
-        words.contains("Before anything is changed, send your requester your plan with message, as a question asking whether to go ahead, then call wait until it is answered: never call finish before that answer, nor before every agreed change has landed."),
+        words.contains("Only if your words ask to agree the work first (a plan to hear, a go-ahead to give): before anything is changed, send your requester your plan with message, as a question asking whether to go ahead, and call wait until it is answered: never call finish before that answer, nor before every agreed change has landed; if the answer declines, report that and change nothing."),
         "the goal calls wait after asking and finishes only after the answer and all landings"
     );
     assert!(
-        words.contains("When they want the work agreed before anything is changed (a plan to hear first, a go-ahead to give), call goal with their words whole at once, even where they ask for an advisor first, since the goal asks one itself: the goal tells its plan and asks them. Never write that plan yourself, never ask for their go-ahead in your own reply, never set advisor, and never call change yourself. Tell them a question will wait in their inbox."),
+        words.contains("Call goal only when they want to hear a plan or give a go-ahead before anything changes, with their words whole at once, even where they ask for an advisor first, since the goal asks one itself: the goal tells its plan and asks them; or when they want a survey that changes nothing. Never write a plan yourself, never ask for their go-ahead in your own reply, never set advisor, and never call change for work they want agreed first. Tell them a question will wait in their inbox."),
         "the chat sends work agreed first to goal with the person's words"
     );
     assert!(
@@ -282,15 +296,25 @@ fn the_chats_words_mark_an_advisors_read_only_report() {
 fn the_goals_words_survey_before_planning_and_sequence_changes() {
     let words = include_str!("../stock/chat.txt");
     assert!(
-        words.contains("When a task, not a person, requested you, you are a goal doing work your requester agreed to plan first: the plan and the changes are yours, so never call goal without advisor set. Before anything is changed, send your requester"),
-        "the goal owns its plan and changes and delegates only advisors with goal"
+        words.contains("The work and its changes are yours, so call goal only with advisor set"),
+        "the goal owns its work and changes and delegates only advisors with goal"
     );
-    assert!(words.contains("If your words ask for an advisor, or you need the code read before you can plan, first call goal with advisor set and words saying what to read and report; wait for its report, and name what it found in your plan. Make each agreed change with change, one at a time: when one builds on another, call change for it only after the first's result says it landed, and say in its words what to reuse."), "the goal surveys first and waits for landing before dependent changes");
+    assert!(words.contains("if your words ask for an advisor, or you need the code read before you can plan, call goal with advisor set and words saying what to read and report; wait for its report, and name what it found in your plan."), "the goal surveys before planning");
+    assert!(words.contains("Make each change with change, one at a time, waiting for its result: when one builds on another, call change for it only after the first's result says it landed, and say in its words what to reuse."), "the goal waits for landing before dependent changes");
     assert!(
         words.contains(
-            "Then call change with what was agreed, wait for its result, and report once every change has landed, each as its result says it, naming no check or test it doesn't."
+            "Report once every change has landed, each as its result says it, naming no check or test it doesn't."
         ),
-        "the goal reports after every agreed change lands"
+        "the goal reports after every change lands"
+    );
+}
+
+#[test]
+fn the_chats_words_say_a_delegate_is_started_until_it_reports() {
+    let words = include_str!("../stock/chat.txt");
+    assert!(
+        words
+            .contains("Say only what your tasks have told you; until a delegate reports, it is started, nothing more.")
     );
 }
 
@@ -299,7 +323,7 @@ fn the_goal_and_chat_report_only_the_checks_named_in_the_result() {
     let words = include_str!("../stock/chat.txt");
     assert!(
         words.contains(
-            "report once every change has landed, each as its result says it, naming no check or test it doesn't."
+            "Report once every change has landed, each as its result says it, naming no check or test it doesn't."
         ),
         "the goal names only the checks in the change's result"
     );
