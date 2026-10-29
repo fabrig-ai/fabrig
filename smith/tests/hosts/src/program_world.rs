@@ -181,12 +181,6 @@ impl Host for Parent {
             && self.completions.is_empty()
             && self.submissions.is_empty()
     }
-    fn worst_case(&self) -> u64 {
-        // Peak of source check, login and refresh scenarios with the hosted fake.
-        // Measured 200_884 B on 2026-10-28; a quarter of headroom, rounded up.
-        const SOURCE_PARENT_CEILING: u64 = 260_000;
-        SOURCE_PARENT_CEILING
-    }
     fn operations(&self) -> u32 {
         io::operations(&self.env.limits).expect("parent operations").checked_add(1).expect("root close")
     }
@@ -329,6 +323,10 @@ pub fn run(
     missing: bool,
     extra_environment: &[Box<[u8]>],
 ) -> Run {
+    // Peak of source check, login and refresh scenarios with the hosted fake.
+    // Measured 200_884 B on 2026-10-28; a quarter of headroom, rounded up.
+    const SOURCE_PARENT_CEILING: u64 = 260_000;
+
     let mut items = vec![Item::directory(b"home"), Item::directory(b"programs"), Item::directory(b"programs/alice")];
     for item in &mut items {
         item.mode = 0o700;
@@ -349,7 +347,7 @@ pub fn run(
         seed,
         skein_sim::Config::calm(),
         Judge { expected: asks.len(), met: false },
-        skein_world::Memory::Checked,
+        skein_world::Memory::Within(SOURCE_PARENT_CEILING),
     )
     .with_machine(machine);
     let factory = smith_fake_claude::hosted(b"claude");
