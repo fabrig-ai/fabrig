@@ -16,7 +16,7 @@ Provisional, 2026-10-28. How a branch reaches `main`: a script on the gate machi
 
 ## 2. The selection
 
-1. **Changed paths:** `git diff --name-only origin/main...HEAD` for the batch.
+1. **Changed paths:** compare the checked parent and candidate trees with `git diff --name-only --no-renames -z <parent> <candidate>`. `changed_paths` accepts an explicit `base` and `candidate`, defaulting to `origin/main` and `HEAD` for the one-gate queue. Include both sides of renames and deleted paths. The unmerged `plan` uses `preview_changed_paths` instead: compare each ready tip with its merge base with `origin/main`, preserving `origin/main...<tip>` preview semantics.
 2. **Everything** when a changed path is outside every package's `src/`, `tests/`, `benches/`, `examples/`, `build.rs` and member `Cargo.toml`, except the root `Cargo.lock` (section 2.1), `tools/`, and unread Markdown (`*.md`). The root `Cargo.toml`, `.config/`, `rust-toolchain*`, `rustfmt.toml`, `clippy.toml`, docs read by tests, and other scripts and fixtures force everything. Also run everything every `full_every` (5) batches, when the last full run is older than an hour, or when the gate machine has been idle for 10 minutes and main has changed since the last full run.
 3. **Otherwise,** the packages that own a changed path (the longest manifest directory that prefixes it, from `cargo metadata --no-deps`), their reverse dependencies' closure (normal, build and dev dependencies, from `cargo metadata`'s resolve graph), and the packages listed in `tools/queue/always.txt` (tests that read files by path).
 4. **Docs read by tests** are globs in `tools/queue/read-by-tests.txt`; a matching path forces everything. A path under `tools/` contributes no package. Otherwise package source ownership still selects its package, including Markdown under `src/`, `tests/`, `benches/` and `examples/`. Unread Markdown outside those directories contributes no package. A batch with no package inputs and no full input selects `docs`: no Cargo checks or `always.txt` packages, plus tools and touched trees' ratchets as applicable.
@@ -25,11 +25,15 @@ Provisional, 2026-10-28. How a branch reaches `main`: a script on the gate machi
 ### 2.1 Lockfiles and member manifests
 
 A member's `Cargo.toml` selects its owner and reverse dependencies just as a
-source change does. For `Cargo.lock`, read `origin/main:Cargo.lock` and
-`HEAD:Cargo.lock` with `git show`, without checking out the base. Compare
+source change does. For `Cargo.lock`, read `<parent>:Cargo.lock` and
+`<candidate>:Cargo.lock` with `git show`, without checking out the parent.
+`Queue.choose` accepts explicit `base` and `candidate` inputs with the same
+`origin/main` and `HEAD` defaults. Checked package selection requires the
+checkout to be at the candidate before loading its metadata; an explicit
+candidate that differs from HEAD is an error. Compare
 entries by name, version, source, and sorted dependencies; checksums and entry
 order do not select packages. Added and removed entries count as changes.
-Match changed entries to the batch HEAD's resolved package IDs by name,
+Match changed entries to the candidate's resolved package IDs by name,
 version, and source. Follow reverse edges through all resolved dependencies,
 including external packages, and retain workspace members plus `always.txt`.
 A removed dependency selects the parent whose lock entry drops that edge;
@@ -166,5 +170,7 @@ at a time; a failed update leaves the stop file for inspection.
 
 ## 4. Later
 
+- A merge-train controller and workers using explicit parent/candidate selection,
+  with pinned objects, validated results, durable decisions, and ordered promotion.
 - Two gate machines with nextest's `--partition` once the full run's time matters.
 - Learning the selection's always-list from full runs' misses.

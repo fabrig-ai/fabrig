@@ -994,6 +994,125 @@ print('tools fixture passed')
             {"core", "normal", "build", "dev", "transitive"} | set(mq.lines(DIRECTORY / "always.txt"))))
         self.assertEqual(self.records()[0]["changed_paths"], ["Cargo.lock"])
 
+    def test_successor_paths_use_parent_and_selection_uses_candidate_graph(self):
+        self.write("core/src/first.rs", "first batch\n")
+        self.write("tools/fixture/metadata.json", json.dumps(metadata(self.repo)))
+        self.commit("C1 source and graph")
+        parent = self.tip()
+        self.write("unrelated/src/second.rs", "second batch\n")
+        data = metadata(self.repo)
+        next(node for node in data["resolve"]["nodes"] if node["id"] == "normal")["dependencies"] = ["unrelated"]
+        self.write("tools/fixture/metadata.json", json.dumps(data))
+        self.commit("C2 source and graph")
+        candidate = self.tip()
+        queue = self.queue(now=lambda: 10000)
+        queue.state["last_full"] = 9999
+        loaded = []
+
+        def loader(repo):
+            loaded.append(self.tip())
+            return json.loads((repo / "tools/fixture/metadata.json").read_text())
+
+        queue.metadata_loader = loader
+        paths = mq.changed_paths(self.repo, candidate, base=parent)
+        self.assertEqual(paths, ["tools/fixture/metadata.json", "unrelated/src/second.rs"])
+        self.assertEqual(queue.choose(paths, base=parent, candidate=candidate),
+                         {"unrelated", "normal"} | set(mq.lines(DIRECTORY / "always.txt")))
+        self.assertEqual(loaded, [candidate])
+        self.assertIn("core/src/first.rs", mq.changed_paths(self.repo))
+        self.assertEqual(mq.git(self.repo, "rev-parse", "origin/main").stdout.strip(), self.base)
+        self.assertEqual(self.tip(), candidate)
+        # Explicit object inputs work even when HEAD is elsewhere, without changing it.
+        mq.git(self.repo, "switch", "--detach", self.base)
+        self.assertEqual(mq.changed_paths(self.repo, candidate, base=parent), paths)
+        self.assertEqual(self.tip(), self.base)
+
+    def test_successor_lock_compares_parent_and_candidate_blobs(self):
+        external = {"name": "external", "version": "1.0.0", "source": "registry+fixture"}
+        unrelated = {"name": "unrelated", "version": "1.0.0"}
+        self.write("Cargo.lock", lockfile([external, unrelated]))
+        self.commit("P lock")
+        self.base = self.tip()
+        mq.git(self.repo, "push", "origin", "HEAD:main")
+        mq.git(self.repo, "fetch", "origin")
+        self.write("core/src/first.rs", "first batch\n")
+        external["version"] = "2.0.0"
+        self.write("Cargo.lock", lockfile([external, unrelated]))
+        self.commit("C1 changes external dependency")
+        parent = self.tip()
+        unrelated["version"] = "2.0.0"
+        self.write("Cargo.lock", lockfile([external, unrelated]))
+        self.commit("C2 changes unrelated member")
+        candidate = self.tip()
+        queue = self.queue(now=lambda: 10000)
+        queue.state["last_full"] = 9999
+        loaded = []
+
+        def loader(repo):
+            loaded.append(self.tip())
+            data = resolved_metadata(repo)
+            entries = mq.tomllib.loads((repo / "Cargo.lock").read_text())["package"]
+            version = next(entry["version"] for entry in entries if entry["name"] == "unrelated")
+            next(package for package in data["packages"] if package["id"] == "unrelated")["version"] = version
+            return data
+
+        queue.metadata_loader = loader
+        paths = mq.changed_paths(self.repo, base=parent)
+        self.assertEqual(paths, ["Cargo.lock"])
+        with patch.object(mq, "git", wraps=mq.git) as git:
+            explicit = queue.choose(paths, base=parent, candidate=candidate)
+        shows = [call.args[2] for call in git.call_args_list if call.args[1] == "show"]
+        self.assertEqual(shows, [f"{parent}:Cargo.lock", f"{candidate}:Cargo.lock"])
+        self.assertEqual(explicit, {"unrelated"} | set(mq.lines(DIRECTORY / "always.txt")))
+        self.assertEqual(queue.choose(paths, base=parent), explicit)
+        # One-gate defaults still compare origin/main and HEAD, including C1's lock change.
+        self.assertEqual(queue.choose(paths), explicit | {"core", "normal", "build", "dev", "transitive"})
+        self.assertEqual(loaded, [candidate] * 3)
+        self.assertEqual(self.tip(), candidate)
+        self.assertEqual(mq.git(self.repo, "rev-parse", "origin/main").stdout.strip(), self.base)
+
+    def test_checked_selection_refuses_graph_from_another_candidate(self):
+        self.write("core/src/lib.rs", "candidate\n")
+        self.commit("candidate source")
+        queue = self.queue(now=lambda: 10000)
+        queue.state["last_full"] = 9999
+        with patch.object(queue, "metadata_loader") as loader:
+            with self.assertRaisesRegex(ValueError, "candidate checkout"):
+                queue.choose(["core/src/lib.rs"], candidate=self.base)
+        loader.assert_not_called()
+
+    def test_plan_uses_merge_base_while_checked_paths_compare_trees(self):
+        branch = self.branch("candidate", "unrelated/src/lib.rs", publish=True)
+        self.branch("main", "core/src/lib.rs")
+        parent = self.tip()
+        mq.git(self.repo, "push", "origin", "HEAD:main")
+        mq.git(self.repo, "fetch", "origin")
+        self.assertEqual(mq.changed_paths(self.repo, branch["tip"], base=parent),
+                         ["core/src/lib.rs", "unrelated/src/lib.rs"])
+        queue = self.queue(now=lambda: 10000)
+        queue.state["last_full"] = 9999
+        with redirect_stdout(io.StringIO()) as output:
+            queue.plan()
+        plan = json.loads(output.getvalue())
+        self.assertEqual(plan["changed_paths"], ["unrelated/src/lib.rs"])
+        self.assertEqual(plan["selection"], sorted({"unrelated"} | set(mq.lines(DIRECTORY / "always.txt"))))
+        self.assertEqual(self.tip(), parent)
+        self.assertEqual(self.checks, [])
+        self.assertEqual(self.posts, [])
+        self.assertFalse(queue.state_path.exists())
+
+    def test_parent_relative_paths_include_rename_owners_and_deletions(self):
+        self.write("core/src/lib.rs", "move\n")
+        self.write("dev/src/lib.rs", "delete\n")
+        self.commit("C1 source")
+        parent = self.tip()
+        (self.repo / "unrelated/src").mkdir(parents=True)
+        mq.git(self.repo, "mv", "core/src/lib.rs", "unrelated/src/lib.rs")
+        mq.git(self.repo, "rm", "dev/src/lib.rs")
+        self.commit("C2 moves and deletes sources")
+        self.assertEqual(mq.changed_paths(self.repo, base=parent),
+                         ["core/src/lib.rs", "dev/src/lib.rs", "unrelated/src/lib.rs"])
+
     def test_recent_batch_shape_fixtures_select_instead_of_forcing_full(self):
         # The task describes eight lock/manifest/source batches; exact logs are not supplied.
         fixture_count = 8

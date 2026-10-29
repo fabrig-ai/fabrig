@@ -220,10 +220,17 @@ def load_metadata(repo):
     return metadata
 
 
-def changed_paths(repo, tip="HEAD"):
+def changed_paths(repo, candidate="HEAD", *, base="origin/main"):
+    """Compare checked parent and candidate trees (design.md, 2)."""
     # Include both sides of a rename, so moving a file cannot hide its old owner.
-    output = git(repo, "diff", "--name-only", "--no-renames", "-z", f"origin/main...{tip}").stdout
+    output = git(repo, "diff", "--name-only", "--no-renames", "-z", base, candidate, "--").stdout
     return output.split("\0")[:-1] if output else []
+
+
+def preview_changed_paths(repo, tip, *, base="origin/main"):
+    """Preview an unmerged tip from its merge base (design.md, 2)."""
+    ancestor = git(repo, "merge-base", base, tip).stdout.strip()
+    return changed_paths(repo, tip, base=ancestor)
 
 
 def check_commands(repo, selected, paths, *, metadata=None):
@@ -468,7 +475,8 @@ class Queue:
         return (self.now() - self.state.get("idle_since", self.now()) >= 600 and
                 main != self.state.get("last_full_main"))
 
-    def choose(self, paths, *, preview=False):
+    def choose(self, paths, *, base="origin/main", candidate="HEAD", preview=False):
+        """Use parent/candidate lock blobs and the candidate checkout's graph (design.md, 2.1)."""
         if self.full_due() or full_inputs(paths):
             return "full"
         # A plan has not merged the batch, so its checkout cannot resolve changed manifests.
@@ -480,12 +488,16 @@ class Queue:
                set(PurePosixPath(path).parts[:-1]) & {"src", "tests", "benches", "examples"})
                for path in paths):
             return selection(paths, {})
+        if not preview:
+            head, expected = git(self.repo, "rev-parse", "HEAD", f"{candidate}^{{commit}}").stdout.splitlines()
+            if head != expected:
+                raise ValueError("checked selection requires the candidate checkout")
         metadata = self.metadata_loader(self.repo)
         locked = None
         if "Cargo.lock" in paths:
-            base = git(self.repo, "show", "origin/main:Cargo.lock").stdout
-            head = git(self.repo, "show", "HEAD:Cargo.lock").stdout
-            locked = lock_changes(base, head, metadata)
+            before = git(self.repo, "show", f"{base}:Cargo.lock").stdout
+            after = git(self.repo, "show", f"{candidate}:Cargo.lock").stdout
+            locked = lock_changes(before, after, metadata)
         return selection(paths, metadata, locked=locked)
 
     def notify(self, record, lead, subject, body):
@@ -660,7 +672,7 @@ class Queue:
         if not branches and not self.idle_due():
             print("nothing to do")
             return
-        paths = sorted({path for branch in branches for path in changed_paths(self.repo, branch["tip"])})
+        paths = sorted({path for branch in branches for path in preview_changed_paths(self.repo, branch["tip"])})
         selected = self.choose(paths, preview=True) if branches else "full"
         print(json.dumps({"branches": branches,
                           "selection": sorted(selected) if isinstance(selected, set) else selected,
