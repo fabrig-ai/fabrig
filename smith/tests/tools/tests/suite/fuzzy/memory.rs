@@ -3,14 +3,11 @@
 //! terminal io may give, its peak measured in every step.
 
 use skein_lib::{Duration, Env, Queue, ReplyTo, Rng, Time, Token, Wall};
-use skein_world::domain::heap::{self, Meter};
+use skein_world::domain::heap::Meter;
 use smith_domain_tools::{
     Call, Domain, Done, Entry, Event, Exit, Expect, Fault, Hit, Kind, Limits, Op, Request, Version, max_out,
 };
 use smith_tools_world::memory::{LIMITS, authority, name, path, read, write};
-
-#[global_allocator]
-static HEAP: heap::Counting = heap::Counting;
 
 /// What an operation in flight asked for, as io would remember it.
 #[derive(Clone, Copy, Debug)]

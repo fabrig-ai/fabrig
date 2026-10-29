@@ -5,12 +5,9 @@
 //! it is checked in `fuzzy_memory.rs`.
 
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
-use skein_world::domain::heap::{self, Meter};
+use skein_world::domain::heap::Meter;
 use smith_domain_tools::{Domain, Done, Event, Limits, Request, Version, max_out};
 use smith_tools_world::memory::{LIMITS, authority, edit, read, write};
-
-#[global_allocator]
-static HEAP: heap::Counting = heap::Counting;
 
 /// Fills every kit of a domain under `limits` to its limits, checking the peak
 /// of the heap in every step under its scenario ceiling: it knows twice as many
