@@ -391,21 +391,8 @@ fn demo_answers_the_latest_request() {
     ] {
         let mut query = super::query(system.as_bytes(), user.as_bytes());
         if said {
-            query.messages = Box::new([
-                Message { role: Role::User, parts: Box::new([Part::Text { text: user.as_bytes().into() }]) },
-                Message {
-                    role: Role::Assistant,
-                    parts: Box::new([Part::Text { text: b"Earlier answer".as_slice().into() }]),
-                },
-                Message {
-                    role: Role::User,
-                    parts: Box::new([Part::ToolOutput {
-                        id: b"call".as_slice().into(),
-                        output: b"Completed".as_slice().into(),
-                        is_error: false,
-                    }]),
-                },
-            ]);
+            let previous = super::answer(demo.llm(), 23, query.clone());
+            query.messages = after_answer(query.messages, &previous).into_boxed_slice();
         }
         let answer = super::answer(demo.llm(), 23, query);
         let mut parts = vec![Part::Text { text: text.as_bytes().into() }];
