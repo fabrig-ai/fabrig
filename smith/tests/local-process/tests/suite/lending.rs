@@ -3,9 +3,6 @@ use smith_local_process_world::{
     referee::{Ending, review},
 };
 
-#[global_allocator]
-static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
-
 #[test]
 fn an_env_account_lends_its_variable() {
     let files = Files::new();

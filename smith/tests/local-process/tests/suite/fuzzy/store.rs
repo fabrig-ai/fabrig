@@ -12,9 +12,6 @@ use skein_world::{Cut, Inherited, Machine, Memory, Referee, StartupRoot, World};
 use smith_local_domain as local;
 use smith_local_protocol::{Action, History, Store, StoreLimits, StoreRequest};
 
-#[global_allocator]
-static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
-
 const SIGNAL: Token = Token::new(u64::MAX);
 fn limits() -> StoreLimits {
     StoreLimits { file_bytes: 4096, turns: 2, deliveries: 2, scan_bytes: 4096 }

@@ -1,8 +1,5 @@
 //! Every shared-harness process iteration and final drop is metered.
-use skein_world::domain::heap::Counting;
 use smith_local_process_world::{Authentication, Files, Placement, World};
-#[global_allocator]
-static HEAP: Counting = Counting;
 #[test]
 fn the_composed_world_including_its_shared_shell_fits_its_bound() {
     for placement in [Placement::Spawned, Placement::InProcess] {
