@@ -227,7 +227,7 @@ fn a_restored_finish_word_requires_its_matching_grace() {
     ordinary.inbox[0].kind = MessageKind::Words;
     for record in [missing, wrong_name, ordinary] {
         let mut domain = jig_tasks_world::domain(&LIMITS, RESTORE_SEED);
-        let mut out = skein_lib::Queue::with_capacity(jig_domain_tasks::max_out(&LIMITS));
+        let mut out = skein_lib::Queue::uncapped();
         jig_domain_tasks::step(
             &mut domain,
             &world.env,

@@ -10,8 +10,7 @@
 use crate::{
     Amendment, Authority, Budget, Contract, Control, Delegation, Domain, EscalationDecision, EscalationHolder,
     EscalationOutcome, Event, Executor, Funder, Hold, Key, Limits, MessageKind, Models, New, Numbers, Parameter, Party,
-    PersonAddress, Request, Retries, Retry, Revisions, Scopes, Spec, Stored, TaskResult, Tools, WakePolicy, max_out,
-    step,
+    PersonAddress, Request, Retries, Retry, Revisions, Scopes, Spec, Stored, TaskResult, Tools, WakePolicy, step,
 };
 use alloc::{boxed::Box, collections::BTreeMap};
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
@@ -133,7 +132,7 @@ impl Harness {
     }
 
     pub(super) fn send(&mut self, event: Event) -> Vec<Request> {
-        let mut out = Queue::with_capacity(max_out(&LIMITS));
+        let mut out = Queue::uncapped();
         step(&mut self.domain, &self.env, event, &mut out);
         let mut requests = Vec::new();
         while let Some(request) = out.pop() {
@@ -843,7 +842,7 @@ fn zero_capacity_history_counts_real_source_room_without_retaining_payloads() {
     let limits = Limits { funders: 0, room_refusals: 0, ..LIMITS };
     let env = Env { now: Time::ZERO, wall: Wall::from_nanos(21), limits };
     let mut domain = Domain::new(&limits, 1, 1, crate::tests::charters(), Box::new([0]));
-    let mut out = Queue::with_capacity(max_out(&limits));
+    let mut out = Queue::uncapped();
     step(&mut domain, &env, Event::Check, &mut out);
     step(&mut domain, &env, Event::Restored, &mut out);
     while out.pop().is_some() {}

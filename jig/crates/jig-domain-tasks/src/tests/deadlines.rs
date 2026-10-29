@@ -196,7 +196,7 @@ fn parked_at_a_wall() -> Harness {
 fn fire(h: &mut Harness, nanos: u64) -> Vec<Request> {
     h.env.now = Time::from_nanos(nanos.checked_sub(900).unwrap());
     h.env.wall = Wall::from_nanos(nanos);
-    let mut out = skein_lib::Queue::with_capacity(crate::max_out(&h.env.limits));
+    let mut out = skein_lib::Queue::uncapped();
     crate::fire(&mut h.domain, &h.env, &mut out);
     let mut requests = Vec::new();
     while let Some(request) = out.pop() {
@@ -243,7 +243,7 @@ fn restoring_a_parked_task_rearms_its_wall() {
     assert_eq!(h.domain.next_deadline(), Some(Time::from_nanos(551)));
     h.env.now = Time::from_nanos(550);
     h.env.wall = TASK_WALL;
-    let mut out = skein_lib::Queue::with_capacity(crate::max_out(&h.env.limits));
+    let mut out = skein_lib::Queue::uncapped();
     crate::fire(&mut h.domain, &h.env, &mut out);
     assert_eq!(h.domain.task(1).unwrap().phase, Phase::Active(Active::Idle));
     h.env.now = Time::from_nanos(551);

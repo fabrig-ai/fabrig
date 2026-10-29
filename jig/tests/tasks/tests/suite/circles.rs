@@ -172,7 +172,7 @@ fn a_restored_circle_from_an_older_rule_holds_its_queue_waiter() {
         }
     }
     let mut domain = jig_tasks_world::domain(&LIMITS, SEED);
-    let mut out = skein_lib::Queue::with_capacity(jig_domain_tasks::max_out(&LIMITS));
+    let mut out = skein_lib::Queue::uncapped();
     jig_domain_tasks::step(
         &mut domain,
         &world.env,
@@ -638,7 +638,7 @@ fn a_restored_two_holder_pool_circle_holds_its_waiter() {
         }
     }
     let mut domain = jig_tasks_world::domain(&LIMITS, SEED);
-    let mut out = skein_lib::Queue::with_capacity(jig_domain_tasks::max_out(&LIMITS));
+    let mut out = skein_lib::Queue::uncapped();
     jig_domain_tasks::step(
         &mut domain,
         &world.env,
