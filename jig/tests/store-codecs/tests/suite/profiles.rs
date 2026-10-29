@@ -70,7 +70,7 @@ fn both_shipped_profiles_are_admitted_by_the_store() {
         let sizes = jig_protocol_store::sizes::check_commits(
             &limits.core,
             &application,
-            &jig_protocol_store::sizes::commits(&limits.journal),
+            &jig_protocol_store::sizes::Commits { in_flight: limits.journal.commits, writes: limits.journal.writes },
             &STORE,
             1,
         )

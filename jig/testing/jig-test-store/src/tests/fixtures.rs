@@ -160,7 +160,7 @@ pub fn component() -> Component {
         core: root.core,
         store: kv,
         secrets: kv,
-        journal: root.journal,
+        commits: jig_protocol_store::sizes::Commits { in_flight: root.journal.commits, writes: root.journal.writes },
         joins: 128,
         queue: 8,
         files: 8,

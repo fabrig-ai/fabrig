@@ -49,7 +49,7 @@ pub fn committed(count: u32) -> World {
     world.patch_sets(BEFORE);
     assert_eq!(world.open(), Some(0));
     // Each commit retains one slot for the deployment header.
-    let per_commit = limits().journal.writes - 1;
+    let per_commit = limits().commits.writes - 1;
     let mut number = 0_u64;
     for start in (0..count).step_by(usize::try_from(per_commit).expect("fixture writes")) {
         number += 1;

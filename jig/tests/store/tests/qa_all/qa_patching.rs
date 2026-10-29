@@ -74,7 +74,7 @@ fn stray(world: &mut World) {
 fn pinned_order_reports_exact_walk_counts() {
     // store.md 10.2 step 4 and 10.3: each page is one commit within skein-kv's bounds (5.4), in the plan's pinned order.
     let mut limits = patches::limits();
-    limits.journal.writes = u32::try_from(PAGE_ROWS).expect("two-put page");
+    limits.commits.writes = u32::try_from(PAGE_ROWS).expect("two-put page");
     let mut world = World::unopened_observed(SEED, limits, None);
     world.patch_sets(BASE);
     world.open_switched().expect("first start");

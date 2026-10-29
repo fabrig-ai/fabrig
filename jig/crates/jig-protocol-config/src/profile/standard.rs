@@ -219,7 +219,7 @@ const STORE: jig_protocol_store::Limits = jig_protocol_store::Limits {
     core: CORE,
     store: STORE_KV,
     secrets: STORE_KV,
-    journal: JOURNAL,
+    commits: jig_protocol_store::sizes::Commits { in_flight: JOURNAL.commits, writes: JOURNAL.writes },
     held: CLIENTS.exchanges.checked_mul(2).expect("clients carried capacity"),
     joins: 16,
     reads: 48,
