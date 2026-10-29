@@ -415,8 +415,7 @@ impl Store {
     fn load(&self, path: Box<[u8]>, now: Time, out: &mut Queue<Action>) {
         let max = match self.phase {
             Phase::Journal | Phase::State => u32::try_from(
-                crate::local_store_v1::State::worst_case_bytes(&crate::local_store_v1::CEILINGS)
-                    .expect("fixed metadata"),
+                crate::local_store_v1::State::encoded_bound(&crate::local_store_v1::CEILINGS).expect("fixed metadata"),
             )
             .expect("metadata fits u32"),
             Phase::Format => crate::format::max_bytes(),

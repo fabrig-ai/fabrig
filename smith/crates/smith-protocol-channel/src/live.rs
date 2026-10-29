@@ -60,5 +60,5 @@ pub(crate) fn frame_bytes(limits: &smith_channel::Limits, bytes: u32) -> Option<
         return None;
     }
     let limits = smith_channel::Limits { live_bytes: bytes, ..*limits };
-    u32::try_from(smith_channel::Live::worst_case_bytes(&limits)?).ok()?.checked_add(8)
+    u32::try_from(smith_channel::Live::encoded_bound(&limits)?).ok()?.checked_add(8)
 }

@@ -12,7 +12,7 @@ mod committed;
 /// The generated family's complete fixed-size Layouts encoding bound.
 #[must_use]
 pub fn max_bytes() -> u32 {
-    u32::try_from(wire::Layouts::worst_case_bytes(&wire::CEILINGS).expect("fixed layouts"))
+    u32::try_from(wire::Layouts::encoded_bound(&wire::CEILINGS).expect("fixed layouts"))
         .expect("layout encoding fits u32")
 }
 

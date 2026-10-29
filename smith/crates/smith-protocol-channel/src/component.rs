@@ -468,7 +468,7 @@ impl Component {
         let Some(frame) = crate::live::frame_bytes(&self.bodies, bytes) else {
             return false;
         };
-        let Some(fact) = smith_channel::Fact::worst_case_bytes(&self.bodies) else {
+        let Some(fact) = smith_channel::Fact::encoded_bound(&self.bodies) else {
             return false;
         };
         let needed = u64::from(self.fact_reserve_bytes).checked_add(fact);

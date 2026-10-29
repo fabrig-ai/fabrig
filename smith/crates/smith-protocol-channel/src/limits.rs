@@ -216,7 +216,7 @@ fn start_cells(limits: &smith_channel::Limits) -> Option<u64> {
         accepted_result: 0,
         ..*limits
     };
-    smith_channel::Start::worst_case_heap(&cells)
+    smith_channel::Start::decoded_bound(&cells)
 }
 
 fn charter_cells(limits: &smith_charter::v4::Limits) -> Option<u64> {
@@ -241,7 +241,7 @@ fn charter_cells(limits: &smith_charter::v4::Limits) -> Option<u64> {
         run_result_text: 0,
         ..*limits
     };
-    smith_charter::Charter::worst_case_heap(&cells)
+    smith_charter::Charter::decoded_bound(&cells)
 }
 
 fn turn_cells(limits: &smith_transcript::v6::Limits) -> Option<u64> {
@@ -274,5 +274,5 @@ fn turn_cells(limits: &smith_transcript::v6::Limits) -> Option<u64> {
         program_name: 0,
         ..*limits
     };
-    smith_transcript::Turn::worst_case_heap(&cells)
+    smith_transcript::Turn::decoded_bound(&cells)
 }

@@ -36,7 +36,7 @@ fn limits() -> Limits {
         channel: channel::Limits {
             bodies: channel_bodies,
             start_bytes: u32::try_from(
-                smith_channel::Start::worst_case_bytes(&channel_bodies).expect("fixture Start bound"),
+                smith_channel::Start::encoded_bound(&channel_bodies).expect("fixture Start bound"),
             )
             .expect("fixture frame"),
             charter: smith_charter::CEILINGS,

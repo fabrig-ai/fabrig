@@ -8,7 +8,7 @@ fn limits() -> Limits {
     Limits {
         bodies: smith_channel::CEILINGS,
         start_bytes: u32::try_from(
-            smith_channel::Start::worst_case_bytes(&smith_channel::CEILINGS).expect("fixture Start bound"),
+            smith_channel::Start::encoded_bound(&smith_channel::CEILINGS).expect("fixture Start bound"),
         )
         .expect("fixture frame"),
         charter: smith_charter::CEILINGS,
