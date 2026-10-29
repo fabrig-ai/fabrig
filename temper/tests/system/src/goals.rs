@@ -98,7 +98,7 @@ fn configured() -> Driver {
         member.period_spend = 500;
         member.decides = authority::Proposals(0);
         policy.roles = Box::new([owner, maintainer, member]);
-        let mut out = Queue::with_capacity(authority::POLICY_MAX_OUT);
+        let mut out = Queue::uncapped();
         authority::step(&mut domain, authority::Event::Policy { project: 1, policy }, &mut out);
         assert_eq!(out.pop(), Some(authority::PolicyFact::Added { project: 1 }));
         config.core.seed_projects[0].policy.policy = domain.policy(1).expect("configured seed policy").clone();
