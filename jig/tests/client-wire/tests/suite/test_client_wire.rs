@@ -4,10 +4,19 @@ use std::fs;
 
 #[test]
 fn test_client_wire_schema_matches_generated_code_and_goldens() {
+    check_test_client(2);
+}
+
+#[test]
+fn test_client_wire_v1_schema_matches_generated_code() {
+    check_test_client(1);
+}
+
+fn check_test_client(version: u16) {
     let root = skein_scratch::paths::tree().join("testing/jig-client-test-protocol-wire");
-    let source = fs::read_to_string(root.join("schema/test-client-v2.schema")).expect("client schema");
+    let source = fs::read_to_string(root.join(format!("schema/test-client-v{version}.schema"))).expect("client schema");
     let output = generate(&parse(&source).expect("schema valid"));
-    let code = root.join("src/generated/v2.rs");
+    let code = root.join(format!("src/generated/v{version}.rs"));
     let goldens = root.join("golden");
     let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
     let again = "run SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p jig-client-wire-world --test test_client_wire";
@@ -16,6 +25,10 @@ fn test_client_wire_schema_matches_generated_code_and_goldens() {
         fs::create_dir_all(&goldens).expect("create golden directory");
     } else {
         assert_eq!(fs::read_to_string(&code).expect("generated code committed"), output.rust, "{again}");
+    }
+    // Both versions use the same golden names; v2 owns those bytes.
+    if version == 1 {
+        return;
     }
     for golden in output.goldens {
         let path = goldens.join(golden.name);
