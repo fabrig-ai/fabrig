@@ -16,7 +16,7 @@ inbox [--project PROJECT] [--kind questions|proposals|escalations|person-tasks|r
   --until CONDITION: a condition; optional. Wait until it holds: waiting, updates, or changed
   --timeout DURATION: a duration: seconds, or a number with s, m or h, at most 3600 seconds; optional. How long a wait lasts; 300 seconds when absent, at most 3600
 Read what waits on your party, then its updates
-Prints: A line per item, its task and what waits, then `read on with: inbox ... --after CURSOR` or `no more`, and, unfiltered, `digest: inbox`
+Prints: A line per item, its task and what waits; a question's words, cut and marked past the line's bound, then `read whole: task activity TASK` when cut and `answer: task answer TASK N TEXT`; then `read on with: inbox ... --after CURSOR` or `no more`, and, unfiltered, `digest: inbox`
 --json: the record inbox.
 Key: none.
 Questions, proposals, escalations and person tasks come first;

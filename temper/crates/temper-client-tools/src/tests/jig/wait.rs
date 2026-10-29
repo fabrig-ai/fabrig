@@ -771,3 +771,52 @@ fn an_inbox_wait_since_its_reads_digest_answers_at_a_new_update() {
     assert_eq!(root.watches.len(), f::SHARED_WATCHES);
     assert_eq!(crate::root::next_deadline(&root.root), None);
 }
+
+#[test]
+fn run_ended_uses_the_current_attempt_even_without_a_terminal_event() {
+    for initially_live in [false, true] {
+        for json in [false, true] {
+            let mut root = f::signed_in(f::PARTY);
+            let flags = f::extended(f::UNTIL_ENDED, if json { &["--json"] } else { &[] });
+            let argv = f::extended(f::WAIT_RUN, flags.as_slice());
+            let call = root.submit(argv.as_slice());
+            let c::Delivery::RunState(mut run) = f::no_provisional() else { panic!("run state") };
+            if initially_live {
+                // No call or provisional text does not mean the run ended.
+                root.deliver_subject(&f::run_watch(), c::Delivery::RunState(run.clone()));
+                assert!(root.answer(call).is_none());
+            }
+            run.attempt = None;
+            root.deliver_subject(&f::run_watch(), c::Delivery::RunState(run));
+            let answer = root.answer(call).expect("no live attempt meets ended immediately");
+            assert_eq!(answer.status, 0, "{answer:?}");
+            if json {
+                assert!(f::has(&answer, b"\"attempt\":null"));
+                assert!(answer.stdout.ends_with(b",\"met\":true}"));
+            } else {
+                assert!(answer.stdout.starts_with(b"run: none\n"), "{answer:?}");
+                assert!(answer.stdout.ends_with(b"met\n"), "{answer:?}");
+            }
+            assert_eq!(crate::root::next_deadline(&root.root), None);
+            assert_eq!(root.watches.len(), f::SHARED_WATCHES);
+        }
+    }
+}
+
+#[test]
+fn run_ended_with_since_needs_both_a_changed_digest_and_no_attempt() {
+    let c::Delivery::RunState(mut run) = f::no_provisional() else { panic!("run state") };
+    run.attempt = None;
+    let ended = c::Delivery::RunState(run.clone());
+    let mut root = f::signed_in(f::PARTY);
+    let call = root.wait_since(f::WAIT_RUN, f::UNTIL_ENDED, &f::task_digest(&ended).hex());
+    root.deliver_subject(&f::run_watch(), ended.clone());
+    assert!(root.answer(call).is_none(), "ended but unchanged");
+    root.deliver_subject(&f::run_watch(), f::no_provisional());
+    assert!(root.answer(call).is_none(), "changed but still running");
+    root.deliver_subject(&f::run_watch(), ended);
+    assert!(root.answer(call).is_none(), "ended but back at the baseline");
+    run.committed_turn = run.committed_turn.checked_add(1).expect("next committed turn");
+    root.deliver_subject(&f::run_watch(), c::Delivery::RunState(run));
+    assert_eq!(root.answer(call).expect("both hold now").status, 0);
+}
