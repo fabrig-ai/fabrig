@@ -1261,7 +1261,7 @@ mod tests {
         for until in [None, Some(deadline.until())] {
             let mut running = children_after_descriptor_cleanup();
             running.world.referee.deadline = until;
-            let error = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let error = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| {
                 running.referee_deadline_reached(&deadline, deadline.start(), "startup failed");
             }))
             .expect_err("a terminal failure is never starved");
