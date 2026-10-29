@@ -8,7 +8,7 @@ use skein_io::{
 };
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use skein_shell::{Clock, Host, Wait};
-use skein_world::ring::Ring;
+use skein_world::{Deadline, Expired, ring::Ring};
 use std::{
     net::{SocketAddr, TcpListener},
     os::fd::{AsRawFd, IntoRawFd},
@@ -159,7 +159,8 @@ fn ready_and_drained(mut peer: Peer) -> (SocketAddr, usize) {
     limits.extend_from_slice(&peers.limits);
     let mut ring = Ring::new(limits.iter().sum(), limits).expect("listener kernel");
     let clock = Clock::new();
-    let end = clock.now().now.saturating_add(Duration::from_secs(2));
+    let end = Deadline::arm("the lent peer's readiness and shutdown", Duration::from_secs(2));
+    let mut starved = None;
     let mut listens = 0;
     let mut address = None;
     loop {
@@ -170,9 +171,14 @@ fn ready_and_drained(mut peer: Peer) -> (SocketAddr, usize) {
             ring.returned(host, complete);
         }
         let stamp = clock.now();
-        assert!(stamp.now < end, "listener readiness and shutdown settle");
-        assert!(peers.drive(&mut ring, stamp.now, stamp.wall, address.is_some()).is_empty());
-        if address.is_none() && peers.ready() {
+        if starved.is_none() && end.passed() {
+            match end.expired() {
+                Expired::Failed(figures) => panic!("listener readiness and shutdown settle: {figures}"),
+                Expired::Starved(verdict) => starved = Some(verdict),
+            }
+        }
+        assert!(peers.drive(&mut ring, stamp.now, stamp.wall, address.is_some() || starved.is_some()).is_empty());
+        if starved.is_none() && address.is_none() && peers.ready() {
             let [(name, bound)] = peers.addresses().try_into().expect("one lent listener");
             assert_eq!(name.as_ref(), b"listener");
             let bound: SocketAddr = bound.parse().expect("numeric listener address");
@@ -182,10 +188,16 @@ fn ready_and_drained(mut peer: Peer) -> (SocketAddr, usize) {
             );
             address = Some(bound);
         }
-        if address.is_some() && peers.empty() {
+        if (address.is_some() || starved.is_some()) && peers.empty() && ring.is_empty() {
             break;
         }
         ring.enter(Wait::No);
+    }
+    drop(peers);
+    drop(ring);
+    drop(peer);
+    if let Some(starved) = starved {
+        starved.pass();
     }
     let address = address.expect("listener became ready");
     assert!(TcpListener::bind(address).is_ok(), "shutdown releases the owned listener");

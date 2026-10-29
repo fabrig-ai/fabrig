@@ -16,7 +16,15 @@ fn child(opens: bool) -> Process {
     let mut child = Process::new(
         0,
         command,
-        Context { held: None, root: Fd::new(-1), address: "127.0.0.1:9", peers: &[], now: Time::ZERO, write_cap: 4096 },
+        Context {
+            held: None,
+            root: Fd::new(-1),
+            address: "127.0.0.1:9",
+            peers: &[],
+            write_cap: 4096,
+            server_pid: None,
+            browser_pid: None,
+        },
     );
     child.requests.clear();
     child.event(io::Event::Spawned {
@@ -99,24 +107,20 @@ fn a_command_link_waits_for_a_split_line_to_complete() {
 fn a_missing_link_expires_at_the_commands_own_deadline() {
     let mut child = child(true);
     child.advance(Time::ZERO, false, false);
-    let before = Time::ZERO.saturating_add(Duration::from_millis(999));
+    let until = child.wait.as_ref().unwrap().0.until();
+    let before = Time::from_nanos(until.as_nanos().saturating_sub(1));
     assert_eq!(child.advance(before, false, false), Progress::Idle);
-    assert_eq!(
-        child.advance(Time::ZERO.saturating_add(Duration::from_secs(1)), false, false),
-        Progress::Failed("Run missing-link/start deadline passed".into())
-    );
+    assert_eq!(child.advance(until, false, false), Progress::TimedOut("Run missing-link/start deadline passed"));
     child.stop();
     assert!(child.requests.iter().any(|request| matches!(request, io::Request::Signal { signal: Signal::Kill, .. })));
 }
 #[test]
 fn exited_expires_at_its_own_bound() {
     let mut child = child(false);
-    child.wait = Some((Time::ZERO.saturating_add(Duration::from_millis(5)), WaitFor::Exit { code: 0 }));
-    assert_eq!(child.advance(Time::ZERO.saturating_add(Duration::from_millis(4)), false, false), Progress::Idle);
-    assert_eq!(
-        child.advance(Time::ZERO.saturating_add(Duration::from_millis(5)), false, false),
-        Progress::Failed("Exited deadline passed".into())
-    );
+    child.wait = Some((Deadline::arm("the expected exit", Duration::from_millis(5)), WaitFor::Exit { code: 0 }));
+    let until = child.wait.as_ref().unwrap().0.until();
+    assert_eq!(child.advance(Time::from_nanos(until.as_nanos().saturating_sub(1)), false, false), Progress::Idle);
+    assert_eq!(child.advance(until, false, false), Progress::TimedOut("Exited deadline passed"));
     child.stop();
     assert!(
         child
@@ -128,9 +132,20 @@ fn exited_expires_at_its_own_bound() {
 #[test]
 fn exited_refuses_a_signal_instead_of_an_expected_code() {
     let mut child = child(false);
-    child.wait = Some((Time::ZERO.saturating_add(Duration::from_secs(1)), WaitFor::Exit { code: 0 }));
+    child.wait = Some((Deadline::arm("the expected exit", Duration::from_secs(1)), WaitFor::Exit { code: 0 }));
     child.event(io::Event::Exited { owner: child.owner, exit: Exit::Signal(9) });
     assert_eq!(child.advance(Time::ZERO, false, false), Progress::Failed("exited on signal 9, expected code 0".into()));
+}
+
+#[test]
+fn a_bad_exit_at_the_deadline_fails_without_classifying_the_wait() {
+    let mut child = child(false);
+    let deadline = Deadline::arm("the expected exit", Duration::from_secs(1));
+    let until = deadline.until();
+    child.wait = Some((deadline, WaitFor::Exit { code: 0 }));
+    child.event(io::Event::Exited { owner: child.owner, exit: Exit::Code(1) });
+    assert_eq!(child.advance(until, false, false), Progress::Failed("exited with code 1, expected 0".into()));
+    assert!(child.wait.is_none());
 }
 
 #[test]
@@ -152,8 +167,9 @@ fn command_substitution_preserves_unix_bytes_and_leaves_program_and_keys_literal
             root: Fd::new(-1),
             address: "127.0.0.1:8",
             peers: &[(b"neighbor".as_slice().into(), "127.0.0.1:9".into())],
-            now: Time::ZERO,
             write_cap: 4096,
+            server_pid: None,
+            browser_pid: None,
         },
     );
     let io::Request::Spawn { spawn, .. } = child.requests.pop_front().unwrap() else { panic!("spawn command") };
@@ -203,8 +219,9 @@ fn printed_stdin_sends_each_granted_chunk_then_finishes() {
             root: Fd::new(-1),
             address: "127.0.0.1:9",
             peers: &[],
-            now: Time::ZERO,
             write_cap: 3,
+            server_pid: None,
+            browser_pid: None,
         },
     );
     child.requests.clear();
