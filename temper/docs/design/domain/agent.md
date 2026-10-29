@@ -342,9 +342,9 @@ work to be planned in a chat's reply. So one fact of the calling run,
 whether the root built it as a goal, decides both: the root refuses a
 goal's `goal` without `advisor` (a goal starts an advisor alone: set
 `advisor`, or make the change with `change`), and any other run's
-`goal` with `advisor` set (a chat's goal is the work: call `goal`
-without `advisor`, and its goal asks for one), and the run goes on, as
-any refused host call does. A person who wants a survey alone gets a
+`goal` with `advisor` set (to change a repository, call `change`; a
+goal is for work they want to agree first or a survey, and its goal asks
+for an advisor), and the run goes on, as any refused host call does. A person who wants a survey alone gets a
 goal that asks its advisor and reports, changing nothing.
 
 ### 4.4 Result contracts
