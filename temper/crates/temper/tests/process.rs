@@ -4586,6 +4586,7 @@ fn temper_ctl_running_work_keeps_its_revision() {
             "revision-chat",
             "@revision-chat Delegate and wait",
         ])),
+        Step::TaskExists { project: 1, task: 2 },
         Step::Until(Call::new(&["task", "show", "2", "--json"]), running_revision::PARKED_DELEGATE),
         Step::Until(Call::new(&["task", "show", "1", "--json"]), b"\"phase\":\"idle\""),
         Step::Mark("Changing the delegate charter makes R+1 while running work keeps R"),
@@ -5056,6 +5057,7 @@ fn held_review_restart(case: &str, probe: RestartProbe) {
         ])),
         Step::Run(Call::new(&["task", "show", "1", "--until", "replied", "--timeout", "120s", "--json"])),
         Step::Run(Call::new(&["change", "show", "2", "--until", "ci:passed", "--timeout", "120s", "--json"])),
+        Step::TaskExists { project: 1, task: 4 },
     ]);
     if matches!(probe.hold, ReviewHold::BeforeCall) {
         steps.push(Step::Until(Call::new(&["task", "show", "4", "--json"]), b"\"phase\":\"due\""));
@@ -5080,6 +5082,7 @@ fn held_review_restart(case: &str, probe: RestartProbe) {
             ])),
             Step::Run(Call::new(&["task", "show", "5", "--until", "replied", "--timeout", "120s", "--json"])),
             Step::Run(Call::new(&["change", "show", "6", "--until", "ci:passed", "--timeout", "120s", "--json"])),
+            Step::TaskExists { project: 1, task: 8 },
         ]);
         if matches!(probe.hold, ReviewHold::BeforeCall) {
             steps.push(Step::Until(Call::new(&["task", "show", "8", "--json"]), b"\"phase\":\"due\""));

@@ -1,4 +1,5 @@
 //! Executable calls beside serve, with every descriptor on one real ring.
+//! temper/docs/design/domain/testing.md, 2.6.
 mod member;
 use super::{Ended, Process, WITHIN, patience::Patience};
 use skein_io::kernel::{Complete, Done, Error, Exit, Fd, Op, Pipe, Signal, Spawn, Submit, Target, Way};
@@ -96,6 +97,11 @@ pub enum Step {
     Join,
     Until(Call, &'static [u8]),
     UntilMatching(Call, ReadCondition),
+    /// Establish a child's existence without recording a call in the story's results.
+    TaskExists {
+        project: u64,
+        task: u64,
+    },
     Cut,
     Pause,
     Resume,
@@ -356,6 +362,7 @@ enum Action {
     Run,
     Visit,
     Until(Call, ReadCondition),
+    TaskExists(Call, u64),
     Stderr(&'static [u8]),
     ProgramLogin(&'static str),
     Signal,
@@ -712,6 +719,46 @@ impl Calls {
                     self.retry = Some(next);
                 }
             }
+            Action::TaskExists(mut call, task) => {
+                if !self.cancelling {
+                    assert_eq!(
+                        ended.exit,
+                        Some(Exit::Code(0)),
+                        "task-list prerequisite: stdout {}; stderr {}",
+                        String::from_utf8_lossy(&ended.stdout),
+                        String::from_utf8_lossy(&ended.stderr)
+                    );
+                    let document = json(&ended);
+                    let rows = if call.arguments.iter().any(|word| word.as_ref() == b"--ended") {
+                        &document["ended"]["rows"]["rows"]
+                    } else {
+                        document.get("tasks").map_or(&document["live"], |tasks| &tasks["rows"])
+                    };
+                    if !rows.as_array().expect("task-list rows").iter().any(|row| row["chip"]["task"] == task) {
+                        let next = if let Some(read_on) = document["read_on"].as_str() {
+                            call = Call::new(&read_on.split_ascii_whitespace().collect::<Vec<_>>()).json();
+                            now
+                        } else {
+                            if let Some(after) = call.arguments.iter().position(|word| word.as_ref() == b"--after") {
+                                call.arguments.truncate(after);
+                                call = call.json();
+                            }
+                            if let Some(ended) = call.arguments.iter().position(|word| word.as_ref() == b"--ended") {
+                                call.arguments.remove(ended);
+                                now.saturating_add(PACE)
+                            } else {
+                                call.arguments.pop().expect("JSON option");
+                                call.arguments.push(b"--ended".as_slice().into());
+                                call = call.json();
+                                now
+                            }
+                        };
+                        self.last_unmet = Some(ended);
+                        self.action = Some(Action::TaskExists(call, task));
+                        self.retry = Some(next);
+                    }
+                }
+            }
             Action::Visit => panic!("a visit has no child"),
             Action::Stderr(_) | Action::ProgramLogin(_) => panic!("a stderr gate has no child"),
             Action::NextLink | Action::RestartEngine | Action::ReleaseLlm { .. } => {
@@ -823,6 +870,11 @@ impl Calls {
             },
         });
     }
+    fn wait_for_task(&mut self, project: u64, task: u64) {
+        let call = Call::new(&["task", "list", "--project", &project.to_string()]).json();
+        self.action = Some(Action::TaskExists(call.clone(), task));
+        self.start(call, false);
+    }
     fn advance(&mut self, now: Time) {
         // A box that exits before printing its link must be diagnosed by
         // its referee, rather than panicking while constructing sign-in stdin.
@@ -834,7 +886,7 @@ impl Calls {
         if self.waiting(now) {
             return;
         }
-        if let Some(Action::Until(call, _)) = &self.action {
+        if let Some(Action::Until(call, _) | Action::TaskExists(call, _)) = &self.action {
             self.start(call.clone(), false);
             self.retry = None;
             return;
@@ -909,6 +961,7 @@ impl Calls {
                 self.action = Some(Action::Until(call.clone(), condition));
                 self.start(call, false);
             }
+            Some(Step::TaskExists { project, task }) => self.wait_for_task(project, task),
             Some(Step::Cut) => self.cut_started(),
             Some(step @ (Step::Pause | Step::Resume)) => {
                 self.action = Some(Action::Signal);
@@ -1227,6 +1280,72 @@ pub fn proposal_key(ended: &Ended) -> String {
 #[cfg(test)]
 mod read_condition_tests {
     use super::*;
+
+    #[test]
+    fn a_child_prerequisite_reads_later_pages_and_polls_again_from_the_start() {
+        let mut calls = Calls::new(Fd::new(0), Vec::new(), None, None);
+        calls.action = Some(Action::TaskExists(Call::new(&["task", "list", "--project", "1", "--json"]), 3));
+        calls.child = Some(completed(
+            br#"{"tasks":{"rows":[{"chip":{"task":1}}]},"read_on":"task list --project 1 --after 0102"}"#,
+        ));
+        calls.finish(Time::ZERO);
+        assert_eq!(calls.retry, Some(Time::ZERO));
+        let Some(Action::TaskExists(call, _)) = &calls.action else { panic!("next list page") };
+        assert_eq!(
+            call.arguments,
+            Call::new(&["task", "list", "--project", "1", "--after", "0102", "--json"]).arguments
+        );
+        calls.child = Some(completed(br#"{"live":[],"read_on":null}"#));
+        calls.finish(Time::ZERO);
+        assert_eq!(calls.retry, Some(Time::ZERO));
+        let Some(Action::TaskExists(call, _)) = &calls.action else { panic!("ended list") };
+        assert_eq!(call.arguments, Call::new(&["task", "list", "--project", "1", "--ended", "--json"]).arguments);
+        calls.child = Some(completed(br#"{"ended":{"rows":{"rows":[]}},"read_on":null}"#));
+        calls.finish(Time::ZERO);
+        assert_eq!(calls.retry, Some(Time::ZERO.saturating_add(PACE)));
+        let Some(Action::TaskExists(call, _)) = &calls.action else { panic!("poll from the first page") };
+        assert_eq!(call.arguments, Call::new(&["task", "list", "--project", "1", "--json"]).arguments);
+        calls.child = Some(completed(br#"{"tasks":{"rows":[]},"read_on":"task list --project 1 --after 0102"}"#));
+        calls.finish(Time::ZERO.saturating_add(PACE));
+        calls.child = Some(completed(br#"{"live":[{"chip":{"task":3}}],"read_on":null}"#));
+        calls.finish(Time::ZERO.saturating_add(PACE));
+        assert!(calls.action.is_none());
+        assert!(calls.ends.is_empty());
+    }
+
+    #[test]
+    fn a_child_prerequisite_accepts_live_and_ended_identities_without_shifting_story_calls() {
+        for (arguments, present) in [
+            (
+                vec!["task", "list", "--project", "1", "--json"],
+                br#"{"tasks":{"rows":[{"chip":{"task":2}}]}}"#.as_slice(),
+            ),
+            (
+                vec!["task", "list", "--project", "1", "--ended", "--json"],
+                br#"{"ended":{"rows":{"rows":[{"chip":{"task":2}}]}}}"#.as_slice(),
+            ),
+        ] {
+            let mut calls = Calls::new(Fd::new(0), Vec::new(), None, None);
+            calls.action = Some(Action::TaskExists(Call::new(&arguments), 2));
+            calls.child = Some(completed(present));
+            calls.finish(Time::ZERO.saturating_add(PACE));
+            assert!(calls.action.is_none());
+            assert!(calls.ends.is_empty());
+            assert!(calls.observed_at().is_empty());
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "task-list prerequisite")]
+    fn a_failed_child_prerequisite_stops_before_retrying() {
+        let mut calls = Calls::new(Fd::new(0), Vec::new(), None, None);
+        calls.action = Some(Action::TaskExists(Call::new(&["task", "list", "--project", "1", "--json"]), 2));
+        let mut child = completed(b"");
+        child.ended.exit = Some(Exit::Code(2));
+        child.ended.stderr = b"unknown".to_vec();
+        calls.child = Some(child);
+        calls.finish(Time::ZERO);
+    }
 
     #[test]
     #[should_panic(expected = "poll prerequisite")]
