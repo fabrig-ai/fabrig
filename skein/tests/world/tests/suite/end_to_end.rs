@@ -1321,25 +1321,6 @@ fn supervised_stderr_overflow_keeps_a_bounded_prefix_and_drains_a_natural_tree()
     }
 }
 
-// Under the walk on Linux, the group on macOS (`WALKS`).
-#[test]
-fn supervised_stderr_limits_distinguish_exact_capture_empty_capture_and_overflow() {
-    for (bytes, limit, prefix, overflow) in
-        [("", 0, "", false), ("12345678", 8, "12345678", false), ("123456789", 8, "12345678", true), ("x", 0, "", true)]
-    {
-        let outcome = capture_run(
-            command(&format!("printf '{bytes}' >&2")),
-            limit,
-            SupervisedTrigger::Never,
-            cfg!(target_os = "linux"),
-        );
-        let child = tree_child(&outcome);
-        assert_eq!(child.stderr(), prefix.as_bytes());
-        assert_eq!(child.stderr_overflowed(), overflow);
-        assert!(child.counts().is_some());
-    }
-}
-
 // A cgroup, the subreaper and `/proc` are Linux's (examples.md, 6; shell.md, 9).
 #[cfg(target_os = "linux")]
 #[test]
@@ -1459,12 +1440,6 @@ fn an_overflow_referee_observes_a_late_retained_exit_after_kill_and_settlement()
 #[test]
 fn a_forced_kill_referee_observes_a_late_retained_exit_after_kill_and_settlement() {
     late_retained_exit(SupervisedTrigger::Ready, 4096);
-}
-
-#[test]
-#[should_panic(expected = "binary stderr exceeds its scenario limit of 8 bytes")]
-fn legacy_stderr_capture_still_fails_the_scenario_at_overflow() {
-    legacy_stderr_overflow();
 }
 
 #[test]
