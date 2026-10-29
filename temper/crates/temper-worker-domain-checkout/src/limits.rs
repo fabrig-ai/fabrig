@@ -40,6 +40,13 @@ pub struct Limits {
     pub facts: u32,
 }
 
+/// Whether workspaces and repositories are nonzero and the hold-slot count
+/// needed by construction is representable.
+#[must_use]
+pub fn valid(limits: &Limits) -> bool {
+    limits.workspaces != 0 && limits.repositories != 0 && holds(limits).is_some()
+}
+
 /// The most memory the domain holds under `limits`, in bytes (6.3), or `None`
 /// if it does not fit a `u64` or the limits cannot be honoured: no workspace,
 /// or no repository a spec may name.
@@ -54,7 +61,7 @@ pub struct Limits {
 /// are their receivers' to count. Facts own nothing beyond their queue.
 #[must_use]
 pub fn worst_case(limits: &Limits) -> Option<u64> {
-    if limits.workspaces == 0 || limits.repositories == 0 {
+    if !valid(limits) {
         return None;
     }
     let name = u64::from(limits.name_bytes);

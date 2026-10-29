@@ -47,4 +47,4 @@ pub use boundary::{
 };
 pub use domain::{Domain, MAX_OUT, step};
 pub use facts::{Cached, Ending, Fact, Preparation, Tally, Target};
-pub use limits::{Limits, PROGRAM_BYTES, worst_case};
+pub use limits::{Limits, PROGRAM_BYTES, valid, worst_case};
