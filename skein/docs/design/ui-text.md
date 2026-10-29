@@ -18,8 +18,8 @@ how it is tested. What is open is in section 9.
   settings carry what is the application's: its name, the longest line
   it reads, its print interval, the region whose text the first line
   carries, and how many of its own lines may wait for the output, and
-  of how many bytes each. It gives its host its worst case and its
-  operations, which the host adds to its own.
+  of how many bytes each. It gives its host its operations, which the
+  host adds to its own ring capacity.
 - **The whole page, never a diff:** at most once per interval while the
   tree changes, and at once after the person's own command.
 - **By role, not by look.** Each role prints one way; states and
@@ -69,22 +69,21 @@ this shell's text (ui.md, 17.1).
   settings' name and status region alone, the page's lines (section 5)
   and the print's numbers (section 6). A pure function, step code under
   the subset, with no io and no clock. Its output is bounded:
-  `skein_ui_text::worst_case(&Limits)` gives the most lines and bytes a
+  `skein_ui_text::render_bound(&Limits)` gives the most lines and bytes a
   tree within skein-ui's limits prints (ui.md, section 15), with every
   text at its most bytes, every byte the replacement that grows most,
   and every node at its deepest indentation with every state and
   property it may carry. The shell's name, which the first line prints
   when the main has no level-1 heading, is at most a node's text, so the
   same limits count it.
-- **A print takes its room from its own tree.** `worst_case` is what the
-  host counts in its memory (ui.md, section 15; programming-model.md,
-  6.3), never what the shell reserves: neither the print (`Print::new`)
+- **A print takes its room from its own tree.** `render_bound` bounds
+  the rendered output (ui.md, section 15; programming-model.md, 6.3): neither the print (`Print::new`)
   nor the terminal (`Terminal::new`) refuses limits for it, and only the
   print's numbers, one per node, are held at the limits' nodes. Each
-  print's bytes are reserved as it is made, by `worst_case`'s formula
+  print's bytes are reserved as it is made, by `render_bound`'s formula
   over that tree alone: its nodes, its deepest nesting, and its text with
   the shell's name. An application's limits hold every window full and
-  every text at its most at once, so their worst case can pass a page it
+  every text at its most at once, so their render bound can pass a page it
   builds by orders of magnitude, and pass a u32. A print holds at most
   what a list holds, a u32 of bytes: a tree whose own room passes it
   prints, in place of the page, the shell's line `NAME: page too long to
@@ -123,27 +122,13 @@ this shell's text (ui.md, 17.1).
   - *its line bytes*: the most bytes of each of the application's own
     lines, without the name, `: ` and the newline the terminal adds
     (section 4); 0 for an application that prints none.
-- **Its worst case and its operations,** which its host adds to its own
-  (programming-model.md, 6.3), each from the settings and skein-ui's
-  limits, before the terminal is made: `Terminal::worst_case`, the most
-  heap the terminal holds, and `Terminal::operations`, the most
-  operations it has in flight at once, which the host's ring holds
-  beside its own. Each is none for settings or limits the terminal
-  refuses, and none past its integer (checked arithmetic). The worst
-  case counts each container as it reports itself, and reserves nothing
-  (a print's room is its own tree's, above):
-  - its io, under the limits the terminal gives it (`skein_io::worst_case`),
-    and its queues of completions, submissions, events, commands and
-    lines;
-  - what those queues hold at their most: each of the application's
-    lines at the settings' line bytes, with the name, `: ` and the
-    newline; each of its own lines at its longest, a refusal's; each
-    command's words at the longest line; a read at its most bytes;
-  - the line being read, at the longest line; what the output has not
-    yet taken of a line being written, at the longest of the lines; the
-    print's numbers, one for each node of the limits; and the page, at
-    `worst_case`'s bytes (above), which the print holds until the output
-    has taken it.
+- **Its operations,** from the settings and skein-ui's limits before
+  the terminal is made: `Terminal::operations` gives the most operations
+  it has in flight, which the host's ring holds beside its own. It is
+  none for settings or limits the terminal refuses, or a capacity past
+  its integer. The terminal's input line, pending application lines and
+  io streams keep their admission caps; worlds hold the terminal's
+  measured peak under scenario ceilings.
 
 ## 4. When it prints
 
@@ -382,13 +367,11 @@ this shell's text (ui.md, 17.1).
   gone once its select is disabled after the print.
 - **Its bound:** the renderer's output for trees at a fixture's limits,
   every text at its most bytes and of the bytes that grow most, within
-  `worst_case` and within the room its own tree gives; a print and a
-  terminal made from limits whose `worst_case` passes a u32, printing a
+  `render_bound` and within the room its own tree gives; a print and a
+  terminal made from limits whose `render_bound` passes a u32, printing a
   small tree; a tree whose own room passes a u32, printed as `NAME: page
-  too long to print`, with no number acting. The terminal's worst case
-  grown, by one more of the application's lines or by one more byte of
-  each, by what that line or byte holds; its operations skein-io's for
-  its two pipes; neither for settings it refuses.
+  too long to print`, with no number acting. The terminal's operations
+  are skein-io's for its two pipes; settings it refuses give no count.
 - **The terminal** on skein's simulated machine, in `tests/ui-text`
   (testing.md, section 6): lines split and joined across reads, a line
   too long refused through its newline, prints paced and one at a time,

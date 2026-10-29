@@ -18,7 +18,7 @@ protocol layer is its first user.
 ## 1. In one page
 
 - **A component of a protocol layer.** It is a step machine with its own
-  state, limits, worst case and most outputs per entry point, which a
+  state, limits and most outputs per entry point, which a
   service's protocol layer owns and routes to (programming-model.md,
   sections 4 and 4.2). It depends on:
   - lib;
@@ -41,8 +41,7 @@ protocol layer is its first user.
   whole deadline. A pool at capacity is never a refusal.
 - **Memory is admitted, not multiplied.** Each call reserves what its
   request and its answer can hold from one memory pool before it reaches
-  a connection. The worst case is the pool, not every connection at its
-  maxima at once.
+  a connection. The pool bounds admitted call bytes across connections.
 - **Deadlines are given per call and armed here,** each as a function of
   the phase the call and its connection are in: connecting, TLS's
   handshake, the response's head, idleness between events, and the call
@@ -291,7 +290,7 @@ client's evidence: unsent, possibly sent, or a response received.
 - **Retry by phase is the owner's.** Head and idle say the peer stalled;
   whole says the owner's own time ran out (llm.md, section 2.5).
 
-## 7. Limits and the worst case
+## 7. Limits and admission
 
 | Limit | What it bounds |
 |---|---|
@@ -324,20 +323,11 @@ client's evidence: unsent, possibly sent, or a response received.
   what is left waits (4.1); one larger than the whole pool is refused.
   The prompt it was started with is the owner's until the client prepares
   the request from it.
-- **The worst case** is:
-  - the memory pool, which holds every call's request and receiving
-    state;
-  - for each connection of the pool, what it holds whatever its call:
-    io's buffers for its socket, TLS's state and skein's client's fixed
-    state. These are the socket's own buffers, never the owner's io worst
-    case, which the owner counts once;
-  - the waiting calls' records, `calls` of them;
-  - the encoder's fixed state and its depth-bounded stack, held once
-    (llm.md, 4.2): it makes no copies, so it grows with no request;
-  - and the component's own state.
-
-  The pool at least one largest call's reservation is checked when the
-  component is made, by name.
+- **`valid(limits, endpoints)`** checks endpoint and pool sizes, every
+  route's edge limits and the capacities derived from them. The pool
+  must hold at least one largest call's reservation; the component
+  names that relationship when refusing it. No heap-price sum is checked
+  at startup.
 
 ## 8. Testing
 
@@ -383,8 +373,8 @@ client's evidence: unsent, possibly sent, or a response received.
   than io's close and retry deadlines. Idle keeps stay at shipped values
   or beyond the world's horizon, and fakes never hang up to help the
   component settle unless the story is a peer's hang-up.
-- **Memory:** the pool at its size and the memory pool full, against the
-  worst case.
+- **Memory:** the connection pool and byte pool full, their peaks under
+  named scenario ceilings with headroom.
 - **Transports:** the worlds that replay run plaintext endpoints. TLS
   endpoints run in the real loop, and in the protocol world's handshake
   cases, which do not replay (tls.md).

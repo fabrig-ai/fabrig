@@ -77,8 +77,8 @@ http server                                 skein_http::server
 tls, or an io socket
 ```
 
-Each machine has its own `Limits` and `worst_case`, each entry point
-declares its `MAX_OUT`, and each says what it waits for:
+Each machine has its own `Limits` and edge checks, emits into uncapped
+queues, and says what it waits for:
 
 ```rust
 // skein_http::client, the machine
@@ -352,10 +352,10 @@ pub struct Limits {
   of 0), which no upload could get past.
 - **`largest_read`** is the larger of `head` and `read`, and at least 2;
   **`largest_room`** the larger of `request` and `send`.
-- **`UP_MAX_OUT`** is two events and two requests: a response and the
+- **`up` emits at most** two events and two requests: a response and the
   upload stopped, a body's end and `Done`, or a stream told it failed
   and `Failed`; below, the request head sent and the next demand.
-  **`DOWN_MAX_OUT`** is two events and one request: a body's end and
+  **`down` emits at most** two events and one request: a body's end and
   `Done`, or `Closed`; below, a demand, a send or a withdrawal.
 
 ## 4. Server-sent events
@@ -505,8 +505,8 @@ pub struct Limits {
 - **`largest_demand`** is `chunk`, and so is the largest demand the data
   face meets: whoever stacks a tokenizer on it checks the tokenizer's
   largest demand against it at startup.
-- **`UP_MAX_OUT`** is two events and one request: an open event's data
-  ending and its dispatch; below, the next demand. **`DOWN_MAX_OUT`** is
+- **`up` emits at most** two events and one request: an open event's data
+  ending and its dispatch; below, the next demand. **`down` emits at most**
   one event and one request: only a `Close` while reading emits both,
   `Closed` and the demand withdrawn.
 
@@ -559,7 +559,7 @@ pub enum Refusal { Name, Id, Comment, TooLong }
 - **What it waits for**, `waiting()`: `Above`, `Room` (the reader is not
   reading), `Close`, `Nothing`.
 
-### 4.4 The writer's limits and worst case
+### 4.4 The writer's limits and frame bound
 
 ```rust
 pub struct Limits {
@@ -568,16 +568,16 @@ pub struct Limits {
 }
 ```
 
-- **`worst_case(&limits)`** is the event being written, framed, at most
+- **`frame_bound(&limits)`** is the event being written, framed, at most
   `event`, held until all of it went down. What the side above gives it
   is the side above's to count, and a piece copied out is handed out as
   it is sent. `None` for a chunk of zero.
 - **`largest_room`** is `chunk`, which whoever stacks the writer checks
   against the server's `Limits::send`. A reader whose `Limits::event` is
   at least the writer's reads every event it writes.
-- **`UP_MAX_OUT`** is one event and two requests: room granted sends a
+- **`up` emits at most** one event and two requests: room granted sends a
   piece and asks room for the next, or sends the last and says `Sent`.
-  **`DOWN_MAX_OUT`** is one and one.
+  **`down` emits at most** one and one.
 
 ## 5. The HTTP/1.1 server
 
@@ -825,7 +825,7 @@ pub enum Error { Rejected(Rejection), Truncated, Stream(Fault), ChunkSize, Chunk
   send or finish), `Close` (the connection is not to be used again, or
   the side above withdrew the reply and closes next) and `Nothing`.
 
-### 5.6 Limits and the worst case
+### 5.6 Limits and their validity
 
 ```rust
 pub struct Limits {
@@ -842,33 +842,18 @@ pub struct Limits {
 }
 ```
 
-- **`worst_case(&limits)`** is the intake (`read`), and the larger of
-  what a request's two phases hold, which never meet: `intake +
-  max(fields + 2 × head − 14, response + max(read, head))`. Reading its
-  head, the list of its fields (`headers`), and the bytes of its target
-  and fields with the line being read, each line held with its copy: the
-  most is a request line filling the head, `GET`, its target and
-  `HTTP/1.1` ended by an LF, held with its target, the head twice less
-  the 14 bytes that are not the target. Its exchange, the response head,
-  held until the body is all read below and room comes for it
-  (`response`), with a delivery read for the body, a piece (`read`) or a
-  line of its framing (`head`), or the carry-over an exchange leaves
-  unread. The memory tests reach each exactly, under limits where it is
-  the larger. A response and a piece of the reply are counted by the side
-  above, which made them, and the step that takes one is checked against
-  the worst case and that input (testing.md, 5); what goes down (a head, a
-  chunk, an answer of the server's own) and what goes up is handed out
-  when it is emitted. `None`
-  for a head shorter than a blank line, a read of nothing, room for
-  nothing of a reply, room set aside short of the server's own answers,
-  or a chunk's room past a `u32`.
+- **`server::valid(&limits)`** checks a usable head, read and reply
+  room, enough response room for the server's own answers, and a framed
+  chunk's room fitting `u32`. The request head and body, field count,
+  intake and queued reply retain their caps. A sum of heap prices is
+  not an admission check.
 - **`largest_read`** is the larger of `head` and `read`, and at least 2;
   **`largest_room`** the larger of `response` and the room of a chunk of
   `send`: `send`, its size in hexadecimal, and four.
-- **`UP_MAX_OUT`** is three events and two requests: the stream's
+- **`up` emits at most** three events and two requests: the stream's
   failure told to both bodies' streams and the exchange; below, the head
   and the reply's room, or a 100 and the read it goes before.
-  **`DOWN_MAX_OUT`** is two and two: the body given up and `Done`; below,
+  **`down` emits at most** two and two: the body given up and `Done`; below,
   a read withdrawn and the head.
 
 ## 6. Testing
@@ -923,7 +908,7 @@ pub struct Limits {
     slowly, withdraws a demand and discards, discards the rest now and
     then, sends a withdrawal or a discard that crosses its answer, the body's
     end among them, stops for a while, and closes after the last exchange
-    or at any moment. The world checks `MAX_OUT` on each call; below, one
+    or at any moment. The world checks the stream contract; below, one
     demand at a time, none past the caps or once the stream ended or
     failed, a withdrawal only as the client stops reading, each `Send`
     within the room granted; above, each answer for a demand and exactly
@@ -989,7 +974,7 @@ pub struct Limits {
     of every shape, one in fifty flawed. Below, room is granted late, the
     stream says it ended now and then, and fails; above, a user writes
     one at a time when it feels like it, stops for a while, finishes, or
-    closes at any moment. The world checks `MAX_OUT`, room only, one
+    closes at any moment. The world checks room only, one
     demand at a time, one `Send` a grant within it, one answer each, and
     `waiting()`. Each item is refused exactly when a check of the test's
     own refuses it; what was written is the frames of what was sent, byte
@@ -1070,7 +1055,7 @@ pub struct Limits {
   written by the JSON writer; the server's stacks the server, a
   tokenizer on the request body and the writer on the reply, each event's
   data written by the JSON writer; each routes as a connection routes,
-  every call held to its `MAX_OUT`, and a scripted user sits at each top.
+  outputs queued without reservation, and a scripted user at each top.
   The two bottoms are joined by a stream each way, carried in pieces cut
   at random and joined in the receiving intake, each end's side below
   keeping the stream's contract as io keeps it; a closed end drains what
@@ -1115,8 +1100,8 @@ pub struct Limits {
   demands, and closed, failed and discarded after every step; and the
   carry-over held with a delivery. The reader at its limits: an event at
   every limit with lines ended every way, a line, an event and a type
-  past theirs, each closed after every step; its peak is its worst case
-  exactly. The server and the writer, in a binary of their own
+  past theirs, each closed after every step. Every peak stays under
+  its scenario's ceiling with headroom. The server and the writer
   (`tests/http/tests/suite/memory_server.rs`): the server at its limits, a head
   at the head limit with its fields at theirs, bodies by length and
   chunked with a trailer section at its limit, a 100 (Continue),
@@ -1124,11 +1109,10 @@ pub struct Limits {
   body, a rejection and a body cut short, each read with three demands,
   responded to before and after its body, and closed, failed and
   discarded after every step; and the carry-over held with a delivery.
-  The server's peak is its worst case exactly in either phase, under
-  limits where it is the larger: a request line filling the head, with
+  The server's scenarios cover both phases: a request line filling the head, with
   its target's copy; and a response head at its limit, held while a
   discard reads a piece of the most a read is. The writer's peak at its
-  limits is its worst case exactly.
+  limits stays under its scenario's ceiling.
 - **The fuzzy suite** (`tests/http/tests/suite/fuzzy/*.rs`): 20,000 connections
   of one to four generated exchanges, valid, mutated, and corrupted where
   a random edit seldom lands (another major version, a code past 599, an
@@ -1175,7 +1159,7 @@ pub struct Limits {
   stream, its type and its ID to the reference's, and an event cut short
   to a data stream that failed where the reference drops the event. The
   memory test adds an event of a megabyte under a chunk of a few bytes,
-  whose peak is the reader's worst case, the same as for an event of a
+  whose peak stays under the same scenario ceiling as an event of a
   few bytes. The stacked machines and the protocol worlds read each
   event's data through the face, the JSON reference judging what the
   tokenizer, or the collector, makes of it.
