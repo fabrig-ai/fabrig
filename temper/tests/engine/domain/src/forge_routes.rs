@@ -1181,7 +1181,12 @@ impl World {
             panic!("live change")
         };
         assert!(target.delegates.contains(&delegate));
-        sender.questions = Box::new([tasks::QuestionCredit { number: question, answerer: change }]);
+        sender.questions = Box::new([tasks::QuestionCredit {
+            number: question,
+            answerer: tasks::Party::Task(change),
+            asked: tasks::Party::Task(change),
+            line: sender.activity,
+        }]);
         let mut inbox = target.inbox.into_vec();
         inbox.push(tasks::Word {
             number: question,
