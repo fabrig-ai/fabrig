@@ -288,3 +288,55 @@ fn the_link_is_not_read_without_room_for_one_link_step() {
     assert_eq!(waiting, 1, "socket input waits while the engine entrance lacks link credit");
     assert!(service.told.is_empty(), "the next iteration routes it after the entrance drained");
 }
+
+#[test]
+fn a_full_held_entrance_holds_even_a_passing_answer() {
+    let mut stand = fixtures::started_worker();
+    let settings = fixtures::worker_agent();
+    let mut agent = AgentPeer::assigned(&mut stand.worker, &settings);
+    let body = cancellation_turn(&settings);
+    let turn = smith_protocol_channel::decode_turn(&body, SENT_TURNS, &settings.limits.transcript, &settings.endpoints)
+        .unwrap();
+    agent
+        .component
+        .send_turn(
+            SENT_TURNS,
+            None,
+            smith_domain_run::Spend::ZERO,
+            true,
+            &turn,
+            AGENT_OWNER,
+            &mut agent.events,
+            &mut agent.out,
+        )
+        .unwrap();
+    agent.settle(&mut stand.worker);
+    let retained = stand.worker.root.retained_turns();
+    let hosting = stand.worker.root.hosting();
+    let admitted = hosting.get(0).expect("the admitted run");
+    load(&mut stand.worker, WATERMARK);
+    for _ in 0..crate::worker::ENGINE_EVENTS {
+        stand.worker.link(fixtures::NOW, assignment());
+        stand.worker.iterate(fixtures::NOW, Wall::EPOCH);
+    }
+    assert_eq!(stand.worker.held.room(), 0, "new assignments fill the held entrance");
+    stand.worker.link(
+        fixtures::NOW,
+        link::Request::Down {
+            down: hub::LinkDown::TurnKept { run: admitted.run, attempt: admitted.attempt, turn: SENT_TURNS },
+            parts: Box::new([]),
+        },
+    );
+    stand.worker.iterate(fixtures::NOW, Wall::EPOCH);
+    assert_eq!(retained, SENT_TURNS);
+    assert_eq!(stand.worker.root.retained_turns(), SENT_TURNS, "the passing answer waits at a full held entrance");
+    assert_eq!(stand.worker.engine.len(), 1, "the answer remains at the engine entrance");
+    let answer = stand.worker.engine.iter().next().unwrap();
+    assert!(root::passes(answer), "this answer can pass when held has room");
+    // Return one entrance slot while retaining the watermark pressure.
+    assert!(stand.worker.held.pop().is_some());
+    stand.worker.iterate(fixtures::NOW, Wall::EPOCH);
+    assert_eq!(stand.worker.root.retained_turns(), 0, "with entrance credit the owner receives its answer");
+    assert!(stand.worker.engine.is_empty());
+    assert_eq!(stand.worker.held.len(), crate::worker::ENGINE_EVENTS - 1);
+}

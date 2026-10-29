@@ -556,3 +556,73 @@ fn a_started_engines_root_uses_the_documents_engine_memory_bytes() {
     let service = crate::Service::engine(settings, &fixtures::seeds(), None, fixtures::forge_runtime()).unwrap();
     assert_eq!(service.engine.as_ref().expect("started engine").env.limits.memory_bytes, memory);
 }
+
+#[test]
+fn a_cancellation_waiting_unpublished_keeps_its_completed_targets_route() {
+    use skein_io::kernel::{Complete, Done, Error, Fd, Op, Submit};
+    use skein_lib::{Token, Wall};
+    let mut service = fixtures::ready();
+    let fd = Fd::new(93);
+    service.adopt_signals(fd).unwrap();
+    crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
+    crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
+    let mut target = None;
+    for _ in 0..service.submissions.len() {
+        let submit = service.submissions.pop().unwrap();
+        if let Op::ReadSignal { fd: found } = submit.kind
+            && found == fd
+        {
+            target = Some(submit);
+        } else {
+            service.submissions.push(submit);
+        }
+    }
+    let target = target.expect("the signal source's read reached the kernel");
+    while service.submissions.room() > 0 {
+        service.submissions.push(Submit { op: Token::new(9000), kind: Op::Close { fd: Fd::new(94) } });
+    }
+    service.engine.as_mut().unwrap().end = Some(crate::End::Aborted);
+    crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
+    assert_eq!(service.submissions.room(), 0);
+    assert!(service.pending(Time::ZERO).signals_closing);
+    assert!(service.pending(Time::ZERO).raw_submissions > 0, "the cancellation waits unpublished");
+    let external = target.op;
+    service.completions.push(Complete { op: external, kind: target.kind, result: Err(Error::Cancelled) });
+    crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
+    assert!(service.completions.is_empty(), "the target completion reached its owner while its cancellation waited");
+    assert!(service.pending(Time::ZERO).signals, "the source still waits for its cancellation terminal");
+    while service.submissions.pop().is_some() {}
+    crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
+    let mut cancel = None;
+    for _ in 0..service.submissions.len() {
+        let submit = service.submissions.pop().unwrap();
+        if let Op::Cancel { target } = submit.kind
+            && target == external
+        {
+            cancel = Some(submit);
+        } else {
+            if let Op::Close { fd: found } = submit.kind {
+                assert_ne!(found, fd, "close waits for the cancel owner");
+            }
+            service.submissions.push(submit);
+        }
+    }
+    let cancel = cancel.expect("the delayed cancellation retains its target's external route");
+    service.completions.push(Complete { op: cancel.op, kind: cancel.kind, result: Err(Error::TooLate) });
+    crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
+    let mut close = None;
+    for _ in 0..service.submissions.len() {
+        let submit = service.submissions.pop().unwrap();
+        if let Op::Close { fd: found } = submit.kind
+            && found == fd
+        {
+            close = Some(submit);
+        } else {
+            service.submissions.push(submit);
+        }
+    }
+    let close = close.expect("the cancellation maps back to its source, which can now close");
+    service.completions.push(Complete { op: close.op, kind: close.kind, result: Ok(Done::Nothing) });
+    crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
+    assert!(!service.pending(Time::ZERO).signals, "the source's owner observes its final close");
+}
