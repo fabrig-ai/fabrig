@@ -277,8 +277,10 @@ in the lower world that owns it, never here.
   asks T1 whether to go ahead before it delegates anything, and jig
   puts the question in the inbox of T1's person (jig's
   `domain/people.md`, section 6); the person answers it there with
-  `temper ctl task answer`; T1, woken by the answer, relays it to T2
-  (`message`, its form an answer to the question's number); T2 then
+  `temper ctl task answer`; the answer reaches T2 directly as its
+  requester T1's answer. T1 hears "Person answered question N in their
+  inbox" (N is the question's number) and acknowledges it to its person,
+  never relaying the approval through `message`; T2 then
   delegates the change T3, whose coder edits widget's `src/main.rs`; it
   lands with CI green at its head, T2 reports, and T1 says so.
   - **The work that waits asks.** The change's own agents cannot reach
@@ -290,8 +292,9 @@ in the lower world that owns it, never here.
   - **Every judgement a script,** one call per response, each task's
     wakes one cause at a time, so each turn follows the count of replies
     said: T1 delegates T2, says so and waits; on the question, says it
-    waits in the person's inbox and waits; on the answer, relays it,
-    says so and waits; on T2's report, finishes with its own. T2 asks,
+    waits in the person's inbox and waits; on the numbered answer notice,
+    acknowledges it to its person and waits; on T2's report, finishes
+    with its own. T2 asks,
     says so and waits; on the answer, delegates the change and waits; on
     the change's result, reports. The coder reads, edits and finishes;
     the reviewer approves. The numbers are a fresh deployment's, named
@@ -308,9 +311,11 @@ in the lower world that owns it, never here.
     T1's activity holding its words, and answer it; join the watch.
   - **What it checks:** the question in the inbox, on T1 and message 1, and
     in T1's activity in T2's words (ctl's inbox entry names the question,
-    not its words), while T1's tree held no change; T1 told the person's
-    answer after the question, and T2 told it as T1's answer before it
-    delegated the change; the change merged with CI green at its head,
+    not its words), while T1's tree held no change and no branch or pull
+    existed before approval; T1 told the numbered answer notice after the question, and
+    T2 told the person's exact approval, including the required
+    `fruit,count` header, directly as T1's answer before it delegated the
+    change; the change merged with CI green at its head,
     widget's edit on main; T2's report and T1's; no question left in the
     inbox. The fake forge's one repository stands as widget, its tree
     holding widget's source, and its CI follows the edit (4.2); the story's
@@ -375,9 +380,10 @@ in the lower world that owns it, never here.
   ladder from B0 up, added once its brief passes on real backends (its
   section 3): the passing walk replayed on the first run's cast.
   - **Its scripts are the walk's,** a fake LLM document made from the
-    passing run's transcripts by `tools/twin` (4.1), never written by
+    passing run's transcripts by `tools/twin` (4.1), never invented by
     hand: each agent of the walk says what the real model said, turn by
-    turn. Its forge is the fake's, seeded as the walk's box seeded
+    turn. A structured adaptation preserves every other turn, is validated
+    by the twin, and has its provenance recorded in the fixtures' README. Its forge is the fake's, seeded as the walk's box seeded
     `playground/widget`, with any commit the walk's person made on it
     (rung B1's gate), and a CI cue that judges as the walk's CI did:
     for B1, a head passes only when it holds `changes/1.md`.
