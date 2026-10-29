@@ -41,7 +41,7 @@ pub struct Limits {
 #[must_use]
 pub fn valid(limits: &Limits) -> bool {
     limits.processes.checked_mul(2).is_some()
-        && tokenizer::worst_case(&tokenizer::Limits {
+        && tokenizer::tokenizer_bound(&tokenizer::Limits {
             depth: 8,
             string: limits.search_line_bytes.max(1),
             number: 20,
