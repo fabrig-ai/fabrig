@@ -1,5 +1,6 @@
 use super::*;
 use crate::Command;
+use skein_world::{Deadline, Expired};
 use std::io::Read;
 use std::os::unix::fs::PermissionsExt;
 
@@ -373,6 +374,72 @@ fn github_installation_records_end_at_the_pass_checkpoint() {
     fs::remove_dir_all(directory).expect("remove fixture");
 }
 
+// Harness waits and their teardown follow skein/docs/foundation/testing-strategy.md, 2.10.
+fn reply_pass_due(
+    host: &mut Host,
+    kernel: &mut skein_shell::Kernel,
+    client: &mut Option<std::net::TcpStream>,
+    deadline: &Deadline,
+    name: &str,
+) {
+    assert!(!host.failed, "{name}: fake failed before the reply pass");
+    if !deadline.passed() {
+        return;
+    }
+    match deadline.expired() {
+        Expired::Starved(starved) => {
+            drop(client.take());
+            // Cancel the signal read and drain the peer before the verdict exits.
+            host.failed = true;
+            host.stopped = true;
+            host.peer.shutdown();
+            if let Some(control) = &mut host.control {
+                control.shutdown();
+            }
+            if host.signal == Signal::Reading && host.cancel == Cancel::Idle {
+                host.submissions.push(Submit { op: CANCEL_SIGNAL, kind: Op::Cancel { target: SIGNAL } });
+                host.cancel = Cancel::Waiting;
+            }
+            let _exit = skein_shell::drive(kernel, &skein_shell::Clock::new(), host);
+            assert!(host.is_empty(), "starved fake drains");
+            assert_eq!(kernel.in_flight(), 0);
+            starved.pass();
+        }
+        Expired::Failed(figures) => panic!("{name}: reaches the reply pass: {figures}"),
+    }
+}
+
+fn client_close(mut client: std::net::TcpStream, name: &str) {
+    let deadline = Deadline::arm("the failed fake's client close", skein_lib::Duration::from_millis(300));
+    loop {
+        client
+            .set_read_timeout(Some(
+                std::time::Duration::from_nanos(deadline.remaining().as_nanos())
+                    .max(std::time::Duration::from_millis(1)),
+            ))
+            .expect("client close timeout");
+        match client.read(&mut [0]) {
+            Ok(0) => break,
+            Ok(_) => panic!("{name}: no reply bytes"),
+            Err(why) if why.kind() == io::ErrorKind::ConnectionReset => break,
+            Err(why) if why.kind() == io::ErrorKind::Interrupted => {}
+            Err(why) if matches!(why.kind(), io::ErrorKind::TimedOut | io::ErrorKind::WouldBlock) => {
+                if deadline.passed() {
+                    match deadline.expired() {
+                        Expired::Starved(starved) => {
+                            drop(client);
+                            starved.pass();
+                        }
+                        Expired::Failed(figures) => panic!("{name}: client end: {why}; {figures}"),
+                    }
+                }
+            }
+            Err(why) => panic!("{name}: client end: {why}"),
+        }
+    }
+    drop(client);
+}
+
 #[test]
 fn observation_write_failure_drains_the_peer_and_keeps_its_outputs() {
     // The read-only descriptor fails writes with EBADF without damaging the
@@ -407,10 +474,10 @@ fn observation_write_failure_drains_the_peer_and_keeps_its_outputs() {
             host.observations();
         }
         let clock = skein_shell::Clock::new();
-        let deadline = clock.now().now.saturating_add(skein_lib::Duration::from_millis(300));
+        let deadline = Deadline::arm("the fake's reply pass", skein_lib::Duration::from_millis(300));
         let mut client = None;
         let before = loop {
-            assert!(clock.now().now < deadline, "{name}: reaches the reply pass");
+            reply_pass_due(&mut host, &mut kernel, &mut client, &deadline, name);
             kernel.reap(host.completions());
             let skein_shell::Now { now, wall } = clock.now();
             host.iterate(now, wall);
@@ -418,7 +485,6 @@ fn observation_write_failure_drains_the_peer_and_keeps_its_outputs() {
                 && let Some(address) = host.peer.address()
             {
                 let mut socket = std::net::TcpStream::connect(address).expect("client");
-                socket.set_read_timeout(Some(std::time::Duration::from_millis(300))).expect("timeout");
                 let token = credential(23, credential::ADMIN_TOKEN);
                 write!(socket, "GET /api/v1/repositories/1 HTTP/1.1\r\nHost: localhost\r\nAuthorization: token {}\r\nConnection: keep-alive\r\n\r\n",
                     std::str::from_utf8(&token).expect("hex")).expect("request");
@@ -453,14 +519,6 @@ fn observation_write_failure_drains_the_peer_and_keeps_its_outputs() {
         };
         // The client's sending half remains open: settling must cancel Recv.
         assert_eq!(skein_shell::drive(&mut kernel, &clock, &mut host), Exit::Code(1), "{name}");
-        let mut client = client.expect("open client");
-        let mut bytes = Vec::new();
-        match client.read_to_end(&mut bytes) {
-            Ok(_) => {}
-            Err(why) if why.kind() == io::ErrorKind::ConnectionReset => {}
-            Err(why) => panic!("{name}: client end: {why}"),
-        }
-        assert!(bytes.is_empty(), "{name}: no reply bytes");
         assert!(host.is_empty());
         assert_eq!(kernel.in_flight(), 0);
         assert!(host.shared.as_ref().expect("forge").borrow_mut().domain.pop_observation().is_none());
@@ -473,6 +531,7 @@ fn observation_write_failure_drains_the_peer_and_keeps_its_outputs() {
         }
         assert!(document.exists());
         assert!(directory.join("forge/admin_token").exists());
+        client_close(client.expect("open client"), name);
         fs::remove_dir_all(directory).expect("valid fixture");
     }
 }
