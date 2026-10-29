@@ -152,7 +152,7 @@ fn hosts(
     if count > 128 {
         return Err(owner::Invalid::TooLarge);
     }
-    let mut bytes = List::<client::AccountHostFailure>::worst_case(count).ok_or(owner::Invalid::TooLarge)?;
+    let mut bytes = List::<client::AccountHostFailure>::price(count).ok_or(owner::Invalid::TooLarge)?;
     for row in rows {
         bytes = bytes
             .checked_add(u64::try_from(row.name.len()).map_err(|_| owner::Invalid::TooLarge)?)
@@ -345,7 +345,7 @@ mod programs {
     }
     #[test]
     fn host_answers_hold_at_the_native_budget() {
-        let bytes = List::<client::AccountHostFailure>::worst_case(1).expect("host list") + 17;
+        let bytes = List::<client::AccountHostFailure>::price(1).expect("host list") + 17;
         let limits = Limits { document_bytes: bytes.div_ceil(2), turn_text: limits().turn_text, ..limits() };
         assert!(outcome(&failed(), &limits).is_ok());
         assert_eq!(
