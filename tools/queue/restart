@@ -39,7 +39,8 @@ def runtime_module(directory, repo, *, external=False):
     if external:
         runtime_unchanged(directory, frozen)
         if any(not callable(getattr(module, name, None)) for name in
-               ("validate_repair", "advertised_repair", "log_repair_refusal", "writer_authority", "writer_fds")):
+               ("validate_repair", "repair_pending", "advertised_repair", "log_repair_refusal", "UnknownHeavyError",
+                "writer_authority", "writer_fds")):
             raise ValueError("--runtime requires queue code supporting pinned repairs and shared authority")
         if (Path(module.authority.__file__).resolve() != directory / "authority.py" or
                 Path(module.authority.durable.__file__).resolve() != directory / "durable.py"):
@@ -105,11 +106,11 @@ def await_start(child, ready_fd, output):
 
 
 def restart(repo, wait, home, *, batch=8, authority_dir=None, runtime=None,
-            repair_ready=None, repair_tip=None, repair_reason=None):
+            repair_ready=None, repair_tip=None, repair_reason=None, repair_hold=False):
     repair = None
     selected_authority = authority
     frozen = {}
-    if runtime is not None or any(value is not None for value in (repair_ready, repair_tip, repair_reason)):
+    if runtime is not None or repair_hold or any(value is not None for value in (repair_ready, repair_tip, repair_reason)):
         module, directory = runtime_module(DIRECTORY, repo)
         raw = {"name": repair_ready, "tip": repair_tip, "reason": repair_reason}
         try:
@@ -117,8 +118,8 @@ def restart(repo, wait, home, *, batch=8, authority_dir=None, runtime=None,
                 module, directory = runtime_module(runtime, repo, external=True)
                 selected_authority = module.authority
                 frozen = module.restart_frozen
-            repair = module.validate_repair(repo, repair_ready, repair_tip, repair_reason)
-            if repair is not None:
+            repair = module.validate_repair(repo, repair_ready, repair_tip, repair_reason, hold=repair_hold)
+            if repair is not None and module.repair_pending(repo, repair):
                 module.advertised_repair(repo, repair)
         except (OSError, ValueError, RuntimeError, SyntaxError) as error:
             module.log_repair_refusal(home / "src/fabrig/notes/queue.jsonl", raw, error)
@@ -154,6 +155,8 @@ def restart(repo, wait, home, *, batch=8, authority_dir=None, runtime=None,
                 layout.legacy_guard(repo)
                 guard_runtime()
                 with selected_authority.checkout_lock(repo) as checkout:
+                    if repair is not None and module.repair_pending(repo, repair):
+                        module.advertised_repair(repo, repair)
                     inherited = (lease.fd, checkout.fd)
                     command(["git", "fetch", "origin"], repo, pass_fds=inherited)
                     command(["git", "switch", "--detach", "origin/main"], repo, pass_fds=inherited)
@@ -173,6 +176,8 @@ def restart(repo, wait, home, *, batch=8, authority_dir=None, runtime=None,
                         if repair is not None:
                             argv.extend(["--repair-ready", repair["name"], "--repair-tip", repair["tip"],
                                          "--repair-reason", repair["reason"]])
+                        if repair_hold:
+                            argv.append("--repair-hold")
                         try:
                             guard_runtime()
                             stop.unlink()
@@ -229,15 +234,21 @@ def main():
     parser.add_argument("--repair-ready")
     parser.add_argument("--repair-tip")
     parser.add_argument("--repair-reason")
+    parser.add_argument("--repair-hold", action="store_true", help="hold admission after the pinned repair")
     args = parser.parse_args()
-    for name in ("cargo", "heavy", "post", "git"):
-        if shutil.which(name) is None:
-            print(f"restart: missing {name} on PATH; invoke from bash -lc", file=sys.stderr)
-            return 2
     try:
+        for name in ("cargo", "heavy", "post", "git"):
+            if shutil.which(name) is None:
+                error = RuntimeError(f"missing {name} on PATH; invoke from bash -lc")
+                raw = {"name": args.repair_ready, "tip": args.repair_tip, "reason": args.repair_reason}
+                if args.repair_hold or any(value is not None for value in raw.values()):
+                    module, _ = runtime_module(DIRECTORY, args.repo)
+                    module.log_repair_refusal(Path.home() / "src/fabrig/notes/queue.jsonl", raw, error)
+                print(f"restart: {error}", file=sys.stderr)
+                return 2
         restart(args.repo.expanduser().resolve(), args.wait, Path.home(), batch=args.batch,
                 authority_dir=args.authority_dir, runtime=args.runtime, repair_ready=args.repair_ready,
-                repair_tip=args.repair_tip, repair_reason=args.repair_reason)
+                repair_tip=args.repair_tip, repair_reason=args.repair_reason, repair_hold=args.repair_hold)
         return 0
     except (OSError, ValueError, RuntimeError, SyntaxError, subprocess.SubprocessError) as error:
         print(f"restart: {error}", file=sys.stderr)

@@ -16,6 +16,13 @@ runtime validation covers all ten frozen module/list files, refuses changes
 before update and launch, and loads its authority dependencies from that copy.
 The priority suite retains its 19 cases and adds dependency-drain, persistent
 ownership, cross-clone exclusion and real external-child handoff coverage.
+Review repairs cover signal/137 heavy uncertainty with durable global and
+checkout refusal receipts, no input recovery/pruning and unsupported release;
+consumed-pin restart with trusted state revalidation; PATH/plan refusal audit;
+and opt-in adjudicated repair hold. Real disposable daemons prove official
+restart through held consumed pins, same authority inode, stop drain and a
+later restart without hold resuming ordinary work. No production activation
+or unknown-heavy reconciliation is supplied.
 
 Section 3.8 remains an opt-in local worker, with no dispatch from mq/restart
 and no second-prover activation. It shares checkout exclusion with legacy and

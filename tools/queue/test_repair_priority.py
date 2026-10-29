@@ -3,7 +3,7 @@
 import sys
 sys.dont_write_bytecode = True
 
-from contextlib import redirect_stderr, redirect_stdout
+from contextlib import ExitStack, redirect_stderr, redirect_stdout
 import importlib.machinery
 import importlib.util
 import io
@@ -45,7 +45,7 @@ class RepairTests(unittest.TestCase):
         self.origin = self.root / "origin.git"
         self.repo = self.root / "queue"
         self.audit = self.root / "queue.jsonl"
-        self.state = self.root / "state.json"
+        self.state = self.repo.with_name(self.repo.name + ".state.json")
         self.commit_count = 0
         mq.git(self.preparer, "init", "-b", "main")
         self.identity(self.preparer)
@@ -99,10 +99,11 @@ class RepairTests(unittest.TestCase):
 
     def queue(self, repair=None, **kwargs):
         if not hasattr(self, "lease"):
+            self.writer_stack = self.enterContext(ExitStack())
             self.layout = mq.authority.Layout(self.root / "authority")
-            self.lease = self.enterContext(self.layout.acquire())
-            self.checkout = self.enterContext(mq.authority.checkout_lock(self.repo))
-            self.enterContext(mq.writer_authority(self.lease, self.checkout))
+            self.lease = self.writer_stack.enter_context(self.layout.acquire())
+            self.checkout = self.writer_stack.enter_context(mq.authority.checkout_lock(self.repo))
+            self.writer_stack.enter_context(mq.writer_authority(self.lease, self.checkout))
         def guard():
             self.lease.guard()
             self.checkout.guard()
@@ -341,12 +342,374 @@ class RepairTests(unittest.TestCase):
         repair = self.repair()
         runtime = self.runtime()
         argv = ["restart", "--repo", str(self.repo), "--runtime", str(runtime), "--batch", "16",
-                "--repair-ready", repair["name"], "--repair-tip", repair["tip"], "--repair-reason", REASON]
+                "--repair-ready", repair["name"], "--repair-tip", repair["tip"], "--repair-reason", REASON,
+                "--repair-hold"]
         with patch.object(sys, "argv", argv), patch.object(restart.shutil, "which", return_value="/fixture/tool"), \
                 patch.object(Path, "home", return_value=self.home), patch.object(restart, "restart") as launch:
             self.assertEqual(restart.main(), 0)
         launch.assert_called_once_with(self.repo, 1800, self.home, batch=16, runtime=runtime, authority_dir=None,
-                                       repair_ready=repair["name"], repair_tip=repair["tip"], repair_reason=REASON)
+                                       repair_ready=repair["name"], repair_tip=repair["tip"], repair_reason=REASON,
+                                       repair_hold=True)
+
+    def unknown_heavy_consequence(self, code):
+        self.branch("older-ordinary")
+        repair = self.repair()
+        other = self.root / "other-clone"
+        mq.git(self.root, "clone", "-b", "main", str(self.origin), str(other))
+        (self.repo / ".git/info/exclude").write_text("target/\n")
+        live = self.repo / "target/debug/deps/live-checker"
+        queue = self.queue(repair)
+        queue.state["tried"] = {"ready/coord/earlier": self.base}
+        queue.save()
+        tried = dict(queue.state["tried"])
+        commands = []
+        def runner(argv, **kwargs):
+            commands.append(argv)
+            if argv[0] == "heavy":
+                live.parent.mkdir(parents=True, exist_ok=True)
+                live.write_text("unknown job still owns these inputs\n")
+                live.chmod(0o700)
+                return subprocess.CompletedProcess(argv, code)
+            return subprocess.CompletedProcess(argv, 0)
+        def checker(repo, selected, paths, log):
+            self.checks.append(selected)
+            return mq.run_checks(repo, selected, paths, log, runner=runner)
+        queue.checker = checker
+        with patch.object(mq, "prune_test_executables", return_value={}) as prune:
+            with self.assertRaises(RuntimeError):
+                self.cycle(queue)
+            candidate = self.tip(self.repo)
+            self.assertEqual(queue.state["tried"], tried)
+            self.assertEqual(json.loads(self.state.read_text())["tried"], tried)
+            self.assertFalse(queue.repair_consumed)
+            self.assertEqual(queue.pending_repair(), repair)
+            self.assertEqual(self.posts, [])
+            self.assertEqual([argv[0] for argv in commands], ["cargo", "heavy"])
+            marker = json.loads((self.repo / ".git/queue.unresolved").read_text())
+            self.assertEqual(marker["repair"], repair)
+            self.assertEqual(marker["record"]["candidate"], candidate)
+            self.assertEqual(marker["record"]["steps"][-1]["returncode"], code)
+            for action in (queue.cycle, queue.plan, lambda: queue.recover(RuntimeError("unknown"))):
+                with self.assertRaises(RuntimeError):
+                    action()
+            self.assertEqual(self.tip(self.repo), candidate)
+            self.assertEqual(live.read_text(), "unknown job still owns these inputs\n")
+            stop = self.root / "stop"
+            waits = []
+            def sleeper(seconds):
+                waits.append(seconds)
+                stop.touch()
+            queue.run(stop, sleeper=sleeper)
+            self.assertEqual(waits, [60])
+            self.assertEqual(self.checks, ["full"])
+            prune.assert_not_called()
+        self.writer_stack.close()
+        with self.assertRaisesRegex(RuntimeError, "unresolved"):
+            self.layout.acquire()
+        with self.assertRaisesRegex(RuntimeError, "unresolved"), mq.authority.checkout_lock(self.repo):
+            pass
+        with self.assertRaisesRegex(RuntimeError, "unresolved"):
+            mq.authority.Layout(self.layout.root).acquire()
+        self.assertTrue(other.is_dir())
+
+    def test_heavy_signal_keeps_unknown_ownership_and_never_rejects(self):
+        self.unknown_heavy_consequence(-9)
+
+    def test_heavy_137_keeps_unknown_ownership_and_never_rejects(self):
+        self.unknown_heavy_consequence(137)
+
+    def test_unknown_heavy_provenance_lookup_failure_cannot_recover_inputs(self):
+        repair = self.repair()
+        queue = self.queue(repair)
+        returned = [False]
+        git = mq.git
+        def checker(*args):
+            returned[0] = True
+            return [{"name": "build", "command": ["heavy", "cargo", "nextest"],
+                     "returncode": 137, "green": False}]
+        def git_read(repo, *args, **kwargs):
+            if returned[0] and args == ("rev-parse", "HEAD"):
+                raise RuntimeError("fixture HEAD lookup unavailable")
+            return git(repo, *args, **kwargs)
+        queue.checker = checker
+        with patch.object(mq, "git", side_effect=git_read), self.assertRaises(RuntimeError):
+            self.cycle(queue)
+        marker = json.loads((self.repo / ".git/queue.unresolved").read_text())
+        self.assertEqual(marker["repair"], repair)
+        self.assertEqual(marker["record"]["candidate"], "unknown")
+        self.assertEqual(marker["record"]["prepared_candidate"], self.tip(self.repo))
+        with self.assertRaises(RuntimeError):
+            queue.recover(RuntimeError("client absent"))
+        self.assertFalse(queue.repair_consumed)
+
+    def test_completed_green_restart_accepts_deleted_ready_pin(self):
+        repair = self.repair()
+        queue = self.queue(repair)
+        self.cycle(queue)
+        self.writer_stack.close()
+        self.launch_restart(repair, self.runtime())
+
+    def test_completed_red_restart_accepts_advanced_ready_pin(self):
+        repair = self.repair()
+        self.result = "red"
+        self.cycle(self.queue(repair))
+        self.branch("zz-repair", parent=repair["tip"], text="successor\n")
+        self.writer_stack.close()
+        self.launch_restart(repair, self.runtime())
+
+    def test_completed_state_is_revalidated_after_drain_before_update(self):
+        repair = self.repair()
+        self.cycle(self.queue(repair))
+        self.writer_stack.close()
+        with self.assertRaisesRegex(ValueError, "pinned tip"):
+            self.launch_restart(repair, self.runtime(), mutate=lambda root:
+                                mq.authority.durable.atomic_json(self.state, {"tried": {}}))
+        self.assertEqual(self.restart_calls, [["git", "rev-parse", "--show-toplevel"]])
+        self.assertTrue((self.home / "src/fabrig/queue.stop").exists())
+
+    def test_missing_tools_audit_triplet_before_any_admission(self):
+        repair = self.repair()
+        for module, action in ((mq, ["run"]), (restart, [])):
+            argv = [module.__name__, *action, "--repo", str(self.repo),
+                    "--repair-ready", repair["name"], "--repair-tip", repair["tip"], "--repair-reason", REASON]
+            with self.subTest(module=module.__name__), patch.object(sys, "argv", argv), \
+                    patch.object(Path, "home", return_value=self.home), \
+                    patch.object(module.shutil, "which", side_effect=lambda name:
+                                 None if name == "heavy" else "/fixture/" + name), redirect_stderr(io.StringIO()):
+                self.assertEqual(module.main(), 2)
+            audit = self.home / "src/fabrig/notes/queue.jsonl"
+            self.assertTrue(audit.exists())
+            self.assertEqual(json.loads(audit.read_text().splitlines()[-1])["repair"], repair)
+
+    def test_plan_fetch_failure_audits_exact_triplet(self):
+        repair = self.repair()
+        queue = self.queue(repair)
+        with patch.object(mq, "git", side_effect=RuntimeError("fixture fetch failed")), \
+                self.assertRaisesRegex(RuntimeError, "fetch failed"):
+            queue.plan()
+        self.assert_repair_record(repair, "error")
+
+    def test_hold_adjudicates_once_then_blocks_ordinary_and_replacement_inputs(self):
+        self.branch("older-ordinary")
+        repair = self.repair()
+        queue = self.queue(repair, repair_hold=True)
+        self.cycle(queue)
+        self.branch("zz-repair", parent=repair["tip"], text="replacement\n")
+        for _ in range(2):
+            self.assertFalse(self.cycle(queue))
+        self.assertEqual(len(self.checks), 1)
+        self.assertEqual(len([r for r in self.records() if r.get("event") == "repair-hold"]), 1)
+        with self.assertRaises(RuntimeError):
+            self.layout.acquire()
+        stop = self.root / "stop"
+        queue.run(stop, sleeper=lambda seconds: stop.touch())
+        self.assertEqual(len(self.checks), 1)
+
+    def test_hold_red_and_completed_pin_never_admit_ordinary_inputs(self):
+        self.branch("older-ordinary")
+        repair = self.repair()
+        self.result = "red"
+        queue = self.queue(repair, repair_hold=True)
+        self.cycle(queue)
+        self.assertEqual(queue.state["tried"], {repair["name"]: repair["tip"]})
+        self.assertFalse(self.cycle(queue))
+        resumed = self.queue(repair, repair_hold=True)
+        for _ in range(2):
+            self.assertFalse(self.cycle(resumed))
+        self.assertEqual(len(self.checks), 1)
+        self.assertEqual(len([r for r in self.records() if r.get("event") == "repair-hold"]), 2)
+
+    def test_hold_completed_green_pin_never_fetches_or_checks(self):
+        self.branch("older-ordinary")
+        repair = self.repair()
+        self.cycle(self.queue(repair))
+        queue = self.queue(repair, repair_hold=True)
+        with patch.object(mq, "git", side_effect=AssertionError("held queue fetched")):
+            for _ in range(2):
+                self.assertFalse(self.cycle(queue))
+        self.assertEqual(len(self.checks), 1)
+        record = self.records()[-1]
+        self.assertEqual(record["event"], "repair-hold")
+        self.assertNotIn("outcome", record)
+
+    def test_hold_requires_triplet_and_is_forwarded_by_cli_and_restart(self):
+        for module, action in ((mq, ["once"]), (restart, [])):
+            with patch.object(sys, "argv", [module.__name__, *action, "--repo", str(self.repo), "--repair-hold"]), \
+                    patch.object(Path, "home", return_value=self.home), \
+                    patch.object(module.shutil, "which", return_value="/fixture/tool"), redirect_stderr(io.StringIO()):
+                self.assertEqual(module.main(), 1)
+            self.assertFalse((self.home / "src/fabrig/queue.stop").exists())
+        repair = self.repair()
+        argv = ["mq", "once", "--repo", str(self.repo), "--authority-dir", str(self.root / "cli-authority"),
+                "--repair-ready", repair["name"], "--repair-tip", repair["tip"], "--repair-reason", REASON,
+                "--repair-hold"]
+        with patch.object(sys, "argv", argv), patch.object(mq, "Queue") as queue:
+            self.assertEqual(mq.main(), 0)
+        self.assertEqual(queue.call_args.kwargs["repair"], repair)
+        self.assertTrue(queue.call_args.kwargs["repair_hold"])
+        self.launch_restart(repair, self.runtime(), repair_hold=True)
+
+    def test_restart_untrusted_consumption_state_never_falls_back_to_ordinary(self):
+        repair = self.repair()
+        runtime = self.runtime()
+        rows = [b"not JSON", b'{"tried": [], "last_full": 0}', b'{"tried":{},"tried":{}}',
+                b'{"tried":{},"last_full":NaN}', b'{"tried":{},"last_full":1e999}',
+                json.dumps({"tried": {repair["name"]: repair["tip"]}, "batches_since_full": "wrong"}).encode()]
+        for data in rows:
+            self.state.write_bytes(data)
+            with self.subTest(data=data), self.assertRaises(ValueError):
+                self.launch_restart(repair, runtime)
+            self.assertEqual(self.restart_calls, [])
+            self.assertFalse((self.home / "src/fabrig/queue.stop").exists())
+        mq.authority.durable.atomic_json(self.state, {"tried": {repair["name"]: repair["tip"]}})
+        self.state.chmod(0o644)
+        with self.assertRaises(ValueError):
+            self.launch_restart(repair, runtime)
+        self.state.chmod(0o600)
+        target = self.root / "private-state"
+        self.state.rename(target)
+        self.state.symlink_to(target)
+        with self.assertRaises(OSError):
+            self.launch_restart(repair, runtime)
+
+    def test_audit_write_failure_is_an_error_not_a_successful_refusal(self):
+        repair = self.repair()
+        audit = self.home / "src/fabrig/notes/queue.jsonl"
+        original = Path.open
+        def fail_audit(path, *args, **kwargs):
+            if path == audit:
+                raise OSError("fixture audit unavailable")
+            return original(path, *args, **kwargs)
+        for module, action in ((mq, ["run"]), (restart, [])):
+            argv = [module.__name__, *action, "--repo", str(self.repo),
+                    "--repair-ready", repair["name"], "--repair-tip", repair["tip"], "--repair-reason", REASON]
+            with patch.object(sys, "argv", argv), patch.object(Path, "home", return_value=self.home), \
+                    patch.object(module.shutil, "which", return_value=None), \
+                    patch.object(Path, "open", fail_audit), redirect_stderr(io.StringIO()):
+                self.assertEqual(module.main(), 1)
+
+    def test_unknown_marker_publication_failure_retains_inputs_until_durable(self):
+        repair = self.repair()
+        queue = self.queue(repair)
+        queue.checker = lambda *args: [{"name": "build", "command": ["heavy", "cargo", "nextest"],
+                                       "returncode": 137, "green": False}]
+        publish = mq.authority.durable.publish
+        def fail_local(path, *args, **kwargs):
+            if path == self.repo / ".git/queue.unresolved":
+                raise OSError("fixture marker storage unavailable")
+            return publish(path, *args, **kwargs)
+        with patch.object(mq.authority.durable, "publish", side_effect=fail_local), \
+                self.assertRaises(OSError):
+            self.cycle(queue)
+        candidate = self.tip(self.repo)
+        self.assertFalse(queue.unknown_durable)
+        self.assertFalse(queue.repair_consumed)
+        stop = self.root / "stop"
+        stop.touch()
+        queue.run(stop, sleeper=lambda seconds: self.fail("publication retry should honor stop after durability"))
+        self.assertTrue(queue.unknown_durable)
+        self.assertEqual(self.tip(self.repo), candidate)
+        self.assertEqual(queue.state["tried"], {})
+        self.assertTrue((self.repo / ".git/queue.unresolved").exists())
+
+    def fake_tools(self):
+        directory = self.root / "bin"
+        directory.mkdir()
+        for name in ("cargo", "heavy", "post"):
+            path = directory / name
+            path.write_text("#!/bin/sh\nexit 99\n")
+            path.chmod(0o700)
+        return directory
+
+    def test_real_hold_daemon_drains_through_official_restart_then_resumes_normal(self):
+        self.branch("older-ordinary")
+        repair = self.repair()
+        runtime = self.runtime()
+        ready_r, ready_w = os.pipe()
+        release_r, release_w = os.pipe()
+        calls = self.root / "checker.jsonl"
+        replacement = f'''class FixtureQueue(Queue):
+    def __init__(self, *args, **kwargs):
+        kwargs['disk_floor'] = 0
+        super().__init__(*args, **kwargs)
+        def checker(repo, selection, paths, log):
+            with open({str(calls)!r}, 'a') as output:
+                output.write(json.dumps({{'selection': selection}}) + chr(10))
+            return [{{'name': 'fixture', 'green': True, 'duration': 0}}]
+        self.checker = checker
+        self.poster = lambda *args: {{'sent': True}}
+    def run(self, stop):
+        def sleeper(seconds):
+            assert seconds == 60
+            os.write({ready_w}, b'H' if self.hold_logged else b'N')
+            os.read({release_r}, 1)
+        super().run(stop, sleeper=sleeper)
+Queue = FixtureQueue
+
+'''
+        script = runtime / "mq"
+        script.write_text(script.read_text().replace('if __name__ == "__main__":',
+                                                    replacement + 'if __name__ == "__main__":'))
+        fake_bin = self.fake_tools()
+        (self.home / "src/fabrig").mkdir(parents=True)
+        layout = mq.authority.Layout(self.home / "src/fabrig/queue-authority")
+        stop = self.home / "src/fabrig/queue.stop"
+        children = []
+        drain = [False]
+        real_popen, real_select = subprocess.Popen, restart.select.select
+        def launch(argv, **kwargs):
+            if argv[0] != "git":
+                kwargs["pass_fds"] += (ready_w, release_r)
+                kwargs["env"] = dict(os.environ, HOME=str(self.home),
+                                     PATH=str(fake_bin) + os.pathsep + os.environ["PATH"])
+            child = real_popen(argv, **kwargs)
+            if argv[0] != "git":
+                children.append(child)
+            return child
+        def select(fds, *args):
+            if drain[0]:
+                self.assertTrue(stop.exists())
+                os.write(release_w, b'D')
+                drain[0] = False
+            return real_select(fds, *args)
+        def command(argv, repo, **kwargs):
+            if argv[1] in ("fetch", "switch"):
+                self.assertEqual(len(kwargs["pass_fds"]), 2)
+            return str(repo) if "--show-toplevel" in argv else self.base
+        inode = None
+        try:
+            with patch.object(restart, "command", side_effect=command), \
+                    patch.object(restart, "queue_pid", side_effect=lambda repo: children[-1].pid if children else None), \
+                    patch.object(subprocess, "Popen", side_effect=launch), \
+                    patch.object(restart.select, "select", side_effect=select), redirect_stdout(io.StringIO()):
+                for hold in (True, True, False):
+                    options = dict(repair_ready=repair["name"], repair_tip=repair["tip"],
+                                   repair_reason=REASON, repair_hold=True) if hold else {}
+                    drain[0] = bool(children)
+                    restart.restart(self.repo, 1800, self.home, batch=16, runtime=runtime, **options)
+                    self.assertTrue(real_select([ready_r], [], [], 10)[0])
+                    self.assertEqual(os.read(ready_r, 1), b'H' if hold else b'N',
+                                     (self.home / "src/fabrig/notes/queue.out").read_text() +
+                                     (self.home / "src/fabrig/notes/queue.jsonl").read_text())
+                    current = (layout.root / "authority.lock").stat().st_ino
+                    if inode is not None:
+                        self.assertEqual(current, inode)
+                    inode = current
+                    with self.assertRaises(RuntimeError):
+                        layout.acquire()
+                    with self.assertRaises(RuntimeError), mq.authority.checkout_lock(self.repo):
+                        pass
+        finally:
+            stop.touch()
+            os.close(release_w)
+            for child in children:
+                child.wait(timeout=10)
+            for fd in (release_r, ready_r, ready_w):
+                os.close(fd)
+        self.assertEqual([child.returncode for child in children], [0, 0, 0])
+        self.assertEqual([json.loads(line)["selection"] for line in calls.read_text().splitlines()], ["full", "docs"])
+        with layout.acquire(), mq.authority.checkout_lock(self.repo):
+            pass
 
     def runtime(self, name="runtime"):
         directory = self.root / name
@@ -355,7 +718,7 @@ class RepairTests(unittest.TestCase):
             shutil.copyfile(DIRECTORY / name, directory / name)
         return directory
 
-    def launch_restart(self, repair, runtime, *, result=None, launch_error=None, mutate=None):
+    def launch_restart(self, repair, runtime, *, result=None, launch_error=None, mutate=None, repair_hold=False):
         stop = self.home / "src/fabrig/queue.stop"
         stop.parent.mkdir(parents=True, exist_ok=True)
         calls = []
@@ -393,11 +756,14 @@ class RepairTests(unittest.TestCase):
                 return real_popen(argv, **kwargs)
             self.assertFalse(stop.exists())
             authority_fd, startup_fd = kwargs["pass_fds"]
-            self.assertEqual(argv, ["python3", "-B", "-u", str(runtime / "mq"), "run", "--repo", str(self.repo),
+            expected = ["python3", "-B", "-u", str(runtime / "mq"), "run", "--repo", str(self.repo),
                                     "--authority-dir", str(layout.root), "--authority-fd", str(authority_fd),
                                     "--startup-fd", str(startup_fd),
                                     "--batch", "16", "--repair-ready", repair["name"],
-                                    "--repair-tip", repair["tip"], "--repair-reason", REASON])
+                                    "--repair-tip", repair["tip"], "--repair-reason", REASON]
+            if repair_hold:
+                expected.append("--repair-hold")
+            self.assertEqual(argv, expected)
             self.assertEqual(kwargs["cwd"], self.repo)
             self.assertEqual(kwargs["stdin"], subprocess.DEVNULL)
             self.assertTrue(kwargs["start_new_session"])
@@ -419,7 +785,8 @@ class RepairTests(unittest.TestCase):
                     patch.object(subprocess, "Popen", side_effect=launch), \
                     patch.object(restart.time, "sleep") as sleep, redirect_stdout(io.StringIO()):
                 restart.restart(self.repo, 1800, self.home, batch=16, runtime=runtime,
-                                repair_ready=repair["name"], repair_tip=repair["tip"], repair_reason=REASON)
+                                repair_ready=repair["name"], repair_tip=repair["tip"], repair_reason=REASON,
+                                repair_hold=repair_hold)
             sleep.assert_not_called()
             with self.assertRaises(RuntimeError):
                 layout.acquire()
@@ -569,12 +936,7 @@ Queue = FixtureQueue
         script = runtime / "mq"
         script.write_text(script.read_text().replace('if __name__ == "__main__":',
                                                     child_queue + 'if __name__ == "__main__":'))
-        fake_bin = self.root / "bin"
-        fake_bin.mkdir()
-        for name in ("cargo", "heavy", "post"):
-            path = fake_bin / name
-            path.write_text("#!/bin/sh\nexit 99\n")
-            path.chmod(0o700)
+        fake_bin = self.fake_tools()
         (self.home / "src/fabrig").mkdir(parents=True)
         layout = mq.authority.Layout(self.home / "src/fabrig/queue-authority")
         real_popen = subprocess.Popen

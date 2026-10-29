@@ -259,6 +259,35 @@ Normal batch capacity and full-check counters/cadence then resume. Use explicit
 `--batch 16` for the approved operational batch capacity; the default remains 8.
 No successor is selected before the repair attempt completes.
 
+For a repair, a heavy client returning a negative signal status or 137 leaves
+completion **unknown**, never red or consumed. The queue retains the candidate
+and records the exact repair, parent, candidate, steps, log and runtime location
+in immutable private `queue.unresolved` receipts in the shared authority root
+and checkout's `.git/`. Shared authority and checkout guards refuse reuse,
+including another clone or a worker. There is no recovery/reset, pruning,
+bisection or further admission. A daemon retains both leases, checking stop at
+the existing 60-second cadence. It honors stop only with both receipts durable;
+publication failure retains ownership and retries publication at that cadence.
+Stopping is not job-completion evidence: the receipts still block restart.
+There is no supported unknown-heavy reconciliation procedure or clear switch.
+Process absence, stop, a released flock or a held daemon cannot establish
+quiescence. Leave the queue blocked until supported completion evidence and
+reviewed reconciliation exist; do not remove receipts to resume work. A dry
+attempt also preserves unresolved inputs rather than restoring its checkout.
+This does not provide part 5's supervision or arbitrary crash durability.
+
+`--repair-hold` requires the complete triplet on `run`, `once`, `plan` and
+`restart`. After that repair's green/red/conflict adjudication, or when its
+exact name/tip is already tried, it admits no ordinary, replacement or idle
+attempt and performs no further fetch. The daemon stays alive with authority
+held, using the existing idle/stop cadence. One `event: "repair-hold"` policy
+record per invocation carries the repair identity and reason; it has no batch
+outcome and certifies no completion. Ops requests the next official restart
+with the next explicit repair and hold; an official restart without repair or
+hold resumes ordinary batches (explicit `--batch 16`). Without hold the normal
+post-repair behavior is unchanged. Unknown-heavy ownership is a separate blocker
+and never enters this adjudicated hold.
+
 Attempt records add a `repair` object containing `name`, `tip` and `reason` to
 the existing external `queue.jsonl` stream. Conflicts and errors retain it;
 configuration or selection refusals use `event: "repair-refusal", outcome: "error"`.
@@ -281,6 +310,16 @@ external runtime too. The pidfd drain and 1800-second default wait remain in
 use. A failed launch restores stop. Stop is observed between whole bisection
 cycles; restart cannot interrupt heavy.
 The external runtime is an interim Ops choice until this option is installed.
+
+Restart reads the private adjacent queue state to distinguish pending and
+consumed name/tip pairs, then revalidates under shared authority and checkout
+exclusion after drain and before update. Consumed repairs require no ready ref
+(cleanup may delete it or a new tip may replace it); pending repairs still
+require the exact advertised pin at both checks. Malformed, duplicate-key,
+nonfinite, incompatible or untrusted state refuses, with no normal fallback.
+No consumption state field or outcome vocabulary changes. PATH preflight,
+plan fetch and other triplet refusals retain the exact identity/reason in the
+external audit; audit failure cannot return success.
 
 ### 3.8 Local immutable-candidate worker (disabled rollout)
 
