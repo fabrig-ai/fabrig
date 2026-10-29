@@ -105,10 +105,10 @@ fn an_unknown_name_or_a_value_past_its_type_is_refused() {
 }
 
 #[test]
-fn the_small_profile_passes_each_domains_worst_case() {
+fn the_small_profile_passes_each_domains_validity() {
     let settings = fixtures::engine();
-    assert!(temper_engine_domain_forge::worst_case(&settings.limits.forge).is_some());
-    assert!(temper_worker_domain_checkout::worst_case(&settings.limits.checkout).is_some());
+    assert!(temper_engine_domain_forge::valid(&settings.limits.forge));
+    assert!(temper_worker_domain_checkout::valid(&settings.limits.checkout));
     assert_eq!(temper_worker_protocol_git::check(&settings.limits.git_component, &settings.limits.checkout), Ok(()));
     let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
     let root = limits::engine(&jig, &settings.limits).expect("coherent root profile");
@@ -199,24 +199,24 @@ fn the_root_limits_take_jigs_children_and_temper_own() {
 
 #[test]
 fn each_git_component_limit_has_its_dotted_override() {
-    let names: [(&[u8], [u32; 6]); 6] = [
-        (b"git_component.operations", [7, 1024, 512, 4096, 16, 4080]),
-        (b"git_component.stdout_bytes", [3, 7, 512, 4096, 16, 4080]),
-        (b"git_component.stderr_bytes", [3, 1024, 7, 4096, 16, 4080]),
-        (b"git_component.read_bytes", [3, 1024, 512, 7, 16, 4080]),
-        (b"git_component.sweep_entries", [3, 1024, 512, 4096, 7, 4080]),
-        (b"git_component.sweep_bytes", [3, 1024, 512, 4096, 16, 7]),
+    let names: [(&[u8], u64, [u32; 6]); 6] = [
+        (b"git_component.operations", 7, [7, 1024, 512, 4096, 16, 4080]),
+        (b"git_component.stdout_bytes", 2048, [3, 2048, 512, 4096, 16, 4080]),
+        (b"git_component.stderr_bytes", 1024, [3, 1024, 1024, 4096, 16, 4080]),
+        (b"git_component.read_bytes", 7, [3, 1024, 512, 7, 16, 4080]),
+        (b"git_component.sweep_entries", 7, [3, 1024, 512, 4096, 7, 4080]),
+        (b"git_component.sweep_bytes", 4096, [3, 1024, 512, 4096, 16, 4096]),
     ];
-    for (name, expected) in names {
+    for (name, value, expected) in names {
         let mut limits = limits::profile(limits::Profile::Small);
-        limits::apply(&mut limits, name, 7).unwrap();
+        limits::apply(&mut limits, name, value).unwrap();
         let git = limits.git_component;
         assert_eq!(
             [git.operations, git.stdout_bytes, git.stderr_bytes, git.read_bytes, git.sweep_entries, git.sweep_bytes],
             expected,
             "{name:?}"
         );
-        assert!(temper_worker_protocol_git::worst_case(&git, &limits.checkout).is_some(), "{name:?}");
+        assert_eq!(temper_worker_protocol_git::check(&git, &limits.checkout), Ok(()), "{name:?}");
     }
 }
 
