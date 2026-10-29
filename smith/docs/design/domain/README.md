@@ -141,12 +141,14 @@ calls, turns and answer, calls to LLM providers, and the file and process
 operations the tools and the checks ask of io.
 
 Domain stages and the request and fact queues between children are
-uncapped. A stage takes the input count present when it starts; routing
-within one entrance finishes its finite chain of child hand-offs before
-returning. The root gathers the run's and session's facts by their
-`pending_facts()` counts after each child step. Its turn-hand-off slab is
-`Slab::with_capacity(u32::MAX)`: slots grow on demand, and retired slots
-remain until the iteration's reclaim point. The root's `feedback_bound`
+uncapped. A domain entrance has no output or fact allowance. A stage
+takes the input count present when it starts; routing within one entrance
+finishes its finite chain of child hand-offs before returning. The root gathers the run's and session's facts by their
+`pending_facts()` counts after each child step. Captured content is a
+separate, capped edge: provider and tool output fills it, omissions are
+counted, and its owner drains the count given by `pending_content()`.
+Its turn-hand-off slab is `Slab::with_capacity(u32::MAX)`: slots grow on
+demand, and retired slots remain until the iteration's reclaim point. The root's `feedback_bound`
 bounds the complete tool-feedback text from the run's admitted payload
 caps, including labels, counts, escaping and child cut/stop markers.
 

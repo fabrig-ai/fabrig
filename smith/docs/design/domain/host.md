@@ -126,6 +126,15 @@ What a host owes:
   once the run and everything it started are gone, but for the delivery
   it asked for.
 
+The local service keeps two edges filled by an agent process. Live text
+has four slots (`LIVE_SLOTS = 4`); text past them or for another run is
+dropped and counted in `lost`, and reasoning and input pieces are never
+kept. Received-turn measurements have the host's unacknowledged-turn
+credit: an over-credit turn is not measured, never gets a `SaveTurn`, and
+is faulted by the domain. Sent-message timestamps come from the service's
+own sends and have no cap; read fences release them (protocol/channel.md,
+sections 4 and 8).
+
 What breaks the channel's rules, an agent failure: a call name reused
 while in flight, a turn out of order, a spend that falls, a fence that
 goes back or names a message never sent, the end of a long operation
@@ -475,7 +484,13 @@ A child a host embeds, beside or instead of `smith-host-domain`:
 - **Facts and content** are drained from each run every pass by the
   inline agent's owner, independently of any channel, into the host's
   event stream (protocol/events.md), under the capture policy the host
-  chose.
+  chose. The root gathers child facts by `pending_facts()` counts and
+  exposes `pending_content()` for captured content; neither drain uses
+  an allowance for one entrance. The inline owner pops native facts
+  until empty. The local domain discards duplicate inline content by the
+  slot's `pending_content()` count. Its content drain ends with one
+  empty `pop_content()`, which marks the slot drained for reclaim;
+  an empty fact pop marks its facts drained too. Reclaim waits for both.
 - **No watchdog on progress.** A composed domain does not hang as a
   process can: its waits are bounded by its own deadlines and by those
   of the requests it hands up. A bound on wall time stays.

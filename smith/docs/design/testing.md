@@ -479,7 +479,11 @@ Every world checks what the strategy lists (testing-strategy.md, section
   outputs and transient ownership belong to that total: neither a second
   held-bytes ceiling nor a doubled or tripled formula stands for it.
   Ceilings move by hand when a real change passes them, never with a
-  type's size (programming-model.md, 6.3).
+  type's size (programming-model.md, 6.3). The protocol-machine scenario
+  finishing eight full 512-entry listings has a recorded total peak of
+  124,960 bytes and `LISTING_TERMINALS_PEAK_CEILING = 160_000`: a quarter
+  of headroom, rounded up, for the one total across held and transient
+  ownership.
 - **Domain output never waits for room.** Domain stages and their output
   queues are uncapped. No world exercises a domain's output flow
   control; load tests hold the named dispatch orders and the root's

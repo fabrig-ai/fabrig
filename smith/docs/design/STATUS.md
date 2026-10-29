@@ -16,7 +16,7 @@ Updated 2026-10-29. How far smith's code is from its design.
 | `protocol/llm.md` | 3 to 7: jobs, bounded prompts, compaction, channel live-text deltas and named credential dialects. | 6: reasoning/input live producers. 12: edit formats per dialect. |
 | `protocol/agent.md` | 2, 4: machine component, jobs and program-backed agents. | 3, 7: view and contained processes. |
 | `protocol/events.md` | 3.6, 3.9, 3.10, 6: job events, account/program notices and compaction material. | 3.2: `containment: "trees"`. |
-| `protocol/limits.md` | 2 to 7: derived edge limits, jobs, task role, prompt guard, account notices and bounded live text; memory returned when use ends. 3.8: agent and local watermarks, uncapped internal stages and hand-offs, stated dispatch orders and shipped pacing. 5: edge validity without a process heap sum or startup memory fit check; declared memory parsed and handed on. 11: measured scenario ceilings. | 3.8: lags: sent-message timestamps remain capped, until `ready/smith/lc6-live-queues` lands. Turn measurements and lossy live pieces stay capped at their edges. |
+| `protocol/limits.md` | 2 to 7: derived edge limits, jobs, task role, prompt guard, account notices and bounded live text; memory returned when use ends. 3.8: agent and local watermarks, uncapped internal stages and hand-offs, stated dispatch orders and shipped pacing. 5: edge validity without a process heap sum or startup memory fit check; declared memory parsed and handed on. 11: measured scenario ceilings. | 3.6, 3.8: lags: host-channel edge naming, until `ready/smith/d-channel-contract` lands. 3.8: lags: sent-message timestamps remain capped, until `ready/smith/lc6-live-queues` lands. Turn measurements and lossy live pieces stay capped at their edges. |
 | `protocol/hosts.md` | 2: on-demand reads, one record/piece/end each. 3: reap after demanded end. 5.2 to 5.6: program accounts and login/logout; 5.3: generated local-store layout admission is prepared. | 3: contained tree. 4: connecting to an agent later. |
 | `protocol/programs.md` | 1 to 9: Claude Code backend, its fake, sign-in, tools, stream, notices, budgets and sessions; live checks exist. 5.9: Open runs on a program backend (replies, listening, parking, wind-down; the domain's Yield request; the stream's JSON token bound from its line ceiling); the fake scripted per conversation by cue, reading by line, and its built-ins acting on the workspace. The real program's stream (system/init without the prompt tool, system notices passed over, a later init checked as the first, a thinking turn's records under one message id as one completion, its final usage), a result contract's StructuredOutput, the program's own call; and a turn interrupted by the control request, SIGINT a cancel's alone; an interrupt of the agent's says so in the next message; the live suite passes against Claude Code 2.1.311. every MCP tool schema an object with no top-level combinator, alternatives under `outcome`; one outcome path per run (StructuredOutput under a contract, finish without). | |
 | `shell.md` | 4 to 7: interactive/exec product, task role and account sources. 4.1, 4.3, 5.3: older-chat refusal words, exit 1 and trace admission are prepared. 2.5: the hosted face, portable, checked for wasm32. | 5.1: sync startup directories into parents. 8, 9: per-tree limits and `isolate`. |
@@ -40,33 +40,64 @@ Updated 2026-10-29. How far smith's code is from its design.
   `completion_bound`, `render_bound`, `job_problem_bound` and
   `size_refusal_bound`. `domain/README.md`, 4: lags: the root's feedback
   function retains its old name, until `ready/smith/d-domain-names` lands,
-  supplying `feedback_bound`.
-- `domain/tools.md`, 6: lags: result receiving bounds retain their old
-  names, until `ready/smith/d-tools` lands; that branch supplies
-  `result_bound` and `batch_result_bound`.
+  supplying `feedback_bound`. `protocol/agent.md`, 4: lags:
+  `ConfiguredModel` retains `worst_case`, until `ready/smith/d-domain-names`
+  lands with `ConfiguredModel::owned_bound`.
+- `domain/tools.md`, 6: built: `result_bound` and `batch_result_bound`
+  describe result receiving ownership.
 - `testing.md`, 6, and `protocol/limits.md`, 5 and 11: built: remeasured
   total-peak ceilings in run, session, host, hosted-process, machine,
   protocol-machine, local-process store and agent fuzzy scenarios. No
   world exercises a domain's output flow control. The hosted-process
   ErrorTail case shares the scenario's measured total ceiling; it has no
   separate 4,096-byte allowance.
-- `domain/session.md`, 10: the two 240-byte checks in
-  `smith/crates/smith-domain-session/src/tests/builtin.rs` and
-  `smith/crates/smith-domain-session/src/tests/program.rs` are
-  exact type-size contract checks on `size_of(Turn) + size_of(Kind)`, not
-  allocator ceilings. Their implementation checks `<= 240`; their
-  `*_RECORD_CELLS_CEILING` names and headroom comments still describe them
-  as ceilings. No matching naming repair is on main or a `ready/smith/*`
-  branch; that source item is left for a repair.
+- `domain/session.md`, 10: built: the two `TURN_KIND_SIZE = 240` checks
+  in `smith/crates/smith-domain-session/src/tests/builtin.rs` and
+  `smith/crates/smith-domain-session/src/tests/program.rs` are exact
+  type-size contract checks on `size_of(Turn) + size_of(Kind)`, not
+  allocator ceilings. Both assert `<= TURN_KIND_SIZE`.
+- `protocol/limits.md`, 3.6 and 3.8: lags: channel output allowances
+  remain, until `ready/smith/d-channel-contract` lands. Its
+  `EdgeRoom { to_domain: 1, below: 6 }`, `EDGE_ROOM` and `edge_room(&Limits)`
+  describe one host-channel entrance's credit, with no `max_out` alias.
+  `ready/smith/d-channel-edge` supplies the edge names but retains that
+  alias. Past the credit an entrance waits; `send_live` and `offer_fact`
+  drop and count the piece's bytes or fact instead.
+- `domain/host.md`, 2, and `protocol/channel.md`, 4 and 8: lags:
+  sent-message timestamps remain capped, until `ready/smith/lc6-live-queues`
+  lands. That branch leaves two edges filled by the agent process:
+  `LIVE_SLOTS = 4` and received-turn measurements at the host's turn
+  credit. Sent-message timestamps are then uncapped.
+- `domain/README.md`, 4, and `domain/host.md`, 9.1: lags: until smith's
+  domain contract change lands. Per-entrance output/fact allowances
+  (`max_out`, `MAX_OUT`, `run_out`, `session_out`, `max_facts`,
+  `max_to_opener`, `run_steps`, `session_steps`) remain in code;
+  `d-domain-contract` has no ready tip yet. Child request and fact queues
+  are already uncapped. The `run_out` and `session_out` queue fields
+  are hand-offs, distinct from the allowance helpers of the same names.
+- `domain/host.md`, 9.1: lags: content drains use fact-limit allowances,
+  until `ready/smith/d-facts-drains` lands. The root and inline slot then
+  expose `pending_content()`; the local domain takes that count plus
+  one empty content pop, marking the slot drained for reclaim. Root
+  child facts already drain by `pending_facts()`. The inline wrapper has
+  no `pending_facts()` accessor: its native fact drain still pops until
+  empty; the agent service's framed fact drain uses its work quantum.
+- kept: effective limits named in events v4 (`run.facts`,
+  `session.facts`, `tools.facts`, `inline.facts`); removed or renamed with
+  the next planned events version. `session.facts` caps the root's
+  `Queue<Content>`, filled by provider and tool output with omissions
+  counted; its planned name is `content_edge_records`. `run.facts`,
+  `tools.facts` and `inline.facts` cap no queue.
+- `testing.md`, 6: built: `LISTING_TERMINALS_PEAK_CEILING` is 160,000
+  bytes for a measured 124,960-byte total, applying a quarter of headroom
+  rounded up after held and peak accounting became one total. It is the
+  only raised ceiling (from 150,000); other remeasured ceilings fell or
+  stayed unchanged.
 
-The remaining cross-tree compatibility names are not claims of internal
-room reservation or a process heap formula: `smith-domain-session::max_out`,
-`smith-protocol-channel::max_out`, host `Delivered::worst_case`, root
-`feedback_worst_case`, and transcript `Turn::worst_case_bytes` remain on
-main for their readers. The root feedback rename is on
-`ready/smith/d-domain-names`; generated transcript bound names with old
-wrappers alongside are on `ready/smith/b-gen-1`. Their removal waits for
-readers to move.
+`protocol/transcript.md`, 7: lags: generated `encoded_bound` and
+`decoded_bound` names, until `ready/smith/b-gen-1` lands; old wrappers
+remain alongside them on that tip. Host `Delivered::worst_case` and
+transcript `Turn::worst_case_bytes` also remain for their readers.
 
 ## Top-tier assertions kept
 
@@ -77,9 +108,8 @@ files and the kernel, and private `skein-world` `end_to_end::Binary`
 capture (including the benchmark stderr assertion) stay at the top tier
 until a seam is designed.
 
-The following 29 `end_to_end` tests are kept: no lower test holds the
-whole assertion yet. Lower partial assertions do not replace their
-external effects, exact diagnostics, output ordering or product admission.
+kept: 29 `end_to_end` tests: no lower test holds the whole assertion yet.
+Lower partial assertions do not replace their external effects, exact diagnostics, output ordering or product admission.
 
 - `credentials::signing_in_again_uses_the_issued_id`
 - `credentials::another_subject_preserves_the_record`

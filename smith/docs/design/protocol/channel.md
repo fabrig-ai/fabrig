@@ -298,6 +298,11 @@ limits.md, 2.4, gives.
   with no admitted before it, no turns and no spend, and its messages are
   refused with it.
 
+The local service's live-text edge has four slots (`LIVE_SLOTS = 4`),
+filled by the agent process. Text past them or for another run is dropped
+and counted in `lost`; reasoning and input pieces are never kept. This
+edge is independent of the channel's own flow control (section 7).
+
 ## 5. Order and rules
 
 - **Down:**
@@ -486,6 +491,13 @@ liveness:
 
 The run's other facts (domain/run.md, section 11) reach the event stream
 only.
+
+The local service measures received turns within the host's
+unacknowledged-turn credit, its other edge filled by the agent process.
+An over-credit turn is not measured, never gets a `SaveTurn`, and is
+faulted by the domain. Its sent-message timestamps are filled by the
+service's own sends, have no cap, and are released by read fences
+(domain/host.md, section 2).
 
 Content is not a fact. A trace with content is the event stream, a
 separate sink of the same facts with content as its capture policy

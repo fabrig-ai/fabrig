@@ -700,10 +700,10 @@ budgets.
 - **Memory:** fixed scenarios measure one total peak each, including
   ownership handed to the parent until it releases it, under a ceiling
   with headroom (programming-model.md, 6.3). The recorded turn's `Turn`
-  and `Kind` cells have separate exact type-size contract checks against
-  240 bytes together, for built-in and program turns. These checks use
-  neither an allocator peak nor a scenario ceiling; a type's size never
-  moves a memory ceiling.
+  and `Kind` cells have separate exact type-size contract checks,
+  `TURN_KIND_SIZE = 240` bytes together, for built-in and program turns.
+  These checks use neither an allocator peak nor a scenario ceiling;
+  a type's size never moves a memory ceiling.
 - **Its referee:**
   - every call answered once, in call order;
   - turns told in order, each after its calls settled;

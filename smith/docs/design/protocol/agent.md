@@ -184,7 +184,8 @@ product's own settings are `docs/design/shell.md`'s.
     2.1); and its efforts, the reasoning efforts it accepts, optional. A
     charter may name only a declared model, at most its declared window
     and output, and one of its declared efforts when it declares any
-    (charter.md, section 2).
+    (charter.md, section 2). `ConfiguredModel::owned_bound` bounds that
+    declaration's owned model name, effort-name cells and effort bytes.
 - ***Withdrawn,*** accepted from a host that still writes them, and
   written by none of smith's:
   - the `codex` dialect, with the account's id its grants carry

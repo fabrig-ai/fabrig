@@ -446,6 +446,12 @@ terms (channel.md, sections 2 and 7):
   start within the charter's run bound, a message within its bound. The
   schema's ceilings only bound what may be declared.
 
+One entrance at the host-channel seam needs `EdgeRoom { to_domain: 1,
+below: 6 }`: one owner event and six lower operations. `EDGE_ROOM` holds
+that edge credit, exposed by `edge_room(&Limits)`. An entrance waits
+until both destinations have that room; `send_live` and `offer_fact`
+instead drop the piece or fact and count the loss.
+
 The host's terms are checked against these at the opening, not at
 startup: a host that takes less finds out before a run starts.
 
@@ -477,7 +483,9 @@ table, the kernel's queue). `queue` also bounds each drain's work per
 iteration. The agent service ships `DEFAULT_PACING = 2_302` as the
 backlog watermark, per-stage work quantum and pending-message room
 (programming-model.md, 7.1). It is a pacing choice, independent of a
-domain's largest output.
+domain's largest output. At the host-channel seam, the service keeps
+`edge_room(&Limits)`, `EdgeRoom { to_domain: 1, below: 6 }` (3.6), before
+entering the channel; this credit belongs to that edge.
 
 - **Requests precede the next domain entrance.**
   `domain_requests_dispatched` requires the previous entrance's requests
@@ -511,11 +519,14 @@ hand-off to the local service is uncapped: consuming a completed input
 never waits for internal output room.
 
 The local service retains caps where excess input has a defined result.
-Its four live-piece slots drop and count excess text. Sent-message
-timestamps queue without a cap until a read fence releases them; turn
-measurements retain the host's unacknowledged-turn cap, and an over-credit
-turn acquires neither a measurement nor a save. Before an account pass,
-the private `ACCOUNT_EDGE_ROOM` requires six free slots in both shell and
+Two edges are filled by the agent process: the live text slots
+(`LIVE_SLOTS = 4`), which drop text past them or for another run and count
+it in `lost`, and received-turn measurements, bounded by the host's
+unacknowledged-turn credit. Reasoning and input pieces are never kept.
+An over-credit turn is not measured, never gets a `SaveTurn`, and is
+faulted by the domain. Sent-message timestamps, filled by the service's
+own sends, queue without a cap until a read fence releases them. Before an
+account pass, the private `ACCOUNT_EDGE_ROOM` requires six free slots in both shell and
 terminal destinations. This is destination credit, not a child's output
 reservation.
 
