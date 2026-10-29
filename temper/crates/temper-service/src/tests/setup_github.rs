@@ -5,6 +5,9 @@ use jig_protocol_engine_clients as clients;
 use skein_lib::{Reader, ReplyTo};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
+#[path = "setup_github_render.rs"]
+mod render_tests;
+
 const FORGE: u16 = 1;
 const INSTALLATION: u64 = 22;
 const REPLY: ReplyTo = ReplyTo::new(Token::new(91));
@@ -78,6 +81,11 @@ fn pump(service: &mut crate::Service) -> Option<w::Outcome> {
                         reply => panic!("unexpected family web reply: {reply:?}"),
                     }
                 }
+                request @ root::Request::Party(root::PartyRequest::Deliver(root::Delivery::CarriedUnused {
+                    ..
+                })) => {
+                    crate::route::request(engine, request);
+                }
                 root::Request::Party(_) => {}
                 request => crate::route::request(engine, request),
             }
@@ -85,6 +93,8 @@ fn pump(service: &mut crate::Service) -> Option<w::Outcome> {
         engine.step(root::Event::Resume);
         engine.store.iterate();
         crate::engine::answer(engine);
+        engine.clients.advance(&mut engine.events, &engine.workers.forges, engine.demo.as_ref(), &mut engine.accounts);
+        engine.clients.secrets_step(&mut engine.store);
         advance(engine);
         engine.forge.iterate(engine.env.now, engine.env.wall);
         engine.forge.down(connection::Request::Offer);
@@ -121,6 +131,190 @@ fn request(
     .unwrap();
     engine.step(event);
     pump(service)
+}
+
+fn install(service: &mut crate::Service, key: u8) -> w::Outcome {
+    request(
+        service,
+        key,
+        people::ApplicationScope::Deployment,
+        w::Request::Install(w::Install::new(&w::CEILINGS, w::InstallParts { forge: FORGE, back: None }).unwrap()),
+    )
+    .expect("install answer")
+}
+
+fn app_service() -> crate::Service {
+    let mut service = owner_service();
+    app(&mut service);
+    show_connected(&mut service);
+    service
+}
+
+fn show_connected(service: &mut crate::Service) {
+    service.engine.as_mut().unwrap().step(root::Event::Forge(Box::new(domain::Event::Connection {
+        forge: FORGE,
+        state: domain::Connection::Connected { id: 9, login: b"app-fixture[bot]".as_slice().into() },
+    })));
+    let _settled = pump(service);
+}
+
+fn link_state(answer: &w::Outcome) -> &[u8] {
+    let w::Outcome::Link(link) = answer else { panic!("install link: {answer:?}") };
+    link.address().strip_prefix(b"http://127.0.0.1:3000/apps/app-fixture/installations/new?state=").unwrap()
+}
+
+fn accept_link(service: &mut crate::Service, answer: &w::Outcome) {
+    installation(service, INSTALLATION, Change::Created);
+    let mut peer = visit(service, b"GET", &setup_target(link_state(answer)));
+    let mut face = Face::new();
+    face.sent(service);
+    face.reply(service, br#"{"id":22,"app_id":7,"account":{"id":122,"login":"account-fixture","type":"Organization"},"target_type":"Organization","created_at":"1970-01-01T00:00:00Z","suspended_at":null}"#);
+    let _settled = pump(service);
+    pump_visit(service, &mut peer);
+    status(&peer, b"200");
+}
+
+fn connect_request(app: u64) -> w::Request {
+    w::Request::Connect(
+        w::Connect::new(
+            &w::CEILINGS,
+            w::ConnectParts {
+                forge: FORGE,
+                how: w::How::GithubApp(w::GitHubApp::new(&w::CEILINGS, w::GitHubAppParts { id: app }).unwrap()),
+            },
+        )
+        .unwrap(),
+    )
+}
+
+fn paste_success(service: &mut crate::Service, face: &mut Face) {
+    for body in [
+        br#"{"id":7,"slug":"app-fixture","permissions":{},"events":[]}"#.as_slice(),
+        br#"{"id":9,"login":"app-fixture[bot]"}"#,
+        br#"{"url":"https://app-fixture.invalid/","content_type":"json","insecure_ssl":"0"}"#,
+    ] {
+        face.sent(service);
+        face.reply(service, body);
+    }
+    let _settled = pump(service);
+}
+
+fn http_owner() -> (crate::Service, Box<[u8]>) {
+    use jig_client_protocol_wire::v19 as j;
+    let mut service = owner_service();
+    let link = service.links().pop().unwrap();
+    let engine = service.engine.as_mut().unwrap();
+    let body = fixtures::http::link_body(engine, &link);
+    let mut peer = fixtures::http::Peer::new(engine, b"POST", b"/jig/v1/sign-in/link", &body, None);
+    peer.pump(engine, true);
+    let j::SignInAnswer::SignedIn(answer) = peer.sign_in_answer(engine) else { panic!("owner sign in") };
+    let bearer = fixtures::http::bearer(answer.token().as_ref().unwrap().expose());
+    (service, bearer)
+}
+
+fn http_paste(service: &mut crate::Service, bearer: &[u8], key: u8, app: u64) -> w::Outcome {
+    use jig_client_protocol_wire::v19 as j;
+    let (_, bundle) = carried_pem();
+    let engine = service.engine.as_mut().unwrap();
+    let limits = &engine.clients.env.limits.wire;
+    let record = wire::requesting(
+        &w::Requesting::new(&w::CEILINGS, w::RequestingParts { request: connect_request(app) }).unwrap(),
+    );
+    let family = j::FamilyRequest::new(limits, j::FamilyRequestParts { scope: j::Scope::Deployment, record }).unwrap();
+    let mut bytes = skein_lib::Writer::new(usize::try_from(family.measure()).unwrap());
+    family.encode(&mut bytes).unwrap();
+    let request = j::Keyed::new(
+        limits,
+        j::KeyedParts {
+            key: [key; 16],
+            owner: j::Owner::Family(j::Family::new(limits, j::FamilyParts { number: wire::FORGE }).unwrap()),
+            version: wire::CLIENT_VERSION,
+            request: bytes.finish(),
+            value: Some(bundle),
+        },
+    )
+    .unwrap();
+    let mut bytes = skein_lib::Writer::new(usize::try_from(request.measure()).unwrap());
+    request.encode(&mut bytes).unwrap();
+    let mut peer = fixtures::http::Peer::new(engine, b"POST", b"/jig/v1/request", &bytes.finish(), Some(bearer));
+    peer.pump(engine, true);
+    let at = skein_lib::bytes::find(peer.received(), b"\r\n\r\n").unwrap().checked_add(4).unwrap();
+    let mut reader = Reader::new(&peer.received()[at..]);
+    let j::KeyedAnswer::FinalAnswer(answer) =
+        j::KeyedAnswer::decode(&engine.clients.env.limits.wire, &mut reader).unwrap()
+    else {
+        panic!("family terminal")
+    };
+    w::Answer::decode(&w::CEILINGS, &mut Reader::new(answer.record())).unwrap().into_parts().outcome
+}
+
+#[test]
+fn replaying_install_keeps_its_link_after_one_acceptance() {
+    let mut service = app_service();
+    let first = install(&mut service, 1);
+    assert_eq!(install(&mut service, 1), first);
+    accept_link(&mut service, &first);
+    assert_eq!(install(&mut service, 1), first);
+    let peer = visit(&mut service, b"GET", &setup_target(link_state(&first)));
+    status(&peer, b"410");
+    assert_eq!(values(&service).as_ref(), [INSTALLATION]);
+}
+
+#[test]
+fn independent_install_states_each_accept_the_same_set_member() {
+    let mut service = app_service();
+    let first = install(&mut service, 1);
+    let second = install(&mut service, 2);
+    assert_ne!(first, second);
+    accept_link(&mut service, &second);
+    accept_link(&mut service, &first);
+    for answer in [&second, &first] {
+        let peer = visit(&mut service, b"GET", &setup_target(link_state(answer)));
+        status(&peer, b"410");
+    }
+    assert_eq!(values(&service).as_ref(), [INSTALLATION]);
+    assert_eq!(service.engine.as_ref().unwrap().domain.forges().rows[0].installations.len(), 1);
+}
+
+#[test]
+fn paste_replay_and_refused_replacement_keep_the_connection_and_write_counts() {
+    // Paste keeps AppId, AppSlug, AppKey, User and Origin once; Accept keeps one set.
+    const PASTE_WRITES: u64 = 5;
+    const ACCEPT_WRITES: u64 = 1;
+    // Each submitted paste carries a fresh row, erased even on replay or refusal.
+    const CARRIED_ERASES: u32 = 4;
+    let (mut service, bearer) = http_owner();
+    let before = service.engine.as_ref().unwrap().setup.next_write;
+    let first = http_paste(&mut service, &bearer, 1, 7);
+    assert_eq!(first, w::Outcome::Connecting);
+    paste_success(&mut service, &mut Face::new());
+    show_connected(&mut service);
+    assert_eq!(http_paste(&mut service, &bearer, 1, 7), first);
+    let refused = http_paste(&mut service, &bearer, 2, u64::MAX);
+    let w::Outcome::ConnectRefused(_) = refused else { panic!("replacement refused: {refused:?}") };
+    assert_eq!(http_paste(&mut service, &bearer, 1, 7), first);
+    let engine = service.engine.as_ref().unwrap();
+    assert_eq!(engine.setup.next_write.checked_sub(before).unwrap(), PASTE_WRITES);
+    assert_eq!(engine.forge.starts.len(), 1);
+    assert_eq!(engine.store.erases, CARRIED_ERASES);
+    assert_eq!(
+        engine.domain.forge_connection(FORGE),
+        domain::Connection::Connected { id: 9, login: b"app-fixture[bot]".as_slice().into() }
+    );
+    assert_eq!(engine.forge_records.rows.forge(FORGE).unwrap().get(Item::AppId).unwrap(), 7_u64.to_le_bytes());
+    let link = install(&mut service, 3);
+    assert_eq!(install(&mut service, 3), link);
+    accept_link(&mut service, &link);
+    let peer = visit(&mut service, b"GET", &setup_target(link_state(&link)));
+    status(&peer, b"410");
+    let engine = service.engine.as_ref().unwrap();
+    assert_eq!(engine.setup.next_write.checked_sub(before).unwrap(), PASTE_WRITES + ACCEPT_WRITES);
+    assert_eq!(engine.store.erases, CARRIED_ERASES);
+    for json in [false, true] {
+        let printed = render_tests::status(&service, json);
+        assert_eq!(printed.status, 0);
+        assert!(contains(&printed.stdout, b"app-fixture"));
+    }
 }
 
 fn adopt_request(owner: &[u8]) -> w::Request {
