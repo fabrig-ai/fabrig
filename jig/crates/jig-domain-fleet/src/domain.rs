@@ -11,21 +11,6 @@ use crate::limits::{self, Limits};
 use crate::turn::{self, Pending};
 use alloc::boxed::Box;
 
-/// Forwarding output bound for application callers, covering listed and tracked
-/// attempts, adoption, source-operation terminals and configured worker targets.
-#[must_use]
-pub const fn max_out(limits: &Limits) -> u32 {
-    let listed = limits.slots.saturating_mul(limits.grants.saturating_add(2)).saturating_add(1);
-    let tracked = limits.attempts.saturating_add(limits.workers.saturating_mul(limits.slots));
-    let adopting = limits.grants.saturating_add(3);
-    let other = if tracked > adopting { tracked } else { adopting };
-    let runs = if listed > other { listed } else { other };
-    let sources = limits.program_sources.saturating_mul(2).saturating_add(1);
-    let workers = limits.configured_workers.saturating_add(1);
-    let sources = if sources > workers { sources } else { workers };
-    if runs > sources { runs } else { sources }
-}
-
 /// The engine's construction hello is reserved once heard, even if it fails admission.
 #[derive(Debug)]
 pub(crate) enum EngineHello {

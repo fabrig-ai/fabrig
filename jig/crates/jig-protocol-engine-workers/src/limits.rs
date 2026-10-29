@@ -18,10 +18,6 @@ pub struct Limits {
     pub silence: Duration,
     pub stall: Duration,
 }
-// One input and the resulting channel events, with one older channel refused.
-pub const MAX_OUT_DOWN: u32 = 32;
-// One expired connection per call; next_deadline retains other due connections.
-pub const MAX_OUT_FIRE: u32 = 16;
 pub(crate) fn channel(limits: &Limits) -> Option<skein_channel::Limits> {
     let codec = sizes::limits(&limits.sizes)?;
     let credential = u32::try_from(wire::Credential::encoded_bound(&codec)?).ok()?;

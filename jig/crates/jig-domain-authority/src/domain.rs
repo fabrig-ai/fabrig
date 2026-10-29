@@ -82,9 +82,6 @@ pub enum PolicyFact {
     },
 }
 
-/// Compatibility count for callers outside jig: one terminal lifecycle fact per policy event.
-pub const POLICY_MAX_OUT: u32 = 1;
-
 impl Domain {
     /// Admit owned `rules` and `limits`, creating an empty bounded policy table; return `None` for
     /// unrepresentable bounds, oversized rules or inconsistent run ceilings. Allocates only

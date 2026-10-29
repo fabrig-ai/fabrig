@@ -139,7 +139,7 @@ pub use control::{
     AddressChange, Amendment, AmendmentHistory, Change, Control, DependencyPlace, History, Milestone, Settings,
     Tracking, address_admit, instruction_admit,
 };
-pub use domain::{Domain, ViewTask, fire, max_out, step, view_phase};
+pub use domain::{Domain, ViewTask, fire, step, view_phase};
 pub use escalation::{Escalation, EscalationContext, EscalationDecision, EscalationHolder, EscalationOutcome};
 pub use facts::Fact;
 pub use failures::{Class, Retries, Retry, Tries};

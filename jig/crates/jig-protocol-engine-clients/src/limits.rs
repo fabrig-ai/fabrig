@@ -20,7 +20,6 @@ pub struct Limits {
     pub wire: jig_client_protocol_wire::v19::Limits,
     pub link_span: Duration,
 }
-pub const MAX_OUT_DOWN: u32 = 4;
 /// Whether these limits are representable: every edge bound they size
 /// is finite and every capacity they derive fits (programming-model.md, 6.3).
 #[must_use]

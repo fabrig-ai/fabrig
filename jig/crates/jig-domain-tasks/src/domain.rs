@@ -525,40 +525,6 @@ impl Domain {
     }
 }
 
-fn output_bound(limits: &Limits) -> Option<u32> {
-    limits
-        .tasks
-        .checked_mul(28)?
-        // Compound admission lets each live task's placed hold change only once.
-        // Per task, sixteen extra slots cover a run stop; live/milestone/activity
-        // publication; release history and activation/closing; and withdrawal of
-        // its one proposal (history, activity and publication). Facts use their
-        // own diagnostic queue. Subscription notices are priced separately below.
-        // The existing 28 slots cover cancellation/publication cascades; these
-        // sixteen cover placed changes alongside them, never tasks squared.
-        .checked_add(limits.tasks.checked_mul(16)?)?
-        .checked_add(limits.placed_holds.checked_mul(2)?)?
-        .checked_add(limits.batch.checked_mul(30)?)?
-        .checked_add(limits.funders.checked_mul(3)?)?
-        .checked_add(limits.tasks.checked_mul(limits.subscriptions)?.checked_mul(2)?)?
-        .checked_add(crate::limits::stub_capacity(limits)?)?
-        .checked_add(limits.tasks.checked_mul(limits.holdings)?.checked_mul(3)?)?
-        .checked_add(crate::activity::lines_per_decision(limits)?)?
-        // Each party proposal terminal uses four outputs: pending erase, update
-        // index, terminal row and notification, within this eight-per-row room.
-        .checked_add(limits.tasks.checked_mul(8)?)?
-        .checked_add(limits.revisions.checked_add(1)?)?
-        .checked_add(8)
-}
-
-/// Compatibility output estimate for application callers that size their carriers.
-/// Task steps and timers use uncapped output queues. Panics if the estimate's arithmetic
-/// is unrepresentable; `valid` checks retained state and edge counts independently.
-#[must_use]
-pub fn max_out(limits: &Limits) -> u32 {
-    output_bound(limits).expect("task limits admit output bound")
-}
-
 /// Apply one root-issued event to `domain` using the iteration clocks and immutable limits in
 /// `env`, then advance bounded dependency/closing cascades into an uncapped output queue.
 /// Reply-bearing inputs produce one terminal reply; notifications may emit no output.

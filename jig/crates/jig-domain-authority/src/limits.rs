@@ -45,12 +45,6 @@ pub fn stored_finding_limit(limits: &Limits) -> Option<u32> {
     Some(batch.max(run).max(effect))
 }
 
-/// Compatibility name for consumers sizing finding values outside jig.
-#[must_use]
-pub fn max_out(limits: &Limits) -> Option<u32> {
-    stored_finding_limit(limits)
-}
-
 fn bytes(count: u64, size: usize) -> Option<u64> {
     count.checked_mul(u64::try_from(size).ok()?)
 }
