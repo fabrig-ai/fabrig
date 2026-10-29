@@ -220,10 +220,17 @@ keeps nothing durable (programming-model.md, 7.1).
   entries and paces admission, not memory; one admitted event's work
   may take the backlog past it. The root has no `max_out` reservation.
 - **The waiting room** is the service's uncapped `events` FIFO, outside
-  the admitted backlog. Records wait there in order, with no bypass;
-  counting them would hold admission shut. Completions and hand-out
-  returns for admitted work continue to drain the backlog. Only a real
-  sink's credit stops their output.
+  the admitted backlog; counting it would hold admission shut. A held
+  new record lets admitted records pass it in order, until the next new
+  record, a link record naming a held assignment's run and attempt, or
+  any record of a held process record's agent. The walk stops there and
+  keeps the remaining records in order. smith reads one record per
+  process; a later record of that agent cannot pass its held record.
+  Completions and hand-out returns for admitted work continue to drain
+  the backlog. Only a real sink's credit stops their output.
+- **Due source checks** are a separate new event, held at the watermark;
+  the timer continues to advance admitted work without starting them
+  (accounts.md, 3.4).
 - **Orders are explicit:** a link's records follow the assignment they
   name, and a run's end follows its last hand-out. The root drains hub
   outputs before agent outputs, and hand-out returns follow their
@@ -1007,8 +1014,12 @@ agent for ever.
 - **The reference worker's orders** are checked under admission
   pressure: a link's records follow their assignment, and a run's end
   follows its last hand-out. A low-watermark service test checks that
-  waiting records do not hold admission shut and resume in FIFO order
-  as admitted work drains (section 4).
+  waiting records do not hold admission shut and resume as admitted
+  work drains. Admitted records pass a held new record in order; the
+  walk stops at the next new record, a link record naming a held
+  assignment's run and attempt, or any record of a held process record's
+  agent. Due source checks wait at the watermark while the timer
+  advances admitted work (section 4).
 - **The application's worlds** run its hosts, with its own workspace or
   none, against jig's core on the conformance world (testing.md,
   section 5).
