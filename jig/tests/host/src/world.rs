@@ -461,7 +461,7 @@ impl World {
         self.deliver();
         let mut made = Vec::new();
         // The ready list first, at the start of the stage, then the events.
-        while self.stage.has_room() && self.host.is_ready() {
+        while self.host.is_ready() {
             self.trace.log(self.now, format_args!("host resumes"));
             let before = self.stage.out.len();
             host::resume(&mut self.host, &self.stage.env, &mut self.stage.out);
