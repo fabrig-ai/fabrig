@@ -1,6 +1,7 @@
 //! Exact secret-boundary observations on the simulated service (temper/docs/design/domain/testing.md, 2.5).
 pub(crate) mod observer;
 mod pages;
+mod run;
 use crate::{
     ctl::{Caller, Command},
     fixtures,
@@ -11,6 +12,7 @@ use crate::{
     world::{self, Person, Proc, Story},
 };
 pub use observer::Counts;
+pub use run::delivery;
 use skein_io::kernel::Exit;
 use skein_lib::Time;
 use skein_shell::Host;

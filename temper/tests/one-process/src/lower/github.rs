@@ -122,6 +122,9 @@ fn config_layer() -> layer::Config {
     }
 }
 pub(crate) fn peer() -> (Rc<RefCell<Forge>>, Peer) {
+    peer_with_life(layer::installations::TOKEN_LIFE)
+}
+pub(crate) fn peer_with_life(life: Duration) -> (Rc<RefCell<Forge>>, Peer) {
     let wire = protocol();
     let mut config = temper_fake_git_hosted::fixtures::CONFIG;
     config.limits.files = 4;
@@ -183,11 +186,13 @@ pub(crate) fn peer() -> (Rc<RefCell<Forge>>, Peer) {
     };
     let mut hosted = fixtures::peer_limits();
     hosted.connections = wire.calls + 3;
+    let mut github = config_layer();
+    github.token_life = life;
     let mut peer = Peer::github(
         fixtures::FORGE,
         ([127, 0, 0, 1], 3001).into(),
         hosted,
-        config_layer(),
+        github,
         limits,
         forge.clone(),
         fixtures::SEED,

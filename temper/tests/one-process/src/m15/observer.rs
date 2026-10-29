@@ -83,7 +83,9 @@ fn encoded(bytes: &[u8]) -> Box<[u8]> {
 impl Observer {
     fn needle(&mut self, kind: Kind, bytes: &[u8]) {
         assert!(!bytes.is_empty(), "issued secret is nonempty");
-        for value in [bytes.into(), format!("{bytes:?}").into_bytes().into_boxed_slice(), encoded(bytes)] {
+        let debug = format!("{bytes:?}").into_bytes();
+        for value in [bytes.into(), debug.clone().into_boxed_slice(), debug[1..debug.len() - 1].into(), encoded(bytes)]
+        {
             self.needles.push(Needle { kind, value: Secret::new(value) });
         }
     }
@@ -113,13 +115,12 @@ impl Observer {
         }
     }
     fn leak(&self, bytes: &[u8]) -> Option<&'static str> {
-        self.needles
-            .iter()
-            .find(|needle| bytes.windows(needle.value.len()).any(|part| part == needle.value.expose()))
-            .map(|needle| match needle.kind {
+        self.needles.iter().find(|needle| skein_lib::bytes::find(bytes, needle.value.expose()).is_some()).map(
+            |needle| match needle.kind {
                 Kind::Key => "App key",
                 Kind::Token => "installation token",
-            })
+            },
+        )
     }
     fn check(&self, surface: &str, path: &[u8], bytes: &[u8]) {
         assert!(self.leak(path).is_none(), "issued secret in {surface} filename");
@@ -190,6 +191,9 @@ impl Observer {
                 self.wire(role, *fd, &buf[..*count as usize])
             }
             (Op::PipeWrite { fd, bytes, from }, Ok(Done::Count(count))) => {
+                if matches!(role, Role::Agent | Role::Git | Role::Shell) {
+                    self.save("worker process output", b"", &bytes[*from as usize..(*from + *count) as usize]);
+                }
                 if let Some(path) = self.names.get(&(role, fd.raw())).cloned()
                     && path.starts_with(b"stderr/")
                 {
@@ -426,6 +430,8 @@ fn scan_directory(
                 counts.transcripts += usize::from(path.windows(11).any(|part| part == b"transcripts"));
                 counts.client_files += usize::from(path.starts_with(b"client/"));
                 counts.worker_files += usize::from(path.starts_with(b"worker/"));
+            } else {
+                panic!("public fixture entry is neither a file nor a directory");
             }
         }
     }
@@ -462,6 +468,7 @@ mod tests {
             control.to_vec(),
             [b"\xff".as_slice(), control, b"\x80"].concat(),
             format!("{control:?}").into_bytes(),
+            format!("{:?}", [b"before-".as_slice(), control, b"-after"].concat()).into_bytes(),
             encoded(&[b"x-access-token:", control].concat()).into_vec(),
         ] {
             assert!(observer.leak(&bytes).is_some(), "the seeded representation is detected");

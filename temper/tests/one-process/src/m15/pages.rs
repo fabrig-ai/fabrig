@@ -25,3 +25,16 @@ pub(super) fn steps() -> Box<[Step<Address>]> {
     steps.push(Step::See { find: Find::text(b"temper-person"), within: Duration::from_secs(5) });
     steps.into_boxed_slice()
 }
+
+pub(super) fn task_steps() -> Box<[Step<Address>]> {
+    let mut pages = steps().into_vec();
+    for address in [
+        Address::Chat { task: 1 },
+        Address::Task { task: 2, filter: temper_client_domain::address::PlanFilter::All },
+        Address::Task { task: 3, filter: temper_client_domain::address::PlanFilter::All },
+    ] {
+        pages.push(Step::Go { address });
+        pages.push(Step::Pause { span: SETTLE });
+    }
+    pages.into_boxed_slice()
+}
