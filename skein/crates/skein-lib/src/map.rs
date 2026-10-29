@@ -34,6 +34,13 @@ impl<K: Ord, V> Map<K, V> {
         Map { entries: BTreeMap::new(), capacity }
     }
 
+    /// For a service's own correlation and collection, never for what a peer can
+    /// push. It grows as it fills, up to `u32::MAX` entries.
+    #[must_use]
+    pub fn uncapped() -> Map<K, V> {
+        Self::with_capacity(u32::MAX)
+    }
+
     /// The most heap a map of `capacity` entries takes, its tree nodes
     /// included, or `None` past a `u64`. What the keys and values own, such as
     /// the bytes of a `Box<[u8]>`, is the owner's to count.
