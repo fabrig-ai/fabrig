@@ -108,3 +108,32 @@ fn an_accepted_effort_change_reaches_the_next_response() {
     assert_eq!(efforts, [Some(b"low".as_slice().into()), Some(b"high".as_slice().into())]);
     assert_eq!(world.exit(), Some(kernel::Exit::Code(0)));
 }
+
+/// Lower test of smith's end_to_end::an_older_local_chat_exits_one_with_operator_words_and_unchanged_store (top tiers test wiring only).
+#[test]
+fn an_older_store_refuses_with_operator_words_and_unchanged_files() {
+    for placement in [Placement::Spawned, Placement::InProcess] {
+        let files = Files::new();
+        let mut world = World::new(85, &files, placement, b"unused");
+        let state = smith_local_domain::ChatState {
+            identity: smith_domain::run::Identity::new([42; 16]),
+            activation: 9,
+            next_message: 1,
+            read: None,
+        };
+        for name in [b"chat/state".as_slice(), b"chat/fresh"] {
+            world.fixture_file(name, &smith_local_protocol::save_state(state).bytes);
+        }
+        world.fixture_file(b"chat/0000000001.turn", b"old local transcript");
+        world.scenario.ending = Ending::OlderStore;
+        world.scenario.commands = vec![smith_local_process_world::terminal::Action::Send(b"hello\n".as_slice().into())];
+        let before = world.store_snapshot();
+        world.settle();
+        let expected = format!("smith: {}", smith_local_domain::Older::Unrecorded.words().join("main"));
+        assert_eq!(String::from_utf8_lossy(world.errors()).lines().last(), Some(expected.as_str()));
+        assert_eq!(world.exit(), Some(kernel::Exit::Code(1)));
+        assert!(world.queries().is_empty());
+        assert!(world.facts().is_empty());
+        assert_eq!(world.store_snapshot(), before);
+    }
+}

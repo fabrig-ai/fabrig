@@ -5,6 +5,25 @@ use crate::process::PlainDirectory;
 use skein_fake_machine::How;
 
 impl World {
+    /// Snapshot the private store's names, metadata and bytes outside every process.
+    pub fn store_snapshot(&mut self) -> Vec<(Box<[u8]>, skein_fake_machine::Facts, Vec<u8>)> {
+        let machine = match &mut self.machine {
+            Some(machine) => machine,
+            None => &mut self.outcome.as_mut().expect("settled composition").machine,
+        };
+        let root = machine.files.open(machine.master, b"chat", How::Directory).expect("store root");
+        let mut snapshot = Vec::new();
+        // The store's production scan and record bounds.
+        for (_, name) in machine.files.list(root, 16_384, 16 << 20).expect("store names") {
+            let file = machine.files.open(root, &name, How::ReadNoFollow).expect("store record");
+            snapshot.push((name, machine.files.stat(file), machine.files.read(file, 0, 64 << 20).expect("store bytes")));
+            machine.files.close(file);
+        }
+        machine.files.close(root);
+        snapshot.sort_by(|left, right| left.0.cmp(&right.0));
+        snapshot
+    }
+
     /// Start a report with one named plain directory and its selected write authority.
     #[must_use]
     pub fn plain(seed: u64, files: &Files, placement: Placement, name: &[u8], writable: bool) -> Self {

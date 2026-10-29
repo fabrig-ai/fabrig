@@ -62,6 +62,8 @@ pub enum Ending {
     HostFailure,
     /// The host drops a run whose workspace read completed before its turn save failed.
     HostFailureBeforeAnswer,
+    /// A nonempty store with no layout marker refuses before any activation.
+    OlderStore,
 }
 
 /// Evidence handed to the shared judgment kit, never internal process cells.
@@ -145,8 +147,9 @@ impl Expectations for Meeting {
                         borrowed_text.unwrap_or(b"Line 1 not delivered: the run ended without reading it")
                     }
                     Ending::HostFailure | Ending::HostFailureBeforeAnswer => b"could not be kept: write failed",
+                    Ending::OlderStore => b"was kept by an older build of smith",
                 };
-                if matches!(self.ending, Ending::Unavailable) {
+                if matches!(self.ending, Ending::Unavailable | Ending::OlderStore) {
                     judge.check(
                         self.activation.is_none() && !self.answered && !self.shown,
                         "a refused account starts no run",
@@ -162,14 +165,14 @@ impl Expectations for Meeting {
                     judge.check(self.shown && self.answered, "the invocation actually answered and showed it");
                 }
                 let code = match self.ending {
-                    Ending::HostFailure | Ending::HostFailureBeforeAnswer | Ending::AgentEnded => 1,
+                    Ending::HostFailure | Ending::HostFailureBeforeAnswer | Ending::AgentEnded | Ending::OlderStore => 1,
                     Ending::Dropped => 130,
                     Ending::Budget => 4,
                     _ => 0,
                 };
                 judge.check(exit == Some(kernel::Exit::Code(code)), "shell exit matches the host terminal");
                 judge.check(
-                    if matches!(self.ending, Ending::Unavailable | Ending::AgentEnded) {
+                    if matches!(self.ending, Ending::Unavailable | Ending::AgentEnded | Ending::OlderStore) {
                         queries == 0
                     } else {
                         queries > 0
@@ -177,7 +180,10 @@ impl Expectations for Meeting {
                     "provider work matches account availability",
                 );
                 let start = b"smith: local host started\n";
-                let diagnostic = if matches!(self.ending, Ending::HostFailure | Ending::HostFailureBeforeAnswer) {
+                let older = format!("smith: {}\n", smith_local_domain::Older::Unrecorded.words().join("main"));
+                let diagnostic = if matches!(self.ending, Ending::OlderStore) {
+                    errors.strip_suffix(older.as_bytes())
+                } else if matches!(self.ending, Ending::HostFailure | Ending::HostFailureBeforeAnswer) {
                     errors.strip_suffix(b"smith: run failed: chat main: turn 2 could not be kept: write failed\n")
                 } else if matches!(self.ending, Ending::Dropped) {
                     errors.strip_suffix(b"smith: interrupted: the run was dropped before it answered\n")
@@ -243,6 +249,7 @@ impl Expectations for Meeting {
                 judge.check(expected_diagnostic, "only the expected local operator start and failure lines");
                 judge.check(
                     shown.windows(expected.len()).any(|part| part == expected)
+                        || (matches!(self.ending, Ending::OlderStore) && errors.ends_with(older.as_bytes()))
                         || (matches!(self.ending, Ending::Budget)
                             && errors.starts_with(b"smith: chat main\n")
                             && (errors.ends_with(b"smith: run failed: out of turns: used 3 of 3\n")
@@ -257,7 +264,7 @@ impl Expectations for Meeting {
                         && !private.windows(5).any(|part| part == b"token"),
                     "terminal never reveals credentials",
                 );
-                if self.require_facts && !matches!(self.ending, Ending::Unavailable) {
+                if self.require_facts && !matches!(self.ending, Ending::Unavailable | Ending::OlderStore) {
                     let met = judge.meet(&"terminal");
                     judge.check(met, "terminal settles the activation");
                 }
