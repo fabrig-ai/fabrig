@@ -1,7 +1,7 @@
-//! Each container's `worst_case` against the counting allocator (lib.md, 10;
+//! Each container's `price` against the counting allocator (lib.md, 10;
 //! programming-model.md, 6.3): built at a capacity, tiny ones among them,
 //! filled to it, emptied and filled again, every operation a step of the
-//! meter, and what it held of its own never more than `worst_case(capacity)`.
+//! meter, and what it held of its own never more than `price(capacity)`.
 //!
 //! The items own no heap: what an item owns is its owner's to count
 //! (programming-model.md, 6.3). They come in several sizes and alignments, up
@@ -10,7 +10,7 @@
 //! receiver's, dropped before the check.
 //!
 //! Queues, intakes, lists and stacks grow as they fill: held storage stays
-//! within their worst case, and a step peaks within twice it because a realloc
+//! within their price, and a step peaks within twice it because a realloc
 //! counts both the old and new buffers. A slab stays within its worst case,
 //! fills to capacity and refuses one more. A map, a set
 //! and a deadline table allocate tree nodes as they fill, priced at the most
@@ -489,7 +489,7 @@ fn a_slab_grows_within_its_held_and_peak_bounds() {
 }
 
 #[test]
-fn a_queue_filled_to_its_capacity_stays_within_its_worst_case() {
+fn a_queue_filled_to_its_capacity_stays_within_its_price() {
     for capacity in CAPACITIES {
         queue::<u8>(capacity);
         queue::<u64>(capacity);
@@ -499,7 +499,7 @@ fn a_queue_filled_to_its_capacity_stays_within_its_worst_case() {
 }
 
 #[test]
-fn a_list_filled_to_its_capacity_stays_within_its_worst_case() {
+fn a_list_filled_to_its_capacity_stays_within_its_price() {
     for capacity in CAPACITIES {
         list::<u8>(capacity);
         list::<u64>(capacity);
@@ -509,7 +509,7 @@ fn a_list_filled_to_its_capacity_stays_within_its_worst_case() {
 }
 
 #[test]
-fn a_stack_filled_to_its_capacity_stays_within_its_worst_case() {
+fn a_stack_filled_to_its_capacity_stays_within_its_price() {
     for capacity in CAPACITIES {
         stack::<u8>(capacity);
         stack::<u64>(capacity);
@@ -519,14 +519,14 @@ fn a_stack_filled_to_its_capacity_stays_within_its_worst_case() {
 }
 
 #[test]
-fn an_intake_filled_to_its_capacity_stays_within_its_worst_case() {
+fn an_intake_filled_to_its_capacity_stays_within_its_price() {
     for capacity in CAPACITIES {
         intake(capacity);
     }
 }
 
 #[test]
-fn a_map_holds_no_more_than_its_worst_case() {
+fn a_map_holds_no_more_than_its_price() {
     for capacity in CAPACITIES {
         map::<u16, u8>(capacity);
         map::<u64, u64>(capacity);
@@ -536,7 +536,7 @@ fn a_map_holds_no_more_than_its_worst_case() {
 }
 
 #[test]
-fn a_set_holds_no_more_than_its_worst_case() {
+fn a_set_holds_no_more_than_its_price() {
     for capacity in CAPACITIES {
         set::<u16>(capacity);
         set::<u64>(capacity);
