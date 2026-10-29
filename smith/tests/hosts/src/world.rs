@@ -436,7 +436,7 @@ impl World {
     /// Check each process at every iteration using the shared allocator.
     pub fn check_memory(&mut self) {
         // Peak across the hosted-parent memory test's Service and ErrorTail worlds.
-        // The Service world's agent is largest; every process uses this ceiling.
+        // The Service world's fake provider is largest; every process uses this ceiling.
         // Measured peak: 133_102 bytes on 2026-10-29; a quarter of headroom, rounded up.
         const HOST_PARENT_CEILING: u64 = 170_000;
         self.memory = Memory::Within(HOST_PARENT_CEILING);
