@@ -3,11 +3,15 @@ use jig_domain_host as host;
 use jig_protocol_worker_wire::{self as wire, Part};
 use skein_lib::{List, Queue, Reader, Time, Token};
 fn translated(kind: u16, bytes: &[u8], limits: &wire::v9::Limits) -> (host::LinkDown, Box<[Part]>, Queue<Request>) {
-    let mut parts = List::with_capacity(1);
+    let mut parts = Queue::uncapped();
     let mut values = Queue::with_capacity(4);
     let down =
         translate::down(kind, bytes, limits, Time::ZERO, &mut parts, &mut 1, &mut values).expect("translated record");
-    (down, parts.into_boxed(), values)
+    let mut payloads = List::with_capacity(parts.len());
+    for _ in 0..parts.len() {
+        payloads.push(parts.pop().expect("queued part")).expect("one slot per part");
+    }
+    (down, payloads.into_boxed(), values)
 }
 fn assigned() -> (host::Assignment, Box<[Part]>, Queue<Request>) {
     let record = fixtures::assignment_record(fixtures::window());
@@ -292,7 +296,7 @@ fn the_worker_link_derives_the_program_form() {
 #[test]
 fn a_program_name_the_rules_refuse_is_malformed() {
     for name in [b"".as_slice(), b"Upper", b"bad_name", b"../claude"] {
-        let mut parts = List::with_capacity(1);
+        let mut parts = Queue::uncapped();
         let mut values = Queue::with_capacity(4);
         assert!(
             translate::down(
@@ -333,7 +337,7 @@ fn an_assignment_keeps_a_program_name_without_a_table_value() {
 }
 #[test]
 fn an_assignment_with_a_refused_program_name_is_malformed() {
-    let mut parts = List::with_capacity(1);
+    let mut parts = Queue::uncapped();
     let mut values = Queue::with_capacity(4);
     assert!(
         translate::down(
@@ -359,7 +363,7 @@ fn a_refused_later_program_grant_leaves_no_value_queued() {
     let mut grants = List::with_capacity(2);
     grants.push(fixtures::grant_record(fixtures::credential_value(wire::Scheme::Bearer))).expect("first grant");
     grants.push(fixtures::grant_record(program_value(b"../claude"))).expect("later grant");
-    let mut parts = List::with_capacity(1);
+    let mut parts = Queue::uncapped();
     let mut values = Queue::with_capacity(4);
     let refused = translate::down(
         0x0180,
