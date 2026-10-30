@@ -46,6 +46,7 @@ Provisional, 2026-10-28. What every agent working here must know, whatever its r
 - `heavy cargo ...` for every build and test; what builds nothing (`cargo fmt`, `cargo tree`, `cargo metadata`) runs directly. Never `heavy --gate`: the gate is the merge queue's.
 - One command at a time, and its inputs stay still until it reports. Cancel with `heavy --cancel TOKEN` from the directory that submitted it; never stop heavy's units or touch its state.
 - Disk: below 40 GB free heavy queues nothing. Free disk only in your own `target/`; never `kache clean --cache`, `~/.cache`, `~/.cargo`, another's worktree.
+- **Every machine gives passwordless sudo** (hel8, hetzner3, 6, 7, 8): use it where a task truly needs root, and never to get round a rule: heavy's units and state, another's checkout, credentials and keys stay off limits as above.
 - Builds set `TEMPER_BUNDLE=none` (the machines' cargo config does).
 - Remote commands run in a login shell (`bash -lc`), or tools aren't on PATH.
 
