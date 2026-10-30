@@ -9,11 +9,11 @@
 //! scripts and own scheduling and terminal ledgers. No host IO is performed.
 //!
 //! Fixtures use `mkdir`, `write`, `link` and `special`; world adapters call
-//! `load`, `scan`, `store`, `search`, `spawn` and `finish`. All answers are
-//! synchronous. `finish` applies eligible changes each time it is called; it
+//! `load`, `scan`, `store`, `remove_current`, `search`, `spawn` and `finish`.
+//! All answers are synchronous. `finish` applies eligible changes each time it is called; it
 //! is the world's responsibility to apply a process's effects at the right cut.
 //! Root-relative operations follow relative links up to 40, refuse escapes and
-//! make stores conditional on versions. This is a small model, without inode,
+//! make stores and file removals conditional on versions. This is a small model, without inode,
 //! permissions or full POSIX semantics (fake-checkout.md, sections 2 and 3).
 //!
 //! Ordinary Rust test machinery (programming-model.md, section 10.2): ordered
@@ -163,6 +163,9 @@ pub enum Failure {
     /// Required directory is another node kind (fake-checkout.md, section 2).
     NotDirectory,
 
+    /// Removal target is a directory with at least one node beneath it (fake-checkout.md, section 2).
+    NotEmpty,
+
     /// Load target exceeds the requested content cap (fake-checkout.md, section 2).
     TooLarge {
         /// Actual content length in bytes (fake-checkout.md, section 2).
@@ -172,13 +175,13 @@ pub enum Failure {
     /// Parent traversal or absolute link target escapes the registered root (fake-checkout.md, section 2).
     Escapes,
 
-    /// Store encountered a symbolic link component (fake-checkout.md, section 2).
+    /// Store or removal encountered a symbolic link component (fake-checkout.md, section 2).
     Linked,
 
     /// Resolution required more than 40 links (fake-checkout.md, section 2).
     Loop,
 
-    /// Store condition differs from the actual regular-file version (fake-checkout.md, section 2).
+    /// Store or removal condition differs from the actual regular-file version (fake-checkout.md, section 2).
     Conflict {
         /// Current regular-file version, or `None` if absent (fake-checkout.md, section 2).
         now: Option<u64>,
@@ -191,14 +194,14 @@ enum Resolve {
     Store,
 }
 
-/// Caller’s compare-and-store condition; failure reports the actual regular
+/// Caller’s store or removal condition; failure reports the actual regular
 /// file version without mutation (fake-checkout.md, section 2).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Expect {
     /// Create only if the target is absent (fake-checkout.md, section 2).
     Absent,
 
-    /// Replace only the specified regular-file version (fake-checkout.md, section 2).
+    /// Replace or remove only the specified regular-file version (fake-checkout.md, section 2).
     Is(
         /// Version previously observed by the caller (fake-checkout.md, section 2).
         u64,
@@ -581,6 +584,34 @@ impl Checkout {
         let version = self.next_version();
         self.nodes.insert(at, Node::File { content: content.to_vec(), version });
         Ok(version)
+    }
+
+    /// Remove one regular file at its expected version, or one empty directory,
+    /// beneath a root, following no link and changing nothing on refusal; a
+    /// workspace's removal, not the fixture's `remove` (fake-checkout.md, section 2).
+    pub fn remove_current(&mut self, root: u64, path: &[u8], expect: Expect) -> Result<(), Failure> {
+        let (at, missing) = self.resolve(root, path, Resolve::Store)?;
+        if !missing.is_empty() {
+            return Err(Failure::Missing);
+        }
+        match self.nodes.get(&at) {
+            None => return Err(Failure::Missing),
+            Some(Node::File { version, .. }) => {
+                if expect != Expect::Is(*version) {
+                    return Err(Failure::Conflict { now: Some(*version) });
+                }
+            }
+            Some(Node::Directory) => {
+                let prefix = if at.is_empty() { Vec::new() } else { [&at[..], b"/"].concat() };
+                if self.nodes.keys().any(|path| path != &at && path.starts_with(&prefix)) {
+                    return Err(Failure::NotEmpty);
+                }
+            }
+            Some(Node::Special) => return Err(Failure::NotFile),
+            Some(Node::Link { .. }) => return Err(Failure::Linked),
+        }
+        self.nodes.remove(&at);
+        Ok(())
     }
 
     /// Pure resolution, collecting missing store parents without installing them.

@@ -241,7 +241,7 @@ fn done(failure: fake::Failure) -> Done {
         fake::Failure::TooLarge { size } => Done::TooLarge { size },
         fake::Failure::Escapes => Done::Escapes,
         fake::Failure::Linked => Done::Linked,
-        fake::Failure::Loop => Done::Failed { fault: Fault::Other },
+        fake::Failure::Loop | fake::Failure::NotEmpty => Done::Failed { fault: Fault::Other },
         fake::Failure::Conflict { now } => Done::Conflict { now: now.map(version) },
     }
 }
