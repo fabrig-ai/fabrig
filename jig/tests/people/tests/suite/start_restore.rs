@@ -165,3 +165,142 @@ fn explicit_world_sweep_commits_each_page_without_skipping_erased_keys() {
     }
     world.assert_settled();
 }
+
+#[test]
+fn selected_census_projects_needs_results_and_chats_without_opening() {
+    use jig_domain_people::{self as p, RestoreProjection as P};
+    use jig_people_world::{LIMITS, identity};
+    use skein_lib::{Env, Queue, Time, Wall};
+    for prefix in [0, 2] {
+        let limits = p::Limits { inbox_entries: prefix, ..LIMITS };
+        let env = Env { limits, now: Time::ZERO, wall: Wall::EPOCH };
+        let mut domain = p::Domain::new(&limits, Box::new([]), 1, Box::new([]));
+        assert!(domain.parties().is_empty());
+        domain.start_restore(env.wall);
+        let mut out = Queue::uncapped();
+        for row in [
+            p::Stored::Person { number: 1, identity: identity(1) },
+            p::Stored::Roles { project: 1, holdings: Box::new([p::Holding { person: 1, role: p::Role::Member }]) },
+            p::Stored::ReadResults { party: 1, through: 1 },
+            p::Stored::ReadConversation { party: 1, task: 21, through: 1 },
+            p::Stored::ReadConversation { party: 1, task: 22, through: 1 },
+            p::Stored::SignIn { number: 1, person: 1, expires: Wall::from_nanos(1) },
+        ] {
+            p::step(&mut domain, &env, p::Event::Restore { record: row }, &mut out);
+        }
+        assert_eq!(&*domain.parties().into_boxed(), &[1]);
+        assert_eq!(domain.results_seen(1), Some(1));
+        assert_eq!(domain.results_seen(99), None);
+        assert_eq!(domain.persons(), u32::MAX);
+        for (task, kind) in [
+            (11, p::EntryKind::PersonTask),
+            (12, p::EntryKind::Question { message: 7 }),
+            (13, p::EntryKind::Proposal { number: 1 }),
+        ] {
+            assert!(domain.start_project(
+                &limits,
+                P::Waiting {
+                    task,
+                    entries: Box::new([p::Entry { task, project: 1, whom: p::Whom::Person(1), kind, at: Wall::EPOCH }])
+                }
+            ));
+        }
+        assert_eq!(domain.needs(1), Some(3));
+        assert_eq!(domain.question_person(12, 7), Some(1));
+        let result = p::ResultRef {
+            task: 22,
+            project: 1,
+            at: Wall::EPOCH,
+            position: 2,
+            forgettable: Some(p::Forgettable { label: 0, listed: false, turns_read: false, last_reply: Some(3) }),
+        };
+        assert!(domain.start_project(&limits, P::Result { party: 1, entry: result }));
+        for (task, live, seen) in [(21, true, None), (22, false, Some(1))] {
+            assert!(domain.start_project(
+                &limits,
+                P::ChatState {
+                    party: 1,
+                    project: 1,
+                    task,
+                    last_reply: 3,
+                    live,
+                    seen,
+                    replies: Box::new([p::ReplyRef {
+                        activity: 4,
+                        entry: p::Entry {
+                            task,
+                            project: 1,
+                            whom: p::Whom::Person(1),
+                            kind: p::EntryKind::ChatReply { message: 3 },
+                            at: Wall::EPOCH,
+                        }
+                    }]),
+                }
+            ));
+        }
+        assert_eq!(domain.chat_owner(21), Some(1));
+        assert_eq!(domain.chat_owner(22), None);
+        assert!(domain.start_project(&limits, P::EndedConversation { task: 22 }));
+        assert!(domain.read_conversations().contains_key(&(1, 22)), "Link still needs its person witness");
+        assert!(!domain.ready());
+        assert_eq!(domain.next_deadline(), None);
+        assert!(out.is_empty());
+        let counts = domain.counts(&limits, 1).expect("loaded census");
+        assert_eq!(counts.needs, 3);
+        assert_eq!(counts.unread, prefix);
+        assert!(counts.more_unread);
+        assert!(domain.start_link(&env));
+        assert!(!domain.read_conversations().contains_key(&(1, 22)));
+        assert!(domain.read_conversations().contains_key(&(1, 21)));
+        assert!(!domain.ready());
+        domain.start_sweep();
+        assert!(out.is_empty());
+        assert_eq!(domain.next_deadline(), None);
+        assert!(domain.start_complete(&env));
+        assert!(domain.ready());
+        assert_eq!(domain.cached_results(1), Some([result].as_slice()), "zero prefix retains result witness");
+        assert_eq!(domain.needs(1), Some(3));
+        assert_eq!(domain.next_deadline(), Some(Time::from_nanos(1)));
+        assert_eq!(domain.restore_failure(), None);
+        assert!(out.is_empty());
+    }
+}
+
+#[test]
+fn selected_historical_ended_owners_retain_only_loaded_read_position_witnesses() {
+    use jig_domain_people::{Domain, Event, RestoreProjection, Stored, step};
+    use jig_people_world::{LIMITS, identity};
+    use skein_lib::{Env, Queue, Time, Wall};
+    use skein_world::domain::heap::Meter;
+    let mut peaks = Vec::new();
+    for count in [10, 1000] {
+        let meter = Meter::new();
+        meter.start();
+        {
+            let limits = jig_domain_people::Limits { people: 1, inbox_tasks: 1, ..LIMITS };
+            let env = Env { limits, now: Time::ZERO, wall: Wall::EPOCH };
+            let mut domain = Domain::new(&limits, Box::new([]), 1, Box::new([]));
+            domain.start_restore(env.wall);
+            let mut out = Queue::uncapped();
+            for row in [
+                Stored::Person { number: 1, identity: identity(1) },
+                Stored::ReadConversation { party: 1, task: 1, through: 0 },
+            ] {
+                step(&mut domain, &env, Event::Restore { record: row }, &mut out);
+            }
+            for task in 0..count {
+                assert!(domain.start_project(&limits, RestoreProjection::EndedConversation { task }));
+            }
+            assert_eq!(domain.read_conversations().len(), 1);
+            assert!(domain.start_link(&env));
+            assert!(domain.read_conversations().is_empty());
+            domain.start_sweep();
+            assert!(domain.start_complete(&env));
+            assert!(out.is_empty());
+        }
+        let peak = meter.end().peak();
+        eprintln!("people_ended_witnesses count={count} heap_peak_bytes={peak}");
+        peaks.push(peak);
+    }
+    assert_eq!(peaks[0], peaks[1], "historical owners retain no growing marker set");
+}

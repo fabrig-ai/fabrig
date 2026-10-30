@@ -167,3 +167,59 @@ fn not_ready_acts_are_not_saved() {
     );
     assert!(out.is_empty());
 }
+
+#[test]
+fn selected_ended_read_hints_stay_read_after_the_loaded_position_retires() {
+    use people::{Entry, EntryKind, Holding, ReplyRef, RestoreProjection, Role, Whom};
+    let (mut domain, env, mut out) = restoring();
+    domain.start_restore(env.wall);
+    for record in [
+        Stored::Person { number: PERSON, identity: identity(PERSON) },
+        Stored::Roles { project: PROJECT, holdings: Box::new([Holding { person: PERSON, role: Role::Member }]) },
+        Stored::ReadConversation { party: PERSON, task: TASK, through: 2 },
+    ] {
+        step(&mut domain, &env, Event::Restore { record }, &mut out);
+    }
+    let replies: Box<[_]> = (2..=3)
+        .map(|message| ReplyRef {
+            activity: message,
+            entry: Entry {
+                task: TASK,
+                project: PROJECT,
+                whom: Whom::Person(PERSON),
+                kind: EntryKind::ChatReply { message },
+                at: Wall::from_nanos(message),
+            },
+        })
+        .collect();
+    let unread = replies[1];
+    assert!(domain.start_project(
+        &env.limits,
+        RestoreProjection::ChatState {
+            party: PERSON,
+            project: PROJECT,
+            task: TASK,
+            last_reply: 3,
+            live: false,
+            seen: Some(2),
+            replies,
+        }
+    ));
+    assert!(domain.start_project(&env.limits, RestoreProjection::EndedConversation { task: TASK }));
+    assert_eq!(domain.conversation_seen(PERSON, TASK), Some(2));
+    assert!(domain.start_link(&env));
+    assert!(domain.read_conversations().is_empty());
+    assert_eq!(
+        &*domain.cached_updates(&env.limits, PERSON).expect("loaded updates"),
+        &[people::Update::ChatReply(unread)]
+    );
+    assert!(out.is_empty());
+    assert_eq!(domain.next_deadline(), None);
+    domain.start_sweep();
+    assert!(domain.start_complete(&env));
+    assert_eq!(
+        &*domain.cached_updates(&env.limits, PERSON).expect("opened updates"),
+        &[people::Update::ChatReply(unread)]
+    );
+    assert!(out.is_empty());
+}

@@ -1,7 +1,9 @@
 //! Explicit load/fit/link and a borrowed second expiry walk (jig/docs/design/domain/engine.md, 6).
 mod fit;
 use super::{Answered, Domain, Phase as State, SignIn, answer_expiry, deadline};
-use crate::{Key, LimitKind, Limits, Outcome, Refusal, Request, Stored};
+use crate::{
+    Key, LimitKind, Limits, Outcome, Refusal, Request, RestoreBound, RestoreFailure, RestoreProjection, Stored,
+};
 use skein_lib::{Env, Queue, Time, Wall};
 
 #[derive(Debug, PartialEq, Eq)]
@@ -14,6 +16,43 @@ pub(super) enum Phase {
 }
 
 impl Domain {
+    /// The first selected-start fit failure, retained independently of output consumption.
+    #[must_use]
+    pub fn restore_failure(&self) -> Option<RestoreFailure> {
+        self.restore_failure.clone()
+    }
+
+    pub(super) fn assert_projection_event(&self) {
+        assert!(
+            self.start == Phase::Default || self.ready(),
+            "selected people projections require start_project before open"
+        );
+    }
+
+    /// Rebuild a bounded volatile census projection while loading, without clocks or effects.
+    #[must_use]
+    pub fn start_project(&mut self, limits: &Limits, input: RestoreProjection) -> bool {
+        assert!(self.start == Phase::Loading, "people projections require selected loading");
+        if self.phase == State::Failed {
+            return false;
+        }
+        match input {
+            RestoreProjection::Waiting { task, entries } => super::inbox::replace_waiting(self, limits, task, &entries),
+            RestoreProjection::Result { party, entry } => self.project_result(limits, party, entry),
+            RestoreProjection::ChatState { party, project, task, last_reply, live, seen, replies } => {
+                super::inbox::project_chat(self, limits, party, project, task, last_reply, live, seen, replies);
+            }
+            RestoreProjection::EndedConversation { task } => {
+                for (key, _) in &self.conversations_seen {
+                    if key.1 == task {
+                        self.ended_witnesses.insert(*key).expect("witnesses are a subset of loaded read positions");
+                    }
+                }
+            }
+        }
+        true
+    }
+
     /// Select explicit restoration once before any input, capturing the start's expiry instant.
     pub fn start_restore(&mut self, at: Wall) {
         assert!(
@@ -101,6 +140,10 @@ impl Domain {
         for ((party, task), _) in &self.conversations_seen {
             link(self, Key::ReadConversation { party: *party, task: *task }, *party);
         }
+        for key in &self.ended_witnesses {
+            let _old = self.conversations_seen.remove(key);
+        }
+        self.ended_witnesses = skein_lib::Set::with_capacity(self.conversations_seen.capacity());
         true
     }
 
@@ -183,44 +226,11 @@ pub(super) fn load(domain: &mut Domain, env: &Env<Limits>, record: Stored, out: 
         return;
     }
     let key = record.key();
-    let fits = match &record {
-        Stored::Person { number, identity } => {
-            assert!(!domain.people.contains_key(number), "duplicate {key:?}");
-            assert!(!domain.identities.contains_key(&identity.key), "identity index collision at {key:?}");
-            fit::identity(&env.limits, identity) && domain.people.len() < env.limits.people
+    let fits = fits(domain, env, &record);
+    if let Err(cause) = fits {
+        if domain.restore_failure.is_none() {
+            domain.restore_failure = Some(RestoreFailure { key, cause });
         }
-        Stored::SignIn { number, .. } => {
-            assert!(!domain.sign_ins.contains_key(number), "duplicate {key:?}");
-            domain.sign_ins.len() < env.limits.sign_ins
-        }
-        Stored::Roles { project, holdings } => {
-            assert!(!domain.roles.contains_key(project), "duplicate {key:?}");
-            fit::within(holdings.len(), env.limits.holdings) && domain.roles.len() < env.limits.projects
-        }
-        Stored::ReadResults { party, .. } => {
-            assert!(!domain.results_seen.contains_key(party), "duplicate {key:?}");
-            domain.results_seen.len() < domain.results_seen.capacity()
-        }
-        Stored::ReadConversation { party, task, .. } => {
-            assert!(!domain.conversations_seen.contains_key(&(*party, *task)), "duplicate {key:?}");
-            domain.conversations_seen.len() < domain.conversations_seen.capacity()
-        }
-        Stored::Answer { key: request, ask, models, outcome, .. } => {
-            assert!(!domain.answers.contains_key(request), "duplicate {key:?}");
-            fit::ask(&env.limits, ask)
-                && fit::models(models)
-                && fit::outcome(&env.limits, outcome)
-                && domain.answers.len().saturating_add(domain.acted.len()) < env.limits.requests
-        }
-        Stored::Acted { key: request, act, outcome, .. } => {
-            assert!(!domain.acted.contains_key(request), "duplicate {key:?}");
-            fit::act(&env.limits, act)
-                && fit::outcome(&env.limits, outcome)
-                && domain.answers.len().saturating_add(domain.acted.len()) < env.limits.requests
-        }
-        Stored::Policy { .. } | Stored::EndedRead { .. } => unreachable!("wrong people family: {key:?}"),
-    };
-    if !fits {
         return super::restore_failed(domain, key, Refusal::Limit { which: LimitKind::Restore }, out);
     }
     match record {
@@ -290,5 +300,60 @@ fn link_roster(domain: &Domain, source: Key, ask: &crate::Ask) {
         | crate::Ask::AccountSignIn { .. }
         | crate::Ask::AccountSignOut { .. }
         | crate::Ask::AccountChange { .. } => {}
+    }
+}
+
+fn fits(domain: &Domain, env: &Env<Limits>, record: &Stored) -> Result<(), crate::RestoreCause> {
+    let key = record.key();
+    match record {
+        Stored::Person { number, identity } => {
+            assert!(!domain.people.contains_key(number), "duplicate {key:?}");
+            assert!(!domain.identities.contains_key(&identity.key), "identity index collision at {key:?}");
+            fit::identity(&key, &env.limits, identity)?;
+            fit::occupancy(&key, RestoreBound::People, domain.people.len(), 0, env.limits.people)
+        }
+        Stored::SignIn { number, .. } => {
+            assert!(!domain.sign_ins.contains_key(number), "duplicate {key:?}");
+            fit::occupancy(&key, RestoreBound::SignIns, domain.sign_ins.len(), 0, env.limits.sign_ins)
+        }
+        Stored::Roles { project, holdings } => {
+            assert!(!domain.roles.contains_key(project), "duplicate {key:?}");
+            fit::within(&key, RestoreBound::Holdings, holdings.len(), env.limits.holdings)?;
+            fit::occupancy(&key, RestoreBound::Roles, domain.roles.len(), 0, env.limits.projects)
+        }
+        Stored::ReadResults { party, .. } => {
+            assert!(!domain.results_seen.contains_key(party), "duplicate {key:?}");
+            fit::occupancy(
+                &key,
+                RestoreBound::ReadResults,
+                domain.results_seen.len(),
+                0,
+                domain.results_seen.capacity(),
+            )
+        }
+        Stored::ReadConversation { party, task, .. } => {
+            assert!(!domain.conversations_seen.contains_key(&(*party, *task)), "duplicate {key:?}");
+            fit::occupancy(
+                &key,
+                RestoreBound::ReadConversations,
+                domain.conversations_seen.len(),
+                0,
+                domain.conversations_seen.capacity(),
+            )
+        }
+        Stored::Answer { key: request, ask, models, outcome, .. } => {
+            assert!(!domain.answers.contains_key(request), "duplicate {key:?}");
+            fit::ask(&key, &env.limits, ask)?;
+            fit::models(&key, models)?;
+            fit::outcome(&key, &env.limits, outcome)?;
+            fit::occupancy(&key, RestoreBound::Requests, domain.answers.len(), domain.acted.len(), env.limits.requests)
+        }
+        Stored::Acted { key: request, act, outcome, .. } => {
+            assert!(!domain.acted.contains_key(request), "duplicate {key:?}");
+            fit::act(&key, &env.limits, act)?;
+            fit::outcome(&key, &env.limits, outcome)?;
+            fit::occupancy(&key, RestoreBound::Requests, domain.answers.len(), domain.acted.len(), env.limits.requests)
+        }
+        Stored::Policy { .. } | Stored::EndedRead { .. } => unreachable!("wrong people family: {key:?}"),
     }
 }
