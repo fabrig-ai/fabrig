@@ -717,6 +717,146 @@ class RecoveryTests(unittest.TestCase):
         self.assertTrue(executable.exists())
 
 
+class AutomaticObservationTests(unittest.TestCase):
+    setUp = RecoveryTests.setUp
+    slot, add_run, ack = RecoveryTests.slot, RecoveryTests.add_run, RecoveryTests.ack
+    state, cli, calls = RecoveryTests.state, RecoveryTests.cli, RecoveryTests.calls
+
+    def observe(self, slot, *, available=60_000_000_000, now=None):
+        details = []
+        # Advance only the fixture clock; file change times remain kernel metadata.
+        now = now or R["time"].time_ns() + 2 * 86400 * 10**9
+        with patch.object(R["time"], "time_ns", return_value=now):
+            R["observe_targets"]([slot], self.home, available, details.append)
+        return "\n".join(details)
+
+    def test_old_metadata_is_observed_without_granting_eligibility(self):
+        slot = self.slot()
+        output = self.observe(slot)
+        self.assertIn("observed-idle-over24h=YES", output)
+        for field in ("claim", "claim-age-seconds", "central-exclusion", "terminal-no-resume",
+                      "live-process", "source", "borrower"):
+            self.assertIn(field + "=UNKNOWN", output)
+        self.assertIn("deletion=PROTECTED", output)
+        self.assertFalse((self.home / "src/fabrig/slot-maintenance").exists())
+        self.assertTrue((slot / "target/cache").exists())
+
+    def test_idle_boundary_includes_every_target_entry_change_time(self):
+        slot = self.slot()
+        cache = slot / "target/cache"
+        # An old root directory and old mtime do not hide a newer file ctime.
+        os.utime(slot / "target", ns=(1, 1))
+        os.utime(cache, ns=(1, 1))
+        newest = max(max(path.stat().st_mtime_ns, path.stat().st_ctime_ns)
+                     for path in (cache, slot / "target"))
+        day = 86400 * 10**9
+        for age, expected in ((day - 1, "NO"), (day, "NO"), (day + 1, "YES")):
+            with self.subTest(age=age):
+                self.assertIn("observed-idle-over24h=" + expected,
+                              self.observe(slot, now=newest + age))
+
+    def test_exact_decimal_disk_boundary_never_changes_deletion_status(self):
+        slot = self.slot()
+        for available, expected in ((79_999_999_999, "YES"), (80_000_000_000, "NO"),
+                                    (80_000_000_001, "NO")):
+            with self.subTest(available=available):
+                output = self.observe(slot, available=available)
+                self.assertIn("pressure-below80GB=" + expected, output)
+                self.assertIn("deletion=PROTECTED", output)
+
+    def test_missing_or_unfinished_history_is_unknown(self):
+        slot = self.slot(ended=False)
+        self.assertIn("completion-age-seconds=UNKNOWN", self.observe(slot))
+        shutil.rmtree(self.runs)
+        self.assertIn("no trustworthy Codex run history", self.observe(slot))
+        self.assertTrue((slot / "target/cache").exists())
+
+    def test_completed_lifetime_ended_and_question_reports_never_prove_finality(self):
+        for number, report in (("1", "Done\n"), ("2", "Question: resume after capacity?\n"),
+                               ("3", "codex-run: the run wrote no report\n")):
+            with self.subTest(report=report):
+                slot = self.slot(number, report=report)
+                with L["Lease"](slot, self.home) as lease:
+                    lease.clean = True
+                output = self.observe(slot)
+                self.assertIn("completion-age-seconds=", output)
+                self.assertIn("terminal-no-resume=UNKNOWN", output)
+                self.assertIn("deletion=PROTECTED", output)
+
+    def test_unknown_or_changed_claim_records_and_ack_cannot_authorize_observation(self):
+        slot = self.slot()
+        self.ack(slot)
+        calls_before = self.calls()
+        claims = self.home / "src/fabrig/claims"
+        claims.mkdir()
+        claim = claims / "hetzner7-1"
+        for content in (None, 'invalid record\n', '{"owner":"new owner"}\n'):
+            with self.subTest(content=content):
+                if content is not None:
+                    claim.write_text(content)
+                code, output = self.cli("--automatic-targets")
+                self.assertEqual(code, 2)
+                self.assertIn("claim=UNKNOWN", output)
+                self.assertIn("claim snapshots grant no deletion exclusion", output)
+                self.assertTrue((slot / "target/cache").exists())
+                self.assertTrue((self.home / "src/fabrig/slot-maintenance/1/ack.json").exists())
+                if content is not None:
+                    self.assertEqual(claim.read_text(), content)
+        self.assertEqual(self.calls(), calls_before)
+
+    def test_automatic_live_refuses_before_reading_or_mutating_files(self):
+        slot = self.slot()
+        self.ack(slot)
+        paths = [path for path in self.home.rglob("*") if path.is_file()]
+        before = {path: path.read_bytes() for path in paths}
+        with patch.object(sys, "stderr", io.StringIO()) as error, \
+                patch.dict(FIXTURE["guard"].main.__globals__,
+                           sweep=unittest.mock.Mock(side_effect=AssertionError("destructive sweep")),
+                           automatic_observation=unittest.mock.Mock(side_effect=AssertionError("observation"))):
+            for args in (("--automatic-targets", "live"), ("--automatic-targets", "live", "--dry-run")):
+                code, _ = self.cli(*args)
+                self.assertEqual(code, 1)
+                self.assertIn("central exclusion and finality protocol unavailable", error.getvalue())
+        self.assertEqual({path: path.read_bytes() for path in paths}, before)
+        self.assertFalse(self.log.exists())
+
+    def test_automatic_observation_isolated_from_manual_recovery_and_trim(self):
+        slot = self.slot()
+        self.ack(slot)
+        calls_before = self.calls()
+        binary = FIXTURE["GuardTests"].executable(self, "1")
+        protected = [slot / "source", slot / ".git/HEAD", slot / ".git/refs/heads/task",
+                     self.home / "run-1-report.md", slot / "target/cache", binary]
+        before = {path: path.read_bytes() for path in protected}
+        with patch.dict(FIXTURE["guard"].main.__globals__,
+                        sweep=unittest.mock.Mock(side_effect=AssertionError("destructive sweep"))):
+            code, output = self.cli("--automatic-targets", "observe", "--dry-run")
+        self.assertEqual(code, 2)
+        self.assertIn("automatic-target PROTECTED", output)
+        self.assertEqual({path: path.read_bytes() for path in protected}, before)
+        self.assertEqual(self.calls(), calls_before)
+        self.assertFalse((self.home / "src/fabrig/slot-maintenance/1/reclaim.json").exists())
+
+    def test_symlink_target_and_unrecognized_builder_stay_protected(self):
+        slot = self.slot()
+        (slot / "target").rename(slot / "saved-target")
+        (slot / "target").symlink_to(slot / "saved-target")
+        self.assertIn("target-write-age-seconds=UNKNOWN", self.observe(slot))
+        for host in ("hetzner2", "hetzner8", "unknown"):
+            with patch.object(R["socket"], "gethostname", return_value=host):
+                self.assertIn("not a builder", self.observe(slot))
+        self.assertTrue((slot / "saved-target/cache").exists())
+
+    def test_automatic_actions_cannot_mix_with_manual_or_timer_options(self):
+        for option in (("--timer",), ("--stop",), ("--ack", "1"), ("--notices",),
+                       ("--release-hold", "1"), ("--below", "100")):
+            with self.subTest(option=option), patch.object(sys, "stderr", io.StringIO()):
+                with self.assertRaises(SystemExit) as rejected:
+                    self.cli("--automatic-targets", "observe", *option)
+                self.assertEqual(rejected.exception.code, 2)
+        self.assertEqual(self.calls(), [])
+
+
 class ProcessClassificationTests(unittest.TestCase):
     def test_only_exact_protected_parent_comm_and_cgroup_pairs_qualify(self):
         prefix = "0::/user.slice/user-1000.slice/"

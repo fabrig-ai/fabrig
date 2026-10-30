@@ -187,7 +187,7 @@ def evidence_path(path, slot):
     return path
 
 
-def history(slot, home):
+def history(slot, home, *, observational=False):
     root = evidence_path(canonical(Path(os.environ.get("DEV_ROOT", str(Path(home) / "src/rust"))) / "tmp/codex-run"), slot)
     if not root.is_dir():
         raise RuntimeError("no trustworthy Codex run history")
@@ -235,7 +235,9 @@ def history(slot, home):
     latest = max(matches, key=lambda run: (run["started"], run["id"]))
     completed = max(run["ended"]["identity"][3] for run in matches)
     lifetime = None
-    completion = L["state_root"](home) / slot.name / "completed.json"
+    # Observation must not create maintenance state or imply lease ownership.
+    state = Path(home) / "src/fabrig/slot-maintenance" if observational else L["state_root"](home)
+    completion = state / slot.name / "completed.json"
     record = L["read_completed"](completion.parent, slot)
     if record is not None:
         lifetime = {"record": record, "file": L["fingerprint"](completion)}
@@ -317,7 +319,7 @@ def eligible(slot, home, directory):
     return ack, evidence
 
 
-def target_size(slot):
+def target_size(slot, *, activity=False):
     target = slot / "target"
     expected = target_identity(slot)
     device = slot.stat().st_dev
@@ -327,11 +329,13 @@ def target_size(slot):
         if Path(mount).is_relative_to(target):
             raise RuntimeError(f"mount beneath target: {mount}")
     size = 0
+    newest = 0
     fd = os.open(target, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
     try:
         info = os.fstat(fd)
         if [info.st_dev, info.st_ino] != expected:
             raise RuntimeError("target replaced before measurement")
+        newest = max(info.st_mtime_ns, info.st_ctime_ns)
         def fail(error):
             raise error
         for parent, directories, files, directory_fd in os.fwalk(
@@ -342,9 +346,55 @@ def target_size(slot):
                     raise RuntimeError(f"device boundary in target: {parent}/{name}")
                 if stat.S_ISREG(info.st_mode):
                     size += info.st_blocks * 512
+                newest = max(newest, info.st_mtime_ns, info.st_ctime_ns)
     finally:
         os.close(fd)
-    return size
+    return (size, newest) if activity else size
+
+
+def observe_targets(slots, home, available_bytes, record):
+    """Unexcluded metadata observations, never automatic deletion eligibility (5.5)."""
+    now = time.time_ns()
+    pressure = "YES" if available_bytes < 80_000_000_000 else "NO"
+    for slot in sorted(slots, key=lambda path: path.name):
+        fields = [f"slot {slot.name}: automatic-target PROTECTED", f"pressure-below80GB={pressure}",
+                  "claim=UNKNOWN", "claim-age-seconds=UNKNOWN",
+                  "central-exclusion=UNKNOWN", "terminal-no-resume=UNKNOWN",
+                  "live-process=UNKNOWN", "source=UNKNOWN", "borrower=UNKNOWN",
+                  "deletion=PROTECTED"]
+        completed = newest = None
+        try:
+            builder(slot, home)
+        except (OSError, ValueError, KeyError, RuntimeError) as error:
+            fields.extend(["completion-age-seconds=UNKNOWN", "target-write-age-seconds=UNKNOWN",
+                           "observed-idle-over24h=UNKNOWN", f"reason={json.dumps(str(error))}"])
+            record(" ".join(fields))
+            continue
+        try:
+            value, _ = history(slot, home, observational=True)
+            completed = value["completed_ns"]
+            if completed > now:
+                completed = None
+                raise RuntimeError("completion changed during observation")
+            fields.extend([f"latest={value['latest']}", f"completion-age-seconds={(now - completed) / 1e9:.3f}"])
+            if value["completed_lifetime"] is None:
+                fields.append("lifetime-history=UNKNOWN")
+        except (OSError, ValueError, KeyError, RuntimeError) as error:
+            fields.extend(["completion-age-seconds=UNKNOWN", f"history-reason={json.dumps(str(error))}"])
+        try:
+            size, newest = target_size(slot, activity=True)
+            if newest > now:
+                newest = None
+                raise RuntimeError("target activity is in the future or changed during observation")
+            fields.extend([f"target-write-age-seconds={(now - newest) / 1e9:.3f}",
+                           f"allocated-bytes={size}"])
+        except (OSError, ValueError, KeyError, RuntimeError) as error:
+            fields.extend(["target-write-age-seconds=UNKNOWN", f"target-reason={json.dumps(str(error))}"])
+        age = "UNKNOWN" if completed is None or newest is None else (
+            "YES" if now - max(completed, newest) > 24 * 60 * 60 * 1_000_000_000 else "NO")
+        fields.extend([f"observed-idle-over24h={age}",
+                       "reason=\"metadata snapshot only; no deletion exclusion or finality protocol\""])
+        record(" ".join(fields))
 
 
 def recover(slots, home, below, dry_run, free, record):

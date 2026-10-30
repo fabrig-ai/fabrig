@@ -345,7 +345,67 @@ space exercises pressure and busy checks without deleting. An ordinary
 above-threshold sweep does not inspect services. No heavy floor, admission
 cap, budget, timeout, cache or heavy-state policy changes here.
 
+### 5.5 Automatic policy observation (FIRSTDAYDRYRUN)
+
+The requested policy is generated targets of central-unclaimed numeric builder
+slots idle strictly more than 24 hours, while available space is strictly below
+80,000,000,000 bytes. Automatic destructive enforcement is pending a supported
+central maintenance exclusion and task-finality producer. A central `claim list`
+response describes a snapshot; it grants no deletion exclusion. Ended markers,
+completed lifetimes, zero exits, delivered reports and manual acknowledgements
+cannot substitute for verified terminal/no-resume evidence in automatic mode.
+
+`guard --automatic-targets [observe] [--dry-run]` selects a separate observation
+entrance. Omitting the optional mode means `observe`. It uses the private guard
+log and reports numeric entries individually, including protected unsafe paths.
+Only builder inventory slots on hetzner3/6/7 can have ages observed. It reports
+exact free bytes and the fixed policy pressure boundary, independently of normal
+trim's configurable threshold. Other `--below` values and manual, notice or timer
+actions cannot be combined with this entrance. An ordinary invocation without
+`--automatic-targets` keeps executable trimming and explicit-ack recovery unchanged.
+
+Observations read run metadata, ended/report fingerprints and any completed
+lifetime through the existing history validator without creating maintenance
+state. Completion age describes that evidence; it does not prove finality.
+Target-write age uses the newest mtime or ctime of the target and every descendant
+entry, with mount/device checks and without following symlinks. It does not use
+the root directory's mtime as a shortcut. `observed-idle-over24h` compares the later
+of observed completion and target activity against the strict age boundary.
+Missing, unsafe, future or failed observations print UNKNOWN and the reason.
+These are unlocked metadata snapshots, not maintenance ownership or a guarantee
+against concurrent activity.
+
+Every candidate remains PROTECTED, even with old observations. Central claim and
+claim age, central exclusion, terminal/no-resume, live processes (including cwd,
+fd and maps), source safety and host-wide alternate borrowers are UNKNOWN: this
+entrance neither queries the central service nor asserts proofs it has not
+acquired. No acknowledgement is read as automatic consent. It performs no trim,
+deletion, claim update, lease acquisition, journal update or notice consumption;
+only its private observation log is written. Exit 2 means numeric entries remain
+under the fixed pressure boundary, exit 0 means space is at least that boundary
+or there are no numeric entries, and exit 1 means an observation infrastructure
+or log failure.
+
+`guard --automatic-targets live` always refuses with exit 1 before filesystem
+observation or sweep entry, including when combined with `--dry-run`. It cannot
+activate deletion. Installation and timer behavior do not activate or schedule
+automatic observation. Ops reviews first-day observation lists; a later reviewed
+implementation must supply exclusion throughout deletion, verified finality and
+the remaining safety proofs before live activation can exist. Stopping use of the
+observation option rolls back this observational rollout without changing manual
+recovery. Existing lease, source, history, interruption and acknowledgement guards
+remain authoritative for the separate manual path.
+
+Offline coverage is `python3 -I -B tools/slots/test_recovery.py
+AutomaticObservationTests -v`, followed by the existing slot suites. Fixtures
+cover strict byte/age boundaries, newest descendant change time, missing history,
+ended-but-resumable/question reports, completed lifetimes, changed/unknown claims,
+stale manual consent, protected paths, incompatible actions and live refusal.
+
 ## 4. Later
 
 - Coordination of claims across machines if leads move away from hel8.
 - Finding executable mappings after all descriptors have been closed.
+- Automatic target deletion after central maintenance exclusion, task-finality
+  evidence and all remaining process/source/borrower proofs are implemented and
+  reviewed. Section 5.5 currently supplies FIRSTDAYDRYRUN observations only.
