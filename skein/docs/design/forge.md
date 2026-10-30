@@ -823,7 +823,12 @@ Notes on the table:
   `total_count` of 0 is `None`, whatever the state says. A status's own
   state maps the same way to a `Check`. Forgejo's Actions report each
   job as a status on the commit it ran on, so CI is read from statuses
-  alone, never from a history of runs.
+  alone, never from a history of runs. `Checks` and each requested
+  `Statuses` page resolve every status whose link names a run of the
+  repository's Actions, pending, passed or failed, to the run's and the
+  job's API ids and the job's attempt, two requests per such status; an
+  unresolved link names no job, and a link's index of the job in its run
+  is never taken for its id. `Pull`'s CI fold resolves none.
 - **Job attempts.** An Actions status links to its job's page,
   `<the path of the repository's html_url>/actions/runs/<run
   number>/jobs/<job index>`, relative to the forge's origin, as Forgejo
