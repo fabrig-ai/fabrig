@@ -308,6 +308,7 @@ impl NativeClient {
             | jig_client::Event::Stored
             | jig_client::Event::NotStored
             | jig_client::Event::Up { .. }
+            | jig_client::Event::Full { .. }
             | jig_client::Event::Lost { .. } => None,
         };
         let signing = match &event {
@@ -337,7 +338,9 @@ impl NativeClient {
                     }
                 }
             }),
-            jig_client::Event::Lost { exchange } => self.authentication.remove(exchange).map(|_| Signing::Lost),
+            jig_client::Event::Lost { exchange } | jig_client::Event::Full { exchange, .. } => {
+                self.authentication.remove(exchange).map(|_| Signing::Lost)
+            }
             jig_client::Event::Start { .. }
             | jig_client::Event::StartUnlinked { .. }
             | jig_client::Event::SignIn { .. }

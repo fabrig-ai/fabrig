@@ -197,6 +197,7 @@ impl Host {
                 Above::Lost { exchange } => jig_client::Event::Lost { exchange },
                 Above::Streamed { message } => jig_client::Event::Streamed { message },
                 Above::StreamGone => jig_client::Event::StreamGone,
+                Above::Full { exchange, full } => jig_client::Event::Full { exchange, full },
             });
         }
     }
