@@ -121,26 +121,8 @@ pub fn from_document(bytes: &[u8]) -> llm::Recipe {
     recipe
 }
 #[must_use]
-#[expect(clippy::print_stderr, reason = "B0 recording acceptance measures elapsed time and thread CPU")]
 pub fn run() -> Ran {
-    let clock = skein_shell::Clock::new();
-    let start = clock.now().now;
-    let cpu = thread_cpu();
-    let ran = crate::run_forge_with(fixture(), ForgeRecipe { source: PathBuf::new(), build: recipe }, acts);
-    let elapsed = clock.now().now.saturating_since(start).as_nanos();
-    let cpu = thread_cpu().checked_sub(cpu).expect("monotonic thread CPU");
-    eprintln!("B0 recording: elapsed {elapsed} ns; thread CPU {cpu} ns");
-    ran
-}
-
-fn thread_cpu() -> u64 {
-    std::fs::read_to_string("/proc/thread-self/schedstat")
-        .expect("own thread scheduler accounting")
-        .split_whitespace()
-        .next()
-        .expect("thread runtime")
-        .parse()
-        .expect("thread runtime nanoseconds")
+    crate::run_forge_with(fixture(), ForgeRecipe { source: PathBuf::new(), build: recipe }, acts)
 }
 
 const CHAT_STARTED: usize = 2;
