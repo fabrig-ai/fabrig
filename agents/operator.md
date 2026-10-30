@@ -26,6 +26,8 @@ Provisional, 2026-10-29. One Codex owner on hel8 (`codex-run owner`, at high), p
 
 ## 3. Machines and slots
 
+- Make a successful central slot claim a hard prerequisite to every remote fetch, checkout or precheck. Use a checked subprocess or an explicit fail-fast shell gate; validate the held owner and exact work before remote entry. A refused claim grants no checkout access. A helper's ownership lock is a second guard, not a substitute for the claim (ledger118).
+
 - Keep CPU burners and loaded validation off hel8: use a claimed builder slot through ordinary heavy, checking80GB before every command. On hel8, coordinate full agents gates serially while the shared gate lock is pending; retain existing test budgets. A stopped child does not prove its parent cannot spawn another (ledger93).
 
 - Builders: hetzner3, 6, 7 (slots); hetzner8 runs the gate; hetzner2 was deleted by the director on the user’s instruction at19:38UTC on2026-10-29; its second-prover reservation is released and its private recovery archive remains onhetzner6. Do not query it. Live helper inventories, routing and known-host entries exclude it; historical evidence remains intact. Free disk stays above heavy's floor: a slot is trimmed when its task starts (`codex-run` does it), and an idle slot can be trimmed by hand (`tools/slots/trim`); the operator never frees another's cache, `~/.cargo` or `~/.cache`.
@@ -36,6 +38,8 @@ Provisional, 2026-10-29. One Codex owner on hel8 (`codex-run owner`, at high), p
 - Shares and the pool are in `tools/slots/hosts`; leads claim pool slots themselves. A lead's question about a slot or a disk goes to the operator, who claims a freed pool slot for the first lead waiting, or lends a share's slot with its owner's agreement. Slots are added where disk allows: heavy admits at most three builds at once on a 15 GB builder (`HEAVY_BUILD_SLOTS=3` in `~/src/rust/tmp/machine.env`), so a slot past the third costs a wait in heavy, never memory, while its Codex run thinks.
 
 ## 4. Tools
+
+- Git checkouts may borrow objects through `objects/info/alternates`. Before retiring an object store, identify its borrowers and make their reachable object closure independent. Preserve refs and alternate metadata; verify all refs' trees and blobs, since a readable HEAD commit alone is insufficient. Repair a missing borrowed store in an owned clone before removing its stale pointer, and verify closure again without pruning refs or objects (ledger119).
 
 - A tool moves into `tools/<name>/` with its design and tests, then joins `tools/installed`; `tools/install` on each machine links `~/.local/bin/<tool>` to `~/src/fabrig/main`. Runs already in flight keep the path they started with.
 - A delegated tool task names its physical hostname and operator address separately; a post address such as `ops@hel8` is not a literal host restriction. State explicitly which local offline checks are authorized, while retaining the no-build rule on the session host.
