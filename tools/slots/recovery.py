@@ -516,6 +516,8 @@ def source_preservation(slot):
             if parent == slot and name == "target":
                 raise RuntimeError("target is not a directory")
             file = L["fingerprint"](path)
+            if file["identity"][0] != slot.stat().st_dev:
+                raise RuntimeError(f"cross-device source file: {path}")
             files.append(file)
             inodes.append(file["identity"][:2])
     return {"sha256": digest([sorted(directories), sorted(files, key=lambda file: file["path"])]), "files": len(files),
@@ -560,10 +562,14 @@ def borrowers(slot, home):
         gitdirs = [parent / ".git"] if ".git" in directories else []
         if "HEAD" in files and "objects" in directories and "refs" in directories:
             gitdirs.append(parent)
+        # Orphaned stores and repositories with other ref layouts still have
+        # standard objects/info/alternates and must not escape the host scan.
+        if parent.name == "objects" and "info" in directories:
+            inspect_objects(parent, set())
         for gitdir in gitdirs:
             inspect_objects(gitdir / "objects", set())
-        # Object stores cannot themselves contain another managed checkout.
-        directories[:] = [name for name in directories if name != ".git"]
+        # Stored submodule repositories beneath .git/modules can also borrow,
+        # even when their worktrees no longer exist. Inspect Git directories too.
     return sorted(observations, key=lambda file: file["path"])
 
 

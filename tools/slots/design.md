@@ -468,7 +468,9 @@ Automatic snapshots add the following stricter proofs to the manual snapshot:
   refuse; process environments and descriptor contents are never read.
 - All Fabrig-managed clones, bare repositories and scratch under
   `~/src/fabrig/` are inspected for object-store alternates, including recursive
-  alternate chains. Any borrower into target, cyclic/external/unknown store,
+  alternate chains, dormant repositories beneath `.git/modules` and orphaned
+  `objects/info/alternates` stores without a normal ref layout. Any borrower into
+  target, cyclic/external/unknown store,
   symlink directory or linked checkout with an unrecognized gitdir refuses.
   Environment-based alternate borrowing also refuses. Other checkouts receive
   no Git commands or mutations. Unrecognized layouts remain protected.

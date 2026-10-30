@@ -1112,6 +1112,36 @@ class AutomaticClaimTests(unittest.TestCase):
         self.assertIn("object-store borrower", self.run_auto(slot))
         self.assertTrue((slot / "target/cache").exists())
 
+    def test_dormant_submodule_object_store_protects_target(self):
+        slot = self.ready()
+        stored = self.home / "src/fabrig/foreign/.git/modules/dormant"
+        (stored / "objects/info").mkdir(parents=True)
+        (stored / "refs").mkdir()
+        (stored / "HEAD").write_text("ref: refs/heads/fixture\n")
+        (stored / "objects/info/alternates").write_text(str(slot / "target") + "\n")
+        self.assertIn("object-store borrower", self.run_auto(slot))
+        self.assertTrue((slot / "target/cache").exists())
+
+    def test_orphaned_object_store_without_refs_is_still_a_borrower(self):
+        slot = self.ready()
+        alternate = self.home / "src/fabrig/orphaned/objects/info/alternates"
+        alternate.parent.mkdir(parents=True)
+        alternate.write_text(str(slot / "target") + "\n")
+        self.assertIn("object-store borrower", self.run_auto(slot))
+        self.assertTrue((slot / "target/cache").exists())
+
+    def test_source_file_device_boundary_is_unknown_preservation(self):
+        slot = self.ready()
+        real = L["fingerprint"]
+        def other_device(path):
+            value = real(path)
+            if Path(path) == slot / "source":
+                value["identity"][0] += 1
+            return value
+        with patch.dict(L, fingerprint=other_device):
+            self.assertIn("cross-device source file", self.run_auto(slot))
+        self.assertTrue((slot / "target/cache").exists())
+
     def test_source_change_before_mutation_blocks_and_after_mutation_retains_claim(self):
         slot = self.ready()
         def edit(line):
