@@ -424,7 +424,9 @@ impl Core {
         self.start.consumed = true;
         match self.start.mode {
             crate::start::StartMode::Default => {
-                if !self.task_row_admitted(row) { return false; }
+                if !self.task_row_admitted(row) {
+                    return false;
+                }
             }
             crate::start::StartMode::LoadAndLink => {
                 assert!(self.start.phase == Some(crate::start::Phase::LoadCore), "task rows load before Link");
@@ -498,7 +500,9 @@ impl Core {
                 {
                     return false;
                 }
-                if task.attempt > deployment.runs && matches_agent(task.executor) { return false; }
+                if task.attempt > deployment.runs && matches_agent(task.executor) {
+                    return false;
+                }
                 true
             }
             tasks::Stored::Ledger(_) | tasks::Stored::Writer(_) | tasks::Stored::Pool(_) => true,

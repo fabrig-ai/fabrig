@@ -34,7 +34,9 @@ impl Core {
                 }
                 self.people.start_sweep();
                 self.restoring_proofs = skein_lib::Map::with_capacity(self.restoring_proofs.capacity());
-                if out.len() != before { return self.start_commit(Phase::Sweep); }
+                if out.len() != before {
+                    return self.start_commit(Phase::Sweep);
+                }
                 Phase::Sweep
             }
             Phase::Sweep => unreachable!("sweep completes through Finished"),
@@ -75,7 +77,9 @@ impl Core {
             SweepInput::Record(record) => {
                 let mut child = Queue::uncapped();
                 self.people.start_sweep_row(
-                    &Env { now: env.now, wall: self.start.at, limits: env.limits.people }, &record, &mut child,
+                    &Env { now: env.now, wall: self.start.at, limits: env.limits.people },
+                    &record,
+                    &mut child,
                 );
                 if child.is_empty() {
                     return Action::Idle;
@@ -102,7 +106,10 @@ impl Core {
         self.start.waiting = None;
         match continuation.phase {
             Phase::AdoptRuns => {
-                assert!(self.people.start_complete(&Env { now: env.now, wall: env.wall, limits: env.limits.people }));
+                assert!(
+                    self.people.start_complete(&Env { now: env.now, wall: env.wall, limits: env.limits.people }),
+                    "linked people complete after durable Wires"
+                );
                 let _adoption = self.start_ask(Phase::AdoptRuns);
                 for _ in 0..self.start.held.len() {
                     let request = self.start.held.pop().expect("start output held through Wires");
@@ -110,21 +117,30 @@ impl Core {
                 }
                 let pending = core::mem::replace(&mut self.start.waiting_tasks, Queue::uncapped());
                 crate::routing::start_task_outputs(self, env, pending, out);
-                let crate::Requests::Out(mut activated) = crate::step(self, env, crate::Event::Tasks(tasks::Event::Restored));
+                let crate::Requests::Out(mut activated) =
+                    crate::step(self, env, crate::Event::Tasks(tasks::Event::Restored));
                 for _ in 0..activated.len() {
                     let request = activated.pop().expect("bounded restored activation outputs");
                     out.push(request);
                 }
             }
             Phase::Sweep => {}
-            Phase::LoadCore | Phase::LoadInbox | Phase::RestoreConnector { .. } | Phase::Link
-            | Phase::Switch | Phase::Wires | Phase::ReadAfresh { .. } | Phase::SettleOutbox { .. } | Phase::Open => {
+            Phase::LoadCore
+            | Phase::LoadInbox
+            | Phase::RestoreConnector { .. }
+            | Phase::Link
+            | Phase::Switch
+            | Phase::Wires
+            | Phase::ReadAfresh { .. }
+            | Phase::SettleOutbox { .. }
+            | Phase::Open => {
                 unreachable!("phase has no durable continuation")
             }
         }
         self.start_ask(continuation.phase)
     }
 
+    #[expect(clippy::manual_map, reason = "the step-code subset uses exhaustive matches")]
     pub(crate) fn start_collect_failure(&mut self) {
         if self.start.phase.is_none() || self.start.failure.is_some() {
             return;
@@ -135,7 +151,9 @@ impl Core {
         } else if let Some(failure) = self.tasks.restore_failure() {
             let key = Key::Tasks(failure.key);
             Some(match failure.cause {
-                tasks::RestoreCause::Bound { which, held, limit } => Failure::LiveSet { set: LiveSet::TasksBound(which), key, held, limit },
+                tasks::RestoreCause::Bound { which, held, limit } => {
+                    Failure::LiveSet { set: LiveSet::TasksBound(which), key, held, limit }
+                }
                 tasks::RestoreCause::Accounting => Failure::Accounting { key },
                 tasks::RestoreCause::LlmChoice { .. } => Failure::LlmChoice { key },
             })
@@ -143,13 +161,21 @@ impl Core {
             match request {
                 crate::RestartRequest::Settings { failure, changed } => Some(Failure::Settings { failure, changed }),
                 crate::RestartRequest::ProjectPolicy { project } => Some(Failure::ProjectPolicy { project }),
-                crate::RestartRequest::HeldPastLimit { which, held, limit } => Some(Failure::HeldPastLimit { which, held, limit }),
+                crate::RestartRequest::HeldPastLimit { which, held, limit } => {
+                    Some(Failure::HeldPastLimit { which, held, limit })
+                }
                 crate::RestartRequest::UnheldRevision { task, revision } => {
-                    assert!(self.held(revision), "{:?} links missing settings revision {revision}", Key::Tasks(tasks::Key::Live(task)));
+                    assert!(
+                        self.held(revision),
+                        "{:?} links missing settings revision {revision}",
+                        Key::Tasks(tasks::Key::Live(task))
+                    );
                     None
                 }
-                crate::RestartRequest::Unresolved { .. } | crate::RestartRequest::Step(_)
-                | crate::RestartRequest::Idle | crate::RestartRequest::Refused { .. } => None,
+                crate::RestartRequest::Unresolved { .. }
+                | crate::RestartRequest::Step(_)
+                | crate::RestartRequest::Idle
+                | crate::RestartRequest::Refused { .. } => None,
             }
         } else {
             match self.accounts.restore_limit() {
@@ -175,7 +201,12 @@ impl Core {
             return;
         }
         let mut child = Queue::uncapped();
-        tasks::step(&mut self.tasks, &Env { now: env.now, wall: env.wall, limits: env.limits.tasks }, tasks::Event::Check, &mut child);
+        tasks::step(
+            &mut self.tasks,
+            &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
+            tasks::Event::Check,
+            &mut child,
+        );
         self.start_collect_failure();
         if self.start.failure.is_some() {
             return;
@@ -183,14 +214,19 @@ impl Core {
         self.start_cross_links();
         let crate::Requests::Out(mut accounts) = crate::want_accounts(self, env);
         self.start_collect_failure();
-        if self.start.failure.is_some() { return; }
+        if self.start.failure.is_some() {
+            return;
+        }
         for _ in 0..accounts.len() {
             let request = accounts.pop().expect("accounts restore writes");
             out.push(request);
         }
         for _ in 0..child.len() {
             let request = child.pop().expect("bounded derived wait writes");
-            #[expect(clippy::wildcard_enum_match_arm, reason = "Check links and publishes derived wait state without activation")]
+            #[expect(
+                clippy::wildcard_enum_match_arm,
+                reason = "Check links and publishes derived wait state without activation"
+            )]
             match request {
                 tasks::Request::Save { record } => out.push(Request::Write(Write::Save(crate::Record::Tasks(record)))),
                 tasks::Request::Released { revision } => self.release_revision(env, revision, out),
@@ -210,6 +246,4 @@ impl Core {
         self.start.waiting = Some(continuation.clone());
         Action::Commit(continuation)
     }
-
-
 }

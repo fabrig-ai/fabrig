@@ -1,6 +1,6 @@
 //! Load, link and sweep before durable opening (jig/docs/design/domain/engine.md, 6).
-mod script;
 mod links;
+mod script;
 use crate::{Core, HeldLimit, Key, Wall, settings};
 use jig_domain_accounts as accounts;
 use jig_domain_people as people;
@@ -73,6 +73,10 @@ pub enum Action {
 }
 
 #[derive(Debug)]
+#[expect(
+    clippy::large_enum_variant,
+    reason = "the approved sweep input moves one decoded row without another allocation"
+)]
 pub enum SweepInput {
     Record(people::Stored),
     Finished,
@@ -101,8 +105,15 @@ pub(crate) struct Script {
 impl Script {
     pub(crate) fn new() -> Self {
         Self {
-            mode: StartMode::Default, consumed: false, phase: None, failure: None, missing: None,
-            at: Wall::EPOCH, sequence: 0, waiting: None, held: crate::Queue::uncapped(),
+            mode: StartMode::Default,
+            consumed: false,
+            phase: None,
+            failure: None,
+            missing: None,
+            at: Wall::EPOCH,
+            sequence: 0,
+            waiting: None,
+            held: crate::Queue::uncapped(),
             waiting_tasks: crate::Queue::uncapped(),
         }
     }
@@ -112,8 +123,15 @@ impl Core {
     pub(crate) fn start_runtime_input(&mut self) {
         self.start.consumed = true;
         match self.start.phase {
-            Some(Phase::LoadCore | Phase::LoadInbox | Phase::RestoreConnector { .. } | Phase::Link
-                | Phase::Sweep | Phase::Switch | Phase::Wires) => {
+            Some(
+                Phase::LoadCore
+                | Phase::LoadInbox
+                | Phase::RestoreConnector { .. }
+                | Phase::Link
+                | Phase::Sweep
+                | Phase::Switch
+                | Phase::Wires,
+            ) => {
                 unreachable!("runtime input requires durable Wires")
             }
             Some(Phase::AdoptRuns | Phase::ReadAfresh { .. } | Phase::SettleOutbox { .. } | Phase::Open) | None => {}
@@ -121,9 +139,14 @@ impl Core {
     }
 
     pub(crate) fn start_room(&mut self, set: LiveSet, key: Key, held: u32, limit: u32) -> bool {
-        if held < limit { return true; }
+        if held < limit {
+            return true;
+        }
         let _refused = self.start_refuse(Failure::LiveSet {
-            set, key, held: u64::from(held).checked_add(1).expect("bounded table occupancy"), limit: u64::from(limit),
+            set,
+            key,
+            held: u64::from(held).checked_add(1).expect("bounded table occupancy"),
+            limit: u64::from(limit),
         });
         false
     }

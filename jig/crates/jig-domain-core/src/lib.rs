@@ -519,12 +519,19 @@ impl Core {
         self.start.consumed = true;
         match self.start.mode {
             start::StartMode::Default => {
-                if !self.call_admitted(key) { return false; }
+                if !self.call_admitted(key) {
+                    return false;
+                }
             }
             start::StartMode::LoadAndLink => {
                 assert!(self.start.phase == Some(start::Phase::LoadCore), "calls load before Link");
                 assert!(!self.call_parts.contains_key(&key), "duplicate call {:?}", Key::Core(CoreKey::Call(key)));
-                if !self.start_room(start::LiveSet::Calls, Key::Core(CoreKey::Call(key)), self.call_parts.len(), self.call_parts.capacity()) {
+                if !self.start_room(
+                    start::LiveSet::Calls,
+                    Key::Core(CoreKey::Call(key)),
+                    self.call_parts.len(),
+                    self.call_parts.capacity(),
+                ) {
                     return false;
                 }
             }
@@ -534,7 +541,7 @@ impl Core {
 
     fn call_admitted(&self, key: CallKey) -> bool {
         let deployment = self.counters.deployment();
-        let valid = key.task != 0
+        key.task != 0
             && key.attempt != 0
             && key.completion != 0
             && key.task <= deployment.tasks
@@ -542,8 +549,7 @@ impl Core {
             && match self.proofs.get(&key.task) {
                 Some(proof) => proof.attempt >= key.attempt,
                 None => false,
-            };
-        valid
+            }
     }
 
     /// Forget named calls whose answer entered a committed later turn. The
@@ -897,12 +903,13 @@ impl Core {
 
     /// Restore one current claim only when it matches the live task's
     /// transient correlation. An archive row can never enter this live map.
-    #[expect(clippy::manual_let_else, reason = "the step-code subset uses exhaustive matches")]
     pub fn restore_proof(&mut self, proof: RunProof, result_bytes: u32) -> bool {
         self.start.consumed = true;
         match self.start.mode {
             start::StartMode::Default => {
-                if !self.proof_admitted(&proof, result_bytes) { return false; }
+                if !self.proof_admitted(&proof, result_bytes) {
+                    return false;
+                }
             }
             start::StartMode::LoadAndLink => {
                 assert!(self.start.phase == Some(start::Phase::LoadCore), "proofs load before Link");
@@ -921,14 +928,20 @@ impl Core {
                     bytes = u64::try_from(proof.credentials.len()).expect("allocated credentials fit u64");
                     limit = u64::from(self.accounts.credential_limit());
                 }
-                if bytes <= limit {
-                    if let Some(terminal) = &proof.terminal {
-                        bytes = tasks::terminal_bytes(&terminal.end).expect("allocated terminal has a representable measure");
-                        limit = u64::from(result_bytes).checked_mul(2).expect("result bound");
-                    }
+                if bytes <= limit
+                    && let Some(terminal) = &proof.terminal
+                {
+                    bytes =
+                        tasks::terminal_bytes(&terminal.end).expect("allocated terminal has a representable measure");
+                    limit = u64::from(result_bytes).checked_mul(2).expect("result bound");
                 }
                 if bytes > limit {
-                    let _refused = self.start_refuse(start::Failure::LiveSet { set: start::LiveSet::RunProofs, key, held: bytes, limit });
+                    let _refused = self.start_refuse(start::Failure::LiveSet {
+                        set: start::LiveSet::RunProofs,
+                        key,
+                        held: bytes,
+                        limit,
+                    });
                     return false;
                 }
             }
@@ -936,6 +949,7 @@ impl Core {
         self.proofs.insert(proof.task, proof).is_ok()
     }
 
+    #[expect(clippy::manual_let_else, reason = "the step-code subset uses exhaustive matches")]
     fn proof_admitted(&mut self, proof: &RunProof, result_bytes: u32) -> bool {
         let expected = match self.restoring_proofs.remove(&proof.task) {
             Some(expected) => expected,

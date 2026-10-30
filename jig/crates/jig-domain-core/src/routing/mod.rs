@@ -317,18 +317,31 @@ impl Core {
 /// Route one child event and each sibling continuation within one core decision.
 pub fn step(core: &mut Core, env: &Env<Limits>, event: Event) -> Requests {
     core.start.consumed = true;
-    if core.start_failure().is_some() { return Requests::Out(Queue::uncapped()); }
+    if core.start_failure().is_some() {
+        return Requests::Out(Queue::uncapped());
+    }
     if let Some(phase) = core.start_phase() {
         use crate::start::Phase;
         match phase {
-            Phase::LoadCore | Phase::LoadInbox | Phase::RestoreConnector { .. } | Phase::Link
-            | Phase::Sweep | Phase::Switch | Phase::Wires => {
-                #[expect(clippy::wildcard_enum_match_arm, reason = "the closed start gate accepts loading inputs; serving inputs require durable Wires")]
+            Phase::LoadCore
+            | Phase::LoadInbox
+            | Phase::RestoreConnector { .. }
+            | Phase::Link
+            | Phase::Sweep
+            | Phase::Switch
+            | Phase::Wires =>
+            {
+                #[expect(
+                    clippy::wildcard_enum_match_arm,
+                    reason = "the closed start gate accepts loading inputs; serving inputs require durable Wires"
+                )]
                 match &event {
                     Event::Account(accounts::Event::Want) => return want_accounts(core, env),
                     Event::Account(accounts::Event::Restore { .. })
                     | Event::People(people::Event::Restore { .. })
-                    | Event::Tasks(tasks::Event::Restore { .. }) => assert!(phase == Phase::LoadCore, "rows load before Link"),
+                    | Event::Tasks(tasks::Event::Restore { .. }) => {
+                        assert!(phase == Phase::LoadCore, "rows load before Link");
+                    }
                     Event::SettingsCommit { .. } => assert!(phase == Phase::Sweep, "settings cleanup follows Link"),
                     Event::EffectConnector(crate::connector::Event::Resource { .. }) => {
                         assert!(matches_restore_connector(phase), "connector resources load before Link");
@@ -406,14 +419,25 @@ pub fn want_accounts(core: &mut Core, env: &Env<Limits>) -> Requests {
 fn matches_restore_connector(phase: crate::start::Phase) -> bool {
     match phase {
         crate::start::Phase::RestoreConnector { .. } => true,
-        crate::start::Phase::LoadCore | crate::start::Phase::LoadInbox | crate::start::Phase::Link
-        | crate::start::Phase::Sweep | crate::start::Phase::Switch | crate::start::Phase::Wires
-        | crate::start::Phase::AdoptRuns | crate::start::Phase::ReadAfresh { .. }
-        | crate::start::Phase::SettleOutbox { .. } | crate::start::Phase::Open => false,
+        crate::start::Phase::LoadCore
+        | crate::start::Phase::LoadInbox
+        | crate::start::Phase::Link
+        | crate::start::Phase::Sweep
+        | crate::start::Phase::Switch
+        | crate::start::Phase::Wires
+        | crate::start::Phase::AdoptRuns
+        | crate::start::Phase::ReadAfresh { .. }
+        | crate::start::Phase::SettleOutbox { .. }
+        | crate::start::Phase::Open => false,
     }
 }
 
-pub(crate) fn start_task_outputs(core: &mut Core, env: &Env<Limits>, child: Queue<tasks::Request>, out: &mut Queue<Request>) {
+pub(crate) fn start_task_outputs(
+    core: &mut Core,
+    env: &Env<Limits>,
+    child: Queue<tasks::Request>,
+    out: &mut Queue<Request>,
+) {
     let Requests::Out(mut routed) = tag_tasks(core, env, child, false, false, false);
     for _ in 0..routed.len() {
         let request = routed.pop().expect("bounded restored task outputs");
