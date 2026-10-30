@@ -205,6 +205,14 @@ fn render(outcome: &Outcome, namespace: &tools::Namespace, output: &mut Sink) ->
             }
             false
         }
+        Outcome::Removed => {
+            output.put(b"removed")?;
+            false
+        }
+        Outcome::NotEmpty => {
+            output.put(b"directory is not empty")?;
+            true
+        }
         Outcome::Edited { replaced } => {
             output.put(b"replaced ")?;
             output.number(u64::from(*replaced))?;

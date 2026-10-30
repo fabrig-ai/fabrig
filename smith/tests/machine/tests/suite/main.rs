@@ -4,6 +4,7 @@ static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Co
 mod jobs;
 mod listing;
 mod memory;
+mod removal;
 mod simulated_jobs;
 mod stories;
 

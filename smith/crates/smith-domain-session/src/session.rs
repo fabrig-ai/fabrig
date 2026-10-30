@@ -2811,7 +2811,9 @@ fn outcome_cost(outcome: &Outcome) -> Option<u64> {
             }
             tools::Mismatch::NoMatch | tools::Mismatch::Unchanged => Some(0),
         },
-        Outcome::Written { .. }
+        Outcome::Removed
+        | Outcome::NotEmpty
+        | Outcome::Written { .. }
         | Outcome::Edited { .. }
         | Outcome::NotGranted
         | Outcome::TooLong

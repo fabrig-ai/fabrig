@@ -165,6 +165,7 @@ pub fn perform(checkout: &mut fake::Checkout, op: Op) -> Done {
                 Err(failure) => done(failure),
             }
         }
+        Op::Remove { .. } => panic!("fake checkout removal awaits its upstream implementation"),
         Op::Store { at, content, expect } => {
             let expect = match expect {
                 Expect::Absent => fake::Expect::Absent,
@@ -219,6 +220,8 @@ pub fn cut(done: Done, ran: u128, whole: u128) -> Done {
         | Done::Failed { .. }
         | Done::Loaded { .. }
         | Done::Listed { .. }
+        | Done::Removed
+        | Done::NotEmpty
         | Done::Stored { .. }
         | Done::Conflict { .. }
         | Done::NotFile

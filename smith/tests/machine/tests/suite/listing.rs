@@ -5,7 +5,7 @@ use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use smith_domain::{run, tools};
 use smith_protocol_machine::{Below, BelowEvent, Component, FromDomain, Limits, ToDomain};
 
-fn limits() -> Limits {
+pub(super) fn limits() -> Limits {
     Limits {
         operations: 2,
         roots: 1,
@@ -74,6 +74,7 @@ fn listed(output: &[u8], depth: tools::Depth, maximum: u32, bytes: u64, glob: Op
             owner,
             root: Token::new(10),
             path: Box::from(b"src".as_slice()),
+            no_follow: false,
             deadline: Time::from_nanos(u64::MAX)
         })
     );
@@ -106,6 +107,7 @@ fn listed(output: &[u8], depth: tools::Depth, maximum: u32, bytes: u64, glob: Op
             }
         }
         Below::File { .. }
+        | Below::Remove { .. }
         | Below::CancelFile { .. }
         | Below::OpenRead { .. }
         | Below::OpenDirectory { .. }
@@ -216,6 +218,7 @@ fn native_output(root: &std::path::Path) -> std::process::Output {
     let spawn = match down.pop().expect("native listing") {
         Below::Spawn { spawn, .. } => spawn,
         Below::File { .. }
+        | Below::Remove { .. }
         | Below::CancelFile { .. }
         | Below::OpenRead { .. }
         | Below::OpenDirectory { .. }

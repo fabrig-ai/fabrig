@@ -223,6 +223,7 @@ fn saturated_configured_environments_and_command_check_copies_fit_the_machine_bo
                     drop(spawn);
                 }
                 other @ (Below::File { .. }
+                | Below::Remove { .. }
                 | Below::CancelFile { .. }
                 | Below::OpenRead { .. }
                 | Below::OpenDirectory { .. }

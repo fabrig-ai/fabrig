@@ -151,6 +151,7 @@ pub(crate) fn call(
         call @ (Call::Read { .. }
         | Call::List { .. }
         | Call::Search { .. }
+        | Call::Remove { .. }
         | Call::Write { .. }
         | Call::Edit { .. }
         | Call::Shell { .. }) => call,
@@ -369,7 +370,7 @@ fn admit(kit: &Kit, call: Call, deadline: Time, env: &Env<Limits>) -> Result<Adm
             Work::Search { place: located.place, pattern, glob }
         }
         Call::Write { path, content } => {
-            let located = writable(&kit.checkout, &path, limits)?;
+            let located = writable(&kit.checkout, &path, limits, false)?;
             fits(&content, limits)?;
             // As the kit knows the file: at the version its LLM read, or
             // absent.
@@ -379,8 +380,16 @@ fn admit(kit: &Kit, call: Call, deadline: Time, env: &Env<Limits>) -> Result<Adm
             };
             Work::Write { place: located.place, content, expect }
         }
+        Call::Remove { path } => {
+            let located = writable(&kit.checkout, &path, limits, true)?;
+            let expect = match kit.knowledge.version(&located.place) {
+                Some(version) => Expect::Is { version },
+                None => Expect::Absent,
+            };
+            Work::Remove { place: located.place, expect }
+        }
         Call::Edit { path, edits } => {
-            let located = writable(&kit.checkout, &path, limits)?;
+            let located = writable(&kit.checkout, &path, limits, false)?;
             replacements_fit(&edits, limits)?;
             Work::Edit { place: located.place, edits }
         }
@@ -430,8 +439,11 @@ pub(crate) fn ready(kit: &Kit, deadline: Time, env: &Env<Limits>) -> Result<(), 
 
 /// Where `path` is, if the kit may write there: in a writable repository, and
 /// not in its `.git`.
-fn writable(checkout: &Checkout, path: &Path, limits: &Limits) -> Result<Located, Outcome> {
+fn writable(checkout: &Checkout, path: &Path, limits: &Limits, removing: bool) -> Result<Located, Outcome> {
     let located = place(checkout, path, limits.path_bytes)?;
+    if removing && located.place.path.is_empty() {
+        return Err(Outcome::Protected);
+    }
     file(&located.place)?;
     if !located.writable {
         return Err(Outcome::ReadOnly { path: authority::resolved(checkout, &located.place) });

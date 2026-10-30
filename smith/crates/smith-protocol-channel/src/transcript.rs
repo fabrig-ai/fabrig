@@ -351,6 +351,8 @@ fn outcome(
             let hits = found_piece(found.hits(), limits, search_hits)?;
             tools::Outcome::Found { hits, more: found.more(), timed_out: found.timed_out() }
         }
+        wire::Outcome::Removed => tools::Outcome::Removed,
+        wire::Outcome::NotEmpty => tools::Outcome::NotEmpty,
         wire::Outcome::Written(written) => tools::Outcome::Written { created: written.created() },
         wire::Outcome::Edited(edited) => tools::Outcome::Edited { replaced: edited.replaced() },
         wire::Outcome::Exited(command) => tools::Outcome::Exited {

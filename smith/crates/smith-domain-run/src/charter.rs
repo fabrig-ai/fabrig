@@ -512,7 +512,7 @@ pub(crate) fn len(bytes: &[u8]) -> Option<u64> {
 }
 
 /// Smith-owned tool names that a host declaration cannot take (domain/run.md, section 5.1).
-pub(crate) const RESERVED_NAMES: [&[u8]; 11] = [
+pub(crate) const RESERVED_NAMES: [&[u8]; 12] = [
     b"finish",
     b"deliver",
     b"wait",
@@ -521,6 +521,7 @@ pub(crate) const RESERVED_NAMES: [&[u8]; 11] = [
     b"list",
     b"search",
     b"write",
+    b"remove",
     b"edit",
     b"shell",
     b"permission_prompt",

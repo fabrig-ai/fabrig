@@ -208,6 +208,7 @@ mod memory {
             owner: Token::new(u64::from(index) + 10),
             root: Token::new(1),
             path: b".".as_slice().into(),
+            no_follow: false,
             deadline: Time::from_nanos(100),
         }
     }

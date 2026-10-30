@@ -205,6 +205,10 @@ pub enum Verdict {
     Found,
     /// The `written` classification.
     Written,
+    /// One file or empty directory was removed.
+    Removed,
+    /// A directory removal found entries and changed nothing.
+    NotEmpty,
     /// The `edited` classification.
     Edited,
     /// The `exited` classification.
