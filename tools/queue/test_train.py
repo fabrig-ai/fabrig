@@ -94,6 +94,8 @@ class PreparationTests(fixture.TrainFixture, unittest.TestCase):
 
 
 
+    # Exercise generic suite certificates independently of the gate's skip policy.
+    @patch.object(mq, "gate_tools_required", lambda paths: True)
     def test_tools_evidence_all_suites_and_red_prefix_nextest_four(self):
         self.branch("a", {"tools/test_a.py": "", "tools/test_b.py": "", "core/src/lib.rs": "code"})
         a, record = self.admit()

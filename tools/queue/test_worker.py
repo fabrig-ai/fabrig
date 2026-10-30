@@ -137,9 +137,8 @@ class WorkerTests(unittest.TestCase):
         self.assertEqual(result["before"], result["after"])
         self.assertEqual(result["before"]["head"], request["candidate"])
         self.assertEqual(result["before"]["tree"], mq.git(self.prep, "rev-parse", "HEAD^{tree}").stdout.strip())
-        self.assertEqual([s["name"] for s in result["steps"]], ["tools"])
-        self.assertEqual(result["steps"][0]["suites"][0]["command"],
-                         ["python3", "-I", "-B", "tools/test_fixture.py"])
+        self.assertEqual(result["steps"], [])
+        self.assertTrue(mq.tools_required(["tools/test_fixture.py"]))
         self.assertEqual(mq.git(self.origin, "show-ref").stdout, origin_refs)
         self.assertEqual(mq.git(self.repo, "for-each-ref", "refs/remotes/").stdout, remote_refs)
         self.assertEqual(self.tip(self.repo), request["candidate"])
@@ -193,12 +192,13 @@ class WorkerTests(unittest.TestCase):
         result = self.run_job(self.request(), metadata_loader=lambda repo: self.fail("metadata for docs"))
         self.assertEqual((result["outcome"], result["plan"], result["steps"]), ("green", [], []))
 
-    def test_candidate_tools_suites_use_literal_paths_and_pinned_branch_names(self):
+    def test_candidate_tools_paths_and_pinned_branch_names_skip_suites(self):
         request = self.request({"tools/test_$(literal);name.py": "print('literal suite path')\n"})
         request["branches"][0]["name"] = "ready/ops/$(literal);name"
         result = self.run_job(request, runner=subprocess.run)
         self.assertEqual(result["outcome"], "green", result)
-        self.assertIn("literal suite path", Path(result["log"]["path"]).read_text())
+        self.assertEqual(result["plan"], [])
+        self.assertEqual(Path(result["log"]["path"]).read_text(), "")
         self.assertEqual(result["requested"]["branches"], request["branches"])
 
     def test_idle_full_checks_accept_parent_equal_candidate_with_no_inputs(self):
@@ -216,7 +216,7 @@ class WorkerTests(unittest.TestCase):
         self.commit("existing suite")
         self.parent = self.tip()
         request = self.request({"core/src/lib.rs": "// full Rust check\n"}, selected="full")
-        with patch.object(mq, "tools_required", wraps=mq.tools_required) as required:
+        with patch.object(mq, "gate_tools_required", wraps=mq.gate_tools_required) as required:
             result = self.run_job(request)
         required.assert_called_with(["core/src/lib.rs"])
         self.assertEqual(result["outcome"], "green", result)
@@ -232,7 +232,7 @@ class WorkerTests(unittest.TestCase):
         self.assert_infra(self.run_job(request), "plan mismatch")
         self.assertEqual(self.calls, [])
 
-    def test_plan_uses_shared_path_predicate_independent_of_selection(self):
+    def test_plan_uses_shared_gate_predicate_independent_of_selection(self):
         self.write("tools/test_existing.py", "")
         self.commit("existing suite")
         for selected in ("docs", ["core"], "full"):
@@ -240,10 +240,11 @@ class WorkerTests(unittest.TestCase):
                           ["agents/policy.md"], ["Cargo.toml"], ["Cargo.lock"],
                           [".config/nextest.toml"], ["core/src/lib.rs"]):
                 with self.subTest(selected=selected, paths=paths), patch.object(
-                        mq, "tools_required", wraps=mq.tools_required) as required:
+                        mq, "gate_tools_required", wraps=mq.gate_tools_required) as required:
                     plan = worker.check_plan(self.prep, selected, paths, self.metadata(self.prep))
                     required.assert_called_once_with(paths)
-                    self.assertEqual(any(step["name"] == "tools" for step in plan),
+                    self.assertFalse(any(step["name"] == "tools" for step in plan))
+                    self.assertEqual(mq.tools_required(paths),
                                      any(path.startswith("tools/") for path in paths))
                     if selected == "full":
                         self.assertEqual([step["name"] for step in plan if step["name"] != "tools"],
@@ -261,6 +262,8 @@ class WorkerTests(unittest.TestCase):
             argv, 4 if "nextest" in argv else 0))
         self.assertEqual(result["outcome"], "green", result)
 
+    # Retain generic suite-execution/evidence coverage independently of gate policy.
+    @patch.object(mq, "gate_tools_required", lambda paths: True)
     def test_tools_timeout_is_red_runs_all_suites_and_missing_interpreter_is_infra(self):
         request = self.request({"tools/test_first.py": "", "tools/test_second.py": ""})
         def runner(argv, **kwargs):
@@ -399,6 +402,7 @@ class WorkerTests(unittest.TestCase):
         self.assertTrue(result["reconciliation_required"])
         self.assertIn("skipped", result["target_cleanup"])
 
+    @patch.object(mq, "gate_tools_required", lambda paths: True)
     def test_missing_or_corrupt_step_and_suite_evidence_cannot_certify_green(self):
         request = self.request({"tools/test_fixture.py": ""})
         for label, checker in [("empty", lambda *a, **kw: []),

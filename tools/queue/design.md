@@ -6,12 +6,12 @@ Provisional, 2026-10-28. How a branch reaches `main`: a script on the gate machi
 
 - **Input:** remote branches `ready/<lead>/<task>` on `origin`, each pushed by its lead.
 - **A batch:** from `origin/main`, the ready branches not yet tried at their current tip, oldest tip first, at most `batch` (8) of them, each merged with `git merge --no-ff -m "Merge <branch name>"`; ratchet-only conflicts are resolved by recounting against HEAD (section 3.3); any other conflict is aborted, reported, and left out. After merging, the queue writes and commits lower old-form baselines for touched trees before checks. Branches need not change those baselines.
-- **The checks run on a selection** (section 2), not always the whole workspace: touched trees' `scripts/old_forms.py --write` (the ratchet, section 3.3), then the tools' suites (section 2.3), `cargo fmt --check`, clippy with `-D warnings`, a nextest `build`, and the focused (`default`) and `fuzzy` nextest profiles. Cargo build and test commands run through `heavy --gate` on the gate machine, which nothing else builds on. Lockfile and member manifest changes select affected packages (section 2.1); formatting covers changed Rust owners (section 2.2). Step durations are recorded separately (section 3.6).
+- **The checks run on a selection** (section 2), not always the whole workspace: touched trees' `scripts/old_forms.py --write` (the ratchet, section 3.3), then `cargo fmt --check`, clippy with `-D warnings`, a nextest `build`, and the focused (`default`) and `fuzzy` nextest profiles. The gate skips pipeline tools suites (section 2.3). Cargo build and test commands run through `heavy --gate` on the gate machine, which nothing else builds on. Lockfile and member manifest changes select affected packages (section 2.1); formatting covers changed Rust owners (section 2.2). Step durations are recorded separately (section 3.6).
 - **Green:** save the checked candidate and coordinator routes in a durable publication intent, push that saved candidate (fast-forward only), confirm containment and the exact journal row, then delete ready branches under expected-tip leases and notify leads (section 3.11).
 - **Red:** a batch of one is rejected (its lead gets the failing step and the log's path, and the branch isn't retried until its tip changes); a larger batch is halved and each half tried from `main`, recursively, so the green branches still land.
 - **Capacity refusal:** a heavy exit 2 containing `below the disk floor` is an error, with no rejection or bisection. Before every batch, free space below `--disk-floor` (45 GB by default) defers work to the next cycle.
 - **Error:** an exception logs the batch as `error`; its tips remain eligible. `run` reconciles pending publications before restoring `origin/main`, reports each distinct error to the operator (`ops`) once per uninterrupted error episode, waits a cycle, and continues. A completed cycle, including an idle check, clears the persisted episode so recurrence alerts again. `once` raises to its caller.
-- **Batches selecting no packages** skip Cargo checks. Tools changes run the tools step; touched trees run their ratchets. Unread Markdown outside package source directories selects no package, even beside code or tools changes.
+- **Batches selecting no packages** skip Cargo checks; touched trees run their ratchets. Tools changes require author checks before Ready (section 2.3). Unread Markdown outside package source directories selects no package, even beside code or tools changes.
 - **Every batch is logged** in `~/src/fabrig/notes/queue.jsonl`: start and end, branches, outcome, selection and step durations. A published batch has one immutable publication row and subsequent `event` diagnostics for notifications and cleanup (section 3.11). Other attempts retain their ordinary row.
 
 ## 2. The selection
@@ -19,7 +19,7 @@ Provisional, 2026-10-28. How a branch reaches `main`: a script on the gate machi
 1. **Changed paths:** compare the checked parent and candidate trees with `git diff --name-only --no-renames -z <parent> <candidate>`. `changed_paths` accepts an explicit `base` and `candidate`, defaulting to `origin/main` and `HEAD` for the one-gate queue. Include both sides of renames and deleted paths. The unmerged `plan` uses `preview_changed_paths` instead: compare each ready tip with its merge base with `origin/main`, preserving `origin/main...<tip>` preview semantics.
 2. **Everything** when a changed path is outside every package's `src/`, `tests/`, `benches/`, `examples/`, `build.rs` and member `Cargo.toml`, except the root `Cargo.lock` (section 2.1), `tools/`, and unread Markdown (`*.md`). The root `Cargo.toml`, `.config/`, `rust-toolchain*`, `rustfmt.toml`, `clippy.toml`, docs read by tests, and other scripts and fixtures force everything. Also run everything every `full_every` (5) batches, when the last full run is older than an hour, or when the gate machine has been idle for 10 minutes and main has changed since the last full run.
 3. **Otherwise,** the packages that own a changed path (the longest manifest directory that prefixes it, from `cargo metadata --no-deps`), their reverse dependencies' closure (normal, build and dev dependencies, from `cargo metadata`'s resolve graph), and the packages listed in `tools/queue/always.txt` (tests that read files by path).
-4. **Docs read by tests** are globs in `tools/queue/read-by-tests.txt`; a matching path forces everything. A path under `tools/` contributes no package. Otherwise package source ownership still selects its package, including Markdown under `src/`, `tests/`, `benches/` and `examples/`. Unread Markdown outside those directories contributes no package. A batch with no package inputs and no full input selects `docs`: no Cargo checks or `always.txt` packages, plus tools and touched trees' ratchets as applicable.
+4. **Docs read by tests** are globs in `tools/queue/read-by-tests.txt`; a matching path forces everything. A path under `tools/` contributes no package. Otherwise package source ownership still selects its package, including Markdown under `src/`, `tests/`, `benches/` and `examples/`. Unread Markdown outside those directories contributes no package. A batch with no package inputs and no full input selects `docs`: no Cargo checks or `always.txt` packages, plus touched trees' ratchets as applicable.
 5. A full run that fails where the selections before it passed points at a gap in `always.txt` or `read-by-tests.txt`: the queue reports it to the operator.
 
 ### 2.1 Lockfiles and member manifests
@@ -56,13 +56,18 @@ run keeps `cargo fmt --all --check`. A batch with no checks to run is green.
 
 ### 2.3 Tools suites
 
-A batch runs step `tools` before Cargo if and only if its changed paths
-include a path under `tools/`, regardless of docs, package or full selection.
-The shared `mq.tools_required` predicate governs the runner, worker's exact
-plan and precheck. Adds, edits and deletes count; path collection includes
-both source and destination of renames. Full runs without tools changes keep
-all ordinary ratchet, fmt, clippy, build, default and fuzzy checks and skip
-tools suites, including periodic, idle and forced repair full runs.
+Decision0022 disables pipeline tools suites in every merge-gate batch,
+including tools-changing, periodic, idle and forced repair full runs.
+The shared `mq.gate_tools_required` predicate governs the gate runner and
+worker's exact plan. Its policy bytes live in `mq`, frozen by both worker
+runtime identity and restart's external-runtime validation. Ordinary ratchet,
+fmt, clippy, build, default and fuzzy selection remains unchanged.
+
+Until migration, authors run affected tool tests before Ready. Author
+precheck retains the separate `mq.tools_required` predicate: any changed
+path under `tools/` selects suites, independently of Cargo scope. Adds,
+edits and deletes count; path collection includes both rename sides.
+The following discovery and execution rules apply to author tools checks.
 Discover suites from the checkout's tracked files: every `tools/**/test_*.py`
 runs with `python3 -I -B`, including `tools/test_install.py`; every executable
 `tools/**/test-*` runs directly as `./tools/.../test-*`, honoring its shebang.
@@ -78,11 +83,10 @@ the tools step. Other executable suites, including the same recovery
 basename in another directory, remain eligible.
 
 Run serially from the checkout root with stdin from `/dev/null` and a
-60-second timeout per suite. Each suite's command and output go to the batch
-log; its exit code and elapsed time go in the tools step's `suites` records.
-The step records its total elapsed time. Run every suite even if one fails;
-any nonzero exit, missing interpreter, or timeout makes the step red and stops
-later checks. Rejection and bisection follow section 1.
+60-second timeout per suite. Record each suite's command, output, exit code
+and elapsed time in the author check evidence. Run every suite even if one
+fails; any nonzero exit, missing interpreter, or timeout makes the author
+tools check red and stops later checks.
 
 Queue tests allocate private disposable fixtures beside the tested checkout,
 under its resolved root's parent, never inside the checkout. In operational
@@ -145,7 +149,7 @@ marks tips tried, rejects a branch, or bisects. `once` surfaces these errors.
 
 After all batch merges and any conflict recounts below, run
 `python3 -I -B <absolute tree>/scripts/old_forms.py --write` from each touched
-tree, in tree-name order, before tools or Cargo checks. Each command is step
+tree, in tree-name order, before Cargo checks. Each command is step
 `ratchet:<tree>` with its duration recorded. A raised count makes that step
 red and stops later checks; rejection or bisection follows section 1. For
 each changed `<tree>/scripts/old-forms.txt`, commit it on top of the batch's
@@ -201,8 +205,8 @@ monotonic wall time in its own step record. A failed build stops checks and
 the rejection names failing step `build`. Nextest exit 4 (no tests) is green
 for build, default, and fuzzy, as for an empty test selection. Fuzzy remains
 one step with `--profile fuzzy`; the build step already built its binaries.
-Ratchets run before tools and Cargo checks (section 3.3). Docs-only batches
-run only touched trees' writing ratchets, plus tools suites when applicable.
+Ratchets run before Cargo checks (section 3.3). Docs-only batches
+run only touched trees' writing ratchets.
 
 ### 3.7 Restarting and the login shell
 
@@ -255,8 +259,8 @@ it never falls through to ordinary work. `plan` previews the singleton as full.
 
 The repair runs first as a singleton through the ordinary attempt path with
 `force_full=True`: writing ratchets, workspace fmt, clippy, build, default and
-fuzzy checks remain unchanged; offline tools suites run only for changed
-`tools/` paths (section 2.3). Ordinary merge
+fuzzy checks remain unchanged; pipeline tools suites are skipped
+(section 2.3). Ordinary merge
 conflicts, red rejection, fast-forward-only main push, pinned cleanup and
 notifications apply. Exceptions, capacity refusals and failed process launches
 are errors, preserving tried tips without bisection or rejection. A completed
@@ -372,7 +376,7 @@ The version-1 request has exactly these fields:
 | `branches` | Ordered list of exactly `{name, tip}` objects: unique valid `ready/<lead>/<task>` refs and full pinned commit OIDs. |
 | `selection` | `"full"`, `"docs"`, or a sorted unique list of package names. An empty list is distinct from docs. |
 | `runtime` | Exact object printed by this runtime's `identity` command. |
-| `plan` | Complete ordered plan from `check_plan`: command entries `{name, command, cwd}` and a tools entry `{name: "tools", suites: [command entries]}`. |
+| `plan` | Complete ordered plan from `check_plan`: command entries `{name, command, cwd}`. Decision0022 selects no tools entry. |
 
 The future preparer computes the plan with this frozen policy against its
 prepared candidate. Commands are full argv arrays; cwd is checkout-relative
@@ -400,8 +404,8 @@ Package/docs selection must equal the recomputed selection using the frozen
 lists and explicit parent/candidate lock blobs. Full is always an allowed
 escalation; deciding when a full run is due belongs to the future controller.
 
-Checks retain the same order, tools discovery, manual recovery-suite
-exclusion, suite timeout, nextest exit-4 interpretation and serial
+Checks retain the same order and gate tools skip policy from section 2.3,
+nextest exit-4 interpretation and serial
 `heavy --gate` commands from sections 2.3 and 3.6. The small shared
 `run_checks(check_only=True)` mode omits ratchets' `--write` and never stages
 or commits a baseline. Its default remains the one-gate writing/committing

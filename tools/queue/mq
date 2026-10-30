@@ -383,8 +383,13 @@ def ratchet_commands(repo, paths, *, check_only=False):
 
 
 def tools_required(paths):
-    """Select tools only from changed paths, independent of Cargo scope (design.md, 2.3)."""
+    """Select author precheck tools from changed paths (design.md, 2.3)."""
     return any(path.startswith("tools/") for path in paths)
+
+
+def gate_tools_required(paths):
+    """Decision0022 skips pipeline tools in every gate batch (design.md, 2.3)."""
+    return False
 
 
 def tools_commands(repo):
@@ -485,7 +490,7 @@ def run_checks(repo, selected, paths, log_path, *, runner=subprocess.run, clock=
             if not check_only and git(repo, "diff", "--name-only", "--", baseline).stdout:
                 git(repo, "add", "--", baseline)
                 git(repo, "commit", "-m", f"Lower {cwd.name} old-form baselines")
-        if tools_required(paths):
+        if gate_tools_required(paths):
             record(run_tools(repo, log, runner=runner, clock=clock, observer=observer,
                              status_observer=status_observer))
             if not outcomes[-1]["green"]:

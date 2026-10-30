@@ -240,7 +240,7 @@ def command_record(repo, name, argv, cwd):
 
 def check_plan(repo, selected, paths, metadata):
     plan = [command_record(repo, *command) for command in mq.ratchet_commands(repo, paths, check_only=True)]
-    if mq.tools_required(paths):
+    if mq.gate_tools_required(paths):
         plan.append({"name": "tools", "suites": [command_record(repo, *command)
                                                   for command in mq.tools_commands(repo)]})
     plan.extend(command_record(repo, *command) for command in mq.check_commands(
