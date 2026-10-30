@@ -534,9 +534,8 @@ except RuntimeError as error:
             pass
 
     def test_library_queue_without_authority_refuses_before_fetch(self):
-        queue = mq.Queue(self.repo)
         with patch.object(mq, "git") as git, self.assertRaisesRegex(RuntimeError, "sole authority"):
-            queue.cycle()
+            mq.Queue(self.repo)
         git.assert_not_called()
 
     def test_legacy_recovery_refuses_marker_before_abort_switch_or_cleanup(self):

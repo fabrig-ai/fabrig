@@ -20,7 +20,7 @@ import time
 
 DIRECTORY = Path(__file__).resolve().parent
 RUNTIME_FILES = ("worker.py", "mq", "always.txt", "read-by-tests.txt", "leads.txt",
-                 "train.py", "authority.py", "recovery.py", "durable.py", "restart")
+                 "train.py", "authority.py", "recovery.py", "durable.py", "publication.py", "coordinators.txt", "restart")
 FROZEN = {name: (DIRECTORY / name).read_bytes() for name in RUNTIME_FILES}
 LOADER = importlib.machinery.SourceFileLoader("worker_mq", str(DIRECTORY / "mq"))
 SPEC = importlib.util.spec_from_loader(LOADER.name, LOADER)
@@ -48,13 +48,15 @@ def encoded(value):
 
 
 def runtime_identity(disk_floor=45):
+    mq.publication.coordinators(FROZEN["coordinators.txt"])
     return {"version": 1, "files": {name: digest(data) for name, data in FROZEN.items()},
             "python": list(sys.version_info[:3]), "disk_floor_gb": disk_floor,
-            "ratchets": "check-only"}
+            "ratchets": "check-only", "coordinators_sha256": digest(FROZEN["coordinators.txt"])}
 
 
 def runtime_unchanged():
-    if any((DIRECTORY / name).read_bytes() != data for name, data in FROZEN.items()):
+    if any((DIRECTORY / name).is_symlink() or (DIRECTORY / name).read_bytes() != data
+           for name, data in FROZEN.items()):
         raise RuntimeError("running runtime/config files changed; restart from a frozen copy")
 
 

@@ -685,8 +685,9 @@ class RepositoryTests(unittest.TestCase):
                         log_path=self.directory / "queue.jsonl", checker=self.checker,
                         poster=self.poster, metadata_loader=lambda repo: metadata(repo), **kwargs)
 
-    def records(self):
-        return [json.loads(line) for line in (self.directory / "queue.jsonl").read_text().splitlines()]
+    def records(self, *, effects=False):
+        rows = [json.loads(line) for line in (self.directory / "queue.jsonl").read_text().splitlines()]
+        return rows if effects else [row for row in rows if row.get("event") != "publication-effects"]
 
     def run_cycle(self, queue):
         with redirect_stdout(io.StringIO()):
@@ -989,7 +990,7 @@ baseline.write_text(str(count) + '\n')
         queue = self.queue()
         queue.poster = lambda *args: {"sent": False, "returncode": 2, "output": "not delivered"}
         self.run_cycle(queue)
-        record = self.records()[0]
+        record = self.records(effects=True)[-1]
         self.assertEqual(record["outcome"], "green")
         self.assertEqual(record["posts"][0]["returncode"], 2)
 
@@ -1619,7 +1620,7 @@ print('tools fixture passed')
                 self.assertEqual(prune.call_count, 1)
                 self.assertEqual(prune.call_args.args[:2], (self.repo, 0))
                 self.assertGreater(prune.call_args.args[2], 0)
-                record = self.records()[-1]
+                record = self.records(effects=True)[-1]
                 self.assertEqual(record["outcome"], outcome)
                 self.assertEqual(record["target_cleanup"], {"count": 2, "gb": 3})
 
@@ -1630,7 +1631,8 @@ print('tools fixture passed')
         advanced = self.tip()
         mq.git(self.repo, "push", "origin", f"HEAD:refs/heads/{branch['name']}")
         mq.build_batch(self.repo, [branch])
-        _, cleanup = mq.push_and_cleanup(self.repo, [branch])
+        self.queue().attempt([branch])
+        cleanup = self.records(effects=True)[-1]["cleanup"]
         self.assertIn("preserved", cleanup[0]["outcome"])
         self.assertEqual(mq.git(self.repo, "ls-remote", "origin", "refs/heads/" + branch["name"]).stdout.split()[0], advanced)
 
@@ -1653,21 +1655,23 @@ print('tools fixture passed')
                 observed.append(result.stdout.split()[0])
             return result
         with patch.object(mq, "git", side_effect=race):
-            commit, cleanup = mq.push_and_cleanup(self.repo, [branch])
+            self.queue().attempt([branch])
+            commit = self.records()[0]["commit"]
+            cleanup = self.records(effects=True)[-1]["cleanup"]
         self.assertEqual(git(self.origin, "rev-parse", ref).stdout.strip(), advanced)
         self.assertEqual(git(self.origin, "rev-parse", "refs/heads/main").stdout.strip(), commit)
         self.assertNotEqual(cleanup[0]["returncode"], 0)
         main_push, delete = pushes
         self.assertFalse(any("--force" in arg or "--lease" in arg for arg in main_push))
         self.assertEqual(delete, ("push", "--force-with-lease=" + ref + ":" + branch["tip"],
-                                  "origin", ":" + ref))
+                                  str(self.origin), ":" + ref))
 
     def test_push_failure_does_not_delete_ready_branch(self):
         branch = self.branch("a", publish=True)
         mq.build_batch(self.repo, [branch])
         mq.git(self.repo, "config", "remote.origin.pushurl", str(self.directory / "absent.git"))
         with self.assertRaises(RuntimeError):
-            mq.push_and_cleanup(self.repo, [branch])
+            self.queue().attempt([branch])
         self.assertIn(branch["name"], mq.git(self.repo, "ls-remote", "origin").stdout)
 
     def test_periodic_hourly_and_idle_full_policy(self):

@@ -127,7 +127,8 @@ class WorkerTests(unittest.TestCase):
         remote_refs = mq.git(self.repo, "for-each-ref", "refs/remotes/").stdout
         with patch.object(mq, "git", wraps=mq.git) as git_calls, \
                 patch.object(mq, "post", side_effect=AssertionError("post")), \
-                patch.object(mq, "push_and_cleanup", side_effect=AssertionError("promotion")):
+                patch.object(mq.publication.Store, "reconcile_one", side_effect=AssertionError("promotion")), \
+                patch.object(mq, "cleanup_ready", side_effect=AssertionError("cleanup")):
             result = self.run_job(request)
         self.assertFalse({call.args[1] for call in git_calls.call_args_list} &
                          {"fetch", "push", "ls-remote", "update-ref", "merge", "commit", "reset"})
