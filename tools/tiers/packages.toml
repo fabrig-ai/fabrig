@@ -1,4 +1,5 @@
-# Generated from workspace nextest JSON listings; see design.md, 6.
+# Package sets generated from workspace nextest JSON listings; see design.md, 6.
+# Native binary prerequisites are surveyed separately; see design.md, 2.1.
 
 browser-jig = [
     "jig-client-browser-world",
@@ -78,4 +79,23 @@ qa-temper = [
     "temper-real-loop-world",
     "temper-service",
     "temper-worker-protocol-git-world",
+]
+
+[binaries]
+browser-jig = [{ package = "jig-test", bin = "jig-test" }]
+browser-skein = [{ package = "skein-ui-example-server", bin = "skein-ui-example" }]
+browser-temper = [{ package = "temper", bin = "temper" }]
+exhaustive-skein = []
+live-jig = []
+live-skein = []
+live-smith = []
+live-temper = []
+process-jig = []
+process-temper = [{ package = "temper-fake-claude", bin = "fake-claude", env = "TEMPER_TEST_CLAUDE" }]
+qa-jig = []
+qa-skein = []
+qa-smith = []
+qa-temper = [
+    { package = "temper", bin = "temper" },
+    { package = "temper-fake-claude", bin = "fake-claude" },
 ]
