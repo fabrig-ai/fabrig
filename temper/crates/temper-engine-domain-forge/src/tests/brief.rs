@@ -380,7 +380,7 @@ fn a_maximal_task_pull_and_remarks_fit_the_assembled_brief() {
     assert!(task.len() + pull.len() + remarks.len() + 768 <= 14_592);
 }
 
-fn pending_job() -> (Domain, Token, Read) {
+fn pending_checks() -> (Domain, Token) {
     let mut d = domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     let mut row = fixtures::opening_row();
@@ -396,6 +396,11 @@ fn pending_job() -> (Domain, Token, Read) {
         BriefSource::Ci { item: BriefItem { repository: REPO.repository, number: 1 }, head: BriefCommit(HEAD) },
         SHIPPED_CI,
     );
+    (d, owner)
+}
+
+fn pending_job() -> (Domain, Token, Read) {
+    let (mut d, owner) = pending_checks();
     let mut out = Queue::uncapped();
     assert!(brief::brief_answer(&mut d, owner, Ok(Answer::Checks(red_checks())), &mut out));
     let Some(Request::BriefClient { event: skein_forge_client::Event::Read { read, .. } }) = out.pop() else {
@@ -481,6 +486,46 @@ fn a_job_read_busy_until_the_gather_deadline_keeps_the_marker() {
     assert!(words.ends_with("[job log could not be read]\nRepair the failed check.\n"), "{words}");
     d.reclaim();
     brief::retry(&mut d, &mut out);
+    assert!(out.is_empty());
+    assert!(d.briefs_idle());
+}
+
+#[test]
+fn an_inflight_job_at_the_gather_deadline_leaves_the_section_late() {
+    for retried in [false, true] {
+        let (mut d, owner, read) = pending_job();
+        let deadline = env().now.saturating_add(Duration::from_secs(30));
+        let mut out = Queue::uncapped();
+        if retried {
+            assert!(brief::brief_answer(&mut d, owner, Err(skein_forge::api::Error::Busy), &mut out));
+            assert_eq!(brief::next_deadline(&d), Some(deadline));
+            d.reclaim();
+            brief::retry(&mut d, &mut out);
+            assert_eq!(
+                out.pop(),
+                Some(Request::BriefClient { event: skein_forge_client::Event::Read { owner, repository: REPO, read } })
+            );
+        }
+        assert_eq!(brief::next_deadline(&d), None, "the parent owns an in-flight read's deadline");
+        brief::expire(&mut d, deadline, &mut out);
+        assert!(out.is_empty(), "an unanswered read cannot complete the section with a marker");
+        assert!(!d.briefs_idle(), "the section stays unfinished for the parent's late handling");
+        assert!(outputs(&mut d, Event::DropBrief { section: SECTION }).is_empty());
+        assert!(d.briefs_idle());
+    }
+}
+
+#[test]
+fn checks_busy_until_the_gather_deadline_fail_the_section() {
+    let (mut d, owner) = pending_checks();
+    let deadline = env().now.saturating_add(Duration::from_secs(30));
+    let mut out = Queue::uncapped();
+    assert!(brief::brief_answer(&mut d, owner, Err(skein_forge::api::Error::Busy), &mut out));
+    assert_eq!(brief::next_deadline(&d), Some(deadline));
+    brief::expire(&mut d, Time::from_nanos(deadline.as_nanos().checked_sub(1).unwrap()), &mut out);
+    assert!(out.is_empty());
+    brief::expire(&mut d, deadline, &mut out);
+    assert_eq!(out.pop(), Some(Request::BriefSized { section: SECTION, size: None }));
     assert!(out.is_empty());
     assert!(d.briefs_idle());
 }

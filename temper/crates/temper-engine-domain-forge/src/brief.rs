@@ -767,7 +767,9 @@ pub(crate) fn set_deadline(domain: &mut Domain, section: Token, deadline: skein_
 pub(crate) fn next_deadline(domain: &Domain) -> Option<skein_lib::Time> {
     let mut next: Option<skein_lib::Time> = None;
     for (_, fetch) in &domain.brief_fetches {
-        if let Some(deadline) = fetch.deadline {
+        if let Some(deadline) = fetch.deadline
+            && fetch.refused.is_some()
+        {
             next = Some(match next {
                 Some(previous) => previous.min(deadline),
                 None => deadline,
@@ -781,6 +783,7 @@ fn expired_owner(domain: &Domain, now: skein_lib::Time) -> Option<Token> {
     for (owner, fetch) in &domain.brief_fetches {
         if let Some(deadline) = fetch.deadline
             && deadline <= now
+            && fetch.refused.is_some()
         {
             return Some(*owner);
         }
@@ -788,7 +791,7 @@ fn expired_owner(domain: &Domain, now: skein_lib::Time) -> Option<Token> {
     None
 }
 
-/// Finish a read at the parent's existing deadline, before the parent fires.
+/// Finish Busy-retained reads at the parent's deadline; in-flight reads stay late.
 pub(crate) fn expire(domain: &mut Domain, now: skein_lib::Time, out: &mut Queue<Request>) {
     for _ in 0..domain.brief_fetches.capacity() {
         let Some(owner) = expired_owner(domain, now) else { break };
