@@ -195,21 +195,51 @@ test itself waited for; those are counted once. After the test exits, adopted
 children have 100 ms to finish. The supervisor then repeatedly kills its own
 direct adopted children, reaps them and their newly adopted children, and
 counts reaped descendants killed with SIGKILL as `leaked`. Settlement ends at
-ECHILD or after one second. A failure to prove settlement sets `complete=false`.
+ECHILD or after one second. Cleanup eligibility and the deadline are checked
+on every iteration, including successful reaps, and during the owned-child
+kill walk. A failure to prove settlement sets `complete=false`.
 Only `/proc/self/task/SELF/children` is inspected for cleanup; no foreign
 process environment, credentials or cgroup state is read.
+
+`complete_scope="waited-and-reaped-descendants"` defines completeness: the test,
+its waited descendants included in its usage, and descendants reaped by the
+supervisor. Descendants automatically reaped by the kernel because the test
+uses `SIGCHLD=SIG_IGN` or `SA_NOCLDWAIT` can consume CPU that `wait4` does not
+report. ECHILD does not prove their CPU was included. This supervisor cannot
+reconstruct the test's signal disposition after reaping it, does not monitor
+live signal dispositions, and does not claim to detect this exclusion. Thus
+`complete=true` proves settlement and accounting only within the stated scope;
+CPU for automatically reaped descendants may be absent. No cgroup accounting
+is implied.
 
 Each attempt has one file in `DIR/records/`, containing one JSON line:
 `profile`, `binary_id`, `test_name`, one-based `attempt`, `user_s`, `system_s`,
 `wall_s`, `start_s` (host monotonic seconds), `exit_code` or `signal`,
-`complete`, `leaked`, `pending`, `interrupted` and `wrapper_cpu_s`.
-The initial record precedes spawning the test and has `pending=true`,
-`complete=false` and no claimed exit status. Atomic rename replaces it after
-settlement; temporary files are ignored. A SIGKILL therefore leaves explicit
-incomplete evidence, never an invented complete zero-CPU result. Its CPU is a
-lower bound. Normal wrapper records preserve the test's exit code or reproduce
+`complete`, `complete_scope`, `leaked`, `pending`, `settling`, `interrupted`
+and `wrapper_cpu_s`. The initial record precedes spawning the test and has
+`pending=true`, `settling=false`, `complete=false` and no claimed exit status.
+Immediately after reaping the test, atomic rename checkpoints its exit status
+and observed CPU with `pending=false`, `settling=true`, `complete=false`, before
+any descendant settlement. A final rename updates accounting after settlement
+with `settling=false`. Temporary files are ignored. SIGKILL can leave an
+incomplete initial or checkpoint record; an observed exit status remains
+available even when settlement is interrupted. Incomplete CPU is a lower bound.
+`interrupted` is retained for reading older records and is zero in new records.
+Normal wrapper records preserve the test's exit code or reproduce
 its terminating signal after recording. The test's stdin, stdout and stderr
 are inherited unchanged. Collector failures return 125 and are visible.
+
+Normal nextest 0.9.148 execution creates a process group, chooses its group
+identifier for termination and signals that group on timeout and cancellation.
+The wrapper and test stay in that group. The supervisor sets SIGTERM, SIGINT,
+SIGHUP and SIGQUIT to SIG_IGN and keeps waiting; `posix_spawn` restores their
+default dispositions in the test. Signals reach the test directly once; the
+supervisor never forwards them and has no forwarding counter or wakeup race.
+CPU mode rejects debugger interception, which disables nextest's process group.
+Source: nextest 0.9.148
+[`executor.rs`, 819–880](https://github.com/nextest-rs/nextest/blob/cargo-nextest-0.9.148/nextest-runner/src/runner/executor.rs#L819-L880),
+[`ChildPid::for_kill`](https://github.com/nextest-rs/nextest/blob/cargo-nextest-0.9.148/nextest-runner/src/runner/imp.rs#L243-L255),
+and [`unix.rs`, 77–232](https://github.com/nextest-rs/nextest/blob/cargo-nextest-0.9.148/nextest-runner/src/runner/unix.rs#L77-L232).
 
 ### 7.3 Summaries, budgets and starvation
 
@@ -226,10 +256,20 @@ missing, duplicate, unexpected or malformed records, and rejects incomplete
 accounting without starvation evidence. Skipped tests and setup scripts are
 not executed test attempts. An interrupted hard-wall run may have no JUnit:
 its pre-exec records enumerate started attempts and explicitly show incomplete
-accounting. Unstarted tests are never claimed as executed. `run.json` identifies
+accounting. Failures are reconciled from JUnit and every record with a known
+test exit status, including checkpoint and accepted extra records. A failed
+attempt stays unresolved until a later completed attempt of that test exits
+successfully; a pending retry cannot erase it. JUnit policy failures also
+remain failures unless a later completed attempt beyond its inventory passes.
+Known timeout terminations remain starvation outcomes. JUnit represents
+`on-timeout="pass"` as success; a matching successful attempt whose process
+ended by SIGTERM/SIGKILL is recognized as a timeout termination. Unstarted
+tests are never claimed as executed. `run.json` identifies
 the profile and completion; `heavy-output.txt` retains the public command
-output. A nonempty DIR is refused to prevent mixing separate runs. CPU mode reserves profile and
-configuration selection, and rejects stress mode and `--no-run`.
+output. A nonempty DIR is refused to prevent mixing separate runs. CPU mode
+reserves profile and configuration selection, and rejects stress mode, `--no-run` and `--debugger`.
+Pending tests and checkpointed tests still settling descendants both count as
+active for hard-wall supervision.
 
 `tools/tiers/budgets.toml` contains optional per-pair tables with finite positive
 seconds: `cpu_suite_s`, `cpu_test_s`, `wall_hard_s`. It is empty until the user
@@ -253,10 +293,22 @@ is reported explicitly alongside the green warning.
 
 After building the native prerequisite, run `python3 -I -B
 tools/tiers/test_cpu.py`; `TIERS_CPU_WRAPPER` may select a different native
-artifact. The suite covers overlay arguments and parsed configuration,
+artifact. The continuous-reap deadline fixture is a second native artifact;
+build it through heavy with the same compiler flags, adding
+`tools/tiers/fixtures/cpu-settlement.c` and
+`-Wl,--wrap=wait4,--wrap=clock_gettime,--wrap=fopen,--wrap=kill` to the wrapper
+build, with output `target/tiers-cpu-settlement-fixture` (or set
+`TIERS_CPU_SETTLEMENT_WRAPPER`). It reaps one real child then models a stream
+of successful reaps and an advancing clock, with owned-child cleanup calls
+intercepted; it spawns no process storm and signals no synthetic PID.
+
+The suite covers overlay arguments and parsed configuration,
 record coverage and validation, retries and skipped tests, CPU budgets and
 verdict exit codes, hard-wall heavy cancellation, standard streams, exit codes,
-signals, waited-child CPU, double-forked daemon cleanup, and 100 trivial
+single and repeated group signals, exit checkpoints, explicit auto-reap
+accounting scope, cancellation with extra records or pending retries,
+settlement deadlines under continuous reaping, waited-child CPU,
+double-forked daemon cleanup, and 100 trivial
 attempts' overhead. `test_run.py` also checks budget validation during
 `--verify-all` and preserves the ordinary command-line assertions in section 5.
 All fixtures are local and use no service, sign-in or credential.

@@ -152,6 +152,12 @@ class CollectorTests(unittest.TestCase):
         self.record('cpu-two', attempt=2, exit_code=1)
         self.assertEqual(CPU['summary'](self.directory)['failures'], ['fixture::suite one'])
 
+    def test_timeout_pass_after_group_signal_uses_junit_success(self):
+        self.record(exit_code=None, signal=15, interrupted=0)
+        result = CPU['summary'](self.directory)
+        self.assertEqual(result['suite']['starved'], 1)
+        self.assertEqual(result['failures'], [])
+
     def test_budget_validation(self):
         path = self.root / 'budgets.toml'
         for content in ('[unknown]\ncpu_test_s=1', '[qa-jig]\nwall_hard_s=0',
@@ -221,11 +227,210 @@ sys.exit(130)
         self.assertIn('starved', result.stdout)
         result = invoke('0.5')
         self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.record(exit_code=None, signal=signal.SIGSEGV)
+        result = invoke()
+        self.assertEqual(result.returncode, 100, result.stdout + result.stderr)
+        self.record(exit_code=None, signal=15)
         self.record('cpu-two', test_name='assertion', exit_code=1)
         self.xml('<testcase name="one"><failure type="test timeout"/></testcase>'
                  '<testcase name="assertion"><failure type="test failure"/></testcase>')
         result = invoke()
         self.assertEqual(result.returncode, 100, result.stdout + result.stderr)
+
+    def starved(self, *, junit=False):
+        CPU['save'](self.directory / 'run.json', dict(profile='qa-jig', finished=True,
+                                                     starved=True, wall_s=3, returncode=130))
+        if not junit:
+            (self.directory / 'junit.xml').unlink()
+
+    def assert_cancelled_verdict(self, expected):
+        self.record('cpu-running', test_name='running', pending=True, complete=False, exit_code=None)
+        marker = self.root / 'cancelled'
+        marker.unlink(missing_ok=True)
+        heavy = self.root / 'heavy'
+        heavy.write_text(f'''#!/usr/bin/env python3
+from pathlib import Path
+import sys,time
+marker=Path({str(marker)!r})
+if sys.argv[1] == '--cancel':
+    marker.touch()
+    sys.exit(0)
+print('heavy: queued task 1 in the build lane token abcdef',flush=True)
+while not marker.exists():
+    time.sleep(0.001)
+sys.exit(130)
+''')
+        heavy.chmod(0o700)
+        driver = self.root / 'cancel-verdict.py'
+        driver.write_text('import os,runpy,sys\n'
+                          f'cpu=runpy.run_path({str(HERE / "cpu.py")!r})\n'
+                          f"sys.exit(cpu['execute'](['heavy','fixture'],os.environ,{str(self.directory)!r},"
+                          "'qa-jig',{'qa-jig':{'wall_hard_s':0.001}}))\n")
+        result = subprocess.run([sys.executable,'-I','-B',str(driver)],
+                                env=dict(os.environ,PATH=f"{self.root}:{os.environ['PATH']}"),
+                                stdin=subprocess.DEVNULL,capture_output=True,text=True,timeout=5)
+        self.assertEqual(result.returncode,expected,result.stdout+result.stderr)
+
+    def test_cancel_with_junit_preserves_extra_failed_record(self):
+        self.starved(junit=True)
+        self.record()
+        self.record('cpu-extra', test_name='extra', exit_code=7)
+        self.assertEqual(CPU['summary'](self.directory)['failures'], ['fixture::suite extra'])
+        self.assert_cancelled_verdict(100)
+        self.record('cpu-extra-pass', test_name='extra', attempt=2)
+        self.assertEqual(CPU['summary'](self.directory)['failures'], [])
+        self.assert_cancelled_verdict(0)
+
+    def test_cancel_pending_retry_preserves_completed_failure(self):
+        self.starved()
+        self.record(exit_code=7)
+        self.record('cpu-retry', attempt=2, pending=True, complete=False, exit_code=None)
+        self.assertEqual(CPU['summary'](self.directory)['failures'], ['fixture::suite one'])
+        self.assert_cancelled_verdict(100)
+        self.record('cpu-pass', attempt=3)
+        self.assertEqual(CPU['summary'](self.directory)['failures'], [])
+        self.assert_cancelled_verdict(0)
+
+    def live_wrapper(self, code, *, wrapper=WRAPPER, extra_env=None):
+        env = dict(os.environ, NEXTEST_PROFILE='qa-jig', NEXTEST_BINARY_ID='fixture::suite',
+                   NEXTEST_TEST_NAME='one', NEXTEST_ATTEMPT='1', **(extra_env or {}))
+        process = subprocess.Popen([str(wrapper), str(self.directory / 'records'),
+                                    sys.executable, '-I', '-c', code], env=env,
+                                   stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                                   stderr=subprocess.PIPE, start_new_session=True)
+        def cleanup():
+            if process.poll() is None:
+                os.killpg(process.pid, signal.SIGKILL)
+            process.communicate(timeout=5)
+        self.addCleanup(cleanup)
+        return process
+
+    def wait_until(self, predicate):
+        deadline = time.monotonic() + 3
+        while time.monotonic() < deadline:
+            if predicate():
+                return
+            time.sleep(0.001)
+        self.fail('fixture did not reach its expected state')
+
+    def test_group_signal_is_delivered_once(self):
+        ready, events, done = (self.root / name for name in ('ready', 'events', 'done'))
+        process = self.live_wrapper(f'''import os,signal,time
+from pathlib import Path
+ready,events,done = map(Path, {[str(ready), str(events), str(done)]!r})
+def handle(sig, frame):
+    with events.open('a') as output:
+        output.write(str(sig)+'\\n')
+for sig in (signal.SIGTERM,signal.SIGINT,signal.SIGHUP,signal.SIGQUIT):
+    signal.signal(sig,handle)
+ready.touch()
+while not done.exists():
+    time.sleep(0.001)
+''')
+        self.wait_until(ready.exists)
+        # Hold only the supervisor so the child handles the group signal before
+        # any supervisor-side forwarding could run and coalesce with it.
+        expected = []
+        for sig in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP, signal.SIGQUIT):
+            os.kill(process.pid, signal.SIGSTOP)
+            os.killpg(process.pid, sig)
+            expected.append(str(sig))
+            self.wait_until(lambda: events.exists() and len(events.read_text().splitlines()) >= len(expected))
+            os.kill(process.pid, signal.SIGCONT)
+            time.sleep(0.03)
+        done.touch()
+        output, error = process.communicate(timeout=5)
+        self.assertEqual(process.returncode, 0, (output, error))
+        self.assertEqual(events.read_text().splitlines(), expected)
+
+    def test_repeated_group_signals_need_no_forwarding_or_wakeup(self):
+        ready, events, done = (self.root / name for name in ('ready', 'events', 'done'))
+        process = self.live_wrapper(f'''import signal,time
+from pathlib import Path
+ready,events,done = map(Path, {[str(ready), str(events), str(done)]!r})
+def handle(sig, frame):
+    with events.open('a') as output:
+        output.write(str(sig)+'\\n')
+signal.signal(signal.SIGTERM,handle)
+ready.touch()
+while not done.exists():
+    time.sleep(0.001)
+''')
+        self.wait_until(ready.exists)
+        # PID-only signals must never be forwarded. They can arrive while the
+        # supervisor is already blocked in wait4; group signals reach the test.
+        os.kill(process.pid, signal.SIGTERM)
+        time.sleep(0.03)
+        self.assertFalse(events.exists(), 'supervisor forwarded a PID-only signal')
+        for count in range(1, 4):
+            os.killpg(process.pid, signal.SIGTERM)
+            self.wait_until(lambda: events.exists() and len(events.read_text().splitlines()) >= count)
+        done.touch()
+        output, error = process.communicate(timeout=5)
+        self.assertEqual(process.returncode, 0, (output, error))
+        self.assertEqual(events.read_text().splitlines(), [str(signal.SIGTERM)] * 3)
+
+    def test_failed_test_is_checkpointed_before_descendant_settlement(self):
+        orphan = self.root / 'orphan'
+        process = self.live_wrapper(f'''import os,time
+from pathlib import Path
+if os.fork() == 0:
+    Path({str(orphan)!r}).touch()
+    time.sleep(30)
+    os._exit(0)
+while not Path({str(orphan)!r}).exists():
+    time.sleep(0.001)
+os._exit(7)
+''')
+        self.wait_until(orphan.exists)
+        def checkpointed():
+            items = CPU['records'](self.directory)
+            return bool(items and items[0]['exit_code'] == 7)
+        self.wait_until(checkpointed)
+        item = CPU['records'](self.directory)[0]
+        self.assertIsNone(process.poll(), 'test status was only published after settlement')
+        self.assertFalse(item['complete'])
+        os.killpg(process.pid, signal.SIGKILL)
+        process.communicate(timeout=5)
+        self.starved()
+        self.assertEqual(CPU['summary'](self.directory)['failures'], ['fixture::suite one'])
+
+    def test_auto_reaped_cpu_has_explicit_accounting_scope(self):
+        measured = self.root / 'auto-reaped-cpu'
+        result, items = self.wrapped(f'''import os,signal,time
+from pathlib import Path
+signal.signal(signal.SIGCHLD,signal.SIG_IGN)
+if os.fork() == 0:
+    start=time.process_time()
+    while time.process_time()-start < 0.04:
+        pass
+    Path({str(measured)!r}).write_text(str(time.process_time()-start))
+    os._exit(0)
+while not Path({str(measured)!r}).exists():
+    time.sleep(0.001)
+while True:
+    try:
+        os.waitpid(-1,os.WNOHANG)
+    except ChildProcessError:
+        break
+    time.sleep(0.001)
+''')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertGreater(float(measured.read_text()), 0.03)
+        self.assertEqual(items[0].get('complete_scope'), 'waited-and-reaped-descendants')
+
+    def test_settlement_deadline_and_cleanup_apply_during_reap_stream(self):
+        wrapper = Path(os.environ.get('TIERS_CPU_SETTLEMENT_WRAPPER', HERE.parents[1] / 'target/tiers-cpu-settlement-fixture'))
+        marker = self.root / 'cleanup'
+        env = dict(os.environ, NEXTEST_PROFILE='qa-jig', NEXTEST_BINARY_ID='fixture::suite',
+                   NEXTEST_TEST_NAME='one', NEXTEST_ATTEMPT='1', TIERS_CLEANUP_MARKER=str(marker))
+        result = subprocess.run([str(wrapper), str(self.directory / 'records'), '/bin/true'],
+                                env=env, stdin=subprocess.DEVNULL, capture_output=True, timeout=5)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        item = CPU['records'](self.directory)[0]
+        self.assertFalse(item['complete'], 'continuous successful reaps bypassed the deadline')
+        self.assertLess(item['wall_s'], 1.1)
+        self.assertTrue(marker.exists(), 'continuous successful reaps bypassed cleanup')
 
     def wrapped(self, code, *, name='one', input_text=None):
         env = dict(os.environ, NEXTEST_PROFILE='qa-jig', NEXTEST_BINARY_ID='fixture::suite',

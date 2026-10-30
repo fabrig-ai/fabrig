@@ -374,7 +374,7 @@ class RunnerTests(unittest.TestCase):
         result, calls = self.invoke('--cpu', str(directory), 'smith', 'qa')
         self.assertEqual(result.returncode, 2)
         self.assertEqual(calls, [])
-        for flag in ('--profile', '--config-file', '--stress-count', '--stress-duration', '--no-run'):
+        for flag in ('--profile', '--config-file', '--stress-count', '--stress-duration', '--no-run', '--debugger'):
             result, calls = self.invoke('--cpu', str(self.root / 'fresh'), 'smith', 'qa', '--', flag, 'other')
             self.assertEqual(result.returncode, 2)
             self.assertEqual(calls, [])

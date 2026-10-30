@@ -114,6 +114,11 @@ def records(directory):
                 raise ValueError(f"invalid {field} in {path}")
         if type(item["leaked"]) is not int or item["leaked"] < 0:
             raise ValueError(f"invalid leaked in {path}")
+        if ('settling' in item and (type(item['settling']) is not bool
+                or item['settling'] and (item['pending'] or item['complete']))):
+            raise ValueError(f"invalid settlement state in {path}")
+        if 'complete_scope' in item and item['complete_scope'] != 'waited-and-reaped-descendants':
+            raise ValueError(f"invalid completeness scope in {path}")
         if type(item['interrupted']) is not int or not 0 <= item['interrupted'] < signal.NSIG:
             raise ValueError(f"invalid interrupted signal in {path}")
         code, sig = item["exit_code"], item["signal"]
@@ -128,7 +133,7 @@ def records(directory):
 
 def junit(directory, profile):
     root = ET.parse(directory / "junit.xml").getroot()
-    expected, timeouts, failures = set(), set(), []
+    expected, timeouts, failures, passed = set(), set(), [], set()
     for suite in root.findall("testsuite"):
         # Setup scripts have no wrapper and are not test attempts.
         if suite.attrib["name"].startswith("@setup-script:"):
@@ -160,11 +165,13 @@ def junit(directory, profile):
                 if key in expected:
                     raise ValueError(f"duplicate JUnit test {key}")
                 expected.add(key)
+                if outcome is None:
+                    passed.add(key)
                 if outcome is not None and "timeout" in outcome.get("type", "").lower():
                     timeouts.add(key)
             if primary and any(outcome is not None and "timeout" not in outcome.get("type", "").lower() for outcome in outcomes):
                 failures.append(f"{binary} {name}")
-    return expected, timeouts, failures
+    return expected, timeouts, failures, passed
 
 
 def summary(directory, limits=None, pair=None):
@@ -183,8 +190,9 @@ def summary(directory, limits=None, pair=None):
     actual = {(r['profile'], r['binary_id'], r['test_name'], r['attempt']) for r in items}
     if any(key[0] != profile for key in actual):
         raise ValueError("record profile does not match run")
+    expected, passed = set(), set()
     if (directory / "junit.xml").exists():
-        expected, timeouts, failures = junit(directory, profile)
+        expected, timeouts, failures, passed = junit(directory, profile)
         missing = expected - actual
         extra = actual - expected
         if missing or (extra and not run["starved"]):
@@ -195,18 +203,32 @@ def summary(directory, limits=None, pair=None):
         # Heavy cancellation uses SIGKILL. The pre-exec records survive it;
         # JUnit may not. Counts describe started attempts, never unstarted tests.
         timeouts, failures = set(), []
-        latest = {}
-        for item in items:
-            key = item['binary_id'], item['test_name']
-            if key not in latest or item['attempt'] > latest[key]['attempt']:
-                latest[key] = item
-        failures = [f"{r['binary_id']} {r['test_name']}" for r in latest.values()
-                    if not r['pending'] and (r['exit_code'] not in (None, 0) or r['signal'] is not None)
-                    and not r['interrupted']]
     else:
         raise ValueError("missing nextest JUnit report (cannot verify record coverage)")
     timeouts.update((r['profile'], r['binary_id'], r['test_name'], r['attempt']) for r in items
                     if r['interrupted'] and r['signal'] is not None and not run['starved'])
+    # JUnit represents nextest's on-timeout=pass policy as success even when
+    # the test was terminated. Ordinary signal failures have a failure element.
+    timeouts.update((r['profile'], r['binary_id'], r['test_name'], r['attempt']) for r in items
+                    if r['signal'] in (signal.SIGTERM, signal.SIGKILL)
+                    and (r['profile'], r['binary_id'], r['test_name'], r['attempt']) in passed)
+    unresolved = {}
+    superseded_junit = set()
+    junit_last = {}
+    for _, binary, name, attempt in expected:
+        junit_last[binary, name] = max(junit_last.get((binary, name), 0), attempt)
+    for item in sorted(items, key=lambda r: r['attempt']):
+        if item['pending']:
+            continue
+        test = item['binary_id'], item['test_name']
+        key = (profile, *test, item['attempt'])
+        if item['exit_code'] == 0:
+            unresolved.pop(test, None)
+            if item['attempt'] > junit_last.get(test, 0):
+                superseded_junit.add(f"{test[0]} {test[1]}")
+        elif item['signal'] not in (signal.SIGTERM, signal.SIGKILL) or key not in timeouts:
+            unresolved[test] = f"{test[0]} {test[1]}"
+    failures = sorted((set(failures) - superseded_junit) | set(unresolved.values()))
     limits = (limits or {}).get(pair, {})
     wall_starved = run['starved'] or ('wall_hard_s' in limits and run['wall_s'] > limits['wall_hard_s'])
     tests, over = [], []
@@ -232,7 +254,7 @@ def summary(directory, limits=None, pair=None):
             target['leaked'] += item['leaked']
             target['incomplete'] += not item['complete']
         wall = item['wall_s']
-        if item['pending']:
+        if item['pending'] or item.get('settling', False):
             start = min(r['start_s'] for r in items)
             wall = max(wall, start + run['wall_s'] - item['start_s'])
         totals['test_wall_s'] += wall
@@ -299,7 +321,7 @@ def execute(command, env, directory, profile, limits):
                     current = records(directory)
                     if current and first is None:
                         first = min(item['start_s'] for item in current)
-                if hard and any(item['pending'] for item in current) and first is not None and time.monotonic() - first > hard and not starved and process.poll() is None:
+                if hard and any(item['pending'] or item.get('settling', False) for item in current) and first is not None and time.monotonic() - first > hard and not starved and process.poll() is None:
                     starved = True
                     save(directory / 'starved.json', {'wall_hard_s': hard})
                     print(f"tiers: starved: {profile} exceeded wall hard limit {hard}s", flush=True)
@@ -334,8 +356,10 @@ def execute(command, env, directory, profile, limits):
     print_summary(result)
     if result['over_budget']:
         return 1
+    if result['failures']:
+        return 100
     if starved:
-        return 100 if result['failures'] else 0
+        return 0
     if code and not result['failures'] and result['suite']['starved'] and code == 100:
         return 0
     return code

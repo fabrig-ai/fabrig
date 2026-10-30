@@ -198,9 +198,9 @@ def main(argv=None):
     if args.verify and separator < len(argv):
         parser.error("--verify takes no nextest arguments")
     if args.cpu:
-        reserved = ("--config-file", "--profile", "-P", "--no-run", "--stress-count", "--stress-duration")
+        reserved = ("--config-file", "--profile", "-P", "--no-run", "--stress-count", "--stress-duration", "--debugger")
         if any(arg.split("=", 1)[0] in reserved or arg.startswith("-P") for arg in extra):
-            parser.error("--cpu owns profile/configuration and requires one executed run (no stress or --no-run)")
+            parser.error("--cpu owns profile/configuration and requires one executed run (no stress, --no-run or --debugger)")
         if args.cpu.exists() and (not args.cpu.is_dir() or any(args.cpu.iterdir())):
             parser.error("--cpu DIR must be an empty directory or a new path")
     try:

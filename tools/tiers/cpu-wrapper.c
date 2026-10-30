@@ -17,8 +17,6 @@
 #include <unistd.h>
 
 extern char **environ;
-static volatile sig_atomic_t interrupted;
-static void remember(int sig) { interrupted = sig; }
 static double seconds(struct timeval value) {
     return (double)value.tv_sec + (double)value.tv_usec / 1000000.0;
 }
@@ -42,7 +40,7 @@ static void quoted(FILE *out, const char *value) {
     fputc('"', out);
 }
 static void record(const char *path, double start, double user, double system,
-                   int status, bool complete, unsigned leaked, bool pending) {
+                   int status, bool complete, unsigned leaked, bool pending, bool settling) {
     char *data = NULL, *temporary = NULL;
     size_t length = 0;
     FILE *out = open_memstream(&data, &length);
@@ -55,9 +53,9 @@ static void record(const char *path, double start, double user, double system,
     if (getrusage(RUSAGE_SELF, &own)) { perror("cpu-wrapper: own CPU"); exit(125); }
     fprintf(out, ",\"user_s\":%.6f,\"system_s\":%.6f,\"wall_s\":%.9f,\"start_s\":%.9f,"
                  "\"wrapper_cpu_s\":%.6f,\"complete\":%s,\"leaked\":%u,\"pending\":%s,"
-                 "\"interrupted\":%d,\"exit_code\":",
+                 "\"settling\":%s,\"complete_scope\":\"waited-and-reaped-descendants\",\"interrupted\":0,\"exit_code\":",
             user, system, now() - start, start, seconds(own.ru_utime) + seconds(own.ru_stime),
-            complete ? "true" : "false", leaked, pending ? "true" : "false", (int)interrupted);
+            complete ? "true" : "false", leaked, pending ? "true" : "false", settling ? "true" : "false");
     if (!pending && WIFEXITED(status)) fprintf(out, "%d", WEXITSTATUS(status));
     else fputs("null", out);
     fputs(",\"signal\":", out);
@@ -74,13 +72,14 @@ static void record(const char *path, double start, double user, double system,
     free(temporary); free(data);
 }
 /* Only our direct children: adoption brings a daemon here even after setsid. */
-static bool kill_children(void) {
+static bool kill_children(double deadline) {
     char path[96];
     snprintf(path, sizeof path, "/proc/self/task/%ld/children", (long)getpid());
     FILE *children = fopen(path, "r");
     if (!children) return false;
     long child;
     while (fscanf(children, "%ld", &child) == 1) {
+        if (now() >= deadline) { fclose(children); return false; }
         if (kill((pid_t)child, SIGKILL) && errno != ESRCH) { fclose(children); return false; }
     }
     bool success = !ferror(children);
@@ -97,11 +96,15 @@ int main(int argc, char **argv) {
     long number = strtol(attempt, &end, 10);
     if (*end || number < 1) { fputs("cpu-wrapper: invalid attempt\n", stderr); return 125; }
     if (prctl(PR_SET_CHILD_SUBREAPER, 1, 0, 0, 0)) { perror("cpu-wrapper: subreaper"); return 125; }
-    struct sigaction action = { .sa_handler = remember };
+    struct sigaction action = { .sa_handler = SIG_IGN };
     sigemptyset(&action.sa_mask);
     const int signals[] = { SIGTERM, SIGINT, SIGHUP, SIGQUIT };
-    for (size_t i = 0; i < sizeof signals / sizeof signals[0]; ++i)
+    sigset_t defaults;
+    sigemptyset(&defaults);
+    for (size_t i = 0; i < sizeof signals / sizeof signals[0]; ++i) {
         if (sigaction(signals[i], &action, NULL)) { perror("cpu-wrapper: sigaction"); return 125; }
+        sigaddset(&defaults, signals[i]);
+    }
     char *path = NULL;
     if (asprintf(&path, "%s/cpu-XXXXXX.tmp", argv[1]) < 0) return 125;
     int fd = mkstemps(path, 4);
@@ -111,30 +114,44 @@ int main(int argc, char **argv) {
     path[strlen(path) - 4] = '\0';
     double start = now();
     /* A forced SIGKILL leaves this explicit incomplete record, never invented CPU. */
-    record(path, start, 0, 0, 0, false, 0, true);
+    record(path, start, 0, 0, 0, false, 0, true, false);
     pid_t test;
-    int launch = posix_spawnp(&test, argv[2], NULL, NULL, argv + 2, environ);
+    /* Nextest signals our group. Ignore those signals in the supervisor, and
+       restore their defaults only in the child: no forwarding or event queue. */
+    posix_spawnattr_t spawn;
+    int launch = posix_spawnattr_init(&spawn);
+    if (launch) { errno = launch; perror("cpu-wrapper: spawn attributes"); return 125; }
+    launch = posix_spawnattr_setsigdefault(&spawn, &defaults);
+    if (!launch) launch = posix_spawnattr_setflags(&spawn, POSIX_SPAWN_SETSIGDEF);
+    if (!launch) launch = posix_spawnp(&test, argv[2], NULL, &spawn, argv + 2, environ);
+    posix_spawnattr_destroy(&spawn);
     if (launch) {
         errno = launch; perror("cpu-wrapper: exec");
-        record(path, start, 0, 0, 127 << 8, true, 0, false);
+        record(path, start, 0, 0, 127 << 8, true, 0, false, false);
         free(path); return 127;
     }
     double user = 0, system = 0, settled = 0;
     int status = 0;
     bool exited = false, complete = false, killing = false, cleanup_ok = true;
     unsigned leaked = 0;
-    int forwarded = 0;
     for (;;) {
-        if (!exited && interrupted && forwarded != interrupted) {
-            kill(test, interrupted);
-            forwarded = interrupted;
+        if (exited) {
+            double elapsed = now() - settled;
+            if (elapsed >= 0.1) {
+                killing = true;
+                if (!kill_children(settled + 1.0)) cleanup_ok = false;
+            }
+            if (elapsed >= 1.0) break;
         }
         struct rusage usage;
         int child_status;
         pid_t child = wait4(-1, &child_status, (exited ? WNOHANG : 0) | __WALL, &usage);
         if (child > 0) {
             user += seconds(usage.ru_utime); system += seconds(usage.ru_stime);
-            if (child == test) { status = child_status; exited = true; settled = now(); }
+            if (child == test) {
+                status = child_status; exited = true; settled = now();
+                record(path, start, user, system, status, false, leaked, false, true);
+            }
             else if (killing && WIFSIGNALED(child_status) && WTERMSIG(child_status) == SIGKILL) ++leaked;
             continue;
         }
@@ -143,16 +160,10 @@ int main(int argc, char **argv) {
             complete = errno == ECHILD && exited && cleanup_ok;
             break;
         }
-        double elapsed = now() - settled;
-        if (elapsed >= 0.1) {
-            killing = true;
-            if (!kill_children()) cleanup_ok = false;
-        }
-        if (elapsed >= 1.0) break;
         struct timespec pause = { .tv_nsec = 1000000 };
         nanosleep(&pause, NULL);
     }
-    record(path, start, user, system, status, complete, leaked, false);
+    record(path, start, user, system, status, complete, leaked, false, false);
     free(path);
     if (WIFSIGNALED(status)) {
         int sig = WTERMSIG(status);
