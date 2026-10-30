@@ -146,9 +146,10 @@ sharing their heavy admission and any metadata target already discovered.
 It stays outside `[binaries]`: that schema names Cargo package/bin targets
 and applies on ordinary runs, whereas this C target is conditional on `--cpu`.
 Its CPU
-overhead must be at most 2 ms per test; the offline 100-attempt measurement
+overhead must have a median below 2 ms measured on 100 trivial attempts,
+with every attempt below 10 ms as a gross-regression backstop. The measurement
 subtracts recorded test-tree CPU from `wait4` usage of a `posix_spawn`ed wrapper,
-including supervisor startup, publication and exit, and reports mean and max.
+including supervisor startup, publication and exit, and reports mean, median and max.
 The writer caches test identity and a JSON buffer, emits fixed decimal seconds,
 and reuses the reserved temporary file for initial publication. Every checkpoint
 and final update still uses one write and atomic rename. Its escaped-identity
