@@ -12,6 +12,7 @@ mod inbox;
 pub use ended::EndedMark;
 pub(crate) mod acts;
 mod parties;
+mod start;
 use inbox::{conversation_seen_decision, mark_seen, prune_unheld_roles, replace_waiting};
 
 use crate::{
@@ -109,6 +110,9 @@ pub(crate) struct Recent {
 #[derive(Debug)]
 pub struct Domain {
     phase: Phase,
+    start: start::Phase,
+    start_at: Option<Wall>,
+    touched: bool,
     deployment_provider: u16,
     people: Map<u64, Identity>,
     results_seen: Map<u64, u64>,
@@ -227,6 +231,9 @@ impl Domain {
         }
         Domain {
             phase: Phase::Restoring,
+            start: start::Phase::Default,
+            start_at: None,
+            touched: false,
             deployment_provider,
             people: Map::with_capacity(limits.people),
             results_seen: Map::with_capacity(limits.people),
@@ -383,7 +390,7 @@ impl Domain {
     /// Borrow one retained authenticated party's display identity; no secret is known.
     #[must_use]
     pub fn identity(&self, party: u64) -> Option<&Identity> {
-        if !self.ready() {
+        if !self.ready() && !self.start_lookup() {
             return None;
         }
         self.people.get(&party)
@@ -425,7 +432,7 @@ impl Domain {
     /// Borrow the retained role holders of one project without changing admission.
     #[must_use]
     pub fn project_members(&self, project: u32) -> Option<&[Holding]> {
-        if !self.ready() {
+        if !self.ready() && !self.start_lookup() {
             return None;
         }
         Some(self.roles.get(&project)?)
@@ -553,6 +560,7 @@ pub fn outputs_bound(limits: &Limits) -> u32 {
 /// requiring the historical roster to equal the current one. Refused role asks retain their invalid
 /// targets for keyed replay.
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
+    domain.touched = true;
     match event {
         Event::Act { reply_to, connector, key, act } => {
             acts::admit(domain, env, reply_to, crate::ActKey { connector, key }, *act, out);
@@ -602,7 +610,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             out.push(Request::Reply { to: reply_to, reply: Reply::SignedOut });
         }
         Event::Roles { project, holdings } => {
-            if domain.phase == Phase::Failed {
+            if domain.phase == Phase::Failed || (domain.start != start::Phase::Default && !domain.ready()) {
                 return;
             }
             match valid_roles(domain, &env.limits, project, &holdings) {
@@ -1964,6 +1972,14 @@ pub(super) fn answer_decided(
 }
 
 fn restore(domain: &mut Domain, env: &Env<Limits>, record: Stored, out: &mut Queue<Request>) {
+    if domain.start == start::Phase::Default {
+        restore_default(domain, env, record, out);
+    } else {
+        start::load(domain, env, record, out);
+    }
+}
+
+fn restore_default(domain: &mut Domain, env: &Env<Limits>, record: Stored, out: &mut Queue<Request>) {
     match domain.phase {
         Phase::Ready => {
             return restore_failed(domain, record.key(), Refusal::Limit { which: LimitKind::Restore }, out);
@@ -2072,6 +2088,7 @@ fn restore_failed(domain: &mut Domain, key: Key, refusal: Refusal, out: &mut Que
 
 #[expect(clippy::too_many_lines, reason = "all restored references are validated before requests open")]
 fn restored(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    assert!(domain.start == start::Phase::Default, "explicit start cannot use legacy Restored");
     match domain.phase {
         Phase::Ready | Phase::Failed => return,
         Phase::Restoring => {}

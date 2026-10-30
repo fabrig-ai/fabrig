@@ -19,6 +19,10 @@ pub(crate) struct Acted {
 }
 
 impl Acted {
+    pub(super) fn project_deadline(&mut self, env: &Env<Limits>) -> Time {
+        self.due = deadline(env, answer_expiry(self.at, &env.limits));
+        self.due
+    }
     pub(super) const fn at(&self) -> Wall {
         self.at
     }
@@ -198,6 +202,10 @@ pub(super) fn restore(
     } else {
         retain(domain, env, key, act, outcome, at);
     }
+}
+
+pub(super) fn load(domain: &mut Domain, key: ActKey, act: Act, outcome: Outcome, at: Wall) {
+    assert!(domain.acted.insert(key, Acted { act, outcome, at, due: Time::ZERO }).is_ok(), "acted fit checked");
 }
 
 fn permanent(outcome: &Outcome) -> bool {

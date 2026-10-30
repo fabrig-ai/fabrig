@@ -2471,3 +2471,6 @@ fn valid_refuses_each_unrepresentable_limit() {
         assert_eq!(valid(&limits), accepted, "{name}");
     }
 }
+
+#[path = "tests/start.rs"]
+mod start;

@@ -17,6 +17,10 @@
 //!
 //! `Domain::new` starts restoring. `step` admits rows, then `Restored`
 //! validates references and arms deadlines; failed restoration stays unready.
+//! `Domain::start_restore` instead selects explicit load/fit/link before input, capturing one wall
+//! instant for both expiry walks. `start_link` leaves admission closed; the caller establishes all
+//! links, drives `start_sweep` and its borrowed rows, and releases sweep writes durably before
+//! `start_complete` projects live deadlines and opens admission (domain/engine.md, 6).
 //! Ready requests share person-scoped keys across sign-ins: identical pending
 //! copies join bounded waiters, saved copies replay the outcome, and conflicting
 //! payloads refuse (domain/people.md, sections 3 and 5.1).

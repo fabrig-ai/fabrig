@@ -100,10 +100,13 @@ fn name_within_segments(segments: &[Box<[u8]>], limits: &Limits) -> bool {
 }
 
 pub(crate) fn authority_within(authority: &Authority, limits: &Limits) -> bool {
+    authority.notes.0 & !7 == 0 && authority_fits(authority, limits)
+}
+
+pub(crate) fn authority_fits(authority: &Authority, limits: &Limits) -> bool {
     if !within(authority.grants.len(), limits.grants)
         || !within(authority.delegation.kinds.len(), limits.executors)
         || !within(authority.note_resources.len(), limits.grants)
-        || authority.notes.0 & !7 != 0
     {
         return false;
     }
