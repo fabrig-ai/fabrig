@@ -3,7 +3,7 @@
 use alloc::boxed::Box;
 use skein_lib::{List, Map, Queue};
 
-use crate::limits::{authority_within, requirements_within, within};
+use crate::limits::{authority_fits, authority_within, requirements_within, within};
 use crate::order::at_most_but_models;
 use crate::{Limits, Models, Policy, Requirement, Role, Rules, stored_finding_limit};
 
@@ -14,6 +14,16 @@ pub struct Domain {
     rules: Rules,
     policies: Map<u32, Policy>,
     limits: Limits,
+    start: Start,
+    touched: bool,
+    failure: Option<(u32, PolicyRefusal)>,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum Start {
+    Default,
+    Loading,
+    Linked,
 }
 
 /// Root-issued policy-table mutation, producing exactly one `PolicyFact` in uncapped output
@@ -83,6 +93,22 @@ pub enum PolicyFact {
 }
 
 impl Domain {
+    /// Select load/fit/link before any restore or ordinary mutation (engine.md, 6).
+    pub fn start_restore(&mut self) {
+        assert!(self.start == Start::Default && !self.touched, "authority start selected once before input");
+        self.start = Start::Loading;
+    }
+
+    /// Seal loading, preserving the first keyed fit failure (engine.md, 6).
+    pub fn start_link(&mut self) -> Result<(), (u32, PolicyRefusal)> {
+        assert!(self.start == Start::Loading, "authority link follows loading once");
+        self.start = Start::Linked;
+        match self.failure {
+            Some(failure) => Err(failure),
+            None => Ok(()),
+        }
+    }
+
     /// Admit owned `rules` and `limits`, creating an empty bounded policy table; return `None` for
     /// unrepresentable bounds, oversized rules or inconsistent run ceilings. Allocates only
     /// configured retained capacity.
@@ -92,7 +118,14 @@ impl Domain {
         if !valid_rules(&rules, &limits) {
             return None;
         }
-        Some(Domain { rules, policies: Map::with_capacity(limits.projects), limits })
+        Some(Domain {
+            rules,
+            policies: Map::with_capacity(limits.projects),
+            limits,
+            start: Start::Default,
+            touched: false,
+            failure: None,
+        })
     }
 
     /// Add bounded deployment requirements while assembling startup configuration.
@@ -164,6 +197,44 @@ impl Domain {
 /// Apply one root-issued `event` to `domain` and append exactly one terminal policy fact to the
 /// uncapped `out` queue. Refusal preserves the previous policy, and the root owns persistence.
 pub fn step(domain: &mut Domain, event: Event, out: &mut Queue<PolicyFact>) {
+    // Rules are startup configuration as well as an ordinary replacement; neither loads a policy.
+    match &event {
+        Event::Rules(_) => {}
+        Event::Restore { .. } | Event::Policy { .. } | Event::Dropped { .. } => domain.touched = true,
+    }
+    if domain.start != Start::Default {
+        match &event {
+            Event::Restore { project, policy } => {
+                assert!(domain.start == Start::Loading, "authority restore after seal: project {project}");
+                if let Some((_, reason)) = domain.failure {
+                    out.push(PolicyFact::Refused { project: *project, reason });
+                    return;
+                }
+                assert!(!domain.policies.contains_key(project), "duplicate policy key: project {project}");
+                let reason = if !policy_fits(&domain.limits, policy) {
+                    Some(PolicyRefusal::Oversized)
+                } else if domain.policies.len() == domain.policies.capacity() {
+                    Some(PolicyRefusal::Full)
+                } else {
+                    None
+                };
+                if let Some(reason) = reason {
+                    domain.failure = Some((*project, reason));
+                    out.push(PolicyFact::Refused { project: *project, reason });
+                    return;
+                }
+            }
+            Event::Rules(_) => {
+                assert!(domain.failure.is_none(), "authority failed start cannot mutate configuration");
+            }
+            Event::Policy { .. } | Event::Dropped { .. } => {
+                assert!(
+                    domain.start == Start::Linked && domain.failure.is_none(),
+                    "authority mutation requires successful link"
+                );
+            }
+        }
+    }
     let restoring = match &event {
         Event::Restore { .. } => true,
         Event::Rules(_) | Event::Policy { .. } | Event::Dropped { .. } => false,
@@ -174,7 +245,11 @@ pub fn step(domain: &mut Domain, event: Event, out: &mut Queue<PolicyFact>) {
             domain.rules = *rules;
         }
         Event::Policy { project, policy } | Event::Restore { project, policy } => {
-            if let Some(reason) = invalid(&domain.rules, &domain.limits, &policy, restoring) {
+            if let Some(reason) = if restoring && domain.start != Start::Default {
+                None
+            } else {
+                invalid(&domain.rules, &domain.limits, &policy, restoring)
+            } {
                 out.push(PolicyFact::Refused { project, reason });
                 return;
             }
@@ -271,4 +346,26 @@ fn invalid(rules: &Rules, limits: &Limits, policy: &Policy, restoring: bool) -> 
         }
     }
     None
+}
+
+// Bounded owned representation only; policy relationships belong to admission and its oracle.
+fn policy_fits(limits: &Limits, policy: &Policy) -> bool {
+    if !within(policy.projections.len(), limits.grants)
+        || !authority_fits(&policy.ceiling, limits)
+        || !within(policy.roles.len(), limits.roles)
+        || !requirements_within(&policy.requirements, limits)
+    {
+        return false;
+    }
+    for grant in &policy.projections {
+        if !crate::limits::pattern_within(&grant.pattern, limits) {
+            return false;
+        }
+    }
+    for role in &policy.roles {
+        if !authority_fits(&role.authority, limits) {
+            return false;
+        }
+    }
+    true
 }

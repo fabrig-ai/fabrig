@@ -1309,3 +1309,185 @@ fn replacement_rules_and_restore_preserve_a_project_above_the_new_ceiling() {
     }
     assert!(after.is_empty());
 }
+
+#[test]
+fn explicit_start_fits_policy_without_replaying_admission_judgments() {
+    let mut candidate = policy(authority());
+    candidate.ceiling.notes = Scopes(255);
+    candidate.ceiling.budget.spend = u64::MAX;
+    candidate.period_spend = u64::MAX;
+    candidate.roles = Box::new([role(authority()), role(authority())]);
+    candidate.roles[0].period_spend = u64::MAX;
+    candidate.roles[0].requests = Requests(u16::MAX);
+    let mut domain = Domain::new(rules(authority()), LIMITS).unwrap();
+    domain.start_restore();
+    assert_eq!(
+        apply(&mut domain, Event::Restore { project: 1, policy: candidate.clone() }),
+        PolicyFact::Added { project: 1 }
+    );
+    assert_eq!(domain.start_link(), Ok(()));
+    assert_eq!(domain.policy(1), Some(&candidate));
+    assert_eq!(
+        apply(&mut domain, Event::Policy { project: 1, policy: candidate }),
+        PolicyFact::Refused { project: 1, reason: PolicyRefusal::Oversized }
+    );
+}
+
+#[test]
+fn explicit_start_preserves_first_keyed_fit_failure() {
+    let mut domain = Domain::new(rules(authority()), LIMITS).unwrap();
+    domain.start_restore();
+    let mut candidate = policy(authority());
+    candidate.roles = copies(role(authority()), LIMITS.roles + 1);
+    assert_eq!(
+        apply(&mut domain, Event::Restore { project: 7, policy: candidate }),
+        PolicyFact::Refused { project: 7, reason: PolicyRefusal::Oversized }
+    );
+    assert_eq!(
+        apply(&mut domain, Event::Restore { project: 8, policy: policy(authority()) }),
+        PolicyFact::Refused { project: 8, reason: PolicyRefusal::Oversized }
+    );
+    assert_eq!(domain.start_link(), Err((7, PolicyRefusal::Oversized)));
+    assert!(domain.policy(8).is_none());
+}
+
+#[test]
+fn explicit_start_policy_table_exact_fit_and_first_full_failure() {
+    let mut domain = Domain::new(rules(authority()), LIMITS).unwrap();
+    domain.start_restore();
+    for project in 0..LIMITS.projects {
+        assert_eq!(
+            apply(&mut domain, Event::Restore { project, policy: policy(authority()) }),
+            PolicyFact::Added { project }
+        );
+    }
+    assert_eq!(
+        apply(&mut domain, Event::Restore { project: 9, policy: policy(authority()) }),
+        PolicyFact::Refused { project: 9, reason: PolicyRefusal::Full }
+    );
+    assert_eq!(domain.start_link(), Err((9, PolicyRefusal::Full)));
+}
+
+#[test]
+fn explicit_start_policy_nested_fit_limits_remain_enforced() {
+    for field in 0_u8..7 {
+        let mut bounded = policy(authority());
+        let mut over = bounded.clone();
+        match field {
+            0 => {
+                bounded.roles = copies(role(authority()), LIMITS.roles);
+                over.roles = copies(role(authority()), LIMITS.roles + 1);
+            }
+            1 => {
+                bounded.ceiling.grants = copies(authority().grants[0].clone(), LIMITS.grants);
+                over.ceiling.grants = copies(authority().grants[0].clone(), LIMITS.grants + 1);
+            }
+            2 => {
+                bounded.ceiling.delegation.kinds = copies(crate::Executor::Charter(1), LIMITS.executors);
+                over.ceiling.delegation.kinds = copies(crate::Executor::Charter(1), LIMITS.executors + 1);
+            }
+            3 => {
+                bounded.requirements = copies(requirement(1), LIMITS.requirements);
+                over.requirements = copies(requirement(1), LIMITS.requirements + 1);
+            }
+            4 => {
+                bounded.ceiling.grants[0].pattern.last = Last::Exact(copies(0, LIMITS.segment_bytes));
+                over.ceiling.grants[0].pattern.last = Last::Exact(copies(0, LIMITS.segment_bytes + 1));
+            }
+            5 => {
+                bounded.ceiling.grants[0].pattern.segments = copies(Box::from(b"a".as_slice()), LIMITS.segments);
+                over.ceiling.grants[0].pattern.segments = copies(Box::from(b"a".as_slice()), LIMITS.segments + 1);
+            }
+            6 => {
+                bounded.roles[0].authority.note_resources =
+                    copies(authority().note_resources[0].clone(), LIMITS.grants);
+                over.roles[0].authority.note_resources =
+                    copies(authority().note_resources[0].clone(), LIMITS.grants + 1);
+            }
+            _ => unreachable!(),
+        }
+        for (candidate, expected) in [(bounded, None), (over, Some(PolicyRefusal::Oversized))] {
+            let mut domain = Domain::new(rules(authority()), LIMITS).unwrap();
+            domain.start_restore();
+            let fact = apply(&mut domain, Event::Restore { project: 1, policy: candidate });
+            assert_eq!(
+                fact,
+                match expected {
+                    None => PolicyFact::Added { project: 1 },
+                    Some(reason) => PolicyFact::Refused { project: 1, reason },
+                },
+                "field {field}"
+            );
+            assert_eq!(
+                domain.start_link(),
+                match expected {
+                    None => Ok(()),
+                    Some(reason) => Err((1, reason)),
+                }
+            );
+        }
+    }
+}
+
+#[test]
+fn explicit_start_authority_phase_errors_do_not_mix_with_default() {
+    for bad in 0_u8..6 {
+        let mut domain = Domain::new(rules(authority()), LIMITS).unwrap();
+        let result = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| {
+            if bad == 0 {
+                apply(&mut domain, Event::Restore { project: 1, policy: policy(authority()) });
+            }
+            domain.start_restore();
+            match bad {
+                0 | 1 => domain.start_restore(),
+                2 => {
+                    apply(&mut domain, Event::Dropped { project: 1 });
+                }
+                3 => {
+                    domain.start_link().unwrap();
+                    domain.start_link().unwrap();
+                }
+                4 => {
+                    domain.start_link().unwrap();
+                    apply(&mut domain, Event::Restore { project: 1, policy: policy(authority()) });
+                }
+                5 => {
+                    apply(&mut domain, Event::Restore { project: 1, policy: policy(authority()) });
+                    apply(&mut domain, Event::Restore { project: 1, policy: policy(authority()) });
+                }
+                _ => unreachable!(),
+            }
+        }));
+        assert!(result.is_err(), "bad phase {bad}");
+    }
+}
+
+fn copies<T: Clone + core::fmt::Debug>(value: T, count: u32) -> Box<[T]> {
+    let mut copies = skein_lib::List::with_capacity(count);
+    for _ in 0..count {
+        copies.push(value.clone()).unwrap();
+    }
+    copies.into_boxed()
+}
+
+#[test]
+fn explicit_start_preserves_startup_configuration_before_policy_input() {
+    for select_first in [false, true] {
+        let mut domain = Domain::new(rules(authority()), LIMITS).unwrap();
+        if select_first {
+            domain.start_restore();
+        }
+        let mut out = Queue::uncapped();
+        crate::step(&mut domain, Event::Rules(Box::new(rules(authority()))), &mut out);
+        assert!(out.is_empty());
+        assert!(domain.add_configured_requirements(&[]));
+        if !select_first {
+            domain.start_restore();
+        }
+        assert_eq!(
+            apply(&mut domain, Event::Restore { project: 1, policy: policy(authority()) }),
+            PolicyFact::Added { project: 1 }
+        );
+        assert_eq!(domain.start_link(), Ok(()));
+    }
+}
