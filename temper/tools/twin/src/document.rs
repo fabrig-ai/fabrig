@@ -83,11 +83,18 @@ pub(crate) fn script(
                 }
                 match block {
                     Block::Text(text) | Block::Refusal(text) => {
-                        write!(script, "{{\"text\":{}}}", quoted(text.text())?).expect("writing to String");
+                        let text = replace(text.text(), replaces, counts)?;
+                        write!(script, "{{\"text\":{}}}", quoted(&text)?).expect("writing to String");
                     }
                     Block::Call(call) => {
                         calls = true;
                         let arguments = replace(call.input(), replaces, counts)?;
+                        if !matches!(
+                            serde_json::from_slice::<serde_json::Value>(&arguments),
+                            Ok(serde_json::Value::Object(_))
+                        ) {
+                            return Err(Refusal::Bounds { what: "replacement arguments" });
+                        }
                         // Raw arguments are embedded without a JSON parse/serialize
                         // round trip, preserving their recorded order and spacing.
                         let Ok(text) = std::str::from_utf8(&arguments) else {
@@ -113,29 +120,26 @@ pub(crate) fn script(
 }
 
 fn replace(input: &[u8], replaces: &[Replace], counts: &mut [u32]) -> Result<Vec<u8>, Refusal> {
-    let mut arguments = input.to_vec();
+    let mut bytes = input.to_vec();
     for (i, replace) in replaces.iter().enumerate() {
         let mut out = Vec::new();
         let mut at = 0;
-        while at < arguments.len() {
-            if arguments[at..].starts_with(&replace.old) {
+        while at < bytes.len() {
+            if bytes[at..].starts_with(&replace.old) {
                 out.extend_from_slice(&replace.new);
                 at += replace.old.len();
                 counts[i] = counts[i].checked_add(1).ok_or(Refusal::Bounds { what: "replace count" })?;
             } else {
-                out.push(arguments[at]);
+                out.push(bytes[at]);
                 at += 1;
             }
             if out.len() > temper_fake::DOCUMENT_BYTES as usize {
                 return Err(Refusal::Bounds { what: "arguments" });
             }
         }
-        arguments = out;
+        bytes = out;
     }
-    if !matches!(serde_json::from_slice::<serde_json::Value>(&arguments), Ok(serde_json::Value::Object(_))) {
-        return Err(Refusal::Bounds { what: "replacement arguments" });
-    }
-    Ok(arguments)
+    Ok(bytes)
 }
 
 pub(crate) fn finish(base: &mut Base, cued: &[String], asked: &[String]) -> Result<Box<[u8]>, Refusal> {

@@ -166,20 +166,54 @@ fn a_call_keeps_its_recorded_arguments_and_finishes_tool_calls() {
 }
 
 #[test]
-fn a_replace_applies_to_arguments_alone_and_is_counted() {
+fn a_replace_applies_to_assistant_text_and_arguments_and_is_counted() {
     let (_scratch, mut input) = fixture(&[CHAT]);
     let mut parts = first(&input);
     completion(&mut parts, vec![text("CSV"), call(br#"{"a":"CSV CSV"}"#)]);
     save_first(&input, parts);
     input.replaces = Box::new([Replace { old: b"CSV".as_slice().into(), new: b"TSV".as_slice().into() }]);
     let converted = twin(&input).expect("replace arguments");
-    // The first completion has two, and the chat's final finish has one.
-    assert_eq!(&*converted.report.replaced, &[3]);
+    // The first completion has three occurrences, and the final finish has one.
+    assert_eq!(&*converted.report.replaced, &[4]);
     let doc: Value = serde_json::from_slice(&converted.document).expect("twin JSON");
     assert_eq!(doc["cued"][0]["cue"], CUES[0]);
-    assert_eq!(doc["cued"][0]["turns"][0]["lines"][0]["text"], "CSV");
+    assert_eq!(doc["cued"][0]["turns"][0]["lines"][0]["text"], "TSV");
     assert_eq!(doc["cued"][0]["turns"][0]["lines"][1]["arguments"]["a"], "TSV TSV");
     assert_eq!(doc["otherwise"], json!(["off script CSV"]));
+}
+
+#[test]
+fn replacements_leave_tool_output_and_user_text_unconsumed() {
+    let (_scratch, mut input) = fixture(&[CHAT]);
+    let mut parts = first(&input);
+    completion(&mut parts, vec![text("finished")]);
+    let said =
+        smith::Said::new(&smith::CEILINGS, smith::SaidParts { text: b"unique-output".as_slice().into(), error: false })
+            .expect("tool output");
+    let result = smith::ToolResult::new(
+        &smith::CEILINGS,
+        smith::ToolResultParts { id: b"recorded-call".as_slice().into(), returned: smith::Returned::Said(said) },
+    )
+    .expect("tool result");
+    let mut blocks = List::with_capacity(2);
+    blocks.push(text("unique-output")).expect("user text");
+    blocks.push(Block::Result(result)).expect("tool result");
+    let user = Message::new(&smith::CEILINGS, MessageParts { role: Role::User, blocks }).expect("user message");
+    let mut messages = List::with_capacity(2);
+    messages.push(user).expect("input");
+    messages.push(parts.messages.as_slice()[0].clone()).expect("completion");
+    parts.messages = messages;
+    save_first(&input, parts);
+    input.replaces = Box::new([Replace { old: b"unique-output".as_slice().into(), new: b"changed".as_slice().into() }]);
+    let converted = twin(&input).expect("convert without replacing inputs");
+    assert_eq!(&*converted.report.replaced, &[0], "neither input contributes replacements");
+    let doc: Value = serde_json::from_slice(&converted.document).expect("twin JSON");
+    assert_eq!(doc["cued"][0]["turns"][0]["lines"], json!([{"text":"finished"}]));
+    let stored = first(&input);
+    let input = &stored.messages.as_slice()[0];
+    assert!(matches!(&input.blocks().as_slice()[0], Block::Text(value) if value.text() == b"unique-output"));
+    assert!(matches!(&input.blocks().as_slice()[1], Block::Result(value)
+        if matches!(value.returned(), smith::Returned::Said(said) if said.text() == b"unique-output")));
 }
 
 #[test]
