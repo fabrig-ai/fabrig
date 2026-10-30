@@ -374,18 +374,12 @@ fn admit(kit: &Kit, call: Call, deadline: Time, env: &Env<Limits>) -> Result<Adm
             fits(&content, limits)?;
             // As the kit knows the file: at the version its LLM read, or
             // absent.
-            let expect = match kit.knowledge.version(&located.place) {
-                Some(version) => Expect::Is { version },
-                None => Expect::Absent,
-            };
+            let expect = expected(kit, &located.place);
             Work::Write { place: located.place, content, expect }
         }
         Call::Remove { path } => {
             let located = writable(&kit.checkout, &path, limits, true)?;
-            let expect = match kit.knowledge.version(&located.place) {
-                Some(version) => Expect::Is { version },
-                None => Expect::Absent,
-            };
+            let expect = expected(kit, &located.place);
             Work::Remove { place: located.place, expect }
         }
         Call::Edit { path, edits } => {
@@ -423,6 +417,13 @@ fn admit(kit: &Kit, call: Call, deadline: Time, env: &Env<Limits>) -> Result<Adm
     };
     ready(kit, deadline, env)?;
     Ok(Admitted::Work(work))
+}
+
+fn expected(kit: &Kit, place: &path::Place) -> Expect {
+    match kit.knowledge.version(place) {
+        Some(version) => Expect::Is { version },
+        None => Expect::Absent,
+    }
 }
 
 /// The common entrance deadline and concurrent-call bounds.

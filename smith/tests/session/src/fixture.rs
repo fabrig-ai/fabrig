@@ -148,13 +148,13 @@ pub fn fits(call: &Call, outcome: &Outcome) -> bool {
                         .any(|line| line.starts_with(&hit.text) && holds(line, pattern)))
         }),
         (Call::Remove { .. }, Outcome::Removed) => is_file || is_directory,
-        (Call::Remove { .. }, Outcome::NotEmpty) => is_directory,
         (Call::Write { .. }, Outcome::Written { created }) => is_file && (!*created || may_be_missing),
         // What a change to a file, or a listing of one, comes to; and an edit
         // that does not apply.
         (Call::Edit { .. }, Outcome::Edited { .. } | Outcome::EditFailed { .. })
         | (Call::List { .. }, Outcome::NotDirectory { .. }) => is_file,
-        (Call::Read { .. } | Call::Write { .. } | Call::Edit { .. }, Outcome::NotFile) => is_directory,
+        (Call::Remove { .. }, Outcome::NotEmpty)
+        | (Call::Read { .. } | Call::Write { .. } | Call::Edit { .. }, Outcome::NotFile) => is_directory,
         (Call::Read { .. } | Call::List { .. } | Call::Search { .. } | Call::Edit { .. }, Outcome::NotFound { .. }) => {
             may_be_missing
         }

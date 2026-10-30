@@ -255,7 +255,21 @@ pub(crate) fn answered(session: Token, tool: Tool, outcome: &Outcome, observatio
         Outcome::Busy => (Verdict::Busy, 0),
         Outcome::NulByte => (Verdict::NulByte, 0),
     };
-    let job = match outcome {
+    let job = outcome_job(outcome);
+    let observed = observed(outcome, observation);
+    FactKind::Answered {
+        session,
+        tool,
+        verdict,
+        bytes,
+        job,
+        omitted_bytes: observed.omitted_bytes,
+        clamped: observed.clamped,
+    }
+}
+
+fn outcome_job(outcome: &Outcome) -> Option<crate::JobNumber> {
+    match outcome {
         Outcome::Running { job, .. } | Outcome::Job { job, .. } => Some(*job),
         Outcome::Exited { .. }
         | Outcome::Read { .. }
@@ -283,16 +297,6 @@ pub(crate) fn answered(session: Token, tool: Tool, outcome: &Outcome, observatio
         | Outcome::Cancelled
         | Outcome::Busy
         | Outcome::NulByte => None,
-    };
-    let observed = observed(outcome, observation);
-    FactKind::Answered {
-        session,
-        tool,
-        verdict,
-        bytes,
-        job,
-        omitted_bytes: observed.omitted_bytes,
-        clamped: observed.clamped,
     }
 }
 

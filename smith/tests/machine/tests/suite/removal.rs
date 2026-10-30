@@ -132,9 +132,9 @@ fn real_removal_checks_current_bytes_and_preserves_refused_targets() {
     fs::write(scratch.join(".GiT/config"), b"protected").expect("git fixture");
     std::os::unix::fs::symlink("src", scratch.join("alias")).expect("parent link");
     std::os::unix::fs::symlink("src/a", scratch.join("link")).expect("file link");
-    let version = match perform(&scratch, tools::Op::Load { at: place(b"src/a"), max: 16 }) {
-        tools::Done::Loaded { version, .. } => version,
-        terminal => panic!("read before removal: {terminal:?}"),
+    let loaded = perform(&scratch, tools::Op::Load { at: place(b"src/a"), max: 16 });
+    let tools::Done::Loaded { version, .. } = loaded else {
+        panic!("read before removal: {loaded:?}");
     };
     for (path, expect, expected) in [
         (b"src/a".as_slice(), tools::Expect::Absent, tools::Done::Conflict { now: Some(version) }),

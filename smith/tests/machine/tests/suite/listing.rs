@@ -53,6 +53,7 @@ fn configured_component(variables: &[smith_protocol_machine::Variable]) -> Compo
 fn place(path: &[u8]) -> tools::Place {
     tools::Place { root: Token::new(10), path: Box::from(path) }
 }
+#[expect(clippy::too_many_lines, reason = "one listing follows directory open, close and bounded output")]
 fn listed(output: &[u8], depth: tools::Depth, maximum: u32, bytes: u64, glob: Option<&[u8]>) -> tools::Done {
     let mut component = component();
     let mut terminals = Queue::with_capacity(4);

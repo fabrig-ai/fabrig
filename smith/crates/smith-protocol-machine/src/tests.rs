@@ -875,7 +875,9 @@ fn every_operation_translates_the_directory_itself_and_nested_paths_once() {
                         }
                     }
                 }
-                other @ (Below::CancelFile { .. } | Below::Process(_)) => panic!("unexpected request: {other:?}"),
+                other @ (Below::Remove { .. } | Below::CancelFile { .. } | Below::Process(_)) => {
+                    panic!("unexpected request: {other:?}")
+                }
             }
             assert!(below.is_empty());
         }
@@ -1272,6 +1274,7 @@ fn a_listing_directory_failure_or_cancel_never_launches_rg() {
                 owner,
                 root: Token::new(10),
                 path: Box::from(b"missing".as_slice()),
+                no_follow: false,
                 deadline: Time::from_nanos(100)
             })
         );

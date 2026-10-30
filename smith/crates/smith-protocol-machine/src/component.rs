@@ -203,6 +203,10 @@ impl Component {
         }
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the admitted tool vocabulary is exhaustively translated at its entrance"
+    )]
     fn admit_tool(
         &mut self,
         env: &Env<Limits>,
