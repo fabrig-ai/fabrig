@@ -16,9 +16,10 @@ A change is a task that writes one repository's branch and lands it: its pull re
   where its project lands by turn, the CI at its head, its gates, and
   how many repairs, resolutions and updates it has used of its limits.
 - **Its result** is the change landed: its merge commit, its pull
-  request with its address, then what the landing passed as the change
-  saw it: `checks at HEAD:` each check at the landed head with its
-  conclusion, `repairs: N:` why each repair was asked, and `reviews:`
+  request with its address, a line `Landed: pull request #N merged into
+  BASE as SHORT.`, then what the landing passed as the change saw it:
+  `checks at HEAD:` each check at the landed head with its conclusion,
+  `repairs: N:` why each repair was asked, and `reviews:`
   each verdict at the head it judged, cut from the end and marked when
   long. It names no check or test the change didn't see. Or it fails,
   or is cancelled, as any task; a coder that fails for good, or finds
@@ -97,6 +98,10 @@ forge's answer).
   repair; a person's rejection holds it; an advisory gate never blocks.
   A reviewer that gives no verdict is asked once more, then the change
   is held.
+- **Gates are temper's:** a change's gates run in temper, and `change
+  show` prints each, `gate 1 · review · blocking · approved`; temper
+  posts none to the forge as a review or a status, so the pull
+  request's reviews there may be empty.
 - **Bounded work:** past its limit of repairs, resolutions or updates,
   the change holds rather than trying again.
 - **The parent hears its result,** landed or not.
@@ -111,8 +116,8 @@ forge's answer).
   project lands by turn.
 - **temper's runs** ask for one with `change`, and hear landings on a
   branch with `subscribe_forge`.
-- **The forge** holds its diff, its reviews and CI's logs: read them
-  there, at the pull request `change show` prints.
+- **The forge** holds its diff, CI's logs and any review a person posts
+  there: read them there, at the pull request `change show` prints.
 
 ## Limits
 
