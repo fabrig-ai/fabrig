@@ -524,7 +524,7 @@ impl Core {
                 }
             }
             start::StartMode::LoadAndLink => {
-                assert!(self.start.phase == Some(start::Phase::LoadCore), "calls load before Link");
+                assert!(self.start_loading(), "calls load before Link");
                 assert!(!self.call_parts.contains_key(&key), "duplicate call {:?}", Key::Core(CoreKey::Call(key)));
                 if !self.start_room(
                     start::LiveSet::Calls,
@@ -912,7 +912,7 @@ impl Core {
                 }
             }
             start::StartMode::LoadAndLink => {
-                assert!(self.start.phase == Some(start::Phase::LoadCore), "proofs load before Link");
+                assert!(self.start_loading(), "proofs load before Link");
                 let key = Key::Core(CoreKey::RunProof(proof.task));
                 assert!(!self.proofs.contains_key(&proof.task), "duplicate {key:?}");
                 if !self.start_room(start::LiveSet::RunProofs, key.clone(), self.proofs.len(), self.proofs.capacity()) {

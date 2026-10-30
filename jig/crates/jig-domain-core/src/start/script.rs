@@ -14,6 +14,14 @@ impl Core {
         let next = match done {
             Phase::LoadCore => {
                 self.counters.finish_restore();
+                if self.counters.dirty() {
+                    crate::routing::first_start::start_seed(self, env, out);
+                    self.start_collect_failure();
+                    if let Some(failure) = self.start_failure() {
+                        return Action::Refused(failure);
+                    }
+                    return self.start_commit(Phase::LoadInbox);
+                }
                 Phase::LoadInbox
             }
             Phase::LoadInbox => {
@@ -127,9 +135,8 @@ impl Core {
                     out.push(request);
                 }
             }
-            Phase::Sweep => {}
+            Phase::LoadInbox | Phase::Sweep => {}
             Phase::LoadCore
-            | Phase::LoadInbox
             | Phase::RestoreConnector { .. }
             | Phase::Link
             | Phase::Switch

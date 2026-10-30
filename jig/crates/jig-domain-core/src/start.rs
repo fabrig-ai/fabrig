@@ -120,6 +120,10 @@ impl Script {
 }
 
 impl Core {
+    pub(crate) fn start_loading(&self) -> bool {
+        self.start.phase == Some(Phase::LoadCore) && self.start.waiting.is_none()
+    }
+
     pub(crate) fn start_input(&mut self) {
         self.start.consumed = true;
     }
