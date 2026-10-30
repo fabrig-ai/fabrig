@@ -1,5 +1,15 @@
 # Merge queue status
 
+Decision0016 stage A uses shared `mq.tools_required` for actual checks,
+worker plans and precheck: only changed `tools/` paths select suites, even
+for full runs. Train preparation and evidence validation consume the worker
+plan; exact result, runtime identity and publication replay rules are retained.
+Train's independent expectation and recovery's stored-certificate validation
+use that same exact plan. Ready-check validates the recorded compile/lint
+plan and has no full-implies-tools rule. Publication has no tools selector.
+Stage B CPU-per-suite policy awaits Green's shared schema. Launcher CPU15 /
+wall60 and each tool suite's wall60 remain unchanged; no deployment is claimed.
+
 Provisional, 2026-10-29. Sections 1–3.7 retain one-gate selection/check/outcome
 policy. Explicit parent/candidate inputs, writing ratchets, offline tools
 suite discovery and `restart --batch 16` remain covered by `test_mq.py`.

@@ -370,6 +370,74 @@ class CheckTests(unittest.TestCase):
                                                      str(self.repo / "skein/scripts/old_forms.py"), "--write"],
                                     self.repo / "skein")])
 
+    def test_full_without_tools_keeps_all_ordinary_checks(self):
+        for paths in (["jig/src/lib.rs"], ["agents/policy.md"], ["Cargo.toml"],
+                      ["Cargo.lock"], [".config/nextest.toml"], []):
+            with self.subTest(paths=paths), patch.object(
+                    mq, "tools_commands", side_effect=AssertionError("tools discovery without tools change")):
+                calls = []
+                def runner(argv, **options):
+                    calls.append(argv)
+                    return subprocess.CompletedProcess(argv, 0)
+                steps = mq.run_checks(self.repo, "full", paths, self.directory / "full.log", runner=runner)
+                expected = [*mq.ratchet_commands(self.repo, paths),
+                            *mq.check_commands(self.repo, "full", paths)]
+                self.assertEqual([step["name"] for step in steps], [name for name, _, _ in expected])
+                self.assertEqual(calls, [argv for _, argv, _ in expected])
+                self.assertEqual([name for name, _, _ in expected][-5:],
+                                 ["fmt", "clippy", "build", "default", "fuzzy"])
+
+    def test_changed_tools_run_and_fail_closed_for_every_selection(self):
+        commands = [("tools/test_red.py", ["python3", "-I", "-B", "tools/test_red.py"], self.repo),
+                    ("tools/test_green.py", ["python3", "-I", "-B", "tools/test_green.py"], self.repo)]
+        for selected in ("docs", {"core"}, "full"):
+            with self.subTest(selected=selected), patch.object(mq, "tools_commands", return_value=commands):
+                calls = []
+                def runner(argv, **options):
+                    calls.append(argv)
+                    self.assertEqual(options["timeout"], 60)
+                    return subprocess.CompletedProcess(argv, int("tools/test_red.py" in argv))
+                steps = mq.run_checks(self.repo, selected, ["tools/docs/guide.md"],
+                                      self.directory / "red.log", runner=runner)
+                self.assertEqual(calls, [argv for _, argv, _ in commands])
+                self.assertEqual([step["name"] for step in steps], ["tools"])
+                self.assertFalse(steps[0]["green"])
+                self.assertEqual([suite["returncode"] for suite in steps[0]["suites"]], [1, 0])
+
+    def test_tools_path_changes_include_deletes_and_both_rename_sides(self):
+        for operation in ("add", "edit", "delete", "rename-in", "rename-out"):
+            with self.subTest(operation=operation):
+                repo = self.directory / operation
+                repo.mkdir()
+                mq.git(repo, "init", "-b", "fixture")
+                mq.git(repo, "config", "user.name", "Fixture")
+                mq.git(repo, "config", "user.email", "fixture@example.invalid")
+                (repo / "tools").mkdir()
+                (repo / "tools/source.md").write_text("tool source\n")
+                (repo / "outside.md").write_text("outside source\n")
+                mq.git(repo, "add", ".")
+                mq.git(repo, "commit", "-m", "base")
+                base = mq.git(repo, "rev-parse", "HEAD").stdout.strip()
+                if operation == "add":
+                    (repo / "tools/new.md").write_text("new tool\n")
+                elif operation == "edit":
+                    (repo / "tools/source.md").write_text("edited tool\n")
+                elif operation == "delete":
+                    (repo / "tools/source.md").unlink()
+                elif operation == "rename-in":
+                    mq.git(repo, "mv", "outside.md", "tools/moved.md")
+                else:
+                    mq.git(repo, "mv", "tools/source.md", "moved.md")
+                mq.git(repo, "add", "-A")
+                mq.git(repo, "commit", "-m", operation)
+                paths = mq.changed_paths(repo, base=base)
+                expected = {"add": ["tools/new.md"], "edit": ["tools/source.md"],
+                            "delete": ["tools/source.md"], "rename-in": ["outside.md", "tools/moved.md"],
+                            "rename-out": ["moved.md", "tools/source.md"]}
+                self.assertEqual(paths, expected[operation])
+                self.assertTrue(mq.tools_required(paths))
+                self.assertFalse(mq.tools_required(["toolsmith/source.md", "docs/tools/guide.md"]))
+
     def test_full_formats_workspace_and_docs_only_runs_ratchets(self):
         self.assertEqual(mq.check_commands(self.repo, "full", [])[0][1], ["cargo", "fmt", "--all", "--check"])
         for _, argv, _ in mq.check_commands(self.repo, "full", [])[1:]:
@@ -431,7 +499,7 @@ class CheckTests(unittest.TestCase):
                 patch.object(mq, "tools_commands", return_value=[]):
             steps = mq.run_checks(self.repo, "full", [], Path(directory) / "checks.log",
                                   runner=lambda *args, **kwargs: subprocess.CompletedProcess(args, 4))
-            self.assertEqual([step["name"] for step in steps], ["tools", "fmt"])
+            self.assertEqual([step["name"] for step in steps], ["fmt"])
             self.assertFalse(steps[-1]["green"])
 
     def test_tools_timeout_is_red_and_other_suites_still_run(self):
@@ -451,7 +519,7 @@ class CheckTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(dir=self.directory, prefix=".mq-test-") as directory, \
                 patch.object(mq, "tools_commands", return_value=commands):
             log = Path(directory) / "checks.log"
-            steps = mq.run_checks(self.repo, "full", [], log, runner=runner)
+            steps = mq.run_checks(self.repo, "full", ["tools/changed.py"], log, runner=runner)
             self.assertIn(f"Timed out after {mq.TOOLS_TIMEOUT} seconds", log.read_text())
         self.assertEqual(calls, [argv for _, argv, _ in commands])
         self.assertEqual([step["name"] for step in steps], ["tools"])
@@ -515,7 +583,7 @@ class CheckTests(unittest.TestCase):
                 with tempfile.TemporaryDirectory(dir=self.directory, prefix=".mq-test-") as directory:
                     steps = mq.run_checks(self.repo, "full", [], Path(directory) / "checks.log", runner=runner)
                 self.assertEqual("error" in steps[-1], refused)
-                self.assertEqual([step["name"] for step in steps], ["tools", "fmt", "clippy"])
+                self.assertEqual([step["name"] for step in steps], ["fmt", "clippy"])
 
 
 class CleanupTests(unittest.TestCase):
@@ -1189,12 +1257,12 @@ print('tools fixture passed')
     def test_batch_record_keeps_build_and_default_durations_separate(self):
         branch = self.branch("timed")
         queue = self.queue()
-        times = iter([-10, -5, 0, 1, 10, 12, 20, 27, 30, 33, 40, 44])
+        times = iter([0, 1, 10, 12, 20, 27, 30, 33, 40, 44])
         queue.checker = lambda *args: mq.run_checks(
             *args, runner=lambda *a, **kw: subprocess.CompletedProcess(a, 0), clock=lambda: next(times))
         queue.attempt([branch])
         self.assertEqual([(step["name"], step["duration"]) for step in self.records()[0]["steps"]],
-                         [("tools", 5), ("fmt", 1), ("clippy", 2), ("build", 7), ("default", 3), ("fuzzy", 4)])
+                         [("fmt", 1), ("clippy", 2), ("build", 7), ("default", 3), ("fuzzy", 4)])
 
     def test_failed_build_stops_tests_and_names_build_in_rejection(self):
         branch = self.branch("unbuildable")
@@ -1207,7 +1275,7 @@ print('tools fixture passed')
         queue.attempt([branch])
         record = self.records()[0]
         self.assertEqual(record["outcome"], "red")
-        self.assertEqual([step["name"] for step in record["steps"]], ["tools", "fmt", "clippy", "build"])
+        self.assertEqual([step["name"] for step in record["steps"]], ["fmt", "clippy", "build"])
         self.assertIn("failing step: build", self.posts[0][2])
 
     def test_manifest_batch_does_not_need_valid_cargo_metadata(self):

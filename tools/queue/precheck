@@ -486,7 +486,7 @@ class Precheck:
         print(f"selection: {self.record['selection']}", flush=True)
         self.save()
         commands = []
-        if selected == "full" or any(path.startswith("tools/") for path in paths):
+        if self.mq.tools_required(paths):
             commands.extend((name, argv, cwd, self.mq.TOOLS_TIMEOUT)
                             for name, argv, cwd in self.mq.tools_commands(self.repo))
         checks = self.mq.check_commands(self.repo, selected, paths, metadata=metadata)

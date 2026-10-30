@@ -56,7 +56,13 @@ run keeps `cargo fmt --all --check`. A batch with no checks to run is green.
 
 ### 2.3 Tools suites
 
-A change under `tools/`, or any full run, runs step `tools` before Cargo.
+A batch runs step `tools` before Cargo if and only if its changed paths
+include a path under `tools/`, regardless of docs, package or full selection.
+The shared `mq.tools_required` predicate governs the runner, worker's exact
+plan and precheck. Adds, edits and deletes count; path collection includes
+both source and destination of renames. Full runs without tools changes keep
+all ordinary ratchet, fmt, clippy, build, default and fuzzy checks and skip
+tools suites, including periodic, idle and forced repair full runs.
 Discover suites from the checkout's tracked files: every `tools/**/test_*.py`
 runs with `python3 -I -B`, including `tools/test_install.py`; every executable
 `tools/**/test-*` runs directly as `./tools/.../test-*`, honoring its shebang.
@@ -248,8 +254,9 @@ ready refs and advertised by origin. A missing or moved pin refuses the cycle;
 it never falls through to ordinary work. `plan` previews the singleton as full.
 
 The repair runs first as a singleton through the ordinary attempt path with
-`force_full=True`: writing ratchets, all offline tools suites, workspace fmt,
-clippy, build, default and fuzzy checks remain unchanged. Ordinary merge
+`force_full=True`: writing ratchets, workspace fmt, clippy, build, default and
+fuzzy checks remain unchanged; offline tools suites run only for changed
+`tools/` paths (section 2.3). Ordinary merge
 conflicts, red rejection, fast-forward-only main push, pinned cleanup and
 notifications apply. Exceptions, capacity refusals and failed process launches
 are errors, preserving tried tips without bisection or rejection. A completed
@@ -913,6 +920,11 @@ never run the live queue, a deployment or heavy recovery. Ordinary tools
 discovery includes the publication suite with the unchanged 60-second bound.
 
 ## 4. Later
+
+- CPU-per-suite policy is stage B of decision0016, owned by Green's shared
+  schema, and is not implemented here. The launcher keeps its existing
+  15-second CPU / 60-second wall budget and each tool suite keeps its
+  60-second wall timeout; no CPU cap is inferred for other suites.
 
 - Supervised SSH transport with stable job/incarnation identity, same-job
   start/status, verified bundles/results/logs, and lifetime evidence across

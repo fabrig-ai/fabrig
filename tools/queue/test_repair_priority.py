@@ -290,7 +290,8 @@ class RepairTests(unittest.TestCase):
             commands.append(argv)
             return subprocess.CompletedProcess(argv, 0)
 
-        steps = mq.run_checks(self.repo, "full", ["temper/src/lib.rs"], self.root / "plan.log", runner=runner)
+        steps = mq.run_checks(self.repo, "full", ["temper/src/lib.rs", "tools/test_fixture.py"],
+                              self.root / "plan.log", runner=runner)
         self.assertEqual([step["name"] for step in steps],
                          ["ratchet:temper", "tools", "fmt", "clippy", "build", "default", "fuzzy"])
         self.assertEqual(commands, [

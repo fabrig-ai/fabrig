@@ -226,7 +226,7 @@ class CandidateTests(Fixture):
         self.assertEqual(self.tool.record["selection"], ["always", "jig-app", "smith-agent", "temper-app"])
         self.restored()
 
-    def test_full_selection_uses_tools_fmt_and_plain_heavy_only(self):
+    def test_full_selection_uses_fmt_and_plain_heavy_without_tools(self):
         self.change("tip", "Cargo.toml", "workspace fixture\n")
         self.assertEqual(self.run_tool(), 0)
         self.assertEqual(self.tool.record["selection"], "full")
