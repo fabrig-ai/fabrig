@@ -403,3 +403,35 @@ fn closing_during_a_turn_keeps_the_cancelled_conversation_readable() {
     assert_eq!(world.run(Until::Time(until)).verdict, Verdict::Passed);
     assert!(world.front().engine.task(task).is_none(), "reading does not restart closing work");
 }
+
+#[test]
+fn a_met_inbox_waits_printed_answer_call_reaches_the_asker() {
+    use jig_domain_tasks::{MessageKind, Party};
+    const QUESTION: &[u8] = b"May I make this change?";
+    const ANSWER: &[u8] = b"Go ahead.";
+    let mut world = fixtures::world(fixtures::SEED);
+    let chat = fixtures::question(world.front(), QUESTION);
+    let (question, asking) = {
+        let task = world.front().engine.task(chat).expect("asked chat");
+        let question = task.inbox.iter().find(|word| word.kind == MessageKind::Question).expect("question");
+        let Party::Task(asking) = question.from else { panic!("asking delegate") };
+        (question.number, asking)
+    };
+    let agent = fixtures::agent(&mut world);
+    let inbox = call(&mut world, agent, &[b"inbox", b"--until", b"waiting"]);
+    assert_eq!(inbox.status, 0, "{inbox:?}");
+    let shown = std::str::from_utf8(&inbox.stdout).expect("UTF-8");
+    assert!(shown.contains("May I make this change?\n"), "{shown}");
+    assert!(shown.contains(&format!("answer: temper ctl DIR task answer {chat} {question} TEXT\n")), "{shown}");
+    assert!(shown.ends_with("met\n"), "{shown}");
+    let line = shown.lines().find_map(|line| line.strip_prefix("answer: temper ctl DIR ")).expect("answer call");
+    let mut words: Vec<&[u8]> = Vec::new();
+    for word in line.split_ascii_whitespace() {
+        words.push(if word == "TEXT" { ANSWER } else { word.as_bytes() });
+    }
+    let answer = call(&mut world, agent, &words);
+    assert_eq!(answer.status, 0, "{answer:?}");
+    assert!(world.front().engine.task(asking).expect("answered asker").inbox.iter().any(|word| {
+        word.from == Party::Task(chat) && word.kind == MessageKind::Answer { question } && word.words.as_ref() == ANSWER
+    }));
+}

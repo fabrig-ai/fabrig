@@ -1,5 +1,5 @@
 //! One call's bounded read set, with watches closed at their first delivery.
-use super::{Called, Out, Runner, finish};
+use super::{Called, Out, Printed, Runner};
 use crate::jig::{
     Limits,
     call::{Call, Project, Value, cursor, number, value},
@@ -10,7 +10,7 @@ use jig_client::{
     Client, Event, Handle, Latest, Readable, Readout, Watchable, Why, contract as c,
     thread::{self, Thread},
 };
-use skein_lib::{Env, Queue};
+use skein_lib::{Env, Queue, Writer};
 #[derive(Debug)]
 pub(crate) struct Reading {
     pub called: Called,
@@ -22,6 +22,7 @@ pub(crate) struct Reading {
     pub thread: Option<Thread>,
     pub questions: BTreeMap<(u64, u64), Option<Box<c::Question>>>,
     pub question: Option<(u64, u64)>,
+    pub met_inbox: Option<Printed>,
 }
 fn handle(runner: &Runner, prefix: u32, local: u32) -> Handle {
     Handle { asker: runner.asker, number: (u64::from(prefix) << 32u32) | u64::from(local) }
@@ -43,6 +44,33 @@ fn watch(runner: &Runner, reading: &mut Reading, local: u32, subject: c::Subject
     });
 }
 pub(super) fn start(runner: &mut Runner, client: &Client, env: &Env<Limits>, called: Called, out: &mut Queue<Out>) {
+    start_reading(runner, client, env, called, None, out);
+}
+
+// A met owner inbox wait uses the plain read, retaining its delivery on failure.
+pub(crate) fn met_inbox(
+    runner: &mut Runner,
+    client: &Client,
+    env: &Env<Limits>,
+    mut called: Called,
+    fallback: Printed,
+    out: &mut Queue<Out>,
+) {
+    // The inbox form ends with since, until and timeout.
+    for value in called.call.values.iter_mut().skip(4) {
+        *value = None;
+    }
+    start_reading(runner, client, env, called, Some(fallback), out);
+}
+
+fn start_reading(
+    runner: &mut Runner,
+    client: &Client,
+    env: &Env<Limits>,
+    called: Called,
+    met_inbox: Option<Printed>,
+    out: &mut Queue<Out>,
+) {
     let mut reading = Reading {
         called,
         command_prefix: runner.parts.expect("host vocabulary").command_prefix(),
@@ -53,13 +81,14 @@ pub(super) fn start(runner: &mut Runner, client: &Client, env: &Env<Limits>, cal
         thread: None,
         questions: BTreeMap::new(),
         question: None,
+        met_inbox,
     };
     let task = number(&reading.called.call, 0).unwrap_or(0);
     match reading.called.call.tool {
         1 => {
             if !inbox(runner, client, &mut reading, out) {
                 let printed = render::failure(b"unknown project", reading.called.json, 1);
-                finish(reading.called, printed, out);
+                finish(reading, printed, out);
                 return;
             }
             if render::document::subjects::inbox_eligible(&reading.called.call) {
@@ -73,7 +102,7 @@ pub(super) fn start(runner: &mut Runner, client: &Client, env: &Env<Limits>, cal
             let Some(Latest::Jig(c::Delivery::Me(me))) = document.latest else { return };
             let Some(_) = project(&reading.called.call, me) else {
                 let printed = render::failure(b"unknown project", reading.called.json, 1);
-                finish(reading.called, printed, out);
+                finish(reading, printed, out);
                 return;
             };
             let call = &reading.called.call;
@@ -110,7 +139,7 @@ pub(super) fn start(runner: &mut Runner, client: &Client, env: &Env<Limits>, cal
             let Some(Latest::Jig(c::Delivery::Me(me))) = document.latest else { return };
             if reading.called.call.tool == 23 && model_project(&reading.called.call, me).is_err() {
                 let printed = render::failure(b"unknown project", reading.called.json, 1);
-                finish(reading.called, printed, out);
+                finish(reading, printed, out);
                 return;
             }
             watch(runner, &mut reading, 3, c::Subject::Accounts, out);
@@ -122,7 +151,7 @@ pub(super) fn start(runner: &mut Runner, client: &Client, env: &Env<Limits>, cal
             let Some(me) = super::acts::me(runner, client) else { return };
             let Some(project) = project(&reading.called.call, me) else {
                 let printed = render::failure(b"unknown project", reading.called.json, 1);
-                finish(reading.called, printed, out);
+                finish(reading, printed, out);
                 return;
             };
             read(runner, &mut reading, 1, c::Read::Project { project }, out);
@@ -323,7 +352,7 @@ pub(super) fn ended(
     };
     close(runner, &reading, out);
     let printed = render::failure(b"watch ended", reading.called.json, status);
-    finish(reading.called, printed, out);
+    finish(reading, printed, out);
 }
 fn close(runner: &Runner, reading: &Reading, out: &mut Queue<Out>) {
     for local in [3, 4] {
@@ -389,7 +418,7 @@ fn complete(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut reading
         return;
     }
     let printed = render::reads(&reading, client, runner.me(), &env.limits, runner.parts.expect("host vocabulary"));
-    finish(reading.called, printed, out);
+    finish(reading, printed, out);
 }
 
 fn inbox(runner: &Runner, client: &Client, reading: &mut Reading, out: &mut Queue<Out>) -> bool {
@@ -557,7 +586,7 @@ fn terminal_read(
                 runner.parts.expect("host vocabulary"),
             ),
         };
-        finish(reading.called, printed, out);
+        finish(reading, printed, out);
     }
 }
 
@@ -587,4 +616,22 @@ fn next_question(reading: &Reading, maximum: u32) -> Option<(u64, u64)> {
         }
     }
     None
+}
+
+fn finish(reading: Reading, mut printed: Printed, out: &mut Queue<Out>) {
+    if let Some(fallback) = reading.met_inbox {
+        let prefix = if printed.status == 0 {
+            b"".as_slice()
+        } else {
+            fallback.stdout.strip_suffix(b"met\n").expect("met wait suffix")
+        };
+        let length = prefix.len().checked_add(printed.stdout.len()).expect("two bounded documents");
+        let mut stdout = Writer::new(length.checked_add(b"met\n".len()).expect("met suffix"));
+        stdout.put(prefix).expect("measured fallback");
+        stdout.put(&printed.stdout).expect("measured read");
+        stdout.put(b"met\n").expect("measured suffix");
+        printed.stdout = stdout.finish();
+        printed.status = fallback.status;
+    }
+    super::finish(reading.called, printed, out);
 }

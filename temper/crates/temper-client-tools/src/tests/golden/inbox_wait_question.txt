@@ -1,0 +1,8 @@
+1 · question 2
+Plan: I’ll add a `--csv` output-mode option to the Rust CLI in `src/main.rs`, reuse the existing `TABLE` data, print a header  (cut)
+read whole: temper ctl DIR task activity 2
+answer: temper ctl DIR task answer 1 2 TEXT
+1 · task
+digest: inbox dbc9e89f88287cbd
+read on with: inbox --after 011122
+met

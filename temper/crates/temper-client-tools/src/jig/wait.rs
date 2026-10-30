@@ -257,7 +257,15 @@ fn complete(
         )
     };
     close(&wait, runner.me(), out);
-    runner::finish(wait.called, printed, out);
+    if met
+        && wait.name == b"inbox"
+        && !wait.called.json
+        && let Some(c::Delivery::OwnerInbox(_)) = delivery
+    {
+        runner::reads::met_inbox(runner, client, env, wait.called, printed, out);
+    } else {
+        runner::finish(wait.called, printed, out);
+    }
 }
 pub(crate) fn fire(runner: &mut Runner, client: &Client, env: &Env<Limits>, out: &mut Queue<Out>) {
     let count = match &runner.wait_timers {
