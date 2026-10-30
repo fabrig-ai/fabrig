@@ -29,6 +29,28 @@ class Crash(Exception):
     pass
 
 
+class SettleNeighbour:
+    """Own load, affinity and elapsed time; only child polling waits for real time."""
+    def __init__(self):
+        self.loads = [0.0]
+        self.now = 0.0
+        self.waits = []
+        self.poll_sleep = time.sleep
+
+    def loadavg(self):
+        load = self.loads[0]
+        if len(self.loads) > 1:
+            self.loads.pop(0)
+        return (load, load, load)
+
+    def sleep(self, seconds):
+        self.now += seconds
+        if seconds >= 1:
+            self.waits.append(seconds)
+        else:
+            self.poll_sleep(seconds)
+
+
 class World:
     """Production ledger and transitions, with a file-backed cgroup neighbour."""
     def __init__(self, root):
@@ -45,11 +67,18 @@ class World:
             DEV_TMP=str(root / 'tmp'), HEAVY_BUILD_SLOTS_EFFECTIVE='1'))
         self.module = runpy.run_path(str(KIT / 'heavy-recovery.py'))
         self.g = self.module['Ledger'].__init__.__globals__
+        self.settle = SettleNeighbour()
+        fixture_os = SimpleNamespace(**vars(os))
+        fixture_os.getloadavg = self.settle.loadavg
+        fixture_os.sched_getaffinity = lambda pid: {0}
+        fixture_time = SimpleNamespace(**vars(time))
+        fixture_time.monotonic = lambda: self.settle.now
+        fixture_time.sleep = self.settle.sleep
         self.patches.enter_context(patch.dict(self.g, boot=lambda: 'fixture',
             identity=lambda: self.owner, alive=lambda owner: self.owner_alive,
             properties=self.properties, run=self.run, CGROOT=root / 'cgroups',
             available_memory=lambda: 123, ensure_reconciler=lambda ledger: None,
-            setting=lambda key, default: 0))
+            setting=lambda key, default: 0, os=fixture_os, time=fixture_time))
 
     def close(self):
         with (self.root / 'fixture-neighbours.jsonl').open('a') as out:
@@ -238,10 +267,22 @@ class Repairs(unittest.TestCase):
         ledger.save()
         def new_group(path, *args, **kwargs):
             return '0::' + current['cgroup'] + '\n' if str(path) == '/proc/self/cgroup' else read_text(path, *args, **kwargs)
+        order = []
+        phase, fault = w.g['phase'], w.g['fault']
+        def observed_phase(token, name, **values):
+            order.append(name)
+            return phase(token, name, **values)
+        def observed_fault(point, token):
+            if point in ('settled', 'payload_floor', 'payload_finished'):
+                order.append(point)
+            return fault(point, token)
         with patch.object(Path, 'read_text', new_group), patch.dict(w.g,
                 capture_inputs=lambda repo: {}, subreaper=lambda: None, gc=lambda *args: None,
-                prepare_payload_policy=lambda token: True):
+                prepare_payload_policy=lambda token: True,
+                phase=observed_phase, fault=observed_fault):
             self.assertEqual(w.module['payload'](task['token']), 0)
+        self.assertEqual(order, (['settle_begin', 'settle_end', 'settled'] if lane == 'gate' else [])
+            + ['payload_floor', 'payload_end', 'payload_finished'])
         self.assertEqual(marker.read_text(), 'start\n')
         self.assertEqual(w.module['payload'](task['token']), 137)
         ledger = w.ledger()
@@ -249,12 +290,35 @@ class Repairs(unittest.TestCase):
         self.assertEqual(w.receipt(task)['code'], 0)
         events = [json.loads(line) for line in (w.g['BASE'] / 'events.jsonl').read_text().splitlines()]
         self.assertEqual(sum(e['event'] == 'payload_begin' and e['token'] == task['token'] for e in events), 1)
+        phases = [e['event'] for e in events if e['token'] == task['token']
+            and e['event'] in ('scope_enter', 'settle_begin', 'settle_end', 'payload_begin', 'payload_end')]
+        self.assertEqual(phases, ['scope_enter']
+            + (['settle_begin', 'settle_end'] if lane == 'gate' else [])
+            + ['payload_begin', 'payload_end'])
 
     def test_retry_crash_and_delayed_build_guard(self):
         self.retry('build')
 
     def test_retry_crash_and_delayed_gate_guard(self):
         self.retry('gate')
+        self.assertEqual(self.world.settle.waits, [])
+
+    def test_gate_settle_waits_until_modelled_load_falls(self):
+        self.world.settle.loads = [1.0, 0.0]
+        self.retry('gate')
+        self.assertEqual(self.world.settle.waits, [5])
+
+    def test_gate_settle_expires_at_shipped_limit_under_high_load(self):
+        self.world.settle.loads = [1.0]
+        self.retry('gate')
+        self.assertEqual(self.world.settle.waits, [5] * 24)
+
+    def test_host_load_affinity_and_clock_cannot_enter_payload(self):
+        with patch.object(os, 'getloadavg', side_effect=AssertionError('host load leaked')), \
+                patch.object(os, 'sched_getaffinity', side_effect=AssertionError('host affinity leaked')), \
+                patch.object(time, 'monotonic', side_effect=AssertionError('host clock leaked')):
+            self.retry('gate')
+        self.assertEqual(self.world.settle.waits, [])
 
     def test_orphan_retry_retains_capacity_until_empty(self):
         self.retry('build', orphan=True)
