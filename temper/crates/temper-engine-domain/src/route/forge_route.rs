@@ -3464,13 +3464,11 @@ pub(crate) fn outputs(
                 | forge_change::Decision::Hold(_) => change_decision(domain, env, task, choice),
             },
             forge::Request::ProjectionSettled { goal } => {
-                if domain.core.tasks.task(goal).is_none() {
-                    domain.forge.projection_settled(goal);
-                    domain.work.push(Work::Core(jig_domain_core::Event::ProjectionSettled {
-                        goal,
-                        connector: domain.config.forge_connector,
-                    }));
-                }
+                domain.forge.projection_settled(goal);
+                domain.work.push(Work::Core(jig_domain_core::Event::ProjectionSettled {
+                    goal,
+                    connector: domain.config.forge_connector,
+                }));
             }
             forge::Request::ProjectAfter { goal, when } => {
                 if let Some(when) = when {
