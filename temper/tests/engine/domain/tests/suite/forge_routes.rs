@@ -735,7 +735,7 @@ fn check_gate_repair(no_ci: bool) {
 }
 
 /// Temper 03.1's fake workflow step and log literals, read by hand.
-const BUILD_STEP: &[u8] = b"Failed step: 1 Run build\nEnd of its log:\n[log truncated before this]\n";
+const BUILD_STEP: &[u8] = b"Failed step: 1 Run build\nEnd of its log:\n";
 const BUILD_LOG_END: &[u8] = b"failing check build 3\n";
 /// Temper 03.1's cancelled job's completion log, read by hand.
 const JOB_LOG_END: &[u8] = b"job build cancelled\n";
@@ -829,6 +829,81 @@ fn a_failed_ci_repair_brief_names_the_failed_step_and_its_logs_end() {
     let words = ci_words(&repair);
     assert!(contains(words, BUILD_STEP), "{}", String::from_utf8_lossy(words));
     assert!(contains(words, BUILD_LOG_END), "{}", String::from_utf8_lossy(words));
+    assert!(!contains(words, b"[log truncated before this]"), "the complete short log fits");
+}
+
+/// A compiler failure followed by warnings, served by the ordinary fake's step-log route.
+fn compiler_failure_world() -> World {
+    let small = temper_service::limits::profile(temper_service::limits::Profile::Small);
+    let mut brief = small.root.brief;
+    // This world's 4096-byte client also meters the job answer's framing.
+    brief.budgets.ci = 3840;
+    let mut world = World::configured_brief(true, true, false, 0, Gate::default(), None, Some(brief));
+    let mut log = ".".repeat(1600);
+    log.push('\n');
+    for line in ["64", "63", "62", "61"] {
+        write!(log, "error: cannot find macro `format` in this scope\n  --> src/dot.rs:{line}:20\n   | assert_eq!(format!(value), expected);\n   |            ^^^^^^\nhelp: consider importing this macro\n48 + use alloc::format;\n\n").expect("fixture log");
+    }
+    for _ in 0..30 {
+        log.push_str("warning: unexpected cfg condition value: unicode; check feature configuration\n");
+    }
+    let summary = b"\nerror: could not compile library tests due to 4 previous errors; 2 warnings emitted\n";
+    let mut log = log.into_bytes();
+    log.resize(5030 - summary.len(), b'w');
+    log.extend_from_slice(summary);
+    assert_eq!(log.len(), 5030);
+    world.fake_env.limits.limits.content_bytes = 5030;
+    world.fake = fake::Domain::new(&world.fake_env.limits, 71);
+    fake::repository(
+        &mut world.fake,
+        &world.fake_env.limits,
+        raw::Setup {
+            id: 2,
+            name: b"org/repo".as_slice().into(),
+            default: b"main".as_slice().into(),
+            tree: Box::new([]),
+            labels: Box::new([]),
+            checks: raw::Checks {
+                cues: Box::new([]),
+                contexts: Box::new([b"build".as_slice().into()]),
+                latency_min: Duration::ZERO,
+                latency_max: Duration::ZERO,
+                silent: 0,
+                passes: 0,
+                reruns: 0,
+                cue: Some(raw::Cue::PullFile {
+                    path: b"missing-file".as_slice().into(),
+                    no_pull: raw::Check::Failed,
+                    step: b"Run build".as_slice().into(),
+                    log: log.into_boxed_slice(),
+                }),
+            },
+            workflows: Box::new([]),
+            protection: None,
+            hooked: false,
+        },
+    );
+    for (user, permission) in [(1, raw::Permission::Admin), (2, raw::Permission::Write), (7, raw::Permission::Read)] {
+        fake::grant(&mut world.fake, b"org/repo", user, permission);
+    }
+    world
+}
+
+#[test]
+fn a_failed_ci_repair_assignment_carries_compiler_errors_before_warnings() {
+    let (mut world, _chat, producer, branch) = change_world_in(compiler_failure_world(), Change::default());
+    let repair = failed_ci_repair(&mut world, &producer, &branch, &[b"build"]);
+    let words = ci_words(&repair);
+    assert!(words.len() <= 4096);
+    for expected in [
+        BUILD_STEP,
+        b"End of its log:\n[log truncated before this]\n",
+        b"error: cannot find macro `format` in this scope\n  --> src/dot.rs:61:20",
+        b"48 + use alloc::format;",
+        b"due to 4 previous errors; 2 warnings emitted",
+    ] {
+        assert!(contains(words, expected), "{}", String::from_utf8_lossy(words));
+    }
 }
 
 #[test]

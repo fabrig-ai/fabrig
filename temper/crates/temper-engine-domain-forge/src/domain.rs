@@ -1262,7 +1262,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                 return;
             };
             let max_job_bytes = match source {
-                crate::BriefSource::Ci { .. } => env.limits.client.answer_bytes.min(ci_budget / 5).max(1),
+                crate::BriefSource::Ci { .. } => env.limits.client.answer_bytes.min(ci_budget).max(1),
                 crate::BriefSource::Home { .. }
                 | crate::BriefSource::Reviews { .. }
                 | crate::BriefSource::Pull { .. } => 0,

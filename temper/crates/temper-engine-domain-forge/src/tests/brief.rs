@@ -2,7 +2,7 @@ use super::*;
 use skein_forge::api::{Answer, Check, JobAttempt, Read, Status, Step};
 
 // temper-service's shipped root.brief.budgets.ci; read_bytes is 4608 and
-// forge.client.answer_bytes exceeds the five-check log share of 819 bytes.
+// forge.client.answer_bytes admits the whole CI section.
 const SHIPPED_CI: u32 = 4096;
 const SECTION: Token = Token::new(99);
 const STEP: &[u8] = b"Each pull request adds changes/<its number>.md";
@@ -36,14 +36,16 @@ fn red_checks() -> Box<[Status]> {
 }
 
 fn gather(checks: Box<[Status]>, log: &[u8], budget: u32) -> Domain {
-    let job_bound = (budget / 5)
-        .min(
-            budget
-                .checked_div(u32::try_from(checks.len()).expect("bounded checks").max(1))
-                .expect("positive check count")
-                / 2,
-        )
-        .max(1);
+    let mut jobs = 0_u32;
+    for status in &checks {
+        if status.check == Check::Failed
+            && let Some(attempt) = status.job
+            && attempt.head == HEAD
+        {
+            jobs = jobs.checked_add(1).expect("bounded check list");
+        }
+    }
+    let job_bound = budget.checked_div(jobs.max(1)).expect("positive job count").clamp(1, LIMITS.client.answer_bytes);
     let mut d = domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     let mut row = fixtures::opening_row();
@@ -87,7 +89,7 @@ fn gather(checks: Box<[Status]>, log: &[u8], budget: u32) -> Domain {
             event: skein_forge_client::Event::Read { read: Read::Job { attempt, max_bytes }, .. },
         } = request
         {
-            assert_eq!(max_bytes, job_bound, "the shipped five-check allowance reaches the provider");
+            assert_eq!(max_bytes, job_bound, "failed jobs share the CI allowance at the provider");
             let tail = log.len().saturating_sub(usize::try_from(max_bytes).expect("u32"));
             assert!(brief::brief_answer(
                 &mut d,
@@ -129,6 +131,66 @@ fn a_runners_failure_reaches_the_repair_at_shipped_limits() {
     }
     assert!(!words.contains("cut]"));
     assert!(!words.contains("truncated"));
+}
+
+fn append_log(log: &mut skein_lib::List<u8>, bytes: &[u8]) {
+    for byte in bytes {
+        log.push(*byte).expect("fixture log room");
+    }
+}
+
+// Four compiler diagnostics precede a warning-heavy footer, as in a failed runner job.
+fn compiler_log() -> Box<[u8]> {
+    let mut log = skein_lib::List::with_capacity(5030);
+    append_log(&mut log, &[b'.'; 1600]);
+    append_log(&mut log, b"\n");
+    for line in [b"64", b"63", b"62", b"61"] {
+        append_log(&mut log, b"error: cannot find macro `format` in this scope\n  --> src/dot.rs:");
+        append_log(&mut log, line);
+        append_log(&mut log, b":20\n   | assert_eq!(format!(value), expected);\n   |            ^^^^^^\nhelp: consider importing this macro\n48 + use alloc::format;\n\n");
+    }
+    for _ in 0_u32..30 {
+        append_log(&mut log, b"warning: unexpected cfg condition value: unicode; check feature configuration\n");
+    }
+    let summary = b"\nerror: could not compile library tests due to 4 previous errors; 2 warnings emitted\n";
+    let padding =
+        5030_usize.saturating_sub(usize::try_from(log.len()).expect("small log")).saturating_sub(summary.len());
+    for _ in 0..padding {
+        append_log(&mut log, b"w");
+    }
+    append_log(&mut log, summary);
+    let bytes = log.into_boxed();
+    assert_eq!(bytes.len(), 5030);
+    bytes
+}
+
+#[test]
+fn compiler_errors_before_a_warning_footer_reach_the_repair() {
+    let bytes = take(&mut gather(red_checks(), &compiler_log(), SHIPPED_CI));
+    let words = text(&bytes);
+    assert_eq!(bytes.len(), usize::try_from(SHIPPED_CI).expect("CI budget"));
+    assert!(words.contains("End of its log:\n[log truncated before this]\n"), "{words}");
+    assert!(words.contains("error: cannot find macro `format` in this scope\n  --> src/dot.rs:61:20"), "{words}");
+    assert!(words.contains("48 + use alloc::format;"), "{words}");
+}
+
+#[test]
+fn three_failed_checks_share_the_ci_room_and_keep_their_tails() {
+    let mut checks = skein_lib::List::with_capacity(4);
+    checks.push(red_checks()[0].clone()).expect("passed check");
+    for context in [b"one", b"two", b"tri"] {
+        let mut check = red_checks()[1].clone();
+        check.context = context.as_slice().into();
+        checks.push(check).expect("three failed checks");
+    }
+    let bytes = take(&mut gather(checks.into_boxed(), &compiler_log(), SHIPPED_CI));
+    let words = text(&bytes);
+    assert!(bytes.len() <= usize::try_from(SHIPPED_CI).expect("CI budget"));
+    assert_eq!(words.matches("[log truncated before this]\n").count(), 3);
+    assert_eq!(words.matches("due to 4 previous errors; 2 warnings emitted\n").count(), 3);
+    for context in ["Failed check: one\n", "Failed check: two\n", "Failed check: tri\n"] {
+        assert!(words.contains(context), "{words}");
+    }
 }
 
 #[test]

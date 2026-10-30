@@ -426,6 +426,17 @@ pub(crate) fn brief_answer(
         }
         Ok(skein_forge::api::Answer::Checks(checks)) if fetch.stage == BriefStage::Checks => {
             let count = u32::try_from(checks.len()).expect("bounded check list");
+            let mut jobs = 0_u32;
+            for status in &checks {
+                if status.check == skein_forge::api::Check::Failed
+                    && let Some(attempt) = status.job
+                    && attempt.head == fetch.head.0
+                {
+                    jobs = jobs.checked_add(1).expect("bounded check list");
+                }
+            }
+            let share = fetch.bytes.checked_div(jobs.max(1)).expect("positive job count");
+            fetch.max_job_bytes = fetch.max_job_bytes.min(share.max(1));
             fetch.ci = Some(crate::brief_ci::Section::new(fetch.head, count, fetch.bytes));
             fetch.checks = checks;
             next_failed_job(&mut fetch)
@@ -534,14 +545,7 @@ fn next_failed_job(fetch: &mut BriefFetch) -> Option<skein_forge::api::Read> {
         match status.job {
             Some(attempt) if attempt.head == fetch.head.0 => {
                 fetch.stage = BriefStage::Job;
-                let count = total.max(1);
-                let share = fetch
-                    .bytes
-                    .checked_div(count)
-                    .expect("positive check count")
-                    .checked_div(2)
-                    .expect("positive divisor");
-                return Some(skein_forge::api::Read::Job { attempt, max_bytes: share.max(1).min(fetch.max_job_bytes) });
+                return Some(skein_forge::api::Read::Job { attempt, max_bytes: fetch.max_job_bytes });
             }
             Some(_) | None => {
                 append(&mut fetch.words, b"[no pinned job log for this head]\n");
