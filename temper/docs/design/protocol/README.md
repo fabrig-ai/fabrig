@@ -943,7 +943,7 @@ joined over loopback. It is a primitive of temper's tests; the lab was
 retired for `../qa.md`'s process. It is the retained reference-case tests'
 shape on fakes: an engine and its
 workers, one of them added later (../domain/testing.md, 5.3;
-`../draft/reference-case.md` is the second edition). It is no
+`../draft/reference-case.md` is the third edition). It is no
 deployment's: `temper init` writes standalone, and a box keeps its one
 worker inside `temper serve` (setup.md, 7.1). TLS, containment and other
 hosts are later (15.7).
@@ -991,8 +991,8 @@ nothing else: no flag, no command of its own.
 - **`temper program-login`** takes a worker alone's directories as it
   takes standalone's, and reads only the worker's part: each worker
   signs its programs in on its own, and none is copied to another
-  (credentials.md, section 3; `../draft/reference-case.md`, the second
-  edition, leaves sign-ins out).
+  (credentials.md, section 3; `../draft/reference-case.md` holds a
+  sign-in only in its QA walk's custody, 6.4).
 
 ### 15.2 Its processes
 
@@ -1203,7 +1203,7 @@ workers need no more; a worker of several slots is later (15.7).
 These are the retired first edition's multi-worker steps at their smallest:
 4.1's placement by free slots, 4.3's worker added later, 4.6's hung
 worker (../domain/testing.md, 5.3; `../draft/reference-case.md` is the
-second edition).
+third edition).
 
 - **The retained first-edition steps,** each a story of its own on the same
   description, the case's workers named ws, s1 and s2, its fixture
@@ -1225,7 +1225,7 @@ second edition).
   across starts (section 14).
 - **A worker of several slots,** as in the retained reference-case
   tests (../domain/testing.md, 5.3; `../draft/reference-case.md` is the
-  second edition): a worker's change,
+  third edition): a worker's change,
   in smith's runs and the worker's limits, and not the cluster's. Until
   then each of the cluster's workers takes one slot.
 - **`temper init` for the cluster's shapes** (section 14).

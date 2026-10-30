@@ -540,7 +540,7 @@ narrowed, and its changes wait.
   none: `status` is false in the kinds there from adoption on, and
   nothing is held for it. Every adoption on GitHub says that the gates'
   verdicts (8.3) stay temper's own, and that GitHub's rules cannot
-  require them. Designed, not built (`../draft/process-model.md`, B3):
+  require them. Designed, not built (`../draft/landing-model.md`, F3):
   for a project that lands by turn, the App writes statuses and
   dispatches workflows (`../protocol/setup.md`, 17.1), so that its
   receipts and verdicts are mirrored (`landing.md`, 10), and adoption
@@ -1642,7 +1642,7 @@ history they keep if temper is unplugged. Issues are projections (jig's
 
 ### 12.1 Questions on the forge
 
-Designed, not built (draft process-model.md, section 9; T14). Off by
+Designed, not built, and Later's (`../draft/landing-model.md`, 16). Off by
 default: a project's setting turns it on.
 
 - **A question to a person on the forge:** a person task asking in

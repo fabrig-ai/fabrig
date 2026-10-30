@@ -91,7 +91,7 @@ section 11.
 | A | a person asks a chat for a one-file change on `work/hello`; it is delegated, pushed, passes CI on Actions and an agent's review, and lands: the retired lab binding's story on real backends | yes | landed on `main`, the file as asked, nothing else changed |
 | B0 | A, with a question the delegate asks and the person's green light (`reference-case.md`, 4.2 and 7.2) | yes | A's end; nothing pushed before the answer |
 | B1 | B0, with a gate the first push fails and the change's repair (`reference-case.md`, 4.3) | yes | B0's end after a red run and a green one on Actions, the repair the delegate's |
-| B2 | B1, with an advisor's report and two delegates, one depending on the other (`reference-case.md`, 4.2 and 5.1) | yes | both landed in order; the report delivered before the dependent's start |
+| B2 | B1, with an advisor's report and two delegates, one depending on the other (`reference-case.md`, 4.2 and 6.2) | yes | both landed in order; the report delivered before the dependent's start |
 | C1 to C6 | the reference case's acts 1 to 6 (`reference-case.md`, sections 4 to 9), each from the state the act before it leaves | yes | the act's end, as the case states it |
 
 - **Each rung is an experiment** of temper's retired lab, `live-<rung>`, in
