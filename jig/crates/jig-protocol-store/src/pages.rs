@@ -1,4 +1,5 @@
 //! Ordered memory pages and exclusive cursors (protocol/store.md, 4.3 and 7.1).
+pub(crate) mod reader;
 use crate::{Cursor, KeptMap, Row, Store, codec, keys};
 use alloc::boxed::Box;
 use skein_kv::{KeyWriter, Range};

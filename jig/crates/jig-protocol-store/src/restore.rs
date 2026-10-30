@@ -1,10 +1,15 @@
 //! Restart pages, including the inbox census joins (protocol/store.md, 7.2).
+mod diagnostic;
+pub use diagnostic::{Arithmetic, Cause, DecodeFailure, Failure, JoinFailure, RangeFailure, RowSite, WalkFailure};
+pub(crate) use diagnostic::{ready, site};
+pub(crate) mod reader;
 use crate::pages::Decoded as Restored;
 use crate::{Below, Limits, secrets};
 use crate::{Cursor, Event, Phase, Restore, Row, Store, codec, intervals, keys, pages};
 use alloc::boxed::Box;
 use jig_domain_core::{Key, Record};
 use jig_domain_tasks as tasks;
+pub use reader::{Item, Loaded, page};
 use skein_lib::{Env, List, Queue, Token};
 
 pub(crate) struct Page {
