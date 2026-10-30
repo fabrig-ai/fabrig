@@ -35,6 +35,7 @@ pub fn declare(
     name: Box<[u8]>,
     out: &mut Queue<Request>,
 ) -> Result<u32, DeclarationRefusal> {
+    domain.consume_restore();
     if !domain.wanted() {
         return Err(DeclarationRefusal::Account(Refusal::Closing));
     }
@@ -228,6 +229,7 @@ pub(crate) fn publish(domain: &Domain, out: &mut Queue<Request>) {
 /// # Errors
 /// A foreign, retired or unknown source, or a closing child.
 pub fn check(domain: &mut Domain, holder: Holder, source: u32, out: &mut Queue<Request>) -> Result<(), Refusal> {
+    domain.consume_restore();
     crate::changes::source(domain, holder, source)?;
     if domain.programs.contains_key(&source) {
         return Err(Refusal::Limit { bound: crate::Bound::Sources });
@@ -367,6 +369,7 @@ pub fn sign_out(
     source: u32,
     out: &mut Queue<Request>,
 ) -> Result<(), Refusal> {
+    domain.consume_restore();
     crate::changes::source(domain, holder, source)?;
     if name(domain, source, holder).is_none() {
         return Err(Refusal::Unknown);
