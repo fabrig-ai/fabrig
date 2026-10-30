@@ -1,5 +1,14 @@
 # Branch pre-ready check status
 
+Repair of the 14:17 source review adds child-subreaper descendant closure,
+private descriptor-bound quarantine cleanup, scope-derived receipt requirement
+and index-derived discovery, complete static ancestor/construction admission,
+and common-directory graft refusal before preparation. Adversarial tiny
+fixtures reproduce the detached child, root replacement, coordinated erasure/
+substitution, deep packed-history layout and linked-worktree graft boundaries.
+The original ddc2 implementation remains preserved in history. These are author
+checks under decision0022, not a production cold certificate or deployment.
+
 Cold-tools preparation and version-1 receipt validation are implemented by
 precheck, eagerly loaded cold_tools.py and ready-check (precheck.md, 1.1, 3–5.1).
 Only tools cwd/environment move to an independent private prepared copy with
@@ -10,8 +19,9 @@ Older tools receipts require re-precheck after compatible deployment. Tiny
 offline fixtures establish source behavior; source-CLI production cold proof
 awaits Ops source review. Installed old-policy precheck evidence is separate.
 
-Decision0016 stage A shares `mq.tools_required` with queue execution and
-worker expected plans. Full selection without changed `tools/` paths skips
+Decision0016 stage A supplies the author `mq.tools_required` path predicate.
+Decision0022 gate skipping is separate: precheck still checks selected tools;
+this repair changes neither mq nor worker gate policy. Full selection without changed `tools/` paths skips
 tools suites while preserving the ordinary ratchet/fmt/clippy/build plan.
 Stage B CPU-per-suite policy is not implemented; existing budgets remain.
 

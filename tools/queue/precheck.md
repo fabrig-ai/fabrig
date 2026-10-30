@@ -65,7 +65,9 @@ copy the local Git object store independently. No source Git config, hooks,
 refs, logs, targets, ignored contents or alternates are copied. Fresh private
 Git configuration has no remote. Borrowed, symlinked, shallow, promisor or
 replaced stores refuse locally; this helper never fetches or repairs a store.
-Historical source objects remain available in the independent copy.
+Historical source objects remain available in the independent copy. Precheck
+resolves info/grafts through Git, including a linked worktree common directory,
+and refuses graft state before planning, source preparation or auxiliary work.
 
 The index tree binds staged inputs; a separately computed raw working tree
 binds unfiltered bytes/modes including unstaged ratchet changes. HEAD's tree
@@ -73,8 +75,9 @@ is BASE and is not the candidate tree. Copy verification checks raw manifests,
 logical index entries, HEAD, merge state and identical discovered names/argv
 in order. Source/helper/policy digests load before any checkout switch.
 
-Static admission measures prepared file/object bytes, allocation rounding and
-index/raw-tree metadata overhead before creating the auxiliary root. It
+Static admission counts every required file and ancestor directory, object
+fanout, raw/index tree construction, index data and conservative compression/
+metadata creation overhead before allocating the auxiliary copy or manifest. It
 requires `free_bytes - required_bytes >= min_free_bytes` and checks actual
 post-copy free bytes against the same minimum, recording allocated bytes.
 This transitional measured admission is not decision0012 hard containment or
@@ -180,7 +183,14 @@ outcomes and lifecycle. Full entries/manifests/ownership stay in private
 `cold-input.json`; stdout carries compact digests. Ownership intent is fsynced
 before creation and identities are saved as directories are created.
 Known completion and verified removal of the owned auxiliary root precede
-original source restoration and marker/lease completion.
+original source restoration and marker/lease completion. Cleanup first opens
+and verifies the recorded parent/root descriptors, then atomically claims the
+source name into its own 0700 quarantine without replacing a destination. A
+claimed entry with a different inode is restored without deleting its contents
+and leaves custody unresolved. Recursive destruction is relative to the pinned
+owned descriptor inside that private quarantine, never through the replaceable
+source root pathname. Cleanup state records the quarantine identity and claim;
+any failed claim/removal or unexpected source entry retains the marker/hold.
 
 `selection_paths` records candidate paths captured before recounts,
 including reconciled baseline conflict paths; `paths` retains the complete
@@ -219,7 +229,16 @@ ownership. Client disappearance alone never establishes build completion.
 An imposed tools timeout kills/waits only its immediate child and cannot
 prove descendant completion. It retains both prepared checkouts, auxiliary
 evidence, marker and durable lifetime hold. Abnormal tools termination,
-wait/launch uncertainty or a surviving tools process group does the same.
+wait/launch uncertainty or any live adopted tools descendant does the same.
+For each tools launch the executor establishes and verifies Linux child-
+subreaper authority before spawning. Orphans are adopted across setsid and
+process-group changes. After the immediate child exits, terminal adoptees are
+reaped and only ECHILD establishes an empty descendant closure. A live child
+or unavailable authority retains unresolved inputs; process-group or PID
+disappearance never proves completion. An interrupted normal child allows
+cleanup only after that full closure is empty. The previous subreaper setting
+is restored after known drain. No unrelated processes are killed or inspected.
+
 Per-suite timeout remains 60 seconds. A drained normal child permits cleanup;
 no cleanup runs unconditionally after unknown completion.
 
@@ -321,8 +340,13 @@ refs; the lead owns the conditional exact-tip ready push.
 
 ### 5.1 Tools receipt cutover
 
-Updated ready-check requires version-1 cold evidence for every tools-bearing
-receipt, verifies loaded policy identity, private full-manifest digest and
+Updated ready-check derives the tools requirement from the reported candidate
+selection/post-ratchet path scope, rather than the supplied command list. A
+tools path requires cold evidence even with zero discovered suites. It derives
+the complete ordered suite list from bound logical index names and executable
+modes, with the exact manual heavy-recovery exclusion, and checks index/raw
+manifest coverage. Coordinated plan/step/evidence erasure or suite substitution
+cannot become an empty docs success. It requires version-1 cold evidence and verifies loaded policy identity, private full-manifest digest and
 input trees, auxiliary ownership/cwd, ordered discovery/outcomes, environment
 handling, cold observations and completed cleanup. Cargo plan cwds must remain
 the original slot. Missing, stale or mismatched cold evidence refuses.

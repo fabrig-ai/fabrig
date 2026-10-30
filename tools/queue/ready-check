@@ -110,6 +110,7 @@ def cold_evidence(record, filename, tools):
     encode = lambda value: (json.dumps(value, sort_keys=True, separators=(',', ':'), ensure_ascii=True) + '\n').encode()
     require(isinstance(full, dict) and isinstance(full.get('entries'), str) and isinstance(full.get('manifest'), list),
             'invalid cold full manifest')
+    COLD_VALIDATOR['bind_manifest'](full['entries'], full['manifest'])
     require(source.get('entries_sha256') == hashlib.sha256(os.fsencode(full['entries'])).hexdigest() and
             source.get('manifest_sha256') == hashlib.sha256(encode(full['manifest'])).hexdigest() and
             source.get('merge') == full.get('merge'), 'cold input manifest binding mismatch')
@@ -124,8 +125,9 @@ def cold_evidence(record, filename, tools):
     objects = observed.get('objects_identity')
     require(isinstance(objects, list) and len(objects) == 2 and all(type(n) is int and n > 0 for n in objects),
             'cold object directory identity missing')
-    expected = [{'name': item['name'], 'argv': item['argv']} for item in tools]
-    require(cold.get('tools_plan') == expected, 'cold tools discovery/plan mismatch')
+    expected = COLD_VALIDATOR['indexed_tools'](full['entries'])
+    require(cold.get('tools_plan') == expected == [{'name': item['name'], 'argv': item['argv']} for item in tools],
+            'cold indexed discovery/plan mismatch')
     require(all(item['cwd'] == str(checkout) and item['timeout'] == 60 for item in tools),
             'cold tools cwd/timeout mismatch')
     observations = cold.get('observations')
@@ -200,7 +202,11 @@ def evidence(filename, tip):
     require(len(steps) >= len(plan), "incomplete precheck commands")
     require(len({item["name"] for item in plan}) == len(plan), "duplicate planned commands")
     tools = [item for item in plan if item['name'].startswith('tools/')]
-    cold_cwd = cold_evidence(record, filename, tools) if tools else None
+    scope = record.get('selection_paths', paths)
+    require(isinstance(scope, list) and all(path(item) for item in scope), 'invalid candidate selection scope')
+    required = any(name.startswith('tools/') for name in [*paths, *scope])
+    require(required or (not tools and 'cold_tools' not in record), 'tools evidence contradicts candidate scope')
+    cold_cwd = cold_evidence(record, filename, tools) if required or tools or 'cold_tools' in record else None
     for item in plan:
         require(item['cwd'] == (cold_cwd if item['name'].startswith('tools/') else record['slot']),
                 'planned command cwd differs from precheck slot/cold checkout')

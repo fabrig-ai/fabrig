@@ -14,6 +14,8 @@ import signal
 import stat
 import subprocess
 import unittest
+import threading
+from types import SimpleNamespace
 from unittest.mock import patch
 
 DIRECTORY = Path(__file__).resolve().parent
@@ -51,6 +53,7 @@ class ColdTests(fixtures.Fixture):
         self.assertEqual((r['cleanup'], r['completion'], r['state']), ('verified', 'known', 'removed'))
         self.assertFalse(Path(r['root']).exists())
         self.assertEqual(r['input'], {k: r['observed'][k] for k in r['input']})
+        self.assertLessEqual(r['capacity']['copied_allocated_bytes'], r['capacity']['required_bytes'])
 
     def suite(self, body):
         self.change('tip', 'tools/test_fixture.py', body)
@@ -94,6 +97,14 @@ with tempfile.TemporaryDirectory() as d:
         ready = importlib.util.module_from_spec(spec); loader.exec_module(ready)
         record = ready.evidence(self.tool.log_directory / 'result.json', self.tool.record['tip'])
         self.assertEqual(record['cold_tools']['state'], 'removed')
+
+    def test_tools_scope_without_discovered_suites_still_binds_cold_receipt(self):
+        self.change('tip', 'tools/README.md', 'tools input\n')
+        before = self.snapshot()
+        self.assertEqual(self.run_tool(), 0)
+        self.assertEqual(self.tool.record['plan'], [])
+        self.assertEqual(self.tool.record['cold_tools']['tools_plan'], [])
+        self.checked(before)
 
     def test_tools_environment_and_cwd_do_not_change_original_cargo(self):
         self.change('tip', 'Cargo.toml', 'full fixture\n')
@@ -237,6 +248,15 @@ assert not Path('target').exists()
         self.assertTrue(self.tool.marker.exists())
         self.assertTrue(Path(self.tool.record['cold_tools']['root']).exists())
 
+    def test_unavailable_descendant_authority_retains_inputs_without_launch(self):
+        self.suite('# fixture\n')
+        with patch.object(p, 'subreaper', side_effect=OSError('authority unavailable')):
+            self.assertEqual(self.run_tool(production_runner=True), 1)
+        self.assertEqual(self.tool.record['outcome'], 'unresolved')
+        self.assertEqual(self.tool.record['steps'], [])
+        self.assertTrue(self.tool.marker.exists())
+        self.assertTrue(Path(self.tool.record['cold_tools']['root']).exists())
+
     def test_drained_signal_cleans_aux_then_restores(self):
         self.suite('# fixture\n')
         before = self.snapshot()
@@ -254,6 +274,143 @@ assert not Path('target').exists()
             self.assertEqual(self.run_tool(), 1)
         self.assertEqual(self.tool.record['outcome'], 'infrastructure-error')
         self.checked(before)
+
+    def test_detached_session_descendant_retains_inputs_until_known_terminal(self):
+        home = fixtures.SlotMaintenanceTests.numeric_slot(self)
+        release = self.root / 'release.fifo'
+        os.mkfifo(release, 0o600)
+        pidfile, done = self.root / 'child.pid', self.root / 'child.done'
+        child_code = ("import os,sys; from pathlib import Path; "
+                      "f=os.open(sys.argv[2],os.O_RDWR); os.write(int(sys.argv[1]),b'R'); "
+                      "os.close(int(sys.argv[1])); os.read(f,1); os.close(f); "
+                      "body=Path('tools/test_fixture.py').read_bytes(); "
+                      "Path(sys.argv[3]).write_bytes(body)")
+        self.suite(f"""import os,subprocess,sys
+from pathlib import Path
+r,w=os.pipe()
+c=subprocess.Popen([sys.executable,'-c',{child_code!r},str(w),{str(release)!r},{str(done)!r}],
+                   pass_fds=(w,),start_new_session=True,stdin=subprocess.DEVNULL,
+                   stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+os.close(w)
+assert os.read(r,1)==b'R'
+os.close(r)
+Path({str(pidfile)!r}).write_text(str(c.pid))
+""")
+        previous = p.subreaper()
+        p.subreaper(1)
+        try:
+            with patch.dict(os.environ, HOME=str(home)):
+                self.assertEqual(self.run_tool(production_runner=True), 1)
+            self.assertEqual(self.tool.record['outcome'], 'unresolved')
+            self.assertEqual(p.subreaper(), 1)
+            self.assertTrue(self.tool.marker.exists())
+            self.assertTrue(Path(self.tool.record['cold_tools']['checkout']).exists())
+            self.assertTrue((self.repo / 'tools/test_fixture.py').exists())
+            self.assertEqual(len(list((home / 'src/fabrig/slot-maintenance/1').glob('*.hold'))), 1)
+            self.assertFalse(done.exists())
+        finally:
+            if pidfile.exists():
+                with release.open('wb', buffering=0) as output:
+                    output.write(b'X')
+                _, status = os.waitpid(int(pidfile.read_text()), 0)
+                self.assertEqual(os.waitstatus_to_exitcode(status), 0)
+            p.subreaper(previous)
+        self.assertTrue(done.exists())
+        self.assertTrue(self.tool.marker.exists())  # Terminal child does not reconcile custody.
+
+    def test_cleanup_root_replacement_after_verification_is_never_deleted(self):
+        self.suite('# fixture\n')
+        verified, replaced = threading.Event(), threading.Event()
+        errors = []
+        old_save = cold['ColdTools'].save
+        once = []
+        paths = {}
+        def save(aux):
+            old_save(aux)
+            if aux.receipt['state'] == 'removing' and not once:
+                once.append(True)
+                paths['root'] = aux.root
+                paths['aside'] = aux.root.with_name('owned-aside')
+                verified.set()
+                if not replaced.wait(5):
+                    raise RuntimeError('replacement barrier timed out')
+        def replace():
+            try:
+                if not verified.wait(5):
+                    raise RuntimeError('verification barrier timed out')
+                paths['root'].rename(paths['aside'])
+                paths['root'].mkdir()
+                (paths['root'] / 'foreign').write_text('preserve replacement')
+            except BaseException as error:
+                errors.append(error)
+            finally:
+                replaced.set()
+        writer = threading.Thread(target=replace)
+        writer.start()
+        try:
+            with patch.object(cold['ColdTools'], 'save', save):
+                self.assertEqual(self.run_tool(), 1)
+        finally:
+            writer.join(5)
+        self.assertFalse(writer.is_alive())
+        self.assertEqual(errors, [])
+        self.assertEqual((paths['root'] / 'foreign').read_text(), 'preserve replacement')
+        self.assertTrue(paths['aside'].exists())
+        self.assertEqual(self.tool.record['outcome'], 'unresolved')
+        self.assertTrue(self.tool.marker.exists())
+
+    def test_deep_empty_paths_packed_history_refuse_before_aux_allocation(self):
+        depth = 220
+        self.change('tip', 'tools/' + 'd/' * depth + 'empty', '')
+        self.suite('# fixture\n')
+        self.git('gc', '--prune=now')
+        before = self.snapshot()
+        measured = cold['static_copy_requirement']
+        observed = {}
+        def measure(rows, objects, logical, full_bytes, block):
+            result = measured(rows, objects, logical, full_bytes, block)
+            rounded = lambda size: ((size + block - 1) // block) * block
+            immediate = {str(Path(row['name']).parent) for row in rows}
+            old = 2 * sum(rounded(row.get('size', 0)) for row in rows)
+            old += sum(rounded(size) for _, _, size in objects)
+            old += block * (len(rows) + len(objects) + len(immediate) + 32)
+            old += 2 * rounded(len(os.fsencode(logical)))
+            observed.update(old=old, new=result, free=old + block * 2 + 1)
+            return result
+        with patch.dict(cold, static_copy_requirement=measure), \
+                patch.object(cold['shutil'], 'disk_usage', side_effect=lambda _: SimpleNamespace(free=observed['free'])):
+            self.assertEqual(self.run_tool(), 1)
+        self.assertGreater(observed['new']['directory_count'], depth)
+        self.assertGreater(observed['new']['required_bytes'], observed['free'])
+        self.assertGreater(observed['free'], observed['old'])  # The prior bound would admit.
+        self.assertEqual(self.calls, [])
+        self.assertIsNone(self.tool.record['cold_tools']['root_identity'])
+        self.assertFalse((self.tool.log_directory / 'cold-input.json').exists())
+        self.assertEqual(self.snapshot(), before)
+        self.restored()
+
+    def test_linked_worktree_common_grafts_refuse_before_preparation(self):
+        self.suite('# fixture\n')
+        linked = self.root / 'linked'
+        self.git('worktree', 'add', '-b', 'linked-fixture', str(linked), 'original')
+        gitdir = Path(subprocess.check_output(['git', '-C', str(linked), 'rev-parse', '--absolute-git-dir'], text=True).strip())
+        resolved = Path(subprocess.check_output(['git', '-C', str(linked), 'rev-parse', '--path-format=absolute',
+                                                '--git-path', 'info/grafts'], text=True).strip())
+        self.assertNotEqual(resolved, gitdir / 'info/grafts')
+        self.git('config', 'advice.graftFileDeprecated', 'false')
+        resolved.write_text(self.ancestor + '\n')
+        original_index = (gitdir / 'index').read_bytes()
+        original_head = (gitdir / 'HEAD').read_bytes()
+        tool = p.Precheck(linked, 'base', 'tip', mq=fixtures.mq, always=[], read_by_tests=[],
+                          runner=lambda *a, **k: self.fail('no checks before graft refusal'), busy=lambda _: 'fixture',
+                          min_free_bytes=1)
+        with patch.object(tool, 'prepare', side_effect=AssertionError('grafted preparation ran')) as prepare:
+            with self.assertRaisesRegex(RuntimeError, 'common-directory grafts'):
+                tool.run()
+            prepare.assert_not_called()
+        self.assertEqual((gitdir / 'HEAD').read_bytes(), original_head)
+        self.assertEqual((gitdir / 'index').read_bytes(), original_index)
+        self.assertFalse((gitdir / 'precheck.unresolved').exists())
 
 
 if __name__ == '__main__':

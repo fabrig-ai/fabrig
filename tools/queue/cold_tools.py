@@ -4,6 +4,8 @@ The receipt and full manifest outlive the owned, removable auxiliary root.
 """
 
 import hashlib
+import ctypes
+import fnmatch
 import json
 import os
 from pathlib import Path
@@ -42,6 +44,41 @@ def safe_path(root, name):
 def no_links(path):
     if any(part.is_symlink() for part in (path, *path.parents)):
         raise RuntimeError('symlink in cold input path')
+
+
+def move_exclusive(source_fd, source, destination_fd, destination):
+    """Atomically claim a name without replacing any destination entry."""
+    libc = ctypes.CDLL(None, use_errno=True)
+    rename = libc.renameat2
+    rename.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_uint]
+    rename.restype = ctypes.c_int
+    if rename(source_fd, os.fsencode(source), destination_fd, os.fsencode(destination), 1) != 0:
+        raise OSError(ctypes.get_errno(), 'exclusive cold directory claim failed')
+
+
+def fd_identity(fd):
+    info = os.fstat(fd)
+    return [info.st_dev, info.st_ino]
+
+
+def remove_contents(fd):
+    """Remove only entries beneath the claimed, open private directory."""
+    for name in os.listdir(fd):
+        info = os.stat(name, dir_fd=fd, follow_symlinks=False)
+        if stat.S_ISDIR(info.st_mode):
+            child = os.open(name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=fd)
+            try:
+                if fd_identity(child) != [info.st_dev, info.st_ino]:
+                    raise RuntimeError('cold cleanup child identity changed')
+                remove_contents(child)
+                current = os.stat(name, dir_fd=fd, follow_symlinks=False)
+                if [current.st_dev, current.st_ino] != fd_identity(child):
+                    raise RuntimeError('cold cleanup child entry changed')
+                os.rmdir(name, dir_fd=fd)
+            finally:
+                os.close(child)
+        else:
+            os.unlink(name, dir_fd=fd)
 
 
 def manifest(repo, entries):
@@ -115,6 +152,79 @@ def logical_tree(logical, algorithm):
     return raw_tree(rows, algorithm)
 
 
+def indexed_tools(logical):
+    """Recompute discovery from bound index paths/modes, independently of a plan."""
+    commands, names = [], []
+    for entry in logical.split('\0'):
+        if not entry:
+            continue
+        attributes, name = entry.split('\t', 1)
+        mode, _, stage = attributes.split()
+        safe_path(Path('/cold'), name)
+        if stage != '0' or mode not in ('100644', '100755', '120000'):
+            raise RuntimeError('invalid cold discovery index')
+        names.append(name)
+        if not name.startswith('tools/') or name == 'tools/heavy/test-heavy-recovery':
+            continue
+        basename = Path(name).name
+        if fnmatch.fnmatchcase(basename, 'test_*.py'):
+            commands.append({'name': name, 'argv': ['python3', '-I', '-B', name]})
+        elif basename.startswith('test-') and mode == '100755':
+            commands.append({'name': name, 'argv': ['./' + name]})
+    if names != sorted(set(names), key=os.fsencode):
+        raise RuntimeError('cold discovery index is not canonical and unique')
+    return commands
+
+
+def bind_manifest(logical, rows):
+    entries = [entry for entry in logical.split('\0') if entry]
+    if len(entries) != len(rows):
+        raise RuntimeError('cold index/raw manifest coverage differs')
+    for entry, row in zip(entries, rows):
+        attributes, name = entry.split('\t', 1)
+        mode, oid, _ = attributes.split()
+        if (not isinstance(row, dict) or row.get('name') != name or
+                row.get('index_mode') != mode or row.get('index_oid') != oid or
+                row.get('kind') not in ('missing', 'file', 'symlink')):
+            raise RuntimeError('cold index/raw manifest entry differs')
+
+
+def static_copy_requirement(rows, object_files, logical, full_bytes, block):
+    """Bound the complete static layout, including every ancestor and new Git tree."""
+    rounded = lambda size: ((size + block - 1) // block) * block
+    directories = {'.', 'checkout', 'scratch', 'cargo-home', 'checkout/.git',
+                   'checkout/.git/objects', 'checkout/.git/objects/info',
+                   'checkout/.git/objects/pack', 'checkout/.git/refs',
+                   'checkout/.git/refs/heads', 'checkout/.git/refs/tags'}
+    def parents(path):
+        directories.update(str(parent) for parent in path.parents)
+    for row in rows:
+        parents(Path('checkout') / row['name'])
+    for _, relative, _ in object_files:
+        parents(Path('checkout/.git/objects') / relative)
+    # Raw/index tree construction can populate any loose-object fanout directory.
+    directories.update('checkout/.git/objects/' + format(n, '02x') for n in range(256))
+    tracked = sum(rounded(row.get('size', 0)) for row in rows)
+    # zlib compressBound plus the Git blob header, rounded per newly written blob.
+    raw_objects = 0
+    for row in rows:
+        if row['kind'] != 'missing':
+            size = row['size'] + len(str(row['size'])) + 6
+            raw_objects += rounded(size + (size >> 12) + (size >> 14) + (size >> 25) + 13)
+    objects = sum(rounded(size) for _, _, size in object_files)
+    tree_count = 2 * (1 + len({str(parent) for row in rows for parent in Path(row['name']).parents}))
+    tree_entries = sum(len(os.fsencode(row['name'])) + 96 for row in rows)
+    index_bytes = 2 * rounded(len(os.fsencode(logical)) + len(rows) * 128)
+    # Each new blob/tree needs its own allocation block and zlib/header room;
+    # tree bodies charge every path component, including deep empty-file paths.
+    metadata = (len(directories) + tree_count + len(rows) + len(object_files) + 32) * block
+    metadata += 2 * rounded(tree_entries + tree_count * 128) + index_bytes + rounded(full_bytes)
+    return {'required_bytes': tracked + raw_objects + objects + metadata, 'tracked_bytes': tracked,
+            'raw_object_bytes_bound': raw_objects,
+            'object_bytes': objects, 'metadata_bytes': metadata,
+            'directory_count': len(directories), 'new_tree_count_bound': tree_count}
+
+
 # Names are recorded, never their possibly sensitive values.
 ARTIFACT_OVERRIDES = {"CARGO_TARGET_DIR", "CARGO_BUILD_TARGET_DIR", "CARGO_ENCODED_RUSTFLAGS",
                       "RUSTFLAGS", "RUSTC_WRAPPER", "RUSTC_WORKSPACE_WRAPPER", "RUSTC",
@@ -172,7 +282,7 @@ class ColdTools:
         if ((objects / "info/alternates").exists() or (objects / "info/alternates").is_symlink() or
                 owner.git("rev-parse", "--is-shallow-repository") != "false" or
                 owner.git("for-each-ref", "--format=%(refname)", "refs/replace/") or
-                owner.state_path("info/grafts").exists()):
+                Path(owner.git('rev-parse', '--path-format=absolute', '--git-path', 'info/grafts')).exists()):
             raise RuntimeError("cold object store must be self-contained, complete and unreplaced")
         object_files = []
         for directory, directories, files in os.walk(objects, followlinks=False):
@@ -193,29 +303,27 @@ class ColdTools:
         full = {"entries": logical, "manifest": rows,
                 "merge": {name: digest(body) for name, body in merge.items()}}
         full_path = owner.log_directory / "cold-input.json"
-        owner.artifact(full_path, full)
-        self.receipt.update(input_manifest={"path": str(full_path), "sha256": digest(full_path.read_bytes())},
+        self.receipt.update(input_manifest={"path": str(full_path)},
                             input={"entries_sha256": digest(os.fsencode(logical)), "manifest_sha256": digest(encoded(rows)),
                                    "index_tree": index_tree, "merge": full['merge']})
         self.receipt['input']['raw_tree'] = raw_tree(rows, owner.git('rev-parse', '--show-object-format'))
         # Charge physical blocks for copied contents, objects, index/raw-tree construction,
         # and the measured directory/entry metadata. This is static admission, not a quota.
         block = os.statvfs(owner.log_directory).f_frsize
-        rounded = lambda size: ((size + block - 1) // block) * block
-        contents = sum(rounded(row.get('size', 0)) for row in rows)
-        object_bytes = sum(rounded(size) for _, _, size in object_files)
-        directories = {str(Path(row['name']).parent) for row in rows}
-        metadata = block * (len(rows) + len(object_files) + len(directories) + 32)
-        requirement = contents * 2 + object_bytes + metadata + rounded(len(os.fsencode(logical))) * 2
+        measured = static_copy_requirement(rows, object_files, logical,
+                                            len(json.dumps(full, indent=2).encode()) + block, block)
+        requirement = measured['required_bytes']
         free = shutil.disk_usage(owner.log_directory).free
         admitted = free - requirement >= owner.min_free_bytes
-        self.receipt['capacity'] = {"required_bytes": requirement, "tracked_bytes": contents,
-                                    "object_bytes": object_bytes, "metadata_bytes": metadata,
+        self.receipt['capacity'] = {**measured,
                                     "free_bytes": free, "min_free_bytes": owner.min_free_bytes,
                                     "admitted": admitted, "policy": "measured-static-copy"}
         self.save()
         if not admitted:
             raise RuntimeError("cold tools copy would consume caller minimum free bytes")
+        owner.artifact(full_path, full)
+        self.receipt['input_manifest']['sha256'] = digest(full_path.read_bytes())
+        self.save()
         self.root.mkdir(mode=0o700)
         self.receipt.update(root_identity=identity(self.root), state="creating")
         self.save()
@@ -283,7 +391,8 @@ class ColdTools:
             raise RuntimeError('independent raw working tree differs')
         expected = [(name, argv) for name, argv, _, timeout in self.commands if timeout is not None]
         observed = [(name, argv) for name, argv, _ in owner.mq.tools_commands(self.repo)]
-        if observed != expected:
+        indexed = [(item['name'], item['argv']) for item in indexed_tools(logical)]
+        if observed != expected or observed != indexed:
             raise RuntimeError("cold discovered tools plan differs")
         self.receipt.update(observed={"entries_sha256": digest(self.git('ls-files', '--stage', '-z')),
                                       "manifest_sha256": digest(encoded(copied)),
@@ -347,10 +456,51 @@ class ColdTools:
             if self.root.exists() or self.root.is_symlink():
                 raise RuntimeError('unowned cold root exists')
         else:
-            self.verify_owned()
-            self.receipt.update(state='removing', cleanup='pending')
-            self.save()
-            shutil.rmtree(self.root)
+            # The source name can be replaced. Pin the owned inode first, then
+            # atomically claim its name into a private, descriptor-held directory.
+            # A substituted entry is restored without deleting its contents.
+            parent = os.open(self.owner.log_directory, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+            root = quarantine = None
+            try:
+                root = os.open(self.root.name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=parent)
+                if (fd_identity(parent) != self.receipt['parent_identity'] or
+                        fd_identity(root) != self.receipt['root_identity']):
+                    raise RuntimeError('cold cleanup open identity differs')
+                self.verify_owned()
+                name = 'cold-remove'
+                binding = {'method': 'private-quarantine-fd', 'path': str(self.owner.log_directory / name),
+                           'state': 'planned', 'identity': None}
+                self.receipt.update(state='removing', cleanup='pending', cleanup_binding=binding)
+                self.save()
+                os.mkdir(name, mode=0o700, dir_fd=parent)
+                quarantine = os.open(name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=parent)
+                binding.update(identity=fd_identity(quarantine), state='created')
+                self.save()
+                move_exclusive(parent, self.root.name, quarantine, 'owned')
+                claimed = os.stat('owned', dir_fd=quarantine, follow_symlinks=False)
+                if [claimed.st_dev, claimed.st_ino] != fd_identity(root):
+                    binding['state'] = 'lost-identity'
+                    self.save()
+                    move_exclusive(quarantine, 'owned', parent, self.root.name)
+                    raise RuntimeError('cold cleanup refused replacement directory')
+                binding.update(state='claimed', claimed_identity=fd_identity(root))
+                self.save()
+                remove_contents(root)
+                # This private quarantine has no payload writers: tools descendant
+                # closure must be drained before cleanup. Destruction uses its fd,
+                # never the replaceable source root pathname.
+                os.rmdir('owned', dir_fd=quarantine)
+                current = os.stat(name, dir_fd=parent, follow_symlinks=False)
+                if [current.st_dev, current.st_ino] != fd_identity(quarantine):
+                    raise RuntimeError('cold cleanup quarantine entry changed')
+                os.rmdir(name, dir_fd=parent)
+                binding['state'] = 'removed'
+            finally:
+                if quarantine is not None:
+                    os.close(quarantine)
+                if root is not None:
+                    os.close(root)
+                os.close(parent)
             if self.root.exists() or self.root.is_symlink():
                 raise RuntimeError('cold root removal not verified')
         self.receipt.update(state='removed', cleanup='verified', completion='known')

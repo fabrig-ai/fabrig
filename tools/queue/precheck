@@ -56,6 +56,30 @@ class UnknownCompletion(InfrastructureError):
     pass
 
 
+def subreaper(value=None):
+    """Linux adoption authority includes descendants that change session/group."""
+    import ctypes
+    libc = ctypes.CDLL(None, use_errno=True)
+    current = ctypes.c_int()
+    if libc.prctl(37, ctypes.byref(current), 0, 0, 0) != 0:
+        raise OSError(ctypes.get_errno(), 'cannot inspect child-subreaper authority')
+    if value is not None:
+        if libc.prctl(36, int(value), 0, 0, 0) != 0 or subreaper() != int(value):
+            raise OSError(ctypes.get_errno(), 'cannot establish child-subreaper authority')
+    return current.value
+
+
+def descendants_drained():
+    """ECHILD after reaping terminal adoptees proves the descendant closure empty."""
+    while True:
+        try:
+            pid, _ = os.waitpid(-1, os.WNOHANG)
+        except ChildProcessError:
+            return True
+        if pid == 0:
+            return False
+
+
 def positive_bytes(value):
     try:
         number = int(value)
@@ -174,10 +198,23 @@ class Executor:
         heavy = argv[0] == "heavy"
         self.before(argv, options["cwd"])
         timeout = options.pop("timeout", None)
+        previous_subreaper = None
+        if timeout is not None:
+            try:
+                previous_subreaper = subreaper()
+                subreaper(1)
+            except BaseException as error:
+                self.unknown = True
+                raise UnknownCompletion(f"no tools descendant authority: {error}") from error
         try:
             child = subprocess.Popen(argv, start_new_session=True, **options)
         except OSError as error:
             self.after("launch-error", str(error))
+            if previous_subreaper is not None:
+                if not descendants_drained():
+                    self.unknown = True
+                    raise UnknownCompletion('launch failed with tools descendants still owned') from error
+                subreaper(previous_subreaper)
             raise InfrastructureError(f"cannot launch {shlex.join(argv)}: {error}") from error
         except BaseException as error:
             self.unknown = True
@@ -202,15 +239,14 @@ class Executor:
             raise UnknownCompletion(f"checker exited {code}; descendant/build completion unknown")
         if timeout is not None:
             try:
-                os.killpg(child.pid, 0)
-            except ProcessLookupError:
-                pass
+                drained = descendants_drained()
             except BaseException as error:
                 self.unknown = True
-                raise UnknownCompletion(f"cannot establish tools process-group completion: {error}") from error
-            else:
+                raise UnknownCompletion(f"cannot establish descendant completion: {error}") from error
+            if not drained:
                 self.unknown = True
-                raise UnknownCompletion("tools process group still has descendants")
+                raise UnknownCompletion("tools descendants remain under child-subreaper authority")
+            subreaper(previous_subreaper)
         self.after("completed", code)
         if self.interrupted:
             raise InfrastructureError(f"interrupted by signal {self.interrupted}; child drained")
@@ -243,9 +279,11 @@ class Precheck:
         self.unexpected = False
         self.log_directory = None
         self.cold = None
+        self.tools_required = False
 
     def git(self, *args, check=True):
-        return self.mq.git(self.repo, "--no-optional-locks", *args, check=check).stdout.rstrip("\n")
+        return self.mq.git(self.repo, "--no-optional-locks", '-c', 'advice.graftFileDeprecated=false',
+                           *args, check=check).stdout.rstrip("\n")
 
     def oid(self, ref):
         value = self.git("rev-parse", "--verify", "--end-of-options", ref + "^{commit}")
@@ -516,7 +554,8 @@ class Precheck:
         print(f"selection: {self.record['selection']}", flush=True)
         self.save()
         commands = []
-        if self.mq.tools_required(paths):
+        self.tools_required = self.mq.tools_required(paths)
+        if self.tools_required:
             commands.extend((name, argv, cwd, self.mq.TOOLS_TIMEOUT)
                             for name, argv, cwd in self.mq.tools_commands(self.repo))
         checks = self.mq.check_commands(self.repo, selected, paths, metadata=metadata)
@@ -578,6 +617,9 @@ class Precheck:
         no_symlinks(self.state_path("index"))
         no_symlinks(self.state_path("HEAD"))
         self.marker = self.state_path("precheck.unresolved")
+        grafts = Path(self.git('rev-parse', '--path-format=absolute', '--git-path', 'info/grafts'))
+        if grafts.exists() or grafts.is_symlink():
+            raise InfrastructureError('Git common-directory grafts are unsupported before preparation')
         with ExitStack() as stack:
             lifetime = stack.enter_context(SLOT_LIFETIME["Lease"](self.repo))
             for path in (self.repo.with_name(self.repo.name + ".queue.lock"),
@@ -638,7 +680,7 @@ class Precheck:
                     if self.identity() != prepared:
                         self.unexpected = True
                         raise InfrastructureError("source modified during planning")
-                    if any(timeout is not None for _, _, _, timeout in commands):
+                    if self.tools_required:
                         self.cold = COLD_TOOLS["ColdTools"](self, commands, LOADED_POLICY)
                         commands = self.cold.prepare()
                         self.record["plan"] = [{"name": name, "argv": argv, "cwd": str(cwd), "timeout": timeout}

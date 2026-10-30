@@ -103,16 +103,21 @@ class ReadyCheckTests(unittest.TestCase):
                      'checkout': str(checkout), 'checkout_identity': identity(checkout),
                      'objects_identity': [checkout.stat().st_dev, checkout.stat().st_ino + 1]}
         checkout.rmdir(); root.rmdir()
-        payload = {'entries': '', 'manifest': [], 'merge': {}, 'ownership': ownership}
+        blob = hashlib.sha1(b'blob 0\0').hexdigest()
+        logical = f'100644 {blob} 0\ttools/test_fixture.py\0'
+        rows = [{'name': 'tools/test_fixture.py', 'index_mode': '100644', 'index_oid': blob,
+                 'kind': 'file', 'mode': 0o644, 'size': 0, 'sha256': hashlib.sha256(b'').hexdigest(), 'raw_oid': blob}]
+        payload = {'entries': logical, 'manifest': rows, 'merge': {}, 'ownership': ownership}
         manifest = self.root / 'cold-input.json'
         manifest.write_text(json.dumps(payload))
         manifest.chmod(0o600)
-        encoded_rows = b'[]\n'
-        tree = ready.COLD_VALIDATOR['raw_tree']([], 'sha1')
-        inputs = {'entries_sha256': hashlib.sha256(b'').hexdigest(),
+        encoded_rows = (json.dumps(rows, sort_keys=True, separators=(',', ':')) + '\n').encode()
+        tree = ready.COLD_VALIDATOR['raw_tree'](rows, 'sha1')
+        inputs = {'entries_sha256': hashlib.sha256(logical.encode()).hexdigest(),
                   'manifest_sha256': hashlib.sha256(encoded_rows).hexdigest(),
                   'index_tree': tree, 'raw_tree': tree, 'merge': {}}
         self.record['min_free_bytes'] = 1
+        self.record['paths'] = ['touched.md', 'tools/test_fixture.py']
         self.record['cold_tools'] = {
             'version': 1, 'policy': ready.COLD_POLICY, **{k: v for k, v in ownership.items() if k != 'objects_identity'},
             'base': self.record['base'], 'tip': self.tip, 'head': self.record['base'],
@@ -180,6 +185,69 @@ class ReadyCheckTests(unittest.TestCase):
                 self.record['steps'][index]['cwd'] = cwd
                 self.save()
                 self.assertEqual(self.check()['verdict'], 'rerun-precheck')
+
+    def test_coordinated_tools_evidence_erasure_cannot_become_docs_success(self):
+        self.plan()
+        self.record.update(plan=[], steps=[])
+        self.record.pop('active_command')
+        self.record.pop('cold_tools')
+        self.save()
+        self.refuse('requires cold evidence')
+
+    def test_coordinated_suite_substitution_cannot_change_bound_discovery(self):
+        self.plan()
+        name = 'tools/test_substituted.py'
+        argv = ['python3', '-I', '-B', name]
+        self.record['plan'][0].update(name=name, argv=argv)
+        self.record['steps'][0].update(name=name, command=argv)
+        self.record['active_command']['argv'] = argv
+        cold = self.record['cold_tools']
+        cold['tools_plan'] = [{'name': name, 'argv': argv}]
+        cold['outcomes'][0]['name'] = name
+        cold['observations'][1]['before'] = name
+        cold['observations'][2]['before'] = 'after:' + name
+        self.save()
+        self.refuse('indexed discovery')
+
+    def test_empty_index_cannot_claim_a_discovered_suite(self):
+        self.plan()
+        filename = self.root / 'cold-input.json'
+        full = json.loads(filename.read_text())
+        full.update(entries='', manifest=[])
+        filename.write_text(json.dumps(full))
+        cold = self.record['cold_tools']
+        cold['input_manifest']['sha256'] = hashlib.sha256(filename.read_bytes()).hexdigest()
+        empty = ready.COLD_VALIDATOR['raw_tree']([], 'sha1')
+        for key in ('input', 'observed'):
+            cold[key].update(entries_sha256=hashlib.sha256(b'').hexdigest(),
+                             manifest_sha256=hashlib.sha256(b'[]\n').hexdigest(), index_tree=empty, raw_tree=empty)
+        self.save()
+        self.refuse('indexed discovery')
+
+    def test_indexed_suite_requires_a_matching_raw_manifest_entry(self):
+        self.plan()
+        filename = self.root / 'cold-input.json'
+        full = json.loads(filename.read_text())
+        full['manifest'] = []
+        filename.write_text(json.dumps(full))
+        receipt = self.record['cold_tools']
+        receipt['input_manifest']['sha256'] = hashlib.sha256(filename.read_bytes()).hexdigest()
+        for key in ('input', 'observed'):
+            receipt[key].update(manifest_sha256=hashlib.sha256(b'[]\n').hexdigest(),
+                                raw_tree=ready.COLD_VALIDATOR['raw_tree']([], 'sha1'))
+        self.save()
+        self.refuse('index/raw manifest')
+
+    def test_index_modes_order_and_exact_recovery_exclusion_define_discovery(self):
+        entries = [('100755', 'tools/heavy/test-heavy-recovery'),
+                   ('100755', 'tools/other/test-heavy-recovery'),
+                   ('100644', 'tools/test-noexec'), ('100755', 'tools/test-shell'),
+                   ('100644', 'tools/test_python.py')]
+        logical = ''.join(f'{mode} {self.base} 0\t{name}\0' for mode, name in entries)
+        self.assertEqual(ready.COLD_VALIDATOR['indexed_tools'](logical), [
+            {'name': 'tools/other/test-heavy-recovery', 'argv': ['./tools/other/test-heavy-recovery']},
+            {'name': 'tools/test-shell', 'argv': ['./tools/test-shell']},
+            {'name': 'tools/test_python.py', 'argv': ['python3', '-I', '-B', 'tools/test_python.py']}])
 
     def test_remote_same_file_change_refuses_stale_tracking(self):
         current = self.advance("touched.md")
