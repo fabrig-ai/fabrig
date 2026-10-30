@@ -1850,11 +1850,7 @@ fn a_first_run_plays_the_demo_then_sets_up_a_forgejo_here_with_no_restart() {
         !String::from_utf8_lossy(&seen.calls[SETUP_END - 1].stdout).lines().any(|line| line.starts_with("forge 1 ·")),
         "the ended demo leaves the text list"
     );
-    for start in &seen.calls[SETUP_END..END_READS_END] {
-        assert!(start.stdout.is_empty(), "refused start prints no answer on stdout");
-        let diagnostic = String::from_utf8_lossy(&start.stderr);
-        assert!(diagnostic.contains("not offered"), "{diagnostic}");
-    }
+    assert_demo_refused_starts(&seen.calls[SETUP_END..END_READS_END]);
     assert_eq!(
         stderr.lines().filter(|line| box_notice_words(line) == "Playground: stopped").count(),
         1,
@@ -1905,6 +1901,14 @@ fn demo_then_forgejo_steps(root: &std::path::Path, task: support::first_reposito
     steps.push(Step::Stderr(b" repo is work/hello "));
     steps.extend(first_repository::task_steps_for(root, task));
     steps
+}
+
+fn assert_demo_refused_starts(calls: &[support::Ended]) {
+    for start in calls {
+        assert!(start.stdout.is_empty(), "refused start prints no answer on stdout");
+        let diagnostic = String::from_utf8_lossy(&start.stderr);
+        assert!(diagnostic.contains("not offered"), "{diagnostic}");
+    }
 }
 
 fn assert_demo_then_forgejo_streams(stdout: &[u8], stderr: &str) {
