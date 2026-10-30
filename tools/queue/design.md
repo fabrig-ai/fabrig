@@ -938,8 +938,14 @@ already retired; a different or unknown tip is preserved. Main, the advertised
 remote default, malformed input and unrelated refs are never cleanup targets.
 Unpublished, failed, dry and wholly already-reachable work authorizes no cleanup.
 
-One `ls-remote --symref` observes HEAD and all exact target refs for the entire
-publication. An unreadable or malformed observation preserves every target.
+One `ls-remote --symref` observes HEAD, main and all exact target refs for the
+entire publication. Before any deletion, require one valid full head-ref
+symref for HEAD, its full OID, and the matching OID of that default ref in the
+same observation. Missing, malformed, duplicate, detached or inconsistent
+HEAD/default evidence preserves every target with an operational outcome.
+A default outside main and the exact target set cannot be established by
+this bounded request and also preserves every target; there is no extra RPC.
+An unreadable or malformed observation preserves every target.
 One `push --atomic` deletes the unchanged eligible set, with an explicit
 `--force-with-lease=REF:B` and deletion-only refspec for every head. No main
 update or ref rewrite participates. A concurrent change, unsupported atomic
@@ -948,6 +954,9 @@ cleanup outcome; there is no per-head fallback or retry burst. Missing or
 changed heads discovered before the push do not block another eligible head.
 A race during the push refuses the whole eligible set.
 
+Ref-validation commands share the observation/deletion exception boundary:
+a command-launch failure preserves all targets and completes best-effort
+publication effects without converting a confirmed landing into a queue error.
 Cleanup reports retain the list of branch dispositions in publication-effects
 diagnostics; failures do not turn a published batch red or repeat its main push
 or landed notice. Effects confirmation completes best-effort cleanup even on

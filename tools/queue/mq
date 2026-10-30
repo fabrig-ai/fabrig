@@ -563,8 +563,7 @@ def cleanup_ready(repo, branches, origin):
         name, tip = branch["name"], branch["tip"]
         if (not isinstance(name, str) or len(name.split("/")) != 3 or not name.startswith("ready/") or
                 not publication.KEY.fullmatch(name.split("/")[1]) or
-                not isinstance(tip, str) or not authority.OID.fullmatch(tip) or
-                git(repo, "check-ref-format", "refs/heads/" + name, check=False).returncode):
+                not isinstance(tip, str) or not authority.OID.fullmatch(tip)):
             cleanup.append({"branch": name, "outcome": "unknown publication head; preserved"})
             continue
         for head in (name, name.removeprefix("ready/")):
@@ -578,8 +577,11 @@ def cleanup_ready(repo, branches, origin):
     if not targets:
         return cleanup
     try:
+        for ref in targets:
+            if git(repo, "check-ref-format", ref, check=False).returncode:
+                raise ValueError("unknown publication head; preserved")
         # One observation includes the advertised default and every exact target.
-        current = git(repo, "ls-remote", "--symref", origin, "HEAD", *targets, check=False)
+        current = git(repo, "ls-remote", "--symref", origin, "HEAD", "refs/heads/main", *targets, check=False)
         if current.returncode:
             for _, entry in targets.values():
                 entry["error"] = current.stdout
@@ -592,10 +594,14 @@ def cleanup_ready(repo, branches, origin):
                     raise ValueError("duplicate remote default")
                 default = cells[1]
             elif (len(cells) == 2 and authority.OID.fullmatch(cells[0]) and
-                  cells[1] in {*targets, "HEAD"} and cells[1] not in observed):
+                  cells[1] in {*targets, "HEAD", "refs/heads/main"} and cells[1] not in observed):
                 observed[cells[1]] = cells[0]
             else:
                 raise ValueError("unknown remote cleanup observation")
+        if (default is None or not default.startswith("refs/heads/") or
+                git(repo, "check-ref-format", default, check=False).returncode or
+                "HEAD" not in observed or observed.get(default) != observed["HEAD"]):
+            raise ValueError("unknown or inconsistent remote default; preserved")
         eligible = {}
         for ref, (tip, entry) in targets.items():
             if ref in ("refs/heads/main", default):

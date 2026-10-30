@@ -3,7 +3,10 @@
 Section 3.11.1 is implemented for legacy confirmed publications: one remote
 observation and one atomic deletion push cover unchanged exact Ready/feature
 heads, each under its published-tip lease. Changed, absent, default and unknown
-heads are preserved; races and transport/refusal failures are operational
+heads are preserved. Cleanup requires unambiguous valid HEAD/default evidence
+and matching OIDs in the same bounded observation; unknown defaults preserve
+every target. Ref-validation launch failures share the operational exception
+boundary with remote commands. Races and transport/refusal failures are operational
 publication-effects outcomes and complete best-effort effects without another
 publication or notice. Intent, receipt and state formats and the disabled
 train cleanup contract are unchanged. `test_lifecycle.py` is separate from the

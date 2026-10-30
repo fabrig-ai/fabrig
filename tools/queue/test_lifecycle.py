@@ -178,17 +178,25 @@ class LifecycleTests(unittest.TestCase):
         branch = self.branch()
         queue = self.f.queue()
         git, failures, pushes = mq.git, [], []
+        retire, in_cleanup = mq.cleanup_ready, []
+        def cleanup(*args, **kwargs):
+            in_cleanup.append(True)
+            try:
+                return retire(*args, **kwargs)
+            finally:
+                in_cleanup.pop()
         def fail(repo, *args, **kwargs):
             if args[0] == "push":
                 pushes.append(args)
             if (stage == "observation" and args[0] == "ls-remote" or
-                    stage == "deletion" and args[0] == "push" and "--atomic" in args):
+                    stage == "deletion" and args[0] == "push" and "--atomic" in args or
+                    stage == "validation" and in_cleanup and args[0] == "check-ref-format"):
                 failures.append(args)
                 if exception:
-                    raise OSError("SSH client unavailable")
+                    raise OSError("Git client unavailable")
                 return subprocess.CompletedProcess(args, 255, "authentication refused")
             return git(repo, *args, **kwargs)
-        with patch.object(mq, "git", side_effect=fail):
+        with patch.object(mq, "git", side_effect=fail), patch.object(mq, "cleanup_ready", side_effect=cleanup):
             self.assertTrue(queue.attempt([branch]))
             queue.reconcile_publications()
             self.f.queue()
@@ -212,6 +220,61 @@ class LifecycleTests(unittest.TestCase):
     def test_ssh_launch_failure_is_operational_and_not_retried(self):
         self.assert_cleanup_failure("deletion", exception=True)
 
+    def test_validation_launch_failure_is_operational_and_not_retried(self):
+        self.assert_cleanup_failure("validation", exception=True)
+
+    def assert_invalid_default(self, kind):
+        branch = self.branch()
+        intent = self.confirmed(branch)
+        ready, feature = self.refs(branch)
+        targets = f"{branch['tip']} {ready}\n{branch['tip']} {feature}\n"
+        symref = f"ref: {feature} HEAD\n"
+        head = f"{branch['tip']} HEAD\n"
+        observations = {
+            "missing": targets,
+            "malformed": "ref: invalid HEAD\n" + head + targets,
+            "inconsistent": symref + f"{self.p.base} HEAD\n" + targets,
+            "missing_oid": symref + targets,
+            "detached": head + targets,
+            "unobserved_default": "ref: refs/heads/other HEAD\n" + head + targets,
+        }
+        git, calls = mq.git, []
+        def observe(repo, *args, **kwargs):
+            if args[0] in ("ls-remote", "push"):
+                calls.append(args)
+            if args[0] == "ls-remote":
+                return subprocess.CompletedProcess(args, 0, observations[kind])
+            return git(repo, *args, **kwargs)
+        with patch.object(mq, "git", side_effect=observe):
+            self.finish(intent)
+            self.finish(intent)
+        self.assertEqual(self.heads().get(ready), branch["tip"])
+        self.assertEqual(self.heads().get(feature), branch["tip"])
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0][0], "ls-remote")
+        self.assertEqual(len(self.f.posts), 1)
+        rows = self.p.rows()
+        self.assertEqual([row for row in rows if "event" not in row], [intent["journal_row"]])
+        self.assertTrue(all("default" in row["error"] for row in rows[-1]["cleanup"]))
+
+    def test_missing_head_preserves_all_refs_without_replay(self):
+        self.assert_invalid_default("missing")
+
+    def test_malformed_default_preserves_all_refs_without_replay(self):
+        self.assert_invalid_default("malformed")
+
+    def test_inconsistent_head_oid_preserves_all_refs_without_replay(self):
+        self.assert_invalid_default("inconsistent")
+
+    def test_missing_head_oid_preserves_all_refs_without_replay(self):
+        self.assert_invalid_default("missing_oid")
+
+    def test_detached_head_preserves_all_refs_without_replay(self):
+        self.assert_invalid_default("detached")
+
+    def test_unobserved_default_oid_preserves_all_refs_without_replay(self):
+        self.assert_invalid_default("unobserved_default")
+
     def test_batch_has_one_observation_and_one_atomic_exact_lease_push(self):
         branches = [self.branch(f"docs-{index}") for index in range(16)]
         intent = self.p.prepare(branches)
@@ -221,7 +284,7 @@ class LifecycleTests(unittest.TestCase):
         observations = [call.args[1:] for call in git.call_args_list if call.args[1] == "ls-remote"]
         pushes = [call.args[1:] for call in git.call_args_list if call.args[1] == "push"]
         refs = [ref for branch in branches for ref in self.refs(branch)]
-        self.assertEqual(observations, [("ls-remote", "--symref", str(self.origin), "HEAD", *refs)])
+        self.assertEqual(observations, [("ls-remote", "--symref", str(self.origin), "HEAD", "refs/heads/main", *refs)])
         self.assertEqual(pushes, [("push", "--atomic",
             *("--force-with-lease=" + ref + ":" + branch["tip"] for branch in branches for ref in self.refs(branch)),
             str(self.origin), *(":" + ref for ref in refs))])

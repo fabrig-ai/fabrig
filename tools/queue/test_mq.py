@@ -725,6 +725,7 @@ class RepositoryTests(unittest.TestCase):
         mq.git(self.repo, "init", "--bare", str(self.origin))
         mq.git(self.repo, "remote", "add", "origin", str(self.origin))
         mq.git(self.repo, "push", "origin", "HEAD:main")
+        mq.git(self.origin, "symbolic-ref", "HEAD", "refs/heads/main")
         mq.git(self.repo, "fetch", "origin")
         self.posts = []
         self.checks = []
@@ -1739,7 +1740,8 @@ print('tools fixture passed')
                     git(self.repo, "push", "origin", advanced + ":" + ref)
             result = git(repo, *args, **kwargs)
             if args[0] == "ls-remote" and ref in args:
-                observed.append(result.stdout.split()[0])
+                observed.extend(line.split()[0] for line in result.stdout.splitlines()
+                                if line.split()[1:] == [ref])
             return result
         with patch.object(mq, "git", side_effect=race):
             self.queue().attempt([branch])
