@@ -2646,11 +2646,33 @@ fn change_landing_words(
     let repository = domain.forge.repository(row.repository);
     let configured = domain.forge.configured(row.repository.forge);
     let identity = landing_words(merge, bound, repository, pull, configured);
-    let Some(head) = row.change.last_head else { return identity };
-    let room = bound.saturating_sub(u32::try_from(identity.len()).expect("bounded identity")).saturating_sub(1);
-    let Some(evidence) = row.result.words(&head, bound).fitted(room) else { return identity };
     let mut out = List::with_capacity(bound);
     append(&mut out, &identity);
+    let digits = commit_text(merge);
+    let number = skein_lib::Decimal::of(pull);
+    let parts: [&[u8]; 7] = [
+        b"Landed: pull request #",
+        number.as_bytes(),
+        b" merged into ",
+        &row.base,
+        b" as ",
+        digits.get(..12).expect("a commit has at least 40 hexadecimal digits"),
+        b".",
+    ];
+    let mut bytes = 1_usize;
+    for part in parts {
+        bytes = bytes.checked_add(part.len()).expect("bounded landing line");
+    }
+    // The line names the landing so that the run that asked hears that the change landed (temper/docs/design/domain/root.md, 6).
+    if identity.contains(&b'\n') && bytes <= usize::try_from(out.room()).expect("u32 fits usize") {
+        append(&mut out, b"\n");
+        for part in parts {
+            append(&mut out, part);
+        }
+    }
+    let Some(head) = row.change.last_head else { return out.into_boxed() };
+    let room = bound.saturating_sub(out.len()).saturating_sub(1);
+    let Some(evidence) = row.result.words(&head, bound).fitted(room) else { return out.into_boxed() };
     append(&mut out, b"\n");
     append(&mut out, &evidence);
     out.into_boxed()

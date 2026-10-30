@@ -112,11 +112,15 @@ fn the_csv_changes_requester_reads_the_failed_context_repair_and_approved_review
         .expect("requester's result");
     let words = core::str::from_utf8(&result.words).expect("UTF-8 result");
     let lines: Vec<_> = words.lines().collect();
-    assert_eq!(lines.len(), 5, "{words}");
+    assert_eq!(lines.len(), 6, "{words}");
     assert_eq!(lines[0], merge);
     assert!(lines[1].starts_with("pull request #"), "{words}");
-    assert_eq!(lines[2], format!("checks at {head}: build passed"));
-    assert_eq!(lines[3], "repairs: 1: CI failed: / changes (pull_request)");
-    assert_eq!(lines[4], format!("reviews: approved at {head}"));
+    assert_eq!(
+        lines[2],
+        format!("Landed: pull request #{} merged into main as {}.", row.pull.expect("landed pull"), &merge[..12])
+    );
+    assert_eq!(lines[3], format!("checks at {head}: build passed"));
+    assert_eq!(lines[4], "repairs: 1: CI failed: / changes (pull_request)");
+    assert_eq!(lines[5], format!("reviews: approved at {head}"));
     assert!(!words.contains("bytes cut"), "the requester reads it whole");
 }

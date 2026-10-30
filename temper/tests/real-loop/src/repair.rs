@@ -330,15 +330,16 @@ fn check_landing(ran: &Ran, repaired: u64, merge: u64) {
     assert_eq!(result["cut"], false);
     let words = result["bytes"].as_str().expect("landed evidence");
     let lines: Vec<_> = words.lines().collect();
-    assert_eq!(lines.len(), 5);
+    assert_eq!(lines.len(), 6);
     assert_eq!(lines[0], hex(merge));
     assert!(lines[1].ends_with("/playground/widget/pulls/2"));
+    assert_eq!(lines[2], format!("Landed: pull request #{PULL} merged into main as {}.", &hex(merge)[..12]));
     assert_eq!(
-        lines[2],
+        lines[3],
         format!("checks at {}: / changes (pull_request) passed; / check (pull_request) passed", hex(repaired))
     );
-    assert_eq!(lines[3], "repairs: 1: CI failed: / changes (pull_request)");
-    assert_eq!(lines[4], format!("reviews: approved at {}", hex(repaired)));
+    assert_eq!(lines[4], "repairs: 1: CI failed: / changes (pull_request)");
+    assert_eq!(lines[5], format!("reviews: approved at {}", hex(repaired)));
     assert!(told(query_at(ran, 1, 8)).contains(words), "change's requester heard the whole result");
     let last = String::from_utf8_lossy(&ran.calls()[LAST_WORD].stdout);
     assert!(last.contains("CSV export landed"));
