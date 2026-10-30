@@ -4765,20 +4765,16 @@ fn a_green_light_answers_the_goals_207_byte_question_from_the_inbox_and_lands_it
         })
     };
     assert!(heard(question.as_bytes()), "chat hears the goal's whole numbered question");
-    assert!(heard(b"1 answers question 1: Go ahead."), "chat hears the person's numbered answer");
-    assert!(goal.contains("1 answers question 1: Go ahead."), "the original goal hears the relay: {goal}");
+    assert!(heard(b"Person answered question 1 in their inbox"), "chat hears the person's inbox answer notice");
+    assert!(
+        goal.contains("1 answers question 1: Go ahead."),
+        "the original goal hears the person's answer from the inbox: {goal}"
+    );
     assert_eq!(chat.matches(" · goal\n").count(), 1, "the chat makes only the original goal: {chat}");
-    assert!(!chat.contains("Refused:"), "the numbered relay succeeds: {chat}");
+    assert!(!chat.contains("Refused:"), "the inbox answer proceeds without a refused chat call: {chat}");
     assert_eq!(panel.exit, Some(Exit::Code(0)));
     let panel = support::ctl::json(&panel);
     assert_eq!(panel["step"], "landed", "the original goal's change lands: {panel}");
-    // The fake's answer form names exactly the number received by this run.
-    let relayed = chat.lines().any(|line| {
-        serde_json::from_str::<serde_json::Value>(line).is_ok_and(|args| {
-            args["target"] == 2 && args["form"] == "answer" && args["question"] == 1 && args["words"] == "Go ahead."
-        })
-    });
-    assert!(relayed, "the chat relays the question number it heard");
     scratch.remove();
 }
 

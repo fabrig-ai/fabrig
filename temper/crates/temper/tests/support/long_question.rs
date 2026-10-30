@@ -36,7 +36,7 @@ pub fn scripts(plan: &Plan<'_>) -> Box<[Script]> {
         call(b"goal", &json!({"agree":true,"words":"@long-plan-goal Agree the README plan, then call change."})),
         wait(),
         wait(),
-        call(b"message", &json!({"target":2,"form":"answer","question":1,"words":"Go ahead."})),
+        wait(),
         wait(),
         Turn {
             lines: Box::new([Line::Text { text: forge_land::LANDED.as_bytes().into() }]),
