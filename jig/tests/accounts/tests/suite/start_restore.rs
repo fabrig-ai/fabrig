@@ -835,3 +835,44 @@ fn a_moved_sign_in_renumbers_only_once_adoption_is_kept() {
         }
     }
 }
+
+#[test]
+fn program_and_sign_in_append_after_restoration() {
+    for load_and_link in [false, true] {
+        let rows = [account(20, 1, HOLDER, b"subject"), source(20, 21, 5, Kind::Key), source(20, 22, 42, Kind::Key)];
+        let limits = Limits { sources: 4, ..LIMITS };
+        let mut world = if load_and_link {
+            World::with_start(limits, configured(), &rows)
+        } else {
+            World::with_limits(limits, configured(), &rows)
+        };
+        let out = world.step(Event::Want);
+        let mut store = rows.into_iter().map(|row| (row.key(), row)).collect();
+        keep(&mut store, &out);
+        let (first, last, declared, signed_in) = if load_and_link { (5, 42, 43, 44) } else { (0, 1, 2, 3) };
+        let out = world.step(Event::Change {
+            request: Token::new(1),
+            holder: HOLDER,
+            change: Change::DeclareProgram { provider: 1, join: Some(20), name: b"p".as_slice().into() },
+        });
+        assert!(out.contains(&Request::Save { record: program(20, 23, declared, b"p") }));
+        keep(&mut store, &out);
+        let out = world.step(Event::SignIn { request: Token::new(2), holder: HOLDER, by: 7, provider: 1 });
+        keep(&mut store, &out);
+        world.step(Event::Visited { source: 24, address: b"https://issuer.test/visit".as_slice().into() });
+        let out = world.step(Event::SignedIn {
+            source: 24,
+            subject: b"subject".as_slice().into(),
+            display: Box::new([]),
+            declined: false,
+        });
+        assert!(out.contains(&Request::Save { record: source(20, 24, signed_in, Kind::SignIn) }));
+        keep(&mut store, &out);
+        for (number, place, kind) in [(21, first, Kind::Key), (22, last, Kind::Key), (24, signed_in, Kind::SignIn)] {
+            assert_eq!(store.get(&Key::Source { account: 20, number }), Some(&source(20, number, place, kind)));
+            assert_eq!(world.domain.account(20).expect("kept account").sources().get(&place), Some(&number));
+        }
+        assert_eq!(store.get(&Key::Source { account: 20, number: 23 }), Some(&program(20, 23, declared, b"p")));
+        assert_eq!(world.domain.account(20).expect("kept account").sources().get(&declared), Some(&23));
+    }
+}
