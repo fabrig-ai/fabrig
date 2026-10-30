@@ -422,8 +422,11 @@ keeps (`../protocol/configuration.md`, section 2).
     person sent (jig's `OwnerActivity::Words`, by a person), under
     "You" or the party's name, a paragraph for each line, with "Being
     sent" or "Sent" until the engine has it, and no word once read;
-    an answer the person gave in the inbox to a question on the chat
-    is among them;
+    an answer the person gave in the inbox to a question a delegate
+    asked is not among them: the answer is the asker's, in its
+    activity (`../domain/agent.md`, 8.2), and the conversation shows
+    the notice the chat heard as one line under "You", "You answered
+    question N in your inbox";
   - *a delegate's words,* each words line a task sent the chat (jig's
     `OwnerActivity::Words`, by a task), a delegate's question among
     them, under the task's name, "TN", on the agent's side, a paragraph

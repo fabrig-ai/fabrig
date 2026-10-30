@@ -998,7 +998,9 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
    landing (the pull request, the merge commit, the queue's group's
    where the forge's queue landed it, whose id in hexadecimal is the
    result's words' first line, the pull request with its address the
-   second: `root.md`, section 6; then what the landing passed, as facts
+   second, and the landing said in words the third, `Landed: pull request
+   #7 merged into main as 0123456789ab.`: `root.md`, section 6; then what
+   the landing passed, as facts
    the change itself saw: each check at the landed head with its
    conclusion, the repairs with their count and why each was asked (a
    check that failed, a review's remarks), and each review's verdict,
