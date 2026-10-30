@@ -20,10 +20,15 @@ KEYS = {"cpu_suite_s", "cpu_test_s", "wall_hard_s"}
 def budgets(path, pairs=None):
     with Path(path).open("rb") as source:
         data = tomllib.load(source)
-    def validate(name, values):
-        if not isinstance(values, dict) or values.keys() - KEYS:
+    def validate(name, values, *, pair=False):
+        keys = KEYS | {"auto_reap"} if pair else KEYS
+        if not isinstance(values, dict) or values.keys() - keys:
             raise ValueError(f"invalid budget keys for {name}")
         for key, value in values.items():
+            if key == "auto_reap":
+                if not isinstance(value, list) or any(not isinstance(test, str) or not test for test in value):
+                    raise ValueError(f"{name}.auto_reap must be a list of nonempty test names")
+                continue
             if (type(value) not in (int, float) or not math.isfinite(value) or value <= 0):
                 raise ValueError(f"{name}.{key} must be finite positive seconds")
     for pair, values in data.items():
@@ -37,7 +42,7 @@ def budgets(path, pairs=None):
         else:
             if pairs is not None and pair not in pairs:
                 raise ValueError(f"unknown budget pair {pair}")
-            validate(pair, values)
+            validate(pair, values, pair=True)
     return data
 
 
@@ -310,7 +315,9 @@ def summarize_records(items, pair, limits, run, timeouts, failures):
                 wall_starved = True
     if pair != 'tools' and 'cpu_suite_s' in limits and totals['cpu_s'] > limits['cpu_suite_s']:
         over.append(f"suite {pair}: {totals['cpu_s']:.6f}s > {limits['cpu_suite_s']}s")
-    return dict(pair=pair, tests=tests, suite=dict(totals, tests=len(tests), wall_s=run['wall_s'],
+    warnings = [f"{pair} {name}: auto-reaped descendant CPU may be absent from complete_scope"
+                for name in limits.get('auto_reap', [])] if pair != 'tools' else []
+    return dict(pair=pair, tests=tests, warnings=warnings, suite=dict(totals, tests=len(tests), wall_s=run['wall_s'],
                 starved_run=wall_starved), failures=failures, over_budget=over,
                 verdict="over budget" if over else "starved" if wall_starved or timeouts else "within budget" if limits else "no budget set")
 
@@ -328,6 +335,8 @@ def print_summary(result, as_json=False):
           f"CPU {suite['cpu_s']:.6f}s (user {suite['user_s']:.6f}s system {suite['system_s']:.6f}s), "
           f"wall {suite['wall_s']:.6f}s; starved {suite['starved']} "
           f"starved_run {suite['starved_run']} leaked {suite['leaked']} incomplete {suite['incomplete']}; {result['verdict']}")
+    for message in result['warnings']:
+        print(f'warning: {message}')
     for message in result['over_budget']:
         print(message)
 

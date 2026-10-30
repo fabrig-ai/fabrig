@@ -280,8 +280,9 @@ Pending tests and checkpointed tests still settling descendants both count as
 active for hard-wall supervision.
 
 `tools/tiers/budgets.toml` contains optional per-pair tables with finite positive
-seconds: `cpu_suite_s`, `cpu_test_s`, `wall_hard_s`. No limits are set until the
-user supplies numbers; `[tools]` reserves the suite namespace in section 7.5.
+seconds: `cpu_suite_s`, `cpu_test_s`, `wall_hard_s`. The tables record the
+user's approved limits; absent tables have no limits set here. `[tools]`
+reserves the suite namespace in section 7.5.
 `--verify-all` validates every budget key, value and configured
 pair before any heavy command. CPU mode validates it too. A test's CPU budget
 covers all its attempts; a pair's covers every test attempt. The summary exits
@@ -297,6 +298,28 @@ attempt outcomes, without changing configured timeout periods. Starvation
 alone returns 0; observed assertion, exit or protocol failures and exceeded
 CPU budgets keep their failure verdicts. Incomplete CPU on cancelled attempts
 is reported explicitly alongside the green warning.
+
+#### Budgets and completeness
+
+Budgets apply to recorded CPU: user plus system time of the test, its waited
+descendants and descendants the supervisor reaps, as defined by
+`complete_scope="waited-and-reaped-descendants"` (section 7.2). A descendant
+the kernel automatically reaps because the test ignores SIGCHLD or uses
+SA_NOCLDWAIT is not counted, and this exclusion is not detectable by the
+collector. An optional per-pair `auto_reap = ["test_name", ...]` declares
+known auto-reaping tests; it defaults to an empty list and is empty today.
+A declaration produces a summary warning, never a refusal, and does not
+waive CPU limits or completeness checks.
+
+An attempt cut short by the wall hard limit may have incomplete accounting:
+its `complete=false` record with starvation evidence stays accepted as
+`starved`, a green warning; failures observed before it stay red. Every other
+`complete=false` record is invalid (exit 2). Passing `wall_hard_s` means
+starved, a warning. Exceeding `cpu_suite_s` or `cpu_test_s` is red. Repair it
+by asking, in order: does the test belong in this tier; can it be made faster;
+otherwise, what does the user decide from the measurements? Moving a test
+to escape a budget raises it and is forbidden
+(`skein/docs/foundation/testing-strategy.md`, 8.1).
 
 ### 7.4 Offline proof
 

@@ -199,6 +199,25 @@ class CollectorTests(unittest.TestCase):
         path.write_text('')
         self.assertEqual(CPU['budgets'](path, {'qa-jig'}), {})
 
+    def test_auto_reap_budget_declaration_warns_without_refusal(self):
+        path = self.root / 'budgets.toml'
+        self.record()
+        for names in ('[]', '["one"]'):
+            with self.subTest(names=names):
+                path.write_text(f'[qa-jig]\nauto_reap={names}\n')
+                limits = CPU['budgets'](path, {'qa-jig'})
+                self.assertEqual(limits['qa-jig']['auto_reap'], json.loads(names))
+                result = self.cli('--budgets', str(path))
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual('warning:' in result.stdout, names != '[]')
+        self.record(complete=False)
+        self.assertEqual(self.cli('--budgets', str(path)).returncode, 2)
+        for names in ('"one"', '[1]', '[""]', 'true'):
+            with self.subTest(names=names):
+                path.write_text(f'[qa-jig]\nauto_reap={names}\n')
+                with self.assertRaises(ValueError):
+                    CPU['budgets'](path, {'qa-jig'})
+
     def test_hard_wall_uses_heavy_cancel_and_stays_green(self):
         fake = self.root / 'heavy'
         fake.write_text('''#!/usr/bin/env python3
