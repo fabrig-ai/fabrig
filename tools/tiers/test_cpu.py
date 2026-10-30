@@ -29,7 +29,7 @@ def setUpModule():
     before = resource.getrusage(resource.RUSAGE_CHILDREN)
     for arguments in (['-o', str(WRAPPER)],
                       [str(HERE / 'fixtures/cpu-settlement.c'),
-                       '-Wl,--wrap=wait4,--wrap=clock_gettime,--wrap=fopen,--wrap=kill',
+                       '-Wl,--wrap=wait4,--wrap=clock_gettime,--wrap=fopen,--wrap=kill,--wrap=write',
                        '-o', str(SETTLEMENT_WRAPPER)]):
         try:
             subprocess.run([*compiler, *arguments], check=True, stdin=subprocess.DEVNULL,
@@ -629,6 +629,91 @@ class CommandTests(unittest.TestCase):
         self.assertEqual(item['signal'], signal.SIGTERM)
         self.assertIsNone(item['exit_code'])
         self.assertTrue(item['complete'])
+
+    def test_collector_write_failure_cleans_payload_and_escaped_child(self):
+        ready = self.root / 'owned-pids'
+        errors = self.root / 'collector-errors'
+        self.directory.mkdir()
+        output = errors.open('wb')
+        self.addCleanup(output.close)
+        process = subprocess.Popen([sys.executable, '-I', '-B', str(HERE / 'cpu-run'),
+                                    '--out', str(self.directory), '--suite', 'write-failed',
+                                    '--wall-hard', '0.25', '--', sys.executable, '-I', '-c',
+                                    f'''import os,signal,time
+from pathlib import Path
+signal.signal(signal.SIGTERM,signal.SIG_IGN)
+parent=os.getpid()
+child=os.fork()
+if child==0:
+    os.setsid()
+    Path({str(ready)!r}).write_text(str(parent)+' '+str(os.getpid()))
+    Path({str(self.directory)!r}).chmod(0o500)
+time.sleep(30)
+'''], env=self.env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                   stderr=output, start_new_session=True)
+        def cleanup():
+            self.directory.chmod(0o700)
+            if ready.exists():
+                for pid in map(int, ready.read_text().split()):
+                    try:
+                        os.kill(pid, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+            if process.poll() is None:
+                process.kill()
+            process.communicate(timeout=5)
+        self.addCleanup(cleanup)
+        self.assertEqual(process.wait(timeout=5), 125)
+        self.assertIn('write record', errors.read_text())
+        pids = [int(value) for value in ready.read_text().split()]
+        self.assertEqual(len(pids), 2)
+        for pid in pids:
+            with self.assertRaises(ProcessLookupError, msg=f'owned process {pid} survived collector failure'):
+                os.kill(pid, 0)
+        _, item = self.record()
+        self.assertFalse(item['complete'])
+        self.assertEqual(self.summary('--expect', 'write-failed').returncode, 2)
+
+    def test_native_writer_retains_default_sigpipe(self):
+        reader, writer = os.pipe()
+        os.close(reader)
+        try:
+            result = subprocess.run([sys.executable, '-I', '-B', str(HERE / 'cpu-run'),
+                                     '--out', str(self.directory), '--suite', 'pipe', '--', 'yes'],
+                                    env=self.env, stdin=subprocess.DEVNULL, stdout=writer,
+                                    stderr=subprocess.PIPE, timeout=5)
+        finally:
+            os.close(writer)
+        self.assertEqual(result.returncode, -signal.SIGPIPE, result.stderr)
+        _, item = self.record()
+        self.assertEqual(item['signal'], signal.SIGPIPE)
+        self.assertIsNone(item['exit_code'])
+        self.assertTrue(item['complete'])
+
+    def test_deadline_stays_armed_during_settlement_with_known_exit(self):
+        self.directory.mkdir()
+        record = self.directory / 'settlement.json'
+        marker = self.root / 'cleanup'
+        trace = self.root / 'records-trace'
+        result = subprocess.run([str(SETTLEMENT_WRAPPER), '--suite', str(record), 'settlement',
+                                 '--wall-hard', '0.5', '--', '/bin/sh', '-c', 'exit 7'],
+                                env=dict(self.env, TIERS_CLEANUP_MARKER=str(marker),
+                                         TIERS_RECORD_TRACE=str(trace)),
+                                stdin=subprocess.DEVNULL, capture_output=True, timeout=5)
+        self.assertEqual(result.returncode, 7, result.stderr)
+        item = json.loads(record.read_text())
+        self.assertTrue(item['starved'], 'settlement crossed the deadline without starvation')
+        self.assertEqual(item['exit_code'], 7)
+        self.assertIsNone(item['signal'])
+        self.assertFalse(item['pending'])
+        self.assertFalse(item['settling'])
+        self.assertTrue(item['complete'])
+        checkpoints = [json.loads(line) for line in trace.read_text().splitlines()]
+        checkpoint = next(r for r in checkpoints if r['starved'] and not r['complete'])
+        self.assertEqual(checkpoint['exit_code'], 7)
+        self.assertIsNone(checkpoint['signal'])
+        self.assertFalse(checkpoint['pending'])
+        self.assertTrue(checkpoint['settling'])
 
     def test_wall_starvation_reaps_payload_group_and_escaped_child(self):
         for mode in ('term', 'kill', 'escaped'):

@@ -304,10 +304,11 @@ own temporary directory, cleaned after the suite. It never reads `target/`;
 a missing `cc` fails the suite with a clear error. The suite prints the user,
 system and total CPU seconds spent building both fixtures. The second build
 adds `tools/tiers/fixtures/cpu-settlement.c` and
-`-Wl,--wrap=wait4,--wrap=clock_gettime,--wrap=fopen,--wrap=kill` to the wrapper
+`-Wl,--wrap=wait4,--wrap=clock_gettime,--wrap=fopen,--wrap=kill,--wrap=write` to the wrapper
 build. It reaps one real child then models a stream
 of successful reaps and an advancing clock, with owned-child cleanup calls
-intercepted; it spawns no process storm and signals no synthetic PID.
+intercepted; it spawns no process storm and signals no synthetic PID. Its
+optional record trace captures each write to verify checkpoint state.
 
 The suite covers overlay arguments and parsed configuration,
 record coverage and validation, retries and skipped tests, CPU budgets and
@@ -338,11 +339,17 @@ or reproduces its terminating signal; launch failures return 127 and collector
 failures 125. Without `--wall-hard`, signals sent to the process group reach
 the command directly; the supervisor ignores PID-only termination signals as
 in section 7.2. No extra heavy command wraps an already admitted suite.
+Before exec, the Python launcher restores default dispositions for SIGPIPE,
+SIGXFSZ and SIGXFZ where available and ignored by Python, so a native payload
+retains its signal behavior, including a writer terminated by a closed pipe.
 
 With a finite positive `--wall-hard`, the payload starts in its own process
 group, separate from the recorder. Its deadline starts at the initial record,
 after discovery and any build. The native supervisor polls `wait4` without
-blocking. At expiry it checkpoints `starved=true` and sends SIGTERM to the
+blocking. The deadline remains armed through descendant settlement, including
+after the main command is reaped. At expiry it checkpoints `starved=true`,
+preserving an already known exit status and marking the record as settling,
+and sends SIGTERM to the
 payload's group. If processes remain after a one-second grace, it sends
 SIGKILL to that group and repeatedly kills its own adopted children, including
 descendants that escaped the group with `setsid`. It reaps and accounts for
@@ -351,6 +358,17 @@ for settlement. Only proven settlement produces `complete=true`. The command's
 exit code or terminating signal still passes through; a complete starved
 record makes starvation a green summary warning, with terminated payloads
 excluded from `failures`. Independently exceeded CPU budgets still return 1.
+
+Every post-launch collector error uses one failure path before exiting 125:
+signal the owned payload group with SIGTERM, allow a grace, escalate to
+SIGKILL, and reap adopted descendants. Where nextest or the caller owns the
+untimed group, cleanup signals only the recorder's direct children and those
+subsequently adopted, avoiding signals to the caller's group. Error cleanup
+uses up to 2,000 one-millisecond polling steps, escalating after 1,000, with
+bounded reap batches so a stream cannot prevent escalation. It uses neither
+the record writer nor the collector's clock, so those failures cannot abort
+cleanup recursively. Diagnostics follow cleanup, and the last published record
+remains incomplete; an interrupted write never claims completed accounting.
 
 The caller's own timeout **must exceed wall-hard + one-second grace + five
 seconds**, allowing scheduling and settlement time, and must never signal
@@ -415,6 +433,10 @@ cover SIGTERM, SIGKILL escalation, cleanup of an escaped child, a timely
 completion, invalid durations, and a recorder killed after its starvation
 checkpoint. The killed-recorder fixture cleans up its owned payload separately;
 the incomplete record must still be rejected.
+Regression checks also force a post-launch checkpoint write failure while
+a TERM-ignoring payload and escaped child are live, run a native writer into
+a closed pipe, and inspect starvation checkpoints during modeled settlement
+after the main command has exited with a known failure status.
 
 ## 8. Later
 

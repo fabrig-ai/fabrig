@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import runpy
 import shlex
+import signal
 import subprocess
 import sys
 from urllib.parse import quote
@@ -60,6 +61,10 @@ def main():
         # Exec keeps the static supervisor as the command's parent and preserves
         # its status, signals and all three standard streams without a relay.
         timeout = [] if args.wall_hard is None else ['--wall-hard', str(args.wall_hard)]
+        for name in ('SIGPIPE', 'SIGXFZ', 'SIGXFSZ'):
+            sig = getattr(signal, name, None)
+            if sig is not None and signal.getsignal(sig) == signal.SIG_IGN:
+                signal.signal(sig, signal.SIG_DFL)
         os.execv(str(wrapper), [str(wrapper), '--suite', str(record), args.suite,
                                *timeout, '--', *args.command[1:]])
     except (OSError, ValueError, TypeError, runner['FailedStep']) as error:

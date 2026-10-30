@@ -1,6 +1,7 @@
 #define _GNU_SOURCE
 /* Model a continuous reap stream: tools/tiers/design.md, 7.4. */
 #include <errno.h>
+#include <fcntl.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -10,14 +11,25 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <time.h>
+#include <unistd.h>
 
 extern pid_t __real_wait4(pid_t, int *, int, struct rusage *);
 extern int __real_clock_gettime(clockid_t, struct timespec *);
 extern FILE *__real_fopen(const char *, const char *);
 extern int __real_kill(pid_t, int);
+extern ssize_t __real_write(int, const void *, size_t);
 static bool reaped;
 static unsigned stream;
 static struct timespec origin;
+
+ssize_t __wrap_write(int fd, const void *data, size_t size) {
+    const char *trace = getenv("TIERS_RECORD_TRACE");
+    if (trace) {
+        int output = open(trace, O_WRONLY | O_APPEND | O_CREAT, 0600);
+        if (output < 0 || __real_write(output, data, size) != (ssize_t)size || close(output)) abort();
+    }
+    return __real_write(fd, data, size);
+}
 
 pid_t __wrap_wait4(pid_t child, int *status, int options, struct rusage *usage) {
     if (!reaped) {

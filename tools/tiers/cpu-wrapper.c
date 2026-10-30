@@ -19,12 +19,16 @@
 #include <unistd.h>
 
 extern char **environ;
+static pid_t payload_pid = -1;
+static bool payload_group;
+_Noreturn static void collector_failure(const char *message);
+
 static double seconds(struct timeval value) {
     return (double)value.tv_sec + (double)value.tv_usec / 1000000.0;
 }
 static double now(void) {
     struct timespec value;
-    if (clock_gettime(CLOCK_MONOTONIC, &value)) { perror("cpu-wrapper: clock"); exit(125); }
+    if (clock_gettime(CLOCK_MONOTONIC, &value)) collector_failure("cpu-wrapper: clock");
     return (double)value.tv_sec + (double)value.tv_nsec / 1000000000.0;
 }
 static const char *required(const char *key) {
@@ -85,7 +89,7 @@ static void record(const char *path, double start, double user, double system,
     out = append(out, ",\"wall_s\":"); out = decimal(out, now() - start, 1000000000);
     out = append(out, ",\"start_s\":"); out = decimal(out, start, 1000000000);
     struct rusage own;
-    if (getrusage(RUSAGE_SELF, &own)) { perror("cpu-wrapper: own CPU"); exit(125); }
+    if (getrusage(RUSAGE_SELF, &own)) collector_failure("cpu-wrapper: own CPU");
     out = append(out, ",\"wrapper_cpu_s\":");
     out = decimal(out, seconds(own.ru_utime) + seconds(own.ru_stime), 1000000);
     out = append(out, ",\"complete\":"); out = append(out, complete ? "true" : "false");
@@ -106,30 +110,72 @@ static void record(const char *path, double start, double user, double system,
     initial_fd = -1;
     if (fd < 0) fd = open(temporary_path, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0600);
     if (fd < 0 || write(fd, record_data, length) != (ssize_t)length || close(fd)) {
-        perror("cpu-wrapper: write record"); exit(125);
+        collector_failure("cpu-wrapper: write record");
     }
     /* A named suite must not replace another invocation's record. */
     int published = suite_record && initial
         ? (link(temporary_path, path) || unlink(temporary_path))
         : rename(temporary_path, path);
     if (published) {
-        perror("cpu-wrapper: publish record"); exit(125);
+        collector_failure("cpu-wrapper: publish record");
     }
 }
 /* Only our direct children: adoption brings a daemon here even after setsid. */
-static bool kill_children(double deadline) {
+static bool signal_children(int sig, double deadline) {
     char path[96];
     snprintf(path, sizeof path, "/proc/self/task/%ld/children", (long)getpid());
     FILE *children = fopen(path, "r");
     if (!children) return false;
     long child;
     while (fscanf(children, "%ld", &child) == 1) {
-        if (now() >= deadline) { fclose(children); return false; }
-        if (kill((pid_t)child, SIGKILL) && errno != ESRCH) { fclose(children); return false; }
+        if (deadline && now() >= deadline) { fclose(children); errno = ETIMEDOUT; return false; }
+        if (kill((pid_t)child, sig) && errno != ESRCH) {
+            int error = errno;
+            fclose(children); errno = error; return false;
+        }
     }
     bool success = !ferror(children);
+    int error = errno;
     fclose(children);
+    if (!success) errno = error ? error : EIO;
     return success;
+}
+static bool kill_children(double deadline) {
+    bool success = signal_children(SIGKILL, deadline);
+    if (!success && errno != ETIMEDOUT) collector_failure("cpu-wrapper: child cleanup");
+    return success;
+}
+static void cleanup_after_error(void) {
+    if (payload_pid > 0) {
+        /* Error cleanup uses neither the collector's clock nor record writer.
+           Nextest owns the untimed group; signal only our children there. */
+        if (payload_group) kill(-payload_pid, SIGTERM);
+        for (unsigned tick = 0; tick < 2000; ++tick) {
+            if (tick == 1000 && payload_group) kill(-payload_pid, SIGKILL);
+            signal_children(tick < 1000 ? SIGTERM : SIGKILL, 0);
+            /* A reap stream must not prevent escalation or bound checking. */
+            for (unsigned count = 0; count < 64; ++count) {
+                int status;
+                struct rusage usage;
+                pid_t child = wait4(-1, &status, WNOHANG | __WALL, &usage);
+                if (child < 0 && errno == ECHILD) return;
+                if (child <= 0) break;
+            }
+            struct timespec pause = { .tv_nsec = 1000000 };
+            nanosleep(&pause, NULL);
+        }
+    }
+}
+_Noreturn static void collector_failure(const char *message) {
+    int error = errno;
+    cleanup_after_error();
+    /* A broken diagnostic pipe must not interrupt cleanup or change exit 125. */
+    sigset_t blocked;
+    sigemptyset(&blocked); sigaddset(&blocked, SIGPIPE);
+    sigprocmask(SIG_BLOCK, &blocked, NULL);
+    errno = error;
+    perror(message);
+    exit(125);
 }
 int main(int argc, char **argv) {
     umask(077);
@@ -206,7 +252,12 @@ int main(int argc, char **argv) {
     if (!launch) launch = posix_spawnattr_setflags(&spawn, POSIX_SPAWN_SETSIGDEF
                                                  | (wall_hard ? POSIX_SPAWN_SETPGROUP : 0));
     if (!launch) launch = posix_spawnp(&test, argv[command], NULL, &spawn, argv + command, environ);
-    posix_spawnattr_destroy(&spawn);
+    if (!launch) {
+        payload_pid = test;
+        payload_group = wall_hard != 0;
+    }
+    int destroyed = posix_spawnattr_destroy(&spawn);
+    if (destroyed) { errno = destroyed; collector_failure("cpu-wrapper: spawn attributes cleanup"); }
     if (launch) {
         errno = launch; perror("cpu-wrapper: exec");
         record(path, start, 0, 0, 127 << 8, true, 0, false, false);
@@ -217,16 +268,16 @@ int main(int argc, char **argv) {
     bool exited = false, complete = false, killing = false, cleanup_ok = true;
     unsigned leaked = 0;
     for (;;) {
-        if (wall_hard && !exited && !starved && now() - start >= wall_hard) {
+        if (wall_hard && !starved && now() - start >= wall_hard) {
             starved = true;
             terminate_at = now() + 1.0;
-            if (kill(-test, SIGTERM) && errno != ESRCH) cleanup_ok = false;
-            record(path, start, user, system, status, false, leaked, true, false);
+            if (kill(-test, SIGTERM) && errno != ESRCH) collector_failure("cpu-wrapper: terminate payload group");
+            record(path, start, user, system, status, false, leaked, !exited, exited);
         }
         if (starved) {
             double current = now();
             if (current >= terminate_at) {
-                if (!killing && kill(-test, SIGKILL) && errno != ESRCH) cleanup_ok = false;
+                if (!killing && kill(-test, SIGKILL) && errno != ESRCH) collector_failure("cpu-wrapper: kill payload group");
                 killing = true;
                 if (!kill_children(terminate_at + 1.0)) cleanup_ok = false;
             }
@@ -253,11 +304,12 @@ int main(int argc, char **argv) {
         }
         if (child < 0) {
             if (errno == EINTR) continue;
+            if (errno != ECHILD) collector_failure("cpu-wrapper: wait4");
             complete = errno == ECHILD && exited && cleanup_ok;
             break;
         }
         struct timespec pause = { .tv_nsec = 1000000 };
-        nanosleep(&pause, NULL);
+        if (nanosleep(&pause, NULL) && errno != EINTR) collector_failure("cpu-wrapper: sleep");
     }
     record(path, start, user, system, status, complete, leaked, !exited, false);
     free(path); free(temporary_path); free(record_data);
