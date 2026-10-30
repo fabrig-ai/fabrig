@@ -404,7 +404,9 @@ in the lower world that owns it, never here.
   - **What a twin cannot hold** is what only a real model shows: the
     words it reads (`../draft/qa-live.md`, 8). A change to them is
     rechecked by the rung's live story (2.7), and its twin made again
-    from that run's transcripts.
+    from that run's transcripts. Fixtures are re-recorded with
+    `temper-twin`; its `--replace` covers assistant text as well as call
+    arguments.
   - It runs where the story it replaces runs, in the fuzzy suite, past
     the 2 s guide by the landing path, as `suite::fuzzy::green_light` is.
 - **An account first,** with area 5's tools (../client/tools.md, 5.5):
@@ -1837,10 +1839,11 @@ skein's (skein's `fake-llm.md`):
   - **What does not replay** is the caller's to name: values a fresh
     deployment does not give again, such as a commit's id in a call's
     arguments, are given as substitutions, `--replace OLD=NEW`, applied
-    to the calls' arguments and counted in its report. Task, message
-    and pull numbers recur when the story's acts run in the walk's
-    order on a fresh deployment, as the fuzzy stories' numbers do. A
-    value missed shows as the twin's run failing, and is added.
+    to assistant text and the calls' arguments, and counted in its
+    report. Task, message and pull numbers recur when the story's acts
+    run in the walk's order on a fresh deployment, as the fuzzy stories'
+    numbers do. A value missed shows as the twin's run failing, and is
+    added.
   - **Its tests:** step tests from recorded frames; and a round trip, a
     fuzzy story's run turned into its twin and the twin run to the same
     end.
