@@ -296,14 +296,15 @@ is reported explicitly alongside the green warning.
 
 ### 7.4 Offline proof
 
-After building the native prerequisite, run `python3 -I -B
-tools/tiers/test_cpu.py`; `TIERS_CPU_WRAPPER` may select a different native
-artifact. The continuous-reap deadline fixture is a second native artifact;
-build it through heavy with the same compiler flags, adding
-`tools/tiers/fixtures/cpu-settlement.c` and
+Run `python3 -I -B tools/tiers/test_cpu.py` directly in a cold or warm checkout.
+Once per process, the suite invokes `cc` with section 7's compiler flags to
+build the wrapper and continuous-reap deadline fixture from source into its
+own temporary directory, cleaned after the suite. It never reads `target/`;
+a missing `cc` fails the suite with a clear error. The suite prints the user,
+system and total CPU seconds spent building both fixtures. The second build
+adds `tools/tiers/fixtures/cpu-settlement.c` and
 `-Wl,--wrap=wait4,--wrap=clock_gettime,--wrap=fopen,--wrap=kill` to the wrapper
-build, with output `target/tiers-cpu-settlement-fixture` (or set
-`TIERS_CPU_SETTLEMENT_WRAPPER`). It reaps one real child then models a stream
+build. It reaps one real child then models a stream
 of successful reaps and an advancing clock, with owned-child cleanup calls
 intercepted; it spawns no process storm and signals no synthetic PID.
 

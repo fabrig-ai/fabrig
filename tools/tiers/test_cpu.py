@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Offline collector checks; build cpu-wrapper through heavy first (design.md, 7)."""
+"""Offline collector checks with private native fixtures (design.md, 7.4)."""
 
 import json
 import os
 from pathlib import Path
+import resource
 import runpy
 import signal
 import statistics
@@ -15,7 +16,33 @@ import unittest
 
 HERE = Path(__file__).resolve().parent
 CPU = runpy.run_path(str(HERE / 'cpu.py'))
-WRAPPER = Path(os.environ.get('TIERS_CPU_WRAPPER', HERE.parents[1] / 'target/tiers-cpu-wrapper')).resolve()
+
+
+def setUpModule():
+    global WRAPPER, SETTLEMENT_WRAPPER
+    native = tempfile.TemporaryDirectory(dir=HERE.parents[1], prefix='tiers-cpu-native-')
+    unittest.addModuleCleanup(native.cleanup)
+    WRAPPER = Path(native.name) / 'cpu-wrapper'
+    SETTLEMENT_WRAPPER = Path(native.name) / 'cpu-settlement-fixture'
+    compiler = ['cc', '-std=c11', '-O2', '-static', '-Wall', '-Wextra', '-Werror',
+                str(HERE / 'cpu-wrapper.c')]
+    before = resource.getrusage(resource.RUSAGE_CHILDREN)
+    for arguments in (['-o', str(WRAPPER)],
+                      [str(HERE / 'fixtures/cpu-settlement.c'),
+                       '-Wl,--wrap=wait4,--wrap=clock_gettime,--wrap=fopen,--wrap=kill',
+                       '-o', str(SETTLEMENT_WRAPPER)]):
+        try:
+            subprocess.run([*compiler, *arguments], check=True, stdin=subprocess.DEVNULL,
+                           capture_output=True, text=True)
+        except FileNotFoundError as error:
+            raise RuntimeError('CPU collector tests require cc on PATH to build native fixtures') from error
+        except subprocess.CalledProcessError as error:
+            raise RuntimeError(f'CPU collector native fixture build failed: {error.stdout}{error.stderr}') from error
+    after = resource.getrusage(resource.RUSAGE_CHILDREN)
+    user_s = after.ru_utime - before.ru_utime
+    system_s = after.ru_stime - before.ru_stime
+    print(f'Native fixture build CPU: user {user_s:.6f}s, system {system_s:.6f}s, '
+          f'total {user_s + system_s:.6f}s', flush=True)
 
 
 class CollectorTests(unittest.TestCase):
@@ -292,7 +319,9 @@ sys.exit(130)
         self.assertEqual(CPU['summary'](self.directory)['failures'], [])
         self.assert_cancelled_verdict(0)
 
-    def live_wrapper(self, code, *, wrapper=WRAPPER, extra_env=None):
+    def live_wrapper(self, code, *, wrapper=None, extra_env=None):
+        if wrapper is None:
+            wrapper = WRAPPER
         env = dict(os.environ, NEXTEST_PROFILE='qa-jig', NEXTEST_BINARY_ID='fixture::suite',
                    NEXTEST_TEST_NAME='one', NEXTEST_ATTEMPT='1', **(extra_env or {}))
         process = subprocess.Popen([str(wrapper), str(self.directory / 'records'),
@@ -421,11 +450,10 @@ while True:
         self.assertEqual(items[0].get('complete_scope'), 'waited-and-reaped-descendants')
 
     def test_settlement_deadline_and_cleanup_apply_during_reap_stream(self):
-        wrapper = Path(os.environ.get('TIERS_CPU_SETTLEMENT_WRAPPER', HERE.parents[1] / 'target/tiers-cpu-settlement-fixture'))
         marker = self.root / 'cleanup'
         env = dict(os.environ, NEXTEST_PROFILE='qa-jig', NEXTEST_BINARY_ID='fixture::suite',
                    NEXTEST_TEST_NAME='one', NEXTEST_ATTEMPT='1', TIERS_CLEANUP_MARKER=str(marker))
-        result = subprocess.run([str(wrapper), str(self.directory / 'records'), '/bin/true'],
+        result = subprocess.run([str(SETTLEMENT_WRAPPER), str(self.directory / 'records'), '/bin/true'],
                                 env=env, stdin=subprocess.DEVNULL, capture_output=True, timeout=5)
         self.assertEqual(result.returncode, 0, result.stderr)
         item = CPU['records'](self.directory)[0]
