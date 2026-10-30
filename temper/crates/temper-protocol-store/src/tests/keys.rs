@@ -77,7 +77,7 @@ fn every_forge_key_lies_in_the_interval_and_no_core_key_does() {
 }
 
 #[test]
-fn the_largest_key_is_a_branch_of_empty_segments() {
+fn branch_empty_segments_and_binding_escapes_fit_the_calculated_key_bound() {
     let mut segments: skein_lib::List<Box<[u8]>> = skein_lib::List::with_capacity(fixtures::LIMITS.name_bytes);
     for _ in 0..fixtures::LIMITS.name_bytes {
         segments.push(Box::new([])).expect("bounded branch");
@@ -85,7 +85,12 @@ fn the_largest_key_is_a_branch_of_empty_segments() {
     let key = fixtures::branch(segments.into_boxed());
     let bytes = keys::encode(&key, u32::MAX).expect("largest key fits");
     assert_eq!(bytes.len(), 403);
-    assert_eq!(keys::largest(&fixtures::LIMITS), Some(403));
+    assert_eq!(keys::decode(&bytes, &fixtures::LIMITS), Some(key));
+    let key = Key::Binding(Box::new([0; 254]));
+    let bytes = keys::encode(&key, 511).expect("escaped binding bound");
+    assert_eq!(bytes.len(), 511);
+    assert_eq!(keys::largest(&fixtures::LIMITS), Some(511));
+    assert_eq!(keys::encode(&key, 510), None);
     assert_eq!(keys::decode(&bytes, &fixtures::LIMITS), Some(key));
 }
 
@@ -137,8 +142,8 @@ fn demo_keys_follow_writer_and_take_every_forge_number() {
 }
 
 #[test]
-fn binding_keys_use_family_eighteen_and_canonical_addresses() {
-    for address in [b"a@b".as_slice(), b"sam@example.com"] {
+fn binding_keys_use_family_eighteen_and_bounded_addresses() {
+    for address in [b"a@b".as_slice(), b"sam@example.com", b"Sam@example.com", b"a@@b", b"no-at", b"", b"a\0b"] {
         let key = Key::Binding(address.into());
         let bytes = keys::encode(&key, u32::MAX).unwrap();
         assert_eq!(bytes[0], keys::BINDING);
@@ -147,8 +152,13 @@ fn binding_keys_use_family_eighteen_and_canonical_addresses() {
         trailing.tag(keys::BINDING).bytes(address).tag(0);
         assert_eq!(keys::decode(&trailing.finish().expect("small key"), &fixtures::LIMITS), None);
     }
-    for address in [b"Sam@example.com".as_slice(), b"a@@b", b"no-at"] {
-        assert_eq!(keys::encode(&Key::Binding(address.into()), u32::MAX), None);
+    let address = [0; 255];
+    assert_eq!(keys::encode(&Key::Binding(Box::new(address)), u32::MAX), None);
+    let mut oversized = skein_kv::KeyWriter::new(u32::MAX);
+    oversized.tag(keys::BINDING).bytes(&address);
+    assert_eq!(keys::decode(&oversized.finish().unwrap(), &fixtures::LIMITS), None);
+    for bytes in [b"\x12\0".as_slice(), b"\x12\0\x01", b"\x12x", b"\xff\0\0"] {
+        assert_eq!(keys::decode(bytes, &fixtures::LIMITS), None);
     }
 }
 
