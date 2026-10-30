@@ -5,6 +5,7 @@ import importlib.util
 import json
 from pathlib import Path
 import unittest
+from unittest.mock import patch
 
 DIRECTORY = Path(__file__).resolve().parent
 LOADER = importlib.machinery.SourceFileLoader("selection_fixtures", str(DIRECTORY / "test_precheck.py"))
@@ -15,6 +16,65 @@ mq = fixtures.mq
 
 
 class SelectionTests(fixtures.Fixture):
+    def tools_base(self):
+        self.write("tools/test_existing.py", "# discovered offline suite\n")
+        self.write("tools/guide.md", "tool guide\n")
+        self.write("outside.md", "outside guide\n")
+        self.ancestor = self.commit()
+        for branch in ("base", "tip"):
+            self.git("branch", "-f", branch, self.ancestor)
+
+    def test_full_non_tools_inputs_skip_existing_suites_and_keep_compile_checks(self):
+        self.tools_base()
+        for path in ("Cargo.toml", ".config/nextest.toml", "agents/policy.md"):
+            with self.subTest(path=path):
+                self.change("tip", path, "full input\n")
+                before = self.snapshot()
+                self.calls.clear()
+                with patch.object(mq, "tools_required", wraps=mq.tools_required) as required:
+                    self.assertEqual(self.run_tool(), 0)
+                required.assert_called_once_with(self.tool.record["selection_paths"])
+                self.assertEqual(self.tool.record["selection"], "full")
+                self.assertEqual([step["name"] for step in self.tool.record["plan"]],
+                                 ["fmt", "clippy", "build"])
+                self.assertEqual([argv for argv, _ in self.calls], [
+                    ["cargo", "fmt", "--all", "--check"],
+                    ["heavy", "cargo", "clippy", "--workspace", "--all-targets", "--", "-D", "warnings"],
+                    ["heavy", "cargo", "nextest", "run", "--workspace", "--no-run"]])
+                self.assert_restored(before)
+
+    def check_tools_path_change(self, operation):
+        self.tools_base()
+        self.git("switch", "tip")
+        if operation == "delete":
+            self.git("rm", "tools/guide.md")
+        elif operation == "rename-out":
+            self.git("mv", "tools/guide.md", "moved.md")
+        else:
+            self.git("mv", "outside.md", "tools/moved.md")
+        self.commit()
+        self.git("switch", "original")
+        before = self.snapshot()
+        with patch.object(mq, "tools_required", wraps=mq.tools_required) as required:
+            self.assertEqual(self.run_tool(), 0)
+        required.assert_called_once_with(self.tool.record["selection_paths"])
+        self.assertEqual(self.tool.record["selection"], "docs")
+        self.assertEqual([step["name"] for step in self.tool.record["plan"]], ["tools/test_existing.py"])
+        self.assertEqual([argv for argv, _ in self.calls], [["python3", "-I", "-B", "tools/test_existing.py"]])
+        self.assertEqual(self.tool.record["selection_paths"],
+                         {"delete": ["tools/guide.md"], "rename-out": ["moved.md", "tools/guide.md"],
+                          "rename-in": ["outside.md", "tools/moved.md"]}[operation])
+        self.assert_restored(before)
+
+    def test_deleted_tools_doc_requires_suites(self):
+        self.check_tools_path_change("delete")
+
+    def test_renamed_tools_doc_source_requires_suites(self):
+        self.check_tools_path_change("rename-out")
+
+    def test_renamed_tools_doc_destination_requires_suites(self):
+        self.check_tools_path_change("rename-in")
+
     def snapshot(self):
         return {"head": (self.repo / ".git/HEAD").read_bytes(),
                 "refs": self.git("show-ref"), "index": (self.repo / ".git/index").read_bytes(),

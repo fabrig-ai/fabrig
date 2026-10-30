@@ -89,7 +89,7 @@ Path('scripts/old-forms.txt').write_text('9\\n')
         before = self.snapshot()
         result = self.run_suite()
         self.assertEqual(result.returncode, 0, result.stdout)
-        self.assertIn("Ran 117 tests", result.stdout)
+        self.assertIn("Ran 120 tests", result.stdout)
         self.assert_unchanged(before)
 
     def test_precheck_runs_real_mq_suite_after_ratchet_and_restores_exactly(self):
@@ -126,7 +126,7 @@ Path('scripts/old-forms.txt').write_text('9\\n')
         log = (tool.log_directory / "commands.log").read_text()
         self.assertEqual(result, 0, str(tool.record) + "\n" + log)
         self.assertEqual(len(observations), 1)
-        self.assertIn("Ran 117 tests", log)
+        self.assertIn("Ran 120 tests", log)
         self.assertEqual(tool.record["selection"], "docs")
         self.assertEqual(tool.record["selection_paths"], ["jig/README.md", "tools/candidate.md"])
         self.assertEqual(tool.record["paths"],

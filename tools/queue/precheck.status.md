@@ -1,5 +1,10 @@
 # Branch pre-ready check status
 
+Decision0016 stage A shares `mq.tools_required` with queue execution and
+worker expected plans. Full selection without changed `tools/` paths skips
+tools suites while preserving the ordinary ratchet/fmt/clippy/build plan.
+Stage B CPU-per-suite policy is not implemented; existing budgets remain.
+
 Provisional, 2026-10-29. `tools/queue/precheck.md`, sections 1–4, is
 implemented in `precheck` with disposable Git and fake-command coverage in
 `test_precheck.py`. The installed manifest and installer tests include its
@@ -33,7 +38,7 @@ The first real Jig check exposed a tools-test isolation failure:
 `test_mq.py` ran queue ratchet stage/commit logic against its caller's Git
 repository. Its effectful cases and scratch now use disposable sibling
 fixtures; ratchet commit semantics remain tested with real Git.
-`test_precheck_tools_isolation.py` covers the offending case, all 117 mq
+`test_precheck_tools_isolation.py` covers the offending case, all 120 mq
 cases over a staged candidate plus unstaged lower baseline, and precheck
 restoration after running the real mq suite, with no Cargo/heavy step for
 its docs/tools candidate. Real corrected-candidate and caller-isolation proof

@@ -22,13 +22,16 @@ choosing BASE and recounting leaves no baseline diff. Recounts still finish
 before checks run. Metadata and formatting ownership come from the candidate;
 Cargo.lock selection compares BASE's blob with the candidate file through
 `mq.lock_changes`. `mq.selection`, its always/read-by-tests lists,
-`mq.check_commands`, `mq.tools_commands`, `mq.ratchet_commands`, and
+`mq.check_commands`, `mq.tools_required`, `mq.tools_commands`, `mq.ratchet_commands`, and
 `mq.run_step` supply queue policy. Code and policy lists are loaded before
 switching any slot, including the checkout containing the running tool.
 Candidate suites and ratchet scripts come from the candidate. The queue's
 graph-free docs/tools/full cases avoid unnecessary metadata requests.
 
 Only ratchets, selected tools suites, fmt, clippy and nextest **build** run.
+Tools suites are selected exactly when the captured selection paths touch
+`tools/`, including deleted paths and either side of renames, independently
+of docs/package/full selection. Full selection alone adds no tools suites.
 Only the queue's leading heavy `--gate` is removed; build scope and arguments
 are retained. Every build uses ordinary `heavy cargo ...`. Nextest build
 exit 4 passes. No default/fuzzy Rust tests execute. Tools suites retain the

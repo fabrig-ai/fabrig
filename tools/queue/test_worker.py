@@ -209,7 +209,45 @@ class WorkerTests(unittest.TestCase):
         self.assertEqual(result["outcome"], "green", result)
         self.assertEqual(result["changed_paths"], [])
         self.assertEqual([s["name"] for s in result["steps"]],
-                         ["tools", "fmt", "clippy", "build", "default", "fuzzy"])
+                         ["fmt", "clippy", "build", "default", "fuzzy"])
+
+    def test_full_without_tools_recomputes_exact_plan_and_rejects_extra_tools(self):
+        self.write("tools/test_existing.py", "raise SystemExit(1)\n")
+        self.commit("existing suite")
+        self.parent = self.tip()
+        request = self.request({"core/src/lib.rs": "// full Rust check\n"}, selected="full")
+        with patch.object(mq, "tools_required", wraps=mq.tools_required) as required:
+            result = self.run_job(request)
+        required.assert_called_with(["core/src/lib.rs"])
+        self.assertEqual(result["outcome"], "green", result)
+        self.assertEqual([step["name"] for step in result["plan"]],
+                         ["fmt", "clippy", "build", "default", "fuzzy"])
+        self.assertEqual(result["plan"], request["plan"])
+        self.assertEqual(result["before"], result["after"])
+        self.assertFalse(any("tools/test_existing.py" in argv for argv in self.calls))
+        request["attempt"] = "extra-tools"
+        request["plan"].insert(0, {"name": "tools", "suites": [worker.command_record(
+            self.prep, *mq.tools_commands(self.prep)[0])]})
+        self.calls.clear()
+        self.assert_infra(self.run_job(request), "plan mismatch")
+        self.assertEqual(self.calls, [])
+
+    def test_plan_uses_shared_path_predicate_independent_of_selection(self):
+        self.write("tools/test_existing.py", "")
+        self.commit("existing suite")
+        for selected in ("docs", ["core"], "full"):
+            for paths in (["tools/docs/guide.md"], ["tools/deleted.py", "outside.py"],
+                          ["agents/policy.md"], ["Cargo.toml"], ["Cargo.lock"],
+                          [".config/nextest.toml"], ["core/src/lib.rs"]):
+                with self.subTest(selected=selected, paths=paths), patch.object(
+                        mq, "tools_required", wraps=mq.tools_required) as required:
+                    plan = worker.check_plan(self.prep, selected, paths, self.metadata(self.prep))
+                    required.assert_called_once_with(paths)
+                    self.assertEqual(any(step["name"] == "tools" for step in plan),
+                                     any(path.startswith("tools/") for path in paths))
+                    if selected == "full":
+                        self.assertEqual([step["name"] for step in plan if step["name"] != "tools"],
+                                         ["fmt", "clippy", "build", "default", "fuzzy"])
 
     def test_ordinary_nonzero_is_red_and_nextest_four_is_green(self):
         request = self.request({"core/src/lib.rs": "// source\n"})

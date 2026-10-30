@@ -382,6 +382,11 @@ def ratchet_commands(repo, paths, *, check_only=False):
              repo / tree) for tree in sorted(trees)]
 
 
+def tools_required(paths):
+    """Select tools only from changed paths, independent of Cargo scope (design.md, 2.3)."""
+    return any(path.startswith("tools/") for path in paths)
+
+
 def tools_commands(repo):
     """Discover tracked offline suites, honoring executable shebangs (design.md, 2.3)."""
     commands = []
@@ -480,7 +485,7 @@ def run_checks(repo, selected, paths, log_path, *, runner=subprocess.run, clock=
             if not check_only and git(repo, "diff", "--name-only", "--", baseline).stdout:
                 git(repo, "add", "--", baseline)
                 git(repo, "commit", "-m", f"Lower {cwd.name} old-form baselines")
-        if selected == "full" or any(path.startswith("tools/") for path in paths):
+        if tools_required(paths):
             record(run_tools(repo, log, runner=runner, clock=clock, observer=observer,
                              status_observer=status_observer))
             if not outcomes[-1]["green"]:
