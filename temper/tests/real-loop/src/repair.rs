@@ -1,5 +1,5 @@
-//! B1 walk 5's recorded agents on the fake peers (domain/testing.md, 2.4).
-//! Regenerate from the workspace root with tests/real-loop/tests/fixtures/b1/regenerate.sh.
+//! B1 rung-b1-6 box3's recorded agents on the fake peers (domain/testing.md, 2.4).
+//! Regenerate from the workspace root with temper/tests/real-loop/tests/fixtures/b1/regenerate.sh.
 use crate::{
     Exit, ForgeRecipe, Ran, argv,
     calls::{self, D1, number},
@@ -15,23 +15,21 @@ use std::{
     sync::LazyLock,
 };
 
-pub const TASKS: [u64; 6] = [1, 2, 3, 5, 6, 7];
-pub const CUES: [&str; 6] = [
+pub const TASKS: [u64; 5] = [1, 2, 4, 5, 6];
+pub const CUES: [&str; 5] = [
     "## Replying",
     "You are a goal: the work your person asked for",
-    "You are an advisor: you read what your brief asks and report what you found; you change nothing and ask no one.",
-    "Implement CSV export for the existing hard-coded TABLE data in src/main.rs",
+    "Implement CSV export in src/main.rs after requester approved.",
     "Repair the failed CI on the change branch",
     "Review this change at the named head",
 ];
 const CHAT: u64 = 1;
 const WORK: u64 = 2;
-const ADVISOR: u64 = 3;
-const CHANGE: u64 = 4;
-const PRODUCER: u64 = 5;
-const REPAIR: u64 = 6;
-const REVIEW: u64 = 7;
-const QUESTION: u64 = 2;
+const CHANGE: u64 = 3;
+const PRODUCER: u64 = 4;
+const REPAIR: u64 = 5;
+const REVIEW: u64 = 6;
+const QUESTION: u64 = 1;
 const PULL: u64 = 2;
 const CHECK: &[u8] = b"/ check (pull_request)";
 const CHANGES: &[u8] = b"/ changes (pull_request)";
@@ -74,12 +72,10 @@ pub fn fixture() -> forge::Fixture {
 
 #[must_use]
 pub fn recipe(forge: SocketAddr, _source: &Path) -> llm::Recipe {
-    // This marker was introduced by twin in calls' arguments alone. Recorded
-    // text, including the walk's forge address and merge, remains untouched.
+    // The marker in recorded arguments and text binds the replay to its fake forge.
     let document = include_str!("../tests/fixtures/b1/llm.json").replace("http://B1-FORGE", &format!("http://{forge}"));
     let mut recipe = green_light::from_document(document.as_bytes());
-    // The twin has 47 completions. The peer retains six wire observations
-    // per call, already beyond the shared 256-record smoke-test allowance.
+    // Retain the complete recording and its wire observations for the assertions.
     recipe.limits.observations = 512;
     recipe
 }
@@ -95,12 +91,11 @@ const ACTIVITY: usize = 8;
 const ANSWERED: usize = 9;
 const WORK_ENDED: usize = 10;
 const LANDED: usize = 12;
-const ADVISOR_ENDED: usize = 13;
-const PRODUCED: usize = 14;
-const REPAIRED: usize = 15;
-const REVIEWED: usize = 16;
-const LAST_WORD: usize = 18;
-const INBOX_EMPTY: usize = 21;
+const PRODUCED: usize = 13;
+const REPAIRED: usize = 14;
+const REVIEWED: usize = 15;
+const LAST_WORD: usize = 17;
+const INBOX_EMPTY: usize = 20;
 
 #[must_use]
 pub fn acts() -> Vec<calls::Step> {
@@ -135,7 +130,6 @@ pub fn acts() -> Vec<calls::Step> {
         call(D1, argv!["task", "show", number(WORK), "--until", "ended", "--json"]),
         call(D1, argv!["change", "show", number(CHANGE), "--until", "landed", "--json"]),
         call(D1, argv!["task", "show", number(CHANGE), "--json"]),
-        call(D1, argv!["task", "show", number(ADVISOR), "--until", "ended", "--json"]),
         call(D1, argv!["task", "show", number(PRODUCER), "--until", "ended", "--json"]),
         call(D1, argv!["task", "show", number(REPAIR), "--until", "ended", "--json"]),
         call(D1, argv!["task", "show", number(REVIEW), "--until", "ended", "--json"]),
@@ -191,12 +185,13 @@ fn hex(id: u64) -> String {
 }
 
 pub fn check(ran: &Ran) {
-    assert_eq!(ran.calls().len(), 22);
+    assert_eq!(ran.calls().len(), 21);
     for (position, call) in ran.calls().iter().enumerate() {
         assert_eq!(call.exit, Some(Exit::Code(0)), "ctl call {position}: {call:?}");
         assert_eq!(call.tries, 1, "native watches, no repeated reads");
     }
     check_waiting(ran);
+    check_chat(ran);
     let (first, repaired, merge) = check_ci(ran);
     check_repair(ran, first);
     check_landing(ran, repaired, merge);
@@ -211,15 +206,15 @@ fn check_waiting(ran: &Ran) {
     assert_eq!(rows[0]["object"]["question"]["message"], QUESTION);
     assert!(String::from_utf8_lossy(&ran.calls()[ACTIVITY].stdout).contains(person("question")));
     let tree = document(ran, TREE);
-    assert!(!tree.to_string().contains("\"task\":4"), "no change before approval: {tree}");
+    assert!(!tree.to_string().contains("\"task\":3"), "no change before approval: {tree}");
     assert_eq!(tree["tree"]["more"], false);
     assert!(tree["tree"]["folded"].as_array().expect("folded tasks").is_empty());
     let notice = told(query_at(ran, 0, 3));
     assert!(
         notice.find(person("question")).expect("question")
-            < notice.find("Person answered question 2 in their inbox").expect("answer notice")
+            < notice.find("Person answered question 1 in their inbox").expect("answer notice")
     );
-    assert!(told(query_at(ran, 1, 6)).contains(person("answer")), "approval before change call");
+    assert!(told(query_at(ran, 1, 5)).contains(person("answer")), "approval before change call");
     let seed = &ran.forge().snapshots()[0];
     assert_eq!(seed.branches.len(), 1);
     assert_eq!(seed.branches[0].0.as_ref(), b"main");
@@ -227,6 +222,36 @@ fn check_waiting(ran: &Ran) {
         assert_eq!(snapshot.branches, seed.branches, "nothing pushed before approval");
         assert!(snapshot.pulls.is_empty(), "no pull before approval");
     }
+}
+
+fn check_chat(ran: &Ran) {
+    let chat = query_at(ran, 0, 4);
+    let calls: Vec<_> = chat
+        .messages
+        .iter()
+        .filter(|message| message.role == Role::Assistant)
+        .flat_map(|message| &message.parts)
+        .filter_map(|part| {
+            let Part::ToolCall { name, arguments, .. } = part else { return None };
+            Some((name.as_ref(), serde_json::from_slice::<Value>(arguments).expect("tool arguments")))
+        })
+        .collect();
+    let goals: Vec<_> = calls.iter().filter(|(name, _)| *name == b"goal").collect();
+    assert_eq!(goals.len(), 1, "chat delegates one goal");
+    assert_eq!(goals[0].1["agree"], true, "the goal waits for agreement");
+    let opened = ran
+        .llm()
+        .iter()
+        .filter(|seen| {
+            let skein_fake_peers::llm::Observation::Query { query, .. } = seen else { return false };
+            own_cue(query) == Some(CUES[1]) && query.messages.iter().all(|message| message.role != Role::Assistant)
+        })
+        .count();
+    assert_eq!(opened, 1, "one goal opens in the replay");
+    assert!(
+        calls.iter().all(|(name, arguments)| *name != b"message" || arguments["form"] != "answer"),
+        "chat never answers the person's question"
+    );
 }
 
 fn check_ci(ran: &Ran) -> (u64, u64, u64) {
@@ -300,9 +325,9 @@ fn check_ci(ran: &Ran) -> (u64, u64, u64) {
 fn check_repair(ran: &Ran, first: u64) {
     let repair = document(ran, REPAIRED);
     assert_eq!(repair["requester"]["task"], CHANGE);
-    let opening = format!("Repair CI at {}: / changes (pull_request)\n{}", &hex(first)[..12], CUES[4]);
+    let opening = format!("Repair CI at {}: / changes (pull_request)\n{}", &hex(first)[..12], CUES[3]);
     assert_eq!(repair["spec"]["specification"]["words"]["bytes"], opening);
-    let system = String::from_utf8_lossy(&query_at(ran, 4, 0).system);
+    let system = String::from_utf8_lossy(&query_at(ran, 3, 0).system);
     let ci = system.split_once("## CI\n\n").expect("CI brief").1.split_once("\n## ").expect("next section").0;
     assert!(ci.contains(&format!("Repair the failed check at change head {}", &hex(first)[..16])));
     assert!(ci.contains("Failed check: / changes (pull_request)\nDescription: CI failed\nLink: http://"));
@@ -321,7 +346,7 @@ fn check_repair(ran: &Ran, first: u64) {
 }
 
 fn check_landing(ran: &Ran, repaired: u64, merge: u64) {
-    let review = String::from_utf8_lossy(&query_at(ran, 5, 0).system);
+    let review = String::from_utf8_lossy(&query_at(ran, 4, 0).system);
     assert!(review.contains(&format!("Head: {}\n", hex(repaired))), "review names H2: {review}");
     let diff = review.split_once("Files and diff:").expect("review's repaired diff").1;
     for words in [
@@ -329,7 +354,7 @@ fn check_landing(ran: &Ran, repaired: u64, merge: u64) {
         "File: changes/2.md",
         "After:\n",
         "fruit,count",
-        "Repair CI by adding the required pull request changelog entry.",
+        "Add an optional `--csv` command-line mode that prints the fruit table with a `fruit,count` header. The existing aligned table output remains the default; unexpected or extra arguments produce a usage error.",
     ] {
         assert!(diff.contains(words), "H2 review includes {words}: {review}");
     }
@@ -352,19 +377,36 @@ fn check_landing(ran: &Ran, repaired: u64, merge: u64) {
     );
     assert_eq!(lines[4], "repairs: 1: CI failed: / changes (pull_request)");
     assert_eq!(lines[5], format!("reviews: approved at {}", hex(repaired)));
-    assert!(told(query_at(ran, 1, 8)).contains(words), "change's requester heard the whole result");
+    assert!(told(query_at(ran, 1, 7)).contains(words), "change's requester heard the whole result");
     let last = String::from_utf8_lossy(&ran.calls()[LAST_WORD].stdout);
     assert!(last.contains("CSV export landed"));
-    assert!(last.contains("checks passed after one repair"));
-    assert!(last.contains("fruit,count"));
+    assert!(last.contains(&format!("PR #{PULL}")), "chat names the landed pull: {last}");
+    assert!(last.contains(&hex(merge)[..12]), "chat names the merge: {last}");
+    let work = document(ran, WORK_ENDED);
+    let report = work["result"]["value"]["report"]["bytes"].as_str().expect("goal report");
+    assert!(report.contains(&format!("PR #{PULL}")), "goal names the landed pull: {report}");
+    assert!(report.contains(&hex(merge)[..12]), "goal names the merge: {report}");
+    assert!(told(query_at(ran, 0, 4)).contains(report), "chat hears the goal's landing report");
     assert!(!last.contains("tests passed"), "no unseen test claimed");
-    assert!(told(query_at(ran, 0, 4)).contains("checks passed after one repair"), "chat was told the checks evidence");
     let source = String::from_utf8_lossy(ran.forge().main_file(b"src/main.rs"));
-    assert!(source.contains("String::from(\"fruit,count\\n\")"));
+    assert!(source.contains("println!(\"fruit,count\")"));
     let scripts: Value = serde_json::from_slice(include_bytes!("../tests/fixtures/b1/llm.json")).expect("walk scripts");
-    let producer = &scripts["cued"][3]["turns"];
-    let mut expected = producer[3]["lines"][0]["arguments"]["content"].as_str().expect("walk source").to_owned();
-    for edit in producer[5]["lines"][0]["arguments"]["edits"].as_array().expect("walk edits") {
+    let producer = &scripts["cued"][2]["turns"];
+    let seed = temper_fake::forge::Document::decode(include_bytes!("../tests/fixtures/b1/forge.json"))
+        .expect("B1 forge document");
+    let mut expected = String::from_utf8(
+        seed.repositories()[0]
+            .tree
+            .as_ref()
+            .expect("seed files")
+            .iter()
+            .find(|file| file.path.as_ref() == b"src/main.rs")
+            .expect("seed source")
+            .content
+            .to_vec(),
+    )
+    .expect("seed source text");
+    for edit in producer[2]["lines"][0]["arguments"]["edits"].as_array().expect("walk edits") {
         let old = edit["old"].as_str().expect("old source");
         let new = edit["new"].as_str().expect("new source");
         assert_eq!(expected.matches(old).count(), 1);
@@ -373,9 +415,9 @@ fn check_landing(ran: &Ran, repaired: u64, merge: u64) {
     assert_eq!(source, expected, "the walk's whole produced source landed");
     assert_eq!(
         ran.forge().main_file(b"changes/2.md"),
-        b"Repair CI by adding the required pull request changelog entry.\n"
+        b"Add an optional `--csv` command-line mode that prints the fruit table with a `fruit,count` header. The existing aligned table output remains the default; unexpected or extra arguments produce a usage error."
     );
-    for position in [WORK_ENDED, ADVISOR_ENDED, PRODUCED, REPAIRED, REVIEWED] {
+    for position in [WORK_ENDED, PRODUCED, REPAIRED, REVIEWED] {
         assert_eq!(document(ran, position)["chip"]["phase"], "ended");
     }
     assert!(document(ran, REVIEWED).to_string().contains("Approve."));
