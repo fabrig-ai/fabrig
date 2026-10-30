@@ -85,3 +85,5 @@ Provisional, 2026-10-29. One Codex owner on hel8 (`codex-run owner`, at high), p
 - Include the no-cargo/no-heavy rule in every hel8 task, including docs tasks. When edited documentation is compiled into tests, place those tests in a claimed builder slot and check80GB before each heavy command; required doc coverage does not authorize building on the session host (ledger107).
 
 - A watcher’s active unit and registered waiter establish its first check, not its steady waiting behavior. Verify the service’s own waiting phase against the configured interval and wrapper bounds; preserve custody while a latency-only repair is reviewed, and arrange one drained restart after the installed-source proof (ledger108).
+
+- A repeated missed-reader red requires an executable readiness check binding every declared Cargo reverse candidate and fixture consumer to the final merged inputs and completed test evidence. A grep or name filter cannot remove candidates; instruction wording alone leaves the tool remedy open (ledger142).
