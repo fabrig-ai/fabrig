@@ -285,9 +285,126 @@ fn earlier_host_answers_take_the_same_agents_reply_bound() {
             let [call] = sent_start(&rows).answered.as_ref() else { panic!("one earlier answer") };
             assert_eq!(call.tool.as_ref(), b"recall");
             assert_eq!(call.name, agent::CallName { activation: ATTEMPT.raw(), completion: 1, position: 0 });
-            let expected =
-                if extra == 0 { agent::SavedReply::Host { error, body } } else { agent::SavedReply::TooLarge };
+            let expected = if extra == 0 {
+                agent::SavedReply::Host { error, body }
+            } else {
+                let body = joined(
+                    &[b'x'; 426],
+                    b"\n[answer cut: 87 bytes not shown; read a narrower part, e.g. read_file with max_bytes]",
+                );
+                agent::SavedReply::Host { error, body }
+            };
             assert_eq!(call.reply, expected);
         }
     }
+}
+
+/// Send an engine-rendered answer through the hub and the worker to smith's run.
+fn relayed(text: Box<[u8]>, error: bool, room: u32) -> agent::Reply {
+    let mut h = Harness::new();
+    h.env.limits.reply_bytes = room;
+    h.started();
+    let rows = h.say(agent::Up::Call {
+        call: skein_lib::Token::new(7),
+        name: agent::CallName { activation: ATTEMPT.raw(), completion: 1, position: 0 },
+        deadline: h.env.now.saturating_add(skein_lib::Duration::from_secs(60)),
+        ask: agent::Ask::Host {
+            tool: Box::from(&b"read_pull_files"[..]),
+            effect: agent::Effect::Read,
+            body: Box::from(&b"{}"[..]),
+        },
+    });
+    let mut name = None;
+    for row in rows {
+        if let Request::Link(up) = row
+            && let host::LinkUp::Call { call, .. } = up
+        {
+            assert!(name.replace(call).is_none());
+        }
+    }
+    let rows = h.run(Event::Link(host::LinkDown::Relayed {
+        run: RUN,
+        attempt: ATTEMPT,
+        call: name.expect("the call reaches the engine"),
+        answer: host::Relayed::Answer { error, text },
+    }));
+    let mut answer = None;
+    for row in rows {
+        if let Request::Process(process) = row
+            && let agent::process::Request::Send { message: agent::Down::Answer { reply, .. }, .. } = *process
+        {
+            assert!(answer.replace(reply).is_none());
+        }
+    }
+    answer.expect("smith's run receives one answer")
+}
+
+#[test]
+fn relayed_answers_fit_the_receiving_room_and_keep_their_error_flag() {
+    for error in [false, true] {
+        let whole: Box<[u8]> = Box::from(&[b'x'; 512][..]);
+        assert_eq!(relayed(whole.clone(), error, 512), agent::Reply::Host { error, body: whole });
+        let text: Box<[u8]> = Box::from(&[b'x'; 513][..]);
+        let body = joined(
+            &[b'x'; 426],
+            b"\n[answer cut: 87 bytes not shown; read a narrower part, e.g. read_file with max_bytes]",
+        );
+        let expected = agent::Reply::Host { error, body };
+        assert_eq!(relayed(text.clone(), error, 512), expected);
+        assert_eq!(relayed(text, error, 512), expected, "retries keep the same cut");
+    }
+}
+
+#[test]
+fn a_relayed_answer_never_splits_a_utf8_character() {
+    let head = joined(&[b'x'; 425], "€".as_bytes());
+    let text = joined(&head, &[b'y'; 85]);
+    let agent::Reply::Host { body, error } = relayed(text, false, 512) else { panic!("a marked text reply") };
+    let expected = joined(
+        &[b'x'; 425],
+        b"\n[answer cut: 88 bytes not shown; read a narrower part, e.g. read_file with max_bytes]",
+    );
+    assert_eq!(body, expected);
+    assert_eq!(body.len(), 511);
+    assert!(!error);
+}
+
+#[test]
+fn a_reply_room_too_small_for_the_cut_marker_still_reports_too_large() {
+    assert_eq!(relayed(Box::from(&[b'x'; 513][..]), false, 32), agent::Reply::TooLarge);
+}
+
+#[test]
+fn a_large_pull_file_reaches_the_run_with_its_editable_head_and_a_cut_marker() {
+    use skein_forge::api;
+    let head = joined(b"editable head\n", &[b'h'; 8178]);
+    let read = api::Answer::PullFiles {
+        head: [1; 32],
+        files: Box::new([api::File {
+            path: Box::from(&b"src/fix.rs"[..]),
+            before: Some(Box::from(&[b'b'; 8192][..])),
+            after: Some(head),
+        }]),
+        more: false,
+    };
+    let rendered = temper_engine_smith::answer(&temper_engine_domain::CallAnswer::ForgeRead(Box::new(Ok(read))));
+    assert!(!rendered.error());
+    assert_eq!(rendered.text().len(), 16_400);
+    let (text, error) = rendered.into_parts();
+    let agent::Reply::Host { body, error } = relayed(text, error, 4098) else {
+        panic!("the repair receives file text")
+    };
+    assert!(!error);
+    assert_eq!(body.len(), 4098);
+    assert!(body.starts_with(b"src/fix.rs\neditable head\n"));
+    assert!(
+        body.ends_with(b"\n[answer cut: 12391 bytes not shown; read a narrower part, e.g. read_file with max_bytes]")
+    );
+}
+
+fn joined(head: &[u8], tail: &[u8]) -> Box<[u8]> {
+    let mut writer = skein_lib::Writer::new(head.len().checked_add(tail.len()).expect("fixture text length"));
+    writer.put(head).unwrap();
+    writer.put(tail).unwrap();
+    writer.finish()
 }

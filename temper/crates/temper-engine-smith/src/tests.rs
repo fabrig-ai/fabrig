@@ -1712,3 +1712,21 @@ fn a_chats_answer_refusal_names_its_persons_inbox_question() {
         b"Refused: task 99 your person answers question 42 in their inbox",
     );
 }
+
+#[test]
+fn pull_files_show_the_head_side_first_and_keep_paths_and_absence_markers() {
+    use skein_forge::api;
+    let files = Box::new([
+        api::File {
+            path: b"changed.rs".as_slice().into(),
+            before: Some(b"base".as_slice().into()),
+            after: Some(b"head".as_slice().into()),
+        },
+        api::File { path: b"added.rs".as_slice().into(), before: None, after: Some(b"new".as_slice().into()) },
+        api::File { path: b"deleted.rs".as_slice().into(), before: Some(b"old".as_slice().into()), after: None },
+    ]);
+    let read = api::Answer::PullFiles { head: SHA1_HEAD, files, more: true };
+    let rendered = answer(&engine::CallAnswer::ForgeRead(Box::new(Ok(read))));
+    assert!(!rendered.error());
+    assert_eq!(rendered.text(), b"changed.rs\nhead\n->\nbase\nadded.rs\nnew\n->\n[absent]\ndeleted.rs\n[absent]\n->\nold\nMore files available.\n");
+}

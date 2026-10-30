@@ -220,10 +220,13 @@ pub(crate) fn decoded(domain: &mut Domain, env: &Env<Limits>, owner: Token, star
             // Earlier answers cross the same agent channel as live replies
             // (`domain/agent.md`, 4.3), after the protocol decodes the start.
             for call in &mut start.answered {
-                if let smith::SavedReply::Host { body, .. } = &call.reply
+                if let smith::SavedReply::Host { error, body } = &call.reply
                     && body.len() > usize::try_from(env.limits.reply_bytes).expect("u32 fits usize")
                 {
-                    call.reply = smith::SavedReply::TooLarge;
+                    call.reply = match smith_delivery::cut(body, env.limits.reply_bytes) {
+                        Some(body) => smith::SavedReply::Host { error: *error, body },
+                        None => smith::SavedReply::TooLarge,
+                    };
                 }
             }
             match start.workspace {

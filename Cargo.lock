@@ -4947,11 +4947,14 @@ name = "temper-worker-domain"
 version = "0.0.0"
 dependencies = [
  "jig-domain-host",
+ "skein-forge",
  "skein-lib",
  "smith-domain-run",
  "smith-domain-session",
  "smith-host-domain",
+ "temper-engine-domain",
  "temper-engine-domain-forge",
+ "temper-engine-smith",
  "temper-worker-domain-checkout",
 ]
 

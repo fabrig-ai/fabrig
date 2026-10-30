@@ -5,7 +5,7 @@
 
 use alloc::boxed::Box;
 use jig_domain_host as host;
-use skein_lib::List;
+use skein_lib::{Decimal, List, Writer};
 use smith_host_domain as smith;
 
 use crate::{Domain, wire, workspace};
@@ -42,7 +42,10 @@ pub(crate) fn reply(domain: &Domain, reply_bytes: u32, reply: host::Reply) -> sm
     match reply {
         host::Reply::Relayed { error, text } => {
             if text.len() > usize::try_from(reply_bytes).expect("u32 fits usize") {
-                smith::Reply::TooLarge
+                match cut(&text, reply_bytes) {
+                    Some(body) => smith::Reply::Host { error, body },
+                    None => smith::Reply::TooLarge,
+                }
             } else {
                 smith::Reply::Host { error, body: text }
             }
@@ -54,6 +57,40 @@ pub(crate) fn reply(domain: &Domain, reply_bytes: u32, reply: host::Reply) -> sm
     }
 }
 
+/// Keep the answer's head and a counted marker inside the receiving room
+/// (`temper/docs/design/domain/agent.md`, 4.3). Live and saved replies use
+/// the same cut so retrying a call presents the same text.
+pub(crate) fn cut(text: &[u8], reply_bytes: u32) -> Option<Box<[u8]>> {
+    const PREFIX: &[u8] = b"\n[answer cut: ";
+    const SUFFIX: &[u8] = b" bytes not shown; read a narrower part, e.g. read_file with max_bytes]";
+    let room = usize::try_from(reply_bytes).expect("u32 fits usize");
+    let mut head = room.min(text.len());
+    // A u64 count has at most twenty decimal digits. Each repeat grows the
+    // count's width; UTF-8 needs at most three continuation bytes removed.
+    for _ in 0..21_u32 {
+        for _ in 0..3_u32 {
+            match text.get(head) {
+                Some(byte) if byte & 0xc0 == 0x80 => head = head.checked_sub(1)?,
+                Some(_) | None => break,
+            }
+        }
+        let dropped = text.len().checked_sub(head)?;
+        let count = Decimal::of(u64::try_from(dropped).ok()?);
+        let marker = PREFIX.len().checked_add(count.as_bytes().len())?.checked_add(SUFFIX.len())?;
+        let size = head.checked_add(marker)?;
+        if size <= room {
+            let mut writer = Writer::new(size);
+            writer.put(text.get(..head)?).ok()?;
+            writer.put(PREFIX).ok()?;
+            writer.put(count.as_bytes()).ok()?;
+            writer.put(SUFFIX).ok()?;
+            return Some(writer.finish());
+        }
+        head = head.checked_sub(size.checked_sub(room)?)?;
+    }
+    None
+}
+
 #[expect(clippy::manual_map, reason = "explicit option match without closures in step code")]
 pub(crate) fn landings(landings: &[wire::Landing]) -> smith::Delivery {
     let mut receipts = List::with_capacity(u32::try_from(landings.len()).expect("bounded directories"));
@@ -63,7 +100,7 @@ pub(crate) fn landings(landings: &[wire::Landing]) -> smith::Delivery {
         let directory = u32::try_from(directory).expect("bounded directories");
         let failure = match landing {
             wire::Landing::Landed { commit } => {
-                let mut text = skein_lib::Writer::new(64);
+                let mut text = Writer::new(64);
                 for byte in commit {
                     let high = *b"0123456789abcdef".get(usize::from(byte >> 4_u8)).expect("hex nibble");
                     let low = *b"0123456789abcdef".get(usize::from(byte & 15)).expect("hex nibble");

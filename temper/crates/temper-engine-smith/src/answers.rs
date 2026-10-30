@@ -747,7 +747,7 @@ fn forge_answer(text: &mut Text, answer: &api::Answer) -> Result<(), Problem> {
         }
         api::Answer::PullFiles { files, more, .. } => {
             for file in files {
-                file_text(text, file)?;
+                file_text(text, file, true)?;
             }
             if *more {
                 text.add(b"More files available.\n")?;
@@ -761,7 +761,7 @@ fn forge_answer(text: &mut Text, answer: &api::Answer) -> Result<(), Problem> {
                 text.add(b"\n")?;
             }
             for file in files {
-                file_text(text, file)?;
+                file_text(text, file, false)?;
             }
         }
         api::Answer::Checks(statuses) => {
@@ -897,15 +897,16 @@ fn status_text(text: &mut Text, status: &api::Status) -> Result<(), Problem> {
     text.add(b"\n")
 }
 
-fn file_text(text: &mut Text, file: &api::File) -> Result<(), Problem> {
+fn file_text(text: &mut Text, file: &api::File, head_first: bool) -> Result<(), Problem> {
     text.add(&file.path)?;
     text.add(b"\n")?;
-    match &file.before {
+    let (first, second) = if head_first { (&file.after, &file.before) } else { (&file.before, &file.after) };
+    match first {
         Some(before) => text.add(before)?,
         None => text.add(b"[absent]")?,
     }
     text.add(b"\n->\n")?;
-    match &file.after {
+    match second {
         Some(after) => text.add(after)?,
         None => text.add(b"[absent]")?,
     }
