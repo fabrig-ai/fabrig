@@ -34,6 +34,10 @@ fn receipt(world: &World) -> (&top::ReceiptKey, &top::Receipt) {
         .find_map(|(_, row)| if let top::Stored::Receipt { key, receipt } = row { Some((key, receipt)) } else { None })
         .expect("saved receipt")
 }
+fn documents(world: &World) -> [top::Document; 3] {
+    [LANDING, top::landings_subject(landings::PROJECT, true), CHANGE]
+        .map(|subject| world.document(landings::PROJECT, subject).expect("settled document"))
+}
 fn hex(bytes: &[u8]) -> Box<[u8]> {
     bytes.iter().flat_map(|byte| top::hex(*byte)).collect()
 }
@@ -165,6 +169,27 @@ fn a_restart_finds_the_dispatched_run_without_dispatching_again() {
     landings::drive_landing(&mut world, LANDING);
     assert_eq!(runs(&world).len(), 1);
     assert_eq!(world.landing(LANDING).landing.phase, landing::Phase::Landed);
+    world.run_for(1);
+    let landing = world.landing(LANDING).clone();
+    let before = documents(&world);
+    let saved = (receipt(&world).0.clone(), receipt(&world).1.clone());
+    let main = world.branch(b"main");
+    let count = runs(&world).len();
+    world.take_calls();
+    world.restart();
+    world.run_for(1);
+    assert_eq!(world.landing(LANDING), &landing);
+    assert_eq!(documents(&world), before, "settled cold documents are unchanged");
+    assert_eq!(receipt(&world), (&saved.0, &saved.1));
+    assert_eq!(world.branch(b"main"), main);
+    assert_eq!(runs(&world).len(), count);
+    assert!(
+        world
+            .take_calls()
+            .iter()
+            .all(|op| !matches!(op, api::Op::Write(api::Write::Dispatch { .. } | api::Write::Merge { .. }))),
+        "settled restart dispatches and merges nothing"
+    );
 }
 
 #[test]
