@@ -5,6 +5,14 @@ use jig_domain_accounts::{
 };
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 const KINDS: [Kind; 3] = [Kind::SignIn, Kind::Key, Kind::Program];
+fn restore_domain(limits: &Limits, providers: jig_domain_accounts::Providers, start_restore: bool) -> Domain {
+    let mut domain = Domain::new(limits, providers);
+    if start_restore {
+        domain.start_restore();
+    }
+    domain
+}
+
 /// Bytes at their longest, distinct for each account.
 fn longest(length: u32, account: u32) -> Box<[u8]> {
     let mut bytes = vec![b'a'; usize::try_from(length).expect("a small length")];
@@ -37,10 +45,20 @@ fn granted(source: u32) -> FromComponent {
 /// sign-in's end kept, and a sign-in under way.
 #[test]
 fn full_accounts_restore_sign_in_and_sign_out() {
+    for start_restore in [false, true] {
+        let meter = skein_world::domain::heap::Meter::new();
+        meter.start();
+        full_accounts_restore_sign_in_and_sign_out_mode(start_restore);
+        let measured = meter.end();
+        assert_eq!(meter.held(), 0, "scenario releases its heap");
+        eprintln!("full_accounts_restore_sign_in_and_sign_out: start={start_restore}, peak={} bytes", measured.peak());
+    }
+}
+fn full_accounts_restore_sign_in_and_sign_out_mode(start_restore: bool) {
     let mut out = Queue::uncapped();
     let providers = providers(vec![provider(1, true, true)]);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: LIMITS };
-    let mut domain = Domain::new(&LIMITS, providers);
+    let mut domain = restore_domain(&LIMITS, providers, start_restore);
     for account in 0..LIMITS.accounts {
         let record = Stored::Account {
             place: 0,
@@ -188,11 +206,21 @@ impl Run {
 
 #[test]
 fn pending_keys_and_account_removals_complete() {
+    for start_restore in [false, true] {
+        let meter = skein_world::domain::heap::Meter::new();
+        meter.start();
+        pending_keys_and_account_removals_complete_mode(start_restore);
+        let measured = meter.end();
+        assert_eq!(meter.held(), 0, "scenario releases its heap");
+        eprintln!("pending_keys_and_account_removals_complete: start={start_restore}, peak={} bytes", measured.peak());
+    }
+}
+fn pending_keys_and_account_removals_complete_mode(start_restore: bool) {
     use jig_domain_accounts::{Change, USES, Use};
     let providers = providers(vec![provider(1, true, true)]);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: LIMITS };
     let mut run = Run { env, out: Queue::uncapped(), request: 0 };
-    let mut domain = Domain::new(&LIMITS, providers);
+    let mut domain = restore_domain(&LIMITS, providers, start_restore);
     for number in 0..LIMITS.accounts {
         let account = jig_accounts_world::account(number * 2, 1, Holder::Party(u64::from(number)), b"subject");
         // Each subscription has its own subject.
@@ -263,12 +291,25 @@ fn pending_keys_and_account_removals_complete() {
 
 #[test]
 fn full_program_operations_stay_below_the_accounts_bound() {
+    for start_restore in [false, true] {
+        let meter = skein_world::domain::heap::Meter::new();
+        meter.start();
+        full_program_operations_stay_below_the_accounts_bound_mode(start_restore);
+        let measured = meter.end();
+        assert_eq!(meter.held(), 0, "scenario releases its heap");
+        eprintln!(
+            "full_program_operations_stay_below_the_accounts_bound: start={start_restore}, peak={} bytes",
+            measured.peak()
+        );
+    }
+}
+fn full_program_operations_stay_below_the_accounts_bound_mode(start_restore: bool) {
     let mut offered = provider(1, false, false);
     offered.offers.programs = Box::new([b"claude_code".as_slice().into()]);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: LIMITS };
     let out = Queue::uncapped();
     let providers = providers(vec![offered]);
-    let mut domain = Domain::new(&LIMITS, providers);
+    let mut domain = restore_domain(&LIMITS, providers, start_restore);
     let mut run = Run { env, out, request: 0 };
     for account in 0..LIMITS.accounts {
         let holder = Holder::Party(u64::from(account));
@@ -351,11 +392,11 @@ fn full_program_operations_stay_below_the_accounts_bound() {
 }
 
 /// Full account rows and source alarms stay resident while the move tables saturate.
-fn move_tables() -> (Domain, Run) {
+fn move_tables(start_restore: bool) -> (Domain, Run) {
     let limits = Limits { sign_ins: LIMITS.accounts, ..LIMITS };
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let offered = providers(vec![provider(1, true, true)]);
-    let domain = Domain::new(&limits, offered);
+    let domain = restore_domain(&limits, offered, start_restore);
     let out = Queue::uncapped();
     (domain, Run { env, out, request: 0 })
 }
@@ -408,8 +449,18 @@ fn restore_move_accounts(domain: &mut Domain, run: &mut Run) {
 }
 #[test]
 fn full_moves_follow_their_deadlines() {
+    for start_restore in [false, true] {
+        let meter = skein_world::domain::heap::Meter::new();
+        meter.start();
+        full_moves_follow_their_deadlines_mode(start_restore);
+        let measured = meter.end();
+        assert_eq!(meter.held(), 0, "scenario releases its heap");
+        eprintln!("full_moves_follow_their_deadlines: start={start_restore}, peak={} bytes", measured.peak());
+    }
+}
+fn full_moves_follow_their_deadlines_mode(start_restore: bool) {
     use jig_domain_accounts::Change;
-    let (mut domain, mut run) = move_tables();
+    let (mut domain, mut run) = move_tables(start_restore);
     restore_move_accounts(&mut domain, &mut run);
     for account in 0..run.env.limits.sign_ins {
         let source = number(account, Some(0));
@@ -434,8 +485,18 @@ fn full_moves_follow_their_deadlines() {
 }
 #[test]
 fn full_opened_arrivals_keep_their_values() {
+    for start_restore in [false, true] {
+        let meter = skein_world::domain::heap::Meter::new();
+        meter.start();
+        full_opened_arrivals_keep_their_values_mode(start_restore);
+        let measured = meter.end();
+        assert_eq!(meter.held(), 0, "scenario releases its heap");
+        eprintln!("full_opened_arrivals_keep_their_values: start={start_restore}, peak={} bytes", measured.peak());
+    }
+}
+fn full_opened_arrivals_keep_their_values_mode(start_restore: bool) {
     use jig_domain_accounts::Change;
-    let (mut domain, mut run) = move_tables();
+    let (mut domain, mut run) = move_tables(start_restore);
     restore_move_accounts(&mut domain, &mut run);
     for account in 0..run.env.limits.sign_ins {
         let request = run.token();

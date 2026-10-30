@@ -11,8 +11,10 @@ mod programs;
 mod selection;
 mod sign_in;
 mod simulation;
+mod start_restore;
 mod terms;
 
 mod fuzzy {
     mod simulation;
+    mod start_restore;
 }

@@ -58,6 +58,14 @@ impl World {
         world.restore(records.to_vec());
         world
     }
+    /// Explicit load/fit/link mode; the shared constructors keep default restoration.
+    #[must_use]
+    pub fn with_start(limits: Limits, providers: Providers, records: &[Stored]) -> World {
+        let mut world = World { domain: Domain::new(&limits, providers), limits, now: Time::ZERO, wall: Wall::EPOCH };
+        world.domain.start_restore();
+        world.restore(records.to_vec());
+        world
+    }
     #[must_use]
     pub fn wanting(accounts: &[u32]) -> World {
         let mut world = Self::restoring(accounts);

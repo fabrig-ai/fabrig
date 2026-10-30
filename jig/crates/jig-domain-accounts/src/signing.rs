@@ -213,18 +213,28 @@ pub(crate) fn failed(domain: &mut Domain, source: u32, failure: Failure, out: &m
     domain.end(Ended { request: under_way.request, source, by: under_way.by, end: End::Failed { failure } });
 }
 
-/// Where a renewal's source goes: its account's signed-in source's place, or, with none, the
-/// place after its last; none when the places are spent.
-fn place(domain: &Domain, account: u32) -> Option<u32> {
+/// A renewal's source position (jig/docs/design/domain/accounts.md, 3.4 and section 6).
+/// Appending from a start's stored order is resolved only when the live renewal is kept.
+#[derive(Clone, Copy, Debug)]
+enum Place {
+    At(u32),
+    Append,
+}
+
+/// A signed-in source retains its position; a new one follows its account's sources.
+fn place(domain: &Domain, account: u32) -> Option<Place> {
     let entry = domain.accounts.get(&account)?;
     for (at, number) in &entry.sources {
         if domain.sources.get(number).expect("an account's sources are kept").kind == Kind::SignIn {
-            return Some(*at);
+            return Some(Place::At(*at));
         }
     }
+    if domain.start_restore {
+        return Some(Place::Append);
+    }
     match entry.sources.last() {
-        Some((last, _)) => last.checked_add(1),
-        None => Some(0),
+        Some((last, _)) => Some(Place::At(last.checked_add(1)?)),
+        None => Some(Place::At(0)),
     }
 }
 
@@ -284,11 +294,15 @@ fn renew(
     domain: &mut Domain,
     env: &Env<Limits>,
     account: u32,
-    place: u32,
+    place: Place,
     source: u32,
     hold: Option<Hold>,
     out: &mut Queue<Request>,
 ) {
+    let place = match place {
+        Place::At(place) => place,
+        Place::Append => crate::ordering::append_place(domain, env, account, out),
+    };
     let entry = domain.accounts.get(&account).expect("a renewed account is kept");
     if let Some(old) = entry.sources.get(&place).copied() {
         drop(domain.sources.remove(&old).expect("an account's sources are kept"));
@@ -584,7 +598,7 @@ fn arriving_at(
     holder: Holder,
     provider: u32,
     subject: &[u8],
-) -> Result<Option<(u32, u32)>, Refusal> {
+) -> Result<Option<(u32, Place)>, Refusal> {
     match domain.providers.get(provider) {
         Some(offered) if offered.offers.sign_in && !(holder == Holder::Deployment && offered.signed_in_plan) => {}
         Some(_) | None => return Err(Refusal::Provider { provider }),

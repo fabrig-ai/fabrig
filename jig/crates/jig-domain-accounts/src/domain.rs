@@ -67,6 +67,8 @@ pub(crate) struct Source {
     pub(crate) account: u32,
     pub(crate) kind: Kind,
     pub(crate) name: Box<[u8]>,
+    /// Stored position awaiting the start's link pass (engine.md, 6).
+    pub(crate) restore_place: u32,
     state: State,
     grant: Option<Granted>,
     retry: Option<Time>,
@@ -85,6 +87,7 @@ impl Source {
             account,
             kind,
             name,
+            restore_place: 0,
             state: match kind {
                 Kind::None => State::Granted,
                 Kind::SignIn | Kind::Key | Kind::Program => State::Asking,
@@ -158,6 +161,9 @@ pub struct Domain {
     ended: Queue<Ended>,
     lost: u64,
     pub(crate) unrestored: u64,
+    pub(crate) start_restore: bool,
+    restore_consumed: bool,
+    pub(crate) restore_failure: Option<(crate::Key, crate::restore::FitSet, u32)>,
     now: Time,
     phase: Phase,
 }
@@ -189,9 +195,23 @@ impl Domain {
             ended: Queue::with_capacity(limits.facts),
             lost: 0,
             unrestored: 0,
+            start_restore: false,
+            restore_consumed: false,
+            restore_failure: None,
             now: Time::ZERO,
             phase: Phase::New,
         }
+    }
+    /// Select load/fit/link once before any restore row or Want (engine.md, 6).
+    ///
+    /// # Panics
+    /// Repeated selection or selection after restore consumption is a programmer error.
+    pub fn start_restore(&mut self) {
+        assert!(
+            !self.start_restore && !self.restore_consumed && self.phase == Phase::New,
+            "accounts start restore is selected once before any Restore or Want"
+        );
+        self.start_restore = true;
     }
     pub(crate) fn last_place(&self, holder: Holder) -> u32 {
         let mut next = 0;
@@ -272,12 +292,12 @@ impl Domain {
     pub const fn next_number(&self) -> u32 {
         self.next
     }
-    /// Want finished terminal-row restoration and removed empty accounts.
+    /// Want completed restoration and activation; a start fit failure never finishes.
     #[must_use]
     pub fn restore_finished(&self) -> bool {
         self.phase == Phase::Wanted
     }
-    /// Records the store gave that broke a rule, and accounts left with no source, not restored.
+    /// Default restoration counts rejected rows and empty accounts; start mode counts its first fit failure.
     #[must_use]
     pub const fn unrestored(&self) -> u64 {
         self.unrestored
@@ -450,11 +470,7 @@ impl Domain {
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     domain.now = env.now;
     match event {
-        Event::Restore { record } => {
-            if domain.phase == Phase::New {
-                crate::restore::restore(domain, env, record);
-            }
-        }
+        Event::Restore { record } => restore(domain, env, record),
         Event::Want => want(domain, env, out),
         Event::ProgramTargets { source, hosts } => crate::programs::targets(domain, source, hosts, out),
         Event::ProgramSignedOut { source, host, result } => {
@@ -549,14 +565,34 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         }
     }
 }
-/// Finish restoration and name every party source before the component is asked for grants.
-fn want(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+fn restore(domain: &mut Domain, env: &Env<Limits>, record: Stored) {
+    domain.restore_consumed = true;
     if domain.phase != Phase::New {
         return;
     }
-    domain.phase = Phase::Wanted;
-    crate::restore::finish(domain, env, out);
-    crate::ordering::normalize(domain, env, out);
+    if domain.start_restore {
+        crate::restore::load(domain, env, record);
+    } else {
+        crate::restore::restore(domain, env, record);
+    }
+}
+/// Finish restoration and name every party source before the component is asked for grants.
+fn want(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    domain.restore_consumed = true;
+    if domain.phase != Phase::New {
+        return;
+    }
+    if domain.start_restore {
+        crate::restore::link(domain, env);
+        if domain.restore_failure.is_some() {
+            return;
+        }
+        domain.phase = Phase::Wanted;
+    } else {
+        domain.phase = Phase::Wanted;
+        crate::restore::finish(domain, env, out);
+        crate::ordering::normalize(domain, env, out);
+    }
     none_accounts(domain, env, out);
     domain.counted(out);
     for (number, source) in &domain.sources {

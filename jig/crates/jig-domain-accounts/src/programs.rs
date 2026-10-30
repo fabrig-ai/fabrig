@@ -89,8 +89,8 @@ pub fn declare(
         }
     };
     let number = domain.take();
+    let place = crate::ordering::append_place(domain, env, account, out);
     let entry = domain.accounts.get_mut(&account).expect("admitted account remains kept");
-    let place = entry.sources.len();
     assert!(entry.sources.insert(place, number) == Ok(None), "admitted source at the last place");
     entry.plan = true;
     let issued = Issued { holder, name: admitted, signed_out: false };
