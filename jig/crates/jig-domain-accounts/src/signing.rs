@@ -214,7 +214,7 @@ pub(crate) fn failed(domain: &mut Domain, source: u32, failure: Failure, out: &m
 }
 
 /// A renewal's source position (jig/docs/design/domain/accounts.md, 3.4 and section 6).
-/// Appending from a start's stored order is resolved only when the live renewal is kept.
+/// Appending is resolved only when the live renewal is kept.
 #[derive(Clone, Copy, Debug)]
 enum Place {
     At(u32),
@@ -229,13 +229,7 @@ fn place(domain: &Domain, account: u32) -> Option<Place> {
             return Some(Place::At(*at));
         }
     }
-    if domain.start_restore {
-        return Some(Place::Append);
-    }
-    match entry.sources.last() {
-        Some((last, _)) => Some(Place::At(last.checked_add(1)?)),
-        None => Some(Place::At(0)),
-    }
+    Some(Place::Append)
 }
 
 struct Made {

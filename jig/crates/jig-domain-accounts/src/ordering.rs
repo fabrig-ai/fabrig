@@ -105,9 +105,6 @@ pub(crate) fn normalize(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<
 /// At the last representable place, the explicit change saves a dense order first.
 pub(crate) fn append_place(domain: &mut Domain, env: &Env<Limits>, account: u32, out: &mut Queue<Request>) -> u32 {
     let entry = domain.accounts.get(&account).expect("an admitted source's account");
-    if !domain.start_restore {
-        return entry.sources.len();
-    }
     match entry.sources.last() {
         Some((place, _)) => {
             if let Some(next) = place.checked_add(1) {
