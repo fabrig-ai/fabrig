@@ -5,7 +5,7 @@
 use skein_fake_checkout::Checkout;
 use skein_lib::{Duration, Time};
 use smith_domain_tools::{self as tools, Entry, Fault, Grants, Hit, Kind, Limits, Name, Outcome, Refusal};
-use smith_tools_world::calls::{edit, list, read, read_window, search, shell, write};
+use smith_tools_world::calls::{edit, list, read, read_window, remove, search, shell, write};
 use smith_tools_world::fixture::{FORMATTED, Fixture, LIB, long, test_log};
 use smith_tools_world::{Settings, Span, Step, World, kind, noisy_world};
 
@@ -1492,4 +1492,84 @@ fn a_kept_output_asked_for_is_split_between_head_and_tail_and_its_clamp_is_said(
         );
     }
     assert_eq!(world.stats().ops, 3);
+}
+
+#[test]
+fn removal_requires_a_current_read_and_removes_one_file() {
+    let script = vec![
+        Step::Calls(vec![remove(b"src/lib.rs")]),
+        Step::Change(Box::new(|checkout| {
+            assert_eq!(checkout.content(b"work/temper/src/lib.rs"), Some(LIB));
+        })),
+        Step::Calls(vec![read(b"src/lib.rs")]),
+        Step::Change(Box::new(|checkout| {
+            checkout.write(b"work/temper/src/lib.rs", b"changed");
+        })),
+        Step::Calls(vec![remove(b"src/lib.rs")]),
+        Step::Change(Box::new(|checkout| {
+            assert_eq!(checkout.content(b"work/temper/src/lib.rs"), Some(b"changed".as_slice()));
+        })),
+        Step::Calls(vec![read(b"src/lib.rs")]),
+        Step::Calls(vec![remove(b"src/lib.rs")]),
+    ];
+    let (answers, world) = run(Settings::calm(171), MODIFY, script);
+    assert_eq!(
+        answers,
+        [Outcome::NotRead, read_of(LIB, 0, 3, 3), Outcome::Stale, read_of(b"changed", 0, 1, 1), Outcome::Removed,]
+    );
+    assert!(!world.checkout().exists(b"work/temper/src/lib.rs"));
+    assert_eq!(world.checkout().content(b"work/temper/src/main.rs"), Some(b"fn main() {}\n".as_slice()));
+}
+
+#[test]
+fn removal_accepts_only_empty_directories_and_preserves_every_nonempty_entry() {
+    let script = vec![
+        Step::Change(Box::new(|checkout| {
+            checkout.mkdir(b"work/temper/empty");
+        })),
+        Step::Calls(vec![remove(b"src")]),
+        Step::Change(Box::new(|checkout| {
+            assert_eq!(checkout.content(b"work/temper/src/lib.rs"), Some(LIB));
+            assert_eq!(checkout.content(b"work/temper/src/main.rs"), Some(b"fn main() {}\n".as_slice()));
+            assert!(checkout.exists(b"work/temper/empty"));
+        })),
+        Step::Calls(vec![remove(b"empty")]),
+    ];
+    let (answers, world) = run(Settings::calm(172), MODIFY, script);
+    assert_eq!(answers, [Outcome::NotEmpty, Outcome::Removed]);
+    assert!(world.checkout().exists(b"work/temper/src"));
+    assert!(!world.checkout().exists(b"work/temper/empty"));
+}
+
+#[test]
+fn removal_obeys_modify_grants_and_write_confinement() {
+    let (answers, world) = run(Settings::calm(173), INSPECT, vec![Step::Calls(vec![remove(b"src/lib.rs")])]);
+    assert_eq!(answers, [Outcome::NotGranted]);
+    assert_eq!(world.checkout().content(b"work/temper/src/lib.rs"), Some(LIB));
+    let (answers, world) = run(
+        Settings::calm(174),
+        MODIFY,
+        vec![Step::Calls(vec![
+            remove(b"../../outside"),
+            remove(b"../docs/guide.md"),
+            remove(b"link"),
+            remove(b"srclink/lib.rs"),
+            remove(b".GiT/config"),
+            remove(b"."),
+            remove(b"missing"),
+            remove(b"dev"),
+        ])],
+    );
+    assert_eq!(answers.len(), 8);
+    assert!(matches!(answers[0], Outcome::Outside { .. }));
+    assert!(matches!(answers[1], Outcome::ReadOnly { .. }));
+    assert_eq!(answers[2..6], [Outcome::Linked, Outcome::Linked, Outcome::Protected, Outcome::Protected]);
+    assert!(matches!(answers[6], Outcome::NotFound { .. }));
+    assert_eq!(answers[7], Outcome::NotFile);
+    assert_eq!(world.checkout().content(b"work/temper/src/lib.rs"), Some(LIB));
+    assert_eq!(world.checkout().content(b"work/temper/.git/config"), Some(b"[core]\n".as_slice()));
+    assert_eq!(world.checkout().content(b"work/docs/guide.md"), Some(b"# Guide\n".as_slice()));
+    for path in [b"work/temper".as_slice(), b"work/temper/link", b"work/temper/srclink", b"work/temper/dev"] {
+        assert!(world.checkout().exists(path));
+    }
 }

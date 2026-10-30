@@ -339,15 +339,16 @@ pub enum Outcome {
     TooLong,
     /// Nothing is at the path.
     NotFound { path: Resolved },
-    /// What is at the path is not a regular file: a directory, a device.
+    /// The target kind is unsupported: read, write and edit need a regular
+    /// file; remove also accepts directories.
     NotFile,
     /// The path of a write, edit or remove goes through a symbolic link, which
     /// they do not follow, so that a change lands only in the repository its
     /// path names. Reads follow links that stay inside the path's own
     /// repository.
     Linked,
-    /// The path of a write, edit or remove is in a repository's git directory: it
-    /// has `.git`, in any ASCII case, among its names. The tools do not know
+    /// A change names a `.git` part in any ASCII case, or a remove names a
+    /// workspace directory itself. The tools do not know
     /// git directories under other names (a `.git` file pointing elsewhere, a
     /// separate git directory, hooks configured to live in the tree), so the
     /// worker must not trust a repository's own configuration either.
