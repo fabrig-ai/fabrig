@@ -341,7 +341,7 @@ pub fn step(core: &mut Core, env: &Env<Limits>, event: Event) -> Requests {
                     Event::Account(accounts::Event::Restore { .. })
                     | Event::People(people::Event::Restore { .. })
                     | Event::Tasks(tasks::Event::Restore { .. }) => {
-                        assert!(phase == Phase::LoadCore, "rows load before Link");
+                        assert!(core.start_loading(), "rows load before Link and outside a seed commit");
                     }
                     Event::SettingsCommit { .. } => assert!(phase == Phase::Sweep, "settings cleanup follows Link"),
                     Event::EffectConnector(crate::connector::Event::Resource { .. }) => {

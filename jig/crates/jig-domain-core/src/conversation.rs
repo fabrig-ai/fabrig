@@ -50,11 +50,13 @@ impl SettledCall {
 
     #[must_use]
     pub fn valid(&self, limits: &Limits) -> bool {
-        !self.tool.is_empty()
-            && match self.owned_bytes() {
-                Some(bytes) => bytes <= u64::from(limits.call_answer_bytes),
-                None => false,
-            }
+        !self.tool.is_empty() && self.excess(limits).is_none()
+    }
+
+    pub(crate) fn excess(&self, limits: &Limits) -> Option<(u64, u64)> {
+        let held = self.owned_bytes().unwrap_or(u64::MAX);
+        let limit = u64::from(limits.call_answer_bytes);
+        if held > limit { Some((held, limit)) } else { None }
     }
 }
 
