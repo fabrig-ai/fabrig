@@ -12,6 +12,13 @@ use std::{fs, num::NonZeroU16, os::unix::ffi::OsStrExt, path::Path};
 pub fn llm(config: &Path) -> CtlLlm {
     model(config, scripts())
 }
+/// Independent reads share a model turn; edits and finish remain dependent.
+#[must_use]
+pub fn compact_llm(config: &Path) -> CtlLlm {
+    let mut scripts = scripts();
+    batch_reads(&mut scripts[1], 2);
+    model(config, scripts)
+}
 /// A restart reads an existing agent configuration before printing its link.
 #[must_use]
 pub fn restarted_llm(config: &Path) -> CtlLlm {
@@ -22,6 +29,21 @@ pub fn restarted_llm(config: &Path) -> CtlLlm {
 /// The copy uses the same procedure, with its own README and a read of its source.
 #[must_use]
 pub fn playground_llm(config: &Path) -> CtlLlm {
+    model(config, playground_scripts())
+}
+#[must_use]
+pub fn playground_read_llm(config: &Path) -> CtlLlm {
+    let mut scripts = playground_scripts();
+    batch_reads(&mut scripts[1], 3);
+    model(config, scripts)
+}
+fn batch_reads(script: &mut Script, count: usize) {
+    let mut turns = std::mem::take(&mut script.turns).into_vec();
+    let lines = turns.drain(..count).flat_map(|turn| turn.lines.into_vec()).collect();
+    turns.insert(0, Turn { lines, finish: Finish::ToolCalls, tokens: 20 });
+    script.turns = turns.into_boxed_slice();
+}
+fn playground_scripts() -> Box<[Script]> {
     let mut scripts = scripts().into_vec();
     let Line::Call { arguments, .. } = &mut scripts[0].turns[0].lines[0] else { panic!("delegate call") };
     let mut delegation: Value = serde_json::from_slice(arguments).expect("delegate JSON");
@@ -36,7 +58,7 @@ pub fn playground_llm(config: &Path) -> CtlLlm {
         }]}),
     );
     scripts[1].turns = turns.into_boxed_slice();
-    model(config, scripts.into_boxed_slice())
+    scripts.into_boxed_slice()
 }
 /// Project one's first chat uses the stock's forge reads, without a settings change.
 #[must_use]
@@ -310,6 +332,20 @@ pub fn task_steps_for(root: &Path, task: Task) -> Vec<Step> {
 pub fn playground_task_steps(root: &Path) -> Vec<Step> {
     task_steps_in(root, FIRST, "playground/widget")
 }
+/// temper/docs/design/domain/testing.md, 2.6: cloned reads and a real pull, before landing.
+#[must_use]
+pub fn playground_read_steps(root: &Path) -> Vec<Step> {
+    let mut steps = task_steps_in(root, FIRST, "playground/widget");
+    steps.truncate(3);
+    steps.extend([
+        Step::TaskExists { project: FIRST.project, parent: FIRST.chat, task: FIRST.change },
+        Step::Run(Call::new(&["change", "show", "2", "--until", "pull", "--timeout", "120s", "--json"])),
+        // The producer's final turn must be durable before reading its calls.
+        Step::Run(Call::new(&["task", "show", "3", "--until", "ended", "--timeout", "120s", "--json"])),
+        Step::Mark("playground read evidence"),
+    ]);
+    steps
+}
 fn task_steps_in(root: &Path, task: Task, repository: &str) -> Vec<Step> {
     let project = task.project.to_string();
     let chat = task.chat.to_string();
@@ -406,6 +442,29 @@ pub struct Evidence {
 #[must_use]
 pub fn live(config: &Path, data: &Path, client: &Path) -> Evidence {
     live_for(config, data, client, FIRST)
+}
+
+/// temper/docs/design/domain/testing.md, 2.6: evidence owned by the playground-copy process story.
+pub struct PlaygroundReads {
+    pub address: std::net::SocketAddr,
+    pub producer: String,
+    pub panel: super::Ended,
+}
+#[must_use]
+pub fn playground_read_evidence(config: &Path, client: &Path) -> PlaygroundReads {
+    let document: Value =
+        serde_json::from_slice(&fs::read(config.join("temper.json")).expect("configuration")).expect("JSON");
+    let forge = document["application"]["forges"]
+        .as_array()
+        .expect("forges")
+        .iter()
+        .find(|forge| forge["number"] == 3)
+        .expect("forge 3");
+    PlaygroundReads {
+        address: forge["api"]["socket"].as_str().expect("forge address").parse().expect("socket"),
+        producer: turns(client, "3"),
+        panel: super::ctl::alone(client, Call::new(&["change", "show", "2", "--json"])),
+    }
 }
 
 /// The process story uses only the API and header paths printed for the person,
