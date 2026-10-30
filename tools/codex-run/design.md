@@ -70,7 +70,8 @@ without replaying report publication or accounting.
 
 ### 3.1 Reaper producer hooks
 
-After saving a new task run's metadata and resume thread, the launcher calls
+After saving a new task run's metadata and resume thread, the launcher checks
+`command -v reap` and, when available, calls
 `reap record start --kind codex-run --owner OWNER --id ID --path RUN_DIRECTORY`.
 OWNER is the launching `POST_NAME`, falling back to the recipient when unset.
 Only that invocation's new run directory is registered. Task files, reports,
@@ -78,24 +79,30 @@ callbacks, slot checkouts and targets, primary clones, credentials, persistent
 owner resume state, claims, leases and heavy state are outside its authority.
 Arguments retain their boundaries, including paths with spaces.
 
-Completion calls `reap record end --kind codex-run --id ID`, followed by
-`systemctl --user start --no-block reap.service`. Without a callback this is
-after accounting and `ended`, with the worker status known. With `--on-stop`
-it is after `ended` and the callback result, including any attempt to mark a
-failed callback's lease uncertain. A missing callback records `absent` first.
-A failed launch closes its record before removing its private run directory
-and report reservation. TERM, INT and worker failure use the same completion
-path; a worker killed before `ended` emits no end. End records are idempotent.
-An absent completion marker or stop result prevents the corresponding end.
+Completion may trigger `systemctl --user start --no-block reap.service`.
+Without a callback this follows accounting and the attempt to write `ended`.
+With `--on-stop` it follows the callback result and any attempt to mark a
+failed callback's lease uncertain. A failed launch may trigger discovery
+before the existing removal of its private directory and report reservation.
+Normal completion, failure, resume, TERM, INT and stop handling never emit
+`record end`. Neither a turn finishing, `ended`, exit zero nor successful post
+establishes task finality. A killed worker may leave discovery to deployment.
 
-These records describe run completion, never a landed or withdrawn task, nor
-permission to reclaim a slot. Lease release remains the lifetime helper's
-decision; failure and signals can retain protected inputs and uncertain holds.
-Even then the sole registered path is the run directory. The reaper must
-preserve metadata, shared `runs.tsv` accounting, pending resumes and sessions
-referenced by an owner. It owns discovery, retention and deletion, including
-older runs without producer records; missing records establish no deletion
-authority. The launcher neither scans nor deletes retained evidence.
+The frozen record contract is
+`reap record start|end --kind K --owner O --id ID [--path P]...`: both forms
+require an owner. End means that the task is final (landed or withdrawn).
+A run directory becomes eligible only seven days after that task-final end;
+resumable and uncertain tasks remain protected indefinitely. There is no
+generic cleanup based on the age of a run's `ended` marker. This producer
+has no task-finalization interface and emits only starts; finality integration
+is pending a separate design. It infers no landing or withdrawal and grants
+no authority to reclaim a slot.
+
+Lease release remains the lifetime helper's decision. The reaper preserves
+metadata, shared `runs.tsv` accounting, pending resumes and sessions referenced
+by an owner. It owns discovery, retention and deletion, including older runs
+without producer records; missing records establish no deletion authority.
+The launcher neither scans nor deletes retained evidence.
 
 Each optional notification uses GNU `timeout` with the existing 60-second
 stop bound and KILL signal, closed stdin and discarded output. Missing,
@@ -104,7 +111,8 @@ report, delivery, accounting, callback result, lease decision or end marker.
 The hooks can deploy before the `reap` CLI and unit, without a storage
 migration or backfill by this producer. The reaper's deployment owns adoption.
 
-Retention policy belongs to that deployment: runs and heavy logs seven days,
+Retention policy belongs to that deployment: task-final runs seven days after
+record end, heavy logs seven days,
 precheck evidence three days, landed or withdrawn notes and tasks seven days,
 Codex sessions fourteen days, and ended Ops scratch three days. Heavy logs'
 seven days takes precedence over generic old logs' three days. Keeps still
@@ -160,6 +168,11 @@ signals and trimming against fake Codex, post and systemd executables.
 checks with the same isolated fixtures. Both selections assert CPU below
 15 seconds and wall time below 60 seconds. Only private fixture copies
 shorten the timeout when proving hanging tools and callbacks are killed.
+All fixture processes use a private executable allowlist with no host PATH
+directories. Removing reap or systemctl leaves them absent; it cannot fall
+through to host services. A shell startup guard independently audits PATH
+before fixture and launcher shell bodies run, including worker and stop
+supervision. `CODEX_RUN_ISOLATION_LOG` saves that audit for either selection.
 `python3 -I tools/test_install.py` tests installation using local fixture
 repositories and a temporary home. Neither command uses real fleet state.
 These scripts run directly on hel8; they build nothing.
@@ -169,3 +182,5 @@ These scripts run directly on hel8; they build nothing.
 - Move other fleet tools and add their entries to `tools/installed`.
 - Move run and owner storage into fabrig with a separate migration that
   preserves resumable runs and accounting.
+- Integrate an explicitly designed task-finalization interface carrying the
+  owner on end records. Run completion cannot implement this interface.

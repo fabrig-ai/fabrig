@@ -8,7 +8,9 @@ Fleet installation is pending coordinator review. The agents repository's
 copies remain in place. Run and owner storage remain under `~/src/rust/tmp`
 by default, preserving resume access and accounting; migration is deferred.
 
-Task run reaper producer hooks and isolated adoption tests are implemented
-(`tools/codex-run/design.md`, 3.1). They tolerate an absent CLI and unit;
-deployment, discovery, keeps and deletion remain the reaper owner's work.
-Persistent owner lifecycle records remain MC's responsibility.
+Owner-bearing task run start records and best-effort service triggers are
+implemented (`tools/codex-run/design.md`, 3.1), with isolated fixtures. No run
+completion or stop emits an end. The task-finalization interface is pending
+separate design; task-final retention adoption is incomplete. Deployment,
+discovery, indefinite keeps for resumable/uncertain tasks and deletion remain
+the reaper owner's work. Persistent owner lifecycle remains MC's responsibility.

@@ -30,7 +30,26 @@ trap cleanup EXIT
 cp "$kit/codex-run" "$t/fabrig/tools/codex-run/codex-run"
 cp "$kit/../slots/lifetime.py" "$t/fabrig/tools/slots/lifetime.py"
 kit=$t/fabrig/tools/codex-run
-export PATH=$t/bin:/usr/bin:/bin
+# No host directory is searchable, including when a service fake is removed.
+for tool in awk bash cat chmod cmp cp cut date dirname env flock grep head jq ln mkdir mkfifo \
+    mv od perl python3 readlink realpath rm rmdir sed setsid sleep stat systemd-escape tail timeout touch tr true wc; do
+    [[ -x /usr/bin/$tool ]]
+    ln -s "/usr/bin/$tool" "$t/bin/$tool"
+done
+export PATH=$t/bin
+export BASH_ENV=$t/service-env
+printf 'fixture_path=%q\nfixture_audit=%q\n' "$PATH" "$t/isolation-audit" >"$BASH_ENV"
+cat >>"$BASH_ENV" <<'AUDIT'
+# Independent of producer calls: abort before shell code can use a host PATH.
+if [[ $PATH != "$fixture_path" ]]; then
+    printf 'UNSAFE PATH %s\n' "$PATH" >>"$fixture_audit"
+    exit 99
+fi
+fixture_reap=missing fixture_systemctl=missing
+[[ ! -x $fixture_path/reap ]] || fixture_reap=stub
+[[ ! -x $fixture_path/systemctl ]] || fixture_systemctl=stub
+printf '%s\t%s\t%s\t%s\t%s\n' "$BASHPID" "$PATH" "$fixture_reap" "$fixture_systemctl" "$0" >>"$fixture_audit"
+AUDIT
 fake=$DEV_ROOT/fake
 export CODEX_RUN_FIXTURE_ROOT=$DEV_ROOT
 # A monitor notifies only after publishing its ended marker. Keep a reader
@@ -44,7 +63,7 @@ printf 'Implement the fixture task.\n' >"$t/task file.md"
 printf 'Own the fixture tasks.\n' >"$t/brief.md"
 
 # The fixture's login profile supplies PATH; the launcher must not forward it.
-printf 'export PATH=%q:/usr/bin:/bin\n' "$t/bin" >"$HOME/.bash_profile"
+printf 'export PATH=%q\n' "$t/bin" >"$HOME/.bash_profile"
 cat >"$t/bin/systemd-run.python" <<'FAKE'
 #!/usr/bin/python3
 import os, pathlib, shlex, signal, subprocess, sys
@@ -53,7 +72,7 @@ fixture = pathlib.Path(os.environ.get('DEV_ROOT') or os.environ['CODEX_RUN_FIXTU
 (fixture / 'launch.args').write_bytes(b'\0'.join(os.fsencode(a) for a in args) + b'\0')
 if (fixture / 'launch-fail').exists():
     sys.exit('fixture launch failed')
-env = {'HOME': os.environ['HOME'], 'PATH': '/usr/bin:/bin'}
+env = {key: os.environ[key] for key in ('HOME', 'PATH', 'BASH_ENV')}
 unit = ''
 stop = None
 assert '--service-type=exec' in args
@@ -120,8 +139,7 @@ with (fixture / (unit + '.log')).open('wb') as log:
                 except ChildProcessError:
                     break
         if stop_args is not None:
-            stop_env = dict(env, PATH=str(pathlib.Path(env['HOME']).parent / 'bin') + ':/usr/bin:/bin')
-            subprocess.run(stop_args, env=stop_env, stdin=subprocess.DEVNULL,
+            subprocess.run(stop_args, env=env, stdin=subprocess.DEVNULL,
                            stdout=log, stderr=log, check=True)
         (fixture / (unit + '.ended')).write_text(str(status) + '\n')
         fd = os.open(fixture / 'unit-events', os.O_WRONLY | os.O_NONBLOCK)
@@ -153,22 +171,14 @@ fixture=$HOME/../workspace/fake
 source "${BASH_SOURCE[0]%/*}/fixture-json"
 behavior=success
 [[ ! -f $fixture/reap-mode ]] || behavior=$(<"$fixture/reap-mode")
-case $behavior in
-    broken) exit 7 ;;
-    hang) exec /bin/sleep 300 ;;
-esac
 state=${DEV_ROOT:-$HOME/src/rust}/tmp/codex-run
 if [[ $1 == record && $2 == start && $# == 10 && $3 == --kind && $4 == codex-run &&
       $5 == --owner && $7 == --id && $9 == --path ]]; then
     state=${10}
     [[ $state == /*/tmp/codex-run/"$8" && -f $state/meta && ! -e $state/ended ]] ||
         echo 'start before durable metadata or wrong owned path' >>"$fixture/reap-violations"
-elif [[ $1 == record && $2 == end && $# == 6 && $3 == --kind && $4 == codex-run && $5 == --id ]]; then
-    state=$state/$6
-    [[ -f $state/meta && -f $state/ended ]] ||
-        echo 'end before durable completion' >>"$fixture/reap-violations"
 else
-    echo 'unexpected argv' >>"$fixture/reap-violations"
+    echo 'unexpected argv or premature task end' >>"$fixture/reap-violations"
 fi
 callback=''
 [[ ! -f $state/on-stop ]] || callback=$(<"$state/on-stop")
@@ -177,6 +187,10 @@ callback=''
     printf '%s,"callback":' "${entry%\}}"; json_string "$callback"
     printf '}\n'
 } >>"$fixture/reap.calls"
+case $behavior in
+    broken) exit 7 ;;
+    hang) exec /bin/sleep 300 ;;
+esac
 FAKE
 cat >"$t/bin/codex.python" <<'FAKE'
 #!/usr/bin/env python3
@@ -357,7 +371,7 @@ if [[ -f $fixture/scenario && $(<"$fixture/scenario") == orphan ||
 fi
 printf '%s\0' "$@" >"$fixture/launch.args"
 [[ ! -f $fixture/launch-fail ]] || { echo 'fixture launch failed' >&2; exit 1; }
-envs=("HOME=$HOME" 'PATH=/usr/bin:/bin')
+envs=("HOME=$HOME" "PATH=$PATH" "BASH_ENV=$BASH_ENV")
 unit='' stop='' stop_set=0 service=0
 while (($#)); do
     case $1 in
@@ -402,7 +416,7 @@ worker=$1; shift
     status=0
     wait "$pid" || status=$?
     if ((${#stop_args[@]})); then
-        env -i "${envs[@]}" "PATH=${BASH_SOURCE[0]%/*}:/usr/bin:/bin" "${stop_args[@]}" </dev/null
+        env -i "${envs[@]}" "${stop_args[@]}" </dev/null
     fi
     printf '%s\n' "$status" >"$fixture/$unit.ended"
     printf '%s\n' "$unit" >"$fixture/unit-events"
@@ -517,9 +531,9 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":10,"cached_input
     '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input_tokens":4,"output_tokens":5}}'
 FAKE
 
-chmod +x "$t/bin/"* "$fake/jq" "$fake/flock"
-ln -s /usr/bin/jq "$t/bin/jq"
-ln -s /usr/bin/flock "$t/bin/flock"
+chmod +x "$t/bin/codex" "$t/bin/codex.python" "$t/bin/post" \
+    "$t/bin/systemd-run" "$t/bin/systemd-run.python" "$t/bin/systemctl" "$t/bin/reap" \
+    "$fake/jq" "$fake/flock"
 for tool in codex post systemd-run systemctl reap; do
     [[ $(command -v "$tool") == "$t/bin/$tool" ]]
 done
@@ -833,21 +847,39 @@ start_task() {
 }
 row() { awk -F'\t' -v id="$id" '$1 == id { print }' "$DEV_ROOT/tmp/codex-run/runs.tsv"; }
 reap_run_expect() {
-    local callback=${1:-} want_end=${2:-yes}
-    jq -se --arg id "$id" --arg state "$state" --arg callback "$callback" --arg want_end "$want_end" '
+    local owner=${1:-o/caller}
+    jq -se --arg id "$id" --arg state "$state" --arg owner "$owner" '
         [.[] | select((.args | index($id)) != null)] ==
-        ([{args: ["record", "start", "--kind", "codex-run", "--owner", "o/caller",
-                  "--id", $id, "--path", $state], callback: ""}] +
-         if $want_end == "yes" then
-             [{args: ["record", "end", "--kind", "codex-run", "--id", $id], callback: $callback}]
-         else [] end)' "$fake/reap.calls" >/dev/null || {
-        printf 'FAIL reap ordering: %s callback=%s end=%s\n' "$id" "$callback" "$want_end" >&2
+        [{args: ["record", "start", "--kind", "codex-run", "--owner", $owner,
+                 "--id", $id, "--path", $state], callback: ""}]' "$fake/reap.calls" >/dev/null || {
+        printf 'FAIL reap start or premature end: %s owner=%s\n' "$id" "$owner" >&2
         cat "$fake/reap.calls" >&2
         return 1
     }
     checks=$((checks + 1))
 }
 finish_checks() {
+    jq -se 'all(.[]; .args[0:2] == ["record", "start"] or
+        .args == ["systemctl", "--user", "start", "--no-block", "reap.service"])' \
+        "$fake/reap.calls" >/dev/null
+    python3 -I -B - "$t" <<'PYISOLATION'
+from pathlib import Path
+import sys
+
+root = Path(sys.argv[1])
+rows = [line.split('\t') for line in (root / 'isolation-audit').read_text().splitlines()]
+assert rows.count(['UNSAFE PATH /usr/bin']) == 1, 'guard rejection was not exercised'
+rows.remove(['UNSAFE PATH /usr/bin'])
+assert rows and all(len(row) == 5 and row[1] == str(root / 'bin') for row in rows), rows
+assert not (root / 'workspace/fake/guard-body').exists(), 'unsafe shell body executed'
+assert any(row[2] == 'missing' for row in rows), 'missing reap path not exercised'
+assert any(row[3] == 'missing' for row in rows), 'missing systemctl path not exercised'
+for service in ('reap', 'systemctl', 'systemd-run', 'post', 'codex'):
+    path = root / 'bin' / service
+    assert path.is_file() and not path.is_symlink(), path
+print(f'isolation: {len(rows)} shell entries audited; private PATH only; missing reap/systemctl exercised; unsafe PATH rejected before body')
+PYISOLATION
+    if [[ -n ${CODEX_RUN_ISOLATION_LOG:-} ]]; then cp "$t/isolation-audit" "$CODEX_RUN_ISOLATION_LOG"; fi
     elapsed=$(awk -v start="$started" -v end="$(date +%s.%N)" 'BEGIN { printf "%.3f", end-start }')
     # Account for this shell and all children it waited for.
     LC_ALL=C times >"$t/times"
@@ -860,20 +892,20 @@ finish_checks() {
 
 # Optional adoption has the same report, row, post and exit for each unavailable
 # neighbour. Only this private copy shortens the deadline under test.
+status=0
+env PATH=/usr/bin /bin/bash -c 'printf body >"$1"' guard-canary "$fake/guard-body" || status=$?
+[[ $status == 99 && ! -e $fake/guard-body ]]
+checks=$((checks + 1))
 cp "$kit/codex-run" "$t/launcher.saved"
 sed "s/^ON_STOP_SECONDS=60$/ON_STOP_SECONDS=$ON_STOP_TIMEOUT_S/" "$t/launcher.saved" >"$kit/codex-run"
 for fault in missing-reap broken-reap hanging-reap missing-unit broken-unit hanging-unit; do
     case $fault in
         missing-reap)
-            mv "$t/bin/reap" "$t/reap.saved"
-            printf '#!/bin/bash\nexec "%s" "$@"\n' "$t/missing-reap" >"$t/bin/reap"
-            chmod +x "$t/bin/reap" ;;
+            mv "$t/bin/reap" "$t/reap.saved" ;;
         broken-reap) printf 'broken\n' >"$fake/reap-mode" ;;
         hanging-reap) printf 'hang\n' >"$fake/reap-mode" ;;
         missing-unit)
-            mv "$t/bin/systemctl" "$t/systemctl.saved"
-            printf '#!/bin/bash\nexec "%s" "$@"\n' "$t/missing-systemctl" >"$t/bin/systemctl"
-            chmod +x "$t/bin/systemctl" ;;
+            mv "$t/bin/systemctl" "$t/systemctl.saved" ;;
         broken-unit) printf 'broken\n' >"$fake/unit-mode" ;;
         hanging-unit) printf 'hang\n' >"$fake/unit-mode" ;;
     esac
@@ -888,8 +920,6 @@ for fault in missing-reap broken-reap hanging-reap missing-unit broken-unit hang
     [[ ! -f $t/systemctl.saved ]] || mv "$t/systemctl.saved" "$t/bin/systemctl"
     rm -f "$fake/reap-mode" "$fake/unit-mode"
 done
-# These fault cases must not affect the later callback return-count assertion.
-rm "$fake/returned"
 mv "$t/launcher.saved" "$kit/codex-run"
 
 # The whole run directory is the sole registered path, including when its root
@@ -902,15 +932,34 @@ start_task success
 reap_run_expect
 export DEV_ROOT=$saved_root
 
-# A launch refusal closes the record before removing its private run directory.
+# A launch refusal triggers discovery without inferring task finality.
 : >"$fake/reap.calls"
 touch "$fake/launch-fail"
 refusal 'reap adoption preserves launch refusal' task "$t/task file.md" "$t/work dir" "$t/reports/reap-refused.md"
 rm "$fake/launch-fail"
-json_expect 'launch failure records start then end then wakes reaper' \
-    'length == 3 and .[0].args[0:2] == ["record", "start"] and
-     .[1].args == ["record", "end", "--kind", "codex-run", "--id", .[0].args[7]] and
-     .[2].args == ["systemctl", "--user", "start", "--no-block", "reap.service"]' "$fake/reap.calls"
+json_expect 'launch failure records start then wakes reaper without end' \
+    'length == 2 and .[0].args[0:6] == ["record", "start", "--kind", "codex-run", "--owner", "o/caller"] and
+     .[1].args == ["systemctl", "--user", "start", "--no-block", "reap.service"]' "$fake/reap.calls"
+
+# Successful, failed, resumed and stopped runs all remain unfinalized tasks.
+start_task success
+lifecycle_id=$id lifecycle_state=$state
+reap_run_expect
+start_task failure --read-only
+reap_run_expect
+start_task success --resume "$lifecycle_id"
+reap_run_expect
+[[ -f $lifecycle_state/meta && -f $lifecycle_state/ended ]]
+for lifecycle in on-stop on-stop-failure; do
+    start_task "$lifecycle" --on-stop "$t/lifecycle-hook"
+    reap_run_expect
+done
+POST_NAME=o/launching start_task success --to o/recipient
+reap_run_expect o/launching
+POST_NAME='' start_task success --to o/recipient
+reap_run_expect o/recipient
+# These cases must not affect the later callback return-count assertion.
+rm "$fake/returned"
 if [[ ${1:-} == --reap-only ]]; then finish_checks; exit; fi
 
 start_task success
@@ -937,30 +986,30 @@ expect 'task cwd' "$(jq -r .cwd "$fake/codex.calls")" "$t/work dir"
 checks=$((checks + 1))
 
 start_task ended-directory
-reap_run_expect '' no
+reap_run_expect
 expect 'failed completion marker preserves diagnostic and status' "$(cat "$state/finish-errors"),$(row)" \
     'ended marker failed' $'\t0\t1\t'
 
 start_task on-stop --on-stop "$t/return-login"
 stop_id=$id
-reap_run_expect 'exit 0'
+reap_run_expect
 expect 'on-stop runs after the session ends' "$(cat "$fake/returned"),$(cat "$state/on-stop"),$(cat "$fake/stop.cwd")" "returned,exit 0,$t"
 expect 'on-stop appends stdout and stderr' "$(cat "$state/on-stop.log")" hook-out hook-err
 expect 'meta records on_stop' "$(cat "$state/meta")" "on_stop=$t/return-login"
 start_task success --resume "$stop_id"
 expect 'resume does not inherit on-stop' "$(sed -n '/^on_stop=/p' "$state/meta"),$(test ! -f "$state/on-stop" && echo none)" 'on_stop=,none'
 start_task success --on-stop "$t/not-written"
-reap_run_expect absent
+reap_run_expect
 expect 'absent on-stop runs nothing' "$(cat "$state/on-stop"),$(wc -l <"$fake/returned")" 'absent,1'
 saved_row=$(row)
 "$kit/codex-run" _stop "$id"
 [[ $(row) == "$saved_row" && $(cat "$state/on-stop") == absent && -f $state/ended ]]
-jq -se --arg id "$id" \
-    '[.[] | select(.args == ["record", "end", "--kind", "codex-run", "--id", $id])] | length == 2' \
+jq -se \
+    '[.[] | select(.args[0:2] == ["record", "end"])] | length == 0' \
     "$fake/reap.calls" >/dev/null
 checks=$((checks + 1))
 start_task on-stop-failure --on-stop "$t/failing-hook"
-reap_run_expect 'exit 3'
+reap_run_expect
 expect 'failing on-stop records its exit' "$(cat "$state/on-stop")" 'exit 3'
 expect 'failing on-stop keeps normal row' "$(row)" $'\t0\t1\t' $'\t30/6/8\t0'
 json_expect 'failing on-stop keeps normal post' 'length == 1 and (.[0].args[4] | contains(" ok: "))' "$fake/post.calls"
@@ -972,7 +1021,7 @@ sed "s/^ON_STOP_SECONDS=60$/ON_STOP_SECONDS=$ON_STOP_TIMEOUT_S/" "$kit/codex-run
 chmod +x "$kit/codex-run.new"
 mv "$kit/codex-run.new" "$kit/codex-run"
 start_task on-stop-timeout --on-stop "$t/ignores-term"
-reap_run_expect 'exit 137'
+reap_run_expect
 expect 'on-stop cannot ignore its deadline' "$(cat "$state/on-stop")" 'exit 137'
 expect 'timed-out on-stop keeps normal row' "$(row)" $'\t0\t1\t'
 cp "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/codex-run" "$kit/codex-run.new"
@@ -1293,8 +1342,8 @@ printf '#!/bin/bash\nexit 3\n' >"$t/signal-stop"
 chmod +x "$t/signal-stop"
 for signal_case in TERM INT KILL TERM-stop KILL-stop; do
     signal=${signal_case%-stop}
-    options=() callback=''
-    if [[ $signal_case == *-stop ]]; then options=(--on-stop "$t/signal-stop"); callback='exit 3'; fi
+    options=()
+    if [[ $signal_case == *-stop ]]; then options=(--on-stop "$t/signal-stop"); fi
     n=$((n + 1))
     report=$t/reports/signal-$n.md
     printf 'pause\n' >"$fake/scenario"
@@ -1311,13 +1360,13 @@ for signal_case in TERM INT KILL TERM-stop KILL-stop; do
     wait_unit "codex-run-$id"
     case $signal in
         TERM|INT)
-            reap_run_expect "$callback"
+            reap_run_expect
             if [[ $signal == TERM ]]; then code=143; else code=130; fi
             expect 'signal exit preserved in row' "$(row)" $'\t'"$code"$'\t1\t'
             json_expect 'signal post says failed' '.[0].args[4] | contains("failed ")' "$fake/post.calls"
             expect 'signal unit exit preserved' "$(cat "$fake/codex-run-$id.ended")" "$code" ;;
         KILL)
-            reap_run_expect '' no
+            reap_run_expect
             touch -d '3 minutes ago' "$state/meta"
             expect 'killed worker is stale' "$("$kit/codex-run" stale)" "$id" 'unit inactive without end' "$state"
             [[ ! -f $state/ended && ! -s $state/thread ]]
@@ -1507,6 +1556,7 @@ done
 mkfifo "$fake/retry-ready" "$fake/retry-release"
 exec {retry_ready}<>"$fake/retry-ready"
 exec {retry_release}<>"$fake/retry-release"
+rm "$t/bin/sleep"
 cat >"$t/bin/sleep" <<'PYSLEEP'
 #!/usr/bin/python3
 import os
@@ -1550,7 +1600,7 @@ wait_unit "codex-run-$id"
 holds=("$HOME/src/fabrig/slot-maintenance/1/"*.hold)
 [[ ${#holds[@]} == 0 ]]
 expect 'slot callback ends its bridged lease' "$(cat "$state/on-stop")" 'exit 0'
-reap_run_expect 'exit 0'
+reap_run_expect
 printf 'on-stop-failure\n' >"$fake/scenario"
 report=$t/reports/slot-on-stop-failure.md
 printf '%s\n' "$report" >"$fake/report"
@@ -1561,7 +1611,7 @@ holds=("$HOME/src/fabrig/slot-maintenance/1/"*.hold)
 [[ ${#holds[@]} == 1 && $(jq -r .uncertain "${holds[0]}") == true ]]
 checks=$((checks + 1))
 expect 'failed slot callback retains uncertain ownership' "$(cat "$state/on-stop")" 'exit 3'
-reap_run_expect 'exit 3'
+reap_run_expect
 printf 'broken\n' >"$fake/reap-mode"
 printf 'broken\n' >"$fake/unit-mode"
 slot_task "$slot"
@@ -1592,7 +1642,7 @@ report = fixture / 'report.md'
 last = state / 'last.md'
 kit = Path(sys.argv[1]) / 'bin'
 env = {'HOME': str(Path(sys.argv[1]) / 'home'), 'DEV_ROOT': str(fixture),
-       'PATH': '/usr/bin:/bin'}
+       'PATH': str(kit), 'BASH_ENV': os.environ['BASH_ENV']}
 (fake / 'scenario').write_text('success\n')
 (fake / 'report').write_text(str(report) + '\n')
 prompt = ('quotes " and \\, Unicode λ\n' + ''.join(map(chr, range(1, 32))) +
