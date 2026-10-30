@@ -151,6 +151,7 @@ pub fn task_record(number: u64) -> jig_domain_tasks::TaskRecord {
     use jig_domain_tasks as tasks;
     use skein_lib::Wall;
     tasks::TaskRecord {
+        room_wait: None,
         asked_requester: false,
         settings: tasks::SettingsRevision { task: 1, run: None },
         added: Box::new([]),
