@@ -1481,6 +1481,7 @@ impl World {
                     }
                     op @ (tools::Op::Load { .. }
                     | tools::Op::List { .. }
+                    | tools::Op::Remove { .. }
                     | tools::Op::Store { .. }
                     | tools::Op::Search { .. }) => Delivery::Io { owner, op, deadline },
                 };

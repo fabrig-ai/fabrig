@@ -875,7 +875,9 @@ fn every_operation_translates_the_directory_itself_and_nested_paths_once() {
                         }
                     }
                 }
-                other @ (Below::CancelFile { .. } | Below::Process(_)) => panic!("unexpected request: {other:?}"),
+                other @ (Below::Remove { .. } | Below::CancelFile { .. } | Below::Process(_)) => {
+                    panic!("unexpected request: {other:?}")
+                }
             }
             assert!(below.is_empty());
         }
@@ -940,6 +942,7 @@ fn configured_variables_are_encoded_once_for_commands_and_checks_and_absent_for_
                 other @ (Below::File { .. }
                 | Below::OpenRead { .. }
                 | Below::OpenDirectory { .. }
+                | Below::Remove { .. }
                 | Below::CancelFile { .. }
                 | Below::Process(_)) => {
                     panic!("expected process spawn: {other:?}");
@@ -1063,6 +1066,7 @@ fn listed(output: &[u8], depth: tools::Depth, maximum: u32, bytes: u64, glob: Op
             owner,
             root: Token::new(10),
             path: Box::from(b"src".as_slice()),
+            no_follow: false,
             deadline: Time::from_nanos(u64::MAX)
         })
     );
@@ -1101,6 +1105,7 @@ fn listed(output: &[u8], depth: tools::Depth, maximum: u32, bytes: u64, glob: Op
             }
         }
         Below::File { .. }
+        | Below::Remove { .. }
         | Below::CancelFile { .. }
         | Below::OpenRead { .. }
         | Below::OpenDirectory { .. }
@@ -1269,6 +1274,7 @@ fn a_listing_directory_failure_or_cancel_never_launches_rg() {
                 owner,
                 root: Token::new(10),
                 path: Box::from(b"missing".as_slice()),
+                no_follow: false,
                 deadline: Time::from_nanos(100)
             })
         );

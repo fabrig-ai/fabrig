@@ -428,6 +428,8 @@ fn command_exit(verdict: tools::Verdict) -> Option<smith_events::CommandExit> {
         | tools::Verdict::Read
         | tools::Verdict::Listed
         | tools::Verdict::Found
+        | tools::Verdict::Removed
+        | tools::Verdict::NotEmpty
         | tools::Verdict::Written { .. }
         | tools::Verdict::Edited { .. }
         | tools::Verdict::NotGranted
@@ -471,6 +473,8 @@ fn verdict_kind(verdict: tools::Verdict) -> smith_events::Verdict {
         tools::Verdict::ReadOnly => smith_events::Verdict::ReadOnly,
         tools::Verdict::TooLong => smith_events::Verdict::TooLong,
         tools::Verdict::NotFound => smith_events::Verdict::NotFound,
+        tools::Verdict::Removed => smith_events::Verdict::Removed,
+        tools::Verdict::NotEmpty => smith_events::Verdict::NotEmpty,
         tools::Verdict::NotFile => smith_events::Verdict::NotFile,
         tools::Verdict::Linked => smith_events::Verdict::Linked,
         tools::Verdict::Protected => smith_events::Verdict::Protected,

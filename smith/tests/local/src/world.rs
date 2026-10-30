@@ -1685,7 +1685,7 @@ impl World {
             }
             Lower::Io { owner, op, deadline: _ } => {
                 let store_root = match &op {
-                    tools::Op::Store { at, .. } => Some(at.root.raw()),
+                    tools::Op::Store { at, .. } | tools::Op::Remove { at, .. } => Some(at.root.raw()),
                     tools::Op::Load { .. }
                     | tools::Op::List { .. }
                     | tools::Op::Spawn { .. }
@@ -1708,7 +1708,7 @@ impl World {
                     }
                     op => checkout_io::perform(&mut self.disk, op),
                 };
-                if matches!(done, tools::Done::Stored { .. }) {
+                if matches!(done, tools::Done::Stored { .. } | tools::Done::Removed) {
                     self.observe(Seen::Wrote { root: store_root.expect("stored operation names a root") });
                 }
                 self.events.push_back(self.below(Below::Done { owner, done }));

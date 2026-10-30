@@ -199,6 +199,8 @@ pub enum Op {
         /// Expected file version or absence checked before the atomic replacement.
         expect: Expect,
     },
+    /// Remove one current file or empty directory without following links; ends in Removed or a refusal.
+    Remove { at: Place, expect: Expect },
     /// Run `command` with `sh` in `cwd`, leading its own process group. The
     /// machine signals the whole group on a deadline or cancel, but the command
     /// is not contained: it has the agent user's permissions and filesystem.
@@ -292,7 +294,11 @@ pub enum Done {
         /// IO-issued file version or record encoding version, as named by the enclosing type.
         version: Version,
     },
-    /// Store: the file is not as expected. It is at `now`, or absent.
+    /// Remove: one file or empty directory was removed.
+    Removed,
+    /// Remove: the directory contains entries and is unchanged.
+    NotEmpty,
+    /// Store or remove: the file is not as expected. It is at `now`, or absent.
     Conflict {
         /// Current optional file version observed by IO after an optimistic-write conflict.
         now: Option<Version>,

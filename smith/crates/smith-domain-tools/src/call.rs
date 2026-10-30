@@ -31,6 +31,8 @@ pub enum Call {
         /// Optional search filename filter, passed as data rather than an option.
         glob: Option<Box<[u8]>>,
     },
+    /// Remove one current file or empty directory; ends in Removed or a refusal.
+    Remove { path: Path },
     /// Make the file at `path` hold `content`, creating it if there is none.
     Write {
         path: Path,
@@ -174,6 +176,8 @@ pub enum Tool {
     Search,
     /// A call that may modify state and must run alone.
     Write,
+    /// Remove a current file or empty directory.
+    Remove,
     /// Version-aware file-edit tool.
     Edit,
     /// Contained shell-command tool.
@@ -189,6 +193,7 @@ pub const fn tool(call: &Call) -> Tool {
         Call::Read { .. } => Tool::Read,
         Call::List { .. } => Tool::List,
         Call::Search { .. } => Tool::Search,
+        Call::Remove { .. } => Tool::Remove,
         Call::Write { .. } => Tool::Write,
         Call::Edit { .. } => Tool::Edit,
         Call::Shell { .. } => Tool::Shell,
@@ -233,7 +238,11 @@ pub enum SizePart {
 pub const fn effect(call: &Call) -> Effect {
     match call {
         Call::Read { .. } | Call::List { .. } | Call::Search { .. } | Call::Job { stop: false, .. } => Effect::Read,
-        Call::Write { .. } | Call::Edit { .. } | Call::Shell { .. } | Call::Job { stop: true, .. } => Effect::Write,
+        Call::Remove { .. }
+        | Call::Write { .. }
+        | Call::Edit { .. }
+        | Call::Shell { .. }
+        | Call::Job { stop: true, .. } => Effect::Write,
     }
 }
 
@@ -270,6 +279,10 @@ pub enum Outcome {
         /// Whether IO ended the process or search at its deadline.
         timed_out: bool,
     },
+    /// One file or empty directory was removed.
+    Removed,
+    /// The directory contains entries; nothing was removed.
+    NotEmpty,
     /// The file holds what was written; it was `created` if there was none.
     Written {
         /// Whether this write created a previously absent file.
@@ -326,15 +339,16 @@ pub enum Outcome {
     TooLong,
     /// Nothing is at the path.
     NotFound { path: Resolved },
-    /// What is at the path is not a regular file: a directory, a device.
+    /// The target kind is unsupported: read, write and edit need a regular
+    /// file; remove also accepts directories.
     NotFile,
-    /// The path of a write or an edit goes through a symbolic link, which
+    /// The path of a write, edit or remove goes through a symbolic link, which
     /// they do not follow, so that a change lands only in the repository its
     /// path names. Reads follow links that stay inside the path's own
     /// repository.
     Linked,
-    /// The path of a write or an edit is in a repository's git directory: it
-    /// has `.git`, in any ASCII case, among its names. The tools do not know
+    /// A change names a `.git` part in any ASCII case, or a remove names a
+    /// workspace directory itself. The tools do not know
     /// git directories under other names (a `.git` file pointing elsewhere, a
     /// separate git directory, hooks configured to live in the tree), so the
     /// worker must not trust a repository's own configuration either.
@@ -350,9 +364,9 @@ pub enum Outcome {
         /// Exceeded bound in the same unit as size.
         bound: u32,
     },
-    /// A write names an existing file whose version the LLM has not read.
+    /// A write or remove names an existing file whose current version the session has not read.
     NotRead,
-    /// A write or edit lost the version it read or matched before its store.
+    /// A write, edit or remove lost the version it read or matched before changing the file.
     Stale,
     /// The first failed replacement, counting from one; no edit was stored.
     EditFailed { edit: u32, why: Mismatch },
@@ -456,7 +470,7 @@ impl Call {
     #[must_use]
     pub fn owned_bytes(&self) -> Option<u64> {
         let payload = match self {
-            Call::Read { path, offset: _, window: _ } => owned_path(path),
+            Call::Read { path, offset: _, window: _ } | Call::Remove { path } => owned_path(path),
             Call::List { path, depth: _, glob } => {
                 let filter = match glob {
                     Some(filter) => owned_len(filter)?,

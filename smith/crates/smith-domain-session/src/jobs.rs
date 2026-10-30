@@ -36,6 +36,8 @@ impl Jobs {
                 Outcome::Read { .. }
                 | Outcome::Listed { .. }
                 | Outcome::Found { .. }
+                | Outcome::Removed
+                | Outcome::NotEmpty
                 | Outcome::Written { .. }
                 | Outcome::Edited { .. }
                 | Outcome::Exited { .. }

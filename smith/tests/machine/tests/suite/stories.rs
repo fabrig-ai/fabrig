@@ -439,3 +439,91 @@ fn selected_paths_form_a_tree_over_the_shared_fake_machine_and_settle_once() {
         world.settle();
     }
 }
+
+#[test]
+fn removal_checks_versions_and_confines_one_file_or_empty_directory() {
+    let mut world = World::new(
+        115,
+        &[
+            Item::directory(b"src"),
+            Item::file(b"src/a", b"old"),
+            Item::directory(b"empty"),
+            Item::link(b"alias", b"src"),
+            Item::link(b"link", b"src/a"),
+        ],
+    );
+    let root = world.root();
+    let old = match world.request(FromDomain::Op {
+        owner: Token::new(50),
+        op: tools::Op::Load { at: place(root, b"src/a"), max: 10 },
+        deadline: far(),
+    }) {
+        ToDomain::Done { done: tools::Done::Loaded { version, .. }, .. } => version,
+        terminal @ (ToDomain::Done { .. }
+        | ToDomain::Read { .. }
+        | ToDomain::Probed { .. }
+        | ToDomain::Checked { .. }
+        | ToDomain::Aborted { .. }) => panic!("read before removal: {terminal:?}"),
+    };
+    for (number, path, expect, done) in [
+        (51, b"src/a".as_slice(), tools::Expect::Absent, tools::Done::Conflict { now: Some(old) }),
+        (52, b"src", tools::Expect::Absent, tools::Done::NotEmpty),
+        (53, b"alias/a", tools::Expect::Is { version: old }, tools::Done::Linked),
+        (54, b"link", tools::Expect::Is { version: old }, tools::Done::Linked),
+        (55, b".GiT/config", tools::Expect::Absent, tools::Done::Failed { fault: tools::Fault::Denied }),
+        (56, b"", tools::Expect::Absent, tools::Done::Failed { fault: tools::Fault::Denied }),
+        (57, b"empty", tools::Expect::Absent, tools::Done::Removed),
+    ] {
+        let owner = Token::new(number);
+        assert_eq!(
+            world.request(FromDomain::Op {
+                owner,
+                op: tools::Op::Remove { at: place(root, path), expect },
+                deadline: far(),
+            }),
+            ToDomain::Done { owner, done }
+        );
+        assert_eq!(world.content(b"src/a"), b"old");
+    }
+    let owner = Token::new(58);
+    assert_eq!(
+        world.request(FromDomain::Op {
+            owner,
+            op: tools::Op::Remove { at: place(Token::new(999), b"src/a"), expect: tools::Expect::Is { version: old } },
+            deadline: far(),
+        }),
+        ToDomain::Done { owner, done: tools::Done::Escapes }
+    );
+    world.change_behind_session(b"src/a", b"new");
+    assert!(matches!(
+        world.request(FromDomain::Op {
+            owner: Token::new(59),
+            op: tools::Op::Remove { at: place(root, b"src/a"), expect: tools::Expect::Is { version: old } },
+            deadline: far(),
+        }),
+        ToDomain::Done { done: tools::Done::Conflict { .. }, .. }
+    ));
+    assert_eq!(world.content(b"src/a"), b"new");
+    let current = tools::Version::new(skein_io::digest::digest(b"new").0);
+    let owner = Token::new(60);
+    assert_eq!(
+        world.request(FromDomain::Op {
+            owner,
+            op: tools::Op::Remove { at: place(root, b"src/a"), expect: tools::Expect::Is { version: current } },
+            deadline: far(),
+        }),
+        ToDomain::Done { owner, done: tools::Done::Removed }
+    );
+    for (number, path) in [(61, b"src/a".as_slice()), (62, b"empty")] {
+        let owner = Token::new(number);
+        assert_eq!(
+            world.request(FromDomain::Op {
+                owner,
+                op: tools::Op::Load { at: place(root, path), max: 10 },
+                deadline: far(),
+            }),
+            ToDomain::Done { owner, done: tools::Done::Missing }
+        );
+    }
+    world.settle();
+}

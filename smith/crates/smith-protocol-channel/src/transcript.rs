@@ -327,30 +327,13 @@ fn outcome(
 ) -> Result<tools::Outcome, record::Refusal> {
     let value = match source {
         wire::Outcome::Read(read) => read_outcome(read)?,
-        wire::Outcome::Listed(listed) => {
-            let mut entries = List::with_capacity(listed.entries().len());
-            for entry in listed.entries() {
-                normalized(entry.name())?;
-                if entry.name().is_empty() {
-                    return Err(record::Refusal::Malformed);
-                }
-                let name = Box::from(entry.name());
-                let kind = match entry.kind() {
-                    wire::Kind::File => tools::Kind::File,
-                    wire::Kind::Directory => tools::Kind::Directory,
-                    wire::Kind::Link => tools::Kind::Link,
-                    wire::Kind::Other => tools::Kind::Other,
-                };
-                if entries.push(tools::Entry { name, kind }).is_err() {
-                    return Err(record::Refusal::TooLarge);
-                }
-            }
-            tools::Outcome::Listed { entries: entries.into_boxed(), more: listed.more() }
-        }
+        wire::Outcome::Listed(listed) => listed_outcome(listed)?,
         wire::Outcome::Found(found) => {
             let hits = found_piece(found.hits(), limits, search_hits)?;
             tools::Outcome::Found { hits, more: found.more(), timed_out: found.timed_out() }
         }
+        wire::Outcome::Removed => tools::Outcome::Removed,
+        wire::Outcome::NotEmpty => tools::Outcome::NotEmpty,
         wire::Outcome::Written(written) => tools::Outcome::Written { created: written.created() },
         wire::Outcome::Edited(edited) => tools::Outcome::Edited { replaced: edited.replaced() },
         wire::Outcome::Exited(command) => tools::Outcome::Exited {
@@ -659,4 +642,25 @@ fn job_number(number: u32) -> Result<(), record::Refusal> {
         return Err(record::Refusal::Malformed);
     }
     Ok(())
+}
+
+fn listed_outcome(listed: &wire::Listed) -> Result<tools::Outcome, record::Refusal> {
+    let mut entries = List::with_capacity(listed.entries().len());
+    for entry in listed.entries() {
+        normalized(entry.name())?;
+        if entry.name().is_empty() {
+            return Err(record::Refusal::Malformed);
+        }
+        let name = Box::from(entry.name());
+        let kind = match entry.kind() {
+            wire::Kind::File => tools::Kind::File,
+            wire::Kind::Directory => tools::Kind::Directory,
+            wire::Kind::Link => tools::Kind::Link,
+            wire::Kind::Other => tools::Kind::Other,
+        };
+        if entries.push(tools::Entry { name, kind }).is_err() {
+            return Err(record::Refusal::TooLarge);
+        }
+    }
+    Ok(tools::Outcome::Listed { entries: entries.into_boxed(), more: listed.more() })
 }

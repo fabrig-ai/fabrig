@@ -165,6 +165,16 @@ pub fn perform(checkout: &mut fake::Checkout, op: Op) -> Done {
                 Err(failure) => done(failure),
             }
         }
+        Op::Remove { at, expect } => {
+            let expect = match expect {
+                Expect::Absent => fake::Expect::Absent,
+                Expect::Is { version } => fake::Expect::Is(fake_version(version)),
+            };
+            match checkout.remove_current(root(at.root), &at.path, expect) {
+                Ok(()) => Done::Removed,
+                Err(failure) => done(failure),
+            }
+        }
         Op::Store { at, content, expect } => {
             let expect = match expect {
                 Expect::Absent => fake::Expect::Absent,
@@ -219,6 +229,8 @@ pub fn cut(done: Done, ran: u128, whole: u128) -> Done {
         | Done::Failed { .. }
         | Done::Loaded { .. }
         | Done::Listed { .. }
+        | Done::Removed
+        | Done::NotEmpty
         | Done::Stored { .. }
         | Done::Conflict { .. }
         | Done::NotFile
@@ -241,7 +253,8 @@ fn done(failure: fake::Failure) -> Done {
         fake::Failure::TooLarge { size } => Done::TooLarge { size },
         fake::Failure::Escapes => Done::Escapes,
         fake::Failure::Linked => Done::Linked,
-        fake::Failure::Loop | fake::Failure::NotEmpty => Done::Failed { fault: Fault::Other },
+        fake::Failure::NotEmpty => Done::NotEmpty,
+        fake::Failure::Loop => Done::Failed { fault: Fault::Other },
         fake::Failure::Conflict { now } => Done::Conflict { now: now.map(version) },
     }
 }
