@@ -167,7 +167,7 @@ fn round_trip(mut input: Input, dropped: &[(u64, u32)], replaced: &[u32]) -> Val
         assert_eq!(script["cue"], cue, "task/cue mapping");
     }
     replay(&input, &first.document);
-    // Reapply the same replacement rules: their old words are gone from arguments.
+    // Reapply the same replacement rules: their old words are gone from arguments and assistant text.
     input.base = first.document;
     let second = twin(&input).expect("conversion after replay");
     assert_eq!(&*second.report.turns, &TURNS);
@@ -205,11 +205,11 @@ fn dropped_and_replaced_blocks_stay_normalized_through_a_round_trip() {
     );
     save_first(&input, parts);
     input.replaces = Box::new([Replace { old: b"m24-before".as_slice().into(), new: b"m24-after".as_slice().into() }]);
-    let document = round_trip(input, &[(CHAT, 2), (WORK, 0), (CODER, 0), (REVIEWER, 0)], &[2]);
+    let document = round_trip(input, &[(CHAT, 2), (WORK, 0), (CODER, 0), (REVIEWER, 0)], &[3]);
     assert_eq!(
         document["cued"][0]["turns"][0],
         json!({"lines":[
-            {"text":"m24-before"},
+            {"text":"m24-after"},
             {"call":"delegate", "arguments":{"z":2,"a":"m24-after m24-after"}},
             {"text":"after"}
         ], "finish":"tool_calls", "tokens":20})

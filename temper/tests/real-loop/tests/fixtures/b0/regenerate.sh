@@ -1,17 +1,16 @@
 #!/bin/sh
-# B0 walk 1, after its clean stop; run from the workspace root.
-# Quote the valid head value to preserve the walk's failing, padded first lookup.
-# The next replacements correct that head in its failure report and the goal's merge abbreviation.
+# B0 rung-b0-4, after its clean stop; run from the workspace root.
+# Replace the walk's reviewed forge head with the twin's deterministic produced head.
+# Replace the walk's merge identity with the twin's deterministic merge identity.
 set -eu
 heavy env TEMPER_BUNDLE=none NEXTEST_DOUBLE_SPAWN=0 cargo run -p temper-twin -- \
-  --data "${1:-/home/free/src/rust/tmp/qa-focused/rung-b0-1/data/deployment}" \
-  --base tests/real-loop/tests/fixtures/b0/llm-base.json \
-  --out tests/real-loop/tests/fixtures/b0/llm.json \
+  --data "${1:-/home/free/src/rust/tmp/qa-focused/rung-b0-4/data/deployment}" \
+  --base temper/tests/real-loop/tests/fixtures/b0/llm-base.json \
+  --out temper/tests/real-loop/tests/fixtures/b0/llm.json \
   --cue '1=## Replying' \
   --cue '2=You are a goal: the work your person asked for' \
-  --cue '4=Implement the approved CSV export for widget.' \
-  --cue '5=Review this change at the named head' \
-  --cue '6=This review is asked again at the same head' \
-  --replace '"86dad3c2ee1ccca46932d124ac00c07716f4fc42"="975835de1c9756ce000000000000000200000000"' \
-  --replace '86dad3c2ee1ccca46932d124ac00c07716f4fc42.=975835de1c9756ce000000000000000200000000.' \
-  --replace '83156a5=1d0b14e'
+  --cue '3=You are an advisor: you read what your brief asks and report what you found; you change nothing and ask no one.' \
+  --cue '5=Add CSV export to the widget in src/main.rs.' \
+  --cue '6=Review this change at the named head' \
+  --replace '4dfdeaa4e98fffe1d544c2e27689347d0041fe6a=975835de1c9756ce000000000000000200000000' \
+  --replace '8fa3728dbceeaa330e087dbe2812e112237aa9e4=1d0b14e4db018fed000000000000000300000000'

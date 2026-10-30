@@ -37,7 +37,7 @@ A completion's ordered text and calls become one turn. Calls finish
 or 1 when absent. Arguments are embedded as recorded JSON, preserving their
 spacing and member order in the document; the fake subsequently applies its
 normal compact JSON encoding when it serves them. `--replace OLD=NEW` applies
-literal, non-overlapping byte substitutions to arguments alone, in option
+literal, non-overlapping byte substitutions to arguments and assistant text, in option
 order, counting occurrences per option. An empty OLD or a replacement that
 produces invalid object JSON is refused. Reports list turns per task and
 occurrences per replacement and opaque blocks dropped per task. A refusal
