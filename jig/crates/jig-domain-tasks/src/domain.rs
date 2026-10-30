@@ -47,6 +47,7 @@ pub struct Domain {
     pub(crate) startup: Startup,
     restore_mode: RestoreMode,
     restore_consumed: bool,
+    pub(crate) restore_failure: Option<crate::RestoreFailure>,
     pub(crate) waits: crate::waits::Index,
     pub(crate) circle_changes: crate::waits::CircleChanges,
     pub(crate) tasks: Slab<Task>,
@@ -118,6 +119,13 @@ impl Domain {
             "start_restore must be selected once before restoration input"
         );
         self.restore_mode = RestoreMode::LoadFitLink;
+    }
+
+    /// First keyed fit failure from a selected start; admission restoration retains none
+    /// (jig/docs/design/domain/engine.md, 6).
+    #[must_use]
+    pub fn restore_failure(&self) -> Option<crate::RestoreFailure> {
+        self.restore_failure.clone()
     }
 
     /// Total live agent tasks, across settings revisions (engine.md, 17.3).
@@ -244,6 +252,7 @@ impl Domain {
             startup: Startup::Restoring,
             restore_mode: RestoreMode::Admission,
             restore_consumed: false,
+            restore_failure: None,
             waits: crate::waits::Index::new(limits),
             circle_changes: crate::waits::CircleChanges::new(limits),
             tasks: Slab::with_capacity(limits.tasks),

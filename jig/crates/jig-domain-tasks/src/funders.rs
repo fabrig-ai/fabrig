@@ -293,25 +293,34 @@ pub(crate) fn link(domain: &Domain) {
 }
 
 /// Each eventual period posting must fit its integer representation, independently of conservation.
-pub(crate) fn restore_fits(domain: &Domain) -> bool {
+pub(crate) fn restore_fits(domain: &Domain) -> Result<(), crate::RestoreFailure> {
     for (funder, ledger) in &domain.funding {
-        let Some(mut eventual) = total(ledger.numbers) else { return false };
+        let destination =
+            crate::RestoreFailure { key: crate::Key::Ledger(*funder), cause: crate::RestoreCause::Accounting };
+        let mut eventual = total(ledger.numbers).ok_or(destination.clone())?;
         for (_, pool) in &domain.funding {
             if pool.parent == Some(*funder) {
-                let Some(spent) = total(pool.numbers) else { return false };
-                let Some(sum) = eventual.checked_add(spent) else { return false };
+                let spent = total(pool.numbers).ok_or(crate::RestoreFailure {
+                    key: crate::Key::Ledger(pool.funder),
+                    cause: crate::RestoreCause::Accounting,
+                })?;
+                let sum = eventual.checked_add(spent).ok_or(destination.clone())?;
                 eventual = sum;
             }
         }
         for (number, _) in &domain.names {
             if original_period(domain, *number) == Some(*funder) {
-                let Some(spent) = total(record(domain, *number).expect("live name").numbers) else { return false };
-                let Some(sum) = eventual.checked_add(spent) else { return false };
+                let spent =
+                    total(record(domain, *number).expect("live name").numbers).ok_or(crate::RestoreFailure {
+                        key: crate::Key::Live(*number),
+                        cause: crate::RestoreCause::Accounting,
+                    })?;
+                let sum = eventual.checked_add(spent).ok_or(destination.clone())?;
                 eventual = sum;
             }
         }
     }
-    true
+    Ok(())
 }
 
 /// Owned finite external period or person-pool accounting; tasks mutates the authentic counters and
@@ -570,15 +579,16 @@ pub(crate) fn carve_recurring(
     true
 }
 
-pub(crate) fn restore_funding(domain: &mut Domain, ledger: FundingRecord) -> bool {
-    if domain.funding.contains_key(&ledger.funder)
-        || domain.funding.len() == domain.funding.capacity()
-        || !crate::stored::fit::numbers(ledger.numbers)
-    {
-        return false;
-    }
+pub(crate) fn restore_funding(domain: &mut Domain, ledger: FundingRecord) -> Result<(), crate::RestoreCause> {
+    assert!(
+        !domain.funding.contains_key(&ledger.funder),
+        "restore Ledger({:?}): duplicate ledger index",
+        ledger.funder
+    );
+    crate::stored::fit::room(crate::RestoreBound::Funders, domain.funding.len(), domain.funding.capacity())?;
+    crate::stored::fit::numbers(ledger.numbers)?;
     assert!(domain.funding.insert(ledger.funder, ledger) == Ok(None), "restored ledger admitted");
-    true
+    Ok(())
 }
 
 pub(crate) fn newer_period(domain: &Domain, project: u32, period: u64) -> bool {

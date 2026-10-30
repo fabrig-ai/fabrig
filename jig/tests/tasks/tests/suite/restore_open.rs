@@ -174,3 +174,41 @@ fn restoring_a_proposal_keeps_members_without_repeating_admission() {
         }
     }
 }
+
+#[test]
+fn nested_proposal_fit_reports_the_outer_key_and_exact_bytes() {
+    for (original, _) in proposals() {
+        for size in [64, 65] {
+            let mut record = original.clone();
+            let key = record.key();
+            for member in batch(&mut record) {
+                member.spec.words = vec![0; size].into_boxed_slice();
+            }
+            let mut domain = jig_tasks_world::domain(&LIMITS, SEED);
+            domain.start_restore();
+            let env = skein_lib::Env { limits: LIMITS, now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH };
+            let mut out = Queue::uncapped();
+            tasks::step(&mut domain, &env, Event::Restore { record }, &mut out);
+            let expected = if size == 64 {
+                None
+            } else {
+                Some(tasks::RestoreFailure {
+                    key,
+                    cause: tasks::RestoreCause::Bound { which: tasks::RestoreBound::SpecBytes, held: 65, limit: 64 },
+                })
+            };
+            assert_eq!(domain.restore_failure(), expected);
+            if size == 65 {
+                assert!(matches!(out.pop(), Some(tasks::Request::RestoreRefused { .. })));
+                assert!(out.is_empty());
+                tasks::step(&mut domain, &env, Event::Check, &mut out);
+                tasks::step(&mut domain, &env, Event::Restored, &mut out);
+                assert_eq!(domain.restore_failure(), expected);
+                assert!(out.is_empty());
+                assert!(!domain.checked());
+            } else {
+                assert!(out.is_empty());
+            }
+        }
+    }
+}

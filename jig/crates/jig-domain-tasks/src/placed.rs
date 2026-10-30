@@ -601,23 +601,38 @@ pub(crate) fn link(domain: &Domain) {
     }
 }
 
-pub(crate) fn fits(domain: &Domain, limits: &Limits) -> bool {
+pub(crate) fn fits(domain: &Domain, limits: &Limits) -> Result<(), crate::RestoreFailure> {
     for (_, hold) in &domain.placed {
-        let mut project = 0_u32;
-        let mut party = 0_u32;
+        let accounting =
+            crate::RestoreFailure { key: Key::PlacedHold(hold.number), cause: crate::RestoreCause::Accounting };
+        let mut project = 0_u64;
+        let mut party = 0_u64;
         for (_, other) in &domain.placed {
             if other.project == hold.project {
-                project = project.checked_add(1).expect("bounded holds");
+                project = project.checked_add(1).ok_or(accounting.clone())?;
             }
             if other.owner == hold.owner {
-                party = party.checked_add(1).expect("bounded holds");
+                party = party.checked_add(1).ok_or(accounting.clone())?;
             }
         }
-        if project > limits.project_placed_holds || (party_owner(hold.owner) && party > limits.party_placed_holds) {
-            return false;
+        if let Err(cause) = crate::stored::fit::bound(
+            crate::RestoreBound::ProjectPlacedHolds,
+            project,
+            u64::from(limits.project_placed_holds),
+        ) {
+            return Err(crate::RestoreFailure { key: Key::PlacedHold(hold.number), cause });
+        }
+        if party_owner(hold.owner)
+            && let Err(cause) = crate::stored::fit::bound(
+                crate::RestoreBound::PartyPlacedHolds,
+                party,
+                u64::from(limits.party_placed_holds),
+            )
+        {
+            return Err(crate::RestoreFailure { key: Key::PlacedHold(hold.number), cause });
         }
     }
-    true
+    Ok(())
 }
 
 /// A new delegate is not covered by its creator's personal exemption.

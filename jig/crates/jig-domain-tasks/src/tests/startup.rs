@@ -377,3 +377,5 @@ fn a_writer_without_a_holder_panics_at_link() {
     });
     cold.send(Event::Check);
 }
+
+mod detail;

@@ -214,15 +214,13 @@ pub(crate) fn effect_settled(
     }
 }
 
-pub(crate) fn restore(domain: &mut Domain, limits: &Limits, slot: WriterSlot) -> bool {
-    if !crate::holds::valid_name(limits, &slot.resource)
-        || domain.writers.contains_key(&slot.resource)
-        || domain.writers.len() == domain.writers.capacity()
-    {
-        return false;
-    }
+pub(crate) fn restore(domain: &mut Domain, limits: &Limits, slot: WriterSlot) -> Result<(), crate::RestoreCause> {
+    assert!(!domain.writers.contains_key(&slot.resource), "restore Writer({}): duplicate resource index", slot.number);
+    crate::stored::fit::name(&slot.resource, limits)?;
+    crate::stored::fit::room(crate::RestoreBound::Writers, domain.writers.len(), domain.writers.capacity())?;
     domain.next_writer = domain.next_writer.max(slot.number);
-    domain.writers.insert(slot.resource.clone(), slot).is_ok()
+    assert!(domain.writers.insert(slot.resource.clone(), slot) == Ok(None), "restored writer admitted");
+    Ok(())
 }
 
 pub(crate) fn link(domain: &Domain) {
