@@ -858,8 +858,11 @@ model adds them by their configured names, never by a number:
 so a reader joins them to the names in `conversation.opened`. Sizes are
 in bytes or tokens as their names say; durations in whole milliseconds. `smith check` prints them (`docs/design/shell.md`, 4.4), and the
 event stream's header carries them (events.md, section 3.2). Their names
-and units are part of the event vocabulary, so a change to them is a new
-version of it (events.md, section 6).
+and units are part of the event vocabulary (events.md, section 6).
+`domain.content_edge_records` caps the root's optional content capture edge
+in records, with overflow dropped and counted. Internal run, session,
+tools and inline lifecycle facts have no configured allowance and drain
+losslessly by count.
 
 ## 10. What the domain is owed, and what skein owes
 
