@@ -819,6 +819,102 @@ fn a_charter_resumes_when_its_policy_does_and_turns_are_kept() {
 }
 
 #[test]
+fn resolved_checks_and_statuses_name_the_api_job_attempt_in_every_state() {
+    use skein_forge::api;
+    for (check, state) in
+        [(api::Check::Pending, "pending"), (api::Check::Passed, "passed"), (api::Check::Failed, "failed")]
+    {
+        for (head, digits) in COMMIT_SPELLINGS {
+            let status = api::Status {
+                at: skein_lib::Time::ZERO,
+                context: b"build".as_slice().into(),
+                check,
+                description: b"CI result".as_slice().into(),
+                url: b"https://forge.example/org/repo/actions/runs/3/jobs/0".as_slice().into(),
+                job: Some(api::JobAttempt { head: *head, run: 7, job: 8, attempt: 2 }),
+            };
+            let status_line = format!(
+                "build: {state} CI result https://forge.example/org/repo/actions/runs/3/jobs/0\nread_job head "
+            );
+            let attempt_line = b" run 7 job 8 attempt 2\n";
+            for (read, prefix, suffix) in [
+                (api::Answer::Checks(Box::new([status.clone()])), "", ""),
+                (
+                    api::Answer::Statuses { ci: api::Ci::Passed, statuses: Box::new([status]), more: true },
+                    "CI passed\n",
+                    "More statuses available.\n",
+                ),
+            ] {
+                let rendered = answer(&engine::CallAnswer::ForgeRead(Box::new(Ok(read))));
+                assert!(!rendered.error());
+                let mut expected = skein_lib::Writer::new(
+                    prefix.len() + status_line.len() + digits.len() + attempt_line.len() + suffix.len(),
+                );
+                expected.put(prefix.as_bytes()).unwrap();
+                expected.put(status_line.as_bytes()).unwrap();
+                expected.put(digits).unwrap();
+                expected.put(attempt_line).unwrap();
+                expected.put(suffix.as_bytes()).unwrap();
+                assert_eq!(rendered.text(), expected.finish().as_ref());
+            }
+        }
+    }
+}
+
+#[test]
+fn unresolved_checks_and_statuses_say_no_job_attempt_was_resolved() {
+    use skein_forge::api;
+    let status = api::Status {
+        at: skein_lib::Time::ZERO,
+        context: b"external".as_slice().into(),
+        check: api::Check::Pending,
+        description: b"waiting".as_slice().into(),
+        url: b"https://checks.example/build".as_slice().into(),
+        job: None,
+    };
+    for read in [
+        api::Answer::Checks(Box::new([status.clone()])),
+        api::Answer::Statuses { ci: api::Ci::Pending, statuses: Box::new([status]), more: false },
+    ] {
+        let rendered = answer(&engine::CallAnswer::ForgeRead(Box::new(Ok(read))));
+        assert!(!rendered.error());
+        assert!(rendered.text().ends_with(b"external: pending waiting https://checks.example/build\nNo job attempt resolved from this check's link.\n"));
+    }
+}
+
+#[test]
+fn job_attempt_text_counts_against_the_host_answer_bound() {
+    use skein_forge::api;
+    for job in [None, Some(api::JobAttempt { head: SHA1_HEAD, run: u64::MAX, job: u64::MAX, attempt: u32::MAX })] {
+        let mut status = api::Status {
+            at: skein_lib::Time::ZERO,
+            context: b"build".as_slice().into(),
+            check: api::Check::Passed,
+            description: Box::new([]),
+            url: Box::new([]),
+            job,
+        };
+        let read = api::Answer::Checks(Box::new([status.clone()]));
+        let baseline = answer(&engine::CallAnswer::ForgeRead(Box::new(Ok(read))));
+        assert!(!baseline.error());
+        let room = run::HostAnswer::CAPACITY - baseline.text().len();
+        for extra in [0, 1] {
+            status.description = vec![b'x'; room + extra].into_boxed_slice();
+            let read = api::Answer::Checks(Box::new([status.clone()]));
+            let rendered = answer(&engine::CallAnswer::ForgeRead(Box::new(Ok(read))));
+            if extra == 0 {
+                assert!(!rendered.error());
+                assert_eq!(rendered.text().len(), run::HostAnswer::CAPACITY);
+                assert!(rendered.text().ends_with(b"\n"));
+            } else {
+                assert!(rendered.error());
+                assert_eq!(rendered.text(), b"The recorded answer exceeded the host text limit; ask a narrower read.");
+            }
+        }
+    }
+}
+
+#[test]
 fn a_job_answer_names_its_failed_step_before_its_log() {
     use skein_forge::api;
     let attempt = api::JobAttempt { head: [1; 32], run: 7, job: 8, attempt: 2 };

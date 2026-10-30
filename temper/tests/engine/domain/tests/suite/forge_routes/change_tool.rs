@@ -613,6 +613,46 @@ fn an_omitted_file_limit_uses_the_engine_read_bound() {
 }
 
 #[test]
+fn a_chat_reads_the_job_attempt_printed_by_its_checks() {
+    let mut world = World::configured_checks(true, true, false, 0);
+    world.adopt();
+    world.send(protocol::hello_slots(Token::new(7), 2, Box::new([])));
+    let ask = adoption_chat(&world);
+    let chat = assigned_chat(&mut world, 92, ask);
+    let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", b"file", b"contents", 1)
+        .expect("checked head");
+    let digits = engine::commit_text(&translate::commit(head));
+    let input = format!(r#"{{"commit":"{}"}}"#, std::str::from_utf8(&digits).expect("commit hex"));
+    let checks = named_read(&mut world, &chat, 93, b"read_checks", input.as_bytes());
+    let rendered = temper_engine_smith::answer(&checks);
+    assert!(!rendered.error(), "{checks:?}");
+    let text = std::str::from_utf8(rendered.text()).expect("check text");
+    assert!(text.contains("/actions/runs/1/jobs/0\n"), "{text}");
+    let line = text
+        .lines()
+        .find(|line| line.starts_with("read_job "))
+        .unwrap_or_else(|| panic!("resolved job attempt: {text}"));
+    let fields: Vec<_> = line.split_ascii_whitespace().collect();
+    assert_eq!(fields.len(), 9, "{line}");
+    assert_eq!([fields[0], fields[1], fields[3], fields[5], fields[7]], ["read_job", "head", "run", "job", "attempt"]);
+    assert_eq!(fields[6], "1", "the API job id differs from the link's index 0");
+    let input =
+        format!(r#"{{"head":"{}","run":{},"job":{},"attempt":{}}}"#, fields[2], fields[4], fields[6], fields[8]);
+    let job = named_read(&mut world, &chat, 94, b"read_job", input.as_bytes());
+    assert!(
+        matches!(&job, engine::CallAnswer::ForgeRead(result) if matches!(result.as_ref(), Ok(skein_forge::api::Answer::Job { .. }))),
+        "{job:?}"
+    );
+    let rendered = temper_engine_smith::answer(&job);
+    assert!(!rendered.error(), "{job:?}");
+    let text = std::str::from_utf8(rendered.text()).expect("job text");
+    assert_eq!(
+        text,
+        "Job 1 run 1, failed step 1 Run build:\nfailing check build 0\nfailing check build 1\nfailing check build 2\nfailing check build 3\n"
+    );
+}
+
+#[test]
 fn a_decoded_job_zero_read_reaches_the_fake_and_is_answered() {
     let (mut world, chat) = chat_world(true);
     let input = smith_domain_run::HostInput::attested(br#"{"head":"0000000000000000000000000000000000000000","run":1,"job":0,"attempt":0,"max_bytes":32}"#.as_slice().into()).expect("bounded input");
