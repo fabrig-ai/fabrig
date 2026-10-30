@@ -168,11 +168,58 @@ def threshold(value):
     return number
 
 
+def automatic_observation(home):
+    """Report policy observations without entering either destructive sweep."""
+    root = home / "src/fabrig/slots"
+    log = home / "src/fabrig/notes/slot-guard.log"
+
+    def record(detail):
+        line = " ".join(f"{datetime.now(timezone.utc):%Y-%m-%dT%H:%M:%SZ} {detail}".splitlines())
+        emit(line, log)
+        print(line)
+
+    try:
+        LIFETIME["no_links"](root)
+        available = shutil.disk_usage(root).free
+        record(f"automatic-targets dry-run; free-bytes={available}; claim snapshots grant no deletion exclusion; "
+               "automatic live mode unavailable pending central exclusion and finality protocol")
+        # Include numeric symlinks in the report; builder() refuses their paths.
+        slots = [slot.absolute() for slot in root.iterdir()
+                 if slot.name.isascii() and slot.name.isdecimal()]
+        RECOVERY["observe_targets"](slots, home, available, record)
+        return 2 if slots and available < 80_000_000_000 else 0
+    except (OSError, ValueError, KeyError, RuntimeError) as error:
+        print(f"guard: automatic observation failed: {error}", file=sys.stderr)
+        return 1
+
+
+def automatic_live(home):
+    root = home / "src/fabrig/slots"
+    log = home / "src/fabrig/notes/slot-guard.log"
+    def record(detail):
+        line = " ".join(f"{datetime.now(timezone.utc):%Y-%m-%dT%H:%M:%SZ} {detail}".splitlines())
+        emit(line, log)
+        print(line)
+    try:
+        RECOVERY["require_automatic_activation"]()
+        LIFETIME["no_links"](root)
+        slots = [slot.absolute() for slot in root.iterdir()
+                 if slot.name.isascii() and slot.name.isdecimal()]
+        if not RECOVERY["automatic_recover"](slots, home, lambda: shutil.disk_usage(root).free, record):
+            return 1
+        return 2 if slots and shutil.disk_usage(root).free < 80_000_000_000 else 0
+    except (OSError, ValueError, RuntimeError) as error:
+        print(f"guard: {error}", file=sys.stderr)
+        return 1
+
+
 def main():
     os.umask(0o077)
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--below", type=threshold, default=80)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--automatic-targets", nargs="?", const="observe", choices=("observe", "live"),
+                        help="observe the idle >24h policy; live is gated by FIRSTDAYDRYRUN and Ops review")
     parser.add_argument("--timer", action="store_true")
     parser.add_argument("--stop", action="store_true")
     parser.add_argument("--ack", metavar="N", help="acknowledge a completed numeric builder slot")
@@ -186,6 +233,20 @@ def main():
     parser.add_argument("--exclusive-lease-use", action="store_true",
                         help="attest all future direct work uses lifetime.py run")
     args = parser.parse_args()
+    if args.automatic_targets:
+        if (args.ack or args.release_hold or args.hold or args.by or args.reason or args.notices or
+                args.timer or args.stop or args.report_handled or args.no_pending_resume or
+                args.exclusive_lease_use or args.below != 80):
+            parser.error("--automatic-targets cannot combine with manual actions, timer control or a changed threshold")
+        if args.automatic_targets == "live":
+            try:
+                RECOVERY["require_automatic_activation"]()
+            except RuntimeError as error:
+                print(f"guard: {error}", file=sys.stderr)
+                return 1
+            if not args.dry_run:
+                return automatic_live(Path.home())
+        return automatic_observation(Path.home())
     if args.notices:
         if (args.ack or args.release_hold or args.hold or args.by or args.reason or args.timer or
                 args.stop or args.dry_run or args.report_handled or args.no_pending_resume or args.exclusive_lease_use):
