@@ -25,6 +25,12 @@ DEFAULT_MIN_FREE_BYTES = 80_000_000_000
 SLOT_LIFETIME = {"__name__": "slot_lifetime"}
 exec(compile((Path(__file__).resolve().parents[1] / "slots/lifetime.py").read_text(),
              "tools/slots/lifetime.py", "exec"), SLOT_LIFETIME)
+COLD_SOURCE = (Path(__file__).resolve().parent / "cold_tools.py").read_bytes()
+COLD_TOOLS = {"__name__": "precheck_cold_tools"}
+exec(compile(COLD_SOURCE, "tools/queue/cold_tools.py", "exec"), COLD_TOOLS)
+LOADED_POLICY = {name: hashlib.sha256((Path(__file__).resolve().parent / name).read_bytes()).hexdigest()
+                 for name in ("precheck", "cold_tools.py", "mq", "authority.py", "durable.py", "publication.py",
+                              "always.txt", "read-by-tests.txt")}
 
 
 def policy():
@@ -184,15 +190,27 @@ class Executor:
                 child.kill()
                 child.wait()
                 self.after("timeout", child.returncode)
-                raise
+                self.unknown = True
+                raise UnknownCompletion("tools timeout; descendant completion unknown")
         except subprocess.TimeoutExpired:
             raise
         except BaseException as error:
             self.unknown = True
             raise UnknownCompletion(f"child completion unknown: {error}") from error
-        if heavy and (code < 0 or code in (137, 143, 129, 130)):
+        if (heavy or timeout is not None) and (code < 0 or code in (137, 143, 129, 130)):
             self.unknown = True
-            raise UnknownCompletion(f"heavy client exited {code}; build completion unknown")
+            raise UnknownCompletion(f"checker exited {code}; descendant/build completion unknown")
+        if timeout is not None:
+            try:
+                os.killpg(child.pid, 0)
+            except ProcessLookupError:
+                pass
+            except BaseException as error:
+                self.unknown = True
+                raise UnknownCompletion(f"cannot establish tools process-group completion: {error}") from error
+            else:
+                self.unknown = True
+                raise UnknownCompletion("tools process group still has descendants")
         self.after("completed", code)
         if self.interrupted:
             raise InfrastructureError(f"interrupted by signal {self.interrupted}; child drained")
@@ -224,6 +242,7 @@ class Precheck:
         self.mutated = False
         self.unexpected = False
         self.log_directory = None
+        self.cold = None
 
     def git(self, *args, check=True):
         return self.mq.git(self.repo, "--no-optional-locks", *args, check=check).stdout.rstrip("\n")
@@ -375,13 +394,20 @@ class Precheck:
             write_private(self.marker, {**self.record, "logs": str(self.log_directory),
                                        "pid": os.getpid(), "reconciliation": self.reconciliation()})
 
+    def artifact(self, path, value):
+        write_private(path, value)
+
     def reconciliation(self):
         return (f"Do not reuse or reset {self.repo}. In this submitting directory use supported "
                 "heavy status inspection / heavy --cancel TOKEN, and operator heavy --check-recovery / "
                 "--reconcile as needed. Never kill units or edit heavy state. Establish build "
                 "completion before restoring the recorded original HEAD and index; verify clean "
                 "checkout and original branch refs before removing precheck.unresolved. Leave "
-                "mq-worker-unresolved.json intact for separate worker reconciliation.")
+                "mq-worker-unresolved.json intact for separate worker reconciliation. For cold_tools, "
+                "establish every suite descendant has terminated before touching either checkout. "
+                "Verify recorded auxiliary parent/root/checkout device-inodes and private manifest, "
+                "then remove only that owned cold-tools root and verify absence before restoring "
+                "source/index or clearing marker/lifetime hold. Never infer completion from PID absence.")
 
     def started(self, argv, cwd):
         self.record["active_command"] = {"argv": argv, "cwd": str(cwd), "completion": "unknown"}
@@ -414,6 +440,10 @@ class Precheck:
                                   clock=time.monotonic, timeout=timeout)
         self.record["steps"].append(result)
         self.save()
+        if timeout is not None and (result["returncode"] == 124 or result["returncode"] < 0 or
+                                    result["returncode"] in (129, 130, 137, 143)):
+            self.executor.unknown = True
+            raise UnknownCompletion("tools termination; descendant completion unknown")
         print(f"[{name}] exit {result['returncode']}: {'pass' if result['green'] else 'fail'}", flush=True)
         if result.get("error") or result["returncode"] == 127:
             raise InfrastructureError(result.get("error", f"{name}: command launch failed"))
@@ -608,11 +638,33 @@ class Precheck:
                     if self.identity() != prepared:
                         self.unexpected = True
                         raise InfrastructureError("source modified during planning")
+                    if any(timeout is not None for _, _, _, timeout in commands):
+                        self.cold = COLD_TOOLS["ColdTools"](self, commands, LOADED_POLICY)
+                        commands = self.cold.prepare()
+                        self.record["plan"] = [{"name": name, "argv": argv, "cwd": str(cwd), "timeout": timeout}
+                                               for name, argv, cwd, timeout in commands]
+                        self.save()
                     tools_failed = False
                     for name, argv, cwd, timeout in commands:
                         if tools_failed and timeout is None:
                             raise CheckFailure("tools suites failed")
-                        passed = self.step(name, argv, cwd, log, timeout=timeout)
+                        if timeout is not None:
+                            self.cold.observe(name)
+                            original_runner = self.runner
+                            # Route the environment only for this tools call, preserving Cargo's caller environment.
+                            self.runner = lambda command, **options: original_runner(
+                                command, env=self.cold.env, **options)
+                        try:
+                            passed = self.step(name, argv, cwd, log, timeout=timeout)
+                        finally:
+                            if timeout is not None:
+                                self.runner = original_runner
+                        if timeout is not None:
+                            self.cold.receipt['outcomes'].append({key: self.record['steps'][-1][key]
+                                                                 for key in ('name', 'returncode', 'cwd')})
+                            self.save()
+                            self.cold.unchanged()
+                            self.cold.observe("after:" + name)
                         if self.identity() != prepared:
                             self.unexpected = True
                             raise InfrastructureError("source modified beyond prepared plan")
@@ -626,6 +678,9 @@ class Precheck:
                 if self.executor.interrupted:
                     raise InfrastructureError(f"interrupted by signal {self.executor.interrupted}; child drained")
                 self.record["outcome"] = "passed"
+            except UnknownCompletion as error:
+                self.executor.unknown = True
+                self.record.update(outcome="infrastructure-error", error=str(error))
             except CheckFailure as error:
                 self.record.update(outcome="failed", error=str(error))
             except BaseException as error:
@@ -638,9 +693,13 @@ class Precheck:
                     except BaseException:
                         self.unexpected = True
                 if self.executor.unknown or self.unexpected:
+                    if self.cold is not None:
+                        self.cold.receipt["completion"] = "unknown" if self.executor.unknown else "known"
                     self.record.update(outcome="unresolved", reconciliation=self.reconciliation())
                 else:
                     try:
+                        if self.cold is not None:
+                            self.cold.cleanup()
                         self.restore()
                     except BaseException as error:
                         self.record.update(outcome="unresolved", restoration_error=str(error),

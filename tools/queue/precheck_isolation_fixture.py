@@ -112,7 +112,8 @@ Path('scripts/old-forms.txt').write_text('9\\n')
                 self.assertIn("tools/candidate.md", self.git("diff", "--cached", "--name-only"))
                 self.assertEqual(self.git("diff", "--name-only"), "jig/scripts/old-forms.txt")
                 observations.append(self.snapshot())
-            result = subprocess.run(argv, env=self.env, **options)
+            options.setdefault('env', self.env)
+            result = subprocess.run(argv, **options)
             if argv[3] == "tools/queue/test_mq.py":
                 self.assert_unchanged(observations[-1])
             return result

@@ -7,6 +7,7 @@ from copy import deepcopy
 import importlib.machinery
 import importlib.util
 import json
+import hashlib
 import os
 from pathlib import Path
 import subprocess
@@ -92,11 +93,46 @@ class ReadyCheckTests(unittest.TestCase):
 
     def plan(self):
         command = ["python3", "-I", "-B", "tools/test_fixture.py"]
+        root = self.root / 'cold-tools'
+        checkout = root / 'checkout'
+        root.mkdir(mode=0o700)
+        checkout.mkdir(mode=0o700)
+        identity = lambda path: [path.stat().st_dev, path.stat().st_ino]
+        ownership = {'parent': str(self.root), 'parent_identity': identity(self.root),
+                     'root': str(root), 'root_identity': identity(root),
+                     'checkout': str(checkout), 'checkout_identity': identity(checkout),
+                     'objects_identity': [checkout.stat().st_dev, checkout.stat().st_ino + 1]}
+        checkout.rmdir(); root.rmdir()
+        payload = {'entries': '', 'manifest': [], 'merge': {}, 'ownership': ownership}
+        manifest = self.root / 'cold-input.json'
+        manifest.write_text(json.dumps(payload))
+        manifest.chmod(0o600)
+        encoded_rows = b'[]\n'
+        tree = ready.COLD_VALIDATOR['raw_tree']([], 'sha1')
+        inputs = {'entries_sha256': hashlib.sha256(b'').hexdigest(),
+                  'manifest_sha256': hashlib.sha256(encoded_rows).hexdigest(),
+                  'index_tree': tree, 'raw_tree': tree, 'merge': {}}
+        self.record['min_free_bytes'] = 1
+        self.record['cold_tools'] = {
+            'version': 1, 'policy': ready.COLD_POLICY, **{k: v for k, v in ownership.items() if k != 'objects_identity'},
+            'base': self.record['base'], 'tip': self.tip, 'head': self.record['base'],
+            'state': 'removed', 'cleanup': 'verified', 'completion': 'known',
+            'input_manifest': {'path': str(manifest), 'sha256': hashlib.sha256(manifest.read_bytes()).hexdigest()},
+            'input': inputs, 'observed': {**inputs, 'head': self.record['base'], 'independent_objects': True,
+                                        'objects_identity': ownership['objects_identity']},
+            'tools_plan': [{'name': 'tools/test_fixture.py', 'argv': command}],
+            'observations': [{'before': n, 'empty_roots': True, 'unexpected_roots': []}
+                             for n in ('initial', 'tools/test_fixture.py', 'after:tools/test_fixture.py')],
+            'environment': {'removed': [], 'redirected': ['TMPDIR', 'TMP', 'TEMP', 'CARGO_HOME'], 'git_config': 'isolated'},
+            'capacity': {'required_bytes': 1, 'free_bytes': 2, 'min_free_bytes': 1,
+                         'postcopy_free_bytes': 1, 'copied_allocated_bytes': 1, 'postcopy_admitted': True,
+                         'admitted': True, 'policy': 'measured-static-copy'},
+            'outcomes': [{'name': 'tools/test_fixture.py', 'returncode': 0, 'cwd': str(checkout)}]}
         self.record.update(plan=[{"name": "tools/test_fixture.py", "argv": command,
-                                  "cwd": str(self.repo), "timeout": 60}],
+                                  "cwd": str(checkout), "timeout": 60}],
                            steps=[{"name": "tools/test_fixture.py", "command": command,
-                                   "returncode": 0, "green": True, "duration": 0.1, "cwd": str(self.repo)}],
-                           active_command={"argv": command, "cwd": str(self.repo),
+                                   "returncode": 0, "green": True, "duration": 0.1, "cwd": str(checkout)}],
+                           active_command={"argv": command, "cwd": str(checkout),
                                            "completion": "completed", "returncode": 0})
         self.save()
 
@@ -105,6 +141,45 @@ class ReadyCheckTests(unittest.TestCase):
                                        "currentmain": self.base, "finalmain": self.base,
                                        "touchedscope": ["touched.md"], "overlap": [],
                                        "diagnostic": "reported touched files unchanged at observed origin/main; point-in-time only"})
+
+    def test_cold_receipt_cutover_identity_and_manifest_tampering_refuse(self):
+        self.plan()
+        valid = deepcopy(self.record)
+        mutations = [lambda r: r.pop('cold_tools'),
+                     lambda r: r['cold_tools'].update(version=2),
+                     lambda r: r['cold_tools'].update(policy={}),
+                     lambda r: r['cold_tools'].update(checkout=str(self.repo)),
+                     lambda r: r['cold_tools']['root_identity'].__setitem__(1, 1),
+                     lambda r: r['cold_tools']['input'].update(raw_tree=self.tip),
+                     lambda r: r['cold_tools'].update(tools_plan=[]),
+                     lambda r: r['cold_tools'].update(cleanup='pending'),
+                     lambda r: r['cold_tools'].update(completion='unknown'),
+                     lambda r: r['cold_tools']['observations'][0].update(empty_roots=False),
+                     lambda r: r['cold_tools']['environment'].update(removed=None),
+                     lambda r: r['cold_tools']['capacity'].update(free_bytes=0),
+                     lambda r: r['cold_tools'].update(outcomes=[])]
+        for index, mutate in enumerate(mutations):
+            with self.subTest(index=index):
+                self.record = deepcopy(valid)
+                mutate(self.record)
+                self.save()
+                self.assertEqual(self.check()['verdict'], 'rerun-precheck')
+        self.record = valid
+        self.save()
+        manifest = self.root / 'cold-input.json'
+        manifest.write_bytes(manifest.read_bytes() + b' ')
+        self.refuse('manifest digest')
+
+    def test_tools_and_cargo_cwds_cannot_be_substituted_together(self):
+        self.compile_plan('full')
+        valid = deepcopy(self.record)
+        for index, cwd in ((0, str(self.repo)), (1, valid['cold_tools']['checkout'])):
+            with self.subTest(index=index):
+                self.record = deepcopy(valid)
+                self.record['plan'][index]['cwd'] = cwd
+                self.record['steps'][index]['cwd'] = cwd
+                self.save()
+                self.assertEqual(self.check()['verdict'], 'rerun-precheck')
 
     def test_remote_same_file_change_refuses_stale_tracking(self):
         current = self.advance("touched.md")

@@ -2,6 +2,7 @@
 """Validate precheck evidence against observed origin/main (precheck.md, 5)."""
 
 import argparse
+import hashlib
 from datetime import datetime, timezone
 import json
 import math
@@ -10,8 +11,15 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+import stat
 
 sys.dont_write_bytecode = True
+COLD_POLICY = {name: hashlib.sha256((Path(__file__).resolve().parent / name).read_bytes()).hexdigest()
+               for name in ("precheck", "cold_tools.py", "mq", "authority.py", "durable.py", "publication.py",
+                            "always.txt", "read-by-tests.txt")}
+COLD_VALIDATOR = {"__name__": "ready_cold_tools"}
+exec(compile((Path(__file__).resolve().parent / 'cold_tools.py').read_bytes(),
+             'tools/queue/cold_tools.py', 'exec'), COLD_VALIDATOR)
 
 
 class Refused(ValueError):
@@ -61,6 +69,89 @@ def unique_object(pairs):
     return result
 
 
+def cold_evidence(record, filename, tools):
+    cold = record.get('cold_tools')
+    require(isinstance(cold, dict) and type(cold.get('version')) is int and cold['version'] == 1,
+            'tools receipt requires cold evidence version 1; rerun precheck after cutover')
+    require(cold.get('policy') == COLD_POLICY, 'cold loaded policy identity mismatch')
+    parent = filename.parent.absolute()
+    root = parent / 'cold-tools'
+    checkout = root / 'checkout'
+    require(cold.get('parent') == str(parent) and cold.get('root') == str(root) and
+            cold.get('checkout') == str(checkout), 'cold auxiliary path mismatch')
+    require(not any(p.is_symlink() for p in (parent, *parent.parents)), 'cold evidence parent symlink')
+    info = parent.stat()
+    require(cold.get('parent_identity') == [info.st_dev, info.st_ino], 'cold parent identity mismatch')
+    for key in ('root_identity', 'checkout_identity'):
+        value = cold.get(key)
+        require(isinstance(value, list) and len(value) == 2 and
+                all(type(n) is int and n > 0 for n in value), 'invalid cold directory identity')
+    require(cold['root_identity'] != cold['checkout_identity'], 'aliased cold directory identity')
+    require(cold.get('base') == record['base'] and cold.get('tip') == record['tip'] and
+            cold.get('head') == record['base'], 'cold candidate identity mismatch')
+    require(cold.get('state') == 'removed' and cold.get('cleanup') == 'verified' and
+            cold.get('completion') == 'known' and not root.exists() and not root.is_symlink(),
+            'cold cleanup/completion not verified')
+    receipt = cold.get('input_manifest', {})
+    manifest = parent / 'cold-input.json'
+    require(receipt.get('path') == str(manifest) and not manifest.is_symlink(), 'cold manifest path mismatch')
+    info = manifest.stat()
+    require(stat.S_ISREG(info.st_mode) and stat.S_IMODE(info.st_mode) == 0o600 and
+            info.st_uid == os.getuid(), 'cold manifest is not private')
+    body = manifest.read_bytes()
+    require(hashlib.sha256(body).hexdigest() == receipt.get('sha256'), 'cold manifest digest mismatch')
+    full = json.loads(body, object_pairs_hook=unique_object, parse_constant=invalid_constant)
+    require(isinstance(full, dict), 'invalid cold full manifest')
+    ownership = {key: cold[key] for key in
+                 ('parent', 'parent_identity', 'root', 'root_identity', 'checkout', 'checkout_identity')}
+    ownership['objects_identity'] = cold.get('observed', {}).get('objects_identity')
+    require(full.get('ownership') == ownership, 'cold owned manifest identity mismatch')
+    source, observed = cold.get('input', {}), cold.get('observed', {})
+    encode = lambda value: (json.dumps(value, sort_keys=True, separators=(',', ':'), ensure_ascii=True) + '\n').encode()
+    require(isinstance(full, dict) and isinstance(full.get('entries'), str) and isinstance(full.get('manifest'), list),
+            'invalid cold full manifest')
+    require(source.get('entries_sha256') == hashlib.sha256(os.fsencode(full['entries'])).hexdigest() and
+            source.get('manifest_sha256') == hashlib.sha256(encode(full['manifest'])).hexdigest() and
+            source.get('merge') == full.get('merge'), 'cold input manifest binding mismatch')
+    for key in ('entries_sha256', 'manifest_sha256', 'index_tree', 'raw_tree', 'merge'):
+        require(key in source and source[key] == observed.get(key), 'cold observed input mismatch')
+    require(oid(source['index_tree']) and oid(source['raw_tree']) and observed.get('head') == record['base'] and
+            observed.get('independent_objects') is True, 'cold independent Git identity mismatch')
+    algorithm = 'sha256' if len(record['base']) == 64 else 'sha1'
+    require(COLD_VALIDATOR['logical_tree'](full['entries'], algorithm) == source['index_tree'] and
+            COLD_VALIDATOR['raw_tree'](full['manifest'], algorithm) == source['raw_tree'],
+            'cold manifest tree identity mismatch')
+    objects = observed.get('objects_identity')
+    require(isinstance(objects, list) and len(objects) == 2 and all(type(n) is int and n > 0 for n in objects),
+            'cold object directory identity missing')
+    expected = [{'name': item['name'], 'argv': item['argv']} for item in tools]
+    require(cold.get('tools_plan') == expected, 'cold tools discovery/plan mismatch')
+    require(all(item['cwd'] == str(checkout) and item['timeout'] == 60 for item in tools),
+            'cold tools cwd/timeout mismatch')
+    observations = cold.get('observations')
+    names = ['initial', *[name for item in tools for name in (item['name'], 'after:' + item['name'])]]
+    require(isinstance(observations, list) and [item.get('before') for item in observations] == names and
+            all(item.get('empty_roots') is True and item.get('unexpected_roots') == [] for item in observations),
+            'cold target observations incomplete')
+    handling = cold.get('environment', {})
+    require(isinstance(handling.get('removed'), list) and all(string(n) for n in handling['removed']) and
+            handling.get('redirected') == ['TMPDIR', 'TMP', 'TEMP', 'CARGO_HOME'] and
+            handling.get('git_config') == 'isolated', 'cold artifact environment evidence missing')
+    capacity = cold.get('capacity', {})
+    require(capacity.get('policy') == 'measured-static-copy' and capacity.get('admitted') is True and
+            capacity.get('postcopy_admitted') is True and
+            all(type(capacity.get(k)) is int and capacity[k] >= 0 for k in
+                ('required_bytes', 'free_bytes', 'min_free_bytes', 'postcopy_free_bytes', 'copied_allocated_bytes')) and
+            capacity['min_free_bytes'] > 0 and capacity['postcopy_free_bytes'] >= capacity['min_free_bytes'] and
+            capacity['min_free_bytes'] == record.get('min_free_bytes') and
+            capacity['free_bytes'] - capacity['required_bytes'] >= capacity['min_free_bytes'],
+            'cold copy capacity not admitted')
+    outcomes = [{key: item[key] for key in ('name', 'returncode', 'cwd')}
+                for item in record['steps'] if item['name'].startswith('tools/')]
+    require(cold.get('outcomes') == outcomes, 'cold outcomes mismatch')
+    return str(checkout)
+
+
 def evidence(filename, tip):
     with filename.open(encoding="utf-8") as source:
         record = json.load(source, object_pairs_hook=unique_object,
@@ -97,7 +188,8 @@ def evidence(filename, tip):
                 and absolute(item.get("cwd")) and "timeout" in item and
                 (item["timeout"] is None or (number(item["timeout"]) and item["timeout"] > 0)),
                 "malformed planned command")
-        require(item["cwd"] == record["slot"], "planned command cwd differs from precheck slot")
+        require(item['name'] in ('fmt', 'clippy', 'build') or
+                (path(item['name']) and item['name'].startswith('tools/')), 'unknown planned command')
     for item in steps:
         require(isinstance(item, dict) and string(item.get("name")) and strings(item.get("command"))
                 and type(item.get("returncode")) is int and item.get("green") is True and item.get("completion", "completed") == "completed"
@@ -107,6 +199,11 @@ def evidence(filename, tip):
                 "precheck step has unsuccessful return code")
     require(len(steps) >= len(plan), "incomplete precheck commands")
     require(len({item["name"] for item in plan}) == len(plan), "duplicate planned commands")
+    tools = [item for item in plan if item['name'].startswith('tools/')]
+    cold_cwd = cold_evidence(record, filename, tools) if tools else None
+    for item in plan:
+        require(item['cwd'] == (cold_cwd if item['name'].startswith('tools/') else record['slot']),
+                'planned command cwd differs from precheck slot/cold checkout')
     for item in plan:
         name, argv = item["name"], item["argv"]
         require(name in ("fmt", "clippy", "build") or
@@ -242,7 +339,7 @@ def check(result, repo, tip):
         require(final == current, f"origin/main advanced during check: {current} -> {final}")
         require(not overlap, "origin/main changed precheck files: " + json.dumps(overlap, ensure_ascii=True))
         decision.update(verdict="passed", diagnostic="reported touched files unchanged at observed origin/main; point-in-time only")
-    except (OSError, ValueError, RuntimeError, UnicodeError) as error:
+    except (OSError, ValueError, RuntimeError, UnicodeError, KeyError, TypeError, AttributeError) as error:
         decision["diagnostic"] = f"{error}; rerun precheck with fresh usable evidence"
     return decision
 

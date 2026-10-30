@@ -48,6 +48,50 @@ merge with a staged candidate and an unstaged lower baseline, compares the
 caller's exact index, HEAD, refs, merge state and tracked contents/modes,
 and verifies precheck restoration after the real suite finishes.
 
+### 1.1 Cold tools input and physical routing
+
+When the stage-A path predicate selects tools suites, precheck creates a
+private independent prepared checkout at
+`<slot>.precheck-logs/run-*/cold-tools/checkout`. Its writable parent contains
+suite scratch and sibling fixtures. Original warm targets are never copied,
+renamed, replaced or removed. Ratchets, fmt, clippy and nextest `--no-run`
+retain their original slot/tree cwd and Cargo environment; only tools cwd
+changes. Shared worker/train policy and command argv do not change.
+
+The eagerly loaded `cold_tools.py` and policy run after ratchets and planning.
+They copy tracked working contents and permissions, rebuild the logical
+stage-zero index, preserve detached HEAD=BASE and prepared merge state, and
+copy the local Git object store independently. No source Git config, hooks,
+refs, logs, targets, ignored contents or alternates are copied. Fresh private
+Git configuration has no remote. Borrowed, symlinked, shallow, promisor or
+replaced stores refuse locally; this helper never fetches or repairs a store.
+Historical source objects remain available in the independent copy.
+
+The index tree binds staged inputs; a separately computed raw working tree
+binds unfiltered bytes/modes including unstaged ratchet changes. HEAD's tree
+is BASE and is not the candidate tree. Copy verification checks raw manifests,
+logical index entries, HEAD, merge state and identical discovered names/argv
+in order. Source/helper/policy digests load before any checkout switch.
+
+Static admission measures prepared file/object bytes, allocation rounding and
+index/raw-tree metadata overhead before creating the auxiliary root. It
+requires `free_bytes - required_bytes >= min_free_bytes` and checks actual
+post-copy free bytes against the same minimum, recording allocated bytes.
+This transitional measured admission is not decision0012 hard containment or
+a scratch quota. Copy and scratch belong to the precheck generated root.
+Existing heavy admission, global floors, CPU caps and wall limits stay.
+
+Tools lose inherited artifact overrides, including `TIERS_CPU_WRAPPER`,
+`TIERS_CPU_SETTLEMENT_FIXTURE`, the `TIERS_CPU_*` family, Cargo target/build
+overrides and compiler wrappers/flags. Temporary directories and Cargo home
+are private beneath the auxiliary root; Git global/system config is disabled.
+Evidence records variable names and handling, never their values. Original
+Cargo retains its environment. Root and tree `target` paths must be absent
+initially, before and after every suite. Tracked target paths and escaping
+symlinks refuse. Unexpected generated targets stop further execution, so an
+earlier suite cannot warm a later suite. Ordinary reds still run remaining
+tools suites when the cold prepared view remains valid.
+
 Immediately before each heavy clippy or nextest build command, the helper
 checks `shutil.disk_usage(SLOT).free >= --min-free-bytes`. The default is
 80000000000 bytes, enforcing Ops' temporary night admission policy. The
@@ -129,6 +173,15 @@ the source checkout. Files are 0600: `commands.log`, `result.json`,
 preparation/restoration can rewrite, including baseline files).
 Results include pinned inputs, paths, selection, planned commands, argv,
 step return codes, durations, heavy observation, outcome and restoration.
+Tools receipts add version-1 `cold_tools`: policy hashes, index/raw-tree and
+manifest digests, original/observed input bindings, auxiliary device/inodes,
+discovery plan, environment handling, capacity, per-suite cold observations,
+outcomes and lifecycle. Full entries/manifests/ownership stay in private
+`cold-input.json`; stdout carries compact digests. Ownership intent is fsynced
+before creation and identities are saved as directories are created.
+Known completion and verified removal of the owned auxiliary root precede
+original source restoration and marker/lease completion.
+
 `selection_paths` records candidate paths captured before recounts,
 including reconciled baseline conflict paths; `paths` retains the complete
 post-recount candidate diff against BASE, including generated baselines.
@@ -162,6 +215,21 @@ client allows restoration and reports interruption as infrastructure error.
 A negative or signal-style heavy client exit (including 137), a launch with
 unknown outcome, or a wait exception retains candidate inputs and durable
 ownership. Client disappearance alone never establishes build completion.
+
+An imposed tools timeout kills/waits only its immediate child and cannot
+prove descendant completion. It retains both prepared checkouts, auxiliary
+evidence, marker and durable lifetime hold. Abnormal tools termination,
+wait/launch uncertainty or a surviving tools process group does the same.
+Per-suite timeout remains 60 seconds. A drained normal child permits cleanup;
+no cleanup runs unconditionally after unknown completion.
+
+For cold-tools reconciliation, establish every suite descendant has ended
+before touching either checkout. Verify saved auxiliary parent/root/checkout
+device-inodes and the private manifest; remove only that owned cold-tools
+root and verify its absence. Then restore the recorded source/index, verify
+all original refs, bytes/modes and warm targets, and only then clear the marker
+and lifetime hold through operator reconciliation. Cleanup failure retains
+ownership. No force/recovery CLI or inferred completion is provided.
 
 Do not reuse, reset or remove the marker in an unresolved slot. From its
 recorded submitting directory, inspect status with heavy's supported interface
@@ -251,9 +319,25 @@ same OID between observations also cannot be detected. The queue gate remains
 the final check of the eventual combined candidate. This tool publishes no
 refs; the lead owns the conditional exact-tip ready push.
 
+### 5.1 Tools receipt cutover
+
+Updated ready-check requires version-1 cold evidence for every tools-bearing
+receipt, verifies loaded policy identity, private full-manifest digest and
+input trees, auxiliary ownership/cwd, ordered discovery/outcomes, environment
+handling, cold observations and completed cleanup. Cargo plan cwds must remain
+the original slot. Missing, stale or mismatched cold evidence refuses.
+Ops/coordinators must rerun precheck for older tools receipts after deployment;
+there is no silent compatibility with warm tools results. Docs-only receipts
+without tools retain their existing checks. Deploy compatible precheck/helper
+and ready-check together after source review; an old installed precheck proves
+only its installed policy, not production execution of the new cold path.
+
 ## 6. Later
 
-- Builder validation and fleet installation by Ops after review/landing.
+- Source-CLI production cold proof and compatible fleet installation by Ops
+  after source review/landing. The installed old-policy precheck is separate.
+- Decision0012 hard auxiliary containment/scratch admission remains future
+  work; measured static copy headroom does not establish a hard allocation bound.
 - Coordination with a future common checkout ownership protocol, if workers
   adopt a different lock/marker convention. Noncooperating writers cannot
   be excluded by this tool.

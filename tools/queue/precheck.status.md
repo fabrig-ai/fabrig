@@ -1,5 +1,15 @@
 # Branch pre-ready check status
 
+Cold-tools preparation and version-1 receipt validation are implemented by
+precheck, eagerly loaded cold_tools.py and ready-check (precheck.md, 1.1, 3–5.1).
+Only tools cwd/environment move to an independent private prepared copy with
+logical-index/raw-tree bindings and historical objects. Static-copy headroom
+admission is transitional, not decision0012 hard containment. Unknown tools
+completion or cleanup failure retains source, aux, marker and lifetime hold.
+Older tools receipts require re-precheck after compatible deployment. Tiny
+offline fixtures establish source behavior; source-CLI production cold proof
+awaits Ops source review. Installed old-policy precheck evidence is separate.
+
 Decision0016 stage A shares `mq.tools_required` with queue execution and
 worker expected plans. Full selection without changed `tools/` paths skips
 tools suites while preserving the ordinary ratchet/fmt/clippy/build plan.
