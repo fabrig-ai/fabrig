@@ -719,6 +719,7 @@ impl Referee {
     /// Rejects lost/doubled prices, held reopening or wrong final funding
     /// (jig's domain/authority.md, section 7).
     pub fn final_state(&self, rows: &BTreeMap<Key, Record>) -> Result<(), &'static str> {
+        store_rules(rows)?;
         let number = self.task.ok_or("no script task")?;
         let record = task(rows, number).ok_or("missing final task")?;
         let expected_funder =
@@ -795,4 +796,50 @@ fn undated(outcome: people::Outcome) -> people::Outcome {
         return people::Outcome::EscalationDecided { task, revision, by, at: skein_lib::Wall::EPOCH, choice };
     }
     outcome
+}
+
+/// Cross-record obligations of escalation writers, checked after each
+/// durable transaction and at the settled store (jig/docs/design/domain/engine.md, 15).
+///
+/// # Errors
+/// Returns the violated policy, held-entry or actor high-water obligation.
+pub fn store_rules(rows: &BTreeMap<Key, Record>) -> Result<(), &'static str> {
+    let Some(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(header)))) =
+        rows.get(&Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Deployment)))
+    else {
+        return Err("escalation store has no deployment high-water marks");
+    };
+    for row in rows.values() {
+        if let Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task) | tasks::Stored::Ended(task))) =
+            row
+        {
+            let Some(Record::Core(jig_domain_core::Record::People(people::Stored::Policy { value, .. }))) =
+                rows.get(&Key::Core(jig_domain_core::Key::People(people::Key::Policy(task.project))))
+            else {
+                return Err("task has no project fallback policy");
+            };
+            if value.escalation_role.is_none() {
+                return Err("task policy has no fallback role");
+            }
+            match task.escalation {
+                tasks::Escalation::Waiting { entry, holder, .. } => {
+                    if entry > header.messages {
+                        return Err("held entry exceeds durable message high-water mark");
+                    }
+                    if let tasks::EscalationHolder::Role { project, .. } = holder
+                        && project != task.project
+                    {
+                        return Err("held fallback belongs to another project");
+                    }
+                }
+                tasks::Escalation::Rejected { by, .. } if by > header.people.max(header.tasks) => {
+                    return Err("rejection actor exceeds durable actor high-water mark");
+                }
+                tasks::Escalation::Unheld { .. }
+                | tasks::Escalation::Routing { .. }
+                | tasks::Escalation::Rejected { .. } => {}
+            }
+        }
+    }
+    Ok(())
 }

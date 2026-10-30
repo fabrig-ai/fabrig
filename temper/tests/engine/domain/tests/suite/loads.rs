@@ -269,7 +269,7 @@ fn a_census_page_takes_repeated_owners_and_an_index_cursor() {
     let limits = Limits { bytes: 16_384, reply_bytes: 16_384, transcript_bytes: 16_384, ..LIMITS };
     let mut loads = Loads::new(&limits);
     let mut out = Queue::with_capacity(1);
-    let owner = loads::begin(&mut loads, Token::new(51), census_range(), None, 3, &mut out).expect("census admitted");
+    let owner = loads::begin(&mut loads, STARTUP, census_range(), None, 3, &mut out).expect("census admitted");
     out.pop();
     let (rows, next) = store.page(&census_range(), None, 3);
     assert_eq!(next, Some(result_key(8, 3)));
@@ -348,13 +348,13 @@ fn a_census_page_takes_an_ended_read_position_then_its_task() {
     let limits = Limits { bytes: 16_384, reply_bytes: 16_384, transcript_bytes: 16_384, ..LIMITS };
     let mut loads = Loads::new(&limits);
     let mut out = Queue::with_capacity(1);
-    let owner = loads::begin(&mut loads, Token::new(51), census_range(), None, 2, &mut out).expect("census admitted");
+    let owner = loads::begin(&mut loads, STARTUP, census_range(), None, 2, &mut out).expect("census admitted");
     out.pop();
     let (rows, next) = store.page(&census_range(), None, 2);
     assert_eq!(rows, Box::new([position, ended_record(5)]) as Box<[Record]>);
     assert_eq!(next, Some(ended_read_key(5, 8)));
     loads::loaded(&mut loads, owner, rows.clone(), next.clone(), &mut out);
-    assert_eq!(out.pop(), Some(Request::Loaded { waiter: Token::new(51), rows, next: next.clone(), cut: None }));
+    assert_eq!(out.pop(), Some(Request::Loaded { waiter: STARTUP, rows, next: next.clone(), cut: None }));
     let (rows, next) = store.page(&census_range(), next.as_ref(), 2);
     assert_eq!(rows, Box::new([ended_record(5)]) as Box<[Record]>);
     assert_eq!(next, None);
@@ -486,6 +486,7 @@ fn a_failed_restore_load_retains_its_kind_and_store_failure() {
     driver.send(root::Event::Store(root::StoreInput::Unloaded { owner }));
     driver.pump();
     assert!(driver.stopped);
+    assert_eq!(driver.root.restart_failure(), Some(jig_domain_core::RestartStep::LoadCore));
     assert_eq!(
         driver.root.restore_load_failure(),
         Some(loads::RestoreFailure { range: loads::Kind::Deployment, failure: Failure::Store })
@@ -493,18 +494,134 @@ fn a_failed_restore_load_retains_its_kind_and_store_failure() {
 }
 
 #[test]
-fn a_malformed_restore_page_retains_its_kind_and_range_failure() {
-    let (mut driver, owner) = first_restore_load();
+fn startup_rows_bytes_and_soft_cuts_retain_range_and_failed_step_before_switch() {
+    for shape in 0..3 {
+        let (mut driver, owner) = first_restore_load();
+        let limits = driver.env.limits.loads;
+        let (rows, failure): (Box<[Record]>, Failure) = match shape {
+            0 => (
+                vec![row(1, 0); usize::try_from(limits.rows + 1).expect("valid bounded fixture")].into_boxed_slice(),
+                Failure::Rows,
+            ),
+            1 => (
+                Box::new([row(1, usize::try_from(limits.reply_bytes).expect("valid bounded fixture") + 1)]),
+                Failure::Bytes,
+            ),
+            2 => (
+                Box::new([row(1, usize::try_from(limits.transcript_bytes).expect("valid bounded fixture") + 1)]),
+                Failure::Bytes,
+            ),
+            _ => unreachable!(),
+        };
+        driver.send(root::Event::Store(root::StoreInput::Loaded { owner, rows, next: None, texts: None }));
+        driver.pump();
+        assert!(driver.stopped);
+        assert_eq!(
+            driver.root.restore_load_failure(),
+            Some(loads::RestoreFailure { range: loads::Kind::Deployment, failure })
+        );
+        assert_eq!(driver.root.restart_failure(), Some(jig_domain_core::RestartStep::LoadCore));
+        assert!(driver.switches.is_empty());
+        assert!(!driver.transactions.iter().flatten().any(|write| matches!(write, root::Write::Wires)));
+        driver.send(root::Event::Store(root::StoreInput::Unloaded { owner }));
+        driver.pump();
+        assert_eq!(
+            driver.root.restore_load_failure(),
+            Some(loads::RestoreFailure { range: loads::Kind::Deployment, failure }),
+            "first failure remains"
+        );
+    }
+}
+
+#[test]
+fn real_writer_store_walk_rejects_wrong_family_duplicates_order_and_cursor_mutations() {
+    use temper_engine_domain_world::store::page_rules;
+    let (mut driver, _) = temper_engine_domain_world::direct::Driver::chat();
+    let range = Range::Core(root::CoreRange::Tasks);
+    let (rows, next) = driver.store.page(&range, None, 4);
+    assert!(!rows.is_empty());
+    page_rules(&range, None, &rows, next.as_ref()).expect("valid bounded fixture");
+    assert!(page_rules(&range, None, &[row(1, 0)], None).is_err());
+    let duplicate = vec![rows[0].clone(), rows[0].clone()];
+    assert!(page_rules(&range, None, &duplicate, None).is_err());
+    assert!(page_rules(&range, Some(&rows[0].key()), &rows[..1], None).is_err());
+}
+
+const STARTUP: Token = Token::new(u64::MAX);
+
+#[test]
+fn startup_keeps_fitting_rows_without_record_membership_order_or_cursor_agreement_rules() {
+    let limits = Limits { bytes: 16_384, reply_bytes: 16_384, ..LIMITS };
+    let mut loads = Loads::new(&limits);
+    let mut out = Queue::with_capacity(1);
+    let range = Range::Core(root::CoreRange::Calls);
+    let cursor = Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Call(jig_domain_core::CallKey {
+        task: 0,
+        attempt: 0,
+        completion: 0,
+        position: 0,
+    })));
+    let owner = loads::begin(&mut loads, STARTUP, range, None, 4, &mut out).expect("valid bounded fixture");
+    out.pop();
+    let rows = Box::new([row(2, 0), row(1, 0), row(1, 0)]) as Box<[Record]>;
+    loads::loaded(&mut loads, owner, rows.clone(), Some(cursor.clone()), &mut out);
+    assert_eq!(out.pop(), Some(Request::Loaded { waiter: STARTUP, rows, next: Some(cursor), cut: None }));
+    loads::unloaded(&mut loads, owner, &mut out);
+    assert!(out.is_empty());
+}
+
+#[test]
+fn startup_continuations_assert_unusable_or_nonprogressing_walk_positions() {
+    for (range, after, next) in [
+        (census_range(), result_key(8, 2), result_key(8, 2)),
+        (census_range(), result_key(4, 2), result_key(8, 3)),
+        (census_range(), result_key(8, 2), key(3)),
+        (
+            Range::Core(root::CoreRange::Accounts),
+            Key::Core(jig_domain_core::Key::Accounts(jig_domain_accounts::Key::Next)),
+            Key::Core(jig_domain_core::Key::Accounts(jig_domain_accounts::Key::Issued { number: 1 })),
+        ),
+        (Range::Forge, Key::Forge(temper_engine_domain_forge::Key::Entry(1)), Key::Wires),
+    ] {
+        let failed = std::panic::catch_unwind(|| {
+            let mut loads = Loads::new(&LIMITS);
+            let mut out = Queue::with_capacity(1);
+            let owner =
+                loads::begin(&mut loads, STARTUP, range, Some(after), 4, &mut out).expect("valid bounded fixture");
+            out.pop();
+            loads::loaded(&mut loads, owner, Box::new([]), Some(next), &mut out);
+        });
+        assert!(failed.is_err(), "startup transport bug must assert");
+    }
+}
+
+#[test]
+fn a_later_forge_load_fit_failure_keeps_its_range_and_connector_step() {
+    let mut driver = temper_engine_domain_world::direct::Driver::new(Store::new());
+    let mut owner = None;
+    for _ in 0..300 {
+        driver.advance(true);
+        if let Some((token, Range::Forge)) = driver.loads.last() {
+            owner = Some(*token);
+            break;
+        }
+    }
+    let owner = owner.expect("startup reached forge after core and census");
+    driver.events.clear();
+    let bytes = usize::try_from(driver.env.limits.loads.reply_bytes).expect("valid bounded fixture") + 1;
     driver.send(root::Event::Store(root::StoreInput::Loaded {
         owner,
-        rows: Box::new([row(1, 0)]),
+        rows: Box::new([row(1, bytes)]),
         next: None,
         texts: None,
     }));
     driver.pump();
-    assert!(driver.stopped);
     assert_eq!(
         driver.root.restore_load_failure(),
-        Some(loads::RestoreFailure { range: loads::Kind::Deployment, failure: Failure::Range })
+        Some(loads::RestoreFailure { range: loads::Kind::Forge, failure: Failure::Bytes })
     );
+    assert_eq!(driver.root.restart_failure(), Some(jig_domain_core::RestartStep::RestoreConnector { connector: 0 }));
+    assert!(driver.stopped);
+    assert!(driver.switches.is_empty());
+    assert!(!driver.transactions.iter().flatten().any(|write| matches!(write, root::Write::Wires)));
 }

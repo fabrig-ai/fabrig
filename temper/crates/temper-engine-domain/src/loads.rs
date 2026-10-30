@@ -7,8 +7,10 @@
 //! owner through [`loaded`] or [`unloaded`], each emitting at most one terminal
 //! to the live root waiter. [`abandon`] suppresses waiter delivery without
 //! freeing issued IO; [`reclaim`] frees retired slots at iteration end. Every
-//! emitting entry point requires one reserved output slot. Whole-page row,
-//! range, ordering, cursor and deep-byte checks precede any kept prefix.
+//! emitting entry point requires one reserved output slot. Whole-page row
+//! and deep-byte checks precede any kept prefix. Ordinary reads also check
+//! membership, order and cursor agreement; startup asserts transport progress
+//! (temper/docs/design/domain/root.md, 9.1).
 //! Byte cuts carry exact omitted rows/bytes and a potentially nonprogressing
 //! continuation; the walking root stops rather than restoring a cut page.
 use crate::{Key, Range, Record};
@@ -216,13 +218,17 @@ pub fn begin(
         return None;
     }
     if let Some(key) = &after {
-        match &range {
-            Range::Census(census) => {
-                census_position(census, key)?;
-            }
-            Range::Core(_) | Range::Forge => {
-                if !range.contains(key) {
-                    return None;
+        if restarting(waiter) {
+            startup_position(&range, key);
+        } else {
+            match &range {
+                Range::Census(census) => {
+                    census_position(census, key)?;
+                }
+                Range::Core(_) | Range::Forge => {
+                    if !range.contains(key) {
+                        return None;
+                    }
                 }
             }
         }
@@ -334,15 +340,17 @@ fn check(entry: &Entry, limits: &Limits, rows: &[Record], next: Option<Key>) -> 
     let mut cutting = false;
     for row in rows {
         let key = row.key();
-        if !entry.range.contains(&key) {
-            return Err(Failure::Range);
-        }
-        if let Range::Census(_) = &entry.range {
-        } else if let Some(old) = &previous
-            && position(&entry.range, &key).ok_or(Failure::Range)?
-                <= position(&entry.range, old).ok_or(Failure::Range)?
-        {
-            return Err(Failure::Order);
+        if !restarting(entry.waiter) {
+            if !entry.range.contains(&key) {
+                return Err(Failure::Range);
+            }
+            if let Range::Census(_) = &entry.range {
+            } else if let Some(old) = &previous
+                && position(&entry.range, &key).ok_or(Failure::Range)?
+                    <= position(&entry.range, old).ok_or(Failure::Range)?
+            {
+                return Err(Failure::Order);
+            }
         }
         previous = Some(key.clone());
         let owned = crate::store::record_bytes(row).ok_or(Failure::Bytes)?;
@@ -361,43 +369,16 @@ fn check(entry: &Entry, limits: &Limits, rows: &[Record], next: Option<Key>) -> 
         }
     }
     if let Some(cursor) = &next {
-        if let Range::Census(census) = &entry.range {
-            let position = census_position(census, cursor).ok_or(Failure::Cursor)?;
+        if restarting(entry.waiter) {
+            let position = startup_position(&entry.range, cursor);
             if let Some(after) = &entry.after {
-                let start = census_position(census, after).ok_or(Failure::Cursor)?;
-                if position <= start {
-                    return Err(Failure::Order);
-                }
+                assert!(
+                    position > startup_position(&entry.range, after),
+                    "startup continuation advances in walk order"
+                );
             }
-        } else if rows.is_empty() || Some(cursor) != previous.as_ref() || !entry.range.contains(cursor) {
-            return Err(Failure::Cursor);
-        }
-        match &entry.range {
-            Range::Core(
-                crate::CoreRange::Deployment
-                | crate::CoreRange::RequesterWord { .. }
-                | crate::CoreRange::TaskResult { .. }
-                | crate::CoreRange::EndedRead { .. }
-                | crate::CoreRange::EscalationDecision { .. }
-                | crate::CoreRange::ProposalDecision { .. }
-                | crate::CoreRange::TaskProposal { .. },
-            ) => {
-                return Err(Failure::Cursor);
-            }
-            Range::Core(crate::CoreRange::Notes(jig_domain_notes::Range::Entry { .. })) => return Err(Failure::Cursor),
-            Range::Core(
-                crate::CoreRange::Turns { .. }
-                | crate::CoreRange::TaskTranscript { .. }
-                | crate::CoreRange::Tasks
-                | crate::CoreRange::Settings
-                | crate::CoreRange::Accounts
-                | crate::CoreRange::People
-                | crate::CoreRange::RunProofs
-                | crate::CoreRange::Calls
-                | crate::CoreRange::Notes(jig_domain_notes::Range::Lines { .. }),
-            )
-            | Range::Census(_)
-            | Range::Forge => {}
+        } else {
+            read_cursor(entry, rows.is_empty(), previous.as_ref(), cursor)?;
         }
     }
     if bytes.checked_add(removed_bytes).ok_or(Failure::Bytes)? > u64::from(limits.reply_bytes) {
@@ -419,6 +400,68 @@ fn check(entry: &Entry, limits: &Limits, rows: &[Record], next: Option<Key>) -> 
         }
     };
     Ok(Page { keep, next: continuation, cut })
+}
+
+fn read_cursor(entry: &Entry, empty: bool, previous: Option<&Key>, cursor: &Key) -> Result<(), Failure> {
+    if let Range::Census(census) = &entry.range {
+        let position = census_position(census, cursor).ok_or(Failure::Cursor)?;
+        if let Some(after) = &entry.after {
+            let start = census_position(census, after).ok_or(Failure::Cursor)?;
+            if position <= start {
+                return Err(Failure::Order);
+            }
+        }
+    } else if empty || Some(cursor) != previous || !entry.range.contains(cursor) {
+        return Err(Failure::Cursor);
+    }
+    match &entry.range {
+        Range::Core(
+            crate::CoreRange::Deployment
+            | crate::CoreRange::RequesterWord { .. }
+            | crate::CoreRange::TaskResult { .. }
+            | crate::CoreRange::EndedRead { .. }
+            | crate::CoreRange::EscalationDecision { .. }
+            | crate::CoreRange::ProposalDecision { .. }
+            | crate::CoreRange::TaskProposal { .. }
+            | crate::CoreRange::Notes(jig_domain_notes::Range::Entry { .. }),
+        ) => {
+            return Err(Failure::Cursor);
+        }
+        Range::Core(
+            crate::CoreRange::Turns { .. }
+            | crate::CoreRange::TaskTranscript { .. }
+            | crate::CoreRange::Tasks
+            | crate::CoreRange::Settings
+            | crate::CoreRange::Accounts
+            | crate::CoreRange::People
+            | crate::CoreRange::RunProofs
+            | crate::CoreRange::Calls
+            | crate::CoreRange::Notes(jig_domain_notes::Range::Lines { .. }),
+        )
+        | Range::Census(_)
+        | Range::Forge => {}
+    }
+    Ok(())
+}
+
+fn restarting(waiter: Token) -> bool {
+    waiter == Token::new(u64::MAX)
+}
+
+fn startup_position(range: &Range, key: &Key) -> (u32, Key) {
+    match (range, key) {
+        (Range::Census(census), key) => {
+            let (interval, key) = census_position(census, key).expect("usable startup census continuation");
+            (interval, Key::Core(key))
+        }
+        (Range::Core(range), Key::Core(key)) => {
+            let (interval, key) = jig_domain_core::restore_cursor(range.restore_ranges(), key)
+                .expect("usable startup continuation in its store walk");
+            (interval, Key::Core(key))
+        }
+        (Range::Forge, Key::Forge(_)) => (0, key.clone()),
+        _ => unreachable!("usable startup continuation in its store walk"),
+    }
 }
 
 fn position(range: &Range, key: &Key) -> Option<(u32, Key)> {

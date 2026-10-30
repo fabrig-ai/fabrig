@@ -130,6 +130,8 @@ fn declared_and_imported_rows_walk_reservations_before_the_counter() {
     let mut keys = Vec::new();
     for _ in 0..PAGES {
         let (rows, next) = store.page(&range, after.as_ref(), PAGE);
+        temper_engine_domain_world::store::page_rules(&range, after.as_ref(), &rows, next.as_ref())
+            .expect("real account writer walk");
         keys.extend(rows.iter().map(Record::key));
         after = next;
     }
@@ -169,7 +171,7 @@ fn accounts_load_accepts_counter_after_an_issued_page_cursor() {
     let mut loads = Loads::new(&limits().loads);
     // Each loads entry point emits at most one request or terminal.
     let mut out = Queue::with_capacity(1);
-    let waiter = Token::new(103);
+    let waiter = Token::new(u64::MAX);
     let owner = loads::begin(&mut loads, waiter, range, after, SINGLE_ROW, &mut out).expect("load admitted");
     let _ = out.pop().expect("store request");
     loads::loaded(&mut loads, owner, rows, next, &mut out);
@@ -236,7 +238,7 @@ fn the_first_account_follows_the_counter_cursor() {
 }
 
 #[test]
-fn duplicate_and_backward_accounts_pages_are_still_refused() {
+fn ordinary_accounts_pages_still_refuse_duplicates_and_backwards_rows() {
     use accounts::Key;
     for (after, rows) in [
         (None, vec![issued(1), issued(1)]),
@@ -250,4 +252,22 @@ fn duplicate_and_backward_accounts_pages_are_still_refused() {
             Some(engine::loads::Request::Unloaded { waiter: Token::new(104), failure: engine::loads::Failure::Order })
         );
     }
+}
+
+#[test]
+fn real_account_writer_pages_reject_duplicate_backward_and_before_cursor_copies_in_the_oracle() {
+    use temper_engine_domain_world::store::page_rules;
+    let mut store = kept_store();
+    let range = engine::Range::Core(engine::CoreRange::Accounts);
+    let (rows, next) = store.page(&range, None, PAGE);
+    page_rules(&range, None, &rows, next.as_ref()).expect("valid bounded fixture");
+    assert_eq!(rows.len(), 2, "issued reservation before the counter");
+    for altered in [vec![rows[0].clone(), rows[0].clone()], vec![rows[1].clone(), rows[0].clone()]] {
+        assert!(page_rules(&range, None, &altered, None).is_err());
+    }
+    assert!(page_rules(&range, Some(&rows[1].key()), &rows[..1], None).is_err());
+    assert!(
+        page_rules(&range, None, &rows, Some(&rows[0].key())).is_err(),
+        "cursor must agree with the last account row"
+    );
 }

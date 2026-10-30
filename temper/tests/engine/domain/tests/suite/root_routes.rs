@@ -4979,3 +4979,76 @@ mod transcript_unread;
 
 #[path = "root_routes/held_restart.rs"]
 mod held_restart;
+
+#[test]
+fn restored_rejection_reaches_jigs_link_pass_after_temper_loads_it() {
+    use temper_engine_domain_world::{escalation, escalation_referee::Story};
+    let mut world = escalation::World::new(escalation::Settings::calm(9202, Story::Reject));
+    world.run();
+    let mut store = world.store.fork();
+    let mut rows = store.rows.clone();
+    let mut changed = 0;
+    for row in rows.values_mut() {
+        if let Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task))) = row
+            && let tasks::Escalation::Rejected { by, .. } = &mut task.escalation
+        {
+            *by = store.header().people.max(store.header().tasks) + 1;
+            changed += 1;
+        }
+    }
+    assert_eq!(changed, 1);
+    store.seed(rows.into_values().collect(), Box::new([]));
+    // Reuse the rejected-hold restart fixture's room for its configured owner.
+    let mut configured = escalation::limits();
+    configured.people.people = 3;
+    configured.people.sign_ins = 3;
+    let mut driver = Driver::configured(store, [config(9202), config(9202)], &configured);
+    for _ in 0..300 {
+        driver.advance(true);
+        if driver.stopped || driver.root.ready() {
+            break;
+        }
+    }
+    assert_eq!(driver.root.restore_load_failure(), None);
+    assert_eq!(driver.root.restart_failure(), Some(jig_domain_core::RestartStep::Switch));
+    assert!(
+        matches!(driver.root.restore_failure(), Some(jig_domain_core::RestartRequest::Unresolved { .. })),
+        "legacy jig link judgments remain"
+    );
+    assert!(
+        driver.loads.iter().any(|(_, range)| *range == engine::Range::Forge),
+        "row passed temper's LoadCore precheck"
+    );
+    assert!(driver.switches.is_empty(), "jig refusal still precedes the switch");
+}
+
+#[test]
+fn actual_question_writer_census_pages_reject_altered_question_identities_in_the_store_oracle() {
+    use temper_engine_domain_world::store::page_rules;
+    let (mut driver, parent, question, _) = unanswered_question();
+    let line = live(&driver, parent.task)
+        .question_lines
+        .iter()
+        .find(|line| line.message == question)
+        .expect("real question writer fixture")
+        .line;
+    let range = engine::Range::Census(jig_domain_core::Census {
+        results: Box::new([]),
+        questions: Box::new([(parent.task, line)]),
+    });
+    let (rows, next) = driver.store.page(&range, None, 2);
+    assert_eq!(rows.len(), 1, "real message transaction stored its question activity");
+    page_rules(&range, None, &rows, next.as_ref()).expect("real question writer fixture");
+    for field in 0..2 {
+        let mut altered = rows.clone();
+        let Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Activity(activity))) = &mut altered[0] else {
+            panic!("exact question")
+        };
+        match field {
+            0 => activity.task += 1,
+            1 => activity.position += 1,
+            _ => unreachable!(),
+        }
+        assert!(page_rules(&range, None, &altered, next.as_ref()).is_err());
+    }
+}

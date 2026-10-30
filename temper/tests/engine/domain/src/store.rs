@@ -617,3 +617,63 @@ pub fn with_start_mark(mut rows: BTreeMap<Key, Record>) -> BTreeMap<Key, Record>
     header.commits += 1;
     rows
 }
+
+/// Writer/store oracle for selected families, exclusive walk order and page
+/// continuation. Census owners can repeat; its cursor names an index instead
+/// (temper/docs/design/domain/root.md, 9.1; jig/docs/design/domain/engine.md, 15).
+///
+/// # Errors
+/// Returns the violated family, ordering or continuation obligation.
+pub fn page_rules(range: &Range, after: Option<&Key>, rows: &[Record], next: Option<&Key>) -> Result<(), &'static str> {
+    let mut previous = after.cloned();
+    for row in rows {
+        let key = row.key();
+        if !range.contains(&key) {
+            return Err("page row outside selected family or census question");
+        }
+        if !matches!(range, Range::Census(_)) {
+            if let Some(old) = &previous
+                && walk_position(range, &key)? <= walk_position(range, old)?
+            {
+                return Err("page repeats or reverses its exclusive walk");
+            }
+            previous = Some(key);
+        }
+    }
+    if let Some(next) = next {
+        let position = walk_position(range, next)?;
+        if let Some(after) = after
+            && position <= walk_position(range, after)?
+        {
+            return Err("page cursor does not advance");
+        }
+        if !matches!(range, Range::Census(_)) {
+            let last = previous.as_ref().ok_or("continuation without a selected row")?;
+            if matches!(range, Range::Forge | Range::Core(engine::CoreRange::Accounts)) && next != last {
+                return Err("page cursor differs from its last row");
+            }
+            if position < walk_position(range, last)? {
+                return Err("cursor before delivered prefix");
+            }
+            if matches!(range, Range::Core(engine::CoreRange::Deployment)) {
+                return Err("singleton continuation");
+            }
+        }
+    }
+    Ok(())
+}
+
+fn walk_position(range: &Range, key: &Key) -> Result<(u32, Key), &'static str> {
+    match (range, key) {
+        (Range::Census(census), Key::Core(key)) => {
+            Ok((census.interval(key).ok_or("non-index census cursor")?, Key::Core(key.clone())))
+        }
+        (Range::Core(range), Key::Core(key)) if !range.restore_ranges().is_empty() => {
+            let (interval, key) =
+                jig_domain_core::restore_cursor(range.restore_ranges(), key).ok_or("cursor outside walk")?;
+            Ok((interval, Key::Core(key)))
+        }
+        (_, Key::Wires) => Err("wires are not a load cursor"),
+        _ => Ok((0, key.clone())),
+    }
+}
