@@ -135,7 +135,7 @@ enum Choice {
 /// Restoration entrances select the start contract (jig/docs/design/domain/engine.md, 6).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum StartMode {
-    Legacy,
+    Default,
     LoadAndLink,
 }
 #[derive(Debug)]
@@ -201,7 +201,7 @@ impl Domain {
             ended: Queue::with_capacity(limits.facts),
             lost: 0,
             unrestored: 0,
-            start_mode: StartMode::Legacy,
+            start_mode: StartMode::Default,
             restore_consumed: false,
             restore_failure: None,
             now: Time::ZERO,
@@ -214,7 +214,7 @@ impl Domain {
     /// Repeated selection or selection after operational input is a programmer error.
     pub fn start_restore(&mut self) {
         assert!(
-            self.start_mode == StartMode::Legacy && !self.restore_consumed && self.phase == Phase::New,
+            self.start_mode == StartMode::Default && !self.restore_consumed && self.phase == Phase::New,
             "accounts start restore is selected once before any operational input"
         );
         self.start_mode = StartMode::LoadAndLink;
@@ -585,7 +585,7 @@ fn restore(domain: &mut Domain, env: &Env<Limits>, record: Stored) {
         return;
     }
     match domain.start_mode {
-        StartMode::Legacy => crate::restore::restore(domain, env, record),
+        StartMode::Default => crate::restore::restore(domain, env, record),
         StartMode::LoadAndLink => crate::restore::load(domain, env, record),
     }
 }
@@ -595,7 +595,7 @@ fn want(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         return;
     }
     match domain.start_mode {
-        StartMode::Legacy => {
+        StartMode::Default => {
             domain.phase = Phase::Wanted;
             crate::restore::finish(domain, env, out);
             crate::ordering::normalize(domain, env, out);
