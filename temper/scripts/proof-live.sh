@@ -68,6 +68,7 @@ elif [ -n "${TEMPER_LIVE_CLAUDE-}" ]; then
     exit 2
 fi
 store=
+held_landing=false
 rung=false
 rerun=false
 if [ "${1-}" = forge-land ] || [ "${1-}" = forge-land-claude ] || [ "${1-}" = rung-b0 ]; then
@@ -102,6 +103,7 @@ if [ "${1-}" = forge-land ] || [ "${1-}" = forge-land-claude ] || [ "${1-}" = ru
         [ "$(stat -c %a -- "$TEMPER_LIVE_ACCOUNT")" = 600 ] || { printf '%s\n' 'TEMPER_LIVE_ACCOUNT is not 0600' >&2; exit 2; }
         TEMPER_LIVE_ACCOUNT=$(readlink -f -- "$TEMPER_LIVE_ACCOUNT")
         export TEMPER_LIVE_ACCOUNT
+        if [ "${1-}" = forge-land ]; then held_landing=true; fi
         printf '%s\n' 'moving the held ChatGPT account in; needs no person'
     fi
 elif [ -n "${TEMPER_LIVE_ACCOUNT-}" ]; then
@@ -167,10 +169,10 @@ finish() {
     status=$?
     trap - EXIT INT TERM HUP
     set +e
-    # The rung installs this before account import. Return while its box is
+    # A held-login story installs this before import. Return while its box is
     # still alive, including when nextest or this script received a signal.
     # A failed return leaves the deployment alive for the owner's recovery.
-    if [ "$rung" = true ] && [ -x "$store/give-back" ]; then
+    if { [ "$rung" = true ] || [ "$held_landing" = true ]; } && [ -x "$store/give-back" ]; then
         if ! timeout 60 "$store/give-back" >> "$notice" 2>&1; then
             printf '%s\n' 'LOGIN NOT BACK: export/stat failed; box retained for recovery' >&2
             printf 'return hook %s/give-back\n' "$store" >&2
@@ -197,6 +199,16 @@ finish() {
     fi
     stopped=true
     stop_owned || { stopped=false; status=1; }
+    if [ "$held_landing" = true ]; then
+        if [ "$(LC_ALL=C stat -c %F -- "$TEMPER_LIVE_ACCOUNT" 2>/dev/null)" != 'regular file' ] ||
+           [ "$(stat -c %a -- "$TEMPER_LIVE_ACCOUNT" 2>/dev/null)" != 600 ] ||
+           ! [ "$(stat -c %s -- "$TEMPER_LIVE_ACCOUNT" 2>/dev/null)" -gt 0 ]; then
+            printf '%s\n' 'LOGIN NOT BACK: final stat failed; store retained for recovery' >&2
+            status=1
+        else
+            stat -c 'LOGIN BACK: %F mode=%a bytes=%s owner=%u' -- "$TEMPER_LIVE_ACCOUNT" >> "$notice"
+        fi
+    fi
     if [ -n "$claude_identity" ]; then
         returned=$(LC_ALL=C stat -c '%d:%i:%a:%u:%F' -- "$TEMPER_LIVE_CLAUDE" 2>/dev/null)
         if [ "$stopped" = true ] && [ "$returned" = "$claude_identity" ]; then

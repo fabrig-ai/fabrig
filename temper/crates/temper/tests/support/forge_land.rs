@@ -1296,6 +1296,16 @@ pub struct LivePlan<'a> {
 }
 
 impl LivePlan<'_> {
+    fn install_return_hook(&self) {
+        if let LiveModel::ChatGpt { account: Some(account) } = self.model {
+            super::held_login::return_hook(
+                &skein_scratch::paths::binary("temper"),
+                self.paths[0].parent().expect("store"),
+                self.client,
+                account,
+            );
+        }
+    }
     fn starting_phase(&self) -> LivePhase {
         if self.first && !self.kept && matches!(self.model, LiveModel::ClaudeCode { .. }) {
             LivePhase::ProgramDeclared
@@ -1412,6 +1422,7 @@ enum LivePhase {
     Pages,
     Closing,
     Done,
+    Returning,
     Stopping,
     Settled,
 }
@@ -1437,6 +1448,8 @@ struct LiveJudge<'a> {
     account_checked: bool,
     linked: bool,
     cleanup: bool,
+    return_until: Option<skein_lib::Time>,
+    return_at: Option<usize>,
     phase: LivePhase,
     snapshot: Option<String>,
     replies: std::collections::BTreeMap<u64, serde_json::Value>,
@@ -1540,10 +1553,9 @@ impl LiveJudge<'_> {
             LivePhase::Pages => self.read_page(calls, &last)?,
             LivePhase::Closing => {
                 self.check_landing(calls)?;
-                calls.release();
                 self.phase = LivePhase::Done;
             }
-            LivePhase::Done | LivePhase::Stopping | LivePhase::Settled => {}
+            LivePhase::Done | LivePhase::Returning | LivePhase::Stopping | LivePhase::Settled => {}
         }
         Ok(())
     }
@@ -2020,7 +2032,7 @@ impl LiveJudge<'_> {
             self.active_until = None;
         }
         self.checked = calls.ends().len();
-        if !matches!(self.phase, LivePhase::Done | LivePhase::Stopping | LivePhase::Settled)
+        if !matches!(self.phase, LivePhase::Done | LivePhase::Returning | LivePhase::Stopping | LivePhase::Settled)
             && !matches!(self.phase, LivePhase::ProgramDeclared)
             && !self.account_checked
             && calls.ends().len() > self.account_at
@@ -2041,6 +2053,55 @@ impl LiveJudge<'_> {
             patience.watch(binary);
         }
     }
+    fn return_failed(&mut self, message: &str) {
+        let message = format!("LOGIN NOT BACK: {message}; store retained for recovery");
+        super::live::notice(&message);
+        self.failure.set(Some(message));
+    }
+    fn finish_story(
+        &mut self,
+        now: skein_lib::Time,
+        binary: &mut skein_world::end_to_end::Binary,
+        calls: &mut super::ctl::Calls,
+    ) {
+        if matches!(self.phase, LivePhase::Done) {
+            let failed = self.failure.take();
+            let due = matches!(self.plan.model, LiveModel::ChatGpt { account: Some(_) })
+                && super::held_login::due_back(self.plan.first, failed.is_some());
+            self.failure.set(failed);
+            if due {
+                self.return_until = Some(now.saturating_add(Duration::from_secs(60)));
+                self.phase = LivePhase::Returning;
+            }
+        }
+        if matches!(self.phase, LivePhase::Returning) {
+            if let Some(index) = self.return_at
+                && let Some(ended) = calls.ends().get(index)
+            {
+                super::live::notice(&String::from_utf8_lossy(&ended.stdout));
+                super::live::notice(&String::from_utf8_lossy(&ended.stderr));
+                if ended.exit != Some(Exit::Code(0)) {
+                    self.return_failed(&format!("give-back exited {:?}", ended.exit));
+                }
+                self.stop(binary, calls);
+            } else if self.return_until.is_some_and(|until| now >= until) {
+                self.return_failed("give-back exceeded its 60 second deadline");
+                self.stop(binary, calls);
+            } else if self.return_at.is_none() && calls.foreground_idle() {
+                let hook = self.plan.paths[0].parent().expect("store").join("give-back");
+                self.return_at = Some(calls.ends().len());
+                calls.push(super::ctl::Step::Run(super::ctl::Call::command(&hook, &[])));
+            }
+        } else if matches!(self.phase, LivePhase::Done) {
+            self.stop(binary, calls);
+        }
+    }
+    fn stop(&mut self, binary: &mut skein_world::end_to_end::Binary, calls: &mut super::ctl::Calls) {
+        calls.release();
+        calls.cancel();
+        binary.signal(skein_io::kernel::Signal::Terminate);
+        self.phase = LivePhase::Stopping;
+    }
     fn drive(
         &mut self,
         now: skein_lib::Time,
@@ -2053,16 +2114,21 @@ impl LiveJudge<'_> {
             super::live::client_notice(&String::from_utf8_lossy(calls.link()));
             self.linked = true;
         }
-        self.check_calls(now, calls);
+        if matches!(self.phase, LivePhase::Done | LivePhase::Returning) {
+            self.finish_story(now, binary, calls);
+        }
+        if !self.stopping() && !matches!(self.phase, LivePhase::Returning) {
+            self.check_calls(now, calls);
+        }
         if !self.stopping()
-            && !matches!(self.phase, LivePhase::Done)
+            && !matches!(self.phase, LivePhase::Done | LivePhase::Returning)
             && binary.exit_status().is_none()
             && let Err(message) = self.advance(now, calls)
         {
             self.fail(&message, calls, calls.ends().len().checked_sub(1));
         }
         self.watch_waits(binary);
-        if !self.stopping() && !matches!(self.phase, LivePhase::Done) {
+        if !self.stopping() && !matches!(self.phase, LivePhase::Done | LivePhase::Returning) {
             if binary.exit_status().is_some() {
                 super::live::notice(&format!(
                     "BOX exit={:?} stderr: {}",
@@ -2086,7 +2152,7 @@ impl LiveJudge<'_> {
             }
         }
         if !self.stopping()
-            && !matches!(self.phase, LivePhase::Done)
+            && !matches!(self.phase, LivePhase::Done | LivePhase::Returning)
             && calls.foreground_idle()
             && let Some(args) = self.pending.pop_front()
         {
@@ -2104,19 +2170,26 @@ impl LiveJudge<'_> {
             let words = args.iter().map(String::as_str).collect::<Vec<_>>();
             calls.push(super::ctl::Step::Run(if words == ["sign-in", "-"] {
                 super::ctl::Call::sign_in()
+            } else if words.starts_with(&["account", "import"])
+                && matches!(self.plan.model, LiveModel::ChatGpt { account: Some(_) })
+            {
+                super::held_login::import_guard(
+                    &skein_scratch::paths::binary("temper"),
+                    self.plan.paths[0].parent().expect("store"),
+                    self.plan.client,
+                    &words,
+                )
             } else {
                 super::ctl::Call::new(&words)
             }));
             self.arguments.push(printed_command(&args));
         }
-        if !self.stopping() && matches!(self.phase, LivePhase::Done) {
-            calls.release();
-            calls.cancel();
-            binary.signal(skein_io::kernel::Signal::Terminate);
-            self.phase = LivePhase::Stopping;
+        if matches!(self.phase, LivePhase::Done | LivePhase::Returning) {
+            self.finish_story(now, binary, calls);
         }
         self.watch_waits(binary);
-        if !self.cleanup
+        if self.stopping()
+            && !self.cleanup
             && !binary.is_empty()
             && let Some(figures) = self.deadline.failed()
         {
@@ -2148,10 +2221,13 @@ impl Referee<Process> for LiveJudge<'_> {
                 .or_else(|| failed.downcast_ref::<&str>().copied())
                 .unwrap_or("live referee validation failed");
             self.fail(message, calls, calls.ends().len().checked_sub(1));
-            calls.release();
-            calls.cancel();
-            binary.signal(skein_io::kernel::Signal::Terminate);
-            self.phase = LivePhase::Stopping;
+            // A panic in failure diagnostics may have recorded the failure
+            // before reaching Done. It still enters the return-before-stop stage.
+            if !self.stopping() && !matches!(self.phase, LivePhase::Returning) {
+                self.pending.clear();
+                self.phase = LivePhase::Done;
+            }
+            self.finish_story(now, binary, calls);
         }
         if self.stopping() {
             for peer in peers {
@@ -2176,6 +2252,8 @@ impl Referee<Process> for LiveJudge<'_> {
     fn next_deadline(&self) -> Option<skein_lib::Time> {
         if matches!(self.phase, LivePhase::Settled) || self.cleanup {
             None
+        } else if matches!(self.phase, LivePhase::Returning) {
+            self.return_until
         } else if self.stopping() {
             self.deadline.until()
         } else {
@@ -2206,6 +2284,7 @@ pub fn run_live(
     if let Face::Fake { peer, .. } = &face {
         peer.configure(&plan.paths[0]);
     }
+    plan.install_return_hook();
     let clock = Clock::new();
     let mut binary = Binary::start_with_tree(
         Command {
@@ -2251,6 +2330,8 @@ pub fn run_live(
         account_checked: false,
         linked: false,
         cleanup: false,
+        return_until: None,
+        return_at: None,
         phase: plan.starting_phase(),
         plan,
         snapshot: None,
@@ -2273,8 +2354,8 @@ pub fn run_live(
         face.spawn(&mut world);
     }
     // Failure diagnostics: at most 36 ctl reads (60s each), a 20s native
-    // change-page read, and ten seconds to cancel, drain and reap afterwards.
-    let drain_budget = Duration::from_secs(36 * 60 + 30);
+    // change-page read, a 60s return, and ten seconds to cancel, drain and reap afterwards.
+    let drain_budget = Duration::from_secs(36 * 60 + 90);
     let ended = world.run(&clock, Duration::from_nanos(budget.as_nanos().saturating_add(drain_budget.as_nanos())));
     if !ended.procs.iter().all(Host::is_empty) {
         return Err("live box, descendants and ctl did not drain".into());
