@@ -619,6 +619,58 @@ fn a_review_never_starts_with_a_cut_pull_identity() {
 }
 
 #[test]
+fn a_landed_result_names_the_landing_whole_after_its_pull_identity() {
+    for (merge, landed) in [
+        (SHA1, b"Landed: pull request #7 merged into release/v1 as abcdef012345.".as_slice()),
+        (SHA256, b"Landed: pull request #7 merged into release/v1 as abababababab.".as_slice()),
+    ] {
+        let (mut domain, env) = two_forges();
+        let mut row = change_row(Some(7));
+        row.base = Box::from(b"release/v1".as_slice());
+        row.change.last_head = Some(merge);
+        let identity = landing_words(&merge, 512, domain.forge.repository(row.repository), 7, None);
+        let evidence = row.result.words(&merge, 512);
+        let edge = u32::try_from(identity.len() + 1 + landed.len()).unwrap();
+        let mut out = skein_lib::Queue::uncapped();
+        super::forge::step(
+            &mut domain.forge,
+            &super::super::environment_forge(&env),
+            super::forge::Event::Restore { record: super::forge::Stored::Change(row) },
+            &mut out,
+        );
+        let mut expected = skein_lib::Writer::new(identity.len() + 1 + landed.len());
+        expected.put(&identity).unwrap();
+        expected.put(b"\n").unwrap();
+        expected.put(landed).unwrap();
+        let prefix = expected.finish();
+        let mut expected = skein_lib::Writer::new(prefix.len() + 1 + evidence.bytes.len());
+        expected.put(&prefix).unwrap();
+        expected.put(b"\n").unwrap();
+        expected.put(&evidence.bytes).unwrap();
+        assert_eq!(super::change_landing_words(&domain, 7, &merge, 7, 512), expected.finish());
+        assert_eq!(super::change_landing_words(&domain, 7, &merge, 7, edge), prefix);
+        // One byte short omits the whole Landed line and fits evidence as before.
+        let bound = edge - 1;
+        let fitted = evidence.fitted(bound - u32::try_from(identity.len()).unwrap() - 1).unwrap();
+        let mut expected = skein_lib::Writer::new(identity.len() + 1 + fitted.len());
+        expected.put(&identity).unwrap();
+        expected.put(b"\n").unwrap();
+        expected.put(&fitted).unwrap();
+        assert_eq!(super::change_landing_words(&domain, 7, &merge, 7, bound), expected.finish());
+        // Without room for the pull line, the merge id and fitted evidence stay unchanged.
+        let bound = u32::try_from(identity.len() - 1).unwrap();
+        let digits = commit_text(&merge);
+        let fitted = evidence.fitted(bound - u32::try_from(digits.len()).unwrap() - 1).unwrap();
+        let mut expected = skein_lib::Writer::new(digits.len() + 1 + fitted.len());
+        expected.put(&digits).unwrap();
+        expected.put(b"\n").unwrap();
+        expected.put(&fitted).unwrap();
+        assert_eq!(super::change_landing_words(&domain, 7, &merge, 7, bound), expected.finish());
+        assert_eq!(super::change_landing_words(&domain, 7, &merge, 7, 7).as_ref(), &digits[..7]);
+    }
+}
+
+#[test]
 fn a_small_landed_result_cuts_only_evidence_and_keeps_both_identity_lines() {
     let (mut domain, env) = two_forges();
     let mut row = change_row(Some(7));

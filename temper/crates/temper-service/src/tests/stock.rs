@@ -314,7 +314,7 @@ fn the_goals_words_survey_before_planning_and_sequence_changes() {
     assert!(words.contains("Make each change with change, one at a time, waiting for its result: when one builds on another, call change for it only after the first's result says it landed, and say in its words what to reuse."), "the goal waits for landing before dependent changes");
     assert!(
         words.contains(
-            "Report once every change has landed, each as its result says it, naming no check or test it doesn't."
+            "Report once every change has landed, each as its result's Landed line says it: that it landed, its pull request and its merge commit; name no check or test it doesn't."
         ),
         "the goal reports after every change lands"
     );
@@ -333,8 +333,16 @@ fn the_chats_words_say_a_delegate_is_started_until_it_reports() {
 fn the_goal_and_chat_report_only_the_checks_named_in_the_result() {
     let words = include_str!("../stock/chat.txt");
     assert!(
+        words
+            .contains("When the goal reports, tell them what landed, with the pull request and merge commit it names.")
+    );
+    assert!(!words.contains("When the goal reports, tell them what landed."));
+    assert!(!words.contains(
+        "Report once every change has landed, each as its result says it, naming no check or test it doesn't."
+    ));
+    assert!(
         words.contains(
-            "Report once every change has landed, each as its result says it, naming no check or test it doesn't."
+            "Report once every change has landed, each as its result's Landed line says it: that it landed, its pull request and its merge commit; name no check or test it doesn't."
         ),
         "the goal names only the checks in the change's result"
     );
