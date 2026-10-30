@@ -20,6 +20,7 @@ impl Core {
 
     /// Gather this party's frame, inbox and conversations after owned facts change.
     pub fn touch_party(&mut self, party: u64) {
+        self.start_input();
         for (_, binding) in &self.view_subjects {
             let subject = &self.view_names.get(binding.subject).expect("bound subject").subject;
             let touched = match subject {
@@ -79,6 +80,7 @@ impl Core {
 
     /// Gather every settings watch after the inventory or its holders changes.
     pub fn touch_settings(&mut self) {
+        self.start_input();
         for (_, binding) in &self.view_subjects {
             let subject = &self.view_names.get(binding.subject).expect("bound subject").subject;
             match subject {
@@ -108,6 +110,7 @@ impl Core {
 
     /// Gather deployment facts after host, account or capacity changes.
     pub fn touch_deployment(&mut self) {
+        self.start_input();
         for (_, binding) in &self.view_subjects {
             let subject = &self.view_names.get(binding.subject).expect("bound subject").subject;
             let touched = match subject {

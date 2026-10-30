@@ -516,7 +516,7 @@ impl Core {
     /// restored. The connector's separately owned answer is validated by the
     /// application before it asks the core to retain this part.
     pub fn restore_call(&mut self, key: CallKey, part: CallPart) -> bool {
-        self.start.consumed = true;
+        self.start_input();
         match self.start.mode {
             start::StartMode::Default => {
                 if !self.call_admitted(key) {
@@ -904,7 +904,7 @@ impl Core {
     /// Restore one current claim only when it matches the live task's
     /// transient correlation. An archive row can never enter this live map.
     pub fn restore_proof(&mut self, proof: RunProof, result_bytes: u32) -> bool {
-        self.start.consumed = true;
+        self.start_input();
         match self.start.mode {
             start::StartMode::Default => {
                 if !self.proof_admitted(&proof, result_bytes) {

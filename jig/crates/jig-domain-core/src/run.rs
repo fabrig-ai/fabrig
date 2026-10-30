@@ -221,6 +221,7 @@ impl Core {
     /// Begin a bounded transcript load for a due task's previous attempt.
     #[expect(clippy::manual_map, reason = "the strict subset translates windows with an explicit match")]
     pub fn begin_transcript(&mut self, task: u64, previous_attempt: u64) {
+        self.start_input();
         let window = match self.proofs.get(&task) {
             Some(proof) => match proof.window {
                 Some(window) => Some((window.attempt, window.turn)),
@@ -273,6 +274,7 @@ impl Core {
     /// Text is UTF-8 supplied by the host protocol; `None` keeps an unreadable marker.
     #[must_use]
     pub fn append_transcript(&mut self, task: u64, turn: TurnRecord, text: Option<Box<[u8]>>) -> bool {
+        self.start_input();
         let transcript = self.transcripts.get_mut(&task).expect("load belongs to prepared task");
         if turn.task != task || turn.attempt > transcript.previous_attempt || turn.attempt == 0 || turn.turn == 0 {
             return false;

@@ -393,6 +393,7 @@ impl Core {
     /// claim, retaining it only while that claim still owns the call.
     #[must_use]
     pub fn decide_named_call(&mut self, key: CallKey, part: CallPart) -> bool {
+        self.start_input();
         let _pending = self.pending_calls.remove(&key);
         let current = match self.proofs.get(&key.task) {
             Some(proof) => proof.attempt == key.attempt,
@@ -421,7 +422,7 @@ impl Core {
     /// correlations that a later proof and view restoration will need.
     #[must_use]
     pub fn restore_task_row(&mut self, row: &jig_domain_tasks::Stored) -> bool {
-        self.start.consumed = true;
+        self.start_input();
         match self.start.mode {
             crate::start::StartMode::Default => {
                 if !self.task_row_admitted(row) {
@@ -555,7 +556,7 @@ impl Core {
     /// Retain one of the core's own live rows. The root wraps store bytes and
     /// routes connector rows separately; it cannot alter this live decision.
     pub fn restore_core(&mut self, record: CoreRecord, limits: &Limits) -> Restored {
-        self.start.consumed = true;
+        self.start_input();
         match record {
             CoreRecord::Settings(record) => {
                 if self.restore_setting(record, limits) {

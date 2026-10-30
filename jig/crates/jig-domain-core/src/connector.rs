@@ -399,6 +399,7 @@ impl Core {
 
     /// Allocate a policy-bounded connector repair before its root translates holdings.
     pub fn repair_seed(&mut self, project: u32) -> Option<RepairSeed> {
+        self.start_input();
         let authority = self.connector_repair_authority(project)?;
         let number = fresh(&mut self.counters, Family::Task)?;
         let period = self.period(project);
@@ -431,6 +432,7 @@ impl Core {
         provider: u16,
         parties: Box<[AdoptedParty]>,
     ) -> Result<Box<[people::Seed]>, people::Outcome> {
+        self.start_input();
         let Ok(capacity) = u32::try_from(parties.len()) else {
             return Err(people::Outcome::Refused(people::Refusal::Limit { which: people::LimitKind::Roles }));
         };
@@ -467,6 +469,7 @@ impl Core {
         words: Box<[u8]>,
         at: Wall,
     ) -> Option<tasks::Event> {
+        self.start_input();
         match class {
             tasks::NewsClass::Dropped => None,
             tasks::NewsClass::Wakes | tasks::NewsClass::Kept => {
