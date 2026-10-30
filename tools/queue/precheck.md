@@ -239,6 +239,12 @@ disappearance never proves completion. An interrupted normal child allows
 cleanup only after that full closure is empty. The previous subreaper setting
 is restored after known drain. No unrelated processes are killed or inspected.
 
+Before its first Git command, precheck sets and verifies the default SIGCHLD
+disposition, clearing inherited ignored/auto-reap handling. The executor also
+establishes this disposition before each checker launch. Unsupported child-
+status handling refuses before execution; discarded status cannot become a
+successful check. SIGCHLD remains waitable through unresolved custody.
+
 Per-suite timeout remains 60 seconds. A drained normal child permits cleanup;
 no cleanup runs unconditionally after unknown completion.
 
@@ -345,7 +351,10 @@ selection/post-ratchet path scope, rather than the supplied command list. A
 tools path requires cold evidence even with zero discovered suites. It derives
 the complete ordered suite list from bound logical index names and executable
 modes, with the exact manual heavy-recovery exclusion, and checks index/raw
-manifest coverage. Coordinated plan/step/evidence erasure or suite substitution
+manifest coverage. Each discovered suite must have present bound raw source;
+symlinks must resolve without cycles to a present bound file. A missing source
+refuses even when coordinated raw-tree/manifest digests claim success.
+Coordinated plan/step/evidence erasure or suite substitution
 cannot become an empty docs success. It requires version-1 cold evidence and verifies loaded policy identity, private full-manifest digest and
 input trees, auxiliary ownership/cwd, ordered discovery/outcomes, environment
 handling, cold observations and completed cleanup. Cargo plan cwds must remain

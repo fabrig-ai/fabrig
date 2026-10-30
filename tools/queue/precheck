@@ -56,6 +56,16 @@ class UnknownCompletion(InfrastructureError):
     pass
 
 
+def waitable_children():
+    """Clear inherited auto-reaping before any Git/checker can discard status."""
+    try:
+        signal.signal(signal.SIGCHLD, signal.SIG_DFL)
+        if signal.getsignal(signal.SIGCHLD) != signal.SIG_DFL:
+            raise RuntimeError('SIGCHLD default disposition was not established')
+    except (OSError, ValueError, RuntimeError) as error:
+        raise InfrastructureError(f'cannot establish waitable child status: {error}') from error
+
+
 def subreaper(value=None):
     """Linux adoption authority includes descendants that change session/group."""
     import ctypes
@@ -193,6 +203,7 @@ class Executor:
                 signal.signal(number, handler)
 
     def __call__(self, argv, **options):
+        waitable_children()
         if self.interrupted:
             raise InfrastructureError(f"interrupted by signal {self.interrupted}; child drained")
         heavy = argv[0] == "heavy"
@@ -608,6 +619,7 @@ class Precheck:
         sync_directory(self.gitdir)
 
     def run(self):
+        waitable_children()
         no_symlinks(self.repo)
         if not self.repo.is_dir() or self.git("rev-parse", "--show-toplevel") != str(self.repo):
             raise InfrastructureError("SLOT must be the canonical checkout root")

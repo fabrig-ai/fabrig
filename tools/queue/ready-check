@@ -125,7 +125,7 @@ def cold_evidence(record, filename, tools):
     objects = observed.get('objects_identity')
     require(isinstance(objects, list) and len(objects) == 2 and all(type(n) is int and n > 0 for n in objects),
             'cold object directory identity missing')
-    expected = COLD_VALIDATOR['indexed_tools'](full['entries'])
+    expected = COLD_VALIDATOR['prepared_tools'](full['entries'], full['manifest'])
     require(cold.get('tools_plan') == expected == [{'name': item['name'], 'argv': item['argv']} for item in tools],
             'cold indexed discovery/plan mismatch')
     require(all(item['cwd'] == str(checkout) and item['timeout'] == 60 for item in tools),

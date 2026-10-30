@@ -189,6 +189,30 @@ def bind_manifest(logical, rows):
             raise RuntimeError('cold index/raw manifest entry differs')
 
 
+def prepared_tools(logical, rows):
+    """Bind each discovered executable source to present prepared raw contents."""
+    bind_manifest(logical, rows)
+    commands = indexed_tools(logical)
+    contents = {row['name']: row for row in rows}
+    for command in commands:
+        name, visited = command['name'], set()
+        while True:
+            row = contents.get(name)
+            if row is None or row['kind'] == 'missing':
+                raise RuntimeError('cold discovered suite source is missing: ' + name)
+            if row['kind'] == 'file':
+                break
+            if name in visited:
+                raise RuntimeError('cold discovered suite source has a symlink cycle')
+            visited.add(name)
+            target = row['target']
+            if os.path.isabs(target):
+                raise RuntimeError('cold discovered suite source escapes checkout')
+            name = os.path.normpath(str(Path(name).parent / target))
+            safe_path(Path('/cold'), name)
+    return commands
+
+
 def static_copy_requirement(rows, object_files, logical, full_bytes, block):
     """Bound the complete static layout, including every ancestor and new Git tree."""
     rounded = lambda size: ((size + block - 1) // block) * block
@@ -277,6 +301,7 @@ class ColdTools:
         logical = owner.git("ls-files", "--stage", "-z")
         entries = [entry for entry in logical.split("\0") if entry]
         rows = manifest(owner.repo, entries)
+        indexed = [(item['name'], item['argv']) for item in prepared_tools(logical, rows)]
         objects = Path(owner.git("rev-parse", "--path-format=absolute", "--git-path", "objects"))
         no_links(objects)
         if ((objects / "info/alternates").exists() or (objects / "info/alternates").is_symlink() or
@@ -391,7 +416,6 @@ class ColdTools:
             raise RuntimeError('independent raw working tree differs')
         expected = [(name, argv) for name, argv, _, timeout in self.commands if timeout is not None]
         observed = [(name, argv) for name, argv, _ in owner.mq.tools_commands(self.repo)]
-        indexed = [(item['name'], item['argv']) for item in indexed_tools(logical)]
         if observed != expected or observed != indexed:
             raise RuntimeError("cold discovered tools plan differs")
         self.receipt.update(observed={"entries_sha256": digest(self.git('ls-files', '--stage', '-z')),

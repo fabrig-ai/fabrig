@@ -238,6 +238,37 @@ class ReadyCheckTests(unittest.TestCase):
         self.save()
         self.refuse('index/raw manifest')
 
+    def test_coordinated_missing_suite_cannot_claim_success(self):
+        for name, mode, argv in (
+                ('tools/test_fixture.py', '100644', ['python3', '-I', '-B', 'tools/test_fixture.py']),
+                ('tools/test-shell', '100755', ['./tools/test-shell'])):
+            with self.subTest(name=name):
+                self.plan()
+                filename = self.root / 'cold-input.json'
+                full = json.loads(filename.read_text())
+                blob = full['manifest'][0]['index_oid']
+                full['entries'] = f'{mode} {blob} 0\t{name}\0'
+                full['manifest'] = [{'name': name, 'index_mode': mode, 'index_oid': blob, 'kind': 'missing'}]
+                filename.write_text(json.dumps(full))
+                cold = self.record['cold_tools']
+                cold['input_manifest']['sha256'] = hashlib.sha256(filename.read_bytes()).hexdigest()
+                for key in ('input', 'observed'):
+                    cold[key].update(
+                        entries_sha256=hashlib.sha256(full['entries'].encode()).hexdigest(),
+                        manifest_sha256=hashlib.sha256(ready.COLD_VALIDATOR['encoded'](full['manifest'])).hexdigest(),
+                        index_tree=ready.COLD_VALIDATOR['logical_tree'](full['entries'], 'sha1'),
+                        raw_tree=ready.COLD_VALIDATOR['raw_tree'](full['manifest'], 'sha1'))
+                cold['tools_plan'] = [{'name': name, 'argv': argv}]
+                cold['outcomes'][0]['name'] = name
+                cold['observations'][1]['before'] = name
+                cold['observations'][2]['before'] = 'after:' + name
+                self.record['plan'][0].update(name=name, argv=argv)
+                self.record['steps'][0].update(name=name, command=argv)
+                self.record['active_command']['argv'] = argv
+                self.record['paths'] = ['touched.md', name]
+                self.save()
+                self.refuse('suite source')
+
     def test_index_modes_order_and_exact_recovery_exclusion_define_discovery(self):
         entries = [('100755', 'tools/heavy/test-heavy-recovery'),
                    ('100755', 'tools/other/test-heavy-recovery'),
@@ -248,6 +279,21 @@ class ReadyCheckTests(unittest.TestCase):
             {'name': 'tools/other/test-heavy-recovery', 'argv': ['./tools/other/test-heavy-recovery']},
             {'name': 'tools/test-shell', 'argv': ['./tools/test-shell']},
             {'name': 'tools/test_python.py', 'argv': ['python3', '-I', '-B', 'tools/test_python.py']}])
+
+    def test_symlink_suite_requires_present_bound_source_without_cycles(self):
+        rows = [{'name': 'tools/helper.py', 'index_mode': '100644', 'index_oid': self.base, 'kind': 'file'},
+                {'name': 'tools/test_link.py', 'index_mode': '120000', 'index_oid': self.base,
+                 'kind': 'symlink', 'target': 'helper.py'}]
+        logical = ''.join(f"{r['index_mode']} {r['index_oid']} 0\t{r['name']}\0" for r in rows)
+        validate = ready.COLD_VALIDATOR['prepared_tools']
+        self.assertEqual(validate(logical, rows), [
+            {'name': 'tools/test_link.py', 'argv': ['python3', '-I', '-B', 'tools/test_link.py']}])
+        rows[0]['kind'] = 'missing'
+        with self.assertRaisesRegex(RuntimeError, 'suite source is missing'):
+            validate(logical, rows)
+        rows[1]['target'] = 'test_link.py'
+        with self.assertRaisesRegex(RuntimeError, 'suite source has a symlink cycle'):
+            validate(logical, rows)
 
     def test_remote_same_file_change_refuses_stale_tracking(self):
         current = self.advance("touched.md")

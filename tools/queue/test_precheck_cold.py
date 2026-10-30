@@ -257,6 +257,83 @@ assert not Path('target').exists()
         self.assertTrue(self.tool.marker.exists())
         self.assertTrue(Path(self.tool.record['cold_tools']['root']).exists())
 
+    def inherited_ignored_status(self, body, *, abnormal=False):
+        self.suite(body)
+        result_file = self.root / 'inherited-status.json'
+        driver = """import importlib.machinery, importlib.util, json, signal, subprocess, sys
+from pathlib import Path
+assert signal.getsignal(signal.SIGCHLD) == signal.SIG_IGN
+loader = importlib.machinery.SourceFileLoader('inherited_fixture', sys.argv[1])
+spec = importlib.util.spec_from_loader(loader.name, loader)
+fixture = importlib.util.module_from_spec(spec)
+loader.exec_module(fixture)
+executor = fixture.precheck.Executor(lambda *a: None, lambda *a: None)
+try:
+    probe = executor([sys.executable, '-I', '-B', '-c', sys.argv[4]], cwd=Path(sys.argv[2]),
+                     timeout=60, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    direct = {'returncode': probe.returncode, 'unknown': executor.unknown}
+except fixture.precheck.UnknownCompletion as error:
+    direct = {'unknown': executor.unknown, 'error': str(error)}
+signal.signal(signal.SIGCHLD, signal.SIG_IGN)
+tool = fixture.precheck.Precheck(Path(sys.argv[2]), 'base', 'tip', mq=fixture.mq,
+    always=[], read_by_tests=[], busy=lambda _: 'offline inherited-ignore fixture', min_free_bytes=1)
+status = tool.run()
+Path(sys.argv[3]).write_text(json.dumps({'status': status, 'record': tool.record, 'direct': direct}))
+raise SystemExit(status)
+"""
+        launcher = """import os, signal, sys
+signal.signal(signal.SIGCHLD, signal.SIG_IGN)
+os.execv(sys.executable, [sys.executable, '-I', '-B', '-c', *sys.argv[1:]])
+"""
+        before = self.snapshot()
+        result = subprocess.run([sys.executable, '-I', '-B', '-c', launcher, driver,
+                                 str(DIRECTORY / 'test_precheck.py'), str(self.repo), str(result_file), body],
+                                stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        self.assertTrue(result_file.exists(), result.stdout.decode() + result.stderr.decode())
+        payload = json.loads(result_file.read_text())
+        if abnormal:
+            self.assertTrue(payload['direct']['unknown'], payload['direct'])
+            self.assertIn(f'checker exited {-signal.SIGTERM}', payload['direct']['error'])
+        else:
+            self.assertEqual(payload['direct']['returncode'], 7)
+            self.assertFalse(payload['direct']['unknown'])
+        self.assertEqual(result.returncode, 1, result.stdout.decode() + result.stderr.decode())
+        self.assertEqual(payload['status'], 1)
+        return before, payload['record']
+
+    def test_inherited_ignored_sigchld_preserves_nonzero_suite_exit(self):
+        before, record = self.inherited_ignored_status('raise SystemExit(7)\n')
+        self.assertEqual(record['outcome'], 'failed')
+        self.assertEqual(record['steps'][0]['returncode'], 7)
+        self.assertFalse(record['steps'][0]['green'])
+        self.assertTrue(record['restored'])
+        self.assertEqual(self.snapshot(), before)
+        self.assertFalse((self.repo / '.git/precheck.unresolved').exists())
+        self.assertFalse(Path(record['cold_tools']['root']).exists())
+
+    def test_inherited_ignored_sigchld_preserves_signal_suite_exit(self):
+        _, record = self.inherited_ignored_status(
+            'import os, signal\nos.kill(os.getpid(), signal.SIGTERM)\n', abnormal=True)
+        self.assertEqual(record['outcome'], 'unresolved')
+        self.assertIn(f'checker exited {-signal.SIGTERM}', record['error'])
+        self.assertFalse(record['restored'])
+        self.assertEqual(record['cold_tools']['completion'], 'unknown')
+        self.assertTrue((self.repo / '.git/precheck.unresolved').exists())
+        self.assertTrue((self.repo / 'tools/test_fixture.py').exists())
+        self.assertTrue(Path(record['cold_tools']['checkout']).exists())
+        self.assertEqual((self.repo / 'target/keep').read_text(), 'warm target\n')
+
+    def test_unavailable_waitable_status_refuses_before_git(self):
+        before = self.snapshot()
+        tool = p.Precheck(self.repo, 'base', 'tip', mq=fixtures.mq, always=[], read_by_tests=[])
+        with patch.object(p.signal, 'signal', side_effect=OSError('unsupported disposition')), \
+                patch.object(tool, 'git') as git:
+            with self.assertRaisesRegex(p.InfrastructureError, 'waitable child status'):
+                tool.run()
+            git.assert_not_called()
+        self.assertEqual(self.snapshot(), before)
+        self.assertFalse((self.repo / '.git/precheck.unresolved').exists())
+
     def test_drained_signal_cleans_aux_then_restores(self):
         self.suite('# fixture\n')
         before = self.snapshot()

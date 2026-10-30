@@ -1,5 +1,12 @@
 # Branch pre-ready check status
 
+Repair of the 15:18 source review establishes waitable SIGCHLD handling before
+Git/checker execution and binds discovered suites to present prepared raw
+sources, including symlink closure. Real subprocess fixtures inherit ignored
+SIGCHLD across exec and preserve nonzero/abnormal results; coordinated missing
+source receipts refuse even with updated manifests and raw trees. Production
+cold proof and deployment remain pending source review.
+
 Repair of the 14:17 source review adds child-subreaper descendant closure,
 private descriptor-bound quarantine cleanup, scope-derived receipt requirement
 and index-derived discovery, complete static ancestor/construction admission,
