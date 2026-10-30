@@ -1,13 +1,143 @@
 //! Explicit start's fixed-time and phase controls (engine.md, 6).
 use super::{LIMITS, fixtures};
 use crate::*;
-use skein_lib::{Duration, Env, Queue, Time, Wall};
+use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 
 fn env() -> Env<Limits> {
     Env { limits: LIMITS, now: Time::ZERO, wall: Wall::EPOCH }
 }
 fn load(domain: &mut Domain, env: &Env<Limits>, row: Stored, out: &mut Queue<Request>) {
     step(domain, env, Event::Restore { record: row }, out);
+}
+
+fn fresh() -> (Domain, Queue<Request>) {
+    (Domain::new(&LIMITS, Box::new([]), 1, Box::new([])), Queue::uncapped())
+}
+
+#[test]
+#[should_panic(expected = "people start selected once before input")]
+fn fresh_timer_input_prevents_late_selection() {
+    let (mut domain, mut out) = fresh();
+    fire(&mut domain, &env(), &mut out);
+    assert!(out.is_empty());
+    domain.start_restore(Wall::EPOCH);
+}
+
+#[test]
+#[should_panic(expected = "people start selected once before input")]
+fn ending_seeding_prevents_late_selection() {
+    let (mut domain, _) = fresh();
+    domain.end_seeding();
+    domain.start_restore(Wall::EPOCH);
+}
+
+#[test]
+#[should_panic(expected = "people start selected once before input")]
+fn cancelling_absent_moves_prevents_late_selection() {
+    let (mut domain, _) = fresh();
+    domain.cancel_moves(None);
+    domain.start_restore(Wall::EPOCH);
+}
+
+#[test]
+#[should_panic(expected = "people start selected once before input")]
+fn refused_application_part_prevents_late_selection() {
+    let (mut domain, _) = fresh();
+    assert_eq!(
+        application_part(&mut domain, &env(), Token::new(1), Ask::Stop { project: 1, task: 1 }),
+        Err(Outcome::Refused(Refusal::Unknown))
+    );
+    domain.start_restore(Wall::EPOCH);
+}
+
+#[test]
+#[should_panic(expected = "people start selected once before input")]
+fn completing_absent_application_part_prevents_late_selection() {
+    let (mut domain, _) = fresh();
+    application_part_done(&mut domain, Token::new(1));
+    domain.start_restore(Wall::EPOCH);
+}
+
+#[test]
+#[should_panic(expected = "people start selected once before input")]
+fn resolving_absent_ended_conversation_prevents_late_selection() {
+    let (mut domain, _) = fresh();
+    domain.restore_ended_conversation(1);
+    assert!(domain.read_conversations().is_empty());
+    domain.start_restore(Wall::EPOCH);
+}
+
+fn result_entry() -> ResultRef {
+    ResultRef { task: 1, project: 1, at: Wall::EPOCH, position: 1, forgettable: None }
+}
+
+#[test]
+#[should_panic(expected = "people start selected once before input")]
+fn ignored_result_before_ready_prevents_late_selection() {
+    let (mut domain, _) = fresh();
+    domain.remember_result(&LIMITS, 1, result_entry());
+    assert_eq!(domain.cached_results(1), None);
+    domain.start_restore(Wall::EPOCH);
+}
+
+fn ended_mark() -> EndedMark {
+    EndedMark { request: Token::new(1), project: 1, last_reply: 0, seen: 0 }
+}
+
+#[test]
+#[should_panic(expected = "people start selected once before input")]
+fn absent_ended_mark_context_prevents_late_selection() {
+    let (mut domain, mut out) = fresh();
+    domain.mark_ended(&env(), ended_mark(), &mut out);
+    assert!(out.is_empty());
+    domain.start_restore(Wall::EPOCH);
+}
+
+#[test]
+fn observations_and_maintenance_allow_selection() {
+    let (mut domain, mut out) = fresh();
+    assert!(!domain.ready());
+    assert_eq!(domain.identity(1), None);
+    assert_eq!(domain.person(1, Time::ZERO, Wall::EPOCH), None);
+    assert!(!domain.has_project(1));
+    assert_eq!(domain.pending_ask(Token::new(1)), None);
+    assert_eq!(domain.seen_context(Token::new(1)), None);
+    assert!(!domain.conversation_mark_loading(1, Token::new(1)));
+    assert_eq!(domain.next_deadline(), None);
+    assert_eq!(domain.next_wall_expiry(), None);
+    assert!(domain.capacity_refusals().is_empty());
+    domain.reclaim();
+    assert_eq!(domain.pop_fact(), None);
+    assert_eq!(out.pop(), None);
+    domain.start_restore(Wall::EPOCH);
+    assert!(domain.start_link(&env()));
+    domain.start_sweep();
+    assert!(domain.start_complete(&env()));
+}
+
+#[test]
+fn selected_start_preserves_direct_noop_and_refusal_behavior() {
+    let env = env();
+    let (mut domain, mut out) = new_start(&env);
+    fire(&mut domain, &env, &mut out);
+    domain.end_seeding();
+    domain.cancel_moves(None);
+    assert_eq!(
+        application_part(&mut domain, &env, Token::new(1), Ask::Stop { project: 1, task: 1 }),
+        Err(Outcome::Refused(Refusal::Unknown))
+    );
+    application_part_done(&mut domain, Token::new(1));
+    domain.remember_result(&LIMITS, 1, result_entry());
+    domain.mark_ended(&env, ended_mark(), &mut out);
+    assert!(out.is_empty());
+    assert_eq!(domain.restore_failure(), None);
+    assert!(!domain.ready());
+    assert!(domain.start_link(&env));
+    domain.start_sweep();
+    assert!(domain.start_complete(&env));
+    domain.restore_ended_conversation(1);
+    assert!(domain.read_conversations().is_empty());
+    assert!(out.is_empty());
 }
 
 #[test]
@@ -230,7 +360,7 @@ fn explicit_empty_start_blocks_admission_and_roles_until_completion() {
             &mut domain,
             &env,
             Event::Ask {
-                reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(1)),
+                reply_to: skein_lib::ReplyTo::new(Token::new(1)),
                 sign_in: 1,
                 key: [1; 16],
                 ask: Ask::Stop { project: 1, task: 1 },
@@ -240,10 +370,7 @@ fn explicit_empty_start_blocks_admission_and_roles_until_completion() {
         );
         assert_eq!(
             out.pop(),
-            Some(Request::Reply {
-                to: skein_lib::ReplyTo::new(skein_lib::Token::new(1)),
-                reply: Reply::Again(Again::NotReady)
-            })
+            Some(Request::Reply { to: skein_lib::ReplyTo::new(Token::new(1)), reply: Reply::Again(Again::NotReady) })
         );
         assert!(out.is_empty());
         assert!(!domain.ready());
