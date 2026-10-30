@@ -166,6 +166,12 @@ impl Guard {
         }
     }
 
+    /// Checks retained identities even after their parents have been reaped.
+    #[must_use]
+    pub fn all_exited(&self) -> bool {
+        self.kept.iter().all(|kept| skein_shell::pidfd_exited(kept.fd).expect("retained process exit"))
+    }
+
     #[must_use]
     pub fn has_descendants(&self) -> bool {
         self.kept.len() > 1
