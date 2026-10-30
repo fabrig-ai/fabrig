@@ -1,6 +1,6 @@
 {
   "request": "Add CSV export to widget. Before anything is changed, have the work tell me its plan and wait for my go-ahead.",
   "answer": "Go ahead. The CSV's first line must be the header fruit,count.",
-  "question": "I inspected src/main.rs. Widget currently prints a fixed fruit/count table. Proposed scope: add a --csv flag that prints name,count followed by the same rows as CSV to stdout, preserve the existing output without the flag, document usage in README.md, and add tests for CSV output and unchanged default output (including CSV escaping if a helper is used). No dependencies or unrelated changes. May I go ahead with this plan?",
-  "last_word": "PR #2: --csv with fruit,count."
+  "question": "Plan: update `src/main.rs` to add a CSV export path that writes a header and the existing three table rows to stdout, using proper CSV escaping and propagating write errors. Add tests for exact CSV output and escaping. May I proceed?",
+  "last_word": "CSV export was added and merged."
 }
