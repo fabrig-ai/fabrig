@@ -48,6 +48,7 @@ pub struct Domain {
     pub(crate) door_pass: bool,
     pub(crate) door_count: u32,
     pub(crate) startup_range: Option<Range>,
+    pub(crate) start_wall: Option<Wall>,
     pub(crate) load_failure: Option<loads::Failure>,
     pub(crate) core_header_loaded: bool,
     pub(crate) restored_commits: Option<u64>,
@@ -383,6 +384,7 @@ impl Domain {
             door_pass: false,
             door_count: 0,
             startup_range: None,
+            start_wall: None,
             load_failure: None,
             core_header_loaded: false,
             restored_commits: None,
@@ -435,7 +437,12 @@ impl Domain {
         })
     }
 
-    /// Retained compatibility result; missing forge links panic at the restore terminal.
+    /// First connector-owned configured-fit refusal during startup.
+    #[must_use]
+    pub fn forge_fit_failure(&self) -> Option<&forge::RestoreFit> {
+        self.forge.restore_fit_failure()
+    }
+    /// Retained compatibility link result.
     #[must_use]
     pub const fn forge_restore_failure(&self) -> Option<forge::Unresolved> {
         match self.forge.reconciliation() {
@@ -772,6 +779,9 @@ pub fn release(domain: &mut Domain, _env: &Env<Limits>, out: &mut Queue<Request>
         domain.door_pass = false;
         domain.door_count = 0;
         out.push(Request::Stop);
+        return;
+    }
+    if domain.forge_fit_failure().is_some() {
         return;
     }
     if domain.door_pass {

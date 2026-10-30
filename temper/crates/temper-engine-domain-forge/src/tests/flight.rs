@@ -4,20 +4,30 @@ use super::*;
 const TASK: u64 = 7;
 const ENTRY: u64 = 11;
 const MERGED: skein_forge::api::Commit = [9; 32];
-fn restore_flights(count: u32) {
+fn restore_flights(count: u32) -> Domain {
     let mut domain = domain();
     for entry in 0..u64::from(count) {
         outputs(&mut domain, Event::Restore { record: Stored::Flight { task: TASK, entry } });
     }
+    domain
 }
 #[test]
 fn flight_restoration_takes_the_entry_capacity() {
-    restore_flights(LIMITS.entries);
+    assert_eq!(restore_flights(LIMITS.entries).restore_fit_failure(), None);
 }
 #[test]
-#[should_panic(expected = "restored flights within entry limit")]
 fn flight_restoration_refuses_one_past_the_entry_capacity() {
-    restore_flights(LIMITS.entries + 1);
+    let d = restore_flights(LIMITS.entries + 1);
+    assert_eq!(
+        d.restore_fit_failure(),
+        Some(&RestoreFit {
+            family: Some(RecordKind::Flight),
+            set: RestoreSet::Rows(RecordKind::Flight),
+            held: u64::from(LIMITS.entries),
+            additional: 1,
+            limit: u64::from(LIMITS.entries)
+        })
+    );
 }
 
 #[test]

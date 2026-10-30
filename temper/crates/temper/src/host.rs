@@ -150,18 +150,19 @@ pub fn ending(
                 format!("temper serve: restore {}: {}\n", restore_kind(failed.range), load_failure(failed.failure))
             }
             Stop::RestoreStep { step } => {
-                use jig_domain_core::RestartStep;
-                let during = match step {
-                    RestartStep::LoadCore => "core restore".into(),
-                    RestartStep::LoadInbox => "inbox census".into(),
-                    RestartStep::RestoreConnector { connector } => format!("connector {connector} restore"),
-                    RestartStep::Switch => "store switch".into(),
-                    RestartStep::AdoptRuns => "run adoption".into(),
-                    RestartStep::ReadAfresh { connector } => format!("connector {connector} refresh"),
-                    RestartStep::SettleOutbox { connector } => format!("connector {connector} outbox settlement"),
-                    RestartStep::Open => "opening decisions".into(),
-                };
+                let during = restart_step(*step);
                 format!("temper serve: restart refused during {during}\n")
+            }
+            Stop::ForgeFit { step, failure } => {
+                let during = restart_step(*step);
+                let family = match failure.family {
+                    Some(kind) => format!(" {kind:?}"),
+                    None => String::new(),
+                };
+                format!(
+                    "temper serve: restart refused during {during}: forge{family} {:?}, held {}, additional {}, limit {}\n",
+                    failure.set, failure.held, failure.additional, failure.limit
+                )
             }
             Stop::Unresolved { child, records } => {
                 let name = match child {
@@ -664,4 +665,45 @@ fn a_drained_end_prints_each_unsettled_write() {
     assert_eq!(ending(Some(&End::Drained), false, &directories, b"/data/store", &unfinished), (
         "temper serve: stopped before task 3's forge write 17 settled; the next start settles it\ntemper serve: stopped before task 9's forge write 22 settled; the next start settles it\n".into(), 0
     ));
+}
+
+fn restart_step(step: jig_domain_core::RestartStep) -> String {
+    use jig_domain_core::RestartStep;
+    match step {
+        RestartStep::LoadCore => "core restore".into(),
+        RestartStep::LoadInbox => "inbox census".into(),
+        RestartStep::RestoreConnector { connector } => format!("connector {connector} restore"),
+        RestartStep::Switch => "store switch".into(),
+        RestartStep::AdoptRuns => "run adoption".into(),
+        RestartStep::ReadAfresh { connector } => format!("connector {connector} refresh"),
+        RestartStep::SettleOutbox { connector } => format!("connector {connector} outbox settlement"),
+        RestartStep::Open => "opening decisions".into(),
+    }
+}
+
+#[test]
+fn forge_fit_endings_name_step_family_set_and_measured_limit() {
+    use temper_engine_domain_forge::{RecordKind, RestoreFit, RestoreSet};
+    let arguments =
+        [b"--config".as_slice(), b"/configuration", b"--data", b"/data", b"--cache", b"/cache"].map(Box::from);
+    let (directories, _) = crate::directories::resolve(&arguments, &[], b"/").expect("resolved directories");
+    for (family, set, held, additional, limit, detail) in [
+        (
+            Some(RecordKind::Binding),
+            RestoreSet::Rows(RecordKind::Binding),
+            4,
+            1,
+            4,
+            "forge Binding Rows(Binding), held 4, additional 1, limit 4",
+        ),
+        (None, RestoreSet::LandingFlights, 9, 0, 8, "forge LandingFlights, held 9, additional 0, limit 8"),
+    ] {
+        let end = End::Stopped(Stop::ForgeFit {
+            step: jig_domain_core::RestartStep::RestoreConnector { connector: 7 },
+            failure: RestoreFit { family, set, held, additional, limit },
+        });
+        let (line, code) = ending(Some(&end), false, &directories, b"/data/deployment", &[]);
+        assert_eq!(line, format!("temper serve: restart refused during connector 7 restore: {detail}\n"));
+        assert_eq!(code, 1);
+    }
 }

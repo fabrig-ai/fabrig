@@ -17,6 +17,7 @@ mod panel;
 mod projection;
 mod purpose;
 mod reconcile;
+mod restore_fit;
 mod runs;
 mod stopping;
 mod views;

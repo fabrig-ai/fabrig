@@ -13,6 +13,9 @@ use crate::{
 use crate::{adoption, brief, held, topics};
 
 mod hints;
+#[path = "restore.rs"]
+mod restore;
+pub use restore::{RestoreFit, RestoreSet};
 
 /// One comparison in flight for a branch's observed tip move.
 #[derive(Debug)]
@@ -169,7 +172,8 @@ pub struct Domain {
     /// Restored timers stay passive until the scripted fresh-read stage (domain/root.md, 9.1).
     restore_phase: RestorePhase,
     pub(crate) reconciliation: crate::reconcile::Reconciliation,
-    restored_demo: Option<crate::Demo>,
+    restore_started: Option<skein_lib::Wall>,
+    restore_fit: Option<Box<RestoreFit>>,
     client: skein_forge_client::Domain,
     client_out: Queue<skein_forge_client::Request>,
     // A refused brief read waits for the next client reclamation.
@@ -399,20 +403,7 @@ impl Domain {
         if key.task == 0 || key.attempt == 0 {
             return Err(answer);
         }
-        let within = match &answer {
-            crate::CallPayload::Read(result) => match &**result {
-                Ok(value) => match skein_forge::measure::answer(value) {
-                    Some(bytes) => {
-                        skein_forge_client::measure::answer_rows(value, limits.client.rows)
-                            && bytes <= u64::from(limits.client.answer_bytes)
-                    }
-                    None => false,
-                },
-                Err(_) => true,
-            },
-            crate::CallPayload::Effect { .. } | crate::CallPayload::Refused(_) => true,
-        };
-        if !within {
+        if restore::named_payload(limits, &answer).is_err() {
             return Err(answer);
         }
         match self.named_calls.insert(key, answer) {
@@ -586,7 +577,8 @@ impl Domain {
             landing: crate::landing::State::new(l),
             restore_phase: RestorePhase::Cold,
             reconciliation: crate::reconcile::Reconciliation::new(l),
-            restored_demo: None,
+            restore_started: None,
+            restore_fit: None,
             client: skein_forge_client::Domain::configured(&l.client, seed, config)?,
             client_out: Queue::uncapped(),
             brief_reclaim: 0,
@@ -1027,6 +1019,9 @@ impl Domain {
 /// Decide one parent event and collect its durable records and outputs.
 #[expect(clippy::too_many_lines, reason = "one exhaustive connector input dispatcher")]
 pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
+    if d.restore_fit.is_some() {
+        return;
+    }
     match event {
         Event::OrderLanding { task, changes } => crate::landing::order(d, task, &changes, out),
         Event::JoinLanding { task, member, after } => crate::landing::join(d, task, member, &after, out),
@@ -1404,6 +1399,9 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
 
 /// Drive one child call after prior saves have committed.
 pub fn resume(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    if d.restore_fit.is_some() {
+        return;
+    }
     if d.restore_phase == RestorePhase::Restoring && !d.stopping {
         return;
     }
@@ -1437,6 +1435,9 @@ pub fn resume(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 
 /// Expire one client timer.
 pub fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    if d.restore_fit.is_some() {
+        return;
+    }
     if d.restore_phase == RestorePhase::Restoring && !d.stopping {
         return;
     }
@@ -4782,11 +4783,27 @@ fn deleting_entry(d: &Domain, task: u64, resource: &skein_forge_client::Resource
 
 #[expect(clippy::too_many_lines, reason = "one exhaustive durable row restoration dispatcher")]
 fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
+    if d.restore_fit.is_some() {
+        return;
+    }
+    if let Stored::Application { until, .. } = &record
+        && let Some(started) = d.restore_started
+        && *until <= started
+    {
+        return;
+    }
+    if let Err(failure) = restore::row(d, &env.limits, &record) {
+        d.restore_fit = Some(Box::new(failure));
+        return;
+    }
     if d.restore_phase != RestorePhase::Active {
         d.restore_phase = RestorePhase::Restoring;
     }
-    if d.restore_phase == RestorePhase::Restoring {
-        d.reconciliation.restore(&record);
+    if d.restore_phase == RestorePhase::Restoring
+        && let Err(failure) = d.reconciliation.restore(&record)
+    {
+        d.restore_fit = Some(Box::new(failure));
+        return;
     }
     match record {
         Stored::Landing(row) => {
@@ -4795,9 +4812,13 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
         Stored::Receipt { key, receipt } => {
             d.landing.receipts.insert(key, receipt).expect("restored receipt within limits");
         }
-        Stored::Application { token, until, outcome } => d.application.restore(token, until, outcome),
+        Stored::Application { token, until, outcome } => {
+            if let Err(failure) = d.application.restore(token, until, outcome) {
+                d.restore_fit = Some(Box::new(failure));
+            }
+        }
         Stored::Call { key, answer } => {
-            d.keep_named_answer(&env.limits, key, answer).expect("restored named-call payload within limits");
+            d.named_calls.insert(key, answer).expect("restored named-call room checked");
         }
         Stored::Repository(row) => {
             d.repositories.insert(row.provider, row).expect("restored repository within limits");
@@ -4835,7 +4856,6 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
                 .expect("restored entry within limits");
         }
         Stored::Binding { address, subject } => {
-            assert!(crate::binding_address(&address) && subject.len() <= 255, "restored binding fields");
             d.bindings.insert(address, subject).expect("restored binding within limits");
         }
         Stored::Flight { task, entry } => {
@@ -4846,10 +4866,6 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
             d.demo_acts.insert(row.key, row.act).expect("restored demo acts within limits");
         }
         Stored::Demo(row) => {
-            if d.restore_phase == RestorePhase::Restoring {
-                assert!(d.restored_demo.is_none(), "one restored demo row");
-                d.restored_demo = Some(row);
-            }
             if let Some(demo) = &d.demo
                 && row.forge == demo.adoption.forge
             {
@@ -4892,6 +4908,9 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
 }
 
 fn restored(d: &mut Domain, env: &Env<Limits>, clock: skein_forge_client::RecoveryClock, out: &mut Queue<Request>) {
+    if d.fit_restored(&env.limits).is_err() {
+        return;
+    }
     d.restore_phase = RestorePhase::Restoring;
     child(d, env, skein_forge_client::Event::Restored { clock }, out);
     retire_ended(d, env, out);

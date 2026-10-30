@@ -126,6 +126,12 @@ pub(crate) fn root(engine: &mut Engine) {
         engine.end = Some(End::Stopped(Stop::RestoreLoad(failure)));
         return;
     }
+    if let Some(failure) = engine.domain.forge_fit_failure()
+        && let Some(step) = engine.domain.restart_failure()
+    {
+        engine.end = Some(End::Stopped(Stop::ForgeFit { step, failure: *failure }));
+        return;
+    }
     if engine.domain.restore_failure().is_none()
         && let Some(why) = engine.domain.forge_restore_failure()
     {

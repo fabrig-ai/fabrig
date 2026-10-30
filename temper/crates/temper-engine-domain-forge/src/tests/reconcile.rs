@@ -275,7 +275,7 @@ fn retained_reconciliation_references_fit_their_heap_ceiling() {
     meter.start();
     let mut reconciliation = Reconciliation::new(&LIMITS);
     for row in &rows {
-        reconciliation.restore(row);
+        reconciliation.restore(row).expect("fixture fits references");
     }
     let measured = meter.end();
     meter.check(measured, REFERENCE_HEAP_CEILING, &LIMITS);
@@ -383,7 +383,7 @@ fn a_flight_on_a_live_forge_requires_its_entrys_task() {
 }
 
 // Empty restored tasks use the core's small task fixture limits; no charter is needed.
-fn empty_tasks() -> jig_domain_tasks::Domain {
+pub(super) fn empty_tasks() -> jig_domain_tasks::Domain {
     use jig_domain_tasks as tasks;
     let retry = tasks::Retry { retries: 1, base: Duration::from_millis(10), max: Duration::from_secs(1) };
     let limits = tasks::Limits {

@@ -855,3 +855,54 @@ fn an_oversized_startup_page_keeps_its_load_range_and_failed_step_before_switch(
     assert!(!engine.domain.ready());
     assert!(engine.store.routes.idle());
 }
+
+#[test]
+#[expect(
+    clippy::disallowed_types,
+    reason = "the injected durable fixture set exceeds the unchanged configured table limit"
+)]
+fn a_forge_fit_failure_reaches_the_typed_start_ending_before_switch() {
+    use temper_engine_domain_forge as forge;
+    for pending in [false, true] {
+        let mut previous = fixtures::ready().engine.unwrap();
+        let limit = previous.env.limits.forge.bindings;
+        let mut writes = Vec::new();
+        for number in 0..=limit {
+            writes.push(root::Write::Save(root::Record::Forge {
+                row: Box::new(forge::Stored::Binding {
+                    address: number.to_be_bytes().as_slice().into(),
+                    subject: Box::new([]),
+                }),
+            }));
+        }
+        fixtures::commit(&mut previous.store, 1, writes.into_boxed_slice());
+        previous.store.above.pop().expect("fixture commit answered");
+        let mut service = fixtures::restarting_from(previous);
+        // Model the generation flag supplied by the store's open terminal; refusal precedes switching it.
+        service.engine.as_mut().unwrap().store.pending_generation = pending;
+        for _ in 0_u32..512 {
+            fixtures::turn(&mut service);
+            if service.end().is_some() {
+                break;
+            }
+        }
+        let failure = forge::RestoreFit {
+            family: Some(forge::RecordKind::Binding),
+            set: forge::RestoreSet::Rows(forge::RecordKind::Binding),
+            held: u64::from(limit),
+            additional: 1,
+            limit: u64::from(limit),
+        };
+        let expected = crate::End::Stopped(crate::Stop::ForgeFit {
+            step: jig_domain_core::RestartStep::RestoreConnector { connector: 1 },
+            failure,
+        });
+        assert_eq!(service.end(), Some(&expected));
+        let engine = service.engine.as_ref().unwrap();
+        assert!(!engine.store.component.mark_durable());
+        assert!(!engine.domain.connectors_restored());
+        assert!(!engine.domain.ready());
+        assert_eq!(engine.domain.forge_fit_failure(), Some(&failure));
+        assert_eq!(engine.store.pending_generation, pending, "no switch");
+    }
+}
