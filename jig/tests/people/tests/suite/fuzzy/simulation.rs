@@ -13,3 +13,16 @@ fn random_people_settle_and_reach_every_ending() {
         assert!(endings.contains(ending), "{ending}: {endings:?}");
     }
 }
+
+#[test]
+fn explicit_start_random_people_settle_and_reach_every_ending() {
+    let mut endings = BTreeSet::new();
+    for seed in 0..256 {
+        let mut world = World::configured_start(Settings::random(seed), Box::new([]), Box::new([]));
+        world.run();
+        endings.extend(world.stats().endings.iter().copied());
+    }
+    for ending in ENDINGS {
+        assert!(endings.contains(ending), "{ending}: {endings:?}");
+    }
+}
