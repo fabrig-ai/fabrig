@@ -55,6 +55,7 @@ mod settings_proposals;
 mod settings_reads;
 mod simulation;
 mod stopping;
+mod start;
 mod store;
 mod store_adapter;
 mod store_peer;

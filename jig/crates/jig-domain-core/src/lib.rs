@@ -71,6 +71,7 @@ pub use reads::{SettingsAnswer, SettingsRead};
 mod relays;
 mod resources;
 mod restart;
+pub mod start;
 mod stopping;
 pub use restart::{
     Census, HeldLimit, ReadResults, RestartRequest, RestartStep, RestoreChild, RestoreRange, restore_cursor,
@@ -285,6 +286,7 @@ pub type Delegating = (CallKey, Box<[tasks::Stub]>, Option<people::Given>);
     reason = "pending generation, worker placement, stopping and role-table fullness are independent facts"
 )]
 pub struct Core {
+    pub(crate) start: start::Script,
     person_answers: bool,
     routes: u32,
     run_inbox: u32,
@@ -479,6 +481,7 @@ impl Core {
     /// Retain the canonical terminal of an unpriced attempt before the task
     /// child makes its next lifecycle decision.
     pub fn remember_unpriced_terminal(&mut self, run: Token, attempt: Token, end: tasks::End) {
+        self.start_runtime_input();
         if self.committed_terminal(run.raw(), attempt.raw()).is_some() {
             return;
         }
@@ -505,6 +508,7 @@ impl Core {
     /// Retain one newly accepted named call decision. The application saves
     /// its store row and holds the outward answer behind the same commit.
     pub fn record_call(&mut self, key: CallKey, part: CallPart) {
+        self.start_runtime_input();
         assert!(self.call_parts.insert(key, part) == Ok(None), "named call room reserved");
     }
 
@@ -512,6 +516,23 @@ impl Core {
     /// restored. The connector's separately owned answer is validated by the
     /// application before it asks the core to retain this part.
     pub fn restore_call(&mut self, key: CallKey, part: CallPart) -> bool {
+        self.start.consumed = true;
+        match self.start.mode {
+            start::StartMode::Default => {
+                if !self.call_admitted(key) { return false; }
+            }
+            start::StartMode::LoadAndLink => {
+                assert!(self.start.phase == Some(start::Phase::LoadCore), "calls load before Link");
+                assert!(!self.call_parts.contains_key(&key), "duplicate call {:?}", Key::Core(CoreKey::Call(key)));
+                if !self.start_room(start::LiveSet::Calls, Key::Core(CoreKey::Call(key)), self.call_parts.len(), self.call_parts.capacity()) {
+                    return false;
+                }
+            }
+        }
+        self.call_parts.insert(key, part) == Ok(None)
+    }
+
+    fn call_admitted(&self, key: CallKey) -> bool {
         let deployment = self.counters.deployment();
         let valid = key.task != 0
             && key.attempt != 0
@@ -522,13 +543,14 @@ impl Core {
                 Some(proof) => proof.attempt >= key.attempt,
                 None => false,
             };
-        valid && self.call_parts.insert(key, part) == Ok(None)
+        valid
     }
 
     /// Forget named calls whose answer entered a committed later turn. The
     /// application erases these keys in the same decision and drops any
     /// connector-owned answer for them.
     pub fn retire_calls(&mut self, task: u64, attempt: u64, turn: u32, room: u32) -> Box<[CallKey]> {
+        self.start_runtime_input();
         let mut retired = List::with_capacity(self.call_parts.len());
         for (&key, _) in &self.call_parts {
             if key.task == task && (key.attempt < attempt || (key.attempt == attempt && key.completion < turn)) {
@@ -676,6 +698,7 @@ impl Core {
             task_capacity_mark: 0,
             settings_holders: 0,
             applications: Map::with_capacity(limits.people.pending),
+            start: start::Script::new(),
             restart: restart::Restart::Cold,
             restart_pending: false,
             restart_attempts: limits.fleet.attempts,
@@ -876,6 +899,44 @@ impl Core {
     /// transient correlation. An archive row can never enter this live map.
     #[expect(clippy::manual_let_else, reason = "the step-code subset uses exhaustive matches")]
     pub fn restore_proof(&mut self, proof: RunProof, result_bytes: u32) -> bool {
+        self.start.consumed = true;
+        match self.start.mode {
+            start::StartMode::Default => {
+                if !self.proof_admitted(&proof, result_bytes) { return false; }
+            }
+            start::StartMode::LoadAndLink => {
+                assert!(self.start.phase == Some(start::Phase::LoadCore), "proofs load before Link");
+                let key = Key::Core(CoreKey::RunProof(proof.task));
+                assert!(!self.proofs.contains_key(&proof.task), "duplicate {key:?}");
+                if !self.start_room(start::LiveSet::RunProofs, key.clone(), self.proofs.len(), self.proofs.capacity()) {
+                    return false;
+                }
+                let mut bytes = u64::try_from(proof.outstanding.len()).expect("allocated proof fits u64");
+                let mut limit = u64::from(self.run_inbox);
+                if bytes <= limit {
+                    bytes = u64::try_from(proof.accounts.len()).expect("allocated accounts fit u64");
+                    limit = u64::from(tasks::MODELS);
+                }
+                if bytes <= limit {
+                    bytes = u64::try_from(proof.credentials.len()).expect("allocated credentials fit u64");
+                    limit = u64::from(self.accounts.credential_limit());
+                }
+                if bytes <= limit {
+                    if let Some(terminal) = &proof.terminal {
+                        bytes = tasks::terminal_bytes(&terminal.end).expect("allocated terminal has a representable measure");
+                        limit = u64::from(result_bytes).checked_mul(2).expect("result bound");
+                    }
+                }
+                if bytes > limit {
+                    let _refused = self.start_refuse(start::Failure::LiveSet { set: start::LiveSet::RunProofs, key, held: bytes, limit });
+                    return false;
+                }
+            }
+        }
+        self.proofs.insert(proof.task, proof).is_ok()
+    }
+
+    fn proof_admitted(&mut self, proof: &RunProof, result_bytes: u32) -> bool {
         let expected = match self.restoring_proofs.remove(&proof.task) {
             Some(expected) => expected,
             None => return false,
@@ -927,11 +988,11 @@ impl Core {
             || proof.attempt != expected.attempt
             || turn != expected.turn
             || proof.outstanding.len() > usize::try_from(self.run_inbox).expect("run inbox fits usize")
-            || !valid_proof(&proof, &expected, result_bytes)
+            || !valid_proof(proof, &expected, result_bytes)
         {
             return false;
         }
-        self.proofs.insert(proof.task, proof).is_ok()
+        true
     }
 }
 

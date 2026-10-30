@@ -190,6 +190,7 @@ impl Core {
     /// Finish the settings range before routing any later live row. Children
     /// run ahead of the release commit as they do in every ordinary decision.
     pub fn settings_restored(&mut self, env: &Env<Limits>) -> bool {
+        self.start.consumed = true;
         if self.settings_restore.ready || self.restore_failure.is_some() {
             return self.restore_failure.is_none();
         }

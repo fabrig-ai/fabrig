@@ -421,6 +421,20 @@ impl Core {
     /// correlations that a later proof and view restoration will need.
     #[must_use]
     pub fn restore_task_row(&mut self, row: &jig_domain_tasks::Stored) -> bool {
+        self.start.consumed = true;
+        match self.start.mode {
+            crate::start::StartMode::Default => {
+                if !self.task_row_admitted(row) { return false; }
+            }
+            crate::start::StartMode::LoadAndLink => {
+                assert!(self.start.phase == Some(crate::start::Phase::LoadCore), "task rows load before Link");
+                assert!(row.key().live(), "historical task row in live load: {:?}", row.key());
+            }
+        }
+        self.remember_task_proof(row)
+    }
+
+    fn task_row_admitted(&mut self, row: &jig_domain_tasks::Stored) -> bool {
         use jig_domain_tasks as tasks;
 
         let deployment = self.counters.deployment();
@@ -484,29 +498,7 @@ impl Core {
                 {
                     return false;
                 }
-                let agent_attempt = match task.executor {
-                    tasks::Executor::Agent { .. } => task.attempt != 0,
-                    tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) => false,
-                };
-                if agent_attempt && task.attempt > deployment.runs {
-                    return false;
-                }
-                if agent_attempt
-                    && self
-                        .restoring_proofs
-                        .insert(
-                            task.number,
-                            crate::RestoringProof {
-                                attempt: task.attempt,
-                                turn: task.turn,
-                                run_spent: task.run_spent,
-                                last_answer: task.last_answer,
-                            },
-                        )
-                        .is_err()
-                {
-                    return false;
-                }
+                if task.attempt > deployment.runs && matches_agent(task.executor) { return false; }
                 true
             }
             tasks::Stored::Ledger(_) | tasks::Stored::Writer(_) | tasks::Stored::Pool(_) => true,
@@ -525,9 +517,41 @@ impl Core {
         }
     }
 
+    #[expect(clippy::wildcard_enum_match_arm, reason = "only live tasks carry run-proof correlation")]
+    fn remember_task_proof(&mut self, row: &jig_domain_tasks::Stored) -> bool {
+        use jig_domain_tasks as tasks;
+        match row {
+            jig_domain_tasks::Stored::Live(task) => {
+                let agent_attempt = match task.executor {
+                    tasks::Executor::Agent { .. } => task.attempt != 0,
+                    tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) => false,
+                };
+                if agent_attempt
+                    && self
+                        .restoring_proofs
+                        .insert(
+                            task.number,
+                            crate::RestoringProof {
+                                attempt: task.attempt,
+                                turn: task.turn,
+                                run_spent: task.run_spent,
+                                last_answer: task.last_answer,
+                            },
+                        )
+                        .is_err()
+                {
+                    return false;
+                }
+                true
+            }
+            _ => true,
+        }
+    }
+
     /// Retain one of the core's own live rows. The root wraps store bytes and
     /// routes connector rows separately; it cannot alter this live decision.
     pub fn restore_core(&mut self, record: CoreRecord, limits: &Limits) -> Restored {
+        self.start.consumed = true;
         match record {
             CoreRecord::Settings(record) => {
                 if self.restore_setting(record, limits) {
@@ -593,6 +617,13 @@ impl Core {
             | CoreRecord::ProposalDecision(_)
             | CoreRecord::EscalationDecision(_) => Restored::Archive,
         }
+    }
+}
+
+fn matches_agent(executor: jig_domain_tasks::Executor) -> bool {
+    match executor {
+        jig_domain_tasks::Executor::Agent { .. } => true,
+        jig_domain_tasks::Executor::Procedure { .. } | jig_domain_tasks::Executor::Person(_) => false,
     }
 }
 

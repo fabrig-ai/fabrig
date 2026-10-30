@@ -87,6 +87,7 @@ impl Core {
     /// Retain a numbered connector call until its translated answer arrives.
     #[must_use]
     pub fn reserve_connector_call(&mut self, key: CallKey) -> bool {
+        self.start_runtime_input();
         self.pending_calls.insert(key, true) == Ok(None)
     }
 
@@ -315,6 +316,29 @@ impl Core {
 
 /// Route one child event and each sibling continuation within one core decision.
 pub fn step(core: &mut Core, env: &Env<Limits>, event: Event) -> Requests {
+    core.start.consumed = true;
+    if core.start_failure().is_some() { return Requests::Out(Queue::uncapped()); }
+    if let Some(phase) = core.start_phase() {
+        use crate::start::Phase;
+        match phase {
+            Phase::LoadCore | Phase::LoadInbox | Phase::RestoreConnector { .. } | Phase::Link
+            | Phase::Sweep | Phase::Switch | Phase::Wires => {
+                #[expect(clippy::wildcard_enum_match_arm, reason = "the closed start gate accepts loading inputs; serving inputs require durable Wires")]
+                match &event {
+                    Event::Account(accounts::Event::Want) => return want_accounts(core, env),
+                    Event::Account(accounts::Event::Restore { .. })
+                    | Event::People(people::Event::Restore { .. })
+                    | Event::Tasks(tasks::Event::Restore { .. }) => assert!(phase == Phase::LoadCore, "rows load before Link"),
+                    Event::SettingsCommit { .. } => assert!(phase == Phase::Sweep, "settings cleanup follows Link"),
+                    Event::EffectConnector(crate::connector::Event::Resource { .. }) => {
+                        assert!(matches_restore_connector(phase), "connector resources load before Link");
+                    }
+                    _ => unreachable!("operational input requires durable Wires"),
+                }
+            }
+            Phase::AdoptRuns | Phase::ReadAfresh { .. } | Phase::SettleOutbox { .. } | Phase::Open => {}
+        }
+    }
     let oldest = core.current.oldest;
     core.run_now = env.now;
     core.run_wall = env.wall;
@@ -339,12 +363,21 @@ pub fn step(core: &mut Core, env: &Env<Limits>, event: Event) -> Requests {
     }
     assert!(work.is_empty(), "sibling_routes_drained");
     core.finish_extent(oldest, &mut out);
+    core.start_collect_failure();
+    if core.start_failure().is_some() {
+        return Requests::Out(Queue::uncapped());
+    }
     out.push(Request::Decided);
     Requests::Out(out)
 }
 
 /// Want every configured account once, after the restart has restored the core's own ranges.
 pub fn want_accounts(core: &mut Core, env: &Env<Limits>) -> Requests {
+    core.start.consumed = true;
+    if let Some(phase) = core.start_phase() {
+        assert!(phase == crate::start::Phase::Link, "account wants attach after all loading");
+        assert!(!core.accounts.restore_finished(), "account wants link once");
+    }
     let oldest = core.current.oldest;
     core.run_now = env.now;
     core.run_wall = env.wall;
@@ -352,11 +385,45 @@ pub fn want_accounts(core: &mut Core, env: &Env<Limits>) -> Requests {
     let Requests::Out(mut out) = route_account(core, env, &mut work, accounts::Event::Want);
     assert!(work.is_empty(), "wanting the accounts answers no party");
     core.finish_extent(oldest, &mut out);
+    if core.start_phase().is_some() {
+        let mut writes = Queue::uncapped();
+        for _ in 0..out.len() {
+            let request = out.pop().expect("bounded restored accounts output");
+            match request {
+                Request::Write(_) => writes.push(request),
+                Request::Decided => {}
+                Request::ProjectMade { .. } | Request::Ask { .. } | Request::Held(_) | Request::Now(_) => {
+                    core.start.held.push(request);
+                }
+            }
+        }
+        core.start_collect_failure();
+        return Requests::Out(writes);
+    }
     Requests::Out(out)
+}
+
+fn matches_restore_connector(phase: crate::start::Phase) -> bool {
+    match phase {
+        crate::start::Phase::RestoreConnector { .. } => true,
+        crate::start::Phase::LoadCore | crate::start::Phase::LoadInbox | crate::start::Phase::Link
+        | crate::start::Phase::Sweep | crate::start::Phase::Switch | crate::start::Phase::Wires
+        | crate::start::Phase::AdoptRuns | crate::start::Phase::ReadAfresh { .. }
+        | crate::start::Phase::SettleOutbox { .. } | crate::start::Phase::Open => false,
+    }
+}
+
+pub(crate) fn start_task_outputs(core: &mut Core, env: &Env<Limits>, child: Queue<tasks::Request>, out: &mut Queue<Request>) {
+    let Requests::Out(mut routed) = tag_tasks(core, env, child, false, false, false);
+    for _ in 0..routed.len() {
+        let request = routed.pop().expect("bounded restored task outputs");
+        out.push(request);
+    }
 }
 
 /// Resume the fleet's next held placement or relay through the core's sibling routes.
 pub fn resume_fleet(core: &mut Core, env: &Env<Limits>) -> Requests {
+    core.start_runtime_input();
     let oldest = core.current.oldest;
     core.run_now = env.now;
     core.run_wall = env.wall;
@@ -547,6 +614,7 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<E
 
 /// Fire one due child timer, returning its whole bounded request batch.
 pub fn fire(core: &mut Core, env: &Env<Limits>, timer: Timer) -> Requests {
+    core.start_runtime_input();
     core.run_now = env.now;
     core.run_wall = env.wall;
     if core.stopping && crate::stopping::waits(timer) {
