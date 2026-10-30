@@ -324,10 +324,54 @@ fn check_agents(ran: &Ran) {
     assert!(ran.calls()[ANSWERED].ended <= ran.calls()[LANDED].ended);
 }
 
-fn check_landing(ran: &Ran) {
+fn check_review(ran: &Ran) {
     let reviewed = query_at(ran, CUES[4], 3);
     assert!(heard_tool(reviewed, "fn write_csv"), "the reviewer read the produced source: {}", told(reviewed));
     assert!(!told(reviewed).contains("Error:"), "the source review succeeds");
+    let brief = String::from_utf8_lossy(&reviewed.system);
+    assert!(brief.contains(include_str!("../../../crates/temper-service/src/stock/review.txt")));
+    let pull_at = brief.find("## Pull request").expect("review's pull section");
+    let opened = ran
+        .forge()
+        .observations()
+        .iter()
+        .find_map(|seen| {
+            let Observation::Opened { number, title, body, branches: Some(branches), .. } = seen else { return None };
+            Some((*number, title, body, branches))
+        })
+        .expect("opened pull");
+    let (number, title, body, branches) = opened;
+    let mut head = String::new();
+    for byte in object_bytes(branches.commit) {
+        write!(head, "{byte:02x}").expect("head identity");
+    }
+    let subject = format!(
+        "Pull request: #{number}\nBranch: {}\nBase: {}\nHead: {head}\n",
+        String::from_utf8_lossy(&branches.head),
+        String::from_utf8_lossy(&branches.base)
+    );
+    assert!(brief.find(&subject).expect("named review head") < pull_at);
+    for words in [
+        format!("Title: {}", String::from_utf8_lossy(title)),
+        format!("Body: {}", String::from_utf8_lossy(body)),
+        "Files and diff:".into(),
+        "File: src/main.rs".into(),
+        "After:\n".into(),
+        "fruit,count".into(),
+    ] {
+        assert!(brief[pull_at..].contains(&words), "review includes {words}: {brief}");
+    }
+    let calls = tool_calls(reviewed);
+    assert_eq!(calls[0].0, "read_pull");
+    assert_eq!(calls[0].1["number"], number);
+    assert!(
+        heard_tool(reviewed, &format!("Pull {number} head {} commit {head}", String::from_utf8_lossy(&branches.head))),
+        "named pull read succeeded"
+    );
+}
+
+fn check_landing(ran: &Ran) {
+    check_review(ran);
     assert!(ran.forge().merged_green(), "CI passed at the merged head");
     let delivered = told(query_at(ran, WORK_CUE, 7));
     let merge = delivered

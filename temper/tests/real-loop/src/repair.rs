@@ -321,6 +321,18 @@ fn check_repair(ran: &Ran, first: u64) {
 }
 
 fn check_landing(ran: &Ran, repaired: u64, merge: u64) {
+    let review = String::from_utf8_lossy(&query_at(ran, 5, 0).system);
+    assert!(review.contains(&format!("Head: {}\n", hex(repaired))), "review names H2: {review}");
+    let diff = review.split_once("Files and diff:").expect("review's repaired diff").1;
+    for words in [
+        "File: src/main.rs",
+        "File: changes/2.md",
+        "After:\n",
+        "fruit,count",
+        "Repair CI by adding the required pull request changelog entry.",
+    ] {
+        assert!(diff.contains(words), "H2 review includes {words}: {review}");
+    }
     let change = document(ran, LANDED);
     assert_eq!(change["chip"]["phase"], "ended");
     let outcome = &change["result"]["value"]["change"];
