@@ -4,7 +4,7 @@ use jig_domain_accounts::{
     Change, Domain, Event, Held, Holder, Key, Kind, Limits, Providers, Request, RestoreLimit, RestoreSet, State,
     Stored, Use, programs,
 };
-use skein_lib::{Token, Wall};
+use skein_lib::{Env, Queue, Token, Wall};
 
 const HOLDER: Holder = Holder::Party(7);
 fn configured() -> Providers {
@@ -303,22 +303,147 @@ fn conflicting_source_places_panic_with_keys() {
 }
 
 #[test]
-#[should_panic(expected = "selected once before any Restore or Want")]
+#[should_panic(expected = "selected once before any operational input")]
+fn accepted_credential_prevents_late_start_selection() {
+    let mut world = World::with(configured(), &[]);
+    let valid = skein_lib::Duration::from_secs(60);
+    let grant =
+        jig_domain_accounts::Grant { form: jig_domain_accounts::Form::Application, account: 20, generation: 1, valid };
+    assert_eq!(world.step(Event::Credential { number: 20, generation: 1, valid }), vec![Request::Granted { grant }]);
+    assert_eq!(world.domain.credential_grant(20, world.now), Some(grant));
+    assert_eq!(world.domain.next_deadline(), Some(world.now.saturating_add(valid)));
+    assert_eq!(restore_limit(&world.domain), None);
+    world.domain.start_restore();
+}
+
+fn assert_late_selection(domain: &mut Domain) {
+    let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| domain.start_restore()))
+        .expect_err("operational input consumes start selection");
+    let message = panic.downcast_ref::<String>().map(String::as_str).or_else(|| panic.downcast_ref::<&str>().copied());
+    assert!(message.is_some_and(|text| text.contains("selected once before any operational input")));
+}
+
+#[test]
+fn ignored_terminals_prevent_late_start_selection() {
+    for event in [
+        Event::NotOurs { source: 21 },
+        Event::Component(jig_domain_accounts::FromComponent::Closed),
+        Event::Finishing { source: 21 },
+        Event::ProgramTargets { source: 21, hosts: Box::new([]) },
+    ] {
+        let mut world = World::with(configured(), &[]);
+        assert!(world.step(event).is_empty());
+        assert_eq!(restore_limit(&world.domain), None);
+        assert_late_selection(&mut world.domain);
+    }
+}
+
+#[test]
+#[should_panic(expected = "selected once before any operational input")]
+fn refused_change_prevents_late_start_selection() {
+    let mut world = World::with(configured(), &[]);
+    let request = Token::new(1);
+    assert_eq!(
+        world.step(Event::Change { request, holder: HOLDER, change: Change::CheckProgram { source: 21 } }),
+        vec![Request::Answer {
+            request,
+            answer: jig_domain_accounts::Answer::Refused { refusal: jig_domain_accounts::Refusal::Closing },
+        }]
+    );
+    world.domain.start_restore();
+}
+
+#[test]
+#[should_panic(expected = "selected once before any operational input")]
+fn empty_fire_prevents_late_start_selection() {
+    let mut world = World::with(configured(), &[]);
+    assert!(world.fire_at(0).is_empty());
+    assert_eq!(world.domain.next_deadline(), None);
+    assert_eq!(restore_limit(&world.domain), None);
+    world.domain.start_restore();
+}
+
+fn cold_program() -> (Domain, Env<Limits>, Queue<Request>) {
+    let world = World::with(configured(), &[]);
+    (world.domain, Env { now: world.now, wall: world.wall, limits: world.limits }, Queue::uncapped())
+}
+
+#[test]
+#[should_panic(expected = "selected once before any operational input")]
+fn refused_declaration_prevents_late_start_selection() {
+    let (mut domain, env, mut out) = cold_program();
+    assert_eq!(
+        programs::declare(&mut domain, &env, HOLDER, 1, None, b"program".as_slice().into(), &mut out),
+        Err(programs::DeclarationRefusal::Account(jig_domain_accounts::Refusal::Closing))
+    );
+    assert!(out.is_empty());
+    domain.start_restore();
+}
+
+#[test]
+#[should_panic(expected = "selected once before any operational input")]
+fn refused_program_check_prevents_late_start_selection() {
+    let (mut domain, _, mut out) = cold_program();
+    assert_eq!(programs::check(&mut domain, HOLDER, 21, &mut out), Err(jig_domain_accounts::Refusal::Closing));
+    assert!(out.is_empty());
+    domain.start_restore();
+}
+
+#[test]
+#[should_panic(expected = "selected once before any operational input")]
+fn refused_program_sign_out_prevents_late_start_selection() {
+    let (mut domain, env, mut out) = cold_program();
+    assert_eq!(
+        programs::sign_out(&mut domain, &env, Token::new(1), HOLDER, 21, &mut out),
+        Err(jig_domain_accounts::Refusal::Closing)
+    );
+    assert!(out.is_empty());
+    domain.start_restore();
+}
+
+#[test]
+#[should_panic(expected = "selected once before any operational input")]
+fn closing_prevents_late_start_selection() {
+    let mut world = World::with(configured(), &[]);
+    assert_eq!(world.step(Event::Close), vec![Request::Component(jig_domain_accounts::ToComponent::Close)]);
+    assert!(world.step(Event::Close).is_empty());
+    world.domain.start_restore();
+}
+
+#[test]
+fn queries_and_output_drains_permit_start_selection() {
+    let mut world = World::with(configured(), &[]);
+    assert_eq!(world.domain.pop_fact(), None);
+    assert_eq!(world.domain.pop_ended(), None);
+    assert_eq!(world.domain.accounts(), 0);
+    assert_eq!(world.domain.credential_grant(20, world.now), None);
+    assert_eq!(world.domain.next_deadline(), None);
+    assert_eq!(programs::issued(&world.domain, b"program"), None);
+    assert_eq!(programs::name(&world.domain, 21, HOLDER), None);
+    assert_eq!(world.domain.sign_in(&LIMITS, HOLDER, 1, b""), Err(jig_domain_accounts::Refusal::Subject));
+    world.domain.start_restore();
+    world.step(Event::Want);
+    assert!(world.domain.restore_finished());
+    assert_eq!(restore_limit(&world.domain), None);
+}
+
+#[test]
+#[should_panic(expected = "selected once before any operational input")]
 fn selecting_start_twice_is_a_programmer_error() {
     start(&[]).domain.start_restore();
 }
 #[test]
-#[should_panic(expected = "selected once before any Restore or Want")]
+#[should_panic(expected = "selected once before any operational input")]
 fn selecting_start_after_an_empty_counter_is_a_programmer_error() {
     World::with(configured(), &[Stored::Next { number: 0 }]).domain.start_restore();
 }
 #[test]
-#[should_panic(expected = "selected once before any Restore or Want")]
+#[should_panic(expected = "selected once before any operational input")]
 fn selecting_start_after_a_dropped_row_is_a_programmer_error() {
     World::with(configured(), &[source(20, 21, 0, Kind::Key)]).domain.start_restore();
 }
 #[test]
-#[should_panic(expected = "selected once before any Restore or Want")]
+#[should_panic(expected = "selected once before any operational input")]
 fn selecting_start_after_a_zero_row_want_is_a_programmer_error() {
     let mut world = World::with(configured(), &[]);
     world.step(Event::Want);

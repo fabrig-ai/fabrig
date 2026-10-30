@@ -202,16 +202,19 @@ impl Domain {
             phase: Phase::New,
         }
     }
-    /// Select load/fit/link once before any restore row or Want (engine.md, 6).
+    /// Select load/fit/link once before any operational input (engine.md, 6).
     ///
     /// # Panics
-    /// Repeated selection or selection after restore consumption is a programmer error.
+    /// Repeated selection or selection after operational input is a programmer error.
     pub fn start_restore(&mut self) {
         assert!(
             !self.start_restore && !self.restore_consumed && self.phase == Phase::New,
-            "accounts start restore is selected once before any Restore or Want"
+            "accounts start restore is selected once before any operational input"
         );
         self.start_restore = true;
+    }
+    pub(crate) fn consume_restore(&mut self) {
+        self.restore_consumed = true;
     }
     pub(crate) fn last_place(&self, holder: Holder) -> u32 {
         let mut next = 0;
@@ -473,6 +476,7 @@ impl Domain {
 }
 
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
+    domain.consume_restore();
     domain.now = env.now;
     match event {
         Event::Restore { record } => restore(domain, env, record),
@@ -571,7 +575,6 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
     }
 }
 fn restore(domain: &mut Domain, env: &Env<Limits>, record: Stored) {
-    domain.restore_consumed = true;
     if domain.phase != Phase::New {
         return;
     }
@@ -583,7 +586,6 @@ fn restore(domain: &mut Domain, env: &Env<Limits>, record: Stored) {
 }
 /// Finish restoration and name every party source before the component is asked for grants.
 fn want(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
-    domain.restore_consumed = true;
     if domain.phase != Phase::New {
         return;
     }
@@ -957,6 +959,7 @@ fn failed(entry: &mut Source, env: &Env<Limits>, failure: Failure) {
 }
 /// One expired source, after component inputs so a grant arriving now wins.
 pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    domain.consume_restore();
     domain.now = env.now;
     if let Some(number) = domain.credential_alarms.expire(env.now) {
         domain.credentials.remove(&number).expect("credential alarm names a grant");
