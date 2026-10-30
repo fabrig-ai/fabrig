@@ -441,11 +441,12 @@ while True:
         return result, CPU['records'](self.directory)
 
     def test_wrapper_stdio_and_exit_pass_through(self):
+        name = ('quoted"\\\n\t\r\b\f\x01é😺name' * 512)
         result, items = self.wrapped('import sys; print(sys.stdin.read()); print("err", file=sys.stderr); sys.exit(7)',
-                                    input_text='input', name='quoted"\\\nname')
+                                    input_text='input', name=name)
         self.assertEqual((result.returncode, result.stdout, result.stderr), (7, 'input\n', 'err\n'))
         self.assertEqual(len(items), 1)
-        self.assertEqual(items[0]['test_name'], 'quoted"\\\nname')
+        self.assertEqual(items[0]['test_name'], name)
         self.assertTrue(items[0]['complete'])
         self.assertEqual(items[0]['exit_code'], 7)
         self.assertGreater(items[0]['user_s'] + items[0]['system_s'], 0)
@@ -499,6 +500,7 @@ os.waitpid(child, 0)
 
     def test_wrapper_overhead_on_100_trivial_attempts(self):
         overheads = []
+        snapshots = []
         for attempt in range(100):
             env = dict(os.environ, NEXTEST_PROFILE='qa-jig', NEXTEST_BINARY_ID='fixture::suite',
                        NEXTEST_TEST_NAME=f'trivial_{attempt}', NEXTEST_ATTEMPT='1')
@@ -508,8 +510,12 @@ os.waitpid(child, 0)
             item = next(r for r in CPU['records'](self.directory) if r['test_name'] == f'trivial_{attempt}')
             overheads.append(usage.ru_utime + usage.ru_stime
                              - item['user_s'] - item['system_s'])
+            snapshots.append(item['wrapper_cpu_s'])
         print(f'Wrapper CPU overhead, 100 trivial tests: total {sum(overheads):.6f}s, '
               f'mean {sum(overheads) / 100 * 1000:.3f}ms, max {max(overheads) * 1000:.3f}ms', flush=True)
+        slowest = max(range(100), key=overheads.__getitem__)
+        print(f'Slowest attempt: wrapper CPU before final publication {snapshots[slowest] * 1000:.3f}ms, '
+              f'whole-lifetime overhead {overheads[slowest] * 1000:.3f}ms', flush=True)
         self.assertLess(max(overheads), 0.002)
 
 

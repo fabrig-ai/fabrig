@@ -149,6 +149,10 @@ Its CPU
 overhead must be at most 2 ms per test; the offline 100-attempt measurement
 subtracts recorded test-tree CPU from `wait4` usage of a `posix_spawn`ed wrapper,
 including supervisor startup, publication and exit, and reports mean and max.
+The writer caches test identity and a JSON buffer, emits fixed decimal seconds,
+and reuses the reserved temporary file for initial publication. Every checkpoint
+and final update still uses one write and atomic rename. Its escaped-identity
+check covers large names, control characters and UTF-8.
 
 ### 7.1 Overlay and gate reuse
 

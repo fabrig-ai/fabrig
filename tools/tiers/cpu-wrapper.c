@@ -5,6 +5,7 @@
 #include <signal.h>
 #include <spawn.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -30,46 +31,77 @@ static const char *required(const char *key) {
     if (!value || !*value) { fprintf(stderr, "cpu-wrapper: missing %s\n", key); exit(125); }
     return value;
 }
-static void quoted(FILE *out, const char *value) {
-    fputc('"', out);
+static char *record_data, *temporary_path;
+static int initial_fd = -1;
+static const char *profile, *binary_id, *test_name;
+static uint64_t attempt_number;
+static char *append(char *out, const char *value) {
+    size_t length = strlen(value);
+    memcpy(out, value, length);
+    return out + length;
+}
+static char *quoted(char *out, const char *value) {
+    static const char hex[] = "0123456789abcdef";
+    *out++ = '"';
     for (const unsigned char *p = (const unsigned char *)value; *p; ++p) {
-        if (*p == '"' || *p == '\\') { fputc('\\', out); fputc(*p, out); }
-        else if (*p < 32) { fprintf(out, "\\u%04x", *p); }
-        else { fputc(*p, out); }
+        if (*p == '"' || *p == '\\') { *out++ = '\\'; *out++ = (char)*p; }
+        else if (*p < 32) {
+            out = append(out, "\\u00"); *out++ = hex[*p / 16]; *out++ = hex[*p % 16];
+        } else *out++ = (char)*p;
     }
-    fputc('"', out);
+    *out++ = '"';
+    return out;
+}
+static char *integer(char *out, uint64_t value) {
+    char digits[32];
+    size_t length = 0;
+    do { digits[length++] = (char)('0' + value % 10); value /= 10; } while (value);
+    while (length) *out++ = digits[--length];
+    return out;
+}
+static char *decimal(char *out, double value, uint64_t scale) {
+    uint64_t ticks = (uint64_t)(value * (double)scale + 0.5);
+    out = integer(out, ticks / scale);
+    *out++ = '.';
+    uint64_t fraction = ticks % scale;
+    for (uint64_t place = scale / 10; place; place /= 10) {
+        *out++ = (char)('0' + fraction / place);
+        fraction %= place;
+    }
+    return out;
 }
 static void record(const char *path, double start, double user, double system,
                    int status, bool complete, unsigned leaked, bool pending, bool settling) {
-    char *data = NULL, *temporary = NULL;
-    size_t length = 0;
-    FILE *out = open_memstream(&data, &length);
-    if (!out) { perror("cpu-wrapper: record buffer"); exit(125); }
-    fputs("{\"profile\":", out); quoted(out, required("NEXTEST_PROFILE"));
-    fputs(",\"binary_id\":", out); quoted(out, required("NEXTEST_BINARY_ID"));
-    fputs(",\"test_name\":", out); quoted(out, required("NEXTEST_TEST_NAME"));
-    fputs(",\"attempt\":", out); fputs(required("NEXTEST_ATTEMPT"), out);
+    /* Reuse the identity buffer and write fixed decimal seconds without stdio. */
+    char *out = append(record_data, "{\"profile\":");
+    out = quoted(out, profile);
+    out = append(out, ",\"binary_id\":"); out = quoted(out, binary_id);
+    out = append(out, ",\"test_name\":"); out = quoted(out, test_name);
+    out = append(out, ",\"attempt\":"); out = integer(out, attempt_number);
+    out = append(out, ",\"user_s\":"); out = decimal(out, user, 1000000);
+    out = append(out, ",\"system_s\":"); out = decimal(out, system, 1000000);
+    out = append(out, ",\"wall_s\":"); out = decimal(out, now() - start, 1000000000);
+    out = append(out, ",\"start_s\":"); out = decimal(out, start, 1000000000);
     struct rusage own;
     if (getrusage(RUSAGE_SELF, &own)) { perror("cpu-wrapper: own CPU"); exit(125); }
-    fprintf(out, ",\"user_s\":%.6f,\"system_s\":%.6f,\"wall_s\":%.9f,\"start_s\":%.9f,"
-                 "\"wrapper_cpu_s\":%.6f,\"complete\":%s,\"leaked\":%u,\"pending\":%s,"
-                 "\"settling\":%s,\"complete_scope\":\"waited-and-reaped-descendants\",\"interrupted\":0,\"exit_code\":",
-            user, system, now() - start, start, seconds(own.ru_utime) + seconds(own.ru_stime),
-            complete ? "true" : "false", leaked, pending ? "true" : "false", settling ? "true" : "false");
-    if (!pending && WIFEXITED(status)) fprintf(out, "%d", WEXITSTATUS(status));
-    else fputs("null", out);
-    fputs(",\"signal\":", out);
-    if (!pending && WIFSIGNALED(status)) fprintf(out, "%d", WTERMSIG(status));
-    else fputs("null", out);
-    fputs("}\n", out);
-    if (fclose(out) || asprintf(&temporary, "%s.tmp", path) < 0) {
-        perror("cpu-wrapper: format record"); exit(125);
-    }
-    int fd = open(temporary, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0600);
-    if (fd < 0 || write(fd, data, length) != (ssize_t)length || close(fd) || rename(temporary, path)) {
+    out = append(out, ",\"wrapper_cpu_s\":");
+    out = decimal(out, seconds(own.ru_utime) + seconds(own.ru_stime), 1000000);
+    out = append(out, ",\"complete\":"); out = append(out, complete ? "true" : "false");
+    out = append(out, ",\"leaked\":"); out = integer(out, leaked);
+    out = append(out, ",\"pending\":"); out = append(out, pending ? "true" : "false");
+    out = append(out, ",\"settling\":"); out = append(out, settling ? "true" : "false");
+    out = append(out, ",\"complete_scope\":\"waited-and-reaped-descendants\",\"interrupted\":0,\"exit_code\":");
+    out = !pending && WIFEXITED(status) ? integer(out, WEXITSTATUS(status)) : append(out, "null");
+    out = append(out, ",\"signal\":");
+    out = !pending && WIFSIGNALED(status) ? integer(out, WTERMSIG(status)) : append(out, "null");
+    out = append(out, "}\n");
+    size_t length = (size_t)(out - record_data);
+    int fd = initial_fd;
+    initial_fd = -1;
+    if (fd < 0) fd = open(temporary_path, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0600);
+    if (fd < 0 || write(fd, record_data, length) != (ssize_t)length || close(fd) || rename(temporary_path, path)) {
         perror("cpu-wrapper: publish record"); exit(125);
     }
-    free(temporary); free(data);
 }
 /* Only our direct children: adoption brings a daemon here even after setsid. */
 static bool kill_children(double deadline) {
@@ -90,11 +122,18 @@ int main(int argc, char **argv) {
     umask(077);
     if (argc < 3) { fputs("usage: cpu-wrapper DIR TEST [ARGS...]\n", stderr); return 125; }
     /* Validate identity before starting the test; never silently omit accounting. */
-    required("NEXTEST_PROFILE"); required("NEXTEST_BINARY_ID"); required("NEXTEST_TEST_NAME");
+    profile = required("NEXTEST_PROFILE");
+    binary_id = required("NEXTEST_BINARY_ID");
+    test_name = required("NEXTEST_TEST_NAME");
     const char *attempt = required("NEXTEST_ATTEMPT");
     char *end;
     long number = strtol(attempt, &end, 10);
     if (*end || number < 1) { fputs("cpu-wrapper: invalid attempt\n", stderr); return 125; }
+    attempt_number = (uint64_t)number;
+    size_t names = strlen(profile) + strlen(binary_id) + strlen(test_name);
+    if (names > (SIZE_MAX - 1024) / 6) return 125;
+    record_data = malloc(1024 + 6 * names);
+    if (!record_data) { perror("cpu-wrapper: record buffer"); return 125; }
     if (prctl(PR_SET_CHILD_SUBREAPER, 1, 0, 0, 0)) { perror("cpu-wrapper: subreaper"); return 125; }
     struct sigaction action = { .sa_handler = SIG_IGN };
     sigemptyset(&action.sa_mask);
@@ -105,12 +144,14 @@ int main(int argc, char **argv) {
         if (sigaction(signals[i], &action, NULL)) { perror("cpu-wrapper: sigaction"); return 125; }
         sigaddset(&defaults, signals[i]);
     }
-    char *path = NULL;
-    if (asprintf(&path, "%s/cpu-XXXXXX.tmp", argv[1]) < 0) return 125;
+    char *path = malloc(strlen(argv[1]) + sizeof "/cpu-XXXXXX.tmp");
+    if (!path) return 125;
+    strcpy(path, argv[1]); strcat(path, "/cpu-XXXXXX.tmp");
     int fd = mkstemps(path, 4);
     if (fd < 0) { perror("cpu-wrapper: attempt file"); return 125; }
-    close(fd);
-    unlink(path);
+    initial_fd = fd;
+    temporary_path = strdup(path);
+    if (!temporary_path) return 125;
     path[strlen(path) - 4] = '\0';
     double start = now();
     /* A forced SIGKILL leaves this explicit incomplete record, never invented CPU. */
@@ -164,7 +205,7 @@ int main(int argc, char **argv) {
         nanosleep(&pause, NULL);
     }
     record(path, start, user, system, status, complete, leaked, false, false);
-    free(path);
+    free(path); free(temporary_path); free(record_data);
     if (WIFSIGNALED(status)) {
         int sig = WTERMSIG(status);
         signal(sig, SIG_DFL);
