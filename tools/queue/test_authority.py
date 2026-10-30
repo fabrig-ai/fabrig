@@ -474,6 +474,7 @@ except RuntimeError as error:
         self.repo.mkdir(mode=0o700)
         mq.git(self.repo, "init", "-b", "main")
         self.layout = authority.Layout(home=self.home)
+        restart_fixture.copy_runtime(self.repo / "tools/queue")
 
     def test_fixture_root_is_outside_checked_source(self):
         self.assertNotIn(DIRECTORY.parent.parent, self.root.parents)
@@ -616,7 +617,6 @@ with l.acquire(inherited=int(sys.argv[3])) as held:
 
     def test_restart_real_child_adopts_authority_before_acknowledging_start(self):
         queue_dir = self.repo / "tools/queue"
-        queue_dir.mkdir(parents=True)
         release_r, release_w = os.pipe()
         script = f"""import argparse, importlib.util, os, pathlib
 p=argparse.ArgumentParser();p.add_argument('action');p.add_argument('--repo');p.add_argument('--authority-dir');p.add_argument('--authority-fd',type=int);p.add_argument('--startup-fd',type=int);p.add_argument('--batch');v=p.parse_args()
@@ -625,7 +625,10 @@ l=a.Layout(pathlib.Path(v.authority_dir))
 with l.acquire(inherited=v.authority_fd) as held, a.checkout_lock(pathlib.Path(v.repo)):
  os.close(v.authority_fd);held.guard();l.legacy_guard(pathlib.Path(v.repo));os.write(v.startup_fd,b'READY\\n');os.close(v.startup_fd);os.read({release_r},1)
 """
-        (queue_dir / "mq").write_text(script)
+        executable = queue_dir / "mq"
+        source = executable.read_text().split('if __name__ == "__main__":')[0]
+        executable.write_text(source + 'if __name__ == "__main__":\n' +
+                              "\n".join("    " + line for line in script.splitlines()) + "\n")
         popen = subprocess.Popen
         children = []
         def launch(argv, **kwargs):

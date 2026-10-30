@@ -817,7 +817,10 @@ Both worker and restart freeze the complete runtime list above, including
 `publication.py` and exact coordinator bytes. Their identities include
 `coordinators_sha256` as well as per-file digests. Restart compiles and validates
 all source/list/route files before requesting stop, then checks their frozen
-bytes after drain and before replacement launch. This validation admits no new
+bytes after drain and before replacement launch. Default restart validates
+`--repo`'s `tools/queue/` runtime and launches its validated absolute mq path, even
+when the invoking script belongs to another directory. An explicit `--runtime`
+binds validation, byte checks and launch to that directory instead. This validation admits no new
 publication and does not replace saved intent routes. Plan and dry runs refuse pending publication/effect work without pushing or
 cleaning refs; a nondry writer must reconcile it first. Queue startup reconciles
 pending intents before loading coordinator configuration for new work; restart
@@ -880,6 +883,9 @@ preserving every previous byte. All writers, including refusal audits that
 precede main-authority acquisition, serialize on the owned private sibling
 `<journal>.lock` inode. This lock is never unlinked. Refuse incomplete tails, malformed/duplicate-key
 JSON, nonobjects, duplicate publication identities and conflicting saved rows.
+Both publication and audit writers check every publication identity in the
+entire locked journal, including identities unrelated to the current intent.
+The audit writer also validates the prospective appended row before replacement.
 An identical complete row is replay, not another append. Fsync file and directory
 before committing `journal-confirmation.json`, whose exact fields are integer
 `version=1`, `publication_id`, `journal_path` and SHA-256 `row_sha256` of the

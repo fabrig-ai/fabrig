@@ -823,7 +823,7 @@ Queue = FixtureQueue
 
     def runtime(self, name="runtime"):
         directory = self.root / name
-        directory.mkdir()
+        directory.mkdir(parents=True)
         for name in restart.RUNTIME_FILES:
             shutil.copyfile(DIRECTORY / name, directory / name)
         return directory
@@ -1091,6 +1091,7 @@ Queue = FixtureQueue
 
     def test_restart_malformed_triplets_refuse_before_requesting_stop(self):
         repair = self.repair()
+        self.runtime(self.repo / "tools/queue")
         for changes in ({"repair_tip": None}, {"repair_ready": "ready/coord/bad..ref"},
                         {"repair_tip": "0"}, {"repair_reason": "\n"}):
             options = dict(repair_ready=repair["name"], repair_tip=repair["tip"], repair_reason=REASON)

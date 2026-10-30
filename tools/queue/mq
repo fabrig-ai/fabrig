@@ -573,12 +573,9 @@ def log_batch(path, record):
     path.parent.mkdir(parents=True, exist_ok=True)
     with publication.journal_lock(path):
         previous = publication.durable.read_bytes(path) if path.exists() or path.is_symlink() else b""
-        if previous and not previous.endswith(b"\n"):
-            raise ValueError("incomplete journal tail")
-        for line in previous.splitlines():
-            publication.validate_record(publication.durable.read_json(line))
-        publication.validate_record(record)
-        publication.durable.publish(path, previous + publication.durable.encoded(record), private_parent=False)
+        prospective = previous + publication.durable.encoded(record)
+        publication.journal_records(prospective)
+        publication.durable.publish(path, prospective, private_parent=False)
 
 
 def utc_now():

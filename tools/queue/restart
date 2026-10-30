@@ -114,15 +114,21 @@ def restart(repo, wait, home, *, batch=8, authority_dir=None, runtime=None,
             repair_ready=None, repair_tip=None, repair_reason=None, repair_hold=False):
     repair = None
     selected_authority = authority
-    module, directory = runtime_module(DIRECTORY, repo)
+    try:
+        module, directory = runtime_module(runtime if runtime is not None else repo / "tools/queue",
+                                           repo, external=runtime is not None)
+    except (OSError, ValueError, RuntimeError, SyntaxError) as error:
+        raw = {"name": repair_ready, "tip": repair_tip, "reason": repair_reason}
+        if runtime is not None or repair_hold or any(value is not None for value in raw.values()):
+            logger, _ = runtime_module(DIRECTORY, repo)
+            logger.log_repair_refusal(home / "src/fabrig/notes/queue.jsonl", raw, error)
+        raise
     frozen = module.restart_frozen
+    if runtime is not None:
+        selected_authority = module.authority
     if runtime is not None or repair_hold or any(value is not None for value in (repair_ready, repair_tip, repair_reason)):
         raw = {"name": repair_ready, "tip": repair_tip, "reason": repair_reason}
         try:
-            if runtime is not None:
-                module, directory = runtime_module(runtime, repo, external=True)
-                selected_authority = module.authority
-                frozen = module.restart_frozen
             repair = module.validate_repair(repo, repair_ready, repair_tip, repair_reason, hold=repair_hold)
             if repair is not None and module.repair_pending(repo, repair):
                 module.advertised_repair(repo, repair)
@@ -175,7 +181,7 @@ def restart(repo, wait, home, *, batch=8, authority_dir=None, runtime=None,
                 try:
                     with output.open("a") as log:
                         os.chmod(output, 0o600)
-                        script = str(directory / "mq") if runtime is not None else "tools/queue/mq"
+                        script = str(directory / "mq")
                         argv = ["python3", "-B", "-u", script, "run", "--repo", str(repo),
                                 "--authority-dir", str(layout.root), "--authority-fd", str(lease.fd),
                                 "--startup-fd", str(write_fd)]

@@ -180,6 +180,23 @@ def validate_record(row):
         validate_route({key: value for key, value in entry.items() if key not in fixed})
 
 
+def journal_records(data):
+    """Validate complete rows and uniqueness across the entire locked journal."""
+    if data and not data.endswith(b"\n"):
+        raise ValueError("incomplete journal tail")
+    rows, identities = [], set()
+    for line in data.splitlines():
+        row = durable.read_json(line)
+        validate_record(row)
+        identity = row.get("publication_id")
+        if identity is not None:
+            if identity in identities:
+                raise ValueError("conflicting or duplicate journal publication")
+            identities.add(identity)
+        rows.append(row)
+    return rows
+
+
 def graph(intent, git, repo):
     """Prove exact P/B parents and complete first-parent carrying-merge order."""
     parent, candidate = intent["parent"], intent["candidate"]
@@ -292,19 +309,17 @@ class Store:
             # The queue creates this external directory before preparing an intent.
             durable.directory(path.parent, private=False)
             data = durable.read_bytes(path) if path.exists() or path.is_symlink() else b""
-            if data and not data.endswith(b"\n"):
-                raise ValueError("incomplete journal tail")
+            rows = journal_records(data)
             matched = False
-            for line in data.splitlines():
-                row = durable.read_json(line)
-                validate_record(row)
+            for row in rows:
                 if row.get("publication_id") == intent["publication_id"]:
-                    if matched or durable.encoded(row) != durable.encoded(intent["journal_row"]):
+                    if durable.encoded(row) != durable.encoded(intent["journal_row"]):
                         raise ValueError("conflicting or duplicate journal publication")
                     matched = True
             if not matched:
                 if not append:
                     raise ValueError("confirmation has no exact journal row")
+                validate_record(intent["journal_row"])
                 durable.publish(path, data + durable.encoded(intent["journal_row"]), private_parent=False)
             else:
                 # A previous rename may have returned before directory fsync.

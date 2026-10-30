@@ -43,6 +43,12 @@ class StartupTests(unittest.TestCase):
                     run.assert_not_called()
 
 
+def copy_runtime(directory):
+    directory.mkdir(parents=True, exist_ok=True)
+    for name in restart.RUNTIME_FILES:
+        (directory / name).write_bytes((DIRECTORY / name).read_bytes())
+
+
 class RestartTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory(dir=ROOT.parent, prefix=".restart-test-")
@@ -53,6 +59,7 @@ class RestartTests(unittest.TestCase):
         self.repo.parent.chmod(0o700)
         (self.repo / ".git").mkdir(mode=0o700)
         self.stop = self.home / "src/fabrig/queue.stop"
+        copy_runtime(self.repo / "tools/queue")
 
     def run_restart(self, *, ready=True, returncode=None, batch=8):
         calls = []
@@ -65,7 +72,7 @@ class RestartTests(unittest.TestCase):
 
         def launch(argv, **kwargs):
             self.assertFalse(self.stop.exists())
-            expected = ["python3", "-B", "-u", "tools/queue/mq", "run", "--repo", str(self.repo)]
+            expected = ["python3", "-B", "-u", str(self.repo / "tools/queue/mq"), "run", "--repo", str(self.repo)]
             expected.extend(["--authority-dir", str(self.home / "src/fabrig/queue-authority"),
                              "--authority-fd", str(kwargs["pass_fds"][0]),
                              "--startup-fd", str(kwargs["pass_fds"][1])])

@@ -339,9 +339,9 @@ store.reconcile()
         for row in rows:
             self.assertFalse(pub.LANDING_FIELDS & row.keys(), row)
 
-    def runtime(self):
-        directory = self.f.directory / "runtime"
-        directory.mkdir()
+    def runtime(self, directory=None):
+        directory = directory or self.f.directory / "runtime"
+        directory.mkdir(parents=True, exist_ok=True)
         for name in fixtures.restart.RUNTIME_FILES:
             (directory / name).write_bytes((DIRECTORY / name).read_bytes())
         return directory
@@ -482,6 +482,122 @@ store.reconcile()
         self.assertEqual(self.remote(), self.base)
         self.assertEqual(self.rows(), [])
         self.assertTrue((self.store.root / intent["publication_id"] / "intent.json").exists())
+
+    def test_default_restart_validates_target_before_requesting_stop(self):
+        target = self.repo / "tools/queue"
+        home = self.f.directory / "home"
+        cases = [("coordinators.txt", None), ("coordinators.txt", b"coord local\n"),
+                 ("coordinators.txt", b"coord -\ncoord -\n"), ("mq", b"invalid Python!\n")]
+        for name, data in cases:
+            self.runtime(target)
+            path = target / name
+            if data is None:
+                path.unlink()
+            else:
+                path.write_bytes(data)
+            with self.subTest(name=name, data=data), \
+                    patch.object(fixtures.restart, "queue_pid", side_effect=AssertionError("invalid target reached drain")) as pid:
+                with self.assertRaises((OSError, ValueError, SyntaxError)):
+                    fixtures.restart.restart(self.repo, 0, home, authority_dir=self.layout.root)
+                pid.assert_not_called()
+                self.assertFalse((home / "src/fabrig/queue.stop").exists())
+
+    def unrelated_publication_rows(self, intent):
+        row = copy.deepcopy(intent["journal_row"])
+        row["publication_id"] = "a" * 32
+        return [("duplicate", row, copy.deepcopy(row)),
+                ("conflict", row, {**row, "selection": "full"})]
+
+    def test_publication_rejects_duplicates_of_unrelated_identity(self):
+        intent = self.prepare()
+        for label, first, second in self.unrelated_publication_rows(intent):
+            with self.subTest(kind=label):
+                data = pub.durable.encoded(first) + pub.durable.encoded(second)
+                self.journal.write_bytes(data)
+                self.journal.chmod(0o600)
+                with self.assertRaisesRegex(ValueError, "duplicate|conflict"):
+                    self.store.journal(intent, append=True)
+                self.assertEqual(self.journal.read_bytes(), data)
+                self.assertFalse((self.store.root / intent["publication_id"] / "journal-confirmation.json").exists())
+
+    def test_audit_rejects_duplicates_of_any_publication_identity(self):
+        intent = self.prepare()
+        for label, first, second in self.unrelated_publication_rows(intent):
+            with self.subTest(kind=label):
+                data = pub.durable.encoded(first) + pub.durable.encoded(second)
+                self.journal.write_bytes(data)
+                self.journal.chmod(0o600)
+                with self.assertRaisesRegex(ValueError, "duplicate|conflict"):
+                    mq.log_batch(self.journal, {"event": "fixture-refusal"})
+                self.assertEqual(self.journal.read_bytes(), data)
+                prefix = pub.durable.encoded(first)
+                self.journal.write_bytes(prefix)
+                with self.assertRaisesRegex(ValueError, "duplicate|conflict"):
+                    mq.log_batch(self.journal, second)
+                self.assertEqual(self.journal.read_bytes(), prefix)
+
+    def test_unique_unrelated_publication_and_current_replay_preserve_rows(self):
+        intent = self.prepare()
+        first = self.unrelated_publication_rows(intent)[0][1]
+        prefix = pub.durable.encoded(first)
+        self.journal.write_bytes(prefix)
+        self.journal.chmod(0o600)
+        self.store.journal(intent, append=True)
+        self.store.journal(intent, append=True)
+        mq.log_batch(self.journal, {"event": "fixture-refusal"})
+        self.assertEqual(self.journal.read_bytes(), prefix + pub.durable.encoded(intent["journal_row"]) +
+                         pub.durable.encoded({"event": "fixture-refusal"}))
+
+    def test_default_restart_rechecks_target_bytes_after_drain(self):
+        target = self.repo / "tools/queue"
+        home = self.f.directory / "home"
+        (home / "src/fabrig").mkdir(parents=True)
+        self.lease.close()
+        self.checkout.close()
+        select = fixtures.restart.select.select
+        for name in ("coordinators.txt", "mq"):
+            self.runtime(target)
+            ready_read, ready_write = os.pipe()
+            os.close(ready_write)
+            calls = []
+            def changed(fds, *args):
+                if fds == [ready_read]:
+                    path = target / name
+                    path.write_bytes(path.read_bytes() + b"\n")
+                return select(fds, *args)
+            def command(argv, repo, **kwargs):
+                calls.append(argv)
+                return str(repo)
+            with self.subTest(name=name), \
+                    patch.object(fixtures.restart, "queue_pid", return_value=42), \
+                    patch.object(fixtures.restart.os, "pidfd_open", return_value=ready_read), \
+                    patch.object(fixtures.restart.select, "select", side_effect=changed), \
+                    patch.object(fixtures.restart, "command", side_effect=command), \
+                    patch.object(fixtures.restart.subprocess, "Popen") as spawn:
+                with self.assertRaisesRegex(RuntimeError, "runtime changed"):
+                    fixtures.restart.restart(self.repo, 0, home, authority_dir=self.layout.root)
+                self.assertEqual(calls, [["git", "rev-parse", "--show-toplevel"]])
+                self.assertTrue((home / "src/fabrig/queue.stop").exists())
+                spawn.assert_not_called()
+
+    def test_default_restart_rechecks_target_bytes_before_launch(self):
+        target = self.runtime(self.repo / "tools/queue")
+        home = self.f.directory / "home"
+        (home / "src/fabrig").mkdir(parents=True)
+        self.lease.close()
+        self.checkout.close()
+        def command(argv, repo, **kwargs):
+            if argv[:2] == ["git", "switch"]:
+                path = target / "mq"
+                path.write_bytes(path.read_bytes() + b"\n")
+            return str(repo)
+        with patch.object(fixtures.restart, "queue_pid", return_value=None), \
+                patch.object(fixtures.restart, "command", side_effect=command), \
+                patch.object(fixtures.restart.subprocess, "Popen") as spawn:
+            with self.assertRaisesRegex(RuntimeError, "runtime changed"):
+                fixtures.restart.restart(self.repo, 0, home, authority_dir=self.layout.root)
+        self.assertTrue((home / "src/fabrig/queue.stop").exists())
+        spawn.assert_not_called()
 
 
 if __name__ == "__main__":
