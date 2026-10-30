@@ -307,7 +307,8 @@ in the lower world that owns it, never here.
     parked holds the chat's next run: an engine finding, not this
     story's); start the chat and a watch on its end; wait until the
     question waits in the inbox (`inbox --until waiting`) and T1 is
-    at rest; read T1's tree, which holds T2 alone; read the question,
+    at rest; read T1's tree, which holds T2 and the read-only advisor
+    T2 may ask for, and no change; read the question,
     T1's activity holding its words, and answer it; join the watch.
   - **What it checks:** the question in the inbox, on T1 and message 1, and
     in T1's activity in T2's words (ctl's inbox entry names the question,
@@ -316,7 +317,8 @@ in the lower world that owns it, never here.
     T2 told the person's exact approval, including the required
     `fruit,count` header, directly as T1's answer before it delegated the
     change; the change merged with CI green at its head,
-    widget's edit on main; T2's report and T1's; no question left in the
+    widget's edit on main; T2's report and T1's last reply, each saying
+    the change landed with its pull request and merge commit; no question left in the
     inbox. The fake forge's one repository stands as widget, its tree
     holding widget's source, and its CI follows the edit (4.2); the story's
     fixture, scripts and checks are its own, in its test file, on the tier's
