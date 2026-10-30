@@ -482,3 +482,15 @@ incomplete record.
 
 The after-landing runner calls this entry point. The trees' old
 `scripts/browser.sh` scripts retire in their own trees' branches.
+
+## 9. Fixture readers
+
+`.config/fixture-readers.toml` covers every tracked `**/fixtures/**` file exactly once; each reader names a root nextest profile, package and filterset selecting at least one test (`skein/docs/foundation/testing-strategy.md`, 8).
+
+```toml
+[[fixture]]
+paths = ["tree/tests/fixtures/*.json"]
+regenerate = "tree/tests/fixtures/regenerate.sh" # optional
+reader = [{ pair = "default", package = "package", filter = "binary(=suite)" }]
+# Use readers = [] instead of reader when no nextest reader is found.
+```
