@@ -32,6 +32,7 @@ class BytecodeTests(unittest.TestCase):
             for name, arguments in (("test-gate-policy", ["--help"]),
                                     ("test-heavy-plain", ["--help"]),
                                     ("test-heavy-byte-repairs", ["--help"]),
+                                    ("test-heavy-slot-wait-cap", ["--help"]),
                                     ("test-receipt-inputs", [])):
                 with self.subTest(suite=name):
                     run([str(kit / name), *arguments])

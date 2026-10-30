@@ -1,0 +1,413 @@
+#!/usr/bin/env python3
+"""Offline slot admission and cumulative disk waits with deterministic neighbours."""
+import sys
+sys.dont_write_bytecode = True
+
+import hashlib
+import json
+import os
+from pathlib import Path
+import runpy
+import subprocess
+import unittest
+from unittest.mock import patch
+from case_runner import HUNG_TOOL_S
+
+KIT = Path(__file__).resolve().parent
+FIXTURES = runpy.run_path(str(KIT / 'test-heavy-byte-repairs'))
+
+
+class WaitCap(unittest.TestCase):
+    setUp = FIXTURES['Repairs'].setUp
+
+    def clock(self, seconds):
+        self.now = seconds * 1_000_000_000
+
+    def task(self, cap=1200, state='waiting', lane='build'):
+        w = self.world
+        self.clock(0)
+        w.g['time'].monotonic_ns = lambda: self.now
+        self.free = 99
+        w.g['observe_bytes'] = lambda task: self.free
+        task = w.task(1, state=state, lane=lane)
+        ledger = w.ledger()
+        task = ledger.tasks[task['token']]
+        w.module['start_byte_accounting'](task, dict(min_free_bytes=100,
+            cap_seconds=cap, slot=None, automatic=False))
+        ledger.save()
+        self.token = task['token']
+        return task
+
+    def observe(self, seconds, free):
+        self.clock(seconds)
+        self.free = free
+        ledger = self.world.ledger()
+        task = ledger.tasks[self.token]
+        self.world.module['track_byte_wait'](ledger, task, free)
+        return ledger, task
+
+    def release(self, ledger):
+        self.world.module['reconcile'](ledger)
+        self.world.ledger()
+        return self.world.receipt(ledger.tasks[self.token])
+
+    def test_absent_cap_preserves_unbounded_wait_and_old_unknown(self):
+        self.task(cap=None)
+        ledger, task = self.observe(0, 99)
+        ledger, task = self.observe(10_000, None)
+        self.assertEqual(task['state'], 'waiting')
+        self.assertEqual(self.world.module['byte_wait_summary'](task)['elapsed_seconds'], 10_000)
+        old = self.world.task(2)
+        self.world.module['track_byte_wait'](ledger, old, 0)
+        self.assertIsNone(self.world.module['byte_wait_summary'](old))
+        self.assertNotIn('disk_wait_accounting', old)
+
+    def test_cap_exact_boundary_no_start_and_durable_once(self):
+        self.task()
+        self.observe(0, 99)
+        ledger, task = self.observe(1199, 99)
+        self.assertEqual(task['state'], 'waiting')
+        ledger, task = self.observe(1200, 100)
+        self.assertEqual((task['state'], task['code']), ('closing', 2))
+        self.assertFalse(self.world.module['admissible'](ledger, task))
+        receipt = self.release(ledger)
+        self.assertEqual((receipt['outcome'], receipt['failure_class'], receipt['refusal_reason']),
+                         ('capacity-refused', 'operational-capacity', 'disk-wait-cap'))
+        self.assertFalse(receipt['payload_started'])
+        self.assertFalse(receipt['payload_ended'])
+        self.assertEqual(receipt['disk_wait_accounting']['elapsed_seconds'], 1200)
+        self.assertEqual(receipt['disk_wait_accounting']['episodes'], 1)
+        log = Path(receipt['log']).read_bytes()
+        self.assertEqual(hashlib.sha256(log).hexdigest(), receipt['log_sha256'])
+        self.assertEqual(log.count(b'heavy: disk wait accounting '), 1)
+        self.release(self.world.ledger())
+        with patch.object(subprocess, 'Popen', side_effect=AssertionError('payload launch after cap')):
+            self.assertEqual(self.world.module['wrapper_attempt'](self.token), 2)
+        self.assertEqual(self.world.receipt(task), receipt)
+        self.assertEqual(Path(receipt['log']).read_bytes(), log)
+
+    def test_cumulative_episodes_exclude_cpu_queue_and_payload(self):
+        self.task(cap=10)
+        self.observe(0, 99)
+        w = self.world
+        occupying = w.task(2, state='active')
+        ledger = w.ledger()
+        w.populate(ledger.tasks[occupying['token']])
+        ledger.save()
+        self.clock(4)
+        self.free = 100
+        w.module['reconcile'](ledger)
+        task = ledger.tasks[self.token]
+        self.assertFalse(w.module['admissible'](ledger, task))
+        # The only build slot is occupied, but space is sufficient.
+        self.clock(1004)
+        w.module['reconcile'](ledger)
+        self.assertFalse(w.module['admissible'](ledger, task))
+        self.assertEqual(w.module['byte_wait_summary'](task)['elapsed_seconds'], 4)
+        w.module['request_cancel'](ledger, ledger.tasks[occupying['token']], 'fixture CPU task ended')
+        w.module['reconcile'](ledger)
+        self.observe(1004, 99)
+        ledger, task = self.observe(1009, 100)
+        self.assertEqual(task['state'], 'waiting')
+        ledger.tasks[self.token].update(state='finishing', payload_started=1,
+                                        payload_ended=2001, code=0)
+        ledger.save()
+        self.clock(5000)
+        receipt = self.release(ledger)
+        accounting = receipt['disk_wait_accounting']
+        self.assertEqual((accounting['episodes'], accounting['elapsed_seconds'], accounting['elapsed_minutes']),
+                         (2, 9, 9 / 60))
+        self.assertEqual((receipt['code'], receipt['outcome']), (0, 'completed'))
+
+    def test_retry_retains_clock_and_gate_hold_until_empty(self):
+        task = self.task(cap=10, state='active', lane='gate')
+        w = self.world
+        ledger = w.ledger()
+        task = ledger.tasks[self.token]
+        w.populate(task)
+        ledger.data['gate'] = self.token
+        w.held.add(task['unit'])
+        self.assertFalse(w.module['payload_byte_floor'](ledger, task))
+        self.assertEqual(task['state'], 'disk-retry')
+        self.clock(6)
+        w.module['reconcile'](ledger)
+        self.assertEqual(task['state'], 'disk-retry')
+        self.assertEqual(ledger.data['gate'], self.token)
+        w.held.clear()
+        w.module['reconcile'](ledger)
+        self.assertEqual(task['state'], 'waiting')
+        self.assertIsNone(ledger.data['gate'])
+        self.clock(10)
+        receipt = self.release(ledger)
+        self.assertEqual((receipt['code'], receipt['disk_wait_accounting']['episodes'],
+                          receipt['disk_wait_accounting']['elapsed_seconds']), (2, 1, 10))
+        self.assertFalse(receipt['payload_started'])
+        self.assertEqual(task['payload_attempt'], 1)
+
+    def test_retry_recovered_disk_stops_clock_while_cleanup_owns_capacity(self):
+        self.task(cap=10, state='active')
+        w = self.world
+        ledger = w.ledger()
+        task = ledger.tasks[self.token]
+        w.populate(task)
+        w.held.add(task['unit'])
+        w.module['payload_byte_floor'](ledger, task)
+        self.clock(4)
+        self.free = 100
+        w.module['reconcile'](ledger)
+        self.clock(1000)
+        w.module['reconcile'](ledger)
+        self.assertEqual(w.module['byte_wait_summary'](task)['elapsed_seconds'], 4)
+        self.assertEqual(task['state'], 'disk-retry')
+        w.held.clear()
+        w.module['reconcile'](ledger)
+        self.assertEqual(task['state'], 'waiting')
+        self.free = 99
+        w.module['reconcile'](ledger)
+        self.clock(1006)
+        receipt = self.release(ledger)
+        self.assertEqual((receipt['code'], receipt['disk_wait_accounting']['episodes'],
+                          receipt['disk_wait_accounting']['elapsed_seconds']), (2, 2, 10))
+
+    def test_final_contained_guard_cannot_start_at_cumulative_cap(self):
+        self.task(cap=10)
+        self.observe(0, 99)
+        self.observe(4, 100)
+        ledger, task = self.observe(100, 99)
+        task['state'] = 'active'
+        ledger.save()
+        self.clock(106)
+        self.free = 100
+        self.assertFalse(self.world.module['payload_byte_floor'](ledger, task))
+        self.assertEqual(task['state'], 'closing')
+        receipt = self.release(ledger)
+        self.assertFalse(receipt['payload_started'])
+        self.assertEqual((receipt['code'], receipt['disk_wait_accounting']['episodes']), (2, 2))
+
+    def test_cap_during_retry_preserves_release_finality(self):
+        self.task(cap=3, state='active', lane='gate')
+        w = self.world
+        ledger = w.ledger()
+        task = ledger.tasks[self.token]
+        w.populate(task)
+        w.held.add(task['unit'])
+        ledger.data['gate'] = self.token
+        w.module['payload_byte_floor'](ledger, task)
+        self.clock(3)
+        w.module['reconcile'](ledger)
+        self.assertEqual(task['state'], 'closing')
+        self.assertEqual(ledger.data['gate'], self.token)
+        self.assertFalse((w.g['BASE'] / 'receipts' / (self.token + '.json')).exists())
+        self.clock(30)
+        w.held.clear()
+        receipt = self.release(ledger)
+        self.assertEqual(receipt['disk_wait_accounting']['elapsed_seconds'], 3)
+        self.assertTrue(receipt['release_complete'])
+        self.assertIsNone(ledger.data['gate'])
+
+    def test_cancel_uses_saved_cap_and_excludes_cleanup(self):
+        self.task()
+        self.observe(0, 99)
+        self.clock(7)
+        with patch.dict(os.environ, HEAVY_DISK_WAIT_CAP_SECONDS='invalid', HEAVY_MIN_FREE_BYTES='invalid'):
+            self.assertEqual(self.world.module['cancel'](self.token), 0)
+        self.clock(100)
+        receipt = self.world.receipt({'token': self.token})
+        self.assertEqual((receipt['code'], receipt['outcome']), (130, 'cancelled'))
+        self.assertEqual((receipt['disk_wait_accounting']['elapsed_seconds'],
+                          receipt['disk_wait_accounting']['cap_seconds']), (7, 1200))
+
+    def test_boot_change_reports_unknown_not_zero(self):
+        self.task()
+        self.observe(0, 99)
+        self.observe(4, 100)
+        self.observe(5, 99)
+        self.world.g['boot'] = lambda: 'changed-boot'
+        ledger, task = self.observe(100, 99)
+        summary = self.world.module['byte_wait_summary'](task)
+        self.assertFalse(summary['complete'])
+        self.assertIsNone(summary['elapsed_seconds'])
+        self.assertEqual(summary['known_elapsed_ns'], 4_000_000_000)
+        self.assertNotEqual(task['state'], 'closing')
+        self.assertFalse(self.world.ledger().tasks[self.token]['disk_wait_accounting']['complete'])
+        receipt = self.release(ledger)
+        self.assertEqual((receipt['code'], receipt['outcome']), (137, 'recovered'))
+        self.assertIsNone(receipt['disk_wait_accounting']['elapsed_seconds'])
+        self.assertEqual(receipt['disk_wait_accounting']['known_elapsed_ns'], 4_000_000_000)
+
+    def policy_module(self):
+        # An independent import uses the real local machine_setting reader,
+        # while every queue transition above uses fake service neighbours.
+        return runpy.run_path(str(KIT / 'heavy-recovery.py'))
+
+    def slot(self, name='5'):
+        path = self.root / 'src/fabrig/slots' / name / 'nested'
+        path.mkdir(parents=True)
+        os.chdir(path)
+        return path
+
+    def settings(self, text):
+        tmp = self.root / 'tmp'
+        tmp.mkdir(exist_ok=True)
+        (tmp / 'machine.env').write_text(text)
+
+    def test_slot_policy_fresh_scope_nested_and_floor_composition(self):
+        self.slot()
+        m = self.policy_module()
+        self.settings('HEAVY_SLOT_BYTE_ADMISSION=1\nHEAVY_SLOT_DISK_WAIT_CAP_SECONDS=23\n')
+        policy = m['submission_policy']()
+        self.assertEqual((policy['min_free_bytes'], policy['cap_seconds'], policy['automatic']),
+                         (80_000_000_000, 23, True))
+        self.assertEqual(policy['slot'], str(self.root / 'src/fabrig/slots/5'))
+        self.assertEqual(m['minimum_bytes'](dict(min_free_bytes=policy['min_free_bytes'], floor_gb=90)),
+                         90 * 2**30)
+        for explicit in (0, 1, 80_000_000_001):
+            with patch.dict(os.environ, HEAVY_MIN_FREE_BYTES=str(explicit), HEAVY_DISK_WAIT_CAP_SECONDS='0007'):
+                value = m['submission_policy']()
+                self.assertEqual(value['min_free_bytes'], max(80_000_000_000, explicit))
+                self.assertEqual(value['cap_seconds'], 7)
+        self.settings('HEAVY_SLOT_BYTE_ADMISSION=0\n')
+        self.assertIsNone(m['submission_policy']()['min_free_bytes'])
+        self.settings('HEAVY_SLOT_BYTE_ADMISSION=1\n')
+        self.assertEqual(m['submission_policy']()['cap_seconds'], 1200)
+        self.assertIsNone(m['submission_policy'](False)['min_free_bytes'])
+        self.settings('HEAVY_SLOT_BYTE_ADMISSION=1\nHEAVY_SLOT_DISK_WAIT_CAP_SECONDS=0\n')
+        with self.assertRaises(m['SubmissionRefusal']):
+            m['submission_policy']()
+
+    def test_non_slot_and_symlink_escape_never_default(self):
+        self.settings('HEAVY_SLOT_BYTE_ADMISSION=1\n')
+        m = self.policy_module()
+        self.assertFalse(m['submission_policy']()['automatic'])
+        self.slot('five')
+        self.assertFalse(m['submission_policy']()['automatic'])
+        outside = self.root / 'outside'
+        outside.mkdir()
+        (self.root / 'src/fabrig/slots/7').symlink_to(outside, target_is_directory=True)
+        os.chdir(self.root / 'src/fabrig/slots/7')
+        self.assertFalse(m['submission_policy']()['automatic'])
+        self.assertIsNone(m['physical_slot']())
+        # Resolving the slots directory itself through a symlink also cannot
+        # turn an unrelated physical directory into an admitted slot tree.
+        slots = self.root / 'src/fabrig/slots'
+        os.chdir(outside)
+        slots.rename(slots.with_name('saved-slots'))
+        slots.symlink_to(outside, target_is_directory=True)
+        (outside / '8').mkdir()
+        os.chdir(slots / '8')
+        self.assertIsNone(m['physical_slot']())
+
+    def test_invalid_cap_and_floor_refuse_before_any_state_change(self):
+        self.settings('HEAVY_SLOT_BYTE_ADMISSION=1\n')
+        self.slot()
+        base = self.root / 'tmp/heavy'
+        for key, values in [('HEAVY_DISK_WAIT_CAP_SECONDS', ['0', '00', '-1', '+1', ' 1', '1.0', '١', '1' * 641]),
+                            ('HEAVY_MIN_FREE_BYTES', ['invalid'])]:
+            for value in values:
+                with self.subTest(key=key, value=value):
+                    env = dict(os.environ, **{key: value})
+                    result = subprocess.run([str(KIT / 'heavy'), 'true'], env=env,
+                        text=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=HUNG_TOOL_S)
+                    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+                    self.assertFalse(base.exists())
+        # Control queries do not resolve defaults or declarations at all.
+        env = dict(os.environ, HEAVY_DISK_WAIT_CAP_SECONDS='invalid', HEAVY_MIN_FREE_BYTES='invalid')
+        result = subprocess.run([str(KIT / 'heavy'), '--installed'], env=env,
+            text=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=HUNG_TOOL_S)
+        self.assertEqual(result.returncode, 1)
+        self.assertFalse(base.exists())
+
+    def test_bash_slot_default_refuses_plain_fallback_but_fmt_stays_direct(self):
+        self.slot()
+        self.settings('HEAVY_SLOT_BYTE_ADMISSION=1\n')
+        bin_path = self.root / 'bin'
+        bin_path.mkdir()
+        cargo = bin_path / 'cargo'
+        cargo.write_text('#!/bin/sh\nprintf "fmt:%s min:%s cap:%s\\n" "$1" "${HEAVY_MIN_FREE_BYTES-}" "${HEAVY_DISK_WAIT_CAP_SECONDS-}"\n')
+        cargo.chmod(0o700)
+        env = dict(os.environ, PATH=str(bin_path) + ':' + os.defpath)
+        result = subprocess.run([str(KIT / 'heavy'), 'cargo', 'fmt'], env=env,
+            text=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=HUNG_TOOL_S)
+        self.assertEqual((result.returncode, result.stdout), (0, 'fmt:fmt min: cap:\n'))
+        self.assertFalse(self.world.g['BASE'].exists())
+        # A scoped byte submission cannot silently run without containment.
+        # World normally intercepts services; this child gets a local stub.
+        control = bin_path / 'systemctl'
+        control.write_text('#!/bin/sh\nexit 1\n')
+        control.chmod(0o700)
+        marker = Path.cwd() / 'payload'
+        result = subprocess.run([str(KIT / 'heavy'), 'touch', str(marker)], env=env,
+            text=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=HUNG_TOOL_S)
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertIn('containment/reconciler not installed', result.stderr)
+        self.assertFalse(marker.exists())
+        self.assertEqual(self.world.ledger().tasks, {})
+
+    def test_empty_declarations_unbounded_and_positive_decimal_normalization(self):
+        m = self.world.module
+        with patch.dict(os.environ, HEAVY_MIN_FREE_BYTES='100', HEAVY_DISK_WAIT_CAP_SECONDS=''):
+            self.assertIsNone(m['submission_policy']()['cap_seconds'])
+        for value, expected in [('0001', 1), ('0' * 5000 + '3', 3), ('9' * 640, int('9' * 640))]:
+            with patch.dict(os.environ, HEAVY_DISK_WAIT_CAP_SECONDS=value):
+                self.assertEqual(m['submitted_wait_cap'](), expected)
+        self.assertFalse(self.world.g['BASE'].exists())
+
+    def test_invalid_cap_preserves_existing_ledger_and_log_bytes(self):
+        task = self.world.task(1)
+        state = self.world.g['BASE'] / 'state.json'
+        before = state.read_bytes(), state.stat().st_mtime_ns
+        entries = sorted(str(p.relative_to(self.root)) for p in self.root.rglob('*'))
+        env = dict(os.environ, HEAVY_DISK_WAIT_CAP_SECONDS='-1')
+        result = subprocess.run([str(KIT / 'heavy-recovery.py'), 'true'], env=env,
+            text=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=HUNG_TOOL_S)
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual((state.read_bytes(), state.stat().st_mtime_ns), before)
+        self.assertEqual(sorted(str(p.relative_to(self.root)) for p in self.root.rglob('*')), entries)
+        self.assertEqual(Path(task['capture']).read_bytes(), b'')
+
+    def test_submission_saves_cap_floor_and_clock_before_wrapper(self):
+        self.slot()
+        self.settings('HEAVY_SLOT_BYTE_ADMISSION=1\nHEAVY_SLOT_DISK_WAIT_CAP_SECONDS=17\n')
+        w = self.world
+        w.g['read_setting'] = self.policy_module()['read_setting']
+        w.g['setting'] = lambda key, default: 90 if key == 'PLAN_MIN_DISK_GB' else 0
+        self.now = 0
+        w.g['time'].monotonic_ns = lambda: self.now
+        w.g['observe_bytes'] = lambda task: 80_000_000_000
+        def submitted(task):
+            raise FIXTURES['Submitted']()
+        with patch.dict(w.g, start_wrapper=submitted):
+            with self.assertRaises(FIXTURES['Submitted']):
+                w.module['main'](['true'])
+        ledger = w.ledger()
+        task = next(iter(ledger.tasks.values()))
+        self.assertEqual(task['minimum_free_bytes'], 90 * 2**30)
+        accounting = task['disk_wait_accounting']
+        self.assertEqual((accounting['cap_seconds'], accounting['episodes'], accounting['since_ns']),
+                         (17, 1, 0))
+        self.assertTrue(accounting['declaration']['automatic'])
+        self.settings('HEAVY_SLOT_BYTE_ADMISSION=0\nHEAVY_SLOT_DISK_WAIT_CAP_SECONDS=1\n')
+        self.now = 17_000_000_000
+        w.module['reconcile'](ledger)
+        w.ledger()
+        receipt = w.receipt(task)
+        self.assertEqual(receipt['code'], 2)
+        self.assertEqual(receipt['disk_wait_accounting']['cap_seconds'], 17)
+        self.assertEqual(receipt['disk_wait_accounting']['host'], os.uname().nodename)
+
+    def test_declaration_frozen_and_private_transport_not_in_payload(self):
+        self.slot()
+        self.settings('HEAVY_SLOT_BYTE_ADMISSION=1\n')
+        w = self.world
+        w.g['read_setting'] = self.policy_module()['read_setting']
+        frozen = w.module['submission_policy']()
+        self.settings('HEAVY_SLOT_BYTE_ADMISSION=0\nHEAVY_SLOT_DISK_WAIT_CAP_SECONDS=9\n')
+        with patch.dict(os.environ, HEAVY_SUBMISSION_DECLARATION=json.dumps(frozen)):
+            self.assertEqual(w.module['submitted_policy'](), frozen)
+            self.assertNotIn('HEAVY_SUBMISSION_DECLARATION', w.module['safe_environment']())
+        self.assertFalse(w.module['submission_policy']()['automatic'])
+
+
+if __name__ == '__main__':
+    os.umask(0o077)
+    unittest.main(verbosity=2)

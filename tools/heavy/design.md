@@ -98,13 +98,31 @@ significant decimal digits are supported; longer values refuse before
 persistence, independently of `PYTHONINTMAXSTRDIGITS`. Python 3.11+ permits
 conversion limits down to 640 digits, so accepted byte minima remain numeric
 JSON readable even by that strictest supported setting. This representation
-limit changes no disk floor, slot cap or timeout. Absent or empty retains the disk behavior above, including the
-rounded `df -BG`/GiB observations and landing timeout. Zero opts in with no
+limit changes no disk floor, slot cap or timeout. Outside the slot default
+below, absent or empty retains the disk behavior above, including the rounded `df -BG`/GiB observations and landing timeout. Zero opts in with no
 extra caller floor. Invalid input refuses with exit 2 before creating a task.
 Opting in requires both the operator deployment proof in section 7 and an
 installed reconciler. The installation check proves containment/recovery only,
 not exclusion of older writers. Plain execution cannot enforce this wait and
-refuses instead. No machine setting or caller floor is changed.
+refuses instead. No caller floor is lowered.
+
+For ordinary command submissions physically below
+`$HOME/src/fabrig/slots/<ASCII decimal>/`, `HEAVY_SLOT_BYTE_ADMISSION=1`
+(default 0) enables the same byte path without a caller declaration. Nested
+cwd paths qualify; a symlink escaping the slot tree does not. This opt-in is
+operator policy, not a hostname rule. It sets the submitted byte minimum to
+`max(80000000000, explicit HEAVY_MIN_FREE_BYTES)` and the saved PLAN floor
+still participates in the effective maximum below. Invalid explicit minima
+refuse even when the automatic floor would be larger.
+
+`machine_setting` resolves these settings fresh for each future ordinary
+invocation, including invocations by already-running workers. It retains its
+environment, machine.env, default precedence. The selected declaration crosses
+the Bash/helper handoff as private `HEAVY_SUBMISSION_DECLARATION` JSON and is
+removed from the payload environment; no automatic caller minimum or cap is
+exported globally. Pending tasks use their saved declaration. Control commands,
+record/check helpers and the direct `cargo fmt` path receive no automatic
+opt-in. Explicit declarations retain their usual validation.
 
 For an opted-in task, free bytes are exactly
 `os.statvfs(command cwd).f_bavail * f_frsize`. Its effective minimum is
@@ -118,11 +136,11 @@ observes it again, and contained entry checks after settling and input capture,
 immediately before command start. All these checks use the submitted value,
 never a wrapper caller's or reconciler's current override.
 
-An opted-in task below its minimum waits indefinitely with the same token,
+An opted-in task below its minimum waits with the same token,
 number, wrapper claim, command and environment. The waiting client reports one
 line per observed waiting episode. The landing floor's 20-minute timeout does
-not apply to these byte waits. A miss at contained entry marks `disk-retry` and
-exits the guard without starting the command. Reconciliation kills that owned
+not apply to these byte waits. Without the cap below their wait is unbounded.
+A miss at contained entry marks `disk-retry` and exits the guard without starting the command. Reconciliation kills that owned
 cgroup, proves it empty, clears its exclusive hold, and returns the task to
 waiting with a fresh payload unit name. Capacity stays owned through cleanup;
 the byte wait then holds no payload cgroup or build slot. Repeated attempts
@@ -130,13 +148,37 @@ retain distinct admission/scope evidence. Cancellation and recovery work even
 when their caller inherits an invalid or too-high override.
 
 A failed cwd `statvfs` observation is unavailable evidence, never permission to
-admit or a fallback to DEV_ROOT. That task remains in its indefinite byte wait;
+admit or a fallback to DEV_ROOT. That task remains in its byte wait;
 contained failure uses the same `disk-retry` cleanup as a low observation.
 `byte_observation_failed` records this condition, and its waiting event has a
 null observation. A successful observation clears it. One task's unavailable
 filesystem does not abort shared reconciliation, unrelated cancellation or
 cgroup cleanup. The waiting client can report unavailable space without
 exiting.
+
+`HEAVY_DISK_WAIT_CAP_SECONDS` optionally declares a positive ASCII decimal
+number of seconds, normalized and bounded to 640 significant digits like the
+byte minimum. Zero, signs, whitespace, fractions and non-ASCII digits refuse
+with exit 2 before queue or log changes. Absent or empty retains unbounded
+byte waits, except when the slot policy supplies a cap. That policy reads
+`HEAVY_SLOT_DISK_WAIT_CAP_SECONDS` (default 1200); its selected value must be
+positive. An explicit positive caller cap overrides it. A cap alone does not
+opt a non-slot command into byte admission.
+
+The declaration is fixed at submission. Monotonic nanoseconds accumulate only
+between observed low/unavailable space and the next sufficient observation or
+terminal decision. Separate episodes add together across retries. Sufficient
+space while CPU capacity, exclusivity or landing room is unavailable adds no
+disk wait, and payload execution adds none. Retry cleanup retains an open low
+space interval until recovery, cancellation or expiry; cgroup cleanup after a
+terminal decision is excluded. Expiry is checked under the host lock on
+submission/admission/reconciliation and the final contained guard. At elapsed
+wait greater than or equal to the cap, the task closes with exit 2,
+`outcome=capacity-refused`, `failure_class=operational-capacity` and
+`refusal_reason=disk-wait-cap`. This is an operational capacity outcome, with
+no payload start. Normal empty-cgroup proof, hold release and receipt publication
+still precede terminal completion. Sampling can detect expiry after the cap;
+it never grants a fresh full cap to a retry or to recovered space at the boundary.
 
 ## 3. Durable state and release
 
@@ -148,6 +190,16 @@ then fsyncs the directory. A leftover temporary snapshot is never state.
 An opted-in task additionally records `min_free_bytes` (the submitted override),
 `minimum_free_bytes` (the effective floor), `byte_wait` while below it,
 `admission_free_bytes` after admission, and `payload_attempt` after a retry.
+New byte submissions also save `disk_wait_accounting`, schema
+`heavy-disk-wait-v1`: `host`, physical `slot` or null, the selected `declaration`
+(`min_free_bytes`, `cap_seconds`, `slot`, `automatic`), `cap_seconds`, `episodes`,
+`elapsed_ns`, active `since_ns` or null, `clock_boot` and `complete`. State keeps
+the completed prefix separate from the active monotonic interval. Same-boot
+replay resumes it. A boot change or regressing clock makes the total unknown,
+retaining its known prefix rather than inventing elapsed time; ordinary orphan
+recovery still closes the task. Existing tasks without this accounting are
+never backfilled and their wait history is unknown, not zero.
+
 Tasks without `min_free_bytes` keep their existing semantics even if a later
 caller or reconciler has the variable set. These are additive version 1 fields.
 
@@ -277,6 +329,19 @@ real index or refs. Cancelled, recovered and unstarted payloads have
 nonzero codes. The client's last line reports receipt path and token,
 outside the hashed log. Relocation leaves these formats and paths intact.
 
+New byte receipts additionally contain `disk_wait_accounting`, including the
+schema, host, slot, declaration, cap and episode count above, `complete`,
+`elapsed_ns`, `known_elapsed_ns`, `elapsed_seconds` and `elapsed_minutes`.
+Unknown totals have null elapsed fields and retain their known prefix. These
+fields join the enclosing token/id/queue to count per-host, task and slot waits
+for admitted, cancelled and capped work. The same summary appears once in a
+`disk_wait_accounting` event and in the sealed log before hashing. Missing
+accounting means unknown history. Capacity receipts include the optional
+`failure_class` and `refusal_reason` above. The 17 required v1 receipt fields,
+TSV columns and ordinary command status remain unchanged. The landing reader
+accepts and validates this additive evidence without treating a capacity
+receipt as a successful gate.
+
 Gate admission and payload entry load adjacent `gate-policy.sh`. Policy
 identifies Chromium 147.0.7727.101 and its resources, DejaVu fonts, selected
 compiler/Cargo/wrappers, semantic environment and Cargo configuration,
@@ -293,13 +358,15 @@ Run the offline suites directly; they build nothing:
 ```
 python3 -B tools/heavy/test-heavy-plain
 python3 -B tools/heavy/test-heavy-byte-repairs
+python3 -B tools/heavy/test-heavy-slot-wait-cap
 python3 -B tools/heavy/test-receipt-inputs
 python3 -B tools/heavy/test-gate-policy
 python3 -I -B tools/test_install.py
 tools/install --dry-run
 ```
 
-The queue's automatic tools step includes `test-heavy-byte-repairs`, `test-heavy-plain`,
+The queue's automatic tools step includes `test-heavy-slot-wait-cap`,
+`test-heavy-byte-repairs`, `test-heavy-plain`,
 `test-gate-policy`, `test-receipt-inputs` and the installer tests. It runs
 executable `test-*` suites directly through their shebangs. Exactly
 `tools/heavy/test-heavy-recovery` is excluded because it installs real
@@ -314,6 +381,13 @@ both go through symlink resolution and their Bash defaults; a temporary
 Python launcher imports the selected recovery helper without running its
 main, and compares its computed workspace, temporary/state paths, queue
 and prefix. It reads or writes no ledger and adds no public CLI mode.
+
+`test-heavy-slot-wait-cap` uses a fake monotonic clock and disk observations
+with the repair suite's fake cgroups. It covers cumulative/exact-boundary caps,
+retry finality, cancellation, unknown old/reboot history, CPU/payload exclusion,
+invalid declarations without writes, immutable submission records, fresh local
+machine settings, physical slot scope, symlink escape and floor composition.
+It uses only disposable queue state, with no real service or long wait.
 
 `test-receipt-inputs` checks dirty, unborn and foreign Git contexts,
 best-effort failures, unchanged indexes/refs and optional receipt fields.
@@ -366,11 +440,15 @@ runtime files are `heavy`, `heavy-recovery.py`, `kit.sh`, `gate-policy.sh`,
 the real executable, independent of the caller's working directory.
 
 The byte wait deploys through the normal fabrig tools installation below and
-is inert until a caller opts in. Retain queue identity, version 1 state,
-operator holds, task history, logs, receipts and `heavy-receipt-v1`. The new
+is inert until a caller or the scoped slot machine policy opts in. Retain
+queue identity, version 1 state, operator holds, task history, logs, receipts and `heavy-receipt-v1`. The new
 helper can read pre-feature tasks without changing their legacy semantics.
 That is one-way old-task compatibility, not safe coexistence of old and new
-queue writers after opt-in.
+queue writers after opt-in. The cap/accounting and slot-default revision requires
+the same writer inventory and ended-lifetime proof: an older byte-capable helper
+can ignore the cap or publish a receipt without wait accounting. This source
+change installs nothing and changes no machine setting. Ops enables slot policy
+on the selected builders only after its separate rollout proof.
 
 Before the first opt-in on each queue, Ops must record deployment proof and
 explicitly approve enabling its callers. Reconciler installation or

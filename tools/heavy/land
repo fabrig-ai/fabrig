@@ -499,7 +499,7 @@ def receipt_evidence(output, tree, policy, command):
     # (receipt_inputs.py); land checks only their form.
     optional_hashes = {"head", "inputs"}
     optional_bytes = {"min_free_bytes", "minimum_free_bytes", "admission_free_bytes"}
-    optional = optional_hashes | optional_bytes
+    optional = optional_hashes | optional_bytes | {"disk_wait_accounting", "failure_class", "refusal_reason"}
     require(type(receipt) is dict and fields <= receipt.keys() <= fields | optional,
             "receipt schema fields are invalid")
     for field in sorted(optional_hashes & receipt.keys()):
@@ -515,6 +515,47 @@ def receipt_evidence(output, tree, policy, command):
                 "receipt byte minimum is below submitted override")
         require(receipt["admission_free_bytes"] >= receipt["minimum_free_bytes"],
                 "receipt byte admission is below minimum")
+    for field in ("failure_class", "refusal_reason"):
+        if field in receipt:
+            require(type(receipt[field]) is str and bool(receipt[field]),
+                    f"receipt {field} is malformed")
+    if "disk_wait_accounting" in receipt:
+        accounting = receipt["disk_wait_accounting"]
+        accounting_fields = {"schema", "host", "slot", "declaration", "cap_seconds", "episodes",
+                             "complete", "elapsed_ns", "known_elapsed_ns", "elapsed_seconds", "elapsed_minutes"}
+        require(type(accounting) is dict and set(accounting) == accounting_fields,
+                "receipt disk wait accounting fields are invalid")
+        require(accounting["schema"] == "heavy-disk-wait-v1" and
+                type(accounting["host"]) is str and bool(accounting["host"]) and
+                (accounting["slot"] is None or type(accounting["slot"]) is str) and
+                type(accounting["complete"]) is bool,
+                "receipt disk wait accounting identity is malformed")
+        declaration = accounting["declaration"]
+        require(type(declaration) is dict and
+                set(declaration) == {"min_free_bytes", "cap_seconds", "slot", "automatic"} and
+                type(declaration["automatic"]) is bool and declaration["slot"] == accounting["slot"] and
+                declaration["cap_seconds"] == accounting["cap_seconds"] and
+                type(declaration["min_free_bytes"]) is int and declaration["min_free_bytes"] >= 0,
+                "receipt disk wait declaration is malformed")
+        cap = accounting["cap_seconds"]
+        require(cap is None or (type(cap) is int and cap > 0),
+                "receipt disk wait cap is malformed")
+        for field in ("episodes", "known_elapsed_ns"):
+            require(type(accounting[field]) is int and accounting[field] >= 0,
+                    "receipt disk wait counts are malformed")
+        if accounting["complete"]:
+            elapsed_ns = accounting["elapsed_ns"]
+            require(type(elapsed_ns) is int and elapsed_ns >= 0 and
+                    elapsed_ns == accounting["known_elapsed_ns"],
+                    "receipt disk wait duration is malformed")
+            for field, divisor in (("elapsed_seconds", 1e9), ("elapsed_minutes", 60e9)):
+                require(type(accounting[field]) in (int, float) and
+                        math.isfinite(accounting[field]) and accounting[field] == elapsed_ns / divisor,
+                        "receipt disk wait duration is malformed")
+        else:
+            require(all(accounting[field] is None for field in
+                        ("elapsed_ns", "elapsed_seconds", "elapsed_minutes")),
+                    "receipt unknown disk wait duration is not null")
     expected = {"schema": "heavy-receipt-v1", "token": token, "id": task_id,
                 "lane": "gate", "tree": tree, "policy": policy,
                 "args": ["bash", "-c", command], "outcome": "completed"}

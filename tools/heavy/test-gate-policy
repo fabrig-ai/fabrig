@@ -42,6 +42,7 @@ RECEIPT_FAULTS = (
     "output_after_receipt", "receipt_symlink", "receipt_directory", "receipt_fifo",
     "log_symlink", "log_directory", "log_fifo", "malformed_head", "non_string_inputs",
     "bytes-bool", "bytes-negative", "bytes-string", "bytes-partial", "bytes-below", "bytes-floor-small",
+    "wait-negative", "wait-wrong-duration", "wait-wrong-cap",
 )
 UNREADABLE_RECEIPT_FAULTS = ("unreadable_log", "unreadable_receipt")
 
@@ -1494,6 +1495,9 @@ RECEIPT_REFUSALS = {
     "log_fifo": "receipt log is not a regular file",
     "malformed_head": "receipt head is malformed",
     "non_string_inputs": "receipt inputs is malformed",
+    "wait-negative": "receipt disk wait counts are malformed",
+    "wait-wrong-duration": "receipt disk wait duration is malformed",
+    "wait-wrong-cap": "receipt disk wait cap is malformed",
     "bytes-bool": "receipt min_free_bytes is not a nonnegative integer",
     "bytes-negative": "receipt minimum_free_bytes is not a nonnegative integer",
     "bytes-string": "receipt admission_free_bytes is not a nonnegative integer",
@@ -1521,7 +1525,7 @@ class ReceiptRows(FixtureFiles):
         env = {"PATH": os.defpath, "HOME": str(self.root),
                "tree": tree, "policy": policy, "gate": "true"}
         # A valid control must reach the same validator successfully.
-        for fault, reason in [("valid", None), ("bytes-valid", None), ("bytes-zero", None), *RECEIPT_REFUSALS.items()]:
+        for fault, reason in [("valid", None), ("bytes-valid", None), ("bytes-zero", None), ("wait-valid", None), ("wait-unknown", None), *RECEIPT_REFUSALS.items()]:
             with self.subTest(fault=fault):
                 if fault in UNREADABLE_RECEIPT_FAULTS and os.geteuid() == 0:
                     self.skipTest("root reads unreadable files")

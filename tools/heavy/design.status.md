@@ -1,11 +1,11 @@
 # Heavy status
 
-Provisional, 2026-10-29. `tools/heavy/design.md` is implemented by the six
-runtime files named in section 7, the five `test-*` suites, `tools/install`,
+Provisional, 2026-10-30. `tools/heavy/design.md` is implemented by the six
+runtime files named in section 7, the six `test-*` suites, `tools/install`,
 `tools/installed` and `tools/test_install.py`. Landing/check scripts in this
 directory support tests and are not installed tools.
 
-The queue discovers the four offline heavy suites through their executable
+The queue discovers the five offline heavy suites through their executable
 shebangs and explicitly omits `test-heavy-recovery` from its automatic step.
 
 Fleet installation and reconciler repointing remain operator steps. The
@@ -32,7 +32,7 @@ Deployment uses the normal fabrig tools install and remains inert until opted
 in; rollback first drains or cancels unfinished opt-ins with the new helper
 (`tools/heavy/design.md, 7`). No fleet install is part of this task.
 
-Byte observation failures are scoped to the affected task and use indefinite
+Byte observation failures are scoped to the affected task and use byte
 waiting/normal retry cleanup. Supported decimal minima are normalized and
 bounded to 640 significant digits for JSON replay under any supported Python
 conversion limit. The offline repair suite covers a failed cwd beside unrelated
@@ -41,3 +41,15 @@ and crash/delayed entry with retry cgroups held populated. Its pinned pre-featur
 fixture demonstrates why all old writers must be drained and updated or disabled.
 Ops deployment proof is required before first opt-in; installed recovery alone
 is not that proof. No mixed-version writer deployment is approved.
+
+Optional `HEAVY_DISK_WAIT_CAP_SECONDS` and the fresh, narrowly scoped slot
+machine policy are implemented. New byte tasks freeze declarations, accumulate
+same-boot monotonic low-space episodes across retries, and publish durable
+capacity exit 2 receipts at the cap. CPU queue waits with enough disk, payload
+execution and terminal cleanup are excluded. Additive `heavy-disk-wait-v1`
+accounting in state, event, log and v1 receipt records host/slot/declaration,
+episode count and elapsed seconds/minutes; old missing accounting and interrupted
+clock histories remain unknown. The landing reader accepts validated accounting.
+The offline slot/cap suite uses fake time, disk and cgroups, including a full
+submission record and machine-file changes. Fleet enablement, writer-lifetime
+proof and production installation remain Ops work after source approval.

@@ -56,6 +56,10 @@ class Refusal(Exception):
     pass
 
 
+class SubmissionRefusal(Refusal):
+    """Invalid declarations refuse without writing queue state."""
+
+
 def subreaper():
     # An orphan's getppid() must name this guard, never systemd --user
     # (tools/heavy/design.md 3: the payload adopts its orphans).
@@ -78,12 +82,16 @@ def boot():
     return BOOT_FILE.read_text().strip()
 
 
-@functools.cache
-def setting(key, default) -> int:
+def read_setting(key, default) -> int:
     result = run(['bash', '-c', 'set -euo pipefail; root=$1; tmp=$2; '
                   'source "$3"; machine_setting "$4" "$5"',
                   'heavy-setting', ROOT, TMP, KIT / 'kit.sh', key, str(default)], check=True)
     return int(result.stdout.split()[0])
+
+
+@functools.cache
+def setting(key, default) -> int:
+    return read_setting(key, default)
 
 
 def free_gb() -> int:
@@ -102,11 +110,130 @@ def submitted_min_free_bytes():
     if value == '':
         return None
     if re.fullmatch(r'[0-9]+', value) is None:
-        raise Refusal('HEAVY_MIN_FREE_BYTES must be decimal bytes (digits only)')
+        raise SubmissionRefusal('HEAVY_MIN_FREE_BYTES must be decimal bytes (digits only)')
     value = value.lstrip('0') or '0'
     if len(value) > MAX_MIN_FREE_DECIMAL_DIGITS:
-        raise Refusal('HEAVY_MIN_FREE_BYTES exceeds the supported 640 significant decimal digits')
+        raise SubmissionRefusal('HEAVY_MIN_FREE_BYTES exceeds the supported 640 significant decimal digits')
     return int(value)
+
+
+def submitted_wait_cap():
+    value = os.environ.get('HEAVY_DISK_WAIT_CAP_SECONDS', '')
+    if not value:
+        return None
+    canonical = value.lstrip('0') or '0'
+    if (re.fullmatch(r'[0-9]+', value) is None or len(canonical) > MAX_MIN_FREE_DECIMAL_DIGITS
+            or canonical == '0'):
+        raise SubmissionRefusal('HEAVY_DISK_WAIT_CAP_SECONDS must be positive decimal seconds (at most 640 significant digits)')
+    return int(canonical)
+
+
+def physical_slot():
+    root = Path.home().resolve() / 'src/fabrig/slots'
+    try:
+        parts = Path.cwd().resolve().relative_to(root).parts
+    except ValueError:
+        return None
+    if parts and re.fullmatch(r'[0-9]+', parts[0]):
+        return str(root / parts[0])
+    return None
+
+
+def submission_policy(slot_defaults=True):
+    # Resolve fresh for each ordinary invocation; wrappers/recovery use saved
+    # declarations. No automatic minimum is exported to future payload workers.
+    minimum, cap = submitted_min_free_bytes(), submitted_wait_cap()
+    slot = physical_slot()
+    automatic = bool(slot_defaults and slot and read_setting('HEAVY_SLOT_BYTE_ADMISSION', 0) == 1)
+    if automatic:
+        minimum = max(80000000000, minimum or 0)
+        if cap is None:
+            cap = read_setting('HEAVY_SLOT_DISK_WAIT_CAP_SECONDS', 1200)
+            if cap <= 0 or len(str(cap)) > MAX_MIN_FREE_DECIMAL_DIGITS:
+                raise SubmissionRefusal('HEAVY_SLOT_DISK_WAIT_CAP_SECONDS must be positive decimal seconds')
+    return dict(min_free_bytes=minimum, cap_seconds=cap, slot=slot, automatic=automatic)
+
+
+def submitted_policy():
+    frozen = os.environ.get('HEAVY_SUBMISSION_DECLARATION')
+    if frozen is None:
+        return submission_policy()
+    try:
+        policy = json.loads(frozen)
+    except (ValueError, RecursionError):
+        raise SubmissionRefusal('invalid submission declaration') from None
+    if (type(policy) is not dict or set(policy) != {'min_free_bytes', 'cap_seconds', 'slot', 'automatic'}
+            or type(policy['automatic']) is not bool
+            or policy['slot'] != physical_slot()):
+        raise SubmissionRefusal('invalid submission declaration')
+    for key, lowest in (('min_free_bytes', 0), ('cap_seconds', 1)):
+        value = policy[key]
+        if value is not None and (type(value) is not int or value < lowest or len(str(value)) > MAX_MIN_FREE_DECIMAL_DIGITS):
+            raise SubmissionRefusal('invalid submission declaration')
+    return policy
+
+
+def start_byte_accounting(task, policy):
+    task['disk_wait_accounting'] = dict(schema='heavy-disk-wait-v1', host=os.uname().nodename,
+        slot=policy['slot'], declaration=policy, cap_seconds=policy['cap_seconds'],
+        episodes=0, elapsed_ns=0, since_ns=None, clock_boot=boot(), complete=True)
+
+
+def account_byte_wait(task, waiting):
+    accounting = task.get('disk_wait_accounting')
+    if accounting is None:
+        return False
+    changed = False
+    now = time.monotonic_ns()
+    since = accounting['since_ns']
+    if since is not None and (accounting['clock_boot'] != boot() or now < since):
+        changed = True
+        accounting['complete'] = False
+        accounting['since_ns'] = None
+        since = None
+    if waiting and since is None and accounting['complete']:
+        changed = True
+        accounting['since_ns'] = now
+        accounting['episodes'] += 1
+    elif not waiting and since is not None:
+        changed = True
+        accounting['elapsed_ns'] += now - since
+        accounting['since_ns'] = None
+    return changed
+
+
+def byte_wait_summary(task):
+    accounting = task.get('disk_wait_accounting')
+    if accounting is None:
+        return None
+    elapsed = accounting['elapsed_ns']
+    known = accounting['complete']
+    if accounting['since_ns'] is not None:
+        now = time.monotonic_ns()
+        known = known and accounting['clock_boot'] == boot() and now >= accounting['since_ns']
+        if known:
+            elapsed += now - accounting['since_ns']
+    return dict(schema=accounting['schema'], host=accounting['host'], slot=accounting['slot'],
+        declaration=accounting['declaration'], cap_seconds=accounting['cap_seconds'],
+        episodes=accounting['episodes'], complete=known, elapsed_ns=elapsed if known else None,
+        known_elapsed_ns=elapsed, elapsed_seconds=elapsed / 1e9 if known else None,
+        elapsed_minutes=elapsed / 60e9 if known else None)
+
+
+def expire_byte_cap(ledger, task):
+    summary = byte_wait_summary(task)
+    if (summary is None or summary['cap_seconds'] is None or not summary['complete']
+            or summary['elapsed_ns'] < summary['cap_seconds'] * 1_000_000_000
+            or task.get('payload_started') or task['state'] in ('closing', 'released')):
+        return False
+    account_byte_wait(task, False)
+    task.update(state='closing', code=2, outcome='capacity-refused',
+                refusal='disk wait cap reached before payload start',
+                refusal_reason='disk-wait-cap', failure_class='operational-capacity')
+    ledger.event(task, 'release_begin', outcome=task['outcome'])
+    ledger.event(task, 'refusal', reason='disk-wait-cap', failure_class=task['failure_class'])
+    ledger.save()
+    return True
 
 
 def minimum_bytes(task):
@@ -142,7 +269,10 @@ def observe_bytes(task):
 def track_byte_wait(ledger, task, free):
     failed = free is None
     waiting = failed or free < minimum_bytes(task)
+    accounting_changed = account_byte_wait(task, waiting)
     if waiting == ('byte_wait' in task) and failed == task.get('byte_observation_failed', False):
+        if not expire_byte_cap(ledger, task) and accounting_changed:
+            ledger.save()
         return
     if waiting:
         task.setdefault('byte_wait', time.time_ns())
@@ -155,7 +285,8 @@ def track_byte_wait(ledger, task, free):
     ledger.event(task, 'byte_wait:' + uuid.uuid4().hex, waiting=waiting,
                  min_free_bytes=task['min_free_bytes'], minimum_free_bytes=minimum_bytes(task),
                  observed_free_bytes=free, observation_failed=failed)
-    ledger.save()
+    if not expire_byte_cap(ledger, task):
+        ledger.save()
 
 
 def landing(task) -> bool:
@@ -490,6 +621,7 @@ def waiter_failure():
 
 def finish(ledger, task):
     now = time.time()
+    account_byte_wait(task, False)
     task['state'] = 'released'
     task.setdefault('code', 137)
     if task.get('outcome') == 'recovered':
@@ -508,6 +640,8 @@ def finish(ledger, task):
     task['row'] = '\t'.join(map(clean, [task.get('id', '-'), task['lane'],
         time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(now)), waited, ran, task['code'],
         f'{available_memory() / 1073741824:.1f}', task['repo'], task['log'], command, task['label']]))
+    if byte_wait_summary(task) is not None:
+        ledger.event(task, 'disk_wait_accounting', accounting=byte_wait_summary(task))
     ledger.event(task, 'release_end', outcome=task.get('outcome', 'completed'), code=task['code'],
                  cgroup_empty=True, cgroup=task.get('cgroup'))
     ledger.event(task, 'task_completion', code=task['code'])
@@ -541,6 +675,8 @@ def publish_receipt(ledger, task):
             if capture.exists():
                 with capture.open('rb') as source:
                     shutil.copyfileobj(source, out)
+            if byte_wait_summary(task) is not None:
+                out.write(('\nheavy: disk wait accounting ' + json.dumps(byte_wait_summary(task), sort_keys=True) + '\n').encode())
             out.flush()
             os.fsync(out.fileno())
         os.replace(temporary, log)
@@ -557,7 +693,9 @@ def publish_receipt(ledger, task):
                'cgroup_empty': True, 'elapsed_s': max(0.0, task.get('payload_ended', 0) - task.get('payload_started', 0)) if task.get('payload_ended') else 0.0,
                'log': task['log'], 'log_sha256': digest}
     receipt.update({key: task[key] for key in ('head', 'inputs', 'min_free_bytes', 'minimum_free_bytes',
-                                                       'admission_free_bytes') if key in task})
+                                                       'admission_free_bytes', 'failure_class', 'refusal_reason') if key in task})
+    if byte_wait_summary(task) is not None:
+        receipt['disk_wait_accounting'] = byte_wait_summary(task)
     fault('receipt_ready', task['token'])
     atomic(path, receipt)
     fault('receipt_published', task['token'])
@@ -574,6 +712,7 @@ def request_cancel(ledger, task, reason, **extra):
     """
     if task['state'] in ('finishing', 'closing', 'released'):
         return False
+    account_byte_wait(task, False)
     task.update(state='closing', outcome='cancelled', code=CANCELLED)
     ledger.event(task, 'release_begin', outcome='cancelled')
     ledger.event(task, 'cancel', reason=reason, **extra)
@@ -721,7 +860,7 @@ def admissible(ledger, task) -> bool:
     if 'min_free_bytes' in task:
         free = observe_bytes(task)
         track_byte_wait(ledger, task, free)
-        if free is None or free < minimum_bytes(task):
+        if task['state'] == 'closing' or free is None or free < minimum_bytes(task):
             return False
         if not is_landing and task['lane'] == 'build' and (reserved := reservation(ledger.tasks)) is not None:
             if free < minimum_bytes(task) + reserved * 2**30 or not older_room_ready(ledger, task, reserved):
@@ -744,15 +883,16 @@ def reconcile(ledger):
     free = None
     for task in ledger.tasks.values():
         if task['state'] in UNCLAIMED and not wrapper_running(task):
+            account_byte_wait(task, False)
             task.update(state='closing', outcome='cancelled', code=137)
             ledger.event(task, 'release_begin', outcome='cancelled')
             ledger.event(task, 'unclaimed', reason='no running wrapper unit before its claim')
             ledger.save()
         orphan = task['state'] not in (*UNCLAIMED, 'released') and (
             task['boot'] != boot() or not alive(task.get('wrapper')))
-        if task['state'] in ('queued', 'waiting') and 'min_free_bytes' in task and not orphan:
+        if task['state'] in ('queued', 'waiting', 'disk-retry') and 'min_free_bytes' in task and not orphan:
             track_byte_wait(ledger, task, observe_bytes(task))
-            if 'byte_wait' in task and ledger.data['gate'] == task['token']:
+            if task['state'] in ('queued', 'waiting') and 'byte_wait' in task and ledger.data['gate'] == task['token']:
                 ledger.data['gate'] = None
                 ledger.save()
         if task['state'] in ('queued', 'waiting') and landing(task) and 'min_free_bytes' not in task and not orphan:
@@ -785,6 +925,7 @@ def reconcile(ledger):
             ledger.save()
             continue
         if task['state'] != 'closing' and (orphan or task['state'] == 'finishing'):
+            account_byte_wait(task, False)
             task['state'] = 'closing'
             task['outcome'] = 'recovered' if orphan else 'completed'
             ledger.event(task, 'release_begin', outcome=task['outcome'])
@@ -838,7 +979,8 @@ def ensure_reconciler(ledger):
 
 def safe_environment():
     banned = re.compile(r'^CLAUDE_CODE_|TOKEN|SECRET|PASSWORD|PASSWD|API_KEY|CREDENTIAL', re.I)
-    return {key: value for key, value in os.environ.items() if not banned.search(key)}
+    return {key: value for key, value in os.environ.items()
+            if not banned.search(key) and key != 'HEAVY_SUBMISSION_DECLARATION'}
 
 
 def selects_kache():
@@ -1010,7 +1152,8 @@ def weight(lane):
 
 
 def submit(args, lane, tail_lines, exclusive):
-    min_free_bytes = submitted_min_free_bytes()
+    declaration = submitted_policy()
+    min_free_bytes = declaration['min_free_bytes']
     if os.environ.get('HEAVY_TASK'):
         raise Refusal('already inside a heavy task; run the command directly')
     # An interrupt of the waiting client cancels its task (request_cancel).
@@ -1045,6 +1188,7 @@ def submit(args, lane, tail_lines, exclusive):
         if min_free_bytes is not None:
             task['min_free_bytes'] = min_free_bytes
             task['minimum_free_bytes'] = minimum_bytes(task)
+            start_byte_accounting(task, declaration)
         ledger.tasks[token] = task
         Path(task['capture']).touch(mode=0o600)
         ledger.event(task, 'submit')
@@ -1060,6 +1204,7 @@ def submit(args, lane, tail_lines, exclusive):
         environment_file(BASE / (token + '.env'), env)
         fault('wrapper_intent', token)
         if not start_wrapper(task):
+            account_byte_wait(task, False)
             task.update(state='closing', outcome='refused', code=2)
             ledger.event(task, 'refusal', reason='cannot start the task wrapper unit')
             ledger.save()
@@ -1339,7 +1484,8 @@ def payload_byte_floor(ledger, task):
         return False
     free = observe_bytes(task)
     if free is not None and free >= minimum_bytes(task):
-        return True
+        track_byte_wait(ledger, task, free)
+        return task['state'] == 'active'
     task['state'] = 'disk-retry'
     ledger.event(task, 'disk_retry_begin', minimum_free_bytes=minimum_bytes(task),
                  observed_free_bytes=free)
@@ -1469,6 +1615,10 @@ def payload(token):
 
 
 def main(args):
+    if args in (['--submission-policy'], ['--submission-policy', 'no-slot']):
+        policy = submission_policy(slot_defaults=len(args) == 1)
+        print(str(int(policy['min_free_bytes'] is not None)) + ' ' + json.dumps(policy, separators=(',', ':')))
+        return 0
     if args == ['--validate-min-free-bytes']:
         submitted_min_free_bytes()
         return 0
@@ -1548,7 +1698,8 @@ if __name__ == '__main__':
         # Record fixed categories, never arbitrary subprocess text or caller
         # arguments. Wrong-queue/corrupt-state refusals cannot use that ledger.
         try:
-            if sys.argv[1:] != ['--installed']:
+            if (sys.argv[1:] != ['--installed'] and sys.argv[1:2] != ['--submission-policy']
+                    and not isinstance(error, SubmissionRefusal)):
                 with locked() as refused:
                     refused.event(None, 'refusal:' + uuid.uuid4().hex, reason=type(error).__name__)
                     refused.save()

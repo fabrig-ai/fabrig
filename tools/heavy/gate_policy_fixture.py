@@ -54,6 +54,22 @@ def completion_output(state, token, args, tree, policy, head, output, code=0, fa
             receipt["admission_free_bytes"] = 199
         elif fault == "bytes-floor-small":
             receipt["minimum_free_bytes"] = 99
+    if fault.startswith("wait-"):
+        receipt.update(min_free_bytes=100, minimum_free_bytes=200, admission_free_bytes=200)
+        receipt["disk_wait_accounting"] = dict(schema="heavy-disk-wait-v1", host="fixture",
+            slot=None, declaration=dict(min_free_bytes=100, cap_seconds=1200, slot=None, automatic=False),
+            cap_seconds=1200, episodes=2, complete=True, elapsed_ns=90_000_000_000,
+            known_elapsed_ns=90_000_000_000, elapsed_seconds=90, elapsed_minutes=1.5)
+        accounting = receipt["disk_wait_accounting"]
+        if fault == "wait-unknown":
+            accounting.update(complete=False, elapsed_ns=None, elapsed_seconds=None, elapsed_minutes=None)
+        elif fault == "wait-negative":
+            accounting["episodes"] = -1
+        elif fault == "wait-wrong-duration":
+            accounting["elapsed_seconds"] = 0
+        elif fault == "wait-wrong-cap":
+            accounting["cap_seconds"] = 0
+            accounting["declaration"]["cap_seconds"] = 0
     if fault == "old_build_same_id":
         # A queued cancellation finds an older build's successful numeric-ID row.
         old = state / "old-build.log"
