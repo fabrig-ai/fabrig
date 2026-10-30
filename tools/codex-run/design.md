@@ -68,6 +68,48 @@ minutes and less than one day. Post exits 0 and 3 count as delivered;
 refused delivery remains retryable. Stale notification records `told`
 without replaying report publication or accounting.
 
+### 3.1 Reaper producer hooks
+
+After saving a new task run's metadata and resume thread, the launcher calls
+`reap record start --kind codex-run --owner OWNER --id ID --path RUN_DIRECTORY`.
+OWNER is the launching `POST_NAME`, falling back to the recipient when unset.
+Only that invocation's new run directory is registered. Task files, reports,
+callbacks, slot checkouts and targets, primary clones, credentials, persistent
+owner resume state, claims, leases and heavy state are outside its authority.
+Arguments retain their boundaries, including paths with spaces.
+
+Completion calls `reap record end --kind codex-run --id ID`, followed by
+`systemctl --user start --no-block reap.service`. Without a callback this is
+after accounting and `ended`, with the worker status known. With `--on-stop`
+it is after `ended` and the callback result, including any attempt to mark a
+failed callback's lease uncertain. A missing callback records `absent` first.
+A failed launch closes its record before removing its private run directory
+and report reservation. TERM, INT and worker failure use the same completion
+path; a worker killed before `ended` emits no end. End records are idempotent.
+An absent completion marker or stop result prevents the corresponding end.
+
+These records describe run completion, never a landed or withdrawn task, nor
+permission to reclaim a slot. Lease release remains the lifetime helper's
+decision; failure and signals can retain protected inputs and uncertain holds.
+Even then the sole registered path is the run directory. The reaper must
+preserve metadata, shared `runs.tsv` accounting, pending resumes and sessions
+referenced by an owner. It owns discovery, retention and deletion, including
+older runs without producer records; missing records establish no deletion
+authority. The launcher neither scans nor deletes retained evidence.
+
+Each optional notification uses GNU `timeout` with the existing 60-second
+stop bound and KILL signal, closed stdin and discarded output. Missing,
+broken or hanging tools and units cannot change the caller's exit status,
+report, delivery, accounting, callback result, lease decision or end marker.
+The hooks can deploy before the `reap` CLI and unit, without a storage
+migration or backfill by this producer. The reaper's deployment owns adoption.
+
+Retention policy belongs to that deployment: runs and heavy logs seven days,
+precheck evidence three days, landed or withdrawn notes and tasks seven days,
+Codex sessions fourteen days, and ended Ops scratch three days. Heavy logs'
+seven days takes precedence over generic old logs' three days. Keeps still
+protect resumable and referenced evidence beyond these ages.
+
 ## 4. Slot trimming
 
 Before its first Codex turn, a writable task resolves DIR and checks that
@@ -92,6 +134,9 @@ first turn, reads BRIEF, then waits for mail for an hour between turns.
 An idle hour prompts it to check its work. Failed turns wait five minutes;
 pending mail is retained until a successful turn, including across restarts.
 Replacement of the holder ends the loop. Turn accounting is in `turns.tsv`.
+Neither a turn ending nor a holder replacement ends persistent owner state.
+This producer emits no owner lifecycle record, including on final loop exit;
+MC owns that lifecycle and its pending resume references.
 
 ## 6. Installation and verification
 
@@ -111,6 +156,10 @@ the manifest from the updated clone.
 
 `bash tools/codex-run/test-codex-run` tests workers, owners, notifications,
 signals and trimming against fake Codex, post and systemd executables.
+`bash tools/codex-run/test-codex-run --reap-only` runs the producer adoption
+checks with the same isolated fixtures. Both selections assert CPU below
+15 seconds and wall time below 60 seconds. Only private fixture copies
+shorten the timeout when proving hanging tools and callbacks are killed.
 `python3 -I tools/test_install.py` tests installation using local fixture
 repositories and a temporary home. Neither command uses real fleet state.
 These scripts run directly on hel8; they build nothing.

@@ -126,6 +126,15 @@ terminate() {
     exit "$1"
 }
 finish_error() { printf '%s\n' "$*" >>"$state/finish-errors"; }
+# tools/codex-run/design.md, 3.1: optional producer notifications own no keeps.
+reap_notify() {
+    { timeout --signal=KILL "$ON_STOP_SECONDS" "$@" </dev/null || true; } >/dev/null 2>&1
+}
+reap_end() {
+    [[ -f $state/ended ]] || return 0
+    reap_notify reap record end --kind codex-run --id "$id"
+    reap_notify systemctl --user start --no-block reap.service
+}
 post_subject() {
     local status=$1 first='' summary_exit=0
     first=$(head -n1 "$report" | tr -d '[:cntrl:]' | cut -c1-80) || summary_exit=$?
@@ -196,6 +205,8 @@ finish_task() {
             "${thread:--}" "$tokens" "$post_exit" >&9
     ) 9>>"$runs/runs.tsv" || finish_error 'row failed'
     : >"$state/ended" || finish_error 'ended marker failed'
+    # ExecStop owns notification when a callback still has to settle.
+    if [[ -z $on_stop ]]; then reap_end; fi
     exit "$status"
 }
 
@@ -215,6 +226,7 @@ launch() {
     if ((status != 0)); then
         if [[ ${mode:-} == task ]]; then
             cmp -s <(reservation) "$report" && rm -f -- "$report"
+            if : >"$state/ended"; then reap_end; fi
             rm -rf "$state"
         fi
         refuse "systemd-run failed: $output"
@@ -299,6 +311,7 @@ task_launch() {
     printf 'caller=%s\nto=%s\nmodel=%s\neffort=%s\nread_only=%s\ntask=%s\ndir=%s\nreport=%s\nresume_of=%s\nstarted=%s\non_stop=%s\nslot_hold=%s\n' \
         "$caller" "$to" "$model" "$effort" "$read_only" "$task" "$dir" "$report" "$resume" "$started" "$on_stop" "${FABRIG_SLOT_HOLD:-}" >"$state/meta"
     [[ -z $previous ]] || printf '%s\n' "$resume_thread" >"$state/thread"
+    reap_notify reap record start --kind codex-run --owner "${caller:-$to}" --id "$id" --path "$state"
     launch "codex-run-$id" _run "$id"
     printf '%s %s\n' "$id" "$state"
 }
@@ -379,7 +392,7 @@ task_stop() {
     # Stop failures must never affect the unit, even if meta or logs are gone.
     set +e
     (($# == 1)) || return 0
-    local state=$runs/$1 f status=0
+    local id=$1 state=$runs/$1 f status=0
     local dir
     dir=$(meta_get "$state/meta" dir)
     lease_task stop
@@ -394,6 +407,8 @@ task_stop() {
     else
         printf 'absent\n' >"$state/on-stop"
     fi
+    # Only the run directory was registered, even if the slot hold is uncertain.
+    if [[ -f $state/on-stop ]]; then reap_end; fi
     return 0
 }
 
