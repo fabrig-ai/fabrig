@@ -49,18 +49,18 @@ pub(crate) enum Need {
 pub(crate) struct Reference {
     kind: RecordKind,
     row: u32,
+    client_repository: bool,
     need: Need,
 }
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct MissingLink {
     pub(crate) kind: RecordKind,
-    pub(crate) key: Key,
+    pub(crate) key: Option<Key>,
     pub(crate) need: Need,
 }
 #[derive(Debug)]
 pub(crate) struct Reconciliation {
     references: List<Reference>,
-    keys: List<Key>,
     pub(crate) verdict: Result<(), Unresolved>,
 }
 // Retain the opaque client's references too: families can arrive in any order.
@@ -86,15 +86,11 @@ pub(crate) fn capacity(l: &Limits) -> Option<u32> {
 }
 impl Reconciliation {
     pub(crate) fn new(l: &Limits) -> Self {
-        Self {
-            references: List::with_capacity(capacity(l).expect("checked reconciliation capacity")),
-            keys: List::with_capacity(capacity(l).expect("checked reconciliation capacity")),
-            verdict: Ok(()),
-        }
+        Self { references: List::with_capacity(capacity(l).expect("checked reconciliation capacity")), verdict: Ok(()) }
     }
     fn need(&mut self, kind: RecordKind, need: Need) -> Result<(), crate::RestoreFit> {
         let held = self.references.len();
-        match self.references.push(Reference { kind, row: self.keys.len(), need }) {
+        match self.references.push(Reference { kind, row: 0, client_repository: false, need }) {
             Ok(()) => Ok(()),
             Err(_) => Err(crate::RestoreFit {
                 family: Some(kind),
@@ -122,17 +118,28 @@ impl Reconciliation {
         self.task(kind, entry.task, Some(entry.repository.forge))?;
         Ok(())
     }
+    pub(crate) fn len(&self) -> u32 {
+        self.references.len()
+    }
+    /// Keep ordinals aligned with the retained table's key order as rows arrive.
+    pub(crate) fn locate(&mut self, before: u32, row: u32, inserted: bool) {
+        let kind = self.references.get(before).expect("new row has references").kind;
+        for index in 0..self.references.len() {
+            let reference = self.references.get_mut(index).expect("bounded reference index");
+            if index >= before {
+                reference.row = row;
+            } else if inserted && reference.kind == kind && reference.row >= row {
+                reference.row = reference.row.checked_add(1).expect("row ordinal fits retained table capacity");
+            }
+        }
+    }
     pub(crate) fn restore(&mut self, row: &Stored) -> Result<(), crate::RestoreFit> {
         let before = self.references.len();
         self.restore_references(row)?;
-        if self.references.len() != before {
-            let key = if let Stored::Client(skein_forge_client::Stored::Writer(row)) = row {
-                Key::Writer(row.forge)
-            } else {
-                crate::stored_key(row)
-            };
-            // Every retained key has at least one admitted reference.
-            self.keys.push(key).expect("row keys fit the reference capacity");
+        if let Stored::Client(skein_forge_client::Stored::Repository(_)) = row {
+            for index in before..self.references.len() {
+                self.references.get_mut(index).expect("bounded reference index").client_repository = true;
+            }
         }
         Ok(())
     }
@@ -265,7 +272,12 @@ impl Domain {
             if !self.reference_resolves(reference.need, live) {
                 return Some(MissingLink {
                     kind: reference.kind,
-                    key: self.reconciliation.keys.get(reference.row).expect("restored reference has a key").clone(),
+                    key: self.restored_link_key(
+                        reference.kind,
+                        reference.row,
+                        reference.need,
+                        reference.client_repository,
+                    ),
                     need: reference.need,
                 });
             }
