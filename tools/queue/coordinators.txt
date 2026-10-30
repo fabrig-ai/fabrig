@@ -22,3 +22,4 @@ lf-jig s/ladder@hel8
 lf-skein s/ladder@hel8
 lf-smith s/ladder@hel8
 deploy s/deploy@hel8
+lf s/ladder@hel8

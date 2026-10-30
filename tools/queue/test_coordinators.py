@@ -82,6 +82,7 @@ class RouteTests(unittest.TestCase):
             expected_leads[f"lf-{tree}"] = f"lead/lf/{tree}@hel8"
             expected_coordinators[f"lf-{tree}"] = "s/ladder@hel8"
         expected_leads["deploy"] = expected_coordinators["deploy"] = "s/deploy@hel8"
+        expected_leads["lf"] = expected_coordinators["lf"] = "s/ladder@hel8"
         self.assertEqual(leads, expected_leads)
         roster = pub.coordinators((DIRECTORY / "coordinators.txt").read_bytes())
         self.assertEqual(roster, expected_coordinators)
@@ -91,7 +92,7 @@ class RouteTests(unittest.TestCase):
                                  {"route_status": "resolved", "coordinator": address})
 
     def test_new_route_parser_refuses_duplicate_third_column_and_bad_unassigned(self):
-        for key in ("lf-temper", "lf-jig", "lf-skein", "lf-smith", "deploy"):
+        for key in ("lf-temper", "lf-jig", "lf-skein", "lf-smith", "deploy", "lf"):
             with self.subTest(key=key):
                 valid = f"{key} s/owner@fixture.example\n".encode()
                 for invalid in (valid + valid, valid.rstrip() + b" third\n",
@@ -100,6 +101,12 @@ class RouteTests(unittest.TestCase):
                         pub.coordinators(invalid)
                 self.assertEqual(pub.route(pub.coordinators(f"{key} -\n".encode()), f"ready/{key}/task"),
                                  {"route_status": "unresolved", "route_reason": "unassigned"})
+
+    def test_lf_key_routes_coordinator_and_lead_notice(self):
+        roster = pub.coordinators((DIRECTORY / "coordinators.txt").read_bytes())
+        self.assertEqual(pub.route(roster, "ready/lf/bootstrap"),
+                         {"route_status": "resolved", "coordinator": "s/ladder@hel8"})
+        self.assertIn("lf s/ladder@hel8", (DIRECTORY / "leads.txt").read_text().splitlines())
 
 
 if __name__ == "__main__":

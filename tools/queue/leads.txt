@@ -20,3 +20,4 @@ lf-jig lead/lf/jig@hel8
 lf-skein lead/lf/skein@hel8
 lf-smith lead/lf/smith@hel8
 deploy s/deploy@hel8
+lf s/ladder@hel8
