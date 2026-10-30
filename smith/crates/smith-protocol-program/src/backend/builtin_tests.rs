@@ -842,3 +842,96 @@ fn queued_native_snapshots_keep_result_order_and_message_owners() {
     assert!(error);
     assert!(up.is_empty());
 }
+
+fn server_call(backend: &mut Backend, id: u32) {
+    let call =
+        serde_json::json!({"jsonrpc":"2.0", "id":id, "method":"tools/call", "params":{"name":"foo", "arguments":{}}});
+    backend.server.as_mut().expect("server").from_io(
+        env(0).now,
+        io::Event::Stream {
+            owner: Token::new(101),
+            up: skein_lib::stream::Up::Bytes(mcp::json::join(&[&serde_json::to_vec(&call).expect("RPC"), b"\n"])),
+        },
+        &mut backend.io,
+    );
+    let call = backend.server.as_mut().expect("server").up().expect("RPC");
+    backend.calls.push(call).expect("held RPC");
+    backend.match_calls();
+}
+
+fn after_partial_result() -> Backend {
+    let input = serde_json::json!({"file_path":"a", "limit":1_u32});
+    let mut backend = native_call("Read", input.clone());
+    allow_native(&mut backend, &input);
+    let mut up = Queue::with_capacity(32);
+    native_result(&mut backend, false, &mut up);
+    server_call(&mut backend, 2);
+    backend
+}
+
+#[test]
+fn an_owned_remove_result_reaches_its_mcp_caller() {
+    use smith_domain::tools::Outcome;
+    for (outcome, expected, error) in [
+        (Outcome::Removed, "removed", false),
+        (Outcome::NotRead, "read the file whole", true),
+        (Outcome::Stale, "file changed", true),
+    ] {
+        let mut backend = active();
+        let mut call = reply_tests::call(b"owned");
+        call.name = b"foo".as_slice().into();
+        backend.ledger.push(call).ok().expect("owned call");
+        review_tests::connect_server(&mut backend);
+        server_call(&mut backend, 1);
+        let mut next = request(&backend);
+        let FromDomain::Complete { prompt, .. } = &mut next else { panic!("complete") };
+        prompt.messages = Box::new([llm::Message {
+            role: llm::Role::User,
+            content: Box::new([llm::Block::ToolResult {
+                id: b"owned".as_slice().into(),
+                result: llm::Returned::Owned { outcome },
+            }]),
+        }]);
+        backend.resume(&env(0), next, &mut Queue::with_capacity(32), &mut Queue::with_capacity(64));
+        let reply = review_tests::server_reply(&mut backend);
+        assert!(reply["result"]["content"][0]["text"].as_str().expect("result text").contains(expected));
+        assert_eq!(reply["result"]["isError"], error);
+    }
+}
+
+#[test]
+fn an_mcp_successor_may_arrive_before_its_next_assistant_record() {
+    let mut backend = after_partial_result();
+    let mut up = Queue::with_capacity(32);
+    assert_eq!(backend.calls.len(), 1, "RPC waits for its next assistant record");
+    backend.line(&env(0), br#"{"type":"assistant","message":{"id":"next-message","content":[{"type":"tool_use","id":"next","name":"mcp__smith__foo","input":{}}]}}"#,
+        &mut up, &mut Queue::with_capacity(64));
+    assert!(backend.calls.is_empty(), "the announcement correlates the RPC");
+    completed(up.pop(), Token::new(80));
+    let mut next = request(&backend);
+    let FromDomain::Complete { prompt, .. } = &mut next else { panic!("complete") };
+    prompt.messages = Box::new([llm::Message {
+        role: llm::Role::User,
+        content: Box::new([llm::Block::ToolResult {
+            id: b"next".as_slice().into(),
+            result: llm::Returned::Text { text: b"found".as_slice().into(), error: false, replay: None },
+        }]),
+    }]);
+    backend.resume(&env(0), next, &mut up, &mut Queue::with_capacity(64));
+    let reply = review_tests::server_reply(&mut backend);
+    assert_eq!(reply["id"], 2_u32);
+    assert_eq!(reply["result"]["content"][0]["text"], "found");
+    assert_eq!(reply["result"]["isError"], false);
+}
+
+#[test]
+fn an_unannounced_mcp_successor_is_refused_when_the_turn_ends() {
+    let mut backend = after_partial_result();
+    let mut up = Queue::with_capacity(32);
+    assert_eq!(backend.calls.len(), 1);
+    backend.line(&env(0), br#"{"type":"result","is_error":false}"#, &mut up, &mut Queue::with_capacity(64));
+    assert!(backend.calls.is_empty());
+    let reply = review_tests::server_reply(&mut backend);
+    assert_eq!(reply["result"]["isError"], true);
+    assert_eq!(reply["result"]["content"][0]["text"], "smith: this call was not in the model's message");
+}
