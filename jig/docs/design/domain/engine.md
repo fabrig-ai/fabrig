@@ -570,11 +570,16 @@ one rule for every child and the store:
 - **It rebuilds** derived state, never refusing: the waits judged
   whole and a waiter on a circle held (tasks.md, 6.7), people's expired
   rows erased, the release's settings revision.
-- **An expired row,** one whose time has passed at this start (people's
-  expiries among them), is decoded, never counted against the live
+- **An expired row,** one whose time has passed at the start's time
+  (people's expiries among them), is decoded, never counted against the live
   set's limits, never linked and never held past its page, and the sweep
   erases it; its links are the tests' to check (section 15), so a store
   that fits once cleaned is never refused for what it held before.
+- **The start's time** is the wall time observed once, when the start
+  begins; both walks judge expiry against it and nothing else in the
+  start reads the clock for expiry, so a clock set back during the start
+  changes nothing. A row whose time passes after it is live, loaded and
+  linked, and expires through the ordinary timers once the engine serves.
 - **It panics** at a link it cannot make: a task or a claim naming a
   revision not held (17.7), a name reserved by another source
   (accounts.md, 3.4), an ended read position whose task is missing, a
