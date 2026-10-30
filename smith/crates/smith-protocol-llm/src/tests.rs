@@ -467,7 +467,7 @@ fn path_descriptions_follow_the_actual_conversation_namespace() {
                 output_ceiling: 192,
             },
         ) {
-            if ![b"shell".as_slice(), b"job"].contains(&schema.name.as_ref()) {
+            if ![b"shell".as_slice(), b"job", b"remove"].contains(&schema.name.as_ref()) {
                 let text = core::str::from_utf8(&schema.schema).expect("valid namespace fixture");
                 assert!(
                     text.contains(wanted),
@@ -549,7 +549,7 @@ fn fixed_own_schema_measurement_matches_the_complete_fixed_inventory() {
         let rendered =
             inventory.iter().map(|tool| tool.name.len() + tool.description.len() + tool.schema.len()).sum::<usize>();
         largest = largest.max(rendered);
-        assert_eq!(inventory.len(), 9);
+        assert_eq!(inventory.len(), 10);
     }
     assert_eq!(crate::fixed_schema_bytes(&stated), u64::try_from(largest).ok());
 }
