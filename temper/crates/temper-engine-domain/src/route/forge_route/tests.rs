@@ -373,10 +373,12 @@ fn a_ci_repair_keeps_its_failed_step_and_log_end_before_pull_contents_and_option
     use crate::boundary::Work;
     use jig_domain_brief::{Core, GatherEvent, Planned};
     use skein_lib::{List, Queue, Writer};
-    let (mut domain, env) = two_forges();
+    let (mut domain, mut env) = two_forges();
+    domain.limits.brief.sections = 8;
     domain.limits.brief.brief_bytes = 14_592;
     domain.limits.brief.budgets.pull = 4608;
     domain.limits.brief.budgets.ci = 4096;
+    env.limits.brief = domain.limits.brief;
     let mut row = change_row(Some(7));
     row.change.last_head = Some(SHA1);
     row.delegate = Some((8, super::forge_change::Delegate::Repair(super::forge_change::Repair::Ci)));
