@@ -453,6 +453,72 @@ fn a_ci_repair_keeps_its_failed_step_and_log_end_before_pull_contents_and_option
 }
 
 #[test]
+fn a_github_repair_prepares_when_the_ci_ceiling_fills_the_brief() {
+    use crate::boundary::{ForgeBriefKind, Work};
+    use jig_domain_brief::{Core, GatherDomain, GatherEvent, GatherRequest, Planned, gather_step};
+    use skein_lib::{Env, Id, List, Queue};
+    let (mut domain, mut env) = two_forges();
+    domain.limits.brief.sections = 3;
+    domain.limits.brief.read_bytes = 512;
+    domain.limits.brief.brief_bytes = 512;
+    domain.limits.brief.budgets.pull = 512;
+    domain.limits.brief.budgets.ci = 512;
+    env.limits.brief = domain.limits.brief;
+    let mut row = change_row(Some(7));
+    row.change.last_head = Some(SHA1);
+    row.delegate = Some((8, super::forge_change::Delegate::Repair(super::forge_change::Repair::Ci)));
+    super::forge::step(
+        &mut domain.forge,
+        &super::super::environment_forge(&env),
+        super::forge::Event::Restore { record: super::forge::Stored::Change(row) },
+        &mut Queue::uncapped(),
+    );
+    let mut wanted = List::with_capacity(3);
+    wanted
+        .push(Planned::Core {
+            kind: Core::Task,
+            text: b"Repair failed GitHub check check.\n".as_slice().into(),
+            limit: 512,
+            priority: 0,
+            required: true,
+        })
+        .unwrap();
+    crate::assemble::finish_brief_plan(&mut domain, &env, 8, Some(7), wanted);
+    let limits = crate::limits::brief_limits(&env.limits.brief);
+    let gather_env = Env { now: env.now, wall: env.wall, limits };
+    let mut gather = GatherDomain::new(&limits);
+    let mut out = Queue::uncapped();
+    while let Some(work) = domain.work.pop() {
+        if let Work::Brief(plan @ GatherEvent::Plan { .. }) = work {
+            gather_step(&mut gather, &gather_env, plan, &mut out);
+        }
+    }
+    let pull = b"Pull request: #7\nBranch: temper/7\nBase: main\nHead: abcdef0123456789abcdef0123456789abcdef01\nAddress: https://github.com/org/repo/pull/7\n";
+    let ci = b"Failed check: check\nDescription: CI failed\nLink: /actions/runs/2/jobs/1\n[job log could not be read]\nRepair the failed check.\n";
+    assert_eq!(out.len(), 2, "gather both required forge sections");
+    for _ in 0..out.len() {
+        let Some(GatherRequest::Gather { section, budget: 512, .. }) = out.pop() else { panic!("bounded forge read") };
+        let kind = domain.brief_connectors.get(Id::from_token(section)).unwrap().kind;
+        let size = match kind {
+            ForgeBriefKind::Pull => pull.len(),
+            ForgeBriefKind::Ci => ci.len(),
+            ForgeBriefKind::Home | ForgeBriefKind::Reviews => panic!("pull and CI only"),
+        };
+        gather_step(
+            &mut gather,
+            &gather_env,
+            GatherEvent::Ready { brief: skein_lib::Token::new(8), section, size: u32::try_from(size).unwrap() },
+            &mut out,
+        );
+    }
+    let Some(GatherRequest::Complete { order, .. }) = out.pop() else {
+        panic!("the actual task, pull identity and CI sizes fit the unchanged 512-byte brief")
+    };
+    assert_eq!(order.len(), 3);
+    assert!(out.is_empty(), "neither required section needs a cut or a refusal");
+}
+
+#[test]
 fn a_changes_saved_pull_replaces_its_base_watch_within_two_names() {
     use super::{Decision, Work, forge};
     let (mut domain, mut env) = two_forges();

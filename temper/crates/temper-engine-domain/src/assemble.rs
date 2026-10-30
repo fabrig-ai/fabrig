@@ -289,7 +289,11 @@ pub(crate) fn finish_brief_plan(
             for section in &wanted {
                 left = left.saturating_sub(section.size().min(section.limit()));
             }
-            pull_limit = pull_limit.min(left);
+            // If the declared reason leaves no room, its actual size and the
+            // section priorities decide the fit after gathering.
+            if left > 0 {
+                pull_limit = pull_limit.min(left);
+            }
         }
         plan_forge_section(domain, env, task, pull, 6, pull_limit, &mut wanted);
         if let Some(why) = why {
