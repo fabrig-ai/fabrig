@@ -1,6 +1,6 @@
 # The forge connector
 
-Provisional, 2026-10-04, revised 2026-10-29. How temper drives a forge,
+Provisional, 2026-10-04, revised 2026-10-30. How temper drives a forge,
 Forgejo or GitHub: the forge as a connector on jig's contract (jig's
 `domain/connectors.md`), with its resources, effects, topics, procedures,
 requirements and reads; a forge connected or not; adopting repositories,
@@ -1042,7 +1042,7 @@ delegate's terminal wakes it to offer the landed result.
   pull section (section 3, brief sections) of its title, body, files
   and what differs from the base. The pull section's budget is a
   review's working room, 4,608 bytes on the stock, within the assembled
-  brief's and the journal result's 9,984: the
+  brief's and the journal result's 14,592: the
   number, branch, base, head and title are kept whole, and the body,
   the files and the diff cut from their end, the cut marked; a budget
   that leaves no diff is a configuration a test refuses. The reviewer's
