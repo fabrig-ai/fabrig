@@ -390,7 +390,8 @@ are at least the engine's document lines, so every list cut there fits
 (`../client/domain/client.md`, section 14).
 
 A restored set past its limit, lowered since it was written (the
-accounts, one account's sources, or the lifetime program source names),
+accounts, one account's sources, the source table as a whole, or the
+lifetime program source names), or a stored name past its byte bound,
 refuses the start, naming the record's key, the set and the limit
 (`engine.md`, section 6); the refusal stays until the next cold start,
 whatever rows follow it. An account a source names that is not held, or
