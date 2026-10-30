@@ -22,7 +22,7 @@ def setUpModule():
     global WRAPPER, SETTLEMENT_WRAPPER
     native = tempfile.TemporaryDirectory(dir=HERE.parents[1], prefix='tiers-cpu-native-')
     unittest.addModuleCleanup(native.cleanup)
-    WRAPPER = Path(native.name) / 'cpu-wrapper'
+    WRAPPER = Path(native.name) / 'tiers-cpu-wrapper'
     SETTLEMENT_WRAPPER = Path(native.name) / 'cpu-settlement-fixture'
     compiler = ['cc', '-std=c11', '-O2', '-static', '-Wall', '-Wextra', '-Werror',
                 str(HERE / 'cpu-wrapper.c')]
@@ -549,6 +549,169 @@ os.waitpid(child, 0)
               f'whole-lifetime overhead {overheads[slowest] * 1000:.3f}ms', flush=True)
         self.assertLess(statistics.median(overheads), 0.002)
         self.assertLess(max(overheads), 0.010)
+
+
+class CommandTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory(dir=HERE.parents[1], prefix='tiers-cpu-command-')
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        self.directory = self.root / 'suite records'
+        self.bin = self.root / 'bin'
+        self.bin.mkdir()
+        self.env = dict(os.environ, PATH=f"{self.bin}:{os.environ['PATH']}",
+                        FIXTURE_TARGET=str(WRAPPER.parent), FIXTURE_WRAPPER=str(WRAPPER),
+                        FIXTURE_COMMAND_LOG=str(self.root / 'commands'),
+                        NEXTEST_PROFILE='unchanged')
+        self.fake('cargo', "import json,os,sys\n"
+                  "assert sys.argv[1:]==['metadata','--format-version','1','--no-deps']\n"
+                  "print(json.dumps({'target_directory':os.environ['FIXTURE_TARGET']}))\n")
+        self.fake('heavy', "import json,os,shutil,sys\nfrom pathlib import Path\n"
+                  "Path(os.environ['FIXTURE_COMMAND_LOG']).write_text(json.dumps(sys.argv[1:]))\n"
+                  "if os.environ.get('FIXTURE_FAIL_BUILD'): sys.exit(9)\n"
+                  "shutil.copyfile(os.environ['FIXTURE_WRAPPER'],sys.argv[-1])\n"
+                  "Path(sys.argv[-1]).chmod(0o700)\n")
+        self.fake('df', "import os\nfrom pathlib import Path\n"
+                  "Path(os.environ['FIXTURE_COMMAND_LOG']+'.disk').touch()\n"
+                  "print('Avail\\n80000000000')\n")
+
+    def fake(self, name, source):
+        path = self.bin / name
+        path.write_text(f'#!{sys.executable}\n' + source)
+        path.chmod(0o700)
+
+    def invoke(self, code, *, suite='tools/fixture.py', input_text=None):
+        return subprocess.run([sys.executable, '-I', '-B', str(HERE / 'cpu-run'),
+                               '--out', str(self.directory), '--suite', suite, '--',
+                               sys.executable, '-I', '-c', code], env=self.env,
+                              input=input_text, text=True, capture_output=True, timeout=10)
+
+    def summary(self, *arguments):
+        return subprocess.run([sys.executable, '-I', '-B', str(HERE / 'cpu-summary'),
+                               str(self.directory), '--pair', 'tools', *arguments],
+                              stdin=subprocess.DEVNULL, text=True, capture_output=True, timeout=5)
+
+    def record(self):
+        paths = list(self.directory.glob('*.json'))
+        self.assertEqual(len(paths), 1)
+        return paths[0], json.loads(paths[0].read_text())
+
+    def test_command_stdio_environment_status_and_named_atomic_record(self):
+        suite = '../tools/quoted" é%_.py'
+        result = self.invoke('import os,sys; print(sys.stdin.read()); '
+                             'print(os.environ["NEXTEST_PROFILE"],file=sys.stderr); sys.exit(7)',
+                             suite=suite, input_text='input')
+        self.assertEqual((result.returncode, result.stdout, result.stderr), (7, 'input\n', 'unchanged\n'))
+        path, item = self.record()
+        self.assertEqual(path.name, '..%2Ftools%2Fquoted%22%20%C3%A9%25_.py.json')
+        self.assertEqual((item['profile'], item['binary_id'], item['test_name'], item['attempt']),
+                         ('tools', suite, 'suite', 1))
+        self.assertEqual(item['exit_code'], 7)
+        self.assertTrue(item['complete'])
+        self.assertFalse(item['pending'])
+        self.assertFalse(item['settling'])
+        self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+        self.assertEqual(list(self.directory.glob('*.tmp')), [])
+        self.assertEqual(self.summary('--expect', suite).returncode, 0)
+        self.assertEqual(self.invoke('raise Exception("must not run")', suite=suite).returncode, 2)
+        self.assertEqual(json.loads(path.read_text()), item)
+        # The native mode also refuses concurrent attempts to publish one suite.
+        duplicate = subprocess.run([str(WRAPPER), '--suite', str(path), suite, '--', '/bin/false'],
+                                   stdin=subprocess.DEVNULL, capture_output=True, timeout=5)
+        self.assertEqual(duplicate.returncode, 125)
+        self.assertEqual(json.loads(path.read_text()), item)
+
+    def test_command_signal_passes_through(self):
+        result = self.invoke('import os,signal; os.kill(os.getpid(),signal.SIGTERM)')
+        self.assertEqual(result.returncode, -signal.SIGTERM, result.stderr)
+        _, item = self.record()
+        self.assertEqual(item['signal'], signal.SIGTERM)
+        self.assertIsNone(item['exit_code'])
+        self.assertTrue(item['complete'])
+
+    def test_command_daemon_is_reaped_and_accounted(self):
+        result = self.invoke('''import os,time
+child=os.fork()
+if child==0:
+    os.setsid()
+    if os.fork(): os._exit(0)
+    print(os.getpid(),flush=True)
+    end=time.process_time()+0.03
+    while time.process_time()<end: pass
+    time.sleep(30)
+os.waitpid(child,0)
+''')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        with self.assertRaises(ProcessLookupError):
+            os.kill(int(result.stdout), 0)
+        _, item = self.record()
+        self.assertTrue(item['complete'])
+        self.assertEqual(item['leaked'], 1)
+        self.assertGreater(item['user_s'] + item['system_s'], 0.03)
+
+    def test_command_builds_missing_or_stale_wrapper_with_disk_admission(self):
+        target = self.root / 'target with spaces'
+        self.env['FIXTURE_TARGET'] = str(target)
+        for stale in (False, True):
+            with self.subTest(stale=stale):
+                if stale:
+                    os.utime(target / 'tiers-cpu-wrapper', (1, 1))
+                result = self.invoke('print("suite output")', suite=str(stale))
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stdout, 'suite output\n')
+                command = json.loads((self.root / 'commands').read_text())
+                self.assertEqual(command, ['cc', '-std=c11', '-O2', '-static', '-Wall', '-Wextra',
+                                          '-Werror', str(HERE / 'cpu-wrapper.c'),
+                                          '-o', str(target / 'tiers-cpu-wrapper')])
+                self.assertTrue((self.root / 'commands.disk').exists())
+        self.env['FIXTURE_TARGET'] = str(self.root / 'failed target')
+        self.env['FIXTURE_FAIL_BUILD'] = '1'
+        result = self.invoke('raise Exception("must not run")', suite='failed')
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertIn('CPU wrapper build: exit 9', result.stderr)
+
+    def test_command_summary_requires_complete_expected_inventory(self):
+        self.directory.mkdir()
+        self.assertEqual(self.summary('--expect', 'missing').returncode, 2)
+        self.assertIn('missing', self.summary('--expect', 'missing').stderr)
+        self.assertEqual(self.summary().returncode, 2)
+        result = self.invoke('pass')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.summary('--expect', 'tools/fixture.py', '--expect', 'missing').returncode, 2)
+        self.assertEqual(self.summary('--expect', 'other').returncode, 2)
+        path, item = self.record()
+        for changes in ({'complete': False}, {'user_s': -1}, {'attempt': 2},
+                        {'profile': 'default'}, {'test_name': 'other'}, {'settling': True}):
+            with self.subTest(changes=changes):
+                CPU['save'](path, dict(item, **changes))
+                self.assertEqual(self.summary('--expect', 'tools/fixture.py').returncode, 2)
+        CPU['save'](path, item)
+        CPU['save'](self.directory / 'duplicate.json', item)
+        self.assertEqual(self.summary('--expect', 'tools/fixture.py').returncode, 2)
+
+    def test_command_summary_tools_budgets_and_multiple_suites(self):
+        self.assertEqual(self.invoke('pass').returncode, 0)
+        path, item = self.record()
+        CPU['save'](path, dict(item, user_s=1.0, system_s=0.5))
+        self.assertEqual(self.invoke('pass', suite='tools/second.py').returncode, 0)
+        budget = self.root / 'budgets.toml'
+        arguments = ['--expect', 'tools/fixture.py', '--expect', 'tools/second.py',
+                     '--budgets', str(budget), '--json']
+        budget.write_text('[tools."tools/fixture.py"]\ncpu_suite_s=1.5\ncpu_test_s=1.5\n')
+        self.assertIn('tools', CPU['budgets'](budget, {'qa-jig'}))
+        result = self.summary(*arguments)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout)['suite']['tests'], 2)
+        budget.write_text('[tools."tools/fixture.py"]\ncpu_suite_s=1.0\ncpu_test_s=1.0\n')
+        result = self.summary(*arguments)
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertEqual(len(json.loads(result.stdout)['over_budget']), 2)
+        for content in ('tools=1', '[tools]\ncpu_suite_s=1',
+                        '[tools."tools/fixture.py"]\ncpu_suite_s=nan',
+                        '[tools."tools/fixture.py"]\nunknown=1'):
+            with self.subTest(content=content):
+                budget.write_text(content)
+                self.assertEqual(self.summary(*arguments).returncode, 2)
 
 
 if __name__ == '__main__':

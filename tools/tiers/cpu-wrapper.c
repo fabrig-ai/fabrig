@@ -33,6 +33,7 @@ static const char *required(const char *key) {
 }
 static char *record_data, *temporary_path;
 static int initial_fd = -1;
+static bool suite_record;
 static const char *profile, *binary_id, *test_name;
 static uint64_t attempt_number;
 static char *append(char *out, const char *value) {
@@ -99,7 +100,14 @@ static void record(const char *path, double start, double user, double system,
     int fd = initial_fd;
     initial_fd = -1;
     if (fd < 0) fd = open(temporary_path, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0600);
-    if (fd < 0 || write(fd, record_data, length) != (ssize_t)length || close(fd) || rename(temporary_path, path)) {
+    if (fd < 0 || write(fd, record_data, length) != (ssize_t)length || close(fd)) {
+        perror("cpu-wrapper: write record"); exit(125);
+    }
+    /* A named suite must not replace another invocation's record. */
+    int published = suite_record && pending
+        ? (link(temporary_path, path) || unlink(temporary_path))
+        : rename(temporary_path, path);
+    if (published) {
         perror("cpu-wrapper: publish record"); exit(125);
     }
 }
@@ -121,15 +129,29 @@ static bool kill_children(double deadline) {
 int main(int argc, char **argv) {
     umask(077);
     if (argc < 3) { fputs("usage: cpu-wrapper DIR TEST [ARGS...]\n", stderr); return 125; }
-    /* Validate identity before starting the test; never silently omit accounting. */
-    profile = required("NEXTEST_PROFILE");
-    binary_id = required("NEXTEST_BINARY_ID");
-    test_name = required("NEXTEST_TEST_NAME");
-    const char *attempt = required("NEXTEST_ATTEMPT");
-    char *end;
-    long number = strtol(attempt, &end, 10);
-    if (*end || number < 1) { fputs("cpu-wrapper: invalid attempt\n", stderr); return 125; }
-    attempt_number = (uint64_t)number;
+    int command = 2;
+    suite_record = strcmp(argv[1], "--suite") == 0;
+    if (suite_record) {
+        if (argc < 6 || strcmp(argv[4], "--") || !*argv[2] || !*argv[3]) {
+            fputs("usage: cpu-wrapper --suite RECORD ID -- COMMAND [ARGS...]\n", stderr);
+            return 125;
+        }
+        profile = "tools";
+        binary_id = argv[3];
+        test_name = "suite";
+        attempt_number = 1;
+        command = 5;
+    } else {
+        /* Validate identity before starting the test; never silently omit accounting. */
+        profile = required("NEXTEST_PROFILE");
+        binary_id = required("NEXTEST_BINARY_ID");
+        test_name = required("NEXTEST_TEST_NAME");
+        const char *attempt = required("NEXTEST_ATTEMPT");
+        char *end;
+        long number = strtol(attempt, &end, 10);
+        if (*end || number < 1) { fputs("cpu-wrapper: invalid attempt\n", stderr); return 125; }
+        attempt_number = (uint64_t)number;
+    }
     size_t names = strlen(profile) + strlen(binary_id) + strlen(test_name);
     if (names > (SIZE_MAX - 1024) / 6) return 125;
     record_data = malloc(1024 + 6 * names);
@@ -144,15 +166,18 @@ int main(int argc, char **argv) {
         if (sigaction(signals[i], &action, NULL)) { perror("cpu-wrapper: sigaction"); return 125; }
         sigaddset(&defaults, signals[i]);
     }
-    char *path = malloc(strlen(argv[1]) + sizeof "/cpu-XXXXXX.tmp");
+    const char *destination = suite_record ? argv[2] : argv[1];
+    char *path = malloc(strlen(destination) + sizeof "/cpu-XXXXXX.tmp");
     if (!path) return 125;
-    strcpy(path, argv[1]); strcat(path, "/cpu-XXXXXX.tmp");
+    strcpy(path, destination);
+    strcat(path, suite_record ? ".XXXXXX.tmp" : "/cpu-XXXXXX.tmp");
     int fd = mkstemps(path, 4);
     if (fd < 0) { perror("cpu-wrapper: attempt file"); return 125; }
     initial_fd = fd;
     temporary_path = strdup(path);
     if (!temporary_path) return 125;
-    path[strlen(path) - 4] = '\0';
+    if (suite_record) strcpy(path, destination);
+    else path[strlen(path) - 4] = '\0';
     double start = now();
     /* A forced SIGKILL leaves this explicit incomplete record, never invented CPU. */
     record(path, start, 0, 0, 0, false, 0, true, false);
@@ -164,7 +189,7 @@ int main(int argc, char **argv) {
     if (launch) { errno = launch; perror("cpu-wrapper: spawn attributes"); return 125; }
     launch = posix_spawnattr_setsigdefault(&spawn, &defaults);
     if (!launch) launch = posix_spawnattr_setflags(&spawn, POSIX_SPAWN_SETSIGDEF);
-    if (!launch) launch = posix_spawnp(&test, argv[2], NULL, &spawn, argv + 2, environ);
+    if (!launch) launch = posix_spawnp(&test, argv[command], NULL, &spawn, argv + command, environ);
     posix_spawnattr_destroy(&spawn);
     if (launch) {
         errno = launch; perror("cpu-wrapper: exec");

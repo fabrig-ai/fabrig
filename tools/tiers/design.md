@@ -277,8 +277,9 @@ Pending tests and checkpointed tests still settling descendants both count as
 active for hard-wall supervision.
 
 `tools/tiers/budgets.toml` contains optional per-pair tables with finite positive
-seconds: `cpu_suite_s`, `cpu_test_s`, `wall_hard_s`. It is empty until the user
-sets numbers. `--verify-all` validates every budget key, value and configured
+seconds: `cpu_suite_s`, `cpu_test_s`, `wall_hard_s`. No limits are set until the
+user supplies numbers; `[tools]` reserves the suite namespace in section 7.5.
+`--verify-all` validates every budget key, value and configured
 pair before any heavy command. CPU mode validates it too. A test's CPU budget
 covers all its attempts; a pair's covers every test attempt. The summary exits
 0 within budget or when no CPU budget is set, 1 for exceeded CPU budgets
@@ -318,6 +319,68 @@ double-forked daemon cleanup, and 100 trivial
 attempts' overhead. `test_run.py` also checks budget validation during
 `--verify-all` and preserves the ordinary command-line assertions in section 5.
 All fixtures are local and use no service, sign-in or credential.
+
+### 7.5 One command as a tools suite
+
+From the checkout root, `tools/tiers/cpu-run --out DIR --suite ID -- ARGV...`
+runs ARGV once under the same static supervisor. Cargo metadata locates
+`target_directory/tiers-cpu-wrapper`, the path used by `run --cpu`. An absent
+wrapper, or one older than its source, is built with section 7's flags through
+heavy after section 3's 80,000,000,000-byte admission check. Build diagnostics
+go to stderr; discovery is quiet on success. A failed discovery, build or
+launcher invocation returns 2 without running the suite.
+
+The launcher execs the native `--suite RECORD ID -- ARGV...` mode, which only
+changes identity and record naming. The command inherits its environment and
+all three standard streams. The supervisor returns the command's exit code
+or reproduces its terminating signal; launch failures return 127 and collector
+failures 125. Signals sent to the process group reach the command directly;
+the supervisor ignores PID-only termination signals as in section 7.2. Group
+cancellation remains the caller's responsibility. No extra heavy command
+wraps an already admitted suite.
+
+Each suite writes `DIR/<ID-sanitized>.json` directly, with section 7.2's fields:
+`profile="tools"`, `binary_id=ID`, `test_name="suite"`, `attempt=1`. The filename
+uses UTF-8 percent encoding for characters outside ASCII letters, digits and
+`-_.~`, including `/` and `%`, so different IDs retain distinct names. The
+original ID stays in JSON and in budget keys. The initial pending record is
+published atomically without replacing an existing record; checkpoints and
+the settled record replace it atomically. Existing suite records are refused
+before command launch. A single DIR may hold several distinct suites.
+
+`cpu-summary DIR --pair tools --expect ID [--expect ID ...] [--budgets PATH]
+[--json]` requires an explicit inventory of expected suites. Every expected
+suite must have exactly one complete, settled record; missing, unexpected,
+duplicate, malformed or incomplete records return 2. Temporary files are
+ignored. No nextest run metadata or JUnit report is needed. Totals sum suite
+CPU and wall times, excluding launcher startup, discovery and wrapper builds.
+Suite exit failures remain visible in `failures`; the invocation's exit code
+must be checked by the caller. Summary exit codes retain section 7.3's meaning:
+0 for valid records without exceeded CPU limits, 1 over budget, 2 invalid.
+
+`[tools]` is an empty table until the user supplies suite limits. A suite's
+table is keyed by its original path, for example
+`[tools."tools/tiers/test_run.py"]`, with the same optional finite positive
+`cpu_suite_s`, `cpu_test_s` and `wall_hard_s` keys. Both CPU limits apply to that
+suite's single command record. A recorded wall time over its limit yields a
+green starved warning; `cpu-run` does not impose a wall timeout. The gate owns
+command cancellation and must still require complete records.
+
+For example, ops can retain a fresh directory for a gate's tools suites and
+run each suite sequentially, checking each command's exit status:
+
+```sh
+tools/tiers/cpu-run --out "$records" --suite tools/tiers/test_run.py -- \
+    python3 -I -B tools/tiers/test_run.py
+tools/tiers/cpu-summary "$records" --budgets tools/tiers/budgets.toml \
+    --pair tools --expect tools/tiers/test_run.py
+```
+
+The gate repeats `--expect` for its full suite inventory even when a command
+fails to start; absence then fails coverage rather than implying success.
+Section 7.4's hermetic suite also checks generic command stdio, environment,
+exit and signal status, daemon cleanup, filename encoding, duplicate refusal,
+native build admission, expected coverage and tools budgets.
 
 ## 8. Later
 
