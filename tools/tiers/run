@@ -4,6 +4,7 @@
 import argparse
 import json
 import os
+import runpy
 from pathlib import Path
 import re
 import shlex
@@ -178,10 +179,11 @@ def verify(profile, packages, env):
 def main(argv=None):
     os.umask(0o077)
     parser = argparse.ArgumentParser(description=__doc__, usage=(
-        "%(prog)s TREE TIER [-- NEXTEST_ARGS...] | --verify TREE TIER | --verify-all"))
+        "%(prog)s [--cpu DIR] TREE TIER [-- NEXTEST_ARGS...] | --verify TREE TIER | --verify-all"))
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--verify", action="store_true")
     mode.add_argument("--verify-all", action="store_true")
+    mode.add_argument("--cpu", type=Path, metavar="DIR")
     parser.add_argument("tree", nargs="?")
     parser.add_argument("tier", nargs="?")
     argv = sys.argv[1:] if argv is None else argv
@@ -195,6 +197,12 @@ def main(argv=None):
         parser.error("TREE and TIER are required")
     if args.verify and separator < len(argv):
         parser.error("--verify takes no nextest arguments")
+    if args.cpu:
+        reserved = ("--config-file", "--profile", "-P", "--no-run", "--stress-count", "--stress-duration")
+        if any(arg.split("=", 1)[0] in reserved or arg.startswith("-P") for arg in extra):
+            parser.error("--cpu owns profile/configuration and requires one executed run (no stress or --no-run)")
+        if args.cpu.exists() and (not args.cpu.is_dir() or any(args.cpu.iterdir())):
+            parser.error("--cpu DIR must be an empty directory or a new path")
     try:
         with Path(".config/nextest.toml").open("rb") as source:
             profiles = tomllib.load(source)["profile"]
@@ -217,6 +225,9 @@ def main(argv=None):
                   "(need one list per configured pair)", file=sys.stderr)
             return 2
         chosen = sorted(pairs.values()) if args.verify_all else [profile]
+        if args.verify_all or args.cpu:
+            cpu = runpy.run_path(str(Path(__file__).with_name("cpu.py")))
+            limits = cpu["budgets"]("tools/tiers/budgets.toml", set(pairs.values()))
         for pair in chosen:
             packages = package_map.get(pair)
             if (not isinstance(packages, list) or not packages
@@ -254,8 +265,22 @@ def main(argv=None):
                 env[binary["env"]] = str(target / "debug" / binary["bin"])
         command = ["heavy", "cargo", "nextest", "run", *package_arguments(package_map[profile]), "--profile", profile,
                    "--no-fail-fast", *extra]
+        if args.cpu:
+            # Native prerequisite: the ordinary runner never builds or loads it.
+            target = target_directory(env)
+            wrapper = target / "tiers-cpu-wrapper"
+            target.mkdir(parents=True, exist_ok=True)
+            code = step("CPU wrapper", ["heavy", "cc", "-std=c11", "-O2", "-static", "-Wall", "-Wextra", "-Werror",
+                        "tools/tiers/cpu-wrapper.c", "-o", str(wrapper)], env)
+            if code:
+                raise FailedStep(f"CPU wrapper: exit {code}")
+            overlay = cpu["prepare"](args.cpu, profile, wrapper)
+            command = [*command[:4], *overlay, *command[4:]]
+            wait_for_disk(env)
+            print(f"tiers: nextest: {shlex.join(command)}", flush=True)
+            return cpu["execute"](command, env, args.cpu, profile, limits)
         return step("nextest", command, env)
-    except FailedStep as error:
+    except (FailedStep, OSError, ValueError, KeyError, TypeError) as error:
         print(f"tiers: failed step {error}", file=sys.stderr)
         return 2
 

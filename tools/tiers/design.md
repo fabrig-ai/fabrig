@@ -131,7 +131,132 @@ executables; ordinary tier runs build only their mapped packages' tests and
 the prerequisites in section 2. When profiles gain or lose packages, regenerate
 the sorted map from their workspace listings and verify it before the baseline.
 
-## 7. Later
+## 7. Opt-in CPU accounting and budgets
+
+`tools/tiers/run --cpu DIR TREE TIER [-- NEXTEST_ARGS...]` collects every
+executed test attempt in a fresh, private DIR. Without `--cpu`, the runner
+uses exactly section 1's command, prerequisites, environment and exit behavior.
+CPU mode builds `tools/tiers/cpu-wrapper.c` with `heavy cc -std=c11 -O2 -static
+-Wall -Wextra -Werror` beneath Cargo metadata's target directory, before the
+nextest command. This Linux process supervisor uses C for direct `wait4`,
+`prctl` and signal calls with no interpreter or dynamic-loader startup. It
+requires the builder's C compiler and static libc development files. Its CPU
+overhead must be at most 2 ms per test; the offline 100-attempt measurement
+subtracts recorded test-tree CPU from `wait4` usage of a `posix_spawn`ed wrapper,
+including supervisor startup, publication and exit, and reports mean and max.
+
+### 7.1 Overlay and gate reuse
+
+The collector uses nextest's experimental `wrapper-scripts`, supported by
+nextest 0.9.137. `cpu.py:prepare` returns `--config-file DIR/repository.toml
+--tool-config-file tiers-cpu:DIR/nextest.toml`. Nextest permits experimental
+feature enabling only in repository configuration, so the first file is a
+private copy of the parsed repository configuration with `wrapper-scripts`
+enabled and the selected profile's JUnit path pointing into DIR. Other parsed
+values round-trip unchanged. The tool overlay defines
+`[scripts.wrapper."@tool:tiers-cpu:account"]`, with an absolute wrapper command
+and record directory, `target-runner = "within-wrapper"`, and an `all()`
+run-wrapper rule for the selected profile. Listing is not wrapped. Profile
+slow-timeout settings stay unchanged. Repository wrapper rules have nextest's
+normal precedence; missing coverage is an error, rather than an unmeasured
+success. JUnit is the independent executed-attempt inventory, including retries.
+
+The queue can use the same collector for `default` and `fuzzy`, retaining its
+own package selection and heavy gate command. Ops builds the wrapper once
+through heavy, loads `cpu.py` with `runpy.run_path`, calls
+`prepare(DIR, PROFILE, WRAPPER)` for each fresh run directory, appends the
+returned arguments to nextest, checks disk admission, and calls
+`execute(COMMAND, ENV, DIR, PROFILE, LIMITS)`. `LIMITS` is `budgets(PATH)`'s
+result; it may be empty. `execute` owns output forwarding, completion metadata,
+wall supervision, evaluation and the resulting exit status. Do not wrap an
+already running heavy command in another heavy command. Keep each DIR until
+its report is retained. Gate integration and deployment belong to ops.
+
+The interfaces and precedence are documented in nextest's
+[wrapper scripts](https://nexte.st/docs/configuration/wrapper-scripts/),
+[tool configuration](https://nexte.st/docs/configuration/#tool-specific-configuration),
+and [JUnit support](https://nexte.st/docs/machine-readable/junit/).
+The version-pinned identifier and JUnit implementations under
+`nextest-runner/src/config/core/identifier.rs` and
+`nextest-runner/src/reporter/aggregator/junit.rs` at tag
+`cargo-nextest-0.9.137` define tool script identities and retry ordering.
+
+### 7.2 Attempt records and settlement
+
+The wrapper makes itself a `PR_SET_CHILD_SUBREAPER`, runs the unmodified test
+command as its child, and sums user and system CPU from `wait4` for the test
+and every adopted descendant. Linux's child usage includes descendants the
+test itself waited for; those are counted once. After the test exits, adopted
+children have 100 ms to finish. The supervisor then repeatedly kills its own
+direct adopted children, reaps them and their newly adopted children, and
+counts reaped descendants killed with SIGKILL as `leaked`. Settlement ends at
+ECHILD or after one second. A failure to prove settlement sets `complete=false`.
+Only `/proc/self/task/SELF/children` is inspected for cleanup; no foreign
+process environment, credentials or cgroup state is read.
+
+Each attempt has one file in `DIR/records/`, containing one JSON line:
+`profile`, `binary_id`, `test_name`, one-based `attempt`, `user_s`, `system_s`,
+`wall_s`, `start_s` (host monotonic seconds), `exit_code` or `signal`,
+`complete`, `leaked`, `pending`, `interrupted` and `wrapper_cpu_s`.
+The initial record precedes spawning the test and has `pending=true`,
+`complete=false` and no claimed exit status. Atomic rename replaces it after
+settlement; temporary files are ignored. A SIGKILL therefore leaves explicit
+incomplete evidence, never an invented complete zero-CPU result. Its CPU is a
+lower bound. Normal wrapper records preserve the test's exit code or reproduce
+its terminating signal after recording. The test's stdin, stdout and stderr
+are inherited unchanged. Collector failures return 125 and are visible.
+
+### 7.3 Summaries, budgets and starvation
+
+`tools/tiers/cpu-summary DIR [--budgets tools/tiers/budgets.toml --pair PAIR]
+[--json]` reports per-test CPU totals across attempts and per-pair totals,
+user/system CPU, wall time, attempts, starved, leaked and incomplete counts.
+Suite CPU excludes compilation, listing, prerequisites and the supervisor.
+Suite wall spans the first test start through the final wrapper settlement;
+individual wall times and their sum are also available. A cancelled suite's
+wall spans its first test through cancellation completion.
+
+The summary verifies exactly one record for every JUnit attempt, rejects
+missing, duplicate, unexpected or malformed records, and rejects incomplete
+accounting without starvation evidence. Skipped tests and setup scripts are
+not executed test attempts. An interrupted hard-wall run may have no JUnit:
+its pre-exec records enumerate started attempts and explicitly show incomplete
+accounting. Unstarted tests are never claimed as executed. `run.json` identifies
+the profile and completion; `heavy-output.txt` retains the public command
+output. A nonempty DIR is refused to prevent mixing separate runs. CPU mode reserves profile and
+configuration selection, and rejects stress mode and `--no-run`.
+
+`tools/tiers/budgets.toml` contains optional per-pair tables with finite positive
+seconds: `cpu_suite_s`, `cpu_test_s`, `wall_hard_s`. It is empty until the user
+sets numbers. `--verify-all` validates every budget key, value and configured
+pair before any heavy command. CPU mode validates it too. A test's CPU budget
+covers all its attempts; a pair's covers every test attempt. The summary exits
+0 within budget or when no CPU budget is set, 1 for exceeded CPU budgets
+(naming every test and suite), and 2 for invalid input or unverified coverage.
+
+`wall_hard_s` applies to test execution, starting with the first attempt, and
+is checked while a test is active. Crossing it emits a green `starved` warning
+and invokes the owned command's public `heavy --cancel TOKEN`, using the token
+printed by heavy. It never edits heavy state or stops its units directly.
+Nextest slow-timeout terminations are also counted as starved using the JUnit
+attempt outcomes, without changing configured timeout periods. Starvation
+alone returns 0; observed assertion, exit or protocol failures and exceeded
+CPU budgets keep their failure verdicts. Incomplete CPU on cancelled attempts
+is reported explicitly alongside the green warning.
+
+### 7.4 Offline proof
+
+After building the native prerequisite, run `python3 -I -B
+tools/tiers/test_cpu.py`; `TIERS_CPU_WRAPPER` may select a different native
+artifact. The suite covers overlay arguments and parsed configuration,
+record coverage and validation, retries and skipped tests, CPU budgets and
+verdict exit codes, hard-wall heavy cancellation, standard streams, exit codes,
+signals, waited-child CPU, double-forked daemon cleanup, and 100 trivial
+attempts' overhead. `test_run.py` also checks budget validation during
+`--verify-all` and preserves the ordinary command-line assertions in section 5.
+All fixtures are local and use no service, sign-in or credential.
+
+## 8. Later
 
 The after-landing runner calls this entry point. The trees' old
 `scripts/browser.sh` scripts retire in their own trees' branches.
