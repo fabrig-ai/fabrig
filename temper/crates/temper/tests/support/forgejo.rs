@@ -5,12 +5,65 @@ use skein_throwaway_forgejo::{Instance, Outgoing, Token};
 use std::{
     fs,
     net::{SocketAddr, TcpListener},
+    os::unix::fs::DirBuilderExt,
     path::{Path, PathBuf},
 };
 use temper_real_loop_world::landing;
 pub type BranchHead = (Box<[u8]>, Box<[u8]>);
 // The landing story gathers its agent's brief before the person's next command.
 const BRIEF_GATHER_MS: u64 = 5000;
+
+/// Hold real host-executed jobs by run id (temper/docs/design/domain/testing.md, 2.6).
+pub struct JobBarrier {
+    directory: PathBuf,
+}
+impl JobBarrier {
+    #[must_use]
+    pub fn new(root: &Path) -> Self {
+        let directory = root.join("job-barrier");
+        for part in ["", "started", "release"] {
+            fs::DirBuilder::new().mode(0o700).create(directory.join(part)).expect("private job barrier");
+        }
+        Self { directory }
+    }
+
+    #[must_use]
+    pub fn gate_workflow(&self, workflow: &str) -> String {
+        let directory = self.directory.to_str().expect("barrier path").replace('\'', "'\\''");
+        let step = format!(
+            r#"      - run: |
+          umask 077
+          barrier='{directory}'
+          run="${{{{ github.run_id }}}}"
+          : > "$barrier/started/$run"
+          while [ ! -f "$barrier/release/$run" ]; do
+            kill -0 {} 2>/dev/null || exit 1
+            sleep 0.1
+          done
+      - run: |"#,
+            std::process::id()
+        );
+        assert!(workflow.contains("      - run: |"), "gate has a check step");
+        workflow.replacen("      - run: |", &step, 1)
+    }
+
+    #[must_use]
+    pub fn started(&self, run: u64) -> bool {
+        self.directory.join("started").join(run.to_string()).is_file()
+    }
+
+    pub fn release(&self, run: u64) {
+        assert!(self.started(run), "release a started run");
+        write_private(&self.directory.join("release").join(run.to_string()), b"");
+    }
+
+    pub(super) fn waiting(&self, previous: Option<u64>) -> Option<u64> {
+        fs::read_dir(self.directory.join("started")).expect("started jobs").find_map(|entry| {
+            let run = entry.expect("job marker").file_name().to_str().expect("run id").parse().expect("numeric run");
+            (Some(run) != previous && self.started(run)).then_some(run)
+        })
+    }
+}
 
 /// The owned Forgejo of domain/testing.md 2.6, prepared, run and reconciled
 /// by temper's commands with its runner, attached through skein's `Instance`,

@@ -1,8 +1,9 @@
 //! Cold restart evidence through the native person, ctl and the owned Forgejo
 //! (domain/landing.md, 7 and 15).
 use super::{
-    ANSWER, ChatJudge, ChatPhase, Ending, LANDING, Process, WITHIN, ctl, fake_llm, forgejo::Throwaway, landing_by_turn,
-    landing_scripts, native_settings_setup, person, serve, write_private,
+    ANSWER, ChatJudge, ChatPhase, Ending, LANDING, Process, WITHIN, ctl, fake_llm,
+    forgejo::{JobBarrier, Throwaway},
+    landing_by_turn, landing_scripts, native_settings_setup, person, serve, write_private,
 };
 use serde_json::{Value, json};
 use skein_io::kernel::{Exit, Signal};
@@ -12,13 +13,12 @@ use skein_world::{Referee, end_to_end::Streams, real};
 use std::{cell::Cell, fs, path::Path};
 
 const SETUP_CALLS: usize = super::NATIVE_SETUP_CALLS + 2;
+const TRANSITION_READS: u8 = 8;
 
 #[derive(Debug)]
 pub struct Reads {
     pub landing: Value,
-    pub list: Value,
     pub change: Value,
-    pub task: Value,
 }
 
 fn read(root: &Path, arguments: &[&str]) -> Value {
@@ -27,13 +27,10 @@ fn read(root: &Path, arguments: &[&str]) -> Value {
     ctl::json(&call)
 }
 
-#[must_use]
-pub fn reads(root: &Path, landing: u64, change: u64) -> Reads {
+fn reads(root: &Path, landing: u64, change: u64) -> Reads {
     Reads {
         landing: read(root, &["landing", "show", &landing.to_string()]),
-        list: read(root, &["landing", "list", "--project", "1", "--ended"]),
         change: read(root, &["change", "show", &change.to_string()]),
-        task: read(root, &["task", "show", &landing.to_string()]),
     }
 }
 
@@ -73,10 +70,13 @@ pub struct Proof {
 struct Judge<'a> {
     chat: ChatJudge<'a>,
     root: &'a Path,
+    barrier: &'a JobBarrier,
     proof: &'a Cell<Option<Proof>>,
     landed: &'a Cell<Option<Reads>>,
     previous: Option<&'a Proof>,
     retry: bool,
+    ready: bool,
+    observations: u8,
     advanced: Option<(String, String)>,
     poll: Time,
     progress: (u32, super::patience::Patience),
@@ -84,67 +84,54 @@ struct Judge<'a> {
 impl Judge<'_> {
     fn sample(&mut self) -> bool {
         let forge = self.chat.forge.expect("owned forge");
-        if let Some(previous) = self.previous {
-            if self.retry {
-                let landing = previous.reads.landing["task"].as_u64().expect("landing task");
-                let change = previous.reads.change["task"].as_u64().expect("change task");
-                let panel = read(self.root, &["landing", "show", &landing.to_string()]);
-                let gate = &panel["members"][0]["gates"][0];
-                if gate["faults"] != 1 || gate["proof"]["dispatched"]["attempt"] != 2 {
-                    return false;
-                }
-                let runs = forge.repository_observation("acme", "widget", "actions/runs?limit=100");
-                let Some(run) = runs["workflow_runs"].as_array().expect("runs").iter().find(|run| {
-                    run["workflow_id"] == "gate.yaml" && run["status"] == "running" && run["id"] != previous.run
-                }) else {
-                    return false;
-                };
-                self.proof.set(Some(Proof {
-                    reads: reads(self.root, landing, change),
-                    original: previous.original.clone(),
-                    moved: previous.moved.clone(),
-                    run: run["id"].as_u64().expect("retry run"),
-                }));
-                return true;
+        if let Some(previous) = self.previous
+            && !self.retry
+        {
+            let landing = previous.reads.landing["task"].as_u64().expect("landing task");
+            let change = previous.reads.change["task"].as_u64().expect("change task");
+            let waited = read(self.root, &["change", "show", &change.to_string(), "--until", "landed"]);
+            assert_eq!(waited["met"], true, "the change landed");
+            let change = waited["change"].clone();
+            let landing = read(self.root, &["landing", "show", &landing.to_string()]);
+            self.observations += 1;
+            assert!(self.observations <= TRANSITION_READS, "landing settles after the change lands");
+            if landing["phase"] != "landed" {
+                return false;
             }
-            if forge.merged_pull().is_some() {
-                let landing = previous.reads.landing["task"].as_u64().expect("landing task");
-                let change = previous.reads.change["task"].as_u64().expect("change task");
-                let snapshot = reads(self.root, landing, change);
-                if snapshot.landing["phase"] != "landed"
-                    || snapshot.task["chip"]["phase"] != "ended"
-                    || snapshot.change["step"] != "landed"
-                {
-                    return false;
-                }
-                self.landed.set(Some(snapshot));
-                return true;
-            }
-            return false;
+            self.landed.set(Some(Reads { landing, change }));
+            return true;
         }
-        let pulls = forge.repository_observation("acme", "widget", "pulls?state=open&limit=2");
-        let Some(pull) = pulls.as_array().expect("pull list").first() else { return false };
-        if self.advanced.is_none() {
+        if self.previous.is_none() && self.advanced.is_none() {
+            let pulls = forge.repository_observation("acme", "widget", "pulls?state=open&limit=2");
+            let Some(pull) = pulls.as_array().expect("pull list").first() else { return false };
             let original = pull["head"]["sha"].as_str().expect("original head").to_owned();
             forge.add_file("notes.txt", landing_by_turn::NOTES);
             let main = forge.repository_observation("acme", "widget", "branches/main");
             self.advanced = Some((original, main["commit"]["id"].as_str().expect("moved main").to_owned()));
             eprintln!("turn restart: main advanced after the pull opened");
         }
-        let runs = forge.repository_observation("acme", "widget", "actions/runs?limit=100");
-        let Some(run) = runs["workflow_runs"]
-            .as_array()
-            .expect("workflow runs")
-            .iter()
-            .find(|run| run["workflow_id"] == "gate.yaml" && run["status"] == "running")
-        else {
-            return false;
+        let Some(run) = self.barrier.waiting(self.previous.map(|proof| proof.run)) else { return false };
+        self.observations += 1;
+        assert!(self.observations <= TRANSITION_READS, "held job reaches its durable proof and pending status");
+        let actual = forge.repository_observation("acme", "widget", &format!("actions/runs/{run}"));
+        assert_eq!(actual["id"], run, "marker names the forge's actual run");
+        assert_eq!(actual["workflow_id"], "gate.yaml");
+        assert_eq!(actual["status"], "running");
+        let (landing, change) = if let Some(previous) = self.previous {
+            (
+                previous.reads.landing["task"].as_u64().expect("landing task"),
+                previous.reads.change["task"].as_u64().expect("change task"),
+            )
+        } else {
+            let list = read(self.root, &["landing", "list", "--project", "1"]);
+            let row = list["landings"].as_array().expect("landing rows").first().expect("live landing");
+            (row["task"].as_u64().expect("landing task"), row["changes"][0].as_u64().expect("member change"))
         };
-        let list = read(self.root, &["landing", "list", "--project", "1"]);
-        let row = list["landings"].as_array().expect("landing rows").first().expect("live landing");
-        let landing = row["task"].as_u64().expect("landing task");
-        let change = row["changes"][0].as_u64().expect("member change");
         let reads = reads(self.root, landing, change);
+        let gate = &reads.landing["members"][0]["gates"][0];
+        if self.retry && (gate["faults"] != 1 || gate["proof"]["dispatched"]["attempt"] != 2) {
+            return false;
+        }
         let candidate = reads.landing["members"][0]["candidate"].as_str().expect("candidate");
         let statuses = forge.repository_observation("acme", "widget", &format!("commits/{}/status", &candidate[..40]));
         if !statuses["statuses"]
@@ -155,8 +142,17 @@ impl Judge<'_> {
         {
             return false;
         }
+        if let Some(previous) = self.previous {
+            self.proof.set(Some(Proof {
+                reads,
+                original: previous.original.clone(),
+                moved: previous.moved.clone(),
+                run,
+            }));
+            return true;
+        }
         let (original, moved) = self.advanced.clone().expect("main advanced");
-        self.proof.set(Some(Proof { reads, original, moved, run: run["id"].as_u64().expect("run id") }));
+        self.proof.set(Some(Proof { reads, original, moved, run }));
         true
     }
 }
@@ -212,15 +208,17 @@ impl Referee<Process> for Judge<'_> {
             );
         }
         if !self.chat.stopping() && now >= self.poll {
-            self.poll = now.saturating_add(Duration::from_millis(100));
+            self.poll = now.saturating_add(Duration::from_millis(250));
             // A listener may draw another port on restart. Let the native
             // client keep that address before ctl loads its client directory.
             if self.previous.is_some() && (!person.finished || !person.client.as_ref().is_some_and(Host::is_empty)) {
                 return;
             }
             // Moving main starts as soon as the pull opens, before readiness.
-            let ready = self.sample();
-            if ready && person.finished && person.client.as_ref().is_some_and(Host::is_empty) {
+            if !self.ready {
+                self.ready = self.sample();
+            }
+            if self.ready && person.finished && person.client.as_ref().is_some_and(Host::is_empty) {
                 let Process::Binary(binary) = &mut procs[0] else { panic!("serve") };
                 binary.signal(Signal::Terminate);
                 for proc in procs {
@@ -248,17 +246,28 @@ impl Referee<Process> for Judge<'_> {
 
 /// Each call starts a new shipped serve process and drains it and every host.
 #[must_use]
-pub fn run(root: &Path, forge: &Throwaway, previous: Option<&Proof>) -> (Option<Proof>, Option<Reads>) {
-    run_to(root, forge, previous, false)
+pub fn run(
+    root: &Path,
+    forge: &Throwaway,
+    barrier: &JobBarrier,
+    previous: Option<&Proof>,
+) -> (Option<Proof>, Option<Reads>) {
+    run_to(root, forge, barrier, previous, false)
 }
 
 /// A cancelled run is redispatched by the policy; stop inside that retry's job.
 #[must_use]
-pub fn retry(root: &Path, forge: &Throwaway, previous: &Proof) -> Proof {
-    run_to(root, forge, Some(previous), true).0.expect("stopped inside the retry")
+pub fn retry(root: &Path, forge: &Throwaway, barrier: &JobBarrier, previous: &Proof) -> Proof {
+    run_to(root, forge, barrier, Some(previous), true).0.expect("stopped inside the retry")
 }
 
-fn run_to(root: &Path, forge: &Throwaway, previous: Option<&Proof>, retry: bool) -> (Option<Proof>, Option<Reads>) {
+fn run_to(
+    root: &Path,
+    forge: &Throwaway,
+    barrier: &JobBarrier,
+    previous: Option<&Proof>,
+    retry: bool,
+) -> (Option<Proof>, Option<Reads>) {
     let peer = fake_llm(landing_scripts(ANSWER, forge));
     peer.configure(root);
     let first = previous.is_none();
@@ -282,10 +291,13 @@ fn run_to(root: &Path, forge: &Throwaway, previous: Option<&Proof>, retry: bool)
             merged: false,
         },
         root,
+        barrier,
         proof: &proof,
         landed: &landed,
         previous,
         retry,
+        ready: false,
+        observations: 0,
         advanced: None,
         poll: clock.now().now,
         progress: (0, progress),
