@@ -174,7 +174,7 @@ pub static FIELDS: [Field; 152] = [
         line: b"The other models the charter offers, in order after `model`, each named once; a run's sub-agents may use them too.",
     },
     Field { shape: Shape::Charter, name: b"inspect", value: Value::Boolean, list: None, null: false, line: b"Whether the run's agent may read, list and search its workspace." },
-    Field { shape: Shape::Charter, name: b"modify", value: Value::Boolean, list: None, null: false, line: b"Whether the run's agent may write and edit files in its workspace." },
+    Field { shape: Shape::Charter, name: b"modify", value: Value::Boolean, list: None, null: false, line: b"Whether the run's agent may write, edit and remove files in its workspace." },
     Field { shape: Shape::Charter, name: b"shell", value: Value::Boolean, list: None, null: false, line: b"Whether the run's agent may run commands in its workspace." },
     Field { shape: Shape::Charter, name: b"agents", value: Value::Boolean, list: None, null: false, line: b"Whether the run's agent may open sub-agents, each with no more tools than its own." },
     Field {
