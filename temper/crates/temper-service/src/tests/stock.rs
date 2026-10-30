@@ -590,3 +590,6 @@ fn stock_and_init_admit_the_landing_procedure_and_its_effects() {
         }
     }
 }
+
+#[path = "stock_brief.rs"]
+mod brief;

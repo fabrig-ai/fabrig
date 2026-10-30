@@ -326,7 +326,7 @@ fn demo_turn(text: &str) -> Value {
 }
 
 fn demo_model() -> Value {
-    json!({"name": "demo", "endpoint": "demo", "window": 131_072_u64, "output": 8_192_u64,
+    json!({"name": "demo", "endpoint": "demo", "window": 177_523_u64, "output": 8_192_u64,
            "prices": {"input": 1_u64, "cached": 1_u64, "output": 1_u64, "unit": 1_000_u64}})
 }
 
@@ -334,7 +334,7 @@ fn demo_agent(port: u16) -> Value {
     json!({"name": "demo", "number": 3_u64, "dialect": 3_u64, "provider": "openai",
            "address": format!("127.0.0.1:{port}"), "transport": "plaintext",
            "identity": "plain", "connect": 10_000_u64, "handshake": 10_000_u64, "headers": parse(b"[]"),
-           "models": [{"name": "demo", "window": 131_072_u64, "output": 8_192_u64,
+           "models": [{"name": "demo", "window": 177_523_u64, "output": 8_192_u64,
                        "prices": {"input": 1_u64, "cached": 1_u64, "output": 1_u64, "unit": 1_000_u64},
                        "reasoning_item": 2_048_u64, "head": 60_000_u64, "idle": 30_000_u64}]})
 }

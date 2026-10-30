@@ -101,7 +101,7 @@ fn conversion_keeps_origin_then_installs_answers_the_browser_and_connects_from_r
     let skein_forge::credential::Credential::App { id, key } = &access.credential else { panic!("App access") };
     assert_eq!(*id, 7);
     assert_eq!(key.expose().len(), skein_fake_forge_github::keys::KEYS[0].len());
-    assert_eq!(service.engine.as_ref().expect("engine").forge.accepted.get(0).unwrap().1.as_ref(), []);
+    assert!(service.engine.as_ref().expect("engine").forge.accepted.get(0).unwrap().1.is_empty());
 }
 #[test]
 fn an_install_failure_answers_the_conversion_but_the_kept_app_still_connects() {

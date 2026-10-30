@@ -65,6 +65,10 @@ temper-worker-protocol-git.workspace = true
 jig-protocol-worker-link.workspace = true
 
 [dev-dependencies]
+smith-agent-shell.workspace = true
+smith-agent-service.workspace = true
+smith-domain.workspace = true
+smith-local-service.workspace = true
 smith-agent-world.workspace = true
 jig-client.workspace = true
 temper-client-tools.workspace = true
