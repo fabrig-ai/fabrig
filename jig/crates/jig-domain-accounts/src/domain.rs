@@ -163,7 +163,7 @@ pub struct Domain {
     pub(crate) unrestored: u64,
     pub(crate) start_restore: bool,
     restore_consumed: bool,
-    pub(crate) restore_failure: Option<(crate::Key, crate::restore::FitSet, u32)>,
+    pub(crate) restore_failure: Option<crate::RestoreLimit>,
     now: Time,
     phase: Phase,
 }
@@ -301,6 +301,11 @@ impl Domain {
     #[must_use]
     pub const fn unrestored(&self) -> u64 {
         self.unrestored
+    }
+    /// The first opted-in start fit failure; default restoration has no fit diagnostic.
+    #[must_use]
+    pub const fn restore_limit(&self) -> Option<crate::RestoreLimit> {
+        self.restore_failure
     }
     fn choose(&self, account: &Account) -> Choice {
         let mut first = None;
