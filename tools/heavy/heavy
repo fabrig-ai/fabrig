@@ -59,10 +59,13 @@ case ${1:-} in
         else
             exec python3 -B "$kit/heavy-recovery.py" "$@"
         fi
+        if [[ -n ${HEAVY_MIN_FREE_BYTES:-} ]]; then
+            python3 -B "$kit/heavy-recovery.py" --validate-min-free-bytes
+        fi
         if ((installed_status != 1)); then
             # Landing labels must agree with heavy-recovery.py's landing:
             # these tasks queue below the floor and wait for admission.
-            if [[ ! ${HEAVY_LABEL:-} =~ ^land\ [^[:space:]]+(\ (prebuild|regenerate))?$ ]]; then
+            if [[ -z ${HEAVY_MIN_FREE_BYTES:-} && ! ${HEAVY_LABEL:-} =~ ^land\ [^[:space:]]+(\ (prebuild|regenerate))?$ ]]; then
                 disk_floor heavy || {
                     python3 -B "$kit/heavy-recovery.py" --record-refusal disk-floor || true
                     exit 2
@@ -78,6 +81,9 @@ case ${1:-} in
             exec "${command[@]}"
         fi
         if ((installed_status == 1)); then
+            if [[ -n ${HEAVY_MIN_FREE_BYTES:-} ]]; then
+                exec python3 -B "$kit/heavy-recovery.py" "$@"
+            fi
             echo 'heavy: not installed here; running it directly' >&2
             exec "${command[@]}"
         fi
