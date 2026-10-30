@@ -157,7 +157,18 @@ fn explicit_start_live_fit_failure_is_sticky_and_does_not_erase() {
         Some(Request::RestoreRefused { key: Key::Person(2), refusal: Refusal::Limit { which: LimitKind::Restore } })
     );
     assert!(out.is_empty());
+    let failure = Some(RestoreFailure {
+        key: Key::Person(2),
+        cause: RestoreCause::Bound { which: RestoreBound::People, held: 2, limit: 1 },
+    });
+    assert_eq!(domain.restore_failure(), failure);
+    assert!(domain.parties().is_empty());
+    assert_eq!(domain.results_seen(1), None);
+    assert_eq!(domain.persons(), u32::MAX);
+    assert!(!domain.start_project(&env.limits, RestoreProjection::Waiting { task: 1, entries: Box::new([]) }));
+    assert_eq!(domain.restore_failure(), failure);
     assert!(!domain.start_link(&env));
+    assert_eq!(domain.restore_failure(), failure);
     assert!(!domain.ready());
     fire(&mut domain, &env, &mut out);
     assert!(out.is_empty());
@@ -519,6 +530,7 @@ fn explicit_start_nested_representation_bounds_are_exact() {
             load(&mut domain, &env, row, &mut out);
             if extra == 0 {
                 assert!(out.is_empty(), "field {field} exactly fits");
+                assert_eq!(domain.restore_failure(), None);
                 assert!(domain.start_link(&env));
             } else {
                 assert_eq!(
@@ -526,7 +538,424 @@ fn explicit_start_nested_representation_bounds_are_exact() {
                     Some(Request::RestoreRefused { key, refusal: Refusal::Limit { which: LimitKind::Restore } }),
                     "field {field}"
                 );
+                let (which, limit) = match field {
+                    0 => (RestoreBound::ModelNames, MODELS),
+                    1 => (RestoreBound::ModelNameBytes, MODEL_NAME_BYTES),
+                    2 => (RestoreBound::AmendmentBytes, LIMITS.amendment_bytes),
+                    3 => (RestoreBound::Batch, LIMITS.batch),
+                    4 => (RestoreBound::AddressBytes, ADDRESS),
+                    5 => (RestoreBound::IdentityBytes, LIMITS.identity_bytes),
+                    6 => (RestoreBound::Holdings, LIMITS.holdings),
+                    _ => unreachable!(),
+                };
+                assert_eq!(
+                    domain.restore_failure(),
+                    Some(RestoreFailure {
+                        key,
+                        cause: RestoreCause::Bound { which, held: u64::from(limit) + 1, limit: u64::from(limit) },
+                    })
+                );
                 assert!(!domain.start_link(&env));
+            }
+        }
+    }
+}
+
+#[test]
+fn selected_ended_witness_preserves_missing_person_until_link() {
+    let env = env();
+    let (mut domain, mut out) = new_start(&env);
+    load(&mut domain, &env, Stored::ReadConversation { party: 99, task: 7, through: 2 }, &mut out);
+    assert!(domain.start_project(&env.limits, RestoreProjection::EndedConversation { task: 7 }));
+    assert_eq!(domain.read_conversations().get(&(99, 7)), Some(&2));
+    let result = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| domain.start_link(&env)));
+    let error = result.expect_err("missing person must still assert");
+    let message = error.downcast_ref::<String>().expect("formatted link panic");
+    assert_eq!(message, "ReadConversation { party: 99, task: 7 } links missing person 99");
+    assert!(out.is_empty());
+    assert_eq!(domain.restore_failure(), None);
+}
+
+#[test]
+fn selected_projection_phase_and_default_doors_assert() {
+    for bad in 0_u8..9 {
+        let env = env();
+        let mut domain = Domain::new(&env.limits, Box::new([]), 1, Box::new([]));
+        let mut out = Queue::uncapped();
+        let result = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| {
+            if bad != 0 {
+                domain.start_restore(env.wall);
+            }
+            match bad {
+                0 => {
+                    assert!(domain.start_project(&env.limits, RestoreProjection::EndedConversation { task: 7 }));
+                }
+                1 => step(&mut domain, &env, Event::Waiting { task: 7, entries: Box::new([]) }, &mut out),
+                2 => step(
+                    &mut domain,
+                    &env,
+                    Event::ChatState {
+                        party: 1,
+                        project: 1,
+                        task: 7,
+                        last_reply: 1,
+                        live: false,
+                        seen: None,
+                        replies: Box::new([]),
+                    },
+                    &mut out,
+                ),
+                3 => domain.restore_ended_conversation(7),
+                4..=6 => {
+                    assert!(domain.start_link(&env));
+                    if bad >= 5 {
+                        domain.start_sweep();
+                    }
+                    if bad == 6 {
+                        assert!(domain.start_complete(&env));
+                    }
+                    assert!(domain.start_project(&env.limits, RestoreProjection::EndedConversation { task: 7 }));
+                }
+                7..=8 => {
+                    let row = Stored::Person {
+                        number: 1,
+                        identity: Identity {
+                            key: IdentityKey { provider: 0, subject: skein_lib::bytes::zeroed(17) },
+                            login: Box::new([]),
+                            name: Box::new([]),
+                        },
+                    };
+                    load(&mut domain, &env, row, &mut out);
+                    if bad == 7 {
+                        domain.start_restore(env.wall);
+                    } else {
+                        domain.restore_ended_conversation(7);
+                    }
+                }
+                _ => unreachable!(),
+            }
+        }));
+        assert!(result.is_err(), "mixed/late door {bad}");
+    }
+}
+
+#[test]
+fn default_and_successful_starts_retain_no_fit_detail() {
+    let env = env();
+    for selected in [false, true] {
+        let mut domain = Domain::new(&env.limits, Box::new([]), 1, Box::new([]));
+        let mut out = Queue::uncapped();
+        if selected {
+            domain.start_restore(env.wall);
+        }
+        load(&mut domain, &env, person(1), &mut out);
+        assert_eq!(domain.restore_failure(), None);
+        if selected {
+            assert!(domain.start_link(&env));
+            domain.start_sweep();
+            assert!(domain.start_complete(&env));
+        } else {
+            step(&mut domain, &env, Event::Restored, &mut out);
+        }
+        assert_eq!(domain.restore_failure(), None);
+    }
+    let mut domain = Domain::new(&env.limits, Box::new([]), 1, Box::new([]));
+    let mut out = Queue::uncapped();
+    load(
+        &mut domain,
+        &env,
+        answer(1, Ask::Say { project: 1, task: 1, words: skein_lib::bytes::zeroed(9) }, Outcome::SignedOut),
+        &mut out,
+    );
+    assert_eq!(
+        out.pop(),
+        Some(Request::RestoreRefused {
+            key: Key::Answer(RequestKey { person: 1, key: [1; 16] }),
+            refusal: Refusal::Limit { which: LimitKind::Restore },
+        })
+    );
+    assert_eq!(domain.restore_failure(), None);
+}
+
+#[test]
+fn selected_capacity_details_include_the_incoming_row() {
+    for which in [
+        RestoreBound::SignIns,
+        RestoreBound::Roles,
+        RestoreBound::ReadResults,
+        RestoreBound::ReadConversations,
+        RestoreBound::Requests,
+    ] {
+        let mut env = env();
+        env.limits.sign_ins = 1;
+        env.limits.projects = 1;
+        env.limits.people = 1;
+        env.limits.inbox_tasks = 1;
+        env.limits.requests = 1;
+        let (mut domain, mut out) = new_start(&env);
+        load(&mut domain, &env, person(1), &mut out);
+        let mut last = Key::Person(1);
+        for number in 1..=2 {
+            let row = match which {
+                RestoreBound::SignIns => Stored::SignIn { number, person: 1, expires: Wall::from_nanos(1) },
+                RestoreBound::Roles => {
+                    Stored::Roles { project: u32::try_from(number).unwrap(), holdings: Box::new([]) }
+                }
+                RestoreBound::ReadResults => Stored::ReadResults { party: number, through: 0 },
+                RestoreBound::ReadConversations => Stored::ReadConversation { party: 1, task: number, through: 0 },
+                RestoreBound::Requests if number == 1 => {
+                    answer(1, Ask::Stop { project: 0, task: 0 }, Outcome::SignedOut)
+                }
+                RestoreBound::Requests => Stored::Acted {
+                    key: ActKey { connector: 2, key: [2; 16] },
+                    act: Act::RemoveAccount { account: 0 },
+                    outcome: Outcome::AccountChanged,
+                    at: Wall::EPOCH,
+                },
+                RestoreBound::IdentityBytes
+                | RestoreBound::People
+                | RestoreBound::Holdings
+                | RestoreBound::ModelNames
+                | RestoreBound::ModelNameBytes
+                | RestoreBound::Subagents
+                | RestoreBound::Operations
+                | RestoreBound::Batch
+                | RestoreBound::Words
+                | RestoreBound::AmendmentBytes
+                | RestoreBound::NameBytes
+                | RestoreBound::ProgramNameBytes
+                | RestoreBound::Uses
+                | RestoreBound::ProgramHosts
+                | RestoreBound::ProgramHostNameBytes
+                | RestoreBound::AddressBytes
+                | RestoreBound::NamedTasks
+                | RestoreBound::KeptPending => unreachable!("capacity cases only"),
+            };
+            last = row.key();
+            load(&mut domain, &env, row, &mut out);
+            if number == 1 {
+                assert!(out.is_empty());
+                assert_eq!(domain.restore_failure(), None);
+            }
+        }
+        assert_eq!(
+            domain.restore_failure(),
+            Some(RestoreFailure { key: last, cause: RestoreCause::Bound { which, held: 2, limit: 1 } })
+        );
+        assert_eq!(out.len(), 1);
+    }
+}
+
+#[test]
+#[expect(clippy::too_many_lines, reason = "stored exact/one-over cases name each nested representation bound")]
+fn selected_nested_causes_keep_the_outer_stored_key_and_first_fit_order() {
+    for field in 0_u8..13 {
+        for extra in [0, 1] {
+            let mut env = env();
+            let (ask, outcome, which, held, limit) = match field {
+                0 => {
+                    let mut amendment = fixtures::unchanged(b"");
+                    amendment.llm = Some(LlmChoice {
+                        account: None,
+                        main: ModelEffort { model: 255, effort: Some(255) },
+                        subagents: copies(ModelEffort { model: 255, effort: None }, MODELS + extra),
+                    });
+                    env.limits.amendment_bytes = 4096;
+                    (
+                        Ask::Propose {
+                            project: 1,
+                            action: Action::Amend { task: 1, revision: 0, amendment: Box::new(amendment) },
+                            reason: Box::new([]),
+                        },
+                        Outcome::SignedOut,
+                        RestoreBound::Subagents,
+                        MODELS + extra,
+                        MODELS,
+                    )
+                }
+                1 => (
+                    Ask::Compound {
+                        project: 0,
+                        operations: {
+                            let mut ops = skein_lib::List::with_capacity(LIMITS.operations + extra);
+                            for _ in 0..LIMITS.operations + extra {
+                                ops.push(Operation::Stop { task: 1 }).unwrap();
+                            }
+                            ops
+                        },
+                    },
+                    Outcome::SignedOut,
+                    RestoreBound::Operations,
+                    LIMITS.operations + extra,
+                    LIMITS.operations,
+                ),
+                2 => (
+                    Ask::Propose {
+                        project: 1,
+                        action: Action::Batch(Box::new([fixtures::member(&skein_lib::bytes::zeroed(
+                            usize::try_from(LIMITS.words + extra).unwrap(),
+                        ))])),
+                        reason: Box::new([]),
+                    },
+                    Outcome::SignedOut,
+                    RestoreBound::Words,
+                    LIMITS.words + extra,
+                    LIMITS.words,
+                ),
+                3 => (
+                    Ask::Rename {
+                        project: 1,
+                        name: "a".repeat(NAME_BYTES + usize::try_from(extra).unwrap()).into_boxed_str(),
+                    },
+                    Outcome::SignedOut,
+                    RestoreBound::NameBytes,
+                    u32::try_from(NAME_BYTES).unwrap() + extra,
+                    u32::try_from(NAME_BYTES).unwrap(),
+                ),
+                4 => (
+                    Ask::AccountChange {
+                        holder: AccountHolder::Own,
+                        change: AccountChange::DeclareProgram {
+                            provider: 0,
+                            join: None,
+                            name: skein_lib::bytes::zeroed(32 + usize::try_from(extra).unwrap()),
+                        },
+                    },
+                    Outcome::SignedOut,
+                    RestoreBound::ProgramNameBytes,
+                    32 + extra,
+                    32,
+                ),
+                5 => {
+                    env.limits.words = 4096;
+                    (
+                        Ask::AccountChange {
+                            holder: AccountHolder::Own,
+                            change: AccountChange::SetUses {
+                                account: 0,
+                                uses: Some(copies(Use::Party(1), USES + extra)),
+                            },
+                        },
+                        Outcome::SignedOut,
+                        RestoreBound::Uses,
+                        USES + extra,
+                        USES,
+                    )
+                }
+                6 => (
+                    Ask::Stop { project: 0, task: 0 },
+                    Outcome::AccountRemoved {
+                        confirmed: false,
+                        failed_hosts: copies(
+                            AccountHostFailure { name: Box::new([]), why: AccountHostWhy::Lost },
+                            LIMITS.program_hosts + extra,
+                        ),
+                    },
+                    RestoreBound::ProgramHosts,
+                    LIMITS.program_hosts + extra,
+                    LIMITS.program_hosts,
+                ),
+                7 => (
+                    Ask::Stop { project: 0, task: 0 },
+                    Outcome::AccountSignedOut {
+                        confirmed: false,
+                        failed_hosts: Box::new([AccountHostFailure {
+                            name: skein_lib::bytes::zeroed(
+                                usize::try_from(LIMITS.program_host_name_bytes + extra).unwrap(),
+                            ),
+                            why: AccountHostWhy::Lost,
+                        }]),
+                    },
+                    RestoreBound::ProgramHostNameBytes,
+                    LIMITS.program_host_name_bytes + extra,
+                    LIMITS.program_host_name_bytes,
+                ),
+                8 => (
+                    Ask::Stop { project: 0, task: 0 },
+                    Outcome::CompoundRefused {
+                        at: 0,
+                        why: Refusal::Circle { tasks: copies(7_u64, NAMED_TASKS + extra), cut: false },
+                    },
+                    RestoreBound::NamedTasks,
+                    NAMED_TASKS + extra,
+                    NAMED_TASKS,
+                ),
+                9 => (
+                    Ask::Stop { project: 0, task: 0 },
+                    Outcome::Refused(Refusal::Kept { pending: copies(7_u64, 64 + extra) }),
+                    RestoreBound::KeptPending,
+                    64 + extra,
+                    64,
+                ),
+                10 => {
+                    let mut amendment = fixtures::unchanged(b"");
+                    amendment.instructions =
+                        Some(skein_lib::bytes::zeroed(usize::try_from(LIMITS.amendment_bytes + extra).unwrap()));
+                    (
+                        Ask::Propose {
+                            project: 1,
+                            action: Action::Amend { task: 1, revision: 0, amendment: Box::new(amendment) },
+                            reason: Box::new([]),
+                        },
+                        Outcome::SignedOut,
+                        RestoreBound::AmendmentBytes,
+                        LIMITS.amendment_bytes + extra,
+                        LIMITS.amendment_bytes,
+                    )
+                }
+                11 => (
+                    Ask::AnswerPerson {
+                        project: 1,
+                        task: 1,
+                        revision: 0,
+                        result: PersonResult::Approved {
+                            state: Box::new([0]),
+                            words: Some(skein_lib::bytes::zeroed(usize::try_from(LIMITS.words - 1 + extra).unwrap())),
+                        },
+                    },
+                    Outcome::SignedOut,
+                    RestoreBound::Words,
+                    LIMITS.words + extra,
+                    LIMITS.words,
+                ),
+                12 => {
+                    env.limits.words = 32;
+                    (
+                        Ask::MakeService {
+                            project: 1,
+                            name: skein_lib::bytes::zeroed(usize::try_from(LIMITS.identity_bytes - 8 + extra).unwrap()),
+                            role: Role::Member,
+                        },
+                        Outcome::SignedOut,
+                        RestoreBound::IdentityBytes,
+                        LIMITS.identity_bytes + extra,
+                        LIMITS.identity_bytes,
+                    )
+                }
+                _ => unreachable!(),
+            };
+            let (mut domain, mut out) = new_start(&env);
+            load(&mut domain, &env, person(1), &mut out);
+            let row = answer(19, ask, outcome);
+            let key = row.key();
+            load(&mut domain, &env, row, &mut out);
+            if extra == 0 {
+                assert_eq!(domain.restore_failure(), None, "field {field} exactly fits");
+                assert!(out.is_empty());
+            } else {
+                assert_eq!(
+                    domain.restore_failure(),
+                    Some(RestoreFailure {
+                        key,
+                        cause: RestoreCause::Bound { which, held: u64::from(held), limit: u64::from(limit) },
+                    }),
+                    "field {field}"
+                );
+                let first = domain.restore_failure();
+                load(&mut domain, &env, person(2), &mut out);
+                assert!(!domain.start_link(&env));
+                assert_eq!(domain.restore_failure(), first);
+                assert_eq!(out.len(), 1);
             }
         }
     }

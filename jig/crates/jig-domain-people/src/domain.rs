@@ -112,6 +112,8 @@ pub struct Domain {
     phase: Phase,
     start: start::Phase,
     start_at: Option<Wall>,
+    restore_failure: Option<crate::RestoreFailure>,
+    ended_witnesses: Set<(u64, u64)>,
     touched: bool,
     deployment_provider: u16,
     people: Map<u64, Identity>,
@@ -233,6 +235,10 @@ impl Domain {
             phase: Phase::Restoring,
             start: start::Phase::Default,
             start_at: None,
+            restore_failure: None,
+            ended_witnesses: Set::with_capacity(
+                limits.people.checked_mul(limits.inbox_tasks).expect("bounded conversation witnesses"),
+            ),
             touched: false,
             deployment_provider,
             people: Map::with_capacity(limits.people),
@@ -569,6 +575,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             inbox::move_chat(domain, &env.limits, task, project, from, to, out);
         }
         Event::ChatState { party, project, task, last_reply, live, seen, replies } => {
+            domain.assert_projection_event();
             inbox::chat_state_event(domain, env, party, project, task, last_reply, live, seen, replies, out);
         }
         Event::ConversationSeen { request, project, last_reply } => {
@@ -579,7 +586,10 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         }
         Event::MakeService { request, person } => make_service(domain, env, request, person, out),
         Event::Seed { project, collaborators } => seed(domain, &env.limits, project, &collaborators, out),
-        Event::Waiting { task, entries } => replace_waiting(domain, &env.limits, task, &entries),
+        Event::Waiting { task, entries } => {
+            domain.assert_projection_event();
+            replace_waiting(domain, &env.limits, task, &entries);
+        }
         Event::ApplyRoles { reply_to, request } => {
             let result = apply_roles(domain, env, request, out);
             out.push(Request::RolesApplied { reply_to, request, result });
