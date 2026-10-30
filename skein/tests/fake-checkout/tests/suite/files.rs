@@ -28,6 +28,96 @@ fn stores_compare_versions_before_creating_parents_or_issuing_versions() {
 }
 
 #[test]
+fn removal_requires_the_current_file_version_and_removes_only_that_file() {
+    let mut checkout = Checkout::new();
+    let root = checkout.root(b"work");
+    checkout.write(b"work/neighbour", b"kept");
+    let version = checkout.write(b"work/file", b"remove");
+    let before = format!("{checkout:?}");
+    for expect in [Expect::Is(version - 1), Expect::Absent] {
+        assert_eq!(checkout.remove_current(root, b"file", expect), Err(Failure::Conflict { now: Some(version) }));
+        assert_eq!(format!("{checkout:?}"), before, "refusals change no node, root, script or version");
+    }
+    assert_eq!(checkout.remove_current(root, b"./file", Expect::Is(version)), Ok(()));
+    assert!(!checkout.exists(b"work/file"));
+    assert_eq!(checkout.content(b"work/neighbour"), Some(b"kept".as_slice()));
+    let next = checkout.store(root, b"file", b"new", Expect::Absent).expect("removed file is absent");
+    assert_eq!(next, version + 1, "removal issues no version");
+}
+
+#[test]
+fn removal_accepts_empty_directories_and_refuses_nonempty_ones() {
+    let mut checkout = Checkout::new();
+    let root = checkout.root(b"work");
+    checkout.mkdir(b"work/empty");
+    checkout.mkdir(b"work/empty-again");
+    checkout.write(b"work/empty-neighbour/file", b"kept");
+    let version = checkout.write(b"work/with-file/child", b"kept");
+    checkout.mkdir(b"work/with-directory/child");
+    checkout.link(b"work/with-link/child", b"missing");
+    checkout.special(b"work/with-special/child");
+    let before = format!("{checkout:?}");
+    for path in [b"with-file".as_slice(), b"with-directory", b"with-link", b"with-special"] {
+        assert_eq!(checkout.remove_current(root, path, Expect::Absent), Err(Failure::NotEmpty));
+        assert_eq!(format!("{checkout:?}"), before, "every node kind makes a directory nonempty");
+    }
+    assert_eq!(checkout.remove_current(root, b"empty", Expect::Is(version)), Ok(()));
+    assert_eq!(checkout.remove_current(root, b"empty-again", Expect::Absent), Ok(()));
+    assert!(!checkout.exists(b"work/empty"));
+    assert!(!checkout.exists(b"work/empty-again"));
+    assert_eq!(checkout.content(b"work/empty-neighbour/file"), Some(b"kept".as_slice()));
+    let next = checkout.write(b"work/next", b"new");
+    assert_eq!(next, version + 1, "directory removals issue no version");
+}
+
+#[test]
+fn removal_refuses_escapes_links_missing_paths_and_special_nodes_without_mutation() {
+    let mut checkout = Checkout::new();
+    let root = checkout.root(b"work");
+    let version = checkout.write(b"work/file", b"kept");
+    checkout.write(b"x", b"outside");
+    checkout.link(b"work/link", b"file");
+    checkout.special(b"work/special");
+    checkout.program(
+        b"script",
+        Program { duration: Duration::ZERO, output: b"kept".to_vec(), exit: Exit::Code(0), changes: Vec::new() },
+    );
+    let before = format!("{checkout:?}");
+    for (path, failure) in [
+        (b"link".as_slice(), Failure::Linked),
+        (b"link/child", Failure::Linked),
+        (b"../x", Failure::Escapes),
+        (b"missing", Failure::Missing),
+        (b"missing/deep/file", Failure::Missing),
+        (b"missing/../file", Failure::Missing),
+        (b"special", Failure::NotFile),
+        (b"file/child", Failure::NotDirectory),
+    ] {
+        assert_eq!(checkout.remove_current(root, path, Expect::Is(version)), Err(failure));
+        assert_eq!(format!("{checkout:?}"), before, "refusals change no node, root, script or version");
+    }
+    checkout.link(b"work", b"elsewhere");
+    let before = format!("{checkout:?}");
+    assert_eq!(checkout.remove_current(root, b"", Expect::Absent), Err(Failure::Linked));
+    assert_eq!(format!("{checkout:?}"), before, "a link at a registered root refuses without panicking");
+}
+
+#[test]
+fn removal_at_the_global_root_still_counts_its_children() {
+    let mut checkout = Checkout::new();
+    let root = checkout.root(b"");
+    let version = checkout.write(b"child", b"kept");
+    let before = format!("{checkout:?}");
+    assert_eq!(checkout.remove_current(root, b"", Expect::Absent), Err(Failure::NotEmpty));
+    assert_eq!(format!("{checkout:?}"), before, "a refusal at the global root changes nothing");
+    assert_eq!(checkout.content(b"child"), Some(b"kept".as_slice()));
+    assert_eq!(checkout.remove_current(root, b"child", Expect::Is(version)), Ok(()));
+    assert_eq!(checkout.remove_current(root, b"", Expect::Is(version)), Ok(()));
+    assert!(!checkout.exists(b""));
+    assert_eq!(checkout.root_path(root), b"", "removal keeps root registrations");
+}
+
+#[test]
 fn roots_follow_forty_relative_links_and_refuse_escapes_and_linked_stores() {
     let mut checkout = Checkout::new();
     let root = checkout.root(b"work");
