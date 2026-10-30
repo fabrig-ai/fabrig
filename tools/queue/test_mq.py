@@ -725,6 +725,7 @@ class RepositoryTests(unittest.TestCase):
         mq.git(self.repo, "init", "--bare", str(self.origin))
         mq.git(self.repo, "remote", "add", "origin", str(self.origin))
         mq.git(self.repo, "push", "origin", "HEAD:main")
+        mq.git(self.origin, "symbolic-ref", "HEAD", "refs/heads/main")
         mq.git(self.repo, "fetch", "origin")
         self.posts = []
         self.checks = []
@@ -1738,8 +1739,9 @@ print('tools fixture passed')
                     self.assertEqual(observed, [branch["tip"]])
                     git(self.repo, "push", "origin", advanced + ":" + ref)
             result = git(repo, *args, **kwargs)
-            if args[0] == "ls-remote" and args[-1] == ref:
-                observed.append(result.stdout.split()[0])
+            if args[0] == "ls-remote" and ref in args:
+                observed.extend(line.split()[0] for line in result.stdout.splitlines()
+                                if line.split()[1:] == [ref])
             return result
         with patch.object(mq, "git", side_effect=race):
             self.queue().attempt([branch])
@@ -1750,7 +1752,7 @@ print('tools fixture passed')
         self.assertNotEqual(cleanup[0]["returncode"], 0)
         main_push, delete = pushes
         self.assertFalse(any("--force" in arg or "--lease" in arg for arg in main_push))
-        self.assertEqual(delete, ("push", "--force-with-lease=" + ref + ":" + branch["tip"],
+        self.assertEqual(delete, ("push", "--atomic", "--force-with-lease=" + ref + ":" + branch["tip"],
                                   str(self.origin), ":" + ref))
 
     def test_push_failure_does_not_delete_ready_branch(self):

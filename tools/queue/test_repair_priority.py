@@ -55,6 +55,7 @@ class RepairTests(unittest.TestCase):
         mq.git(self.preparer, "init", "--bare", str(self.origin))
         mq.git(self.preparer, "remote", "add", "origin", str(self.origin))
         mq.git(self.preparer, "push", "origin", "HEAD:main")
+        mq.git(self.origin, "symbolic-ref", "HEAD", "refs/heads/main")
         mq.git(self.root, "clone", "-b", "main", str(self.origin), str(self.repo))
         self.identity(self.repo)
         self.checks = []

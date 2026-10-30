@@ -15,3 +15,9 @@ u-skein lead/u/skein@hel8
 u-smith lead/u/smith@hel8
 u-jig lead/u/jig@hel8
 u-temper lead/u/temper@hel8
+lf-temper lead/lf/temper@hel8
+lf-jig lead/lf/jig@hel8
+lf-skein lead/lf/skein@hel8
+lf-smith lead/lf/smith@hel8
+deploy s/deploy@hel8
+lf s/ladder@hel8
