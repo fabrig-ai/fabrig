@@ -40,7 +40,12 @@ exec {unit_events}<>"$fake/unit-events"
 # Pause until the signal case ends this child, regardless of host scheduling.
 # A reader held open also lets the child open its end without a handshake.
 exec {pause_release}<>"$fake/pause-release"
-printf 'Implement the fixture task.\n' >"$t/task file.md"
+header_fixture() {
+    printf '%s\n' '+++' '# Fixture task' '' 'task = "fixture/task-1.md"' \
+        'branch = "mc/fixture"' 'coordinator = "s/fixture"' 'draft = "groundwork"' \
+        'area = "tools"' 'part = "header-1"' '+++' 'Implement the fixture task.'
+}
+header_fixture >"$t/task file.md"
 printf 'Own the fixture tasks.\n' >"$t/brief.md"
 
 # The fixture's login profile supplies PATH; the launcher must not forward it.
@@ -785,6 +790,132 @@ start_task() {
     has_row
 }
 row() { awk -F'\t' -v id="$id" '$1 == id { print }' "$DEV_ROOT/tmp/codex-run/runs.tsv"; }
+
+# Header checks use the same parser as launch, without creating run state.
+cp "$t/task file.md" "$t/header.saved"
+header_result() {
+    local wanted=$1 status=0
+    shift
+    output=$("$kit/codex-run" header "$@" "$t/task file.md" 2>&1) || status=$?
+    [[ $status == "$wanted" ]]
+}
+before=$(directories)
+header_result 0
+[[ $output == $'header=ok\ntask=fixture/task-1.md\nbranch=mc/fixture\ncoordinator=s/fixture\ndraft=groundwork\narea=tools\npart=header-1' &&
+   $before == "$(directories)" ]]
+checks=$((checks + 1))
+start_task success
+header_ok_id=$id
+expect 'valid header metadata' "$(cat "$state/meta")" 'header=ok' \
+    'header.task=fixture/task-1.md' 'header.branch=mc/fixture' \
+    'header.coordinator=s/fixture' 'header.draft=groundwork' 'header.area=tools' 'header.part=header-1'
+[[ $(grep -c '^header[.=]' "$state/meta") == 7 ]]
+sed '/^branch =/d' "$t/header.saved" >"$t/task file.md"
+header_result 0 --read-only
+expect 'read-only header needs no branch' "$output" 'header=ok'
+header_result 2
+expect 'writable header needs branch' "$output" 'missing fields: branch'
+start_task success --read-only
+header_read_only_id=$id
+expect 'read-only launch accepts no branch' "$(cat "$state/meta")" 'header=ok' 'read_only=1'
+start_task success --resume "$header_read_only_id"
+expect 'read-only resume validates with inherited mode' "$(cat "$state/meta")" 'header=ok' 'read_only=1'
+printf 'Implement the fixture task.\n' >"$t/task file.md"
+start_task success --resume "$header_read_only_id"
+expect 'read-only resume inherits header without branch' "$(cat "$state/meta")" 'header=inherited' 'read_only=1'
+[[ $(grep -c '^header[.=]' "$state/meta") == 6 ]]
+header_result 2
+expect 'header command refuses absent header' "$output" 'missing header' 'task, coordinator, draft, branch'
+start_task success 2>"$t/header.err"
+header_legacy_id=$id
+[[ $(wc -l <"$t/header.err") == 1 && $(grep -c '^header[.=]' "$state/meta") == 1 && -f $state/ended ]]
+expect 'absent header warns once and starts' "$(cat "$t/header.err")" \
+    'codex-run: warning: task header: missing header' \
+    '; codex-run will refuse such tasks (design.md 3)'
+expect 'absent header metadata' "$(cat "$state/meta")" 'header=missing'
+# A pre-header run has no header status or keys.
+sed -i '/^header=/d' "$state/meta"
+start_task success --resume "$header_legacy_id" 2>"$t/header.err"
+expect 'pre-header resume stays missing' "$(cat "$state/meta")" 'header=missing'
+expect 'pre-header resume warns' "$(cat "$t/header.err")" 'missing header'
+start_task success --resume "$header_ok_id" 2>"$t/header.err"
+header_inherited_id=$id
+[[ ! -s $t/header.err && $(grep -c '^header[.=]' "$state/meta") == 7 ]]
+expect 'resume inherits validated keys' "$(cat "$state/meta")" \
+    'header=inherited' 'header.task=fixture/task-1.md' 'header.branch=mc/fixture'
+start_task success --resume "$header_inherited_id"
+expect 'resume inherits inherited keys' "$(cat "$state/meta")" 'header=inherited' 'header.part=header-1'
+cp "$t/header.saved" "$t/task file.md"
+sed -i 's/fixture\/task-1.md/own-task/' "$t/task file.md"
+start_task success --resume "$header_ok_id"
+expect 'resume own header wins' "$(cat "$state/meta")" 'header=ok' 'header.task=own-task'
+printf '+++\n+++\n' >"$t/task file.md"
+header_result 2
+expect 'all absent fields named' "$output" 'missing fields: task, coordinator, draft, branch'
+for bad in unclosed unknown duplicate task branch coordinator draft area part ready single escaped quote empty tab cr fence; do
+    cp "$t/header.saved" "$t/task file.md"
+    reason='line '
+    case $bad in
+        unclosed) sed -i '$d; /^+++$/ { 1!d; }' "$t/task file.md"; reason='unclosed header' ;;
+        unknown) sed -i '2i typo = "value"' "$t/task file.md"; reason='unknown key typo' ;;
+        duplicate) sed -i '2i task = "duplicate"' "$t/task file.md"; reason='duplicate key task' ;;
+        task|coordinator|draft|area|part)
+            sed -i "s|^$bad =.*|$bad = \"BAD\"|" "$t/task file.md"; reason="invalid $bad value" ;;
+        branch) sed -i 's|^branch =.*|branch = "bad..branch"|' "$t/task file.md"; reason='invalid branch value' ;;
+        ready) sed -i 's|mc/fixture|ready/mc/fixture|' "$t/task file.md"; reason='invalid branch value' ;;
+        single) sed -i "s/\"groundwork\"/'groundwork'/" "$t/task file.md" ;;
+        escaped) sed -i 's/groundwork/ground\\\\work/' "$t/task file.md" ;;
+        quote) sed -i 's/groundwork/ground\\"work/' "$t/task file.md" ;;
+        empty) sed -i 's/groundwork//' "$t/task file.md" ;;
+        tab) sed -i 's/groundwork/ground\twork/' "$t/task file.md" ;;
+        cr) sed -i 's/groundwork/ground\rwork/' "$t/task file.md" ;;
+        fence) sed -i '1s/+++/ +++/' "$t/task file.md"; reason='missing header' ;;
+    esac
+    header_result 2
+    expect "header rejects $bad" "$output" "$reason"
+    if [[ $bad == unknown ]]; then
+        start_task success --resume "$header_ok_id" 2>"$t/header.err"
+        expect 'invalid own header does not inherit and still starts in warn mode' \
+            "$(cat "$state/meta")" 'header=invalid'
+        [[ $(grep -c '^header[.=]' "$state/meta") == 1 && $(wc -l <"$t/header.err") == 1 ]]
+        expect 'invalid header warning gives first bad line' "$(cat "$t/header.err")" 'line 2: unknown key typo'
+    fi
+done
+for delimiter in $'\u0085' $'\u2028' $'\u2029'; do
+    sed "s|mc/fixture|mc/fixture${delimiter}to=other|" "$t/header.saved" >"$t/task file.md"
+    header_result 2
+    expect 'branch cannot inject metadata through Unicode newlines' "$output" 'invalid branch value'
+done
+
+# Refuse mode is a source constant; environment variables do not override it.
+cp "$kit/codex-run" "$t/codex-run.saved"
+sed 's/^header_mode=warn$/header_mode=refuse/' "$t/codex-run.saved" >"$kit/codex-run"
+for bad in missing invalid; do
+    if [[ $bad == missing ]]; then printf 'No header.\n' >"$t/task file.md"
+    else printf '+++\n+++\n' >"$t/task file.md"; fi
+    header_mode=warn refusal "refuse mode rejects $bad before reserving report" \
+        task "$t/task file.md" "$t/work dir" "$t/reports/header-refused.md"
+    [[ ! -e $t/reports/header-refused.md ]]
+done
+status=0
+output=$(DEV_ROOT="$t/header-refused-history" "$kit/codex-run" task \
+    "$t/task file.md" "$t/work dir" "$t/reports/header-refused.md" 2>&1) || status=$?
+[[ $status == 2 && ! -e $t/header-refused-history && ! -e $t/reports/header-refused.md ]]
+checks=$((checks + 1))
+cp "$t/header.saved" "$t/task file.md"
+header_result 0
+expect 'header command accepts valid input in refuse mode' "$output" 'header=ok'
+printf '4\n' >"$fake/wait-codes"
+unit=$("$kit/codex-run" owner o/header-exempt "$t/brief.md" 2>"$t/header.err")
+wait_unit "$unit"
+[[ ! -s $t/header.err && ! -e $DEV_ROOT/tmp/owners/header-exempt/codex/meta ]]
+checks=$((checks + 1))
+cp "$t/codex-run.saved" "$kit/codex-run"
+printf 'No header.\n' >"$t/task file.md"
+header_mode=refuse start_task success 2>"$t/header.err"
+expect 'environment cannot enable refusal' "$(cat "$state/meta")" 'header=missing'
+cp "$t/header.saved" "$t/task file.md"
+
 start_task success
 success_id=$id
 expect 'no on-stop, no stop property' "[$(tr '\0' '\n' <"$fake/launch.args" | sed -n '/^--property/p')]" '[]'
@@ -1323,7 +1454,11 @@ slot_task() {
     has_row
 }
 touch "$fake/expect-trim"
-slot_task "$slot"
+printf 'No header.\n' >"$t/task file.md"
+slot_task "$slot" 2>"$t/header.err"
+[[ $(wc -l <"$t/header.err") == 1 ]]
+expect 'slot lease handoff warns once' "$(cat "$t/header.err")" 'codex-run: warning: task header: missing header'
+cp "$t/header.saved" "$t/task file.md"
 expect 'trim receives the writable slot' "$(cat "$fake/trim.calls")" "$slot"
 expect 'trim result logged before Codex' "$(cat "$state/trim.log")" 'removed 1 executable'
 [[ $(stat -c %a "$state/trim.log") == 600 ]]

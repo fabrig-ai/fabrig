@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # Start Codex in a detached user unit and post its report when it ends.
 #   codex-run task [--model M] [--effort E] [--read-only] [--to ADDR] [--resume RUN] TASK DIR REPORT
+#   codex-run header [--read-only] TASK
 #   codex-run owner [--model M] [--effort E] NAME BRIEF
 #   codex-run stale [--post]
-# See tools/codex-run/design.md, sections 2–5.
+# See tools/codex-run/design.md, sections 2–6.
 set -euo pipefail
 umask 077
 
@@ -16,6 +17,7 @@ root=${DEV_ROOT:-$HOME/src/rust}
 runs=$root/tmp/codex-run
 search_rule='Before any command, read the rules in the text below. Search only your worktree and the paths it names: never run rg, find, ls -R or grep -r from ~/src/rust/tmp or any directory above it, and never in ~/.local, ~/.config or /run/user. '
 ON_STOP_SECONDS=60
+header_mode=warn
 capacity='Selected model is at capacity. Please try a different model.'
 original_args=("$@")
 
@@ -42,6 +44,99 @@ meta_get() {
     while IFS='=' read -r key value; do
         [[ $key != "$2" ]] || { printf '%s\n' "$value"; return; }
     done <"$1"
+}
+
+# tools/codex-run/design.md, 3: one parser for launch and template checks.
+# The first output line is the status; the rest are metadata or one reason.
+task_header() {
+    local output
+    output=$(python3 -I -S -B - "$@" 2>&1 <<'PYHEADER'
+from pathlib import Path
+import re
+import subprocess
+import sys
+
+def check(path, read_only, previous):
+    required = ['task', 'coordinator', 'draft'] + ([] if read_only == '1' else ['branch'])
+    shapes = {
+        'task': r'[a-z0-9][a-z0-9._/-]*',
+        'coordinator': r'(s/)?[a-z0-9][a-z0-9_-]*',
+        'draft': r'[a-z0-9][a-z0-9_-]*',
+        'area': r'[a-z0-9][a-z0-9_-]*',
+        'part': r'[a-z0-9][a-z0-9_-]*',
+    }
+    with open(path, 'rb') as source:
+        if source.readline().removesuffix(b'\n') != b'+++':
+            if previous:
+                lines = Path(previous).read_text().splitlines()
+                meta = dict(line.split('=', 1) for line in lines if '=' in line)
+                inherited = [line for line in lines if line.startswith('header.') and '=' in line]
+                if meta.get('header') in ('ok', 'inherited') and inherited:
+                    return ['inherited', *inherited]
+            return ['missing', 'missing header; required fields: ' + ', '.join(required)]
+        values = {}
+        for number, raw in enumerate(source, 2):
+            if raw.removesuffix(b'\n') == b'+++':
+                break
+            try:
+                line = raw.removesuffix(b'\n').decode('utf-8')
+            except UnicodeDecodeError:
+                return ['invalid', f'line {number}: invalid UTF-8']
+            if re.search(r'[\x00-\x08\x0a-\x1f\x7f]', line):
+                return ['invalid', f'line {number}: control character']
+            if re.fullmatch(r'[ \t]*(#.*)?', line):
+                continue
+            match = re.fullmatch(r'[ \t]*([a-zA-Z0-9_-]+)[ \t]*=[ \t]*"([^"\\\t]+)"[ \t]*', line)
+            if match is None:
+                return ['invalid', f'line {number}: expected key = "value" without escapes']
+            key, value = match.groups()
+            if key not in shapes and key != 'branch':
+                return ['invalid', f'line {number}: unknown key {key}']
+            if key in values:
+                return ['invalid', f'line {number}: duplicate key {key}']
+            if key == 'branch':
+                # Metadata readers split Unicode lines as well as LF lines.
+                valid = (not any(c in value for c in '\x85\u2028\u2029')
+                         and not value.startswith('ready/')
+                         and subprocess.run(
+                             ['git', 'check-ref-format', '--branch', value],
+                             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                             stderr=subprocess.DEVNULL).returncode == 0)
+            else:
+                valid = re.fullmatch(shapes[key], value) is not None
+            if not valid:
+                return ['invalid', f'line {number}: invalid {key} value']
+            values[key] = value
+        else:
+            return ['invalid', 'unclosed header (missing closing +++)']
+    missing = [key for key in required if key not in values]
+    if missing:
+        return ['invalid', 'missing fields: ' + ', '.join(missing)]
+    return ['ok', *(f'header.{key}={value}' for key, value in values.items())]
+
+try:
+    print('\n'.join(check(*sys.argv[1:])))
+except OSError as error:
+    sys.exit('cannot read task header: ' + str(error))
+PYHEADER
+    ) || refuse "$output"
+    mapfile -t header_lines <<<"$output"
+    header_status=${header_lines[0]}
+    header_lines=("${header_lines[@]:1}")
+}
+
+header_check() {
+    local read_only=0 task header_status line
+    local -a header_lines=()
+    if [[ ${1:-} == --read-only ]]; then read_only=1; shift; fi
+    [[ ${1:-} != -- ]] || shift
+    (($# == 1)) || refuse 'usage: codex-run header [--read-only] TASK'
+    task=$1
+    [[ -f $task && -r $task ]] || refuse 'TASK is not readable'
+    task_header "$task" "$read_only" ''
+    [[ $header_status == ok ]] || refuse "task header: ${header_lines[0]}"
+    printf 'header=ok\n'
+    for line in "${header_lines[@]}"; do printf '%s\n' "${line#header.}"; done
 }
 
 # Each event gains "ts", when it arrived, UTC to the millisecond, as its first
@@ -224,7 +319,8 @@ launch() {
 task_launch() {
     local model='' effort='' read_only='' to=${POST_NAME:-} resume='' previous='' task report dir='' on_stop=''
     local id state started caller=${POST_NAME:-} key resume_thread='' paths_fd paths_pid membership
-    local -a paths=()
+    local header_status
+    local -a paths=() header_lines=()
     while (($#)); do
         case $1 in
             --model|--effort|--to|--resume)
@@ -281,9 +377,17 @@ task_launch() {
     if [[ -n $on_stop && $script == *[\$%\"\\$' \t\n']* ]]; then
         refuse "the kit's path is unsafe in a stop command"
     fi
-    # The launcher hold bridges systemd's detached startup; _run adopts it.
-    # A missing helper on a numeric slot is a refusal, never an unlocked start.
+    task_header "$task" "$read_only" "${previous:+$previous/meta}"
+    if [[ $header_status != ok && $header_status != inherited && $header_mode == refuse ]]; then
+        refuse "task header: ${header_lines[0]}"
+    fi
+    # The launcher may exec itself to acquire a slot lease. Warn only after
+    # that handoff, while refusing invalid headers before acquiring the lease.
     lease_task launch "$membership"
+    if [[ $header_status != ok && $header_status != inherited ]]; then
+        printf 'codex-run: warning: task header: %s; codex-run will refuse such tasks (design.md 3)\n' "${header_lines[0]}" >&2
+        header_lines=()
+    fi
     mkdir -p "$runs"
     while :; do
         id=$(date -u +%Y%m%dT%H%M%SZ)-$(od -An -N2 -tx1 /dev/urandom | tr -d ' \n')
@@ -298,6 +402,8 @@ task_launch() {
     started=$(date -u +%FT%TZ)
     printf 'caller=%s\nto=%s\nmodel=%s\neffort=%s\nread_only=%s\ntask=%s\ndir=%s\nreport=%s\nresume_of=%s\nstarted=%s\non_stop=%s\nslot_hold=%s\n' \
         "$caller" "$to" "$model" "$effort" "$read_only" "$task" "$dir" "$report" "$resume" "$started" "$on_stop" "${FABRIG_SLOT_HOLD:-}" >"$state/meta"
+    printf 'header=%s\n' "$header_status" >>"$state/meta"
+    if ((${#header_lines[@]})); then printf '%s\n' "${header_lines[@]}" >>"$state/meta"; fi
     [[ -z $previous ]] || printf '%s\n' "$resume_thread" >"$state/thread"
     launch "codex-run-$id" _run "$id"
     printf '%s %s\n' "$id" "$state"
@@ -328,7 +434,7 @@ lease_task() {
     exec python3 -I -B "$helper" "$purpose" "$dir" --adopt "$adopt" -- "$script" "${original_args[@]}"
 }
 
-# tools/codex-run/design.md, 4: trim only this task's writable slot.
+# tools/codex-run/design.md, 5: trim only this task's writable slot.
 trim_slot() {
     [[ $read_only == 0 ]] || return 0
     local slot slots=$HOME/src/fabrig/slots number status=0
@@ -560,14 +666,15 @@ mode=${1:-}
 if [[ $mode == _run && ${CODEX_RUN_SUBREAPER:-} != "$$" ]] && (($# == 2)); then
     exec python3 -I -c 'import ctypes, os, sys; libc = ctypes.CDLL(None, use_errno=True); libc.prctl(36, 1, 0, 0, 0) == 0 or sys.exit("codex-run: cannot become child subreaper: " + os.strerror(ctypes.get_errno())); os.environ["CODEX_RUN_SUBREAPER"] = str(os.getpid()); os.execv(sys.argv[1], sys.argv[1:])' "$script" "${original_args[@]}"
 fi
-if [[ $mode != task && $mode != _run ]]; then normalize_root; fi
+if [[ $mode != task && $mode != _run && $mode != header ]]; then normalize_root; fi
 (($# == 0)) || shift
 case $mode in
     task) task_launch "$@" ;;
+    header) header_check "$@" ;;
     owner) owner_launch "$@" ;;
     stale) stale "$@" ;;
     _run) task_run "$@" ;;
     _stop) task_stop "$@" ;;
     _owner) owner_run "$@" ;;
-    *) refuse 'usage: codex-run task|owner ... | stale [--post]' ;;
+    *) refuse 'usage: codex-run task|owner ... | header [--read-only] TASK | stale [--post]' ;;
 esac
