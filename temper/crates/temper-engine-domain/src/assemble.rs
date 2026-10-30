@@ -179,14 +179,11 @@ fn plan_home_access(
 }
 
 /// Required forge context replaces trailing optional context, preserving the plan's order.
-fn plan_forge_section(
-    domain: &mut Domain,
-    task: u64,
-    source: forge::BriefSource,
-    priority: u16,
-    wanted: &mut List<brief::Planned>,
-) {
-    if wanted.room() == 0 {
+fn make_forge_room(wanted: &mut List<brief::Planned>, needed: u32) {
+    for _ in 0..needed {
+        if wanted.room() >= needed {
+            break;
+        }
         let mut optional = None;
         for (index, section) in wanted.iter().enumerate() {
             if !section.required() {
@@ -200,6 +197,16 @@ fn plan_forge_section(
         }
         wanted.truncate(wanted.len().saturating_sub(1));
     }
+}
+
+fn plan_forge_section(
+    domain: &mut Domain,
+    task: u64,
+    source: forge::BriefSource,
+    priority: u16,
+    limit: u32,
+    wanted: &mut List<brief::Planned>,
+) {
     let kind = forge_brief_kind(source);
     let token = domain
         .brief_connectors
@@ -213,7 +220,7 @@ fn plan_forge_section(
             kind: forge_kind_number(kind),
             token,
             size: 0,
-            limit: forge_brief_budget(kind, &domain.limits.brief.budgets),
+            limit,
             priority,
             required: true,
         })
@@ -262,9 +269,22 @@ pub(crate) fn finish_brief_plan(
             domain.work.push(Work::Core(jig_domain_core::Event::BriefAssembled { task, ready: false }));
             return;
         }
-        plan_forge_section(domain, task, pull, 5, &mut wanted);
+        make_forge_room(&mut wanted, needed);
+        let mut pull_limit = domain.limits.brief.budgets.pull;
         if let Some(why) = why {
-            plan_forge_section(domain, task, why, 6, &mut wanted);
+            // The reason keeps its section budget. Pull contents yield before
+            // the retained core context, including its optional sections.
+            let reason_limit = forge_brief_budget(forge_brief_kind(why), &domain.limits.brief.budgets);
+            let mut left = domain.limits.brief.brief_bytes.saturating_sub(reason_limit);
+            for section in &wanted {
+                left = left.saturating_sub(section.size().min(section.limit()));
+            }
+            pull_limit = pull_limit.min(left);
+        }
+        plan_forge_section(domain, task, pull, 6, pull_limit, &mut wanted);
+        if let Some(why) = why {
+            let limit = forge_brief_budget(forge_brief_kind(why), &domain.limits.brief.budgets);
+            plan_forge_section(domain, task, why, 5, limit, &mut wanted);
         }
     }
     domain.work.push(Work::Brief(brief::GatherEvent::Plan {

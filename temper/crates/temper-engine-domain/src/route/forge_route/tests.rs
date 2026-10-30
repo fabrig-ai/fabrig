@@ -369,6 +369,88 @@ fn change_names(pull: Option<u64>) -> Box<[super::forge::Name]> {
 }
 
 #[test]
+fn a_ci_repair_keeps_its_failed_step_and_log_end_before_pull_contents_and_optional_context() {
+    use crate::boundary::Work;
+    use jig_domain_brief::{Core, GatherEvent, Planned};
+    use skein_lib::{List, Queue, Writer};
+    let (mut domain, env) = two_forges();
+    domain.limits.brief.brief_bytes = 14_592;
+    domain.limits.brief.budgets.pull = 4608;
+    domain.limits.brief.budgets.ci = 4096;
+    let mut row = change_row(Some(7));
+    row.change.last_head = Some(SHA1);
+    row.delegate = Some((8, super::forge_change::Delegate::Repair(super::forge_change::Repair::Ci)));
+    super::forge::step(
+        &mut domain.forge,
+        &super::super::environment_forge(&env),
+        super::forge::Event::Restore { record: super::forge::Stored::Change(row) },
+        &mut Queue::uncapped(),
+    );
+    let mut wanted = List::with_capacity(8);
+    for (kind, size, priority, required) in [
+        (Core::Task, 4608, 0, true),
+        (Core::Results, 128, 1, true),
+        (Core::TranscriptTail, crate::TRANSCRIPT_TAIL_BYTES, 2, true),
+        (Core::Plan, 128, 3, false),
+        (Core::Attempts, 128, 4, false),
+        (Core::NotesIndex, 64, 4, false),
+    ] {
+        let mut text = Writer::new(usize::try_from(size).unwrap());
+        for _ in 0..size {
+            text.put(b"x").unwrap();
+        }
+        wanted.push(Planned::Core { kind, text: text.finish(), limit: size, priority, required }).unwrap();
+    }
+    crate::assemble::finish_brief_plan(&mut domain, &env, 8, Some(7), wanted);
+    let mut gathered = None;
+    while let Some(work) = domain.work.pop() {
+        if let Work::Brief(GatherEvent::Plan { budget, sections, .. }) = work {
+            gathered = Some((budget, sections));
+        }
+    }
+    let (budget, mut sections) = gathered.expect("repair plan");
+    let mut pull = Writer::new(4608);
+    let identity = b"Pull request: #7\nBranch: temper/7\nBase: main\nHead: abcdef0123456789abcdef0123456789abcdef01\nAddress: https://forge.example/org/repo/pulls/7\nTitle: Change\nBody: ";
+    pull.put(identity).unwrap();
+    for _ in identity.len()..4608 {
+        pull.put(b"p").unwrap();
+    }
+    let pull = pull.finish();
+    let mut ci = Writer::new(4096);
+    let failure = b"Failed check: / changes (pull_request)\nDescription: CI failed\nLink: /actions/runs/2/jobs/1\nFailed step: 1 changes\nEnd of its log:\n";
+    let end = b"\nMissing changes/2.md\nRepair the failed check.\n";
+    ci.put(failure).unwrap();
+    for _ in failure.len()..4096 - end.len() {
+        ci.put(b"l").unwrap();
+    }
+    ci.put(end).unwrap();
+    let ci = ci.finish();
+    for section in &mut sections {
+        if let Planned::Connector { kind, size, .. } = section {
+            *size = u32::try_from(if *kind == 3 { pull.len() } else { ci.len() }).unwrap();
+        }
+    }
+    let Planned::Connector { kind: 3, .. } = sections[6] else { panic!("pull precedes its reason") };
+    let Planned::Connector { kind: 1, .. } = sections[7] else { panic!("CI follows the pull") };
+    let plan = jig_domain_brief::plan(&sections, budget).expect("bounded repair");
+    for placed in &plan.order {
+        let section = &sections[usize::try_from(placed.index).unwrap()];
+        match section {
+            Planned::Connector { kind: 1, .. } => {
+                assert_eq!(placed.size, 4096, "the repair's CI budget survives the maximal pull");
+                let kept = &ci[..usize::try_from(placed.size).unwrap()];
+                assert!(kept.starts_with(failure));
+                assert!(kept.ends_with(end));
+            }
+            Planned::Connector { kind: 3, .. } => assert_eq!(placed.size, 3392, "pull contents yield first"),
+            Planned::Core { limit, .. } => assert_eq!(placed.size, *limit, "other context still fits"),
+            Planned::Connector { .. } => panic!("two repair sections"),
+        }
+    }
+    assert_eq!(plan.size, budget);
+}
+
+#[test]
 fn a_changes_saved_pull_replaces_its_base_watch_within_two_names() {
     use super::{Decision, Work, forge};
     let (mut domain, mut env) = two_forges();
