@@ -820,3 +820,181 @@ fn run_ended_with_since_needs_both_a_changed_digest_and_no_attempt() {
     root.deliver_subject(&f::run_watch(), c::Delivery::RunState(run));
     assert_eq!(root.answer(call).expect("both hold now").status, 0);
 }
+
+const INBOX_QUESTION: &[u8] = "Plan: I’ll add a `--csv` output-mode option to the Rust CLI in `src/main.rs`, reuse the existing `TABLE` data, print a header ".as_bytes();
+
+fn owner_question_inbox(more: bool, cut: bool) -> (c::OwnerInboxPage, c::Delivery, c::Question) {
+    let (mut page, mut window) = f::owner_first_window(1, more);
+    let row = page.rows.get_mut(0).expect("question row");
+    row.task = c::OwnerTaskLink::Stored { number: 1, status: None };
+    row.object = c::OwnerInboxObject::Question { message: 2 };
+    row.cursor = c::OwnerInboxCursor::Inbox { task: 1, object: row.object, at: Some(skein_lib::Wall::EPOCH) };
+    window.needs = page.rows.clone();
+    page.after = None;
+    window.updates = question_inbox_updates(&page, more).rows;
+    window.cached_updates.value = 1;
+    let mut task = f::parked_task().chip;
+    task.task = 1;
+    let mut words = c::DocumentText::complete(c::Text::new(INBOX_QUESTION.into(), u32::MAX).expect("question words"));
+    words.cut = cut;
+    let question = c::Question {
+        task,
+        message: 2,
+        from: Some(c::OwnerRequester::Task(2)),
+        words,
+        since: skein_lib::Wall::EPOCH,
+        acts: skein_lib::List::with_capacity(0),
+        ending: None,
+    };
+    (page, c::Delivery::OwnerInbox(Box::new(window)), question)
+}
+
+fn question_inbox_updates(needs: &c::OwnerInboxPage, more: bool) -> c::OwnerInboxPage {
+    let mut page = needs.clone();
+    let row = page.rows.get_mut(0).expect("reply row");
+    row.object = c::OwnerInboxObject::Reply { message: 3 };
+    row.cursor = c::OwnerInboxCursor::Inbox { task: 1, object: row.object, at: Some(skein_lib::Wall::EPOCH) };
+    page.after = if more { Some(f::cursor()) } else { None };
+    page
+}
+
+fn serve_question_inbox(
+    root: &mut f::Harness,
+    call: u32,
+    page: c::OwnerInboxPage,
+    delivery: c::Delivery,
+    question: c::Question,
+) {
+    let c::Delivery::OwnerInbox(window) = &delivery else { panic!("owner inbox") };
+    let updates = question_inbox_updates(&page, window.next.is_some());
+    root.serve(call, c::ReadResult::Value(c::ReadValue::OwnerInbox(Box::new(page))));
+    root.serve(call, c::ReadResult::Value(c::ReadValue::OwnerInbox(Box::new(updates))));
+    root.serve(call, c::ReadResult::Value(c::ReadValue::Question(Box::new(question))));
+    root.deliver_subject(&f::inbox_watch(), delivery);
+}
+
+#[test]
+fn a_met_owner_inbox_wait_prints_the_plain_reads_question_and_calls() {
+    for (more, engine_cut, client_cut) in [(true, true, false), (false, false, false), (true, false, true)] {
+        let cut = engine_cut || client_cut;
+        let (page, delivery, mut question) = owner_question_inbox(more, engine_cut);
+        if client_cut {
+            question.words = c::DocumentText::complete(
+                c::Text::new(
+                    "é".repeat(usize::try_from(crate::limits::TEXT).expect("text bound"))
+                        .into_bytes()
+                        .into_boxed_slice(),
+                    u32::MAX,
+                )
+                .expect("long question words"),
+            );
+        }
+        let mut root = f::signed_in(f::PARTY);
+        let read = root.submit(&["inbox"]);
+        serve_question_inbox(&mut root, read, page.clone(), delivery.clone(), question.clone());
+        let plain = root.answer(read).expect("plain inbox");
+        assert_eq!(plain.status, 0);
+        if client_cut {
+            #[expect(clippy::disallowed_methods, reason = "the test checks a UTF-8 boundary in bounded output")]
+            let shown = core::str::from_utf8(&plain.stdout).expect("cut at a character");
+            let words = shown.lines().nth(1).expect("words line").strip_suffix(" (cut)").expect("cut marker");
+            assert!(!words.is_empty());
+            assert!(words.len() < question.words.bytes().len());
+        } else {
+            assert!(f::has(&plain, INBOX_QUESTION));
+        }
+        assert!(f::has(&plain, b"1 \xc2\xb7 task\n"));
+        assert_eq!(f::has(&plain, b" (cut)\n"), cut);
+        assert_eq!(f::has(&plain, b"read whole: temper ctl DIR task activity 2\n"), cut);
+        assert!(f::has(&plain, b"answer: temper ctl DIR task answer 1 2 TEXT\n"));
+        assert_eq!(f::has(&plain, b"read on with: inbox --after 011122\n"), more);
+        assert_eq!(plain.stdout.ends_with(b"no more\n"), !more);
+        let wait = root.submit(&["inbox", "--until", "waiting", "--timeout", "2s"]);
+        root.pending_reads.push(wait);
+        root.deliver_subject(&f::inbox_watch(), delivery.clone());
+        assert_eq!(crate::root::next_deadline(&root.root), None, "met wait cancels its timer before reading");
+        assert!(root.answer(wait).is_none(), "follow-up read pending");
+        serve_question_inbox(&mut root, wait, page, delivery, question);
+        let answer = root.answer(wait).expect("met inbox");
+        assert_eq!(answer.status, 0);
+        assert_eq!(answer.stdout, f::appended(&plain.stdout, b"met\n"));
+        if more && !client_cut {
+            assert_eq!(answer.stdout, f::golden("inbox_wait_question"));
+        }
+        assert!(root.reads.is_empty());
+        assert_eq!(root.watches.len(), f::SHARED_WATCHES);
+    }
+}
+
+#[test]
+fn a_met_owner_inbox_wait_prints_the_follow_up_reads_current_digest() {
+    let (page, mut delivery, question) = owner_question_inbox(true, true);
+    let mut root = f::signed_in(f::PARTY);
+    let wait = root.submit(&["inbox", "--until", "waiting"]);
+    root.pending_reads.push(wait);
+    root.deliver_subject(&f::inbox_watch(), delivery.clone());
+    let first = f::task_digest(&delivery).hex();
+    let c::Delivery::OwnerInbox(window) = &mut delivery else { panic!("owner inbox") };
+    window.needs.get_mut(0).expect("question row").activity = Some(7);
+    let current = f::task_digest(&delivery).hex();
+    assert_ne!(first, current);
+    serve_question_inbox(&mut root, wait, page, delivery, question);
+    let answer = root.answer(wait).expect("met inbox");
+    assert_eq!(inbox_text_digest(&answer.stdout), current);
+    let since = root.wait_since(&["inbox"], &[], &current);
+    // Re-delivering the same watch window leaves the since wait pending.
+    let (_, mut delivery, _) = owner_question_inbox(true, true);
+    let c::Delivery::OwnerInbox(window) = &mut delivery else { panic!("owner inbox") };
+    window.needs.get_mut(0).expect("question row").activity = Some(7);
+    root.deliver_subject(&f::inbox_watch(), delivery);
+    assert!(root.answer(since).is_none());
+}
+
+#[test]
+fn a_failed_met_inbox_read_keeps_the_wait_delivery_and_status() {
+    let (_, delivery, _) = owner_question_inbox(true, true);
+    let mut root = f::signed_in(f::PARTY);
+    let wait = root.submit(&["inbox", "--until", "waiting"]);
+    root.pending_reads.push(wait);
+    root.deliver_subject(&f::inbox_watch(), delivery.clone());
+    root.serve(wait, c::ReadResult::None(c::ReadNone::Unknown));
+    // The plain inbox read still needs its digest watch.
+    root.deliver_subject(&f::inbox_watch(), delivery);
+    let answer = root.answer(wait).expect("failed follow-up still met");
+    let failure = f::read_answer(&["task", "show", "1"], c::ReadResult::None(c::ReadNone::Unknown));
+    assert_eq!(answer.status, 0);
+    assert!(answer.stdout.starts_with(b"1 \xc2\xb7 question 2\n1 \xc2\xb7 task\nmore\ndigest: inbox "));
+    assert!(answer.stdout.ends_with(b"met\n"));
+    assert_eq!(answer.stderr, failure.stderr);
+    assert_eq!(root.watches.len(), f::SHARED_WATCHES);
+}
+
+#[test]
+fn owner_inbox_json_and_timeout_waits_do_not_read_again() {
+    for json in [false, true] {
+        let (_, delivery, _) = owner_question_inbox(true, true);
+        let mut root = f::signed_in(f::PARTY);
+        let argv = f::extended(
+            &["inbox", "--until", if json { "waiting" } else { "changed" }, "--timeout", "2s"],
+            if json { &["--json"] } else { &[] },
+        );
+        let wait = root.submit(argv.as_slice());
+        root.deliver_subject(&f::inbox_watch(), delivery.clone());
+        if !json {
+            root.now = Time::ZERO.checked_add(skein_lib::Duration::from_secs(2)).expect("deadline");
+            root.fire();
+        }
+        let answer = root.answer(wait).expect("wait answered without reading");
+        assert!(root.reads.is_empty());
+        if json {
+            let subject = f::subject_json(&crate::jig::render::Part::delivery(&delivery).expect("inbox"));
+            let expected = f::appended(b"{\"inbox\":", &subject);
+            assert_eq!(answer.stdout, f::appended(&expected, b",\"met\":true}"));
+            assert_eq!(answer.status, 0);
+        } else {
+            assert_eq!(answer.status, 3);
+            assert!(answer.stdout.starts_with(b"1 \xc2\xb7 question 2\n1 \xc2\xb7 task\nmore\ndigest: inbox "));
+            assert!(answer.stdout.ends_with(b"not met: timeout\n"));
+        }
+    }
+}
