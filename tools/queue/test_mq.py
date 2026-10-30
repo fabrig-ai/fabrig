@@ -61,6 +61,18 @@ class RestartTests(unittest.TestCase):
         self.stop = self.home / "src/fabrig/queue.stop"
         copy_runtime(self.repo / "tools/queue")
 
+    def assert_gate_tools_policy_is_loaded_and_frozen_with_external_runtime(self):
+        directory = self.home / "runtime"
+        copy_runtime(directory)
+        module, _ = restart.runtime_module(directory, self.repo, external=True)
+        self.assertFalse(module.gate_tools_required(["tools/queue/mq"]))
+        self.assertTrue(module.tools_required(["tools/queue/mq"]))
+        self.assertEqual(module.restart_frozen["mq"], (DIRECTORY / "mq").read_bytes())
+        with (directory / "mq").open("a") as source:
+            source.write("\n# changed policy source\n")
+        with self.assertRaisesRegex(RuntimeError, "runtime changed"):
+            restart.runtime_unchanged(directory, module.restart_frozen)
+
     def run_restart(self, *, ready=True, returncode=None, batch=8):
         calls = []
 
@@ -103,6 +115,7 @@ class RestartTests(unittest.TestCase):
         return calls, output.getvalue()
 
     def test_restart_waits_updates_detaches_and_appends(self):
+        self.assert_gate_tools_policy_is_loaded_and_frozen_with_external_runtime()
         output = self.home / "src/fabrig/notes/queue.out"
         output.parent.mkdir()
         output.write_text("old output\n")
@@ -370,9 +383,10 @@ class CheckTests(unittest.TestCase):
                                                      str(self.repo / "skein/scripts/old_forms.py"), "--write"],
                                     self.repo / "skein")])
 
-    def test_full_without_tools_keeps_all_ordinary_checks(self):
+    def test_full_including_tools_keeps_all_ordinary_checks(self):
         for paths in (["jig/src/lib.rs"], ["agents/policy.md"], ["Cargo.toml"],
-                      ["Cargo.lock"], [".config/nextest.toml"], []):
+                      ["Cargo.lock"], [".config/nextest.toml"], [],
+                      ["tools/queue/mq"], ["tools/queue/mq", "jig/src/lib.rs"]):
             with self.subTest(paths=paths), patch.object(
                     mq, "tools_commands", side_effect=AssertionError("tools discovery without tools change")):
                 calls = []
@@ -387,22 +401,22 @@ class CheckTests(unittest.TestCase):
                 self.assertEqual([name for name, _, _ in expected][-5:],
                                  ["fmt", "clippy", "build", "default", "fuzzy"])
 
-    def test_changed_tools_run_and_fail_closed_for_every_selection(self):
-        commands = [("tools/test_red.py", ["python3", "-I", "-B", "tools/test_red.py"], self.repo),
-                    ("tools/test_green.py", ["python3", "-I", "-B", "tools/test_green.py"], self.repo)]
+    def test_changed_tools_skip_gate_but_remain_required_for_authors(self):
         for selected in ("docs", {"core"}, "full"):
-            with self.subTest(selected=selected), patch.object(mq, "tools_commands", return_value=commands):
+            with self.subTest(selected=selected), patch.object(
+                    mq, "tools_commands", side_effect=AssertionError("gate discovered tools")):
                 calls = []
                 def runner(argv, **options):
                     calls.append(argv)
-                    self.assertEqual(options["timeout"], 60)
-                    return subprocess.CompletedProcess(argv, int("tools/test_red.py" in argv))
-                steps = mq.run_checks(self.repo, selected, ["tools/docs/guide.md"],
+                    return subprocess.CompletedProcess(argv, 0)
+                paths = ["tools/docs/guide.md"]
+                steps = mq.run_checks(self.repo, selected, paths,
                                       self.directory / "red.log", runner=runner)
-                self.assertEqual(calls, [argv for _, argv, _ in commands])
-                self.assertEqual([step["name"] for step in steps], ["tools"])
-                self.assertFalse(steps[0]["green"])
-                self.assertEqual([suite["returncode"] for suite in steps[0]["suites"]], [1, 0])
+                expected = mq.check_commands(self.repo, selected, paths)
+                self.assertEqual(calls, [argv for _, argv, _ in expected])
+                self.assertEqual([step["name"] for step in steps], [name for name, _, _ in expected])
+                self.assertTrue(all(step["green"] for step in steps))
+                self.assertTrue(mq.tools_required(paths))
 
     def test_tools_path_changes_include_deletes_and_both_rename_sides(self):
         for operation in ("add", "edit", "delete", "rename-in", "rename-out"):
@@ -436,6 +450,7 @@ class CheckTests(unittest.TestCase):
                             "rename-out": ["moved.md", "tools/source.md"]}
                 self.assertEqual(paths, expected[operation])
                 self.assertTrue(mq.tools_required(paths))
+                self.assertFalse(mq.gate_tools_required(paths))
                 self.assertFalse(mq.tools_required(["toolsmith/source.md", "docs/tools/guide.md"]))
 
     def test_full_formats_workspace_and_docs_only_runs_ratchets(self):
@@ -519,7 +534,8 @@ class CheckTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(dir=self.directory, prefix=".mq-test-") as directory, \
                 patch.object(mq, "tools_commands", return_value=commands):
             log = Path(directory) / "checks.log"
-            steps = mq.run_checks(self.repo, "full", ["tools/changed.py"], log, runner=runner)
+            with log.open("a+") as output:
+                steps = [mq.run_tools(self.repo, output, runner=runner)]
             self.assertIn(f"Timed out after {mq.TOOLS_TIMEOUT} seconds", log.read_text())
         self.assertEqual(calls, [argv for _, argv, _ in commands])
         self.assertEqual([step["name"] for step in steps], ["tools"])
@@ -534,7 +550,8 @@ class CheckTests(unittest.TestCase):
                     patch.object(mq, "tools_commands", return_value=commands):
                 log = Path(directory) / "checks.log"
                 runner = Mock(side_effect=result) if isinstance(result, OSError) else Mock(return_value=result)
-                steps = mq.run_checks(self.repo, "docs", ["tools/y.py"], log, runner=runner)
+                with log.open("a+") as output:
+                    steps = [mq.run_tools(self.repo, output, runner=runner)]
                 self.assertFalse(steps[0]["green"])
                 self.assertEqual(steps[0]["suites"][0]["returncode"], 127 if isinstance(result, OSError) else 4)
                 if isinstance(result, OSError):
@@ -548,7 +565,7 @@ class CheckTests(unittest.TestCase):
             steps = mq.run_checks(self.repo, "docs", ["tools/x.py", "jig/README.md"],
                                   Path(directory) / "checks.log",
                                   runner=lambda *a, **kw: subprocess.CompletedProcess(a, 0))
-        self.assertEqual([step["name"] for step in steps], ["ratchet:jig", "tools"])
+        self.assertEqual([step["name"] for step in steps], ["ratchet:jig"])
         self.assertEqual(steps[0]["command"][-1], "--write")
         self.assertEqual(mq.git(self.repo, "show", "HEAD:jig/scripts/old-forms.txt").stdout, "9\n")
         self.assertEqual(mq.git(self.repo, "show", "-s", "--format=%s").stdout.strip(),
@@ -1169,7 +1186,7 @@ printf '%s\\n' "${words[*]}"
         self.assertTrue(result["green"], log_path.read_text())
         self.assertEqual([suite["name"] for suite in result["suites"]], offline)
 
-    def test_tools_only_batch_runs_tools_without_cargo_and_lands(self):
+    def test_tools_only_batch_skips_tools_without_cargo_and_lands(self):
         self.branch("tools", "tools/test_root.py", """import pathlib, sys
 assert sys.flags.isolated and sys.flags.dont_write_bytecode
 assert pathlib.Path('shared').read_text() == 'base\\n'
@@ -1183,42 +1200,37 @@ print('tools fixture passed')
         self.run_cycle(queue)
         record = self.records()[0]
         self.assertEqual((record["selection"], record["outcome"]), ("docs", "green"))
-        self.assertEqual([step["name"] for step in record["steps"]], ["tools"])
-        tools = record["steps"][0]
-        self.assertEqual([suite["name"] for suite in tools["suites"]], ["tools/test_root.py"])
-        self.assertGreater(tools["duration"], 0)
-        self.assertGreater(tools["suites"][0]["duration"], 0)
-        self.assertIn("tools fixture passed", Path(record["log"]).read_text())
+        self.assertEqual(record["steps"], [])
+        self.assertNotIn("tools fixture passed", Path(record["log"]).read_text())
         self.assertTrue((self.repo / "tools/test_root.py").exists())
 
-    def test_failing_tools_suite_rejects_single_branch(self):
+    def test_gate_does_not_execute_failing_tools_suite(self):
         branch = self.branch("tools", "tools/test_red.py", "raise SystemExit('tools fixture failed')\n", publish=True)
         queue = self.queue(now=lambda: 10000)
         queue.state["last_full"] = 9999
         queue.checker = mq.run_checks
         self.run_cycle(queue)
         record = self.records()[0]
-        self.assertEqual((record["selection"], record["outcome"]), ("docs", "red"))
-        self.assertEqual([step["name"] for step in record["steps"]], ["tools"])
-        self.assertEqual(record["steps"][0]["suites"][0]["returncode"], 1)
-        self.assertIn("tools fixture failed", Path(record["log"]).read_text())
-        self.assertIn("failing step: tools", self.posts[0][2])
+        self.assertEqual((record["selection"], record["outcome"]), ("docs", "green"))
+        self.assertEqual(record["steps"], [])
+        self.assertNotIn("tools fixture failed", Path(record["log"]).read_text())
+        self.assertEqual(self.posts[0][1], "landed ready/coord/tools")
         self.assertEqual(queue.state["tried"], {branch["name"]: branch["tip"]})
-        self.assertEqual(mq.git(self.repo, "rev-parse", "origin/main").stdout.strip(), self.base)
+        self.assertEqual(mq.git(self.repo, "rev-parse", "origin/main").stdout.strip(), record["commit"])
 
-    def test_tools_failure_bisects_and_lands_green_branch(self):
+    def test_tools_suites_do_not_trigger_gate_bisection(self):
         self.branch("a", "tools/test_green.py", "print('green fixture')\n", publish=True)
         self.branch("z", "tools/test_red.py", "raise SystemExit(1)\n", publish=True)
         queue = self.queue(now=lambda: 10000)
         queue.state["last_full"] = 9999
         queue.checker = mq.run_checks
         self.run_cycle(queue)
-        self.assertEqual([record["outcome"] for record in self.records()], ["red", "green", "red"])
+        self.assertEqual([record["outcome"] for record in self.records()], ["green"])
         mq.git(self.repo, "switch", "--detach", "origin/main")
         self.assertTrue((self.repo / "tools/test_green.py").exists())
-        self.assertFalse((self.repo / "tools/test_red.py").exists())
+        self.assertTrue((self.repo / "tools/test_red.py").exists())
         self.assertEqual([subject for _, subject, _ in self.posts],
-                         ["landed ready/coord/a", "rejected ready/coord/z"])
+                         ["landed ready/coord/a", "landed ready/coord/z"])
 
     def test_mixed_code_docs_and_tools_select_only_code_packages(self):
         branch = self.branch("mixed", "core/src/lib.rs")
@@ -1242,8 +1254,8 @@ print('tools fixture passed')
         self.assertEqual(record["selection"], sorted(
             {"core", "normal", "build", "dev", "transitive"} | set(mq.lines(DIRECTORY / "always.txt"))))
         self.assertEqual([step["name"] for step in record["steps"]],
-                         ["tools", "fmt", "clippy", "build", "default", "fuzzy"])
-        self.assertEqual(calls[0], ["python3", "-I", "-B", "tools/test_green.py"])
+                         ["fmt", "clippy", "build", "default", "fuzzy"])
+        self.assertFalse(any("tools/test_green.py" in argv for argv in calls))
         self.assertTrue(all("--workspace" not in argv for argv in calls))
 
     def test_source_markdown_batch_loads_ownership_and_selects_package(self):

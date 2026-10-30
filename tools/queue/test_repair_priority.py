@@ -278,7 +278,7 @@ class RepairTests(unittest.TestCase):
                               [ordinary["name"], repair["name"]])
         self.assertEqual(mq.Queue(self.repo, log_path=self.audit, writer_guard=queue.writer_guard).batch, 8)
 
-    def test_full_plan_keeps_ratchets_tools_and_all_cargo_checks(self):
+    def test_full_tools_change_keeps_ratchets_and_all_cargo_checks(self):
         suite = self.repo / "tools/test_fixture.py"
         suite.parent.mkdir()
         suite.write_text("raise SystemExit(0)\n")
@@ -293,10 +293,9 @@ class RepairTests(unittest.TestCase):
         steps = mq.run_checks(self.repo, "full", ["temper/src/lib.rs", "tools/test_fixture.py"],
                               self.root / "plan.log", runner=runner)
         self.assertEqual([step["name"] for step in steps],
-                         ["ratchet:temper", "tools", "fmt", "clippy", "build", "default", "fuzzy"])
+                         ["ratchet:temper", "fmt", "clippy", "build", "default", "fuzzy"])
         self.assertEqual(commands, [
             ["python3", "-I", "-B", str(self.repo / "temper/scripts/old_forms.py"), "--write"],
-            ["python3", "-I", "-B", "tools/test_fixture.py"],
             ["cargo", "fmt", "--all", "--check"],
             ["heavy", "--gate", "cargo", "clippy", "--workspace", "--all-targets", "--", "-D", "warnings"],
             ["heavy", "--gate", "cargo", "nextest", "run", "--workspace", "--no-run"],

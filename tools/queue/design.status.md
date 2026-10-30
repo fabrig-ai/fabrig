@@ -1,8 +1,12 @@
 # Merge queue status
 
-Decision0016 stage A uses shared `mq.tools_required` for actual checks,
-worker plans and precheck: only changed `tools/` paths select suites, even
-for full runs. Train preparation and evidence validation consume the worker
+Decision0022 uses shared `mq.gate_tools_required` for gate checks and
+worker plans: no pipeline tools suites run for any batch, including tools
+changes and full runs. Author precheck still calls `mq.tools_required`
+directly, so changed `tools/` paths require author checks before Ready.
+The policy remains in the frozen `mq` runtime file; restart and worker
+identity already include it, with no additional runtime dependency.
+Train preparation and evidence validation consume the worker
 plan; exact result, runtime identity and publication replay rules are retained.
 Train's independent expectation and recovery's stored-certificate validation
 use that same exact plan. Ready-check validates the recorded compile/lint
@@ -22,7 +26,7 @@ origins, full singleton ordering, normal batches of 16, durable tried tips,
 pin refusal/advancement, red/conflict/error audit and simulated CLI/restart
 launches. This enables no production action and changes no check or timeout.
 It is integrated with section 3.10's authority and restart interfaces. External
-runtime validation covers all ten frozen module/list files, refuses changes
+runtime validation covers all twelve frozen module/list files, refuses changes
 before update and launch, and loads its authority dependencies from that copy.
 The priority suite retains its 19 cases and adds dependency-drain, persistent
 ownership, cross-clone exclusion and real external-child handoff coverage.
