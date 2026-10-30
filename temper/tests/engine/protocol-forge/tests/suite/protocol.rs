@@ -288,9 +288,14 @@ fn a_merge_with_its_answer_lost_is_found_after_restart_without_merging_twice() {
     assert!(world.stored().get(&top::Key::Entry(1)).is_none());
 }
 
+// The story's reads resolve every check's job (skein/docs/design/forge.md, 5.2).
+const CI_REPAIR_REQUEST_ALLOWANCE: u32 = 128;
+
 #[test]
 fn a_failed_ci_head_is_repaired_then_checked_again() {
-    let mut world = Protocol::new(13);
+    let mut limits = temper_engine_forge_world::LIMITS;
+    limits.client.rate = CI_REPAIR_REQUEST_ALLOWANCE;
+    let mut world = Protocol::forgejo_with_limits(13, &limits);
     world.adopt();
     world.event(top::Event::Change { row: change_row() });
     assert_eq!(

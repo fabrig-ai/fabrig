@@ -507,11 +507,17 @@ fn actions_from_bytes() {
     let mut h = fixtures::known();
     h.call(1, fixtures::REPO, Op::Read(Read::Statuses { commit: SHA, page: 1 }));
     answer(&mut h, br#"{"state":"failure","total_count":1,"statuses":[{"creator":null,"updated_at":"1970-01-01T00:00:02Z","context":"build","status":"failure","description":"failed","target_url":"/fixture/specimen/actions/runs/1/jobs/0"}]}"#);
+    assert!(h.answered(1).is_none(), "Actions status waits for its run lookup");
+    last(
+        &h,
+        b"GET /api/v1/repos/fixture/specimen/actions/runs?head_sha=0000000000000000000000000000000000000000&run_number=1&page=1&limit=1 HTTP/1.1",
+    );
+    answer(&mut h, br#"{"total_count":0,"workflow_runs":[]}"#);
     assert_eq!(
         h.answered(1).expect("Actions status").result,
         Ok(Answer::Statuses { ci: api::Ci::Failed, more: false, statuses: Box::new([actions_status()]) })
     );
-    assert_eq!(h.answered(1).expect("Actions status").cost, 1);
+    assert_eq!(h.answered(1).expect("Actions status").cost, 2);
 }
 fn actions_status() -> api::Status {
     api::Status {
