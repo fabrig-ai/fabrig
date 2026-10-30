@@ -42,15 +42,17 @@ Provisional, 2026-10-30. What every agent working here must know, whatever its r
 
 ## 5. Build machines
 
-- Builders: hetzner3, 6, 7 (8 cores, 15 GB each; heavy admits three builds at once). Hetzner8 runs the gate; hetzner2 is reserved for the second gate, with no builder tasks. hel8 builds nothing.
+- Builder: hetzner6 (8 cores, 15 GB; heavy admits three builds at once). Hetzner8 runs the gate; hel8 builds nothing.
 - `heavy cargo ...` for every build and test; what builds nothing (`cargo fmt`, `cargo tree`, `cargo metadata`) runs directly. Never `heavy --gate`: the gate is the merge queue's.
-- One command at a time, and its inputs stay still until it reports. Cancel with `heavy --cancel TOKEN` from the directory that submitted it; never stop heavy's units or touch its state.
-- Disk: below 40 GB free heavy queues nothing. Free disk only in your own `target/`; never `kache clean --cache`, `~/.cache`, `~/.cargo`, another's worktree.
+- One command at a time, and its inputs stay still until it reports. Never stop heavy's units or touch its state.
+- Disk: heavy waits for disk by itself, reclaiming idle slots, up to 20 minutes. Its exit 75 is `Infra: disk`: report it, never work around it. Free disk only in your own `target/`; never `kache clean --cache`, `~/.cache`, `~/.cargo`, another's worktree.
 - **Every machine gives passwordless sudo** (hel8, hetzner3, 6, 7, 8): use it where a task truly needs root, and never to get round a rule: heavy's units and state, another's checkout, credentials and keys stay off limits as above.
 - Builds set `TEMPER_BUNDLE=none` (the machines' cargo config does).
 - Remote commands run in a login shell (`bash -lc`), or tools aren't on PATH.
 
 ## 6. Tests
+
+- After pushing, run `fab precheck SLOT TIP` in your slot on the pushed tip; require outcome green and include its receipt path in your report.
 
 - After each change, the narrowest test that checks it, in the package that holds it: `heavy cargo nextest run -p PKG --test BIN -E 'test(=NAME)'`, or `--lib`. A filter alone still builds every test binary of the package.
 - Check the count: a run that selected nothing proves nothing (nextest exits 4).

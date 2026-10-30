@@ -868,18 +868,6 @@ pair = "default"
 package = "temper-twin"
 filter = "binary(=suite)"
 
-# Documentation for the heavy entrypoint fixture.
-[[fixture]]
-paths = ["tools/heavy/fixtures/README.md"]
-disposition = "provenance"
-reason = "Documentation of the heavy entrypoint fixture and its relocation checks."
-
-# test-heavy-plain copies agents-heavy into its disposable installation layouts.
-[[fixture]]
-paths = ["tools/heavy/fixtures/agents-heavy"]
-[[fixture.reader]]
-suite = "tools/heavy/test-heavy-plain"
-
 # test_cpu.py builds cpu-settlement.c into its private offline supervisor fixture.
 [[fixture]]
 paths = ["tools/tiers/fixtures/*"]
