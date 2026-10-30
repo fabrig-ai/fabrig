@@ -47,10 +47,6 @@ class InstallTests(unittest.TestCase):
         self.heavy_tool = self.source / "tools/heavy/heavy"
         self.heavy_tool.write_text("#!/bin/bash\necho heavy-fixture\n")
         self.heavy_tool.chmod(0o700)
-        (self.source / "tools/session").mkdir()
-        self.session_tool = self.source / "tools/session/session-context"
-        self.session_tool.write_text("#!/usr/bin/env python3\nprint('session-context-fixture')\n")
-        self.session_tool.chmod(0o700)
         self.commit()
         self.checkout = self.home / "src/fabrig/main"
         self.link = self.home / ".local/bin/codex-run"
@@ -83,6 +79,7 @@ class InstallTests(unittest.TestCase):
         self.assertIn("(absent) -> " + str(self.checkout / "tools/queue/precheck"), output)
         self.assertIn("(absent) -> " + str(self.checkout / "tools/queue/ready-check"), output)
         self.assertIn("(absent) -> " + str(self.checkout / "tools/heavy/heavy"), output)
+        self.assertNotIn("session-context", output)
         self.assertFalse((self.home / "src").exists())
         self.assertFalse((self.home / ".local").exists())
 
@@ -139,13 +136,21 @@ class InstallTests(unittest.TestCase):
                                 stdin=subprocess.DEVNULL)
         self.assertEqual((result.returncode, result.stdout), (0, "ready-check-fixture\n"))
 
-    def test_session_context_executable_link(self):
+    def test_unlisted_session_context_link_is_preserved(self):
+        self.session_link.parent.mkdir(parents=True)
+        target = self.checkout / "tools/session/session-context"
+        self.session_link.symlink_to(target)
+        before = self.session_link.lstat()
+        for args in (("--dry-run",), (), ()):
+            output = self.install(*args)
+            self.assertNotIn("session-context", output)
+            self.assertEqual(self.session_link.readlink(), target)
+            self.assertEqual(self.session_link.lstat(), before)
+
+    def test_session_context_link_is_not_created(self):
         self.install()
-        self.assertEqual(self.session_link.readlink(), self.checkout / "tools/session/session-context")
-        self.assertTrue(os.access(self.session_link, os.X_OK))
-        result = subprocess.run([str(self.session_link)], text=True, capture_output=True,
-                                stdin=subprocess.DEVNULL)
-        self.assertEqual((result.returncode, result.stdout), (0, "session-context-fixture\n"))
+        self.assertFalse(self.session_link.is_symlink())
+        self.assertFalse(self.session_link.exists())
 
     def test_dirty_clone_is_preserved(self):
         self.install()
