@@ -11,6 +11,7 @@ static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Co
 
 mod admission;
 mod budget;
+mod projection_settled;
 mod result;
 mod resume;
 pub(super) mod resume_fixture;

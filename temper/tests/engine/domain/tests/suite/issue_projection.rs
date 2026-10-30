@@ -352,6 +352,61 @@ fn a_refused_projection_holds_neither_the_goal_nor_its_close() {
     restart_failed_history(world, goal.task, &defaults);
 }
 
+#[test]
+fn a_pending_closing_projection_finishes_after_a_cold_restart() {
+    use temper_engine_domain_world::forge_routes::HoldWrite;
+    let (mut world, chat, goal) = world(false);
+    let number = issue(&world, goal.task).number.expect("issue opened before closing");
+    let key = Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Projection(
+        jig_domain_core::ProjectionKey::Goal(goal.task),
+    )));
+    world.hold_write_answers = Some(HoldWrite::All);
+    report(&mut world, &goal, REPORT);
+    for _ in 0..STEPS {
+        let closing = matches!(world.store.rows.get(&key),
+            Some(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Projection(
+                jig_domain_core::ProjectionRecord::Goal { pending, .. }
+            )))) if !pending.is_empty()
+        );
+        if closing {
+            break;
+        }
+        // Settle earlier live feeds and resource releases, keeping the final
+        // closing feed's write answers with the process that will be lost.
+        world.events.extend(world.held_write_answers.drain(..));
+        world.tick();
+    }
+    advance(&mut world);
+    assert!(!world.held_write_answers.is_empty(), "real writer has an unanswered closing effect");
+    assert!(issue(&world, goal.task).pending.is_some(), "closing writer remains pending");
+    let Some(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Projection(
+        jig_domain_core::ProjectionRecord::Goal { goal: retained, pending, .. },
+    )))) = world.store.rows.get(&key)
+    else {
+        panic!("durable closing projection")
+    };
+    assert!(matches!(retained.phase, tasks::Phase::Ended(_)));
+    assert_eq!(pending.len(), 1, "forge closing settlement remains owed");
+    assert!(world.store.pending.is_empty(), "crash after the closing writes are durable");
+    world.store.crash(9762);
+    let mut restarted = World::configured_stock_limits(&defaults(), &model(), &world.env.limits);
+    restarted.store = world.store;
+    restarted.fake = world.fake;
+    restarted.fake_env = world.fake_env;
+    advance(&mut restarted);
+    assert!(restarted.root.ready());
+    assert_reported(&restarted, chat.task, goal.task);
+    assert!(!restarted.store.rows.contains_key(&Key::Forge(forge::Key::Issue(goal.task))));
+    let raw::Answer::Item { item, .. } = restarted
+        .fake
+        .inspect(&restarted.fake_env.limits, b"org/repo", &raw::Read::Item { number, after: 0 })
+        .expect("recovered issue")
+    else {
+        panic!("item read")
+    };
+    assert_eq!(item.state, raw::State::Closed);
+}
+
 fn restart_failed_history(mut world: World, goal: u64, defaults: &jig_domain_core::settings::Defaults) {
     let historical = issue(&world, goal).clone();
     // Keep the old repository, but move today's home to a different adoption.
