@@ -349,8 +349,8 @@ cap, budget, timeout, cache or heavy-state policy changes here.
 
 The requested policy is generated targets of central-unclaimed numeric builder
 slots idle strictly more than 24 hours, while available space is strictly below
-80,000,000,000 bytes. Automatic destructive enforcement is pending a supported
-central maintenance exclusion and task-finality producer. A central `claim list`
+80,000,000,000 bytes. Automatic destructive enforcement remains disabled behind
+FIRSTDAYDRYRUN; section 5.6 defines its gated consumer. A central `claim list`
 response describes a snapshot; it grants no deletion exclusion. Ended markers,
 completed lifetimes, zero exits, delivered reports and manual acknowledgements
 cannot substitute for verified terminal/no-resume evidence in automatic mode.
@@ -386,12 +386,11 @@ under the fixed pressure boundary, exit 0 means space is at least that boundary
 or there are no numeric entries, and exit 1 means an observation infrastructure
 or log failure.
 
-`guard --automatic-targets live` always refuses with exit 1 before filesystem
-observation or sweep entry, including when combined with `--dry-run`. It cannot
-activate deletion. Installation and timer behavior do not activate or schedule
-automatic observation. Ops reviews first-day observation lists; a later reviewed
-implementation must supply exclusion throughout deletion, verified finality and
-the remaining safety proofs before live activation can exist. Stopping use of the
+`guard --automatic-targets live` refuses with exit 1 before filesystem
+observation or sweep entry while FIRSTDAYDRYRUN is set, including when combined
+with `--dry-run`. Installation and timer behavior do not activate or schedule
+automatic observation. Ops reviews first-day observation lists and the section
+5.6 protocol before any later activation. Stopping use of the
 observation option rolls back this observational rollout without changing manual
 recovery. Existing lease, source, history, interruption and acknowledgement guards
 remain authoritative for the separate manual path.
@@ -402,10 +401,116 @@ cover strict byte/age boundaries, newest descendant change time, missing history
 ended-but-resumable/question reports, completed lifetimes, changed/unknown claims,
 stale manual consent, protected paths, incompatible actions and live refusal.
 
+### 5.6 Gated central-custody consumer
+
+`recovery.py` keeps `FIRSTDAYDRYRUN = True`. No CLI, environment variable or
+installation setting overrides it. The live CLI and the underlying consumer
+both check it before acquiring a claim or creating maintenance state. Only
+isolated fixtures change the gate in memory. Ops must review first-day lists,
+producer compatibility, lifetime coverage and rollout before an explicit later
+activation change. This implementation does not activate or install anything.
+After activation, `live --dry-run` still enters only section 5.5 observation.
+
+The consumer serializes intent with the existing sweep lock. Before requesting
+custody it durably writes private `N/automatic.json` with slot, owner `ops`, host,
+number, start UTC and a unique exact WHAT (`guard reclaim UTC NONCE`). It invokes
+only hel8's installed authority through `ssh -o BatchMode=yes hel8 bash -lc`:
+
+```
+claim claim HOST N ops 'guard reclaim UTC NONCE'
+claim list
+claim release HOST N ops --what 'guard reclaim UTC NONCE'
+```
+
+There is no builder-local authority, force, stealing or `--lent-by`. A held slot
+or a non-pool share not owned by ops refuses normally. Failed, refused or
+ambiguous responses never authorize deletion; they retain an uncertain journal
+for inspection. Claim acquisition must return the exact normal success message.
+Subsequent central list observations must contain exactly one matching inventory
+row with exact owner/WHAT, a known creation time and the normal age suffix. List
+is a recheck of persistent custody, never custody by itself. Losing SSH or the
+guard process does not release the central claim.
+
+After acquiring the claim, the consumer takes the existing exclusive slot lease
+and worker/precheck entrance locks under the held sweep lock. Holds, unresolved
+markers, interrupted manual journals and pending automatic journals refuse work.
+It requires completed run history, a known completed source/build lifetime, and
+explicit prior-run finality for EVERY matching run. The finality consumer accepts
+an owned private regular `RUN/final.json` with:
+
+- `state`: `landed` or `withdrawn`;
+- `owner`: exactly metadata's nonempty `to`;
+- `time`: an ISO 8601 timestamp with timezone, at/after the run's ended evidence
+  and not in the future;
+- `sha`: a full lowercase 40-hex SHA for `landed`, or a nonempty `reason` for
+  `withdrawn`.
+
+It binds each final file's identity/digest and never creates, updates or backfills
+it. The separately owned producer is `codex-run final RUN --owner RECORDED_TO
+(--landed SHA | --withdrawn REASON)`. Missing or incompatible records retain old
+runs; ended/Done/exit-zero/post/manual acknowledgement/completed lifetime do not
+replace finality. Active or unknown Codex/heavy service observations still veto
+the operation. Producer integration must verify this exact JSON contract before
+activation; the offline consumer tests supply explicit fixture declarations.
+
+Automatic snapshots add the following stricter proofs to the manual snapshot:
+
+- Every source and Git regular file outside target is fingerprinted, and source
+  directory identities are bound. Symlink, unreadable and cross-device source
+  inputs refuse. SHA digests are retained; file contents are not logged.
+- A full target inventory binds identities, modes, sizes and mtime/ctime, allocated
+  bytes and regular-file count. Symlinks, hard-linked regular files, special
+  files, protected Git/credential entries, mountpoints and device boundaries
+  refuse. The latest target write and completed run/lifetime must be strictly
+  more than 24 hours old. Exact free bytes must still be below 80,000,000,000.
+- Own-user cwd, open descriptors and maps are checked, including inode aliases
+  and deleted-path spellings. Unknown/unreadable/incomplete process observations
+  refuse; process environments and descriptor contents are never read.
+- All Fabrig-managed clones, bare repositories and scratch under
+  `~/src/fabrig/` are inspected for object-store alternates, including recursive
+  alternate chains. Any borrower into target, cyclic/external/unknown store,
+  symlink directory or linked checkout with an unrecognized gitdir refuses.
+  Environment-based alternate borrowing also refuses. Other checkouts receive
+  no Git commands or mutations. Unrecognized layouts remain protected.
+
+Central custody, snapshots, exact byte pressure and target/source identities are
+rechecked immediately before fd-relative symlink-resistant target deletion.
+Cooperating starters remain excluded by the persistent central claim and local
+leases. Arbitrary commands outside these entrance protocols are not licensed by
+this consumer; Ops must establish fleet lifetime coverage before activation.
+
+After deletion returns, target absence, source/Git identities and digests,
+history/reports, finality and borrower evidence must still match. A failure or
+death anywhere before this known terminal result leaves the claim retained and
+status uncertain. Only then are a cold-build owner notice and private fsynced
+terminal evidence written. `automatic.json` and an `automatic-NONCE.json` archive
+record `status=completed`, exit, start/end UTC, exact claim, measured bytes before/
+after and delta, regular files removed and preservation proofs. File counts are
+the fully inventoried regular files in the successfully removed target; freed
+bytes are the measured filesystem delta, not promised allocated sizes.
+
+Exact claim release happens only AFTER both durable completed records. There is
+no release in a finally block, trap, shell-exit or session-loss handler. Release
+failure/ambiguity retains completed evidence and reconciliation state; death after
+release but before recording its response leaves a conservative retained receipt.
+Success updates both records to `release=released`. Pending automatic records
+also block manual whole-target maintenance; existing executable trimming remains
+unchanged. No automatic retry or release reconciles an uncertain attempt.
+Ops inspects the exact WHAT and evidence: incomplete evidence requires an
+independent investigation; completed evidence permits an operator's exact release.
+The consumer reports an error on protected/failed live attempts, while measured
+space alone controls its stop boundary (no additional recovery margin).
+
+`AutomaticClaimTests` runs fake SSH against the existing claim CLI with a temporary
+authority HOME and hostname. It verifies real claim contention, exact release
+ordering, an actual child death after deletion, release failures, finality and
+live-work/borrower/preservation vetoes. It performs no real service, claim or
+cleanup operation. Ordinary/manual guard interfaces remain unchanged.
+
 ## 4. Later
 
 - Coordination of claims across machines if leads move away from hel8.
 - Finding executable mappings after all descriptors have been closed.
-- Automatic target deletion after central maintenance exclusion, task-finality
-  evidence and all remaining process/source/borrower proofs are implemented and
-  reviewed. Section 5.5 currently supplies FIRSTDAYDRYRUN observations only.
+- Ops-reviewed automatic target activation after FIRSTDAYDRYRUN, finality producer
+  integration and fleet entrance/lifetime coverage review. Section 5.6's consumer
+  remains gated; section 5.5 observations do not acquire custody or eligibility.
