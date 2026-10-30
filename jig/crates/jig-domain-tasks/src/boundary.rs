@@ -999,6 +999,20 @@ pub struct SettingsRevision {
     pub run: Option<u32>,
 }
 
+/// Live-task counts whose room frees when a task ends (domain/connectors.md, 6.2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum LiveRoom {
+    Deployment,
+    Project(u32),
+}
+
+/// Durable refused room and its refusal order (domain/tasks.md, 5.3).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct RoomWait {
+    pub room: LiveRoom,
+    pub order: u64,
+}
+
 /// Owned durable task state emitted to root storage; root uses `RunContext` for preparation and
 /// does not maintain a mutable copy of this ledger. (domain/tasks.md, sections 3 and 5).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -1368,6 +1382,24 @@ pub struct Problem {
 }
 
 impl Problem {
+    /// The live-task room that can free after this batch refusal (domain/connectors.md, 6.2).
+    #[must_use]
+    pub const fn freeing_count(&self) -> Option<LiveRoom> {
+        let Some(capacity) = self.capacity else { return None };
+        if let crate::CapacityAction::Batch { .. } = capacity.action {
+            match (&self.why, capacity.cause) {
+                (Refusal::Live, crate::CapacityCause::Tasks { .. }) => Some(LiveRoom::Deployment),
+                (Refusal::Project, crate::CapacityCause::ProjectTasks { .. }) => match capacity.project {
+                    Some(project) => Some(LiveRoom::Project(project)),
+                    None => None,
+                },
+                _ => None,
+            }
+        } else {
+            None
+        }
+    }
+
     /// A refusal with no live-delegate blockers.
     #[must_use]
     pub const fn new(task: Option<u64>, why: Refusal) -> Self {

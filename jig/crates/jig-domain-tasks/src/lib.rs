@@ -128,12 +128,13 @@ pub use batch::{bounded_batch, valid_authority, valid_contract, valid_spec};
 pub use boundary::{
     Accepted, Active, Added, Bound, Cause, Circle, Closing, Contract, Deadline, DelegateState, DelegationContext, End,
     Ending, Event, Exceeded, Executor, FieldRule, Hold, HoldKind, HoldSource, Holding, InvalidResult, Key, Kind,
-    MessageKind, Name, New, NewsClass, NoticeState, Parameter, Party, PersonAddress, PersonAnswer, PersonStallNotice,
-    PersonWait, Phase, PoolSlots, Problem, ProcedureAmendment, ProcedureCancel, ProcedureDecision, ProcedureEnd,
-    ProcedureMessage, QuestionCredit, QuestionNotice, RecurringOverlap, RecurringState, RecurringTemplate, Refusal,
-    ReplyHint, Request, ResourceAccess, ResultField, ResultFollowups, ResultKind, ResultsWake, Revisions, RunContext,
-    SavedResource, SettingsRevision, Spec, Stage, Status, Stored, Stub, Subscription, SubscriptionKind, Taken,
-    TaskRecord, TaskResult, Verdict, WakePolicy, WakeRule, Was, Word, Writer, WriterSlot,
+    LiveRoom, MessageKind, Name, New, NewsClass, NoticeState, Parameter, Party, PersonAddress, PersonAnswer,
+    PersonStallNotice, PersonWait, Phase, PoolSlots, Problem, ProcedureAmendment, ProcedureCancel, ProcedureDecision,
+    ProcedureEnd, ProcedureMessage, QuestionCredit, QuestionNotice, RecurringOverlap, RecurringState,
+    RecurringTemplate, Refusal, ReplyHint, Request, ResourceAccess, ResultField, ResultFollowups, ResultKind,
+    ResultsWake, Revisions, RoomWait, RunContext, SavedResource, SettingsRevision, Spec, Stage, Status, Stored, Stub,
+    Subscription, SubscriptionKind, Taken, TaskRecord, TaskResult, Verdict, WakePolicy, WakeRule, Was, Word, Writer,
+    WriterSlot,
 };
 pub use capacity::{Capacity, CapacityAction, CapacityCause, CapacityRefusal};
 

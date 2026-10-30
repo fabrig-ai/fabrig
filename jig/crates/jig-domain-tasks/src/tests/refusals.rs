@@ -62,3 +62,38 @@ fn an_answers_refusals_are_kept_without_a_turn_or_charge() {
     }
     assert!(kept, "answer refusal row is durable");
 }
+
+#[test]
+fn only_live_batch_counts_name_freeing_room() {
+    use crate::{Capacity, CapacityAction, CapacityCause, LiveRoom, Problem, Refusal};
+    let batch = CapacityAction::Batch { first: Some(2), members: 1 };
+    for why in [Refusal::Live, Refusal::Project, Refusal::Busy, Refusal::Tree, Refusal::AuthorityShape] {
+        for cause in [
+            CapacityCause::Tasks { limit: 4 },
+            CapacityCause::ProjectTasks { limit: 2 },
+            CapacityCause::Tree { limit: 8 },
+            CapacityCause::CreationFlights { limit: 1 },
+        ] {
+            for action in [batch, CapacityAction::Release, CapacityAction::Proposal { number: 1 }] {
+                for project in [None, Some(7)] {
+                    let expected = match (&why, cause, action, project) {
+                        (Refusal::Live, CapacityCause::Tasks { .. }, CapacityAction::Batch { .. }, _) => {
+                            Some(LiveRoom::Deployment)
+                        }
+                        (
+                            Refusal::Project,
+                            CapacityCause::ProjectTasks { .. },
+                            CapacityAction::Batch { .. },
+                            Some(p),
+                        ) => Some(LiveRoom::Project(p)),
+                        _ => None,
+                    };
+                    let capacity = Capacity { project, by: Party::Person(9), action, cause };
+                    let problem = Problem::capacity(None, why.clone(), capacity);
+                    assert_eq!(problem.freeing_count(), expected, "{problem:?}");
+                }
+            }
+        }
+        assert_eq!(Problem::new(None, why).freeing_count(), None, "bare refusals name no room");
+    }
+}
