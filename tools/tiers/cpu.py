@@ -122,6 +122,8 @@ def records(directory, *, tools=False):
         for field in ("complete", "pending"):
             if type(item[field]) is not bool:
                 raise ValueError(f"invalid {field} in {path}")
+        if tools and type(item.get('starved')) is not bool:
+            raise ValueError(f"invalid starved in {path}")
         if type(item["leaked"]) is not int or item["leaked"] < 0:
             raise ValueError(f"invalid leaked in {path}")
         if ('settling' in item and (type(item['settling']) is not bool
@@ -256,9 +258,12 @@ def tools_summary(directory, limits, expected):
         raise ValueError(f"record coverage: missing {sorted(wanted - actual)}; unexpected {sorted(actual - wanted)}")
     if any(not r['complete'] or r['pending'] or r.get('settling', False) for r in items):
         raise ValueError("incomplete tools suite record")
-    failures = [f"{r['binary_id']} suite" for r in items if r['exit_code'] != 0]
+    failures = [f"{r['binary_id']} suite" for r in items
+                if r['exit_code'] != 0 and not (r['starved'] and r['signal'] in (signal.SIGTERM, signal.SIGKILL))]
+    timeouts = {(r['profile'], r['binary_id'], r['test_name'], r['attempt'])
+                for r in items if r['starved']}
     run = dict(starved=False, wall_s=sum(r['wall_s'] for r in items))
-    return summarize_records(items, 'tools', limits, run, set(), failures)
+    return summarize_records(items, 'tools', limits, run, timeouts, failures)
 
 
 def summarize_records(items, pair, limits, run, timeouts, failures):

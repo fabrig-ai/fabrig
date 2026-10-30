@@ -2,6 +2,7 @@
 /* Per-attempt Linux CPU accounting: tools/tiers/design.md, 7. */
 #include <errno.h>
 #include <fcntl.h>
+#include <math.h>
 #include <signal.h>
 #include <spawn.h>
 #include <stdbool.h>
@@ -33,7 +34,7 @@ static const char *required(const char *key) {
 }
 static char *record_data, *temporary_path;
 static int initial_fd = -1;
-static bool suite_record;
+static bool suite_record, starved;
 static const char *profile, *binary_id, *test_name;
 static uint64_t attempt_number;
 static char *append(char *out, const char *value) {
@@ -95,16 +96,20 @@ static void record(const char *path, double start, double user, double system,
     out = !pending && WIFEXITED(status) ? integer(out, WEXITSTATUS(status)) : append(out, "null");
     out = append(out, ",\"signal\":");
     out = !pending && WIFSIGNALED(status) ? integer(out, WTERMSIG(status)) : append(out, "null");
+    if (suite_record) {
+        out = append(out, ",\"starved\":"); out = append(out, starved ? "true" : "false");
+    }
     out = append(out, "}\n");
     size_t length = (size_t)(out - record_data);
     int fd = initial_fd;
+    bool initial = fd >= 0;
     initial_fd = -1;
     if (fd < 0) fd = open(temporary_path, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0600);
     if (fd < 0 || write(fd, record_data, length) != (ssize_t)length || close(fd)) {
         perror("cpu-wrapper: write record"); exit(125);
     }
     /* A named suite must not replace another invocation's record. */
-    int published = suite_record && pending
+    int published = suite_record && initial
         ? (link(temporary_path, path) || unlink(temporary_path))
         : rename(temporary_path, path);
     if (published) {
@@ -130,17 +135,26 @@ int main(int argc, char **argv) {
     umask(077);
     if (argc < 3) { fputs("usage: cpu-wrapper DIR TEST [ARGS...]\n", stderr); return 125; }
     int command = 2;
+    double wall_hard = 0;
     suite_record = strcmp(argv[1], "--suite") == 0;
     if (suite_record) {
-        if (argc < 6 || strcmp(argv[4], "--") || !*argv[2] || !*argv[3]) {
-            fputs("usage: cpu-wrapper --suite RECORD ID -- COMMAND [ARGS...]\n", stderr);
+        command = argc > 4 && strcmp(argv[4], "--wall-hard") == 0 ? 7 : 5;
+        if (argc <= command || strcmp(argv[command - 1], "--") || !*argv[2] || !*argv[3]) {
+            fputs("usage: cpu-wrapper --suite RECORD ID [--wall-hard SECONDS] -- COMMAND [ARGS...]\n", stderr);
             return 125;
+        }
+        if (command == 7) {
+            char *end;
+            wall_hard = strtod(argv[5], &end);
+            if (*end || !isfinite(wall_hard) || wall_hard <= 0) {
+                fputs("cpu-wrapper: wall-hard must be finite positive seconds\n", stderr);
+                return 125;
+            }
         }
         profile = "tools";
         binary_id = argv[3];
         test_name = "suite";
         attempt_number = 1;
-        command = 5;
     } else {
         /* Validate identity before starting the test; never silently omit accounting. */
         profile = required("NEXTEST_PROFILE");
@@ -188,7 +202,9 @@ int main(int argc, char **argv) {
     int launch = posix_spawnattr_init(&spawn);
     if (launch) { errno = launch; perror("cpu-wrapper: spawn attributes"); return 125; }
     launch = posix_spawnattr_setsigdefault(&spawn, &defaults);
-    if (!launch) launch = posix_spawnattr_setflags(&spawn, POSIX_SPAWN_SETSIGDEF);
+    if (!launch && wall_hard) launch = posix_spawnattr_setpgroup(&spawn, 0);
+    if (!launch) launch = posix_spawnattr_setflags(&spawn, POSIX_SPAWN_SETSIGDEF
+                                                 | (wall_hard ? POSIX_SPAWN_SETPGROUP : 0));
     if (!launch) launch = posix_spawnp(&test, argv[command], NULL, &spawn, argv + command, environ);
     posix_spawnattr_destroy(&spawn);
     if (launch) {
@@ -196,12 +212,26 @@ int main(int argc, char **argv) {
         record(path, start, 0, 0, 127 << 8, true, 0, false, false);
         free(path); return 127;
     }
-    double user = 0, system = 0, settled = 0;
+    double user = 0, system = 0, settled = 0, terminate_at = 0;
     int status = 0;
     bool exited = false, complete = false, killing = false, cleanup_ok = true;
     unsigned leaked = 0;
     for (;;) {
-        if (exited) {
+        if (wall_hard && !exited && !starved && now() - start >= wall_hard) {
+            starved = true;
+            terminate_at = now() + 1.0;
+            if (kill(-test, SIGTERM) && errno != ESRCH) cleanup_ok = false;
+            record(path, start, user, system, status, false, leaked, true, false);
+        }
+        if (starved) {
+            double current = now();
+            if (current >= terminate_at) {
+                if (!killing && kill(-test, SIGKILL) && errno != ESRCH) cleanup_ok = false;
+                killing = true;
+                if (!kill_children(terminate_at + 1.0)) cleanup_ok = false;
+            }
+            if (current >= terminate_at + 1.0) break;
+        } else if (exited) {
             double elapsed = now() - settled;
             if (elapsed >= 0.1) {
                 killing = true;
@@ -211,7 +241,7 @@ int main(int argc, char **argv) {
         }
         struct rusage usage;
         int child_status;
-        pid_t child = wait4(-1, &child_status, (exited ? WNOHANG : 0) | __WALL, &usage);
+        pid_t child = wait4(-1, &child_status, (exited || wall_hard ? WNOHANG : 0) | __WALL, &usage);
         if (child > 0) {
             user += seconds(usage.ru_utime); system += seconds(usage.ru_stime);
             if (child == test) {
@@ -229,8 +259,9 @@ int main(int argc, char **argv) {
         struct timespec pause = { .tv_nsec = 1000000 };
         nanosleep(&pause, NULL);
     }
-    record(path, start, user, system, status, complete, leaked, false, false);
+    record(path, start, user, system, status, complete, leaked, !exited, false);
     free(path); free(temporary_path); free(record_data);
+    if (!exited) return 125;
     if (WIFSIGNALED(status)) {
         int sig = WTERMSIG(status);
         signal(sig, SIG_DFL);

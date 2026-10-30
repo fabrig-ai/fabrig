@@ -580,9 +580,10 @@ class CommandTests(unittest.TestCase):
         path.write_text(f'#!{sys.executable}\n' + source)
         path.chmod(0o700)
 
-    def invoke(self, code, *, suite='tools/fixture.py', input_text=None):
+    def invoke(self, code, *, suite='tools/fixture.py', input_text=None, wall_hard=None):
+        timeout = [] if wall_hard is None else ['--wall-hard', str(wall_hard)]
         return subprocess.run([sys.executable, '-I', '-B', str(HERE / 'cpu-run'),
-                               '--out', str(self.directory), '--suite', suite, '--',
+                               '--out', str(self.directory), '--suite', suite, *timeout, '--',
                                sys.executable, '-I', '-c', code], env=self.env,
                               input=input_text, text=True, capture_output=True, timeout=10)
 
@@ -628,6 +629,95 @@ class CommandTests(unittest.TestCase):
         self.assertEqual(item['signal'], signal.SIGTERM)
         self.assertIsNone(item['exit_code'])
         self.assertTrue(item['complete'])
+
+    def test_wall_starvation_reaps_payload_group_and_escaped_child(self):
+        for mode in ('term', 'kill', 'escaped'):
+            with self.subTest(mode=mode):
+                result = self.invoke(f'''import os,signal,time
+mode={mode!r}
+if mode=='kill': signal.signal(signal.SIGTERM,signal.SIG_IGN)
+print(os.getpid(),flush=True)
+if os.fork()==0:
+    if mode=='escaped': os.setsid()
+    print(os.getpid(),flush=True)
+time.sleep(30)
+''', suite=mode, wall_hard=0.25)
+                self.assertEqual(result.returncode,
+                                 -signal.SIGKILL if mode == 'kill' else -signal.SIGTERM,
+                                 result.stderr)
+                pids = [int(line) for line in result.stdout.splitlines()]
+                self.assertEqual(len(pids), 2)
+                for pid in pids:
+                    with self.assertRaises(ProcessLookupError):
+                        os.kill(pid, 0)
+                item = next(r for r in CPU['records'](self.directory, tools=True)
+                            if r['binary_id'] == mode)
+                self.assertTrue(item['starved'])
+                self.assertTrue(item['complete'])
+                self.assertFalse(item['pending'])
+                self.assertFalse(item['settling'])
+                if mode != 'term':
+                    self.assertGreaterEqual(item['wall_s'], 1.25)
+                    self.assertEqual(item['leaked'], 1)
+        result = self.summary('--expect', 'term', '--expect', 'kill', '--expect', 'escaped', '--json')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        report = json.loads(result.stdout)
+        self.assertEqual(report['verdict'], 'starved')
+        self.assertEqual(report['suite']['starved'], 3)
+        self.assertEqual(report['suite']['incomplete'], 0)
+        self.assertEqual(report['failures'], [])
+
+    def test_killed_supervisor_starved_checkpoint_is_invalid(self):
+        ready = self.root / 'payload'
+        process = subprocess.Popen([sys.executable, '-I', '-B', str(HERE / 'cpu-run'),
+                                    '--out', str(self.directory), '--suite', 'killed',
+                                    '--wall-hard', '0.25', '--', sys.executable, '-I', '-c',
+                                    'import os,signal,time; from pathlib import Path; '
+                                    'signal.signal(signal.SIGTERM,signal.SIG_IGN); '
+                                    f'Path({str(ready)!r}).write_text(str(os.getpid())); time.sleep(30)'],
+                                   env=self.env, stdin=subprocess.DEVNULL,
+                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                   start_new_session=True)
+        def cleanup():
+            if ready.exists():
+                try:
+                    os.killpg(int(ready.read_text()), signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+            if process.poll() is None:
+                process.kill()
+            process.communicate(timeout=5)
+        self.addCleanup(cleanup)
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            paths = list(self.directory.glob('*.json'))
+            if paths and json.loads(paths[0].read_text())['starved']:
+                break
+            time.sleep(0.001)
+        else:
+            self.fail('supervisor did not checkpoint starvation')
+        process.kill()
+        process.communicate(timeout=5)
+        self.assertEqual(process.returncode, -signal.SIGKILL)
+        _, item = self.record()
+        self.assertTrue(item['starved'])
+        self.assertTrue(item['pending'])
+        self.assertFalse(item['complete'])
+        result = self.summary('--expect', 'killed')
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertIn('incomplete', result.stderr)
+
+    def test_wall_hard_validation_and_timely_completion(self):
+        for value in ('0', '-1', 'nan', 'inf', 'bad'):
+            with self.subTest(value=value):
+                result = self.invoke('raise Exception("must not run")', wall_hard=value)
+                self.assertEqual(result.returncode, 2, result.stderr)
+        result = self.invoke('pass', wall_hard=5)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        _, item = self.record()
+        self.assertFalse(item['starved'])
+        self.assertTrue(item['complete'])
+        self.assertEqual(self.summary('--expect', 'tools/fixture.py').returncode, 0)
 
     def test_command_daemon_is_reaped_and_accounted(self):
         result = self.invoke('''import os,time
@@ -681,7 +771,8 @@ os.waitpid(child,0)
         self.assertEqual(self.summary('--expect', 'other').returncode, 2)
         path, item = self.record()
         for changes in ({'complete': False}, {'user_s': -1}, {'attempt': 2},
-                        {'profile': 'default'}, {'test_name': 'other'}, {'settling': True}):
+                        {'profile': 'default'}, {'test_name': 'other'}, {'settling': True},
+                        {'starved': 1}, {'starved': None}):
             with self.subTest(changes=changes):
                 CPU['save'](path, dict(item, **changes))
                 self.assertEqual(self.summary('--expect', 'tools/fixture.py').returncode, 2)

@@ -322,7 +322,8 @@ All fixtures are local and use no service, sign-in or credential.
 
 ### 7.5 One command as a tools suite
 
-From the checkout root, `tools/tiers/cpu-run --out DIR --suite ID -- ARGV...`
+From the checkout root,
+`tools/tiers/cpu-run --out DIR --suite ID [--wall-hard SECONDS] -- ARGV...`
 runs ARGV once under the same static supervisor. Cargo metadata locates
 `target_directory/tiers-cpu-wrapper`, the path used by `run --cpu`. An absent
 wrapper, or one older than its source, is built with section 7's flags through
@@ -330,23 +331,51 @@ heavy after section 3's 80,000,000,000-byte admission check. Build diagnostics
 go to stderr; discovery is quiet on success. A failed discovery, build or
 launcher invocation returns 2 without running the suite.
 
-The launcher execs the native `--suite RECORD ID -- ARGV...` mode, which only
-changes identity and record naming. The command inherits its environment and
+The launcher execs the native
+`--suite RECORD ID [--wall-hard SECONDS] -- ARGV...` mode. The command inherits its environment and
 all three standard streams. The supervisor returns the command's exit code
 or reproduces its terminating signal; launch failures return 127 and collector
-failures 125. Signals sent to the process group reach the command directly;
-the supervisor ignores PID-only termination signals as in section 7.2. Group
-cancellation remains the caller's responsibility. No extra heavy command
-wraps an already admitted suite.
+failures 125. Without `--wall-hard`, signals sent to the process group reach
+the command directly; the supervisor ignores PID-only termination signals as
+in section 7.2. No extra heavy command wraps an already admitted suite.
+
+With a finite positive `--wall-hard`, the payload starts in its own process
+group, separate from the recorder. Its deadline starts at the initial record,
+after discovery and any build. The native supervisor polls `wait4` without
+blocking. At expiry it checkpoints `starved=true` and sends SIGTERM to the
+payload's group. If processes remain after a one-second grace, it sends
+SIGKILL to that group and repeatedly kills its own adopted children, including
+descendants that escaped the group with `setsid`. It reaps and accounts for
+the payload and descendants until ECHILD, allowing up to one further second
+for settlement. Only proven settlement produces `complete=true`. The command's
+exit code or terminating signal still passes through; a complete starved
+record makes starvation a green summary warning, with terminated payloads
+excluded from `failures`. Independently exceeded CPU budgets still return 1.
+
+The caller's own timeout **must exceed wall-hard + one-second grace + five
+seconds**, allowing scheduling and settlement time, and must never signal
+the recorder first. Discovery, disk admission, build queueing and compilation
+also need time outside the payload deadline. Use the native deadline to stop
+the payload while leaving its recorder alive to finish. A killed recorder,
+even after its starvation checkpoint, leaves an incomplete record that returns
+2 from the summary. Missing records remain invalid too.
 
 Each suite writes `DIR/<ID-sanitized>.json` directly, with section 7.2's fields:
-`profile="tools"`, `binary_id=ID`, `test_name="suite"`, `attempt=1`. The filename
+`profile="tools"`, `binary_id=ID`, `test_name="suite"`, `attempt=1`, plus the
+required boolean `starved` (false unless the native deadline expires). The filename
 uses UTF-8 percent encoding for characters outside ASCII letters, digits and
 `-_.~`, including `/` and `%`, so different IDs retain distinct names. The
 original ID stays in JSON and in budget keys. The initial pending record is
 published atomically without replacing an existing record; checkpoints and
 the settled record replace it atomically. Existing suite records are refused
 before command launch. A single DIR may hold several distinct suites.
+IDs must be nonempty and contain no NUL; they need not name an existing file
+or be relative paths. Encoding yields a single filename component, so an ID
+containing `..` or `/` cannot traverse out of DIR. DIR is resolved to an
+absolute path (following existing symlinks), then created with mode 0700 if
+absent. Existing directory permissions are preserved. The operating system's
+filename/path limits also apply, including room for the `.XXXXXX.tmp` suffix
+used during publication; failures are reported before payload launch.
 
 `cpu-summary DIR --pair tools --expect ID [--expect ID ...] [--budgets PATH]
 [--json]` requires an explicit inventory of expected suites. Every expected
@@ -363,14 +392,15 @@ table is keyed by its original path, for example
 `[tools."tools/tiers/test_run.py"]`, with the same optional finite positive
 `cpu_suite_s`, `cpu_test_s` and `wall_hard_s` keys. Both CPU limits apply to that
 suite's single command record. A recorded wall time over its limit yields a
-green starved warning; `cpu-run` does not impose a wall timeout. The gate owns
-command cancellation and must still require complete records.
+green starved warning. The gate passes the intended execution deadline via
+`--wall-hard`; a budget table alone does not activate native cancellation.
+Complete records remain mandatory for starved suites.
 
 For example, ops can retain a fresh directory for a gate's tools suites and
 run each suite sequentially, checking each command's exit status:
 
 ```sh
-tools/tiers/cpu-run --out "$records" --suite tools/tiers/test_run.py -- \
+tools/tiers/cpu-run --out "$records" --suite tools/tiers/test_run.py --wall-hard "$wall_hard" -- \
     python3 -I -B tools/tiers/test_run.py
 tools/tiers/cpu-summary "$records" --budgets tools/tiers/budgets.toml \
     --pair tools --expect tools/tiers/test_run.py
@@ -380,7 +410,11 @@ The gate repeats `--expect` for its full suite inventory even when a command
 fails to start; absence then fails coverage rather than implying success.
 Section 7.4's hermetic suite also checks generic command stdio, environment,
 exit and signal status, daemon cleanup, filename encoding, duplicate refusal,
-native build admission, expected coverage and tools budgets.
+native build admission, expected coverage and tools budgets. Deadline cases
+cover SIGTERM, SIGKILL escalation, cleanup of an escaped child, a timely
+completion, invalid durations, and a recorder killed after its starvation
+checkpoint. The killed-recorder fixture cleans up its owned payload separately;
+the incomplete record must still be rejected.
 
 ## 8. Later
 

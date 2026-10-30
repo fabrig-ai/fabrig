@@ -4,6 +4,7 @@
 import argparse
 import contextlib
 import io
+import math
 import os
 from pathlib import Path
 import runpy
@@ -13,11 +14,19 @@ import sys
 from urllib.parse import quote
 
 
+def positive_seconds(value):
+    number = float(value)
+    if not math.isfinite(number) or number <= 0:
+        raise argparse.ArgumentTypeError('must be finite positive seconds')
+    return number
+
+
 def main():
     os.umask(0o077)
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--out', type=Path, required=True)
     parser.add_argument('--suite', required=True, metavar='ID')
+    parser.add_argument('--wall-hard', type=positive_seconds, metavar='SECONDS')
     parser.add_argument('command', nargs=argparse.REMAINDER)
     args = parser.parse_args()
     if not args.suite or '\0' in args.suite:
@@ -50,8 +59,9 @@ def main():
                     raise ValueError(f'CPU wrapper build: exit {code}')
         # Exec keeps the static supervisor as the command's parent and preserves
         # its status, signals and all three standard streams without a relay.
+        timeout = [] if args.wall_hard is None else ['--wall-hard', str(args.wall_hard)]
         os.execv(str(wrapper), [str(wrapper), '--suite', str(record), args.suite,
-                               '--', *args.command[1:]])
+                               *timeout, '--', *args.command[1:]])
     except (OSError, ValueError, TypeError, runner['FailedStep']) as error:
         print(f'cpu-run: {error}', file=sys.stderr)
         return 2
