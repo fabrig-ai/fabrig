@@ -334,12 +334,12 @@ lease_task() {
     [[ -f $helper ]] || refuse 'missing slot lifetime helper'
     [[ $expected != stop ]] || expected=run
     if [[ ${FABRIG_SLOT_LEASE_MODE:-} == "$expected" ]] &&
-        python3 -I -B "$helper" verify "$dir" </dev/null; then return 0; fi
+        python3 -I -S -B "$helper" verify "$dir" </dev/null; then return 0; fi
     if [[ $purpose == stop || ( $purpose == run && -z ${on_stop:-} ) ]]; then
         adopt=$(meta_get "$state/meta" slot_hold)
     fi
     [[ $purpose != stop ]] || purpose=run
-    exec python3 -I -B "$helper" "$purpose" "$dir" --adopt "$adopt" -- "$script" "${original_args[@]}"
+    exec python3 -I -S -B "$helper" "$purpose" "$dir" --adopt "$adopt" -- "$script" "${original_args[@]}"
 }
 
 # tools/codex-run/design.md, 4: trim only this task's writable slot.
@@ -411,7 +411,7 @@ task_stop() {
             </dev/null >>"$state/on-stop.log" 2>&1 || status=$?
         printf 'exit %s\n' "$status" >"$state/on-stop"
         if ((status != 0)); then
-            python3 -I -B "$fabrig/tools/slots/lifetime.py" uncertain "$dir" </dev/null || true
+            python3 -I -S -B "$fabrig/tools/slots/lifetime.py" uncertain "$dir" </dev/null || true
         fi
     else
         printf 'absent\n' >"$state/on-stop"
@@ -599,7 +599,7 @@ task_final() {
     done
     valid_to "$owner" || refuse 'invalid final owner'
     [[ -n $disposition ]] || refuse 'choose exactly one landed or withdrawn declaration'
-    result=$(python3 -I -B "$kit/final.py" "$root" "$id" "$owner" "$disposition" "$content" "$ON_STOP_SECONDS") || return 2
+    result=$(python3 -I -S -B "$kit/final.py" "$root" "$id" "$owner" "$disposition" "$content" "$ON_STOP_SECONDS") || return 2
     if [[ $result == created ]]; then
         if command -v reap >/dev/null 2>&1; then
             reap_notify reap record end --kind codex-run --owner "$owner" --id "$id"
@@ -612,7 +612,7 @@ mode=${1:-}
 # Bootstrap before path validation: the exec'd worker validates once, before
 # reading metadata. Exec preserves the adopting parent for orphan signals.
 if [[ $mode == _run && ${CODEX_RUN_SUBREAPER:-} != "$$" ]] && (($# == 2)); then
-    exec python3 -I -c 'import ctypes, os, sys; libc = ctypes.CDLL(None, use_errno=True); libc.prctl(36, 1, 0, 0, 0) == 0 or sys.exit("codex-run: cannot become child subreaper: " + os.strerror(ctypes.get_errno())); os.environ["CODEX_RUN_SUBREAPER"] = str(os.getpid()); os.execv(sys.argv[1], sys.argv[1:])' "$script" "${original_args[@]}"
+    exec python3 -I -S -c 'import ctypes, os, sys; libc = ctypes.CDLL(None, use_errno=True); libc.prctl(36, 1, 0, 0, 0) == 0 or sys.exit("codex-run: cannot become child subreaper: " + os.strerror(ctypes.get_errno())); os.environ["CODEX_RUN_SUBREAPER"] = str(os.getpid()); os.execv(sys.argv[1], sys.argv[1:])' "$script" "${original_args[@]}"
 fi
 if [[ $mode != task && $mode != _run ]]; then normalize_root; fi
 (($# == 0)) || shift

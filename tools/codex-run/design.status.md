@@ -8,6 +8,10 @@ Fleet installation is pending coordinator review. The agents repository's
 copies remain in place. Run and owner storage remain under `~/src/rust/tmp`
 by default, preserving resume access and accounting; migration is deferred.
 
+Standard-library validators, lease supervisors, subreaper bootstrap and finality
+run without Python site initialization. Finality imports liveness, JSON and
+publication dependencies at their use sites after the preceding checks.
+
 Recipient-owned start records, explicit `final` declarations and best-effort
 end notifications are implemented (`tools/codex-run/design.md`, 3.1–3.2), with
 private service fixtures and atomic-publication tests. Completion and stop

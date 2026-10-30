@@ -6,12 +6,9 @@ Unit state is a liveness check, never evidence that a task landed.
 
 import datetime
 import fcntl
-import json
 import os
 import re
-import secrets
 import stat
-import subprocess
 import sys
 import time
 
@@ -58,6 +55,8 @@ def read_private(directory, name, with_info=False):
 
 
 def inactive(identifier, seconds):
+    import subprocess
+
     result = subprocess.run(
         ["timeout", "--signal=KILL", seconds, "systemctl", "--user", "list-units",
          "--all", "--plain", "--no-legend", "--no-pager", "--full",
@@ -91,6 +90,9 @@ def install(directory, name):
 
 def publish(directory, record):
     """Publish complete synced bytes atomically, without replacing any marker."""
+    import json
+    import secrets
+
     name = ".final-" + secrets.token_hex(12)
     fd = os.open(name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
                  0o600, dir_fd=directory)
@@ -160,6 +162,8 @@ def declare(root, identifier, owner, disposition, content, seconds):
         if any(callbacks) and read_private(directory, "on-stop") not in ("exit 0\n", "absent\n"):
             raise ValueError("stop outcome remains uncertain")
         inactive(identifier, seconds)
+        import json
+
         try:
             existing = json.loads(read_private(directory, "final.json"))
         except FileNotFoundError:

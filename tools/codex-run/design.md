@@ -19,6 +19,11 @@ Provisional, 2026-10-28. Detached task workers and persistent owners on the flee
   user units, Codex and `post` on PATH. Units start through a login shell.
   No adjacent agents checkout or sibling post executable is required.
 
+Path validation, lease supervision, subreaper bootstrap and finalization use
+isolated Python without site initialization; their dependencies are in the
+standard library. Finalization loads liveness and publication dependencies
+when its checks reach those steps. Slot trimming retains its isolated invocation.
+
 ## 2. Tasks and arguments
 
 Task options are `--model M`, `--effort E` (medium, high or xhigh),

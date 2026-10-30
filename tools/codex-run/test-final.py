@@ -10,7 +10,6 @@ import resource
 from pathlib import Path
 import subprocess
 import sys
-from unittest import mock
 from types import SimpleNamespace
 
 
@@ -172,6 +171,16 @@ timestamp_cpu_start = cpu_usage()
 
 
 @contextmanager
+def replace_attribute(target, name, value):
+    original = getattr(target, name)
+    setattr(target, name, value)
+    try:
+        yield
+    finally:
+        setattr(target, name, original)
+
+
+@contextmanager
 def clock(instant_ns):
     class FixedDateTime(real_datetime):
         @classmethod
@@ -183,8 +192,9 @@ def clock(instant_ns):
 
     # Unit liveness is covered by the CLI fixtures. Timestamp-only declarations
     # retain production file/lock/publication behavior without another manager.
-    with mock.patch.object(module, "inactive"), mock.patch("time.time_ns", return_value=instant_ns), \
-            mock.patch.object(module.datetime, "datetime", FixedDateTime):
+    with replace_attribute(module, "inactive", lambda *_: None), \
+            replace_attribute(module.time, "time_ns", lambda: instant_ns), \
+            replace_attribute(module.datetime, "datetime", FixedDateTime):
         yield
 
 
@@ -265,8 +275,14 @@ else:
     raise AssertionError("foreign owner accepted")
 directory = run("final-interrupted")
 fd = os.open(directory, os.O_RDONLY | os.O_DIRECTORY)
+
+
+def interrupt_install(*args):
+    raise KeyboardInterrupt
+
+
 try:
-    with mock.patch.object(module, "install", side_effect=KeyboardInterrupt):
+    with replace_attribute(module, "install", interrupt_install):
         try:
             module.publish(fd, {"state": "withdrawn", "reason": "report-read", "owner": owner})
         except KeyboardInterrupt:
