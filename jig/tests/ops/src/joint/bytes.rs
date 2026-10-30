@@ -128,6 +128,7 @@ impl Side {
             | Event::Read { .. }
             | Event::Send { .. }
             | Event::Carry { .. }
+            | Event::Full { .. }
             | Event::Lost { .. }
             | Event::Streamed { .. }
             | Event::StreamGone
@@ -323,6 +324,8 @@ fn callback(event: &Event) -> Option<Callback> {
         | Event::Read { .. }
         | Event::Send { .. }
         | Event::Carry { .. }
+        | Event::Streamed { message: Streamed::Full(_) }
+        | Event::Full { .. }
         | Event::Lost { .. }
         | Event::Stored
         | Event::NotStored

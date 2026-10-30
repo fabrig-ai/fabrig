@@ -121,6 +121,7 @@ impl Host {
         while let Some(heard) = above.pop() {
             self.client(match heard {
                 H::Reply { exchange, message } => jig_client::Event::Reply { exchange, message },
+                H::Full { exchange, full } => jig_client::Event::Full { exchange, full },
                 H::Lost { exchange } => jig_client::Event::Lost { exchange },
                 H::Streamed { message } => jig_client::Event::Streamed { message },
                 H::StreamGone => jig_client::Event::StreamGone,

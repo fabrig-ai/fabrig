@@ -251,6 +251,7 @@ impl Fixture {
             | jig_client::Event::Unwatch { .. }
             | jig_client::Event::Read { .. }
             | jig_client::Event::Reply { .. }
+            | jig_client::Event::Full { .. }
             | jig_client::Event::Lost { .. }
             | jig_client::Event::Streamed { .. }
             | jig_client::Event::StreamGone
@@ -271,6 +272,7 @@ impl Fixture {
             | jig_client::Event::Send { .. }
             | jig_client::Event::Carry { .. }
             | jig_client::Event::Reply { .. }
+            | jig_client::Event::Full { .. }
             | jig_client::Event::Lost { .. }
             | jig_client::Event::Streamed { .. }
             | jig_client::Event::StreamGone
@@ -483,6 +485,7 @@ fn copy_client_event(event: &jig_client::Event) -> jig_client::Event {
         | jig_client::Event::Authorize { .. }
         | jig_client::Event::SignOutLost
         | jig_client::Event::Reply { .. }
+        | jig_client::Event::Full { .. }
         | jig_client::Event::Lost { .. }
         | jig_client::Event::Streamed { .. }
         | jig_client::Event::StreamGone

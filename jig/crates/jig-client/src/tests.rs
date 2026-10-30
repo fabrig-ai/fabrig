@@ -93,3 +93,5 @@ fn valid_refuses_each_unrepresentable_limit() {
         assert!(!valid(&limits), "case {case}");
     }
 }
+
+mod stream_full;

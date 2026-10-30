@@ -68,9 +68,9 @@ pub fn fetched(report: fetch::Report) -> Heard {
         fetch::Report::Answered { exchange, status, body } => Heard::Answered { exchange, status, body },
         fetch::Report::Failed { exchange } => Heard::Failed { exchange },
         fetch::Report::StreamOpened => Heard::StreamOpened,
+        fetch::Report::StreamRefused { status: 409 } | fetch::Report::StreamEnded => Heard::StreamEnded,
         fetch::Report::StreamRefused { status } => Heard::StreamRefused { status },
         fetch::Report::StreamPiece { bytes } => Heard::Piece { bytes },
-        fetch::Report::StreamEnded => Heard::StreamEnded,
     }
 }
 #[must_use]

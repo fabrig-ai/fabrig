@@ -1,7 +1,30 @@
 //! Stream state, confirmed through the own watch (client/domain/client.md, 8.2).
 use crate::{Domain, Link, Request, Told, Watchable, contract, domain::tell};
 use skein_lib::Queue;
+
+/// The entrance that refused a stream or exchange (protocol/client.md, 4 and 17.2).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum StreamBound {
+    Component,
+    Transport,
+    Exchanges,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct StreamFull {
+    pub bound: StreamBound,
+    pub size: u32,
+}
 impl Domain {
+    #[must_use]
+    pub fn stream_full(&self) -> Option<StreamFull> {
+        self.stream_full
+    }
+    pub fn stream_refused(&mut self, full: Option<StreamFull>, out: &mut Queue<Request>) {
+        if self.stream_full != full {
+            self.stream_full = full;
+            tell(out, Told::Link { link: self.link });
+        }
+    }
     #[must_use]
     pub fn link(&self) -> Link {
         self.link
@@ -24,6 +47,7 @@ impl Domain {
         }
     }
     pub(crate) fn signed_out(&mut self, out: &mut Queue<Request>) {
+        self.stream_refused(None, out);
         self.scratch.clear();
         for (handle, held) in &self.handles {
             if held.state != crate::State::Ended {
@@ -50,6 +74,7 @@ impl Domain {
         self.set_link(Link::SignedOut, out);
     }
     pub(crate) fn signed_in(&mut self, out: &mut Queue<Request>) {
+        self.stream_refused(None, out);
         self.end_reads(out);
         if self.link != Link::SignedOut {
             self.signed_out(out);

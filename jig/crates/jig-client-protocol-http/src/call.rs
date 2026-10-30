@@ -60,7 +60,15 @@ pub(crate) fn call(
 }
 #[must_use]
 pub fn answered(exchange: Token, status: u16, body: Box<[u8]>) -> Heard {
-    if status == 200 { Heard::Reply { exchange, message: body } } else { Heard::Lost { exchange } }
+    if status == 200 {
+        Heard::Reply { exchange, message: body }
+    } else if status == 409
+        && let Some(full) = crate::full::decode(&body)
+    {
+        Heard::Full { exchange, full }
+    } else {
+        Heard::Lost { exchange }
+    }
 }
 
 #[must_use]

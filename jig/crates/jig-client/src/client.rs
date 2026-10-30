@@ -28,6 +28,7 @@ pub enum Event {
     Stored,
     NotStored,
     Up { up: Up },
+    Full { exchange: Token, full: crate::StreamFull },
 }
 #[derive(Debug, PartialEq, Eq)]
 pub enum Request {
@@ -70,6 +71,7 @@ pub enum NotSignedIn {
 #[derive(Debug)]
 pub struct LinkView<'a> {
     pub state: Link,
+    pub stream_full: Option<crate::StreamFull>,
     pub party: Option<u64>,
     pub not_served: &'a [u16],
     pub sign_out_lost: bool,
@@ -230,6 +232,7 @@ impl Client {
             Event::Reply { exchange, message } => {
                 self.link_step(now, link::Event::Reply { exchange, message });
             }
+            Event::Full { exchange, full } => self.link_step(now, link::Event::Full { exchange, full }),
             Event::Lost { exchange } => self.link_step(now, link::Event::Lost { exchange }),
             Event::Streamed { message } => self.link_step(now, link::Event::Streamed { message }),
             Event::StreamGone => self.link_step(now, link::Event::StreamGone),
@@ -298,6 +301,7 @@ impl Client {
     pub fn link(&self) -> LinkView<'_> {
         LinkView {
             state: self.domain.link(),
+            stream_full: self.domain.stream_full(),
             party: self.domain.party(),
             not_served: self.domain.not_served(),
             sign_out_lost: self.sign_out_lost,
@@ -349,6 +353,7 @@ impl Client {
             Event::Stored | Event::NotStored => {}
             Event::Start { .. }
             | Event::Reply { .. }
+            | Event::Full { .. }
             | Event::Lost { .. }
             | Event::Streamed { .. }
             | Event::StreamGone => {
@@ -357,7 +362,9 @@ impl Client {
         }
     }
     fn link_step(&mut self, now: Time, event: link::Event) {
-        self.link.as_mut().expect("linked client").step(now, event, &mut self.link_out);
+        let link = self.link.as_mut().expect("linked client");
+        link.step(now, event, &mut self.link_out);
+        self.domain.stream_refused(link.stream_full(), &mut self.domain_out);
     }
     fn signing(&mut self, env: &Env<DomainLimits>, signing: link::Signing) {
         if self.signing_link {

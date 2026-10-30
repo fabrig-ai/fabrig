@@ -183,7 +183,7 @@ impl Host for Process {
                             shell.close();
                         }
                     }
-                    client::Event::Lost { exchange } => {
+                    client::Event::Lost { exchange } | client::Event::Full { exchange, .. } => {
                         self.lost.push((exchange.raw(), now));
                         self.closing = true;
                         shell.close();

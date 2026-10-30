@@ -46,6 +46,7 @@ pub struct Link {
     pub(super) credential: Option<Secret>,
     pub(super) generation: u64,
     stream: Option<crate::silence::Silence>,
+    stream_full: Option<jig_client_domain::StreamFull>,
     pub(super) predecessor: Option<[u8; 16]>,
     retiring: Option<Token>,
     watches: crate::watches::Watches,
@@ -64,6 +65,7 @@ impl Link {
             credential: None,
             generation: 0,
             stream: None,
+            stream_full: None,
             predecessor: None,
             retiring: None,
             watches: crate::watches::Watches::new(limits),
@@ -84,11 +86,22 @@ impl Link {
     pub fn in_flight(&self) -> u32 {
         self.attempts.len()
     }
+    #[must_use]
+    pub fn stream_full(&self) -> Option<jig_client_domain::StreamFull> {
+        self.stream_full
+    }
+    fn refused(&mut self, full: jig_client_domain::StreamFull, out: &mut Queue<Request>) {
+        self.stream_full = Some(full);
+        out.push(Request::Fact { fact: Fact::StreamFull { full } });
+    }
     pub fn reclaim(&mut self) {}
     pub fn step(&mut self, now: Time, event: Event, out: &mut Queue<Request>) {
-        if let Event::Reply { exchange, .. } | Event::Lost { exchange } = &event
+        if let Event::Reply { exchange, .. } | Event::Lost { exchange } | Event::Full { exchange, .. } = &event
             && self.retiring == Some(*exchange)
         {
+            if let Event::Full { full, .. } = event {
+                self.refused(full, out);
+            }
             self.retiring = None;
             if !self.watches.0.is_empty() {
                 self.begin_stream(now, out);
@@ -115,6 +128,12 @@ impl Link {
             Event::Send { attempt, key, ask, value } => self.send(now, attempt, key, ask, value, out),
             Event::Read { read, what } => self.read(now, read, what, out),
             Event::Reply { exchange, message } => self.answered(exchange, &message, out),
+            Event::Full { exchange, full } => {
+                if let Some(attempt) = self.attempts.remove(&exchange) {
+                    self.refused(full, out);
+                    self.failure(attempt, out);
+                }
+            }
             Event::Lost { exchange } => {
                 if let Some(attempt) = self.attempts.remove(&exchange) {
                     self.failure(attempt, out);
@@ -655,6 +674,10 @@ impl Link {
                 self.watches.alive(out);
                 return;
             }
+            Streamed::Full(full) => {
+                self.refused(full, out);
+                return;
+            }
             Streamed::SignedOut => {
                 self.end_sign_in(out);
                 out.push(Request::Signing { signing: crate::Signing::SignedOut });
@@ -692,6 +715,7 @@ impl Link {
                     }
                 }
                 self.save_stream(*hello.stream(), out)?;
+                self.stream_full = None;
                 out.push(Request::Hello { family: None, versions: hello_versions(&hello, None) });
                 for owner in self.limits.client.owners {
                     let family = Some(owner.family);
@@ -764,6 +788,7 @@ impl Link {
         Ok(())
     }
     pub(super) fn end_sign_in(&mut self, out: &mut Queue<Request>) {
+        self.stream_full = None;
         self.credential = None;
         while let Some((key, _)) = (&self.attempts).into_iter().next() {
             let key = *key;

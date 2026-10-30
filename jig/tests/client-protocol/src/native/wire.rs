@@ -205,7 +205,7 @@ impl Wire {
                     | w::StreamEvent::Ended(_) => vec![],
                 }
             }
-            Event::Lost { exchange } => {
+            Event::Lost { exchange } | Event::Full { exchange, .. } => {
                 self.exchanges.remove(exchange);
                 vec![]
             }
@@ -220,7 +220,7 @@ impl Wire {
             | Event::Read { .. }
             | Event::Send { .. }
             | Event::Carry { .. }
-            | Event::Streamed { message: Streamed::Heartbeat | Streamed::SignedOut }
+            | Event::Streamed { message: Streamed::Heartbeat | Streamed::SignedOut | Streamed::Full(_) }
             | Event::StreamGone
             | Event::Stored
             | Event::NotStored

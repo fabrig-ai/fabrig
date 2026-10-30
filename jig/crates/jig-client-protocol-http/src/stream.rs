@@ -4,13 +4,14 @@ use jig_client_protocol_link::{Heard, Streamed};
 use skein_http::sse;
 use skein_lib::base64::{Alphabet, Decoder};
 use skein_lib::stream::{Down, Read, Up};
-use skein_lib::{Env, Queue, Time, Wall, bytes};
+use skein_lib::{Env, Queue, Time, Wall, Writer, bytes};
 
 #[derive(Debug)]
 pub struct Stream {
     reader: sse::Reader,
     decoder: Decoder,
     active: bool,
+    refusal: Option<Writer>,
     env: Env<sse::Limits>,
     above: Queue<sse::Event>,
     below: Queue<Down>,
@@ -26,6 +27,7 @@ impl Stream {
             reader: sse::Reader::new(&framing),
             decoder: Decoder::new(Alphabet::Standard, decoded),
             active: true,
+            refusal: None,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: framing },
             above: Queue::uncapped(),
             below: Queue::uncapped(),
@@ -36,11 +38,13 @@ impl Stream {
         stream.demand(sse::Request::Next);
         stream
     }
-    /// A 401 is the stream refused signed out; any other status but 200 ends it.
+    /// A 409 waits for one complete refusal record; a 401 is signed out.
     pub fn opened(&mut self, status: u16, out: &mut Queue<Heard>) {
         if status == 401 && self.active {
             self.active = false;
             out.push(Heard::Streamed { message: Streamed::SignedOut });
+        } else if status == 409 && self.active {
+            self.refusal = Some(Writer::new(crate::full::BYTES));
         } else if status != 200 {
             self.ended(out);
         }
@@ -48,11 +52,24 @@ impl Stream {
     pub fn ended(&mut self, out: &mut Queue<Heard>) {
         if self.active {
             self.active = false;
+            if let Some(body) = self.refusal.take()
+                && body.room() == 0
+                && let Some(full) = crate::full::decode(&body.finish())
+            {
+                out.push(Heard::Streamed { message: Streamed::Full(full) });
+            }
             out.push(Heard::StreamGone);
         }
     }
     pub fn body(&mut self, piece: &[u8], out: &mut Queue<Heard>) {
         if !self.active {
+            return;
+        }
+        if let Some(body) = &mut self.refusal {
+            if body.put(piece).is_err() {
+                self.refusal = None;
+                self.ended(out);
+            }
             return;
         }
         if piece.len() > usize::try_from(self.env.limits.chunk).expect("u32 fits") {

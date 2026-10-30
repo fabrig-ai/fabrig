@@ -252,7 +252,7 @@ impl skein_shell::Host for Disk {
                     self.answers.push(false);
                     self.closing = true;
                 }
-                client::Event::Lost { .. } => self.closing = true,
+                client::Event::Lost { .. } | client::Event::Full { .. } => self.closing = true,
                 other @ (client::Event::SignIn { .. }
                 | client::Event::Authorize { .. }
                 | client::Event::SignOut

@@ -3,6 +3,7 @@
 #![forbid(unsafe_code)]
 extern crate alloc;
 mod call;
+mod full;
 mod printed;
 mod stream;
 use alloc::boxed::Box;

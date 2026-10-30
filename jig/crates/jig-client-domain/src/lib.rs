@@ -17,5 +17,6 @@ pub const TABLE_VERSION: u16 = 2;
 pub use boundary::*;
 pub use domain::{Domain, fire, next_deadline, reclaim, step};
 pub use limits::{AccountCounts, Backoff, Limits, VALUE_BYTES, valid};
+pub use link::{StreamBound, StreamFull};
 #[cfg(test)]
 mod tests;
