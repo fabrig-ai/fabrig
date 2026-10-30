@@ -44,7 +44,7 @@ removes descendants except git nodes at every depth and their ancestors,
 then writes supplied relative entries with fresh versions. Fixture tree
 paths must be valid, and replacements incompatible with node kinds assert.
 
-`load`, `scan`, `store`, `remove` and `search` resolve beneath a
+`load`, `scan`, `store`, `remove_current` and `search` resolve beneath a
 registered root.
 Resolution skips empty and dot components, rejects parent traversal above
 that root and absolute link targets, and follows at most 40 relative
@@ -59,13 +59,16 @@ all omitted entries; entry links are classified, not followed. A store
 follows no link component, including the last. Its expected absence or
 regular-file version is compared before missing parents are installed.
 A refusal leaves nodes and versions unchanged; success issues a fresh
-version. A service's remove, as a store, follows no link component,
-including the last, and takes one node: a regular file at the version
-it expects, refused as a conflict naming the file's version otherwise,
-or an empty directory, refused as not empty with any node beneath it;
-any other node is refused as not a file, and a refusal changes nothing.
-It is a workspace's removal, not the fixture's `remove`, which deletes a
-subtree unconditionally. The refusal enum distinguishes missing/nonregular paths,
+version. A service's `remove_current`, as a store, follows no link
+component, including the last, and takes one node: a regular file at the
+version it expects, refused as a conflict naming the file's version
+otherwise, or an empty directory, whatever the expectation, refused as
+not empty with any node beneath it (at the empty global root, every
+other node is beneath it); any other node is refused as not a file, a
+missing target or ancestor as missing, and a refusal changes nothing.
+Success issues no version, installs no parents and keeps root
+registrations. It is a workspace's removal, not the fixture's `remove`,
+which deletes a subtree unconditionally. The refusal enum distinguishes missing/nonregular paths,
 escapes, links, excessive link resolution, oversized content, actual
 version conflicts and non-empty directories.
 
