@@ -4,6 +4,7 @@
 import argparse
 import importlib.machinery
 import importlib.util
+import hashlib
 import os
 from pathlib import Path
 import select
@@ -16,40 +17,44 @@ import time
 sys.dont_write_bytecode = True
 DIRECTORY = Path(__file__).resolve().parent
 RUNTIME_FILES = ("mq", "restart", "worker.py", "always.txt", "read-by-tests.txt", "leads.txt",
-                 "train.py", "authority.py", "recovery.py", "durable.py")
+                 "train.py", "authority.py", "recovery.py", "durable.py", "publication.py", "coordinators.txt")
 
 
 def runtime_module(directory, repo, *, external=False):
     directory = directory.expanduser().resolve(strict=True)
     frozen = {}
-    if external:
-        if directory == repo or repo in directory.parents:
-            raise ValueError("--runtime must be outside the queue checkout")
-        for name in RUNTIME_FILES:
-            path = directory / name
-            if path.is_symlink() or not path.is_file():
-                raise ValueError(f"--runtime requires a regular {name}")
-            frozen[name] = path.read_bytes()
-            if name in ("mq", "restart") or name.endswith(".py"):
-                compile(frozen[name], str(path), "exec")
+    if external and (directory == repo or repo in directory.parents):
+        raise ValueError("--runtime must be outside the queue checkout")
+    for name in RUNTIME_FILES:
+        path = directory / name
+        if path.is_symlink() or not path.is_file():
+            raise ValueError(f"--runtime requires a regular {name}")
+        frozen[name] = path.read_bytes()
+        if name in ("mq", "restart") or name.endswith(".py"):
+            compile(frozen[name], str(path), "exec")
     loader = importlib.machinery.SourceFileLoader("restart_mq", str(directory / "mq"))
     spec = importlib.util.spec_from_loader(loader.name, loader)
     module = importlib.util.module_from_spec(spec)
     loader.exec_module(module)
-    if external:
-        runtime_unchanged(directory, frozen)
-        if any(not callable(getattr(module, name, None)) for name in
-               ("validate_repair", "repair_pending", "advertised_repair", "log_repair_refusal", "UnknownHeavyError",
-                "writer_authority", "writer_fds")):
-            raise ValueError("--runtime requires queue code supporting pinned repairs and shared authority")
-        if (Path(module.authority.__file__).resolve() != directory / "authority.py" or
-                Path(module.authority.durable.__file__).resolve() != directory / "durable.py"):
-            raise ValueError("--runtime authority dependencies must load from the frozen directory")
-        for name in ("always.txt", "read-by-tests.txt"):
-            if not module.lines(directory / name):
-                raise ValueError(f"--runtime requires a nonempty {name}")
-        if not dict(line.split() for line in module.lines(directory / "leads.txt")):
-            raise ValueError("--runtime requires a nonempty leads.txt")
+    runtime_unchanged(directory, frozen)
+    if any(not callable(getattr(module, name, None)) for name in
+           ("validate_repair", "repair_pending", "advertised_repair", "log_repair_refusal", "UnknownHeavyError",
+            "writer_authority", "writer_fds")):
+        raise ValueError("--runtime requires queue code supporting pinned repairs and shared authority")
+    if (Path(module.authority.__file__).resolve() != directory / "authority.py" or
+            Path(module.authority.durable.__file__).resolve() != directory / "durable.py"):
+        raise ValueError("--runtime authority dependencies must load from the frozen directory")
+    for name in ("always.txt", "read-by-tests.txt"):
+        if not module.lines(directory / name):
+            raise ValueError(f"--runtime requires a nonempty {name}")
+    if not dict(line.split() for line in module.lines(directory / "leads.txt")):
+        raise ValueError("--runtime requires a nonempty leads.txt")
+    module.publication.coordinators(frozen["coordinators.txt"])
+    if Path(module.publication.__file__).resolve() != directory / "publication.py":
+        raise ValueError("publication dependency must load from the frozen directory")
+    module.restart_identity = {"version": 1, "files": {name: hashlib.sha256(data).hexdigest()
+                                for name, data in frozen.items()},
+                               "coordinators_sha256": hashlib.sha256(frozen["coordinators.txt"]).hexdigest()}
     module.restart_frozen = frozen
     return module, directory
 
@@ -109,15 +114,21 @@ def restart(repo, wait, home, *, batch=8, authority_dir=None, runtime=None,
             repair_ready=None, repair_tip=None, repair_reason=None, repair_hold=False):
     repair = None
     selected_authority = authority
-    frozen = {}
+    try:
+        module, directory = runtime_module(runtime if runtime is not None else repo / "tools/queue",
+                                           repo, external=runtime is not None)
+    except (OSError, ValueError, RuntimeError, SyntaxError) as error:
+        raw = {"name": repair_ready, "tip": repair_tip, "reason": repair_reason}
+        if runtime is not None or repair_hold or any(value is not None for value in raw.values()):
+            logger, _ = runtime_module(DIRECTORY, repo)
+            logger.log_repair_refusal(home / "src/fabrig/notes/queue.jsonl", raw, error)
+        raise
+    frozen = module.restart_frozen
+    if runtime is not None:
+        selected_authority = module.authority
     if runtime is not None or repair_hold or any(value is not None for value in (repair_ready, repair_tip, repair_reason)):
-        module, directory = runtime_module(DIRECTORY, repo)
         raw = {"name": repair_ready, "tip": repair_tip, "reason": repair_reason}
         try:
-            if runtime is not None:
-                module, directory = runtime_module(runtime, repo, external=True)
-                selected_authority = module.authority
-                frozen = module.restart_frozen
             repair = module.validate_repair(repo, repair_ready, repair_tip, repair_reason, hold=repair_hold)
             if repair is not None and module.repair_pending(repo, repair):
                 module.advertised_repair(repo, repair)
@@ -125,8 +136,7 @@ def restart(repo, wait, home, *, batch=8, authority_dir=None, runtime=None,
             module.log_repair_refusal(home / "src/fabrig/notes/queue.jsonl", raw, error)
             raise
     def guard_runtime():
-        if runtime is not None:
-            runtime_unchanged(directory, frozen)
+        runtime_unchanged(directory, frozen)
 
     try:
         layout = selected_authority.Layout(authority_dir, home=home)
@@ -157,6 +167,10 @@ def restart(repo, wait, home, *, batch=8, authority_dir=None, runtime=None,
                 with selected_authority.checkout_lock(repo) as checkout:
                     if repair is not None and module.repair_pending(repo, repair):
                         module.advertised_repair(repo, repair)
+                    with module.writer_authority(lease, checkout):
+                        store = module.publication.Store(layout.root / "publications", repo, module.git,
+                            lambda: (lease.guard(), checkout.guard(), layout.legacy_guard(repo)))
+                        store.reconcile()
                     inherited = (lease.fd, checkout.fd)
                     command(["git", "fetch", "origin"], repo, pass_fds=inherited)
                     command(["git", "switch", "--detach", "origin/main"], repo, pass_fds=inherited)
@@ -167,7 +181,7 @@ def restart(repo, wait, home, *, batch=8, authority_dir=None, runtime=None,
                 try:
                     with output.open("a") as log:
                         os.chmod(output, 0o600)
-                        script = str(directory / "mq") if runtime is not None else "tools/queue/mq"
+                        script = str(directory / "mq")
                         argv = ["python3", "-B", "-u", script, "run", "--repo", str(repo),
                                 "--authority-dir", str(layout.root), "--authority-fd", str(lease.fd),
                                 "--startup-fd", str(write_fd)]

@@ -149,9 +149,11 @@ class Preparer:
         pins = [self.pin(attempt, "parent", parent)]
         for index, branch in enumerate(record["inputs"]):
             pins.append(self.pin(attempt, f"input-{index}", branch["tip"]))
-        merged, conflicts = mq.build_batch(repo, record["inputs"], base=parent)
+        merged, conflicts = mq.build_batch(repo, record["inputs"], base=parent, keep_contained=True)
         chain, before = [], parent
         for branch in merged:
+            # Train evidence keeps its contained-input and before fields; parent belongs to the publication feed.
+            branch = {key: value for key, value in branch.items() if key != "parent"}
             contained = before == branch["commit"]
             chain.append({**branch, "before": before, "contained": contained,
                           "message": mq.git(repo, "show", "-s", "--format=%B", branch["commit"]).stdout})

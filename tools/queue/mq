@@ -27,6 +27,9 @@ CONFIG = Path(__file__).resolve().parent
 AUTH_SPEC = importlib.util.spec_from_file_location("mq_authority", CONFIG / "authority.py")
 authority = importlib.util.module_from_spec(AUTH_SPEC)
 AUTH_SPEC.loader.exec_module(authority)
+PUB_SPEC = importlib.util.spec_from_file_location("mq_publication", CONFIG / "publication.py")
+publication = importlib.util.module_from_spec(PUB_SPEC)
+PUB_SPEC.loader.exec_module(publication)
 TREES = ("skein", "smith", "jig", "temper")
 GB = 1_000_000_000
 TOOLS_TIMEOUT = 60
@@ -198,7 +201,7 @@ def merge_ratchets(repo, paths, before):
     return None
 
 
-def build_batch(repo, branches, base="origin/main"):
+def build_batch(repo, branches, base="origin/main", *, keep_contained=False):
     """Merge pinned tips, resolving only old-form baselines (design.md, 3.3)."""
     ensure_clean(repo)
     git(repo, "switch", "--detach", base)
@@ -222,7 +225,9 @@ def build_batch(repo, branches, base="origin/main"):
                     raise RuntimeError(f"merge of {branch['name']} failed:\n{result.stdout}")
                 conflicts.append({**branch, "error": result.stdout})
                 continue
-        merged.append({**branch, "commit": git(repo, "rev-parse", "HEAD").stdout.strip()})
+        commit = git(repo, "rev-parse", "HEAD").stdout.strip()
+        if commit != before or keep_contained:
+            merged.append({**branch, "commit": commit, "parent": before})
     return merged, conflicts
 
 
@@ -540,25 +545,22 @@ def bisect(branches, check):
     return left_green + right_green, left_red + right_red
 
 
-def push_and_cleanup(repo, branches):
-    """A plain fast-forward push precedes deletion; preserve tips that have changed."""
-    commit = git(repo, "rev-parse", "HEAD").stdout.strip()
-    git(repo, "push", "origin", "HEAD:main")
-    git(repo, "update-ref", "refs/remotes/origin/main", commit)
+def cleanup_ready(repo, branches, origin):
+    """After journal confirmation, delete only still-pinned ready tips."""
     cleanup = []
     for branch in branches:
         ref = f"refs/heads/{branch['name']}"
-        current = git(repo, "ls-remote", "--heads", "origin", ref, check=False)
+        current = git(repo, "ls-remote", "--heads", origin, ref, check=False)
         if current.returncode:
             cleanup.append({"branch": branch["name"], "error": current.stdout})
         elif current.stdout.split()[:1] == [branch["tip"]]:
             result = git(repo, "push", "--force-with-lease=" + ref + ":" + branch["tip"],
-                         "origin", ":" + ref, check=False)
+                         origin, ":" + ref, check=False)
             cleanup.append({"branch": branch["name"], "returncode": result.returncode,
                             "output": result.stdout})
         else:
             cleanup.append({"branch": branch["name"], "outcome": "tip changed or branch absent; preserved"})
-    return commit, cleanup
+    return cleanup
 
 
 def post(address, subject, body):
@@ -569,11 +571,12 @@ def post(address, subject, body):
 
 def log_batch(path, record):
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a") as log:
-        os.chmod(path, 0o600)
-        log.write(json.dumps(record, sort_keys=True) + "\n")
-        log.flush()
-        os.fsync(log.fileno())
+    with publication.journal_lock(path):
+        previous = publication.durable.read_bytes(path) if path.exists() or path.is_symlink() else b""
+        publication.journal_records(previous)
+        prospective = previous + publication.durable.encoded(record)
+        publication.journal_records(prospective)
+        publication.durable.publish(path, prospective, private_parent=False)
 
 
 def utc_now():
@@ -586,7 +589,9 @@ class Queue:
     def __init__(self, repo, *, batch=8, full_every=5, dry=False,
                  state_path=None, log_path=None, checker=run_checks, poster=post,
                  metadata_loader=load_metadata, now=time.time, disk_floor=45, repair=None, writer_guard=None,
-                 repair_hold=False):
+                 repair_hold=False, publication_root=None, read_only=False):
+        if writer_guard is None:
+            raise RuntimeError("Queue mutation requires an injected sole authority/startup guard")
         self.repo = Path(repo).resolve()
         self._writer_guard = writer_guard
         self.batch = batch
@@ -618,11 +623,33 @@ class Queue:
         self.last_merged = []
         self.last_conflicts = []
         self.error_record = None
+        root = publication_root or (WRITER_LEASE.path.parent / "publications" if WRITER_LEASE is not None
+                                    else self.repo.with_name(self.repo.name + ".publications"))
+        self.publications = publication.Store(root, self.repo, lambda *a, **kw: git(*a, **kw), self.writer_guard)
+        if (self.dry or read_only) and self.publications.entries():
+            raise RuntimeError("pending publication requires nondry reconciliation before plan/dry")
+        # Reconcile saved authority before loading any replacement roster.
+        try:
+            recovered = self.publications.reconcile()
+        except Exception as error:
+            # Only the existing Ops notification mapping is needed to report blocked recovery.
+            ops = dict(line.split() for line in lines(CONFIG / "leads.txt")).get("ops")
+            if ops is not None:
+                try:
+                    self.poster(ops, "queue publication recovery blocked",
+                                "\n".join(str(error).splitlines()[:10]) + "\n")
+                except Exception:
+                    pass  # The startup error still reaches the operator's process log.
+            raise
+        self.coordinators_bytes = (CONFIG / "coordinators.txt").read_bytes()
+        publication.coordinators(self.coordinators_bytes)
         self.leads = dict(line.split() for line in lines(CONFIG / "leads.txt"))
         self.state = (read_queue_state(self.repo, self.state_path) if repair is not None else
                       json.loads(self.state_path.read_text()) if self.state_path.exists() else {})
         self.state.setdefault("tried", {})
         self.state.setdefault("batches_since_full", 0)
+        for intent in recovered:
+            self.finish_publication(intent)
 
     def writer_guard(self):
         if self.unknown_marker is not None:
@@ -631,6 +658,41 @@ class Queue:
         if self._writer_guard is None:
             raise RuntimeError("Queue mutation requires an injected sole authority/startup guard")
         self._writer_guard()
+
+    def finish_publication(self, intent, record=None):
+        self.writer_guard()
+        directory = self.publications.root / intent["publication_id"]
+        if not self.publications.confirmed(directory, intent):
+            raise RuntimeError("ready cleanup requires journal confirmation")
+        marker = directory / "effects-confirmation.json"
+        if marker.exists() or marker.is_symlink():
+            saved = publication.durable.read_json(publication.durable.read_bytes(marker))
+            if (not isinstance(saved, dict) or type(saved.get("version")) is not int or
+                    saved != {"version": 1, "publication_id": intent["publication_id"]}):
+                raise ValueError("invalid publication effects confirmation")
+            return
+        effects = record if record is not None else {**intent["journal_row"], "posts": []}
+        effects.update(event="publication-effects", publication=intent["publication_id"])
+        for key in publication.LANDING_FIELDS:
+            effects.pop(key, None)
+        effects["cleanup"] = cleanup_ready(self.repo, intent["merges"], intent["origin"])
+        for branch in intent["merges"]:
+            self.state["tried"][branch["name"]] = branch["tip"]
+        self.save()
+        for branch in intent["merges"]:
+            self.notify(effects, branch["name"].split("/", 2)[1], f"landed {branch['name']}",
+                        f"{branch['name']} at {branch['tip']}\n"
+                        f"Merge commit: {branch['commit']}\nMain: {intent['candidate']}\n"
+                        f"Log: {effects.get('log', self.log_path)}\n")
+        if record is None:
+            effects["end"] = utc_now()
+            log_batch(self.log_path, effects)
+        publication.durable.publish(marker, publication.durable.encoded(
+            {"version": 1, "publication_id": intent["publication_id"]}), immutable=True)
+
+    def reconcile_publications(self):
+        for intent in self.publications.reconcile():
+            self.finish_publication(intent)
 
     def save(self):
         self.writer_guard()
@@ -700,6 +762,7 @@ class Queue:
 
     def attempt(self, branches, *, idle=False, force_full=False, skip_conflicts=False, repair=None):
         self.writer_guard()
+        self.reconcile_publications()
         if repair is not None and not writer_fds():
             raise RuntimeError("repair checks require held authority and checkout descriptors")
         available = free_gb(self.repo)
@@ -733,6 +796,8 @@ class Queue:
             record["parent"] = git(self.repo, "rev-parse", self.base).stdout.strip()
             merged, conflicts = build_batch(self.repo, branches, self.base)
             self.last_merged, self.last_conflicts = merged, conflicts
+            carrying_or_conflicted = {b["name"] for b in merged + conflicts}
+            reachable = [b for b in branches if b["name"] not in carrying_or_conflicted]
             record["conflicts"] = conflicts
             detail.write_text("\n".join(conflict["error"] for conflict in conflicts))
             if conflicts and not skip_conflicts:
@@ -745,7 +810,13 @@ class Queue:
                 for branch in conflicts:
                     self.reject(record, branch, f"failing step: {branch['step']}"
                                 if "step" in branch else "merge conflict")
-                record["outcome"] = "conflict"
+                for branch in reachable:
+                    self.state["tried"][branch["name"]] = branch["tip"]
+                self.save()
+                if conflicts:
+                    record["outcome"] = "conflict"
+                else:
+                    record.update(event="already-reachable", outcome="green")
                 return True
             paths = changed_paths(self.repo)
             selected = "full" if idle or force_full else self.choose(paths)
@@ -816,15 +887,17 @@ class Queue:
                     self.base = git(self.repo, "rev-parse", "HEAD").stdout.strip()
                 if not self.dry and merged:
                     self.writer_guard()
-                    commit, cleanup = push_and_cleanup(self.repo, merged)
-                    record["commit"], record["cleanup"] = commit, cleanup
-                    for branch in merged:
+                    record["commit"] = git(self.repo, "rev-parse", "HEAD").stdout.strip()
+                    origin = publication.explicit_origin(git(self.repo, "remote", "get-url", "--push", "origin").stdout.strip())
+                    intent = self.publications.prepare(origin, {**record, "journal_path": str(self.log_path)},
+                                                       merged, self.coordinators_bytes, utc_now())
+                    # No mutable HEAD or replacement roster participates after this boundary.
+                    record["event"] = "publication-attempt"
+                    self.publications.reconcile_one(intent)
+                    self.finish_publication(intent, record)
+                if not self.dry:
+                    for branch in reachable:
                         self.state["tried"][branch["name"]] = branch["tip"]
-                    self.save()
-                    for branch in merged:
-                        self.notify(record, branch["name"].split("/", 2)[1], f"landed {branch['name']}",
-                                    f"{branch['name']} at {branch['tip']}\n"
-                                    f"Merge commit: {branch['commit']}\nMain: {commit}\nLog: {detail}\n")
                 record["outcome"] = "green"
             else:
                 record["outcome"] = "red"
@@ -869,6 +942,7 @@ class Queue:
             "outcome": "error", "error": str(error), "dry": self.dry,
         }
         try:
+            self.reconcile_publications()
             if git(self.repo, "rev-parse", "--verify", "--quiet", "MERGE_HEAD", check=False).returncode == 0:
                 git(self.repo, "merge", "--abort")
             git(self.repo, "switch", "--detach", "--discard-changes", "origin/main")
@@ -945,6 +1019,7 @@ class Queue:
 
     def plan_once(self):
         self.writer_guard()
+        self.reconcile_publications()
         if self.repair_hold and self.pending_repair() is None:
             self.enter_hold()
             print("repair hold: no admission")
@@ -997,6 +1072,7 @@ class Queue:
 
     def cycle_once(self):
         self.writer_guard()
+        self.reconcile_publications()
         if self.repair_hold and self.pending_repair() is None:
             self.enter_hold()
             return False
@@ -1120,7 +1196,8 @@ def main():
             layout.legacy_guard(repo)
             queue = Queue(repo, batch=args.batch, full_every=args.full_every, disk_floor=args.disk_floor,
                           dry=getattr(args, "dry", False), repair=repair,
-                          repair_hold=args.repair_hold,
+                          repair_hold=args.repair_hold, publication_root=layout.root / "publications",
+                          read_only=args.action == "plan",
                           writer_guard=lambda: (lease.guard(), layout.legacy_guard(repo)))
             admitted = True
             if args.action == "plan":

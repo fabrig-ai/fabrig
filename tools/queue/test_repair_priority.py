@@ -120,8 +120,9 @@ class RepairTests(unittest.TestCase):
         with redirect_stdout(io.StringIO()):
             return queue.cycle()
 
-    def records(self):
-        return [json.loads(line) for line in self.audit.read_text().splitlines()]
+    def records(self, *, effects=False):
+        rows = [json.loads(line) for line in self.audit.read_text().splitlines()]
+        return rows if effects else [row for row in rows if row.get("event") != "publication-effects"]
 
     def assert_repair_record(self, repair, outcome):
         record = self.records()[-1]
@@ -243,7 +244,7 @@ class RepairTests(unittest.TestCase):
         queue.checker = checker
         self.cycle(queue)
         record = self.assert_repair_record(repair, "green")
-        self.assertEqual(record["cleanup"][0]["outcome"], "tip changed or branch absent; preserved")
+        self.assertEqual(self.records(effects=True)[-1]["cleanup"][0]["outcome"], "tip changed or branch absent; preserved")
         self.assertEqual(mq.git(self.preparer, "ls-remote", "--heads", "origin",
                                 "refs/heads/" + repair["name"]).stdout.split()[0], advanced[0]["tip"])
         self.assertEqual(mq.git(self.repo, "show", "origin/main:zz-repair.md").stdout, "change\n")
@@ -275,7 +276,7 @@ class RepairTests(unittest.TestCase):
         self.cycle(queue)
         self.assertCountEqual([b["name"] for b in self.records()[-1]["branches"]],
                               [ordinary["name"], repair["name"]])
-        self.assertEqual(mq.Queue(self.repo, log_path=self.audit).batch, 8)
+        self.assertEqual(mq.Queue(self.repo, log_path=self.audit, writer_guard=queue.writer_guard).batch, 8)
 
     def test_full_plan_keeps_ratchets_tools_and_all_cargo_checks(self):
         suite = self.repo / "tools/test_fixture.py"
@@ -676,17 +677,17 @@ class RepairTests(unittest.TestCase):
     def test_audit_write_failure_is_an_error_not_a_successful_refusal(self):
         repair = self.repair()
         audit = self.home / "src/fabrig/notes/queue.jsonl"
-        original = Path.open
-        def fail_audit(path, *args, **kwargs):
-            if path == audit:
+        original = os.replace
+        def fail_audit(source, target):
+            if Path(target) == audit:
                 raise OSError("fixture audit unavailable")
-            return original(path, *args, **kwargs)
+            return original(source, target)
         for module, action in ((mq, ["run"]), (restart, [])):
             argv = [module.__name__, *action, "--repo", str(self.repo),
                     "--repair-ready", repair["name"], "--repair-tip", repair["tip"], "--repair-reason", REASON]
             with patch.object(sys, "argv", argv), patch.object(Path, "home", return_value=self.home), \
                     patch.object(module.shutil, "which", return_value=None), \
-                    patch.object(Path, "open", fail_audit), redirect_stderr(io.StringIO()):
+                    patch.object(os, "replace", fail_audit), redirect_stderr(io.StringIO()):
                 self.assertEqual(module.main(), 1)
 
     def test_unknown_marker_publication_failure_retains_inputs_until_durable(self):
@@ -822,7 +823,7 @@ Queue = FixtureQueue
 
     def runtime(self, name="runtime"):
         directory = self.root / name
-        directory.mkdir()
+        directory.mkdir(parents=True)
         for name in restart.RUNTIME_FILES:
             shutil.copyfile(DIRECTORY / name, directory / name)
         return directory
@@ -1090,6 +1091,7 @@ Queue = FixtureQueue
 
     def test_restart_malformed_triplets_refuse_before_requesting_stop(self):
         repair = self.repair()
+        self.runtime(self.repo / "tools/queue")
         for changes in ({"repair_tip": None}, {"repair_ready": "ready/coord/bad..ref"},
                         {"repair_tip": "0"}, {"repair_reason": "\n"}):
             options = dict(repair_ready=repair["name"], repair_tip=repair["tip"], repair_reason=REASON)

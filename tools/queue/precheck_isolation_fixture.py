@@ -25,6 +25,7 @@ class ToolsIsolationTests(fixtures.Fixture):
         super().setUp()
         # Copy only the suite and its inputs: discovery must not recurse into this suite.
         for name in ("test_mq.py", "mq", "restart", "authority.py", "durable.py",
+                     "worker.py", "train.py", "recovery.py", "publication.py", "coordinators.txt",
                      "always.txt", "read-by-tests.txt", "leads.txt"):
             self.write("tools/queue/" + name, (DIRECTORY / name).read_text())
         for prefix in ("", "skein/", "smith/", "jig/", "temper/"):
