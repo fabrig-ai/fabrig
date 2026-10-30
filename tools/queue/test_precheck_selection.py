@@ -17,8 +17,8 @@ mq = fixtures.mq
 
 class SelectionTests(fixtures.Fixture):
     def tools_base(self):
-        self.write("tools/test_existing.py", "# discovered offline suite\n")
-        self.write("tools/guide.md", "tool guide\n")
+        self.write("tools/queue/test_existing.py", "# discovered offline suite\n")
+        self.write("tools/queue/guide.md", "tool guide\n")
         self.write("outside.md", "outside guide\n")
         self.ancestor = self.commit()
         for branch in ("base", "tip"):
@@ -47,11 +47,11 @@ class SelectionTests(fixtures.Fixture):
         self.tools_base()
         self.git("switch", "tip")
         if operation == "delete":
-            self.git("rm", "tools/guide.md")
+            self.git("rm", "tools/queue/guide.md")
         elif operation == "rename-out":
-            self.git("mv", "tools/guide.md", "moved.md")
+            self.git("mv", "tools/queue/guide.md", "moved.md")
         else:
-            self.git("mv", "outside.md", "tools/moved.md")
+            self.git("mv", "outside.md", "tools/queue/moved.md")
         self.commit()
         self.git("switch", "original")
         before = self.snapshot()
@@ -59,11 +59,11 @@ class SelectionTests(fixtures.Fixture):
             self.assertEqual(self.run_tool(), 0)
         required.assert_called_once_with(self.tool.record["selection_paths"])
         self.assertEqual(self.tool.record["selection"], "docs")
-        self.assertEqual([step["name"] for step in self.tool.record["plan"]], ["tools/test_existing.py"])
-        self.assertEqual([argv for argv, _ in self.calls], [["python3", "-I", "-B", "tools/test_existing.py"]])
+        self.assertEqual([step["name"] for step in self.tool.record["plan"]], ["tools/queue/test_existing.py"])
+        self.assertEqual([argv for argv, _ in self.calls], [["python3", "-I", "-B", "tools/queue/test_existing.py"]])
         self.assertEqual(self.tool.record["selection_paths"],
-                         {"delete": ["tools/guide.md"], "rename-out": ["moved.md", "tools/guide.md"],
-                          "rename-in": ["outside.md", "tools/moved.md"]}[operation])
+                         {"delete": ["tools/queue/guide.md"], "rename-out": ["moved.md", "tools/queue/guide.md"],
+                          "rename-in": ["outside.md", "tools/queue/moved.md"]}[operation])
         self.assert_restored(before)
 
     def test_deleted_tools_doc_requires_suites(self):

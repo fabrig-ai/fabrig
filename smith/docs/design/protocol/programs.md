@@ -243,13 +243,14 @@ open is section 9.
   policy (5.4), before it runs.
 - **The agent's own MCP server** serves the run's tools: each host tool
   the charter declares, `finish`, and `deliver` and `wait` when granted
-  (domain/run.md, 5.1), and the prompt tool. It is a mode of the agent's
-  own binary, which Claude Code starts over standard input and output
-  from the MCP configuration, and it relays each call to its agent,
-  which answers it as on the direct backend. The settings allow its
-  tools by rule, since the run answers them itself. Each tool's
-  `inputSchema` is an object schema, `"type": "object"` at its top and
-  no `oneOf`, `allOf` or `anyOf` beside it: MCP asks the first, and
+  (domain/run.md, 5.1), `remove` with modify, and the prompt tool. It is
+  a mode of the agent's own binary, which Claude Code starts over
+  standard input and output from the MCP configuration, and it relays
+  each call to its agent, which answers it as on the direct backend.
+  The settings allow its tools by rule, since the run answers them
+  itself. Each tool's `inputSchema` is an object schema, with
+  `"type": "object"` at its top and no `oneOf`, `allOf` or `anyOf`
+  beside it: MCP asks the first, and
   Claude Code drops every tool of a server one of whose schemas lacks
   it; the provider's API refuses the second. A choice of alternatives
   goes in one property, `outcome`, required, which holds the `oneOf`,
@@ -274,6 +275,10 @@ open is section 9.
   reading nothing, so a symbolic link within the directories that leads
   out of them is allowed: containment, where the host has it, bounds
   where it leads (section 7).
+- **After the path check,** an allowed `Read`, `Write` or `Edit` takes
+  the agent's version snapshot as domain/tools.md, section 10 says:
+  before allowing a whole `Read`, and after a `Write` or `Edit` result,
+  before it is told.
 - **Denied otherwise,** with the rule it broke in words, as a workspace
   tool's invalid call is answered (domain/tools.md, section 4), so the
   model may try again otherwise.

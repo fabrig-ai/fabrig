@@ -566,7 +566,7 @@ class Precheck:
         self.tools_required = self.mq.tools_required(paths)
         if self.tools_required:
             commands.extend((name, argv, cwd, self.mq.TOOLS_TIMEOUT)
-                            for name, argv, cwd in self.mq.tools_commands(self.repo))
+                            for name, argv, cwd in self.mq.author_tools_commands(self.repo, paths))
         checks = self.mq.check_commands(self.repo, selected, paths, metadata=metadata)
         names = [name for name, _, _ in checks]
         if selected != "docs" and selected and (names.count("clippy") != 1 or names.count("build") != 1):

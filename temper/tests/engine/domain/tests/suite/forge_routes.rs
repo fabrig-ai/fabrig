@@ -1941,7 +1941,7 @@ fn a_chat_made_before_its_home_was_adopted_reads_the_home_and_says_why() {
         World::configured_brief(true, true, false, 1000, paths::Gate::default(), None, Some(small.root.brief));
     assert_eq!(world.env.limits.brief.budgets.task, 4608);
     assert_eq!(world.env.limits.brief.budgets.pull, 4608);
-    assert_eq!(world.env.limits.brief.brief_bytes, 9984);
+    assert_eq!(world.env.limits.brief.brief_bytes, 14_592);
     world.sign_in();
     world.send(protocol::hello_slots(Token::new(7), 2, Box::new([])));
     let mut chats = Vec::new();
@@ -2491,6 +2491,16 @@ fn an_authorized_forge_read_returns_a_bounded_typed_answer() {
             !world.store.rows.contains_key(&Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Call(key)))),
             "read answers are never durable call records"
         );
+        let named = forge_top::NamedCall {
+            task: key.task,
+            attempt: key.attempt,
+            completion: key.completion,
+            position: key.position,
+        };
+        assert!(
+            !world.store.rows.contains_key(&Key::Forge(forge_top::Key::Call(named))),
+            "read answers have no durable connector Call either"
+        );
     }
 }
 
@@ -2576,6 +2586,7 @@ fn a_named_forge_effect_is_committed_before_its_write_and_made_once() {
     assert!(
         matches!(world.answers.last(), Some(temper_engine_domain::CallAnswer::ForgeEffect { entry: observed, outcome: Some(skein_forge_client::Outcome::Made { .. }), .. }) if *observed == entry)
     );
+    assert_named_call_writer_oracle(&world);
 }
 
 #[test]
@@ -2849,6 +2860,7 @@ fn effect_survives_each_commit_and_outbox_cut_without_a_second_issue() {
             ),
             "cut {cut} committed the settled named answer"
         );
+        assert_named_call_writer_oracle(&world);
     }
 }
 
@@ -3214,4 +3226,28 @@ fn a_stop_waits_for_a_sent_merge_to_be_proved() {
     );
     assert!(world.unsettled.is_empty());
     assert_eq!(world.merges, 1);
+}
+
+// The oracle reads real root-written rows; identity legality belongs to their writer.
+fn call_writer_oracle(world: &World, key: forge_top::NamedCall) -> bool {
+    if key.task == 0 || key.attempt == 0 {
+        return false;
+    }
+    let core =
+        engine::CallKey { task: key.task, attempt: key.attempt, completion: key.completion, position: key.position };
+    matches!(world.store.rows.get(&Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Call(core)))), Some(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Call(row)))) if row.key == core)
+}
+fn assert_named_call_writer_oracle(world: &World) {
+    let mut count = 0_u32;
+    for row in world.store.rows.values() {
+        if let Record::Forge { row } = row
+            && let forge_top::Stored::Call { key, .. } = row.as_ref()
+        {
+            assert!(call_writer_oracle(world, *key));
+            assert!(!call_writer_oracle(world, forge_top::NamedCall { task: 0, ..*key }));
+            assert!(!call_writer_oracle(world, forge_top::NamedCall { attempt: 0, ..*key }));
+            count += 1;
+        }
+    }
+    assert!(count > 0, "real writer retained connector Calls");
 }

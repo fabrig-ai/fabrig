@@ -46,6 +46,9 @@ pub(crate) struct BriefFetch {
     parts: u32,
     bytes: u32,
     stage: BriefStage,
+    read: skein_forge::api::Read,
+    refused: Option<u64>,
+    deadline: Option<skein_lib::Time>,
     mode: PullMode,
     base: Option<skein_forge::api::Commit>,
     comparison: Option<(skein_forge::api::Commit, skein_forge::api::Commit)>,
@@ -133,6 +136,44 @@ pub(crate) fn brief_part(words: &BriefWords, parts: u32, bytes: u32) -> BriefRea
     }
 }
 
+/// Reviews and repairs share the pull identity (temper/docs/design/domain/forge.md, 8.3–8.4).
+fn pull_identity(domain: &Domain, row: &crate::ChangeRow, head: BriefCommit, bytes: u32) -> Option<BriefWords> {
+    let number = row.pull?;
+    let mut words = BriefWords::with_capacity(bytes, false);
+    for part in [
+        b"Pull request: #".as_slice(),
+        decimal(number).as_ref(),
+        b"\nBranch: ",
+        &row.branch,
+        b"\nBase: ",
+        &row.base,
+        b"\nHead: ",
+        &crate::commit_text(&head.0),
+        b"\n",
+    ] {
+        append(&mut words, part);
+    }
+    if let Some(configured) = domain.configured(row.repository.forge)
+        && let Some(repository) = domain.repository(row.repository)
+        && let Some(address) = crate::pull_address(
+            configured.kind,
+            &configured.git,
+            configured.web.as_deref(),
+            &repository.owner,
+            &repository.name,
+            number,
+        )
+    {
+        append(&mut words, b"Address: ");
+        append(&mut words, &address);
+        append(&mut words, b"\n");
+    }
+    if words.left > 0 {
+        return None;
+    }
+    Some(words)
+}
+
 pub(super) fn brief_pull(
     domain: &mut Domain,
     owner: Token,
@@ -175,7 +216,7 @@ pub(super) fn brief_pull(
         | change::State::Landed { .. }
         | change::State::Held { .. } => PullMode::Other,
     };
-    let words = BriefWords::with_capacity(bytes, false);
+    let Some(words) = pull_identity(domain, row, head, bytes) else { return Some(BriefRead::Failed) };
     let call = Token::new(owner.raw() | (1_u64 << 61_u32) | (1_u64 << 59_u32));
     let fetch = BriefFetch {
         owner,
@@ -185,6 +226,9 @@ pub(super) fn brief_pull(
         parts,
         bytes,
         stage: BriefStage::Item,
+        read: skein_forge::api::Read::Item { number: item.number, after: 0 },
+        refused: None,
+        deadline: None,
         mode,
         base: None,
         comparison: None,
@@ -218,6 +262,11 @@ pub(crate) fn brief_answer(
     out: &mut Queue<Request>,
 ) -> bool {
     let Some(mut fetch) = domain.brief_fetches.remove(&owner) else { return false };
+    if result == Err(skein_forge::api::Error::Busy) {
+        fetch.refused = Some(domain.brief_reclaim);
+        domain.brief_fetches.insert(owner, fetch).expect("same refused brief room");
+        return true;
+    }
     let next = match result {
         Ok(skein_forge::api::Answer::Item { item, .. })
             if fetch.stage == BriefStage::Item && item.number == fetch.item.number =>
@@ -230,6 +279,10 @@ pub(crate) fn brief_answer(
             append(&mut fetch.words, &crate::commit_text(&fetch.head.0));
             append(&mut fetch.words, b"\nTitle: ");
             append(&mut fetch.words, &item.title);
+            if fetch.words.left > 0 {
+                crate::held::ready(domain, fetch.owner, BriefRead::Failed, out);
+                return true;
+            }
             append(&mut fetch.words, b"\nBody: ");
             append(&mut fetch.words, &item.body);
             append(&mut fetch.words, b"\n");
@@ -278,6 +331,7 @@ pub(crate) fn brief_answer(
                         head: fetch.head.0,
                         page: fetch.file_page,
                     };
+                    fetch.read = read.clone();
                     let repository = fetch.repository;
                     domain.brief_fetches.insert(owner, fetch).expect("same brief read room");
                     out.push(Request::BriefClient {
@@ -405,6 +459,7 @@ pub(crate) fn brief_answer(
         }
     };
     if let Some(read) = next {
+        fetch.read = read.clone();
         let repository = fetch.repository;
         domain.brief_fetches.insert(owner, fetch).expect("same brief read room");
         out.push(Request::BriefClient { event: skein_forge_client::Event::Read { owner, repository, read } });
@@ -544,6 +599,9 @@ pub(super) fn brief_reviews(
         parts,
         bytes,
         stage: BriefStage::Reviews,
+        read: skein_forge::api::Read::Reviews { number: item.number, page: 1 },
+        refused: None,
+        deadline: None,
         mode: PullMode::Other,
         base: None,
         comparison: None,
@@ -620,6 +678,9 @@ pub(super) fn brief_ci(
         parts,
         bytes,
         stage: BriefStage::Checks,
+        read: skein_forge::api::Read::Checks { commit: head.0 },
+        refused: None,
+        deadline: None,
         mode: PullMode::Other,
         base: None,
         comparison: None,
@@ -661,4 +722,101 @@ fn decimal(number: u64) -> Box<[u8]> {
         forward.push(*digits.get(at).expect("measured decimal digit")).expect("same width");
     }
     forward.into_boxed()
+}
+
+/// Admission refusals wait across the client's reclamation boundary.
+fn waiting_owner(domain: &Domain) -> Option<Token> {
+    for (owner, fetch) in &domain.brief_fetches {
+        if let Some(reclaim) = fetch.refused
+            && reclaim != domain.brief_reclaim
+        {
+            return Some(*owner);
+        }
+    }
+    None
+}
+
+pub(crate) fn waiting(domain: &Domain) -> bool {
+    waiting_owner(domain).is_some()
+}
+
+pub(crate) fn retry(domain: &mut Domain, out: &mut Queue<Request>) {
+    let Some(owner) = waiting_owner(domain) else { return };
+    let fetch = domain.brief_fetches.get_mut(&owner).expect("waiting brief");
+    fetch.refused = None;
+    out.push(Request::BriefClient {
+        event: skein_forge_client::Event::Read { owner, repository: fetch.repository, read: fetch.read.clone() },
+    });
+}
+
+fn section_owner(domain: &Domain, section: Token) -> Option<Token> {
+    for (owner, fetch) in &domain.brief_fetches {
+        if fetch.owner == section {
+            return Some(*owner);
+        }
+    }
+    None
+}
+
+pub(crate) fn set_deadline(domain: &mut Domain, section: Token, deadline: skein_lib::Time) {
+    if let Some(owner) = section_owner(domain, section) {
+        domain.brief_fetches.get_mut(&owner).expect("section fetch").deadline = Some(deadline);
+    }
+}
+
+pub(crate) fn next_deadline(domain: &Domain) -> Option<skein_lib::Time> {
+    let mut next: Option<skein_lib::Time> = None;
+    for (_, fetch) in &domain.brief_fetches {
+        if let Some(deadline) = fetch.deadline
+            && fetch.refused.is_some()
+        {
+            next = Some(match next {
+                Some(previous) => previous.min(deadline),
+                None => deadline,
+            });
+        }
+    }
+    next
+}
+
+fn expired_owner(domain: &Domain, now: skein_lib::Time) -> Option<Token> {
+    for (owner, fetch) in &domain.brief_fetches {
+        if let Some(deadline) = fetch.deadline
+            && deadline <= now
+            && fetch.refused.is_some()
+        {
+            return Some(*owner);
+        }
+    }
+    None
+}
+
+/// Finish Busy-retained reads at the parent's deadline; in-flight reads stay late.
+pub(crate) fn expire(domain: &mut Domain, now: skein_lib::Time, out: &mut Queue<Request>) {
+    for _ in 0..domain.brief_fetches.capacity() {
+        let Some(owner) = expired_owner(domain, now) else { break };
+        let mut fetch = domain.brief_fetches.remove(&owner).expect("expired brief");
+        if fetch.stage == BriefStage::Job {
+            // Each remaining pinned job has the same unavailable-log marker.
+            for _ in 0..=fetch.checks.len() {
+                append(&mut fetch.words, b"[job log could not be read]\n");
+                keep_check(&mut fetch, Box::new([]), false);
+                if next_failed_job(&mut fetch).is_none() {
+                    break;
+                }
+            }
+        }
+        if let Some(ci) = fetch.ci {
+            crate::held::ready_ci(domain, fetch.owner, ci, fetch.bytes, out);
+        } else {
+            crate::held::ready(domain, fetch.owner, BriefRead::Failed, out);
+        }
+    }
+}
+
+pub(crate) fn drop_section(domain: &mut Domain, section: Token) {
+    if let Some(owner) = section_owner(domain, section) {
+        domain.brief_fetches.remove(&owner);
+    }
+    domain.brief_pending.remove(&section);
 }

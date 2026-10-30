@@ -1,6 +1,6 @@
 //! The format row and header checked before restart (protocol/store.md, 5.3 and 10).
 use crate::patching::{machines, phase::Pending, plan};
-use crate::{Event, Family, Older, OpenRefusal, Phase, Store, codec, format, keys};
+use crate::{Event, Family, Older, OpenRefusal, Phase, Store, codec, format, keys, restore};
 use alloc::boxed::Box;
 use jig_domain_core::{CoreKey, CoreRecord, Key, Record};
 use skein_lib::{Queue, Token};
@@ -12,11 +12,11 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
     }
     let format_key = keys::encode_own(&keys::Own::Format, store.limits.store.key).expect("format key fits");
     let header_key = keys::encode(&Key::Core(CoreKey::Deployment), store.limits.store.key).expect("header key fits");
-    let Ok(found) = get(store, owner, format_key) else {
+    let Ok(found) = get_open(store, owner, format_key) else {
         refuse(store, owner, OpenRefusal::Failed, above);
         return;
     };
-    let Ok(header) = get(store, owner, header_key) else {
+    let Ok(header) = get_open(store, owner, header_key) else {
         refuse(store, owner, OpenRefusal::Failed, above);
         return;
     };
@@ -62,7 +62,7 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
         return;
     };
     let Some(header) = codec::decode(&Key::Core(CoreKey::Deployment), &header, &store.codec, &store.names) else {
-        corrupt(store, owner, above);
+        corrupt_header(store, owner, restore::DecodeFailure::Value, above);
         return;
     };
     match header {
@@ -94,7 +94,9 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
         | Record::Tasks(_)
         | Record::People(_)
         | Record::Notes(_)
-        | Record::Accounts(_) => corrupt(store, owner, above),
+        | Record::Accounts(_) => {
+            corrupt_header(store, owner, restore::DecodeFailure::KeyValueDisagree, above);
+        }
     }
 }
 
@@ -116,7 +118,7 @@ fn pending(store: &mut Store, found: plan::Levels, binary: plan::Levels) -> Resu
 
 fn check_layouts(store: &mut Store, owner: Token) -> Result<(), OpenRefusal> {
     let key = keys::encode_own(&keys::Own::Layouts, store.limits.store.key).expect("layouts key fits");
-    let bytes = get(store, owner, key)?.ok_or(OpenRefusal::OlderBuild { why: Older::Unrecorded })?;
+    let bytes = get_open(store, owner, key)?.ok_or(OpenRefusal::OlderBuild { why: Older::Unrecorded })?;
     let Ok(found) = codec::component::Layouts::decode(&bytes) else {
         return Err(OpenRefusal::OlderBuild { why: Older::Layout(Family::Component) });
     };
@@ -133,15 +135,24 @@ fn restore_installation(
     below: &mut crate::Below,
 ) {
     let key = keys::installation(store.limits.store.key).expect("installation key fits");
-    let Ok(found) = get(store, owner, key) else {
+    let Ok(found) = get_open(store, owner, key) else {
         refuse(store, owner, OpenRefusal::Failed, above);
         return;
     };
     let Some(bytes) = found else {
+        store.open_failed(restore::OpenFailure::Missing(restore::site(
+            store,
+            &keys::installation(store.limits.store.key).expect("installation key fits"),
+        )));
         corrupt(store, owner, above);
         return;
     };
     let Ok(kept) = codec::accounts::Installation::decode(&bytes) else {
+        data(
+            store,
+            &keys::installation(store.limits.store.key).expect("installation key fits"),
+            restore::DecodeFailure::Value,
+        );
         corrupt(store, owner, above);
         return;
     };
@@ -150,6 +161,15 @@ fn restore_installation(
 }
 
 pub(crate) fn get(store: &mut Store, owner: Token, key: Box<[u8]>) -> Result<Option<Box<[u8]>>, OpenRefusal> {
+    get_row(store, owner, key, false)
+}
+
+pub(crate) fn get_open(store: &mut Store, owner: Token, key: Box<[u8]>) -> Result<Option<Box<[u8]>>, OpenRefusal> {
+    get_row(store, owner, key, true)
+}
+
+fn get_row(store: &mut Store, owner: Token, key: Box<[u8]>, opening: bool) -> Result<Option<Box<[u8]>>, OpenRefusal> {
+    let site = if opening && store.start_restore { Some(restore::site(store, &key)) } else { None };
     let mut above = Queue::uncapped();
     let mut below = Queue::uncapped();
     skein_kv::down(
@@ -160,17 +180,17 @@ pub(crate) fn get(store: &mut Store, owner: Token, key: Box<[u8]>) -> Result<Opt
         &mut below,
     );
     assert!(below.is_empty(), "a memory get issues no file operation");
-    match above.pop().ok_or(OpenRefusal::Failed)? {
-        skein_kv::Event::Got { owner: _, value } => Ok(value),
-        skein_kv::Event::Opened { .. }
-        | skein_kv::Event::Committed { .. }
-        | skein_kv::Event::Refused { .. }
-        | skein_kv::Event::Failed { .. }
-        | skein_kv::Event::Loaded { .. }
-        | skein_kv::Event::Closed { .. }
-        | skein_kv::Event::OpenFailed { .. }
-        | skein_kv::Event::Recovered { .. }
-        | skein_kv::Event::RecoveryFailed { .. } => Err(OpenRefusal::Failed),
+    match restore::reader::joined(above.pop()) {
+        Ok(value) => Ok(value),
+        Err(failure) => {
+            if let Some(site) = site {
+                store.open_failed(restore::OpenFailure::Data(restore::Failure::at(
+                    restore::Cause::Join { target: site.clone(), failure },
+                    site,
+                )));
+            }
+            Err(OpenRefusal::Failed)
+        }
     }
 }
 
@@ -207,8 +227,24 @@ fn ready(
 }
 
 pub(crate) fn refuse(store: &mut Store, owner: Token, why: OpenRefusal, above: &mut Queue<Event>) {
+    store.open_failed(restore::OpenFailure::Refused(why.clone()));
     store.phase = Phase::Stopped;
     above.push(Event::OpenRefused { owner, why });
+}
+
+fn corrupt_header(store: &mut Store, owner: Token, failure: restore::DecodeFailure, above: &mut Queue<Event>) {
+    let key = keys::encode(&Key::Core(CoreKey::Deployment), store.limits.store.key).expect("header key fits");
+    data(store, &key, failure);
+    corrupt(store, owner, above);
+}
+
+pub(crate) fn data(store: &mut Store, key: &[u8], failure: restore::DecodeFailure) {
+    if store.start_restore && store.start_open_failure.is_none() {
+        store.open_failed(restore::OpenFailure::Data(restore::Failure::at(
+            restore::Cause::Decode(failure),
+            restore::site(store, key),
+        )));
+    }
 }
 
 fn corrupt(store: &mut Store, owner: Token, above: &mut Queue<Event>) {
@@ -243,7 +279,14 @@ fn decode(
                 above,
             ),
             Some(_) => refuse(store, owner, OpenRefusal::OlderBuild { why: Older::Layout(Family::Component) }, above),
-            None => corrupt(store, owner, above),
+            None => {
+                data(
+                    store,
+                    &keys::encode_own(&keys::Own::Format, store.limits.store.key).expect("format key fits"),
+                    restore::DecodeFailure::Value,
+                );
+                corrupt(store, owner, above);
+            }
         }
         return None;
     };

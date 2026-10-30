@@ -6,7 +6,7 @@ use crate::archive::{
 use crate::boundary::{Request, Work};
 use crate::domain::{Domain, close, emit};
 use crate::limits::{Limits, core_limits, environment_core};
-use crate::route::{escalation, route_core_requests, route_into};
+use crate::route::{route_core_requests, route_into};
 use crate::{Decision, Delivery, Key, Range, Record, loads};
 use alloc::boxed::Box;
 use jig_domain_people as people;
@@ -444,8 +444,7 @@ pub(crate) fn connector_restarting(domain: &Domain) -> bool {
     }
 }
 
-/// A record breaking the accounts child's rules is counted there and dropped
-/// (jig's `examples/ops/domain/src/restart.rs`).
+/// Restore accounts through their child without emitting ordinary work.
 fn restore_account(domain: &mut Domain, env: &Env<Limits>, record: jig_domain_accounts::Stored) {
     let limits = core_limits(&env.limits).accounts;
     let mut out = Queue::uncapped();
@@ -455,14 +454,11 @@ fn restore_account(domain: &mut Domain, env: &Env<Limits>, record: jig_domain_ac
         jig_domain_accounts::Event::Restore { record },
         &mut out,
     );
-    if !out.is_empty() {
-        let _refused = domain.core.restart_refuse();
-    }
+    assert!(out.is_empty(), "account restoration emits no ordinary requests");
 }
 
-/// Reject unsupported root shapes and identities above durable high-water marks before child
-/// restoration. Proof rows consume exact transient live-row correlations and never load archive
-/// history into the live map.
+/// Rebuild child state and transient proof correlations before linking
+/// (temper/docs/design/domain/root.md, 9.1). Archive history stays outside the live map.
 pub(crate) fn restore_page_row(domain: &mut Domain, env: &Env<Limits>, row: Record) {
     match row {
         Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Settings(row))) => {
@@ -519,28 +515,7 @@ pub(crate) fn restore_page_row(domain: &mut Domain, env: &Env<Limits>, row: Reco
             domain.work.push(Work::Forge(forge::Event::Restore { record: *row }));
         }
         Record::Core(jig_domain_core::Record::Tasks(record)) => {
-            let supported = match &record {
-                tasks::Stored::Live(task) => escalation::supported(domain, task),
-                tasks::Stored::Update(_)
-                | tasks::Stored::Result(_)
-                | tasks::Stored::EndedByParty(_)
-                | tasks::Stored::EndedByProject(_)
-                | tasks::Stored::EndedDelegate(_)
-                | tasks::Stored::Delegate(_)
-                | tasks::Stored::Activity(_)
-                | tasks::Stored::Milestone(_)
-                | tasks::Stored::PersonProposal(_)
-                | tasks::Stored::DecidedProposal(_)
-                | tasks::Stored::ClosedLedger(_)
-                | tasks::Stored::History(_)
-                | tasks::Stored::Ended(_)
-                | tasks::Stored::Stub(_)
-                | tasks::Stored::Ledger(_)
-                | tasks::Stored::Writer(_)
-                | tasks::Stored::Pool(_)
-                | tasks::Stored::PlacedHold(_) => true,
-            };
-            if !supported || !domain.core.restore_task_row(&record) {
+            if !domain.core.restore_task_row(&record) {
                 let _refused = domain.core.restart_refuse();
                 return;
             }

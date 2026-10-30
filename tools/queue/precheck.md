@@ -22,21 +22,30 @@ choosing BASE and recounting leaves no baseline diff. Recounts still finish
 before checks run. Metadata and formatting ownership come from the candidate;
 Cargo.lock selection compares BASE's blob with the candidate file through
 `mq.lock_changes`. `mq.selection`, its always/read-by-tests lists,
-`mq.check_commands`, `mq.tools_required`, `mq.tools_commands`, `mq.ratchet_commands`, and
+`mq.check_commands`, `mq.tools_required`, `mq.author_tools_commands`, `mq.ratchet_commands`, and
 `mq.run_step` supply queue policy. Code and policy lists are loaded before
 switching any slot, including the checkout containing the running tool.
 Candidate suites and ratchet scripts come from the candidate. The queue's
 graph-free docs/tools/full cases avoid unnecessary metadata requests.
 
 Only ratchets, selected tools suites, fmt, clippy and nextest **build** run.
-Tools suites are selected exactly when the captured selection paths touch
-`tools/`, including deleted paths and either side of renames, independently
-of docs/package/full selection. Full selection alone adds no tools suites.
+Captured selection paths under `tools/<tool>/` select only that tool's
+candidate suites through `mq.author_tools_commands`, including deletions and
+both rename sides. Multiple owners select their union. Top-level installer,
+manifest and installer-test changes select only `tools/test_install.py`;
+unknown top-level ownership or an owner without candidate suites explicitly
+refuses and restores. This includes deletion of an entire tool. Selection is
+independent of docs/package/full scope; full selection alone adds no suites.
+`mq.author_tools_owners` and `mq.author_tools_select` are the shared pure
+policy: planning discovers literal owner paths, while cold preparation and
+readiness apply the same mapping to the bound full logical index. They require
+the exact selected-owner union in order; unrelated owners never enter the
+executed plan. Unknown or deleted owners without suites fail closed.
 Only the queue's leading heavy `--gate` is removed; build scope and arguments
 are retained. Every build uses ordinary `heavy cargo ...`. Nextest build
 exit 4 passes. No default/fuzzy Rust tests execute. Tools suites retain the
 queue's existing timeout, interpreter/shebang discovery, and exact exclusion
-of `tools/heavy/test-heavy-recovery`; every discovered suite runs after an
+of `tools/heavy/test-heavy-recovery`; every selected suite runs after an
 ordinary suite failure, before stopping Cargo checks. No new budget or
 command timeout is introduced.
 
@@ -72,7 +81,7 @@ and refuses graft state before planning, source preparation or auxiliary work.
 The index tree binds staged inputs; a separately computed raw working tree
 binds unfiltered bytes/modes including unstaged ratchet changes. HEAD's tree
 is BASE and is not the candidate tree. Copy verification checks raw manifests,
-logical index entries, HEAD, merge state and identical discovered names/argv
+logical index entries, HEAD, merge state and identical selected-owner names/argv
 in order. Source/helper/policy digests load before any checkout switch.
 
 Static admission counts every required file and ancestor directory, object
@@ -353,10 +362,12 @@ refs; the lead owns the conditional exact-tip ready push.
 
 Updated ready-check derives the tools requirement from the reported candidate
 selection/post-ratchet path scope, rather than the supplied command list. A
-tools path requires cold evidence even with zero discovered suites. It derives
-the complete ordered suite list from bound logical index names and executable
-modes, with the exact manual heavy-recovery exclusion, and checks index/raw
-manifest coverage. Each discovered suite must have present bound raw source;
+tools path requires cold evidence and candidate suites for every selected owner.
+It eagerly loads the same mq pure owner policy and applies it to bound logical
+index names/modes and the reported selection/post-ratchet path union, with the
+exact manual heavy-recovery exclusion. Full index/raw manifest coverage binds
+all prepared inputs; the ordered required plan contains only selected owners.
+Each selected suite must have present bound raw source;
 symlinks must resolve without cycles to a present bound file. A missing source
 refuses even when coordinated raw-tree/manifest digests claim success.
 The resolved raw file needs owner execute permission for direct `./` argv;

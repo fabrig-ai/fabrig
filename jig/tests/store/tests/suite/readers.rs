@@ -87,6 +87,7 @@ fn inventory_reads_component_installation_domain_and_application_without_secrets
         (keys::application(b"retained", root::limits().store.key).expect("application key"), value),
     ]);
     assert_eq!(found, expected);
+    assert_eq!(world.retained(), expected, "complete collector includes every family");
     assert_eq!(world.contents(), before, "reader issues no durable effects");
     assert!(!found.values().any(|value| value.as_ref() == b"secret-map-only"));
 }
@@ -113,10 +114,8 @@ fn retained_readback_exposes_extra_missing_and_changed_commits() {
         let number = u64::try_from(index).expect("four commits") + 2;
         writes.insert(0, Write::Save(root::header(number)));
         world.commit(writes.into_boxed_slice()).expect("variant commit");
-        let found: BTreeMap<_, _> = inventory(&mut world, PAGE_ROWS, PAGE_BYTES)
-            .into_iter()
-            .filter(|(key, _)| key.first() == Some(&keys::APPLICATION))
-            .collect();
+        let found: BTreeMap<_, _> =
+            world.retained().into_iter().filter(|(key, _)| key.first() == Some(&keys::APPLICATION)).collect();
         assert_eq!(found == expected, index == 0, "committed variant {index}");
     }
 }
@@ -157,8 +156,16 @@ fn restore_restore_serves_maximum_writer_rows_above_party_read_limits() {
 fn fixed_pages_hold_bounded_memory_as_inventory_grows() {
     let mut peaks = Vec::new();
     // Both inventories fit the existing world's 65,536-byte main map.
-    for count in [10_u64, 100] {
-        let mut world = committed();
+    for (selected, count) in [(false, 10_u64), (false, 100), (true, 10), (true, 100)] {
+        let mut world = if selected {
+            let mut world = World::unopened(SEED);
+            world.start_restore();
+            world.open().expect("selected open");
+            world.commit(root::first()).expect("first commit");
+            world
+        } else {
+            committed()
+        };
         let mut writes = vec![Write::Save(root::header(2))];
         for number in 0..count {
             writes.push(Write::Put { key: number.to_be_bytes().into(), value: Box::new([42]) });
@@ -168,7 +175,11 @@ fn fixed_pages_hold_bounded_memory_as_inventory_grows() {
         meter.start();
         let page = world.retained_page(None, PAGE_ROWS, PAGE_BYTES).expect("bounded inventory page");
         let measured = meter.end();
-        eprintln!("retained page over {count} application rows: peak {} held {}", measured.peak(), measured.held());
+        eprintln!(
+            "selected={selected} retained page over {count} application rows: peak {} held {}",
+            measured.peak(),
+            measured.held()
+        );
         assert_eq!(page.rows.len(), usize::try_from(PAGE_ROWS).expect("page rows"));
         peaks.push(measured.peak());
         let meter = skein_heap::Meter::new();
@@ -177,11 +188,17 @@ fn fixed_pages_hold_bounded_memory_as_inventory_grows() {
             .restore_page(Restore::Application(Box::new([skein_kv::Range::prefix(b"")])), None, PAGE_ROWS, PAGE_BYTES)
             .expect("bounded restore page");
         let measured = meter.end();
-        eprintln!("restore page over {count} application rows: peak {} held {}", measured.peak(), measured.held());
+        eprintln!(
+            "selected={selected} restore page over {count} application rows: peak {} held {}",
+            measured.peak(),
+            measured.held()
+        );
         assert_eq!(restored.items.len(), usize::try_from(PAGE_ROWS).expect("page rows"));
         peaks.push(measured.peak());
     }
-    assert_eq!(&peaks[..2], &peaks[2..], "page memory does not grow with the inventory");
+    for pair in peaks.chunks_exact(2) {
+        assert_eq!(&peaks[..2], pair, "page memory does not grow with the inventory or selection");
+    }
 }
 
 #[test]
@@ -228,4 +245,168 @@ fn census_pairs_with_writer_sized_payloads_fit_exact_decoded_bytes() {
         .collect();
     assert_eq!(records, [position, ended]);
     assert!(page.next.is_none());
+}
+
+#[test]
+fn selected_open_stays_within_the_small_profile_open_ceiling() {
+    let limits = jig_protocol_config::profile(jig_protocol_config::Profile::Small).store;
+    let meter = skein_heap::Meter::new();
+    meter.start();
+    let mut world = World::unopened_observed(SEED, limits, None);
+    world.start_restore();
+    let opened = world.open();
+    let measured = meter.end();
+    // The existing small-profile construction/open ceiling (orphan_memory.rs).
+    let peak = meter.check(measured, 96_000, &"selected small store construction through open");
+    assert_eq!(opened, Some(0));
+    eprintln!("selected small store construction through open: {peak} bytes (ceiling 96000)");
+}
+
+fn complete_turns(world: &mut World, backwards: bool) -> Vec<core::TurnRecord> {
+    use jig_protocol_store::{Event, Request, TranscriptRead};
+    let mut found = Vec::new();
+    let mut after = None;
+    loop {
+        let events = world.request(Request::Transcript {
+            owner: skein_lib::Token::new(901),
+            read: TranscriptRead::Page { task: root::LIVE, backwards, after },
+            rows: PAGE_ROWS,
+            bytes: u64::from(root::limits().store.page.bytes),
+        });
+        let [Event::Turns { turns, next, .. }] = events.as_slice() else { panic!("complete frame read: {events:?}") };
+        if backwards {
+            found.extend(turns.iter().rev().cloned());
+        } else {
+            found.extend(turns.iter().cloned());
+        }
+        let Some(next) = next else { return found };
+        assert!(!turns.is_empty());
+        assert!(after.is_none_or(|after| if backwards { *next < after } else { *next > after }));
+        after = Some(*next);
+    }
+}
+
+#[test]
+fn complete_collector_memory_includes_expected_raw_decoded_and_frame_outputs() {
+    let mut held = Vec::new();
+    for (count, turns) in [(10_u64, 3_u32), (100, 30)] {
+        let mut world = committed();
+        let mut writes = vec![Write::Save(root::header(2))];
+        for number in 0..count {
+            writes.push(Write::Put { key: number.to_be_bytes().into(), value: Box::new([42]) });
+        }
+        world.commit(writes.into_boxed_slice()).expect("inventory");
+        for turn in 1..=turns {
+            world.commit(root::turn_commit(u64::from(turn) + 2, root::LIVE, turn, b"measured turn")).expect("frame");
+        }
+        let before = world.contents();
+        let changes = world.changes().len();
+        // The world and its original writer model predate this meter. Count an
+        // expected snapshot explicitly, beside every collected output.
+        let meter = skein_heap::Meter::new();
+        meter.start();
+        let expected = world.model.prefixes[&world.model.acknowledged].clone();
+        let expected_heap = meter.end();
+        meter.start();
+        let raw = world.retained();
+        let raw_heap = meter.end();
+        meter.start();
+        let mut decoded = BTreeMap::new();
+        let mut application = BTreeMap::new();
+        for key in raw.keys() {
+            if let Some(key) = keys::decode(key) {
+                let row = world.get(key.clone());
+                assert_eq!(row.key(), key);
+                assert!(decoded.insert(key, row).is_none());
+            } else if let Some(key) = keys::of_application(key) {
+                let events = world.request(jig_protocol_store::Request::Get {
+                    owner: skein_lib::Token::new(901),
+                    key: jig_protocol_store::Get::Application(key.into()),
+                });
+                let [jig_protocol_store::Event::Got { row: Some(Row::Application { key, value }), .. }] =
+                    events.as_slice()
+                else {
+                    panic!("present discovered application Get")
+                };
+                assert!(application.insert(key.clone(), value.clone()).is_none());
+            }
+        }
+        let decoded_heap = meter.end();
+        meter.start();
+        let forwards = complete_turns(&mut world, false);
+        let mut backwards = complete_turns(&mut world, true);
+        backwards.reverse();
+        let frame_heap = meter.end();
+        assert_eq!(decoded, expected.rows);
+        assert_eq!(application, expected.application);
+        assert_eq!(forwards, expected.turns[&root::LIVE]);
+        assert_eq!(forwards, backwards);
+        eprintln!(
+            "whole collectors applications={count} frames={turns}: expected peak/held={}/{}; +raw (page/cursor included)={}/{}; +decoded (Get temporaries included)={}/{}; +both frame vectors={}/{}; raw entries={} decoded entries={} application entries={}",
+            expected_heap.peak(),
+            expected_heap.held(),
+            raw_heap.peak(),
+            raw_heap.held(),
+            decoded_heap.peak(),
+            decoded_heap.held(),
+            frame_heap.peak(),
+            frame_heap.held(),
+            raw.len(),
+            decoded.len(),
+            application.len(),
+        );
+        held.push(frame_heap.held());
+        assert_eq!(world.changes().len(), changes, "collectors issue no writes or cleanup");
+        assert_eq!(world.contents(), before, "all source bytes remain unchanged");
+    }
+    assert!(held[1] > held[0], "complete outputs grow with inventory; page bounds are separate");
+}
+
+#[test]
+fn files_collectors_measure_complete_outputs_beside_the_expected_mirror() {
+    for goal in [false, true] {
+        let mut world = if goal {
+            let mut world = jig_core_world::world::World::goal(SEED);
+            world.run_goal();
+            world
+        } else {
+            let mut world = jig_core_world::world::World::new(SEED);
+            world.run_chat();
+            world
+        };
+        let task = world.chat.expect("scripted task");
+        let meter = skein_heap::Meter::new();
+        meter.start();
+        let expected = world.store.rows.clone();
+        let expected_heap = meter.end();
+        meter.start();
+        let raw = world.store.retained();
+        let raw_heap = meter.end();
+        meter.start();
+        let decoded = world.store.readback();
+        let decoded_heap = meter.end();
+        meter.start();
+        let forwards = world.store.transcript(task, false);
+        let mut backwards = world.store.transcript(task, true);
+        backwards.reverse();
+        let frames_heap = meter.end();
+        assert_eq!(decoded, expected);
+        assert_eq!(world.store.rows, expected, "complete readback never updates the mirror");
+        assert_eq!(forwards, backwards);
+        assert_eq!(world.store.retained(), raw, "no main-map writes or cleanup");
+        eprintln!(
+            "files collectors goal={goal} raw entries={} decoded entries={} task frames={}: expected peak/held={}/{}; +raw={}/{}; +readback (internal raw map, decoded map, metadata, Get temporaries and bidirectional vectors)={}/{}; +external frame vectors={}/{}",
+            raw.len(),
+            decoded.len(),
+            forwards.len(),
+            expected_heap.peak(),
+            expected_heap.held(),
+            raw_heap.peak(),
+            raw_heap.held(),
+            decoded_heap.peak(),
+            decoded_heap.held(),
+            frames_heap.peak(),
+            frames_heap.held(),
+        );
+    }
 }

@@ -94,7 +94,7 @@ class ReadyCheckTests(unittest.TestCase):
         return result
 
     def plan(self):
-        command = ["python3", "-I", "-B", "tools/test_fixture.py"]
+        command = ["python3", "-I", "-B", "tools/fixture/test_fixture.py"]
         root = self.root / 'cold-tools'
         checkout = root / 'checkout'
         root.mkdir(mode=0o700)
@@ -106,8 +106,8 @@ class ReadyCheckTests(unittest.TestCase):
                      'objects_identity': [checkout.stat().st_dev, checkout.stat().st_ino + 1]}
         checkout.rmdir(); root.rmdir()
         blob = hashlib.sha1(b'blob 0\0').hexdigest()
-        logical = f'100644 {blob} 0\ttools/test_fixture.py\0'
-        rows = [{'name': 'tools/test_fixture.py', 'index_mode': '100644', 'index_oid': blob,
+        logical = f'100644 {blob} 0\ttools/fixture/test_fixture.py\0'
+        rows = [{'name': 'tools/fixture/test_fixture.py', 'index_mode': '100644', 'index_oid': blob,
                  'kind': 'file', 'mode': 0o644, 'size': 0, 'sha256': hashlib.sha256(b'').hexdigest(), 'raw_oid': blob}]
         payload = {'entries': logical, 'manifest': rows, 'merge': {}, 'ownership': ownership}
         manifest = self.root / 'cold-input.json'
@@ -119,7 +119,7 @@ class ReadyCheckTests(unittest.TestCase):
                   'manifest_sha256': hashlib.sha256(encoded_rows).hexdigest(),
                   'index_tree': tree, 'raw_tree': tree, 'merge': {}}
         self.record['min_free_bytes'] = 1
-        self.record['paths'] = ['touched.md', 'tools/test_fixture.py']
+        self.record['paths'] = ['touched.md', 'tools/fixture/test_fixture.py']
         self.record['cold_tools'] = {
             'version': 1, 'policy': ready.COLD_POLICY, **{k: v for k, v in ownership.items() if k != 'objects_identity'},
             'base': self.record['base'], 'tip': self.tip, 'head': self.record['base'],
@@ -127,17 +127,17 @@ class ReadyCheckTests(unittest.TestCase):
             'input_manifest': {'path': str(manifest), 'sha256': hashlib.sha256(manifest.read_bytes()).hexdigest()},
             'input': inputs, 'observed': {**inputs, 'head': self.record['base'], 'independent_objects': True,
                                         'objects_identity': ownership['objects_identity']},
-            'tools_plan': [{'name': 'tools/test_fixture.py', 'argv': command}],
+            'tools_plan': [{'name': 'tools/fixture/test_fixture.py', 'argv': command}],
             'observations': [{'before': n, 'empty_roots': True, 'unexpected_roots': []}
-                             for n in ('initial', 'tools/test_fixture.py', 'after:tools/test_fixture.py')],
+                             for n in ('initial', 'tools/fixture/test_fixture.py', 'after:tools/fixture/test_fixture.py')],
             'environment': {'removed': [], 'redirected': ['TMPDIR', 'TMP', 'TEMP', 'CARGO_HOME'], 'git_config': 'isolated'},
             'capacity': {'required_bytes': 1, 'free_bytes': 2, 'min_free_bytes': 1,
                          'postcopy_free_bytes': 1, 'copied_allocated_bytes': 1, 'postcopy_admitted': True,
                          'admitted': True, 'policy': 'measured-static-copy'},
-            'outcomes': [{'name': 'tools/test_fixture.py', 'returncode': 0, 'cwd': str(checkout)}]}
-        self.record.update(plan=[{"name": "tools/test_fixture.py", "argv": command,
+            'outcomes': [{'name': 'tools/fixture/test_fixture.py', 'returncode': 0, 'cwd': str(checkout)}]}
+        self.record.update(plan=[{"name": "tools/fixture/test_fixture.py", "argv": command,
                                   "cwd": str(checkout), "timeout": 60}],
-                           steps=[{"name": "tools/test_fixture.py", "command": command,
+                           steps=[{"name": "tools/fixture/test_fixture.py", "command": command,
                                    "returncode": 0, "green": True, "duration": 0.1, "cwd": str(checkout)}],
                            active_command={"argv": command, "cwd": str(checkout),
                                            "completion": "completed", "returncode": 0})
@@ -198,7 +198,7 @@ class ReadyCheckTests(unittest.TestCase):
 
     def test_coordinated_suite_substitution_cannot_change_bound_discovery(self):
         self.plan()
-        name = 'tools/test_substituted.py'
+        name = 'tools/fixture/test_substituted.py'
         argv = ['python3', '-I', '-B', name]
         self.record['plan'][0].update(name=name, argv=argv)
         self.record['steps'][0].update(name=name, command=argv)
@@ -242,8 +242,8 @@ class ReadyCheckTests(unittest.TestCase):
 
     def test_coordinated_missing_suite_cannot_claim_success(self):
         for name, mode, argv in (
-                ('tools/test_fixture.py', '100644', ['python3', '-I', '-B', 'tools/test_fixture.py']),
-                ('tools/test-shell', '100755', ['./tools/test-shell'])):
+                ('tools/fixture/test_fixture.py', '100644', ['python3', '-I', '-B', 'tools/fixture/test_fixture.py']),
+                ('tools/fixture/test-shell', '100755', ['./tools/fixture/test-shell'])):
             with self.subTest(name=name):
                 self.plan()
                 filename = self.root / 'cold-input.json'
@@ -283,14 +283,15 @@ class ReadyCheckTests(unittest.TestCase):
             {'name': 'tools/test_python.py', 'argv': ['python3', '-I', '-B', 'tools/test_python.py']}])
 
     def test_symlink_suite_requires_present_bound_source_without_cycles(self):
-        rows = [{'name': 'tools/helper.py', 'index_mode': '100644', 'index_oid': self.base,
+        rows = [{'name': 'tools/fixture/helper.py', 'index_mode': '100644', 'index_oid': self.base,
                  'kind': 'file', 'mode': 0o644},
-                {'name': 'tools/test_link.py', 'index_mode': '120000', 'index_oid': self.base,
+                {'name': 'tools/fixture/test_link.py', 'index_mode': '120000', 'index_oid': self.base,
                  'kind': 'symlink', 'target': 'helper.py'}]
         logical = ''.join(f"{r['index_mode']} {r['index_oid']} 0\t{r['name']}\0" for r in rows)
-        validate = ready.COLD_VALIDATOR['prepared_tools']
+        validate = lambda logical, rows: ready.COLD_VALIDATOR['prepared_tools'](
+            logical, rows, ['tools/fixture/source.md'], ready.AUTHOR_POLICY.author_tools_select)
         self.assertEqual(validate(logical, rows), [
-            {'name': 'tools/test_link.py', 'argv': ['python3', '-I', '-B', 'tools/test_link.py']}])
+            {'name': 'tools/fixture/test_link.py', 'argv': ['python3', '-I', '-B', 'tools/fixture/test_link.py']}])
         rows[0]['kind'] = 'missing'
         with self.assertRaisesRegex(RuntimeError, 'suite source is missing'):
             validate(logical, rows)
@@ -302,7 +303,7 @@ class ReadyCheckTests(unittest.TestCase):
         self.plan()
         filename = self.root / 'cold-input.json'
         full = json.loads(filename.read_text())
-        name = 'tools/test-shell'
+        name = 'tools/fixture/test-shell'
         argv = ['./' + name]
         blob = full['manifest'][0]['index_oid']
         full['entries'] = f'100755 {blob} 0\t{name}\0'

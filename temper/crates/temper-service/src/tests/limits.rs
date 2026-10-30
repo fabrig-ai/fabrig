@@ -539,3 +539,15 @@ fn token_rows_include_schema_framing_in_startup_admission() {
         assert_eq!(crate::startup::lines(&problems).as_ref(), expected.as_bytes());
     }
 }
+
+#[test]
+fn a_repair_holds_its_task_pull_and_whole_gate_remarks() {
+    let limits = limits::profile(limits::Profile::Small);
+    let brief = limits.root.brief;
+    assert_eq!(brief.budgets.reviews, 4608);
+    assert_eq!(brief.brief_bytes, 14_592);
+    assert_eq!(limits.root.journal.result_bytes, brief.brief_bytes);
+    assert_eq!(brief.budgets.task + brief.budgets.pull + brief.budgets.reviews + 768, brief.brief_bytes);
+    assert!(brief.read_bytes >= brief.budgets.reviews);
+    assert!(limits.forge.brief_bytes >= brief.read_bytes);
+}

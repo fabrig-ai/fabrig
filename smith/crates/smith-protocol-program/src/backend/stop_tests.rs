@@ -270,9 +270,9 @@ fn equal_permission_prompts_bind_distinct_calls() {
     builtin(&mut backend);
     builtin(&mut backend);
     backend.permitted = 2;
-    assert!(backend.permission_ready(b"Read", b"{}", None));
-    assert!(backend.permission_ready(b"Read", b"{}", None));
-    assert!(!backend.permission_ready(b"Read", b"{}", None));
+    assert!(backend.permission_ready(b"Read", b"{}", None).is_some());
+    assert!(backend.permission_ready(b"Read", b"{}", None).is_some());
+    assert!(backend.permission_ready(b"Read", b"{}", None).is_none());
 }
 
 #[test]

@@ -4,6 +4,7 @@ import sys
 sys.dont_write_bytecode = True
 
 from contextlib import redirect_stdout
+from copy import deepcopy
 import importlib.machinery
 import importlib.util
 import io
@@ -56,7 +57,110 @@ class ColdTests(fixtures.Fixture):
         self.assertLessEqual(r['capacity']['copied_allocated_bytes'], r['capacity']['required_bytes'])
 
     def suite(self, body):
-        self.change('tip', 'tools/test_fixture.py', body)
+        self.change('tip', 'tools/fixture/test_fixture.py', body)
+
+    def owner_base(self):
+        for owner in ('tiers', 'queue', 'heavy', 'codex-run'):
+            body = "raise AssertionError('unrelated launcher')\n" if owner == 'codex-run' else (
+                "from pathlib import Path\nassert not Path('target').exists()\n")
+            self.write(f'tools/{owner}/test_own.py', body)
+            self.write(f'tools/{owner}/source.md', 'base\n')
+        self.write('tools/test_install.py', '# installer suite\n')
+        self.write('tools/install', '# installer\n')
+        self.write('tools/installed', '# manifest\n')
+        self.ancestor = self.commit()
+        for branch in ('base', 'tip'):
+            self.git('branch', '-f', branch, self.ancestor)
+
+    def ready_module(self):
+        loader = importlib.machinery.SourceFileLoader('owner_ready', str(DIRECTORY / 'ready-check'))
+        spec = importlib.util.spec_from_loader(loader.name, loader)
+        module = importlib.util.module_from_spec(spec)
+        loader.exec_module(module)
+        return module
+
+    def owner_success(self, expected):
+        before = self.snapshot()
+        self.assertEqual(self.run_tool(production_runner=True), 0, str(self.tool.record))
+        self.assertEqual([item['name'] for item in self.tool.record['plan']], expected)
+        self.assertEqual([item['name'] for item in self.tool.record['cold_tools']['outcomes']], expected)
+        record = self.ready_module().evidence(self.tool.log_directory / 'result.json', self.tool.record['tip'])
+        self.assertEqual([item['name'] for item in record['plan']], expected)
+        self.assertNotIn('unrelated launcher', (self.tool.log_directory / 'commands.log').read_text())
+        self.checked(before)
+
+    def test_tiers_only_cold_precheck_and_ready_exclude_launcher(self):
+        self.owner_base()
+        self.change('tip', 'tools/tiers/source.md', 'candidate\n')
+        self.owner_success(['tools/tiers/test_own.py'])
+
+    def test_multiowner_cold_precheck_and_ready_take_exact_union(self):
+        self.owner_base()
+        for path in ('tools/tiers/source.md', 'tools/queue/source.md', 'tools/heavy/source.md'):
+            self.change('tip', path, 'candidate\n')
+        self.owner_success(['tools/heavy/test_own.py', 'tools/queue/test_own.py', 'tools/tiers/test_own.py'])
+
+    def test_installer_cold_precheck_and_ready_select_installer_owner(self):
+        self.owner_base()
+        for path in ('tools/install', 'tools/installed', 'tools/test_install.py'):
+            self.change('tip', path, '# candidate\n')
+        self.owner_success(['tools/test_install.py'])
+
+    def test_ready_unknown_or_deleted_owner_refuses_without_suites(self):
+        self.owner_base()
+        self.change('tip', 'tools/tiers/source.md', 'candidate\n')
+        self.owner_success(['tools/tiers/test_own.py'])
+        ready = self.ready_module()
+        filename = self.tool.log_directory / 'result.json'
+        valid = deepcopy(self.tool.record)
+        for path, diagnostic in (('tools/shared.py', 'unknown owner'),
+                                 ('tools/deleted/source.md', 'no candidate offline suites')):
+            with self.subTest(path=path):
+                record = deepcopy(valid)
+                record['selection_paths'].append(path)
+                filename.write_text(json.dumps(record))
+                with self.assertRaisesRegex(RuntimeError, diagnostic):
+                    ready.evidence(filename, record['tip'])
+
+    def test_owner_cold_receipt_cannot_erase_add_or_substitute_required_checks(self):
+        self.owner_base()
+        self.change('tip', 'tools/tiers/source.md', 'candidate\n')
+        self.owner_success(['tools/tiers/test_own.py'])
+        ready = self.ready_module()
+        filename = self.tool.log_directory / 'result.json'
+        valid = deepcopy(self.tool.record)
+        for mutation in ('erase', 'add', 'substitute', 'index', 'receipt'):
+            with self.subTest(mutation=mutation):
+                record = deepcopy(valid)
+                cold = record['cold_tools']
+                if mutation == 'erase':
+                    record.update(plan=[], steps=[])
+                    record.pop('active_command')
+                    cold.update(tools_plan=[], outcomes=[], observations=[cold['observations'][0]])
+                elif mutation in ('add', 'substitute'):
+                    name = 'tools/codex-run/test_own.py'
+                    argv = ['python3', '-I', '-B', name]
+                    plan, step = deepcopy(record['plan'][0]), deepcopy(record['steps'][0])
+                    plan.update(name=name, argv=argv)
+                    step.update(name=name, command=argv)
+                    if mutation == 'substitute':
+                        record.update(plan=[plan], steps=[step])
+                        record['active_command']['argv'] = argv
+                    else:
+                        record['plan'].insert(0, plan)
+                        record['steps'].insert(0, step)
+                    cold['tools_plan'] = [{'name': p['name'], 'argv': p['argv']} for p in record['plan']]
+                    cold['outcomes'] = [{k: s[k] for k in ('name', 'returncode', 'cwd')} for s in record['steps']]
+                    cold['observations'] = [{'before': n, 'empty_roots': True, 'unexpected_roots': []}
+                        for n in ['initial', *[n for p in record['plan'] for n in (p['name'], 'after:' + p['name'])]]]
+                elif mutation == 'index':
+                    cold['input']['entries_sha256'] = '0' * 64
+                    cold['observed']['entries_sha256'] = '0' * 64
+                else:
+                    cold['policy']['mq'] = '0' * 64
+                filename.write_text(json.dumps(record))
+                with self.assertRaises((ValueError, RuntimeError)):
+                    ready.evidence(filename, record['tip'])
 
     def test_warm_literal_and_environment_helper_cannot_mask_cold_failure(self):
         self.write('target/helper', 'warm helper')
@@ -65,7 +169,7 @@ from pathlib import Path
 raise SystemExit(0 if Path('target/helper').exists() or Path(os.environ.get('TIERS_CPU_WRAPPER', 'target/missing')).exists() else 7)
 """)
         self.git('switch', 'tip')
-        direct = subprocess.run([sys.executable, '-I', '-B', 'tools/test_fixture.py'], cwd=self.repo,
+        direct = subprocess.run([sys.executable, '-I', '-B', 'tools/fixture/test_fixture.py'], cwd=self.repo,
                                 stdin=subprocess.DEVNULL)
         self.assertEqual(direct.returncode, 0)
         self.git('switch', 'original')
@@ -99,9 +203,11 @@ with tempfile.TemporaryDirectory() as d:
         self.assertEqual(record['cold_tools']['state'], 'removed')
 
     def test_tools_scope_without_discovered_suites_still_binds_cold_receipt(self):
-        self.change('tip', 'tools/README.md', 'tools input\n')
+        self.change('tip', 'README.md', 'input without selected owners\n')
         before = self.snapshot()
-        self.assertEqual(self.run_tool(), 0)
+        # Exercise empty-owner helper input binding; real tools owners require suites.
+        with patch.object(fixtures.mq, 'tools_required', return_value=True):
+            self.assertEqual(self.run_tool(), 0)
         self.assertEqual(self.tool.record['plan'], [])
         self.assertEqual(self.tool.record['cold_tools']['tools_plan'], [])
         self.checked(before)
@@ -148,9 +254,9 @@ assert not Path('target').exists()
         self.checked(before)
 
     def test_raw_tree_handles_literal_newline_paths_and_crlf_without_filters(self):
-        self.change('tip', 'tools/.gitattributes', '*.bin -text\n')
-        self.change('tip', 'tools/line\nbreak.bin', 'raw\r\nbytes\r\n')
-        self.suite("from pathlib import Path\nassert Path('tools/line\\nbreak.bin').read_bytes() == b'raw\\r\\nbytes\\r\\n'\n")
+        self.change('tip', 'tools/fixture/.gitattributes', '*.bin -text\n')
+        self.change('tip', 'tools/fixture/line\nbreak.bin', 'raw\r\nbytes\r\n')
+        self.suite("from pathlib import Path\nassert Path('tools/fixture/line\\nbreak.bin').read_bytes() == b'raw\\r\\nbytes\\r\\n'\n")
         before = self.snapshot()
         self.assertEqual(self.run_tool(production_runner=True), 0, str(self.tool.record))
         self.checked(before)
@@ -169,8 +275,8 @@ assert not Path('target').exists()
         self.restored()
 
     def test_unexpected_target_from_first_suite_never_warms_second(self):
-        self.change('tip', 'tools/test_a.py', "from pathlib import Path\nPath('target').mkdir()\nPath('target/helper').write_text('bad')\n")
-        self.change('tip', 'tools/test_b.py', "raise AssertionError('must not run warm')\n")
+        self.change('tip', 'tools/fixture/test_a.py', "from pathlib import Path\nPath('target').mkdir()\nPath('target/helper').write_text('bad')\n")
+        self.change('tip', 'tools/fixture/test_b.py', "raise AssertionError('must not run warm')\n")
         before = self.snapshot()
         self.assertEqual(self.run_tool(production_runner=True), 1)
         self.assertIn('generated target', self.tool.record['error'])
@@ -179,9 +285,9 @@ assert not Path('target').exists()
 
     def test_escaping_tracked_symlink_refuses_before_copy(self):
         self.git('switch', 'tip')
-        (self.repo / 'tools').mkdir()
-        (self.repo / 'tools/escape').symlink_to(self.repo / 'target')
-        self.write('tools/test_fixture.py', '# fixture\n')
+        (self.repo / 'tools/fixture').mkdir(parents=True)
+        (self.repo / 'tools/fixture/escape').symlink_to(self.repo / 'target')
+        self.write('tools/fixture/test_fixture.py', '# fixture\n')
         self.commit(); self.git('switch', 'original')
         self.assertEqual(self.run_tool(), 1)
         self.assertIn('symlink escapes', self.tool.record['error'])
@@ -222,7 +328,7 @@ assert not Path('target').exists()
         self.assertTrue(self.tool.executor.unknown)
         self.assertTrue(self.tool.marker.exists())
         self.assertTrue(Path(self.tool.record['cold_tools']['root']).exists())
-        self.assertEqual((self.repo / 'tools/test_fixture.py').read_text(), '# fixture\n')
+        self.assertEqual((self.repo / 'tools/fixture/test_fixture.py').read_text(), '# fixture\n')
         self.assertEqual(len(list((home / 'src/fabrig/slot-maintenance/1').glob('*.hold'))), 1)
 
     def test_executor_timeout_drains_only_immediate_child_and_retains_custody(self):
@@ -319,7 +425,7 @@ os.execv(sys.executable, [sys.executable, '-I', '-B', '-c', *sys.argv[1:]])
         self.assertFalse(record['restored'])
         self.assertEqual(record['cold_tools']['completion'], 'unknown')
         self.assertTrue((self.repo / '.git/precheck.unresolved').exists())
-        self.assertTrue((self.repo / 'tools/test_fixture.py').exists())
+        self.assertTrue((self.repo / 'tools/fixture/test_fixture.py').exists())
         self.assertTrue(Path(record['cold_tools']['checkout']).exists())
         self.assertEqual((self.repo / 'target/keep').read_text(), 'warm target\n')
 
@@ -479,7 +585,7 @@ os.execv(sys.executable, [sys.executable, '-I', '-B', '-c', *sys.argv[1:]])
         child_code = ("import os,sys; from pathlib import Path; "
                       "f=os.open(sys.argv[2],os.O_RDWR); os.write(int(sys.argv[1]),b'R'); "
                       "os.close(int(sys.argv[1])); os.read(f,1); os.close(f); "
-                      "body=Path('tools/test_fixture.py').read_bytes(); "
+                      "body=Path('tools/fixture/test_fixture.py').read_bytes(); "
                       "Path(sys.argv[3]).write_bytes(body)")
         self.suite(f"""import os,subprocess,sys
 from pathlib import Path
@@ -501,7 +607,7 @@ Path({str(pidfile)!r}).write_text(str(c.pid))
             self.assertEqual(p.subreaper(), 1)
             self.assertTrue(self.tool.marker.exists())
             self.assertTrue(Path(self.tool.record['cold_tools']['checkout']).exists())
-            self.assertTrue((self.repo / 'tools/test_fixture.py').exists())
+            self.assertTrue((self.repo / 'tools/fixture/test_fixture.py').exists())
             self.assertEqual(len(list((home / 'src/fabrig/slot-maintenance/1').glob('*.hold'))), 1)
             self.assertFalse(done.exists())
         finally:
@@ -557,7 +663,7 @@ Path({str(pidfile)!r}).write_text(str(c.pid))
 
     def test_deep_empty_paths_packed_history_refuse_before_aux_allocation(self):
         depth = 220
-        self.change('tip', 'tools/' + 'd/' * depth + 'empty', '')
+        self.change('tip', 'tools/fixture/' + 'd/' * depth + 'empty', '')
         self.suite('# fixture\n')
         self.git('gc', '--prune=now')
         before = self.snapshot()

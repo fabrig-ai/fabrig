@@ -17,3 +17,9 @@ skein s/dynamic-memory@hel8
 smith s/dynamic-memory@hel8
 jig s/dynamic-memory@hel8
 temper s/dynamic-memory@hel8
+lf-temper s/ladder@hel8
+lf-jig s/ladder@hel8
+lf-skein s/ladder@hel8
+lf-smith s/ladder@hel8
+deploy s/deploy@hel8
+lf s/ladder@hel8

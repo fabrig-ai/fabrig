@@ -148,6 +148,9 @@ workspace that can write can remove, with no shell needed.
     its `new` must match as any `old` does, and changes nothing. A call
     is refused as unchanged only when its edits together leave the file
     as it was loaded.
+- **`remove { path }`** deletes one file or empty directory. It holds
+  the parent directory open through the check and removal, and closes
+  it before answering the call.
 - **`shell { command, timeout_seconds?, output_bytes?, yield_seconds? }`**
   runs `command` with a deadline and a budget for its kept output
   (section 5). With `yield_seconds`, a command still running that many
@@ -195,7 +198,11 @@ workspace that can write can remove, with no shell needed.
 - **Read before remove.** A `remove` deletes a file only if its
   session's LLM has read its current version, as a `write` replacing it
   would need, or an empty directory; never a directory with anything in
-  it, so one call removes one thing. Confined as a write is (below).
+  it, so one call removes one thing. A workspace directory itself is
+  refused as *protected*. A removal forgets the path's known version
+  and issues none. Confined as a write is (below). The digest check and
+  the unlink are separate filesystem operations, as the compare and
+  rename are for a replacement store.
 - **Match before edit.** An `edit` needs no earlier read. It loads the
   file as it is, needs each `old` to match there (section 3), and stores
   the result only if the file still has the version it loaded, so a
@@ -455,8 +462,9 @@ become the host's.
 ## 10. On a program backend
 
 A run on a program backend (protocol/programs.md) has none of this
-domain's tools: the program runs its own built-in tools for the granted
-families, and this domain checks each call before it runs.
+domain's tools but `remove`, served by the agent's own server. The
+program runs its own built-in tools for the granted families, and this
+domain checks each call before it runs.
 
 - **What stands in:** for inspect, the program's `Read`, `Glob` and
   `Grep`; for modify, `Write` and `Edit`; for shell, `Bash`
@@ -471,16 +479,15 @@ families, and this domain checks each call before it runs.
 
   A call that breaks a rule is denied, with the rule in words, as an
   invalid call is answered here.
-- **What it learns there:** the versions read, which this domain's own
-  tools that still serve a program (`remove`, served by the agent's own
-  server) need. Allowing a `Read` of a whole file, with no offset or
-  limit, records the file's version at that moment as read, as this
-  domain's `read` does; a partial read records nothing, so `remove`
-  refuses the file as unread and says to read it whole; a `Write` or an
-  `Edit` allowed on a file records the version it leaves once its
-  result is told, as a version the session wrote counts as read. The
-  workspace is the session's alone, so nothing moves a file between the
-  allowance and the read.
+- **What it learns there:** the versions `remove` needs. Before allowing
+  a `Read` of a whole file, with no offset or limit, the agent snapshots
+  the file and records its version as read. A partial `Read` records
+  nothing and erases no earlier record. An allowed `Write` or `Edit`
+  snapshots the file after its result arrives and before it is told,
+  even when the result is an error, and records that version as read.
+  A snapshot that fails records nothing; neither the permission nor the
+  result changes. A file with no known version is refused by `remove`,
+  which says to read it whole.
 - **What does not:**
   - one path namespace: the program sees its working directory and the
     paths of the directories beside it as its view mounts them

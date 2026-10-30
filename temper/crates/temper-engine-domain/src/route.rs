@@ -218,6 +218,10 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
             domain.work.push(Work::Core(core::Event::ReadLoaded { load, result }));
         }
         Event::Restart { pending } => {
+            if domain.start_wall.is_none() {
+                domain.start_wall = Some(env.wall);
+                domain.forge.restore_begin(env.wall);
+            }
             domain.settled = None;
             let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
             let request = domain.core.restart_begin(pending);
@@ -290,7 +294,11 @@ pub(crate) fn route_core_requests(
 }
 
 pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision) {
-    while let Some(work) = domain.work.pop() {
+    loop {
+        if refuse_forge_fit(domain) {
+            return;
+        }
+        let Some(work) = domain.work.pop() else { break };
         match work {
             Work::SwitchChecked => {
                 if domain.core.restart_checked() {
@@ -342,6 +350,10 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
             }
             Work::StartBrief { task } => domain.work.push(Work::Core(core::Event::StartBrief { task })),
             Work::ForgeRestored => {
+                if domain.forge.fit_restored(&env.limits.forge).is_err() {
+                    refuse_forge_fit(domain);
+                    return;
+                }
                 domain.forge.reconcile(&domain.core.tasks);
                 forge_event(
                     domain,
@@ -556,6 +568,19 @@ fn forge_event(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, 
     }
     let mut out = Queue::uncapped();
     forge::step(&mut domain.forge, &environment_forge(env), event, &mut out);
+    if refuse_forge_fit(domain) {
+        return;
+    }
     forge_route::outputs(domain, env, decision, &mut out);
     demo::progress(domain, env, decision);
+}
+
+// Refuse at the step still waiting for this connector, before any output translation.
+pub(crate) fn refuse_forge_fit(domain: &mut Domain) -> bool {
+    if domain.forge_fit_failure().is_none() {
+        return false;
+    }
+    let _refused = domain.core.restart_refuse();
+    domain.stop_pending = true;
+    true
 }

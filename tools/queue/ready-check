@@ -3,6 +3,8 @@
 
 import argparse
 import hashlib
+import importlib.machinery
+import importlib.util
 from datetime import datetime, timezone
 import json
 import math
@@ -20,6 +22,10 @@ COLD_POLICY = {name: hashlib.sha256((Path(__file__).resolve().parent / name).rea
 COLD_VALIDATOR = {"__name__": "ready_cold_tools"}
 exec(compile((Path(__file__).resolve().parent / 'cold_tools.py').read_bytes(),
              'tools/queue/cold_tools.py', 'exec'), COLD_VALIDATOR)
+POLICY_LOADER = importlib.machinery.SourceFileLoader('ready_author_policy', str(Path(__file__).resolve().parent / 'mq'))
+POLICY_SPEC = importlib.util.spec_from_loader(POLICY_LOADER.name, POLICY_LOADER)
+AUTHOR_POLICY = importlib.util.module_from_spec(POLICY_SPEC)
+POLICY_LOADER.exec_module(AUTHOR_POLICY)
 
 
 class Refused(ValueError):
@@ -69,7 +75,7 @@ def unique_object(pairs):
     return result
 
 
-def cold_evidence(record, filename, tools):
+def cold_evidence(record, filename, tools, scope):
     cold = record.get('cold_tools')
     require(isinstance(cold, dict) and type(cold.get('version')) is int and cold['version'] == 1,
             'tools receipt requires cold evidence version 1; rerun precheck after cutover')
@@ -125,7 +131,8 @@ def cold_evidence(record, filename, tools):
     objects = observed.get('objects_identity')
     require(isinstance(objects, list) and len(objects) == 2 and all(type(n) is int and n > 0 for n in objects),
             'cold object directory identity missing')
-    expected = COLD_VALIDATOR['prepared_tools'](full['entries'], full['manifest'])
+    expected = COLD_VALIDATOR['prepared_tools'](full['entries'], full['manifest'], scope,
+                                                AUTHOR_POLICY.author_tools_select)
     require(cold.get('tools_plan') == expected == [{'name': item['name'], 'argv': item['argv']} for item in tools],
             'cold indexed discovery/plan mismatch')
     require(all(item['cwd'] == str(checkout) and item['timeout'] == 60 for item in tools),
@@ -204,9 +211,10 @@ def evidence(filename, tip):
     tools = [item for item in plan if item['name'].startswith('tools/')]
     scope = record.get('selection_paths', paths)
     require(isinstance(scope, list) and all(path(item) for item in scope), 'invalid candidate selection scope')
-    required = any(name.startswith('tools/') for name in [*paths, *scope])
+    scope = sorted(set(paths) | set(scope))
+    required = any(name.startswith('tools/') for name in scope)
     require(required or (not tools and 'cold_tools' not in record), 'tools evidence contradicts candidate scope')
-    cold_cwd = cold_evidence(record, filename, tools) if required or tools or 'cold_tools' in record else None
+    cold_cwd = cold_evidence(record, filename, tools, scope) if required or tools or 'cold_tools' in record else None
     for item in plan:
         require(item['cwd'] == (cold_cwd if item['name'].startswith('tools/') else record['slot']),
                 'planned command cwd differs from precheck slot/cold checkout')

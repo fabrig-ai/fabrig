@@ -58,6 +58,8 @@
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
+mod restore;
+pub use restore::{RestoreBound, RestoreCause, RestoreFailure, RestoreProjection};
 mod settings;
 pub use settings::{Running, Setting, SettingFault};
 mod scope;

@@ -1,8 +1,30 @@
 # Merge queue status
 
-Decision0016 stage A uses shared `mq.tools_required` for actual checks,
-worker plans and precheck: only changed `tools/` paths select suites, even
-for full runs. Train preparation and evidence validation consume the worker
+Section 3.11.1 is implemented for legacy confirmed publications: one remote
+observation and one atomic deletion push cover unchanged exact Ready/feature
+heads, each under its published-tip lease. Changed, absent, default and unknown
+heads are preserved. Cleanup requires unambiguous valid HEAD/default evidence
+and matching OIDs in the same bounded observation; unknown defaults preserve
+every target. Ref-validation launch failures share the operational exception
+boundary with remote commands. Races and transport/refusal failures are operational
+publication-effects outcomes and complete best-effort effects without another
+publication or notice. Intent, receipt and state formats and the disabled
+train cleanup contract are unchanged. `test_lifecycle.py` is separate from the
+120 mq cases. Route fixtures retain the original seventeen destinations and
+add the four lf leads/coordinator plus deploy. Frozen runtime routes require
+an Ops restart after landing; no restart, install or activation is claimed.
+Periodic cleanup of leftovers remains later work.
+
+Decision0022 uses shared `mq.gate_tools_required` for gate checks and
+worker plans: no pipeline tools suites run for any batch, including tools
+changes and full runs. Author precheck still calls `mq.tools_required`
+as a compatibility predicate, then `mq.author_tools_commands` selects only
+the changed owners' suites before Ready (section 2.3). Unknown ownership or
+missing candidate suites refuses explicitly; installer changes select the
+installer suite. No unrelated launcher suite is selected for other tools.
+The policy remains in the frozen `mq` runtime file; restart and worker
+identity already include it, with no additional runtime dependency.
+Train preparation and evidence validation consume the worker
 plan; exact result, runtime identity and publication replay rules are retained.
 Train's independent expectation and recovery's stored-certificate validation
 use that same exact plan. Ready-check validates the recorded compile/lint
@@ -22,7 +44,7 @@ origins, full singleton ordering, normal batches of 16, durable tried tips,
 pin refusal/advancement, red/conflict/error audit and simulated CLI/restart
 launches. This enables no production action and changes no check or timeout.
 It is integrated with section 3.10's authority and restart interfaces. External
-runtime validation covers all ten frozen module/list files, refuses changes
+runtime validation covers all twelve frozen module/list files, refuses changes
 before update and launch, and loads its authority dependencies from that copy.
 The priority suite retains its 19 cases and adds dependency-drain, persistent
 ownership, cross-clone exclusion and real external-child handoff coverage.

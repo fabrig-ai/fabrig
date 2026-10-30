@@ -115,6 +115,7 @@ impl Domain {
     }
     /// Record an owner-proven refusal, also used by the core's projection-room check.
     pub fn remember_capacity(&mut self, at: Wall, request: Capacity) {
+        self.consume_restore_input();
         self.room_refusals_mark = self.room_refusals_mark.saturating_add(1);
         if self.room_refusals.capacity() == 0 {
             self.room_refusals_lost = self.room_refusals_lost.saturating_add(1);

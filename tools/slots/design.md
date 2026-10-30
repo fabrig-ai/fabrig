@@ -345,7 +345,221 @@ space exercises pressure and busy checks without deleting. An ordinary
 above-threshold sweep does not inspect services. No heavy floor, admission
 cap, budget, timeout, cache or heavy-state policy changes here.
 
+### 5.5 Automatic policy observation (FIRSTDAYDRYRUN)
+
+The requested policy is generated targets of central-unclaimed numeric builder
+slots idle strictly more than 24 hours, while available space is strictly below
+80,000,000,000 bytes. Automatic destructive enforcement remains disabled behind
+FIRSTDAYDRYRUN; section 5.6 defines its gated consumer. A central `claim list`
+response describes a snapshot; it grants no deletion exclusion. Ended markers,
+completed lifetimes, zero exits, delivered reports and manual acknowledgements
+cannot substitute for verified terminal/no-resume evidence in automatic mode.
+
+`guard --automatic-targets [observe] [--dry-run]` selects a separate observation
+entrance. Omitting the optional mode means `observe`. It uses the private guard
+log and reports numeric entries individually, including protected unsafe paths.
+Only builder inventory slots on hetzner3/6/7 can have ages observed. It reports
+exact free bytes and the fixed policy pressure boundary, independently of normal
+trim's configurable threshold. Other `--below` values and manual, notice or timer
+actions cannot be combined with this entrance. An ordinary invocation without
+`--automatic-targets` keeps executable trimming and explicit-ack recovery unchanged.
+
+Observations read run metadata, ended/report fingerprints and any completed
+lifetime through the existing history validator without creating maintenance
+state. Completion age describes that evidence; it does not prove finality.
+Target-write age uses the newest mtime or ctime of the target and every descendant
+entry, with mount/device checks and without following symlinks. It does not use
+the root directory's mtime as a shortcut. `observed-idle-over24h` compares the later
+of observed completion and target activity against the strict age boundary.
+Missing, unsafe, future or failed observations print UNKNOWN and the reason.
+These are unlocked metadata snapshots, not maintenance ownership or a guarantee
+against concurrent activity.
+
+Every candidate remains PROTECTED, even with old observations. Central claim and
+claim age, central exclusion, terminal/no-resume, live processes (including cwd,
+fd and maps), source safety and host-wide alternate borrowers are UNKNOWN: this
+entrance neither queries the central service nor asserts proofs it has not
+acquired. No acknowledgement is read as automatic consent. It performs no trim,
+deletion, claim update, lease acquisition, journal update or notice consumption;
+only its private observation log is written. Exit 2 means numeric entries remain
+under the fixed pressure boundary, exit 0 means space is at least that boundary
+or there are no numeric entries, and exit 1 means an observation infrastructure
+or log failure.
+
+`guard --automatic-targets live` refuses with exit 1 before filesystem
+observation or sweep entry while FIRSTDAYDRYRUN is set, including when combined
+with `--dry-run`. Installation and timer behavior do not activate or schedule
+automatic observation. Ops reviews first-day observation lists and the section
+5.6 protocol before any later activation. Stopping use of the
+observation option rolls back this observational rollout without changing manual
+recovery. Existing lease, source, history, interruption and acknowledgement guards
+remain authoritative for the separate manual path.
+
+Offline coverage is `python3 -I -B tools/slots/test_recovery.py
+AutomaticObservationTests -v`, followed by the existing slot suites. Fixtures
+cover strict byte/age boundaries, newest descendant change time, missing history,
+ended-but-resumable/question reports, completed lifetimes, changed/unknown claims,
+stale manual consent, protected paths, incompatible actions and live refusal.
+
+### 5.6 Gated central-custody consumer
+
+`recovery.py` keeps `FIRSTDAYDRYRUN = True`. No CLI, environment variable or
+installation setting overrides it. The live CLI and the underlying consumer
+both check it before acquiring a claim or creating maintenance state. Only
+isolated fixtures change the gate in memory. Ops must review first-day lists,
+producer compatibility, lifetime coverage and rollout before an explicit later
+activation change. This implementation does not activate or install anything.
+After activation, `live --dry-run` still enters only section 5.5 observation.
+
+The consumer serializes intent with the existing sweep lock. Before requesting
+custody it durably writes private `N/automatic.json` with slot, owner `ops`, host,
+number, start UTC and a unique exact WHAT (`guard reclaim UTC NONCE`). It invokes
+only HEL8's installed authority through the shared `authority_argv` helper and
+fixed transport `ssh -o BatchMode=yes free@204.168.210.29 bash -lc`. This endpoint
+is the same authority whose deployed hostname is `debian-8gb-hel1-1`; the short
+`hel8` alias need not resolve on a builder. Ordinary SSH host-key checking remains
+in force. Remote command argv is shell-quoted for the login shell. There is no
+environment override, builder-local fallback or alternate authority protocol:
+
+```
+claim claim HOST N ops 'guard reclaim UTC NONCE'
+claim list
+claim release HOST N ops --what 'guard reclaim UTC NONCE'
+```
+
+There is no builder-local authority, force, stealing or `--lent-by`. A held slot
+or a non-pool share not owned by ops refuses normally. Failed, refused or
+ambiguous responses never authorize deletion. Before publishing intent, the
+consumer filters known non-pool shares, centrally observed busy slots, and failed
+local maintenance/safety observations. Probe leases are released before acquisition;
+the central list snapshot grants no custody and every proof is repeated under the
+successful persistent claim. Filtered candidates publish no acquisition journal.
+
+If acquisition races that filter, only two diagnostics established by the unchanged
+authority source prove no acquisition: exit exactly 1 with empty stdout and either
+the exact normal `claim: HOST-N held by OWNER: WHAT (since ISO)` diagnostic, or
+`claim: HOST N belongs to share SHARE; a lend requires --lent-by SHARE`. The latter
+must repeat the same non-pool/non-ops share, and the former must contain a known
+timezone-aware creation time. Other exit codes, mixed/extra output, transport or
+session failure, unknown diagnostics and ambiguous success retain uncertain intent
+and any own claim. A subsequent list can never downgrade that uncertainty.
+
+Known refusal writes private archived and current `status=skipped` evidence with
+`acquired=false`, `mutation_started=false`, `release=not-acquired` and the raw exit/
+stdout/stderr proof. It never releases a claim, permits later passes and does not
+block manual maintenance. Existing uncertain records receive no backfill or
+automatic migration. Once acquired, or after any mutation, failure remains retained
+for Ops reconciliation. Claim acquisition must return the exact normal success message.
+Subsequent central list observations must contain exactly one matching inventory
+row with exact owner/WHAT, a known creation time and the normal age suffix. List
+is a recheck of persistent custody, never custody by itself. Losing SSH or the
+guard process does not release the central claim.
+
+After acquiring the claim, the consumer takes the existing exclusive slot lease
+and worker/precheck entrance locks under the held sweep lock. Holds, unresolved
+markers, interrupted manual journals and pending automatic journals refuse work.
+It requires completed run history, a known completed source/build lifetime, and
+explicit prior-run finality for EVERY matching run. The finality consumer accepts
+an owned private regular `RUN/final.json` with:
+
+- `state`: `landed` or `withdrawn`;
+- `owner`: exactly metadata's nonempty `to`;
+- `time`: an ISO 8601 timestamp with timezone, at/after the run's ended evidence
+  and not in the future;
+- `sha`: a full nonzero 40- or 64-hex object ID for `landed`, or a nonempty `reason` for
+  `withdrawn`.
+
+It binds each final file's identity/digest and never creates, updates or backfills
+it. The separately owned producer is `codex-run final RUN --owner RECORDED_TO
+(--landed SHA | --withdrawn REASON)`. Missing or incompatible records retain old
+runs; ended/Done/exit-zero/post/manual acknowledgement/completed lifetime do not
+replace finality. Active or unknown Codex/heavy service observations still veto
+the operation. Producer integration must verify this exact JSON contract before
+activation; the offline consumer tests supply explicit fixture declarations.
+Second-precision producer timestamps that precede the ended file's nanosecond mtime
+remain protected. The consumer does not round or relax `time >= ended`; producer
+precision/schema compatibility is a pending activation prerequisite.
+
+Automatic snapshots add the following stricter proofs to the manual snapshot:
+
+- Every source and Git regular file outside target is fingerprinted, and source
+  directory identities are bound. Symlink, unreadable and cross-device source
+  inputs refuse. Candidate `.git/commondir` and managed/dormant common-directory
+  indirections are unsupported and refused without following their pointers. SHA
+  digests are retained; file contents are not logged.
+- A full target inventory binds identities, modes, sizes and mtime/ctime, allocated
+  bytes and regular-file count. Symlinks, externally linked regular files, special
+  files, protected Git/credential entries, mountpoints and device boundaries
+  refuse. Internal hardlinks qualify only when the complete inventory accounts
+  for every link to an inode with consistent identity/time/size/link-count evidence.
+  Allocated bytes count each such inode once; removed files count directory entries.
+  The latest target write and completed run/lifetime must be strictly
+  more than 24 hours old. Exact free bytes must still be below 80,000,000,000.
+- Own-user cwd, open descriptors and maps are checked, including inode aliases
+  and deleted-path spellings. Source directory identities, including slot/Git
+  directories, join the protected target and file inode set; actual cwd identity
+  is compared independently of its text. Unknown/unreadable/incomplete observations
+  refuse; process environments and descriptor contents are never read.
+  Only exact maintenance lock descriptors held by this invocation are exempt:
+  current pid, fd number, device/inode, unchanged known lock path, active lease
+  context and that open file description's own kernel FLOCK WRITE metadata must
+  agree. No whole-PID exception exists. Other/duplicated descriptors, descriptors
+  reused without their flock and records from closed contexts are not exempt.
+  The fd directory scanner stays open during enumeration, so it does not report
+  its own already-closed scan descriptor as an unknown entry.
+- All Fabrig-managed clones, bare repositories and scratch under
+  `~/src/fabrig/` are inspected for object-store alternates, including recursive
+  alternate chains, dormant repositories beneath `.git/modules` and orphaned
+  `objects/info/alternates` stores without a normal ref layout. Any borrower into
+  target, cyclic/external/unknown store,
+  symlink directory, unsupported commondir or linked checkout with an unrecognized gitdir refuses.
+  Environment-based alternate borrowing also refuses. Other checkouts receive
+  no Git commands or mutations. Unrecognized layouts remain protected.
+
+Central custody, snapshots, exact byte pressure and target/source identities are
+rechecked immediately before fd-relative symlink-resistant target deletion.
+Cooperating starters remain excluded by the persistent central claim and local
+leases. Arbitrary commands outside these entrance protocols are not licensed by
+this consumer; Ops must establish fleet lifetime coverage before activation.
+
+After deletion returns, target absence, source/Git identities and digests,
+history/reports, finality and borrower evidence must still match. A failure or
+death anywhere before this known terminal result leaves the claim retained and
+status uncertain. Only then are a cold-build owner notice and private fsynced
+terminal evidence written. `automatic.json` and an `automatic-NONCE.json` archive
+record `status=completed`, exit, start/end UTC, exact claim, measured bytes before/
+after and delta, regular files removed and preservation proofs. File counts are
+the fully inventoried regular files in the successfully removed target; freed
+bytes are the measured filesystem delta, not promised allocated sizes.
+
+Exact claim release happens only AFTER both durable completed records. There is
+no release in a finally block, trap, shell-exit or session-loss handler. Release
+failure/ambiguity retains completed evidence and reconciliation state; death after
+release but before recording its response leaves a conservative retained receipt.
+Success updates both records to `release=released`. Pending automatic records
+also block manual whole-target maintenance; proven no-acquisition skipped records
+permit another pass. Existing executable trimming remains
+unchanged. No automatic retry or release reconciles an uncertain attempt.
+Ops inspects the exact WHAT and evidence: incomplete evidence requires an
+independent investigation; completed evidence permits an operator's exact release.
+The consumer reports an error on protected/failed live attempts, while measured
+space alone controls its stop boundary (no additional recovery margin).
+
+`AutomaticClaimTests` runs fake SSH against the existing claim CLI with a temporary
+authority HOME and hostname. It verifies real claim contention, exact release
+ordering, an actual child death after deletion, release failures, finality and
+live-work/borrower/preservation vetoes. It performs no real service, claim or
+cleanup operation. Ordinary/manual guard interfaces remain unchanged.
+`SafetyRepairTests` adds commondir, cwd alias identity, real disposable maintenance
+fd/self-scan, stale/reused fd, ordinary-refusal retry, uncertain-session retention,
+complete/internal versus external hardlinks, and strict time/OID regressions.
+`AuthorityEndpointTests` exercises all authority forms with a nonresolving short
+alias and verifies the exact explicit endpoint/login-shell argv and WHAT quoting.
+
 ## 4. Later
 
 - Coordination of claims across machines if leads move away from hel8.
 - Finding executable mappings after all descriptors have been closed.
+- Ops-reviewed automatic target activation after FIRSTDAYDRYRUN, finality producer
+  integration and fleet entrance/lifetime coverage review. Section 5.6's consumer
+  remains gated; section 5.5 observations do not acquire custody or eligibility.

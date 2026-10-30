@@ -126,7 +126,11 @@ pub fn down(routes: &mut Routes, request: engine::StoreRequest) -> Option<store:
             let offset = routes.continuation(&range, after.as_ref());
             let owner = routes.token()?;
             let flight = Flight { root, range, after, most, bytes, offset, waiting: true, cursor: None };
-            let request = ranges::request(owner, &flight)?;
+            let request = if ranges::restarting(&flight.range) {
+                ranges::request(owner, &flight).expect("usable translated startup request")
+            } else {
+                ranges::request(owner, &flight)?
+            };
             routes.pending.insert(owner, flight).ok()?;
             request
         }
@@ -240,12 +244,12 @@ fn page(
         };
         let key = record.key();
         scanned = Some(key.clone());
-        if let engine::Range::Census(_) = &flight.range {
-        } else if !flight.range.contains(&key) {
+        if !ranges::keeps(&flight.range, &key) {
             continue;
         }
-        if let engine::Range::Census(_) = &flight.range {
-        } else if let Some(after) = &flight.after {
+        if !ranges::restarting(&flight.range)
+            && let Some(after) = &flight.after
+        {
             let (Some(position), Some(start)) =
                 (ranges::cursor(&flight.range, &key), ranges::cursor(&flight.range, after))
             else {
@@ -257,7 +261,7 @@ fn page(
             }
         }
         let Some((payload_bytes, total)) = page_bytes(&record, bytes) else {
-            stop(routes, into);
+            page_failed(routes, &flight, into);
             return;
         };
         if cutting
@@ -272,47 +276,47 @@ fn page(
         last = Some(key);
         decoded.push(record).expect("checked prefix");
     }
-    if cutting && decoded.is_empty() {
-        stop(routes, into);
+    if cutting && (ranges::restarting(&flight.range) || decoded.is_empty()) {
+        page_failed(routes, &flight, into);
         return;
     }
-    if let engine::Range::Census(_) = &flight.range {
-        if cutting {
-            stop(routes, into);
-            return;
-        }
-        let next = match cursor {
-            Some(cursor) => match store::keys::decode(&cursor.after) {
-                Some(key) => Some(engine::Key::Core(key)),
-                None => {
-                    stop(routes, into);
+    let startup_next = if ranges::restarting(&flight.range) {
+        match &cursor {
+            Some(cursor) => {
+                let Some(key) = startup_cursor(&flight, cursor, &routes.families) else {
+                    root(into, engine::StoreInput::Unloaded { owner: flight.root });
                     return;
-                }
-            },
+                };
+                Some(key)
+            }
             None => None,
-        };
-        root(into, engine::StoreInput::Loaded { texts: None, owner: flight.root, rows: decoded.into_boxed(), next });
+        }
+    } else {
+        None
+    };
+    if let engine::Range::Census(_) = &flight.range {
+        root(
+            into,
+            engine::StoreInput::Loaded {
+                texts: None,
+                owner: flight.root,
+                rows: decoded.into_boxed(),
+                next: startup_next,
+            },
+        );
         return;
     }
     if decoded.is_empty() && !cutting && more {
-        if let Some(next) = &cursor
-            && (next.after.is_empty() || flight.cursor.as_ref() == Some(next))
-        {
-            stop(routes, into);
-            return;
-        }
-        flight.after = scanned;
-        flight.cursor = cursor;
-        flight.offset = offset;
-        if let Some(request) = ranges::request(owner, &flight) {
-            routes.pending.insert(owner, flight).expect("removed slot");
-            into.push(Up::Ask(request));
-        } else {
-            stop(routes, into);
-        }
+        continue_filtered(routes, owner, flight, scanned, cursor, offset, into);
         return;
     }
-    let next = if cutting || more { last } else { None };
+    let next = if ranges::restarting(&flight.range) {
+        startup_next
+    } else if cutting || more {
+        last
+    } else {
+        None
+    };
     let texts = ranges::texts(&flight.range, decoded.as_slice());
     // For a cut transcript page restart from its beginning and filter by key;
     // the component's offset names the end of the whole incoming page.
@@ -325,6 +329,71 @@ fn page(
         root(into, engine::StoreInput::Loaded { texts, owner: root_owner, rows: decoded.into_boxed(), next });
     } else {
         root(into, engine::StoreInput::Loaded { texts, owner: flight.root, rows: decoded.into_boxed(), next });
+    }
+}
+
+fn continue_filtered(
+    routes: &mut Routes,
+    owner: Token,
+    mut flight: Flight,
+    scanned: Option<engine::Key>,
+    cursor: Option<store::Cursor>,
+    offset: Option<u64>,
+    into: &mut Queue<Up>,
+) {
+    if !ranges::restarting(&flight.range)
+        && let Some(next) = &cursor
+        && (next.after.is_empty() || flight.cursor.as_ref() == Some(next))
+    {
+        stop(routes, into);
+        return;
+    }
+    flight.after = scanned;
+    flight.cursor = cursor;
+    flight.offset = offset;
+    let request = ranges::request(owner, &flight);
+    if ranges::restarting(&flight.range) {
+        assert!(request.is_some(), "usable translated continuation request");
+    }
+    if let Some(request) = request {
+        routes.pending.insert(owner, flight).expect("removed slot");
+        into.push(Up::Ask(request));
+    } else {
+        stop(routes, into);
+    }
+}
+
+/// Translate the store's continuation independently of returned row identities.
+/// Filtered startup walks can advance past families not selected by this load.
+fn startup_cursor(flight: &Flight, cursor: &store::Cursor, bounds: &families::Bounds) -> Option<engine::Key> {
+    let key = match &flight.range {
+        engine::Range::Forge => {
+            let relative = store::keys::of_application(&cursor.after)?;
+            engine::Key::Forge(families::keys::decode(relative, bounds.forge())?)
+        }
+        engine::Range::Core(_) | engine::Range::Census(_) => engine::Key::Core(store::keys::decode(&cursor.after)?),
+    };
+    let translated = ranges::cursor(&flight.range, &key).expect("usable translated startup cursor");
+    assert_eq!(translated, *cursor, "startup cursor keeps its walk interval");
+    let start = match (&flight.cursor, &flight.after) {
+        (Some(cursor), _) => Some(cursor.clone()),
+        (None, Some(after)) => Some(ranges::cursor(&flight.range, after).expect("usable startup starting cursor")),
+        (None, None) => None,
+    };
+    if let Some(start) = start {
+        assert!(
+            (cursor.interval, &cursor.after) > (start.interval, &start.after),
+            "startup continuation advances in walk order"
+        );
+    }
+    Some(key)
+}
+
+fn page_failed(routes: &Routes, flight: &Flight, into: &mut Queue<Up>) {
+    if ranges::restarting(&flight.range) {
+        root(into, engine::StoreInput::Unloaded { owner: flight.root });
+    } else {
+        stop(routes, into);
     }
 }
 

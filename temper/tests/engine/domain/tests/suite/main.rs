@@ -26,6 +26,7 @@ mod periods;
 mod preparation;
 mod reconcile;
 mod referee;
+mod restore_fit;
 mod roles;
 mod root_routes;
 mod settings;

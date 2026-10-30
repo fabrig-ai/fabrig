@@ -42,7 +42,7 @@ How an agent's run works: its instructions, models, tools, hosts and budget. A t
 - `model`: `model`. The default model: a task that names none takes the first of `model` and `alternatives` whose provider has an account that can pay.
 - `alternatives`: list of at most 16, each `model`. The other models the charter offers, in order after `model`, each named once; a run's sub-agents may use them too.
 - `inspect`: true or false. Whether the run's agent may read, list and search its workspace.
-- `modify`: true or false. Whether the run's agent may write and edit files in its workspace.
+- `modify`: true or false. Whether the run's agent may write, edit and remove files in its workspace.
 - `shell`: true or false. Whether the run's agent may run commands in its workspace.
 - `agents`: true or false. Whether the run's agent may open sub-agents, each with no more tools than its own.
 - `call_timeout`: nanoseconds. The longest one of the run's calls to temper's tools may take.

@@ -383,14 +383,57 @@ def ratchet_commands(repo, paths, *, check_only=False):
 
 
 def tools_required(paths):
-    """Select tools only from changed paths, independent of Cargo scope (design.md, 2.3)."""
+    """Select author precheck tools from changed paths (design.md, 2.3)."""
     return any(path.startswith("tools/") for path in paths)
 
 
-def tools_commands(repo):
+def gate_tools_required(paths):
+    """Decision0022 skips pipeline tools in every gate batch (design.md, 2.3)."""
+    return False
+
+
+def author_tools_owners(paths):
+    """Pure changed-path ownership shared with cold evidence (design.md, 2.3)."""
+    owners = set()
+    for path in paths:
+        if not path.startswith("tools/"):
+            continue
+        parts = PurePosixPath(path).parts
+        if len(parts) >= 3:
+            owners.add("/".join(parts[:2]) + "/")
+        elif path in ("tools/install", "tools/installed", "tools/test_install.py"):
+            owners.add("tools/test_install.py")
+        else:
+            raise ValueError(f"author tools selection: unknown owner for {path!r}; "
+                             "add an explicit suite mapping before precheck")
+    return sorted(owners)
+
+
+def author_tools_select(paths, commands):
+    """Select an exact ordered owner union from discovered candidate commands."""
+    selected = {}
+    for owner in author_tools_owners(paths):
+        suites = [item for item in commands if
+                  (item[0].startswith(owner) if owner.endswith('/') else item[0] == owner)]
+        if not suites:
+            raise ValueError(f"author tools selection: no candidate offline suites for {owner!r}; "
+                             "deleted tools or tools without suites require an explicit mapping")
+        selected.update((item[0], item) for item in suites)
+    return [selected[name] for name in sorted(selected)]
+
+
+def author_tools_commands(repo, paths):
+    """Select each changed tool's candidate suites (design.md, 2.3)."""
+    commands = [item for owner in author_tools_owners(paths) for item in tools_commands(repo, roots=[owner])]
+    return author_tools_select(paths, commands)
+
+
+def tools_commands(repo, *, roots=None):
     """Discover tracked offline suites, honoring executable shebangs (design.md, 2.3)."""
     commands = []
-    for entry in git(repo, "ls-files", "--stage", "-z", "--", "tools/").stdout.split("\0"):
+    for entry in git(repo, "ls-files", "--stage", "-z", "--",
+                     *([f":(literal){root}" for root in roots] if roots is not None
+                       else ["tools/"])).stdout.split("\0"):
         if not entry:
             continue
         attributes, path = entry.split("\t", 1)
@@ -485,7 +528,7 @@ def run_checks(repo, selected, paths, log_path, *, runner=subprocess.run, clock=
             if not check_only and git(repo, "diff", "--name-only", "--", baseline).stdout:
                 git(repo, "add", "--", baseline)
                 git(repo, "commit", "-m", f"Lower {cwd.name} old-form baselines")
-        if tools_required(paths):
+        if gate_tools_required(paths):
             record(run_tools(repo, log, runner=runner, clock=clock, observer=observer,
                              status_observer=status_observer))
             if not outcomes[-1]["green"]:
@@ -551,20 +594,70 @@ def bisect(branches, check):
 
 
 def cleanup_ready(repo, branches, origin):
-    """After journal confirmation, delete only still-pinned ready tips."""
+    """After journal confirmation, retire pinned Ready/feature heads (design.md, 3.11)."""
     cleanup = []
+    targets = {}
     for branch in branches:
-        ref = f"refs/heads/{branch['name']}"
-        current = git(repo, "ls-remote", "--heads", origin, ref, check=False)
+        name, tip = branch["name"], branch["tip"]
+        if (not isinstance(name, str) or len(name.split("/")) != 3 or not name.startswith("ready/") or
+                not publication.KEY.fullmatch(name.split("/")[1]) or
+                not isinstance(tip, str) or not authority.OID.fullmatch(tip)):
+            cleanup.append({"branch": name, "outcome": "unknown publication head; preserved"})
+            continue
+        for head in (name, name.removeprefix("ready/")):
+            ref = "refs/heads/" + head
+            entry = {"branch": head}
+            cleanup.append(entry)
+            if ref in targets:
+                return [{"branch": item["branch"], "outcome": "duplicate cleanup head; preserved"}
+                        for item in cleanup]
+            targets[ref] = (tip, entry)
+    if not targets:
+        return cleanup
+    try:
+        for ref in targets:
+            if git(repo, "check-ref-format", ref, check=False).returncode:
+                raise ValueError("unknown publication head; preserved")
+        # One observation includes the advertised default and every exact target.
+        current = git(repo, "ls-remote", "--symref", origin, "HEAD", "refs/heads/main", *targets, check=False)
         if current.returncode:
-            cleanup.append({"branch": branch["name"], "error": current.stdout})
-        elif current.stdout.split()[:1] == [branch["tip"]]:
-            result = git(repo, "push", "--force-with-lease=" + ref + ":" + branch["tip"],
-                         origin, ":" + ref, check=False)
-            cleanup.append({"branch": branch["name"], "returncode": result.returncode,
-                            "output": result.stdout})
-        else:
-            cleanup.append({"branch": branch["name"], "outcome": "tip changed or branch absent; preserved"})
+            for _, entry in targets.values():
+                entry["error"] = current.stdout
+            return cleanup
+        observed, default = {}, None
+        for line in current.stdout.splitlines():
+            cells = line.split()
+            if len(cells) == 3 and cells[0] == "ref:" and cells[2] == "HEAD":
+                if default is not None:
+                    raise ValueError("duplicate remote default")
+                default = cells[1]
+            elif (len(cells) == 2 and authority.OID.fullmatch(cells[0]) and
+                  cells[1] in {*targets, "HEAD", "refs/heads/main"} and cells[1] not in observed):
+                observed[cells[1]] = cells[0]
+            else:
+                raise ValueError("unknown remote cleanup observation")
+        if (default is None or not default.startswith("refs/heads/") or
+                git(repo, "check-ref-format", default, check=False).returncode or
+                "HEAD" not in observed or observed.get(default) != observed["HEAD"]):
+            raise ValueError("unknown or inconsistent remote default; preserved")
+        eligible = {}
+        for ref, (tip, entry) in targets.items():
+            if ref in ("refs/heads/main", default):
+                entry["outcome"] = "default branch; preserved"
+            elif observed.get(ref) == tip:
+                eligible[ref] = tip
+            else:
+                entry["outcome"] = "tip changed or branch absent; preserved"
+        if eligible:
+            # Atomic refusal preserves the whole eligible set, including a raced head.
+            result = git(repo, "push", "--atomic",
+                         *("--force-with-lease=" + ref + ":" + tip for ref, tip in eligible.items()),
+                         origin, *(":" + ref for ref in eligible), check=False)
+            for ref in eligible:
+                targets[ref][1].update(returncode=result.returncode, output=result.stdout)
+    except (OSError, subprocess.SubprocessError, ValueError) as error:
+        for _, entry in targets.values():
+            entry.setdefault("error", str(error))
     return cleanup
 
 

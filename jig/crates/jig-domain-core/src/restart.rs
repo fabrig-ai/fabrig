@@ -218,6 +218,8 @@ impl Core {
 
     /// Begin once; a repeated start cannot repeat loads or open decisions.
     pub fn restart_begin(&mut self, pending: bool) -> RestartRequest {
+        assert!(self.start.mode == crate::start::StartMode::Default, "restart and start interfaces cannot mix");
+        self.start.consumed = true;
         match self.restart {
             Restart::Cold => {
                 self.restart_pending = pending;
@@ -275,6 +277,8 @@ impl Core {
     /// Advance only from the matching completed step. Proofs must all be loaded
     /// and every restored claim must reach the fleet before the script proceeds.
     pub fn restart_done(&mut self, done: RestartStep) -> RestartRequest {
+        assert!(self.start.mode == crate::start::StartMode::Default, "restart and start completions cannot mix");
+        self.start.consumed = true;
         if let Some(failure) = self.restore_failure {
             return failure;
         }
@@ -301,7 +305,7 @@ impl Core {
                     None => RestartStep::Switch,
                 }
             }
-            RestartStep::RestoreConnector { connector } => match self.restart_next_connector(connector) {
+            RestartStep::RestoreConnector { connector } => match self.next_connector(connector) {
                 Some(connector) => RestartStep::RestoreConnector { connector },
                 None => RestartStep::Switch,
             },
@@ -315,14 +319,14 @@ impl Core {
                     None => RestartStep::Open,
                 }
             }
-            RestartStep::ReadAfresh { connector } => match self.restart_next_connector(connector) {
+            RestartStep::ReadAfresh { connector } => match self.next_connector(connector) {
                 Some(connector) => RestartStep::ReadAfresh { connector },
                 None => match self.connectors.first() {
                     Some(&connector) => RestartStep::SettleOutbox { connector },
                     None => RestartStep::Open,
                 },
             },
-            RestartStep::SettleOutbox { connector } => match self.restart_next_connector(connector) {
+            RestartStep::SettleOutbox { connector } => match self.next_connector(connector) {
                 Some(connector) => RestartStep::SettleOutbox { connector },
                 None => RestartStep::Open,
             },
@@ -339,7 +343,7 @@ impl Core {
         RestartRequest::Step(step)
     }
 
-    fn restart_next_connector(&self, previous: u16) -> Option<u16> {
+    pub(crate) fn next_connector(&self, previous: u16) -> Option<u16> {
         let mut found = false;
         for &connector in &self.connectors {
             if found {

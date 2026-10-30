@@ -248,14 +248,36 @@ fn an_init_without_a_granted_built_in_fails() {
 }
 
 #[test]
-fn the_server_lists_no_workspace_tool() {
-    let mut backend = active();
-    let Some(FromDomain::Complete { prompt, .. }) = &mut backend.request else { panic!("request") };
-    prompt.tools = Grants { inspect: true, modify: true, shell: true };
-    prompt.served = Box::new([llm::Served::Finish, llm::Served::Wait]);
-    let tools = backend.tools();
-    assert_eq!(tools.len(), 2);
-    assert!(tools.iter().all(|tool| [b"finish".as_slice(), b"wait"].contains(&tool.name.as_ref())));
+fn the_server_keeps_only_remove_when_modify_is_granted() {
+    for modify in [false, true] {
+        let mut backend = active();
+        let Some(FromDomain::Complete { prompt, .. }) = &mut backend.request else { panic!("request") };
+        prompt.tools = Grants { inspect: true, modify, shell: true };
+        prompt.served = Box::new([llm::Served::Finish, llm::Served::Wait]);
+        let expected = protocol::schemas_for_contract(
+            prompt,
+            &backend.settings.adapter.stated,
+            &smith_domain::run::outcome::OutcomeSpec {
+                change: None,
+                verdicts: Box::default(),
+                report: None,
+                failure: None,
+            },
+            None,
+            backend.settings.contract_bytes,
+        )
+        .expect("schemas");
+        let tools = backend.tools();
+        assert_eq!(tools.len(), if modify { 3 } else { 2 });
+        assert!(tools.iter().all(|tool| [b"remove".as_slice(), b"finish", b"wait"].contains(&tool.name.as_ref())));
+        let remove = tools.iter().find(|tool| tool.name.as_ref() == b"remove");
+        assert_eq!(remove.is_some(), modify);
+        if let Some(remove) = remove {
+            let descriptor = expected.iter().find(|tool| tool.name.as_ref() == b"remove").expect("remove descriptor");
+            assert_eq!(remove.description, descriptor.description);
+            assert_eq!(remove.input_schema, descriptor.schema);
+        }
+    }
 }
 
 fn host_tool(schema: &[u8]) -> llm::Served {
@@ -558,4 +580,358 @@ fn launch_wraps_the_unchanged_contract_within_its_bound() {
     assert!(backend.launch_spec().is_some());
     backend.settings.contract_bytes = bound - 1;
     assert!(backend.launch_spec().is_none());
+}
+
+// Native snapshots are supplied by the file boundary, independently of the
+// program's result text and the private startup files.
+fn native_call(name: &str, input: serde_json::Value) -> Backend {
+    let mut backend = active();
+    backend.mounts = Box::new([Mount { root: Token::new(40), host: b"/work/repo".as_slice().into(), writable: true }]);
+    if let Some(FromDomain::Complete { prompt, .. }) = &mut backend.request {
+        prompt.tools = Grants { inspect: true, modify: true, shell: false };
+    }
+    let mut up = Queue::with_capacity(32);
+    let mut below = Queue::with_capacity(64);
+    let message = serde_json::json!({"type":"assistant","message":{"id":"native","content":[
+        {"type":"tool_use","id":"n","name":name,"input":input}
+    ]}});
+    backend.line(&env(0), &serde_json::to_vec(&message).expect("native call"), &mut up, &mut below);
+    completed(up.pop(), Token::new(80));
+    while backend.pop_measure().is_some() {}
+    backend.resume(&env(0), request(&backend), &mut up, &mut below);
+    assert!(up.is_empty());
+    if let Some(FromDomain::Complete { prompt, .. }) = &mut backend.request {
+        prompt.tools = Grants { inspect: true, modify: true, shell: false };
+    }
+    review_tests::connect_server(&mut backend);
+    native_prompt(&mut backend, "n", name, input);
+    backend
+}
+
+fn native_prompt(backend: &mut Backend, id: &str, name: &str, input: serde_json::Value) {
+    let prompt = serde_json::json!({"jsonrpc":"2.0","id":1_u32,"method":"tools/call","params":{
+        "name":"permission_prompt","arguments":{"tool_name":name,"input":input,"tool_use_id":id}
+    }});
+    backend.server.as_mut().expect("server").from_io(
+        env(0).now,
+        io::Event::Stream {
+            owner: Token::new(101),
+            up: skein_lib::stream::Up::Bytes(mcp::json::join(&[&serde_json::to_vec(&prompt).expect("prompt"), b"\n"])),
+        },
+        &mut backend.io,
+    );
+    let prompt = backend.server.as_mut().expect("server").up().expect("prompt");
+    backend.permission(prompt);
+}
+
+fn allow_native(backend: &mut Backend, input: &serde_json::Value) {
+    let reply = review_tests::server_reply(backend);
+    let verdict: serde_json::Value =
+        serde_json::from_str(reply["result"]["content"][0]["text"].as_str().expect("text")).expect("verdict");
+    assert_eq!(verdict["behavior"], "allow");
+    assert_eq!(&verdict["updatedInput"], input);
+}
+
+// lifecycle_tests supplies this stated whole-file limit; oversized is one byte past it.
+const NATIVE_FILE_BYTES: u32 = 128;
+const OVERSIZED_FILE_BYTES: u64 = 129;
+
+fn native_load(backend: &mut Backend) {
+    let mut below = Queue::with_capacity(64);
+    backend.flush(&mut below);
+    let loads: Vec<_> = below
+        .iter()
+        .filter_map(|request| match request {
+            Below::File { request, .. } => Some(request),
+            Below::Io(_) => None,
+        })
+        .collect();
+    assert_eq!(loads.len(), 1, "serialized snapshot");
+    assert_eq!(
+        loads[0],
+        &file::Request::Load {
+            owner: backend.token(6),
+            root: Token::new(40),
+            path: b"a".as_slice().into(),
+            max: NATIVE_FILE_BYTES,
+            no_follow: false
+        }
+    );
+    assert!(backend.owns(backend.token(6)));
+}
+
+fn native_version(event: Option<ToDomain>, owner: Token, bytes: &[u8]) {
+    let Some(ToDomain::ReadVersion { owner: got, place, version }) = event else { panic!("version observation") };
+    assert_eq!(got, owner);
+    assert_eq!(place, smith_domain::tools::Place { root: Token::new(40), path: b"a".as_slice().into() });
+    assert_eq!(version, smith_domain::tools::Version::new(skein_io::digest::digest(bytes).0));
+}
+
+fn native_result(backend: &mut Backend, error: bool, up: &mut Queue<ToDomain>) {
+    let result = serde_json::json!({"type":"user","message":{"content":[
+        {"type":"tool_result","tool_use_id":"n","content":"program text","is_error":error}
+    ]}});
+    backend.line(&env(0), &serde_json::to_vec(&result).expect("result"), up, &mut Queue::with_capacity(64));
+}
+
+#[test]
+fn a_whole_native_read_snapshots_before_allow() {
+    let input = serde_json::json!({"file_path":"./x/../a"});
+    let mut backend = native_call("Read", input.clone());
+    for request in &backend.io {
+        if let io::Request::Output { .. } = request {
+            panic!("no Allow before file terminal");
+        }
+    }
+    native_load(&mut backend);
+    let mut up = Queue::with_capacity(32);
+    backend
+        .native_event(file::Event::Loaded { owner: backend.token(6), bytes: b"file bytes".as_slice().into() }, &mut up);
+    native_version(up.pop(), Token::new(80), b"file bytes");
+    assert!(up.is_empty());
+    allow_native(&mut backend, &input);
+}
+
+#[test]
+fn a_partial_native_read_never_snapshots_even_with_null_fields() {
+    for field in ["offset", "limit"] {
+        for value in [serde_json::json!(1_u32), serde_json::Value::Null] {
+            let mut input = serde_json::json!({"file_path":"a"});
+            input[field] = value;
+            let mut backend = native_call("Read", input.clone());
+            assert!(backend.native.is_none());
+            allow_native(&mut backend, &input);
+            let mut up = Queue::with_capacity(32);
+            native_result(&mut backend, false, &mut up);
+            result_id(up.pop(), Token::new(80), b"n");
+            assert!(up.is_empty(), "no observation that could replace earlier knowledge");
+        }
+    }
+}
+
+#[test]
+fn native_writes_and_edits_snapshot_after_their_results_including_errors() {
+    for name in ["Write", "Edit"] {
+        for error in [false, true] {
+            let input = serde_json::json!({"file_path":"a"});
+            let mut backend = native_call(name, input.clone());
+            assert!(backend.native.is_none(), "no snapshot before result");
+            allow_native(&mut backend, &input);
+            let mut up = Queue::with_capacity(32);
+            native_result(&mut backend, error, &mut up);
+            assert!(up.is_empty(), "result waits for snapshot");
+            native_load(&mut backend);
+            backend.native_event(
+                file::Event::Loaded { owner: backend.token(6), bytes: b"stored bytes".as_slice().into() },
+                &mut up,
+            );
+            native_version(up.pop(), Token::new(80), b"stored bytes");
+            let Some(ToDomain::BuiltinResult { text, error: got, .. }) = up.pop() else { panic!("result") };
+            assert_eq!(text.as_ref(), b"program text");
+            assert_eq!(got, error);
+            assert!(up.is_empty());
+        }
+    }
+}
+
+const SNAPSHOT_ERRORS: [kernel::Error; 3] =
+    [kernel::Error::NotFound, kernel::Error::Permission, kernel::Error::IsADirectory];
+
+fn fail_native_load(backend: &mut Backend, failure: kernel::Error, up: &mut Queue<ToDomain>) {
+    native_load(backend);
+    backend.native_event(
+        file::Event::Failed { owner: backend.token(6), error: failure, committed: false, residue: None },
+        up,
+    );
+}
+
+#[test]
+fn failed_native_read_snapshots_preserve_allow() {
+    for failure in SNAPSHOT_ERRORS {
+        let input = serde_json::json!({"file_path":"a"});
+        let mut backend = native_call("Read", input.clone());
+        let mut up = Queue::with_capacity(32);
+        fail_native_load(&mut backend, failure, &mut up);
+        assert!(up.is_empty());
+        allow_native(&mut backend, &input);
+    }
+    let input = serde_json::json!({"file_path":"a"});
+    let mut backend = native_call("Read", input.clone());
+    native_load(&mut backend);
+    let mut up = Queue::with_capacity(32);
+    backend.native_event(file::Event::TooLarge { owner: backend.token(6), size: OVERSIZED_FILE_BYTES }, &mut up);
+    assert!(up.is_empty());
+    allow_native(&mut backend, &input);
+}
+
+#[test]
+fn failed_native_write_snapshots_preserve_result_text() {
+    for failure in SNAPSHOT_ERRORS {
+        let input = serde_json::json!({"file_path":"a"});
+        let mut backend = native_call("Write", input.clone());
+        allow_native(&mut backend, &input);
+        let mut up = Queue::with_capacity(32);
+        native_result(&mut backend, true, &mut up);
+        fail_native_load(&mut backend, failure, &mut up);
+        let Some(ToDomain::BuiltinResult { text, error, .. }) = up.pop() else { panic!("unchanged result") };
+        assert_eq!(text.as_ref(), b"program text");
+        assert!(error);
+        assert!(up.is_empty());
+    }
+}
+
+#[test]
+fn closing_settles_the_native_load_before_private_cleanup() {
+    let mut backend = native_call("Read", serde_json::json!({"file_path":"a"}));
+    native_load(&mut backend);
+    let mut up = Queue::with_capacity(32);
+    let mut below = Queue::with_capacity(64);
+    backend.close(&env(0), &mut up, &mut below);
+    let Some(ToDomain::Cancelled { .. }) = up.pop() else { panic!("cancel terminal") };
+    backend.settings.directory = None;
+    backend.cleanup(env(0).now, &mut below);
+    assert!(!backend.closed(), "snapshot still owes its terminal");
+    backend
+        .native_event(file::Event::Loaded { owner: backend.token(6), bytes: b"cancelled".as_slice().into() }, &mut up);
+    assert!(up.is_empty(), "cancelled snapshot teaches nothing");
+    backend.cleanup(env(0).now, &mut below);
+    assert!(backend.closed());
+}
+
+#[test]
+fn queued_native_snapshots_keep_result_order_and_message_owners() {
+    let input = serde_json::json!({"file_path":"a"});
+    let mut backend = native_call("Write", input.clone());
+    allow_native(&mut backend, &input);
+    let mut second = reply_tests::call(b"second");
+    second.builtin = true;
+    second.owner = Some(Token::new(81));
+    backend.ledger.push(second).ok().expect("second call");
+    backend
+        .native_writes
+        .insert(
+            b"second".as_slice().into(),
+            smith_domain::tools::Place { root: Token::new(40), path: b"a".as_slice().into() },
+        )
+        .expect("second allowed write");
+    let results = serde_json::json!({"type":"user","message":{"content":[
+        {"type":"tool_result","tool_use_id":"n","content":"first text"},
+        {"type":"tool_result","tool_use_id":"second","content":"second text","is_error":true}
+    ]}});
+    let mut up = Queue::with_capacity(32);
+    backend.line(&env(0), &serde_json::to_vec(&results).expect("results"), &mut up, &mut Queue::with_capacity(64));
+    assert!(up.is_empty());
+    native_load(&mut backend);
+    backend.native_event(
+        file::Event::Loaded { owner: backend.token(6), bytes: b"first version".as_slice().into() },
+        &mut up,
+    );
+    native_version(up.pop(), Token::new(80), b"first version");
+    result_id(up.pop(), Token::new(80), b"n");
+    assert!(up.is_empty(), "the second result waits behind its own snapshot");
+    native_load(&mut backend);
+    backend.native_event(
+        file::Event::Loaded { owner: backend.token(6), bytes: b"second version".as_slice().into() },
+        &mut up,
+    );
+    native_version(up.pop(), Token::new(81), b"second version");
+    let Some(ToDomain::BuiltinResult { owner, id, text, error }) = up.pop() else { panic!("second result") };
+    assert_eq!(owner, Token::new(81));
+    assert_eq!(id.as_ref(), b"second");
+    assert_eq!(text.as_ref(), b"second text");
+    assert!(error);
+    assert!(up.is_empty());
+}
+
+fn server_call(backend: &mut Backend, id: u32) {
+    let call =
+        serde_json::json!({"jsonrpc":"2.0", "id":id, "method":"tools/call", "params":{"name":"foo", "arguments":{}}});
+    backend.server.as_mut().expect("server").from_io(
+        env(0).now,
+        io::Event::Stream {
+            owner: Token::new(101),
+            up: skein_lib::stream::Up::Bytes(mcp::json::join(&[&serde_json::to_vec(&call).expect("RPC"), b"\n"])),
+        },
+        &mut backend.io,
+    );
+    let call = backend.server.as_mut().expect("server").up().expect("RPC");
+    backend.calls.push(call).expect("held RPC");
+    backend.match_calls();
+}
+
+fn after_partial_result() -> Backend {
+    let input = serde_json::json!({"file_path":"a", "limit":1_u32});
+    let mut backend = native_call("Read", input.clone());
+    allow_native(&mut backend, &input);
+    let mut up = Queue::with_capacity(32);
+    native_result(&mut backend, false, &mut up);
+    server_call(&mut backend, 2);
+    backend
+}
+
+#[test]
+fn an_owned_remove_result_reaches_its_mcp_caller() {
+    use smith_domain::tools::Outcome;
+    for (outcome, expected, error) in [
+        (Outcome::Removed, "removed", false),
+        (Outcome::NotRead, "read the file whole", true),
+        (Outcome::Stale, "file changed", true),
+    ] {
+        let mut backend = active();
+        let mut call = reply_tests::call(b"owned");
+        call.name = b"foo".as_slice().into();
+        backend.ledger.push(call).ok().expect("owned call");
+        review_tests::connect_server(&mut backend);
+        server_call(&mut backend, 1);
+        let mut next = request(&backend);
+        let FromDomain::Complete { prompt, .. } = &mut next else { panic!("complete") };
+        prompt.messages = Box::new([llm::Message {
+            role: llm::Role::User,
+            content: Box::new([llm::Block::ToolResult {
+                id: b"owned".as_slice().into(),
+                result: llm::Returned::Owned { outcome },
+            }]),
+        }]);
+        backend.resume(&env(0), next, &mut Queue::with_capacity(32), &mut Queue::with_capacity(64));
+        let reply = review_tests::server_reply(&mut backend);
+        assert!(reply["result"]["content"][0]["text"].as_str().expect("result text").contains(expected));
+        assert_eq!(reply["result"]["isError"], error);
+    }
+}
+
+#[test]
+fn an_mcp_successor_may_arrive_before_its_next_assistant_record() {
+    let mut backend = after_partial_result();
+    let mut up = Queue::with_capacity(32);
+    assert_eq!(backend.calls.len(), 1, "RPC waits for its next assistant record");
+    backend.line(&env(0), br#"{"type":"assistant","message":{"id":"next-message","content":[{"type":"tool_use","id":"next","name":"mcp__smith__foo","input":{}}]}}"#,
+        &mut up, &mut Queue::with_capacity(64));
+    assert!(backend.calls.is_empty(), "the announcement correlates the RPC");
+    completed(up.pop(), Token::new(80));
+    let mut next = request(&backend);
+    let FromDomain::Complete { prompt, .. } = &mut next else { panic!("complete") };
+    prompt.messages = Box::new([llm::Message {
+        role: llm::Role::User,
+        content: Box::new([llm::Block::ToolResult {
+            id: b"next".as_slice().into(),
+            result: llm::Returned::Text { text: b"found".as_slice().into(), error: false, replay: None },
+        }]),
+    }]);
+    backend.resume(&env(0), next, &mut up, &mut Queue::with_capacity(64));
+    let reply = review_tests::server_reply(&mut backend);
+    assert_eq!(reply["id"], 2_u32);
+    assert_eq!(reply["result"]["content"][0]["text"], "found");
+    assert_eq!(reply["result"]["isError"], false);
+}
+
+#[test]
+fn an_unannounced_mcp_successor_is_refused_when_the_turn_ends() {
+    let mut backend = after_partial_result();
+    let mut up = Queue::with_capacity(32);
+    assert_eq!(backend.calls.len(), 1);
+    backend.line(&env(0), br#"{"type":"result","is_error":false}"#, &mut up, &mut Queue::with_capacity(64));
+    assert!(backend.calls.is_empty());
+    let reply = review_tests::server_reply(&mut backend);
+    assert_eq!(reply["result"]["isError"], true);
+    assert_eq!(reply["result"]["content"][0]["text"], "smith: this call was not in the model's message");
 }

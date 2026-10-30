@@ -226,10 +226,14 @@ def bind_manifest(logical, rows):
             raise RuntimeError('cold index/raw manifest entry differs')
 
 
-def prepared_tools(logical, rows):
+def prepared_tools(logical, rows, paths, select):
     """Bind each discovered executable source to present prepared raw contents."""
     bind_manifest(logical, rows)
-    commands = indexed_tools(logical)
+    discovered = [(item['name'], item['argv'], None) for item in indexed_tools(logical)]
+    try:
+        commands = [{'name': name, 'argv': argv} for name, argv, _ in select(paths, discovered)]
+    except ValueError as error:
+        raise RuntimeError('cold indexed discovery: ' + str(error)) from error
     contents = {row['name']: row for row in rows}
     for command in commands:
         name, visited = command['name'], set()
@@ -346,7 +350,9 @@ class ColdTools:
         logical = owner.git("ls-files", "--stage", "-z")
         entries = [entry for entry in logical.split("\0") if entry]
         rows = manifest(owner.repo, entries)
-        indexed = [(item['name'], item['argv']) for item in prepared_tools(logical, rows)]
+        paths = sorted(set(owner.record['selection_paths']) | set(owner.record['paths']))
+        selected = lambda entries, contents: prepared_tools(entries, contents, paths, owner.mq.author_tools_select)
+        indexed = [(item['name'], item['argv']) for item in selected(logical, rows)]
         objects = Path(owner.git("rev-parse", "--path-format=absolute", "--git-path", "objects"))
         no_links(objects)
         if ((objects / "info/alternates").exists() or (objects / "info/alternates").is_symlink() or
@@ -460,7 +466,8 @@ class ColdTools:
         if working_tree != self.receipt['input']['raw_tree']:
             raise RuntimeError('independent raw working tree differs')
         expected = [(name, argv) for name, argv, _, timeout in self.commands if timeout is not None]
-        observed = [(name, argv) for name, argv, _ in owner.mq.tools_commands(self.repo)]
+        observed = [(item['name'], item['argv']) for item in
+                    selected(os.fsdecode(self.git('ls-files', '--stage', '-z')), copied)]
         if observed != expected or observed != indexed:
             raise RuntimeError("cold discovered tools plan differs")
         self.receipt.update(observed={"entries_sha256": digest(self.git('ls-files', '--stage', '-z')),

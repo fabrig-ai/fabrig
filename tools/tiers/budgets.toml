@@ -1,0 +1,56 @@
+# The user's budgets, director/decisions/0028 (10-30): x1.5 of the cold measurement of 10-30 (main 44230b8fc), process-temper at its design aim (temper/docs/design/domain/testing.md 2.6), red until its repair; re-measure after a week. Changing a figure is the user's.
+# Live pairs and default/fuzzy have no entry yet: the user has not set their CPU budgets here.
+# Optional per-pair auto_reap = ["test_name", ...] declares known auto-reaping tests; empty today.
+
+# Suite paths are quoted keys, e.g. [tools."tools/tiers/test_run.py"].
+[tools]
+
+[exhaustive-skein]
+cpu_suite_s = 15
+cpu_test_s = 60
+wall_hard_s = 300
+
+[qa-skein]
+cpu_suite_s = 65
+cpu_test_s = 60
+wall_hard_s = 300
+
+[qa-smith]
+cpu_suite_s = 5
+cpu_test_s = 60
+wall_hard_s = 300
+
+[qa-jig]
+cpu_suite_s = 10
+cpu_test_s = 60
+wall_hard_s = 300
+
+[process-jig]
+cpu_suite_s = 5
+cpu_test_s = 60
+wall_hard_s = 300
+
+[browser-skein]
+cpu_suite_s = 145
+cpu_test_s = 60
+wall_hard_s = 435
+
+[browser-jig]
+cpu_suite_s = 25
+cpu_test_s = 60
+wall_hard_s = 300
+
+[browser-temper]
+cpu_suite_s = 85
+cpu_test_s = 60
+wall_hard_s = 300
+
+[qa-temper]
+cpu_suite_s = 455
+cpu_test_s = 60
+wall_hard_s = 1365
+
+[process-temper]
+cpu_suite_s = 360
+cpu_test_s = 60
+wall_hard_s = 1080

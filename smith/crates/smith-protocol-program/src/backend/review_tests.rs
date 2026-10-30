@@ -416,7 +416,9 @@ pub(super) fn server_reply(backend: &mut Backend) -> serde_json::Value {
         for _ in 0..backend.io.capacity() {
             let Some(request) = backend.io.pop() else { break };
             match request {
-                io::Request::Output { down: skein_lib::stream::OutputDown::Room { right, .. }, .. } => {
+                io::Request::Output { stream, down: skein_lib::stream::OutputDown::Room { right, .. } }
+                    if stream == Token::new(201) =>
+                {
                     backend.server.as_mut().expect("server").from_io(
                         env(0).now,
                         io::Event::Output {
@@ -429,7 +431,9 @@ pub(super) fn server_reply(backend: &mut Backend) -> serde_json::Value {
                         &mut backend.io,
                     );
                 }
-                io::Request::Output { down: skein_lib::stream::OutputDown::Send { bytes, .. }, .. } => {
+                io::Request::Output { stream, down: skein_lib::stream::OutputDown::Send { bytes, .. } }
+                    if stream == Token::new(201) =>
+                {
                     return serde_json::from_slice(&bytes).expect("MCP reply");
                 }
                 io::Request::Listen { .. }

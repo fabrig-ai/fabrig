@@ -306,7 +306,7 @@ fn check_repair(ran: &Ran, first: u64) {
     let ci = system.split_once("## CI\n\n").expect("CI brief").1.split_once("\n## ").expect("next section").0;
     assert!(ci.contains(&format!("Repair the failed check at change head {}", &hex(first)[..16])));
     assert!(ci.contains("Failed check: / changes (pull_request)\nDescription: CI failed\nLink: http://"));
-    assert!(ci.contains("Failed step: 1 changes\nEnd of its log:\n"));
+    assert!(ci.contains("Failed step: 1 changes\nEnd of its log:\n"), "{ci}");
     assert!(ci.contains("/playground/widget/actions/runs/"));
     assert!(ci.contains("/jobs/1\n"));
     let log = ci

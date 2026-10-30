@@ -783,7 +783,7 @@ have one, an engine alone none. Each:
     4 bytes it already counts, within each hub's `transcript_bytes`.
     Each failure names the bound, its bytes, and the figure it must
     hold: `workers[0].limits.overrides.hub.turn_bytes: 65536 bytes,
-    short of the agent's largest turn, 1067414 bytes`.
+    short of the agent's largest turn, 1067219 bytes`.
 - **In the cluster's shapes** (README, 15.1), each process checks what
   its document holds: an engine alone, every check above but the
   worker's and those of the turn's that need the agent; a worker alone,
@@ -1604,10 +1604,11 @@ into the binary.
   and propose, for `withdraw`), not charter 1's with settings added.
   smith's host part counts a run's brief beside its tools, so a brief
   is rendered within the room its charter leaves. The small profile
-  gives the host part 52,000 bytes: 33,520 for the largest stock
-  charter's declarations, 14,592 for the authorised brief, 1,472 for
-  its 64 sections' titles and framing, and 2,416 of margin. The stock
-  brief fits whole; cutting from its last section is the fallback.
+  gives the host part 51,870 bytes: 33,910 for the largest stock
+  charter's non-brief host part, 14,592 for the authorised brief and
+  1,472 for its 64 sections' titles and framing, a sum of 49,974 with
+  1,896 of margin. The stock brief fits whole; cutting from its last
+  section is the fallback.
   Each charter leaves at least 2,048 bytes
   (`../domain/agent.md`, 4.3). A run is offered a family's tools
   where its charter names the family and its task's authority holds it,
@@ -1843,37 +1844,37 @@ agent's largest turn" (`temper-service`'s `startup/checks.rs`).
   from the smallest shared room over every configured model, on purpose,
   so that one set of bounds holds whichever model a charter names
   (smith's `limits.md`, 3.9). With `temper init`'s demo endpoint
-  configured, its 177,523-token window sets that room: T = 608,662 + 24
-  × output + 4 × `reasoning_item`, init's 1,067,414. A box without the
+  configured, its 177,523-token window sets that room: T = 608,467 + 24
+  × output + 4 × `reasoning_item`, init's 1,067,219. A box without the
   demo is sized by its own models: an OpenAI model of window 1,048,576
-  alone gives T = 1,143,581 + ⌈45 × output / 2⌉ + 4 × `reasoning_item`,
-  luna's 1,590,045, past init's limits, so such a box overrides them
+  alone gives T = 1,143,386 + ⌈45 × output / 2⌉ + 4 × `reasoning_item`,
+  luna's 1,589,850, past init's limits, so such a box overrides them
   as below, its declarations measured (`docs/examples/owned.json`'s
-  fit); a Claude model alone gives 1,593,449, whose store frame passes
-  small's page ceiling by 3,403 bytes, so a Claude-only box does not
+  fit); a Claude model alone gives 1,593,254, whose store frame passes
+  small's page ceiling by 3,208 bytes, so a Claude-only box does not
   start on the small profile (an open question, below). `temper init`
   keeps the demo, temper's fake model, whose declared window gives
-  the 52,000-byte host part (13.4); its limits are sized for it.
+  the 51,870-byte host part (13.4); its limits are sized for it.
 - **The store's ceiling:** small's page holds a loaded transcript of at
   most 1,590,046 bytes (its 1,590,110 less the frame's 64), so T is at
-  most that. At output 32,000, `reasoning_item` is at most 53,346; a box
+  most that. At output 32,000, `reasoning_item` is at most 53,394; a box
   sets 32,768, its reasoning's bound per item, with room.
 - **Output 16,000** does not start on init's limits either: T is
-  1,254,806 at `reasoning_item` 65,536, past five of the rows below.
+  1,254,611 at `reasoning_item` 65,536, past five of the rows below.
 - **The limits T sets,** "both hubs" being the engine's and each
   worker's; init's values are output 8,192's:
 
 | Limit | Relation | Init: output 8,192, item 65,536 | Output 16,000, item 65,536 | Output 32,000, item 32,768 |
 |---|---|---|---|---|
-| both `hub.turn_bytes` | T | 1,067,414 | 1,254,806 | 1,507,734 |
-| the engine's `core.resume_bytes` | T + 4 | 1,067,418 | 1,254,810 | 1,507,738 |
-| both `hub.transcript_bytes` | resume + 12 × ⌊resume / 4⌋ | 4,269,666 | 5,019,234 | 6,030,946 |
-| a worker's `hub.turn_queue_bytes` | 8 × T | 8,539,312 | 10,038,448 | 12,061,872 |
-| the engine's `hub.turn_queue_bytes` | at least T | 8,539,312 | init's holds | init's holds |
-| `root.journal.transcript_bytes` | resume | 1,067,418 | 1,254,810 | 1,507,738 |
-| `root.loads.transcript_bytes` | T, at most 1,590,046 | 1,067,414 | 1,254,806 | 1,507,734 |
-| `root.loads.bytes`, `root.loads.reply_bytes` | T + 248 (a temper record) | 1,067,662 | 1,255,054 | 1,507,982 |
-| `root.loads.read_bytes` | init: 2 × T; holds T and a row and a record | 2,134,828 | init's holds | init's holds |
+| both `hub.turn_bytes` | T | 1,067,219 | 1,254,611 | 1,507,539 |
+| the engine's `core.resume_bytes` | T + 4 | 1,067,223 | 1,254,615 | 1,507,543 |
+| both `hub.transcript_bytes` | resume + 12 × ⌊resume / 4⌋ | 4,268,883 | 5,018,451 | 6,030,163 |
+| a worker's `hub.turn_queue_bytes` | 8 × T | 8,537,752 | 10,036,888 | 12,060,312 |
+| the engine's `hub.turn_queue_bytes` | at least T | 8,537,752 | init's holds | init's holds |
+| `root.journal.transcript_bytes` | resume | 1,067,223 | 1,254,615 | 1,507,543 |
+| `root.loads.transcript_bytes` | T, at most 1,590,046 | 1,067,219 | 1,254,611 | 1,507,539 |
+| `root.loads.bytes`, `root.loads.reply_bytes` | T + 248 (a temper record) | 1,067,467 | 1,254,859 | 1,507,787 |
+| `root.loads.read_bytes` | init: 2 × T; holds T and a row and a record | 2,134,438 | init's holds | init's holds |
 
 - **Memory:** `engine.memory_bytes` is the engine's byte budget
   (`../domain/root.md`, 4.1), independent of a model's edge bounds.

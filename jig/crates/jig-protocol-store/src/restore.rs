@@ -1,6 +1,8 @@
 //! Restart pages, including the inbox census joins (protocol/store.md, 7.2).
 mod diagnostic;
-pub use diagnostic::{Arithmetic, Cause, DecodeFailure, Failure, JoinFailure, RangeFailure, RowSite, WalkFailure};
+pub use diagnostic::{
+    Arithmetic, Cause, DecodeFailure, Failure, JoinFailure, OpenFailure, RangeFailure, RowSite, WalkFailure,
+};
 pub(crate) use diagnostic::{ready, site};
 pub(crate) mod reader;
 use crate::pages::Decoded as Restored;

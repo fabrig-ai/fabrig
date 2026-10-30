@@ -1,189 +1,215 @@
-//! Owned representation bounds, independent of admission judgments (engine.md, 6).
-use crate::{Act, Ask, Identity, Limits, Outcome, Refusal};
+//! Owned representation bounds, independent of admission judgments (jig/docs/design/domain/engine.md, 6).
+use crate::{Act, Ask, Identity, Key, Limits, Outcome, Refusal, RestoreBound, RestoreCause};
 use alloc::boxed::Box;
 
-pub(super) fn within(len: usize, limit: u32) -> bool {
-    match u32::try_from(len) {
-        Ok(len) => len <= limit,
-        Err(_) => false,
-    }
+fn owned_size(key: &Key, value: Option<usize>, invariant: &str) -> usize {
+    // Allocated sizes fit usize, so overflow is a bug rather than a configuration refusal.
+    assert!(value.is_some(), "{key:?}: {invariant}");
+    value.expect("asserted representable owned size")
 }
 
-pub(super) fn identity(limits: &Limits, identity: &Identity) -> bool {
-    let Some(first) = identity.key.subject.len().checked_add(identity.login.len()) else {
-        return false;
-    };
-    match first.checked_add(identity.name.len()) {
-        Some(bytes) => within(bytes, limits.identity_bytes),
-        None => false,
-    }
+fn owned_bytes(key: &Key, value: Option<u64>, invariant: &str) -> u64 {
+    // Allocated sizes and bounded counts fit u64, so failure is a bug rather than a configuration refusal.
+    assert!(value.is_some(), "{key:?}: {invariant}");
+    value.expect("asserted representable owned bytes or count")
 }
 
-pub(super) fn models(names: &[Box<[u8]>]) -> bool {
-    if !within(names.len(), crate::MODELS) {
-        return false;
+pub(super) fn within(key: &Key, which: RestoreBound, len: usize, limit: u32) -> Result<(), RestoreCause> {
+    let held = owned_bytes(key, u64::try_from(len).ok(), "allocated payload length fits u64");
+    measured(which, held, limit)
+}
+
+fn measured(which: RestoreBound, held: u64, limit: u32) -> Result<(), RestoreCause> {
+    let limit = u64::from(limit);
+    if held > limit {
+        return Err(RestoreCause::Bound { which, held, limit });
     }
+    Ok(())
+}
+
+pub(super) fn occupancy(
+    key: &Key,
+    which: RestoreBound,
+    first: u32,
+    second: u32,
+    limit: u32,
+) -> Result<(), RestoreCause> {
+    let held = owned_bytes(key, u64::from(first).checked_add(u64::from(second)), "held occupancy fits u64");
+    let held = owned_bytes(key, held.checked_add(1), "incoming occupancy fits u64");
+    measured(which, held, limit)
+}
+
+pub(super) fn identity(key: &Key, limits: &Limits, identity: &Identity) -> Result<(), RestoreCause> {
+    let held =
+        owned_size(key, identity.key.subject.len().checked_add(identity.login.len()), "owned identity bytes fit usize");
+    let held = owned_size(key, held.checked_add(identity.name.len()), "owned identity bytes fit usize");
+    within(key, RestoreBound::IdentityBytes, held, limits.identity_bytes)
+}
+
+pub(super) fn models(key: &Key, names: &[Box<[u8]>]) -> Result<(), RestoreCause> {
+    within(key, RestoreBound::ModelNames, names.len(), crate::MODELS)?;
     for name in names {
-        if !within(name.len(), crate::MODEL_NAME_BYTES) {
-            return false;
-        }
+        within(key, RestoreBound::ModelNameBytes, name.len(), crate::MODEL_NAME_BYTES)?;
     }
-    true
+    Ok(())
 }
 
-fn bytes(value: Option<u64>, limit: u32) -> bool {
-    match value {
-        Some(value) => value <= u64::from(limit),
-        None => false,
-    }
+fn bytes(key: &Key, which: RestoreBound, value: Option<u64>, limit: u32, invariant: &str) -> Result<(), RestoreCause> {
+    measured(which, owned_bytes(key, value, invariant), limit)
 }
 
-fn batch(limits: &Limits, members: &[crate::Member]) -> bool {
-    if !within(members.len(), limits.batch) {
-        return false;
+fn choice(key: &Key, value: Option<&crate::LlmChoice>) -> Result<(), RestoreCause> {
+    if let Some(value) = value {
+        within(key, RestoreBound::Subagents, value.subagents.len(), crate::MODELS)?;
     }
+    Ok(())
+}
+
+fn batch(key: &Key, limits: &Limits, members: &[crate::Member]) -> Result<(), RestoreCause> {
+    within(key, RestoreBound::Batch, members.len(), limits.batch)?;
     for member in members {
-        if !within(member.words.len(), limits.words)
-            || !crate::llm::valid(member.llm.as_ref())
-            || !bytes(crate::member_bytes(member), limits.amendment_bytes)
-        {
-            return false;
-        }
+        within(key, RestoreBound::Words, member.words.len(), limits.words)?;
+        choice(key, member.llm.as_ref())?;
+        bytes(
+            key,
+            RestoreBound::AmendmentBytes,
+            crate::member_bytes(member),
+            limits.amendment_bytes,
+            "owned member bytes fit u64",
+        )?;
     }
-    true
+    Ok(())
 }
 
-fn amendment(limits: &Limits, value: &crate::Amendment) -> bool {
-    within(value.reason.len(), limits.words)
-        && crate::llm::valid(value.llm.as_ref())
-        && bytes(crate::amendment_bytes(value), limits.amendment_bytes)
+fn amendment(key: &Key, limits: &Limits, value: &crate::Amendment) -> Result<(), RestoreCause> {
+    within(key, RestoreBound::Words, value.reason.len(), limits.words)?;
+    choice(key, value.llm.as_ref())?;
+    bytes(
+        key,
+        RestoreBound::AmendmentBytes,
+        crate::amendment_bytes(value),
+        limits.amendment_bytes,
+        "owned amendment bytes fit u64",
+    )
 }
 
-fn adoption(limits: &Limits, value: &crate::Adoption) -> bool {
-    let Some(items) = value.resource.path.len().checked_add(value.options.len()) else {
-        return false;
-    };
-    let Some(mut bytes) = items.checked_mul(size_of::<Box<[u8]>>()) else {
-        return false;
-    };
+fn adoption(key: &Key, limits: &Limits, value: &crate::Adoption) -> Result<(), RestoreCause> {
+    let items = owned_size(
+        key,
+        value.resource.path.len().checked_add(value.options.len()),
+        "owned adoption slot count fits usize",
+    );
+    let mut bytes = owned_size(key, items.checked_mul(size_of::<Box<[u8]>>()), "owned adoption slot bytes fit usize");
     for part in &value.resource.path {
-        let Some(next) = bytes.checked_add(part.len()) else {
-            return false;
-        };
-        bytes = next;
+        bytes = owned_size(key, bytes.checked_add(part.len()), "owned adoption bytes fit usize");
     }
     for part in &value.options {
-        let Some(next) = bytes.checked_add(part.len()) else {
-            return false;
-        };
-        bytes = next;
+        bytes = owned_size(key, bytes.checked_add(part.len()), "owned adoption bytes fit usize");
     }
-    within(bytes, limits.amendment_bytes)
+    within(key, RestoreBound::AmendmentBytes, bytes, limits.amendment_bytes)
 }
 
-fn note(limits: &Limits, scope: &crate::NoteScope, change: &crate::NoteChange) -> bool {
+fn note(key: &Key, limits: &Limits, scope: &crate::NoteScope, change: &crate::NoteChange) -> Result<(), RestoreCause> {
     let scope = match scope {
-        crate::NoteScope::Deployment | crate::NoteScope::Project | crate::NoteScope::Goal { .. } => Some(0),
-        crate::NoteScope::Resources { pattern, .. } => super::super::note_pattern_bytes(pattern),
-    };
-    let change = match change {
-        crate::NoteChange::Delete { .. } => Some(0),
-        crate::NoteChange::Correct { description, body, references, .. } => {
-            let Some(bytes) = description.len().checked_add(body.len()) else {
-                return false;
-            };
-            let Some(refs) = references.len().checked_mul(size_of::<u64>()) else {
-                return false;
-            };
-            bytes.checked_add(refs)
+        crate::NoteScope::Deployment | crate::NoteScope::Project | crate::NoteScope::Goal { .. } => 0,
+        crate::NoteScope::Resources { pattern, .. } => {
+            owned_size(key, super::super::note_pattern_bytes(pattern), "owned note pattern bytes fit usize")
         }
     };
-    match (scope, change) {
-        (Some(scope), Some(change)) => match scope.checked_add(change) {
-            Some(bytes) => within(bytes, limits.amendment_bytes),
-            None => false,
-        },
-        (Some(_) | None, None) | (None, Some(_)) => false,
-    }
+    let change = match change {
+        crate::NoteChange::Delete { .. } => 0,
+        crate::NoteChange::Correct { description, body, references, .. } => {
+            let bytes = owned_size(key, description.len().checked_add(body.len()), "owned note text bytes fit usize");
+            let refs =
+                owned_size(key, references.len().checked_mul(size_of::<u64>()), "owned note reference bytes fit usize");
+            owned_size(key, bytes.checked_add(refs), "owned note change bytes fit usize")
+        }
+    };
+    let held = owned_size(key, scope.checked_add(change), "owned note bytes fit usize");
+    within(key, RestoreBound::AmendmentBytes, held, limits.amendment_bytes)
 }
 
-pub(super) fn ask(limits: &Limits, value: &Ask) -> bool {
+fn person_result(key: &Key, limits: &Limits, result: &crate::PersonResult) -> Result<(), RestoreCause> {
+    let held = match result {
+        crate::PersonResult::Report { words } | crate::PersonResult::Verdict { words, .. } => words.len(),
+        crate::PersonResult::Failure { reason } => reason.len(),
+        crate::PersonResult::Approved { state, words } => {
+            let words = match words {
+                Some(words) => words.len(),
+                None => 0,
+            };
+            owned_size(key, state.len().checked_add(words), "owned person result bytes fit usize")
+        }
+    };
+    within(key, RestoreBound::Words, held, limits.words)
+}
+
+pub(super) fn ask(key: &Key, limits: &Limits, value: &Ask) -> Result<(), RestoreCause> {
     match value {
         Ask::Compound { operations, .. } => {
-            if operations.len() > limits.operations {
-                return false;
-            }
+            measured(RestoreBound::Operations, u64::from(operations.len()), limits.operations)?;
             for operation in operations {
                 let fits = match operation {
                     crate::Operation::Cancel { reason, .. } | crate::Operation::Move { reason, .. } => {
-                        within(reason.len(), limits.words)
+                        within(key, RestoreBound::Words, reason.len(), limits.words)
                     }
-                    crate::Operation::Message { words, .. } => within(words.len(), limits.words),
-                    crate::Operation::Amend { amendment: value, .. } => amendment(limits, value),
-                    crate::Operation::Release { .. } | crate::Operation::Stop { .. } => true,
+                    crate::Operation::Message { words, .. } => {
+                        within(key, RestoreBound::Words, words.len(), limits.words)
+                    }
+                    crate::Operation::Amend { amendment: value, .. } => amendment(key, limits, value),
+                    crate::Operation::Release { .. } | crate::Operation::Stop { .. } => Ok(()),
                 };
-                if !fits {
-                    return false;
-                }
+                fits?;
             }
-            true
+            Ok(())
         }
-        Ask::Create { batch: members, .. } => batch(limits, members),
+        Ask::Create { batch: members, .. } => batch(key, limits, members),
         Ask::Propose { action, reason, .. } => {
-            within(reason.len(), limits.words)
-                && match action {
-                    crate::Action::Batch(members) => batch(limits, members),
-                    crate::Action::Amend { amendment: value, .. } => amendment(limits, value),
-                    crate::Action::Settings { .. } => true,
-                }
+            within(key, RestoreBound::Words, reason.len(), limits.words)?;
+            match action {
+                crate::Action::Batch(members) => batch(key, limits, members),
+                crate::Action::Amend { amendment: value, .. } => amendment(key, limits, value),
+                crate::Action::Settings { .. } => Ok(()),
+            }
         }
-        Ask::Amend { amendment: value, .. } => amendment(limits, value),
-        Ask::Say { words, .. } | Ask::AnswerQuestion { words, .. } => within(words.len(), limits.words),
-        Ask::Move { reason, .. } | Ask::Cancel { reason, .. } => within(reason.len(), limits.words),
-        Ask::AnswerPerson { result, .. } => super::super::valid_person_result(limits, result),
-        Ask::Adopt { adoption: value, .. } => adoption(limits, value),
-        Ask::EditNote { scope, change, .. } => note(limits, scope, change),
+        Ask::Amend { amendment: value, .. } => amendment(key, limits, value),
+        Ask::Say { words, .. } | Ask::AnswerQuestion { words, .. } => {
+            within(key, RestoreBound::Words, words.len(), limits.words)
+        }
+        Ask::Move { reason, .. } | Ask::Cancel { reason, .. } => {
+            within(key, RestoreBound::Words, reason.len(), limits.words)
+        }
+        Ask::AnswerPerson { result, .. } => person_result(key, limits, result),
+        Ask::Adopt { adoption: value, .. } => adoption(key, limits, value),
+        Ask::EditNote { scope, change, .. } => note(key, limits, scope, change),
         Ask::MakeService { name, .. } => {
-            within(name.len(), limits.words)
-                && match name.len().checked_add(size_of::<u64>()) {
-                    Some(bytes) => within(bytes, limits.identity_bytes),
-                    None => false,
-                }
+            within(key, RestoreBound::Words, name.len(), limits.words)?;
+            let held =
+                owned_size(key, name.len().checked_add(size_of::<u64>()), "owned service identity bytes fit usize");
+            within(key, RestoreBound::IdentityBytes, held, limits.identity_bytes)
         }
-        Ask::SetRoles { holdings, .. } => within(holdings.len(), limits.holdings),
-        Ask::Rename { name, .. } | Ask::MakeProject { name, .. } => name.len() <= crate::NAME_BYTES,
-        Ask::ChangePolicy { change, .. } => bytes(crate::policy_change_bytes(change), limits.amendment_bytes),
+        Ask::SetRoles { holdings, .. } => within(key, RestoreBound::Holdings, holdings.len(), limits.holdings),
+        Ask::Rename { name, .. } | Ask::MakeProject { name, .. } => {
+            within(key, RestoreBound::NameBytes, name.len(), u32::try_from(crate::NAME_BYTES).expect("name bound fits"))
+        }
+        Ask::ChangePolicy { change, .. } => bytes(
+            key,
+            RestoreBound::AmendmentBytes,
+            crate::policy_change_bytes(change),
+            limits.amendment_bytes,
+            "owned policy change bytes fit u64",
+        ),
         Ask::DecideEscalation { decision, .. } => match decision {
-            crate::EscalationDecision::Reject { reason } => within(reason.len(), limits.words),
-            crate::EscalationDecision::Release | crate::EscalationDecision::Pass => true,
+            crate::EscalationDecision::Reject { reason } => {
+                within(key, RestoreBound::Words, reason.len(), limits.words)
+            }
+            crate::EscalationDecision::Release | crate::EscalationDecision::Pass => Ok(()),
         },
         Ask::DecideProposal { decision, .. } => match decision {
-            crate::ProposalDecision::Reject { reason } => within(reason.len(), limits.words),
-            crate::ProposalDecision::Accept | crate::ProposalDecision::Pass => true,
+            crate::ProposalDecision::Reject { reason } => within(key, RestoreBound::Words, reason.len(), limits.words),
+            crate::ProposalDecision::Accept | crate::ProposalDecision::Pass => Ok(()),
         },
-        Ask::AccountChange { change, .. } => match change {
-            crate::AccountChange::DeclareProgram { name, .. } => name.len() <= 32,
-            crate::AccountChange::SetUses { uses: Some(uses), .. } => {
-                within(uses.len(), crate::USES)
-                    && match uses.len().checked_mul(size_of::<crate::Use>()) {
-                        Some(bytes) => within(bytes, limits.words),
-                        None => false,
-                    }
-            }
-            crate::AccountChange::SetUses { uses: None, .. }
-            | crate::AccountChange::CheckProgram { .. }
-            | crate::AccountChange::AddKey { .. }
-            | crate::AccountChange::ReplaceKey { .. }
-            | crate::AccountChange::RemoveKey { .. }
-            | crate::AccountChange::Resume { .. }
-            | crate::AccountChange::Remove { .. }
-            | crate::AccountChange::MoveAccount { .. }
-            | crate::AccountChange::MoveSource { .. }
-            | crate::AccountChange::MoveOut { .. }
-            | crate::AccountChange::Written { .. }
-            | crate::AccountChange::MoveIn { .. }
-            | crate::AccountChange::FinishSignIn { .. } => true,
-        },
+        Ask::AccountChange { change, .. } => account_change(key, limits, change),
         Ask::MarkSeen { .. }
         | Ask::Application { .. }
         | Ask::ChangeSettings { .. }
@@ -196,35 +222,35 @@ pub(super) fn ask(limits: &Limits, value: &Ask) -> bool {
         | Ask::TakePerson { .. }
         | Ask::HandBackPerson { .. }
         | Ask::Stop { .. }
-        | Ask::Release { .. } => true,
+        | Ask::Release { .. } => Ok(()),
     }
 }
 
-pub(super) fn act(limits: &Limits, value: &Act) -> bool {
+pub(super) fn act(key: &Key, limits: &Limits, value: &Act) -> Result<(), RestoreCause> {
     match value {
-        Act::Close { reason, .. } => within(reason.len(), limits.words),
-        Act::Adopt { adoption: value, .. } => adoption(limits, value),
-        Act::MakeProject { name, .. } => name.len() <= crate::NAME_BYTES,
-        Act::AddKey { .. } | Act::RemoveAccount { .. } => true,
+        Act::Close { reason, .. } => within(key, RestoreBound::Words, reason.len(), limits.words),
+        Act::Adopt { adoption: value, .. } => adoption(key, limits, value),
+        Act::MakeProject { name, .. } => {
+            within(key, RestoreBound::NameBytes, name.len(), u32::try_from(crate::NAME_BYTES).expect("name bound fits"))
+        }
+        Act::AddKey { .. } | Act::RemoveAccount { .. } => Ok(()),
     }
 }
 
-pub(super) fn outcome(limits: &Limits, outcome: &Outcome) -> bool {
+pub(super) fn outcome(key: &Key, limits: &Limits, outcome: &Outcome) -> Result<(), RestoreCause> {
     match outcome {
-        Outcome::Refused(why) | Outcome::CompoundRefused { why, .. } => refusal(why),
+        Outcome::Refused(why) | Outcome::CompoundRefused { why, .. } => refusal(key, why),
         Outcome::AccountSignedOut { failed_hosts, .. } | Outcome::AccountRemoved { failed_hosts, .. } => {
-            if !within(failed_hosts.len(), limits.program_hosts) {
-                return false;
-            }
+            within(key, RestoreBound::ProgramHosts, failed_hosts.len(), limits.program_hosts)?;
             for row in failed_hosts {
-                if !within(row.name.len(), limits.program_host_name_bytes) {
-                    return false;
-                }
+                within(key, RestoreBound::ProgramHostNameBytes, row.name.len(), limits.program_host_name_bytes)?;
             }
-            true
+            Ok(())
         }
-        Outcome::AccountProgramDeclared { name, .. } => name.len() <= 32,
-        Outcome::AccountSignInStarted { address, .. } => within(address.len(), crate::ADDRESS),
+        Outcome::AccountProgramDeclared { name, .. } => within(key, RestoreBound::ProgramNameBytes, name.len(), 32),
+        Outcome::AccountSignInStarted { address, .. } => {
+            within(key, RestoreBound::AddressBytes, address.len(), crate::ADDRESS)
+        }
         Outcome::Compound { .. }
         | Outcome::MarkedSeen { .. }
         | Outcome::Applied { .. }
@@ -260,14 +286,16 @@ pub(super) fn outcome(limits: &Limits, outcome: &Outcome) -> bool {
         | Outcome::AccountMovedIn { .. }
         | Outcome::AccountChanged
         | Outcome::SignedOut
-        | Outcome::Again(_) => true,
+        | Outcome::Again(_) => Ok(()),
     }
 }
 
-fn refusal(why: &Refusal) -> bool {
+fn refusal(key: &Key, why: &Refusal) -> Result<(), RestoreCause> {
     match why {
-        Refusal::Circle { tasks, .. } | Refusal::Full { tasks, .. } => within(tasks.len(), crate::NAMED_TASKS),
-        Refusal::Kept { pending } => pending.len() <= 64,
+        Refusal::Circle { tasks, .. } | Refusal::Full { tasks, .. } => {
+            within(key, RestoreBound::NamedTasks, tasks.len(), crate::NAMED_TASKS)
+        }
+        Refusal::Kept { pending } => within(key, RestoreBound::KeptPending, pending.len(), 64),
         Refusal::SignInRedirect { .. }
         | Refusal::Stale { .. }
         | Refusal::NameTaken
@@ -288,6 +316,33 @@ fn refusal(why: &Refusal) -> bool {
         | Refusal::Provider
         | Refusal::KeyConflict
         | Refusal::NoEscalationHolder
-        | Refusal::Llm { .. } => true,
+        | Refusal::Llm { .. } => Ok(()),
+    }
+}
+
+fn account_change(key: &Key, limits: &Limits, change: &crate::AccountChange) -> Result<(), RestoreCause> {
+    match change {
+        crate::AccountChange::DeclareProgram { name, .. } => {
+            within(key, RestoreBound::ProgramNameBytes, name.len(), 32)
+        }
+        crate::AccountChange::SetUses { uses: Some(uses), .. } => {
+            within(key, RestoreBound::Uses, uses.len(), crate::USES)?;
+            let held =
+                owned_size(key, uses.len().checked_mul(size_of::<crate::Use>()), "owned account use bytes fit usize");
+            within(key, RestoreBound::Words, held, limits.words)
+        }
+        crate::AccountChange::SetUses { uses: None, .. }
+        | crate::AccountChange::CheckProgram { .. }
+        | crate::AccountChange::AddKey { .. }
+        | crate::AccountChange::ReplaceKey { .. }
+        | crate::AccountChange::RemoveKey { .. }
+        | crate::AccountChange::Resume { .. }
+        | crate::AccountChange::Remove { .. }
+        | crate::AccountChange::MoveAccount { .. }
+        | crate::AccountChange::MoveSource { .. }
+        | crate::AccountChange::MoveOut { .. }
+        | crate::AccountChange::Written { .. }
+        | crate::AccountChange::MoveIn { .. }
+        | crate::AccountChange::FinishSignIn { .. } => Ok(()),
     }
 }

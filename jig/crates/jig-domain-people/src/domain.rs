@@ -112,6 +112,8 @@ pub struct Domain {
     phase: Phase,
     start: start::Phase,
     start_at: Option<Wall>,
+    restore_failure: Option<crate::RestoreFailure>,
+    ended_witnesses: Set<(u64, u64)>,
     touched: bool,
     deployment_provider: u16,
     people: Map<u64, Identity>,
@@ -168,6 +170,7 @@ impl Domain {
     /// Release a cancelled move's volatile Written place (protocol/llm.md, 5.6).
     /// `None` cancels all moves when the accounts component closes.
     pub fn cancel_moves(&mut self, source: Option<u32>) {
+        self.touched = true;
         for _ in 0..self.flights.capacity() {
             let mut found = None;
             for (key, id) in &self.flights {
@@ -233,6 +236,10 @@ impl Domain {
             phase: Phase::Restoring,
             start: start::Phase::Default,
             start_at: None,
+            restore_failure: None,
+            ended_witnesses: Set::with_capacity(
+                limits.people.checked_mul(limits.inbox_tasks).expect("bounded conversation witnesses"),
+            ),
             touched: false,
             deployment_provider,
             people: Map::with_capacity(limits.people),
@@ -494,6 +501,7 @@ impl Domain {
     /// End the first owners' seeding when the core begins restore (protocol/configuration.md,
     /// 3: owners seed the first start only); they stay the deployment's first owners.
     pub fn end_seeding(&mut self) {
+        self.touched = true;
         self.seeding = false;
     }
 
@@ -569,6 +577,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             inbox::move_chat(domain, &env.limits, task, project, from, to, out);
         }
         Event::ChatState { party, project, task, last_reply, live, seen, replies } => {
+            domain.assert_projection_event();
             inbox::chat_state_event(domain, env, party, project, task, last_reply, live, seen, replies, out);
         }
         Event::ConversationSeen { request, project, last_reply } => {
@@ -579,7 +588,10 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         }
         Event::MakeService { request, person } => make_service(domain, env, request, person, out),
         Event::Seed { project, collaborators } => seed(domain, &env.limits, project, &collaborators, out),
-        Event::Waiting { task, entries } => replace_waiting(domain, &env.limits, task, &entries),
+        Event::Waiting { task, entries } => {
+            domain.assert_projection_event();
+            replace_waiting(domain, &env.limits, task, &entries);
+        }
         Event::ApplyRoles { reply_to, request } => {
             let result = apply_roles(domain, env, request, out);
             out.push(Request::RolesApplied { reply_to, request, result });
@@ -635,6 +647,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
 /// an uncapped output queue and calls again in later iterations while due; parent owns durability
 /// and secret cleanup.
 pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    domain.touched = true;
     if !domain.ready() {
         return;
     }
@@ -2239,6 +2252,7 @@ fn restored(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 /// The caller completes this part before the application flight (domain/people.md, 5.1).
 /// Explicit model selectors refuse `Lack::Models`: parts carry no model-name context yet.
 pub fn application_part(domain: &mut Domain, env: &Env<Limits>, request: Token, ask: Ask) -> Result<Request, Outcome> {
+    domain.touched = true;
     let id = Id::from_token(request);
     let flight = domain.party_pending(id).ok_or(Outcome::Refused(Refusal::Unknown))?;
     let application_project = match &flight.ask {
@@ -2424,6 +2438,7 @@ fn holds(domain: &Domain, person: u64, holder: crate::AccountHolder) -> bool {
 
 /// Forget the synchronous part while preserving its application key and digest.
 pub fn application_part_done(domain: &mut Domain, request: Token) {
+    domain.touched = true;
     if let Some(flight) = domain.party_pending_mut(Id::from_token(request)) {
         flight.part = None;
     }

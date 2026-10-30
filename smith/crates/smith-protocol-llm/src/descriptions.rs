@@ -46,10 +46,6 @@ pub(crate) fn schema(tool: Tool, stated: &Stated, namespace: &Namespace) -> Box<
 }
 
 fn words(tool: Tool, stated: &Stated, namespace: &Namespace, output: &mut Text) {
-    if tool == Tool::Remove {
-        output.put(b"Remove a file you have read at its current version, or an empty directory; never a directory with files in it.");
-        return;
-    }
     match tool {
         Tool::Read => {
             output.put(b"Read whole lines in byte windows; default ");
@@ -75,7 +71,7 @@ fn words(tool: Tool, stated: &Stated, namespace: &Namespace, output: &mut Text) 
             output.number(u64::from(stated.search_bytes));
             output.put(b" bytes; cuts are marked. ");
         }
-        Tool::Remove => unreachable!("remove description is complete"),
+        Tool::Remove => output.put(b"Remove a file you have read at its current version, or an empty directory; never a directory with files in it."),
         Tool::Write => output.put(b"Write a file; read its current version first. "),
         Tool::Edit => output.put(
             b"Apply ordered edits atomically; no earlier read. Each old must match once, or at least once with all. ",

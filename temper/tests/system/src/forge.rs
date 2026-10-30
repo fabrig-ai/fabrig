@@ -84,7 +84,12 @@ impl World {
                 // Walking's CI budget 128 and read bound 256 lose the log's end.
                 limits.brief.read_bytes = 512;
                 limits.brief.budgets.ci = 384;
-                limits.brief.brief_bytes = 768;
+                // A repair retains its named pull beside the failed check.
+                limits.brief.budgets.pull = 384;
+                limits.brief.brief_bytes = 1024;
+                // Both sections complete their sequential reads within the stock gather deadline.
+                limits.brief.gather =
+                    temper_service::limits::profile(temper_service::limits::Profile::Small).root.brief.gather;
                 limits.tasks.tasks = 12;
                 // The demo's end may select every live task; engine::valid checks coverage.
                 limits.forge.tasks = limits.tasks.tasks;

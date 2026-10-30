@@ -495,3 +495,54 @@ fn stop_delegate(driver: &mut temper_engine_domain_world::direct::Driver, child:
     }));
     driver.settle();
 }
+
+#[test]
+fn writer_store_oracle_rejects_held_entry_actor_high_water_and_fallback_mutations() {
+    use temper_engine_domain_world::escalation_referee::store_rules;
+    let mut world = World::new(Settings::calm(9100, Story::Reject));
+    let mut held = None;
+    for _ in 0..300 {
+        world.iterate();
+        if world.store.rows.values().any(|row| matches!(row, Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task))) if matches!(task.escalation, tasks::Escalation::Waiting { .. }))) {
+            held = Some(world.store.rows.clone());
+            break;
+        }
+    }
+    let held = held.expect("real writer committed a held row");
+    store_rules(&held).expect("valid bounded fixture");
+    for field in 0..3 {
+        let mut altered = held.clone();
+        for row in altered.values_mut() {
+            match row {
+                Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task))) if field < 2 => {
+                    if let tasks::Escalation::Waiting { entry, holder, .. } = &mut task.escalation {
+                        match field {
+                            0 => *entry = world.store.header().messages + 1,
+                            1 => *holder = tasks::EscalationHolder::Role { project: task.project + 1, role: 0 },
+                            _ => unreachable!(),
+                        }
+                    }
+                }
+                Record::Core(jig_domain_core::Record::People(people::Stored::Policy { value, .. })) if field == 2 => {
+                    value.escalation_role = None;
+                }
+                Record::Core(_) | Record::Forge { .. } => {}
+            }
+        }
+        assert!(store_rules(&altered).is_err(), "bounded held-store mutation {field}");
+    }
+    world.run();
+    store_rules(&world.store.rows).expect("valid bounded fixture");
+    let mut altered = world.store.rows.clone();
+    let mut changed = 0;
+    for row in altered.values_mut() {
+        if let Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task))) = row
+            && let tasks::Escalation::Rejected { by, .. } = &mut task.escalation
+        {
+            *by = world.store.header().people.max(world.store.header().tasks) + 1;
+            changed += 1;
+        }
+    }
+    assert_eq!(changed, 1);
+    assert_eq!(store_rules(&altered), Err("rejection actor exceeds durable actor high-water mark"));
+}

@@ -346,6 +346,10 @@ fn make_failed_relay(spawn: &Spawn, inherited: &Inherited) -> Proc {
 struct Machine {
     files: Files,
     base: Opened,
+    change_after_snapshot: bool,
+    snapshot: Option<skein_sim::Handle>,
+    snapshot_closed: bool,
+    changed: bool,
 }
 
 impl skein_world::Machine for Machine {
@@ -370,7 +374,31 @@ impl skein_world::Machine for Machine {
             .map_err(skein_fake_machine::kernel_error)
     }
     fn step(&mut self, call: skein_sim::Call, answers: &mut Queue<skein_sim::Answer>) {
+        let snapshot_open = self.change_after_snapshot
+            && matches!(&call.ask, skein_sim::Ask::Open { path, .. } if path.as_ref() == b"a");
+        let snapshot_close = matches!(&call.ask, skein_sim::Ask::Close { file } if Some(*file) == self.snapshot);
+        // The agent loads `a` beneath the workspace root before Allow. The
+        // native fake opens its absolute path beneath the fixture root only
+        // after that load has closed and the permission answer has arrived.
+        if self.change_after_snapshot
+            && matches!(&call.ask, skein_sim::Ask::Open { path, .. } if path.as_ref() == b"work/repo/a")
+        {
+            assert!(self.snapshot_closed, "the native Read follows its settled snapshot");
+            let file = self.files.open(self.base, b"work/repo/a", How::Write).expect("world mutation file");
+            self.files.write(file, 0, b"world!\n").expect("world mutation");
+            self.files.close(file);
+            self.change_after_snapshot = false;
+            self.changed = true;
+        }
         skein_fake_machine::step(&mut self.files, call, answers);
+        if snapshot_open {
+            let answer = answers.iter().last().expect("open answer");
+            let Ok(skein_sim::Reply::Opened(file)) = answer.result else { panic!("snapshot opened") };
+            self.snapshot = Some(file);
+        }
+        if snapshot_close {
+            self.snapshot_closed = true;
+        }
     }
 }
 
@@ -438,6 +466,10 @@ pub struct Run {
     pub events: Vec<smith_events::Record>,
     /// Final bytes of the writable fixture, read after the run settles.
     pub workspace_file: Option<Vec<u8>>,
+    /// Whether the fixture's empty directory still exists.
+    pub workspace_empty_directory: bool,
+    /// The world changed the file after its snapshot settled.
+    pub snapshot_changed: bool,
     /// Final bytes of the fixture outside every admitted workspace directory.
     pub outside_file: Option<Vec<u8>>,
     /// Final bytes of the read-only library fixture.
@@ -472,6 +504,7 @@ fn fixture(story: &Story, login: Option<&[u8]>, case: Case) -> (Files, Opened) {
     if case == Case::Tools {
         items.extend([
             Item::file(b"work/repo/a", b"before\n"),
+            Item::directory(b"work/repo/empty"),
             Item::file(b"library/a", b"library text"),
             Item::directory(b"outside"),
             Item::file(b"outside/a", b"outside text"),
@@ -491,13 +524,29 @@ pub fn run(
     value: &smith_channel::GrantValue,
     refresh: Option<&smith_channel::GrantValue>,
 ) -> Run {
-    run_inner(case, story, login, charter, value, refresh, None, None)
+    run_inner(case, story, login, charter, value, refresh, None, None, false)
+}
+
+/// Change the workspace file after smith's snapshot and before the native Read.
+#[must_use]
+pub fn run_after_snapshot(story: &Story, charter: &[u8]) -> Run {
+    run_inner(Case::Tools, story, Some(b"claude.ai"), charter, &crate::program(b"source"), None, None, None, true)
 }
 
 /// Restore the host's recorded window through the shipped program composition.
 #[must_use]
 pub fn run_with_window(story: &Story, charter: &[u8], turns: &[Box<[u8]>]) -> Run {
-    run_inner(Case::Transcript, story, Some(b"claude.ai"), charter, &crate::program(b"source"), None, Some(turns), None)
+    run_inner(
+        Case::Transcript,
+        story,
+        Some(b"claude.ai"),
+        charter,
+        &crate::program(b"source"),
+        None,
+        Some(turns),
+        None,
+        false,
+    )
 }
 
 /// Drive Open replies and parent messages on one program input.
@@ -509,7 +558,17 @@ pub fn open(story: &Story, charter: &[u8], releases: &[HostMessage]) -> Run {
 /// Restore an Open window, or begin fresh, with the same parent release driver.
 #[must_use]
 pub fn open_with_window(story: &Story, charter: &[u8], releases: &[HostMessage], turns: Option<&[Box<[u8]>]>) -> Run {
-    run_inner(Case::Open, story, Some(b"claude.ai"), charter, &crate::program(b"source"), None, turns, Some(releases))
+    run_inner(
+        Case::Open,
+        story,
+        Some(b"claude.ai"),
+        charter,
+        &crate::program(b"source"),
+        None,
+        turns,
+        Some(releases),
+        false,
+    )
 }
 
 /// Drive one hosted program scenario on the shared deterministic world and machine.
@@ -528,6 +587,7 @@ fn run_inner(
     refresh: Option<&smith_channel::GrantValue>,
     history: Option<&[Box<[u8]>]>,
     releases: Option<&[HostMessage]>,
+    change_after_snapshot: bool,
 ) -> Run {
     let mut story = story.clone();
     if !matches!(
@@ -549,7 +609,8 @@ fn run_inner(
     }
     let (mut files, base) = fixture(&story, login, case);
     let root = files.open(base, b".", How::Directory).expect("parent root");
-    let machine = Machine { files, base };
+    let machine =
+        Machine { files, base, change_after_snapshot, snapshot: None, snapshot_closed: false, changed: false };
     let mut world =
         skein_world::World::new_controlled(7, skein_sim::Config::calm(), skein_world::Memory::Checked, |_| Judge {
             wait_for_exit: matches!(
@@ -703,6 +764,14 @@ fn run_inner(
     };
     let run = Run {
         workspace_file: fixture_file(&mut outcome.machine.files, base, b"work/repo/a"),
+        workspace_empty_directory: match outcome.machine.files.open(base, b"work/repo/empty", How::Directory) {
+            Ok(directory) => {
+                outcome.machine.files.close(directory);
+                true
+            }
+            Err(_) => false,
+        },
+        snapshot_changed: outcome.machine.changed,
         outside_file: fixture_file(&mut outcome.machine.files, base, b"outside/a"),
         library_file: fixture_file(&mut outcome.machine.files, base, b"library/a"),
         frames: parent.peer.observed().to_vec(),

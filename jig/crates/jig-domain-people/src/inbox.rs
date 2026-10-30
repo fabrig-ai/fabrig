@@ -32,7 +32,7 @@ impl Domain {
     /// Last explicitly accepted results position for a known party, zero before any mark.
     #[must_use]
     pub fn results_seen(&self, person: u64) -> Option<u64> {
-        if !self.ready() || !self.people.contains_key(&person) {
+        if !(self.ready() || self.start_lookup()) || !self.people.contains_key(&person) {
             return None;
         }
         Some(*self.results_seen.get(&person).unwrap_or(&0))
@@ -205,6 +205,8 @@ impl Domain {
     /// An ended owner witnessed by the core's census resolves any leftover live
     /// positions. Ended positions are loaded separately, never kept as live ones.
     pub fn restore_ended_conversation(&mut self, task: u64) {
+        self.touched = true;
+        self.assert_projection_event();
         loop {
             let mut resolved = None;
             for ((party, conversation), _) in &self.conversations_seen {
@@ -281,8 +283,19 @@ impl Domain {
 
     /// Keep the newest `inbox_entries` plus one unread result witness; the store pages the rest.
     pub fn remember_result(&mut self, limits: &Limits, person: u64, entry: ResultRef) {
+        self.touched = true;
         if !self.ready()
             || !self.people.contains_key(&person)
+            || !self.has_project(entry.project)
+            || entry.position <= self.results_seen(person).unwrap_or(0)
+        {
+            return;
+        }
+        self.project_result(limits, person, entry);
+    }
+
+    pub(super) fn project_result(&mut self, limits: &Limits, person: u64, entry: ResultRef) {
+        if !self.people.contains_key(&person)
             || !self.has_project(entry.project)
             || entry.position <= self.results_seen(person).unwrap_or(0)
         {
@@ -446,8 +459,15 @@ struct State {
     seen: Option<u64>,
 }
 fn chat_state(domain: &mut Domain, state: State) {
+    if !domain.ready() {
+        return;
+    }
+    project_chat_state(domain, state);
+}
+
+fn project_chat_state(domain: &mut Domain, state: State) {
     let State { party, project, task, last_reply, live, seen } = state;
-    if !domain.ready() || !domain.people.contains_key(&party) || !domain.has_project(project) {
+    if !domain.people.contains_key(&party) || !domain.has_project(project) {
         return;
     }
     let seen = seen.unwrap_or(*domain.conversations_seen.get(&(party, task)).unwrap_or(&0));
@@ -774,15 +794,67 @@ pub(super) fn chat_state_event(
 ) {
     let through = seen.unwrap_or(*domain.conversations_seen.get(&(party, task)).unwrap_or(&0));
     chat_state(domain, State { party, project, task, last_reply, live, seen });
+    project_replies(domain, &env.limits, party, replies);
+    if !live {
+        super::ended::ended_state(domain, party, task, through, seen.is_none(), out);
+    }
+}
+
+#[expect(clippy::too_many_arguments, reason = "one bounded sibling census fact")]
+pub(super) fn project_chat(
+    domain: &mut Domain,
+    limits: &Limits,
+    party: u64,
+    project: u32,
+    task: u64,
+    last_reply: u64,
+    live: bool,
+    seen: Option<u64>,
+    replies: Box<[ReplyRef]>,
+) {
+    let through = seen.unwrap_or(*domain.conversations_seen.get(&(party, task)).unwrap_or(&0));
+    project_chat_state(domain, State { party, project, task, last_reply, live, seen });
+    project_replies(domain, limits, party, replies);
+    if !live {
+        // Keep read hints suppressed after Link retires the loaded position's witness.
+        if let Some(recent) = domain.recent.get_mut(&party) {
+            for item in recent.as_mut() {
+                match item.update {
+                    Update::ChatReply(reply) => {
+                        if reply.entry.task == task {
+                            match reply.entry.kind {
+                                EntryKind::ChatReply { message } => item.gone |= message <= through,
+                                EntryKind::Reply { .. }
+                                | EntryKind::Proposal { .. }
+                                | EntryKind::Escalation { .. }
+                                | EntryKind::Question { .. }
+                                | EntryKind::PersonTask => unreachable!("chat update kind"),
+                            }
+                        }
+                    }
+                    Update::Result(_) | Update::Reply(_) => {}
+                }
+            }
+        }
+        if let Some(entries) = domain.unread.get_mut(&party) {
+            for entry in entries.as_mut() {
+                if entry.task == task
+                    && let Some(forgettable) = &mut entry.forgettable
+                {
+                    forgettable.turns_read |= through == u64::MAX;
+                }
+            }
+        }
+    }
+}
+
+fn project_replies(domain: &mut Domain, limits: &Limits, party: u64, replies: Box<[ReplyRef]>) {
     assert!(
-        replies.len() <= usize::try_from(env.limits.inbox_recipients).expect("reply projection bound"),
+        replies.len() <= usize::try_from(limits.inbox_recipients).expect("reply projection bound"),
         "bounded owner hints"
     );
     for reply in replies {
-        cache_update(domain, &env.limits, party, Update::ChatReply(reply));
-    }
-    if !live {
-        super::ended::ended_state(domain, party, task, through, seen.is_none(), out);
+        cache_update(domain, limits, party, Update::ChatReply(reply));
     }
 }
 

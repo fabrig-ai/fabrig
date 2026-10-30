@@ -216,6 +216,7 @@ fn finished_reply(up: &Queue<ToDomain>) -> &llm::Completion {
         match event {
             ToDomain::Completed { completion, .. } => return completion,
             ToDomain::BuiltinResult { .. }
+            | ToDomain::ReadVersion { .. }
             | ToDomain::Failed { .. }
             | ToDomain::Cancelled { .. }
             | ToDomain::Text { .. } => {}

@@ -3,6 +3,7 @@
 #   codex-run task [--model M] [--effort E] [--read-only] [--to ADDR] [--resume RUN] TASK DIR REPORT
 #   codex-run owner [--model M] [--effort E] NAME BRIEF
 #   codex-run stale [--post]
+#   codex-run final RUN --owner ADDR (--landed SHA | --withdrawn REASON)
 # See tools/codex-run/design.md, sections 2–5.
 set -euo pipefail
 umask 077
@@ -126,6 +127,13 @@ terminate() {
     exit "$1"
 }
 finish_error() { printf '%s\n' "$*" >>"$state/finish-errors"; }
+# tools/codex-run/design.md, 3.1: optional producer notifications own no keeps.
+reap_notify() {
+    { timeout --signal=KILL "$ON_STOP_SECONDS" "$@" </dev/null || true; } >/dev/null 2>&1
+}
+reap_trigger() {
+    reap_notify systemctl --user start --no-block reap.service
+}
 post_subject() {
     local status=$1 first='' summary_exit=0
     first=$(head -n1 "$report" | tr -d '[:cntrl:]' | cut -c1-80) || summary_exit=$?
@@ -196,6 +204,8 @@ finish_task() {
             "${thread:--}" "$tokens" "$post_exit" >&9
     ) 9>>"$runs/runs.tsv" || finish_error 'row failed'
     : >"$state/ended" || finish_error 'ended marker failed'
+    # ExecStop owns notification when a callback still has to settle.
+    if [[ -z $on_stop ]]; then reap_trigger; fi
     exit "$status"
 }
 
@@ -215,6 +225,7 @@ launch() {
     if ((status != 0)); then
         if [[ ${mode:-} == task ]]; then
             cmp -s <(reservation) "$report" && rm -f -- "$report"
+            reap_trigger
             rm -rf "$state"
         fi
         refuse "systemd-run failed: $output"
@@ -299,6 +310,9 @@ task_launch() {
     printf 'caller=%s\nto=%s\nmodel=%s\neffort=%s\nread_only=%s\ntask=%s\ndir=%s\nreport=%s\nresume_of=%s\nstarted=%s\non_stop=%s\nslot_hold=%s\n' \
         "$caller" "$to" "$model" "$effort" "$read_only" "$task" "$dir" "$report" "$resume" "$started" "$on_stop" "${FABRIG_SLOT_HOLD:-}" >"$state/meta"
     [[ -z $previous ]] || printf '%s\n' "$resume_thread" >"$state/thread"
+    if command -v reap >/dev/null 2>&1; then
+        reap_notify reap record start --kind codex-run --owner "$to" --id "$id" --path "$state"
+    fi
     launch "codex-run-$id" _run "$id"
     printf '%s %s\n' "$id" "$state"
 }
@@ -320,12 +334,12 @@ lease_task() {
     [[ -f $helper ]] || refuse 'missing slot lifetime helper'
     [[ $expected != stop ]] || expected=run
     if [[ ${FABRIG_SLOT_LEASE_MODE:-} == "$expected" ]] &&
-        python3 -I -B "$helper" verify "$dir" </dev/null; then return 0; fi
+        python3 -I -S -B "$helper" verify "$dir" </dev/null; then return 0; fi
     if [[ $purpose == stop || ( $purpose == run && -z ${on_stop:-} ) ]]; then
         adopt=$(meta_get "$state/meta" slot_hold)
     fi
     [[ $purpose != stop ]] || purpose=run
-    exec python3 -I -B "$helper" "$purpose" "$dir" --adopt "$adopt" -- "$script" "${original_args[@]}"
+    exec python3 -I -S -B "$helper" "$purpose" "$dir" --adopt "$adopt" -- "$script" "${original_args[@]}"
 }
 
 # tools/codex-run/design.md, 4: trim only this task's writable slot.
@@ -361,6 +375,11 @@ task_run() {
     done < <(printf '%s' "${paths[1]}")
     dir=${paths[2]}
     lease_task run "${paths[3]}"
+    # Finalization takes the exclusive metadata lock after unit inactivity.
+    local run_lock
+    exec {run_lock}<"$state/meta"
+    flock --shared "$run_lock"
+    [[ ! -e $state/final.json && ! -L $state/final.json ]] || refuse 'run is final'
     touch "$state/events.jsonl" "$state/stderr.log"
     trap 'finish_task "$?"' EXIT
     trap 'terminate 143' TERM
@@ -383,17 +402,22 @@ task_stop() {
     local dir
     dir=$(meta_get "$state/meta" dir)
     lease_task stop
+    local stop_lock
+    exec {stop_lock}<"$state/meta"
+    flock --shared "$stop_lock"
     f=$(meta_get "$state/meta" on_stop)
     if [[ -f $f && ! -L $f && -x $f ]]; then
         (cd -- "$(dirname -- "$f")" && timeout --signal=KILL "$ON_STOP_SECONDS" "$f") \
             </dev/null >>"$state/on-stop.log" 2>&1 || status=$?
         printf 'exit %s\n' "$status" >"$state/on-stop"
         if ((status != 0)); then
-            python3 -I -B "$fabrig/tools/slots/lifetime.py" uncertain "$dir" </dev/null || true
+            python3 -I -S -B "$fabrig/tools/slots/lifetime.py" uncertain "$dir" </dev/null || true
         fi
     else
         printf 'absent\n' >"$state/on-stop"
     fi
+    # Run completion never establishes task finality or ends its record.
+    reap_trigger
     return 0
 }
 
@@ -478,6 +502,8 @@ stale() {
     now=$(date +%s)
     for state in "$runs/"*/; do
         [[ -f $state/meta && ! -f $state/told ]] || continue
+        # Only notification candidates need metadata age checks.
+        [[ ! -f $state/ended || -f $state/post-failed ]] || continue
         state=${state%/}
         id=${state##*/}
         if ! modified=$(stat -c %Y "$state/meta"); then
@@ -554,11 +580,41 @@ normalize_root() {
     runs=$root/tmp/codex-run
 }
 
+# tools/codex-run/design.md, 3.2: only an explicit owner declaration ends a task.
+task_final() {
+    (($# >= 1)) || refuse 'usage: codex-run final RUN --owner ADDR (--landed SHA | --withdrawn REASON)'
+    local id=$1 owner='' disposition='' content='' result key
+    shift
+    while (($#)); do
+        (($# >= 2)) || refuse "missing value for $1"
+        key=$1
+        case $key in
+            --owner)
+                [[ -z $owner ]] || refuse 'duplicate owner'
+                owner=$2 ;;
+            --landed|--withdrawn)
+                [[ -z $disposition ]] || refuse 'choose exactly one landed or withdrawn declaration'
+                disposition=${key#--} content=$2 ;;
+            *) refuse "unknown final option $key" ;;
+        esac
+        shift 2
+    done
+    valid_to "$owner" || refuse 'invalid final owner'
+    [[ -n $disposition ]] || refuse 'choose exactly one landed or withdrawn declaration'
+    result=$(python3 -I -S -B "$kit/final.py" "$root" "$id" "$owner" "$disposition" "$content" "$ON_STOP_SECONDS") || return 2
+    if [[ $result == created ]]; then
+        if command -v reap >/dev/null 2>&1; then
+            reap_notify reap record end --kind codex-run --owner "$owner" --id "$id"
+        fi
+        reap_trigger
+    fi
+}
+
 mode=${1:-}
 # Bootstrap before path validation: the exec'd worker validates once, before
 # reading metadata. Exec preserves the adopting parent for orphan signals.
 if [[ $mode == _run && ${CODEX_RUN_SUBREAPER:-} != "$$" ]] && (($# == 2)); then
-    exec python3 -I -c 'import ctypes, os, sys; libc = ctypes.CDLL(None, use_errno=True); libc.prctl(36, 1, 0, 0, 0) == 0 or sys.exit("codex-run: cannot become child subreaper: " + os.strerror(ctypes.get_errno())); os.environ["CODEX_RUN_SUBREAPER"] = str(os.getpid()); os.execv(sys.argv[1], sys.argv[1:])' "$script" "${original_args[@]}"
+    exec python3 -I -S -c 'import ctypes, os, sys; libc = ctypes.CDLL(None, use_errno=True); libc.prctl(36, 1, 0, 0, 0) == 0 or sys.exit("codex-run: cannot become child subreaper: " + os.strerror(ctypes.get_errno())); os.environ["CODEX_RUN_SUBREAPER"] = str(os.getpid()); os.execv(sys.argv[1], sys.argv[1:])' "$script" "${original_args[@]}"
 fi
 if [[ $mode != task && $mode != _run ]]; then normalize_root; fi
 (($# == 0)) || shift
@@ -566,8 +622,9 @@ case $mode in
     task) task_launch "$@" ;;
     owner) owner_launch "$@" ;;
     stale) stale "$@" ;;
+    final) task_final "$@" ;;
     _run) task_run "$@" ;;
     _stop) task_stop "$@" ;;
     _owner) owner_run "$@" ;;
-    *) refuse 'usage: codex-run task|owner ... | stale [--post]' ;;
+    *) refuse 'usage: codex-run task|owner|final ... | stale [--post]' ;;
 esac

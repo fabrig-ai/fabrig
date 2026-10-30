@@ -1115,8 +1115,8 @@ circle, each for another of the set, so that none of them could end.
   it as for a delegate. It becomes the root of a tree of the party's, so
   a move needs their escalations to have a holder, as their batch does
   (section 4).
-- **Moving a task under another task,** designed, not built (draft
-  process-model.md, J5): whoever may amend both a live task and another
+- **Moving a task under another task,** designed, not built (temper's
+  draft landing-model.md, J5): whoever may amend both a live task and another
   live task may make the second the first's requester. The second must
   not be the first or below it, must be in the same project, and must
   have the depth and delegates' room the move needs; the tree it makes
@@ -1312,8 +1312,8 @@ connectors offer for goals are the core's to keep, not its executor's
 - **Parties** message the tasks their role lets them see (people.md,
   section 5).
 - **No broadcast.** Who may talk to whom stays visible and bounded.
-- **A conversation's questions,** designed, not built (draft
-  process-model.md, J7 and J8): a question a delegate asks its
+- **A conversation's questions,** designed, not built (temper's
+  draft landing-model.md, J7 and J8): a question a delegate asks its
   requester that is a conversation is the conversation's alone: it
   wakes it, and is no entry of its person's. The conversation answers
   it itself, in the answer form, or asks its own person in its own
@@ -1542,7 +1542,7 @@ another parked until a time; a restart in the middle of a drain,
 draining on. With moving under a task, successors and a
 conversation's questions (section 7, 8.5), they open the stories of
 temper's reference case acts 4 to 6 (steps 7.2, 7.3, 8.1 to 8.3, 9.1
-and 9.2), which temper's worlds and rung C hold.
+and 9.3), which temper's worlds and rung C hold.
 
 Its stories of added dependencies (5.7; 6.7; section 7): the
 reordering, two tasks waiting for one write hold, the first given a

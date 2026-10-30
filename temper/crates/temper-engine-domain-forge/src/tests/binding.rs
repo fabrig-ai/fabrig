@@ -46,21 +46,31 @@ fn restored_binding_keeps_refusing_another_subject() {
     );
 }
 #[expect(clippy::disallowed_macros, reason = "test member addresses are numbered fixtures")]
-fn restore_rows(count: u32) {
+fn restore_rows(count: u32) -> Domain {
     let mut d = domain();
     for number in 0..count {
         let address = alloc::format!("member{number}@example.com").into_bytes().into_boxed_slice();
         outputs(&mut d, Event::Restore { record: Stored::Binding { address, subject: SUBJECT.into() } });
     }
+    d
 }
 #[test]
 fn bindings_restore_at_the_capacity() {
-    restore_rows(LIMITS.bindings);
+    assert_eq!(restore_rows(LIMITS.bindings).restore_fit_failure(), None);
 }
 #[test]
-#[should_panic(expected = "restored binding within limits")]
 fn a_binding_past_restart_capacity_is_refused() {
-    restore_rows(LIMITS.bindings.checked_add(1).unwrap());
+    let d = restore_rows(LIMITS.bindings.checked_add(1).unwrap());
+    assert_eq!(
+        d.restore_fit_failure(),
+        Some(&RestoreFit {
+            family: Some(RecordKind::Binding),
+            set: RestoreSet::Rows(RecordKind::Binding),
+            held: 4,
+            additional: 1,
+            limit: 4
+        })
+    );
 }
 #[test]
 fn a_new_address_past_the_table_is_full_without_a_write() {

@@ -6,7 +6,7 @@ use crate::mcp::{self, json};
 use alloc::boxed::Box;
 use skein_io::{file, kernel};
 use skein_lib::{Decimal, Env, List, Queue, Time, Token};
-use smith_domain::llm;
+use smith_domain::{llm, tools::Tool};
 use smith_protocol_llm::{self as protocol, FromDomain, ToDomain};
 
 pub(super) const SETTINGS: &[u8] =
@@ -223,9 +223,15 @@ impl Backend {
         let mut tools = List::with_capacity(u32::try_from(count).expect("admitted tool count"));
         for schema in schemas {
             match schema.kind {
-                protocol::ToolKind::SubAgent | protocol::ToolKind::Owned(_) => {}
+                protocol::ToolKind::SubAgent
+                | protocol::ToolKind::Owned(
+                    Tool::Read | Tool::List | Tool::Search | Tool::Write | Tool::Edit | Tool::Shell | Tool::Job,
+                ) => {}
                 protocol::ToolKind::Finish if self.result_contract() => {}
-                protocol::ToolKind::Wait | protocol::ToolKind::Deliver | protocol::ToolKind::Finish => {
+                protocol::ToolKind::Wait
+                | protocol::ToolKind::Deliver
+                | protocol::ToolKind::Finish
+                | protocol::ToolKind::Owned(Tool::Remove) => {
                     tools
                         .push(mcp::Tool {
                             name: schema.name,
@@ -235,7 +241,9 @@ impl Backend {
                                     json::outcome_schema(&schema.schema, self.settings.contract_bytes)
                                         .unwrap_or_default()
                                 }
-                                protocol::ToolKind::Wait | protocol::ToolKind::Deliver => schema.schema,
+                                protocol::ToolKind::Wait
+                                | protocol::ToolKind::Deliver
+                                | protocol::ToolKind::Owned(Tool::Remove) => schema.schema,
                                 protocol::ToolKind::SubAgent | protocol::ToolKind::Owned(_) => {
                                     unreachable!("filtered tools")
                                 }
@@ -380,7 +388,7 @@ impl Backend {
     }
 
     pub(super) fn cleanup(&mut self, now: Time, below: &mut Queue<Below>) {
-        if self.files.pending.is_some() {
+        if self.files.pending.is_some() || self.native.is_some() {
             return;
         }
         let Some(root) = self.settings.directory else {

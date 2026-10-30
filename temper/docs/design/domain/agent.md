@@ -136,7 +136,8 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   advisor's and a reviewer's runs inspect alone, whatever their
   charter's `modify`, and no run leaves edits that nothing delivers (a
   rail, not an instruction). Where mid-run delivery is granted, `modify`
-  comes with it.
+  comes with it. The stock coder has read, write, edit and remove: a
+  file the change drops is removed once read.
 - **Every host tool below,** declared in every charter, each with the
   charter's call timeout, but those of the `settings` family, declared
   only where the run's charter names that family in its `tools` (jig's
@@ -147,15 +148,18 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   8.5): a call beyond it is answered beyond authority, naming what it
   lacked, and the run may `propose` it instead.
 - **The host part's budget.** smith refuses a run whose host part (its
-  tools' names, descriptions and schemas) passes its bound, 52,000 bytes
-  in the small profile, before any turn. That bound holds the largest
-  stock charter's 33,520 declaration bytes, the authorised brief's
-  14,592 body bytes, 1,472 bytes for 64 stock sections' titles and
-  framing (16 title bytes and 7 framing bytes each), and 2,416 bytes
-  of margin. A gathered brief spends what the
-  declarations leave. So a new host tool is offered only
-  where a family and the charter gate it, never to every run, and a
-  charter's room is measured before a tool joins it.
+  host tools, instructions, brief, and finish and deliver schemas) passes
+  its bound, 51,870 bytes in the small profile, before any turn. The largest stock
+  charter's non-brief host part, charter 1 with a Change contract, is
+  33,910 bytes; with the authorised brief's 14,592 body bytes and
+  1,472 bytes for 64 stock sections' titles and framing (16 title bytes
+  and 7 framing bytes each), the sum is 49,974, leaving 1,896 bytes.
+  Charter 1 Open has 32,285 non-brief bytes and leaves 3,521; charter 2
+  has 31,801 and leaves 4,005; charter 4 has 30,706 and leaves 5,100.
+  A gathered brief spends what the non-brief host part leaves. So a new
+  host tool is offered only where a family and the charter gate it,
+  never to every run, and a charter's room is measured before a tool
+  joins it.
 - **The brief fits the room its charter leaves.** smith counts a run's
   brief in its host part, beside the charter's offered tools, its
   instructions and the finish and deliver schemas. At start, temper's
@@ -199,7 +203,7 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   the charter's own text, where the domain reads it, not a call into
   smith; a step test in `temper-engine-smith` holds the table equal to
   smith's own measure. The bound is the engine's size profile's, the
-  one its workers are configured from (52,000 in the small one); an
+  one its workers are configured from (51,870 in the small one); an
   engine without that figure skips the start's check. A run smith
   refuses for its host part anyway is held with smith's reason, the
   bound and the figure, never a bare "invalid".
@@ -420,12 +424,12 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
   sub-agents (smith's `protocol/programs.md`, section 2).
   The stock demo is temper's fake model, declared with a window of
   177,523 tokens and an output of 8,192. At smith's 4/5 threshold,
-  after two outputs and smith's own 21,634 bytes, its half of the
-  remaining room gives the small profile's 52,000-byte host part
+  after two outputs the shared room is 125,634 bytes. Less smith's own
+  21,894 bytes, half of the remaining room gives the small profile's
+  51,870-byte host part and a quarter gives its 25,935-byte offer
   (smith's `protocol/limits.md`, 3.9). Every stock charter retains it;
   its declared window is chosen to hold the stock tools and authorised
-  brief. It is the least window whose derived host part holds 52,000:
-  ⌈(2 × 52,000 + 21,634 + 2 × 8,192) × 5/4⌉ = 177,523.
+  brief: ⌊(⌊177,523 × 4/5⌋ − 2 × 8,192 − 21,894) / 2⌋ = 51,870.
 - **Waiting and resuming:** the waiting time is the charter's; a
   coordinator's is zero. A chat resumes its transcript, and a
   coordinator starts fresh from its brief (jig's `domain/engine.md`,
@@ -571,9 +575,9 @@ a person says they work into a proposal of settings
 A person who wants to agree a plan before anything is changed: the
 reference case's question to a requester and to the chat
 (`../draft/reference-case.md`, 4.2 and 7.2),
-and rung B0 of `../draft/v0.1.0.md`. Where the second edition keeps a
+and rung B0 of `../draft/v0.1.0.md`. Where the case keeps a
 question to the chat with the chat, which answers it or asks its person
-itself (`../draft/process-model.md`, J7 and J8), the route below is
+itself (`../draft/landing-model.md`, 3.4, J7 and J8), the route below is
 today's, until those land.
 
 - **The work that waits asks; a change never does.** A change is
@@ -682,8 +686,8 @@ is what it walks with.
     an advisor is called once two tries have missed; `STATUS.md` is
     generated from one file per part, by `prepare`; the director checks
     every 2 hours, subscribing itself to a timer with its `subscribe`
-    tool (jig's `domain/tasks.md`, 8.3 and 8.4; `process-model.md` 3.1,
-    graded exact), which D's walk checks is built, citing it as a built
+    tool (jig's `domain/tasks.md`, 8.3 and 8.4; `../draft/landing-model.md`,
+    3.1), which D's walk checks is built, citing it as a built
     gap if not;
   - *named, never proposed:* budgets, the person's (`temper ctl project
     fund`);
@@ -713,7 +717,7 @@ is what it walks with.
   appear in it), each entry's fields one line each: *match*; *miss*,
   absent or otherwise; *extra*, a changed setting the golden lacks;
   *gap*, a field of a kind not yet built when the walk runs (kinds 4
-  and 5 arrive field by field with design/process-model's parts,
+  and 5 arrive field by field with `../draft/landing-model.md`'s gaps,
   `../domain/landing.md` 13.1). Whether the reason names each gap and
   lists each rule is read by the walk's QA session, a judgement it
   records, not the tool's. D passes when every built field matches,

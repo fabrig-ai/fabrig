@@ -13,7 +13,7 @@ fn the_application_sizes_are_the_largest_key_and_row() {
     // Result evidence adds four 4096-byte prefixes, cut counts, a head and repair count.
     assert_eq!(
         application(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes),
-        Some(jig_protocol_store::sizes::Application { version: 10, key: 403, value: 53_492 })
+        Some(jig_protocol_store::sizes::Application { version: 10, key: 511, value: 53_492 })
     );
 }
 #[test]

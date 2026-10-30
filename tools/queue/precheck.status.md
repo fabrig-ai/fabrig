@@ -1,5 +1,12 @@
 # Branch pre-ready check status
 
+The integrated branch retains the landed author-owner selector and lifecycle
+logic. Planning, cold execution and readiness use the shared pure mq owner
+mapping; the full prepared index/raw tree remain bound independently of the
+selected suites. Tiers-only and multi-owner cold receipts exclude unrelated
+launcher checks. Installer ownership and unknown/deleted-owner refusals remain
+enforced. Source-CLI cold proof and deployment await independent review.
+
 The 15:52 review repairs scope SIGCHLD ownership and restore exact caller
 handlers after known API/Executor completion or preflight refusal, retaining
 waitable handling during unresolved custody. Standalone readiness applies the
@@ -38,6 +45,14 @@ Decision0022 gate skipping is separate: precheck still checks selected tools;
 this repair changes neither mq nor worker gate policy. Full selection without changed `tools/` paths skips
 tools suites while preserving the ordinary ratchet/fmt/clippy/build plan.
 Stage B CPU-per-suite policy is not implemented; existing budgets remain.
+Decision0022 selects author suites with `mq.author_tools_commands` by changed
+tool directory, with an explicit installer/manifest/test mapping. Both rename
+sides and deleted paths retain ownership; unknown top-level paths or owners
+without candidate suites refuse and restore. `test_author_tools.py` covers
+owner unions, launcher inclusion/exclusion, literal discovery scope, installer
+scope, deletion/rename handling and refusal. Rust selection, lifetime semantics,
+suite timeouts and launcher CPU assertions are unchanged. Gate tools policy
+remains disabled. Source proof does not establish installation.
 
 Provisional, 2026-10-29. `tools/queue/precheck.md`, sections 1–4, is
 implemented in `precheck` with disposable Git and fake-command coverage in

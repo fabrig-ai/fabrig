@@ -303,6 +303,9 @@ fn llm_events_up(service: &mut Service) {
             None => break,
         };
         match event {
+            llm::ToDomain::ReadVersion { owner, place, version } => {
+                service.domain_events.push(domain::Event::ReadVersion { owner, place, version });
+            }
             llm::ToDomain::BuiltinResult { owner, id, text, error } => {
                 service.domain_events.push(domain::Event::BuiltinResult { owner, id, text, error });
             }
@@ -530,6 +533,7 @@ fn observe_messages(service: &mut Service, event: &domain::Event) {
         | domain::Event::Probed { .. }
         | domain::Event::Checked { .. }
         | domain::Event::BuiltinResult { .. }
+        | domain::Event::ReadVersion { .. }
         | domain::Event::Aborted { .. } => {}
     }
 }

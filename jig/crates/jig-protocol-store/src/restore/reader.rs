@@ -25,6 +25,7 @@ pub fn page(
     rows: u32,
     bytes: u64,
 ) -> Result<Loaded, Failure> {
+    store.consumed = true;
     ready(store)?;
     let ranges = ranges(store, range)?;
     let walked = pages::reader::walk(store, &ranges, after, rows)?;

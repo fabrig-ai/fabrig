@@ -110,9 +110,14 @@ pub fn view_phase(phase: &Phase) -> u32 {
 }
 
 impl Domain {
-    /// Select load/fit/link restoration once, before any startup row or phase input
+    pub(crate) fn consume_restore_input(&mut self) {
+        self.restore_consumed = true;
+    }
+
+    /// Select load/fit/link restoration once, before any operational input
     /// (jig/docs/design/domain/engine.md, 6). Existing callers retain stored admission checks.
-    /// Panics if restoration has begun or this entry has already been selected.
+    /// Kinds and charters may be configured before selection.
+    /// Panics if operational input has arrived or this entry has already been selected.
     pub fn start_restore(&mut self) {
         assert!(
             self.startup == Startup::Restoring && !self.restore_consumed && self.restore_mode == RestoreMode::Admission,
@@ -566,6 +571,14 @@ impl Domain {
 /// effects before external replies.
 #[expect(clippy::too_many_lines, reason = "the closed task event vocabulary dispatches to focused handlers")]
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
+    #[expect(
+        clippy::wildcard_enum_match_arm,
+        reason = "only Kinds and Charters are configuration; all other event arrivals consume mode selection (engine.md, 6)"
+    )]
+    match &event {
+        Event::Kinds { .. } | Event::Charters { .. } => {}
+        _ => domain.consume_restore_input(),
+    }
     let output_start = out.len();
     let held = crate::settings::before(domain);
     match event {
@@ -748,27 +761,24 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::Refusals { task, attempt, refused, offered } => {
             crate::admission::answer_refusals(domain, env, task, attempt, &refused, offered, out);
         }
-        Event::Activation { reply_to, task, attempt, end, saved, cause } => {
-            domain.restore_consumed = true;
-            match cause {
-                crate::Cause::Priced { cumulative } => {
-                    crate::admission::activation(domain, env, reply_to, task, attempt, end, saved, cumulative, out);
-                }
-                crate::Cause::Unpriced => match end {
-                    crate::End::FinishedWithFollowups { .. } => {
-                        refused(reply_to, Some(task), Refusal::Contract, out);
-                    }
-                    crate::End::Finished { .. }
-                    | crate::End::Exceeded(_)
-                    | crate::End::Parked
-                    | crate::End::Failed(_)
-                    | crate::End::Refused
-                    | crate::End::Recheck => {
-                        crate::run::activation(domain, env, reply_to, task, attempt, end, saved, out);
-                    }
-                },
+        Event::Activation { reply_to, task, attempt, end, saved, cause } => match cause {
+            crate::Cause::Priced { cumulative } => {
+                crate::admission::activation(domain, env, reply_to, task, attempt, end, saved, cumulative, out);
             }
-        }
+            crate::Cause::Unpriced => match end {
+                crate::End::FinishedWithFollowups { .. } => {
+                    refused(reply_to, Some(task), Refusal::Contract, out);
+                }
+                crate::End::Finished { .. }
+                | crate::End::Exceeded(_)
+                | crate::End::Parked
+                | crate::End::Failed(_)
+                | crate::End::Refused
+                | crate::End::Recheck => {
+                    crate::run::activation(domain, env, reply_to, task, attempt, end, saved, out);
+                }
+            },
+        },
         Event::PreparationWaiting { task } => crate::run::preparation_waiting(domain, env, task, out),
         Event::PreparationFailed { task } => crate::run::preparation_failed(domain, env, task, out),
         Event::PreparationUnread { task } => crate::run::preparation_unread(domain, env, task, out),
@@ -794,23 +804,16 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::MetNotice { task, dependency, removed, by, message } => {
             crate::wake::met(domain, env, task, dependency, removed, by, message, out);
         }
-        Event::Restore { record } => {
-            domain.restore_consumed = true;
-            match domain.restore_mode {
-                RestoreMode::Admission => crate::stored::admission::restore(domain, env, record, out),
-                RestoreMode::LoadFitLink => crate::stored::restore(domain, env, record, out),
-            }
-        }
-        Event::Check => {
-            domain.restore_consumed = true;
-            match domain.restore_mode {
-                RestoreMode::Admission => crate::stored::admission::check(domain, env, out),
-                RestoreMode::LoadFitLink => crate::stored::check(domain, env, out),
-            }
-        }
+        Event::Restore { record } => match domain.restore_mode {
+            RestoreMode::Admission => crate::stored::admission::restore(domain, env, record, out),
+            RestoreMode::LoadFitLink => crate::stored::restore(domain, env, record, out),
+        },
+        Event::Check => match domain.restore_mode {
+            RestoreMode::Admission => crate::stored::admission::check(domain, env, out),
+            RestoreMode::LoadFitLink => crate::stored::check(domain, env, out),
+        },
         Event::Restored => {
             let replay = domain.checked();
-            domain.restore_consumed = true;
             match domain.restore_mode {
                 RestoreMode::Admission => crate::stored::admission::restored(domain, env, out),
                 RestoreMode::LoadFitLink => crate::stored::restored(domain, env, out),
@@ -835,6 +838,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
 /// bounded closing/readiness cascades into an uncapped output queue. The caller drives later
 /// iterations while due; wall correction does not reproject an already armed deadline.
 pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    domain.consume_restore_input();
     let output_start = out.len();
     if !domain.ready() {
         return;

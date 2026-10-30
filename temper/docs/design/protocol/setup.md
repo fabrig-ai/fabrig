@@ -1952,7 +1952,7 @@ defaults for a person's real work are open (section 16).
   dialect on its public route; one model, `demo`, priced as the owned
   example's model is, 1 per 1,000,000 for input, cached and output (jig
   and smith refuse a price of 0); its window 177,523 and its output
-  8,192, giving smith's 52,000-byte host part at the owned threshold,
+  8,192, giving smith's 51,870-byte host part at the owned threshold,
   4/5, for the largest stock charter's tools and authorised brief
   (`../domain/agent.md`, 4.3 and 4.6). The owned message bound stays
   4,098 bytes, and a request at the threshold
@@ -3363,7 +3363,7 @@ listener's (`../client/forge.md`, the browser's steps).
   statuses, actions, administration and metadata, read; never
   workflows, never administration's write. Its events are skein's
   (5.6). Designed, not built (`../domain/landing.md`, 8;
-  `../draft/process-model.md`, B3 and B5): statuses and actions, write,
+  `../draft/landing-model.md`, F3): statuses and actions, write,
   so that a project landing by turn has its gates dispatched and its
   receipts and verdicts posted; installations made before keep reading
   only until their owner accepts the new permissions, and adoption says

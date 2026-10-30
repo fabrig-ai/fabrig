@@ -1543,3 +1543,54 @@ fn a_failed_open_keeps_its_effect_and_forge_refusal_after_outbox_retirement() {
     assert!(!world.store.rows.values().any(|record| matches!(record,
         Record::Forge {row, ..} if matches!(row.as_ref(), forge_top::Stored::Entry {entry, ..} if entry.task == change))));
 }
+
+#[test]
+fn a_gate_repairs_with_its_named_pull_before_its_whole_remarks() {
+    let small = temper_service::limits::profile(temper_service::limits::Profile::Small);
+    let world = World::configured_limits(
+        true,
+        true,
+        false,
+        1000,
+        Gate { agent: true, ..Gate::default() },
+        None,
+        StoryLimits { brief: Some(small.root.brief), result_bytes: Some(512), ..StoryLimits::default() },
+    );
+    let (mut world, _, producer, branch) = change_world_in(world, Change::default());
+    let head = produce(&mut world, &producer, &branch);
+    let reviewer = next_assignment(&mut world, 2);
+    let remarks = "Please cite the pull request and repair the unsafe edge. ".repeat(7);
+    assert!(remarks.len() > 128 && remarks.len() <= 512);
+    finish_review(
+        &mut world,
+        &reviewer,
+        tasks::TaskResult::Verdict { code: 2, fields: Box::default(), words: remarks.as_bytes().into() },
+    );
+    let repair = next_assignment(&mut world, 3);
+    let pull_at = repair
+        .sections
+        .iter()
+        .position(|part| part.kind == engine::BriefKind::Forge(engine::ForgeBriefKind::Pull))
+        .expect("pull section");
+    let reviews_at = repair
+        .sections
+        .iter()
+        .position(|part| part.kind == engine::BriefKind::Forge(engine::ForgeBriefKind::Reviews))
+        .expect("remarks section");
+    assert!(pull_at < reviews_at);
+    let engine::BriefBody::Text(pull) = &repair.sections[pull_at].body else { panic!("readable pull") };
+    let row = change_row(&world, requester(&world, repair.task));
+    let identity = format!(
+        "Pull request: #{}\nBranch: {}\nBase: main\nHead: {}\n",
+        row.pull.expect("pull number"),
+        core::str::from_utf8(&branch).expect("branch"),
+        core::str::from_utf8(&engine::commit_text(&head)).expect("forge head")
+    );
+    assert!(pull.starts_with(identity.as_bytes()));
+    assert!(pull.windows(CONTENT.len()).any(|part| part == CONTENT));
+    let engine::BriefBody::Text(words) = &repair.sections[reviews_at].body else { panic!("readable remarks") };
+    assert!(words.windows(remarks.len()).any(|part| part == remarks.as_bytes()), "whole gate remarks: {words:?}");
+    let rendered = temper_engine_smith::charter(&repair);
+    assert_eq!(rendered.brief.sections[pull_at].text.as_ref(), pull.as_ref());
+    assert_eq!(rendered.brief.sections[reviews_at].text.as_ref(), words.as_ref());
+}

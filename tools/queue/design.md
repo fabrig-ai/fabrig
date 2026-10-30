@@ -6,12 +6,12 @@ Provisional, 2026-10-28. How a branch reaches `main`: a script on the gate machi
 
 - **Input:** remote branches `ready/<lead>/<task>` on `origin`, each pushed by its lead.
 - **A batch:** from `origin/main`, the ready branches not yet tried at their current tip, oldest tip first, at most `batch` (8) of them, each merged with `git merge --no-ff -m "Merge <branch name>"`; ratchet-only conflicts are resolved by recounting against HEAD (section 3.3); any other conflict is aborted, reported, and left out. After merging, the queue writes and commits lower old-form baselines for touched trees before checks. Branches need not change those baselines.
-- **The checks run on a selection** (section 2), not always the whole workspace: touched trees' `scripts/old_forms.py --write` (the ratchet, section 3.3), then the tools' suites (section 2.3), `cargo fmt --check`, clippy with `-D warnings`, a nextest `build`, and the focused (`default`) and `fuzzy` nextest profiles. Cargo build and test commands run through `heavy --gate` on the gate machine, which nothing else builds on. Lockfile and member manifest changes select affected packages (section 2.1); formatting covers changed Rust owners (section 2.2). Step durations are recorded separately (section 3.6).
-- **Green:** save the checked candidate and coordinator routes in a durable publication intent, push that saved candidate (fast-forward only), confirm containment and the exact journal row, then delete ready branches under expected-tip leases and notify leads (section 3.11).
+- **The checks run on a selection** (section 2), not always the whole workspace: touched trees' `scripts/old_forms.py --write` (the ratchet, section 3.3), then `cargo fmt --check`, clippy with `-D warnings`, a nextest `build`, and the focused (`default`) and `fuzzy` nextest profiles. The gate skips pipeline tools suites (section 2.3). Cargo build and test commands run through `heavy --gate` on the gate machine, which nothing else builds on. Lockfile and member manifest changes select affected packages (section 2.1); formatting covers changed Rust owners (section 2.2). Step durations are recorded separately (section 3.6).
+- **Green:** save the checked candidate and coordinator routes in a durable publication intent, push that saved candidate (fast-forward only), confirm containment and the exact journal row, then retire unchanged Ready and feature heads under expected-tip leases and notify leads (section 3.11).
 - **Red:** a batch of one is rejected (its lead gets the failing step and the log's path, and the branch isn't retried until its tip changes); a larger batch is halved and each half tried from `main`, recursively, so the green branches still land.
 - **Capacity refusal:** a heavy exit 2 containing `below the disk floor` is an error, with no rejection or bisection. Before every batch, free space below `--disk-floor` (45 GB by default) defers work to the next cycle.
 - **Error:** an exception logs the batch as `error`; its tips remain eligible. `run` reconciles pending publications before restoring `origin/main`, reports each distinct error to the operator (`ops`) once per uninterrupted error episode, waits a cycle, and continues. A completed cycle, including an idle check, clears the persisted episode so recurrence alerts again. `once` raises to its caller.
-- **Batches selecting no packages** skip Cargo checks. Tools changes run the tools step; touched trees run their ratchets. Unread Markdown outside package source directories selects no package, even beside code or tools changes.
+- **Batches selecting no packages** skip Cargo checks; touched trees run their ratchets. Tools changes require author checks before Ready (section 2.3). Unread Markdown outside package source directories selects no package, even beside code or tools changes.
 - **Every batch is logged** in `~/src/fabrig/notes/queue.jsonl`: start and end, branches, outcome, selection and step durations. A published batch has one immutable publication row and subsequent `event` diagnostics for notifications and cleanup (section 3.11). Other attempts retain their ordinary row.
 
 ## 2. The selection
@@ -19,7 +19,7 @@ Provisional, 2026-10-28. How a branch reaches `main`: a script on the gate machi
 1. **Changed paths:** compare the checked parent and candidate trees with `git diff --name-only --no-renames -z <parent> <candidate>`. `changed_paths` accepts an explicit `base` and `candidate`, defaulting to `origin/main` and `HEAD` for the one-gate queue. Include both sides of renames and deleted paths. The unmerged `plan` uses `preview_changed_paths` instead: compare each ready tip with its merge base with `origin/main`, preserving `origin/main...<tip>` preview semantics.
 2. **Everything** when a changed path is outside every package's `src/`, `tests/`, `benches/`, `examples/`, `build.rs` and member `Cargo.toml`, except the root `Cargo.lock` (section 2.1), `tools/`, and unread Markdown (`*.md`). The root `Cargo.toml`, `.config/`, `rust-toolchain*`, `rustfmt.toml`, `clippy.toml`, docs read by tests, and other scripts and fixtures force everything. Also run everything every `full_every` (5) batches, when the last full run is older than an hour, or when the gate machine has been idle for 10 minutes and main has changed since the last full run.
 3. **Otherwise,** the packages that own a changed path (the longest manifest directory that prefixes it, from `cargo metadata --no-deps`), their reverse dependencies' closure (normal, build and dev dependencies, from `cargo metadata`'s resolve graph), and the packages listed in `tools/queue/always.txt` (tests that read files by path).
-4. **Docs read by tests** are globs in `tools/queue/read-by-tests.txt`; a matching path forces everything. A path under `tools/` contributes no package. Otherwise package source ownership still selects its package, including Markdown under `src/`, `tests/`, `benches/` and `examples/`. Unread Markdown outside those directories contributes no package. A batch with no package inputs and no full input selects `docs`: no Cargo checks or `always.txt` packages, plus tools and touched trees' ratchets as applicable.
+4. **Docs read by tests** are globs in `tools/queue/read-by-tests.txt`; a matching path forces everything. A path under `tools/` contributes no package. Otherwise package source ownership still selects its package, including Markdown under `src/`, `tests/`, `benches/` and `examples/`. Unread Markdown outside those directories contributes no package. A batch with no package inputs and no full input selects `docs`: no Cargo checks or `always.txt` packages, plus touched trees' ratchets as applicable.
 5. A full run that fails where the selections before it passed points at a gap in `always.txt` or `read-by-tests.txt`: the queue reports it to the operator.
 
 ### 2.1 Lockfiles and member manifests
@@ -56,13 +56,32 @@ run keeps `cargo fmt --all --check`. A batch with no checks to run is green.
 
 ### 2.3 Tools suites
 
-A batch runs step `tools` before Cargo if and only if its changed paths
-include a path under `tools/`, regardless of docs, package or full selection.
-The shared `mq.tools_required` predicate governs the runner, worker's exact
-plan and precheck. Adds, edits and deletes count; path collection includes
-both source and destination of renames. Full runs without tools changes keep
-all ordinary ratchet, fmt, clippy, build, default and fuzzy checks and skip
-tools suites, including periodic, idle and forced repair full runs.
+Decision0022 disables pipeline tools suites in every merge-gate batch,
+including tools-changing, periodic, idle and forced repair full runs.
+The shared `mq.gate_tools_required` predicate governs the gate runner and
+worker's exact plan. Its policy bytes live in `mq`, frozen by both worker
+runtime identity and restart's external-runtime validation. Ordinary ratchet,
+fmt, clippy, build, default and fuzzy selection remains unchanged.
+
+Authors run affected tool tests before Ready. Author precheck retains
+`mq.tools_required` as its compatibility predicate: changed `tools/` paths
+require author checks independently of Cargo scope. `mq.author_tools_commands`
+is the deterministic owner selector. Each path under `tools/<tool>/` selects
+only tracked candidate suites under that directory, including new tools with
+suites. Adds, edits and deletes count; both rename sides select their owners.
+Multiple tools select the sorted, deduplicated union. Discovery queries only
+those literal owner paths, never all unrelated suites.
+
+The top-level installer, manifest and installer suite (`tools/install`,
+`tools/installed`, `tools/test_install.py`) select only `tools/test_install.py`.
+Other top-level paths refuse with an unknown-owner diagnostic. An owner with
+no eligible candidate suite also refuses, including deletion of its last
+suite or whole directory; the author must supply an explicit safe mapping
+rather than receive an empty success. A rename across owners requires suites
+for both owners. These refusals restore through the ordinary precheck protocol
+and cannot certify readiness.
+
+The following discovery and execution rules apply within selected owners.
 Discover suites from the checkout's tracked files: every `tools/**/test_*.py`
 runs with `python3 -I -B`, including `tools/test_install.py`; every executable
 `tools/**/test-*` runs directly as `./tools/.../test-*`, honoring its shebang.
@@ -78,11 +97,10 @@ the tools step. Other executable suites, including the same recovery
 basename in another directory, remain eligible.
 
 Run serially from the checkout root with stdin from `/dev/null` and a
-60-second timeout per suite. Each suite's command and output go to the batch
-log; its exit code and elapsed time go in the tools step's `suites` records.
-The step records its total elapsed time. Run every suite even if one fails;
-any nonzero exit, missing interpreter, or timeout makes the step red and stops
-later checks. Rejection and bisection follow section 1.
+60-second timeout per suite. Record each suite's command, output, exit code
+and elapsed time in the author check evidence. Run every selected suite even if one
+fails; any nonzero exit, missing interpreter, or timeout makes the author
+tools check red and stops later checks.
 
 Queue tests allocate private disposable fixtures beside the tested checkout,
 under its resolved root's parent, never inside the checkout. In operational
@@ -145,7 +163,7 @@ marks tips tried, rejects a branch, or bisects. `once` surfaces these errors.
 
 After all batch merges and any conflict recounts below, run
 `python3 -I -B <absolute tree>/scripts/old_forms.py --write` from each touched
-tree, in tree-name order, before tools or Cargo checks. Each command is step
+tree, in tree-name order, before Cargo checks. Each command is step
 `ratchet:<tree>` with its duration recorded. A raised count makes that step
 red and stops later checks; rejection or bisection follows section 1. For
 each changed `<tree>/scripts/old-forms.txt`, commit it on top of the batch's
@@ -201,8 +219,8 @@ monotonic wall time in its own step record. A failed build stops checks and
 the rejection names failing step `build`. Nextest exit 4 (no tests) is green
 for build, default, and fuzzy, as for an empty test selection. Fuzzy remains
 one step with `--profile fuzzy`; the build step already built its binaries.
-Ratchets run before tools and Cargo checks (section 3.3). Docs-only batches
-run only touched trees' writing ratchets, plus tools suites when applicable.
+Ratchets run before Cargo checks (section 3.3). Docs-only batches
+run only touched trees' writing ratchets.
 
 ### 3.7 Restarting and the login shell
 
@@ -255,8 +273,8 @@ it never falls through to ordinary work. `plan` previews the singleton as full.
 
 The repair runs first as a singleton through the ordinary attempt path with
 `force_full=True`: writing ratchets, workspace fmt, clippy, build, default and
-fuzzy checks remain unchanged; offline tools suites run only for changed
-`tools/` paths (section 2.3). Ordinary merge
+fuzzy checks remain unchanged; pipeline tools suites are skipped
+(section 2.3). Ordinary merge
 conflicts, red rejection, fast-forward-only main push, pinned cleanup and
 notifications apply. Exceptions, capacity refusals and failed process launches
 are errors, preserving tried tips without bisection or rejection. A completed
@@ -372,7 +390,7 @@ The version-1 request has exactly these fields:
 | `branches` | Ordered list of exactly `{name, tip}` objects: unique valid `ready/<lead>/<task>` refs and full pinned commit OIDs. |
 | `selection` | `"full"`, `"docs"`, or a sorted unique list of package names. An empty list is distinct from docs. |
 | `runtime` | Exact object printed by this runtime's `identity` command. |
-| `plan` | Complete ordered plan from `check_plan`: command entries `{name, command, cwd}` and a tools entry `{name: "tools", suites: [command entries]}`. |
+| `plan` | Complete ordered plan from `check_plan`: command entries `{name, command, cwd}`. Decision0022 selects no tools entry. |
 
 The future preparer computes the plan with this frozen policy against its
 prepared candidate. Commands are full argv arrays; cwd is checkout-relative
@@ -400,8 +418,8 @@ Package/docs selection must equal the recomputed selection using the frozen
 lists and explicit parent/candidate lock blobs. Full is always an allowed
 escalation; deciding when a full run is due belongs to the future controller.
 
-Checks retain the same order, tools discovery, manual recovery-suite
-exclusion, suite timeout, nextest exit-4 interpretation and serial
+Checks retain the same order and gate tools skip policy from section 2.3,
+nextest exit-4 interpretation and serial
 `heavy --gate` commands from sections 2.3 and 3.6. The small shared
 `run_checks(check_only=True)` mode omits ratchets' `--write` and never stages
 or commits a baseline. Its default remains the one-gate writing/committing
@@ -716,10 +734,11 @@ argv, full refs and full lowercase OIDs, with no shell interpolation.
   acknowledge delivery; other exits/exceptions leave the durable outbox
   pending. Replays retain ID and never change a landing or rejection.
 
-Legacy `push_and_cleanup` uses the same deletion-only expected-tip lease after
-its observation. A lead can advance a ready tip between observation and push;
-the server rejects that deletion and preserves the replacement. Its main push
-remains an ordinary fast-forward with no force or lease.
+Legacy `cleanup_ready` uses deletion-only expected-tip leases after durable
+publication confirmation (section 3.11). A lead can advance a head between
+observation and push; the server atomically refuses the cleanup set and
+preserves the replacement. Main publication remains an ordinary fast-forward
+with no force or lease. The disabled train's cleanup interface above is unchanged.
 
 `durable.py` implements owned 0700 directories and 0600 regular files, strict
 JSON parsing, temp-file fsync, atomic rename and containing-directory fsync.
@@ -807,8 +826,12 @@ keys use the same `[A-Za-z0-9_.-]+` grammar as lead keys and must be unique.
 Addresses use the existing hosted-mailbox grammar, or exactly `-` for an
 explicitly unassigned key. Malformed rows, controls, invalid addresses and
 missing files refuse configuration. The coordinator and lead key sets need
-not match. The checked-in coordinator file has no assignments; activation
-requires reviewed addresses. No prefix, mission file or lead address supplies
+not match. The checked-in files retain the seventeen existing routes and add
+`lf-temper`, `lf-jig`, `lf-skein`, `lf-smith` and `deploy`. The four `lf-*` keys
+notify their respective `lead/lf/<tree>@hel8` leads and publish coordinator
+`s/ladder@hel8`; `deploy` uses `s/deploy@hel8` for both destinations.
+These frozen routes become active only when Ops restarts the queue after landing.
+No prefix, mission file or lead address supplies
 an inferred coordinator. `leads.txt` remains two columns and retains its
 notification destinations and sender.
 
@@ -899,15 +922,15 @@ before committing `journal-confirmation.json`, whose exact fields are integer
 canonical saved row (sorted compact JSON with a final newline). A crash after
 journal replacement but before confirmation revalidates the same row once.
 Confirmation retires publication from pending; evidence remains retained.
-Ready-ref cleanup follows confirmation with the existing expected-tip leases.
-Its failures or later notification failures never revoke a landing. Interrupted
+Ready/feature cleanup follows confirmation with the deletion-only expected-tip
+leases described below. Its failures or later notification failures never revoke a landing. Interrupted
 effects can replay until their confirmation; notification delivery keeps the
 existing best-effort behavior and is not an exactly-once message outbox.
 
 Operator metrics: the saved row's `end` and `publication_time` are the intent
 observation, not the exact remote-push instant. They remain identical across
-lost acknowledgements and UTC midnight. Push, post, target cleanup and ready
-cleanup observations belong to later `event` rows (`publication-attempt`,
+lost acknowledgements and UTC midnight. Push, post, target cleanup and
+Ready/feature cleanup observations belong to later `event` rows (`publication-attempt`,
 `publication-effects`, or `recovery`) that existing batch readers skip. Compare
 step durations for check cost; publication-row elapsed time excludes later
 effects. Diagnostic rows omit the authoritative publication_id/time/merges
@@ -918,6 +941,46 @@ The offline command is `python3 -I -B tools/queue/test_publication.py`;
 integration. Fixtures use private local origins and injected services; they
 never run the live queue, a deployment or heavy recovery. Ordinary tools
 discovery includes the publication suite with the unchanged 60-second bound.
+
+#### 3.11.1 Published head lifecycle
+
+Only after saved candidate containment, the exact durable journal row and its
+confirmation may `cleanup_ready` consider each carrying merge's exact
+`ready/<area>/<task>` and paired `<area>/<task>` heads. Both compare against
+the merge's originally published tip B, independently. An absent head is
+already retired; a different or unknown tip is preserved. Main, the advertised
+remote default, malformed input and unrelated refs are never cleanup targets.
+Unpublished, failed, dry and wholly already-reachable work authorizes no cleanup.
+
+One `ls-remote --symref` observes HEAD, main and all exact target refs for the
+entire publication. Before any deletion, require one valid full head-ref
+symref for HEAD, its full OID, and the matching OID of that default ref in the
+same observation. Missing, malformed, duplicate, detached or inconsistent
+HEAD/default evidence preserves every target with an operational outcome.
+A default outside main and the exact target set cannot be established by
+this bounded request and also preserves every target; there is no extra RPC.
+An unreadable or malformed observation preserves every target.
+One `push --atomic` deletes the unchanged eligible set, with an explicit
+`--force-with-lease=REF:B` and deletion-only refspec for every head. No main
+update or ref rewrite participates. A concurrent change, unsupported atomic
+push, remote refusal or SSH/authentication failure leaves an operational
+cleanup outcome; there is no per-head fallback or retry burst. Missing or
+changed heads discovered before the push do not block another eligible head.
+A race during the push refuses the whole eligible set.
+
+Ref-validation commands share the observation/deletion exception boundary:
+a command-launch failure preserves all targets and completes best-effort
+publication effects without converting a confirmed landing into a queue error.
+Cleanup reports retain the list of branch dispositions in publication-effects
+diagnostics; failures do not turn a published batch red or repeat its main push
+or landed notice. Effects confirmation completes best-effort cleanup even on
+transport refusal. Interrupted effects retain the existing replay contract;
+missing refs are idempotent. This changes no intent, receipt or state version.
+There is no live bulk sweep; a later contained periodic sweep may handle
+leftovers using separately reviewed authority. The separate `test_lifecycle.py`
+suite covers both-head retirement, independent eligibility, confirmation,
+lost acknowledgements, races/refusals and per-publication RPC bounds without
+changing the 120-case mq suite contract.
 
 ## 4. Later
 

@@ -2081,6 +2081,7 @@ fn ended_run(event: &agent::Event) -> Option<Token> {
         | agent::Event::AnswerWithheld { owner }
         | agent::Event::AnswerCancelled { owner, .. } => Some(*owner),
         agent::Event::BuiltinResult { .. }
+        | agent::Event::ReadVersion { .. }
         | agent::Event::Open { .. }
         | agent::Event::Continue { .. }
         | agent::Event::CancelJobs { .. }
@@ -2099,6 +2100,9 @@ fn ended_run(event: &agent::Event) -> Option<Token> {
 
 fn describe_agent_event(event: &agent::Event) -> String {
     match event {
+        agent::Event::ReadVersion { session, place, version } => {
+            format!("read version {} {place:?} {version:?}", session.raw())
+        }
         agent::Event::BuiltinResult { session, id, text, error } => {
             format!("builtin result {} {id:?} {text:?} {error}", session.raw())
         }

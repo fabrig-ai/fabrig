@@ -1,13 +1,143 @@
 //! Explicit start's fixed-time and phase controls (engine.md, 6).
 use super::{LIMITS, fixtures};
 use crate::*;
-use skein_lib::{Duration, Env, Queue, Time, Wall};
+use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 
 fn env() -> Env<Limits> {
     Env { limits: LIMITS, now: Time::ZERO, wall: Wall::EPOCH }
 }
 fn load(domain: &mut Domain, env: &Env<Limits>, row: Stored, out: &mut Queue<Request>) {
     step(domain, env, Event::Restore { record: row }, out);
+}
+
+fn fresh() -> (Domain, Queue<Request>) {
+    (Domain::new(&LIMITS, Box::new([]), 1, Box::new([])), Queue::uncapped())
+}
+
+#[test]
+#[should_panic(expected = "people start selected once before input")]
+fn fresh_timer_input_prevents_late_selection() {
+    let (mut domain, mut out) = fresh();
+    fire(&mut domain, &env(), &mut out);
+    assert!(out.is_empty());
+    domain.start_restore(Wall::EPOCH);
+}
+
+#[test]
+#[should_panic(expected = "people start selected once before input")]
+fn ending_seeding_prevents_late_selection() {
+    let (mut domain, _) = fresh();
+    domain.end_seeding();
+    domain.start_restore(Wall::EPOCH);
+}
+
+#[test]
+#[should_panic(expected = "people start selected once before input")]
+fn cancelling_absent_moves_prevents_late_selection() {
+    let (mut domain, _) = fresh();
+    domain.cancel_moves(None);
+    domain.start_restore(Wall::EPOCH);
+}
+
+#[test]
+#[should_panic(expected = "people start selected once before input")]
+fn refused_application_part_prevents_late_selection() {
+    let (mut domain, _) = fresh();
+    assert_eq!(
+        application_part(&mut domain, &env(), Token::new(1), Ask::Stop { project: 1, task: 1 }),
+        Err(Outcome::Refused(Refusal::Unknown))
+    );
+    domain.start_restore(Wall::EPOCH);
+}
+
+#[test]
+#[should_panic(expected = "people start selected once before input")]
+fn completing_absent_application_part_prevents_late_selection() {
+    let (mut domain, _) = fresh();
+    application_part_done(&mut domain, Token::new(1));
+    domain.start_restore(Wall::EPOCH);
+}
+
+#[test]
+#[should_panic(expected = "people start selected once before input")]
+fn resolving_absent_ended_conversation_prevents_late_selection() {
+    let (mut domain, _) = fresh();
+    domain.restore_ended_conversation(1);
+    assert!(domain.read_conversations().is_empty());
+    domain.start_restore(Wall::EPOCH);
+}
+
+fn result_entry() -> ResultRef {
+    ResultRef { task: 1, project: 1, at: Wall::EPOCH, position: 1, forgettable: None }
+}
+
+#[test]
+#[should_panic(expected = "people start selected once before input")]
+fn ignored_result_before_ready_prevents_late_selection() {
+    let (mut domain, _) = fresh();
+    domain.remember_result(&LIMITS, 1, result_entry());
+    assert_eq!(domain.cached_results(1), None);
+    domain.start_restore(Wall::EPOCH);
+}
+
+fn ended_mark() -> EndedMark {
+    EndedMark { request: Token::new(1), project: 1, last_reply: 0, seen: 0 }
+}
+
+#[test]
+#[should_panic(expected = "people start selected once before input")]
+fn absent_ended_mark_context_prevents_late_selection() {
+    let (mut domain, mut out) = fresh();
+    domain.mark_ended(&env(), ended_mark(), &mut out);
+    assert!(out.is_empty());
+    domain.start_restore(Wall::EPOCH);
+}
+
+#[test]
+fn observations_and_maintenance_allow_selection() {
+    let (mut domain, mut out) = fresh();
+    assert!(!domain.ready());
+    assert_eq!(domain.identity(1), None);
+    assert_eq!(domain.person(1, Time::ZERO, Wall::EPOCH), None);
+    assert!(!domain.has_project(1));
+    assert_eq!(domain.pending_ask(Token::new(1)), None);
+    assert_eq!(domain.seen_context(Token::new(1)), None);
+    assert!(!domain.conversation_mark_loading(1, Token::new(1)));
+    assert_eq!(domain.next_deadline(), None);
+    assert_eq!(domain.next_wall_expiry(), None);
+    assert!(domain.capacity_refusals().is_empty());
+    domain.reclaim();
+    assert_eq!(domain.pop_fact(), None);
+    assert_eq!(out.pop(), None);
+    domain.start_restore(Wall::EPOCH);
+    assert!(domain.start_link(&env()));
+    domain.start_sweep();
+    assert!(domain.start_complete(&env()));
+}
+
+#[test]
+fn selected_start_preserves_direct_noop_and_refusal_behavior() {
+    let env = env();
+    let (mut domain, mut out) = new_start(&env);
+    fire(&mut domain, &env, &mut out);
+    domain.end_seeding();
+    domain.cancel_moves(None);
+    assert_eq!(
+        application_part(&mut domain, &env, Token::new(1), Ask::Stop { project: 1, task: 1 }),
+        Err(Outcome::Refused(Refusal::Unknown))
+    );
+    application_part_done(&mut domain, Token::new(1));
+    domain.remember_result(&LIMITS, 1, result_entry());
+    domain.mark_ended(&env, ended_mark(), &mut out);
+    assert!(out.is_empty());
+    assert_eq!(domain.restore_failure(), None);
+    assert!(!domain.ready());
+    assert!(domain.start_link(&env));
+    domain.start_sweep();
+    assert!(domain.start_complete(&env));
+    domain.restore_ended_conversation(1);
+    assert!(domain.read_conversations().is_empty());
+    assert!(out.is_empty());
 }
 
 #[test]
@@ -157,7 +287,18 @@ fn explicit_start_live_fit_failure_is_sticky_and_does_not_erase() {
         Some(Request::RestoreRefused { key: Key::Person(2), refusal: Refusal::Limit { which: LimitKind::Restore } })
     );
     assert!(out.is_empty());
+    let failure = Some(RestoreFailure {
+        key: Key::Person(2),
+        cause: RestoreCause::Bound { which: RestoreBound::People, held: 2, limit: 1 },
+    });
+    assert_eq!(domain.restore_failure(), failure);
+    assert!(domain.parties().is_empty());
+    assert_eq!(domain.results_seen(1), None);
+    assert_eq!(domain.persons(), u32::MAX);
+    assert!(!domain.start_project(&env.limits, RestoreProjection::Waiting { task: 1, entries: Box::new([]) }));
+    assert_eq!(domain.restore_failure(), failure);
     assert!(!domain.start_link(&env));
+    assert_eq!(domain.restore_failure(), failure);
     assert!(!domain.ready());
     fire(&mut domain, &env, &mut out);
     assert!(out.is_empty());
@@ -219,7 +360,7 @@ fn explicit_empty_start_blocks_admission_and_roles_until_completion() {
             &mut domain,
             &env,
             Event::Ask {
-                reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(1)),
+                reply_to: skein_lib::ReplyTo::new(Token::new(1)),
                 sign_in: 1,
                 key: [1; 16],
                 ask: Ask::Stop { project: 1, task: 1 },
@@ -229,10 +370,7 @@ fn explicit_empty_start_blocks_admission_and_roles_until_completion() {
         );
         assert_eq!(
             out.pop(),
-            Some(Request::Reply {
-                to: skein_lib::ReplyTo::new(skein_lib::Token::new(1)),
-                reply: Reply::Again(Again::NotReady)
-            })
+            Some(Request::Reply { to: skein_lib::ReplyTo::new(Token::new(1)), reply: Reply::Again(Again::NotReady) })
         );
         assert!(out.is_empty());
         assert!(!domain.ready());
@@ -519,6 +657,7 @@ fn explicit_start_nested_representation_bounds_are_exact() {
             load(&mut domain, &env, row, &mut out);
             if extra == 0 {
                 assert!(out.is_empty(), "field {field} exactly fits");
+                assert_eq!(domain.restore_failure(), None);
                 assert!(domain.start_link(&env));
             } else {
                 assert_eq!(
@@ -526,8 +665,593 @@ fn explicit_start_nested_representation_bounds_are_exact() {
                     Some(Request::RestoreRefused { key, refusal: Refusal::Limit { which: LimitKind::Restore } }),
                     "field {field}"
                 );
+                let (which, limit) = match field {
+                    0 => (RestoreBound::ModelNames, MODELS),
+                    1 => (RestoreBound::ModelNameBytes, MODEL_NAME_BYTES),
+                    2 => (RestoreBound::AmendmentBytes, LIMITS.amendment_bytes),
+                    3 => (RestoreBound::Batch, LIMITS.batch),
+                    4 => (RestoreBound::AddressBytes, ADDRESS),
+                    5 => (RestoreBound::IdentityBytes, LIMITS.identity_bytes),
+                    6 => (RestoreBound::Holdings, LIMITS.holdings),
+                    _ => unreachable!(),
+                };
+                assert_eq!(
+                    domain.restore_failure(),
+                    Some(RestoreFailure {
+                        key,
+                        cause: RestoreCause::Bound { which, held: u64::from(limit) + 1, limit: u64::from(limit) },
+                    })
+                );
                 assert!(!domain.start_link(&env));
             }
         }
+    }
+}
+
+#[test]
+fn selected_ended_witness_preserves_missing_person_until_link() {
+    let env = env();
+    let (mut domain, mut out) = new_start(&env);
+    load(&mut domain, &env, Stored::ReadConversation { party: 99, task: 7, through: 2 }, &mut out);
+    assert!(domain.start_project(&env.limits, RestoreProjection::EndedConversation { task: 7 }));
+    assert_eq!(domain.read_conversations().get(&(99, 7)), Some(&2));
+    let result = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| domain.start_link(&env)));
+    let error = result.expect_err("missing person must still assert");
+    let message = error.downcast_ref::<String>().expect("formatted link panic");
+    assert_eq!(message, "ReadConversation { party: 99, task: 7 } links missing person 99");
+    assert!(out.is_empty());
+    assert_eq!(domain.restore_failure(), None);
+}
+
+#[test]
+fn selected_projection_phase_and_default_doors_assert() {
+    for bad in 0_u8..9 {
+        let env = env();
+        let mut domain = Domain::new(&env.limits, Box::new([]), 1, Box::new([]));
+        let mut out = Queue::uncapped();
+        let result = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| {
+            if bad != 0 {
+                domain.start_restore(env.wall);
+            }
+            match bad {
+                0 => {
+                    assert!(domain.start_project(&env.limits, RestoreProjection::EndedConversation { task: 7 }));
+                }
+                1 => step(&mut domain, &env, Event::Waiting { task: 7, entries: Box::new([]) }, &mut out),
+                2 => step(
+                    &mut domain,
+                    &env,
+                    Event::ChatState {
+                        party: 1,
+                        project: 1,
+                        task: 7,
+                        last_reply: 1,
+                        live: false,
+                        seen: None,
+                        replies: Box::new([]),
+                    },
+                    &mut out,
+                ),
+                3 => domain.restore_ended_conversation(7),
+                4..=6 => {
+                    assert!(domain.start_link(&env));
+                    if bad >= 5 {
+                        domain.start_sweep();
+                    }
+                    if bad == 6 {
+                        assert!(domain.start_complete(&env));
+                    }
+                    assert!(domain.start_project(&env.limits, RestoreProjection::EndedConversation { task: 7 }));
+                }
+                7..=8 => {
+                    let row = Stored::Person {
+                        number: 1,
+                        identity: Identity {
+                            key: IdentityKey { provider: 0, subject: skein_lib::bytes::zeroed(17) },
+                            login: Box::new([]),
+                            name: Box::new([]),
+                        },
+                    };
+                    load(&mut domain, &env, row, &mut out);
+                    if bad == 7 {
+                        domain.start_restore(env.wall);
+                    } else {
+                        domain.restore_ended_conversation(7);
+                    }
+                }
+                _ => unreachable!(),
+            }
+        }));
+        assert!(result.is_err(), "mixed/late door {bad}");
+    }
+}
+
+#[test]
+fn default_and_successful_starts_retain_no_fit_detail() {
+    let env = env();
+    for selected in [false, true] {
+        let mut domain = Domain::new(&env.limits, Box::new([]), 1, Box::new([]));
+        let mut out = Queue::uncapped();
+        if selected {
+            domain.start_restore(env.wall);
+        }
+        load(&mut domain, &env, person(1), &mut out);
+        assert_eq!(domain.restore_failure(), None);
+        if selected {
+            assert!(domain.start_link(&env));
+            domain.start_sweep();
+            assert!(domain.start_complete(&env));
+        } else {
+            step(&mut domain, &env, Event::Restored, &mut out);
+        }
+        assert_eq!(domain.restore_failure(), None);
+    }
+    let mut domain = Domain::new(&env.limits, Box::new([]), 1, Box::new([]));
+    let mut out = Queue::uncapped();
+    load(
+        &mut domain,
+        &env,
+        answer(1, Ask::Say { project: 1, task: 1, words: skein_lib::bytes::zeroed(9) }, Outcome::SignedOut),
+        &mut out,
+    );
+    assert_eq!(
+        out.pop(),
+        Some(Request::RestoreRefused {
+            key: Key::Answer(RequestKey { person: 1, key: [1; 16] }),
+            refusal: Refusal::Limit { which: LimitKind::Restore },
+        })
+    );
+    assert_eq!(domain.restore_failure(), None);
+}
+
+#[test]
+fn selected_capacity_details_include_the_incoming_row() {
+    for which in [
+        RestoreBound::SignIns,
+        RestoreBound::Roles,
+        RestoreBound::ReadResults,
+        RestoreBound::ReadConversations,
+        RestoreBound::Requests,
+    ] {
+        let mut env = env();
+        env.limits.sign_ins = 1;
+        env.limits.projects = 1;
+        env.limits.people = 1;
+        env.limits.inbox_tasks = 1;
+        env.limits.requests = 1;
+        let (mut domain, mut out) = new_start(&env);
+        load(&mut domain, &env, person(1), &mut out);
+        let mut last = Key::Person(1);
+        for number in 1..=2 {
+            let row = match which {
+                RestoreBound::SignIns => Stored::SignIn { number, person: 1, expires: Wall::from_nanos(1) },
+                RestoreBound::Roles => {
+                    Stored::Roles { project: u32::try_from(number).unwrap(), holdings: Box::new([]) }
+                }
+                RestoreBound::ReadResults => Stored::ReadResults { party: number, through: 0 },
+                RestoreBound::ReadConversations => Stored::ReadConversation { party: 1, task: number, through: 0 },
+                RestoreBound::Requests if number == 1 => {
+                    answer(1, Ask::Stop { project: 0, task: 0 }, Outcome::SignedOut)
+                }
+                RestoreBound::Requests => Stored::Acted {
+                    key: ActKey { connector: 2, key: [2; 16] },
+                    act: Act::RemoveAccount { account: 0 },
+                    outcome: Outcome::AccountChanged,
+                    at: Wall::EPOCH,
+                },
+                RestoreBound::IdentityBytes
+                | RestoreBound::People
+                | RestoreBound::Holdings
+                | RestoreBound::ModelNames
+                | RestoreBound::ModelNameBytes
+                | RestoreBound::Subagents
+                | RestoreBound::Operations
+                | RestoreBound::Batch
+                | RestoreBound::Words
+                | RestoreBound::AmendmentBytes
+                | RestoreBound::NameBytes
+                | RestoreBound::ProgramNameBytes
+                | RestoreBound::Uses
+                | RestoreBound::ProgramHosts
+                | RestoreBound::ProgramHostNameBytes
+                | RestoreBound::AddressBytes
+                | RestoreBound::NamedTasks
+                | RestoreBound::KeptPending => unreachable!("capacity cases only"),
+            };
+            last = row.key();
+            load(&mut domain, &env, row, &mut out);
+            if number == 1 {
+                assert!(out.is_empty());
+                assert_eq!(domain.restore_failure(), None);
+            }
+        }
+        assert_eq!(
+            domain.restore_failure(),
+            Some(RestoreFailure { key: last, cause: RestoreCause::Bound { which, held: 2, limit: 1 } })
+        );
+        assert_eq!(out.len(), 1);
+    }
+}
+
+#[test]
+#[expect(clippy::too_many_lines, reason = "stored exact/one-over cases name each nested representation bound")]
+fn selected_nested_causes_keep_the_outer_stored_key_and_first_fit_order() {
+    for field in 0_u8..13 {
+        for extra in [0, 1] {
+            let mut env = env();
+            let (ask, outcome, which, held, limit) = match field {
+                0 => {
+                    let mut amendment = fixtures::unchanged(b"");
+                    amendment.llm = Some(LlmChoice {
+                        account: None,
+                        main: ModelEffort { model: 255, effort: Some(255) },
+                        subagents: copies(ModelEffort { model: 255, effort: None }, MODELS + extra),
+                    });
+                    env.limits.amendment_bytes = 4096;
+                    (
+                        Ask::Propose {
+                            project: 1,
+                            action: Action::Amend { task: 1, revision: 0, amendment: Box::new(amendment) },
+                            reason: Box::new([]),
+                        },
+                        Outcome::SignedOut,
+                        RestoreBound::Subagents,
+                        MODELS + extra,
+                        MODELS,
+                    )
+                }
+                1 => (
+                    Ask::Compound {
+                        project: 0,
+                        operations: {
+                            let mut ops = skein_lib::List::with_capacity(LIMITS.operations + extra);
+                            for _ in 0..LIMITS.operations + extra {
+                                ops.push(Operation::Stop { task: 1 }).unwrap();
+                            }
+                            ops
+                        },
+                    },
+                    Outcome::SignedOut,
+                    RestoreBound::Operations,
+                    LIMITS.operations + extra,
+                    LIMITS.operations,
+                ),
+                2 => (
+                    Ask::Propose {
+                        project: 1,
+                        action: Action::Batch(Box::new([fixtures::member(&skein_lib::bytes::zeroed(
+                            usize::try_from(LIMITS.words + extra).unwrap(),
+                        ))])),
+                        reason: Box::new([]),
+                    },
+                    Outcome::SignedOut,
+                    RestoreBound::Words,
+                    LIMITS.words + extra,
+                    LIMITS.words,
+                ),
+                3 => (
+                    Ask::Rename {
+                        project: 1,
+                        name: "a".repeat(NAME_BYTES + usize::try_from(extra).unwrap()).into_boxed_str(),
+                    },
+                    Outcome::SignedOut,
+                    RestoreBound::NameBytes,
+                    u32::try_from(NAME_BYTES).unwrap() + extra,
+                    u32::try_from(NAME_BYTES).unwrap(),
+                ),
+                4 => (
+                    Ask::AccountChange {
+                        holder: AccountHolder::Own,
+                        change: AccountChange::DeclareProgram {
+                            provider: 0,
+                            join: None,
+                            name: skein_lib::bytes::zeroed(32 + usize::try_from(extra).unwrap()),
+                        },
+                    },
+                    Outcome::SignedOut,
+                    RestoreBound::ProgramNameBytes,
+                    32 + extra,
+                    32,
+                ),
+                5 => {
+                    env.limits.words = 4096;
+                    (
+                        Ask::AccountChange {
+                            holder: AccountHolder::Own,
+                            change: AccountChange::SetUses {
+                                account: 0,
+                                uses: Some(copies(Use::Party(1), USES + extra)),
+                            },
+                        },
+                        Outcome::SignedOut,
+                        RestoreBound::Uses,
+                        USES + extra,
+                        USES,
+                    )
+                }
+                6 => (
+                    Ask::Stop { project: 0, task: 0 },
+                    Outcome::AccountRemoved {
+                        confirmed: false,
+                        failed_hosts: copies(
+                            AccountHostFailure { name: Box::new([]), why: AccountHostWhy::Lost },
+                            LIMITS.program_hosts + extra,
+                        ),
+                    },
+                    RestoreBound::ProgramHosts,
+                    LIMITS.program_hosts + extra,
+                    LIMITS.program_hosts,
+                ),
+                7 => (
+                    Ask::Stop { project: 0, task: 0 },
+                    Outcome::AccountSignedOut {
+                        confirmed: false,
+                        failed_hosts: Box::new([AccountHostFailure {
+                            name: skein_lib::bytes::zeroed(
+                                usize::try_from(LIMITS.program_host_name_bytes + extra).unwrap(),
+                            ),
+                            why: AccountHostWhy::Lost,
+                        }]),
+                    },
+                    RestoreBound::ProgramHostNameBytes,
+                    LIMITS.program_host_name_bytes + extra,
+                    LIMITS.program_host_name_bytes,
+                ),
+                8 => (
+                    Ask::Stop { project: 0, task: 0 },
+                    Outcome::CompoundRefused {
+                        at: 0,
+                        why: Refusal::Circle { tasks: copies(7_u64, NAMED_TASKS + extra), cut: false },
+                    },
+                    RestoreBound::NamedTasks,
+                    NAMED_TASKS + extra,
+                    NAMED_TASKS,
+                ),
+                9 => (
+                    Ask::Stop { project: 0, task: 0 },
+                    Outcome::Refused(Refusal::Kept { pending: copies(7_u64, 64 + extra) }),
+                    RestoreBound::KeptPending,
+                    64 + extra,
+                    64,
+                ),
+                10 => {
+                    let mut amendment = fixtures::unchanged(b"");
+                    amendment.instructions =
+                        Some(skein_lib::bytes::zeroed(usize::try_from(LIMITS.amendment_bytes + extra).unwrap()));
+                    (
+                        Ask::Propose {
+                            project: 1,
+                            action: Action::Amend { task: 1, revision: 0, amendment: Box::new(amendment) },
+                            reason: Box::new([]),
+                        },
+                        Outcome::SignedOut,
+                        RestoreBound::AmendmentBytes,
+                        LIMITS.amendment_bytes + extra,
+                        LIMITS.amendment_bytes,
+                    )
+                }
+                11 => (
+                    Ask::AnswerPerson {
+                        project: 1,
+                        task: 1,
+                        revision: 0,
+                        result: PersonResult::Approved {
+                            state: Box::new([0]),
+                            words: Some(skein_lib::bytes::zeroed(usize::try_from(LIMITS.words - 1 + extra).unwrap())),
+                        },
+                    },
+                    Outcome::SignedOut,
+                    RestoreBound::Words,
+                    LIMITS.words + extra,
+                    LIMITS.words,
+                ),
+                12 => {
+                    env.limits.words = 32;
+                    (
+                        Ask::MakeService {
+                            project: 1,
+                            name: skein_lib::bytes::zeroed(usize::try_from(LIMITS.identity_bytes - 8 + extra).unwrap()),
+                            role: Role::Member,
+                        },
+                        Outcome::SignedOut,
+                        RestoreBound::IdentityBytes,
+                        LIMITS.identity_bytes + extra,
+                        LIMITS.identity_bytes,
+                    )
+                }
+                _ => unreachable!(),
+            };
+            let (mut domain, mut out) = new_start(&env);
+            load(&mut domain, &env, person(1), &mut out);
+            let row = answer(19, ask, outcome);
+            let key = row.key();
+            load(&mut domain, &env, row, &mut out);
+            if extra == 0 {
+                assert_eq!(domain.restore_failure(), None, "field {field} exactly fits");
+                assert!(out.is_empty());
+            } else {
+                assert_eq!(
+                    domain.restore_failure(),
+                    Some(RestoreFailure {
+                        key,
+                        cause: RestoreCause::Bound { which, held: u64::from(held), limit: u64::from(limit) },
+                    }),
+                    "field {field}"
+                );
+                let first = domain.restore_failure();
+                load(&mut domain, &env, person(2), &mut out);
+                assert!(!domain.start_link(&env));
+                assert_eq!(domain.restore_failure(), first);
+                assert_eq!(out.len(), 1);
+            }
+        }
+    }
+}
+
+#[test]
+fn selected_adoption_owned_bytes_keep_answer_and_act_keys_at_the_bound() {
+    for acted in [false, true] {
+        for extra in [0_usize, 1] {
+            let env = env();
+            let limit = usize::try_from(env.limits.amendment_bytes).unwrap();
+            let adoption = Adoption {
+                resource: ResourceName { connector: 1, path: Box::new([Box::from(b"p".as_slice())]) },
+                role: ResourceRole::Owned,
+                options: Box::new([skein_lib::bytes::zeroed(limit - 2 * size_of::<Box<[u8]>>() - 1 + extra)]),
+            };
+            let row = if acted {
+                Stored::Acted {
+                    key: ActKey { connector: 3, key: [29; 16] },
+                    act: Act::Adopt { project: 1, adoption },
+                    outcome: Outcome::Adopted { project: 1 },
+                    at: Wall::EPOCH,
+                }
+            } else {
+                answer(28, Ask::Adopt { project: 1, adoption }, Outcome::Adopted { project: 1 })
+            };
+            let key = row.key();
+            let (mut domain, mut out) = new_start(&env);
+            load(&mut domain, &env, person(1), &mut out);
+            load(&mut domain, &env, row, &mut out);
+            if extra == 0 {
+                assert_eq!(domain.restore_failure(), None);
+                assert!(domain.start_link(&env));
+            } else {
+                assert_eq!(
+                    domain.restore_failure(),
+                    Some(RestoreFailure {
+                        key,
+                        cause: RestoreCause::Bound {
+                            which: RestoreBound::AmendmentBytes,
+                            held: u64::try_from(limit + extra).unwrap(),
+                            limit: u64::try_from(limit).unwrap(),
+                        }
+                    })
+                );
+                assert_eq!(
+                    out.pop(),
+                    Some(Request::RestoreRefused { key, refusal: Refusal::Limit { which: LimitKind::Restore } })
+                );
+                assert!(!domain.start_link(&env));
+            }
+            assert!(out.is_empty());
+        }
+    }
+}
+
+#[test]
+fn selected_note_and_policy_owned_bytes_keep_the_outer_key_at_the_bound() {
+    for policy in [false, true] {
+        for extra in [0_usize, 1] {
+            let env = env();
+            let limit = usize::try_from(env.limits.amendment_bytes).unwrap();
+            let slot = size_of::<Box<[u8]>>();
+            let ask = if policy {
+                Ask::ChangePolicy {
+                    project: 1,
+                    change: PolicyChange::Projections {
+                        grants: Box::new([Grant {
+                            connector: 1,
+                            kind: 1,
+                            pattern: Pattern {
+                                segments: Box::new([Box::from(b"p".as_slice())]),
+                                last: Last::Exact(skein_lib::bytes::zeroed(
+                                    limit - size_of::<Grant>() - slot - 1 + extra,
+                                )),
+                            },
+                        }]),
+                    },
+                }
+            } else {
+                Ask::EditNote {
+                    project: 1,
+                    name: 9,
+                    scope: Box::new(NoteScope::Resources {
+                        connector: 1,
+                        pattern: Pattern {
+                            segments: Box::new([Box::from(b"p".as_slice())]),
+                            last: Last::Open(Box::new([7])),
+                        },
+                    }),
+                    change: Box::new(NoteChange::Correct {
+                        description: Box::new([8]),
+                        references: Box::new([7]),
+                        recalled: 1,
+                        body: skein_lib::bytes::zeroed(limit - slot - 3 - size_of::<u64>() + extra),
+                    }),
+                }
+            };
+            let outcome = if policy { Outcome::PolicyChanged { project: 1 } } else { Outcome::NoteEdited { name: 9 } };
+            let row = answer(31, ask, outcome);
+            let key = row.key();
+            let (mut domain, mut out) = new_start(&env);
+            load(&mut domain, &env, person(1), &mut out);
+            load(&mut domain, &env, row, &mut out);
+            if extra == 0 {
+                assert_eq!(domain.restore_failure(), None);
+                assert!(domain.start_link(&env));
+            } else {
+                assert_eq!(
+                    domain.restore_failure(),
+                    Some(RestoreFailure {
+                        key,
+                        cause: RestoreCause::Bound {
+                            which: RestoreBound::AmendmentBytes,
+                            held: u64::try_from(limit + extra).unwrap(),
+                            limit: u64::try_from(limit).unwrap(),
+                        }
+                    })
+                );
+                assert_eq!(
+                    out.pop(),
+                    Some(Request::RestoreRefused { key, refusal: Refusal::Limit { which: LimitKind::Restore } })
+                );
+                assert!(!domain.start_link(&env));
+            }
+            assert!(out.is_empty());
+        }
+    }
+}
+
+#[test]
+fn selected_account_use_owned_bytes_fit_exactly_or_name_the_outer_answer() {
+    let held = u32::try_from(2 * size_of::<Use>()).unwrap();
+    for extra in [0_u32, 1] {
+        let mut env = env();
+        env.limits.words = held - extra;
+        let row = answer(
+            32,
+            Ask::AccountChange {
+                holder: AccountHolder::Own,
+                change: AccountChange::SetUses { account: 1, uses: Some(Box::new([Use::Party(1), Use::Project(1)])) },
+            },
+            Outcome::AccountChanged,
+        );
+        let key = row.key();
+        let (mut domain, mut out) = new_start(&env);
+        load(&mut domain, &env, person(1), &mut out);
+        load(&mut domain, &env, row, &mut out);
+        if extra == 0 {
+            assert_eq!(domain.restore_failure(), None);
+            assert!(domain.start_link(&env));
+        } else {
+            assert_eq!(
+                domain.restore_failure(),
+                Some(RestoreFailure {
+                    key,
+                    cause: RestoreCause::Bound {
+                        which: RestoreBound::Words,
+                        held: u64::from(held),
+                        limit: u64::from(held - extra),
+                    }
+                })
+            );
+            assert_eq!(
+                out.pop(),
+                Some(Request::RestoreRefused { key, refusal: Refusal::Limit { which: LimitKind::Restore } })
+            );
+            assert!(!domain.start_link(&env));
+        }
+        assert!(out.is_empty());
     }
 }

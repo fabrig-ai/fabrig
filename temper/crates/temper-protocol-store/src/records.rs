@@ -100,9 +100,6 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
         w::Value::Change(value) => d::Stored::Change(change::decode_change_row(*value)),
         w::Value::Binding(value) => {
             let w::BindingParts { address, subject } = value.into_parts();
-            if !d::binding_address(&address) {
-                return Err(Undecodable);
-            }
             d::Stored::Binding { address, subject }
         }
         w::Value::Flight(row) => {
@@ -135,9 +132,6 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
         }
         w::Value::Writer(value) => {
             let w::ForgeWriterParts { forge, author } = value.into_parts();
-            if author == 0 {
-                return Err(Undecodable);
-            }
             d::Stored::Writer(skein_forge_client::Writer { forge, author })
         }
         w::Value::Client(value) => d::Stored::Client(client::decode(value, bounds)?),

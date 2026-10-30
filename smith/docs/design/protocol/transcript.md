@@ -99,7 +99,8 @@ A versioned record. Every turn starts with its version.
     invalid with the problem *too large* (domain/session.md, section 5);
   - **a result:** the call's id, and one of:
     - a workspace tool's outcome, typed (domain/tools.md's vocabulary: lines read,
-      entries listed, an edit made, a command's exit and output, a
+      entries listed, an edit made, a file or empty directory removed,
+      a directory refused as not empty, a command's exit and output, a
       command answered `running` with its job's number and its output so
       far, a job's output since its last answer with its end or
       `running`);
@@ -236,7 +237,11 @@ jobs of every earlier window and activation.
   completion, naming that call by its position (section 2).
 - **Version 6 is current.** It adds the opening turn's account and
   backend, and a window turn's endpoint as the window's it opens
-  (sections 2 and 3).
+  (sections 2 and 3). Its outcomes include `removed` and `not_empty`
+  (section 2), in place in `transcript-v6.schema`, version 6 unmoved:
+  the local host records the layout in each chat's `format`
+  (protocol/hosts.md, 5.3), so a local chat made before them is refused
+  as an older store.
 - **A reader reads one version,** the current, like every format
   (README.md, section 8). Any other is the transcript refusal *another
   version*, and nothing is translated: a version-2 transcript is

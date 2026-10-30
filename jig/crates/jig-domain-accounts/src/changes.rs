@@ -173,13 +173,9 @@ pub(crate) fn detach(domain: &mut Domain, env: &Env<Limits>, account: u32, numbe
         let mut plan = false;
         for (_, source) in &entry.sources {
             let kind = domain.sources.get(source).expect("a kept source").kind;
-            plan |= if domain.start_restore {
-                match domain.providers.get(entry.provider) {
-                    Some(provider) => provider.plan(kind),
-                    None => kind == Kind::Program,
-                }
-            } else {
-                domain.providers.get(entry.provider).expect("a kept provider").plan(kind)
+            plan |= match domain.providers.get(entry.provider) {
+                Some(provider) => provider.plan(kind),
+                None => kind == Kind::Program,
             };
         }
         entry.plan = plan;
