@@ -51,7 +51,7 @@ cannot replay a released token. A queued token with no running wrapper
 is recovered with code 137.
 
 Each lane admits older eligible tasks first. Live tasks are launching,
-active, finishing or closing; their capacity remains occupied until
+active, disk-retry, finishing or closing; their capacity remains occupied until
 release. The build lane admits up to `HEAVY_BUILD_SLOTS` live builds (0
 means unlimited), except while an exclusive gate or operator holds it.
 The gate lane admits one gate while no other gate is live and the
@@ -91,12 +91,49 @@ start`. A landing whose space falls after admission still refuses at its
 payload check; it does not wait inside that cgroup. Reservation and disk
 wait times use wall-clock timestamps.
 
+`HEAVY_MIN_FREE_BYTES=<decimal bytes>` opts one submission into an exact-byte
+wait. Only ASCII digits are accepted: no signs, whitespace, separators, units
+or fractions. Absent or empty retains the disk behavior above, including the
+rounded `df -BG`/GiB observations and landing timeout. Zero opts in with no
+extra caller floor. Invalid input refuses with exit 2 before creating a task.
+Opting in requires an installed reconciler; plain execution cannot enforce
+this wait and refuses instead. No machine setting or caller floor is changed.
+
+For an opted-in task, free bytes are exactly
+`os.statvfs(command cwd).f_bavail * f_frsize`. Its effective minimum is
+`max(submitted PLAN_MIN_DISK_GB * 1073741824, HEAVY_MIN_FREE_BYTES)`: the
+legacy floor is converted to whole GiB without rounding the observation.
+The command filesystem can differ from DEV_ROOT's filesystem. Landing
+reservations still add their GiB converted to bytes to a non-landing build's
+admission requirement; FIFO, landing priority, capacity and exclusivity remain.
+Submission observes space, every eligible admission attempt after lane waiting
+observes it again, and contained entry checks after settling and input capture,
+immediately before command start. All these checks use the submitted value,
+never a wrapper caller's or reconciler's current override.
+
+An opted-in task below its minimum waits indefinitely with the same token,
+number, wrapper claim, command and environment. The waiting client reports one
+line per observed waiting episode. The landing floor's 20-minute timeout does
+not apply to these byte waits. A miss at contained entry marks `disk-retry` and
+exits the guard without starting the command. Reconciliation kills that owned
+cgroup, proves it empty, clears its exclusive hold, and returns the task to
+waiting with a fresh payload unit name. Capacity stays owned through cleanup;
+the byte wait then holds no payload cgroup or build slot. Repeated attempts
+retain distinct admission/scope evidence. Cancellation and recovery work even
+when their caller inherits an invalid or too-high override.
+
 ## 3. Durable state and release
 
 The version 1 snapshot records the queue identity, next task number,
 tasks, gate hold, maintenance holds, installation and event outbox. Save
 writes and fsyncs a sibling temporary file, renames it over the snapshot,
 then fsyncs the directory. A leftover temporary snapshot is never state.
+
+An opted-in task additionally records `min_free_bytes` (the submitted override),
+`minimum_free_bytes` (the effective floor), `byte_wait` while below it,
+`admission_free_bytes` after admission, and `payload_attempt` after a retry.
+Tasks without `min_free_bytes` keep their existing semantics even if a later
+caller or reconciler has the variable set. These are additive version 1 fields.
 
 Each full task records its token, number, queue and boot identities,
 wrapper identity, wrapper and payload unit names, lane, label, repository,
@@ -214,7 +251,11 @@ append to its capture. Publication replays after crashes. The 17 required
 `heavy-receipt-v1` fields are `schema`, `token`, `id`, `queue`, `lane`,
 `tree`, `policy`, `args`, `outcome`, `code`, `payload_started`,
 `payload_ended`, `release_complete`, `cgroup_empty`, `elapsed_s`, `log`
-and `log_sha256`. Optional `head` and `inputs` record commit and effective
+and `log_sha256`. Optional `min_free_bytes`, `minimum_free_bytes` and
+`admission_free_bytes` carry the override, effective floor and bytes observed
+at the most recent admission; the last is absent if never admitted. Admission
+events and payload capture logs record the effective floor and observation for
+each attempt. Optional `head` and `inputs` record commit and effective
 worktree inputs. Input capture uses a temporary Git index and changes no
 real index or refs. Cancelled, recovered and unstarted payloads have
 nonzero codes. The client's last line reports receipt path and token,
@@ -269,10 +310,18 @@ On a builder, from a disposable copy under `~/src/fabrig/`, run:
 python3 -B tools/heavy/test-heavy-recovery --evidence NEW_DIRECTORY
 ```
 
-This suite needs real user systemd and cgroup v2. Each case sets fresh
-DEV_ROOT/DEV_TMP, prints its prefix before installation, and refuses the
-production queue prefix used by the authorized builder check. It uses
-fake disk/cache/runtime executables and temporary Git repositories.
+This suite needs real user systemd and cgroup v2. Each case sets a disposable
+HOME, config directory and DEV_ROOT/DEV_TMP, links only its private reconciler
+units into the user manager at runtime, prints its prefix before installation,
+and refuses the production queue prefix used by the authorized builder check. It uses
+fake disk/cache/runtime/compiler version executables and temporary Git
+repositories. Byte observations can use `HEAVY_DISK_FREE_BYTES_FILE` only with
+the recovery-fixture flag, a non-account HOME containing DEV_ROOT and DEV_TMP,
+and a file inside DEV_TMP. The offline suite checks exact cwd statvfs arithmetic
+and refuses observations that could select the account HOME or another queue.
+The byte cases cover invalid and empty values, floor composition, waiting and
+recovery, admission after lane holds, independent reconciler persistence,
+repeated payload retries, cancellation and landing reservation priority.
 Cases cover admission/order, holds, migration, installation relocation and
 rollback, descendant containment, subreaping, boot change, client/wrapper
 loss, delayed launch, snapshot/journal/log ENOSPC, release and receipt
@@ -298,6 +347,16 @@ The installer behavior and dry-run contract are
 runtime files are `heavy`, `heavy-recovery.py`, `kit.sh`, `gate-policy.sh`,
 `recovery_message.py` and `receipt_inputs.py`; helpers resolve adjacent to
 the real executable, independent of the caller's working directory.
+
+The byte wait deploys through the normal fabrig tools installation below and
+is inert until a caller opts in. Retain queue identity, version 1 state and
+`heavy-receipt-v1`; no migration or receipt rewrite is required. Existing tasks
+lack the additive fields and keep their submitted legacy floor semantics.
+Before rolling back to a helper without byte-wait support, stop new opt-ins and
+complete or cancel every unfinished opted-in task using the new helper, then
+reconcile to empty cgroups and receipts. An old helper ignores optional fields
+but cannot enforce a pending byte wait or its `disk-retry` transition. Finished
+receipts and additive fields may remain; do not reset or delete queue state.
 
 After this branch has landed, run on each machine in a login shell:
 

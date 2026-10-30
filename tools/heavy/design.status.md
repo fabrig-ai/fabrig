@@ -22,3 +22,12 @@ bytecode regression invokes their real entry points in a disposable clean Git
 checkout with global configuration disabled, so generated Python caches cannot
 be hidden by a developer’s excludes. The real-systemd recovery suite remains
 manual-only.
+
+`HEAVY_MIN_FREE_BYTES` is implemented as an opt-in, per-task exact-byte floor
+on the command filesystem. The version 1 ledger and receipt schema retain their
+existing fields; optional byte observations and retry state are additive.
+The byte fixtures cover independent reconciliation, payload cgroup cleanup and
+retry, cancellation, legacy behavior, floor composition and landing priority.
+Deployment uses the normal fabrig tools install and remains inert until opted
+in; rollback first drains or cancels unfinished opt-ins with the new helper
+(`tools/heavy/design.md, 7`). No fleet install is part of this task.

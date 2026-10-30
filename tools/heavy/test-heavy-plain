@@ -7,11 +7,14 @@ from case_runner import HUNG_TOOL_S
 import hashlib
 import json
 import os
+import runpy
 import shutil
 from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+from types import SimpleNamespace
+from unittest.mock import patch
 
 
 KIT = Path(__file__).resolve().parent
@@ -111,6 +114,14 @@ class Plain(unittest.TestCase):
         self.assertEqual((result.returncode, result.stdout, result.stderr), (0, 'x', PLAIN))
         self.assert_no_state()
 
+    def test_explicit_minimum_requires_reconciler_instead_of_plain_execution(self):
+        marker = self.cwd / 'payload'
+        result = self.heavy('touch', str(marker), extra={'HEAVY_MIN_FREE_BYTES': '0'})
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertIn('containment/reconciler not installed', result.stderr)
+        self.assertFalse(marker.exists())
+        self.assertEqual(json.loads(self.state.read_text())['tasks'], {})
+
     def test_installed_but_broken_still_refuses(self):
         self.ledger(self.installation())
         result = self.heavy('true', extra={'PLAN_MIN_DISK_GB': '0'})
@@ -161,6 +172,65 @@ class Plain(unittest.TestCase):
         self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
         self.assertIn('heavy: usage: heavy ', result.stderr)
         self.assertNotIn('running it directly', result.stderr)
+
+
+class ByteMinimum(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory(prefix='heavy-byte-minimum-')
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        self.env = {'HOME': str(self.root), 'DEV_ROOT': str(self.root),
+                    'DEV_TMP': str(self.root / 'tmp'), 'PATH': os.defpath}
+        self.environment = patch.dict(os.environ, self.env, clear=True)
+        self.environment.start()
+        self.addCleanup(self.environment.stop)
+        self.module = runpy.run_path(str(KIT / 'heavy-recovery.py'))
+        self.globals = self.module['free_bytes'].__globals__
+
+    def test_exact_bytes_use_command_filesystem(self):
+        # The workspace and command can be on different filesystems. Neither
+        # df rounding nor root observations may substitute for the cwd's bytes.
+        stats = SimpleNamespace(f_bavail=3, f_frsize=4096)
+        task = {'repo': str(self.root / 'command-filesystem')}
+        with patch.object(os, 'statvfs', return_value=stats) as stat:
+            self.assertEqual(self.module['free_bytes'](task), 12288)
+        stat.assert_called_once_with(task['repo'])
+
+    def test_fixture_override_cannot_affect_live_home_or_queue(self):
+        override = self.root / 'tmp/free-bytes'
+        override.parent.mkdir()
+        override.write_text('123')
+        task = {'repo': str(self.root)}
+        with patch.dict(os.environ, HEAVY_DISK_FREE_BYTES_FILE=str(override)):
+            with self.assertRaises(self.module['Refusal']):
+                self.module['free_bytes'](task)
+            with patch.dict(os.environ, HEAVY_RECOVERY_FIXTURE='1'):
+                self.assertEqual(self.module['free_bytes'](task), 123)
+                # Model the account's live HOME without reading its contents.
+                with patch.object(Path, 'home', return_value=Path('/live-home')), patch.object(
+                        self.globals['pwd'], 'getpwuid', return_value=SimpleNamespace(pw_dir='/live-home')):
+                    with self.assertRaises(self.module['Refusal']):
+                        self.module['free_bytes'](task)
+                with patch.dict(self.globals, TMP=Path('/outside-fixture')):
+                    with self.assertRaises(self.module['Refusal']):
+                        self.module['free_bytes'](task)
+
+    def test_absent_empty_and_decimal_zero(self):
+        parse = self.module['submitted_min_free_bytes']
+        self.assertIsNone(parse())
+        for value, expected in (('', None), ('0', 0), ('00123', 123)):
+            with self.subTest(value=value), patch.dict(os.environ, HEAVY_MIN_FREE_BYTES=value):
+                self.assertEqual(parse(), expected)
+
+    def test_old_task_ignores_caller_override_and_keeps_rounded_floor(self):
+        task = {'repo': str(self.root), 'token': 'old', 'id': '1', 'label': 'land repo',
+                'lane': 'build', 'state': 'waiting', 'floor_gb': 40, 'room_gb': 30}
+        ledger = SimpleNamespace(tasks={'old': task}, data={'maintenance': {}, 'gate': None})
+        with patch.dict(os.environ, HEAVY_MIN_FREE_BYTES='invalid'), patch.dict(
+                self.globals, free_gb=lambda: 40, free_bytes=lambda task: self.fail('old task used bytes')):
+            self.assertTrue(self.module['admissible'](ledger, task))
+        self.assertNotIn('min_free_bytes', task)
+
 
 
 if __name__ == '__main__':

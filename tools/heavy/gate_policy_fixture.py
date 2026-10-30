@@ -38,6 +38,22 @@ def completion_output(state, token, args, tree, policy, head, output, code=0, fa
                    elapsed_s=0.25, log=str(log), log_sha256=hashlib.sha256(output).hexdigest(),
                    head=head,
                    inputs=tree)
+    if fault.startswith("bytes-"):
+        receipt.update(min_free_bytes=100, minimum_free_bytes=200, admission_free_bytes=200)
+        if fault == "bytes-zero":
+            receipt.update(min_free_bytes=0, minimum_free_bytes=0, admission_free_bytes=0)
+        elif fault == "bytes-bool":
+            receipt["min_free_bytes"] = True
+        elif fault == "bytes-negative":
+            receipt["minimum_free_bytes"] = -1
+        elif fault == "bytes-string":
+            receipt["admission_free_bytes"] = "200"
+        elif fault == "bytes-partial":
+            del receipt["admission_free_bytes"]
+        elif fault == "bytes-below":
+            receipt["admission_free_bytes"] = 199
+        elif fault == "bytes-floor-small":
+            receipt["minimum_free_bytes"] = 99
     if fault == "old_build_same_id":
         # A queued cancellation finds an older build's successful numeric-ID row.
         old = state / "old-build.log"

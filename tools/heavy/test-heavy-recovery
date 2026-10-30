@@ -83,20 +83,48 @@ class Lab:
         self.faults.mkdir()
         self.env = dict(os.environ)
         for key in ('HEAVY_TASK', 'HEAVY_CLASS', 'DEV_ROOT', 'DEV_TMP',
-                    'HEAVY_FAULT_DIR', 'HEAVY_BOOT_ID_FILE', 'RUSTC_WRAPPER'):
+                    'HEAVY_FAULT_DIR', 'HEAVY_BOOT_ID_FILE', 'RUSTC_WRAPPER',
+                    'HEAVY_MIN_FREE_BYTES', 'HEAVY_DISK_FREE_BYTES_FILE'):
             self.env.pop(key, None)
         # The old queue daemon is gone; discard its inherited selection.
         for key in tuple(self.env):
             if key.startswith('P' + 'UEUE_'):
                 self.env.pop(key)
-        self.env.update(DEV_ROOT=str(self.path), DEV_TMP=str(self.path / 'tmp'), LAND_TIDY='',
+        self.env.update(HOME=str(self.path), XDG_CONFIG_HOME=str(self.path / 'config'),
+                        DEV_ROOT=str(self.path), DEV_TMP=str(self.path / 'tmp'), LAND_TIDY='',
                         HEAVY_BUILD_SLOTS='2', HEAVY_SETTLE='0', PLAN_MIN_DISK_GB='0', PLAN_LAND_ROOM_GB='0',
                         HEAVY_BOOT_ID_FILE=str(self.boot), HEAVY_FAULT_DIR=str(self.faults), HEAVY_RECOVERY_FIXTURE='1')
         cache_bin = self.path / 'fixture-bin'
         cache_bin.mkdir()
+        # Policy fixtures identify version tools; they never build a target.
+        for name in ('rustc', 'rustdoc', 'cargo'):
+            compiler = cache_bin / name
+            compiler.write_text('#!/bin/sh\necho "' + name + ' fixture version"\n')
+            compiler.chmod(0o700)
         self.available = self.path / 'tmp/available-gb'
         self.available.write_text('100')
         self.env['HEAVY_DISK_FREE_FILE'] = str(self.available)
+        # The running user manager has its own search path. Link the fixture's
+        # temporary HOME units at runtime and remove those links on cleanup.
+        systemctl = cache_bin / 'systemctl'
+        real_systemctl = shutil.which('systemctl')
+        systemctl.write_text('#!/usr/bin/env python3\nimport os,sys,subprocess\nfrom pathlib import Path\n'
+            'real=' + repr(real_systemctl) + '\na=sys.argv[1:]\n'
+            'units=Path(os.environ["XDG_CONFIG_HOME"])/"systemd/user"\n'
+            'if a[:3]==["--user","enable","--now"]:\n'
+            ' timer=a[3]; service=timer.removesuffix(".timer")+".service"\n'
+            ' assert timer.startswith("skein-heavy-") and (units/timer).is_file()\n'
+            ' subprocess.run([real,"--user","link","--runtime",str(units/service),str(units/timer)],check=True)\n'
+            ' a=["--user","start",timer]\n'
+            'elif a[:3]==["--user","disable","--now"]:\n'
+            ' timer=a[3]; service=timer.removesuffix(".timer")+".service"\n'
+            ' assert timer.startswith("skein-heavy-") and (units/timer).is_file()\n'
+            ' subprocess.run([real,"--user","stop",timer,service],check=True)\n'
+            ' a=["--user","disable","--runtime",timer,service]\n'
+            'os.execv(real,[real,*a])\n')
+        systemctl.chmod(0o700)
+        self.systemctl_install = self.path / 'fixture-systemctl-install'
+        shutil.copy2(systemctl, self.systemctl_install)
         df = cache_bin / 'df'
         df.write_text('#!/bin/sh\nprintf "Avail\\n%sG\\n" "$(cat ' + shlex.quote(str(self.available)) + ')"\n')
         df.chmod(0o700)
@@ -122,13 +150,15 @@ class Lab:
         assert self.prefix != 'skein-heavy-a3f2289065cb', 'fixture must not use the production queue'
         print('fixture prefix ' + self.prefix + ' differs from production skein-heavy-a3f2289065cb', flush=True)
         self.clients = []
+        self.named_clients = {}
         self.extra_units = []
         self.installed = False
         self.started = time.monotonic()
-        self.number = 0
+        self.command_counts = {'call': 0, 'client': 0}
         self.retired_tasks = {}
 
     def call(self, args, check=True, environment=None, cwd=None, **kw):
+        self.command_counts['call'] += 1
         result = subprocess.run([str(x) for x in args], env=environment or self.env, cwd=cwd or self.repo,
                                 stdin=subprocess.DEVNULL, capture_output=True, text=True, **kw)
         if check and result.returncode:
@@ -153,9 +183,13 @@ class Lab:
         return self.await_state(label, 'queued')
 
     def await_state(self, label, state):
-        return wait_for(lambda: (task if (task := self.task(label)) and task['state'] == state and
-                        'queued task' in (self.path / (label + '.client.txt')).read_text() else None),
-                        label + ' ' + state)
+        def observe():
+            text = (self.path / (label + '.client.txt')).read_text()
+            if self.named_clients[label].poll() is not None and 'queued task' not in text:
+                raise AssertionError('client ended before queueing: ' + text)
+            task = self.task(label)
+            return task if task and task['state'] == state and 'queued task' in text else None
+        return wait_for(observe, label + ' ' + state)
 
     def wrapper_unit(self, label):
         return self.task(label)['wrapper_unit']
@@ -226,6 +260,7 @@ class Lab:
         return next((task for task in self.state()['tasks'].values() if task['label'] == label), None)
 
     def start(self, label, gate=False, code=None, duration=0.15, args=None, land=False):
+        self.command_counts['client'] += 1
         if args is None:
             args = [sys.executable, '-c', code or f'import time; time.sleep({duration})']
         env = dict(self.env, HEAVY_LABEL=label)
@@ -237,6 +272,7 @@ class Lab:
                     env=env, cwd=self.repo, stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT)
         out.close()
         self.clients.append(child)
+        self.named_clients[label] = child
         return child
 
     def done(self, client, expected=0):
@@ -296,7 +332,7 @@ class Lab:
                             list(active.values()).count('build') < int(self.env['HEAVY_BUILD_SLOTS'])), \
                         ("more builds than the lab permits", active)
                 active[token] = lane
-            elif name == 'release_end':
+            elif name in ('release_end', 'disk_retry_end'):
                 active.pop(token, None)
         assert not active, active
         for task in tasks.values():
@@ -306,7 +342,7 @@ class Lab:
             receipt_path = self.base / 'receipts' / (task['token'] + '.json')
             receipt = wait_for(lambda: json.loads(receipt_path.read_text()) if receipt_path.exists() else None,
                                'durable receipt')
-            assert len(receipt.keys() - {'head', 'inputs'}) == 17 and receipt['schema'] == 'heavy-receipt-v1'
+            assert len(receipt.keys() - {'head', 'inputs', 'min_free_bytes', 'minimum_free_bytes', 'admission_free_bytes'}) == 17 and receipt['schema'] == 'heavy-receipt-v1'
             for key in ('head', 'inputs'):
                 assert receipt.get(key) == task.get(key)
             assert receipt['token'] == task['token'] and receipt['tree'] == task['tree']
@@ -367,7 +403,7 @@ class Lab:
             except subprocess.TimeoutExpired:
                 child.kill()
                 child.wait()
-        if self.installed:
+        if self.installed or ((self.base / 'state.json').exists() and self.state().get('installation')):
             removed = self.call([HEAVY, '--remove-reconciler'], check=False)
             if removed.returncode:
                 # Even a failing case must leave no fixture timer or scope.
@@ -462,7 +498,7 @@ def payload_manager(lab):
     # Let the stand-in record the guard's natural return before release kills
     # the unit. The real systemctl still supplies every cgroup-empty proof.
     systemctl = lab.path / 'fixture-bin/systemctl'
-    real_systemctl = shutil.which('systemctl')
+    real_systemctl = str(lab.systemctl_install)
     systemctl.write_text(f'#!{sys.executable}\n' +
         'import os, sys, time\nfrom pathlib import Path\n' +
         f'root=Path({str(lab.path)!r})\n' +
@@ -729,7 +765,7 @@ def rollback(lab):
 
 def gc_clients(lab, plans):
     # Fake only optional service readiness and RPC; all other systemctl is real.
-    real = shutil.which('systemctl')
+    real = str(lab.systemctl_install)
     common = ('import json,os,sys,time\nfrom pathlib import Path\n'
               'root=Path(' + repr(str(lab.path)) + ')\n')
     action = ('label=os.environ.get("HEAVY_LABEL", "")\n'
@@ -969,6 +1005,232 @@ def missing_reconciler(lab):
     lab.call(['systemctl', '--user', 'start', lab.prefix + '-reconcile.timer'])
     proceed.touch()
     lab.done(gate)
+
+
+def byte_setup(lab, minimum=100, free=0, floor=0):
+    lab.env.update(HEAVY_MIN_FREE_BYTES=str(minimum), PLAN_MIN_DISK_GB=str(floor))
+    available = lab.path / 'tmp/available-bytes'
+    available.write_text(str(free))
+    lab.env['HEAVY_DISK_FREE_BYTES_FILE'] = str(available)
+    # The reconciler was installed without the opt-in or byte observations.
+    # Repoint it with the isolated observation file, never the submitted min.
+    lab.call([HEAVY, '--install-reconciler', '0.2s'])
+    return available
+
+
+def set_bytes(path, value):
+    temporary = path.with_suffix('.new')
+    temporary.write_text(str(value))
+    temporary.replace(path)
+
+
+def byte_invalid(lab):
+    marker = lab.path / 'should-not-start'
+    for value in ('-1', '+1', ' 1', '1 ', '1.0', '1e3', '1_000', '0x10', '１２', '1\n', 'x'):
+        env = dict(lab.env, HEAVY_MIN_FREE_BYTES=value)
+        result = lab.call([HEAVY, 'touch', marker], environment=env, check=False)
+        assert result.returncode == 2 and 'digits only' in result.stderr, result
+    assert not lab.state()['tasks'] and not marker.exists()
+    lab.done(lab.start('valid-after-invalid'))
+
+
+def byte_legacy(lab):
+    lab.env['PLAN_MIN_DISK_GB'] = '40'
+    lab.free(5)
+    for value in (None, ''):
+        env = dict(lab.env)
+        if value is not None:
+            env['HEAVY_MIN_FREE_BYTES'] = value
+        result = lab.call([HEAVY, 'true'], environment=env, check=False)
+        assert result.returncode == 2 and 'below the disk floor of 40 GB' in result.stderr
+    assert not lab.state()['tasks']
+    lab.free(100)
+    for label, value in (('absent', None), ('empty', '')):
+        if value is not None:
+            lab.env['HEAVY_MIN_FREE_BYTES'] = value
+        lab.done(lab.start(label))
+        assert 'min_free_bytes' not in lab.task(label)
+
+
+def byte_wait(lab, minimum=100, floor=0, gate=False):
+    required = max(minimum, floor * 2**30)
+    available = byte_setup(lab, minimum, required - 1, floor)
+    marker = lab.path / 'started'
+    label = 'land repo' if gate else 'byte-wait'
+    child = lab.start(label, gate=gate, args=['touch', str(marker)])
+    task = lab.waiting(label)
+    token, number = task['token'], task['id']
+    assert next(e for e in lab.events() if e['token'] == token)['event'] == 'submit'
+    wait_for(lambda: 'waits for free disk:' in (lab.path / (label + '.client.txt')).read_text(), 'byte wait diagnostic')
+    lab.age(label, 86400)
+    # Invalid caller settings cannot change submitted state during recovery.
+    lab.call([HEAVY, '--reconcile'], environment=dict(lab.env, HEAVY_MIN_FREE_BYTES='invalid'))
+    assert lab.task(label)['state'] == 'waiting' and not marker.exists()
+    lab.env['HEAVY_MIN_FREE_BYTES'] = str(required + 999999)
+    set_bytes(available, required)
+    lab.done(child)
+    task = lab.task(label)
+    assert (task['token'], task['id'], task['min_free_bytes']) == (token, number, minimum)
+    assert marker.exists() and task['admission_free_bytes'] == required
+    assert task['minimum_free_bytes'] == required
+    receipt = json.loads((lab.base / 'receipts' / (token + '.json')).read_text())
+    assert receipt['min_free_bytes'] == minimum and receipt['minimum_free_bytes'] == required
+    assert receipt['admission_free_bytes'] == required
+    assert f'disk admission minimum {required} bytes, observed {required} bytes' in Path(task['log']).read_text()
+    assert (lab.path / (label + '.client.txt')).read_text().count('waits for free disk:') == 1
+    assert len([e for e in lab.events() if e['event'] == 'payload_begin']) == 1
+
+
+def byte_lane_recheck(lab):
+    available = byte_setup(lab, 100, 100)
+    lab.hold('build')
+    child = lab.start('lane-check')
+    lab.waiting('lane-check')
+    set_bytes(available, 99)
+    lab.unhold('build')
+    wait_for(lambda: lab.task('lane-check').get('byte_wait'), 'fresh disk check after lane hold')
+    assert not lab.event('lane-check', 'admit')
+    set_bytes(available, 100)
+    lab.done(child)
+    assert lab.event('lane-check', 'admit')['admission_free_bytes'] == 100
+
+
+def byte_payload_retry(lab, gate=False, cancel=False):
+    available = byte_setup(lab, 100, 100)
+    lab.env['HEAVY_BUILD_SLOTS'] = '1'
+    lab.arm('payload_floor')
+    marker = lab.path / 'starts'
+    label = 'retry-gate' if gate else 'retry-build'
+    child = lab.start(label, gate=gate,
+                      code='from pathlib import Path; p=Path(' + repr(str(marker)) + '); '
+                           'p.write_text(p.read_text()+"start\\n" if p.exists() else "start\\n")')
+    lab.barrier('payload_floor', label)
+    initial = lab.task(label)
+    set_bytes(available, 99)
+    lab.disarm('payload_floor')
+    wait_for(lambda: lab.event(label, 'disk_retry_end'), 'retry cgroup empty')
+    task = lab.waiting(label)
+    assert task['token'] == initial['token'] and task['unit'] != initial['unit']
+    assert task['args'] == initial['args'] and task['wrapper'] == initial['wrapper']
+    assert not marker.exists() and not lab.held('build')
+    path = Path('/sys/fs/cgroup') / initial['cgroup'].lstrip('/') / 'cgroup.events'
+    assert not path.exists() or 'populated 0' in path.read_text()
+    # A low-space byte wait holds no slot or exclusive gate hold.
+    lab.env.pop('HEAVY_MIN_FREE_BYTES')
+    lab.done(lab.start('land independent prebuild'))
+    if cancel:
+        env = dict(lab.env, HEAVY_MIN_FREE_BYTES='invalid')
+        lab.call([HEAVY, '--cancel', initial['token']], environment=env)
+        lab.done(child, 130)
+        assert not marker.exists()
+        return
+    # A second miss must retain distinct admission/scope events and units.
+    (lab.faults / 'continue-payload_floor').unlink()
+    (lab.faults / (initial['token'] + '-payload_floor')).unlink()
+    lab.arm('payload_floor')
+    set_bytes(available, 100)
+    lab.barrier('payload_floor', label)
+    second = lab.task(label)
+    set_bytes(available, 99)
+    lab.disarm('payload_floor')
+    wait_for(lambda: lab.task(label).get('payload_attempt') == 2, 'second retry cleaned up')
+    assert not marker.exists() and second['unit'] != initial['unit']
+    set_bytes(available, 100)
+    lab.done(child)
+    assert marker.read_text() == 'start\n'
+    events = [e for e in lab.events() if e['token'] == initial['token']]
+    assert len([e for e in events if e['event'] == 'admit']) == 3
+    assert len([e for e in events if e['event'] == 'payload_begin']) == 1
+    assert len([e for e in events if e['event'] == 'disk_retry_end']) == 2
+
+
+def byte_gate_drain(lab):
+    available = byte_setup(lab, 100, 100)
+    marker = lab.path / 'finish-build'
+    build = lab.start('draining-build', code='import time; from pathlib import Path\n'
+                      f'while not Path({str(marker)!r}).exists(): time.sleep(.02)')
+    wait_for(lambda: lab.event('draining-build', 'payload_begin'), 'build before exclusive gate')
+    gate = lab.start('draining-gate', gate=True)
+    wait_for(lambda: lab.event('draining-gate', 'drain_begin'), 'gate drains live build')
+    assert 'admission_free_bytes' not in lab.task('draining-gate')
+    set_bytes(available, 99)
+    wait_for(lambda: lab.state()['gate'] is None and lab.task('draining-gate').get('byte_wait'),
+             'gate gives up exclusive hold while below its byte minimum')
+    marker.touch()
+    lab.done(build)
+    assert not lab.event('draining-gate', 'admit')
+    set_bytes(available, 100)
+    lab.done(gate)
+    assert len([e for e in lab.events() if e.get('label') == 'draining-gate'
+                and e['event'] == 'drain_begin']) == 2
+
+
+def byte_reconciler_persistence(lab):
+    available = byte_setup(lab, 100, 99)
+    lab.arm('claim')
+    child = lab.start('unclaimed-byte')
+    task = lab.queued('unclaimed-byte')
+    lab.barrier('claim', 'unclaimed-byte')
+    # Only the installed reconciler can clear this wait while the wrapper is
+    # barred from claiming. It has no HEAVY_MIN_FREE_BYTES in its environment.
+    lab.env['HEAVY_MIN_FREE_BYTES'] = 'invalid'
+    set_bytes(available, 100)
+    wait_for(lambda: 'byte_wait' not in lab.task('unclaimed-byte'), 'independent byte-wait reconciliation')
+    lab.disarm('claim')
+    lab.done(child)
+    assert lab.task('unclaimed-byte')['min_free_bytes'] == 100
+    assert lab.task('unclaimed-byte')['token'] == task['token']
+
+
+def byte_orphan(lab):
+    byte_setup(lab, 100, 99)
+    child = lab.start('orphan-byte')
+    lab.waiting('orphan-byte')
+    lab.kill_wrapper('orphan-byte')
+    lab.call([HEAVY, '--reconcile'], environment=dict(lab.env, HEAVY_MIN_FREE_BYTES='invalid'))
+    lab.done(child, 137)
+    assert lab.task('orphan-byte')['outcome'] == 'recovered'
+    assert not lab.event('orphan-byte', 'payload_begin')
+
+
+def byte_reservation(lab):
+    available = byte_setup(lab, 100, 2**30 + 99)
+    lab.env.update(HEAVY_BUILD_SLOTS='1', PLAN_LAND_ROOM_GB='1')
+    lab.hold('build')
+    older = lab.start('reserved-build')
+    lab.waiting('reserved-build')
+    landing = lab.start('land repo prebuild')
+    lab.waiting('land repo prebuild')
+    lab.unhold('build')
+    lab.done(landing)
+    # A landing passes the older build waiting for its reservation, even in
+    # one slot. The reservation remains after the landing releases.
+    wait_for(lambda: "waits for a landing's room:" in
+             (lab.path / 'reserved-build.client.txt').read_text(), 'byte reservation wait')
+    assert not lab.event('reserved-build', 'admit')
+    # Unlimited slots must not let an unset-var caller pass an older byte
+    # waiter through the reservation barrier. Each keeps its own floor mode.
+    lab.env.pop('HEAVY_MIN_FREE_BYTES')
+    lab.env['HEAVY_BUILD_SLOTS'] = '0'
+    younger = lab.start('younger-legacy')
+    lab.waiting('younger-legacy')
+    time.sleep(1)
+    assert not lab.event('younger-legacy', 'admit')
+    set_bytes(available, 2**30 + 100)
+    lab.done(older)
+    lab.done(younger)
+    assert lab.event('reserved-build', 'admit')['admission_free_bytes'] == 2**30 + 100
+    assert lab.event('land repo prebuild', 'admit')['time_ns'] < lab.event('reserved-build', 'admit')['time_ns']
+
+
+def byte_cancel(lab):
+    byte_setup(lab, 100, 99)
+    child = lab.start('cancel-byte-wait')
+    task = lab.waiting('cancel-byte-wait')
+    env = dict(lab.env, HEAVY_MIN_FREE_BYTES='invalid')
+    lab.call([HEAVY, '--cancel', task['token']], environment=env)
+    lab.done(child, 130)
+    assert not lab.event('cancel-byte-wait', 'admit')
 
 
 def land_disk_floor(lab, mode='refused', machine=False, saved=None):
@@ -2338,7 +2600,19 @@ def main():
     root = opts.evidence.resolve()
     root.mkdir(parents=True, exist_ok=False)
     (root / 'EVIDENCE.TAG').write_text('agents fixture evidence\ntest-heavy-recovery\n')
-    cases = [('delayed_client_reads_shrunk_history', delayed_client_reads_shrunk_history),
+    cases = [('byte-invalid', byte_invalid), ('byte-legacy', byte_legacy),
+             ('byte-wait', byte_wait),
+             ('byte-floor-higher', lambda lab: byte_wait(lab, 100, 1)),
+             ('byte-explicit-higher', lambda lab: byte_wait(lab, 2**30 + 1, 1)),
+             ('byte-gate-wait', lambda lab: byte_wait(lab, gate=True)),
+             ('byte-lane-recheck', byte_lane_recheck),
+             ('byte-payload-retry', byte_payload_retry),
+             ('byte-gate-retry', lambda lab: byte_payload_retry(lab, gate=True)),
+             ('byte-retry-cancel', lambda lab: byte_payload_retry(lab, cancel=True)),
+             ('byte-cancel', byte_cancel), ('byte-reservation', byte_reservation),
+             ('byte-reconciler-persistence', byte_reconciler_persistence), ('byte-orphan', byte_orphan),
+             ('byte-gate-drain', byte_gate_drain),
+             ('delayed_client_reads_shrunk_history', delayed_client_reads_shrunk_history),
              ('task_number_survives_retired_records', task_number_survives_retired_records),
              ('late_wrapper_refused_by_a_shrunk_task', late_wrapper_refused_by_a_shrunk_task),
              ('release_replay_on_a_shrunk_task', release_replay_on_a_shrunk_task),
@@ -2443,6 +2717,7 @@ def main():
             previous_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
             lab.cleanup()
             signal.signal(signal.SIGINT, previous_handler)
+            result['command_counts'] = lab.command_counts
             result['seconds_single_sample'] = round(time.monotonic() - lab.started, 3)
             RESULTS.append(result)
             (root / 'results.json').write_text(json.dumps(RESULTS, indent=2) + '\n')
