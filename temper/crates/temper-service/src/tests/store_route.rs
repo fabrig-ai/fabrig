@@ -160,7 +160,14 @@ fn a_forge_page_reaches_the_root_decoded_with_its_last_key() {
         store::Event::Restored {
             owner,
             rows: Box::new([forge_row(9)]),
-            next: Some(store::Cursor { interval: 0, after: Box::new([2, 9]) }),
+            next: Some(store::Cursor {
+                interval: 0,
+                after: store::keys::application(
+                    &temper_protocol_store::keys::encode(&forge::Key::Landed([9; 32]), u32::MAX).unwrap(),
+                    u32::MAX,
+                )
+                .unwrap(),
+            }),
         },
         &mut out,
     );
@@ -196,11 +203,10 @@ fn a_continued_forge_load_asks_from_its_tagged_cursor() {
 }
 
 #[test]
-fn a_page_keeps_the_longest_prefix_within_the_roots_bounds() {
-    let mut routes = fixtures::routes();
-    // Landed has no deep payload under the root's byte projection.
+fn startup_row_and_byte_cuts_fail_the_original_load_before_delivering_any_prefix() {
     let one_row = u32::try_from(size_of::<engine::Record>()).unwrap();
-    for (most, bytes, expected) in [(1, 8192, 1), (4, one_row, 1), (4, 8192, 2)] {
+    for (most, bytes) in [(1, 8192), (4, one_row), (4, one_row - 1)] {
+        let mut routes = fixtures::routes();
         let Some(store::Request::Restore { owner, .. }) =
             route::down(&mut routes, load(engine::Range::Forge, None, most, bytes))
         else {
@@ -212,10 +218,7 @@ fn a_page_keeps_the_longest_prefix_within_the_roots_bounds() {
             store::Event::Restored { owner, rows: Box::new([forge_row(8), forge_row(9)]), next: None },
             &mut out,
         );
-        let (_, rows, next) = page(&mut out);
-        assert_eq!(rows.len(), expected, "{most}/{bytes}");
-        let expected_next = if expected == 1 { Some(engine::Key::Forge(forge::Key::Landed([8; 32]))) } else { None };
-        assert_eq!(next, expected_next, "{most}/{bytes}");
+        failed_load(&mut routes, owner, &mut out);
     }
 }
 
@@ -693,4 +696,209 @@ fn patch_sites_return_the_machine_with_the_missing_site_and_progress_is_not_a_ro
         );
         assert!(out.is_empty());
     }
+}
+
+#[test]
+fn startup_calls_and_proofs_with_zero_identities_reach_the_root_unchanged() {
+    let call = core::Record::Core(core::CoreRecord::Call(core::CallRecord {
+        key: core::CallKey { task: 0, attempt: 0, completion: 0, position: 0 },
+        part: core::CallPart::Unavailable,
+        settled: None,
+    }));
+    let proof = core::Record::Core(core::CoreRecord::RunProof(core::RunProof {
+        task: 0,
+        attempt: 0,
+        conversation: 0,
+        credentials: Box::new([]),
+        accounts: Box::new([]),
+        placement: None,
+        account_failure: None,
+        account_terminal: false,
+        window: None,
+        crossed: false,
+        host: jig_domain_fleet::HostKind::Engine,
+        offered: None,
+        outstanding: Box::new([]),
+        turn: None,
+        terminal: None,
+    }));
+    for (range, record) in [(engine::CoreRange::Calls, call), (engine::CoreRange::RunProofs, proof)] {
+        let mut routes = fixtures::routes();
+        let range = engine::Range::Core(range);
+        assert!(!range.contains(&engine::Key::Core(record.key())), "archive predicate remains unchanged");
+        let Some(store::Request::Restore { owner, .. }) = route::down(&mut routes, load(range, None, 4, 8192)) else {
+            panic!("startup")
+        };
+        let mut out = Queue::with_capacity(2);
+        route::up(
+            &mut routes,
+            store::Event::Restored { owner, rows: Box::new([store::Row::Jig(record.clone())]), next: None },
+            &mut out,
+        );
+        let expected: Box<[engine::Record]> = Box::new([engine::Record::Core(record)]);
+        assert_eq!(page(&mut out), (fixtures::OWNER, expected, None));
+        assert!(out.is_empty());
+    }
+}
+
+#[test]
+fn startup_preserves_rows_before_the_cursor_and_uses_the_stores_continuation() {
+    let mut routes = fixtures::routes();
+    let after = engine::Key::Forge(forge::Key::Landed([8; 32]));
+    let Some(store::Request::Restore { owner, .. }) =
+        route::down(&mut routes, load(engine::Range::Forge, Some(after), 4, 8192))
+    else {
+        panic!("restore")
+    };
+    let next = engine::Key::Forge(forge::Key::Landed([9; 32]));
+    let relative = temper_protocol_store::keys::encode(&forge::Key::Landed([9; 32]), u32::MAX).unwrap();
+    let cursor = store::Cursor { interval: 0, after: store::keys::application(&relative, u32::MAX).unwrap() };
+    let mut out = Queue::with_capacity(2);
+    route::up(
+        &mut routes,
+        store::Event::Restored {
+            owner,
+            rows: Box::new([forge_row(7), forge_row(7), forge_row(6)]),
+            next: Some(cursor),
+        },
+        &mut out,
+    );
+    let (_, rows, found) = page(&mut out);
+    assert_eq!(rows.len(), 3);
+    for (row, number) in rows.iter().zip([7, 7, 6]) {
+        assert_eq!(row.key(), engine::Key::Forge(forge::Key::Landed([number; 32])));
+    }
+    assert_eq!(found, Some(next));
+}
+
+#[test]
+fn startup_census_cuts_and_cursor_decode_errors_fail_the_original_load_once() {
+    for (most, bytes, next) in
+        [(1, 8192, None), (4, 1, None), (4, 8192, Some(store::Cursor { interval: 0, after: Box::new([255]) }))]
+    {
+        let mut routes = fixtures::routes();
+        let range = engine::Range::Census(core::Census {
+            results: Box::new([core::ReadResults { party: 8, after: 0 }]),
+            questions: Box::new([]),
+        });
+        let Some(store::Request::Restore { owner, .. }) = route::down(&mut routes, load(range, None, most, bytes))
+        else {
+            panic!("census")
+        };
+        let mut out = Queue::with_capacity(2);
+        route::up(
+            &mut routes,
+            store::Event::Restored { owner, rows: Box::new([ended_row(5), ended_row(5)]), next },
+            &mut out,
+        );
+        failed_load(&mut routes, owner, &mut out);
+    }
+}
+
+#[test]
+#[should_panic(expected = "startup continuation advances in walk order")]
+fn an_empty_filtered_startup_walk_asserts_when_the_store_repeats_its_cursor() {
+    let mut routes = fixtures::routes();
+    let key = call_row().key();
+    let Some(store::Request::Restore { owner, .. }) = route::down(
+        &mut routes,
+        load(engine::Range::Core(engine::CoreRange::RunProofs), Some(engine::Key::Core(key.clone())), 4, 8192),
+    ) else {
+        panic!("proofs")
+    };
+    let mut out = Queue::with_capacity(2);
+    route::up(
+        &mut routes,
+        store::Event::Restored {
+            owner,
+            rows: Box::new([store::Row::Jig(call_row())]),
+            next: Some(store::Cursor { interval: 0, after: store::keys::encode(&key, u32::MAX).unwrap() }),
+        },
+        &mut out,
+    );
+}
+
+#[test]
+fn startup_deep_byte_cut_fails_before_any_fitting_prefix_is_handed_off() {
+    let (mut limits, _, _) = fixtures::store_limits();
+    // A smaller per-record entrance exercises the cut without raising any budget.
+    limits.loads.transcript_bytes = 1;
+    let bounds = temper_protocol_store::bounds(&limits.forge, limits.tasks.spec_bytes).unwrap();
+    let mut routes = route::Routes::new(2, &limits, bounds);
+    let Some(store::Request::Restore { owner, .. }) =
+        route::down(&mut routes, load(engine::Range::Forge, None, 4, 8192))
+    else {
+        panic!("restore")
+    };
+    let row = forge::Stored::Binding { address: b"a@b".as_slice().into(), subject: Box::new([]) };
+    let key = temper_protocol_store::keys::encode(&forge::stored_key(&row), 511).unwrap();
+    let value = temper_protocol_store::records::encode(&row);
+    let mut out = Queue::with_capacity(2);
+    route::up(
+        &mut routes,
+        store::Event::Restored {
+            owner,
+            rows: Box::new([forge_row(7), store::Row::Application { key, value }]),
+            next: None,
+        },
+        &mut out,
+    );
+    failed_load(&mut routes, owner, &mut out);
+}
+
+#[test]
+fn archive_turn_pages_keep_the_longest_prefix_and_its_exact_resume_key() {
+    let one_row = u32::try_from(size_of::<engine::Record>()).unwrap();
+    for (most, bytes, count) in [(1, 8192, 1), (4, one_row, 1), (4, 8192, 2)] {
+        let mut routes = fixtures::routes();
+        let range = engine::Range::Core(engine::CoreRange::Turns { task: 1, attempt: 1 });
+        let Some(store::Request::Transcript { owner, .. }) = route::down(&mut routes, load(range, None, most, bytes))
+        else {
+            panic!("archive")
+        };
+        let mut rows = skein_lib::List::with_capacity(2);
+        for turn in 1..=2 {
+            rows.push(store::Row::Jig(core::Record::Core(core::CoreRecord::Turn(engine::TurnRecord {
+                task: 1,
+                attempt: 1,
+                turn,
+                spent: 0,
+                at: skein_lib::Wall::EPOCH,
+                read: None,
+                opens_window: false,
+                transcript: Box::new([]),
+            }))))
+            .expect("two-row archive fixture");
+        }
+        let rows = rows.into_boxed();
+        let mut out = Queue::with_capacity(2);
+        route::up(&mut routes, store::Event::Loaded { owner, rows, next: None }, &mut out);
+        let (_, rows, next) = page(&mut out);
+        assert_eq!(rows.len(), count);
+        assert_eq!(next, if count == 1 { Some(rows[0].key()) } else { None });
+        assert!(out.is_empty());
+    }
+}
+
+#[test]
+#[should_panic(expected = "usable translated startup cursor")]
+fn startup_asserts_a_decoded_census_cursor_that_cannot_name_its_walk() {
+    let mut routes = fixtures::routes();
+    let range = engine::Range::Census(core::Census {
+        results: Box::new([core::ReadResults { party: 8, after: 0 }]),
+        questions: Box::new([]),
+    });
+    let Some(store::Request::Restore { owner, .. }) = route::down(&mut routes, load(range, None, 4, 8192)) else {
+        panic!("census")
+    };
+    let mut out = Queue::with_capacity(2);
+    route::up(
+        &mut routes,
+        store::Event::Restored {
+            owner,
+            rows: Box::new([]),
+            next: Some(store::Cursor { interval: 0, after: store::keys::encode(&call_row().key(), u32::MAX).unwrap() }),
+        },
+        &mut out,
+    );
 }

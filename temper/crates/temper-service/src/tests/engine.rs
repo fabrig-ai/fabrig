@@ -814,3 +814,44 @@ fn a_root_productive_past_one_quantum_lets_a_waiting_answer_in() {
     assert_eq!(released, INPUTS, "all productive inputs are eventually routed");
     assert_eq!(engine.end, None);
 }
+
+#[test]
+fn an_oversized_startup_page_keeps_its_load_range_and_failed_step_before_switch() {
+    let mut service = fixtures::started();
+    for _ in 0_u32..16 {
+        fixtures::turn(&mut service);
+        if store_answered(&service) {
+            break;
+        }
+    }
+    let engine = service.engine.as_mut().unwrap();
+    let Some(jig_protocol_store::Event::Restored { owner, .. }) = engine.store.above.pop() else {
+        panic!("startup page")
+    };
+    let header = jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(
+        temper_engine_domain_world::store::HEADER,
+    ));
+    let mut rows = skein_lib::List::with_capacity(engine.env.limits.loads.rows + 1);
+    for _ in 0..=engine.env.limits.loads.rows {
+        rows.push(jig_protocol_store::Row::Jig(header.clone())).expect("one row over demand");
+    }
+    let rows = rows.into_boxed();
+    engine.store.above.push(jig_protocol_store::Event::Restored { owner, rows, next: None });
+    for _ in 0_u32..256 {
+        fixtures::turn(&mut service);
+        if service.end().is_some() {
+            break;
+        }
+    }
+    assert_eq!(
+        service.end(),
+        Some(&crate::End::Stopped(crate::Stop::RestoreLoad(crate::RestoreFailure {
+            range: crate::RestoreRangeKind::Deployment,
+            failure: crate::LoadFailure::Store
+        })))
+    );
+    let engine = service.engine.as_ref().unwrap();
+    assert_eq!(engine.domain.restart_failure(), Some(jig_domain_core::RestartStep::LoadCore));
+    assert!(!engine.domain.ready());
+    assert!(engine.store.routes.idle());
+}

@@ -5,6 +5,50 @@ use jig_domain_core as core;
 use jig_protocol_store as store;
 use temper_engine_domain::{CoreRange, Key, Range};
 
+/// Startup selects stored families; writer rules are proved by store oracles
+/// (temper/docs/design/domain/root.md, 9.1).
+pub(super) fn restarting(range: &Range) -> bool {
+    match range {
+        Range::Core(
+            CoreRange::Deployment
+            | CoreRange::Settings
+            | CoreRange::Accounts
+            | CoreRange::People
+            | CoreRange::Tasks
+            | CoreRange::RunProofs
+            | CoreRange::Calls,
+        )
+        | Range::Census(_)
+        | Range::Forge => true,
+        Range::Core(
+            CoreRange::EndedRead { .. }
+            | CoreRange::TaskResult { .. }
+            | CoreRange::RequesterWord { .. }
+            | CoreRange::Turns { .. }
+            | CoreRange::TaskTranscript { .. }
+            | CoreRange::Notes(_)
+            | CoreRange::ProposalDecision { .. }
+            | CoreRange::TaskProposal { .. }
+            | CoreRange::EscalationDecision { .. },
+        ) => false,
+    }
+}
+
+pub(super) fn keeps(range: &Range, key: &Key) -> bool {
+    match range {
+        Range::Census(_) => true,
+        Range::Core(CoreRange::Calls) => {
+            let Key::Core(core::Key::Core(core::CoreKey::Call(_))) = key else { return false };
+            true
+        }
+        Range::Core(CoreRange::RunProofs) => {
+            let Key::Core(core::Key::Core(core::CoreKey::RunProof(_))) = key else { return false };
+            true
+        }
+        Range::Core(_) | Range::Forge => range.contains(key),
+    }
+}
+
 pub(super) fn cursor(range: &Range, key: &Key) -> Option<store::Cursor> {
     let after = match key {
         Key::Wires => return None,
