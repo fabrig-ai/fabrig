@@ -1,6 +1,7 @@
 //! Rebuild live projections once, then name the indexed ended owners (store.md 7.2).
 use crate::{Census, Core, Limits, ReadResults};
 use jig_domain_people as people;
+use jig_domain_tasks as tasks;
 use skein_lib::{Env, List, Queue, Time, Wall};
 
 #[derive(Debug)]
@@ -11,6 +12,7 @@ pub(crate) struct Progress {
 
 impl Core {
     pub fn census(&mut self, limits: &Limits) -> Census {
+        self.start_input();
         assert!(
             self.restart_step() == Some(crate::RestartStep::LoadInbox) && self.people.ready(),
             "people restored before census"
@@ -86,7 +88,7 @@ impl Core {
 impl Core {
     #[must_use]
     pub fn restore_inbox_row(&mut self, limits: &Limits, record: &crate::Record) -> bool {
-        use jig_domain_tasks as tasks;
+        self.start_input();
         if self.restart_step() != Some(crate::RestartStep::LoadInbox) || !self.people.ready() {
             return false;
         }

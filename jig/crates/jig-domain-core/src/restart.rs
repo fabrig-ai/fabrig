@@ -146,6 +146,7 @@ impl Core {
     /// At the switch step, after the children's checks were stepped:
     /// false refuses the start at `Switch`, before anything switches.
     pub fn restart_checked(&mut self) -> bool {
+        self.start_input();
         if self.restart != Restart::Waiting(RestartStep::Switch) {
             let _request = self.restart_refuse();
             return false;
@@ -193,6 +194,7 @@ impl Core {
     /// Check all loaded claims together before the fleet can settle any of
     /// them. Engine claims settle immediately and need no recovered slot.
     pub fn restart_admit_claims(&mut self) -> bool {
+        self.start_input();
         match self.restart {
             Restart::Waiting(RestartStep::AdoptRuns) => {}
             Restart::Cold | Restart::Waiting(_) | Restart::Open | Restart::Failed(_) => {
@@ -219,7 +221,7 @@ impl Core {
     /// Begin once; a repeated start cannot repeat loads or open decisions.
     pub fn restart_begin(&mut self, pending: bool) -> RestartRequest {
         assert!(self.start.mode == crate::start::StartMode::Default, "restart and start interfaces cannot mix");
-        self.start.consumed = true;
+        self.start_input();
         match self.restart {
             Restart::Cold => {
                 self.restart_pending = pending;
@@ -233,6 +235,7 @@ impl Core {
 
     /// A failed or oversized live range stops this start, identifying its step.
     pub fn restart_refuse(&mut self) -> RestartRequest {
+        self.start_input();
         let step = match self.restart {
             Restart::Cold => RestartStep::LoadCore,
             Restart::Waiting(step) | Restart::Failed(step) => step,
@@ -278,7 +281,7 @@ impl Core {
     /// and every restored claim must reach the fleet before the script proceeds.
     pub fn restart_done(&mut self, done: RestartStep) -> RestartRequest {
         assert!(self.start.mode == crate::start::StartMode::Default, "restart and start completions cannot mix");
-        self.start.consumed = true;
+        self.start_input();
         if let Some(failure) = self.restore_failure {
             return failure;
         }

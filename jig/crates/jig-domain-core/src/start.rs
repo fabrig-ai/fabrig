@@ -120,8 +120,12 @@ impl Script {
 }
 
 impl Core {
-    pub(crate) fn start_runtime_input(&mut self) {
+    pub(crate) fn start_input(&mut self) {
         self.start.consumed = true;
+    }
+
+    pub(crate) fn start_runtime_input(&mut self) {
+        self.start_input();
         match self.start.phase {
             Some(
                 Phase::LoadCore
@@ -154,12 +158,12 @@ impl Core {
     /// Choose the start interface once, capturing the expiry instant before loading.
     pub fn start_begin(&mut self, pending: bool, at: Wall) -> Action {
         assert!(!self.start.consumed && self.start.mode == StartMode::Default, "start selected before input once");
+        self.start_input();
         self.people.start_restore(at);
         self.tasks.start_restore();
         self.accounts.start_restore();
         self.authority.start_restore();
         self.start.mode = StartMode::LoadAndLink;
-        self.start.consumed = true;
         self.start.phase = Some(Phase::LoadCore);
         self.start.at = at;
         self.restart_pending = pending;
@@ -180,6 +184,7 @@ impl Core {
 
     /// Freeze the script with its first fit failure.
     pub fn start_refuse(&mut self, failure: Failure) -> Action {
+        self.start_input();
         assert!(self.start.phase.is_some(), "start refusal requires a selected start");
         if self.start.failure.is_none() {
             self.start.failure = Some(failure);
@@ -190,6 +195,7 @@ impl Core {
 
     /// Retain the first externally discovered missing obligation for the Link pass.
     pub fn start_missing(&mut self, record: Key, target: Key) {
+        self.start_input();
         assert!(self.start.phase.is_some(), "missing link belongs to a selected start");
         if self.start.missing.is_none() {
             self.start.missing = Some((record, target));

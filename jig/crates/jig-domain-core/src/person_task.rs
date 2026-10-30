@@ -122,6 +122,7 @@ impl Core {
         _role: Option<people::Role>,
         ask: people::Ask,
     ) -> Result<tasks::Event, people::Refusal> {
+        self.start_input();
         let task = number(&ask);
         if self.tasks.task(task).ok_or(people::Refusal::Unknown)?.project != project {
             return Err(people::Refusal::Unknown);

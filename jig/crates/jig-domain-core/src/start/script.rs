@@ -5,6 +5,7 @@ use skein_lib::Env;
 
 impl Core {
     pub fn start_done(&mut self, env: &Env<Limits>, done: Phase, out: &mut Queue<Request>) -> Action {
+        self.start_input();
         self.start_collect_failure();
         if let Some(failure) = self.start_failure() {
             return Action::Refused(failure);
@@ -69,6 +70,7 @@ impl Core {
     }
 
     pub fn start_sweep(&mut self, env: &Env<Limits>, input: SweepInput, out: &mut Queue<Request>) -> Action {
+        self.start_input();
         if let Some(failure) = self.start_failure() {
             return Action::Refused(failure);
         }
@@ -99,6 +101,7 @@ impl Core {
     }
 
     pub fn start_resume(&mut self, env: &Env<Limits>, continuation: Continuation, out: &mut Queue<Request>) -> Action {
+        self.start_input();
         if let Some(failure) = self.start_failure() {
             return Action::Refused(failure);
         }

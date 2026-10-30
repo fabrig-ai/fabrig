@@ -61,6 +61,7 @@ impl Core {
     /// Number an authenticated person's word and route it to the task hub,
     /// retaining the keyed reply correlation until admission completes.
     pub fn person_message(&mut self, limits: &Limits, message: PersonMessage) -> Result<tasks::Event, people::Refusal> {
+        self.start_input();
         let PersonMessage { request, person, project, task, question, words, at } = message;
         let row = self.tasks.task(task).ok_or(people::Refusal::Unknown)?;
         if row.project != project {
@@ -193,6 +194,7 @@ impl Core {
 
     /// A lost channel changes fleet topology without an external output.
     pub fn lost_channel(&mut self, env: &Env<Limits>, channel: Token) {
+        self.start_input();
         let mut out = Queue::uncapped();
         fleet::step(
             &mut self.fleet,
@@ -207,6 +209,7 @@ impl Core {
     /// Route a restored task's current claim to views and the fleet, holding
     /// host adoption until the application's live-range load finishes.
     pub fn adopt(&mut self, env: &Env<Limits>, task: u64, attempt: u64, kept: u32) {
+        self.start_input();
         assert!(self.unreported_restored.insert(task, attempt) == Ok(None), "one restored claim per task");
         let proof = self.proofs.get(&task).expect("restored claim proof");
         let kind = if self.workers_in_process { fleet::HostKind::Engine } else { proof.host };
@@ -273,6 +276,7 @@ impl Core {
     /// Route a refused goal flight back to the requesting party. The hub's
     /// structural reasons are translated at the core's sibling boundary.
     pub fn goal_refused(&mut self, request: Token, why: tasks::Refusal) -> Option<people::Event> {
+        self.start_input();
         self.goal_routes.remove(&request)?;
         let outcome = crate::routing::refusals::person_task_refusal(self, None, why);
         Some(people::Event::Decided { request, outcome })
@@ -281,6 +285,7 @@ impl Core {
     /// Advance a successful batch to the child or caller that owns its
     /// continuation. The root only carries the returned event or answer.
     pub fn made(&mut self, request: Token, tasks: Box<[u64]>, person_proposal: bool) -> MadeRoute {
+        self.start_input();
         if request.raw() >= u64::MAX - 3 {
             return MadeRoute::Internal;
         }
@@ -356,6 +361,7 @@ impl Core {
     /// Translate the task child's successful person-origin proposal into the
     /// people child's keyed reply, consuming the in-flight correlation.
     pub fn person_proposed(&mut self, request: Token, proposal: u64) -> (people::Event, Box<[tasks::Stub]>) {
+        self.start_input();
         let route = self.goal_routes.remove(&request).expect("person proposal route");
         let GoalRoute::Offering { proposal: named, to, stubs } = route else {
             unreachable!("proposal admission route")
@@ -374,6 +380,7 @@ impl Core {
         outcome: tasks::ProposalOutcome,
         at: Wall,
     ) -> people::Event {
+        self.start_input();
         let route = self.goal_routes.remove(&request).expect("goal decision route");
         let (named, proposal, by) = match route {
             GoalRoute::Withdrawing { proposer: named, proposal, moved } => {
@@ -421,6 +428,7 @@ impl Core {
         at: Wall,
         person_proposal: bool,
     ) -> Option<people::Event> {
+        self.start_input();
         let route = if person_proposal { self.routing_people_proposals.remove(&request) } else { None };
         match route {
             Some(PersonProposalRoute::Deciding { request: named, proposer: expected, proposal, by, moved })
@@ -469,6 +477,7 @@ impl Core {
         words: Box<[u8]>,
         at: Wall,
     ) -> tasks::Event {
+        self.start_input();
         let number = fresh(&mut self.counters, Family::Message).expect("notification number admitted");
         tasks::Event::Notice {
             task,
@@ -486,6 +495,7 @@ impl Core {
 
     /// Number one due subscription timer and route it back to the task hub.
     pub fn notice_timer(&mut self, task: u64, subscription: u64, at: Wall) -> tasks::Event {
+        self.start_input();
         let number = fresh(&mut self.counters, Family::Message).expect("timer number admitted");
         tasks::Event::Notice {
             task,
@@ -511,6 +521,7 @@ impl Core {
         inbox_messages: u32,
         tasks: u32,
     ) -> SentRoute {
+        self.start_input();
         if let Some(context) = self.contexts.get_mut(&task) {
             let capacity = inbox_messages
                 .checked_add(tasks.checked_mul(2).expect("two decision kinds per task"))

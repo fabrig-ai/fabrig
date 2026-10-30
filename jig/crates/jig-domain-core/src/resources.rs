@@ -238,6 +238,7 @@ impl Core {
         name: tasks::Name,
         role: connector::ResourceRole,
     ) -> bool {
+        self.start_input();
         match self.restart_step() {
             Some(crate::RestartStep::RestoreConnector { connector }) if connector == name.connector => {}
             Some(

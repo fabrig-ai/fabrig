@@ -456,7 +456,7 @@ impl Core {
         name: Box<str>,
         value: people::PolicyValue,
     ) -> bool {
-        self.start.consumed = true;
+        self.start_input();
         if project == 0
             || self.authority.policy(project).is_some()
             || self.projects.len() >= self.projects.capacity()

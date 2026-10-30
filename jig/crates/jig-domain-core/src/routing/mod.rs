@@ -94,6 +94,7 @@ impl Core {
     /// Retain a connector subscription's task-hub continuation with its named call.
     #[must_use]
     pub fn reserve_connector_subscription(&mut self, token: Token, key: CallKey, subscription: u64) -> bool {
+        self.start_input();
         if !self.reserve_connector_call(key) {
             return false;
         }
@@ -316,7 +317,7 @@ impl Core {
 
 /// Route one child event and each sibling continuation within one core decision.
 pub fn step(core: &mut Core, env: &Env<Limits>, event: Event) -> Requests {
-    core.start.consumed = true;
+    core.start_input();
     if core.start_failure().is_some() {
         return Requests::Out(Queue::uncapped());
     }
@@ -386,7 +387,7 @@ pub fn step(core: &mut Core, env: &Env<Limits>, event: Event) -> Requests {
 
 /// Want every configured account once, after the restart has restored the core's own ranges.
 pub fn want_accounts(core: &mut Core, env: &Env<Limits>) -> Requests {
-    core.start.consumed = true;
+    core.start_input();
     if let Some(phase) = core.start_phase() {
         assert!(phase == crate::start::Phase::Link, "account wants attach after all loading");
         assert!(!core.accounts.restore_finished(), "account wants link once");
