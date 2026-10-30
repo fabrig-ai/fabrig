@@ -236,3 +236,127 @@ fn large_check_heads_take_room_from_logs_before_a_check_is_omitted() {
 fn text(bytes: &[u8]) -> &str {
     core::str::from_utf8(bytes).expect("UTF-8 CI")
 }
+
+fn planned_read(d: &mut Domain, source: BriefSource, budget: u32) -> Token {
+    outputs(d, Event::PlanBrief { section: SECTION, source });
+    let mut env = env();
+    env.limits.brief_bytes = 4608;
+    let mut out = Queue::uncapped();
+    step(d, &env, Event::GatherPlanned { section: SECTION, parts: 2, bytes: budget, ci_budget: SHIPPED_CI }, &mut out);
+    let Some(Request::BriefClient { event: skein_forge_client::Event::Read { owner, .. } }) = out.pop() else {
+        panic!("one planned forge read: {out:?}")
+    };
+    owner
+}
+
+fn pull_section(body: &[u8]) -> Box<[u8]> {
+    let mut config = configured()[0].clone();
+    config.git = b"https://forge.example".as_slice().into();
+    let mut d = setup_domain(&[config], false);
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    let mut row = fixtures::opening_row();
+    row.pull = Some(1);
+    row.change.last_head = Some(HEAD);
+    row.change.state = temper_engine_domain_forge_change::State::Repairing {
+        requested: true,
+        why: temper_engine_domain_forge_change::Repair::Ci,
+    };
+    outputs(&mut d, Event::Change { row });
+    let owner = planned_read(
+        &mut d,
+        BriefSource::Pull { item: BriefItem { repository: REPO.repository, number: 1 }, head: BriefCommit(HEAD) },
+        4608,
+    );
+    let item = skein_forge::api::Summary {
+        labels: Box::default(),
+        kind: skein_forge::api::Kind::Pull,
+        author: 7,
+        key: None,
+        updated: env().now,
+        number: 1,
+        title: b"Small fix".as_slice().into(),
+        body: body.into(),
+        state: skein_forge::api::State::Open,
+    };
+    let mut out = Queue::uncapped();
+    assert!(brief::brief_answer(
+        &mut d,
+        owner,
+        Ok(Answer::Item { item, comments: Box::default(), more: false }),
+        &mut out
+    ));
+    let mut pull = fixtures::open_pull();
+    pull.commit = HEAD;
+    pull.base_commit = None;
+    assert!(brief::brief_answer(&mut d, owner, Ok(Answer::Pull(pull)), &mut out));
+    assert!(brief::brief_answer(
+        &mut d,
+        owner,
+        Ok(Answer::PullFiles { head: HEAD, files: Box::default(), more: false }),
+        &mut out
+    ));
+    take(&mut d)
+}
+
+#[test]
+fn a_repairs_pull_section_names_its_pull_request_before_its_contents() {
+    let bytes = pull_section(b"Whole body");
+    let words = text(&bytes);
+    assert!(words.starts_with("Pull request: #1\nBranch: temper/51\nBase: main\nHead: c1fb3599fa12c9766f9cc162844416e87a929182\nAddress: https://forge.example/org/repo/pulls/1\n"), "{words}");
+    assert!(words.contains("Title: Small fix\nBody: Whole body\n"));
+}
+
+fn remarks_section(remarks: &[u8]) -> Box<[u8]> {
+    let mut d = domain();
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    let mut row = fixtures::opening_row();
+    row.pull = Some(1);
+    row.change.last_head = Some(HEAD);
+    row.gate_remarks = Box::new([GateRemark { number: 1, head: HEAD, words: remarks.into() }]);
+    outputs(&mut d, Event::Change { row });
+    let owner = planned_read(
+        &mut d,
+        BriefSource::Reviews { item: BriefItem { repository: REPO.repository, number: 1 }, head: BriefCommit(HEAD) },
+        4608,
+    );
+    assert!(brief::brief_answer(
+        &mut d,
+        owner,
+        Ok(Answer::Reviews { reviews: Box::default(), more: false }),
+        &mut Queue::uncapped()
+    ));
+    take(&mut d)
+}
+
+#[test]
+fn four_thousand_bytes_of_gate_remarks_reach_the_repair_whole() {
+    let remarks = [b'r'; 4000];
+    let bytes = remarks_section(&remarks);
+    let body = bytes.strip_prefix(b"Gate remarks: ").expect("remarks heading");
+    assert_eq!(body.strip_suffix(b"\n"), Some(remarks.as_slice()));
+}
+
+#[test]
+fn five_thousand_bytes_of_gate_remarks_keep_their_prefix_and_mark_the_cut() {
+    let remarks = [b'r'; 5000];
+    let bytes = remarks_section(&remarks);
+    let words = text(&bytes);
+    let (kept, marker) = words.rsplit_once("\n[").expect("marked cut");
+    assert!(remarks.starts_with(kept.strip_prefix("Gate remarks: ").expect("remarks heading").as_bytes()));
+    let count = skein_lib::Decimal::of(
+        u64::try_from(b"Gate remarks: ".len() + remarks.len() + 1 - kept.len()).expect("cut bytes"),
+    );
+    assert_eq!(marker.strip_suffix(" bytes cut]\n").expect("cut marker").as_bytes(), count.as_bytes());
+    assert!(bytes.len() <= 4608);
+}
+
+#[test]
+fn a_maximal_task_pull_and_remarks_fit_the_assembled_brief() {
+    let task = [b't'; 4608];
+    let pull = pull_section(&[b'p'; 5000]);
+    let remarks = remarks_section(&[b'r'; 5000]);
+    assert!(text(&pull).contains("Title: Small fix\nBody: "));
+    assert!(pull.ends_with(b" bytes cut]\n"));
+    assert!(remarks.ends_with(b" bytes cut]\n"));
+    assert!(task.len() + pull.len() + remarks.len() + 768 <= 14_592);
+}
