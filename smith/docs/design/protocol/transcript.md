@@ -236,7 +236,9 @@ jobs of every earlier window and activation.
   completion, naming that call by its position (section 2).
 - **Version 6 is current.** It adds the opening turn's account and
   backend, and a window turn's endpoint as the window's it opens
-  (sections 2 and 3).
+  (sections 2 and 3). The outcomes `removed` and `not_empty` are appended
+  to version 6 in place, before the baseline; the local host's layout
+  fingerprint follows the schema.
 - **A reader reads one version,** the current, like every format
   (README.md, section 8). Any other is the transcript refusal *another
   version*, and nothing is translated: a version-2 transcript is
