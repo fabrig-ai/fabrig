@@ -147,8 +147,8 @@ pub(crate) fn granted(domain: &mut Domain, env: &Env<Limits>, source: u32, out: 
                 account
             }
         };
+        let place = crate::ordering::append_place(domain, env, account, out);
         let entry = domain.accounts.get_mut(&account).expect("a joining account cannot be removed");
-        let place = entry.sources.len();
         assert!(entry.sources.insert(place, source) == Ok(None), "reserved source room and dense order");
         let entry = Source::new(account, Kind::Key, Box::new([]), &env.limits);
         assert!(domain.sources.insert(source, entry) == Ok(None), "reserved source room");

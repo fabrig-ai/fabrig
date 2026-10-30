@@ -100,3 +100,23 @@ pub(crate) fn normalize(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<
         save_sources(domain, env, *number, &order, out);
     }
 }
+
+/// Appending is a live change: retain sparse stored places while there is room after them.
+/// At the last representable place, the explicit change saves a dense order first.
+pub(crate) fn append_place(domain: &mut Domain, env: &Env<Limits>, account: u32, out: &mut Queue<Request>) -> u32 {
+    let entry = domain.accounts.get(&account).expect("an admitted source's account");
+    if !domain.start_restore {
+        return entry.sources.len();
+    }
+    match entry.sources.last() {
+        Some((place, _)) => {
+            if let Some(next) = place.checked_add(1) {
+                return next;
+            }
+        }
+        None => return 0,
+    }
+    let order = sources(domain, account);
+    save_sources(domain, env, account, &order, out);
+    order.len()
+}
