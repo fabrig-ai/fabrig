@@ -485,12 +485,45 @@ The after-landing runner calls this entry point. The trees' old
 
 ## 9. Fixture readers
 
-`.config/fixture-readers.toml` covers every tracked `**/fixtures/**` file exactly once; each reader names a root nextest profile, package and filterset selecting at least one test (`skein/docs/foundation/testing-strategy.md`, 8).
+`.config/fixture-readers.toml` declares the readers and generators of tracked
+`**/fixtures/**` files (`skein/docs/foundation/testing-strategy.md`, 8).
+Every entry has at least one reader, or `disposition = "provenance"` and a
+non-empty `reason`, never both. Provenance is restricted to files whose
+basename is `README.md` or capture metadata named `meta.json`. Other fixture
+data requires readers; generators use the separate binding below.
+
+A `[[fixture.reader]]` has exactly one form: a root nextest profile `pair`,
+`package` and `filter` selecting at least one test, or `suite` naming a tracked
+tools suite discovered by the own-tool precheck. The two forms never mix.
 
 ```toml
 [[fixture]]
 paths = ["tree/tests/fixtures/*.json"]
-regenerate = "tree/tests/fixtures/regenerate.sh" # optional
+regenerate = ["tree/tests/fixtures/regenerate.sh"] # optional
 reader = [{ pair = "default", package = "package", filter = "binary(=suite)" }]
-# Use readers = [] instead of reader when no nextest reader is found.
+
+[[fixture]]
+paths = ["tools/example/fixtures/input"]
+reader = [{ suite = "tools/example/test_input.py" }]
+
+[[fixture]]
+paths = ["tree/tests/fixtures/README.md"]
+disposition = "provenance"
+reason = "Provenance of the recorded fixture bytes."
 ```
+
+`regenerate` is an array of tracked scripts that write the entry's files.
+A generator is named by at least one entry's `regenerate` and matches no
+entry's `paths`. Every tracked fixture file either matches exactly one
+entry's paths or is named by at least one regenerate array, never both.
+A tracked script under a fixture root without a generator binding is
+unresolved. A changed generator requires the readers of every entry naming
+it. Proof is offline: validation never runs a generator or a capture/provider
+API. A generator with stale literal paths and an unambiguous intended output
+in the same directory, with the same file names, binds to that output; a
+comment records the intended binding.
+
+The entry digest is SHA-256 of its canonical TOML, covering paths, readers,
+disposition, reason and regenerate. Keys are sorted, including keys within
+readers; arrays and readers retain their order in the file. The map digest
+is SHA-256 of the map file's bytes.

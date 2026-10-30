@@ -1,10 +1,11 @@
 # Fixture readers: skein/docs/foundation/testing-strategy.md, 8.
 # Contract and schema: tools/tiers/design.md, 9 (Fixture readers).
-# Paths are repository-relative globs; every tracked **/fixtures/** file
-# matches exactly one fixture entry, even across multiple paths in that entry.
+# Repository-relative globs cover each tracked fixture exactly once, except
+# generator scripts, which are named only by regenerate arrays.
+# Entries declare readers or an explicit provenance disposition and reason.
+# Provenance is restricted to README.md and capture meta.json files.
 # Reader filters may conservatively include other tests of a shared helper.
-# An empty readers list means no nextest reader was found; comments name
-# known manual or non-nextest consumers. Regeneration is never automatic.
+# Generators are bound to offline readers and are never run by validation.
 
 # jig/crates/jig-client-protocol-link/src/tests.rs and its fixture helper modules; all unit callers.
 [[fixture]]
@@ -176,13 +177,14 @@ pair = "default"
 package = "skein-llm-world"
 filter = "binary(=suite) & (test(/historical_messages_captures/) | test(/archived_heads_fit_with_headroom/))"
 
-# no reader found: provenance documentation and capture metadata; no Rust path reader.
+# Capture provenance and recorder metadata for the archived Anthropic responses.
 [[fixture]]
 paths = [
     "skein/crates/skein-llm/src/anthropic/fixtures/README.md",
     "skein/crates/skein-llm/src/anthropic/fixtures/*/meta.json",
 ]
-readers = []
+disposition = "provenance"
+reason = "Capture provenance and recorder metadata for the archived Anthropic responses."
 
 # src/openai/tests.rs: fixture(); src/translate.rs test module reads requests.
 [[fixture]]
@@ -216,13 +218,14 @@ pair = "default"
 package = "skein-llm-world"
 filter = "binary(=suite) & test(/archived_heads_fit_with_headroom/)"
 
-# no reader found: provenance documentation and capture metadata; no Rust path reader.
+# Capture provenance and recorder metadata for the archived OpenAI responses.
 [[fixture]]
 paths = [
     "skein/crates/skein-llm/src/openai/fixtures/README.md",
     "skein/crates/skein-llm/src/openai/fixtures/*/meta.json",
 ]
-readers = []
+disposition = "provenance"
+reason = "Capture provenance and recorder metadata for the archived OpenAI responses."
 
 # src/openai/tests.rs; llm world suite/selective.rs include the completion.
 [[fixture]]
@@ -247,13 +250,14 @@ pair = "default"
 package = "skein-oauth-issuer"
 filter = "kind(lib)"
 
-# no reader found: published test-key provenance; no Rust path reader.
+# Provenance of the published OAuth issuer test-key fixtures.
 [[fixture]]
 paths = [
     "skein/crates/skein-oauth-issuer/src/tests/fixtures/README.md",
     "skein/tests/oauth-issuer/tests/fixtures/README.md",
 ]
-readers = []
+disposition = "provenance"
+reason = "Provenance of the published OAuth issuer test-key fixtures."
 
 # Fixture module and its world/suite callers; package filters retain all shared-helper callers.
 [[fixture]]
@@ -287,7 +291,7 @@ paths = [
     "skein/tests/tls/fixtures/client.der",
     "skein/tests/tls/fixtures/self.der",
 ]
-regenerate = "skein/tests/tls/fixtures/make.sh"
+regenerate = ["skein/tests/tls/fixtures/make.sh"]
 [[fixture.reader]]
 pair = "default"
 package = "skein-tls-world"
@@ -297,16 +301,11 @@ pair = "fuzzy"
 package = "skein-tls-world"
 filter = "all()"
 
-# no reader found: certificate/key regenerator; not read by a nextest test.
-[[fixture]]
-paths = ["skein/tests/tls/fixtures/make.sh"]
-readers = []
-
 # tls-world pki::Chain::Untrusted; temper-forge-setup-shell suite/fetch.rs passes pki::OTHER to
 # the refusal table.
 [[fixture]]
 paths = ["skein/tests/tls/fixtures/other.der"]
-regenerate = "skein/tests/tls/fixtures/make.sh"
+regenerate = ["skein/tests/tls/fixtures/make.sh"]
 [[fixture.reader]]
 pair = "default"
 package = "skein-tls-world"
@@ -330,7 +329,7 @@ paths = [
     "skein/tests/tls/fixtures/leaf.der",
     "skein/tests/tls/fixtures/leaf.key",
 ]
-regenerate = "skein/tests/tls/fixtures/make.sh"
+regenerate = ["skein/tests/tls/fixtures/make.sh"]
 [[fixture.reader]]
 pair = "default"
 package = "github-conformance"
@@ -595,7 +594,7 @@ filter = "all()"
 # src/tests/rs256.rs calls tests::fixture() for RSA size refusals.
 [[fixture]]
 paths = ["skein/tests/tls/fixtures/rsa-*.der"]
-regenerate = "skein/tests/tls/fixtures/make.sh"
+regenerate = ["skein/tests/tls/fixtures/make.sh"]
 [[fixture.reader]]
 pair = "default"
 package = "skein-tls"
@@ -820,20 +819,18 @@ pair = "default"
 package = "temper-one-process-world"
 filter = "kind(lib)"
 
-# no reader found: recording provenance and manual regenerators; not read by a nextest test.
+# Recording provenance for the B0 and B1 replay fixtures.
 [[fixture]]
-paths = [
-    "temper/tests/real-loop/tests/fixtures/README.md",
-    "temper/tests/real-loop/tests/fixtures/*/regenerate.sh",
-]
-readers = []
+paths = ["temper/tests/real-loop/tests/fixtures/README.md"]
+disposition = "provenance"
+reason = "Recording provenance for the B0 and B1 replay fixtures."
 
 # real-loop green_light::{fixture,recipe,acts,check}; repair::fixture also uses
 # green_light::fixture; temper suite/fake_opening.rs reads person/llm; support/forge_land/rung.rs:
 # twin_peer -> offline_walk. llm-base.json feeds the declared regenerator.
 [[fixture]]
 paths = ["temper/tests/real-loop/tests/fixtures/b0/*.json"]
-regenerate = "temper/tests/real-loop/tests/fixtures/b0/regenerate.sh"
+regenerate = ["temper/tests/real-loop/tests/fixtures/b0/regenerate.sh"]
 [[fixture.reader]]
 pair = "default"
 package = "temper"
@@ -851,7 +848,8 @@ filter = "binary(=process) & test(=rung_b0s_walk_passes_offline_on_its_twin)"
 # llm-base.json feeds the declared regenerator.
 [[fixture]]
 paths = ["temper/tests/real-loop/tests/fixtures/b1/*.json"]
-regenerate = "temper/tests/real-loop/tests/fixtures/b1/regenerate.sh"
+# regenerate.sh's --base/--out are temper-relative; bound by its intended output.
+regenerate = ["temper/tests/real-loop/tests/fixtures/b1/regenerate.sh"]
 [[fixture.reader]]
 pair = "default"
 package = "temper"
@@ -870,14 +868,20 @@ pair = "default"
 package = "temper-twin"
 filter = "binary(=suite)"
 
-# no reader found: tools/heavy/test-heavy-plain and test-heavy-recovery read agents-heavy outside
-# nextest; README is tool-fixture documentation.
+# Documentation for the heavy entrypoint fixture.
 [[fixture]]
-paths = ["tools/heavy/fixtures/*"]
-readers = []
+paths = ["tools/heavy/fixtures/README.md"]
+disposition = "provenance"
+reason = "Documentation of the heavy entrypoint fixture and its relocation checks."
 
-# no reader found: tools/tiers/test_cpu.py builds cpu-settlement.c for its offline Python suite,
-# outside nextest.
+# test-heavy-plain copies agents-heavy into its disposable installation layouts.
+[[fixture]]
+paths = ["tools/heavy/fixtures/agents-heavy"]
+[[fixture.reader]]
+suite = "tools/heavy/test-heavy-plain"
+
+# test_cpu.py builds cpu-settlement.c into its private offline supervisor fixture.
 [[fixture]]
 paths = ["tools/tiers/fixtures/*"]
-readers = []
+[[fixture.reader]]
+suite = "tools/tiers/test_cpu.py"
