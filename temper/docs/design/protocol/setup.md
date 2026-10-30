@@ -1,6 +1,6 @@
 # The forge's setup
 
-Provisional, 2026-10-16, revised 2026-10-28. How a forge comes to be
+Provisional, 2026-10-16, revised 2026-10-30. How a forge comes to be
 ready for temper, in three modes: connected, where a person runs and sets
 up the forge and gives temper only what it strictly needs; managed,
 where a person runs it and temper sets itself up on it, with a Forgejo
@@ -1951,9 +1951,11 @@ defaults for a person's real work are open (section 16).
   `demo`, at `127.0.0.1:<the fake LLM's port>`, plaintext, OpenAI's
   dialect on its public route; one model, `demo`, priced as the owned
   example's model is, 1 per 1,000,000 for input, cached and output (jig
-  and smith refuse a price of 0); its window 131,072 and its output
-  8,192, so that smith's room at the owned threshold, 4/5, still offers
-  the owned message bound, 4,098 bytes, and a request at the threshold
+  and smith refuse a price of 0); its window 177,523 and its output
+  8,192, giving smith's 52,000-byte host part at the owned threshold,
+  4/5, for the largest stock charter's tools and authorised brief
+  (`../domain/agent.md`, 4.3 and 4.6). The owned message bound stays
+  4,098 bytes, and a request at the threshold
   stays within the fake's request bound; its source a key. The agent's
   configuration declares it too (8.2).
 - **No project** (`../draft/first-run.md`, 2.4): the playground's

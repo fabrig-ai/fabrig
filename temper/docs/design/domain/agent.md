@@ -1,6 +1,6 @@
 # The agent
 
-Provisional, 2026-10-05, revised 2026-10-29. temper's agent is smith's:
+Provisional, 2026-10-05, revised 2026-10-30. temper's agent is smith's:
 the standard agent built from smith, the kit for LLM agents, on skein
 like temper. smith's design is its own (smith's `domain/run.md`,
 `domain/session.md`, `domain/tools.md`, `domain/host.md`), and how a
@@ -110,6 +110,8 @@ engine's routing encodes it (`../protocol/llm.md`, section 5).
   (`../protocol/configuration.md`, 13.7). A section its gather could not fill
   says why: its read failed, timed out, or exceeded its limit. smith adds
   the sections about its own mechanics, and each repository's guide.
+  The small profile admits 14,592 body bytes across at most 64 brief
+  sections; the forge reviews budget is 4,608 bytes within that total.
 
 ### 4.2 Workspace
 
@@ -145,9 +147,13 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   8.5): a call beyond it is answered beyond authority, naming what it
   lacked, and the run may `propose` it instead.
 - **The host part's budget.** smith refuses a run whose host part (its
-  tools' names, descriptions and schemas) passes its bound, 33,419 bytes
-  in the small profile, before any turn. A gathered brief spends what
-  the declarations leave. So a new host tool is offered only
+  tools' names, descriptions and schemas) passes its bound, 52,000 bytes
+  in the small profile, before any turn. That bound holds the largest
+  stock charter's 33,520 declaration bytes, the authorised brief's
+  14,592 body bytes, 1,472 bytes for 64 stock sections' titles and
+  framing (16 title bytes and 7 framing bytes each), and 2,416 bytes
+  of margin. A gathered brief spends what the
+  declarations leave. So a new host tool is offered only
   where a family and the charter gate it, never to every run, and a
   charter's room is measured before a tool joins it.
 - **The brief fits the room its charter leaves.** smith counts a run's
@@ -158,7 +164,9 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   schema costs, including the prepared workspace's conflict paths.
   `temper-engine-smith` owns the fitter; its typed start takes explicit
   receiving limits and fits the brief too. A brief already within the
-  room is kept whole. Otherwise, fitting cuts bodies from the last
+  room is kept whole. The stock charters and authorised brief fit
+  whole in the small profile; fitting is the fallback for a charter
+  that leaves less room. Otherwise, fitting cuts bodies from the last
   section in the core's order, at UTF-8 boundaries, keeping each cut
   section's title and ending its body with its own line:
   `[cut N bytes; whole: READ]`. `N` counts original body bytes removed,
@@ -191,7 +199,7 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   the charter's own text, where the domain reads it, not a call into
   smith; a step test in `temper-engine-smith` holds the table equal to
   smith's own measure. The bound is the engine's size profile's, the
-  one its workers are configured from (33,419 in the small one); an
+  one its workers are configured from (52,000 in the small one); an
   engine without that figure skips the start's check. A run smith
   refuses for its host part anyway is held with smith's reason, the
   bound and the figure, never a bare "invalid".
@@ -410,6 +418,14 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
   name, come to the agent as grants through the worker
   (`../protocol/credentials.md`, section 3). A run on a program has no
   sub-agents (smith's `protocol/programs.md`, section 2).
+  The stock demo is temper's fake model, declared with a window of
+  177,523 tokens and an output of 8,192. At smith's 4/5 threshold,
+  after two outputs and smith's own 21,634 bytes, its half of the
+  remaining room gives the small profile's 52,000-byte host part
+  (smith's `protocol/limits.md`, 3.9). Every stock charter retains it;
+  its declared window is chosen to hold the stock tools and authorised
+  brief. It is the least window whose derived host part holds 52,000:
+  ⌈(2 × 52,000 + 21,634 + 2 × 8,192) × 5/4⌉ = 177,523.
 - **Waiting and resuming:** the waiting time is the charter's; a
   coordinator's is zero. A chat resumes its transcript, and a
   coordinator starts fresh from its brief (jig's `domain/engine.md`,
