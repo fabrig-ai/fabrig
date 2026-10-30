@@ -22,6 +22,7 @@ mod pages;
 mod patching;
 mod patching_memory;
 mod pending_switch;
+mod readers;
 mod records;
 mod refused_after_switch;
 mod transcript_golden;
@@ -30,4 +31,6 @@ mod fuzzy {
     mod crashes;
     mod frames;
     mod patching;
+    #[path = "../readers_fuzzy.rs"]
+    mod readers;
 }

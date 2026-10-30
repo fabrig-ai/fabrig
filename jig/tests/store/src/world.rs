@@ -406,6 +406,39 @@ impl World {
         self.settle()
     }
 
+    /// Serve the synchronous production restore door without driving file work.
+    ///
+    /// # Errors
+    /// Returns the production reader's typed phase, range, read or decode failure.
+    pub fn restore_page(
+        &mut self,
+        range: Restore,
+        after: Option<&jig_protocol_store::Cursor>,
+        rows: u32,
+        bytes: u64,
+    ) -> Result<jig_protocol_store::restore::Loaded, jig_protocol_store::restore::Failure> {
+        self.observe(Step::Begin { input: 0, patching: jig_protocol_store::sizes::is_patching(&self.store) });
+        let page = jig_protocol_store::restore::page(&mut self.store, range, after, rows, bytes);
+        self.observe(Step::End { patching: jig_protocol_store::sizes::is_patching(&self.store) });
+        page
+    }
+
+    /// Serve the raw main-map reader, independently of the world's model.
+    ///
+    /// # Errors
+    /// Returns the production reader's typed phase, cursor or read failure.
+    pub fn retained_page(
+        &mut self,
+        after: Option<&[u8]>,
+        rows: u32,
+        bytes: u64,
+    ) -> Result<jig_protocol_store::retained::Page, jig_protocol_store::restore::Failure> {
+        self.observe(Step::Begin { input: 0, patching: jig_protocol_store::sizes::is_patching(&self.store) });
+        let page = self.store.retained_page(after, rows, bytes);
+        self.observe(Step::End { patching: jig_protocol_store::sizes::is_patching(&self.store) });
+        page
+    }
+
     pub fn settle(&mut self) -> Vec<Event> {
         self.drive();
         let mut events = Vec::new();
