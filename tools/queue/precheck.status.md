@@ -1,5 +1,11 @@
 # Branch pre-ready check status
 
+Ready-check accepts a private byte-identical result copy only while its retained
+private original and bound run directory remain available and verified. Receipt
+transport does not relocate auxiliary or manifest authority. Offline fixtures
+cover the source proof's separate archive/run paths and refuse changed, missing,
+nonprivate or symlinked evidence. Production repeat awaits Ops repair review.
+
 The integrated branch retains the landed author-owner selector and lifecycle
 logic. Planning, cold execution and readiness use the shared pure mq owner
 mapping; the full prepared index/raw tree remain bound independently of the

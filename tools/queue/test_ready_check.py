@@ -77,6 +77,74 @@ class ReadyCheckTests(unittest.TestCase):
 
     def save(self):
         self.result.write_text(json.dumps(self.record))
+        self.result.chmod(0o600)
+
+    def copied_run_receipt(self):
+        bundle = self.root
+        self.root = bundle / 'slots/4.precheck-logs/run-jeidj41x'
+        self.root.mkdir(parents=True, mode=0o700)
+        self.result = self.root / 'result.json'
+        self.plan()
+        original = self.result
+        copied = bundle / 'ops/cold-source-proof-20261030T1659/result.json'
+        copied.parent.mkdir(parents=True, mode=0o700)
+        shutil.copyfile(original, copied)
+        copied.chmod(0o600)
+        self.result = copied
+        return original, copied
+
+    def test_copied_source_receipt_uses_its_bound_original_run(self):
+        original, copied = self.copied_run_receipt()
+        original_bytes = original.read_bytes()
+        manifest = self.root / 'cold-input.json'
+        manifest_bytes = manifest.read_bytes()
+        self.assertNotEqual(copied.parent, self.root)
+        self.assertEqual(copied.read_bytes(), original_bytes)
+        self.assertEqual(self.check()['verdict'], 'passed')
+        self.assertEqual(original.read_bytes(), original_bytes)
+        self.assertEqual(manifest.read_bytes(), manifest_bytes)
+        self.assertEqual(copied.read_bytes(), original_bytes)
+
+    def test_copied_receipt_requires_unchanged_private_original(self):
+        original, copied = self.copied_run_receipt()
+        valid = original.read_bytes()
+        self.record['started'] = '2026-01-02T00:00:00+00:00'
+        self.save()
+        self.refuse('copied receipt differs from bound original')
+        copied.write_bytes(valid)
+        original.chmod(0o644)
+        self.refuse('bound original receipt is not private')
+        original.chmod(0o600)
+        held = original.with_name('retained-result.json')
+        original.rename(held)
+        self.refuse('bound original receipt is unavailable')
+        original.symlink_to(held.name)
+        self.refuse('bound original receipt is a symlink')
+        original.unlink()
+        held.rename(original)
+        copied.chmod(0o644)
+        self.refuse('receipt transport file is not private')
+        copied.chmod(0o600)
+        alias = copied.with_name('linked-result.json')
+        alias.symlink_to(copied.name)
+        self.result = alias
+        self.refuse('receipt transport path is a symlink')
+
+    def test_copied_receipt_still_checks_auxiliary_and_manifest_bindings(self):
+        original, copied = self.copied_run_receipt()
+        valid = deepcopy(self.record)
+        for mutation, diagnostic in (
+                (lambda r: r['cold_tools'].update(parent_identity=[1, 2]), 'cold parent identity'),
+                (lambda r: r['cold_tools'].update(root=str(self.root / 'another-root')), 'cold auxiliary path'),
+                (lambda r: r['cold_tools']['input_manifest'].update(path=str(self.root / 'another.json')), 'cold manifest path'),
+                (lambda r: r['cold_tools']['input_manifest'].update(sha256='0' * 64), 'cold manifest digest'),
+                (lambda r: r['cold_tools']['input'].update(raw_tree='0' * 40), 'cold observed input')):
+            with self.subTest(diagnostic=diagnostic):
+                self.record = deepcopy(valid)
+                mutation(self.record)
+                self.save()
+                original.write_bytes(copied.read_bytes())
+                self.refuse(diagnostic)
 
     def advance(self, name="other.md", contents="advance\n"):
         self.write(self.writer, name, contents)

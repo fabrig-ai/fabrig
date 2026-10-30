@@ -75,19 +75,34 @@ def unique_object(pairs):
     return result
 
 
-def cold_evidence(record, filename, tools, scope):
+def cold_evidence(record, filename, tools, scope, receipt_bytes):
     cold = record.get('cold_tools')
     require(isinstance(cold, dict) and type(cold.get('version')) is int and cold['version'] == 1,
             'tools receipt requires cold evidence version 1; rerun precheck after cutover')
     require(cold.get('policy') == COLD_POLICY, 'cold loaded policy identity mismatch')
-    parent = filename.parent.absolute()
+    require(absolute(cold.get('parent')), 'cold evidence parent is not canonical')
+    parent = Path(cold['parent'])
     root = parent / 'cold-tools'
     checkout = root / 'checkout'
     require(cold.get('parent') == str(parent) and cold.get('root') == str(root) and
             cold.get('checkout') == str(checkout), 'cold auxiliary path mismatch')
     require(not any(p.is_symlink() for p in (parent, *parent.parents)), 'cold evidence parent symlink')
     info = parent.stat()
+    require(stat.S_ISDIR(info.st_mode) and stat.S_IMODE(info.st_mode) == 0o700 and info.st_uid == os.getuid(),
+            'cold evidence parent is not private')
     require(cold.get('parent_identity') == [info.st_dev, info.st_ino], 'cold parent identity mismatch')
+    original = parent / 'result.json'
+    require(not original.is_symlink(), 'bound original receipt is a symlink')
+    require(original.exists(), 'bound original receipt is unavailable')
+    info = original.stat()
+    require(stat.S_ISREG(info.st_mode) and stat.S_IMODE(info.st_mode) == 0o600 and info.st_uid == os.getuid(),
+            'bound original receipt is not private')
+    require(not any(p.is_symlink() for p in (filename.absolute(), *filename.absolute().parents)),
+            'receipt transport path is a symlink')
+    info = filename.stat()
+    require(stat.S_ISREG(info.st_mode) and stat.S_IMODE(info.st_mode) == 0o600 and info.st_uid == os.getuid(),
+            'receipt transport file is not private')
+    require(original.read_bytes() == receipt_bytes, 'copied receipt differs from bound original')
     for key in ('root_identity', 'checkout_identity'):
         value = cold.get(key)
         require(isinstance(value, list) and len(value) == 2 and
@@ -162,9 +177,9 @@ def cold_evidence(record, filename, tools, scope):
 
 
 def evidence(filename, tip):
-    with filename.open(encoding="utf-8") as source:
-        record = json.load(source, object_pairs_hook=unique_object,
-                           parse_constant=invalid_constant)
+    receipt_bytes = filename.read_bytes()
+    record = json.loads(receipt_bytes.decode('utf-8'), object_pairs_hook=unique_object,
+                        parse_constant=invalid_constant)
     require(isinstance(record, dict), "precheck result must be an object")
     require(record.get("outcome") == "passed" and record.get("restored") is True,
             "precheck must have passed and verified restoration")
@@ -214,7 +229,7 @@ def evidence(filename, tip):
     scope = sorted(set(paths) | set(scope))
     required = any(name.startswith('tools/') for name in scope)
     require(required or (not tools and 'cold_tools' not in record), 'tools evidence contradicts candidate scope')
-    cold_cwd = cold_evidence(record, filename, tools, scope) if required or tools or 'cold_tools' in record else None
+    cold_cwd = cold_evidence(record, filename, tools, scope, receipt_bytes) if required or tools or 'cold_tools' in record else None
     for item in plan:
         require(item['cwd'] == (cold_cwd if item['name'].startswith('tools/') else record['slot']),
                 'planned command cwd differs from precheck slot/cold checkout')

@@ -360,6 +360,17 @@ refs; the lead owns the conditional exact-tip ready push.
 
 ### 5.1 Tools receipt cutover
 
+The supplied result file may be a byte-identical private copy in an evidence
+archive. Its transport directory does not relocate the bound run. Ready-check
+uses the recorded canonical parent, verifies its private owned directory and
+device/inode, and requires the retained original `parent/result.json` to be a
+private owned regular file with exactly the bytes parsed from the supplied
+receipt. Missing, changed, nonprivate or symlinked originals refuse. Transport
+files must also be private owned regular files without symlink traversal.
+Auxiliary paths, manifest location/digest, full ownership and index/raw bindings
+are still checked against the original run; copying a result does not copy or
+rebase that authority. Keep the original run evidence while using an archive.
+
 Updated ready-check derives the tools requirement from the reported candidate
 selection/post-ratchet path scope, rather than the supplied command list. A
 tools path requires cold evidence and candidate suites for every selected owner.
