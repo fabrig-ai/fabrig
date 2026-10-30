@@ -129,8 +129,8 @@ are named as jig's.
   batch costs whole proofs, each branch is merged with main in its own
   warm builder, the queue's deterministic steps run there (counted
   baselines, the tools' suites, formatting, lints, a test build), and
-  it is marked ready only once they pass and main has changed nothing
-  they read since. The builders had cores to spare (2.1).
+  it is marked ready only once they pass and main has changed none of
+  the files they checked since. The builders had cores to spare (2.1).
 - **Readers run tests, not only builds:** a change of what a shared
   item means, not only its signature, also runs the tests of every
   package that reads it, merged with main, before ready: a build alone
@@ -263,6 +263,9 @@ are named as jig's.
 - **Lifting a project hold** lifts it from the project; a task that went
   idle under it is released only when its owner lifts that task too, or
   every hold at once, so goals can resume one at a time.
+- **One task released under a standing hold:** the hold's owner may
+  release a single task from a project hold while it stands (a revert's
+  change, say); tasks made later still inherit it.
 
 ### 3.6 Handing over
 
@@ -273,9 +276,11 @@ are named as jig's.
   transcript. Its identity, address, subscriptions, claims and leases
   stay with it: nothing moves, and no second session warms up beside it.
 - **A successor** (gap J6): a goal that ends can name a live goal as its
-  successor, which then receives its open questions' answers, its
-  subscriptions and kept news, its claims and leases, and its notes by
-  reference. Its requester still hears its result.
+  successor, or its requester names one after it ended; the successor
+  then receives its open questions' answers, its subscriptions and kept
+  news, its claims and leases, and its notes by reference. Until one is
+  named, its leases and claims stay held in its name. Its requester
+  still hears its result.
 - **A live goal moved under another task** (gap J5): anyone who may
   amend both makes the second the first's requester; its reservation
   moves to the new parent's funding, and its results, questions and
@@ -310,9 +315,9 @@ are named as jig's.
 - **Its own deterministic gates** are the project's gates of the
   deterministic class (section 5) over the packages the change reaches,
   and the repository gates whose paths it touches. They run as a check
-  job in the workspace (`worker.md`, 4.4), dispatched by temper like any
-  gate; their results are receipts by key, made only from a certificate
-  temper accepted (section 7).
+  job in the workspace, a job beside `worker.md` 4.4's prepare and key,
+  dispatched by temper like any gate; their results are receipts by
+  key, made only from a certificate temper accepted (section 7).
 - **Measured gates wait for the prover:** tests run before ready (the
   producer's focused tests, a change of meaning's readers' tests, chosen
   from the reverse dependency graph) are advisory there: reported, never
@@ -560,8 +565,9 @@ are named as jig's.
   runner; the parent, the pinned heads in order and the prepare's
   merge commits; the policy and the selection; every gate expected and
   its result, with its complete log returned to the serializer's own
-  storage; the checkout unchanged before and after the checks, and
-  clean. An empty plan is accepted only where the request expected one.
+  storage; the checkout clean before the checks and unchanged after
+  them (for a workspace's check, before its merge and after its
+  restore). An empty plan is accepted only where the request expected one.
   Anything else is a fault.
 - **Capacity is the runner's to check:** a runner below its disk floor,
   missing a tool, or unable to fetch the candidate refuses it as a fault
@@ -673,8 +679,10 @@ are named as jig's.
   "tell all" suspects instead.
 - **Where a red goes:** by default to the nearest coordinator above each
   suspect landing's change (3.7), with the tests, the log's end and the
-  bisection's answer; the coordinator decides the repair. Standing reds,
-  flakes and recoveries are recorded and reach nobody. A project may
+  bisection's answer; the coordinator decides the repair. Standing reds
+  and recoveries are recorded and reach nobody; a new flake's finding
+  is routed as findings are (11.1), and a flake seen again is counted on
+  it and reaches nobody. A project may
   send a red to the landing's goal as well, or hold admission into that
   repository until the red is repaired (3.5).
 - **Cleared, where a project asks for it** (gap L14): a project may hold
@@ -791,7 +799,7 @@ temper's worlds should carry.
 | the implementer's focused tests, formatting, lints and dependents' tests | advisory checks; the change's own gates | 4.1 | live |
 | `precheck SLOT TIP`: the tip merged with main uncommitted, ratchets, tools' suites, fmt, clippy, a test build, the checkout restored and verified | own deterministic gates at its own candidate, in its workspace | 4.1 | live |
 | a change of meaning's readers' tests, from Cargo's reverse dependencies, merged with main | advisory measured checks | 4.1 | live |
-| `ready-check`: the precheck's paths against main's first-parent changes since its base | freshness by key (`before_ready: keys`) | 4.2 | live; the queue does not check its evidence |
+| `ready-check`: the precheck's files against main's first-parent changes since its base, by file, not by what the checks depend on | freshness by key (`before_ready: keys`), which also sees a dependency changed | 4.2 | live; the queue does not check its evidence |
 | a lead pushes `ready/<area>/<task>` at the checked tip | a change becomes ready; its landing of one | `landing.md`, 3, 4 | live |
 
 ### 13.3 The merge queue
@@ -800,7 +808,7 @@ temper's worlds should carry.
 |---|---|---|---|
 | `leads.txt`: a branch's area to a post address; `ops` for errors and suspected gaps | routing by role | 3.7, 8 | live |
 | tips tried, pinned at selection, oldest tip time first | pinned heads; readiness order | 6.1, 6.5 | live |
-| batch of 16 (8 by default), first ready first | a batch | 6.2 | live |
+| batch of 16 (8 by default), oldest tip commit first, then by name | a batch, first ready first | 6.2 | live |
 | `git merge --no-ff -m "Merge <branch>"` per member | prepare by a merge chain | 6.1 | live |
 | `old_forms.py --write` lowers baselines; ratchet-only conflicts recounted | the project's prepare tooling, its candidate's own commits; conflicts its rules know | 6.1; `landing.md`, 5.3 | live |
 | selection: owners, reverse dependencies, lockfile entries, `always.txt`, `read-by-tests.txt` | keys per package; what a key cannot see | 5 | live |
@@ -810,7 +818,8 @@ temper's worlds should carry.
 | a full run every 5 attempts, hourly, or idle with main moved | full proofs that audit the keys; an idle audit of main | 5 | live |
 | a red batch halved, left before right | bisection | 6.2 | live |
 | a rejection posted with its step and log | a red receipt; the member's repair brief | 8; `landing.md`, 7.3 | live |
-| below the disk floor; an exception; a missing tool | faults, retried, nobody rejected | 8 | live |
+| below the disk floor; an exception | faults, retried, nobody rejected | 8 | live |
+| a missing tool: an exception in the repair lane, elsewhere a step's exit 127, rejected as red | a fault, always | 8 | live, as a red |
 | a full run red where selections passed | a red bisected in full, and a suspected key gap to the operator | 5; 8 | live |
 | test executables trimmed after a batch | the prover's own housekeeping | 7 | live |
 | `--repair` at a pinned tip, singleton and full; `--repair-hold` | a priority; a hold over admission | 6.4; 3.5 | live, by hand |
@@ -841,7 +850,7 @@ temper's worlds should carry.
 
 | Setting | Scope | Default | fabrig's |
 |---|---|---|---|
-| `before_ready`: `keys`, `advisory` or `none` | project | `keys` | `keys` (checked before ready, not at admission) |
+| `before_ready`: `keys`, `advisory` or `none` | project | `keys` | by files, before ready, not at admission |
 | gates: workflow or check, class (deterministic, measured), ignored paths, blocking or advisory | project, repository | the repository's adoption | ratchets, tools, fmt, clippy, build deterministic; focused, fuzzy measured |
 | keys: by the project's tooling (per package) or by tree | project | by tree | per package, from cargo |
 | prepare: tooling command; merge or rebase for a batch | project | temper's rebase; merge | `old_forms.py`; merge |
@@ -856,7 +865,7 @@ temper's worlds should carry.
 | a tier's red goes to: suspects' coordinators, also their goals, holds admission | project | coordinators | coordinators |
 | cleared: change results wait for tiers, verification bound | project | off | off |
 | findings: on the forge as issues | project | off | off |
-| QA: marks from a starting main, marks a pass, a pass's cap; walks' caps | project | off | on, 5, 120 minutes; 180 minutes |
+| QA: marks from a starting main, marks a pass, a pass's cap; walks' caps | project | off | designed: on, 5, 120 minutes; walks, 180 minutes |
 | routing: outcome to role | project | sections 8, 10 | the same |
 | the operator | project | the person's chat | `ops` |
 | workspace shares; leases | project | none; on | per area; on |
@@ -974,13 +983,13 @@ and it changes something designed), as before.
 | L2 | Trains: a candidate on a proving one, the head landed on its certified parent, successors invalidated, no speculation in a bisection | design | `landing.md`, 8, 15 |
 | L3 | Candidates on temper's branches by a merge chain; the prepare's own commits; pinned heads and reserved names; conflicts staged with their attempt [T5] | conflict | `landing.md`, 5 (a moved head no longer sends a live candidate back) |
 | L4 | The prepare and key job on a worker: the project's tooling, no model, no credentials [T2] | design | `landing.md`, 5.3, 6.1; `worker.md`, 4.4 |
-| L5 | Keys per package and repository gates' keys, versioned; what a key cannot see; full proofs that audit [T3] | design | `landing.md`, 6.1 |
+| L5 | Keys per package and repository gates' keys, versioned; receipts kept from discarded candidates; what a key cannot see; full proofs that audit [T3] | design | `landing.md`, 6.1, 6.2 |
 | L6 | Gate classes: deterministic receipts from any certified runner, measured ones from provers; the environment in the key | design | `landing.md`, 6, 7 |
 | L7 | Provers and runners: labelled runners with affinity, idempotent dispatch, certificates, faults before a gate [T4] | design | `landing.md`, 7 |
 | L8 | Outcomes: starved recorded apart, key gaps, faults outranking reds, a red main already has [T9 in part] | design | `landing.md`, 6.2, 7 |
 | L9 | The serializer's durability: one authority lock, versioned state, decisions applied once, intents, the outbox, recovery by main, drain as a hold [T6] | design | `landing.md`, 8, 11, 12, 15 |
 | L10 | A priority: a repair pinned, alone and in full, ahead of every ready landing, passing its setter's hold | conflict | `landing.md`, 9 (priorities ordered only gate dispatch) |
-| L11 | Checks before ready: a change's own deterministic gates in its workspace at its own candidate; `before_ready` | design | `landing.md`, 3; `forge.md`, 8.1, 8.3 |
+| L11 | Checks before ready: a change's own deterministic gates in its workspace at its own candidate; `before_ready` | design | `landing.md`, 3; `forge.md`, 8.1, 8.3; `worker.md`, 4.4 (a check job) |
 | L12 | Leases: one writer of a path across goals, refused at ready, lendable, first-come waiters | design | `forge.md`, 8.1 |
 | L13 | Tiers following main: one run at a time, the newest tip, coalescing, the rerun, bisection within a bound, reds routed by role [T8, T9] | design | `after-landing.md` |
 | L14 | Cleared as a setting: change results held to a verdict, the bound [T10] | design | `after-landing.md`, 6 |
@@ -993,10 +1002,10 @@ and it changes something designed), as before.
 | J1 | Owned holds and proposals of their lift | built | jig's `domain/tasks.md`, 5.9 |
 | J2 | Drain | design | jig's `domain/tasks.md`, 5.9 |
 | J3 | A project's holds, inherited, the chat exempt | design | the same |
-| J4 | Parked until an event | design | jig's `domain/engine.md`, 7.4 |
+| J4 | Parked until an event | design | jig's `domain/tasks.md`, 5.9 |
 | J5 | A live task moved under another task | design | jig's `domain/tasks.md`, 7 |
-| J6 | A successor, with claims and leases | design | jig's `domain/tasks.md`, 8 |
-| J7 | A question to the chat stays with it (person answers are built) | conflict | jig's `domain/tasks.md`, 8.1; temper's `agent.md`, 8.2 |
+| J6 | A successor, named late too, with claims and leases | design | jig's `domain/tasks.md`, 7 |
+| J7 | A question to the chat stays with it (person answers are built) | conflict | jig's `domain/tasks.md`, 8.5; temper's `agent.md`, 8.2 |
 | J8 | The chat asks its own person | design | the same |
 | J9 | A hold over a kind of procedure's admission | design | jig's `domain/tasks.md`, 5.9; `landing.md`, 4.2 |
 | J10 | An address by role in the tree: the nearest coordinator above, the project's operator | design | jig's `domain/tasks.md`, 8; `people.md` |
@@ -1005,7 +1014,7 @@ and it changes something designed), as before.
 | F1 | skein: read a run's artifacts; update a ref fast-forward only [B1] | design | skein's `forge.md`, 3.2 |
 | F2 | GitHub's turn: tree and run reads, dispatch, rerun, the ref update under `Always` [B2] | design | skein's `forge-github.md`; `landing.md`, 8 |
 | F3 | GitHub App permissions: statuses and actions written, the `Always` bypass, `workflows` [B3, B5] | conflict | temper's `protocol/setup.md`, 17.1 |
-| F4 | Adoption checks: dispatch-only workflows, Forgejo's "autodetect manual merge" [B4] | design | `forge.md`, 4.4 |
+| F4 | Adoption checks: dispatch-only workflows, Forgejo's "autodetect manual merge" [B4] | design | `landing.md`, 13.2 |
 | F5 | GitHub's merge queue backing the turn | design | `forge.md`, 9.1; section 12 here |
 
 ## 16. Later

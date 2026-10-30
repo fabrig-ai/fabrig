@@ -275,7 +275,7 @@ Candidate 4 is red: an app `test` fails.
   - bisection by halves (L1);
   - successors invalidated, and no speculation in a bisection (L2);
   - receipts kept from a discarded candidate (L5);
-  - a red as the member's repair (L8).
+  - a red as the member's repair (exact).
 
 ### 5.3 Fresh by key
 
@@ -310,9 +310,10 @@ changed the same function:
 - a resolution under A's goal, on GPT, settles it on a6's branch;
 - a6 is checked again before ready, and joins a later candidate.
 
-- **Model:** 3.3, 6.1, 6.2, 8.
+- **Model:** 3.3, 4.1, 6.1, 6.2, 8.
 - **Needs:**
   - a lease lent to a change (L12);
+  - a check again before ready (L11);
   - the prepare's own commits, by the project's rules (L3, L4);
   - a conflict staged with its attempt, and its member left out (L3);
   - a resolution under the member's goal (exact).
@@ -345,12 +346,13 @@ hears it, since no member is to blame:
 ### 5.6 A full proof finds a key gap
 
 Candidate 12 is the fifth attempt since the last full proof, so it is
-proved in full. cli's `test` is red. A cli test reads kit's fixtures by
-path, and candidate 12's k6 changed one. The selections before passed,
-since cli's key didn't hold kit's fixtures.
+proved in full. cli's `test` is red. A cli test reads app's fixtures by
+path, though cli doesn't depend on app, and candidate 12's a8 changed
+one. The selections before passed, since cli's key didn't hold app's
+fixtures.
 
-The red is bisected with every half proved in full, to k6: a repair
-under K. Op is also told of a suspected key gap, and adds kit's
+The red is bisected with every half proved in full, to a8: a repair
+under A. Op is also told of a suspected key gap, and adds app's
 fixtures to cli's `test` key, a change to the tooling.
 
 - **Model:** 5, 8.
@@ -446,6 +448,7 @@ its backlog.
 - **Model:** 3.2, 11.1, 11.2.
 - **Needs:**
   - marks, a pass, and a walk with a sign-in in custody (L16);
+  - a workspace claimed for the walk (J12);
   - trailers in landing news (L17);
   - triage to a goal and to the backlog (L15).
 
@@ -565,6 +568,7 @@ under L:
 - **Model:** 3.1, 3.2, 3.6, 3.7.
 - **Needs:**
   - moving a live task under another task (J5);
+  - its claims counted in its new parent's share (J12);
   - a role's address resolved when news is made (J10).
 
 ### 9.2 C hands over
@@ -603,10 +607,12 @@ their `Taught:` lines said; its leases are released, and their first
 waiters told. The director compares their results, and proposes a
 change to the rules, which the person accepts.
 
-- **Model:** 3.1, 3.3, 10, 11.1.
+- **Model:** 3.1, 3.3, 10, 11.1, 11.2.
 - **Needs:**
   - goals that end at landed, with later reds going to their
     coordinator (L13);
+  - leases released, and their first waiters told (L12);
+  - `Taught:` lines in landing news (L17);
   - results and proposals (exact).
 
 ## 10. The index
@@ -669,12 +675,12 @@ steps:
 | L8 outcomes | 5.2, 5.5, 5.6, 6.1 |
 | L9 the serializer | 4.1, 4.4, 5.1 |
 | L10 a priority | 5.5 |
-| L11 checks before ready | 4.3, 5.3 |
-| L12 leases | 4.1, 4.2, 5.4, 9.3 |
+| L11 checks before ready | 4.3, 5.3, 5.4 |
+| L12 leases | 4.1, 4.2, 5.4, 9.3, 9.4 |
 | L13 tiers following main | 4.1, 6.1, 6.2, 9.4 |
 | L15 findings | 6.3, 6.4 |
 | L16 QA | 6.4 |
-| L17 trailers in news | 4.4, 6.4 |
+| L17 trailers in news | 4.4, 6.4, 9.4 |
 | L19 views and acts | every step, through `temper ctl` |
 | L20 one change in one repository | every landing |
 | J1 owned holds | 5.5, 8.1, 8.3 |
@@ -688,7 +694,7 @@ steps:
 | J9 a hold over admission | 5.5 |
 | J10 an address by role | 6.2, 9.1 |
 | J11 a fresh run from notes | 9.2 |
-| J12 workspaces | 4.1, 4.2, 4.3, 5.3 |
+| J12 workspaces | 4.1, 4.2, 4.3, 5.3, 6.4, 9.1 |
 | F1, F4 the forge's calls and adoption | 4.4, 6.2 |
 
 F2, F3 and F5, GitHub's, come when the case runs on GitHub. The first
