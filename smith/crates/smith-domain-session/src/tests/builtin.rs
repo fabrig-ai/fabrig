@@ -400,7 +400,7 @@ fn an_expired_completion_fills_every_fact_inventory() {
     limits.parallel_tools = 1;
     limits.tools.jobs = 0;
     limits.delegated_result_bytes = 64;
-    limits.facts = 0;
+
     let mut harness = Harness::new(&limits);
     let session = begin(&mut harness, full_batch(&limits));
     drop(next_prompt(&mut harness));

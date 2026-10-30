@@ -917,17 +917,13 @@ fn a_cancelled_run_closes_its_sub_agents_down_the_tree() {
 fn uncapped_facts_lose_no_observations_and_settle_every_run() {
     let settings = asking(40);
     let settings = Settings { checkout: Checkouts { checks: 1000, ..settings.checkout }, ..settings };
-    let roomy = settled(&Settings { run: Limits { facts: 100_000, ..settings.run }, ..settings });
-    let tight = settled(&Settings { run: Limits { facts: 0, ..settings.run }, ..settings });
-    assert_eq!(roomy.facts_seen(), tight.facts_seen(), "the allowance changes no fact or original time");
-    for world in [&roomy, &tight] {
-        let told = world.facts();
-        let stats = world.stats();
-        assert_eq!(told.get("opened"), Some(&stats.opens));
-        assert_eq!(told.get("admitted"), told.get("answered"), "every admitted run answers once");
-        assert!(told.get("called").is_some_and(|called| *called == told["returned"]), "every call returns");
-        assert_eq!(answers(world).len(), usize::try_from(settings.host.jobs).expect("bounded scripted jobs"));
-    }
+    let world = settled(&settings);
+    let told = world.facts();
+    let stats = world.stats();
+    assert_eq!(told.get("opened"), Some(&stats.opens));
+    assert_eq!(told.get("admitted"), told.get("answered"), "every admitted run answers once");
+    assert!(told.get("called").is_some_and(|called| *called == told["returned"]), "every call returns");
+    assert_eq!(answers(&world).len(), usize::try_from(settings.host.jobs).expect("bounded scripted jobs"));
 }
 
 #[test]
@@ -973,10 +969,6 @@ fn empty_reports_and_declared_failures_are_terminal_results_without_delivery() {
         }
         assert_eq!((world.stats().checks, world.stats().pushes), (0, 0));
         assert_eq!(world.stats().partner.accepted, 4);
-        let silent = settled(&Settings { run: Limits { facts: 0, ..settings.run }, ..settings });
-        assert_eq!(silent.trace(), world.trace(), "facts never decide text-result behavior");
-        assert_eq!(answers(&silent), answers(&world));
-        assert_eq!(silent.facts(), world.facts());
         skein_world::domain::assert_replays(41, 42, |seed| {
             let world = settled(&Settings { seed, ..settings });
             (world.trace().to_vec(), (world.stats(), world.now()))

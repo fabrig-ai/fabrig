@@ -48,6 +48,8 @@ fn oversized_saved_answer_says_the_call_was_decided() {
     assert!(decided && oversized);
 }
 
+const CONTENT_EDGE_RECORDS: u32 = 128;
+
 const BUDGET: run::Budget = run::Budget { turns: 10, spend: 10_000, time: Duration::from_secs(600) };
 
 const CEILING: session::Budget = session::Budget {
@@ -63,6 +65,7 @@ const LIMITS: Limits = Limits {
     accounts: 4,
     endpoints: 3,
     configured_model_bytes: 4096,
+    content_edge_records: CONTENT_EDGE_RECORDS,
     decoded_call_bytes: 4096,
     skew: Duration::ZERO,
     run: run::Limits {
@@ -103,7 +106,6 @@ const LIMITS: Limits = Limits {
         check_timeout: Duration::from_secs(300),
         wrap_up: Duration::from_secs(60),
         check_tail: 256,
-        facts: 64,
         messages: 8,
         message_bytes: 4096,
         offer_messages: 8,
@@ -128,8 +130,6 @@ const LIMITS: Limits = Limits {
         retries: 1,
         backoff_base: Duration::from_millis(100),
         backoff_max: Duration::from_secs(1),
-
-        facts: 128,
         parallel_tools: 2,
         tools: tools::Limits {
             shell_output: 128,
@@ -156,7 +156,6 @@ const LIMITS: Limits = Limits {
             search_hits: 8,
             search_bytes: 256,
             search_timeout: Duration::from_secs(30),
-            facts: 64,
         },
     },
 };
@@ -828,15 +827,23 @@ fn opaque_reasoning_returns_in_its_position_without_becoming_text() {
 
 #[test]
 fn content_overflow_drops_and_counts_without_changing_decisions() {
-    let mut keeping = Harness::new();
-    let mut dropping = Harness::new();
-    dropping.domain.content = Queue::with_capacity(0);
-    let (_, kept, _) = keeping.admit(7, charter());
-    let (_, dropped, _) = dropping.admit(7, charter());
-    assert_eq!(keeping.says(kept, b"working"), dropping.says(dropped, b"working"));
-    assert!(keeping.domain.pop_content().is_some());
-    assert!(dropping.domain.pop_content().is_none());
-    assert!(dropping.domain.content_lost() > keeping.domain.content_lost(), "content loss is counted");
+    for capacity in [0, 1, 2] {
+        let mut keeping = Harness::new();
+        let mut dropping = Harness::with(&Limits { content_edge_records: capacity, ..LIMITS });
+        let (_, kept, _) = keeping.admit(7, charter());
+        let (_, dropped, _) = dropping.admit(7, charter());
+        assert_eq!(keeping.says(kept, b"working"), dropping.says(dropped, b"working"));
+        assert_eq!(keeping.domain.pending_content(), 2, "one text record and one usage record");
+        assert_eq!(dropping.domain.pending_content(), capacity);
+        assert_eq!(
+            dropping.domain.content_lost(),
+            2_u64.checked_sub(u64::from(capacity)).expect("capacity fits two records")
+        );
+        for _ in 0..capacity {
+            assert!(dropping.domain.pop_content().is_some());
+        }
+        assert!(dropping.domain.pop_content().is_none());
+    }
 }
 
 #[test]
@@ -2387,7 +2394,7 @@ fn missing_provider_usage_settles_the_root_reservation_and_keeps_the_raw_fact() 
         let turn = harness.turns.iter().next().expect("one saved turn");
         assert_eq!((turn.usage, turn.spent), (raw, 31));
         let mut observed = false;
-        for _ in 0..harness.env.limits.session.facts {
+        for _ in 0..harness.observed.len().checked_add(harness.domain.backlog()).expect("held facts fit u32") {
             match harness.pop_fact() {
                 Some(Fact::Session { fact }) => match fact.kind {
                     session::FactKind::Used { usage, .. } => {

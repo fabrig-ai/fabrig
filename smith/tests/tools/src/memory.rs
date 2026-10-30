@@ -34,7 +34,6 @@ pub const LIMITS: Limits = Limits {
     search_hits: 8,
     search_bytes: 256,
     search_timeout: Duration::from_secs(30),
-    facts: 64,
 };
 
 /// Explicit inspect, modify and shell grants for the memory fixture.

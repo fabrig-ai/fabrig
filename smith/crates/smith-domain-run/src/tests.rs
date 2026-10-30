@@ -77,7 +77,6 @@ pub(crate) const LIMITS: Limits = Limits {
     check_timeout: Duration::from_secs(300),
     wrap_up: Duration::from_secs(60),
     check_tail: 4096,
-    facts: 64,
     messages: 8,
     message_bytes: 4096,
     offer_messages: 8,
@@ -1002,9 +1001,8 @@ fn invalid_limits_are_refused() {
     assert!(valid(&LIMITS));
     // Heap-total overflow alone is not constructor invalidity.
     assert!(valid(&Limits { run_bytes: u64::MAX, ..LIMITS }));
-    // Internal facts need no reservation or message-derived capacity.
-    assert!(valid(&Limits { facts: 0, ..LIMITS }));
-    assert!(valid(&Limits { messages: u32::MAX, facts: 0, ..LIMITS }));
+    // Internal facts need no message-derived capacity.
+    assert!(valid(&Limits { messages: u32::MAX, ..LIMITS }));
     // Every yield can offer a message.
     assert!(!valid(&Limits { offer_messages: 0, ..LIMITS }));
     // The offer holds at least one maximum message.
@@ -2425,9 +2423,10 @@ fn a_sub_agent_that_spends_past_the_budget_winds_the_run_down() {
 
 /// The facts the domain holds, oldest first.
 fn facts(h: &mut Harness) -> Box<[Fact]> {
-    let mut facts = List::with_capacity(LIMITS.facts);
-    for _ in 0..LIMITS.facts {
-        let Some(fact) = h.pop_fact() else { break };
+    let pending = h.observed.len().checked_add(h.domain.pending_facts()).expect("held facts fit u32");
+    let mut facts = List::with_capacity(pending);
+    for _ in 0..pending {
+        let fact = h.pop_fact().expect("entry count includes every held fact");
         facts.push(fact.kind).expect("room for every fact kept");
     }
     facts.into_boxed()
@@ -2526,7 +2525,7 @@ fn a_run_tells_what_it_did_as_content_free_facts() {
 
 #[test]
 fn uncapped_facts_keep_the_admitted_terminal_and_every_prior_fact() {
-    let mut h = Harness::new(Limits { facts: 0, ..LIMITS });
+    let mut h = Harness::new(LIMITS);
     let (run, conversation) = h.running(1, 100);
     assert_eq!(&*h.step(Event::Cancel { run }), &[Request::Close { peer: Token::new(100) }]);
     let emitted = h.step(Event::Ended { conversation, end: End::Closed, spend: Spend::ZERO, detail: Box::default() });
@@ -4314,8 +4313,9 @@ fn delayed_facts_keep_activation_history_and_child_parentage() {
 }
 
 fn observed_facts(harness: &mut Harness) -> Box<[crate::facts::Fact]> {
-    let mut facts = List::with_capacity(LIMITS.facts);
-    for _ in 0..LIMITS.facts {
+    let pending = harness.observed.len().checked_add(harness.domain.pending_facts()).expect("held facts fit u32");
+    let mut facts = List::with_capacity(pending);
+    for _ in 0..pending {
         if let Some(fact) = harness.pop_fact() {
             facts.push(fact).expect("room for all observations");
         }
@@ -4376,7 +4376,7 @@ fn carried_messages_open_after_the_briefs_instruction_and_before_later_messages(
     let [Request::Turn { read, .. }] = &*emitted else { panic!("one told turn") };
     assert_eq!(*read, Some(Token::new(8)));
     let mut reads = List::with_capacity(LIMITS.messages);
-    for _ in 0..LIMITS.facts {
+    for _ in 0..harness.observed.len().checked_add(harness.domain.pending_facts()).expect("held facts fit u32") {
         if let Some(fact) = harness.pop_fact()
             && let Fact::MessageRead { name, .. } = fact.kind
         {

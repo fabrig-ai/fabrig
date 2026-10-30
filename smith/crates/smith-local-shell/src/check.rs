@@ -556,6 +556,12 @@ mod tests {
                 .expect("pure invocation derivation")
                 .expect("effective inventory");
             let document = named_limits(&inventory, &resolved.agent).expect("check's named JSON limits");
+            assert!(document.iter().any(|limit| limit["name"] == "domain.content_edge_records"
+                && limit["value"] == 1024
+                && limit["unit"] == "count"));
+            for removed in ["run.facts", "session.facts", "tools.facts", "inline.facts"] {
+                assert!(document.iter().all(|limit| limit["name"] != removed), "{removed}");
+            }
             let teardown = document.iter().find(|limit| limit["name"] == "service.teardown").expect("teardown bound");
             assert_eq!(teardown["unit"], "ms");
             assert_eq!(teardown["value"], milliseconds);

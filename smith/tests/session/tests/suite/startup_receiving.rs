@@ -55,7 +55,7 @@ fn the_frozen_control_is_refused_at_startup_or_services_finish_after_four_turns(
     assert!(limits.domain.session.history_messages > 4, "the defect is not six-message room");
     let allowance = profile::endpoint_allowance(&profile, &configuration.endpoints[0], &limits.domain.session.tools)
         .expect("real fixed schemas and framing");
-    let mut world = World::new(415, 256);
+    let mut world = World::new(415);
     world.env.limits = limits.domain.session;
     world.domain = session::Domain::new(&world.env.limits, 415);
     world.out = Queue::uncapped();

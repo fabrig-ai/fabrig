@@ -5,9 +5,6 @@ use skein_lib::Duration;
 use skein_world::domain::Verdict;
 use smith_run_world::{Settings, World, share_referee::judge};
 
-// Calm fixture inventory: two observations per eight messages plus eight lifecycle facts.
-const CALM_RUN_FACTS: u32 = 24;
-
 #[test]
 fn a_child_share_crossing_any_ordinary_part_is_rejected() {
     let mut settings = Settings::calm(34);
@@ -137,30 +134,6 @@ fn actual_facts_tell_child_shares_and_budget_without_deciding_work() {
         assert!(matches!(judge(&bad), Verdict::Failed(_)), "budget part {part}");
     }
     check_child_returns(&world);
-    let mut tight =
-        World::new(Settings { run: smith_domain_run::Limits { facts: CALM_RUN_FACTS, ..settings.run }, ..settings });
-    tight.run(1_000_000);
-    // The iterator batches input before submitting output. Drain pressure may
-    // change their same-clock interleaving, but never either boundary's sequence.
-    for face in ["run <-", "run ->", "run alarm"] {
-        let tight_face: Vec<_> = tight.trace().iter().filter(|line| line.contains(face)).collect();
-        let roomy_face: Vec<_> = world.trace().iter().filter(|line| line.contains(face)).collect();
-        if tight_face != roomy_face {
-            let index = tight_face
-                .iter()
-                .zip(&roomy_face)
-                .position(|(a, b)| a != b)
-                .unwrap_or(tight_face.len().min(roomy_face.len()));
-            let a: String = tight_face.get(index).map_or("missing", |s| s.as_str()).chars().take(240).collect();
-            let b: String = roomy_face.get(index).map_or("missing", |s| s.as_str()).chars().take(240).collect();
-            panic!(
-                "fact drains preserve {face}: difference at {index} of {}/{}: tight={a}, roomy={b}",
-                tight_face.len(),
-                roomy_face.len()
-            );
-        }
-    }
-    assert_eq!(tight.facts_seen(), world.facts_seen(), "every larger fact is retained in order");
 }
 
 fn check_child_returns(world: &World) {

@@ -468,7 +468,7 @@ fn the_token_budgets_end_a_session_after_the_turn_that_uses_them_up() {
     }
     // The shared fake caches its fresh input; this typed peer explicitly reports
     // ordinary input so the separate Input ceiling is still observed outside.
-    let mut world = recorded::World::new(16, 256);
+    let mut world = recorded::World::new(16);
     let mut opening = recorded::opening(None, 100);
     opening.spec.budget.input = 30;
     opening.prices =
@@ -517,19 +517,16 @@ fn a_seed_replays_to_the_same_run() {
 #[test]
 fn observations_are_lossless_without_a_session_fact_allowance() {
     let seed = 7;
-    let run = |without_allowance| {
-        let mut settings = noisy(seed);
-        if without_allowance {
-            settings.agent.facts = 0;
-        }
+    let run = || {
+        let settings = noisy(seed);
         let mut world = World::new(settings);
         submit_noisily(&mut world, &settings, seed);
         world.run(ITERATIONS);
         (world.stats(), world.told(), world.trace().to_vec())
     };
-    let normal = run(false);
+    let normal = run();
     assert!(normal.1.ended > 0 && normal.0.calls > 0, "seed {seed}: calls settled");
-    assert_eq!(normal, run(true), "seed {seed}: complete observations and request order survive");
+    assert_eq!(normal, run(), "seed {seed}: complete observations and request order survive");
 }
 
 #[test]
@@ -571,7 +568,7 @@ fn a_yielded_call_tail_becomes_not_run_only_after_the_continue() {
 #[test]
 fn a_failed_sessions_end_carries_its_last_detail() {
     use smith_domain_session::{self as session, llm};
-    let mut world = recorded::World::new(6812, 256);
+    let mut world = recorded::World::new(6812);
     world.open(recorded::opening(None, u64::MAX));
     world.step(session::Event::Failed {
         retry_ok: true,
@@ -600,7 +597,7 @@ fn a_failed_sessions_end_carries_its_last_detail() {
 #[test]
 fn a_later_failure_replaces_the_kept_detail() {
     use smith_domain_session::{self as session, llm};
-    let mut world = recorded::World::new(6813, 256);
+    let mut world = recorded::World::new(6813);
     world.open(recorded::opening(None, u64::MAX));
     world.step(session::Event::Failed {
         retry_ok: true,
@@ -624,7 +621,7 @@ fn a_later_failure_replaces_the_kept_detail() {
 #[test]
 fn no_prompt_holds_a_kept_detail() {
     use smith_domain_session::{self as session, llm};
-    let mut world = recorded::World::new(6814, 256);
+    let mut world = recorded::World::new(6814);
     world.open(recorded::opening(None, u64::MAX));
     world.step(session::Event::Failed {
         retry_ok: true,

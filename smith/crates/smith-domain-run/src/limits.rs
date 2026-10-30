@@ -123,8 +123,6 @@ pub struct Limits {
     pub wrap_up: Duration,
     /// The most bytes of a failed check's output the LLM is shown: its tail.
     pub check_tail: u32,
-    /// Compatibility setting; facts are kept losslessly and drained by count.
-    pub facts: u32,
 }
 
 /// Whether a domain can be built under `limits`: compatible limits and
@@ -233,7 +231,6 @@ pub fn derive(inputs: &Derivation) -> Result<Limits, Field> {
         check_timeout: inputs.check_timeout,
         wrap_up: inputs.wrap_up,
         check_tail: inputs.shell_tail,
-        facts: 1024,
         messages: inputs.inbox,
         message_bytes,
         offer_messages: inputs.inbox,

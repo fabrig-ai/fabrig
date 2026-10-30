@@ -69,8 +69,6 @@ const LIMITS: Limits = Limits {
     retries: 1,
     backoff_base: Duration::from_secs(60),
     backoff_max: Duration::from_secs(60),
-
-    facts: 128,
     parallel_tools: 1,
     // Reads answer with the whole file loaded.
     tools: smith_domain_tools::Limits {
@@ -853,7 +851,6 @@ fn restore_tail_tools() -> smith_domain_tools::Limits {
         shell_tail: 0,
         search_hits: 1,
         search_bytes: 16,
-        facts: 18,
         ..LIMITS.tools
     }
 }

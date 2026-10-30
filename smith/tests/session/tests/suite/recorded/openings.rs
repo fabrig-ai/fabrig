@@ -3,7 +3,7 @@ use smith_session_world::recorded::{self, World, opening, scenario, transcript};
 
 #[test]
 fn a_domain_turn_round_trips_its_account_and_backend() {
-    let first = scenario(30, 256);
+    let first = scenario(30);
     let affinity = llm::Affinity { key: [0x42; 16], thread: 7 };
     for (kind, sequence) in [
         (
@@ -37,7 +37,7 @@ fn compaction_world(
     window: u32,
     model: &[u8],
 ) -> World {
-    let mut world = World::new(SEED, FACTS);
+    let mut world = World::new(SEED);
     let mut start = opening(history, BUDGET);
     start.window_llm = previous;
     start.spec.window = window;
@@ -128,7 +128,6 @@ const OTHER_ENDPOINT: llm::Endpoint = llm::Endpoint(8);
 const DIALECT: u32 = 23;
 const OTHER_DIALECT: u32 = DIALECT + 1;
 const SEED: u64 = 33;
-const FACTS: u32 = 256;
 const MODEL_WINDOW: u32 = 65_536;
 const OUTPUT: u32 = 512;
 const BUDGET: u64 = 10_000;
@@ -161,7 +160,7 @@ fn expected_carry() -> CarryOutcome {
 }
 
 fn same_window() -> record::Transcript {
-    let mut history = transcript(&scenario(SEED, FACTS));
+    let mut history = transcript(&scenario(SEED));
     let affinity = llm::Affinity { key: [0; 16], thread: 0 };
     history.turns[0].kind = record::Kind::First(Box::new(record::Opener {
         affinity,

@@ -186,6 +186,7 @@ fn domain(inventory: &mut Inventory, limits: &smith_domain::Limits) -> Option<()
         endpoints,
         configured_model_bytes,
         decoded_call_bytes,
+        content_edge_records,
         skew,
         run: _,
         session: _,
@@ -195,6 +196,7 @@ fn domain(inventory: &mut Inventory, limits: &smith_domain::Limits) -> Option<()
     inventory.value("endpoints", Value::Count(u64::from(endpoints)))?;
     inventory.value("configured_model_bytes", Value::Bytes(configured_model_bytes))?;
     inventory.value("decoded_call_bytes", Value::Bytes(decoded_call_bytes))?;
+    inventory.value("content_edge_records", Value::Count(u64::from(content_edge_records)))?;
     inventory.value("skew", Value::Duration(skew))?;
     Some(())
 }
@@ -242,7 +244,6 @@ fn run(inventory: &mut Inventory, limits: &smith_domain::run::Limits) -> Option<
         check_timeout,
         wrap_up,
         check_tail,
-        facts,
     } = *limits;
     inventory.layer = Layer::Run;
     inventory.value("messages", Value::Count(u64::from(messages)))?;
@@ -290,7 +291,6 @@ fn run(inventory: &mut Inventory, limits: &smith_domain::run::Limits) -> Option<
     inventory.value("check_timeout", Value::Duration(check_timeout))?;
     inventory.value("wrap_up", Value::Duration(wrap_up))?;
     inventory.value("check_tail", Value::Bytes(u64::from(check_tail)))?;
-    inventory.value("facts", Value::Count(u64::from(facts)))?;
     let smith_domain::run::Budget { turns, spend, time } = limits.budget;
     inventory.value("budget.turns", Value::Count(u64::from(turns)))?;
     inventory.value("budget.spend", Value::Spend(spend))?;
@@ -318,7 +318,6 @@ fn session(inventory: &mut Inventory, limits: &smith_domain::session::Limits) ->
         retries,
         backoff_base,
         backoff_max,
-        facts,
         tools: _,
     } = *limits;
     inventory.layer = Layer::Session;
@@ -337,7 +336,6 @@ fn session(inventory: &mut Inventory, limits: &smith_domain::session::Limits) ->
     inventory.value("retries", Value::Count(u64::from(retries)))?;
     inventory.value("backoff_base", Value::Duration(backoff_base))?;
     inventory.value("backoff_max", Value::Duration(backoff_max))?;
-    inventory.value("facts", Value::Count(u64::from(facts)))?;
     let smith_domain::session::Budget { turns, input, output, cache_read, cache_write, time } = limits.budget;
     inventory.value("budget.turns", Value::Count(u64::from(turns)))?;
     inventory.value("budget.input", Value::Tokens(input))?;
@@ -374,7 +372,6 @@ fn tools(inventory: &mut Inventory, limits: &smith_domain::tools::Limits) -> Opt
         search_hits,
         search_bytes,
         search_timeout,
-        facts,
     } = *limits;
     inventory.layer = Layer::Tools;
     inventory.value("kits", Value::Count(u64::from(kits)))?;
@@ -401,7 +398,6 @@ fn tools(inventory: &mut Inventory, limits: &smith_domain::tools::Limits) -> Opt
     inventory.value("search_hits", Value::Count(u64::from(search_hits)))?;
     inventory.value("search_bytes", Value::Bytes(u64::from(search_bytes)))?;
     inventory.value("search_timeout", Value::Duration(search_timeout))?;
-    inventory.value("facts", Value::Count(u64::from(facts)))?;
     Some(())
 }
 

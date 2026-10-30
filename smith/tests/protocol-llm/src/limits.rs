@@ -4,6 +4,8 @@
 use skein_lib::Duration;
 use smith_domain::{Limits, run, session, tools};
 
+const CONTENT_EDGE_RECORDS: u32 = 1024;
+
 /// Fixture window leaving one 4096-token output above its four-fifths threshold.
 pub const MODEL_WINDOW: u32 = 20_480;
 
@@ -30,6 +32,7 @@ pub const LIMITS: Limits = Limits {
     accounts: 4,
     endpoints: 3,
     configured_model_bytes: 4096,
+    content_edge_records: CONTENT_EDGE_RECORDS,
     decoded_call_bytes: 4096,
     skew: Duration::ZERO,
     run: run::Limits {
@@ -70,7 +73,6 @@ pub const LIMITS: Limits = Limits {
         check_timeout: Duration::from_secs(60),
         wrap_up: Duration::from_secs(60),
         check_tail: 512,
-        facts: 1024,
         messages: 8,
         message_bytes: 4096,
         offer_messages: 8,
@@ -95,8 +97,6 @@ pub const LIMITS: Limits = Limits {
         retries: 3,
         backoff_base: Duration::from_millis(200),
         backoff_max: Duration::from_secs(5),
-
-        facts: 1024,
         parallel_tools: 4,
         tools: tools::Limits {
             shell_output: 512,
@@ -123,7 +123,6 @@ pub const LIMITS: Limits = Limits {
             search_hits: 16,
             search_bytes: 1024,
             search_timeout: Duration::from_secs(30),
-            facts: 1024,
         },
     },
 };
@@ -137,6 +136,7 @@ pub const TIGHT: Limits = Limits {
     endpoints: LIMITS.endpoints,
     configured_model_bytes: LIMITS.configured_model_bytes,
     decoded_call_bytes: LIMITS.decoded_call_bytes,
+    content_edge_records: LIMITS.content_edge_records,
     skew: LIMITS.skew,
     run: run::Limits {
         conversations: 4,
@@ -162,7 +162,6 @@ pub const TIGHT: Limits = Limits {
         failure_bytes: 512,
         delegated_result_bytes: 4_194_304,
         retries: 2,
-
         parallel_tools: 3,
         tools: tools::Limits { kits: 4, calls: 3, ..LIMITS.session.tools },
         ..LIMITS.session

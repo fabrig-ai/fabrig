@@ -127,6 +127,9 @@ conversation, which is `conversation`.
 | `limits` | object | the effective limits, by name, in their units (limits.md, section 9) |
 | `containment` | string | `groups`, commands in process groups and not contained; or `trees` (agent.md, section 3) |
 
+The root capture edge is `domain.content_edge_records`, in records. Overflow
+drops captured records and counts the omissions; native facts remain lossless.
+
 **`session.ended`**, authoritative, last:
 
 | Field | Type | What it is |
@@ -589,22 +592,11 @@ projection.
 
 The vocabulary is pre-release, like every format (README.md, section 8).
 
-- **One version.** This is version 4. Any change a reader would notice is
-  a new version: a record type or a field added, renamed or removed, a
-  field's type, unit or meaning changed, a value added to a field whose
-  values are listed, an effective limit's name or unit (limits.md,
-  section 9). Nothing is translated, and no older version is read.
-  Version 2 added jobs: the `running` and `stopped` verdicts, a call's
-  `job`, and `job.ended` (3.6). Version 3 adds `run.compaction_material`
-  among the effective limits `session.started` carries (3.2), from which
-  a reader finds each conversation's line (limits.md, 3.9). Version 4
-  adds accounts and programs: the model's `account` and `backend`
-  (3.10), `run.started`'s `withheld` (3.3), the notices
-  `credential_unauthorized`, `account_limited` and `account_refused` in
-  place of `credential_rejected` and `account_exhausted` (3.9), the
-  completion failures `refused` and `unsupported` with their evidence,
-  and a model's answer failure for an account, its reset as `reset_ms`
-  in place of `retry_after_ms`, and for a program (3.10).
+- **One version.** This is version 4. The vocabulary may change in place
+  before v0.1.0; an older store starts afresh. Effective limits include
+  `domain.content_edge_records`, the optional capture edge's record capacity
+  (3.2; limits.md, section 9). Nothing is translated, and no older version
+  is read.
 - **`v` is on every record,** so a line read alone says its version. A
   stream holds one version, which `session.started` gives.
 - **A reader refuses another version.** `smith-events`' reader reads its

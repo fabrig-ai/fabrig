@@ -4,8 +4,8 @@ use smith_session_world::recorded::{self, World, opening, scenario, transcript};
 
 #[test]
 fn concrete_turns_resume_verbatim_without_local_tickets() {
-    let old = scenario(1, 256);
-    let mut resumed = World::new(1, 256);
+    let old = scenario(1);
+    let mut resumed = World::new(1);
     resumed.open(opening(Some(transcript(&old)), 100));
     assert!(resumed.end.is_none());
     let prompt = &resumed.prompts[0];
@@ -30,7 +30,7 @@ fn concrete_turns_resume_verbatim_without_local_tickets() {
 #[test]
 fn transcript_refusals_precede_tools_and_completions() {
     for row in refusal_cases() {
-        let mut world = World::new(2, 256);
+        let mut world = World::new(2);
         world.open(opening(Some(row.history), 100));
         world.domain.reclaim();
         let result = Refused { end: world.end, prompts: world.prompts.len(), kits: world.domain.kits() };
@@ -60,7 +60,7 @@ fn refusal_case(name: &'static str, history: record::Transcript, reason: record:
 }
 
 fn refusal_cases() -> Vec<RefusalCase> {
-    let base = transcript(&scenario(2, 256));
+    let base = transcript(&scenario(2));
     let mut header = base.clone();
     header.version = 99;
     let mut version = base.clone();
@@ -107,20 +107,20 @@ fn historical_call(history: &mut record::Transcript, decoded: llm::Decoded) {
 
 #[test]
 fn oversized_history_and_fresh_specs_are_refused_at_the_entrance() {
-    let old = scenario(3, 256);
-    let mut world = World::new(3, 256);
+    let old = scenario(3);
+    let mut world = World::new(3);
     world.env.limits.history_messages = 5;
     world.open(opening(Some(transcript(&old)), 100));
     assert_eq!(world.end, Some(session::End::TranscriptRefused { reason: record::Refusal::TooLarge }));
-    let mut world = World::new(3, 256);
+    let mut world = World::new(3);
     world.env.limits.history_bytes = 512;
     world.open(opening(Some(transcript(&old)), 100));
     assert_eq!(world.end, Some(session::End::TranscriptRefused { reason: record::Refusal::TooLarge }));
-    let mut world = World::new(3, 256);
+    let mut world = World::new(3);
     world.env.limits.spend = 99;
     world.open(opening(None, 100));
     assert_eq!(world.end, Some(session::End::Invalid));
-    let mut world = World::new(3, 256);
+    let mut world = World::new(3);
     let mut spec = opening(None, 100);
     spec.prices.unit = 0;
     world.open(spec);
@@ -129,7 +129,7 @@ fn oversized_history_and_fresh_specs_are_refused_at_the_entrance() {
 
 #[test]
 fn unit_budget_stops_after_the_crossing_turn_settles_and_child_counts_once() {
-    let mut world = World::new(4, 256);
+    let mut world = World::new(4);
     world.open(opening(None, 20));
     world.complete(recorded::called(), llm::Stop::ToolUse, recorded::USAGE);
     let owner = world.delegated[0];
@@ -171,7 +171,7 @@ fn pricing_rounds_the_combined_completion_and_rejects_overflow() {
             .price(llm::Usage { input_tokens: Some(2), ..llm::Usage::ZERO }),
         None
     );
-    let mut world = World::new(5, 256);
+    let mut world = World::new(5);
     let mut spec = opening(None, u64::MAX);
     spec.prices = record::Prices { input: u64::MAX, cached: 0, cache_write: None, output: 0, unit: 1 };
     world.open(spec);
@@ -190,7 +190,7 @@ fn pricing_rounds_the_combined_completion_and_rejects_overflow() {
 #[test]
 fn closing_preserves_withdrawn_and_late_answers_and_provider_completions() {
     for wins in [false, true] {
-        let mut world = World::new(6, 256);
+        let mut world = World::new(6);
         world.open(opening(None, 100));
         world.complete(recorded::called(), llm::Stop::ToolUse, recorded::USAGE);
         let owner = world.delegated[0];
@@ -212,13 +212,13 @@ fn closing_preserves_withdrawn_and_late_answers_and_provider_completions() {
             );
         }
         assert_eq!(world.end, Some(session::End::Closed));
-        let mut resumed = World::new(6, 0);
+        let mut resumed = World::new(6);
         resumed.open(opening(Some(transcript(&world)), 100));
         assert!(resumed.end.is_none());
         resumed.close();
         world.close();
     }
-    let mut world = World::new(6, 256);
+    let mut world = World::new(6);
     world.open(opening(None, 100));
     world.step(session::Event::Close { session: world.session.expect("the scenario supplied a value") });
     world.complete(recorded::called(), llm::Stop::EndTurn, recorded::USAGE);
@@ -229,7 +229,7 @@ fn closing_preserves_withdrawn_and_late_answers_and_provider_completions() {
 
 #[test]
 fn committed_call_results_after_a_yield_are_restored_without_tickets() {
-    let mut world = World::new(7, 256);
+    let mut world = World::new(7);
     world.open(opening(None, 100));
     world.complete(recorded::called(), llm::Stop::EndTurn, recorded::USAGE);
     world.close();
@@ -249,7 +249,7 @@ fn committed_call_results_after_a_yield_are_restored_without_tickets() {
         origin: session::record::Origin { sequence, position: u32::try_from(position).expect("position") },
         result: llm::Returned::Text { text: b"committed answer".as_slice().into(), error: false, replay: None },
     }]);
-    let mut resumed = World::new(7, 256);
+    let mut resumed = World::new(7);
     resumed.open(opened);
     assert_eq!(resumed.prompts[0].messages.len(), 3);
     assert_eq!(
@@ -264,7 +264,7 @@ fn committed_call_results_after_a_yield_are_restored_without_tickets() {
 
 #[test]
 fn an_answer_name_outside_the_last_turn_is_malformed() {
-    let mut first = World::new(31, 256);
+    let mut first = World::new(31);
     first.open(opening(None, 100));
     first.complete(recorded::called(), llm::Stop::EndTurn, recorded::USAGE);
     first.close();
@@ -273,28 +273,27 @@ fn an_answer_name_outside_the_last_turn_is_malformed() {
         origin: session::record::Origin { sequence: 1, position: 99 },
         result: llm::Returned::Text { text: b"wrong call".as_slice().into(), error: false, replay: None },
     }]);
-    let mut resumed = World::new(31, 256);
+    let mut resumed = World::new(31);
     resumed.open(opened);
     assert_eq!(resumed.end, Some(session::End::TranscriptRefused { reason: record::Refusal::Malformed }));
     assert!(resumed.prompts.is_empty());
 }
 
 #[test]
-fn replay_and_zero_fact_allowance_change_no_decision() {
-    let first = scenario(19, 256);
-    let replayed = scenario(19, 256);
+fn recorded_trace_and_complete_states_replay() {
+    let first = scenario(19);
+    let replayed = scenario(19);
     assert_eq!(first.trace, replayed.trace);
     assert_eq!(first.snapshots, replayed.snapshots, "the complete frozen domain states replay too");
-    assert_eq!(first.trace, scenario(19, 0).trace);
 }
 
 #[test]
 fn yielded_historical_calls_resume_with_concrete_not_run_results() {
-    let mut world = World::new(29, 256);
+    let mut world = World::new(29);
     world.open(opening(None, 100));
     world.complete(recorded::called(), llm::Stop::EndTurn, recorded::USAGE);
     world.close();
-    let mut resumed = World::new(29, 256);
+    let mut resumed = World::new(29);
     resumed.open(opening(Some(transcript(&world)), 100));
     assert_eq!(
         resumed.prompts[0].messages[2].content[0],
@@ -309,7 +308,7 @@ fn yielded_historical_calls_resume_with_concrete_not_run_results() {
 #[test]
 fn closing_a_resting_batch_keeps_its_result_and_marks_only_unstarted_calls() {
     use smith_domain_tools::{Call, Part, Path};
-    let mut world = World::new(30, 256);
+    let mut world = World::new(30);
     world.open(opening(None, 100));
     let mut blocks = recorded::called().into_vec();
     blocks.insert(
@@ -352,7 +351,7 @@ fn closing_a_resting_batch_keeps_its_result_and_marks_only_unstarted_calls() {
 
 #[test]
 fn cumulative_child_spend_overflow_is_a_typed_failure() {
-    let mut world = World::new(31, 256);
+    let mut world = World::new(31);
     world.open(opening(None, u64::MAX));
     world.complete(recorded::called(), llm::Stop::ToolUse, recorded::USAGE);
     world.step(session::Event::Answered {
@@ -370,7 +369,7 @@ fn cumulative_child_spend_overflow_is_a_typed_failure() {
 fn owned_io_cancellation_keeps_terminal_results_in_the_turn() {
     use smith_domain_tools::{Authority, Call, Done, Grants, Name, Op, Outcome, Part, Path, Repo, Version};
     for wins in [false, true] {
-        let mut world = World::new(32, 256);
+        let mut world = World::new(32);
         let mut spec = opening(None, 100);
         let name = || Name::new(b"repo".as_slice().into()).expect("a repository mount");
         spec.spec.authority = Authority {
@@ -450,7 +449,7 @@ fn owned_io_cancellation_keeps_terminal_results_in_the_turn() {
         } else {
             assert_eq!(*outcome, Outcome::Cancelled);
         }
-        let mut resumed = World::new(32, 0);
+        let mut resumed = World::new(32);
         resumed.open(opening(Some(transcript(&world)), 100));
         assert!(resumed.end.is_none(), "the settled owned terminal is resumable");
         resumed.close();
@@ -460,7 +459,7 @@ fn owned_io_cancellation_keeps_terminal_results_in_the_turn() {
 
 #[test]
 fn repeated_provider_ids_keep_distinct_origins_and_restore_includes_history_prefix() {
-    let mut first = World::new(61, 256);
+    let mut first = World::new(61);
     first.open(opening(None, 1000));
     first.complete(recorded::called(), llm::Stop::ToolUse, llm::Usage::ZERO);
     let owner = first.delegated[0];
@@ -473,7 +472,7 @@ fn repeated_provider_ids_keep_distinct_origins_and_restore_includes_history_pref
         [record::Origin { sequence: 1, position: 1 }, record::Origin { sequence: 2, position: 1 }]
     );
     first.close();
-    let mut resumed = World::new(62, 256);
+    let mut resumed = World::new(62);
     resumed.open(opening(Some(transcript(&first)), 1000));
     resumed.complete(recorded::called(), llm::Stop::ToolUse, llm::Usage::ZERO);
     assert_eq!(resumed.origins, [record::Origin { sequence: 3, position: 1 }]);
@@ -506,7 +505,7 @@ fn fill_initial(spec: &mut record::Opening, total: u64) {
 
 #[test]
 fn cap_filled_provider_credit_preserves_replay_completion_that_wins_cancel() {
-    let mut world = World::new(101, 0);
+    let mut world = World::new(101);
     world.env.limits.history_bytes = 16_384;
     world.env.limits.completion_bytes = 2048;
     world.env.limits.completion_blocks = 3;
@@ -576,7 +575,7 @@ fn cap_filled_provider_credit_preserves_replay_completion_that_wins_cancel() {
 #[test]
 fn full_history_batch_credit_keeps_maximum_late_results() {
     use smith_domain_tools::Effect;
-    let mut world = World::new(103, 0);
+    let mut world = World::new(103);
     world.env.limits.history_bytes = 16_384;
     world.env.limits.completion_bytes = 512;
     world.env.limits.answer_bytes = 512;
@@ -645,7 +644,7 @@ fn exact_failure_classes_and_transport_evidence_survive_policy_without_diagnosti
     for failure in [llm::Failure::ApplicationLimit, llm::Failure::Protocol, llm::Failure::Cancelled] {
         for evidence in [llm::Evidence::Unsent, llm::Evidence::Unknown, llm::Evidence::Response { status: None }] {
             for closing in [false, true] {
-                let mut world = World::new(104, 256);
+                let mut world = World::new(104);
                 world.env.limits.history_bytes = 16_384;
                 world.env.limits.completion_bytes = 128;
                 world.env.limits.completion_blocks = 1;
@@ -692,7 +691,7 @@ fn exact_failure_classes_and_transport_evidence_survive_policy_without_diagnosti
 fn fullest_history_keeps_maximum_owned_read_list_search_and_shell_after_cancel() {
     use smith_domain_tools::{self as tools, Authority, Call, Grants, Name, Repo};
     for kind in 0..4 {
-        let mut world = World::new(110 + kind, 0);
+        let mut world = World::new(110 + kind);
         world.env.limits.history_bytes = 16_384;
         world.env.limits.completion_bytes = 512;
         world.env.limits.answer_bytes = 512;
@@ -835,7 +834,7 @@ fn maximum_owned_result(
 
 #[test]
 fn a_delegated_result_can_yield_after_its_actual_turn_before_the_next_provider_request() {
-    let mut world = World::new(26, 256);
+    let mut world = World::new(26);
     world.open(opening(None, 100));
     world.complete(recorded::called(), llm::Stop::ToolUse, recorded::USAGE);
     let owner = world.delegated[0];
@@ -879,7 +878,7 @@ fn partial_wait_mutations_are_refused(history: &record::Transcript) {
             }
             message.content = content.into();
         }
-        let mut refused = World::new(30, 256);
+        let mut refused = World::new(30);
         refused.open(opening(Some(changed), 100));
         assert_eq!(refused.end, Some(session::End::TranscriptRefused { reason: record::Refusal::Malformed }));
         assert!(
@@ -891,7 +890,7 @@ fn partial_wait_mutations_are_refused(history: &record::Transcript) {
 
 #[test]
 fn dropped_reasoning_has_one_fact_per_item_and_never_enters_history() {
-    let mut world = World::new(61, 256);
+    let mut world = World::new(61);
     world.open(opening(None, 100));
     let sizes: Box<[u64]> = (0..world.env.limits.completion_blocks - 1).map(|index| u64::from(index) + 512).collect();
     world.step(session::Event::Completed {
@@ -948,7 +947,7 @@ fn dropped_reasoning_has_one_fact_per_item_and_never_enters_history() {
 )]
 fn a_write_refused_as_too_large_is_made_in_pieces_and_accepted() {
     use smith_domain_tools::{Authority, Call, Done, Grants, Name, Op, Outcome, Part, Path, Repo, Version};
-    let mut world = World::new(62, 256);
+    let mut world = World::new(62);
     world.env.limits.tools.tool_payload = 256;
     world.env.limits.tools.file_bytes = 320;
     world.env.limits.tools.read_bytes = 128;
@@ -1084,7 +1083,7 @@ fn a_write_refused_as_too_large_is_made_in_pieces_and_accepted() {
 fn a_parked_wait_preserves_other_results_and_resumes_only_the_missing_result() {
     use smith_domain_tools::Effect;
     for earlier in [false, true] {
-        let mut first = World::new(27, 256);
+        let mut first = World::new(27);
         let mut spec = opening(None, 100);
         spec.spec.delegated = Box::new([llm::Descriptor { ticket: Token::new(19), effect: Effect::Write }]);
         first.open(spec);
@@ -1138,7 +1137,7 @@ fn a_parked_wait_preserves_other_results_and_resumes_only_the_missing_result() {
         );
         first.close();
         partial_wait_mutations_are_refused(&transcript(&first));
-        let mut resumed = World::new(28, 256);
+        let mut resumed = World::new(28);
         resumed.open(opening(Some(transcript(&first)), 100));
         assert!(resumed.end.is_none(), "one own wait may be missing in the last partial results");
         assert!(matches!(resumed.prompts[0].messages.last().expect("missing wait supplied").content.as_ref(),
@@ -1152,7 +1151,7 @@ fn a_parked_wait_preserves_other_results_and_resumes_only_the_missing_result() {
         resumed.close();
         let mut all = transcript(&first);
         all.turns = first.turns.iter().cloned().chain(resumed.turns.iter().cloned()).collect::<Vec<_>>().into();
-        let mut again = World::new(29, 256);
+        let mut again = World::new(29);
         again.open(opening(Some(all), 100));
         assert!(again.end.is_none(), "the late result remains valid on a second restore");
         again.close();
@@ -1161,7 +1160,7 @@ fn a_parked_wait_preserves_other_results_and_resumes_only_the_missing_result() {
 
 #[test]
 fn a_generic_yield_with_two_unstarted_wait_calls_restores_both_as_not_run() {
-    let mut first = World::new(31, 256);
+    let mut first = World::new(31);
     first.open(opening(None, 100));
     let content = [b"one".as_slice(), b"two"].map(|id| llm::Block::ToolCall {
         id: id.into(),
@@ -1178,7 +1177,7 @@ fn a_generic_yield_with_two_unstarted_wait_calls_restores_both_as_not_run() {
     first.complete(Box::new(content), llm::Stop::EndTurn, llm::Usage::ZERO);
     assert!(first.delegated.is_empty(), "the actual generic yield starts neither call");
     first.close();
-    let mut restored = World::new(32, 256);
+    let mut restored = World::new(32);
     restored.open(opening(Some(transcript(&first)), 100));
     assert!(restored.end.is_none());
     assert!(matches!(restored.prompts[0].messages.last().expect("unstarted calls supplied").content.as_ref(),
@@ -1191,7 +1190,7 @@ fn a_generic_yield_with_two_unstarted_wait_calls_restores_both_as_not_run() {
 #[test]
 fn opening_affinity_is_fixed_and_the_recorded_window_overrides_a_fresh_spec() {
     let affinity = llm::Affinity { key: [0x42; 16], thread: 3 };
-    let mut first = World::new(17, 256);
+    let mut first = World::new(17);
     let mut fresh = opening(None, 100);
     fresh.spec.affinity = affinity;
     first.open(fresh);
@@ -1207,7 +1206,7 @@ fn opening_affinity_is_fixed_and_the_recorded_window_overrides_a_fresh_spec() {
     );
     assert!(first.turns[0].kind.opens_window());
     first.close();
-    let mut resumed = World::new(18, 256);
+    let mut resumed = World::new(18);
     let mut next = opening(Some(transcript(&first)), 100);
     next.spec.affinity = llm::Affinity { key: [0x17; 16], thread: 99 };
     resumed.open(next);
@@ -1256,7 +1255,7 @@ fn a_saved_window_starts_at_its_recorded_place_and_keeps_its_affinity() {
         dialect: window.dialect,
         turns: Box::new([window]),
     };
-    let mut world = World::new(19, 256);
+    let mut world = World::new(19);
     world.open(opening(Some(history), 100));
     assert_eq!(world.prompts[0].affinity, affinity);
     assert_eq!(world.prompts[0].messages[0], messages[0]);

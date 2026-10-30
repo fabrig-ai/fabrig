@@ -78,8 +78,6 @@ pub struct Limits {
     pub backoff_base: Duration,
     /// The longest wait before a retry, unless the provider asks for longer.
     pub backoff_max: Duration,
-    /// Root content-capture edge capacity; session observations are uncapped.
-    pub facts: u32,
     /// The tools child domain's, which the session owns: a kit for each
     /// session, with room for its widest batch.
     pub tools: tools::Limits,
@@ -222,7 +220,6 @@ pub fn derive(inputs: &Derivation) -> Result<Limits, Field> {
         retries: 3,
         backoff_base: Duration::from_millis(200),
         backoff_max: Duration::from_secs(5),
-        facts: 1024,
         parallel_tools: inputs.parallel_tools.min(inputs.calls_per_response),
         tools: inputs.tools,
     };

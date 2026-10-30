@@ -84,7 +84,7 @@ fn history_edge(provider: skein_llm::Provider) {
     limits.history_bytes += u64::try_from(size_of::<session::llm::Block>()).expect("summary cell")
         + u64::from(limits.tools.path_bytes) * u64::from(limits.completion_blocks);
     for extra in [0, 1] {
-        let mut world = World::new(4800 + extra, 256);
+        let mut world = World::new(4800 + extra);
         world.env.limits = limits;
         world.domain = session::Domain::new(&limits, 4800 + extra);
         world.out = Queue::uncapped();

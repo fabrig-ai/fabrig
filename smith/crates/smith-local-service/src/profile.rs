@@ -7,6 +7,8 @@ use skein_lib::Duration;
 use smith_agent_service::profile::{Check, Layer, LimitName, Refusal, Value};
 use smith_host_domain as host;
 
+const HOST_FACTS: u32 = 1024;
+
 mod effective;
 
 pub use effective::effective;
@@ -88,7 +90,7 @@ pub fn host_limits(
         exit_grace,
         teardown,
         kill_after: Duration::from_secs(2),
-        facts: run.facts,
+        facts: HOST_FACTS,
     };
     match host::check(&limits) {
         Ok(()) => Ok(limits),

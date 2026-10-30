@@ -73,12 +73,12 @@ Not single documents:
   `pending_slot_facts()` for its lifecycle facts; its native root-fact
   drain pops until empty. The agent service's framed fact drain uses its
   work quantum.
-- kept: effective limits named in events v4 (`run.facts`,
-  `session.facts`, `tools.facts`, `inline.facts`); removed or renamed with
-  the next planned events version. `session.facts` caps the root's
-  `Queue<Content>`, filled by provider and tool output with omissions
-  counted; its planned name is `content_edge_records`. `run.facts`,
-  `tools.facts` and `inline.facts` cap no queue.
+- `protocol/events.md`, 3.2 and 6; `protocol/limits.md`, 9: built:
+  events v4 and `smith check --json` name `domain.content_edge_records`
+  for the root's optional `Queue<Content>`, with overflow dropped and
+  counted. Run, session, tools and inline lifecycle facts have no
+  configured allowance. Local-domain's own observation queue retains its
+  cap; host-domain's separate legacy setting remains independent.
 - `testing.md`, 6: built: `LISTING_TERMINALS_PEAK_CEILING` is 160,000
   bytes for a measured 124,960-byte total, applying a quarter of headroom
   rounded up after held and peak accounting became one total. It is the

@@ -44,7 +44,6 @@ const LIMITS: Limits = Limits {
     search_hits: 8,
     search_bytes: 256,
     search_timeout: Duration::from_secs(30),
-    facts: 64,
 };
 
 const ALL: Grants = Grants { inspect: true, modify: true, shell: true };
@@ -577,8 +576,6 @@ fn invalid_limits_are_refused() {
     assert!(valid(&Limits { list_bytes: u64::MAX, ..LIMITS }));
     // One shell capture's head and tail share a u32 byte budget.
     assert!(!valid(&Limits { shell_head: u32::MAX, ..LIMITS }));
-    // Observations need no configured allowance.
-    assert!(valid(&Limits { facts: 0, ..LIMITS }));
     // One listing entry and its nonempty name must fit.
     assert!(!valid(&Limits { list_bytes: u64::try_from(size_of::<Entry>()).expect("entry fits"), ..LIMITS }));
     // A kit's active and retained flight counts must add without overflow.
@@ -1449,8 +1446,9 @@ fn a_search_asks_io_for_bounded_hits_and_answers_with_them() {
 
 /// Drains the facts told so far.
 fn told(h: &mut Harness) -> List<Fact> {
-    let mut facts = List::with_capacity(LIMITS.facts);
-    for _ in 0..LIMITS.facts {
+    let pending = h.observed.len().checked_add(h.domain.pending_facts()).expect("held facts fit u32");
+    let mut facts = List::with_capacity(pending);
+    for _ in 0..pending {
         if let Some(fact) = h.pop_fact() {
             facts.push(fact.kind).expect("room for every fact");
         }
@@ -1506,7 +1504,7 @@ fn a_kit_tells_what_happens_as_facts() {
 
 #[test]
 fn native_entrances_keep_every_observation_without_a_fact_allowance() {
-    let mut h = Harness::new(Limits { facts: 0, ..LIMITS });
+    let mut h = Harness::new(LIMITS);
     let kit = h.open(5, authority(ALL));
     assert_eq!(h.domain.pending_facts(), 1);
     assert_eq!(
@@ -1514,14 +1512,14 @@ fn native_entrances_keep_every_observation_without_a_fact_allowance() {
         Outcome::Outside { path: path::Resolved::Outside { path: bytes(b"etc/passwd") } }
     );
     assert_eq!(h.step(Event::Close { kit }), Some(Request::Closed { session: Token::new(5) }));
-    assert_eq!(h.observed.len() + h.domain.pending_facts(), 3);
+    assert_eq!(h.observed.len().checked_add(h.domain.pending_facts()).expect("held facts fit u32"), 3);
     assert_eq!(told(&mut h).len(), 3);
     assert_eq!(h.domain.pending_facts(), 0);
 }
 
 #[test]
 fn the_last_cancelled_operation_reports_its_answer_before_the_kit_closes() {
-    let mut h = Harness::new(Limits { jobs: 0, facts: 0, ..LIMITS });
+    let mut h = Harness::new(Limits { jobs: 0, ..LIMITS });
     let kit = h.open(5, authority(ALL));
     let (owner, _) = h.start(kit, 1, read(b"src/lib.rs"));
     drop(h.emit(Event::Close { kit }));
@@ -1622,8 +1620,9 @@ fn fact_emission_times_and_call_context_survive_a_delayed_drain() {
 }
 
 fn observed_facts(harness: &mut Harness) -> Box<[crate::Fact]> {
-    let mut facts = List::with_capacity(LIMITS.facts);
-    for _ in 0..LIMITS.facts {
+    let pending = harness.observed.len().checked_add(harness.domain.pending_facts()).expect("held facts fit u32");
+    let mut facts = List::with_capacity(pending);
+    for _ in 0..pending {
         if let Some(fact) = harness.pop_fact() {
             facts.push(fact).expect("room for all observations");
         }
@@ -1632,7 +1631,7 @@ fn observed_facts(harness: &mut Harness) -> Box<[crate::Fact]> {
 }
 
 fn fact_times(facts: &[crate::Fact]) -> Box<[Time]> {
-    let mut times = List::with_capacity(LIMITS.facts);
+    let mut times = List::with_capacity(u32::try_from(facts.len()).expect("observed facts fit u32"));
     for fact in facts {
         times.push(fact.at).expect("room for all observations");
     }

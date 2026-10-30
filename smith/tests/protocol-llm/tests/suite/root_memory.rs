@@ -22,7 +22,7 @@ use smith_protocol_llm_world::{
     wire::{self, Configuration, Observed, Wire},
 };
 
-// Content capture setting from the session observation inventory:
+// Content capture capacity for this scenario:
 // one parallel tool, sixty-four completion blocks and four jobs.
 const ROOT_MEMORY_CONTENT_EDGE_RECORDS: u32 = 283;
 
@@ -93,11 +93,12 @@ fn bounds(messages: u32) -> Limits {
     let completion_bytes = adapter::completion_bound(&wire_limits().client, decoded_call_bytes)
         .expect("explicit native fixture receiving ownership")
         .max(131_072);
-    let mut limits = Limits {
+    Limits {
         accounts: 1,
         endpoints: 1,
         configured_model_bytes: 4096,
         decoded_call_bytes,
+        content_edge_records: ROOT_MEMORY_CONTENT_EDGE_RECORDS,
         run: run::Limits {
             runs: 1,
             conversations: 1,
@@ -124,7 +125,7 @@ fn bounds(messages: u32) -> Limits {
             guide_bytes: 64,
             outcome_bytes: 256,
             check_tail: 64,
-            facts: 256,
+
             nudges: messages,
             messages: 1,
             message_bytes: u32::try_from(LARGE).expect("bounded caller message"),
@@ -142,7 +143,7 @@ fn bounds(messages: u32) -> Limits {
             failure_bytes: wire_limits().client.detail_bytes,
             delegated_result_bytes: 262_144,
             parallel_tools: 1,
-            facts: 256,
+
             tools: root::tools::Limits {
                 shell_output: 0,
                 kits: 1,
@@ -161,15 +162,12 @@ fn bounds(messages: u32) -> Limits {
                 shell_tail: 0,
                 search_hits: 1,
                 search_bytes: 64,
-                facts: 18,
                 ..LIMITS.session.tools
             },
             ..LIMITS.session
         },
         ..LIMITS
-    };
-    limits.session.facts = ROOT_MEMORY_CONTENT_EDGE_RECORDS;
-    limits
+    }
 }
 
 fn workspace() -> run::Workspace {

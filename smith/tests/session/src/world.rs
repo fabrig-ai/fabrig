@@ -66,7 +66,6 @@ pub const TOOLS: tools::Limits = tools::Limits {
     search_hits: 16,
     search_bytes: 1024,
     search_timeout: Duration::from_secs(30),
-    facts: 256,
 };
 
 /// Checked credit envelope around the original retained-payload pressure.
@@ -225,8 +224,6 @@ impl Settings {
                 retries: 3,
                 backoff_base: Duration::from_millis(200),
                 backoff_max: Duration::from_secs(5),
-
-                facts: 256,
                 parallel_tools: 4,
                 tools: TOOLS,
             },

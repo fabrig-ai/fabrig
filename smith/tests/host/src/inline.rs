@@ -32,7 +32,6 @@ pub fn limits() -> inline::Limits {
         window: smith::Window { turns: 8, bytes: smith::max_turn_bytes(&smith).expect("root turn bound") * 8 },
         wall_time: Duration::from_secs(3600),
         cancel_grace: Duration::from_secs(5),
-        facts: 32,
     }
 }
 

@@ -17,7 +17,6 @@ fn bounds() -> Limits {
         },
         wall_time: Duration::from_secs(3600),
         cancel_grace: Duration::from_secs(5),
-        facts: 32,
     }
 }
 
@@ -383,17 +382,8 @@ fn a_slot_roots_undrained_facts_refuse_nothing_and_are_all_drained() {
 }
 
 #[test]
-fn lifecycle_fact_estimates_do_not_restrict_valid_limits() {
-    for facts in [0, 1, 2, u32::MAX] {
-        let limits = Limits { facts, ..bounds() };
-        assert!(crate::valid(&limits));
-    }
-}
-
-#[test]
 fn pending_counts_separate_root_content_from_lifecycle_and_native_facts() {
-    let mut env = env();
-    env.limits.facts = 1;
+    let env = env();
     let mut agent = Domain::new(&env.limits, configuration(), 3);
     let mut out = Queue::uncapped();
     let client = Token::new(1);
@@ -439,7 +429,7 @@ fn pending_counts_separate_root_content_from_lifecycle_and_native_facts() {
         step(&mut agent, &env, Input::Parent(parent::Event::Spawn { client, start: start() }), &mut out);
     }
     let pending = agent.pending_slot_facts();
-    assert!(pending > env.limits.facts);
+    assert_eq!(pending, 4, "one opened slot and three refusals");
     for remaining in (0..pending).rev() {
         assert!(agent.pop_slot_fact().is_some());
         assert_eq!(agent.pending_slot_facts(), remaining);

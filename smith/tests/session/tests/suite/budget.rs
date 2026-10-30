@@ -16,7 +16,7 @@ fn inert(world: &mut World, event: session::Event) {
 
 #[test]
 fn child_bill_is_charged_once_to_the_inclusive_spend() {
-    let mut world = World::new(41, 256);
+    let mut world = World::new(41);
     world.open(opening(None, 100));
     world.complete(called(), llm::Stop::ToolUse, USAGE);
     let owner = world.delegated[0];
@@ -30,7 +30,7 @@ fn child_bill_is_charged_once_to_the_inclusive_spend() {
 
 #[test]
 fn child_bill_that_does_not_fit_ends_without_a_turn() {
-    let mut world = World::new(42, 256);
+    let mut world = World::new(42);
     world.open(opening(None, u64::MAX));
     world.complete(called(), llm::Stop::ToolUse, USAGE);
     let owner = world.delegated[0];
@@ -44,7 +44,7 @@ fn child_bill_that_does_not_fit_ends_without_a_turn() {
 
 #[test]
 fn price_overflow_rejects_the_completion_before_its_turn() {
-    let mut world = World::new(43, 256);
+    let mut world = World::new(43);
     let mut spec = opening(None, u64::MAX);
     spec.prices = record::Prices { input: u64::MAX, cached: 0, cache_write: None, output: 0, unit: 1 };
     world.open(spec);
@@ -57,7 +57,7 @@ fn price_overflow_rejects_the_completion_before_its_turn() {
 
 #[test]
 fn raw_overflow_keeps_only_the_charged_completion() {
-    let mut world = World::new(44, 256);
+    let mut world = World::new(44);
     let mut spec = opening(None, u64::MAX);
     spec.prices = record::Prices { input: 0, cached: 0, cache_write: None, output: 0, unit: 1 };
     spec.spec.budget.input = u64::MAX;
@@ -84,7 +84,7 @@ fn unsent_budget_denial_settles_current_reservation() {
         (BudgetDenial::Spend, Dimension::Unit),
         (BudgetDenial::Time, Dimension::Time),
     ] {
-        let mut world = World::new(45, 256);
+        let mut world = World::new(45);
         world.open(opening(None, 100));
         inert(&mut world, session::Event::BudgetDenied { owner: Token::new(u64::MAX), reason });
         let owner = world.completing.expect("reserved completion");
@@ -99,7 +99,7 @@ fn unsent_budget_denial_settles_current_reservation() {
 
 #[test]
 fn zero_price_unit_is_rejected_before_a_request() {
-    let mut world = World::new(46, 256);
+    let mut world = World::new(46);
     let mut spec = opening(None, 100);
     spec.prices = record::Prices { input: 0, cached: 0, cache_write: None, output: 0, unit: 0 };
     world.open(spec);
@@ -123,7 +123,7 @@ fn maximum(world: &World) -> u64 {
 #[test]
 fn a_completion_that_costs_less_than_its_maximum_returns_the_rest() {
     let usage = llm::Usage { output_tokens: Some(1), ..llm::Usage::ZERO };
-    let mut probe = World::new(47, 256);
+    let mut probe = World::new(47);
     probe.open(opening(None, u64::MAX));
     let first_maximum = maximum(&probe);
     probe.complete(called(), llm::Stop::ToolUse, usage);
@@ -138,7 +138,7 @@ fn a_completion_that_costs_less_than_its_maximum_returns_the_rest() {
     assert!(first_maximum.checked_add(second_maximum).expect("small fixture maximums") > budget);
     probe.close();
 
-    let mut world = World::new(48, 256);
+    let mut world = World::new(48);
     world.open(opening(None, budget));
     assert_eq!(maximum(&world), first_maximum);
     world.complete(called(), llm::Stop::ToolUse, usage);
@@ -153,7 +153,7 @@ fn a_completion_that_costs_less_than_its_maximum_returns_the_rest() {
 #[test]
 fn missing_input_or_output_charges_the_full_reservation_and_preserves_raw_reports() {
     for mask in 1..4 {
-        let mut world = World::new(70 + mask, 256);
+        let mut world = World::new(70 + mask);
         world.open(opening(None, 100));
         let owner = world.completing.expect("admitted call");
         assert_eq!(session::reserve_completion(&mut world.domain, owner, 9, 3, 4), Some(13));
@@ -181,7 +181,7 @@ fn missing_input_or_output_charges_the_full_reservation_and_preserves_raw_report
 
 #[test]
 fn reported_zero_and_reasoning_do_not_charge_the_reserved_maximum_again() {
-    let mut world = World::new(74, 256);
+    let mut world = World::new(74);
     world.open(opening(None, 100));
     let owner = world.completing.expect("admitted call");
     assert_eq!(session::reserve_completion(&mut world.domain, owner, 9, 3, 4), Some(13));
@@ -191,7 +191,7 @@ fn reported_zero_and_reasoning_do_not_charge_the_reserved_maximum_again() {
     assert_eq!(world.spend, [0]);
     assert_eq!(world.used, [raw]);
     world.close();
-    let mut world = World::new(75, 256);
+    let mut world = World::new(75);
     world.open(opening(None, 100));
     let raw =
         llm::Usage { input_tokens: Some(0), output_tokens: Some(2), reasoning_tokens: Some(2), ..llm::Usage::NONE };
@@ -203,7 +203,7 @@ fn reported_zero_and_reasoning_do_not_charge_the_reserved_maximum_again() {
 
 #[test]
 fn reported_counts_after_an_unreported_turn_still_exhaust_the_token_budget() {
-    let mut world = World::new(76, 256);
+    let mut world = World::new(76);
     let mut spec = opening(None, 100);
     spec.spec.budget.input = 2;
     world.open(spec);
@@ -228,7 +228,7 @@ fn reported_counts_after_an_unreported_turn_still_exhaust_the_token_budget() {
 
 #[test]
 fn cache_writes_are_priced_at_their_own_rate() {
-    let mut world = World::new(703, 256);
+    let mut world = World::new(703);
     let mut spec = opening(None, 1000);
     spec.prices.cache_write = Some(31);
     world.open(spec);
@@ -248,7 +248,7 @@ fn cache_writes_are_priced_at_their_own_rate() {
 
 #[test]
 fn cache_write_charge_overflow_is_a_typed_end_without_a_turn() {
-    let mut world = World::new(704, 256);
+    let mut world = World::new(704);
     let mut spec = opening(None, u64::MAX);
     spec.prices = record::Prices { input: 0, cached: 0, cache_write: Some(u64::MAX), output: 0, unit: 1 };
     world.open(spec);
@@ -262,7 +262,7 @@ fn cache_write_charge_overflow_is_a_typed_end_without_a_turn() {
 #[test]
 fn a_fully_cached_completion_with_the_highest_cached_rate_fits_its_reservation() {
     for cache_write in [None, Some(3)] {
-        let mut world = World::new(705, 256);
+        let mut world = World::new(705);
         let mut spec = opening(None, u64::MAX);
         spec.prices = record::Prices { input: 1, cached: 1000, cache_write, output: 1, unit: 1 };
         world.open(spec);

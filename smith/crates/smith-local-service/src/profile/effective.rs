@@ -102,12 +102,11 @@ fn local_domain(limits: &smith_local_domain::Limits) -> Box<[Limit]> {
 }
 
 fn inline_domain(limits: &smith_inline_agent::Limits) -> Box<[Limit]> {
-    let smith_inline_agent::Limits { slots, smith: _, window: _, wall_time, cancel_grace, facts } = *limits;
+    let smith_inline_agent::Limits { slots, smith: _, window: _, wall_time, cancel_grace } = *limits;
     Box::new([
         entry(Layer::Inline, "slots", Value::Count(u64::from(slots))),
         entry(Layer::Inline, "wall_time", Value::Duration(wall_time)),
         entry(Layer::Inline, "cancel_grace", Value::Duration(cancel_grace)),
-        entry(Layer::Inline, "facts", Value::Count(u64::from(facts))),
         entry(Layer::Inline, "window.turns", Value::Count(u64::from(limits.window.turns))),
         entry(Layer::Inline, "window.bytes", Value::Bytes(limits.window.bytes)),
     ])

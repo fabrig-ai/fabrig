@@ -15,6 +15,8 @@ use smith_protocol_machine as machine;
 
 use crate as service;
 
+const CONTENT_EDGE_RECORDS: u32 = 1024;
+
 mod bounds;
 mod quantities;
 
@@ -588,6 +590,7 @@ fn derive_domain(
         endpoints: ENDPOINTS,
         configured_model_bytes,
         decoded_call_bytes,
+        content_edge_records: CONTENT_EDGE_RECORDS,
         skew: Duration::ZERO,
         run,
         session,

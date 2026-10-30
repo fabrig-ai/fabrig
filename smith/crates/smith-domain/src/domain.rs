@@ -236,7 +236,7 @@ impl Domain {
             run_out: Queue::uncapped(),
             session_out: Queue::uncapped(),
             facts: Queue::uncapped(),
-            content: Queue::with_capacity(limits.session.facts),
+            content: Queue::with_capacity(limits.content_edge_records),
             content_lost: 0,
         }
     }
