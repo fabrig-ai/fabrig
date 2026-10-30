@@ -166,6 +166,7 @@ impl Backend {
         below: &mut Queue<Below>,
     ) {
         if self.phase == Phase::Ending
+            || self.native.is_some()
             || !self.switching
             || self.child.is_some()
             || self.spawning

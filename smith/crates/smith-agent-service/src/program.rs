@@ -13,7 +13,8 @@ use smith_protocol_program::{Programs, backend};
 
 const FIRST: Token = Token::new(u64::MAX - 1024);
 const IO_SLOTS: u32 = 11;
-const FILE_SLOTS: u32 = 3;
+// Three private directories and one serialized native snapshot load.
+const FILE_SLOTS: u32 = 4;
 
 /// One configured program selected by the main account's source grant (section 3).
 #[derive(Debug)]
@@ -287,7 +288,11 @@ pub(super) fn install(
                         return Err(());
                     }
                     mounts
-                        .push(backend::Mount { host: directory.host.clone(), writable: directory.writable })
+                        .push(backend::Mount {
+                            root: directory.root,
+                            host: directory.host.clone(),
+                            writable: directory.writable,
+                        })
                         .or(Err(()))?;
                 }
             }

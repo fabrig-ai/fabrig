@@ -28,7 +28,6 @@ pub(super) struct Turns {
     pub message: Option<Message>,
     pub ready: Queue<llm::Completion>,
     pub result: bool,
-    pub seen: bool,
     pub assistant_events: u64,
     pub closed: u64,
     pub finish: bool,
@@ -50,7 +49,6 @@ impl Turns {
             message: None,
             ready: Queue::with_capacity(4),
             result: false,
-            seen: false,
             assistant_events: 0,
             closed: 0,
             finish: false,
@@ -68,7 +66,6 @@ impl Turns {
             self.finish = false;
         }
         self.result = false;
-        self.seen = true;
         self.message = Some(Message {
             id: id.into(),
             framed,
@@ -294,7 +291,10 @@ impl Turns {
     pub fn accepting_calls(&self) -> bool {
         match &self.message {
             Some(message) => !message.stopped || message.received < message.expected,
-            None => !self.seen && !self.result,
+            // A built-in result can start the next MCP call before stdout
+            // announces its assistant record. The enclosing result ends this
+            // bounded correlation window; closed text still rejects above.
+            None => !self.result,
         }
     }
 
@@ -304,7 +304,6 @@ impl Turns {
 
     pub fn retry(&mut self) {
         self.message = None;
-        self.seen = false;
         self.restart();
     }
 

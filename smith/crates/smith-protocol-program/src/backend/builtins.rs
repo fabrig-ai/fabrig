@@ -109,6 +109,9 @@ impl Backend {
     }
 
     pub(super) fn flush_builtins(&mut self, up: &mut Queue<ToDomain>) {
+        if self.native.is_some() {
+            return;
+        }
         for slot in 0..self.ledger.len() {
             let call = self.ledger.get_mut(slot).expect("ledger slot");
             if call.builtin
@@ -120,7 +123,14 @@ impl Backend {
                     None => continue,
                 };
                 call.answered = true;
-                up.push(ToDomain::BuiltinResult { owner, id: call.id.clone(), text, error });
+                let result = ToDomain::BuiltinResult { owner, id: call.id.clone(), text, error };
+                match self.native_writes.remove(&call.id) {
+                    Some(place) => {
+                        self.begin_snapshot(owner, place, super::native::After::Result(result));
+                        return;
+                    }
+                    None => up.push(result),
+                }
             }
         }
     }

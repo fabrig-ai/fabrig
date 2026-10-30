@@ -176,6 +176,7 @@ impl Backend {
         up: &mut Queue<ToDomain>,
         below: &mut Queue<Below>,
     ) {
+        self.cancel_native();
         self.flush_deltas(env.now);
         let waiting = self.stop != Stop::None;
         let was_keeping = match self.stop {
@@ -319,6 +320,7 @@ impl Backend {
     }
 
     fn finish_stop(&mut self) {
+        self.native_writes = skein_lib::Map::with_capacity(self.native_writes.capacity());
         self.refuse_unanswered();
         for index in 0..self.ledger.len() {
             let call = self.ledger.get_mut(index).expect("ledger cell");

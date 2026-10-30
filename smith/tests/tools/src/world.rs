@@ -512,7 +512,8 @@ impl World {
                 tools::Event::Open { .. }
                 | tools::Event::Close { .. }
                 | tools::Event::CancelJobs { .. }
-                | tools::Event::EndWait { .. } => None,
+                | tools::Event::EndWait { .. }
+                | tools::Event::ReadVersion { .. } => None,
             };
             let editing = matches!(&event, tools::Event::Call { call: Call::Edit { .. }, .. });
             let before = self.stage.out.len();

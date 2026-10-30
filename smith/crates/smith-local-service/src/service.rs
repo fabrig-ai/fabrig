@@ -1403,6 +1403,7 @@ fn to_below(event: agent::Event) -> inline::Below {
         | agent::Event::Grant { .. }
         | agent::Event::HostReturned { .. }
         | agent::Event::BuiltinResult { .. }
+        | agent::Event::ReadVersion { .. }
         | agent::Event::Delivered { .. } => unreachable!("effects emit only typed IO terminals"),
     }
 }

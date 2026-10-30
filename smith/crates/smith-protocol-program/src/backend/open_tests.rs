@@ -182,6 +182,7 @@ fn a_yield_interrupts_and_returns_the_held_completion() {
         .filter_map(|event| match event {
             ToDomain::Completed { owner, completion } => Some((*owner, completion)),
             ToDomain::BuiltinResult { .. }
+            | ToDomain::ReadVersion { .. }
             | ToDomain::Failed { .. }
             | ToDomain::Cancelled { .. }
             | ToDomain::Text { .. } => None,

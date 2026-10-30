@@ -301,7 +301,7 @@ fn render(outcome: &Outcome, namespace: &tools::Namespace, output: &mut Sink) ->
             true
         }
         Outcome::NotRead => {
-            output.put(b"read the file before changing it")?;
+            output.put(b"read the file whole before changing it")?;
             true
         }
         Outcome::Stale => {

@@ -5,7 +5,7 @@ use super::Mount;
 use crate::mcp::{self, json};
 use alloc::boxed::Box;
 use skein_lib::List;
-use smith_domain::tools::{Effect, Grants};
+use smith_domain::tools::{Effect, Grants, Place};
 
 const NOT_GRANTED: &[u8] = b"tool not granted";
 const TOO_LONG: &[u8] = b"path is too long";
@@ -120,16 +120,7 @@ pub(crate) fn judge(tool: &[u8], input: &[u8], grants: Grants, mounts: &[Mount],
         return deny(TOO_LONG);
     }
     let resolved = resolve(cwd, path, path_bytes);
-    let mut selected: Option<&Mount> = None;
-    for mount in mounts {
-        if contains(&mount.host, &resolved) {
-            selected = match selected {
-                Some(previous) if previous.host.len() >= mount.host.len() => Some(previous),
-                Some(_) | None => Some(mount),
-            };
-        }
-    }
-    let Some(mount) = selected else {
+    let Some(mount) = select(mounts, &resolved) else {
         return deny(&json::join(&[OUTSIDE, path]));
     };
     let mut cursor = 0;
@@ -146,6 +137,36 @@ pub(crate) fn judge(tool: &[u8], input: &[u8], grants: Grants, mounts: &[Mount],
         Builtin::Read | Builtin::Glob | Builtin::Grep | Builtin::Write | Builtin::Edit | Builtin::Bash => {}
     }
     mcp::Verdict::Allow { updated_input: input.into() }
+}
+
+// Shared with snapshots: admission and observations select the same longest mount.
+fn select<'mount>(mounts: &'mount [Mount], resolved: &[u8]) -> Option<&'mount Mount> {
+    let mut selected: Option<&Mount> = None;
+    for mount in mounts {
+        if contains(&mount.host, resolved) {
+            selected = match selected {
+                Some(previous) if previous.host.len() >= mount.host.len() => Some(previous),
+                Some(_) | None => Some(mount),
+            };
+        }
+    }
+    selected
+}
+
+pub(super) fn place(input: &[u8], mounts: &[Mount], maximum: u32) -> Option<Place> {
+    let path = match path_field(input, b"file_path") {
+        PathField::Text(path) => path,
+        PathField::Absent | PathField::NotText | PathField::Unreadable => return None,
+    };
+    let cwd = mounts.first()?.host.as_ref();
+    let resolved = resolve(cwd, &path, maximum);
+    let mount = select(mounts, &resolved)?;
+    let relative = resolved.strip_prefix(mount.host.as_ref())?;
+    let path = match relative.strip_prefix(b"/") {
+        Some(path) => path,
+        None => relative,
+    };
+    Some(Place { root: mount.root, path: path.into() })
 }
 
 fn contains(mount: &[u8], path: &[u8]) -> bool {

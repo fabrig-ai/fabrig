@@ -287,6 +287,9 @@ impl Backend {
         up: &mut Queue<ToDomain>,
         below: &mut Queue<Below>,
     ) {
+        if self.native.is_some() {
+            return;
+        }
         if self.switching {
             return;
         }
@@ -304,24 +307,13 @@ impl Backend {
         let Some(mut completion) = self.turns.ready.pop() else {
             return;
         };
+        self.retain_calls();
         let (prompt, outcome, deliver) = match &self.request {
             Some(FromDomain::Complete { prompt, outcome, deliver, .. }) => (prompt, outcome, deliver),
             Some(FromDomain::Cancel { .. } | FromDomain::Yield { .. }) | None => {
                 unreachable!("active completion contract")
             }
         };
-        // The previous message's replies have been consumed before a new
-        // Complete. Keep unbound answered records until their MCP call arrives.
-        let old = core::mem::replace(
-            &mut self.ledger,
-            List::with_capacity(self.settings.receiving.max_completion_blocks.checked_mul(5).expect("call slots")),
-        );
-        let delivered = self.turns.closed.checked_sub(u64::from(self.turns.ready.len())).expect("delivered message");
-        for call in old.into_boxed() {
-            if !call.answered && (call.eligible || call.rpc.is_some() || (call.builtin && call.message >= delivered)) {
-                assert!(self.ledger.push(call).is_ok(), "bounded outstanding calls");
-            }
-        }
         let mut decoded = 0_u64;
         for block in &mut completion.content {
             match block {
@@ -391,7 +383,27 @@ impl Backend {
         }
     }
 
+    fn retain_calls(&mut self) {
+        // Retain unanswered calls while their correlation window or RPC lives.
+        // Dropping a call also forgets its allowed native write snapshot.
+        let old = core::mem::replace(
+            &mut self.ledger,
+            List::with_capacity(self.settings.receiving.max_completion_blocks.checked_mul(5).expect("call slots")),
+        );
+        let delivered = self.turns.closed.checked_sub(u64::from(self.turns.ready.len())).expect("delivered message");
+        for call in old.into_boxed() {
+            if !call.answered && (call.eligible || call.rpc.is_some() || (call.builtin && call.message >= delivered)) {
+                assert!(self.ledger.push(call).is_ok(), "bounded outstanding calls");
+            } else {
+                drop(self.native_writes.remove(&call.id));
+            }
+        }
+    }
+
     pub(super) fn match_calls(&mut self) {
+        if self.native.is_some() {
+            return;
+        }
         let held = core::mem::replace(&mut self.calls, List::with_capacity(u32::from(self.settings.mcp.calls)));
         for call in held.into_boxed() {
             match call {

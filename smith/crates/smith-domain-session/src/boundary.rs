@@ -157,6 +157,8 @@ pub enum Event {
     Cancelled { owner: Token },
     /// Terminal for `Io`, for the tools.
     Done { owner: Token, done: tools::Done },
+    /// The program observed this whole file version for the addressed session (domain/tools.md, 10).
+    ReadVersion { session: Token, place: tools::Place, version: tools::Version },
 }
 
 /// session -> parent
