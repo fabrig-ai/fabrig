@@ -66,7 +66,7 @@ fn account(number: u32) -> accounts::Stored {
 }
 
 #[test]
-fn stored_account_bound_is_typed_for_active_and_pending_starts() {
+fn stored_account_bound_keeps_its_detail_for_active_and_pending_starts() {
     for pending in [false, true] {
         let mut h = Harness::new(201);
         h.select(pending);
