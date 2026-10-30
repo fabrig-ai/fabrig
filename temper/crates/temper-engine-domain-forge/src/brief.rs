@@ -46,6 +46,9 @@ pub(crate) struct BriefFetch {
     parts: u32,
     bytes: u32,
     stage: BriefStage,
+    read: skein_forge::api::Read,
+    refused: Option<u64>,
+    deadline: Option<skein_lib::Time>,
     mode: PullMode,
     base: Option<skein_forge::api::Commit>,
     comparison: Option<(skein_forge::api::Commit, skein_forge::api::Commit)>,
@@ -223,6 +226,9 @@ pub(super) fn brief_pull(
         parts,
         bytes,
         stage: BriefStage::Item,
+        read: skein_forge::api::Read::Item { number: item.number, after: 0 },
+        refused: None,
+        deadline: None,
         mode,
         base: None,
         comparison: None,
@@ -256,6 +262,11 @@ pub(crate) fn brief_answer(
     out: &mut Queue<Request>,
 ) -> bool {
     let Some(mut fetch) = domain.brief_fetches.remove(&owner) else { return false };
+    if result == Err(skein_forge::api::Error::Busy) {
+        fetch.refused = Some(domain.brief_reclaim);
+        domain.brief_fetches.insert(owner, fetch).expect("same refused brief room");
+        return true;
+    }
     let next = match result {
         Ok(skein_forge::api::Answer::Item { item, .. })
             if fetch.stage == BriefStage::Item && item.number == fetch.item.number =>
@@ -320,6 +331,7 @@ pub(crate) fn brief_answer(
                         head: fetch.head.0,
                         page: fetch.file_page,
                     };
+                    fetch.read = read.clone();
                     let repository = fetch.repository;
                     domain.brief_fetches.insert(owner, fetch).expect("same brief read room");
                     out.push(Request::BriefClient {
@@ -447,6 +459,7 @@ pub(crate) fn brief_answer(
         }
     };
     if let Some(read) = next {
+        fetch.read = read.clone();
         let repository = fetch.repository;
         domain.brief_fetches.insert(owner, fetch).expect("same brief read room");
         out.push(Request::BriefClient { event: skein_forge_client::Event::Read { owner, repository, read } });
@@ -586,6 +599,9 @@ pub(super) fn brief_reviews(
         parts,
         bytes,
         stage: BriefStage::Reviews,
+        read: skein_forge::api::Read::Reviews { number: item.number, page: 1 },
+        refused: None,
+        deadline: None,
         mode: PullMode::Other,
         base: None,
         comparison: None,
@@ -662,6 +678,9 @@ pub(super) fn brief_ci(
         parts,
         bytes,
         stage: BriefStage::Checks,
+        read: skein_forge::api::Read::Checks { commit: head.0 },
+        refused: None,
+        deadline: None,
         mode: PullMode::Other,
         base: None,
         comparison: None,
@@ -703,4 +722,98 @@ fn decimal(number: u64) -> Box<[u8]> {
         forward.push(*digits.get(at).expect("measured decimal digit")).expect("same width");
     }
     forward.into_boxed()
+}
+
+/// Admission refusals wait across the client's reclamation boundary.
+fn waiting_owner(domain: &Domain) -> Option<Token> {
+    for (owner, fetch) in &domain.brief_fetches {
+        if let Some(reclaim) = fetch.refused
+            && reclaim != domain.brief_reclaim
+        {
+            return Some(*owner);
+        }
+    }
+    None
+}
+
+pub(crate) fn waiting(domain: &Domain) -> bool {
+    waiting_owner(domain).is_some()
+}
+
+pub(crate) fn retry(domain: &mut Domain, out: &mut Queue<Request>) {
+    let Some(owner) = waiting_owner(domain) else { return };
+    let fetch = domain.brief_fetches.get_mut(&owner).expect("waiting brief");
+    fetch.refused = None;
+    out.push(Request::BriefClient {
+        event: skein_forge_client::Event::Read { owner, repository: fetch.repository, read: fetch.read.clone() },
+    });
+}
+
+fn section_owner(domain: &Domain, section: Token) -> Option<Token> {
+    for (owner, fetch) in &domain.brief_fetches {
+        if fetch.owner == section {
+            return Some(*owner);
+        }
+    }
+    None
+}
+
+pub(crate) fn set_deadline(domain: &mut Domain, section: Token, deadline: skein_lib::Time) {
+    if let Some(owner) = section_owner(domain, section) {
+        domain.brief_fetches.get_mut(&owner).expect("section fetch").deadline = Some(deadline);
+    }
+}
+
+pub(crate) fn next_deadline(domain: &Domain) -> Option<skein_lib::Time> {
+    let mut next: Option<skein_lib::Time> = None;
+    for (_, fetch) in &domain.brief_fetches {
+        if let Some(deadline) = fetch.deadline {
+            next = Some(match next {
+                Some(previous) => previous.min(deadline),
+                None => deadline,
+            });
+        }
+    }
+    next
+}
+
+fn expired_owner(domain: &Domain, now: skein_lib::Time) -> Option<Token> {
+    for (owner, fetch) in &domain.brief_fetches {
+        if let Some(deadline) = fetch.deadline
+            && deadline <= now
+        {
+            return Some(*owner);
+        }
+    }
+    None
+}
+
+/// Finish a read at the parent's existing deadline, before the parent fires.
+pub(crate) fn expire(domain: &mut Domain, now: skein_lib::Time, out: &mut Queue<Request>) {
+    for _ in 0..domain.brief_fetches.capacity() {
+        let Some(owner) = expired_owner(domain, now) else { break };
+        let mut fetch = domain.brief_fetches.remove(&owner).expect("expired brief");
+        if fetch.stage == BriefStage::Job {
+            // Each remaining pinned job has the same unavailable-log marker.
+            for _ in 0..=fetch.checks.len() {
+                append(&mut fetch.words, b"[job log could not be read]\n");
+                keep_check(&mut fetch, Box::new([]), false);
+                if next_failed_job(&mut fetch).is_none() {
+                    break;
+                }
+            }
+        }
+        if let Some(ci) = fetch.ci {
+            crate::held::ready_ci(domain, fetch.owner, ci, fetch.bytes, out);
+        } else {
+            crate::held::ready(domain, fetch.owner, BriefRead::Failed, out);
+        }
+    }
+}
+
+pub(crate) fn drop_section(domain: &mut Domain, section: Token) {
+    if let Some(owner) = section_owner(domain, section) {
+        domain.brief_fetches.remove(&owner);
+    }
+    domain.brief_pending.remove(&section);
 }

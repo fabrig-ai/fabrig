@@ -18,14 +18,13 @@ pub(crate) fn brief_outputs(
     for _ in 0..out.len() {
         match out.pop().expect("brief output count") {
             brief::GatherRequest::Gather { connector: 0, section, budget } => {
-                if domain.brief_connectors.get(Id::from_token(section)).is_none() {
-                    continue;
-                }
+                let Some(connector) = domain.brief_connectors.get(Id::from_token(section)) else { continue };
                 domain.work.push(Work::Forge(forge::Event::GatherPlanned {
                     section,
                     parts: env.limits.brief.parts,
                     bytes: budget,
                     ci_budget: env.limits.brief.budgets.ci,
+                    deadline: connector.deadline,
                 }));
             }
             brief::GatherRequest::CutTo { connector: 0, section, size } => {
@@ -156,7 +155,12 @@ fn plan_home_access(
     let kind = forge_brief_kind(source);
     let token = domain
         .brief_connectors
-        .insert(BriefConnector { task, kind, cutting: false })
+        .insert(BriefConnector {
+            task,
+            kind,
+            cutting: false,
+            deadline: env.now.saturating_add(domain.limits.brief.gather),
+        })
         .expect("reserved connector section room")
         .token();
     domain.work.push(Work::Forge(forge::Event::PlanBrief { section: token, source }));
@@ -201,6 +205,7 @@ fn make_forge_room(wanted: &mut List<brief::Planned>, needed: u32) {
 
 fn plan_forge_section(
     domain: &mut Domain,
+    env: &Env<Limits>,
     task: u64,
     source: forge::BriefSource,
     priority: u16,
@@ -210,7 +215,12 @@ fn plan_forge_section(
     let kind = forge_brief_kind(source);
     let token = domain
         .brief_connectors
-        .insert(BriefConnector { task, kind, cutting: false })
+        .insert(BriefConnector {
+            task,
+            kind,
+            cutting: false,
+            deadline: env.now.saturating_add(domain.limits.brief.gather),
+        })
         .expect("reserved connector section room")
         .token();
     domain.work.push(Work::Forge(forge::Event::PlanBrief { section: token, source }));
@@ -281,10 +291,10 @@ pub(crate) fn finish_brief_plan(
             }
             pull_limit = pull_limit.min(left);
         }
-        plan_forge_section(domain, task, pull, 6, pull_limit, &mut wanted);
+        plan_forge_section(domain, env, task, pull, 6, pull_limit, &mut wanted);
         if let Some(why) = why {
             let limit = forge_brief_budget(forge_brief_kind(why), &domain.limits.brief.budgets);
-            plan_forge_section(domain, task, why, 5, limit, &mut wanted);
+            plan_forge_section(domain, env, task, why, 5, limit, &mut wanted);
         }
     }
     domain.work.push(Work::Brief(brief::GatherEvent::Plan {

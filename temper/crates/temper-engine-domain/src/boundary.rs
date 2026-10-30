@@ -710,6 +710,7 @@ pub(crate) enum Work {
 
 #[derive(Debug)]
 pub(crate) struct BriefConnector {
+    pub(crate) deadline: skein_lib::Time,
     pub(crate) task: u64,
     pub(crate) kind: ForgeBriefKind,
     pub(crate) cutting: bool,
