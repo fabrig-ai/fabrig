@@ -3363,7 +3363,7 @@ listener's (`../client/forge.md`, the browser's steps).
   statuses, actions, administration and metadata, read; never
   workflows, never administration's write. Its events are skein's
   (5.6). Designed, not built (`../domain/landing.md`, 8;
-  `../draft/process-model.md`, B3 and B5): statuses and actions, write,
+  `../draft/landing-model.md`, F3): statuses and actions, write,
   so that a project landing by turn has its gates dispatched and its
   receipts and verdicts posted; installations made before keep reading
   only until their owner accepts the new permissions, and adoption says

@@ -571,9 +571,9 @@ a person says they work into a proposal of settings
 A person who wants to agree a plan before anything is changed: the
 reference case's question to a requester and to the chat
 (`../draft/reference-case.md`, 4.2 and 7.2),
-and rung B0 of `../draft/v0.1.0.md`. Where the second edition keeps a
+and rung B0 of `../draft/v0.1.0.md`. Where the case keeps a
 question to the chat with the chat, which answers it or asks its person
-itself (`../draft/process-model.md`, J7 and J8), the route below is
+itself (`../draft/landing-model.md`, 3.4, J7 and J8), the route below is
 today's, until those land.
 
 - **The work that waits asks; a change never does.** A change is
@@ -682,8 +682,8 @@ is what it walks with.
     an advisor is called once two tries have missed; `STATUS.md` is
     generated from one file per part, by `prepare`; the director checks
     every 2 hours, subscribing itself to a timer with its `subscribe`
-    tool (jig's `domain/tasks.md`, 8.3 and 8.4; `process-model.md` 3.1,
-    graded exact), which D's walk checks is built, citing it as a built
+    tool (jig's `domain/tasks.md`, 8.3 and 8.4; `../draft/landing-model.md`,
+    3.1), which D's walk checks is built, citing it as a built
     gap if not;
   - *named, never proposed:* budgets, the person's (`temper ctl project
     fund`);
@@ -713,7 +713,7 @@ is what it walks with.
   appear in it), each entry's fields one line each: *match*; *miss*,
   absent or otherwise; *extra*, a changed setting the golden lacks;
   *gap*, a field of a kind not yet built when the walk runs (kinds 4
-  and 5 arrive field by field with design/process-model's parts,
+  and 5 arrive field by field with `../draft/landing-model.md`'s gaps,
   `../domain/landing.md` 13.1). Whether the reason names each gap and
   lists each rule is read by the walk's QA session, a judgement it
   records, not the tool's. D passes when every built field matches,
