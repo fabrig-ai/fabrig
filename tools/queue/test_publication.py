@@ -536,6 +536,17 @@ store.reconcile()
                     mq.log_batch(self.journal, second)
                 self.assertEqual(self.journal.read_bytes(), prefix)
 
+    def test_audit_rejects_unterminated_whitespace_tail(self):
+        for prefix in (b"", pub.durable.encoded({"event": "fixture-existing"})):
+            for tail in (b" ", b"\t", b" \t"):
+                with self.subTest(prefix=prefix, tail=tail):
+                    data = prefix + tail
+                    self.journal.write_bytes(data)
+                    self.journal.chmod(0o600)
+                    with self.assertRaisesRegex(ValueError, "incomplete journal tail"):
+                        mq.log_batch(self.journal, {"event": "fixture-refusal"})
+                    self.assertEqual(self.journal.read_bytes(), data)
+
     def test_unique_unrelated_publication_and_current_replay_preserve_rows(self):
         intent = self.prepare()
         first = self.unrelated_publication_rows(intent)[0][1]

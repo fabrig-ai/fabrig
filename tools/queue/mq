@@ -573,6 +573,7 @@ def log_batch(path, record):
     path.parent.mkdir(parents=True, exist_ok=True)
     with publication.journal_lock(path):
         previous = publication.durable.read_bytes(path) if path.exists() or path.is_symlink() else b""
+        publication.journal_records(previous)
         prospective = previous + publication.durable.encoded(record)
         publication.journal_records(prospective)
         publication.durable.publish(path, prospective, private_parent=False)
