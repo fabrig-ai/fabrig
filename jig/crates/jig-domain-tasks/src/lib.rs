@@ -113,6 +113,7 @@ mod settings;
 mod settings_moves;
 mod standing;
 mod stored;
+pub use stored::failure::{RestoreBound, RestoreCause, RestoreFailure, RestoreLlmWhy};
 mod subscriptions;
 #[cfg(test)]
 mod tests;

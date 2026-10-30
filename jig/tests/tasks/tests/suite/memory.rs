@@ -261,10 +261,14 @@ fn measure_full_delegate_tree_dependency_edges_and_cold_restored_claims_fit(load
     if load_fit_link {
         m.d.start_restore();
     }
-    for row in source.records.values() {
+    for row in source.records.values().filter(|row| !load_fit_link || row.key().live()) {
         m.event(Event::Restore { record: row.clone() });
     }
     m.event(Event::Check);
+    if load_fit_link {
+        assert!(m.d.checked());
+        assert_eq!(m.d.restore_failure(), None);
+    }
     m.event(Event::Restored);
     let reply_to = m.to();
     m.event(Event::Activation {

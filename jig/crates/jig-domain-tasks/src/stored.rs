@@ -8,30 +8,47 @@ use crate::{
 use skein_lib::{Env, Queue};
 
 pub(crate) mod admission;
+pub(crate) mod failure;
 pub(crate) mod fit;
 
 pub(crate) fn restore(domain: &mut Domain, env: &Env<Limits>, stored: Stored, out: &mut Queue<Request>) {
     match domain.startup {
-        Startup::Checked | Startup::Ready => return failed(domain, None, Refusal::NotReady, out),
         Startup::Failed => return,
-        Startup::Restoring => {}
+        Startup::Checked | Startup::Ready | Startup::Restoring => {}
     }
+    assert!(domain.startup == Startup::Restoring, "restore row after load completed");
+    let key = stored.key();
+    if let Err(cause) = load(domain, &env.limits, stored) {
+        failed(domain, crate::RestoreFailure { key, cause }, out);
+    }
+}
+
+fn load(domain: &mut Domain, limits: &Limits, stored: Stored) -> Result<(), crate::RestoreCause> {
+    let key = stored.key();
     match stored {
         Stored::PlacedHold(hold) => {
-            if !fit::placed(&hold, &env.limits)
-                || domain.placed.contains_key(&hold.number)
-                || domain.placed.len() >= env.limits.placed_holds
-            {
-                return failed(domain, None, Refusal::Restore, out);
-            }
+            assert!(!domain.placed.contains_key(&hold.number), "restore {key:?}: duplicate hold index");
+            fit::placed(&hold, limits)?;
+            fit::room(crate::RestoreBound::PlacedHolds, domain.placed.len(), domain.placed.capacity())?;
             domain.placed.insert(hold.number, *hold).expect("restored hold room");
         }
-        Stored::PersonProposal(row) => restore_person_proposal(domain, env, *row, out),
+        Stored::PersonProposal(row) => {
+            assert!(!domain.person_proposals.contains_key(&row.number), "restore {key:?}: duplicate proposal index");
+            fit::person_proposal(&row, limits)?;
+            fit::room(
+                crate::RestoreBound::PersonProposals,
+                domain.person_proposals.len(),
+                domain.person_proposals.capacity(),
+            )?;
+            let inserted = domain.person_proposals.insert(row.number, *row);
+            assert!(inserted == Ok(None), "restored person proposal admitted");
+        }
         Stored::Live(task) => {
             let number = task.number;
-            if domain.names.contains_key(&number) || domain.tasks.is_full() || !fit::task(&env.limits, &task) {
-                return failed(domain, Some(number), Refusal::Restore, out);
-            }
+            assert!(!domain.names.contains_key(&number), "restore {key:?}: duplicate live index");
+            fit::room(crate::RestoreBound::Tasks, domain.tasks.len(), domain.tasks.capacity())?;
+            fit::task(limits, &task)?;
+            fit::settings(domain, &task)?;
             let observed_hold = match task.phase {
                 Phase::Held { why, .. } => Some(why),
                 Phase::Waiting | Phase::Active(_) | Phase::Closing(_) | Phase::Ended(_) => None,
@@ -41,9 +58,6 @@ pub(crate) fn restore(domain: &mut Domain, env: &Env<Limits>, stored: Stored, ou
                     domain.live_agents = domain.live_agents.checked_add(1).expect("bounded restored agents");
                 }
                 Executor::Person(_) | Executor::Procedure { .. } => {}
-            }
-            if !fit::settings(domain, &task) {
-                return failed(domain, Some(number), Refusal::Restore, out);
             }
             crate::settings::hold(domain, &task);
             let id = domain
@@ -63,60 +77,62 @@ pub(crate) fn restore(domain: &mut Domain, env: &Env<Limits>, stored: Stored, ou
             crate::waits::refresh(domain, number);
         }
         Stored::Stub(stub) => {
-            if domain.stubs.contains_key(&stub.task) || domain.stubs.len() == domain.stubs.capacity() {
-                return failed(domain, Some(stub.task), Refusal::Restore, out);
-            }
+            assert!(!domain.stubs.contains_key(&stub.task), "restore {key:?}: duplicate stub index");
+            fit::room(crate::RestoreBound::Stubs, domain.stubs.len(), domain.stubs.capacity())?;
             domain.stubs.insert(stub.task, stub).expect("bounded restored stub");
         }
-        Stored::Writer(slot) => {
-            if !crate::writers::restore(domain, &env.limits, slot) {
-                failed(domain, None, Refusal::Restore, out);
-            }
-        }
-        Stored::Pool(row) => {
-            if !crate::holds::restore_pool(domain, &env.limits, row) {
-                failed(domain, None, Refusal::Restore, out);
-            }
-        }
-        // Historical ended rows stay outside the live arena;
-        // they cannot accidentally return an ended task to the live arena.
-        Stored::Update(row) => failed(domain, Some(row.task), Refusal::Restore, out),
-        Stored::EndedByParty(row) => failed(domain, Some(row.task), Refusal::Restore, out),
-        Stored::EndedByProject(row) => failed(domain, Some(row.task), Refusal::Restore, out),
-        Stored::EndedDelegate(row) | Stored::Delegate(row) => failed(domain, Some(row.task), Refusal::Restore, out),
-        Stored::Result(row) => failed(domain, Some(row.task), Refusal::Restore, out),
-        Stored::DecidedProposal(_) | Stored::ClosedLedger(_) => failed(domain, None, Refusal::Restore, out),
-        Stored::Ended(task) => failed(domain, Some(task.number), Refusal::Restore, out),
-        Stored::Milestone(row) => failed(domain, Some(row.task), Refusal::Restore, out),
-        Stored::History(row) => failed(domain, Some(row.task), Refusal::Restore, out),
-        Stored::Activity(row) => failed(domain, Some(row.task), Refusal::Restore, out),
-        Stored::Ledger(record) => {
-            if !crate::funders::restore_funding(domain, record) {
-                failed(domain, None, Refusal::Restore, out);
-            }
+        Stored::Writer(slot) => crate::writers::restore(domain, limits, slot)?,
+        Stored::Pool(row) => crate::holds::restore_pool(domain, limits, row)?,
+        Stored::Ledger(record) => crate::funders::restore_funding(domain, record)?,
+        Stored::Update(_)
+        | Stored::EndedByParty(_)
+        | Stored::EndedByProject(_)
+        | Stored::EndedDelegate(_)
+        | Stored::Delegate(_)
+        | Stored::Result(_)
+        | Stored::DecidedProposal(_)
+        | Stored::ClosedLedger(_)
+        | Stored::Ended(_)
+        | Stored::Milestone(_)
+        | Stored::History(_)
+        | Stored::Activity(_) => {
+            assert!(key.live(), "restore {key:?}: historical row in live load");
         }
     }
+    Ok(())
 }
 
-fn restore_person_proposal(
-    domain: &mut Domain,
-    env: &Env<Limits>,
-    row: crate::PersonProposal,
-    out: &mut Queue<Request>,
-) {
-    if !fit::person_proposal(&row, &env.limits)
-        || domain.person_proposals.len() >= env.limits.tasks
-        || domain.person_proposals.contains_key(&row.number)
-    {
-        return failed(domain, None, Refusal::Restore, out);
+fn failed(domain: &mut Domain, failure: crate::RestoreFailure, out: &mut Queue<Request>) {
+    let task = match failure.key {
+        crate::Key::Live(number) | crate::Key::Stub(number) => Some(number),
+        crate::Key::Ledger(_)
+        | crate::Key::Writer(_)
+        | crate::Key::Pool(_)
+        | crate::Key::PersonProposal(_)
+        | crate::Key::PlacedHold(_) => None,
+        crate::Key::Ended(_)
+        | crate::Key::ClosedLedger(_)
+        | crate::Key::DecidedProposal(_)
+        | crate::Key::History { .. }
+        | crate::Key::Milestone { .. }
+        | crate::Key::Activity { .. }
+        | crate::Key::Update { .. }
+        | crate::Key::Result { .. }
+        | crate::Key::EndedByParty { .. }
+        | crate::Key::EndedByProject { .. }
+        | crate::Key::EndedDelegate { .. }
+        | crate::Key::Delegate { .. } => {
+            assert!(failure.key.live(), "fit failures belong to live rows");
+            None
+        }
+    };
+    if domain.restore_failure.is_none() {
+        domain.restore_failure = Some(failure);
     }
-    let inserted = domain.person_proposals.insert(row.number, row);
-    assert!(inserted == Ok(None), "restored person proposal admitted");
-}
-
-fn failed(domain: &mut Domain, task: Option<u64>, why: Refusal, out: &mut Queue<Request>) {
     domain.startup = Startup::Failed;
-    out.push(Request::RestoreRefused { problem: Problem { task, why, blocked_by: None, capacity: None } });
+    out.push(Request::RestoreRefused {
+        problem: Problem { task, why: Refusal::Restore, blocked_by: None, capacity: None },
+    });
 }
 
 fn live_link(domain: &Domain, key: crate::Key, target: u64) {
@@ -234,38 +250,45 @@ pub(crate) fn check(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Requ
     crate::placed::link(domain);
     crate::writers::link(domain);
     crate::funders::link(domain);
-    if !crate::placed::fits(domain, &env.limits) || !crate::funders::restore_fits(domain) {
-        return failed(domain, None, Refusal::Restore, out);
+    if let Err(failure) = crate::placed::fits(domain, &env.limits) {
+        return failed(domain, failure, out);
+    }
+    if let Err(failure) = crate::funders::restore_fits(domain) {
+        return failed(domain, failure, out);
     }
     for (number, _) in &domain.names {
         let task = record(domain, *number).expect("name indexes task");
-        let mut count = 0_u32;
-        let mut goals = 0_u32;
-        for (other, _) in &domain.names {
-            let other = record(domain, *other).expect("name indexes task");
-            if other.project == task.project {
-                count = count.saturating_add(1);
-                goals = goals.saturating_add(u32::from(other.tracked.is_some()));
-            }
-        }
-        if count > env.limits.project_tasks
-            || goals > env.limits.project_goals
-            || !fit::linked_inbox(domain, &env.limits, task)
-            || !fit::choice(domain, task)
-        {
-            return failed(domain, Some(*number), Refusal::Restore, out);
+        let checked = linked_fit(domain, &env.limits, task);
+        if let Err(cause) = checked {
+            return failed(domain, crate::RestoreFailure { key: crate::Key::Live(*number), cause }, out);
         }
     }
     crate::waits::restore(domain, env, out);
     domain.startup = Startup::Checked;
 }
 
+fn linked_fit(domain: &Domain, limits: &Limits, task: &TaskRecord) -> Result<(), crate::RestoreCause> {
+    let mut tasks = 0_u64;
+    let mut goals = 0_u64;
+    for (other, _) in &domain.names {
+        let other = record(domain, *other).expect("name indexes task");
+        if other.project == task.project {
+            tasks = tasks.checked_add(1).ok_or(crate::RestoreCause::Accounting)?;
+            goals = goals.checked_add(u64::from(other.tracked.is_some())).ok_or(crate::RestoreCause::Accounting)?;
+        }
+    }
+    fit::bound(crate::RestoreBound::ProjectTasks, tasks, u64::from(limits.project_tasks))?;
+    fit::bound(crate::RestoreBound::ProjectGoals, goals, u64::from(limits.project_goals))?;
+    fit::linked_inbox(domain, limits, task)?;
+    fit::choice(domain, task)
+}
+
 pub(crate) fn restored(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     match domain.startup {
-        Startup::Restoring => return failed(domain, None, Refusal::NotReady, out),
         Startup::Ready | Startup::Failed => return,
-        Startup::Checked => {}
+        Startup::Restoring | Startup::Checked => {}
     }
+    assert!(domain.startup == Startup::Checked, "restored completion before link");
     domain.startup = Startup::Ready;
     crate::holds::restore(domain, env);
     crate::subscriptions::restore(domain, env);

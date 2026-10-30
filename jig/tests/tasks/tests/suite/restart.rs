@@ -915,6 +915,19 @@ fn retained_llm_choices_must_fit_the_configured_executor_models() {
         let refusals =
             std::iter::from_fn(|| out.pop()).filter(|row| matches!(row, Request::RestoreRefused { .. })).count();
         assert_eq!(refusals, usize::from(!fits));
+        let why = match main {
+            ModelEffort { model: 0, effort: Some(1) } => None,
+            ModelEffort { model: 3, .. } => Some(jig_domain_tasks::RestoreLlmWhy::Charter),
+            ModelEffort { model: 0, .. } => Some(jig_domain_tasks::RestoreLlmWhy::Effort),
+            _ => Some(jig_domain_tasks::RestoreLlmWhy::Unconfigured),
+        };
+        assert_eq!(
+            domain.restore_failure(),
+            why.map(|why| jig_domain_tasks::RestoreFailure {
+                key: Key::Live(1),
+                cause: jig_domain_tasks::RestoreCause::LlmChoice { chosen: main, why },
+            })
+        );
     }
 }
 
@@ -982,7 +995,22 @@ fn start_restore_selects_once_before_rows_check_or_activation() {
             match phase {
                 0 => tasks_step_row(&mut domain, &source.env, row.clone(), &mut out),
                 1 => jig_domain_tasks::step(&mut domain, &source.env, Event::Check, &mut out),
-                2 => jig_domain_tasks::step(&mut domain, &source.env, Event::Restored, &mut out),
+                2 => {
+                    if explicit {
+                        assert!(
+                            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| jig_domain_tasks::step(
+                                &mut domain,
+                                &source.env,
+                                Event::Restored,
+                                &mut out
+                            )))
+                            .is_err()
+                        );
+                        assert_eq!(domain.restore_failure(), None, "phase misuse is not fit");
+                    } else {
+                        jig_domain_tasks::step(&mut domain, &source.env, Event::Restored, &mut out);
+                    }
+                }
                 3 => {
                     for record in source.records.values().filter(|record| record.key().live()) {
                         tasks_step_row(&mut domain, &source.env, record.clone(), &mut out);

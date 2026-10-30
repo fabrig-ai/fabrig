@@ -107,15 +107,13 @@ fn check_waiters(domain: &mut Domain, env: &Env<Limits>, resource: &Name, out: &
     }
 }
 
-pub(crate) fn restore_pool(domain: &mut Domain, limits: &Limits, row: PoolSlots) -> bool {
-    if !shape(limits, &row.pool)
-        || domain.pools.contains_key(&row.pool)
-        || domain.pools.len() == domain.pools.capacity()
-    {
-        return false;
-    }
+pub(crate) fn restore_pool(domain: &mut Domain, limits: &Limits, row: PoolSlots) -> Result<(), crate::RestoreCause> {
+    assert!(!domain.pools.contains_key(&row.pool), "restore Pool({}): duplicate pool index", row.number);
+    crate::stored::fit::name(&row.pool, limits)?;
+    crate::stored::fit::room(crate::RestoreBound::Pools, domain.pools.len(), domain.pools.capacity())?;
     domain.next_pool = domain.next_pool.max(row.number);
-    domain.pools.insert(row.pool.clone(), row).is_ok()
+    assert!(domain.pools.insert(row.pool.clone(), row) == Ok(None), "restored pool admitted");
+    Ok(())
 }
 
 /// A connector knows an individual allocation vanished even though the
