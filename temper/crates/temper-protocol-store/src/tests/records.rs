@@ -768,7 +768,7 @@ fn a_job_steps_name_past_its_limit_fails_to_decode() {
 #[test]
 fn forge_writers_round_trip_with_the_v6_golden_bytes() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
-    for (forge, author) in [(0, 1), (1, 42), (u16::MAX, u64::MAX)] {
+    for (forge, author) in [(0, 1), (1, 0), (1, 42), (u16::MAX, u64::MAX)] {
         let row = forge::Stored::Writer(skein_forge_client::Writer { forge, author });
         let key = crate::keys::encode(&forge::stored_key(&row), u32::MAX).expect("writer key");
         let bytes = records::encode(&row);
@@ -782,7 +782,10 @@ fn forge_writers_round_trip_with_the_v6_golden_bytes() {
         }
     }
     let zero = forge::Stored::Writer(skein_forge_client::Writer { forge: 1, author: 0 });
-    assert_eq!(records::decode(&records::encode(&zero), &bounds), Err(crate::Undecodable));
+    let bytes = records::encode(&zero);
+    let other = crate::keys::encode(&forge::Key::Writer(2), u32::MAX).unwrap();
+    assert_eq!(records::row(&other, &bytes, &bounds), Err(crate::Undecodable));
+    assert_eq!(records::decode(&bytes[..bytes.len() - 1], &bounds), Err(crate::Undecodable));
 }
 
 #[test]
@@ -827,17 +830,18 @@ fn binding_rows_round_trip_at_the_field_bounds() {
     }
 }
 #[test]
-fn binding_decoder_refuses_noncanonical_addresses() {
-    use crate::v10 as w;
+fn binding_decoder_preserves_bounded_noncanonical_addresses() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
-    for address in [b"Sam@example.com".as_slice(), b"no-at", b"@b", b"a@@b", b"a@ b"] {
-        let binding = w::Binding::new(
-            &w::CEILINGS,
-            w::BindingParts { address: address.into(), subject: b"subject".as_slice().into() },
-        )
-        .unwrap();
-        let row = w::Row::new(&w::CEILINGS, w::RowParts { value: w::Value::Binding(binding) }).unwrap();
-        assert_eq!(records::decode(&fixtures::encoded_row(&row), &bounds), Err(crate::Undecodable));
+    for address in [b"Sam@example.com".as_slice(), b"no-at", b"@b", b"a@@b", b"a@ b", b"", b"a\0b", &[0; 254]] {
+        let row = forge::Stored::Binding { address: address.into(), subject: b"subject".as_slice().into() };
+        let bytes = records::encode(&row);
+        let key = crate::keys::encode(&forge::stored_key(&row), 511).unwrap();
+        assert_eq!(records::row(&key, &bytes, &bounds), Ok(row));
+        assert_eq!(records::decode(&bytes[..bytes.len() - 1], &bounds), Err(crate::Undecodable));
+        let mut trailing = skein_lib::Writer::new(bytes.len() + 1);
+        trailing.put(&bytes).unwrap();
+        trailing.put(&[0]).unwrap();
+        assert_eq!(records::decode(&trailing.finish(), &bounds), Err(crate::Undecodable));
     }
 }
 #[test]
@@ -1184,4 +1188,63 @@ fn a_changes_producer_failure_survives_the_store_at_the_hold_account_bound() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
     let row = forge::Stored::Change(row);
     assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+}
+
+fn writer_rules(row: &forge::Stored) -> bool {
+    if let forge::Stored::Binding { address, .. } = row {
+        return forge::binding_address(address);
+    }
+    if let forge::Stored::Writer(writer) = row {
+        return writer.author != 0;
+    }
+    false
+}
+
+#[test]
+fn admitted_binding_and_writer_saves_obey_writer_rules_before_codec_round_trip() {
+    use skein_lib::{Env, Queue, Time, Token, Wall};
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: fixtures::LIMITS };
+    let mut domain = forge::Domain::new(
+        &env.limits,
+        91,
+        skein_forge_client::Config { namespace: Box::new([7; 16]), writers: Box::new([]) },
+        &[],
+        &[],
+        false,
+    )
+    .unwrap();
+    let mut out = Queue::uncapped();
+    forge::step(
+        &mut domain,
+        &env,
+        forge::Event::Bind {
+            request: Token::new(1),
+            address: b"Sam@example.com".as_slice().into(),
+            subject: b"member".as_slice().into(),
+        },
+        &mut out,
+    );
+    assert!(!forge::writer(&mut domain, &env, skein_forge_client::Writer { forge: 1, author: 0 }, &mut out));
+    assert!(forge::writer(&mut domain, &env, skein_forge_client::Writer { forge: 1, author: 42 }, &mut out));
+    let bounds = crate::bounds(&env.limits, env.limits.client.op_bytes).unwrap();
+    let mut saves = 0_u32;
+    while let Some(request) = out.pop() {
+        if let forge::Request::Save { record, .. } = request {
+            assert!(writer_rules(&record));
+            let mut altered = record.clone();
+            if let forge::Stored::Binding { address, .. } = &mut altered {
+                assert_eq!(address.as_ref(), b"sam@example.com");
+                address[0] = b'S';
+            } else if let forge::Stored::Writer(writer) = &mut altered {
+                writer.author = 0;
+            } else {
+                panic!("only binding and writer saves");
+            }
+            assert!(!writer_rules(&altered), "bounded mutation violates writer obligation");
+            let key = crate::keys::encode(&forge::stored_key(&record), 511).unwrap();
+            assert_eq!(records::row(&key, &records::encode(&record), &bounds), Ok(record));
+            saves += 1;
+        }
+    }
+    assert_eq!(saves, 2, "both real writer APIs emitted durable saves");
 }

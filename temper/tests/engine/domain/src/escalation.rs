@@ -596,6 +596,7 @@ impl World {
                     )
                 });
                 let number = self.store.apply();
+                crate::escalation_referee::store_rules(&self.store.rows).expect("escalation writer store oracle");
                 self.trace.push(format!("applied {number}"));
                 self.commit_wait = self.settings.commit_delay;
                 if self.restarts == 0

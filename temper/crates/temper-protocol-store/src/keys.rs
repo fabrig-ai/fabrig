@@ -72,8 +72,8 @@ pub fn largest(limits: &forge::Limits) -> Option<u32> {
     let name = limits.name_bytes.checked_mul(3)?.checked_add(19)?;
     let topic = limits.name_bytes.checked_mul(2)?.checked_add(28)?;
     // Writer is one family byte and an eight-byte forge number: 9 bytes.
-    // Binding: family byte, visible address bytes (no zero escapes), and byte-string terminator.
-    Some(name.max(topic).max(159).max(1 + 254 + 2))
+    // Binding: family byte, two bytes per NUL, and byte-string terminator.
+    Some(name.max(topic).max(159).max(1 + 2 * 254 + 2))
 }
 
 /// Encode one relative key, or refuse it when it exceeds `limit`.
@@ -159,7 +159,7 @@ pub fn encode(key: &forge::Key, limit: u32) -> Option<Box<[u8]>> {
             writer.tag(15).u64(*token);
         }
         forge::Key::Binding(address) => {
-            if !forge::binding_address(address) {
+            if address.len() > 254 {
                 return None;
             }
             writer.tag(BINDING).bytes(address);
@@ -212,7 +212,7 @@ pub fn decode(bytes: &[u8], limits: &forge::Limits) -> Option<forge::Key> {
         17 => forge::Key::Demo(u16::try_from(reader.u64()?).ok()?),
         BINDING => {
             let address = reader.bytes()?;
-            if !forge::binding_address(&address) {
+            if address.len() > 254 {
                 return None;
             }
             forge::Key::Binding(address)

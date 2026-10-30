@@ -1,7 +1,7 @@
 //! Root store translation for held-chat decisions that left live memory.
 //! Reading a held chat is the core's (jig's `client/domain/contract.md`, 6).
 
-use super::{Decision, Delivery, Domain, Env, Id, Limits, Read, Token, Work, emit, people, tasks};
+use super::{Decision, Delivery, Domain, Env, Id, Limits, Read, Token, Work, emit, people};
 use crate::Record;
 use alloc::boxed::Box;
 
@@ -17,10 +17,6 @@ pub(crate) struct Query {
 
 pub(crate) fn role_number(role: people::Role) -> u32 {
     role.number()
-}
-
-pub(crate) fn supported(domain: &Domain, task: &tasks::TaskRecord) -> bool {
-    domain.core.escalation_supported(task)
 }
 
 #[expect(
