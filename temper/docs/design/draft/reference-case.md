@@ -702,10 +702,10 @@ pair of backends is an owned Forgejo.
 
 ## 12. Left out, and why
 
-- **Landings across repositories** (`landing-model.md`, H9): the
-  process has one repository. A change across repositories lands in
-  steps, each parked until the one before lands, which is 7.3's
-  mechanic.
+- **Landings across repositories** (`landing-model.md`, 6.6): Later's,
+  not v0.1.0's, and the process has one repository. In v0.1.0 a change
+  across repositories lands in steps, each parked until the one before
+  lands, which is 7.3's mechanic.
 - **Cleared** (L14): the process ends goals at landed, and a tier's
   red goes to the coordinator.
 - **The reservation** (L18): the process batches, and main moves only

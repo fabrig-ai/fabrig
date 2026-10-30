@@ -53,9 +53,10 @@ are named as jig's.
   re-proves only the packages it reaches, safely by construction;
   receipts outlive candidates; full proofs audit the keys.
 - **Candidates carry landings: one, a batch, or a train** (section 6),
-  each landing one change in one repository, in readiness order, with a
-  repair let through first, alone and in full, when the project's
-  operator says so.
+  each landing one change in one repository (landings across
+  repositories are Later's, 6.6), in readiness order, with a repair let
+  through first, alone and in full, when the project's operator says
+  so.
 - **Provers are machines with exclusive, warm use** (section 7) for the
   gates that measure (tests); any runner temper dispatches and certifies
   may prove a deterministic gate.
@@ -415,10 +416,8 @@ are named as jig's.
 
 ### 6.1 A candidate
 
-- **A landing is one change's, in one repository** (H9): a change that
-  spans repositories lands in steps, each step a change of its own
-  whose landing waits on the one before (parked until it lands, 3.5).
-  A project with several repositories proves and lands each on its own.
+- **A landing is one change's, in one repository,** in v0.1.0 (6.6):
+  a project with several repositories proves and lands each on its own.
 - **A parent and an ordered list of landings,** each pinned at its
   head, prepared once into one exact commit whose history holds them.
   Its identity is the parent, the pinned heads, the merge commits the
@@ -536,6 +535,25 @@ are named as jig's.
   reserves the next turn for its repository; while it proves again,
   no other candidate there may take the turn, and the reservation
   lapses as `landing.md`, 9 says.
+
+### 6.6 Across repositories (Later, not v0.1.0)
+
+A sketch, so that v0.1.0 builds nothing in the way; its details are
+for when a project needs it.
+
+- **In v0.1.0,** a change that spans repositories lands in steps: each
+  step is a change of its own, whose landing is parked until the one
+  before lands (3.5).
+- **Kept open now:** every identity names its repository (a
+  candidate's parent and commit, a key's inputs, a receipt, the
+  serializer's state), and the serializer is one per project with a
+  train per repository. A joint landing is then a set of per-repository
+  candidates that one serializer prepares, proves and decides together,
+  and a downstream package's key can hold an upstream's pinned commit.
+- **Later adds:** joint landings and their admission, the turn's order
+  across repositories (upstream first), a partial turn's rule
+  (`landing.md`, 8), pins kept at an upstream's main, `with` across
+  goals, and batches that take a joint landing whole.
 
 ## 7. Provers and runners
 
@@ -944,18 +962,19 @@ These join the landing rules as settings (`forge.md`, 8.9; `landing.md`,
 
 ### 15.3 Delete
 
-- **Joining across repositories** (H9): the dependency closure and its
-  upstream-first order
+- **Today's joining across repositories** (6.6, H9): the dependency
+  closure and its upstream-first order
   (`temper-engine-domain-forge/src/landing.rs:169` to 271), the root's
   join by the amendment
   (`temper-engine-domain/src/route/forge_route/landing_route.rs:118` to
-  137), `kept_landings` (`:227`), the partial turn across repositories,
-  and the designs of pin-only members, `with`, stacks and pins kept at
-  main, with their settings `dependencies_join` and `pins` (`landing.md`,
-  4.1, 5.3, 13.1). The rule of one change per repository in a landing
+  137), `kept_landings` (`:227`) and the partial turn across
+  repositories. The rule of one change per repository in a landing
   (`landing.rs:236`;
   `temper-engine-domain-forge-landing/src/domain.rs:18`) goes with it:
-  a landing is one change, and batching groups landings.
+  a landing is one change, and batching groups landings. The designs
+  of pin-only members, `with`, stacks and pins kept at main, with their
+  settings `dependencies_join` and `pins` (`landing.md`, 4.1, 5.3,
+  13.1), move to Later (6.6).
 - **The `queue` way** (`forge.md`, 8 to 10), once the turn lands every
   project, GitHub's included: its states (`Checking`,
   `CancellingGates`, `Queued`, `First`, `Updating`, and the change's own
@@ -998,7 +1017,7 @@ and it changes something designed), as before.
 | L17 | Trailers in landing news and wake policies on them [T13] | design | `forge.md`, 7.2 |
 | L18 | The reservation [T7] | design | `landing.md`, 9 |
 | L19 | Views and acts: candidates, batches, trains, receipts, tiers, findings, holds, leases, workspaces, in the client and `ctl` [T15] | design | `landing.md`, 14; client |
-| L20 | A landing is one change in one repository; changes across repositories land in steps (H9) | conflict | `landing.md`, 4.1, 5.3, 8, 13.1 |
+| L20 | A landing is one change in one repository in v0.1.0; joint landings across repositories Later (6.6) | conflict | `landing.md`, 4.1, 5.3, 8, 13.1 |
 | J1 | Owned holds and proposals of their lift | built | jig's `domain/tasks.md`, 5.9 |
 | J2 | Drain | design | jig's `domain/tasks.md`, 5.9 |
 | J3 | A project's holds, inherited, the chat exempt | design | the same |
@@ -1019,6 +1038,8 @@ and it changes something designed), as before.
 
 ## 16. Later
 
+- Landings across repositories (6.6): joint candidates decided
+  together, the turn's order and partial rule, pins, `with`.
 - Keys per package for languages other than Rust (the project's tooling
   names a package's inputs).
 - Trains deeper than two when one serializer's preparation keeps up.
@@ -1057,11 +1078,11 @@ recommendation this draft is written to; the rest are details.
   checkouts with no claim.
 - **H8, handing over:** the same task's fresh run from its notes (3.6:
   recommended), or a successor task with a warm-up overlap (13.4).
-- **H9, a landing's reach:** one change in one repository, changes
-  across repositories landed in steps (6.1: recommended; it drops
-  temper's joining and the partial turn, which batching would rewrite
-  anyway), or landings joined across repositories with pins, as
-  `landing.md` designs them.
+- **H9, today's joining across repositories,** with joint landings
+  Later's (6.6): deleted now, its designs moved to Later
+  (recommended: it is built on one change per repository in a landing,
+  which batching breaks, so it would be rewritten anyway), or kept
+  dormant until joint landings come.
 - **A gate per step or one gate of steps:** fabrig's steps (fmt,
   clippy, build, focused, fuzzy) as gates of their own, each with a
   receipt (a lint red then re-proves nothing else), or one gate whose
