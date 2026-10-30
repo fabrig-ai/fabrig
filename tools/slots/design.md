@@ -88,7 +88,7 @@ the owner's share first, then the pool, in inventory order within each;
 one `HOST N` per line, exit 0 even when empty.
 
 Run `claim` from PATH on hel8: `tools/install` links it to the dedicated
-main clone (`tools/codex-run/design.md, 6`), so its adjacent `hosts` comes
+main clone (`tools/codex-run/design.md, 7`), so its adjacent `hosts` comes
 from main rather than the caller's clone. All operations coordinate through a
 local advisory lock so readers and release cannot race a record's creation
 or replacement. This lock also lives under the claims directory. There is

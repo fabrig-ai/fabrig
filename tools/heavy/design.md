@@ -294,7 +294,7 @@ fixture fonts, without reading an installed browser package.
 `tools/install` installs the manifest entry `heavy heavy` from a dedicated
 clone at `~/src/fabrig/main` and links `~/.local/bin/heavy` to its executable.
 The installer behavior and dry-run contract are
-`tools/codex-run/design.md, 6`. The agents copy remains in place. The six
+`tools/codex-run/design.md, 7`. The agents copy remains in place. The six
 runtime files are `heavy`, `heavy-recovery.py`, `kit.sh`, `gate-policy.sh`,
 `recovery_message.py` and `receipt_inputs.py`; helpers resolve adjacent to
 the real executable, independent of the caller's working directory.

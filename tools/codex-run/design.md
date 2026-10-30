@@ -13,7 +13,7 @@ Provisional, 2026-10-28. Detached task workers and persistent owners on the flee
   completion messages; `--post` retries notification.
 - Runs live under `~/src/rust/tmp/codex-run/`; `DEV_ROOT` replaces
   `~/src/rust`. Writable slot tasks trim their own slot before Codex starts.
-- Dependencies are Bash, Python 3, jq, Perl, GNU coreutils, flock, systemd
+- Dependencies are Bash, Python 3, Git, jq, Perl, GNU coreutils, flock, systemd
   user units, Codex and `post` on PATH. Units start through a login shell.
   No adjacent agents checkout or sibling post executable is required.
 
@@ -45,7 +45,64 @@ It is killed after 60 seconds; absence and failure do not fail the unit.
 Resume does not inherit the callback. Unsafe installation paths are refused
 when building the systemd stop command.
 
-## 3. Runs, reports and completion
+## 3. Task headers
+
+The task file's first line is exactly `+++`; the header ends at the next
+line exactly `+++`. Any other first line means no header. An opening
+`+++` without a closing line is invalid.
+
+Between the delimiters are blank lines, `#` comment lines, and
+`key = "value"` lines, with optional spaces or tabs around the key, equals
+sign and value. Values are nonempty double-quoted strings without a double
+quote, backslash, tab or newline (including Unicode line separators).
+Control characters are invalid. This is a strict subset of TOML,
+read identically by Python's `tomllib` in the
+records collector. Inline comments and other TOML forms are invalid.
+
+The only keys are `task`, `branch`, `coordinator`, `draft`, `area`, and
+`part`, each at most once. Unknown keys are invalid. Their shapes are:
+
+| Key | Shape |
+| --- | --- |
+| `task` | `^[a-z0-9][a-z0-9._/-]*$` |
+| `coordinator` | `^(s/)?[a-z0-9][a-z0-9_-]*$` (mailbox or handle) |
+| `draft`, `area`, `part` | `^[a-z0-9][a-z0-9_-]*$` |
+| `branch` | Accepted by `git check-ref-format --branch`, outside `ready/` |
+
+`branch` names the work branch; `ready/*` refs belong to the queue.
+Required keys are `task`, `coordinator`, `draft`, and, for writable runs,
+`branch`. `--read-only` tasks can omit `branch`. A resume inherits read-only
+mode before checking the header, as it inherits its other run settings.
+
+`codex-run task` checks the header before creating run state or reserving a
+report. A valid header adds `header=ok` and one `header.<key>=<value>` line
+per present key to `meta`. The source constant `header_mode=warn` controls
+invalid or missing headers; no flag or environment variable overrides it.
+Warn mode emits one stderr line:
+
+```text
+codex-run: warning: task header: <reason>; codex-run will refuse such tasks (design.md 3)
+```
+
+The reason names all missing required fields, or the first bad line or
+value. Warn mode adds `header=missing` or `header=invalid` to `meta`, without
+header keys, and starts the run. With the constant set to `refuse`, either
+condition refuses with the same reason and exit 2, leaving no run state or
+report reservation.
+
+With `--resume RUN` and no header in the new task file, the run copies the
+previous `header.*` lines when its `meta` has `header=ok` or
+`header=inherited`, and writes `header=inherited`. Without previous header
+keys it counts as missing. A present header is checked independently and
+wins, including when it is invalid. `codex-run owner` is exempt and writes
+no header metadata.
+
+`codex-run header [--read-only] TASK` checks templates through the same
+parser, independently of `header_mode` and without run state. It prints
+`header=ok` followed by each present `key=value` on success (exit 0), or the
+reason on stderr (exit 2). It accepts relative and absolute task paths.
+
+## 4. Runs, reports and completion
 
 Task launch prints `ID RUN_DIRECTORY`; the unit is `codex-run-ID`. The ID
 combines a UTC timestamp and random suffix. The directory holds `meta`,
@@ -68,7 +125,7 @@ minutes and less than one day. Post exits 0 and 3 count as delivered;
 refused delivery remains retryable. Stale notification records `told`
 without replaying report publication or accounting.
 
-## 4. Slot trimming
+## 5. Slot trimming
 
 Before its first Codex turn, a writable task resolves DIR and checks that
 it is exactly `~/src/fabrig/slots/<n>`, with a numeric final component.
@@ -82,7 +139,7 @@ trim scripts are handled the same way. Read-only runs, owners, named
 directories and directories nested inside a slot do not trim. `DEV_ROOT`
 changes run storage, not the slot directory convention or the trim script.
 
-## 5. Owners
+## 6. Owners
 
 Owner launch prints its escaped unit name. State lives under
 `<root>/tmp/owners/<last-name-component>/codex/`, where root defaults to
@@ -93,7 +150,7 @@ An idle hour prompts it to check its work. Failed turns wait five minutes;
 pending mail is retained until a successful turn, including across restarts.
 Replacement of the holder ends the loop. Turn accounting is in `turns.tsv`.
 
-## 6. Installation and verification
+## 7. Installation and verification
 
 `tools/install [--dry-run]` uses its own repository's origin URL. It clones
 into `~/src/fabrig/main` when absent, otherwise fetches that dedicated clone,
@@ -110,12 +167,15 @@ switching, creating directories or changing links. A real install reads
 the manifest from the updated clone.
 
 `bash tools/codex-run/test-codex-run` tests workers, owners, notifications,
-signals and trimming against fake Codex, post and systemd executables.
+signals, trimming and task headers against fake Codex, post and systemd executables.
 `python3 -I tools/test_install.py` tests installation using local fixture
 repositories and a temporary home. Neither command uses real fleet state.
 These scripts run directly on hel8; they build nothing.
 
-## 7. Later
+## 8. Later
+
+- Switch `header_mode` to `refuse` once coordinators and ops confirm their
+  task files carry headers.
 
 - Move other fleet tools and add their entries to `tools/installed`.
 - Move run and owner storage into fabrig with a separate migration that
