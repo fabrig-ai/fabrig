@@ -30,6 +30,7 @@ impl Domain {
 
     /// Decide the mark against its durable position without caching that position.
     pub fn mark_ended(&mut self, env: &Env<Limits>, mark: EndedMark, out: &mut Queue<Request>) {
+        self.touched = true;
         let Some((party, seen @ Seen::Conversation { task, through })) = self.seen_context(mark.request) else {
             return;
         };

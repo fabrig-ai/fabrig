@@ -205,6 +205,7 @@ impl Domain {
     /// An ended owner witnessed by the core's census resolves any leftover live
     /// positions. Ended positions are loaded separately, never kept as live ones.
     pub fn restore_ended_conversation(&mut self, task: u64) {
+        self.touched = true;
         self.assert_projection_event();
         loop {
             let mut resolved = None;
@@ -282,6 +283,7 @@ impl Domain {
 
     /// Keep the newest `inbox_entries` plus one unread result witness; the store pages the rest.
     pub fn remember_result(&mut self, limits: &Limits, person: u64, entry: ResultRef) {
+        self.touched = true;
         if !self.ready()
             || !self.people.contains_key(&person)
             || !self.has_project(entry.project)
