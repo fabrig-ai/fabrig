@@ -74,6 +74,11 @@ reported by `stale`; that command considers metadata aged at least two
 minutes and less than one day. Post exits 0 and 3 count as delivered;
 refused delivery remains retryable. Stale notification records `told`
 without replaying report publication or accounting.
+Completed runs without `post-failed` are skipped before reading metadata age;
+their age-stat failures are silent. Stale checks notification candidates, so
+this filtering grants no finality, retention, deletion or slot-release authority.
+Completion records a refused post before writing `ended`, keeping that
+notification retryable throughout completion.
 
 ### 3.1 Reaper producer hooks
 
@@ -231,6 +236,8 @@ signals and trimming against fake Codex, post and systemd executables.
 `bash tools/codex-run/test-codex-run --reap-only` runs the producer adoption
 checks with the same isolated fixtures. `--final-only` also runs explicit
 finality fixtures, including atomic publication faults and immutable repeats.
+The full suite also checks mixed stale history, completion ordering and
+candidate age/metadata failures through the public CLI, retaining its history.
 All selections assert CPU below
 15 seconds and wall time below 60 seconds. Only private fixture copies
 shorten the timeout when proving hanging tools and callbacks are killed.

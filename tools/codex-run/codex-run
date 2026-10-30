@@ -502,6 +502,8 @@ stale() {
     now=$(date +%s)
     for state in "$runs/"*/; do
         [[ -f $state/meta && ! -f $state/told ]] || continue
+        # Only notification candidates need metadata age checks.
+        [[ ! -f $state/ended || -f $state/post-failed ]] || continue
         state=${state%/}
         id=${state##*/}
         if ! modified=$(stat -c %Y "$state/meta"); then

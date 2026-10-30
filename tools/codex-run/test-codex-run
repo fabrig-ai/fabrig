@@ -1764,4 +1764,8 @@ assert (fake / 'callback-result').read_text() == 'complete'
 PYFIXTURES
 checks=$((checks + 4))
 
+stale_checks=$(python3 -I -S -B "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/test-stale.py" "$t" "$kit")
+printf 'stale candidates: %s checks passed\n' "$stale_checks"
+checks=$((checks + stale_checks))
+
 finish_checks

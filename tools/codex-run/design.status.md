@@ -1,7 +1,8 @@
 # Codex runs status
 
 Provisional, 2026-10-28. `tools/codex-run/design.md` is implemented by
-`codex-run`, `final.py`, `test-codex-run`, `test-final.py`, `tools/install`, `tools/installed` and
+`codex-run`, `final.py`, `test-codex-run`, `test-final.py`, `test-stale.py`,
+`tools/install`, `tools/installed` and
 `tools/test_install.py`. No known implementation departures.
 
 Fleet installation is pending coordinator review. The agents repository's
@@ -24,3 +25,7 @@ markers with missed notifications and reconcile older registry owners; no
 backfill runs here. Retention, indefinite keeps for resumable/uncertain tasks
 and deletion remain the reaper owner's work. Persistent owner lifecycle remains
 MC's responsibility.
+
+Stale filters completed runs without `post-failed` before metadata age checks,
+including age-stat diagnostics. Unfinished and refused-post candidates retain
+their notification checks (`tools/codex-run/design.md`, 3).
