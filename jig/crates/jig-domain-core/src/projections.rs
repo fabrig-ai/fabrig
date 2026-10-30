@@ -284,6 +284,7 @@ pub(crate) fn owed(core: &Core) -> bool {
 /// Complete a composed root decision's projection handoffs. Repeated calls
 /// retain subsequent changes but never feed a goal twice under one commit.
 pub fn finish_decision(core: &mut Core, env: &Env<Limits>) -> Requests {
+    core.start_runtime_input();
     if !owed(core) {
         return crate::routing::finish_watches(core, env);
     }

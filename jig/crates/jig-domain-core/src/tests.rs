@@ -5,6 +5,8 @@ use crate::documents::*;
 use crate::*;
 use skein_lib::{Duration, Env, ReplyTo, Time, Token, Wall};
 
+mod start;
+
 #[test]
 fn restored_application_tokens_cannot_exceed_the_deployments_allocations() {
     let (mut core, _) = make_tree();
