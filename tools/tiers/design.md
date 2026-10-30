@@ -41,11 +41,38 @@ script's stylesheets, pictures, files and noscript text. Temper matches
 `temper/scripts/bundle.sh --loopback`, without embedding the bundle in the
 native binary. Existing bundle outputs are rebuilt on every invocation.
 
+### 2.1 Native binary lists
+
+A tier's tests may execute binaries that its `-p` package selection does not
+build. Each pair lists these in the `[binaries]` table of
+`tools/tiers/packages.toml`: an array of `{ package = "...", bin = "..." }`
+records, sorted and unique by package then binary. Every configured pair
+has a list, including an explicit empty list when none is needed. Names
+contain only ASCII letters, digits, underscores and hyphens; two packages
+may not provide the same binary within a pair. Missing/unknown pair lists
+and invalid records are refused before any command, including in verification.
+An optional `env` names a test environment variable (uppercase ASCII with
+`_TEST_` in its name). After building the binary, set that variable to its
+absolute `target_directory/debug/BINARY` path, replacing any inherited value.
+Variable names are unique within a pair. `process-temper` sets
+`TEMPER_TEST_CLAUDE` this way for its two program-login tests. The temper
+adapter and smith's adapter both call `smith_fake_claude::main()`.
+
+After any bundle step, build each listed binary in order through
+`heavy cargo build -p PACKAGE --bin BINARY`, then run nextest. The browser
+servers in the table above are native list entries. `qa-temper` and
+`process-temper` also list `temper-fake-claude`'s `fake-claude`: temper's
+fake-backend tests execute that adapter as the `temper` binary's sibling.
+A failed binary build returns 2 and starts no later step.
+
 All other configured pairs run nextest alone. Tier tests also use binaries
 from their own packages (`skein-lab-browser`, `harness_fixture`, `jig-test`,
 `smith`, `temper`); Cargo/nextest builds those integration-test targets.
 The browser servers cross package boundaries and require the explicit builds
-above. No additional cross-package binary or bundle requirement was found.
+above. Smith's selected live tests use the `smith` package's own binaries;
+the separate `smith-fake-claude` package's binary tests are not selected by
+any of these pairs. No other native binary requirement was found across
+the fourteen pairs.
 
 ## 3. Environment and output
 
@@ -85,8 +112,10 @@ network access, Chromium or credentials. The suite's limit is 60 seconds.
 
 Run `tools/tiers/run --verify-all` with every green baseline. It checks all
 configured pairs, including live profiles and process-temper, without running
-their tests or building bundles. `tools/tiers/run --verify TREE TIER` checks
-one pair. Neither form accepts extra nextest arguments.
+their tests or building bundles or prerequisite binaries. Both verification
+forms validate the native binary lists; they do not execute them.
+`tools/tiers/run --verify TREE TIER` checks one pair. Neither form accepts
+extra nextest arguments.
 
 For each pair, run `cargo nextest list --message-format json --profile TIER-TREE`
 through heavy, first over `--workspace`, then over the map's `-p` arguments.

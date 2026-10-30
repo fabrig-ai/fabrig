@@ -5,6 +5,7 @@ import argparse
 import json
 import os
 from pathlib import Path
+import re
 import shlex
 import subprocess
 import sys
@@ -56,7 +57,6 @@ def bundle(tree, target, env):
         options = ["--stylesheet", "skein/examples/ui/shell-web/notes.css",
                    "--noscript", "Notes needs WebAssembly and scripts."]
         features = []
-        server = "skein-ui-example-server"
     elif tree == "jig":
         package = "jig-client-test-shell-web"
         out = target / "jig-test-bundle"
@@ -68,7 +68,6 @@ def bundle(tree, target, env):
                    "--files", "jig/testing/jig-client-test-shell-web/files",
                    "--noscript", "jig needs WebAssembly and scripts."]
         features = []
-        server = "jig-test"
     else:
         package = "temper-client-shell-web"
         out = target / "temper-bundle"
@@ -79,7 +78,6 @@ def bundle(tree, target, env):
                    "--files", f"{shell}/files",
                    "--noscript", "temper needs WebAssembly and scripts."]
         features = ["--features", "loopback-navigation"]
-        server = "temper"
     build("wasm module", ["--target", "wasm32-unknown-unknown", *features, "-p", package], env)
     build("bundle tool", ["-p", "skein-ui-bundle"], env)
     module = package.replace("-", "_")
@@ -89,7 +87,6 @@ def bundle(tree, target, env):
     code = step("browser bundle", command, env, heavy=False)
     if code:
         raise FailedStep(f"browser bundle: exit {code}")
-    build("browser server", ["-p", server], env)
     env[variable] = str(out)
 
 
@@ -107,6 +104,23 @@ def target_directory(env):
 
 def package_arguments(packages):
     return [argument for package in packages for argument in ("-p", package)]
+
+
+def valid_binaries(binaries):
+    if not isinstance(binaries, list):
+        return False
+    for binary in binaries:
+        if (not isinstance(binary, dict) or not {"package", "bin"} <= set(binary)
+                or set(binary) - {"package", "bin", "env"}
+                or any(not isinstance(value, str) or re.fullmatch(r"[A-Za-z0-9_-]+", value) is None
+                       for value in binary.values())):
+            return False
+        if "env" in binary and re.fullmatch(r"[A-Z][A-Z0-9_]*_TEST_[A-Z0-9_]+", binary["env"]) is None:
+            return False
+    keys = [(binary["package"], binary["bin"]) for binary in binaries]
+    variables = [binary["env"] for binary in binaries if "env" in binary]
+    return (keys == sorted(set(keys)) and len({binary["bin"] for binary in binaries}) == len(binaries)
+            and len(set(variables)) == len(variables))
 
 
 def selected_tests(listing):
@@ -197,6 +211,11 @@ def main(argv=None):
     try:
         with Path("tools/tiers/packages.toml").open("rb") as source:
             package_map = tomllib.load(source)
+        binary_map = package_map.get("binaries", {})
+        if not isinstance(binary_map, dict) or set(binary_map) != set(pairs.values()):
+            print("tiers: refused binary inventory in tools/tiers/packages.toml "
+                  "(need one list per configured pair)", file=sys.stderr)
+            return 2
         chosen = sorted(pairs.values()) if args.verify_all else [profile]
         for pair in chosen:
             packages = package_map.get(pair)
@@ -205,6 +224,10 @@ def main(argv=None):
                     or packages != sorted(set(packages))):
                 print(f"tiers: refused missing or invalid package set for {pair} "
                       "in tools/tiers/packages.toml (need sorted, unique package names)", file=sys.stderr)
+                return 2
+            if not valid_binaries(binary_map[pair]):
+                print(f"tiers: refused invalid binary list for {pair} in tools/tiers/packages.toml "
+                      "(need sorted, unique package/bin records and distinct binary names)", file=sys.stderr)
                 return 2
     except (OSError, ValueError, TypeError) as error:
         print(f"tiers: read tools/tiers/packages.toml from the checkout root: {error}", file=sys.stderr)
@@ -218,8 +241,17 @@ def main(argv=None):
                 if not verify(pair, package_map[pair], env):
                     matches = False
             return 0 if matches else 1
+        target = None
         if (args.tier == "browser" and args.tree in ("skein", "jig", "temper")) or profile == "qa-temper":
-            bundle(args.tree, target_directory(env), env)
+            target = target_directory(env)
+            bundle(args.tree, target, env)
+        elif any("env" in binary for binary in binary_map[profile]):
+            target = target_directory(env)
+        for binary in binary_map[profile]:
+            build(f"prerequisite binary {binary['package']}/{binary['bin']}",
+                  ["-p", binary["package"], "--bin", binary["bin"]], env)
+            if "env" in binary:
+                env[binary["env"]] = str(target / "debug" / binary["bin"])
         command = ["heavy", "cargo", "nextest", "run", *package_arguments(package_map[profile]), "--profile", profile,
                    "--no-fail-fast", *extra]
         return step("nextest", command, env)

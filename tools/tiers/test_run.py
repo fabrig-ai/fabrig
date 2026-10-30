@@ -28,7 +28,7 @@ with open(os.environ["CALLS"], "a") as output:
     output.write(json.dumps({"name": name, "args": args, "env": {
         key: os.environ.get(key) for key in (
             "NEXTEST_DOUBLE_SPAWN", "TEMPER_BUNDLE", "SKEIN_UI_EXAMPLE_BUNDLE",
-            "JIG_TEST_BUNDLE", "TEMPER_TEST_BUNDLE")}}) + "\\n")
+            "JIG_TEST_BUNDLE", "TEMPER_TEST_BUNDLE", "TEMPER_TEST_CLAUDE")}}) + "\\n")
 if name == "cargo":
     if args != ["metadata", "--format-version", "1", "--no-deps"]:
         sys.exit(91)
@@ -90,6 +90,16 @@ class RunnerTests(unittest.TestCase):
         self.packages.write_text(''.join(f'{name} = ["a-package", "z-package"]\n' for name in (
             "browser-skein", "browser-jig", "browser-temper", "qa-temper", "qa-smith",
             "process-jig", "exhaustive-skein")))
+        self.binary_lists = (
+            '[binaries]\n'
+            'browser-skein = [{package="skein-ui-example-server", bin="skein-ui-example"}]\n'
+            'browser-jig = [{package="jig-test", bin="jig-test"}]\n'
+            'browser-temper = [{package="temper", bin="temper"}]\n'
+            'qa-temper = [{package="temper", bin="temper"}, '
+            '{package="temper-fake-claude", bin="fake-claude"}]\n'
+            'qa-smith = []\nprocess-jig = []\nexhaustive-skein = []\n')
+        with self.packages.open('a') as output:
+            output.write(self.binary_lists)
         self.bin = self.root / "bin"
         self.bin.mkdir()
         self.target = self.root / "relocated artifacts"
@@ -117,7 +127,8 @@ class RunnerTests(unittest.TestCase):
 
     def test_config_is_the_only_pair_inventory(self):
         self.config.write_text('[profile.default]\n[profile.new-tier-newtree]\n')
-        self.packages.write_text('new-tier-newtree = ["a-package", "z-package"]\n')
+        self.packages.write_text('new-tier-newtree = ["a-package", "z-package"]\n'
+                                 '[binaries]\nnew-tier-newtree = []\n')
         result, calls = self.invoke("newtree", "new-tier", "--", "-E", "test(=one)")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual([call['name'] for call in calls], ["df", "heavy"])
@@ -163,6 +174,10 @@ class RunnerTests(unittest.TestCase):
             with self.subTest(tree=tree, tier=tier):
                 result, calls = self.invoke(tree, tier, "--", "-E", "test(=one)", **{variable: "/stale"})
                 self.assertEqual(result.returncode, 0, result.stderr)
+                if tier == "qa":
+                    self.assertEqual(calls[9]['args'], ["cargo", "build", "-p", "temper-fake-claude",
+                                                       "--bin", "fake-claude"])
+                    del calls[8:10]
                 self.assertEqual([call['name'] for call in calls],
                                  ["cargo", "df", "heavy", "df", "heavy", "skein-ui-bundle",
                                   "df", "heavy", "df", "heavy"])
@@ -173,7 +188,8 @@ class RunnerTests(unittest.TestCase):
                 self.assertEqual(calls[5]['args'], [
                     "--module", str(self.target / "wasm32-unknown-unknown/debug" / f"{module}.wasm"),
                     "--name", module, "--prefix", "/bundle/", *options, "--out", str(self.target / out)])
-                self.assertEqual(calls[7]['args'], ["cargo", "build", "-p", server])
+                native = "skein-ui-example" if tree == "skein" else server
+                self.assertEqual(calls[7]['args'], ["cargo", "build", "-p", server, "--bin", native])
                 self.assertEqual(calls[9]['args'], ["cargo", "nextest", "run", "-p", "a-package", "-p", "z-package", "--profile",
                                                    f"{tier}-{tree}", "--no-fail-fast", "-E", "test(=one)"])
                 self.assertEqual(calls[9]['env'][variable], str(self.target / out))
@@ -185,7 +201,8 @@ class RunnerTests(unittest.TestCase):
         cases = (({"FAIL_BUILD": "skein-ui-example-shell-web"}, "wasm module", 1),
                  ({"FAIL_BUILD": "skein-ui-bundle"}, "bundle tool", 2),
                  ({"BUNDLE_EXIT": "8"}, "browser bundle", 2),
-                 ({"FAIL_BUILD": "skein-ui-example-server"}, "browser server", 3),
+                 ({"FAIL_BUILD": "skein-ui-example-server"},
+                  "prerequisite binary skein-ui-example-server/skein-ui-example", 3),
                  ({"METADATA_EXIT": "9"}, "cargo metadata", 0),
                  ({"BAD_METADATA": "1"}, "cargo metadata", 0))
         for env, step, count in cases:
@@ -196,6 +213,64 @@ class RunnerTests(unittest.TestCase):
                 heavy = [call for call in calls if call['name'] == "heavy"]
                 self.assertEqual(len(heavy), count)
                 self.assertFalse(any('nextest' in call['args'] for call in heavy))
+
+    def test_native_binary_order_and_failure_stop_later_steps(self):
+        self.packages.write_text(self.packages.read_text().replace(
+            'process-jig = []', 'process-jig = [{package="first", bin="one"}, '
+            '{package="last", bin="two"}]'))
+        result, calls = self.invoke("jig", "process")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual([call['name'] for call in calls], ["df", "heavy"] * 3)
+        self.assertEqual(calls[1]['args'], ["cargo", "build", "-p", "first", "--bin", "one"])
+        self.assertEqual(calls[3]['args'], ["cargo", "build", "-p", "last", "--bin", "two"])
+        self.assertEqual(calls[5]['args'][:3], ["cargo", "nextest", "run"])
+        for package, count in (("first", 2), ("last", 4)):
+            result, calls = self.invoke("jig", "process", FAIL_BUILD=package)
+            self.assertEqual(result.returncode, 2, result.stderr)
+            self.assertIn(f"failed step prerequisite binary {package}/", result.stderr)
+            self.assertEqual(len(calls), count)
+            self.assertFalse(any('nextest' in call['args'] for call in calls))
+
+    def test_binary_validation_in_run_and_verification(self):
+        original = self.packages.read_text()
+        invalid = ('"not a list"', '["not a record"]', '[1]', '[{}]',
+                   '[{package="p"}]', '[{package="p",bin="b",extra=1}]',
+                   '[{package=1,bin="b"}]', '[{package="p",bin=""}]',
+                   '[{package="--p",bin="../b"}]',
+                   '[{package="z",bin="b"},{package="a",bin="a"}]',
+                   '[{package="p",bin="b"},{package="p",bin="b"}]',
+                   '[{package="a",bin="b"},{package="z",bin="b"}]')
+        invalid += ('[{package="p",bin="b",env=1}]', '[{package="p",bin="b",env="HOME"}]',
+                    '[{package="p",bin="b",env="bad_TEST_env"}]',
+                    '[{package="a",bin="a",env="P_TEST_BIN"},'
+                    '{package="b",bin="b",env="P_TEST_BIN"}]')
+        inventories = [original.replace('qa-smith = []', f'qa-smith = {value}') for value in invalid]
+        inventories += [original.split('[binaries]')[0],
+                        original.replace('qa-smith = []\n', ''),
+                        original + 'unknown-pair = []\n',
+                        original.split('[binaries]')[0] + 'binaries = []\n']
+        for contents in inventories:
+            self.packages.write_text(contents)
+            for args in (("smith", "qa"), ("--verify", "smith", "qa"), ("--verify-all",)):
+                with self.subTest(contents=contents, args=args):
+                    result, calls = self.invoke(*args)
+                    self.assertEqual(result.returncode, 2, result.stderr)
+                    self.assertIn("tools/tiers/packages.toml", result.stderr)
+                    self.assertEqual(calls, [])
+
+    def test_binary_environment_uses_metadata_target_after_build(self):
+        self.packages.write_text(self.packages.read_text().replace(
+            'process-jig = []',
+            'process-jig = [{package="adapter",bin="fake-claude",env="TEMPER_TEST_CLAUDE"}]'))
+        result, calls = self.invoke("jig", "process", TEMPER_TEST_CLAUDE="/stale")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual([call['name'] for call in calls], ["cargo", "df", "heavy", "df", "heavy"])
+        self.assertEqual(calls[2]['args'], ["cargo", "build", "-p", "adapter", "--bin", "fake-claude"])
+        self.assertEqual(calls[2]['env']['TEMPER_TEST_CLAUDE'], "/stale")
+        self.assertEqual(calls[-1]['env']['TEMPER_TEST_CLAUDE'], str(self.target / "debug/fake-claude"))
+        result, calls = self.invoke("--verify", "jig", "process", TEMPER_TEST_CLAUDE="/stale")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual([call['name'] for call in calls], ["df", "heavy", "df", "heavy"])
 
     def test_nextest_exit_is_preserved(self):
         for code in (4, 100):
@@ -218,7 +293,7 @@ class RunnerTests(unittest.TestCase):
                          'qa-smith = ["a", "a"]', 'qa-smith = [1]',
                          'qa-smith = "smith"', 'qa-smith = ['):
             with self.subTest(contents=contents):
-                self.packages.write_text(contents)
+                self.packages.write_text(contents + '\n' + self.binary_lists)
                 result, calls = self.invoke("smith", "qa")
                 self.assertEqual(result.returncode, 2)
                 self.assertIn("tools/tiers/packages.toml", result.stderr)
@@ -254,7 +329,8 @@ class RunnerTests(unittest.TestCase):
         result, calls = self.invoke("--verify-all", MISMATCH="1")
         self.assertEqual(result.returncode, 1, result.stderr)
         heavy = [call for call in calls if call['name'] == "heavy"]
-        profiles = sorted(MODULE['tomllib'].loads(self.packages.read_text()))
+        profiles = sorted(name for name in MODULE['tomllib'].loads(self.packages.read_text())
+                          if name != 'binaries')
         self.assertEqual(len(heavy), 2 * len(profiles))
         self.assertEqual([call['args'][call['args'].index('--profile') + 1] for call in heavy],
                          [profile for profile in profiles for _ in range(2)])
