@@ -1,6 +1,14 @@
 //! Key-only restore diagnostics (jig/docs/design/protocol/store.md, 7.1 and 9).
-use crate::{Family, Phase, Store};
+use crate::{Family, OpenRefusal, Phase, Store};
 use alloc::boxed::Box;
+
+/// An open's first available cause (protocol/store.md, 10.1 and 10.2).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum OpenFailure {
+    Refused(OpenRefusal),
+    Missing(RowSite),
+    Data(Failure),
+}
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Failure {

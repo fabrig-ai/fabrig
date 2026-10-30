@@ -12,6 +12,7 @@ pub struct Page {
 
 impl Store {
     pub fn retained_page(&mut self, after: Option<&[u8]>, rows: u32, bytes: u64) -> Result<Page, Failure> {
+        self.consumed = true;
         restore::ready(self)?;
         if let Some(after) = after
             && after.len() > usize::try_from(self.limits.store.key).expect("map key allowance fits usize")

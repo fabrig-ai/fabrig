@@ -32,8 +32,23 @@ pub(crate) fn count(store: &mut Store, owner: Owner, family: &KeptFamily) -> Opt
         let range = pages::kept_interval(store, owner, family.map, keys)?;
         let mut cursor = None;
         for _ in 0..=rows {
-            let page =
-                pages::walk_map(store, family.map, core::slice::from_ref(&range), cursor.as_ref(), limits.page.rows)?;
+            let page = if store.start_restore {
+                match pages::reader::walk_map(
+                    store,
+                    family.map,
+                    core::slice::from_ref(&range),
+                    cursor.as_ref(),
+                    limits.page.rows,
+                ) {
+                    Ok(page) => page,
+                    Err(failure) => {
+                        store.open_failed(restore::OpenFailure::Data(failure));
+                        return None;
+                    }
+                }
+            } else {
+                pages::walk_map(store, family.map, core::slice::from_ref(&range), cursor.as_ref(), limits.page.rows)?
+            };
             if page.rows.is_empty() && page.next.is_some() {
                 return None;
             }
@@ -67,7 +82,7 @@ pub(crate) fn counts(store: &mut Store, before: List<Counted>) -> Result<List<Co
     let mut counts = List::with_capacity(before.len());
     for counted in before.into_boxed() {
         let after = count(store, counted.owner, &counted.family).ok_or(OpenRefusal::Failed)?;
-        if after != counted.before {
+        if !store.start_restore && after != counted.before {
             return Err(OpenRefusal::Check {
                 why: Check::Count { family: counted.family.name, before: counted.before, after },
             });
@@ -106,19 +121,40 @@ fn rows(store: &mut Store) -> Result<(), OpenRefusal> {
     let mut cursor = None;
     let mut join = None;
     for _ in 0..=store.stores.store.len() {
-        let page =
-            pages::walk(store, &ranges, cursor.as_ref(), store.limits.store.page.rows).ok_or(OpenRefusal::Failed)?;
+        let page = if store.start_restore {
+            match pages::reader::walk(store, &ranges, cursor.as_ref(), store.limits.store.page.rows) {
+                Ok(page) => page,
+                Err(failure) => {
+                    store.open_failed(restore::OpenFailure::Data(failure));
+                    return Err(OpenRefusal::Failed);
+                }
+            }
+        } else {
+            pages::walk(store, &ranges, cursor.as_ref(), store.limits.store.page.rows).ok_or(OpenRefusal::Failed)?
+        };
         if page.rows.is_empty() && page.next.is_some() {
             return Err(OpenRefusal::Failed);
         }
         for item in page.rows {
             let key = item.cursor.after;
-            let Some((row, _)) = pages::decode(store, item.row) else {
+            let decoded = if store.start_restore {
+                let source = restore::site(store, &item.row.key);
+                match restore::reader::decode_row(store, item.row, &source) {
+                    Ok(row) => Some(row),
+                    Err(failure) => {
+                        store.open_failed(restore::OpenFailure::Data(failure));
+                        None
+                    }
+                }
+            } else {
+                pages::decode(store, item.row)
+            };
+            let Some((row, _)) = decoded else {
                 return Err(OpenRefusal::Check { why: Check::Load { key } });
             };
             match row {
                 Row::Jig(Record::People(jig_domain_people::Stored::EndedRead { task, .. })) => {
-                    if restore::ended(store, task).is_none() && join.is_none() {
+                    if !store.start_restore && restore::ended(store, task).is_none() && join.is_none() {
                         join = Some(Check::Join { key });
                     }
                 }
