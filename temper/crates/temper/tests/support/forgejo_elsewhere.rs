@@ -174,6 +174,14 @@ fn scripts(repository: &str, readme: &[u8]) -> Box<[Script]> {
     let coding = format!("@elsewhere-coder Edit {repository} README.md");
     let original = std::str::from_utf8(readme).expect("README words");
     let edited = format!("{original}\n\n{}", std::str::from_utf8(EDIT).expect("edit words"));
+    let reads = Turn {
+        lines: Box::new(["README.md", ".forgejo/workflows/ci.yml"].map(|path| Line::Call {
+            name: b"read".as_slice().into(),
+            arguments: serde_json::to_vec(&json!({"path": path})).expect("read JSON").into(),
+        })),
+        finish: Finish::ToolCalls,
+        tokens: 20,
+    };
     Box::new([
         Script {
             cue: b"@elsewhere-chat".as_slice().into(),
@@ -190,8 +198,7 @@ fn scripts(repository: &str, readme: &[u8]) -> Box<[Script]> {
         Script {
             cue: coding.into_bytes().into(),
             turns: Box::new([
-                call(b"read", json!({"path":"README.md"})),
-                call(b"read", json!({"path":".forgejo/workflows/ci.yml"})),
+                reads,
                 call(b"edit", json!({"path":"README.md","edits":[{"old":original,"new":edited}]})),
                 call(
                     b"finish",
@@ -275,6 +282,13 @@ fn life(root: &Path, restarted: bool) {
     }
     let ended = world.run(&clock, Duration::from_secs(250));
     assert!(ended.procs.iter().all(Host::is_empty), "engine, ctl and fake drained");
+    if !restarted {
+        // Change and wait precede the landed-task watch; the coder reads, edits, then finishes.
+        const SCRIPTED_REQUESTS: usize = 5;
+        let seen = super::forge_land::peer_seen(&ended.procs, 2);
+        assert_eq!(seen.requests.len(), SCRIPTED_REQUESTS, "exact scripted model requests");
+        assert_eq!(seen.answers, vec![Ok(()); SCRIPTED_REQUESTS], "every request answered");
+    }
     let Process::Binary(engine) = &ended.procs[0] else { panic!("engine") };
     let Process::Calls(calls) = &ended.procs[1] else { panic!("ctl") };
     // The parent captures these raw bytes before releasing any diagnostic.

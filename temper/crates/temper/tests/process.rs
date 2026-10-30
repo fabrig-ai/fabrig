@@ -1940,7 +1940,7 @@ fn a_persons_plan_change_lands_on_the_owned_forge_and_is_found_after_a_restart()
         let setup_calls = if first { 7 } else { 4 };
         let (account_at, found_at) = plan_change_steps(&mut steps, first, setup_calls, &words);
         let scripts = if first {
-            forge_land::plan_scripts(&Plan {
+            forge_land::compact_plan_scripts(&Plan {
                 words: words.as_bytes(),
                 line: addition.as_bytes(),
                 repository: temper_engine_domain_forge::tag(3, 1),
@@ -1998,11 +1998,11 @@ fn a_persons_plan_change_lands_on_the_owned_forge_and_is_found_after_a_restart()
             assert_eq!(unknown.stderr.trim_ascii_end(), b"{\"error\":\"unknown\"}", "no task 5: {stderr}");
         }
         forge_land::assert_reply(&outcome.calls[found_at + 4..tasks_at], first);
-        // One reviewer turn follows CI. Four coder turns include the workflow read;
+        // One reviewer turn follows CI. Three coder turns batch the independent reads;
         // three chat turns delegate, wait, then reply after the procedure ends.
         // After the restart, the chat's lost attempt answers again, then Close's
         // finish request takes its last text.
-        forge_land::assert_requests(&seen, if first { 8 } else { 2 }, words.as_bytes(), first);
+        forge_land::assert_requests_for(&seen, if first { [3, 3, 1] } else { [2, 0, 0] }, words.as_bytes(), first);
         let link = support::printed_link(&outcome.stdout).expect("printed link");
         assert_eq!(outcome.stdout, [link, b"\n"].concat(), "one printed link");
         assert_eq!(support::boxed::status(evidence.address, "/api/v1/version"), None);

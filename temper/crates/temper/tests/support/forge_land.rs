@@ -128,6 +128,19 @@ pub fn plan_scripts(plan: &Plan<'_>) -> Box<[Script]> {
     scripts.into_boxed_slice()
 }
 
+/// The plan's independent README and workflow reads share one coder turn.
+#[must_use]
+pub fn compact_plan_scripts(plan: &Plan<'_>) -> Box<[Script]> {
+    let mut scripts = plan_scripts(plan);
+    let mut coder = std::mem::take(&mut scripts[1].turns).into_vec();
+    let workflow = coder.remove(1);
+    let mut reads = std::mem::take(&mut coder[0].lines).into_vec();
+    reads.extend(workflow.lines);
+    coder[0].lines = reads.into_boxed_slice();
+    scripts[1].turns = coder.into_boxed_slice();
+    scripts
+}
+
 /// The coder fails at once, so the change holds and escalates to the chat, which
 /// answers with HELD instead of LANDED.
 #[must_use]
@@ -471,6 +484,29 @@ pub fn assert_requests(seen: &Seen, count: usize, words: &[u8], first: bool) {
         counts[kind] += 1;
     }
     assert_eq!(counts, if first { [3, 4, 1] } else { [2, 0, 0] }, "chat, coder, review requests");
+    assert_eq!(seen.requests.len(), count, "exact scripted model requests");
+    assert_eq!(seen.answers, vec![Ok(()); count], "every request answered");
+    assert_eq!(seen.schemes, vec![Some(skein_llm::Scheme::Bearer); count], "a bearer on every request");
+}
+
+/// Every scripted request is answered with bearer authentication, in the stated task counts.
+pub fn assert_requests_for(seen: &Seen, expected: [usize; 3], words: &[u8], first: bool) {
+    let mut counts = [0; 3];
+    for query in &seen.requests {
+        let has = |cue: &[u8]| query.system.windows(cue.len()).any(|part| part == cue);
+        let kind = if (first && super::llm::request_has(query, words)) || (!first && has(words)) {
+            0
+        } else if has(b"## Task\n\n@coding Append this README line:") {
+            1
+        } else if has(b"Review this change at the named head") {
+            2
+        } else {
+            panic!("unexpected task cue")
+        };
+        counts[kind] += 1;
+    }
+    let count = expected.into_iter().sum::<usize>();
+    assert_eq!(counts, expected, "chat, coder, review requests");
     assert_eq!(seen.requests.len(), count, "exact scripted model requests");
     assert_eq!(seen.answers, vec![Ok(()); count], "every request answered");
     assert_eq!(seen.schemes, vec![Some(skein_llm::Scheme::Bearer); count], "a bearer on every request");
