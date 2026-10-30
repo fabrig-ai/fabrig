@@ -203,7 +203,10 @@ counts reaped descendants killed with SIGKILL as `leaked`. Settlement ends at
 ECHILD or after one second. Cleanup eligibility and the deadline are checked
 on every iteration, including successful reaps, and during the owned-child
 kill walk. A failure to prove settlement sets `complete=false`.
-Only `/proc/self/task/SELF/children` is inspected for cleanup; no foreign
+The supervisor opens `/proc/self/task/SELF/children` before launching the
+payload and retains its close-on-exec descriptor. Cleanup rewinds and reads
+that descriptor, parsing PID tokens across read boundaries without another
+open or allocation. Only that children list is inspected; no foreign
 process environment, credentials or cgroup state is read.
 
 `complete_scope="waited-and-reaped-descendants"` defines completeness: the test,
@@ -277,8 +280,10 @@ Pending tests and checkpointed tests still settling descendants both count as
 active for hard-wall supervision.
 
 `tools/tiers/budgets.toml` contains optional per-pair tables with finite positive
-seconds: `cpu_suite_s`, `cpu_test_s`, `wall_hard_s`. It is empty until the user
-sets numbers. `--verify-all` validates every budget key, value and configured
+seconds: `cpu_suite_s`, `cpu_test_s`, `wall_hard_s`. The tables record the
+user's approved limits; absent tables have no limits set here. `[tools]`
+reserves the suite namespace in section 7.5.
+`--verify-all` validates every budget key, value and configured
 pair before any heavy command. CPU mode validates it too. A test's CPU budget
 covers all its attempts; a pair's covers every test attempt. The summary exits
 0 within budget or when no CPU budget is set, 1 for exceeded CPU budgets
@@ -294,6 +299,28 @@ alone returns 0; observed assertion, exit or protocol failures and exceeded
 CPU budgets keep their failure verdicts. Incomplete CPU on cancelled attempts
 is reported explicitly alongside the green warning.
 
+#### Budgets and completeness
+
+Budgets apply to recorded CPU: user plus system time of the test, its waited
+descendants and descendants the supervisor reaps, as defined by
+`complete_scope="waited-and-reaped-descendants"` (section 7.2). A descendant
+the kernel automatically reaps because the test ignores SIGCHLD or uses
+SA_NOCLDWAIT is not counted, and this exclusion is not detectable by the
+collector. An optional per-pair `auto_reap = ["test_name", ...]` declares
+known auto-reaping tests; it defaults to an empty list and is empty today.
+A declaration produces a summary warning, never a refusal, and does not
+waive CPU limits or completeness checks.
+
+An attempt cut short by the wall hard limit may have incomplete accounting:
+its `complete=false` record with starvation evidence stays accepted as
+`starved`, a green warning; failures observed before it stay red. Every other
+`complete=false` record is invalid (exit 2). Passing `wall_hard_s` means
+starved, a warning. Exceeding `cpu_suite_s` or `cpu_test_s` is red. Repair it
+by asking, in order: does the test belong in this tier; can it be made faster;
+otherwise, what does the user decide from the measurements? Moving a test
+to escape a budget raises it and is forbidden
+(`skein/docs/foundation/testing-strategy.md`, 8.1).
+
 ### 7.4 Offline proof
 
 Run `python3 -I -B tools/tiers/test_cpu.py` directly in a cold or warm checkout.
@@ -303,10 +330,14 @@ own temporary directory, cleaned after the suite. It never reads `target/`;
 a missing `cc` fails the suite with a clear error. The suite prints the user,
 system and total CPU seconds spent building both fixtures. The second build
 adds `tools/tiers/fixtures/cpu-settlement.c` and
-`-Wl,--wrap=wait4,--wrap=clock_gettime,--wrap=fopen,--wrap=kill` to the wrapper
+`-Wl,--wrap=wait4,--wrap=clock_gettime,--wrap=open,--wrap=read,--wrap=lseek,--wrap=kill,--wrap=write` to the wrapper
 build. It reaps one real child then models a stream
 of successful reaps and an advancing clock, with owned-child cleanup calls
-intercepted; it spawns no process storm and signals no synthetic PID.
+intercepted; it spawns no process storm and signals no synthetic PID. Its
+optional record trace captures each write to verify checkpoint state.
+The modeled children list splits PID tokens across reads. A separate kill
+refusal mode checks diagnostics when cleanup cannot settle; the test cleans
+up its owned surviving process independently.
 
 The suite covers overlay arguments and parsed configuration,
 record coverage and validation, retries and skipped tests, CPU budgets and
@@ -318,6 +349,134 @@ double-forked daemon cleanup, and 100 trivial
 attempts' overhead. `test_run.py` also checks budget validation during
 `--verify-all` and preserves the ordinary command-line assertions in section 5.
 All fixtures are local and use no service, sign-in or credential.
+
+### 7.5 One command as a tools suite
+
+From the checkout root,
+`tools/tiers/cpu-run --out DIR --suite ID [--wall-hard SECONDS] -- ARGV...`
+runs ARGV once under the same static supervisor. Cargo metadata locates
+`target_directory/tiers-cpu-wrapper`, the path used by `run --cpu`. An absent
+wrapper, or one older than its source, is built with section 7's flags through
+heavy after section 3's 80,000,000,000-byte admission check. Build diagnostics
+go to stderr; discovery is quiet on success. A failed discovery, build or
+launcher invocation returns 2 without running the suite.
+
+The launcher execs the native
+`--suite RECORD ID [--wall-hard SECONDS] -- ARGV...` mode. The command inherits its environment and
+all three standard streams. The supervisor returns the command's exit code
+or reproduces its terminating signal; launch failures return 127 and collector
+failures 125. Without `--wall-hard`, signals sent to the process group reach
+the command directly; the supervisor ignores PID-only termination signals as
+in section 7.2. No extra heavy command wraps an already admitted suite.
+Before exec, the Python launcher restores default dispositions for SIGPIPE,
+SIGXFSZ and SIGXFZ where available and ignored by Python, so a native payload
+retains its signal behavior, including a writer terminated by a closed pipe.
+
+With a finite positive `--wall-hard`, the payload starts in its own process
+group, separate from the recorder. Its deadline starts at the initial record,
+after discovery and any build. The native supervisor polls `wait4` without
+blocking. The deadline remains armed through descendant settlement, including
+after the main command is reaped. At expiry it checkpoints `starved=true`,
+preserving an already known exit status and marking the record as settling,
+and sends SIGTERM to the
+payload's group. If processes remain after a one-second grace, it sends
+SIGKILL to that group and repeatedly kills its own adopted children, including
+descendants that escaped the group with `setsid`. It reaps and accounts for
+the payload and descendants until ECHILD, allowing up to one further second
+for settlement. Only proven settlement produces `complete=true`. The command's
+exit code or terminating signal still passes through; a complete starved
+record makes starvation a green summary warning, with terminated payloads
+excluded from `failures`. Independently exceeded CPU budgets still return 1.
+
+Every post-launch collector error uses one failure path before exiting 125:
+signal the owned payload group with SIGTERM, allow a grace, escalate to
+SIGKILL, and reap adopted descendants. Where nextest or the caller owns the
+untimed group, cleanup signals only the recorder's direct children and those
+subsequently adopted, avoiding signals to the caller's group. Error cleanup
+uses up to 2,000 one-millisecond polling steps, escalating after 1,000, with
+bounded reap batches so a stream cannot prevent escalation. It uses neither
+the record writer nor the collector's clock, so those failures cannot abort
+cleanup recursively. Diagnostics follow cleanup, and the last published record
+remains incomplete; an interrupted write never claims completed accounting.
+Failed record writes close their descriptor before entering cleanup, preserving
+the write error for the diagnostic. The children-list descriptor is already
+open, so sustained EMFILE/ENFILE during record creation cannot prevent cleanup
+from finding escaped descendants after adoption. If bounded cleanup cannot
+prove settlement, stderr includes `cpu-wrapper: surviving pids:` followed by
+the remaining listed children; an enumeration error is explicit and includes
+the known unreaped payload PID. Exit 125 and incomplete accounting remain.
+
+The caller's own timeout **must exceed wall-hard + one-second grace + five
+seconds**, allowing scheduling and settlement time, and must never signal
+the recorder first. Discovery, disk admission, build queueing and compilation
+also need time outside the payload deadline. Use the native deadline to stop
+the payload while leaving its recorder alive to finish. A killed recorder,
+even after its starvation checkpoint, leaves an incomplete record that returns
+2 from the summary. Missing records remain invalid too.
+
+Each suite writes `DIR/<ID-sanitized>.json` directly, with section 7.2's fields:
+`profile="tools"`, `binary_id=ID`, `test_name="suite"`, `attempt=1`, plus the
+required boolean `starved` (false unless the native deadline expires). The filename
+uses UTF-8 percent encoding for characters outside ASCII letters, digits and
+`-_.~`, including `/` and `%`, so different IDs retain distinct names. The
+original ID stays in JSON and in budget keys. The initial pending record is
+published atomically without replacing an existing record; checkpoints and
+the settled record replace it atomically. Existing suite records are refused
+before command launch. A single DIR may hold several distinct suites.
+IDs must be nonempty and contain no NUL; they need not name an existing file
+or be relative paths. Encoding yields a single filename component, so an ID
+containing `..` or `/` cannot traverse out of DIR. DIR is resolved to an
+absolute path (following existing symlinks), then created with mode 0700 if
+absent. Existing directory permissions are preserved. The operating system's
+filename/path limits also apply, including room for the `.XXXXXX.tmp` suffix
+used during publication; failures are reported before payload launch.
+
+`cpu-summary DIR --pair tools --expect ID [--expect ID ...] [--budgets PATH]
+[--json]` requires an explicit inventory of expected suites. Every expected
+suite must have exactly one complete, settled record; missing, unexpected,
+duplicate, malformed or incomplete records return 2. Temporary files are
+ignored. No nextest run metadata or JUnit report is needed. Totals sum suite
+CPU and wall times, excluding launcher startup, discovery and wrapper builds.
+Suite exit failures remain visible in `failures`; the invocation's exit code
+must be checked by the caller. Summary exit codes retain section 7.3's meaning:
+0 for valid records without exceeded CPU limits, 1 over budget, 2 invalid.
+
+`[tools]` is an empty table until the user supplies suite limits. A suite's
+table is keyed by its original path, for example
+`[tools."tools/tiers/test_run.py"]`, with the same optional finite positive
+`cpu_suite_s`, `cpu_test_s` and `wall_hard_s` keys. Both CPU limits apply to that
+suite's single command record. A recorded wall time over its limit yields a
+green starved warning. The gate passes the intended execution deadline via
+`--wall-hard`; a budget table alone does not activate native cancellation.
+Complete records remain mandatory for starved suites.
+
+For example, ops can retain a fresh directory for a gate's tools suites and
+run each suite sequentially, checking each command's exit status:
+
+```sh
+tools/tiers/cpu-run --out "$records" --suite tools/tiers/test_run.py --wall-hard "$wall_hard" -- \
+    python3 -I -B tools/tiers/test_run.py
+tools/tiers/cpu-summary "$records" --budgets tools/tiers/budgets.toml \
+    --pair tools --expect tools/tiers/test_run.py
+```
+
+The gate repeats `--expect` for its full suite inventory even when a command
+fails to start; absence then fails coverage rather than implying success.
+Section 7.4's hermetic suite also checks generic command stdio, environment,
+exit and signal status, daemon cleanup, filename encoding, duplicate refusal,
+native build admission, expected coverage and tools budgets. Deadline cases
+cover SIGTERM, SIGKILL escalation, cleanup of an escaped child, a timely
+completion, invalid durations, and a recorder killed after its starvation
+checkpoint. The killed-recorder fixture cleans up its owned payload separately;
+the incomplete record must still be rejected.
+Regression checks also force a post-launch checkpoint write failure while
+a TERM-ignoring payload and escaped child are live, run a native writer into
+a closed pipe, and inspect starvation checkpoints during modeled settlement
+after the main command has exited with a known failure status.
+A descriptor-exhaustion regression lowers only the live supervisor's
+RLIMIT_NOFILE to zero while a TERM-ignoring payload and escaped child run;
+record creation fails, cleanup reaps both, and the summary rejects the retained
+incomplete record.
 
 ## 8. Later
 

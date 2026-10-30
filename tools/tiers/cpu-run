@@ -1,0 +1,76 @@
+#!/usr/bin/env python3
+"""Account for one tools suite command (tools/tiers/design.md, 7.5)."""
+
+import argparse
+import contextlib
+import io
+import math
+import os
+from pathlib import Path
+import runpy
+import shlex
+import signal
+import subprocess
+import sys
+from urllib.parse import quote
+
+
+def positive_seconds(value):
+    number = float(value)
+    if not math.isfinite(number) or number <= 0:
+        raise argparse.ArgumentTypeError('must be finite positive seconds')
+    return number
+
+
+def main():
+    os.umask(0o077)
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--out', type=Path, required=True)
+    parser.add_argument('--suite', required=True, metavar='ID')
+    parser.add_argument('--wall-hard', type=positive_seconds, metavar='SECONDS')
+    parser.add_argument('command', nargs=argparse.REMAINDER)
+    args = parser.parse_args()
+    if not args.suite or '\0' in args.suite:
+        parser.error('--suite must be a nonempty ID without NUL')
+    if len(args.command) < 2 or args.command[0] != '--':
+        parser.error('a command after -- is required')
+    runner = runpy.run_path(str(Path(__file__).with_name('run')))
+    env = dict(os.environ)
+    try:
+        directory = args.out.resolve()
+        directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+        record = directory / (quote(args.suite, safe='-_.') + '.json')
+        if record.exists():
+            raise ValueError(f'suite record already exists: {record}')
+        with contextlib.redirect_stdout(io.StringIO()):
+            target = runner['target_directory'](env)
+        wrapper = target / 'tiers-cpu-wrapper'
+        source = Path(__file__).with_name('cpu-wrapper.c').resolve()
+        if not wrapper.exists() or wrapper.stat().st_mtime_ns < source.stat().st_mtime_ns:
+            # Build evidence leaves the suite's stdout unchanged.
+            with contextlib.redirect_stdout(sys.stderr):
+                target.mkdir(parents=True, exist_ok=True)
+                runner['wait_for_disk'](env)
+                command = ['heavy', 'cc', '-std=c11', '-O2', '-static', '-Wall',
+                           '-Wextra', '-Werror', str(source), '-o', str(wrapper)]
+                print(f'tiers: CPU wrapper: {shlex.join(command)}', flush=True)
+                code = subprocess.run(command, env=env, stdin=subprocess.DEVNULL,
+                                      stdout=sys.stderr).returncode
+                if code:
+                    raise ValueError(f'CPU wrapper build: exit {code}')
+        # Exec keeps the static supervisor as the command's parent and preserves
+        # its status, signals and all three standard streams without a relay.
+        timeout = [] if args.wall_hard is None else ['--wall-hard', str(args.wall_hard)]
+        for name in ('SIGPIPE', 'SIGXFZ', 'SIGXFSZ'):
+            sig = getattr(signal, name, None)
+            if sig is not None and signal.getsignal(sig) == signal.SIG_IGN:
+                signal.signal(sig, signal.SIG_DFL)
+        os.execv(str(wrapper), [str(wrapper), '--suite', str(record), args.suite,
+                               *timeout, '--', *args.command[1:]])
+    except (OSError, ValueError, TypeError, runner['FailedStep']) as error:
+        print(f'cpu-run: {error}', file=sys.stderr)
+        return 2
+
+
+if __name__ == '__main__':
+    sys.exit(main())

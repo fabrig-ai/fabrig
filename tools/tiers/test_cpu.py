@@ -22,14 +22,14 @@ def setUpModule():
     global WRAPPER, SETTLEMENT_WRAPPER
     native = tempfile.TemporaryDirectory(dir=HERE.parents[1], prefix='tiers-cpu-native-')
     unittest.addModuleCleanup(native.cleanup)
-    WRAPPER = Path(native.name) / 'cpu-wrapper'
+    WRAPPER = Path(native.name) / 'tiers-cpu-wrapper'
     SETTLEMENT_WRAPPER = Path(native.name) / 'cpu-settlement-fixture'
     compiler = ['cc', '-std=c11', '-O2', '-static', '-Wall', '-Wextra', '-Werror',
                 str(HERE / 'cpu-wrapper.c')]
     before = resource.getrusage(resource.RUSAGE_CHILDREN)
     for arguments in (['-o', str(WRAPPER)],
                       [str(HERE / 'fixtures/cpu-settlement.c'),
-                       '-Wl,--wrap=wait4,--wrap=clock_gettime,--wrap=fopen,--wrap=kill',
+                       '-Wl,--wrap=wait4,--wrap=clock_gettime,--wrap=open,--wrap=read,--wrap=lseek,--wrap=kill,--wrap=write',
                        '-o', str(SETTLEMENT_WRAPPER)]):
         try:
             subprocess.run([*compiler, *arguments], check=True, stdin=subprocess.DEVNULL,
@@ -198,6 +198,25 @@ class CollectorTests(unittest.TestCase):
                     CPU['budgets'](path, {'qa-jig'})
         path.write_text('')
         self.assertEqual(CPU['budgets'](path, {'qa-jig'}), {})
+
+    def test_auto_reap_budget_declaration_warns_without_refusal(self):
+        path = self.root / 'budgets.toml'
+        self.record()
+        for names in ('[]', '["one"]'):
+            with self.subTest(names=names):
+                path.write_text(f'[qa-jig]\nauto_reap={names}\n')
+                limits = CPU['budgets'](path, {'qa-jig'})
+                self.assertEqual(limits['qa-jig']['auto_reap'], json.loads(names))
+                result = self.cli('--budgets', str(path))
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual('warning:' in result.stdout, names != '[]')
+        self.record(complete=False)
+        self.assertEqual(self.cli('--budgets', str(path)).returncode, 2)
+        for names in ('"one"', '[1]', '[""]', 'true'):
+            with self.subTest(names=names):
+                path.write_text(f'[qa-jig]\nauto_reap={names}\n')
+                with self.assertRaises(ValueError):
+                    CPU['budgets'](path, {'qa-jig'})
 
     def test_hard_wall_uses_heavy_cancel_and_stays_green(self):
         fake = self.root / 'heavy'
@@ -549,6 +568,425 @@ os.waitpid(child, 0)
               f'whole-lifetime overhead {overheads[slowest] * 1000:.3f}ms', flush=True)
         self.assertLess(statistics.median(overheads), 0.002)
         self.assertLess(max(overheads), 0.010)
+
+
+class CommandTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory(dir=HERE.parents[1], prefix='tiers-cpu-command-')
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        self.directory = self.root / 'suite records'
+        self.bin = self.root / 'bin'
+        self.bin.mkdir()
+        self.env = dict(os.environ, PATH=f"{self.bin}:{os.environ['PATH']}",
+                        FIXTURE_TARGET=str(WRAPPER.parent), FIXTURE_WRAPPER=str(WRAPPER),
+                        FIXTURE_COMMAND_LOG=str(self.root / 'commands'),
+                        NEXTEST_PROFILE='unchanged')
+        self.fake('cargo', "import json,os,sys\n"
+                  "assert sys.argv[1:]==['metadata','--format-version','1','--no-deps']\n"
+                  "print(json.dumps({'target_directory':os.environ['FIXTURE_TARGET']}))\n")
+        self.fake('heavy', "import json,os,shutil,sys\nfrom pathlib import Path\n"
+                  "Path(os.environ['FIXTURE_COMMAND_LOG']).write_text(json.dumps(sys.argv[1:]))\n"
+                  "if os.environ.get('FIXTURE_FAIL_BUILD'): sys.exit(9)\n"
+                  "shutil.copyfile(os.environ['FIXTURE_WRAPPER'],sys.argv[-1])\n"
+                  "Path(sys.argv[-1]).chmod(0o700)\n")
+        self.fake('df', "import os\nfrom pathlib import Path\n"
+                  "Path(os.environ['FIXTURE_COMMAND_LOG']+'.disk').touch()\n"
+                  "print('Avail\\n80000000000')\n")
+
+    def fake(self, name, source):
+        path = self.bin / name
+        path.write_text(f'#!{sys.executable}\n' + source)
+        path.chmod(0o700)
+
+    def invoke(self, code, *, suite='tools/fixture.py', input_text=None, wall_hard=None):
+        timeout = [] if wall_hard is None else ['--wall-hard', str(wall_hard)]
+        return subprocess.run([sys.executable, '-I', '-B', str(HERE / 'cpu-run'),
+                               '--out', str(self.directory), '--suite', suite, *timeout, '--',
+                               sys.executable, '-I', '-c', code], env=self.env,
+                              input=input_text, text=True, capture_output=True, timeout=10)
+
+    def summary(self, *arguments):
+        return subprocess.run([sys.executable, '-I', '-B', str(HERE / 'cpu-summary'),
+                               str(self.directory), '--pair', 'tools', *arguments],
+                              stdin=subprocess.DEVNULL, text=True, capture_output=True, timeout=5)
+
+    def record(self):
+        paths = list(self.directory.glob('*.json'))
+        self.assertEqual(len(paths), 1)
+        return paths[0], json.loads(paths[0].read_text())
+
+    def test_command_stdio_environment_status_and_named_atomic_record(self):
+        suite = '../tools/quoted" é%_.py'
+        result = self.invoke('import os,sys; print(sys.stdin.read()); '
+                             'print(os.environ["NEXTEST_PROFILE"],file=sys.stderr); sys.exit(7)',
+                             suite=suite, input_text='input')
+        self.assertEqual((result.returncode, result.stdout, result.stderr), (7, 'input\n', 'unchanged\n'))
+        path, item = self.record()
+        self.assertEqual(path.name, '..%2Ftools%2Fquoted%22%20%C3%A9%25_.py.json')
+        self.assertEqual((item['profile'], item['binary_id'], item['test_name'], item['attempt']),
+                         ('tools', suite, 'suite', 1))
+        self.assertEqual(item['exit_code'], 7)
+        self.assertTrue(item['complete'])
+        self.assertFalse(item['pending'])
+        self.assertFalse(item['settling'])
+        self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+        self.assertEqual(list(self.directory.glob('*.tmp')), [])
+        self.assertEqual(self.summary('--expect', suite).returncode, 0)
+        self.assertEqual(self.invoke('raise Exception("must not run")', suite=suite).returncode, 2)
+        self.assertEqual(json.loads(path.read_text()), item)
+        # The native mode also refuses concurrent attempts to publish one suite.
+        duplicate = subprocess.run([str(WRAPPER), '--suite', str(path), suite, '--', '/bin/false'],
+                                   stdin=subprocess.DEVNULL, capture_output=True, timeout=5)
+        self.assertEqual(duplicate.returncode, 125)
+        self.assertEqual(json.loads(path.read_text()), item)
+
+    def test_command_signal_passes_through(self):
+        result = self.invoke('import os,signal; os.kill(os.getpid(),signal.SIGTERM)')
+        self.assertEqual(result.returncode, -signal.SIGTERM, result.stderr)
+        _, item = self.record()
+        self.assertEqual(item['signal'], signal.SIGTERM)
+        self.assertIsNone(item['exit_code'])
+        self.assertTrue(item['complete'])
+
+    def test_collector_write_failure_cleans_payload_and_escaped_child(self):
+        ready = self.root / 'owned-pids'
+        errors = self.root / 'collector-errors'
+        self.directory.mkdir()
+        output = errors.open('wb')
+        self.addCleanup(output.close)
+        process = subprocess.Popen([sys.executable, '-I', '-B', str(HERE / 'cpu-run'),
+                                    '--out', str(self.directory), '--suite', 'write-failed',
+                                    '--wall-hard', '0.25', '--', sys.executable, '-I', '-c',
+                                    f'''import os,signal,time
+from pathlib import Path
+signal.signal(signal.SIGTERM,signal.SIG_IGN)
+parent=os.getpid()
+child=os.fork()
+if child==0:
+    os.setsid()
+    Path({str(ready)!r}).write_text(str(parent)+' '+str(os.getpid()))
+    Path({str(self.directory)!r}).chmod(0o500)
+time.sleep(30)
+'''], env=self.env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                   stderr=output, start_new_session=True)
+        def cleanup():
+            self.directory.chmod(0o700)
+            if ready.exists():
+                for pid in map(int, ready.read_text().split()):
+                    try:
+                        os.kill(pid, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+            if process.poll() is None:
+                process.kill()
+            process.communicate(timeout=5)
+        self.addCleanup(cleanup)
+        self.assertEqual(process.wait(timeout=5), 125)
+        self.assertIn('write record', errors.read_text())
+        pids = [int(value) for value in ready.read_text().split()]
+        self.assertEqual(len(pids), 2)
+        for pid in pids:
+            with self.assertRaises(ProcessLookupError, msg=f'owned process {pid} survived collector failure'):
+                os.kill(pid, 0)
+        _, item = self.record()
+        self.assertFalse(item['complete'])
+        self.assertEqual(self.summary('--expect', 'write-failed').returncode, 2)
+
+    def test_native_writer_retains_default_sigpipe(self):
+        reader, writer = os.pipe()
+        os.close(reader)
+        try:
+            result = subprocess.run([sys.executable, '-I', '-B', str(HERE / 'cpu-run'),
+                                     '--out', str(self.directory), '--suite', 'pipe', '--', 'yes'],
+                                    env=self.env, stdin=subprocess.DEVNULL, stdout=writer,
+                                    stderr=subprocess.PIPE, timeout=5)
+        finally:
+            os.close(writer)
+        self.assertEqual(result.returncode, -signal.SIGPIPE, result.stderr)
+        _, item = self.record()
+        self.assertEqual(item['signal'], signal.SIGPIPE)
+        self.assertIsNone(item['exit_code'])
+        self.assertTrue(item['complete'])
+
+    def test_descriptor_exhaustion_cleanup_reaps_escaped_child(self):
+        ready = self.root / 'exhausted-pids'
+        errors = self.root / 'exhausted-errors'
+        output = errors.open('wb')
+        self.addCleanup(output.close)
+        process = subprocess.Popen([sys.executable, '-I', '-B', str(HERE / 'cpu-run'),
+                                    '--out', str(self.directory), '--suite', 'exhausted',
+                                    '--wall-hard', '1', '--', sys.executable, '-I', '-c',
+                                    f'''import os,signal,time
+from pathlib import Path
+signal.signal(signal.SIGTERM,signal.SIG_IGN)
+parent=os.getpid()
+if os.fork()==0:
+    os.setsid()
+    Path({str(ready)!r}).write_text(str(parent)+' '+str(os.getpid()))
+time.sleep(30)
+'''], env=self.env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                   stderr=output, start_new_session=True)
+        def cleanup():
+            if ready.exists():
+                for pid in map(int, ready.read_text().split()):
+                    try:
+                        os.kill(pid, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+            if process.poll() is None:
+                process.kill()
+            process.communicate(timeout=5)
+        self.addCleanup(cleanup)
+        deadline = time.monotonic() + 5
+        while not ready.exists():
+            if time.monotonic() > deadline or process.poll() is not None:
+                self.fail('owned payload did not become ready')
+            time.sleep(0.001)
+        _, hard = resource.prlimit(process.pid, resource.RLIMIT_NOFILE)
+        resource.prlimit(process.pid, resource.RLIMIT_NOFILE, (0, hard))
+        self.assertEqual(process.wait(timeout=8), 125)
+        self.assertIn('Too many open files', errors.read_text())
+        pids = [int(value) for value in ready.read_text().split()]
+        self.assertEqual(len(pids), 2)
+        for pid in pids:
+            with self.assertRaises(ProcessLookupError, msg=f'owned process {pid} survived descriptor exhaustion'):
+                os.kill(pid, 0)
+        _, item = self.record()
+        self.assertFalse(item['complete'])
+        self.assertEqual(self.summary('--expect', 'exhausted').returncode, 2)
+
+    def test_deadline_stays_armed_during_settlement_with_known_exit(self):
+        self.directory.mkdir()
+        record = self.directory / 'settlement.json'
+        marker = self.root / 'cleanup'
+        trace = self.root / 'records-trace'
+        result = subprocess.run([str(SETTLEMENT_WRAPPER), '--suite', str(record), 'settlement',
+                                 '--wall-hard', '0.5', '--', '/bin/sh', '-c', 'exit 7'],
+                                env=dict(self.env, TIERS_CLEANUP_MARKER=str(marker),
+                                         TIERS_RECORD_TRACE=str(trace)),
+                                stdin=subprocess.DEVNULL, capture_output=True, timeout=5)
+        self.assertEqual(result.returncode, 7, result.stderr)
+        item = json.loads(record.read_text())
+        self.assertTrue(item['starved'], 'settlement crossed the deadline without starvation')
+        self.assertEqual(item['exit_code'], 7)
+        self.assertIsNone(item['signal'])
+        self.assertFalse(item['pending'])
+        self.assertFalse(item['settling'])
+        self.assertTrue(item['complete'])
+        checkpoints = [json.loads(line) for line in trace.read_text().splitlines()]
+        checkpoint = next(r for r in checkpoints if r['starved'] and not r['complete'])
+        self.assertEqual(checkpoint['exit_code'], 7)
+        self.assertIsNone(checkpoint['signal'])
+        self.assertFalse(checkpoint['pending'])
+        self.assertTrue(checkpoint['settling'])
+
+    def test_unproven_cleanup_names_surviving_pid(self):
+        self.directory.mkdir()
+        ready = self.root / 'refused-pid'
+        errors = self.root / 'refused-errors'
+        output = errors.open('wb')
+        self.addCleanup(output.close)
+        process = subprocess.Popen([str(SETTLEMENT_WRAPPER), '--suite',
+                                    str(self.directory / 'refused.json'), 'refused',
+                                    '--wall-hard', '0.25', '--', sys.executable, '-I', '-c',
+                                    'import os,signal,time; from pathlib import Path; '
+                                    'signal.signal(signal.SIGTERM,signal.SIG_IGN); '
+                                    f'Path({str(ready)!r}).write_text(str(os.getpid())); time.sleep(30)'],
+                                   env=dict(self.env, TIERS_REFUSE_KILL='1'),
+                                   stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                   stderr=output, start_new_session=True)
+        def cleanup():
+            if ready.exists():
+                try:
+                    os.kill(int(ready.read_text()), signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+            if process.poll() is None:
+                process.kill()
+            process.communicate(timeout=5)
+        self.addCleanup(cleanup)
+        self.assertEqual(process.wait(timeout=8), 125)
+        pid = int(ready.read_text())
+        os.kill(pid, 0)
+        self.assertIn(f'cpu-wrapper: surviving pids: {pid}\n', errors.read_text())
+        _, item = self.record()
+        self.assertFalse(item['complete'])
+        self.assertEqual(self.summary('--expect', 'refused').returncode, 2)
+
+    def test_wall_starvation_reaps_payload_group_and_escaped_child(self):
+        for mode in ('term', 'kill', 'escaped'):
+            with self.subTest(mode=mode):
+                result = self.invoke(f'''import os,signal,time
+mode={mode!r}
+if mode=='kill': signal.signal(signal.SIGTERM,signal.SIG_IGN)
+print(os.getpid(),flush=True)
+if os.fork()==0:
+    if mode=='escaped': os.setsid()
+    print(os.getpid(),flush=True)
+time.sleep(30)
+''', suite=mode, wall_hard=0.25)
+                self.assertEqual(result.returncode,
+                                 -signal.SIGKILL if mode == 'kill' else -signal.SIGTERM,
+                                 result.stderr)
+                pids = [int(line) for line in result.stdout.splitlines()]
+                self.assertEqual(len(pids), 2)
+                for pid in pids:
+                    with self.assertRaises(ProcessLookupError):
+                        os.kill(pid, 0)
+                item = next(r for r in CPU['records'](self.directory, tools=True)
+                            if r['binary_id'] == mode)
+                self.assertTrue(item['starved'])
+                self.assertTrue(item['complete'])
+                self.assertFalse(item['pending'])
+                self.assertFalse(item['settling'])
+                if mode != 'term':
+                    self.assertGreaterEqual(item['wall_s'], 1.25)
+                    self.assertEqual(item['leaked'], 1)
+        result = self.summary('--expect', 'term', '--expect', 'kill', '--expect', 'escaped', '--json')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        report = json.loads(result.stdout)
+        self.assertEqual(report['verdict'], 'starved')
+        self.assertEqual(report['suite']['starved'], 3)
+        self.assertEqual(report['suite']['incomplete'], 0)
+        self.assertEqual(report['failures'], [])
+
+    def test_killed_supervisor_starved_checkpoint_is_invalid(self):
+        ready = self.root / 'payload'
+        process = subprocess.Popen([sys.executable, '-I', '-B', str(HERE / 'cpu-run'),
+                                    '--out', str(self.directory), '--suite', 'killed',
+                                    '--wall-hard', '0.25', '--', sys.executable, '-I', '-c',
+                                    'import os,signal,time; from pathlib import Path; '
+                                    'signal.signal(signal.SIGTERM,signal.SIG_IGN); '
+                                    f'Path({str(ready)!r}).write_text(str(os.getpid())); time.sleep(30)'],
+                                   env=self.env, stdin=subprocess.DEVNULL,
+                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                   start_new_session=True)
+        def cleanup():
+            if ready.exists():
+                try:
+                    os.killpg(int(ready.read_text()), signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+            if process.poll() is None:
+                process.kill()
+            process.communicate(timeout=5)
+        self.addCleanup(cleanup)
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            paths = list(self.directory.glob('*.json'))
+            if paths and json.loads(paths[0].read_text())['starved']:
+                break
+            time.sleep(0.001)
+        else:
+            self.fail('supervisor did not checkpoint starvation')
+        process.kill()
+        process.communicate(timeout=5)
+        self.assertEqual(process.returncode, -signal.SIGKILL)
+        _, item = self.record()
+        self.assertTrue(item['starved'])
+        self.assertTrue(item['pending'])
+        self.assertFalse(item['complete'])
+        result = self.summary('--expect', 'killed')
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertIn('incomplete', result.stderr)
+
+    def test_wall_hard_validation_and_timely_completion(self):
+        for value in ('0', '-1', 'nan', 'inf', 'bad'):
+            with self.subTest(value=value):
+                result = self.invoke('raise Exception("must not run")', wall_hard=value)
+                self.assertEqual(result.returncode, 2, result.stderr)
+        result = self.invoke('pass', wall_hard=5)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        _, item = self.record()
+        self.assertFalse(item['starved'])
+        self.assertTrue(item['complete'])
+        self.assertEqual(self.summary('--expect', 'tools/fixture.py').returncode, 0)
+
+    def test_command_daemon_is_reaped_and_accounted(self):
+        result = self.invoke('''import os,time
+child=os.fork()
+if child==0:
+    os.setsid()
+    if os.fork(): os._exit(0)
+    print(os.getpid(),flush=True)
+    end=time.process_time()+0.03
+    while time.process_time()<end: pass
+    time.sleep(30)
+os.waitpid(child,0)
+''')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        with self.assertRaises(ProcessLookupError):
+            os.kill(int(result.stdout), 0)
+        _, item = self.record()
+        self.assertTrue(item['complete'])
+        self.assertEqual(item['leaked'], 1)
+        self.assertGreater(item['user_s'] + item['system_s'], 0.03)
+
+    def test_command_builds_missing_or_stale_wrapper_with_disk_admission(self):
+        target = self.root / 'target with spaces'
+        self.env['FIXTURE_TARGET'] = str(target)
+        for stale in (False, True):
+            with self.subTest(stale=stale):
+                if stale:
+                    os.utime(target / 'tiers-cpu-wrapper', (1, 1))
+                result = self.invoke('print("suite output")', suite=str(stale))
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stdout, 'suite output\n')
+                command = json.loads((self.root / 'commands').read_text())
+                self.assertEqual(command, ['cc', '-std=c11', '-O2', '-static', '-Wall', '-Wextra',
+                                          '-Werror', str(HERE / 'cpu-wrapper.c'),
+                                          '-o', str(target / 'tiers-cpu-wrapper')])
+                self.assertTrue((self.root / 'commands.disk').exists())
+        self.env['FIXTURE_TARGET'] = str(self.root / 'failed target')
+        self.env['FIXTURE_FAIL_BUILD'] = '1'
+        result = self.invoke('raise Exception("must not run")', suite='failed')
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertIn('CPU wrapper build: exit 9', result.stderr)
+
+    def test_command_summary_requires_complete_expected_inventory(self):
+        self.directory.mkdir()
+        self.assertEqual(self.summary('--expect', 'missing').returncode, 2)
+        self.assertIn('missing', self.summary('--expect', 'missing').stderr)
+        self.assertEqual(self.summary().returncode, 2)
+        result = self.invoke('pass')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.summary('--expect', 'tools/fixture.py', '--expect', 'missing').returncode, 2)
+        self.assertEqual(self.summary('--expect', 'other').returncode, 2)
+        path, item = self.record()
+        for changes in ({'complete': False}, {'user_s': -1}, {'attempt': 2},
+                        {'profile': 'default'}, {'test_name': 'other'}, {'settling': True},
+                        {'starved': 1}, {'starved': None}):
+            with self.subTest(changes=changes):
+                CPU['save'](path, dict(item, **changes))
+                self.assertEqual(self.summary('--expect', 'tools/fixture.py').returncode, 2)
+        CPU['save'](path, item)
+        CPU['save'](self.directory / 'duplicate.json', item)
+        self.assertEqual(self.summary('--expect', 'tools/fixture.py').returncode, 2)
+
+    def test_command_summary_tools_budgets_and_multiple_suites(self):
+        self.assertEqual(self.invoke('pass').returncode, 0)
+        path, item = self.record()
+        CPU['save'](path, dict(item, user_s=1.0, system_s=0.5))
+        self.assertEqual(self.invoke('pass', suite='tools/second.py').returncode, 0)
+        budget = self.root / 'budgets.toml'
+        arguments = ['--expect', 'tools/fixture.py', '--expect', 'tools/second.py',
+                     '--budgets', str(budget), '--json']
+        budget.write_text('[tools."tools/fixture.py"]\ncpu_suite_s=1.5\ncpu_test_s=1.5\n')
+        self.assertIn('tools', CPU['budgets'](budget, {'qa-jig'}))
+        result = self.summary(*arguments)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout)['suite']['tests'], 2)
+        budget.write_text('[tools."tools/fixture.py"]\ncpu_suite_s=1.0\ncpu_test_s=1.0\n')
+        result = self.summary(*arguments)
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertEqual(len(json.loads(result.stdout)['over_budget']), 2)
+        for content in ('tools=1', '[tools]\ncpu_suite_s=1',
+                        '[tools."tools/fixture.py"]\ncpu_suite_s=nan',
+                        '[tools."tools/fixture.py"]\nunknown=1'):
+            with self.subTest(content=content):
+                budget.write_text(content)
+                self.assertEqual(self.summary(*arguments).returncode, 2)
 
 
 if __name__ == '__main__':

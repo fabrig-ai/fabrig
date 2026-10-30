@@ -20,14 +20,29 @@ KEYS = {"cpu_suite_s", "cpu_test_s", "wall_hard_s"}
 def budgets(path, pairs=None):
     with Path(path).open("rb") as source:
         data = tomllib.load(source)
-    for pair, values in data.items():
-        if pairs is not None and pair not in pairs:
-            raise ValueError(f"unknown budget pair {pair}")
-        if not isinstance(values, dict) or values.keys() - KEYS:
-            raise ValueError(f"invalid budget keys for {pair}")
+    def validate(name, values, *, pair=False):
+        keys = KEYS | {"auto_reap"} if pair else KEYS
+        if not isinstance(values, dict) or values.keys() - keys:
+            raise ValueError(f"invalid budget keys for {name}")
         for key, value in values.items():
+            if key == "auto_reap":
+                if not isinstance(value, list) or any(not isinstance(test, str) or not test for test in value):
+                    raise ValueError(f"{name}.auto_reap must be a list of nonempty test names")
+                continue
             if (type(value) not in (int, float) or not math.isfinite(value) or value <= 0):
-                raise ValueError(f"{pair}.{key} must be finite positive seconds")
+                raise ValueError(f"{name}.{key} must be finite positive seconds")
+    for pair, values in data.items():
+        if pair == "tools":
+            if not isinstance(values, dict):
+                raise ValueError("tools budgets must be a table keyed by suite ID")
+            for suite, limits in values.items():
+                if not suite:
+                    raise ValueError("empty tools suite ID")
+                validate(f"tools.{suite}", limits)
+        else:
+            if pairs is not None and pair not in pairs:
+                raise ValueError(f"unknown budget pair {pair}")
+            validate(pair, values, pair=True)
     return data
 
 
@@ -90,11 +105,11 @@ def prepare(directory, profile, wrapper, config=Path('.config/nextest.toml')):
     return ["--config-file", str(private), "--tool-config-file", f"tiers-cpu:{overlay}"]
 
 
-def records(directory):
+def records(directory, *, tools=False):
     result = []
     seen = set()
-    for path in sorted((directory / "records").iterdir()):
-        if path.name.endswith(".tmp"):
+    for path in sorted((directory if tools else directory / "records").iterdir()):
+        if path.name.endswith(".tmp") or (tools and not path.name.endswith(".json")):
             continue
         lines = path.read_text().splitlines()
         if len(lines) != 1:
@@ -112,6 +127,8 @@ def records(directory):
         for field in ("complete", "pending"):
             if type(item[field]) is not bool:
                 raise ValueError(f"invalid {field} in {path}")
+        if tools and type(item.get('starved')) is not bool:
+            raise ValueError(f"invalid starved in {path}")
         if type(item["leaked"]) is not int or item["leaked"] < 0:
             raise ValueError(f"invalid leaked in {path}")
         if ('settling' in item and (type(item['settling']) is not bool
@@ -174,8 +191,12 @@ def junit(directory, profile):
     return expected, timeouts, failures, passed
 
 
-def summary(directory, limits=None, pair=None):
+def summary(directory, limits=None, pair=None, expected=None):
     directory = Path(directory)
+    if pair == "tools":
+        return tools_summary(directory, limits, expected)
+    if expected is not None:
+        raise ValueError("--expect requires --pair tools")
     run = json.loads((directory / "run.json").read_text())
     if run.get("finished") is not True or type(run.get("starved")) is not bool:
         raise ValueError("run is not finished")
@@ -229,14 +250,36 @@ def summary(directory, limits=None, pair=None):
         elif item['signal'] not in (signal.SIGTERM, signal.SIGKILL) or key not in timeouts:
             unresolved[test] = f"{test[0]} {test[1]}"
     failures = sorted((set(failures) - superseded_junit) | set(unresolved.values()))
+    return summarize_records(items, pair, limits, run, timeouts, failures)
+
+
+def tools_summary(directory, limits, expected):
+    if not expected or any(not isinstance(suite, str) or not suite for suite in expected):
+        raise ValueError("tools coverage requires at least one --expect ID")
+    items = records(directory, tools=True)
+    actual = {(r['profile'], r['binary_id'], r['test_name'], r['attempt']) for r in items}
+    wanted = {('tools', suite, 'suite', 1) for suite in expected}
+    if actual != wanted:
+        raise ValueError(f"record coverage: missing {sorted(wanted - actual)}; unexpected {sorted(actual - wanted)}")
+    if any(not r['complete'] or r['pending'] or r.get('settling', False) for r in items):
+        raise ValueError("incomplete tools suite record")
+    failures = [f"{r['binary_id']} suite" for r in items
+                if r['exit_code'] != 0 and not (r['starved'] and r['signal'] in (signal.SIGTERM, signal.SIGKILL))]
+    timeouts = {(r['profile'], r['binary_id'], r['test_name'], r['attempt'])
+                for r in items if r['starved']}
+    run = dict(starved=False, wall_s=sum(r['wall_s'] for r in items))
+    return summarize_records(items, 'tools', limits, run, timeouts, failures)
+
+
+def summarize_records(items, pair, limits, run, timeouts, failures):
     limits = (limits or {}).get(pair, {})
-    wall_starved = run['starved'] or ('wall_hard_s' in limits and run['wall_s'] > limits['wall_hard_s'])
+    wall_starved = run['starved'] or (pair != 'tools' and 'wall_hard_s' in limits and run['wall_s'] > limits['wall_hard_s'])
     tests, over = [], []
     totals = dict(cpu_s=0.0, user_s=0.0, system_s=0.0, test_wall_s=0.0,
                   starved=0, leaked=0, incomplete=0, attempts=len(items))
     groups = {}
     for item in items:
-        key = (profile, item['binary_id'], item['test_name'], item['attempt'])
+        key = (pair, item['binary_id'], item['test_name'], item['attempt'])
         if item['pending'] and key not in timeouts and not run['starved']:
             raise ValueError(f"unfinished attempt without starvation evidence: {key}")
         starved = key in timeouts or (run['starved'] and item['pending'])
@@ -262,11 +305,19 @@ def summary(directory, limits=None, pair=None):
         test['attempts'] += 1
     tests = [groups[key] for key in sorted(groups)]
     for test in tests:
-        if 'cpu_test_s' in limits and test['cpu_s'] > limits['cpu_test_s']:
-            over.append(f"test {test['binary_id']} {test['test_name']}: {test['cpu_s']:.6f}s > {limits['cpu_test_s']}s")
-    if 'cpu_suite_s' in limits and totals['cpu_s'] > limits['cpu_suite_s']:
+        test_limits = limits.get(test['binary_id'], {}) if pair == 'tools' else limits
+        if 'cpu_test_s' in test_limits and test['cpu_s'] > test_limits['cpu_test_s']:
+            over.append(f"test {test['binary_id']} {test['test_name']}: {test['cpu_s']:.6f}s > {test_limits['cpu_test_s']}s")
+        if pair == 'tools':
+            if 'cpu_suite_s' in test_limits and test['cpu_s'] > test_limits['cpu_suite_s']:
+                over.append(f"suite {test['binary_id']}: {test['cpu_s']:.6f}s > {test_limits['cpu_suite_s']}s")
+            if 'wall_hard_s' in test_limits and test['wall_s'] > test_limits['wall_hard_s']:
+                wall_starved = True
+    if pair != 'tools' and 'cpu_suite_s' in limits and totals['cpu_s'] > limits['cpu_suite_s']:
         over.append(f"suite {pair}: {totals['cpu_s']:.6f}s > {limits['cpu_suite_s']}s")
-    return dict(pair=pair, tests=tests, suite=dict(totals, tests=len(tests), wall_s=run['wall_s'],
+    warnings = [f"{pair} {name}: auto-reaped descendant CPU may be absent from complete_scope"
+                for name in limits.get('auto_reap', [])] if pair != 'tools' else []
+    return dict(pair=pair, tests=tests, warnings=warnings, suite=dict(totals, tests=len(tests), wall_s=run['wall_s'],
                 starved_run=wall_starved), failures=failures, over_budget=over,
                 verdict="over budget" if over else "starved" if wall_starved or timeouts else "within budget" if limits else "no budget set")
 
@@ -284,6 +335,8 @@ def print_summary(result, as_json=False):
           f"CPU {suite['cpu_s']:.6f}s (user {suite['user_s']:.6f}s system {suite['system_s']:.6f}s), "
           f"wall {suite['wall_s']:.6f}s; starved {suite['starved']} "
           f"starved_run {suite['starved_run']} leaked {suite['leaked']} incomplete {suite['incomplete']}; {result['verdict']}")
+    for message in result['warnings']:
+        print(f'warning: {message}')
     for message in result['over_budget']:
         print(message)
 
