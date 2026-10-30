@@ -960,3 +960,171 @@ fn selected_nested_causes_keep_the_outer_stored_key_and_first_fit_order() {
         }
     }
 }
+
+#[test]
+fn selected_adoption_owned_bytes_keep_answer_and_act_keys_at_the_bound() {
+    for acted in [false, true] {
+        for extra in [0_usize, 1] {
+            let env = env();
+            let limit = usize::try_from(env.limits.amendment_bytes).unwrap();
+            let adoption = Adoption {
+                resource: ResourceName { connector: 1, path: Box::new([Box::from(b"p".as_slice())]) },
+                role: ResourceRole::Owned,
+                options: Box::new([skein_lib::bytes::zeroed(limit - 2 * size_of::<Box<[u8]>>() - 1 + extra)]),
+            };
+            let row = if acted {
+                Stored::Acted {
+                    key: ActKey { connector: 3, key: [29; 16] },
+                    act: Act::Adopt { project: 1, adoption },
+                    outcome: Outcome::Adopted { project: 1 },
+                    at: Wall::EPOCH,
+                }
+            } else {
+                answer(28, Ask::Adopt { project: 1, adoption }, Outcome::Adopted { project: 1 })
+            };
+            let key = row.key();
+            let (mut domain, mut out) = new_start(&env);
+            load(&mut domain, &env, person(1), &mut out);
+            load(&mut domain, &env, row, &mut out);
+            if extra == 0 {
+                assert_eq!(domain.restore_failure(), None);
+                assert!(domain.start_link(&env));
+            } else {
+                assert_eq!(
+                    domain.restore_failure(),
+                    Some(RestoreFailure {
+                        key,
+                        cause: RestoreCause::Bound {
+                            which: RestoreBound::AmendmentBytes,
+                            held: u64::try_from(limit + extra).unwrap(),
+                            limit: u64::try_from(limit).unwrap(),
+                        }
+                    })
+                );
+                assert_eq!(
+                    out.pop(),
+                    Some(Request::RestoreRefused { key, refusal: Refusal::Limit { which: LimitKind::Restore } })
+                );
+                assert!(!domain.start_link(&env));
+            }
+            assert!(out.is_empty());
+        }
+    }
+}
+
+#[test]
+fn selected_note_and_policy_owned_bytes_keep_the_outer_key_at_the_bound() {
+    for policy in [false, true] {
+        for extra in [0_usize, 1] {
+            let env = env();
+            let limit = usize::try_from(env.limits.amendment_bytes).unwrap();
+            let slot = size_of::<Box<[u8]>>();
+            let ask = if policy {
+                Ask::ChangePolicy {
+                    project: 1,
+                    change: PolicyChange::Projections {
+                        grants: Box::new([Grant {
+                            connector: 1,
+                            kind: 1,
+                            pattern: Pattern {
+                                segments: Box::new([Box::from(b"p".as_slice())]),
+                                last: Last::Exact(skein_lib::bytes::zeroed(
+                                    limit - size_of::<Grant>() - slot - 1 + extra,
+                                )),
+                            },
+                        }]),
+                    },
+                }
+            } else {
+                Ask::EditNote {
+                    project: 1,
+                    name: 9,
+                    scope: Box::new(NoteScope::Resources {
+                        connector: 1,
+                        pattern: Pattern {
+                            segments: Box::new([Box::from(b"p".as_slice())]),
+                            last: Last::Open(Box::new([7])),
+                        },
+                    }),
+                    change: Box::new(NoteChange::Correct {
+                        description: Box::new([8]),
+                        references: Box::new([7]),
+                        recalled: 1,
+                        body: skein_lib::bytes::zeroed(limit - slot - 3 - size_of::<u64>() + extra),
+                    }),
+                }
+            };
+            let outcome = if policy { Outcome::PolicyChanged { project: 1 } } else { Outcome::NoteEdited { name: 9 } };
+            let row = answer(31, ask, outcome);
+            let key = row.key();
+            let (mut domain, mut out) = new_start(&env);
+            load(&mut domain, &env, person(1), &mut out);
+            load(&mut domain, &env, row, &mut out);
+            if extra == 0 {
+                assert_eq!(domain.restore_failure(), None);
+                assert!(domain.start_link(&env));
+            } else {
+                assert_eq!(
+                    domain.restore_failure(),
+                    Some(RestoreFailure {
+                        key,
+                        cause: RestoreCause::Bound {
+                            which: RestoreBound::AmendmentBytes,
+                            held: u64::try_from(limit + extra).unwrap(),
+                            limit: u64::try_from(limit).unwrap(),
+                        }
+                    })
+                );
+                assert_eq!(
+                    out.pop(),
+                    Some(Request::RestoreRefused { key, refusal: Refusal::Limit { which: LimitKind::Restore } })
+                );
+                assert!(!domain.start_link(&env));
+            }
+            assert!(out.is_empty());
+        }
+    }
+}
+
+#[test]
+fn selected_account_use_owned_bytes_fit_exactly_or_name_the_outer_answer() {
+    let held = u32::try_from(2 * size_of::<Use>()).unwrap();
+    for extra in [0_u32, 1] {
+        let mut env = env();
+        env.limits.words = held - extra;
+        let row = answer(
+            32,
+            Ask::AccountChange {
+                holder: AccountHolder::Own,
+                change: AccountChange::SetUses { account: 1, uses: Some(Box::new([Use::Party(1), Use::Project(1)])) },
+            },
+            Outcome::AccountChanged,
+        );
+        let key = row.key();
+        let (mut domain, mut out) = new_start(&env);
+        load(&mut domain, &env, person(1), &mut out);
+        load(&mut domain, &env, row, &mut out);
+        if extra == 0 {
+            assert_eq!(domain.restore_failure(), None);
+            assert!(domain.start_link(&env));
+        } else {
+            assert_eq!(
+                domain.restore_failure(),
+                Some(RestoreFailure {
+                    key,
+                    cause: RestoreCause::Bound {
+                        which: RestoreBound::Words,
+                        held: u64::from(held),
+                        limit: u64::from(held - extra),
+                    }
+                })
+            );
+            assert_eq!(
+                out.pop(),
+                Some(Request::RestoreRefused { key, refusal: Refusal::Limit { which: LimitKind::Restore } })
+            );
+            assert!(!domain.start_link(&env));
+        }
+        assert!(out.is_empty());
+    }
+}

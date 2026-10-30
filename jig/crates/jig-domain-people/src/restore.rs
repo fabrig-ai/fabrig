@@ -35,7 +35,6 @@ pub struct RestoreFailure {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum RestoreCause {
     Bound { which: RestoreBound, held: u64, limit: u64 },
-    Accounting,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

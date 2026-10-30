@@ -309,25 +309,32 @@ fn fits(domain: &Domain, env: &Env<Limits>, record: &Stored) -> Result<(), crate
         Stored::Person { number, identity } => {
             assert!(!domain.people.contains_key(number), "duplicate {key:?}");
             assert!(!domain.identities.contains_key(&identity.key), "identity index collision at {key:?}");
-            fit::identity(&env.limits, identity)?;
-            fit::occupancy(RestoreBound::People, domain.people.len(), 0, env.limits.people)
+            fit::identity(&key, &env.limits, identity)?;
+            fit::occupancy(&key, RestoreBound::People, domain.people.len(), 0, env.limits.people)
         }
         Stored::SignIn { number, .. } => {
             assert!(!domain.sign_ins.contains_key(number), "duplicate {key:?}");
-            fit::occupancy(RestoreBound::SignIns, domain.sign_ins.len(), 0, env.limits.sign_ins)
+            fit::occupancy(&key, RestoreBound::SignIns, domain.sign_ins.len(), 0, env.limits.sign_ins)
         }
         Stored::Roles { project, holdings } => {
             assert!(!domain.roles.contains_key(project), "duplicate {key:?}");
-            fit::within(RestoreBound::Holdings, holdings.len(), env.limits.holdings)?;
-            fit::occupancy(RestoreBound::Roles, domain.roles.len(), 0, env.limits.projects)
+            fit::within(&key, RestoreBound::Holdings, holdings.len(), env.limits.holdings)?;
+            fit::occupancy(&key, RestoreBound::Roles, domain.roles.len(), 0, env.limits.projects)
         }
         Stored::ReadResults { party, .. } => {
             assert!(!domain.results_seen.contains_key(party), "duplicate {key:?}");
-            fit::occupancy(RestoreBound::ReadResults, domain.results_seen.len(), 0, domain.results_seen.capacity())
+            fit::occupancy(
+                &key,
+                RestoreBound::ReadResults,
+                domain.results_seen.len(),
+                0,
+                domain.results_seen.capacity(),
+            )
         }
         Stored::ReadConversation { party, task, .. } => {
             assert!(!domain.conversations_seen.contains_key(&(*party, *task)), "duplicate {key:?}");
             fit::occupancy(
+                &key,
                 RestoreBound::ReadConversations,
                 domain.conversations_seen.len(),
                 0,
@@ -336,16 +343,16 @@ fn fits(domain: &Domain, env: &Env<Limits>, record: &Stored) -> Result<(), crate
         }
         Stored::Answer { key: request, ask, models, outcome, .. } => {
             assert!(!domain.answers.contains_key(request), "duplicate {key:?}");
-            fit::ask(&env.limits, ask)?;
-            fit::models(models)?;
-            fit::outcome(&env.limits, outcome)?;
-            fit::occupancy(RestoreBound::Requests, domain.answers.len(), domain.acted.len(), env.limits.requests)
+            fit::ask(&key, &env.limits, ask)?;
+            fit::models(&key, models)?;
+            fit::outcome(&key, &env.limits, outcome)?;
+            fit::occupancy(&key, RestoreBound::Requests, domain.answers.len(), domain.acted.len(), env.limits.requests)
         }
         Stored::Acted { key: request, act, outcome, .. } => {
             assert!(!domain.acted.contains_key(request), "duplicate {key:?}");
-            fit::act(&env.limits, act)?;
-            fit::outcome(&env.limits, outcome)?;
-            fit::occupancy(RestoreBound::Requests, domain.answers.len(), domain.acted.len(), env.limits.requests)
+            fit::act(&key, &env.limits, act)?;
+            fit::outcome(&key, &env.limits, outcome)?;
+            fit::occupancy(&key, RestoreBound::Requests, domain.answers.len(), domain.acted.len(), env.limits.requests)
         }
         Stored::Policy { .. } | Stored::EndedRead { .. } => unreachable!("wrong people family: {key:?}"),
     }
