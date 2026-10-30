@@ -22,21 +22,25 @@ choosing BASE and recounting leaves no baseline diff. Recounts still finish
 before checks run. Metadata and formatting ownership come from the candidate;
 Cargo.lock selection compares BASE's blob with the candidate file through
 `mq.lock_changes`. `mq.selection`, its always/read-by-tests lists,
-`mq.check_commands`, `mq.tools_required`, `mq.tools_commands`, `mq.ratchet_commands`, and
+`mq.check_commands`, `mq.tools_required`, `mq.author_tools_commands`, `mq.ratchet_commands`, and
 `mq.run_step` supply queue policy. Code and policy lists are loaded before
 switching any slot, including the checkout containing the running tool.
 Candidate suites and ratchet scripts come from the candidate. The queue's
 graph-free docs/tools/full cases avoid unnecessary metadata requests.
 
 Only ratchets, selected tools suites, fmt, clippy and nextest **build** run.
-Tools suites are selected exactly when the captured selection paths touch
-`tools/`, including deleted paths and either side of renames, independently
-of docs/package/full selection. Full selection alone adds no tools suites.
+Captured selection paths under `tools/<tool>/` select only that tool's
+candidate suites through `mq.author_tools_commands`, including deletions and
+both rename sides. Multiple owners select their union. Top-level installer,
+manifest and installer-test changes select only `tools/test_install.py`;
+unknown top-level ownership or an owner without candidate suites explicitly
+refuses and restores. This includes deletion of an entire tool. Selection is
+independent of docs/package/full scope; full selection alone adds no suites.
 Only the queue's leading heavy `--gate` is removed; build scope and arguments
 are retained. Every build uses ordinary `heavy cargo ...`. Nextest build
 exit 4 passes. No default/fuzzy Rust tests execute. Tools suites retain the
 queue's existing timeout, interpreter/shebang discovery, and exact exclusion
-of `tools/heavy/test-heavy-recovery`; every discovered suite runs after an
+of `tools/heavy/test-heavy-recovery`; every selected suite runs after an
 ordinary suite failure, before stopping Cargo checks. No new budget or
 command timeout is introduced.
 

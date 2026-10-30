@@ -3,7 +3,10 @@
 Decision0022 uses shared `mq.gate_tools_required` for gate checks and
 worker plans: no pipeline tools suites run for any batch, including tools
 changes and full runs. Author precheck still calls `mq.tools_required`
-directly, so changed `tools/` paths require author checks before Ready.
+as a compatibility predicate, then `mq.author_tools_commands` selects only
+the changed owners' suites before Ready (section 2.3). Unknown ownership or
+missing candidate suites refuses explicitly; installer changes select the
+installer suite. No unrelated launcher suite is selected for other tools.
 The policy remains in the frozen `mq` runtime file; restart and worker
 identity already include it, with no additional runtime dependency.
 Train preparation and evidence validation consume the worker

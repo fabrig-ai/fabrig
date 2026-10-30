@@ -1,9 +1,11 @@
-# Branch pre-ready check status
-
-Decision0016 stage A shares `mq.tools_required` with queue execution and
-worker expected plans. Full selection without changed `tools/` paths skips
-tools suites while preserving the ordinary ratchet/fmt/clippy/build plan.
-Stage B CPU-per-suite policy is not implemented; existing budgets remain.
+Decision0022 selects author suites with `mq.author_tools_commands` by changed
+tool directory, with an explicit installer/manifest/test mapping. Both rename
+sides and deleted paths retain ownership; unknown top-level paths or owners
+without candidate suites refuse and restore. `test_author_tools.py` covers
+owner unions, launcher inclusion/exclusion, literal discovery scope, installer
+scope, deletion/rename handling and refusal. Rust selection, lifetime semantics,
+suite timeouts and launcher CPU assertions are unchanged. Gate tools policy
+remains disabled. Source proof does not establish installation.
 
 Provisional, 2026-10-29. `tools/queue/precheck.md`, sections 1–4, is
 implemented in `precheck` with disposable Git and fake-command coverage in

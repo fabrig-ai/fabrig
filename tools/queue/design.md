@@ -63,11 +63,25 @@ worker's exact plan. Its policy bytes live in `mq`, frozen by both worker
 runtime identity and restart's external-runtime validation. Ordinary ratchet,
 fmt, clippy, build, default and fuzzy selection remains unchanged.
 
-Until migration, authors run affected tool tests before Ready. Author
-precheck retains the separate `mq.tools_required` predicate: any changed
-path under `tools/` selects suites, independently of Cargo scope. Adds,
-edits and deletes count; path collection includes both rename sides.
-The following discovery and execution rules apply to author tools checks.
+Authors run affected tool tests before Ready. Author precheck retains
+`mq.tools_required` as its compatibility predicate: changed `tools/` paths
+require author checks independently of Cargo scope. `mq.author_tools_commands`
+is the deterministic owner selector. Each path under `tools/<tool>/` selects
+only tracked candidate suites under that directory, including new tools with
+suites. Adds, edits and deletes count; both rename sides select their owners.
+Multiple tools select the sorted, deduplicated union. Discovery queries only
+those literal owner paths, never all unrelated suites.
+
+The top-level installer, manifest and installer suite (`tools/install`,
+`tools/installed`, `tools/test_install.py`) select only `tools/test_install.py`.
+Other top-level paths refuse with an unknown-owner diagnostic. An owner with
+no eligible candidate suite also refuses, including deletion of its last
+suite or whole directory; the author must supply an explicit safe mapping
+rather than receive an empty success. A rename across owners requires suites
+for both owners. These refusals restore through the ordinary precheck protocol
+and cannot certify readiness.
+
+The following discovery and execution rules apply within selected owners.
 Discover suites from the checkout's tracked files: every `tools/**/test_*.py`
 runs with `python3 -I -B`, including `tools/test_install.py`; every executable
 `tools/**/test-*` runs directly as `./tools/.../test-*`, honoring its shebang.
@@ -84,7 +98,7 @@ basename in another directory, remain eligible.
 
 Run serially from the checkout root with stdin from `/dev/null` and a
 60-second timeout per suite. Record each suite's command, output, exit code
-and elapsed time in the author check evidence. Run every suite even if one
+and elapsed time in the author check evidence. Run every selected suite even if one
 fails; any nonzero exit, missing interpreter, or timeout makes the author
 tools check red and stops later checks.
 

@@ -261,6 +261,7 @@ class CandidateTests(Fixture):
         self.restored()
 
     def test_policy_lists_are_frozen_before_checkout_changes(self):
+        self.change("tip", "tools/queue/test_policy.py", "# suite\n")
         self.change("tip", "tools/queue/read-by-tests.txt", "README.md\n")
         self.assertEqual(self.run_tool(), 0)
         self.assertEqual(self.tool.record["selection"], "docs")
@@ -268,24 +269,25 @@ class CandidateTests(Fixture):
 
     def test_tools_discovery_and_exact_manual_recovery_exclusion(self):
         self.git("switch", "tip")
-        for name in ("tools/test_python.py", "tools/bash/test-bash", "tools/python/test-python",
-                     "tools/heavy/test-heavy-recovery", "tools/other/test-heavy-recovery", "tools/test-noexec"):
+        for name in ("tools/example/test_python.py", "tools/bash/test-bash", "tools/python/test-python",
+                     "tools/heavy/test-heavy-recovery", "tools/heavy/test-heavy-plain", "tools/other/test-heavy-recovery", "tools/bash/test-noexec"):
             self.write(name, "#!/bin/sh\nexit 0\n")
-            if name != "tools/test-noexec":
+            if name != "tools/bash/test-noexec":
                 (self.repo / name).chmod(0o755)
         self.commit()
         self.git("switch", "original")
         self.assertEqual(self.run_tool(), 0)
         commands = [argv for argv, _ in self.calls]
-        self.assertEqual(commands, [["./tools/bash/test-bash"], ["./tools/other/test-heavy-recovery"],
-                                    ["./tools/python/test-python"], ["python3", "-I", "-B", "tools/test_python.py"]])
+        self.assertEqual(commands, [["./tools/bash/test-bash"], ["python3", "-I", "-B", "tools/example/test_python.py"],
+                                    ["./tools/heavy/test-heavy-plain"], ["./tools/other/test-heavy-recovery"],
+                                    ["./tools/python/test-python"]])
         self.assertTrue(all(step["timeout"] == mq.TOOLS_TIMEOUT for step in self.tool.record["plan"]))
         self.restored()
 
     def test_all_tools_run_after_failure_and_cargo_is_stopped(self):
         self.change("tip", "Cargo.toml", "full\n")
-        self.change("tip", "tools/test_a.py", "# a\n")
-        self.change("tip", "tools/test_b.py", "# b\n")
+        self.change("tip", "tools/example/test_a.py", "# a\n")
+        self.change("tip", "tools/example/test_b.py", "# b\n")
         self.codes["python3"] = 1
         self.assertEqual(self.run_tool(), 1)
         self.assertEqual(len(self.calls), 2)
@@ -453,10 +455,10 @@ class CandidateTests(Fixture):
         self.assertEqual(self.git("symbolic-ref", "HEAD"), "refs/heads/original")
 
     def test_executable_suites_run_their_shebangs(self):
-        self.change("tip", "tools/test_python.py", "from pathlib import Path\nPath('target/python').write_text('python')\n")
+        self.change("tip", "tools/example/test_python.py", "from pathlib import Path\nPath('target/python').write_text('python')\n")
         self.git("switch", "tip")
-        self.write("tools/test-shell", "#!/bin/bash\nprintf bash >target/shell\n")
-        (self.repo / "tools/test-shell").chmod(0o755)
+        self.write("tools/example/test-shell", "#!/bin/bash\nprintf bash >target/shell\n")
+        (self.repo / "tools/example/test-shell").chmod(0o755)
         self.commit()
         self.git("switch", "original")
         self.assertEqual(self.run_tool(production_runner=True), 0)
@@ -494,6 +496,7 @@ class CandidateTests(Fixture):
         self.git("branch", "-f", "base", self.ancestor)
         self.git("branch", "-f", "tip", self.ancestor)
         self.change("tip", "tools/queue/mq", "invalid candidate policy code!\n")
+        self.change("tip", "tools/queue/test_policy.py", "# suite\n")
         self.change("tip", "tools/queue/read-by-tests.txt", "README.md\n")
         self.change("tip", "tools/queue/always.txt", "missing-package\n")
         self.change("tip", "README.md", "docs\n")
@@ -539,7 +542,7 @@ class CandidateTests(Fixture):
         self.assertTrue(self.tool.record["restored"])
 
     def test_tools_exit_four_is_failure(self):
-        self.change("tip", "tools/test_suite.py", "# fixture\n")
+        self.change("tip", "tools/example/test_suite.py", "# fixture\n")
         self.codes["python3"] = 4
         self.assertEqual(self.run_tool(), 1)
         self.assertEqual(self.tool.record["outcome"], "failed")
