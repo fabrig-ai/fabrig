@@ -80,42 +80,58 @@ impl Reconciliation {
     pub(crate) fn new(l: &Limits) -> Self {
         Self { references: List::with_capacity(capacity(l).expect("checked reconciliation capacity")), verdict: Ok(()) }
     }
-    fn need(&mut self, kind: RecordKind, need: Need) {
-        self.references.push(Reference { kind, need }).expect("restored references fit row bounds");
+    fn need(&mut self, kind: RecordKind, need: Need) -> Result<(), crate::RestoreFit> {
+        let held = self.references.len();
+        match self.references.push(Reference { kind, need }) {
+            Ok(()) => Ok(()),
+            Err(_) => Err(crate::RestoreFit {
+                family: Some(kind),
+                set: crate::RestoreSet::References,
+                held: u64::from(held),
+                additional: 1,
+                limit: u64::from(self.references.capacity()),
+            }),
+        }
     }
-    fn repository(&mut self, kind: RecordKind, repository: Repository) {
-        self.need(kind, Need::Repository(repository));
+    fn repository(&mut self, kind: RecordKind, repository: Repository) -> Result<(), crate::RestoreFit> {
+        self.need(kind, Need::Repository(repository))?;
+        Ok(())
     }
-    fn task(&mut self, kind: RecordKind, task: u64, retired: Option<u16>) {
-        self.need(kind, Need::Task { task, retired });
+    fn task(&mut self, kind: RecordKind, task: u64, retired: Option<u16>) -> Result<(), crate::RestoreFit> {
+        self.need(kind, Need::Task { task, retired })?;
+        Ok(())
     }
-    fn name(&mut self, kind: RecordKind, name: &Name) {
-        self.repository(kind, Repository { forge: name.forge, repository: name.repository });
+    fn name(&mut self, kind: RecordKind, name: &Name) -> Result<(), crate::RestoreFit> {
+        self.repository(kind, Repository { forge: name.forge, repository: name.repository })?;
+        Ok(())
     }
-    fn entry(&mut self, kind: RecordKind, entry: &skein_forge_client::Entry) {
-        self.repository(kind, entry.repository);
-        self.task(kind, entry.task, Some(entry.repository.forge));
+    fn entry(&mut self, kind: RecordKind, entry: &skein_forge_client::Entry) -> Result<(), crate::RestoreFit> {
+        self.repository(kind, entry.repository)?;
+        self.task(kind, entry.task, Some(entry.repository.forge))?;
+        Ok(())
     }
-    pub(crate) fn restore(&mut self, row: &Stored) {
+    pub(crate) fn restore(&mut self, row: &Stored) -> Result<(), crate::RestoreFit> {
         match row {
             Stored::Landing(row) => {
                 for member in &row.landing.members {
                     self.repository(
                         RecordKind::Landing,
                         Repository { forge: member.repository.forge, repository: member.repository.repository },
-                    );
+                    )?;
                 }
+                Ok(())
             }
             Stored::Receipt { key, .. } => self.repository(RecordKind::Receipt, key.repository),
             Stored::Call { key, .. } => self.task(RecordKind::Call, key.task, None),
             Stored::ProposedEffect(row) => self.entry(RecordKind::ProposedEffect, &row.entry),
             Stored::Repository(row) => self.need(RecordKind::Repository, Need::Forge(row.provider.forge)),
             Stored::Hold(row) => {
-                self.name(RecordKind::Hold, &row.name);
-                self.task(RecordKind::Hold, row.task, Some(row.name.forge));
+                self.name(RecordKind::Hold, &row.name)?;
+                self.task(RecordKind::Hold, row.task, Some(row.name.forge))?;
                 if let Some(crate::Writer::Run { task, .. } | crate::Writer::Lost { task, .. }) = row.writer {
-                    self.task(RecordKind::Hold, task, Some(row.name.forge));
+                    self.task(RecordKind::Hold, task, Some(row.name.forge))?;
                 }
+                Ok(())
             }
             Stored::Names { task, resources } => {
                 let mut retired = None;
@@ -127,10 +143,11 @@ impl Reconciliation {
                         retired = None;
                     }
                 }
-                self.task(RecordKind::Names, *task, retired);
+                self.task(RecordKind::Names, *task, retired)?;
                 for name in resources {
-                    self.name(RecordKind::Names, name);
+                    self.name(RecordKind::Names, name)?;
                 }
+                Ok(())
             }
             Stored::Subscription(row) => {
                 let repository = match row.topic {
@@ -139,20 +156,22 @@ impl Reconciliation {
                     | Topic::Pull { repository, .. }
                     | Topic::Participation { repository, .. } => repository,
                 };
-                self.repository(RecordKind::Subscription, repository);
-                self.task(RecordKind::Subscription, row.task, Some(repository.forge));
+                self.repository(RecordKind::Subscription, repository)?;
+                self.task(RecordKind::Subscription, row.task, Some(repository.forge))?;
                 // own_change and goal_tasks classify historical landings.
+                Ok(())
             }
             Stored::BranchHead(row) => self.name(RecordKind::BranchHead, &row.name),
             Stored::PullState(row) => self.name(RecordKind::PullState, &row.name),
             Stored::Ci(row) => self.repository(RecordKind::Ci, row.repository),
             Stored::Entry { entry, .. } => {
-                self.repository(RecordKind::Entry, entry.repository);
-                self.need(RecordKind::Entry, Need::EntryOwner { task: entry.task, entry: entry.number });
+                self.repository(RecordKind::Entry, entry.repository)?;
+                self.need(RecordKind::Entry, Need::EntryOwner { task: entry.task, entry: entry.number })?;
+                Ok(())
             }
             Stored::Client(row) => match row {
                 skein_forge_client::Stored::Live(row) => {
-                    self.repository(RecordKind::Client, row.watch.resource.repository);
+                    self.repository(RecordKind::Client, row.watch.resource.repository)
                 }
                 skein_forge_client::Stored::Repository(row) => self.repository(RecordKind::Client, row.repository),
                 skein_forge_client::Stored::Writer(row) => self.need(RecordKind::Client, Need::Forge(row.forge)),
@@ -160,7 +179,7 @@ impl Reconciliation {
             // Change panels outlive tasks (domain/forge.md, 8.8).
             Stored::Change(row) => self.repository(RecordKind::Change, row.repository),
             Stored::Issue(row) => {
-                self.repository(RecordKind::Issue, row.repository);
+                self.repository(RecordKind::Issue, row.repository)?;
                 let ending = match &row.desired {
                     Some(view) => view.finished.is_some(),
                     None => false,
@@ -168,26 +187,28 @@ impl Reconciliation {
                 // Failed projections settle at goal close, even with an unfinished
                 // or absent desired view (domain/forge.md, 12).
                 if !row.failed && !row.state.closed && !ending {
-                    self.task(RecordKind::Issue, row.goal, Some(row.repository.forge));
+                    self.task(RecordKind::Issue, row.goal, Some(row.repository.forge))?;
                 }
+                Ok(())
             }
             Stored::Release(row) => {
-                self.task(RecordKind::Release, row.task, None);
-                self.task(RecordKind::Release, row.root, None);
+                self.task(RecordKind::Release, row.task, None)?;
+                self.task(RecordKind::Release, row.root, None)?;
                 if let Some((_, Some(name))) = &row.pending {
-                    self.name(RecordKind::Release, name);
+                    self.name(RecordKind::Release, name)?;
                 }
+                Ok(())
             }
             Stored::Application { outcome, .. } => match outcome {
                 crate::ApplicationOutcome::Adopted(row) => self.repository(RecordKind::Application, row.repository),
-                crate::ApplicationOutcome::CoreRefused(_) | crate::ApplicationOutcome::ForgeRefused(_) => {}
+                crate::ApplicationOutcome::CoreRefused(_) | crate::ApplicationOutcome::ForgeRefused(_) => Ok(()),
             },
             Stored::Writer(row) => self.need(RecordKind::Writer, Need::Forge(row.forge)),
             Stored::Demo(row) => self.need(RecordKind::Demo, Need::Demo(row.forge)),
             // Landing history outlives tasks (domain/forge.md, 7.2).
             // Bindings outlive members. End acts retry until the saved answer,
             // including after their target ended or was removed.
-            Stored::Landed { .. } | Stored::Binding { .. } | Stored::DemoAct(_) => {}
+            Stored::Landed { .. } | Stored::Binding { .. } | Stored::DemoAct(_) => Ok(()),
             Stored::Flight { task, entry } => self.need(RecordKind::Flight, Need::Entry { task: *task, entry: *entry }),
         }
     }
@@ -195,6 +216,9 @@ impl Reconciliation {
 impl Domain {
     /// Link restored rows to retained targets; a missing target is a writer bug.
     pub fn reconcile(&mut self, tasks: &jig_domain_tasks::Domain) {
+        if self.restore_fit_failure().is_some() {
+            return;
+        }
         for reference in &self.reconciliation.references {
             let live = match reference.need {
                 Need::Task { task, .. } | Need::EntryOwner { task, .. } | Need::Entry { task, .. } => {
@@ -268,7 +292,7 @@ impl Domain {
 #[cfg(test)]
 pub(crate) fn references_resolve(d: &Domain, limits: &Limits, row: &Stored, live_tasks: &[u64]) -> bool {
     let mut reconciliation = Reconciliation::new(limits);
-    reconciliation.restore(row);
+    reconciliation.restore(row).expect("oracle row fits references");
     for reference in &reconciliation.references {
         let live = match reference.need {
             Need::Task { task, .. } | Need::EntryOwner { task, .. } | Need::Entry { task, .. } => {

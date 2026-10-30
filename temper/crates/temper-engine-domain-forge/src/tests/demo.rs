@@ -555,7 +555,6 @@ fn demo_act_room_is_tasks_plus_one_and_reclaimed_on_answer() {
 }
 
 #[test]
-#[should_panic(expected = "restored demo acts within limits")]
 fn restoring_more_than_tasks_plus_one_demo_acts_is_refused() {
     let mut d = configured(false);
     for number in 0..=demo_act_bound(&LIMITS).unwrap() {
@@ -570,4 +569,46 @@ fn restoring_more_than_tasks_plus_one_demo_acts_is_refused() {
             },
         );
     }
+    assert_eq!(d.restore_fit_failure().unwrap().set, RestoreSet::Rows(RecordKind::DemoAct));
+}
+
+fn demo_writer_oracle(rows: &[Stored], configured: u16) -> bool {
+    let mut durable = skein_lib::Map::with_capacity(2);
+    for row in rows {
+        if let Stored::Demo(row) = row
+            && durable.insert(row.forge, row.state).is_err()
+        {
+            return false;
+        }
+    }
+    durable.len() <= 1 && (durable.is_empty() || durable.contains_key(&configured))
+}
+#[test]
+#[expect(clippy::disallowed_types, reason = "the oracle reduces the real writer save stream by durable key")]
+fn real_demo_start_and_end_saves_replace_one_configured_durable_key() {
+    let mut d = configured(false);
+    let mut saves = Vec::new();
+    for sent in [start(&mut d, 1), connected(&mut d, 2)] {
+        for request in sent {
+            if let Request::Save { record: Stored::Demo(row), .. } = request {
+                saves.push(Stored::Demo(row));
+            }
+        }
+    }
+    assert_eq!(
+        saves,
+        [
+            Stored::Demo(Demo { forge: 1, state: DemoState::Running }),
+            Stored::Demo(Demo { forge: 1, state: DemoState::Ended })
+        ]
+    );
+    assert!(demo_writer_oracle(&saves, 1));
+    let mut restored = configured(false);
+    for row in &saves {
+        assert!(outputs(&mut restored, Event::Restore { record: row.clone() }).is_empty());
+    }
+    assert_eq!(restored.restore_fit_failure(), None);
+    assert_eq!(restored.demo_state(), Some(DemoState::Ended));
+    saves.push(Stored::Demo(Demo { forge: 2, state: DemoState::Ended }));
+    assert!(!demo_writer_oracle(&saves, 1));
 }

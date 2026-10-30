@@ -18,12 +18,28 @@ pub(crate) struct Pending {
 #[derive(Debug)]
 pub(crate) struct State {
     pending: Map<Token, Pending>,
-    kept: Map<Token, (Wall, ApplicationOutcome)>,
+    pub(crate) kept: Map<Token, (Wall, ApplicationOutcome)>,
 }
 
 impl State {
-    pub(crate) fn restore(&mut self, token: u64, until: Wall, outcome: ApplicationOutcome) {
-        assert!(self.kept.insert(Token::new(token), (until, outcome)).is_ok(), "restored application outcome fits");
+    pub(crate) fn restore(
+        &mut self,
+        token: u64,
+        until: Wall,
+        outcome: ApplicationOutcome,
+    ) -> Result<(), crate::RestoreFit> {
+        let held = self.kept.len();
+        let limit = self.kept.capacity();
+        match self.kept.insert(Token::new(token), (until, outcome)) {
+            Ok(_) => Ok(()),
+            Err(_) => Err(crate::RestoreFit {
+                family: Some(crate::RecordKind::Application),
+                set: crate::RestoreSet::Rows(crate::RecordKind::Application),
+                held: u64::from(held),
+                additional: 1,
+                limit: u64::from(limit),
+            }),
+        }
     }
     pub(crate) fn new(limits: &Limits) -> Self {
         Self { pending: Map::with_capacity(limits.adoptions), kept: Map::with_capacity(limits.applications) }

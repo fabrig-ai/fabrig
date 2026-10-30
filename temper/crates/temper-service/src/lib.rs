@@ -70,6 +70,11 @@ pub enum Stop {
     RestoreStep {
         step: jig_domain_core::RestartStep,
     },
+    /// The forge's own restored set exceeded its configured bound.
+    ForgeFit {
+        step: jig_domain_core::RestartStep,
+        failure: temper_engine_domain_forge::RestoreFit,
+    },
     /// A child refused restored records before the store switch.
     Unresolved {
         child: jig_domain_core::RestoreChild,
