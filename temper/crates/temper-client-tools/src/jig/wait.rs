@@ -323,12 +323,16 @@ fn ended(
         {
             continue;
         }
+        let has_document = match client.document(wait.handle) {
+            Some(document) => document.latest.is_some(),
+            None => false,
+        };
         if (wait.until == Some(Condition::Ended) || wait.until == Some(Condition::Replied))
             && wait.name == b"task"
             && (why == Why::Unknown || why == Why::SubjectEnded)
         {
             finishing(runner, number, out);
-        } else if why == Why::SubjectEnded {
+        } else if why == Why::SubjectEnded && (wait.until != Some(Condition::Ended) || has_document) {
             if wait.until == Some(Condition::Ended) {
                 // The renderer digests the last document, including current run text.
                 complete(runner, client, env, number, Ok(None), out);
@@ -342,7 +346,7 @@ fn ended(
                 Why::SignedOut => (b"signed out", 1),
                 Why::NotServed => (b"version not served", 1),
                 Why::Limit => (b"watch table limit", 1),
-                Why::SubjectEnded => unreachable!("handled above"),
+                Why::SubjectEnded => (b"gone", 2),
             };
             let wait = runner.waits.remove(&number).expect("active wait");
             runner.wait_timers.as_mut().expect("wait timers").cancel(number);
