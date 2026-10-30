@@ -1,6 +1,6 @@
 # Testing skein
 
-Provisional, 2026-10-03, revised 2026-10-19. How testing-strategy.md
+Provisional, 2026-10-03, revised 2026-10-30. How testing-strategy.md
 applies to skein itself: which tiers skein has, what they run, the
 example services and the minimal fake machine they need, where the tests
 live, what skein supplies for a service's own tiers, and where things
@@ -255,7 +255,8 @@ second, which is why it is skein's (testing-strategy.md, 7).
   `Referee::starved() -> Option<Starved>`. The loop drains the forced
   cleanup before passing that verdict on. `Starved::pass()` prints the
   `skein-world: starved:` line, naming the wait with `, by <what>`, and
-  exits 0 under nextest; elsewhere it fails. Tree starvation also names
+  exits 0 under nextest; a run elsewhere reports the same green warning
+  under testing-strategy.md, 8.1. Tree starvation also names
   the tree's wait and accounting source. Conformance's `Backend` gives
   `wait_begins`, `wait_unanswered` and `wait_figures`; the simulator uses
   their defaults.
@@ -428,22 +429,24 @@ host, and skein-ui-web's platform half runs in the browser tier.
 How each part is tested, and what its worlds cover, is in the part's own
 document; the echo's worlds are examples.md, 7.
 
-The two suites of testing-strategy.md, section 8, are
-`.config/nextest.toml`'s profiles, each with its budget as a global timeout:
-the focused suite by default, within 30 seconds (15 seconds before the
-user's doubling of 10-22, provisional), and the fuzzy suite, the `suite::fuzzy::*`
-tests, with `--profile fuzzy`, within two minutes (a minute before the
-user's doubling of 10-22, provisional). Two profiles stay out of both:
-`browser`, the browser kit against real Chromium and the UI example's
-browser tier, within four minutes (two minutes before the user's doubling of
-10-22, provisional) for both (`cargo nextest run --workspace --profile
-browser`; browser.md, section 9; ui-web.md, 14.1), and `live`, skein-llm
-against real endpoints, with a key or a plan's token from the environment.
-`measure` runs a suite with no budget, to time each test. `macos` is the
-focused suite on the macos-26 runner alone,
-under a budget of its own set from measured figures by the user's decision
-: 64 seconds, one and a half times the 42.4 seconds macOS
-run 40019066645 took; Linux's stays as above.
+Every tier follows testing-strategy.md, 8.1: CPU budget, wall hard limit,
+starved warning and the three-question repair rule.
+
+The two gate suites use the root `.config/nextest.toml`'s `default` and
+`fuzzy` profiles. Until the user sets their CPU budgets, their existing
+30 s and 120 s idle-machine figures stand (15 s and 60 s before the
+user's doubling of 10-22, provisional). The browser kit against real
+Chromium and the UI example's browser tier use `browser-skein`
+(`cargo nextest run --workspace --profile browser-skein`; browser.md,
+section 9; ui-web.md, 14.1); their four-minute global timeout is a wall
+backstop, separate from their CPU budget. skein-llm against real endpoints
+uses `live-skein`, with a key or a plan's token from the environment;
+`exhaustive-skein` and `qa-skein` select the other slow tiers. All stay
+out of the gate and have CPU budgets and wall hard limits under 8.1.
+Measurements use the tier's profile and keep the same budget rule.
+The existing macos-26 focused-suite figure remains the user's 64 seconds,
+one and a half times the 42.4 seconds macOS run 40019066645 took, until
+its CPU budget is set; Linux's stays as above.
 
 Replay: a seed replays to the same trace of submissions and completions,
 and a JSON world, an HTTP world, an io world and an echo world to the

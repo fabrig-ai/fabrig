@@ -1,6 +1,6 @@
 # Testing smith
 
-Provisional, 2026-10-08, revised 2026-10-19. How smith is tested. The
+Provisional, 2026-10-08, revised 2026-10-30. How smith is tested. The
 strategy is skein's `docs/foundation/testing-strategy.md`: the tiers,
 faults, what every fake shares, what every world checks, scenarios and
 the referee, the two suites, and where a failure is fixed. This document
@@ -189,10 +189,10 @@ patch and drift tests check the generated `encoded_bound` and
   - Claude Code, as its publisher ships it;
   - a git remote, for a configured push, when one is named.
 
-  The live tests form a suite of their own, `live`, chosen by its
-  profile: one at a time, without retries, never at the gate. They check
-  that each wire is right; they measure nothing, which is benchmarks'
-  (2.4).
+  The live tests form a suite of their own, chosen by `live-smith`:
+  one at a time, without retries, never at the gate. They check that each
+  wire is right; performance benchmarks are separate (2.4), while test
+  CPU is measured against the tier's budget (testing-strategy.md, 8.1).
   - **On smith's own accounts,** in a durable live directory the
     developer signs in once per machine, which `$SMITH_LIVE` names. It is
     the suite's credentials directory and holds the suite's user layer
@@ -233,7 +233,7 @@ patch and drift tests check the generated `encoded_bound` and
     export SMITH_LIVE=~/.local/state/smith-live
     XDG_CONFIG_HOME=$SMITH_LIVE/config smith login chatgpt   # approve in the browser
     XDG_CONFIG_HOME=$SMITH_LIVE/config smith login claude    # Claude Code's own sign-in
-    cargo nextest run --profile live
+    cargo nextest run --profile live-smith
     ```
   - **A missing setup fails by name,** saying what to run: "no record in
     `$SMITH_LIVE/tokens/chatgpt`: run `XDG_CONFIG_HOME=$SMITH_LIVE/config
@@ -546,6 +546,9 @@ Every world checks what the strategy lists (testing-strategy.md, section
 
 ### 6.1 The suites
 
+Every tier follows testing-strategy.md, 8.1: CPU budget, wall hard limit,
+starved warning and the three-question repair rule.
+
 The strategy's two suites (testing-strategy.md, section 8) make the gate:
 - **focused tests:** the step tests; each world's scenarios, referee
   tests, replay, facts changing nothing and memory under scenario ceilings;
@@ -560,15 +563,15 @@ The strategy's two suites (testing-strategy.md, section 8) make the gate:
   7).
 
 Independent adversarial binaries named `qa_*` are excluded from default and
-fuzzy selection and run under `--profile qa`. Their author reads the approved
-design and public adapter surface, without production implementation or core
-tests. An opt-in ignored extra-seed entry in the existing `fuzzy_store`
+fuzzy selection and run under `--profile qa-smith`. Their author reads the
+approved design and public adapter surface, without production implementation
+or core tests. An opt-in ignored extra-seed entry in the existing `fuzzy_store`
 composition is run explicitly for the additional-seed proof; normal seeds
 and cut positions remain in the fuzzy suite.
 
-The live tests are a third suite, outside the gate, under the `live`
-profile only (2.3). Benchmarks are no suite: they run by their own
-command (2.4).
+The live tests are a separate suite, outside the gate, under the
+`live-smith` profile only (2.3). Benchmarks are no suite: they run by their
+own command (2.4).
 
 ## 7. Layout
 

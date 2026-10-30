@@ -1,6 +1,6 @@
 # Testing strategy
 
-Provisional, 2026-10-03, revised 2026-10-28. How code in skein and in
+Provisional, 2026-10-03, revised 2026-10-30. How code in skein and in
 every service built on it is tested. Read it with programming-model.md,
 whose terms it uses, before writing or reviewing tests.
 
@@ -241,6 +241,9 @@ A failure found there is rerun lower down.
 2.8's rule holds for every deadline a harness keeps on the real clock,
 not only the real loop's patience: a referee's judge, a child's exit, a
 socket's answer, a browser's step, a recorder's reply, in every tree.
+Within the tier's wall hard limit this measured-starvation rule stands;
+expiry of that hard limit is always starved under 8.1, whatever the
+scheduler accounting says.
 
 - **One rule:** when such a deadline passes, the harness reads the
   scheduler accounting of what it was waiting on since the wait began:
@@ -520,8 +523,9 @@ same. Then it moves into skein.
   sweep, a few seeds) when that is worth it.
 
 **The merge gate runs both suites in full,** whatever ran before it.
-**Live tests** (2.9) are a third suite, run only with `--profile live`,
-one at a time and outside any budget. The gate never runs them.
+**Live tests** (2.9) are a separate suite, run only with the root
+configuration's `live-<tree>` profile, one at a time, with a CPU budget
+and a wall hard limit like every tier (8.1). The gate never runs them.
 
 **The user's doubling of 10-22 is provisional.** Every test-time budget,
 ceiling, guide and harness deadline is twice its earlier value. This also
@@ -538,16 +542,11 @@ their values. Common per-test guides quoted by those plans are:
 | 0.5 s for a focused world test | 1 s (0.5 s before the user's doubling of 10-22, provisional) |
 | 5 s for a fuzzy test | 10 s (5 s before the user's doubling of 10-22, provisional) |
 
-The budgets are what a suite's tests cost on the development machine,
-run idle. The merge gate also measures each tree's suites in CPU
-seconds, the time its tests and their processes ran, which a loaded
-machine does not change, and reports both figures on every full run, so
-a budget can be checked on any machine at any load. Each nextest profile
-keeps a global timeout as a backstop for a hang no test's own deadline
-caught, far enough above the budget that a loaded machine does not reach
-it. A change that breaks a budget is fixed by making tests cheaper, or
-by moving randomized ones to the fuzzy suite. Raising a budget is an
-explicit decision, not a fix.
+CPU budgets and wall hard limits are separate (8.1). Every full run
+reports each tree's tier CPU total and elapsed wall time; the gate
+reports them for both suites. The three questions in 8.1 govern a
+budget missed, including whether a randomized test belongs in the fuzzy
+suite. Raising a budget is the user's decision, not a fix.
 
 **A test is a process.** nextest runs each test in a process of its own,
 which costs some milliseconds before the test checks anything, more for
@@ -609,6 +608,45 @@ seed kept: as a scenario if it shows behaviour worth naming, or among the
 sweep's pinned seeds. A finding that cannot be fixed yet is replayed by
 an ignored test until it is: its `#[ignore]` reason names the work that
 fixes it, and its owner runs it until then.
+
+### 8.1 CPU budgets, wall hard limits and the repair rule
+
+Every tree's focused and fuzzy suites, and each slow tier (exhaustive,
+qa, browser, process and live), have a CPU budget and a wall hard limit.
+The rule holds wherever they run: at the merge gate for focused and
+fuzzy, after landing, through `tools/tiers/run`, or in a person's or a
+lead's run. Slow tiers never run in the gate.
+
+**The budget is CPU seconds:** user plus system time of each test's
+processes, descendants included, measured per test and summed per suite
+(a tree's tier). The user sets budgets from measured numbers. Until a
+tier's CPU budget is set, its existing figures stand, including the
+focused and fuzzy suites' 30 s and 120 s idle-machine budgets above.
+Live tests have budgets on the same terms.
+
+**The wall hard limit is a backstop,** set per tier above its budget.
+A test or run that passes it is stopped and reported **starved**: a
+warning, never red on that account. The run stays green on that account
+and lists its starved tests. Failures already observed (an assertion, a
+protocol breach or a bad exit) stay red; exceeding the CPU budget stays
+red too. A test not run because the run stopped is unobserved, never
+passed. Starved warnings are watched as a hint that the machines are
+short of CPU; a test repeatedly starved with little CPU used is examined
+as a possible hang. Hard-limit expiry needs no measured runnable
+starvation; within that limit, harness deadlines keep 2.10's rule.
+
+**Over budget is red.** Repair it by asking these questions, in order:
+
+1. **Does the test belong to this tier?** Use the tier definitions in
+   this strategy and the tree's testing document. If it does not belong,
+   move it to the tier it belongs to. What it checks decides its place,
+   never its cost: moving a test to escape a budget is raising it and
+   stays forbidden.
+2. **If it belongs, can it be made faster?** Find an inefficiency in the
+   code under test or in the test: O(n) where O(1) would do, needless
+   complication, or a missing cache at some level. Fix that cause.
+3. **If neither, what does the user decide?** Take the measurements to
+   the user through the director; the user decides.
 
 ## 9. Where a failure is fixed
 
