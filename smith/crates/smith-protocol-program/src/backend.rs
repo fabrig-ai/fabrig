@@ -6,7 +6,7 @@
 
 use alloc::boxed::Box;
 use skein_io::{self as io, file, kernel};
-use skein_lib::{Duration, Env, List, Queue, Secret, Time, Token};
+use skein_lib::{Duration, Env, List, Map, Queue, Secret, Time, Token};
 use smith_domain::{GrantName, llm};
 use smith_protocol_llm::{self as protocol, FromDomain, ToDomain};
 
@@ -21,6 +21,7 @@ mod files;
 mod intake;
 mod measures;
 mod memory;
+mod native;
 mod session;
 pub use memory::backend_valid;
 mod permission;
@@ -64,6 +65,7 @@ mod turns_tests;
 /// One normalized start directory, supplied by the service before Complete (programs.md 5.4).
 #[derive(Clone, Debug)]
 pub struct Mount {
+    pub root: Token,
     pub host: Box<[u8]>,
     pub writable: bool,
 }
@@ -137,7 +139,7 @@ pub enum Below {
 pub enum BelowEvent {
     /// A child, pipe or listener event belonging to this backend.
     Io(io::Event),
-    /// One terminal for a private file operation.
+    /// One terminal for a private file operation or native version snapshot.
     File { event: file::Event, descriptor: Option<kernel::Fd> },
 }
 
@@ -170,6 +172,8 @@ pub struct Backend {
     server: Option<mcp::Server>,
     server_ended: bool,
     files: files::Files,
+    native: Option<native::Snapshot>,
+    native_writes: Map<Box<[u8]>, smith_domain::tools::Place>,
     child: Option<Token>,
     spawning: bool,
     pipes: [Option<Token>; 3],
@@ -246,6 +250,8 @@ impl Backend {
             server: None,
             server_ended: false,
             files: files::Files::new(),
+            native: None,
+            native_writes: Map::with_capacity(ledger.capacity()),
             child: None,
             spawning: false,
             pipes: [None; 3],
@@ -329,6 +335,7 @@ impl Backend {
         owner == self.token(3)
             || owner == self.token(4)
             || owner == self.token(5)
+            || owner == self.token(6)
             || self.pipes.contains(&Some(owner))
             || match &self.check {
                 Some(check) => check.owns(owner),
@@ -425,7 +432,13 @@ impl Backend {
         below: &mut Queue<Below>,
     ) {
         match event {
-            BelowEvent::File { event, descriptor } => self.file_event(env, event, descriptor, up, below),
+            BelowEvent::File { event, descriptor } => {
+                if event.owner() == self.token(6) {
+                    self.native_event(event, up);
+                } else {
+                    self.file_event(env, event, descriptor, up, below);
+                }
+            }
             BelowEvent::Io(event) => self.io_event(env, event, up, below),
         }
         self.progress(env, up, below);
@@ -660,6 +673,7 @@ impl Backend {
     }
 
     fn flush(&mut self, below: &mut Queue<Below>) {
+        self.load_native(below);
         for _ in 0..self.io.capacity() {
             match self.io.pop() {
                 Some(request) => below.push(Below::Io(request)),
