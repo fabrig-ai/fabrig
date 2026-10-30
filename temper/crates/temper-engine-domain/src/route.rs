@@ -293,7 +293,7 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
     while let Some(work) = domain.work.pop() {
         match work {
             Work::SwitchChecked => {
-                if domain.core.restart_checked() && domain.forge.reconciliation().is_ok() {
+                if domain.core.restart_checked() {
                     emit(decision, &env.limits, Delivery::Restart(core::RestartStep::Switch));
                 } else {
                     domain.stop_pending = true;

@@ -337,6 +337,7 @@ fn a_projection_that_keeps_failing_holds_neither_the_goal_nor_its_close() {
         "projection retried after interval"
     );
     assert!(world.issue_write_times.len() >= 2);
+    restart_failed_history(world, goal.task, &defaults());
 }
 
 #[test]
@@ -348,4 +349,68 @@ fn a_refused_projection_holds_neither_the_goal_nor_its_close() {
     assert_reported(&world, chat.task, goal.task);
     assert!(issue(&world, goal.task).failed);
     assert!(world.issue_write_times.is_empty(), "policy refused before any backend write");
+    restart_failed_history(world, goal.task, &defaults);
+}
+
+fn restart_failed_history(mut world: World, goal: u64, defaults: &jig_domain_core::settings::Defaults) {
+    let historical = issue(&world, goal).clone();
+    // Keep the old repository, but move today's home to a different adoption.
+    let repository_key = Key::Forge(forge::Key::Repository(historical.repository));
+    let Some(Record::Forge { row }) = world.store.rows.get(&repository_key) else { panic!("adopted repository") };
+    let forge::Stored::Repository(mut previous) = row.as_ref().clone() else { panic!("repository row") };
+    previous.home = false;
+    let mut home = previous.clone();
+    home.provider.repository = 4; // The forge world's other repository identity.
+    home.name = b"lib".as_slice().into();
+    home.home = true;
+    world.store.seed(
+        Box::new([
+            Record::Forge { row: Box::new(forge::Stored::Repository(previous)) },
+            Record::Forge { row: Box::new(forge::Stored::Repository(home)) },
+        ]),
+        Box::new([]),
+    );
+    world.store.crash(9761);
+    let mut restarted = World::configured_stock_limits(defaults, &model(), &world.env.limits);
+    restarted.store = world.store;
+    restarted.fake = world.fake;
+    restarted.fake_env = world.fake_env;
+    advance(&mut restarted);
+    assert!(restarted.root.ready(), "writer-produced failed Issue reaches ready after goal end and home change");
+    assert_eq!(restarted.root.forge_restore_failure(), None);
+    assert_eq!(issue(&restarted, goal), &historical, "failed projection remains diagnostic history");
+    assert!(restarted.issue_write_times.is_empty(), "no failed projection retried");
+}
+
+fn ended_failed_goal() -> (World, u64, forge::IssueRow) {
+    let (mut world, chat, goal) = world(true);
+    let unfinished = issue(&world, goal.task).clone();
+    report(&mut world, &goal, REPORT);
+    assert_reported(&world, chat.task, goal.task);
+    (world, goal.task, unfinished)
+}
+
+fn seed_failed_history(world: &mut World, row: forge::IssueRow) {
+    // The ordinary closing feed replaces desired with a finished view. Inject the
+    // retained R17 shapes after that real writer has failed and ended the goal.
+    world.store.seed(Box::new([Record::Forge { row: Box::new(forge::Stored::Issue(row)) }]), Box::new([]));
+}
+
+#[test]
+fn failed_unfinished_issue_history_restores_after_goal_end_and_home_change() {
+    let (mut world, goal, unfinished) = ended_failed_goal();
+    assert!(unfinished.desired.as_ref().expect("writer's active view").finished.is_none());
+    let mut row = issue(&world, goal).clone();
+    row.desired = unfinished.desired;
+    seed_failed_history(&mut world, row);
+    restart_failed_history(world, goal, &defaults());
+}
+
+#[test]
+fn failed_issue_history_without_desired_restores_after_goal_end_and_home_change() {
+    let (mut world, goal, _) = ended_failed_goal();
+    let mut row = issue(&world, goal).clone();
+    row.desired = None;
+    seed_failed_history(&mut world, row);
+    restart_failed_history(world, goal, &defaults());
 }
