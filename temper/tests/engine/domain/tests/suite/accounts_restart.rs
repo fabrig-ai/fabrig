@@ -61,7 +61,7 @@ fn limits() -> engine::Limits {
     limits
 }
 
-fn kept_store() -> Store {
+fn kept_store(pending_export: bool) -> Store {
     // Start empty: Driver::configured seeds deployment key accounts, which
     // would consume both slots before either operation in this story.
     let mut driver = Driver::cold(Store::new(), config(), &limits());
@@ -114,8 +114,146 @@ fn kept_store() -> Store {
     driver.protocol.sign_in_sources.insert(source);
     driver.send(engine::Event::Account(accounts::Event::Adopted { source, kept: true }));
     driver.settle();
+    if pending_export {
+        change(&mut driver, 103, people::AccountChange::MoveOut { account: 3 });
+        assert!(driver.protocol.accounts.iter().any(|request| matches!(request,
+            accounts::Request::Signing(accounts::Signing::Withdraw { source: got, .. }) if *got == source)));
+        driver.send(engine::Event::Account(accounts::Event::Withdrawn { source, readable: true }));
+        driver.settle();
+        assert!(driver.delivered.iter().any(|delivery| matches!(delivery,
+            engine::Delivery::WebReply { reply: people::Reply::Outcome(people::Outcome::AccountMovingOut {
+                account: 3, number: 4, source: got }), .. } if *got == source)));
+        let document = account_status(&mut driver);
+        let source = document
+            .accounts
+            .iter()
+            .find(|row| row.number == 3)
+            .expect("imported account")
+            .sources
+            .iter()
+            .next()
+            .expect("imported source");
+        assert_eq!(source.state, core::documents::AccountState::Moving);
+        assert!(!source.usable);
+    }
     // Replay the real durable commits into a fresh store component.
     driver.store.fork()
+}
+
+fn change(driver: &mut Driver, key: u8, change: people::AccountChange) {
+    driver.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(u64::from(key))),
+        sign_in: driver.session(),
+        key: [key; 16],
+        ask: people::Ask::AccountChange { holder: people::AccountHolder::Own, change },
+    }));
+    driver.settle();
+}
+
+fn account_status(driver: &mut Driver) -> Box<core::documents::Accounts> {
+    let watcher = Token::new(1000 + u64::try_from(driver.delivered.len()).expect("small delivery count"));
+    driver.send(engine::Event::Party(engine::PartyInput::Watch {
+        watcher,
+        sign_in: driver.session(),
+        subject: core::documents::Watched::Accounts,
+        window: core::documents::Window { rows: ACCOUNTS, after: None },
+    }));
+    driver.settle();
+    driver
+        .delivered
+        .iter()
+        .rev()
+        .find_map(|delivery| {
+            if let engine::Delivery::Document { watcher: got, document } = delivery
+                && *got == watcher
+                && let core::documents::Document::Accounts(accounts) = &**document
+            {
+                Some(accounts.clone())
+            } else {
+                None
+            }
+        })
+        .expect("authenticated accounts read")
+}
+
+#[test]
+fn an_imported_pending_export_restores_and_answers_reads() {
+    let store = kept_store(true);
+    let account = store.rows.get(&account_key(accounts::Key::Account { number: 3 })).expect("imported account").clone();
+    let mut driver = Driver::cold(store, config(), &limits());
+    driver.protocol.sign_in_sources.insert(2);
+    // Hold only the existing protocol stub's grant, so refresh can be observed
+    // before it makes the restored source usable.
+    let mut grant = None;
+    for _ in 0..RESTORE_STEPS {
+        driver.advance(true);
+        if let Some(at) = driver.events.iter().position(|event| {
+            matches!(
+                event,
+                engine::Event::Account(accounts::Event::Component(accounts::FromComponent::Granted { account: 2, .. }))
+            )
+        }) {
+            assert!(grant.is_none(), "one refresh grant");
+            grant = driver.events.remove(at);
+        }
+        if driver.root.quiescent() && driver.events.is_empty() && driver.store.pending.is_empty() {
+            break;
+        }
+    }
+    assert_eq!(driver.root.restore_load_failure(), None);
+    assert!(driver.root.ready());
+    driver.sign_in();
+    driver.settle();
+    let refresh = driver
+        .protocol
+        .accounts
+        .iter()
+        .position(|request| matches!(request, accounts::Request::Signing(accounts::Signing::Refresh { source: 2 })))
+        .expect("restart refreshes the moving source");
+    let want = driver
+        .protocol
+        .accounts
+        .iter()
+        .position(|request| matches!(request, accounts::Request::Component(accounts::ToComponent::Want { account: 2 })))
+        .expect("grant requested");
+    assert!(refresh < want, "refresh precedes the grant request");
+    let before = account_status(&mut driver);
+    let imported = before.accounts.iter().find(|row| row.number == 3).expect("same imported account");
+    assert_eq!(imported.provider, Some(CHATGPT));
+    let source = imported.sources.iter().next().expect("imported source");
+    assert_eq!(source.number, 2);
+    assert!(!source.usable, "refresh has not answered yet");
+    // The old transfer cannot complete after restart, even before refresh answers.
+    change(&mut driver, 106, people::AccountChange::Written { number: 4 });
+    assert!(driver.delivered.iter().any(|delivery| matches!(
+        delivery,
+        engine::Delivery::WebReply {
+            reply: people::Reply::Outcome(people::Outcome::Refused(people::Refusal::AccountMove {
+                why: people::AccountMoveWhy::Cancelled
+            })),
+            ..
+        }
+    )));
+    driver.send(grant.expect("the existing component supplied a refresh grant"));
+    driver.settle();
+    let after = account_status(&mut driver);
+    assert!(after.usable);
+    let imported = after.accounts.iter().find(|row| row.number == 3).expect("same imported account");
+    let source = imported.sources.iter().next().expect("imported source");
+    assert_eq!(source.number, 2);
+    assert_eq!(source.state, core::documents::AccountState::Granted);
+    assert!(source.usable);
+    assert_eq!(driver.store.rows.get(&account.key()), Some(&account), "imported identity unchanged");
+    driver.send(engine::Event::Party(engine::PartyInput::Read {
+        reply_to: ReplyTo::new(Token::new(107)),
+        sign_in: driver.session(),
+        read: core::reads::Read::Settings,
+    }));
+    driver.settle();
+    assert!(driver.delivered.iter().any(|delivery| matches!(delivery,
+        engine::Delivery::Read { answer: core::reads::Answer::Document(document), .. }
+            if matches!(&**document, core::documents::Document::Settings(_)))));
 }
 
 fn account_key(key: accounts::Key) -> Key {
@@ -124,7 +262,7 @@ fn account_key(key: accounts::Key) -> Key {
 
 #[test]
 fn declared_and_imported_rows_walk_reservations_before_the_counter() {
-    let mut store = kept_store();
+    let mut store = kept_store(false);
     let range = engine::Range::Core(engine::CoreRange::Accounts);
     let mut after = None;
     let mut keys = Vec::new();
@@ -150,7 +288,7 @@ fn declared_and_imported_rows_walk_reservations_before_the_counter() {
 
 #[test]
 fn restart_accepts_issued_and_counter_in_one_page() {
-    let mut driver = Driver::cold(kept_store(), config(), &limits());
+    let mut driver = Driver::cold(kept_store(false), config(), &limits());
     for _ in 0..RESTORE_STEPS {
         driver.advance(true);
         if driver.root.restore_load_failure().is_some() || driver.root.ready() {
@@ -164,7 +302,7 @@ fn restart_accepts_issued_and_counter_in_one_page() {
 #[test]
 fn accounts_load_accepts_counter_after_an_issued_page_cursor() {
     use engine::loads::{self, Loads, Request};
-    let mut store = kept_store();
+    let mut store = kept_store(false);
     let range = engine::Range::Core(engine::CoreRange::Accounts);
     let (_, after) = store.page(&range, None, SINGLE_ROW);
     let (rows, next) = store.page(&range, after.as_ref(), SINGLE_ROW);
@@ -257,7 +395,7 @@ fn ordinary_accounts_pages_still_refuse_duplicates_and_backwards_rows() {
 #[test]
 fn real_account_writer_pages_reject_duplicate_backward_and_before_cursor_copies_in_the_oracle() {
     use temper_engine_domain_world::store::page_rules;
-    let mut store = kept_store();
+    let mut store = kept_store(false);
     let range = engine::Range::Core(engine::CoreRange::Accounts);
     let (rows, next) = store.page(&range, None, PAGE);
     page_rules(&range, None, &rows, next.as_ref()).expect("valid bounded fixture");

@@ -34,6 +34,108 @@ fn reads() -> Vec<Step> {
     ]
 }
 
+fn imported_account(scratch: &std::path::Path, config: &std::path::Path) {
+    let donor = scratch.join("donor");
+    std::fs::create_dir(&donor).expect("donor deployment");
+    let paths = ["config", "data", "cache"].map(|name| donor.join(name));
+    let issuer = forge_land::fake_deployment(&paths);
+    let file = scratch.join("incoming-account.move");
+    let outcome = boxed::run_ctl_with_account(
+        &donor,
+        boxed::echo_steps(deployment_flags(&paths)),
+        &donor,
+        vec![
+            Step::Run(Call::sign_in()),
+            Step::Run(Call::new(&["account", "connect", "1", "--key", "donor-account"])),
+            Step::Run(Call::new(&["account", "list", "--until", "usable", "--timeout", "10s"])),
+            Step::Run(Call::new(&["account", "export", "1", file.to_str().expect("move path")])),
+        ],
+        BOX_DEADLINE,
+        || (),
+        forge_land::fake_face(issuer, temper_real_loop_world::llm::cued(Box::new([]))),
+    );
+    drained(outcome.exit, outcome.left.as_deref(), &outcome.stderr);
+    answered(&outcome.calls, 4);
+    assert!(outcome.checked.is_some(), "donor exported its fixture account");
+    // The destination uses the same public provider registration as the donor.
+    let read = |path| -> serde_json::Value {
+        serde_json::from_slice(&std::fs::read(path).expect("fixture configuration")).expect("configuration JSON")
+    };
+    let donor = read(paths[0].join("temper.json"));
+    let config = config.join("temper.json");
+    let mut destination = read(config.clone());
+    destination["engine"]["llm"]["providers"][0]["sources"]["sign_in"] =
+        donor["engine"]["llm"]["providers"][0]["sources"]["sign_in"].clone();
+    super::write_private(&config, &serde_json::to_vec(&destination).expect("configuration JSON"));
+}
+
+/// Real import consumes its file; an export interrupted before Written survives a box restart.
+pub fn imported_account_restart(case: &str) {
+    let scratch = Scratch::new(case);
+    let paths = ["config", "data", "cache"].map(|name| scratch.path().join(name));
+    drop(forge_land::fake_deployment(&paths));
+    imported_account(scratch.path(), &paths[0]);
+    let flags = boxed::echo_steps(deployment_flags(&paths));
+    let incoming = scratch.path().join("incoming-account.move");
+    let first = boxed::run_ctl_with_account(
+        scratch.path(),
+        flags.clone(),
+        scratch.path(),
+        vec![
+            Step::Run(Call::sign_in()),
+            Step::Run(Call::new(&[
+                "account",
+                "import",
+                incoming.to_str().expect("move path"),
+                "--key",
+                "restart-account",
+            ])),
+            Step::Run(Call::new(&["account", "list", "--until", "usable", "--timeout", "10s"])),
+        ],
+        BOX_DEADLINE,
+        || {
+            let value: serde_json::Value =
+                serde_json::from_slice(&std::fs::read(paths[0].join("temper.json")).expect("fixture configuration"))
+                    .expect("configuration JSON");
+            let upstream = value["application"]["clients"]["listener"]["socket"]
+                .as_str()
+                .expect("client address")
+                .parse()
+                .expect("client socket");
+            let _moving = super::account_move_qa::export_pending(
+                scratch.path(),
+                upstream,
+                1,
+                &scratch.path().join("exported-login"),
+            );
+        },
+        forge_land::fake_face(
+            super::sign_in::restart_issued_issuer(&paths[0]),
+            temper_real_loop_world::llm::cued(Box::new([])),
+        ),
+    );
+    drained(first.exit, first.left.as_deref(), &first.stderr);
+    answered(&first.calls, 3);
+    assert!(first.checked.is_some(), "import and interrupted export completed");
+    assert!(!incoming.exists(), "import consumed the transfer file");
+    let restarted = boxed::run_ctl_with_account(
+        scratch.path(),
+        flags,
+        scratch.path(),
+        reads(),
+        BOX_DEADLINE,
+        || (),
+        forge_land::fake_face(
+            super::sign_in::restart_issued_issuer(&paths[0]),
+            temper_real_loop_world::llm::cued(Box::new([])),
+        ),
+    );
+    drained(restarted.exit, restarted.left.as_deref(), &restarted.stderr);
+    answered(&restarted.calls, 3);
+    assert!(restarted.checked.is_some(), "settings, account and forge reads completed without another import");
+    scratch.remove();
+}
+
 /// Both owned services use the pinned cache while the first deployment restarts.
 pub fn shared_cache_restart(case: &str) {
     let scratch = Scratch::new(case);
