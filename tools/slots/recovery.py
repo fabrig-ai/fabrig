@@ -26,6 +26,7 @@ read, write, locked = L["read"], L["write"], L["locked"]
 # Ops must review FIRSTDAYDRYRUN evidence before changing this gate. There is
 # deliberately no environment variable, CLI option or installation default override.
 FIRSTDAYDRYRUN = True
+CLAIM_SSH_TARGET = "free@204.168.210.29"
 
 
 def command(*argv):
@@ -495,9 +496,15 @@ def known_claim_refusal(host, number, share, code, stdout, stderr):
         return False
 
 
+def authority_argv(*args):
+    """The verified HEL8 transport, with ordinary host-key checks (5.6)."""
+    return ("ssh", "-o", "BatchMode=yes", CLAIM_SSH_TARGET, "bash", "-lc",
+            shlex.quote(shlex.join(["claim", *args])))
+
+
 def central_available(host, number, share):
     """An unlocked observation for filtering, never permission to mutate."""
-    output = command("ssh", "-o", "BatchMode=yes", "hel8", "bash", "-lc", shlex.quote("claim list"))
+    output = command(*authority_argv("list"))
     prefix = f"{host} {number} [{share}]: "
     rows = [line for line in output.splitlines() if line.startswith(f"{host} {number} [")]
     if rows == [prefix + "free"]:
@@ -509,9 +516,9 @@ def central_available(host, number, share):
 
 def central_claim(action, host, number, what, share=None):
     """Only hel8's installed authority; never builder-local claim state (5.6)."""
-    args = ["claim", action]
+    args = [action]
     if action == "list":
-        output = command("ssh", "-o", "BatchMode=yes", "hel8", "bash", "-lc", shlex.quote(shlex.join(args)))
+        output = command(*authority_argv(*args))
         prefix = f"{host} {number} [{share}]: ops: {what} (since "
         rows = [line for line in output.splitlines() if line.startswith(f"{host} {number} [")]
         match = re.fullmatch(re.escape(prefix) + r"([^()\s]+)\); held \d+d \d{2}:\d{2}:\d{2}", rows[0]) if len(rows) == 1 else None
@@ -530,7 +537,7 @@ def central_claim(action, host, number, what, share=None):
         expected = f"{host}-{number} released by ops"
     else:
         raise RuntimeError("unknown central claim action")
-    argv = ("ssh", "-o", "BatchMode=yes", "hel8", "bash", "-lc", shlex.quote(shlex.join(args)))
+    argv = authority_argv(*args)
     if action == "claim":
         result = subprocess.run(argv, text=True, capture_output=True, stdin=subprocess.DEVNULL)
         if known_claim_refusal(host, number, share, result.returncode, result.stdout, result.stderr):

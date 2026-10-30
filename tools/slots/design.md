@@ -414,7 +414,12 @@ After activation, `live --dry-run` still enters only section 5.5 observation.
 The consumer serializes intent with the existing sweep lock. Before requesting
 custody it durably writes private `N/automatic.json` with slot, owner `ops`, host,
 number, start UTC and a unique exact WHAT (`guard reclaim UTC NONCE`). It invokes
-only hel8's installed authority through `ssh -o BatchMode=yes hel8 bash -lc`:
+only HEL8's installed authority through the shared `authority_argv` helper and
+fixed transport `ssh -o BatchMode=yes free@204.168.210.29 bash -lc`. This endpoint
+is the same authority whose deployed hostname is `debian-8gb-hel1-1`; the short
+`hel8` alias need not resolve on a builder. Ordinary SSH host-key checking remains
+in force. Remote command argv is shell-quoted for the login shell. There is no
+environment override, builder-local fallback or alternate authority protocol:
 
 ```
 claim claim HOST N ops 'guard reclaim UTC NONCE'
@@ -548,6 +553,8 @@ cleanup operation. Ordinary/manual guard interfaces remain unchanged.
 `SafetyRepairTests` adds commondir, cwd alias identity, real disposable maintenance
 fd/self-scan, stale/reused fd, ordinary-refusal retry, uncertain-session retention,
 complete/internal versus external hardlinks, and strict time/OID regressions.
+`AuthorityEndpointTests` exercises all authority forms with a nonresolving short
+alias and verifies the exact explicit endpoint/login-shell argv and WHAT quoting.
 
 ## 4. Later
 

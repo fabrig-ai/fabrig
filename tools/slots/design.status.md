@@ -21,3 +21,7 @@ retained. Fully inventoried internal hardlinks are supported; external/unaccount
 links refuse. Nonzero 40/64-hex final OIDs are supported; producer second-precision
 timestamps are NOT accepted when earlier than ended nanoseconds. Producer precision
 alignment and all rollout prerequisites still block activation.
+
+Central SSH transport uses the shared fixed HEL8 endpoint free@204.168.210.29,
+with normal host-key checking and login-shell quoting. No short-alias DNS,
+environment override or local-authority fallback is required.

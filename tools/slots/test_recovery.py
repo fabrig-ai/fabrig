@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import runpy
 import shutil
+import shlex
 import signal
 import subprocess
 import sys
@@ -860,7 +861,9 @@ class AutomaticObservationTests(unittest.TestCase):
 FAKE_CENTRAL_SSH = '''#!/usr/bin/python3
 import json, os, runpy, shlex, socket, sys
 from pathlib import Path
-assert sys.argv[1:6] == ["-o", "BatchMode=yes", "hel8", "bash", "-lc"], sys.argv
+if sys.argv[3] == "hel8":
+    sys.exit("ssh: Could not resolve hostname hel8: Name or service not known")
+assert sys.argv[1:6] == ["-o", "BatchMode=yes", "free@204.168.210.29", "bash", "-lc"], sys.argv
 args = shlex.split(shlex.split(sys.argv[-1])[0])
 assert args[0] == "claim"
 fixture = Path(os.environ["GUARD_FIXTURE"])
@@ -1468,6 +1471,33 @@ class SafetyRepairTests(unittest.TestCase):
         self.assertIn("finality owner/time", self.run_auto(slot))
         self.assertTrue((slot / "target/cache").exists())
         self.assertFalse(self.claim_path().exists())
+
+
+class AuthorityEndpointTests(unittest.TestCase):
+    def test_all_authority_forms_select_verified_endpoint_when_alias_does_not_resolve(self):
+        calls = []
+        what = "guard reclaim fixture 'quoted value' $literal"
+        responses = iter(["hetzner7 4 [pool]: free\n",
+                          f"hetzner7-4 claimed by ops: {what}\n",
+                          f"hetzner7 4 [pool]: ops: {what} (since 2026-01-01T00:00:00+00:00); held 0d 00:00:00\n",
+                          "hetzner7-4 released by ops\n"])
+        def fake(argv, **kwargs):
+            calls.append(argv)
+            self.assertEqual(kwargs, {"text": True, "capture_output": True, "stdin": subprocess.DEVNULL})
+            if argv[3] == "hel8":
+                return subprocess.CompletedProcess(argv, 255, "", "ssh: Could not resolve hostname hel8\n")
+            self.assertEqual(list(argv[:6]), ["ssh", "-o", "BatchMode=yes", "free@204.168.210.29", "bash", "-lc"])
+            return subprocess.CompletedProcess(argv, 0, next(responses), "")
+        with patch.object(subprocess, "run", side_effect=fake):
+            with self.assertRaisesRegex(RuntimeError, "Could not resolve"):
+                R["command"]("ssh", "-o", "BatchMode=yes", "hel8", "bash", "-lc", "'claim list'")
+            self.assertTrue(R["central_available"]("hetzner7", "4", "pool"))
+            R["central_claim"]("claim", "hetzner7", "4", what, "pool")
+            R["central_claim"]("list", "hetzner7", "4", what, "pool")
+            R["central_claim"]("release", "hetzner7", "4", what)
+        remote = [shlex.split(shlex.split(argv[-1])[0]) for argv in calls[1:]]
+        self.assertEqual(remote, [["claim", "list"], ["claim", "claim", "hetzner7", "4", "ops", what],
+                                  ["claim", "list"], ["claim", "release", "hetzner7", "4", "ops", "--what", what]])
 
 
 class ProcessClassificationTests(unittest.TestCase):
