@@ -566,39 +566,6 @@ pub fn funds_document(rules: &Value, policy: &Value) -> Result<Value, String> {
     Ok(json!({"items":[{"setting":rules["setting"],"set":r}, {"setting":policy["setting"],"set":p}]}))
 }
 
-fn quote(path: &Path) -> String {
-    format!("'{}'", path.to_str().expect("UTF-8 path").replace('\'', "'\"'\"'"))
-}
-
-/// Installed before import; used both normally and by the launcher's EXIT trap.
-/// An interrupted import is covered even if its reply never reached the driver.
-pub fn return_hook(binary: &Path, store: &Path, client: &Path, account: &Path) {
-    let hook = store.join("give-back");
-    let body = format!(
-        r#"#!/bin/sh
-set -eu
-exec 9>{lock}
-flock -x 9
-: > {returning}
-if [ ! -e {account} ]; then
-  rung_account=$({binary} ctl {client} account list --json | jq -er '.accounts.party | map(select(.provider == 1 and .plan == true)) | if length == 1 then .[0].number else error("expected one held ChatGPT plan") end')
-  {binary} ctl {client} account export "$rung_account" {account}
-fi
-[ "$(LC_ALL=C stat -c %F -- {account})" = 'regular file' ]
-[ "$(stat -c %a -- {account})" = 600 ]
-[ "$(stat -c %s -- {account})" -gt 0 ]
-stat -c 'LOGIN BACK: %F mode=%a bytes=%s owner=%u' -- {account}
-"#,
-        account = quote(account),
-        binary = quote(binary),
-        client = quote(client),
-        lock = quote(&store.join("login.lock")),
-        returning = quote(&store.join("returning"))
-    );
-    super::super::write_private(&hook, body.as_bytes());
-    fs::set_permissions(hook, fs::Permissions::from_mode(0o700)).expect("executable return hook");
-}
-
 fn stop_box(boxed: &mut Child) -> Result<(), String> {
     super::super::parent::signal(boxed, "TERM");
     let status = boxed.wait().map_err(|e| e.to_string())?;
@@ -639,7 +606,7 @@ fn run_walk(store: &Path, paths: &[PathBuf; 3], account: &Path, offline: bool) {
     fs::create_dir(&client).expect("fresh client");
     fs::set_permissions(&client, fs::Permissions::from_mode(0o700)).expect("private client");
     let mut driver = Driver::owned(store, &client);
-    return_hook(&driver.binary, store, &driver.client, account);
+    super::super::held_login::return_hook(&driver.binary, store, &driver.client, account);
     let mut boxed = start_box(store, paths);
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| walk(&mut driver, paths, account, offline)));
     // No ordinary failure or panic bypasses the return. The launcher's copy of
