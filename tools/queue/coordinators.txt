@@ -1,0 +1,2 @@
+# KEY COORDINATOR_ADDRESS; '-' is explicitly unassigned.
+# Assignments require a reviewed activation; missing keys remain unresolved.
