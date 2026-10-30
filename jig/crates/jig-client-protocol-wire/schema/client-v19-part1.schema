@@ -87,3 +87,6 @@ record OriginRevision { revision: u32 }
 enum SettingOrigin { default: OriginRevision, change: OriginRevision, not_offered }
 enum ReviewValue { value: SettingSet, too_large: Size, none }
 record ReviewItem { setting: Setting edit: RevisionItemEdit now: ReviewValue origin: SettingOrigin would_be: ReviewValue }
+
+enum StreamBound { component, transport, exchanges }
+record StreamFull { bound: StreamBound size: u32 }
