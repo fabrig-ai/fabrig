@@ -306,7 +306,7 @@ fn an_unknown_flight_key_is_named_in_lowercase_hex() {
 }
 
 #[test]
-fn unresolved_forge_records_keep_the_named_start_failure() {
+fn missing_forge_links_panic_before_startup_wires() {
     use temper_engine_domain::{Record, Write};
     use temper_engine_domain_forge::Stored;
     const ABSENT_TASK: u64 = 999;
@@ -322,14 +322,18 @@ fn unresolved_forge_records_keep_the_named_start_failure() {
     );
     drop(previous.store.above.pop().expect("fixture commit answer"));
     let mut service = fixtures::restarting_from(previous);
-    for _ in 0..PASSES {
-        fixtures::turn(&mut service);
-        if service.end().is_some() {
-            break;
+    let panic = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| {
+        for _ in 0..PASSES {
+            fixtures::turn(&mut service);
         }
-    }
-    assert_eq!(service.end(), Some(&End::Stopped(Stop::ForgeUnresolved { records: 1 })));
-    let engine = service.engine.as_ref().expect("refused engine");
-    assert!(!engine.store.component.mark_durable(), "no start mark on refusal");
-    assert!(!engine.domain.connectors_restored(), "no adoption on refusal");
+    }))
+    .expect_err("required forge link is a writer bug");
+    let message = panic.downcast_ref::<String>().expect("formatted link assertion");
+    assert!(message.contains("forge link Names -> Task { task: 999, retired: None }"), "{message}");
+    assert_eq!(service.end(), None, "no startup refusal");
+    let engine = service.engine.as_ref().expect("linking engine");
+    assert_eq!(engine.domain.forge_restore_failure(), None, "no compatibility refusal recorded");
+    assert!(!engine.store.component.mark_durable(), "no start wires before link");
+    assert!(!engine.domain.connectors_restored(), "no adoption before link");
+    assert!(!engine.domain.ready(), "no decisions before link");
 }

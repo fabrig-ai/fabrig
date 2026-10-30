@@ -41,35 +41,43 @@ fn an_ended_goals_pending_projection_entry_restores() {
         (None, REPO, false),
         (Some(ENTRY), OTHER_REPOSITORY, false),
     ] {
-        let mut d = domain();
-        let mut entry = held_issue();
-        entry.effect.write = skein_forge::api::Write::Post {
-            number: 1,
-            key: Box::from(b"milestone".as_slice()),
-            body: Box::from(b"Goal finished".as_slice()),
-        };
-        outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
-        outputs(&mut d, Event::Restore { record: Stored::Entry { entry: entry.clone(), held: false } });
-        let Stored::Issue(mut row) = issue(false) else { unreachable!("issue fixture") };
-        row.pending = pending;
-        row.repository = repository;
-        row.number = Some(1);
-        row.state.opened = true;
-        row.desired = Some(issues::GoalView {
-            phase: issues::Phase::Done,
-            goal: TASK,
-            repository: u64::from(REPO.repository),
-            title: "Work".into(),
-            goal_text: "Complete the work".into(),
-            plan: Box::new([]),
-            milestones: Box::new([]),
-            finished: Some("Goal finished".into()),
-        });
-        outputs(&mut d, Event::Restore { record: Stored::Issue(row) });
+        let (d, entry) = closing_history(pending, repository);
         assert_eq!(resolved(&d, &Stored::Entry { entry, held: false }, false), expected);
         assert_eq!(resolved(&d, &Stored::Flight { task: TASK, entry: ENTRY }, false), expected);
     }
 }
+fn closing_history(
+    pending: Option<u64>,
+    repository: skein_forge::api::Repository,
+) -> (Domain, skein_forge_client::Entry) {
+    let mut d = domain();
+    let mut entry = held_issue();
+    entry.effect.write = skein_forge::api::Write::Post {
+        number: 1,
+        key: Box::from(b"milestone".as_slice()),
+        body: Box::from(b"Goal finished".as_slice()),
+    };
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    outputs(&mut d, Event::Restore { record: Stored::Entry { entry: entry.clone(), held: false } });
+    let Stored::Issue(mut row) = issue(false) else { unreachable!("issue fixture") };
+    row.pending = pending;
+    row.repository = repository;
+    row.number = Some(1);
+    row.state.opened = true;
+    row.desired = Some(issues::GoalView {
+        phase: issues::Phase::Done,
+        goal: TASK,
+        repository: u64::from(REPO.repository),
+        title: "Work".into(),
+        goal_text: "Complete the work".into(),
+        plan: Box::new([]),
+        milestones: Box::new([]),
+        finished: Some("Goal finished".into()),
+    });
+    outputs(&mut d, Event::Restore { record: Stored::Issue(row) });
+    (d, entry)
+}
+
 fn release() -> Stored {
     Stored::Release(ReleaseRow {
         task: TASK,
@@ -372,4 +380,184 @@ fn every_resource_bearing_owner_refuses_a_missing_repository() {
 #[test]
 fn a_flight_on_a_live_forge_requires_its_entrys_task() {
     assert!(!resolved(&held_domain(), &Stored::Flight { task: TASK, entry: ENTRY }, false));
+}
+
+// Empty restored tasks use the core's small task fixture limits; no charter is needed.
+fn empty_tasks() -> jig_domain_tasks::Domain {
+    use jig_domain_tasks as tasks;
+    let retry = tasks::Retry { retries: 1, base: Duration::from_millis(10), max: Duration::from_secs(1) };
+    let limits = tasks::Limits {
+        placed_holds: 1,
+        project_placed_holds: 1,
+        party_placed_holds: 1,
+        exemptions: 1,
+        circle: 8,
+        tasks: 2,
+        funders: 4,
+        project_tasks: 2,
+        project_goals: 8,
+        tree_tasks: 2,
+        depth: 1,
+        delegates: 1,
+        references: 2,
+        subscriptions: 2,
+        batch: 1,
+        dependencies: 1,
+        holdings: 2,
+        hold_kinds: 2,
+        resource_reports: 64,
+        pools: 2,
+        hold_segments: 4,
+        hold_bytes: 128,
+        hold_waiters: 2,
+        grace: Duration::from_secs(600),
+        hold_wait: Duration::from_secs(10),
+        inputs: 1,
+        spec_bytes: 64,
+        parameters: 1,
+        result_bytes: 128,
+        run_inbox: 4,
+        inbox_messages: 4,
+        inbox_bytes: 192,
+        message_bytes: 64,
+        proposal_stall: Duration::from_millis(10),
+        escalation_stall: Duration::from_secs(3600),
+        person_stall: Duration::from_secs(3600),
+        saved_resources: 2,
+        contract_choices: 1,
+        charters: 1,
+        revisions: 4,
+        versions: 8,
+        authority_grants: 1,
+        authority_segments: 1,
+        authority_bytes: 32,
+        executor_kinds: 2,
+        retries: tasks::Retries {
+            transient: retry,
+            permanent: retry,
+            run: retry,
+            agent: retry,
+            lost: retry,
+            invalid: retry,
+        },
+        facts: 2,
+        room_refusals: 2,
+    };
+    tasks::Domain::new(&limits, 1, 1, Box::new([]), Box::new([]))
+}
+
+#[test]
+#[should_panic(expected = "forge link Names -> Task { task: 7, retired: None }")]
+fn production_link_asserts_a_missing_task() {
+    let mut d = domain();
+    outputs(&mut d, Event::Restore { record: Stored::Names { task: TASK, resources: Box::new([]) } });
+    d.reconcile(&empty_tasks());
+}
+
+#[test]
+#[should_panic(expected = "forge link Ci -> Repository(Repository { forge: 1, repository: 99 })")]
+fn production_link_asserts_a_missing_repository() {
+    let mut d = domain();
+    outputs(
+        &mut d,
+        Event::Restore {
+            record: Stored::Ci(CiState {
+                repository: OTHER_REPOSITORY,
+                head: [3; 32],
+                status: skein_forge::api::Ci::Passed,
+            }),
+        },
+    );
+    d.reconcile(&empty_tasks());
+}
+
+#[test]
+#[should_panic(expected = "forge link Repository -> Forge(99)")]
+fn production_link_asserts_a_missing_configured_forge() {
+    let mut d = domain();
+    let mut repository = adopted();
+    repository.provider.forge = OTHER_FORGE;
+    outputs(&mut d, Event::Restore { record: Stored::Repository(repository) });
+    d.reconcile(&empty_tasks());
+}
+
+#[test]
+#[should_panic(expected = "forge link Flight -> Entry { task: 7, entry: 11 }")]
+fn production_link_asserts_a_missing_flight_entry() {
+    let mut d = domain();
+    outputs(&mut d, Event::Restore { record: Stored::Flight { task: TASK, entry: ENTRY } });
+    d.reconcile(&empty_tasks());
+}
+
+fn failed_history(desired: bool) -> Stored {
+    let Stored::Issue(mut row) = issue(false) else { unreachable!("issue fixture") };
+    row.failed = true;
+    if desired {
+        row.desired = Some(issues::GoalView {
+            phase: issues::Phase::Active,
+            goal: TASK,
+            repository: u64::from(REPO.repository),
+            title: "Work".into(),
+            goal_text: "Complete the work".into(),
+            plan: Box::new([]),
+            milestones: Box::new([]),
+            finished: None,
+        });
+    }
+    Stored::Issue(row)
+}
+
+#[test]
+fn production_link_keeps_failed_issue_history_without_a_goal() {
+    for desired in [false, true] {
+        let mut d = domain();
+        outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+        outputs(&mut d, Event::Restore { record: failed_history(desired) });
+        d.reconcile(&empty_tasks());
+        assert_eq!(d.reconciliation(), Ok(()));
+        let out = outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Wall });
+        assert!(!has_projection_effect(&out));
+        assert!(d.issue(TASK).expect("retained diagnostic").failed);
+    }
+}
+
+#[test]
+#[should_panic(expected = "forge link Issue -> Repository(Repository { forge: 1, repository: 2 })")]
+fn production_link_requires_a_failed_issues_repository() {
+    let mut d = domain();
+    outputs(&mut d, Event::Restore { record: failed_history(true) });
+    d.reconcile(&empty_tasks());
+}
+
+#[test]
+fn production_link_preserves_pending_closing_entry_and_flight() {
+    let (mut d, _) = closing_history(Some(ENTRY), REPO);
+    outputs(&mut d, Event::Restore { record: Stored::Flight { task: TASK, entry: ENTRY } });
+    d.reconcile(&empty_tasks());
+    assert_eq!(d.reconciliation(), Ok(()));
+}
+
+#[test]
+fn production_link_preserves_retired_demo_owners() {
+    let mut d = demo_domain();
+    for record in [
+        Stored::Names { task: OTHER_TASK, resources: Box::new([branch()]) },
+        hold(OTHER_TASK, Some(Writer::Lost { task: OTHER_TASK, attempt: 1 })),
+        subscription(),
+        issue(false),
+        Stored::Flight { task: TASK, entry: ENTRY },
+    ] {
+        outputs(&mut d, Event::Restore { record });
+    }
+    d.reconcile(&empty_tasks());
+    assert_eq!(d.reconciliation(), Ok(()));
+}
+
+#[test]
+#[should_panic(expected = "forge link Issue -> Task { task: 7, retired: Some(1) }")]
+fn production_link_requires_a_live_unfinished_issues_goal() {
+    let mut d = domain();
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    outputs(&mut d, Event::Restore { record: issue(false) });
+    d.reconcile(&empty_tasks());
 }

@@ -435,7 +435,7 @@ impl Domain {
         })
     }
 
-    /// The forge's independent reference verdict at its restore terminal.
+    /// Retained compatibility result; missing forge links panic at the restore terminal.
     #[must_use]
     pub const fn forge_restore_failure(&self) -> Option<forge::Unresolved> {
         match self.forge.reconciliation() {

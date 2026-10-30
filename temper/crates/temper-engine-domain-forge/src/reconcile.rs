@@ -3,7 +3,7 @@ use crate::{Domain, Limits, Name, Stored, Topic};
 use skein_forge::api::Repository;
 use skein_lib::List;
 
-/// The first unresolved record's family, in restoration order.
+/// A restored record's family, retained for compatibility diagnostics.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum RecordKind {
     Call,
@@ -30,7 +30,7 @@ pub enum RecordKind {
     Landing,
     Receipt,
 }
-/// A refused restore reports each unresolved row once.
+/// Compatibility diagnostic; missing required links assert during reconciliation.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Unresolved {
     pub records: u32,
@@ -47,14 +47,12 @@ pub(crate) enum Need {
 }
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Reference {
-    row: u32,
     kind: RecordKind,
     need: Need,
 }
 #[derive(Debug)]
 pub(crate) struct Reconciliation {
     references: List<Reference>,
-    row_start: u32,
     pub(crate) verdict: Result<(), Unresolved>,
 }
 // Retain the opaque client's references too: families can arrive in any order.
@@ -80,16 +78,10 @@ pub(crate) fn capacity(l: &Limits) -> Option<u32> {
 }
 impl Reconciliation {
     pub(crate) fn new(l: &Limits) -> Self {
-        Self {
-            references: List::with_capacity(capacity(l).expect("checked reconciliation capacity")),
-            row_start: 0,
-            verdict: Ok(()),
-        }
+        Self { references: List::with_capacity(capacity(l).expect("checked reconciliation capacity")), verdict: Ok(()) }
     }
     fn need(&mut self, kind: RecordKind, need: Need) {
-        self.references
-            .push(Reference { row: self.row_start, kind, need })
-            .expect("restored references fit row bounds");
+        self.references.push(Reference { kind, need }).expect("restored references fit row bounds");
     }
     fn repository(&mut self, kind: RecordKind, repository: Repository) {
         self.need(kind, Need::Repository(repository));
@@ -105,9 +97,6 @@ impl Reconciliation {
         self.task(kind, entry.task, Some(entry.repository.forge));
     }
     pub(crate) fn restore(&mut self, row: &Stored) {
-        // Only rows with references need an identity. The bounded list's
-        // offset avoids counting arbitrarily long reference-free history.
-        self.row_start = self.references.len();
         match row {
             Stored::Landing(row) => {
                 for member in &row.landing.members {
@@ -176,7 +165,9 @@ impl Reconciliation {
                     Some(view) => view.finished.is_some(),
                     None => false,
                 };
-                if !row.state.closed && !ending {
+                // Failed projections settle at goal close, even with an unfinished
+                // or absent desired view (domain/forge.md, 12).
+                if !row.failed && !row.state.closed && !ending {
                     self.task(RecordKind::Issue, row.goal, Some(row.repository.forge));
                 }
             }
@@ -202,10 +193,8 @@ impl Reconciliation {
     }
 }
 impl Domain {
-    /// Check the restored rows against the root's restored task facts.
+    /// Link restored rows to retained targets; a missing target is a writer bug.
     pub fn reconcile(&mut self, tasks: &jig_domain_tasks::Domain) {
-        let mut verdict = Ok(());
-        let mut failed = None;
         for reference in &self.reconciliation.references {
             let live = match reference.need {
                 Need::Task { task, .. } | Need::EntryOwner { task, .. } | Need::Entry { task, .. } => {
@@ -213,14 +202,16 @@ impl Domain {
                 }
                 Need::Forge(_) | Need::Demo(_) | Need::Repository(_) => false,
             };
-            if !self.reference_resolves(reference.need, live) && failed != Some(reference.row) {
-                failed = Some(reference.row);
-                add_failure(&mut verdict, reference.kind);
-            }
+            assert!(
+                self.reference_resolves(reference.need, live),
+                "forge link {:?} -> {:?}",
+                reference.kind,
+                reference.need
+            );
         }
-        self.reconciliation.verdict = verdict;
+        self.reconciliation.verdict = Ok(());
     }
-    /// The verdict survives refusal; no unresolved row is erased.
+    /// Retained compatibility result; missing targets panic before this can report failure.
     pub const fn reconciliation(&self) -> Result<(), Unresolved> {
         self.reconciliation.verdict
     }
@@ -247,41 +238,30 @@ impl Domain {
             Need::EntryOwner { task, entry } => {
                 live || match self.entries.get(&entry) {
                     Some(row) => {
-                        self.forge_ended(row.entry.repository.forge)
-                            || (row.entry.task == task
-                                && self.closing_projection_entry(task, entry, row.entry.repository))
+                        self.forge_ended(row.entry.repository.forge) || self.closing_projection_entry(task, entry)
                     }
                     None => false,
                 }
             }
             Need::Entry { task, entry } => match self.entries.get(&entry) {
                 Some(row) => {
-                    row.entry.task == task
-                        && (live
-                            || self.forge_ended(row.entry.repository.forge)
-                            || self.closing_projection_entry(task, entry, row.entry.repository))
+                    live || self.forge_ended(row.entry.repository.forge) || self.closing_projection_entry(task, entry)
                 }
                 None => false,
             },
         }
     }
 
-    fn closing_projection_entry(&self, task: u64, entry: u64, repository: Repository) -> bool {
-        // Closing projections outlive their goals (domain/forge.md, 12). The
-        // retained issue must own this exact entry in the same repository.
+    fn closing_projection_entry(&self, task: u64, entry: u64) -> bool {
+        // Closing projections outlive their goals (domain/forge.md, 12).
+        // The pending identity reconstructs ownership without a live task.
         match self.issues.get(&task) {
-            Some(row) if row.pending == Some(entry) && row.repository == repository => match &row.desired {
+            Some(row) if row.pending == Some(entry) => match &row.desired {
                 Some(view) => view.finished.is_some(),
                 None => false,
             },
             Some(_) | None => false,
         }
-    }
-}
-fn add_failure(verdict: &mut Result<(), Unresolved>, kind: RecordKind) {
-    match verdict {
-        Ok(()) => *verdict = Err(Unresolved { records: 1, first: kind }),
-        Err(why) => why.records = why.records.checked_add(1).expect("bounded unresolved rows"),
     }
 }
 
@@ -296,6 +276,26 @@ pub(crate) fn references_resolve(d: &Domain, limits: &Limits, row: &Stored, live
             }
             Need::Forge(_) | Need::Demo(_) | Need::Repository(_) => false,
         };
+        // Writer rules are an oracle concern, separate from runtime target links.
+        if let Need::EntryOwner { task, entry } | Need::Entry { task, entry } = reference.need
+            && let Some(row) = d.entries.get(&entry)
+        {
+            let check_owner = match reference.need {
+                Need::Entry { .. } => true,
+                Need::EntryOwner { .. } => !live && !d.forge_ended(row.entry.repository.forge),
+                Need::Forge(_) | Need::Demo(_) | Need::Repository(_) | Need::Task { .. } => false,
+            };
+            if check_owner && row.entry.task != task {
+                return false;
+            }
+            if !live
+                && !d.forge_ended(row.entry.repository.forge)
+                && let Some(issue) = d.issues.get(&task)
+                && issue.repository != row.entry.repository
+            {
+                return false;
+            }
+        }
         if !d.reference_resolves(reference.need, live) {
             return false;
         }
