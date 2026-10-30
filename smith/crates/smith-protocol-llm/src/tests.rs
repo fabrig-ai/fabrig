@@ -69,7 +69,6 @@ fn tools() -> tools::Limits {
         search_hits: 8,
         search_bytes: 128,
         search_timeout: Duration::from_secs(30),
-        facts: 32,
     }
 }
 

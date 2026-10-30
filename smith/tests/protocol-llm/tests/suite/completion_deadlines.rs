@@ -123,7 +123,7 @@ fn session_whole_expiry_and_cancel_leave_the_sibling_live() {
 }
 
 fn session_with_time(seconds: u64) -> World {
-    let mut world = World::new(411, 256);
+    let mut world = World::new(411);
     let mut start = opening(None, u64::MAX);
     start.spec.budget.time = Duration::from_secs(seconds);
     start.spec.progress = session::Progress { head: Duration::from_secs(20), idle: Duration::from_secs(5) };

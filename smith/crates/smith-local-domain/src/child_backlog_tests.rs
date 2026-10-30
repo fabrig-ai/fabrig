@@ -24,18 +24,16 @@ fn start_without_workspace(domain: &Domain) -> host::Start {
 }
 
 #[test]
-fn one_pass_drains_inline_lifecycle_facts_beyond_the_allowance() {
-    let mut limits = crate::tests::limits();
-    let AgentLimits::Inline(child) = &mut limits.agent else { panic!("inline fixture") };
-    child.facts = 1;
+fn one_pass_drains_every_inline_lifecycle_fact() {
+    const ATTEMPTS: u32 = 40;
+    let limits = crate::tests::limits();
     let mut domain = Domain::new(crate::tests::config(), &limits, 11).expect("inline parent");
-    for _ in 0_u32..4 {
+    for _ in 0..ATTEMPTS {
         let start = start_without_workspace(&domain);
         command(&mut domain.agent, Time::ZERO, Wall::EPOCH, parent::Event::Spawn { client: Token::new(1), start });
     }
-    let Agent::Inline { domain: child, limits, .. } = &domain.agent else { panic!("inline child") };
-    assert_eq!(child.pending_slot_facts(), 4, "one opened slot and three refusals");
-    assert!(child.pending_slot_facts() > limits.facts);
+    let Agent::Inline { domain: child, .. } = &domain.agent else { panic!("inline child") };
+    assert_eq!(child.pending_slot_facts(), ATTEMPTS, "one opened slot and each remaining spawn refused");
     drain_agent_content(&mut domain);
     let Agent::Inline { domain: child, .. } = &mut domain.agent else { panic!("inline child") };
     assert_eq!(child.pending_slot_facts(), 0);

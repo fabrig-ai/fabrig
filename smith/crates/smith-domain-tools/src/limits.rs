@@ -67,8 +67,6 @@ pub struct Limits {
     pub search_bytes: u32,
     /// How long a search may take, within its call's deadline.
     pub search_timeout: Duration,
-    /// Compatibility setting; observations are uncapped and this does not limit them.
-    pub facts: u32,
 }
 
 /// Whether a domain can be built under `limits`: compatible limits and
@@ -231,6 +229,5 @@ pub fn derive(inputs: &Derivation) -> Result<Limits, Field> {
         search_hits: inputs.search_hits,
         search_bytes: inputs.search_bytes,
         search_timeout: Duration::from_secs(30).min(inputs.tool_deadline),
-        facts: 1024,
     })
 }

@@ -628,9 +628,6 @@ fn one_legacy_content_drain_empties_the_root_beyond_the_service_fact_allowance()
         &mut service.domain_requests,
     );
     assert_eq!(root.pending_content(), 3, "two text records and usage");
-    // The retained root owns the queue; a service allowance cannot describe its contents.
-    service.limits.domain.session.facts = 1;
-    assert!(root.pending_content() > service.limits.domain.session.facts);
     drain_legacy_content(&mut service);
     let root = service.domain.as_mut().expect("framed root");
     assert_eq!(root.pending_content(), 0);

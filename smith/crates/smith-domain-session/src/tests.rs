@@ -58,7 +58,6 @@ const TOOLS: tools::Limits = tools::Limits {
     search_hits: 8,
     search_bytes: 256,
     search_timeout: Duration::from_secs(30),
-    facts: 64,
 };
 
 const LIMITS: Limits = Limits {
@@ -79,8 +78,6 @@ const LIMITS: Limits = Limits {
     retries: 2,
     backoff_base: Duration::from_millis(100),
     backoff_max: Duration::from_secs(1),
-
-    facts: 128,
     parallel_tools: 2,
     tools: TOOLS,
 };
@@ -913,8 +910,8 @@ fn a_maximum_legal_batch_dispatches_every_call() {
 
 #[test]
 fn a_maximum_refused_batch_keeps_every_call_observation_without_a_fact_allowance() {
-    let tools = tools::Limits { facts: 0, ..TOOLS };
-    let mut h = Harness::new(&Limits { facts: 0, tools, parallel_tools: MAX_PARALLEL, ..LIMITS });
+    let tools = TOOLS;
+    let mut h = Harness::new(&Limits { tools, parallel_tools: MAX_PARALLEL, ..LIMITS });
     let (owner, _) = h.open(1);
     let mut content = List::with_capacity(MAX_PARALLEL);
     for _ in 0..MAX_PARALLEL {
@@ -2007,17 +2004,14 @@ fn drive(h: &mut Harness) -> (Token, Prompt, Option<Request>, Option<Request>) {
 
 #[test]
 fn native_call_history_is_complete_without_a_session_fact_allowance() {
-    assert!(valid(&Limits { facts: 0, ..LIMITS }));
-    let mut bounded = Harness::new(&Limits { facts: 0, ..LIMITS });
-    let mut roomy = Harness::new(&LIMITS);
-    assert_eq!(drive(&mut bounded), drive(&mut roomy));
-    bounded.keep_facts();
-    roomy.keep_facts();
-    assert_eq!(bounded.observed.len(), 8);
-    while let Some(fact) = bounded.observed.pop() {
-        assert_eq!(Some(fact), roomy.observed.pop());
+    let mut harness = Harness::new(&LIMITS);
+    drive(&mut harness);
+    harness.keep_facts();
+    assert_eq!(harness.observed.len(), 8);
+    for _ in 0_u32..8 {
+        assert!(harness.pop_fact().is_some());
     }
-    assert!(roomy.observed.is_empty());
+    assert!(harness.pop_fact().is_none());
 }
 
 #[test]
@@ -2025,12 +2019,10 @@ fn invalid_limits_are_refused() {
     assert!(valid(&LIMITS));
     // Heap-total overflow alone is not constructor invalidity.
     assert!(valid(&Limits { history_bytes: u64::MAX, completion_bytes: u64::MAX, answer_bytes: u64::MAX, ..LIMITS }));
-    assert!(valid(&Limits { tools: tools::Limits { facts: 23, ..TOOLS }, facts: 0, ..LIMITS }));
     // A batch has positive width.
     assert!(!valid(&Limits { parallel_tools: 0, ..LIMITS }));
     // Batch width stays within the vocabulary cap (with enough calls).
-    let wide =
-        Limits { parallel_tools: MAX_PARALLEL + 1, tools: tools::Limits { calls: 9, facts: 128, ..TOOLS }, ..LIMITS };
+    let wide = Limits { parallel_tools: MAX_PARALLEL + 1, tools: tools::Limits { calls: 9, ..TOOLS }, ..LIMITS };
     assert!(!valid(&wide));
     // The child can accept the whole batch.
     assert!(!valid(&Limits { tools: tools::Limits { calls: 1, ..TOOLS }, ..LIMITS }));
@@ -2041,7 +2033,7 @@ fn invalid_limits_are_refused() {
     // Every session can own a kit.
     assert!(!valid(&Limits { tools: tools::Limits { kits: 1, ..TOOLS }, ..LIMITS }));
     // Two generations and completion observations fit the run table.
-    assert!(!valid(&Limits { completion_blocks: u32::MAX, facts: u32::MAX, ..LIMITS }));
+    assert!(!valid(&Limits { completion_blocks: u32::MAX, ..LIMITS }));
     // Multiplying sessions by the per-session run capacity is checked.
     let many = Limits {
         sessions: u32::MAX / 8,
@@ -2349,7 +2341,7 @@ fn exact_read_batch_limits(content: &[Block], short: bool) -> Limits {
 
 #[test]
 fn delayed_facts_keep_their_times_completion_numbers_and_exact_call_measurements() {
-    let mut h = Harness::new(&Limits { facts: 0, ..LIMITS });
+    let mut h = Harness::new(&LIMITS);
     h.env.now = Time::from_nanos(7);
     let (owner, _) = h.open(1);
     h.env.now = Time::from_nanos(11);

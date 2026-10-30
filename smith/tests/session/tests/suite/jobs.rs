@@ -13,7 +13,7 @@ fn opening(transcript: Option<record::Transcript>) -> record::Opening {
 }
 
 fn world() -> World {
-    let mut world = World::new(1, 256);
+    let mut world = World::new(1);
     world.open(opening(None));
     world
 }
@@ -265,10 +265,10 @@ fn a_session_closing_while_a_job_read_waits_answers_the_read_before_it_ends() {
 
 #[test]
 fn a_resumed_session_numbers_its_next_job_after_its_last_turns() {
-    let old = recorded::scenario(1, 256);
+    let old = recorded::scenario(1);
     let mut transcript = recorded::transcript(&old);
     transcript.turns.last_mut().expect("last turn").jobs = 3;
-    let mut world = World::new(1, 256);
+    let mut world = World::new(1);
     world.open(opening(Some(transcript)));
     let owner = start_job(&mut world);
     assert_eq!(world.turns[0].jobs, 4);

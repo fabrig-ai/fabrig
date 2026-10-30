@@ -86,7 +86,6 @@ impl Settings {
                 search_hits: 8,
                 search_bytes: 256,
                 search_timeout: Duration::from_secs(30),
-                facts: 64,
             },
             io: Span::millis(1, 20),
             faults: 0,

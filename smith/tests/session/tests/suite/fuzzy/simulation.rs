@@ -115,7 +115,7 @@ fn drawn_small_windows_compact_within_them() {
     use smith_session_world::recorded::{World, opening};
     let mut rng = skein_lib::Rng::new(4712);
     for seed in 0..100 {
-        let mut world = World::new(seed, 256);
+        let mut world = World::new(seed);
         world.env.limits.spend = 10_000;
         let mut start = opening(None, world.env.limits.spend);
         start.spec.window = u32::try_from(rng.between(2_000, 3_000)).expect("small window");
@@ -142,7 +142,7 @@ fn no_drawn_session_ends_because_its_history_grew() {
     use smith_session_world::recorded::{World, opening, written_calls};
     let mut rng = skein_lib::Rng::new(4717);
     for seed in 0..100 {
-        let mut world = World::new(seed, 256);
+        let mut world = World::new(seed);
         world.env.limits.history_bytes = rng.between(24_576, 32_768);
         world.open(opening(None, world.env.limits.spend));
         world.complete(written_calls(16), llm::Stop::ToolUse, llm::Usage::ZERO);
@@ -166,19 +166,16 @@ fn no_drawn_session_ends_because_its_history_grew() {
 #[test]
 fn observations_are_lossless_without_a_session_fact_allowance_over_many_seeds() {
     for seed in 0..100 {
-        let run = |without_allowance| {
-            let mut settings = noisy(seed);
-            if without_allowance {
-                settings.agent.facts = 0;
-            }
+        let run = || {
+            let settings = noisy(seed);
             let mut world = World::new(settings);
             submit_noisily(&mut world, &settings, seed);
             world.run(ITERATIONS);
             (world.stats(), world.told(), world.trace().to_vec())
         };
-        let normal = run(false);
+        let normal = run();
         assert!(normal.1.ended > 0 && normal.0.calls > 0, "seed {seed}: calls settled");
-        assert_eq!(normal, run(true), "seed {seed}: complete observations and request order survive");
+        assert_eq!(normal, run(), "seed {seed}: complete observations and request order survive");
     }
 }
 

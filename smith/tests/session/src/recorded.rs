@@ -162,14 +162,12 @@ impl World {
     /// Constructs empty bounded state under the supplied immutable limits; no IO or clocks are consulted.
     ///
     /// World contract: domain/session.md, sections 10 and 12; testing-strategy.md, section 2.2.
-    /// `facts` supplies the compatibility limit; observations themselves are uncapped.
     #[must_use]
-    pub fn new(seed: u64, facts: u32) -> World {
+    pub fn new(seed: u64) -> World {
         let mut limits = crate::Settings::calm(seed).agent;
         limits.sessions = 1;
         limits.spend = u64::MAX;
         limits.history_messages = 32;
-        limits.facts = facts;
         World {
             domain: session::Domain::new(&limits, seed),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
@@ -445,8 +443,8 @@ pub fn called() -> Box<[llm::Block]> {
 ///
 /// World contract: domain/session.md, sections 10 and 12; testing-strategy.md, section 2.2.
 #[must_use]
-pub fn scenario(seed: u64, facts: u32) -> World {
-    let mut world = World::new(seed, facts);
+pub fn scenario(seed: u64) -> World {
+    let mut world = World::new(seed);
     world.open(opening(None, 100));
     world.complete(called(), llm::Stop::ToolUse, USAGE);
     assert!(world.turns.is_empty(), "the turn waits for its tool results");

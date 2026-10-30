@@ -10,9 +10,6 @@ use smith_domain_tools as tools;
 
 use crate::{BUDGET, Count, Settings, Span, World, spec};
 
-// Calm tools fixture inventory: four jobs plus two lifecycle facts.
-const CALM_TOOLS_FACTS: u32 = 6;
-
 /// Settings drawn from `seed`: small limits, faults, latencies that race the
 /// deadlines, and an opener that nudges, dawdles and abandons.
 ///
@@ -45,15 +42,20 @@ pub fn noisy(seed: u64) -> Settings {
             retries: pick(0, 4),
             backoff_base: Duration::from_millis(50),
             backoff_max: Duration::from_secs(2),
-            facts: pick(0, 24),
-            parallel_tools,
+            parallel_tools: {
+                let _ = pick(0, 24); // The draw keeps the seed's sequence.
+                parallel_tools
+            },
             tools: tools::Limits {
-                tool_deadline,
                 kits: sessions,
                 calls: parallel_tools + pick(0, 2),
                 known_files: pick(1, 4),
                 file_timeout: millis(200, 5_000),
-                facts: pick(0, 24),
+                // The draw keeps the seed's sequence.
+                tool_deadline: {
+                    let _ = pick(0, 24);
+                    tool_deadline
+                },
                 ..calm.agent.tools
             },
             ..calm.agent
@@ -88,7 +90,6 @@ pub fn noisy(seed: u64) -> Settings {
         serving: Span::millis(10, 3_000),
         ..calm
     };
-    settings.agent.tools.facts = settings.agent.tools.facts.saturating_add((parallel_tools + 2) * CALM_TOOLS_FACTS);
     // Keep the original 2000..8000 draw and every RNG operation above. The
     // original draw pressures retained payload; canonical terminals additionally
     // require pre-effect provider/result credit (domain/session.md, sections 3, 5

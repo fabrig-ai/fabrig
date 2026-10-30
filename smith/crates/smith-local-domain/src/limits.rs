@@ -59,7 +59,6 @@ impl AgentLimits {
             window: agent::Window { turns, bytes: agent::max_turn_bytes(&smith)? },
             wall_time,
             cancel_grace,
-            facts: 32,
         };
         if !smith_inline_agent::valid(&limits) {
             return None;

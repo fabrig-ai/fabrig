@@ -5,7 +5,7 @@ use skein_world::domain::heap::Meter;
 use smith_agent_world::memory::{LIMITS, churn};
 use smith_domain::{Limits, run};
 
-// Content capture setting from the session observation inventory:
+// Content capture capacity for this scenario:
 // three parallel tools, sixteen completion blocks and four jobs.
 const WIDE_CONTENT_EDGE_RECORDS: u32 = 105;
 
@@ -19,9 +19,10 @@ const WIDE_RANDOM_AGENT_CEILING: u64 = 320_000;
 
 #[test]
 fn a_domain_driven_at_random_stays_under_its_scenario_ceilings_at_every_entry_point() {
-    let mut wider = Limits {
+    let wider = Limits {
         configured_model_bytes: LIMITS.configured_model_bytes,
         accounts: LIMITS.accounts,
+        content_edge_records: WIDE_CONTENT_EDGE_RECORDS,
         endpoints: LIMITS.endpoints,
         decoded_call_bytes: LIMITS.decoded_call_bytes,
         skew: LIMITS.skew,
@@ -40,7 +41,6 @@ fn a_domain_driven_at_random_stays_under_its_scenario_ceilings_at_every_entry_po
             ..LIMITS.session
         },
     };
-    wider.session.facts = WIDE_CONTENT_EDGE_RECORDS;
     let mut seen = [0; 18];
     for seed in 0..12 {
         for (limits, ceiling) in [(LIMITS, RANDOM_AGENT_CEILING), (wider, WIDE_RANDOM_AGENT_CEILING)] {

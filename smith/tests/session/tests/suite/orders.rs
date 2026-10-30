@@ -12,7 +12,6 @@ use smith_session_world::{Reclaim, Settings, Span, World, spec};
 use smith_tools_world::translate as io;
 
 const ITERATIONS: u32 = 100_000;
-const FACTS: u32 = 256; // The calm world's compatibility observation allowance.
 const SEED: u64 = 319;
 const FILE: &[u8] = b"README.md";
 const OLD: &[u8] = b"README.md: old\n";
@@ -51,7 +50,7 @@ fn machine() -> (Recorded, Checkout) {
         }]),
         grants: tools::Grants { inspect: true, modify: true, shell: true },
     };
-    let mut world = Recorded::new(SEED, FACTS);
+    let mut world = Recorded::new(SEED);
     world.open(opening);
     (world, checkout)
 }

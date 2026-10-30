@@ -7,9 +7,6 @@ use smith_domain_run::{Budget, Limits};
 use crate::partner::Script;
 use crate::{Checkouts, Settings, Span, host};
 
-// Calm fixture inventory: two observations per eight messages plus eight lifecycle facts.
-const CALM_RUN_FACTS: u32 = 24;
-
 /// Settings drawn from `seed`: small limits, charters that sometimes do not fit
 /// them, faults, cancels, and latencies that race the deadlines.
 ///
@@ -103,9 +100,9 @@ pub fn noisy(seed: u64) -> Settings {
         calls: small(pick(1, 8)),
         run_conversations: small(pick(1, 4)),
         answer_bytes: small(pick(0, 200)),
-        facts: CALM_RUN_FACTS.saturating_add(small(pick(0, 64))),
         ..run
     };
+    let _ = pick(0, 64); // The draw keeps the seed's sequence.
     let host = feature_host(host, &mut pick);
     Settings {
         run,

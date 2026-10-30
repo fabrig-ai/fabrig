@@ -9,7 +9,7 @@ use smith_run_world::{
 
 fn observed() -> Vec<(Time, Token, Seen)> {
     let mut settings = Settings::calm(917);
-    settings.run.facts = 512;
+
     settings.host.jobs = 1;
     settings.host.turns_min = 8;
     settings.host.turns_max = 8;

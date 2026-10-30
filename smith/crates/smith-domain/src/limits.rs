@@ -27,6 +27,9 @@ pub struct Limits {
     /// including classifications with no payload after a refusal.
     pub decoded_call_bytes: u64,
 
+    /// Optional capture capacity in records; overflow drops records and counts them.
+    pub content_edge_records: u32,
+
     /// Safety margin subtracted from credential validity before use.
     pub skew: skein_lib::Duration,
     /// Immutable run-child ownership and admission limits.

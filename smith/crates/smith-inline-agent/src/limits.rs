@@ -16,8 +16,6 @@ pub struct Limits {
     pub wall_time: Duration,
     /// Host allowance after cancellation before the slot drops its root.
     pub cancel_grace: Duration,
-    /// Legacy lifecycle fact allowance; any value is valid.
-    pub facts: u32,
 }
 
 /// Whether a domain can be built under `limits`: compatible limits and

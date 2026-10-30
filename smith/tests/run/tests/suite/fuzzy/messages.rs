@@ -7,8 +7,8 @@ use std::collections::BTreeMap;
 fn seeded_message_callbacks_replay_with_read_and_unread_terminals() {
     let mut cells = BTreeMap::<&str, u32>::new();
     for seed in 0..96 {
-        let mut settings = noisy(seed);
-        settings.run.facts = 512;
+        let settings = noisy(seed);
+
         let mut world = World::new(settings);
         world.inject_messages(500);
         world.run(1_000_000);

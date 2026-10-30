@@ -1038,34 +1038,6 @@ fn a_search_is_bounded_and_says_when_it_cannot_run() {
 }
 
 #[test]
-fn observations_answers_and_files_do_not_depend_on_the_fact_allowance() {
-    let run_with = |facts| {
-        let calm = Settings::calm(80);
-        let settings = Settings { tools: Limits { facts, jobs: 0, ..calm.tools }, ..calm };
-        let script = vec![
-            Step::Calls(vec![read(b"src/lib.rs"), list(b"src"), read(b"/etc/passwd")]),
-            Step::Calls(vec![edit(b"src/lib.rs", b"fn one", b"fn uno", false), shell(b"cargo test", None)]),
-        ];
-        let (answers, world) = run(settings, ALL, script);
-        (
-            answers,
-            world
-                .checkout()
-                .files()
-                .into_iter()
-                .map(|(path, content)| (path.to_vec(), content.to_vec()))
-                .collect::<Vec<_>>(),
-            world.stats().facts,
-        )
-    };
-    let (answers, files, facts) = run_with(64);
-    let (uncapped_answers, uncapped_files, uncapped_facts) = run_with(0);
-    assert!(facts > 0);
-    assert_eq!(uncapped_facts, facts, "every observation is retained");
-    assert_eq!((uncapped_answers, uncapped_files), (answers, files), "the fact allowance changes no answer or file");
-}
-
-#[test]
 fn a_plain_command_bypasses_file_modify_and_git_protection() {
     let shell_only = Grants { inspect: true, modify: false, shell: true };
     let script = vec![Step::Calls(vec![write(b"src/new.rs", b"x"), shell(b"install hooks", None)])];
