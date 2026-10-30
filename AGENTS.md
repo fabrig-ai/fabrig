@@ -1,6 +1,6 @@
 # Agent guidance for fabrig
 
-Provisional, 2026-10-28. What every agent working here must know, whatever its role. Read it first, then your role's file in `agents/`, then the `AGENTS.md` of the tree you work in, which holds the facts about its code.
+Provisional, 2026-10-30. What every agent working here must know, whatever its role. Read it first, then your role's file in `agents/`, then the `AGENTS.md` of the tree you work in, which holds the facts about its code.
 
 ## 1. In one page
 
@@ -10,7 +10,7 @@ Provisional, 2026-10-28. What every agent working here must know, whatever its r
 - **The design is the contract:** each tree's `docs/design/`, cited by path from the repository root and section (`skein/docs/design/lib.md, 5`). Every design document has a "Later" section for what is out of scope now, and a status file beside it (`lib.status.md`) saying where the code lags or departs; its designer keeps both.
 - **main moves only through the merge queue.** You push a branch; you never push main, never force-push, and push only your own branches (a lead also publishes its implementers' reviewed tips as `ready/<area>/<task>`).
 - **The queue lowers old-form baselines.** Tasks need not edit `scripts/old-forms.txt` or run `old_forms.py --write`; the queue recounts touched trees and commits lower counts before checks. A raised count is still rejected.
-- **Every build and test goes through `heavy`**, one command at a time; the only test profiles are `default` (focused) and `fuzzy`.
+- **Every build and test goes through `heavy`**, one command at a time; `default` (focused) and `fuzzy` are the gate's profiles; the slow tiers use the root configuration's `<tier>-<tree>` profiles (`tools/tiers/run`), never in the gate.
 - **On a doubt, stop and ask** (section 7); never improvise across a boundary.
 
 ## 2. Code
@@ -57,7 +57,8 @@ Provisional, 2026-10-28. What every agent working here must know, whatever its r
 - Read a failure's log (heavy prints its path) before anything reruns; no unchanged rerun, except once after exit 137.
 - A failure your change can't reach runs once alone: passing, it's a flake, reported with both logs and the machine; failing, it's a question.
 - Fix a failure in the lowest tier that shows it: a skein fault seen downstream is reproduced in skein.
-- The budgets, measured on an idle machine: a tree's focused suite within 30 seconds, its fuzzy suite (randomized: the `fuzzy` module of a package's `suite` binary) within 120 seconds. They are the user's; moving a test to escape one is raising it.
+- Every tree's tier has the user's CPU budget and a wall hard limit; **starved** is a warning, never red on that account (skein/docs/foundation/testing-strategy.md, 8.1).
+  Over budget is red: does the test belong here; can it be made faster; otherwise ask the user through the director with measurements. Moving a test to escape a budget is raising it.
 
 ## 7. Asking
 

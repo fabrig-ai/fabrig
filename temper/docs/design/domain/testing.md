@@ -1,6 +1,6 @@
 # Testing temper
 
-Provisional, 2026-10-03, revised 2026-10-26. How temper is tested. The
+Provisional, 2026-10-03, revised 2026-10-30. How temper is tested. The
 strategy is skein's `docs/foundation/testing-strategy.md`: the tiers,
 faults, what every fake shares, what every world checks, scenarios and
 the referee, the two suites, and where a failure is fixed. This document
@@ -1406,11 +1406,13 @@ terminal client, the captures and the faults.
   saw one merge and one pull request opened across both lives, and no
   task was made after the restart; the forge reconnects as
   in the App's story. Its aim is the App's story's.
-- **Outside the suites:** nextest profile `process`, run once the
-  binary and the fake `claude` are built, with `TEMPER_TEST_CLAUDE` set. It aims at 6 minutes (3
-  minutes before the user's doubling of 10-22, provisional); the aim and
-  the profile's timeout are the user's. A story that would take the tier
-  past its aim moves down a tier, or goes to the user with its figures.
+- **Outside the gate suites:** nextest profile `process-temper`, run once
+  the binary and the fake `claude` are built, with `TEMPER_TEST_CLAUDE` set.
+  The 6-minute aim (3 minutes before the user's doubling of 10-22,
+  provisional) is the starting point for the process tier's CPU budget,
+  the user's to set from measurements, separate from its wall hard limit.
+  Both follow testing-strategy.md, 8.1 and its three-question repair rule:
+  a story moves only if what it checks belongs in another tier.
 
 ### 2.7 The live tier
 
@@ -1677,7 +1679,7 @@ section 8; testing-strategy.md, 2.9).
   - **Its other pairs** come as the rung's walks with GitHub and with
     Claude pass (`../draft/v0.1.0.md`, 2.2): the same story, its forge
     or its model named by the script's argument.
-- **Outside the suites:** nextest profile `live`, run only by
+- **Outside the suites:** nextest profile `live-temper`, run only by
   `scripts/proof-live.sh` and `scripts/proof-live-github.sh`, one at a
   time, never at the gate.
 
@@ -2362,6 +2364,9 @@ Every world checks what the strategy lists (testing-strategy.md, section
 
 ### 6.1 Focused tests and fuzzy tests
 
+Every tier follows testing-strategy.md, 8.1: CPU budget, wall hard limit,
+starved warning and the three-question repair rule.
+
 The two suites are the strategy's (testing-strategy.md, section 8). In temper:
 
 - **Focused tests** are the strategy's, with facts changing nothing (a
@@ -2373,7 +2378,9 @@ The two suites are the strategy's (testing-strategy.md, section 8). In temper:
   ending among them.
 - **Budgets.** The suites' 30 s (15 s before the user's doubling of 10-22,
   provisional) and 120 s (60 s before the user's doubling of 10-22,
-  provisional) are rules, which nextest enforces. Within them, guides:
+  provisional) stand until the user sets their CPU budgets from measured
+  numbers; they are separate from the profiles' wall hard limits. Within
+  them, guides:
   - the worlds below the domain other than the real loop (the protocol,
     machine, client, one-process and reconcile worlds) together at most 8 s
     (4 s before the user's doubling of 10-22, provisional) of the default
@@ -2398,18 +2405,20 @@ The two suites are the strategy's (testing-strategy.md, section 8). In temper:
     loop's ceiling with the rest; a whole-chat GitHub story that would pass
     the ceiling goes to the user with its numbers.
 
-  A test that misses its guide is made cheaper or moved to the fuzzy suite,
-  never merged with another and never named as an exception: a real-loop
+  A test that misses its guide follows the three questions in 8.1; it
+  moves only if what it checks belongs in another tier. It is never
+  merged with another or named as an exception: a real-loop
   story with CI and webhooks (2.4) is held to the 2 s (1 s before the user's
   doubling of 10-22, provisional) as any other. If GitHub's stories would
   push the real loop's sum past 15 s (13 s before the user's increase of
   10-24; 6.5 s before the user's doubling of 10-22, provisional), the ceiling
   goes to the user, as below, and no real-loop story moves to the fuzzy
-  suite to make room for them unless the user so decides.
+  suite to make room for them: cost never decides a test's tier.
 - **The worlds' sums are measured as the suites' rules are:** each test's
-  own time, run alone on the idle development machine (testing-strategy.md,
-  section 8), with `--profile measure -j 1` the
-  median of three runs. Beside another task, it measures that task. So
+  user plus system CPU time, descendants included (testing-strategy.md,
+  8.1). For comparing these guides, run alone on the idle development
+  machine with the tier's profile and `-j 1`, taking the median of three
+  runs; these measurements keep the same budget rule. So
   no test asserts its own wall time, and no story's deadline is its
   guide: a deadline is the world's patience, there to end a hung run.
   A story that shows a landing needs no slow poll sets the polls beyond
@@ -2426,7 +2435,7 @@ The two suites are the strategy's (testing-strategy.md, section 8). In temper:
   provisional), or the real-loop world 15 s (13 s before the user's increase
   of 10-24; 6.5 s before the user's doubling of 10-22, provisional), their
   slowest tests are profiled, then made cheaper at the cause the profile
-  shows or moved to the fuzzy suite,
+  shows, or moved only where their checks belong under 8.1,
   by steps a plan names. A plan whose end finds the real loop's sum at 15 s
   (13 s before the user's increase of 10-24; 6.5 s before the user's doubling
   of 10-22, provisional) or past it puts the ceiling to the user, as skein's
@@ -2436,8 +2445,8 @@ The two suites are the strategy's (testing-strategy.md, section 8). In temper:
   stands.
 - **Outside both suites:** the process tier's binary `process` and the
   live tier's binary `live`, which both suites' filters leave out, run
-  under the nextest profiles `process` and `live`, the live one by
-  `scripts/proof-live.sh`. The gate never runs them. The lab was retired
+  under the nextest profiles `process-temper` and `live-temper`, the live one
+  by `scripts/proof-live.sh`. The gate never runs them. The lab was retired
   for `../qa.md`'s process.
 
 A fuzzy test lives in its world's crate, beside the focused ones, and
@@ -2548,12 +2557,12 @@ and one smoke above:
 ```
 crates/*/src/tests.rs               step tests
 tests/codecs                        temper-codecs-world: the generated codecs and the foreign documents' decoders
-crates/temper/tests/process.rs      the process tier (2.6): the story, the terminal, the server's guards, the hinted story, `temper box`, the cluster's stories, GitHub's App through a restart; nextest profile process
+crates/temper/tests/process.rs      the process tier (2.6): the story, the terminal, the server's guards, the hinted story, `temper box`, the cluster's stories, GitHub's App through a restart; nextest profile process-temper
 crates/temper/tests/support/github.rs   GitHub's App as processes (2.6): the fake GitHub, the fake LLM, an engine alone and a worker alone, the App made on the layer and connected through ctl
 crates/temper/tests/support/cluster.rs  the cluster's reader: `crates/temper/tests/fixtures/cluster/` started, awaited and stopped on skein-world's `Binary` (../protocol/README.md, 15.5)
 crates/temper/tests/fixtures/cluster  the retained cluster's description, read by the process tier
-crates/temper/tests/live.rs         the live tier (2.7), nextest profile live
-tests/client-browser                temper-client-browser-world: the browser tier (../client/browser.md, section 4), Chromium against temper serve on the bundle scripts/browser.sh builds; nextest profile browser
+crates/temper/tests/live.rs         the live tier (2.7), nextest profile live-temper
+tests/client-browser                temper-client-browser-world: the browser tier (../client/browser.md, section 4), Chromium against temper serve on the bundle scripts/browser.sh builds; nextest profile browser-temper
 crates/temper-client-shell-terminal/tests  the terminal's machine world (../client/README.md, section 10)
 crates/temper-fake-git              the fake git program's core: temper fake git (4.3)
 crates/temper-fake-git-hosted       the fake git program hosted by skein's simulated world (4.3), which the playground ships; its fixtures with the tests

@@ -1,6 +1,6 @@
 # Testing the domain
 
-Provisional, 2026-10-07, revised 2026-10-23. How jig's domain is tested,
+Provisional, 2026-10-07, revised 2026-10-30. How jig's domain is tested,
 and how it tests an application's: the worlds of jig's own parts, the
 core's world, and the conformance world every application runs its
 domain on, with the referee that holds it to jig's promises. It applies
@@ -336,6 +336,9 @@ missing in skein's world harness goes into skein first.
 
 ## 9. Budgets
 
+Every tier follows testing-strategy.md, 8.1: CPU budget, wall hard limit,
+starved warning and the three-question repair rule.
+
 jig's tests fit the suites' budgets (testing-strategy.md, section 8):
 the focused suite runs a few cuts and seeds per scenario, the fuzzy
 suite sweeps. jig's tests count against jig's budgets; an application's
@@ -356,8 +359,9 @@ the focused suite's 30 seconds. The fuzzy suite gains no sweep: a change
 of settings, and a move, become two more operations its random worlds
 draw, at the cost of the steps they take. Each change that adds them
 measures both suites before and after on the gate; past a budget, it
-finds the cost first, and if the cover needs more time than the budget
-gives, it says so to the user rather than cutting the cover.
+asks the three questions in 8.1 in order, taking the measurements to
+the user through the director if neither placement nor an efficiency
+fix settles it, rather than cutting the cover.
 
 ## 10. Open questions
 
