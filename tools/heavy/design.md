@@ -156,14 +156,15 @@ filesystem does not abort shared reconciliation, unrelated cancellation or
 cgroup cleanup. The waiting client can report unavailable space without
 exiting.
 
-`HEAVY_DISK_WAIT_CAP_SECONDS` optionally declares a positive ASCII decimal
+`HEAVY_MIN_FREE_WAIT_S` optionally declares a positive ASCII decimal
 number of seconds, normalized and bounded to 640 significant digits like the
 byte minimum. Zero, signs, whitespace, fractions and non-ASCII digits refuse
 with exit 2 before queue or log changes. Absent or empty retains unbounded
 byte waits, except when the slot policy supplies a cap. That policy reads
-`HEAVY_SLOT_DISK_WAIT_CAP_SECONDS` (default 1200); its selected value must be
-positive. An explicit positive caller cap overrides it. A cap alone does not
-opt a non-slot command into byte admission.
+`HEAVY_SLOT_MIN_FREE_WAIT_S` (default 1200); its selected value must be
+positive. An explicit positive caller cap overrides it, including a different
+machine cap. These are the only cap control keys; no aliases are accepted.
+A cap alone does not opt a non-slot command into byte admission.
 
 The declaration is fixed at submission. Monotonic nanoseconds accumulate only
 between observed low/unavailable space and the next sufficient observation or
@@ -174,9 +175,12 @@ space interval until recovery, cancellation or expiry; cgroup cleanup after a
 terminal decision is excluded. Expiry is checked under the host lock on
 submission/admission/reconciliation and the final contained guard. At elapsed
 wait greater than or equal to the cap, the task closes with exit 2,
-`outcome=capacity-refused`, `failure_class=operational-capacity` and
+`outcome=disk-wait-cap`, `failure_class=operational-capacity` and
 `refusal_reason=disk-wait-cap`. This is an operational capacity outcome, with
-no payload start. Normal empty-cgroup proof, hold release and receipt publication
+no payload start. The receipt outcome is authoritative: a payload can itself
+exit 2 with `outcome=completed`, so operational refusal exit 2 is ambiguous
+without a validated receipt. Consumers must not infer a capacity fault or a
+product failure from that exit code alone. Normal empty-cgroup proof, hold release and receipt publication
 still precede terminal completion. Sampling can detect expiry after the cap;
 it never grants a fresh full cap to a retry or to recovered space at the boundary.
 
@@ -329,6 +333,16 @@ real index or refs. Cancelled, recovered and unstarted payloads have
 nonzero codes. The client's last line reports receipt path and token,
 outside the hashed log. Relocation leaves these formats and paths intact.
 
+New byte receipts expose `observed_free_bytes` (the last observation, null
+when unavailable or unknown), `wait_below_min_s` (accumulated seconds, null
+when history is incomplete) and `wait_cap_s` (the saved cap, null for an
+unbounded wait). A capped receipt must carry `outcome=disk-wait-cap`,
+`min_free_bytes`, `observed_free_bytes`, `wait_below_min_s` and `wait_cap_s`.
+`min_free_bytes` retains its submitted-override meaning; `minimum_free_bytes`
+remains the effective maximum including the saved PLAN floor. Last observations
+are saved even when consecutive samples belong to the same wait episode.
+Existing receipts are immutable and old missing observations are not backfilled.
+
 New byte receipts additionally contain `disk_wait_accounting`, including the
 schema, host, slot, declaration, cap and episode count above, `complete`,
 `elapsed_ns`, `known_elapsed_ns`, `elapsed_seconds` and `elapsed_minutes`.
@@ -387,6 +401,8 @@ with the repair suite's fake cgroups. It covers cumulative/exact-boundary caps,
 retry finality, cancellation, unknown old/reboot history, CPU/payload exclusion,
 invalid declarations without writes, immutable submission records, fresh local
 machine settings, physical slot scope, symlink escape and floor composition.
+It also distinguishes a real local payload returning 2 from a capped task and
+checks the cumulative top-level receipt fields and last-observation durability.
 It uses only disposable queue state, with no real service or long wait.
 
 `test-receipt-inputs` checks dirty, unborn and foreign Git contexts,

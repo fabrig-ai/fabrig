@@ -14,7 +14,7 @@ machine_setting() {
         return
     fi
     value=$(awk -F= -v key="$key" '
-        /^(PLAN_MIN_MEM_GB|PLAN_MIN_DISK_GB|PLAN_LAND_ROOM_GB|HEAVY_BUILD_SLOTS|HEAVY_BUILD_JOBS|HEAVY_SLOT_BYTE_ADMISSION|HEAVY_SLOT_DISK_WAIT_CAP_SECONDS|KACHE_MAX_GB|KACHE_LOCAL_ONLY|QA_SLOTS|QA_BATCH|QA_CAP_MINUTES|QA_INTERVAL_SECONDS|FLEET_QUIET)=[0-9]+$/ && $1 == key { value = $2 }
+        /^(PLAN_MIN_MEM_GB|PLAN_MIN_DISK_GB|PLAN_LAND_ROOM_GB|HEAVY_BUILD_SLOTS|HEAVY_BUILD_JOBS|HEAVY_SLOT_BYTE_ADMISSION|HEAVY_SLOT_MIN_FREE_WAIT_S|KACHE_MAX_GB|KACHE_LOCAL_ONLY|QA_SLOTS|QA_BATCH|QA_CAP_MINUTES|QA_INTERVAL_SECONDS|FLEET_QUIET)=[0-9]+$/ && $1 == key { value = $2 }
         END { print value }' "$tmp/machine.env" 2>/dev/null || true)
     if [[ -n $value ]]; then printf '%s machine.env\n' "$value"; else printf '%s default\n' "$fallback"; fi
 }

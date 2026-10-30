@@ -42,10 +42,10 @@ fixture demonstrates why all old writers must be drained and updated or disabled
 Ops deployment proof is required before first opt-in; installed recovery alone
 is not that proof. No mixed-version writer deployment is approved.
 
-Optional `HEAVY_DISK_WAIT_CAP_SECONDS` and the fresh, narrowly scoped slot
+Optional `HEAVY_MIN_FREE_WAIT_S` and the fresh, narrowly scoped slot
 machine policy are implemented. New byte tasks freeze declarations, accumulate
 same-boot monotonic low-space episodes across retries, and publish durable
-capacity exit 2 receipts at the cap. CPU queue waits with enough disk, payload
+`outcome=disk-wait-cap` exit 2 receipts at the cap. CPU queue waits with enough disk, payload
 execution and terminal cleanup are excluded. Additive `heavy-disk-wait-v1`
 accounting in state, event, log and v1 receipt records host/slot/declaration,
 episode count and elapsed seconds/minutes; old missing accounting and interrupted
@@ -53,3 +53,12 @@ clock histories remain unknown. The landing reader accepts validated accounting.
 The offline slot/cap suite uses fake time, disk and cgroups, including a full
 submission record and machine-file changes. Fleet enablement, writer-lifetime
 proof and production installation remain Ops work after source approval.
+
+The pinned cap keys are `HEAVY_MIN_FREE_WAIT_S` and machine-scoped
+`HEAVY_SLOT_MIN_FREE_WAIT_S`, with the existing `HEAVY_SLOT_BYTE_ADMISSION`
+enable key. New byte receipts expose `observed_free_bytes`, `wait_below_min_s`
+and `wait_cap_s` beside the required minimum and existing host/slot/task/episode
+evidence. The offline suite runs a local payload that exits 2 and verifies its
+`outcome=completed`, distinguishing it from the operational cap outcome.
+Exit 2 without a validated receipt remains ambiguous. Pending declarations
+and the 80000000000-byte slot minimum are unchanged.

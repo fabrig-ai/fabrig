@@ -61,7 +61,9 @@ def completion_output(state, token, args, tree, policy, head, output, code=0, fa
             cap_seconds=1200, episodes=2, complete=True, elapsed_ns=90_000_000_000,
             known_elapsed_ns=90_000_000_000, elapsed_seconds=90, elapsed_minutes=1.5)
         accounting = receipt["disk_wait_accounting"]
+        receipt.update(observed_free_bytes=201, wait_below_min_s=90, wait_cap_s=1200)
         if fault == "wait-unknown":
+            receipt["wait_below_min_s"] = None
             accounting.update(complete=False, elapsed_ns=None, elapsed_seconds=None, elapsed_minutes=None)
         elif fault == "wait-negative":
             accounting["episodes"] = -1
@@ -70,6 +72,14 @@ def completion_output(state, token, args, tree, policy, head, output, code=0, fa
         elif fault == "wait-wrong-cap":
             accounting["cap_seconds"] = 0
             accounting["declaration"]["cap_seconds"] = 0
+        if fault == "wait-contract-partial":
+            del receipt["wait_cap_s"]
+        elif fault == "wait-contract-observation":
+            receipt["observed_free_bytes"] = True
+        elif fault == "wait-contract-duration":
+            receipt["wait_below_min_s"] = 0
+        elif fault == "wait-contract-cap":
+            receipt["wait_cap_s"] = 2
     if fault == "old_build_same_id":
         # A queued cancellation finds an older build's successful numeric-ID row.
         old = state / "old-build.log"

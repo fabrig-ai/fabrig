@@ -72,11 +72,14 @@ class WaitCap(unittest.TestCase):
         self.assertFalse(self.world.module['admissible'](ledger, task))
         receipt = self.release(ledger)
         self.assertEqual((receipt['outcome'], receipt['failure_class'], receipt['refusal_reason']),
-                         ('capacity-refused', 'operational-capacity', 'disk-wait-cap'))
+                         ('disk-wait-cap', 'operational-capacity', 'disk-wait-cap'))
         self.assertFalse(receipt['payload_started'])
         self.assertFalse(receipt['payload_ended'])
         self.assertEqual(receipt['disk_wait_accounting']['elapsed_seconds'], 1200)
         self.assertEqual(receipt['disk_wait_accounting']['episodes'], 1)
+        self.assertEqual((receipt['min_free_bytes'], receipt['observed_free_bytes'],
+                          receipt['wait_below_min_s'], receipt['wait_cap_s']),
+                         (100, 100, 1200, 1200))
         log = Path(receipt['log']).read_bytes()
         self.assertEqual(hashlib.sha256(log).hexdigest(), receipt['log_sha256'])
         self.assertEqual(log.count(b'heavy: disk wait accounting '), 1)
@@ -118,6 +121,8 @@ class WaitCap(unittest.TestCase):
         self.assertEqual((accounting['episodes'], accounting['elapsed_seconds'], accounting['elapsed_minutes']),
                          (2, 9, 9 / 60))
         self.assertEqual((receipt['code'], receipt['outcome']), (0, 'completed'))
+        self.assertEqual((receipt['wait_below_min_s'], receipt['wait_cap_s'],
+                          receipt['observed_free_bytes']), (9, 10, 100))
 
     def test_retry_retains_clock_and_gate_hold_until_empty(self):
         task = self.task(cap=10, state='active', lane='gate')
@@ -209,11 +214,13 @@ class WaitCap(unittest.TestCase):
         self.task()
         self.observe(0, 99)
         self.clock(7)
-        with patch.dict(os.environ, HEAVY_DISK_WAIT_CAP_SECONDS='invalid', HEAVY_MIN_FREE_BYTES='invalid'):
+        with patch.dict(os.environ, HEAVY_MIN_FREE_WAIT_S='invalid', HEAVY_MIN_FREE_BYTES='invalid'):
             self.assertEqual(self.world.module['cancel'](self.token), 0)
         self.clock(100)
         receipt = self.world.receipt({'token': self.token})
         self.assertEqual((receipt['code'], receipt['outcome']), (130, 'cancelled'))
+        self.assertEqual((receipt['wait_below_min_s'], receipt['wait_cap_s'],
+                          receipt['observed_free_bytes']), (7, 1200, 99))
         self.assertEqual((receipt['disk_wait_accounting']['elapsed_seconds'],
                           receipt['disk_wait_accounting']['cap_seconds']), (7, 1200))
 
@@ -233,7 +240,60 @@ class WaitCap(unittest.TestCase):
         receipt = self.release(ledger)
         self.assertEqual((receipt['code'], receipt['outcome']), (137, 'recovered'))
         self.assertIsNone(receipt['disk_wait_accounting']['elapsed_seconds'])
+        self.assertIsNone(receipt['wait_below_min_s'])
         self.assertEqual(receipt['disk_wait_accounting']['known_elapsed_ns'], 4_000_000_000)
+
+    def test_last_observation_is_durable_within_the_same_wait_episode(self):
+        self.task(cap=5)
+        self.observe(0, 90)
+        self.observe(2, 93)
+        task = self.world.ledger().tasks[self.token]
+        self.assertEqual(task['observed_free_bytes'], 93)
+        self.assertEqual(task['disk_wait_accounting']['episodes'], 1)
+        ledger, task = self.observe(5, None)
+        receipt = self.release(ledger)
+        self.assertEqual((receipt['outcome'], receipt['wait_below_min_s'], receipt['wait_cap_s']),
+                         ('disk-wait-cap', 5, 5))
+        self.assertIsNone(receipt['observed_free_bytes'])
+
+    def test_payload_exit_two_remains_completed_not_a_capacity_refusal(self):
+        self.task(cap=3)
+        self.observe(0, 99)
+        ledger, task = self.observe(1, 100)
+        w = self.world
+        task['state'] = 'launching'
+        task['admission_free_bytes'] = 100
+        marker = self.root / 'payload-starts'
+        task['args'] = [sys.executable, '-c', 'from pathlib import Path; import sys; '
+                        'Path(' + repr(str(marker)) + ').write_text("start\\n"); sys.exit(2)']
+        w.populate(task)
+        ledger.save()
+        read_text = Path.read_text
+        def group(path, *args, **kwargs):
+            return ('0::' + task['cgroup'] + '\n' if str(path) == '/proc/self/cgroup'
+                    else read_text(path, *args, **kwargs))
+        with patch.object(Path, 'read_text', group), patch.dict(w.g,
+                capture_inputs=lambda repo: {}, subreaper=lambda: None, gc=lambda *args: None):
+            self.assertEqual(w.module['payload'](self.token), 2)
+        self.assertEqual(marker.read_text(), 'start\n')
+        self.assertEqual(w.module['payload'](self.token), 137)
+        self.clock(5000)
+        receipt = self.release(w.ledger())
+        self.assertEqual((receipt['code'], receipt['outcome']), (2, 'completed'))
+        self.assertTrue(receipt['payload_started'])
+        self.assertTrue(receipt['payload_ended'])
+        self.assertNotIn('failure_class', receipt)
+        self.assertNotIn('refusal_reason', receipt)
+        self.assertEqual((receipt['wait_below_min_s'], receipt['wait_cap_s'],
+                          receipt['observed_free_bytes']), (1, 3, 100))
+
+    def test_only_pinned_wait_keys_are_submission_controls(self):
+        # Only the pinned keys control admission; undeclared aliases have no effect.
+        with patch.dict(os.environ, HEAVY_DISK_WAIT_CAP_SECONDS='1'):
+            self.assertIsNone(self.world.module['submission_policy']()['cap_seconds'])
+        self.slot()
+        self.settings('HEAVY_SLOT_BYTE_ADMISSION=1\nHEAVY_SLOT_DISK_WAIT_CAP_SECONDS=1\n')
+        self.assertEqual(self.policy_module()['submission_policy']()['cap_seconds'], 1200)
 
     def policy_module(self):
         # An independent import uses the real local machine_setting reader,
@@ -254,7 +314,7 @@ class WaitCap(unittest.TestCase):
     def test_slot_policy_fresh_scope_nested_and_floor_composition(self):
         self.slot()
         m = self.policy_module()
-        self.settings('HEAVY_SLOT_BYTE_ADMISSION=1\nHEAVY_SLOT_DISK_WAIT_CAP_SECONDS=23\n')
+        self.settings('HEAVY_SLOT_BYTE_ADMISSION=1\nHEAVY_SLOT_MIN_FREE_WAIT_S=23\n')
         policy = m['submission_policy']()
         self.assertEqual((policy['min_free_bytes'], policy['cap_seconds'], policy['automatic']),
                          (80_000_000_000, 23, True))
@@ -262,7 +322,7 @@ class WaitCap(unittest.TestCase):
         self.assertEqual(m['minimum_bytes'](dict(min_free_bytes=policy['min_free_bytes'], floor_gb=90)),
                          90 * 2**30)
         for explicit in (0, 1, 80_000_000_001):
-            with patch.dict(os.environ, HEAVY_MIN_FREE_BYTES=str(explicit), HEAVY_DISK_WAIT_CAP_SECONDS='0007'):
+            with patch.dict(os.environ, HEAVY_MIN_FREE_BYTES=str(explicit), HEAVY_MIN_FREE_WAIT_S='0007'):
                 value = m['submission_policy']()
                 self.assertEqual(value['min_free_bytes'], max(80_000_000_000, explicit))
                 self.assertEqual(value['cap_seconds'], 7)
@@ -271,7 +331,7 @@ class WaitCap(unittest.TestCase):
         self.settings('HEAVY_SLOT_BYTE_ADMISSION=1\n')
         self.assertEqual(m['submission_policy']()['cap_seconds'], 1200)
         self.assertIsNone(m['submission_policy'](False)['min_free_bytes'])
-        self.settings('HEAVY_SLOT_BYTE_ADMISSION=1\nHEAVY_SLOT_DISK_WAIT_CAP_SECONDS=0\n')
+        self.settings('HEAVY_SLOT_BYTE_ADMISSION=1\nHEAVY_SLOT_MIN_FREE_WAIT_S=0\n')
         with self.assertRaises(m['SubmissionRefusal']):
             m['submission_policy']()
 
@@ -301,7 +361,7 @@ class WaitCap(unittest.TestCase):
         self.settings('HEAVY_SLOT_BYTE_ADMISSION=1\n')
         self.slot()
         base = self.root / 'tmp/heavy'
-        for key, values in [('HEAVY_DISK_WAIT_CAP_SECONDS', ['0', '00', '-1', '+1', ' 1', '1.0', '١', '1' * 641]),
+        for key, values in [('HEAVY_MIN_FREE_WAIT_S', ['0', '00', '-1', '+1', ' 1', '1.0', '١', '1' * 641]),
                             ('HEAVY_MIN_FREE_BYTES', ['invalid'])]:
             for value in values:
                 with self.subTest(key=key, value=value):
@@ -311,7 +371,7 @@ class WaitCap(unittest.TestCase):
                     self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
                     self.assertFalse(base.exists())
         # Control queries do not resolve defaults or declarations at all.
-        env = dict(os.environ, HEAVY_DISK_WAIT_CAP_SECONDS='invalid', HEAVY_MIN_FREE_BYTES='invalid')
+        env = dict(os.environ, HEAVY_MIN_FREE_WAIT_S='invalid', HEAVY_MIN_FREE_BYTES='invalid')
         result = subprocess.run([str(KIT / 'heavy'), '--installed'], env=env,
             text=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=HUNG_TOOL_S)
         self.assertEqual(result.returncode, 1)
@@ -323,7 +383,7 @@ class WaitCap(unittest.TestCase):
         bin_path = self.root / 'bin'
         bin_path.mkdir()
         cargo = bin_path / 'cargo'
-        cargo.write_text('#!/bin/sh\nprintf "fmt:%s min:%s cap:%s\\n" "$1" "${HEAVY_MIN_FREE_BYTES-}" "${HEAVY_DISK_WAIT_CAP_SECONDS-}"\n')
+        cargo.write_text('#!/bin/sh\nprintf "fmt:%s min:%s cap:%s\\n" "$1" "${HEAVY_MIN_FREE_BYTES-}" "${HEAVY_MIN_FREE_WAIT_S-}"\n')
         cargo.chmod(0o700)
         env = dict(os.environ, PATH=str(bin_path) + ':' + os.defpath)
         result = subprocess.run([str(KIT / 'heavy'), 'cargo', 'fmt'], env=env,
@@ -345,10 +405,10 @@ class WaitCap(unittest.TestCase):
 
     def test_empty_declarations_unbounded_and_positive_decimal_normalization(self):
         m = self.world.module
-        with patch.dict(os.environ, HEAVY_MIN_FREE_BYTES='100', HEAVY_DISK_WAIT_CAP_SECONDS=''):
+        with patch.dict(os.environ, HEAVY_MIN_FREE_BYTES='100', HEAVY_MIN_FREE_WAIT_S=''):
             self.assertIsNone(m['submission_policy']()['cap_seconds'])
         for value, expected in [('0001', 1), ('0' * 5000 + '3', 3), ('9' * 640, int('9' * 640))]:
-            with patch.dict(os.environ, HEAVY_DISK_WAIT_CAP_SECONDS=value):
+            with patch.dict(os.environ, HEAVY_MIN_FREE_WAIT_S=value):
                 self.assertEqual(m['submitted_wait_cap'](), expected)
         self.assertFalse(self.world.g['BASE'].exists())
 
@@ -357,7 +417,7 @@ class WaitCap(unittest.TestCase):
         state = self.world.g['BASE'] / 'state.json'
         before = state.read_bytes(), state.stat().st_mtime_ns
         entries = sorted(str(p.relative_to(self.root)) for p in self.root.rglob('*'))
-        env = dict(os.environ, HEAVY_DISK_WAIT_CAP_SECONDS='-1')
+        env = dict(os.environ, HEAVY_MIN_FREE_WAIT_S='-1')
         result = subprocess.run([str(KIT / 'heavy-recovery.py'), 'true'], env=env,
             text=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=HUNG_TOOL_S)
         self.assertEqual(result.returncode, 2)
@@ -367,7 +427,7 @@ class WaitCap(unittest.TestCase):
 
     def test_submission_saves_cap_floor_and_clock_before_wrapper(self):
         self.slot()
-        self.settings('HEAVY_SLOT_BYTE_ADMISSION=1\nHEAVY_SLOT_DISK_WAIT_CAP_SECONDS=17\n')
+        self.settings('HEAVY_SLOT_BYTE_ADMISSION=1\nHEAVY_SLOT_MIN_FREE_WAIT_S=17\n')
         w = self.world
         w.g['read_setting'] = self.policy_module()['read_setting']
         w.g['setting'] = lambda key, default: 90 if key == 'PLAN_MIN_DISK_GB' else 0
@@ -386,9 +446,10 @@ class WaitCap(unittest.TestCase):
         self.assertEqual((accounting['cap_seconds'], accounting['episodes'], accounting['since_ns']),
                          (17, 1, 0))
         self.assertTrue(accounting['declaration']['automatic'])
-        self.settings('HEAVY_SLOT_BYTE_ADMISSION=0\nHEAVY_SLOT_DISK_WAIT_CAP_SECONDS=1\n')
+        self.settings('HEAVY_SLOT_BYTE_ADMISSION=0\nHEAVY_SLOT_MIN_FREE_WAIT_S=1\n')
         self.now = 17_000_000_000
-        w.module['reconcile'](ledger)
+        with patch.dict(os.environ, HEAVY_MIN_FREE_WAIT_S='1'):
+            w.module['reconcile'](ledger)
         w.ledger()
         receipt = w.receipt(task)
         self.assertEqual(receipt['code'], 2)
@@ -401,7 +462,7 @@ class WaitCap(unittest.TestCase):
         w = self.world
         w.g['read_setting'] = self.policy_module()['read_setting']
         frozen = w.module['submission_policy']()
-        self.settings('HEAVY_SLOT_BYTE_ADMISSION=0\nHEAVY_SLOT_DISK_WAIT_CAP_SECONDS=9\n')
+        self.settings('HEAVY_SLOT_BYTE_ADMISSION=0\nHEAVY_SLOT_MIN_FREE_WAIT_S=9\n')
         with patch.dict(os.environ, HEAVY_SUBMISSION_DECLARATION=json.dumps(frozen)):
             self.assertEqual(w.module['submitted_policy'](), frozen)
             self.assertNotIn('HEAVY_SUBMISSION_DECLARATION', w.module['safe_environment']())

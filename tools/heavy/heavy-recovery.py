@@ -118,13 +118,13 @@ def submitted_min_free_bytes():
 
 
 def submitted_wait_cap():
-    value = os.environ.get('HEAVY_DISK_WAIT_CAP_SECONDS', '')
+    value = os.environ.get('HEAVY_MIN_FREE_WAIT_S', '')
     if not value:
         return None
     canonical = value.lstrip('0') or '0'
     if (re.fullmatch(r'[0-9]+', value) is None or len(canonical) > MAX_MIN_FREE_DECIMAL_DIGITS
             or canonical == '0'):
-        raise SubmissionRefusal('HEAVY_DISK_WAIT_CAP_SECONDS must be positive decimal seconds (at most 640 significant digits)')
+        raise SubmissionRefusal('HEAVY_MIN_FREE_WAIT_S must be positive decimal seconds (at most 640 significant digits)')
     return int(canonical)
 
 
@@ -148,9 +148,9 @@ def submission_policy(slot_defaults=True):
     if automatic:
         minimum = max(80000000000, minimum or 0)
         if cap is None:
-            cap = read_setting('HEAVY_SLOT_DISK_WAIT_CAP_SECONDS', 1200)
+            cap = read_setting('HEAVY_SLOT_MIN_FREE_WAIT_S', 1200)
             if cap <= 0 or len(str(cap)) > MAX_MIN_FREE_DECIMAL_DIGITS:
-                raise SubmissionRefusal('HEAVY_SLOT_DISK_WAIT_CAP_SECONDS must be positive decimal seconds')
+                raise SubmissionRefusal('HEAVY_SLOT_MIN_FREE_WAIT_S must be positive decimal seconds')
     return dict(min_free_bytes=minimum, cap_seconds=cap, slot=slot, automatic=automatic)
 
 
@@ -227,7 +227,7 @@ def expire_byte_cap(ledger, task):
             or task.get('payload_started') or task['state'] in ('closing', 'released')):
         return False
     account_byte_wait(task, False)
-    task.update(state='closing', code=2, outcome='capacity-refused',
+    task.update(state='closing', code=2, outcome='disk-wait-cap',
                 refusal='disk wait cap reached before payload start',
                 refusal_reason='disk-wait-cap', failure_class='operational-capacity')
     ledger.event(task, 'release_begin', outcome=task['outcome'])
@@ -268,10 +268,12 @@ def observe_bytes(task):
 
 def track_byte_wait(ledger, task, free):
     failed = free is None
+    observation_changed = 'observed_free_bytes' not in task or task['observed_free_bytes'] != free
+    task['observed_free_bytes'] = free
     waiting = failed or free < minimum_bytes(task)
     accounting_changed = account_byte_wait(task, waiting)
     if waiting == ('byte_wait' in task) and failed == task.get('byte_observation_failed', False):
-        if not expire_byte_cap(ledger, task) and accounting_changed:
+        if not expire_byte_cap(ledger, task) and (accounting_changed or observation_changed):
             ledger.save()
         return
     if waiting:
@@ -694,8 +696,11 @@ def publish_receipt(ledger, task):
                'log': task['log'], 'log_sha256': digest}
     receipt.update({key: task[key] for key in ('head', 'inputs', 'min_free_bytes', 'minimum_free_bytes',
                                                        'admission_free_bytes', 'failure_class', 'refusal_reason') if key in task})
-    if byte_wait_summary(task) is not None:
-        receipt['disk_wait_accounting'] = byte_wait_summary(task)
+    if (accounting := byte_wait_summary(task)) is not None:
+        receipt['disk_wait_accounting'] = accounting
+        receipt.update(observed_free_bytes=task.get('observed_free_bytes'),
+                       wait_below_min_s=accounting['elapsed_seconds'],
+                       wait_cap_s=accounting['cap_seconds'])
     fault('receipt_ready', task['token'])
     atomic(path, receipt)
     fault('receipt_published', task['token'])

@@ -43,6 +43,7 @@ RECEIPT_FAULTS = (
     "log_symlink", "log_directory", "log_fifo", "malformed_head", "non_string_inputs",
     "bytes-bool", "bytes-negative", "bytes-string", "bytes-partial", "bytes-below", "bytes-floor-small",
     "wait-negative", "wait-wrong-duration", "wait-wrong-cap",
+    "wait-contract-partial", "wait-contract-observation", "wait-contract-duration", "wait-contract-cap",
 )
 UNREADABLE_RECEIPT_FAULTS = ("unreadable_log", "unreadable_receipt")
 
@@ -1495,6 +1496,10 @@ RECEIPT_REFUSALS = {
     "log_fifo": "receipt log is not a regular file",
     "malformed_head": "receipt head is malformed",
     "non_string_inputs": "receipt inputs is malformed",
+    "wait-contract-partial": "receipt wait contract fields are incomplete",
+    "wait-contract-observation": "receipt observed_free_bytes is malformed",
+    "wait-contract-duration": "receipt wait_below_min_s differs from accounting",
+    "wait-contract-cap": "receipt wait_cap_s differs from accounting",
     "wait-negative": "receipt disk wait counts are malformed",
     "wait-wrong-duration": "receipt disk wait duration is malformed",
     "wait-wrong-cap": "receipt disk wait cap is malformed",
