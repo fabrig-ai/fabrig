@@ -37,6 +37,7 @@ pub mod person;
 pub mod playground;
 pub mod program_login;
 pub mod relay;
+pub mod restart;
 pub mod sign_in;
 pub mod sign_in_browser;
 pub mod sign_in_welcome;

@@ -4709,7 +4709,6 @@ fn restart_deployment(paths: &[std::path::PathBuf; 3]) -> skein_fake_peers::oaut
 enum ReviewHold {
     BeforeCall,
     AfterCall,
-    AcrossRestart,
 }
 
 // Each review completion spends one fake unit. Twice the landing helper's
@@ -4790,7 +4789,7 @@ fn assert_held_reviewers(calls: &[support::Ended], hold: ReviewHold) {
                     "review never began a run: {reviewer}"
                 );
             }
-            ReviewHold::AfterCall | ReviewHold::AcrossRestart => {
+            ReviewHold::AfterCall => {
                 assert_eq!(reviewer["hold"]["owner"]["reason"], "budget", "budget hold: {reviewer}");
                 assert!(spent > 0, "review ran: {reviewer}");
             }
@@ -4811,7 +4810,7 @@ const RESTART_CONTROL: RestartProbe =
 
 #[test]
 fn a_change_wait_rides_a_clean_engine_restart_to_its_timeout() {
-    held_review_restart("restart-change-wait", RestartProbe { hold: ReviewHold::AcrossRestart, ..RESTART_CONTROL });
+    support::restart::change_wait_restart("restart-change-wait");
 }
 
 // The same owned deployment must answer ctl after a settled stop with its review held.
@@ -4827,15 +4826,12 @@ fn a_restart_over_an_imported_then_exported_account_answers_ctl() {
 
 #[test]
 fn a_restart_after_a_cut_at_listening_answers_ctl() {
-    held_review_restart(
-        "restart-cut-at-listening",
-        RestartProbe { imported: true, cut_start: true, ..RESTART_CONTROL },
-    );
+    support::restart::cut_at_listening_restart("restart-cut-at-listening");
 }
 
 #[test]
 fn a_restart_with_another_box_sharing_its_cache_answers_ctl() {
-    held_review_restart("restart-shared-cache", RestartProbe { imported: true, shared_cache: true, ..RESTART_CONTROL });
+    support::restart::shared_cache_restart("restart-shared-cache");
 }
 
 #[test]
@@ -4968,46 +4964,37 @@ fn held_review_restart(case: &str, probe: RestartProbe) {
         Step::Run(Call::new(&["task", "show", "4", "--json"])),
         Step::Run(Call::new(&["change", "show", "2", "--json"])),
     ]);
-    if !matches!(probe.hold, ReviewHold::AcrossRestart) {
-        steps.extend([
-            Step::Run(Call::new(&[
-                "chat",
-                "start",
-                "--project",
-                "1",
-                "--key",
-                "restart-second",
-                "@second-chat Request another change",
-                "--json",
-            ])),
-            Step::Run(Call::new(&["task", "show", "5", "--until", "replied", "--timeout", "120s", "--json"])),
-            Step::Run(Call::new(&["change", "show", "6", "--until", "ci:passed", "--timeout", "120s", "--json"])),
-            Step::TaskExists { project: 1, parent: 6, task: 8 },
-        ]);
-        if matches!(probe.hold, ReviewHold::BeforeCall) {
-            steps.push(Step::Until(Call::new(&["task", "show", "8", "--json"]), b"\"phase\":\"due\""));
-            steps.push(Step::Run(Call::new(&["task", "stop", "8"])));
-        }
-        steps.extend([
-            Step::Until(Call::new(&["task", "show", "8", "--json"]), b"\"phase\":\"held\""),
-            Step::Run(Call::new(&["task", "show", "8", "--json"])),
-            Step::Run(Call::new(&["change", "show", "6", "--json"])),
-        ]);
+    steps.extend([
+        Step::Run(Call::new(&[
+            "chat",
+            "start",
+            "--project",
+            "1",
+            "--key",
+            "restart-second",
+            "@second-chat Request another change",
+            "--json",
+        ])),
+        Step::Run(Call::new(&["task", "show", "5", "--until", "replied", "--timeout", "120s", "--json"])),
+        Step::Run(Call::new(&["change", "show", "6", "--until", "ci:passed", "--timeout", "120s", "--json"])),
+        Step::TaskExists { project: 1, parent: 6, task: 8 },
+    ]);
+    if matches!(probe.hold, ReviewHold::BeforeCall) {
+        steps.push(Step::Until(Call::new(&["task", "show", "8", "--json"]), b"\"phase\":\"due\""));
+        steps.push(Step::Run(Call::new(&["task", "stop", "8"])));
     }
-    if !probe.imported && !matches!(probe.hold, ReviewHold::AcrossRestart) {
+    steps.extend([
+        Step::Until(Call::new(&["task", "show", "8", "--json"]), b"\"phase\":\"held\""),
+        Step::Run(Call::new(&["task", "show", "8", "--json"])),
+        Step::Run(Call::new(&["change", "show", "6", "--json"])),
+    ]);
+    if !probe.imported {
         steps.push(Step::Run(Call::new(&[
             "account",
             "export",
             "1",
             scratch.path().join("exported-login").to_str().expect("scratch path"),
         ])));
-    }
-    if matches!(probe.hold, ReviewHold::AcrossRestart) {
-        steps.extend([
-            Step::Start(Call::new(&["change", "show", "2", "--until", "ci:failed", "--timeout", "12s"])),
-            Step::RestartEngine,
-            Step::Join,
-        ]);
     }
     let stop = || {
         if probe.imported {
@@ -5038,22 +5025,8 @@ fn held_review_restart(case: &str, probe: RestartProbe) {
         support::forge_land::fake_face(issuer, scripts.clone()),
     );
     assert_eq!(first.exit, Some(Exit::Code(0)), "first: {}", String::from_utf8_lossy(&first.stderr));
-    if matches!(probe.hold, ReviewHold::AcrossRestart) {
-        let (wait, setup) = first.calls.split_last().expect("started change wait");
-        ctl_assert_success(setup);
-        assert_eq!(wait.exit, Some(Exit::Code(3)), "{}", String::from_utf8_lossy(&wait.stderr));
-        assert!(wait.stderr.is_empty());
-        let panel = String::from_utf8_lossy(&wait.stdout);
-        assert!(panel.contains("held: task 4") && panel.contains("not met: timeout"), "{panel}");
-        assert!(String::from_utf8_lossy(&first.stderr).contains("restarting"), "engine restarted");
-    } else {
-        ctl_assert_success(&first.calls);
-    }
+    ctl_assert_success(&first.calls);
     assert!(first.checked.is_some(), "all initial steps completed: {}", String::from_utf8_lossy(&first.stderr));
-    if matches!(probe.hold, ReviewHold::AcrossRestart) {
-        scratch.remove();
-        return;
-    }
     assert_held_reviewers(&first.calls, probe.hold);
     if probe.imported {
         assert!(!scratch.path().join("incoming-account.move").exists(), "the deployed account came through import");
