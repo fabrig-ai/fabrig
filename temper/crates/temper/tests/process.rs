@@ -4705,12 +4705,6 @@ fn restart_deployment(paths: &[std::path::PathBuf; 3]) -> skein_fake_peers::oaut
     issuer
 }
 
-#[derive(Clone, Copy)]
-enum ReviewHold {
-    BeforeCall,
-    AfterCall,
-}
-
 // Each review completion spends one fake unit. Twice the landing helper's
 // ten-unit change allowance outlasts its reviewer, including the run reserve.
 const REVIEW_TURNS: usize = 20;
@@ -4770,58 +4764,20 @@ fn held_review_restart_scripts() -> skein_fake_llm_domain::api::Scripts {
     }
 }
 
-fn assert_held_reviewers(calls: &[support::Ended], hold: ReviewHold) {
-    for task in [4, 8] {
-        let reviewer = calls
-            .iter()
-            .rev()
-            .filter_map(|call| serde_json::from_slice::<serde_json::Value>(&call.stdout).ok())
-            .find(|row| row["chip"]["task"] == task)
-            .expect("review task read");
-        assert_eq!(reviewer["chip"]["phase"], "held", "{reviewer}");
-        let spent = reviewer["budget"]["numbers"]["spent"].as_u64().expect("review spend");
-        match hold {
-            ReviewHold::BeforeCall => {
-                assert_eq!(spent, 0, "review never called its model: {reviewer}");
-                assert_eq!(
-                    reviewer["chip"]["details"]["owner"]["details"]["run_since"],
-                    serde_json::Value::Null,
-                    "review never began a run: {reviewer}"
-                );
-            }
-            ReviewHold::AfterCall => {
-                assert_eq!(reviewer["hold"]["owner"]["reason"], "budget", "budget hold: {reviewer}");
-                assert!(spent > 0, "review ran: {reviewer}");
-            }
-        }
-    }
-}
-
-#[derive(Clone, Copy)]
-struct RestartProbe {
-    imported: bool,
-    cut_start: bool,
-    shared_cache: bool,
-    hold: ReviewHold,
-}
-
-const RESTART_CONTROL: RestartProbe =
-    RestartProbe { imported: false, cut_start: false, shared_cache: false, hold: ReviewHold::AfterCall };
-
 #[test]
 fn a_change_wait_rides_a_clean_engine_restart_to_its_timeout() {
     support::restart::change_wait_restart("restart-change-wait");
 }
 
-// The same owned deployment must answer ctl after a settled stop with its review held.
+// Both held reviewers remain readable after a settled stop of the fake-backend deployment.
 #[test]
 fn a_restart_over_a_budget_held_review_answers_ctl() {
-    held_review_restart("restart-budget-held-review", RESTART_CONTROL);
+    support::restart::held_reviews_restart("restart-budget-held-review", false);
 }
 
 #[test]
 fn a_restart_over_an_imported_then_exported_account_answers_ctl() {
-    held_review_restart("restart-imported-exported-account", RestartProbe { imported: true, ..RESTART_CONTROL });
+    held_review_restart("restart-imported-exported-account");
 }
 
 #[test]
@@ -4836,10 +4792,7 @@ fn a_restart_with_another_box_sharing_its_cache_answers_ctl() {
 
 #[test]
 fn a_restart_over_reviews_held_before_their_first_call_answers_ctl() {
-    held_review_restart(
-        "restart-review-held-before-call",
-        RestartProbe { imported: true, hold: ReviewHold::BeforeCall, ..RESTART_CONTROL },
-    );
+    support::restart::held_reviews_restart("restart-review-held-before-call", true);
 }
 
 fn imported_restart_account(scratch: &std::path::Path, paths: &[std::path::PathBuf; 3]) {
@@ -4880,35 +4833,27 @@ fn imported_restart_account(scratch: &std::path::Path, paths: &[std::path::PathB
 }
 
 #[expect(clippy::too_many_lines, reason = "one restart story follows setup, stop, restart and its ctl reads")]
-fn held_review_restart(case: &str, probe: RestartProbe) {
+fn held_review_restart(case: &str) {
     use support::ctl::{Call, Step};
     let scratch = support::Scratch::new(case);
     let paths = ["config", "data", "cache"].map(|name| scratch.path().join(name));
     let issuer = restart_deployment(&paths);
-    let issuer = if probe.imported {
-        drop(issuer);
-        imported_restart_account(scratch.path(), &paths);
-        support::sign_in::restart_issued_issuer(&paths[0])
-    } else {
-        issuer
-    };
+    drop(issuer);
+    imported_restart_account(scratch.path(), &paths);
+    let issuer = support::sign_in::restart_issued_issuer(&paths[0]);
     let _cached = cache_forgejo_binaries(&paths[2]);
     let flags = support::boxed::echo_steps(deployment_flags(&paths));
     let scripts = held_review_restart_scripts();
     let mut steps = forgejo_setup_steps("first");
     steps[4] =
         Step::Run(Call::new(&["forge", "setup", "3", "--org", "work", "--repository", "hello", "--project", "1"]));
-    let connect = if probe.imported {
-        Call::new(&[
-            "account",
-            "import",
-            scratch.path().join("incoming-account.move").to_str().expect("fixture move path"),
-            "--key",
-            "restart-account",
-        ])
-    } else {
-        Call::new(&["account", "connect", "1", "--key", "restart-account"])
-    };
+    let connect = Call::new(&[
+        "account",
+        "import",
+        scratch.path().join("incoming-account.move").to_str().expect("fixture move path"),
+        "--key",
+        "restart-account",
+    ]);
     steps.extend([
         Step::Run(connect),
         Step::Run(Call::new(&["account", "list", "--until", "usable", "--timeout", "10s"])),
@@ -4925,21 +4870,6 @@ fn held_review_restart(case: &str, probe: RestartProbe) {
             support::ctl::settings_change(&calls[last - 1], &parking, "restart-parking")
         })),
     ]);
-    if matches!(probe.hold, ReviewHold::BeforeCall) {
-        let file = scratch.path().join("review-hosts.json");
-        steps.extend([
-            Step::Run(Call::new(&["settings", "show", "--json"])),
-            Step::Run(Call::new(&["settings", "show", "charter", "4", "--json"])),
-            Step::Then(Box::new(move |calls| {
-                let last = calls.len() - 1;
-                // This standalone deployment has worker hosts only. Restrict
-                // the reviewer to engine hosts before it exists, so Stop below
-                // deterministically precedes its first run and model call.
-                support::ctl::setting_change_file(&file, &calls[last], |value| value["hosts"] = "engine".into());
-                support::ctl::settings_change(&calls[last - 1], &file, "review-hosts")
-            })),
-        ]);
-    }
     steps.extend([
         Step::Run(Call::new(&[
             "chat",
@@ -4955,10 +4885,6 @@ fn held_review_restart(case: &str, probe: RestartProbe) {
         Step::Run(Call::new(&["change", "show", "2", "--until", "ci:passed", "--timeout", "120s", "--json"])),
         Step::TaskExists { project: 1, parent: 2, task: 4 },
     ]);
-    if matches!(probe.hold, ReviewHold::BeforeCall) {
-        steps.push(Step::Until(Call::new(&["task", "show", "4", "--json"]), b"\"phase\":\"due\""));
-        steps.push(Step::Run(Call::new(&["task", "stop", "4"])));
-    }
     steps.extend([
         Step::Until(Call::new(&["task", "show", "4", "--json"]), b"\"phase\":\"held\""),
         Step::Run(Call::new(&["task", "show", "4", "--json"])),
@@ -4979,41 +4905,27 @@ fn held_review_restart(case: &str, probe: RestartProbe) {
         Step::Run(Call::new(&["change", "show", "6", "--until", "ci:passed", "--timeout", "120s", "--json"])),
         Step::TaskExists { project: 1, parent: 6, task: 8 },
     ]);
-    if matches!(probe.hold, ReviewHold::BeforeCall) {
-        steps.push(Step::Until(Call::new(&["task", "show", "8", "--json"]), b"\"phase\":\"due\""));
-        steps.push(Step::Run(Call::new(&["task", "stop", "8"])));
-    }
     steps.extend([
         Step::Until(Call::new(&["task", "show", "8", "--json"]), b"\"phase\":\"held\""),
         Step::Run(Call::new(&["task", "show", "8", "--json"])),
         Step::Run(Call::new(&["change", "show", "6", "--json"])),
     ]);
-    if !probe.imported {
-        steps.push(Step::Run(Call::new(&[
-            "account",
-            "export",
-            "1",
-            scratch.path().join("exported-login").to_str().expect("scratch path"),
-        ])));
-    }
     let stop = || {
-        if probe.imported {
-            let value: serde_json::Value =
-                serde_json::from_slice(&std::fs::read(paths[0].join("temper.json")).expect("fixture configuration"))
-                    .expect("fixture configuration JSON");
-            let upstream = value["application"]["clients"]["listener"]["socket"]
-                .as_str()
-                .expect("fixture client address")
-                .parse()
-                .expect("fixture client socket");
-            let moving = support::account_move_qa::export_pending(
-                scratch.path(),
-                upstream,
-                1,
-                &scratch.path().join("exported-login"),
-            );
-            assert!(!moving["accounts"]["party"].as_array().expect("moving account").is_empty());
-        }
+        let value: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(paths[0].join("temper.json")).expect("fixture configuration"))
+                .expect("fixture configuration JSON");
+        let upstream = value["application"]["clients"]["listener"]["socket"]
+            .as_str()
+            .expect("fixture client address")
+            .parse()
+            .expect("fixture client socket");
+        let moving = support::account_move_qa::export_pending(
+            scratch.path(),
+            upstream,
+            1,
+            &scratch.path().join("exported-login"),
+        );
+        assert!(!moving["accounts"]["party"].as_array().expect("moving account").is_empty());
     };
     let first = support::boxed::run_ctl_with_account(
         scratch.path(),
@@ -5027,10 +4939,8 @@ fn held_review_restart(case: &str, probe: RestartProbe) {
     assert_eq!(first.exit, Some(Exit::Code(0)), "first: {}", String::from_utf8_lossy(&first.stderr));
     ctl_assert_success(&first.calls);
     assert!(first.checked.is_some(), "all initial steps completed: {}", String::from_utf8_lossy(&first.stderr));
-    assert_held_reviewers(&first.calls, probe.hold);
-    if probe.imported {
-        assert!(!scratch.path().join("incoming-account.move").exists(), "the deployed account came through import");
-    }
+    support::restart::assert_held_reviewers(&first.calls, false);
+    assert!(!scratch.path().join("incoming-account.move").exists(), "the deployed account came through import");
     let mut scripts = scripts;
     for script in &mut scripts.asked {
         script.turns = Box::new([script.turns[2].clone()]);
@@ -5038,65 +4948,23 @@ fn held_review_restart(case: &str, probe: RestartProbe) {
     let scripts = temper_real_loop_world::llm::cued(
         scripts.cued.into_vec().into_iter().chain(scripts.asked.into_vec()).collect(),
     );
-    let steps = if probe.imported {
-        // Read while the original transfer-out remains pending. No new
-        // account import can make this start's own continuation progress.
-        vec![
-            Step::Run(Call::new(&["settings", "show", "--json"])),
-            Step::Run(Call::new(&["account", "list", "--until", "usable", "--timeout", "10s"])),
-            Step::Run(Call::new(&["account", "list", "--json"])),
-            Step::Run(Call::new(&["forge", "list", "--json"])),
-        ]
-    } else {
-        vec![
-            Step::Run(Call::new(&[
-                "account",
-                "import",
-                scratch.path().join("exported-login").to_str().expect("scratch path"),
-                "--key",
-                "after-restart",
-            ])),
-            Step::Run(Call::new(&["forge", "list", "--json"])),
-            Step::Run(Call::new(&["settings", "show", "--json"])),
-        ]
-    };
+    // Read while the original transfer-out remains pending, without another import.
+    let steps = vec![
+        Step::Run(Call::new(&["settings", "show", "--json"])),
+        Step::Run(Call::new(&["account", "list", "--until", "usable", "--timeout", "10s"])),
+        Step::Run(Call::new(&["account", "list", "--json"])),
+        Step::Run(Call::new(&["forge", "list", "--json"])),
+    ];
     let expected_calls = steps.len();
-    let cut = probe.cut_start.then(|| scratch.path().join("start-cut"));
-    let restart = || {
-        support::boxed::run_ctl_with_account_probe(
-            scratch.path(),
-            flags,
-            scratch.path(),
-            steps,
-            BOX_DEADLINE,
-            || (),
-            support::boxed::AccountProbe {
-                face: support::forge_land::fake_face(support::sign_in::restart_issued_issuer(&paths[0]), scripts),
-                cut_after_listening: cut.clone(),
-            },
-        )
-    };
-    let second = if probe.shared_cache {
-        let other = scratch.path().join("other");
-        std::fs::create_dir(&other).expect("second deployment");
-        let mut other_paths = ["config", "data", "cache"].map(|name| other.join(name));
-        let issuer = restart_deployment(&other_paths);
-        other_paths[2].clone_from(&paths[2]);
-        let other = support::boxed::run_ctl_with_account(
-            &other,
-            support::boxed::echo_steps(deployment_flags(&other_paths)),
-            &other,
-            forgejo_setup_steps("first"),
-            BOX_DEADLINE,
-            restart,
-            support::forge_land::fake_face(issuer, held_review_restart_scripts()),
-        );
-        ctl_assert_success(&other.calls);
-        assert_eq!(other.exit, Some(Exit::Code(0)), "second deployment: {}", String::from_utf8_lossy(&other.stderr));
-        other.checked.expect("second owned box was live while the first restarted")
-    } else {
-        restart()
-    };
+    let second = support::boxed::run_ctl_with_account(
+        scratch.path(),
+        flags,
+        scratch.path(),
+        steps,
+        BOX_DEADLINE,
+        || (),
+        support::forge_land::fake_face(support::sign_in::restart_issued_issuer(&paths[0]), scripts),
+    );
     assert_eq!(second.exit, Some(Exit::Code(0)), "restart: {}", String::from_utf8_lossy(&second.stderr));
     assert!(second.checked.is_some(), "all restart steps completed: {}", String::from_utf8_lossy(&second.stderr));
     assert_eq!(second.calls.len(), expected_calls);
@@ -5105,14 +4973,6 @@ fn held_review_restart(case: &str, probe: RestartProbe) {
         "ctl answers after restart: {}",
         String::from_utf8_lossy(&second.stderr)
     );
-    if let Some(cut) = cut {
-        assert!(cut.exists(), "the intermediate start was cut exactly at listening");
-        assert!(
-            String::from_utf8_lossy(&second.stderr).contains("serve killed by signal 6"),
-            "box restarted the cut serve"
-        );
-        assert!(!String::from_utf8_lossy(&second.stderr).contains("panicked at"), "only the injected abort occurred");
-    }
     scratch.remove();
 }
 
