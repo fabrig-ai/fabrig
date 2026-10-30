@@ -7,12 +7,12 @@ Provisional, 2026-10-28. How a branch reaches `main`: a script on the gate machi
 - **Input:** remote branches `ready/<lead>/<task>` on `origin`, each pushed by its lead.
 - **A batch:** from `origin/main`, the ready branches not yet tried at their current tip, oldest tip first, at most `batch` (8) of them, each merged with `git merge --no-ff -m "Merge <branch name>"`; ratchet-only conflicts are resolved by recounting against HEAD (section 3.3); any other conflict is aborted, reported, and left out. After merging, the queue writes and commits lower old-form baselines for touched trees before checks. Branches need not change those baselines.
 - **The checks run on a selection** (section 2), not always the whole workspace: touched trees' `scripts/old_forms.py --write` (the ratchet, section 3.3), then the tools' suites (section 2.3), `cargo fmt --check`, clippy with `-D warnings`, a nextest `build`, and the focused (`default`) and `fuzzy` nextest profiles. Cargo build and test commands run through `heavy --gate` on the gate machine, which nothing else builds on. Lockfile and member manifest changes select affected packages (section 2.1); formatting covers changed Rust owners (section 2.2). Step durations are recorded separately (section 3.6).
-- **Green:** `git push origin HEAD:main` (fast-forward only); the batch's `ready/` branches are deleted only under an explicit expected-tip deletion lease; each lead is told which commit holds its task.
+- **Green:** save the checked candidate and coordinator routes in a durable publication intent, push that saved candidate (fast-forward only), confirm containment and the exact journal row, then delete ready branches under expected-tip leases and notify leads (section 3.11).
 - **Red:** a batch of one is rejected (its lead gets the failing step and the log's path, and the branch isn't retried until its tip changes); a larger batch is halved and each half tried from `main`, recursively, so the green branches still land.
 - **Capacity refusal:** a heavy exit 2 containing `below the disk floor` is an error, with no rejection or bisection. Before every batch, free space below `--disk-floor` (45 GB by default) defers work to the next cycle.
-- **Error:** an exception logs the batch as `error`; its tips remain eligible. `run` restores `origin/main`, reports each distinct error to the operator (`ops`) once per uninterrupted error episode, waits a cycle, and continues. A completed cycle, including an idle check, clears the persisted episode so recurrence alerts again. `once` raises to its caller.
+- **Error:** an exception logs the batch as `error`; its tips remain eligible. `run` reconciles pending publications before restoring `origin/main`, reports each distinct error to the operator (`ops`) once per uninterrupted error episode, waits a cycle, and continues. A completed cycle, including an idle check, clears the persisted episode so recurrence alerts again. `once` raises to its caller.
 - **Batches selecting no packages** skip Cargo checks. Tools changes run the tools step; touched trees run their ratchets. Unread Markdown outside package source directories selects no package, even beside code or tools changes.
-- **Every batch is logged** as one JSON line (`~/src/fabrig/notes/queue.jsonl`): start and end, branches, outcome, the selection's packages, each step's duration, and test executable cleanup counts and GB.
+- **Every batch is logged** in `~/src/fabrig/notes/queue.jsonl`: start and end, branches, outcome, selection and step durations. A published batch has one immutable publication row and subsequent `event` diagnostics for notifications and cleanup (section 3.11). Other attempts retain their ordinary row.
 
 ## 2. The selection
 
@@ -301,8 +301,8 @@ No additional persistent state format or in-checkout audit file is introduced.
 `restart` forwards the same triplet and explicit batch size. Its optional
 `--runtime DIRECTORY` selects a complete queue runtime directory outside the
 live checkout, containing regular `mq`, `restart`, `worker.py`, `train.py`,
-`authority.py`, `recovery.py`, `durable.py`, `always.txt`, `read-by-tests.txt`
-and `leads.txt` files. This manifest covers all imported policy/effect modules
+`authority.py`, `recovery.py`, `durable.py`, `publication.py`, `always.txt`,
+`read-by-tests.txt`, `leads.txt` and `coordinators.txt` files. This manifest covers all imported policy/effect modules
 and lists, matching the worker's frozen runtime. It validates Python syntax,
 repair and shared-authority support, lists and the advertised pin before
 requesting stop. Missing or changed files during drain refuse before checkout
@@ -404,8 +404,9 @@ semantics, including lower-count advisory output. It cannot certify a
 rewritten replacement commit. The same candidate metadata supplies formatting
 ownership, avoiding a second metadata graph during checking.
 
-Runtime identity freezes the loaded bytes of `worker.py`, `mq`, `always.txt`,
-`read-by-tests.txt` and `leads.txt`, the Python major/minor/micro version, disk
+Runtime identity freezes the loaded bytes of `worker.py`, `mq`, `restart`,
+`train.py`, `authority.py`, `recovery.py`, `durable.py`, `publication.py`,
+`always.txt`, `read-by-tests.txt`, `leads.txt` and `coordinators.txt`, the Python major/minor/micro version, disk
 floor and check-only ratchet policy. Those files are checked against their
 startup bytes before admission and after every command and final cleanup.
 This identity binds the **running** checker and lists independently of
@@ -790,6 +791,115 @@ budget. Disposable processes inject crashes around file fsync, rename,
 dispatch, push/decision and post acknowledgements; tests prove those local
 boundaries and shared flock lifetime, not arbitrary machine power-loss or
 remote-supervisor guarantees.
+
+### 3.11 Publication intent and coordinator feed
+
+`tools/queue/coordinators.txt` is a separate required configuration file.
+Its rows are `KEY COORDINATOR_ADDRESS`, with comments and blank lines;
+keys use the same `[A-Za-z0-9_.-]+` grammar as lead keys and must be unique.
+Addresses use the existing hosted-mailbox grammar, or exactly `-` for an
+explicitly unassigned key. Malformed rows, controls, invalid addresses and
+missing files refuse configuration. The coordinator and lead key sets need
+not match. The checked-in coordinator file has no assignments; activation
+requires reviewed addresses. No prefix, mission file or lead address supplies
+an inferred coordinator. `leads.txt` remains two columns and retains its
+notification destinations and sender.
+
+Routes are flat fields on each merge entry. Resolved routes have exactly
+`route_status="resolved"` and `coordinator=HOSTED_ADDRESS`. Unresolved routes
+have exactly `route_status="unresolved"` and `route_reason="unassigned"` for
+`-`, or `"missing_key"` when the key is absent. Omit the other state's field;
+null, empty and sentinel coordinator values are invalid. The validator also
+recognizes `historical_unknown` for separately reviewed backfill; ordinary
+publication never generates that reason or changes historical journal rows.
+
+Both worker and restart freeze the complete runtime list above, including
+`publication.py` and exact coordinator bytes. Their identities include
+`coordinators_sha256` as well as per-file digests. Restart compiles and validates
+all source/list/route files before requesting stop, then checks their frozen
+bytes after drain and before replacement launch. This validation admits no new
+publication and does not replace saved intent routes. Queue startup reconciles
+pending intents before loading coordinator configuration for new work; restart
+reconciles under the same authority and checkout locks before fetch/reset.
+
+For each successful nondry batch that has carrying merges, allocate a fresh
+32-lowercase-hex publication identity once. Keep its evidence outside the
+checkout at `<authority-root>/publications/PUBLICATION_ID/`, below the common
+shared authority root of section 3.10. Directories are owned, nonsymlinked and
+0700; files are owned regular nonsymlinked files, 0600. Retain this evidence:
+
+- `coordinators.txt`: the exact loaded bytes, without reserialization.
+- `intent.json`: the immutable version-1 publication intent.
+- `journal-confirmation.json`: the durable exact-row receipt.
+- `effects-confirmation.json`: version 1 and publication_id, marking completion
+  of subsequent cleanup/notification work. This is not landing authority.
+
+The intent has exactly `version` (integer 1), `publication_id`, validated
+explicit credential-free `origin`, `ref` (`refs/heads/main`), `parent` (original
+batch P0), `candidate` (checked C), ordered `merges`, `coordinators_sha256`,
+`created` (fixed UTC), absolute `journal_path`, and complete `journal_row`.
+OIDs are full lowercase 40- or 64-hex commit identifiers. Booleans cannot
+satisfy integer fields. Each merge has `name`, pinned `tip` B, carrying `commit`
+M, first `parent` P and the canonical route fields. Prove M's exact parents
+are `[P,B]`, and that the entries cover the candidate interval's first-parent
+carrying merges in order. Record final amended M after ratchet resolution;
+baseline commits above M stay outside the array. A tip already reachable from
+HEAD creates no carrying merge and no entry. A wholly already-reachable batch
+is recorded as an `already-reachable` diagnostic and its pinned tips are marked
+tried without a push; reachable inputs in a checked batch are consumed only
+after its green result. Nested branch merges are below
+B, and deletion of a ready ref does not remove the saved B/M evidence.
+
+Under both locks, write/fsync coordinator bytes and commit intent through a
+private sibling, fsyncing the file, publication directory and all newly created
+containing directory entries. Only this durable boundary authorizes the first
+push. Uncommitted staging cannot authorize publication. Push saved C to the
+saved origin/ref, never HEAD. All Git children retain both lock descriptors,
+so a surviving push excludes a replacement writer even after parent death.
+
+Reconciliation fetches the saved explicit origin/ref and tests containment
+of saved C, including when remote main advanced beyond it. Containment
+confirms publication. Main still at P0 permits retry of that exact C under
+the same guards; no rebuild, new identity, time or route lookup occurs.
+An unavailable, unknown or divergent remote retains the intent and blocks
+reset, replacement and new work; startup alerts the existing Ops destination.
+The running loop retains its ordinary error-episode notification policy.
+
+Only a confirmed published `outcome="green", dry=false` ordinary row carries
+`publication_id`, `publication_time`, batch `parent` P0, `commit` C and the
+exact saved `merges` array. Existing branches, selection, steps, posts and
+conflicts retain their shapes. Red/conflict/dry/idle attempts and recovery or
+policy diagnostics have no authoritative landing fields. Successful bisection
+halves receive separate intents; the failed original batch is not a landing.
+
+Append logically by replacing the journal through a fsynced private sibling,
+preserving every previous byte. Refuse incomplete tails, malformed/duplicate-key
+JSON, nonobjects, duplicate publication identities and conflicting saved rows.
+An identical complete row is replay, not another append. Fsync file and directory
+before committing `journal-confirmation.json`, whose exact fields are integer
+`version=1`, `publication_id`, `journal_path` and SHA-256 `row_sha256` of the
+canonical saved row (sorted compact JSON with a final newline). A crash after
+journal replacement but before confirmation revalidates the same row once.
+Confirmation retires publication from pending; evidence remains retained.
+Ready-ref cleanup follows confirmation with the existing expected-tip leases.
+Its failures or later notification failures never revoke a landing. Interrupted
+effects can replay until their confirmation; notification delivery keeps the
+existing best-effort behavior and is not an exactly-once message outbox.
+
+Operator metrics: the saved row's `end` and `publication_time` are the intent
+observation, not the exact remote-push instant. They remain identical across
+lost acknowledgements and UTC midnight. Push, post, target cleanup and ready
+cleanup observations belong to later `event` rows (`publication-attempt`,
+`publication-effects`, or `recovery`) that existing batch readers skip. Compare
+step durations for check cost; publication-row elapsed time excludes later
+effects. Diagnostic rows omit the authoritative publication_id/time/merges
+fields and may refer to the intent with `publication` instead.
+
+The offline command is `python3 -I -B tools/queue/test_publication.py`;
+`test_mq.py`, repair, worker, authority and isolation suites exercise the
+integration. Fixtures use private local origins and injected services; they
+never run the live queue, a deployment or heavy recovery. Ordinary tools
+discovery includes the publication suite with the unchanged 60-second bound.
 
 ## 4. Later
 
