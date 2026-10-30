@@ -1,4 +1,4 @@
-//! Real OAuth endpoints. Selected only by `cargo nextest run --profile live`.
+//! Real OAuth endpoints. Selected only by `cargo nextest run --profile live-skein`.
 //! No auth files, refreshes, retries, or alternate endpoints in this harness.
 use std::io::{Read as _, Write as _};
 use std::net::{Shutdown, TcpStream, ToSocketAddrs};
@@ -20,7 +20,7 @@ fn setting(name: &str) -> Option<String> {
     std::env::var(name).ok().filter(|value| !value.trim().is_empty())
 }
 fn enabled() -> bool {
-    setting("NEXTEST_PROFILE").as_deref() == Some("live")
+    setting("NEXTEST_PROFILE").as_deref() == Some("live-skein")
 }
 fn required(name: &str) -> Box<[u8]> {
     setting(name).unwrap_or_else(|| panic!("live profile requires {name}")).into_bytes().into()

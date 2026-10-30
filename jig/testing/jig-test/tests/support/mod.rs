@@ -352,7 +352,8 @@ pub fn run(
     script: Script,
     peer: Option<(skein_fake_peers::llm::Peer, std::net::SocketAddr, Fd)>,
 ) -> (u32, u32) {
-    let seconds = if std::env::var("NEXTEST_PROFILE").as_deref() == Ok("live") { 560 } else { 120 };
+    let seconds =
+        if matches!(std::env::var("NEXTEST_PROFILE").as_deref(), Ok("live-jig" | "live")) { 560 } else { 120 };
     let clock = Clock::new();
     if let Some((_, address, _)) = &peer {
         ports::configure(directory, None, Some(*address));
