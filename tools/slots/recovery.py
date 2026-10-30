@@ -141,12 +141,37 @@ def builder(slot, home, host=None):
     return host, shares[slot.name]
 
 
+def automatic_terminal(task, slot=None):
+    if slot is not None and task.get("slot") != str(slot):
+        return False
+    if task.get("status") == "completed" and task.get("release") == "released":
+        return True
+    claim, refusal = task.get("claim", {}), task.get("refusal", {})
+    return (task.get("status") == "skipped" and task.get("acquired") is False
+            and task.get("mutation_started") is False and task.get("release") == "not-acquired"
+            and isinstance(claim, dict) and isinstance(refusal, dict)
+            and claim.get("owner") == "ops" and claim.get("host") in ("hetzner3", "hetzner6", "hetzner7")
+            and isinstance(claim.get("number"), str) and claim["number"].isascii() and claim["number"].isdecimal()
+            and known_claim_refusal(claim.get("host"), claim.get("number"), claim.get("share"),
+                                    refusal.get("code"), refusal.get("stdout"), refusal.get("stderr")))
+
+
 @contextmanager
-def maintenance(slot, home, *, release_hold=None, automatic_what=None):
+def maintenance(slot, home, *, release_hold=None, automatic_what=None, lock_fds=None):
     directory = L["state_root"](home) / slot.name
     L["private_directory"](directory)
+    @contextmanager
+    def hold(path):
+        with locked(path) as fd:
+            entry = {"pid": os.getpid(), "fd": fd, "identity": identity(path), "path": str(path), "active": True}
+            if lock_fds is not None:
+                lock_fds.append(entry)
+            try:
+                yield fd
+            finally:
+                entry["active"] = False
     with ExitStack() as stack:
-        stack.enter_context(locked(directory / "lease"))
+        stack.enter_context(hold(directory / "lease"))
         for path in directory.iterdir():
             no_links(path)
             if (path.name.endswith(".hold") and release_hold is None or path.name.startswith(".write-")):
@@ -159,7 +184,7 @@ def maintenance(slot, home, *, release_hold=None, automatic_what=None):
         automatic = directory / "automatic.json"
         if automatic.exists():
             task = read(automatic)
-            if (task.get("status") != "completed" or task.get("release") != "released"):
+            if not automatic_terminal(task, slot):
                 if automatic_what is None or task.get("claim", {}).get("what") != automatic_what:
                     raise RuntimeError("automatic claim/task needs operator reconciliation")
         journal = directory / "reclaim.json"
@@ -170,6 +195,8 @@ def maintenance(slot, home, *, release_hold=None, automatic_what=None):
         no_links(gitdir)
         if not gitdir.is_dir():
             raise RuntimeError("recovery requires a standalone .git directory")
+        if os.path.lexists(gitdir / "commondir"):
+            raise RuntimeError("unsupported Git commondir indirection")
         for path in (slot.with_name(slot.name + ".queue.lock"),
                      slot.with_name(slot.name + ".worker.lock"),
                      gitdir / "worker.lock", gitdir / "precheck.lock"):
@@ -177,7 +204,7 @@ def maintenance(slot, home, *, release_hold=None, automatic_what=None):
             # existing legacy inner lock without adding files to source metadata.
             if path.parent == gitdir and not path.exists() and not path.is_symlink():
                 continue
-            stack.enter_context(locked(path))
+            stack.enter_context(hold(path))
         markers = [gitdir / name for name in ("precheck.unresolved", "mq-worker-unresolved.json",
                                               "worker.unresolved", "queue.unresolved", "index.lock")]
         markers.extend(slot.with_name(slot.name + suffix) for suffix in
@@ -267,9 +294,9 @@ def target_identity(slot):
     return identity(target)
 
 
-def snapshot(slot, home):
+def snapshot(slot, home, *, observational=False):
     host, share = builder(slot, home)
-    history_value, runs = history(slot, home)
+    history_value, runs = history(slot, home, observational=observational)
     evidence = []
     for kind, value in units(slot, codex=True):
         if kind == "run":
@@ -346,6 +373,7 @@ def target_size(slot, *, activity=False, inventory=False):
     entries = []
     inodes = [expected]
     files_count = 0
+    links = {}
     fd = os.open(target, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
     try:
         info = os.fstat(fd)
@@ -367,16 +395,25 @@ def target_size(slot, *, activity=False, inventory=False):
                 newest = max(newest, info.st_mtime_ns, info.st_ctime_ns)
                 if inventory:
                     if (not (stat.S_ISDIR(info.st_mode) or stat.S_ISREG(info.st_mode))
-                            or stat.S_ISREG(info.st_mode) and info.st_nlink != 1
                             or name in (".git", "auth.json", ".credentials.json", ".ssh")):
                         raise RuntimeError(f"unrecognized, linked or symlink target input: {parent}/{name}")
                     files_count += int(stat.S_ISREG(info.st_mode))
                     inodes.append([info.st_dev, info.st_ino])
                     entries.append([str(Path(parent) / name), info.st_ino, info.st_mode,
-                                    info.st_size, info.st_mtime_ns, info.st_ctime_ns])
+                                    info.st_size, info.st_mtime_ns, info.st_ctime_ns, info.st_nlink])
+                    if stat.S_ISREG(info.st_mode):
+                        key = (info.st_dev, info.st_ino)
+                        shape = [info.st_nlink, info.st_size, info.st_mtime_ns, info.st_ctime_ns, info.st_blocks]
+                        if key in links and links[key][0] != shape:
+                            raise RuntimeError("target hardlink identity changed during inventory")
+                        previous = links.get(key, (shape, 0))
+                        links[key] = (shape, previous[1] + 1)
     finally:
         os.close(fd)
     if inventory:
+        if any(shape[0] != count for shape, count in links.values()):
+            raise RuntimeError("external or unaccounted target hardlinks")
+        size = sum(shape[4] * 512 for shape, _ in links.values())
         return {"allocated_bytes": size, "newest_ns": newest, "files": files_count,
                 "inodes": sorted(inodes), "sha256": digest(sorted(entries))}
     return (size, newest) if activity else size
@@ -436,6 +473,40 @@ def require_automatic_activation():
         raise RuntimeError("FIRSTDAYDRYRUN: automatic live mode refused; central exclusion and finality protocol unavailable until Ops review/activation")
 
 
+class ClaimNotAcquired(RuntimeError):
+    def __init__(self, result):
+        super().__init__(result.stderr.strip())
+        self.proof = {"code": result.returncode, "stdout": result.stdout, "stderr": result.stderr}
+
+
+def known_claim_refusal(host, number, share, code, stdout, stderr):
+    """Only two exit-1 diagnostics established by the unchanged authority source."""
+    if type(code) is not int or code != 1 or stdout != "" or not isinstance(stderr, str):
+        return False
+    nonpool = re.fullmatch(re.escape(f"claim: {host} {number} belongs to share ") + r"([^\r\n]+); a lend requires --lent-by \1\n", stderr)
+    if nonpool is not None and nonpool[1] not in ("pool", "ops"):
+        return True
+    match = re.fullmatch(re.escape(f"claim: {host}-{number} held by ") + r".+: .+ \(since ([^()\s]+)\)\n", stderr)
+    if match is None:
+        return False
+    try:
+        return datetime.fromisoformat(match[1]).utcoffset() is not None
+    except ValueError:
+        return False
+
+
+def central_available(host, number, share):
+    """An unlocked observation for filtering, never permission to mutate."""
+    output = command("ssh", "-o", "BatchMode=yes", "hel8", "bash", "-lc", shlex.quote("claim list"))
+    prefix = f"{host} {number} [{share}]: "
+    rows = [line for line in output.splitlines() if line.startswith(f"{host} {number} [")]
+    if rows == [prefix + "free"]:
+        return True
+    if len(rows) == 1 and re.fullmatch(re.escape(prefix) + r".+: .+ \(since [^()\s]+\); held \d+d \d{2}:\d{2}:\d{2}(?:; lent by .+)?", rows[0]):
+        return False
+    raise RuntimeError("unknown central claim snapshot; no acquisition attempted")
+
+
 def central_claim(action, host, number, what, share=None):
     """Only hel8's installed authority; never builder-local claim state (5.6)."""
     args = ["claim", action]
@@ -459,7 +530,16 @@ def central_claim(action, host, number, what, share=None):
         expected = f"{host}-{number} released by ops"
     else:
         raise RuntimeError("unknown central claim action")
-    output = command("ssh", "-o", "BatchMode=yes", "hel8", "bash", "-lc", shlex.quote(shlex.join(args)))
+    argv = ("ssh", "-o", "BatchMode=yes", "hel8", "bash", "-lc", shlex.quote(shlex.join(args)))
+    if action == "claim":
+        result = subprocess.run(argv, text=True, capture_output=True, stdin=subprocess.DEVNULL)
+        if known_claim_refusal(host, number, share, result.returncode, result.stdout, result.stderr):
+            raise ClaimNotAcquired(result)
+        if result.returncode:
+            raise RuntimeError(f"ssh exited {result.returncode}: {result.stderr.strip()}")
+        output = result.stdout
+    else:
+        output = command(*argv)
     if output.strip() != expected:
         raise RuntimeError(f"ambiguous central claim {action} response; operator reconciliation required")
 
@@ -481,7 +561,8 @@ def finality(value):
                 or not run["ended"]["identity"][3] <= timestamp <= time.time_ns()):
             raise RuntimeError("finality owner/time does not match completed run")
         if final.get("state") == "landed":
-            if not isinstance(final.get("sha"), str) or not re.fullmatch(r"[0-9a-f]{40}", final["sha"]):
+            if (not isinstance(final.get("sha"), str) or not re.fullmatch(r"(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})", final["sha"])
+                    or not int(final["sha"], 16)):
                 raise RuntimeError("unknown landed finality SHA")
         elif final.get("state") == "withdrawn":
             if not isinstance(final.get("reason"), str) or not final["reason"].strip():
@@ -496,7 +577,7 @@ def finality(value):
 
 def source_preservation(slot):
     """Hash owned regular source/Git files, never expose file contents (5.6)."""
-    files, directories, inodes = [], [], []
+    files, directories, inodes = [], [], [identity(slot)]
     def fail(error):
         raise error
     for parent, names, leaves in os.walk(slot, followlinks=False, onerror=fail):
@@ -511,6 +592,7 @@ def source_preservation(slot):
             if not stat.S_ISDIR(info.st_mode) or info.st_dev != slot.stat().st_dev:
                 raise RuntimeError(f"unsafe source directory: {path}")
             directories.append([str(path.relative_to(slot)), identity(path)])
+            inodes.append(identity(path))
         for name in sorted(leaves):
             path = parent / name
             if parent == slot and name == "target":
@@ -559,6 +641,9 @@ def borrowers(slot, home):
             no_links(parent / name)
         if ".git" in files:
             raise RuntimeError(f"unrecognized linked checkout borrower: {parent / '.git'}")
+        if (("commondir" in files or "commondir" in directories)
+                and (".git" in parent.relative_to(root).parts or "HEAD" in files)):
+            raise RuntimeError(f"unsupported Git commondir borrower: {parent}")
         gitdirs = [parent / ".git"] if ".git" in directories else []
         if "HEAD" in files and "objects" in directories and "refs" in directories:
             gitdirs.append(parent)
@@ -573,7 +658,30 @@ def borrowers(slot, home):
     return sorted(observations, key=lambda file: file["path"])
 
 
-def automatic_processes(slot, inodes, proc=Path("/proc")):
+def own_lock_descriptor(entry, number, info, lock_fds):
+    for held in lock_fds:
+        if (held.get("active") is not True or held["pid"] != os.getpid() or entry.name != str(held["pid"])
+                or number != str(held["fd"]) or [info.st_dev, info.st_ino] != held["identity"]):
+            continue
+        try:
+            current = os.fstat(held["fd"])
+            if [current.st_dev, current.st_ino] != held["identity"] or identity(Path(held["path"])) != held["identity"]:
+                continue
+            # fdinfo describes this open file description's kernel flock, not
+            # descriptor contents. Closed/reopened same-inode fds have no proof.
+            for line in Path(f"/proc/self/fdinfo/{held['fd']}").read_text().splitlines():
+                parts = line.split()
+                if len(parts) != 9 or parts[:1] != ["lock:"] or parts[2:6] != ["FLOCK", "ADVISORY", "WRITE", str(held["pid"])]:
+                    continue
+                major, minor, inode = parts[6].split(":")
+                if (os.makedev(int(major, 16), int(minor, 16)), int(inode)) == (info.st_dev, info.st_ino):
+                    return True
+        except (OSError, ValueError):
+            continue
+    return False
+
+
+def automatic_processes(slot, inodes, proc=Path("/proc"), *, lock_fds=()):
     evidence = processes(slot, proc)
     protected = {tuple(pair) for pair in inodes}
     for entry in proc.iterdir():
@@ -583,13 +691,21 @@ def automatic_processes(slot, inodes, proc=Path("/proc")):
             first = entry.stat()
             if first.st_uid != os.getuid():
                 continue
-            for fd in (entry / "fd").iterdir():
-                info = fd.stat()
-                if (info.st_dev, info.st_ino) in protected:
-                    raise RuntimeError(f"live source/target fd pid={entry.name}")
-                link = os.readlink(fd).removesuffix(" (deleted)")
-                if link.startswith("/") and Path(os.path.normpath(link)).is_relative_to(slot):
-                    raise RuntimeError(f"live slot fd pid={entry.name}")
+            cwd = (entry / "cwd").stat()
+            if (cwd.st_dev, cwd.st_ino) in protected:
+                raise RuntimeError(f"live source/target cwd inode pid={entry.name}")
+            # Keep the enumeration descriptor open while inspecting its entries.
+            # A detached name list would include our already-closed scanner fd.
+            with os.scandir(entry / "fd") as descriptors:
+                for fd in descriptors:
+                    info = fd.stat()
+                    if own_lock_descriptor(entry, fd.name, info, lock_fds):
+                        continue
+                    if (info.st_dev, info.st_ino) in protected:
+                        raise RuntimeError(f"live source/target fd pid={entry.name}")
+                    link = os.readlink(fd.path).removesuffix(" (deleted)")
+                    if link.startswith("/") and Path(os.path.normpath(link)).is_relative_to(slot):
+                        raise RuntimeError(f"live slot fd pid={entry.name}")
             for line in (entry / "maps").read_text().splitlines():
                 parts = line.split(None, 5)
                 if len(parts) < 5:
@@ -609,15 +725,15 @@ def automatic_processes(slot, inodes, proc=Path("/proc")):
     return [*evidence, "own-user fd/maps scan completed"]
 
 
-def automatic_snapshot(slot, home):
-    current, evidence = snapshot(slot, home)
+def automatic_snapshot(slot, home, *, lock_fds=(), observational=False):
+    current, evidence = snapshot(slot, home, observational=observational)
     if current["history"]["completed_lifetime"] is None:
         raise RuntimeError("unknown completed source/build lifetime")
     current["finality"] = finality(current["history"])
     current["target"] = target_size(slot, inventory=True)
     current["preservation"] = source_preservation(slot)
     current["borrowers"] = borrowers(slot, home)
-    evidence.extend(automatic_processes(slot, [*current["target"]["inodes"], *current["preservation"]["inodes"]]))
+    evidence.extend(automatic_processes(slot, [*current["target"]["inodes"], *current["preservation"]["inodes"]], lock_fds=lock_fds))
     latest = max(current["history"]["completed_ns"], current["target"]["newest_ns"])
     if time.time_ns() - latest <= 86400 * 1_000_000_000:
         raise RuntimeError("target/run/lifetime not proven idle >24h")
@@ -645,20 +761,42 @@ def automatic_recover(slots, home, free, record):
                 no_links(journal)
                 if journal.exists():
                     previous = read(journal)
-                    if previous.get("status") != "completed" or previous.get("release") != "released":
+                    if not automatic_terminal(previous, slot):
                         raise RuntimeError("prior automatic claim/task requires reconciliation")
+                if share not in ("pool", "ops"):
+                    record(f"slot {slot.name}: automatic skipped (share {share}; no invented --lent-by); no acquisition attempted")
+                    continue
+                if not central_available(host, slot.name, share):
+                    record(f"slot {slot.name}: automatic skipped (central busy snapshot); no acquisition attempted")
+                    continue
+                # This is filtering only, not custody. Release the probe leases
+                # before requesting the persistent claim, then repeat all proofs.
+                preflight_fds = []
+                with maintenance(slot, home, lock_fds=preflight_fds):
+                    automatic_snapshot(slot, home, lock_fds=preflight_fds, observational=True)
                 token = uuid.uuid4().hex
                 started = datetime.now(timezone.utc).isoformat()
                 what = f"guard reclaim {started} {token}"
-                task = {"slot": str(slot), "claim": {"host": host, "number": slot.name, "owner": "ops", "what": what},
-                        "start": started, "status": "claim-requested", "release": "retained", "exit": None}
+                task = {"slot": str(slot), "claim": {"host": host, "number": slot.name, "share": share, "owner": "ops", "what": what},
+                        "start": started, "status": "claim-requested", "release": "retained", "exit": None,
+                        "acquired": None, "mutation_started": False}
                 write(journal, task)
-                central_claim("claim", host, slot.name, what)
+                try:
+                    central_claim("claim", host, slot.name, what, share)
+                except ClaimNotAcquired as error:
+                    task.update(status="skipped", release="not-acquired", acquired=False, exit=0,
+                                end=datetime.now(timezone.utc).isoformat(), refusal=error.proof)
+                    write(directory / f"automatic-{token}.json", task)
+                    write(journal, task)
+                    record(f"slot {slot.name}: automatic skipped (known no acquisition: {error}); no claim release")
+                    continue
                 task["status"] = "uncertain"
+                task["acquired"] = True
                 write(journal, task)
-                with maintenance(slot, home, automatic_what=what):
+                lock_fds = []
+                with maintenance(slot, home, automatic_what=what, lock_fds=lock_fds):
                     central_claim("list", host, slot.name, what, share)
-                    before, evidence = automatic_snapshot(slot, home)
+                    before, evidence = automatic_snapshot(slot, home, lock_fds=lock_fds)
                     available = free()
                     if available >= 80_000_000_000:
                         raise RuntimeError("pressure ended after claim; claim retained for reconciliation")
@@ -666,10 +804,12 @@ def automatic_recover(slots, home, free, record):
                     write(journal, task)
                     record(f"slot {slot.name}: automatic reclaim-start claim-WHAT={what} target={slot / 'target'}")
                     central_claim("list", host, slot.name, what, share)
-                    current, _ = automatic_snapshot(slot, home)
+                    current, _ = automatic_snapshot(slot, home, lock_fds=lock_fds)
                     if current != before or free() >= 80_000_000_000:
                         raise RuntimeError("automatic evidence or pressure changed before mutation")
                     require_automatic_activation()
+                    task["mutation_started"] = True
+                    write(journal, task)
                     fd = os.open(slot, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
                     try:
                         if (identity(slot) != before["slot_identity"] or identity(slot.parent) != before["root_identity"]

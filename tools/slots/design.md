@@ -424,8 +424,27 @@ claim release HOST N ops --what 'guard reclaim UTC NONCE'
 
 There is no builder-local authority, force, stealing or `--lent-by`. A held slot
 or a non-pool share not owned by ops refuses normally. Failed, refused or
-ambiguous responses never authorize deletion; they retain an uncertain journal
-for inspection. Claim acquisition must return the exact normal success message.
+ambiguous responses never authorize deletion. Before publishing intent, the
+consumer filters known non-pool shares, centrally observed busy slots, and failed
+local maintenance/safety observations. Probe leases are released before acquisition;
+the central list snapshot grants no custody and every proof is repeated under the
+successful persistent claim. Filtered candidates publish no acquisition journal.
+
+If acquisition races that filter, only two diagnostics established by the unchanged
+authority source prove no acquisition: exit exactly 1 with empty stdout and either
+the exact normal `claim: HOST-N held by OWNER: WHAT (since ISO)` diagnostic, or
+`claim: HOST N belongs to share SHARE; a lend requires --lent-by SHARE`. The latter
+must repeat the same non-pool/non-ops share, and the former must contain a known
+timezone-aware creation time. Other exit codes, mixed/extra output, transport or
+session failure, unknown diagnostics and ambiguous success retain uncertain intent
+and any own claim. A subsequent list can never downgrade that uncertainty.
+
+Known refusal writes private archived and current `status=skipped` evidence with
+`acquired=false`, `mutation_started=false`, `release=not-acquired` and the raw exit/
+stdout/stderr proof. It never releases a claim, permits later passes and does not
+block manual maintenance. Existing uncertain records receive no backfill or
+automatic migration. Once acquired, or after any mutation, failure remains retained
+for Ops reconciliation. Claim acquisition must return the exact normal success message.
 Subsequent central list observations must contain exactly one matching inventory
 row with exact owner/WHAT, a known creation time and the normal age suffix. List
 is a recheck of persistent custody, never custody by itself. Losing SSH or the
@@ -442,7 +461,7 @@ an owned private regular `RUN/final.json` with:
 - `owner`: exactly metadata's nonempty `to`;
 - `time`: an ISO 8601 timestamp with timezone, at/after the run's ended evidence
   and not in the future;
-- `sha`: a full lowercase 40-hex SHA for `landed`, or a nonempty `reason` for
+- `sha`: a full nonzero 40- or 64-hex object ID for `landed`, or a nonempty `reason` for
   `withdrawn`.
 
 It binds each final file's identity/digest and never creates, updates or backfills
@@ -452,26 +471,43 @@ runs; ended/Done/exit-zero/post/manual acknowledgement/completed lifetime do not
 replace finality. Active or unknown Codex/heavy service observations still veto
 the operation. Producer integration must verify this exact JSON contract before
 activation; the offline consumer tests supply explicit fixture declarations.
+Second-precision producer timestamps that precede the ended file's nanosecond mtime
+remain protected. The consumer does not round or relax `time >= ended`; producer
+precision/schema compatibility is a pending activation prerequisite.
 
 Automatic snapshots add the following stricter proofs to the manual snapshot:
 
 - Every source and Git regular file outside target is fingerprinted, and source
   directory identities are bound. Symlink, unreadable and cross-device source
-  inputs refuse. SHA digests are retained; file contents are not logged.
+  inputs refuse. Candidate `.git/commondir` and managed/dormant common-directory
+  indirections are unsupported and refused without following their pointers. SHA
+  digests are retained; file contents are not logged.
 - A full target inventory binds identities, modes, sizes and mtime/ctime, allocated
-  bytes and regular-file count. Symlinks, hard-linked regular files, special
+  bytes and regular-file count. Symlinks, externally linked regular files, special
   files, protected Git/credential entries, mountpoints and device boundaries
-  refuse. The latest target write and completed run/lifetime must be strictly
+  refuse. Internal hardlinks qualify only when the complete inventory accounts
+  for every link to an inode with consistent identity/time/size/link-count evidence.
+  Allocated bytes count each such inode once; removed files count directory entries.
+  The latest target write and completed run/lifetime must be strictly
   more than 24 hours old. Exact free bytes must still be below 80,000,000,000.
 - Own-user cwd, open descriptors and maps are checked, including inode aliases
-  and deleted-path spellings. Unknown/unreadable/incomplete process observations
+  and deleted-path spellings. Source directory identities, including slot/Git
+  directories, join the protected target and file inode set; actual cwd identity
+  is compared independently of its text. Unknown/unreadable/incomplete observations
   refuse; process environments and descriptor contents are never read.
+  Only exact maintenance lock descriptors held by this invocation are exempt:
+  current pid, fd number, device/inode, unchanged known lock path, active lease
+  context and that open file description's own kernel FLOCK WRITE metadata must
+  agree. No whole-PID exception exists. Other/duplicated descriptors, descriptors
+  reused without their flock and records from closed contexts are not exempt.
+  The fd directory scanner stays open during enumeration, so it does not report
+  its own already-closed scan descriptor as an unknown entry.
 - All Fabrig-managed clones, bare repositories and scratch under
   `~/src/fabrig/` are inspected for object-store alternates, including recursive
   alternate chains, dormant repositories beneath `.git/modules` and orphaned
   `objects/info/alternates` stores without a normal ref layout. Any borrower into
   target, cyclic/external/unknown store,
-  symlink directory or linked checkout with an unrecognized gitdir refuses.
+  symlink directory, unsupported commondir or linked checkout with an unrecognized gitdir refuses.
   Environment-based alternate borrowing also refuses. Other checkouts receive
   no Git commands or mutations. Unrecognized layouts remain protected.
 
@@ -496,7 +532,8 @@ no release in a finally block, trap, shell-exit or session-loss handler. Release
 failure/ambiguity retains completed evidence and reconciliation state; death after
 release but before recording its response leaves a conservative retained receipt.
 Success updates both records to `release=released`. Pending automatic records
-also block manual whole-target maintenance; existing executable trimming remains
+also block manual whole-target maintenance; proven no-acquisition skipped records
+permit another pass. Existing executable trimming remains
 unchanged. No automatic retry or release reconciles an uncertain attempt.
 Ops inspects the exact WHAT and evidence: incomplete evidence requires an
 independent investigation; completed evidence permits an operator's exact release.
@@ -508,6 +545,9 @@ authority HOME and hostname. It verifies real claim contention, exact release
 ordering, an actual child death after deletion, release failures, finality and
 live-work/borrower/preservation vetoes. It performs no real service, claim or
 cleanup operation. Ordinary/manual guard interfaces remain unchanged.
+`SafetyRepairTests` adds commondir, cwd alias identity, real disposable maintenance
+fd/self-scan, stale/reused fd, ordinary-refusal retry, uncertain-session retention,
+complete/internal versus external hardlinks, and strict time/OID regressions.
 
 ## 4. Later
 

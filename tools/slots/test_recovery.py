@@ -877,17 +877,31 @@ if args[1] == "release":
     (fixture / "evidence-before-release").write_text("verified\\n")
     if behavior.get("fail_release"):
         sys.exit("fixture release unavailable")
-if args[1] == "list" and behavior.get("fail_list"):
+if args[1] == "list" and (behavior.get("fail_list") or behavior.get("fail_list_after_claim") and
+        (fixture / "central-home/src/fabrig/claims/hetzner7-4").exists()):
     sys.exit("fixture list unavailable")
+if args[1] == "claim" and behavior.get("transport_failure"):
+    print("fixture SSH session lost", file=sys.stderr)
+    sys.exit(255)
 os.environ["HOME"] = str(fixture / "central-home")
 socket.gethostname = lambda: "hel8"
 sys.argv = args
-try:
-    runpy.run_path(os.environ["GUARD_CLAIM_SOURCE"], run_name="__main__")
-except SystemExit as done:
-    code = done.code or 0
+authority = runpy.run_path(os.environ["GUARD_CLAIM_SOURCE"])
+if args[1] == "claim" and behavior.get("share_race"):
+    inventory = fixture / "authority-hosts"
+    inventory.write_text("hetzner7 4=lead/fixture\\n")
+    authority["inventory"].__defaults__ = (inventory,)
+if args[1] == "claim" and behavior.get("claim_race"):
+    import contextlib, io
+    sys.argv = ["claim", "claim", "hetzner7", "4", "other", "competing lifetime"]
+    with contextlib.redirect_stdout(io.StringIO()):
+        authority["main"]()
+    sys.argv = args
+code = authority["main"]()
 if args[1] == "claim" and code == 0 and behavior.get("ambiguous"):
     print("unexpected extra response")
+if args[1] == "claim" and code == 0 and behavior.get("lost_after_claim"):
+    sys.exit(255)
 sys.exit(code)
 '''
 
@@ -908,7 +922,7 @@ class AutomaticClaimTests(unittest.TestCase):
         for module in (R, FIXTURE["guard"].RECOVERY):
             real = module["automatic_processes"]
             mocked = patch.dict(module["automatic_snapshot"].__globals__,
-                                automatic_processes=lambda slot, inodes, real=real: real(slot, inodes, self.proc))
+                                automatic_processes=lambda slot, inodes, real=real, lock_fds=(): real(slot, inodes, self.proc, lock_fds=lock_fds))
             mocked.start()
             self.addCleanup(mocked.stop)
 
@@ -1043,7 +1057,7 @@ class AutomaticClaimTests(unittest.TestCase):
                     self.final("run-4", **changes)
                 self.assertIn("PROTECTED/reconcile", self.run_auto(slot))
                 self.assertTrue((slot / "target/cache").exists())
-                self.assertTrue(self.claim_path().exists())
+                self.assertFalse(self.claim_path().exists())
                 # Explicit fixture teardown between independent histories/claims.
                 shutil.rmtree(self.home / "src/fabrig/slot-maintenance")
                 shutil.rmtree(self.home / "central-home")
@@ -1056,11 +1070,11 @@ class AutomaticClaimTests(unittest.TestCase):
         self.assertIn("PROTECTED/reconcile", self.run_auto(slot))
         self.assertTrue((slot / "target/cache").exists())
 
-    def test_busy_service_protects_after_acquisition(self):
+    def test_busy_service_filters_before_acquisition(self):
         slot = self.ready()
         self.state(units={"job-heavy-wrapper.service": {"WorkingDirectory": str(slot), "ActiveState": "active"}})
         self.assertIn("live service", self.run_auto(slot))
-        self.assertTrue(self.claim_path().exists())
+        self.assertFalse(self.claim_path().exists())
         self.assertTrue((slot / "target/cache").exists())
 
     def test_new_process_at_deletion_boundary_blocks(self):
@@ -1164,7 +1178,7 @@ class AutomaticClaimTests(unittest.TestCase):
 
     def test_missing_claim_recheck_response_retains_claim_and_target(self):
         slot = self.ready()
-        self.behavior(fail_list=True)
+        self.behavior(fail_list_after_claim=True)
         self.assertIn("list unavailable", self.run_auto(slot))
         self.assertTrue(self.claim_path().exists())
         self.assertTrue((slot / "target/cache").exists())
@@ -1214,6 +1228,245 @@ class AutomaticClaimTests(unittest.TestCase):
                                     free=lambda: 60 if (slot / "target").exists() else 81)
             self.assertEqual(code, 0, output)
         self.assertFalse((slot / "target").exists())
+        self.assertFalse(self.claim_path().exists())
+
+
+class SafetyRepairTests(unittest.TestCase):
+    setUp = AutomaticClaimTests.setUp
+    slot, add_run, ack = AutomaticClaimTests.slot, AutomaticClaimTests.add_run, AutomaticClaimTests.ack
+    state, cli, calls = AutomaticClaimTests.state, AutomaticClaimTests.cli, AutomaticClaimTests.calls
+    ready, final = AutomaticClaimTests.ready, AutomaticClaimTests.final
+    behavior, claim_path, journal = AutomaticClaimTests.behavior, AutomaticClaimTests.claim_path, AutomaticClaimTests.journal
+    run_auto = AutomaticClaimTests.run_auto
+
+    def self_process(self):
+        (self.proc / str(os.getpid())).symlink_to(Path("/proc") / str(os.getpid()))
+
+    def legacy_locks(self, slot):
+        for name in ("worker.lock", "precheck.lock"):
+            (slot / ".git" / name).touch(mode=0o600)
+
+    def test_candidate_commondir_never_removes_common_refs_or_objects(self):
+        slot = self.ready()
+        common = slot / "target/git-common"
+        (common / "refs").mkdir(parents=True)
+        (common / "objects").mkdir()
+        (common / "refs/fixture").write_text("keep ref\n")
+        (common / "objects/fixture").write_text("keep object\n")
+        (slot / ".git/commondir").write_text("../target/git-common\n")
+        paths = [path for path in slot.rglob("*") if path.is_file()]
+        before = {path: path.read_bytes() for path in paths}
+        self.assertIn("commondir", self.run_auto(slot))
+        self.assertEqual({path: path.read_bytes() for path in paths}, before)
+        self.assertFalse(self.claim_path().exists())
+        self.assertFalse(self.journal().exists())
+
+    def test_managed_and_dormant_commondir_indirections_are_unsupported(self):
+        slot = self.ready()
+        for relative in ("foreign/.git", "foreign/.git/modules/dormant", "bare"):
+            with self.subTest(relative=relative):
+                gitdir = self.home / "src/fabrig" / relative
+                gitdir.mkdir(parents=True, exist_ok=True)
+                (gitdir / "HEAD").write_text("ref: refs/heads/fixture\n")
+                pointer = gitdir / "commondir"
+                pointer.write_text(str(slot / "target") + "\n")
+                self.assertIn("commondir", self.run_auto(slot))
+                self.assertTrue((slot / "target/cache").exists())
+                self.assertFalse(self.claim_path().exists())
+                self.assertFalse(self.journal().exists())
+                pointer.unlink()
+
+    def test_cwd_inode_aliases_cover_target_root_slot_root_and_source_git_directories(self):
+        slot = self.ready()
+        (slot / "source-dir").mkdir()
+        process = self.proc / "123"
+        process.mkdir()
+        cwd = process / "cwd"
+        original = os.readlink
+        def spelled_elsewhere(path, *args, **kwargs):
+            if Path(path) == cwd:
+                return str(self.home / "outside-bind-alias")
+            return original(path, *args, **kwargs)
+        for directory in (slot, slot / "target", slot / "source-dir", slot / ".git", slot / ".git/refs"):
+            with self.subTest(directory=directory):
+                cwd.symlink_to(directory)
+                with patch.object(os, "readlink", side_effect=spelled_elsewhere):
+                    self.assertIn("cwd inode", self.run_auto(slot))
+                cwd.unlink()
+                self.assertTrue((slot / "target/cache").exists())
+                self.assertFalse(self.claim_path().exists())
+
+    def test_required_real_maintenance_descriptors_do_not_veto_their_owner(self):
+        slot = self.ready()
+        self.legacy_locks(slot)
+        self.self_process()
+        self.assertIn("automatic reclaimed", self.run_auto(slot))
+        self.assertFalse(self.claim_path().exists())
+        self.assertTrue((slot / ".git/worker.lock").exists())
+        self.assertTrue((slot / ".git/precheck.lock").exists())
+
+    def test_other_guard_owned_fd_is_protected_while_maintenance_locks_are_exempt(self):
+        slot = self.ready()
+        self.legacy_locks(slot)
+        self.self_process()
+        opened = []
+        def open_target(line):
+            if "reclaim-start" in line:
+                opened.append(os.open(slot / "target/cache", os.O_RDONLY))
+        try:
+            self.run_auto(slot, record=open_target)
+        finally:
+            for fd in opened:
+                os.close(fd)
+        self.assertTrue(opened)
+        self.assertTrue((slot / "target/cache").exists())
+        self.assertTrue(self.claim_path().exists())
+
+    def test_stale_reopened_and_duplicate_descriptors_are_not_exempt(self):
+        slot = self.ready()
+        self.legacy_locks(slot)
+        records = []
+        process = Path("/proc") / str(os.getpid())
+        path = slot / ".git/worker.lock"
+        with R["maintenance"](slot, self.home, lock_fds=records):
+            held = next(item for item in records if item["path"] == str(path))
+            fd = held["fd"]
+            self.assertTrue(R["own_lock_descriptor"](process, str(fd), os.fstat(fd), records))
+            duplicate = os.dup(fd)
+            try:
+                self.assertFalse(R["own_lock_descriptor"](process, str(duplicate), os.fstat(duplicate), records))
+            finally:
+                os.close(duplicate)
+            os.close(fd)
+            reopened = os.open(path, os.O_RDWR)
+            if reopened != fd:
+                os.dup2(reopened, fd)
+                os.close(reopened)
+            self.assertFalse(R["own_lock_descriptor"](process, str(fd), os.fstat(fd), records))
+        reused = os.open(path, os.O_RDWR)
+        try:
+            self.assertTrue(all(not item["active"] for item in records))
+            self.assertFalse(R["own_lock_descriptor"](process, str(reused), os.fstat(reused), records))
+        finally:
+            os.close(reused)
+
+    def test_busy_service_filter_does_not_latch_and_later_eligible_pass_succeeds(self):
+        slot = self.ready()
+        self.state(units={"job-heavy-wrapper.service": {"WorkingDirectory": str(slot), "ActiveState": "active"}})
+        self.assertIn("live service", self.run_auto(slot))
+        self.assertFalse(self.journal().exists())
+        self.assertFalse(self.claim_path().exists())
+        self.state()
+        self.assertIn("automatic reclaimed", self.run_auto(slot))
+
+    def test_nonpool_filter_and_busy_snapshot_do_not_publish_intent(self):
+        nonpool = self.slot("1")
+        self.assertIn("no acquisition attempted", self.run_auto(nonpool))
+        self.assertFalse(self.journal("1").exists())
+        slot = self.ready()
+        authority = runpy.run_path(str(DIRECTORY / "claim"))
+        path = self.claim_path()
+        path.parent.mkdir(parents=True)
+        with redirect_stdout(io.StringIO()), authority["state_lock"](path.parent):
+            authority["create_claim"](path, "other", "existing task", R["datetime"].now(R["timezone"].utc))
+        before = path.read_bytes()
+        self.assertIn("central busy snapshot", self.run_auto(slot))
+        self.assertEqual(path.read_bytes(), before)
+        self.assertFalse(self.journal().exists())
+
+    def test_racing_busy_refusal_is_terminal_no_acquisition_and_retryable(self):
+        slot = self.ready()
+        self.behavior(claim_race=True)
+        self.assertIn("known no acquisition", self.run_auto(slot))
+        task = json.loads(self.journal().read_text())
+        self.assertEqual((task["status"], task["release"], task["acquired"], task["mutation_started"]),
+                         ("skipped", "not-acquired", False, False))
+        self.assertTrue(R["automatic_terminal"](task))
+        self.assertFalse(R["automatic_terminal"](task, slot.with_name("5")))
+        before = self.claim_path().read_bytes()
+        self.behavior()
+        self.assertIn("central busy snapshot", self.run_auto(slot))
+        self.assertEqual(self.claim_path().read_bytes(), before)
+        with R["maintenance"](slot, self.home):
+            pass
+        authority = runpy.run_path(str(DIRECTORY / "claim"))
+        with redirect_stdout(io.StringIO()), authority["state_lock"](self.claim_path().parent):
+            authority["release_claim"](self.claim_path(), "other", "competing lifetime")
+        self.assertIn("automatic reclaimed", self.run_auto(slot))
+
+    def test_racing_authority_share_refusal_is_retryable_without_release(self):
+        slot = self.ready()
+        self.behavior(share_race=True)
+        self.assertIn("known no acquisition", self.run_auto(slot))
+        self.assertTrue(R["automatic_terminal"](json.loads(self.journal().read_text())))
+        self.assertFalse(self.claim_path().exists())
+        actions = [json.loads(line)[1] for line in (self.home / "central-calls").read_text().splitlines()]
+        self.assertNotIn("release", actions)
+        with R["maintenance"](slot, self.home):
+            pass
+        self.behavior()
+        self.assertIn("automatic reclaimed", self.run_auto(slot))
+
+    def test_transport_failure_remains_uncertain_even_without_observed_claim(self):
+        slot = self.ready()
+        self.behavior(transport_failure=True)
+        self.assertIn("session lost", self.run_auto(slot))
+        task = json.loads(self.journal().read_text())
+        self.assertEqual(task["status"], "uncertain")
+        self.assertFalse(R["automatic_terminal"](task))
+        self.assertIn("prior automatic claim/task", self.run_auto(slot))
+        with self.assertRaisesRegex(RuntimeError, "reconciliation"):
+            with R["maintenance"](slot, self.home):
+                pass
+
+    def test_success_then_session_loss_keeps_claim_and_incomplete_evidence(self):
+        slot = self.ready()
+        self.behavior(lost_after_claim=True)
+        self.assertIn("ssh exited 255", self.run_auto(slot))
+        self.assertTrue(self.claim_path().exists())
+        self.assertFalse(R["automatic_terminal"](json.loads(self.journal().read_text())))
+        self.assertTrue((slot / "target/cache").exists())
+
+    def test_refusal_classifier_requires_exact_source_diagnostic_exit_and_empty_stdout(self):
+        message = "claim: hetzner7-4 held by other: task (since 2026-01-01T00:00:00+00:00)\n"
+        for code, stdout, stderr, expected in ((1, "", message, True), (255, "", message, False),
+                (True, "", message, False),
+                (1, "unexpected output", message, False), (1, "", message + "SSH failed\n", False),
+                (1, "", "unknown command failure\n", False)):
+            self.assertEqual(R["known_claim_refusal"]("hetzner7", "4", "pool", code, stdout, stderr), expected)
+
+    def test_internal_hardlinks_are_accounted_and_removed_without_external_alias(self):
+        slot = self.ready()
+        os.link(slot / "target/cache", slot / "target/internal-alias")
+        self.assertIn("automatic reclaimed", self.run_auto(slot))
+        self.assertEqual(json.loads(self.journal().read_text())["files_removed"], 2)
+
+    def test_unaccounted_external_hardlink_protects_source_alias(self):
+        slot = self.ready()
+        external = self.home / "outside-link"
+        os.link(slot / "target/cache", external)
+        before = external.read_bytes()
+        self.assertIn("unaccounted target hardlinks", self.run_auto(slot))
+        self.assertEqual(external.read_bytes(), before)
+        self.assertTrue((slot / "target/cache").exists())
+        self.assertFalse(self.claim_path().exists())
+
+    def test_full_nonzero_64_hex_final_oid_is_supported(self):
+        slot = self.ready()
+        self.final("run-4", state="landed", sha="A" * 64)
+        self.assertIn("automatic reclaimed", self.run_auto(slot))
+
+    def test_zero_oids_and_second_precision_pre_end_declarations_remain_protected(self):
+        slot = self.ready()
+        for length in (40, 64):
+            self.final("run-4", state="landed", sha="0" * length)
+            self.assertIn("unknown landed finality SHA", self.run_auto(slot))
+            self.assertFalse(self.journal().exists())
+        end = (self.runs / "run-4/ended").stat().st_mtime_ns
+        os.utime(self.runs / "run-4/ended", ns=(end + 500_000_000, end + 500_000_000))
+        self.final("run-4", time=R["datetime"].fromtimestamp(end / 1e9, R["timezone"].utc).isoformat(timespec="seconds"))
+        self.assertIn("finality owner/time", self.run_auto(slot))
+        self.assertTrue((slot / "target/cache").exists())
         self.assertFalse(self.claim_path().exists())
 
 

@@ -11,3 +11,13 @@ coverage remain prerequisites for Ops-reviewed activation; no finality backfill,
 deployment, timer or activation change is included. Existing manual acknowledgement
 recovery and executable trimming remain separate. Uncertain automatic claims are
 retained for operator reconciliation.
+
+Safety repair: unsupported common-directory layouts refuse; source/target directory
+identities protect cwd aliases; exact active maintenance fds require matching kernel
+flock metadata. Eligibility is filtered before acquisition intent, and only exact
+source-established ordinary refusals become retryable no-acquisition terminal
+records. Ambiguous/transport failures and all post-acquisition uncertainties stay
+retained. Fully inventoried internal hardlinks are supported; external/unaccounted
+links refuse. Nonzero 40/64-hex final OIDs are supported; producer second-precision
+timestamps are NOT accepted when earlier than ended nanoseconds. Producer precision
+alignment and all rollout prerequisites still block activation.
