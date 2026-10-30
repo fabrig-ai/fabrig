@@ -39,7 +39,7 @@ Provisional, 2026-10-29. One Codex owner on hel8 (`codex-run owner`, at high), p
 
 ## 4. Tools
 
-- Git checkouts may borrow objects through `objects/info/alternates`. Before retiring an object store, identify its borrowers and make their reachable object closure independent. Preserve refs and alternate metadata; verify all refs' trees and blobs, since a readable HEAD commit alone is insufficient. Repair a missing borrowed store in an owned clone before removing its stale pointer, and verify closure again without pruning refs or objects (ledger119).
+- Git checkouts may borrow objects through `objects/info/alternates`. Before retiring an object store, identify its borrowers and make their reachable object closure independent. Preserve refs and alternate metadata; verify all refs' trees and blobs, since a readable HEAD commit alone is insufficient. A replacement alternate restores access but still borrows storage: materialize its reachable objects, preserve/remove the pointer, and verify closure again without alternates before declaring the clone independent. Repair a missing borrowed store in an owned clone before removing its stale pointer, and verify closure again without pruning refs or objects (ledger119).
 
 - A tool moves into `tools/<name>/` with its design and tests, then joins `tools/installed`; `tools/install` on each machine links `~/.local/bin/<tool>` to `~/src/fabrig/main`. Runs already in flight keep the path they started with.
 - A delegated tool task names its physical hostname and operator address separately; a post address such as `ops@hel8` is not a literal host restriction. State explicitly which local offline checks are authorized, while retaining the no-build rule on the session host.
