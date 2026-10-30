@@ -1154,6 +1154,20 @@ enum News {
     Closed { session: Id<Session> },
 }
 
+/// Record the program's whole-file observation in this session's tools kit.
+pub(crate) fn read_version(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    session: Token,
+    place: tools::Place,
+    version: tools::Version,
+    out: &mut Queue<Request>,
+) {
+    let Some(id) = addressed(&domain.sessions, session) else { return };
+    let kit = domain.sessions.get(id).expect("addressed session").conversation.kit;
+    tools_step(&mut domain.calls, env, tools::Event::ReadVersion { kit, place, version }, out);
+}
+
 /// Steps the tools the session owns with `event`. The operations they ask of
 /// io go out as the session's own requests, as they are, and so do their
 /// cancels; what is for the session comes back. One step of the tools answers

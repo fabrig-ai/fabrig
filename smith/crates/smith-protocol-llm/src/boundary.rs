@@ -58,6 +58,8 @@ pub enum ToDomain {
     Cancelled { owner: Token },
     /// Text arrived in flight; only its byte count crosses the boundary.
     Text { owner: Token, bytes: u32 },
+    /// The program observed this whole file version for the addressed session (domain/tools.md, 10).
+    ReadVersion { owner: Token, place: smith_domain::tools::Place, version: smith_domain::tools::Version },
 }
 
 /// Io work addressed with the connection component's token.

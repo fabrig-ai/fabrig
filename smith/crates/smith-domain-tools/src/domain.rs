@@ -78,5 +78,10 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::CancelJobs { kit } => crate::jobs::cancel(domain, kit, &env.limits, out),
         Event::EndWait { kit, call } => crate::jobs::end_wait(domain, kit, call, out),
         Event::Done { owner, done } => flight::done(domain, env, owner, done, out),
+        Event::ReadVersion { kit, place, version } => {
+            if let Some(kit) = domain.kits.get_mut(skein_lib::Id::from_token(kit)) {
+                kit.knowledge.record(place, version);
+            }
+        }
     }
 }

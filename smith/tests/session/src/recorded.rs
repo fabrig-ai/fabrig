@@ -255,6 +255,7 @@ impl World {
                 }
             }
             session::Event::BuiltinResult { .. }
+            | session::Event::ReadVersion { .. }
             | session::Event::CancelJobs { .. }
             | session::Event::Yield { .. }
             | session::Event::Open { .. }

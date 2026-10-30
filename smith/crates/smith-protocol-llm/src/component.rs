@@ -742,6 +742,7 @@ impl Component {
             | DomainEvent::Probed { .. }
             | DomainEvent::Checked { .. }
             | DomainEvent::BuiltinResult { .. }
+            | DomainEvent::ReadVersion { .. }
             | DomainEvent::Aborted { .. } => unreachable!("translation returns only LLM terminals"),
         }
     }

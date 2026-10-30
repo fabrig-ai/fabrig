@@ -224,6 +224,8 @@ pub enum Event {
     },
     /// Terminal for `Check`, after `Abort`: the checks were stopped.
     Aborted { owner: Token },
+    /// The program observed this whole file version for the addressed session (domain/tools.md, 10).
+    ReadVersion { owner: Token, place: tools::Place, version: tools::Version },
 }
 
 /// Owned host notices and calls, provider calls and IO operations emitted by

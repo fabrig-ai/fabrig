@@ -328,7 +328,10 @@ fn a_retry_discards_the_unfinished_message() {
                 assert_eq!(text.as_ref(), b"second");
             }
             ToDomain::Text { .. } => {}
-            event @ (ToDomain::BuiltinResult { .. } | ToDomain::Failed { .. } | ToDomain::Cancelled { .. }) => {
+            event @ (ToDomain::BuiltinResult { .. }
+            | ToDomain::ReadVersion { .. }
+            | ToDomain::Failed { .. }
+            | ToDomain::Cancelled { .. }) => {
                 panic!("unexpected {event:?}");
             }
         }

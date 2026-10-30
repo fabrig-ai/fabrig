@@ -69,6 +69,8 @@ pub enum Event {
     EndWait { kit: Token, call: Token },
     /// Terminal for `Io`.
     Done { owner: Token, done: Done },
+    /// The program observed this whole file version for the addressed session (domain/tools.md, 10).
+    ReadVersion { kit: Token, place: Place, version: Version },
 }
 
 /// tools -> session

@@ -424,7 +424,9 @@ fn run_story(
             && let Some(event) = up.pop()
         {
             match event {
-                ToDomain::BuiltinResult { .. } => panic!("a direct backend emits no program result"),
+                ToDomain::BuiltinResult { .. } | ToDomain::ReadVersion { .. } => {
+                    panic!("a direct backend emits no program result")
+                }
                 ToDomain::Text { owner, bytes } => {
                     assert_eq!(owner, Token::new(7));
                     assert!(bytes > 0);
