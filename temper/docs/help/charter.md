@@ -12,10 +12,10 @@ the task reads its charter, whole:
 
 - its instructions, which the run's agent reads before its task's brief;
 - its models: `model`, the default, then `alternatives`, in order;
-- its tools in the workspace: to inspect, to modify, to run a shell, to
-  open sub-agents; a run modifies files only where it can deliver
-  them, a change's run: a chat's, a goal's or an advisor's run reads
-  alone, whatever its charter says;
+- its tools in the workspace: to inspect, to modify (write, edit and remove
+  files), to run a shell, to open sub-agents; a run modifies files only
+  where it can deliver them, a change's run: a chat's, a goal's or an
+  advisor's run reads alone, whatever its charter says;
 - the hosts that may run it: the deployment's workers, the engine, or
   both;
 - a run's limits: its turns and time, a reserve of each for finishing,
