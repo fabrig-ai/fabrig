@@ -95,7 +95,7 @@ Read a task's live run: its attempt, its call in flight, its words so far
 Prints: `run: A` or `run: none`, the call in flight, the words so far, and `digest: run`
 --json: the record run.
 Key: none.
-With `--until ended`, it returns when the run ends, or at once when the task has no live run.
+With `--until ended`, it returns when the run ends, or at once when the task has no live run; a watch that ends with no read of it delivered is refused: `gone`, status 2.
 ```
 
 ## task message
@@ -181,6 +181,7 @@ Read a task's live tree: the task and each delegate its window holds, a line eac
 Prints: `tree:`, the task, then a line per delegate; `cut:` and the call that reads the rest when it folds some; and `digest: tree`
 --json: the record tree.
 Key: none.
+With `--until ended`, it returns when a read shows the tree ended; a watch that ends with no read of it delivered is refused: `gone`, status 2.
 A large tree folds what does not fit: read the rest with task list
 --parent TASK, a page at a time.
 ```

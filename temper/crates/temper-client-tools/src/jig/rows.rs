@@ -137,7 +137,7 @@ pub const RUN: Tool = Tool {
     ]],
     keyed: Keyed::Never,
     area: 1,
-    notes: b"With `--until ended`, it returns when the run ends, or at once when the task has no live run.\n",
+    notes: b"With `--until ended`, it returns when the run ends, or at once when the task has no live run; a watch that ends with no read of it delivered is refused: `gone`, status 2.\n",
 };
 pub const SIGN_IN: Tool = Tool {
     name: b"sign-in",
@@ -338,7 +338,7 @@ pub const TREE: Tool = Tool {
     ]],
     keyed: Keyed::Never,
     area: 1,
-    notes: b"A large tree folds what does not fit: read the rest with task list\n--parent TASK, a page at a time.\n",
+    notes: b"With `--until ended`, it returns when a read shows the tree ended; a watch that ends with no read of it delivered is refused: `gone`, status 2.\nA large tree folds what does not fit: read the rest with task list\n--parent TASK, a page at a time.\n",
 };
 
 /// Area 5 reads append to preserve earlier tool and keyed-call identities.
