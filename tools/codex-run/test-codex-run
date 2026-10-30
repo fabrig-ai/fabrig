@@ -28,6 +28,7 @@ export CODEX_RUN_RETRY_DELAYS='0 0 0'
 mkdir -p "$HOME" "$DEV_ROOT/fake" "$t/bin" "$t/reports" "$t/work dir" "$t/fabrig/tools/codex-run" "$t/fabrig/tools/slots"
 trap cleanup EXIT
 cp "$kit/codex-run" "$t/fabrig/tools/codex-run/codex-run"
+cp "$kit/final.py" "$t/fabrig/tools/codex-run/final.py"
 cp "$kit/../slots/lifetime.py" "$t/fabrig/tools/slots/lifetime.py"
 kit=$t/fabrig/tools/codex-run
 # No host directory is searchable, including when a service fake is removed.
@@ -151,6 +152,23 @@ cat >"$t/bin/systemctl" <<'FAKE'
 #!/usr/bin/env bash
 fixture=${DEV_ROOT:-$CODEX_RUN_FIXTURE_ROOT}/fake
 printf '%s\n' "$*" >>"$fixture/systemctl.calls"
+if [[ $1 == --user && $2 == list-units ]]; then
+    mode=inactive
+    [[ ! -f $fixture/final-liveness ]] || mode=$(<"$fixture/final-liveness")
+    case $mode in
+        inactive) printf '%s loaded inactive dead fixture\n' "${!#}" ;;
+        gone) ;;
+        active) printf '%s loaded active running fixture\n' "${!#}" ;;
+        unknown) exit 4 ;;
+        malformed) printf 'unknown unit state\n' ;;
+        hang) exec /bin/sleep 300 ;;
+        disappear)
+            printf '%s loaded inactive dead fixture\n' "${!#}"
+            mv "${BASH_SOURCE[0]}" "${BASH_SOURCE[0]}.saved" ;;
+        *) exit 2 ;;
+    esac
+    exit 0
+fi
 if [[ $* == '--user start --no-block reap.service' ]]; then
     source "${BASH_SOURCE[0]%/*}/fixture-json"
     json_call args systemctl "$@" >>"$fixture/reap.calls"
@@ -177,6 +195,10 @@ if [[ $1 == record && $2 == start && $# == 10 && $3 == --kind && $4 == codex-run
     state=${10}
     [[ $state == /*/tmp/codex-run/"$8" && -f $state/meta && ! -e $state/ended ]] ||
         echo 'start before durable metadata or wrong owned path' >>"$fixture/reap-violations"
+elif [[ $1 == record && $2 == end && $# == 8 && $3 == --kind && $4 == codex-run &&
+        $5 == --owner && $7 == --id ]]; then
+    state=$state/$8
+    [[ -f $state/final.json ]] || echo 'end before durable finality' >>"$fixture/reap-violations"
 else
     echo 'unexpected argv or premature task end' >>"$fixture/reap-violations"
 fi
@@ -356,7 +378,7 @@ exec /usr/bin/jq "$@"
 FAKE
 cat >"$fake/flock" <<'FAKE'
 #!/usr/bin/env bash
-[[ ! -f $DEV_ROOT/fake/row-fail ]] || exit 1
+[[ ! -f $DEV_ROOT/fake/row-fail || $* != 9 ]] || exit 1
 exec /usr/bin/flock "$@"
 FAKE
 # Ordinary fake units need shell process supervision, not Python imports.
@@ -860,6 +882,7 @@ reap_run_expect() {
 }
 finish_checks() {
     jq -se 'all(.[]; .args[0:2] == ["record", "start"] or
+        .args[0:2] == ["record", "end"] or
         .args == ["systemctl", "--user", "start", "--no-block", "reap.service"])' \
         "$fake/reap.calls" >/dev/null
     python3 -I -B - "$t" <<'PYISOLATION'
@@ -955,11 +978,20 @@ for lifecycle in on-stop on-stop-failure; do
     reap_run_expect
 done
 POST_NAME=o/launching start_task success --to o/recipient
-reap_run_expect o/launching
+reap_run_expect o/recipient
 POST_NAME='' start_task success --to o/recipient
 reap_run_expect o/recipient
 # These cases must not affect the later callback return-count assertion.
 rm "$fake/returned"
+if [[ ${1:-} != --reap-only ]]; then
+    cp "$kit/codex-run" "$t/final-launcher.saved"
+    sed "s/^ON_STOP_SECONDS=60$/ON_STOP_SECONDS=$ON_STOP_TIMEOUT_S/" "$t/final-launcher.saved" >"$kit/codex-run"
+    final_checks=$(python3 -I -B "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/test-final.py" "$t" "$kit" "$id")
+    mv "$t/final-launcher.saved" "$kit/codex-run"
+    printf 'finality: %s checks passed\n' "$final_checks"
+    checks=$((checks + final_checks))
+fi
+if [[ ${1:-} == --final-only ]]; then finish_checks; exit; fi
 if [[ ${1:-} == --reap-only ]]; then finish_checks; exit; fi
 
 start_task success
@@ -1004,8 +1036,8 @@ expect 'absent on-stop runs nothing' "$(cat "$state/on-stop"),$(wc -l <"$fake/re
 saved_row=$(row)
 "$kit/codex-run" _stop "$id"
 [[ $(row) == "$saved_row" && $(cat "$state/on-stop") == absent && -f $state/ended ]]
-jq -se \
-    '[.[] | select(.args[0:2] == ["record", "end"])] | length == 0' \
+jq -se --arg id "$id" \
+    '[.[] | select(.args[0:2] == ["record", "end"] and .args[-1] == $id)] | length == 0' \
     "$fake/reap.calls" >/dev/null
 checks=$((checks + 1))
 start_task on-stop-failure --on-stop "$t/failing-hook"
@@ -1354,6 +1386,12 @@ for signal_case in TERM INT KILL TERM-stop KILL-stop; do
     # Wait for the Codex PID write and stamped thread before reading or
     # signaling: KILL must leave a thread that stale can recover.
     wait_task_ready
+    if [[ $signal_case == TERM ]]; then
+        status=0
+        output=$("$kit/codex-run" final "$id" --owner o/caller --withdrawn report-read 2>&1) || status=$?
+        [[ $status == 2 && ! -e $state/final.json ]]
+        expect 'running worker metadata lock blocks finality' "$output" 'Resource temporarily unavailable'
+    fi
     worker=$(cat "$state/worker.pid")
     if [[ $signal == TERM ]]; then kill -TERM "$worker"
     else kill -"$signal" -- "-$worker"; fi

@@ -11,6 +11,8 @@ Provisional, 2026-10-28. Detached task workers and persistent owners on the flee
   receives post between turns. BRIEF is an absolute readable file.
 - `codex-run stale [--post]` lists unfinished inactive runs and refused
   completion messages; `--post` retries notification.
+- `codex-run final RUN --owner ADDR (--landed SHA | --withdrawn REASON)`
+  declares a completed, inactive run's task final on its recorded owner's word.
 - Runs live under `~/src/rust/tmp/codex-run/`; `DEV_ROOT` replaces
   `~/src/rust`. Writable slot tasks trim their own slot before Codex starts.
 - Dependencies are Bash, Python 3, jq, Perl, GNU coreutils, flock, systemd
@@ -73,7 +75,8 @@ without replaying report publication or accounting.
 After saving a new task run's metadata and resume thread, the launcher checks
 `command -v reap` and, when available, calls
 `reap record start --kind codex-run --owner OWNER --id ID --path RUN_DIRECTORY`.
-OWNER is the launching `POST_NAME`, falling back to the recipient when unset.
+OWNER is the recorded `--to` recipient, including when POST_NAME names a
+different launching caller. The explicit final declaration uses that same owner.
 Only that invocation's new run directory is registered. Task files, reports,
 callbacks, slot checkouts and targets, primary clones, credentials, persistent
 owner resume state, claims, leases and heavy state are outside its authority.
@@ -93,10 +96,9 @@ The frozen record contract is
 require an owner. End means that the task is final (landed or withdrawn).
 A run directory becomes eligible only seven days after that task-final end;
 resumable and uncertain tasks remain protected indefinitely. There is no
-generic cleanup based on the age of a run's `ended` marker. This producer
-has no task-finalization interface and emits only starts; finality integration
-is pending a separate design. It infers no landing or withdrawal and grants
-no authority to reclaim a slot.
+generic cleanup based on the age of a run's `ended` marker. Only the explicit
+declaration in section 3.2 emits an end. Run completion infers no landing or
+withdrawal and grants no authority to reclaim a slot.
 
 Lease release remains the lifetime helper's decision. The reaper preserves
 metadata, shared `runs.tsv` accounting, pending resumes and sessions referenced
@@ -117,6 +119,54 @@ precheck evidence three days, landed or withdrawn notes and tasks seven days,
 Codex sessions fourteen days, and ended Ops scratch three days. Heavy logs'
 seven days takes precedence over generic old logs' three days. Keeps still
 protect resumable and referenced evidence beyond these ages.
+
+### 3.2 Explicit task finality
+
+`codex-run final RUN --owner ADDR (--landed SHA | --withdrawn REASON)` accepts
+a run ID under the configured run root. ADDR must equal its metadata's unique
+`to` recipient. The owner declares landing with a full nonzero 40- or 64-digit
+hex commit OID (stored lowercase), or withdrawal with a nonblank reason.
+Exactly one declaration is required. The command checks no Git repository,
+queue, task file or report and performs no backfill. After reading a read-only
+review/survey report, its owner explicitly uses `--withdrawn report-read`.
+
+Finality requires a private regular `ended` file as completion evidence;
+that file alone never declares finality. The command takes an exclusive,
+nonblocking lock on metadata. Workers and stop callbacks hold shared locks
+while running, so a misleading unit snapshot cannot finalize a running worker.
+The user manager must successfully enumerate the exact unit using
+`list-units --all --plain --no-legend --no-pager --full`. Only loaded
+inactive/dead, loaded failed/failed, or confirmed absence after collection is
+accepted. Active, transitional, malformed, missing-manager and timed-out states
+refuse with exit 2. A configured callback also needs a private known stop
+result (`exit 0` or `absent`); a failed or unknown callback remains protected.
+These checks do not clear any signal, resume or lease holds. Reaper keeps
+remain authoritative, including indefinite protection for uncertain inputs.
+
+The run directory and evidence must be owned by the invoking user with modes
+0700 and 0600 respectively. Symlink path components, unsafe IDs, nonregular
+evidence, hard-linked files and conflicting declarations refuse. The finalizer
+reads only the named run's metadata and completion/stop/final evidence.
+
+It writes `final.json` through a private temporary file, fsyncs its complete
+bytes, renames it atomically with Linux `RENAME_NOREPLACE` and fsyncs the
+directory. An existing marker is never replaced. Its JSON fields are `state`, `owner`,
+`time` (UTC `YYYY-MM-DDTHH:MM:SSZ`), and exactly one of `sha` or `reason`.
+An interrupted prepublication write cannot expose a partial final marker.
+Valid durable finality returns exit 0. Identical declarations preserve exact
+marker bytes, inode, mtime, ctime and JSON time; conflicting state, content or
+owner returns exit 2 and leaves the marker untouched.
+
+Only creation of a new durable marker attempts
+`reap record end --kind codex-run --owner ADDR --id RUN`, guarded by
+`command -v reap`, then the best-effort service trigger. Notification absence,
+failure or timeout cannot invalidate the durable declaration. Identical calls
+do not replay end notifications, so neither the marker's finality time nor a
+reaper record's end time can be reset by repeats. Retention is anchored to the
+original final declaration; the consumer must also require an old enough
+final marker and an inactive unit. Deployment discovery must reconcile durable
+final markers whose optional notification was missed. This command implements
+no notification backfill or deletion and changes no existing registry owner.
 
 ## 4. Slot trimming
 
@@ -165,7 +215,9 @@ the manifest from the updated clone.
 `bash tools/codex-run/test-codex-run` tests workers, owners, notifications,
 signals and trimming against fake Codex, post and systemd executables.
 `bash tools/codex-run/test-codex-run --reap-only` runs the producer adoption
-checks with the same isolated fixtures. Both selections assert CPU below
+checks with the same isolated fixtures. `--final-only` also runs explicit
+finality fixtures, including atomic publication faults and immutable repeats.
+All selections assert CPU below
 15 seconds and wall time below 60 seconds. Only private fixture copies
 shorten the timeout when proving hanging tools and callbacks are killed.
 All fixture processes use a private executable allowlist with no host PATH
@@ -182,5 +234,5 @@ These scripts run directly on hel8; they build nothing.
 - Move other fleet tools and add their entries to `tools/installed`.
 - Move run and owner storage into fabrig with a separate migration that
   preserves resumable runs and accounting.
-- Integrate an explicitly designed task-finalization interface carrying the
-  owner on end records. Run completion cannot implement this interface.
+- Reaper deployment adoption of durable final markers with missed notifications
+  and reconciliation of older registry owners remain the deployment owner's work.
