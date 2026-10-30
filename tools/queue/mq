@@ -392,10 +392,36 @@ def gate_tools_required(paths):
     return False
 
 
-def tools_commands(repo):
+def author_tools_commands(repo, paths):
+    """Select each changed tool's candidate suites (design.md, 2.3)."""
+    owners = set()
+    for path in paths:
+        if not path.startswith("tools/"):
+            continue
+        parts = PurePosixPath(path).parts
+        if len(parts) >= 3:
+            owners.add("/".join(parts[:2]) + "/")
+        elif path in ("tools/install", "tools/installed", "tools/test_install.py"):
+            owners.add("tools/test_install.py")
+        else:
+            raise ValueError(f"author tools selection: unknown owner for {path!r}; "
+                             "add an explicit suite mapping before precheck")
+    commands = []
+    for owner in sorted(owners):
+        suites = tools_commands(repo, roots=[owner])
+        if not suites:
+            raise ValueError(f"author tools selection: no candidate offline suites for {owner!r}; "
+                             "deleted tools or tools without suites require an explicit mapping")
+        commands.extend(suites)
+    return sorted(commands, key=lambda command: command[0])
+
+
+def tools_commands(repo, *, roots=None):
     """Discover tracked offline suites, honoring executable shebangs (design.md, 2.3)."""
     commands = []
-    for entry in git(repo, "ls-files", "--stage", "-z", "--", "tools/").stdout.split("\0"):
+    for entry in git(repo, "ls-files", "--stage", "-z", "--",
+                     *([f":(literal){root}" for root in roots] if roots is not None
+                       else ["tools/"])).stdout.split("\0"):
         if not entry:
             continue
         attributes, path = entry.split("\t", 1)
