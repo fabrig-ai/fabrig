@@ -1,5 +1,12 @@
 # Branch pre-ready check status
 
+The 15:52 review repairs scope SIGCHLD ownership and restore exact caller
+handlers after known API/Executor completion or preflight refusal, retaining
+waitable handling during unresolved custody. Standalone readiness applies the
+same boundary before each Git launch. Raw launch requirements distinguish
+direct executable files from Python-readable inputs. Handler, real failed/
+signaled diff-tree and coordinated permission fixtures cover these boundaries.
+
 Repair of the 15:18 source review establishes waitable SIGCHLD handling before
 Git/checker execution and binds discovered suites to present prepared raw
 sources, including symlink closure. Real subprocess fixtures inherit ignored

@@ -10,6 +10,8 @@ import json
 import hashlib
 import os
 from pathlib import Path
+import shutil
+import signal
 import subprocess
 import tempfile
 import unittest
@@ -281,7 +283,8 @@ class ReadyCheckTests(unittest.TestCase):
             {'name': 'tools/test_python.py', 'argv': ['python3', '-I', '-B', 'tools/test_python.py']}])
 
     def test_symlink_suite_requires_present_bound_source_without_cycles(self):
-        rows = [{'name': 'tools/helper.py', 'index_mode': '100644', 'index_oid': self.base, 'kind': 'file'},
+        rows = [{'name': 'tools/helper.py', 'index_mode': '100644', 'index_oid': self.base,
+                 'kind': 'file', 'mode': 0o644},
                 {'name': 'tools/test_link.py', 'index_mode': '120000', 'index_oid': self.base,
                  'kind': 'symlink', 'target': 'helper.py'}]
         logical = ''.join(f"{r['index_mode']} {r['index_oid']} 0\t{r['name']}\0" for r in rows)
@@ -294,6 +297,139 @@ class ReadyCheckTests(unittest.TestCase):
         rows[1]['target'] = 'test_link.py'
         with self.assertRaisesRegex(RuntimeError, 'suite source has a symlink cycle'):
             validate(logical, rows)
+
+    def test_coordinated_nonexecutable_raw_shell_cannot_claim_success(self):
+        self.plan()
+        filename = self.root / 'cold-input.json'
+        full = json.loads(filename.read_text())
+        name = 'tools/test-shell'
+        argv = ['./' + name]
+        blob = full['manifest'][0]['index_oid']
+        full['entries'] = f'100755 {blob} 0\t{name}\0'
+        full['manifest'][0].update(name=name, index_mode='100755', mode=0o644)
+        cold = self.record['cold_tools']
+        cold['tools_plan'] = [{'name': name, 'argv': argv}]
+        cold['outcomes'][0]['name'] = name
+        cold['observations'][1]['before'] = name
+        cold['observations'][2]['before'] = 'after:' + name
+        self.record['plan'][0].update(name=name, argv=argv)
+        self.record['steps'][0].update(name=name, command=argv)
+        self.record['active_command']['argv'] = argv
+        self.record['paths'] = ['touched.md', name]
+        for mode, verdict in ((0o755, 'passed'), (0o644, 'rerun-precheck')):
+            with self.subTest(mode=oct(mode)):
+                full['manifest'][0]['mode'] = mode
+                filename.write_text(json.dumps(full))
+                cold['input_manifest']['sha256'] = hashlib.sha256(filename.read_bytes()).hexdigest()
+                for key in ('input', 'observed'):
+                    cold[key].update(
+                        entries_sha256=hashlib.sha256(full['entries'].encode()).hexdigest(),
+                        manifest_sha256=hashlib.sha256(ready.COLD_VALIDATOR['encoded'](full['manifest'])).hexdigest(),
+                        index_tree=ready.COLD_VALIDATOR['logical_tree'](full['entries'], 'sha1'),
+                        raw_tree=ready.COLD_VALIDATOR['raw_tree'](full['manifest'], 'sha1'))
+                self.save()
+                result = self.check()
+                self.assertEqual(result['verdict'], verdict, result)
+                if verdict != 'passed':
+                    self.assertIn('execute permission', result['diagnostic'])
+
+    def faulting_diff_git(self, abnormal):
+        directory = self.root / 'git-bin'
+        directory.mkdir()
+        executable = directory / 'git'
+        executable.write_text(f'''#!{sys.executable}
+import os, signal, sys
+signal.signal(signal.SIGCHLD, signal.SIG_DFL)
+if 'diff-tree' in sys.argv[1:]:
+    {'os.kill(os.getpid(), signal.SIGTERM)' if abnormal else 'raise SystemExit(7)'}
+os.execv({shutil.which('git')!r}, ['git', *sys.argv[1:]])
+''')
+        executable.chmod(0o700)
+        return str(directory) + os.pathsep + os.environ['PATH']
+
+    def test_python_raw_source_needs_read_permission_without_execute(self):
+        self.plan()
+        self.assertEqual(self.check()['verdict'], 'passed')  # The bound Python file is 0644.
+        filename = self.root / 'cold-input.json'
+        full = json.loads(filename.read_text())
+        cold = self.record['cold_tools']
+        for mode, diagnostic in ((0o100, 'read permission'), (-1, 'invalid cold suite source permissions'),
+                                 (0o10000, 'invalid cold suite source permissions')):
+            with self.subTest(mode=mode):
+                full['manifest'][0]['mode'] = mode
+                filename.write_text(json.dumps(full))
+                cold['input_manifest']['sha256'] = hashlib.sha256(filename.read_bytes()).hexdigest()
+                for key in ('input', 'observed'):
+                    cold[key].update(
+                        manifest_sha256=hashlib.sha256(ready.COLD_VALIDATOR['encoded'](full['manifest'])).hexdigest(),
+                        raw_tree=ready.COLD_VALIDATOR['raw_tree'](full['manifest'], 'sha1'))
+                self.save()
+                self.refuse(diagnostic)
+
+    def ignored_readiness_diff(self, abnormal):
+        self.advance('touched.md', 'overlapping main change\n')
+        path = self.faulting_diff_git(abnormal)
+        response = self.root / 'response.json'
+        driver = """import importlib.machinery, importlib.util, json, signal, sys
+from pathlib import Path
+assert signal.getsignal(signal.SIGCHLD) == signal.SIG_IGN
+loader = importlib.machinery.SourceFileLoader('ready_inherited', sys.argv[1])
+spec = importlib.util.spec_from_loader(loader.name, loader)
+module = importlib.util.module_from_spec(spec)
+loader.exec_module(module)
+result, repo, tip, response = sys.argv[2:]
+sys.argv = [sys.argv[1], result, '--repo', repo, '--tip', tip]
+status = module.main()
+Path(response).write_text(json.dumps({'status': status, 'handler': int(signal.getsignal(signal.SIGCHLD))}))
+raise SystemExit(status)
+"""
+        launcher = """import os, signal, sys
+signal.signal(signal.SIGCHLD, signal.SIG_IGN)
+os.execv(sys.executable, [sys.executable, '-I', '-B', '-c', *sys.argv[1:]])
+"""
+        result = subprocess.run([sys.executable, '-I', '-B', '-c', launcher, driver,
+                                 str(DIRECTORY / 'ready-check'), str(self.result), str(self.repo), self.tip, str(response)],
+                                env=dict(os.environ, PATH=path), stdin=subprocess.DEVNULL,
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        decision = json.loads(result.stdout)
+        self.assertEqual(decision['verdict'], 'rerun-precheck')
+        self.assertIn('diff-tree failed', decision['diagnostic'])
+        self.assertEqual(json.loads(response.read_text()),
+                         {'status': 1, 'handler': int(signal.SIG_DFL if abnormal else signal.SIG_IGN)})
+
+    def test_ignored_sigchld_failed_empty_diff_tree_refuses(self):
+        self.ignored_readiness_diff(False)
+
+    def test_ignored_sigchld_signaled_empty_diff_tree_refuses(self):
+        self.ignored_readiness_diff(True)
+
+    def test_readiness_known_results_and_preflight_restore_exact_handler(self):
+        def custom(number, frame):
+            pass
+        for handler in (signal.SIG_IGN, custom):
+            for tip, verdict in ((self.tip, 'passed'), ('HEAD', 'rerun-precheck')):
+                with self.subTest(handler=handler, tip=tip):
+                    previous = signal.signal(signal.SIGCHLD, handler)
+                    try:
+                        result = ready.check(self.result, self.repo, tip)
+                        self.assertEqual(result['verdict'], verdict, result)
+                        self.assertIs(signal.getsignal(signal.SIGCHLD), handler)
+                    finally:
+                        signal.signal(signal.SIGCHLD, previous)
+
+    def test_readiness_nonzero_git_restores_custom_handler(self):
+        self.advance('touched.md', 'overlapping main change\n')
+        path = self.faulting_diff_git(False)
+        def custom(number, frame):
+            pass
+        previous = signal.signal(signal.SIGCHLD, custom)
+        try:
+            with patch.dict(os.environ, PATH=path):
+                self.refuse('diff-tree failed')
+            self.assertIs(signal.getsignal(signal.SIGCHLD), custom)
+        finally:
+            signal.signal(signal.SIGCHLD, previous)
 
     def test_remote_same_file_change_refuses_stale_tracking(self):
         current = self.advance("touched.md")

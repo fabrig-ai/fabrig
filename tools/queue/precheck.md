@@ -244,6 +244,11 @@ disposition, clearing inherited ignored/auto-reap handling. The executor also
 establishes this disposition before each checker launch. Unsupported child-
 status handling refuses before execution; discarded status cannot become a
 successful check. SIGCHLD remains waitable through unresolved custody.
+Precheck and standalone Executor calls save the incoming handler before this
+change, restoring that exact handler after known completion, ordinary failure
+or preflight refusal. Nested checker calls restore the precheck's waitable
+handler; the API restores its caller only after custody is resolved. Saved
+handlers remain available on the child-status authority while unresolved.
 
 Per-suite timeout remains 60 seconds. A drained normal child permits cleanup;
 no cleanup runs unconditionally after unknown completion.
@@ -354,11 +359,17 @@ modes, with the exact manual heavy-recovery exclusion, and checks index/raw
 manifest coverage. Each discovered suite must have present bound raw source;
 symlinks must resolve without cycles to a present bound file. A missing source
 refuses even when coordinated raw-tree/manifest digests claim success.
+The resolved raw file needs owner execute permission for direct `./` argv;
+Python argv needs owner read permission and does not require execute permission.
 Coordinated plan/step/evidence erasure or suite substitution
 cannot become an empty docs success. It requires version-1 cold evidence and verifies loaded policy identity, private full-manifest digest and
 input trees, auxiliary ownership/cwd, ordered discovery/outcomes, environment
 handling, cold observations and completed cleanup. Cargo plan cwds must remain
 the original slot. Missing, stale or mismatched cold evidence refuses.
+Standalone readiness scopes waitable SIGCHLD handling around each Git launch,
+including its first command. A failed empty-output diff is an error, never an
+empty changed-path set. Known results and prelaunch refusal restore the exact
+caller handler; abnormal/unknown Git completion keeps waitable handling.
 Ops/coordinators must rerun precheck for older tools receipts after deployment;
 there is no silent compatibility with warm tools results. Docs-only receipts
 without tools retain their existing checks. Deploy compatible precheck/helper

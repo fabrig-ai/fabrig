@@ -10,8 +10,45 @@ import json
 import os
 from pathlib import Path
 import shutil
+import signal
 import stat
 import subprocess
+
+
+class ChildStatus:
+    """Scope waitable child status; unresolved custody retains this authority."""
+    def __init__(self, retain=lambda: False, *, error=RuntimeError):
+        self.retain = retain
+        self.error = error
+        self.unresolved = False
+        self.previous = None
+
+    def restore(self):
+        if signal.getsignal(signal.SIGCHLD) is not self.previous:
+            signal.signal(signal.SIGCHLD, self.previous)
+        if signal.getsignal(signal.SIGCHLD) is not self.previous:
+            raise RuntimeError('SIGCHLD caller handler was not restored')
+
+    def __enter__(self):
+        self.previous = signal.getsignal(signal.SIGCHLD)
+        if (self.previous is not signal.SIG_DFL and self.previous is not signal.SIG_IGN and
+                not callable(self.previous)):
+            raise self.error('cannot establish waitable child status: unsupported caller handler')
+        try:
+            signal.signal(signal.SIGCHLD, signal.SIG_DFL)
+            if signal.getsignal(signal.SIGCHLD) is not signal.SIG_DFL:
+                raise RuntimeError('SIGCHLD default disposition was not established')
+        except (OSError, ValueError, RuntimeError) as error:
+            self.restore()
+            raise self.error(f'cannot establish waitable child status: {error}') from error
+        return self
+
+    def __exit__(self, kind, value, traceback):
+        if not (self.unresolved or self.retain()):
+            try:
+                self.restore()
+            except (OSError, ValueError, RuntimeError) as error:
+                raise self.error(f'cannot restore child status handler: {error}') from error
 
 
 def encoded(value):
@@ -201,6 +238,14 @@ def prepared_tools(logical, rows):
             if row is None or row['kind'] == 'missing':
                 raise RuntimeError('cold discovered suite source is missing: ' + name)
             if row['kind'] == 'file':
+                direct = command['argv'] == ['./' + command['name']]
+                permission = stat.S_IXUSR if direct else stat.S_IRUSR
+                mode = row.get('mode')
+                if type(mode) is not int or not 0 <= mode <= 0o7777:
+                    raise RuntimeError('invalid cold suite source permissions')
+                if not mode & permission:
+                    requirement = 'execute' if direct else 'read'
+                    raise RuntimeError('cold discovered suite source lacks ' + requirement + ' permission')
                 break
             if name in visited:
                 raise RuntimeError('cold discovered suite source has a symlink cycle')

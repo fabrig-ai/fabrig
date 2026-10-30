@@ -334,6 +334,125 @@ os.execv(sys.executable, [sys.executable, '-I', '-B', '-c', *sys.argv[1:]])
         self.assertEqual(self.snapshot(), before)
         self.assertFalse((self.repo / '.git/precheck.unresolved').exists())
 
+    def caller_handlers(self):
+        def custom(number, frame):
+            pass
+        return (signal.SIG_IGN, custom)
+
+    def test_executor_restores_exact_handler_after_known_results_and_refusal(self):
+        for handler in self.caller_handlers():
+            for code in (0, 7, None):
+                with self.subTest(handler=handler, code=code):
+                    previous = signal.signal(signal.SIGCHLD, handler)
+                    try:
+                        executor = p.Executor(lambda *a: None, lambda *a: None)
+                        if code is None:
+                            with self.assertRaises(p.InfrastructureError):
+                                executor(['/no-such-cold-executable'], cwd=self.repo, timeout=60,
+                                         stdin=subprocess.DEVNULL)
+                        else:
+                            result = executor([sys.executable, '-I', '-B', '-c', f'raise SystemExit({code})'],
+                                              cwd=self.repo, timeout=60, stdin=subprocess.DEVNULL)
+                            self.assertEqual(result.returncode, code)
+                        self.assertIs(signal.getsignal(signal.SIGCHLD), handler)
+                    finally:
+                        signal.signal(signal.SIGCHLD, previous)
+
+    def check_api_handler_restoration(self, code):
+        self.suite(f'raise SystemExit({code})\n')
+        for handler in self.caller_handlers():
+            with self.subTest(handler=handler):
+                before = self.snapshot()
+                previous = signal.signal(signal.SIGCHLD, handler)
+                try:
+                    self.assertEqual(self.run_tool(production_runner=True), int(code != 0))
+                    self.assertIs(signal.getsignal(signal.SIGCHLD), handler)
+                finally:
+                    signal.signal(signal.SIGCHLD, previous)
+                self.checked(before)
+
+    def test_precheck_success_restores_exact_caller_handler(self):
+        self.check_api_handler_restoration(0)
+
+    def test_precheck_ordinary_failure_restores_exact_caller_handler(self):
+        self.check_api_handler_restoration(7)
+
+    def test_precheck_preflight_refusal_restores_exact_caller_handler(self):
+        before = self.snapshot()
+        for handler in self.caller_handlers():
+            with self.subTest(handler=handler):
+                previous = signal.signal(signal.SIGCHLD, handler)
+                try:
+                    with patch.object(p.Precheck, 'clean', side_effect=p.InfrastructureError('preflight fixture')):
+                        with self.assertRaisesRegex(p.InfrastructureError, 'preflight fixture'):
+                            self.run_tool(production_runner=True)
+                    self.assertIs(signal.getsignal(signal.SIGCHLD), handler)
+                finally:
+                    signal.signal(signal.SIGCHLD, previous)
+        self.assertEqual(self.snapshot(), before)
+        self.assertFalse((self.repo / '.git/precheck.unresolved').exists())
+
+    def test_unresolved_custody_keeps_waitable_status_and_saved_caller(self):
+        self.suite('import os, signal\nos.kill(os.getpid(), signal.SIGTERM)\n')
+        previous = signal.signal(signal.SIGCHLD, signal.SIG_IGN)
+        try:
+            self.assertEqual(self.run_tool(production_runner=True), 1)
+            self.assertEqual(self.tool.record['outcome'], 'unresolved')
+            self.assertIs(signal.getsignal(signal.SIGCHLD), signal.SIG_DFL)
+            self.assertIs(self.tool.child_status.previous, signal.SIG_IGN)
+        finally:
+            signal.signal(signal.SIGCHLD, previous)
+        self.assertTrue(self.tool.marker.exists())
+        self.assertTrue(Path(self.tool.record['cold_tools']['checkout']).exists())
+
+    def test_executor_unknown_keeps_waitable_status_and_saved_handler(self):
+        for handler in self.caller_handlers():
+            with self.subTest(handler=handler):
+                previous = signal.signal(signal.SIGCHLD, handler)
+                try:
+                    executor = p.Executor(lambda *a: None, lambda *a: None)
+                    with self.assertRaises(p.UnknownCompletion):
+                        executor([sys.executable, '-I', '-B', '-c',
+                                  'import os, signal; os.kill(os.getpid(), signal.SIGTERM)'],
+                                 cwd=self.repo, timeout=60, stdin=subprocess.DEVNULL)
+                    self.assertTrue(executor.unknown)
+                    self.assertIs(signal.getsignal(signal.SIGCHLD), signal.SIG_DFL)
+                    self.assertIs(executor.child_status.previous, handler)
+                finally:
+                    signal.signal(signal.SIGCHLD, previous)
+
+    def test_uninspectable_caller_handler_refuses_before_change_or_git(self):
+        tool = p.Precheck(self.repo, 'base', 'tip', mq=fixtures.mq, always=[], read_by_tests=[])
+        with patch.object(p.signal, 'getsignal', return_value=None), \
+                patch.object(p.signal, 'signal') as change, patch.object(tool, 'git') as git:
+            with self.assertRaisesRegex(p.InfrastructureError, 'unsupported caller handler'):
+                tool.run()
+            change.assert_not_called()
+            git.assert_not_called()
+
+    def test_handler_restore_failure_cannot_leave_a_pass_receipt(self):
+        self.suite('raise SystemExit(0)\n')
+        before = self.snapshot()
+        def custom(number, frame):
+            pass
+        real_signal = signal.signal
+        def restore_failure(number, handler):
+            if number == signal.SIGCHLD and handler is custom:
+                raise OSError('restore fixture')
+            return real_signal(number, handler)
+        previous = real_signal(signal.SIGCHLD, custom)
+        try:
+            with patch.object(p.signal, 'signal', side_effect=restore_failure):
+                with self.assertRaisesRegex(p.InfrastructureError, 'cannot restore child status handler'):
+                    self.run_tool(production_runner=True)
+            self.assertEqual(self.tool.record['outcome'], 'infrastructure-error')
+            self.assertIn('restore fixture', self.tool.record['error'])
+            saved = json.loads((self.tool.log_directory / 'result.json').read_text())
+            self.assertEqual(saved['outcome'], 'infrastructure-error')
+        finally:
+            real_signal(signal.SIGCHLD, previous)
+        self.checked(before)
+
     def test_drained_signal_cleans_aux_then_restores(self):
         self.suite('# fixture\n')
         before = self.snapshot()

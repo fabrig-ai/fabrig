@@ -508,7 +508,8 @@ class CandidateTests(Fixture):
         self.write("target/keep", "warm target\n")
         (fake / "systemctl").write_text("#!/bin/sh\nexit 0\n")
         (fake / "systemctl").chmod(0o755)
-        result = subprocess.run([str(self.repo / "tools/queue/precheck"), "--base", "base", str(self.repo), "tip"],
+        result = subprocess.run([str(self.repo / "tools/queue/precheck"), "--base", "base",
+                                 "--min-free-bytes", "1", str(self.repo), "tip"],
                                 env=dict(self.env, PATH=str(fake) + os.pathsep + os.environ["PATH"]),
                                 text=True, capture_output=True, stdin=subprocess.DEVNULL)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)

@@ -56,14 +56,8 @@ class UnknownCompletion(InfrastructureError):
     pass
 
 
-def waitable_children():
-    """Clear inherited auto-reaping before any Git/checker can discard status."""
-    try:
-        signal.signal(signal.SIGCHLD, signal.SIG_DFL)
-        if signal.getsignal(signal.SIGCHLD) != signal.SIG_DFL:
-            raise RuntimeError('SIGCHLD default disposition was not established')
-    except (OSError, ValueError, RuntimeError) as error:
-        raise InfrastructureError(f'cannot establish waitable child status: {error}') from error
+def waitable_children(retain=lambda: False):
+    return COLD_TOOLS['ChildStatus'](retain, error=InfrastructureError)
 
 
 def subreaper(value=None):
@@ -203,7 +197,11 @@ class Executor:
                 signal.signal(number, handler)
 
     def __call__(self, argv, **options):
-        waitable_children()
+        self.child_status = waitable_children(lambda: self.unknown)
+        with self.child_status:
+            return self._execute(argv, **options)
+
+    def _execute(self, argv, **options):
         if self.interrupted:
             raise InfrastructureError(f"interrupted by signal {self.interrupted}; child drained")
         heavy = argv[0] == "heavy"
@@ -619,7 +617,18 @@ class Precheck:
         sync_directory(self.gitdir)
 
     def run(self):
-        waitable_children()
+        self.child_status = waitable_children(
+            lambda: self.executor.unknown or self.record['outcome'] == 'unresolved')
+        try:
+            with self.child_status:
+                return self._run_waitable()
+        except InfrastructureError as error:
+            if self.log_directory is not None and self.record['restored']:
+                self.record.update(outcome='infrastructure-error', error=str(error))
+                self.save()
+            raise
+
+    def _run_waitable(self):
         no_symlinks(self.repo)
         if not self.repo.is_dir() or self.git("rev-parse", "--show-toplevel") != str(self.repo):
             raise InfrastructureError("SLOT must be the canonical checkout root")
