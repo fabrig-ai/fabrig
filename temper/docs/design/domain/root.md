@@ -656,7 +656,14 @@ exhaustively with no `_` arm (jig's `domain/root.md`, section 6).
   cut whole, never in part, where the bound leaves no room for it; so
   that the run that
   asked for it hears which pull request landed, since jig gives a
-  parent a result's words and never its resource. A client reads the id
+  parent a result's words and never its resource. After the pull
+  request line, where the bound leaves room for it whole, a third line
+  says the landing in words, `Landed: pull request #7 merged into main
+  as 0123456789ab.`: the pull request's number, the branch it landed
+  into and the merge commit's first twelve digits, whole or not at
+  all, so that the run reads that the change landed and not only what
+  the landing passed (`forge.md`, 8.2), which follows, fitted to what
+  the bound leaves. A client reads the id
   from the first line. A result's
   words are text that summarises it (jig's `domain/tasks.md`, section 3,
   and `client/domain/contract.md`, 5.3), never the commit's bytes; the

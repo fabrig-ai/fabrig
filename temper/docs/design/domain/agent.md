@@ -312,7 +312,8 @@ it as any `delegate`:
   as not (charter 1's instructions name each), and, for an agreed goal
   (8.2), carrying after the words its person's last words to the chat,
   whole, under their own heading, so that a request the chat cut short
-  still reaches the goal entire; tracked
+  still reaches the goal entire (cut only past the brief's room, and
+  then marked with the bytes cut); tracked
   at the run's own priority, or last among the project's goals where the
   run is untracked: one past the largest tracked priority in the
   project, saturating, or 0 with none (the lower first, jig's
@@ -365,7 +366,9 @@ goal's `goal` without `advisor` (a goal starts an advisor alone: set
 `advisor`, or make the change with `change`), and any other run's
 `goal` with `advisor` set (to change a repository, call `change`; a
 goal is for work they want to agree first or a survey, and its goal asks
-for an advisor), and the run goes on, as any refused host call does. A person who wants a survey alone gets a
+for an advisor), and any `goal` with both `agree` and `advisor` set (an
+advisor agrees nothing: set agree or advisor, not both), and the run
+goes on, as any refused host call does. A person who wants a survey alone gets a
 goal that asks its advisor and reports, changing nothing.
 
 ### 4.4 Result contracts
