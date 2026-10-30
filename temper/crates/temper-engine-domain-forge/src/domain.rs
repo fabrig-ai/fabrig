@@ -172,6 +172,8 @@ pub struct Domain {
     restored_demo: Option<crate::Demo>,
     client: skein_forge_client::Domain,
     client_out: Queue<skein_forge_client::Request>,
+    // A refused brief read waits for the next client reclamation.
+    pub(crate) brief_reclaim: u64,
     pub(crate) brief_fetches: Map<Token, brief::BriefFetch>,
     brief_planned: Map<Token, crate::BriefSource>,
     pub(crate) brief_pending: Map<Token, held::Pending>,
@@ -587,6 +589,7 @@ impl Domain {
             restored_demo: None,
             client: skein_forge_client::Domain::configured(&l.client, seed, config)?,
             client_out: Queue::uncapped(),
+            brief_reclaim: 0,
             brief_fetches: Map::with_capacity(l.brief_sections),
             brief_planned: Map::with_capacity(l.brief_sections),
             brief_pending: Map::with_capacity(l.brief_sections),
@@ -674,7 +677,10 @@ impl Domain {
         if self.restore_phase == RestorePhase::Restoring {
             return None;
         }
-        self.client.next_deadline()
+        match (self.client.next_deadline(), brief::next_deadline(self)) {
+            (Some(client), Some(brief)) => Some(client.min(brief)),
+            (client, brief) => client.or(brief),
+        }
     }
 
     /// Earliest procedure or projection wait, reported to the root's clock.
@@ -707,7 +713,7 @@ impl Domain {
         self.next_handoff().is_some()
             || !self.procedure_wakes.is_empty()
             || self.client.is_ready()
-            || (self.lost_waiting() && self.client.has_room())
+            || ((self.lost_waiting() || brief::waiting(self)) && self.client.has_room())
     }
 
     fn next_handoff(&self) -> Option<u64> {
@@ -769,6 +775,7 @@ impl Domain {
     /// Reclaim transient child buffers after the current decision.
     pub fn reclaim(&mut self) {
         self.client.reclaim();
+        self.brief_reclaim = self.brief_reclaim.wrapping_add(1);
     }
 
     /// Check one typed task interest before the root adds its matching durable task row.
@@ -1254,7 +1261,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::PlanBrief { section, source } => {
             assert!(d.brief_planned.insert(section, source) == Ok(None), "one bounded planned section");
         }
-        Event::GatherPlanned { section, parts, bytes, ci_budget } => {
+        Event::GatherPlanned { section, parts, bytes, ci_budget, deadline } => {
             let Some(source) = d.brief_planned.remove(&section) else {
                 out.push(Request::BriefSized { section, size: None });
                 return;
@@ -1266,6 +1273,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                 | crate::BriefSource::Pull { .. } => 0,
             };
             held::gather(d, section, source, parts, bytes, max_job_bytes, env.limits.brief_bytes, out);
+            brief::set_deadline(d, section, deadline);
         }
         Event::GatherBrief { owner, source, parts, bytes, max_job_bytes } => {
             brief::gather(d, owner, source, parts, bytes, max_job_bytes, env.limits.brief_bytes, out);
@@ -1278,6 +1286,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::DropBrief { section } => {
             d.brief_planned.remove(&section);
             held::drop_section(d, section);
+            brief::drop_section(d, section);
         }
         Event::Adopt { request } => adoption::adopt(d, env, request, out),
         Event::ForgetAdoption { repository, restore } => match restore {
@@ -1403,6 +1412,7 @@ pub fn resume(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         drain(d, env, out);
         return;
     }
+    brief::expire(d, env.now, out);
     let before = out.len();
     handoff_one(d, env, out);
     if out.len() != before {
@@ -1413,6 +1423,7 @@ pub fn resume(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     skein_forge_client::resume(&mut d.client, &child_env, &mut d.client_out);
     drain(d, env, out);
     if d.client.has_room() {
+        brief::retry(d, out);
         ask_lost_again(d, env, out);
     }
     if out.room() > 0
@@ -1434,6 +1445,7 @@ pub fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         drain(d, env, out);
         return;
     }
+    brief::expire(d, env.now, out);
     let mut goals = List::with_capacity(env.limits.issues);
     for (goal, when) in &d.projection_due {
         if *when <= env.wall && goals.room() > 0 {
@@ -2464,14 +2476,12 @@ fn delegate_result(
                     remarks.push(old.clone()).expect("bounded prior gate remarks");
                 }
             }
-            let kept = words.len().min(usize::try_from(env.limits.client.answer_bytes).expect("u32 fits usize"));
-            remarks
-                .push(crate::GateRemark {
-                    number,
-                    head,
-                    words: Box::from(words.get(..kept).expect("kept is in bounds")),
-                })
-                .expect("gate room checked");
+            let text = crate::ResultText { bytes: Box::from(words), cut: 0 };
+            let Some(words) = text.fitted(env.limits.client.answer_bytes) else {
+                emit(out, Request::Refused { task });
+                return;
+            };
+            remarks.push(crate::GateRemark { number, head, words }).expect("gate room checked");
             row.gate_remarks = remarks.into_boxed();
         }
         change::Delegate::Produce => {

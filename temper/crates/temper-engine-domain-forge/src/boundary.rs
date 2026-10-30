@@ -1119,6 +1119,7 @@ pub enum Event {
         parts: u32,
         bytes: u32,
         ci_budget: u32,
+        deadline: skein_lib::Time,
     },
     /// Gather one pinned, connector-owned section for a run brief.
     GatherBrief {

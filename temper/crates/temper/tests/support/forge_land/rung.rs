@@ -140,19 +140,19 @@ pub fn deployment(paths: &[PathBuf; 3]) {
     worker["endpoints"][0]["models"][0]["name"] = "gpt-6.1-sol".into();
     worker["endpoints"][0]["models"][0]["output"] = 32_000.into();
     worker["endpoints"][0]["models"][0]["reasoning_item"] = 32_768.into();
-    value["engine"]["limits"]["overrides"]["hub.turn_bytes"] = 1_479_864.into();
-    value["engine"]["limits"]["overrides"]["hub.transcript_bytes"] = 5_919_472.into();
-    value["workers"][0]["limits"]["overrides"]["hub.turn_bytes"] = 1_479_864.into();
-    value["workers"][0]["limits"]["overrides"]["hub.transcript_bytes"] = 5_919_472.into();
-    value["workers"][0]["limits"]["overrides"]["hub.turn_queue_bytes"] = 11_838_912.into();
-    value["engine"]["limits"]["overrides"]["core.resume_bytes"] = 1_479_868.into();
+    value["engine"]["limits"]["overrides"]["hub.turn_bytes"] = 1_507_539.into();
+    value["engine"]["limits"]["overrides"]["hub.transcript_bytes"] = 6_030_163.into();
+    value["workers"][0]["limits"]["overrides"]["hub.turn_bytes"] = 1_507_539.into();
+    value["workers"][0]["limits"]["overrides"]["hub.transcript_bytes"] = 6_030_163.into();
+    value["workers"][0]["limits"]["overrides"]["hub.turn_queue_bytes"] = 12_060_312.into();
+    value["engine"]["limits"]["overrides"]["core.resume_bytes"] = 1_507_543.into();
     value["engine"]["limits"]["overrides"]["people.requests"] = 256.into();
     for (name, count) in [
         ("root.loads.loads", 32),
-        ("root.journal.transcript_bytes", 1_479_868),
-        ("root.loads.transcript_bytes", 1_479_864),
-        ("root.loads.bytes", 1_480_112),
-        ("root.loads.reply_bytes", 1_480_112),
+        ("root.journal.transcript_bytes", 1_507_543),
+        ("root.loads.transcript_bytes", 1_507_539),
+        ("root.loads.bytes", 1_507_787),
+        ("root.loads.reply_bytes", 1_507_787),
     ] {
         value["application"]["limits"]["overrides"][name] = count.into();
     }
@@ -162,7 +162,7 @@ pub fn deployment(paths: &[PathBuf; 3]) {
     assert_eq!(value["engine"]["llm"]["models"][0]["efforts"][0], "high");
     assert_eq!(value["engine"]["llm"]["models"][0]["output"], 32_000);
     assert_eq!(value["engine"]["limits"]["overrides"]["people.requests"], 256);
-    assert_eq!(value["engine"]["limits"]["overrides"]["hub.turn_bytes"], 1_479_864);
+    assert_eq!(value["engine"]["limits"]["overrides"]["hub.turn_bytes"], 1_507_539);
     assert_eq!(value["application"]["limits"]["overrides"]["root.loads.loads"], 32);
     assert_eq!(worker["endpoints"][0]["models"][0]["name"], "gpt-6.1-sol");
     assert_eq!(worker["endpoints"][0]["models"][0]["output"], 32_000);

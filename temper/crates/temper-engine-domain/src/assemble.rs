@@ -18,14 +18,13 @@ pub(crate) fn brief_outputs(
     for _ in 0..out.len() {
         match out.pop().expect("brief output count") {
             brief::GatherRequest::Gather { connector: 0, section, budget } => {
-                if domain.brief_connectors.get(Id::from_token(section)).is_none() {
-                    continue;
-                }
+                let Some(connector) = domain.brief_connectors.get(Id::from_token(section)) else { continue };
                 domain.work.push(Work::Forge(forge::Event::GatherPlanned {
                     section,
                     parts: env.limits.brief.parts,
                     bytes: budget,
                     ci_budget: env.limits.brief.budgets.ci,
+                    deadline: connector.deadline,
                 }));
             }
             brief::GatherRequest::CutTo { connector: 0, section, size } => {
@@ -156,7 +155,12 @@ fn plan_home_access(
     let kind = forge_brief_kind(source);
     let token = domain
         .brief_connectors
-        .insert(BriefConnector { task, kind, cutting: false })
+        .insert(BriefConnector {
+            task,
+            kind,
+            cutting: false,
+            deadline: env.now.saturating_add(domain.limits.brief.gather),
+        })
         .expect("reserved connector section room")
         .token();
     domain.work.push(Work::Forge(forge::Event::PlanBrief { section: token, source }));
@@ -178,6 +182,61 @@ fn plan_home_access(
     true
 }
 
+/// Required forge context replaces trailing optional context, preserving the plan's order.
+fn make_forge_room(wanted: &mut List<brief::Planned>, needed: u32) {
+    for _ in 0..needed {
+        if wanted.room() >= needed {
+            break;
+        }
+        let mut optional = None;
+        for (index, section) in wanted.iter().enumerate() {
+            if !section.required() {
+                optional = u32::try_from(index).ok();
+            }
+        }
+        let index = optional.expect("forge section room checked");
+        for at in index..wanted.len().saturating_sub(1) {
+            let next = wanted.get(at.checked_add(1).expect("bounded section index")).expect("next section").clone();
+            *wanted.get_mut(at).expect("section") = next;
+        }
+        wanted.truncate(wanted.len().saturating_sub(1));
+    }
+}
+
+fn plan_forge_section(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    task: u64,
+    source: forge::BriefSource,
+    priority: u16,
+    limit: u32,
+    wanted: &mut List<brief::Planned>,
+) {
+    let kind = forge_brief_kind(source);
+    let token = domain
+        .brief_connectors
+        .insert(BriefConnector {
+            task,
+            kind,
+            cutting: false,
+            deadline: env.now.saturating_add(domain.limits.brief.gather),
+        })
+        .expect("reserved connector section room")
+        .token();
+    domain.work.push(Work::Forge(forge::Event::PlanBrief { section: token, source }));
+    wanted
+        .push(brief::Planned::Connector {
+            connector: 0,
+            kind: forge_kind_number(kind),
+            token,
+            size: 0,
+            limit,
+            priority,
+            required: true,
+        })
+        .expect("required connector section room");
+}
+
 pub(crate) fn finish_brief_plan(
     domain: &mut Domain,
     env: &Env<Limits>,
@@ -195,72 +254,51 @@ pub(crate) fn finish_brief_plan(
         && child == task
         && let Some(number) = row.pull
         && let Some(head) = row.change.last_head
-        && wanted.room() > 0
     {
         let item = forge::BriefItem { repository: row.repository.repository, number };
-        let source = match row.delegate.expect("matched delegate").1 {
+        let pull = forge::BriefSource::Pull { item, head: forge::BriefCommit(head) };
+        let why = match row.delegate.expect("matched delegate").1 {
             forge_change::Delegate::Repair(forge_change::Repair::Gate(_)) => {
-                forge::BriefSource::Reviews { item, head: forge::BriefCommit(head) }
+                Some(forge::BriefSource::Reviews { item, head: forge::BriefCommit(head) })
             }
             forge_change::Delegate::Repair(
                 forge_change::Repair::Ci | forge_change::Repair::Semantic | forge_change::Repair::Landing { .. },
-            ) => forge::BriefSource::Ci { item, head: forge::BriefCommit(head) },
-            forge_change::Delegate::Resolve { .. } => forge::BriefSource::Pull { item, head: forge::BriefCommit(head) },
-            forge_change::Delegate::Produce | forge_change::Delegate::Gate { .. } => {
-                forge::BriefSource::Pull { item, head: forge::BriefCommit(head) }
+            ) => Some(forge::BriefSource::Ci { item, head: forge::BriefCommit(head) }),
+            forge_change::Delegate::Resolve { .. }
+            | forge_change::Delegate::Produce
+            | forge_change::Delegate::Gate { .. } => None,
+        };
+        let needed = if why.is_some() { 2 } else { 1 };
+        let mut room = wanted.room();
+        for section in &wanted {
+            if !section.required() {
+                room = room.saturating_add(1);
             }
-        };
-        let kind = forge_brief_kind(source);
-        let token = domain
-            .brief_connectors
-            .insert(BriefConnector { task, kind, cutting: false })
-            .expect("reserved connector section room")
-            .token();
-        domain.work.push(Work::Forge(forge::Event::PlanBrief { section: token, source }));
-        wanted
-            .push(brief::Planned::Connector {
-                connector: 0,
-                kind: forge_kind_number(kind),
-                token,
-                size: 0,
-                limit: forge_brief_budget(kind, &domain.limits.brief.budgets),
-                priority: 5,
-                required: true,
-            })
-            .expect("connector section room");
-        let semantic = match row.delegate {
-            Some((_, forge_change::Delegate::Repair(forge_change::Repair::Semantic))) => true,
-            Some((
-                _,
-                forge_change::Delegate::Repair(
-                    forge_change::Repair::Ci | forge_change::Repair::Gate(_) | forge_change::Repair::Landing { .. },
-                )
-                | forge_change::Delegate::Resolve { .. }
-                | forge_change::Delegate::Gate { .. }
-                | forge_change::Delegate::Produce,
-            ))
-            | None => false,
-        };
-        if semantic && wanted.room() > 0 {
-            let source = forge::BriefSource::Pull { item, head: forge::BriefCommit(head) };
-            let kind = forge_brief_kind(source);
-            let token = domain
-                .brief_connectors
-                .insert(BriefConnector { task, kind, cutting: false })
-                .expect("reserved connector section room")
-                .token();
-            domain.work.push(Work::Forge(forge::Event::PlanBrief { section: token, source }));
-            wanted
-                .push(brief::Planned::Connector {
-                    connector: 0,
-                    kind: forge_kind_number(kind),
-                    token,
-                    size: 0,
-                    limit: forge_brief_budget(kind, &domain.limits.brief.budgets),
-                    priority: 6,
-                    required: true,
-                })
-                .expect("semantic update section room");
+        }
+        if room < needed {
+            domain.work.push(Work::Core(jig_domain_core::Event::BriefAssembled { task, ready: false }));
+            return;
+        }
+        make_forge_room(&mut wanted, needed);
+        let mut pull_limit = domain.limits.brief.budgets.pull;
+        if let Some(why) = why {
+            // The reason keeps its section budget. Pull contents yield before
+            // the retained core context, including its optional sections.
+            let reason_limit = forge_brief_budget(forge_brief_kind(why), &domain.limits.brief.budgets);
+            let mut left = domain.limits.brief.brief_bytes.saturating_sub(reason_limit);
+            for section in &wanted {
+                left = left.saturating_sub(section.size().min(section.limit()));
+            }
+            // If the declared reason leaves no room, its actual size and the
+            // section priorities decide the fit after gathering.
+            if left > 0 {
+                pull_limit = pull_limit.min(left);
+            }
+        }
+        plan_forge_section(domain, env, task, pull, 6, pull_limit, &mut wanted);
+        if let Some(why) = why {
+            let limit = forge_brief_budget(forge_brief_kind(why), &domain.limits.brief.budgets);
+            plan_forge_section(domain, env, task, why, 5, limit, &mut wanted);
         }
     }
     domain.work.push(Work::Brief(brief::GatherEvent::Plan {

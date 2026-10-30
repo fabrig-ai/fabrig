@@ -64,8 +64,16 @@ fn gather(checks: Box<[Status]>, log: &[u8], budget: u32) -> Domain {
             },
         },
     );
-    let started =
-        outputs(&mut d, Event::GatherPlanned { section: SECTION, parts: 2, bytes: budget, ci_budget: budget });
+    let started = outputs(
+        &mut d,
+        Event::GatherPlanned {
+            section: SECTION,
+            parts: 2,
+            bytes: budget,
+            ci_budget: budget,
+            deadline: env().now.saturating_add(Duration::from_secs(30)),
+        },
+    );
     let [Request::BriefClient { event: skein_forge_client::Event::Read { owner, read, .. } }] = started.as_ref() else {
         panic!("one checks read: {started:?}")
     };
@@ -235,4 +243,301 @@ fn large_check_heads_take_room_from_logs_before_a_check_is_omitted() {
 #[expect(clippy::disallowed_methods, reason = "the test reader validates the rendered section's UTF-8")]
 fn text(bytes: &[u8]) -> &str {
     core::str::from_utf8(bytes).expect("UTF-8 CI")
+}
+
+fn planned_read(d: &mut Domain, source: BriefSource, budget: u32) -> Token {
+    outputs(d, Event::PlanBrief { section: SECTION, source });
+    let mut env = env();
+    env.limits.brief_bytes = 4608;
+    let mut out = Queue::uncapped();
+    step(
+        d,
+        &env,
+        Event::GatherPlanned {
+            section: SECTION,
+            parts: 2,
+            bytes: budget,
+            ci_budget: SHIPPED_CI,
+            deadline: env.now.saturating_add(Duration::from_secs(30)),
+        },
+        &mut out,
+    );
+    let Some(Request::BriefClient { event: skein_forge_client::Event::Read { owner, .. } }) = out.pop() else {
+        panic!("one planned forge read: {out:?}")
+    };
+    owner
+}
+
+fn pull_section(body: &[u8]) -> Box<[u8]> {
+    let mut config = configured()[0].clone();
+    config.git = b"https://forge.example".as_slice().into();
+    let mut d = setup_domain(&[config], false);
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    let mut row = fixtures::opening_row();
+    row.pull = Some(1);
+    row.change.last_head = Some(HEAD);
+    row.change.state = temper_engine_domain_forge_change::State::Repairing {
+        requested: true,
+        why: temper_engine_domain_forge_change::Repair::Ci,
+    };
+    outputs(&mut d, Event::Change { row });
+    let owner = planned_read(
+        &mut d,
+        BriefSource::Pull { item: BriefItem { repository: REPO.repository, number: 1 }, head: BriefCommit(HEAD) },
+        4608,
+    );
+    let item = skein_forge::api::Summary {
+        labels: Box::default(),
+        kind: skein_forge::api::Kind::Pull,
+        author: 7,
+        key: None,
+        updated: env().now,
+        number: 1,
+        title: b"Small fix".as_slice().into(),
+        body: body.into(),
+        state: skein_forge::api::State::Open,
+    };
+    let mut out = Queue::uncapped();
+    assert!(brief::brief_answer(
+        &mut d,
+        owner,
+        Ok(Answer::Item { item, comments: Box::default(), more: false }),
+        &mut out
+    ));
+    let mut pull = fixtures::open_pull();
+    pull.commit = HEAD;
+    pull.base_commit = None;
+    assert!(brief::brief_answer(&mut d, owner, Ok(Answer::Pull(pull)), &mut out));
+    assert!(brief::brief_answer(
+        &mut d,
+        owner,
+        Ok(Answer::PullFiles { head: HEAD, files: Box::default(), more: false }),
+        &mut out
+    ));
+    take(&mut d)
+}
+
+#[test]
+fn a_repairs_pull_section_names_its_pull_request_before_its_contents() {
+    let bytes = pull_section(b"Whole body");
+    let words = text(&bytes);
+    assert!(words.starts_with("Pull request: #1\nBranch: temper/51\nBase: main\nHead: c1fb3599fa12c9766f9cc162844416e87a929182\nAddress: https://forge.example/org/repo/pulls/1\n"), "{words}");
+    assert!(words.contains("Title: Small fix\nBody: Whole body\n"));
+}
+
+fn remarks_section(remarks: &[u8]) -> Box<[u8]> {
+    let mut d = domain();
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    let mut row = fixtures::opening_row();
+    row.pull = Some(1);
+    row.change.last_head = Some(HEAD);
+    row.gate_remarks = Box::new([GateRemark { number: 1, head: HEAD, words: remarks.into() }]);
+    outputs(&mut d, Event::Change { row });
+    let owner = planned_read(
+        &mut d,
+        BriefSource::Reviews { item: BriefItem { repository: REPO.repository, number: 1 }, head: BriefCommit(HEAD) },
+        4608,
+    );
+    assert!(brief::brief_answer(
+        &mut d,
+        owner,
+        Ok(Answer::Reviews { reviews: Box::default(), more: false }),
+        &mut Queue::uncapped()
+    ));
+    take(&mut d)
+}
+
+#[test]
+fn four_thousand_bytes_of_gate_remarks_reach_the_repair_whole() {
+    let remarks = [b'r'; 4000];
+    let bytes = remarks_section(&remarks);
+    let body = bytes.strip_prefix(b"Gate remarks: ").expect("remarks heading");
+    assert_eq!(body.strip_suffix(b"\n"), Some(remarks.as_slice()));
+}
+
+#[test]
+fn five_thousand_bytes_of_gate_remarks_keep_their_prefix_and_mark_the_cut() {
+    let remarks = [b'r'; 5000];
+    let bytes = remarks_section(&remarks);
+    let words = text(&bytes);
+    let (kept, marker) = words.rsplit_once("\n[").expect("marked cut");
+    assert!(remarks.starts_with(kept.strip_prefix("Gate remarks: ").expect("remarks heading").as_bytes()));
+    let count = skein_lib::Decimal::of(
+        u64::try_from(b"Gate remarks: ".len() + remarks.len() + 1 - kept.len()).expect("cut bytes"),
+    );
+    assert_eq!(marker.strip_suffix(" bytes cut]\n").expect("cut marker").as_bytes(), count.as_bytes());
+    assert!(bytes.len() <= 4608);
+}
+
+#[test]
+fn a_maximal_task_pull_and_remarks_fit_the_assembled_brief() {
+    let task = [b't'; 4608];
+    let pull = pull_section(&[b'p'; 5000]);
+    let remarks = remarks_section(&[b'r'; 5000]);
+    assert!(text(&pull).contains("Title: Small fix\nBody: "));
+    assert!(pull.ends_with(b" bytes cut]\n"));
+    assert!(remarks.ends_with(b" bytes cut]\n"));
+    assert!(task.len() + pull.len() + remarks.len() + 768 <= 14_592);
+}
+
+fn pending_checks() -> (Domain, Token) {
+    let mut d = domain();
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    let mut row = fixtures::opening_row();
+    row.pull = Some(1);
+    row.change.last_head = Some(HEAD);
+    row.change.state = temper_engine_domain_forge_change::State::Repairing {
+        requested: true,
+        why: temper_engine_domain_forge_change::Repair::Ci,
+    };
+    outputs(&mut d, Event::Change { row });
+    let owner = planned_read(
+        &mut d,
+        BriefSource::Ci { item: BriefItem { repository: REPO.repository, number: 1 }, head: BriefCommit(HEAD) },
+        SHIPPED_CI,
+    );
+    (d, owner)
+}
+
+fn pending_job() -> (Domain, Token, Read) {
+    let (mut d, owner) = pending_checks();
+    let mut out = Queue::uncapped();
+    assert!(brief::brief_answer(&mut d, owner, Ok(Answer::Checks(red_checks())), &mut out));
+    let Some(Request::BriefClient { event: skein_forge_client::Event::Read { read, .. } }) = out.pop() else {
+        panic!("one pinned job read: {out:?}")
+    };
+    assert!(out.is_empty());
+    (d, owner, read)
+}
+
+#[test]
+fn a_busy_job_read_waits_for_reclaim_then_keeps_the_step_and_log_end() {
+    let (mut d, owner, read) = pending_job();
+    let mut out = Queue::uncapped();
+    assert!(brief::brief_answer(&mut d, owner, Err(skein_forge::api::Error::Busy), &mut out));
+    assert!(out.is_empty(), "a refusal cannot retry in the same drain");
+    assert!(!brief::waiting(&d));
+    brief::retry(&mut d, &mut out);
+    assert!(out.is_empty(), "even another drain must wait for reclaim");
+    d.reclaim();
+    assert!(brief::waiting(&d));
+    brief::retry(&mut d, &mut out);
+    assert_eq!(
+        out.pop(),
+        Some(Request::BriefClient {
+            event: skein_forge_client::Event::Read { owner, repository: REPO, read: read.clone() },
+        })
+    );
+    let Read::Job { attempt, .. } = read else { panic!("pinned job") };
+    assert!(brief::brief_answer(
+        &mut d,
+        owner,
+        Ok(Answer::Job {
+            attempt,
+            step: Some(Step { number: 2, name: STEP.into() }),
+            log: RUNNER_LOG.into(),
+            truncated: false,
+        }),
+        &mut out
+    ));
+    let Some(Request::BriefSized { section: SECTION, size: Some(size) }) = out.pop() else {
+        panic!("completed CI section: {out:?}")
+    };
+    assert!(size <= SHIPPED_CI);
+    let bytes = take(&mut d);
+    let words = text(&bytes);
+    assert_eq!(words.matches("Failed check:").count(), 1, "retry does not repeat the check head");
+    assert!(words.contains("Failed step: 2 Each pull request adds changes/<its number>.md\nEnd of its log:\n"));
+    assert!(words.contains(text(RUNNER_LOG)), "the complete log, including its end: {words}");
+    assert!(words.ends_with("Repair the failed check.\n"));
+    assert!(!words.contains("could not be read"));
+    assert!(d.briefs_idle());
+}
+
+#[test]
+fn a_job_read_busy_until_the_gather_deadline_keeps_the_marker() {
+    let (mut d, owner, read) = pending_job();
+    let deadline = env().now.saturating_add(Duration::from_secs(30));
+    let mut out = Queue::uncapped();
+    for _ in 0_u32..3 {
+        assert!(brief::brief_answer(&mut d, owner, Err(skein_forge::api::Error::Busy), &mut out));
+        assert!(out.is_empty());
+        d.reclaim();
+        brief::retry(&mut d, &mut out);
+        assert_eq!(
+            out.pop(),
+            Some(Request::BriefClient {
+                event: skein_forge_client::Event::Read { owner, repository: REPO, read: read.clone() },
+            })
+        );
+    }
+    assert!(brief::brief_answer(&mut d, owner, Err(skein_forge::api::Error::Busy), &mut out));
+    brief::expire(&mut d, Time::from_nanos(deadline.as_nanos().checked_sub(1).unwrap()), &mut out);
+    assert!(out.is_empty(), "the original deadline stays in force");
+    assert_eq!(brief::next_deadline(&d), Some(deadline));
+    brief::expire(&mut d, deadline, &mut out);
+    let Some(Request::BriefSized { section: SECTION, size: Some(size) }) = out.pop() else {
+        panic!("completed CI section: {out:?}")
+    };
+    assert!(size <= SHIPPED_CI);
+    let bytes = take(&mut d);
+    let words = text(&bytes);
+    assert!(words.contains("Failed check: / changes (pull_request)"));
+    assert!(words.ends_with("[job log could not be read]\nRepair the failed check.\n"), "{words}");
+    d.reclaim();
+    brief::retry(&mut d, &mut out);
+    assert!(out.is_empty());
+    assert!(d.briefs_idle());
+}
+
+#[test]
+fn an_inflight_job_at_the_gather_deadline_leaves_the_section_late() {
+    for retried in [false, true] {
+        let (mut d, owner, read) = pending_job();
+        let deadline = env().now.saturating_add(Duration::from_secs(30));
+        let mut out = Queue::uncapped();
+        if retried {
+            assert!(brief::brief_answer(&mut d, owner, Err(skein_forge::api::Error::Busy), &mut out));
+            assert_eq!(brief::next_deadline(&d), Some(deadline));
+            d.reclaim();
+            brief::retry(&mut d, &mut out);
+            assert_eq!(
+                out.pop(),
+                Some(Request::BriefClient { event: skein_forge_client::Event::Read { owner, repository: REPO, read } })
+            );
+        }
+        assert_eq!(brief::next_deadline(&d), None, "the parent owns an in-flight read's deadline");
+        brief::expire(&mut d, deadline, &mut out);
+        assert!(out.is_empty(), "an unanswered read cannot complete the section with a marker");
+        assert!(!d.briefs_idle(), "the section stays unfinished for the parent's late handling");
+        assert!(outputs(&mut d, Event::DropBrief { section: SECTION }).is_empty());
+        assert!(d.briefs_idle());
+    }
+}
+
+#[test]
+fn checks_busy_until_the_gather_deadline_fail_the_section() {
+    let (mut d, owner) = pending_checks();
+    let deadline = env().now.saturating_add(Duration::from_secs(30));
+    let mut out = Queue::uncapped();
+    assert!(brief::brief_answer(&mut d, owner, Err(skein_forge::api::Error::Busy), &mut out));
+    assert_eq!(brief::next_deadline(&d), Some(deadline));
+    brief::expire(&mut d, Time::from_nanos(deadline.as_nanos().checked_sub(1).unwrap()), &mut out);
+    assert!(out.is_empty());
+    brief::expire(&mut d, deadline, &mut out);
+    assert_eq!(out.pop(), Some(Request::BriefSized { section: SECTION, size: None }));
+    assert!(out.is_empty());
+    assert!(d.briefs_idle());
+}
+
+#[test]
+fn dropping_a_busy_section_ends_its_retry() {
+    let (mut d, owner, _) = pending_job();
+    let mut out = Queue::uncapped();
+    assert!(brief::brief_answer(&mut d, owner, Err(skein_forge::api::Error::Busy), &mut out));
+    assert!(outputs(&mut d, Event::DropBrief { section: SECTION }).is_empty());
+    d.reclaim();
+    brief::retry(&mut d, &mut out);
+    assert!(out.is_empty());
+    assert!(d.briefs_idle());
 }
