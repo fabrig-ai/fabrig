@@ -64,6 +64,12 @@ if name == "heavy":
                     "fixture::skipped": {"status": "skipped"}}}, indent=2))
             print("heavy: task fixture exit log /fixture/list.log", flush=True)
             sys.exit(int(os.environ.get("NEXTEST_EXIT", "0")))
+        if "--tool-config-file" in args:
+            import tomllib
+            overlay = Path(args[args.index("--tool-config-file") + 1].split(":", 1)[1])
+            config = tomllib.loads(overlay.read_text())
+            profile = args[args.index("--profile") + 1]
+            Path(config['profile'][profile]['junit']['path']).write_text('<testsuites/>')
         print("Summary: fixture tests", flush=True)
         sys.exit(int(os.environ.get("NEXTEST_EXIT", "0")))
     if os.environ.get("FAIL_BUILD") in args:
@@ -86,6 +92,7 @@ class RunnerTests(unittest.TestCase):
             "default", "fuzzy", "browser-skein", "browser-jig", "browser-temper",
             "qa-temper", "qa-smith", "process-jig", "exhaustive-skein")))
         (self.root / "tools/tiers").mkdir(parents=True)
+        (self.root / "tools/tiers/budgets.toml").write_text('')
         self.packages = self.root / "tools/tiers/packages.toml"
         self.packages.write_text(''.join(f'{name} = ["a-package", "z-package"]\n' for name in (
             "browser-skein", "browser-jig", "browser-temper", "qa-temper", "qa-smith",
@@ -352,6 +359,62 @@ class RunnerTests(unittest.TestCase):
             result, calls = self.invoke(*args)
             self.assertEqual(result.returncode, 2)
             self.assertEqual(calls, [])
+
+    def test_cpu_overlay_and_native_prerequisite_are_opt_in(self):
+        directory = self.root / 'CPU results'
+        result, calls = self.invoke('--cpu', str(directory), 'smith', 'qa')
+        self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+        self.assertEqual([call['name'] for call in calls], ['cargo', 'df', 'heavy', 'df', 'heavy'])
+        self.assertEqual(calls[2]['args'], ['cc', '-std=c11', '-O2', '-static', '-Wall', '-Wextra', '-Werror',
+                                          'tools/tiers/cpu-wrapper.c', '-o', str(self.target / 'tiers-cpu-wrapper')])
+        self.assertEqual(calls[-1]['args'], ['cargo', 'nextest', 'run', '--config-file', str(directory / 'repository.toml'),
+                                            '--tool-config-file', f'tiers-cpu:{directory}/nextest.toml',
+                                            '-p', 'a-package', '-p', 'z-package', '--profile', 'qa-smith', '--no-fail-fast'])
+        self.assertEqual(calls[-1]['env']['NEXTEST_DOUBLE_SPAWN'], '0')
+        result, calls = self.invoke('--cpu', str(directory), 'smith', 'qa')
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(calls, [])
+        for flag in ('--profile', '--config-file', '--stress-count', '--stress-duration', '--no-run', '--debugger'):
+            result, calls = self.invoke('--cpu', str(self.root / 'fresh'), 'smith', 'qa', '--', flag, 'other')
+            self.assertEqual(result.returncode, 2)
+            self.assertEqual(calls, [])
+
+    def test_cpu_preserves_native_prerequisites_and_reuses_metadata(self):
+        self.packages.write_text(self.packages.read_text().replace(
+            'qa-smith = []',
+            'qa-smith = [{package="adapter",bin="fake-claude",env="TEMPER_TEST_CLAUDE"}]'))
+        directory = self.root / 'CPU with native'
+        result, calls = self.invoke('--cpu', str(directory), 'smith', 'qa', TEMPER_TEST_CLAUDE='/stale')
+        self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+        self.assertEqual([call['name'] for call in calls], ['cargo', 'df', 'heavy', 'df', 'heavy', 'df', 'heavy'])
+        self.assertEqual(calls[2]['args'], ['cargo', 'build', '-p', 'adapter', '--bin', 'fake-claude'])
+        self.assertEqual(calls[4]['args'][0], 'cc')
+        self.assertEqual(calls[6]['args'][:3], ['cargo', 'nextest', 'run'])
+        self.assertEqual(calls[2]['env']['TEMPER_TEST_CLAUDE'], '/stale')
+        for call in (calls[4], calls[6]):
+            self.assertEqual(call['env']['TEMPER_TEST_CLAUDE'], str(self.target / 'debug/fake-claude'))
+        result, calls = self.invoke('--cpu', str(self.root / 'native-failure'), 'smith', 'qa', FAIL_BUILD='adapter')
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertEqual([call['name'] for call in calls], ['cargo', 'df', 'heavy'])
+        result, calls = self.invoke('--cpu', str(self.root / 'wrapper-failure'), 'smith', 'qa',
+                                    FAIL_BUILD='tools/tiers/cpu-wrapper.c')
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertIn('failed step CPU wrapper: exit 19', result.stderr)
+        self.assertEqual([call['name'] for call in calls], ['cargo', 'df', 'heavy', 'df', 'heavy'])
+
+    def test_verify_all_validates_budgets_before_any_command(self):
+        path = self.root / 'tools/tiers/budgets.toml'
+        for content in ('[unknown]\ncpu_suite_s=1', '[qa-smith]\nwall_hard_s=0',
+                        '[qa-smith]\ncpu_test_s=true', '[qa-smith]\nunknown=1', '[bad'):
+            with self.subTest(content=content):
+                path.write_text(content)
+                result, calls = self.invoke('--verify-all')
+                self.assertEqual(result.returncode, 2)
+                self.assertEqual(calls, [])
+        # Ordinary runs do not consult the opt-in budget file.
+        result, calls = self.invoke('smith', 'qa')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(len(calls), 2)
 
     def test_disk_wait_before_heavy(self):
         events = []

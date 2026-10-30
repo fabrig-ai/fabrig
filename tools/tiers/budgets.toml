@@ -1,0 +1,2 @@
+# User-set seconds per pair, e.g. [exhaustive-skein]. No budgets are set.
+# Optional keys: cpu_suite_s, cpu_test_s, wall_hard_s (finite, positive).
