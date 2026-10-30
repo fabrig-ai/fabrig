@@ -52,7 +52,7 @@ Provisional, 2026-10-29. One Codex owner on hel8 (`codex-run owner`, at high), p
 
 ## 5. The ledger and the numbers
 
-- `agents/ledger.md` is the operator's: a row per incident (goal, incident, cost, remedy, where it lives), written within the hour, the remedy landed through the queue like any change. The coordinator and the leads report incidents to the operator.
+- `agents/ledger.md` is the operator's: a row per incident (goal, incident, cost, remedy, where it lives), written within the hour, the remedy landed through the queue like any change. The coordinator and the leads report incidents to the operator. For a red whose cause class already appears in the ledger, assign an enforcing tool remedy with an owner and evidence of its check; repeating a prose rule does not close the remedy. Track proposed checks separately from installed enforcement.
 - Every hour, to the coordinator, a table under 15 lines: batches and their outcomes, the queue's busy share, merges per hour, rejections by cause, the build and test steps' durations, slots held and waiting, free disk per builder, and hel8's Claude and Codex weekly use with observation time and reset. Use hel8's own usage probe; fleet samples can belong to different subscriptions. A bottleneck named, with the remedy proposed.
 - `agents/backlog.md` sections 2 and 3 are the operator's to keep current.
 
