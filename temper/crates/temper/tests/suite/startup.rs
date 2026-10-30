@@ -111,14 +111,14 @@ fn rung_b0s_live_configuration_is_admitted_without_an_account_or_backend() {
 }
 
 #[test]
-fn a_rungs_return_hook_is_idempotent_and_refuses_unsafe_metadata_without_reading_the_file() {
+fn a_held_login_return_hook_is_idempotent_and_refuses_unsafe_metadata_without_reading_the_file() {
     let scratch = support::Scratch::startup("rung-return-hook");
     let root = scratch.path();
     let account = root.join("synthetic-record");
     // This is a synthetic file, never an account or a real login. A command
     // that should never be needed makes an accidental export fail the test.
     support::write_private(&account, b"synthetic fixture");
-    support::forge_land::rung::return_hook(Path::new("/must-not-export"), root, root, &account);
+    support::held_login::return_hook(Path::new("/must-not-export"), root, root, &account);
     let run = || std::process::Command::new(root.join("give-back")).output().expect("return hook");
     assert!(run().status.success(), "already returned file is accepted by stat");
     assert!(run().status.success(), "the launcher's second return is harmless");
@@ -144,11 +144,38 @@ esac
 "#,
     );
     fs::set_permissions(&stub, fs::Permissions::from_mode(0o700)).expect("executable synthetic ctl");
-    support::forge_land::rung::return_hook(&stub, root, root, &account);
+    support::held_login::return_hook(&stub, root, root, &account);
     assert!(run().status.success(), "export selects the actual account number from public ctl metadata");
     let returned = fs::symlink_metadata(&account).expect("returned synthetic record");
     assert!(returned.is_file() && returned.len() > 0);
     assert_eq!(returned.permissions().mode() & 0o777, 0o600);
+    scratch.remove();
+}
+
+#[test]
+fn a_held_login_import_refuses_after_returning_without_starting_ctl() {
+    let scratch = support::Scratch::startup("held-login-import");
+    let root = scratch.path();
+    let stub = root.join("ctl-stub's path");
+    support::write_private(
+        &stub,
+        br#"#!/bin/sh
+printf '%s\n' "$@"
+"#,
+    );
+    fs::set_permissions(&stub, fs::Permissions::from_mode(0o700)).expect("executable ctl stub");
+    let arguments = ["account", "import", "synthetic-record", "--key", "connect-plan"];
+    let call = support::held_login::import_guard(&stub, root, root, &arguments);
+    let ended = support::ctl::alone(root, call.clone());
+    assert_eq!(ended.exit, Some(skein_io::kernel::Exit::Code(0)));
+    assert_eq!(
+        String::from_utf8(ended.stdout).expect("stub arguments"),
+        format!("ctl\n{}\naccount\nimport\nsynthetic-record\n--key\nconnect-plan\n", root.display())
+    );
+    support::write_private(&root.join("returning"), b"");
+    let ended = support::ctl::alone(root, call);
+    assert_eq!(ended.exit, Some(skein_io::kernel::Exit::Code(1)));
+    assert!(ended.stdout.is_empty(), "refusal never starts ctl");
     scratch.remove();
 }
 

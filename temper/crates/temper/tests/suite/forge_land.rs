@@ -582,3 +582,10 @@ fn a_claude_plan_selects_provider_two_beside_demo_accounts() {
         ["account", "verify", "7", "--source", "program", "--json"]
     );
 }
+
+#[test]
+fn a_held_login_is_due_after_the_second_run_or_a_failed_first_run() {
+    for (first, failed, due) in [(true, false, false), (true, true, true), (false, false, true), (false, true, true)] {
+        assert_eq!(support::held_login::due_back(first, failed), due, "first={first} failed={failed}");
+    }
+}

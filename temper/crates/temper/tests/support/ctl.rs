@@ -49,6 +49,7 @@ pub enum Stdin {
 #[derive(Clone)]
 pub struct Call {
     arguments: Vec<Box<[u8]>>,
+    program: Option<PathBuf>,
     stdin: Stdin,
     directory: bool,
     client: Option<Box<[u8]>>,
@@ -58,10 +59,16 @@ impl Call {
     pub fn new(arguments: &[&str]) -> Self {
         Self {
             arguments: arguments.iter().map(|word| word.as_bytes().into()).collect(),
+            program: None,
             stdin: Stdin::Nothing,
             directory: true,
             client: None,
         }
+    }
+    /// Run a supervised executable with the same capture and drainage as ctl.
+    #[must_use]
+    pub fn command(program: &Path, arguments: &[&str]) -> Self {
+        Self { program: Some(program.into()), directory: false, ..Self::new(arguments) }
     }
     #[must_use]
     pub fn json(mut self) -> Self {
@@ -653,7 +660,7 @@ impl Calls {
         } else {
             CallKind::Ordinary
         };
-        let mut args: Vec<Box<[u8]>> = vec![b"ctl".as_slice().into()];
+        let mut args: Vec<Box<[u8]>> = if call.program.is_some() { Vec::new() } else { vec![b"ctl".as_slice().into()] };
         if call.directory {
             args.push(call.client.unwrap_or_else(|| self.client.clone()));
         }
@@ -666,7 +673,8 @@ impl Calls {
                 bytes
             }
         };
-        self.spawn(skein_scratch::paths::binary("temper").as_os_str().as_bytes().into(), args, input, started);
+        let program = call.program.unwrap_or_else(|| skein_scratch::paths::binary("temper"));
+        self.spawn(program.as_os_str().as_bytes().into(), args, input, started);
         if started {
             self.started.as_mut().expect("started call").0.kind = kind;
         } else {
