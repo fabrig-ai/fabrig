@@ -286,6 +286,7 @@ pub fn header(commits: u64) -> core::Record {
 #[must_use]
 pub fn live_task(number: u64) -> core::Record {
     core::Record::Tasks(tasks::Stored::Live(Box::new(tasks::TaskRecord {
+        room_wait: None,
         asked_requester: false,
         placed: None,
         settings: tasks::SettingsRevision { task: 1, run: None },

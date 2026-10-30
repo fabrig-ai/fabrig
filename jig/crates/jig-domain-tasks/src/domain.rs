@@ -1399,6 +1399,7 @@ pub(crate) fn make_admitted(
             published: None,
             procedure_offered: None,
             record: TaskRecord {
+                room_wait: None,
                 asked_requester: false,
                 placed: None,
                 settings: crate::SettingsRevision { task: domain.newest, run: None },

@@ -1018,6 +1018,8 @@ pub struct RoomWait {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "independent durable lifecycle facts are explicit")]
 pub struct TaskRecord {
+    /// Refused live-task room and refusal order (domain/tasks.md, 5.3).
+    pub room_wait: Option<RoomWait>,
     /// The placed hold holding this task, whatever its phase says (domain/tasks.md, 5.9).
     pub placed: Option<u64>,
     /// Settings read by this task and its run (domain/engine.md, 17.3).
@@ -1386,17 +1388,17 @@ impl Problem {
     #[must_use]
     pub const fn freeing_count(&self) -> Option<LiveRoom> {
         let Some(capacity) = self.capacity else { return None };
-        if let crate::CapacityAction::Batch { .. } = capacity.action {
-            match (&self.why, capacity.cause) {
-                (Refusal::Live, crate::CapacityCause::Tasks { .. }) => Some(LiveRoom::Deployment),
-                (Refusal::Project, crate::CapacityCause::ProjectTasks { .. }) => match capacity.project {
+        match (capacity.action, &self.why, capacity.cause) {
+            (crate::CapacityAction::Batch { .. }, Refusal::Live, crate::CapacityCause::Tasks { .. }) => {
+                Some(LiveRoom::Deployment)
+            }
+            (crate::CapacityAction::Batch { .. }, Refusal::Project, crate::CapacityCause::ProjectTasks { .. }) => {
+                match capacity.project {
                     Some(project) => Some(LiveRoom::Project(project)),
                     None => None,
-                },
-                _ => None,
+                }
             }
-        } else {
-            None
+            _ => None,
         }
     }
 

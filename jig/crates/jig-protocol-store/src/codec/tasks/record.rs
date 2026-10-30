@@ -431,10 +431,34 @@ fn task_interests(source: &domain::TaskRecord, limits: &wire::Limits) -> Result<
     )
 }
 
+fn optional_room_wait(
+    source: Option<domain::RoomWait>,
+    limits: &wire::Limits,
+) -> Result<Option<wire::RoomWait>, wire::Problem> {
+    let Some(source) = source else { return Ok(None) };
+    let room = match source.room {
+        domain::LiveRoom::Deployment => wire::LiveRoom::Deployment,
+        domain::LiveRoom::Project(project) => {
+            wire::LiveRoom::Project(wire::RoomProject::new(limits, wire::RoomProjectParts { project })?)
+        }
+    };
+    Ok(Some(wire::RoomWait::new(limits, wire::RoomWaitParts { room, order: source.order })?))
+}
+
+fn read_optional_room_wait(source: Option<wire::RoomWait>) -> Option<domain::RoomWait> {
+    let source = source?.into_parts();
+    let room = match source.room {
+        wire::LiveRoom::Deployment => domain::LiveRoom::Deployment,
+        wire::LiveRoom::Project(project) => domain::LiveRoom::Project(project.project()),
+    };
+    Some(domain::RoomWait { room, order: source.order })
+}
+
 fn task_outcome(source: &domain::TaskRecord, limits: &wire::Limits) -> Result<wire::TaskOutcome, wire::Problem> {
     wire::TaskOutcome::new(
         limits,
         wire::TaskOutcomeParts {
+            room_wait: optional_room_wait(source.room_wait, limits)?,
             attempt: source.attempt,
             last_answer: source.last_answer,
             tries: value::tries(&source.tries, limits)?,
@@ -454,6 +478,7 @@ pub fn read_task_record(source: wire::TaskRecord, limits: &wire::Limits) -> Resu
     let outcome = outcome.into_parts();
     let Inbox { words: inbox, credits: questions } = read_inbox(interests.inbox, limits)?;
     Ok(domain::TaskRecord {
+        room_wait: read_optional_room_wait(outcome.room_wait),
         asked_requester,
         label: definition.label,
         flags: phase::read_flags(definition.flags),

@@ -89,11 +89,18 @@ fn only_live_batch_counts_name_freeing_room() {
                         _ => None,
                     };
                     let capacity = Capacity { project, by: Party::Person(9), action, cause };
-                    let problem = Problem::capacity(None, why.clone(), capacity);
+                    let problem = Problem::capacity(None, why, capacity);
                     assert_eq!(problem.freeing_count(), expected, "{problem:?}");
                 }
             }
         }
         assert_eq!(Problem::new(None, why).freeing_count(), None, "bare refusals name no room");
     }
+}
+
+#[test]
+fn a_new_task_has_no_room_wait() {
+    let mut h = Harness::new();
+    h.make([task(1, &[])].into());
+    assert_eq!(h.domain.task(1).expect("made task").room_wait, None);
 }

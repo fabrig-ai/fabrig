@@ -503,3 +503,20 @@ fn task_numbers(count: u32) -> Box<[u64]> {
     }
     numbers.into_boxed()
 }
+
+#[test]
+fn a_task_room_wait_round_trips_with_its_refusal_order() {
+    assert_eq!(fixtures::task_record().room_wait, None);
+    for room_wait in [
+        None,
+        Some(domain::RoomWait { room: domain::LiveRoom::Deployment, order: 1 }),
+        Some(domain::RoomWait { room: domain::LiveRoom::Project(7), order: 2 }),
+        Some(domain::RoomWait { room: domain::LiveRoom::Deployment, order: u64::MAX }),
+        Some(domain::RoomWait { room: domain::LiveRoom::Project(u32::MAX), order: u64::MAX }),
+    ] {
+        let mut record = current_record();
+        record.room_wait = room_wait;
+        let row = live_record(record);
+        assert_eq!(saved_tasks(&row), Ok(row));
+    }
+}
