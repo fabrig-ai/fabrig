@@ -818,7 +818,8 @@ Both worker and restart freeze the complete runtime list above, including
 `coordinators_sha256` as well as per-file digests. Restart compiles and validates
 all source/list/route files before requesting stop, then checks their frozen
 bytes after drain and before replacement launch. This validation admits no new
-publication and does not replace saved intent routes. Queue startup reconciles
+publication and does not replace saved intent routes. Plan and dry runs refuse pending publication/effect work without pushing or
+cleaning refs; a nondry writer must reconcile it first. Queue startup reconciles
 pending intents before loading coordinator configuration for new work; restart
 reconciles under the same authority and checkout locks before fetch/reset.
 
@@ -842,7 +843,9 @@ OIDs are full lowercase 40- or 64-hex commit identifiers. Booleans cannot
 satisfy integer fields. Each merge has `name`, pinned `tip` B, carrying `commit`
 M, first `parent` P and the canonical route fields. Prove M's exact parents
 are `[P,B]`, and that the entries cover the candidate interval's first-parent
-carrying merges in order. Record final amended M after ratchet resolution;
+carrying merges in order. Train preparation retains its contained-input evidence and stored chain shape;
+that evidence is separate from the publication merge array. Record final
+amended M after ratchet resolution;
 baseline commits above M stay outside the array. A tip already reachable from
 HEAD creates no carrying merge and no entry. A wholly already-reachable batch
 is recorded as an `already-reachable` diagnostic and its pinned tips are marked
@@ -873,7 +876,9 @@ policy diagnostics have no authoritative landing fields. Successful bisection
 halves receive separate intents; the failed original batch is not a landing.
 
 Append logically by replacing the journal through a fsynced private sibling,
-preserving every previous byte. Refuse incomplete tails, malformed/duplicate-key
+preserving every previous byte. All writers, including refusal audits that
+precede main-authority acquisition, serialize on the owned private sibling
+`<journal>.lock` inode. This lock is never unlinked. Refuse incomplete tails, malformed/duplicate-key
 JSON, nonobjects, duplicate publication identities and conflicting saved rows.
 An identical complete row is replay, not another append. Fsync file and directory
 before committing `journal-confirmation.json`, whose exact fields are integer

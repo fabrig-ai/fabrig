@@ -1,5 +1,6 @@
 """Saved-candidate publication and reconciliation (tools/queue/design.md, 3.11)."""
 
+from contextlib import contextmanager
 from datetime import datetime
 import hashlib
 import importlib.util
@@ -23,7 +24,7 @@ LANDING_FIELDS = {"publication_id", "publication_time", "merges"}
 def coordinators(data):
     """Parse exact configuration bytes; an absent key is a supported route."""
     text = data.decode("utf-8")
-    if any(ord(c) < 32 and c not in "\n\t" or ord(c) == 127 for c in text):
+    if any(not c.isprintable() and c not in "\n\t" for c in text):
         raise ValueError("controls in coordinators.txt")
     result = {}
     for line in text.splitlines():
@@ -69,7 +70,7 @@ def validate_route(value):
 def explicit_origin(value):
     # Git accepts URL userinfo and helpers; saved authority accepts neither passwords nor helpers.
     if (not isinstance(value, str) or not value or value.startswith("-") or
-            any(ord(c) < 33 or ord(c) == 127 for c in value)):
+            any(not c.isprintable() for c in value)):
         raise ValueError("invalid explicit credential-free origin")
     if Path(value).is_absolute():
         return value
@@ -199,6 +200,15 @@ def graph(intent, git, repo):
 
 
 
+@contextmanager
+def journal_lock(path):
+    # Refusal audits can precede main-authority acquisition; every journal writer shares this inode.
+    path = Path(path)
+    durable.directory(path.parent, private=False)
+    with authority.Lock(path.with_name(path.name + ".lock")):
+        yield
+
+
 class Store:
     def __init__(self, root, repo, git, guard):
         self.root = Path(root)
@@ -278,28 +288,29 @@ class Store:
     def journal(self, intent, *, append):
         self.guard()
         path = Path(intent["journal_path"])
-        # The queue creates this external directory before preparing an intent.
-        durable.directory(path.parent, private=False)
-        data = durable.read_bytes(path) if path.exists() or path.is_symlink() else b""
-        if data and not data.endswith(b"\n"):
-            raise ValueError("incomplete journal tail")
-        matched = False
-        for line in data.splitlines():
-            row = durable.read_json(line)
-            validate_record(row)
-            if row.get("publication_id") == intent["publication_id"]:
-                if matched or durable.encoded(row) != durable.encoded(intent["journal_row"]):
-                    raise ValueError("conflicting or duplicate journal publication")
-                matched = True
-        if not matched:
-            if not append:
-                raise ValueError("confirmation has no exact journal row")
-            durable.publish(path, data + durable.encoded(intent["journal_row"]), private_parent=False)
-        else:
-            # A previous rename may have returned before directory fsync.
-            with path.open("rb") as source:
-                durable.os.fsync(source.fileno())
-            durable.sync_directory(path.parent)
+        with journal_lock(path):
+            # The queue creates this external directory before preparing an intent.
+            durable.directory(path.parent, private=False)
+            data = durable.read_bytes(path) if path.exists() or path.is_symlink() else b""
+            if data and not data.endswith(b"\n"):
+                raise ValueError("incomplete journal tail")
+            matched = False
+            for line in data.splitlines():
+                row = durable.read_json(line)
+                validate_record(row)
+                if row.get("publication_id") == intent["publication_id"]:
+                    if matched or durable.encoded(row) != durable.encoded(intent["journal_row"]):
+                        raise ValueError("conflicting or duplicate journal publication")
+                    matched = True
+            if not matched:
+                if not append:
+                    raise ValueError("confirmation has no exact journal row")
+                durable.publish(path, data + durable.encoded(intent["journal_row"]), private_parent=False)
+            else:
+                # A previous rename may have returned before directory fsync.
+                with path.open("rb") as source:
+                    durable.os.fsync(source.fileno())
+                durable.sync_directory(path.parent)
 
     def confirmation(self, intent):
         return {"version": 1, "publication_id": intent["publication_id"],

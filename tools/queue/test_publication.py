@@ -458,6 +458,31 @@ store.reconcile()
         self.store.reconcile()
         self.assertEqual(self.rows(), [intent["journal_row"]])
 
+    def test_diagnostic_writer_cannot_race_publication_replacement(self):
+        intent = self.prepare()
+        publish = pub.durable.publish
+        observations = []
+        def inspect(path, data, **kwargs):
+            if Path(path) == self.journal:
+                with self.assertRaisesRegex(RuntimeError, "holds this checkout or queue authority"):
+                    mq.log_batch(self.journal, {"event": "refusal"})
+                observations.append("excluded")
+            return publish(path, data, **kwargs)
+        with patch.object(pub.durable, "publish", side_effect=inspect):
+            self.store.reconcile()
+        mq.log_batch(self.journal, {"event": "refusal"})
+        self.assertEqual(observations, ["excluded"])
+        self.assertEqual(self.rows(), [intent["journal_row"], {"event": "refusal"}])
+
+    def test_plan_and_dry_block_pending_publication_without_push(self):
+        intent = self.prepare()
+        for options in ({"dry": True}, {"read_only": True}):
+            with self.subTest(options=options), self.assertRaisesRegex(RuntimeError, "nondry reconciliation"):
+                self.f.queue(**options)
+        self.assertEqual(self.remote(), self.base)
+        self.assertEqual(self.rows(), [])
+        self.assertTrue((self.store.root / intent["publication_id"] / "intent.json").exists())
+
 
 if __name__ == "__main__":
     os.umask(0o077)

@@ -201,7 +201,7 @@ def merge_ratchets(repo, paths, before):
     return None
 
 
-def build_batch(repo, branches, base="origin/main"):
+def build_batch(repo, branches, base="origin/main", *, keep_contained=False):
     """Merge pinned tips, resolving only old-form baselines (design.md, 3.3)."""
     ensure_clean(repo)
     git(repo, "switch", "--detach", base)
@@ -226,7 +226,7 @@ def build_batch(repo, branches, base="origin/main"):
                 conflicts.append({**branch, "error": result.stdout})
                 continue
         commit = git(repo, "rev-parse", "HEAD").stdout.strip()
-        if commit != before:
+        if commit != before or keep_contained:
             merged.append({**branch, "commit": commit, "parent": before})
     return merged, conflicts
 
@@ -571,13 +571,14 @@ def post(address, subject, body):
 
 def log_batch(path, record):
     path.parent.mkdir(parents=True, exist_ok=True)
-    previous = publication.durable.read_bytes(path) if path.exists() or path.is_symlink() else b""
-    if previous and not previous.endswith(b"\n"):
-        raise ValueError("incomplete journal tail")
-    for line in previous.splitlines():
-        publication.validate_record(publication.durable.read_json(line))
-    publication.validate_record(record)
-    publication.durable.publish(path, previous + publication.durable.encoded(record), private_parent=False)
+    with publication.journal_lock(path):
+        previous = publication.durable.read_bytes(path) if path.exists() or path.is_symlink() else b""
+        if previous and not previous.endswith(b"\n"):
+            raise ValueError("incomplete journal tail")
+        for line in previous.splitlines():
+            publication.validate_record(publication.durable.read_json(line))
+        publication.validate_record(record)
+        publication.durable.publish(path, previous + publication.durable.encoded(record), private_parent=False)
 
 
 def utc_now():
@@ -590,7 +591,7 @@ class Queue:
     def __init__(self, repo, *, batch=8, full_every=5, dry=False,
                  state_path=None, log_path=None, checker=run_checks, poster=post,
                  metadata_loader=load_metadata, now=time.time, disk_floor=45, repair=None, writer_guard=None,
-                 repair_hold=False, publication_root=None):
+                 repair_hold=False, publication_root=None, read_only=False):
         if writer_guard is None:
             raise RuntimeError("Queue mutation requires an injected sole authority/startup guard")
         self.repo = Path(repo).resolve()
@@ -627,6 +628,8 @@ class Queue:
         root = publication_root or (WRITER_LEASE.path.parent / "publications" if WRITER_LEASE is not None
                                     else self.repo.with_name(self.repo.name + ".publications"))
         self.publications = publication.Store(root, self.repo, lambda *a, **kw: git(*a, **kw), self.writer_guard)
+        if (self.dry or read_only) and self.publications.entries():
+            raise RuntimeError("pending publication requires nondry reconciliation before plan/dry")
         # Reconcile saved authority before loading any replacement roster.
         try:
             recovered = self.publications.reconcile()
@@ -812,7 +815,10 @@ class Queue:
                 for branch in reachable:
                     self.state["tried"][branch["name"]] = branch["tip"]
                 self.save()
-                record.update(event="already-reachable", outcome="green")
+                if conflicts:
+                    record["outcome"] = "conflict"
+                else:
+                    record.update(event="already-reachable", outcome="green")
                 return True
             paths = changed_paths(self.repo)
             selected = "full" if idle or force_full else self.choose(paths)
@@ -1193,6 +1199,7 @@ def main():
             queue = Queue(repo, batch=args.batch, full_every=args.full_every, disk_floor=args.disk_floor,
                           dry=getattr(args, "dry", False), repair=repair,
                           repair_hold=args.repair_hold, publication_root=layout.root / "publications",
+                          read_only=args.action == "plan",
                           writer_guard=lambda: (lease.guard(), layout.legacy_guard(repo)))
             admitted = True
             if args.action == "plan":

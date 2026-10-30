@@ -44,13 +44,14 @@ class RouteTests(unittest.TestCase):
 
     def test_strict_coordinator_config(self):
         rows = [b"coord local\n", b"coord x@host extra\n", b"coord x@host\ncoord -\n",
-                b"bad/key x@host\n", b"coord x@host\r\n", b"coord x@host\x00\n", b"\xff"]
+                b"bad/key x@host\n", b"coord x@host\r\n", b"coord x@host\x00\n", b"# hidden\xc2\x85control\n", b"\xff"]
         for value in rows:
             with self.subTest(value=value), self.assertRaises(ValueError):
                 pub.coordinators(value)
         self.assertEqual(pub.coordinators(b"# routes\n\ncoord\tx@host # saved\n"), {"coord": "x@host"})
 
     def test_credential_free_origins(self):
+        self.assertEqual(pub.explicit_origin("/fixture/origin with space.git"), "/fixture/origin with space.git")
         for value in ("https://user:password@fixture.example/repo", "https://token@fixture.example/repo",
                       "ext::helper", "-origin", "ssh://user:password@host/repo"):
             with self.subTest(value=value), self.assertRaises(ValueError):
