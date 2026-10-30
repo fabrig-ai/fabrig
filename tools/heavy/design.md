@@ -93,11 +93,18 @@ wait times use wall-clock timestamps.
 
 `HEAVY_MIN_FREE_BYTES=<decimal bytes>` opts one submission into an exact-byte
 wait. Only ASCII digits are accepted: no signs, whitespace, separators, units
-or fractions. Absent or empty retains the disk behavior above, including the
+or fractions. Leading zeros are normalized before conversion. At most 640
+significant decimal digits are supported; longer values refuse before
+persistence, independently of `PYTHONINTMAXSTRDIGITS`. Python 3.11+ permits
+conversion limits down to 640 digits, so accepted byte minima remain numeric
+JSON readable even by that strictest supported setting. This representation
+limit changes no disk floor, slot cap or timeout. Absent or empty retains the disk behavior above, including the
 rounded `df -BG`/GiB observations and landing timeout. Zero opts in with no
 extra caller floor. Invalid input refuses with exit 2 before creating a task.
-Opting in requires an installed reconciler; plain execution cannot enforce
-this wait and refuses instead. No machine setting or caller floor is changed.
+Opting in requires both the operator deployment proof in section 7 and an
+installed reconciler. The installation check proves containment/recovery only,
+not exclusion of older writers. Plain execution cannot enforce this wait and
+refuses instead. No machine setting or caller floor is changed.
 
 For an opted-in task, free bytes are exactly
 `os.statvfs(command cwd).f_bavail * f_frsize`. Its effective minimum is
@@ -121,6 +128,15 @@ waiting with a fresh payload unit name. Capacity stays owned through cleanup;
 the byte wait then holds no payload cgroup or build slot. Repeated attempts
 retain distinct admission/scope evidence. Cancellation and recovery work even
 when their caller inherits an invalid or too-high override.
+
+A failed cwd `statvfs` observation is unavailable evidence, never permission to
+admit or a fallback to DEV_ROOT. That task remains in its indefinite byte wait;
+contained failure uses the same `disk-retry` cleanup as a low observation.
+`byte_observation_failed` records this condition, and its waiting event has a
+null observation. A successful observation clears it. One task's unavailable
+filesystem does not abort shared reconciliation, unrelated cancellation or
+cgroup cleanup. The waiting client can report unavailable space without
+exiting.
 
 ## 3. Durable state and release
 
@@ -276,13 +292,14 @@ Run the offline suites directly; they build nothing:
 
 ```
 python3 -B tools/heavy/test-heavy-plain
+python3 -B tools/heavy/test-heavy-byte-repairs
 python3 -B tools/heavy/test-receipt-inputs
 python3 -B tools/heavy/test-gate-policy
 python3 -I -B tools/test_install.py
 tools/install --dry-run
 ```
 
-The queue's automatic tools step includes `test-heavy-plain`,
+The queue's automatic tools step includes `test-heavy-byte-repairs`, `test-heavy-plain`,
 `test-gate-policy`, `test-receipt-inputs` and the installer tests. It runs
 executable `test-*` suites directly through their shebangs. Exactly
 `tools/heavy/test-heavy-recovery` is excluded because it installs real
@@ -349,14 +366,56 @@ runtime files are `heavy`, `heavy-recovery.py`, `kit.sh`, `gate-policy.sh`,
 the real executable, independent of the caller's working directory.
 
 The byte wait deploys through the normal fabrig tools installation below and
-is inert until a caller opts in. Retain queue identity, version 1 state and
-`heavy-receipt-v1`; no migration or receipt rewrite is required. Existing tasks
-lack the additive fields and keep their submitted legacy floor semantics.
-Before rolling back to a helper without byte-wait support, stop new opt-ins and
-complete or cancel every unfinished opted-in task using the new helper, then
-reconcile to empty cgroups and receipts. An old helper ignores optional fields
-but cannot enforce a pending byte wait or its `disk-retry` transition. Finished
-receipts and additive fields may remain; do not reset or delete queue state.
+is inert until a caller opts in. Retain queue identity, version 1 state,
+operator holds, task history, logs, receipts and `heavy-receipt-v1`. The new
+helper can read pre-feature tasks without changing their legacy semantics.
+That is one-way old-task compatibility, not safe coexistence of old and new
+queue writers after opt-in.
+
+Before the first opt-in on each queue, Ops must record deployment proof and
+explicitly approve enabling its callers. Reconciler installation or
+`--check-recovery` alone is insufficient. The proof must identify the machine,
+canonical queue path/identity, boot, deployed revision/helper digests, every
+resolved writer entrypoint and its disposition, the drained wrapper/submitter
+lifetimes and empty-cgroup/release evidence, and the reconciler's new helper
+and environment. This task enables no production caller. Ops must:
+
+1. Freeze new submissions from all producers. Drain or cancel all pre-feature
+   work through its supported owner and reconciler, then prove every prior
+   wrapper and in-flight submitter has ended, every task scope is empty, and
+   releases/receipts are durable. Replacing files does not update Python code
+   already running in a wrapper or reconciler. Preserve existing operator holds.
+2. Update or disable every pre-feature writer for this queue: canonical fabrig
+   heavy, retained fabrig/agents copies, sibling heavy invoked by agents land,
+   direct helper invocations and the independent reconciler. Retained paths
+   may remain only if they resolve to reviewed compatible code or cannot write
+   this queue. A PATH symlink update alone does not cover sibling entrypoints.
+   Prevent provisioning or `setup --fix` from restoring a pre-feature writer.
+3. Install/repoint recovery to the reviewed helper on the same queue and verify
+   it and all enabled writers against the recorded revision/digests. Record
+   absence of old in-flight code as well as the on-disk paths. An already
+   running pre-feature reconciler invocation must end; changing ExecStart
+   does not replace that process. Keep opt-ins off
+   until Ops has reviewed this evidence and issued the enable decision. Any
+   reintroduction of an unverified writer invalidates that decision.
+
+The restricted boundary is pinned to pre-feature commit
+`b3dcc345c0796e2fd801c2e5b323fc5a2e5ff6ec`. That helper treats an opted-in
+landing as a legacy timed wait, excludes `disk-retry` from LIVE capacity and
+can publish a byte task's receipt without its byte evidence. Updating only the
+reconciler cannot make older wrappers safe. The offline
+`test-heavy-byte-repairs` executes those pinned functions against disposable
+fake state to establish all three restrictions, with no live queue or service.
+The recovery suite's `rollback` case copies the current helper between layouts;
+it establishes relocation only and makes no pre-feature coexistence claim.
+
+For rollback, freeze producers and stop new opt-ins, then complete or cancel
+all unfinished opted-in tasks with the new helper. Prove empty scopes, durable
+release and receipts, and ended writer lifetimes before restoring older code.
+Do not reset/delete the queue or rewrite receipts. Older strict landing readers
+can reject optional byte fields: retain that evidence as history and rerun gates
+with the rolled-back tools when necessary. Ops records the rollback boundary
+with the same writer inventory and lifetime proof.
 
 After this branch has landed, run on each machine in a login shell:
 
@@ -380,19 +439,15 @@ queue. Do not copy, reset or retire state, remove the reconciler, or create
 a fresh queue for this move. A machine without recovery installed does not
 need these two management commands.
 
-Transient wrapper and payload services already in flight retain their
-entrypoint paths, and their environment files preserve the submitted roots.
-Keep the agents copy available for them. They share the same ledger,
-formats and queue with fabrig's reconciler. Receipt paths and logs depend
-on the retained state directory, not the script directory. Gate policy
-uses adjacent helpers and content digests; new submissions recompute it.
-No receipt rewrite, forced policy ID or cache deletion accompanies install.
-An agents landing tool still invokes its sibling agents heavy; moving
-those tools is separate. Existing and new callers continue to share the
-same host queue, although their implementation policies can differ. The
-agents provisioning command `setup --fix` still relinks its sibling heavy;
-when using it, run fabrig's `~/src/fabrig/main/tools/install` afterward to
-restore the manifest links.
+Entrypoint relocation preserves queue identity and submitted roots. For the
+byte feature it is permitted only within the writer restrictions above:
+pre-feature services must finish before opt-ins begin, and retained entrypoints
+must be updated or disabled. There is no approved mixed-writer window with
+byte tasks present. Compatible reviewed implementations may share a queue
+through different paths after Ops proves the deployment boundary. Receipt and
+log paths depend on the state directory, not the executable directory. Gate
+policy uses adjacent helpers/content digests; rerun gates when that policy
+changes. No forced policy ID or cache deletion accompanies installation.
 
 A different recorded queue identity can be an older daemon-based ledger.
 Heavy takes it over only once all its tasks are released, records migration,

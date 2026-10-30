@@ -41,6 +41,8 @@ ROOM_AFTER = 120  # Reservation after release (tools/heavy/design.md 2).
 DISK_WAIT_LIMIT = 20 * 60  # Time below a landing's floor (tools/heavy/design.md 2).
 SNAPSHOT_READ_S = 1.0  # Waiting clients read at most once a second (tools/heavy/design.md 3).
 FLOOR_REFUSAL = 'disk floor refused before payload start'
+# Python 3.11+ permits a decimal conversion limit as low as 640 digits.
+MAX_MIN_FREE_DECIMAL_DIGITS = 640
 CGROOT = Path('/sys/fs/cgroup')
 CANCELLED = 130  # A cancelled task's exit, as check.sh and codex-run exit on SIGINT.
 USAGE = 'usage: heavy [--gate | --land] [--tail N] [--] command... | heavy --cancel TOKEN'
@@ -101,10 +103,10 @@ def submitted_min_free_bytes():
         return None
     if re.fullmatch(r'[0-9]+', value) is None:
         raise Refusal('HEAVY_MIN_FREE_BYTES must be decimal bytes (digits only)')
-    try:
-        return int(value)
-    except ValueError:
-        raise Refusal('HEAVY_MIN_FREE_BYTES must be decimal bytes (digits only)') from None
+    value = value.lstrip('0') or '0'
+    if len(value) > MAX_MIN_FREE_DECIMAL_DIGITS:
+        raise Refusal('HEAVY_MIN_FREE_BYTES exceeds the supported 640 significant decimal digits')
+    return int(value)
 
 
 def minimum_bytes(task):
@@ -128,17 +130,31 @@ def free_bytes(task):
     return st.f_bavail * st.f_frsize
 
 
+def observe_bytes(task):
+    # A command filesystem can disappear while its task waits. Missing
+    # evidence blocks only that task's admission, never shared cleanup.
+    try:
+        return free_bytes(task)
+    except OSError:
+        return None
+
+
 def track_byte_wait(ledger, task, free):
-    waiting = free < minimum_bytes(task)
-    if waiting == ('byte_wait' in task):
+    failed = free is None
+    waiting = failed or free < minimum_bytes(task)
+    if waiting == ('byte_wait' in task) and failed == task.get('byte_observation_failed', False):
         return
     if waiting:
-        task['byte_wait'] = time.time_ns()
+        task.setdefault('byte_wait', time.time_ns())
     else:
-        task.pop('byte_wait')
+        task.pop('byte_wait', None)
+    if failed:
+        task['byte_observation_failed'] = True
+    else:
+        task.pop('byte_observation_failed', None)
     ledger.event(task, 'byte_wait:' + uuid.uuid4().hex, waiting=waiting,
                  min_free_bytes=task['min_free_bytes'], minimum_free_bytes=minimum_bytes(task),
-                 observed_free_bytes=free)
+                 observed_free_bytes=free, observation_failed=failed)
     ledger.save()
 
 
@@ -687,7 +703,8 @@ def older_room_ready(ledger, task, reserved):
                 or int(other['id']) >= int(task['id']) or landing(other)):
             continue
         if 'min_free_bytes' in other:
-            if free_bytes(other) < minimum_bytes(other) + reserved * 2**30:
+            observed = observe_bytes(other)
+            if observed is None or observed < minimum_bytes(other) + reserved * 2**30:
                 return False
         elif 'min_free_bytes' in task and free_gb() < floor_of(other) + reserved:
             return False
@@ -702,9 +719,9 @@ def admissible(ledger, task) -> bool:
     if older >= room(ledger, task):
         return False
     if 'min_free_bytes' in task:
-        free = free_bytes(task)
+        free = observe_bytes(task)
         track_byte_wait(ledger, task, free)
-        if free < minimum_bytes(task):
+        if free is None or free < minimum_bytes(task):
             return False
         if not is_landing and task['lane'] == 'build' and (reserved := reservation(ledger.tasks)) is not None:
             if free < minimum_bytes(task) + reserved * 2**30 or not older_room_ready(ledger, task, reserved):
@@ -734,7 +751,7 @@ def reconcile(ledger):
         orphan = task['state'] not in (*UNCLAIMED, 'released') and (
             task['boot'] != boot() or not alive(task.get('wrapper')))
         if task['state'] in ('queued', 'waiting') and 'min_free_bytes' in task and not orphan:
-            track_byte_wait(ledger, task, free_bytes(task))
+            track_byte_wait(ledger, task, observe_bytes(task))
             if 'byte_wait' in task and ledger.data['gate'] == task['token']:
                 ledger.data['gate'] = None
                 ledger.save()
@@ -1032,7 +1049,7 @@ def submit(args, lane, tail_lines, exclusive):
         Path(task['capture']).touch(mode=0o600)
         ledger.event(task, 'submit')
         if min_free_bytes is not None:
-            track_byte_wait(ledger, task, free_bytes(task))
+            track_byte_wait(ledger, task, observe_bytes(task))
         ledger.save()
         env = safe_environment()
         env['HEAVY_TASK'] = '1'
@@ -1087,7 +1104,9 @@ def submit(args, lane, tail_lines, exclusive):
             free = None
             if spell is not None and spell != disk_spell:
                 if 'min_free_bytes' in task:
-                    say(f"heavy: task {task['id']} waits for free disk: {free_bytes(task)} bytes free on "
+                    observed = observe_bytes(task)
+                    space = 'unavailable free space' if observed is None else f'{observed} bytes free'
+                    say(f"heavy: task {task['id']} waits for free disk: {space} on "
                         f"{task['repo']}, minimum {minimum_bytes(task)} bytes; waiting until space recovers", sys.stderr)
                 else:
                     free = free_gb()
@@ -1099,9 +1118,9 @@ def submit(args, lane, tail_lines, exclusive):
                 reserved = reservation(snapshot['tasks'])
                 if reserved is not None:
                     if 'min_free_bytes' in task:
-                        free = free_bytes(task)
+                        free = observe_bytes(task)
                         required = minimum_bytes(task) + reserved * 2**30
-                        held = free < required and free >= minimum_bytes(task)
+                        held = free is not None and free < required and free >= minimum_bytes(task)
                         if held and not room_spell:
                             say(f"heavy: task {task['id']} waits for a landing's room: {free} bytes free, "
                                 f"starting at {required} bytes", sys.stderr)
@@ -1318,8 +1337,8 @@ def prepare_payload_policy(token):
 def payload_byte_floor(ledger, task):
     if task['state'] != 'active':
         return False
-    free = free_bytes(task)
-    if free >= minimum_bytes(task):
+    free = observe_bytes(task)
+    if free is not None and free >= minimum_bytes(task):
         return True
     task['state'] = 'disk-retry'
     ledger.event(task, 'disk_retry_begin', minimum_free_bytes=minimum_bytes(task),

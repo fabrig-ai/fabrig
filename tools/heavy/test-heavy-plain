@@ -32,6 +32,10 @@ class Plain(unittest.TestCase):
         self.tmp = self.root / 'tmp'
         for path in (self.home, self.bin, self.cwd, self.tmp):
             path.mkdir()
+        # Installed-but-broken fixtures refuse locally without a user-bus probe.
+        control = self.bin / 'systemctl'
+        control.write_text('#!/bin/sh\nexit 1\n')
+        control.chmod(0o700)
         self.state = self.tmp / 'heavy' / 'state.json'
         self.env = {'PATH': str(self.bin) + ':' + os.defpath, 'HOME': str(self.home),
                     'DEV_ROOT': str(self.root), 'DEV_TMP': str(self.tmp)}

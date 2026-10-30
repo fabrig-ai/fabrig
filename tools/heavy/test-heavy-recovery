@@ -240,6 +240,8 @@ class Lab:
             for key in ('submitted', 'payload_started', 'payload_ended', 'ended', 'disk_wait'):
                 if key in task:
                     task[key] -= seconds
+            if 'byte_wait' in task:
+                task['byte_wait'] -= int(seconds * 1_000_000_000)
             if changed_boot:
                 # Stop only while we own the lock, so the timer can recover it.
                 os.kill(task['wrapper']['pid'], signal.SIGSTOP)
@@ -1062,7 +1064,9 @@ def byte_wait(lab, minimum=100, floor=0, gate=False):
     token, number = task['token'], task['id']
     assert next(e for e in lab.events() if e['token'] == token)['event'] == 'submit'
     wait_for(lambda: 'waits for free disk:' in (lab.path / (label + '.client.txt')).read_text(), 'byte wait diagnostic')
+    byte_wait_started = task['byte_wait']
     lab.age(label, 86400)
+    assert lab.task(label)['byte_wait'] == byte_wait_started - 86400 * 1_000_000_000
     # Invalid caller settings cannot change submitted state during recovery.
     lab.call([HEAVY, '--reconcile'], environment=dict(lab.env, HEAVY_MIN_FREE_BYTES='invalid'))
     assert lab.task(label)['state'] == 'waiting' and not marker.exists()
