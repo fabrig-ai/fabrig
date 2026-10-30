@@ -13,6 +13,7 @@ import secrets
 import stat
 import subprocess
 import sys
+import time
 
 
 def private(info, directory=False):
@@ -44,12 +45,14 @@ def open_directory(path):
         raise
 
 
-def read_private(directory, name):
+def read_private(directory, name, with_info=False):
     fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory)
     try:
-        private(os.fstat(fd))
+        info = os.fstat(fd)
+        private(info)
         with os.fdopen(fd, "r", encoding="utf-8", closefd=False) as stream:
-            return stream.read()
+            contents = stream.read()
+            return (contents, info) if with_info else contents
     finally:
         os.close(fd)
 
@@ -110,6 +113,19 @@ def publish(directory, record):
         os.fsync(directory)
 
 
+def validate_time(value, ended_ns, now_ns):
+    """Use the consumer's datetime precision, then compare integer nanoseconds."""
+    if not isinstance(value, str) or not re.fullmatch(
+            r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?Z", value):
+        raise ValueError("invalid final UTC time")
+    parsed = datetime.datetime.fromisoformat(value.replace("Z", "+00:00"))
+    elapsed = parsed - datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
+    parsed_ns = ((elapsed.days * 86400 + elapsed.seconds) * 1_000_000_000
+                 + elapsed.microseconds * 1000)
+    if not ended_ns <= parsed_ns <= now_ns:
+        raise ValueError("final time must not precede completion or be in the future")
+
+
 def declare(root, identifier, owner, disposition, content, seconds):
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", identifier):
         raise ValueError("unsafe run identity")
@@ -139,7 +155,7 @@ def declare(root, identifier, owner, disposition, content, seconds):
         if owners != [owner]:
             raise ValueError("final owner must equal the run's recorded recipient")
         # Completion evidence is required for safe liveness, not task finality.
-        read_private(directory, "ended")
+        _, ended_info = read_private(directory, "ended", with_info=True)
         callbacks = [line.removeprefix("on_stop=") for line in lines if line.startswith("on_stop=")]
         if any(callbacks) and read_private(directory, "on-stop") not in ("exit 0\n", "absent\n"):
             raise ValueError("stop outcome remains uncertain")
@@ -151,10 +167,9 @@ def declare(root, identifier, owner, disposition, content, seconds):
         if existing is not None:
             if (not isinstance(existing, dict) or set(existing) != set(declaration) | {"time"}
                     or {key: existing[key] for key in declaration} != declaration
-                    or not isinstance(existing["time"], str)
-                    or not re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", existing["time"])):
+                    or not isinstance(existing["time"], str)):
                 raise ValueError("conflicting or invalid final marker")
-            datetime.datetime.strptime(existing["time"], "%Y-%m-%dT%H:%M:%SZ")
+            validate_time(existing["time"], ended_info.st_mtime_ns, time.time_ns())
             # Syncing an existing declaration changes neither its bytes nor times.
             marker = os.open("final.json", os.O_RDONLY | os.O_NOFOLLOW, dir_fd=directory)
             try:
@@ -163,7 +178,11 @@ def declare(root, identifier, owner, disposition, content, seconds):
                 os.close(marker)
             os.fsync(directory)
             return "existing"
-        declaration["time"] = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        now_ns = time.time_ns()
+        seconds, fraction = divmod(now_ns, 1_000_000_000)
+        declaration["time"] = datetime.datetime.fromtimestamp(seconds, datetime.timezone.utc).replace(
+            microsecond=fraction // 1000).isoformat(timespec="microseconds").replace("+00:00", "Z")
+        validate_time(declaration["time"], ended_info.st_mtime_ns, now_ns)
         publish(directory, declaration)
         return "created"
     finally:

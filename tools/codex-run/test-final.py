@@ -1,9 +1,12 @@
 """Explicit finality against the launcher's private services and temporary HOME."""
 
 import fcntl
+import datetime
+from contextlib import contextmanager
 import importlib.util
 import json
 import os
+import resource
 from pathlib import Path
 import subprocess
 import sys
@@ -20,6 +23,15 @@ launcher = kit / "codex-run"
 owner = "o/recipient"
 sha = "1234567890abcdef1234567890abcdef12345678"
 checks = 0
+
+
+def cpu_usage():
+    own = resource.getrusage(resource.RUSAGE_SELF)
+    children = resource.getrusage(resource.RUSAGE_CHILDREN)
+    return own.ru_utime + own.ru_stime + children.ru_utime + children.ru_stime
+
+
+initial_cpu = cpu_usage()
 
 
 def check(condition, label):
@@ -150,6 +162,101 @@ call(directory, "--withdrawn", "report-read", status=2)
 spec = importlib.util.spec_from_file_location("finality", kit / "final.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
+
+# The consumer parses ISO timestamps into timezone-aware Python datetimes.
+# Keep both clocks deterministic while reproducing a fractional same-second end.
+real_datetime = datetime.datetime
+epoch = real_datetime(2026, 10, 30, 11, 20, 30, tzinfo=datetime.timezone.utc)
+epoch_ns = int(epoch.timestamp()) * 1_000_000_000
+timestamp_cpu_start = cpu_usage()
+
+
+@contextmanager
+def clock(instant_ns):
+    class FixedDateTime(real_datetime):
+        @classmethod
+        def now(cls, tz=None):
+            seconds, fraction = divmod(instant_ns, 1_000_000_000)
+            instant = real_datetime.fromtimestamp(seconds, datetime.timezone.utc).replace(
+                microsecond=fraction // 1000)
+            return instant.astimezone(tz) if tz is not None else instant.replace(tzinfo=None)
+
+    # Unit liveness is covered by the CLI fixtures. Timestamp-only declarations
+    # retain production file/lock/publication behavior without another manager.
+    with mock.patch.object(module, "inactive"), mock.patch("time.time_ns", return_value=instant_ns), \
+            mock.patch.object(module.datetime, "datetime", FixedDateTime):
+        yield
+
+
+def completion(directory, instant_ns):
+    os.utime(directory / "ended", ns=(instant_ns, instant_ns))
+    check((directory / "ended").stat().st_mtime_ns == instant_ns, "fractional completion fixture exact")
+
+
+directory = run("final-same-second")
+ended_ns = epoch_ns + 750_000_000
+now_ns = epoch_ns + 900_000_000
+completion(directory, ended_ns)
+with clock(now_ns):
+    check(module.declare(str(root), directory.name, owner, "withdrawn", "report-read", "1") == "created",
+          "same-second declaration publishes")
+record = json.loads((directory / "final.json").read_text())
+parsed = real_datetime.fromisoformat(record["time"].replace("Z", "+00:00"))
+check(record["time"] == "2026-10-30T11:20:30.900000Z", "same-second UTC precision")
+check(parsed.tzinfo is not None and parsed >= real_datetime.fromtimestamp(
+    (directory / "ended").stat().st_mtime, datetime.timezone.utc) and
+    parsed <= real_datetime(2026, 10, 30, 11, 20, 30, 900000, tzinfo=datetime.timezone.utc),
+    "consumer accepts time at or after completion and not in the future")
+before = snapshot(directory / "final.json")
+notifications = (fake / "reap.calls").read_bytes()
+with clock(now_ns):
+    check(module.declare(str(root), directory.name, owner, "withdrawn", "report-read", "1") == "existing",
+          "same-second identical repeat accepted")
+call(directory, "--withdrawn", "report-read")
+check(snapshot(directory / "final.json") == before and
+      (fake / "reap.calls").read_bytes() == notifications,
+      "same-second repeat preserves bytes, inode, mtime, ctime, JSON time and notifications")
+
+for name, ended_offset, now_offset in (
+        ("clock-before-end", 750_000_000, 700_000_000),
+        ("precision-insufficient", 750_000_001, 750_000_999)):
+    directory = run("final-" + name)
+    completion(directory, epoch_ns + ended_offset)
+    with clock(epoch_ns + now_offset):
+        try:
+            module.declare(str(root), directory.name, owner, "withdrawn", "report-read", "1")
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(name + " published invalid finality")
+    check(not (directory / "final.json").exists(), name + " refuses without manufacturing future time")
+
+for name, ended_offset, marker_time, accepted in (
+        ("legacy-valid", -250_000_000, "2026-10-30T11:20:30Z", True),
+        ("legacy-before-end", 750_000_000, "2026-10-30T11:20:30Z", False),
+        ("fraction-before-end", 750_000_000, "2026-10-30T11:20:30.749999Z", False),
+        ("future", 750_000_000, "2026-10-30T11:20:30.900001Z", False)):
+    directory = run("final-time-" + name)
+    completion(directory, epoch_ns + ended_offset)
+    marker = directory / "final.json"
+    marker.write_text(json.dumps({"state": "withdrawn", "reason": "report-read", "owner": owner,
+                                  "time": marker_time}) + "\n")
+    before = snapshot(marker)
+    with clock(now_ns):
+        try:
+            result = module.declare(str(root), directory.name, owner, "withdrawn", "report-read", "1")
+        except ValueError:
+            check(not accepted, name + " refuses invalid immutable evidence")
+        else:
+            check(accepted and result == "existing", name + " accepts only valid ordering")
+    check(snapshot(marker) == before, name + " leaves immutable evidence untouched")
+    if name == "legacy-before-end":
+        notifications = (fake / "reap.calls").read_bytes()
+        call(directory, "--withdrawn", "report-read", status=2)
+        check(snapshot(marker) == before and (fake / "reap.calls").read_bytes() == notifications,
+              "invalid legacy CLI repeat refuses without repair or renotification")
+
+timestamp_cpu = cpu_usage() - timestamp_cpu_start
 try:
     module.private(SimpleNamespace(st_mode=0o100600, st_uid=os.geteuid() + 1, st_nlink=1))
 except ValueError:
@@ -212,3 +319,4 @@ check(all(not (path / "final.json").exists() for path in runs.iterdir()
           if path.is_dir() and path.name.startswith("20") and path.name != recipient_run),
       "ordinary and resumed runs remain unfinalized")
 print(checks)
+print(f'finality CPU: timestamps={timestamp_cpu:.3f}s total={cpu_usage() - initial_cpu:.3f}s', file=sys.stderr)

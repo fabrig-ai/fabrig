@@ -151,11 +151,20 @@ reads only the named run's metadata and completion/stop/final evidence.
 It writes `final.json` through a private temporary file, fsyncs its complete
 bytes, renames it atomically with Linux `RENAME_NOREPLACE` and fsyncs the
 directory. An existing marker is never replaced. Its JSON fields are `state`, `owner`,
-`time` (UTC `YYYY-MM-DDTHH:MM:SSZ`), and exactly one of `sha` or `reason`.
+`time` (UTC `YYYY-MM-DDTHH:MM:SS.ffffffZ`), and exactly one of `sha` or `reason`.
+The declaration samples the wall clock in nanoseconds and floors it to the
+consumer's microsecond datetime precision. Before publication its parsed time
+must be at least the private completion file's nanosecond mtime and no later
+than the sampled clock. If the clock is behind completion, or no representable
+microsecond falls between completion and now, it refuses without a marker;
+it never rounds upward to manufacture a future declaration.
 An interrupted prepublication write cannot expose a partial final marker.
 Valid durable finality returns exit 0. Identical declarations preserve exact
 marker bytes, inode, mtime, ctime and JSON time; conflicting state, content or
 owner returns exit 2 and leaves the marker untouched.
+Repeats parse the stored timezone-aware ISO time and apply the same completion
+and nonfuture checks. A valid whole-second marker can remain valid; an invalid
+old or fractional marker refuses without rewriting or repairing that evidence.
 
 Only creation of a new durable marker attempts
 `reap record end --kind codex-run --owner ADDR --id RUN`, guarded by
