@@ -8,8 +8,8 @@
 set -eu
 heavy env TEMPER_BUNDLE=none NEXTEST_DOUBLE_SPAWN=0 cargo run -p temper-twin -- \
   --data "${1:-/home/free/src/rust/tmp/qa-focused/rung-b1-5/data/deployment}" \
-  --base tests/real-loop/tests/fixtures/b1/llm-base.json \
-  --out tests/real-loop/tests/fixtures/b1/llm.json \
+  --base temper/tests/real-loop/tests/fixtures/b1/llm-base.json \
+  --out temper/tests/real-loop/tests/fixtures/b1/llm.json \
   --cue '1=## Replying' \
   --cue '2=You are a goal: the work your person asked for' \
   --cue '3=You are an advisor: you read what your brief asks and report what you found; you change nothing and ask no one.' \
