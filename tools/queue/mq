@@ -556,20 +556,64 @@ def bisect(branches, check):
 
 
 def cleanup_ready(repo, branches, origin):
-    """After journal confirmation, delete only still-pinned ready tips."""
+    """After journal confirmation, retire pinned Ready/feature heads (design.md, 3.11)."""
     cleanup = []
+    targets = {}
     for branch in branches:
-        ref = f"refs/heads/{branch['name']}"
-        current = git(repo, "ls-remote", "--heads", origin, ref, check=False)
+        name, tip = branch["name"], branch["tip"]
+        if (not isinstance(name, str) or len(name.split("/")) != 3 or not name.startswith("ready/") or
+                not publication.KEY.fullmatch(name.split("/")[1]) or
+                not isinstance(tip, str) or not authority.OID.fullmatch(tip) or
+                git(repo, "check-ref-format", "refs/heads/" + name, check=False).returncode):
+            cleanup.append({"branch": name, "outcome": "unknown publication head; preserved"})
+            continue
+        for head in (name, name.removeprefix("ready/")):
+            ref = "refs/heads/" + head
+            entry = {"branch": head}
+            cleanup.append(entry)
+            if ref in targets:
+                return [{"branch": item["branch"], "outcome": "duplicate cleanup head; preserved"}
+                        for item in cleanup]
+            targets[ref] = (tip, entry)
+    if not targets:
+        return cleanup
+    try:
+        # One observation includes the advertised default and every exact target.
+        current = git(repo, "ls-remote", "--symref", origin, "HEAD", *targets, check=False)
         if current.returncode:
-            cleanup.append({"branch": branch["name"], "error": current.stdout})
-        elif current.stdout.split()[:1] == [branch["tip"]]:
-            result = git(repo, "push", "--force-with-lease=" + ref + ":" + branch["tip"],
-                         origin, ":" + ref, check=False)
-            cleanup.append({"branch": branch["name"], "returncode": result.returncode,
-                            "output": result.stdout})
-        else:
-            cleanup.append({"branch": branch["name"], "outcome": "tip changed or branch absent; preserved"})
+            for _, entry in targets.values():
+                entry["error"] = current.stdout
+            return cleanup
+        observed, default = {}, None
+        for line in current.stdout.splitlines():
+            cells = line.split()
+            if len(cells) == 3 and cells[0] == "ref:" and cells[2] == "HEAD":
+                if default is not None:
+                    raise ValueError("duplicate remote default")
+                default = cells[1]
+            elif (len(cells) == 2 and authority.OID.fullmatch(cells[0]) and
+                  cells[1] in {*targets, "HEAD"} and cells[1] not in observed):
+                observed[cells[1]] = cells[0]
+            else:
+                raise ValueError("unknown remote cleanup observation")
+        eligible = {}
+        for ref, (tip, entry) in targets.items():
+            if ref in ("refs/heads/main", default):
+                entry["outcome"] = "default branch; preserved"
+            elif observed.get(ref) == tip:
+                eligible[ref] = tip
+            else:
+                entry["outcome"] = "tip changed or branch absent; preserved"
+        if eligible:
+            # Atomic refusal preserves the whole eligible set, including a raced head.
+            result = git(repo, "push", "--atomic",
+                         *("--force-with-lease=" + ref + ":" + tip for ref, tip in eligible.items()),
+                         origin, *(":" + ref for ref in eligible), check=False)
+            for ref in eligible:
+                targets[ref][1].update(returncode=result.returncode, output=result.stdout)
+    except (OSError, subprocess.SubprocessError, ValueError) as error:
+        for _, entry in targets.values():
+            entry.setdefault("error", str(error))
     return cleanup
 
 

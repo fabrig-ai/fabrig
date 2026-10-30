@@ -7,7 +7,7 @@ Provisional, 2026-10-28. How a branch reaches `main`: a script on the gate machi
 - **Input:** remote branches `ready/<lead>/<task>` on `origin`, each pushed by its lead.
 - **A batch:** from `origin/main`, the ready branches not yet tried at their current tip, oldest tip first, at most `batch` (8) of them, each merged with `git merge --no-ff -m "Merge <branch name>"`; ratchet-only conflicts are resolved by recounting against HEAD (section 3.3); any other conflict is aborted, reported, and left out. After merging, the queue writes and commits lower old-form baselines for touched trees before checks. Branches need not change those baselines.
 - **The checks run on a selection** (section 2), not always the whole workspace: touched trees' `scripts/old_forms.py --write` (the ratchet, section 3.3), then `cargo fmt --check`, clippy with `-D warnings`, a nextest `build`, and the focused (`default`) and `fuzzy` nextest profiles. The gate skips pipeline tools suites (section 2.3). Cargo build and test commands run through `heavy --gate` on the gate machine, which nothing else builds on. Lockfile and member manifest changes select affected packages (section 2.1); formatting covers changed Rust owners (section 2.2). Step durations are recorded separately (section 3.6).
-- **Green:** save the checked candidate and coordinator routes in a durable publication intent, push that saved candidate (fast-forward only), confirm containment and the exact journal row, then delete ready branches under expected-tip leases and notify leads (section 3.11).
+- **Green:** save the checked candidate and coordinator routes in a durable publication intent, push that saved candidate (fast-forward only), confirm containment and the exact journal row, then retire unchanged Ready and feature heads under expected-tip leases and notify leads (section 3.11).
 - **Red:** a batch of one is rejected (its lead gets the failing step and the log's path, and the branch isn't retried until its tip changes); a larger batch is halved and each half tried from `main`, recursively, so the green branches still land.
 - **Capacity refusal:** a heavy exit 2 containing `below the disk floor` is an error, with no rejection or bisection. Before every batch, free space below `--disk-floor` (45 GB by default) defers work to the next cycle.
 - **Error:** an exception logs the batch as `error`; its tips remain eligible. `run` reconciles pending publications before restoring `origin/main`, reports each distinct error to the operator (`ops`) once per uninterrupted error episode, waits a cycle, and continues. A completed cycle, including an idle check, clears the persisted episode so recurrence alerts again. `once` raises to its caller.
@@ -720,10 +720,11 @@ argv, full refs and full lowercase OIDs, with no shell interpolation.
   acknowledge delivery; other exits/exceptions leave the durable outbox
   pending. Replays retain ID and never change a landing or rejection.
 
-Legacy `push_and_cleanup` uses the same deletion-only expected-tip lease after
-its observation. A lead can advance a ready tip between observation and push;
-the server rejects that deletion and preserves the replacement. Its main push
-remains an ordinary fast-forward with no force or lease.
+Legacy `cleanup_ready` uses deletion-only expected-tip leases after durable
+publication confirmation (section 3.11). A lead can advance a head between
+observation and push; the server atomically refuses the cleanup set and
+preserves the replacement. Main publication remains an ordinary fast-forward
+with no force or lease. The disabled train's cleanup interface above is unchanged.
 
 `durable.py` implements owned 0700 directories and 0600 regular files, strict
 JSON parsing, temp-file fsync, atomic rename and containing-directory fsync.
@@ -811,8 +812,12 @@ keys use the same `[A-Za-z0-9_.-]+` grammar as lead keys and must be unique.
 Addresses use the existing hosted-mailbox grammar, or exactly `-` for an
 explicitly unassigned key. Malformed rows, controls, invalid addresses and
 missing files refuse configuration. The coordinator and lead key sets need
-not match. The checked-in coordinator file has no assignments; activation
-requires reviewed addresses. No prefix, mission file or lead address supplies
+not match. The checked-in files retain the seventeen existing routes and add
+`lf-temper`, `lf-jig`, `lf-skein`, `lf-smith` and `deploy`. The four `lf-*` keys
+notify their respective `lead/lf/<tree>@hel8` leads and publish coordinator
+`s/ladder@hel8`; `deploy` uses `s/deploy@hel8` for both destinations.
+These frozen routes become active only when Ops restarts the queue after landing.
+No prefix, mission file or lead address supplies
 an inferred coordinator. `leads.txt` remains two columns and retains its
 notification destinations and sender.
 
@@ -903,15 +908,15 @@ before committing `journal-confirmation.json`, whose exact fields are integer
 canonical saved row (sorted compact JSON with a final newline). A crash after
 journal replacement but before confirmation revalidates the same row once.
 Confirmation retires publication from pending; evidence remains retained.
-Ready-ref cleanup follows confirmation with the existing expected-tip leases.
-Its failures or later notification failures never revoke a landing. Interrupted
+Ready/feature cleanup follows confirmation with the deletion-only expected-tip
+leases described below. Its failures or later notification failures never revoke a landing. Interrupted
 effects can replay until their confirmation; notification delivery keeps the
 existing best-effort behavior and is not an exactly-once message outbox.
 
 Operator metrics: the saved row's `end` and `publication_time` are the intent
 observation, not the exact remote-push instant. They remain identical across
-lost acknowledgements and UTC midnight. Push, post, target cleanup and ready
-cleanup observations belong to later `event` rows (`publication-attempt`,
+lost acknowledgements and UTC midnight. Push, post, target cleanup and
+Ready/feature cleanup observations belong to later `event` rows (`publication-attempt`,
 `publication-effects`, or `recovery`) that existing batch readers skip. Compare
 step durations for check cost; publication-row elapsed time excludes later
 effects. Diagnostic rows omit the authoritative publication_id/time/merges
@@ -922,6 +927,37 @@ The offline command is `python3 -I -B tools/queue/test_publication.py`;
 integration. Fixtures use private local origins and injected services; they
 never run the live queue, a deployment or heavy recovery. Ordinary tools
 discovery includes the publication suite with the unchanged 60-second bound.
+
+#### 3.11.1 Published head lifecycle
+
+Only after saved candidate containment, the exact durable journal row and its
+confirmation may `cleanup_ready` consider each carrying merge's exact
+`ready/<area>/<task>` and paired `<area>/<task>` heads. Both compare against
+the merge's originally published tip B, independently. An absent head is
+already retired; a different or unknown tip is preserved. Main, the advertised
+remote default, malformed input and unrelated refs are never cleanup targets.
+Unpublished, failed, dry and wholly already-reachable work authorizes no cleanup.
+
+One `ls-remote --symref` observes HEAD and all exact target refs for the entire
+publication. An unreadable or malformed observation preserves every target.
+One `push --atomic` deletes the unchanged eligible set, with an explicit
+`--force-with-lease=REF:B` and deletion-only refspec for every head. No main
+update or ref rewrite participates. A concurrent change, unsupported atomic
+push, remote refusal or SSH/authentication failure leaves an operational
+cleanup outcome; there is no per-head fallback or retry burst. Missing or
+changed heads discovered before the push do not block another eligible head.
+A race during the push refuses the whole eligible set.
+
+Cleanup reports retain the list of branch dispositions in publication-effects
+diagnostics; failures do not turn a published batch red or repeat its main push
+or landed notice. Effects confirmation completes best-effort cleanup even on
+transport refusal. Interrupted effects retain the existing replay contract;
+missing refs are idempotent. This changes no intent, receipt or state version.
+There is no live bulk sweep; a later contained periodic sweep may handle
+leftovers using separately reviewed authority. The separate `test_lifecycle.py`
+suite covers both-head retirement, independent eligibility, confirmation,
+lost acknowledgements, races/refusals and per-publication RPC bounds without
+changing the 120-case mq suite contract.
 
 ## 4. Later
 
