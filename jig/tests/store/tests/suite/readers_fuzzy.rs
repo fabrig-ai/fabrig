@@ -92,4 +92,7 @@ fn pages_match(seed: u64, selected: bool) {
         }
     }
     assert_eq!(found, expected, "raw source readback seed {seed}");
+    let complete: BTreeMap<_, _> =
+        world.retained().into_iter().filter(|(key, _)| keys::of_application(key).is_some()).collect();
+    assert_eq!(complete, expected, "complete collector source readback seed {seed}");
 }

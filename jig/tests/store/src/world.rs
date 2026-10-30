@@ -449,6 +449,42 @@ impl World {
         page
     }
 
+    /// Collect every raw main-map row at a quiescent fixture boundary.
+    /// The complete output grows with inventory; only each page is bounded.
+    pub fn retained(&mut self) -> BTreeMap<Box<[u8]>, Box<[u8]>> {
+        assert!(
+            !self.halted
+                && self.above.is_empty()
+                && self.below.store.is_empty()
+                && self.below.secrets.is_empty()
+                && self.below.transcripts.is_empty()
+                && self.subs.is_empty()
+                && self.completions.is_empty(),
+            "complete inventory requires a quiescent fixture boundary"
+        );
+        let mut found = BTreeMap::new();
+        let mut after = None;
+        loop {
+            let page = self
+                .retained_page(
+                    after.as_deref(),
+                    self.env.limits.store.page.rows,
+                    u64::from(self.env.limits.store.page.bytes),
+                )
+                .expect("complete retained page");
+            let mut last = after.clone();
+            for row in page.rows {
+                assert!(last.as_deref().is_none_or(|last| row.key.as_ref() > last), "exclusive ordered keys");
+                last = Some(row.key.clone());
+                assert!(found.insert(row.key, row.value).is_none(), "unique retained key");
+            }
+            let Some(next) = page.next else { return found };
+            assert_eq!(Some(&next), last.as_ref(), "cursor is the last returned key");
+            assert!(after.as_deref().is_none_or(|after| next.as_ref() > after), "retained progress");
+            after = Some(next);
+        }
+    }
+
     pub fn settle(&mut self) -> Vec<Event> {
         self.drive();
         let mut events = Vec::new();
