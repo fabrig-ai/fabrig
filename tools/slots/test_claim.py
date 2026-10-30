@@ -242,9 +242,9 @@ class ClaimTests(unittest.TestCase):
         self.assertEqual(claim.inventory(), {
             ("hetzner3", "1"): "pool", ("hetzner3", "2"): "pool", ("hetzner3", "3"): "pool",
             ("hetzner3", "4"): "pool", ("hetzner3", "5"): "pool", ("hetzner3", "6"): "pool",
-            ("hetzner6", "1"): "lead/temper", ("hetzner6", "2"): "lead/smith",
-            ("hetzner6", "3"): "lead/temper", ("hetzner6", "4"): "s/qa", ("hetzner6", "5"): "pool",
-            ("hetzner6", "6"): "lead/skein", ("hetzner6", "7"): "lead/skein", ("hetzner6", "8"): "s/qa",
+            ("hetzner6", "1"): "s/qa", ("hetzner6", "2"): "s/qa",
+            ("hetzner6", "3"): "s/qa", ("hetzner6", "4"): "s/qa", ("hetzner6", "5"): "pool",
+            ("hetzner6", "6"): "s/qa", ("hetzner6", "7"): "pool", ("hetzner6", "8"): "s/qa",
             ("hetzner7", "1"): "lead/jig", ("hetzner7", "2"): "lead/jig",
             ("hetzner7", "3"): "lead/jig", ("hetzner7", "4"): "pool", ("hetzner7", "5"): "pool",
             ("hetzner7", "6"): "pool", ("hetzner7", "7"): "pool", ("hetzner7", "8"): "pool",
@@ -268,7 +268,7 @@ class ClaimTests(unittest.TestCase):
         self.assertFalse(self.path.exists())
         code, output, error = self.cli("list", "--free", "lead/skein", inventory=slots)
         self.assertEqual(code, 0, error)
-        self.assertEqual(output.splitlines()[:2], ["hetzner6 6", "hetzner6 7"])
+        self.assertEqual(output.splitlines()[:2], ["hetzner3 1", "hetzner3 2"])
         self.assertFalse(any(line.startswith("hetzner2 ") for line in output.splitlines()))
 
     def test_inventory_rejects_malformed_lines_and_duplicate_slots(self):
