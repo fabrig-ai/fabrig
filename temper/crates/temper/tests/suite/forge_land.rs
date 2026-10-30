@@ -589,3 +589,82 @@ fn a_held_login_is_due_after_the_second_run_or_a_failed_first_run() {
         assert_eq!(support::held_login::due_back(first, failed), due, "first={first} failed={failed}");
     }
 }
+
+fn held_launcher(case: &str, story: &str, body: &str) -> (support::Scratch, std::process::Output) {
+    use std::{fs, os::unix::fs::PermissionsExt};
+    let scratch = support::Scratch::new(case);
+    let root = scratch.path();
+    let account = root.join("synthetic-record");
+    support::write_private(&account, b"synthetic fixture");
+    let heavy = root.join("heavy");
+    support::write_private(&heavy, format!("#!/bin/sh\nset -eu\n{body}\n").as_bytes());
+    fs::set_permissions(&heavy, fs::Permissions::from_mode(0o700)).expect("executable queue stub");
+    let output = launcher(root, story, None)
+        .env("TEMPER_LIVE_ACCOUNT", &account)
+        .env("PATH", format!("{}:/usr/bin:/bin", root.display()))
+        .output()
+        .expect("held-login launcher");
+    (scratch, output)
+}
+
+#[test]
+fn the_launcher_returns_the_ordinary_held_login_after_build_failure() {
+    for story in ["forge-land", "rung-b0"] {
+        let (scratch, output) = held_launcher("held-build-failure", story, "exit 17");
+        assert_eq!(output.status.code(), Some(17), "{}", String::from_utf8_lossy(&output.stderr));
+        assert!(String::from_utf8_lossy(&output.stdout).contains("LOGIN BACK: regular file mode=600"));
+        scratch.remove();
+    }
+}
+
+#[test]
+fn the_launcher_runs_the_ordinary_return_hook_before_stopping_after_a_signal() {
+    for story in ["forge-land", "rung-b0"] {
+        // The first queue call represents the build; the second imports a
+        // synthetic record and installs the same hook contract as the story.
+        let body = r#"case " $* " in *" --no-run "*) exit 0 ;; esac
+mkdir -p "$TEMPER_LIVE_STORE"
+mv "$TEMPER_LIVE_ACCOUNT" "$TEMPER_LIVE_STORE/synthetic-import"
+cat > "$TEMPER_LIVE_STORE/give-back" <<'HOOK'
+#!/bin/sh
+set -eu
+test -d "/proc/$(cat "$TEMPER_LIVE_STORE/runner")"
+mv "$TEMPER_LIVE_STORE/synthetic-import" "$TEMPER_LIVE_ACCOUNT"
+printf '%s\n' 'HOOK RETURNED'
+HOOK
+chmod 700 "$TEMPER_LIVE_STORE/give-back"
+printf '%s\n' "$$" > "$TEMPER_LIVE_STORE/runner"
+kill -TERM "$PPID"
+# Stay alive until the launcher has run the hook, then accept its TERM.
+exec sleep 30"#;
+        let (scratch, output) = held_launcher("held-signal", story, body);
+        assert_eq!(output.status.code(), Some(143), "{}", String::from_utf8_lossy(&output.stderr));
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(stdout.contains("HOOK RETURNED"), "{stdout}");
+        assert!(stdout.contains("LOGIN BACK: regular file mode=600"), "{stdout}");
+        scratch.remove();
+    }
+}
+
+#[test]
+fn the_launcher_refuses_changed_ordinary_held_login_metadata() {
+    for story in ["forge-land", "rung-b0"] {
+        let (scratch, output) = held_launcher("held-metadata", story, r#"chmod 644 "$TEMPER_LIVE_ACCOUNT"; exit 17"#);
+        assert_eq!(output.status.code(), Some(1));
+        assert!(String::from_utf8_lossy(&output.stderr).contains("LOGIN NOT BACK:"));
+        scratch.remove();
+    }
+}
+
+#[test]
+fn the_launcher_records_a_failed_ordinary_return_hook() {
+    let body = r#"mkdir -p "$TEMPER_LIVE_STORE"
+printf '#!/bin/sh\nexit 9\n' > "$TEMPER_LIVE_STORE/give-back"
+chmod 700 "$TEMPER_LIVE_STORE/give-back"
+exit 17"#;
+    let (scratch, output) = held_launcher("held-return-failure", "forge-land", body);
+    assert_eq!(output.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("LOGIN NOT BACK: export/stat failed"));
+    assert!(scratch.path().join("store/give-back").is_file(), "store retained for recovery");
+    scratch.remove();
+}
