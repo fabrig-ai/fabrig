@@ -4,7 +4,7 @@ use std::{
     fs,
     net::{SocketAddr, TcpListener},
     path::{Path, PathBuf},
-    process::{Command, Stdio},
+    process::{Child, Command, Stdio},
     time::Duration,
 };
 
@@ -20,6 +20,13 @@ fn command(root: &Path, action: &str) -> Command {
         command.arg(format!("--{name}")).arg(root.join(name));
     }
     command
+}
+fn stop(child: &mut Child) {
+    #[cfg(target_os = "linux")]
+    let observed = crate::support::parent::Guard::observing_test();
+    crate::support::parent::end_child(child);
+    #[cfg(target_os = "linux")]
+    assert!(observed.all_exited(), "no process outlived the fixture box");
 }
 fn clients(document: &serde_json::Value) -> SocketAddr {
     document["application"]["clients"]["listener"]["socket"]
@@ -57,8 +64,7 @@ fn a_fresh_box_holds_serves_clients_port() {
         }
         if deadline.passed() {
             let expired = deadline.expired();
-            child.kill().expect("stop fixture box after unanswered listener wait");
-            child.wait().expect("box reaped after unanswered listener wait");
+            stop(&mut child);
             fs::remove_dir_all(&root).expect("cleanup after unanswered listener wait");
             match expired {
                 Expired::Starved(starved) => starved.pass(),
@@ -73,10 +79,7 @@ fn a_fresh_box_holds_serves_clients_port() {
     let held = address.map(|address| TcpListener::bind(address).is_err());
     let owned_held = owned.map(|address| TcpListener::bind(address).is_err());
     let dormant = !root.join("data/forge-3").exists();
-    if running {
-        child.kill().expect("stop fixture box");
-    }
-    child.wait().expect("box reaped");
+    stop(&mut child);
     fs::remove_dir_all(&root).expect("cleanup");
     assert!(running, "box stays up");
     assert_eq!(held, Some(true), "the configured clients port stays reserved");
