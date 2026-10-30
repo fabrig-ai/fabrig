@@ -342,3 +342,164 @@ fn an_open_thinking_turn_calls_then_replies_once() {
     assert!(matches!(run.answer().expect("answer").result(), RunResult::Parked), "{:?}", run.answer());
     thinking_reply(&run, THINKING_MESSAGES, THINKING_SPEND);
 }
+
+fn coder_charter(modify: bool) -> Box<[u8]> {
+    let mut parts = smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut Reader::new(&charter_tools()))
+        .expect("charter")
+        .into_parts();
+    let mut tools = parts.tools.into_parts();
+    tools.families = smith_charter::Families::new(
+        &smith_charter::CEILINGS,
+        smith_charter::FamiliesParts { skein_bools: [true, modify, false, false] },
+    )
+    .expect("coder families");
+    parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("coder tools");
+    let charter = smith_charter::Charter::new(&smith_charter::CEILINGS, parts).expect("coder charter");
+    let mut writer = Writer::new(charter.measure() as usize);
+    charter.encode(&mut writer).expect("charter bytes");
+    writer.finish()
+}
+
+fn remove(path: &str, contains: &str) -> Step {
+    Step::CallChecked { tool: "remove".into(), input: json!({"path":path}), contains: contains.into() }
+}
+
+fn native_read(input: serde_json::Value) -> Step {
+    Step::Act { tool: "Read".into(), input }
+}
+
+fn coder_story(steps: Vec<Step>) -> Story {
+    Story { turns: vec![Turn { steps, end: End::default() }], observe_tools: true, ..Story::default() }
+}
+
+fn coder_steps(steps: Vec<Step>) -> Run {
+    program_world::run(
+        Case::Tools,
+        &coder_story(steps),
+        Some(b"claude.ai"),
+        &coder_charter(true),
+        &program(b"source"),
+        None,
+    )
+}
+
+fn coder_removed(run: &Run, error: bool) {
+    accepted(run);
+    assert!(
+        run.seen.contains(&Seen::Called { tool: "remove".into(), error }),
+        "observed: {:?}; file: {:?}",
+        run.seen,
+        run.workspace_file
+    );
+    assert!(
+        run.seen.iter().any(|seen| matches!(seen, Seen::Tools { names } if names.iter().any(|name| name == "remove")))
+    );
+    let arguments = &run.invocations[1].arguments;
+    let index = arguments.iter().position(|argument| argument == "--tools").expect("tools flag");
+    assert_eq!(arguments[index + 1], "Read,Glob,Grep,Write,Edit");
+}
+
+#[test]
+fn a_program_removes_a_file_after_a_whole_native_read() {
+    let run = coder_steps(vec![native_read(json!({"file_path":"a"})), remove("a", "removed"), finish()]);
+    coder_removed(&run, false);
+    assert!(run.workspace_file.is_none());
+}
+
+#[test]
+fn a_program_remove_after_a_partial_native_read_asks_for_the_whole_file() {
+    // The one-line fixture fits this window; field presence still makes it partial.
+    for field in ["offset", "limit"] {
+        let mut input = json!({"file_path":"a"});
+        input[field] = json!(1);
+        let run = coder_steps(vec![native_read(input), remove("a", "read the file whole"), finish()]);
+        coder_removed(&run, true);
+        let result = told_result(&run, b"remove", &json!({"path":"a"}));
+        let smith_transcript::Returned::Outcome(outcome) = result.returned() else { panic!("owned refusal") };
+        assert_eq!(outcome.value(), &smith_transcript::Outcome::NotRead);
+        assert_eq!(run.workspace_file.as_deref(), Some(b"before\n".as_slice()));
+    }
+}
+
+#[test]
+fn a_partial_native_read_keeps_an_earlier_whole_read_version() {
+    let run = coder_steps(vec![
+        native_read(json!({"file_path":"a"})),
+        native_read(json!({"file_path":"a","limit":1})),
+        remove("a", "removed"),
+        finish(),
+    ]);
+    coder_removed(&run, false);
+    assert!(run.workspace_file.is_none());
+}
+
+#[test]
+fn a_program_removes_the_version_its_native_write_or_edit_leaves() {
+    for step in [
+        Step::Act { tool: "Write".into(), input: json!({"file_path":"a","content":"written\n"}) },
+        edit("a", "before", "edited"),
+    ] {
+        let run = coder_steps(vec![step, remove("a", "removed"), finish()]);
+        coder_removed(&run, false);
+        assert!(run.workspace_file.is_none());
+    }
+}
+
+#[test]
+fn an_allowed_native_edit_error_still_teaches_the_file_version() {
+    let run = coder_steps(vec![edit("a", "absent", "unused"), remove("a", "removed"), finish()]);
+    coder_removed(&run, false);
+    assert!(run.seen.contains(&Seen::Acted { tool: "Edit".into(), path: "a".into(), error: true }));
+    assert!(run.workspace_file.is_none());
+}
+
+#[test]
+fn a_program_remove_refuses_a_file_changed_after_its_native_snapshot() {
+    let story = coder_story(vec![native_read(json!({"file_path":"a"})), remove("a", "file changed"), finish()]);
+    let run = program_world::run_after_snapshot(&story, &coder_charter(true));
+    coder_removed(&run, true);
+    let result = told_result(&run, b"remove", &json!({"path":"a"}));
+    let smith_transcript::Returned::Outcome(outcome) = result.returned() else { panic!("owned refusal") };
+    assert_eq!(outcome.value(), &smith_transcript::Outcome::Stale);
+    assert!(run.snapshot_changed);
+    assert_eq!(run.workspace_file.as_deref(), Some(b"world!\n".as_slice()));
+}
+
+#[test]
+fn a_program_removes_an_empty_directory_without_reading_it() {
+    let run = coder_steps(vec![remove("empty", "removed"), finish()]);
+    coder_removed(&run, false);
+    assert!(!run.workspace_empty_directory);
+    assert_eq!(run.workspace_file.as_deref(), Some(b"before\n".as_slice()));
+}
+
+#[test]
+fn a_program_without_modify_has_no_remove_tool() {
+    let run = program_world::run(
+        Case::Tools,
+        &coder_story(vec![finish()]),
+        Some(b"claude.ai"),
+        &coder_charter(false),
+        &program(b"source"),
+        None,
+    );
+    accepted(&run);
+    let inventories: Vec<_> = run
+        .seen
+        .iter()
+        .filter_map(|seen| match seen {
+            Seen::Tools { names } => Some(names),
+            Seen::Selected { .. }
+            | Seen::Interrupted
+            | Seen::Terminated
+            | Seen::Settings { .. }
+            | Seen::UnreadableSettings
+            | Seen::Acted { .. }
+            | Seen::Called { .. }
+            | Seen::Prompted { .. } => None,
+        })
+        .collect();
+    assert_eq!(inventories.len(), 1);
+    assert!(!inventories[0].iter().any(|name| name == "remove"));
+    assert!(run.workspace_empty_directory);
+}
