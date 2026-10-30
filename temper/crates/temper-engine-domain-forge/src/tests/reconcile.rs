@@ -1,5 +1,5 @@
 use super::*;
-use crate::reconcile::Reconciliation;
+use crate::reconcile::{MissingLink, Need, Reconciliation};
 use alloc::boxed::Box;
 use skein_lib::{Time, Wall};
 use skein_world::domain::heap::Meter;
@@ -447,15 +447,20 @@ pub(super) fn empty_tasks() -> jig_domain_tasks::Domain {
 }
 
 #[test]
-#[should_panic(expected = "forge link Names -> Task { task: 7, retired: None }")]
 fn production_link_asserts_a_missing_task() {
     let mut d = domain();
     outputs(&mut d, Event::Restore { record: Stored::Names { task: TASK, resources: Box::new([]) } });
-    d.reconcile(&empty_tasks());
+    assert_eq!(
+        d.missing_link(&empty_tasks()),
+        Some(MissingLink {
+            kind: RecordKind::Names,
+            key: Key::Names(TASK),
+            need: Need::Task { task: TASK, retired: None }
+        })
+    );
 }
 
 #[test]
-#[should_panic(expected = "forge link Ci -> Repository(Repository { forge: 1, repository: 99 })")]
 fn production_link_asserts_a_missing_repository() {
     let mut d = domain();
     outputs(
@@ -468,25 +473,41 @@ fn production_link_asserts_a_missing_repository() {
             }),
         },
     );
-    d.reconcile(&empty_tasks());
+    assert_eq!(
+        d.missing_link(&empty_tasks()),
+        Some(MissingLink {
+            kind: RecordKind::Ci,
+            key: Key::Ci { repository: OTHER_REPOSITORY, head: [3; 32] },
+            need: Need::Repository(OTHER_REPOSITORY)
+        })
+    );
 }
 
 #[test]
-#[should_panic(expected = "forge link Repository -> Forge(99)")]
 fn production_link_asserts_a_missing_configured_forge() {
     let mut d = domain();
     let mut repository = adopted();
     repository.provider.forge = OTHER_FORGE;
+    let key = Key::Repository(repository.provider);
     outputs(&mut d, Event::Restore { record: Stored::Repository(repository) });
-    d.reconcile(&empty_tasks());
+    assert_eq!(
+        d.missing_link(&empty_tasks()),
+        Some(MissingLink { kind: RecordKind::Repository, key, need: Need::Forge(OTHER_FORGE) })
+    );
 }
 
 #[test]
-#[should_panic(expected = "forge link Flight -> Entry { task: 7, entry: 11 }")]
 fn production_link_asserts_a_missing_flight_entry() {
     let mut d = domain();
     outputs(&mut d, Event::Restore { record: Stored::Flight { task: TASK, entry: ENTRY } });
-    d.reconcile(&empty_tasks());
+    assert_eq!(
+        d.missing_link(&empty_tasks()),
+        Some(MissingLink {
+            kind: RecordKind::Flight,
+            key: Key::Flight { task: TASK, entry: ENTRY },
+            need: Need::Entry { task: TASK, entry: ENTRY }
+        })
+    );
 }
 
 fn failed_history(desired: bool) -> Stored {
@@ -522,11 +543,13 @@ fn production_link_keeps_failed_issue_history_without_a_goal() {
 }
 
 #[test]
-#[should_panic(expected = "forge link Issue -> Repository(Repository { forge: 1, repository: 2 })")]
 fn production_link_requires_a_failed_issues_repository() {
     let mut d = domain();
     outputs(&mut d, Event::Restore { record: failed_history(true) });
-    d.reconcile(&empty_tasks());
+    assert_eq!(
+        d.missing_link(&empty_tasks()),
+        Some(MissingLink { kind: RecordKind::Issue, key: Key::Issue(TASK), need: Need::Repository(REPO) })
+    );
 }
 
 #[test]
@@ -554,10 +577,46 @@ fn production_link_preserves_retired_demo_owners() {
 }
 
 #[test]
-#[should_panic(expected = "forge link Issue -> Task { task: 7, retired: Some(1) }")]
 fn production_link_requires_a_live_unfinished_issues_goal() {
     let mut d = domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     outputs(&mut d, Event::Restore { record: issue(false) });
+    assert_eq!(
+        d.missing_link(&empty_tasks()),
+        Some(MissingLink {
+            kind: RecordKind::Issue,
+            key: Key::Issue(TASK),
+            need: Need::Task { task: TASK, retired: Some(REPO.forge) }
+        })
+    );
+}
+
+#[test]
+#[should_panic(expected = "forge link")]
+fn reconcile_panics_on_a_missing_link() {
+    let mut d = domain();
+    outputs(&mut d, Event::Restore { record: Stored::Names { task: TASK, resources: Box::new([]) } });
     d.reconcile(&empty_tasks());
+}
+
+#[test]
+fn all_made_links_have_no_missing_link() {
+    let (mut d, _) = closing_history(Some(ENTRY), REPO);
+    outputs(&mut d, Event::Restore { record: Stored::Flight { task: TASK, entry: ENTRY } });
+    assert_eq!(d.missing_link(&empty_tasks()), None);
+}
+
+#[test]
+fn a_missing_link_names_its_row_after_rows_with_multiple_or_no_links() {
+    let (mut d, _) = closing_history(Some(ENTRY), REPO);
+    outputs(&mut d, Event::Restore { record: Stored::Landed { task: TASK, commit: [9; 32] } });
+    outputs(&mut d, Event::Restore { record: Stored::Names { task: OTHER_TASK, resources: Box::new([]) } });
+    assert_eq!(
+        d.missing_link(&empty_tasks()),
+        Some(MissingLink {
+            kind: RecordKind::Names,
+            key: Key::Names(OTHER_TASK),
+            need: Need::Task { task: OTHER_TASK, retired: None },
+        })
+    );
 }
