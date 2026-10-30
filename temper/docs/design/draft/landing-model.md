@@ -190,6 +190,14 @@ are named as jig's.
   them, and reach live tasks with a charter's new revision (jig's
   `MoveToNewest`, `domain/engine.md`, 17.4). Only what section 14 lists
   is enforced by the engine.
+- **Work goes on while a goal is away:** a handover, a park of its own
+  or a usage limit on its own runs stops none of its running delegates,
+  and delegates it made ahead, ordered by dependencies, start as the
+  ones before them end, without waking it.
+- **Each goal's times are recorded:** its start, its first delegate,
+  its changes' ready and landed times, its questions and how long they
+  waited, its waits for a workspace or a lease; a project's report of
+  its flow is computed from them (gap L19).
 
 ### 3.2 Workspaces
 
@@ -460,12 +468,17 @@ are named as jig's.
   proofs stale than finish, or whose ready landings wait longer than a
   proof (measures the serializer keeps), groups ready landings into one
   candidate, first ready first, up to a batch size.
-- **A red batch is bisected by halves,** the left half first, each half
-  prepared again from the parent it will land on (after a green left
-  half, on that half's candidate), recursively, until each red is one
-  landing's: that landing's red is its own (a repair), and every green
-  member lands. A conflict in preparing a batch leaves that member out
-  and the rest goes on.
+- **Suspects first:** a red names its failing gate and key, and only
+  the members whose changes reach that key are suspects. The others are
+  prepared again without them and land, running only the keys the
+  suspects' absence changed; a single suspect's red is its own, with no
+  split.
+- **Several suspects are bisected by halves,** the left half first,
+  each half prepared again from the parent it will land on (after a
+  green left half, on that half's candidate), recursively, until each
+  red is one landing's: that landing's red is its own (a repair), and
+  every green member lands. A conflict in preparing a batch leaves that
+  member out and the rest goes on.
 - **Members stay their own landings:** a batch is a grouping of the
   serializer's, not a landing; each member keeps its own task, news and
   outcome, so one member's red rejects only that member.
@@ -603,7 +616,7 @@ for when a project needs it.
 | Outcome | What it is | What follows | Who hears it, by default | For example |
 |---|---|---|---|---|
 | green | every blocking gate holds at the candidate (advisory gates reported only) | the turn (section 9) | each member's goal: its landing, with the commit | a batch landed |
-| red | a blocking gate's own step failed, and no fault was recognized | a batch is bisected; one landing's red is a repair of the failing member (`landing.md`, 7.3), its brief the failing step and the log | the failing member's goal | a lint, a test, a raised count, a tools' suite's nonzero exit or timeout |
+| red | a blocking gate's own step failed (a measured one again on its rerun), and no fault was recognized | a batch's suspects are found and bisected (6.2); one landing's red is a repair of the failing member (`landing.md`, 7.3), its brief the failing step and the log | the failing member's goal | a lint, a test, a test over its CPU budget, a raised count, a tools' suite's nonzero exit or timeout |
 | conflict | the prepare could not settle a member | conflicts the project's rules know are settled by its tooling; any other leaves that member out for a resolution (`landing.md`, 3) | the member's goal | a counted baseline recounted; a textual conflict to resolve |
 | fault | the runner's, not the change's: set-up failed, a refusal for capacity, a missing tool, a transport or certificate failure, a crash | retried with nobody rejected and no member marked tried, up to `gate_retries`; past it the landing is held (`landing.md`, 7.4) | the operator, once per episode | a disk below its floor; a runner restarted without its tools |
 | starved | a test that the prover starved of time it was owed | neither a pass nor a fail: recorded apart in the receipt, the gate's verdict unchanged by it (skein's `testing-strategy.md`, 2.10) | recorded; the operator when it recurs past its bound | a timed story on a loaded machine |
@@ -622,10 +635,11 @@ for when a project needs it.
 - **A successor is not stale while it waits:** its parent is compared
   with main only when it reaches the train's head; before that it waits
   on its ancestors' decisions.
-- **A flake is a red until shown otherwise:** a failure whose tests
-  all match open flake findings is rerun once (11.1); a failure the
-  change cannot reach, passing alone, is a finding, never a silent
-  rerun.
+- **A measured failure is rerun once before it is red:** its failed
+  tests run again, alone, on the same prover at the same candidate,
+  before any bisection. Failing again, it is red; passing, the gate
+  holds, nobody is rejected, and the failure is a flake, counted on its
+  finding (11.1), never silently.
 - **The routing is a table** (3.7, section 14): a project may also tell
   the member's coordinator of a red, or the person's chat of a fault
   that holds a landing.
@@ -673,6 +687,13 @@ for when a project needs it.
   state, with the settings it had.
 - **Nothing runs inside the turn:** no gate, no prepare (`landing.md`,
   8). The turn is seconds; the train is how proofs overlap.
+- **What it records serves a project's measures:** per landing, its
+  ready, admitted, proved and landed or rejected times, its outcome and
+  class; per candidate, its members, each gate's duration and CPU time,
+  and its bisection's rounds; per fault, its cause and the minutes
+  lost; with the tiers' lag and coverage (section 10) and the goals'
+  own times (3.1). A project's standing report is computed from them
+  (gap L19), never kept by hand.
 
 ## 10. After landing
 
@@ -698,7 +719,8 @@ for when a project needs it.
 - **Where a red goes:** by default to the nearest coordinator above each
   suspect landing's change (3.7), with the tests, the log's end and the
   bisection's answer; the coordinator decides the repair. Standing reds
-  and recoveries are recorded and reach nobody; a new flake's finding
+  are recorded and reach nobody; a recovery goes where its red went, so
+  a fix is confirmed green by the same checks; a new flake's finding
   is routed as findings are (11.1), and a flake seen again is counted on
   it and reaches nobody. A project may
   send a red to the landing's goal as well, or hold admission into that
@@ -724,8 +746,8 @@ for when a project needs it.
   `routed`, `backlog`, `dropped`, `closed`) and who holds it. The client
   and `ctl` show it.
 - **Matched by signature:** a flake seen again is counted on its
-  finding, not filed again; a gate's failure whose tests all match open
-  flake findings has its failed jobs rerun once rather than repaired.
+  finding, not filed again, whether a tier's or a gate's that passed on
+  its rerun (section 8).
 - **Routed by role:** to the coordinator its landing's change or its
   area names (3.7), which triages it to a goal, to a new goal, to its
   backlog, or drops it with a reason; the person's chat takes what has
@@ -793,7 +815,11 @@ tools of its factory repository, and its own `tools/`), the model's term
 for it, where the model has it, and whether fabrig runs it today:
 **live**, **built** (and not running) or **designed**. As of 2026-10-30.
 fabrig's queue tests (`tools/queue/test_mq.py`, 117 of them) list cases
-temper's worlds should carry.
+temper's worlds should carry. fabrig's two north stars,
+`landing-pipeline.md` and `code-producing-pipeline.md` (the factory's
+`docs/design/draft/`, 10-30), set the ideal state, the measures and
+the signals with their owners; 3.1's and 9's records are what their
+standing reports are computed from.
 
 ### 13.1 The tree, workspaces and leases
 
@@ -876,6 +902,7 @@ temper's worlds should carry.
 | `provers`, `train_depth` | project | 1, 1 | 1, 1 (2 built) |
 | `full_proofs`: every N attempts, hourly, idle after | project | 5, 1 hour, 10 minutes | the same |
 | `gate_retries`; the starved bound | project | 2; skein's | — |
+| a measured failure's reruns before it is red | project | 1 | 1 (the north star's) |
 | priority: who may set it; a hold after it | project | the operator; no | the operator; at the operator's choice |
 | `stale_proofs` before a reservation | project | 2 | — |
 | tiers: per repository, report format, coalesce beyond N waiting | repository | none | nine profiles; 2 |
@@ -998,25 +1025,25 @@ and it changes something designed), as before.
 
 | Id | Gap | Grade | Changes |
 |---|---|---|---|
-| L1 | Batches: a candidate of several landings, bisection by halves, the size by measure | design | `landing.md`, 1, 4, 9 |
+| L1 | Batches: a candidate of several landings, suspects by key, bisection by halves, the size by measure | design | `landing.md`, 1, 4, 9 |
 | L2 | Trains: a candidate on a proving one, the head landed on its certified parent, successors invalidated, no speculation in a bisection | design | `landing.md`, 8, 15 |
 | L3 | Candidates on temper's branches by a merge chain; the prepare's own commits; pinned heads and reserved names; conflicts staged with their attempt [T5] | conflict | `landing.md`, 5 (a moved head no longer sends a live candidate back) |
 | L4 | The prepare and key job on a worker: the project's tooling, no model, no credentials [T2] | design | `landing.md`, 5.3, 6.1; `worker.md`, 4.4 |
 | L5 | Keys per package and repository gates' keys, versioned; receipts kept from discarded candidates; what a key cannot see; full proofs that audit [T3] | design | `landing.md`, 6.1, 6.2 |
 | L6 | Gate classes: deterministic receipts from any certified runner, measured ones from provers; the environment in the key | design | `landing.md`, 6, 7 |
 | L7 | Provers and runners: labelled runners with affinity, idempotent dispatch, certificates, faults before a gate [T4] | design | `landing.md`, 7 |
-| L8 | Outcomes: starved recorded apart, key gaps, faults outranking reds, a red main already has [T9 in part] | design | `landing.md`, 6.2, 7 |
+| L8 | Outcomes: a measured failure rerun once before red, starved recorded apart, key gaps, faults outranking reds, a red main already has [T9 in part] | design | `landing.md`, 6.2, 7 |
 | L9 | The serializer's durability: one authority lock, versioned state, decisions applied once, intents, the outbox, recovery by main, drain as a hold [T6] | design | `landing.md`, 8, 11, 12, 15 |
 | L10 | A priority: a repair pinned, alone and in full, ahead of every ready landing, passing its setter's hold | conflict | `landing.md`, 9 (priorities ordered only gate dispatch) |
 | L11 | Checks before ready: a change's own deterministic gates in its workspace at its own candidate; `before_ready` | design | `landing.md`, 3; `forge.md`, 8.1, 8.3; `worker.md`, 4.4 (a check job) |
 | L12 | Leases: one writer of a path across goals, refused at ready, lendable, first-come waiters | design | `forge.md`, 8.1 |
-| L13 | Tiers following main: one run at a time, the newest tip, coalescing, the rerun, bisection within a bound, reds routed by role [T8, T9] | design | `after-landing.md` |
+| L13 | Tiers following main: one run at a time, the newest tip, coalescing, the rerun, bisection within a bound, reds and their recoveries routed by role [T8, T9] | design | `after-landing.md` |
 | L14 | Cleared as a setting: change results held to a verdict, the bound [T10] | design | `after-landing.md`, 6 |
 | L15 | Findings as temper's records, matched by signature, routed and triaged; the forge projection a setting [T11] | conflict | `findings.md` (the store moves from issues to temper) |
 | L16 | QA walks and passes: a tester charter, a workspace, a sign-in in custody, marks, a pass procedure [T12] | design | `findings.md`, 8 |
 | L17 | Trailers in landing news and wake policies on them [T13] | design | `forge.md`, 7.2 |
 | L18 | The reservation [T7] | design | `landing.md`, 9 |
-| L19 | Views and acts: candidates, batches, trains, receipts, tiers, findings, holds, leases, workspaces, in the client and `ctl` [T15] | design | `landing.md`, 14; client |
+| L19 | Views and acts: candidates, batches, trains, receipts, tiers, findings, holds, leases, workspaces, in the client and `ctl`; the records a standing report is computed from (3.1, 9) [T15] | design | `landing.md`, 14; client |
 | L20 | A landing is one change in one repository in v0.1.0; joint landings across repositories Later (6.6) | conflict | `landing.md`, 4.1, 5.3, 8, 13.1 |
 | J1 | Owned holds and proposals of their lift | built | jig's `domain/tasks.md`, 5.9 |
 | J2 | Drain | design | jig's `domain/tasks.md`, 5.9 |

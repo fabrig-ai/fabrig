@@ -254,16 +254,19 @@ too.
 ### 5.2 A red in a big batch
 
 Candidate 4 holds six landings, and candidate 5 is prepared on it.
-Candidate 4 is red: an app `test` fails.
+Candidate 4 is red: an app `test` fails, and fails again when rerun
+alone.
 
 - **Candidate 5 is invalidated.** Its result arrives later and decides
   nothing, but its certified receipts stay good for their keys. Prover
   2 is free once its commands have ended.
-- **Candidate 4 is bisected,** with nothing prepared on it meanwhile:
-  1. its left half, three landings, proves against main, green, and
-     lands;
-  2. its right half is red, and splits: a3 alone is red, and the other
-     two are green and land.
+- **Four of its six reach app's key,** so only they are suspects. The
+  other two are prepared again without them and land, with only the
+  keys the suspects' absence changed run.
+- **The four are bisected,** with nothing prepared on them meanwhile:
+  1. the left two prove against main, green, and land;
+  2. the right two are red, and split: a3 alone is red, and the other
+     is green and lands.
 - **a3's red is its own:** a repair under A, briefed with the failing
   step and the log.
 - **Candidate 5's landings** are prepared again on the new main. kit's
@@ -272,7 +275,8 @@ Candidate 4 is red: an app `test` fails.
 
 - **Model:** 5, 6.2, 6.3, 8.
 - **Needs:**
-  - bisection by halves (L1);
+  - a measured failure rerun once before it is red (L8);
+  - suspects by key, and bisection by halves (L1);
   - successors invalidated, and no speculation in a bisection (L2);
   - receipts kept from a discarded candidate (L5);
   - a red as the member's repair (exact).
@@ -392,11 +396,12 @@ tests, the log's end and the bisection's answer. C has A repair it:
 
 Meanwhile P lands t9. The run after it shows the same two failures:
 they are standing, not new, so nobody hears of them. The run after the
-repair passes both, and the recovery is recorded.
+repair passes both, and C hears that the red is confirmed fixed.
 
 - **Model:** 3.7, 10.
 - **Needs:**
-  - the rerun, bisection within a bound, and standing reds (L13);
+  - the rerun, bisection within a bound, standing reds, and the
+    recovery sent where the red went (L13);
   - the red routed to a role, the nearest coordinator (J10);
   - test ids from the run's artifacts (F1);
   - a one-shot advisor on another model (exact).
@@ -410,8 +415,8 @@ is routed to C.
 
 C triages #7: it starts F, a goal naming #7.
 
-Before F lands, candidate 16's app `test` fails in the same test. The
-failure matches #7, so the failed job is rerun once, and passes. No
+Before F lands, candidate 16's app `test` fails in the same test, and
+passes when rerun: the gate holds, and the flake is counted on #7. No
 repair is made.
 
 F's fix lands, naming #7, and #7 closes.
@@ -646,11 +651,11 @@ that hold it.
 | Full proofs, an idle audit, what a key cannot see | 5 | 5.5, 5.6 |
 | A candidate on temper's branch; the prepare's own commits; pinned heads | 6.1 | 4.4, 5.4 |
 | A conflict staged with its attempt; a member left out | 6.1, 6.2 | 5.4 |
-| Batches; bisection by halves | 6.2 | 4.4, 5.2 |
+| Batches; suspects by key; bisection by halves | 6.2 | 4.4, 5.2 |
 | A train; invalidation; no speculation in a bisection | 6.3 | 5.1, 5.2 |
 | A repair first, alone and in full | 6.4 | 5.5 |
 | Provers: exclusive, warm, certified; faults before a gate | 7 | 4.4, 5.1, 5.5 |
-| Outcomes: green, red, conflict, fault, key gap | 8 | 5.2, 5.4, 5.5, 5.6 |
+| Outcomes: green, red after a rerun, conflict, fault, key gap | 8 | 5.2, 5.4, 5.5, 5.6, 6.3 |
 | The serializer: the turn, the outbox, expected-head release | 9 | 4.1, 4.4, 5.1 |
 | Tiers on the newest main, coalescing, the rerun, bisection, standing reds | 10 | 6.1, 6.2 |
 | A tier's red to the suspects' coordinator; goals ending at landed | 10 | 6.2, 9.4 |
@@ -672,7 +677,7 @@ steps:
 | L5 keys per package | 4.1, 4.3, 4.4, 5.2, 5.3, 5.5, 5.6 |
 | L6 gate classes | 4.3 |
 | L7 provers and runners | 4.3, 4.4, 5.1, 5.5 |
-| L8 outcomes | 5.2, 5.5, 5.6, 6.1 |
+| L8 outcomes | 5.2, 5.5, 5.6, 6.1, 6.3 |
 | L9 the serializer | 4.1, 4.4, 5.1 |
 | L10 a priority | 5.5 |
 | L11 checks before ready | 4.3, 5.3, 5.4 |
