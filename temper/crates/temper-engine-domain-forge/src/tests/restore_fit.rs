@@ -4,6 +4,7 @@
     reason = "ordinary boundary fixtures allocate values at the measured limit and one past it"
 )]
 use super::*;
+use crate::reconcile::{MissingLink, Need};
 use temper_engine_domain_forge_landing as policy;
 
 fn name(number: u32) -> Name {
@@ -425,19 +426,31 @@ fn expired_adopted_history_neither_counts_nor_links_an_absent_repository() {
     d.reconcile(&reconcile::empty_tasks());
 }
 #[test]
-#[should_panic(expected = "forge link Application -> Repository")]
 fn nonexpired_adopted_history_still_asserts_its_missing_repository() {
     let mut d = domain();
     d.restore_begin(Wall::from_nanos(100));
     restore(&mut d, Stored::Application { token: 1, until: Wall::from_nanos(101), outcome: adopted_outcome() });
-    d.reconcile(&reconcile::empty_tasks());
+    assert_eq!(
+        d.missing_link(&reconcile::empty_tasks()),
+        Some(MissingLink {
+            kind: RecordKind::Application,
+            key: Some(Key::Application(1)),
+            need: Need::Repository(REPO)
+        })
+    );
 }
 #[test]
-#[should_panic(expected = "forge link Call -> Task { task: 0")]
 fn a_fitting_zero_call_still_asserts_its_missing_task_link() {
     let mut d = domain();
     restore(&mut d, row(RecordKind::Call, 0));
-    d.reconcile(&reconcile::empty_tasks());
+    assert_eq!(
+        d.missing_link(&reconcile::empty_tasks()),
+        Some(MissingLink {
+            kind: RecordKind::Call,
+            key: Some(Key::Call(NamedCall { task: 0, attempt: 1, completion: 1, position: 1 })),
+            need: Need::Task { task: 0, retired: None }
+        })
+    );
 }
 #[test]
 fn independent_timer_room_is_checked_before_insertion() {
@@ -593,4 +606,70 @@ fn noncanonical_binding_bytes_restore_unchanged_while_bind_normalizes() {
         read_afresh: None,
         release: None
     }));
+}
+
+fn unlinked_row(kind: RecordKind, number: u32) -> Stored {
+    if kind == RecordKind::Demo {
+        return Stored::Demo(Demo { forge: u16::try_from(number).unwrap(), state: DemoState::Ended });
+    }
+    let mut record = row(kind, number);
+    if let Stored::Repository(row) = &mut record {
+        row.provider.forge = 99;
+    }
+    if let Stored::Application { outcome, .. } = &mut record {
+        *outcome = adopted_outcome();
+    }
+    if let Stored::Landing(row) = &mut record {
+        row.landing.members = Box::new([policy::Member {
+            change: u64::from(number),
+            repository: policy::Repository { forge: REPO.forge, repository: REPO.repository },
+            pull: 1,
+            head: None,
+            base: None,
+            candidate: None,
+            gates: Box::new([]),
+            asked: None,
+            landed: None,
+        }]);
+    }
+    record
+}
+
+#[test]
+fn missing_links_keep_their_source_key_across_lower_insertions_and_replacements() {
+    use RecordKind as K;
+    const FIRST: u32 = 2;
+    const LOWER: u32 = 1;
+    for kind in [
+        K::Call,
+        K::ProposedEffect,
+        K::Repository,
+        K::Hold,
+        K::Names,
+        K::Subscription,
+        K::BranchHead,
+        K::PullState,
+        K::Ci,
+        K::Entry,
+        K::Change,
+        K::Issue,
+        K::Release,
+        K::Application,
+        K::Landing,
+        K::Receipt,
+        K::Flight,
+        K::Writer,
+        K::Demo,
+    ] {
+        let mut d = domain();
+        let first = unlinked_row(kind, FIRST);
+        let expected = stored_key(&first);
+        restore(&mut d, first);
+        restore(&mut d, unlinked_row(kind, LOWER));
+        restore(&mut d, unlinked_row(kind, LOWER));
+        assert_eq!(d.restore_fit_failure(), None, "{kind:?}");
+        let missing = d.missing_link(&reconcile::empty_tasks()).expect("first row has an unmade link");
+        assert_eq!(missing.kind, kind);
+        assert_eq!(missing.key, Some(expected));
+    }
 }

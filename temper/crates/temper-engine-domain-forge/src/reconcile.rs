@@ -1,5 +1,5 @@
 //! Reference reconciliation before Switch (domain/root.md, 9.1; protocol/store.md, 2).
-use crate::{Domain, Limits, Name, Stored, Topic};
+use crate::{Domain, Key, Limits, Name, Stored, Topic};
 use skein_forge::api::Repository;
 use skein_lib::List;
 
@@ -36,7 +36,7 @@ pub struct Unresolved {
     pub records: u32,
     pub first: RecordKind,
 }
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Need {
     Forge(u16),
     Demo(u16),
@@ -48,7 +48,15 @@ pub(crate) enum Need {
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Reference {
     kind: RecordKind,
+    row: u32,
+    client_repository: bool,
     need: Need,
+}
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct MissingLink {
+    pub(crate) kind: RecordKind,
+    pub(crate) key: Option<Key>,
+    pub(crate) need: Need,
 }
 #[derive(Debug)]
 pub(crate) struct Reconciliation {
@@ -82,7 +90,7 @@ impl Reconciliation {
     }
     fn need(&mut self, kind: RecordKind, need: Need) -> Result<(), crate::RestoreFit> {
         let held = self.references.len();
-        match self.references.push(Reference { kind, need }) {
+        match self.references.push(Reference { kind, row: 0, client_repository: false, need }) {
             Ok(()) => Ok(()),
             Err(_) => Err(crate::RestoreFit {
                 family: Some(kind),
@@ -110,7 +118,32 @@ impl Reconciliation {
         self.task(kind, entry.task, Some(entry.repository.forge))?;
         Ok(())
     }
+    pub(crate) fn len(&self) -> u32 {
+        self.references.len()
+    }
+    /// Keep ordinals aligned with the retained table's key order as rows arrive.
+    pub(crate) fn locate(&mut self, before: u32, row: u32, inserted: bool) {
+        let kind = self.references.get(before).expect("new row has references").kind;
+        for index in 0..self.references.len() {
+            let reference = self.references.get_mut(index).expect("bounded reference index");
+            if index >= before {
+                reference.row = row;
+            } else if inserted && reference.kind == kind && reference.row >= row {
+                reference.row = reference.row.checked_add(1).expect("row ordinal fits retained table capacity");
+            }
+        }
+    }
     pub(crate) fn restore(&mut self, row: &Stored) -> Result<(), crate::RestoreFit> {
+        let before = self.references.len();
+        self.restore_references(row)?;
+        if let Stored::Client(skein_forge_client::Stored::Repository(_)) = row {
+            for index in before..self.references.len() {
+                self.references.get_mut(index).expect("bounded reference index").client_repository = true;
+            }
+        }
+        Ok(())
+    }
+    fn restore_references(&mut self, row: &Stored) -> Result<(), crate::RestoreFit> {
         match row {
             Stored::Landing(row) => {
                 for member in &row.landing.members {
@@ -215,9 +248,19 @@ impl Reconciliation {
 }
 impl Domain {
     /// Link restored rows to retained targets; a missing target is a writer bug.
+    #[expect(clippy::panic, reason = "an unmade restored link is a writer bug (jig/docs/design/domain/engine.md, 6)")]
     pub fn reconcile(&mut self, tasks: &jig_domain_tasks::Domain) {
         if self.restore_fit_failure().is_some() {
             return;
+        }
+        if let Some(missing) = self.missing_link(tasks) {
+            panic!("forge link {:?} -> {:?} for {:?}", missing.kind, missing.need, missing.key);
+        }
+        self.reconciliation.verdict = Ok(());
+    }
+    pub(crate) fn missing_link(&self, tasks: &jig_domain_tasks::Domain) -> Option<MissingLink> {
+        if self.restore_fit_failure().is_some() {
+            return None;
         }
         for reference in &self.reconciliation.references {
             let live = match reference.need {
@@ -226,14 +269,20 @@ impl Domain {
                 }
                 Need::Forge(_) | Need::Demo(_) | Need::Repository(_) => false,
             };
-            assert!(
-                self.reference_resolves(reference.need, live),
-                "forge link {:?} -> {:?}",
-                reference.kind,
-                reference.need
-            );
+            if !self.reference_resolves(reference.need, live) {
+                return Some(MissingLink {
+                    kind: reference.kind,
+                    key: self.restored_link_key(
+                        reference.kind,
+                        reference.row,
+                        reference.need,
+                        reference.client_repository,
+                    ),
+                    need: reference.need,
+                });
+            }
         }
-        self.reconciliation.verdict = Ok(());
+        None
     }
     /// Retained compatibility result; missing targets panic before this can report failure.
     pub const fn reconciliation(&self) -> Result<(), Unresolved> {
