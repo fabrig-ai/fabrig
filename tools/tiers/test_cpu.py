@@ -29,7 +29,7 @@ def setUpModule():
     before = resource.getrusage(resource.RUSAGE_CHILDREN)
     for arguments in (['-o', str(WRAPPER)],
                       [str(HERE / 'fixtures/cpu-settlement.c'),
-                       '-Wl,--wrap=wait4,--wrap=clock_gettime,--wrap=fopen,--wrap=kill,--wrap=write',
+                       '-Wl,--wrap=wait4,--wrap=clock_gettime,--wrap=open,--wrap=read,--wrap=lseek,--wrap=kill,--wrap=write',
                        '-o', str(SETTLEMENT_WRAPPER)]):
         try:
             subprocess.run([*compiler, *arguments], check=True, stdin=subprocess.DEVNULL,
@@ -690,6 +690,53 @@ time.sleep(30)
         self.assertIsNone(item['exit_code'])
         self.assertTrue(item['complete'])
 
+    def test_descriptor_exhaustion_cleanup_reaps_escaped_child(self):
+        ready = self.root / 'exhausted-pids'
+        errors = self.root / 'exhausted-errors'
+        output = errors.open('wb')
+        self.addCleanup(output.close)
+        process = subprocess.Popen([sys.executable, '-I', '-B', str(HERE / 'cpu-run'),
+                                    '--out', str(self.directory), '--suite', 'exhausted',
+                                    '--wall-hard', '1', '--', sys.executable, '-I', '-c',
+                                    f'''import os,signal,time
+from pathlib import Path
+signal.signal(signal.SIGTERM,signal.SIG_IGN)
+parent=os.getpid()
+if os.fork()==0:
+    os.setsid()
+    Path({str(ready)!r}).write_text(str(parent)+' '+str(os.getpid()))
+time.sleep(30)
+'''], env=self.env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                   stderr=output, start_new_session=True)
+        def cleanup():
+            if ready.exists():
+                for pid in map(int, ready.read_text().split()):
+                    try:
+                        os.kill(pid, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+            if process.poll() is None:
+                process.kill()
+            process.communicate(timeout=5)
+        self.addCleanup(cleanup)
+        deadline = time.monotonic() + 5
+        while not ready.exists():
+            if time.monotonic() > deadline or process.poll() is not None:
+                self.fail('owned payload did not become ready')
+            time.sleep(0.001)
+        _, hard = resource.prlimit(process.pid, resource.RLIMIT_NOFILE)
+        resource.prlimit(process.pid, resource.RLIMIT_NOFILE, (0, hard))
+        self.assertEqual(process.wait(timeout=8), 125)
+        self.assertIn('Too many open files', errors.read_text())
+        pids = [int(value) for value in ready.read_text().split()]
+        self.assertEqual(len(pids), 2)
+        for pid in pids:
+            with self.assertRaises(ProcessLookupError, msg=f'owned process {pid} survived descriptor exhaustion'):
+                os.kill(pid, 0)
+        _, item = self.record()
+        self.assertFalse(item['complete'])
+        self.assertEqual(self.summary('--expect', 'exhausted').returncode, 2)
+
     def test_deadline_stays_armed_during_settlement_with_known_exit(self):
         self.directory.mkdir()
         record = self.directory / 'settlement.json'
@@ -714,6 +761,39 @@ time.sleep(30)
         self.assertIsNone(checkpoint['signal'])
         self.assertFalse(checkpoint['pending'])
         self.assertTrue(checkpoint['settling'])
+
+    def test_unproven_cleanup_names_surviving_pid(self):
+        self.directory.mkdir()
+        ready = self.root / 'refused-pid'
+        errors = self.root / 'refused-errors'
+        output = errors.open('wb')
+        self.addCleanup(output.close)
+        process = subprocess.Popen([str(SETTLEMENT_WRAPPER), '--suite',
+                                    str(self.directory / 'refused.json'), 'refused',
+                                    '--wall-hard', '0.25', '--', sys.executable, '-I', '-c',
+                                    'import os,signal,time; from pathlib import Path; '
+                                    'signal.signal(signal.SIGTERM,signal.SIG_IGN); '
+                                    f'Path({str(ready)!r}).write_text(str(os.getpid())); time.sleep(30)'],
+                                   env=dict(self.env, TIERS_REFUSE_KILL='1'),
+                                   stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                   stderr=output, start_new_session=True)
+        def cleanup():
+            if ready.exists():
+                try:
+                    os.kill(int(ready.read_text()), signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+            if process.poll() is None:
+                process.kill()
+            process.communicate(timeout=5)
+        self.addCleanup(cleanup)
+        self.assertEqual(process.wait(timeout=8), 125)
+        pid = int(ready.read_text())
+        os.kill(pid, 0)
+        self.assertIn(f'cpu-wrapper: surviving pids: {pid}\n', errors.read_text())
+        _, item = self.record()
+        self.assertFalse(item['complete'])
+        self.assertEqual(self.summary('--expect', 'refused').returncode, 2)
 
     def test_wall_starvation_reaps_payload_group_and_escaped_child(self):
         for mode in ('term', 'kill', 'escaped'):

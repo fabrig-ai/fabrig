@@ -2,6 +2,7 @@
 /* Per-attempt Linux CPU accounting: tools/tiers/design.md, 7. */
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <math.h>
 #include <signal.h>
 #include <spawn.h>
@@ -20,7 +21,8 @@
 
 extern char **environ;
 static pid_t payload_pid = -1;
-static bool payload_group;
+static bool payload_group, payload_reaped;
+static int children_fd = -1;
 _Noreturn static void collector_failure(const char *message);
 
 static double seconds(struct timeval value) {
@@ -109,9 +111,11 @@ static void record(const char *path, double start, double user, double system,
     bool initial = fd >= 0;
     initial_fd = -1;
     if (fd < 0) fd = open(temporary_path, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0600);
-    if (fd < 0 || write(fd, record_data, length) != (ssize_t)length || close(fd)) {
-        collector_failure("cpu-wrapper: write record");
-    }
+    if (fd < 0) collector_failure("cpu-wrapper: write record");
+    ssize_t written = write(fd, record_data, length);
+    int error = written == (ssize_t)length ? 0 : written < 0 ? errno : EIO;
+    if (close(fd) && !error) error = errno;
+    if (error) { errno = error; collector_failure("cpu-wrapper: write record"); }
     /* A named suite must not replace another invocation's record. */
     int published = suite_record && initial
         ? (link(temporary_path, path) || unlink(temporary_path))
@@ -120,32 +124,64 @@ static void record(const char *path, double start, double user, double system,
         collector_failure("cpu-wrapper: publish record");
     }
 }
-/* Only our direct children: adoption brings a daemon here even after setsid. */
-static bool signal_children(int sig, double deadline) {
-    char path[96];
-    snprintf(path, sizeof path, "/proc/self/task/%ld/children", (long)getpid());
-    FILE *children = fopen(path, "r");
-    if (!children) return false;
-    long child;
-    while (fscanf(children, "%ld", &child) == 1) {
-        if (deadline && now() >= deadline) { fclose(children); errno = ETIMEDOUT; return false; }
-        if (kill((pid_t)child, sig) && errno != ESRCH) {
-            int error = errno;
-            fclose(children); errno = error; return false;
+static bool visit_child(pid_t child, int sig, double deadline, unsigned *seen) {
+    if (child <= 0) { errno = EINVAL; return false; }
+    ++*seen;
+    if (!sig) { fprintf(stderr, " %ld", (long)child); return true; }
+    if (deadline && now() >= deadline) { errno = ETIMEDOUT; return false; }
+    return !kill(child, sig) || errno == ESRCH;
+}
+/* Rewind the retained descriptor: no new open or allocation after launch.
+   Only our children are listed; adoption includes daemons after setsid. */
+static bool walk_children(int sig, double deadline, unsigned *seen) {
+    while (lseek(children_fd, 0, SEEK_SET) < 0) {
+        if (errno != EINTR) return false;
+    }
+    char buffer[256];
+    pid_t child = 0;
+    bool digits = false;
+    for (;;) {
+        ssize_t size = read(children_fd, buffer, sizeof buffer);
+        if (size < 0) {
+            if (errno == EINTR) continue;
+            return false;
+        }
+        if (!size) return !digits || visit_child(child, sig, deadline, seen);
+        for (ssize_t i = 0; i < size; ++i) {
+            unsigned char c = (unsigned char)buffer[i];
+            if (c >= '0' && c <= '9') {
+                if (child > (INT_MAX - (c - '0')) / 10) { errno = EOVERFLOW; return false; }
+                child = child * 10 + (c - '0');
+                digits = true;
+            } else if (c == ' ' || c == '\n' || c == '\t') {
+                if (digits && !visit_child(child, sig, deadline, seen)) return false;
+                child = 0; digits = false;
+            } else { errno = EINVAL; return false; }
         }
     }
-    bool success = !ferror(children);
-    int error = errno;
-    fclose(children);
-    if (!success) errno = error ? error : EIO;
-    return success;
+}
+static bool signal_children(int sig, double deadline) {
+    unsigned seen = 0;
+    return walk_children(sig, deadline, &seen);
+}
+static void report_survivors(void) {
+    unsigned seen = 0;
+    fputs("cpu-wrapper: surviving pids:", stderr);
+    if (!walk_children(0, 0, &seen)) {
+        int error = errno;
+        if (!payload_reaped) fprintf(stderr, " %ld", (long)payload_pid);
+        fprintf(stderr, " (children enumeration failed: %s)", strerror(error));
+    } else if (!seen) {
+        fputs(" none listed (settlement unproven)", stderr);
+    }
+    fputc('\n', stderr);
 }
 static bool kill_children(double deadline) {
     bool success = signal_children(SIGKILL, deadline);
     if (!success && errno != ETIMEDOUT) collector_failure("cpu-wrapper: child cleanup");
     return success;
 }
-static void cleanup_after_error(void) {
+static bool cleanup_after_error(void) {
     if (payload_pid > 0) {
         /* Error cleanup uses neither the collector's clock nor record writer.
            Nextest owns the untimed group; signal only our children there. */
@@ -158,21 +194,25 @@ static void cleanup_after_error(void) {
                 int status;
                 struct rusage usage;
                 pid_t child = wait4(-1, &status, WNOHANG | __WALL, &usage);
-                if (child < 0 && errno == ECHILD) return;
+                if (child == payload_pid) payload_reaped = true;
+                if (child < 0 && errno == ECHILD) return true;
                 if (child <= 0) break;
             }
             struct timespec pause = { .tv_nsec = 1000000 };
             nanosleep(&pause, NULL);
         }
+        return false;
     }
+    return true;
 }
 _Noreturn static void collector_failure(const char *message) {
     int error = errno;
-    cleanup_after_error();
+    bool settled = cleanup_after_error();
     /* A broken diagnostic pipe must not interrupt cleanup or change exit 125. */
     sigset_t blocked;
     sigemptyset(&blocked); sigaddset(&blocked, SIGPIPE);
     sigprocmask(SIG_BLOCK, &blocked, NULL);
+    if (!settled) report_survivors();
     errno = error;
     perror(message);
     exit(125);
@@ -217,6 +257,10 @@ int main(int argc, char **argv) {
     record_data = malloc(1024 + 6 * names);
     if (!record_data) { perror("cpu-wrapper: record buffer"); return 125; }
     if (prctl(PR_SET_CHILD_SUBREAPER, 1, 0, 0, 0)) { perror("cpu-wrapper: subreaper"); return 125; }
+    char children_path[96];
+    snprintf(children_path, sizeof children_path, "/proc/self/task/%ld/children", (long)getpid());
+    children_fd = open(children_path, O_RDONLY | O_CLOEXEC);
+    if (children_fd < 0) collector_failure("cpu-wrapper: children descriptor");
     struct sigaction action = { .sa_handler = SIG_IGN };
     sigemptyset(&action.sa_mask);
     const int signals[] = { SIGTERM, SIGINT, SIGHUP, SIGQUIT };
@@ -296,6 +340,7 @@ int main(int argc, char **argv) {
         if (child > 0) {
             user += seconds(usage.ru_utime); system += seconds(usage.ru_stime);
             if (child == test) {
+                payload_reaped = true;
                 status = child_status; exited = true; settled = now();
                 record(path, start, user, system, status, false, leaked, false, true);
             }

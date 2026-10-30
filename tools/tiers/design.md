@@ -203,7 +203,10 @@ counts reaped descendants killed with SIGKILL as `leaked`. Settlement ends at
 ECHILD or after one second. Cleanup eligibility and the deadline are checked
 on every iteration, including successful reaps, and during the owned-child
 kill walk. A failure to prove settlement sets `complete=false`.
-Only `/proc/self/task/SELF/children` is inspected for cleanup; no foreign
+The supervisor opens `/proc/self/task/SELF/children` before launching the
+payload and retains its close-on-exec descriptor. Cleanup rewinds and reads
+that descriptor, parsing PID tokens across read boundaries without another
+open or allocation. Only that children list is inspected; no foreign
 process environment, credentials or cgroup state is read.
 
 `complete_scope="waited-and-reaped-descendants"` defines completeness: the test,
@@ -304,11 +307,14 @@ own temporary directory, cleaned after the suite. It never reads `target/`;
 a missing `cc` fails the suite with a clear error. The suite prints the user,
 system and total CPU seconds spent building both fixtures. The second build
 adds `tools/tiers/fixtures/cpu-settlement.c` and
-`-Wl,--wrap=wait4,--wrap=clock_gettime,--wrap=fopen,--wrap=kill,--wrap=write` to the wrapper
+`-Wl,--wrap=wait4,--wrap=clock_gettime,--wrap=open,--wrap=read,--wrap=lseek,--wrap=kill,--wrap=write` to the wrapper
 build. It reaps one real child then models a stream
 of successful reaps and an advancing clock, with owned-child cleanup calls
 intercepted; it spawns no process storm and signals no synthetic PID. Its
 optional record trace captures each write to verify checkpoint state.
+The modeled children list splits PID tokens across reads. A separate kill
+refusal mode checks diagnostics when cleanup cannot settle; the test cleans
+up its owned surviving process independently.
 
 The suite covers overlay arguments and parsed configuration,
 record coverage and validation, retries and skipped tests, CPU budgets and
@@ -369,6 +375,13 @@ bounded reap batches so a stream cannot prevent escalation. It uses neither
 the record writer nor the collector's clock, so those failures cannot abort
 cleanup recursively. Diagnostics follow cleanup, and the last published record
 remains incomplete; an interrupted write never claims completed accounting.
+Failed record writes close their descriptor before entering cleanup, preserving
+the write error for the diagnostic. The children-list descriptor is already
+open, so sustained EMFILE/ENFILE during record creation cannot prevent cleanup
+from finding escaped descendants after adoption. If bounded cleanup cannot
+prove settlement, stderr includes `cpu-wrapper: surviving pids:` followed by
+the remaining listed children; an enumeration error is explicit and includes
+the known unreaped payload PID. Exit 125 and incomplete accounting remain.
 
 The caller's own timeout **must exceed wall-hard + one-second grace + five
 seconds**, allowing scheduling and settlement time, and must never signal
@@ -437,6 +450,10 @@ Regression checks also force a post-launch checkpoint write failure while
 a TERM-ignoring payload and escaped child are live, run a native writer into
 a closed pipe, and inspect starvation checkpoints during modeled settlement
 after the main command has exited with a known failure status.
+A descriptor-exhaustion regression lowers only the live supervisor's
+RLIMIT_NOFILE to zero while a TERM-ignoring payload and escaped child run;
+record creation fails, cleanup reaps both, and the summary rejects the retained
+incomplete record.
 
 ## 8. Later
 
