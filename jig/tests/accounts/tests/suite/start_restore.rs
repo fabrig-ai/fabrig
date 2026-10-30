@@ -1,7 +1,8 @@
 //! Opted-in load/fit/link (jig/docs/design/domain/engine.md, 6; domain/accounts.md, 3.6).
 use jig_accounts_world::{LIMITS, World, account, provider, providers, source};
 use jig_domain_accounts::{
-    Change, Event, Held, Holder, Kind, Limits, Providers, Request, State, Stored, Use, programs,
+    Change, Domain, Event, Held, Holder, Key, Kind, Limits, Providers, Request, RestoreLimit, RestoreSet, State,
+    Stored, Use, programs,
 };
 use skein_lib::{Token, Wall};
 
@@ -20,15 +21,38 @@ fn issued(number: u32, name: &[u8]) -> Stored {
 fn program(account: u32, number: u32, place: u32, name: &[u8]) -> Stored {
     Stored::Source { account, number, place, kind: Kind::Program, name: name.into(), held: None }
 }
-fn failed(world: &mut World) {
+const fn restore_limit(domain: &Domain) -> Option<RestoreLimit> {
+    domain.restore_limit()
+}
+fn failed(world: &mut World, expected: RestoreLimit) {
+    let later = vec![
+        issued(100, &[b'a'; 33]),
+        account(101, 1, HOLDER, b""),
+        account(102, 1, HOLDER, b""),
+        account(103, 1, HOLDER, b""),
+        account(104, 1, HOLDER, b""),
+    ];
+    if restore_limit(&world.domain).is_some() {
+        world.restore(later.clone());
+        assert_eq!(restore_limit(&world.domain), Some(expected));
+    }
     assert!(world.step(Event::Want).is_empty());
+    assert_eq!(restore_limit(&world.domain), Some(expected));
     assert!(!world.domain.restore_finished());
     assert_eq!(world.domain.unrestored(), 1);
+    world.restore(later);
+    assert_eq!(restore_limit(&world.domain), Some(expected));
     world.restore(vec![Stored::Next { number: 900 }, account(800, 1, HOLDER, b"later")]);
+    assert_eq!(restore_limit(&world.domain), Some(expected));
     assert!(world.step(Event::Want).is_empty());
+    assert_eq!(restore_limit(&world.domain), Some(expected));
     assert!(!world.domain.restore_finished());
     assert_eq!(world.domain.unrestored(), 1);
     assert_eq!(world.domain.next_number(), 900);
+    assert!(world.step(Event::Want).is_empty());
+    assert_eq!(restore_limit(&world.domain), Some(expected));
+    assert!(!world.domain.restore_finished());
+    assert_eq!(world.domain.unrestored(), 1);
 }
 
 #[test]
@@ -40,10 +64,12 @@ fn records_are_linked_after_loading_in_any_order() {
         account(22, 1, HOLDER, b"same"),
         Stored::Next { number: 50 },
     ]);
+    assert_eq!(restore_limit(&world.domain), None);
     assert!(world.domain.account(20).expect("loaded account").sources().is_empty());
     let out = world.step(Event::Want);
     assert!(world.domain.restore_finished());
     assert_eq!(world.domain.unrestored(), 0);
+    assert_eq!(restore_limit(&world.domain), None);
     assert_eq!(world.domain.account(20).expect("linked").sources().get(&8), Some(&21));
     assert!(world.domain.account(22).is_some(), "source-less identity survives");
     assert_eq!(programs::issued(&world.domain, b"Upper Name"), Some((21, HOLDER)));
@@ -67,8 +93,10 @@ fn admission_rules_remain_at_live_entrances() {
     }
     let rows = [row, named_key, source(20, 23, 1, Kind::SignIn), source(20, 24, 2, Kind::SignIn)];
     let mut default_world = World::with(configured(), &rows);
+    assert_eq!(restore_limit(&default_world.domain), None);
     default_world.step(Event::Want);
     assert_eq!(default_world.domain.accounts(), 0);
+    assert_eq!(restore_limit(&default_world.domain), None);
     let mut world = start(&rows);
     world.step(Event::Want);
     assert_eq!(world.domain.unrestored(), 0);
@@ -97,13 +125,17 @@ fn removed_providers_and_source_less_accounts_keep_identity() {
     default_world.step(Event::Want);
     assert_eq!(default_world.domain.accounts(), 0);
     assert_eq!(default_world.domain.unrestored(), 3);
+    assert_eq!(restore_limit(&default_world.domain), None);
+    assert!(default_world.domain.restore_finished());
 }
 
 #[test]
 fn stored_names_reconstruct_without_declaration_spelling_rules() {
     for name in [b"".as_slice(), b"Upper Name", &[255; 32]] {
         let mut world = start(&[issued(21, name), account(20, 1, HOLDER, b""), program(20, 21, 0, name)]);
+        assert_eq!(restore_limit(&world.domain), None);
         world.step(Event::Want);
+        assert_eq!(restore_limit(&world.domain), None);
         assert_eq!(programs::name(&world.domain, 21, HOLDER), Some(name));
         assert!(world.domain.source_grant(21, world.now).is_some());
     }
@@ -141,9 +173,11 @@ fn every_set_fits_at_its_exact_capacity() {
         configured(),
         &[account(20, 1, HOLDER, b""), program(20, 21, 0, b"p"), issued(21, b"p")],
     );
+    assert_eq!(restore_limit(&world.domain), None);
     world.step(Event::Want);
     assert!(world.domain.restore_finished());
     assert_eq!(world.domain.unrestored(), 0);
+    assert_eq!(restore_limit(&world.domain), None);
 }
 
 #[test]
@@ -153,7 +187,9 @@ fn excess_accounts_refuse_stickily() {
         configured(),
         &[account(20, 1, HOLDER, b""), account(22, 1, HOLDER, b"")],
     );
-    failed(&mut world);
+    let expected = RestoreLimit { key: Key::Account { number: 22 }, set: RestoreSet::Accounts, limit: 1 };
+    assert_eq!(restore_limit(&world.domain), Some(expected));
+    failed(&mut world, expected);
 }
 #[test]
 fn excess_sources_in_one_account_refuse_stickily() {
@@ -162,26 +198,70 @@ fn excess_sources_in_one_account_refuse_stickily() {
         configured(),
         &[account(20, 1, HOLDER, b""), source(20, 21, 0, Kind::Key), source(20, 22, 1, Kind::Key)],
     );
-    failed(&mut world);
+    assert_eq!(restore_limit(&world.domain), None, "source rows fit the aggregate table before linking");
+    failed(
+        &mut world,
+        RestoreLimit {
+            key: Key::Source { account: 20, number: 22 },
+            set: RestoreSet::Sources { account: 20 },
+            limit: 1,
+        },
+    );
 }
 #[test]
 fn excess_total_sources_refuse_stickily() {
     let limits = Limits { accounts: 1, holder_accounts: 1, sources: 1, ..LIMITS };
     let mut world =
         World::with_start(limits, configured(), &[source(20, 21, 0, Kind::Key), source(20, 22, 1, Kind::Key)]);
-    failed(&mut world);
+    let expected =
+        RestoreLimit { key: Key::Source { account: 20, number: 22 }, set: RestoreSet::TotalSources, limit: 1 };
+    assert_eq!(restore_limit(&world.domain), Some(expected));
+    failed(&mut world, expected);
 }
 #[test]
 fn excess_lifetime_names_refuse_stickily() {
+    let mut retired = issued(21, b"p");
+    if let Stored::Issued { signed_out, .. } = &mut retired {
+        *signed_out = true;
+    }
     let mut world =
-        World::with_start(Limits { program_names: 1, ..LIMITS }, configured(), &[issued(21, b"p"), issued(22, b"q")]);
-    failed(&mut world);
+        World::with_start(Limits { program_names: 1, ..LIMITS }, configured(), &[retired, issued(22, b"q")]);
+    let expected = RestoreLimit { key: Key::Issued { number: 22 }, set: RestoreSet::ProgramNames, limit: 1 };
+    assert_eq!(restore_limit(&world.domain), Some(expected));
+    failed(&mut world, expected);
 }
 #[test]
 fn names_past_the_fixed_carrier_refuse_stickily() {
     for row in [issued(21, &[b'a'; 33]), program(20, 21, 0, &[b'a'; 33])] {
+        let expected = RestoreLimit { key: row.key(), set: RestoreSet::NameBytes, limit: jig_domain_accounts::NAME };
         let mut world = start(&[row]);
-        failed(&mut world);
+        assert_eq!(restore_limit(&world.domain), Some(expected));
+        failed(&mut world, expected);
+    }
+}
+
+#[test]
+fn retained_capacities_bound_accounts_and_lifetime_names_after_limits_grow() {
+    for (rows, expected) in [
+        (
+            [account(20, 1, HOLDER, b""), account(22, 1, HOLDER, b"")],
+            RestoreLimit { key: Key::Account { number: 22 }, set: RestoreSet::Accounts, limit: 1 },
+        ),
+        (
+            [issued(21, b"p"), issued(22, b"q")],
+            RestoreLimit { key: Key::Issued { number: 22 }, set: RestoreSet::ProgramNames, limit: 1 },
+        ),
+    ] {
+        let mut world = World::with_start(
+            Limits { accounts: 1, holder_accounts: 1, program_names: 1, ..LIMITS },
+            configured(),
+            &[],
+        );
+        world.limits.accounts = LIMITS.accounts;
+        world.limits.program_names = LIMITS.program_names;
+        world.restore(rows.into());
+        assert_eq!(restore_limit(&world.domain), Some(expected));
+        failed(&mut world, expected);
     }
 }
 
@@ -246,11 +326,15 @@ fn selecting_start_after_a_zero_row_want_is_a_programmer_error() {
 }
 #[test]
 fn an_empty_start_can_be_selected_and_finishes_once() {
+    let cold = Domain::new(&LIMITS, configured());
+    assert_eq!(restore_limit(&cold), None);
     let mut world = start(&[]);
+    assert_eq!(restore_limit(&world.domain), None);
     assert!(!world.domain.restore_finished());
     world.step(Event::Want);
     assert!(world.domain.restore_finished());
     assert!(world.step(Event::Want).is_empty());
+    assert_eq!(restore_limit(&world.domain), None);
 }
 
 #[test]
@@ -480,6 +564,7 @@ pub(crate) fn writer_readback(seed: u64) -> Vec<Stored> {
         let out = again.step(Event::Want);
         assert!(again.domain.restore_finished(), "seed {seed}, step {request}");
         assert_eq!(again.domain.unrestored(), 0);
+        assert_eq!(restore_limit(&again.domain), None);
         assert!(
             !out.iter().any(|rq| matches!(rq, Request::Save { .. } | Request::Erase { .. })),
             "seed {seed}, step {request}: {out:?}"
