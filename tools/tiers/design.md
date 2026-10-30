@@ -140,7 +140,12 @@ CPU mode builds `tools/tiers/cpu-wrapper.c` with `heavy cc -std=c11 -O2 -static
 -Wall -Wextra -Werror` beneath Cargo metadata's target directory, before the
 nextest command. This Linux process supervisor uses C for direct `wait4`,
 `prctl` and signal calls with no interpreter or dynamic-loader startup. It
-requires the builder's C compiler and static libc development files. Its CPU
+requires the builder's C compiler and static libc development files. It runs
+in section 2.1's prerequisite phase, after the per-pair Cargo binary builds,
+sharing their heavy admission and any metadata target already discovered.
+It stays outside `[binaries]`: that schema names Cargo package/bin targets
+and applies on ordinary runs, whereas this C target is conditional on `--cpu`.
+Its CPU
 overhead must be at most 2 ms per test; the offline 100-attempt measurement
 subtracts recorded test-tree CPU from `wait4` usage of a `posix_spawn`ed wrapper,
 including supervisor startup, publication and exit, and reports mean and max.

@@ -263,17 +263,20 @@ def main(argv=None):
                   ["-p", binary["package"], "--bin", binary["bin"]], env)
             if "env" in binary:
                 env[binary["env"]] = str(target / "debug" / binary["bin"])
-        command = ["heavy", "cargo", "nextest", "run", *package_arguments(package_map[profile]), "--profile", profile,
-                   "--no-fail-fast", *extra]
         if args.cpu:
-            # Native prerequisite: the ordinary runner never builds or loads it.
-            target = target_directory(env)
+            # The conditional C prerequisite shares admission with Cargo binaries;
+            # per-pair Cargo entries apply even when CPU collection is disabled.
+            if target is None:
+                target = target_directory(env)
             wrapper = target / "tiers-cpu-wrapper"
             target.mkdir(parents=True, exist_ok=True)
             code = step("CPU wrapper", ["heavy", "cc", "-std=c11", "-O2", "-static", "-Wall", "-Wextra", "-Werror",
                         "tools/tiers/cpu-wrapper.c", "-o", str(wrapper)], env)
             if code:
                 raise FailedStep(f"CPU wrapper: exit {code}")
+        command = ["heavy", "cargo", "nextest", "run", *package_arguments(package_map[profile]), "--profile", profile,
+                   "--no-fail-fast", *extra]
+        if args.cpu:
             overlay = cpu["prepare"](args.cpu, profile, wrapper)
             command = [*command[:4], *overlay, *command[4:]]
             wait_for_disk(env)

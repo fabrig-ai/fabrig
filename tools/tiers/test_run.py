@@ -379,6 +379,29 @@ class RunnerTests(unittest.TestCase):
             self.assertEqual(result.returncode, 2)
             self.assertEqual(calls, [])
 
+    def test_cpu_preserves_native_prerequisites_and_reuses_metadata(self):
+        self.packages.write_text(self.packages.read_text().replace(
+            'qa-smith = []',
+            'qa-smith = [{package="adapter",bin="fake-claude",env="TEMPER_TEST_CLAUDE"}]'))
+        directory = self.root / 'CPU with native'
+        result, calls = self.invoke('--cpu', str(directory), 'smith', 'qa', TEMPER_TEST_CLAUDE='/stale')
+        self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+        self.assertEqual([call['name'] for call in calls], ['cargo', 'df', 'heavy', 'df', 'heavy', 'df', 'heavy'])
+        self.assertEqual(calls[2]['args'], ['cargo', 'build', '-p', 'adapter', '--bin', 'fake-claude'])
+        self.assertEqual(calls[4]['args'][0], 'cc')
+        self.assertEqual(calls[6]['args'][:3], ['cargo', 'nextest', 'run'])
+        self.assertEqual(calls[2]['env']['TEMPER_TEST_CLAUDE'], '/stale')
+        for call in (calls[4], calls[6]):
+            self.assertEqual(call['env']['TEMPER_TEST_CLAUDE'], str(self.target / 'debug/fake-claude'))
+        result, calls = self.invoke('--cpu', str(self.root / 'native-failure'), 'smith', 'qa', FAIL_BUILD='adapter')
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertEqual([call['name'] for call in calls], ['cargo', 'df', 'heavy'])
+        result, calls = self.invoke('--cpu', str(self.root / 'wrapper-failure'), 'smith', 'qa',
+                                    FAIL_BUILD='tools/tiers/cpu-wrapper.c')
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertIn('failed step CPU wrapper: exit 19', result.stderr)
+        self.assertEqual([call['name'] for call in calls], ['cargo', 'df', 'heavy', 'df', 'heavy'])
+
     def test_verify_all_validates_budgets_before_any_command(self):
         path = self.root / 'tools/tiers/budgets.toml'
         for content in ('[unknown]\ncpu_suite_s=1', '[qa-smith]\nwall_hard_s=0',
