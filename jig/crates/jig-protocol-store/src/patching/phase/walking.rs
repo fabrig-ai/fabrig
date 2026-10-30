@@ -111,7 +111,7 @@ pub(super) fn opened(
 ) -> Option<Walking> {
     let key = Key::Core(CoreKey::Deployment);
     let encoded = keys::encode(&key, store.limits.store.key)?;
-    let bytes = open::get(store, store.directory.owner, encoded).ok()??;
+    let bytes = open::get_open(store, store.directory.owner, encoded).ok()??;
     let record = codec::decode(&key, &bytes, &store.codec, &store.names)?;
     let header = match record {
         Record::Core(CoreRecord::Deployment(header)) => header,
@@ -262,7 +262,7 @@ fn drive(store: &mut Store, walking: &mut Walking, above: &mut Queue<Event>) -> 
         }
         let range = interval(store, walking)?;
         let map = walking.map();
-        let page = pages::walk_map(store, map, &[range], walking.cursor.as_ref(), puts(&store.limits, map))?;
+        let page = page(store, map, range, walking.cursor.as_ref(), puts(&store.limits, map))?;
         if page.rows.is_empty() && page.next.is_some() {
             return None;
         }
@@ -296,13 +296,7 @@ fn cross(store: &mut Store, walking: &mut Walking, turns: usize) -> Option<bool>
             walking.cursor = Some(through);
         }
         let range = skein_kv::Range { start: Box::new([keys::JIG, 0, 2]), end: Some(Box::new([keys::JIG, 0, 3])) };
-        let page = pages::walk_map(
-            store,
-            KeptMap::Store,
-            &[range],
-            walking.cursor.as_ref(),
-            puts(&store.limits, KeptMap::Store),
-        )?;
+        let page = page(store, KeptMap::Store, range, walking.cursor.as_ref(), puts(&store.limits, KeptMap::Store))?;
         if page.rows.is_empty() && page.next.is_some() {
             return None;
         }
@@ -314,15 +308,42 @@ fn cross(store: &mut Store, walking: &mut Walking, turns: usize) -> Option<bool>
     }
     None
 }
+fn page(
+    store: &mut Store,
+    map: KeptMap,
+    range: skein_kv::Range,
+    after: Option<&Cursor>,
+    rows: u32,
+) -> Option<pages::Walked> {
+    if store.start_restore {
+        match pages::reader::walk_map(store, map, &[range], after, rows) {
+            Ok(page) => Some(page),
+            Err(failure) => {
+                store.open_failed(crate::restore::OpenFailure::Data(failure));
+                None
+            }
+        }
+    } else {
+        pages::walk_map(store, map, &[range], after, rows)
+    }
+}
+
 /// Write only the crossed mark and any window's closed flag; skip a proof
 /// already crossed with no open window.
-fn cross_row(store: &Store, walking: &mut Walking, row: pages::WalkRow) -> Option<()> {
+fn cross_row(store: &mut Store, walking: &mut Walking, row: pages::WalkRow) -> Option<()> {
     // The same keyed Load refusal as the following check, including a value
     // that decodes but whose record does not belong at this key.
     walking.refusal = Some(OpenRefusal::Check { why: crate::Check::Load { key: row.row.key.clone() } });
-    let key = keys::decode(&row.row.key)?;
-    let record = codec::decode(&key, &row.row.value, &store.codec, &store.names)?;
+    let Some(key) = keys::decode(&row.row.key) else {
+        open::data(store, &row.row.key, crate::restore::DecodeFailure::Key);
+        return None;
+    };
+    let Some(record) = codec::decode(&key, &row.row.value, &store.codec, &store.names) else {
+        open::data(store, &row.row.key, crate::restore::DecodeFailure::Value);
+        return None;
+    };
     if record.key() != key {
+        open::data(store, &row.row.key, crate::restore::DecodeFailure::KeyValueDisagree);
         return None;
     }
     let mut proof = match record {

@@ -232,6 +232,16 @@ impl World {
         self.store.into_stores()
     }
 
+    /// Opt in for this process before opening; crashes create an unselected store.
+    pub fn start_restore(&mut self) {
+        self.store.start_restore();
+    }
+
+    #[must_use]
+    pub fn start_open_failure(&self) -> Option<&jig_protocol_store::restore::OpenFailure> {
+        self.store.start_open_failure()
+    }
+
     pub fn patch_sets(&mut self, sets: PatchSets) {
         self.sets = sets;
         self.store.patch_sets(sets);

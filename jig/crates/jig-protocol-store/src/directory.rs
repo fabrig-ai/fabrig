@@ -120,6 +120,41 @@ impl Directory {
         }
     }
 }
+pub(crate) fn unopened(store: &Store) -> bool {
+    match &store.directory.opening {
+        Opening::Idle => true,
+        Opening::Pending(_)
+        | Opening::Locking
+        | Opening::Reading
+        | Opening::SurveyOpen(_)
+        | Opening::SurveyPage { .. }
+        | Opening::SurveyClose(_)
+        | Opening::Refusing(_)
+        | Opening::LeftoverOpen
+        | Opening::LeftoverRemoving { .. }
+        | Opening::LeftoverClose
+        | Opening::Making(_)
+        | Opening::FirstSecrets
+        | Opening::FirstManifest(_)
+        | Opening::FirstActive
+        | Opening::CheckingOpen
+        | Opening::CheckingPage { .. }
+        | Opening::CheckingClose
+        | Opening::StoreOpen
+        | Opening::SecretsOpen
+        | Opening::Stores
+        | Opening::SweepOpen { .. }
+        | Opening::SweepPage(_)
+        | Opening::SweepFile(_)
+        | Opening::SweepRemoving { .. }
+        | Opening::SweepSync { .. }
+        | Opening::SweepClose(_)
+        | Opening::TranscriptsMade
+        | Opening::TranscriptsOpen
+        | Opening::Patching(_) => false,
+    }
+}
+
 pub(crate) fn env(store: &Store, env: &Env<Limits>, secret: bool) -> Env<skein_kv::Limits> {
     Env { now: env.now, wall: env.wall, limits: if secret { store.limits.secrets } else { store.limits.store } }
 }
@@ -899,6 +934,13 @@ pub(crate) fn up(store: &mut Store, env: &Env<Limits>, io: Io, above: &mut Queue
     }
     events_up(store, secret, &mut events, above, below);
 }
+fn stopped(store: &mut Store) {
+    if store.phase == Phase::Closed {
+        store.open_failed(crate::restore::OpenFailure::Refused(OpenRefusal::Failed));
+    }
+    store.phase = Phase::Stopped;
+}
+
 pub(crate) fn events_up(
     store: &mut Store,
     secret: bool,
@@ -929,26 +971,26 @@ pub(crate) fn events_up(
                     store.mark.committed(number);
                     above.push(Event::Committed { number, fill: store.stores.store.used() });
                 } else {
-                    store.phase = Phase::Stopped;
+                    stopped(store);
                     above.push(Event::Failed { number });
                 }
             }
             skein_kv::Event::Refused { owner, .. } => {
-                store.phase = Phase::Stopped;
+                stopped(store);
                 if !secret {
                     crate::transcripts::failed(store, Some(owner.raw()), above);
                 }
             }
             skein_kv::Event::Failed { number, .. } => {
-                store.phase = Phase::Stopped;
+                stopped(store);
                 if !secret {
                     crate::transcripts::failed(store, Some(number), above);
                 }
             }
             skein_kv::Event::OpenFailed { .. } => refuse(store, above),
-            skein_kv::Event::Recovered { .. } | skein_kv::Event::RecoveryFailed { .. } => store.phase = Phase::Stopped,
+            skein_kv::Event::Recovered { .. } | skein_kv::Event::RecoveryFailed { .. } => stopped(store),
             skein_kv::Event::Got { .. } | skein_kv::Event::Loaded { .. } | skein_kv::Event::Closed { .. } => {
-                store.phase = Phase::Stopped;
+                stopped(store);
             }
         }
     }

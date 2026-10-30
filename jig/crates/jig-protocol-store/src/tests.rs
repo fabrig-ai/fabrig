@@ -12,6 +12,7 @@ mod keys;
 mod open;
 mod pages;
 mod patching;
+mod preopen;
 mod readers;
 mod reads;
 mod restore;

@@ -1891,3 +1891,30 @@ const FRESH_BEFORE: crate::PatchSets = crate::PatchSets {
         ..super::patching::SMITH
     }],
 };
+
+#[test]
+fn selected_closing_failures_keep_decode_category_and_source() {
+    use crate::restore::{Cause, DecodeFailure, OpenFailure};
+    for (key, record, expected) in [
+        (fresh_proof_key(), fresh_record(2, false), DecodeFailure::KeyValueDisagree),
+        (
+            {
+                let mut key = fresh_proof_key().into_vec();
+                key.push(0);
+                key.into_boxed_slice()
+            },
+            fresh_record(FRESH_PROOF_TASK, false),
+            DecodeFailure::Key,
+        ),
+    ] {
+        let mut disk = Harness::new(&fresh_with_raw_proof(key.clone(), record));
+        let mut store = fresh_store(&disk, true);
+        store.start_restore();
+        let events = disk.open(&mut store);
+        assert_check(&events, &store, crate::Check::Load { key: key.clone() });
+        let Some(OpenFailure::Data(failure)) = store.start_open_failure() else { panic!("typed closing failure") };
+        assert_eq!(failure.cause, Cause::Decode(expected));
+        assert_eq!(failure.row.as_ref().expect("proof site").key, key);
+        disk.assert_source_unchanged(1);
+    }
+}

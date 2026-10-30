@@ -157,8 +157,16 @@ fn restore_restore_serves_maximum_writer_rows_above_party_read_limits() {
 fn fixed_pages_hold_bounded_memory_as_inventory_grows() {
     let mut peaks = Vec::new();
     // Both inventories fit the existing world's 65,536-byte main map.
-    for count in [10_u64, 100] {
-        let mut world = committed();
+    for (selected, count) in [(false, 10_u64), (false, 100), (true, 10), (true, 100)] {
+        let mut world = if selected {
+            let mut world = World::unopened(SEED);
+            world.start_restore();
+            world.open().expect("selected open");
+            world.commit(root::first()).expect("first commit");
+            world
+        } else {
+            committed()
+        };
         let mut writes = vec![Write::Save(root::header(2))];
         for number in 0..count {
             writes.push(Write::Put { key: number.to_be_bytes().into(), value: Box::new([42]) });
@@ -168,7 +176,11 @@ fn fixed_pages_hold_bounded_memory_as_inventory_grows() {
         meter.start();
         let page = world.retained_page(None, PAGE_ROWS, PAGE_BYTES).expect("bounded inventory page");
         let measured = meter.end();
-        eprintln!("retained page over {count} application rows: peak {} held {}", measured.peak(), measured.held());
+        eprintln!(
+            "selected={selected} retained page over {count} application rows: peak {} held {}",
+            measured.peak(),
+            measured.held()
+        );
         assert_eq!(page.rows.len(), usize::try_from(PAGE_ROWS).expect("page rows"));
         peaks.push(measured.peak());
         let meter = skein_heap::Meter::new();
@@ -177,11 +189,17 @@ fn fixed_pages_hold_bounded_memory_as_inventory_grows() {
             .restore_page(Restore::Application(Box::new([skein_kv::Range::prefix(b"")])), None, PAGE_ROWS, PAGE_BYTES)
             .expect("bounded restore page");
         let measured = meter.end();
-        eprintln!("restore page over {count} application rows: peak {} held {}", measured.peak(), measured.held());
+        eprintln!(
+            "selected={selected} restore page over {count} application rows: peak {} held {}",
+            measured.peak(),
+            measured.held()
+        );
         assert_eq!(restored.items.len(), usize::try_from(PAGE_ROWS).expect("page rows"));
         peaks.push(measured.peak());
     }
-    assert_eq!(&peaks[..2], &peaks[2..], "page memory does not grow with the inventory");
+    for pair in peaks.chunks_exact(2) {
+        assert_eq!(&peaks[..2], pair, "page memory does not grow with the inventory or selection");
+    }
 }
 
 #[test]
@@ -228,4 +246,19 @@ fn census_pairs_with_writer_sized_payloads_fit_exact_decoded_bytes() {
         .collect();
     assert_eq!(records, [position, ended]);
     assert!(page.next.is_none());
+}
+
+#[test]
+fn selected_open_stays_within_the_small_profile_open_ceiling() {
+    let limits = jig_protocol_config::profile(jig_protocol_config::Profile::Small).store;
+    let meter = skein_heap::Meter::new();
+    meter.start();
+    let mut world = World::unopened_observed(SEED, limits, None);
+    world.start_restore();
+    let opened = world.open();
+    let measured = meter.end();
+    // The existing small-profile construction/open ceiling (orphan_memory.rs).
+    let peak = meter.check(measured, 96_000, &"selected small store construction through open");
+    assert_eq!(opened, Some(0));
+    eprintln!("selected small store construction through open: {peak} bytes (ceiling 96000)");
 }

@@ -1,17 +1,17 @@
-//! Typed main-map walks (jig/docs/design/protocol/store.md, 7.1 and 14).
-use crate::{Cursor, Store, pages, restore};
+//! Typed map walks (jig/docs/design/protocol/store.md, 7.1 and 14).
+use crate::{Cursor, KeptMap, Store, pages, restore};
 use alloc::boxed::Box;
 use restore::{Arithmetic, Cause, Failure, RangeFailure, WalkFailure};
 use skein_kv::Range;
 use skein_lib::{List, Queue, Token};
 
-pub(crate) fn cursor(store: &Store, intervals: &[Range], after: Option<&Cursor>) -> Result<(), Failure> {
+fn cursor(store: &Store, map: KeptMap, intervals: &[Range], after: Option<&Cursor>) -> Result<(), Failure> {
     if let Some(after) = after {
         let index = usize::try_from(after.interval).ok().ok_or(Failure::rowless(Cause::Range(RangeFailure::Cursor)))?;
         let Some(range) = intervals.get(index) else {
             return Err(Failure::rowless(Cause::Range(RangeFailure::Cursor)));
         };
-        let limit = usize::try_from(store.limits.store.key).expect("map key allowance fits usize");
+        let limit = usize::try_from(pages::map_limits(store, map).key).expect("map key allowance fits usize");
         if after.after.len() > limit
             || (after.after < range.start
                 || match &range.end {
@@ -43,8 +43,18 @@ pub(crate) fn walk(
     after: Option<&Cursor>,
     rows: u32,
 ) -> Result<pages::Walked, Failure> {
-    cursor(store, intervals, after)?;
-    let capacity = rows.min(store.limits.store.page.bytes);
+    walk_map(store, KeptMap::Store, intervals, after, rows)
+}
+
+pub(crate) fn walk_map(
+    store: &mut Store,
+    map: KeptMap,
+    intervals: &[Range],
+    after: Option<&Cursor>,
+    rows: u32,
+) -> Result<pages::Walked, Failure> {
+    cursor(store, map, intervals, after)?;
+    let capacity = rows.min(pages::map_limits(store, map).page.bytes);
     let mut found = List::with_capacity(capacity);
     let mut encoded = 0_u64;
     let mut last = after.cloned().unwrap_or(Cursor { interval: 0, after: Box::new([]) });
@@ -61,14 +71,14 @@ pub(crate) fn walk(
             {
                 break;
             }
-            let page = load(store, range.clone())?;
+            let page = load_map(store, map, range.clone())?;
             let mut rows = page.rows.into_iter();
             let Some(row) = rows.next() else { break };
             let size = row_bytes(store, &row)?;
             let total = encoded
                 .checked_add(size)
                 .ok_or(Failure::at(Cause::Arithmetic(Arithmetic::PageBytes), restore::site(store, &row.key)))?;
-            if found.len() == capacity || total > u64::from(store.limits.store.page.bytes) {
+            if found.len() == capacity || total > u64::from(pages::map_limits(store, map).page.bytes) {
                 return Ok(pages::Walked { rows: found.into_boxed(), next: Some(last) });
             }
             encoded = total;
@@ -86,13 +96,17 @@ pub(crate) fn walk(
     Ok(pages::Walked { rows: found.into_boxed(), next: None })
 }
 
-pub(crate) fn load(store: &mut Store, range: Range) -> Result<pages::Page, Failure> {
-    let mut limits = store.limits.store;
+fn load_map(store: &mut Store, map: KeptMap, range: Range) -> Result<pages::Page, Failure> {
+    let mut limits = pages::map_limits(store, map);
     limits.key = limits.key.checked_add(1).ok_or(Failure::rowless(Cause::Arithmetic(Arithmetic::CursorLength)))?;
     let mut above = Queue::uncapped();
     let mut below = Queue::uncapped();
+    let target = match map {
+        KeptMap::Store => &mut store.stores.store,
+        KeptMap::Secrets => &mut store.stores.secrets,
+    };
     skein_kv::down(
-        &mut store.stores.store,
+        target,
         &crate::memory_env(limits),
         skein_kv::Request::Load {
             owner: Token::new(0),
