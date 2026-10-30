@@ -1038,11 +1038,11 @@ delegate's terminal wakes it to offer the landed result.
 - **A review's brief names what it judges,** so the reviewer reads
   nothing to find it: the pull request's number, its branch, its base
   and the head the verdict is asked at, each as the forge's reads take
-  them (a commit at the forge's own length, never padded), before the
-  pull section (section 3, brief sections) of its title, body, files
-  and what differs from the base. The pull section's budget is a
-  review's working room, 4,608 bytes on the stock, within the assembled
-  brief's and the journal result's 14,592: the
+  them (a commit at the forge's own length, never padded), and its
+  address. These open the pull section (section 3, brief sections),
+  before its title, body, files and what differs from the base. The pull
+  section's budget is a review's working room, 4,608 bytes on the stock,
+  within the assembled brief's and the journal result's 14,592: the
   number, branch, base, head and title are kept whole, and the body,
   the files and the diff cut from their end, the cut marked; a budget
   that leaves no diff is a configuration a test refuses. The reviewer's
@@ -1112,12 +1112,13 @@ delegate's terminal wakes it to offer the landed result.
   check's context and name, or the review that asked, by its lens), so
   that a read of the task cut to a client's bounds still names it; its
   brief naming its pull request as a review's does (8.3: the number,
-  branch, base and head at the forge's length, and the pull request's
-  address), so a repair asked to cite the pull request can, and carrying
-  the remarks it repairs whole within its budget, cut from their end
-  and marked, never mid-sentence unmarked; and carrying why: CI's failing output on the
-  head; a gate's remarks; for a clean update whose CI then fails (a
-  semantic conflict), the base merged in and what landed in it; or, for
+  branch, base and head at the forge's length, then its address, before
+  the contents of the same pull section), so a repair asked to cite the
+  pull request can, and carrying the gate's remarks whole within the
+  reviews budget, 4,608 bytes on the stock, cut from their end and
+  marked; and carrying why: CI's failing output on the head; a gate's
+  remarks; for a clean update whose CI then fails (a semantic conflict),
+  the base merged in and what landed in it; or, for
   a change the forge's merge queue ejected, the forge's reason, the
   pull request's `dequeued` (9.1). It pushes a new head, and the
   change is checked again.
@@ -1127,6 +1128,10 @@ delegate's terminal wakes it to offer the landed result.
   step failed. The log is read at the job attempt that failed on this
   head, within the brief's byte budget, and its truncation is said; a
   read that fails is said in its place (skein's `forge.md`, 5.2).
+  Planning reserves the repair reason's allotment (CI's or reviews')
+  before sizing the pull section's contents, retaining the core's
+  context. When the brief cannot hold both section caps, their gathered
+  sizes decide the fit, with the repair reason before the pull section.
 - **A resolution** is a task for an agent whose workspace starts from a
   merge in progress: the base merged into the branch, the conflicting
   files marked. The agent edits them and runs the checks, with no git

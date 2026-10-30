@@ -1952,7 +1952,7 @@ defaults for a person's real work are open (section 16).
   dialect on its public route; one model, `demo`, priced as the owned
   example's model is, 1 per 1,000,000 for input, cached and output (jig
   and smith refuse a price of 0); its window 177,523 and its output
-  8,192, giving smith's 52,000-byte host part at the owned threshold,
+  8,192, giving smith's 51,870-byte host part at the owned threshold,
   4/5, for the largest stock charter's tools and authorised brief
   (`../domain/agent.md`, 4.3 and 4.6). The owned message bound stays
   4,098 bytes, and a request at the threshold

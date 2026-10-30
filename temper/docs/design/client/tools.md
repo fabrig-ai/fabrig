@@ -1,6 +1,6 @@
 # Tools: temper for agents
 
-Provisional, 2026-10-17, revised 2026-10-27. How agents drive temper:
+Provisional, 2026-10-17, revised 2026-10-30. How agents drive temper:
 they read what it holds, act through jig's operations and wait for what
 changes, with `temper ctl`, a command line. It serves any agent working
 with temper for a person, which reaches the systems temper works with,
@@ -565,6 +565,9 @@ READ [--since DIGEST] [--until CONDITION] [--timeout DURATION]
 - **`--timeout`:** 300 seconds by default, at most 3600; answered with
   the current document, its digest, and that the condition is not met
   (6.3).
+- **A met text inbox wait** prints the plain read's inbox (section 6):
+  the question's words, its `read whole` call when cut, its answer line
+  and the read-on call, then `met`.
 - **Wait timers** are bounded by `Deadlines::with_capacity(rows)` in
   `temper-client-tools`' `jig/wait.rs`, one per admitted call. Arming a
   new timer past that capacity refuses; admitted calls keep within it.
@@ -972,7 +975,9 @@ refuses there (QA 20261027-1434-temper finding 1).
 
 The default: plain UTF-8 lines, no colour, no wrapping. A document
 prints its header line, its fields, its acts and, for a watch's
-subject, its digest (5.4). A goal waiting on the agent:
+subject, its digest (5.4). A met text inbox wait uses the plain inbox
+read, including question details and continuation calls, then prints
+`met`. A goal waiting on the agent:
 
 ```
 task 41 · goal · Running · shop · priority 2

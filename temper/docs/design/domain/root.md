@@ -1,6 +1,6 @@
 # temper's root
 
-Provisional, 2026-10-04, revised 2026-10-28. What temper's engine root
+Provisional, 2026-10-04, revised 2026-10-30. What temper's engine root
 is and does: `temper-engine-domain`, the top-level domain of temper's
 engine, which composes jig's core with the forge connector in the shape
 jig's `domain/root.md` gives every application's root. It says what the
@@ -741,14 +741,15 @@ preparing, held until its claim commits:
 ### 7.2 The forge's brief sections
 
 - **For a change's delegate,** once the change's pull request is open,
-  one section at the change's last head, required: CI's failures, with
-  the failed step and its output's end, for a CI repair; reviews'
-  remarks for a gate's repair; the pull request against its base for
-  producing and a gate, and with what landed in the base and the files
-  in conflict for a resolution; and both CI's failures and the pull
-  request with what its clean update merged in for a semantic repair
-  (forge.md, section 2). Each kind has its budget (`ci`, `reviews`,
-  `pull`).
+  a pull section at the change's last head, required, naming its pull
+  request before its contents (forge.md, 8.3 and 8.4): against its base
+  for a producer, gate or repair, with what landed in the base and the
+  files in conflict for a resolution, and with what its clean update
+  merged in for a semantic repair. A repair also has a required reason
+  section: CI's failures, with the failed step and its output's end, for
+  a CI or semantic repair; reviews' remarks for a gate's repair; the
+  forge's reason for a merge-queue ejection. Each kind has its budget
+  (`ci`, `reviews`, `pull`).
 - **For a task holding no run branch in its project's adopted home**
   (forge.md, section 11), one section, required: why its runs read the
   home without pushing, bounded by its words.
@@ -760,8 +761,13 @@ preparing, held until its claim commits:
 - **Planned with the core's.** The brief child places, cuts and orders
   them with the core's sections (jig's `domain/engine.md`, section 9);
   the forge gathers each and keeps it, cut to its allotment, and the root
-  takes it once the brief is complete. A section whose bytes the forge no
-  longer has sends the brief back, as a missing one does.
+  takes it once the brief is complete. A read refused at the forge
+  client's admission (`Busy`) is retained and retried after the client
+  reclaims, within the gather's deadline. A read sent but unanswered
+  at that deadline leaves its required section late: the brief is not
+  ready, the task goes back to Due after preparation's backoff, and no
+  attempt is spent. A section whose bytes the forge no longer has sends
+  the brief back, as a missing one does.
 
 ### 7.3 A call's answer
 
