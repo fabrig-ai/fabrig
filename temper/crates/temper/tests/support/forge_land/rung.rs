@@ -488,7 +488,20 @@ impl Driver {
         require(rows.len() == 1, "only the planning work, no change before the answer")?;
         require(rows[0]["chip"]["executor"].get("agent").is_some(), "planning delegate is an agent")?;
         let goal = rows[0]["chip"]["task"].as_u64().ok_or("planning task number missing")?;
-        require(self.children(&goal.to_string())?.is_empty(), "planning work has made no change, ended or live")?;
+        for child in self.children(&goal.to_string())? {
+            let task = child["chip"]["task"].as_u64().ok_or("planning child task number missing")?.to_string();
+            let read = self.ctl(&["task", "show", &task], None)?;
+            let read = read.get("task").unwrap_or(&read);
+            let words = &read["spec"]["specification"]["words"];
+            // The whole advisor cue precedes the brief's possibly cut caller words.
+            require(
+                child["chip"]["executor"].get("agent").is_some()
+                    && words["bytes"].as_str().is_some_and(|brief| {
+                        brief.starts_with("You are an advisor: you read what your brief asks and report what you found; you change nothing and ask no one.\n\n")
+                    }),
+                "planning work has made no change, ended or live; only advisors before the answer",
+            )?;
+        }
         require(self.forge_json("branches")? == *baseline, "no pushed branch or changed main before the answer")?;
         require(self.forge_json("pulls?state=all")? == json!([]), "no pull request before the answer")?;
         let activity = json!({"rows": self.activity(goal)?});
@@ -659,9 +672,15 @@ fn twin_peer() -> super::super::llm::Listening {
     )))
     .expect("checked-in B0 twin");
     let scripts = document["cued"].as_array_mut().expect("twin scripts");
-    assert_eq!(scripts.len(), 4, "chat, goal, coder and review");
-    assert_eq!(scripts[3]["cue"], "Review this change at the named head");
-    scripts[3]["turns"] = json!([{
+    let mut review = None;
+    for (index, script) in scripts.iter().enumerate() {
+        if script["cue"] == "Review this change at the named head" {
+            assert!(review.is_none(), "B0 twin has only one review script");
+            review = Some(index);
+        }
+    }
+    let review = review.expect("B0 twin has a review script");
+    scripts[review]["turns"] = json!([{
         "lines":[{"call":"finish","arguments":{
             "form":"verdict","label":"1","text":"Approved for the driver replay.","fields":{},"items":[]
         }}],
@@ -1039,6 +1058,7 @@ fn walk(driver: &mut Driver, paths: &[PathBuf; 3], account: &Path, offline: bool
     super::super::live::notice(&format!("QUESTION {asked}"));
     super::super::live::notice("MUST work's plan question reached the person's inbox; no change, branch or pull");
     std::thread::sleep(std::time::Duration::from_mins(2));
+    // Advisors may end during the hold; unchanged rejects every non-advisor child.
     require(driver.unchanged(&chat, &baseline)? == goal, "same waiting work after two minutes")?;
     super::super::live::notice("MUST after the two-minute hold: no change, no branch, no pull, main unchanged");
     driver.ctl(&["task", "answer", &chat, &question, ANSWER, "--key", "rung-answer"], None)?;
@@ -1194,10 +1214,13 @@ fn landing(driver: &mut Driver, chat: &str, goal_text: &str, change: &str) -> Re
             let words = driver.conversation(chat)?.to_lowercase();
             let own_words = json!(replies).to_string().to_lowercase();
             require(
-                own_words.contains("landed") || own_words.contains("pr #"),
+                ["landed", "merged", "pr #", "pull request #"].iter().any(|word| own_words.contains(word)),
                 "chat's own final reply reports the landing or pull",
             )?;
-            require(words.contains("landed"), "chat conversation carries the landed report")?;
+            require(
+                words.contains("landed") || words.contains("merged"),
+                "chat conversation carries the landed report",
+            )?;
             break;
         }
         let digest = task_digest(&snapshot)?;
