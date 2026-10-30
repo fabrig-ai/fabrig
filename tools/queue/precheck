@@ -25,6 +25,12 @@ DEFAULT_MIN_FREE_BYTES = 80_000_000_000
 SLOT_LIFETIME = {"__name__": "slot_lifetime"}
 exec(compile((Path(__file__).resolve().parents[1] / "slots/lifetime.py").read_text(),
              "tools/slots/lifetime.py", "exec"), SLOT_LIFETIME)
+COLD_SOURCE = (Path(__file__).resolve().parent / "cold_tools.py").read_bytes()
+COLD_TOOLS = {"__name__": "precheck_cold_tools"}
+exec(compile(COLD_SOURCE, "tools/queue/cold_tools.py", "exec"), COLD_TOOLS)
+LOADED_POLICY = {name: hashlib.sha256((Path(__file__).resolve().parent / name).read_bytes()).hexdigest()
+                 for name in ("precheck", "cold_tools.py", "mq", "authority.py", "durable.py", "publication.py",
+                              "always.txt", "read-by-tests.txt")}
 
 
 def policy():
@@ -48,6 +54,34 @@ class CheckFailure(RuntimeError):
 
 class UnknownCompletion(InfrastructureError):
     pass
+
+
+def waitable_children(retain=lambda: False):
+    return COLD_TOOLS['ChildStatus'](retain, error=InfrastructureError)
+
+
+def subreaper(value=None):
+    """Linux adoption authority includes descendants that change session/group."""
+    import ctypes
+    libc = ctypes.CDLL(None, use_errno=True)
+    current = ctypes.c_int()
+    if libc.prctl(37, ctypes.byref(current), 0, 0, 0) != 0:
+        raise OSError(ctypes.get_errno(), 'cannot inspect child-subreaper authority')
+    if value is not None:
+        if libc.prctl(36, int(value), 0, 0, 0) != 0 or subreaper() != int(value):
+            raise OSError(ctypes.get_errno(), 'cannot establish child-subreaper authority')
+    return current.value
+
+
+def descendants_drained():
+    """ECHILD after reaping terminal adoptees proves the descendant closure empty."""
+    while True:
+        try:
+            pid, _ = os.waitpid(-1, os.WNOHANG)
+        except ChildProcessError:
+            return True
+        if pid == 0:
+            return False
 
 
 def positive_bytes(value):
@@ -163,15 +197,33 @@ class Executor:
                 signal.signal(number, handler)
 
     def __call__(self, argv, **options):
+        self.child_status = waitable_children(lambda: self.unknown)
+        with self.child_status:
+            return self._execute(argv, **options)
+
+    def _execute(self, argv, **options):
         if self.interrupted:
             raise InfrastructureError(f"interrupted by signal {self.interrupted}; child drained")
         heavy = argv[0] == "heavy"
         self.before(argv, options["cwd"])
         timeout = options.pop("timeout", None)
+        previous_subreaper = None
+        if timeout is not None:
+            try:
+                previous_subreaper = subreaper()
+                subreaper(1)
+            except BaseException as error:
+                self.unknown = True
+                raise UnknownCompletion(f"no tools descendant authority: {error}") from error
         try:
             child = subprocess.Popen(argv, start_new_session=True, **options)
         except OSError as error:
             self.after("launch-error", str(error))
+            if previous_subreaper is not None:
+                if not descendants_drained():
+                    self.unknown = True
+                    raise UnknownCompletion('launch failed with tools descendants still owned') from error
+                subreaper(previous_subreaper)
             raise InfrastructureError(f"cannot launch {shlex.join(argv)}: {error}") from error
         except BaseException as error:
             self.unknown = True
@@ -184,15 +236,26 @@ class Executor:
                 child.kill()
                 child.wait()
                 self.after("timeout", child.returncode)
-                raise
+                self.unknown = True
+                raise UnknownCompletion("tools timeout; descendant completion unknown")
         except subprocess.TimeoutExpired:
             raise
         except BaseException as error:
             self.unknown = True
             raise UnknownCompletion(f"child completion unknown: {error}") from error
-        if heavy and (code < 0 or code in (137, 143, 129, 130)):
+        if (heavy or timeout is not None) and (code < 0 or code in (137, 143, 129, 130)):
             self.unknown = True
-            raise UnknownCompletion(f"heavy client exited {code}; build completion unknown")
+            raise UnknownCompletion(f"checker exited {code}; descendant/build completion unknown")
+        if timeout is not None:
+            try:
+                drained = descendants_drained()
+            except BaseException as error:
+                self.unknown = True
+                raise UnknownCompletion(f"cannot establish descendant completion: {error}") from error
+            if not drained:
+                self.unknown = True
+                raise UnknownCompletion("tools descendants remain under child-subreaper authority")
+            subreaper(previous_subreaper)
         self.after("completed", code)
         if self.interrupted:
             raise InfrastructureError(f"interrupted by signal {self.interrupted}; child drained")
@@ -224,9 +287,12 @@ class Precheck:
         self.mutated = False
         self.unexpected = False
         self.log_directory = None
+        self.cold = None
+        self.tools_required = False
 
     def git(self, *args, check=True):
-        return self.mq.git(self.repo, "--no-optional-locks", *args, check=check).stdout.rstrip("\n")
+        return self.mq.git(self.repo, "--no-optional-locks", '-c', 'advice.graftFileDeprecated=false',
+                           *args, check=check).stdout.rstrip("\n")
 
     def oid(self, ref):
         value = self.git("rev-parse", "--verify", "--end-of-options", ref + "^{commit}")
@@ -375,13 +441,20 @@ class Precheck:
             write_private(self.marker, {**self.record, "logs": str(self.log_directory),
                                        "pid": os.getpid(), "reconciliation": self.reconciliation()})
 
+    def artifact(self, path, value):
+        write_private(path, value)
+
     def reconciliation(self):
         return (f"Do not reuse or reset {self.repo}. In this submitting directory use supported "
                 "heavy status inspection / heavy --cancel TOKEN, and operator heavy --check-recovery / "
                 "--reconcile as needed. Never kill units or edit heavy state. Establish build "
                 "completion before restoring the recorded original HEAD and index; verify clean "
                 "checkout and original branch refs before removing precheck.unresolved. Leave "
-                "mq-worker-unresolved.json intact for separate worker reconciliation.")
+                "mq-worker-unresolved.json intact for separate worker reconciliation. For cold_tools, "
+                "establish every suite descendant has terminated before touching either checkout. "
+                "Verify recorded auxiliary parent/root/checkout device-inodes and private manifest, "
+                "then remove only that owned cold-tools root and verify absence before restoring "
+                "source/index or clearing marker/lifetime hold. Never infer completion from PID absence.")
 
     def started(self, argv, cwd):
         self.record["active_command"] = {"argv": argv, "cwd": str(cwd), "completion": "unknown"}
@@ -414,6 +487,10 @@ class Precheck:
                                   clock=time.monotonic, timeout=timeout)
         self.record["steps"].append(result)
         self.save()
+        if timeout is not None and (result["returncode"] == 124 or result["returncode"] < 0 or
+                                    result["returncode"] in (129, 130, 137, 143)):
+            self.executor.unknown = True
+            raise UnknownCompletion("tools termination; descendant completion unknown")
         print(f"[{name}] exit {result['returncode']}: {'pass' if result['green'] else 'fail'}", flush=True)
         if result.get("error") or result["returncode"] == 127:
             raise InfrastructureError(result.get("error", f"{name}: command launch failed"))
@@ -486,7 +563,8 @@ class Precheck:
         print(f"selection: {self.record['selection']}", flush=True)
         self.save()
         commands = []
-        if self.mq.tools_required(paths):
+        self.tools_required = self.mq.tools_required(paths)
+        if self.tools_required:
             commands.extend((name, argv, cwd, self.mq.TOOLS_TIMEOUT)
                             for name, argv, cwd in self.mq.author_tools_commands(self.repo, paths))
         checks = self.mq.check_commands(self.repo, selected, paths, metadata=metadata)
@@ -539,6 +617,18 @@ class Precheck:
         sync_directory(self.gitdir)
 
     def run(self):
+        self.child_status = waitable_children(
+            lambda: self.executor.unknown or self.record['outcome'] == 'unresolved')
+        try:
+            with self.child_status:
+                return self._run_waitable()
+        except InfrastructureError as error:
+            if self.log_directory is not None and self.record['restored']:
+                self.record.update(outcome='infrastructure-error', error=str(error))
+                self.save()
+            raise
+
+    def _run_waitable(self):
         no_symlinks(self.repo)
         if not self.repo.is_dir() or self.git("rev-parse", "--show-toplevel") != str(self.repo):
             raise InfrastructureError("SLOT must be the canonical checkout root")
@@ -548,6 +638,9 @@ class Precheck:
         no_symlinks(self.state_path("index"))
         no_symlinks(self.state_path("HEAD"))
         self.marker = self.state_path("precheck.unresolved")
+        grafts = Path(self.git('rev-parse', '--path-format=absolute', '--git-path', 'info/grafts'))
+        if grafts.exists() or grafts.is_symlink():
+            raise InfrastructureError('Git common-directory grafts are unsupported before preparation')
         with ExitStack() as stack:
             lifetime = stack.enter_context(SLOT_LIFETIME["Lease"](self.repo))
             for path in (self.repo.with_name(self.repo.name + ".queue.lock"),
@@ -608,11 +701,33 @@ class Precheck:
                     if self.identity() != prepared:
                         self.unexpected = True
                         raise InfrastructureError("source modified during planning")
+                    if self.tools_required:
+                        self.cold = COLD_TOOLS["ColdTools"](self, commands, LOADED_POLICY)
+                        commands = self.cold.prepare()
+                        self.record["plan"] = [{"name": name, "argv": argv, "cwd": str(cwd), "timeout": timeout}
+                                               for name, argv, cwd, timeout in commands]
+                        self.save()
                     tools_failed = False
                     for name, argv, cwd, timeout in commands:
                         if tools_failed and timeout is None:
                             raise CheckFailure("tools suites failed")
-                        passed = self.step(name, argv, cwd, log, timeout=timeout)
+                        if timeout is not None:
+                            self.cold.observe(name)
+                            original_runner = self.runner
+                            # Route the environment only for this tools call, preserving Cargo's caller environment.
+                            self.runner = lambda command, **options: original_runner(
+                                command, env=self.cold.env, **options)
+                        try:
+                            passed = self.step(name, argv, cwd, log, timeout=timeout)
+                        finally:
+                            if timeout is not None:
+                                self.runner = original_runner
+                        if timeout is not None:
+                            self.cold.receipt['outcomes'].append({key: self.record['steps'][-1][key]
+                                                                 for key in ('name', 'returncode', 'cwd')})
+                            self.save()
+                            self.cold.unchanged()
+                            self.cold.observe("after:" + name)
                         if self.identity() != prepared:
                             self.unexpected = True
                             raise InfrastructureError("source modified beyond prepared plan")
@@ -626,6 +741,9 @@ class Precheck:
                 if self.executor.interrupted:
                     raise InfrastructureError(f"interrupted by signal {self.executor.interrupted}; child drained")
                 self.record["outcome"] = "passed"
+            except UnknownCompletion as error:
+                self.executor.unknown = True
+                self.record.update(outcome="infrastructure-error", error=str(error))
             except CheckFailure as error:
                 self.record.update(outcome="failed", error=str(error))
             except BaseException as error:
@@ -638,9 +756,13 @@ class Precheck:
                     except BaseException:
                         self.unexpected = True
                 if self.executor.unknown or self.unexpected:
+                    if self.cold is not None:
+                        self.cold.receipt["completion"] = "unknown" if self.executor.unknown else "known"
                     self.record.update(outcome="unresolved", reconciliation=self.reconciliation())
                 else:
                     try:
+                        if self.cold is not None:
+                            self.cold.cleanup()
                         self.restore()
                     except BaseException as error:
                         self.record.update(outcome="unresolved", restoration_error=str(error),

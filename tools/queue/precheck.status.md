@@ -1,3 +1,50 @@
+# Branch pre-ready check status
+
+The integrated branch retains the landed author-owner selector and lifecycle
+logic. Planning, cold execution and readiness use the shared pure mq owner
+mapping; the full prepared index/raw tree remain bound independently of the
+selected suites. Tiers-only and multi-owner cold receipts exclude unrelated
+launcher checks. Installer ownership and unknown/deleted-owner refusals remain
+enforced. Source-CLI cold proof and deployment await independent review.
+
+The 15:52 review repairs scope SIGCHLD ownership and restore exact caller
+handlers after known API/Executor completion or preflight refusal, retaining
+waitable handling during unresolved custody. Standalone readiness applies the
+same boundary before each Git launch. Raw launch requirements distinguish
+direct executable files from Python-readable inputs. Handler, real failed/
+signaled diff-tree and coordinated permission fixtures cover these boundaries.
+
+Repair of the 15:18 source review establishes waitable SIGCHLD handling before
+Git/checker execution and binds discovered suites to present prepared raw
+sources, including symlink closure. Real subprocess fixtures inherit ignored
+SIGCHLD across exec and preserve nonzero/abnormal results; coordinated missing
+source receipts refuse even with updated manifests and raw trees. Production
+cold proof and deployment remain pending source review.
+
+Repair of the 14:17 source review adds child-subreaper descendant closure,
+private descriptor-bound quarantine cleanup, scope-derived receipt requirement
+and index-derived discovery, complete static ancestor/construction admission,
+and common-directory graft refusal before preparation. Adversarial tiny
+fixtures reproduce the detached child, root replacement, coordinated erasure/
+substitution, deep packed-history layout and linked-worktree graft boundaries.
+The original ddc2 implementation remains preserved in history. These are author
+checks under decision0022, not a production cold certificate or deployment.
+
+Cold-tools preparation and version-1 receipt validation are implemented by
+precheck, eagerly loaded cold_tools.py and ready-check (precheck.md, 1.1, 3–5.1).
+Only tools cwd/environment move to an independent private prepared copy with
+logical-index/raw-tree bindings and historical objects. Static-copy headroom
+admission is transitional, not decision0012 hard containment. Unknown tools
+completion or cleanup failure retains source, aux, marker and lifetime hold.
+Older tools receipts require re-precheck after compatible deployment. Tiny
+offline fixtures establish source behavior; source-CLI production cold proof
+awaits Ops source review. Installed old-policy precheck evidence is separate.
+
+Decision0016 stage A supplies the author `mq.tools_required` path predicate.
+Decision0022 gate skipping is separate: precheck still checks selected tools;
+this repair changes neither mq nor worker gate policy. Full selection without changed `tools/` paths skips
+tools suites while preserving the ordinary ratchet/fmt/clippy/build plan.
+Stage B CPU-per-suite policy is not implemented; existing budgets remain.
 Decision0022 selects author suites with `mq.author_tools_commands` by changed
 tool directory, with an explicit installer/manifest/test mapping. Both rename
 sides and deleted paths retain ownership; unknown top-level paths or owners

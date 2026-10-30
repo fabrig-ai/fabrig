@@ -455,15 +455,19 @@ class CandidateTests(Fixture):
         self.assertEqual(self.git("symbolic-ref", "HEAD"), "refs/heads/original")
 
     def test_executable_suites_run_their_shebangs(self):
-        self.change("tip", "tools/example/test_python.py", "from pathlib import Path\nPath('target/python').write_text('python')\n")
+        self.change("tip", "tools/example/test_python.py", "from pathlib import Path\nprint(Path.cwd())\nprint('python')\n")
         self.git("switch", "tip")
-        self.write("tools/example/test-shell", "#!/bin/bash\nprintf bash >target/shell\n")
+        self.write("tools/example/test-shell", "#!/bin/bash\npwd\nprintf 'bash\\n'\n")
         (self.repo / "tools/example/test-shell").chmod(0o755)
         self.commit()
         self.git("switch", "original")
         self.assertEqual(self.run_tool(production_runner=True), 0)
-        self.assertEqual((self.repo / "target/shell").read_text(), "bash")
-        self.assertEqual((self.repo / "target/python").read_text(), "python")
+        log = (self.tool.log_directory / 'commands.log').read_text()
+        self.assertIn('\nbash\n', log)
+        self.assertIn('\npython\n', log)
+        self.assertIn(self.tool.record['cold_tools']['checkout'], log)
+        self.assertFalse((self.repo / 'target/shell').exists())
+        self.assertFalse((self.repo / 'target/python').exists())
         self.restored()
 
     def test_cli_default_base_is_pinned_locally_without_fetch(self):
@@ -483,19 +487,36 @@ class CandidateTests(Fixture):
         self.assertEqual(self.git("status", "--porcelain"), "")
         self.assertEqual(self.git("symbolic-ref", "HEAD"), "refs/heads/original")
 
+    def test_executable_suites_preserve_preexisting_warm_output_bytes(self):
+        self.write('target/shell', 'bash')
+        self.write('target/python', 'python')
+        self.change('tip', 'tools/example/test_python.py',
+                    "from pathlib import Path\nassert not Path('target').exists()\nprint('python')\n")
+        self.git('switch', 'tip')
+        self.write('tools/example/test-shell', '#!/bin/bash\ntest ! -e target\nprintf bash\n')
+        (self.repo / 'tools/example/test-shell').chmod(0o755)
+        self.commit()
+        self.git('switch', 'original')
+        self.assertEqual(self.run_tool(production_runner=True), 0)
+        self.assertEqual((self.repo / "target/shell").read_text(), "bash")
+        self.assertEqual((self.repo / "target/python").read_text(), "python")
+        self.restored()
+
     def test_policy_code_and_lists_survive_switching_their_own_checkout(self):
         import shutil
         self.git("switch", "original")
-        for name in ("precheck", "mq", "authority.py", "durable.py", "publication.py", "always.txt", "read-by-tests.txt"):
+        for name in ("precheck", "cold_tools.py", "mq", "authority.py", "durable.py", "publication.py", "always.txt", "read-by-tests.txt"):
             target = self.repo / "tools/queue" / name
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(DIRECTORY / name, target)
         (self.repo / "tools/slots").mkdir()
         shutil.copy2(DIRECTORY.parent / "slots/lifetime.py", self.repo / "tools/slots/lifetime.py")
+        self.write('tools/fixture/test_fixture.py', "from pathlib import Path\nassert not Path('target').exists()\n")
         self.ancestor = self.commit()
         self.git("branch", "-f", "base", self.ancestor)
         self.git("branch", "-f", "tip", self.ancestor)
         self.change("tip", "tools/queue/mq", "invalid candidate policy code!\n")
+        self.change('tip', 'tools/queue/cold_tools.py', 'invalid candidate helper code!\n')
         self.change("tip", "tools/queue/test_policy.py", "# suite\n")
         self.change("tip", "tools/queue/read-by-tests.txt", "README.md\n")
         self.change("tip", "tools/queue/always.txt", "missing-package\n")
@@ -505,7 +526,8 @@ class CandidateTests(Fixture):
         self.write("target/keep", "warm target\n")
         (fake / "systemctl").write_text("#!/bin/sh\nexit 0\n")
         (fake / "systemctl").chmod(0o755)
-        result = subprocess.run([str(self.repo / "tools/queue/precheck"), "--base", "base", str(self.repo), "tip"],
+        result = subprocess.run([str(self.repo / "tools/queue/precheck"), "--base", "base",
+                                 "--min-free-bytes", "1", str(self.repo), "tip"],
                                 env=dict(self.env, PATH=str(fake) + os.pathsep + os.environ["PATH"]),
                                 text=True, capture_output=True, stdin=subprocess.DEVNULL)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)

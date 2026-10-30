@@ -7,8 +7,11 @@ from copy import deepcopy
 import importlib.machinery
 import importlib.util
 import json
+import hashlib
 import os
 from pathlib import Path
+import shutil
+import signal
 import subprocess
 import tempfile
 import unittest
@@ -91,12 +94,52 @@ class ReadyCheckTests(unittest.TestCase):
         return result
 
     def plan(self):
-        command = ["python3", "-I", "-B", "tools/test_fixture.py"]
-        self.record.update(plan=[{"name": "tools/test_fixture.py", "argv": command,
-                                  "cwd": str(self.repo), "timeout": 60}],
-                           steps=[{"name": "tools/test_fixture.py", "command": command,
-                                   "returncode": 0, "green": True, "duration": 0.1, "cwd": str(self.repo)}],
-                           active_command={"argv": command, "cwd": str(self.repo),
+        command = ["python3", "-I", "-B", "tools/fixture/test_fixture.py"]
+        root = self.root / 'cold-tools'
+        checkout = root / 'checkout'
+        root.mkdir(mode=0o700)
+        checkout.mkdir(mode=0o700)
+        identity = lambda path: [path.stat().st_dev, path.stat().st_ino]
+        ownership = {'parent': str(self.root), 'parent_identity': identity(self.root),
+                     'root': str(root), 'root_identity': identity(root),
+                     'checkout': str(checkout), 'checkout_identity': identity(checkout),
+                     'objects_identity': [checkout.stat().st_dev, checkout.stat().st_ino + 1]}
+        checkout.rmdir(); root.rmdir()
+        blob = hashlib.sha1(b'blob 0\0').hexdigest()
+        logical = f'100644 {blob} 0\ttools/fixture/test_fixture.py\0'
+        rows = [{'name': 'tools/fixture/test_fixture.py', 'index_mode': '100644', 'index_oid': blob,
+                 'kind': 'file', 'mode': 0o644, 'size': 0, 'sha256': hashlib.sha256(b'').hexdigest(), 'raw_oid': blob}]
+        payload = {'entries': logical, 'manifest': rows, 'merge': {}, 'ownership': ownership}
+        manifest = self.root / 'cold-input.json'
+        manifest.write_text(json.dumps(payload))
+        manifest.chmod(0o600)
+        encoded_rows = (json.dumps(rows, sort_keys=True, separators=(',', ':')) + '\n').encode()
+        tree = ready.COLD_VALIDATOR['raw_tree'](rows, 'sha1')
+        inputs = {'entries_sha256': hashlib.sha256(logical.encode()).hexdigest(),
+                  'manifest_sha256': hashlib.sha256(encoded_rows).hexdigest(),
+                  'index_tree': tree, 'raw_tree': tree, 'merge': {}}
+        self.record['min_free_bytes'] = 1
+        self.record['paths'] = ['touched.md', 'tools/fixture/test_fixture.py']
+        self.record['cold_tools'] = {
+            'version': 1, 'policy': ready.COLD_POLICY, **{k: v for k, v in ownership.items() if k != 'objects_identity'},
+            'base': self.record['base'], 'tip': self.tip, 'head': self.record['base'],
+            'state': 'removed', 'cleanup': 'verified', 'completion': 'known',
+            'input_manifest': {'path': str(manifest), 'sha256': hashlib.sha256(manifest.read_bytes()).hexdigest()},
+            'input': inputs, 'observed': {**inputs, 'head': self.record['base'], 'independent_objects': True,
+                                        'objects_identity': ownership['objects_identity']},
+            'tools_plan': [{'name': 'tools/fixture/test_fixture.py', 'argv': command}],
+            'observations': [{'before': n, 'empty_roots': True, 'unexpected_roots': []}
+                             for n in ('initial', 'tools/fixture/test_fixture.py', 'after:tools/fixture/test_fixture.py')],
+            'environment': {'removed': [], 'redirected': ['TMPDIR', 'TMP', 'TEMP', 'CARGO_HOME'], 'git_config': 'isolated'},
+            'capacity': {'required_bytes': 1, 'free_bytes': 2, 'min_free_bytes': 1,
+                         'postcopy_free_bytes': 1, 'copied_allocated_bytes': 1, 'postcopy_admitted': True,
+                         'admitted': True, 'policy': 'measured-static-copy'},
+            'outcomes': [{'name': 'tools/fixture/test_fixture.py', 'returncode': 0, 'cwd': str(checkout)}]}
+        self.record.update(plan=[{"name": "tools/fixture/test_fixture.py", "argv": command,
+                                  "cwd": str(checkout), "timeout": 60}],
+                           steps=[{"name": "tools/fixture/test_fixture.py", "command": command,
+                                   "returncode": 0, "green": True, "duration": 0.1, "cwd": str(checkout)}],
+                           active_command={"argv": command, "cwd": str(checkout),
                                            "completion": "completed", "returncode": 0})
         self.save()
 
@@ -105,6 +148,289 @@ class ReadyCheckTests(unittest.TestCase):
                                        "currentmain": self.base, "finalmain": self.base,
                                        "touchedscope": ["touched.md"], "overlap": [],
                                        "diagnostic": "reported touched files unchanged at observed origin/main; point-in-time only"})
+
+    def test_cold_receipt_cutover_identity_and_manifest_tampering_refuse(self):
+        self.plan()
+        valid = deepcopy(self.record)
+        mutations = [lambda r: r.pop('cold_tools'),
+                     lambda r: r['cold_tools'].update(version=2),
+                     lambda r: r['cold_tools'].update(policy={}),
+                     lambda r: r['cold_tools'].update(checkout=str(self.repo)),
+                     lambda r: r['cold_tools']['root_identity'].__setitem__(1, 1),
+                     lambda r: r['cold_tools']['input'].update(raw_tree=self.tip),
+                     lambda r: r['cold_tools'].update(tools_plan=[]),
+                     lambda r: r['cold_tools'].update(cleanup='pending'),
+                     lambda r: r['cold_tools'].update(completion='unknown'),
+                     lambda r: r['cold_tools']['observations'][0].update(empty_roots=False),
+                     lambda r: r['cold_tools']['environment'].update(removed=None),
+                     lambda r: r['cold_tools']['capacity'].update(free_bytes=0),
+                     lambda r: r['cold_tools'].update(outcomes=[])]
+        for index, mutate in enumerate(mutations):
+            with self.subTest(index=index):
+                self.record = deepcopy(valid)
+                mutate(self.record)
+                self.save()
+                self.assertEqual(self.check()['verdict'], 'rerun-precheck')
+        self.record = valid
+        self.save()
+        manifest = self.root / 'cold-input.json'
+        manifest.write_bytes(manifest.read_bytes() + b' ')
+        self.refuse('manifest digest')
+
+    def test_tools_and_cargo_cwds_cannot_be_substituted_together(self):
+        self.compile_plan('full')
+        valid = deepcopy(self.record)
+        for index, cwd in ((0, str(self.repo)), (1, valid['cold_tools']['checkout'])):
+            with self.subTest(index=index):
+                self.record = deepcopy(valid)
+                self.record['plan'][index]['cwd'] = cwd
+                self.record['steps'][index]['cwd'] = cwd
+                self.save()
+                self.assertEqual(self.check()['verdict'], 'rerun-precheck')
+
+    def test_coordinated_tools_evidence_erasure_cannot_become_docs_success(self):
+        self.plan()
+        self.record.update(plan=[], steps=[])
+        self.record.pop('active_command')
+        self.record.pop('cold_tools')
+        self.save()
+        self.refuse('requires cold evidence')
+
+    def test_coordinated_suite_substitution_cannot_change_bound_discovery(self):
+        self.plan()
+        name = 'tools/fixture/test_substituted.py'
+        argv = ['python3', '-I', '-B', name]
+        self.record['plan'][0].update(name=name, argv=argv)
+        self.record['steps'][0].update(name=name, command=argv)
+        self.record['active_command']['argv'] = argv
+        cold = self.record['cold_tools']
+        cold['tools_plan'] = [{'name': name, 'argv': argv}]
+        cold['outcomes'][0]['name'] = name
+        cold['observations'][1]['before'] = name
+        cold['observations'][2]['before'] = 'after:' + name
+        self.save()
+        self.refuse('indexed discovery')
+
+    def test_empty_index_cannot_claim_a_discovered_suite(self):
+        self.plan()
+        filename = self.root / 'cold-input.json'
+        full = json.loads(filename.read_text())
+        full.update(entries='', manifest=[])
+        filename.write_text(json.dumps(full))
+        cold = self.record['cold_tools']
+        cold['input_manifest']['sha256'] = hashlib.sha256(filename.read_bytes()).hexdigest()
+        empty = ready.COLD_VALIDATOR['raw_tree']([], 'sha1')
+        for key in ('input', 'observed'):
+            cold[key].update(entries_sha256=hashlib.sha256(b'').hexdigest(),
+                             manifest_sha256=hashlib.sha256(b'[]\n').hexdigest(), index_tree=empty, raw_tree=empty)
+        self.save()
+        self.refuse('indexed discovery')
+
+    def test_indexed_suite_requires_a_matching_raw_manifest_entry(self):
+        self.plan()
+        filename = self.root / 'cold-input.json'
+        full = json.loads(filename.read_text())
+        full['manifest'] = []
+        filename.write_text(json.dumps(full))
+        receipt = self.record['cold_tools']
+        receipt['input_manifest']['sha256'] = hashlib.sha256(filename.read_bytes()).hexdigest()
+        for key in ('input', 'observed'):
+            receipt[key].update(manifest_sha256=hashlib.sha256(b'[]\n').hexdigest(),
+                                raw_tree=ready.COLD_VALIDATOR['raw_tree']([], 'sha1'))
+        self.save()
+        self.refuse('index/raw manifest')
+
+    def test_coordinated_missing_suite_cannot_claim_success(self):
+        for name, mode, argv in (
+                ('tools/fixture/test_fixture.py', '100644', ['python3', '-I', '-B', 'tools/fixture/test_fixture.py']),
+                ('tools/fixture/test-shell', '100755', ['./tools/fixture/test-shell'])):
+            with self.subTest(name=name):
+                self.plan()
+                filename = self.root / 'cold-input.json'
+                full = json.loads(filename.read_text())
+                blob = full['manifest'][0]['index_oid']
+                full['entries'] = f'{mode} {blob} 0\t{name}\0'
+                full['manifest'] = [{'name': name, 'index_mode': mode, 'index_oid': blob, 'kind': 'missing'}]
+                filename.write_text(json.dumps(full))
+                cold = self.record['cold_tools']
+                cold['input_manifest']['sha256'] = hashlib.sha256(filename.read_bytes()).hexdigest()
+                for key in ('input', 'observed'):
+                    cold[key].update(
+                        entries_sha256=hashlib.sha256(full['entries'].encode()).hexdigest(),
+                        manifest_sha256=hashlib.sha256(ready.COLD_VALIDATOR['encoded'](full['manifest'])).hexdigest(),
+                        index_tree=ready.COLD_VALIDATOR['logical_tree'](full['entries'], 'sha1'),
+                        raw_tree=ready.COLD_VALIDATOR['raw_tree'](full['manifest'], 'sha1'))
+                cold['tools_plan'] = [{'name': name, 'argv': argv}]
+                cold['outcomes'][0]['name'] = name
+                cold['observations'][1]['before'] = name
+                cold['observations'][2]['before'] = 'after:' + name
+                self.record['plan'][0].update(name=name, argv=argv)
+                self.record['steps'][0].update(name=name, command=argv)
+                self.record['active_command']['argv'] = argv
+                self.record['paths'] = ['touched.md', name]
+                self.save()
+                self.refuse('suite source')
+
+    def test_index_modes_order_and_exact_recovery_exclusion_define_discovery(self):
+        entries = [('100755', 'tools/heavy/test-heavy-recovery'),
+                   ('100755', 'tools/other/test-heavy-recovery'),
+                   ('100644', 'tools/test-noexec'), ('100755', 'tools/test-shell'),
+                   ('100644', 'tools/test_python.py')]
+        logical = ''.join(f'{mode} {self.base} 0\t{name}\0' for mode, name in entries)
+        self.assertEqual(ready.COLD_VALIDATOR['indexed_tools'](logical), [
+            {'name': 'tools/other/test-heavy-recovery', 'argv': ['./tools/other/test-heavy-recovery']},
+            {'name': 'tools/test-shell', 'argv': ['./tools/test-shell']},
+            {'name': 'tools/test_python.py', 'argv': ['python3', '-I', '-B', 'tools/test_python.py']}])
+
+    def test_symlink_suite_requires_present_bound_source_without_cycles(self):
+        rows = [{'name': 'tools/fixture/helper.py', 'index_mode': '100644', 'index_oid': self.base,
+                 'kind': 'file', 'mode': 0o644},
+                {'name': 'tools/fixture/test_link.py', 'index_mode': '120000', 'index_oid': self.base,
+                 'kind': 'symlink', 'target': 'helper.py'}]
+        logical = ''.join(f"{r['index_mode']} {r['index_oid']} 0\t{r['name']}\0" for r in rows)
+        validate = lambda logical, rows: ready.COLD_VALIDATOR['prepared_tools'](
+            logical, rows, ['tools/fixture/source.md'], ready.AUTHOR_POLICY.author_tools_select)
+        self.assertEqual(validate(logical, rows), [
+            {'name': 'tools/fixture/test_link.py', 'argv': ['python3', '-I', '-B', 'tools/fixture/test_link.py']}])
+        rows[0]['kind'] = 'missing'
+        with self.assertRaisesRegex(RuntimeError, 'suite source is missing'):
+            validate(logical, rows)
+        rows[1]['target'] = 'test_link.py'
+        with self.assertRaisesRegex(RuntimeError, 'suite source has a symlink cycle'):
+            validate(logical, rows)
+
+    def test_coordinated_nonexecutable_raw_shell_cannot_claim_success(self):
+        self.plan()
+        filename = self.root / 'cold-input.json'
+        full = json.loads(filename.read_text())
+        name = 'tools/fixture/test-shell'
+        argv = ['./' + name]
+        blob = full['manifest'][0]['index_oid']
+        full['entries'] = f'100755 {blob} 0\t{name}\0'
+        full['manifest'][0].update(name=name, index_mode='100755', mode=0o644)
+        cold = self.record['cold_tools']
+        cold['tools_plan'] = [{'name': name, 'argv': argv}]
+        cold['outcomes'][0]['name'] = name
+        cold['observations'][1]['before'] = name
+        cold['observations'][2]['before'] = 'after:' + name
+        self.record['plan'][0].update(name=name, argv=argv)
+        self.record['steps'][0].update(name=name, command=argv)
+        self.record['active_command']['argv'] = argv
+        self.record['paths'] = ['touched.md', name]
+        for mode, verdict in ((0o755, 'passed'), (0o644, 'rerun-precheck')):
+            with self.subTest(mode=oct(mode)):
+                full['manifest'][0]['mode'] = mode
+                filename.write_text(json.dumps(full))
+                cold['input_manifest']['sha256'] = hashlib.sha256(filename.read_bytes()).hexdigest()
+                for key in ('input', 'observed'):
+                    cold[key].update(
+                        entries_sha256=hashlib.sha256(full['entries'].encode()).hexdigest(),
+                        manifest_sha256=hashlib.sha256(ready.COLD_VALIDATOR['encoded'](full['manifest'])).hexdigest(),
+                        index_tree=ready.COLD_VALIDATOR['logical_tree'](full['entries'], 'sha1'),
+                        raw_tree=ready.COLD_VALIDATOR['raw_tree'](full['manifest'], 'sha1'))
+                self.save()
+                result = self.check()
+                self.assertEqual(result['verdict'], verdict, result)
+                if verdict != 'passed':
+                    self.assertIn('execute permission', result['diagnostic'])
+
+    def faulting_diff_git(self, abnormal):
+        directory = self.root / 'git-bin'
+        directory.mkdir()
+        executable = directory / 'git'
+        executable.write_text(f'''#!{sys.executable}
+import os, signal, sys
+signal.signal(signal.SIGCHLD, signal.SIG_DFL)
+if 'diff-tree' in sys.argv[1:]:
+    {'os.kill(os.getpid(), signal.SIGTERM)' if abnormal else 'raise SystemExit(7)'}
+os.execv({shutil.which('git')!r}, ['git', *sys.argv[1:]])
+''')
+        executable.chmod(0o700)
+        return str(directory) + os.pathsep + os.environ['PATH']
+
+    def test_python_raw_source_needs_read_permission_without_execute(self):
+        self.plan()
+        self.assertEqual(self.check()['verdict'], 'passed')  # The bound Python file is 0644.
+        filename = self.root / 'cold-input.json'
+        full = json.loads(filename.read_text())
+        cold = self.record['cold_tools']
+        for mode, diagnostic in ((0o100, 'read permission'), (-1, 'invalid cold suite source permissions'),
+                                 (0o10000, 'invalid cold suite source permissions')):
+            with self.subTest(mode=mode):
+                full['manifest'][0]['mode'] = mode
+                filename.write_text(json.dumps(full))
+                cold['input_manifest']['sha256'] = hashlib.sha256(filename.read_bytes()).hexdigest()
+                for key in ('input', 'observed'):
+                    cold[key].update(
+                        manifest_sha256=hashlib.sha256(ready.COLD_VALIDATOR['encoded'](full['manifest'])).hexdigest(),
+                        raw_tree=ready.COLD_VALIDATOR['raw_tree'](full['manifest'], 'sha1'))
+                self.save()
+                self.refuse(diagnostic)
+
+    def ignored_readiness_diff(self, abnormal):
+        self.advance('touched.md', 'overlapping main change\n')
+        path = self.faulting_diff_git(abnormal)
+        response = self.root / 'response.json'
+        driver = """import importlib.machinery, importlib.util, json, signal, sys
+from pathlib import Path
+assert signal.getsignal(signal.SIGCHLD) == signal.SIG_IGN
+loader = importlib.machinery.SourceFileLoader('ready_inherited', sys.argv[1])
+spec = importlib.util.spec_from_loader(loader.name, loader)
+module = importlib.util.module_from_spec(spec)
+loader.exec_module(module)
+result, repo, tip, response = sys.argv[2:]
+sys.argv = [sys.argv[1], result, '--repo', repo, '--tip', tip]
+status = module.main()
+Path(response).write_text(json.dumps({'status': status, 'handler': int(signal.getsignal(signal.SIGCHLD))}))
+raise SystemExit(status)
+"""
+        launcher = """import os, signal, sys
+signal.signal(signal.SIGCHLD, signal.SIG_IGN)
+os.execv(sys.executable, [sys.executable, '-I', '-B', '-c', *sys.argv[1:]])
+"""
+        result = subprocess.run([sys.executable, '-I', '-B', '-c', launcher, driver,
+                                 str(DIRECTORY / 'ready-check'), str(self.result), str(self.repo), self.tip, str(response)],
+                                env=dict(os.environ, PATH=path), stdin=subprocess.DEVNULL,
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        decision = json.loads(result.stdout)
+        self.assertEqual(decision['verdict'], 'rerun-precheck')
+        self.assertIn('diff-tree failed', decision['diagnostic'])
+        self.assertEqual(json.loads(response.read_text()),
+                         {'status': 1, 'handler': int(signal.SIG_DFL if abnormal else signal.SIG_IGN)})
+
+    def test_ignored_sigchld_failed_empty_diff_tree_refuses(self):
+        self.ignored_readiness_diff(False)
+
+    def test_ignored_sigchld_signaled_empty_diff_tree_refuses(self):
+        self.ignored_readiness_diff(True)
+
+    def test_readiness_known_results_and_preflight_restore_exact_handler(self):
+        def custom(number, frame):
+            pass
+        for handler in (signal.SIG_IGN, custom):
+            for tip, verdict in ((self.tip, 'passed'), ('HEAD', 'rerun-precheck')):
+                with self.subTest(handler=handler, tip=tip):
+                    previous = signal.signal(signal.SIGCHLD, handler)
+                    try:
+                        result = ready.check(self.result, self.repo, tip)
+                        self.assertEqual(result['verdict'], verdict, result)
+                        self.assertIs(signal.getsignal(signal.SIGCHLD), handler)
+                    finally:
+                        signal.signal(signal.SIGCHLD, previous)
+
+    def test_readiness_nonzero_git_restores_custom_handler(self):
+        self.advance('touched.md', 'overlapping main change\n')
+        path = self.faulting_diff_git(False)
+        def custom(number, frame):
+            pass
+        previous = signal.signal(signal.SIGCHLD, custom)
+        try:
+            with patch.dict(os.environ, PATH=path):
+                self.refuse('diff-tree failed')
+            self.assertIs(signal.getsignal(signal.SIGCHLD), custom)
+        finally:
+            signal.signal(signal.SIGCHLD, previous)
 
     def test_remote_same_file_change_refuses_stale_tracking(self):
         current = self.advance("touched.md")

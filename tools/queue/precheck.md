@@ -36,6 +36,11 @@ manifest and installer-test changes select only `tools/test_install.py`;
 unknown top-level ownership or an owner without candidate suites explicitly
 refuses and restores. This includes deletion of an entire tool. Selection is
 independent of docs/package/full scope; full selection alone adds no suites.
+`mq.author_tools_owners` and `mq.author_tools_select` are the shared pure
+policy: planning discovers literal owner paths, while cold preparation and
+readiness apply the same mapping to the bound full logical index. They require
+the exact selected-owner union in order; unrelated owners never enter the
+executed plan. Unknown or deleted owners without suites fail closed.
 Only the queue's leading heavy `--gate` is removed; build scope and arguments
 are retained. Every build uses ordinary `heavy cargo ...`. Nextest build
 exit 4 passes. No default/fuzzy Rust tests execute. Tools suites retain the
@@ -51,6 +56,53 @@ including when exercising real ratchet stage/commit behavior.
 merge with a staged candidate and an unstaged lower baseline, compares the
 caller's exact index, HEAD, refs, merge state and tracked contents/modes,
 and verifies precheck restoration after the real suite finishes.
+
+### 1.1 Cold tools input and physical routing
+
+When the stage-A path predicate selects tools suites, precheck creates a
+private independent prepared checkout at
+`<slot>.precheck-logs/run-*/cold-tools/checkout`. Its writable parent contains
+suite scratch and sibling fixtures. Original warm targets are never copied,
+renamed, replaced or removed. Ratchets, fmt, clippy and nextest `--no-run`
+retain their original slot/tree cwd and Cargo environment; only tools cwd
+changes. Shared worker/train policy and command argv do not change.
+
+The eagerly loaded `cold_tools.py` and policy run after ratchets and planning.
+They copy tracked working contents and permissions, rebuild the logical
+stage-zero index, preserve detached HEAD=BASE and prepared merge state, and
+copy the local Git object store independently. No source Git config, hooks,
+refs, logs, targets, ignored contents or alternates are copied. Fresh private
+Git configuration has no remote. Borrowed, symlinked, shallow, promisor or
+replaced stores refuse locally; this helper never fetches or repairs a store.
+Historical source objects remain available in the independent copy. Precheck
+resolves info/grafts through Git, including a linked worktree common directory,
+and refuses graft state before planning, source preparation or auxiliary work.
+
+The index tree binds staged inputs; a separately computed raw working tree
+binds unfiltered bytes/modes including unstaged ratchet changes. HEAD's tree
+is BASE and is not the candidate tree. Copy verification checks raw manifests,
+logical index entries, HEAD, merge state and identical selected-owner names/argv
+in order. Source/helper/policy digests load before any checkout switch.
+
+Static admission counts every required file and ancestor directory, object
+fanout, raw/index tree construction, index data and conservative compression/
+metadata creation overhead before allocating the auxiliary copy or manifest. It
+requires `free_bytes - required_bytes >= min_free_bytes` and checks actual
+post-copy free bytes against the same minimum, recording allocated bytes.
+This transitional measured admission is not decision0012 hard containment or
+a scratch quota. Copy and scratch belong to the precheck generated root.
+Existing heavy admission, global floors, CPU caps and wall limits stay.
+
+Tools lose inherited artifact overrides, including `TIERS_CPU_WRAPPER`,
+`TIERS_CPU_SETTLEMENT_FIXTURE`, the `TIERS_CPU_*` family, Cargo target/build
+overrides and compiler wrappers/flags. Temporary directories and Cargo home
+are private beneath the auxiliary root; Git global/system config is disabled.
+Evidence records variable names and handling, never their values. Original
+Cargo retains its environment. Root and tree `target` paths must be absent
+initially, before and after every suite. Tracked target paths and escaping
+symlinks refuse. Unexpected generated targets stop further execution, so an
+earlier suite cannot warm a later suite. Ordinary reds still run remaining
+tools suites when the cold prepared view remains valid.
 
 Immediately before each heavy clippy or nextest build command, the helper
 checks `shutil.disk_usage(SLOT).free >= --min-free-bytes`. The default is
@@ -133,6 +185,22 @@ the source checkout. Files are 0600: `commands.log`, `result.json`,
 preparation/restoration can rewrite, including baseline files).
 Results include pinned inputs, paths, selection, planned commands, argv,
 step return codes, durations, heavy observation, outcome and restoration.
+Tools receipts add version-1 `cold_tools`: policy hashes, index/raw-tree and
+manifest digests, original/observed input bindings, auxiliary device/inodes,
+discovery plan, environment handling, capacity, per-suite cold observations,
+outcomes and lifecycle. Full entries/manifests/ownership stay in private
+`cold-input.json`; stdout carries compact digests. Ownership intent is fsynced
+before creation and identities are saved as directories are created.
+Known completion and verified removal of the owned auxiliary root precede
+original source restoration and marker/lease completion. Cleanup first opens
+and verifies the recorded parent/root descriptors, then atomically claims the
+source name into its own 0700 quarantine without replacing a destination. A
+claimed entry with a different inode is restored without deleting its contents
+and leaves custody unresolved. Recursive destruction is relative to the pinned
+owned descriptor inside that private quarantine, never through the replaceable
+source root pathname. Cleanup state records the quarantine identity and claim;
+any failed claim/removal or unexpected source entry retains the marker/hold.
+
 `selection_paths` records candidate paths captured before recounts,
 including reconciled baseline conflict paths; `paths` retains the complete
 post-recount candidate diff against BASE, including generated baselines.
@@ -166,6 +234,41 @@ client allows restoration and reports interruption as infrastructure error.
 A negative or signal-style heavy client exit (including 137), a launch with
 unknown outcome, or a wait exception retains candidate inputs and durable
 ownership. Client disappearance alone never establishes build completion.
+
+An imposed tools timeout kills/waits only its immediate child and cannot
+prove descendant completion. It retains both prepared checkouts, auxiliary
+evidence, marker and durable lifetime hold. Abnormal tools termination,
+wait/launch uncertainty or any live adopted tools descendant does the same.
+For each tools launch the executor establishes and verifies Linux child-
+subreaper authority before spawning. Orphans are adopted across setsid and
+process-group changes. After the immediate child exits, terminal adoptees are
+reaped and only ECHILD establishes an empty descendant closure. A live child
+or unavailable authority retains unresolved inputs; process-group or PID
+disappearance never proves completion. An interrupted normal child allows
+cleanup only after that full closure is empty. The previous subreaper setting
+is restored after known drain. No unrelated processes are killed or inspected.
+
+Before its first Git command, precheck sets and verifies the default SIGCHLD
+disposition, clearing inherited ignored/auto-reap handling. The executor also
+establishes this disposition before each checker launch. Unsupported child-
+status handling refuses before execution; discarded status cannot become a
+successful check. SIGCHLD remains waitable through unresolved custody.
+Precheck and standalone Executor calls save the incoming handler before this
+change, restoring that exact handler after known completion, ordinary failure
+or preflight refusal. Nested checker calls restore the precheck's waitable
+handler; the API restores its caller only after custody is resolved. Saved
+handlers remain available on the child-status authority while unresolved.
+
+Per-suite timeout remains 60 seconds. A drained normal child permits cleanup;
+no cleanup runs unconditionally after unknown completion.
+
+For cold-tools reconciliation, establish every suite descendant has ended
+before touching either checkout. Verify saved auxiliary parent/root/checkout
+device-inodes and the private manifest; remove only that owned cold-tools
+root and verify its absence. Then restore the recorded source/index, verify
+all original refs, bytes/modes and warm targets, and only then clear the marker
+and lifetime hold through operator reconciliation. Cleanup failure retains
+ownership. No force/recovery CLI or inferred completion is provided.
 
 Do not reuse, reset or remove the marker in an unresolved slot. From its
 recorded submitting directory, inspect status with heavy's supported interface
@@ -255,9 +358,41 @@ same OID between observations also cannot be detected. The queue gate remains
 the final check of the eventual combined candidate. This tool publishes no
 refs; the lead owns the conditional exact-tip ready push.
 
+### 5.1 Tools receipt cutover
+
+Updated ready-check derives the tools requirement from the reported candidate
+selection/post-ratchet path scope, rather than the supplied command list. A
+tools path requires cold evidence and candidate suites for every selected owner.
+It eagerly loads the same mq pure owner policy and applies it to bound logical
+index names/modes and the reported selection/post-ratchet path union, with the
+exact manual heavy-recovery exclusion. Full index/raw manifest coverage binds
+all prepared inputs; the ordered required plan contains only selected owners.
+Each selected suite must have present bound raw source;
+symlinks must resolve without cycles to a present bound file. A missing source
+refuses even when coordinated raw-tree/manifest digests claim success.
+The resolved raw file needs owner execute permission for direct `./` argv;
+Python argv needs owner read permission and does not require execute permission.
+Coordinated plan/step/evidence erasure or suite substitution
+cannot become an empty docs success. It requires version-1 cold evidence and verifies loaded policy identity, private full-manifest digest and
+input trees, auxiliary ownership/cwd, ordered discovery/outcomes, environment
+handling, cold observations and completed cleanup. Cargo plan cwds must remain
+the original slot. Missing, stale or mismatched cold evidence refuses.
+Standalone readiness scopes waitable SIGCHLD handling around each Git launch,
+including its first command. A failed empty-output diff is an error, never an
+empty changed-path set. Known results and prelaunch refusal restore the exact
+caller handler; abnormal/unknown Git completion keeps waitable handling.
+Ops/coordinators must rerun precheck for older tools receipts after deployment;
+there is no silent compatibility with warm tools results. Docs-only receipts
+without tools retain their existing checks. Deploy compatible precheck/helper
+and ready-check together after source review; an old installed precheck proves
+only its installed policy, not production execution of the new cold path.
+
 ## 6. Later
 
-- Builder validation and fleet installation by Ops after review/landing.
+- Source-CLI production cold proof and compatible fleet installation by Ops
+  after source review/landing. The installed old-policy precheck is separate.
+- Decision0012 hard auxiliary containment/scratch admission remains future
+  work; measured static copy headroom does not establish a hard allocation bound.
 - Coordination with a future common checkout ownership protocol, if workers
   adopt a different lock/marker convention. Noncooperating writers cannot
   be excluded by this tool.

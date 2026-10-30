@@ -392,8 +392,8 @@ def gate_tools_required(paths):
     return False
 
 
-def author_tools_commands(repo, paths):
-    """Select each changed tool's candidate suites (design.md, 2.3)."""
+def author_tools_owners(paths):
+    """Pure changed-path ownership shared with cold evidence (design.md, 2.3)."""
     owners = set()
     for path in paths:
         if not path.startswith("tools/"):
@@ -406,14 +406,26 @@ def author_tools_commands(repo, paths):
         else:
             raise ValueError(f"author tools selection: unknown owner for {path!r}; "
                              "add an explicit suite mapping before precheck")
-    commands = []
-    for owner in sorted(owners):
-        suites = tools_commands(repo, roots=[owner])
+    return sorted(owners)
+
+
+def author_tools_select(paths, commands):
+    """Select an exact ordered owner union from discovered candidate commands."""
+    selected = {}
+    for owner in author_tools_owners(paths):
+        suites = [item for item in commands if
+                  (item[0].startswith(owner) if owner.endswith('/') else item[0] == owner)]
         if not suites:
             raise ValueError(f"author tools selection: no candidate offline suites for {owner!r}; "
                              "deleted tools or tools without suites require an explicit mapping")
-        commands.extend(suites)
-    return sorted(commands, key=lambda command: command[0])
+        selected.update((item[0], item) for item in suites)
+    return [selected[name] for name in sorted(selected)]
+
+
+def author_tools_commands(repo, paths):
+    """Select each changed tool's candidate suites (design.md, 2.3)."""
+    commands = [item for owner in author_tools_owners(paths) for item in tools_commands(repo, roots=[owner])]
+    return author_tools_select(paths, commands)
 
 
 def tools_commands(repo, *, roots=None):
