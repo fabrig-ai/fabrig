@@ -1,0 +1,883 @@
+# Fixture readers: skein/docs/foundation/testing-strategy.md, 8.
+# Contract and schema: tools/tiers/design.md, 8 (Fixture readers).
+# Paths are repository-relative globs; every tracked **/fixtures/** file
+# matches exactly one fixture entry, even across multiple paths in that entry.
+# Reader filters may conservatively include other tests of a shared helper.
+# An empty readers list means no nextest reader was found; comments name
+# known manual or non-nextest consumers. Regeneration is never automatic.
+
+# jig/crates/jig-client-protocol-link/src/tests.rs and its fixture helper modules; all unit callers.
+[[fixture]]
+paths = ["jig/crates/jig-client-protocol-link/src/tests/fixtures/*.rs"]
+[[fixture.reader]]
+pair = "default"
+package = "jig-client-protocol-link"
+filter = "kind(lib)"
+
+# jig/crates/jig-client-protocol-wire/src/tests.rs and its fixture helper modules; all unit callers.
+[[fixture]]
+paths = ["jig/crates/jig-client-protocol-wire/src/tests/fixtures/*.rs"]
+[[fixture.reader]]
+pair = "default"
+package = "jig-client-protocol-wire"
+filter = "kind(lib)"
+
+# jig/crates/jig-client-view/src/tests.rs and its fixture helper modules; all unit callers.
+[[fixture]]
+paths = ["jig/crates/jig-client-view/src/tests/fixtures/*.rs"]
+[[fixture.reader]]
+pair = "default"
+package = "jig-client-view"
+filter = "kind(lib)"
+
+# jig/crates/jig-client/src/tests.rs and its fixture helper modules; all unit callers.
+[[fixture]]
+paths = ["jig/crates/jig-client/src/tests/fixtures/*.rs"]
+[[fixture.reader]]
+pair = "default"
+package = "jig-client"
+filter = "kind(lib)"
+
+# jig/crates/jig-protocol-engine-clients/src/tests.rs and its fixture helper modules; all unit
+# callers.
+[[fixture]]
+paths = [
+    "jig/crates/jig-protocol-engine-clients/src/tests/fixtures/*.rs",
+    "jig/crates/jig-protocol-engine-clients/src/tests/fixtures/answers/*.rs",
+]
+[[fixture.reader]]
+pair = "default"
+package = "jig-protocol-engine-clients"
+filter = "kind(lib)"
+
+# jig/crates/jig-protocol-store/src/tests.rs and its fixture helper modules; all unit callers.
+[[fixture]]
+paths = ["jig/crates/jig-protocol-store/src/tests/fixtures/*.rs"]
+[[fixture.reader]]
+pair = "default"
+package = "jig-protocol-store"
+filter = "kind(lib)"
+
+# src/tests/{format,frame_memory}.rs; jig/tests/store-codecs/tests/suite/drift.rs: layouts().
+[[fixture]]
+paths = ["jig/crates/jig-protocol-store/src/tests/fixtures/*.schema"]
+[[fixture.reader]]
+pair = "default"
+package = "jig-protocol-store"
+filter = "kind(lib)"
+[[fixture.reader]]
+pair = "default"
+package = "jig-store-codecs-world"
+filter = "binary(=suite) & test(/the_stores_layouts_have_no_drift/)"
+
+# src/tests.rs declares the private fixture module.
+[[fixture]]
+paths = ["jig/testing/jig-test-service/src/tests/fixtures/*.rs"]
+[[fixture.reader]]
+pair = "default"
+package = "jig-test-service"
+filter = "kind(lib)"
+
+# src/tests/vocabulary.rs includes names.txt.
+[[fixture]]
+paths = ["jig/tests/boundary/fixtures/*"]
+[[fixture.reader]]
+pair = "default"
+package = "jig-boundary"
+filter = "kind(lib)"
+
+# Fixture module and its world/suite callers; package filters retain all shared-helper callers.
+[[fixture]]
+paths = ["jig/tests/client-protocol/src/fixtures/*.rs"]
+[[fixture.reader]]
+pair = "default"
+package = "jig-client-protocol-world"
+filter = "all()"
+[[fixture.reader]]
+pair = "fuzzy"
+package = "jig-client-protocol-world"
+filter = "all()"
+
+# Fixture module and its world/suite callers; package filters retain all shared-helper callers.
+[[fixture]]
+paths = ["jig/tests/client-wire/tests/fixtures/*.rs"]
+[[fixture.reader]]
+pair = "default"
+package = "jig-client-wire-world"
+filter = "all()"
+[[fixture.reader]]
+pair = "fuzzy"
+package = "jig-client-wire-world"
+filter = "all()"
+
+# fixtures/deadlines.rs: tests/suite/deadline_spans.rs and parties.rs import propose/decide/clock.
+[[fixture]]
+paths = ["jig/tests/core/src/fixtures/*.rs"]
+[[fixture.reader]]
+pair = "default"
+package = "jig-core-world"
+filter = "binary(=suite) & (test(/deadline_spans::/) | test(/parties::/))"
+
+# src/fixtures/receiving.rs helpers feed tests/suite callers; no fuzzy tests are selected for this
+# package.
+[[fixture]]
+paths = ["jig/tests/engine-clients/src/fixtures/*.rs"]
+[[fixture.reader]]
+pair = "default"
+package = "jig-engine-clients-world"
+filter = "all()"
+
+# skein/crates/skein-forge-client/src/tests.rs and its fixture helper modules; all unit callers.
+[[fixture]]
+paths = ["skein/crates/skein-forge-client/src/tests/fixtures/*.rs"]
+[[fixture.reader]]
+pair = "default"
+package = "skein-forge-client"
+filter = "kind(lib)"
+
+# forgejo/tests.rs; tests/common/mod.rs includes admitted.rs for the document suite and its fuzzy
+# mutations.
+[[fixture]]
+paths = ["skein/crates/skein-forge/src/forgejo/tests/fixtures/*.rs"]
+[[fixture.reader]]
+pair = "default"
+package = "skein-forge"
+filter = "all()"
+[[fixture.reader]]
+pair = "fuzzy"
+package = "skein-forge"
+filter = "all()"
+
+# llm world archives.rs: archive(scenario, request.json).
+[[fixture]]
+paths = ["skein/crates/skein-llm/src/anthropic/fixtures/*/request.json"]
+[[fixture.reader]]
+pair = "default"
+package = "skein-llm-world"
+filter = "binary(=suite) & test(/historical_messages_captures/)"
+
+# skein-llm/src/derive/tests.rs; llm world derive.rs: capture/captured_head.
+[[fixture]]
+paths = ["skein/crates/skein-llm/src/anthropic/fixtures/*/response.headers"]
+[[fixture.reader]]
+pair = "default"
+package = "skein-llm"
+filter = "kind(lib)"
+[[fixture.reader]]
+pair = "default"
+package = "skein-llm-world"
+filter = "binary(=suite) & test(/archived_heads_fit_with_headroom/)"
+
+# llm world archives.rs: archive(); derive.rs: capture().
+[[fixture]]
+paths = ["skein/crates/skein-llm/src/anthropic/fixtures/*/response.sse"]
+[[fixture.reader]]
+pair = "default"
+package = "skein-llm-world"
+filter = "binary(=suite) & (test(/historical_messages_captures/) | test(/archived_heads_fit_with_headroom/))"
+
+# no reader found: provenance documentation and capture metadata; no Rust path reader.
+[[fixture]]
+paths = [
+    "skein/crates/skein-llm/src/anthropic/fixtures/README.md",
+    "skein/crates/skein-llm/src/anthropic/fixtures/*/meta.json",
+]
+readers = []
+
+# src/openai/tests.rs: fixture(); src/translate.rs test module reads requests.
+[[fixture]]
+paths = ["skein/crates/skein-llm/src/openai/fixtures/*/request.json"]
+[[fixture.reader]]
+pair = "default"
+package = "skein-llm"
+filter = "kind(lib)"
+
+# skein-llm/src/derive/tests.rs; llm world derive.rs: capture/captured_head.
+[[fixture]]
+paths = ["skein/crates/skein-llm/src/openai/fixtures/*/response.headers"]
+[[fixture.reader]]
+pair = "default"
+package = "skein-llm"
+filter = "kind(lib)"
+[[fixture.reader]]
+pair = "default"
+package = "skein-llm-world"
+filter = "binary(=suite) & test(/archived_heads_fit_with_headroom/)"
+
+# src/openai/tests.rs: fixture(); llm world derive.rs: capture().
+[[fixture]]
+paths = ["skein/crates/skein-llm/src/openai/fixtures/*/response.sse"]
+[[fixture.reader]]
+pair = "default"
+package = "skein-llm"
+filter = "kind(lib)"
+[[fixture.reader]]
+pair = "default"
+package = "skein-llm-world"
+filter = "binary(=suite) & test(/archived_heads_fit_with_headroom/)"
+
+# no reader found: provenance documentation and capture metadata; no Rust path reader.
+[[fixture]]
+paths = [
+    "skein/crates/skein-llm/src/openai/fixtures/README.md",
+    "skein/crates/skein-llm/src/openai/fixtures/*/meta.json",
+]
+readers = []
+
+# src/openai/tests.rs; llm world suite/selective.rs include the completion.
+[[fixture]]
+paths = ["skein/crates/skein-llm/src/openai/fixtures/provider-completed.json"]
+[[fixture.reader]]
+pair = "default"
+package = "skein-llm"
+filter = "kind(lib)"
+[[fixture.reader]]
+pair = "default"
+package = "skein-llm-world"
+filter = "binary(=suite) & test(/a_captured_completion_decodes/)"
+
+# src/tests.rs: test_key(); tests/documents.rs reads discovery/key-set goldens.
+[[fixture]]
+paths = [
+    "skein/crates/skein-oauth-issuer/src/tests/fixtures/*.json",
+    "skein/crates/skein-oauth-issuer/src/tests/fixtures/*.der",
+]
+[[fixture.reader]]
+pair = "default"
+package = "skein-oauth-issuer"
+filter = "kind(lib)"
+
+# no reader found: published test-key provenance; no Rust path reader.
+[[fixture]]
+paths = [
+    "skein/crates/skein-oauth-issuer/src/tests/fixtures/README.md",
+    "skein/tests/oauth-issuer/tests/fixtures/README.md",
+]
+readers = []
+
+# Fixture module and its world/suite callers; package filters retain all shared-helper callers.
+[[fixture]]
+paths = ["skein/tests/forge/client/tests/fixtures/*.rs"]
+[[fixture.reader]]
+pair = "default"
+package = "skein-forge-client-world"
+filter = "all()"
+[[fixture.reader]]
+pair = "fuzzy"
+package = "skein-forge-client-world"
+filter = "all()"
+
+# tests/support/mod.rs: test_key() -> make_issuer() -> World; focused and fuzzy sign-in stories.
+[[fixture]]
+paths = ["skein/tests/oauth-issuer/tests/fixtures/*.der"]
+[[fixture.reader]]
+pair = "default"
+package = "skein-oauth-issuer-world"
+filter = "all()"
+[[fixture.reader]]
+pair = "fuzzy"
+package = "skein-oauth-issuer-world"
+filter = "all()"
+
+# tls-world pki::Chain selects the alternate chains.
+[[fixture]]
+paths = [
+    "skein/tests/tls/fixtures/big.der",
+    "skein/tests/tls/fixtures/ca.der",
+    "skein/tests/tls/fixtures/client.der",
+    "skein/tests/tls/fixtures/self.der",
+]
+regenerate = "skein/tests/tls/fixtures/make.sh"
+[[fixture.reader]]
+pair = "default"
+package = "skein-tls-world"
+filter = "all()"
+[[fixture.reader]]
+pair = "fuzzy"
+package = "skein-tls-world"
+filter = "all()"
+
+# no reader found: certificate/key regenerator; not read by a nextest test.
+[[fixture]]
+paths = ["skein/tests/tls/fixtures/make.sh"]
+readers = []
+
+# tls-world pki::Chain::Untrusted; temper-forge-setup-shell suite/fetch.rs passes pki::OTHER to
+# the refusal table.
+[[fixture]]
+paths = ["skein/tests/tls/fixtures/other.der"]
+regenerate = "skein/tests/tls/fixtures/make.sh"
+[[fixture.reader]]
+pair = "default"
+package = "skein-tls-world"
+filter = "all()"
+[[fixture.reader]]
+pair = "fuzzy"
+package = "skein-tls-world"
+filter = "all()"
+[[fixture.reader]]
+pair = "default"
+package = "temper-forge-setup-shell"
+filter = "binary(=suite) & test(=fetch::local_tls_fetch)"
+
+# skein-tls tests::fixture; tls-world pki::{ROOT,INTERMEDIATE,LEAF,KEY,roots,client,server};
+# fake-peers transport::{ROOT,native::config}; their world, shell and application callers.
+# Package/profile supersets keep shared callers covered.
+[[fixture]]
+paths = [
+    "skein/tests/tls/fixtures/root.der",
+    "skein/tests/tls/fixtures/intermediate.der",
+    "skein/tests/tls/fixtures/leaf.der",
+    "skein/tests/tls/fixtures/leaf.key",
+]
+regenerate = "skein/tests/tls/fixtures/make.sh"
+[[fixture.reader]]
+pair = "default"
+package = "github-conformance"
+filter = "all()"
+[[fixture.reader]]
+pair = "default"
+package = "jig-channel-world"
+filter = "all()"
+[[fixture.reader]]
+pair = "default"
+package = "jig-one-process-world"
+filter = "all()"
+[[fixture.reader]]
+pair = "default"
+package = "jig-protocol-accounts-world"
+filter = "all()"
+[[fixture.reader]]
+pair = "default"
+package = "jig-test"
+filter = "all()"
+[[fixture.reader]]
+pair = "default"
+package = "skein-fake-peers"
+filter = "all()"
+[[fixture.reader]]
+pair = "default"
+package = "skein-fake-peers-tests"
+filter = "all()"
+[[fixture.reader]]
+pair = "default"
+package = "skein-fake-person-browser"
+filter = "all()"
+[[fixture.reader]]
+pair = "default"
+package = "skein-forge-connection"
+filter = "all()"
+[[fixture.reader]]
+pair = "default"
+package = "skein-forge-machine-world"
+filter = "all()"
+[[fixture.reader]]
+pair = "default"
+package = "skein-forge-setup"
+filter = "all()"
+[[fixture.reader]]
+pair = "default"
+package = "skein-forge-setup-world"
+filter = "all()"
+[[fixture.reader]]
+pair = "default"
+package = "skein-llm-connection"
+filter = "all()"
+[[fixture.reader]]
+pair = "default"
+package = "skein-llm-connection-world"
+filter = "all()"
+[[fixture.reader]]
+pair = "default"
+package = "skein-oauth-accounts-world"
+filter = "all()"
+[[fixture.reader]]
+pair = "default"
+package = "skein-oauth-world"
+filter = "all()"
+[[fixture.reader]]
+pair = "default"
+package = "skein-tls"
+filter = "all()"
+[[fixture.reader]]
+pair = "default"
+package = "skein-tls-world"
+filter = "all()"
+[[fixture.reader]]
+pair = "default"
+package = "skein-ui-web-tests"
+filter = "all()"
+[[fixture.reader]]
+pair = "default"
+package = "smith"
+filter = "all()"
+[[fixture.reader]]
+pair = "default"
+package = "smith-agent-process-world"
+filter = "all()"
+[[fixture.reader]]
+pair = "default"
+package = "smith-hosts-world"
+filter = "all()"
+[[fixture.reader]]
+pair = "default"
+package = "smith-local-process-world"
+filter = "all()"
+[[fixture.reader]]
+pair = "default"
+package = "smith-local-service"
+filter = "all()"
+[[fixture.reader]]
+pair = "default"
+package = "smith-local-shell"
+filter = "all()"
+[[fixture.reader]]
+pair = "default"
+package = "smith-protocol-llm-world"
+filter = "all()"
+[[fixture.reader]]
+pair = "default"
+package = "smith-real-world"
+filter = "all()"
+[[fixture.reader]]
+pair = "default"
+package = "temper"
+filter = "all()"
+[[fixture.reader]]
+pair = "default"
+package = "temper-client-browser-world"
+filter = "all()"
+[[fixture.reader]]
+pair = "default"
+package = "temper-fake"
+filter = "all()"
+[[fixture.reader]]
+pair = "default"
+package = "temper-fake-git"
+filter = "all()"
+[[fixture.reader]]
+pair = "default"
+package = "temper-fake-git-hosted"
+filter = "all()"
+[[fixture.reader]]
+pair = "default"
+package = "temper-forge-setup-shell"
+filter = "all()"
+[[fixture.reader]]
+pair = "default"
+package = "temper-one-process-world"
+filter = "all()"
+[[fixture.reader]]
+pair = "default"
+package = "temper-real-loop-world"
+filter = "all()"
+[[fixture.reader]]
+pair = "fuzzy"
+package = "jig-channel-world"
+filter = "all()"
+[[fixture.reader]]
+pair = "fuzzy"
+package = "jig-one-process-world"
+filter = "all()"
+[[fixture.reader]]
+pair = "fuzzy"
+package = "jig-protocol-accounts-world"
+filter = "all()"
+[[fixture.reader]]
+pair = "fuzzy"
+package = "skein-forge-machine-world"
+filter = "all()"
+[[fixture.reader]]
+pair = "fuzzy"
+package = "skein-forge-setup-world"
+filter = "all()"
+[[fixture.reader]]
+pair = "fuzzy"
+package = "skein-llm-connection-world"
+filter = "all()"
+[[fixture.reader]]
+pair = "fuzzy"
+package = "skein-oauth-accounts-world"
+filter = "all()"
+[[fixture.reader]]
+pair = "fuzzy"
+package = "skein-oauth-world"
+filter = "all()"
+[[fixture.reader]]
+pair = "fuzzy"
+package = "skein-tls-world"
+filter = "all()"
+[[fixture.reader]]
+pair = "fuzzy"
+package = "smith-agent-process-world"
+filter = "all()"
+[[fixture.reader]]
+pair = "fuzzy"
+package = "smith-hosts-world"
+filter = "all()"
+[[fixture.reader]]
+pair = "fuzzy"
+package = "smith-local-process-world"
+filter = "all()"
+[[fixture.reader]]
+pair = "fuzzy"
+package = "smith-protocol-llm-world"
+filter = "all()"
+[[fixture.reader]]
+pair = "fuzzy"
+package = "temper-one-process-world"
+filter = "all()"
+[[fixture.reader]]
+pair = "fuzzy"
+package = "temper-real-loop-world"
+filter = "all()"
+[[fixture.reader]]
+pair = "exhaustive-skein"
+package = "skein-forge-machine-world"
+filter = "all()"
+[[fixture.reader]]
+pair = "browser-skein"
+package = "skein-ui-web-tests"
+filter = "all()"
+[[fixture.reader]]
+pair = "qa-skein"
+package = "skein-oauth-accounts-world"
+filter = "all()"
+[[fixture.reader]]
+pair = "qa-skein"
+package = "skein-oauth-world"
+filter = "all()"
+[[fixture.reader]]
+pair = "live-smith"
+package = "smith"
+filter = "all()"
+[[fixture.reader]]
+pair = "live-smith"
+package = "smith-agent-process-world"
+filter = "all()"
+[[fixture.reader]]
+pair = "qa-jig"
+package = "jig-channel-world"
+filter = "all()"
+[[fixture.reader]]
+pair = "process-jig"
+package = "jig-test"
+filter = "all()"
+[[fixture.reader]]
+pair = "live-jig"
+package = "jig-test"
+filter = "all()"
+[[fixture.reader]]
+pair = "process-temper"
+package = "temper"
+filter = "all()"
+[[fixture.reader]]
+pair = "live-temper"
+package = "temper"
+filter = "all()"
+[[fixture.reader]]
+pair = "qa-temper"
+package = "temper"
+filter = "all()"
+[[fixture.reader]]
+pair = "qa-temper"
+package = "temper-client-browser-world"
+filter = "all()"
+[[fixture.reader]]
+pair = "qa-temper"
+package = "temper-real-loop-world"
+filter = "all()"
+[[fixture.reader]]
+pair = "browser-temper"
+package = "temper-client-browser-world"
+filter = "all()"
+
+# src/tests/rs256.rs calls tests::fixture() for RSA size refusals.
+[[fixture]]
+paths = ["skein/tests/tls/fixtures/rsa-*.der"]
+regenerate = "skein/tests/tls/fixtures/make.sh"
+[[fixture.reader]]
+pair = "default"
+package = "skein-tls"
+filter = "kind(lib)"
+
+# fixtures/startup.rs: tests/suite/roots.rs imports startup helpers.
+[[fixture]]
+paths = ["skein/tests/world/src/fixtures/*.rs"]
+[[fixture.reader]]
+pair = "default"
+package = "skein-world-tests"
+filter = "binary(=suite) & test(/roots::/)"
+
+# benchmarks/tests/suite/offline.rs traverses task trees, validates seed
+# digests/references/graders and resolves catalogue tasks; suite probes also consume task
+# manifests.
+[[fixture]]
+paths = [
+    "smith/benchmarks/tasks/fixtures/01-backoff/*",
+    "smith/benchmarks/tasks/fixtures/01-backoff/grader/*",
+    "smith/benchmarks/tasks/fixtures/01-backoff/grader/tests/*",
+    "smith/benchmarks/tasks/fixtures/01-backoff/reference/*",
+    "smith/benchmarks/tasks/fixtures/01-backoff/reference/src/*",
+    "smith/benchmarks/tasks/fixtures/01-backoff/reference/tests/*",
+    "smith/benchmarks/tasks/fixtures/01-backoff/seed/*",
+    "smith/benchmarks/tasks/fixtures/01-backoff/seed/src/*",
+    "smith/benchmarks/tasks/fixtures/01-backoff/seed/tests/*",
+    "smith/benchmarks/tasks/fixtures/02-line-decoder/*",
+    "smith/benchmarks/tasks/fixtures/02-line-decoder/grader/*",
+    "smith/benchmarks/tasks/fixtures/02-line-decoder/grader/tests/*",
+    "smith/benchmarks/tasks/fixtures/02-line-decoder/reference/*",
+    "smith/benchmarks/tasks/fixtures/02-line-decoder/reference/src/*",
+    "smith/benchmarks/tasks/fixtures/02-line-decoder/reference/tests/*",
+    "smith/benchmarks/tasks/fixtures/02-line-decoder/seed/*",
+    "smith/benchmarks/tasks/fixtures/02-line-decoder/seed/src/*",
+    "smith/benchmarks/tasks/fixtures/02-line-decoder/seed/tests/*",
+    "smith/benchmarks/tasks/fixtures/03-planner/*",
+    "smith/benchmarks/tasks/fixtures/03-planner/grader/*",
+    "smith/benchmarks/tasks/fixtures/03-planner/grader/tests/*",
+    "smith/benchmarks/tasks/fixtures/03-planner/reference/*",
+    "smith/benchmarks/tasks/fixtures/03-planner/reference/src/*",
+    "smith/benchmarks/tasks/fixtures/03-planner/reference/tests/*",
+    "smith/benchmarks/tasks/fixtures/03-planner/seed/*",
+    "smith/benchmarks/tasks/fixtures/03-planner/seed/src/*",
+    "smith/benchmarks/tasks/fixtures/03-planner/seed/tests/*",
+]
+[[fixture.reader]]
+pair = "default"
+package = "smith-bench"
+filter = "binary(=suite)"
+
+# suite/large_write_probe.rs: check_task(), recursive seed validation, and direct source reads for
+# each version.
+[[fixture]]
+paths = [
+    "smith/benchmarks/tests/fixtures/large-write/*",
+    "smith/benchmarks/tests/fixtures/large-write/seed/*",
+    "smith/benchmarks/tests/fixtures/large-write/v5/*",
+    "smith/benchmarks/tests/fixtures/large-write/v5/seed/*",
+    "smith/benchmarks/tests/fixtures/large-write/v6/*",
+    "smith/benchmarks/tests/fixtures/large-write/v6/seed/*",
+    "smith/benchmarks/tests/fixtures/large-write/v7/*",
+    "smith/benchmarks/tests/fixtures/large-write/v7-corrected/*",
+    "smith/benchmarks/tests/fixtures/large-write/v7-corrected/seed/*",
+    "smith/benchmarks/tests/fixtures/large-write/v7/seed/*",
+    "smith/benchmarks/tests/fixtures/large-write/v8/*",
+    "smith/benchmarks/tests/fixtures/large-write/v8/seed/*",
+    "smith/benchmarks/tests/fixtures/large-write/v9/*",
+    "smith/benchmarks/tests/fixtures/large-write/v9/seed/*",
+]
+[[fixture.reader]]
+pair = "default"
+package = "smith-bench"
+filter = "binary(=suite) & test(/large_write_probe::/)"
+
+# suite/stories.rs reads read-past-payload.json before configuration refusal.
+[[fixture]]
+paths = ["smith/tests/agent-process/fixtures/*.json"]
+[[fixture.reader]]
+pair = "default"
+package = "smith-agent-process-world"
+filter = "binary(=suite) & test(/a_broken_declared_relationship_is_named/)"
+
+# protocol-llm suite component_boundary/endpoints_grants; local-process
+# process/configuration::trust; local-shell check/compose/settings; agent-shell config and fuzzy
+# startup; benchmark smith_adapter. Public certificate only.
+[[fixture]]
+paths = ["smith/tests/protocol-llm/fixtures/*.der"]
+[[fixture.reader]]
+pair = "default"
+package = "smith-protocol-llm-world"
+filter = "all()"
+[[fixture.reader]]
+pair = "default"
+package = "smith-local-process-world"
+filter = "all()"
+[[fixture.reader]]
+pair = "fuzzy"
+package = "smith-local-process-world"
+filter = "all()"
+[[fixture.reader]]
+pair = "default"
+package = "smith-local-shell"
+filter = "all()"
+[[fixture.reader]]
+pair = "default"
+package = "smith-agent-shell"
+filter = "all()"
+[[fixture.reader]]
+pair = "fuzzy"
+package = "smith-agent-shell"
+filter = "all()"
+[[fixture.reader]]
+pair = "default"
+package = "smith-bench"
+filter = "binary(=suite) & test(/smith_adapter::/)"
+
+# temper/crates/temper-client-domain/src/tests.rs and its fixture helper modules; all unit callers.
+[[fixture]]
+paths = ["temper/crates/temper-client-domain/src/tests/fixtures/*.rs"]
+[[fixture.reader]]
+pair = "default"
+package = "temper-client-domain"
+filter = "kind(lib)"
+
+# temper/crates/temper-client-shell-cli/src/tests.rs and its fixture helper modules; all unit
+# callers.
+[[fixture]]
+paths = ["temper/crates/temper-client-shell-cli/src/tests/fixtures/*.rs"]
+[[fixture.reader]]
+pair = "default"
+package = "temper-client-shell-cli"
+filter = "kind(lib)"
+
+# temper/crates/temper-client-shell-terminal/src/tests.rs and its fixture helper modules; all unit
+# callers.
+[[fixture]]
+paths = ["temper/crates/temper-client-shell-terminal/src/tests/fixtures/*.rs"]
+[[fixture.reader]]
+pair = "default"
+package = "temper-client-shell-terminal"
+filter = "kind(lib)"
+
+# temper/crates/temper-client-tools/src/tests.rs and its fixture helper modules; all unit callers.
+[[fixture]]
+paths = ["temper/crates/temper-client-tools/src/tests/fixtures/*.rs"]
+[[fixture.reader]]
+pair = "default"
+package = "temper-client-tools"
+filter = "kind(lib)"
+
+# temper/crates/temper-client-view/src/tests.rs and its fixture helper modules; all unit callers.
+[[fixture]]
+paths = ["temper/crates/temper-client-view/src/tests/fixtures/*.rs"]
+[[fixture.reader]]
+pair = "default"
+package = "temper-client-view"
+filter = "kind(lib)"
+
+# src/tests/brief.rs includes red-changes.log as RUNNER_LOG.
+[[fixture]]
+paths = ["temper/crates/temper-engine-domain-forge/src/tests/fixtures/ci/*.log"]
+[[fixture.reader]]
+pair = "default"
+package = "temper-engine-domain-forge"
+filter = "kind(lib)"
+
+# temper/crates/temper-service/src/tests.rs and its fixture helper modules; all unit callers.
+[[fixture]]
+paths = ["temper/crates/temper-service/src/tests/fixtures/*.rs"]
+[[fixture.reader]]
+pair = "default"
+package = "temper-service"
+filter = "kind(lib)"
+[[fixture.reader]]
+pair = "fuzzy"
+package = "temper-service"
+filter = "kind(lib)"
+[[fixture.reader]]
+pair = "qa-temper"
+package = "temper-service"
+filter = "kind(lib)"
+
+# support/cluster.rs: description/read/documents/render_files and settings_file; suite
+# configuration/startup/fake_opening and process cluster/case callers.
+[[fixture]]
+paths = ["temper/crates/temper/tests/fixtures/cluster/*"]
+[[fixture.reader]]
+pair = "default"
+package = "temper"
+filter = "binary(=suite)"
+[[fixture.reader]]
+pair = "process-temper"
+package = "temper"
+filter = "binary(=process)"
+
+# fixtures/b2.rs: suite/b2.rs and qa_all/qa_task_pages.rs call the B2 builders.
+[[fixture]]
+paths = ["temper/tests/client/src/fixtures/*.rs"]
+[[fixture.reader]]
+pair = "default"
+package = "temper-client-world"
+filter = "binary(=suite) & test(/^b2::/)"
+[[fixture.reader]]
+pair = "qa-temper"
+package = "temper-client-world"
+filter = "binary(=qa_all) & test(/qa_task_pages::/)"
+
+# suite/main.rs includes stock.rs; settings/b2.rs and forge_routes/b2_tree.rs call box_model.
+[[fixture]]
+paths = ["temper/tests/engine/domain/tests/fixtures/*.rs"]
+[[fixture.reader]]
+pair = "default"
+package = "temper-engine-domain-world"
+filter = "binary(=suite)"
+
+# fixtures/durable.rs: private support for referee/durable.rs unit tests.
+[[fixture]]
+paths = ["temper/tests/one-process/src/fixtures/*.rs"]
+[[fixture.reader]]
+pair = "default"
+package = "temper-one-process-world"
+filter = "kind(lib)"
+
+# no reader found: recording provenance and manual regenerators; not read by a nextest test.
+[[fixture]]
+paths = [
+    "temper/tests/real-loop/tests/fixtures/README.md",
+    "temper/tests/real-loop/tests/fixtures/*/regenerate.sh",
+]
+readers = []
+
+# real-loop green_light::{fixture,recipe,acts,check}; repair::fixture also uses
+# green_light::fixture; temper suite/fake_opening.rs reads person/llm; support/forge_land/rung.rs:
+# twin_peer -> offline_walk. llm-base.json feeds the declared regenerator.
+[[fixture]]
+paths = ["temper/tests/real-loop/tests/fixtures/b0/*.json"]
+regenerate = "temper/tests/real-loop/tests/fixtures/b0/regenerate.sh"
+[[fixture.reader]]
+pair = "default"
+package = "temper"
+filter = "binary(=suite) & test(/recorded_walk_chat_fixtures_select_their_opening_requests/)"
+[[fixture.reader]]
+pair = "fuzzy"
+package = "temper-real-loop-world"
+filter = "binary(=suite) & (test(/^fuzzy::green_light::/) | test(/^fuzzy::repair::/))"
+[[fixture.reader]]
+pair = "process-temper"
+package = "temper"
+filter = "binary(=process) & test(=rung_b0s_walk_passes_offline_on_its_twin)"
+
+# real-loop repair::{fixture,recipe,acts,check}; temper suite/fake_opening.rs reads person/llm.
+# llm-base.json feeds the declared regenerator.
+[[fixture]]
+paths = ["temper/tests/real-loop/tests/fixtures/b1/*.json"]
+regenerate = "temper/tests/real-loop/tests/fixtures/b1/regenerate.sh"
+[[fixture.reader]]
+pair = "default"
+package = "temper"
+filter = "binary(=suite) & test(/recorded_walk_chat_fixtures_select_their_opening_requests/)"
+[[fixture.reader]]
+pair = "fuzzy"
+package = "temper-real-loop-world"
+filter = "binary(=suite) & test(/^fuzzy::repair::/)"
+
+# suite/frames.rs: fixture(tasks) copies TASKS as hexadecimal filenames; frames/round_trip.rs
+# calls fixture; suite/cli.rs copies task 5.
+[[fixture]]
+paths = ["temper/tools/twin/tests/fixtures/*"]
+[[fixture.reader]]
+pair = "default"
+package = "temper-twin"
+filter = "binary(=suite)"
+
+# no reader found: tools/heavy/test-heavy-plain and test-heavy-recovery read agents-heavy outside
+# nextest; README is tool-fixture documentation.
+[[fixture]]
+paths = ["tools/heavy/fixtures/*"]
+readers = []
+
+# no reader found: tools/tiers/test_cpu.py builds cpu-settlement.c for its offline Python suite,
+# outside nextest.
+[[fixture]]
+paths = ["tools/tiers/fixtures/*"]
+readers = []

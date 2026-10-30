@@ -319,7 +319,19 @@ attempts' overhead. `test_run.py` also checks budget validation during
 `--verify-all` and preserves the ordinary command-line assertions in section 5.
 All fixtures are local and use no service, sign-in or credential.
 
-## 8. Later
+## 8. Fixture readers
+
+`.config/fixture-readers.toml` covers every tracked `**/fixtures/**` file exactly once; each reader names a root nextest profile, package and filterset selecting at least one test (`skein/docs/foundation/testing-strategy.md`, 8).
+
+```toml
+[[fixture]]
+paths = ["tree/tests/fixtures/*.json"]
+regenerate = "tree/tests/fixtures/regenerate.sh" # optional
+reader = [{ pair = "default", package = "package", filter = "binary(=suite)" }]
+# Use readers = [] instead of reader when no nextest reader is found.
+```
+
+## 9. Later
 
 The after-landing runner calls this entry point. The trees' old
 `scripts/browser.sh` scripts retire in their own trees' branches.
