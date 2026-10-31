@@ -99,6 +99,8 @@ fn pump(service: &mut crate::Service) -> Option<w::Outcome> {
                 | root::Request::ForgeKept(_)
                 | root::Request::ForgeGone { .. }
                 | root::Request::BoxGroup { .. }
+                | root::Request::PlaygroundActs { .. }
+                | root::Request::ResetAct { .. }
                 | root::Request::BoxRemove { .. }
                 | root::Request::Return { .. }
                 | root::Request::SetUp { .. }

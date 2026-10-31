@@ -81,6 +81,9 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::StepLanding { .. }
             | forge::Event::Settle
             | forge::Event::AppRecorded { .. }
+            | forge::Event::PlaygroundMade { .. }
+            | forge::Event::PlaygroundFailed { .. }
+            | forge::Event::ResetActAnswered { .. }
             | forge::Event::DemoActs { .. }
             | forge::Event::DemoActAnswered { .. }
             | forge::Event::SendDemoActs

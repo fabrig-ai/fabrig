@@ -504,7 +504,6 @@ impl Domain {
     }
     /// Construct a connector with the deployment namespace and any writers
     /// known at start; invalid limits or writer configuration are refused.
-    #[expect(clippy::too_many_lines, reason = "bounded connector tables are sized together at admission")]
     pub fn new(
         l: &Limits,
         seed: u64,
@@ -1208,7 +1207,6 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                 crate::removal::admit(d, request, token, role, forge, out);
             }
             ask @ (crate::Ask::Connect { .. }
-
             | crate::Ask::Install { .. }
             | crate::Ask::Accept { .. }
             | crate::Ask::Reachable { .. }) => {
