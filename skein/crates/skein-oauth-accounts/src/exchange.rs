@@ -11,7 +11,7 @@ use alloc::boxed::Box;
 use skein_http::{Header, Method, client as http};
 use skein_io::{Event as IoEvent, Request as IoRequest};
 use skein_lib::stream::{Down, Read, Up};
-use skein_lib::{Duration, Env, List, Queue, Time, Token, bytes};
+use skein_lib::{Duration, Env, Lifecycle, List, Queue, Time, Token, bytes};
 use skein_oauth as oauth;
 use skein_tls::client as tls;
 
@@ -40,14 +40,14 @@ pub(crate) enum OwnerLock {
 
 pub(crate) struct Exchange {
     pub(crate) account: u32,
-    pub(crate) next: Option<skein_lib::Id<Exchange>>,
+    // Closed exchanges remain addressable until reclaim, but take no more work.
+    pub(crate) lifecycle: Lifecycle,
     pub(crate) sign_in_deadline: Option<Time>,
     pub(crate) client: oauth::Client,
     pub(crate) above: Queue<oauth::Request>,
     pub(crate) web: Option<Web>,
     pub(crate) stage: Stage,
     pub(crate) pending_grant: bool,
-    pub(crate) aborted: bool,
     pub(crate) purpose: Purpose,
     pub(crate) visit: Option<Box<[u8]>>,
     pub(crate) state_refusals: u32,
@@ -89,14 +89,13 @@ impl Exchange {
     pub(crate) fn new(account: u32, client: oauth::Client, pending_grant: bool) -> Exchange {
         Exchange {
             account,
-            next: None,
+            lifecycle: Lifecycle::Live,
             sign_in_deadline: None,
             client,
             above: Queue::uncapped(),
             web: None,
             stage: Stage::Running,
             pending_grant,
-            aborted: false,
             purpose: Purpose::Refresh,
             visit: None,
             state_refusals: 0,
