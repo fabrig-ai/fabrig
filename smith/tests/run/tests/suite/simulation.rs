@@ -617,7 +617,7 @@ fn a_check_deadline_terminal_returns_feedback_without_submitting_to_host() {
     // The stopped check returns feedback; there is no live check to abort or delivery to submit.
     assert!(stats.checks == 4 && stats.partner.checks_failed == 4, "{stats:?}");
     assert_eq!(stats.aborts, 0, "{stats:?}");
-    assert_eq!(stats.pushes, 0, "{stats:?}");
+    assert_eq!(stats.deliveries, 0, "{stats:?}");
     for answer in answers(&world) {
         assert!(
             matches!(answer, Answer::Failed { failure: Failure::Budget { exhausted: Exhausted::Time, .. }, .. }),
@@ -740,7 +740,7 @@ fn deadlines_find_runs_in_every_state_they_run_in_cells() -> BTreeMap<&'static s
         let settings = Settings { host, checkout, partner, hop: Span::millis(0, 1_500), ..calm };
         tally(&settled(&settings), &mut cancels, &mut deadlines);
     }
-    // And as changes are checked and pushed, and as the LLM spends past its
+    // And as changes are checked and delivered, and as the LLM spends past its
     // budget.
     for seed in LANDING_SEEDS {
         let landing = finishing(seed);
@@ -957,7 +957,7 @@ fn empty_reports_and_declared_failures_are_terminal_results_without_delivery() {
                 }
             }
         }
-        assert_eq!((world.stats().checks, world.stats().pushes), (0, 0));
+        assert_eq!((world.stats().checks, world.stats().deliveries), (0, 0));
         assert_eq!(world.stats().partner.accepted, 4);
         skein_world::domain::assert_replays(41, 42, |seed| {
             let world = settled(&Settings { seed, ..settings });
@@ -974,7 +974,7 @@ fn an_empty_failure_reason_is_accepted_in_the_run_world() {
     let world = settled(&Settings { host, partner, ..calm });
     assert_eq!(world.stats().partner.rejected, 0);
     assert_eq!(world.stats().partner.accepted, 4);
-    assert_eq!((world.stats().checks, world.stats().pushes), (0, 0));
+    assert_eq!((world.stats().checks, world.stats().deliveries), (0, 0));
     assert!(answers(&world).iter().all(|answer| matches!(
         answer,
         Answer::Accepted { outcome: smith_domain_run::outcome::Declared::Failure(_), .. }

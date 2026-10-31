@@ -252,7 +252,7 @@ fn every_model_fault_and_completion_failure_keeps_its_evidence() {
         (run::CompletionFailure::Cancelled, "unsolicited-cancelled"),
         (run::CompletionFailure::Overloaded, "overloaded"),
         (run::CompletionFailure::Unavailable, "unavailable"),
-        (run::CompletionFailure::TimedOut { phase: run::Phase::Whole }, "timed-out"),
+        (run::CompletionFailure::TimedOut { phase: run::CompletionPhase::Whole }, "timed-out"),
         (run::CompletionFailure::ContextTooLong, "context-too-long"),
         (run::CompletionFailure::Invalid, "invalid"),
         (run::CompletionFailure::Refused, "refused"),
@@ -299,7 +299,7 @@ fn failure_fields() -> Vec<(smith_domain::llm::Failure, run::CompletionFailure)>
         (llm::Failure::Unavailable, run::CompletionFailure::Unavailable),
         (
             llm::Failure::TimedOut { phase: llm::Phase::Head },
-            run::CompletionFailure::TimedOut { phase: run::Phase::Head },
+            run::CompletionFailure::TimedOut { phase: run::CompletionPhase::Head },
         ),
         (llm::Failure::Invalid, run::CompletionFailure::Invalid),
         (llm::Failure::Refused, run::CompletionFailure::Refused),

@@ -327,11 +327,11 @@ fn completion(why: run::CompletionFailure, evidence: run::CompletionEvidence) ->
     };
     let phase = match why {
         run::CompletionFailure::TimedOut { phase } => Some(match phase {
-            run::Phase::Connect => smith_events::FailurePhase::Connect,
-            run::Phase::Handshake => smith_events::FailurePhase::Handshake,
-            run::Phase::Head => smith_events::FailurePhase::Head,
-            run::Phase::Idle => smith_events::FailurePhase::Idle,
-            run::Phase::Whole => smith_events::FailurePhase::Whole,
+            run::CompletionPhase::Connect => smith_events::FailurePhase::Connect,
+            run::CompletionPhase::Handshake => smith_events::FailurePhase::Handshake,
+            run::CompletionPhase::Head => smith_events::FailurePhase::Head,
+            run::CompletionPhase::Idle => smith_events::FailurePhase::Idle,
+            run::CompletionPhase::Whole => smith_events::FailurePhase::Whole,
         }),
         run::CompletionFailure::Limit { .. }
         | run::CompletionFailure::ApplicationLimit

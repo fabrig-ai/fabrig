@@ -623,12 +623,12 @@ const fn completion_cap(cap: run::Cap) -> host::Cap {
     }
 }
 
-const fn completion_phase(phase: run::Phase) -> host::Phase {
+const fn completion_phase(phase: run::CompletionPhase) -> host::Phase {
     match phase {
-        run::Phase::Connect => host::Phase::Connect,
-        run::Phase::Handshake => host::Phase::Handshake,
-        run::Phase::Head => host::Phase::Head,
-        run::Phase::Idle => host::Phase::Idle,
-        run::Phase::Whole => host::Phase::Whole,
+        run::CompletionPhase::Connect => host::Phase::Connect,
+        run::CompletionPhase::Handshake => host::Phase::Handshake,
+        run::CompletionPhase::Head => host::Phase::Head,
+        run::CompletionPhase::Idle => host::Phase::Idle,
+        run::CompletionPhase::Whole => host::Phase::Whole,
     }
 }

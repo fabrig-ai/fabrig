@@ -41,9 +41,9 @@ pub fn noisy(seed: u64) -> Settings {
     let host = host::Script {
         recancels: small(pick(0, 300)),
         late_cancels: small(pick(0, 300)),
-        push: Span::millis(0, pick(0, 3_000)),
+        delivery: Span::millis(0, pick(0, 3_000)),
         moved: small(pick(0, 300)),
-        push_failures: small(pick(0, 200)),
+        delivery_failures: small(pick(0, 200)),
         ..host
     };
     let partner = Script {

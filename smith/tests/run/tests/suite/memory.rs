@@ -258,7 +258,7 @@ fn observed_request(request: Request, selected: Option<&smith_domain_run::Conven
 /// byte limit and a guide of exactly its limit too, and has each one's main
 /// conversation start, spend, yield, be nudged, ask for a sub-agent that
 /// answers with more than the answer limit, and finish with a change of
-/// exactly the outcome limit, which is checked and pushed. A sub-agent's call
+/// exactly the outcome limit, which is checked and delivered. A sub-agent's call
 /// holds the answer, cut at the limit, while the child is being closed, and
 /// moves it into its return once the child has ended. Each run ends winding
 /// down with the change, while its landing, returned, still holds its copy
@@ -401,7 +401,7 @@ fn fill_selected(limits: &Limits, selected: Option<&smith_domain_run::Convention
             panic!("the change is being checked");
         };
         let ran = Ran { exit: Exit::Code { code: 0 }, output: bytes(0), cut: 0 };
-        assert_eq!(step(Event::Checked { owner, ran }), [Asked::Other, Asked::Other], "checked, it is pushed");
+        assert_eq!(step(Event::Checked { owner, ran }), [Asked::Other, Asked::Other], "checked, it is delivered");
         assert_eq!(step(Event::Delivered { owner, delivery: delivered() }), [Asked::Other, Asked::Other], "accepted");
     }
     assert_eq!(domain.runs(), limits.runs, "every run slot is held");

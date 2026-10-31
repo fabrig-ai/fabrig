@@ -18,7 +18,7 @@ fn an_admitted_run_reads_its_checkout_then_opens_main_with_the_whole_budget() {
         panic!("expected main to open, got {requests:?}");
     };
     let mut found = Found::with_capacity(1);
-    found.guides.push(Guide { repository: 0, text: bytes(b"Run the tests."), whole: true }).expect("room");
+    found.guides.push(Guide { directory: 0, text: bytes(b"Run the tests."), whole: true }).expect("room");
     let expected = Opening {
         final_turn: None,
         generated_schema_bytes: LIMITS.schema_costs.finish(&charter().outcome).expect("schema count"),

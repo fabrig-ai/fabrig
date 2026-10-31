@@ -104,9 +104,9 @@ impl Settings {
                 relay: Span::millis(10, 500),
                 relay_busy: 250,
                 relay_lost: 250,
-                push: Span::millis(10, 500),
+                delivery: Span::millis(10, 500),
                 moved: 0,
-                push_failures: 0,
+                delivery_failures: 0,
             },
             partner: Script {
                 prices: None,
@@ -189,7 +189,7 @@ pub struct Stats {
     pub checks: u32,
     pub aborts: u32,
     /// Deliveries the run submitted to its host.
-    pub pushes: u32,
+    pub deliveries: u32,
     /// Scripted host relay terminals by decision class.
     pub relay_busy: u32,
     pub relay_lost: u32,
@@ -334,7 +334,7 @@ struct RunView {
     /// Its conversations opened and not ended, and the most it had at once.
     live: u32,
     peak: u32,
-    /// The roots whose checks a change must pass before it is pushed: of the
+    /// The roots whose checks a change must pass before it is delivered: of the
     /// writable repositories, when the spec wants checks, those with checks,
     /// less those io failed to look in.
     checks: BTreeSet<Token>,
@@ -362,8 +362,8 @@ struct Call {
     returned: bool,
 }
 
-/// A push, as the world tracks it: for which job.
-struct Pushing {
+/// A delivery, as the world tracks it: for which job.
+struct Delivering {
     job: Token,
 }
 
@@ -397,13 +397,13 @@ pub struct World {
     child_completions: u32,
     main_in_reserve: u32,
     calls: BTreeMap<Token, Call>,
-    pushes: Ledger<Token, Pushing>,
-    pushed: BTreeSet<Token>,
+    deliveries: Ledger<Token, Delivering>,
+    delivered: BTreeSet<Token>,
     io: Io,
     relays: Relays,
     /// The runs as the world sees them, by the run's names for them; which run
     /// each host name, conversation and landing call is of; the
-    /// conversation each peer is; and the landing calls with a check or push
+    /// conversation each peer is; and the landing calls with a check or delivery
     /// in flight.
     views: BTreeMap<Token, RunView>,
     run_of_owner: BTreeMap<Token, Token>,
@@ -476,8 +476,8 @@ impl World {
             calls: BTreeMap::new(),
             io: Io::default(),
             relays: Relays::default(),
-            pushes: Ledger::new("push"),
-            pushed: BTreeSet::new(),
+            deliveries: Ledger::new("push"),
+            delivered: BTreeSet::new(),
             views: BTreeMap::new(),
             run_of_owner: BTreeMap::new(),
             run_of_conversation: BTreeMap::new(),
@@ -858,7 +858,7 @@ impl World {
                 if let Some(&run) = self.run_of_owner.get(&owner) {
                     assert_eq!(read, self.views[&run].read, "Answer keeps the last told fence");
                     self.message_answers.push((run, read));
-                    // What its landings that did not push had passed.
+                    // What its landings that did not delivery had passed.
                     self.io.passed.retain(|call, _| self.run_of_call.get(call) != Some(&run));
                     self.views.get_mut(&run).expect("a view per admitted run").answered = Some(self.iteration);
                     self.just_answered = Some(run);
@@ -911,19 +911,22 @@ impl World {
             run::Request::Checking { host_run, deadline: _ } => self.send(Lane::Host, Delivery::Checking { host_run }),
             run::Request::ChecksEnded { host_run } => self.send(Lane::Host, Delivery::ChecksEnded { host_run }),
             run::Request::Deliver { host_run, owner, change: _, name: _, deadline } => {
-                let run = current.expect("a push is made in a step about its run");
+                let run = current.expect("a delivery is made in a step about its run");
                 self.assert_alone(run);
                 self.workspace_lease(run, owner);
                 self.lease_seen.push((self.now, run, crate::lease_referee::Seen::Delivery { owner }));
                 self.run_of_call.insert(owner, run);
                 self.landing.insert(owner);
-                self.pushes.open(owner, Pushing { job: host_run });
-                // Checked is pushed: every repository whose checks the change
+                self.deliveries.open(owner, Delivering { job: host_run });
+                // Checks precede delivery: every repository whose checks the change
                 // must pass passed them, for this landing.
                 let passed = self.io.passed.remove(&owner).unwrap_or_default();
                 let run = &self.views[&self.run_of_call[&owner]];
-                assert!(run.checks.is_subset(&passed), "a change is pushed once every repository's checks passed it");
-                self.stats.pushes += 1;
+                assert!(
+                    run.checks.is_subset(&passed),
+                    "a change is delivered once every repository's checks passed it"
+                );
+                self.stats.deliveries += 1;
                 self.send(Lane::Host, Delivery::Submit { host_run, owner, deadline });
             }
         }
@@ -1246,9 +1249,9 @@ impl World {
         assert!(fresh, "conversations have distinct names");
         let run = current.expect("a run opens a conversation in a step about it");
         self.run_of_conversation.insert(conversation, run);
-        // Checked is pushed: nothing opens while a change is checked or pushed.
+        // Checks precede delivery: nothing opens while a change is checked or delivered.
         let landing = self.landing.iter().any(|owner| self.run_of_call.get(owner) == Some(&run));
-        assert!(!landing, "a run opens no conversation while its change is checked or pushed");
+        assert!(!landing, "a run opens no conversation while its change is checked or delivered");
         let view = self.views.get_mut(&run).expect("a run is admitted before it opens a conversation");
         view.live += 1;
         view.peak = view.peak.max(view.live);
@@ -1281,11 +1284,11 @@ impl World {
         self.send(Lane::Conversations, Delivery::Open { conversation, opening });
     }
 
-    /// Checked is pushed: from a run's first check to its push, nothing but
+    /// Checks precede delivery: from a run's first check to its delivery, nothing but
     /// main is live in it, so nothing else may write to the checkout.
     fn assert_alone(&self, run: Token) {
         let view = &self.views[&run];
-        assert_eq!(view.live, 1, "main is its run's only conversation while its change is checked and pushed");
+        assert_eq!(view.live, 1, "main is its run's only conversation while its change is checked and delivered");
     }
 
     fn workspace_lease(&mut self, run: Token, owner: Token) {
@@ -1316,10 +1319,10 @@ impl World {
         assert_eq!(turns, observed, "final count matches main outputs");
         let peak = self.run_of_owner.get(&owner).map_or(0, |run| self.views[run].peak);
         assert_within(&start.budget, &answer, self.partner.turn_max(), peak);
-        // A final Change needs a settled push. A separate mid-run delivery
-        // may already have pushed before another kind of final answer.
+        // A final Change needs a settled delivery. A separate mid-run delivery
+        // may already have delivered before another kind of final answer.
         let change = matches!(&answer, run::Answer::Accepted { outcome: run::outcome::Declared::Change(_), .. });
-        assert!(!change || self.pushed.contains(&owner), "an accepted Change was pushed");
+        assert!(!change || self.delivered.contains(&owner), "an accepted Change was delivered");
         // A run answers once its main conversation, if it opened one, and
         // every other conversation it opened have ended.
         if let Some(run) = self.run_of_owner.get(&owner) {
@@ -1394,9 +1397,9 @@ impl World {
                     self.send(Lane::Agent, Delivery::Cancel { run });
                 }
                 run::Event::Delivered { owner, delivery: push } => {
-                    let Pushing { job } = self.pushes.end(owner);
+                    let Delivering { job } = self.deliveries.end(owner);
                     if matches!(push, run::Delivery::Delivered(_)) {
-                        self.pushed.insert(job);
+                        self.delivered.insert(job);
                     }
                     self.send(Lane::Agent, Delivery::Host(run::Event::Delivered { owner, delivery: push }));
                 }
@@ -1414,7 +1417,9 @@ impl World {
                 | run::Event::Delegated { .. }
                 | run::Event::Withdraw { .. }
                 | run::Event::Checked { .. }
-                | run::Event::Aborted { .. } => unreachable!("the host starts and cancels runs, and ends their pushes"),
+                | run::Event::Aborted { .. } => {
+                    unreachable!("the host starts and cancels runs, and ends their deliveries")
+                }
             }
         }
     }
@@ -1438,7 +1443,9 @@ impl World {
                 Delivery::Answered { host_run } => self.host.answered(self.now, host_run),
                 Delivery::Checking { host_run } => self.host.checking(host_run),
                 Delivery::ChecksEnded { host_run } => self.host.checks_ended(host_run),
-                Delivery::Submit { host_run, owner, deadline } => self.host.push(self.now, host_run, owner, deadline),
+                Delivery::Submit { host_run, owner, deadline } => {
+                    self.host.deliver(self.now, host_run, owner, deadline)
+                }
                 Delivery::Open { conversation, opening } => {
                     let mut out = Vec::new();
                     self.partner.open(self.now, conversation, &opening, &mut out);
@@ -1796,7 +1803,7 @@ impl World {
             self.io.looks.is_empty() && self.io.checking.is_empty() && self.io.checks.is_empty(),
             "io answered every operation"
         );
-        assert!(self.pushes.is_empty(), "every push was answered");
+        assert!(self.deliveries.is_empty(), "every delivery was answered");
         assert!(self.relays.active.is_empty(), "every host relay was answered");
         assert!(self.io.passed.is_empty(), "every landing call returned");
         assert!(self.child_of_call.is_empty(), "every sub-agent's call returned");
@@ -1867,7 +1874,7 @@ fn kind(fact: &run::facts::FactKind) -> &'static str {
         Fact::Returned { .. } => "returned",
         Fact::CheckStarted { .. } => "check started",
         Fact::CheckFinished { .. } => "check finished",
-        Fact::Delivered { .. } => "pushed",
+        Fact::Delivered { .. } => "delivered",
         Fact::Answered { .. } => "answered",
     }
 }

@@ -12,10 +12,10 @@
 //!   delay; some of those again, and some once they have answered. A second
 //!   cancel names a run that has decided how it ends, and a late one a run
 //!   that has answered: the run ignores both, which is what they test.
-//! - It answers each push after a drawn latency: the branch has moved, for
-//!   every push of a job that drew so when it started (a push is a
+//! - It answers each delivery after a drawn latency: the branch has moved, for
+//!   every delivery of a job that drew so when it started (a delivery is a
 //!   fast-forward from where the run started, so a moved branch stays
-//!   moved); else, with the configured chance, the push fails; otherwise it
+//!   moved); else, with the configured chance, the delivery fails; otherwise it
 //!   is done. Submitted delivery is never abandoned and its deadline
 //!   terminal remains owed even while a job is cancelling;
 //!   and the withdraw changes nothing.
@@ -36,9 +36,9 @@
 //! ```
 //!
 //! It checks as it goes that each start is admitted at most once, before its
-//! answer, and answered exactly once; that a run pushes and tells of its
+//! answer, and answered exactly once; that a run delivers and tells of its
 //! checks only once admitted and before it answers; and that it names its
-//! pushes apart.
+//! deliveries apart.
 //!
 //! What it does at a later time it keeps alarms for, which the world fires.
 
@@ -119,13 +119,13 @@ pub struct Script {
     pub relay_busy: u32,
     /// Chance per mille of a decided relay whose response is lost.
     pub relay_lost: u32,
-    /// The time to push.
-    pub push: Span,
+    /// The delivery latency.
+    pub delivery: Span,
     /// The chance, per mille, that a job's branch moves before its run
-    /// pushes: every push of that job finds it moved.
+    /// deliveries: every delivery of that job finds it moved.
     pub moved: u32,
-    /// The chance, per mille, that a push fails.
-    pub push_failures: u32,
+    /// The chance, per mille, that a delivery fails.
+    pub delivery_failures: u32,
 }
 
 /// What the host counted.
@@ -134,21 +134,21 @@ pub struct Tally {
     /// Answers it took and bounded deliveries it served,
     /// and check notices it heard.
     pub answered: u32,
-    pub pushes: u32,
+    pub deliveries: u32,
     pub notices: u32,
 }
 
-/// Seeded scripted host retaining pending jobs, cancellation alarms and push replies; it performs no remote IO.
+/// Seeded scripted host retaining pending jobs, cancellation alarms and delivery replies; it performs no remote IO.
 pub struct Host {
     script: Script,
     rng: Rng,
     /// The jobs not done yet, by their names, which are their runs' names at
     /// the host.
     jobs: BTreeMap<Token, Job>,
-    /// The pushes in flight, by the runs' names for them, and the job each
+    /// The deliveries in flight, by the runs' names for them, and the job each
     /// is of.
-    pushes: BTreeMap<Token, (Token, bool)>,
-    /// When each job starts or its run is cancelled, and when each push is
+    deliveries: BTreeMap<Token, (Token, bool)>,
+    /// When each job starts or its run is cancelled, and when each delivery is
     /// answered: in order, and by what they are for.
     alarms: BTreeSet<(Time, Alarm)>,
     armed: BTreeMap<Alarm, Time>,
@@ -158,7 +158,7 @@ pub struct Host {
 }
 
 struct Job {
-    /// Whether its branch moved before its run pushed.
+    /// Whether its branch moved before its run delivered.
     moved: bool,
     writable: Vec<u32>,
     state: State,
@@ -194,7 +194,7 @@ impl Host {
             script,
             rng: Rng::new(seed),
             jobs: BTreeMap::new(),
-            pushes: BTreeMap::new(),
+            deliveries: BTreeMap::new(),
             alarms: BTreeSet::new(),
             armed: BTreeMap::new(),
             names: 0,
@@ -228,7 +228,7 @@ impl Host {
         self.next_deadline().is_some_and(|at| at <= now)
     }
 
-    /// Starts the jobs, cancels the runs and answers the pushes whose alarms
+    /// Starts the jobs, cancels the runs and answers the deliveries whose alarms
     /// are due at `now`, in the order they fall due.
     pub fn fire(&mut self, now: Time, out: &mut Vec<Event>) {
         while let Some(&(at, alarm)) = self.alarms.first()
@@ -289,21 +289,21 @@ impl Host {
         self.tally.notices += 1;
     }
 
-    /// A push from the run of `job`, which names it `owner`: answered later.
-    pub fn push(&mut self, now: Time, job: Token, owner: Token, deadline: Time) {
-        self.assert_running(job, "a run pushes once admitted, before it answers");
-        self.tally.pushes += 1;
-        let complete = now.saturating_add(self.script.push.draw(&mut self.rng));
-        assert!(self.pushes.insert(owner, (job, complete > deadline)).is_none(), "live callbacks are distinct");
+    /// A delivery from the run of `job`, which names it `owner`: answered later.
+    pub fn deliver(&mut self, now: Time, job: Token, owner: Token, deadline: Time) {
+        self.assert_running(job, "a run delivers once admitted, before it answers");
+        self.tally.deliveries += 1;
+        let complete = now.saturating_add(self.script.delivery.draw(&mut self.rng));
+        assert!(self.deliveries.insert(owner, (job, complete > deadline)).is_none(), "live callbacks are distinct");
         let at = complete.min(deadline);
         self.arm(Alarm::Delivery(owner), at);
     }
 
     /// The host's side of a settled world: every job started and answered,
-    /// every late cancel sent, and every push answered.
+    /// every late cancel sent, and every delivery answered.
     pub fn assert_settled(&self) {
         assert!(self.jobs.is_empty(), "the host took every answer and sent every cancel");
-        assert!(self.pushes.is_empty(), "the host answered every push");
+        assert!(self.deliveries.is_empty(), "the host answered every delivery");
         assert!(self.alarms.is_empty() && self.armed.is_empty(), "no alarm outlives what it is for");
         assert_eq!(self.tally.answered, self.script.jobs, "every job was started and answered");
     }
@@ -353,20 +353,20 @@ impl Host {
         }
     }
 
-    /// The push `owner`'s latency has passed: it is decided.
+    /// The delivery `owner`'s latency has passed: it is decided.
     fn answer_push(&mut self, owner: Token, out: &mut Vec<Event>) {
-        let (job, timed_out) = self.pushes.remove(&owner).expect("a push is in flight until its alarm fires");
+        let (job, timed_out) = self.deliveries.remove(&owner).expect("a delivery is in flight until its alarm fires");
         let moved = self.jobs.get(&job).expect("a job lives until its run, which waits on its push, answers").moved;
-        let push = if timed_out {
+        let delivery = if timed_out {
             Delivery::Failed(smith_domain_run::DeliveryFailure::new(0, smith_domain_run::DeliveryReason::TimedOut))
         } else if moved {
             Delivery::Stale
-        } else if self.rng.chance(self.script.push_failures) {
+        } else if self.rng.chance(self.script.delivery_failures) {
             Delivery::Failed(smith_domain_run::DeliveryFailure::new(0, smith_domain_run::DeliveryReason::Unknown))
         } else {
             delivered(&self.jobs[&job].writable)
         };
-        out.push(Event::Delivered { owner, delivery: push });
+        out.push(Event::Delivered { owner, delivery });
     }
 
     fn assert_running(&self, job: Token, contract: &str) {
@@ -391,7 +391,7 @@ impl Host {
     }
 
     fn arm(&mut self, alarm: Alarm, at: Time) {
-        assert!(self.armed.insert(alarm, at).is_none(), "one alarm at a time for each job and push");
+        assert!(self.armed.insert(alarm, at).is_none(), "one alarm at a time for each job and delivery");
         self.alarms.insert((at, alarm));
     }
 

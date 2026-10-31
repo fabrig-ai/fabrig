@@ -126,7 +126,7 @@ fn child_with_inherited_guide(extra: usize) -> Box<[Request]> {
     let guide_bytes = u32::try_from(CHILD_GUIDE_BYTES).unwrap();
     let host_part = host_part(&selected, &mounted, guide_bytes);
     let mut found = Found::with_capacity(1);
-    found.guides.push(Guide { repository: 0, text: Box::new([b'g'; CHILD_GUIDE_BYTES]), whole: true }).unwrap();
+    found.guides.push(Guide { directory: 0, text: Box::new([b'g'; CHILD_GUIDE_BYTES]), whole: true }).unwrap();
     // A one-byte brief measures its paragraph separators too; replace only
     // that byte with the remaining room, then optionally cross the bound.
     let inherited =

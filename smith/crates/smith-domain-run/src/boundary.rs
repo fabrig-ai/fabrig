@@ -796,7 +796,7 @@ pub enum Limit {
 /// The protocol's elapsed call phase, carried losslessly in timeout terminals
 /// (smith/docs/design/protocol/llm.md, sections 6 and 10).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Phase {
+pub enum CompletionPhase {
     /// The connection's socket admission deadline.
     Connect,
     /// The connection's TLS handshake deadline.
@@ -832,7 +832,7 @@ pub enum CompletionFailure {
     Unavailable,
 
     /// The completion deadline elapsed.
-    TimedOut { phase: Phase },
+    TimedOut { phase: CompletionPhase },
 
     /// Provider context allowance was exceeded.
     ContextTooLong,
