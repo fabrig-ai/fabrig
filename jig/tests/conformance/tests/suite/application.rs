@@ -102,24 +102,9 @@ fn application_replay_after_a_durable_restart_does_not_repeat_a_decision() {
     assert_eq!(world.store.applied, writes, "restored replay decides nothing");
 
     let task = world.assigned.as_ref().expect("first person's task").task;
-    world.send(root::Event::Core(core::Event::SignIn {
-        held: None,
-        reply_to: ReplyTo::new(Token::new(901)),
-        identity: people::Identity {
-            key: people::IdentityKey { provider: 0, subject: Box::from([8]) },
-            login: Box::from(&b"other"[..]),
-            name: Box::from(&b"Other"[..]),
-        },
-    }));
-    let other_sign_in = world.sign_in.expect("signed in second party");
+    let other_sign_in = jig_core_world::fixtures::second_party(&mut world, b"other", people::Role::Member);
     assert_ne!(other_sign_in, sign_in);
-    world.send(root::Event::Core(core::Event::People(people::Event::Roles {
-        project: 1,
-        holdings: Box::new([
-            people::Holding { person: 1, role: people::Role::Owner },
-            people::Holding { person: 2, role: people::Role::Member },
-        ]),
-    })));
+    let answers = world.application_answers.len();
     world.send(ask(
         other_sign_in,
         12,
@@ -130,6 +115,7 @@ fn application_replay_after_a_durable_restart_does_not_repeat_a_decision() {
             release: Some(connector::ApplicationRelease { task, revision: 1, again: None }),
         },
     ));
+    assert_eq!(world.application_answers.len(), answers + 1, "the second party reaches the connector");
     assert_eq!(
         world.application_answers.last().expect("whole refusal").2,
         connector::ApplicationOutcome::CoreRefused { why: connector::application_core::Refusal::Unknown }
