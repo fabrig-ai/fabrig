@@ -122,11 +122,11 @@ impl Table {
 
     pub(crate) fn next(&self) -> Option<Time> {
         let mut earliest = self.connect;
-        earliest = earlier(earliest, self.handshake);
-        earliest = earlier(earliest, self.head);
-        earliest = earlier(earliest, self.idle);
-        earliest = earlier(earliest, self.whole);
-        earlier(earliest, self.keep)
+        earliest = skein_lib::earliest(earliest, self.handshake);
+        earliest = skein_lib::earliest(earliest, self.head);
+        earliest = skein_lib::earliest(earliest, self.idle);
+        earliest = skein_lib::earliest(earliest, self.whole);
+        skein_lib::earliest(earliest, self.keep)
     }
 
     pub(crate) fn due(&self, now: Time) -> Option<Due> {
@@ -153,16 +153,6 @@ fn at(now: Time, duration: Option<skein_lib::Duration>) -> Option<Time> {
     match duration {
         Some(duration) => Some(now.saturating_add(duration)),
         None => None,
-    }
-}
-
-fn earlier(left: Option<Time>, right: Option<Time>) -> Option<Time> {
-    match left {
-        Some(left) => match right {
-            Some(right) => Some(left.min(right)),
-            None => Some(left),
-        },
-        None => right,
     }
 }
 
