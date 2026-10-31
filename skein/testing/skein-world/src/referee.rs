@@ -46,18 +46,24 @@ pub trait Referee<P> {
     /// Injects what belongs to no process, before they run in an iteration.
     /// It changes only what a process lets be changed between iterations (a
     /// flag it acts on in its next one), and allocates nothing of theirs.
-    fn act(&mut self, now: Time, procs: &mut [P]);
+    /// The default does nothing, for a referee that acts on nothing.
+    fn act(&mut self, _now: Time, _procs: &mut [P]) {}
 
     /// Watches every process, after one of them iterated: a broken safety
     /// expectation panics, naming the seed.
     fn observe(&mut self, now: Time, procs: &[P]);
 
     /// The earliest of its expectations' deadlines and of what it will act
-    /// on, for the world to wake at.
-    fn next_deadline(&self) -> Option<Time>;
+    /// on, for the world to wake at. The default keeps no deadline of its own.
+    fn next_deadline(&self) -> Option<Time> {
+        None
+    }
 
     /// What is overdue at `now`, if anything: the test fails with it.
-    fn overdue(&self, now: Time) -> Option<String>;
+    /// The default is never overdue.
+    fn overdue(&self, _now: Time) -> Option<String> {
+        None
+    }
 
     /// Whether every expectation is met.
     fn passed(&self) -> bool;

@@ -250,14 +250,7 @@ impl Machine for CuttingMachine {
 struct CuttingJudge;
 
 impl Referee<CuttingScript> for CuttingJudge {
-    fn act(&mut self, _now: Time, _procs: &mut [CuttingScript]) {}
     fn observe(&mut self, _now: Time, _procs: &[CuttingScript]) {}
-    fn next_deadline(&self) -> Option<Time> {
-        None
-    }
-    fn overdue(&self, _now: Time) -> Option<String> {
-        None
-    }
     fn passed(&self) -> bool {
         true
     }
