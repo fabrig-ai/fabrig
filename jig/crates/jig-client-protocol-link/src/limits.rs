@@ -57,8 +57,8 @@ impl Limits {
         Ok(value)
     }
     #[must_use]
-    pub fn client(&self) -> jig_client_domain::Limits {
-        self.client
+    pub fn client(&self) -> &jig_client_domain::Limits {
+        &self.client
     }
     #[must_use]
     pub fn exchanges(&self) -> u32 {

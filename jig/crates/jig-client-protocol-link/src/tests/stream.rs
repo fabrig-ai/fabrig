@@ -255,8 +255,8 @@ fn a_jig_delivery_before_the_opening_answer_admits_it() {
 fn a_delivery_over_the_original_document_bound_is_refused() {
     let value = w::DeliveryValue::Me(fixtures::frame_record());
     let bytes = fixtures::encoded_delivery(&value);
-    let limits = Limits::new(fixtures::limits().client(), 4).unwrap();
-    let mut client = limits.client();
+    let limits = Limits::new(*fixtures::limits().client(), 4).unwrap();
+    let mut client = *limits.client();
     client.document_bytes = u64::from(value.measure()).checked_sub(1).unwrap();
     let limits = Limits::new(client, 4).unwrap();
     assert_eq!(translate::watches::delivery(&bytes, &limits), Err(Undecodable::TooLarge));

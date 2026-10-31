@@ -318,7 +318,7 @@ pub fn task_with_piece(bytes: &[u8]) -> w::Task {
     w::Task::new(&lim, parts).unwrap()
 }
 pub fn limits_for_document(bytes: u64) -> Limits {
-    let mut client = limits().client();
+    let mut client = *limits().client();
     client.document_bytes = bytes;
     Limits::new(client, 4).unwrap()
 }

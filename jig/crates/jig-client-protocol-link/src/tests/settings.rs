@@ -10,7 +10,7 @@ use skein_lib::{List, Writer};
     reason = "one table checks every new record and enum arm against committed wire bytes"
 )]
 fn every_new_record_translates_in_both_directions() {
-    let limits = Limits::new(jig_client_domain::Limits { rows: 8, ..fixtures::limits().client() }, 4).unwrap();
+    let limits = Limits::new(jig_client_domain::Limits { rows: 8, ..*fixtures::limits().client() }, 4).unwrap();
     {
         let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/record_setting_number_smallest.bin");
         let wire = w::SettingNumber::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
@@ -434,7 +434,7 @@ fn every_new_record_translates_in_both_directions() {
 
 #[test]
 fn whole_values_changes_and_history_keep_every_nonempty_field() {
-    let limits = Limits::new(jig_client_domain::Limits { rows: 8, ..fixtures::limits().client() }, 4).unwrap();
+    let limits = Limits::new(jig_client_domain::Limits { rows: 8, ..*fixtures::limits().client() }, 4).unwrap();
     for value in values::settings_values().into_boxed() {
         let wire = t::wire_setting_value(&value, limits.wire()).unwrap();
         assert_eq!(t::restore_setting_value(&wire, &limits), Ok(value));
@@ -481,7 +481,7 @@ fn settings_change_survives_the_small_store_and_carried_transport() {
 }
 #[test]
 fn malformed_pieces_counts_and_byte_bounds_are_refused() {
-    let limits = Limits::new(jig_client_domain::Limits { rows: 8, ..fixtures::limits().client() }, 4).unwrap();
+    let limits = Limits::new(jig_client_domain::Limits { rows: 8, ..*fixtures::limits().client() }, 4).unwrap();
     let mut change = values::settings_change();
     let mut wire = t::wire_change_settings(&change, limits.wire()).unwrap().into_parts();
     wire.items = Box::new([0, 0, 0, 1, 255]);
@@ -583,7 +583,7 @@ fn settings_inventory_refuses_one_line_past_the_wire_and_receiving_limits() {
 
 #[test]
 fn move_to_newest_retains_its_revision_and_hears_both_counts() {
-    let limits = Limits::new(fixtures::limits().client(), 4).expect("limits");
+    let limits = Limits::new(*fixtures::limits().client(), 4).expect("limits");
     let ask = c::Ask::MoveToNewest(c::MoveToNewest { revision: 7 });
     let wire = translate::asks::ask(&ask, limits.wire()).expect("ask");
     assert_eq!(translate::store::restore_ask(wire, &limits), Ok(ask));
@@ -606,7 +606,7 @@ fn move_to_newest_retains_its_revision_and_hears_both_counts() {
 
 #[test]
 fn proposed_setting_read_round_trips_its_exact_proposal_key() {
-    let limits = Limits::new(jig_client_domain::Limits { rows: 8, ..fixtures::limits().client() }, 4).unwrap();
+    let limits = Limits::new(jig_client_domain::Limits { rows: 8, ..*fixtures::limits().client() }, 4).unwrap();
     let client = c::ReadSetting {
         setting: c::Setting::Rules,
         revision: 0,

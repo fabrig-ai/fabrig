@@ -386,7 +386,7 @@ fn zero_account_receiving_counts_make_limits_unusable() {
         AccountCounts { sources: 0, ..bounds.client().accounts },
         AccountCounts { sign_ins: 0, ..bounds.client().accounts },
     ] {
-        let client = jig_client_domain::Limits { accounts, turn_text: bounds.client().turn_text, ..bounds.client() };
+        let client = jig_client_domain::Limits { accounts, turn_text: bounds.client().turn_text, ..*bounds.client() };
         assert_eq!(crate::Limits::new(client, bounds.exchanges()), Err(crate::Unusable::Limits), "{accounts:?}");
     }
 }
@@ -408,7 +408,7 @@ fn count_limits() -> crate::Limits {
             sign_ins: ACCOUNT_COUNT,
         },
         turn_text: bounds.client().turn_text,
-        ..bounds.client()
+        ..*bounds.client()
     };
     crate::Limits::new(client, bounds.exchanges()).unwrap()
 }
@@ -431,7 +431,7 @@ fn account_lists_one_past_their_receiving_counts_are_refused() {
         jig_client_domain::AccountCounts { sources: ACCOUNT_COUNT - 1, ..bounds.client().accounts },
         jig_client_domain::AccountCounts { sign_ins: ACCOUNT_COUNT - 1, ..bounds.client().accounts },
     ] {
-        let client = jig_client_domain::Limits { accounts, turn_text: bounds.client().turn_text, ..bounds.client() };
+        let client = jig_client_domain::Limits { accounts, turn_text: bounds.client().turn_text, ..*bounds.client() };
         let limits = crate::Limits::new(client, bounds.exchanges()).unwrap();
         assert_eq!(watches::delivery(&bytes, &limits), Err(Undecodable::TooLarge), "{accounts:?}");
     }
@@ -455,7 +455,7 @@ fn expected_deployment(count: u32) -> c::OwnerDeployment {
 }
 fn deployment_count_limits() -> crate::Limits {
     let bounds = fixtures::limits();
-    let mut client = bounds.client();
+    let mut client = *bounds.client();
     client.accounts.accounts = DEPLOYMENT_ACCOUNTS;
     crate::Limits::new(client, bounds.exchanges()).unwrap()
 }

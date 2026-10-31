@@ -29,7 +29,7 @@ fn turn_with(second: &[u8]) -> Box<[u8]> {
 
 fn decoded(second: &[u8]) -> c::TurnRead {
     let base = fixtures::limits();
-    let client = jig_client_domain::Limits { text: FIELD_TEXT, turn_text: TURN_TEXT, ..base.client() };
+    let client = jig_client_domain::Limits { text: FIELD_TEXT, turn_text: TURN_TEXT, ..*base.client() };
     let limits = Limits::new(client, base.exchanges()).unwrap();
     translate::pages::turn_fields(&turn_with(second), &limits)
 }
@@ -45,14 +45,14 @@ fn a_pages_archived_turn_past_the_live_turns_field_is_decoded() {
     let body = turn_with(&text.finish());
     assert!(body.len() > 65_536);
     let base = fixtures::limits();
-    let client = jig_client_domain::Limits { document_bytes: 1_048_576, ..base.client() };
+    let client = jig_client_domain::Limits { document_bytes: 1_048_576, ..*base.client() };
     let limits = Limits::new(client, base.exchanges()).unwrap();
     let turn = translate::pages::archived_turn_fields(&fixtures::single_turn_record(&body), &limits).turn;
     let c::TurnRead::Decoded(_) = turn else { panic!("archived turn decodes whole: {turn:?}") };
 }
 
 #[test]
-fn a_pages_archived_turn_is_decoded_at_each_bound_and_too_large_one_byte_past() {
+fn a_pages_archived_turn_is_decoded_at_its_document_bound_and_too_large_one_byte_past() {
     let record = fixtures::single_turn_record(fixtures::FULL_TURN);
     let too_large = c::TurnRead::Undecodable { why: c::TurnProblem::TooLarge { bytes: fixtures::TURN_PAYLOAD_BYTES } };
     // The client's document bound, below the wire's.

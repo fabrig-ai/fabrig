@@ -180,7 +180,7 @@ fn a_malformed_read_body_is_unreachable() {
 #[test]
 fn reads_and_attempts_share_the_exchange_admission_bound() {
     let mut limits = fixtures::limits();
-    limits = Limits::new(limits.client(), 1).unwrap();
+    limits = Limits::new(*limits.client(), 1).unwrap();
     let mut h = fixtures::Harness::new(&limits);
     h.send(fixtures::ATTEMPT, fixtures::KEY, fixtures::message());
     h.link.step(
@@ -360,7 +360,7 @@ fn the_turn_inspector_rejects_incomplete_or_false_envelopes() {
 #[test]
 fn the_single_turn_decoder_uses_the_archive_bound() {
     // The archive decoder applies its TurnCarriedBytes bound.
-    let archive_limits = fixtures::limits();
+    let archive_limits = fixtures::turn_limits(32, fixtures::TURN_PAYLOAD_BYTES);
     assert_eq!(
         translate::turn::archive(fixtures::single_turn_record(fixtures::FULL_TURN), &archive_limits),
         Ok(fixtures::expected_single_turn())

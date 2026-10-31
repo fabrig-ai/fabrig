@@ -5,7 +5,7 @@ use crate::translate::settings_proposals as t;
 use jig_client_test_records::settings_proposals as values;
 #[test]
 fn every_settings_proposal_record_translates_both_ways() {
-    let limits = Limits::new(jig_client_domain::Limits { rows: 8, ..fixtures::limits().client() }, 4).expect("limits");
+    let limits = Limits::new(jig_client_domain::Limits { rows: 8, ..*fixtures::limits().client() }, 4).expect("limits");
     {
         let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/record_propose_settings_smallest.bin");
         let wire = w::ProposeSettings::decode(limits.wire(), &mut Reader::new(bytes)).expect("wire fixture");
@@ -88,7 +88,7 @@ fn every_settings_proposal_record_translates_both_ways() {
 }
 #[test]
 fn populated_reviews_history_and_carried_proposals_keep_every_fact() {
-    let limits = Limits::new(jig_client_domain::Limits { rows: 8, ..fixtures::limits().client() }, 4).expect("limits");
+    let limits = Limits::new(jig_client_domain::Limits { rows: 8, ..*fixtures::limits().client() }, 4).expect("limits");
     let proposal = values::proposal();
     let pending = values::pending();
     let mut accepted = pending.clone();

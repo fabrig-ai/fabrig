@@ -115,7 +115,7 @@ fn configured_host_names_stay_whole_below_the_text_limit() {
     row.encode(&mut bytes).expect("row");
     let base = fixtures::limits();
     let limits =
-        Limits::new(jig_client_domain::Limits { text: 1, turn_text: 1, ..base.client() }, base.exchanges()).unwrap();
+        Limits::new(jig_client_domain::Limits { text: 1, turn_text: 1, ..*base.client() }, base.exchanges()).unwrap();
     let mut room = 4096;
     let rows = decode::hosts(&bytes.finish(), &limits, &mut room).expect("whole name");
     assert_eq!(rows.get(0).expect("host").name.as_ref(), b"configured-worker");

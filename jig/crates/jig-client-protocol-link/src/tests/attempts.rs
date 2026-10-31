@@ -121,7 +121,7 @@ fn malformed_piece_lengths_in_a_final_refusal_are_lost_and_reported() {
 #[test]
 fn an_invalid_client_limit_literal_is_refused() {
     let base = fixtures::limits();
-    let client = jig_client_domain::Limits { document_bytes: 16_777_217, ..base.client() };
+    let client = jig_client_domain::Limits { document_bytes: 16_777_217, ..*base.client() };
     assert_eq!(Limits::new(client, base.exchanges()), Err(Unusable::Limits));
 }
 
@@ -201,7 +201,7 @@ const TEMPLATE_ROWS: [(u32, u32); 3] = [(2, 2), (16, 16), (32, 16)];
 #[test]
 fn template_overrides_keep_the_wire_ceiling_when_the_client_accepts_more_rows() {
     for (rows, expected) in TEMPLATE_ROWS {
-        let mut client = fixtures::limits().client();
+        let mut client = *fixtures::limits().client();
         client.rows = rows;
         let limits = match Limits::new(client, 4) {
             Ok(value) => value,

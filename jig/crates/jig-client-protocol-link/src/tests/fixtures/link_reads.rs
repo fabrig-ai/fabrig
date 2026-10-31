@@ -286,7 +286,7 @@ pub fn malformed_read_values() -> [Box<[u8]>; 4] {
     ]
 }
 pub fn read_byte_limits(document_bytes: u64) -> Limits {
-    let mut client = limits().client();
+    let mut client = *limits().client();
     client.document_bytes = document_bytes;
     Limits::new(client, 4).unwrap()
 }

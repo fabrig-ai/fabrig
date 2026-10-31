@@ -39,13 +39,13 @@ const INVALID_OWNERS: [&[jig_client_domain::Spoken]; 2] = [&TOO_MANY_OWNERS, &DU
 fn owner_declarations_fit_one_hello_without_duplicates() {
     let bounds = fixtures::limits();
     for owners in INVALID_OWNERS {
-        let client = jig_client_domain::Limits { owners, turn_text: bounds.client().turn_text, ..bounds.client() };
+        let client = jig_client_domain::Limits { owners, turn_text: bounds.client().turn_text, ..*bounds.client() };
         assert_eq!(Limits::new(client, bounds.exchanges()), Err(Unusable::Limits), "{owners:?}");
     }
     let client = jig_client_domain::Limits {
         owners: &TOO_MANY_OWNERS[..15],
         turn_text: bounds.client().turn_text,
-        ..bounds.client()
+        ..*bounds.client()
     };
     assert_eq!(Limits::new(client, bounds.exchanges()).expect("fifteen distinct owners").client().owners.len(), 15);
 }
@@ -74,12 +74,12 @@ mod placed_holds;
 #[test]
 fn construction_refuses_each_unrepresentable_limit() {
     let base = fixtures::limits();
-    Limits::new(base.client(), base.exchanges()).expect("valid limits reconstruct");
-    assert_eq!(Limits::new(base.client(), 0), Err(Unusable::Limits));
+    Limits::new(*base.client(), base.exchanges()).expect("valid limits reconstruct");
+    assert_eq!(Limits::new(*base.client(), 0), Err(Unusable::Limits));
     let cases = [
-        jig_client_domain::Limits { document_bytes: u64::MAX, ..base.client() },
-        jig_client_domain::Limits { watches: 0, ..base.client() },
-        jig_client_domain::Limits { heartbeat: skein_lib::Duration::ZERO, ..base.client() },
+        jig_client_domain::Limits { document_bytes: u64::MAX, ..*base.client() },
+        jig_client_domain::Limits { watches: 0, ..*base.client() },
+        jig_client_domain::Limits { heartbeat: skein_lib::Duration::ZERO, ..*base.client() },
     ];
     for (case, client) in cases.into_iter().enumerate() {
         assert_eq!(Limits::new(client, base.exchanges()), Err(Unusable::Limits), "case {case}");

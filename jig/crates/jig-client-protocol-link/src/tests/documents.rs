@@ -98,7 +98,7 @@ fn document_decodes_borrow_the_kept_bounds() {
 #[test]
 fn invalid_receiving_limits_are_refused_at_construction() {
     let limits = fixtures::limits();
-    let client = jig_client_domain::Limits { text: u32::MAX, ..limits.client() };
+    let client = jig_client_domain::Limits { text: u32::MAX, ..*limits.client() };
     assert_eq!(crate::Limits::new(client, limits.exchanges()), Err(crate::Unusable::Limits));
 }
 

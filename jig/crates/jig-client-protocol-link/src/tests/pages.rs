@@ -69,7 +69,7 @@ fn a_escalation_record_becomes_its_literal_contract_value() {
 #[test]
 fn owner_escalation_acts_fit_the_contract_bound() {
     let base = fixtures::limits();
-    let limits = Limits::new(jig_client_domain::Limits { rows: 32, ..base.client() }, base.exchanges()).unwrap();
+    let limits = Limits::new(jig_client_domain::Limits { rows: 32, ..*base.client() }, base.exchanges()).unwrap();
     let offered = w::Offered::new(
         limits.wire(),
         w::OfferedParts { effect: None, act: w::ActKind::Accept, admission: w::Admission::Allowed },
@@ -181,7 +181,7 @@ fn a_page_with_trailing_row_bytes_is_refused() {
 #[test]
 fn a_page_one_byte_past_the_document_limit_is_refused() {
     let record = fixtures::object_page_piece(fixtures::result_rows(1));
-    let mut client = fixtures::limits().client();
+    let mut client = *fixtures::limits().client();
     client.document_bytes = u64::from(record.measure()).checked_sub(1).unwrap();
     let limits = Limits::new(client, 4).unwrap();
     assert_eq!(translate::pages::object_page(record, &limits), Err(Undecodable::TooLarge));
