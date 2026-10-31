@@ -150,11 +150,11 @@ pub fn ending(
                 format!("temper serve: restore {}: {}\n", restore_kind(*range), page_failure(failure.as_ref()))
             }
             Stop::StartRefused { phase, failure } => {
-                let during = phase.map(start_phase).unwrap_or_else(|| "unknown phase".into());
+                let during = phase.map_or_else(|| "unknown phase".into(), start_phase);
                 format!("temper serve: restart refused during {during}: {}\n", start_failure(failure))
             }
             Stop::ForgeFit { phase, failure } => {
-                let during = phase.map(start_phase).unwrap_or_else(|| "unknown phase".into());
+                let during = phase.map_or_else(|| "unknown phase".into(), start_phase);
                 let family = match failure.family {
                     Some(kind) => format!(" {kind:?}"),
                     None => String::new(),
