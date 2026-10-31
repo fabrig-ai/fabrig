@@ -5,6 +5,7 @@ static HEAP: skein_heap::Counting = skein_heap::Counting;
 mod support {
     pub(crate) mod events;
     pub(crate) mod patches;
+    pub(crate) mod wire;
 }
 
 mod channel;

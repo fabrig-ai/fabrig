@@ -3299,6 +3299,7 @@ dependencies = [
  "skein-codec",
  "skein-codegen",
  "skein-heap",
+ "skein-json",
  "skein-lib",
  "skein-scratch",
  "smith-channel",

@@ -1,6 +1,6 @@
 //! The event vocabulary round trips exact integers and filters capture as specified.
 
-use crate::support::events as fixtures;
+use crate::support::{events as fixtures, wire};
 
 use smith_events::{Capture, Error, Event, Limits, read, write};
 
@@ -60,60 +60,70 @@ fn response_block_counts_are_required_exact_metadata_under_every_capture() {
         );
     }
     for field in ["oversized", "cut"] {
-        let value = if field == "oversized" { "18446744073709551615" } else { "9007199254740993" };
-        let original = format!(",\"{field}\":{value}");
-        for replacement in [
-            String::new(),
-            format!(",\"{field}\":null"),
-            format!(",\"{field}\":-1"),
-            format!(",\"{field}\":1.5"),
-            format!(",\"{field}\":18446744073709551616"),
-        ] {
-            assert_eq!(read(base.replace(&original, &replacement).as_bytes(), &limits()), Err(Error::Shape));
+        assert_eq!(read(wire::remove(base, &[field]).as_bytes(), &limits()), Err(Error::Shape));
+        for invalid in ["null", "-1", "1.5", "18446744073709551616"] {
+            assert_eq!(read(wire::set(base, &[field], invalid).as_bytes(), &limits()), Err(Error::Shape));
         }
     }
 }
 
+const RESPONSE_STARTED: &str = r#"{"v":4,"type":"response.started","t_ms":0,"run":1,"conversation":2,"response":3,"turn":1,"attempt":0,"window":1,"model":{"endpoint":"e","model":"m","window_tokens":1,"output_tokens":1,"effort":null,"account":null,"backend":"direct"},"messages":1,"output_tokens":1,"tool_choice":"auto"}"#;
+
 #[test]
-fn response_tool_choice_is_metadata_with_bounded_unknown_values_and_a_required_string() {
-    let base = r#"{"v":4,"type":"response.started","t_ms":0,"run":1,"conversation":2,"response":3,"turn":1,"attempt":0,"window":1,"model":{"endpoint":"e","model":"m","window_tokens":1,"output_tokens":1,"effort":null,"account":null,"backend":"direct"},"messages":1,"output_tokens":1,"tool_choice":"auto"}"#;
+fn response_tool_choice_remains_metadata_under_every_capture() {
     for (spelling, expected) in [
         ("auto", smith_events::ToolChoice::Auto),
         ("none", smith_events::ToolChoice::None),
         ("only", smith_events::ToolChoice::Only),
         ("future🌍", smith_events::ToolChoice::Unknown("future🌍".as_bytes().into())),
     ] {
-        let line = base.replace("\"tool_choice\":\"auto\"", &format!("\"tool_choice\":\"{spelling}\""));
+        let line = wire::set(RESPONSE_STARTED, &["tool_choice"], &wire::string(spelling));
         let record = read(line.as_bytes(), &limits()).expect("independent wire").expect("response");
         let Event::ResponseStarted(response) = &record.event else { panic!("response") };
         assert_eq!(response.tool_choice, expected);
         for capture in [Capture::None, Capture::Calls, Capture::Everything] {
             let encoded = round_trips_within_bound(&record, &capture);
             assert_eq!(core::str::from_utf8(&encoded).expect("UTF-8").trim_end(), line);
-            assert_eq!(read(&encoded, &limits()).expect("read"), Some(record.clone()));
         }
     }
-    for replacement in ["", ",\"tool_choice\":null", ",\"tool_choice\":0", ",\"tool_choice\":[]"] {
-        let malformed = base.replace(",\"tool_choice\":\"auto\"", replacement);
+}
+
+#[test]
+fn response_tool_choice_requires_a_string() {
+    assert_eq!(read(wire::remove(RESPONSE_STARTED, &["tool_choice"]).as_bytes(), &limits()), Err(Error::Shape));
+    for invalid in ["null", "0", "[]"] {
+        let malformed = wire::set(RESPONSE_STARTED, &["tool_choice"], invalid);
         assert_eq!(read(malformed.as_bytes(), &limits()), Err(Error::Shape));
     }
+}
+
+#[test]
+fn known_tool_choice_spellings_are_independent_of_metadata_caps() {
+    let record = read(RESPONSE_STARTED.as_bytes(), &limits()).expect("known metadata").expect("response");
     let tiny = Limits { string: 1, ..limits() };
-    let known = read(base.as_bytes(), &limits()).expect("known metadata").expect("response");
-    assert!(write(&known, &Capture::None, &tiny).expect("known spelling is not payload").is_some());
-    // The reader's string cap also admits the existing response.started kind.
+    assert!(write(&record, &Capture::None, &tiny).expect("known spelling is not payload").is_some());
+}
+
+#[test]
+fn unknown_tool_choice_is_bounded_at_both_codec_entrances() {
+    // The reader's string cap also admits the response.started kind.
     let bounded = Limits { string: 16, ..limits() };
-    let exact = base.replace("\"tool_choice\":\"auto\"", "\"tool_choice\":\"xxxxxxxxxxxxxxxx\"");
-    let record = read(exact.as_bytes(), &bounded).expect("exact unknown cap").expect("response");
+    let exact = wire::set(RESPONSE_STARTED, &["tool_choice"], &wire::string(&"x".repeat(16)));
+    let mut record = read(exact.as_bytes(), &bounded).expect("exact unknown cap").expect("response");
     assert!(write(&record, &Capture::None, &bounded).expect("exact unknown cap").is_some());
-    let too_large = exact.replace("xxxxxxxxxxxxxxxx", "xxxxxxxxxxxxxxxxx");
+    let too_large = wire::set(&exact, &["tool_choice"], &wire::string(&"x".repeat(17)));
     assert_eq!(read(too_large.as_bytes(), &bounded), Err(Error::Limits));
-    let mut record = record;
     let Event::ResponseStarted(response) = &mut record.event else { panic!("response") };
-    response.tool_choice = smith_events::ToolChoice::Unknown(b"xxxxxxxxxxxxxxxxx".as_slice().into());
+    response.tool_choice = smith_events::ToolChoice::Unknown(vec![b'x'; 17].into());
     assert_eq!(write(&record, &Capture::None, &bounded), Err(Error::Limits));
+}
+
+#[test]
+fn unknown_tool_choice_requires_utf8_when_written() {
+    let mut record = read(RESPONSE_STARTED.as_bytes(), &limits()).expect("known metadata").expect("response");
     let Event::ResponseStarted(response) = &mut record.event else { panic!("response") };
-    response.tool_choice = smith_events::ToolChoice::Unknown([255].as_slice().into());
-    assert_eq!(write(&record, &Capture::None, &bounded), Err(Error::Text));
+    response.tool_choice = smith_events::ToolChoice::Unknown(Box::new([255]));
+    assert_eq!(write(&record, &Capture::None, &limits()), Err(Error::Text));
 }
 
 #[test]
@@ -149,11 +159,8 @@ fn unknown_types_fields_and_listed_values_are_tolerated_within_this_version() {
         .find(|(_, record, _)| matches!(record.event, Event::Notice(_)))
         .expect("notice");
     let line = write(&record, &capture, &limits).expect("write").expect("record");
-    let text = String::from_utf8(line.into_vec())
-        .expect("UTF8")
-        .replace("\"warning\"", "\"future\"")
-        .replace("\"info\"", "\"future\"");
-    let text = text.trim_end().strip_suffix('}').expect("object").to_owned() + ",\"extra\":{\"v\":9}}\n";
+    let text = wire::set(std::str::from_utf8(&line).expect("UTF8"), &["level"], "\"future\"");
+    let text = wire::insert(&text, &[], "extra", "{\"v\":9}");
     let decoded = read(text.as_bytes(), &limits).expect("forward values").expect("notice");
     match decoded.event {
         Event::Notice(notice) => {
@@ -236,7 +243,11 @@ fn configured_boundaries_and_unknown_content_kinds_are_checked() {
         .find(|(_, value, capture)| matches!(value.event, Event::ResponseStarted(_)) && *capture == Capture::Everything)
         .expect("prompt");
     let line = write(&prompt, &Capture::Everything, &self::limits()).expect("prompt").expect("line");
-    let future = String::from_utf8(line.into_vec()).expect("UTF8").replace("\"type\":\"text\"", "\"type\":\"future\"");
+    let future = wire::set(
+        std::str::from_utf8(&line).expect("UTF8"),
+        &["prompt", "messages", "0", "blocks", "0", "type"],
+        "\"future\"",
+    );
     assert!(read(future.as_bytes(), &self::limits()).expect("unknown block kind").is_some());
 }
 
@@ -296,11 +307,11 @@ fn startup_limit_reader_refuses_ambiguous_names_and_inexact_numbers() {
     let line = write(&fixtures::effective_record(), &Capture::Everything, &limits()).expect("bounded").expect("header");
     let line = String::from_utf8(line.into_vec()).expect("UTF8");
     for malformed in [
-        line.replace("llm.request[endpoint=8]", "llm.request[endpoint=7]"),
-        line.replace("18446744073709551615", "18446744073709551616"),
-        line.replace("18446744073709551615", "1.5"),
-        line.replace("18446744073709551615", "-1"),
-        line.replace("\"denominator\":5", "\"denominator\":0"),
+        wire::duplicate(&line, &["limits", "llm.request[endpoint=7]"]),
+        wire::set(&line, &["limits", "llm.request[endpoint=7]"], "18446744073709551616"),
+        wire::set(&line, &["limits", "llm.request[endpoint=7]"], "1.5"),
+        wire::set(&line, &["limits", "llm.request[endpoint=7]"], "-1"),
+        wire::set(&line, &["limits", "policy.compaction_threshold", "denominator"], "0"),
     ] {
         assert!(read(malformed.as_bytes(), &limits()).is_err(), "{malformed}");
     }
@@ -318,30 +329,31 @@ fn child_and_budget_metadata_survive_capture_and_unknown_listed_values() {
                 .expect("valid bounded event fixture");
             assert_eq!(read(&line, &limits()).expect("valid bounded event fixture"), Some(record.clone()), "{name}");
         }
-        let text = String::from_utf8(
-            write(&record, &Capture::Everything, &limits())
-                .expect("valid bounded event fixture")
-                .expect("valid bounded event fixture")
-                .into_vec(),
-        )
-        .expect("valid bounded event fixture");
-        let unknown = text
-            .replace("\"ordinary\"", "\"future\"")
-            .replace("\"wind_down\"", "\"future\"")
-            .replace("\"reserve\"", "\"future\"")
-            .replace("\"deadline\"", "\"future\"")
-            .replace("\"stop\":\"end\"", "\"stop\":\"future\"");
-        // Unknown enum values are retained; object keys keep their contract spelling.
-        let unknown = unknown.replace("\"future\":{", "\"reserve\":{");
-        let decoded = read(unknown.as_bytes(), &limits())
-            .expect("valid bounded event fixture")
-            .expect("valid bounded event fixture");
+        let mut forward = record.clone();
+        match &mut forward.event {
+            Event::Budget(value) => value.stage = smith_events::BudgetStage::Unknown(b"future".as_slice().into()),
+            Event::ConversationOpened(value) => {
+                for index in 0..value.clamped.len() {
+                    let clamp = value.clamped.get_mut(index).expect("fixture clamp");
+                    clamp.by = smith_events::ShareBound::Unknown(b"future".as_slice().into());
+                }
+            }
+            Event::ToolCompleted(value) => {
+                if let Some(child) = &mut value.child {
+                    child.stop = smith_events::ChildStop::Unknown(b"future".as_slice().into());
+                }
+            }
+            _ => panic!("budget or child fixture"),
+        }
+        let unknown = write(&forward, &Capture::Everything, &limits()).expect("forward words").expect("event");
+        let decoded =
+            read(&unknown, &limits()).expect("valid bounded event fixture").expect("valid bounded event fixture");
         assert_eq!(
             write(&decoded, &Capture::Everything, &limits())
                 .expect("valid bounded event fixture")
                 .expect("valid bounded event fixture")
                 .as_ref(),
-            unknown.as_bytes()
+            unknown.as_ref()
         );
     }
 }
@@ -369,9 +381,9 @@ fn startup_containment_requires_a_string_and_bounds_unknown_values() {
     let encoded = write(&record, &Capture::Everything, &limits()).expect("bounded header").expect("record");
     let encoded = std::str::from_utf8(&encoded).expect("UTF8");
     for malformed in [
-        encoded.replace("\"containment\":\"groups\",", ""),
-        encoded.replace("\"containment\":\"groups\"", "\"containment\":null"),
-        encoded.replace("\"containment\":\"groups\"", "\"containment\":42"),
+        wire::remove(encoded, &["containment"]),
+        wire::set(encoded, &["containment"], "null"),
+        wire::set(encoded, &["containment"], "42"),
     ] {
         assert_eq!(read(malformed.as_bytes(), &limits()), Err(Error::Shape));
     }
@@ -382,7 +394,7 @@ fn startup_containment_requires_a_string_and_bounds_unknown_values() {
     let Event::SessionStarted(header) = &mut record.event else { panic!("header fixture") };
     header.containment = smith_events::Containment::Unknown(vec![b'x'; 65].into());
     assert_eq!(write(&record, &Capture::Everything, &limits()), Err(Error::Limits));
-    let oversized = encoded.replace("\"groups\"", &format!("\"{}\"", "x".repeat(65)));
+    let oversized = wire::set(encoded, &["containment"], &wire::string(&"x".repeat(65)));
     assert_eq!(read(oversized.as_bytes(), &limits()), Err(Error::Shape));
     let Event::SessionStarted(header) = &mut record.event else { panic!("header fixture") };
     header.containment = smith_events::Containment::Unknown(Box::new([0xff]));
@@ -412,15 +424,15 @@ fn tool_budget_metadata_is_required_and_exact() {
     let encoded = write(&record, &Capture::Everything, &limits()).expect("bounded").expect("terminal");
     let text = std::str::from_utf8(&encoded).expect("UTF8");
     for malformed in [
-        text.replace("\"omitted_bytes\":0,", ""),
-        text.replace("\"omitted_bytes\":0", "\"omitted_bytes\":null"),
-        text.replace("\"omitted_bytes\":0", "\"omitted_bytes\":-1"),
-        text.replace("\"omitted_bytes\":0", "\"omitted_bytes\":1.5"),
-        text.replace("\"omitted_bytes\":0", "\"omitted_bytes\":18446744073709551616"),
-        text.replace("\"clamped\":false,", ""),
-        text.replace("\"clamped\":false", "\"clamped\":null"),
-        text.replace("\"clamped\":false", "\"clamped\":0"),
-        text.replace("\"clamped\":false", "\"clamped\":\"false\""),
+        wire::remove(text, &["omitted_bytes"]),
+        wire::set(text, &["omitted_bytes"], "null"),
+        wire::set(text, &["omitted_bytes"], "-1"),
+        wire::set(text, &["omitted_bytes"], "1.5"),
+        wire::set(text, &["omitted_bytes"], "18446744073709551616"),
+        wire::remove(text, &["clamped"]),
+        wire::set(text, &["clamped"], "null"),
+        wire::set(text, &["clamped"], "0"),
+        wire::set(text, &["clamped"], "\"false\""),
     ] {
         assert!(read(malformed.as_bytes(), &limits()).is_err(), "{malformed}");
     }
@@ -444,13 +456,13 @@ fn command_exit_requires_exactly_one_code_or_unsigned_signal() {
             "{\"code\":9223372036854775808}",
             "{\"signal\":9,\"signal\":9}",
         ] {
-            let malformed = text.replace("{\"signal\":18446744073709551615}", replacement);
+            let malformed = wire::set(text, &["exit"], replacement);
             assert!(read(malformed.as_bytes(), &limits()).is_err(), "{name}: {malformed}");
         }
         for replacement in
             ["{\"code\":0}", "{\"code\":-9223372036854775808}", "{\"signal\":0}", "{\"signal\":9,\"future\":true}"]
         {
-            let valid = text.replace("{\"signal\":18446744073709551615}", replacement);
+            let valid = wire::set(text, &["exit"], replacement);
             assert!(read(valid.as_bytes(), &limits()).expect("valid exit").is_some());
         }
     }
@@ -526,9 +538,9 @@ fn message_label_text_and_unknown_refusal_obey_their_separate_bounds() {
     assert_eq!(read(&line, &limits).expect("bounded text"), Some(record));
     let line = std::str::from_utf8(&line).expect("UTF8");
     for changed in [
-        line.replace(&"l".repeat(32), &"l".repeat(33)),
-        line.replace("12345", "123456"),
-        line.replace(&"r".repeat(32), &"r".repeat(33)),
+        wire::set(line, &["label"], &wire::string(&"l".repeat(33))),
+        wire::set(line, &["text"], "\"123456\""),
+        wire::set(line, &["refused"], &wire::string(&"r".repeat(33))),
     ] {
         assert!(read(changed.as_bytes(), &limits).is_err());
     }
@@ -539,19 +551,19 @@ fn message_shapes_reject_missing_null_duplicate_and_inexact_fields() {
     let line = br#"{"v":4,"type":"message.received","t_ms":0,"run":1,"name":2,"bytes":3}"#;
     let line = std::str::from_utf8(line).expect("UTF8");
     for changed in [
-        line.replace("\"name\":2,", ""),
-        line.replace("\"run\":1", "\"run\":null"),
-        line.replace("\"name\":2", "\"name\":-2"),
-        line.replace("\"name\":2", "\"name\":2.5"),
-        line.replace("\"name\":2", "\"name\":18446744073709551616"),
-        line.replace("\"bytes\":3", "\"bytes\":3,\"refused\":null"),
-        line.replace("\"bytes\":3", "\"bytes\":3,\"label\":null"),
-        line.replace("\"bytes\":3", "\"bytes\":3,\"text\":null"),
-        line.replace("\"name\":2", "\"name\":2,\"name\":2"),
+        wire::remove(line, &["name"]),
+        wire::set(line, &["run"], "null"),
+        wire::set(line, &["name"], "-2"),
+        wire::set(line, &["name"], "2.5"),
+        wire::set(line, &["name"], "18446744073709551616"),
+        wire::insert(line, &[], "refused", "null"),
+        wire::insert(line, &[], "label", "null"),
+        wire::insert(line, &[], "text", "null"),
+        wire::duplicate(line, &["name"]),
     ] {
         assert!(read(changed.as_bytes(), &limits()).is_err(), "{changed}");
     }
-    let future = line.replace("\"bytes\":3", "\"bytes\":3,\"future\":{\"name\":4}");
+    let future = wire::insert(line, &[], "future", "{\"name\":4}");
     assert_eq!(read(future.as_bytes(), &limits()), read(line.as_bytes(), &limits()));
     for malformed in [
         br#"{"v":4,"type":"message.read","t_ms":0,"run":1,"name":2}"#.as_slice(),
@@ -605,17 +617,15 @@ fn run_message_counts_and_nullable_final_fence_are_required_exact_fields() {
                 _ => panic!("run fixture"),
             }
             let text = std::str::from_utf8(&line).expect("UTF8");
-            for key in ["messages", "read", "unread"] {
-                let field = if key == "read" && text.contains("\"read\":null") {
-                    "\"read\":null,".to_owned()
-                } else {
-                    format!("\"{key}\":18446744073709551615,")
-                };
-                if text.contains(&field) {
-                    assert_eq!(read(text.replace(&field, "").as_bytes(), &limits()), Err(Error::Shape));
-                    let malformed = text.replace(&field, &format!("\"{key}\":-1,"));
-                    assert!(read(malformed.as_bytes(), &limits()).is_err());
-                }
+            let keys: &[&str] = match &record.event {
+                Event::RunStarted(_) => &["messages"],
+                Event::RunCompleted(_) => &["read", "unread"],
+                _ => panic!("run fixture"),
+            };
+            for key in keys {
+                assert_eq!(read(wire::remove(text, &[key]).as_bytes(), &limits()), Err(Error::Shape));
+                let malformed = wire::set(text, &[key], "-1");
+                assert!(read(malformed.as_bytes(), &limits()).is_err());
             }
         }
     }
@@ -655,13 +665,12 @@ fn model_window_requires_an_unsigned_integer() {
         .expect("response fixture");
     let line = write(&record, &Capture::Everything, &limits()).expect("bounded").expect("record");
     let text = String::from_utf8(line.into_vec()).expect("JSON UTF-8");
-    let field = "\"window_tokens\":18446744073709551615";
-    assert!(text.contains(field));
+
     for invalid in ["null", "-1", "1.5", "18446744073709551616", "\"64\""] {
-        let changed = text.replace(field, &format!("\"window_tokens\":{invalid}"));
+        let changed = wire::set(&text, &["model", "window_tokens"], invalid);
         assert!(read(changed.as_bytes(), &limits()).is_err(), "{invalid}");
     }
-    let missing = text.replace(&format!("{field},"), "");
+    let missing = wire::remove(&text, &["model", "window_tokens"]);
     assert!(read(missing.as_bytes(), &limits()).is_err());
 }
 
@@ -669,10 +678,9 @@ fn model_window_requires_an_unsigned_integer() {
 fn conversation_thread_and_response_window_are_required_exact_metadata_under_every_capture() {
     let conversation = r#"{"v":4,"type":"conversation.opened","t_ms":0,"run":1,"conversation":2,"kind":"main","thread":0,"model":{"endpoint":"e","model":"m","window_tokens":1,"output_tokens":1,"effort":null,"account":null,"backend":"direct"}}"#;
     let response = r#"{"v":4,"type":"response.started","t_ms":0,"run":1,"conversation":2,"response":3,"turn":1,"attempt":0,"window":1,"model":{"endpoint":"e","model":"m","window_tokens":1,"output_tokens":1,"effort":null,"account":null,"backend":"direct"},"messages":1,"output_tokens":1,"tool_choice":"auto"}"#;
-    for (base, field, initial) in [(conversation, "thread", 0), (response, "window", 1)] {
-        let initial_field = format!("\"{field}\":{initial}");
+    for (base, field) in [(conversation, "thread"), (response, "window")] {
         for value in [0, 1, 9_007_199_254_740_993, u64::MAX] {
-            let line = base.replace(&initial_field, &format!("\"{field}\":{value}"));
+            let line = wire::set(base, &[field], &value.to_string());
             let record = read(line.as_bytes(), &limits()).expect("independent exact wire").expect("known record");
             let observed = match &record.event {
                 Event::ConversationOpened(opened) => opened.thread,
@@ -686,9 +694,9 @@ fn conversation_thread_and_response_window_are_required_exact_metadata_under_eve
                 assert_eq!(read(&encoded, &limits()).expect("round trip"), Some(record.clone()));
             }
         }
-        assert_eq!(read(base.replace(&format!("{initial_field},"), "").as_bytes(), &limits()), Err(Error::Shape));
+        assert_eq!(read(wire::remove(base, &[field]).as_bytes(), &limits()), Err(Error::Shape));
         for invalid in ["null", "-1", "1.5", "18446744073709551616", "\"1\""] {
-            let line = base.replace(&initial_field, &format!("\"{field}\":{invalid}"));
+            let line = wire::set(base, &[field], invalid);
             assert!(read(line.as_bytes(), &limits()).is_err(), "{field}={invalid}");
         }
     }
@@ -698,7 +706,7 @@ fn conversation_thread_and_response_window_are_required_exact_metadata_under_eve
 fn entrance_reserve_and_terminal_wind_down_are_required_metadata_in_every_capture() {
     let started = r#"{"v":4,"type":"run.started","t_ms":0,"run":1,"resumed":false,"messages":1,"main":{"endpoint":"e","model":"m","window_tokens":1,"output_tokens":1,"effort":null,"account":null,"backend":"direct"},"budget":{"turns":4,"spend":8,"time_ms":1000,"reserve":{"turns":2,"time_ms":750,"spend":3}},"tools":{"families":[],"withheld":[],"wait":false,"deliver":false,"host":[]},"contract":[]}"#;
     let completed = r#"{"v":4,"type":"run.completed","t_ms":0,"run":1,"wind_down":false,"status":"parked","turns":2,"spent":3,"usage":{"input_tokens":null,"cache_read_tokens":null,"cache_write_tokens":null,"output_tokens":null,"reasoning_tokens":null},"read":null,"unread":0,"duration_ms":750}"#;
-    for wire in [started.to_owned(), completed.to_owned(), completed.replace("false", "true")] {
+    for wire in [started.to_owned(), completed.to_owned(), wire::set(completed, &["wind_down"], "true")] {
         let record = read(wire.as_bytes(), &limits()).expect("independent wire").expect("run event");
         for capture in [Capture::None, Capture::Calls, Capture::Everything] {
             let encoded = write(&record, &capture, &limits()).expect("metadata").expect("always recorded");
@@ -713,10 +721,10 @@ fn entrance_reserve_and_terminal_wind_down_are_required_metadata_in_every_captur
         }
     }
     for invalid in [
-        started.replace(",\"reserve\":{\"turns\":2,\"time_ms\":750,\"spend\":3}", ""),
-        completed.replace("\"wind_down\":false,", ""),
-        completed.replace("\"wind_down\":false", "\"wind_down\":null"),
-        completed.replace("\"wind_down\":false", "\"wind_down\":0"),
+        wire::remove(started, &["budget", "reserve"]),
+        wire::remove(completed, &["wind_down"]),
+        wire::set(completed, &["wind_down"], "null"),
+        wire::set(completed, &["wind_down"], "0"),
     ] {
         assert!(read(invalid.as_bytes(), &limits()).is_err(), "required typed field");
     }
@@ -764,7 +772,7 @@ fn check_exit_tags_values_and_unknown_kinds_are_bounded() {
             assert_eq!(read(&encoded, &limits()).expect("round trip"), Some(record.clone()));
         }
     }
-    let base = r#"{"v":4,"type":"check.completed","t_ms":0,"run":7,"exit":EXIT,"passed":false,"duration_ms":19}"#;
+    let base = r#"{"v":4,"type":"check.completed","t_ms":0,"run":7,"exit":null,"passed":false,"duration_ms":19}"#;
     for exit in [
         "{}",
         "{\"code\":0}",
@@ -781,13 +789,13 @@ fn check_exit_tags_values_and_unknown_kinds_are_bounded() {
         "{\"kind\":\"code\",\"kind\":\"signal\",\"value\":0}",
         "{\"kind\":\"code\",\"value\":0,\"value\":1}",
     ] {
-        assert!(read(base.replace("EXIT", exit).as_bytes(), &limits()).is_err(), "{exit}");
+        assert!(read(wire::set(base, &["exit"], exit).as_bytes(), &limits()).is_err(), "{exit}");
     }
     let bounded = Limits { string: 16, ..limits() };
-    let exact = base.replace("EXIT", "{\"kind\":\"xxxxxxxxxxxxxxxx\"}");
+    let exact = wire::set(base, &["exit"], "{\"kind\":\"xxxxxxxxxxxxxxxx\"}");
     let mut record = read(exact.as_bytes(), &bounded).expect("exact unknown cap").expect("check");
     assert!(write(&record, &Capture::None, &bounded).expect("exact cap").is_some());
-    let too_large = exact.replace("xxxxxxxxxxxxxxxx", "xxxxxxxxxxxxxxxxx");
+    let too_large = wire::set(&exact, &["exit", "kind"], &wire::string(&"x".repeat(17)));
     assert_eq!(read(too_large.as_bytes(), &bounded), Err(Error::Shape));
     let Event::CheckCompleted(check) = &mut record.event else {
         panic!("check");
@@ -818,20 +826,14 @@ fn failure_metadata_is_typed_and_detail_remains_capture_selected_and_bounded() {
     }
     let text = core::str::from_utf8(source).expect("bounded failure fixture");
     for value in ["-1", "1.5", "18446744073709551616", "\"404\""] {
-        assert_eq!(
-            read(text.replace("\"status\":404", &format!("\"status\":{value}")).as_bytes(), &limits()),
-            Err(Error::Shape)
-        );
+        assert_eq!(read(wire::set(text, &["failure", "status"], value).as_bytes(), &limits()), Err(Error::Shape));
     }
     for value in ["[]", "0", "{\"which\":\"response_head\"}", "{\"which\":0,\"bound\":3}"] {
-        let malformed = text.replace("{\"which\":\"response_head\",\"bound\":18446744073709551615}", value);
+        let malformed = wire::set(text, &["failure", "limit"], value);
         assert_eq!(read(malformed.as_bytes(), &limits()), Err(Error::Shape));
     }
     for value in ["null", "0", "[]"] {
-        assert_eq!(
-            read(text.replace("\"phase\":\"head\"", &format!("\"phase\":{value}")).as_bytes(), &limits()),
-            Err(Error::Shape)
-        );
+        assert_eq!(read(wire::set(text, &["failure", "phase"], value).as_bytes(), &limits()), Err(Error::Shape));
     }
     for (content, success) in [(1024, true), (1025, false)] {
         let mut record = record.clone();
@@ -883,7 +885,7 @@ fn session_started_chat_round_trips() {
     header.chat = Some(b"main".as_slice().into());
     let line = write(&record, &capture, &limits()).expect("bounded header").expect("header record");
     assert_eq!(read(&line, &limits()).expect("read chat"), Some(record));
-    let agent = String::from_utf8(line.into_vec()).expect("JSON").replace("\"mode\":\"chat\"", "\"mode\":\"agent\"");
+    let agent = wire::set(std::str::from_utf8(&line).expect("JSON"), &["mode"], "\"agent\"");
     let Event::SessionStarted(header) = read(agent.as_bytes(), &limits()).expect("agent header").expect("record").event
     else {
         panic!("header")
@@ -924,15 +926,15 @@ fn forced_exit_notices_round_trip_known_and_unknown_evidence_and_reject_missing_
         }
     }
     for invalid in [
-        base.replace(",\"forced\":\"terminated\"", ""),
-        base.replace(",\"exit\":null", ""),
-        base.replace("\"terminated\"", "null"),
-        base.replace("null", "{\"code\":7,\"signal\":9}"),
+        wire::remove(base, &["forced"]),
+        wire::remove(base, &["exit"]),
+        wire::set(base, &["forced"], "null"),
+        wire::set(base, &["exit"], "{\"code\":7,\"signal\":9}"),
     ] {
         assert_eq!(read(invalid.as_bytes(), &limits()), Err(Error::Shape));
     }
     let bounded = Limits { string: 16, ..limits() };
-    let too_large = base.replace("terminated", "xxxxxxxxxxxxxxxxx");
+    let too_large = wire::set(base, &["forced"], &wire::string(&"x".repeat(17)));
     assert_eq!(read(too_large.as_bytes(), &bounded), Err(Error::Shape));
 }
 
