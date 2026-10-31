@@ -255,7 +255,7 @@ fn held_review_steps(scratch: &std::path::Path, before_call: bool) -> Vec<Step> 
                 "chat",
                 "start",
                 "--project",
-                "1",
+                "Playground",
                 "--model",
                 "demo",
                 "--key",
@@ -265,8 +265,8 @@ fn held_review_steps(scratch: &std::path::Path, before_call: bool) -> Vec<Step> 
             ])),
             Step::Run(Call::new(&["task", "show", chat, "--until", "replied", "--timeout", "120s", "--json"])),
             Step::Run(Call::new(&["change", "show", change, "--until", "ci:passed", "--timeout", "120s", "--json"])),
-            Step::TaskExists {
-                project: 1,
+            Step::TaskExistsIn {
+                project: "Playground",
                 parent: change.parse().expect("change task"),
                 task: review.parse().expect("review task"),
             },
@@ -307,7 +307,7 @@ pub fn held_reviews_restart(case: &str, before_call: bool) {
     assert_held_reviewers(&first.calls, before_call);
     let mut steps = reads();
     steps.extend([
-        Step::Run(Call::new(&["account", "list", "--until", "usable", "--timeout", "10s"])),
+        Step::Run(Call::new(&["account", "list", "--until", "settled", "--timeout", "10s", "--json"])),
         Step::Run(Call::new(&["task", "show", "4", "--json"])),
         Step::Run(Call::new(&["task", "show", "8", "--json"])),
     ]);
@@ -315,6 +315,16 @@ pub fn held_reviews_restart(case: &str, before_call: bool) {
     drained(restarted.exit, restarted.left.as_deref(), &restarted.stderr);
     answered(&restarted.calls, 6);
     assert!(restarted.checked.is_some(), "settings, account, forge and reviewer reads completed");
+    // The scripted account serves only the playground project (playground-reset.md, 6.1).
+    let accounts = ctl::json(&restarted.calls[3]);
+    assert!(
+        accounts["accounts"]["deployment"].as_array().expect("deployment accounts").iter().any(|account| {
+            account["provider"] == 3
+                && account["usable"] == true
+                && !account["uses"].as_array().expect("account project scopes").is_empty()
+        }),
+        "the playground's scoped account remains usable: {accounts}"
+    );
     assert_held_reviewers(&restarted.calls, before_call);
     scratch.remove();
 }
@@ -338,7 +348,7 @@ pub fn change_wait_restart(case: &str) {
             "chat",
             "start",
             "--project",
-            "1",
+            "Playground",
             "--model",
             "demo",
             "--key",
@@ -346,7 +356,7 @@ pub fn change_wait_restart(case: &str) {
             "Add CSV export to widget",
             "--json",
         ])),
-        Step::TaskExists { project: 1, parent: 1, task: 2 },
+        Step::TaskExistsIn { project: "Playground", parent: 1, task: 2 },
         Step::Run(Call::new(&["task", "stop", "2"])),
         Step::Run(Call::new(&["task", "show", "2", "--until", "held", "--timeout", "10s", "--json"])),
         Step::Start(Call::new(&["change", "show", "2", "--until", "ci:failed", "--timeout", "12s"])),

@@ -96,36 +96,27 @@ pub fn llm(config: &Path) -> super::boxed::CtlLlm {
 }
 
 struct Forge {
+    number: u64,
     address: String,
     header: PathBuf,
 }
 impl Forge {
-    fn at(paths: &[PathBuf; 3]) -> Self {
+    fn at(paths: &[PathBuf; 3], client: &Path) -> Self {
         let document: Value =
             serde_json::from_slice(&fs::read(paths[0].join("temper.json")).expect("config")).expect("JSON");
-        let forge = document["application"]["forges"]
-            .as_array()
-            .expect("forges")
-            .iter()
-            .find(|forge| forge["number"] == 3)
-            .expect("forge 3");
+        let number = first_repository::owned_forge(client)["number"].as_u64().expect("forge number");
         Self {
-            address: forge["api"]["socket"].as_str().expect("address").into(),
+            number,
+            address: document["application"]["machine"]["owned"]["listen"]["socket"].as_str().expect("address").into(),
             header: paths[0].join("person.header"),
         }
     }
-    fn person(paths: &[PathBuf; 3]) -> Self {
-        let forge = Self::at(paths);
+    fn person(paths: &[PathBuf; 3], client: &Path) -> Self {
+        let forge = Self::at(paths, client);
         let document: Value =
             serde_json::from_slice(&fs::read(paths[0].join("temper.json")).expect("config")).expect("JSON");
-        let setup = document["application"]["setup"]
-            .as_array()
-            .expect("setup")
-            .iter()
-            .find(|entry| entry["forge"] == 3)
-            .expect("owned setup");
-        let login = setup["mode"]["owned"]["person"]["login"].as_str().expect("person login");
-        let work = paths[1].join("forge-3/forgejo");
+        let login = document["application"]["machine"]["owned"]["person"]["login"].as_str().expect("person login");
+        let work = paths[1].join(format!("forge-{}/forgejo", forge.number));
         let output = std::process::Command::new(super::owned::binaries().0)
             .arg("--work-path")
             .arg(&work)
@@ -134,12 +125,12 @@ impl Forge {
             .args(["admin", "user", "must-change-password", "--unset", login])
             .env_clear()
             .env("PATH", "/usr/bin:/bin")
-            .env("HOME", paths[1].join("forge-3/home"))
+            .env("HOME", paths[1].join(format!("forge-{}/home", forge.number)))
             .stdin(std::process::Stdio::null())
             .output()
             .expect("person password flag");
         assert!(output.status.success(), "clear person's first-password flag (output redacted)");
-        let token = super::forge_land::scoped_token(paths, true, login, "write:repository,read:issue");
+        let token = super::forge_land::scoped_token(paths, true, forge.number, login, "write:repository,read:issue");
         super::write_private(&forge.header, format!("Authorization: token {token}\n").as_bytes());
         forge
     }
@@ -273,10 +264,11 @@ fn assert_contexts(status: &Value, event: &str, changes: &str) {
 
 #[must_use]
 pub fn steps(paths: &[PathBuf; 3], client: &Path, began: Time) -> Vec<Step> {
-    let mut steps = vec![Step::Run(Call::sign_in()), Step::Run(Call::new(&["forge", "setup", "3", "--playground"]))];
+    let mut steps = vec![Step::Run(Call::sign_in()), Step::Run(Call::new(&["forge", "setup", "--playground"]))];
     let gate_paths = paths.clone();
+    let gate_client = client.to_path_buf();
     steps.push(Step::Then(Box::new(move |_| {
-        Forge::person(&gate_paths).install();
+        Forge::person(&gate_paths, &gate_client).install();
         eprintln!("owned CSV main gate passed: {} ms", now().saturating_since(began).as_nanos() / 1_000_000);
         Call::new(&["forge", "list", "--json"])
     })));
@@ -286,11 +278,12 @@ pub fn steps(paths: &[PathBuf; 3], client: &Path, began: Time) -> Vec<Step> {
     steps.extend(task);
     steps.push(Step::Until(Call::new(&["change", "show", "2", "--json"]), br#""step":"repairing""#));
     let red_paths = paths.clone();
+    let red_client = client.to_path_buf();
     steps.push(Step::Then(Box::new(move |calls| {
         let panel = super::ctl::json(calls.last().expect("repairing panel"));
         assert_eq!(panel["ci"], "failed");
         assert_eq!(panel["repairs"]["used"], 1);
-        Forge::at(&red_paths).head(&panel, "failure");
+        Forge::at(&red_paths, &red_client).head(&panel, "failure");
         eprintln!("owned CSV H1 failed, repair delegated: {} ms", now().saturating_since(began).as_nanos() / 1_000_000);
         Call::new(&["change", "show", "2", "--json"])
     })));
@@ -303,7 +296,7 @@ pub fn steps(paths: &[PathBuf; 3], client: &Path, began: Time) -> Vec<Step> {
 pub fn landed(paths: &[PathBuf; 3], client: &Path, began: Time) -> Value {
     let panel = super::ctl::alone(client, Call::new(&["change", "show", "2", "--json"]));
     let panel = super::ctl::json(&panel);
-    let forge = Forge::at(paths);
+    let forge = Forge::at(paths, client);
     let pull = forge.get("pulls/1");
     assert_eq!(panel["step"], "landed");
     assert_eq!(panel["ci"], "passed");

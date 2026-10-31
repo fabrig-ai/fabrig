@@ -16,15 +16,18 @@ fn rejects_orgs(member: &str) {
     let path = root.join("temper.json");
     let mut document: Value = serde_json::from_slice(&fs::read(&path).expect("template")).expect("JSON");
     if member == "person.orgs" {
-        document["application"]["setup"][0]["mode"]["owned"]["person"]["orgs"] = json!(["work"]);
+        document["application"]["machine"]["owned"]["person"]["orgs"] = json!(["work"]);
     } else {
-        document["application"]["setup"][0]["orgs"] = json!(["work"]);
+        document["application"]["machine"]["owned"]["orgs"] = json!(["work"]);
     }
     support::write_private(&path, &serde_json::to_vec(&document).expect("JSON"));
-    let ended = support::owned::prepare(root, 3);
+    let ended = support::owned::prepare(root, 1);
     let error = String::from_utf8_lossy(&ended.stderr);
     assert_eq!(ended.status.code(), Some(1), "an obsolete owned org list must refuse command startup: {error}");
-    assert!(error.contains("orgs") && error.contains("setup"), "refusal must name the obsolete member's path: {error}");
+    assert!(
+        error.contains("application.machine: invalid form"),
+        "refusal must identify the machine configuration: {error}"
+    );
     scratch.remove();
 }
 
@@ -41,14 +44,14 @@ fn owned_entry_orgs_are_refused_at_start() {
 
 #[test]
 fn first_landed_task_and_adoption_survive_a_box_restart_without_setup_replay() {
-    // protocol/setup.md, 6.7 and 13.4; domain/forge.md, 8.8: first intent is volatile, adopted work and its landed task survive.
+    // temper/docs/design/draft/playground-reset.md, 3: first intent, adoption and its landed task survive.
     let scratch = Scratch::new("qa-first-repository-restart");
     let root = scratch.path();
     generated(root);
     stage_binaries(root);
     let mut steps = vec![
         Step::Run(Call::sign_in()),
-        Step::Run(Call::new(&["forge", "setup", "3"])),
+        Step::Run(Call::new(&["forge", "setup"])),
         Step::Run(Call::new(&["forge", "list", "--json"])),
     ];
     steps.extend(first_repository::task_steps(root));
@@ -71,18 +74,21 @@ fn first_landed_task_and_adoption_survive_a_box_restart_without_setup_replay() {
         "first setup must adopt work/hello: {adoption}"
     );
     let rows = ctl::json(&first.calls[2]);
-    assert!(rows.to_string().contains("made"), "first row must expose made before restart: {rows}");
-    assert!(!root.join("forge-3/admin_token").exists(), "the handover must be consumed");
+    let row = first_repository::owned_row(&rows);
+    assert_eq!(row["first"]["state"], "made", "{row}");
+    let forge = row["number"].as_u64().expect("forge number");
+    let first_intent = row["first"].clone();
+    assert!(!root.join(format!("forge-{forge}/admin_token")).exists(), "the handover must be consumed");
     for member in ["api_token", "git_token", "user", "webhook_secret"] {
         assert!(
-            !root.join("forge-3").join(member).exists(),
+            !root.join(format!("forge-{forge}")).join(member).exists(),
             "owned credentials must remain records, never {member} files"
         );
     }
     let mut steps = vec![
         Step::Run(Call::new(&["forge", "list", "--until", "settled", "--timeout", "60s"])),
         Step::Run(Call::new(&["forge", "list", "--json"])),
-        Step::Run(Call::new(&["forge", "setup", "3"])),
+        Step::Run(Call::new(&["forge", "setup", &forge.to_string()])),
     ];
     steps.extend(first_repository::found_steps());
     let restarted = boxed::run_ctl_with_exits(
@@ -103,9 +109,9 @@ fn first_landed_task_and_adoption_survive_a_box_restart_without_setup_replay() {
         restarted.checked.as_ref().expect("restored evidence"),
     );
     let rows = ctl::json(&restarted.calls[1]);
-    let rows = rows["forges"].as_array().unwrap_or_else(|| panic!("forges rows: {rows}"));
-    let row = rows.iter().find(|row| row["number"] == 3 || row["forge"] == 3).expect("owned row");
-    assert!(row["first"].is_null(), "a restart must forget the first repository row: {row}");
+    let row = first_repository::owned_row(&rows);
+    assert_eq!(row["number"], forge, "the same forge record survives");
+    assert_eq!(row["first"], first_intent, "the first repository intent and result survive: {row}");
     assert!(
         String::from_utf8_lossy(&restarted.calls[2].stdout).contains("not offered")
             || String::from_utf8_lossy(&restarted.calls[2].stderr).contains("not offered"),
