@@ -306,6 +306,20 @@ pub(crate) fn restore(
     value: people::PolicyValue,
     limit: u32,
 ) -> Option<()> {
+    restore_value(policy, permissions, templates, value, limit)?;
+    if !map_valid(policy, permissions) {
+        return None;
+    }
+    Some(())
+}
+
+fn restore_value(
+    policy: &mut authority::Policy,
+    permissions: &mut Box<[people::PermissionRole]>,
+    templates: &mut Box<[people::TemplateOverride]>,
+    value: people::PolicyValue,
+    limit: u32,
+) -> Option<()> {
     policy.ceiling = authority_to_authority(value.ceiling)?;
     policy.escalation_role = value.escalation_role;
     policy.period_spend = value.period_spend;
@@ -333,9 +347,6 @@ pub(crate) fn restore(
     policy.requirements = requirements.into_boxed();
     *permissions = value.permissions;
     *templates = value.templates;
-    if !map_valid(policy, permissions) {
-        return None;
-    }
     Some(())
 }
 
@@ -457,31 +468,44 @@ impl Core {
         value: people::PolicyValue,
     ) -> bool {
         self.start_input();
-        if project == 0
-            || self.authority.policy(project).is_some()
-            || self.projects.len() >= self.projects.capacity()
-            || self.names.len() >= self.names.capacity()
-            || self.permission_roles.len() >= self.permission_roles.capacity()
-            || self.template_overrides.len() >= self.template_overrides.capacity()
-            || u64::from(project) > self.counters.deployment().projects
-            || people::name_rule(&name).is_some()
-        {
-            return false;
-        }
-        for (&other, previous) in &self.names {
-            if project != other && people::same_name(&name, previous) {
-                return false;
+        match self.start.mode {
+            crate::start::StartMode::Default => {
+                if project == 0
+                    || self.authority.policy(project).is_some()
+                    || self.projects.len() >= self.projects.capacity()
+                    || self.names.len() >= self.names.capacity()
+                    || self.permission_roles.len() >= self.permission_roles.capacity()
+                    || self.template_overrides.len() >= self.template_overrides.capacity()
+                    || u64::from(project) > self.counters.deployment().projects
+                    || people::name_rule(&name).is_some()
+                {
+                    return false;
+                }
+                for (&other, previous) in &self.names {
+                    if project != other && people::same_name(&name, previous) {
+                        return false;
+                    }
+                }
+            }
+            crate::start::StartMode::LoadAndLink => {
+                if !self.start_policy_room(project) {
+                    return false;
+                }
             }
         }
         match people::policy_bytes(&value) {
             Some(bytes) if bytes <= limits.policy_bytes => {}
             Some(_) | None => {
-                self.restore_failure = Some(crate::RestartRequest::ProjectPolicy { project });
-                let _refused = self.restart_refuse();
+                self.refuse_restore(crate::RestartRequest::ProjectPolicy { project });
                 return false;
             }
         }
-        let Some(ceiling) = authority_to_authority(value.ceiling.clone()) else { return false };
+        let Some(ceiling) = authority_to_authority(value.ceiling.clone()) else {
+            if self.start.mode == crate::start::StartMode::LoadAndLink {
+                self.refuse_restore(crate::RestartRequest::ProjectPolicy { project });
+            }
+            return false;
+        };
         let mut policy = authority::Policy {
             ceiling,
             escalation_role: None,
@@ -492,13 +516,35 @@ impl Core {
         };
         let mut permissions: Box<[people::PermissionRole]> = Box::new([]);
         if value.templates.len() > usize::try_from(limits.templates).expect("template bound") {
+            if self.start.mode == crate::start::StartMode::LoadAndLink {
+                self.refuse_restore(crate::RestartRequest::ProjectPolicy { project });
+            }
             return false;
         }
         let mut templates: Box<[people::TemplateOverride]> = Box::new([]);
-        if restore(&mut policy, &mut permissions, &mut templates, value, self.authority.limits().requirements).is_none()
-            || !self.restored_templates_valid(&templates)
-        {
-            return false;
+        match self.start.mode {
+            crate::start::StartMode::Default => {
+                if restore(&mut policy, &mut permissions, &mut templates, value, self.authority.limits().requirements)
+                    .is_none()
+                    || !self.restored_templates_valid(&templates)
+                {
+                    return false;
+                }
+            }
+            crate::start::StartMode::LoadAndLink => {
+                if restore_value(
+                    &mut policy,
+                    &mut permissions,
+                    &mut templates,
+                    value,
+                    self.authority.limits().requirements,
+                )
+                .is_none()
+                {
+                    self.refuse_restore(crate::RestartRequest::ProjectPolicy { project });
+                    return false;
+                }
+            }
         }
         let mut facts = Queue::uncapped();
         authority::step(&mut self.authority, authority::Event::Restore { project, policy }, &mut facts);
@@ -510,11 +556,40 @@ impl Core {
                 self.names.insert(project, name).expect("preflighted name room");
                 true
             }
-            authority::PolicyFact::Refused { .. } => false,
+            authority::PolicyFact::Refused { .. } => {
+                if self.start.mode == crate::start::StartMode::LoadAndLink {
+                    self.refuse_restore(crate::RestartRequest::ProjectPolicy { project });
+                }
+                false
+            }
             authority::PolicyFact::Changed { .. } | authority::PolicyFact::Dropped { .. } => {
                 unreachable!("absent project policy restoration")
             }
         }
+    }
+
+    fn start_policy_room(&mut self, project: u32) -> bool {
+        assert!(
+            self.authority.policy(project).is_none(),
+            "duplicate {:?}",
+            crate::Key::People(people::Key::Policy(project))
+        );
+        for (held, limit) in [
+            (self.projects.len(), self.projects.capacity()),
+            (self.names.len(), self.names.capacity()),
+            (self.permission_roles.len(), self.permission_roles.capacity()),
+            (self.template_overrides.len(), self.template_overrides.capacity()),
+        ] {
+            if !self.start_room(
+                crate::start::LiveSet::Projects,
+                crate::Key::People(people::Key::Policy(project)),
+                held,
+                limit,
+            ) {
+                return false;
+            }
+        }
+        true
     }
 }
 
