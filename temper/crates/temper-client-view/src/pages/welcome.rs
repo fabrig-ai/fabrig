@@ -140,6 +140,7 @@ pub(crate) fn main(
             text(b, w, Role::Heading { level: 1 }, Word::WelcomeTitle);
             if let Some(page) = root.pages().welcome()
                 && page.decided
+                && playground
             {
                 lead(b, w);
                 b.open(Role::Slot);

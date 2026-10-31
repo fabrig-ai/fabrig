@@ -451,10 +451,11 @@ fn closed_status(b: &mut Builder, words: &Words) {
 pub(crate) fn playground_start(root: &Domain) -> Option<&temper_client_domain::forge::Playground> {
     let Address::Chats { .. } = root.pages().address() else { return None };
     let playground = root.forge().playground()?;
-    if playground.state != temper_client_domain::forge::PlaygroundState::Resetting
-        && playground.project.is_some()
-        && root.pages().project() == playground.project
-    {
+    let selected = match playground.project {
+        Some(project) => root.pages().project() == Some(project),
+        None => true,
+    };
+    if playground.state != temper_client_domain::forge::PlaygroundState::Resetting && selected {
         Some(playground)
     } else {
         None

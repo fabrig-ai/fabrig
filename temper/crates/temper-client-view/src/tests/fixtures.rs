@@ -1553,9 +1553,6 @@ pub fn demo_forges_state_root(
     root_at_with_activity(address, &domain_limits(), b"Shop", Some((PROJECT, true, state)), None, Some(rows)).0
 }
 
-pub fn demo_state_root(address: temper_client_domain::Address, state: w::DemoState) -> temper_client_domain::Domain {
-    root_at_with_activity(address, &domain_limits(), b"Shop", Some((PROJECT, true, state)), None, None).0
-}
 pub fn demo_start_attempt(root: &mut temper_client_domain::Domain) -> Token {
     let limits = domain_limits();
     let mut out = Queue::uncapped();

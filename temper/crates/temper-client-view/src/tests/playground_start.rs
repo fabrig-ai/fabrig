@@ -271,7 +271,7 @@ fn starting_waits_and_each_failure_explains_why_with_try_again() {
             w::Outcome::StartFailed(w::StartFailed::new(&w::CEILINGS, w::StartFailedParts { why }).unwrap()),
         )
         .expect("failure rereads the playground");
-        f::deliver_playground(&mut root, read, w::PlaygroundState::Starting, f::FORGE, Some(f::PROJECT));
+        f::deliver_playground(&mut root, read, w::PlaygroundState::Starting, f::FORGE, None);
         let mut view = f::page_view(&root);
         assert!(f::find(view.tree(), Role::Status, b"Not started").is_some());
         assert!(f::find(view.tree(), Role::Alert, expected.as_bytes()).is_some(), "{expected}");
@@ -299,7 +299,7 @@ fn a_full_group_failure_keeps_each_utf8_replacement_as_the_forge_failure_does() 
         w::Outcome::StartFailed(w::StartFailed::new(&w::CEILINGS, w::StartFailedParts { why }).unwrap()),
     )
     .expect("failure rereads the playground");
-    f::deliver_playground(&mut root, read, w::PlaygroundState::Starting, f::FORGE, Some(f::PROJECT));
+    f::deliver_playground(&mut root, read, w::PlaygroundState::Starting, f::FORGE, None);
     let domain = f::domain_limits();
     let words = f::words();
     let limits = crate::Limits::of(&domain, &words).unwrap();
@@ -364,10 +364,14 @@ fn start_root() -> temper_client_domain::Domain {
 }
 
 #[test]
-fn a_starting_row_keeps_starting_and_its_cues_disabled_until_the_answer() {
+fn a_starting_row_without_a_project_keeps_its_invitation_and_cues_disabled() {
     use temper_client_protocol_wire::v1 as w;
-    let root = f::demo_state_root(Address::Chats { filter: ChatsFilter::All, start: false }, w::DemoState::NotStarted);
+    let mut root = start_root();
+    let attempt = f::demo_start_attempt(&mut root);
+    let read = f::demo_start_answer(&mut root, attempt, w::Outcome::Running).expect("playground read");
+    f::deliver_playground(&mut root, read, w::PlaygroundState::Starting, f::FORGE, None);
     let mut view = f::page_view(&root);
+    assert!(f::find(view.tree(), Role::Heading { level: 1 }, b"What shall we change?").is_some());
     assert!(f::find(view.tree(), Role::Status, b"Starting").is_some());
     let cue = f::find(view.tree(), Role::Button, f::DEMO_CUE).unwrap();
     assert_eq!(crate::act(&mut view, cue, skein_ui::Act::Press), None);

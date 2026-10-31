@@ -1180,6 +1180,7 @@ fn an_unfinished_store_opens_at_its_step() {
         let mut root = f::forge_root(Address::Welcome { step: Step::Ready }, rows);
         assert_eq!(pages::welcome::decision(&root), Some(pages::welcome::FirstRun::Unfinished { step }));
         let address = first_run_destination(&mut root);
+        assert!(f::find(f::page_view(&root).tree(), Role::Region, b"Set up temper").is_none());
         assert_eq!(address, Address::Welcome { step });
         f::root_event(&mut root, d::Event::Went { place: d::Place::Address(address) });
         let view = f::page_view(&root);
