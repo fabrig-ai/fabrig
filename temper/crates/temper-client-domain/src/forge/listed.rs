@@ -4,8 +4,8 @@ use super::{
     forges::{Connection, Mode, Row, State},
 };
 use crate::{
-    Domain,
-    pages::{accounts, welcome::{self, Step}},
+    Domain, Step,
+    pages::{accounts, welcome},
 };
 use skein_lib::List;
 
