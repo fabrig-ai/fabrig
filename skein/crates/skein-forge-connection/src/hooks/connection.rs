@@ -21,6 +21,7 @@ pub(super) enum Closing {
     Open,
     Pending,
     Sent,
+    Aborted,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(super) enum HintState {

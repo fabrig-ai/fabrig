@@ -371,6 +371,7 @@ impl Joint {
         while let Some(event) = self.above.pop() {
             self.events.push(format!("{event:?}"));
             match event {
+                Event::Cancelled { .. } => unreachable!("fixture closes without abort"),
                 Event::Answered(answer) => {
                     assert!(self.answers.insert(answer.call.raw(), answer).is_none(), "one answer per call");
                 }

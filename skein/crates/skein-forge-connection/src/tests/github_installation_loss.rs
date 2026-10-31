@@ -529,6 +529,7 @@ fn ready_changes_precede_the_held_token() {
                 changes = changes.checked_add(1).expect("bounded changes");
             }
             Event::Fact { .. }
+            | Event::Cancelled { .. }
             | Event::Answered(_)
             | Event::Hint(_)
             | Event::Listening { .. }

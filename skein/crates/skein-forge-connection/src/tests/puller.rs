@@ -276,7 +276,8 @@ fn page_gap_emits_once_and_rereads_installations() {
     assert_eq!(facts(&h).len(), 1);
     match facts(&h).get(0).expect("gap") {
         Event::Fact { fact, .. } => assert_eq!(*fact, Fact::Gap),
-        Event::Answered(_)
+        Event::Cancelled { .. }
+        | Event::Answered(_)
         | Event::Installation { .. }
         | Event::GitToken { .. }
         | Event::Hint(_)
@@ -349,7 +350,8 @@ fn repository_row_reads_whole_and_sends_its_installation_change() {
             assert_eq!((*installation, *change), (1, Change::Repositories));
             assert_eq!(account.as_ref().expect("account").id, 22);
         }
-        Event::Answered(_)
+        Event::Cancelled { .. }
+        | Event::Answered(_)
         | Event::Fact { .. }
         | Event::GitToken { .. }
         | Event::Hint(_)
@@ -370,7 +372,8 @@ fn refused_hint_blocks_remaining_deliveries_until_offer_and_admission() {
     h.answer(f::FORGE, &delivery(b"issues", ISSUE));
     let hinted = match h.up.pop().expect("hint offer") {
         Event::Hint(hint) => hint,
-        Event::Answered(_)
+        Event::Cancelled { .. }
+        | Event::Answered(_)
         | Event::Installation { .. }
         | Event::Fact { .. }
         | Event::GitToken { .. }
@@ -387,7 +390,8 @@ fn refused_hint_blocks_remaining_deliveries_until_offer_and_admission() {
     h.send(Request::Offer);
     let again = match h.up.pop().expect("offered again") {
         Event::Hint(hint) => hint,
-        Event::Answered(_)
+        Event::Cancelled { .. }
+        | Event::Answered(_)
         | Event::Installation { .. }
         | Event::Fact { .. }
         | Event::GitToken { .. }
@@ -582,7 +586,8 @@ fn puller_holding_a_hint_stays_under_the_growth_ceiling() {
     h.answer(f::FORGE, &response);
     let hinted = match h.up.pop().expect("hint") {
         Event::Hint(hint) => hint,
-        Event::Answered(_)
+        Event::Cancelled { .. }
+        | Event::Answered(_)
         | Event::Installation { .. }
         | Event::Fact { .. }
         | Event::GitToken { .. }

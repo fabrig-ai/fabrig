@@ -563,6 +563,7 @@ impl Machine {
                 Event::Fact { .. } => "fact",
                 Event::GitToken { .. } => "git-token",
                 Event::Answered(_) => "answered",
+                Event::Cancelled { .. } => "cancelled",
                 Event::Stopped { .. } => "stopped",
                 Event::Hint(_) => "hint",
                 Event::Listening { .. } => "listening",
@@ -584,6 +585,7 @@ impl Machine {
                     assert!(self.fake.is_some(), "GitHub fixture");
                     self.git_tokens.push(event);
                 }
+                Event::Cancelled { .. } => unreachable!("fixture closes without abort"),
                 Event::Answered(answer) => {
                     self.deliveries.push(answer.clone());
                     assert!(self.answers.insert(answer.call.raw(), answer).is_none(), "one answer per call");

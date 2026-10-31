@@ -64,7 +64,7 @@ pub enum Request {
     Connect { forge: u16, access: Access },
     /// Replaces the bounded set of accepted installations (forge-connection.md, 4.4).
     Installations { forge: u16, accepted: Box<[u64]> },
-    /// The root's `Request::Forge`: ended by exactly one `Event::Answered`.
+    /// The root's `Request::Forge`: answered, or cancelled by abort.
     Call { call: Token, repository: api::Repository, op: api::Op },
     /// An answer the root's admission did not take (`try_step`'s `Err`): held, offered
     /// again at the next `Offer`; at most one per call.
@@ -79,6 +79,8 @@ pub enum Request {
     /// After the root's drain: calls in flight end with their connections and no answer
     /// goes up; `Event::Closed` answers it.
     Close,
+    /// Cancels held calls and aborts every socket; `Event::Closed` answers it.
+    Abort,
 }
 
 /// To the routing; io's requests go in a queue of their own.
@@ -86,6 +88,8 @@ pub enum Request {
 pub enum Event {
     /// A call's one terminal.
     Answered(Answered),
+    /// A call ended by the owner's abort, without an answer.
+    Cancelled { call: Token },
     /// A retained installation's lifecycle, with its current or last known account.
     Installation { forge: u16, installation: u64, account: Option<Account>, change: Change },
     /// A bounded diagnostic for the owner's log.
@@ -103,7 +107,7 @@ pub enum Event {
     /// A forge's access refused: at most once per generation, possibly after Connected.
     /// The forge holds no access until the next connect.
     Stopped { forge: u16, why: Stopped },
-    /// The terminal of `Close`: every connection closed.
+    /// The terminal of `Close` or `Abort`: every connection settled.
     Closed,
 }
 

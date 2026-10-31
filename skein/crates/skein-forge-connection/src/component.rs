@@ -111,6 +111,7 @@ pub struct Component {
     held: Map<Token, Held>,
     holders: Map<Token, Token>,
     closed: bool,
+    aborting: bool,
     diagnostics: Diagnostics,
     shared: Shared,
     connections: Map<Token, Id<Connection>>,
@@ -172,6 +173,7 @@ impl Component {
             held: Map::with_capacity(shared.calls),
             holders: Map::with_capacity(shared.calls),
             closed: false,
+            aborting: false,
             diagnostics: Diagnostics { long_bodies: 0, malformed: 0 },
             shared: *shared,
             connections: Map::with_capacity(limits.connections.checked_add(reserved).expect("checked connections")),
@@ -239,6 +241,18 @@ impl Component {
         io: &mut Queue<skein_io::Request>,
     ) {
         if self.closed {
+            match request {
+                Request::Abort => self.end(true, env, up, io),
+                Request::Call { call, .. } if self.aborting && !self.ended => up.push(Event::Cancelled { call }),
+                Request::Call { .. }
+                | Request::Connect { .. }
+                | Request::Installations { .. }
+                | Request::RefusedHint(_)
+                | Request::Refused(_)
+                | Request::Returned(_)
+                | Request::Offer
+                | Request::Close => {}
+            }
             return;
         }
         match request {
@@ -297,30 +311,44 @@ impl Component {
                 }
                 self.drive(env, up, io);
             }
-            Request::Close => {
-                for _ in 0..self.calls.len() {
-                    let Some((call, id)) = self.calls.first() else {
-                        break;
-                    };
-                    let (call, id) = (*call, *id);
-                    self.waiting.retire(id);
-                    let _removed: Option<Id<Waiting>> = self.calls.remove(&call);
-                }
-                self.held = Map::with_capacity(self.held.capacity());
-                self.holders = Map::with_capacity(self.holders.capacity());
-                for at in 0..self.starts.len() {
-                    self.settings.forges.get_mut(at).expect("forge").access = None;
-                    if let Some(github) = self.github.get_mut(at).expect("forge slot") {
-                        github.forget();
-                    }
-                    *self.own_plans.get_mut(at).expect("forge plan") = None;
-                }
-                self.closed = true;
-                self.hooks.close();
-                self.drive(env, up, io);
-            }
+            Request::Close => self.end(false, env, up, io),
+            Request::Abort => self.end(true, env, up, io),
         }
     }
+    fn end(&mut self, abort: bool, env: &Env<Limits>, up: &mut Queue<Event>, io: &mut Queue<skein_io::Request>) {
+        if self.ended || self.aborting {
+            return;
+        }
+        self.aborting = abort;
+        for _ in 0..self.calls.len() {
+            let Some((call, id)) = self.calls.first() else {
+                break;
+            };
+            let (call, id) = (*call, *id);
+            self.waiting.retire(id);
+            let _removed: Option<Id<Waiting>> = self.calls.remove(&call);
+            if abort {
+                up.push(Event::Cancelled { call });
+            }
+        }
+        self.held = Map::with_capacity(self.held.capacity());
+        self.holders = Map::with_capacity(self.holders.capacity());
+        for at in 0..self.starts.len() {
+            self.settings.forges.get_mut(at).expect("forge").access = None;
+            if let Some(github) = self.github.get_mut(at).expect("forge slot") {
+                github.forget();
+            }
+            *self.own_plans.get_mut(at).expect("forge plan") = None;
+        }
+        self.closed = true;
+        if abort {
+            self.hooks.abort();
+        } else {
+            self.hooks.close();
+        }
+        self.drive(env, up, io);
+    }
+
     fn offer_pullers(&mut self) {
         for at in 0..self.github.len() {
             if let Some(gh) = self.github.get_mut(at).expect("forge slot") {
@@ -456,7 +484,7 @@ impl Component {
             skein_io::Event::Connected { owner } => {
                 if let Some(id) = self.connections.get(&owner)
                     && let Some(c) = self.connection_slab.get_mut(*id)
-                    && !c.closing
+                    && !c.closing()
                 {
                     c.connect(env);
                 }
@@ -477,7 +505,7 @@ impl Component {
             }
             skein_io::Event::Closed { owner } => {
                 if let Some(id) = self.connections.remove(&owner) {
-                    let closing = self.connection_slab.get(id).expect("indexed connection").closing;
+                    let closing = self.connection_slab.get(id).expect("indexed connection").closing();
                     if let Some(call) = self.holders.remove(&owner)
                         && !self.closed
                     {
@@ -652,7 +680,7 @@ impl Component {
                 .expect("indexed connection");
             if self.closed {
                 *self.own_plans.get_mut(at).expect("configured forge") = None;
-                c.close(c.in_flight(), io);
+                c.close(self.aborting || c.in_flight(), io);
                 break;
             }
             let state = *self.starts.get(at).expect("configured start");

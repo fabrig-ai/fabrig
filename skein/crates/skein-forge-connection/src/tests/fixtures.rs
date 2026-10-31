@@ -203,6 +203,7 @@ impl Harness {
                 Event::Connected { .. } => {
                     self.connected_count = self.connected_count.checked_add(1).expect("fixture connects");
                 }
+                Event::Cancelled { .. } => unreachable!("fixture closes without abort"),
                 Event::Answered(answer) => {
                     assert!(self.answered(answer.call.raw()).is_none(), "one terminal per call");
                     drop(self.answers.insert(answer.call.raw(), answer).expect("fixture answers fit"));
@@ -933,6 +934,7 @@ impl HookHarness {
                     | Event::Fact { .. }
                     | Event::GitToken { .. }
                     | Event::Connected { .. }
+                    | Event::Cancelled { .. }
                     | Event::Answered(_)
                     | Event::Stopped { .. }
                     | Event::Listening { .. }

@@ -501,6 +501,7 @@ pub(crate) fn advance(engine: &mut crate::engine::Engine) {
             }
             host::Event::Done { run, outcome } => lifecycle::done(engine, run, outcome),
             host::Event::Stop { run, failure } => lifecycle::stopped(engine, run, failure),
+            host::Event::Cancelled { .. } => unreachable!("temper closes the setup host"),
             host::Event::Closed => engine.setup.closed = true,
         }
         if engine.end.is_some() {

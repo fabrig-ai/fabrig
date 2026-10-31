@@ -34,6 +34,7 @@ fn expiry(world: &Machine, index: usize) -> Wall {
         Event::GitToken { expires, .. } => *expires,
         Event::Installation { .. }
         | Event::Fact { .. }
+        | Event::Cancelled { .. }
         | Event::Answered(_)
         | Event::Hint(_)
         | Event::Connected { .. }

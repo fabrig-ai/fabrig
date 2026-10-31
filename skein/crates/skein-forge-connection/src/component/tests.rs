@@ -173,3 +173,100 @@ fn renewal_local_signing_refusal_stops_invalid_key() {
     assert_eq!(h.stopped(), Some((fixtures::FORGE, crate::Stopped::Invalid { value: crate::Value::Key })));
     assert_eq!(h.connected_count, 1);
 }
+
+fn abort_calls() -> fixtures::Harness {
+    let mut h = fixtures::known();
+    h.run(skein_lib::Duration::ZERO);
+    for call in [1, 2] {
+        h.call(call, fixtures::REPO, api::Op::Read(api::Read::Settings));
+    }
+    h.run(skein_lib::Duration::ZERO);
+    assert_eq!(h.component.calls.len(), 2);
+    assert!(h.up.is_empty());
+    assert!(h.io.is_empty());
+    h
+}
+
+#[test]
+fn abort_cancels_each_call_once_and_waits_for_aborted_sockets() {
+    let mut h = abort_calls();
+    let mut sockets = List::with_capacity(2);
+    for (owner, id) in &h.component.connections {
+        let socket = h.component.connection_slab.get(*id).expect("connection").socket.expect("socket");
+        sockets.push((*owner, socket)).expect("two connections");
+    }
+    assert_eq!(sockets.len(), 2);
+    h.component.down(&h.env, Request::Abort, &mut h.up, &mut h.io);
+    for call in [1, 2] {
+        let Some(Event::Cancelled { call: token }) = h.up.pop() else { panic!("cancelled call") };
+        assert_eq!(token, Token::new(call));
+    }
+    assert!(h.up.is_empty());
+    for (_, socket) in &sockets {
+        assert_eq!(h.io.pop(), Some(skein_io::Request::Abort { entity: *socket }));
+    }
+    assert!(h.io.is_empty());
+    for request in [Request::Abort, Request::Close] {
+        h.component.down(&h.env, request, &mut h.up, &mut h.io);
+        assert!(h.up.is_empty());
+        assert!(h.io.is_empty());
+    }
+    h.component.down(
+        &h.env,
+        Request::Call { call: Token::new(3), repository: fixtures::REPO, op: api::Op::Read(api::Read::Settings) },
+        &mut h.up,
+        &mut h.io,
+    );
+    let Some(Event::Cancelled { call }) = h.up.pop() else { panic!("refused call") };
+    assert_eq!(call, Token::new(3));
+    let mut unsettled = sockets.len();
+    for (owner, _) in &sockets {
+        h.component.up(&h.env, skein_io::Event::Closed { owner: *owner }, &mut h.up, &mut h.io);
+        unsettled = unsettled.checked_sub(1).expect("one settlement per socket");
+        if unsettled > 0 {
+            assert!(h.up.is_empty(), "Closed waits for every socket");
+        }
+    }
+    let Some(Event::Closed) = h.up.pop() else { panic!("closed") };
+    h.component.fire(&h.env, &mut h.up, &mut h.io);
+    assert!(h.up.is_empty());
+    assert!(h.io.is_empty());
+    assert_eq!(h.component.next_deadline(), None);
+}
+
+#[test]
+fn abort_after_close_upgrades_every_gracefully_closing_socket() {
+    let mut h = fixtures::known();
+    h.run(skein_lib::Duration::ZERO);
+    let (owner, id) = h.component.connections.first().expect("idle connection");
+    let (owner, id) = (*owner, *id);
+    let socket = h.component.connection_slab.get(id).expect("connection").socket.expect("socket");
+    h.component.down(&h.env, Request::Close, &mut h.up, &mut h.io);
+    assert_eq!(h.io.pop(), Some(skein_io::Request::Close { entity: socket }));
+    h.component.down(&h.env, Request::Abort, &mut h.up, &mut h.io);
+    assert_eq!(h.io.pop(), Some(skein_io::Request::Abort { entity: socket }));
+    h.component.down(&h.env, Request::Abort, &mut h.up, &mut h.io);
+    assert!(h.up.is_empty());
+    assert!(h.io.is_empty());
+    h.component.up(&h.env, skein_io::Event::Closed { owner }, &mut h.up, &mut h.io);
+    let Some(Event::Closed) = h.up.pop() else { panic!("closed") };
+    assert!(h.up.is_empty());
+}
+
+#[test]
+fn abort_before_connecting_aborts_the_late_socket() {
+    let (mut c, env, mut io) = token_fixture();
+    let mut up = Queue::uncapped();
+    c.begin(&env, &mut up, &mut io);
+    let Some(skein_io::Request::Connect { owner, .. }) = io.pop() else { panic!("start connects") };
+    c.down(&env, Request::Abort, &mut up, &mut io);
+    assert!(up.is_empty());
+    assert!(io.is_empty());
+    let socket = Token::new(99);
+    c.up(&env, skein_io::Event::Connecting { owner, socket }, &mut up, &mut io);
+    assert_eq!(io.pop(), Some(skein_io::Request::Abort { entity: socket }));
+    c.up(&env, skein_io::Event::Closed { owner }, &mut up, &mut io);
+    let Some(Event::Closed) = up.pop() else { panic!("closed") };
+    assert!(up.is_empty());
+    assert_eq!(c.next_deadline(), None);
+}

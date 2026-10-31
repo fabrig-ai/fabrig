@@ -44,6 +44,7 @@ fn changes(world: &Machine) -> Vec<(u64, Change)> {
             Event::Installation { installation, change, .. } => (*installation, *change),
             Event::Fact { .. }
             | Event::GitToken { .. }
+            | Event::Cancelled { .. }
             | Event::Answered(_)
             | Event::Hint(_)
             | Event::Connected { .. }
@@ -77,6 +78,7 @@ fn acceptance_after_empty_start_checks_identity_without_reconnecting() {
         }
         Event::Installation { .. }
         | Event::Fact { .. }
+        | Event::Cancelled { .. }
         | Event::Answered(_)
         | Event::Hint(_)
         | Event::Connected { .. }

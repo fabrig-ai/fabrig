@@ -927,11 +927,11 @@ impl Component {
                     c.deadline = Some(env.now.saturating_add(env.limits.idle));
                 }
                 if self.closed || c.phase != Phase::Idle || c.deadline <= Some(env.now) {
-                    c.close(c.in_flight(), io);
+                    c.close(self.aborting || c.in_flight(), io);
                 }
                 break;
             }
-            if c.closing {
+            if c.closing() {
                 break;
             }
             if c.phase != Phase::Idle
@@ -1090,6 +1090,7 @@ mod tests {
             }
             Event::Fact { .. }
             | Event::GitToken { .. }
+            | Event::Cancelled { .. }
             | Event::Answered(_)
             | Event::Hint(_)
             | Event::Listening { .. }
@@ -1109,6 +1110,7 @@ mod tests {
                     Event::Connected { .. } => assert_eq!(changes.len(), ROWS),
                     Event::Fact { .. }
                     | Event::GitToken { .. }
+                    | Event::Cancelled { .. }
                     | Event::Answered(_)
                     | Event::Hint(_)
                     | Event::Listening { .. }
@@ -1152,6 +1154,7 @@ mod tests {
             Event::Fact { fact, .. } => assert_eq!(fact, Fact::Unkept { installation: 2 }),
             Event::Installation { .. }
             | Event::GitToken { .. }
+            | Event::Cancelled { .. }
             | Event::Answered(_)
             | Event::Hint(_)
             | Event::Listening { .. }
@@ -1177,6 +1180,7 @@ mod tests {
             Event::Installation { .. }
             | Event::Fact { .. }
             | Event::GitToken { .. }
+            | Event::Cancelled { .. }
             | Event::Answered(_)
             | Event::Hint(_)
             | Event::Listening { .. }
@@ -1303,6 +1307,7 @@ mod tests {
             Event::Fact { fact, .. } => assert_eq!(fact, Fact::Unkept { installation: 2 }),
             Event::Installation { .. }
             | Event::GitToken { .. }
+            | Event::Cancelled { .. }
             | Event::Answered(_)
             | Event::Hint(_)
             | Event::Listening { .. }
