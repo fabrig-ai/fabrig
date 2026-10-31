@@ -285,11 +285,10 @@ impl<'a> State<'a> {
 
     fn record(&mut self, record: &'a Record) -> Checked {
         match &record.event {
-            Event::RunStarted(value) => {
-                if self.runs.insert(value.run, (value, record.t_ms)).is_some() {
+            Event::RunStarted(value)
+                if self.runs.insert(value.run, (value, record.t_ms)).is_some() => {
                     return Ok(false);
                 }
-            }
             Event::Budget(value) => {
                 let (run, _) = self.runs.get(&value.run).ok_or("budget snapshot lacks its run admission")?;
                 if !snapshot(run, value)? {
@@ -306,11 +305,10 @@ impl<'a> State<'a> {
             Event::ConversationOpened(value) => return self.opening(value, record.t_ms),
             Event::ResponseStarted(value) => return self.request(value),
             Event::ToolCompleted(value) if value.child.is_some() => return self.returned(value, record.t_ms),
-            Event::RunCompleted(value) => {
-                if value.wind_down != self.winding.contains(&value.run) {
+            Event::RunCompleted(value)
+                if value.wind_down != self.winding.contains(&value.run) => {
                     return Ok(false);
                 }
-            }
             _ => {}
         }
         Ok(true)

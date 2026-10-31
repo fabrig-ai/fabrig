@@ -66,11 +66,10 @@ fn spend_sums(session: &Session) -> Result<(bool, bool), String> {
                     }
                 }
             }
-            Event::RunCompleted(value) => {
-                if runs.insert(value.run, value.spent).is_some() {
+            Event::RunCompleted(value)
+                if runs.insert(value.run, value.spent).is_some() => {
                     return Err("duplicate run.completed".into());
                 }
-            }
             _ => {}
         }
     }

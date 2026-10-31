@@ -266,8 +266,8 @@ pub(super) fn counts(sessions: &[Session]) -> Counts {
                         value.call.clone(),
                     ));
                 }
-                Event::ToolCompleted(value) => {
-                    if tool_failed(&value.verdict) {
+                Event::ToolCompleted(value)
+                    if tool_failed(&value.verdict) => {
                         failures.entry(String::from_utf8_lossy(&value.tool).into_owned()).or_default().insert((
                             index,
                             value.run,
@@ -275,7 +275,6 @@ pub(super) fn counts(sessions: &[Session]) -> Counts {
                             value.call.clone(),
                         ));
                     }
-                }
                 _ => {}
             }
         }

@@ -31,11 +31,10 @@ pub(super) fn check(observer: &Observer) -> Measure<bool> {
                         *total = total.and_then(|total| value.and_then(|value| total.checked_add(value)));
                     }
                 }
-                Event::RunCompleted(run) => {
-                    if runs.insert(run.run, counts(&run.usage)).is_some() {
+                Event::RunCompleted(run)
+                    if runs.insert(run.run, counts(&run.usage)).is_some() => {
                         return Measure::Observed { value: false };
                     }
-                }
                 _ => {}
             }
         }
