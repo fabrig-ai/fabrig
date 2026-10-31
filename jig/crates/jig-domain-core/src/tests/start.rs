@@ -1,4 +1,5 @@
 //! Start selection and phase discipline (jig/docs/design/domain/engine.md, 6).
+mod inbox;
 mod rows;
 use super::{Core, Env, Queue, Time, Wall, config, limits, tasks};
 use crate::start::{Action, Failure, Phase, SweepInput};
@@ -142,14 +143,8 @@ fn every_operational_entrance_consumes_selection() {
         Entrance {
             name: "census",
             input: |core, env| {
-                let mut out = Queue::uncapped();
-                people::step(
-                    &mut core.people,
-                    &Env { now: env.now, wall: env.wall, limits: env.limits.people },
-                    people::Event::Restored,
-                    &mut out,
-                );
-                core.restart = crate::restart::Restart::Waiting(crate::RestartStep::LoadInbox);
+                let _begin = core.start_begin(false, env.wall);
+                finish_core_load(core, env, &mut Queue::uncapped());
                 let _census = core.census(&env.limits);
             },
         },

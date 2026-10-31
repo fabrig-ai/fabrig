@@ -25,6 +25,7 @@ impl Core {
                 Phase::LoadInbox
             }
             Phase::LoadInbox => {
+                self.start_inbox_done();
                 assert!(self.census_position.is_none(), "census pair complete before Link");
                 match self.connectors.first() {
                     Some(&connector) => Phase::RestoreConnector { connector },

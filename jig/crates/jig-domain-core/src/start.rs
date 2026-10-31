@@ -1,4 +1,5 @@
 //! Load, link and sweep before durable opening (jig/docs/design/domain/engine.md, 6).
+mod inbox;
 mod links;
 mod script;
 use crate::{Core, HeldLimit, Key, Wall, settings};
