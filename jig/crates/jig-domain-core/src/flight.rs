@@ -48,10 +48,24 @@ pub(crate) enum Internal {
 }
 
 impl Core {
+    // Party requests may wait on external actions; their active work has separate flights.
     pub(crate) fn flights_idle(&self) -> bool {
         for (_, flight) in &self.flights {
-            if flight.kind() != Kind::Watch {
-                return false;
+            match flight.kind() {
+                Kind::Party | Kind::Key | Kind::Application | Kind::Watch => {}
+                Kind::Workspace
+                | Kind::ProcedureCreation
+                | Kind::Task
+                | Kind::EndedMark
+                | Kind::ResultRead
+                | Kind::CreatingInputs
+                | Kind::Creating
+                | Kind::AwaitingResources
+                | Kind::CreatingDelegates
+                | Kind::EffectStaging
+                | Kind::Effect
+                | Kind::Note
+                | Kind::SettingsOffering => return false,
             }
         }
         true
