@@ -147,10 +147,13 @@ impl World {
         self.answer(1, Answer::Read(Some(fixtures::secret(fixtures::ADMIN))));
     }
     fn connect(&mut self) -> Token {
+        self.connect_at(skein_io::Addr::Ip(([127, 0, 0, 1], 3000).into()))
+    }
+    fn connect_at(&mut self, address: skein_io::Addr) -> Token {
         let Some(skein_io::Request::Connect { owner, addr }) = self.io.pop() else {
             panic!("Connect");
         };
-        assert_eq!(addr, skein_io::Addr::Ip(([127, 0, 0, 1], 3000).into()));
+        assert_eq!(addr, address);
         assert_eq!(self.io.len(), 0);
         owner
     }
@@ -879,13 +882,16 @@ const ADMIN_BODY: &[u8] = br#"{"id":1,"login":"kit-admin","is_admin":true,"full_
 const BOT_BODY: &[u8] = br#"{"id":42,"login":"kit","is_admin":false,"full_name":"kit:bot"}"#;
 const SETTINGS_BODY: &[u8] = br#"{"max_response_items":4,"default_paging_num":30}"#;
 impl World {
-    #[expect(clippy::disallowed_macros, reason = "the HTTP fixture frames its body's length")]
     fn reply(&mut self, body: &[u8]) {
+        self.reply_at(body, skein_io::Addr::Ip(([127, 0, 0, 1], 3000).into()));
+    }
+    #[expect(clippy::disallowed_macros, reason = "the HTTP fixture frames its body's length")]
+    fn reply_at(&mut self, body: &[u8], address: skein_io::Addr) {
         use skein_lib::{
             Intake,
             stream::{Down, Up},
         };
-        let owner = self.connect();
+        let owner = self.connect_at(address);
         self.event(skein_io::Event::Connecting { owner, socket: owner });
         self.event(skein_io::Event::Connected { owner });
         let mut intake = Intake::with_capacity(limits().body_bytes_in);
@@ -1428,3 +1434,6 @@ fn abort_when_idle_is_closed_at_once() {
     assert!(w.io.is_empty());
     assert_eq!(w.host.next_deadline(), None);
 }
+
+#[path = "host_add.rs"]
+mod add;

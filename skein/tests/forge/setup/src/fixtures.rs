@@ -669,6 +669,7 @@ pub mod github_stories {
                 Heard::Done { run, .. } | Heard::Stop { run, .. } => {
                     assert!(terminals.insert(run.raw()), "one terminal per run");
                 }
+                Heard::Added { .. } => {}
                 Heard::Closed { .. } => panic!("close follows run terminals"),
             }
         }

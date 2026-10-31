@@ -129,6 +129,7 @@ fn copy_io(request: &skein_io::Request) -> skein_io::Request {
 }
 fn request_bytes(request: &Request) -> usize {
     match request {
+        Request::Add { forge } => forge_bytes(forge),
         Request::Answer { answer: Answer::Read(Some(bytes)), .. } => bytes.len(),
         Request::Run { plan, .. } => match plan {
             Plan::Reconcile { adopted, .. } => adopted.len() * size_of::<u64>(),
@@ -150,6 +151,16 @@ fn request_bytes(request: &Request) -> usize {
         },
         Request::Answer { answer: Answer::Read(None) | Answer::Written, .. } | Request::Close | Request::Abort => 0,
     }
+}
+
+fn forge_bytes(forge: &skein_forge_setup::host::Forge) -> usize {
+    // A copy measures the owned settings, while TLS trust stays shared with
+    // the owner outside the measured host.
+    let span = Span::start();
+    let copied = forge.clone();
+    let bytes = span.end().net;
+    drop(copied);
+    usize::try_from(bytes).expect("a forge copy owns its heap")
 }
 
 #[derive(Clone, Copy, Debug)]

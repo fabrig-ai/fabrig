@@ -499,6 +499,7 @@ pub(crate) fn advance(engine: &mut crate::engine::Engine) {
                     }
                 }
             }
+            host::Event::Added { .. } => {} // fr-setup adds forges at runtime
             host::Event::Done { run, outcome } => lifecycle::done(engine, run, outcome),
             host::Event::Stop { run, failure } => lifecycle::stopped(engine, run, failure),
             host::Event::Closed => engine.setup.closed = true,

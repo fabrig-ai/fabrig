@@ -3,7 +3,7 @@ use crate::{fixtures, tls::Carrier, world::seeded_config};
 use skein_fake_forge_protocol::{self as fake, Service};
 use skein_forge_machine_world::github::{self, Fake};
 use skein_forge_setup::{
-    host::{Answer, Event, Host, Limits, Need, Plan, Request, Settings},
+    host::{Answer, Event, Host, Limits, Need, Plan, Request, Settings, Unusable},
     item::Item,
     reconcile::{Failure, Outcome},
 };
@@ -26,6 +26,7 @@ pub enum Connect {
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Heard {
+    Added { forge: u16, refused: Option<Unusable>, at: Duration },
     Done { run: Token, outcome: Outcome, at: Duration },
     Stop { run: Token, failure: Failure, at: Duration },
     Closed { at: Duration },
@@ -477,6 +478,7 @@ impl HostWorld {
         while let Some(event) = self.above.pop() {
             let at = self.env.now.saturating_since(Time::ZERO);
             match event {
+                Event::Added { forge, refused } => self.heard.push(Heard::Added { forge, refused, at }),
                 Event::Need { run, need } => {
                     self.needs_by_run.push((run, need.clone()));
                     self.needs.push(need.clone());
