@@ -222,8 +222,8 @@ fn the_welcome_has_a_bare_frame_and_no_banner() {
     assert_eq!(tree.nodes().iter().filter(|node| node.role == Role::Region).count(), 2);
 }
 #[test]
-fn the_welcome_step_says_its_words_and_offers_both_cards() {
-    let root = f::welcome_root(Step::Welcome, true);
+fn an_empty_store_offers_both_cards() {
+    let root = f::welcome_root(Step::Welcome, false);
     assert!(root.pages().welcome().unwrap().decided);
     let view = f::page_view(&root);
     let mut bytes = Vec::new();
@@ -300,15 +300,6 @@ fn the_welcome_tagline_and_lead_are_named_and_emphasize_what_and_how() {
     );
 }
 #[test]
-fn a_document_with_no_demo_has_neither_the_playground_card_nor_the_closing_line() {
-    let root = f::welcome_root(Step::Welcome, false);
-    assert!(root.pages().welcome().unwrap().decided);
-    let view = f::page_view(&root);
-    node(view.tree(), Role::Region, "Set up temper");
-    let words = String::from_utf8_lossy(&f::text(view.tree())).into_owned();
-    assert!(!words.contains("playground"));
-}
-#[test]
 fn the_welcome_shows_its_heading_alone_until_it_decides() {
     let (mut root, _, _) = f::root_at(Address::Chats { filter: ChatsFilter::All, start: false }, &f::limits());
     f::root_event(&mut root, d::Event::Went { place: d::Place::Address(Address::Welcome { step: Step::Welcome }) });
@@ -372,7 +363,7 @@ fn the_model_step_offers_the_accounts_ways() {
     assert!(view.tree().nodes().iter().any(|node| node.role == Role::TextField));
 }
 #[test]
-fn each_later_step_offers_back_later_and_the_playground_while_the_demo_is_answered() {
+fn each_later_step_offers_the_playground_only_for_an_empty_store() {
     for (step, back) in
         [(Step::Forge { forge: None }, Step::Welcome), (Step::Model { way: None }, Step::Forge { forge: None })]
     {
@@ -400,8 +391,8 @@ fn each_later_step_offers_back_later_and_the_playground_while_the_demo_is_answer
                         .contains(&crate::look::FLOW_QUIET)
                 );
             }
-            assert_eq!(f::find(view.tree(), Role::Button, b"Try the playground instead").is_some(), demo);
-            if demo {
+            assert!(f::find(view.tree(), Role::Button, b"Try the playground instead").is_some());
+            {
                 let id = node(view.tree(), Role::Button, "Try the playground instead");
                 assert!(
                     !view
@@ -597,7 +588,7 @@ fn ready_has_no_foot_controls() {
 }
 
 #[test]
-fn a_connected_real_forge_hides_the_playground_before_its_end_is_read() {
+fn a_kept_real_forge_hides_the_playground() {
     let mut cases = Vec::new();
     cases.push(forge::rows(forge::connected(), w::Offer::Offered));
     for app in [w::AppWay::Manifest, w::AppWay::Pasted] {
@@ -610,7 +601,7 @@ fn a_connected_real_forge_hides_the_playground_before_its_end_is_read() {
     for rows in cases {
         for step in [Step::Forge { forge: None }, Step::Model { way: None }] {
             let root = f::demo_forges_root(Address::Welcome { step }, rows.clone());
-            assert!(root.forge().demo().is_some(), "the cached answer has not been reread yet");
+            assert!(root.forge().playground().is_some(), "the cached answer has not been reread yet");
             let view = f::page_view(&root);
             assert!(f::find(view.tree(), Role::Button, b"Try the playground instead").is_none());
         }
@@ -646,40 +637,6 @@ fn ready_under_way_lists_model_forge_and_project_with_folded_progress() {
     assert!(!view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&crate::look::FLOW_CARD)));
     let open = node(view.tree(), Role::Button, "Open Shop");
     assert!(view.tree().nodes().iter().find(|n| n.id == open).unwrap().states.as_slice().contains(&State::Disabled));
-}
-
-#[test]
-fn model_choose_excludes_the_playgrounds_provider_before_and_after_retirement() {
-    let address = Address::Welcome { step: Step::Model { way: None } };
-    let (mut root, watch) = super::choice::playground_offers_root(address, true);
-    let check = |root: &d::Domain| {
-        let mut view = f::page_view(root);
-        let tree = view.tree();
-        assert!(f::find(tree, Role::Heading { level: 2 }, b"A demo API key").is_none());
-        node(tree, Role::Heading { level: 2 }, "ChatGPT");
-        node(tree, Role::Heading { level: 2 }, "An OpenAI API key");
-        let headings: Vec<_> = tree
-            .nodes()
-            .iter()
-            .filter(|n| n.role == (Role::Heading { level: 2 }))
-            .map(|n| n.name.as_deref().unwrap())
-            .collect();
-        assert_eq!(headings, [b"ChatGPT".as_slice(), b"An OpenAI API key"]);
-        let key = node(tree, Role::Link, "Use an API key");
-        assert_eq!(
-            crate::act(&mut view, key, Act::Press),
-            Some(d::Action::Pages(pages::Act::Go {
-                address: Address::Welcome {
-                    step: Step::Model { way: Some(d::ModelWay { provider: 18, source: None, kind: d::WayKind::Key }) }
-                }
-            }))
-        );
-    };
-    check(&root);
-    let read = super::choice::retire_playground(&mut root, watch);
-    check(&root);
-    super::choice::answer_retired_playground(&mut root, read);
-    check(&root);
 }
 
 #[test]
@@ -1196,4 +1153,44 @@ fn welcome_forgejo_card_runs_under_the_box_and_links_to_details_elsewhere() {
             Some(b"https://github.com/fabrig-ai/temper/blob/main/docs/help/server.md".as_slice())
         );
     }
+}
+
+fn first_run_destination(root: &mut d::Domain) -> Address {
+    let mut out = skein_lib::Queue::uncapped();
+    d::step(
+        root,
+        &skein_lib::Env { now: skein_lib::Time::ZERO, wall: f::NOW, limits: f::limits() },
+        d::Event::Went { place: d::Place::Address(Address::Welcome { step: Step::Welcome }) },
+        &mut out,
+    );
+    for request in &out {
+        if let d::Request::Show { address, replace: true } = request {
+            return address.clone();
+        }
+    }
+    panic!("first-run destination");
+}
+
+#[test]
+fn an_unfinished_store_opens_at_its_step() {
+    for (rows, step, heading) in [
+        (forge::rows(w::Connection::NotSetUp, w::Offer::Offered), Step::Forge { forge: None }, "Connect a forge"),
+        (owned_adopted_rows(), Step::Model { way: None }, "Connect a model"),
+    ] {
+        let mut root = f::forge_root(Address::Welcome { step: Step::Ready }, rows);
+        assert_eq!(pages::welcome::decision(&root), Some(pages::welcome::FirstRun::Unfinished { step }));
+        let address = first_run_destination(&mut root);
+        assert_eq!(address, Address::Welcome { step });
+        f::root_event(&mut root, d::Event::Went { place: d::Place::Address(address) });
+        let view = f::page_view(&root);
+        node(view.tree(), Role::Heading { level: 1 }, heading);
+        assert!(f::find(view.tree(), Role::Button, b"Try the playground instead").is_none());
+    }
+}
+
+#[test]
+fn a_whole_store_moves_on() {
+    let mut root = ready_root(owned_adopted_rows());
+    assert_eq!(pages::welcome::decision(&root), Some(pages::welcome::FirstRun::Whole));
+    assert_eq!(first_run_destination(&mut root), Address::Chats { filter: ChatsFilter::All, start: false });
 }

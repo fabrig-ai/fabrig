@@ -1574,7 +1574,7 @@ pub fn demo_start_attempt(root: &mut temper_client_domain::Domain) -> Token {
                     down: jig_client::Down::Send { attempt, request: jig_client::Ask::Family { record, .. }, .. },
                 },
         } = request
-            && *wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request() == w::Request::StartDemo
+            && *wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request() == w::Request::StartPlayground
         {
             return attempt;
         }

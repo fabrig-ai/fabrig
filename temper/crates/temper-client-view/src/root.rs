@@ -80,7 +80,7 @@ impl View {
         let Some(form) = root.forge().form() else { return };
         let project = crate::pages::project_name(
             root.pages().me(root.client()),
-            root.forge().demo(),
+            root.forge().playground(),
             form.project,
             &self.forge_words,
         );

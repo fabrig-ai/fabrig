@@ -3,7 +3,10 @@ use super::{
     Demo, connect,
     forges::{Connection, Mode, Row, State},
 };
-use crate::{Domain, Step, pages::{accounts, welcome}};
+use crate::{
+    Domain, Step,
+    pages::{accounts, welcome},
+};
 use skein_lib::List;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
