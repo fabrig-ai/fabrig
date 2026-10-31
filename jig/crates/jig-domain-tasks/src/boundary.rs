@@ -63,7 +63,7 @@ pub enum NoticeState {
     Cancelled,
 }
 
-/// One bounded standing task or timer interest; topics are joined in session 07.
+/// One bounded standing task, timer or topic interest.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum SubscriptionKind {
     Task { target: u64, held: bool, result: bool },
@@ -108,7 +108,7 @@ pub enum MessageKind {
     Notice { subscription: u64, target: u64, state: NoticeState },
     /// Merged timer fire for one standing interest.
     Timer { subscription: u64 },
-    /// Merged connector hint; the connector route arrives in session 07.
+    /// Merged connector hint routed by its topic.
     News { subscription: u64, class: NewsClass },
     /// A delegate's terminal result, sent with its end.
     Result(ResultKind),
@@ -415,8 +415,7 @@ pub enum Parameter {
     },
 }
 
-/// Owned bounded task description supplied by root; current admission requires empty historical
-/// inputs. (domain/tasks.md, section 3).
+/// Owned task description supplied by root, bounded at admission (domain/tasks.md, section 3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Spec {
     /// Owned UTF-8 specification words; combined with text-valued parameters, bounded by
@@ -425,8 +424,7 @@ pub struct Spec {
     /// Parameters bounded by `Limits::parameters`; tasks does not interpret their names, and
     /// current root chat construction supplies an empty slice.
     pub parameters: Box<[Parameter]>,
-    /// Historical input identities, bounded by `Limits::inputs` for shape measurement;
-    /// current `Make` and live restore require this slice empty.
+    /// Historical input identities, bounded by `Limits::inputs` on creation and restore.
     pub inputs: Box<[u64]>,
     /// Immutable obligation to ask its requester a question (domain/tasks.md, 5.7).
     pub asks: bool,
@@ -776,8 +774,7 @@ pub enum Phase {
     Active(Active),
     /// Pending ending waits for ordered activation/delegate/root settlement.
     Closing(/** Owned pending ending and next closing obligation. */ Closing),
-    /// Prior lifecycle preserved for a decision; current contracted API exposes no general
-    /// release/amend route.
+    /// Prior lifecycle preserved until a release or amendment lifts the hold.
     Held {
         /** Prior phase retained and updated while held; the hold is not lifted by a terminal. */
         was: Was,
@@ -1320,8 +1317,7 @@ pub enum Refusal {
     Contract,
     /// Carried authority collections or aggregate bytes exceed the configured shape bounds.
     AuthorityShape,
-    /// Historical inputs are nonempty; no current root historical-input creation route is
-    /// implemented.
+    /// Historical inputs exceed their bound or cannot be resolved for the requesting task.
     Inputs,
     /// Current task phase does not permit the requested admission.
     State,
@@ -1975,7 +1971,7 @@ pub enum Request {
     Ended {
         /** Task removed from the live arena and saved as a historical ended row. */
         task: u64,
-        /** Requester identifying this notification; current root consumes person result notices, and tasks retains no delivery credit or inbox. */
+        /** Requester identifying this notification; the parent routes person result notices. */
         requester: Party,
         /** Bounded final result/reason; emitted with ended/funder writes in one root decision. */
         ending: Ending,

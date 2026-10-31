@@ -21,6 +21,7 @@ pub struct CompoundTask<'a> {
     pub root: u64,
     pub depth: u32,
     pub last_message: u64,
+    pub proposal: Option<&'a crate::Proposal>,
     pub inbox: &'a [crate::Word],
     pub instructions: &'a Option<Box<[u8]>>,
     pub spec: &'a crate::Spec,
@@ -161,8 +162,85 @@ impl Staged {
         false
     }
 
+    pub(crate) fn delegate_credit(&self, domain: &crate::Domain, number: u64) -> bool {
+        if let Some(row) = self.base(domain, number) {
+            return crate::person::credit(row);
+        }
+        for (member, executor) in &self.batch_members {
+            if *member == number {
+                return match executor {
+                    Executor::Person(_) => true,
+                    Executor::Agent { .. } | Executor::Procedure { .. } => false,
+                };
+            }
+        }
+        unreachable!("delegate is live or in the admitted batch")
+    }
+
+    fn row_mut(&mut self, domain: &crate::Domain, number: u64) -> &mut TaskRecord {
+        let mut at = None;
+        for (index, row) in self.rows.as_slice().iter().enumerate() {
+            if row.number == number {
+                at = Some(u32::try_from(index).expect("bounded touched rows"));
+                break;
+            }
+        }
+        let at = match at {
+            Some(at) => at,
+            None => {
+                let at = self.rows.len();
+                self.rows
+                    .push(crate::domain::record(domain, number).expect("admitted task").clone())
+                    .expect("live task bound");
+                at
+            }
+        };
+        self.rows.get_mut(at).expect("touched row retained")
+    }
+
+    pub(crate) fn message_credits(
+        &mut self,
+        domain: &crate::Domain,
+        limits: &crate::Limits,
+        plan: &crate::inbox::MessagePlan,
+    ) {
+        let row = self.row_mut(domain, plan.number);
+        crate::positions::message(row, &plan.prepared.word, limits.inbox_messages);
+        if let Some(question) = plan.answer {
+            let mut credits = skein_lib::List::with_capacity(limits.inbox_messages);
+            for credit in &row.questions {
+                if credit.number != question {
+                    credits.push(credit.clone()).expect("credit subset");
+                }
+            }
+            row.questions = credits.into_boxed();
+        }
+        if plan.prepared.word.kind == crate::MessageKind::Question {
+            let Party::Task(source) = plan.prepared.word.from else { unreachable!("question source checked") };
+            let credit = crate::inbox::question_credit(domain, plan.number, &plan.prepared.word);
+            let requester = self.record(domain, source).expect("admitted sender").requester;
+            let row = self.row_mut(domain, source);
+            row.asked_requester |= requester == Party::Task(plan.number);
+            let mut credits = skein_lib::List::with_capacity(limits.inbox_messages);
+            for credit in &row.questions {
+                credits.push(credit.clone()).expect("bounded credits");
+            }
+            credits.push(credit).expect("question checked");
+            row.questions = credits.into_boxed();
+        }
+    }
+
+    fn base<'a>(&'a self, domain: &'a crate::Domain, number: u64) -> Option<&'a TaskRecord> {
+        for row in &self.rows {
+            if row.number == number {
+                return Some(row);
+            }
+        }
+        crate::domain::record(domain, number)
+    }
+
     pub(crate) fn record<'a>(&'a self, domain: &'a crate::Domain, number: u64) -> Option<CompoundTask<'a>> {
-        let base = crate::domain::record(domain, number)?;
+        let base = self.base(domain, number)?;
         let mut row = borrowed(base);
         for (at, plan) in self.plans.as_slice().iter().enumerate() {
             if let Plan::Cancel(cancel) = plan
@@ -225,28 +303,17 @@ impl Staged {
                     row.inbox = &plan.prepared.inbox;
                     row.wake(&plan.prepared.word);
                 }
-                Plan::Cancel(plan) if plan.number == number => match &plan.finish {
-                    Some(crate::grace::FinishPlan::Word { finish, reason, prepared }) => {
-                        row.grace = Some(Grace {
-                            by: finish.by,
-                            until: finish.until,
-                            reason: reason.clone(),
-                            message: finish.message,
-                        });
-                        row.last_message = finish.message;
-                        row.inbox = &prepared.inbox;
-                        row.revision = row.revision.checked_add(1).expect("admission checked");
-                        row.wake(&prepared.word);
-                    }
-                    Some(crate::grace::FinishPlan::Sooner { finish, reason }) => {
-                        let grace = row.grace.as_mut().expect("earlier grace");
-                        grace.by = finish.by;
-                        grace.until = finish.until;
-                        grace.reason.clone_from(reason);
-                    }
-                    Some(crate::grace::FinishPlan::Cancel { .. } | crate::grace::FinishPlan::Unchanged) | None => {}
-                },
-                Plan::Amend(_) | Plan::Release(_) | Plan::Message(_) | Plan::Stop(_) | Plan::Cancel(_) => {}
+                Plan::Cancel(plan) if plan.number == number => project_cancel(&mut row, plan),
+                Plan::Proposal(proposal) if proposal.proposer == number => {
+                    row.proposal = Some(proposal);
+                    row.revision = row.revision.checked_add(1).expect("proposal checked");
+                }
+                Plan::Proposal(_)
+                | Plan::Amend(_)
+                | Plan::Release(_)
+                | Plan::Message(_)
+                | Plan::Stop(_)
+                | Plan::Cancel(_) => {}
             }
             if let Some(Some((changed, circle))) = self.circles.get(u32::try_from(at).expect("bounded operations"))
                 && *changed == number
@@ -314,7 +381,7 @@ impl Staged {
                     ),
                 )
             }
-            Plan::Cancel(_) | Plan::Move { .. } | Plan::Message(_) | Plan::Stop(_) => None,
+            Plan::Proposal(_) | Plan::Cancel(_) | Plan::Move { .. } | Plan::Message(_) | Plan::Stop(_) => None,
         }
     }
 
@@ -404,7 +471,7 @@ impl Staged {
         project: u32,
         limits: &crate::Limits,
     ) -> Result<(), crate::Refusal> {
-        let mut goals = 0_u32;
+        let mut goals = self.batch_goals;
         for (number, _) in &domain.names {
             let row = self.record(domain, *number).expect("live task");
             if row.project == project && row.tracked.is_some() {
@@ -443,6 +510,26 @@ impl Staged {
         let Some(reserved) = reserved.checked_add(budget) else { return false };
         source.reserved = reserved;
         crate::funders::available(source).is_some()
+    }
+}
+
+fn project_cancel<'a>(row: &mut CompoundTask<'a>, plan: &'a crate::control::CancelPlan) {
+    match &plan.finish {
+        Some(crate::grace::FinishPlan::Word { finish, reason, prepared }) => {
+            row.grace =
+                Some(Grace { by: finish.by, until: finish.until, reason: reason.clone(), message: finish.message });
+            row.last_message = finish.message;
+            row.inbox = &prepared.inbox;
+            row.revision = row.revision.checked_add(1).expect("admission checked");
+            row.wake(&prepared.word);
+        }
+        Some(crate::grace::FinishPlan::Sooner { finish, reason }) => {
+            let grace = row.grace.as_mut().expect("earlier grace");
+            grace.by = finish.by;
+            grace.until = finish.until;
+            grace.reason.clone_from(reason);
+        }
+        Some(crate::grace::FinishPlan::Cancel { .. } | crate::grace::FinishPlan::Unchanged) | None => {}
     }
 }
 
@@ -538,6 +625,7 @@ fn borrowed(base: &TaskRecord) -> CompoundTask<'_> {
         root: base.root,
         depth: base.depth,
         last_message: base.last_message,
+        proposal: base.proposal.as_deref(),
         inbox: &base.inbox,
         instructions: &base.instructions,
         spec: &base.spec,

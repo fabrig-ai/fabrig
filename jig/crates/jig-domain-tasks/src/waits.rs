@@ -937,7 +937,7 @@ struct Gate {
     threshold: u32,
 }
 
-pub(crate) fn pool_changed(domain: &mut Domain, _limits: &Limits) {
+pub(crate) fn pool_changed(domain: &mut Domain) {
     domain.circle_changes.all = true;
 }
 

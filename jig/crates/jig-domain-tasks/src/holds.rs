@@ -91,7 +91,7 @@ pub(crate) fn slots(domain: &mut Domain, env: &Env<Limits>, pool: Name, slots: u
     out.push(Request::Save { record: Stored::Pool(row) });
     // A slot report can both close a circle and free a held waiter (6.6–6.7).
     check_waiters(domain, env, &pool, out);
-    crate::waits::pool_changed(domain, limits);
+    crate::waits::pool_changed(domain);
 }
 
 /// A shrink or retained hold changes whom existing queues wait for (domain/tasks.md, 6.7).
@@ -548,7 +548,7 @@ pub(crate) fn queued(row: &TaskRecord) -> bool {
 }
 
 /// Take every resource in the same commit as activation.
-pub(crate) fn take(domain: &mut Domain, _env: &Env<Limits>, number: u64, out: &mut Queue<Request>) {
+pub(crate) fn take(domain: &mut Domain, number: u64, out: &mut Queue<Request>) {
     let holdings = record(domain, number).expect("waiting task live").holdings.clone();
     let row = task_mut(domain, number).expect("waiting task live");
     row.record.holds_taken = true;

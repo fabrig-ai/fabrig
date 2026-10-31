@@ -167,7 +167,7 @@ pub struct ResultRow {
     pub task: u64,
 }
 
-/// Lifetime ended descendants' outcomes, saturating (decisions.md 9, ruling 131).
+/// Lifetime ended descendants' outcomes, saturating (domain/tasks.md, section 3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Endings {
     pub done: u32,
