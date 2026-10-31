@@ -32,10 +32,24 @@ mode = "direct"
 needs = []
 design = "skein/docs/design/draft/component-kit.md, 3.6"
 
+[[part]]
+id = "echo-first"
+title = "the echo example's service and client on skein_io::stage"
+mode = "direct"
+needs = []
+design = "skein/docs/design/draft/component-kit.md, 3.2"
+
+[[part]]
+id = "world-surfaces"
+title = "Referee defaults, a provided Host::next_deadline and a forwarding Host"
+mode = "direct"
+needs = []
+design = "skein/docs/design/draft/component-kit.md, 3.5"
+
 [[slice]]
 id = 1
 story = "the echo example's host runs on skein_io::stage, its story test green"
-parts = ["kit-contract"]
+parts = ["kit-contract", "echo-first"]
 walk = false
 
 [[slice]]
@@ -47,5 +61,5 @@ walk = false
 [[slice]]
 id = 3
 story = "Referee and Host defaults, the forwarding Host, and Abort in both forge components"
-parts = ["abort"]
+parts = ["world-surfaces", "abort"]
 walk = false
