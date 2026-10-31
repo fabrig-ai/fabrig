@@ -48,9 +48,7 @@ pub(crate) fn owner_escalation_choice(value: &w::OwnerEscalationChoice, _limits:
 #[expect(clippy::manual_map, reason = "step code matches optional fields")]
 pub(crate) fn owner_outcome(value: &w::OwnerOutcome, limits: &Limits) -> Result<c::OwnerOutcome, w::Problem> {
     Ok(match value {
-        w::OwnerOutcome::ProjectRemoved(_) => {
-            unreachable!("project deletion outcomes are not carried by the client domain")
-        }
+        w::OwnerOutcome::ProjectRemoved(row) => c::OwnerOutcome::ProjectRemoved { project: row.project() },
         w::OwnerOutcome::Created(row) => c::OwnerOutcome::Created {
             first: row.first(),
             last: row.last(),

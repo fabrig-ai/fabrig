@@ -116,6 +116,7 @@ pub(super) fn restore(value: w::Compound, limits: &Limits) -> Result<c::Ask, w::
             | c::Ask::SignIn { .. }
             | c::Ask::AccountChange { .. }
             | c::Ask::SignOut { .. }
+            | c::Ask::RemoveProject { .. }
             | c::Ask::Rename { .. }
             | c::Ask::MakeProject { .. }
             | c::Ask::SetPool { .. } => return Err(problem()),

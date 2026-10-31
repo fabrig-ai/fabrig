@@ -245,6 +245,10 @@ pub enum Ask {
         project: u32,
         name: Text,
     },
+    /// Remove a project as its owner (temper/docs/design/draft/playground-reset.md, 5).
+    RemoveProject {
+        project: u32,
+    },
     /// Make a project in the deployment scope (contract.md, 7.5).
     MakeProject {
         name: Text,

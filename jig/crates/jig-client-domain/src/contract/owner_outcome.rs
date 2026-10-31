@@ -142,6 +142,10 @@ pub enum OwnerOutcome {
     Renamed {
         project: u32,
     },
+    /// The project was removed (temper/docs/design/draft/playground-reset.md, 5).
+    ProjectRemoved {
+        project: u32,
+    },
     /// A project was made in the deployment.
     ProjectMade {
         project: u32,

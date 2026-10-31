@@ -25,6 +25,7 @@ pub(super) fn encode_act_kind(value: jig_client::contract::ActKind, out: &mut En
         jig_client::contract::ActKind::SetRoles => out.string(b"set_roles"),
         jig_client::contract::ActKind::MakeService => out.string(b"make_service"),
         jig_client::contract::ActKind::SetPool => out.string(b"set_pool"),
+        jig_client::contract::ActKind::RemoveProject => out.string(b"remove_project"),
         jig_client::contract::ActKind::Rename => out.string(b"rename"),
         jig_client::contract::ActKind::Withdraw => out.string(b"withdraw"),
     }
