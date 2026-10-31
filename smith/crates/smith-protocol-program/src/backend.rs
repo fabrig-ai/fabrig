@@ -528,7 +528,9 @@ impl Backend {
                 State::Ending => self.terminate(env.now),
                 State::Running => {
                     let phase = match &self.request {
-                        Some(FromDomain::Complete { deadlines, .. }) if env.now >= deadlines.whole => llm::CompletionPhase::Whole,
+                        Some(FromDomain::Complete { deadlines, .. }) if env.now >= deadlines.whole => {
+                            llm::CompletionPhase::Whole
+                        }
                         Some(FromDomain::Complete { .. } | FromDomain::Cancel { .. } | FromDomain::Yield { .. })
                         | None => self.response_phase,
                     };
