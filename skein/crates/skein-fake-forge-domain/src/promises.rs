@@ -905,8 +905,7 @@ fn encoded(bytes: &[u8]) -> Box<[u8]> {
         if unreserved(*byte) {
             writer.put(&[*byte]).expect("sized name byte");
         } else {
-            let high = hex(byte.checked_div(16).expect("nonzero divisor"));
-            let low = hex(byte.checked_rem(16).expect("nonzero divisor"));
+            let [high, low] = skein_lib::hex::pair(*byte, skein_lib::hex::Case::Upper);
             writer.put(&[b'%', high, low]).expect("sized escaped byte");
         }
     }
@@ -915,8 +914,4 @@ fn encoded(bytes: &[u8]) -> Box<[u8]> {
 
 fn unreserved(byte: u8) -> bool {
     byte.is_ascii_alphanumeric() || b"-._~".contains(&byte)
-}
-
-fn hex(nibble: u8) -> u8 {
-    *b"0123456789ABCDEF".get(usize::from(nibble)).expect("a hex nibble")
 }

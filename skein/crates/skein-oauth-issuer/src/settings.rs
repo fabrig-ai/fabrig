@@ -191,7 +191,7 @@ fn ipv6_host(host: &[u8]) -> bool {
 }
 fn port_number(port: &[u8]) -> bool {
     match skein_lib::Decimal::read(port) {
-        Some(number) => number != 0 && number <= u64::from(u16::MAX),
+        Some(number) => number != 0 && u16::try_from(number).is_ok(),
         None => false,
     }
 }

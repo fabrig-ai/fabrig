@@ -9,6 +9,7 @@ use crate::{
 };
 use alloc::boxed::Box;
 use skein_forge::github::{document, request::Method, server};
+use skein_lib::hex::{self, Case};
 use skein_lib::{Decimal, Duration, List, Map, Rng, Secret, Wall, Writer, bytes};
 
 /// One hour on the forge's clock; the expiry instant is excluded.
@@ -506,8 +507,8 @@ fn unescape(input: &[u8]) -> Option<Box<[u8]>> {
         let byte = match byte {
             b'+' => b' ',
             b'%' => {
-                let high = nibble(*input.get(at.checked_add(1)?)?)?;
-                let low = nibble(*input.get(at.checked_add(2)?)?)?;
+                let high = hex::read(*input.get(at.checked_add(1)?)?)?;
+                let low = hex::read(*input.get(at.checked_add(2)?)?)?;
                 at = at.checked_add(2)?;
                 high.checked_mul(16)?.checked_add(low)?
             }
@@ -518,19 +519,11 @@ fn unescape(input: &[u8]) -> Option<Box<[u8]>> {
     }
     Some(out.into_boxed())
 }
-fn nibble(byte: u8) -> Option<u8> {
-    match byte {
-        b'0'..=b'9' => byte.checked_sub(b'0'),
-        b'a'..=b'f' => byte.checked_sub(b'a')?.checked_add(10),
-        b'A'..=b'F' => byte.checked_sub(b'A')?.checked_add(10),
-        _ => None,
-    }
-}
 fn hex(rng: &mut Rng, length: usize) -> Option<Secret> {
     let mut out = Writer::new(length);
     for _byte in 0..length {
-        let index = usize::try_from(rng.below(16)).ok()?;
-        out.put(&[*b"0123456789abcdef".get(index)?]).ok()?;
+        let nibble = u8::try_from(rng.below(16)).ok()?;
+        out.put(&[hex::digit(nibble, Case::Lower)]).ok()?;
     }
     Some(Secret::new(out.finish()))
 }

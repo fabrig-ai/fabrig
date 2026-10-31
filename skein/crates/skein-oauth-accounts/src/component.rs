@@ -14,7 +14,7 @@ use crate::exchange::{Exchange, OwnerLock, Stage, Web};
 use crate::keeper::Store;
 use crate::route::{self, Socket};
 use crate::{Account, Asked, Ends, Event, Failure, Keeping, Limits, Refusal, Request, valid};
-use skein_lib::{CryptoRng, Duration, Env, Id, List, Queue, Slab, Time};
+use skein_lib::{CryptoRng, Duration, Env, Id, Lifecycle, List, Queue, Slab, Time};
 use skein_oauth::{self as oauth, SavedToken};
 
 mod accounts;
@@ -116,14 +116,6 @@ pub(crate) enum State {
     Loaded {
         record: SavedToken,
     },
-}
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum Lifecycle {
-    Live,
-    Closing,
-    Aborting,
-    Closed,
 }
 
 /// The owner's bounded accounts, exchanges and holds, ending with one Closed.
@@ -291,20 +283,16 @@ impl Component {
                 Some(Store::Private(_)) | None => {}
             },
             Request::Locked { account, answer } => self.locked(env, account, answer, up, io),
-            Request::Close => match self.lifecycle {
-                Lifecycle::Live => {
-                    self.lifecycle = Lifecycle::Closing;
+            Request::Close => {
+                if self.lifecycle.close() {
                     self.settled(up);
                 }
-                Lifecycle::Closing | Lifecycle::Aborting | Lifecycle::Closed => {}
-            },
-            Request::Abort => match self.lifecycle {
-                Lifecycle::Live | Lifecycle::Closing => {
-                    self.lifecycle = Lifecycle::Aborting;
+            }
+            Request::Abort => {
+                if self.lifecycle.abort() {
                     self.settled(up);
                 }
-                Lifecycle::Aborting | Lifecycle::Closed => {}
-            },
+            }
         }
     }
 

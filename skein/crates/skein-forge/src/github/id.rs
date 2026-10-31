@@ -23,8 +23,9 @@ pub fn write_commit(commit: &api::Commit) -> Option<[u8; 40]> {
     }
     let mut out = [0; 40];
     for (byte, pair) in commit.iter().take(20).zip(out.chunks_exact_mut(2)) {
-        *pair.first_mut()? = hex(byte / 16);
-        *pair.get_mut(1)? = hex(byte % 16);
+        let [high, low] = hex::pair(*byte, Case::Lower);
+        *pair.first_mut()? = high;
+        *pair.get_mut(1)? = low;
     }
     Some(out)
 }

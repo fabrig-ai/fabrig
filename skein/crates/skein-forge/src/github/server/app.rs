@@ -5,7 +5,7 @@ use super::super::{
     request::{self, Method, Request, Scope},
 };
 use super::{document, output_limits};
-use crate::forgejo::{id::unsigned, time};
+use crate::forgejo::time;
 use alloc::boxed::Box;
 use skein_json::{tokenizer, writer::Encoder};
 use skein_lib::{
@@ -26,10 +26,10 @@ pub(super) fn route(method: Method, path: &[u8], page: Option<u32>, size: Option
     }
     if let Some(tail) = path.strip_prefix(b"/app/installations/") {
         return match method {
-            Method::Get => Some(Request::Installation { id: unsigned(tail)? }),
-            Method::Delete => Some(Request::Uninstall { id: unsigned(tail)? }),
+            Method::Get => Some(Request::Installation { id: skein_lib::Decimal::read(tail)? }),
+            Method::Delete => Some(Request::Uninstall { id: skein_lib::Decimal::read(tail)? }),
             Method::Post => Some(Request::Mint {
-                installation: unsigned(tail.strip_suffix(b"/access_tokens")?)?,
+                installation: skein_lib::Decimal::read(tail.strip_suffix(b"/access_tokens")?)?,
                 scope: Scope::Full,
             }),
             Method::Put | Method::Patch => None,

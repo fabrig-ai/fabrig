@@ -2,7 +2,7 @@
 use super::{Malformed, walk::Node};
 use crate::{
     api,
-    forgejo::{id::unsigned, time},
+    forgejo::time,
     github::{document, id},
 };
 use alloc::boxed::Box;
@@ -47,7 +47,7 @@ impl State {
     pub(super) fn scalar(&mut self, node: Node, key: &'static [u8], token: Token) -> Result<(), Malformed> {
         match token {
             Token::Number(text) => {
-                let number = unsigned(&text).ok_or(Malformed::Range { field: key })?;
+                let number = skein_lib::Decimal::read(&text).ok_or(Malformed::Range { field: key })?;
                 if node == Node::JobStep {
                     self.step.number = u32::try_from(number).or(Err(Malformed::Range { field: key }))?;
                 } else if node == Node::RunItem {

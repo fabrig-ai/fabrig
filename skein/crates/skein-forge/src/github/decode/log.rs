@@ -1,9 +1,6 @@
 //! Log rows and the trusted wrapper around the shared pushed-payload decoder.
 use super::{Malformed, delivery, walk::Node};
-use crate::{
-    forgejo::id::unsigned,
-    github::{guid, limits::Limits, log},
-};
+use crate::github::{guid, limits::Limits, log};
 use alloc::boxed::Box;
 use skein_json::{
     Token,
@@ -92,7 +89,7 @@ impl State {
     pub(super) fn scalar(&mut self, node: Node, key: &'static [u8], token: Token) -> Result<(), Malformed> {
         match token {
             Token::Number(text) => {
-                let value = unsigned(&text).ok_or(Malformed::Range { field: key })?;
+                let value = skein_lib::Decimal::read(&text).ok_or(Malformed::Range { field: key })?;
                 match key {
                     b"id" => self.row.id = value,
                     b"installation_id" => self.row.installation_id = Some(value),

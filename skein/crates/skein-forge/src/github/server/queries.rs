@@ -1,6 +1,5 @@
 //! Bounded GraphQL envelopes for the dialect's two byte-matched documents.
 use super::{Limits, document};
-use crate::forgejo::id::unsigned;
 use alloc::boxed::Box;
 use skein_json::{
     Token,
@@ -93,7 +92,7 @@ fn read_variables(tokens: &mut core::slice::Iter<'_, Token>, limits: &Limits) ->
                 let Token::Number(text) = tokens.next()? else {
                     return None;
                 };
-                number = Some(unsigned(text)?);
+                number = Some(skein_lib::Decimal::read(text)?);
             }
             _ => return None,
         }

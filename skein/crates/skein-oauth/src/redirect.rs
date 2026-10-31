@@ -4,6 +4,7 @@ use crate::{ClientLimits, Failure, Registration};
 use alloc::boxed::Box;
 use core::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use core::str::FromStr;
+use skein_lib::hex::{self, Case};
 use skein_lib::{Decimal, List, Writer, bytes};
 
 /// An issuer's additions to its client registration (oauth.md, section 1).
@@ -310,13 +311,11 @@ fn encoded_len(value: &[u8]) -> Result<usize, Failure> {
 }
 
 fn write_encoded(writer: &mut Writer, value: &[u8]) {
-    const HEX: &[u8] = b"0123456789ABCDEF";
     for &byte in value {
         if plain(byte) {
             writer.put(&[byte]).expect("measured encoding");
         } else {
-            let high = *HEX.get(usize::from(byte >> 4_u32)).expect("hex digit");
-            let low = *HEX.get(usize::from(byte & 15_u8)).expect("hex digit");
+            let [high, low] = hex::pair(byte, Case::Upper);
             writer.put(&[b'%', high, low]).expect("measured encoding");
         }
     }

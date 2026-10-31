@@ -447,7 +447,7 @@ impl Decoder {
                 return self.checks.scalar(node, key, token);
             }
             (Node::IdResult, b"id", Token::Number(text)) | (Node::NumberResult, b"number", Token::Number(text)) => {
-                self.result = crate::forgejo::id::unsigned(&text).ok_or(Malformed::Range { field: key })?;
+                self.result = skein_lib::Decimal::read(&text).ok_or(Malformed::Range { field: key })?;
             }
             (
                 node @ (Node::Compare
@@ -528,22 +528,22 @@ impl Decoder {
             (Node::Entry, b"name", Token::String(text)) => self.entry_name = text,
             (Node::Entry, b"type", Token::String(text)) => self.entry_kind = crate::directory::kind(&text),
             (Node::Collaborator, b"id", Token::Number(text)) => {
-                self.collaborator.id = crate::forgejo::id::unsigned(&text).ok_or(Malformed::Range { field: key })?;
+                self.collaborator.id = skein_lib::Decimal::read(&text).ok_or(Malformed::Range { field: key })?;
             }
             (Node::Collaborator, b"login", Token::String(text)) => self.collaborator.login = Some(text),
             (Node::Collaborator, b"role_name", Token::String(text)) => {
                 self.collaborator.permission = people::permission(&text)?;
             }
             (Node::User, b"id", Token::Number(text)) => {
-                self.user.id = crate::forgejo::id::unsigned(&text).ok_or(Malformed::Range { field: key })?;
+                self.user.id = skein_lib::Decimal::read(&text).ok_or(Malformed::Range { field: key })?;
             }
             (Node::User, b"login", Token::String(text)) => self.user.login = text,
             (Node::Permission, b"role_name", Token::String(text)) => self.permission = people::permission(&text)?,
             (Node::Repository, b"id", Token::Number(text)) => {
-                self.repository.id = crate::forgejo::id::unsigned(&text).expect("walker checked integer");
+                self.repository.id = skein_lib::Decimal::read(&text).expect("walker checked integer");
             }
             (Node::Owner, b"id", Token::Number(text)) => {
-                self.repository.owner_id = crate::forgejo::id::unsigned(&text).expect("walker checked integer");
+                self.repository.owner_id = skein_lib::Decimal::read(&text).expect("walker checked integer");
             }
             (Node::Owner, b"login", Token::String(text)) => self.repository.owner = text,
             (Node::Owner, b"type", Token::String(text)) => {

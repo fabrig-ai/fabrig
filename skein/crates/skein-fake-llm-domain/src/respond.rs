@@ -659,13 +659,12 @@ fn calls_any(parts: &[Part]) -> bool {
 ///
 /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
 fn call_id(n: u64) -> Box<[u8]> {
-    const HEX: &[u8; 16] = b"0123456789abcdef";
     let mut id = *b"call_0000000000000000";
-    let mut rest = n;
-    for digit in id.iter_mut().rev().take(16) {
-        let nibble = usize::try_from(rest & 0xF).expect("a nibble fits in a usize");
-        *digit = *HEX.get(nibble).expect("a nibble indexes sixteen digits");
-        rest = rest.wrapping_shr(4);
+    let digits = id.get_mut(5..).expect("sixteen digits after the prefix");
+    for (pair, byte) in digits.chunks_exact_mut(2).zip(n.to_be_bytes()) {
+        for (digit, spelled) in pair.iter_mut().zip(skein_lib::hex::pair(byte, skein_lib::hex::Case::Lower)) {
+            *digit = spelled;
+        }
     }
     copy_of(&id)
 }

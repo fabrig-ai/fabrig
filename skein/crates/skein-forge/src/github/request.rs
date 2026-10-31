@@ -783,8 +783,8 @@ pub(crate) fn unescape(text: &[u8]) -> Option<Box<[u8]>> {
             break;
         };
         let byte = if *byte == b'%' {
-            let high = escape_digit(*iter.next()?)?;
-            let low = escape_digit(*iter.next()?)?;
+            let high = skein_lib::hex::read(*iter.next()?)?;
+            let low = skein_lib::hex::read(*iter.next()?)?;
             high.checked_mul(16)?.checked_add(low)?
         } else {
             *byte
@@ -793,14 +793,6 @@ pub(crate) fn unescape(text: &[u8]) -> Option<Box<[u8]>> {
     }
     let out = out.into_boxed();
     if valid_text(&out) { Some(out) } else { None }
-}
-fn escape_digit(byte: u8) -> Option<u8> {
-    match byte {
-        b'0'..=b'9' => byte.checked_sub(b'0'),
-        b'a'..=b'f' => byte.checked_sub(b'a')?.checked_add(10),
-        b'A'..=b'F' => byte.checked_sub(b'A')?.checked_add(10),
-        _ => None,
-    }
 }
 
 fn selection(request: &Request) -> (Method, Auth) {

@@ -37,6 +37,7 @@
 
 use alloc::boxed::Box;
 
+use skein_lib::hex::{self, Case};
 use skein_lib::{Decimal, Stack, Writer};
 
 use crate::number;
@@ -279,7 +280,14 @@ impl Encoder {
                             Escaped::Plain => self.put(&[decoded]),
                             Escaped::Short(letter) => self.put(&[b'\\', letter]),
                             Escaped::Unicode => {
-                                self.put(&[b'\\', b'u', b'0', b'0', hex(decoded.wrapping_shr(4)), hex(decoded & 0x0F)]);
+                                self.put(&[
+                                    b'\\',
+                                    b'u',
+                                    b'0',
+                                    b'0',
+                                    hex::digit(decoded.wrapping_shr(4), Case::Lower),
+                                    hex::digit(decoded & 0x0F, Case::Lower),
+                                ]);
                             }
                         }
                     }
@@ -576,7 +584,14 @@ fn write_escaped_content(writer: &mut Writer, text: &[u8]) {
         let spelled: &[u8] = match escaped(byte) {
             Escaped::Plain => continue,
             Escaped::Short(letter) => &[b'\\', letter],
-            Escaped::Unicode => &[b'\\', b'u', b'0', b'0', hex(byte.wrapping_shr(4)), hex(byte & 0x0F)],
+            Escaped::Unicode => &[
+                b'\\',
+                b'u',
+                b'0',
+                b'0',
+                hex::digit(byte.wrapping_shr(4), Case::Lower),
+                hex::digit(byte & 0x0F, Case::Lower),
+            ],
         };
         if run != at {
             put(writer, text.get(run..at).expect("the run ends at this byte"));
@@ -586,14 +601,6 @@ fn write_escaped_content(writer: &mut Writer, text: &[u8]) {
     }
     if run != text.len() {
         put(writer, text.get(run..).expect("the run is within the text"));
-    }
-}
-
-/// The hex digit of a value below sixteen.
-fn hex(value: u8) -> u8 {
-    match value {
-        0..=9 => b'0'.wrapping_add(value),
-        _ => b'a'.wrapping_add(value).wrapping_sub(10),
     }
 }
 

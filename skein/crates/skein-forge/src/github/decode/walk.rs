@@ -1013,7 +1013,7 @@ impl Walk {
                 true
             }
             (Read::Number, Token::Number(text)) => {
-                if crate::forgejo::id::unsigned(text).is_none() {
+                if skein_lib::Decimal::read(text).is_none() {
                     return Err(Malformed::Range { field: field.key });
                 }
                 true

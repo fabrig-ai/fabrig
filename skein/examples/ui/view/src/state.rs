@@ -425,10 +425,8 @@ impl State {
 fn add_key(key: u64) -> Box<[u8]> {
     let mut out = Writer::new(20);
     out.put(b"add-").expect("key fits");
-    for digit in key.to_be_bytes() {
-        for nibble in [digit >> 4_u32, digit & 15] {
-            out.put(&[*b"0123456789abcdef".get(usize::from(nibble)).expect("hex digit")]).expect("key fits");
-        }
+    for byte in key.to_be_bytes() {
+        out.put(&skein_lib::hex::pair(byte, skein_lib::hex::Case::Lower)).expect("key fits");
     }
     out.finish()
 }

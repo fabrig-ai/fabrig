@@ -692,12 +692,12 @@ fn redirect(uri: &[u8], state: &[u8], code: &[u8], client_id: Option<&[u8]>, cap
 }
 
 fn percent(value: &[u8], out: &mut Vec<u8>) {
-    const HEX: &[u8] = b"0123456789ABCDEF";
     for &byte in value {
         if byte.is_ascii_alphanumeric() || b"-._~".contains(&byte) {
             out.push(byte);
         } else {
-            out.extend_from_slice(&[b'%', HEX[usize::from(byte >> 4)], HEX[usize::from(byte & 15)]]);
+            let [high, low] = skein_lib::hex::pair(byte, skein_lib::hex::Case::Upper);
+            out.extend_from_slice(&[b'%', high, low]);
         }
     }
 }
