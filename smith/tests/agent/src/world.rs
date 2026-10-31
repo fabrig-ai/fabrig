@@ -1182,7 +1182,7 @@ impl<B: Backend> World<B> {
                 self.flights.get_mut((Family::Check, owner)).expect("the check is pending").key = Some(key);
             }
             Request::Lower(smith_domain::Lower::Abort { owner }) => {
-                self.cancel(Family::Check, owner, Event::Below(smith_domain::Below::Aborted { owner }))
+                self.cancel(Family::Check, owner, Event::Below(smith_domain::Below::Aborted { owner }));
             }
             Request::Deliver { host_run, owner, change, name, deadline } => {
                 // Title/body are this fixture host's final-Change policy only.
@@ -1468,8 +1468,7 @@ impl<B: Backend> World<B> {
             }
             Event::Below(smith_domain::Below::Failed { .. }) => CompletionTerminal::Failed,
             Event::Below(smith_domain::Below::Cancelled { .. }) => CompletionTerminal::Cancelled,
-            Event::Below(smith_domain::Below::BuiltinResult { .. } | smith_domain::Below::ReadVersion { .. })
-            | Event::HostReturned { .. }
+            Event::HostReturned { .. }
             | Event::Start { .. }
             | Event::Message { .. }
             | Event::Acknowledge { .. }
@@ -1477,7 +1476,9 @@ impl<B: Backend> World<B> {
             | Event::Cancel { .. }
             | Event::Delivered { .. }
             | Event::Below(
-                smith_domain::Below::Done { .. }
+                smith_domain::Below::BuiltinResult { .. }
+                | smith_domain::Below::ReadVersion { .. }
+                | smith_domain::Below::Done { .. }
                 | smith_domain::Below::Read { .. }
                 | smith_domain::Below::Probed { .. }
                 | smith_domain::Below::Checked { .. }
@@ -1516,7 +1517,7 @@ impl<B: Backend> World<B> {
                 });
             }
             Event::Below(smith_domain::Below::Failed { .. } | smith_domain::Below::Cancelled { .. }) => {
-                self.observe(Seen::CompletionEnded { owner })
+                self.observe(Seen::CompletionEnded { owner });
             }
             Event::Below(smith_domain::Below::Checked { ran, .. }) => {
                 self.checked.push(ran.exit == (run::Exit::Code { code: 0 }));
@@ -1536,15 +1537,16 @@ impl<B: Backend> World<B> {
                 self.check_terminals.push(self.now);
                 self.observe(Seen::Checked { owner, exit: None });
             }
-            Event::Below(smith_domain::Below::BuiltinResult { .. } | smith_domain::Below::ReadVersion { .. })
-            | Event::HostReturned { .. }
+            Event::HostReturned { .. }
             | Event::Message { .. }
             | Event::Acknowledge { .. }
             | Event::Start { .. }
             | Event::Grant { .. }
             | Event::Cancel { .. }
             | Event::Below(
-                smith_domain::Below::Done { .. }
+                smith_domain::Below::BuiltinResult { .. }
+                | smith_domain::Below::ReadVersion { .. }
+                | smith_domain::Below::Done { .. }
                 | smith_domain::Below::Read { .. }
                 | smith_domain::Below::Probed { .. },
             ) => {}
@@ -1559,8 +1561,7 @@ impl<B: Backend> World<B> {
             Event::Below(smith_domain::Below::Failed { .. } | smith_domain::Below::Cancelled { .. }) => {
                 self.messages_seen.push((self.now, crate::messages_referee::Seen::CompletionEnded));
             }
-            Event::Below(smith_domain::Below::BuiltinResult { .. } | smith_domain::Below::ReadVersion { .. })
-            | Event::Cancel { .. }
+            Event::Cancel { .. }
             | Event::Start { .. }
             | Event::Message { .. }
             | Event::Acknowledge { .. }
@@ -1568,7 +1569,9 @@ impl<B: Backend> World<B> {
             | Event::HostReturned { .. }
             | Event::Delivered { .. }
             | Event::Below(
-                smith_domain::Below::Read { .. }
+                smith_domain::Below::BuiltinResult { .. }
+                | smith_domain::Below::ReadVersion { .. }
+                | smith_domain::Below::Read { .. }
                 | smith_domain::Below::Probed { .. }
                 | smith_domain::Below::Checked { .. }
                 | smith_domain::Below::Aborted { .. }

@@ -407,12 +407,12 @@ impl Harness {
                 | Request::WithdrawHost { .. }
                 | Request::Admitted { .. }
                 | Request::Deliver { .. }
-                | Request::Lower(crate::Lower::Complete { .. })
                 | Request::Unauthorized { .. }
                 | Request::Refused { .. }
                 | Request::Limited { .. }
                 | Request::Lower(
-                    crate::Lower::Cancel { .. }
+                    crate::Lower::Complete { .. }
+                    | crate::Lower::Cancel { .. }
                     | crate::Lower::Yield { .. }
                     | crate::Lower::Io { .. }
                     | crate::Lower::Job { .. }
@@ -1876,6 +1876,10 @@ fn settle_default_convention_control(harness: &mut Harness, run: Token, main: To
     };
 }
 
+fn whole_guide(owner: Token, text: &[u8]) -> Event {
+    Event::Below(crate::Below::Read { owner, read: run::Read::Text { text: bytes(text), whole: true } })
+}
+
 #[test]
 fn maximum_custom_guide_headings_obey_the_session_receiving_limit_after_discovery() {
     for maximum_paths in [false, true] {
@@ -1942,17 +1946,11 @@ fn maximum_custom_guide_headings_obey_the_session_receiving_limit_after_discover
             panic!("valid maximum paths admit before opening size is known: {emitted:?}");
         };
         let run = *run;
-        let emitted = harness.step(Event::Below(crate::Below::Read {
-            owner: run,
-            read: run::Read::Text { text: bytes(b"Small guide"), whole: true },
-        }));
+        let emitted = harness.step(whole_guide(run, b"Small guide"));
         let [Request::Lower(crate::Lower::Read { .. })] = emitted.as_ref() else {
             panic!("both admitted guide requests occur before opening refusal: {emitted:?}");
         };
-        let emitted = harness.step(Event::Below(crate::Below::Read {
-            owner: run,
-            read: run::Read::Text { text: bytes(b"Small guide"), whole: true },
-        }));
+        let emitted = harness.step(whole_guide(run, b"Small guide"));
         if maximum_paths {
             let [
                 Request::Answer {

@@ -86,7 +86,7 @@ impl LongWorld {
                 }
                 AgentRequest::Lower(smith_domain::Lower::Complete { owner, .. }) => self.completion = Some(owner),
                 AgentRequest::Lower(smith_domain::Lower::Io { owner, op: agent::tools::Op::Spawn { .. }, .. }) => {
-                    self.command = Some(owner)
+                    self.command = Some(owner);
                 }
                 AgentRequest::Lower(smith_domain::Lower::Job { .. }) => unreachable!("the tools issue no job act yet"),
                 AgentRequest::Lower(smith_domain::Lower::CancelIo { owner }) => {
