@@ -47,14 +47,11 @@ fn spawn_and_exit(
         state.reclaim();
         let now = clock.now();
         let env = Env { now: now.now, wall: now.wall, limits };
-        while state.is_ready() {
-            io::resume(state, &env, &mut events, &mut submissions);
-        }
         kernel.reap(&mut completions);
-        while let Some(complete) = completions.pop() {
-            deadline.watch_spawn(&complete);
-            io::up(state, &env, complete, &mut events, &mut submissions);
+        for complete in &completions {
+            deadline.watch_spawn(complete);
         }
+        io::stage::up(state, &env, &mut completions, &mut events, &mut submissions);
         while let Some(event) = events.pop() {
             match event {
                 Event::Spawned { owner, child, pipes } => {
