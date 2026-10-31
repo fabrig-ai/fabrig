@@ -126,7 +126,11 @@ fn route_ask(
 ) {
     match ask {
         core::Ask::ReleaseProject { project } => {
-            work.push(Work::Core(core::Event::ProjectReleased { connector: number, project }));
+            if let Some(releases) = &mut domain.scripted_project_releases {
+                releases.push((number, project));
+            } else {
+                work.push(Work::Connector { number, event: connector::Event::ReleaseProject { project } });
+            }
         }
         core::Ask::StepMade { task, step, first, revisions } => {
             domain.procedure_steps.remove(&task);
@@ -594,6 +598,9 @@ pub(super) fn route_connector(
 ) {
     for _ in 0..requests.len() {
         match requests.pop().expect("connector request count") {
+            connector::Request::ProjectReleased { project } => {
+                work.push(Work::Core(core::Event::ProjectReleased { connector: number, project }));
+            }
             connector::Request::Document { watcher, subject, document } => {
                 crate::client_documents::document(domain, env, decision, number, watcher, subject, document, work);
             }

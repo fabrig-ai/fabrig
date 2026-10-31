@@ -75,7 +75,7 @@ pub fn admits(party: u64, scope: &Scope, key: &crate::Key) -> bool {
             Key::Tasks(
                 TaskKey::Ledger(Funder::Period { project: owner, .. })
                 | TaskKey::ClosedLedger(Funder::Period { project: owner, .. }),
-            ) => owner == project,
+            ) => *project == jig_domain_people::DEPLOYMENT || owner == project,
             Key::Tasks(_) | Key::Core(_) | Key::People(_) | Key::Notes(_) | Key::Accounts(_) => false,
         },
         Scope::Notes { project } => match key {

@@ -1,14 +1,20 @@
 //! Stored rows without owner or transcript joins for whole-task erasure
 //! (jig/docs/design/protocol/store.md, 11.1).
-use super::{Failure, Spent, paged};
+use super::{Failure, Spent, joins, paged};
 use crate::{Store, intervals, pages};
 use ::core::mem::size_of;
 use alloc::boxed::Box;
 use jig_domain_core::{self as core, reads};
 use jig_domain_people as people;
+use jig_domain_tasks as tasks;
 use skein_lib::List;
 
-pub(super) fn read(store: &mut Store, range: &reads::Range, spent: &mut Spent) -> Result<reads::Loaded, Failure> {
+pub(super) fn read(
+    store: &mut Store,
+    range: &reads::Range,
+    task: Option<u64>,
+    spent: &mut Spent,
+) -> Result<reads::Loaded, Failure> {
     let intervals = intervals::scope(range.party, &range.scope).ok_or(Failure::Corrupt)?;
     let after = paged::cursor(range, &intervals)?;
     let walked = pages::walk(store, &intervals, after.as_ref(), spent.rows).ok_or(Failure::Corrupt)?;
@@ -17,6 +23,21 @@ pub(super) fn read(store: &mut Store, range: &reads::Range, spent: &mut Spent) -
     for item in walked.rows {
         let value = paged::decode(store, item.row)?;
         let position = reads::Position::Owner(value.key());
+        let selected = match task {
+            Some(task) => match belongs(store, &value, task, spent) {
+                Ok(selected) => selected,
+                Err(Failure::Cut | Failure::Joins) if last.is_some() && last != range.after => {
+                    return Ok(reads::Loaded::Page { rows: found.into_boxed(), next: last });
+                }
+                Err(error @ (Failure::Cut | Failure::Joins | Failure::Corrupt)) => return Err(error),
+            },
+            None => true,
+        };
+        if !selected {
+            spent.rows = spent.rows.checked_sub(1).ok_or(Failure::Cut)?;
+            last = Some(position);
+            continue;
+        }
         let row = reads::Row {
             value,
             owner: None,
@@ -48,4 +69,33 @@ pub(super) fn read(store: &mut Store, range: &reads::Range, spent: &mut Spent) -
         found.push(row).expect("bounded by walked rows");
     }
     Ok(reads::Loaded::Page { rows: found.into_boxed(), next: if walked.next.is_some() { last } else { None } })
+}
+
+fn belongs(store: &mut Store, value: &core::Record, task: u64, spent: &mut Spent) -> Result<bool, Failure> {
+    Ok(match value {
+        core::Record::Tasks(tasks::Stored::Update(row)) => row.task == task,
+        core::Record::Tasks(tasks::Stored::DecidedProposal(row)) => row.first() == task,
+        core::Record::Core(core::CoreRecord::ProposalDecision(row)) => match row.proposer {
+            people::Proposer::Task(proposer) => proposer == task,
+            people::Proposer::Party(_) => {
+                let key = core::Key::Tasks(tasks::Key::DecidedProposal(row.proposal));
+                match joins::get(store, &key, spent)? {
+                    Some(core::Record::Tasks(tasks::Stored::DecidedProposal(proposal))) => proposal.first() == task,
+                    Some(
+                        core::Record::Tasks(_)
+                        | core::Record::Core(_)
+                        | core::Record::People(_)
+                        | core::Record::Notes(_)
+                        | core::Record::Accounts(_),
+                    )
+                    | None => false,
+                }
+            }
+        },
+        core::Record::Tasks(_)
+        | core::Record::Core(_)
+        | core::Record::People(_)
+        | core::Record::Notes(_)
+        | core::Record::Accounts(_) => true,
+    })
 }

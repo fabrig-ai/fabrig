@@ -297,6 +297,41 @@ fn forgetting_a_project_erases_its_retained_answers_and_acts() {
 }
 
 #[test]
+fn a_removal_answer_stays_through_release_and_goes_with_its_deletion_row() {
+    for connector in [false, true] {
+        let mut people = People::new();
+        let act = Act::RemoveProject { project: PROJECT };
+        let ask = Ask::RemoveProject { project: PROJECT };
+        let admitted = if connector { people.act(1, act.clone()) } else { people.ask(1, ask.clone()) };
+        let request = route(&admitted);
+        let outcome = Outcome::ProjectRemoved { project: PROJECT };
+        people.send(Event::Deleting { project: PROJECT, step: Some(DeletionStep::Tasks) });
+        people.send(Event::Decided { request, outcome: outcome.clone() });
+        people.send(Event::CloseProject { project: PROJECT });
+        for step in [DeletionStep::Rows, DeletionStep::Release] {
+            people.send(Event::Deleting { project: PROJECT, step: Some(step) });
+            people.send(Event::ForgetProject { project: PROJECT });
+            let replay = if connector { people.act(1, act.clone()) } else { people.ask(1, ask.clone()) };
+            let expected = if connector {
+                Request::Acted { to: to(), outcome: outcome.clone() }
+            } else {
+                Request::Reply { to: to(), reply: Reply::Outcome(outcome.clone()) }
+            };
+            assert_eq!(replay, [expected], "removal answer during {step:?}");
+        }
+        let answer = if connector {
+            Key::Acted(ActKey { connector: CONNECTOR, key: [1; 16] })
+        } else {
+            Key::Answer(RequestKey { person: PERSON, key: [1; 16] })
+        };
+        let erased = people.send(Event::Deleting { project: PROJECT, step: None });
+        assert!(erased.contains(&Request::Erase { key: answer }));
+        assert!(!people.rows.contains_key(&answer));
+        assert!(!people.rows.contains_key(&Key::Deletion(PROJECT)));
+    }
+}
+
+#[test]
 fn an_owner_may_ask_to_remove_a_project_and_a_member_may_not() {
     let mut people = People::new();
     let ask = Ask::RemoveProject { project: PROJECT };

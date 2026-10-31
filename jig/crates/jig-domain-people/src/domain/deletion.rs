@@ -11,6 +11,7 @@ pub(super) fn keep(domain: &mut Domain, project: u32, step: Option<DeletionStep>
         }
         None => {
             domain.deletions.remove(&project);
+            forget(domain, project, out);
             out.push(Request::Erase { key: Key::Deletion(project) });
         }
     }
@@ -23,8 +24,12 @@ pub(super) fn close(domain: &mut Domain, project: u32, out: &mut Queue<Request>)
 }
 
 pub(super) fn forget(domain: &mut Domain, project: u32, out: &mut Queue<Request>) {
+    forget_census(domain, project);
     let mut answers = List::with_capacity(domain.answers.len());
     for (key, answer) in &domain.answers {
+        if kept_answer(domain, &answer.outcome) {
+            continue;
+        }
         if ask_project(&answer.ask) == Some(project) || made_project(&answer.outcome) == Some(project) {
             answers.push(*key).expect("bounded retained answers");
         }
@@ -36,6 +41,9 @@ pub(super) fn forget(domain: &mut Domain, project: u32, out: &mut Queue<Request>
     }
     let mut acts = List::with_capacity(domain.acted.len());
     for (key, answer) in &domain.acted {
+        if kept_answer(domain, answer.outcome()) {
+            continue;
+        }
         if answer.project() == Some(project) {
             acts.push(*key).expect("bounded retained acts");
         }
@@ -45,6 +53,37 @@ pub(super) fn forget(domain: &mut Domain, project: u32, out: &mut Queue<Request>
         domain.act_alarms.cancel(key);
         out.push(Request::Erase { key: Key::Acted(key) });
     }
+}
+
+fn forget_census(domain: &mut Domain, project: u32) {
+    let mut parties = List::with_capacity(domain.chat_updates.len());
+    for (&(party, scope), _) in &domain.chat_updates {
+        if scope == project {
+            parties.push(party).expect("project reply census subset");
+        }
+    }
+    for party in parties.into_boxed() {
+        domain.chat_updates.remove(&(party, project));
+    }
+    let mut parties = List::with_capacity(domain.result_census.len());
+    for (&(party, scope), _) in &domain.result_census {
+        if scope == project {
+            parties.push(party).expect("project result census subset");
+        }
+    }
+    for party in parties.into_boxed() {
+        drop(domain.result_census.remove(&(party, project)));
+    }
+}
+
+/// A removal's terminal stays until the deletion finishes (jig/docs/design/domain/people.md, 5.2).
+pub(super) fn kept_answer(domain: &Domain, outcome: &Outcome) -> bool {
+    for (&project, _) in &domain.deletions {
+        if *outcome == (Outcome::ProjectRemoved { project }) {
+            return true;
+        }
+    }
+    false
 }
 
 pub(super) fn made_project(outcome: &Outcome) -> Option<u32> {

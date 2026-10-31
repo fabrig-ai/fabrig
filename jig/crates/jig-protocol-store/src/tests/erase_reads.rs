@@ -69,8 +69,6 @@ fn all(store: &mut Store, mut range: reads::Range) -> Box<[Record]> {
         match next {
             Some(next) => {
                 assert_ne!(range.after, Some(next.clone()), "a cut page advances");
-                let last = found.as_slice().last().expect("the page fits a row");
-                assert_eq!(next, reads::Position::Owner(last.key()));
                 range.after = Some(next);
             }
             None => return found.into_boxed(),
@@ -166,7 +164,7 @@ fn task_store() -> Store {
     save(&mut store, fixtures::ended_task(TASK));
     save(&mut store, fixtures::run_proof(TASK));
     save(&mut store, fixtures::call(TASK, 1));
-    store.limits.joins = 0;
+    store.limits.joins = 1;
     store
 }
 
@@ -176,6 +174,27 @@ fn task_rows_name_only_their_task() {
     let mut range = fixtures::read(fixtures::ALICE, reads::Scope::TaskRows { task: TASK });
     range.rows = PAGE_ROWS;
     assert_eq!(all(&mut store, range), task_rows(TASK));
+}
+
+#[test]
+fn task_rows_include_their_accepted_party_proposal_decision_and_update() {
+    let mut store = fixtures::opened_with_budget(1_048_576);
+    let owner = 23;
+    let proposal = 43;
+    let object = tasks::UpdateObject::Proposal { proposal: tasks::Newest::of(proposal) };
+    let expected = Box::new([
+        fixtures::proposal_decision(fixtures::ALICE, proposal),
+        fixtures::person_proposal(proposal, true),
+        fixtures::update(fixtures::ALICE, 19, owner, object),
+    ]);
+    for record in expected.iter() {
+        save(&mut store, record.clone());
+    }
+    save(&mut store, fixtures::update(fixtures::ALICE, 20, 24, object));
+    store.limits.joins = 1;
+    let mut range = fixtures::read(fixtures::ALICE, reads::Scope::TaskRows { task: owner });
+    range.rows = 1;
+    assert_eq!(all(&mut store, range).as_ref(), expected.as_ref());
 }
 
 #[test]
@@ -193,7 +212,11 @@ fn task_rows_cover_each_task_keyed_family() {
         cut.rows = 1;
         cut.bytes = row_bytes(&row);
         cut.after = range.after.clone();
-        let (page, next) = load(&mut store, cut);
+        let (mut page, mut next) = load(&mut store, cut.clone());
+        if page.is_empty() {
+            cut.after = next;
+            (page, next) = load(&mut store, cut);
+        }
         let [loaded] = page.as_ref() else { panic!("one row fits the cut page") };
         assert_eq!(loaded.value, row.value);
         range.after = Some(reads::Position::Owner(row.value.key()));

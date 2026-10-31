@@ -7,6 +7,28 @@ const AT: u64 = 0;
 const PROJECT: u32 = 1;
 const TASK: u64 = 7;
 
+#[test]
+fn only_ended_deletions_retain_their_proven_acceptance_during_cleanup() {
+    for phase in [Phase::Active, Phase::Ended] {
+        for deleting in [false, true] {
+            let (_, mut before) = baseline();
+            before.tasks.get_mut(&TASK).expect("baseline task").phase = phase;
+            let acceptance = crate::referee::Acceptance { proposal: 1, by: Source::Person(3) };
+            before.accepted_tasks.insert(TASK, acceptance);
+            let mut after = before.clone();
+            after.accepted_tasks.clear();
+            if deleting {
+                after.deleting.insert(PROJECT);
+            }
+            super::Deletions::default().retain_acceptances(&before, &mut after);
+            assert_eq!(
+                after.accepted_tasks.get(&TASK).copied(),
+                (deleting && phase == Phase::Ended).then_some(acceptance)
+            );
+        }
+    }
+}
+
 fn task(number: u64) -> Task {
     Task {
         settings: crate::referee::SettingsRevision::default(),
@@ -198,6 +220,39 @@ fn draining_with_a_deletion_kept_fails() {
             assert_eq!(violation.why, "a deletion was cut and never resumed");
         } else {
             result.expect("resumed deletion ended whole");
+        }
+    }
+}
+
+#[test]
+fn only_an_ended_task_in_a_kept_deletion_can_drop_its_read_position() {
+    for phase in [Phase::Active, Phase::Ended] {
+        for deleting in [false, true] {
+            let (_, mut before) = baseline();
+            before.tasks.get_mut(&TASK).expect("baseline task").phase = phase;
+            let mut after = before.clone();
+            after.read_positions.clear();
+            if deleting {
+                after.deleting.insert(PROJECT);
+            }
+            let result = super::super::positions::check(&before, &after);
+            assert_eq!(result.is_ok(), deleting && phase == Phase::Ended);
+        }
+    }
+}
+
+#[test]
+fn only_ended_deletions_retire_erased_turn_and_terminal_prerequisites() {
+    for phase in [Phase::Active, Phase::Ended] {
+        for deleting in [false, true] {
+            let (_, mut before) = baseline();
+            before.tasks.get_mut(&TASK).expect("baseline task").phase = phase;
+            if deleting {
+                before.deleting.insert(PROJECT);
+            }
+            let mut seen = BTreeSet::from([Receipt::Turn(TASK, 1, 1), Receipt::Terminal(TASK, 1)]);
+            super::Deletions::default().retire_receipts(&before, &before, &mut seen);
+            assert_eq!(seen.is_empty(), deleting && phase == Phase::Ended);
         }
     }
 }
