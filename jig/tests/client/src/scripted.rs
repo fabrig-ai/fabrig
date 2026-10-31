@@ -11,6 +11,7 @@ use sha2::{Digest, Sha256};
 use skein_lib::{RequestEnvelope, Time, Token, Wall};
 use skein_world::domain::Ledger;
 use std::collections::BTreeMap;
+mod stories;
 /// Scripted family documents with revision-naming decisions.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Family {
@@ -127,6 +128,8 @@ pub struct Scripted {
     recovery: Option<Time>,
     pending_sign_ins: Vec<u64>,
     pending_faults: Vec<FrontFault>,
+    chat_report: Option<Box<[u8]>>,
+    project_facts: bool,
     chat_projects: std::collections::BTreeSet<(u64, u32)>,
 }
 impl Scripted {
@@ -153,10 +156,23 @@ impl Scripted {
             },
             cut: false,
         };
+        task.settings.as_mut().expect("chat settings").run = Some(1);
+        task.chip.phase = jig_client_domain::contract::Phase::Running;
+        task.chip.details.phase =
+            jig_client_domain::contract::OwnerChipPhase::Active(jig_client_domain::contract::RunStage::Running {
+                attempt: 1,
+            });
+        task.context.as_mut().expect("chat context").runtime =
+            jig_client_domain::contract::Runtime::Running { attempt: 1, since: Wall::EPOCH, tool: None };
         task.acts = crate::test::list([
             jig_client_domain::contract::Offered {
                 effect: None,
                 act: jig_client_domain::contract::ActKind::Message,
+                admission: jig_client_domain::contract::Admission::Allowed,
+            },
+            jig_client_domain::contract::Offered {
+                effect: None,
+                act: jig_client_domain::contract::ActKind::Stop,
                 admission: jig_client_domain::contract::Admission::Allowed,
             },
             jig_client_domain::contract::Offered {
@@ -171,7 +187,9 @@ impl Scripted {
     fn script_chat(&mut self, party: u64, wall: Wall, ask: &jig_client_domain::contract::Ask) {
         use jig_client_domain::contract::{Answer, Made, Outcome};
         if self.chat_projects.iter().any(|(owner, _)| *owner == party) {
-            crate::stories::shared::b_scripted::propose(self, party, ask);
+            if self.project_facts {
+                crate::stories::shared::b_scripted::propose(self, party, ask);
+            }
             crate::stories::shared::b_scripted::cancel(self, party, wall, ask);
         }
         let jig_client_domain::contract::Ask::Create { project, tasks } = ask else { return };
@@ -197,7 +215,10 @@ impl Scripted {
                 changes: vec![engine::Change::Object {
                     project: *project,
                     key: ObjectKey::Task(task.chip.task),
-                    value: ReadValue::Task(Box::new(task)),
+                    value: self.chat_report.as_ref().map_or_else(
+                        || ReadValue::Task(Box::new(task.clone())),
+                        |report| stories::historical(task.clone(), report),
+                    ),
                 }],
             })
             .expect("seeded project's chat rule fits");
@@ -249,6 +270,8 @@ impl Scripted {
             recovery: None,
             pending_sign_ins: Vec::new(),
             pending_faults: Vec::new(),
+            chat_report: None,
+            project_facts: false,
             chat_projects: std::collections::BTreeSet::new(),
         }
     }
@@ -343,7 +366,14 @@ impl Front<Test> for Scripted {
     fn seed(&mut self, seed: crate::harness::Seed) {
         use crate::harness::Seed;
         match seed {
-            Seed::Project(facts) => crate::stories::shared::b_seed::scripted(self, facts),
+            Seed::Roles { story } => stories::roles(self, story),
+            Seed::PendingGoal { words, budget } => stories::proposal(self, &words, budget),
+            Seed::OwnerProfile => stories::profile(self),
+            Seed::ChatResult { report } => self.chat_report = Some(report),
+            Seed::Project(facts) => {
+                self.project_facts = true;
+                crate::stories::shared::b_seed::scripted(self, facts);
+            }
             Seed::ChatProject { party, project } => {
                 assert_eq!(project, 1, "the scripted frame's project");
                 self.chat_projects.insert((party, project));
@@ -403,6 +433,9 @@ impl Front<Test> for Scripted {
                 match ask {
                     Ask::Jig(ask) => {
                         self.script_chat(party, wall, &ask);
+                        if !self.project_facts {
+                            stories::request(self, party, &ask, wall);
+                        }
                         self.engine.send(now, wall, party, key, attempt, *ask).expect("jig send fits");
                     }
                     Ask::Family { scope, record } => {

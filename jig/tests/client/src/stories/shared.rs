@@ -29,6 +29,15 @@ pub fn signing_in_and_starting_a_chat<F: Front<Test>>(world: &mut World<Test, F>
     assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
     assert!(outcome.judged.0 > 0);
 }
+
+pub mod a_person;
+
+#[cfg(test)]
+mod a_tests;
+
+pub mod a_proposals;
+
+pub mod a_roles;
 pub mod b_config;
 pub mod b_conversations;
 pub mod b_effects;

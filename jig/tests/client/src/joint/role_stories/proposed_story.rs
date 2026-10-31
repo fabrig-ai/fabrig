@@ -3,51 +3,13 @@ use super::*;
 
 #[test]
 fn an_outside_allotment_goal_is_shown_as_proposed_before_send_and_named_in_the_answer() {
-    let mut world = world(8519, vec![]);
-    let member = world.client_with(
-        3,
-        jig_client_test_domain::Address::Jig(jig_client_view::address::Address::Project {
-            project: 1,
-            section: jig_client_view::address::ProjectSection::Goals,
-        }),
-        receiving_limits(),
-        client,
-    );
-    let within = Duration::from_secs(1);
-    world.person(
-        member,
-        vec![
-            Step::See { find: Find::exactly_named(Role::Button, b"Sign in with Test"), within },
-            Step::Press { find: Find::exactly_named(Role::Button, b"Sign in with Test") },
-            Step::See { find: Find::exactly_named(Role::TextArea, b"Goal specification"), within },
-            Step::Type {
-                find: Find::exactly_named(Role::TextArea, b"Goal specification"),
-                words: b"a proposed goal".as_slice().into(),
-            },
-            Step::Press { find: Find::exactly_named(Role::Button, b"Charter 1") },
-            Step::Type { find: Find::exactly_named(Role::TextField, b"Goal budget"), words: b"150".as_slice().into() },
-            Step::See { find: Find::text(b"This will be proposed to its holder"), within },
-            Step::Press { find: Find::exactly_named(Role::Button, b"Set goal") },
-            Step::See { find: Find::text(b"This will be proposed"), within },
-        ],
-    );
-    let outcome = world.run(Until::Done);
-    assert_eq!(outcome.verdict, skein_world::domain::Verdict::Passed, "{outcome:?}");
-    assert!(outcome.judged.0 > 0);
+    let mut world = super::super::world(super::super::turn());
+    let member = crate::stories::shared::a_roles::prepare_goal(&mut world);
     assert!(!world.front().session.driver.world.store.rows.values().any(|row| matches!(
         row,
         jig_test_domain::Record::Core(jig_domain_core::Record::People(people::Stored::Answer { .. }))
     )));
-    world.person(
-        member,
-        vec![
-            Step::Press { find: Find::exactly_named(Role::Button, b"Confirm") },
-            Step::See { find: Find::text(b"Proposed"), within },
-        ],
-    );
-    let outcome = world.run(Until::Done);
-    assert_eq!(outcome.verdict, skein_world::domain::Verdict::Passed, "{outcome:?}");
-    assert!(outcome.judged.0 > 0);
+    crate::stories::shared::a_roles::confirm_goal(&mut world, member);
     let answers: Vec<_> = world
         .front()
         .session
