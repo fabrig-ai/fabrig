@@ -101,10 +101,14 @@ fn limits_take_each_bound_from_its_source_field() {
             change_panel_branch: 16,
             change_panel_landing: 16,
             change_panel_gates: crate::GATES,
-            demo_answer_owner: 16,
-            demo_answer_name: 16,
-            demo_answer_cues: crate::CUES,
-            demo_answer_cues_item: crate::CUE_BYTES,
+            managed_forge_host: 255,
+            managed_forge_tls_some: 255,
+            managed_forge_git: crate::ADDRESS_BYTES,
+            managed_forge_web_some: crate::ADDRESS_BYTES,
+            playground_answer_owner: 16,
+            playground_answer_name: 16,
+            playground_answer_cues: crate::CUES,
+            playground_answer_cues_item: crate::CUE_BYTES,
             first_ask_org: 16,
             first_ask_repository: 16,
             first_ask_label: 64,
@@ -142,72 +146,6 @@ fn each_owner_round_trips_its_number() {
 #[test]
 fn an_unknown_owner_number_has_no_owner() {
     assert_eq!(crate::owner(65_535), None);
-}
-
-#[test]
-fn the_demo_read_and_answer_round_trip_with_nonempty_cues() {
-    let limits = fixtures::limits();
-    let reading = v1::Reading::new(&limits, v1::ReadingParts { read: v1::Read::Demo }).expect("demo read");
-    assert_eq!(crate::decode_reading(&crate::reading(&reading), &limits), Some(reading));
-    for (row, cue, accepted) in [("cue", "Change it", true), ("empty cue", "", false)] {
-        let mut cues = List::with_capacity(crate::CUES);
-        cues.push(cue.as_bytes().into()).expect("one cue");
-        let answer = v1::DemoAnswer::new(
-            &limits,
-            v1::DemoAnswerParts {
-                state: v1::DemoState::Running,
-                project: 7,
-                forge: crate::FORGE,
-                provider: 3,
-                owner: b"acme".as_slice().into(),
-                name: b"shop".as_slice().into(),
-                cues,
-            },
-        )
-        .expect("schema answer");
-        let back = crate::decode_demo_answer(&crate::demo_answer(&answer), &limits);
-        assert_eq!(back.is_some(), accepted, "{row}");
-        if accepted {
-            assert_eq!(back, Some(answer), "{row}");
-        }
-    }
-}
-
-#[test]
-fn demo_cues_obey_their_count_and_text_bounds() {
-    for state in [v1::DemoState::Running, v1::DemoState::Ended] {
-        for (row, count, bytes, accepted) in [
-            ("no cues", 0, b"x".as_slice(), true),
-            ("one byte", 1, b"x".as_slice(), true),
-            ("at count", crate::CUES, b"x".as_slice(), true),
-            ("past count", crate::CUES + 1, b"x".as_slice(), false),
-            ("at bytes", 1, &[b'a'; 256], true),
-            ("past bytes", 1, &[b'a'; 257], false),
-            ("not UTF-8", 1, &[255], false),
-        ] {
-            let limits = fixtures::limits();
-            let mut cues = List::with_capacity(count);
-            for _ in 0..count {
-                cues.push(bytes.into()).expect("row's cue capacity");
-            }
-            let answer = v1::DemoAnswer::new(
-                &limits,
-                v1::DemoAnswerParts {
-                    state: state.clone(),
-                    project: 7,
-                    forge: crate::FORGE,
-                    provider: 3,
-                    owner: b"acme".as_slice().into(),
-                    name: b"shop".as_slice().into(),
-                    cues,
-                },
-            );
-            assert_eq!(answer.is_ok(), accepted, "{row}");
-            if let Ok(answer) = answer {
-                assert_eq!(crate::decode_demo_answer(&crate::demo_answer(&answer), &limits), Some(answer), "{row}");
-            }
-        }
-    }
 }
 
 #[test]
@@ -289,14 +227,13 @@ fn change_panel_bounds_accept_at_and_refuse_one_past() {
 fn requesting_round_trips_and_refuses_trailing_and_version_three_adopt_bytes() {
     let limits = fixtures::limits();
     for request in [
-        v1::Request::StartDemo,
         v1::Request::Adopt(fixtures::adopt()),
         v1::Request::SetUp(
             v1::SetUp::new(
                 &limits,
                 v1::SetUpParts {
                     playground: true,
-                    forge: u16::MAX,
+                    forge: kept(u16::MAX),
                     org: b"work".as_slice().into(),
                     repository: b"hello".as_slice().into(),
                     project: v1::SetUpProject::Existing(
@@ -599,7 +536,7 @@ fn forge_login_and_stop_reason_round_trip_at_schema_ceilings() {
 }
 
 #[test]
-fn demo_start_outcomes_round_trip_at_each_boundary() {
+fn playground_start_outcomes_round_trip_at_each_boundary() {
     let limits = v1::CEILINGS;
     let mut outcomes = List::with_capacity(8);
     for outcome in [
@@ -661,49 +598,12 @@ fn demo_start_outcomes_round_trip_at_each_boundary() {
 }
 
 #[test]
-fn demo_states_round_trip_at_smallest_and_ceiling() {
-    use skein_lib::List;
-    let limits = v1::CEILINGS;
-    for state in [v1::DemoState::NotStarted, v1::DemoState::Running, v1::DemoState::Ended] {
-        for full in [false, true] {
-            let mut cues = List::with_capacity(limits.demo_answer_cues);
-            if full {
-                for _ in 0..limits.demo_answer_cues {
-                    cues.push(skein_lib::bytes::zeroed(
-                        usize::try_from(limits.demo_answer_cues_item).expect("ceiling"),
-                    ))
-                    .expect("cue room");
-                }
-            }
-            let field = if full { usize::try_from(limits.demo_answer_owner).expect("ceiling") } else { 0 };
-            let record = v1::DemoAnswer::new(
-                &limits,
-                v1::DemoAnswerParts {
-                    project: if full { u32::MAX } else { 0 },
-                    forge: if full { u16::MAX } else { 0 },
-                    provider: if full { u32::MAX } else { 0 },
-                    owner: skein_lib::bytes::zeroed(field),
-                    name: skein_lib::bytes::zeroed(field),
-                    state: state.clone(),
-                    cues,
-                },
-            )
-            .expect("demo answer");
-            let bytes = crate::demo_answer(&record);
-            assert_eq!(crate::decode_demo_answer(&bytes, &limits), Some(record));
-        }
-    }
-    let record =
-        v1::Requesting::new(&limits, v1::RequestingParts { request: v1::Request::StartDemo }).expect("start request");
-    assert_eq!(crate::decode_requesting(&crate::requesting(&record), &limits), Some(record));
-}
-
-#[test]
 fn pasted_apps_round_trip_and_check_nonzero_id() {
     let limits = fixtures::limits();
     for id in [0, 1, u64::MAX] {
         let app = v1::GitHubApp::new(&limits, v1::GitHubAppParts { id }).unwrap();
-        let connect = v1::Connect::new(&limits, v1::ConnectParts { forge: 1, how: v1::How::GithubApp(app) }).unwrap();
+        let connect =
+            v1::Connect::new(&limits, v1::ConnectParts { forge: kept(1), how: v1::How::GithubApp(app) }).unwrap();
         let record =
             v1::Requesting::new(&limits, v1::RequestingParts { request: v1::Request::Connect(connect) }).unwrap();
         let decoded = crate::decode_requesting(&crate::requesting(&record), &limits);
@@ -857,7 +757,7 @@ fn manifest_connects_and_app_ways_round_trip() {
     for back in [None, Some(Box::from(b"/forges/connect?forge=1".as_slice()))] {
         let how = v1::GitHubManifest::new(&limits, v1::GitHubManifestParts { back }).unwrap();
         let connect =
-            v1::Connect::new(&limits, v1::ConnectParts { forge: 1, how: v1::How::GithubManifest(how) }).unwrap();
+            v1::Connect::new(&limits, v1::ConnectParts { forge: kept(1), how: v1::How::GithubManifest(how) }).unwrap();
         let record =
             v1::Requesting::new(&limits, v1::RequestingParts { request: v1::Request::Connect(connect) }).unwrap();
         assert_eq!(crate::decode_requesting(&crate::requesting(&record), &limits), Some(record));
@@ -993,5 +893,192 @@ fn landing_watches_round_trip_without_trailing_bytes() {
         let bytes = crate::watching(&watching);
         assert_eq!(crate::decode_watching(&bytes, &limits), Some(watching));
         assert_eq!(crate::decode_watching(&fixtures::trailing(&bytes), &limits), None);
+    }
+}
+
+fn kept(forge: u16) -> v1::Making {
+    v1::Making::Kept(v1::Kept::new(&v1::CEILINGS, v1::KeptParts { forge }).unwrap())
+}
+fn making_new(forge: v1::ForgeAsk) -> v1::Making {
+    v1::Making::New(v1::NewForge::new(&v1::CEILINGS, v1::NewForgeParts { forge }).unwrap())
+}
+fn managed(host: &[u8], port: u16) -> v1::ForgeAsk {
+    v1::ForgeAsk::Managed(
+        v1::ManagedForge::new(
+            &v1::CEILINGS,
+            v1::ManagedForgeParts {
+                host: host.into(),
+                port,
+                tls: Some(filled(255)),
+                git: filled(2048),
+                web: Some(filled(2048)),
+            },
+        )
+        .unwrap(),
+    )
+}
+fn making_requests(forge: v1::Making) -> [v1::Request; 2] {
+    let limits = fixtures::limits();
+    [
+        v1::Request::SetUp(
+            v1::SetUp::new(
+                &limits,
+                v1::SetUpParts {
+                    forge: forge.clone(),
+                    org: b"work".as_slice().into(),
+                    repository: b"hello".as_slice().into(),
+                    project: v1::SetUpProject::New(
+                        v1::NewProject::new(&limits, v1::NewProjectParts { name: b"project".as_slice().into() })
+                            .unwrap(),
+                    ),
+                    playground: false,
+                },
+            )
+            .unwrap(),
+        ),
+        v1::Request::Connect(
+            v1::Connect::new(
+                &limits,
+                v1::ConnectParts {
+                    forge,
+                    how: v1::How::ForgejoAdmin(
+                        v1::ForgejoAdmin::new(&limits, v1::ForgejoAdminParts { first: None }).unwrap(),
+                    ),
+                },
+            )
+            .unwrap(),
+        ),
+    ]
+}
+#[test]
+fn making_round_trips_kept_and_new() {
+    let limits = fixtures::limits();
+    for making in [
+        kept(u16::MAX),
+        making_new(v1::ForgeAsk::Github),
+        making_new(v1::ForgeAsk::Owned),
+        making_new(managed(&[b'h'; 255], u16::MAX)),
+    ] {
+        for request in making_requests(making) {
+            let record = v1::Requesting::new(&limits, v1::RequestingParts { request }).unwrap();
+            let bytes = crate::requesting(&record);
+            assert_eq!(crate::decode_requesting(&bytes, &limits), Some(record));
+            assert_eq!(crate::decode_requesting(&fixtures::trailing(&bytes), &limits), None);
+        }
+    }
+}
+#[test]
+fn a_managed_forge_with_an_empty_host_is_refused() {
+    let limits = fixtures::limits();
+    for (host, port) in [(b"".as_slice(), 443), (b"a\0b", 443), (b"a/b", 443), (b"host", 0)] {
+        for request in making_requests(making_new(managed(host, port))) {
+            let record = v1::Requesting::new(&limits, v1::RequestingParts { request }).unwrap();
+            assert_eq!(crate::decode_requesting(&crate::requesting(&record), &limits), None);
+        }
+    }
+}
+#[test]
+fn remove_and_playground_requests_round_trip() {
+    let limits = fixtures::limits();
+    for request in [
+        v1::Request::RemoveForge(v1::RemoveForge::new(&limits, v1::RemoveForgeParts { forge: u16::MAX }).unwrap()),
+        v1::Request::StartPlayground,
+        v1::Request::EndPlayground,
+    ] {
+        let record = v1::Requesting::new(&limits, v1::RequestingParts { request }).unwrap();
+        let bytes = crate::requesting(&record);
+        assert_eq!(crate::decode_requesting(&bytes, &limits), Some(record));
+        assert_eq!(crate::decode_requesting(&fixtures::trailing(&bytes), &limits), None);
+    }
+    for outcome in [
+        v1::Outcome::Removed,
+        v1::Outcome::RemoveRefused(
+            v1::RemoveRefused::new(&limits, v1::RemoveRefusedParts { why: v1::ForgeRefusal::Busy }).unwrap(),
+        ),
+        v1::Outcome::Reset,
+        v1::Outcome::EndRefused(
+            v1::EndRefused::new(&limits, v1::EndRefusedParts { why: v1::EndRefusal::NotOffered }).unwrap(),
+        ),
+    ] {
+        let answer = v1::Answer::new(&limits, v1::AnswerParts { outcome }).unwrap();
+        assert_eq!(v1::Answer::decode(&limits, &mut Reader::new(&crate::answer(&answer))), Ok(answer));
+    }
+    let read = v1::Reading::new(&limits, v1::ReadingParts { read: v1::Read::Playground }).unwrap();
+    assert_eq!(crate::decode_reading(&crate::reading(&read), &limits), Some(read));
+}
+#[test]
+fn playground_answer_round_trips_at_its_bounds() {
+    let limits = fixtures::limits();
+    for state in [v1::PlaygroundState::Starting, v1::PlaygroundState::Running, v1::PlaygroundState::Resetting] {
+        for project in [None, Some(u32::MAX)] {
+            for (count, cue_bytes, field_bytes, accepted) in [
+                (0, 1, 0, true),
+                (crate::CUES, 256, 16, true),
+                (crate::CUES + 1, 1, 16, false),
+                (1, 257, 16, false),
+                (1, 1, 17, false),
+            ] {
+                let mut cues = List::with_capacity(count);
+                for _ in 0..count {
+                    cues.push(filled(cue_bytes)).unwrap();
+                }
+                let made = v1::PlaygroundAnswer::new(
+                    &limits,
+                    v1::PlaygroundAnswerParts {
+                        forge: u16::MAX,
+                        project,
+                        provider: u32::MAX,
+                        owner: filled(field_bytes),
+                        name: filled(field_bytes),
+                        state: state.clone(),
+                        cues,
+                    },
+                );
+                assert_eq!(made.is_ok(), accepted);
+                if let Ok(answer) = made {
+                    let bytes = crate::playground_answer(&answer);
+                    assert_eq!(crate::decode_playground_answer(&bytes, &limits), Some(answer));
+                    assert_eq!(crate::decode_playground_answer(&fixtures::trailing(&bytes), &limits), None);
+                }
+            }
+        }
+    }
+    // Decode enforces the receiving side's field bounds too.
+    for (owner_bytes, name_bytes) in [(17, 16), (16, 17)] {
+        let answer = v1::PlaygroundAnswer::new(
+            &v1::CEILINGS,
+            v1::PlaygroundAnswerParts {
+                forge: 1,
+                project: None,
+                provider: 3,
+                owner: filled(owner_bytes),
+                name: filled(name_bytes),
+                state: v1::PlaygroundState::Starting,
+                cues: List::with_capacity(0),
+            },
+        )
+        .unwrap();
+        assert_eq!(crate::decode_playground_answer(&crate::playground_answer(&answer), &limits), None);
+    }
+    for cue in [b"".as_slice(), &[255]] {
+        let mut cues = List::with_capacity(1);
+        cues.push(cue.into()).unwrap();
+        let made = v1::PlaygroundAnswer::new(
+            &limits,
+            v1::PlaygroundAnswerParts {
+                forge: 1,
+                project: None,
+                provider: 3,
+                owner: b"work".as_slice().into(),
+                name: b"hello".as_slice().into(),
+                state: v1::PlaygroundState::Running,
+                cues,
+            },
+        );
+        if let Ok(answer) = made {
+            assert_eq!(crate::decode_playground_answer(&crate::playground_answer(&answer), &limits), None);
+        } else {
+            assert_eq!(cue, &[255]);
+        }
     }
 }

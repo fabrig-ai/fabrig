@@ -22,7 +22,8 @@ pub(crate) fn start(
         people::Act::MakeProject { .. }
         | people::Act::Close { .. }
         | people::Act::RemoveAccount { .. }
-        | people::Act::Adopt { .. } => None,
+        | people::Act::Adopt { .. }
+        | people::Act::RemoveProject { .. } => None,
     };
     let valid = match carried {
         Some(carried) => digest == Some(carried.digest),
@@ -53,10 +54,18 @@ pub(crate) fn route(
     act: people::Act,
 ) {
     match act {
+        people::Act::RemoveProject { project } => {
+            if let Err(why) = crate::admission::deletion::begin(core, env, work, out, request, project) {
+                refused(work, request, why);
+            }
+        }
         people::Act::MakeProject { maker, name, policy } => {
             super::projects::make_project_act(core, env, work, out, request, maker, name, policy);
         }
         people::Act::Close { project, task, grace, reason } => {
+            if !core.open_project(project) {
+                return refused(work, request, people::Refusal::Unknown);
+            }
             if core.tasks.task(task).is_none() {
                 return crate::routing::run::results::closed_subject(core, work, out, request, project, task);
             }
@@ -71,7 +80,7 @@ pub(crate) fn route(
             account(core, work, out, request, people::AccountChange::Remove { account: number });
         }
         people::Act::Adopt { project, adoption } => {
-            if !core.projects.as_slice().contains(&project) {
+            if !core.open_project(project) {
                 return refused(work, request, people::Refusal::Unknown);
             }
             out.push(Request::Ask {

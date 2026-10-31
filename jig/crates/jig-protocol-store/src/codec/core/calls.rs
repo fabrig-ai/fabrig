@@ -639,7 +639,7 @@ fn decode_holder(value: wire::ProposalHolder) -> tasks::ProposalHolder {
     }
 }
 
-fn people_problem(value: crate::people_v13::Problem) -> wire::Problem {
+fn people_problem(value: crate::people_v14::Problem) -> wire::Problem {
     problem(value.reason)
 }
 

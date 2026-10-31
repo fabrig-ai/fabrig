@@ -489,3 +489,32 @@ fn invalid_setup_names_are_refused_without_a_box_effect() {
     }
     assert_eq!(world.box_calls, 0);
 }
+
+#[test]
+fn a_fresh_deployment_keeps_a_github_row_only_when_connected_and_removes_it_when_confirmed() {
+    use super::connect_forge::{node, view};
+    use jig_client_world::harness::App;
+    use skein_ui::{Act, Role};
+    use temper_client_domain::{self as client, Address};
+    use temper_client_world::{app::Temper, front::account_acts as accounts};
+    let (mut front, mut root) = accounts::fresh_fixture(temper_client_world::fixtures::SEED);
+    accounts::event(&mut front, &mut root, Temper::went(Address::Forges));
+    assert!(matches!(root.person().forges(), client::forge::forges::State::Rows(rows) if rows.is_empty()));
+    accounts::event(&mut front, &mut root, Temper::went(Address::ConnectForge { forge: None }));
+    let mut rendered = view(&root);
+    let id = node(&rendered, Role::Button, b"Connect GitHub");
+    let action = temper_client_view::act(&mut rendered, id, Act::Press).expect("connect GitHub");
+    accounts::event(&mut front, &mut root, client::Event::Act { action }.into());
+    accounts::event(&mut front, &mut root, Temper::went(Address::Forges));
+    let client::forge::forges::State::Rows(rows) = root.person().forges() else { panic!("forge records") };
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].kind, client::forge::forges::Kind::GitHub);
+    for confirmed in [false, true] {
+        let mut rendered = view(&root);
+        let id = node(&rendered, Role::Button, b"Remove");
+        let action = temper_client_view::act(&mut rendered, id, Act::Press).expect("remove control");
+        accounts::event(&mut front, &mut root, client::Event::Act { action }.into());
+        let client::forge::forges::State::Rows(rows) = root.person().forges() else { panic!("forge records") };
+        assert_eq!(rows.is_empty(), confirmed, "the first press only opens confirmation");
+    }
+}

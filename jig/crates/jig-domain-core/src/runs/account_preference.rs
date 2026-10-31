@@ -10,9 +10,10 @@ impl Core {
         &self,
         choice: Option<&tasks::LlmChoice>,
         payer: tasks::Payer,
+        project: u32,
         kept: Option<u32>,
     ) -> Result<(), tasks::Refusal> {
-        self.account_hint(choice, Some(payer), kept)
+        self.account_hint(choice, Some(payer), project, kept)
     }
 
     /// Proposals have no financial payer until acceptance.
@@ -20,6 +21,7 @@ impl Core {
         &self,
         choice: Option<&tasks::LlmChoice>,
         payer: Option<tasks::Payer>,
+        project: u32,
         kept: Option<u32>,
     ) -> Result<(), tasks::Refusal> {
         let Some(choice) = choice else { return Ok(()) };
@@ -35,7 +37,7 @@ impl Core {
             return Err(refused(number, tasks::AccountWhy::Provider));
         }
         if let Some(payer) = payer
-            && !super::coverage::serves(&self.people, account, super::coverage::payer(payer))
+            && !super::coverage::serves(&self.people, account, super::coverage::payer(payer), Some(project))
         {
             return Err(refused(number, tasks::AccountWhy::Uses));
         }
@@ -64,7 +66,7 @@ impl Core {
         let row = self.tasks.task(task).ok_or(tasks::Refusal::Unknown)?;
         executor(row.executor, Some(choice))?;
         let payer = self.tasks.prospective_payer(funder.unwrap_or(row.funder), &[]).ok_or(tasks::Refusal::Funding)?;
-        self.account_preference(Some(choice), payer, row.kept_account)
+        self.account_preference(Some(choice), payer, row.project, row.kept_account)
     }
 }
 
@@ -89,7 +91,7 @@ impl Core {
                 && choice.account.is_some()
             {
                 let payer = self.tasks.prospective_payer(funder, &[]).ok_or(tasks::Refusal::Funding)?;
-                self.account_preference(Some(choice), payer, None)?;
+                self.account_preference(Some(choice), payer, member.project, None)?;
             }
         }
         Ok(())
@@ -119,7 +121,7 @@ impl Core {
     pub(crate) fn proposed_accounts(&self, batch: &[tasks::New]) -> Result<(), tasks::Refusal> {
         for member in batch {
             executor(member.executor, member.llm.as_ref())?;
-            self.account_hint(member.llm.as_ref(), None, None)?;
+            self.account_hint(member.llm.as_ref(), None, member.project, None)?;
         }
         Ok(())
     }
@@ -130,7 +132,7 @@ impl Core {
             tasks::ProposalAction::Amend { task, amendment, .. } => {
                 let row = self.tasks.task(*task).ok_or(tasks::Refusal::Unknown)?;
                 executor(row.executor, amendment.llm.as_ref())?;
-                self.account_hint(amendment.llm.as_ref(), None, row.kept_account)
+                self.account_hint(amendment.llm.as_ref(), None, row.project, row.kept_account)
             }
             tasks::ProposalAction::Settings { .. }
             | tasks::ProposalAction::Effect { .. }
@@ -159,7 +161,7 @@ impl Core {
                     .tasks
                     .prospective_payer(member.funder, links.as_slice())
                     .ok_or(tasks::Problem::new(Some(member.number), tasks::Refusal::Funding))?;
-                if let Err(why) = self.account_preference(Some(choice), payer, None) {
+                if let Err(why) = self.account_preference(Some(choice), payer, member.project, None) {
                     return Err(tasks::Problem::new(Some(member.number), why));
                 }
             }
@@ -173,7 +175,7 @@ impl Core {
     pub(crate) fn recurring_accounts(&self, project: u32, batch: &[tasks::New]) -> Result<(), tasks::Refusal> {
         for member in batch {
             executor(member.executor, member.llm.as_ref())?;
-            self.account_preference(member.llm.as_ref(), tasks::Payer::Project(project), None)?;
+            self.account_preference(member.llm.as_ref(), tasks::Payer::Project(project), project, None)?;
         }
         Ok(())
     }

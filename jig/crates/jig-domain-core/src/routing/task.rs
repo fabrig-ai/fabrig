@@ -405,3 +405,5 @@ fn append_generated(mut child: Queue<tasks::Request>, pending: &mut Queue<tasks:
         pending.push(request);
     }
 }
+
+pub(crate) mod erase;

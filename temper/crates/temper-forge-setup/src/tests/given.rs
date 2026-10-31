@@ -81,14 +81,7 @@ fn a_fake_setup_maps_every_given_value() {
 
 #[test]
 fn an_owned_setup_maps_every_given_value() {
-    let setup = crate::setup::Setup::read(
-        &super::fixtures::document(super::fixtures::TWO),
-        0,
-        &crate::limits::small(),
-        &jig_protocol_config::Directories::working(),
-        &mut problem::Problems::empty(),
-    )
-    .unwrap();
+    let setup = super::fixtures::setup();
     let listener = super::fixtures::listener();
     let given = crate::given::values(setup.entry(2).unwrap(), Some(listener), &crate::limits::small());
     let expected = skein_forge_setup::given::Given {
@@ -104,23 +97,12 @@ fn an_owned_setup_maps_every_given_value() {
 
 #[test]
 fn a_refused_limit_pair_keeps_its_order_and_is_printed_once() {
-    use super::fixtures;
-    for bytes in [fixtures::TWO, b"[]"] {
-        let problems = crate::check::checked(
-            &fixtures::document(bytes),
-            0,
-            &jig_protocol_config::Directories::working(),
-            &fixtures::members(),
-            None,
-            &[(b"setup.backoff_ms".as_slice().into(), 121_000), (b"setup.backoff_max_ms".as_slice().into(), 120_000)],
-        )
-        .unwrap_err();
-        assert_eq!(
-            &*problem::lines(&problems),
-            b"application.limits.overrides.setup.backoff_ms: must agree with application.limits.overrides.setup.backoff_max_ms\n",
-            "{bytes:?}",
-        );
-    }
+    let problems = crate::check::limits(&[
+        (b"setup.backoff_ms".as_slice().into(), 121_000),
+        (b"setup.backoff_max_ms".as_slice().into(), 120_000),
+    ])
+    .unwrap_err();
+    assert_eq!(problem::lines(&problems).as_ref(), b"application.limits.overrides.setup.backoff_ms: must agree with application.limits.overrides.setup.backoff_max_ms\n");
 }
 
 #[test]
@@ -141,29 +123,13 @@ fn each_kit_item_names_its_temper_file() {
 #[test]
 fn configured_repository_capacity_reaches_checked_given_and_names_its_refusal() {
     use super::fixtures;
-    let directories = jig_protocol_config::Directories::working();
     for capacity in [1_u64, 3] {
-        let checked = crate::check::checked(
-            &fixtures::document(fixtures::TWO),
-            0,
-            &directories,
-            &fixtures::members(),
-            None,
-            &[(b"forge.client.repositories".as_slice().into(), capacity)],
-        )
-        .unwrap();
-        let given = crate::given::values(checked.setup.entry(2).unwrap(), Some(fixtures::listener()), &checked.limits);
+        let (limits, _) = crate::check::limits(&[(b"forge.client.repositories".as_slice().into(), capacity)]).unwrap();
+        let setup = fixtures::setup();
+        let given = crate::given::values(setup.entry(2).unwrap(), Some(fixtures::listener()), &limits);
         assert_eq!(u64::from(given.limits.repositories), capacity);
     }
-    let refused = crate::check::checked(
-        &fixtures::document(fixtures::TWO),
-        0,
-        &directories,
-        &fixtures::members(),
-        None,
-        &[(b"forge.client.repositories".as_slice().into(), 0)],
-    )
-    .unwrap_err();
+    let refused = crate::check::limits(&[(b"forge.client.repositories".as_slice().into(), 0)]).unwrap_err();
     assert_eq!(
         problem::lines(&refused).as_ref(),
         b"application.limits.overrides.forge.client.repositories: outside its type\n"

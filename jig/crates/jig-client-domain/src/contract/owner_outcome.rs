@@ -142,6 +142,10 @@ pub enum OwnerOutcome {
     Renamed {
         project: u32,
     },
+    /// The project was removed (jig/docs/design/domain/people.md, 5.2).
+    ProjectRemoved {
+        project: u32,
+    },
     /// A project was made in the deployment.
     ProjectMade {
         project: u32,

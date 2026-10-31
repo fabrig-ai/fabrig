@@ -35,6 +35,9 @@ pub(crate) fn complete(
     out: &mut Queue<Request>,
 ) {
     match flight {
+        Flight::Internal(crate::routing::flight::Internal::Deletion { project }) => {
+            crate::admission::deletion::compound_done(core, project);
+        }
         Flight::PersonTask { request, route } => {
             let outcome = match route {
                 PersonTaskRoute::Compound { project, operations, first_message } => {

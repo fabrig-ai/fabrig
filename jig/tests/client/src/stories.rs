@@ -15,6 +15,7 @@ pub mod conversations;
 pub mod goals;
 pub mod own_proposal;
 pub mod person_confirmation;
+pub mod shared;
 pub mod text_pages;
 /// Creates a bounded fixture word sequence.
 #[must_use]

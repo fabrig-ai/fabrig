@@ -46,6 +46,7 @@ fn every_row_parses_from_an_example() {
         (&["box"], &["box", "--echo", "steps"]),
         (&["box"], &["box", "--fake-backends", "--bundle", "/bundle"]),
         (&["program-login"], &["program-login", "source"]),
+        (&["forge", "remove"], &["forge", "remove", "1"]),
         (&["forge", "fetch"], &["forge", "fetch", "1"]),
         (&["forge", "prepare"], &["forge", "prepare", "1"]),
         (&["forge", "run"], &["forge", "run", "1", "forgejo"]),
@@ -202,6 +203,15 @@ fn rows_are_within_bounds() {
 #[test]
 fn the_page_commands_is_what_the_table_renders() {
     let rendered = commands::reference();
+    let write = match std::env::var_os("SKEIN_CODEGEN_WRITE") {
+        Some(value) => value == "1",
+        None => false,
+    };
+    if write {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/help/reference/commands.md");
+        std::fs::write(path, &rendered).expect("write commands reference");
+        return;
+    }
     assert_eq!(
         include_str!("../../../../docs/help/reference/commands.md"),
         rendered,

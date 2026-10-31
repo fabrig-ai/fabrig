@@ -126,6 +126,7 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Queue<Request
         | Event::DelegateHoldings { .. }
         | Event::Brief(_)
         | Event::Holdings { .. }
+        | Event::ProjectReleased { .. }
         | Event::Account(_)
         | Event::View(_)
         | Event::Notes(_)
@@ -144,6 +145,9 @@ fn people_gate(event: people::Event) -> Result<Event, Queue<Request>> {
         people::Event::ConversationSeen { .. } => Err(empty()),
         event @ (people::Event::ChatState { .. }
         | people::Event::MoveChat { .. }
+        | people::Event::Deleting { .. }
+        | people::Event::CloseProject { .. }
+        | people::Event::ForgetProject { .. }
         | people::Event::Forget { .. }
         | people::Event::MakeService { .. }
         | people::Event::Seed { .. }

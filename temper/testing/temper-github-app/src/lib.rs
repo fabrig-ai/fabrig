@@ -53,6 +53,15 @@ pub fn seed(data: &Path, records: &[(u64, Box<[u8]>)]) -> Result<(), String> {
     store::run(data, records, false).map(|_| ())
 }
 
+/// Commit the fixture's application rows alongside its deployment header before keeping secrets.
+pub fn seed_with(
+    data: &Path,
+    records: &[(u64, Box<[u8]>)],
+    writes: Vec<jig_protocol_store::Write>,
+) -> Result<(), String> {
+    store::run_with(data, records, false, writes).map(|_| ())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

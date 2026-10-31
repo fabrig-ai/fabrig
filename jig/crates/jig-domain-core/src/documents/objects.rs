@@ -1,4 +1,5 @@
 //! Decision objects and retained rows (`client/domain/objects.md`, sections 4–8;
+//! Closed at once (jig/docs/design/domain/people.md, 5.2).
 //! `client/domain/pages.md`, 5.2). Store readers supply retained rows. Routing
 //! trails and before/after history require those store rows; no trail is cached.
 #![expect(clippy::manual_map, reason = "step code uses explicit matches instead of closures")]
@@ -503,6 +504,11 @@ fn reviewed_party_action(
     }
     Ok((action, kind))
 }
+fn party_proposal_visible(core: &Core, party: u64, proposer: u64, project: u32) -> bool {
+    (project == jig_domain_people::DEPLOYMENT || core.open_project(project))
+        && (party == proposer || core.people.role(party, project).is_some())
+}
+
 pub(super) fn proposal(
     core: &Core,
     limits: &Limits,
@@ -535,7 +541,7 @@ pub(super) fn proposal(
         }
         Proposer::Party(person) => {
             let value = core.tasks.person_proposal(person, number).ok_or(Missing::Ended)?;
-            if party != person && core.people.role(party, value.project).is_none() {
+            if !party_proposal_visible(core, party, person, value.project) {
                 return Err(Missing::NotAllowed);
             }
             let since = match value.state {
@@ -686,7 +692,7 @@ pub fn person_from_row(
     row: &tasks::TaskRecord,
     decision: Wall,
 ) -> Result<PersonTask, Missing> {
-    if core.people.role(party, row.project).is_none() {
+    if !core.open_project(row.project) || core.people.role(party, row.project).is_none() {
         return Err(Missing::NotAllowed);
     }
     let address = match row.executor {
@@ -743,7 +749,7 @@ pub fn result_from_row(
     row: &tasks::TaskRecord,
     decision: Wall,
 ) -> Result<ResultDoc, Missing> {
-    if core.people.role(party, row.project).is_none() {
+    if !core.open_project(row.project) || core.people.role(party, row.project).is_none() {
         return Err(Missing::NotAllowed);
     }
     let value = match &row.phase {

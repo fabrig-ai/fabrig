@@ -62,6 +62,9 @@ pub(crate) fn route_people(
         }
         other @ (people::Event::ChatState { .. }
         | people::Event::MoveChat { .. }
+        | people::Event::Deleting { .. }
+        | people::Event::CloseProject { .. }
+        | people::Event::ForgetProject { .. }
         | people::Event::Forget { .. }
         | people::Event::MakeService { .. }
         | people::Event::Seed { .. }
@@ -170,6 +173,7 @@ pub(crate) fn tag_people_part(
                     | people::Key::ReadConversation { .. }
                     | people::Key::SignIn(_)
                     | people::Key::Roles(_)
+                    | people::Key::Deletion(_)
                     | people::Key::Policy(_) => {}
                 }
                 Request::Write(Write::Erase(Key::People(key)))
@@ -217,6 +221,7 @@ pub(crate) fn tag_people_part(
                     | people::Outcome::PolicyChanged { .. }
                     | people::Outcome::Renamed { .. }
                     | people::Outcome::ProjectMade { .. }
+                    | people::Outcome::ProjectRemoved { .. }
                     | people::Outcome::SettingsChanged { .. }
                     | people::Outcome::MovedToNewest { .. }
                     | people::Outcome::PoolSet { .. }
@@ -253,7 +258,12 @@ pub(crate) fn tag_people_part(
                     })));
                     continue;
                 }
-                if let Err(why) = crate::acts::request(core, &env.limits, person, project, role, &ask, env.wall) {
+                let admission = if *ask == (people::Ask::RemoveProject { project }) {
+                    Ok(())
+                } else {
+                    crate::acts::request(core, &env.limits, person, project, role, &ask, env.wall)
+                };
+                if let Err(why) = admission {
                     routed.work.push(Work::Event(Event::People(people::Event::Decided {
                         request,
                         outcome: people::Outcome::Refused(why),
@@ -262,6 +272,28 @@ pub(crate) fn tag_people_part(
                 }
                 let party = super::dispatch::Party { request, person, project, role };
                 match *ask {
+                    people::Ask::RemoveProject { project } => {
+                        let result = if !core.open_project(project) {
+                            Err(people::Refusal::Unknown)
+                        } else if role == Some(people::Role::Owner) {
+                            crate::admission::deletion::begin(
+                                core,
+                                env,
+                                &mut routed.work,
+                                &mut routed.out,
+                                request,
+                                project,
+                            )
+                        } else {
+                            Err(people::Refusal::Role { held: role })
+                        };
+                        if let Err(why) = result {
+                            routed.work.push(Work::Event(Event::People(people::Event::Decided {
+                                request,
+                                outcome: people::Outcome::Refused(why),
+                            })));
+                        }
+                    }
                     people::Ask::Compound { operations, .. } => {
                         crate::admission::compound::route(core, env, &mut routed.work, party, operations);
                     }

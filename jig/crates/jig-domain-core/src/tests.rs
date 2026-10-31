@@ -1761,6 +1761,12 @@ fn documents_lifecycle_history_keeps_holds_and_endings() {
 }
 
 fn restore_document_party(core: &mut Core, limits: &Limits, projects: &[u32]) {
+    core.projects = List::with_capacity(u32::try_from(projects.len()).expect("fixture projects"));
+    for project in projects {
+        if *project != people::DEPLOYMENT {
+            core.projects.push(*project).expect("open fixture project");
+        }
+    }
     let identity = core.people.identity(1).unwrap().clone();
     core.people = people::Domain::new(&limits.people, Box::new([]), core.settings.deployment_provider, Box::new([]));
     core.people.start_restore(Wall::EPOCH);

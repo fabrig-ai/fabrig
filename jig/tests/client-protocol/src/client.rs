@@ -286,7 +286,7 @@ impl Story {
         Self::bounded(seed, &limits)
     }
     fn bounded(seed: u64, limits: &jig_test_domain::Limits) -> Self {
-        Self::configured(seed, limits, jig_core_world::world::config(seed))
+        Self::configured(seed, limits, jig_test_profile::config(seed))
     }
     fn configured(seed: u64, limits: &jig_test_domain::Limits, config: jig_test_domain::Config) -> Self {
         Self::configured_peers(seed, limits, config, fixtures::peers())
@@ -383,7 +383,7 @@ impl Story {
     pub fn restart_engine(&mut self, offline: Duration) {
         self.net.cut_all();
         self.advance();
-        self.engine.driver.restart(jig_core_world::world::config(self.engine.seed), self.now, fixtures::wall(self.now));
+        self.engine.driver.restart(jig_test_profile::config(self.engine.seed), self.now, fixtures::wall(self.now));
         self.net.offline(self.now.saturating_add(offline));
         while self.engine.out.pop().is_some() {}
         self.engine.component = jig_protocol_engine_clients::Component::new(
@@ -640,11 +640,7 @@ pub fn transient_request(seed: u64, fault: &jig_client_world::FrontFault) {
             false
         }
         jig_client_world::FrontFault::NotReady => {
-            story.engine.driver.pause_restore(
-                jig_core_world::world::config(seed),
-                story.now,
-                fixtures::wall(story.now),
-            );
+            story.engine.driver.pause_restore(jig_test_profile::config(seed), story.now, fixtures::wall(story.now));
             true
         }
         jig_client_world::FrontFault::Restart { .. }

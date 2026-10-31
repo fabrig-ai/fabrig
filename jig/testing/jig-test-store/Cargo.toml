@@ -20,10 +20,6 @@ skein-lib.workspace = true
 skein-codec.workspace = true
 
 [dev-dependencies]
-jig-domain-tasks.workspace = true
-jig-test-store-files.workspace = true
-jig-core-world = { path = "../../tests/core" }
-skein-io.workspace = true
 jig-test-connector-world.workspace = true
 
 [lints]

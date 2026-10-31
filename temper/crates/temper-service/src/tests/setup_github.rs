@@ -54,6 +54,7 @@ fn owner_service() -> crate::Service {
         },
     }));
     let _signed_in = pump(&mut service);
+    service.engine.as_mut().unwrap().setup.lifecycle.reconcile.remove(&FORGE);
     service
 }
 
@@ -94,8 +95,12 @@ fn pump(service: &mut crate::Service) -> Option<w::Outcome> {
                 root::Request::Party(_) => {}
                 request @ (root::Request::Unsettled(_)
                 | root::Request::Bound { .. }
-                | root::Request::StopGroup { .. }
-                | root::Request::SetUpGroup { .. }
+                | root::Request::ForgeKept(_)
+                | root::Request::ForgeGone { .. }
+                | root::Request::BoxGroup { .. }
+                | root::Request::PlaygroundActs { .. }
+                | root::Request::ResetAct { .. }
+                | root::Request::BoxRemove { .. }
                 | root::Request::Return { .. }
                 | root::Request::SetUp { .. }
                 | root::Request::Connect { .. }
@@ -151,6 +156,7 @@ fn request(
         },
         &engine.workers.forges,
         None,
+        None,
         &w::CEILINGS,
     )
     .unwrap();
@@ -204,7 +210,7 @@ fn connect_request(app: u64) -> w::Request {
         w::Connect::new(
             &w::CEILINGS,
             w::ConnectParts {
-                forge: FORGE,
+                forge: w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge: FORGE }).unwrap()),
                 how: w::How::GithubApp(w::GitHubApp::new(&w::CEILINGS, w::GitHubAppParts { id: app }).unwrap()),
             },
         )
@@ -449,7 +455,8 @@ fn connected(service: &mut crate::Service, accepted_ids: &[u64], listing: &[u8])
     app(service);
     accepted(service, accepted_ids);
     let engine = service.engine.as_mut().unwrap();
-    let origin = records::origin(connection::settings::Kind::GitHub, &engine.workers.forges[0].api);
+    let origin =
+        records::origin(connection::settings::Kind::GitHub, &engine.workers.forges.get(1).expect("fixture forge").api);
     let access = records::access(
         connection::settings::Kind::GitHub,
         &origin,

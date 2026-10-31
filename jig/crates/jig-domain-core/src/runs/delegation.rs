@@ -202,7 +202,7 @@ impl Core {
             {
                 let payer =
                     self.tasks.payer(key.task).ok_or(delegate_refused(Some(key.task), tasks::Refusal::Funding))?;
-                if let Err(why) = self.account_preference(Some(choice), payer, None) {
+                if let Err(why) = self.account_preference(Some(choice), payer, context.project, None) {
                     return Err(delegate_refused(None, why));
                 }
             }

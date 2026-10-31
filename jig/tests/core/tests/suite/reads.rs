@@ -1,9 +1,12 @@
-use jig_core_world::effects::Setup;
-use jig_core_world::{
-    effects::Cut,
-    reads::{Fence, ask, complete, latest},
-    stories::reads::{conversation, request, world},
-};
+use crate::read_support::conversation;
+use crate::read_support::request;
+use crate::read_support::world;
+use jig_core_world::reads::Fence;
+use jig_core_world::reads::ask;
+use jig_core_world::reads::complete;
+use jig_core_world::reads::latest;
+use jig_core_world::world::Cut;
+use jig_core_world::world::Setup;
 use jig_domain_core::{self as core, documents, reads};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -154,7 +157,7 @@ fn five_independent_read_stories_fit_the_shared_process_budget() {
     a_read_when_loads_are_full_is_busy();
     a_read_after_the_sign_in_ended_is_answered_signed_out();
     a_read_whose_sign_in_ends_while_it_loads_is_signed_out();
-    jig_core_world::stories::reads::a_backward_wall_correction_keeps_reply_paging_whole_after_restart();
+    crate::read_support::a_backward_wall_correction_keeps_reply_paging_whole_after_restart();
 }
 
 #[test]
@@ -188,7 +191,7 @@ fn updates_page_from_the_index_newest_first_after_restart() {
 
 #[test]
 fn a_forgotten_chats_result_leaves_the_updates_index() {
-    let mut world = jig_core_world::stories::reads::forgettable_world(781);
+    let mut world = crate::read_support::forgettable_world(781);
     let task = world.assigned.as_ref().expect("chat").task;
     world.turn(1, 1, None, b"reply");
     request(&mut world, 71, people::Ask::MarkSeen { seen: people::Seen::Conversation { task, through: 1 } });
@@ -249,7 +252,7 @@ fn the_results_group_pages_results_only_from_the_index() {
 }
 
 fn a_read_after_the_sign_in_ended_is_answered_signed_out() {
-    let mut world = jig_core_world::stories::reads::forgettable_world(784);
+    let mut world = crate::read_support::forgettable_world(784);
     end_sign_in(&mut world);
     ask(&mut world, 800, reads::Read::Frame);
     assert_eq!(latest(&world), &reads::Answer::None(reads::Why::SignedOut));
@@ -266,19 +269,19 @@ fn a_read_whose_sign_in_ends_while_it_loads_is_signed_out() {
     assert!(world.reads.as_ref().expect("party").loads.is_empty());
 }
 
-fn end_sign_in(world: &mut jig_core_world::effects::World) {
+fn end_sign_in(world: &mut jig_core_world::world::World) {
     world.send(root::Event::Core(core::Event::People(people::Event::SignOut {
         reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(80_000)),
         sign_in: world.sign_in.expect("original sign-in"),
     })));
 }
 
-fn chat_task(world: &jig_core_world::effects::World) -> u64 {
+fn chat_task(world: &jig_core_world::world::World) -> u64 {
     world.assigned.as_ref().expect("chat").task
 }
 
 fn message(
-    world: &mut jig_core_world::effects::World,
+    world: &mut jig_core_world::world::World,
     source: u64,
     target: u64,
     completion: u32,
@@ -296,11 +299,11 @@ fn message(
     }
 }
 
-fn question(world: &mut jig_core_world::effects::World, target: u64, completion: u32) -> u64 {
+fn question(world: &mut jig_core_world::world::World, target: u64, completion: u32) -> u64 {
     message(world, chat_task(world), target, completion, tasks::MessageKind::Question, b"original question?")
 }
 
-fn finish_chat(world: &mut jig_core_world::effects::World, task: u64) {
+fn finish_chat(world: &mut jig_core_world::world::World, task: u64) {
     let key = run_key(world, task, 0);
     world.send(root::Event::Answer {
         read: None,
@@ -316,7 +319,7 @@ fn finish_chat(world: &mut jig_core_world::effects::World, task: u64) {
     });
 }
 
-fn past(world: &jig_core_world::effects::World) -> &reads::EndedValue {
+fn past(world: &jig_core_world::world::World) -> &reads::EndedValue {
     let reads::Answer::Ended(value) = latest(world) else { panic!("retained document: {:?}", latest(world)) };
     &value.value
 }
@@ -403,16 +406,16 @@ fn a_question_older_than_the_kept_lines_reads_as_gone() {
     assert_eq!(latest(&world), &reads::Answer::None(reads::Why::Gone));
 }
 
-fn reply(world: &mut jig_core_world::effects::World, source: u64, target: u64, question: u64, completion: u32) -> u64 {
+fn reply(world: &mut jig_core_world::world::World, source: u64, target: u64, question: u64, completion: u32) -> u64 {
     message(world, source, target, completion, tasks::MessageKind::Answer { question }, b"answer")
 }
 
-fn run_key(world: &jig_core_world::effects::World, task: u64, completion: u32) -> core::CallKey {
+fn run_key(world: &jig_core_world::world::World, task: u64, completion: u32) -> core::CallKey {
     let (_, attempt) = world.assignments.iter().rev().find(|(number, _)| *number == task).expect("assigned task");
     core::CallKey { task, attempt: *attempt, completion, position: 0 }
 }
 
-fn take_message(world: &mut jig_core_world::effects::World, task: u64, turn: u32, message: u64) {
+fn take_message(world: &mut jig_core_world::world::World, task: u64, turn: u32, message: u64) {
     world.send(root::Event::Turn {
         opens_window: turn == 1,
         refused: Box::new([]),
@@ -426,7 +429,7 @@ fn take_message(world: &mut jig_core_world::effects::World, task: u64, turn: u32
     });
 }
 
-fn question_world(seed: u64, bound: Option<u32>) -> (jig_core_world::effects::World, u64) {
+fn question_world(seed: u64, bound: Option<u32>) -> (jig_core_world::world::World, u64) {
     question_world_with_text_bound(seed, bound, None)
 }
 
@@ -434,7 +437,7 @@ fn question_world_with_text_bound(
     seed: u64,
     bound: Option<u32>,
     text: Option<u32>,
-) -> (jig_core_world::effects::World, u64) {
+) -> (jig_core_world::world::World, u64) {
     question_world_with_switch(seed, bound, text, false)
 }
 
@@ -447,7 +450,7 @@ fn question_world_with_switch(
     bound: Option<u32>,
     text: Option<u32>,
     enabled: bool,
-) -> (jig_core_world::effects::World, u64) {
+) -> (jig_core_world::world::World, u64) {
     question_world_with_obligation(seed, bound, text, enabled, false)
 }
 
@@ -457,7 +460,7 @@ fn question_world_with_obligation(
     text: Option<u32>,
     enabled: bool,
     asks: bool,
-) -> (jig_core_world::effects::World, u64) {
+) -> (jig_core_world::world::World, u64) {
     let (configuration, mut limits) = jig_core_world::faults::plan_fixture(seed);
     if let Some(text) = text {
         limits.core.documents.text_bytes = text;
@@ -468,7 +471,7 @@ fn question_world_with_obligation(
     }
     jig_core_world::peers::journal(&mut limits);
     let mut world = if enabled {
-        jig_core_world::effects::World::new(Setup {
+        jig_core_world::world::World::new(Setup {
             seed,
             configuration: Some(configuration),
             limits,
@@ -476,7 +479,7 @@ fn question_world_with_obligation(
             ..Setup::default()
         })
     } else {
-        jig_core_world::effects::World::new(Setup {
+        jig_core_world::world::World::new(Setup {
             seed,
             configuration: Some(configuration),
             limits,
@@ -535,7 +538,7 @@ fn a_question_answered_by_its_task_reads_the_line_in_the_delegates_activity() {
     );
 }
 
-fn live_task(world: &jig_core_world::effects::World, task: u64) -> &tasks::TaskRecord {
+fn live_task(world: &jig_core_world::world::World, task: u64) -> &tasks::TaskRecord {
     let root::Record::Core(core::Record::Tasks(tasks::Stored::Live(row))) =
         &world.store.rows[&root::Key::Core(core::Key::Tasks(tasks::Key::Live(task)))]
     else {
@@ -544,7 +547,7 @@ fn live_task(world: &jig_core_world::effects::World, task: u64) -> &tasks::TaskR
     row
 }
 
-fn ended_delegate_world(seed: u64) -> (jig_core_world::effects::World, u64, u64) {
+fn ended_delegate_world(seed: u64) -> (jig_core_world::world::World, u64, u64) {
     let mut world = world(seed);
     let chat = chat_task(&world);
     finish_chat(&mut world, chat);
@@ -553,7 +556,7 @@ fn ended_delegate_world(seed: u64) -> (jig_core_world::effects::World, u64, u64)
         1,
         b"goal with a delegate".as_slice().into(),
         people::TaskExecutor::Agent { charter: 1 },
-        jig_core_world::fixtures::Goal { budget: 300, priority: 1, ..Default::default() },
+        jig_test_profile::fixtures::Goal { budget: 300, priority: 1, ..Default::default() },
     );
     request(&mut world, 124, ask);
     let goal = chat_task(&world);
@@ -579,7 +582,7 @@ fn ended_delegates_page_from_the_index() {
     assert!(page.next.is_none());
 }
 
-fn seed_history(world: &mut jig_core_world::effects::World, task: u64) {
+fn seed_history(world: &mut jig_core_world::world::World, task: u64) {
     let row = tasks::History {
         task,
         revision: 1,
@@ -593,7 +596,7 @@ fn seed_history(world: &mut jig_core_world::effects::World, task: u64) {
     world.seed(Box::new([root::Record::Core(core::Record::Tasks(tasks::Stored::History(row)))]));
 }
 
-fn subtree_history(world: &mut jig_core_world::effects::World, task: u64) -> Vec<(u8, u64, u64)> {
+fn subtree_history(world: &mut jig_core_world::world::World, task: u64) -> Vec<(u8, u64, u64)> {
     let mut from = None;
     let mut rows = Vec::new();
     for number in 0..24 {
@@ -646,7 +649,7 @@ fn a_subtree_history_reads_each_delegates_rows_found_by_index() {
 
 #[test]
 fn a_turn_past_the_read_bound_reports_its_size() {
-    use jig_core_world::stories::reads::{LARGE_TURN_BYTES, TURN_READ_BYTES, world_with_large_turn};
+    use crate::read_support::{LARGE_TURN_BYTES, TURN_READ_BYTES, world_with_large_turn};
     let mut world = world_with_large_turn(802);
     let task = world.assigned.as_ref().expect("chat").task;
     let body = vec![b'x'; usize::try_from(LARGE_TURN_BYTES).expect("bounded fixture")];

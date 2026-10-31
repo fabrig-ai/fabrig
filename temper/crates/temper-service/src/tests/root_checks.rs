@@ -85,25 +85,24 @@ fn the_hub_check_refuses_a_charter_the_engine_may_host() {
 }
 
 #[test]
-fn an_identity_past_the_accounts_credentials_refuses_the_start() {
-    let document = fixtures::with(&fixtures::document(), b"application.identities[0].number", b"4");
-    let document = fixtures::with(&document, b"application.forges[0].identity", b"4");
-    assert_eq!(
-        &*started(&document),
-        b"application.identities[0].number: must be from 1 to accounts.credentials, in engine.limits and in the worker's limits\n"
-    );
-    let document = overridden(
-        &fixtures::document(),
-        b"workers[0].limits.overrides",
-        WORKER_OVERRIDES,
-        r#""accounts.credentials":1"#,
-    );
-    let document = fixtures::with(&document, b"application.identities[0].number", b"2");
-    let document = fixtures::with(&document, b"application.forges[0].identity", b"2");
-    assert_eq!(
-        &*started(&document),
-        b"application.identities[0].number: must be from 1 to accounts.credentials, in engine.limits and in the worker's limits\n"
-    );
+fn forge_count_past_the_accounts_credentials_refuses_the_start() {
+    for (credentials, forges, accepted) in [(3, 3, true), (2, 3, false)] {
+        let mut engine = fixtures::engine().jig;
+        engine.limits.core.accounts.credentials = credentials;
+        let mut problems = Problems::empty();
+        checks::credentials(&engine, &[], forges, &mut problems);
+        assert_eq!(problems.is_empty(), accepted);
+        if !accepted {
+            assert_eq!(
+                problems.problems.get(0).unwrap().path,
+                jig_protocol_config::Path::root()
+                    .member(b"application")
+                    .member(b"limits")
+                    .member(b"overrides")
+                    .member(b"forge.forges")
+            );
+        }
+    }
 }
 #[test]
 fn the_engines_repositories_below_the_checkouts_refuse_the_start() {

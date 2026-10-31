@@ -1,5 +1,6 @@
-use jig_core_world::effects::Setup;
-use jig_core_world::{effects::World, peers::Peers, world};
+use jig_core_world::peers::Peers;
+use jig_core_world::world::Setup;
+use jig_core_world::world::World;
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_test_domain as root;
@@ -19,11 +20,11 @@ fn sign_in(world: &mut World, number: u64) {
 
 #[test]
 fn supplied_joint_clocks_survive_internal_commits_and_drive_the_actual_sign_in_expiry() {
-    let limits = world::limits();
+    let limits = jig_test_profile::limits();
     let now = Time::from_nanos(17);
     let wall = Wall::from_nanos(1_000_000_000_000);
     let mut world = World::new(Setup {
-        configuration: Some(world::config(8451)),
+        configuration: Some(jig_test_profile::config(8451)),
         limits,
         peers: Some(Peers::new(Vec::new(), Vec::new())),
         clock: Some((now, wall)),
@@ -49,8 +50,8 @@ fn supplied_joint_clocks_survive_internal_commits_and_drive_the_actual_sign_in_e
 
 #[test]
 fn corrected_joint_wall_is_independent_of_elapsed_time_and_is_persisted_for_a_new_sign_in() {
-    let limits = world::limits();
-    let mut configuration = world::config(8452);
+    let limits = jig_test_profile::limits();
+    let mut configuration = jig_test_profile::config(8452);
     configuration.core.owners = Box::new([]);
     let mut world = World::new(Setup {
         configuration: Some(configuration),
@@ -81,11 +82,11 @@ fn corrected_joint_wall_is_independent_of_elapsed_time_and_is_persisted_for_a_ne
 
 #[test]
 fn joint_scheduler_expires_the_actual_sign_in_at_its_armed_people_deadline() {
-    let limits = world::limits();
+    let limits = jig_test_profile::limits();
     let now = Time::from_nanos(17);
     let wall = Wall::from_nanos(1_000_000_000_000);
     let mut world = World::new(Setup {
-        configuration: Some(world::config(8453)),
+        configuration: Some(jig_test_profile::config(8453)),
         limits,
         peers: Some(Peers::new(Vec::new(), Vec::new())),
         clock: Some((now, wall)),
@@ -119,11 +120,11 @@ fn joint_scheduler_expires_the_actual_sign_in_at_its_armed_people_deadline() {
 
 #[test]
 fn joint_scheduler_erases_a_sign_in_when_wall_jumps_before_its_elapsed_alarm() {
-    let limits = world::limits();
+    let limits = jig_test_profile::limits();
     let now = Time::from_nanos(17);
     let wall = Wall::from_nanos(1_000_000_000_000);
     let mut world = World::new(Setup {
-        configuration: Some(world::config(8455)),
+        configuration: Some(jig_test_profile::config(8455)),
         limits,
         peers: Some(Peers::new(Vec::new(), Vec::new())),
         clock: Some((now, wall)),
@@ -256,7 +257,7 @@ fn ready_worker(world: &mut World) {
         worker: 0,
         channel: Token::new(7),
         hello: jig_domain_fleet::Hello {
-            bounds: jig_core_world::fixtures::bounds(),
+            bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: skein_lib::Duration::from_millis(100),
             slots: 1,
             workstreams: Box::new([]),
@@ -270,7 +271,7 @@ fn source_wall_survives_held_reads_and_a_new_restore_origin() {
     use jig_domain_accounts as accounts;
     use jig_domain_tasks as tasks;
     let seed = 8456;
-    let (configuration, mut limits) = jig_core_world::effects::fixture(seed, false);
+    let (configuration, mut limits) = jig_core_world::world::fixture(seed, false);
     limits.core.people.projects = 2;
     jig_core_world::peers::journal(&mut limits);
     let mut world = World::new(Setup { seed, configuration: Some(configuration), limits, ..Setup::default() });
@@ -325,7 +326,7 @@ fn source_wall_survives_held_reads_and_a_new_restore_origin() {
     };
     assert_eq!(*held, Some(accounts::Held::Limited { reset: Some(reset) }));
     world.set_clock(Time::from_nanos(4_000_000_000), Wall::from_nanos(15_000_000_000));
-    world.restart_with(jig_core_world::effects::fixture(seed, false).0);
+    world.restart_with(jig_core_world::world::fixture(seed, false).0);
     let deadline = accounts::Deadline { at: Time::from_nanos(29_000_000_000), wall: reset };
     assert_eq!(world.domain.accounts().source(1).expect("restored source").spent_until, Some(deadline));
     ready_worker(&mut world);

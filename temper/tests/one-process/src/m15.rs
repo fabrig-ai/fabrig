@@ -18,29 +18,27 @@ use skein_lib::Time;
 use skein_shell::Host;
 use std::{cell::RefCell, rc::Rc};
 
-fn paste(app: u64, key: &[u8]) -> Command {
-    Command::new(&[
-        b"forge",
-        b"connect",
-        b"1",
-        b"github-app",
-        app.to_string().as_bytes(),
-        b"/setup/app.pem",
-        b"--key",
-        key,
-    ])
+fn paste(app: u64, key: &[u8], fresh: bool) -> Command {
+    let app = app.to_string();
+    let mut words: Vec<&[u8]> =
+        vec![b"forge", b"connect", b"github-app", app.as_bytes(), b"/setup/app.pem", b"--key", key];
+    if !fresh {
+        words.insert(2, b"1");
+    }
+    Command::new(&words)
 }
+
 fn commands(caller: &mut Caller, link: Box<[u8]>, app: u64) -> usize {
     let mut sign_in = Command::new(&[b"sign-in", b"-"]);
     sign_in.input = link;
     caller.commands.push_back(sign_in);
-    caller.commands.push_back(paste(u64::MAX, b"failed-paste"));
+    caller.commands.push_back(paste(u64::MAX, b"failed-paste", true));
     caller.commands.push_back(Command::new(&[b"forge", b"list", b"--until", b"settled", b"--json"]));
-    caller.commands.push_back(paste(u64::MAX, b"failed-paste"));
-    caller.commands.push_back(paste(app, b"good-paste"));
+    caller.commands.push_back(paste(u64::MAX, b"failed-paste", true));
+    caller.commands.push_back(paste(app, b"good-paste", false));
     caller.commands.push_back(Command::new(&[b"forge", b"list", b"--until", b"connected:1", b"--json"]));
-    caller.commands.push_back(paste(app, b"good-paste"));
-    caller.commands.push_back(paste(app, b"replacement-refused"));
+    caller.commands.push_back(paste(app, b"good-paste", false));
+    caller.commands.push_back(paste(app, b"replacement-refused", false));
     caller.commands.push_back(Command::new(&[b"forge", b"install", b"1", b"--key", b"secret-install"]));
     caller.commands.push_back(Command::browse(8));
     caller.commands.push_back(Command::new(&[b"forge", b"list", b"--until", b"settled", b"--json"]));

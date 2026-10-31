@@ -569,7 +569,7 @@ fn core_limits() -> jig_domain_core::Limits {
     fixtures::CORE_LIMITS
 }
 
-fn people_limits() -> crate::people_v13::Limits {
+fn people_limits() -> crate::people_v14::Limits {
     crate::codec::people::limits(&core_limits()).expect("within people's ceilings")
 }
 
@@ -586,7 +586,7 @@ fn ask_round_trip(ask: jig_domain_people::Ask) {
     let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("bounded length"));
     value.encode(&mut writer).expect("measured room");
     let bytes = writer.finish();
-    let read = crate::people_v13::Ask::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("saved ask");
+    let read = crate::people_v14::Ask::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("saved ask");
     assert_eq!(crate::codec::people::decode_ask(read, &limits), Ok(ask));
 }
 
@@ -701,8 +701,8 @@ fn a_person_identity_field_past_its_limit_is_refused() {
             &people_limits(),
             &fixtures::configured_model_names(&[])
         ),
-        Err(crate::people_v13::Problem {
-            path: crate::people_v13::Path::IdentityKeySubject,
+        Err(crate::people_v14::Problem {
+            path: crate::people_v14::Path::IdentityKeySubject,
             reason: skein_codec::Reason::Bound
         })
     );
@@ -716,8 +716,8 @@ fn a_people_row_of_another_version_does_not_decode() {
     *bytes.get_mut(1).expect("version prefix") = 9;
     assert_eq!(
         crate::codec::people::decode(&bytes, &limits, &names),
-        Err(crate::people_v13::Problem {
-            path: crate::people_v13::Path::RowVersion,
+        Err(crate::people_v14::Problem {
+            path: crate::people_v14::Path::RowVersion,
             reason: skein_codec::Reason::Version
         })
     );
@@ -1328,7 +1328,7 @@ fn retained_people_answers_keep_dependency_refusal_facts() {
 #[test]
 #[expect(clippy::disallowed_macros, reason = "ordinary tests build boundary text")]
 fn a_stored_project_name_is_bounded_and_utf8() {
-    use crate::people_v13 as wire;
+    use crate::people_v14 as wire;
     use skein_lib::{Reader, Writer};
     // store.md, 4.4: the name is UTF-8 text, at most 64 bytes.
     const NAME_BOUND: usize = 64;
@@ -1424,11 +1424,8 @@ fn an_owing_spec_and_its_asked_latch_survive_storage() {
 #[test]
 fn an_owing_reminder_survives_storage_with_small_caller_word_limits() {
     use jig_domain_tasks::{ActivityLine, Line, MessageKind, Party, Stored, Word};
-    let domain = jig_domain_tasks::Limits {
-        message_bytes: 16,
-        result_bytes: 32,
-        ..jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.tasks
-    };
+    let domain =
+        jig_domain_tasks::Limits { message_bytes: 16, result_bytes: 32, inbox_bytes: 4096, ..fixtures::TASKS_LIMITS };
     let words = b"You owe your requester a question: ask your plan with message, as a question, and wait.";
     assert!(words.len() > usize::try_from(domain.message_bytes).expect("word bound"));
     assert!(words.len() <= usize::try_from(domain.inbox_bytes).expect("inbox bound"));
@@ -1449,4 +1446,42 @@ fn an_owing_reminder_survives_storage_with_small_caller_word_limits() {
     });
     let bytes = crate::codec::tasks::encode(&row, &limits, &[]).expect("fixed reminder fits");
     assert_eq!(crate::codec::tasks::decode(&bytes, &limits, &[]), Ok(row));
+}
+
+#[test]
+fn a_remove_project_act_round_trips() {
+    use jig_domain_people::{Act, ActKey, Outcome, Refusal, Stored};
+    people_round_trip(Stored::Acted {
+        key: ActKey { connector: u16::MAX, key: [255; 16] },
+        act: Act::RemoveProject { project: u32::MAX },
+        outcome: Outcome::Refused(Refusal::Unknown),
+        at: skein_lib::Wall::from_nanos(u64::MAX),
+    });
+}
+
+#[test]
+fn a_remove_project_ask_round_trips() {
+    ask_round_trip(jig_domain_people::Ask::RemoveProject { project: u32::MAX });
+}
+
+#[test]
+fn a_project_removed_outcome_round_trips() {
+    people_round_trip(fixtures::people_outcomes::answered(jig_domain_people::Outcome::ProjectRemoved {
+        project: u32::MAX,
+    }));
+}
+
+#[test]
+fn a_deletion_row_round_trips_at_each_step() {
+    use jig_domain_people::{DeletionStep, Stored};
+    for step in [DeletionStep::Tasks, DeletionStep::Rows, DeletionStep::Release] {
+        people_round_trip(Stored::Deletion { project: u32::MAX, step });
+    }
+    let key = jig_domain_core::Key::People(jig_domain_people::Key::Deletion(u32::MAX));
+    let bytes = crate::keys::encode(&key, fixtures::KEY_LIMIT).expect("deletion key fits");
+    assert_eq!(bytes.as_ref(), &[1, 2, 9, 0, 0, 0, 0, 255, 255, 255, 255]);
+    assert_eq!(crate::keys::decode(&bytes), Some(key));
+    let mut oversized = bytes;
+    *oversized.get_mut(6).expect("project high word") = 1;
+    assert_eq!(crate::keys::decode(&oversized), None);
 }

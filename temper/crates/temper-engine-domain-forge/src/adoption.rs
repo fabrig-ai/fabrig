@@ -532,3 +532,24 @@ fn locate_refused(d: &mut Domain, env: &Env<Limits>, request: Token, why: Adopti
     let pending = d.application.pending.remove(&request).expect("locate belongs to an application");
     finish(d, env, request, pending, ApplicationOutcome::ForgeRefused(why), out);
 }
+
+/// Release adoptions after the core has erased the project's tasks
+/// (temper/docs/design/draft/playground-reset.md, 5).
+pub(crate) fn release(d: &mut Domain, project: u32, request: Token, out: &mut Queue<Request>) {
+    let mut repositories = List::with_capacity(d.repositories.capacity());
+    for (provider, row) in &d.repositories {
+        if row.project == project {
+            repositories.push(*provider).expect("bounded adopted repositories");
+        }
+    }
+    let changed = !repositories.is_empty();
+    for provider in repositories.into_boxed() {
+        d.repositories.remove(&provider);
+        emit(out, Request::Erase { key: Key::Repository(provider) });
+        emit(out, Request::Erase { key: Key::Client(skein_forge_client::Key::Repository(provider)) });
+    }
+    if changed {
+        emit(out, Request::MarkedForges);
+    }
+    emit(out, Request::ProjectReleased { request });
+}

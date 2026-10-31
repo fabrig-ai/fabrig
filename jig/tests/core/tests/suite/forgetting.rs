@@ -1,10 +1,12 @@
 //! A task's retention class decides what its reading erases (people.md, 6).
 
 const CONVERSATION_MARK: u8 = 63;
-use jig_core_world::{
-    effects::{Cut, World},
-    stories::reads::{forgettable_world, request, request_event, world},
-};
+use crate::read_support::forgettable_world;
+use crate::read_support::request;
+use crate::read_support::request_event;
+use crate::read_support::world;
+use jig_core_world::world::Cut;
+use jig_core_world::world::World;
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -108,12 +110,12 @@ fn a_results_mark_is_busy_while_a_conversation_loads() {
     let (task, through) = finish(&mut world);
     request(&mut world, MARK_TURNS, people::Ask::MarkSeen { seen: people::Seen::Conversation { task, through: 1 } });
     world.store_delay = 3;
-    let chat = jig_core_world::stories::reads::request_event(
+    let chat = crate::read_support::request_event(
         &world,
         CONVERSATION_MARK,
         people::Ask::MarkSeen { seen: people::Seen::Conversation { task, through: 1 } },
     );
-    let results = jig_core_world::stories::reads::request_event(
+    let results = crate::read_support::request_event(
         &world,
         MARK_RESULTS,
         people::Ask::MarkSeen { seen: people::Seen::Results { through } },

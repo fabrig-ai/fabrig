@@ -68,3 +68,20 @@ fn child_validity_keeps_semantic_and_count_refusals() {
     fleet.history = u32::MAX;
     assert!(!jig_domain_fleet::valid(&fleet));
 }
+
+#[test]
+fn configured_read_room_is_smaller_than_the_maximum_frame() {
+    // The frame bound is TurnRecord::encoded_bound + 12, including
+    // version, optional read, transcript length, checksum and both lengths.
+    const MAX_FRAME: u64 = 8_388_672;
+    // Standard's map page includes the task/run revisions and placed reference;
+    // transcript framing and direct read room are unchanged.
+    for (kind, request, page) in [(Profile::Small, 65_536, 1_590_110), (Profile::Standard, 262_144, 10_666_854)] {
+        let configured = profile(kind);
+        let codec = jig_protocol_store::codec::limits(&configured.core).expect("profile codec");
+        assert_eq!(u64::from(configured.core.resume_bytes), request);
+        assert_eq!(configured.store.store.page.bytes, page);
+        assert_eq!(jig_protocol_store::core_v6::TurnRecord::encoded_bound(&codec.core).expect("body") + 12, MAX_FRAME);
+        assert!(request.min(u64::from(page)) < MAX_FRAME);
+    }
+}

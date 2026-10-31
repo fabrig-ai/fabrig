@@ -141,11 +141,11 @@ fn the_model_draft_is_kept_between_steps_and_dropped_on_leaving() {
     assert_eq!(root.pages().connect_model().unwrap().holder, c::AccountHolder::Own);
 }
 #[test]
-fn unavailable_and_demo_ways_resolve_to_choose() {
+fn unavailable_and_playground_ways_resolve_to_choose() {
     let (mut root, _, _) = root(Way::Key { provider: PROVIDER + 1 });
     assert_eq!(connect_model::way(root.pages(), root.client()), None);
     go(&mut root, Some(Way::Key { provider: PROVIDER }));
-    root.pages.demo_provider = Some(PROVIDER);
+    root.pages.playground_provider = Some(PROVIDER);
     assert_eq!(connect_model::way(root.pages(), root.client()), None);
 }
 #[test]
@@ -316,18 +316,6 @@ fn a_restored_sign_in_address_is_live_only_while_the_watch_names_its_source() {
     let page = root.pages().connect_model().unwrap();
     assert_eq!(page.request.sign_in_state(root.client()), SignInState::Started { source: 43 });
     assert!(page.request.sign_in_address(root.client()).is_some(), "an older watch does not end a new sign-in");
-}
-
-#[test]
-fn a_reloaded_retirement_excludes_the_demo_way_and_its_submit() {
-    let (mut root, _, _) = root(Way::Key { provider: PROVIDER });
-    crate::tests::demo::deliver_demo_read(
-        &mut root,
-        crate::tests::demo::page_with_state(temper_client_protocol_wire::v1::DemoState::Ended),
-    );
-    assert_eq!(connect_model::way(root.pages(), root.client()), None);
-    key(&mut root, b"fake-demo-key");
-    assert!(sends(act(&mut root, Act::Submit { name: NAME })).is_empty());
 }
 
 #[test]

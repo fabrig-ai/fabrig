@@ -33,6 +33,10 @@ impl Core {
                 if let Some(failure) = self.start_settings_finish(env) {
                     return Action::Refused(failure);
                 }
+                if !crate::admission::deletion::restored(self) {
+                    self.start_collect_failure();
+                    return Action::Refused(self.start_failure().expect("named project policy failure"));
+                }
                 self.counters.finish_restore();
                 if self.counters.dirty() {
                     super::first::start_seed(self, env, out);
@@ -127,7 +131,9 @@ impl Core {
                 let Some(record) = self.start.sweep.pop() else { return Action::Idle };
                 match &record {
                     // The sweep erases only expired rows (jig/docs/design/domain/engine.md, 6).
-                    people::Stored::Policy { .. } | people::Stored::EndedRead { .. } => return Action::Idle,
+                    people::Stored::Policy { .. }
+                    | people::Stored::EndedRead { .. }
+                    | people::Stored::Deletion { .. } => return Action::Idle,
                     people::Stored::Acted { .. }
                     | people::Stored::Person { .. }
                     | people::Stored::ReadResults { .. }

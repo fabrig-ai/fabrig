@@ -9,3 +9,5 @@ pub(in crate::tests) mod read_activity;
 pub(in crate::tests) mod read_filters;
 pub(in crate::tests) mod retained_lineage;
 pub(in crate::tests) mod task_query;
+
+mod closed;

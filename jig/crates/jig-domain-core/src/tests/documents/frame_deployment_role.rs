@@ -11,6 +11,9 @@ const ORDINARY_PROJECTS: u32 = 2; // Project 1 and the full-width project.
 fn source(deployment_role: Option<people::Role>) -> (Core, Limits) {
     let (mut core, mut limits) = core();
     limits.people.projects = 3;
+    core.projects = List::with_capacity(ORDINARY_PROJECTS);
+    core.projects.push(1).expect("first open project");
+    core.projects.push(u32::MAX).expect("full-width open project");
     core.names = Map::with_capacity(ORDINARY_PROJECTS);
     core.names.insert(1, Box::from("Project 1")).expect("first project name");
     core.names.insert(u32::MAX, Box::from("Project 4294967295")).expect("full-width project name");

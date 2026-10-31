@@ -29,7 +29,7 @@ struct Generations {
     previous: Option<Secret>,
 }
 impl Identities {
-    /// Room for each configured identity's number.
+    /// Room for each kept identity's number.
     #[must_use]
     pub fn with_capacity(identities: u32) -> Self {
         Self { entries: Map::with_capacity(identities) }
@@ -43,8 +43,11 @@ impl Identities {
         }
         self.entries
             .insert(number, Generations { generation: 1, newest: value, previous: None })
-            .expect("configured identity capacity");
+            .expect("kept forge identity capacity");
         1
+    }
+    pub(crate) fn forget(&mut self, number: u32) {
+        self.entries.remove(&number);
     }
     /// Either of the two newest generations, or none for an older one.
     #[must_use]
@@ -75,7 +78,7 @@ impl Identities {
 #[derive(Debug)]
 pub struct Values {
     pub accounts: Table,
-    /// The two newest encoded values of each configured git identity.
+    /// The two newest encoded values of each kept git identity.
     pub identities: Identities,
     pub tokens: crate::forge::tokens::Tokens,
 }
@@ -129,31 +132,8 @@ fn identity_grant(value: Option<&Secret>) -> Option<GrantValue> {
     Some(GrantValue::Application { secret: value.clone() })
 }
 impl Values {
-    pub(crate) fn fill(
-        &mut self,
-        settings: &crate::settings::Engine,
-        limits: &temper_protocol_worker_wire::v1::Limits,
-    ) -> Result<(), jig_protocol_config::Problems> {
-        use jig_protocol_config::What;
-        let identities = &settings.identities;
+    pub(crate) fn fill(&mut self, settings: &crate::settings::Engine) {
         self.tokens = crate::forge::tokens::Tokens::new(settings);
-        self.identities = Identities::with_capacity(u32::try_from(identities.len()).expect("identity count"));
-        for identity in identities {
-            // GitHub gathers tokens until its first Connected.
-            if identity.token.expose().is_empty() {
-                continue;
-            }
-            let value = crate::translate::identity(identity, limits).or(Err(identity_problem(What::Bound)))?;
-            if self.identities.newest(identity.number).is_some() {
-                return Err(identity_problem(What::Duplicate));
-            }
-            self.identities.put(identity.number, value);
-        }
-        Ok(())
+        self.identities = Identities::with_capacity(settings.limits.forge.forges);
     }
-}
-fn identity_problem(what: jig_protocol_config::What) -> jig_protocol_config::Problems {
-    let mut problems = jig_protocol_config::Problems::empty();
-    problems.push(jig_protocol_config::Path::root().member(b"engine").member(b"identities"), what);
-    problems
 }

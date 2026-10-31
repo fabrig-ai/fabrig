@@ -53,7 +53,7 @@ impl Core {
                 let payer = occurrence_payer
                     .or(self.tasks.prospective_payer(new.funder, links))
                     .ok_or(tasks::Problem::new(Some(number), tasks::Refusal::Funding))?;
-                if let Err(why) = self.account_preference(Some(choice), payer, None) {
+                if let Err(why) = self.account_preference(Some(choice), payer, new.project, None) {
                     return Err(tasks::Problem::new(Some(number), why));
                 }
             }
@@ -71,7 +71,7 @@ impl Core {
         if let Some(payer) = occurrence_payer.or(self.tasks.prospective_payer(new.funder, links))
             && let Some(choice) = &mut new.llm
         {
-            let coverage = self.account_coverage(payer);
+            let coverage = self.account_coverage(payer, Some(new.project));
             let mut candidates = List::with_capacity(tasks::MODELS.checked_add(1).expect("main model"));
             candidates.push(choice.main).expect("default main");
             for model in &choice.subagents {

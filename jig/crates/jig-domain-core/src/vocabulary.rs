@@ -40,6 +40,11 @@ pub enum Request {
 /// A question or retained-section command for a numbered connector.
 #[derive(Debug)]
 pub enum Ask {
+    /// Release every adoption this connector holds for a project being deleted
+    /// (jig/docs/design/domain/people.md, 5.2). Answered by
+    /// `Event::ProjectReleased` once the release commits; at once when none are held.
+    /// Sent again at each start until answered, so a connector releases idempotently.
+    ReleaseProject { project: u32 },
     /// The complete procedure step committed with these spec revisions.
     StepMade { task: u64, step: u64, first: Option<u64>, revisions: Box<[(u64, u64)]> },
     /// No part of the procedure step committed.
@@ -126,6 +131,9 @@ pub enum Ask {
 /// Store mutation issued by a child of the core.
 #[derive(Debug)]
 pub enum Write {
+    /// Drop a task transcript whole with its places (jig/docs/design/protocol/store.md, 8.5, 11.1;
+    /// jig/docs/design/domain/people.md, 5.2).
+    DropTranscript { task: u64 },
     /// Copy the old held revision to history without materialising it in the core.
     CopySettingsRevision(u32),
     /// Save one authentic core or child record.
@@ -403,6 +411,9 @@ pub struct CoreBriefBudgets {
 /// One event routed to a child of the core.
 #[derive(Debug)]
 pub enum Event {
+    /// A connector's release of a deleted project's adoptions has committed
+    /// (jig/docs/design/domain/people.md, 5.2).
+    ProjectReleased { connector: u16, project: u32 },
     /// Owner settings value held only while people admits its keyed digest.
     ChangeSettings {
         reply_to: ReplyTo,
@@ -855,7 +866,8 @@ impl Event {
             | Self::ProcedureHoldings { .. }
             | Self::ProcedureStep { .. }
             | Self::Brief(..)
-            | Self::Holdings { .. } => false,
+            | Self::Holdings { .. }
+            | Self::ProjectReleased { .. } => false,
         }
     }
 }
@@ -902,7 +914,8 @@ fn tasks_new_work(event: &tasks::Event) -> bool {
         | tasks::Event::Make { .. }
         | tasks::Event::Hold { .. }
         | tasks::Event::HoldFrom { .. } => true,
-        tasks::Event::Charters { .. }
+        tasks::Event::CloseProject { .. }
+        | tasks::Event::Charters { .. }
         | tasks::Event::WakeProcedure { .. }
         | tasks::Event::RecurringBatch { .. }
         | tasks::Event::Procedure { .. }
@@ -985,7 +998,10 @@ fn people_new_work(event: &people::Event) -> bool {
         | people::Event::SignOut { .. }
         | people::Event::Roles { .. }
         | people::Event::Ask { .. } => true,
-        people::Event::MoveChat { .. }
+        people::Event::Deleting { .. }
+        | people::Event::CloseProject { .. }
+        | people::Event::ForgetProject { .. }
+        | people::Event::MoveChat { .. }
         | people::Event::ChatState { .. }
         | people::Event::ConversationSeen { .. }
         | people::Event::Forget { .. }
@@ -1004,7 +1020,8 @@ fn account_new_work(event: &accounts::Event) -> bool {
         | accounts::Event::Credential { .. }
         | accounts::Event::SignIn { .. }
         | accounts::Event::SignOut { .. } => true,
-        accounts::Event::Restore { .. }
+        accounts::Event::ForgetProject { .. }
+        | accounts::Event::Restore { .. }
         | accounts::Event::ProgramTargets { .. }
         | accounts::Event::ProgramSignedOut { .. }
         | accounts::Event::Component(..)
@@ -1049,7 +1066,7 @@ fn notes_new_work(event: &notes::Event) -> bool {
         | notes::Event::Recall { .. }
         | notes::Event::Write { .. }
         | notes::Event::Edit { .. } => true,
-        notes::Event::LoadFailed { .. } | notes::Event::Loaded { .. } => false,
+        notes::Event::DropProject { .. } | notes::Event::LoadFailed { .. } | notes::Event::Loaded { .. } => false,
     }
 }
 

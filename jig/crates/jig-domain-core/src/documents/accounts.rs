@@ -1,4 +1,5 @@
 //! The party's accounts (`client/domain/contract.md`, 5.1; `domain/accounts.md`, sections 3 and 5).
+//! Closed at once (jig/docs/design/domain/people.md, 5.2).
 use crate::{
     Core, Limits,
     documents::{
@@ -123,7 +124,7 @@ pub(super) fn make(core: &Core, limits: &Limits, party: u64, owner: u64, window:
             .push(AccountLine {
                 number,
                 place: account.place(),
-                uses: uses(account),
+                uses: uses(core, account),
                 plan: account.plan(),
                 provider: Some(account.provider()),
                 provider_name: provider_name(core, account, limits.documents.text_bytes),
@@ -176,7 +177,7 @@ fn serves_work(core: &Core, party: u64) -> bool {
         if !fact.usable {
             continue;
         }
-        if crate::runs::coverage::serves(&core.people, account, accounts::Use::Party(party)) {
+        if crate::runs::coverage::serves(&core.people, account, accounts::Use::Party(party), None) {
             return true;
         }
     }
@@ -199,10 +200,18 @@ pub(super) fn document_bound(limits: &DocumentLimits) -> Option<u64> {
 }
 
 /// Copy an account's explicit uses without changing the default/empty distinction.
-pub(super) fn uses(account: &accounts::Account) -> Option<List<accounts::Use>> {
+pub(super) fn uses(core: &Core, account: &accounts::Account) -> Option<List<accounts::Use>> {
     let uses = account.uses()?;
     let mut result = List::with_capacity(accounts::USES);
     for payer in uses {
+        match payer {
+            accounts::Use::Project(project)
+                if *project != jig_domain_people::DEPLOYMENT && !core.open_project(*project) =>
+            {
+                continue;
+            }
+            accounts::Use::Project(_) | accounts::Use::Party(_) => {}
+        }
         result.push(*payer).expect("the child bounds uses");
     }
     Some(result)
@@ -251,7 +260,7 @@ mod tests {
     #[test]
     fn the_accounts_document_is_priced() {
         let limits = crate::tests::limits();
-        let accounts = crate::documents::document_bound(&limits.documents).expect("accounts bound");
+        let accounts = crate::documents::accounts::document_bound(&limits.documents).expect("accounts bound");
         assert!(accounts <= crate::documents::document_bound(&limits.documents).expect("document bound"));
     }
 }

@@ -2848,6 +2848,18 @@ fn change_has_live_delegates(domain: &Domain, task: u64) -> bool {
     }
 }
 
+// The deployment cancels the procedure through its task control path
+// (temper/docs/design/draft/playground-reset.md, 4).
+fn cancel_change(domain: &mut Domain, task: u64) {
+    let Some(row) = domain.core.tasks.task(task) else { return };
+    domain.work.push(Work::Tasks(tasks::Event::Control {
+        reply_to: super::internal(u64::MAX),
+        by: tasks::Party::Deployment { project: row.project },
+        task,
+        control: tasks::Control::Cancel { reason: Box::new([]), grace: None, message: None },
+    }));
+}
+
 fn change_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, choice: forge_change::Decision) {
     let Some((connector, code, step)) = domain.core.tasks.procedure_due(task) else { return };
     if connector != domain.config.forge_connector || code != CHANGE_CODE {
@@ -2904,9 +2916,8 @@ fn change_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, choice: fo
             }
         }
         forge_change::Decision::Wait { until } => wait_change_decision(domain, env, task, until),
-        forge_change::Decision::None | forge_change::Decision::Effect(_) | forge_change::Decision::Cancel => {
-            ProcedureStep::new(StepEnd::Wait)
-        }
+        forge_change::Decision::Cancel => unreachable!("cancel is routed before procedure admission"),
+        forge_change::Decision::None | forge_change::Decision::Effect(_) => ProcedureStep::new(StepEnd::Wait),
         forge_change::Decision::Delegate(kind) => {
             let Some(delegate) = change_delegate(domain, env, task, kind) else {
                 let held = holds::decision(
@@ -2987,14 +2998,21 @@ pub(crate) fn outputs(
             forge::Request::Bound { request, answer } => {
                 emit(decision, &env.limits, Delivery::Bound { request, answer });
             }
-            forge::Request::ListDemoActs => super::demo::list_end_acts(domain),
-            forge::Request::SendDemoAct(row) => super::demo::send_end_act(domain, row),
-            forge::Request::DemoStart { request } => super::demo::start(domain, env, decision, request),
-            forge::Request::StopGroup { forge } => {
-                assert!(super::now(domain, Request::StopGroup { forge }), "demo stop door reserved");
+            forge::Request::PlaygroundActs { request, forge } => {
+                super::playground::start(domain, env, decision, request, forge);
             }
-            forge::Request::SetUpGroup { forge, request } => {
-                assert!(super::now(domain, Request::SetUpGroup { forge, request }), "demo box group door reserved");
+            forge::Request::ResetAct { key, act } => super::playground::reset(domain, key, act),
+            forge::Request::ForgeKept(record) => {
+                assert!(super::now(domain, Request::ForgeKept(record)), "forge runtime door");
+            }
+            forge::Request::ForgeGone { forge } => {
+                assert!(super::now(domain, Request::ForgeGone { forge }), "forge removal door");
+            }
+            forge::Request::BoxGroup { forge, kind, request } => {
+                assert!(super::now(domain, Request::BoxGroup { forge, kind, request }), "box group door");
+            }
+            forge::Request::BoxRemove { forge } => {
+                assert!(super::now(domain, Request::BoxRemove { forge }), "box removal door");
             }
             forge::Request::SetUp { forge, request, org, repository, playground } => {
                 assert!(
@@ -3007,11 +3025,11 @@ pub(crate) fn outputs(
                 super::applications::part(domain, request, adoption, repository);
             }
             forge::Request::ApplicationDone { request, token } => {
-                super::demo::done(domain, env, decision, request, true);
+                super::playground::done(domain, env, decision, request, true);
                 super::applications::finished(domain, request, Ok(token));
             }
             forge::Request::ApplicationAgain { request, why } => {
-                super::demo::done(domain, env, decision, request, false);
+                super::playground::done(domain, env, decision, request, false);
                 super::applications::finished(domain, request, Err(why));
             }
             forge::Request::WakeProcedure { task } => {
@@ -3273,6 +3291,16 @@ pub(crate) fn outputs(
                     holds::hold(domain, task, b"connector entry numbers exhausted while releasing resources");
                 }
             }
+            forge::Request::ProjectReleased { request } => {
+                emit(
+                    decision,
+                    &env.limits,
+                    Delivery::ProjectReleased {
+                        connector: domain.config.forge_connector,
+                        project: u32::try_from(request.raw()).expect("project reply token is a u32"),
+                    },
+                );
+            }
             forge::Request::Released { task } => {
                 domain.work.push(Work::Tasks(tasks::Event::Settled { task }));
             }
@@ -3463,8 +3491,8 @@ pub(crate) fn outputs(
                 | forge_change::Decision::Ready
                 | forge_change::Decision::QueueRepair
                 | forge_change::Decision::Finish { .. }
-                | forge_change::Decision::Cancel
                 | forge_change::Decision::Hold(_) => change_decision(domain, env, task, choice),
+                forge_change::Decision::Cancel => cancel_change(domain, task),
             },
             forge::Request::ProjectionSettled { goal } => {
                 domain.forge.projection_settled(goal);

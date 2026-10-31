@@ -144,7 +144,7 @@ fn pre_settings_refusals_leave_the_whole_directory_unchanged() {
     let limits = store::limits(&root, &root.forge, &profile).unwrap();
     let deployment = fixtures::seeds().deployment;
     // The refused format's version and six family fields, then application and deployment.
-    let mut bytes = Vec::from([0, 2, 0, 2, 0, 6, 0, 9, 0, 13, 0, 1, 0, 2]);
+    let mut bytes = Vec::from([0, 2, 0, 2, 0, 6, 0, 9, 0, 14, 0, 1, 0, 2]);
     bytes.extend_from_slice(&temper_protocol_store::STORE_VERSION.to_be_bytes());
     bytes.extend_from_slice(&deployment);
     let header = jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(jig_domain_core::Deployment {

@@ -236,7 +236,7 @@ pub fn hook(service: &mut crate::Service) -> skein_forge_connection::hooks::Hint
     let config = super::engine();
     let mut found = jig_protocol_config::Problems::empty();
     let mut settings =
-        crate::forge::settings(&config.forges, super::forge_runtime(), None, &mut found).expect("settings");
+        crate::forge::settings(&super::forges(), super::forge_runtime(), None, &mut found).expect("settings");
     settings.forges.get_mut(0).expect("forge").access.as_mut().expect("access").webhook_secret =
         Some(Secret::new(Box::from(SECRET)));
     settings.webhooks =

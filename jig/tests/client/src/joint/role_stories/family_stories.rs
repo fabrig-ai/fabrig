@@ -175,7 +175,7 @@ fn a_proposed_effect_shows_its_real_connector_description_in_the_proposal_card()
                 position: 0,
             },
             number: 1,
-            effect: jig_core_world::effects::World::effect(),
+            effect: jig_core_world::world::World::effect(),
             deadline: skein_lib::Wall::from_nanos(clock(now).as_nanos() + 1_000_000_000),
             proposal: Some(b"ask the holder".as_slice().into()),
         },

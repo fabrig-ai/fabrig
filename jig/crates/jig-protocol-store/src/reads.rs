@@ -1,4 +1,5 @@
 //! Parties' bounded durable reads and joins (protocol/store.md, 7.3).
+mod erasure;
 mod indexed;
 mod joins;
 mod paged;
@@ -34,6 +35,8 @@ pub(crate) fn read(store: &mut Store, owner: Token, range: Range, above: &mut Qu
     }
     let mut spent = Spent { rows: range.rows, bytes: range.bytes, joins: store.limits.joins };
     let result = match range.scope {
+        Scope::EndedTasks => erasure::read(store, &range, None, &mut spent),
+        Scope::TaskRows { task } => erasure::read(store, &range, Some(task), &mut spent),
         Scope::SettingsHistory { .. } => settings::read(store, &range),
         Scope::Task { task } | Scope::PersonTask { task } | Scope::Result { task } => {
             point::task(store, &range, task, &mut spent)

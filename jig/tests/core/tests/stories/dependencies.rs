@@ -1,6 +1,6 @@
 use super::*;
-use jig_core_world::effects::Setup;
-use jig_core_world::fixtures::unchanged;
+use jig_core_world::world::Setup;
+use jig_test_profile::fixtures::unchanged;
 
 #[test]
 fn a_kept_delegate_is_woken_by_its_last_dependencys_met() {

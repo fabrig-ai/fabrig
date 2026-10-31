@@ -190,6 +190,7 @@ pub(crate) fn watcher(value: &core::Event) -> Option<Token> {
         | core::Event::ProcedureStep { .. }
         | core::Event::Brief(..)
         | core::Event::Holdings { .. }
+        | core::Event::ProjectReleased { .. }
         | core::Event::Account(..)
         | core::Event::View(..)
         | core::Event::Notes(..) => None,
@@ -266,6 +267,7 @@ pub(crate) fn starting(value: core::Event) -> Option<kit::Event> {
         | core::Event::ProcedureStep { .. }
         | core::Event::Brief(..)
         | core::Event::Holdings { .. }
+        | core::Event::ProjectReleased { .. }
         | core::Event::Account(..)
         | core::Event::View(..)
         | core::Event::Notes(..) => None,

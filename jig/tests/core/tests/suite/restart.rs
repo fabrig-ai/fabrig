@@ -1,10 +1,10 @@
-use jig_core_world::effects::Setup;
+use jig_core_world::world::Setup;
 const FIRST_GOAL: u8 = 151;
 const CHAT: u8 = 152;
 const TURN: u32 = 1;
 const BEFORE: u64 = 153;
 const AFTER: u64 = 154;
-use jig_core_world::effects::World;
+use jig_core_world::world::World;
 use jig_domain_core as core;
 use jig_domain_fleet as fleet;
 use jig_domain_tasks as tasks;
@@ -18,7 +18,7 @@ fn hello(world: &mut World, hosting: Box<[fleet::Hosting]>) {
         worker: 0,
         channel: Token::new(7),
         hello: fleet::Hello {
-            bounds: jig_core_world::fixtures::bounds(),
+            bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(100),
             slots: 1,
             workstreams: Box::new([]),
@@ -265,9 +265,8 @@ fn a_refused_claim_keeps_the_conversation_for_the_next_resume() {
     let root::Record::Core(core::Record::Core(core::CoreRecord::RunProof(saved))) = &world.store.rows[&key] else {
         panic!("durable proof")
     };
-    let limits = jig_core_world::world::limits().core;
-    let mut core =
-        core::Core::new(jig_core_world::world::config(120).core, &limits).expect("fixture core configuration");
+    let limits = jig_test_profile::limits().core;
+    let mut core = core::Core::new(jig_test_profile::config(120).core, &limits).expect("fixture core configuration");
     core.replaced.insert(task, saved.clone()).expect("one durable replacement");
     let mut pending = saved.clone();
     pending.attempt += 1;
@@ -338,7 +337,7 @@ fn a_restart_with_workers_in_process_settles_their_claims_at_once() {
     world.turn(1, 2, None, b"worker turn");
     let task = world.task();
     let before = world.wall_time().as_nanos();
-    let mut config = jig_core_world::effects::fixture(121, false).0;
+    let mut config = jig_core_world::world::fixture(121, false).0;
     config.core.workers_in_process = true;
     world.restart_with(config);
     assert!(world.domain.ready());
@@ -351,7 +350,7 @@ fn a_restart_with_workers_in_process_assigns_without_a_grace() {
     let mut world = World::new(Setup { seed: 122, ..Setup::default() });
     let (task, attempt) = (world.task(), world.attempt());
     let before = world.wall_time().as_nanos();
-    let mut config = jig_core_world::effects::fixture(122, false).0;
+    let mut config = jig_core_world::world::fixture(122, false).0;
     config.core.workers_in_process = true;
     world.assigned = None;
     world.restart_with(config);
@@ -431,7 +430,7 @@ fn a_restart_between_a_window_turn_and_its_resume_sends_the_window() {
 }
 
 fn census_world(seed: u64) -> World {
-    let (configuration, mut limits) = jig_core_world::effects::fixture(seed, false);
+    let (configuration, mut limits) = jig_core_world::world::fixture(seed, false);
     limits.core.people.inbox_entries = 8;
     limits.core.tasks.inbox_messages = 8;
     limits.core.tasks.run_inbox = 8;
@@ -465,14 +464,14 @@ fn census_result(world: &World, task: u64) -> &tasks::TaskRecord {
     row
 }
 fn census_goal(world: &mut World, key: u8) -> u64 {
-    jig_core_world::stories::reads::request(world, key, jig_core_world::stories::offers::goal(100));
+    crate::read_support::request(world, key, jig_core_world::stories::offers::goal(100));
     let task = world.assigned.as_ref().expect("goal assigned").task;
     finish_census_task(world, 0);
     assert!(census_result(world, task).tracked.is_some());
     task
 }
 fn census_mark_results(world: &mut World, through: u64, key: u8) {
-    jig_core_world::stories::reads::request(
+    crate::read_support::request(
         world,
         key,
         jig_domain_people::Ask::MarkSeen { seen: jig_domain_people::Seen::Results { through } },
@@ -484,7 +483,7 @@ fn a_restart_reads_no_ended_task_whose_result_was_read() {
     let chat = world.assigned.as_ref().expect("initial chat").task;
     world.turn(1, 1, None, b"initial reply");
     finish_census_task(&mut world, 1);
-    jig_core_world::stories::reads::request(
+    crate::read_support::request(
         &mut world,
         99,
         jig_domain_people::Ask::MarkSeen { seen: jig_domain_people::Seen::Conversation { task: chat, through: 1 } },
@@ -539,7 +538,7 @@ fn a_restart_restores_unread_results_and_chat_totals() {
     for number in 0..3 {
         if number != 0 {
             let request = jig_core_world::fixtures::chat(&world, 1, b"next census chat".as_slice().into());
-            jig_core_world::stories::reads::request(&mut world, 110 + number, request);
+            crate::read_support::request(&mut world, 110 + number, request);
         }
         chats.push(world.assigned.as_ref().expect("chat").task);
         world.turn(1, 1, None, b"unread reply");
@@ -553,7 +552,7 @@ fn a_restart_restores_unread_results_and_chat_totals() {
 }
 
 fn both_kinds_engine_fixture(seed: u64) -> (root::Config, root::Limits) {
-    let (mut config, mut limits) = jig_core_world::effects::fixture(seed, false);
+    let (mut config, mut limits) = jig_core_world::world::fixture(seed, false);
     config.core.defaults.charters[0].hosts = fleet::Kinds::Both;
     limits.core.fleet.engine_slots = 2;
     limits.core.fleet.slots = 1;
@@ -641,7 +640,7 @@ fn a_restart_keeps_an_unread_goal_older_than_an_unread_conversation() {
     finish_census_task(&mut world, 0);
     let goal = census_goal(&mut world, FIRST_GOAL);
     let request = jig_core_world::fixtures::chat(&world, 1, b"newer chat".as_slice().into());
-    jig_core_world::stories::reads::request(&mut world, CHAT, request);
+    crate::read_support::request(&mut world, CHAT, request);
     let chat = world.assigned.as_ref().expect("chat").task;
     world.turn(TURN, 1, None, b"reply");
     finish_census_task(&mut world, 1);

@@ -1,8 +1,8 @@
 //! Kept-task stories at the core's public entrances (engine.md, section 15;
 //! tasks.md, section 5.7). Assertions observe durable rows and party deliveries.
 use super::*;
-use jig_core_world::effects::Setup;
-use jig_core_world::fixtures::unchanged;
+use jig_core_world::world::Setup;
+use jig_test_profile::fixtures::unchanged;
 
 fn amend_dependency(world: &mut World, parent: (u64, u64), target: u64, dependency: u64) {
     let mut amendment = unchanged(b"wait for prerequisite");
@@ -148,7 +148,7 @@ fn a_kept_delegate_restarts_then_wakes_and_finishes_after_its_dependency_is_done
         worker: 0,
         channel: Token::new(7),
         hello: jig_domain_fleet::Hello {
-            bounds: jig_core_world::fixtures::bounds(),
+            bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: skein_lib::Duration::from_millis(100),
             slots: limits.core.fleet.slots,
             workstreams: Box::new([]),

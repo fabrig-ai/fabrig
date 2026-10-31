@@ -1,8 +1,11 @@
 //! Party and run settings proposals through the real store and commit barrier (engine.md, 17.6).
 
 use crate::settings_support as support;
-use jig_core_world::effects::Setup;
-use jig_core_world::{client_peer::ClientPeer, effects::World, fixtures, peers};
+use jig_core_world::client_peer::ClientPeer;
+use jig_core_world::fixtures;
+use jig_core_world::peers;
+use jig_core_world::world::Setup;
+use jig_core_world::world::World;
 use jig_domain_core::{self as core, documents, reads, settings};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -128,7 +131,7 @@ fn an_acceptance_refused_as_full_keeps_the_proposal_and_set_pending() {
         let mut world = World::new(Setup {
             configuration: Some(config),
             limits,
-            boot: jig_core_world::effects::Boot::Empty,
+            boot: jig_core_world::world::Boot::Empty,
             ..Setup::default()
         });
         world.client_peer = Some(ClientPeer::default());
@@ -265,7 +268,7 @@ fn the_pending_settings_bound_admits_two_and_names_the_thirds_refusal() {
     let mut world = World::new(Setup {
         configuration: Some(config),
         limits,
-        boot: jig_core_world::effects::Boot::Empty,
+        boot: jig_core_world::world::Boot::Empty,
         ..Setup::default()
     });
     world.client_peer = Some(ClientPeer::default());
@@ -442,7 +445,7 @@ fn a_shape_refused_proposal_can_retry_after_its_unused_model_returns_without_a_h
     let mut world = World::new(Setup {
         configuration: Some(config),
         limits,
-        boot: jig_core_world::effects::Boot::Empty,
+        boot: jig_core_world::world::Boot::Empty,
         ..Setup::default()
     });
     world.client_peer = Some(ClientPeer::default());

@@ -606,8 +606,8 @@ pub fn step_5_1() -> Vec<calls::Step> {
 }
 
 // Act 2, step 5.3 (domain/testing.md, 5.3)
-const SHAPE_ENDED: usize = 2;
-pub const READS_5_3: &[(Read, usize)] = &[(Read::MoverEnded, 5), (Read::ShapeEnded, SHAPE_ENDED)];
+const SHAPE_ENDED: usize = 3;
+pub const READS_5_3: &[(Read, usize)] = &[(Read::MoverEnded, 6), (Read::ShapeEnded, SHAPE_ENDED)];
 
 #[must_use]
 pub fn step_5_3() -> Vec<calls::Step> {
@@ -615,6 +615,7 @@ pub fn step_5_3() -> Vec<calls::Step> {
     vec![
         sign_in(D1),
         call(D1, argv!["chat", "start", "--project", number(PROJECT), "--key", "shape", SHAPE_PERSON]),
+        call(D1, argv!["task", "show", number(SHAPE), "--until", "replied"]),
         start(D1, argv!["task", "show", number(SHAPE), "--until", "ended", "--json"]),
         calls::until(D1, argv!["task", "show", number(MOVER), "--json"], super::NEW_BRIEF.as_bytes(), b"\"task\""),
         call(

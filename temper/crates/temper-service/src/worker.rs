@@ -144,7 +144,7 @@ impl Worker {
                 config.limits.core.accounts.accounts.checked_add(1).expect("account slots"),
                 worker_settings::credential_bytes(config.limits.token),
             ),
-            identities: IdentityTable::new(config.limits.core.accounts.credentials),
+            identities: IdentityTable::new(limits.forge.forges),
             undecodable_values: 0,
             payload: prepared.payload,
             io: Queue::uncapped(),

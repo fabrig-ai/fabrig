@@ -29,6 +29,7 @@ fn converted() -> crate::Service {
     service
 }
 pub(super) fn app(service: &mut crate::Service) {
+    service.engine.as_mut().unwrap().setup.lifecycle.reconcile.remove(&1);
     for (item, value) in [
         (Item::AppId, Box::from(7_u64.to_le_bytes())),
         (Item::AppSlug, Box::from(b"app-fixture".as_slice())),
@@ -39,7 +40,7 @@ pub(super) fn app(service: &mut crate::Service) {
     }
     let origin = records::origin(
         connection::settings::Kind::GitHub,
-        &service.engine.as_ref().expect("engine").workers.forges[0].api,
+        &service.engine.as_ref().expect("engine").workers.forges.get(1).expect("fixture forge").api,
     )
     .encode();
     row(service, Item::Origin, &origin);
@@ -539,7 +540,7 @@ fn the_components_first_listing_routes_gone_suspended_and_stray_installations() 
     accepted(&mut service, &[11, 22]);
     let expected = records::origin(
         connection::settings::Kind::GitHub,
-        &service.engine.as_ref().expect("engine").workers.forges[0].api,
+        &service.engine.as_ref().expect("engine").workers.forges.get(1).expect("fixture forge").api,
     );
     let engine = service.engine.as_mut().expect("engine");
     let start = records::access(
@@ -601,6 +602,7 @@ fn new_app_admission_changes_neither_a_connected_nor_a_stopped_forges_state() {
         let mut setup = super::service(8, Duration::from_secs(3600));
         app(&mut setup);
         let setup = setup.engine.expect("engine");
+        service.engine.as_mut().expect("engine").forge.starts.clear();
         service.engine.as_mut().expect("engine").setup = setup.setup;
         service.engine.as_mut().expect("engine").forge_records.rows = setup.forge_records.rows;
         service
@@ -722,7 +724,7 @@ fn paste_row(limits: &domain::Limits, request: Token, connected: bool, why: Opti
             token: request,
             retention: Duration::from_secs(3600),
             ask: domain::Ask::Connect {
-                forge: 1,
+                forge: domain::Making::Kept(1),
                 how: domain::How::GitHubApp { app: core::num::NonZeroU64::new(7).unwrap() },
             },
             role: Some(jig_domain_people::Role::Owner),
@@ -1149,7 +1151,8 @@ fn setup_unconfigured_forge_is_not_found() {
 fn setup_forgejo_is_not_found() {
     for path in [b"setup".as_slice(), b"manifest", b"redirect"] {
         let mut service = service(8, Duration::from_secs(3600));
-        service.engine.as_mut().unwrap().workers.forges[0].kind = crate::settings::Kind::Forgejo;
+        service.engine.as_mut().unwrap().workers.forges.get_mut(1).expect("fixture forge").kind =
+            crate::settings::Kind::Forgejo;
         let peer = visit(&mut service, b"GET", &joined(&[b"/forges/1/github/", path]));
         status(&peer, b"404");
     }

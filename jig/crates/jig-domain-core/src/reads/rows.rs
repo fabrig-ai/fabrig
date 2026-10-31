@@ -1,7 +1,6 @@
 //! Read-only construction from bounded authenticated owner rows.
-
-mod positions;
-
+//! Closed at once (jig/docs/design/domain/people.md, 5.2).
+//! Deployment period spend includes removed projects (jig/docs/design/domain/people.md, 5.2).
 use crate::{
     Core, CoreKey, CoreRecord, Key, Limits, Record,
     documents::{self, Document, Missing, Proposer},
@@ -14,6 +13,7 @@ use alloc::boxed::Box;
 use jig_domain_notes as notes;
 use jig_domain_tasks as tasks;
 use skein_lib::List;
+mod positions;
 
 fn note_project(scope: &notes::Scope) -> u32 {
     match scope {
@@ -24,14 +24,20 @@ fn note_project(scope: &notes::Scope) -> u32 {
     }
 }
 
+fn project_allowed(core: &Core, party: u64, project: u32) -> bool {
+    (project == jig_domain_people::DEPLOYMENT || core.open_project(project))
+        && core.people.role(party, project).is_some()
+}
+
 pub(super) fn scope_allowed(core: &Core, party: u64, scope: &Scope) -> bool {
     match scope {
+        Scope::EndedTasks | Scope::TaskRows { .. } => false,
         Scope::SettingsHistory { .. } => core.people.role(party, jig_domain_people::DEPLOYMENT).is_some(),
         Scope::Tasks { query } => documents::task_query::admission(core, party, query).is_ok(),
-        Scope::Notes { project } | Scope::Spend { project } => core.people.role(party, *project).is_some(),
-        Scope::ScopedNotes { scope, .. } => core.people.role(party, note_project(scope)).is_some(),
+        Scope::Notes { project } | Scope::Spend { project } => project_allowed(core, party, *project),
+        Scope::ScopedNotes { scope, .. } => project_allowed(core, party, note_project(scope)),
         Scope::Inbox { filter, .. } => match filter.project {
-            Some(project) => core.people.role(party, project).is_some(),
+            Some(project) => project_allowed(core, party, project),
             None => true,
         },
         Scope::Task { task }
@@ -45,7 +51,7 @@ pub(super) fn scope_allowed(core: &Core, party: u64, scope: &Scope) -> bool {
         | Scope::History { task, .. }
         | Scope::Activity { task }
         | Scope::Proposal { proposer: Proposer::Task(task), .. } => match core.tasks.task(*task) {
-            Some(row) => core.people.role(party, row.project).is_some(),
+            Some(row) => project_allowed(core, party, row.project),
             None => true,
         },
         Scope::Proposal { proposer: Proposer::Party(_), .. } => true,
@@ -233,7 +239,11 @@ pub(super) fn live_page(core: &Core, limits: &Limits, party: u64, read: &Read, d
                             Some(Cursor::Store { .. }) | None => None,
                         },
                     };
-                    Some(Cursor::Store { scope, after })
+                    if value.cached_needs != 0 || value.cached_updates != documents::Count::Known(0) {
+                        Some(Cursor::Store { scope, after })
+                    } else {
+                        None
+                    }
                 }
             };
             Answer::Page(Box::new(Page {
@@ -323,7 +333,9 @@ pub fn row_key(row: &Row) -> Option<Position> {
 
 fn is_page(scope: &Scope) -> bool {
     match scope {
-        Scope::EndedDelegates { .. }
+        Scope::EndedTasks
+        | Scope::TaskRows { .. }
+        | Scope::EndedDelegates { .. }
         | Scope::History { .. }
         | Scope::Activity { .. }
         | Scope::Inbox { .. }
@@ -379,6 +391,7 @@ pub(super) fn from_store(
     wall: skein_lib::Wall,
 ) -> Answer {
     match range.scope {
+        Scope::EndedTasks | Scope::TaskRows { .. } => unreachable!("erasure scopes are core-only"),
         Scope::SettingsHistory { .. } => super::settings::from_store(core, limits, range, raw, next),
         Scope::Tasks { .. }
         | Scope::Task { .. }
@@ -459,6 +472,11 @@ fn owner_rows(
         page.next = Some(Cursor::Store { scope: range.scope.clone(), after: Some(after) });
     }
     for row in raw {
+        if let Some(owner) = row_owner(&row)
+            && !core.open_project(owner.project)
+        {
+            continue;
+        }
         if !row_visible(core, range.party, &row) {
             continue;
         }
@@ -576,7 +594,9 @@ fn object(
                     result_actor(owner),
                 ),
                 Scope::Result { .. } => Answer::Document(Box::new(Document::Result(Box::new(result)))),
-                Scope::Proposal { .. }
+                Scope::EndedTasks
+                | Scope::TaskRows { .. }
+                | Scope::Proposal { .. }
                 | Scope::Escalation { .. }
                 | Scope::Question { .. }
                 | Scope::Reply { .. }
@@ -610,7 +630,8 @@ fn object(
                 })
             }
             Record::Tasks(tasks::Stored::PersonProposal(value) | tasks::Stored::DecidedProposal(value)) => {
-                if *proposer != Proposer::Party(value.proposer)
+                if (value.project != jig_domain_people::DEPLOYMENT && !core.open_project(value.project))
+                    || *proposer != Proposer::Party(value.proposer)
                     || value.number != *proposal
                     || (!value.action.is_settings() && range.party != value.proposer)
                 {
@@ -836,7 +857,9 @@ fn object(
             }
             Ok(Some(ended_answer(EndedValue::Turn(value.clone()), Some(value.at), None)))
         }
-        Scope::EndedDelegates { .. }
+        Scope::EndedTasks
+        | Scope::TaskRows { .. }
+        | Scope::EndedDelegates { .. }
         | Scope::History { .. }
         | Scope::Activity { .. }
         | Scope::Inbox { .. }
@@ -939,7 +962,11 @@ fn page_row(core: &Core, limits: &Limits, range: &Range, row: Row) -> Result<Opt
                 return Ok(None);
             };
             match value.funder {
-                tasks::Funder::Period { project: owner, .. } if owner == *project => Ok(Some(PageRow::Spend(*value))),
+                tasks::Funder::Period { project: owner, .. }
+                    if *project == jig_domain_people::DEPLOYMENT || owner == *project =>
+                {
+                    Ok(Some(PageRow::Spend(*value)))
+                }
                 tasks::Funder::Period { .. }
                 | tasks::Funder::Task(_)
                 | tasks::Funder::Pool { .. }
@@ -948,7 +975,9 @@ fn page_row(core: &Core, limits: &Limits, range: &Range, row: Row) -> Result<Opt
         }
         Scope::Tasks { query } => super::ended::line(core, limits, range.party, query, &row),
         Scope::Inbox { group, filter } => inbox_row(core, limits, range.party, *group, *filter, row),
-        Scope::Task { .. }
+        Scope::EndedTasks
+        | Scope::TaskRows { .. }
+        | Scope::Task { .. }
         | Scope::Proposal { .. }
         | Scope::Escalation { .. }
         | Scope::Question { .. }
@@ -963,7 +992,9 @@ fn page_row(core: &Core, limits: &Limits, range: &Range, row: Row) -> Result<Opt
 fn inbox_contexts(scope: &Scope, rows: u32) -> Option<List<documents::InboxSelection>> {
     match &scope {
         Scope::Inbox { .. } => Some(List::with_capacity(rows)),
-        Scope::Task { .. }
+        Scope::EndedTasks
+        | Scope::TaskRows { .. }
+        | Scope::Task { .. }
         | Scope::Proposal { .. }
         | Scope::Escalation { .. }
         | Scope::Question { .. }
@@ -1169,7 +1200,8 @@ fn person_proposal_need(
 ) -> Result<Option<PageRow>, Missing> {
     let object =
         documents::InboxObject::Proposal { proposer: Proposer::Party(proposal.proposer), number: proposal.number };
-    if !group.includes(object)
+    if (proposal.project != jig_domain_people::DEPLOYMENT && !core.open_project(proposal.project))
+        || !group.includes(object)
         || (filter.project.is_some() && filter.project != Some(proposal.project))
         || (filter.goal.is_some() && filter.goal != Some(proposal.first()))
     {
@@ -1463,7 +1495,9 @@ pub(super) fn position_allowed(scope: &Scope, position: &Position) -> bool {
     match position {
         Position::Inbox { task, object, key, .. } => match scope {
             Scope::Inbox { group, .. } => inbox_key_allowed(*group, *task, *object, key),
-            Scope::Task { .. }
+            Scope::EndedTasks
+            | Scope::TaskRows { .. }
+            | Scope::Task { .. }
             | Scope::Proposal { .. }
             | Scope::Escalation { .. }
             | Scope::Question { .. }
@@ -1522,8 +1556,20 @@ pub(super) fn position_allowed(scope: &Scope, position: &Position) -> bool {
                     | Key::People(_)
                     | Key::Accounts(_) => false,
                 },
-                Scope::SettingsHistory { .. } => false,
-                Scope::Spend { project } => kind == KeyKind::Ledger(*project),
+                Scope::EndedTasks | Scope::TaskRows { .. } | Scope::SettingsHistory { .. } => false,
+                Scope::Spend { project } => match kind {
+                    KeyKind::Ledger(owner) => *project == jig_domain_people::DEPLOYMENT || owner == *project,
+                    KeyKind::Ended(_)
+                    | KeyKind::Live(_)
+                    | KeyKind::History(_)
+                    | KeyKind::Milestone(_)
+                    | KeyKind::Activity(_)
+                    | KeyKind::PersonProposal(_)
+                    | KeyKind::Escalation(_)
+                    | KeyKind::Turn { .. }
+                    | KeyKind::Note
+                    | KeyKind::Unsupported => false,
+                },
                 Scope::Inbox { group, .. } => group.updates() && super::indexed::is_update(key),
             }
         }

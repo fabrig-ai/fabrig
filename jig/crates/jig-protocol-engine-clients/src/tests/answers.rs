@@ -472,3 +472,34 @@ fn answers_full_carries_its_facts_on_the_current_wire() {
     let w::KeyedAnswer::AnswersFull(value) = exchange.answer(owner) else { panic!("answers full") };
     assert_eq!((value.held(), value.room_at()), (FULL_HELD, FULL_ROOM.as_nanos()));
 }
+
+#[test]
+fn project_removed_encodes_as_its_owner_outcome() {
+    let limits = f::wire();
+    for project in [0, 3, u32::MAX] {
+        let mut exchange = Exchange::new();
+        let (owner, to) = exchange.ask();
+        exchange.reply(to, p::Reply::Outcome(p::Outcome::ProjectRemoved { project }));
+        let expected = w::OwnerOutcome::ProjectRemoved(
+            w::OwnerOutcomeProjectRemoved::new(&limits, w::OwnerOutcomeProjectRemovedParts { project })
+                .expect("project"),
+        );
+        assert_eq!(
+            exchange.final_answer(owner),
+            w::Final::Done(
+                w::Done::new(
+                    &limits,
+                    w::DoneParts {
+                        outcome: w::Outcome::Owner(
+                            w::OutcomeOwner::new(&limits, w::OutcomeOwnerParts { value: expected },)
+                                .expect("owner outcome")
+                        )
+                    },
+                )
+                .expect("done")
+            )
+        );
+        assert!(exchange.component.pending.exchanges.is_empty());
+        assert!(exchange.out.is_empty());
+    }
+}

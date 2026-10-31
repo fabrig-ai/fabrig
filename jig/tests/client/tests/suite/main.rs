@@ -15,6 +15,7 @@ mod placed_holds;
 mod random;
 mod referee;
 mod settings;
+mod shared;
 mod shell;
 mod stories;
 mod text_pages;

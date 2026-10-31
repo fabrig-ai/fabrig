@@ -64,9 +64,9 @@ pub(crate) fn request_load(
         )
         | Range::Census(_)
         | Range::Forge => domain.limits.loads.rows,
-        Range::Core(crate::CoreRange::Notes(jig_domain_notes::Range::Lines { .. })) => {
-            domain.limits.loads.rows.min(domain.limits.notes.load_rows)
-        }
+        Range::Core(crate::CoreRange::Notes(
+            jig_domain_notes::Range::Lines { .. } | jig_domain_notes::Range::Project { .. },
+        )) => domain.limits.loads.rows.min(domain.limits.notes.load_rows),
     };
     if loads::begin(&mut domain.loads, waiter, range.clone(), after, most, &mut load_out).is_none() {
         match range {
@@ -370,7 +370,6 @@ pub(crate) fn start_action(domain: &mut Domain, env: &Env<Limits>, decision: &mu
                             );
                         }
                     }
-                    domain.work.push(Work::Forge(forge::Event::SendDemoActs));
                     domain.work.push(Work::StartDone(phase));
                 }
             }

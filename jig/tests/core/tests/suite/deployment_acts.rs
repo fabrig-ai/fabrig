@@ -1,9 +1,8 @@
-use jig_core_world::effects::Setup;
-use jig_core_world::{
-    effects::{Cut, World},
-    fixtures::live_row,
-    stories::delegates::delegate_pair,
-};
+use jig_core_world::fixtures::live_row;
+use jig_core_world::stories::delegates::delegate_pair;
+use jig_core_world::world::Cut;
+use jig_core_world::world::Setup;
+use jig_core_world::world::World;
 use jig_domain_accounts as accounts;
 use jig_domain_core as core;
 use jig_domain_people as people;
@@ -416,7 +415,7 @@ fn project_world(granted: bool) -> World {
     World::new(Setup {
         configuration: Some(config),
         limits,
-        boot: jig_core_world::effects::Boot::Empty,
+        boot: jig_core_world::world::Boot::Empty,
         rows: Some(Box::new([])),
         ..Setup::default()
     })
@@ -454,4 +453,28 @@ fn a_make_project_act_refuses_a_maker_outside_its_subject() {
     let mut world = project_world(true);
     act(&mut world, KEY, make_project(u64::MAX));
     assert_eq!(answered(&world), &people::Outcome::Refused(people::Refusal::Unknown));
+}
+
+#[test]
+fn remove_project_without_its_grant_is_not_offered_and_saves_nothing() {
+    let (mut config, limits) = configuration(1851);
+    config.core.grants = Box::new([]);
+    let mut world = World::new(Setup {
+        seed: 1851,
+        configuration: Some(config),
+        limits,
+        require_assignment: false,
+        ..Setup::default()
+    });
+    let before = world.commits.len();
+    act(&mut world, KEY, people::Act::RemoveProject { project: PROJECT });
+    assert_eq!(answered(&world), &people::Outcome::Refused(people::Refusal::NotOffered));
+    assert_eq!(world.commits.len(), before);
+    assert!(
+        !world
+            .store
+            .rows
+            .values()
+            .any(|row| matches!(row, root::Record::Core(core::Record::People(people::Stored::Acted { .. }))))
+    );
 }

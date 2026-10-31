@@ -25,6 +25,9 @@ pub(super) fn route_core(
     let mut requests = requests;
     for _ in 0..requests.len() {
         match requests.pop().expect("core request count") {
+            core::Request::Write(core::Write::DropTranscript { task }) => {
+                write(domain, decision, Write::DropTranscript { task });
+            }
             core::Request::Write(core::Write::CopySettingsRevision(number)) => {
                 write(domain, decision, Write::CopySettingsRevision(number));
             }
@@ -116,6 +119,13 @@ fn route_ask(
     work: &mut Queue<Work>,
 ) {
     match ask {
+        core::Ask::ReleaseProject { project } => {
+            if let Some(releases) = &mut domain.scripted_project_releases {
+                releases.push((number, project));
+            } else {
+                work.push(Work::Connector { number, event: connector::Event::ReleaseProject { project } });
+            }
+        }
         core::Ask::StepMade { task, step, first, revisions } => {
             let _removed = domain.hub_link.take_procedure(task);
             work.push(Work::Connector { number, event: connector::Event::StepMade { task, step, first, revisions } });
@@ -536,6 +546,9 @@ pub(super) fn route_connector(
 ) {
     for _ in 0..requests.len() {
         match requests.pop().expect("connector request count") {
+            connector::Request::ProjectReleased { project } => {
+                work.push(Work::Core(core::Event::ProjectReleased { connector: number, project }));
+            }
             connector::Request::Document { watcher, subject, document } => {
                 crate::client_documents::document(domain, env, decision, number, watcher, subject, document, work);
             }
@@ -961,6 +974,7 @@ fn application_answer(outcome: people::Outcome) -> connector::ApplicationCoreAns
         | people::Outcome::RolesSet { .. }
         | people::Outcome::Renamed { .. }
         | people::Outcome::ProjectMade { .. }
+        | people::Outcome::ProjectRemoved { .. }
         | people::Outcome::SettingsChanged { .. }
         | people::Outcome::MovedToNewest { .. }
         | people::Outcome::PolicyChanged { .. }

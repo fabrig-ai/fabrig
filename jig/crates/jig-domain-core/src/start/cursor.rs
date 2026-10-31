@@ -39,7 +39,23 @@ fn place(range: &RestoreRange, key: &Key) -> Option<(u32, Option<u32>)> {
             (2, interval)
         }
         RestoreRange::People => {
-            let interval = if let Key::People(jig_domain_people::Key::Acted(_)) = key { 1 } else { 0 };
+            let interval = match key {
+                Key::People(jig_domain_people::Key::Acted(_) | jig_domain_people::Key::Deletion(_)) => 1,
+                Key::People(
+                    jig_domain_people::Key::Person(_)
+                    | jig_domain_people::Key::ReadResults { .. }
+                    | jig_domain_people::Key::ReadConversation { .. }
+                    | jig_domain_people::Key::SignIn(_)
+                    | jig_domain_people::Key::Roles(_)
+                    | jig_domain_people::Key::Policy(_)
+                    | jig_domain_people::Key::Answer(_)
+                    | jig_domain_people::Key::EndedRead { .. },
+                )
+                | Key::Accounts(_)
+                | Key::Core(_)
+                | Key::Tasks(_)
+                | Key::Notes(_) => 0,
+            };
             (2, interval)
         }
         RestoreRange::Tasks => {

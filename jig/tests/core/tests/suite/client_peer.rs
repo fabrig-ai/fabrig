@@ -1,10 +1,9 @@
 use jig_core_world::Fault;
-use jig_core_world::effects::Setup;
-use jig_core_world::{
-    client_peer::ClientPeer,
-    effects::World,
-    peers::{Peers, fixture},
-};
+use jig_core_world::client_peer::ClientPeer;
+use jig_core_world::peers::Peers;
+use jig_core_world::peers::fixture;
+use jig_core_world::world::Setup;
+use jig_core_world::world::World;
 use jig_domain_core::{self as core, documents, reads};
 use jig_domain_people as people;
 use jig_fake_workers::{Script, Worker};
@@ -145,7 +144,7 @@ fn a_watched_task_query_is_delivered_again_when_its_task_ends() {
     let task = world.assignments.first().expect("chat assignment").0;
     let requester = jig_core_world::fixtures::live_row(&world, task).requester;
     let query =
-        documents::TaskQuery { project: Some(1), requester: Some(requester), ..jig_core_world::fixtures::OWN_TASKS };
+        documents::TaskQuery { project: Some(1), requester: Some(requester), ..jig_test_profile::fixtures::OWN_TASKS };
     world.client_peer.as_mut().expect("configured fixture").delivered.clear();
     world.send(root::Event::Core(core::Event::Watch {
         watcher: Token::new(QUERY_WATCHER),
@@ -196,12 +195,12 @@ const COMMITTED_TURN: u32 = 1;
 
 #[test]
 fn a_committed_turn_of_a_conversation_marks_the_query_listing_it() {
-    let mut world = jig_core_world::stories::reads::world(1210);
+    let mut world = crate::read_support::world(1210);
     world.client_peer = Some(ClientPeer::default());
     world.send(root::Event::Core(core::Event::Watch {
         watcher: Token::new(TURN_QUERY_WATCHER),
         sign_in: world.sign_in.expect("signed in"),
-        subject: documents::Watched::Query { query: jig_core_world::fixtures::OWN_TASKS },
+        subject: documents::Watched::Query { query: jig_test_profile::fixtures::OWN_TASKS },
         window: documents::Window { rows: 1, after: None },
     }));
     world.send(root::Event::Core(core::Event::Delivered { watcher: Token::new(TURN_QUERY_WATCHER) }));

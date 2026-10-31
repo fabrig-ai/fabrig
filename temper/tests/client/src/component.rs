@@ -388,6 +388,7 @@ impl Composition {
             request,
             &crate::fixtures::forge_settings(),
             None,
+            None,
             &temper_client_protocol_wire::v1::CEILINGS,
         ) {
             Ok(mut event) => {

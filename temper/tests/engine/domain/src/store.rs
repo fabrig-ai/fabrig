@@ -445,6 +445,19 @@ impl Store {
                 let writes = self.inflight.remove(&number).expect("root commit");
                 for write in &writes {
                     match write {
+                        Write::DropTranscript { task } => {
+                            self.rows.retain(|key, _| {
+                                if let Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Turn {
+                                    task: owner,
+                                    ..
+                                })) = key
+                                {
+                                    owner != task
+                                } else {
+                                    true
+                                }
+                            });
+                        }
                         Write::Wires => {}
                         Write::CopySettingsRevision(number) => {
                             let held = Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Settings(

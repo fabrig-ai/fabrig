@@ -1,5 +1,5 @@
-use jig_core_world::effects::Setup;
-use jig_core_world::effects::World;
+use jig_core_world::world::Setup;
+use jig_core_world::world::World;
 use jig_domain_authority as authority;
 use jig_domain_core as core;
 use jig_domain_tasks as tasks;
@@ -202,7 +202,7 @@ fn retained_effect_core(seed: u64) -> (core::Core, core::Limits, core::CallKey) 
     use skein_lib::{Env, Time, Wall};
     let world = World::new(Setup { seed, ..Setup::default() });
     let key = world.call_key(1);
-    let (configuration, limits) = jig_core_world::effects::fixture(seed, false);
+    let (configuration, limits) = jig_core_world::world::fixture(seed, false);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.core };
     let domain = super::start_links::recovered(&world, configuration.core, &env);
     assert!(domain.current_proof(key.task, key.attempt));
@@ -497,8 +497,8 @@ fn a_stale_claim_keeps_its_effect_deadline_until_the_due_right_is_consumed_witho
 fn an_unauthorized_grant_reaches_the_accounts_child() {
     use jig_domain_fleet as fleet;
     use skein_lib::Token;
-    let (config, limits) = jig_core_world::world::two_charters(151);
-    let mut rows = jig_core_world::fixtures::account_rows(&config.core.settings.llm_providers).into_vec();
+    let (config, limits) = jig_test_profile::two_charters(151);
+    let mut rows = jig_test_profile::fixtures::account_rows(&config.core.settings.llm_providers).into_vec();
     for row in &mut rows {
         match row {
             root::Record::Core(core::Record::Accounts(jig_domain_accounts::Stored::Account {
@@ -533,7 +533,7 @@ fn an_unauthorized_grant_reaches_the_accounts_child() {
 fn a_workers_limit_reaches_the_accounts_child_and_holds_its_charter_until_the_reset() {
     use jig_domain_fleet as fleet;
     use skein_lib::{Duration, Token, Wall};
-    let (config, limits) = jig_core_world::world::two_charters(152);
+    let (config, limits) = jig_test_profile::two_charters(152);
     let mut world = World::new(Setup { seed: 152, configuration: Some(config), limits, ..Setup::default() });
     let (run, attempt, account) = {
         let current = assignment(&world);
@@ -578,7 +578,7 @@ fn ordinary_failed_and_held_entries_keep_their_call_and_task_routes_across_resta
             core::effects::connector::OutboxOutcome::Held { entry: 1 },
         ),
     ] {
-        let (mut configuration, limits) = jig_core_world::effects::fixture(seed, false);
+        let (mut configuration, limits) = jig_core_world::world::fixture(seed, false);
         configuration.first.kinds.iter_mut().find(|kind| kind.kind == 5).expect("configured effect kind").recovery =
             recovery;
         let mut world = World::new(Setup { seed, configuration: Some(configuration), limits, ..Setup::default() });

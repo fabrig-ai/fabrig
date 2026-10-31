@@ -437,7 +437,9 @@ fn page_oldest(core: &Core, cutoff: u32) -> u32 {
 fn selected(scope: &Scope) -> (u32, u32, u32, bool) {
     match scope {
         Scope::SettingsHistory { first, last, newest, whole } => (*first, *last, *newest, *whole),
-        Scope::Tasks { .. }
+        Scope::EndedTasks
+        | Scope::TaskRows { .. }
+        | Scope::Tasks { .. }
         | Scope::Task { .. }
         | Scope::Proposal { .. }
         | Scope::Escalation { .. }

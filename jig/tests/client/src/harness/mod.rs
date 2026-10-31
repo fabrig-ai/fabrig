@@ -4,7 +4,9 @@ mod observation;
 pub use faults::Fault;
 pub mod referee;
 pub use observation::*;
+pub mod seed;
 mod world;
+pub use seed::Seed;
 use skein_lib::{Env, Queue, Time, Wall};
 use skein_ui::Act;
 use skein_ui::{NodeId, Patch, Tree};
@@ -69,6 +71,10 @@ pub enum Duty<A: App> {
 }
 /// Engine boundary; token routing and transport epochs belong to the front.
 pub trait Front<A: App> {
+    /// Install starting facts before clients are admitted.
+    fn seed(&mut self, _seed: Seed) {
+        panic!("this application's front does not implement jig story seeds");
+    }
     fn constructor(&self, constructor: ClientConstructor<A>) -> ClientConstructor<A> {
         constructor
     }

@@ -1,7 +1,10 @@
 //! Settings travel through the real restart, store and commit barrier (engine.md, 17.7).
 
-use jig_core_world::effects::Setup;
-use jig_core_world::{client_peer::ClientPeer, effects::World, fixtures, peers};
+use jig_core_world::client_peer::ClientPeer;
+use jig_core_world::fixtures;
+use jig_core_world::peers;
+use jig_core_world::world::Setup;
+use jig_core_world::world::World;
 use jig_domain_core::{self as core, documents, reads, settings};
 use jig_domain_fleet as fleet;
 use jig_domain_people as people;
@@ -37,7 +40,7 @@ fn the_document_bridge_starts_once_and_preserves_templates_policies_rules_and_mo
         worker: 0,
         channel: Token::new(7),
         hello: fleet::Hello {
-            bounds: fixtures::bounds(),
+            bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(1),
             slots: 1,
             workstreams: Box::new([]),
@@ -363,7 +366,7 @@ fn changed_charter_instructions_and_effort_prepare_the_next_new_task() {
     let mut world = World::new(Setup {
         configuration: Some(config),
         limits,
-        boot: jig_core_world::effects::Boot::Empty,
+        boot: jig_core_world::world::Boot::Empty,
         ..Setup::default()
     });
     world.client_peer = Some(ClientPeer::default());
@@ -390,7 +393,7 @@ fn changed_charter_instructions_and_effort_prepare_the_next_new_task() {
         worker: 0,
         channel: Token::new(7),
         hello: fleet::Hello {
-            bounds: fixtures::bounds(),
+            bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(1),
             slots: 1,
             workstreams: Box::new([]),
@@ -577,7 +580,7 @@ fn live_tasks_with_llm_choices_the_newest_disallows_stay_and_are_all_counted() {
     let mut world = World::new(Setup {
         configuration: Some(config),
         limits,
-        boot: jig_core_world::effects::Boot::Empty,
+        boot: jig_core_world::world::Boot::Empty,
         ..Setup::default()
     });
     world.client_peer = Some(ClientPeer::default());
@@ -636,7 +639,7 @@ fn a_changed_run_cap_applies_to_the_next_run_without_capping_its_tasks_total_all
         worker: 0,
         channel: Token::new(7),
         hello: fleet::Hello {
-            bounds: fixtures::bounds(),
+            bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(1),
             slots: 1,
             workstreams: Box::new([]),
@@ -677,7 +680,7 @@ fn released_history() -> World {
     let mut world = World::new(Setup {
         configuration: Some(config),
         limits,
-        boot: jig_core_world::effects::Boot::Empty,
+        boot: jig_core_world::world::Boot::Empty,
         ..Setup::default()
     });
     world.client_peer = Some(ClientPeer::default());
@@ -708,7 +711,7 @@ fn settings_inventory_tracks_each_defaults_revision_across_a_release() {
 }
 #[test]
 fn settings_inventory_is_unknown_without_a_deployment_role() {
-    let mut world = jig_core_world::stories::reads::world(SEED);
+    let mut world = crate::read_support::world(SEED);
     world.send(root::Event::Core(core::Event::People(people::Event::Roles {
         project: people::DEPLOYMENT,
         holdings: Box::new([]),
@@ -799,7 +802,7 @@ fn ready_host(world: &mut World) {
         worker: 0,
         channel: Token::new(7),
         hello: fleet::Hello {
-            bounds: fixtures::bounds(),
+            bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(1),
             slots: 1,
             workstreams: Box::new([]),
@@ -886,7 +889,7 @@ fn revision_item_previews_state_how_many_were_cut() {
     let mut world = World::new(Setup {
         configuration: Some(config),
         limits,
-        boot: jig_core_world::effects::Boot::Empty,
+        boot: jig_core_world::world::Boot::Empty,
         ..Setup::default()
     });
     world.client_peer = Some(ClientPeer::default());
@@ -938,7 +941,7 @@ fn a_revision_item_past_the_single_read_budget_answers_its_encoded_size() {
     let mut world = World::new(Setup {
         configuration: Some(config),
         limits,
-        boot: jig_core_world::effects::Boot::Empty,
+        boot: jig_core_world::world::Boot::Empty,
         ..Setup::default()
     });
     world.client_peer = Some(ClientPeer::default());
@@ -985,7 +988,7 @@ fn held_run_with_history(history: u32) -> (World, u64, u64) {
     let mut world = World::new(Setup {
         configuration: Some(config),
         limits,
-        boot: jig_core_world::effects::Boot::Empty,
+        boot: jig_core_world::world::Boot::Empty,
         ..Setup::default()
     });
     world.client_peer = Some(ClientPeer::default());
@@ -1146,7 +1149,7 @@ fn held_revisions_past_their_limit_refuse_the_change_naming_the_oldest_and_its_t
     let mut world = World::new(Setup {
         configuration: Some(config),
         limits,
-        boot: jig_core_world::effects::Boot::Empty,
+        boot: jig_core_world::world::Boot::Empty,
         ..Setup::default()
     });
     world.client_peer = Some(ClientPeer::default());
@@ -1206,7 +1209,7 @@ fn held_versions_past_their_limit_refuse_the_change_without_writing_settings() {
     let mut world = World::new(Setup {
         configuration: Some(config),
         limits,
-        boot: jig_core_world::effects::Boot::Empty,
+        boot: jig_core_world::world::Boot::Empty,
         ..Setup::default()
     });
     world.client_peer = Some(ClientPeer::default());
@@ -1361,7 +1364,7 @@ fn a_move_uses_the_room_freed_by_its_tasks_for_heads_and_versions() {
     let mut world = World::new(Setup {
         configuration: Some(config),
         limits,
-        boot: jig_core_world::effects::Boot::Empty,
+        boot: jig_core_world::world::Boot::Empty,
         ..Setup::default()
     });
     world.client_peer = Some(ClientPeer::default());
@@ -1465,7 +1468,7 @@ fn held_revisions_past_a_lowered_limit_refuse_the_start_naming_the_limit() {
     let mut world = World::new(Setup {
         configuration: Some(config),
         limits,
-        boot: jig_core_world::effects::Boot::Empty,
+        boot: jig_core_world::world::Boot::Empty,
         ..Setup::default()
     });
     world.client_peer = Some(ClientPeer::default());
@@ -1532,7 +1535,7 @@ fn resume_host_after_restart(world: &mut World) {
 fn seed_restart_accounts(world: &mut World) {
     // first_start_with_accounts preloads this fake's rows into the first core;
     // a cold start needs the same account fixture in the store.
-    world.seed(fixtures::account_rows(&configuration().0.core.settings.llm_providers));
+    world.seed(jig_test_profile::fixtures::account_rows(&configuration().0.core.settings.llm_providers));
 }
 
 #[test]
@@ -1600,7 +1603,7 @@ fn a_goal_on_an_older_revision_runs_where_its_version_allows() {
     let mut world = World::new(Setup {
         configuration: Some(config),
         limits,
-        boot: jig_core_world::effects::Boot::Empty,
+        boot: jig_core_world::world::Boot::Empty,
         ..Setup::default()
     });
     world.client_peer = Some(ClientPeer::default());
@@ -1610,7 +1613,7 @@ fn a_goal_on_an_older_revision_runs_where_its_version_allows() {
         worker: 0,
         channel: Token::new(0),
         hello: fleet::Hello {
-            bounds: fixtures::bounds(),
+            bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(1),
             slots: 1,
             workstreams: Box::new([]),
@@ -1684,7 +1687,7 @@ fn the_bound_reached_its_named_tasks_moved_and_the_change_then_made() {
     let mut world = World::new(Setup {
         configuration: Some(config),
         limits,
-        boot: jig_core_world::effects::Boot::Empty,
+        boot: jig_core_world::world::Boot::Empty,
         ..Setup::default()
     });
     world.client_peer = Some(ClientPeer::default());
@@ -1738,7 +1741,7 @@ fn a_restart_adopts_a_live_run_on_its_old_version() {
         worker: 0,
         channel: Token::new(7),
         hello: fleet::Hello {
-            bounds: fixtures::bounds(),
+            bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(1),
             slots: 1,
             workstreams: Box::new([]),
@@ -1797,7 +1800,7 @@ fn a_delegation_to_a_removed_charter_is_refused_while_its_version_serves_its_tas
     let mut world = World::new(Setup {
         configuration: Some(config),
         limits,
-        boot: jig_core_world::effects::Boot::Empty,
+        boot: jig_core_world::world::Boot::Empty,
         ..Setup::default()
     });
     world.client_peer = Some(ClientPeer::default());
@@ -1871,7 +1874,7 @@ fn a_conversation_moves_at_its_next_turn_and_one_whose_charter_is_removed_stays(
     let mut world = World::new(Setup {
         configuration: Some(config),
         limits,
-        boot: jig_core_world::effects::Boot::Empty,
+        boot: jig_core_world::world::Boot::Empty,
         ..Setup::default()
     });
     world.client_peer = Some(ClientPeer::default());
@@ -1976,7 +1979,7 @@ fn a_held_versions_documents_show_its_charter_and_nothing_once_released() {
         worker: 0,
         channel: Token::new(8),
         hello: fleet::Hello {
-            bounds: fixtures::bounds(),
+            bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_secs(3600),
             slots: 1,
             workstreams: Box::new([]),
@@ -2031,7 +2034,7 @@ fn a_held_versions_documents_show_its_charter_and_nothing_once_released() {
 
 fn goal_description_review(world: &mut World, signed: u64, goal: u64) -> documents::Proposal {
     let revision = fixtures::live_row(world, goal).revisions.spec;
-    let mut amendment = fixtures::person_unchanged(b"Review the goal's description");
+    let mut amendment = jig_test_profile::fixtures::person_unchanged(b"Review the goal's description");
     amendment.spec = Some(people::Spec {
         asks: false,
         words: b"Proposed goal description".as_slice().into(),

@@ -1,5 +1,6 @@
 //! The testing root's connector and peer evidence for jig's conformance core
 //! (`jig/docs/design/domain/testing.md`, 5).
+pub mod naming;
 use crate::{Store, referee as r};
 use jig_conformance::core as conformance;
 use jig_test_connector as connector;
@@ -337,7 +338,8 @@ pub fn store_view(store: &Store) -> conformance::Store<'_> {
                         root::Write::Save(root::Record::Connector { .. })
                         | root::Write::Erase(root::Key::Connector { .. })
                         | root::Write::Wires
-                        | root::Write::CopySettingsRevision(_) => conformance::Write::Other,
+                        | root::Write::CopySettingsRevision(_)
+                        | root::Write::DropTranscript { .. } => conformance::Write::Other,
                     })
                     .collect(),
             })
@@ -345,6 +347,13 @@ pub fn store_view(store: &Store) -> conformance::Store<'_> {
         ..conformance::Store::default()
     };
     let snapshot = &mut view.effects;
+    for (key, row) in &store.rows {
+        if let root::Record::Connector { .. } = row
+            && let Some(name) = naming::naming(key, row)
+        {
+            snapshot.naming.push(name);
+        }
+    }
     for row in store.rows.values() {
         match row {
             root::Record::Connector {
@@ -451,9 +460,9 @@ mod activity_tests {
     #[test]
     fn activity_referee_rejects_changed_or_erased_lines() {
         for erased in [false, true] {
-            let configuration = crate::effects::fixture(507, false).0;
+            let configuration = crate::world::fixture(507, false).0;
             let mut observer = Observer::new(&configuration);
-            let mut store = Store::new(&crate::world::limits(), &configuration.core.settings.models);
+            let mut store = Store::new(&jig_test_profile::limits(), &configuration.core.settings.models);
             let row = root::Record::Core(core::Record::Tasks(tasks::Stored::Activity(tasks::ActivityLine {
                 task: 1,
                 position: 1,

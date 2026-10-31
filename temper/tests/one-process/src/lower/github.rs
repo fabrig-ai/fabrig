@@ -37,8 +37,7 @@ pub(crate) fn configure(value: &mut Value) {
     if !active() {
         return;
     }
-    value["application"]["forges"] = json!([{"number":1,"kind":"github","api":{"socket":fixtures::FORGE.to_string()},"transport":"plaintext","git":format!("http://{}",fixtures::FORGE),"web":format!("http://{}",fixtures::FORGE)}]);
-    value["application"]["identities"] = json!([{"number":1,"forge":1,"login":null,"author":null}]);
+    value["application"]["machine"]["github"] = json!({"api":{"socket":fixtures::FORGE.to_string()},"transport":"plaintext","remote":format!("http://{}",fixtures::FORGE),"web":format!("http://{}",fixtures::FORGE)});
     for project in value["world_settings"]["policies"].as_array_mut().expect("policies") {
         for pointer in ["/policy/ceiling/grants", "/policy/roles/0/authority/grants"] {
             for grant in project.pointer_mut(pointer).expect("grants").as_array_mut().expect("grants") {
@@ -232,7 +231,6 @@ fn commands(caller: &mut Caller, link: Box<[u8]>, scenario: Scenario) -> usize {
     caller.commands.push_back(Command::new(&[
         b"forge",
         b"connect",
-        b"1",
         b"github-app",
         b"4242",
         b"/setup/app.pem",
@@ -296,6 +294,10 @@ impl skein_world::Referee<Proc> for Judge {
             .find_map(|proc| if let Proc::Forge(peer) = proc { Some(peer) } else { None })
             .expect("GitHub peer");
         let git = peer.git_calls().expect("git observer");
+        assert!(
+            git.iter().all(|call| call.status == 200 || (!call.writes && call.status == 404)),
+            "authenticated git calls: {git:?}"
+        );
         let installed = peer.github_layer().expect("GitHub").installations();
         let Proc::Calls(caller) = &other[0] else { unreachable!() };
         for index in self.answers..caller.answers.len() {

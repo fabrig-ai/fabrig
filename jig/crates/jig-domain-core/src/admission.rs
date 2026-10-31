@@ -14,3 +14,5 @@ pub(crate) mod proposals;
 pub(crate) mod roles;
 
 pub(crate) mod goals;
+
+pub(crate) mod deletion;

@@ -17,4 +17,3 @@ jig-client-protocol-wire.workspace = true
 workspace = true
 
 [dev-dependencies]
-jig-protocol-config.workspace = true

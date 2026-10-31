@@ -173,7 +173,7 @@ fn the_same_boundaries_accept_a_faithful_root_and_connector_across_restart() {
 #[test]
 fn a_commit_after_drained_is_a_violation() {
     use jig_conformance::referee as r;
-    let mut referee = jig_core_world::conformance::Observer::new(&jig_core_world::world::config(31)).into_referee();
+    let mut referee = jig_core_world::conformance::Observer::new(&jig_test_profile::config(31)).into_referee();
     referee
         .observe(1, r::Observed::Durable { number: 1, snapshot: r::Snapshot::default() })
         .expect("durable evidence accepted");
@@ -188,7 +188,7 @@ fn a_commit_after_drained_is_a_violation() {
 #[test]
 fn a_drain_before_its_commit_is_durable_is_a_violation() {
     use jig_conformance::referee as r;
-    let mut referee = jig_core_world::conformance::Observer::new(&jig_core_world::world::config(31)).into_referee();
+    let mut referee = jig_core_world::conformance::Observer::new(&jig_test_profile::config(31)).into_referee();
     let failure =
         referee.observe(1, r::Observed::Drained { at: 1 }).expect_err("drain invariant must reject this observation");
     assert_eq!(failure.promise, Promise::Commit);
@@ -197,7 +197,7 @@ fn a_drain_before_its_commit_is_durable_is_a_violation() {
 #[test]
 fn a_cold_store_that_loses_a_drained_party_answer_is_a_violation() {
     use jig_conformance::referee as r;
-    let mut referee = jig_core_world::conformance::Observer::new(&jig_core_world::world::config(31)).into_referee();
+    let mut referee = jig_core_world::conformance::Observer::new(&jig_test_profile::config(31)).into_referee();
     let mut snapshot = r::Snapshot::default();
     snapshot.receipts.insert(r::Receipt::Party(7, [2; 16]));
     referee.observe(1, r::Observed::Durable { number: 1, snapshot }).expect("durable evidence accepted");
@@ -211,7 +211,7 @@ fn a_cold_store_that_loses_a_drained_party_answer_is_a_violation() {
 }
 
 fn position_referee() -> jig_conformance::referee::Referee {
-    jig_core_world::conformance::Observer::new(&jig_core_world::world::config(31)).into_referee()
+    jig_core_world::conformance::Observer::new(&jig_test_profile::config(31)).into_referee()
 }
 
 fn position_snapshot(

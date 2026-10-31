@@ -1,4 +1,5 @@
 //! Deployment facts and store fill (client/domain/pages.md, 7; protocol/store.md, 11.2).
+//! Closed at once (jig/docs/design/domain/people.md, 5.2).
 use crate::{
     Core, Limits,
     documents::{Chip, Missing, TaskLink, Window, inbox_deployment::line_bound},
@@ -392,7 +393,7 @@ pub(super) fn deployment(
             .push(Account {
                 number: value.account,
                 place: account.place(),
-                uses: super::accounts::uses(account),
+                uses: super::accounts::uses(core, account),
                 plan: account.plan(),
                 provider: Some(account.provider()),
                 provider_name: super::accounts::provider_name(core, account, limits.documents.text_bytes),

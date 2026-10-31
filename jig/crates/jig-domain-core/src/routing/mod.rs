@@ -16,7 +16,7 @@ pub(crate) mod settings;
 pub(crate) mod sibling_routes;
 pub(crate) mod step;
 pub(crate) mod stopping;
-mod task;
+pub(crate) mod task;
 pub(crate) mod timers;
 pub(crate) mod view;
 
@@ -273,6 +273,7 @@ impl Core {
 /// The parent caller held while the notes child reads its store pages.
 #[derive(Debug)]
 pub(crate) enum NoteRoute {
+    Deletion { project: u32 },
     Call { to: ReplyTo, key: CallKey },
     Person { request: Token },
     Brief { task: u64 },
@@ -416,6 +417,7 @@ pub fn resume_fleet(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
     let mut work = Queue::uncapped();
     let mut out = tag_fleet(core, env, &mut work, child);
     assert!(work.is_empty(), "fleet resumption produces no sibling continuations");
+    crate::admission::deletion::advance(core, env, &mut out);
     core.finish_extent(oldest, &mut out);
     out
 }
@@ -447,6 +449,9 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
             settings::dispatch::propose_start(core, env, work, reply_to, sign_in, key, digest, *change)
         }
         Event::SettingsCommit { room } => core.commit_restored_settings(env, room.saturating_sub(1)),
+        Event::ProjectReleased { connector, project } => {
+            crate::admission::deletion::released(core, env, connector, project)
+        }
         Event::Fill { bytes } => {
             core.fill = bytes;
             stopping::empty()
@@ -512,7 +517,11 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
         Event::RunText { run, attempt, turn, retry, offset, text, call } => {
             view::routes::run_text(core, env, run, attempt, turn, retry, offset, text, call)
         }
-        Event::Tasks(event) => route_tasks(core, env, work, event),
+        Event::Tasks(event) => {
+            let mut out = route_tasks(core, env, work, event);
+            crate::admission::deletion::advance(core, env, &mut out);
+            out
+        }
         Event::StartRecurring { project, authority, template } => {
             route_start_recurring(core, work, project, authority, template)
         }
@@ -533,7 +542,11 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
         Event::Holdings { request, connector, holdings } => {
             route_holdings(core, env, work, request, connector, holdings)
         }
-        Event::Fleet(event) => route_fleet(core, env, work, event),
+        Event::Fleet(event) => {
+            let mut out = route_fleet(core, env, work, event);
+            crate::admission::deletion::advance(core, env, &mut out);
+            out
+        }
         Event::TurnPayload { run, attempt, turn, body, read, cumulative, refused } => {
             route_turn_payload(core, work, run, attempt, turn, body, read, refused, cumulative)
         }
@@ -679,6 +692,7 @@ pub fn fire(core: &mut Core, env: &Env<Limits>, timer: Timer) -> Queue<Request> 
             requests
         }
     };
+    crate::admission::deletion::advance(core, env, &mut out);
     core.finish_extent(oldest, &mut out);
     out
 }
@@ -690,4 +704,32 @@ pub(crate) fn tag_ended_mark(
     work: &mut Queue<Work>,
 ) -> Queue<Request> {
     party::people::tag_people(core, env, child, work)
+}
+
+/// Drain deletion's bounded sibling decisions without a new root input or extent.
+pub(crate) fn deletion_people(core: &mut Core, env: &Env<Limits>, event: people::Event, out: &mut Queue<Request>) {
+    children::append_people(core, env, event, out);
+}
+
+/// Drain deletion's bounded sibling decisions without a new root input or extent.
+pub(crate) fn deletion_event(core: &mut Core, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
+    let previous = core.deletions.route(true);
+    let mut work = Queue::uncapped();
+    work.push(Work::Event(event));
+    for _ in 0..env.limits.routes {
+        let Some(event) = work.pop() else { break };
+        let mut batch = step_work(core, env, event, &mut work);
+        for _ in 0..batch.len() {
+            let request = batch.pop().expect("deletion child output count");
+            match request {
+                request @ (Request::ProjectMade { .. }
+                | Request::Write(_)
+                | Request::Ask { .. }
+                | Request::Held(_)
+                | Request::Now(_)) => out.push(request),
+            }
+        }
+    }
+    assert!(work.is_empty(), "deletion sibling routes drained");
+    let _previous = core.deletions.route(previous);
 }

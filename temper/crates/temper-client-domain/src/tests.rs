@@ -5,7 +5,8 @@ mod acts;
 mod address;
 mod admin;
 mod amend;
-mod demo;
+mod playground;
+
 pub(crate) mod fixtures;
 mod forge_words;
 mod forges;

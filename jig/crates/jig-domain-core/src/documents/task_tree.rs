@@ -1,4 +1,5 @@
 //! Task pages, live trees and goal lines (`client/domain/pages.md`, 5 and 6.2).
+//! Closed at once (jig/docs/design/domain/people.md, 5.2).
 //! Copies bounded rows from their owners. Trees fold every unshown live row into
 //! phase counts; held counts cover the whole subtree. Goal progress uses retained
 //! goal projections, including ended rows. Nothing here mutates a task or policy.
@@ -786,7 +787,7 @@ fn task_with_lineage(
     decision: Wall,
     live_lineage: bool,
 ) -> Result<Task, Missing> {
-    if core.people.role(party, row.project).is_none() {
+    if !core.open_project(row.project) || core.people.role(party, row.project).is_none() {
         return Err(Missing::NotAllowed);
     }
     let number = row.number;
@@ -1143,7 +1144,7 @@ pub(super) fn dependency_rows(limits: &Limits, row: &tasks::TaskRecord) -> List<
 
 /// A retained ended root has no live subtree (client/domain/contract.md, 7.2).
 pub(crate) fn ended_tree(core: &Core, limits: &Limits, party: u64, row: &tasks::TaskRecord) -> Result<Tree, Missing> {
-    if core.people.role(party, row.project).is_none() {
+    if !core.open_project(row.project) || core.people.role(party, row.project).is_none() {
         return Err(Missing::NotAllowed);
     }
     match row.phase {

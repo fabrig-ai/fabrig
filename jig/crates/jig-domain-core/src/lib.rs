@@ -30,10 +30,10 @@ pub(crate) mod vocabulary;
 extern crate alloc;
 
 use crate::{
-    admission::policy,
+    admission::{deletion, policy},
     effects::resources,
     reads::watches::{WatchBinding, WatchedSubject},
-    routing::flight,
+    routing::{flight, task::erase},
     runs::state::RetainedResult,
     settings::{charters, fleet_needs, templates},
 };
@@ -236,6 +236,8 @@ impl ToolFamilies {
     reason = "pending generation, worker placement, stopping and role-table fullness are independent facts"
 )]
 pub struct Core {
+    erasures: erase::Erasures,
+    deletions: deletion::Deletions,
     pub(crate) start: start::Script,
     person_answers: bool,
     routes: u32,
@@ -429,6 +431,8 @@ impl Core {
         }
         let authority = authority::Domain::new(current.rules().clone(), limits.authority).expect("configured rules");
         Ok(Core {
+            erasures: erase::Erasures::new(),
+            deletions: deletion::Deletions::new(limits.people.projects),
             routes: limits.routes,
             run_inbox: limits.tasks.run_inbox,
             fill: 0,
@@ -464,7 +468,7 @@ impl Core {
             seed_projects: config.seed_projects,
             view_names: skein_lib::Slab::with_capacity(limits.views.watchers),
             changed_views: skein_lib::Set::with_capacity(limits.views.watchers),
-            reads: skein_lib::Slab::with_capacity(limits.load_slots),
+            reads: skein_lib::Slab::with_capacity(limits.load_slots.saturating_add(2)),
             dependency_results: Map::with_capacity(limits.tasks.tasks),
             ending_positions: Map::with_capacity(limits.tasks.tasks),
             flight_people_capacity: limits.people.pending,

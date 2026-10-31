@@ -1,6 +1,9 @@
 //! Settings travel through the real restart, store and commit barrier (engine.md, 17.7).
-use jig_core_world::effects::Setup;
-use jig_core_world::{client_peer::ClientPeer, effects::World, fixtures, peers, world};
+use jig_core_world::client_peer::ClientPeer;
+use jig_core_world::fixtures;
+use jig_core_world::peers;
+use jig_core_world::world::Setup;
+use jig_core_world::world::World;
 use jig_domain_core::{self as core, documents, reads, settings};
 use jig_domain_people as people;
 use jig_test_domain as root;
@@ -22,7 +25,7 @@ pub(super) fn configuration() -> (root::Config, root::Limits) {
     )
     .expect("settings story fixture");
     engine.charters[0].policy.instructions = Box::from(b"Answer within the granted authority.".as_slice());
-    let mut config = world::config(SEED);
+    let mut config = jig_test_profile::config(SEED);
     config.core = jig_protocol_config::core(&engine, [31; 16], SEED);
     // Auxiliary parties have configured roles even when they cannot decide settings.
     for project in &mut config.core.seed_projects {
@@ -32,7 +35,7 @@ pub(super) fn configuration() -> (root::Config, root::Limits) {
     for number in numbers {
         auxiliary_roles(&mut config.core.defaults.policies.get_mut(&number).expect("fixture policy").policy);
     }
-    let mut limits = world::limits();
+    let mut limits = jig_test_profile::limits();
     limits.core = engine.limits.core;
     peers::journal(&mut limits);
     (config, limits)
@@ -54,7 +57,7 @@ pub(super) fn start(history: u32) -> World {
     let mut world = World::new(Setup {
         configuration: Some(config),
         limits,
-        boot: jig_core_world::effects::Boot::Empty,
+        boot: jig_core_world::world::Boot::Empty,
         ..Setup::default()
     });
     world.client_peer = Some(ClientPeer::default());
@@ -383,7 +386,7 @@ pub(super) fn settings_run(settings_family: bool, history: Option<u32>) -> (Worl
     let mut world = World::new(Setup {
         configuration: Some(config),
         limits,
-        boot: jig_core_world::effects::Boot::Empty,
+        boot: jig_core_world::world::Boot::Empty,
         ..Setup::default()
     });
     world.client_peer = Some(ClientPeer::default());
@@ -393,7 +396,7 @@ pub(super) fn settings_run(settings_family: bool, history: Option<u32>) -> (Worl
         worker: 0,
         channel: Token::new(7),
         hello: jig_domain_fleet::Hello {
-            bounds: fixtures::bounds(),
+            bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(1),
             slots: 1,
             workstreams: Box::new([]),

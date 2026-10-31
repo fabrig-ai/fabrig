@@ -18,25 +18,29 @@ pub const FORGE: u16 = temper_client_protocol_wire::number(temper_client_protoco
 pub const FORGE_HOST: &[u8] = b"forge.example";
 /// The stand speaks Forgejo, with walking's forge number, writer and git host.
 #[must_use]
-pub fn forge_settings() -> [temper_service::settings::Forge; 1] {
+pub fn forge_settings() -> temper_service::forges::Forges {
     use temper_service::settings::{Forge, Kind, Transport};
     let mut base = b"http://".to_vec();
     base.extend_from_slice(FORGE_HOST);
-    [Forge {
-        mode: temper_engine_domain_forge::Mode::Connected,
-        number: 1,
-        kind: Kind::Forgejo,
-        api: jig_protocol_config::Address::Host { name: FORGE_HOST.into(), port: 80 },
-        transport: Transport::Plaintext,
-        git: base.clone().into(),
-        git_program: None,
-        web: Some(base.into()),
-        app_read_only: false,
-        api_token: None,
-        webhook_secret: None,
-        user: 1,
-        identity: 1,
-    }]
+    {
+        let mut table = temper_service::forges::Forges::with_capacity(1);
+        assert!(table.insert(Forge {
+            mode: temper_engine_domain_forge::Mode::Connected,
+            number: 1,
+            kind: Kind::Forgejo,
+            api: jig_protocol_config::Address::Host { name: FORGE_HOST.into(), port: 80 },
+            transport: Transport::Plaintext,
+            git: base.clone().into(),
+            git_program: None,
+            web: Some(base.into()),
+            app_read_only: false,
+            api_token: None,
+            webhook_secret: None,
+            user: 1,
+            identity: 1,
+        }));
+        table
+    }
 }
 pub const REPOSITORIES: &[(&[u8], &[u8], u32)] = &[(b"acme", b"shop", 7), (b"acme", b"second", 8)];
 pub const PARTY: u64 = 1;

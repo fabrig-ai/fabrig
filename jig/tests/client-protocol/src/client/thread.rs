@@ -28,7 +28,7 @@ impl Story {
         let mut story = Self {
             front: Front::with_limits(seed, client),
             second: None,
-            engine: Engine::with_peers(seed, &core, jig_core_world::world::config(seed), peers),
+            engine: Engine::with_peers(seed, &core, jig_test_profile::config(seed), peers),
             net: Net::new(seed),
             now: Time::ZERO,
             seen: Vec::new(),

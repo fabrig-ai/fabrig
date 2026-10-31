@@ -1,9 +1,10 @@
 //! Adversarial proposals of deployment settings (`domain/engine.md`, 17.6).
-use jig_core_world::effects::Setup;
-use jig_core_world::{
-    effects::{Cut, World},
-    fixtures, peers, reads,
-};
+use jig_core_world::fixtures;
+use jig_core_world::peers;
+use jig_core_world::reads;
+use jig_core_world::world::Cut;
+use jig_core_world::world::Setup;
+use jig_core_world::world::World;
 use jig_domain_core::{self as core, settings as s};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -595,7 +596,7 @@ fn acceptance_moves_work_created_after_a_real_first_start() {
     let mut world = World::new(Setup {
         configuration: Some(config),
         limits,
-        boot: jig_core_world::effects::Boot::Empty,
+        boot: jig_core_world::world::Boot::Empty,
         ..Setup::default()
     });
     world.send(root::Event::Core(core::Event::Period { project: 1, period: 1, budget: 1000, next: None }));
@@ -674,7 +675,7 @@ fn model_proposal_items(model: core::Model) -> Box<[s::Item]> {
     let mut charter = configuration().0.core.defaults.charters[0].clone();
     charter.policy.model = model;
     charter.policy.instructions = b"proposed model and instructions".as_slice().into();
-    let mut template = fixtures::templates()[0].clone();
+    let mut template = jig_test_profile::fixtures::templates()[0].clone();
     template.name = b"proposed chat name".as_slice().into();
     Box::new([
         s::Item {

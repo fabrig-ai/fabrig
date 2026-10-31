@@ -226,6 +226,8 @@ pub enum NoteChange {
     reason = "an amendment stays inline, as `Event` carries a keyed request whole, and is priced by size_of"
 )]
 pub enum Ask {
+    /// Delete an owned project (jig/docs/design/domain/people.md, 5.2).
+    RemoveProject { project: u32 },
     /// Deployment owner changes settings, whose value the core holds during admission.
     ChangeSettings { against: u32, digest: [u8; 32] },
     /// Deployment owner moves live agent tasks to the newest (engine.md, 17.4; people.md, 5.1).
@@ -394,6 +396,11 @@ pub enum EscalationChoice {
 /// final outcomes with the parent's task decision. (domain/people.md, section 5.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Outcome {
+    /// The project is closed and its deletion kept; the rest completes on its own
+    /// (jig/docs/design/domain/people.md, 5.2).
+    ProjectRemoved {
+        project: u32,
+    },
     /// The sign-in took the address; its end shows on the accounts watch.
     AccountFinishing {
         source: u32,
@@ -666,6 +673,11 @@ pub enum Act {
         project: u32,
         adoption: Adoption,
     },
+    /// Delete a project: closed at once, its tasks ended and erased, then its rows
+    /// (jig/docs/design/domain/people.md, 5.2). Answered once the project is closed.
+    RemoveProject {
+        project: u32,
+    },
 }
 
 /// Which acts the configuration grants a connector (people.md, 5.3).
@@ -676,11 +688,14 @@ pub enum ActKind {
     RemoveAccount,
     Adopt,
     MakeProject,
+    /// Delete a project (jig/docs/design/domain/people.md, 5.2).
+    RemoveProject,
 }
 
 impl ActKind {
     /// Every deployment act kind; also bounds a configured grant's owned entries.
-    pub const ALL: &[Self] = &[Self::Close, Self::AddKey, Self::RemoveAccount, Self::Adopt, Self::MakeProject];
+    pub const ALL: &[Self] =
+        &[Self::Close, Self::AddKey, Self::RemoveAccount, Self::Adopt, Self::MakeProject, Self::RemoveProject];
 }
 
 /// A connector's configured deployment authority (people.md, 5.3).
@@ -712,6 +727,8 @@ pub enum Key {
     EndedRead { task: u64, party: u64 },
     /// One durable deployment act.
     Acted(ActKey),
+    /// Live deletion, resumed at start (jig/docs/design/domain/people.md, 5.2).
+    Deletion(u32),
 }
 
 impl Key {
@@ -727,7 +744,8 @@ impl Key {
             | Self::Roles(_)
             | Self::Policy(_)
             | Self::Answer(_)
-            | Self::Acted(_) => true,
+            | Self::Acted(_)
+            | Self::Deletion(_) => true,
         }
     }
 }
@@ -736,6 +754,8 @@ impl Key {
 /// bytes are checked when admitted. (domain/people.md, sections 3–5).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Stored {
+    /// Kept deletion (jig/docs/design/domain/people.md, 5.2).
+    Deletion { project: u32, step: DeletionStep },
     /// Connector-scoped act and its permanent answer (people.md, 5.3).
     Acted { key: ActKey, act: Act, outcome: Outcome, at: Wall },
     /// Persistent party identity; provider/subject and party numbers must be unique on restore.
@@ -791,6 +811,7 @@ impl Stored {
     #[must_use]
     pub const fn key(&self) -> Key {
         match self {
+            Stored::Deletion { project, .. } => Key::Deletion(*project),
             Stored::Person { number, .. } => Key::Person(*number),
             Stored::ReadResults { party, .. } => Key::ReadResults { party: *party },
             Stored::ReadConversation { party, task, .. } => Key::ReadConversation { party: *party, task: *task },
@@ -804,10 +825,27 @@ impl Stored {
     }
 }
 
+/// Where a kept deletion stands, resumed at start (jig/docs/design/domain/people.md, 5.2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum DeletionStep {
+    /// Its live tasks cancelled and ended, then each ended task erased whole.
+    Tasks,
+    /// Its own rows erased: policy, funders, notes, account uses, answers.
+    Rows,
+    /// Connectors release adoptions; the row goes when all answered.
+    Release,
+}
+
 /// Root-to-child inputs; authenticated identity, authoritative roles and restored records
 /// cross this boundary without protocol secrets. (domain/people.md, sections 3–5).
 #[derive(PartialEq, Eq, Debug)]
 pub enum Event {
+    /// Keep or erase a deletion row (jig/docs/design/domain/people.md, 5.2).
+    Deleting { project: u32, step: Option<DeletionStep> },
+    /// Remove project roles from memory and storage (jig/docs/design/domain/people.md, 5.2).
+    CloseProject { project: u32 },
+    /// Erase retained project answers and acts (jig/docs/design/domain/people.md, 5.2).
+    ForgetProject { project: u32 },
     /// Admit a connector's deployment act without a sign-in.
     Act { reply_to: ReplyTo, connector: u16, key: [u8; 16], act: Box<Act> },
     /// Move a live conversation and start its new requester with nothing read.

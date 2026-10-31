@@ -1,12 +1,11 @@
 //! Public cold-restore page scheduling (`domain/testing.md`, sections 4 and 7).
 
-use jig_core_world::effects::Setup;
-use jig_core_world::{
-    client_peer::ClientPeer,
-    effects::World,
-    peers::Peers,
-    store_peer::{StorePeer, with_start_mark},
-};
+use jig_core_world::client_peer::ClientPeer;
+use jig_core_world::peers::Peers;
+use jig_core_world::store_peer::StorePeer;
+use jig_core_world::store_peer::with_start_mark;
+use jig_core_world::world::Setup;
+use jig_core_world::world::World;
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_test_domain as root;
@@ -66,7 +65,7 @@ fn reply(world: &mut World, token: u64) -> (Option<u64>, people::Reply) {
 }
 
 fn world() -> (World, u64) {
-    let (configuration, limits) = jig_core_world::effects::fixture(SEED, false);
+    let (configuration, limits) = jig_core_world::world::fixture(SEED, false);
     let mut world = World::new(Setup {
         configuration: Some(configuration),
         limits,
@@ -88,7 +87,7 @@ fn world() -> (World, u64) {
 
 fn pause(world: &mut World) {
     world.hold_restore_pages = true;
-    world.restart_with(jig_core_world::effects::fixture(SEED, false).0);
+    world.restart_with(jig_core_world::world::fixture(SEED, false).0);
     assert!(world.store.loading(), "the requested original store page remains outstanding");
     assert_eq!(world.restart_steps, [core::start::Phase::LoadCore]);
 }
@@ -207,7 +206,7 @@ fn default_restore_replays_the_same_durable_whole_request_without_making_it_twic
     let rows = world.store.rows.clone();
     let applied = world.store.applied;
     let commits = world.commits.len();
-    world.restart_with(jig_core_world::effects::fixture(SEED, false).0);
+    world.restart_with(jig_core_world::world::fixture(SEED, false).0);
     assert!(!world.store.loading());
     let rows = with_start_mark(&rows);
     assert_eq!(world.store.rows, rows);
@@ -273,7 +272,7 @@ fn an_expiry_sweep_resumes_its_pages_only_after_each_durable_erase() {
     let (now, wall) = world.clocks();
     world.set_clock(now, skein_lib::Wall::from_nanos(wall.as_nanos() + Duration::from_secs(75).as_nanos()));
     world.store_delay = 5;
-    world.restart_with(jig_core_world::effects::fixture(SEED, false).0);
+    world.restart_with(jig_core_world::world::fixture(SEED, false).0);
     assert!(world.domain.ready());
     assert!(!world.stopped);
     for sign_in in [first, second] {

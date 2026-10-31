@@ -24,33 +24,17 @@ fn key(bytes: &[u8]) {
 fn golden(bytes: &[u8], bounds: &Bounds) {
     record(bytes, bounds);
     // Value's goldens hold each family; prepend Row's version to reach its decoder.
-    let mut versioned = vec![0_u8, 10];
+    let mut versioned = vec![0_u8, 11];
     versioned.extend_from_slice(bytes);
     record(&versioned, bounds);
 }
 /// A drawn row, its key, and one mutation of each.
 fn row_and_key(row: &forge::Stored, rng: &mut Rng, bounds: &Bounds) {
     let bytes = records::encode(row);
+    assert_eq!(records::decode(&bytes, bounds), Ok(row.clone()), "drawn row");
     record(&bytes, bounds);
     record(&temper_codecs_world::mutated(rng, &bytes), bounds);
     let bytes = keys::encode(&forge::stored_key(row), u32::MAX).expect("drawn key");
-    key(&bytes);
-    key(&temper_codecs_world::mutated(rng, &bytes));
-}
-fn end_act(rng: &mut Rng, bounds: &Bounds) {
-    let act = if rng.below(2) == 0 {
-        forge::DemoActKind::Close {
-            project: u32::try_from(rng.below(u64::from(u32::MAX))).expect("u32"),
-            task: rng.next_u64(),
-        }
-    } else {
-        forge::DemoActKind::RemoveAccount { account: u32::try_from(rng.below(u64::from(u32::MAX))).expect("u32") }
-    };
-    let row = forge::Stored::DemoAct(forge::DemoAct { key: [u8::try_from(rng.below(256)).expect("byte"); 16], act });
-    let bytes = records::encode(&row);
-    record(&bytes, bounds);
-    record(&temper_codecs_world::mutated(rng, &bytes), bounds);
-    let bytes = keys::encode(&forge::stored_key(&row), u32::MAX).expect("act key");
     key(&bytes);
     key(&temper_codecs_world::mutated(rng, &bytes));
 }
@@ -58,7 +42,7 @@ fn end_act(rng: &mut Rng, bounds: &Bounds) {
 fn store_decoders_never_panic_and_reencode_the_same() {
     let bounds = temper_protocol_store::bounds(&LIMITS, LIMITS.client.op_bytes).expect("fixture limits fit");
     let mut rng = Rng::new(0x7e3d_0405);
-    let goldens = temper_codecs_world::goldens("crates/temper-protocol-store/golden");
+    let goldens = temper_codecs_world::goldens("crates/temper-protocol-store/golden/v11");
     for _ in 0..2_000 {
         let address = format!("member{}@example.com", rng.next_u64()).into_bytes().into_boxed_slice();
         let binding =
@@ -66,12 +50,7 @@ fn store_decoders_never_panic_and_reencode_the_same() {
         row_and_key(&binding, &mut rng, &bounds);
         record(&temper_codecs_world::drawn(&mut rng, 512), &bounds);
         key(&temper_codecs_world::drawn(&mut rng, 512));
-        let demo = forge::Stored::Demo(forge::Demo {
-            forge: u16::try_from(rng.below(65_536)).expect("u16"),
-            state: if rng.below(2) == 0 { forge::DemoState::Running } else { forge::DemoState::Ended },
-        });
-        row_and_key(&demo, &mut rng, &bounds);
-        end_act(&mut rng, &bounds);
+        forge_rows(&mut rng, &bounds);
         let writer = forge::Stored::Writer(skein_forge_client::Writer {
             forge: u16::try_from(rng.below(65_536)).expect("u16"),
             author: rng.next_u64().max(1),
@@ -155,4 +134,84 @@ fn store_decoders_never_panic_and_reencode_the_same() {
             golden(&temper_codecs_world::mutated(&mut rng, bytes), &bounds);
         }
     }
+}
+
+fn forge_rows(rng: &mut Rng, bounds: &Bounds) {
+    let number = u16::try_from(rng.below(65_536)).expect("u16");
+    let kind = if rng.below(2) == 0 { forge::Kind::Forgejo } else { forge::Kind::GitHub };
+    let mode = match rng.below(4) {
+        0 => forge::Mode::Connected,
+        1 => forge::Mode::Managed,
+        2 => forge::Mode::Owned,
+        _ => forge::Mode::Fake,
+    };
+    let state = if rng.below(2) == 0 {
+        forge::ForgeState::Kept
+    } else {
+        forge::ForgeState::Ended { secrets_erased: rng.below(2) == 0, box_removed: rng.below(2) == 0 }
+    };
+    let place = forge::Place {
+        api: forge::Address {
+            host: drawn_field(rng),
+            port: u16::try_from(rng.below(65_536)).expect("u16"),
+            tls: optional_field(rng),
+        },
+        git: drawn_field(rng),
+        web: optional_field(rng),
+    };
+    let bot = forge::Bot { login: drawn_field(rng), name: drawn_field(rng), email: drawn_field(rng) };
+    let first = if rng.below(2) == 0 {
+        None
+    } else {
+        Some(forge::FirstIntent {
+            playground: rng.below(2) == 0,
+            org: drawn_field(rng),
+            repository: drawn_field(rng),
+            project: if rng.below(2) == 0 {
+                forge::SetUpProject::Existing(u32::try_from(rng.below(4_294_967_296)).expect("u32"))
+            } else {
+                forge::SetUpProject::New(drawn_field(rng))
+            },
+            label: drawn_field(rng),
+        })
+    };
+    let row = forge::Stored::Forge(forge::ForgeRecord {
+        number,
+        kind,
+        mode,
+        state,
+        place,
+        read_only: rng.below(2) == 0,
+        bot,
+        asked: rng.below(2) == 0,
+        first,
+    });
+    row_and_key(&row, rng, bounds);
+    row_and_key(&forge::Stored::ForgeNumber { last: number }, rng, bounds);
+    let state = match rng.below(5) {
+        0 => forge::PlaygroundState::Starting,
+        1 => forge::PlaygroundState::Running,
+        2 => forge::PlaygroundState::Resetting(forge::ResetStep::Project),
+        3 => forge::PlaygroundState::Resetting(forge::ResetStep::Forge),
+        _ => forge::PlaygroundState::Resetting(forge::ResetStep::Account),
+    };
+    let row = forge::Stored::Playground(forge::Playground {
+        state,
+        forge: number,
+        project: optional_number(rng),
+        account: optional_number(rng),
+    });
+    row_and_key(&row, rng, bounds);
+}
+
+fn drawn_field(rng: &mut Rng) -> Box<[u8]> {
+    temper_codecs_world::drawn(rng, 64.min(LIMITS.name_bytes)).into_boxed_slice()
+}
+
+fn optional_field(rng: &mut Rng) -> Option<Box<[u8]>> {
+    if rng.below(2) == 0 { None } else { Some(drawn_field(rng)) }
+}
+
+fn optional_number(rng: &mut Rng) -> Option<u32> {
+    if rng.below(2) == 0 { None } else { Some(u32::try_from(rng.below(4_294_967_296)).expect("u32")) }
 }

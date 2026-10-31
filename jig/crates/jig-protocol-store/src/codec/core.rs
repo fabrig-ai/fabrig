@@ -19,7 +19,7 @@ pub(super) fn limits(
     notes: &crate::notes_v1::Limits,
 ) -> Option<wire::Limits> {
     let core = wire::Limits {
-        settings_refusal_value: u32::try_from(crate::people_v13::Refusal::encoded_bound(&crate::people_v13::CEILINGS)?)
+        settings_refusal_value: u32::try_from(crate::people_v14::Refusal::encoded_bound(&crate::people_v14::CEILINGS)?)
             .ok()?,
         phase_bytes_value: u32::try_from(crate::tasks_v9::PhaseRecord::encoded_bound(tasks)?).ok()?,
         change_bytes_value: u32::try_from(crate::tasks_v9::ChangeRecord::encoded_bound(tasks)?).ok()?,
@@ -468,10 +468,9 @@ pub fn encode_outbox_outcome(
         domain::effects::connector::OutboxOutcome::Withdrawn => wire::OutboxOutcome::Withdrawn,
         domain::effects::connector::OutboxOutcome::NotMade => wire::OutboxOutcome::NotMade,
         domain::effects::connector::OutboxOutcome::Uncertain => wire::OutboxOutcome::Uncertain,
-        domain::effects::connector::OutboxOutcome::Held { entry } => wire::OutboxOutcome::Held(wire::OutboxOutcomeHeld::new(
-            &limits.core,
-            wire::OutboxOutcomeHeldParts { entry: *entry },
-        )?),
+        domain::effects::connector::OutboxOutcome::Held { entry } => wire::OutboxOutcome::Held(
+            wire::OutboxOutcomeHeld::new(&limits.core, wire::OutboxOutcomeHeldParts { entry: *entry })?,
+        ),
     })
 }
 #[must_use]

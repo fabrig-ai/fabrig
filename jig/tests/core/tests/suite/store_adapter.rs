@@ -9,7 +9,7 @@ use jig_test_store_files::{Fault, Store};
 use skein_lib::Wall;
 const LIVE: u64 = 21;
 fn fresh() -> Store {
-    Store::new(&jig_core_world::world::limits(), &[])
+    Store::new(&jig_test_profile::limits(), &[])
 }
 fn save(row: core::CoreRecord) -> root::Write {
     root::Write::Save(root::Record::Core(core::Record::Core(row)))
@@ -169,9 +169,9 @@ fn the_walks_closed_proof_restores_until_the_next_attempt() {
     expected.window.as_mut().expect("parked window").closed = true;
     expected.crossed = true;
     assert_eq!(closed, expected, "the mirror reads the component's own bytes");
-    let limits = jig_core_world::world::limits().core;
+    let limits = jig_test_profile::limits().core;
     let mut engine =
-        core::Core::new(jig_core_world::effects::fixture(f::SEED, false).0.core, &limits).expect("core configuration");
+        core::Core::new(jig_core_world::world::fixture(f::SEED, false).0.core, &limits).expect("core configuration");
     let _loading = engine.start_begin(false, skein_lib::Wall::EPOCH);
     assert_eq!(
         engine.restore(
@@ -204,4 +204,28 @@ fn a_fork_replays_the_fresh_mark_and_its_commit_numbers() {
     fork.crash(f::SEED);
     assert_eq!(fork.rows, world.store.rows);
     assert_eq!(fork.applied, world.store.applied);
+}
+
+#[test]
+fn a_dropped_transcript_leaves_no_turn_of_its_task() {
+    let mut store = committed();
+    store.submit(2, turn_commit(LIVE, 1, b"first"), 0);
+    assert_eq!(store.tick(false), Ok(Some(2)));
+    store.submit(3, turn_commit(LIVE, 2, b"second"), 0);
+    assert_eq!(store.tick(false), Ok(Some(3)));
+    let other = LIVE - 1;
+    let mut writes = turn_commit(other, 1, b"other task").into_vec();
+    writes[0] = header(4);
+    store.submit(4, writes.into_boxed_slice(), 0);
+    assert_eq!(store.tick(false), Ok(Some(4)));
+    assert_eq!(window_turns(&mut store, LIVE).len(), 2);
+    for number in [5, 6] {
+        store.submit(number, Box::new([header(number), root::Write::DropTranscript { task: LIVE }]), 0);
+        assert_eq!(store.tick(false), Ok(Some(number)));
+        assert!(window_turns(&mut store, LIVE).is_empty());
+        assert!(!store.rows.keys().any(
+            |key| matches!(key, root::Key::Core(core::Key::Core(core::CoreKey::Turn { task, .. })) if *task == LIVE)
+        ));
+        assert_eq!(window_turns(&mut store, other), [Box::from(b"other task".as_slice())]);
+    }
 }
