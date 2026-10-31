@@ -44,7 +44,6 @@ impl Offers {
                     }
                 }
             }
-            ReadValue::Proposal(proposal) => self.recipient(proposal.key, &proposal.waiting, judge),
             ReadValue::OwnerProject(project) => {
                 self.roles.insert(
                     project.number,
@@ -56,7 +55,8 @@ impl Offers {
                 }
             }
             ReadValue::OwnerProposal(proposal) => self.owner_recipient(proposal.key, proposal.waiting.holder, judge),
-            ReadValue::Project(_)
+            ReadValue::Proposal(_)
+            | ReadValue::Project(_)
             | ReadValue::Tasks(_)
             | ReadValue::Historical(_)
             | ReadValue::Task(_)
@@ -221,7 +221,6 @@ pub(crate) fn outcome(answer: &Answer) -> Option<DraftOutcome> {
         Answer::Done(Outcome::Owner(OwnerOutcome::Proposed { proposal, to })) => {
             Some(DraftOutcome::ProposedByParty { number: *proposal, to: *to })
         }
-        Answer::Done(Outcome::Proposed { proposal }) => Some(DraftOutcome::Proposed(*proposal)),
         Answer::Refused { .. } => Some(DraftOutcome::Refused),
         Answer::Done(_) => None,
     }

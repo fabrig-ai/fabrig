@@ -29,17 +29,15 @@ fn finish(w: &mut World<Test, Scripted>, withdrawn: bool) {
     delegate.chip.title = jig_client_domain::contract::DocumentText::complete(stories::text(b"Delegate ten"));
     let lead = stories::reported(stories::task(), b"Incident resolved");
     let delegate = stories::reported(delegate, if withdrawn { b"Already healthy by hand" } else { b"Service healthy" });
-    let mut proposal = stories::proposal();
-    proposal.ending = Some(if withdrawn {
-        Ending::Withdrawn { reason: stories::text(b"Already healthy by hand") }
-    } else {
-        Ending::Decided {
-            by: stories::frame(7).party.number,
-            party: Some(stories::party(7)),
-            how: Some(Decision::Accepted),
-            at: Wall::EPOCH,
-        }
-    });
+    let p = stories::proposal();
+    let proposal = stories::decided_proposal(
+        &p,
+        if withdrawn {
+            OwnerProposalHistoryState::Withdrawn
+        } else {
+            OwnerProposalHistoryState::Accepted { by: OwnerRequester::Person(7) }
+        },
+    );
     w.front()
         .engine
         .act_application(
@@ -51,11 +49,7 @@ fn finish(w: &mut World<Test, Scripted>, withdrawn: bool) {
             vec![
                 Change::Object { project: 1, key: ObjectKey::Task(9), value: ReadValue::Task(Box::new(lead)) },
                 Change::Object { project: 1, key: ObjectKey::Task(10), value: ReadValue::Task(Box::new(delegate)) },
-                Change::Object {
-                    project: 1,
-                    key: ObjectKey::Proposal(proposal.key),
-                    value: ReadValue::Proposal(Box::new(proposal)),
-                },
+                Change::Object { project: 1, key: proposal.key, value: ReadValue::Historical(Box::new(proposal)) },
                 Change::Source(Source {
                     party: 7,
                     read: Read::Inbox {
@@ -138,7 +132,6 @@ fn an_incident_proposal_withdrawn_while_waiting_leaves_with_its_delegates_reason
             c,
             vec![
                 see(b"Withdrawn"),
-                see(b"Already healthy by hand"),
                 Step::Go { address: RootAddress::Jig(Address::Task { task: 10, section: TaskSection::Overview }) },
                 see(b"Already healthy by hand"),
             ],

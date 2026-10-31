@@ -29,92 +29,209 @@ Navigation:
   [7] Family
 Deployment:
   ## Deployment
-  Hosts:
-    Deployment:
-      - Host 1
-        * Lost
-        Grace holds until 0
-        Slots used: 1
-        Slots free: 1
+  Deployment owner facts:
+    Store map bytes: 1
+    Store high-water mark in bytes: 1024
+    Hosts:
+      Hosts:
+        - Host channel: 1
+          Host Kind Worker
+          `worker`
+          Slots: 2
+          Used: 1
+          Free: 1
+          Not draining
+          Disconnected
+          Grace until: 0
+          Grace remaining: 1
+          Hosted runs:
+            - Attempt: 1
+              Live task
+              Task 9: Chat nine:
+                [8] Task 9: Chat nine
+                Agent charter 1
+                Active attempt 1
+              Kept turns: 0
+              Listed by host
+              Attempt State Adopted
+              Run Location Adrift
+              Channel: 1
+              Grace until: 0
+              Grace remaining: 1
+              Grace until: 0
+            - Attempt: 2
+              Live task
+              Task 9: Chat nine:
+                [9] Task 9: Chat nine
+                Agent charter 1
+                Active attempt 1
+              Kept turns: 0
+              Listed by host
+              Attempt State Adopted
+              Run Location Adrift
+              Channel: 1
+              Grace until: 0
+              Grace remaining: 1
+              Grace until: 0
+        - Host channel: 2
+          Host Kind Worker
+          `worker`
+          Slots: 2
+          Used: 1
+          Free: 1
+          Not draining
+          Disconnected
+          Grace until: 0
+          Grace remaining: 1
+          Hosted runs:
+            - Attempt: 1
+              Live task
+              Task 9: Chat nine:
+                [10] Task 9: Chat nine
+                Agent charter 1
+                Active attempt 1
+              Kept turns: 0
+              Listed by host
+              Attempt State Adopted
+              Run Location Adrift
+              Channel: 1
+              Grace until: 0
+              Grace remaining: 1
+              Grace until: 0
+            - Attempt: 2
+              Live task
+              Task 9: Chat nine:
+                [11] Task 9: Chat nine
+                Agent charter 1
+                Active attempt 1
+              Kept turns: 0
+              Listed by host
+              Attempt State Adopted
+              Run Location Adrift
+              Channel: 1
+              Grace until: 0
+              Grace remaining: 1
+              Grace until: 0
+      Hosts forgotten: 0
+    Tracked attempts:
+      - Attempt: 1
+        Live task
         Task 9: Chat nine:
-          [8] Task 9: Chat nine
-          Agent
-          * Cannot show this part
+          [12] Task 9: Chat nine
+          Agent charter 1
+          Active attempt 1
+        Kept turns: 0
+        Listed by host
+        Attempt State Adopted
+        Run Location Adrift
+        Channel: 1
+        Grace until: 0
+        Grace remaining: 1
+        Grace until: 0
+      - Attempt: 2
+        Live task
         Task 9: Chat nine:
-          [9] Task 9: Chat nine
-          Agent
-          * Cannot show this part
-        Refused
-        hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
-      - Host 2
-        * Lost
-        Grace holds until 0
-        Slots used: 1
-        Slots free: 1
-        Task 9: Chat nine:
-          [10] Task 9: Chat nine
-          Agent
-          * Cannot show this part
-        Task 9: Chat nine:
-          [11] Task 9: Chat nine
-          Agent
-          * Cannot show this part
-        Refused
-        hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
-  LLM accounts:
-    - LLM account 1
-      Unavailable
-      aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-      Task 9: Chat nine:
-        [12] Task 9: Chat nine
-        Agent
-        * Cannot show this part
-      Task 9: Chat nine:
-        [13] Task 9: Chat nine
-        Agent
-        * Cannot show this part
-      Tasks waiting for this account
-      Task 9: Chat nine:
-        [14] Task 9: Chat nine
-        Agent
-        * Cannot show this part
-      Task 9: Chat nine:
-        [15] Task 9: Chat nine
-        Agent
-        * Cannot show this part
-    - LLM account 2
-      Unavailable
-      aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-      Task 9: Chat nine:
-        [16] Task 9: Chat nine
-        Agent
-        * Cannot show this part
-      Task 9: Chat nine:
-        [17] Task 9: Chat nine
-        Agent
-        * Cannot show this part
-      Tasks waiting for this account
-      Task 9: Chat nine:
-        [18] Task 9: Chat nine
-        Agent
-        * Cannot show this part
-      Task 9: Chat nine:
-        [19] Task 9: Chat nine
-        Agent
-        * Cannot show this part
-  Capacity:
-    ## Capacity
-    Deployment
-    Live tasks: 1
-    Task limit: 2
-    In project 1
-    Live tasks: 1
-    Task limit: 2
-    Pending proposals: 2
-    Working set limit reached
-    Read limit reached
-  Configured connectors:
-    - Family item:
-        * Unknown family object
-        * Unknown family object
-    * Cannot show this part
+          [13] Task 9: Chat nine
+          Agent charter 1
+          Active attempt 1
+        Kept turns: 0
+        Listed by host
+        Attempt State Adopted
+        Run Location Adrift
+        Channel: 1
+        Grace until: 0
+        Grace remaining: 1
+        Grace until: 0
+    LLM accounts:
+      LLM provider offers
+      Maximum key bytes 256
+      LLM accounts:
+        - Account: 1
+          `Fixture account`
+          Held by party 7
+          Sources:
+          Default uses
+          Account State Misconfigured
+          Unusable
+          Not expiring
+          Needs attention
+          Clock not supplied
+          Hosted runs:
+            Task 9: Chat nine:
+              [14] Task 9: Chat nine
+              Agent charter 1
+              Active attempt 1
+            Task 9: Chat nine:
+              [15] Task 9: Chat nine
+              Agent charter 1
+              Active attempt 1
+          Tasks waiting for account:
+            Task 9: Chat nine:
+              [16] Task 9: Chat nine
+              Agent charter 1
+              Active attempt 1
+            Task 9: Chat nine:
+              [17] Task 9: Chat nine
+              Agent charter 1
+              Active attempt 1
+        - Account: 2
+          `Fixture account`
+          Held by party 7
+          Sources:
+          Default uses
+          Account State Misconfigured
+          Unusable
+          Not expiring
+          Needs attention
+          Clock not supplied
+          Hosted runs:
+            Task 9: Chat nine:
+              [18] Task 9: Chat nine
+              Agent charter 1
+              Active attempt 1
+            Task 9: Chat nine:
+              [19] Task 9: Chat nine
+              Agent charter 1
+              Active attempt 1
+          Tasks waiting for account:
+            Task 9: Chat nine:
+              [20] Task 9: Chat nine
+              Agent charter 1
+              Active attempt 1
+            Task 9: Chat nine:
+              [21] Task 9: Chat nine
+              Agent charter 1
+              Active attempt 1
+    Resource capacities:
+      Tasks Capacity:
+        Used: 1
+        Limit: 2
+      Workers Capacity:
+        Used: 2
+        Limit: 4
+      Attempts Capacity:
+        Used: 1
+        Limit: 2
+      Proposals Capacity:
+        Used: 2
+        Limit: 4
+      Waiting attempts: 0
+      Deployment grace bound: 1
+    Project capacities:
+      - Project: 1
+        Project Tasks Capacity:
+          Used: 1
+          Limit: 2
+        Pending proposals: 2
+    Refused hellos:
+    Hellos forgotten: 0
+    Person room refusals:
+    Person refusals forgotten: 0
+    Person answer retention: 16
+    Task room refusals:
+    Task refusals forgotten: 0
+    Configured connectors:
+      - Family item:
+          * Unknown family object
+          * Unknown family object
+      * Cannot show this part

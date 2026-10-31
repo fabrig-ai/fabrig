@@ -430,7 +430,7 @@ impl Front<Test> for Scripted {
                 for mut source in sources {
                     if let engine::Rows::Inbox(rows) = &mut source.rows {
                         let before = rows.len();
-                        rows.retain(|row| row.object != key);
+                        rows.retain(|row| row.card_key() != key);
                         if rows.len() != before {
                             self.engine.act(now, wall, engine::Change::Source(source)).expect("listing fits");
                         }
@@ -566,14 +566,14 @@ fn observe_change(change: &engine::Change, commit: u64, seen: &mut Vec<Observed>
         engine::Change::Forget { key } => seen.push(Observed::Stopped { card: crate::observe::key(*key), commit }),
         engine::Change::Object { key, value, .. } => {
             let terminal = match value {
-                ReadValue::Proposal(p) => p.ending.is_some(),
+                ReadValue::Historical(p) => p.is_terminal(),
                 ReadValue::Escalation(e) => e.ending.is_some(),
                 ReadValue::Question(q) => q.ending.is_some(),
                 ReadValue::PersonTask(p) => p.ending.is_some(),
                 ReadValue::Task(t) => t.result.is_some(),
                 ReadValue::Result(_) => true,
-                ReadValue::OwnerPersonTask(_)
-                | ReadValue::Historical(_)
+                ReadValue::Proposal(_)
+                | ReadValue::OwnerPersonTask(_)
                 | ReadValue::OwnerProposal(_)
                 | ReadValue::OwnerEscalation(_)
                 | ReadValue::Tasks(_)
@@ -606,8 +606,8 @@ fn observe_change(change: &engine::Change, commit: u64, seen: &mut Vec<Observed>
                 ReadValue::Task(_)
                 | ReadValue::Tasks(_)
                 | ReadValue::Me(_)
-                | ReadValue::Proposal(_)
                 | ReadValue::Historical(_)
+                | ReadValue::Proposal(_)
                 | ReadValue::OwnerProposal(_)
                 | ReadValue::Escalation(_)
                 | ReadValue::OwnerEscalation(_)
@@ -643,10 +643,8 @@ fn observe_change(change: &engine::Change, commit: u64, seen: &mut Vec<Observed>
         | engine::Change::SignIn { .. }
         | engine::Change::SignedOut { .. }
         | engine::Change::OwnerProject(_)
-        | engine::Change::Project(_)
         | engine::Change::Note(_)
         | engine::Change::DeleteNote { .. }
-        | engine::Change::Deployment(_)
         | engine::Change::OwnerDeployment(_)
         | engine::Change::Tree(_)
         | engine::Change::Seen { .. } => {}

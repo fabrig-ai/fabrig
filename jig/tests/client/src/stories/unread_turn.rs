@@ -8,16 +8,18 @@ fn readable(number: u32, words: &[u8]) -> ActivityLine {
     ActivityLine {
         position: u64::from(number),
         at: Wall::EPOCH,
-        event: Activity::Turn {
-            name: TurnName { attempt: 1, number },
-            turn: TurnRead::Decoded(Turn {
+        event: crate::stories::turn_event(
+            9,
+            u64::from(number),
+            TurnName { attempt: 1, number },
+            TurnRead::Decoded(Turn {
                 messages: list([Message { speaker: Speaker::Assistant, blocks: list([Block::Text(text(words))]) }]),
                 used: Usage { input: 1, output: 1, cached: 0, cache_written: 0 },
                 spent: 1,
                 read_through: None,
                 cut: false,
             }),
-        },
+        ),
     }
 }
 /// Starts a conversation with a malformed turn between two readable ones.
