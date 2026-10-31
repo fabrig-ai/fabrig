@@ -1,8 +1,8 @@
 //! The scripted project requests (contract.md, 3.2, 4 and 7.5).
 use crate::{Application, Change, Engine, Invalid};
 use jig_client_domain::contract::{
-    AdmissionLimit, Answer, Ask, DocumentText, HeldRole, Limit, Malformed, MeProject, NameRule, Outcome, OwnerOutcome,
-    Refusal, Text,
+    ActKind, Admission, AdmissionLimit, Answer, Ask, DocumentText, HeldRole, Limit, Malformed, MeProject, NameRule,
+    Outcome, OwnerOutcome, Refusal, Text,
 };
 use skein_lib::List;
 
@@ -13,8 +13,8 @@ impl<A: Application> Engine<A> {
         let (project, name, policy) = match ask {
             Ask::Rename { project, name } => (Some(*project), name, None),
             Ask::MakeProject { name, policy } => (None, name, Some(*policy)),
-            Ask::RemoveProject { .. }
-            | Ask::ChangeSettings(_)
+            Ask::RemoveProject { project } => return Some(self.remove_project(party, *project)),
+            Ask::ChangeSettings(_)
             | Ask::MoveToNewest(_)
             | Ask::Create { .. }
             | Ask::Propose { .. }
@@ -43,6 +43,45 @@ impl<A: Application> Engine<A> {
             | Ask::SignOut { .. } => return None,
         };
         Some(self.change_project(party, project, name, policy))
+    }
+
+    fn remove_project(&mut self, party: u64, project: u32) -> ProjectDecision {
+        let Some(doc) = self.truth.owner_projects.get(&project) else {
+            return Ok(refused(Refusal::Unknown));
+        };
+        let held = self
+            .truth
+            .frames
+            .get(&party)
+            .and_then(|me| me.projects.iter().find(|p| p.project == project))
+            .map(|p| p.role);
+        if held != Some(HeldRole::Owner) {
+            return Ok(refused(Refusal::Role { held }));
+        }
+        if !doc.acts.iter().any(|offer| offer.act == ActKind::RemoveProject && offer.admission == Admission::Allowed) {
+            return Ok(refused(Refusal::NotOffered));
+        }
+        let mut changes = vec![Change::RemoveProject { project }];
+        for frame in self.truth.frames.values() {
+            if frame.projects.iter().any(|p| p.project == project) {
+                let mut frame = frame.clone();
+                let mut projects = List::with_capacity(frame.projects.capacity());
+                for membership in frame.projects.into_boxed() {
+                    if membership.project != project {
+                        projects.push(membership).expect("remaining projects fit");
+                    }
+                }
+                frame.projects = projects;
+                changes.push(Change::Me(frame));
+            }
+        }
+        let mut next = self.truth.clone();
+        for change in &changes {
+            change.validate(&self.bounds)?;
+            next.apply(change)?;
+        }
+        self.truth = next;
+        Ok((Answer::Done(Outcome::Owner(OwnerOutcome::ProjectRemoved { project })), changes))
     }
 
     fn change_project(

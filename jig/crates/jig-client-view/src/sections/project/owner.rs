@@ -123,7 +123,8 @@ pub(crate) fn max_nodes_with_card(l: &Limits, card: u32) -> Option<u32> {
         .checked_add(l.rows.checked_mul(3)?)?
         .checked_add(l.rows.checked_mul(l.rows)?.checked_mul(4)?)?
         .checked_add(l.rows.checked_mul(6)?)?
-        .checked_add(crate::sizes::refusal_nodes(l)?.checked_mul(3)?)?
+        .checked_add(crate::sizes::refusal_nodes(l)?.checked_mul(4)?)?
+        .checked_add(8)?
         .checked_add(20)?
         .checked_add(128)?
         .checked_add(historical_nodes(l, card)?)
@@ -837,7 +838,57 @@ pub(super) fn forms(
     pool_forms(b, value, state, words, bindings);
     holding_forms(b, value, state, words, bindings);
     service_form(b, value, state, words, bindings);
+    delete_form(b, value, client, words, bindings);
     review_form(b, client, state, words, bindings);
+}
+fn delete_form(
+    b: &mut Builder,
+    value: &OwnerProject,
+    client: &Borrowed<'_>,
+    words: &Words,
+    bindings: &mut JigBindings,
+) {
+    use crate::page::project::delete;
+    if !delete::offered(value) {
+        return;
+    }
+    let state = &client.project_page().delete;
+    region(b, words, P::DeleteProject, &[]);
+    b.style(crate::styles::JigStyle::Danger.token());
+    words.status(
+        b,
+        JigPhrase::Word(jig_client::words::Word::Decision(jig_client::words::DecisionWord::Dangerous)),
+        &[],
+    );
+    text(b, words, P::DeleteWhat, &[]);
+    b.open(Role::TextField);
+    let name = words.book().say(words.language(), P::DeleteNameField.id(), &[]).expect("checked deletion name").text;
+    b.name(&name);
+    b.value(state.typed.as_bytes(), 0);
+    if state.pending.is_some() {
+        b.state(skein_ui::State::Disabled);
+    } else {
+        b.bind(bindings.insert(JigMeaning::ProjectDeleteName { project: value.number }));
+    }
+    b.close();
+    b.open(Role::Button);
+    let name = words.book().say(words.language(), P::DeleteProject.id(), &[]).expect("checked deletion button").text;
+    b.name(&name);
+    if delete::ready(value, state) {
+        b.bind(bindings.insert(JigMeaning::Action(Act::DeleteProject { project: value.number })));
+    } else {
+        b.state(skein_ui::State::Disabled);
+    }
+    b.close();
+    if let Some(request) = state.pending
+        && let Some(intent) = client.intents().get(skein_lib::Id::from_token(request))
+    {
+        words.progress(b, intent.progress);
+    }
+    if let Some(refused) = &state.refused {
+        words.refusal(b, refused, bindings.text_limit());
+    }
+    b.close();
 }
 fn policy_fields(
     b: &mut Builder,

@@ -79,6 +79,7 @@ fn not_sent(domain: &mut Ui, token: Token, why: NotSent) {
             }
             crate::page::project::goals::unknown(domain, token);
             crate::page::project::owner_form::unknown(domain, token);
+            crate::page::project::delete::unknown(domain, token);
             kept::show(domain, Kind::NotSent(why));
         }
     }

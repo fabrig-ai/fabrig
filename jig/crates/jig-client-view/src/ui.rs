@@ -550,6 +550,8 @@ fn settle(domain: &mut Ui, env: &Env<Limits>, out: &mut Queue<Request>, lent: &j
 }
 fn act_event(domain: &mut Ui, env: &Env<Limits>, act: Act, out: &mut Queue<Request>, lent: &jig_client::Client) {
     match act {
+        Act::ProjectDeleteName { project, text } => crate::page::project::delete::edit(domain, project, text),
+        Act::DeleteProject { project } => crate::page::project::delete::send(domain, project, out),
         Act::ProjectSettings { ask } => crate::page::project::owner_form::review(domain, ask),
         Act::ProjectServiceRole { role } => crate::page::project::owner_form::service_role(domain, role),
         Act::Go { address } => {

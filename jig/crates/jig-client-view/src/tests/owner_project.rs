@@ -1298,3 +1298,71 @@ fn owner_project_header_and_tabs_show_the_supplied_name() {
     assert!(has(&tree, b"Project: Tally"));
     assert!(tree.nodes().iter().any(|node| node.role == Role::Tabs && node.name.as_deref() == Some(b"Tally")));
 }
+
+#[test]
+fn delete_is_offered_to_an_owner_with_remove_project() {
+    let mut value = source();
+    value.acts = list(4, [Offered { effect: None, act: ActKind::RemoveProject, admission: Admission::Allowed }]);
+    let domain = native_owner(value);
+    let (tree, mut bindings) = owner_page(&domain);
+    let region = tree
+        .nodes()
+        .iter()
+        .find(|node| node.role == Role::Region && node.name.as_deref() == Some(b"Delete project"))
+        .unwrap();
+    assert!(region.styles.as_slice().contains(&crate::JigStyle::Danger.token()));
+    assert!(has(&tree, b"Its conversations and tasks are ended and erased, with its notes and settings. Its spend stays in the totals."));
+    let field = tree
+        .nodes()
+        .iter()
+        .find(|node| {
+            node.role == Role::TextField && node.name.as_deref() == Some(b"Type the project's name to delete it")
+        })
+        .unwrap();
+    assert_eq!(
+        crate::decode(&mut bindings, field.binding.unwrap().token, skein_ui::Act::Input { value: copy_of(b"Tally") }),
+        Some(crate::action::Act::ProjectDeleteName {
+            project: domain.project_page().owner.as_ref().unwrap().number,
+            text: Text::new(copy_of(b"Tally"), 32).unwrap()
+        })
+    );
+    let button = tree
+        .nodes()
+        .iter()
+        .find(|node| node.role == Role::Button && node.name.as_deref() == Some(b"Delete project"))
+        .unwrap();
+    assert!(button.states.as_slice().contains(&skein_ui::State::Disabled));
+    assert!(button.binding.is_none());
+}
+
+#[test]
+fn delete_is_absent_without_the_offer() {
+    for admission in [
+        None,
+        Some(Admission::Refused(Refusal::NotOffered)),
+        Some(Admission::Proposed { to: Recipient::Roles { project: 4, roles: List::with_capacity(4) } }),
+        Some(Admission::Bounded {
+            within: Bounds::Amend {
+                budget_left: 0,
+                grants: List::with_capacity(4),
+                implications: List::with_capacity(4),
+                authority: Box::new(crate::tests::cards_objects::owner_authority()),
+                ceiling: Box::new(crate::tests::cards_objects::owner_authority()),
+            },
+            beyond: Beyond::Refused(Refusal::NotOffered),
+        }),
+    ] {
+        let mut value = source();
+        value.acts = List::with_capacity(4);
+        if let Some(admission) = admission {
+            value.acts.push(Offered { effect: None, act: ActKind::RemoveProject, admission }).unwrap();
+        }
+        let (tree, _) = owner_page(&native_owner(value));
+        assert!(
+            !tree
+                .nodes()
+                .iter()
+                .any(|node| node.role == Role::Region && node.name.as_deref() == Some(b"Delete project"))
+        );
+    }
+}

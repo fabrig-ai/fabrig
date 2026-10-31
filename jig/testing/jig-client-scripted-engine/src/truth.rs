@@ -67,6 +67,10 @@ pub enum Change {
     Forget {
         key: ObjectKey,
     },
+    /// Forget project documents after a name-confirmed deletion.
+    RemoveProject {
+        project: u32,
+    },
     /// Replace a project document.
     Project(Box<Project>),
     /// Replace a whole owner project after its name changes.
@@ -117,7 +121,11 @@ impl Change {
             Self::Note(value) => payload::fits(value, bounds),
             Self::Deployment(value) => payload::fits(value, bounds),
             Self::OwnerDeployment(value) => payload::fits(value, bounds),
-            Self::SignIn { .. } | Self::SignedOut { .. } | Self::Forget { .. } | Self::DeleteNote { .. } => true,
+            Self::SignIn { .. }
+            | Self::SignedOut { .. }
+            | Self::Forget { .. }
+            | Self::DeleteNote { .. }
+            | Self::RemoveProject { .. } => true,
         };
         if fits { Ok(()) } else { Err(Invalid::Payload) }
     }
@@ -242,6 +250,10 @@ impl Truth {
             Change::Forget { key } => {
                 self.objects.remove(key);
                 self.object_projects.remove(key);
+            }
+            Change::RemoveProject { project } => {
+                self.projects.remove(project);
+                self.owner_projects.remove(project);
             }
             Change::OwnerProject(project) => {
                 self.owner_projects.insert(project.number, (**project).clone());

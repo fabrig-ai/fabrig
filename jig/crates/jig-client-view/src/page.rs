@@ -105,6 +105,8 @@ pub enum Page {
 pub enum IntentPurpose {
     /// One offered Project settings replacement.
     ProjectSettings,
+    /// A name-confirmed project deletion.
+    RemoveProject,
     /// A new chat whose task page opens once made.
     BeginConversation,
     /// A goal made or proposed from the project board.

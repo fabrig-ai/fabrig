@@ -140,18 +140,21 @@ pub(crate) fn answered(
     env: &Env<crate::Limits>,
     request_and_handle: (Token, Option<jig_client::Handle>),
     purpose: IntentPurpose,
-    answer: Answer,
+    receipt: crate::intents::Receipt,
     out: &mut Queue<Request>,
     lent: &jig_client::Client,
 ) {
     let (request, handle) = request_and_handle;
     match purpose {
-        IntentPurpose::ProjectSettings => crate::page::project::owner_form::answered(domain, request, answer),
+        IntentPurpose::RemoveProject => {
+            crate::page::project::delete::answered(domain, env, request, receipt, out, lent);
+        }
+        IntentPurpose::ProjectSettings => crate::page::project::owner_form::answered(domain, request, receipt.answer),
         IntentPurpose::CreateGoal => {
-            crate::page::project::goals::answered(domain, env, request, handle, answer, out, lent);
+            crate::page::project::goals::answered(domain, env, request, handle, receipt.answer, out, lent);
         }
         IntentPurpose::Seen(_) => {
-            match answer {
+            match receipt.answer {
                 Answer::Done(_) => {}
                 Answer::Refused { refusal, .. } => {
                     crate::notices::kept::show(
@@ -167,7 +170,7 @@ pub(crate) fn answered(
                 return;
             }
             domain.chats.starting = None;
-            match answer {
+            match receipt.answer {
                 Answer::Refused { refusal, .. } => domain.chats.refusal = Some(refusal),
                 Answer::Done(outcome) => match crate::outcome::route(&outcome) {
                     crate::outcome::Route::Created { task } => {
