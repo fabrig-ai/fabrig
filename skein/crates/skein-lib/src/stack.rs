@@ -73,6 +73,12 @@ impl<T> Stack<T> {
         self.items.pop()
     }
 
+    /// Drops every item, keeping the capacity and the grown buffer: a stack
+    /// refilled to its previous depth allocates nothing.
+    pub fn clear(&mut self) {
+        self.items.clear();
+    }
+
     /// The top item: the innermost level.
     #[must_use]
     pub fn top(&self) -> Option<&T> {
