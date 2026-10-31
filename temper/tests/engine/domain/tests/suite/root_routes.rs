@@ -2809,6 +2809,10 @@ fn a_missing_current_proof_panics_before_any_restored_closing_effect_or_result()
     assert_eq!(restarted.store.rows, before, "no closing consequence committed");
     assert!(restarted.switches.is_empty());
     assert!(restarted.delivered.is_empty());
+    restarted.store.seed(driver.store.rows.values().cloned().collect(), Box::new([]));
+    restarted.reopen(config(91));
+    restarted.pump();
+    assert!(restarted.root.ready());
 }
 
 #[test]
@@ -2849,6 +2853,8 @@ fn root_restore_loads_linked_task_shapes_and_panics_at_a_missing_charter() {
             assert!(restarted.switches.is_empty());
             assert!(restarted.delivered.is_empty());
         } else {
+            let hosting = protocol::hosting(assignment.task, assignment.attempt, host::Phase::Active);
+            restarted.send(protocol::hello(Token::new(7), Box::new([hosting])));
             restarted.settle();
             assert!(restarted.root.ready());
             let loaded = restarted.root.tasks().task(assignment.task).expect("linked task serves");
@@ -2857,6 +2863,12 @@ fn root_restore_loads_linked_task_shapes_and_panics_at_a_missing_charter() {
             assert_eq!(loaded.attempt, expected.attempt);
         }
         assert_eq!(restarted.root.start_stop(), None);
+        if executor.is_some() {
+            restarted.store.seed(driver.store.rows.values().cloned().collect(), Box::new([]));
+            restarted.reopen(config(91));
+            restarted.pump();
+            assert!(restarted.root.ready());
+        }
     }
 }
 
@@ -4676,6 +4688,10 @@ fn restart_refuses_live_tasks_or_claims_past_lowered_limits_without_dropping_the
         assert_eq!(restarted.root.start_phase(), Some(step));
         assert_eq!(restarted.store.rows, expected);
         assert!(restarted.delivered.is_empty());
+        restarted.env.limits = driver.env.limits;
+        restarted.reopen(sharing_config(91));
+        restarted.pump();
+        assert!(restarted.root.ready());
     }
 }
 
