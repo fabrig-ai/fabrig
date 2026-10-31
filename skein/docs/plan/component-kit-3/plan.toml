@@ -1,0 +1,51 @@
+ready = false
+
+draft = "component-kit-3"
+repo = "fabrig"
+sources = [
+  "skein/docs/design/draft/component-kit.md",
+  "skein/docs/plan/component-kit-3/inputs/kickoff.md",
+  "skein/docs/plan/component-kit-3/inputs/skein-quality-review.md",
+  "skein/docs/plan/component-kit-3/inputs/brief.md",
+  "skein/docs/plan/component-kit-3/inputs/README.md",
+  "AGENTS.md",
+]
+
+[[part]]
+id = "kit-contract"
+title = "lib's missing primitives and skein_io::stage::{up, down}, landed alone"
+mode = "direct"
+needs = []
+design = "skein/docs/design/draft/component-kit.md, 3.1"
+
+[[part]]
+id = "counts"
+title = "the draft's seven counts as old forms, with their baseline"
+mode = "direct"
+needs = []
+design = "skein/docs/design/draft/component-kit.md, 4"
+
+[[part]]
+id = "abort"
+title = "Abort in skein-forge-connection and skein-forge-setup's host"
+mode = "direct"
+needs = []
+design = "skein/docs/design/draft/component-kit.md, 3.6"
+
+[[slice]]
+id = 1
+story = "the echo example's host runs on skein_io::stage, its story test green"
+parts = ["kit-contract"]
+walk = false
+
+[[slice]]
+id = 2
+story = "every io stage site and every private copy of lib's primitives moved, the counts at their targets"
+parts = ["counts"]
+walk = false
+
+[[slice]]
+id = 3
+story = "Referee and Host defaults, the forwarding Host, and Abort in both forge components"
+parts = ["abort"]
+walk = false
