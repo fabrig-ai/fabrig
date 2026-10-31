@@ -23,6 +23,9 @@ fn a_revoked_record_waits_for_erased_and_coalesces_a_sign_out() {
         finish_start(&mut service);
         let engine = fixtures::engine(&mut service);
         let mut accounts = engine.accounts.take().expect("accounts runtime");
+        pump_accounts(&mut accounts, engine);
+        assert!(!accounts.inventory.active(), "the start's source sweep finishes before adding runtime records");
+        assert!(accounts.early.is_empty(), "the start's account requests have dispatched");
         let mut events = Queue::with_capacity(16);
         let old = 1;
         let fresh = 9001;
