@@ -1,5 +1,5 @@
 //! The application-held client (client/domain/client.md, 3 and 4).
-#![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
+#![cfg_attr(test, expect(clippy::manual_map, reason = "step code matches optional fields without closures"))]
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;

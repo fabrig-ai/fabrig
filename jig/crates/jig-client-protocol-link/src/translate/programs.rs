@@ -68,7 +68,7 @@ pub(crate) fn logins(value: &[u8], limits: &Limits, room: &mut u64) -> Result<Li
     Ok(rows)
 }
 pub(crate) fn name(value: &[u8], room: &mut u64) -> Result<Box<[u8]>, w::Problem> {
-    if !skein_lib::bytes::is_utf8(value) {
+    if !bytes::is_utf8(value) {
         return Err(piece_problem(skein_codec::Reason::Malformed));
     }
     copy(value, room)
