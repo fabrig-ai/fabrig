@@ -38,19 +38,8 @@ fn unanswering_end_goldens_keep_the_first_cause_under_every_capture_policy() {
 
 #[test]
 fn every_record_and_listed_value_reads_back_to_its_written_values() {
-    for (name, record, capture) in fixtures::samples() {
-        let line = write(&record, &capture, &limits()).expect(name).expect("a recorded event");
-        let decoded = read(&line, &limits()).expect(name).expect("a known record");
-        if capture == Capture::Everything {
-            assert_eq!(decoded, record, "{name}");
-        }
-        let rewritten = write(&decoded, &capture, &limits()).expect(name).expect("known record");
-        assert_eq!(rewritten, line, "{name}");
-        assert!(
-            line.len()
-                <= usize::try_from(smith_events::largest_size(&record.event, &capture, &limits()).expect("bound"))
-                    .expect("usize")
-        );
+    for (_, record, capture) in fixtures::samples() {
+        round_trips_within_bound(&record, &capture);
     }
 }
 
@@ -62,7 +51,7 @@ fn response_block_counts_are_required_exact_metadata_under_every_capture() {
     assert_eq!(response.oversized, u64::MAX);
     assert_eq!(response.cut, 9_007_199_254_740_993);
     for capture in [Capture::None, Capture::Calls, Capture::Everything] {
-        let line = write(&record, &capture, &limits()).expect("bounded metadata").expect("response");
+        let line = round_trips_within_bound(&record, &capture);
         assert_eq!(read(&line, &limits()).expect("exact integer metadata"), Some(record.clone()));
         assert!(
             line.len()
@@ -99,7 +88,7 @@ fn response_tool_choice_is_metadata_with_bounded_unknown_values_and_a_required_s
         let Event::ResponseStarted(response) = &record.event else { panic!("response") };
         assert_eq!(response.tool_choice, expected);
         for capture in [Capture::None, Capture::Calls, Capture::Everything] {
-            let encoded = write(&record, &capture, &limits()).expect("bounded metadata").expect("response");
+            let encoded = round_trips_within_bound(&record, &capture);
             assert_eq!(core::str::from_utf8(&encoded).expect("UTF-8").trim_end(), line);
             assert_eq!(read(&encoded, &limits()).expect("read"), Some(record.clone()));
         }
@@ -456,7 +445,7 @@ fn tool_budget_and_command_exit_metadata_survive_every_capture_policy() {
         ["tool_completed_signal", "tool_completed_unclamped", "check_completed_signal"].contains(name)
     }) {
         for capture in [Capture::None, Capture::Calls, Capture::Everything] {
-            let encoded = write(&record, &capture, &limits()).expect("bounded metadata").expect("terminal");
+            let encoded = round_trips_within_bound(&record, &capture);
             assert_eq!(read(&encoded, &limits()).expect("valid metadata"), Some(record.clone()), "{name}");
             assert!(
                 u64::try_from(encoded.len()).expect("size")
@@ -867,13 +856,8 @@ fn check_exit_tags_values_and_unknown_kinds_are_bounded() {
         );
         let record = read(line.as_bytes(), &limits()).expect("valid kind").expect("check terminal");
         for capture in [Capture::None, Capture::Calls, Capture::Everything] {
-            let encoded = write(&record, &capture, &limits()).expect("bounded kind").expect("check terminal");
+            let encoded = round_trips_within_bound(&record, &capture);
             assert_eq!(read(&encoded, &limits()).expect("round trip"), Some(record.clone()));
-            assert!(
-                encoded.len()
-                    <= usize::try_from(smith_events::largest_size(&record.event, &capture, &limits()).expect("bound"))
-                        .expect("size")
-            );
         }
     }
     let base = r#"{"v":4,"type":"check.completed","t_ms":0,"run":7,"exit":EXIT,"passed":false,"duration_ms":19}"#;
@@ -1021,19 +1005,18 @@ fn a_forced_exit_notice_keeps_the_kits_evidence_under_every_capture() {
 fn forced_exit_notices_round_trip_known_and_unknown_evidence_and_reject_missing_fields() {
     let base =
         r#"{"v":4,"type":"notice","t_ms":0,"level":"warning","kind":"forced_exit","exit":null,"forced":"terminated"}"#;
-    for (exit, forced) in
-        [("null", "no"), ("{\"code\":7}", "terminated"), ("{\"signal\":15}", "killed"), ("null", "future")]
-    {
-        let wire = base.replace("null", exit).replace("terminated", forced);
-        let record = read(wire.as_bytes(), &limits()).expect("exit evidence").expect("notice");
+    for (exit, forced) in [
+        (None, smith_events::Forced::No),
+        (Some(smith_events::AgentExit::Code(7)), smith_events::Forced::Terminated),
+        (Some(smith_events::AgentExit::Signal(15)), smith_events::Forced::Killed),
+        (None, smith_events::Forced::Unknown(b"future".as_slice().into())),
+    ] {
+        let mut record = read(base.as_bytes(), &limits()).expect("notice fixture").expect("known record");
+        let Event::Notice(notice) = &mut record.event else { panic!("notice fixture") };
+        notice.exit = exit;
+        notice.forced = Some(forced);
         for capture in [Capture::None, Capture::Calls, Capture::Everything] {
-            let line = write(&record, &capture, &limits()).expect("bounded notice").expect("notice");
-            assert_eq!(read(&line, &limits()), Ok(Some(record.clone())));
-            assert!(
-                line.len()
-                    <= usize::try_from(smith_events::largest_size(&record.event, &capture, &limits()).expect("size"))
-                        .expect("usize")
-            );
+            round_trips_within_bound(&record, &capture);
         }
     }
     for invalid in [
@@ -1057,11 +1040,6 @@ fn a_job_ended_record_round_trips_its_fields() {
         for capture in [Capture::None, Capture::Calls, Capture::Everything] {
             let line = write(&record, &capture, &limits()).expect(name).expect("job terminal");
             assert_eq!(read(&line, &limits()), Ok(Some(record.clone())), "{name}");
-            assert!(
-                line.len()
-                    <= usize::try_from(smith_events::largest_size(&record.event, &capture, &limits()).expect("bound"))
-                        .expect("usize")
-            );
         }
     }
 }
@@ -1082,4 +1060,16 @@ fn a_tool_completed_with_a_job_round_trips() {
 #[test]
 fn a_different_event_version_is_refused() {
     assert_eq!(read(br#"{"v":3,"type":"future","t_ms":0}"#, &limits()), Err(Error::Version(3)));
+}
+
+fn round_trips_within_bound(record: &smith_events::Record, capture: &Capture) -> Box<[u8]> {
+    let line = write(record, capture, &limits()).expect("bounded record").expect("captured record");
+    let decoded = read(&line, &limits()).expect("valid encoding").expect("known record");
+    assert_eq!(write(&decoded, capture, &limits()).expect("bounded decoded record").expect("captured record"), line);
+    if *capture == Capture::Everything {
+        assert_eq!(&decoded, record);
+    }
+    let bound = smith_events::largest_size(&record.event, capture, &limits()).expect("record bound");
+    assert!(line.len() <= usize::try_from(bound).expect("bound fits usize"));
+    line
 }
