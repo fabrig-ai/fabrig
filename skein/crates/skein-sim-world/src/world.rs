@@ -680,11 +680,8 @@ impl<P: Host, M: Machine, H: Meter> World<P, M, H> {
     pub fn next_due(&self) -> Option<Time> {
         let mut next = self.sim.next_due();
         let deadlines = self.procs.iter().map(Host::next_deadline);
-        for at in deadlines.flatten() {
-            next = Some(match next {
-                Some(next) => next.min(at),
-                None => at,
-            });
+        for at in deadlines {
+            next = Time::earliest(next, at);
         }
         next
     }

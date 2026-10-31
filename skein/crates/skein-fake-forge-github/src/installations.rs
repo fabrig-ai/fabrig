@@ -112,7 +112,7 @@ impl Installations {
     pub(crate) fn replace_app(&mut self) {
         self.rows.clear();
         self.tokens.clear();
-        while self.events.pop().is_some() {}
+        self.events.clear();
     }
 
     /// Number of successful mints, also the latest token's mint number.

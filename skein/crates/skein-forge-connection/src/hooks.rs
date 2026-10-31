@@ -113,8 +113,8 @@ impl Hooks {
         let mut earliest = self.wake;
         for (_, id) in &self.connections {
             let c = self.slab.get(*id).expect("indexed hook");
-            if c.closing != Closing::Sent && (earliest.is_none() || Some(c.deadline) < earliest) {
-                earliest = Some(c.deadline);
+            if c.closing != Closing::Sent {
+                earliest = Time::earliest(earliest, Some(c.deadline));
             }
         }
         earliest

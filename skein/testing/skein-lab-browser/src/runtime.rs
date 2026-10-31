@@ -835,7 +835,7 @@ impl Runtime {
         self.ending = true;
         self.answers.clear();
         self.input_events.clear();
-        while self.down.pop().is_some() {}
+        self.down.clear();
         if let Some(listener) = &mut self.listener {
             listener.stop();
         }

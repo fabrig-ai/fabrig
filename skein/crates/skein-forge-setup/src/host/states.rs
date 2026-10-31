@@ -88,9 +88,7 @@ impl States {
     }
     /// Close forgets every binding without arming an expiry timer (5.7).
     pub(super) fn clear(&mut self) {
-        for _ in 0..self.entries.len() {
-            let _entry = self.entries.pop().expect("bounded traversal");
-        }
+        self.entries.clear();
     }
     fn prune(&mut self, now: Time) {
         for _ in 0..self.entries.len() {

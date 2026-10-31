@@ -227,7 +227,7 @@ fn fields_keep_typing_and_binding_changes_are_private_while_drawings_change_whol
                 | Patch::Attribute { .. } => unreachable!("the field was already matched"),
             }
         }
-        while out.pop().is_some() {}
+        out.clear();
     }
     let mut model = Vec::new();
     let mut view = View::new(&LIMITS);
@@ -305,7 +305,7 @@ fn a_changed_region_name_is_one_attribute_patch() {
     builder.region(crate::Region { owner: Owner { number: 65_536 }, number: 17 });
     builder.close();
     view.finish(builder, 1, &mut out);
-    while out.pop().is_some() {}
+    out.clear();
     let id = view.tree().get(0).unwrap().id;
     let mut builder = view.builder();
     builder.open(Role::Region);
@@ -337,7 +337,7 @@ fn a_moved_focus_request_is_an_attribute_patch() {
         b.close();
         view.finish(b, count, &mut out);
         if count == 1 {
-            while out.pop().is_some() {}
+            out.clear();
         }
     }
     assert_eq!(out.len(), 1);
@@ -364,7 +364,7 @@ fn a_changed_position_is_one_attribute_patch() {
         b.close();
         view.finish(b, u64::from(position), &mut out);
         if position == 1 {
-            while out.pop().is_some() {}
+            out.clear();
         }
     }
     assert_eq!(out.len(), 1);
@@ -389,7 +389,7 @@ fn a_changed_sort_is_one_attribute_patch() {
         b.close();
         view.finish(b, shown, &mut out);
         if shown == 1 {
-            while out.pop().is_some() {}
+            out.clear();
         }
     }
     assert_eq!(out.len(), 1);
@@ -419,7 +419,7 @@ fn setting_changing_and_clearing_a_placeholder_patch_its_attribute() {
     let mut next_id = 0;
     let mut out = Queue::with_capacity(LIMITS.patches);
     crate::diff(&Tree::new(LIMITS.nodes), &mut old, &LIMITS, &mut next_id, &mut out);
-    while out.pop().is_some() {}
+    out.clear();
     for placeholder in [Some(b"Hint".as_slice()), Some(b"Changed".as_slice()), None] {
         let mut new = placeholder_tree(placeholder);
         crate::diff(&old, &mut new, &LIMITS, &mut next_id, &mut out);

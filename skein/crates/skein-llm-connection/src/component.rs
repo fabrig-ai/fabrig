@@ -585,31 +585,14 @@ impl Component {
         let mut earliest: Option<skein_lib::Time> = None;
         for waiting in &self.waiting {
             match waiting {
-                Some(waiting) => match waiting.deadlines.next() {
-                    Some(next) => {
-                        earliest = Some(match earliest {
-                            Some(prior) => prior.min(next),
-                            None => next,
-                        });
-                    }
-                    None => {}
-                },
+                Some(waiting) => earliest = skein_lib::Time::earliest(earliest, waiting.deadlines.next()),
                 None => {}
             }
         }
         for slot in &self.slots {
             match slot {
                 Some(id) => match self.connections.get(*id) {
-                    Some(connection) => {
-                        let next = connection.deadlines.next();
-                        earliest = match earliest {
-                            Some(prior) => match next {
-                                Some(next) => Some(prior.min(next)),
-                                None => Some(prior),
-                            },
-                            None => next,
-                        };
-                    }
+                    Some(connection) => earliest = skein_lib::Time::earliest(earliest, connection.deadlines.next()),
                     None => {}
                 },
                 None => {}
