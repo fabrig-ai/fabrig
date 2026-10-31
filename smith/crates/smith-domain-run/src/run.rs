@@ -863,7 +863,9 @@ pub(crate) fn checked(domain: &mut Domain, env: &Env<Limits>, owner: Token, ran:
     domain.facts.push(FactKind::CheckFinished { run: call.run.token(), exit: ran.exit });
     out.push(Request::ChecksEnded { host_run: run.host_name });
     let settled = match &mut call.work {
-        Work::Landing(landing) => land::checked(landing, id, call.owner, run, may_finish(&run.state), ran, env, out),
+        Work::Landing(landing) => {
+            land::checked(landing, id, call.owner, run, working_main(&run.state).is_some(), ran, env, out)
+        }
         Work::Child(_) | Work::Host(_) => unreachable!("io and the host answer only a landing's requests"),
     };
     settle(domain, id, settled, out);
@@ -903,15 +905,8 @@ pub(crate) fn delivered(domain: &mut Domain, owner: Token, delivery: Delivery, o
 }
 
 fn child_ready(run: &Run, out: &mut Queue<Request>) {
-    match run.state {
-        State::Working { main, .. } => out.push(Request::CompletionReady { conversation: main.token() }),
-        State::Preparing { .. }
-        | State::Awaiting { .. }
-        | State::Stopping { .. }
-        | State::Listening { .. }
-        | State::Waiting { .. }
-        | State::Winding { .. }
-        | State::Closed => {}
+    if let Some(main) = working_main(&run.state) {
+        out.push(Request::CompletionReady { conversation: main.token() });
     }
 }
 
@@ -1244,16 +1239,16 @@ fn follow(
 
 /// Whether a working run may still finish, including its final completion
 /// with main's turn in flight.
-fn may_finish(state: &State) -> bool {
+fn working_main(state: &State) -> Option<Id<Conversation>> {
     match state {
-        State::Working { .. } => true,
+        State::Working { main, .. } => Some(*main),
         State::Awaiting { .. }
         | State::Preparing { .. }
         | State::Stopping { .. }
         | State::Listening { .. }
         | State::Waiting { .. }
         | State::Winding { .. }
-        | State::Closed => false,
+        | State::Closed => None,
     }
 }
 
@@ -1488,7 +1483,7 @@ fn finish(
     env: &Env<Limits>,
     out: &mut Queue<Request>,
 ) -> State {
-    let Asking { name, call, deadline } = made;
+    let call = made.call;
     let conversation = conversations.get(main).expect("main lives while its run works");
     assert!(conversation.calls == 0, "a finish is a write, which a conversation runs alone");
     if run.charter.grants.wait && run.inbox.has_queued() {
@@ -1511,27 +1506,7 @@ fn finish(
             wind_down(conversations, reply_to, main, Ending::Accepted(completed), out)
         }
         Declared::Change(change) => {
-            if name.activation != run.activation || name.completion == 0 {
-                out.push(Request::Return { spent: 0, call, result: Returned::Refused { refusal: AskRefusal::Name } });
-                return State::Working { reply_to, main };
-            }
-            if deadline <= env.now {
-                out.push(Request::Return { spent: 0, call, result: Returned::TimedOut });
-                return State::Working { reply_to, main };
-            }
-            if calls.is_full() {
-                out.push(Request::Return { spent: 0, call, result: Returned::Busy });
-                return State::Working { reply_to, main };
-            }
-            let work = Work::Landing(land::landing(change, name, deadline, true));
-            let id = begin_call(calls, alarms, Call { run: run_id, conversation: main, owner: call, work }, deadline);
-            run.lease.workspace(id.token());
-            match &mut calls.get_mut(id).expect("inserted above").work {
-                Work::Landing(landing) => land::cancel_jobs(landing, jobs::peer(conversations, main), out),
-                Work::Child(_) | Work::Host(_) => unreachable!("inserted as a landing"),
-            }
-            let conversation = conversations.get_mut(main).expect("main lives while its run works");
-            conversation.calls = conversation.calls.saturating_add(1);
+            begin_landing(run, run_id, conversations, calls, alarms, main, made, change, true, env.now, out);
             State::Working { reply_to, main }
         }
     }
@@ -1550,13 +1525,13 @@ fn deliver(
     env: &Env<Limits>,
     out: &mut Queue<Request>,
 ) {
-    let Asking { name, call, deadline } = made;
+    let call = made.call;
     assert!(conversations.get(main).expect("main lives").calls == 0, "delivery is an exclusive write");
     let Some(spec) = &run.charter.grants.deliver else {
         out.push(Request::Return { spent: 0, call, result: Returned::Refused { refusal: AskRefusal::NotGranted } });
         return;
     };
-    let judged = match outcome::change_bytes(&change) {
+    let judged = match change.owned_bytes() {
         Some(bytes) if bytes <= env.limits.outcome_bytes => outcome::judge_change(spec, &change),
         Some(_) | None => Err(outcome::too_large(env.limits.outcome_bytes)),
     };
@@ -1565,11 +1540,29 @@ fn deliver(
         out.push(Request::Return { spent: 0, call, result: Returned::Rejected { problems } });
         return;
     }
+    begin_landing(run, run_id, conversations, calls, alarms, main, made, change, false, env.now, out);
+}
+
+#[expect(clippy::too_many_arguments, reason = "landing admission receives its owning tables and immutable call")]
+fn begin_landing(
+    run: &mut Run,
+    run_id: Id<Run>,
+    conversations: &mut Slab<Conversation>,
+    calls: &mut Calls,
+    alarms: &mut Deadlines<Alarm>,
+    main: Id<Conversation>,
+    made: Asking,
+    change: Change,
+    finish: bool,
+    now: Time,
+    out: &mut Queue<Request>,
+) {
+    let Asking { name, call, deadline } = made;
     if name.activation != run.activation || name.completion == 0 {
         out.push(Request::Return { spent: 0, call, result: Returned::Refused { refusal: AskRefusal::Name } });
         return;
     }
-    if deadline <= env.now {
+    if deadline <= now {
         out.push(Request::Return { spent: 0, call, result: Returned::TimedOut });
         return;
     }
@@ -1577,12 +1570,12 @@ fn deliver(
         out.push(Request::Return { spent: 0, call, result: Returned::Busy });
         return;
     }
-    let work = Work::Landing(land::landing(change, name, deadline, false));
+    let work = Work::Landing(land::landing(change, name, deadline, finish));
     let id = begin_call(calls, alarms, Call { run: run_id, conversation: main, owner: call, work }, deadline);
     run.lease.workspace(id.token());
     match &mut calls.get_mut(id).expect("inserted above").work {
         Work::Landing(landing) => land::cancel_jobs(landing, jobs::peer(conversations, main), out),
-        Work::Child(_) | Work::Host(_) => unreachable!("inserted as delivery"),
+        Work::Child(_) | Work::Host(_) => unreachable!("inserted as landing"),
     }
     let main = conversations.get_mut(main).expect("main lives");
     main.calls = main.calls.checked_add(1).expect("bounded exclusive call");
@@ -1871,16 +1864,7 @@ fn yield_main(run: &Run, conversations: &Slab<Conversation>, out: &mut Queue<Req
         Mode::Finite => return,
         Mode::Open => {}
     }
-    let main = match run.state {
-        State::Working { main, .. } => main,
-        State::Preparing { .. }
-        | State::Awaiting { .. }
-        | State::Listening { .. }
-        | State::Waiting { .. }
-        | State::Stopping { .. }
-        | State::Winding { .. }
-        | State::Closed => return,
-    };
+    let Some(main) = working_main(&run.state) else { return };
     let main = conversations.get(main).expect("working main is retained");
     if main.reservation.is_none() {
         return;

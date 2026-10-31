@@ -7,7 +7,7 @@ use core::mem;
 
 use skein_lib::{Deadlines, Duration, Env, Id, Queue, Slab, Time, Token};
 
-use super::{Alarm, Asking, Conversation, Run, begin_call, may_finish, retire_call};
+use super::{Alarm, Asking, Conversation, Run, begin_call, retire_call, working_main};
 use crate::call::{self, Call, Calls, Withdrawal, Work};
 use crate::{
     AskRefusal, CallName, Domain, HostEffect, HostInput, HostProblem, HostReply, Limits, RelayName, Request, Returned,
@@ -180,7 +180,7 @@ pub(super) fn host_stop(domain: &mut Domain, id: Id<Call>, why: Withdrawal, out:
 pub(crate) fn host_alarm(domain: &mut Domain, env: &Env<Limits>, id: Id<Call>, out: &mut Queue<Request>) {
     let call = domain.calls.get_mut(id).expect("alarm belongs to live host call");
     let run = domain.runs.get(call.run).expect("run waits for calls");
-    let active = may_finish(&run.state);
+    let active = working_main(&run.state).is_some();
     let relay = match &mut call.work {
         Work::Host(relay) => relay,
         Work::Child(_) | Work::Landing(_) => unreachable!("host alarm belongs to host work"),
@@ -236,7 +236,7 @@ pub(crate) fn host_returned(
     }
     let call = domain.calls.get_mut(id).expect("named call is live");
     let run = domain.runs.get(call.run).expect("run waits for relay terminal");
-    let active = may_finish(&run.state);
+    let active = working_main(&run.state).is_some();
     let relay = match &mut call.work {
         Work::Host(relay) => relay,
         Work::Child(_) | Work::Landing(_) => unreachable!("verified host work"),

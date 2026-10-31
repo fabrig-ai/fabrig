@@ -361,10 +361,6 @@ pub(crate) fn change_cost(spec: &ChangeSpec) -> Option<u64> {
     rule_fields_cost(&spec.fields)
 }
 
-pub(crate) fn change_bytes(change: &Change) -> Option<u64> {
-    fields_cost(&change.fields)
-}
-
 fn judge_fields(rules: &[FieldRule], fields: &[Field], item: Option<u32>, found: &mut Found) {
     for rule in rules {
         let given = match field_named(fields, &rule.name) {
