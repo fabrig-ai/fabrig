@@ -261,7 +261,7 @@ mod no_stdin {
     use skein_fake_machine::{How, Item, Machine as Files, Opened};
     use skein_io::{self as io, kernel};
     use skein_lib::{Duration, Env, Queue, Time, Token, Wall, stream};
-    use skein_shell::Host;
+    use skein_shell::{Delegate, Host};
     use skein_world::{HostedProgram, Inherited, Machine, Referee};
     use smith_fake_claude::{Fake, Story};
 
@@ -423,48 +423,19 @@ mod no_stdin {
         Fake(Box<Fake>),
     }
 
-    impl Process {
+    impl Delegate for Process {
         fn host(&self) -> &dyn Host {
             match self {
                 Self::Parent(parent) => parent.as_ref(),
                 Self::Fake(fake) => fake.as_ref(),
             }
         }
+
         fn host_mut(&mut self) -> &mut dyn Host {
             match self {
                 Self::Parent(parent) => parent.as_mut(),
                 Self::Fake(fake) => fake.as_mut(),
             }
-        }
-    }
-
-    impl Host for Process {
-        fn iterate(&mut self, now: Time, wall: Wall) {
-            self.host_mut().iterate(now, wall);
-        }
-        fn completions(&mut self) -> &mut Queue<kernel::Complete> {
-            self.host_mut().completions()
-        }
-        fn submissions(&mut self) -> &mut Queue<kernel::Submit> {
-            self.host_mut().submissions()
-        }
-        fn work_pending(&self, now: Time) -> bool {
-            self.host().work_pending(now)
-        }
-        fn next_mechanism_deadline(&self) -> Option<Time> {
-            self.host().next_mechanism_deadline()
-        }
-        fn next_policy_deadline(&self) -> Option<Time> {
-            self.host().next_policy_deadline()
-        }
-        fn is_empty(&self) -> bool {
-            self.host().is_empty()
-        }
-        fn exit(&self) -> Option<kernel::Exit> {
-            self.host().exit()
-        }
-        fn operations(&self) -> u32 {
-            self.host().operations()
         }
     }
 

@@ -10,7 +10,7 @@
 
 use skein_io::kernel::{Complete, Done, Exit, Fd, Op, Pipe, ServiceSignal, Spawn, Submit, Way};
 use skein_lib::{Duration, Queue, Time, Token, Wall};
-use skein_shell::{Clock, Host, HostedPipes, close_keeper_fd, hosted_pipes, open_root};
+use skein_shell::{Clock, Delegate, Host, HostedPipes, close_keeper_fd, hosted_pipes, open_root};
 use skein_world::{
     Deadline, Expired, HostedProgram, Inherited, Referee,
     real::{Controls, World},
@@ -51,13 +51,14 @@ enum Proc {
     Capture(Synthetic),
 }
 
-impl Proc {
+impl Delegate for Proc {
     fn host(&self) -> &dyn Host {
         match self {
             Self::Box(host) => host.as_ref(),
             Self::Serve(host) | Self::Diagnostic(host) | Self::Capture(host) => host,
         }
     }
+
     fn host_mut(&mut self) -> &mut dyn Host {
         match self {
             Self::Box(host) => host.as_mut(),
@@ -67,39 +68,6 @@ impl Proc {
 }
 
 // This wrapper only delegates the public Host interface, including policy time.
-impl Host for Proc {
-    fn iterate(&mut self, now: Time, wall: Wall) {
-        self.host_mut().iterate(now, wall);
-    }
-    fn drain(&mut self) {
-        self.host_mut().drain();
-    }
-    fn completions(&mut self) -> &mut Queue<Complete> {
-        self.host_mut().completions()
-    }
-    fn submissions(&mut self) -> &mut Queue<Submit> {
-        self.host_mut().submissions()
-    }
-    fn work_pending(&self, now: Time) -> bool {
-        self.host().work_pending(now)
-    }
-    fn next_mechanism_deadline(&self) -> Option<Time> {
-        self.host().next_mechanism_deadline()
-    }
-    fn next_policy_deadline(&self) -> Option<Time> {
-        self.host().next_policy_deadline()
-    }
-    fn is_empty(&self) -> bool {
-        self.host().is_empty()
-    }
-    fn exit(&self) -> Option<Exit> {
-        self.host().exit()
-    }
-    fn operations(&self) -> u32 {
-        self.host().operations()
-    }
-}
-
 /// A small raw-operation host, driven by the world's scheduler like Service.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum End {

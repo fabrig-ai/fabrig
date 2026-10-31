@@ -12,7 +12,7 @@ use skein_lib::{
     Duration, Env, Queue, Time, Token, Wall,
     stream::{Down, Read, Up},
 };
-use skein_shell::Host;
+use skein_shell::{Delegate, Host};
 use skein_world::{HostedProgram, Inherited, Machine, Referee};
 use smith_fake_claude::{Fake, Story};
 use smith_protocol_program::mcp::{self, Answer, Server, Tool, Verdict};
@@ -321,68 +321,20 @@ pub enum Process {
     Relay(Box<smith_agent_shell::relay::Process>),
 }
 
-impl Host for Process {
-    fn iterate(&mut self, now: Time, wall: Wall) {
+impl Delegate for Process {
+    fn host(&self) -> &dyn Host {
         match self {
-            Self::Agent(p) => p.iterate(now, wall),
-            Self::Fake(p) => p.iterate(now, wall),
-            Self::Relay(p) => p.iterate(now, wall),
+            Self::Agent(host) => host.as_ref(),
+            Self::Fake(host) => host.as_ref(),
+            Self::Relay(host) => host.as_ref(),
         }
     }
-    fn completions(&mut self) -> &mut Queue<Complete> {
+
+    fn host_mut(&mut self) -> &mut dyn Host {
         match self {
-            Self::Agent(p) => p.completions(),
-            Self::Fake(p) => p.completions(),
-            Self::Relay(p) => p.completions(),
-        }
-    }
-    fn submissions(&mut self) -> &mut Queue<Submit> {
-        match self {
-            Self::Agent(p) => p.submissions(),
-            Self::Fake(p) => p.submissions(),
-            Self::Relay(p) => p.submissions(),
-        }
-    }
-    fn work_pending(&self, now: Time) -> bool {
-        match self {
-            Self::Agent(p) => p.work_pending(now),
-            Self::Fake(p) => p.work_pending(now),
-            Self::Relay(p) => p.work_pending(now),
-        }
-    }
-    fn next_mechanism_deadline(&self) -> Option<Time> {
-        match self {
-            Self::Agent(p) => p.next_mechanism_deadline(),
-            Self::Fake(p) => p.next_mechanism_deadline(),
-            Self::Relay(p) => p.next_mechanism_deadline(),
-        }
-    }
-    fn next_policy_deadline(&self) -> Option<Time> {
-        match self {
-            Self::Agent(p) => p.next_policy_deadline(),
-            Self::Fake(p) => p.next_policy_deadline(),
-            Self::Relay(p) => p.next_policy_deadline(),
-        }
-    }
-    fn is_empty(&self) -> bool {
-        match self {
-            Self::Agent(p) => p.is_empty(),
-            Self::Fake(p) => p.is_empty(),
-            Self::Relay(p) => p.is_empty(),
-        }
-    }
-    fn exit(&self) -> Option<Exit> {
-        match self {
-            Self::Agent(p) => p.exit(),
-            Self::Fake(p) => p.exit(),
-            Self::Relay(p) => p.exit(),
-        }
-    }
-    fn operations(&self) -> u32 {
-        match self {
-            Self::Agent(p) => p.operations(),
-            Self::Fake(p) => p.operations(),
-            Self::Relay(p) => p.operations(),
+            Self::Agent(host) => host.as_mut(),
+            Self::Fake(host) => host.as_mut(),
+            Self::Relay(host) => host.as_mut(),
         }
     }
 }

@@ -10,7 +10,7 @@ use skein_io::kernel::{Complete, Done, Fd, Op, Signal, Submit};
 use skein_lib::{Duration, Queue, Time, Token, Wall};
 use skein_shell::Clock;
 use skein_world::end_to_end::{Binary, Command, Expectation, Mode, Streams};
-use skein_world::{Host, Referee, real};
+use skein_world::{Delegate, Host, Referee, real};
 
 use crate::agent::codex;
 
@@ -432,45 +432,19 @@ enum Process {
     Output(Box<Output>),
 }
 
-impl Process {
+impl Delegate for Process {
     fn host(&self) -> &dyn Host {
         match self {
             Self::Binary(binary) => binary.as_ref(),
             Self::Output(output) => output.as_ref(),
         }
     }
+
     fn host_mut(&mut self) -> &mut dyn Host {
         match self {
             Self::Binary(binary) => binary.as_mut(),
             Self::Output(output) => output.as_mut(),
         }
-    }
-}
-
-impl Host for Process {
-    fn iterate(&mut self, now: Time, wall: Wall) {
-        self.host_mut().iterate(now, wall);
-    }
-    fn completions(&mut self) -> &mut Queue<Complete> {
-        self.host_mut().completions()
-    }
-    fn submissions(&mut self) -> &mut Queue<Submit> {
-        self.host_mut().submissions()
-    }
-    fn work_pending(&self, now: Time) -> bool {
-        self.host().work_pending(now)
-    }
-    fn next_mechanism_deadline(&self) -> Option<Time> {
-        self.host().next_mechanism_deadline()
-    }
-    fn next_policy_deadline(&self) -> Option<Time> {
-        self.host().next_policy_deadline()
-    }
-    fn is_empty(&self) -> bool {
-        self.host().is_empty()
-    }
-    fn operations(&self) -> u32 {
-        self.host().operations()
     }
 }
 

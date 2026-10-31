@@ -2,8 +2,8 @@
 use super::*;
 use crate::credentials::tests::Files;
 use skein_io::kernel;
-use skein_lib::{Duration, Queue, Time, Wall};
-use skein_shell::{Clock, Host};
+use skein_lib::{Duration, Time};
+use skein_shell::{Clock, Delegate, Host};
 use skein_world::{
     Referee,
     end_to_end::{Binary, Command, Mode, Streams},
@@ -37,13 +37,14 @@ enum Process {
     Binary(Box<Binary>),
     Terminal(Box<Terminal>),
 }
-impl Process {
+impl Delegate for Process {
     fn host(&self) -> &dyn Host {
         match self {
             Self::Binary(host) => host.as_ref(),
             Self::Terminal(host) => host.as_ref(),
         }
     }
+
     fn host_mut(&mut self) -> &mut dyn Host {
         match self {
             Self::Binary(host) => host.as_mut(),
@@ -51,33 +52,6 @@ impl Process {
         }
     }
 }
-impl Host for Process {
-    fn iterate(&mut self, now: Time, wall: Wall) {
-        self.host_mut().iterate(now, wall);
-    }
-    fn completions(&mut self) -> &mut Queue<kernel::Complete> {
-        self.host_mut().completions()
-    }
-    fn submissions(&mut self) -> &mut Queue<kernel::Submit> {
-        self.host_mut().submissions()
-    }
-    fn work_pending(&self, now: Time) -> bool {
-        self.host().work_pending(now)
-    }
-    fn next_mechanism_deadline(&self) -> Option<Time> {
-        self.host().next_mechanism_deadline()
-    }
-    fn next_policy_deadline(&self) -> Option<Time> {
-        self.host().next_policy_deadline()
-    }
-    fn is_empty(&self) -> bool {
-        self.host().is_empty()
-    }
-    fn operations(&self) -> u32 {
-        self.host().operations()
-    }
-}
-
 #[test]
 fn host_id_drawn_by_two_processes_is_one_value() {
     // This is the child process's edge: all inputs below are explicit arguments.

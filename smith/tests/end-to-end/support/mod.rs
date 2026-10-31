@@ -2,9 +2,9 @@
 //! over Skein's real loop (testing.md, sections 2.3 and 5). Only outside
 //! observations are kept; no local or agent state is available.
 
-use skein_io::kernel::{Complete, Exit, Submit};
-use skein_lib::{Duration, Queue, Time, Wall};
-use skein_shell::{Clock, Host};
+use skein_io::kernel::Exit;
+use skein_lib::{Duration, Time};
+use skein_shell::{Clock, Delegate, Host};
 use skein_world::{
     Referee,
     end_to_end::{Binary, Command, Mode, Streams},
@@ -27,7 +27,7 @@ pub enum Process {
     Script(Proc),
     Sample(Box<smith_hosts_world::HostService>),
 }
-impl Process {
+impl Delegate for Process {
     fn host(&self) -> &dyn Host {
         match self {
             Self::Binary(p) => p.as_ref(),
@@ -35,42 +35,13 @@ impl Process {
             Self::Sample(p) => p.as_ref(),
         }
     }
+
     fn host_mut(&mut self) -> &mut dyn Host {
         match self {
             Self::Binary(p) => p.as_mut(),
             Self::Script(p) => p,
             Self::Sample(p) => p.as_mut(),
         }
-    }
-}
-impl Host for Process {
-    fn drain(&mut self) {
-        self.host_mut().drain();
-    }
-
-    fn iterate(&mut self, now: Time, wall: Wall) {
-        self.host_mut().iterate(now, wall);
-    }
-    fn completions(&mut self) -> &mut Queue<Complete> {
-        self.host_mut().completions()
-    }
-    fn submissions(&mut self) -> &mut Queue<Submit> {
-        self.host_mut().submissions()
-    }
-    fn work_pending(&self, now: Time) -> bool {
-        self.host().work_pending(now)
-    }
-    fn next_mechanism_deadline(&self) -> Option<Time> {
-        self.host().next_mechanism_deadline()
-    }
-    fn next_policy_deadline(&self) -> Option<Time> {
-        self.host().next_policy_deadline()
-    }
-    fn is_empty(&self) -> bool {
-        self.host().is_empty()
-    }
-    fn operations(&self) -> u32 {
-        self.host().operations()
     }
 }
 struct Judge {
