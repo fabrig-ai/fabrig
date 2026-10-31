@@ -757,8 +757,7 @@ fn route_effect_ask(domain: &mut Domain, number: u16, ask: core::connector::Ask,
             connector::Event::Drop { token: owner }
         }
         core::connector::Ask::Judge { owner, judge, state, resources } => {
-            let token = Token::new(domain.next_payload);
-            domain.next_payload = domain.next_payload.checked_add(1).expect("bounded judge owner numbers");
+            let token = domain.hub_link.fresh();
             domain.hub_link.keep_judge(token, (owner, judge, state));
             let mut names = List::with_capacity(u32::try_from(resources.len()).expect("bounded resource names"));
             for name in resources {

@@ -323,7 +323,6 @@ pub struct Domain {
     busy: Queue<Box<Event>>,
     workspace_writes: Map<u64, Box<[tasks::Name]>>,
     effects: Map<Token, connector::Effect>,
-    next_payload: u64,
     decision_wrote: bool,
     stopped_reported: bool,
     start_opened: bool,
@@ -435,7 +434,6 @@ impl Domain {
             effects: Map::with_capacity(
                 limits.core.call_records.checked_add(limits.core.tasks.tasks).expect("effect room"),
             ),
-            next_payload: 1,
             decision_wrote: false,
             stopped_reported: false,
             start_opened: false,
@@ -614,8 +612,7 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
 
             Work::Link { channel, link } => link::receive(domain, channel, link, &mut work),
             Work::WatchApplication { watcher, sign_in, scope, number, subject, window } => {
-                let token = Token::new(domain.next_payload);
-                domain.next_payload = domain.next_payload.checked_add(1).expect("root subject token room");
+                let token = domain.hub_link.fresh();
                 if number == 1 || number == 2 {
                     work.push(Work::Connector { number, event: connector::Event::DocumentPrepare { token, subject } });
                 }
@@ -627,8 +624,7 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
                 }));
             }
             Work::ReadApplication { reply, sign_in, scope, number, subject, window } => {
-                let token = Token::new(domain.next_payload);
-                domain.next_payload = domain.next_payload.checked_add(1).expect("root read token room");
+                let token = domain.hub_link.fresh();
                 if number == 1 || number == 2 {
                     work.push(Work::Connector { number, event: connector::Event::DocumentPrepare { token, subject } });
                 }
@@ -639,8 +635,7 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
                 }));
             }
             Work::Application { reply_to, sign_in, key, scope, number, digest, value, carried } => {
-                let owner = Token::new(domain.next_payload);
-                domain.next_payload = domain.next_payload.checked_add(1).expect("root token room");
+                let owner = domain.hub_link.fresh();
                 if number == 1 || number == 2 {
                     work.push(Work::Connector { number, event: connector::Event::ApplicationPrepare { owner, value } });
                 }
@@ -832,8 +827,7 @@ impl Domain {
 }
 
 fn effect_payload(domain: &mut Domain, effect: connector::Effect) -> Token {
-    let token = Token::new(domain.next_payload);
-    domain.next_payload = domain.next_payload.checked_add(1).expect("bounded owner numbers");
+    let token = domain.hub_link.fresh();
     assert!(domain.effects.insert(token, effect).is_ok(), "admitted effect room");
     token
 }

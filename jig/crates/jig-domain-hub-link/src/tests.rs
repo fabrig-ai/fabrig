@@ -259,3 +259,15 @@ fn a_relay_answer_keeps_its_opaque_name_and_consumes_its_payload() {
     assert!(link.host_calls.is_empty());
     assert!(out.is_empty());
 }
+
+#[test]
+fn payloads_and_root_continuations_share_one_token_sequence() {
+    let mut link = link();
+    let effect = link.fresh();
+    let body = link.retain(Payload::Busy);
+    let judge = link.fresh();
+    assert_eq!((effect.raw(), body.raw(), judge.raw()), (1, 2, 3));
+    assert!(link.take_payload(effect).is_none());
+    assert!(link.take_payload(judge).is_none());
+    assert!(link.take_payload(body).is_some());
+}

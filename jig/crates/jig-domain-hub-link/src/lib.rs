@@ -223,10 +223,16 @@ impl Link {
     pub fn payload_count(&self) -> u32 {
         self.payloads.len()
     }
+    /// Mint one name for a payload or a root's opaque continuation.
+    #[must_use]
+    pub fn fresh(&mut self) -> Token {
+        let token = Token::new(self.next_payload);
+        self.next_payload = self.next_payload.checked_add(1).expect("link token room");
+        token
+    }
     /// Keep an owned payload until its fleet hand-out returns.
     pub fn retain(&mut self, value: Payload) -> Token {
-        let token = Token::new(self.next_payload);
-        self.next_payload = self.next_payload.checked_add(1).expect("payload token room");
+        let token = self.fresh();
         self.payloads.insert(token, value).expect("payload room reserved");
         token
     }

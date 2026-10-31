@@ -15,8 +15,7 @@ pub(super) fn start(
     topic: u16,
     work: &mut Queue<Work>,
 ) {
-    let token = Token::new(domain.next_payload);
-    domain.next_payload = domain.next_payload.checked_add(1).expect("bounded topic calls");
+    let token = domain.hub_link.fresh();
     domain.hub_link.keep_topic_call(token, (to, key, topic));
     work.push(Work::Connector { number, event: connector::Event::DescribeTopic { token, topic } });
 }
