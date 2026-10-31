@@ -5,6 +5,7 @@ use crate::documents::*;
 use crate::*;
 use skein_lib::{Duration, Env, ReplyTo, Time, Token, Wall};
 
+mod limits;
 mod start;
 
 pub(crate) fn limits() -> Limits {
@@ -98,7 +99,7 @@ pub(crate) fn limits() -> Limits {
         program_sources: 12,
         source_detail_bytes: 4096,
         needs_bytes: 4096,
-        versions: 0,
+        versions: 8,
         workers: 1,
         engine_slots: 0,
         slots: 1,

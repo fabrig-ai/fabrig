@@ -543,6 +543,8 @@ fn removal_markers_fit_beside_offered_charters_and_held_versions() {
     let (mut core, mut limits) = held_fixture();
     limits.tasks.charters = 2;
     limits.settings.versions = 1;
+    limits.tasks.versions = 1;
+    limits.fleet.versions = 1;
     let mut unchanged = core.charter(7).unwrap().clone();
     unchanged.number = 9;
     core.current
@@ -568,7 +570,7 @@ fn removal_markers_fit_beside_offered_charters_and_held_versions() {
     let mut tasks_out = skein_lib::Queue::uncapped();
     tasks::step(
         &mut core.tasks,
-        &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: task_limits(&limits) },
+        &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.tasks },
         tasks::Event::Charters { newest: 2, charters: models, efforts: crate::charters::efforts(&core.settings) },
         &mut tasks_out,
     );
