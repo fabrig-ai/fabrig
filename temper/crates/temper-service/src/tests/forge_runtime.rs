@@ -65,18 +65,9 @@ fn service(host: &[u8]) -> Service {
     fixtures::commit(
         &mut engine.store,
         2,
-        Box::new([root::Write::Save(root::Record::Forge { row: Box::new(domain::Stored::Forge(record.clone())) })]),
+        Box::new([root::Write::Save(root::Record::Forge { row: Box::new(domain::Stored::Forge(record)) })]),
     );
     assert!(engine.store.above.pop().is_some());
-    load(&mut service);
-    let engine = service.engine.as_mut().unwrap();
-    engine.forge.serving = None;
-    root::step(
-        &mut engine.domain,
-        &engine.env,
-        root::Event::Forge(Box::new(domain::Event::Restore { record: domain::Stored::Forge(record.clone()) })),
-    );
-    crate::route::request(engine, root::Request::ForgeKept(record));
     service
 }
 
