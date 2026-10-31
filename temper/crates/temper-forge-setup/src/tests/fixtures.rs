@@ -1,27 +1,12 @@
-// Fixture parsing without a deployment keeps written paths.
+//! Runtime setup values used by preparation and process specification tests.
 use crate::{
     Setup,
-    check::{Forge, Members, User},
-    limits,
-    problem::Problems,
+    setup::{Account, Entry, Fake, Fetch, Mode, Owned, Repository, Runner},
 };
 use alloc::boxed::Box;
 use core::net::{Ipv4Addr, SocketAddr};
 use skein_json::Document;
 use skein_lib::{Writer, bytes};
-pub const TWO: &[u8] = br#"[
-{"forge":1,"directory":"forge-1","bot":{"login":"temper","email":"temper@example.invalid"},"orgs":["acme"],"mode":{"managed":{"admin_token":"secrets/forgejo-admin"}}},
-{"forge":2,"directory":"forge-2","bot":{"login":"temper","email":"temper@example.invalid"},"mode":{"owned":{"forgejo":"/opt/forgejo/forgejo","runner":{"binary":"/opt/forgejo/forgejo-runner","labels":["temper-host:host"],"capacity":1,"path":"/usr/local/bin:/usr/bin:/bin"},"listen":{"socket":"127.0.0.1:3000"},"person":{"login":"ada","email":"ada@example.invalid"}}}}
-]"#;
-/// TWO followed by the demo's fake entry (protocol/setup.md, 8).
-pub fn three() -> Box<[u8]> {
-    changed(b"\n]", br#",
-{"forge":3,"directory":"demo/forge","bot":{"login":"temper","email":"temper@example.invalid"},"mode":{"fake":{"listen":{"socket":"127.0.0.1:8369"},"git":"demo/bin/git","owner":"demo","repositories":[{"name":"widget","landing":"main"}]}}}
-]"#)
-}
-pub fn fake_setup() -> Setup {
-    read_setup(&three())
-}
 pub fn document(bytes: &[u8]) -> Document {
     jig_protocol_config::document(
         bytes,
@@ -30,75 +15,61 @@ pub fn document(bytes: &[u8]) -> Document {
     .expect("test JSON")
 }
 pub fn setup() -> Setup {
-    read_setup(TWO)
-}
-fn read_setup(bytes: &[u8]) -> Setup {
-    Setup::read(
-        &document(bytes),
-        0,
-        &limits::small(),
-        &jig_protocol_config::Directories::working(),
-        &mut Problems::empty(),
-    )
-    .expect("design's setup")
-}
-pub fn members() -> Members {
-    Members {
-        forges: Box::new([
-            Forge {
-                number: 1,
-                api: None,
-                plaintext: false,
-                git: bytes::copy_of(b"https://forge.example"),
-                user: User::File(bytes::copy_of(b"forge-1/user")),
-                webhook_secret: None,
-                api_token: bytes::copy_of(b"forge-1/api_token"),
-                identity_token: bytes::copy_of(b"forge-1/git_token"),
-                identity_login: bytes::copy_of(b"temper"),
+    let bot = Account { login: b"temper".as_slice().into(), email: b"temper@example.invalid".as_slice().into() };
+    Setup {
+        entries: Box::new([
+            Entry {
+                forge: 1,
+                directory: b"forge-1".as_slice().into(),
+                bot: bot.clone(),
+                orgs: Box::new([b"acme".as_slice().into()]),
+                mode: Mode::Managed { admin_token: Some(b"secrets/forgejo-admin".as_slice().into()) },
+                asked: false,
             },
-            Forge {
-                number: 2,
-                api: Some(SocketAddr::from((Ipv4Addr::LOCALHOST, 3000))),
-                plaintext: true,
-                git: bytes::copy_of(b"http://127.0.0.1:3000"),
-                user: User::File(bytes::copy_of(b"forge-2/user")),
-                webhook_secret: None,
-                api_token: bytes::copy_of(b"forge-2/api_token"),
-                identity_token: bytes::copy_of(b"forge-2/git_token"),
-                identity_login: bytes::copy_of(b"temper"),
-            },
-            Forge {
-                number: 3,
-                api: Some(SocketAddr::from((Ipv4Addr::LOCALHOST, 8369))),
-                plaintext: true,
-                git: bytes::copy_of(b"http://127.0.0.1:8369"),
-                user: User::File(bytes::copy_of(b"demo/forge/user")),
-                webhook_secret: None,
-                api_token: bytes::copy_of(b"demo/forge/api_token"),
-                identity_token: bytes::copy_of(b"demo/forge/git_token"),
-                identity_login: bytes::copy_of(b"temper"),
+            Entry {
+                forge: 2,
+                directory: b"forge-2".as_slice().into(),
+                bot,
+                orgs: Box::new([]),
+                mode: Mode::Owned(owned()),
+                asked: false,
             },
         ]),
-        listeners: Box::new([]),
     }
 }
-pub fn changed(from: &[u8], to: &[u8]) -> Box<[u8]> {
-    changed_in(TWO, from, to)
+pub fn fake_setup() -> Setup {
+    let mut entries = setup().entries.into_vec();
+    entries.push(Entry {
+        forge: 3,
+        directory: b"demo/forge".as_slice().into(),
+        bot: Account { login: b"temper".as_slice().into(), email: b"temper@example.invalid".as_slice().into() },
+        orgs: Box::new([]),
+        asked: false,
+        mode: Mode::Fake(Fake {
+            listen: ([127, 0, 0, 1], 8369).into(),
+            git: b"demo/bin/git".as_slice().into(),
+            owner: b"demo".as_slice().into(),
+            repositories: Box::new([Repository {
+                name: b"widget".as_slice().into(),
+                landing: b"main".as_slice().into(),
+            }]),
+        }),
+    });
+    Setup { entries: entries.into_boxed_slice() }
 }
-pub fn changed_in(source: &[u8], from: &[u8], to: &[u8]) -> Box<[u8]> {
-    let at = bytes::find(source, from).expect("fixture text exists");
-    let after = at.checked_add(from.len()).unwrap();
-    let len = source.len().checked_sub(from.len()).unwrap().checked_add(to.len()).unwrap();
-    let mut w = Writer::new(len);
-    for part in [source.get(..at).unwrap(), to, source.get(after..).unwrap()] {
-        w.put(part).unwrap();
-    }
-    w.finish()
-}
-pub fn owned() -> crate::setup::Owned {
-    match setup().entries[1].mode.clone() {
-        crate::setup::Mode::Owned(owned) => owned,
-        crate::setup::Mode::Managed { .. } | crate::setup::Mode::Fake(_) => panic!("owned fixture"),
+pub fn owned() -> Owned {
+    Owned {
+        public: None,
+        fetch: Fetch { forgejo: false, runner: false, mirror: None },
+        forgejo: b"/opt/forgejo/forgejo".as_slice().into(),
+        runner: Some(Runner {
+            binary: b"/opt/forgejo/forgejo-runner".as_slice().into(),
+            labels: Box::new([b"temper-host:host".as_slice().into()]),
+            capacity: 1,
+            path: b"/usr/local/bin:/usr/bin:/bin".as_slice().into(),
+        }),
+        listen: ([127, 0, 0, 1], 3000).into(),
+        person: Account { login: b"ada".as_slice().into(), email: b"ada@example.invalid".as_slice().into() },
     }
 }
 pub fn place() -> crate::place::Place {
@@ -119,7 +90,7 @@ pub struct Drive {
     out: skein_lib::Queue<crate::prepare::Request>,
 }
 impl Drive {
-    pub fn new(owned: crate::setup::Owned) -> Self {
+    pub fn new(owned: Owned) -> Self {
         Self {
             runner: owned.runner.is_some(),
             machine: crate::prepare::Prepare::new(owned, place(), None),
@@ -287,13 +258,6 @@ pub fn failed() -> crate::prepare::Event {
         stdout: secret(b""),
         stderr: secret(b"broken"),
     })
-}
-
-pub fn hooked_members() -> Members {
-    let mut members = members();
-    members.forges[0].webhook_secret = Some(bytes::copy_of(b"forge-1/webhook_secret"));
-    members.forges[1].webhook_secret = Some(bytes::copy_of(b"forge-2/webhook_secret"));
-    members
 }
 
 pub fn listener() -> SocketAddr {

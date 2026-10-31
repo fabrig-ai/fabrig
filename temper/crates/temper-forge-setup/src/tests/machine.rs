@@ -1,6 +1,6 @@
 use super::fixtures;
 use crate::{
-    FORGE_ARGUMENT, Kind, Setup, Stage, kinds, limits,
+    FORGE_ARGUMENT, Kind, Stage, kinds, limits,
     machine::{self, BoxKind, Machine},
     problem::{self, Problems},
     setup::Mode,
@@ -35,69 +35,6 @@ fn replace(input: &[u8], old: &[u8], new: &[u8]) -> Box<[u8]> {
     writer.put(&input[after..]).unwrap();
     writer.finish()
 }
-// The init template's two setup entries, with the chosen ports and person.
-const TEMPLATE_SETUP: &[u8] = br#"[
-    {
-        "forge": 1,
-        "directory": "demo/forge",
-        "bot": {
-            "login": "temper",
-            "email": "temper@localhost"
-        },
-        "mode": {
-            "fake": {
-                "listen": {
-                    "socket": "127.0.0.1:8369"
-                },
-                "git": "demo/bin/git",
-                "owner": "playground",
-                "repositories": [
-                    {
-                        "name": "widget",
-                        "landing": "main"
-                    }
-                ]
-            }
-        }
-    },
-    {
-        "forge": 3,
-        "directory": "forge-3",
-        "bot": {
-            "login": "temper",
-            "email": "temper@localhost"
-        },
-        "start": "asked",
-        "mode": {
-            "owned": {
-                "forgejo": "fetched",
-                "runner": {
-                    "binary": "fetched",
-                    "labels": [
-                        "temper-host:host"
-                    ],
-                    "capacity": 1,
-                    "path": "/usr/local/bin:/usr/bin:/bin"
-                },
-                "listen": {
-                    "socket": "127.0.0.1:8372"
-                },
-                "person": {
-                    "login": "ada",
-                    "email": "ada@example.invalid"
-                }
-            }
-        }
-    }
-]"#;
-fn template_setup(directories: &Directories) -> Setup {
-    let mut problems = Problems::empty();
-    let result =
-        Setup::read(&fixtures::document(TEMPLATE_SETUP), 0, &limits::small(), directories, &mut problems).unwrap();
-    assert!(problems.is_empty());
-    result
-}
-
 #[test]
 fn the_template_machine_reads_back() {
     let machine = read(TEMPLATE_MACHINE, &directories());
@@ -148,26 +85,28 @@ fn an_unknown_member_is_refused_by_path() {
 }
 
 #[test]
-fn owned_entry_matches_todays_forge_three() {
+fn owned_entry_uses_its_number_and_machine() {
     for dirs in [Directories::working(), directories()] {
-        let setup = template_setup(&dirs);
         let machine = read(TEMPLATE_MACHINE, &dirs);
         let entry = machine::entry(&machine, 3, BoxKind::Owned, &dirs).unwrap();
-        assert_eq!(&entry, setup.entry(3).unwrap());
+        assert_eq!(entry.forge, 3);
+        assert_eq!(entry.directory, dirs.join(jig_protocol_config::Directory::Data, b"forge-3").unwrap());
         assert!(entry.asked);
         assert!(entry.orgs.is_empty());
     }
 }
 
 #[test]
-fn fake_entry_matches_todays_forge_one() {
+fn fake_entry_uses_its_number_and_playground_repository() {
     for dirs in [Directories::working(), directories()] {
-        let setup = template_setup(&dirs);
         let machine = read(TEMPLATE_MACHINE, &dirs);
         let entry = machine::entry(&machine, 1, BoxKind::Fake, &dirs).unwrap();
-        let mut expected = setup.entry(1).unwrap().clone();
-        expected.directory = dirs.join(jig_protocol_config::Directory::Data, b"playground-1").unwrap();
-        assert_eq!(entry, expected);
+        assert_eq!(entry.forge, 1);
+        assert_eq!(entry.directory, dirs.join(jig_protocol_config::Directory::Data, b"playground-1").unwrap());
+        let Mode::Fake(fake) = entry.mode else { panic!("fake entry") };
+        assert_eq!(fake.owner.as_ref(), b"playground");
+        assert_eq!(fake.repositories[0].name.as_ref(), b"widget");
+        assert_eq!(fake.repositories[0].landing.as_ref(), b"main");
     }
 }
 

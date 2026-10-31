@@ -38,12 +38,8 @@ pub(crate) fn check_with(
         named.overrides.iter().filter(|(name, _)| name.starts_with(b"setup.")).cloned().collect();
     let (setup_limits, fetch_bytes) = temper_forge_setup::check::limits(&setup_overrides)
         .map_err(|why| String::from_utf8_lossy(&problem::lines(&why)).into_owned())?;
-    let checked = Checked {
-        limits: setup_limits,
-        fetch_bytes,
-        setup: temper_forge_setup::Setup { entries: Box::new([]) },
-        records_only: Box::new([]),
-    };
+    let checked =
+        Checked { limits: setup_limits, fetch_bytes, setup: temper_forge_setup::Setup { entries: Box::new([]) } };
     let mut problems = temper_service::startup::Problems::empty();
     let machine_at = config::read::Object::new(&document, application)
         .expect("checked application")

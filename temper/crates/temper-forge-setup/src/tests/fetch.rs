@@ -7,29 +7,21 @@
 use super::fixtures;
 use crate::{
     check, limits, problem,
-    setup::{Fetch, Mirror, Mode, Origin, Owned, Setup},
+    setup::{Fetch, Mirror, Mode, Origin, Owned},
 };
 
 fn origin(host: &[u8], port: u16) -> Origin {
     Origin { host: host.into(), port }
 }
 fn read_owned(owned: &str) -> Result<Owned, Box<[u8]>> {
-    let source = core::str::from_utf8(fixtures::TWO).unwrap();
-    let start = source.find("{\"forgejo\"").unwrap();
-    let end = source.rfind("}}}").unwrap().checked_add(1).unwrap();
-    let source = format!("{}{}{}", &source[..start], owned, &source[end..]);
+    let source = format!(r#"{{"owned":{owned}}}"#);
     let mut ps = problem::Problems::empty();
-    let value = Setup::read(
-        &fixtures::document(source.as_bytes()),
-        0,
-        &limits::small(),
-        &jig_protocol_config::Directories::given(b"/config", b"/data", b"/cache").unwrap(),
-        &mut ps,
-    );
+    let dirs = jig_protocol_config::Directories::given(b"/config", b"/data", b"/cache").unwrap();
+    let machine = crate::machine::read(&fixtures::document(source.as_bytes()), 0, &limits::small(), &dirs, &mut ps);
     if !ps.is_empty() {
         return Err(problem::lines(&ps));
     }
-    match value.unwrap().entries[1].mode.clone() {
+    match crate::machine::entry(&machine.unwrap(), 2, crate::machine::BoxKind::Owned, &dirs).unwrap().mode {
         Mode::Owned(owned) => Ok(owned),
         Mode::Managed { .. } | Mode::Fake(_) => panic!("owned"),
     }
@@ -39,7 +31,7 @@ fn owned_json(forgejo: &str, runner: Option<&str>, mirror: Option<&str>, public:
     let mirror = mirror.map_or(String::new(), |mirror| format!(",\"mirror\":{mirror}"));
     let public = public.map_or(String::new(), |public| format!(",\"public\":{public}"));
     format!(
-        r#"{{"forgejo":"{forgejo}","runner":{runner},"listen":{{"socket":"127.0.0.1:3000"}},"person":{{"login":"ada","email":"ada@example.invalid"}}{mirror}{public}}}"#
+        r#"{{"remote":"http://127.0.0.1:3000","forgejo":"{forgejo}","runner":{runner},"listen":{{"socket":"127.0.0.1:3000"}},"person":{{"login":"ada","email":"ada@example.invalid"}}{mirror}{public}}}"#
     )
 }
 #[test]
@@ -92,15 +84,15 @@ fn owned_binaries_and_mirror() {
         let mirror = format!(r#"{{"forgejo":"{bad}","runner":"https://mirror.test"}}"#);
         assert_eq!(
             read_owned(&owned_json("fetched", None, Some(&mirror), None)),
-            Err(b"application.setup[1].mode.owned.mirror.forgejo: invalid form\n".as_slice().into()),
+            Err(b"application.machine.owned.mirror.forgejo: invalid form\n".as_slice().into()),
             "{bad}"
         );
     }
     for (mirror, expected) in [
-        (r#"{"forgejo":"https://mirror.test"}"#, "application.setup[1].mode.owned.mirror.runner: missing\n"),
+        (r#"{"forgejo":"https://mirror.test"}"#, "application.machine.owned.mirror.runner: missing\n"),
         (
             r#"{"forgejo":"https://mirror.test","runner":"https://mirror.test","third":1}"#,
-            "application.setup[1].mode.owned.mirror.third: unknown member\n",
+            "application.machine.owned.mirror.third: unknown member\n",
         ),
     ] {
         assert_eq!(read_owned(&owned_json("fetched", None, Some(mirror), None)), Err(expected.as_bytes().into()));
@@ -135,7 +127,7 @@ fn owned_public_address_refuses_invalid_forms() {
     ] {
         assert_eq!(
             read_owned(&owned_json("fetched", None, None, Some(bad))),
-            Err(b"application.setup[1].mode.owned.public: invalid form\n".as_slice().into()),
+            Err(b"application.machine.owned.public: invalid form\n".as_slice().into()),
             "{bad}"
         );
     }
@@ -149,16 +141,9 @@ fn fetch_bound_through_checked() {
         (Some(0), Err(b"application.limits.overrides.setup.fetch_bytes: outside its type\n".as_slice())),
     ] {
         let overrides = value.map_or(Vec::new(), |value| vec![(b"setup.fetch_bytes".as_slice().into(), value)]);
-        let got = check::checked(
-            &fixtures::document(fixtures::TWO),
-            0,
-            &jig_protocol_config::Directories::working(),
-            &fixtures::members(),
-            None,
-            &overrides,
-        );
+        let got = check::limits(&overrides);
         match expected {
-            Ok(expected) => assert_eq!(got.unwrap().fetch_bytes, expected),
+            Ok(expected) => assert_eq!(got.unwrap().1, expected),
             Err(expected) => assert_eq!(problem::lines(&got.unwrap_err()).as_ref(), expected),
         }
     }

@@ -35,52 +35,14 @@ pub(crate) fn setup_peer(peer: &mut skein_fake_peers::forge::Peer) {
 }
 
 pub(crate) fn checked_setup(bytes: &[u8]) -> temper_forge_setup::check::Checked {
-    use jig_protocol_config as config;
-    use temper_forge_setup::check::{self, Members};
-    use temper_service::startup::{Transport, User};
-    let directories = config::Directories::working();
+    let directories = jig_protocol_config::Directories::working();
     let given = crate::stories::given(&serde_json::from_slice(bytes).expect("deployment JSON"));
     let named = temper_service::startup::named_with(bytes, &directories, &given).expect("named restart deployment");
-    let forges = named
-        .forges
-        .iter()
-        .map(|forge| {
-            let identity =
-                named.identities.iter().find(|identity| identity.number == forge.identity).expect("identity");
-            check::Forge {
-                number: forge.number,
-                api: match &forge.api {
-                    config::Address::Addr(a) => a.socket(),
-                    config::Address::Host { .. } => None,
-                },
-                plaintext: matches!(forge.transport, Transport::Plaintext),
-                git: forge.git.clone(),
-                user: match &forge.user {
-                    User::Id(value) => check::User::Id(*value),
-                    User::File(path) => check::User::File(path.clone()),
-                },
-                api_token: forge.api_token.clone(),
-                webhook_secret: forge.webhook_secret.clone(),
-                identity_token: identity.token.clone(),
-                identity_login: identity.login.clone(),
-            }
-        })
-        .collect();
-    let value: serde_json::Value = serde_json::from_slice(bytes).expect("configuration JSON");
-    let setup = serde_json::to_vec(&value["application"]["setup"]).expect("setup JSON");
-    let size = u32::try_from(setup.len()).expect("setup size");
-    let document = config::document(&setup, &config::DocumentLimits { bytes: size, tokens: size, depth: 32 })
-        .expect("setup document");
-    check::checked(
-        &document,
-        0,
-        &directories,
-        &Members { forges, listeners: Box::new([fixtures::CLIENTS]) },
-        named.webhooks.map(|hooks| match hooks.listener {
-            config::Address::Addr(a) => a.socket().expect("webhooks socket"),
-            config::Address::Host { .. } => panic!("loopback fixture"),
-        }),
-        &named.overrides,
-    )
-    .expect("checked restart setup")
+    let overrides: Vec<_> = named.overrides.iter().filter(|(name, _)| name.starts_with(b"setup.")).cloned().collect();
+    let (limits, fetch_bytes) = temper_forge_setup::check::limits(&overrides).expect("setup limits");
+    temper_forge_setup::check::Checked {
+        limits,
+        fetch_bytes,
+        setup: temper_forge_setup::Setup { entries: Box::new([]) },
+    }
 }
