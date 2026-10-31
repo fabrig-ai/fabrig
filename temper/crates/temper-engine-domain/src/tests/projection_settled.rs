@@ -5,7 +5,7 @@ use jig_domain_tasks as tasks;
 use skein_lib::{Env, Queue, ReplyTo, Token, Wall};
 use temper_engine_domain_forge as forge;
 
-fn live_goal(tracked: Option<u32>) -> (crate::Domain, Env<crate::Limits>, u64) {
+pub(super) fn live_goal(tracked: Option<u32>) -> (crate::Domain, Env<crate::Limits>, u64) {
     let (mut domain, env) = super::resume_fixture::root();
     let goal = crate::fresh(&mut domain.core.counters, crate::Family::Task).unwrap();
     let task_env = Env { now: env.now, wall: env.wall, limits: env.limits.tasks };
@@ -21,7 +21,7 @@ fn live_goal(tracked: Option<u32>) -> (crate::Domain, Env<crate::Limits>, u64) {
                 project: 1,
                 label: 0,
                 flags: tasks::Flags::PLAIN,
-                executor: tasks::Executor::Agent { charter: 1 },
+                executor: tasks::Executor::Procedure { connector: 0, code: 1 },
                 llm: None,
                 spec: tasks::Spec {
                     asks: false,
@@ -94,15 +94,18 @@ fn a_live_untracked_goal_settles_its_retained_core_projection() {
         words: b"live goal".as_slice().into(),
         phase: tasks::Phase::Waiting,
     };
-    let core_limits = crate::limits::core_limits(&env.limits);
-    for row in [
-        core::ProjectionRecord::Goal {
+    let task = domain.core.tasks.task(goal).unwrap().clone();
+    let funding = *domain.core.tasks.funding(task.funder).unwrap();
+    let records = [
+        crate::Record::Core(core::Record::Tasks(tasks::Stored::Live(Box::new(task)))),
+        crate::Record::Core(core::Record::Tasks(tasks::Stored::Ledger(funding))),
+        crate::Record::Core(core::Record::Core(core::CoreRecord::Projection(core::ProjectionRecord::Goal {
             goal: projection,
             pending: Box::new([domain.config.forge_connector]),
             changed: false,
             fed_at: None,
-        },
-        core::ProjectionRecord::Task {
+        }))),
+        crate::Record::Core(core::Record::Core(core::CoreRecord::Projection(core::ProjectionRecord::Task {
             goal,
             task: core::ProjectionTask {
                 number: goal,
@@ -110,10 +113,9 @@ fn a_live_untracked_goal_settles_its_retained_core_projection() {
                 words: b"live goal".as_slice().into(),
                 phase: tasks::Phase::Waiting,
             },
-        },
-    ] {
-        assert_eq!(domain.core.restore_core(core::CoreRecord::Projection(row), &core_limits), core::Restored::Live);
-    }
+        }))),
+    ];
+    (domain, _) = super::resume_fixture::root_with_records(super::resume_fixture::config(7), &env.limits, &records);
     let event = terminal(&mut domain, &env, goal);
     let core::Requests::Out(mut out) = core::step(&mut domain.core, &crate::limits::environment_core(&env), event);
     for key in [core::ProjectionKey::Task { goal, task: goal }, core::ProjectionKey::Goal(goal)] {
