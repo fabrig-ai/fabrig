@@ -20,7 +20,8 @@ use skein_lib::{
 pub(super) enum Closing {
     Open,
     Pending,
-    Sent,
+    Graceful,
+    Aborted,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(super) enum HintState {
@@ -253,7 +254,7 @@ impl Hooked {
                 up.push(Event::Hint(Hinted { connection: owner, hint: self.hint.take().expect("ready hint") }));
             } else if self.closing == Closing::Pending {
                 io.push(skein_io::Request::Close { entity: self.socket });
-                self.closing = Closing::Sent;
+                self.closing = Closing::Graceful;
                 break;
             } else if let Some(event) = self.json_events.pop() {
                 let decoder = self.decoder.as_mut().expect("decoding body");

@@ -53,7 +53,7 @@ impl Component {
             calls.push((*call, *id)).expect("bounded calls");
         }
         for (call, id) in calls.into_boxed() {
-            if self.closed {
+            if !self.ending.live() {
                 break;
             }
             let waiting = self.waiting.get(id).expect("indexed call");
@@ -112,7 +112,10 @@ impl Component {
             if c.drain_redirect(env, io) {
                 self.wake = Some(env.now);
             }
-            if self.closed || (c.phase == Phase::Idle && c.deadline <= Some(env.now)) || c.phase == Phase::Closed {
+            if !self.ending.live()
+                || (c.phase == Phase::Idle && c.deadline <= Some(env.now))
+                || c.phase == Phase::Closed
+            {
                 c.close(c.in_flight(), io);
             }
         }
@@ -161,7 +164,7 @@ impl Component {
             if reserved {
                 continue;
             }
-            if c.phase == Phase::Idle && !c.closing && !self.holders.contains_key(owner) {
+            if c.phase == Phase::Idle && !c.closing() && !self.holders.contains_key(owner) {
                 if c.forge == forge && c.origin == waiting.origin() {
                     token = Some(*owner);
                     break;

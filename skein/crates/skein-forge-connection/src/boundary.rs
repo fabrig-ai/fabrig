@@ -79,6 +79,13 @@ pub enum Request {
     /// After the root's drain: calls in flight end with their connections and no answer
     /// goes up; `Event::Closed` answers it.
     Close,
+    /// A close that does not wait (programming-model.md, 5.2): ends held calls
+    /// as cancelled and aborts what the component keeps. The forge API has no
+    /// cancelled error: `Answered` uses `Unavailable` if no request was written,
+    /// otherwise `Timeout`, preserving uncertainty about requests already written.
+    /// An abort after Close escalates remaining graceful closes; Close after Abort
+    /// and a second Abort change nothing. Closed follows once io has settled.
+    Abort,
 }
 
 /// To the routing; io's requests go in a queue of their own.
@@ -103,7 +110,7 @@ pub enum Event {
     /// A forge's access refused: at most once per generation, possibly after Connected.
     /// The forge holds no access until the next connect.
     Stopped { forge: u16, why: Stopped },
-    /// The terminal of `Close`: every connection closed.
+    /// The terminal of `Close` or `Abort`: io has settled everything kept.
     Closed,
 }
 
