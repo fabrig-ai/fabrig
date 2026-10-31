@@ -2,7 +2,7 @@
 //! The channel state admits a record before its handler changes the call,
 //! turn, live-piece or long-operation ledger. No host policy is interpreted.
 
-use super::{CallKey, Component, OpenEvent, State};
+use super::{CallKey, Component, Received, State};
 use crate::Error;
 use alloc::boxed::Box;
 use skein_lib::{Reader, Token};
@@ -55,7 +55,7 @@ pub(super) fn refusal_text(kind: u16, error: Error) -> &'static [u8] {
 }
 
 impl Component {
-    pub(super) fn receive(&mut self, kind: u16, body: Box<[u8]>) -> Result<Option<OpenEvent>, Error> {
+    pub(super) fn receive(&mut self, kind: u16, body: Box<[u8]>) -> Result<Option<Received>, Error> {
         let event = match kind {
             ADMITTED => self.admitted(&body)?,
             ANSWER => self.answer(&body)?,
@@ -76,7 +76,7 @@ impl Component {
                             Ok(_) => (),
                             Err(problem) => return Err(Error::Body(problem)),
                         }
-                        OpenEvent::Fact { body }
+                        Received::Message { message: smith_host_domain::Up::Fact { body } }
                     }
                     MESSAGE_REFUSED => self.message_refused(&body)?,
                     LIVE => self.live(&body)?,
@@ -87,7 +87,7 @@ impl Component {
         Ok(Some(event))
     }
 
-    fn admitted(&mut self, body: &[u8]) -> Result<OpenEvent, Error> {
+    fn admitted(&mut self, body: &[u8]) -> Result<Received, Error> {
         if self.state != State::Started {
             return Err(Error::Order);
         }
@@ -96,10 +96,10 @@ impl Component {
             Err(problem) => return Err(Error::Body(problem)),
         }
         self.state = State::Admitted;
-        Ok(OpenEvent::Admitted)
+        Ok(Received::Message { message: channel::Up::Admitted })
     }
 
-    fn answer(&mut self, body: &[u8]) -> Result<OpenEvent, Error> {
+    fn answer(&mut self, body: &[u8]) -> Result<Received, Error> {
         let record = match smith_channel::Answer::decode(&self.bodies, &mut Reader::new(body)) {
             Ok(record) => record,
             Err(problem) => return Err(Error::Body(problem)),
@@ -115,10 +115,10 @@ impl Component {
         }
         let answer = crate::answer::decode_answer(&record, &self.charter)?;
         self.state = State::Answered;
-        Ok(OpenEvent::Answer { answer, record })
+        Ok(Received::Answer { answer, record })
     }
 
-    fn call(&mut self, body: &[u8]) -> Result<OpenEvent, Error> {
+    fn call(&mut self, body: &[u8]) -> Result<Received, Error> {
         let record = match smith_channel::Call::decode(&self.bodies, &mut Reader::new(body)) {
             Ok(record) => record,
             Err(problem) => return Err(Error::Body(problem)),
@@ -136,23 +136,30 @@ impl Component {
         if self.calls_by_token.insert(call, key).is_err() {
             return Err(Error::Calls);
         }
-        Ok(OpenEvent::Call { call, name: key.domain(), deadline: self.now.saturating_add(record.deadline()), ask })
+        Ok(Received::Message {
+            message: smith_host_domain::Up::Call {
+                call,
+                name: key.domain(),
+                deadline: self.now.saturating_add(record.deadline()),
+                ask,
+            },
+        })
     }
 
-    fn withdraw(&self, body: &[u8]) -> Result<Option<OpenEvent>, Error> {
+    fn withdraw(&self, body: &[u8]) -> Result<Option<Received>, Error> {
         let record = match smith_channel::Withdraw::decode(&self.bodies, &mut Reader::new(body)) {
             Ok(record) => record,
             Err(problem) => return Err(Error::Body(problem)),
         };
         let key = CallKey::from_wire(record.name());
         Ok(match self.calls_by_name.get(&key) {
-            Some(call) => Some(OpenEvent::Withdraw { call: *call }),
+            Some(call) => Some(Received::Message { message: smith_host_domain::Up::Withdraw { call: *call } }),
             // Crossing the host's answer settles the withdrawal without spending its read.
             None => None,
         })
     }
 
-    fn waiting(&self, body: &[u8]) -> Result<OpenEvent, Error> {
+    fn waiting(&self, body: &[u8]) -> Result<Received, Error> {
         let record = match smith_channel::Waiting::decode(&self.bodies, &mut Reader::new(body)) {
             Ok(record) => record,
             Err(problem) => return Err(Error::Body(problem)),
@@ -161,10 +168,10 @@ impl Component {
             Some(name) => Some(Token::new(*name)),
             None => None,
         };
-        Ok(OpenEvent::Waiting { read })
+        Ok(Received::Message { message: smith_host_domain::Up::Waiting { read } })
     }
 
-    fn turn(&mut self, body: &[u8]) -> Result<OpenEvent, Error> {
+    fn turn(&mut self, body: &[u8]) -> Result<Received, Error> {
         let turn = match smith_channel::Turn::decode(&self.bodies, &mut Reader::new(body)) {
             Ok(record) => record,
             Err(problem) => return Err(Error::Body(problem)),
@@ -178,21 +185,23 @@ impl Component {
         self.live.turn(turn.number());
         let body =
             smith_host_domain::TurnValue::new(value, u64::MAX).expect("codec bounds ensure representable ownership");
-        Ok(OpenEvent::Turn {
-            turn: channel::Turn {
-                number: turn.number(),
-                opens_window: turn.opens_window(),
-                spent: turn.spent(),
-                read: match turn.last_read() {
-                    Some(name) => Some(Token::new(*name)),
-                    None => None,
+        Ok(Received::Message {
+            message: smith_host_domain::Up::Turn {
+                turn: channel::Turn {
+                    number: turn.number(),
+                    opens_window: turn.opens_window(),
+                    spent: turn.spent(),
+                    read: match turn.last_read() {
+                        Some(name) => Some(Token::new(*name)),
+                        None => None,
+                    },
+                    body,
                 },
-                body,
             },
         })
     }
 
-    fn long(&mut self, body: &[u8]) -> Result<OpenEvent, Error> {
+    fn long(&mut self, body: &[u8]) -> Result<Received, Error> {
         let record = match smith_channel::Long::decode(&self.bodies, &mut Reader::new(body)) {
             Ok(record) => record,
             Err(problem) => return Err(Error::Body(problem)),
@@ -203,19 +212,19 @@ impl Component {
             smith_channel::Operation::Command => smith_domain::Operation::Command,
         };
         self.long_open = self.long_open.checked_add(1).ok_or(Error::Order)?;
-        Ok(OpenEvent::Long { operation, span: record.span() })
+        Ok(Received::Message { message: smith_host_domain::Up::Long { operation, span: record.span() } })
     }
 
-    fn long_done(&mut self, body: &[u8]) -> Result<OpenEvent, Error> {
+    fn long_done(&mut self, body: &[u8]) -> Result<Received, Error> {
         match smith_channel::LongDone::decode(&self.bodies, &mut Reader::new(body)) {
             Ok(_) => (),
             Err(problem) => return Err(Error::Body(problem)),
         }
         self.long_open = self.long_open.checked_sub(1).ok_or(Error::Order)?;
-        Ok(OpenEvent::LongDone)
+        Ok(Received::Message { message: channel::Up::LongDone })
     }
 
-    fn message_refused(&self, body: &[u8]) -> Result<OpenEvent, Error> {
+    fn message_refused(&self, body: &[u8]) -> Result<Received, Error> {
         let record = match smith_channel::MessageRefused::decode(&self.bodies, &mut Reader::new(body)) {
             Ok(record) => record,
             Err(problem) => return Err(Error::Body(problem)),
@@ -226,10 +235,12 @@ impl Component {
             smith_channel::MessageRefusal::NameInUse => smith_host_domain::MessageRefusal::NameInUse,
             smith_channel::MessageRefusal::Ending => smith_host_domain::MessageRefusal::Ending,
         };
-        Ok(OpenEvent::MessageRefused { name: Token::new(record.name()), reason })
+        Ok(Received::Message {
+            message: smith_host_domain::Up::MessageRefused { name: Token::new(record.name()), reason },
+        })
     }
 
-    fn live(&mut self, body: &[u8]) -> Result<OpenEvent, Error> {
+    fn live(&mut self, body: &[u8]) -> Result<Received, Error> {
         let piece = match smith_channel::Live::decode(&self.bodies, &mut Reader::new(body)) {
             Ok(record) => record,
             Err(problem) => return Err(Error::Body(problem)),
@@ -237,7 +248,7 @@ impl Component {
         if self.live.check(&piece).is_err() {
             return Err(Error::Order);
         }
-        Ok(OpenEvent::Live {
+        Ok(Received::Live {
             turn: piece.turn(),
             retry: piece.retry(),
             kind: piece.kind().clone(),

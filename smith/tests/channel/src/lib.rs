@@ -145,7 +145,7 @@ enum HostReads {
 struct Peer {
     half: Half,
     below: Queue<Lower>,
-    host_events: Queue<host::OpenEvent>,
+    host_events: Queue<host::Received>,
     agent_events: Queue<agent::OpenEvent>,
     incoming: VecDeque<u8>,
     incoming_ended: bool,
@@ -316,54 +316,53 @@ impl Peer {
     fn observations(&mut self, output: &mut Vec<Observation>) {
         while let Some(event) = self.host_events.pop() {
             let read_next = match &event {
-                host::OpenEvent::Hangup { .. }
-                | host::OpenEvent::Sent { .. }
-                | host::OpenEvent::Unsent { .. }
-                | host::OpenEvent::WriteFailed => false,
-                host::OpenEvent::Opened { .. }
-                | host::OpenEvent::MessageRefused { .. }
-                | host::OpenEvent::Admitted
-                | host::OpenEvent::Waiting { .. }
-                | host::OpenEvent::Long { .. }
-                | host::OpenEvent::LongDone
-                | host::OpenEvent::Turn { .. }
-                | host::OpenEvent::Live { .. }
-                | host::OpenEvent::Fact { .. }
-                | host::OpenEvent::Unauthorized { .. }
-                | host::OpenEvent::Limited { .. }
-                | host::OpenEvent::Refused { .. }
-                | host::OpenEvent::Call { .. }
-                | host::OpenEvent::Withdraw { .. }
-                | host::OpenEvent::Answer { .. } => true,
+                host::Received::Hangup { .. }
+                | host::Received::Sent { .. }
+                | host::Received::Unsent { .. }
+                | host::Received::WriteFailed => false,
+                host::Received::Opened { .. }
+                | host::Received::Message { .. }
+                | host::Received::Live { .. }
+                | host::Received::Answer { .. } => true,
             };
             match event {
-                host::OpenEvent::Opened { version } => output.push(Observation::HostOpened(version)),
-                host::OpenEvent::Hangup { why } => output.push(Observation::HostEnded(why)),
-                host::OpenEvent::Sent { token } => output.push(Observation::HostSent(token)),
-                host::OpenEvent::Unsent { token, why } => output.push(Observation::HostUnsent(token, why)),
-                host::OpenEvent::MessageRefused { name, reason } => {
+                host::Received::Opened { version } => output.push(Observation::HostOpened(version)),
+                host::Received::Hangup { why } => output.push(Observation::HostEnded(why)),
+                host::Received::Sent { token } => output.push(Observation::HostSent(token)),
+                host::Received::Unsent { token, why } => output.push(Observation::HostUnsent(token, why)),
+                host::Received::Message { message: smith_host_domain::Up::MessageRefused { name, reason } } => {
                     output.push(Observation::HostMessageRefused { name, reason });
                 }
-                host::OpenEvent::Admitted => output.push(Observation::HostAdmitted),
-                host::OpenEvent::Waiting { read } => output.push(Observation::HostWaiting { read }),
-                host::OpenEvent::Long { operation, span } => output.push(Observation::HostLong { operation, span }),
-                host::OpenEvent::LongDone => output.push(Observation::HostLongDone),
-                host::OpenEvent::Turn { turn } => output.push(Observation::HostTurn {
-                    opens_window: turn.opens_window,
-                    number: turn.number,
-                    spent: turn.spent,
-                    read: turn.read,
-                    body: smith_protocol_translate::encode_turn(
-                        turn.body.value(),
-                        &smith_transcript::CEILINGS,
-                        &test_endpoints(),
-                    )
-                    .expect("store codec"),
-                }),
-                host::OpenEvent::Live { turn, retry, kind, offset, bytes, call } => {
+                host::Received::Message { message: smith_host_domain::Up::Admitted } => {
+                    output.push(Observation::HostAdmitted)
+                }
+                host::Received::Message { message: smith_host_domain::Up::Waiting { read } } => {
+                    output.push(Observation::HostWaiting { read })
+                }
+                host::Received::Message { message: smith_host_domain::Up::Long { operation, span } } => {
+                    output.push(Observation::HostLong { operation, span })
+                }
+                host::Received::Message { message: smith_host_domain::Up::LongDone } => {
+                    output.push(Observation::HostLongDone)
+                }
+                host::Received::Message { message: smith_host_domain::Up::Turn { turn } } => {
+                    output.push(Observation::HostTurn {
+                        opens_window: turn.opens_window,
+                        number: turn.number,
+                        spent: turn.spent,
+                        read: turn.read,
+                        body: smith_protocol_translate::encode_turn(
+                            turn.body.value(),
+                            &smith_transcript::CEILINGS,
+                            &test_endpoints(),
+                        )
+                        .expect("store codec"),
+                    })
+                }
+                host::Received::Live { turn, retry, kind, offset, bytes, call } => {
                     output.push(Observation::HostLive { turn, retry, kind, offset, bytes, call });
                 }
-                host::OpenEvent::Fact { body } => {
+                host::Received::Message { message: smith_host_domain::Up::Fact { body } } => {
                     let fact =
                         smith_channel::Fact::decode(&smith_channel::CEILINGS, &mut skein_lib::Reader::new(&body))
                             .expect("validated fact");
@@ -373,21 +372,26 @@ impl Peer {
                         count: fact.count(),
                     });
                 }
-                host::OpenEvent::Unauthorized { account, generation } => {
+                host::Received::Message { message: smith_host_domain::Up::Unauthorized { account, generation } } => {
                     output.push(Observation::HostUnauthorized { account, generation });
                 }
-                host::OpenEvent::Limited { account, reset } => {
+                host::Received::Message { message: smith_host_domain::Up::Limited { account, reset } } => {
                     output.push(Observation::HostLimited { account, reset });
                 }
-                host::OpenEvent::Refused { account, code, reason } => {
+                host::Received::Message { message: smith_host_domain::Up::Refused { account, code, reason } } => {
                     output.push(Observation::HostRefused { account, code, reason });
                 }
-                host::OpenEvent::WriteFailed => output.push(Observation::HostWriteFailed),
-                host::OpenEvent::Call { call, name, deadline, ask } => {
+                host::Received::WriteFailed => output.push(Observation::HostWriteFailed),
+                host::Received::Message { message: smith_host_domain::Up::Call { call, name, deadline, ask } } => {
                     output.push(Observation::HostCall { call, name, deadline, ask: Box::new(ask) });
                 }
-                host::OpenEvent::Withdraw { call } => output.push(Observation::HostWithdraw { call }),
-                host::OpenEvent::Answer { answer, record } => {
+                host::Received::Message { message: smith_host_domain::Up::Withdraw { call } } => {
+                    output.push(Observation::HostWithdraw { call })
+                }
+                host::Received::Message { message: smith_host_domain::Up::Answer { .. } } => {
+                    unreachable!("answer retains its audit record")
+                }
+                host::Received::Answer { answer, record } => {
                     assert_eq!((answer.turns, answer.spent), (record.turns(), record.spent()));
                     output.push(Observation::HostAnswer { turns: answer.turns, spent: answer.spent });
                     if let smith_channel::RunResult::Refused(refused) = record.result()

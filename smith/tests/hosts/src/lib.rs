@@ -331,41 +331,25 @@ impl HostService {
         }
     }
 
-    fn route_channel(&mut self, agent: Token, event: protocol::OpenEvent) {
-        use protocol::OpenEvent;
+    fn route_channel(&mut self, agent: Token, event: protocol::Received) {
+        use protocol::Received;
         let event = match event {
-            OpenEvent::MessageRefused { name, reason } => host::Input::Process(host::process::Event::Received {
-                owner: agent,
-                message: host::Up::MessageRefused { name, reason },
-            }),
+            Received::Message { message } => {
+                host::Input::Process(host::process::Event::Received { owner: agent, message })
+            }
+
             // Opened is transport-only. A failed write already settles its
             // send via Unsent; the independent read still owns Hangup.
-            OpenEvent::Opened { .. } | OpenEvent::WriteFailed => return,
-            OpenEvent::Hangup { .. } => host::Input::Process(host::process::Event::Hangup { owner: agent }),
-            OpenEvent::Sent { .. } => host::Input::Process(host::process::Event::Sent { owner: agent }),
-            OpenEvent::Unsent { .. } => host::Input::Process(host::process::Event::Unsent { owner: agent }),
-            OpenEvent::Answer { answer, .. } => host::Input::Process(host::process::Event::Received {
+            Received::Opened { .. } | Received::WriteFailed => return,
+            Received::Hangup { .. } => host::Input::Process(host::process::Event::Hangup { owner: agent }),
+            Received::Sent { .. } => host::Input::Process(host::process::Event::Sent { owner: agent }),
+            Received::Unsent { .. } => host::Input::Process(host::process::Event::Unsent { owner: agent }),
+            Received::Answer { answer, .. } => host::Input::Process(host::process::Event::Received {
                 owner: agent,
                 message: host::Up::Answer { answer },
             }),
-            OpenEvent::Admitted => {
-                host::Input::Process(host::process::Event::Received { owner: agent, message: host::Up::Admitted })
-            }
-            OpenEvent::Waiting { read } => host::Input::Process(host::process::Event::Received {
-                owner: agent,
-                message: host::Up::Waiting { read },
-            }),
-            OpenEvent::Long { operation, span } => host::Input::Process(host::process::Event::Received {
-                owner: agent,
-                message: host::Up::Long { operation, span },
-            }),
-            OpenEvent::LongDone => {
-                host::Input::Process(host::process::Event::Received { owner: agent, message: host::Up::LongDone })
-            }
-            OpenEvent::Turn { turn } => {
-                host::Input::Process(host::process::Event::Received { owner: agent, message: host::Up::Turn { turn } })
-            }
-            OpenEvent::Live { turn, retry, kind, offset, bytes, call } => {
+
+            Received::Live { turn, retry, kind, offset, bytes, call } => {
                 let piece = smith_channel::Live::new(
                     &smith_channel::CEILINGS,
                     smith_channel::LiveParts { turn, retry, kind, offset, bytes, call },
@@ -374,29 +358,6 @@ impl HostService {
                 self.seen.pieces.push((self.seen.turns, piece));
                 host::Input::Process(host::process::Event::Progress { owner: agent })
             }
-            OpenEvent::Fact { body } => {
-                host::Input::Process(host::process::Event::Received { owner: agent, message: host::Up::Fact { body } })
-            }
-            OpenEvent::Unauthorized { account, generation } => host::Input::Process(host::process::Event::Received {
-                owner: agent,
-                message: host::Up::Unauthorized { account, generation },
-            }),
-            OpenEvent::Limited { account, reset } => host::Input::Process(host::process::Event::Received {
-                owner: agent,
-                message: host::Up::Limited { account, reset },
-            }),
-            OpenEvent::Refused { account, code, reason } => host::Input::Process(host::process::Event::Received {
-                owner: agent,
-                message: host::Up::Refused { account, code, reason },
-            }),
-            OpenEvent::Call { call, name, deadline, ask } => host::Input::Process(host::process::Event::Received {
-                owner: agent,
-                message: host::Up::Call { call, name, deadline, ask },
-            }),
-            OpenEvent::Withdraw { call } => host::Input::Process(host::process::Event::Received {
-                owner: agent,
-                message: host::Up::Withdraw { call },
-            }),
         };
         self.domain_events.push(event);
     }

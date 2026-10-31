@@ -223,15 +223,15 @@ fn delivery(outcome: hub::DeliveryOutcome, evidence: Box<[u8]>) -> Result<smith:
 }
 
 pub(super) fn process(event: smith_host_protocol::ProcessEvent) -> Option<jig_test_worker::Event> {
-    use smith_host_protocol::{OpenEvent, ProcessEvent};
+    use smith_host_protocol::{ProcessEvent, Received};
     let event = match event {
         ProcessEvent::Spawned { agent, process } => smith::process::Event::Spawned { owner: agent, process },
         ProcessEvent::Unspawned { agent, detail } => smith::process::Event::Unspawned { owner: agent, detail },
         ProcessEvent::Exited { agent, exit } => smith::process::Event::Exited { owner: agent, exit: exited(exit) },
         ProcessEvent::Reaped { agent, detail } => smith::process::Event::Reaped { owner: agent, detail },
         ProcessEvent::Channel { agent, event } => match *event {
-            OpenEvent::Opened { .. } | OpenEvent::WriteFailed => return None,
-            OpenEvent::Live { turn, retry, kind, offset, bytes, call } => {
+            Received::Opened { .. } | Received::WriteFailed => return None,
+            Received::Live { turn, retry, kind, offset, bytes, call } => {
                 let kind = match kind {
                     smith_channel::LiveKind::Text => {
                         if call.is_some() {
@@ -255,22 +255,13 @@ pub(super) fn process(event: smith_host_protocol::ProcessEvent) -> Option<jig_te
                     piece: hub::Piece { turn, retry, kind, offset, bytes },
                 });
             }
-            OpenEvent::Hangup { .. } => smith::process::Event::Hangup { owner: agent },
-            OpenEvent::Sent { .. } => smith::process::Event::Sent { owner: agent },
-            OpenEvent::Unsent { .. } => smith::process::Event::Unsent { owner: agent },
-            event @ (OpenEvent::Answer { .. }
-            | OpenEvent::Admitted
-            | OpenEvent::MessageRefused { .. }
-            | OpenEvent::Waiting { .. }
-            | OpenEvent::Long { .. }
-            | OpenEvent::LongDone
-            | OpenEvent::Turn { .. }
-            | OpenEvent::Fact { .. }
-            | OpenEvent::Unauthorized { .. }
-            | OpenEvent::Limited { .. }
-            | OpenEvent::Refused { .. }
-            | OpenEvent::Call { .. }
-            | OpenEvent::Withdraw { .. }) => smith::process::Event::Received { owner: agent, message: channel(event)? },
+            Received::Hangup { .. } => smith::process::Event::Hangup { owner: agent },
+            Received::Sent { .. } => smith::process::Event::Sent { owner: agent },
+            Received::Unsent { .. } => smith::process::Event::Unsent { owner: agent },
+            Received::Answer { answer, .. } => {
+                smith::process::Event::Received { owner: agent, message: smith::Up::Answer { answer } }
+            }
+            Received::Message { message } => smith::process::Event::Received { owner: agent, message },
         },
     };
     Some(jig_test_worker::Event::Process(Box::new(event)))
@@ -282,35 +273,11 @@ fn exited(exit: Option<skein_io::kernel::Exit>) -> Option<smith::Exit> {
         None => None,
     }
 }
-fn channel(event: smith_host_protocol::OpenEvent) -> Option<smith::Up> {
-    use smith_host_protocol::OpenEvent;
-    Some(match event {
-        OpenEvent::MessageRefused { name, reason } => smith::Up::MessageRefused { name, reason },
-        OpenEvent::Answer { answer, .. } => smith::Up::Answer { answer },
-        OpenEvent::Admitted => smith::Up::Admitted,
-        OpenEvent::Waiting { read } => smith::Up::Waiting { read },
-        OpenEvent::Long { operation, span } => smith::Up::Long { operation, span },
-        OpenEvent::LongDone => smith::Up::LongDone,
-        OpenEvent::Turn { turn } => smith::Up::Turn { turn },
-        OpenEvent::Fact { body } => smith::Up::Fact { body },
-        OpenEvent::Unauthorized { account, generation } => smith::Up::Unauthorized { account, generation },
-        OpenEvent::Limited { account, reset } => smith::Up::Limited { account, reset },
-        OpenEvent::Refused { account, code, reason } => smith::Up::Refused { account, code, reason },
-        OpenEvent::Call { call, name, deadline, ask } => smith::Up::Call { call, name, deadline, ask },
-        OpenEvent::Withdraw { call } => smith::Up::Withdraw { call },
-        OpenEvent::Opened { .. }
-        | OpenEvent::Live { .. }
-        | OpenEvent::WriteFailed
-        | OpenEvent::Hangup { .. }
-        | OpenEvent::Sent { .. }
-        | OpenEvent::Unsent { .. } => return None,
-    })
-}
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use smith_host_protocol::{OpenEvent, ProcessEvent};
+    use smith_host_protocol::{ProcessEvent, Received};
 
     const AGENT: Token = Token::new(71);
     const RUN: Token = Token::new(43);
@@ -330,7 +297,7 @@ mod tests {
     fn live(kind: smith_channel::LiveKind, call: Option<smith_channel::LiveCall>) -> ProcessEvent {
         ProcessEvent::Channel {
             agent: AGENT,
-            event: Box::new(OpenEvent::Live {
+            event: Box::new(Received::Live {
                 turn: TURN,
                 retry: RETRY,
                 kind,

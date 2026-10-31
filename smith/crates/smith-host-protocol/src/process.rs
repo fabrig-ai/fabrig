@@ -11,7 +11,7 @@ use skein_io::{Event as IoEvent, Request as IoRequest, kernel};
 use skein_lib::{List, Queue, Time, Token, stream};
 use smith_host_domain::channel;
 
-use crate::{Component, Error, Limits, OpenEvent, Values};
+use crate::{Component, Error, Limits, Received, Values};
 
 const STDERR_READ: u32 = 4096;
 
@@ -40,7 +40,7 @@ pub enum ProcessEvent {
     /// The child, its pipes and its bounded error tail settled.
     Reaped { agent: Token, detail: Box<[u8]> },
     /// One event from the opened channel, for the host-domain translation.
-    Channel { agent: Token, event: Box<OpenEvent> },
+    Channel { agent: Token, event: Box<Received> },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -75,7 +75,7 @@ pub struct Process {
     channel_ended: bool,
     stderr_demanded: bool,
     tail: List<u8>,
-    channel_events: Queue<OpenEvent>,
+    channel_events: Queue<Received>,
     channel_below: Queue<Lower>,
 }
 
@@ -390,7 +390,7 @@ impl Process {
                 continue;
             }
             match event {
-                OpenEvent::Opened { .. } if self.state == State::Opening => {
+                Received::Opened { .. } if self.state == State::Opening => {
                     self.state = State::Ready;
                     above.push(ProcessEvent::Spawned {
                         agent: self.agent,
@@ -400,41 +400,30 @@ impl Process {
                         above.push(ProcessEvent::Exited { agent: self.agent, exit: self.exit });
                     }
                 }
-                OpenEvent::Hangup { .. } if self.state == State::Opening => {
+                Received::Hangup { .. } if self.state == State::Opening => {
                     self.channel_ended = true;
                     self.fail(below);
                 }
-                OpenEvent::Hangup { .. } if self.state == State::Ready => {
+                Received::Hangup { .. } if self.state == State::Ready => {
                     self.channel_ended = true;
                     if let Some(output) = self.output {
                         below.push(IoRequest::Close { entity: output });
                     }
                     above.push(ProcessEvent::Channel { agent: self.agent, event: Box::new(event) });
                 }
-                event @ OpenEvent::Answer { .. } => {
+                event @ Received::Answer { .. } => {
                     if let Some(input) = self.input {
                         below.push(IoRequest::Stream { stream: input, down: stream::Down::Finish });
                     }
                     above.push(ProcessEvent::Channel { agent: self.agent, event: Box::new(event) });
                 }
-                event @ (OpenEvent::Opened { .. }
-                | OpenEvent::Hangup { .. }
-                | OpenEvent::Sent { .. }
-                | OpenEvent::Unsent { .. }
-                | OpenEvent::MessageRefused { .. }
-                | OpenEvent::Admitted
-                | OpenEvent::Waiting { .. }
-                | OpenEvent::Long { .. }
-                | OpenEvent::LongDone
-                | OpenEvent::Turn { .. }
-                | OpenEvent::Fact { .. }
-                | OpenEvent::Live { .. }
-                | OpenEvent::Unauthorized { .. }
-                | OpenEvent::Limited { .. }
-                | OpenEvent::Refused { .. }
-                | OpenEvent::WriteFailed
-                | OpenEvent::Call { .. }
-                | OpenEvent::Withdraw { .. }) => {
+                event @ (Received::Opened { .. }
+                | Received::Hangup { .. }
+                | Received::Sent { .. }
+                | Received::Unsent { .. }
+                | Received::Message { .. }
+                | Received::Live { .. }
+                | Received::WriteFailed) => {
                     above.push(ProcessEvent::Channel { agent: self.agent, event: Box::new(event) });
                 }
             }

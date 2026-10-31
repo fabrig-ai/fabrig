@@ -642,25 +642,14 @@ impl HostIo {
             let event = self.process_events.pop().expect("bounded queued events");
             match &event {
                 protocol::ProcessEvent::Channel { event, .. } => match event.as_ref() {
-                    protocol::OpenEvent::WriteFailed => continue,
-                    protocol::OpenEvent::Opened { .. }
-                    | protocol::OpenEvent::Sent { .. }
-                    | protocol::OpenEvent::Unsent { .. }
-                    | protocol::OpenEvent::Hangup { .. }
-                    | protocol::OpenEvent::Answer { .. }
-                    | protocol::OpenEvent::Admitted
-                    | protocol::OpenEvent::MessageRefused { .. }
-                    | protocol::OpenEvent::Waiting { .. }
-                    | protocol::OpenEvent::Long { .. }
-                    | protocol::OpenEvent::LongDone
-                    | protocol::OpenEvent::Turn { .. }
-                    | protocol::OpenEvent::Fact { .. }
-                    | protocol::OpenEvent::Live { .. }
-                    | protocol::OpenEvent::Unauthorized { .. }
-                    | protocol::OpenEvent::Limited { .. }
-                    | protocol::OpenEvent::Refused { .. }
-                    | protocol::OpenEvent::Call { .. }
-                    | protocol::OpenEvent::Withdraw { .. } => {}
+                    protocol::Received::WriteFailed => continue,
+                    protocol::Received::Opened { .. }
+                    | protocol::Received::Sent { .. }
+                    | protocol::Received::Unsent { .. }
+                    | protocol::Received::Hangup { .. }
+                    | protocol::Received::Answer { .. }
+                    | protocol::Received::Message { .. }
+                    | protocol::Received::Live { .. } => {}
                 },
                 protocol::ProcessEvent::Spawned { .. }
                 | protocol::ProcessEvent::Unspawned { .. }
@@ -910,25 +899,14 @@ impl HostIo {
 fn read_terminal(event: &protocol::ProcessEvent) -> bool {
     match event {
         protocol::ProcessEvent::Channel { event, .. } => match event.as_ref() {
-            protocol::OpenEvent::Opened { .. }
-            | protocol::OpenEvent::Sent { .. }
-            | protocol::OpenEvent::Unsent { .. }
-            | protocol::OpenEvent::WriteFailed => false,
-            protocol::OpenEvent::Hangup { .. }
-            | protocol::OpenEvent::Answer { .. }
-            | protocol::OpenEvent::Admitted
-            | protocol::OpenEvent::MessageRefused { .. }
-            | protocol::OpenEvent::Waiting { .. }
-            | protocol::OpenEvent::Long { .. }
-            | protocol::OpenEvent::LongDone
-            | protocol::OpenEvent::Turn { .. }
-            | protocol::OpenEvent::Fact { .. }
-            | protocol::OpenEvent::Live { .. }
-            | protocol::OpenEvent::Unauthorized { .. }
-            | protocol::OpenEvent::Limited { .. }
-            | protocol::OpenEvent::Refused { .. }
-            | protocol::OpenEvent::Call { .. }
-            | protocol::OpenEvent::Withdraw { .. } => true,
+            protocol::Received::Opened { .. }
+            | protocol::Received::Sent { .. }
+            | protocol::Received::Unsent { .. }
+            | protocol::Received::WriteFailed => false,
+            protocol::Received::Hangup { .. }
+            | protocol::Received::Answer { .. }
+            | protocol::Received::Message { .. }
+            | protocol::Received::Live { .. } => true,
         },
         protocol::ProcessEvent::Spawned { .. }
         | protocol::ProcessEvent::Unspawned { .. }
@@ -965,60 +943,21 @@ pub const fn to_host_exit(exit: Option<kernel::Exit>) -> Option<host::Exit> {
     }
 }
 
-pub(crate) fn channel_event(agent: Token, event: protocol::OpenEvent) -> host::Input {
-    use protocol::OpenEvent;
+pub(crate) fn channel_event(agent: Token, event: protocol::Received) -> host::Input {
+    use protocol::Received;
     match event {
-        OpenEvent::Opened { .. } => unreachable!("opened is emitted as Spawned"),
-        OpenEvent::Hangup { .. } => host::Input::Process(host::process::Event::Hangup { owner: agent }),
-        OpenEvent::Sent { .. } => host::Input::Process(host::process::Event::Sent { owner: agent }),
-        OpenEvent::Unsent { .. } => host::Input::Process(host::process::Event::Unsent { owner: agent }),
-        OpenEvent::Answer { answer, .. } => {
+        Received::Message { message } => host::Input::Process(host::process::Event::Received { owner: agent, message }),
+        Received::Opened { .. } => unreachable!("opened is emitted as Spawned"),
+        Received::Hangup { .. } => host::Input::Process(host::process::Event::Hangup { owner: agent }),
+        Received::Sent { .. } => host::Input::Process(host::process::Event::Sent { owner: agent }),
+        Received::Unsent { .. } => host::Input::Process(host::process::Event::Unsent { owner: agent }),
+        Received::Answer { answer, .. } => {
             host::Input::Process(host::process::Event::Received { owner: agent, message: host::Up::Answer { answer } })
         }
-        OpenEvent::MessageRefused { name, reason } => host::Input::Process(host::process::Event::Received {
-            owner: agent,
-            message: host::Up::MessageRefused { name, reason },
-        }),
-        OpenEvent::Admitted => {
-            host::Input::Process(host::process::Event::Received { owner: agent, message: host::Up::Admitted })
-        }
-        OpenEvent::Waiting { read } => {
-            host::Input::Process(host::process::Event::Received { owner: agent, message: host::Up::Waiting { read } })
-        }
-        OpenEvent::Long { operation, span } => host::Input::Process(host::process::Event::Received {
-            owner: agent,
-            message: host::Up::Long { operation, span },
-        }),
-        OpenEvent::LongDone => {
-            host::Input::Process(host::process::Event::Received { owner: agent, message: host::Up::LongDone })
-        }
-        OpenEvent::Turn { turn } => {
-            host::Input::Process(host::process::Event::Received { owner: agent, message: host::Up::Turn { turn } })
-        }
-        OpenEvent::Live { .. } => host::Input::Process(host::process::Event::Progress { owner: agent }),
-        OpenEvent::Fact { body } => {
-            host::Input::Process(host::process::Event::Received { owner: agent, message: host::Up::Fact { body } })
-        }
-        OpenEvent::Unauthorized { account, generation } => host::Input::Process(host::process::Event::Received {
-            owner: agent,
-            message: host::Up::Unauthorized { account, generation },
-        }),
-        OpenEvent::Limited { account, reset } => host::Input::Process(host::process::Event::Received {
-            owner: agent,
-            message: host::Up::Limited { account, reset },
-        }),
-        OpenEvent::Refused { account, code, reason } => host::Input::Process(host::process::Event::Received {
-            owner: agent,
-            message: host::Up::Refused { account, code, reason },
-        }),
-        OpenEvent::WriteFailed => unreachable!("write failure does not end a host read"),
-        OpenEvent::Call { call, name, deadline, ask } => host::Input::Process(host::process::Event::Received {
-            owner: agent,
-            message: host::Up::Call { call, name, deadline, ask },
-        }),
-        OpenEvent::Withdraw { call } => {
-            host::Input::Process(host::process::Event::Received { owner: agent, message: host::Up::Withdraw { call } })
-        }
+
+        Received::Live { .. } => host::Input::Process(host::process::Event::Progress { owner: agent }),
+
+        Received::WriteFailed => unreachable!("write failure does not end a host read"),
     }
 }
 
@@ -1576,15 +1515,19 @@ mod tests {
         let mut adapter = HostIo::new(&config.limits.process, config.launch, config.endpoints, 1).expect("adapter");
         adapter
             .process_events
-            .push(protocol::ProcessEvent::Channel { agent: owner, event: Box::new(protocol::OpenEvent::WriteFailed) });
+            .push(protocol::ProcessEvent::Channel { agent: owner, event: Box::new(protocol::Received::WriteFailed) });
         adapter.process_events.push(protocol::ProcessEvent::Channel {
             agent: owner,
-            event: Box::new(protocol::OpenEvent::Fact { body: b"first".as_slice().into() }),
+            event: Box::new(protocol::Received::Message {
+                message: smith_host_domain::Up::Fact { body: b"first".as_slice().into() },
+            }),
         });
         adapter.process_events.push(protocol::ProcessEvent::Exited { agent: owner, exit: None });
         adapter.process_events.push(protocol::ProcessEvent::Channel {
             agent: owner,
-            event: Box::new(protocol::OpenEvent::Fact { body: b"second".as_slice().into() }),
+            event: Box::new(protocol::Received::Message {
+                message: smith_host_domain::Up::Fact { body: b"second".as_slice().into() },
+            }),
         });
         adapter
     }
@@ -1628,7 +1571,7 @@ mod tests {
         adapter.reading = true;
         adapter
             .process_events
-            .push(protocol::ProcessEvent::Channel { agent: owner, event: Box::new(protocol::OpenEvent::WriteFailed) });
+            .push(protocol::ProcessEvent::Channel { agent: owner, event: Box::new(protocol::Received::WriteFailed) });
         adapter.drain_process(&mut events);
         assert!(adapter.reading, "an independent write failure leaves the read owed");
         assert!(events.is_empty());

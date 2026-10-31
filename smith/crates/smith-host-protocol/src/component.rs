@@ -9,7 +9,7 @@
 //! retained, since answers need no withdrawal and those names grow with a run.
 use alloc::boxed::Box;
 use skein_channel::{Closed, Event, Lower, LowerEvent, Machine, Request, Role, Schema, StreamMode, frame_writer};
-use skein_lib::{Duration, Map, Queue, Time, Token, Writer};
+use skein_lib::{Map, Queue, Time, Token, Writer};
 use smith_host_domain::channel;
 
 use crate::limits::{Error, Limits};
@@ -48,9 +48,9 @@ impl CallKey {
     }
 }
 
-/// An opening result for the host service.
+/// A checked channel message or transport event for the host service.
 #[derive(Debug, PartialEq, Eq)]
-pub enum OpenEvent {
+pub enum Received {
     /// Framing and terms have been agreed at this version.
     Opened { version: u16 },
     /// The channel ended before or after opening.
@@ -61,20 +61,8 @@ pub enum OpenEvent {
     Unsent { token: Token, why: skein_channel::Unsent },
     /// The agent's last word in host-domain vocabulary, with its wire record for audit.
     Answer { answer: channel::Answer, record: smith_channel::Answer },
-    /// The agent admitted the Start before its later final answer.
-    Admitted,
-    /// The run refused one named host message at ingress.
-    MessageRefused { name: Token, reason: smith_host_domain::MessageRefusal },
-    /// The run is waiting after reading the named message, if any.
-    Waiting { read: Option<Token> },
-    /// The run announced a long operation with a bounded progress extension.
-    Long { operation: smith_domain::Operation, span: Duration },
-    /// The run ended its announced long operation.
-    LongDone,
-    /// One concrete turn and its checked host envelope.
-    Turn { turn: channel::Turn },
-    /// One content-free, best-effort fact kept in its bounded wire body.
-    Fact { body: Box<[u8]> },
+    /// A checked agent message translated into the host's channel vocabulary.
+    Message { message: channel::Up },
     /// One live piece checked against the start and stream order, for the owner.
     Live {
         turn: u32,
@@ -84,18 +72,8 @@ pub enum OpenEvent {
         bytes: Box<[u8]>,
         call: Option<smith_channel::LiveCall>,
     },
-    /// A provider rejected this known account and credential generation.
-    Unauthorized { account: u32, generation: u64 },
-    /// A provider exhausted this known account for a relative cooldown.
-    Limited { account: u32, reset: Option<Duration> },
-    /// A provider refused an account request, with bounded code and reason.
-    Refused { account: u32, code: Box<[u8]>, reason: Box<[u8]> },
     /// The independent write stream failed while reads may still settle.
     WriteFailed,
-    /// A named operation whose one host terminal remains owed.
-    Call { call: Token, name: channel::CallName, deadline: Time, ask: channel::Ask },
-    /// The agent withdrew a call; its terminal still remains owed.
-    Withdraw { call: Token },
 }
 
 /// The initiator's framed channel and checked sending terms.
@@ -164,13 +142,13 @@ impl Component {
     }
 
     /// Start the pipe opening with its empty credential.
-    pub fn open(&mut self, to_service: &mut Queue<OpenEvent>, below: &mut Queue<Lower>) {
+    pub fn open(&mut self, to_service: &mut Queue<Received>, below: &mut Queue<Lower>) {
         self.machine.down(Request::Open { credential: Box::default() }, &mut self.events, below);
         self.fire(to_service, below);
     }
 
     /// Demand one record, one live piece or the channel's end, answered once.
-    pub fn read(&mut self, to_service: &mut Queue<OpenEvent>, below: &mut Queue<Lower>) {
+    pub fn read(&mut self, to_service: &mut Queue<Received>, below: &mut Queue<Lower>) {
         assert!(self.state != State::Opening, "application reads follow opening");
         assert!(!self.reading, "one application read at a time");
         assert!(!self.ended, "no read after the delivered end");
@@ -197,7 +175,7 @@ impl Component {
         window: channel::Window,
         values: Values,
         token: Token,
-        to_service: &mut Queue<OpenEvent>,
+        to_service: &mut Queue<Received>,
         below: &mut Queue<Lower>,
     ) -> Result<(), Error> {
         let sequence = match &start.transcript {
@@ -227,7 +205,7 @@ impl Component {
         &mut self,
         message: channel::Message,
         token: Token,
-        to_service: &mut Queue<OpenEvent>,
+        to_service: &mut Queue<Received>,
         below: &mut Queue<Lower>,
     ) -> Result<(), Error> {
         if self.state != State::Admitted {
@@ -253,7 +231,7 @@ impl Component {
         call: Token,
         reply: channel::Reply,
         token: Token,
-        to_service: &mut Queue<OpenEvent>,
+        to_service: &mut Queue<Received>,
         below: &mut Queue<Lower>,
     ) -> Result<(), Error> {
         if self.state != State::Admitted {
@@ -274,7 +252,7 @@ impl Component {
         &mut self,
         turn: u32,
         token: Token,
-        to_service: &mut Queue<OpenEvent>,
+        to_service: &mut Queue<Received>,
         below: &mut Queue<Lower>,
     ) -> Result<(), Error> {
         if self.state != State::Admitted {
@@ -300,7 +278,7 @@ impl Component {
         grant: channel::Grant,
         credential: smith_protocol_translate::GrantValue,
         token: Token,
-        to_service: &mut Queue<OpenEvent>,
+        to_service: &mut Queue<Received>,
         below: &mut Queue<Lower>,
     ) -> Result<(), Error> {
         if self.state != State::Admitted {
@@ -337,7 +315,7 @@ impl Component {
     pub fn send_cancel(
         &mut self,
         token: Token,
-        to_service: &mut Queue<OpenEvent>,
+        to_service: &mut Queue<Received>,
         below: &mut Queue<Lower>,
     ) -> Result<(), Error> {
         if self.state != State::Started && self.state != State::Admitted || self.cancelled {
@@ -359,14 +337,14 @@ impl Component {
     }
 
     /// Consume one stream event and progress the opening.
-    pub fn from_below(&mut self, event: LowerEvent, to_service: &mut Queue<OpenEvent>, below: &mut Queue<Lower>) {
+    pub fn from_below(&mut self, event: LowerEvent, to_service: &mut Queue<Received>, below: &mut Queue<Lower>) {
         self.machine.up(event, &mut self.events, below);
         self.drain(to_service, below);
         self.fire(to_service, below);
     }
 
     /// Request the next read or write operation.
-    pub fn fire(&mut self, to_service: &mut Queue<OpenEvent>, below: &mut Queue<Lower>) {
+    pub fn fire(&mut self, to_service: &mut Queue<Received>, below: &mut Queue<Lower>) {
         self.machine.poll(&mut self.events, below);
         self.drain(to_service, below);
     }
@@ -377,7 +355,7 @@ impl Component {
         self.state != State::Opening
     }
 
-    fn drain(&mut self, to_service: &mut Queue<OpenEvent>, below: &mut Queue<Lower>) {
+    fn drain(&mut self, to_service: &mut Queue<Received>, below: &mut Queue<Lower>) {
         // Eight child transitions bound an entrance: opening/terms, one demanded
         // record or refusal, and its output and close notifications.
         for _ in 0..CHILD_TRANSITIONS {
@@ -401,7 +379,7 @@ impl Component {
                         }
                         None => {
                             self.state = State::Opened;
-                            to_service.push(OpenEvent::Opened { version });
+                            to_service.push(Received::Opened { version });
                         }
                     }
                 }
@@ -418,10 +396,10 @@ impl Component {
                     }
                 }
                 Some(Event::Sent { token }) => {
-                    to_service.push(OpenEvent::Sent { token });
+                    to_service.push(Received::Sent { token });
                 }
                 Some(Event::Unsent { token, why }) => {
-                    to_service.push(OpenEvent::Unsent { token, why });
+                    to_service.push(Received::Unsent { token, why });
                 }
                 Some(Event::Ping | Event::Unsupported { .. }) => {
                     if self.reading {
@@ -429,25 +407,25 @@ impl Component {
                     }
                 }
                 Some(Event::Refused { .. } | Event::Drained) | None => {}
-                Some(Event::OutputFailed) => to_service.push(OpenEvent::WriteFailed),
+                Some(Event::OutputFailed) => to_service.push(Received::WriteFailed),
             }
         }
     }
 
-    fn deliver(&mut self, event: OpenEvent, to_service: &mut Queue<OpenEvent>) {
+    fn deliver(&mut self, event: Received, to_service: &mut Queue<Received>) {
         assert!(self.reading, "one record answers one application read");
         self.reading = false;
         to_service.push(event);
     }
 
-    fn end(&mut self, why: Closed, to_service: &mut Queue<OpenEvent>) {
+    fn end(&mut self, why: Closed, to_service: &mut Queue<Received>) {
         if self.ended || self.held.is_some() {
             return;
         }
         if self.state == State::Opening || self.reading {
             self.reading = false;
             self.ended = true;
-            to_service.push(OpenEvent::Hangup { why });
+            to_service.push(Received::Hangup { why });
         } else {
             self.held = Some(why);
         }
@@ -477,7 +455,7 @@ fn kind_text(kind: u16) -> Box<[u8]> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Component, Event, OpenEvent};
+    use super::{Component, Event, Received};
     use alloc::boxed::Box;
     use skein_channel::{Lower, LowerEvent};
     use skein_lib::{Queue, Writer, stream};
@@ -558,7 +536,7 @@ mod tests {
         component.drain(&mut above, &mut below);
         assert!(above.is_empty(), "closure between reads is held");
         component.read(&mut above, &mut below);
-        assert_eq!(above.pop(), Some(OpenEvent::Hangup { why: skein_channel::Closed::Truncated }));
+        assert_eq!(above.pop(), Some(Received::Hangup { why: skein_channel::Closed::Truncated }));
         assert!(!component.reading);
         assert!(below.is_empty(), "held closure answers synchronously");
         component.events.push(Event::Closed { why: skein_channel::Closed::Stream });
@@ -578,14 +556,16 @@ mod tests {
         component.read(&mut above, &mut below);
         component.events.push(Event::Body { kind: 0x0109, body: turn_body(bytes) });
         component.drain(&mut above, &mut below);
-        let Some(OpenEvent::Turn { turn }) = above.pop() else { panic!("typed turn") };
+        let Some(Received::Message { message: smith_host_domain::Up::Turn { turn } }) = above.pop() else {
+            panic!("typed turn")
+        };
         assert_eq!(turn.body.into_value(), source);
         let source = smith_host_world::declared_value(32).into_value();
         let bytes = smith_protocol_translate::encode_result(&source, &component.charter).expect("result codec");
         component.read(&mut above, &mut below);
         component.events.push(Event::Body { kind: 0x0110, body: accepted_body(bytes) });
         component.drain(&mut above, &mut below);
-        let Some(OpenEvent::Answer { answer, .. }) = above.pop() else { panic!("typed result") };
+        let Some(Received::Answer { answer, .. }) = above.pop() else { panic!("typed result") };
         let smith_host_domain::RunResult::Accepted { outcome } = answer.result else { panic!("accepted result") };
         assert_eq!(outcome.into_value(), source);
     }

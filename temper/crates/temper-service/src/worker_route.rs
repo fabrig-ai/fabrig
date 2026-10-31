@@ -210,15 +210,15 @@ pub fn decode(run: Token, source: hub::Start, agent: &crate::settings::Agent) ->
 
 #[must_use]
 pub fn process(event: smith_host_protocol::ProcessEvent) -> Option<temper_worker_domain::Event> {
-    use smith_host_protocol::{OpenEvent, ProcessEvent};
+    use smith_host_protocol::{ProcessEvent, Received};
     let event = match event {
         ProcessEvent::Spawned { agent, process } => smith::process::Event::Spawned { owner: agent, process },
         ProcessEvent::Unspawned { agent, detail } => smith::process::Event::Unspawned { owner: agent, detail },
         ProcessEvent::Exited { agent, exit } => smith::process::Event::Exited { owner: agent, exit: exited(exit) },
         ProcessEvent::Reaped { agent, detail } => smith::process::Event::Reaped { owner: agent, detail },
         ProcessEvent::Channel { agent, event } => match *event {
-            OpenEvent::Opened { .. } | OpenEvent::WriteFailed => return None,
-            OpenEvent::Live { turn, retry, kind, offset, bytes, call } => {
+            Received::Opened { .. } | Received::WriteFailed => return None,
+            Received::Live { turn, retry, kind, offset, bytes, call } => {
                 let kind = match kind {
                     smith_channel::LiveKind::Text => {
                         if call.is_some() {
@@ -242,22 +242,13 @@ pub fn process(event: smith_host_protocol::ProcessEvent) -> Option<temper_worker
                     piece: hub::Piece { turn, retry, kind, offset, bytes },
                 });
             }
-            OpenEvent::Hangup { .. } => smith::process::Event::Hangup { owner: agent },
-            OpenEvent::Sent { .. } => smith::process::Event::Sent { owner: agent },
-            OpenEvent::Unsent { .. } => smith::process::Event::Unsent { owner: agent },
-            event @ (OpenEvent::Answer { .. }
-            | OpenEvent::Admitted
-            | OpenEvent::MessageRefused { .. }
-            | OpenEvent::Waiting { .. }
-            | OpenEvent::Long { .. }
-            | OpenEvent::LongDone
-            | OpenEvent::Turn { .. }
-            | OpenEvent::Fact { .. }
-            | OpenEvent::Unauthorized { .. }
-            | OpenEvent::Limited { .. }
-            | OpenEvent::Refused { .. }
-            | OpenEvent::Call { .. }
-            | OpenEvent::Withdraw { .. }) => smith::process::Event::Received { owner: agent, message: channel(event)? },
+            Received::Hangup { .. } => smith::process::Event::Hangup { owner: agent },
+            Received::Sent { .. } => smith::process::Event::Sent { owner: agent },
+            Received::Unsent { .. } => smith::process::Event::Unsent { owner: agent },
+            Received::Answer { answer, .. } => {
+                smith::process::Event::Received { owner: agent, message: smith::Up::Answer { answer } }
+            }
+            Received::Message { message } => smith::process::Event::Received { owner: agent, message },
         },
     };
     Some(temper_worker_domain::Event::Process(Box::new(event)))
@@ -336,30 +327,6 @@ fn exited(exit: Option<skein_io::kernel::Exit>) -> Option<smith::Exit> {
         Some(skein_io::kernel::Exit::Signal(signal)) => Some(smith::Exit::Signal(signal)),
         None => None,
     }
-}
-fn channel(event: smith_host_protocol::OpenEvent) -> Option<smith::Up> {
-    use smith_host_protocol::OpenEvent;
-    Some(match event {
-        OpenEvent::MessageRefused { name, reason } => smith::Up::MessageRefused { name, reason },
-        OpenEvent::Answer { answer, .. } => smith::Up::Answer { answer },
-        OpenEvent::Admitted => smith::Up::Admitted,
-        OpenEvent::Waiting { read } => smith::Up::Waiting { read },
-        OpenEvent::Long { operation, span } => smith::Up::Long { operation, span },
-        OpenEvent::LongDone => smith::Up::LongDone,
-        OpenEvent::Turn { turn } => smith::Up::Turn { turn },
-        OpenEvent::Fact { body } => smith::Up::Fact { body },
-        OpenEvent::Unauthorized { account, generation } => smith::Up::Unauthorized { account, generation },
-        OpenEvent::Limited { account, reset } => smith::Up::Limited { account, reset },
-        OpenEvent::Refused { account, code, reason } => smith::Up::Refused { account, code, reason },
-        OpenEvent::Call { call, name, deadline, ask } => smith::Up::Call { call, name, deadline, ask },
-        OpenEvent::Withdraw { call } => smith::Up::Withdraw { call },
-        OpenEvent::Live { .. }
-        | OpenEvent::Opened { .. }
-        | OpenEvent::WriteFailed
-        | OpenEvent::Hangup { .. }
-        | OpenEvent::Sent { .. }
-        | OpenEvent::Unsent { .. } => return None,
-    })
 }
 
 /// Workspace items named by the assignment, decoded before entering the root.
