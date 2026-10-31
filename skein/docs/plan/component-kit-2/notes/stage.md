@@ -56,6 +56,11 @@ read their `///` contracts on your base.
   purpose): move it if the order its tests pin is kept, for instance by
   routing its own completions before `stage::up`; otherwise leave it and
   name it, with the test that pins the order.
+- **A site that handles io's events after each single step** (a loop
+  of one resume, up or fire, then its events): move it only if its event
+  queue holds what a whole `stage::up` pass tells (sized from io's limits,
+  or uncapped); otherwise leave it and name it. Never enlarge a queue a
+  limit or a design sizes.
 - **A site that measures each step** against its `MAX_OUT` (an io bound
   test): leave it and name it.
 - **A site that drains completions from somewhere other than a
@@ -71,6 +76,12 @@ read their `///` contracts on your base.
   forwarding exposes, stop with a `Question:`.
 - **A host that holds io but stated no mechanism deadline** in its old
   `next_deadline` (it merged nothing): keep its `next_deadline`.
+- **A dispatcher variant that holds no `Host`** (a step machine its
+  dispatcher drove through free functions and a `Limits`): a small host
+  type in the same file holds the machine and what the dispatcher used
+  (its limits), implements `Host` with the calls the dispatcher made, and
+  the variant holds it. Typed accessors (`as_client` and the like) keep
+  their return types. Nothing moves into the machine's own crate.
 - **A dispatcher whose `impl Host` does more than forward** (it adds work
   in `iterate`, or a deadline of its own): keep it; it is a wrapper, not
   a dispatcher, and is not counted.
