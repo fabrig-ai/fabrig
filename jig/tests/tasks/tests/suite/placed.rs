@@ -804,19 +804,11 @@ fn restart_leaves_unheld_tasks_in_scope_to_the_referee() {
             task.phase = Phase::Active(Active::Due);
         }
     }
-    let live = rows
-        .iter()
-        .filter_map(|row| match row {
-            Stored::Live(row) => Some(*row.clone()),
-            _ => None,
-        })
-        .collect();
+    let live =
+        rows.iter().filter_map(|row| if let Stored::Live(row) = row { Some(*row.clone()) } else { None }).collect();
     let holds = rows
         .iter()
-        .filter_map(|row| match row {
-            Stored::PlacedHold(row) => Some(*row.clone()),
-            _ => None,
-        })
+        .filter_map(|row| if let Stored::PlacedHold(row) = row { Some(*row.clone()) } else { None })
         .collect();
     assert!(check_rows(rows, &world.env).is_empty());
     let mut referee = skein_world::domain::Referee::new(jig_tasks_world::referee::Tasks::default());

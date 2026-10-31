@@ -364,14 +364,14 @@ fn missing_funder_panics_with_record_and_target_after_load() {
 
 #[test]
 fn restore_fits_payload_and_collection_bounds_and_keeps_failure_sticky() {
-    use jig_domain_tasks::{Request, RestoreBound, RestoreCause, RestoreFailure, step};
-    let mut source = World::new(42, LIMITS);
-    source.make(Party::Person(1), vec![task(1, &[])]);
     struct Case {
         name: &'static str,
         apply: fn(&mut jig_domain_tasks::TaskRecord),
         cause: RestoreCause,
     }
+    use jig_domain_tasks::{Request, RestoreBound, RestoreCause, RestoreFailure, step};
+    let mut source = World::new(42, LIMITS);
+    source.make(Party::Person(1), vec![task(1, &[])]);
     let cases = [
         Case {
             name: "unfinished dependencies",
@@ -450,13 +450,13 @@ fn restore_fits_payload_and_collection_bounds_and_keeps_failure_sticky() {
 
 #[test]
 fn restore_does_not_rejudge_shape_phase_authorization_or_funding_conservation() {
-    use jig_domain_tasks::{Escalation, EscalationHolder, Funder, Hold, Was};
-    let mut source = World::new(43, LIMITS);
-    source.make(Party::Person(1), vec![task(1, &[]), task(2, &[])]);
     struct Case {
         name: &'static str,
         apply: fn(&mut jig_domain_tasks::TaskRecord),
     }
+    use jig_domain_tasks::{Escalation, EscalationHolder, Funder, Hold, Was};
+    let mut source = World::new(43, LIMITS);
+    source.make(Party::Person(1), vec![task(1, &[]), task(2, &[])]);
     let cases = [
         Case {
             name: "activity before creation",
@@ -531,10 +531,7 @@ fn restore_does_not_rejudge_shape_phase_authorization_or_funding_conservation() 
         }
         let expected = rows
             .iter()
-            .find_map(|row| match row {
-                Stored::Live(row) if row.number == 1 => Some(*row.clone()),
-                _ => None,
-            })
+            .find_map(|row| if let Stored::Live(row) = row { (row.number == 1).then(|| *row.clone()) } else { None })
             .expect("changed live row");
         let restored = load_and_link(rows, &source.env);
         assert_eq!(restored.task(1), Some(&expected), "{}", case.name);
@@ -601,13 +598,13 @@ fn missing_hold_owner_panics_with_record_and_target_after_load() {
 
 #[test]
 fn writer_referee_catches_phase_observations_and_positions_that_restore_does_not_judge() {
-    let mut source = World::new(47, LIMITS);
-    source.make(Party::Person(1), vec![task(1, &[])]);
     struct Case {
         name: &'static str,
         apply: fn(&mut jig_domain_tasks::TaskRecord),
         expected: &'static str,
     }
+    let mut source = World::new(47, LIMITS);
+    source.make(Party::Person(1), vec![task(1, &[])]);
     let cases = [
         Case {
             name: "run observation",

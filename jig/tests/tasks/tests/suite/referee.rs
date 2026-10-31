@@ -303,13 +303,13 @@ fn missing_end_deadline() {
 }
 
 fn stored_limits() {
-    use jig_tasks_world::{LIMITS, World, task};
-    let mut w = World::new(0, LIMITS);
-    w.make(Party::Person(1), vec![task(1, &[])]);
     struct Case {
         name: &'static str,
         apply: fn(&mut jig_domain_tasks::TaskRecord),
     }
+    use jig_tasks_world::{LIMITS, World, task};
+    let mut w = World::new(0, LIMITS);
+    w.make(Party::Person(1), vec![task(1, &[])]);
     let cases = [
         Case {
             name: "depth",
@@ -399,10 +399,10 @@ fn stored_limits() {
     }]);
 }
 
-#[test]
-fn accounting_referee_rejects_expense_reservation_and_settlement_corruption() {
-    use jig_domain_tasks::{Cause, End, Funder, Key, Stored};
-    use jig_tasks_world::{LIMITS, World, accounting_referee::Accounting, task};
+fn priced_allocation()
+-> (jig_tasks_world::World, std::collections::BTreeMap<jig_domain_tasks::Key, jig_domain_tasks::Stored>) {
+    use jig_domain_tasks::{Cause, End};
+    use jig_tasks_world::{LIMITS, World, task};
     let mut w = World::new(80, LIMITS);
     w.make(Party::Person(1), vec![task(1, &[])]);
     w.claim(1, 1);
@@ -415,10 +415,18 @@ fn accounting_referee_rejects_expense_reservation_and_settlement_corruption() {
         },
         Cause::Priced { cumulative: 7 },
     );
+    (w, before)
+}
+
+#[test]
+fn accounting_referee_rejects_expense_and_reservation_corruption() {
     struct Case {
         name: &'static str,
         apply: fn(&mut jig_domain_tasks::TaskRecord),
     }
+    use jig_domain_tasks::{Key, Stored};
+    use jig_tasks_world::accounting_referee::Accounting;
+    let (w, before) = priced_allocation();
     let cases = [
         Case {
             name: "recorded expense",
@@ -449,12 +457,19 @@ fn accounting_referee_rejects_expense_reservation_and_settlement_corruption() {
         judge.charged(1, 7);
         assert!(judge.committed(&bad, &[]).is_err(), "{}", case.name);
     }
-    let before = w.records.clone();
-    w.settle(1);
+}
+
+#[test]
+fn accounting_referee_rejects_settlement_corruption() {
     struct SettlementCase {
         name: &'static str,
         apply: fn(&mut std::collections::BTreeMap<Key, Stored>),
     }
+    use jig_domain_tasks::{Funder, Key, Stored};
+    use jig_tasks_world::accounting_referee::Accounting;
+    let (mut w, _) = priced_allocation();
+    let before = w.records.clone();
+    w.settle(1);
     let cases = [
         SettlementCase {
             name: "missing ended row",

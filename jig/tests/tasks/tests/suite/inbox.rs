@@ -573,6 +573,12 @@ fn news_arriving_after_a_procedures_offer_waits_for_its_own_batch() {
 
 #[test]
 fn the_referee_rejects_a_procedure_keeping_its_prefix_or_taking_later_words() {
+    struct Case {
+        name: &'static str,
+        after_step: bool,
+        retain_prefix: bool,
+        expected: &'static str,
+    }
     let mut world = procedure_watch(868, 3, 20);
     for number in 1..=3 {
         procedure_news(&mut world, number);
@@ -588,12 +594,6 @@ fn the_referee_rejects_a_procedure_keeping_its_prefix_or_taking_later_words() {
         ),
         Reply::Done
     );
-    struct Case {
-        name: &'static str,
-        after_step: bool,
-        retain_prefix: bool,
-        expected: &'static str,
-    }
     let cases = [
         Case {
             name: "consumed prefix kept",
