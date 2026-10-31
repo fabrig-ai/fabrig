@@ -204,7 +204,7 @@ fn snapshot(store: &Store) -> rules::Snapshot {
             root::Record::Core(core::Record::Tasks(
                 jig_domain_tasks::Stored::Live(task) | jig_domain_tasks::Stored::Ended(task),
             )) => {
-                snapshot.tasks.insert(task.number, jig_core_world::observations::task(task));
+                snapshot.tasks.insert(task.number, jig_conformance::core::task(task));
                 snapshot.receipts.insert(rules::Receipt::Task(task.number));
                 if matches!(task.phase, jig_domain_tasks::Phase::Ended(_)) {
                     snapshot.receipts.insert(rules::Receipt::Ended(task.number));

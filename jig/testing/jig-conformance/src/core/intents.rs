@@ -2,16 +2,17 @@
 use super::{core, people, r, tasks};
 #[path = "named.rs"]
 mod named;
-use jig_test_domain::Record;
 use skein_lib::Token;
 use std::collections::{BTreeMap, BTreeSet};
 
-fn signed_party(store: &crate::Store, sign_in: u64) -> Option<u64> {
-    store.rows.values().find_map(|row| match row {
-        Record::Core(core::Record::People(people::Stored::SignIn { number, person, .. })) if *number == sign_in => {
-            Some(*person)
-        }
-        Record::Core(_) | Record::Connector { .. } => None,
+fn signed_party(store: &super::Store<'_>, sign_in: u64) -> Option<u64> {
+    store.rows.values().copied().find_map(|row| match row {
+        core::Record::People(people::Stored::SignIn { number, person, .. }) if *number == sign_in => Some(*person),
+        core::Record::Core(_)
+        | core::Record::Tasks(_)
+        | core::Record::People(_)
+        | core::Record::Notes(_)
+        | core::Record::Accounts(_) => None,
     })
 }
 
@@ -25,14 +26,8 @@ pub struct Intents {
 }
 
 impl Intents {
-    #[must_use]
-    pub fn configured(configuration: &jig_test_domain::Config) -> Self {
-        Self { named: named::Names::configured(configuration), ..Self::default() }
-    }
-
-    pub fn inbound_root(&mut self, store: &crate::Store, event: &mut jig_test_domain::Event) -> Vec<r::Observed> {
-        use jig_test_domain::Event;
-        if let Event::Core(core::Event::People(people::Event::Ask { models: _, reply_to, sign_in, key, ask })) = event {
+    pub fn inbound_core(&mut self, store: &super::Store<'_>, event: &mut core::Event) -> Vec<r::Observed> {
+        if let core::Event::People(people::Event::Ask { models: _, reply_to, sign_in, key, ask }) = event {
             let person = signed_party(store, *sign_in);
             return person.map_or_else(Vec::new, |person| {
                 let mut observed = named::placed_party(store, ask);
@@ -40,40 +35,20 @@ impl Intents {
                 observed
             });
         }
-        if let Event::Core(core::Event::ProposeSettings { reply_to, sign_in, key, .. }) = event {
+        if let core::Event::ProposeSettings { reply_to, sign_in, key, .. } = event {
             let person = signed_party(store, *sign_in);
             return person.map_or_else(Vec::new, |person| self.party_proposal(reply_to, person, *key));
         }
-        if let Event::Core(event) = event {
-            let mut observed = named::placed_run(store, event);
-            observed.extend(self.inbound(event));
-            return observed;
-        }
-        if let Event::Answer { task, attempt, end, .. } = event {
-            return self.terminal(*task, *attempt, end);
-        }
-        if let Event::EffectCall { key, proposal: Some(_), .. } = event {
-            return self.propose(*key);
-        }
-        Vec::new()
+        let mut observed = named::placed_run(store, event);
+        observed.extend(self.inbound(event));
+        observed
     }
-
-    pub fn submitted(&mut self, store: &crate::Store) {
+    pub fn submitted(&mut self, store: &super::Store<'_>) {
         self.named.submitted(store);
     }
-
-    pub fn durable(&mut self, store: &crate::Store) -> Vec<r::Observed> {
+    pub fn durable(&mut self, store: &super::Store<'_>) -> Vec<r::Observed> {
         let mut observed = self.named.durable(store.applied);
-        observed.extend(
-            store
-                .rows
-                .values()
-                .flat_map(|row| match row {
-                    jig_test_domain::Record::Core(record) => self.record(record),
-                    jig_test_domain::Record::Connector { .. } => Vec::new(),
-                })
-                .collect::<Vec<_>>(),
-        );
+        observed.extend(store.rows.values().copied().flat_map(|row| self.record(row)));
         observed
     }
 
