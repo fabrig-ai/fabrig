@@ -178,6 +178,8 @@ pub const PLACEHOLDERS: &[&[u8]] = &[
     b"SOURCE",
     b"POSITION",
     b"NAME",
+    b"HOST:PORT",
+    b"URL",
     b"REVISION",
     b"REV",
     b"PROPOSAL",

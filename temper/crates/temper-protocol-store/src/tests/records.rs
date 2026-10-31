@@ -1,5 +1,5 @@
 use super::fixtures;
-use crate::{records, v10};
+use crate::{records, v11};
 use temper_engine_domain_forge as forge;
 
 #[test]
@@ -55,7 +55,7 @@ fn bounds_take_each_limit_from_its_source() {
 #[test]
 fn bounds_refuse_sources_past_schema_ceilings() {
     let mut larger = fixtures::LIMITS;
-    larger.name_bytes = v10::CEILINGS.adopted_host.checked_add(1).expect("one past ceiling");
+    larger.name_bytes = v11::CEILINGS.adopted_host.checked_add(1).expect("one past ceiling");
     assert_eq!(crate::bounds(&larger, fixtures::LIMITS.client.op_bytes), None);
 }
 
@@ -557,8 +557,8 @@ fn application_limit_refusals(rows: &mut skein_lib::List<jig_domain_people::Refu
 fn application_refusal_lists(rows: &mut skein_lib::List<jig_domain_people::Refusal>) {
     use jig_domain_people as p;
     for (count, circle) in [
-        (jig_protocol_store::people_v13::CEILINGS.refusal_circle_tasks, true),
-        (jig_protocol_store::people_v13::CEILINGS.refusal_kept_pending, false),
+        (jig_protocol_store::people_v14::CEILINGS.refusal_circle_tasks, true),
+        (jig_protocol_store::people_v14::CEILINGS.refusal_kept_pending, false),
     ] {
         let mut tasks = skein_lib::List::with_capacity(count);
         for task in 0..count {
@@ -711,23 +711,23 @@ fn every_application_outcome_preserves_its_complete_record() {
         assert_eq!(bytes[2], 15, "the Application family tag");
     }
     assert!(
-        jig_protocol_store::people_v13::Refusal::encoded_bound(&jig_protocol_store::people_v13::CEILINGS)
+        jig_protocol_store::people_v14::Refusal::encoded_bound(&jig_protocol_store::people_v14::CEILINGS)
             .expect("bounded facts")
-            <= u64::from(v10::CEILINGS.core_refused_refusal)
+            <= u64::from(v11::CEILINGS.core_refused_refusal)
     );
 }
 #[test]
 fn application_decoding_refuses_malformed_refusal_facts() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
     for refusal in [Box::from([255]), Box::from([2]), Box::from([9, 0])] {
-        let value = v10::CoreRefused::new(&v10::CEILINGS, v10::CoreRefusedParts { refusal }).expect("small piece");
-        let application = v10::Application::new(
-            &v10::CEILINGS,
-            v10::ApplicationParts { token: 9, until: 10, outcome: v10::ApplicationOutcome::CoreRefused(value) },
+        let value = v11::CoreRefused::new(&v11::CEILINGS, v11::CoreRefusedParts { refusal }).expect("small piece");
+        let application = v11::Application::new(
+            &v11::CEILINGS,
+            v11::ApplicationParts { token: 9, until: 10, outcome: v11::ApplicationOutcome::CoreRefused(value) },
         )
         .expect("application");
         let row =
-            v10::Row::new(&v10::CEILINGS, v10::RowParts { value: v10::Value::Application(application) }).expect("row");
+            v11::Row::new(&v11::CEILINGS, v11::RowParts { value: v11::Value::Application(application) }).expect("row");
         assert_eq!(records::decode(&fixtures::encoded_row(&row), &bounds), Err(crate::Undecodable));
     }
 }
@@ -773,7 +773,7 @@ fn forge_writers_round_trip_with_the_v6_golden_bytes() {
         let key = crate::keys::encode(&forge::stored_key(&row), u32::MAX).expect("writer key");
         let bytes = records::encode(&row);
         assert_eq!(bytes.len(), 13); // Row version, family, forge, author.
-        assert_eq!(&bytes[..3], &[0, 10, 16]);
+        assert_eq!(&bytes[..3], &[0, 11, 16]);
         assert_eq!(records::row(&key, &bytes, &bounds), Ok(row));
         if forge == u16::MAX {
             let mut golden = [255; 11];
@@ -786,25 +786,6 @@ fn forge_writers_round_trip_with_the_v6_golden_bytes() {
     let other = crate::keys::encode(&forge::Key::Writer(2), u32::MAX).unwrap();
     assert_eq!(records::row(&other, &bytes, &bounds), Err(crate::Undecodable));
     assert_eq!(records::decode(&bytes[..bytes.len() - 1], &bounds), Err(crate::Undecodable));
-}
-
-#[test]
-fn demo_states_round_trip_and_refuse_a_mismatched_key() {
-    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
-    for forge in [0, 1, u16::MAX] {
-        for state in [forge::DemoState::Running, forge::DemoState::Ended] {
-            let row = forge::Stored::Demo(forge::Demo { forge, state });
-            let key = crate::keys::encode(&forge::Key::Demo(forge), u32::MAX).expect("demo key");
-            let bytes = records::encode(&row);
-            assert_eq!(bytes.len(), 6);
-            assert_eq!(&bytes[..3], &[0, 10, 17]);
-            assert_eq!(records::row(&key, &bytes, &bounds), Ok(row));
-            let other = crate::keys::encode(&forge::Key::Demo(forge ^ 1), u32::MAX).expect("other key");
-            assert_eq!(records::row(&other, &bytes, &bounds), Err(crate::Undecodable));
-            let other = crate::keys::encode(&forge::Key::Writer(forge), u32::MAX).expect("other family");
-            assert_eq!(records::row(&other, &bytes, &bounds), Err(crate::Undecodable));
-        }
-    }
 }
 
 #[test]
@@ -821,7 +802,7 @@ fn binding_rows_round_trip_at_the_field_bounds() {
     ] {
         let row = forge::Stored::Binding { address, subject };
         let bytes = records::encode(&row);
-        assert_eq!(&bytes[..3], &[0, 10, 18]);
+        assert_eq!(&bytes[..3], &[0, 11, 17]);
         let key = crate::keys::encode(&forge::stored_key(&row), u32::MAX).unwrap();
         assert_eq!(records::row(&key, &bytes, &bounds), Ok(row));
         let other =
@@ -846,7 +827,7 @@ fn binding_decoder_preserves_bounded_noncanonical_addresses() {
 }
 #[test]
 fn binding_schema_refuses_fields_one_past_their_bounds() {
-    use crate::v10 as w;
+    use crate::v11 as w;
     for (address, subject) in [
         (Box::from([b'a'; 255]), b"subject".as_slice().into()),
         (b"sam@example.com".as_slice().into(), Box::from([b's'; 256])),
@@ -860,24 +841,9 @@ fn embedded_people_refusals_changed_at_store_nine() {
     // The people v11 generated Unknown golden was [9]; v12 inserts NameTaken
     // before every existing refusal. All 38 existing Refusal goldens change.
     let mut after = skein_lib::Writer::new(1);
-    jig_protocol_store::people_v13::Refusal::Unknown.encode(&mut after).unwrap();
+    jig_protocol_store::people_v14::Refusal::Unknown.encode(&mut after).unwrap();
     assert_eq!(after.finish().as_ref(), &[10]);
-    assert_eq!(crate::STORE_VERSION, 10);
-}
-
-#[test]
-fn demo_end_acts_round_trip_with_their_keys() {
-    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
-    for act in [
-        forge::DemoActKind::Close { project: u32::MAX, task: u64::MAX },
-        forge::DemoActKind::RemoveAccount { account: u32::MAX },
-    ] {
-        let row = forge::Stored::DemoAct(forge::DemoAct { key: [255; 16], act });
-        let key = crate::keys::encode(&forge::stored_key(&row), u32::MAX).unwrap();
-        assert_eq!(key[0], 19);
-        assert_eq!(crate::keys::decode(&key, &fixtures::LIMITS), Some(forge::stored_key(&row)));
-        assert_eq!(records::row(&key, &records::encode(&row), &bounds), Ok(row));
-    }
+    assert_eq!(crate::STORE_VERSION, 11);
 }
 
 #[test]
@@ -1247,4 +1213,126 @@ fn admitted_binding_and_writer_saves_obey_writer_rules_before_codec_round_trip()
         }
     }
     assert_eq!(saves, 2, "both real writer APIs emitted durable saves");
+}
+
+fn new_family_round_trip(row: &forge::Stored) {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
+    let bytes = records::encode(row);
+    let key = crate::keys::encode(&forge::stored_key(row), u32::MAX).expect("row key");
+    assert_eq!(records::row(&key, &bytes, &bounds), Ok(row.clone()));
+    assert_eq!(records::row(&[0], &bytes, &bounds), Err(crate::Undecodable));
+    assert_eq!(
+        records::decode(&bytes[..bytes.len().checked_sub(1).expect("versioned row is nonempty")], &bounds),
+        Err(crate::Undecodable)
+    );
+    let mut trailing = skein_lib::Writer::new(bytes.len().checked_add(1).expect("small row"));
+    trailing.put(&bytes).expect("row room");
+    trailing.put(&[0]).expect("trailing byte room");
+    assert_eq!(records::decode(&trailing.finish(), &bounds), Err(crate::Undecodable));
+}
+
+#[test]
+fn forge_record_round_trips_every_mode_and_state() {
+    for kind in [forge::Kind::Forgejo, forge::Kind::GitHub] {
+        for mode in [forge::Mode::Connected, forge::Mode::Managed, forge::Mode::Owned, forge::Mode::Fake] {
+            for state in [
+                forge::ForgeState::Kept,
+                forge::ForgeState::Ended { secrets_erased: false, box_removed: false },
+                forge::ForgeState::Ended { secrets_erased: false, box_removed: true },
+                forge::ForgeState::Ended { secrets_erased: true, box_removed: false },
+                forge::ForgeState::Ended { secrets_erased: true, box_removed: true },
+            ] {
+                for first in [
+                    None,
+                    Some(forge::SetUpProject::Existing(u32::MAX)),
+                    Some(forge::SetUpProject::New(Box::new([0, 255]))),
+                ] {
+                    for optional in [false, true] {
+                        let mut record = fixtures::forge_record();
+                        record.kind = kind;
+                        record.mode = mode;
+                        record.state = state;
+                        record.read_only = optional;
+                        record.asked = optional;
+                        record.first = match first.clone() {
+                            None => None,
+                            Some(project) => Some(forge::FirstIntent {
+                                playground: optional,
+                                project,
+                                ..record.first.take().expect("fixture first intent")
+                            }),
+                        };
+                        if !optional {
+                            record.place.api.tls = None;
+                            record.place.web = None;
+                        }
+                        new_family_round_trip(&forge::Stored::Forge(record));
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn forge_number_round_trips() {
+    for last in [0, 1, u16::MAX] {
+        new_family_round_trip(&forge::Stored::ForgeNumber { last });
+    }
+}
+
+#[test]
+fn playground_round_trips_every_state() {
+    for state in [
+        forge::PlaygroundState::Starting,
+        forge::PlaygroundState::Running,
+        forge::PlaygroundState::Resetting(forge::ResetStep::Project),
+        forge::PlaygroundState::Resetting(forge::ResetStep::Forge),
+        forge::PlaygroundState::Resetting(forge::ResetStep::Account),
+    ] {
+        for project in [None, Some(0), Some(u32::MAX)] {
+            for account in [None, Some(0), Some(u32::MAX)] {
+                new_family_round_trip(&forge::Stored::Playground(forge::Playground {
+                    state,
+                    forge: u16::MAX,
+                    project,
+                    account,
+                }));
+            }
+        }
+    }
+}
+
+#[test]
+fn forge_names_decode_at_the_deployment_bound_and_refuse_one_past() {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
+    for field in ["org", "repository", "project"] {
+        for extra in [0, 1] {
+            let mut row = fixtures::forge_record();
+            let first = row.first.as_mut().expect("fixture first intent");
+            let name =
+                skein_lib::bytes::zeroed(usize::try_from(fixtures::LIMITS.name_bytes + extra).expect("name length"));
+            match field {
+                "org" => first.org = name,
+                "repository" => first.repository = name,
+                "project" => first.project = forge::SetUpProject::New(name),
+                _ => panic!("named field"),
+            }
+            let row = forge::Stored::Forge(row);
+            let decoded = records::decode(&records::encode(&row), &bounds);
+            if extra == 0 {
+                assert_eq!(decoded, Ok(row), "{field} at bound");
+            } else {
+                assert_eq!(decoded, Err(crate::Undecodable), "{field} past bound");
+            }
+        }
+    }
+}
+
+#[test]
+fn store_ten_rows_are_refused_by_store_eleven() {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
+    let mut old = records::encode(&forge::Stored::ForgeNumber { last: 1 });
+    old[1] = 10;
+    assert_eq!(records::decode(&old, &bounds), Err(crate::Undecodable));
 }

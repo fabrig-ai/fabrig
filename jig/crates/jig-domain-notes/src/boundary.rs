@@ -104,9 +104,11 @@ impl Record {
     }
 }
 
-/// Which records to load, starting after a previous page's last name.
+/// Which records to load, starting after a previous page's cursor.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Range {
+    /// Every index line in the project, goal and resource scopes, in key order.
+    Project { project: u32, after: Option<Key> },
     /// A globally named entry.
     Entry { name: u64 },
     /// The lines of one scope.
@@ -159,6 +161,8 @@ pub enum Refusal {
 /// Events from the parent and the store.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Event {
+    /// Drop project notes (jig/docs/design/domain/engine.md, 10).
+    DropProject { owner: Token, project: u32 },
     /// Lines in the requested scopes, capped to `most`, with a remainder count.
     Index { owner: Token, scopes: List<Scope>, most: u32 },
     /// One zero-based page of entries by name or description search.
@@ -176,6 +180,8 @@ pub enum Event {
 /// Requests to the parent, including writes in the current decision.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
+    /// Project notes are dropped (jig/docs/design/domain/engine.md, 10).
+    ProjectDropped { owner: Token },
     /// The requested index and the number of lines beyond it.
     Indexed { owner: Token, lines: List<Line>, more: u32 },
     /// One page of recalled entries; `more` says another page exists.

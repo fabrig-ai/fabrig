@@ -4,7 +4,7 @@ use jig_domain_views as views;
 use jig_test_domain as root;
 use skein_lib::Token;
 
-fn report(world: &mut jig_core_world::effects::World, task: u64, attempt: u64, retry: u32, text: &[u8]) {
+fn report(world: &mut jig_core_world::world::World, task: u64, attempt: u64, retry: u32, text: &[u8]) {
     world.send(root::Event::Core(core::Event::RunText {
         run: Token::new(task),
         attempt: Token::new(attempt),
@@ -67,7 +67,7 @@ fn supplied_call(owner: u64, id: &[u8]) -> views::Call {
         began: None,
     }
 }
-fn current_run(world: &jig_core_world::effects::World, watcher: u64) -> &core::documents::Run {
+fn current_run(world: &jig_core_world::world::World, watcher: u64) -> &core::documents::Run {
     let core::documents::Document::Run(run) = jig_core_world::watches::latest(world, watcher) else {
         panic!("whole public run document")
     };

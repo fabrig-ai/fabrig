@@ -1,5 +1,5 @@
-use jig_core_world::effects::Setup;
-use jig_core_world::effects::{Cut, World};
+use jig_core_world::world::Setup;
+use jig_core_world::world::{Cut, World};
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_test_connector as connector;
@@ -84,8 +84,8 @@ fn admitted_application_routes_and_its_core_part_share_the_commit_barrier() {
 
 #[test]
 fn application_replay_after_a_durable_restart_does_not_repeat_a_decision() {
-    let mut configured = jig_core_world::world::config(715);
-    let mut limits = jig_core_world::world::limits();
+    let mut configured = jig_test_profile::config(715);
+    let mut limits = jig_test_profile::limits();
     limits.core.authority.roles = 2;
     let policy = &mut configured.core.seed_projects[0].policy.policy;
     let mut member = policy.roles[0].clone();

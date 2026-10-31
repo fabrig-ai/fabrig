@@ -56,7 +56,7 @@ fn conversation(driver: &mut Driver) -> jig_domain_core::documents::TaskLine {
         driver.send(engine::Event::Party(engine::PartyInput::Read {
             reply_to: ReplyTo::new(READ),
             sign_in,
-            read: reads::Read::Tasks { query: jig_core_world::fixtures::OWN_TASKS, live: None, ended: from },
+            read: reads::Read::Tasks { query: jig_test_profile::fixtures::OWN_TASKS, live: None, ended: from },
         }));
         driver.settle();
         let page = driver

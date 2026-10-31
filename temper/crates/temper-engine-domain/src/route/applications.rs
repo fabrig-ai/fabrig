@@ -24,7 +24,9 @@ pub(super) fn start(domain: &mut Domain, admission: Admission, request: Applicat
     let scope = match &request {
         Application::Forge(
             forge::Ask::SetUp { .. }
-            | forge::Ask::StartDemo
+            | forge::Ask::RemoveForge { .. }
+            | forge::Ask::StartPlayground
+            | forge::Ask::EndPlayground
             | forge::Ask::Connect { .. }
             | forge::Ask::Install { .. }
             | forge::Ask::Accept { .. }
@@ -33,8 +35,8 @@ pub(super) fn start(domain: &mut Domain, admission: Admission, request: Applicat
         Application::Forge(forge::Ask::Adopt(_)) => scope,
         Application::Return { .. } => people::ApplicationScope::Own,
     };
-    if request == Application::Forge(forge::Ask::StartDemo) {
-        domain.application_demo = Some(super::demo::Context { sign_in, key, carried });
+    if request == Application::Forge(forge::Ask::StartPlayground) {
+        domain.application_playground = Some(super::playground::Context { sign_in, key, carried });
     }
     domain.application_carried = carried;
     domain.application = Some((owner, request));
@@ -64,12 +66,12 @@ pub(super) fn admitted(
     let carried = domain.application_carried.take();
     match ask {
         Application::Forge(ask) => {
-            if let Some(context) = domain.application_demo.take() {
-                if domain.demo_contexts.len() == domain.demo_contexts.capacity() {
+            if let Some(context) = domain.application_playground.take() {
+                if domain.playground_contexts.len() == domain.playground_contexts.capacity() {
                     finished(domain, request, Err(people::Again::Busy));
                     return;
                 }
-                assert!(domain.demo_contexts.insert(request, context).is_ok(), "bounded admitted starts");
+                domain.playground_contexts.insert(request, context).expect("bounded playground starts");
             }
             domain.work.push(Work::Forge(forge::Event::Application { request, token, retention, ask, role, carried }));
         }
@@ -106,7 +108,7 @@ pub(super) fn drop(domain: &mut Domain, owner: Token) {
     if let Some((held, _)) = &domain.application {
         assert_eq!(*held, owner, "drop names the application owner");
         domain.application = None;
-        domain.application_demo = None;
+        domain.application_playground = None;
         domain.application_carried = None;
     }
 }
@@ -137,7 +139,9 @@ pub(super) fn answer(domain: &Domain, token: Token) -> Option<ApplicationAnswer>
     match domain.forge.application_answer(token) {
         Some(forge::Answered::Adopt(answer)) => Some(ApplicationAnswer::Adopt(answer)),
         Some(forge::Answered::SetUp(answer)) => Some(ApplicationAnswer::SetUp(answer)),
-        Some(forge::Answered::StartDemo(answer)) => Some(ApplicationAnswer::StartDemo(answer)),
+        Some(forge::Answered::RemoveForge(answer)) => Some(ApplicationAnswer::RemoveForge(answer)),
+        Some(forge::Answered::StartPlayground(answer)) => Some(ApplicationAnswer::StartPlayground(answer)),
+        Some(forge::Answered::EndPlayground(answer)) => Some(ApplicationAnswer::EndPlayground(answer)),
         Some(forge::Answered::Connect(answer)) => Some(ApplicationAnswer::Connect(answer)),
         Some(forge::Answered::Reachable(answer)) => Some(ApplicationAnswer::Reachable(answer)),
         Some(forge::Answered::Accept(answer)) => Some(ApplicationAnswer::Accept(answer)),

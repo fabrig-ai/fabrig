@@ -7,29 +7,21 @@
 use super::fixtures;
 use crate::{
     check, limits, problem,
-    setup::{Fetch, Mirror, Mode, Origin, Owned, Setup},
+    setup::{Fetch, Mirror, Mode, Origin, Owned},
 };
 
 fn origin(host: &[u8], port: u16) -> Origin {
     Origin { host: host.into(), port }
 }
 fn read_owned(owned: &str) -> Result<Owned, Box<[u8]>> {
-    let source = core::str::from_utf8(fixtures::TWO).unwrap();
-    let start = source.find("{\"forgejo\"").unwrap();
-    let end = source.rfind("}}}").unwrap().checked_add(1).unwrap();
-    let source = format!("{}{}{}", &source[..start], owned, &source[end..]);
+    let source = format!(r#"{{"owned":{owned}}}"#);
     let mut ps = problem::Problems::empty();
-    let value = Setup::read(
-        &fixtures::document(source.as_bytes()),
-        0,
-        &limits::small(),
-        &jig_protocol_config::Directories::given(b"/config", b"/data", b"/cache").unwrap(),
-        &mut ps,
-    );
+    let dirs = jig_protocol_config::Directories::given(b"/config", b"/data", b"/cache").unwrap();
+    let machine = crate::machine::read(&fixtures::document(source.as_bytes()), 0, &limits::small(), &dirs, &mut ps);
     if !ps.is_empty() {
         return Err(problem::lines(&ps));
     }
-    match value.unwrap().entries[1].mode.clone() {
+    match crate::machine::entry(&machine.unwrap(), 2, crate::machine::BoxKind::Owned, &dirs).unwrap().mode {
         Mode::Owned(owned) => Ok(owned),
         Mode::Managed { .. } | Mode::Fake(_) => panic!("owned"),
     }
@@ -39,7 +31,7 @@ fn owned_json(forgejo: &str, runner: Option<&str>, mirror: Option<&str>, public:
     let mirror = mirror.map_or(String::new(), |mirror| format!(",\"mirror\":{mirror}"));
     let public = public.map_or(String::new(), |public| format!(",\"public\":{public}"));
     format!(
-        r#"{{"forgejo":"{forgejo}","runner":{runner},"listen":{{"socket":"127.0.0.1:3000"}},"person":{{"login":"ada","email":"ada@example.invalid"}}{mirror}{public}}}"#
+        r#"{{"remote":"http://127.0.0.1:3000","forgejo":"{forgejo}","runner":{runner},"listen":{{"socket":"127.0.0.1:3000"}},"person":{{"login":"ada","email":"ada@example.invalid"}}{mirror}{public}}}"#
     )
 }
 #[test]
@@ -92,15 +84,15 @@ fn owned_binaries_and_mirror() {
         let mirror = format!(r#"{{"forgejo":"{bad}","runner":"https://mirror.test"}}"#);
         assert_eq!(
             read_owned(&owned_json("fetched", None, Some(&mirror), None)),
-            Err(b"application.setup[1].mode.owned.mirror.forgejo: invalid form\n".as_slice().into()),
+            Err(b"application.machine.owned.mirror.forgejo: invalid form\n".as_slice().into()),
             "{bad}"
         );
     }
     for (mirror, expected) in [
-        (r#"{"forgejo":"https://mirror.test"}"#, "application.setup[1].mode.owned.mirror.runner: missing\n"),
+        (r#"{"forgejo":"https://mirror.test"}"#, "application.machine.owned.mirror.runner: missing\n"),
         (
             r#"{"forgejo":"https://mirror.test","runner":"https://mirror.test","third":1}"#,
-            "application.setup[1].mode.owned.mirror.third: unknown member\n",
+            "application.machine.owned.mirror.third: unknown member\n",
         ),
     ] {
         assert_eq!(read_owned(&owned_json("fetched", None, Some(mirror), None)), Err(expected.as_bytes().into()));
@@ -135,7 +127,7 @@ fn owned_public_address_refuses_invalid_forms() {
     ] {
         assert_eq!(
             read_owned(&owned_json("fetched", None, None, Some(bad))),
-            Err(b"application.setup[1].mode.owned.public: invalid form\n".as_slice().into()),
+            Err(b"application.machine.owned.public: invalid form\n".as_slice().into()),
             "{bad}"
         );
     }
@@ -149,16 +141,9 @@ fn fetch_bound_through_checked() {
         (Some(0), Err(b"application.limits.overrides.setup.fetch_bytes: outside its type\n".as_slice())),
     ] {
         let overrides = value.map_or(Vec::new(), |value| vec![(b"setup.fetch_bytes".as_slice().into(), value)]);
-        let got = check::checked(
-            &fixtures::document(fixtures::TWO),
-            0,
-            &jig_protocol_config::Directories::working(),
-            &fixtures::members(),
-            None,
-            &overrides,
-        );
+        let got = check::limits(&overrides);
         match expected {
-            Ok(expected) => assert_eq!(got.unwrap().fetch_bytes, expected),
+            Ok(expected) => assert_eq!(got.unwrap().1, expected),
             Err(expected) => assert_eq!(problem::lines(&got.unwrap_err()).as_ref(), expected),
         }
     }
@@ -488,142 +473,4 @@ fn failures_words_and_urls() {
         assert_eq!(failure.words().as_ref(), expected.as_bytes());
     }
     assert_eq!(fetch::url(&origin(b"mirror.test", 443), b"/binary").as_ref(), b"https://mirror.test/binary");
-}
-
-fn command(action: &str, forge: u16, which: Option<&str>, flags: &[Box<[u8]>]) -> crate::Step {
-    let number = forge.to_string();
-    let mut arguments = vec![b"forge".as_slice().into(), action.as_bytes().into()];
-    arguments.extend_from_slice(flags);
-    arguments.push(number.as_bytes().into());
-    if let Some(which) = which {
-        arguments.push(which.as_bytes().into());
-    }
-    let name = format!("{} {forge}", which.unwrap_or(action));
-    crate::Step::new(
-        name.as_bytes().into(),
-        arguments.into_boxed_slice(),
-        if which.is_some() { crate::Kind::Long } else { crate::Kind::Once },
-    )
-}
-#[test]
-#[expect(clippy::too_many_lines, reason = "one table of complete steps and asked groups")]
-fn groups_fetch_before_preparation() {
-    use crate::{Group, Stage, Steps};
-    let flags: Box<[Box<[u8]>]> =
-        [b"--config".as_slice(), b"/config", b"--data", b"/data", b"--cache", b"/cache"].map(Box::from).into();
-    let cmd = |action, forge, which| {
-        let step = command(action, forge, which, &flags);
-        if which == Some("forgejo") { step.with_ready(([127, 0, 0, 1], 3000).into()) } else { step }
-    };
-    let serve = || {
-        let mut args = vec![b"internal".as_slice().into(), b"serve".as_slice().into()];
-        args.extend_from_slice(&flags);
-        args.push(b"--box".as_slice().into());
-        crate::Step::new(b"serve".as_slice().into(), args.into_boxed_slice(), crate::Kind::Long)
-            .listening(Box::new([([127, 0, 0, 1], 8367).into(), ([127, 0, 0, 1], 8371).into()]))
-    };
-    for (forgejo, runner, asked, preceding, expected) in [
-        (
-            true,
-            true,
-            false,
-            false,
-            Steps {
-                always: vec![
-                    cmd("fetch", 3, None),
-                    cmd("prepare", 3, None),
-                    cmd("run", 3, Some("forgejo")),
-                    cmd("run", 3, Some("runner")),
-                    serve(),
-                ]
-                .into_boxed_slice(),
-                asked: Box::new([]),
-            },
-        ),
-        (
-            true,
-            true,
-            true,
-            true,
-            Steps {
-                always: vec![
-                    cmd("prepare", 1, None),
-                    cmd("run", 1, Some("forgejo")),
-                    cmd("run", 1, Some("runner")),
-                    serve(),
-                ]
-                .into_boxed_slice(),
-                asked: Box::new([Group {
-                    recorded: true,
-                    forge: 3,
-                    label: b"Forge 3 (Forgejo)".as_slice().into(),
-                    before: 3,
-                    steps: Box::new([
-                        (Stage::Fetch, cmd("fetch", 3, None)),
-                        (Stage::Prepare, cmd("prepare", 3, None)),
-                        (Stage::Run, cmd("run", 3, Some("forgejo"))),
-                        (Stage::Run, cmd("run", 3, Some("runner"))),
-                    ]),
-                }]),
-            },
-        ),
-        (
-            false,
-            true,
-            false,
-            false,
-            Steps {
-                always: vec![
-                    cmd("fetch", 3, None),
-                    cmd("prepare", 3, None),
-                    cmd("run", 3, Some("forgejo")),
-                    cmd("run", 3, Some("runner")),
-                    serve(),
-                ]
-                .into_boxed_slice(),
-                asked: Box::new([]),
-            },
-        ),
-        (
-            false,
-            false,
-            false,
-            false,
-            Steps {
-                always: vec![
-                    cmd("prepare", 3, None),
-                    cmd("run", 3, Some("forgejo")),
-                    cmd("run", 3, Some("runner")),
-                    serve(),
-                ]
-                .into_boxed_slice(),
-                asked: Box::new([]),
-            },
-        ),
-    ] {
-        let mut entry = fixtures::setup().entries[1].clone();
-        entry.forge = 3;
-        entry.asked = asked;
-        let Mode::Owned(owned) = &mut entry.mode else { panic!("owned") };
-        owned.fetch.forgejo = forgejo;
-        owned.fetch.runner = runner;
-        let entries = if preceding {
-            let mut first = fixtures::setup().entries[1].clone();
-            first.forge = 1;
-            vec![first, entry]
-        } else {
-            vec![entry]
-        };
-        let setup = Setup { entries: entries.into_boxed_slice() };
-        assert_eq!(
-            crate::steps(
-                &setup,
-                &flags,
-                Box::new([([127, 0, 0, 1], 8367).into(), ([127, 0, 0, 1], 8371).into()]),
-                false
-            ),
-            expected,
-            "{forgejo} {runner} {asked}"
-        );
-    }
 }

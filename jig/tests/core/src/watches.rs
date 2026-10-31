@@ -2,7 +2,7 @@
 //! Commit numbers and changed task identities come only from root outputs;
 //! deliveries are checked against the fake store's durable watermark. The
 //! referee never reads the core, its views child, or the journal's held queue.
-use crate::effects::Setup;
+use crate::world::Setup;
 use jig_domain_core::{
     self as core,
     documents::{Document, Subject},
@@ -234,7 +234,8 @@ impl Parties {
                 root::Write::Save(_)
                 | root::Write::Wires
                 | root::Write::Erase(_)
-                | root::Write::CopySettingsRevision(_) => {}
+                | root::Write::CopySettingsRevision(_)
+                | root::Write::DropTranscript { .. } => {}
             }
         }
         for consumer in self.consumers.values_mut() {
@@ -306,7 +307,7 @@ impl Parties {
                     | Watched::Jig(_) => false,
                 },
 
-                root::Write::Save(_) | root::Write::Wires | root::Write::Erase(_) | root::Write::CopySettingsRevision(_) => false,
+                root::Write::Save(_) | root::Write::Wires | root::Write::Erase(_) | root::Write::CopySettingsRevision(_) | root::Write::DropTranscript { .. } => false,
             });
             if touched {
                 consumer.fence.changed(number);
@@ -539,15 +540,15 @@ fn party_subject(watched: &Watched, party: u64) -> bool {
 
 /// Open the four independent party subscriptions used by watch stories.
 #[must_use]
-pub fn world(seed: u64, automatic: bool) -> crate::effects::World {
-    let (configuration, mut limits) = crate::effects::fixture(seed, false);
+pub fn world(seed: u64, automatic: bool) -> crate::world::World {
+    let (configuration, mut limits) = crate::world::fixture(seed, false);
     limits.core.views.watchers = 8;
     limits.core.views.watchers_per_party = 8;
     let room = limits.core.routes;
     let connectors = jig_test_connector::OUTPUTS_BOUND * 2;
     limits.journal.writes = (room + connectors) * 2;
     let mut world =
-        crate::effects::World::new(Setup { seed, configuration: Some(configuration), limits, ..Setup::default() });
+        crate::world::World::new(Setup { seed, configuration: Some(configuration), limits, ..Setup::default() });
     world.watches = Some(Parties::new(seed, world.store.applied, automatic, world.sign_in.expect("signed in")));
     let task = world.assigned.as_ref().expect("assigned chat").task;
     for (watcher, subject) in [
@@ -562,7 +563,7 @@ pub fn world(seed: u64, automatic: bool) -> crate::effects::World {
 }
 
 pub fn application(
-    world: &mut crate::effects::World,
+    world: &mut crate::world::World,
     watcher: u64,
     scope: jig_domain_people::ApplicationScope,
     number: u16,
@@ -578,7 +579,7 @@ pub fn application(
     });
 }
 
-pub fn open(world: &mut crate::effects::World, watcher: u64, subject: core::documents::Watched) {
+pub fn open(world: &mut crate::world::World, watcher: u64, subject: core::documents::Watched) {
     world.send(root::Event::Core(core::Event::Watch {
         watcher: Token::new(watcher),
         sign_in: world.sign_in.expect("signed in"),
@@ -588,7 +589,7 @@ pub fn open(world: &mut crate::effects::World, watcher: u64, subject: core::docu
 }
 
 #[must_use]
-pub fn latest(world: &crate::effects::World, watcher: u64) -> &Document {
+pub fn latest(world: &crate::world::World, watcher: u64) -> &Document {
     &world
         .watches
         .as_ref()

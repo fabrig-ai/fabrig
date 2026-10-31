@@ -131,6 +131,7 @@ fn prepare_steering(domain: &mut Fixture, act: ActKind) -> Ask {
         | ActKind::EditNote
         | ActKind::DeleteNote
         | ActKind::Adopt
+        | ActKind::RemoveProject
         | ActKind::Rename
         | ActKind::ChangePolicy
         | ActKind::SetRoles

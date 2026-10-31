@@ -86,7 +86,7 @@ enum Adoption {
 /// A composed deployment: all roots retain their own state, with IO outside.
 pub struct World {
     seed: u64,
-    creating: jig_core_world::fixtures::Creating,
+    creating: jig_test_profile::fixtures::Creating,
     chat_ending: tasks::EndedBy,
     root: engine::Domain,
     env: Env<engine::Limits>,
@@ -383,7 +383,7 @@ impl World {
         let store = temper_engine_domain_world::fixtures::restored_store(bootstrap, &limits);
         Self {
             seed,
-            creating: jig_core_world::fixtures::Creating::new(&config.core, limits.tasks.tree_tasks),
+            creating: jig_test_profile::fixtures::Creating::new(&config.core, limits.tasks.tree_tasks),
             chat_ending: config
                 .core
                 .defaults
@@ -738,14 +738,18 @@ impl World {
                 engine::PartyRequest::SignInRefused { .. } | engine::PartyRequest::WatchRefused { .. },
             )
             | engine::Request::Account(_)
-            | engine::Request::SetUpGroup { .. }
+            | engine::Request::ForgeKept(_)
+            | engine::Request::ForgeGone { .. }
+            | engine::Request::BoxGroup { .. }
+            | engine::Request::PlaygroundActs { .. }
+            | engine::Request::ResetAct { .. }
+            | engine::Request::BoxRemove { .. }
             | engine::Request::Connect { .. }
             | engine::Request::Manifest { .. }
             | engine::Request::Reachable { .. }
             | engine::Request::Install { .. }
             | engine::Request::Accept { .. }
             | engine::Request::EraseCarried { .. }
-            | engine::Request::StopGroup { .. }
             | engine::Request::SetUp { .. }
             | engine::Request::Bound { .. }
             | engine::Request::Return { .. }
@@ -784,14 +788,18 @@ impl World {
             | engine::Request::Party(_)
             | engine::Request::Forge { .. }
             | engine::Request::Account(_)
-            | engine::Request::SetUpGroup { .. }
+            | engine::Request::ForgeKept(_)
+            | engine::Request::ForgeGone { .. }
+            | engine::Request::BoxGroup { .. }
+            | engine::Request::PlaygroundActs { .. }
+            | engine::Request::ResetAct { .. }
+            | engine::Request::BoxRemove { .. }
             | engine::Request::Connect { .. }
             | engine::Request::Manifest { .. }
             | engine::Request::Reachable { .. }
             | engine::Request::Install { .. }
             | engine::Request::Accept { .. }
             | engine::Request::EraseCarried { .. }
-            | engine::Request::StopGroup { .. }
             | engine::Request::SetUp { .. }
             | engine::Request::Bound { .. }
             | engine::Request::Return { .. }
@@ -881,8 +889,7 @@ impl World {
             }
             // A live notice to the requester, with no reply right.
             Delivery::Result { .. } => {}
-            other @ (Delivery::DemoActed { .. }
-            | Delivery::DemoNote { .. }
+            other @ (Delivery::PlaygroundNote { .. }
             | Delivery::Host(_)
             | Delivery::Procedure { .. }
             | Delivery::Forges { .. }
@@ -892,6 +899,7 @@ impl World {
             | Delivery::Read { .. }
             | Delivery::WatchEnded { .. }
             | Delivery::ProjectMade { .. }
+            | Delivery::ProjectReleased { .. }
             | Delivery::ForgeCommitted { .. }
             | Delivery::ForgeCall { .. }
             | Delivery::Bound { .. }

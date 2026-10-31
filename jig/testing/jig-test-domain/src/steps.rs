@@ -100,7 +100,7 @@ pub(crate) fn translate(
         }
         connector::StepDecision::Effect(effect) => {
             let owner = crate::effect_payload(domain, effect);
-            domain.effect_procedures.insert(owner, task).expect("one procedure effect flight");
+            domain.hub_link.keep_effect_procedure(owner, task);
             work.push(Work::Core(core::Event::EffectStart {
                 owner,
                 connector: number,

@@ -56,7 +56,8 @@ fn assert_watch_spec_refused(world: &jig_ops_world::direct::Driver) {
             root::Write::CopySettingsRevision(_)
             | root::Write::Wires
             | root::Write::Save(_)
-            | root::Write::Erase(_) => None,
+            | root::Write::Erase(_)
+            | root::Write::DropTranscript { .. } => None,
         })
         .expect("created watch procedure");
     assert!(matches!(task.phase, tasks::Phase::Held { why: tasks::Hold::Procedure, .. }), "{:?}", task.phase);
@@ -98,7 +99,8 @@ fn a_watch_spec_preserves_templates_in_the_u16_range() {
                 root::Write::CopySettingsRevision(_)
                 | root::Write::Wires
                 | root::Write::Save(_)
-                | root::Write::Erase(_) => None,
+                | root::Write::Erase(_)
+                | root::Write::DropTranscript { .. } => None,
             })
             .expect("valid watch spec starts a watch");
         assert_eq!(watch.template, template);

@@ -650,7 +650,7 @@ fn help_json_prints_every_record() {
     let forge = records(&["help", "forge", "connect", "--json"]);
     assert_eq!(forge.len(), 1);
     assert_eq!(forge[0]["name"], "forge connect");
-    assert_eq!(forge[0]["forms"].as_array().expect("forge connect forms").len(), 4);
+    assert_eq!(forge[0]["forms"].as_array().expect("forge connect forms").len(), 7);
 
     let me = records(&["help", "me", "--json"]);
     assert_eq!(me.len(), 1);

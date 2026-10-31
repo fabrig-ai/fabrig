@@ -2,9 +2,9 @@
 use super::*;
 
 fn world() -> World<Test, Joint> {
-    let config = jig_core_world::world::config(8511);
+    let config = jig_test_profile::config(8511);
     // First-start seeding supplies deployment ownership independently of projects.
-    let mut owner = jig_core_world::world::limits();
+    let mut owner = jig_test_profile::limits();
     owner.core.documents.rows = 2;
     owner.core.documents.lines = 2;
     owner.core.documents.chips = 2;

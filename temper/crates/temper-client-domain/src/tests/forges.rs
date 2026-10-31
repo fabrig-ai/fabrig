@@ -36,7 +36,8 @@ fn set_up_is_a_deployment_request_and_forges_a_deployment_watch() {
     else {
         panic!("set up")
     };
-    assert_eq!(request.forge(), 3);
+    let w::Making::Kept(kept) = request.forge() else { panic!("kept forge") };
+    assert_eq!(kept.forge(), 3);
     let Watchable::Family { scope, window, record } = watch(&fixtures::limits().forge).unwrap() else {
         panic!("family")
     };
@@ -389,7 +390,8 @@ fn setup_carries_each_field_and_new_project_names_without_semantic_form_checks()
         else {
             panic!("setup")
         };
-        assert_eq!(request.forge(), 3);
+        let w::Making::Kept(kept) = request.forge() else { panic!("kept forge") };
+        assert_eq!(kept.forge(), 3);
         assert_eq!(request.org(), b"");
         assert_eq!(request.repository(), b"widget");
         match (project, request.project()) {
@@ -493,7 +495,7 @@ fn first_repository_decodes_each_state_project_and_creation_step() {
 }
 
 #[test]
-fn demo_start_outcomes_fit_neither_adopt_nor_setup() {
+fn playground_start_outcomes_fit_neither_adopt_nor_setup() {
     let link =
         jig_client_protocol_link::Limits::new(fixtures::limits().client.domain, fixtures::limits().client.exchanges)
             .unwrap();

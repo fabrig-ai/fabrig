@@ -61,7 +61,8 @@ fn omitted_call_answers_reach_the_core_store_and_both_wire_sides() {
         assert_eq!((wire.sizes.call_input, wire.sizes.answer), (expected_engine, expected_engine));
         let worker = checked.worker.as_ref().unwrap();
         let payload = crate::worker_settings::payload_limits(&checked.engine.limits).unwrap();
-        let wire = crate::worker_settings::link_limits(&worker.jig, &payload).unwrap();
+        let wire =
+            crate::worker_settings::link_limits(&worker.jig, &payload, fixtures::worker_limits().forge.forges).unwrap();
         assert_eq!((wire.sizes.call_input, wire.sizes.answer), (expected_worker, expected_worker));
         let service = startup(
             &input,
@@ -126,7 +127,7 @@ fn worker_only_runtime_and_checks_use_the_same_composed_limits() {
         check_worker_part(&mut part, &fixtures::files(), &agent).unwrap();
         assert_eq!(part.worker.jig.limits.core.call_answer_bytes, expected);
         let payload = crate::worker_settings::payload_limits(&part.limits).unwrap();
-        let wire = crate::worker_settings::link_limits(&part.worker.jig, &payload).unwrap();
+        let wire = crate::worker_settings::link_limits(&part.worker.jig, &payload, part.limits.forge.forges).unwrap();
         assert_eq!((wire.sizes.call_input, wire.sizes.answer), (expected, expected));
         assert_eq!(
             service.worker.as_ref().unwrap().env.limits,
@@ -425,7 +426,8 @@ fn per_kind_terms_reject_call_and_reply_mismatches_even_with_larger_other_frames
     let worker = fixtures::worker_settings();
     let own = fixtures::worker_limits();
     let payload = crate::worker_settings::payload_limits(&own).unwrap();
-    let mut link = crate::worker_settings::link_limits(&worker.jig, &payload).unwrap();
+    let mut link =
+        crate::worker_settings::link_limits(&worker.jig, &payload, fixtures::worker_limits().forge.forges).unwrap();
     link.sizes.call_input = 40_960;
     link.sizes.answer = 40_960;
     let larger = wire::schema(&wire::sizes::limits(&link.sizes).unwrap()).unwrap();

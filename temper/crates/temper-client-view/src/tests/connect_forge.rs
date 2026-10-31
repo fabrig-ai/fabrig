@@ -83,62 +83,24 @@ pub(super) fn words_in_order(tree: &skein_ui::Tree, phrases: &[&str]) {
     }
 }
 #[test]
-fn choose_draws_a_card_per_choice_in_order() {
-    let root = root(None, w::Connection::NotSetUp, w::Offer::Offered);
+fn connect_offers_the_three_kinds() {
+    let root = f::forge_root(Address::ConnectForge { forge: None }, List::with_capacity(0));
     let view = f::page_view(&root);
-    node(view.tree(), Role::Heading { level: 1 }, b"Connect a forge");
-    words_in_order(
-        view.tree(),
-        &[
-            "Choose",
-            "Details",
-            "Setting up",
-            "Ready",
-            "GitHub",
-            "Your repositories on GitHub. temper makes its own App there; you choose the account and the repositories it may use.",
-            "In this tab, on GitHub · about two minutes",
-            "Connect GitHub",
-            "Forgejo on this machine",
-            "A forge of your own, run by temper box. No account needed: temper makes your first repository, and you start in it.",
-            "Here · about a minute",
-            "Choose",
-            "A Forgejo elsewhere",
-            "Your own Forgejo server. temper connects as its admin, or with its bot’s tokens.",
-            "Needs a change to temper’s configuration and a restart",
-            "Show how",
-        ],
-    );
-    let choices =
-        view.tree().nodes().iter().find(|n| n.styles.as_slice().contains(&crate::look::FLOW_CHOICES)).unwrap();
-    let cards: Vec<_> = view.tree().nodes().iter().filter(|n| parent(view.tree(), n.id) == Some(choices.id)).collect();
-    assert_eq!(cards.len(), 3);
-    let primary: Vec<_> = view
-        .tree()
-        .nodes()
-        .iter()
-        .filter(|n| n.styles.as_slice().contains(&crate::look::FLOW_PRIMARY))
-        .map(|n| n.name.as_deref().unwrap())
-        .collect();
-    assert_eq!(primary, [b"Connect GitHub".as_slice()]);
-    for (name, style) in
-        [(b"Choose".as_slice(), crate::look::FLOW_SECONDARY), (b"Show how".as_slice(), crate::look::FLOW_SECONDARY)]
-    {
-        let id = node(view.tree(), Role::Link, name);
-        assert!(view.tree().nodes().iter().find(|n| n.id == id).unwrap().styles.as_slice().contains(&style));
-    }
-    assert!(cards.iter().all(|n| n.role == Role::Region));
-    let regions: Vec<_> =
-        view.tree().nodes().iter().filter(|n| n.role == Role::Region).filter_map(|n| n.name.as_deref()).collect();
-    assert_eq!(regions, [b"LLM account".as_slice(), b"GitHub", b"Forgejo on this machine", b"A Forgejo elsewhere"]);
+    words_in_order(view.tree(), &["GitHub", "Connect GitHub", "Forgejo on this machine", "Your Forgejo"]);
     assert_eq!(
-        press(&root, Role::Link, b"Show how"),
-        d::Action::Pages(pages::Act::Go { address: Address::ConnectForge { forge: Some(Choice::Elsewhere) } })
+        press(&root, Role::Link, b"Your Forgejo"),
+        d::Action::Pages(pages::Act::Go { address: Address::ConnectForge { forge: Some(Choice::Managed) } })
+    );
+    assert_eq!(
+        press(&root, Role::Link, b"Forgejo on this machine"),
+        d::Action::Pages(pages::Act::Go { address: Address::ConnectForge { forge: Some(Choice::Owned) } })
     );
 }
+
 #[test]
 fn github_cards_offer_connect_github_alone_in_both_flows() {
     for address in [Address::ConnectForge { forge: None }, Address::Welcome { step: Step::Forge { forge: None } }] {
-        let root = f::forge_root(address, rows(w::Connection::NotSetUp, w::Offer::Offered));
+        let root = f::forge_root(address, List::with_capacity(0));
         let view = f::browser_page_view(&root);
         let tree = view.tree();
         let card = node(tree, Role::Region, b"GitHub");
@@ -325,37 +287,21 @@ fn ready_names_the_forge_and_offers_adopt_a_repository() {
     );
     assert_eq!(press(&root, Role::Link, b"Forges"), d::Action::Pages(pages::Act::Go { address: Address::Forges }));
 }
-#[test]
-fn the_welcome_runs_owned_forgejo_without_details_at_either_address() {
-    for choice in [None, Some(Choice::Forge(HERE))] {
-        let root = f::forge_root(
-            Address::Welcome { step: Step::Forge { forge: choice } },
-            rows(w::Connection::NotSetUp, w::Offer::Offered),
-        );
-        let view = f::page_view(&root);
-        node(view.tree(), Role::Region, b"Forgejo");
-        assert!(f::find(view.tree(), Role::TextField, b"Organization").is_none());
-        assert_eq!(
-            press(&root, Role::Button, b"Run on this machine"),
-            d::Action::Forge(d::forge::Act::SetUpAtOnce { forge: HERE })
-        );
-    }
-}
 
 #[test]
-fn a_forge_under_way_is_no_choice_in_the_welcome() {
-    let root = f::forge_root(
-        Address::Welcome { step: Step::Forge { forge: None } },
-        rows(w::Connection::Connecting, w::Offer::Offered),
-    );
+fn a_forge_under_way_offers_start_over_in_the_welcome() {
+    let mut rows = List::with_capacity(1);
+    rows.push(row(HERE, w::Kind::Forgejo, w::Mode::Owned, w::Connection::Connecting, w::Offer::Offered)).unwrap();
+    let root = f::forge_root(Address::Welcome { step: Step::Forge { forge: None } }, rows);
     let view = f::page_view(&root);
-    node(view.tree(), Role::Paragraph, "Forgejo on this machine · Connecting".as_bytes());
-    assert!(f::find(view.tree(), Role::Link, b"Choose").is_none());
+    words_in_order(view.tree(), &["FORGE · not finished", "Start over"]);
+    assert!(f::find(view.tree(), Role::Button, b"Go on").is_none());
     assert_eq!(
-        press(&root, Role::Link, b"View"),
-        d::Action::Pages(pages::Act::Go { address: Address::ConnectForge { forge: Some(Choice::Forge(HERE)) } })
+        press(&root, Role::Button, b"Start over"),
+        d::Action::Forge(d::forge::Act::Forges(d::forge::forges::Act::StartOver { forge: HERE }))
     );
 }
+
 #[test]
 fn the_model_step_follows_the_persons_forge() {
     let mut forges = rows(w::Connection::Connecting, w::Offer::Offered);
@@ -422,13 +368,13 @@ fn the_welcomes_ready_follows_a_forge_under_way() {
 }
 
 #[test]
-fn the_forge_pages_have_navigation_and_no_playground_banner() {
+fn the_forge_pages_have_navigation_and_the_playground_banner() {
     for address in [Address::ConnectForge { forge: None }, Address::Forges] {
-        let root = f::demo_frame_root(address, f::PROJECT, true, None, None);
-        assert!(root.demo().is_some());
+        let root = f::playground_frame_root(address, f::PROJECT, true, None, None);
+        assert!(root.forge().playground().is_some());
         let view = f::page_view(&root);
         node(view.tree(), Role::Navigation, b"Main navigation");
-        assert!(f::find(view.tree(), Role::Region, b"Playground").is_none());
+        assert!(f::find(view.tree(), Role::Region, b"Playground").is_some());
     }
 }
 
@@ -690,12 +636,12 @@ fn setting_up_names_its_first_repository_and_project() {
     node(view.tree(), Role::Status, b"under way");
 }
 #[test]
-fn setting_up_names_the_demo_project_playground() {
+fn setting_up_names_the_playground_project_playground() {
     let root = f::root_at_with_forges(
         Address::ConnectForge { forge: Some(Choice::Forge(HERE)) },
         &f::domain_limits(),
         b"Project 1",
-        Some((f::PROJECT, true, w::DemoState::Running)),
+        Some((f::PROJECT, true, w::PlaygroundState::Running)),
         None,
         Some(first_rows(w::Connection::Connecting, w::FirstState::Making)),
     )
@@ -1024,7 +970,7 @@ fn a_connect_refusal_is_said_below_its_button() {
 }
 
 fn manifest_started(address: Address) -> (d::Domain, skein_lib::Queue<d::Request>) {
-    let mut root = f::forge_root(address, rows(w::Connection::NotSetUp, w::Offer::Offered));
+    let mut root = f::forge_root(address, List::with_capacity(0));
     let mut view = f::browser_page_view(&root);
     let button = node(view.tree(), Role::Button, b"Connect GitHub");
     let action = crate::act(&mut view, button, Act::Press).expect("live manifest button");
@@ -1034,8 +980,8 @@ fn manifest_started(address: Address) -> (d::Domain, skein_lib::Queue<d::Request
 #[test]
 fn connect_github_sends_the_flow_address_at_its_forge() {
     for (address, back) in [
-        (Address::ConnectForge { forge: None }, b"/forges/connect?forge=2".as_slice()),
-        (Address::Welcome { step: Step::Forge { forge: None } }, b"/welcome?at=forge&forge=2".as_slice()),
+        (Address::ConnectForge { forge: None }, b"/forges/connect".as_slice()),
+        (Address::Welcome { step: Step::Forge { forge: None } }, b"/welcome?at=forge".as_slice()),
     ] {
         let (_, mut out) = manifest_started(address);
         let mut sent = None;
@@ -1055,7 +1001,7 @@ fn connect_github_sends_the_flow_address_at_its_forge() {
             }
         }
         let w::Request::Connect(connect) = sent.expect("manifest Connect") else { panic!("Connect") };
-        assert_eq!(connect.forge(), GITHUB);
+        let w::Making::New(_) = connect.forge() else { panic!("new forge") };
         let w::How::GithubManifest(manifest) = connect.how() else { panic!("manifest") };
         assert_eq!(manifest.back().as_deref(), Some(back));
     }
@@ -1078,7 +1024,7 @@ fn connect_github_refusal_shows_under_its_button() {
         ),
     );
     let view = f::browser_page_view(&root);
-    words_in_order(view.tree(), &["Connect GitHub", "temper is busy with forge 2: try again when it ends."]);
+    words_in_order(view.tree(), &["Connect GitHub", "temper is busy with forge 0: try again when it ends."]);
 }
 #[test]
 fn connect_github_link_leaves_the_tab_once() {
@@ -1995,21 +1941,26 @@ fn no_admin_token(tree: &skein_ui::Tree) {
     }
 }
 #[test]
-fn the_admin_card_names_the_configured_host_or_forge_number() {
-    for (web, heading) in [(true, b"Forgejo at https://git.example.org".as_slice()), (false, b"Forgejo at forge 3")] {
-        let root = admin_root(None, admin_row(w::Connection::NotConnected, None, None, web));
-        let view = f::page_view(&root);
-        words_in_order(
-            view.tree(),
-            &[
-                core::str::from_utf8(heading).unwrap(),
-                "temper connects as its site admin, makes its bot and your first repository.",
-                "Connect as its admin",
-                "A Forgejo elsewhere",
-            ],
+fn managed_details_ask_for_the_address_git_and_web() {
+    let root = f::forge_root(Address::ConnectForge { forge: Some(Choice::Managed) }, List::with_capacity(0));
+    let mut view = f::page_view(&root);
+    for (name, field) in [
+        (b"Its address".as_slice(), d::forge::admin::PlaceField::Host),
+        (b"Its git base", d::forge::admin::PlaceField::Git),
+        (b"Its web address", d::forge::admin::PlaceField::Web),
+    ] {
+        let id = node(view.tree(), Role::TextField, name);
+        assert_eq!(
+            crate::act(&mut view, id, Act::Input { value: b"forge.example".as_slice().into() }),
+            Some(d::Action::Forge(d::forge::Act::Forges(d::forge::forges::Act::PlaceWrite {
+                field,
+                text: b"forge.example".as_slice().into()
+            })))
         );
     }
+    node(view.tree(), Role::TextField, "The site admin’s token".as_bytes());
 }
+
 #[test]
 fn admin_details_keep_the_token_out_of_actions_and_rendered_pages() {
     let mut root = admin_root(Some(Choice::Forge(HERE)), admin_row(w::Connection::NotConnected, None, None, true));
@@ -2208,21 +2159,6 @@ fn admin_ready_uses_the_durable_label_and_repository_link() {
     assert_eq!(press(&root, Role::Link, b"Open hello"), d::Action::Pages(pages::Act::OpenProject { project: 7 }));
 }
 
-#[test]
-fn the_admin_card_keeps_the_whole_configured_web_address() {
-    let mut parts = admin_row(w::Connection::NotConnected, None, None, false).into_parts();
-    parts.web = Some(Box::from([b'a'; 2048].as_slice()));
-    let root = admin_root(None, w::ForgeRow::new(&w::CEILINGS, parts).unwrap());
-    let domain = f::limits();
-    let words = f::words();
-    let limits = crate::Limits::of(&domain, &words).unwrap();
-    let mut view = crate::View::new(&limits, &domain, words, f::FORGE);
-    f::build(&mut view, &root);
-    let mut heading = b"Forgejo at ".to_vec();
-    heading.extend_from_slice(&[b'a'; 2048]);
-    node(view.tree(), Role::Heading { level: 2 }, &heading);
-}
-
 pub(super) fn pinned_rows(connection: w::Connection, pins: bool, runner: bool) -> List<w::ForgeRow> {
     let mut parts = row(HERE, w::Kind::Forgejo, w::Mode::Owned, connection, w::Offer::Offered).into_parts();
     if pins {
@@ -2361,77 +2297,75 @@ fn the_connected_forge_and_repository_picker_offer_their_links_as_terminal_comma
     }
 }
 
-fn welcome_owned(offer: w::Offer) -> d::Domain {
-    f::forge_root(
-        Address::Welcome { step: Step::Forge { forge: Some(Choice::Forge(HERE)) } },
-        rows(w::Connection::NotSetUp, offer),
-    )
-}
 #[test]
-fn welcome_run_is_disabled_while_setup_is_pending_or_out_of_date() {
-    for pending in [true, false] {
-        let mut root = welcome_owned(w::Offer::Offered);
-        if pending {
-            act(&mut root, d::forge::Act::SetUpAtOnce { forge: HERE });
-        } else {
-            drive(&mut root, d::Event::Forge(d::forge::Event::Served { served: d::forge::Served::OutOfDate }));
-        }
-        let view = f::page_view(&root);
-        assert!(has_state(view.tree(), Role::Button, b"Run on this machine", State::Disabled));
-    }
-}
-#[test]
-fn welcome_setup_refusals_follow_the_actions_inside_the_card_without_fields() {
-    for (why, refusal) in [
-        (w::SetUpRefusal::Busy, d::forge::forges::SetUpRefusal::Busy),
-        (w::SetUpRefusal::Invalid, d::forge::forges::SetUpRefusal::Invalid),
-    ] {
-        let mut root = welcome_owned(w::Offer::Offered);
-        let token = attempt(act(&mut root, d::forge::Act::SetUpAtOnce { forge: HERE }));
-        answer(
-            &mut root,
-            token,
-            w::Outcome::SetUpRefused(w::SetUpRefused::new(&w::CEILINGS, w::SetUpRefusedParts { why }).unwrap()),
-        );
-        let view = f::page_view(&root);
-        let tree = view.tree();
-        let card = node(tree, Role::Region, b"Forgejo");
-        let actions = tree
-            .nodes()
-            .iter()
-            .position(|n| n.styles.as_slice().contains(&crate::look::FLOW_ACTIONS) && parent(tree, n.id) == Some(card))
-            .unwrap();
-        let after_actions = actions + usize::try_from(tree.nodes()[actions].size).unwrap();
-        let alert = &tree.nodes()[after_actions];
-        assert_eq!(alert.role, Role::Alert);
-        assert_eq!(parent(tree, alert.id), Some(card));
-        assert_eq!(alert.name.as_deref(), Some(d::forge::words::set_up_refusal(refusal)));
-        assert!(!tree.nodes().iter().any(|n| n.role == Role::TextField));
-        assert!(!root.forge().setup_form().checked);
-        assert!(!has_state(tree, Role::Button, b"Run on this machine", State::Disabled));
-    }
-}
-#[test]
-fn welcome_not_under_the_box_links_to_details_with_all_four_commands() {
-    let mut root = f::forge_root(
-        Address::Welcome { step: Step::Forge { forge: None } },
-        rows(w::Connection::NotSetUp, w::Offer::NotUnderTheBox),
-    );
-    let action = press(&root, Role::Link, b"Run on this machine");
-    let d::Action::Pages(pages::Act::Go { address }) = &action else { panic!("details link") };
-    let address = address.clone();
-    drive(&mut root, d::Event::Act { action });
-    drive(&mut root, d::Event::Went { place: d::Place::Address(address) });
+fn an_unfinished_github_offers_go_on_before_start_over() {
+    let mut rows = github_rows(false);
+    let mut parts = rows.get(0).unwrap().clone().into_parts();
+    parts.app = Some(w::AppWay::Manifest);
+    *rows.get_mut(0).unwrap() = w::ForgeRow::new(&w::CEILINGS, parts).unwrap();
+    let root = f::forge_root(Address::Welcome { step: Step::Forge { forge: None } }, rows);
     let view = f::page_view(&root);
-    words_in_order(
-        view.tree(),
-        &[
-            "Set it up from a terminal",
-            "temper forge fetch 3",
-            "temper forge prepare 3",
-            "temper forge run 3 forgejo",
-            "temper forge run 3 runner",
-        ],
+    words_in_order(view.tree(), &["FORGE · not finished", "Go on", "Start over"]);
+    assert_eq!(
+        press(&root, Role::Button, b"Go on"),
+        d::Action::Forge(d::forge::Act::Forges(d::forge::forges::Act::GoOn {
+            forge: GITHUB,
+            back: b"/welcome?at=forge".as_slice().into()
+        }))
     );
-    assert!(f::find(view.tree(), Role::Button, b"Run on this machine").is_none());
+}
+
+#[test]
+fn the_managed_address_sets_host_port_and_tls() {
+    for (address, host, port, tls) in [
+        (b"https://forge.example:8443/".as_slice(), b"forge.example".as_slice(), 8443, true),
+        (b"http://forge.example:3000", b"forge.example", 3000, false),
+        (b"forge.example", b"forge.example", 443, true),
+        (b"http://[::1]:3000", b"::1", 3000, false),
+    ] {
+        let mut root = f::forge_root(Address::ConnectForge { forge: Some(Choice::Managed) }, List::with_capacity(0));
+        let mut view = f::page_view(&root);
+        let id = node(view.tree(), Role::TextField, b"Its address");
+        let action = crate::act(&mut view, id, Act::Input { value: address.into() }).unwrap();
+        f::root_event(&mut root, d::Event::Act { action });
+        let d::Action::Forge(d::forge::Act::Forges(d::forge::forges::Act::Managed { place })) =
+            press(&root, Role::Button, b"Connect as its admin")
+        else {
+            panic!("managed connect")
+        };
+        assert_eq!(place.host.as_ref(), host);
+        assert_eq!(place.port, port);
+        assert_eq!(place.tls.as_deref(), if tls { Some(host) } else { None });
+    }
+}
+#[test]
+fn an_invalid_managed_address_cannot_send() {
+    for address in [
+        b"".as_slice(),
+        b"https://",
+        b"http://forge.example:0",
+        b"https://forge.example:65536",
+        b"https://forge.example/path",
+        b"https://person@forge.example",
+    ] {
+        let mut root = f::forge_root(Address::ConnectForge { forge: Some(Choice::Managed) }, List::with_capacity(0));
+        let mut view = f::page_view(&root);
+        let id = node(view.tree(), Role::TextField, b"Its address");
+        let action = crate::act(&mut view, id, Act::Input { value: address.into() }).unwrap();
+        f::root_event(&mut root, d::Event::Act { action });
+        let view = f::page_view(&root);
+        assert!(has_state(view.tree(), Role::Button, b"Connect as its admin", State::Disabled));
+    }
+}
+
+#[test]
+fn starting_over_waits_for_the_removal_without_sending_twice() {
+    let mut root = f::forge_root(Address::Welcome { step: Step::Forge { forge: None } }, github_rows(false));
+    let action = press(&root, Role::Button, b"Start over");
+    f::root_event(&mut root, d::Event::Act { action });
+    let view = f::page_view(&root);
+    assert!(root.forge().setup_form().removal.as_ref().unwrap().request.is_some());
+    assert!(has_state(view.tree(), Role::Button, b"Start over", State::Disabled));
+    assert!(f::find(view.tree(), Role::Button, b"Remove").is_none());
+    words_in_order(view.tree(), &["The GitHub App stays yours: delete it in its settings.", "Start over"]);
 }

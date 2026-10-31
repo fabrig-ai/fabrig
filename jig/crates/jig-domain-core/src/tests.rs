@@ -6,7 +6,9 @@ use crate::routing::Work;
 use crate::*;
 use skein_lib::{Duration, Env, ReplyTo, Time, Token, Wall};
 
+mod closed;
 mod deadlines;
+mod deletion;
 mod flight;
 mod limits;
 mod start;
@@ -1744,6 +1746,12 @@ fn documents_lifecycle_history_keeps_holds_and_endings() {
 }
 
 fn restore_document_party(core: &mut Core, limits: &Limits, projects: &[u32]) {
+    core.projects = List::with_capacity(u32::try_from(projects.len()).expect("fixture projects"));
+    for project in projects {
+        if *project != people::DEPLOYMENT {
+            core.projects.push(*project).expect("open fixture project");
+        }
+    }
     let identity = core.people.identity(1).unwrap().clone();
     core.people = people::Domain::new(&limits.people, Box::new([]), core.settings.deployment_provider, Box::new([]));
     core.people.start_restore(Wall::EPOCH);
@@ -2170,7 +2178,7 @@ fn watch_admission_checks_each_subjects_project_or_owner() {
             Event::Watch { watcher: Token::new(30), sign_in: 10, subject, window: window() },
         );
         assert_watch_refusal(&out[0], WatchRefusal::NotAllowed);
-        assert!(core.view_subjects.is_empty(), "{label}");
+        assert!((core.watch_flights() == 0), "{label}");
     }
 }
 
@@ -2187,7 +2195,7 @@ fn signed_out_unknown_and_full_watches_are_refused_without_keyed_work() {
             Event::Watch { watcher: Token::new(30), sign_in, subject, window: window() },
         );
         assert_watch_refusal(&out[0], why);
-        assert!(core.view_subjects.is_empty(), "{label}");
+        assert!((core.watch_flights() == 0), "{label}");
     }
     for watcher in 1..=limits.views.watchers {
         watch_outputs(
@@ -2230,7 +2238,7 @@ fn a_tree_watch_past_the_rows_bound_keeps_its_clamped_window() {
     assert_eq!(tree.rows.len(), 2);
     assert_eq!(tree.rows.get(0).unwrap().chip.number, 3);
     assert_eq!(tree.rows.get(1).unwrap().chip.number, 4);
-    assert_eq!(core.view_subjects.get(&watcher).unwrap().window, Window { rows: 2, after });
+    assert_eq!(core.named_watch(watcher).unwrap().window, Window { rows: 2, after });
     assert_eq!(core.views.watchers(), 1);
 }
 
@@ -2261,9 +2269,12 @@ fn an_application_watch_asks_its_connector_with_the_clamped_window() {
     else {
         panic!("connector construction")
     };
-    assert_eq!((*owner, *got, *got_scope, *got_subject, *party), (connector, watcher, scope, subject, 1));
+    assert_eq!(
+        (*owner, *got, *got_scope, *got_subject, *party),
+        (connector, core.watch_token(watcher).unwrap(), scope, subject, 1)
+    );
     assert_eq!(*window, Window { rows: 2, after });
-    assert_eq!(core.view_subjects.get(&watcher).unwrap().window, *window);
+    assert_eq!(core.named_watch(watcher).unwrap().window, *window);
 }
 
 #[test]
@@ -2299,7 +2310,7 @@ fn a_watch_whose_task_has_an_oversized_whole_value_is_refused_unknown() {
     );
     assert_eq!(out.len(), 1);
     assert_watch_refusal(&out[0], WatchRefusal::Unknown);
-    assert!(core.view_subjects.is_empty());
+    assert!((core.watch_flights() == 0));
     assert!(core.view_names.is_empty());
     assert_eq!(core.views.watchers(), 0);
 }
@@ -2316,7 +2327,7 @@ fn an_unwatch_waits_for_its_delivery_then_ends_as_a_held_output() {
     let Held::WatchEnded { watcher: got, why } = held.as_ref() else { panic!("watch ending") };
     assert_eq!(*got, watcher);
     assert_eq!(*why, views::End::Unwatched);
-    assert!(core.view_subjects.is_empty());
+    assert!((core.watch_flights() == 0));
 }
 
 fn assert_watch_refusal(request: &Request, why: WatchRefusal) {
@@ -2386,7 +2397,7 @@ fn one_task_change_marks_trees_queries_and_named_chips_once() {
         let Request::Held(held) = request else { panic!("held change") };
         let Held::Delivery { watcher, document } = held.as_ref() else { panic!("document change") };
         assert!(watchers.insert(*watcher).unwrap());
-        let binding = core.view_subjects.get(watcher).unwrap();
+        let binding = core.named_watch(*watcher).unwrap();
         let subject = &core.view_names.get(binding.subject).unwrap().subject;
         assert_eq!(document.as_ref(), &make(&core, &limits, 1, subject, &window(), Wall::EPOCH).unwrap());
     }
@@ -2469,10 +2480,7 @@ fn watches_share_subject_tokens_and_expired_signins_end_only_their_own_watch() {
         );
         watch_outputs(&mut core, &limits, Event::Delivered { watcher });
     }
-    assert_eq!(
-        core.view_subjects.get(&Token::new(30)).unwrap().subject,
-        core.view_subjects.get(&Token::new(31)).unwrap().subject
-    );
+    assert_eq!(core.named_watch(Token::new(30)).unwrap().subject, core.named_watch(Token::new(31)).unwrap().subject);
     let mut out = routing::finish_watches(
         &mut core,
         &Env {
@@ -2484,7 +2492,7 @@ fn watches_share_subject_tokens_and_expired_signins_end_only_their_own_watch() {
     let Request::Held(held) = out.pop().unwrap() else { panic!("held watch ending") };
     let Held::WatchEnded { watcher, why } = held.as_ref() else { panic!("admission ending") };
     assert_eq!((*watcher, *why), (Token::new(30), views::End::SignedOut));
-    assert!(core.view_subjects.contains_key(&Token::new(31)));
+    assert!(core.watch_token(Token::new(31)).is_some());
     assert_eq!(core.view_names.len(), 1);
 }
 
@@ -2504,7 +2512,7 @@ fn taking_a_changed_delivery_after_signin_expiry_ends_instead_of_making_a_docume
     let Request::Held(held) = out.pop().unwrap() else { panic!("held signed-out ending") };
     let Held::WatchEnded { why, .. } = held.as_ref() else { panic!("no document after expiry") };
     assert_eq!(*why, views::End::SignedOut);
-    assert!(core.view_subjects.is_empty());
+    assert!((core.watch_flights() == 0));
 }
 
 mod activity;
@@ -2648,7 +2656,7 @@ fn a_run_watch_stays_open_between_attempts_and_the_new_attempt_starts_at_zero() 
     let Document::Run(run) = document.as_ref() else { panic!("idle run") };
     assert_eq!(run.attempt, None);
     assert!(run.writing.is_none());
-    assert!(core.view_subjects.contains_key(&Token::new(30)));
+    assert!(core.watch_token(Token::new(30)).is_some());
     watch_outputs(&mut core, &limits, Event::StreamDelivered { watcher: Token::new(30) });
     let proof = core.proofs.get_mut(&1).unwrap();
     proof.attempt = 8;
@@ -3538,7 +3546,7 @@ fn finishing_owes_header_changed_marks_and_first_drain_but_not_future_alarms() {
     watch_outputs(&mut core, &limits, Event::Stopping);
     assert!(core.finish_owed());
     assert!(finish_watch_outputs(&mut core, &limits).is_empty(), "ending awaits the delivery terminal");
-    assert!(core.views.is_closing(watcher));
+    assert!(core.views.is_closing(core.watch_token(watcher).unwrap()));
     assert!(!core.finish_owed(), "closing must not repeatedly owe an ending");
     let ended = watch_outputs(&mut core, &limits, Event::Delivered { watcher });
     assert_one_watch_ending(&ended, views::End::Stopping);
@@ -3609,10 +3617,10 @@ fn finishing_inspects_membership_role_and_query_visibility_without_clocks() {
         assert!(!core.finish_owed());
         match change {
             0 => {
-                core.view_subjects.get_mut(&watcher).unwrap().sign_in = 999;
+                core.named_watch_mut(watcher).unwrap().sign_in = 999;
             }
             1 => {
-                core.view_subjects.get_mut(&watcher).unwrap().party = 2;
+                core.named_watch_mut(watcher).unwrap().party = 2;
             }
             2 | 3 => {
                 let mut ignored = Queue::uncapped();
@@ -3776,6 +3784,7 @@ fn validity_keeps_document_settings_and_route_refusals() {
     assert!(!valid(&selected), "engine outcomes need a host beyond the workers");
 }
 
+mod erase;
 pub(crate) fn finish_start(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
     let action = core.start_begin(false, env.wall);
     finish_started(core, env, action)

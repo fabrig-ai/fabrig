@@ -48,6 +48,7 @@ fn playground_scripts() -> Box<[Script]> {
     let Line::Call { arguments, .. } = &mut scripts[0].turns[0].lines[0] else { panic!("delegate call") };
     let mut delegation: Value = serde_json::from_slice(arguments).expect("delegate JSON");
     delegation["batch"][0]["spec"]["words"] = "@hello-readme Edit playground/widget README.md".into();
+    delegation["batch"][0]["spec"]["parameters"][0]["resource"] = temper_engine_domain_forge::tag(1, 1).into();
     *arguments = serde_json::to_vec(&delegation).expect("delegate JSON").into_boxed_slice();
     let mut turns = std::mem::take(&mut scripts[1].turns).into_vec();
     turns.insert(2, call(b"read", &json!({"path":"src/main.rs"})));
@@ -454,14 +455,12 @@ pub struct PlaygroundReads {
 pub fn playground_read_evidence(config: &Path, client: &Path) -> PlaygroundReads {
     let document: Value =
         serde_json::from_slice(&fs::read(config.join("temper.json")).expect("configuration")).expect("JSON");
-    let forge = document["application"]["forges"]
-        .as_array()
-        .expect("forges")
-        .iter()
-        .find(|forge| forge["number"] == 3)
-        .expect("forge 3");
     PlaygroundReads {
-        address: forge["api"]["socket"].as_str().expect("forge address").parse().expect("socket"),
+        address: document["application"]["machine"]["owned"]["listen"]["socket"]
+            .as_str()
+            .expect("forge address")
+            .parse()
+            .expect("socket"),
         producer: turns(client, "3"),
         panel: super::ctl::alone(client, Call::new(&["change", "show", "2", "--json"])),
     }

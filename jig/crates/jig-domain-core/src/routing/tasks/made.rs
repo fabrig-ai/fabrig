@@ -19,7 +19,7 @@ pub(super) fn made(
     out: &mut Queue<Request>,
 ) {
     let request = reply_to.into_token();
-    let flight = core.land(request);
+    let flight = core.land_task(request);
     if let Some(Flight::PersonProposal(PersonProposalRoute::Accepting { person, proposer, proposal, .. })) = &flight {
         let first = *tasks.first().expect("an accepted batch made tasks");
         let last = *tasks.last().expect("an accepted batch made tasks");
@@ -42,7 +42,7 @@ pub(super) fn made(
             },
         )))));
     }
-    match core.made_flight(request, flight, tasks) {
+    match core.made_flight(flight, tasks) {
         crate::MadeRoute::Internal => {}
         crate::MadeRoute::Tasks(event) => {
             let mut follow = Queue::uncapped();
@@ -61,7 +61,7 @@ pub(super) fn made(
             }
             append_people(core, env, *event, out);
         }
-        crate::MadeRoute::Delegated { key, tasks, stubs, given } => {
+        crate::MadeRoute::Delegated { request, key, tasks, stubs, given } => {
             for stub in stubs {
                 let mut follow = Queue::uncapped();
                 crate::routing::step::step_tasks(core, env, tasks::Event::RememberStub { stub }, &mut follow);

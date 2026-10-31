@@ -17,6 +17,12 @@ pub mod delegation;
 pub mod inbox;
 pub mod task;
 pub mod welcome;
+/// The chosen playground waits for its project membership (temper/docs/design/draft/playground-reset.md, 6.1).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum PlaygroundChoice {
+    Idle,
+    Waiting,
+}
 #[derive(Debug)]
 pub struct Pages {
     address: Address,
@@ -29,9 +35,9 @@ pub struct Pages {
     task: Option<task::Task>,
     accounts: accounts::Accounts,
     connect_model: Option<Box<connect_model::ConnectModel>>,
-    pub(crate) demo_provider: Option<u32>,
-    pub(crate) retired_project: Option<u32>,
-    pub(crate) demo_model: bool,
+    pub(crate) playground_provider: Option<u32>,
+    pub(crate) playground_choice: PlaygroundChoice,
+    pub(crate) playground_model: bool,
     pub(crate) choice: choice::Draft,
     accounts_open: bool,
     welcome: Option<welcome::Welcome>,
@@ -53,7 +59,7 @@ pub enum Act {
     Choice(choice::Act),
     SignOut,
     Playground,
-    RetryDemo,
+    RetryPlayground,
     Accounts(accounts::Act),
     ConnectModel(connect_model::Act),
     ChatWords {
@@ -161,9 +167,9 @@ impl Pages {
             task: None,
             accounts: accounts::Accounts::default(),
             connect_model: None,
-            demo_provider: None,
-            retired_project: None,
-            demo_model: false,
+            playground_provider: None,
+            playground_choice: PlaygroundChoice::Idle,
+            playground_model: false,
             choice: choice::Draft::default(),
             accounts_open: false,
             welcome: None,
@@ -337,8 +343,8 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 pages.connect_model = Some(Box::new(connect_model::ConnectModel::default()));
             }
             if let Some(page) = &mut pages.connect_model {
-                page.playground |= pages.demo_model;
-                page.act(client, &pages.address, chosen, pages.demo_provider, act, &mut pages.serial, out);
+                page.playground |= pages.playground_model;
+                page.act(client, &pages.address, chosen, pages.playground_provider, act, &mut pages.serial, out);
             }
         }
         Event::Act { act: Act::Accounts(act) } => {
@@ -362,7 +368,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             }
         }
         Event::Act { act: Act::StartChat } => start_chat(pages, env, client, out),
-        Event::Act { act: Act::Suggest { .. } | Act::Playground | Act::RetryDemo } => {
+        Event::Act { act: Act::Suggest { .. } | Act::Playground | Act::RetryPlayground } => {
             unreachable!("suggestions are resolved by the root")
         }
         Event::Act { act: Act::ClosedChats } => closed_chats(pages, out),
@@ -815,7 +821,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::ChatWords { .. }
         | Act::StartChat
         | Act::Playground
-        | Act::RetryDemo
+        | Act::RetryPlayground
         | Act::Suggest { .. }
         | Act::MessageWords { .. }
         | Act::Send
@@ -850,6 +856,18 @@ fn choose_project(pages: &mut Pages, client: &Client, project: u32) {
                 pages.project = Some(project);
                 break;
             }
+        }
+    }
+}
+
+/// Select the chosen playground once its record and membership arrive (temper/docs/design/draft/playground-reset.md, 6.1).
+pub(crate) fn playground_project(pages: &mut Pages, client: &Client, project: Option<u32>) {
+    if pages.playground_choice == PlaygroundChoice::Waiting
+        && let Some(project) = project
+    {
+        choose_project(pages, client, project);
+        if pages.project == Some(project) {
+            pages.playground_choice = PlaygroundChoice::Idle;
         }
     }
 }
@@ -905,18 +923,15 @@ fn me_changed(pages: &mut Pages, client: &Client, out: &mut Queue<Request>) {
     project_changed(pages, client);
 }
 
+#[expect(clippy::manual_map, reason = "step code reads the first project without closures")]
 pub(crate) fn project_changed(pages: &mut Pages, client: &Client) {
     if let Some(me) = pages.me(client)
-        && (!contains(me, pages.project) || pages.project == pages.retired_project)
+        && !contains(me, pages.project)
     {
-        let mut project = None;
-        for row in &me.projects {
-            if Some(row.project) != pages.retired_project {
-                project = Some(row.project);
-                break;
-            }
-        }
-        pages.project = project;
+        pages.project = match me.projects.get(0) {
+            Some(row) => Some(row.project),
+            None => None,
+        };
     }
 }
 // jig ends every pending read at a credential boundary and replays none

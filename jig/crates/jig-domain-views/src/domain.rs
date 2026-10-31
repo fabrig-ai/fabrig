@@ -1,9 +1,8 @@
 //! Volatile watch pacing state (`domain/engine.md`, 11).
 //! No document, task, project or history is kept or interpreted here.
-use crate::facts::Facts;
 use crate::watch::{self, Watcher};
 use crate::{Event, Fact, Limits, Request};
-use skein_lib::{Env, Id, List, Map, Queue, Slab, Token};
+use skein_lib::{Env, Id, List, Lossy, Map, Queue, Slab, Token};
 
 /// A bounded set of watches, discarded on restart.
 #[derive(Debug)]
@@ -11,7 +10,7 @@ pub struct Domain {
     pub(crate) watchers: Slab<Watcher>,
     pub(crate) runs: Map<Token, crate::RetainedRun>,
     pub(crate) names: Map<Token, Id<Watcher>>,
-    pub(crate) facts: Facts,
+    pub(crate) facts: Lossy<Fact>,
 }
 impl Domain {
     /// Construct empty volatile pacing state.
@@ -21,7 +20,7 @@ impl Domain {
             runs: Map::with_capacity(limits.runs),
             watchers: Slab::with_capacity(crate::limits::slots(limits).expect("valid watch capacities")),
             names: Map::with_capacity(limits.watchers),
-            facts: Facts::new(limits.facts),
+            facts: Lossy::with_capacity(limits.facts),
         }
     }
     /// Open watches, including retired slots awaiting reclaim.

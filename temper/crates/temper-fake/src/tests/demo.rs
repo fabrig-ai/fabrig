@@ -5,7 +5,6 @@ use serde_json::{Value, json};
 use skein_fake_llm_domain::api::{self, Finish, Message, Part, Role};
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
 use smith_domain_run::{self as run, charter};
-use temper_forge_setup::{problem, setup::Setup};
 
 type Row = (Vec<(&'static str, Option<Value>)>, &'static str);
 
@@ -23,15 +22,11 @@ pub(super) fn fixture() -> Value {
     d["engine"]["llm"]["providers"].as_array_mut().unwrap().push(json!({
         "name":"demo", "number":3, "models":["demo"], "sources":{"keys":true}
     }));
-    d["application"]["setup"][0]["mode"] = json!({"fake":{
-        "listen":{"socket":"127.0.0.1:3000"},"git":"demo/bin/git", "owner":"playground",
-        "repositories":[{"name":"widget","landing":"main"}]
-    }});
     d["application"]["demo"] = json!({"llm":{
         "listen":{"socket":"127.0.0.1:8370"}, "provider":3, "key":"demo/llm.key",
         "asked":[{"cue":"Add CSV export to widget","turns":["Export CSV",{
             "lines":[{"text":"Done"}],"finish":"stop","tokens":1
-        }]}],"otherwise":["demo model"]}, "forge":1, "project":1});
+        }]}],"otherwise":["demo model"]}});
     d
 }
 fn member(d: &skein_json::Document, at: u32, name: &[u8]) -> u32 {
@@ -43,12 +38,8 @@ pub(super) fn read(value: &Value) -> Result<Option<demo::Demo>, crate::Refusal> 
     let directories = config::Directories::given(b"/config", b"/data", b"/cache").unwrap();
     let engine = temper_service::startup::engine(&d, member(&d, 0, b"engine"), &directories).unwrap();
     let app = member(&d, 0, b"application");
-    let mut ps = problem::Problems::empty();
-    let setup = Setup::read(&d, member(&d, app, b"setup"), &temper_forge_setup::limits::small(), &directories, &mut ps)
-        .unwrap();
-    assert!(ps.is_empty(), "{:?}", problem::lines(&ps));
     let mut ps = config::Problems::empty();
-    let listeners: Vec<_> = [b"clients".as_slice(), b"webhooks"]
+    let mut listeners: Vec<_> = [b"clients".as_slice(), b"webhooks"]
         .iter()
         .map(|name| {
             let at = member(&d, member(&d, app, name), b"listener");
@@ -59,17 +50,11 @@ pub(super) fn read(value: &Value) -> Result<Option<demo::Demo>, crate::Refusal> 
         })
         .collect();
     assert!(ps.is_empty());
-    let projects: Vec<_> = engine.projects.iter().map(|p| p.number).collect();
+    listeners.push("127.0.0.1:3000".parse().unwrap());
     demo::read(
         &d,
         member(&d, app, b"demo"),
-        &demo::Facts {
-            llm: &engine.llm,
-            projects: &projects,
-            setup: &setup,
-            listeners: &listeners,
-            directories: &directories,
-        },
+        &demo::Facts { llm: &engine.llm, listeners: &listeners, directories: &directories },
     )
 }
 #[test]
@@ -105,13 +90,6 @@ fn demo_refusals() {
         ),
         (
             vec![("/application/demo/llm/listen/socket", Some(json!("127.0.0.1:3000")))],
-            "application.demo.llm.listen: must be unique\n",
-        ),
-        (
-            vec![
-                ("/application/setup/0", Some(owned["application"]["setup"][0].clone())),
-                ("/application/demo/llm/listen/socket", Some(json!("127.0.0.1:3000"))),
-            ],
             "application.demo.llm.listen: must be unique\n",
         ),
         (
@@ -197,12 +175,8 @@ fn demo_refusals() {
             )],
             "application.demo.llm.otherwise: scripts past their joint byte bound\n",
         ),
-        (vec![("/application/demo/forge", Some(json!(2)))], "application.demo.forge: names no fake setup entry\n"),
-        (
-            vec![("/application/setup/0", Some(owned["application"]["setup"][0].clone()))],
-            "application.demo.forge: names no fake setup entry\n",
-        ),
-        (vec![("/application/demo/project", Some(json!(9)))], "application.demo.project: names no project\n"),
+        (vec![("/application/demo/forge", Some(json!(2)))], "application.demo.forge: unknown member\n"),
+        (vec![("/application/demo/project", Some(json!(9)))], "application.demo.project: unknown member\n"),
     ];
     rows.push((
         vec![
@@ -277,8 +251,6 @@ fn demo_acceptance() {
             "asked":m["asked"], "otherwise":m["otherwise"]});
         assert_eq!(demo.llm(), &llm::Document::decode(&serde_json::to_vec(&standalone).unwrap()).unwrap());
         assert_eq!(demo.provider(), 3);
-        assert_eq!(demo.forge(), 1);
-        assert_eq!(demo.project(), 1);
     }
 }
 

@@ -6,8 +6,8 @@ use temper_engine_domain::{self as engine, Record};
 /// Fill the configured chat template as jig's core worlds do.
 #[must_use]
 pub fn chat(project: u32, words: &[u8]) -> people::Ask {
-    let creating = jig_core_world::fixtures::Creating::new(&config(91).core, limits().tasks.tree_tasks);
-    jig_core_world::fixtures::create_chat(&creating, project, 0, words.into())
+    let creating = jig_test_profile::fixtures::Creating::new(&config(91).core, limits().tasks.tree_tasks);
+    jig_test_profile::fixtures::create_chat(&creating, project, 0, words.into())
 }
 
 /// Fill the goal template with its supplied tracked terms.
@@ -16,7 +16,7 @@ pub fn goal(
     project: u32,
     words: &[u8],
     executor: people::TaskExecutor,
-    terms: jig_core_world::fixtures::Goal,
+    terms: jig_test_profile::fixtures::Goal,
 ) -> people::Ask {
     goal_from(chat(project, words), executor, terms)
 }
@@ -25,7 +25,7 @@ pub fn goal(
 pub fn goal_from(
     ask: people::Ask,
     executor: people::TaskExecutor,
-    terms: jig_core_world::fixtures::Goal,
+    terms: jig_test_profile::fixtures::Goal,
 ) -> people::Ask {
     let people::Ask::Create { project, mut batch } = ask else { unreachable!() };
     let member = &mut batch[0];
@@ -44,14 +44,14 @@ pub fn goal_from(
 /// Fill a chat with the world's configured authority, including durable policy changes.
 #[must_use]
 pub fn configured_chat(
-    creating: &jig_core_world::fixtures::Creating,
+    creating: &jig_test_profile::fixtures::Creating,
     rows: &BTreeMap<engine::Key, Record>,
     tasks: u32,
     project: u32,
     words: &[u8],
 ) -> people::Ask {
     let people::Ask::Create { mut batch, .. } =
-        jig_core_world::fixtures::create_chat(creating, project, 0, words.into())
+        jig_test_profile::fixtures::create_chat(creating, project, 0, words.into())
     else {
         unreachable!()
     };

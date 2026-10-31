@@ -36,6 +36,12 @@ impl skein_shell::Host for Host {
     fn iterate(&mut self, now: Time, wall: Wall) {
         self.now = now;
         temper_service::iterate(&mut self.service, now, wall);
+        for (forge, name, port) in self.service.unresolved() {
+            let address = std::str::from_utf8(&name)
+                .ok()
+                .and_then(|name| std::net::ToSocketAddrs::to_socket_addrs(&(name, port)).ok()?.next());
+            self.service.resolved(forge, address);
+        }
     }
     fn completions(&mut self) -> &mut Queue<Complete> {
         self.service.completions()
@@ -307,7 +313,7 @@ fn note_line(note: temper_service::Note) -> String {
             };
             format!("temper serve: forge {number}: set up refused: {why}\n")
         }
-        temper_service::Note::Demo { line } | temper_service::Note::BoxLink { line } => {
+        temper_service::Note::Playground { line } | temper_service::Note::BoxLink { line } => {
             format!("{}\n", String::from_utf8_lossy(&line))
         }
         temper_service::Note::ForgeStopped { number, why } => stopped_line(number, why),
@@ -353,9 +359,7 @@ fn note_line(note: temper_service::Note) -> String {
         temper_service::Note::ForgeNotConnected { number, why } => {
             format!("temper serve: forge {number}: not connected: {why}\n")
         }
-        temper_service::Note::ForgeUnconfigured { number } => {
-            format!("temper serve: forge {number}: its records are not configured\n")
-        }
+
         temper_service::Note::ForgeUnkept { number, installation } => {
             format!("temper serve: forge {number}: installation {installation}: not kept\n")
         }
@@ -440,10 +444,7 @@ fn records_and_installation_notes_name_the_forge_and_reason() {
         }),
         "temper serve: forge 7: not connected: its records were made for forgejo at fake.test:443\n"
     );
-    assert_eq!(
-        note_line(Note::ForgeUnconfigured { number: 8 }),
-        "temper serve: forge 8: its records are not configured\n"
-    );
+
     assert_eq!(
         note_line(Note::ForgeUnkept { number: 7, installation: 93 }),
         "temper serve: forge 7: installation 93: not kept\n"

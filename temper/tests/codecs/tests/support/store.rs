@@ -1,6 +1,7 @@
 use skein_lib::Duration;
 use temper_engine_domain_forge as forge;
 pub const LIMITS: forge::Limits = forge::Limits {
+    forges: 4,
     repositories: 2,
     tasks: 8,
     holds: 8,

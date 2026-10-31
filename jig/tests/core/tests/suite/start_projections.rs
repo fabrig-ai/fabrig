@@ -1,5 +1,4 @@
 //! Direct started-start projection rows become ordinary serving feeds.
-use jig_core_world::world;
 use jig_domain_core::{
     self as core,
     start::{Action, Phase, SweepInput},
@@ -15,9 +14,9 @@ struct Harness {
 }
 impl Harness {
     fn new() -> Self {
-        let limits = world::limits().core;
+        let limits = jig_test_profile::limits().core;
         let mut h = Self {
-            core: core::Core::new(world::config(411).core, &limits).expect("configured core"),
+            core: core::Core::new(jig_test_profile::config(411).core, &limits).expect("configured core"),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             out: Queue::uncapped(),
         };

@@ -163,6 +163,7 @@ impl Step {
 #[derive(Clone, Copy, Debug)]
 pub enum ReadCondition {
     Contains(&'static [u8]),
+    NoProjectNamed(&'static str),
     LimitedTask {
         task: u64,
         account: u64,
@@ -184,6 +185,16 @@ impl ReadCondition {
     pub fn matches(self, stdout: &[u8]) -> bool {
         match self {
             Self::Contains(bytes) => occurrences(stdout, bytes) != 0,
+            Self::NoProjectNamed(name) => {
+                let Ok(value) = serde_json::from_slice::<serde_json::Value>(stdout) else { return false };
+                value["cut"] == false
+                    && value["projects"].as_array().is_some_and(|rows| {
+                        rows.iter().all(|row| {
+                            row["name"]["cut"] == false
+                                && row["name"]["bytes"].as_str().is_some_and(|kept| kept != name)
+                        })
+                    })
+            }
             Self::KeptTask { task } => {
                 let Ok(value) = serde_json::from_slice::<serde_json::Value>(stdout) else { return false };
                 value.pointer("/task/chip/task").and_then(serde_json::Value::as_u64) == Some(task)
@@ -1522,6 +1533,24 @@ mod read_condition_tests {
         // The deadline's remaining time cannot exceed the CLI's five seconds.
         assert!(deadline.remaining() <= Duration::from_secs(TIMEOUT_SECONDS));
         assert!(matches!(Verdict::finish(&Deadline::arm("in-time call", Duration::from_secs(20))), Verdict::InTime));
+    }
+    #[test]
+    fn project_absence_requires_a_complete_list_and_keeps_other_projects() {
+        let condition = ReadCondition::NoProjectNamed("Playground");
+        for (document, absent) in [
+            (json!({"projects":[],"cut":false}), true),
+            (json!({"projects":[{"name":{"bytes":"Work","cut":false}}],"cut":false}), true),
+            (json!({"projects":[{"name":{"bytes":"Playground","cut":false}}],"cut":false}), false),
+            (json!({"projects":[],"cut":true}), false),
+            (json!({"projects":null,"cut":false}), false),
+            (json!({"projects":[{}],"cut":false}), false),
+        ] {
+            assert_eq!(
+                condition.matches(&serde_json::to_vec(&document).expect("project list JSON")),
+                absent,
+                "{document}"
+            );
+        }
     }
     #[test]
     fn an_unreleased_caller_closes_its_root_and_probe_without_running_commands() {

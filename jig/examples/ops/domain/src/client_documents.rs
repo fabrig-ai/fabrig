@@ -114,12 +114,9 @@ pub(crate) fn document(
         match request {
             core::Request::Held(output) => match *output {
                 core::Held::ApplicationDelivery { watcher: due, connector: owner, subject: named } => {
-                    assert!(
-                        watcher == due && number == owner && subject == named,
-                        "document keeps its owning connector"
-                    );
+                    assert!(number == owner && subject == named, "document keeps its owning connector");
                     let document = value.take().expect("ready document belongs to this construction");
-                    held(decision, Output::ApplicationDocument { watcher, document });
+                    held(decision, Output::ApplicationDocument { watcher: due, document });
                 }
                 output @ (core::Held::ApplicationWatchEnded { .. }
                 | core::Held::ReadLoad { .. }

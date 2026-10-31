@@ -484,8 +484,8 @@ fn chats_have_one_list_or_the_empty_sentence() {
 }
 
 #[test]
-fn an_empty_demo_start_has_its_invitation_and_your_chats() {
-    let root = fixtures::demo_root(
+fn an_empty_playground_start_has_its_invitation_and_your_chats() {
+    let root = fixtures::playground_root(
         temper_client_domain::Address::Chats { filter: ChatsFilter::All, start: false },
         fixtures::PROJECT,
         true,
@@ -506,9 +506,9 @@ fn an_empty_demo_start_has_its_invitation_and_your_chats() {
 }
 
 #[test]
-fn a_live_demo_chat_is_listed_under_your_chats() {
+fn a_live_playground_chat_is_listed_under_your_chats() {
     use temper_client_domain::Address;
-    let mut root = fixtures::demo_root(
+    let mut root = fixtures::playground_root(
         Address::Inbox { filter: temper_client_domain::address::Filter::ALL },
         fixtures::PROJECT,
         true,
@@ -727,10 +727,10 @@ fn delegate_counts_are_plural_and_absent_at_zero() {
 }
 
 #[test]
-fn start_a_chat_heads_the_composer_except_at_the_demos_start() {
-    for demo in [false, true] {
-        let root = if demo {
-            fixtures::demo_root(
+fn start_a_chat_heads_the_composer_except_at_the_playgrounds_start() {
+    for playground in [false, true] {
+        let root = if playground {
+            fixtures::playground_root(
                 temper_client_domain::Address::Chats { filter: ChatsFilter::All, start: false },
                 fixtures::PROJECT,
                 true,
@@ -753,7 +753,7 @@ fn start_a_chat_heads_the_composer_except_at_the_demos_start() {
                 hint = Some(at);
             }
         }
-        assert_eq!(heading.is_some(), !demo);
+        assert_eq!(heading.is_some(), !playground);
         if let Some(heading) = heading {
             assert!(heading < slot.unwrap());
         }
@@ -768,8 +768,11 @@ fn start_a_chat_heads_the_composer_except_at_the_demos_start() {
 #[test]
 fn an_accepted_start_draws_no_applied_status() {
     use temper_client_domain::{self as d, Action, Event, pages::Act};
-    let mut root =
-        fixtures::demo_root(d::Address::Chats { filter: ChatsFilter::All, start: false }, fixtures::PROJECT, true);
+    let mut root = fixtures::playground_root(
+        d::Address::Chats { filter: ChatsFilter::All, start: false },
+        fixtures::PROJECT,
+        true,
+    );
     let limits = fixtures::domain_limits();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let mut out = Queue::uncapped();
@@ -846,17 +849,17 @@ fn the_chats_page_opens_with_its_bar_and_draws_its_list_as_the_mockup() {
     let after = bar + usize::try_from(nodes[bar].size).unwrap();
     assert_eq!(nodes[after].role, Role::Heading { level: 2 });
     assert_eq!(nodes[after].name.as_deref(), Some(b"Start a chat".as_slice()));
-    let demo = fixtures::page_view(&fixtures::demo_root(
+    let playground = fixtures::page_view(&fixtures::playground_root(
         temper_client_domain::Address::Chats { filter: ChatsFilter::All, start: false },
         fixtures::PROJECT,
         true,
     ));
-    let demo_nodes = demo.tree().nodes();
-    assert!(!demo_nodes[main_of(demo_nodes)].styles.as_slice().contains(&crate::look::PAGE));
-    for node in demo_nodes {
-        assert!(!node.styles.as_slice().contains(&crate::look::PAGEBAR), "the demo's start keeps no bar");
+    let playground_nodes = playground.tree().nodes();
+    assert!(!playground_nodes[main_of(playground_nodes)].styles.as_slice().contains(&crate::look::PAGE));
+    for node in playground_nodes {
+        assert!(!node.styles.as_slice().contains(&crate::look::PAGEBAR), "the playground's start keeps no bar");
     }
-    for (page, view) in [("chats", &chats), ("demo", &demo)] {
+    for (page, view) in [("chats", &chats), ("playground", &playground)] {
         let nodes = view.tree().nodes();
         let heading = index_of(nodes, fixtures::find(view.tree(), Role::Heading { level: 2 }, b"Your chats").unwrap());
         let row = heading - 1;
@@ -904,12 +907,12 @@ fn done_and_failed_chats_say_closed_in_the_list_and_bar() {
 }
 
 #[test]
-fn only_the_starts_address_focuses_its_composer_including_the_demo() {
-    for demo in [false, true] {
+fn only_the_starts_address_focuses_its_composer_including_the_playground() {
+    for playground in [false, true] {
         for start in [false, true] {
             let address = temper_client_domain::Address::Chats { filter: ChatsFilter::All, start };
-            let root = if demo {
-                fixtures::demo_root(address, fixtures::PROJECT, true)
+            let root = if playground {
+                fixtures::playground_root(address, fixtures::PROJECT, true)
             } else {
                 fixtures::root_at(address, &fixtures::domain_limits()).0
             };
@@ -922,7 +925,7 @@ fn only_the_starts_address_focuses_its_composer_including_the_demo() {
                     focused = focused.checked_add(1).expect("focus requests fit");
                 }
             }
-            assert_eq!(focused, usize::from(start), "demo={demo}, start={start}");
+            assert_eq!(focused, usize::from(start), "playground={playground}, start={start}");
         }
     }
 }

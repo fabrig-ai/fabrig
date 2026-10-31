@@ -1,6 +1,6 @@
 //! A live conversation with two direct agent delegates.
 use jig_domain_tasks as tasks;
-pub fn delegate_pair(world: &mut crate::effects::World) -> (u64, u64) {
+pub fn delegate_pair(world: &mut crate::world::World) -> (u64, u64) {
     use crate::fixtures::{delegate, member};
     let parent = world.assignments[0];
     let first = member(world, tasks::Executor::Agent { charter: 1 }, b"first");

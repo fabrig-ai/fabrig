@@ -1,8 +1,9 @@
-use jig_core_world::effects::Setup;
-use jig_core_world::{
-    effects::World,
-    peers::{Peers, fixture},
-};
+#[path = "../peers/closing_chat.rs"]
+mod closing_chat;
+use jig_core_world::peers::Peers;
+use jig_core_world::peers::fixture;
+use jig_core_world::world::Setup;
+use jig_core_world::world::World;
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -247,7 +248,8 @@ fn a_person_stops_a_scripted_run_and_words_release_it_for_a_new_attempt() {
 
 #[test]
 fn a_person_stops_a_goal_and_its_delegates_runs_are_cancelled_with_its_own() {
-    use jig_core_world::{fixtures::live_row, stories::delegates::delegate_pair};
+    use jig_core_world::fixtures::live_row;
+    use jig_core_world::stories::delegates::delegate_pair;
     let (mut config, mut limits) = fixture(209, 0);
     // Three live runs reserve twenty each; this story's member may fund the whole tree.
     config.core.seed_projects[0].policy.policy.roles[2].authority.budget.spend = 80;
@@ -397,7 +399,7 @@ fn a_worker_reconnects_and_resends_retained_turns_after_hello() {
 #[test]
 fn peers_scenarios() {
     let mut bundle = super::bundle::Bundle::default();
-    crate::bundle::case!(bundle, 7074, jig_core_world::stories::closing_chat::disposals_and_finish_grace);
+    crate::bundle::case!(bundle, 7074, closing_chat::disposals_and_finish_grace);
     crate::bundle::case!(bundle, 201, a_scripted_worker_takes_turns_answers_calls_and_finishes_with_acknowledgements);
     crate::bundle::case!(bundle, 202, three_workers_and_the_engines_own_slot_use_the_same_host_scripts);
     crate::bundle::case!(

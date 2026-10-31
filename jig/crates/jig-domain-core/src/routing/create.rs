@@ -1,7 +1,7 @@
 //! Party roots checked whole, then made together (domain/people.md, 5.1).
+use super::party::Routed;
 use super::{party_inputs, refusals::pool_refused};
-use crate::routing::Work;
-use crate::{Core, Limits, Request};
+use crate::{Core, Limits};
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_people as people;
@@ -15,16 +15,10 @@ pub(super) struct Creation {
     pub role: people::Role,
     pub batch: Box<[people::Member]>,
 }
-pub(super) fn create_request(
-    core: &mut Core,
-    env: &Env<Limits>,
-    out: &mut Queue<Request>,
-    work: &mut Queue<Work>,
-    mut creation: Creation,
-) {
+pub(super) fn create_request(core: &mut Core, env: &Env<Limits>, routed: &mut Routed, mut creation: Creation) {
     let request = creation.request;
     if core.fill >= env.limits.fill_mark {
-        super::refusals::pool_again(work, request, people::Again::Busy);
+        super::refusals::pool_again(&mut routed.work, request, people::Again::Busy);
         return;
     }
     match checked(core, env, &mut creation, false) {
@@ -32,8 +26,7 @@ pub(super) fn create_request(
             party_inputs::begin(
                 core,
                 env,
-                out,
-                work,
+                routed,
                 party_inputs::Inputs {
                     person: creation.person,
                     project: creation.project,
@@ -49,7 +42,7 @@ pub(super) fn create_request(
                 request,
             );
         }
-        Err(why) => pool_refused(work, request, why),
+        Err(why) => pool_refused(&mut routed.work, request, why),
     }
 }
 pub(super) fn checked(
@@ -190,7 +183,11 @@ fn new_task(
                     .ok_or(people::Refusal::Limit { which: people::LimitKind::Arithmetic })?
             }
             people::Dependency::Existing(task) => {
-                if !core.reaches(*person, creation.role, *project, task, env.limits.tasks.depth) {
+                if !core.reaches(
+                    crate::compound::PartyTask { person: *person, role: Some(creation.role), project: *project, task },
+                    env.limits.tasks.depth,
+                    &tasks::CompoundAdmission::new(&core.tasks, 0),
+                ) {
                     return Err(people::Refusal::Unknown);
                 }
                 task

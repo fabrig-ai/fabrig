@@ -60,7 +60,7 @@ fn commands(caller: &mut Caller, link: Box<[u8]>, app: u64) -> usize {
     let mut sign_in = Command::new(&[b"sign-in", b"-"]);
     sign_in.input = link;
     caller.commands.push_back(sign_in);
-    caller.commands.push_back(paste(app, b"secrecy-app"));
+    caller.commands.push_back(paste(app, b"secrecy-app", true));
     caller.commands.push_back(Command::new(&[b"forge", b"list", b"--until", b"connected:1", b"--json"]));
     caller.commands.push_back(Command::new(&[b"forge", b"install", b"1", b"--key", b"secrecy-install"]));
     caller.commands.push_back(Command::browse(3));

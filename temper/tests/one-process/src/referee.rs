@@ -204,7 +204,7 @@ fn snapshot(store: &Store) -> rules::Snapshot {
             root::Record::Core(core::Record::Tasks(
                 jig_domain_tasks::Stored::Live(task) | jig_domain_tasks::Stored::Ended(task),
             )) => {
-                snapshot.tasks.insert(task.number, jig_core_world::observations::task(task));
+                snapshot.tasks.insert(task.number, jig_conformance::core::task(task));
                 snapshot.receipts.insert(rules::Receipt::Task(task.number));
                 if matches!(task.phase, jig_domain_tasks::Phase::Ended(_)) {
                     snapshot.receipts.insert(rules::Receipt::Ended(task.number));
@@ -298,11 +298,8 @@ impl skein_world::Referee<Proc> for Referee {
             }
             self.attached = Some(());
         }
+        // The signed-in caller connects the forge before the person's repository story.
         if !self.handed
-            && (matches!(self.story, crate::world::Story::Chat { .. } | crate::world::Story::ChatReadThenWait { .. })
-                || service.service.engine_domain().is_some_and(|domain| {
-                    matches!(domain.forge_connection(1), temper_engine_domain_forge::Connection::Connected { .. })
-                }))
             && let Some(link) = service.service.links().pop()
         {
             crate::oracle::linked(&link);

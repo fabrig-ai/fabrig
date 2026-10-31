@@ -100,6 +100,22 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["forge", "connect", "3", "github", "--key", "app"],
     &["forge", "connect", "3", "forgejo", "tokens", "--key", "app"],
     &["forge", "connect", "3", "forgejo-admin", "token", "--key", "admin"],
+    &["forge", "connect", "github-app", "4242", "app.pem", "--key", "new-app"],
+    &["forge", "connect", "github", "--key", "new-manifest"],
+    &[
+        "forge",
+        "connect",
+        "forgejo-admin",
+        "token",
+        "--api",
+        "forge.invalid:3000",
+        "--git",
+        "http://forge.invalid:3000",
+        "--key",
+        "new-admin",
+    ],
+    &["forge", "remove", "3"],
+    &["playground", "end"],
     &["forge", "install", "3"],
     &["forge", "repositories", "3"],
     &["change", "show", "2"],
@@ -725,7 +741,7 @@ pub(crate) const UNKNOWN_ASKER: client::Asker = client::Asker(999);
 /// A stable stored request's engine key, unrelated to its client call prefix.
 const KEPT_KEY: skein_lib::RequestKey = [9; 16];
 /// One slot per row and form; fewer omits decide's second form.
-pub(super) const TOOL_FORMS: u32 = 62;
+pub(super) const TOOL_FORMS: u32 = 67;
 /// Exactly one example exercises each row and form; zero misses it entirely.
 pub(super) const EXAMPLES_PER_FORM: u32 = 1;
 /// One missing byte exercises the first refused destination; zero would fit.

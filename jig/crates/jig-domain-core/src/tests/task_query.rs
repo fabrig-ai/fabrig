@@ -165,7 +165,7 @@ fn a_delegates_question_marks_a_query_listing_its_parent() {
         },
     );
     core.touch_task_number(&limits, CHILD);
-    let binding = core.view_subjects.get(&Token::new(WATCHER)).unwrap();
+    let binding = core.named_watch(Token::new(WATCHER)).unwrap();
     assert!(core.changed_views.contains(&binding.subject));
 }
 
@@ -250,7 +250,7 @@ fn generated_commits_mark_each_query_whose_lines_change() {
             let after = lines(&core, &limits, REQUESTER, query, &window()).unwrap();
             if before[offset] != after {
                 let watcher = Token::new(WATCHER + u64::try_from(offset).unwrap());
-                let binding = core.view_subjects.get(&watcher).unwrap();
+                let binding = core.named_watch(watcher).unwrap();
                 assert!(core.changed_views.contains(&binding.subject), "commit {iteration}, query {query:?}");
             }
         }

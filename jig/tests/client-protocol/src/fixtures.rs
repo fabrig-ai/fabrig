@@ -16,7 +16,7 @@ pub fn address() -> skein_io::Addr {
 }
 #[must_use]
 pub fn owner_limits() -> jig_test_domain::Limits {
-    let mut limits = jig_core_world::world::limits();
+    let mut limits = jig_test_profile::limits();
     // Client keeps closing watches until their engine terminals arrive.
     limits.core.views.watchers = jig_client_world::test::limits().client.domain.watches;
     // Two clients may place distinct overlapping holds on the same task.
@@ -72,7 +72,7 @@ pub fn settings(rows: u32) -> jig_protocol_engine_clients::Settings {
 /// The core world's configured models as the client side names them.
 #[must_use]
 pub fn models() -> Box<[jig_protocol_engine_clients::Model]> {
-    let model = jig_core_world::world::scripted_model();
+    let model = jig_test_profile::scripted_model();
     Box::new([jig_protocol_engine_clients::Model {
         name: model.name,
         provider: None,
@@ -141,7 +141,7 @@ pub fn world(seed: u64) -> World<Test, Protocol> {
 #[must_use]
 pub fn family_world(seed: u64) -> World<Test, Protocol> {
     let mut world = self::world(seed);
-    let configuration = jig_core_world::world::config(seed);
+    let configuration = jig_test_profile::config(seed);
     let resource = configuration.first.resources.first().expect("configured first object").path.clone();
     world.front().adopt_family_resource(resource);
     world

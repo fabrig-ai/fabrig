@@ -1,8 +1,8 @@
-use jig_core_world::{
-    effects::fixture,
-    reads::{ask, latest},
-    stories::reads::{request, world},
-};
+use crate::read_support::request;
+use crate::read_support::world;
+use jig_core_world::reads::ask;
+use jig_core_world::reads::latest;
+use jig_core_world::world::fixture;
 use jig_domain_core::{documents, reads};
 use jig_domain_people as people;
 const PROJECT: u32 = 1;
@@ -46,7 +46,7 @@ fn a_stored_override_of_a_dropped_template_is_restored_at_start() {
     // is a later task, so finish the fixture's unrelated conversation first.
     jig_core_world::fixtures::finish_chat(&mut world, 0, b"Done");
     let mut config = fixture(SEED, false).0;
-    config.core.defaults.templates = Box::new([jig_core_world::fixtures::templates()[0].clone()]);
+    config.core.defaults.templates = Box::new([jig_test_profile::fixtures::templates()[0].clone()]);
     world.restart_with(config);
     ask(&mut world, READ, reads::Read::Project { project: PROJECT });
     let reads::Answer::Document(document) = latest(&world) else { panic!("project document") };
@@ -69,7 +69,7 @@ fn a_policy_change_naming_a_dropped_template_is_refused() {
     // is a later task, so finish the fixture's unrelated conversation first.
     jig_core_world::fixtures::finish_chat(&mut world, 0, b"Done");
     let mut config = fixture(SEED, false).0;
-    config.core.defaults.templates = Box::new([jig_core_world::fixtures::templates()[0].clone()]);
+    config.core.defaults.templates = Box::new([jig_test_profile::fixtures::templates()[0].clone()]);
     world.restart_with(config);
     request(
         &mut world,
@@ -103,7 +103,7 @@ fn me_serves_the_projects_templates_merged_with_its_overrides() {
     ask(&mut world, READ, reads::Read::Frame);
     let reads::Answer::Document(document) = latest(&world) else { panic!("me document") };
     let documents::Document::Frame(frame) = document.as_ref() else { panic!("me document") };
-    let mut expected = jig_core_world::fixtures::templates();
+    let mut expected = jig_test_profile::fixtures::templates();
     expected[1].tracked = Some(5);
     assert_eq!(frame.projects.get(0).expect("project").templates.as_slice(), expected.as_ref());
 }

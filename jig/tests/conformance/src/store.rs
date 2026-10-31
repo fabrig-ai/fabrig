@@ -10,15 +10,18 @@ impl Neighbours {
     ) -> Vec<Input<root::Event, root::Record>> {
         use core::start::Phase;
         self.start_phases.push(phase);
-        let position = match phase {
-            Phase::LoadCore => Some(0),
-            Phase::RestoreConnector { connector } => Some(u32::from(connector)),
-            Phase::ReadAfresh { connector } => Some(2 + u32::from(connector)),
-            Phase::LoadInbox | Phase::Sweep | Phase::Switch => None,
+        match phase {
             Phase::Link | Phase::Wires | Phase::AdoptRuns | Phase::SettleOutbox { .. } | Phase::Open => {
                 panic!("root performs internal start phases")
             }
-        };
+            Phase::LoadCore
+            | Phase::RestoreConnector { .. }
+            | Phase::ReadAfresh { .. }
+            | Phase::LoadInbox
+            | Phase::Sweep
+            | Phase::Switch => {}
+        }
+        let position = jig_conformance::core::peers::restart_position(phase, 2);
         if let Some(position) = position {
             self.routes.push(jig_conformance::referee::Observed::RestartStage { position });
         }

@@ -401,7 +401,7 @@ fn assert_held_period(event: Option<&root::Event>, expected: u64) {
 const STARTUP_PASSES: u32 = 256;
 
 #[test]
-fn startup_admission_does_not_promise_a_connected_forge() {
+fn startup_admission_keeps_no_forge() {
     use skein_lib::{Queue, ReplyTo, Token};
     use temper_engine_domain_forge as forge;
     let mut config = fixtures::engine();
@@ -448,8 +448,9 @@ fn startup_admission_does_not_promise_a_connected_forge() {
     let [root::Record::Forge { row }] = rows.as_ref() else { panic!("one durable application row: {rows:?}") };
     let forge::Stored::Application { token, outcome, .. } = row.as_ref() else { panic!("application row: {row:?}") };
     assert_eq!(*token, 1);
-    assert_eq!(outcome, &forge::ApplicationOutcome::ForgeRefused(forge::AdoptionRefusal::Unreachable));
+    assert_eq!(outcome, &forge::ApplicationOutcome::ForgeRefused(forge::AdoptionRefusal::NoSuchForge));
     let engine = service.engine.as_mut().expect("engine");
+    fixtures::restore_forge(engine, fixtures::forge_record(1));
     engine.step(root::Event::Forge(Box::new(forge::Event::Connection {
         forge: 1,
         state: forge::Connection::Connected { id: 42, login: b"temper".as_slice().into() },
@@ -486,8 +487,12 @@ fn startup_locate(engine: &mut crate::engine::Engine) -> (skein_forge::api::Repo
                 root::Request::Party(_) => {}
                 other @ (root::Request::Unsettled(_)
                 | root::Request::Bound { .. }
-                | root::Request::StopGroup { .. }
-                | root::Request::SetUpGroup { .. }
+                | root::Request::ForgeKept(_)
+                | root::Request::ForgeGone { .. }
+                | root::Request::BoxGroup { .. }
+                | root::Request::PlaygroundActs { .. }
+                | root::Request::ResetAct { .. }
+                | root::Request::BoxRemove { .. }
                 | root::Request::Return { .. }
                 | root::Request::SetUp { .. }
                 | root::Request::Connect { .. }
@@ -552,7 +557,9 @@ fn nothing_leaves_before_the_mark() {
     assert!(!engine.store.component.mark_durable());
     assert_eq!(engine.accounts.as_ref().expect("accounts").startup_state(), (false, 0, 0));
     assert_eq!(engine.domain.start_phase(), Some(jig_domain_core::start::Phase::Wires));
-    assert!(!engine.credentials.is_empty(), "configured credentials wait for the durable wires");
+    assert!(engine.values.identities.numbers().is_empty(), "restored identities wait for the durable wires");
+    assert!(engine.workers.forges.is_empty(), "runtime forges wait for the durable wires");
+    assert!(!engine.forge_records.pending.is_empty(), "restored forge records await the mark");
     assert_eq!(engine.store.secret_requests, 0);
     assert!(engine.store.forge_loads.is_empty());
     assert!(!engine.forge_records.done());

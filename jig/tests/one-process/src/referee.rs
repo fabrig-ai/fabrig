@@ -321,7 +321,7 @@ fn snapshot(rows: &BTreeMap<root::Key, root::Record>) -> rules::Snapshot {
             jig_domain_tasks::Stored::Live(task) | jig_domain_tasks::Stored::Ended(task),
         )) = row
         {
-            snapshot.tasks.insert(task.number, jig_core_world::observations::task(task));
+            snapshot.tasks.insert(task.number, jig_conformance::core::task(task));
             snapshot.receipts.insert(rules::Receipt::Task(task.number));
             for word in &task.inbox {
                 snapshot.receipts.insert(rules::Receipt::Word(task.number, word.number));
@@ -499,6 +499,19 @@ impl skein_world::Referee<Proc> for Referee {
             }
             for write in &commit.writes {
                 match write {
+                    root::Write::DropTranscript { task } => {
+                        self.rows.retain(|key, _| {
+                            if let root::Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Turn {
+                                task: owner,
+                                ..
+                            })) = key
+                            {
+                                owner != task
+                            } else {
+                                true
+                            }
+                        });
+                    }
                     root::Write::Wires => {}
                     root::Write::CopySettingsRevision(number) => {
                         use jig_domain_core as core;

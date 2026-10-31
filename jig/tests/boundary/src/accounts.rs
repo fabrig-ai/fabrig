@@ -1,4 +1,4 @@
-//! Accounts translate only their child's vocabulary and skein's driver.
+//! The accounts component links its child, store and skein's drivers.
 const MANIFEST: &str = include_str!("../../../crates/jig-protocol-accounts/Cargo.toml");
 
 fn breaches(source: &str) -> Vec<String> {
@@ -8,14 +8,22 @@ fn breaches(source: &str) -> Vec<String> {
         .into_iter()
         .filter(|name| name.starts_with("jig-") || name.starts_with("skein-") || name.starts_with("smith-"))
         .filter(|name| {
-            !["skein-lib", "skein-codec", "skein-oauth", "skein-oauth-accounts", "jig-domain-accounts"]
-                .contains(&name.as_str())
+            ![
+                "skein-lib",
+                "skein-codec",
+                "skein-oauth",
+                "skein-oauth-accounts",
+                "skein-io",
+                "jig-domain-accounts",
+                "jig-protocol-store",
+            ]
+            .contains(&name.as_str())
         })
         .collect()
 }
 
 #[test]
-fn protocol_accounts_link_only_their_child_and_skein() {
+fn the_accounts_component_links_only_its_child_store_and_skein() {
     let failures = breaches(MANIFEST);
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }

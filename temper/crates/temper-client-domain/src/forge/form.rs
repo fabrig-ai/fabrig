@@ -35,6 +35,7 @@ pub enum Broken {
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Act {
+    Forges(super::forges::Act),
     Go { address: Address },
     Write { field: Text, text: Box<[u8]>, typed: Typed },
     Choose { role: Role },
@@ -46,7 +47,8 @@ pub enum Act {
     SetupWrite { field: super::forges::SetupField, text: Box<[u8]> },
     StartIn { forge: u16 },
     Picker { forge: u16, act: super::picker::Act },
-    StartDemo,
+    StartPlayground,
+    EndPlayground,
     AdminWrite { field: super::admin::Field, text: Box<[u8]> },
     ConnectAdmin { forge: u16 },
     AppWrite { text: Box<[u8]> },

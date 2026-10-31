@@ -196,6 +196,12 @@ impl Joint {
 }
 
 impl Front<Test> for Joint {
+    fn seed(&mut self, seed: crate::harness::Seed) {
+        if matches!(&seed, crate::harness::Seed::ChatProject { .. }) {
+            self.unsigned_on_bind();
+        }
+        crate::harness::seed::seed_core(&mut self.session.driver, self.now, self.wall, seed);
+    }
     fn bind(&mut self, client: ClientId, party: u64) {
         let identity = self.identities.get(&party).expect("fixture supplies the actual authenticated identity").clone();
         self.last_client = Some(client);
@@ -313,7 +319,7 @@ pub fn fixture(owner_limits: &jig_test_domain::Limits) -> Joint {
     use jig_domain_people as people;
 
     let driver = Driver::new(
-        jig_core_world::world::config(8455),
+        jig_test_profile::config(8455),
         *owner_limits,
         Peers::new(Vec::new(), Vec::new()),
         Time::ZERO,
@@ -344,7 +350,7 @@ mod tests {
     }
 
     fn front() -> Joint {
-        front_with_limits(&jig_core_world::world::limits())
+        front_with_limits(&jig_test_profile::limits())
     }
 
     fn front_with_limits(owner_limits: &jig_test_domain::Limits) -> Joint {
@@ -408,7 +414,7 @@ mod tests {
         use crate::{Settings, Until, World};
         use skein_fake_person::{Find, Step};
         use skein_ui::Role;
-        let mut limits = jig_core_world::world::limits();
+        let mut limits = jig_test_profile::limits();
         limits.core.documents.rows = 2;
         limits.core.documents.lines = 2;
         limits.core.documents.chips = 2;
@@ -497,7 +503,7 @@ mod tests {
     #[test]
     fn a_real_busy_front_uses_scripted_capacity_and_recovers_the_same_unsaved_key_after_owner_expiry() {
         use skein_lib::{Duration, RequestEnvelope};
-        let mut owner_limits = jig_core_world::world::limits();
+        let mut owner_limits = jig_test_profile::limits();
         owner_limits.core.people.requests = 1;
         owner_limits.core.people.request_retention = Duration::from_secs(1);
         let mut front = front_with_limits(&owner_limits);
@@ -576,7 +582,7 @@ mod tests {
         let applied = front.session.driver.world.store.applied;
         let commits = front.session.driver.world.commits.len();
         let delay = Duration::from_secs(1);
-        front.not_ready_restore(|| jig_core_world::world::config(8455), delay);
+        front.not_ready_restore(|| jig_test_profile::config(8455), delay);
         front.try_fault(Time::ZERO, &FrontFault::NotReady).expect("actual paused root before provider exchange");
         Front::<Test>::sign_in(&mut front, ClientId(0), Time::ZERO, clock(Time::ZERO));
         let captured = &front.session.driver.world.client_peer.as_ref().expect("actual protocol peer").delivered;
@@ -622,7 +628,7 @@ mod tests {
         let applied = front.session.driver.world.store.applied;
         let commits = front.session.driver.world.commits.len();
         let delay = Duration::from_secs(1);
-        front.not_ready_restore(|| jig_core_world::world::config(8455), delay);
+        front.not_ready_restore(|| jig_test_profile::config(8455), delay);
         front.try_fault(Time::ZERO, &FrontFault::NotReady).expect("actual paused owner restore");
         assert!(front.session.driver.world.store.loading());
         assert_eq!(Front::<Test>::next_due(&front), Some(Time::ZERO.saturating_add(delay)));
@@ -710,7 +716,7 @@ mod tests {
     #[test]
     fn the_real_front_restart_uses_supplied_configuration_and_reports_reachability_at_the_actual_recovery_deadline() {
         let mut front = front();
-        front.restart_configuration(|| jig_core_world::world::config(8455));
+        front.restart_configuration(|| jig_test_profile::config(8455));
         Front::<Test>::bind(&mut front, ClientId(0), 1);
         let _ = Front::<Test>::poll(&mut front, Time::ZERO, clock(Time::ZERO));
         let _ = Front::<Test>::observed(&mut front);
@@ -742,8 +748,8 @@ fn a_persons_joint_inbox_is_the_components_document_for_the_same_core_state() {
     let now = Time::ZERO;
     let wall = super::fixture::clock(now);
     let driver = super::engine::Driver::new(
-        jig_core_world::world::config(8455),
-        jig_core_world::world::limits(),
+        jig_test_profile::config(8455),
+        jig_test_profile::limits(),
         jig_core_world::peers::Peers::new(Vec::new(), Vec::new()),
         now,
         wall,

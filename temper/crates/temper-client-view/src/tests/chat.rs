@@ -8,8 +8,8 @@ use skein_lib::{List, Wall};
 use skein_ui::Role;
 
 #[test]
-fn the_demo_chat_context_names_its_project_playground() {
-    let root = fixtures::demo_root(temper_client_domain::Address::Chat { task: TASK }, fixtures::PROJECT, true);
+fn the_playground_project_is_named_playground() {
+    let root = fixtures::playground_root(temper_client_domain::Address::Chat { task: TASK }, fixtures::PROJECT, true);
     for words in [fixtures::words(), fixtures::browser_words()] {
         let mut view = fixtures::view_of(words);
         let tree = fixtures::build(&mut view, &root);
@@ -31,7 +31,7 @@ fn the_demo_chat_context_names_its_project_playground() {
 fn the_chatbar_region_is_named_by_its_heading() {
     use skein_fake_person::{Face, Find, Found};
 
-    let root = fixtures::demo_root(temper_client_domain::Address::Chat { task: TASK }, fixtures::PROJECT, true);
+    let root = fixtures::playground_root(temper_client_domain::Address::Chat { task: TASK }, fixtures::PROJECT, true);
     let view = fixtures::page_view(&root);
     let heading =
         named_position(view.tree().nodes(), Role::Heading { level: 1 }, Some("T9 · Ship the update".as_bytes()))
@@ -1879,8 +1879,8 @@ fn named_count(tree: &skein_ui::Tree, role: Role, name: &[u8]) -> u32 {
 }
 
 #[test]
-fn the_demo_chats_bar_has_no_model_word() {
-    let root = fixtures::demo_root(temper_client_domain::Address::Chat { task: TASK }, fixtures::PROJECT, true);
+fn the_playground_chats_bar_has_no_model_word() {
+    let root = fixtures::playground_root(temper_client_domain::Address::Chat { task: TASK }, fixtures::PROJECT, true);
     let view = fixtures::page_view(&root);
     let bar = styled(view.tree(), crate::look::CHATBAR);
     for node in subtree(view.tree(), bar) {

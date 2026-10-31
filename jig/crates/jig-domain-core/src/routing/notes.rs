@@ -1,6 +1,7 @@
 //! Party note edits and run note requests translated through the notes child
 //! (`domain/engine.md`, section 4.4; `domain/people.md`, section 5.1).
 
+use super::party::{Party, Routed};
 use super::refusals::note_person_refusal;
 use super::runs::call_decision;
 use super::{NoteBrief, NoteRoute};
@@ -11,7 +12,7 @@ use jig_domain_authority as authority;
 use jig_domain_notes as notes;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
-use skein_lib::{Env, List, Queue, Token};
+use skein_lib::{Env, List, Queue};
 
 pub(super) fn route_notes(
     core: &mut Core,
@@ -21,7 +22,7 @@ pub(super) fn route_notes(
 ) -> Queue<Request> {
     let mut child = Queue::uncapped();
     crate::routing::step::step_notes(core, env, event, &mut child);
-    tag_notes(core, work, child)
+    tag_notes(core, env, work, child)
 }
 
 pub(super) fn person_note_scope(project: u32, scope: people::NoteScope) -> notes::Scope {
@@ -60,16 +61,24 @@ pub(super) fn person_note_change(change: people::NoteChange) -> notes::Change {
     }
 }
 
-pub(super) fn tag_notes(core: &mut Core, work: &mut Queue<Work>, mut child: Queue<notes::Request>) -> Queue<Request> {
+pub(super) fn tag_notes(
+    core: &mut Core,
+    env: &Env<Limits>,
+    work: &mut Queue<Work>,
+    mut child: Queue<notes::Request>,
+) -> Queue<Request> {
     let mut out = Queue::uncapped();
     for _ in 0..child.len() {
         match child.pop().expect("note output count") {
+            notes::Request::ProjectDropped { owner } => {
+                crate::deletion::notes_dropped(core, env, owner, &mut out);
+            }
             notes::Request::Save { record } => out.push(Request::Write(Write::Save(Record::Notes(record)))),
             notes::Request::Erase { key } => out.push(Request::Write(Write::Erase(Key::Notes(key)))),
             notes::Request::Load { owner, range } => {
                 out.push(Request::Held(Box::new(Held::NotesLoad { owner, range })));
             }
-            notes::Request::Written { owner, name, revision } => match core.note_routes.remove(&owner) {
+            notes::Request::Written { owner, name, revision } => match core.take_note(owner) {
                 Some(NoteRoute::Call { to, key }) => {
                     call_decision(core, &mut out, to, key, CallPart::NoteWritten { name, revision });
                 }
@@ -77,34 +86,39 @@ pub(super) fn tag_notes(core: &mut Core, work: &mut Queue<Work>, mut child: Queu
                     request,
                     outcome: people::Outcome::NoteEdited { name },
                 }))),
-                Some(NoteRoute::Brief { .. }) => unreachable!("an index cannot write an entry"),
-                None => unreachable!("a note write has a waiting caller"),
+                Some(NoteRoute::Brief { .. } | NoteRoute::Deletion { .. }) => {
+                    unreachable!("note reads and project deletion cannot write an entry")
+                }
+                None => {}
             },
-            notes::Request::Deleted { owner, name } => match core.note_routes.remove(&owner) {
+            notes::Request::Deleted { owner, name } => match core.take_note(owner) {
                 Some(NoteRoute::Person { request }) => work.push(Work::Event(Event::People(people::Event::Decided {
                     request,
                     outcome: people::Outcome::NoteEdited { name },
                 }))),
-                Some(NoteRoute::Call { .. } | NoteRoute::Brief { .. }) | None => {
+                Some(NoteRoute::Call { .. } | NoteRoute::Brief { .. } | NoteRoute::Deletion { .. }) => {
                     unreachable!("only a party deletes a note")
                 }
+                None => {}
             },
-            notes::Request::Recalled { owner, entries, more } => match core.note_routes.remove(&owner) {
+            notes::Request::Recalled { owner, entries, more } => match core.take_note(owner) {
                 Some(NoteRoute::Call { to, key }) => {
                     let part = recalled_part(core, key.task, entries, more);
                     call_decision(core, &mut out, to, key, part);
                 }
-                Some(NoteRoute::Person { .. } | NoteRoute::Brief { .. }) | None => {
+                Some(NoteRoute::Person { .. } | NoteRoute::Brief { .. } | NoteRoute::Deletion { .. }) => {
                     unreachable!("a run owns this recall")
                 }
+                None => {}
             },
-            notes::Request::Indexed { owner, lines, more } => match core.note_routes.remove(&owner) {
+            notes::Request::Indexed { owner, lines, more } => match core.take_note(owner) {
                 Some(NoteRoute::Brief { task }) => work.push(Work::BriefNotes { task, lines, more }),
-                Some(NoteRoute::Call { .. } | NoteRoute::Person { .. }) | None => {
+                Some(NoteRoute::Call { .. } | NoteRoute::Person { .. } | NoteRoute::Deletion { .. }) => {
                     unreachable!("brief preparation owns note index")
                 }
+                None => {}
             },
-            notes::Request::Refused { owner, why } => match core.note_routes.remove(&owner) {
+            notes::Request::Refused { owner, why } => match core.take_note(owner) {
                 Some(NoteRoute::Call { to, key }) => match why {
                     notes::Refusal::Busy => {
                         let _pending = core.pending_calls.remove(&key);
@@ -144,6 +158,7 @@ pub(super) fn tag_notes(core: &mut Core, work: &mut Queue<Work>, mut child: Queu
                         work.push(Work::Event(Event::Tasks(tasks::Event::PreparationFailed { task })));
                     }
                 },
+                Some(NoteRoute::Deletion { project }) => crate::deletion::notes_refused(core, project),
                 None => out.push(Request::Now(Box::new(Now::NotesRefused { owner, why }))),
             },
         }
@@ -189,24 +204,22 @@ pub(super) fn recalled_part(core: &Core, task: u64, entries: List<notes::Entry>,
     CallPart::NoteRecalled { entries: entries.into_boxed(), more }
 }
 
-#[expect(clippy::too_many_arguments, reason = "the route retains the admitted party and request fields")]
 pub(super) fn edit_note_request(
     core: &mut Core,
-    work: &mut Queue<Work>,
-    request: Token,
-    person: u64,
-    project: u32,
-    _role: Option<people::Role>,
+    routed: &mut Routed,
+    party: Party,
     name: u64,
     scope: Box<people::NoteScope>,
     change: people::NoteChange,
 ) {
+    let Party { request, person, project, .. } = party;
+
     let act = match &change {
         people::NoteChange::Correct { .. } => crate::acts::Act::EditNote,
         people::NoteChange::Delete { .. } => crate::acts::Act::DeleteNote,
     };
     if let Err(why) = crate::acts::note(core, person, project, &scope, act) {
-        work.push(Work::Event(Event::People(people::Event::Decided {
+        routed.work.push(Work::Event(Event::People(people::Event::Decided {
             request,
             outcome: people::Outcome::Refused(why),
         })));
@@ -214,6 +227,6 @@ pub(super) fn edit_note_request(
         let owner = core.begin_note_route(NoteRoute::Person { request });
         let scope = person_note_scope(project, *scope);
         let change = person_note_change(change);
-        work.push(Work::Event(Event::Notes(notes::Event::Edit { owner, party: person, name, scope, change })));
+        routed.work.push(Work::Event(Event::Notes(notes::Event::Edit { owner, party: person, name, scope, change })));
     }
 }

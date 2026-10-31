@@ -90,6 +90,15 @@ impl States {
     pub(super) fn clear(&mut self) {
         self.entries.clear();
     }
+    /// Removal forgets all callback authority for this forge (playground-reset.md, 4).
+    pub(super) fn remove(&mut self, forge: u16) {
+        for _ in 0..self.entries.len() {
+            let entry = self.entries.pop().expect("bounded traversal");
+            if entry.forge != forge {
+                self.entries.push(entry);
+            }
+        }
+    }
     fn prune(&mut self, now: Time) {
         for _ in 0..self.entries.len() {
             let entry = self.entries.pop().expect("bounded traversal");

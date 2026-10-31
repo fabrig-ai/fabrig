@@ -273,19 +273,7 @@ fn checked_peers(dirs: &Directories, bytes: &[u8]) -> Result<Peers, String> {
     let forgejo =
         temper_fake::forge::Document::decode(&peer_document(dirs, "forgejo.json", temper_fake::DOCUMENT_BYTES)?)
             .map_err(|why| refuse("forgejo.json", why))?;
-    let deployment = crate::setup::check(bytes, &dirs.jig())?;
-    let mut serve = vec![crate::address(&deployment.named.clients)?];
-    if let Some(webhooks) = &deployment.named.webhooks {
-        serve.push(crate::address(&webhooks.listener)?);
-    }
-    let ordinary = temper_fake::steps(
-        &deployment.checked.setup,
-        deployment.demo.as_ref(),
-        &dirs.flags(),
-        serve.into_boxed_slice(),
-        true,
-        Box::new([]),
-    );
+    let (ordinary, _) = crate::box_command::configuration_steps(dirs, bytes, Box::new([]))?;
     let mut ports = vec![1455];
     for step in
         ordinary.always.iter().chain(ordinary.asked.iter().flat_map(|group| group.steps.iter().map(|(_, step)| step)))
@@ -346,13 +334,6 @@ fn validate(dirs: &Directories, bytes: &[u8], expected: &Path) -> Result<(), Str
         })
     {
         return Err("effective deployment, worker root and agent configuration must stay in the sandbox".into());
-    }
-    for entry in &deployment.checked.setup.entries {
-        let directoryless =
-            matches!(entry.mode, temper_forge_setup::setup::Mode::Managed { .. }) && entry.directory.is_empty();
-        if !directoryless && !contained(&dirs.data, &entry.directory) {
-            return Err("application.setup.directory: must stay under effective data".into());
-        }
     }
     let tree = Json::decode(bytes)?;
     let configuration = tree.string("workers/0/agent/configuration")?;

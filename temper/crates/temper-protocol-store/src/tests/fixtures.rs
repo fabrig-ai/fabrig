@@ -29,6 +29,7 @@ const CLIENT: skein_forge_client::Limits = skein_forge_client::Limits {
     facts: 16,
 };
 pub const LIMITS: top::Limits = top::Limits {
+    forges: 4,
     repositories: 2,
     tasks: 8,
     holds: 8,
@@ -148,7 +149,7 @@ fn client_key(random: &mut Rng) -> skein_forge_client::Key {
 #[expect(clippy::disallowed_macros, reason = "property inputs number canonical member addresses")]
 pub fn key(random: &mut Rng) -> top::Key {
     let number = random.next_u64();
-    match random.below(23) {
+    match random.below(24) {
         0 => top::Key::Call(top::NamedCall {
             task: number,
             attempt: random.next_u64(),
@@ -171,12 +172,10 @@ pub fn key(random: &mut Rng) -> top::Key {
         14 => top::Key::Release(number),
         15 => top::Key::Application(number),
         16 => top::Key::Writer(u16::try_from(random.below(65_536)).expect("u16")),
-        17 => top::Key::Demo(u16::try_from(random.below(65_536)).expect("u16")),
-        18 => top::Key::Binding(alloc::format!("member{number}@example.com").into_bytes().into_boxed_slice()),
-        19 => top::Key::DemoAct([u8::try_from(random.below(256)).expect("byte"); 16]),
-        20 => top::Key::Flight { task: number, entry: random.next_u64() },
-        21 => top::Key::Landing(number),
-        _ => top::Key::Receipt(top::ReceiptKey {
+        17 => top::Key::Binding(alloc::format!("member{number}@example.com").into_bytes().into_boxed_slice()),
+        18 => top::Key::Flight { task: number, entry: random.next_u64() },
+        19 => top::Key::Landing(number),
+        20 => top::Key::Receipt(top::ReceiptKey {
             project: u32::try_from(random.below(4_294_967_296)).expect("u32"),
             repository: repository(random),
             check: if random.below(2) == 0 {
@@ -186,6 +185,9 @@ pub fn key(random: &mut Rng) -> top::Key {
             },
             key: commit(random),
         }),
+        21 => top::Key::Forge(u16::try_from(random.below(65_536)).expect("u16")),
+        22 => top::Key::ForgeNumber,
+        _ => top::Key::Playground,
     }
 }
 pub fn core_keys() -> [jig_domain_core::Key; 4] {
@@ -552,7 +554,7 @@ pub fn answers_without_item_pieces() -> [skein_forge::api::Answer; 19] {
         Answer::Located { repository: 27 },
     ]
 }
-pub fn encoded(value: &crate::v10::Error) -> Box<[u8]> {
+pub fn encoded(value: &crate::v11::Error) -> Box<[u8]> {
     let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("measured error length"));
     value.encode(&mut writer).expect("measured room");
     writer.finish()
@@ -604,13 +606,13 @@ pub fn item_answers() -> [skein_forge::api::Answer; 3] {
         Answer::Reviews { reviews: Box::new([review(), review()]), more: true },
     ]
 }
-pub fn encoded_row(row: &crate::v10::Row) -> Box<[u8]> {
+pub fn encoded_row(row: &crate::v11::Row) -> Box<[u8]> {
     let mut writer = skein_lib::Writer::new(usize::try_from(row.measure()).expect("measured row length"));
     row.encode(&mut writer).expect("measured room");
     writer.finish()
 }
-pub fn item_piece_row(items: Box<[u8]>) -> crate::v10::Row {
-    use crate::v10 as w;
+pub fn item_piece_row(items: Box<[u8]>) -> crate::v11::Row {
+    use crate::v11 as w;
     let answer = w::Answer::Items(
         w::ItemsAnswer::new(&w::CEILINGS, w::ItemsAnswerParts { items, more: false, now: 1 }).expect("piece ceiling"),
     );
@@ -867,6 +869,38 @@ pub fn issue_row() -> top::IssueRow {
             plan: plan.into_boxed(),
             milestones: milestones.into_boxed(),
             finished: Some("finished λ".into()),
+        }),
+    }
+}
+
+pub fn forge_record() -> top::ForgeRecord {
+    top::ForgeRecord {
+        number: u16::MAX,
+        kind: top::Kind::Forgejo,
+        mode: top::Mode::Connected,
+        state: top::ForgeState::Kept,
+        place: top::Place {
+            api: top::Address {
+                host: b"forge.example".as_slice().into(),
+                port: 443,
+                tls: Some(b"forge.example".as_slice().into()),
+            },
+            git: b"https://forge.example".as_slice().into(),
+            web: Some(b"https://forge.example".as_slice().into()),
+        },
+        read_only: false,
+        bot: top::Bot {
+            login: b"bot".as_slice().into(),
+            name: b"Temper".as_slice().into(),
+            email: b"bot@example.com".as_slice().into(),
+        },
+        asked: true,
+        first: Some(top::FirstIntent {
+            playground: true,
+            org: b"playground".as_slice().into(),
+            repository: b"widget".as_slice().into(),
+            project: top::SetUpProject::New(b"project".as_slice().into()),
+            label: b"playground".as_slice().into(),
         }),
     }
 }
