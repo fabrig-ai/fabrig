@@ -12,9 +12,9 @@ fn key_bytes(key: &Key) -> Box<[u8]> {
     keys::encode(key, fixtures::KEY_LIMIT).expect("within the key limit")
 }
 
-// The existing generated sample count plus two explicit late-interval keys.
+// Generated samples and explicit late-interval keys.
 const SAMPLES: u32 = 500;
-const BOUNDARY_KEYS: u32 = 2;
+const BOUNDARY_KEYS: u32 = 4;
 // A census and the combined core/tasks request, beside LIVE's single ranges.
 const EXTRA_REQUESTS: u32 = 2;
 fn samples() -> core::ops::Range<u32> {
@@ -45,6 +45,8 @@ fn cursor_keys() -> Box<[Key]> {
     for key in [
         Key::People(jig_domain_people::Key::Acted(jig_domain_people::ActKey { connector: 1, key: [0; 16] })),
         Key::Tasks(jig_domain_tasks::Key::PlacedHold(TASK)),
+        Key::People(jig_domain_people::Key::Deletion(0)),
+        Key::People(jig_domain_people::Key::Deletion(u32::MAX)),
     ] {
         keys.push(key).expect("counted boundary keys");
     }
@@ -360,10 +362,14 @@ fn the_accounts_restore_range_stops_before_the_installations_row() {
 }
 
 #[test]
-fn the_people_restore_ranges_include_acted_and_skip_ended_read_positions() {
+fn the_people_restore_ranges_include_acted_and_deletions_and_skip_ended_read_positions() {
     let ranges = intervals::restore(&RestoreRange::People);
     for connector in [0, u16::MAX] {
         let key = Key::People(jig_domain_people::Key::Acted(jig_domain_people::ActKey { connector, key: [255; 16] }));
+        assert!(fixtures::within(&ranges, &key_bytes(&key)), "{key:?}");
+    }
+    for project in [0, u32::MAX] {
+        let key = Key::People(jig_domain_people::Key::Deletion(project));
         assert!(fixtures::within(&ranges, &key_bytes(&key)), "{key:?}");
     }
     assert_eq!(ranges[0].end.as_deref(), Some([keys::JIG, 2, 7].as_slice()));
