@@ -1,6 +1,8 @@
 //! Resolved failure feedback through the real session and its provider query.
 //! Contract: smith/docs/design/domain/tools.md, section 2; smith/docs/design/protocol/llm.md, section 5.
 
+use smith_session_world::bytes;
+
 use skein_fake_llm_domain::api::Part as ProviderPart;
 use skein_lib::Token;
 use smith_domain_session::{Event, llm};
@@ -12,7 +14,7 @@ fn a_resolved_missing_path_reaches_the_llm_in_the_fixed_conversation_namespace()
     for several in [false, true] {
         let mut opening = recorded::opening(None, u64::MAX);
         opening.spec.delegated = Box::new([]);
-        let name = Name::new(b"work".as_slice().into()).expect("working name");
+        let name = Name::new(bytes(b"work")).expect("working name");
         let mut repos = vec![Repo {
             host: Box::new([smith_domain_tools::Name::new(Box::from(b"host".as_slice())).expect("fixture host name")]),
             mount: Box::new([name.clone()]),
@@ -24,7 +26,7 @@ fn a_resolved_missing_path_reaches_the_llm_in_the_fixed_conversation_namespace()
                 host: Box::new([
                     smith_domain_tools::Name::new(Box::from(b"host".as_slice())).expect("fixture host name")
                 ]),
-                mount: Box::new([Name::new(b"docs".as_slice().into()).expect("other name")]),
+                mount: Box::new([Name::new(bytes(b"docs")).expect("other name")]),
                 root: Token::new(11),
                 writable: false,
             });
@@ -44,8 +46,8 @@ fn a_resolved_missing_path_reaches_the_llm_in_the_fixed_conversation_namespace()
         assert!(world.completing.is_some(), "provider query admitted: {:?}", world.end);
         world.complete(
             Box::new([llm::Block::ToolCall {
-                id: b"missing".as_slice().into(),
-                name: b"read".as_slice().into(),
+                id: bytes(b"missing"),
+                name: bytes(b"read"),
                 input: br#"{"path":"work/src/missing.rs"}"#.as_slice().into(),
                 call: llm::Decoded::Owned {
                     call: Call::Read {

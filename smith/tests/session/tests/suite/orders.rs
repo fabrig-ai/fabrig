@@ -1,5 +1,7 @@
 //! Tools entrance settlement and batch boundaries (smith/docs/design/domain/session.md, 5 and 10).
 
+use smith_session_world::bytes;
+
 use std::collections::BTreeSet;
 
 use skein_fake_checkout::Checkout;
@@ -19,7 +21,7 @@ const OLD: &[u8] = b"README.md: old\n";
 fn called(id: &[u8], call: Call) -> llm::Block {
     llm::Block::ToolCall {
         id: id.into(),
-        name: b"workspace".as_slice().into(),
+        name: bytes(b"workspace"),
         input: Box::default(),
         call: llm::Decoded::Owned { call },
         replay: None,
@@ -91,7 +93,7 @@ fn scripted(mut settings: Settings, lines: Vec<Line>, tokens: u64) -> World {
     settings.provider.latency_min = Duration::from_millis(1);
     settings.provider.latency_max = Duration::from_millis(1);
     let script = Script {
-        cue: b"You are a coding agent.".as_slice().into(),
+        cue: bytes(b"You are a coding agent."),
         turns: Box::new([Turn { lines: lines.into(), finish: Finish::ToolCalls, tokens }]),
     };
     World::with_scripts(settings, Box::new([script]))
@@ -109,7 +111,7 @@ fn tools_requests_dispatched_before_the_next_batch() {
             vec![called(
                 b"build",
                 Call::Shell {
-                    command: b"cargo build".as_slice().into(),
+                    command: bytes(b"cargo build"),
                     timeout: tools::Timeout::Default,
                     output: Budget::Default,
                     after: tools::Yield::Asked(Duration::from_secs(1)),
@@ -194,7 +196,7 @@ fn immediate_batches_are_promoted_after_reclaim_before_close() {
     const TOKENS: u64 = 40; // The scripted tool response's declared output usage.
     let calm = Settings::calm(SEED);
     let settings = Settings { agent: session::Limits { parallel_tools: PARALLEL, ..calm.agent }, ..calm };
-    let line = Line::Call { name: b"read".as_slice().into(), arguments: br#"{"path":"src/lib.rs"}"#.as_slice().into() };
+    let line = Line::Call { name: bytes(b"read"), arguments: br#"{"path":"src/lib.rs"}"#.as_slice().into() };
     let mut world = scripted(settings, vec![line; CALLS], TOKENS);
     let openers: Vec<_> = (0..SESSIONS)
         .map(|_| {

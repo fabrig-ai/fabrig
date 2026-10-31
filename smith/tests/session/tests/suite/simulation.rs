@@ -1,6 +1,8 @@
 //! End to end at the session child domain: the agent's sessions, their opener
 //! and a fake provider's domain, talking through a domain world.
 
+use smith_session_world::bytes;
+
 use skein_fake_llm_domain::Config;
 use skein_lib::{Duration, Time};
 use smith_domain_session::llm::Failure;
@@ -111,7 +113,7 @@ fn reads_in_one_answer_run_side_by_side_and_writes_alone() {
         scripted_call(b"write", br#"{"path":"README.md","content":"README.md: rewritten"}"#),
     ];
     let turn = Turn { lines: lines.into(), finish: Finish::ToolCalls, tokens: 48 };
-    let script = Script { cue: b"You are a coding agent.".as_slice().into(), turns: vec![turn; 4].into() };
+    let script = Script { cue: bytes(b"You are a coding agent."), turns: vec![turn; 4].into() };
     let mut world = World::with_scripts(settings, Box::new([script]));
     let openers: Vec<u64> = (0..4).map(|_| world.submit(Time::ZERO, spec(b"fix the build"))).collect();
     world.run(ITERATIONS);
@@ -476,16 +478,13 @@ fn the_token_budgets_end_a_session_after_the_turn_that_uses_them_up() {
     world.open(opening);
     for _ in 0..3 {
         world.complete(
-            Box::new([smith_domain_session::llm::Block::Text {
-                text: b"input-priced answer".as_slice().into(),
-                replay: None,
-            }]),
+            Box::new([smith_domain_session::llm::Block::Text { text: bytes(b"input-priced answer"), replay: None }]),
             smith_domain_session::llm::Stop::EndTurn,
             smith_domain_session::llm::Usage { input_tokens: Some(11), ..smith_domain_session::llm::Usage::ZERO },
         );
         world.step(smith_domain_session::Event::Continue {
             session: world.session.expect("yielded"),
-            content: b"go on".as_slice().into(),
+            content: bytes(b"go on"),
         });
     }
     assert_eq!(world.end, Some(out_of(Dimension::Input)));
@@ -575,7 +574,7 @@ fn a_failed_sessions_end_carries_its_last_detail() {
         owner: world.completing.expect("provider request"),
         failure: llm::Failure::Invalid,
         evidence: llm::Evidence::Response { status: Some(400) },
-        detail: b"private provider diagnostic".as_slice().into(),
+        detail: bytes(b"private provider diagnostic"),
     });
     assert_eq!(world.detail.as_ref(), b"private provider diagnostic");
     assert!(matches!(world.end, Some(session::End::Failed { failure: llm::Failure::Invalid, .. })));
@@ -602,7 +601,7 @@ fn a_later_failure_replaces_the_kept_detail() {
         owner: world.completing.expect("first provider request"),
         failure: llm::Failure::Overloaded,
         evidence: llm::Evidence::Response { status: Some(503) },
-        detail: b"first private diagnostic".as_slice().into(),
+        detail: bytes(b"first private diagnostic"),
     });
     world.fire();
     world.step(session::Event::Failed {
@@ -610,7 +609,7 @@ fn a_later_failure_replaces_the_kept_detail() {
         owner: world.completing.expect("second provider request"),
         failure: llm::Failure::Invalid,
         evidence: llm::Evidence::Response { status: Some(400) },
-        detail: b"last private diagnostic".as_slice().into(),
+        detail: bytes(b"last private diagnostic"),
     });
     assert_eq!(world.detail.as_ref(), b"last private diagnostic");
     world.close();
@@ -626,7 +625,7 @@ fn no_prompt_holds_a_kept_detail() {
         owner: world.completing.expect("first provider request"),
         failure: llm::Failure::Overloaded,
         evidence: llm::Evidence::Response { status: Some(503) },
-        detail: b"private provider diagnostic".as_slice().into(),
+        detail: bytes(b"private provider diagnostic"),
     });
     world.fire();
     assert_eq!(world.prompts.len(), 2);
@@ -652,9 +651,9 @@ fn more_adjacent_reads_than_parallel_tools_run_in_the_next_batch() {
         provider: Config { calls_per_answer: 5, tool_rounds: 1, ..calm.provider },
         ..calm
     };
-    let line = Line::Call { name: b"read".as_slice().into(), arguments: br#"{"path":"src/lib.rs"}"#.as_slice().into() };
+    let line = Line::Call { name: bytes(b"read"), arguments: br#"{"path":"src/lib.rs"}"#.as_slice().into() };
     let turn = Turn { lines: vec![line; 5].into(), finish: Finish::ToolCalls, tokens: 40 };
-    let script = Script { cue: b"You are a coding agent.".as_slice().into(), turns: Box::new([turn]) };
+    let script = Script { cue: bytes(b"You are a coding agent."), turns: Box::new([turn]) };
     let mut world = World::with_scripts(settings, Box::new([script]));
     let opener = world.submit(Time::ZERO, spec(b"fix the build"));
     world.run(ITERATIONS);
@@ -715,7 +714,7 @@ fn batched_change(old: &str) -> (World, u64) {
     let calm = Settings::calm(819);
     let settings = Settings { provider: Config { calls_per_answer: SCRIPT_CALLS, ..calm.provider }, ..calm };
     let script = Script {
-        cue: b"You are a coding agent.".as_slice().into(),
+        cue: bytes(b"You are a coding agent."),
         turns: vec![Turn { lines: lines.into(), finish: Finish::ToolCalls, tokens: TURN_TOKENS }].into(),
     };
     let mut world = World::with_scripts(settings, Box::new([script]));

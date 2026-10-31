@@ -1,3 +1,7 @@
+use smith_session_world::said;
+
+use smith_session_world::bytes;
+
 use smith_domain_session::{self as session, llm, record};
 use smith_session_world::recorded::{self, Scripted, opening, scenario, transcript};
 
@@ -10,7 +14,7 @@ fn a_domain_turn_round_trips_its_account_and_backend() {
             record::Kind::First(Box::new(record::Opener {
                 affinity,
                 account: Some(7),
-                backend: record::Backend::Program { name: b"claude_code".as_slice().into() },
+                backend: record::Backend::Program { name: bytes(b"claude_code") },
             })),
             1,
         ),
@@ -18,7 +22,7 @@ fn a_domain_turn_round_trips_its_account_and_backend() {
             record::Kind::Window(Box::new(record::Opener {
                 affinity,
                 account: Some(7),
-                backend: record::Backend::Program { name: b"claude_code".as_slice().into() },
+                backend: record::Backend::Program { name: bytes(b"claude_code") },
             })),
             3,
         ),
@@ -71,7 +75,7 @@ fn round_trip(turn: &record::Turn) -> record::Turn {
     let mut configured = skein_lib::List::with_capacity(1);
     configured
         .push(smith_protocol_channel::Endpoint {
-            name: b"provider".as_slice().into(),
+            name: bytes(b"provider"),
             number: turn.endpoint.expect("named endpoint").0,
             dialect: turn.dialect,
         })
@@ -94,14 +98,11 @@ struct Window {
 fn threshold_compaction() -> Scripted {
     let mut threshold = compaction_world(None, None, 2_000, b"model");
     threshold.complete(
-        Box::new([llm::Block::Text { text: b"answer".as_slice().into(), replay: None }]),
+        said(b"answer"),
         llm::Stop::EndTurn,
         llm::Usage { input_tokens: Some(1_300), output_tokens: Some(300), ..llm::Usage::ZERO },
     );
-    threshold.step(session::Event::Continue {
-        session: threshold.session.expect("opened"),
-        content: b"go on".as_slice().into(),
-    });
+    threshold.step(session::Event::Continue { session: threshold.session.expect("opened"), content: bytes(b"go on") });
     threshold
 }
 
@@ -110,7 +111,7 @@ fn model_change_compaction() -> Scripted {
     compaction_world(
         Some(saved),
         Some(record::Llm {
-            model: b"model".as_slice().into(),
+            model: bytes(b"model"),
             effort: None,
             window: MODEL_WINDOW,
             output: 128,
@@ -175,7 +176,7 @@ fn same_window() -> record::Transcript {
                     | llm::Block::Refusal { replay, .. }
                     | llm::Block::ToolCall { replay, .. }
                     | llm::Block::ToolResult { result: llm::Returned::Text { replay, .. }, .. } => {
-                        *replay = Some(llm::Replay { bytes: b"saved metadata".as_slice().into() });
+                        *replay = Some(llm::Replay { bytes: bytes(b"saved metadata") });
                     }
                     llm::Block::Opaque { .. } | llm::Block::ToolResult { .. } => {}
                 }
@@ -208,7 +209,7 @@ fn carried_windows() -> Vec<CarryCase> {
     backend.turns[0].kind = record::Kind::First(Box::new(record::Opener {
         affinity,
         account: Some(ACCOUNT),
-        backend: record::Backend::Program { name: b"claude_code".as_slice().into() },
+        backend: record::Backend::Program { name: bytes(b"claude_code") },
     }));
     vec![
         CarryCase { name: "endpoint", history: endpoint, expected: expected_carry() },

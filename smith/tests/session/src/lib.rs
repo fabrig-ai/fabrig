@@ -28,6 +28,7 @@ pub mod tickets;
 pub mod translate;
 mod world;
 
+pub use fixture::{bytes, said};
 pub use noisy::{noisy, submit_noisily};
 pub use skein_world::domain::Span;
 pub use world::{

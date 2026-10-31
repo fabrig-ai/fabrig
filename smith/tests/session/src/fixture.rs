@@ -144,3 +144,15 @@ pub fn fits(call: &Call, outcome: &Outcome) -> bool {
         _ => false,
     }
 }
+
+/// Owned bytes supplied by a scripted neighbour.
+#[must_use]
+pub fn bytes(text: &[u8]) -> Box<[u8]> {
+    text.into()
+}
+
+/// One ordinary provider text block, without an opaque replay envelope.
+#[must_use]
+pub fn said(text: &[u8]) -> Box<[smith_domain_session::llm::Block]> {
+    Box::new([smith_domain_session::llm::Block::Text { text: bytes(text), replay: None }])
+}

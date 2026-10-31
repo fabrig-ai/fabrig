@@ -1,6 +1,10 @@
 //! The agent's session child domain at random: many noisy worlds, each settled
 //! with every session ended, every way a session ends reached among them.
 
+use smith_session_world::said;
+
+use smith_session_world::bytes;
+
 use std::collections::BTreeSet;
 
 use smith_domain_session::End;
@@ -126,7 +130,7 @@ fn drawn_small_windows_compact_within_them() {
         let usage =
             llm::Usage { input_tokens: Some(u64::from(window) * 4 / 5), output_tokens: Some(32), ..llm::Usage::ZERO };
         world.complete(text(b"answer"), llm::Stop::EndTurn, usage);
-        world.step(Event::Continue { session: world.session.expect("opened"), content: b"continue".as_slice().into() });
+        world.step(Event::Continue { session: world.session.expect("opened"), content: bytes(b"continue") });
         world.complete(text(b"summary"), llm::Stop::EndTurn, llm::Usage { output_tokens: Some(8), ..usage });
         assert!(matches!(world.turns.last().expect("window turn").kind, record::Kind::Window(_)));
         let prompt = world.prompts.last().expect("new window prompt");
@@ -151,11 +155,7 @@ fn no_drawn_session_ends_because_its_history_grew() {
             world.step(Event::Answered { owner, text: vec![b'r'; count].into_boxed_slice(), error: false, spent: 0 });
         }
         assert!(world.end.is_none());
-        world.complete(
-            Box::new([llm::Block::Text { text: b"summary".as_slice().into(), replay: None }]),
-            llm::Stop::EndTurn,
-            llm::Usage::ZERO,
-        );
+        world.complete(said(b"summary"), llm::Stop::EndTurn, llm::Usage::ZERO);
         assert!(matches!(world.turns.last().expect("window turn").kind, record::Kind::Window(_)));
         world.close();
     }
