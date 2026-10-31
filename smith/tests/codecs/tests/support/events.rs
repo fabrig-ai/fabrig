@@ -461,7 +461,7 @@ fn value_session_ended() -> SessionEnded {
     SessionEnded {
         exit: i64::MIN,
         answered: true,
-        aborted: Some(false),
+        aborted: false,
         teardown_ms: Some(u64::MAX),
         emitted: list_count(),
         loss: value_loss(),

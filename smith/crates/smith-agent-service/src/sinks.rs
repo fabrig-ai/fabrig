@@ -811,7 +811,7 @@ fn ended_record(now: Time, started: Time, ended: &Ended, emitted: List<smith_eve
         event: Event::SessionEnded(smith_events::SessionEnded {
             exit: i64::from(ended.exit),
             answered: ended.answered,
-            aborted: Some(ended.aborted),
+            aborted: ended.aborted,
             teardown_ms: match ended.teardown {
                 Some(duration) => Some(duration.as_nanos() / 1_000_000),
                 None => None,

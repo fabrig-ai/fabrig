@@ -1173,7 +1173,7 @@ fn read_session_ended(tokens: &[Token], limits: &Limits) -> Result<SessionEnded,
     Ok(SessionEnded {
         exit: signed(required(tokens, b"exit")?)?,
         answered: boolean(required(tokens, b"answered")?)?,
-        aborted: Some(boolean(required(tokens, b"aborted")?)?),
+        aborted: boolean(required(tokens, b"aborted")?)?,
         teardown_ms: match required(tokens, b"teardown_ms")? {
             [Token::Null] => None,
             item => Some(unsigned(item)?),
