@@ -9,7 +9,7 @@ mod coding;
 mod peer;
 mod setup;
 pub use peer::TraceCase;
-use peer::{child_charter, environment_peer};
+use peer::child_charter;
 pub(crate) use setup::{Mode, ParentOptions, Setup};
 pub(crate) mod orders;
 pub use orders::{Order, OrderSnapshot};
@@ -812,6 +812,7 @@ impl skein_world::Referee<Proc> for Referee {
 )]
 pub struct World {
     seed: u64,
+    setup: Setup,
     provider_rejected: bool,
     charter: Box<[u8]>,
     cancel: bool,
@@ -823,12 +824,10 @@ pub struct World {
     full_completion: bool,
     outcome: Option<Outcome<Proc, Machine>>,
     window: u32,
-    tracing: Option<(TraceCase, u32)>,
     environment: bool,
     records: Vec<smith_events::Record>,
     trace_bytes: Box<[u8]>,
     message: Option<smith_channel::Message>,
-    capture: smith_agent_service::sinks::Capture,
     anthropic: bool,
     private_grant: bool,
     grant: Option<smith_channel::GrantValue>,
@@ -836,7 +835,6 @@ pub struct World {
     openai: bool,
     live: Option<smith_channel::LiveAsk>,
     script: Option<Box<[skein_fake_llm_domain::api::Turn]>>,
-    output: u32,
     release: Option<Release>,
     saved_window: Option<Vec<Box<[u8]>>>,
     root_path: Option<Box<[u8]>>,
@@ -861,6 +859,7 @@ impl World {
     pub fn new(seed: u64, charter: &[u8]) -> Self {
         Self {
             seed,
+            setup: Setup::default(),
             provider_rejected: false,
             charter: charter.into(),
             cancel: false,
@@ -872,12 +871,10 @@ impl World {
             full_completion: false,
             outcome: None,
             window: 8,
-            tracing: None,
             environment: false,
             records: Vec::new(),
             trace_bytes: Box::new([]),
             message: None,
-            capture: smith_agent_service::sinks::Capture::Everything,
             anthropic: false,
             private_grant: false,
             grant: None,
@@ -885,7 +882,6 @@ impl World {
             openai: false,
             live: None,
             script: None,
-            output: 0,
             release: None,
             saved_window: None,
             root_path: None,
@@ -896,7 +892,7 @@ impl World {
 
     /// Derive the scripted model's output capacity through the shipped profile.
     pub fn output_tokens(&mut self, output: u32) {
-        self.output = output;
+        self.setup.output = output;
     }
 
     /// Restore independently observed turns through the host's Start frame.
@@ -987,7 +983,7 @@ impl World {
 
     /// Select the event destination's capture policy before spawning.
     pub fn capture(&mut self, capture: smith_agent_service::sinks::Capture) {
-        self.capture = capture;
+        self.setup.capture = capture;
     }
 
     /// Run the same agent against the independent Anthropic byte peer.
@@ -1038,7 +1034,7 @@ impl World {
 
     /// Observe every native trace fact while constraining channel output slots.
     pub fn observe_facts(&mut self, case: TraceCase, frames: u32) {
-        self.tracing = Some((case, frames));
+        self.setup.tracing = Some((case, frames));
         self.cancel = case == TraceCase::Cancelled;
         if case == TraceCase::ChildAnswered || case == TraceCase::ThreeChildren {
             self.charter = child_charter(&self.charter);
@@ -1117,7 +1113,7 @@ impl World {
     /// Request one more termination signal after the parent's channel answer.
     pub fn signal_after_answer(&mut self) {
         self.after_answer = self.after_answer.checked_add(1).expect("bounded signal scenario");
-        self.tracing = Some((TraceCase::Failed, 8));
+        self.setup.tracing = Some((TraceCase::Failed, 8));
     }
 
     /// The parent's submitted signal count.
@@ -1152,11 +1148,11 @@ impl World {
     }
 
     fn maximum_queries(&self) -> usize {
-        let scenario = if matches!(self.tracing, Some((TraceCase::ThreeChildren, _))) {
+        let scenario = if matches!(self.setup.tracing, Some((TraceCase::ThreeChildren, _))) {
             5
-        } else if matches!(self.tracing, Some((TraceCase::ChildAnswered | TraceCase::StoppedReasoning, _))) {
+        } else if matches!(self.setup.tracing, Some((TraceCase::ChildAnswered | TraceCase::StoppedReasoning, _))) {
             3
-        } else if self.environment || self.tracing.is_some() || self.saved_window.is_some() {
+        } else if self.environment || self.setup.tracing.is_some() || self.saved_window.is_some() {
             2
         } else {
             1
@@ -1184,7 +1180,7 @@ impl World {
             admitted_facts: 0,
             answer_facts: 0,
             full_completion: self.full_completion,
-            tracing: self.tracing,
+            tracing: self.setup.tracing,
             maximum_queries: self.maximum_queries(),
             workspace_refusal: self
                 .root_path
@@ -1218,7 +1214,8 @@ impl World {
             spawns: Vec::new(),
             next_root: 1,
             trace_root: None,
-            problem_file: self.root_path.is_some() || matches!(self.tracing, Some((TraceCase::StoppedReasoning, _))),
+            problem_file: self.root_path.is_some()
+                || matches!(self.setup.tracing, Some((TraceCase::StoppedReasoning, _))),
             coding: self.coding,
             checked_files: Vec::new(),
         });
@@ -1232,28 +1229,24 @@ impl World {
             unused_roots,
         );
         world.spawn_root(skein_sim::Handle::new(root.raw()), |root| {
-            let setup = Setup {
-                mode: if self.coding {
-                    Mode::Coding
-                } else if self.root_path.is_some() {
-                    Mode::Roots
-                } else if self.environment {
-                    Mode::Environment
-                } else {
-                    Mode::Ordinary
-                },
-                tracing: self.tracing,
-                capture: self.capture,
-                provider: if self.openai {
-                    skein_llm::Provider::OpenAi
-                } else if self.anthropic {
-                    skein_llm::Provider::Anthropic
-                } else {
-                    skein_llm::Provider::OpenAiCodex
-                },
-                output: self.output,
-                order_requests: matches!(self.order, Some(Order::Requests)),
+            let mut setup = self.setup;
+            setup.mode = if self.coding {
+                Mode::Coding
+            } else if self.root_path.is_some() {
+                Mode::Roots
+            } else if self.environment {
+                Mode::Environment
+            } else {
+                Mode::Ordinary
             };
+            setup.provider = if self.openai {
+                skein_llm::Provider::OpenAi
+            } else if self.anthropic {
+                skein_llm::Provider::Anthropic
+            } else {
+                skein_llm::Provider::OpenAiCodex
+            };
+            setup.order_requests = matches!(self.order, Some(Order::Requests));
             let mut parent = Parent::new(
                 root,
                 &self.charter,
@@ -1290,62 +1283,7 @@ impl World {
             == Some(kernel::Exit::Code(u8::from(self.hang_up || self.hang_up_mid_call || self.refreshing.is_some())))
     }
     fn make_peer(&self) -> skein_fake_peers::llm::Peer {
-        if let Some(turns) = &self.script {
-            fake::scripted(turns.clone(), self.credential(), self.anthropic)
-        } else if self.refreshing.is_some() {
-            fake::configured(
-                Box::new([skein_fake_llm_domain::api::Script {
-                    cue: Box::new([]),
-                    turns: Box::new([skein_fake_llm_domain::api::Turn {
-                        lines: Box::new([skein_fake_llm_domain::api::Line::Text { text: Box::from(&b"Hello"[..]) }]),
-                        finish: skein_fake_llm_domain::api::Finish::Stop,
-                        tokens: 1,
-                    }]),
-                }]),
-                crate::scenario_credential(false, false),
-                Duration::from_secs(1),
-            )
-        } else if self.environment {
-            environment_peer()
-        } else if self.full_completion {
-            fake::configured(
-                Box::new([skein_fake_llm_domain::api::Script {
-                    cue: Box::new([]),
-                    turns: Box::new([skein_fake_llm_domain::api::Turn {
-                        lines: (0..crate::limits().llm.adapter.client.output_items)
-                            .map(|index| skein_fake_llm_domain::api::Line::Text {
-                                // First response metadata is item_1_<index> and final_answer.
-                                text: vec![
-                                    b'x';
-                                    usize::try_from(
-                                        crate::limits().llm.adapter.client.answer
-                                            / crate::limits().llm.adapter.client.output_items
-                                            + u32::from(
-                                                index
-                                                    < crate::limits().llm.adapter.client.answer
-                                                        % crate::limits().llm.adapter.client.output_items
-                                            )
-                                    )
-                                    .expect("bounded text per part")
-                                        - format!("item_1_{index}").len()
-                                        - b"final_answer".len()
-                                        - 9
-                                ]
-                                .into_boxed_slice(),
-                            })
-                            .collect(),
-                        finish: skein_fake_llm_domain::api::Finish::Stop,
-                        tokens: 1,
-                    }]),
-                }]),
-                fake::credential(false),
-                Duration::ZERO,
-            )
-        } else if let Some((case, _)) = self.tracing {
-            case.peer(self.anthropic, self.credential())
-        } else {
-            fake::peer()
-        }
+        peer::Peer::select(self).make(self)
     }
     fn parent(&self) -> &Parent {
         self.outcome

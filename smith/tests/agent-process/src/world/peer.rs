@@ -213,3 +213,90 @@ fn stopped_reasoning_peer() -> skein_fake_peers::llm::Peer {
         ]),
     }]))
 }
+
+/// The provider behavior selected from the world's independent inputs.
+pub(super) enum Peer<'a> {
+    Scripted(&'a [skein_fake_llm_domain::api::Turn]),
+    Refreshing,
+    Environment,
+    FullCompletion,
+    Tracing(TraceCase),
+    Ordinary,
+}
+
+impl<'a> Peer<'a> {
+    pub fn select(world: &'a super::World) -> Self {
+        match (
+            world.script.as_deref(),
+            world.refreshing.is_some(),
+            world.environment,
+            world.full_completion,
+            world.setup.tracing,
+        ) {
+            (Some(turns), _, _, _, _) => Self::Scripted(turns),
+            (None, true, _, _, _) => Self::Refreshing,
+            (None, false, true, _, _) => Self::Environment,
+            (None, false, false, true, _) => Self::FullCompletion,
+            (None, false, false, false, Some((case, _))) => Self::Tracing(case),
+            (None, false, false, false, None) => Self::Ordinary,
+        }
+    }
+
+    pub fn make(self, world: &super::World) -> skein_fake_peers::llm::Peer {
+        match self {
+            Self::Scripted(turns) => fake::scripted(turns.into(), world.credential(), world.anthropic),
+            Self::Refreshing => fake::configured(
+                Box::new([skein_fake_llm_domain::api::Script {
+                    cue: Box::new([]),
+                    turns: Box::new([skein_fake_llm_domain::api::Turn {
+                        lines: Box::new([skein_fake_llm_domain::api::Line::Text { text: Box::from(&b"Hello"[..]) }]),
+                        finish: skein_fake_llm_domain::api::Finish::Stop,
+                        tokens: 1,
+                    }]),
+                }]),
+                crate::scenario_credential(false, false),
+                Duration::from_secs(1),
+            ),
+            Self::Environment => environment_peer(),
+            Self::FullCompletion => full_completion(),
+            Self::Tracing(case) => case.peer(world.anthropic, world.credential()),
+            Self::Ordinary => fake::peer(),
+        }
+    }
+}
+
+fn full_completion() -> skein_fake_peers::llm::Peer {
+    fake::configured(
+        Box::new([skein_fake_llm_domain::api::Script {
+            cue: Box::new([]),
+            turns: Box::new([skein_fake_llm_domain::api::Turn {
+                lines: (0..crate::limits().llm.adapter.client.output_items)
+                    .map(|index| skein_fake_llm_domain::api::Line::Text {
+                        // First response metadata is item_1_<index> and final_answer.
+                        text: vec![
+                            b'x';
+                            usize::try_from(
+                                crate::limits().llm.adapter.client.answer
+                                    / crate::limits().llm.adapter.client.output_items
+                                    + u32::from(
+                                        index
+                                            < crate::limits().llm.adapter.client.answer
+                                                % crate::limits().llm.adapter.client.output_items
+                                    )
+                            )
+                            .expect("bounded text per part")
+                                - format!("item_1_{index}").len()
+                                - b"final_answer".len()
+                                - 9
+                        ]
+                        .into_boxed_slice(),
+                    })
+                    .collect(),
+                finish: skein_fake_llm_domain::api::Finish::Stop,
+                tokens: 1,
+            }]),
+        }]),
+        fake::credential(false),
+        Duration::ZERO,
+    )
+}
