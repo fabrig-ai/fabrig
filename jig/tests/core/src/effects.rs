@@ -88,6 +88,10 @@ pub struct World {
     /// Project notification and the durable store mark at its release.
     pub project_made: Vec<(u64, u32)>,
     pub act_answers: Vec<(Token, people::Outcome)>,
+    /// Connector release requests observed across starts.
+    pub project_releases: Vec<(u16, u32)>,
+    /// Connectors whose project release answer the story withholds.
+    pub hold_project_releases: Vec<u16>,
     pub application_answers: Vec<(Token, u16, connector::ApplicationOutcome)>,
     /// Each carried value the core left unused, with how many answers
     /// (people's and applications') were delivered before it.
@@ -270,6 +274,7 @@ impl World {
         reason = "one iteration keeps commit application, peer observations and root outputs in order"
     )]
     pub fn drain(&mut self) {
+        self.domain.script_project_releases();
         for _ in 0..300 {
             if self.stopped {
                 return;
@@ -400,6 +405,12 @@ impl World {
                     }
                     root::Request::Busy { event } => self.busy_events.push(*event),
                     root::Request::Stop => self.stopped = true,
+                }
+            }
+            while let Some((connector, project)) = self.domain.take_project_release() {
+                self.project_releases.push((connector, project));
+                if !self.hold_project_releases.contains(&connector) {
+                    self.events.push_back(root::Event::Core(core::Event::ProjectReleased { connector, project }));
                 }
             }
             if !self.stopped {

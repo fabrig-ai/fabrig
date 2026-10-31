@@ -373,6 +373,8 @@ impl World {
             people_answers: Vec::new(),
             project_made: Vec::new(),
             act_answers: Vec::new(),
+            project_releases: Vec::new(),
+            hold_project_releases: Vec::new(),
             application_answers: Vec::new(),
             carried_unused: Vec::new(),
             procedure: None,
