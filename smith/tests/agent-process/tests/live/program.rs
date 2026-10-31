@@ -18,24 +18,17 @@ struct Live {
     configuration: std::path::PathBuf,
 }
 
+#[derive(Clone, Copy, Default)]
+struct Options<'a> {
+    permission: bool,
+    thinking: bool,
+    schema: Option<&'a str>,
+    non_object: bool,
+}
+
 impl Live {
-    fn start(text: &str) -> Self {
-        Self::start_with(text, false)
-    }
-
-    fn start_with(text: &str, permission: bool) -> Self {
-        Self::start_options(text, permission, false)
-    }
-
-    fn start_options(text: &str, permission: bool, thinking: bool) -> Self {
-        Self::start_configured(text, permission, thinking, None)
-    }
-
-    fn start_configured(text: &str, permission: bool, thinking: bool, schema: Option<&str>) -> Self {
-        Self::start_inventory(text, permission, thinking, schema, false)
-    }
-
-    fn start_inventory(text: &str, permission: bool, thinking: bool, schema: Option<&str>, non_object: bool) -> Self {
+    fn start(text: &str, options: Options<'_>) -> Self {
+        let Options { permission, thinking, schema, non_object } = options;
         let root = std::env::var_os("SMITH_LIVE").filter(|value| !value.is_empty()).expect("$SMITH_LIVE unset");
         let root = smith_bench::guard::write_path(std::path::Path::new(&root)).expect("guarded $SMITH_LIVE");
         let configuration = std::env::var_os("SMITH_LIVE_CLAUDE")
@@ -77,7 +70,7 @@ impl Live {
             arguments.extend(["--json-schema", schema, "--settings", r#"{"permissions":{"allow":["mcp__smith"]}}"#]);
         }
         let (child, messages) = Self::spawn_model(
-            &probe.home,
+            probe.home.path(),
             &configuration,
             &arguments,
             text,
@@ -243,7 +236,7 @@ impl Drop for Live {
 
 #[test]
 fn a_live_second_message_needs_the_first_turns_context() {
-    let mut live = Live::start("Remember the word persimmon. Reply with OK.");
+    let mut live = Live::start("Remember the word persimmon. Reply with OK.", Options::default());
     live.result_text();
     live.send("Which word did I ask you to remember? Reply with that word only.");
     let text = live.result_text();
@@ -253,7 +246,7 @@ fn a_live_second_message_needs_the_first_turns_context() {
 
 #[test]
 fn a_live_interrupted_turn_is_followed_by_another() {
-    let mut live = Live::start("Count from one to ten thousand, writing every number.");
+    let mut live = Live::start("Count from one to ten thousand, writing every number.", Options::default());
     live.wait_for_turn_start();
     writeln!(
         live.child.stdin.as_mut().expect("open input"),
@@ -287,7 +280,7 @@ fn a_live_interrupted_turn_is_followed_by_another() {
 
 #[test]
 fn a_live_interrupt_ends_the_turn() {
-    let mut live = Live::start("Count from one to ten thousand, writing every number.");
+    let mut live = Live::start("Count from one to ten thousand, writing every number.", Options::default());
     live.wait_for_turn_start();
     assert!(Command::new("/bin/kill").args(["-INT", &live.child.id().to_string()]).status().expect("SIGINT").success());
     for _ in 0..1000 {
@@ -304,7 +297,7 @@ fn a_live_interrupt_ends_the_turn() {
 
 #[test]
 fn a_live_resume_continues() {
-    let mut live = Live::start("Remember the word persimmon. Reply with OK.");
+    let mut live = Live::start("Remember the word persimmon. Reply with OK.", Options::default());
     let id = live.probe.session.clone();
     let mut finished = false;
     for _ in 0..1000 {
@@ -319,7 +312,7 @@ fn a_live_resume_continues() {
     drop(live.child.stdin.take());
     assert!(live.child.wait().expect("first exit").success());
     (live.child, live.messages) = Live::spawn(
-        &live.probe.home,
+        live.probe.home.path(),
         &live.configuration,
         &["--resume", &id, "--mcp-config", r#"{"mcpServers":{}}"#, "--tools", "", "--max-turns", "1"],
         "Which word did I ask you to remember? Reply with that word only.",
@@ -350,7 +343,7 @@ fn prompt_server(probe: &Probe, thinking: bool, non_object: bool) -> String {
         std::fs::symlink_metadata("/usr/bin/python3").is_ok(),
         "`/usr/bin/python3` is missing: the prompt-shape probe's MCP fixture needs it"
     );
-    let script = probe.home.join("prompt.py");
+    let script = probe.home.path().join("prompt.py");
     std::fs::write(&script, r"import json, sys
 from pathlib import Path
 for line in sys.stdin:
@@ -380,15 +373,15 @@ for line in sys.stdin:
         continue
     print(json.dumps({'jsonrpc':'2.0','id':request['id'],'result':result}), flush=True)
 ").expect("private prompt fixture");
-    std::fs::write(probe.home.join("read-me.txt"), b"probe input\n").expect("private Read input");
-    serde_json::json!({"mcpServers":{"smith":{"command":"/usr/bin/python3","args":[script,probe.home.join("prompt-shape"),if non_object {"non-object"} else if thinking {"thinking"} else {"prompt"}]}}}).to_string()
+    std::fs::write(probe.home.path().join("read-me.txt"), b"probe input\n").expect("private Read input");
+    serde_json::json!({"mcpServers":{"smith":{"command":"/usr/bin/python3","args":[script,probe.home.path().join("prompt-shape"),if non_object {"non-object"} else if thinking {"thinking"} else {"prompt"}]}}}).to_string()
 }
 
 #[test]
 fn a_live_server_with_a_non_object_schema_lists_no_tools() {
     // The existing live turn probes allow this many records before a terminal.
     const INIT_RECORDS: usize = 1000;
-    let mut live = Live::start_inventory("Reply with OK.", false, false, None, true);
+    let mut live = Live::start("Reply with OK.", Options { non_object: true, ..Options::default() });
     for _ in 0..INIT_RECORDS {
         let message = live.message();
         if message["type"] == "system" && message["subtype"] == "init" {
@@ -408,9 +401,9 @@ fn a_live_server_with_a_non_object_schema_lists_no_tools() {
 
 #[test]
 fn the_real_program_uses_the_prompt_tool_shape() {
-    let mut live = Live::start_with(
+    let mut live = Live::start(
         "Use the Read tool to read read-me.txt in the current directory. Do not guess its contents. Then reply with OK.",
-        true,
+        Options { permission: true, ..Options::default() },
     );
     let mut initialized = false;
     for _ in 0..1000 {
@@ -434,7 +427,7 @@ fn the_real_program_uses_the_prompt_tool_shape() {
         if message["type"] == "result" {
             assert!(initialized && message["is_error"] == false, "signed in -p completed after init");
             assert!(
-                std::fs::read(live.probe.home.join("prompt-shape")).is_ok_and(|bytes| bytes == b"shape-ok"),
+                std::fs::read(live.probe.home.path().join("prompt-shape")).is_ok_and(|bytes| bytes == b"shape-ok"),
                 "the real program sent the prompt input the fake assumes"
             );
             drop(live.child.stdin.take());
@@ -454,10 +447,9 @@ fn guarded_configuration(configuration: &std::path::Path) -> std::path::PathBuf 
 fn a_live_thinking_turn_has_the_fakes_shape() {
     // Same bounded record allowance as the other live turn probes.
     const TURN_RECORDS: usize = 1000;
-    let mut live = Live::start_options(
+    let mut live = Live::start(
         "Work out privately whether 99991 is prime by checking possible prime divisors up to its square root. Think carefully before using tools. Then call mcp__smith__echo with text equal to your conclusion. After the tool result, reply with OK.",
-        false,
-        true,
+        Options { thinking: true, ..Options::default() },
     );
     let mut notice = false;
     let mut start = false;
@@ -525,11 +517,9 @@ fn a_live_result_contract_lists_and_calls_structured_output() {
     // Same bounded record allowance as the other live turn probes.
     const TURN_RECORDS: usize = 1000;
     const SCHEMA: &str = r#"{"type":"object","properties":{"answer":{"const":"hi"}},"required":["answer"],"additionalProperties":false}"#;
-    let mut live = Live::start_configured(
+    let mut live = Live::start(
         "First call mcp__smith__echo with text hi. Then return the structured answer with answer equal to hi.",
-        false,
-        false,
-        Some(SCHEMA),
+        Options { schema: Some(SCHEMA), ..Options::default() },
     );
     let mut initialized = false;
     let mut echo = false;
@@ -597,7 +587,7 @@ fn a_live_contract_takes_a_wrapped_outcome() {
             "failure",
         ),
     ] {
-        let mut live = Live::start_configured(prompt, false, false, Some(SCHEMA));
+        let mut live = Live::start(prompt, Options { schema: Some(SCHEMA), ..Options::default() });
         let mut result = None;
         for _ in 0..TURN_RECORDS {
             let record = live.message();

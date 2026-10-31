@@ -86,7 +86,7 @@ fn a_first_sign_in_registers() {
     assert!(String::from_utf8_lossy(&ran.stderr).contains(" 192.0.2.1"));
     assert!(path(&scratch, "test.lock").is_dir());
     assert_eq!(String::from_utf8_lossy(&ran.stderr).matches("You're using your ChatGPT plan.").count(), 1);
-    assert!(urls[0].windows(b"agent_name_hint=smith".len()).any(|part| part == b"agent_name_hint=smith"));
+    assert!(skein_lib::bytes::find(&urls[0], b"agent_name_hint=smith").is_some());
     no_values(&ran);
 }
 

@@ -68,7 +68,7 @@ pub struct Record {
 }
 
 #[derive(Debug)]
-enum Phase {
+enum State {
     Spawn,
     Input,
     CloseInput,
@@ -89,7 +89,7 @@ pub struct Parent {
     invocations: VecDeque<Invocation>,
     pub records: Vec<Record>,
     record: Record,
-    phase: Phase,
+    state: State,
     root: Fd,
     pipes: Vec<Fd>,
     child: Option<Fd>,
@@ -115,7 +115,7 @@ impl Parent {
             invocations: invocations.into(),
             records: Vec::new(),
             record: Record::default(),
-            phase: Phase::Spawn,
+            state: State::Spawn,
             root,
             pipes: Vec::new(),
             child: None,
@@ -164,8 +164,8 @@ impl Parent {
         }
         self.waiting = false;
         let result = complete.result.expect("parent operation succeeds");
-        match self.phase {
-            Phase::Spawn => {
+        match self.state {
+            State::Spawn => {
                 let Done::Spawned { pidfd, .. } = result else { panic!("child spawn") };
                 let Op::Spawn { spawn } = complete.kind else { panic!("spawn operation") };
                 self.child = Some(pidfd);
@@ -188,34 +188,34 @@ impl Parent {
                 if self.invocations.front().expect("invocation").terminate {
                     self.signal_at = Some(now.saturating_add(Duration::from_millis(20)));
                 }
-                self.phase =
-                    if self.invocations.front().expect("invocation").stream { Phase::Stdout } else { Phase::Input };
+                self.state =
+                    if self.invocations.front().expect("invocation").stream { State::Stdout } else { State::Input };
             }
-            Phase::Input => {
+            State::Input => {
                 let Done::Count(count) = result else { panic!("input write") };
                 self.input_from += count;
                 if self.invocations.front().expect("invocation").stream && self.input_from as usize == self.input_end {
-                    self.phase = Phase::Stdout;
+                    self.state = State::Stdout;
                 }
             }
-            Phase::CloseInput => {
+            State::CloseInput => {
                 self.input_closed = true;
-                self.phase = if self.output_ended { Phase::CloseStdout } else { Phase::Stdout };
+                self.state = if self.output_ended { State::CloseStdout } else { State::Stdout };
             }
-            Phase::Stdout | Phase::Stderr => {
+            State::Stdout | State::Stderr => {
                 let Done::Count(count) = result else { panic!("output read") };
                 let Op::PipeRead { buf, .. } = complete.kind else { panic!("pipe read") };
-                match self.phase {
-                    Phase::Stdout => {
+                match self.state {
+                    State::Stdout => {
                         self.record.stdout.extend_from_slice(&buf[..count as usize]);
                         if count == 0 {
                             self.output_ended = true;
                             if self.invocations.front().expect("invocation").stream && !self.input_closed {
-                                self.phase = Phase::CloseInput;
+                                self.state = State::CloseInput;
                                 self.issue(Op::Close { fd: self.pipes[0] });
                                 self.waiting = true;
                             } else {
-                                self.phase = Phase::CloseStdout;
+                                self.state = State::CloseStdout;
                             }
                         } else if self.record.stdout.last() == Some(&b'\n') {
                             let line =
@@ -242,41 +242,41 @@ impl Parent {
                                     && !self.input_closed
                                     && (kind == "init" || value["type"] == "result")
                                 {
-                                    self.phase = Phase::Input;
+                                    self.state = State::Input;
                                 }
                             }
                         }
                     }
-                    Phase::Stderr => {
+                    State::Stderr => {
                         self.record.stderr.extend_from_slice(&buf[..count as usize]);
                         if count == 0 {
-                            self.phase = Phase::CloseStderr;
+                            self.state = State::CloseStderr;
                         }
                     }
                     _ => unreachable!(),
                 }
             }
-            Phase::CloseStdout => self.phase = Phase::Stderr,
-            Phase::CloseStderr => self.phase = Phase::Wait,
-            Phase::Wait => {
+            State::CloseStdout => self.state = State::Stderr,
+            State::CloseStderr => self.state = State::Wait,
+            State::Wait => {
                 let Done::Exit(exit) = result else { panic!("child exit") };
                 self.record.exit = Some(exit);
                 self.records.push(std::mem::take(&mut self.record));
-                self.phase = Phase::CloseChild;
+                self.state = State::CloseChild;
             }
-            Phase::CloseChild => {
+            State::CloseChild => {
                 self.child = None;
                 self.invocations.pop_front();
-                self.phase = Phase::Spawn;
+                self.state = State::Spawn;
             }
-            Phase::CloseRoot => self.phase = Phase::Done,
-            Phase::Done => panic!("no operation after settlement"),
+            State::CloseRoot => self.state = State::Done,
+            State::Done => panic!("no operation after settlement"),
         }
     }
 
     fn advance(&mut self) {
-        let kind = match self.phase {
-            Phase::Spawn => match self.invocations.front() {
+        let kind = match self.state {
+            State::Spawn => match self.invocations.front() {
                 Some(invocation) => Op::Spawn {
                     spawn: Box::new(Spawn {
                         program: b"claude".as_slice().into(),
@@ -295,11 +295,11 @@ impl Parent {
                     }),
                 },
                 None => {
-                    self.phase = Phase::CloseRoot;
+                    self.state = State::CloseRoot;
                     Op::Close { fd: self.root }
                 }
             },
-            Phase::Input => {
+            State::Input => {
                 let invocation = self.invocations.front().expect("invocation");
                 if invocation.stream
                     && self.input_from as usize == self.input_end
@@ -311,28 +311,28 @@ impl Parent {
                 }
                 let bytes = &self.invocations.front().expect("invocation").input;
                 if self.input_from as usize == bytes.len() {
-                    self.phase = Phase::CloseInput;
+                    self.state = State::CloseInput;
                     Op::Close { fd: self.pipes[0] }
                 } else {
                     if invocation.stream && self.input_from as usize == self.input_end {
-                        self.phase = Phase::Stdout;
+                        self.state = State::Stdout;
                         return;
                     }
                     let end = if invocation.stream { self.input_end } else { bytes.len() };
                     Op::PipeWrite { fd: self.pipes[0], bytes: bytes[..end].into(), from: self.input_from }
                 }
             }
-            Phase::Stdout => Op::PipeRead {
+            State::Stdout => Op::PipeRead {
                 fd: self.pipes[1],
                 buf: vec![0; if self.invocations.front().expect("invocation").stream { 1 } else { 1024 }]
                     .into_boxed_slice(),
             },
-            Phase::Stderr => Op::PipeRead { fd: self.pipes[2], buf: vec![0; 1024].into_boxed_slice() },
-            Phase::CloseStdout => Op::Close { fd: self.pipes[1] },
-            Phase::CloseStderr => Op::Close { fd: self.pipes[2] },
-            Phase::Wait => Op::Wait { pidfd: self.child.expect("child"), reap: false },
-            Phase::CloseChild => Op::Close { fd: self.child.expect("child") },
-            Phase::CloseInput | Phase::CloseRoot | Phase::Done => return,
+            State::Stderr => Op::PipeRead { fd: self.pipes[2], buf: vec![0; 1024].into_boxed_slice() },
+            State::CloseStdout => Op::Close { fd: self.pipes[1] },
+            State::CloseStderr => Op::Close { fd: self.pipes[2] },
+            State::Wait => Op::Wait { pidfd: self.child.expect("child"), reap: false },
+            State::CloseChild => Op::Close { fd: self.child.expect("child") },
+            State::CloseInput | State::CloseRoot | State::Done => return,
         };
         self.issue(kind);
         self.waiting = true;
@@ -386,7 +386,7 @@ impl Host for Parent {
         self.signal_at
     }
     fn is_empty(&self) -> bool {
-        matches!(self.phase, Phase::Done) && self.completions.is_empty() && self.submissions.is_empty()
+        matches!(self.state, State::Done) && self.completions.is_empty() && self.submissions.is_empty()
     }
     fn operations(&self) -> u32 {
         8
@@ -531,26 +531,30 @@ impl Run {
     }
 }
 
+#[derive(Default)]
+pub struct Options<'a> {
+    pub story: Option<Story>,
+    pub login: Option<&'a [u8]>,
+    pub extra: Vec<Item>,
+    pub paths: &'a [&'a [u8]],
+    pub without_directory: bool,
+}
+
 pub fn run(story: Option<Story>, login: Option<&[u8]>, invocations: Vec<Invocation>) -> Run {
-    run_files(story, login, invocations, Vec::new())
+    run_with(invocations, Options { story, login, ..Options::default() })
 }
 
 pub fn run_without_directory(invocation: Invocation) -> Run {
-    run_items(vec![Item::directory(b"home")], vec![invocation], &[], false)
+    run_with(vec![invocation], Options { without_directory: true, ..Options::default() })
 }
 
-fn run_files(story: Option<Story>, login: Option<&[u8]>, invocations: Vec<Invocation>, extra: Vec<Item>) -> Run {
-    run_files_observing(story, login, invocations, extra, &[])
-}
-
-pub fn run_files_observing(
-    story: Option<Story>,
-    login: Option<&[u8]>,
-    invocations: Vec<Invocation>,
-    extra: Vec<Item>,
-    paths: &[&[u8]],
-) -> Run {
-    let mut items = vec![Item::directory(b"home"), Item::directory(b"config")];
+pub fn run_with(invocations: Vec<Invocation>, options: Options<'_>) -> Run {
+    let Options { story, login, extra, paths, without_directory } = options;
+    let config_present = !without_directory;
+    let mut items = vec![Item::directory(b"home")];
+    if config_present {
+        items.push(Item::directory(b"config"));
+    }
     if let Some(story) = story {
         items.push(Item::file(b"config/fake-claude.story", &story.encode()));
     }
@@ -558,10 +562,6 @@ pub fn run_files_observing(
         items.push(Item::file(b"config/fake-claude.login", login));
     }
     items.extend(extra);
-    run_items(items, invocations, paths, true)
-}
-
-fn run_items(items: Vec<Item>, invocations: Vec<Invocation>, paths: &[&[u8]], config_present: bool) -> Run {
     let mut files = Files::new();
     let base = files.lay(&items);
     let mut machine = MachineFiles { files, base };

@@ -261,26 +261,18 @@ fn a_provider_refusal_ends_standard_error_with_its_clipped_text() {
 }
 
 fn stopped_reasoning_charter() -> Box<[u8]> {
-    let mut parts = smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut skein_lib::Reader::new(&charter()))
-        .expect("ordinary charter")
-        .into_parts();
-    let mut main = parts.main.into_parts();
-    main.window = 272_000;
-    main.output = 16_384;
-    parts.main = smith_charter::Llm::new(&smith_charter::CEILINGS, main).expect("live window");
-    let mut budget = parts.budget.into_parts();
-    budget.turns = 8;
-    budget.spend = 1_000_000;
-    parts.budget = smith_charter::Budget::new(&smith_charter::CEILINGS, budget).expect("three-turn story");
-    let mut tools = parts.tools.into_parts();
-    let mut families = tools.families.into_parts();
-    families.skein_bools[0] = true;
-    tools.families = smith_charter::Families::new(&smith_charter::CEILINGS, families).expect("read authority");
-    parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("read and finish");
-    let record = smith_charter::Charter::new(&smith_charter::CEILINGS, parts).expect("stopped-turn charter");
-    let mut bytes = skein_lib::Writer::new(usize::try_from(record.measure()).expect("charter size"));
-    record.encode(&mut bytes).expect("charter bytes");
-    bytes.finish()
+    smith_agent_process_world::wire::edit_charter(&charter(), |parts| {
+        let mut main = parts.main.clone().into_parts();
+        main.window = 272_000;
+        main.output = 16_384;
+        parts.main = smith_charter::Llm::new(&smith_charter::CEILINGS, main).expect("live window");
+        smith_agent_process_world::wire::budget(parts, 8, 1_000_000);
+        let mut tools = parts.tools.clone().into_parts();
+        let mut families = tools.families.into_parts();
+        families.skein_bools[0] = true;
+        tools.families = smith_charter::Families::new(&smith_charter::CEILINGS, families).expect("read authority");
+        parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("read and finish");
+    })
 }
 
 #[test]
@@ -292,7 +284,7 @@ fn a_reasoning_turn_that_stops_after_a_read_is_told_and_nudged() {
     let queries = world.peer_queries();
     assert_eq!(queries.len(), 3);
     assert!(queries[2].messages.iter().flat_map(|message| &message.parts).any(|part| {
-        matches!(part, skein_fake_llm_domain::api::Part::Text { text } if text.windows(b"You stopped without calling `finish`".len()).any(|part| part == b"You stopped without calling `finish`"))
+        matches!(part, skein_fake_llm_domain::api::Part::Text { text } if skein_lib::bytes::find(text, b"You stopped without calling `finish`").is_some())
     }));
     let answer = world.answer().expect("the finish answered");
     assert!(matches!(answer.result(), RunResult::Accepted(_)));
@@ -328,7 +320,7 @@ fn a_hosted_agent_adopts_a_root_by_its_path_as_given() {
     let queries = world.peer_queries();
     assert!(queries.len() >= 2, "the root-backed read reaches its next provider turn");
     assert!(queries[1].messages.iter().flat_map(|message| &message.parts).any(|part| {
-        matches!(part, api::Part::ToolOutput { output, is_error: false, .. } if output.windows(b"problem".len()).any(|bytes| bytes == b"problem"))
+        matches!(part, api::Part::ToolOutput { output, is_error: false, .. } if skein_lib::bytes::find(output, b"problem").is_some())
     }), "the run retained the host path as an alias for the supplied descriptor");
     world.assert_agent_clean();
 }

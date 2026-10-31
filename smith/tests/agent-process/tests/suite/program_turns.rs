@@ -7,17 +7,9 @@ use smith_channel::{ModelFault, RunFailure, RunResult};
 use smith_fake_claude::{End, Step, Story, Turn};
 
 fn charter_turns() -> Box<[u8]> {
-    let source = smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut skein_lib::Reader::new(&charter()))
-        .expect("bounded test fixture");
-    let mut parts = source.into_parts();
-    let mut budget = parts.budget.into_parts();
-    budget.turns = 8;
-    budget.spend = 20;
-    parts.budget = smith_charter::Budget::new(&smith_charter::CEILINGS, budget).expect("bounded test fixture");
-    let record = smith_charter::Charter::new(&smith_charter::CEILINGS, parts).expect("bounded test fixture");
-    let mut writer = skein_lib::Writer::new(usize::try_from(record.measure()).expect("charter size"));
-    record.encode(&mut writer).expect("bounded test fixture");
-    writer.finish()
+    smith_agent_process_world::wire::edit_charter(&charter(), |parts| {
+        smith_agent_process_world::wire::budget(parts, 8, 20);
+    })
 }
 fn run(turns: Vec<Turn>) -> Run {
     program_world::run(
@@ -194,16 +186,11 @@ fn a_finished_tool_turn_resumes_without_an_extra_completion() {
 
 #[test]
 fn a_structured_failure_ends_with_its_declared_failure() {
-    let mut parts =
-        smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut skein_lib::Reader::new(&charter_turns()))
-            .expect("charter")
-            .into_parts();
-    let mut contract = parts.contract.into_parts();
-    contract.failure = contract.report.take();
-    parts.contract = smith_charter::Contract::new(&smith_charter::CEILINGS, contract).expect("failure contract");
-    let charter = smith_charter::Charter::new(&smith_charter::CEILINGS, parts).expect("charter");
-    let mut writer = skein_lib::Writer::new(usize::try_from(charter.measure()).expect("charter bytes"));
-    charter.encode(&mut writer).expect("charter");
+    let charter = smith_agent_process_world::wire::edit_charter(&charter_turns(), |parts| {
+        let mut contract = parts.contract.clone().into_parts();
+        contract.failure = contract.report.take();
+        parts.contract = smith_charter::Contract::new(&smith_charter::CEILINGS, contract).expect("failure contract");
+    });
     let story = Story {
         turns: vec![Turn {
             steps: vec![Step::Outcome {
@@ -213,7 +200,7 @@ fn a_structured_failure_ends_with_its_declared_failure() {
         }],
         ..Story::default()
     };
-    let run = program_world::run(Case::Turns, &story, Some(b"claude.ai"), &writer.finish(), &program(b"source"), None);
+    let run = program_world::run(Case::Turns, &story, Some(b"claude.ai"), &charter, &program(b"source"), None);
     let answer = run.answer().expect("answer");
     let RunResult::Accepted(accepted) = answer.result() else { panic!("declared result: {answer:?}") };
     let result =

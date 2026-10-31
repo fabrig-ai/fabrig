@@ -98,7 +98,7 @@ impl Referee<Process> for Judge {
             assert!(head != *before, "live run creates a new commit");
             let message = self.checkout.message(&head);
             assert!(
-                message.windows(15).any(|bytes| bytes == b"Smith-Delivery:"),
+                skein_lib::bytes::find(&message, b"Smith-Delivery:").is_some(),
                 "commit carries the delivery identity"
             );
             let files = self.checkout.files(&head);
@@ -117,7 +117,10 @@ impl Referee<Process> for Judge {
                 .iter()
                 .find_map(|proc| if let Process::Script(Proc::Terminal(person)) = proc { Some(person) } else { None })
                 .expect("live person");
-            assert!(person.shown().windows(16).any(|bytes| bytes == b"Change delivered"), "terminal observed delivery");
+            assert!(
+                skein_lib::bytes::find(person.shown(), b"Change delivered").is_some(),
+                "terminal observed delivery"
+            );
         }
         self.reviewed = true;
     }

@@ -354,7 +354,7 @@ pub fn run_with_provider(
     );
     let trace = std::fs::read(path).expect("agent trace");
     for credential in [b"access-new".as_slice(), b"refresh-new".as_slice()] {
-        assert!(!trace.windows(credential.len()).any(|bytes| bytes == credential), "trace excludes credentials");
+        assert!(skein_lib::bytes::find(&trace, credential).is_none(), "trace excludes credentials");
     }
     assert_no_children();
     seen
@@ -428,7 +428,7 @@ fn read_trace_resolved(
     records
 }
 
-struct Refusal {
+struct Settling {
     poll: Time,
     next_act: Option<Time>,
     terminal_sign_in: referee::SignIn,
@@ -439,7 +439,7 @@ struct Refusal {
     deadline: Time,
     trace: Option<(std::path::PathBuf, bool)>,
 }
-impl Refusal {
+impl Settling {
     fn new(now: Time, deadline: Time) -> Self {
         Self {
             poll: now,
@@ -455,7 +455,7 @@ impl Refusal {
     }
 }
 
-impl Referee<Process> for Refusal {
+impl Referee<Process> for Settling {
     fn act(&mut self, now: Time, procs: &mut [Process]) {
         if now >= self.poll
             && let Some(runtime) = &self.foreign
@@ -588,7 +588,7 @@ fn refusal_program_code(
     let streams = binary.take_streams().expect("startup terminal");
     let descriptors = streams.descriptors();
     let Streams::Terminal { stream } = streams else { unreachable!("startup on terminal") };
-    let mut world = real::World::new(Refusal::new(now, now.saturating_add(Duration::from_secs(2))));
+    let mut world = real::World::new(Settling::new(now, now.saturating_add(Duration::from_secs(2))));
     world.spawn_with_fds(binary.descriptors(), || Process::Binary(Box::new(binary)));
     world.spawn_with_fds(descriptors, || {
         Process::Script(Proc::Terminal(Box::new(Terminal::attached_to_a_refusal(
@@ -673,7 +673,7 @@ pub fn smith_with_environment(
     let Streams::Pipes { input: stdin, output } = streams else { unreachable!("product on pipes") };
     let clock = Clock::new();
     let now = clock.now().now;
-    let mut world = real::World::new(Refusal::new(now, now.saturating_add(Duration::from_secs(2))));
+    let mut world = real::World::new(Settling::new(now, now.saturating_add(Duration::from_secs(2))));
     world.spawn_with_fds(binary.descriptors(), || Process::Binary(Box::new(binary)));
     world.spawn_with_fds(descriptors, || {
         let mut commands = Vec::new();

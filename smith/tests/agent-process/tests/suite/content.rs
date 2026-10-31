@@ -330,8 +330,8 @@ fn no_grant_value_reaches_a_turn_fact_or_trace() {
         world.observe_facts(TraceCase::ChildAnswered, 4);
         world.initial_message(908, b"task", b"Trace policy prompt sentinel");
         let settled = world.settle();
-        let leaked = world.observed().iter().any(|frame| frame.body.windows(secret.len()).any(|bytes| bytes == secret))
-            || world.trace_bytes().windows(secret.len()).any(|bytes| bytes == secret);
+        let leaked = world.observed().iter().any(|frame| skein_lib::bytes::find(&frame.body, secret).is_some())
+            || skein_lib::bytes::find(world.trace_bytes(), secret).is_some();
         assert_eq!((settled, leaked), (true, false), "row {index}");
         assert_trace_policy(&world, &[secret, account]);
         world.assert_agent_clean();
@@ -396,7 +396,7 @@ fn trace_fields(value: &serde_json::Value, secrets: &[&[u8]]) {
 fn trace_text(text: &str, secrets: &[&[u8]]) {
     assert!(!text.to_ascii_lowercase().contains("authorization:"), "Authorization header in trace");
     for secret in secrets {
-        assert!(!text.as_bytes().windows(secret.len()).any(|bytes| bytes == *secret), "grant bytes in trace text");
+        assert!(skein_lib::bytes::find(text.as_bytes(), secret).is_none(), "grant bytes in trace text");
     }
 }
 

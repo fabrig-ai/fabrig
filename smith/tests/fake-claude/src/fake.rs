@@ -491,9 +491,7 @@ impl Host for Fake {
             }
         }
         self.progress(now);
-        while let Some(request) = self.io_requests.pop() {
-            skein_io::down(&mut self.io, &env, request, &mut self.submissions);
-        }
+        skein_io::stage::down(&mut self.io, &env, &mut self.io_requests, &mut self.submissions);
         while let Some(mut submit) = self.file_submissions.pop() {
             file_namespace(&mut submit.op, &mut submit.kind);
             self.submissions.push(submit);

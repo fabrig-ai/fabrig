@@ -88,12 +88,12 @@ fn a_trust_file_that_is_not_a_regular_file_is_refused_naming_it() {
 
 #[test]
 fn a_machine_bundle_past_its_certificate_bound_is_refused_naming_the_bound() {
-    let path = std::env::temp_dir().join(format!("smith-trust-bundle-{}.pem", std::process::id()));
+    let scratch = skein_scratch::Scratch::new("smith-trust-bundle");
+    let path = scratch.path().join("roots.pem");
     std::fs::write(&path, b"-----BEGIN CERTIFICATE-----\nAA==\n-----END CERTIFICATE-----\n".repeat(513))
         .expect("bounded PEM fixture");
     let error = trust_source(&skein_shell::Trust::Machine { ssl_cert_file: Some(path.clone()) })
         .expect_err("too many certificates");
-    std::fs::remove_file(path).expect("remove fixture");
     assert_eq!(error, "trust roots exceed 512 certificates");
 }
 

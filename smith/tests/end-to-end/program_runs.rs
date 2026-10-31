@@ -2,15 +2,16 @@
 mod records;
 
 use super::support;
-use serde_json::{Value, json};
+use serde_json::json;
+use smith_fake_claude::{End, OBSERVATIONS_FILE, STORY_FILE, Step, Story, Turn, observations};
 use smith_real_world::Scratch;
 
 const ANSWER: &str = "Program answer";
 const TOLD_TEXT: &str = "Told program text";
 
-fn signed_in(story: &Value) -> Scratch {
+fn signed_in(turn: Turn) -> Scratch {
     let scratch = Scratch::new();
-    let executable = skein_scratch::paths::binary("smith").with_file_name("fake-claude");
+    let executable = skein_scratch::paths::binary("fake-claude");
     let settings = format!(
         "model='anthropic/claude-opus-5-5'\n[programs]\nclaude_code='{}'\n\
          [accounts.work]\nprovider='anthropic'\nsource='program'\n[endpoints.anthropic]\naccount='work'\nprogram='claude_code'\n",
@@ -20,63 +21,58 @@ fn signed_in(story: &Value) -> Scratch {
     let login = support::run_product(&scratch, &["login", "work"], b"", None);
     assert_eq!(login.code, 0, "{}", String::from_utf8_lossy(&login.stderr));
     std::fs::write(
-        scratch.path().join("state/smith/programs/work/fake-claude.story"),
-        serde_json::to_vec(&json!({
-            "status":"Truthful", "login":{"Immediate":"claude.ai"}, "logout":"Succeeds",
-            "turns":[story]
-        }))
-        .expect("program story"),
+        scratch.path().join("state/smith/programs/work").join(STORY_FILE),
+        Story { turns: vec![turn], ..Story::default() }.encode(),
     )
     .expect("scratch story file");
     scratch
 }
 
-fn answer() -> Value {
-    json!({"steps":[{"Text":TOLD_TEXT}, {"Outcome":{"input":{"outcome":{"form":"report","text":ANSWER,"fields":{}}}}}]})
+fn outcome() -> Step {
+    Step::Outcome { input: json!({"outcome":{"form":"report","text":ANSWER,"fields":{}}}) }
 }
 
-fn invocations(scratch: &Scratch) -> Vec<Value> {
-    std::fs::read(scratch.path().join("state/smith/programs/work/fake-claude.observations"))
-        .expect("fake observations")
-        .split(|byte| *byte == b'\n')
-        .filter(|line| !line.is_empty())
-        .map(|line| serde_json::from_slice::<Value>(line).expect("observation record"))
-        .filter_map(|record| record.get("arguments").cloned())
-        .collect()
+fn answer() -> Turn {
+    Turn { steps: vec![Step::Text(TOLD_TEXT.into()), outcome()], end: End::default() }
+}
+
+fn invocations(scratch: &Scratch) -> Vec<Vec<String>> {
+    let bytes = std::fs::read(scratch.path().join("state/smith/programs/work").join(OBSERVATIONS_FILE))
+        .expect("fake observations");
+    observations(&bytes).into_iter().map(|record| record.arguments).collect()
 }
 
 #[test]
 fn a_program_run_never_sees_the_person_s_credential_variables() {
-    let scratch = signed_in(&answer());
+    let scratch = signed_in(answer());
     let configuration = scratch.path().join("state/smith/programs/work");
     // Only this exec's invocations remain; the setup's login is separate.
-    std::fs::remove_file(configuration.join("fake-claude.observations")).expect("clear setup observations");
+    std::fs::remove_file(configuration.join(OBSERVATIONS_FILE)).expect("clear setup observations");
     let ran = super::program_commands::with_credentials(&scratch, &["exec", "Ask first"]);
     assert_eq!(ran.code, 0, "program run succeeds");
     assert_eq!(ran.stdout, ANSWER.as_bytes());
     // The fake opens its observation file relative to CLAUDE_CONFIG_DIR,
     // so finding every call here also proves the account directory was used.
-    let bytes = std::fs::read(configuration.join("fake-claude.observations")).expect("account observations");
-    let calls = super::program_commands::invocations(&bytes);
+    let bytes = std::fs::read(configuration.join(OBSERVATIONS_FILE)).expect("account observations");
+    let calls = observations(&bytes);
     assert_eq!(calls.len(), 3, "startup status, agent status and print run");
-    assert_eq!(calls[0]["arguments"], json!(["auth", "status"]));
-    assert_eq!(calls[1]["arguments"], json!(["auth", "status"]));
-    assert_eq!(calls[2]["arguments"][0], "-p");
+    assert_eq!(calls[0].arguments, ["auth", "status"]);
+    assert_eq!(calls[1].arguments, ["auth", "status"]);
+    assert_eq!(calls[2].arguments[0], "-p");
     for call in calls {
         super::program_commands::credential_free(&call);
     }
     assert!(
-        !bytes.split(|byte| *byte == b'\n').filter(|line| !line.is_empty()).any(|line| {
-            let record: Value = serde_json::from_slice(line).expect("observation record");
-            record["seen"]["Called"]["tool"] == "finish"
-        }),
+        !smith_fake_claude::seen(&bytes)
+            .iter()
+            .any(|record| matches!(record, smith_fake_claude::Seen::Called { tool, .. } if tool == "finish")),
         "a contract outcome never calls finish over MCP"
     );
 }
 
 #[test]
 fn exec_spawns_one_print_run_on_its_program() {
-    let scratch = signed_in(&answer());
+    let scratch = signed_in(answer());
     let ran = support::run_product(&scratch, &["exec", "Ask first"], b"", None);
     assert_eq!(ran.code, 0, "{}", String::from_utf8_lossy(&ran.stderr));
     assert_eq!(ran.stdout, ANSWER.as_bytes());
@@ -84,8 +80,8 @@ fn exec_spawns_one_print_run_on_its_program() {
     let print: Vec<_> = calls.iter().filter(|arguments| arguments[0] == "-p").collect();
     assert_eq!(print.len(), 1);
     assert_eq!(
-        &print[0].as_array().expect("print arguments")[..10],
-        json!([
+        &print[0][..10],
+        [
             "-p",
             "--input-format",
             "stream-json",
@@ -96,19 +92,12 @@ fn exec_spawns_one_print_run_on_its_program() {
             "--setting-sources",
             "user",
             "--model"
-        ])
-        .as_array()
-        .expect("expected arguments")
+        ]
     );
-    assert!(print[0].as_array().unwrap().windows(2).any(|pair| pair == [json!("--model"), json!("claude-opus-5-5")]));
+    assert!(print[0].windows(2).any(|pair| pair == ["--model", "claude-opus-5-5"]));
     assert_eq!(
-        calls.iter().filter(|arguments| arguments[0] == "auth").collect::<Vec<_>>(),
-        vec![
-            &json!(["auth", "login"]),
-            &json!(["auth", "status"]),
-            &json!(["auth", "status"]),
-            &json!(["auth", "status"])
-        ],
+        calls.iter().filter(|arguments| arguments[0] == "auth").map(Vec::as_slice).collect::<Vec<_>>(),
+        [["auth", "login"], ["auth", "status"], ["auth", "status"], ["auth", "status"]],
         "login, its status, the startup status and the agent source check"
     );
 }
@@ -116,7 +105,7 @@ fn exec_spawns_one_print_run_on_its_program() {
 #[test]
 fn a_program_chat_answers_before_input_ends() {
     use smith_local_process_world::terminal::Action;
-    let scratch = signed_in(&answer());
+    let scratch = signed_in(answer());
     let ran = support::run_product_scripted(
         &scratch,
         &["--plain"],
@@ -131,7 +120,7 @@ fn a_program_chat_answers_before_input_ends() {
 
 #[test]
 fn a_program_turn_exit_keeps_the_run_failure() {
-    let scratch = signed_in(&json!({"steps":[],"end":{"Exit":7}}));
+    let scratch = signed_in(Turn { steps: vec![], end: End::Exit(7) });
     let ran = support::run_product(
         &scratch,
         &["exec", "--json", "--trace", "failure.jsonl", "-c", "trace.capture='none'", "Ask first"],
@@ -157,7 +146,7 @@ fn a_program_turn_exit_keeps_the_run_failure() {
 fn a_program_chat_shows_text_before_interrupting_an_uncommitted_turn() {
     use smith_local_process_world::terminal::Action;
     let text = "Text before the hang";
-    let scratch = signed_in(&json!({"steps":[{"Text":text},"Hang"]}));
+    let scratch = signed_in(Turn { steps: vec![Step::Text(text.into()), Step::Hang], end: End::default() });
     let ran = support::program_chat(
         &scratch,
         vec![
@@ -178,10 +167,14 @@ fn a_program_chat_shows_text_before_interrupting_an_uncommitted_turn() {
 fn a_program_chat_completes_its_live_view() {
     use smith_local_process_world::terminal::Action;
     let text = "Live settled text";
-    let scratch = signed_in(&json!({"steps":[{"Text":text},
-        {"Builtin":{"tool":"Read","input":{"file_path":"README.md"},"result":"file bytes"}},
-        {"Outcome":{"input":{"outcome":{"form":"report","text":ANSWER,"fields":{}}}}}
-    ]}));
+    let scratch = signed_in(Turn {
+        steps: vec![
+            Step::Text(text.into()),
+            Step::Builtin { tool: "Read".into(), input: json!({"file_path":"README.md"}), result: "file bytes".into() },
+            outcome(),
+        ],
+        end: End::default(),
+    });
     let ran = support::program_chat(
         &scratch,
         vec![

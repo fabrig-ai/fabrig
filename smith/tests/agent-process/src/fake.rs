@@ -82,11 +82,13 @@ pub fn peer_for(anthropic: bool) -> llm::Peer {
         tokens: 1,
     }]);
     let scripts = Box::new([api::Script { cue: Box::new([]), turns }]);
-    let credential = standard_credential(anthropic);
+    let credential = credential(anthropic);
     if anthropic { configured_anthropic(scripts, credential) } else { configured(scripts, credential, Duration::ZERO) }
 }
 
-fn standard_credential(anthropic: bool) -> skein_llm::Credential {
+/// The shared scenario credential for the selected provider dialect.
+#[must_use]
+pub fn credential(anthropic: bool) -> skein_llm::Credential {
     skein_llm::Credential {
         value: b"token".as_slice().into(),
         account_id: if anthropic { Box::new([]) } else { b"acc".as_slice().into() },
@@ -97,7 +99,7 @@ fn standard_credential(anthropic: bool) -> skein_llm::Credential {
 /// Script a reply with the shared scenario's standard credential.
 #[must_use]
 pub fn scripted_reply(turns: Box<[api::Turn]>, anthropic: bool) -> llm::Peer {
-    scripted(turns, standard_credential(anthropic), anthropic)
+    scripted(turns, credential(anthropic), anthropic)
 }
 
 /// Write the supplied turns through the scenario's provider dialect.
@@ -106,13 +108,14 @@ pub fn scripted(turns: Box<[api::Turn]>, credential: skein_llm::Credential, anth
     let scripts = Box::new([api::Script { cue: Box::new([]), turns }]);
     // Live pressure stories pass 16 KiB by one byte; keep script and document room
     // at the same existing 128 KiB bound used by the reasoning replay fixture.
-    configured_bounds(scripts, credential, Duration::ZERO, Transport::Plaintext, anthropic, false, (131_072, 131_072))
+    Options { anthropic, request_bytes: 131_072, document_bytes: 131_072, ..Options::default() }
+        .make(scripts, credential)
 }
 
 /// Build a seeded plaintext loopback peer for a local scenario.
 #[must_use]
 pub fn configured(scripts: Box<[api::Script]>, credential: skein_llm::Credential, latency: Duration) -> llm::Peer {
-    configured_transport(scripts, credential, latency, Transport::Plaintext)
+    Options { latency, ..Options::default() }.make(scripts, credential)
 }
 
 /// Configure the same fake domain for plaintext replay or TLS in a real loop.
@@ -123,92 +126,87 @@ pub fn configured_transport(
     latency: Duration,
     transport: Transport,
 ) -> llm::Peer {
-    configured_dialect(scripts, credential, latency, transport, false, false)
+    Options { latency, transport, ..Options::default() }.make(scripts, credential)
 }
 
 /// Select Anthropic's real byte codec for the native live-text scenario.
 #[must_use]
 pub fn configured_anthropic(scripts: Box<[api::Script]>, credential: skein_llm::Credential) -> llm::Peer {
-    configured_dialect(scripts, credential, Duration::ZERO, Transport::Plaintext, true, false)
+    Options { anthropic: true, ..Options::default() }.make(scripts, credential)
 }
 
 /// An independent HTTP provider rejection, with no application decoder substitute.
 #[must_use]
 pub fn rejected() -> llm::Peer {
-    configured_dialect(
-        Box::new([]),
-        skein_llm::Credential {
-            value: b"token".as_slice().into(),
-            account_id: b"acc".as_slice().into(),
-            scheme: skein_llm::Scheme::Bearer,
-        },
-        Duration::ZERO,
-        Transport::Plaintext,
-        false,
-        true,
-    )
+    Options { rejected: true, ..Options::default() }.make(Box::new([]), credential(false))
 }
 
-fn configured_dialect(
-    scripts: Box<[api::Script]>,
-    credential: skein_llm::Credential,
+struct Options {
     latency: Duration,
     transport: Transport,
     anthropic: bool,
     rejected: bool,
-) -> llm::Peer {
-    configured_bounds(scripts, credential, latency, transport, anthropic, rejected, (32_768, 16_384))
+    request_bytes: u32,
+    document_bytes: u32,
 }
 
-fn configured_bounds(
-    scripts: Box<[api::Script]>,
-    credential: skein_llm::Credential,
-    latency: Duration,
-    transport: Transport,
-    anthropic: bool,
-    rejected: bool,
-    bounds: (u32, u32),
-) -> llm::Peer {
-    let mut config = skein_llm_world::fake::config();
-    config.latency_min = latency;
-    config.latency_max = latency;
-    config.script_bytes = config.script_bytes.max(bounds.1);
-    config.answer_bytes = config.answer_bytes.max(bounds.1);
-    config.query_bytes = config.query_bytes.max(bounds.1);
-    if rejected {
-        config.too_long = 1000;
+impl Default for Options {
+    fn default() -> Self {
+        Self {
+            latency: Duration::ZERO,
+            transport: Transport::Plaintext,
+            anthropic: false,
+            rejected: false,
+            request_bytes: 32_768,
+            document_bytes: 16_384,
+        }
     }
-    let mut protocol = skein_llm_world::fake::limits(&skein_llm_world::limits());
-    protocol.documents.openai.request = bounds.0;
-    protocol.documents.openai.strings = bounds.1;
-    protocol.documents.openai.answer = protocol.documents.openai.answer.max(bounds.1);
-    protocol.http.body = protocol.http.body.max(u64::from(bounds.0));
-    protocol.sse.event = protocol.sse.event.max(bounds.1);
-    protocol.documents.openai.tokens = 4096;
-    protocol.documents.openai.output_items = 256;
-    protocol.documents.anthropic.output_items = 256;
-    llm::Peer::new(
-        (loopback(), if transport == Transport::Tls { 34_443 } else { 443 }).into(),
-        transport,
-        limits(),
-        provider::Config {
-            echo: skein_llm::openai::Echo::NONE,
-            usage_fields: documents::UsageFields::ALL,
-            provider: if anthropic { documents::Provider::Anthropic } else { documents::Provider::OpenAi },
-            path: if anthropic {
-                skein_llm::Endpoint::anthropic().target
-            } else {
-                skein_llm_world::call(1).endpoint.target
+}
+
+impl Options {
+    fn make(self, scripts: Box<[api::Script]>, credential: skein_llm::Credential) -> llm::Peer {
+        let Self { latency, transport, anthropic, rejected, request_bytes, document_bytes } = self;
+        let mut config = skein_llm_world::fake::config();
+        config.latency_min = latency;
+        config.latency_max = latency;
+        config.script_bytes = config.script_bytes.max(document_bytes);
+        config.answer_bytes = config.answer_bytes.max(document_bytes);
+        config.query_bytes = config.query_bytes.max(document_bytes);
+        if rejected {
+            config.too_long = 1000;
+        }
+        let mut protocol = skein_llm_world::fake::limits(&skein_llm_world::limits());
+        protocol.documents.openai.request = request_bytes;
+        protocol.documents.openai.strings = document_bytes;
+        protocol.documents.openai.answer = protocol.documents.openai.answer.max(document_bytes);
+        protocol.http.body = protocol.http.body.max(u64::from(request_bytes));
+        protocol.sse.event = protocol.sse.event.max(document_bytes);
+        protocol.documents.openai.tokens = 4096;
+        protocol.documents.openai.output_items = 256;
+        protocol.documents.anthropic.output_items = 256;
+        llm::Peer::new(
+            (loopback(), if transport == Transport::Tls { 34_443 } else { 443 }).into(),
+            transport,
+            limits(),
+            provider::Config {
+                echo: skein_llm::openai::Echo::NONE,
+                usage_fields: documents::UsageFields::ALL,
+                provider: if anthropic { documents::Provider::Anthropic } else { documents::Provider::OpenAi },
+                path: if anthropic {
+                    skein_llm::Endpoint::anthropic().target
+                } else {
+                    skein_llm_world::call(1).endpoint.target
+                },
+                headers: Box::new([]),
+                without_credential: false,
             },
-            headers: Box::new([]),
-            without_credential: false,
-        },
-        credential,
-        protocol,
-        domain::Domain::try_scripted(&config, 17, scripts).expect("bounded scenario scripts"),
-        config,
-    )
-    .expect("configured independent peer")
+            credential,
+            protocol,
+            domain::Domain::try_scripted(&config, 17, scripts).expect("bounded scenario scripts"),
+            config,
+        )
+        .expect("configured independent peer")
+    }
 }
 
 /// Decoded outside requests emitted by the independent byte peer.
@@ -241,17 +239,5 @@ pub fn context_rejected(peer: &llm::Peer) -> bool {
 
 /// Admit the observed reasoning turn when it is replayed in the next request.
 pub(crate) fn reasoning(scripts: Box<[api::Script]>) -> llm::Peer {
-    configured_bounds(
-        scripts,
-        skein_llm::Credential {
-            value: b"token".as_slice().into(),
-            account_id: b"acc".as_slice().into(),
-            scheme: skein_llm::Scheme::Bearer,
-        },
-        Duration::ZERO,
-        Transport::Plaintext,
-        false,
-        false,
-        (131_072, 131_072),
-    )
+    Options { request_bytes: 131_072, document_bytes: 131_072, ..Options::default() }.make(scripts, credential(false))
 }

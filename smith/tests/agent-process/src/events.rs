@@ -235,7 +235,7 @@ fn check_transport(records: &[Record], program: bool) {
                 .expect("tool terminal fits its receiving bounds")
                 .expect("tool terminal is emitted");
                 assert!(
-                    !line.windows(b"\"result\":".len()).any(|part| part == b"\"result\":"),
+                    skein_lib::bytes::find(&line, b"\"result\":").is_none(),
                     "tool.completed carries no pre-render result under the binding contract"
                 );
             }

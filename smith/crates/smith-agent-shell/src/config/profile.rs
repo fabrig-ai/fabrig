@@ -6,6 +6,17 @@ use smith_agent_service::{
     profile::{Layer, LimitName},
 };
 
+macro_rules! positive {
+    ($profile:expr, $overrides:expr, $prefix:literal, $($field:ident),+ $(,)?) => {
+        $(if let Some(value) = $overrides.$field {
+            if value == 0 {
+                return Err(concat!($prefix, stringify!($field), " must be positive").into());
+            }
+            $profile.$field = value;
+        })+
+    };
+}
+
 pub(super) fn build_profile(document: &ProfileDocument) -> Result<service::profile::Profile, ConfigurationRefusal> {
     if document.name != "standard" {
         return Err("unknown profile name".into());
@@ -21,92 +32,27 @@ fn apply_declared(
     profile: &mut service::profile::Profile,
     overrides: &DeclaredOverrides,
 ) -> Result<(), ConfigurationRefusal> {
-    if let Some(value) = overrides.conversations {
-        if value == 0 {
-            return Err("profile.declared.conversations must be positive".into());
-        }
-        profile.declared.conversations = value;
-    }
-    if let Some(value) = overrides.tool_payload {
-        if value == 0 {
-            return Err("profile.declared.tool_payload must be positive".into());
-        }
-        profile.declared.tool_payload = value;
-    }
-    if let Some(value) = overrides.file_bytes {
-        if value == 0 {
-            return Err("profile.declared.file_bytes must be positive".into());
-        }
-        profile.declared.file_bytes = value;
-    }
-    if let Some(value) = overrides.calls_per_response {
-        if value == 0 {
-            return Err("profile.declared.calls_per_response must be positive".into());
-        }
-        profile.declared.calls_per_response = value;
-    }
+    positive!(
+        profile.declared,
+        overrides,
+        "profile.declared.",
+        conversations,
+        tool_payload,
+        file_bytes,
+        calls_per_response,
+        read_window,
+        shell_output,
+        shell_head,
+        shell_tail,
+        search_hits,
+        search_bytes,
+        list_entries,
+        guide,
+        llm_pool,
+        memory
+    );
     if let Some(value) = overrides.jobs {
         profile.declared.jobs = value;
-    }
-    if let Some(value) = overrides.read_window {
-        if value == 0 {
-            return Err("profile.declared.read_window must be positive".into());
-        }
-        profile.declared.read_window = value;
-    }
-    if let Some(value) = overrides.shell_output {
-        if value == 0 {
-            return Err("profile.declared.shell_output must be positive".into());
-        }
-        profile.declared.shell_output = value;
-    }
-    if let Some(value) = overrides.shell_head {
-        if value == 0 {
-            return Err("profile.declared.shell_head must be positive".into());
-        }
-        profile.declared.shell_head = value;
-    }
-    if let Some(value) = overrides.shell_tail {
-        if value == 0 {
-            return Err("profile.declared.shell_tail must be positive".into());
-        }
-        profile.declared.shell_tail = value;
-    }
-    if let Some(value) = overrides.search_hits {
-        if value == 0 {
-            return Err("profile.declared.search_hits must be positive".into());
-        }
-        profile.declared.search_hits = value;
-    }
-    if let Some(value) = overrides.search_bytes {
-        if value == 0 {
-            return Err("profile.declared.search_bytes must be positive".into());
-        }
-        profile.declared.search_bytes = value;
-    }
-    if let Some(value) = overrides.list_entries {
-        if value == 0 {
-            return Err("profile.declared.list_entries must be positive".into());
-        }
-        profile.declared.list_entries = value;
-    }
-    if let Some(value) = overrides.guide {
-        if value == 0 {
-            return Err("profile.declared.guide must be positive".into());
-        }
-        profile.declared.guide = value;
-    }
-    if let Some(value) = overrides.llm_pool {
-        if value == 0 {
-            return Err("profile.declared.llm_pool must be positive".into());
-        }
-        profile.declared.llm_pool = value;
-    }
-    if let Some(value) = overrides.memory {
-        if value == 0 {
-            return Err("profile.declared.memory must be positive".into());
-        }
-        profile.declared.memory = value;
     }
     Ok(())
 }
@@ -115,66 +61,20 @@ fn apply_counts(
     profile: &mut service::profile::Profile,
     overrides: &PolicyOverrides,
 ) -> Result<(), ConfigurationRefusal> {
-    if let Some(value) = overrides.max_turns {
-        if value == 0 {
-            return Err("profile.policy.max_turns must be positive".into());
-        }
-        profile.policy.max_turns = value;
-    }
-    if let Some(value) = overrides.max_spend {
-        if value == 0 {
-            return Err("profile.policy.max_spend must be positive".into());
-        }
-        profile.policy.max_spend = value;
-    }
-    if let Some(value) = overrides.max_time {
-        profile.policy.max_time = duration(value, LimitName::deployment(Layer::Policy, "max_time"))?;
-    }
-    if let Some(value) = overrides.max_waiting {
-        profile.policy.max_waiting = duration(value, LimitName::deployment(Layer::Policy, "max_waiting"))?;
-    }
-    if let Some(value) = overrides.sections {
-        if value == 0 {
-            return Err("profile.policy.sections must be positive".into());
-        }
-        profile.policy.sections = value;
-    }
-    if let Some(value) = overrides.host_tools {
-        if value == 0 {
-            return Err("profile.policy.host_tools must be positive".into());
-        }
-        profile.policy.host_tools = value;
-    }
-    if let Some(value) = overrides.verdicts {
-        if value == 0 {
-            return Err("profile.policy.verdicts must be positive".into());
-        }
-        profile.policy.verdicts = value;
-    }
-    if let Some(value) = overrides.items {
-        if value == 0 {
-            return Err("profile.policy.items must be positive".into());
-        }
-        profile.policy.items = value;
-    }
-    if let Some(value) = overrides.fields {
-        if value == 0 {
-            return Err("profile.policy.fields must be positive".into());
-        }
-        profile.policy.fields = value;
-    }
-    if let Some(value) = overrides.inbox {
-        if value == 0 {
-            return Err("profile.policy.inbox must be positive".into());
-        }
-        profile.policy.inbox = value;
-    }
-    if let Some(value) = overrides.unacknowledged {
-        if value == 0 {
-            return Err("profile.policy.unacknowledged must be positive".into());
-        }
-        profile.policy.unacknowledged = value;
-    }
+    positive!(
+        profile.policy,
+        overrides,
+        "profile.policy.",
+        max_turns,
+        max_spend,
+        sections,
+        host_tools,
+        verdicts,
+        items,
+        fields,
+        inbox,
+        unacknowledged
+    );
     if let Some(value) = overrides.parallel_tools {
         profile.policy.parallel_tools = value;
     }
@@ -192,6 +92,12 @@ fn apply_durations(
     profile: &mut service::profile::Profile,
     overrides: &PolicyOverrides,
 ) -> Result<(), ConfigurationRefusal> {
+    if let Some(value) = overrides.max_waiting {
+        profile.policy.max_waiting = duration(value, LimitName::deployment(Layer::Policy, "max_waiting"))?;
+    }
+    if let Some(value) = overrides.max_time {
+        profile.policy.max_time = duration(value, LimitName::deployment(Layer::Policy, "max_time"))?;
+    }
     if let Some(value) = overrides.check_timeout {
         profile.policy.check_timeout = duration(value, LimitName::deployment(Layer::Policy, "check_timeout"))?;
     }

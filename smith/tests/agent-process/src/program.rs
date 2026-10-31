@@ -9,7 +9,7 @@ use skein_shell::{Delegate, Host};
 use skein_world::{HostedProgram, Inherited, Referee};
 use smith_fake_claude::{Fake, Story};
 
-use crate::world::Parent;
+use crate::world::{Parent, ParentOptions, Setup};
 
 #[path = "program/waiting.rs"]
 mod waiting;
@@ -50,6 +50,31 @@ pub enum Case {
     MissingServer,
     /// The host brings prior turns to a program start.
     Transcript,
+}
+
+impl Case {
+    fn completes(self) -> bool {
+        matches!(
+            self,
+            Self::Turns
+                | Self::Credentials
+                | Self::Tools
+                | Self::Waiting
+                | Self::ParkWaiting
+                | Self::Events
+                | Self::Transcript
+                | Self::Open
+        )
+    }
+}
+
+#[derive(Clone, Copy, Default)]
+struct RunOptions<'a> {
+    login: Option<&'a [u8]>,
+    refresh: Option<&'a smith_channel::GrantValue>,
+    history: Option<&'a [Box<[u8]>]>,
+    releases: Option<&'a [HostMessage]>,
+    change_after_snapshot: bool,
 }
 
 enum Proc {
@@ -488,28 +513,30 @@ pub fn run(
     value: &smith_channel::GrantValue,
     refresh: Option<&smith_channel::GrantValue>,
 ) -> Run {
-    run_inner(case, story, login, charter, value, refresh, None, None, false)
+    run_scenario(case, story, charter, value, RunOptions { login, refresh, ..RunOptions::default() })
 }
 
 /// Change the workspace file after smith's snapshot and before the native Read.
 #[must_use]
 pub fn run_after_snapshot(story: &Story, charter: &[u8]) -> Run {
-    run_inner(Case::Tools, story, Some(b"claude.ai"), charter, &crate::program(b"source"), None, None, None, true)
+    run_scenario(
+        Case::Tools,
+        story,
+        charter,
+        &crate::program(b"source"),
+        RunOptions { login: Some(b"claude.ai"), change_after_snapshot: true, ..RunOptions::default() },
+    )
 }
 
 /// Restore the host's recorded window through the shipped program composition.
 #[must_use]
 pub fn run_with_window(story: &Story, charter: &[u8], turns: &[Box<[u8]>]) -> Run {
-    run_inner(
+    run_scenario(
         Case::Transcript,
         story,
-        Some(b"claude.ai"),
         charter,
         &crate::program(b"source"),
-        None,
-        Some(turns),
-        None,
-        false,
+        RunOptions { login: Some(b"claude.ai"), history: Some(turns), ..RunOptions::default() },
     )
 }
 
@@ -522,16 +549,12 @@ pub fn open(story: &Story, charter: &[u8], releases: &[HostMessage]) -> Run {
 /// Restore an Open window, or begin fresh, with the same parent release driver.
 #[must_use]
 pub fn open_with_window(story: &Story, charter: &[u8], releases: &[HostMessage], turns: Option<&[Box<[u8]>]>) -> Run {
-    run_inner(
+    run_scenario(
         Case::Open,
         story,
-        Some(b"claude.ai"),
         charter,
         &crate::program(b"source"),
-        None,
-        turns,
-        Some(releases),
-        false,
+        RunOptions { login: Some(b"claude.ai"), history: turns, releases: Some(releases), ..RunOptions::default() },
     )
 }
 
@@ -539,33 +562,18 @@ pub fn open_with_window(story: &Story, charter: &[u8], releases: &[HostMessage],
 #[must_use]
 #[expect(
     clippy::too_many_lines,
-    clippy::too_many_arguments,
     reason = "one hosted fixture connects the program, relay, roots and independent observations"
 )]
-fn run_inner(
+fn run_scenario(
     case: Case,
     story: &Story,
-    login: Option<&[u8]>,
     charter: &[u8],
     value: &smith_channel::GrantValue,
-    refresh: Option<&smith_channel::GrantValue>,
-    history: Option<&[Box<[u8]>]>,
-    releases: Option<&[HostMessage]>,
-    change_after_snapshot: bool,
+    options: RunOptions<'_>,
 ) -> Run {
+    let RunOptions { login, refresh, history, releases, change_after_snapshot } = options;
     let mut story = story.clone();
-    if !matches!(
-        case,
-        Case::Turns
-            | Case::Credentials
-            | Case::Tools
-            | Case::Waiting
-            | Case::ParkWaiting
-            | Case::Events
-            | Case::Transcript
-            | Case::Open
-    ) && story.turns.is_empty()
-    {
+    if !case.completes() && story.turns.is_empty() {
         story.turns.push(smith_fake_claude::Turn {
             steps: vec![smith_fake_claude::Step::Hang],
             end: smith_fake_claude::End::default(),
@@ -577,34 +585,10 @@ fn run_inner(
         Machine { files, base, change_after_snapshot, snapshot: None, snapshot_closed: false, changed: false };
     let mut world =
         skein_world::World::new_controlled(7, skein_sim::Config::calm(), skein_world::Memory::Checked, |_| Judge {
-            wait_for_exit: matches!(
-                case,
-                Case::Turns
-                    | Case::Credentials
-                    | Case::Tools
-                    | Case::Waiting
-                    | Case::ParkWaiting
-                    | Case::Events
-                    | Case::Transcript
-                    | Case::Open
-            ),
+            wait_for_exit: case.completes(),
             ended: false,
             waiting: releases.map_or_else(|| waiting::Release::new(case == Case::Waiting), waiting::Release::open),
-            cancel: if matches!(
-                case,
-                Case::Turns
-                    | Case::Credentials
-                    | Case::Tools
-                    | Case::Waiting
-                    | Case::ParkWaiting
-                    | Case::Events
-                    | Case::Transcript
-                    | Case::Open
-            ) {
-                None
-            } else {
-                Some(Time::ZERO.saturating_add(Duration::from_millis(50)))
-            },
+            cancel: if case.completes() { None } else { Some(Time::ZERO.saturating_add(Duration::from_millis(50))) },
         })
         .with_machine(machine);
     let operations = smith_agent_service::program_operations(&configuration(case))
@@ -672,20 +656,19 @@ fn run_inner(
         let mut parent = Parent::new(
             root,
             charter,
-            false,
-            None,
-            8,
-            false,
-            initial.as_ref(),
-            if case == Case::Events {
-                smith_agent_service::sinks::Capture::Everything
-            } else {
-                smith_agent_service::sinks::Capture::None
-            },
-            skein_llm::Provider::OpenAiCodex,
             value,
-            None,
-            0,
+            ParentOptions {
+                message: initial.as_ref(),
+                setup: Setup {
+                    capture: if case == Case::Events {
+                        smith_agent_service::sinks::Capture::Everything
+                    } else {
+                        smith_agent_service::sinks::Capture::None
+                    },
+                    ..Setup::default()
+                },
+                ..ParentOptions::default()
+            },
         );
         parent.program_messages = waiting::messages(releases.unwrap_or(&[]));
         parent
@@ -778,40 +761,30 @@ fn fixture_file(files: &mut Files, base: Opened, path: &[u8]) -> Option<Vec<u8>>
 pub(crate) fn cancel() -> skein_channel::Frame {
     let record =
         smith_channel::Cancel::new(&smith_channel::CEILINGS, smith_channel::CancelParts {}).expect("cancel record");
-    let mut writer = skein_lib::Writer::new(usize::try_from(record.measure()).expect("cancel bytes"));
-    record.encode(&mut writer).expect("cancel record");
-    let mut frame = skein_channel::frame_writer(0x0105, record.measure()).expect("cancel frame");
-    frame.put(&writer.finish()).expect("cancel body");
-    frame.finish().expect("cancel frame")
+    crate::frame!(0x0105, record)
 }
 
 fn with_transcript(charter: &[u8], value: &smith_channel::GrantValue) -> skein_channel::Frame {
     let frame = crate::start_workspace_message(charter, 8, false, None, value, None);
-    let mut start = smith_channel::Start::decode(&smith_channel::CEILINGS, &mut Reader::new(&frame.bytes()[8..]))
-        .expect("start fixture")
-        .into_parts();
-    let source = include_bytes!("../../../crates/smith-transcript/golden/v6/record_turn_smallest.bin");
-    let mut turn = smith_transcript::Turn::decode(&smith_transcript::CEILINGS, &mut Reader::new(source))
-        .expect("turn fixture")
-        .into_parts();
-    turn.place = 1;
-    turn.opening = Some(
-        smith_transcript::Opening::decode(
-            &smith_transcript::CEILINGS,
-            &mut Reader::new(include_bytes!("../../../crates/smith-transcript/golden/v6/record_opening_smallest.bin")),
-        )
-        .expect("opening fixture"),
-    );
-    let turn = smith_transcript::Turn::new(&smith_transcript::CEILINGS, turn).expect("opening turn");
-    let mut bytes = skein_lib::Writer::new(usize::try_from(turn.measure()).expect("turn length"));
-    turn.encode(&mut bytes).expect("turn body");
-    start.transcript = smith_protocol_channel::transcript_piece(&[bytes.finish()]).expect("transcript piece");
-    let start = smith_channel::Start::new(&smith_channel::CEILINGS, start).expect("start with history");
-    let mut bytes = skein_lib::Writer::new(usize::try_from(start.measure()).expect("start bytes"));
-    start.encode(&mut bytes).expect("start body");
-    let mut frame = skein_channel::frame_writer(0x0100, start.measure()).expect("start frame");
-    frame.put(&bytes.finish()).expect("start body");
-    frame.finish().expect("start frame")
+    crate::wire::edit_start(&frame, |start| {
+        let source = include_bytes!("../../../crates/smith-transcript/golden/v6/record_turn_smallest.bin");
+        let mut turn = smith_transcript::Turn::decode(&smith_transcript::CEILINGS, &mut Reader::new(source))
+            .expect("turn fixture")
+            .into_parts();
+        turn.place = 1;
+        turn.opening = Some(
+            smith_transcript::Opening::decode(
+                &smith_transcript::CEILINGS,
+                &mut Reader::new(include_bytes!(
+                    "../../../crates/smith-transcript/golden/v6/record_opening_smallest.bin"
+                )),
+            )
+            .expect("opening fixture"),
+        );
+        let turn = smith_transcript::Turn::new(&smith_transcript::CEILINGS, turn).expect("opening turn");
+        start.transcript =
+            smith_protocol_channel::transcript_piece(&[crate::encoded!(turn)]).expect("transcript piece");
+    })
 }
 
 fn redacted_invocations(bytes: &[u8]) -> Vec<smith_fake_claude::Observation> {
@@ -831,39 +804,33 @@ fn redacted_invocations(bytes: &[u8]) -> Vec<smith_fake_claude::Observation> {
 
 fn tools_start(charter: &[u8], value: &smith_channel::GrantValue) -> skein_channel::Frame {
     let frame = crate::start_workspace_message(charter, 8, false, None, value, None);
-    let mut start = smith_channel::Start::decode(&smith_channel::CEILINGS, &mut Reader::new(&frame.bytes()[8..]))
-        .expect("start")
-        .into_parts();
-    let mut directories = skein_lib::List::with_capacity(2);
-    for (name, path, writable) in
-        [(b"repo".as_slice(), b"/work/repo".as_slice(), true), (b"library".as_slice(), b"/library".as_slice(), false)]
-    {
-        directories
-            .push(
-                smith_channel::Directory::new(
-                    &smith_channel::CEILINGS,
-                    smith_channel::DirectoryParts {
-                        name: name.into(),
-                        path: path.into(),
-                        writable,
-                        git: false,
-                        conflicts: skein_lib::List::with_capacity(0),
-                    },
+    crate::wire::edit_start(&frame, |start| {
+        let mut directories = skein_lib::List::with_capacity(2);
+        for (name, path, writable) in [
+            (b"repo".as_slice(), b"/work/repo".as_slice(), true),
+            (b"library".as_slice(), b"/library".as_slice(), false),
+        ] {
+            directories
+                .push(
+                    smith_channel::Directory::new(
+                        &smith_channel::CEILINGS,
+                        smith_channel::DirectoryParts {
+                            name: name.into(),
+                            path: path.into(),
+                            writable,
+                            git: false,
+                            conflicts: skein_lib::List::with_capacity(0),
+                        },
+                    )
+                    .expect("workspace directory"),
                 )
-                .expect("workspace directory"),
-            )
-            .expect("two roots");
-    }
-    start.workspace = Some(
-        smith_channel::Workspace::new(&smith_channel::CEILINGS, smith_channel::WorkspaceParts { directories })
-            .expect("workspace"),
-    );
-    let start = smith_channel::Start::new(&smith_channel::CEILINGS, start).expect("workspace start");
-    let mut bytes = skein_lib::Writer::new(start.measure() as usize);
-    start.encode(&mut bytes).expect("start body");
-    let mut frame = skein_channel::frame_writer(0x0100, start.measure()).expect("start frame");
-    frame.put(&bytes.finish()).expect("start bytes");
-    frame.finish().expect("workspace start frame")
+                .expect("two roots");
+        }
+        start.workspace = Some(
+            smith_channel::Workspace::new(&smith_channel::CEILINGS, smith_channel::WorkspaceParts { directories })
+                .expect("workspace"),
+        );
+    })
 }
 
 pub(crate) fn answer_host(parent: &mut Parent) {
@@ -883,11 +850,7 @@ pub(crate) fn answer_host(parent: &mut Parent) {
                 smith_channel::HostAnswerParts { name: call.name().clone(), reply: smith_channel::Reply::Host(reply) },
             )
             .expect("host answer");
-            let mut body = skein_lib::Writer::new(answer.measure() as usize);
-            answer.encode(&mut body).expect("answer body");
-            let mut frame = skein_channel::frame_writer(0x0102, answer.measure()).expect("host frame");
-            frame.put(&body.finish()).expect("host body");
-            parent.peer.play(frame.finish().expect("host answer frame"));
+            parent.peer.play(crate::frame!(0x0102, answer));
             parent.program_host_answers = Some(parent.program_host_answers.expect("enabled host") + 1);
         }
     }

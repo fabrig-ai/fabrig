@@ -4,7 +4,7 @@
 //! parent's existing release flag, leaving heap ownership inside its calls.
 use super::{Proc, Time};
 use skein_io::kernel::Spawn;
-use skein_lib::{Duration, Writer};
+use skein_lib::Duration;
 
 pub(super) fn timeout(spawn: &Spawn) {
     if spawn.args.first().is_some_and(|argument| argument.as_ref() == b"-p")
@@ -154,9 +154,5 @@ fn message_frame(name: u32, text: &str, finish_requested: bool) -> skein_channel
         },
     )
     .expect("host message");
-    let mut body = Writer::new(message.measure() as usize);
-    message.encode(&mut body).expect("message body");
-    let mut frame = skein_channel::frame_writer(0x0101, message.measure()).expect("message frame");
-    frame.put(&body.finish()).expect("message bytes");
-    frame.finish().expect("host message frame")
+    crate::frame!(0x0101, message)
 }

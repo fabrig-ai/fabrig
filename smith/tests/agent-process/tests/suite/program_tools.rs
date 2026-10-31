@@ -1,5 +1,5 @@
 use serde_json::json;
-use skein_lib::{List, Reader, Writer};
+use skein_lib::{List, Reader};
 use smith_agent_process_world::{
     charter, program,
     program_world::{self, Case, Run},
@@ -12,49 +12,41 @@ fn charter_tools() -> Box<[u8]> {
 }
 
 fn charter_mode(mode: smith_charter::Mode) -> Box<[u8]> {
-    let mut parts = smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut Reader::new(&charter()))
-        .expect("charter")
-        .into_parts();
-    parts.mode = mode;
-    if parts.mode == smith_charter::Mode::Open {
-        parts.waiting = skein_lib::Duration::from_millis(10);
-    }
-    let mut budget = parts.budget.into_parts();
-    budget.turns = 8;
-    budget.spend = 20;
-    parts.budget = smith_charter::Budget::new(&smith_charter::CEILINGS, budget).expect("budget");
-    let mut tools = parts.tools.into_parts();
-    if parts.mode == smith_charter::Mode::Open {
-        tools.wait = true;
-        tools.deliver = None;
-    }
-    tools.families = smith_charter::Families::new(
-        &smith_charter::CEILINGS,
-        smith_charter::FamiliesParts { skein_bools: [true, true, true, false] },
-    )
-    .expect("workspace families");
-    tools.host = List::with_capacity(1);
-    tools
-        .host
-        .push(
-            smith_charter::HostTool::new(
-                &smith_charter::CEILINGS,
-                smith_charter::HostToolParts {
-                    name: b"lookup".as_slice().into(),
-                    description: b"Look up".as_slice().into(),
-                    input: br#"{"type":"object","properties":{}}"#.as_slice().into(),
-                    effect: smith_charter::Effect::Read,
-                    deadline: skein_lib::Duration::from_secs(1),
-                },
-            )
-            .expect("host descriptor"),
+    smith_agent_process_world::wire::edit_charter(&charter(), |parts| {
+        parts.mode = mode;
+        if parts.mode == smith_charter::Mode::Open {
+            parts.waiting = skein_lib::Duration::from_millis(10);
+        }
+        smith_agent_process_world::wire::budget(parts, 8, 20);
+        let mut tools = parts.tools.clone().into_parts();
+        if parts.mode == smith_charter::Mode::Open {
+            tools.wait = true;
+            tools.deliver = None;
+        }
+        tools.families = smith_charter::Families::new(
+            &smith_charter::CEILINGS,
+            smith_charter::FamiliesParts { skein_bools: [true, true, true, false] },
         )
-        .expect("host tool");
-    parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("tools");
-    let charter = smith_charter::Charter::new(&smith_charter::CEILINGS, parts).expect("charter with tools");
-    let mut writer = Writer::new(charter.measure() as usize);
-    charter.encode(&mut writer).expect("charter bytes");
-    writer.finish()
+        .expect("workspace families");
+        tools.host = List::with_capacity(1);
+        tools
+            .host
+            .push(
+                smith_charter::HostTool::new(
+                    &smith_charter::CEILINGS,
+                    smith_charter::HostToolParts {
+                        name: b"lookup".as_slice().into(),
+                        description: b"Look up".as_slice().into(),
+                        input: br#"{"type":"object","properties":{}}"#.as_slice().into(),
+                        effect: smith_charter::Effect::Read,
+                        deadline: skein_lib::Duration::from_secs(1),
+                    },
+                )
+                .expect("host descriptor"),
+            )
+            .expect("host tool");
+        parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("tools");
+    })
 }
 
 fn finish() -> Step {
@@ -344,20 +336,15 @@ fn an_open_thinking_turn_calls_then_replies_once() {
 }
 
 fn coder_charter(modify: bool) -> Box<[u8]> {
-    let mut parts = smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut Reader::new(&charter_tools()))
-        .expect("charter")
-        .into_parts();
-    let mut tools = parts.tools.into_parts();
-    tools.families = smith_charter::Families::new(
-        &smith_charter::CEILINGS,
-        smith_charter::FamiliesParts { skein_bools: [true, modify, false, false] },
-    )
-    .expect("coder families");
-    parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("coder tools");
-    let charter = smith_charter::Charter::new(&smith_charter::CEILINGS, parts).expect("coder charter");
-    let mut writer = Writer::new(charter.measure() as usize);
-    charter.encode(&mut writer).expect("charter bytes");
-    writer.finish()
+    smith_agent_process_world::wire::edit_charter(&charter_tools(), |parts| {
+        let mut tools = parts.tools.clone().into_parts();
+        tools.families = smith_charter::Families::new(
+            &smith_charter::CEILINGS,
+            smith_charter::FamiliesParts { skein_bools: [true, modify, false, false] },
+        )
+        .expect("coder families");
+        parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("coder tools");
+    })
 }
 
 fn remove(path: &str, contains: &str) -> Step {

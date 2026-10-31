@@ -380,9 +380,7 @@ mod no_stdin {
                     other => panic!("unexpected no-stdin event: {other:?}"),
                 }
             }
-            while let Some(request) = self.requests.pop() {
-                io::down(&mut self.io, &self.env, request, &mut self.submissions);
-            }
+            io::stage::down(&mut self.io, &self.env, &mut self.requests, &mut self.submissions);
             self.io.reclaim();
         }
         fn completions(&mut self) -> &mut Queue<kernel::Complete> {

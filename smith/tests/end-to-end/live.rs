@@ -345,7 +345,7 @@ fn assert_exec(
         records.iter().any(|record| matches!(&record.event, Event::RunStarted(start) if start.resumed == resumed)),
         "run reports the expected resume state"
     );
-    assert!(records.iter().any(|record| matches!(&record.event, Event::ResponseStarted(start) if start.prompt.as_ref().is_some_and(|captured| captured.messages.iter().any(|message| message.blocks.iter().any(|block| matches!(block, Block::Text { text } if text.windows(prompt.len()).any(|part| part == prompt.as_bytes()))))))), "the task appears in the typed prompt");
+    assert!(records.iter().any(|record| matches!(&record.event, Event::ResponseStarted(start) if start.prompt.as_ref().is_some_and(|captured| captured.messages.iter().any(|message| message.blocks.iter().any(|block| matches!(block, Block::Text { text } if skein_lib::bytes::find(text, prompt.as_bytes()).is_some())))))), "the task appears in the typed prompt");
     if account == "claude" {
         program_contract(&records);
     }
@@ -358,7 +358,7 @@ fn assert_exec(
         let head = scratch.checkout().head().expect("delivered commit");
         assert!(Some(&head) != expectation.before.as_ref(), "a new commit was delivered");
         assert!(
-            scratch.checkout().message(&head).windows(15).any(|part| part == b"Smith-Delivery:"),
+            skein_lib::bytes::find(&scratch.checkout().message(&head), b"Smith-Delivery:").is_some(),
             "commit carries its delivery identity"
         );
         let files = scratch.checkout().files(&head);

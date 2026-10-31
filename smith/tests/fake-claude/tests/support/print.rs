@@ -69,7 +69,10 @@ pub fn run(story: Story, invocation: Invocation, settings: Option<&[u8]>, mcp: O
     if let Some(settings) = settings {
         files.push(Item::file(b"config/settings.json", settings));
     }
-    super::run_files(Some(story), Some(b"claude.ai"), vec![invocation], files)
+    super::run_with(
+        vec![invocation],
+        super::Options { story: Some(story), login: Some(b"claude.ai"), extra: files, ..super::Options::default() },
+    )
 }
 
 pub fn messages(run: &Run) -> Vec<serde_json::Value> {
@@ -114,7 +117,16 @@ pub fn with_server_files(
         Item::file(b"run/mcp.json", &serde_json::to_vec(&config).expect("configuration")),
     ];
     files.extend(extra);
-    super::run_files_observing(Some(story), Some(b"claude.ai"), vec![invocation], files, paths)
+    super::run_with(
+        vec![invocation],
+        super::Options {
+            story: Some(story),
+            login: Some(b"claude.ai"),
+            extra: files,
+            paths,
+            ..super::Options::default()
+        },
+    )
 }
 
 pub fn sequence(story: Story, invocations: Vec<Invocation>) -> Run {
@@ -124,7 +136,10 @@ pub fn sequence(story: Story, invocations: Vec<Invocation>) -> Run {
 pub fn sequence_files(story: Story, invocations: Vec<Invocation>, extra: Vec<Item>) -> Run {
     let mut files = vec![Item::directory(b"run"), Item::file(b"run/mcp.json", MCP)];
     files.extend(extra);
-    super::run_files(Some(story), Some(b"claude.ai"), invocations, files)
+    super::run_with(
+        invocations,
+        super::Options { story: Some(story), login: Some(b"claude.ai"), extra: files, ..super::Options::default() },
+    )
 }
 
 // Dispatch a keeping interrupt while the stdout reader remains outstanding.

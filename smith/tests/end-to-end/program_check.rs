@@ -1,9 +1,10 @@
 //! Program source startup and check through the shipped binary (smith/docs/design/shell.md, 4.4, 5.3).
 use super::support;
+use smith_fake_claude::{OBSERVATIONS_FILE, Observation, STORY_FILE, Status, Story};
 use smith_real_world::Scratch;
 use std::os::unix::fs::DirBuilderExt;
 
-pub(super) fn setup(method: Option<&str>, status: &str) -> (Scratch, std::path::PathBuf) {
+pub(super) fn setup(method: Option<&str>, status: Status) -> (Scratch, std::path::PathBuf) {
     let scratch = Scratch::new();
     let executable = skein_scratch::paths::binary("fake-claude");
     let settings = format!(
@@ -16,39 +17,24 @@ pub(super) fn setup(method: Option<&str>, status: &str) -> (Scratch, std::path::
     if let Some(method) = method {
         std::fs::write(configuration.join("fake-claude.login"), method).expect("fake method");
     }
-    std::fs::write(
-        configuration.join("fake-claude.story"),
-        serde_json::to_vec(&serde_json::json!({
-            "status":status,"login":{"Immediate":"claude.ai"},"logout":"Succeeds"
-        }))
-        .expect("story JSON"),
-    )
-    .expect("fake story");
+    std::fs::write(configuration.join(STORY_FILE), Story { status, ..Story::default() }.encode()).expect("fake story");
     (scratch, executable)
 }
 
-fn observations(scratch: &Scratch, account: &str) -> Vec<serde_json::Value> {
-    let bytes =
-        std::fs::read(scratch.path().join("state/smith/programs").join(account).join("fake-claude.observations"))
-            .expect("observations");
-    bytes
-        .split(|byte| *byte == b'\n')
-        .filter(|line| !line.is_empty())
-        .map(|line| serde_json::from_slice(line).expect("observation JSON"))
-        .collect()
+fn observations(scratch: &Scratch, account: &str) -> Vec<Observation> {
+    let bytes = std::fs::read(scratch.path().join("state/smith/programs").join(account).join(OBSERVATIONS_FILE))
+        .expect("observations");
+    smith_fake_claude::observations(&bytes)
 }
 
 fn one_status(scratch: &Scratch, account: &str) {
-    let arguments: Vec<_> = observations(scratch, account)
-        .into_iter()
-        .map(|record| record.get("arguments").expect("invocation arguments").clone())
-        .collect();
-    assert_eq!(arguments, vec![serde_json::json!(["auth", "status"])], "the reported state matches the contract");
+    let arguments: Vec<_> = observations(scratch, account).into_iter().map(|record| record.arguments).collect();
+    assert_eq!(arguments, vec![vec!["auth", "status"]], "the reported state matches the contract");
 }
 
 #[test]
 fn check_reports_a_signed_in_program_account_as_usable() {
-    let (scratch, executable) = setup(Some("claude.ai"), "Truthful");
+    let (scratch, executable) = setup(Some("claude.ai"), Status::Truthful);
     let ran = support::smith(&scratch, &["check", "--json"], b"");
     assert_eq!(ran.code, 0, "{}", String::from_utf8_lossy(&ran.stderr));
     let report: serde_json::Value = serde_json::from_slice(&ran.stdout).expect("check JSON");
@@ -72,7 +58,7 @@ fn check_reports_a_signed_in_program_account_as_usable() {
 
 #[test]
 fn check_exits_3_for_a_program_account_not_signed_in() {
-    let (scratch, _) = setup(None, "Truthful");
+    let (scratch, _) = setup(None, Status::Truthful);
     let ran = support::smith(&scratch, &["check"], b"");
     assert_eq!(ran.code, 3, "{}", String::from_utf8_lossy(&ran.stderr));
     assert!(
@@ -86,7 +72,7 @@ fn check_exits_3_for_a_program_account_not_signed_in() {
 
 #[test]
 fn check_says_a_program_signed_in_otherwise() {
-    let (scratch, _) = setup(Some("api"), "Truthful");
+    let (scratch, _) = setup(Some("api"), Status::Truthful);
     // The exec projection uses the same catalog check.
     let ran = support::smith(&scratch, &["check", "--json", "exec"], b"");
     assert_eq!(ran.code, 3, "{}", String::from_utf8_lossy(&ran.stderr));
@@ -101,7 +87,7 @@ fn check_says_a_program_signed_in_otherwise() {
 
 #[test]
 fn a_failed_program_check_is_exit_3() {
-    let (scratch, _) = setup(Some("claude.ai"), "Unreadable");
+    let (scratch, _) = setup(Some("claude.ai"), Status::Unreadable);
     let ran = support::smith(&scratch, &["check", "--json"], b"");
     assert_eq!(ran.code, 3, "{}", String::from_utf8_lossy(&ran.stderr));
     let report: serde_json::Value = serde_json::from_slice(&ran.stdout).expect("check JSON");
@@ -111,7 +97,7 @@ fn a_failed_program_check_is_exit_3() {
 
 #[test]
 fn exec_refuses_a_program_account_not_signed_in_before_its_run() {
-    let (scratch, _) = setup(None, "Truthful");
+    let (scratch, _) = setup(None, Status::Truthful);
     let ran = support::smith(&scratch, &["exec", "--json", "Do the work"], b"");
     assert_eq!(ran.code, 3, "{}", String::from_utf8_lossy(&ran.stderr));
     assert_eq!(
@@ -125,7 +111,7 @@ fn exec_refuses_a_program_account_not_signed_in_before_its_run() {
 
 #[test]
 fn check_inspects_an_unused_program_account_without_refusing_startup() {
-    let (scratch, _) = setup(Some("claude.ai"), "Truthful");
+    let (scratch, _) = setup(Some("claude.ai"), Status::Truthful);
     let path = scratch.path().join("config/smith/config.toml");
     let mut settings = std::fs::read_to_string(&path).expect("scratch settings");
     settings.push_str("\n[accounts.spare]\nprovider='anthropic'\nsource='program'\n");

@@ -5,44 +5,39 @@
 #[path = "memory/jobs.rs"]
 mod jobs;
 
-use skein_lib::{List, Reader, Writer};
+use skein_lib::List;
 use smith_agent_process_world::{World, charter, limits};
 
 fn full_context() -> Box<[u8]> {
     let base = charter();
-    let mut parts = smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut Reader::new(&base))
-        .expect("charter")
-        .into_parts();
-    assert!(parts.models.is_empty() && parts.conventions.is_none() && parts.tools.host().is_empty());
-    assert!(parts.contract.report().as_ref().expect("report").fields().is_empty());
-    let count = limits().domain.run.brief_sections;
-    let fixed =
-        u64::from(count) * (size_of::<smith_domain_run::Section>() as u64 + 1) + parts.main.model().len() as u64;
-    parts.instructions =
-        vec![b'x'; usize::try_from(limits().domain.run.run_bytes - fixed).expect("payload")].into_boxed_slice();
-    parts.brief = List::with_capacity(count);
-    for _ in 0..count {
-        parts
-            .brief
-            .push(
-                smith_charter::Section::new(
-                    &smith_charter::CEILINGS,
-                    smith_charter::SectionParts { title: b"x".as_slice().into(), body: Box::new([]) },
+    smith_agent_process_world::wire::edit_charter(&base, |parts| {
+        assert!(parts.models.is_empty() && parts.conventions.is_none() && parts.tools.host().is_empty());
+        assert!(parts.contract.report().as_ref().expect("report").fields().is_empty());
+        let count = limits().domain.run.brief_sections;
+        let fixed =
+            u64::from(count) * (size_of::<smith_domain_run::Section>() as u64 + 1) + parts.main.model().len() as u64;
+        parts.instructions =
+            vec![b'x'; usize::try_from(limits().domain.run.run_bytes - fixed).expect("payload")].into_boxed_slice();
+        parts.brief = List::with_capacity(count);
+        for _ in 0..count {
+            parts
+                .brief
+                .push(
+                    smith_charter::Section::new(
+                        &smith_charter::CEILINGS,
+                        smith_charter::SectionParts { title: b"x".as_slice().into(), body: Box::new([]) },
+                    )
+                    .expect("section"),
                 )
-                .expect("section"),
-            )
-            .expect("maximum sections");
-    }
-    assert_eq!(
-        parts.instructions.len() as u64 + fixed,
-        limits().domain.run.run_bytes,
-        "exact aggregate receiving maximum"
-    );
-    assert_eq!(parts.brief.len(), count, "maximum owning section array");
-    let record = smith_charter::Charter::new(&smith_charter::CEILINGS, parts).expect("full charter");
-    let mut writer = Writer::new(usize::try_from(record.measure()).expect("wire size"));
-    record.encode(&mut writer).expect("wire");
-    writer.finish()
+                .expect("maximum sections");
+        }
+        assert_eq!(
+            parts.instructions.len() as u64 + fixed,
+            limits().domain.run.run_bytes,
+            "exact aggregate receiving maximum"
+        );
+        assert_eq!(parts.brief.len(), count, "maximum owning section array");
+    })
 }
 
 #[test]

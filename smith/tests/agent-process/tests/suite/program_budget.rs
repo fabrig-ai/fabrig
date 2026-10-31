@@ -1,6 +1,6 @@
 //! Program budgets and stop order through the shipped composition (smith/docs/design/protocol/programs.md 5.7).
 use serde_json::json;
-use skein_lib::{Duration, Reader, Writer};
+use skein_lib::Duration;
 use smith_agent_process_world::{
     charter, program,
     program_world::{self, Case, Run},
@@ -9,18 +9,10 @@ use smith_channel::{RunFailure, RunResult};
 use smith_fake_claude::{Decision, End, Seen, Step, Story, Turn};
 
 fn selected(change: impl FnOnce(&mut smith_charter::CharterParts)) -> Box<[u8]> {
-    let mut parts = smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut Reader::new(&charter()))
-        .expect("bounded test fixture")
-        .into_parts();
-    let mut budget = parts.budget.into_parts();
-    budget.turns = 8;
-    budget.spend = 20;
-    parts.budget = smith_charter::Budget::new(&smith_charter::CEILINGS, budget).expect("bounded test fixture");
-    change(&mut parts);
-    let charter = smith_charter::Charter::new(&smith_charter::CEILINGS, parts).expect("bounded test fixture");
-    let mut writer = Writer::new(usize::try_from(charter.measure()).expect("bounded test fixture"));
-    charter.encode(&mut writer).expect("bounded test fixture");
-    writer.finish()
+    smith_agent_process_world::wire::edit_charter(&charter(), |parts| {
+        smith_agent_process_world::wire::budget(parts, 8, 20);
+        change(parts);
+    })
 }
 
 fn run(case: Case, charter: &[u8], turns: Vec<Turn>) -> Run {

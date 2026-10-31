@@ -44,7 +44,7 @@ fn end_of_input_at_the_terminal_lets_the_run_answer_then_exits_0() {
     );
     assert_eq!(ran.code, 0, "{}", String::from_utf8_lossy(&ran.stderr));
     assert!(String::from_utf8_lossy(&ran.stdout).contains("API key"));
-    assert!(ran.stdout.windows(12).any(|bytes| bytes == b"First answer"));
+    assert!(skein_lib::bytes::find(&ran.stdout, b"First answer").is_some());
 }
 
 #[test]
@@ -120,7 +120,7 @@ fn an_interrupt_cancels_the_run() {
         ],
     );
     assert_eq!(ran.code, 0, "{}", String::from_utf8_lossy(&ran.stderr));
-    assert!(ran.stdout.windows(34).any(|part| part == b"interrupted: the run was cancelled"));
+    assert!(skein_lib::bytes::find(&ran.stdout, b"interrupted: the run was cancelled").is_some());
 }
 
 #[test]
@@ -386,7 +386,7 @@ fn smith_exec_json_ends_accepted_with_its_events_and_exit_0() {
     assert_eq!(records.last().unwrap()["type"], "session.ended");
     assert_eq!(records.last().unwrap()["exit"], 0);
     assert!(records.iter().any(|r| r["type"] == "run.completed"));
-    assert!(ran.stderr.windows(18).any(|bytes| bytes == b"smith: accepted in"));
+    assert!(skein_lib::bytes::find(&ran.stderr, b"smith: accepted in").is_some());
 }
 
 #[test]

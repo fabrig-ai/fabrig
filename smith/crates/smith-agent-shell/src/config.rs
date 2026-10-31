@@ -5,11 +5,8 @@
 
 use std::net::SocketAddr;
 #[cfg(unix)]
-use std::net::ToSocketAddrs;
-#[cfg(unix)]
 use std::path::Path;
 
-use serde::Deserialize;
 use skein_channel::StreamMode;
 use skein_http::Header;
 use skein_lib::{Duration, List};
@@ -27,6 +24,19 @@ use smith_agent_service::profile::{ENDPOINTS, Layer, LimitName, Per, Refusal};
 
 const CONFIG_BYTES: u64 = 1 << 20;
 
+mod document;
+mod native;
+use document::{DeclaredOverrides, Document, Endpoint, ModelDocument, PolicyOverrides, ProfileDocument, TraceDocument};
+#[cfg(test)]
+use document::{PriceDocument, Variable};
+pub use native::TRUST_BYTES;
+#[cfg(unix)]
+use native::endpoint_trust;
+use native::resolve;
+#[cfg(all(test, unix))]
+use native::trust_source;
+#[cfg(unix)]
+pub use native::{configured_trust, trust};
 mod profile;
 mod programs;
 mod refusal;
@@ -49,213 +59,6 @@ pub struct Configuration {
     pub trace: Option<TraceConfig>,
     pub profile: service::profile::Profile,
     pub declarations: service::profile::Configuration,
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct Document {
-    #[serde(default)]
-    programs: std::collections::BTreeMap<String, programs::ProgramDocument>,
-    profile: ProfileDocument,
-    endpoints: Vec<Endpoint>,
-    environment: Vec<Variable>,
-    #[serde(default)]
-    trace: Option<TraceDocument>,
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct ProfileDocument {
-    name: String,
-    #[serde(default)]
-    declared: DeclaredOverrides,
-    #[serde(default)]
-    policy: PolicyOverrides,
-}
-
-#[derive(Default, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct DeclaredOverrides {
-    conversations: Option<u32>,
-    tool_payload: Option<u32>,
-    file_bytes: Option<u32>,
-    calls_per_response: Option<u32>,
-    jobs: Option<u32>,
-    read_window: Option<u32>,
-    shell_output: Option<u32>,
-    shell_head: Option<u32>,
-    shell_tail: Option<u32>,
-    search_hits: Option<u32>,
-    search_bytes: Option<u32>,
-    list_entries: Option<u32>,
-    guide: Option<u32>,
-    llm_pool: Option<u64>,
-    memory: Option<u64>,
-}
-
-#[derive(Default, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct PolicyOverrides {
-    max_turns: Option<u32>,
-    max_spend: Option<u64>,
-    max_time: Option<u64>,
-    max_waiting: Option<u64>,
-    sections: Option<u32>,
-    host_tools: Option<u32>,
-    verdicts: Option<u32>,
-    items: Option<u32>,
-    fields: Option<u32>,
-    inbox: Option<u32>,
-    unacknowledged: Option<u32>,
-    compaction_threshold: Option<FractionDocument>,
-    parallel_tools: Option<u32>,
-    connection_keep: Option<u64>,
-    tool_deadline: Option<u64>,
-    shell_timeout: Option<u64>,
-    job_poll: Option<u64>,
-    job_wait: Option<u64>,
-    check_timeout: Option<u64>,
-    wrap_up: Option<u64>,
-    group_stop: Option<u64>,
-    close: Option<u64>,
-    write_deadline: Option<u64>,
-    cancel_grace: Option<u64>,
-    exit_grace: Option<u64>,
-    refresh_lead: Option<u64>,
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct FractionDocument {
-    numerator: u32,
-    denominator: u32,
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct ModelDocument {
-    prices: PriceDocument,
-    name: String,
-    window: u32,
-    output: u32,
-    reasoning_item: u32,
-    #[serde(default)]
-    oversized_reasoning: Option<String>,
-    head: u64,
-    idle: u64,
-    #[serde(default)]
-    efforts: Vec<String>,
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct PriceDocument {
-    input: u64,
-    cached: u64,
-    #[serde(default)]
-    cache_write: Option<u64>,
-    output: u64,
-    unit: u32,
-}
-
-impl PriceDocument {
-    fn rates(&self) -> run::Prices {
-        run::Prices {
-            input: self.input,
-            cached: self.cached,
-            cache_write: self.cache_write,
-            output: self.output,
-            unit: self.unit,
-        }
-    }
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct TraceDocument {
-    path: String,
-    #[serde(default = "default_capture")]
-    capture: String,
-    #[serde(default = "default_delivery")]
-    delivery: String,
-}
-
-fn default_capture() -> String {
-    "none".into()
-}
-
-fn default_delivery() -> String {
-    "complete".into()
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct Endpoint {
-    #[serde(default)]
-    program: Option<String>,
-    connect: u64,
-    handshake: u64,
-    models: Vec<ModelDocument>,
-    name: String,
-    number: u32,
-    dialect: u32,
-    /// Withdrawn endpoint account, ignored; accounts-sources removes it.
-    #[serde(default, rename = "account")]
-    _account: u32,
-    /// Provider route: openai, anthropic, or the withdrawn codex route.
-    provider: String,
-    address: String,
-    #[serde(default = "tls_transport")]
-    transport: String,
-    #[serde(default)]
-    server_name: Option<String>,
-    #[serde(default)]
-    authority: Option<String>,
-    #[serde(default)]
-    target: Option<String>,
-    #[serde(default)]
-    trust_der: Option<String>,
-    #[serde(default)]
-    #[cfg(unix)]
-    trust: Option<TrustDocument>,
-    #[serde(default)]
-    #[cfg(not(unix))]
-    trust: Option<serde_json::Value>,
-    #[serde(default)]
-    headers: Vec<HeaderField>,
-    #[serde(default)]
-    identity: Option<String>,
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct HeaderField {
-    name: String,
-    value: String,
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-#[cfg(unix)]
-struct TrustDocument {
-    #[serde(default = "system_trust")]
-    system: bool,
-    #[serde(default)]
-    der: Vec<String>,
-    #[serde(default)]
-    pem: Vec<String>,
-}
-
-#[cfg(unix)]
-const fn system_trust() -> bool {
-    true
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct Variable {
-    name: String,
-    value: String,
 }
 
 /// Read one JSON document and reject unknown keys, oversized input and
@@ -691,113 +494,6 @@ fn credential_limits(limits: &llm::ComponentLimits) -> shared::client::Credentia
         value: limits.grant_value_bytes,
         account_id: limits.grant_value_bytes.min(smith_channel::CEILINGS.withdrawn_value_id),
     }
-}
-
-fn tls_transport() -> String {
-    "tls".into()
-}
-
-#[cfg(unix)]
-fn resolve(address: &str) -> Result<SocketAddr, ConfigurationRefusal> {
-    let mut resolved = address.to_socket_addrs().map_err(|error| format!("endpoint address {address:?}: {error}"))?;
-    resolved.next().ok_or_else(|| ConfigurationRefusal::Input(format!("endpoint address {address:?} has no result")))
-}
-
-#[cfg(not(unix))]
-fn resolve(address: &str) -> Result<SocketAddr, ConfigurationRefusal> {
-    address.parse().map_err(|error| format!("endpoint address {address:?}: {error}; no name resolution").into())
-}
-
-// Startup trust material and decoded configuration are bounded together.
-/// Bound on startup trust material and decoded configuration, in bytes.
-pub const TRUST_BYTES: u64 = 16_777_216;
-
-/// Load the bounded startup trust roots used by agent and local endpoints.
-#[cfg(unix)]
-pub fn trust(der: Option<&str>) -> Result<tls::Config, String> {
-    let source = match der {
-        Some(path) => skein_shell::Trust::Der(path.into()),
-        None => skein_shell::Trust::Machine { ssl_cert_file: std::env::var_os("SSL_CERT_FILE").map(Into::into) },
-    };
-    trust_source(&source)
-}
-
-/// Load account trust arrays through the existing bounded root owner.
-#[cfg(unix)]
-pub fn configured_trust(sources: &[skein_shell::Trust]) -> Result<tls::Config, String> {
-    trust_sources(sources).map_err(ConfigurationRefusal::detail)
-}
-
-#[cfg(unix)]
-fn trust_source(source: &skein_shell::Trust) -> Result<tls::Config, String> {
-    trust_sources(std::slice::from_ref(source)).map_err(ConfigurationRefusal::detail)
-}
-
-#[cfg(unix)]
-fn endpoint_trust(endpoint: &Endpoint) -> Result<tls::Config, ConfigurationRefusal> {
-    let Some(document) = &endpoint.trust else {
-        return trust(endpoint.trust_der.as_deref()).map_err(ConfigurationRefusal::Input);
-    };
-    if endpoint.trust_der.is_some() {
-        return Err("endpoint cannot name both trust_der and trust".into());
-    }
-    let mut sources = Vec::new();
-    if document.system {
-        sources.push(skein_shell::Trust::Machine { ssl_cert_file: std::env::var_os("SSL_CERT_FILE").map(Into::into) });
-    }
-    sources.extend(document.der.iter().map(|path| skein_shell::Trust::Der(path.into())));
-    sources.extend(document.pem.iter().map(|path| skein_shell::Trust::Machine { ssl_cert_file: Some(path.into()) }));
-    trust_sources(&sources)
-}
-
-#[cfg(unix)]
-fn trust_sources(sources: &[skein_shell::Trust]) -> Result<tls::Config, ConfigurationRefusal> {
-    let mut certificates = Vec::new();
-    let mut bytes = 0_u64;
-    let mut malformed = 0_u32;
-    let mut other_blocks = 0_u32;
-    let mut paths = Vec::new();
-    for source in sources {
-        let bounds = skein_shell::RootBounds {
-            bundle_bytes: u32::try_from(TRUST_BYTES).expect("trust bound fits u32"),
-            certificates: 512,
-            certificate_bytes: match source {
-                skein_shell::Trust::Der(_) => 65_536,
-                skein_shell::Trust::Machine { .. } => 8192,
-            },
-        };
-        let roots = skein_shell::read_trust_roots(source, &bounds).map_err(|why| {
-            ConfigurationRefusal::Input(match why {
-                skein_shell::RootsRefusal::NoBundle => "machine trust roots: no certificate bundle found".into(),
-                skein_shell::RootsRefusal::Unread { path, why } => {
-                    format!("trust certificate {}: {why:?}", path.display())
-                }
-                skein_shell::RootsRefusal::TooMany { bound } => format!("trust roots exceed {bound} certificates"),
-                skein_shell::RootsRefusal::TooLong { index, bound } => {
-                    format!("trust certificate {index} exceeds {bound} bytes")
-                }
-            })
-        })?;
-        for certificate in roots.certificates {
-            bytes = bytes
-                .checked_add(u64::try_from(certificate.len()).expect("bounded certificate"))
-                .ok_or("trust roots exceed their byte bound")?;
-            if bytes > TRUST_BYTES || certificates.len() >= 512 {
-                return Err("trust roots exceed their combined bound".into());
-            }
-            certificates.push(certificate);
-        }
-        malformed = malformed.checked_add(roots.malformed).ok_or("trust block count overflow")?;
-        other_blocks = other_blocks.checked_add(roots.other_blocks).ok_or("trust block count overflow")?;
-        paths.push(roots.path.display().to_string());
-    }
-    let (config, parsed) =
-        tls::Config::from_der(&certificates, &[]).map_err(|why| format!("TLS trust {}: {why:?}", paths.join(", ")))?;
-    eprintln!(
-        "smith: trust roots: {} taken, {} skipped, {} malformed blocks, {} other blocks",
-        parsed.taken, parsed.skipped, malformed, other_blocks
-    );
-    Ok(config)
 }
 
 pub(crate) fn profile_refusal(error: Refusal) -> String {
