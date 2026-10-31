@@ -187,3 +187,32 @@ contract's `ActKind`: task `jig-ask` adds them.
 The standard report, plus: every match arm you added outside the owned
 files; whether `RemoveProject`'s refusal is in routing or admission;
 whether a store or wire version moved.
+
+## Answers
+
+2026-10-31.
+
+- **May this task add a root `Key` variant so `Write::DropTranscript`
+  coalesces on its own key?** Yes (option A). In
+  `temper-engine-domain/src/store.rs`, `Key` gains `Transcript { task:
+  u64 }`, a root-only key as `Key::Wires` is (doc line citing
+  `playground-reset.md`, 5, and jig's `protocol/store.md`, 8.5), and
+  `Write::key` maps `DropTranscript { task }` to it. No task-row key is
+  reused: a drop and an erase of the same task in one decision keep
+  their own places. Its consumers follow `Key::Wires` in each:
+  - `Decision::write` (`decision.rs`) refuses `Write::Erase(Key::
+    Transcript { .. })` as it refuses `Erase(Key::Wires)`, and refuses
+    `DropTranscript { task: 0 }`; the consumed-write placeholder at
+    `decision.rs:555` needs nothing (it is never submitted again);
+  - `Range::contains` answers false; `record_bytes`' key arm and the
+    retained-act sizing answer `Some(0)` where `Key::Wires` does;
+  - `temper-service`: `store/route.rs` carries `DropTranscript { task }`
+    to `store::Write::DropTranscript { task }` and answers `None` for
+    `Erase(Key::Transcript { .. })` as for `Erase(Key::Wires)`;
+    `store/ranges.rs`' cursor and `clients.rs:712` answer `None` as for
+    `Key::Wires`.
+  The root `Key` is not stored (the store encodes the drop as its own
+  `Own::Transcript` key), so no store version moves. Name each arm in
+  the report. The rest of the task stands; the refusal of
+  `RemoveProject` in people admission, as the run found, is as step 3
+  allows.
