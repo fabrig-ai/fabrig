@@ -13,7 +13,11 @@ use crate::Error;
 
 /// Room for a newline, brackets, a u64 byte count and the cut's words.
 /// Derived result bounds always hold this marker (protocol/limits.md, section 6).
-pub const CUT_MARKER_BYTES: u32 = 37;
+pub const CUT_MARKER_BYTES: u32 = MARKER_WORD_BYTES + 20;
+
+const MARKER_PREFIX: &[u8] = b"\n[";
+const MARKER_SUFFIX: &[u8] = b" bytes omitted]";
+const MARKER_WORD_BYTES: u32 = 17;
 
 /// Render workspace feedback, cutting its prefix with the exact omitted bytes.
 /// The caller derives a bound large enough for the marker before admitting a
@@ -38,7 +42,7 @@ pub fn render_outcome(
     let marker_length = if omitted > 0 {
         u64::try_from(Decimal::of(omitted).as_bytes().len())
             .or(Err(Error::Limit))?
-            .checked_add(17)
+            .checked_add(u64::from(MARKER_WORD_BYTES))
             .ok_or(Error::Limit)?
     } else {
         0
@@ -50,9 +54,7 @@ pub fn render_outcome(
     assert_eq!(output.kept, prefix.kept, "render prefix is stable");
     let mut writer = output.writer.expect("writing pass owns its measured output");
     if omitted > 0 {
-        writer.put(b"\n[").expect("measured marker room");
-        writer.put(Decimal::of(omitted).as_bytes()).expect("measured byte-count room");
-        writer.put(b" bytes omitted]").expect("measured marker room");
+        marker(&mut writer, omitted);
     }
     Ok((writer.finish(), error))
 }
@@ -122,8 +124,8 @@ impl Sink {
 
     fn escaped(&mut self, bytes: &[u8]) -> Result<(), Error> {
         for byte in bytes {
-            let high = hex(byte >> 4_u8);
-            let low = hex(byte & 15_u8);
+            let high = skein_lib::bytes::hex_digit(byte >> 4_u8);
+            let low = skein_lib::bytes::hex_digit(byte & 15_u8);
             self.put(&[b'\\', b'x', high, low])?;
         }
         Ok(())
@@ -144,10 +146,6 @@ fn scalar_width(bytes: &[u8]) -> Option<usize> {
         | [0xf4, 0x80..=0x8f, 0x80..=0xbf, 0x80..=0xbf, ..] => Some(4),
         _ => None,
     }
-}
-
-fn hex(nibble: u8) -> u8 {
-    *b"0123456789abcdef".get(usize::from(nibble)).expect("four-bit byte")
 }
 
 #[expect(clippy::too_many_lines, reason = "one exhaustive rendering cell per outcome variant")]
@@ -517,14 +515,12 @@ pub(crate) fn cut_text(text: Box<[u8]>, maximum: u32) -> Box<[u8]> {
         .expect("bounded prefix fits usize")
         .checked_add(Decimal::of(omitted).as_bytes().len())
         .expect("marker within derived cap")
-        .checked_add(17)
+        .checked_add(usize::try_from(MARKER_WORD_BYTES).expect("marker length fits usize"))
         .expect("marker within derived cap");
     let mut output = Sink { length: 0, kept: 0, maximum: cap, cut: false, writer: Some(Writer::new(length)) };
     output.put(&text).expect("measured prefix room");
     let mut writer = output.writer.expect("writing pass owns its measured output");
-    writer.put(b"\n[").expect("measured marker room");
-    writer.put(Decimal::of(omitted).as_bytes()).expect("measured byte-count room");
-    writer.put(b" bytes omitted]").expect("measured marker room");
+    marker(&mut writer, omitted);
     writer.finish()
 }
 
@@ -615,4 +611,10 @@ pub(crate) fn size_refusal_bound() -> Option<u64> {
         largest = largest.max(measure.length);
     }
     Some(largest)
+}
+
+fn marker(writer: &mut Writer, omitted: u64) {
+    writer.put(MARKER_PREFIX).expect("measured marker room");
+    writer.put(Decimal::of(omitted).as_bytes()).expect("measured byte-count room");
+    writer.put(MARKER_SUFFIX).expect("measured marker room");
 }
