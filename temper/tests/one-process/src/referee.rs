@@ -299,6 +299,10 @@ impl skein_world::Referee<Proc> for Referee {
             self.attached = Some(());
         }
         if !self.handed
+            && (matches!(self.story, crate::world::Story::Chat { .. } | crate::world::Story::ChatReadThenWait { .. })
+                || service.service.engine_domain().is_some_and(|domain| {
+                    matches!(domain.forge_connection(1), temper_engine_domain_forge::Connection::Connected { .. })
+                }))
             && let Some(link) = service.service.links().pop()
         {
             for proc in other.iter_mut() {
