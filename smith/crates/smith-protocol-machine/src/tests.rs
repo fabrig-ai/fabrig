@@ -1310,14 +1310,21 @@ fn a_listing_directory_failure_or_cancel_never_launches_rg() {
 
 #[test]
 fn a_tools_output_is_the_same_whatever_its_deliveries() {
-    use crate::process::{Process, Purpose, stream};
+    use crate::process::{Process, Work, stream};
     use skein_lib::stream::Up;
     let bytes = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+-";
     let mut answers = skein_lib::List::with_capacity(2);
     for cut in [64, 1] {
-        let mut process = Process::new(Purpose::Shell, Time::ZERO, 8, 8, None);
-        process.pipes = [Some(Token::new(1)), Some(Token::new(2))];
-        let mut below = Queue::with_capacity(1);
+        let mut process = Process::new(Work::Shell, Time::ZERO, 8, 8);
+        let mut below = Queue::uncapped();
+        process.spawned(
+            Token::new(4),
+            Box::new([Token::new(1), Token::new(2)]),
+            &mut skein_lib::Map::with_capacity(2),
+            Token::new(3),
+            &mut below,
+        );
+        while below.pop().is_some() {}
         for delivery in bytes.chunks(cut) {
             stream(&mut process, Token::new(1), Up::Bytes(Box::from(delivery)), &mut below);
             assert!(below.pop().is_some());
@@ -1325,4 +1332,65 @@ fn a_tools_output_is_the_same_whatever_its_deliveries() {
         answers.push(process.answer(Token::new(3))).expect("two delivery cuts");
     }
     assert_eq!(answers.get(0), answers.get(1));
+}
+
+#[test]
+fn a_listing_cancelled_while_opening_times_out_without_a_child() {
+    let mut component = component();
+    let mut up = Queue::uncapped();
+    let mut down = Queue::uncapped();
+    let owner = Token::new(71);
+    component.from_domain(
+        &env(),
+        FromDomain::Op {
+            owner,
+            op: tools::Op::List { at: place(b"src"), depth: tools::Depth::Whole, glob: None, max: 2, max_bytes: 512 },
+            deadline: Time::from_nanos(100),
+        },
+        &mut up,
+        &mut down,
+    );
+    let Some(Below::OpenDirectory { .. }) = down.pop() else { panic!("directory open") };
+    component.from_below(&env(), BelowEvent::File(file::Event::Cancelled { owner }), &mut up, &mut down);
+    assert_eq!(up.pop(), Some(ToDomain::Done { owner, done: tools::Done::TimedOut }));
+    assert!(down.is_empty());
+}
+
+#[test]
+fn a_failed_listing_directory_close_never_spawns_a_child() {
+    let owner = Token::new(71);
+    for terminal in [
+        file::Event::Failed { owner, error: kernel::Error::Other(0), committed: false, residue: None },
+        file::Event::Cancelled { owner },
+    ] {
+        let mut component = component();
+        let mut up = Queue::uncapped();
+        let mut down = Queue::uncapped();
+        component.from_domain(
+            &env(),
+            FromDomain::Op {
+                owner,
+                op: tools::Op::List {
+                    at: place(b"src"),
+                    depth: tools::Depth::Whole,
+                    glob: None,
+                    max: 2,
+                    max_bytes: 512,
+                },
+                deadline: Time::from_nanos(100),
+            },
+            &mut up,
+            &mut down,
+        );
+        let Some(Below::OpenDirectory { .. }) = down.pop() else { panic!("directory open") };
+        let file = Token::new(72);
+        component.from_below(&env(), BelowEvent::File(file::Event::Opened { owner, file, len: 0 }), &mut up, &mut down);
+        assert_eq!(
+            down.pop(),
+            Some(Below::File { request: file::Request::Close { owner, file }, deadline: Time::from_nanos(u64::MAX) })
+        );
+        component.from_below(&env(), BelowEvent::File(terminal), &mut up, &mut down);
+        assert_eq!(up.pop(), Some(ToDomain::Done { owner, done: tools::Done::Failed { fault: tools::Fault::Other } }));
+        assert!(down.is_empty());
+    }
 }

@@ -9,7 +9,7 @@ use alloc::boxed::Box;
 use skein_lib::{List, Set, Writer};
 
 use crate::limits::Limits;
-use crate::process::{Purpose, Sees, sees};
+use crate::process::Purpose;
 
 /// One variable supplied by the agent configuration to the machine encoder.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -107,9 +107,9 @@ impl Environment {
 
     /// Copy the already encoded configuration only for commands and checks.
     pub(crate) fn for_process(&self, purpose: Purpose) -> Box<[Box<[u8]>]> {
-        match sees(purpose) {
-            Sees::Configured => self.entries.clone(),
-            Sees::Nothing => Box::new([]),
+        match purpose {
+            Purpose::Shell | Purpose::Check => self.entries.clone(),
+            Purpose::Search | Purpose::List => Box::new([]),
         }
     }
 }

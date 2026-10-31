@@ -352,26 +352,12 @@ impl Component {
     fn start_process(
         &mut self,
         owner: Token,
-        mut process: Process,
+        process: Process,
         request: Below,
         below: &mut Queue<Below>,
         to_domain: &mut Queue<ToDomain>,
     ) {
-        let purpose = process.purpose;
-        let request = match purpose {
-            crate::process::Purpose::List => match request {
-                Below::Spawn { owner, root, spawn } => process.open_directory(owner, root, spawn),
-                Below::File { .. }
-                | Below::OpenRead { .. }
-                | Below::OpenDirectory { .. }
-                | Below::Remove { .. }
-                | Below::CancelFile { .. }
-                | Below::Process(_) => unreachable!("listing prepares one spawn"),
-            },
-            crate::process::Purpose::Shell | crate::process::Purpose::Check | crate::process::Purpose::Search => {
-                request
-            }
-        };
+        let purpose = process.purpose();
         match self.processes.insert(owner, process) {
             Ok(None) => below.push(request),
             Ok(Some(_)) => unreachable!("owner checked"),
@@ -414,7 +400,7 @@ impl Component {
                         Step::Done(terminal) => to_domain.push(terminal),
                     }
                 } else if let Some(process) = self.processes.get_mut(&owner) {
-                    process.directory_event(owner, event, below);
+                    process.directory_event(event, below);
                     self.advance(owner, env.now, to_domain, below);
                 } else {
                     let done = match self.pending.remove(&owner).expect("file terminal has admitted owner") {
