@@ -680,6 +680,40 @@ fn spend_reads_live_and_closed_periods_of_the_project() {
     assert_eq!(next, None);
 }
 
+#[test]
+fn deployment_spend_pages_live_and_closed_periods_across_projects() {
+    let mut store = fixtures::opened();
+    let expected = [
+        fixtures::ledger_period(3, 2, false),
+        fixtures::ledger_period(3, 1, true),
+        fixtures::ledger_period(7, 3, true),
+    ];
+    fixtures::committed(
+        &mut store,
+        Box::new([
+            fixtures::header(1),
+            fixtures::save(expected.first().expect("live period").clone()),
+            fixtures::save(expected.get(1).expect("closed period").clone()),
+            fixtures::save(expected.get(2).expect("other project").clone()),
+        ]),
+    );
+    let mut range = fixtures::read(ALICE, reads::Scope::Spend { project: 0 });
+    range.rows = 1;
+    let mut found = skein_lib::List::uncapped();
+    for _ in 0..4 {
+        let (rows, next) = page(load(&mut store, range.clone()));
+        for value in values(&rows) {
+            found.push(value).expect("one period per page");
+        }
+        range.after = next;
+        if range.after.is_none() {
+            break;
+        }
+    }
+    assert_eq!(found.as_slice(), expected);
+    assert!(range.after.is_none(), "all periods read");
+}
+
 fn project_scope() -> jig_domain_notes::Scope {
     jig_domain_notes::Scope::Project { project: fixtures::PROJECT }
 }
