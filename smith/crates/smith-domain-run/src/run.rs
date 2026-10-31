@@ -83,6 +83,8 @@ mod child;
 mod gate;
 mod jobs;
 pub(crate) mod relay;
+mod yielding;
+pub(crate) use yielding::yielded;
 
 use child::{Wanted, sub_agent};
 use core::mem;
@@ -98,11 +100,10 @@ use skein_lib::{Deadlines, Duration, Env, Id, Queue, ReplyTo, Slab, Time, Token}
 use crate::Workspace;
 use crate::agent;
 use crate::boundary::{
-    Answer, Ask, AskRefusal, End, Failure, Fault, Invalid, Opening, Policy, Ran, Read, Refusal, Request, Returned,
-    Stop, Window,
+    Answer, Ask, AskRefusal, End, Failure, Fault, Invalid, Policy, Ran, Read, Refusal, Request, Returned, Stop, Window,
 };
 use crate::budget::{Exhausted, Spend};
-use crate::call::{self, Call, Calls, Withdrawal, Work};
+use crate::call::{Call, Calls, Withdrawal, Work};
 use crate::charter::{self, Charter, Families, Mode, count};
 use crate::delivery::{CallName, Delivery};
 use crate::domain::Domain;
@@ -636,117 +637,6 @@ pub(crate) fn started(domain: &mut Domain, conversation: Token, peer: Token, out
             unreachable!("a conversation starts once it is opened, before anything else")
         }
     };
-}
-
-pub(crate) fn yielded(
-    domain: &mut Domain,
-    env: &Env<Limits>,
-    conversation: Token,
-    stop: Stop,
-    text: &[u8],
-    out: &mut Queue<Request>,
-) {
-    let Domain { rng: _, runs, conversations, calls, alarms, facts, ready } = domain;
-    let id = Id::<Conversation>::from_token(conversation);
-    let conversation = conversations.get(id).expect("a conversation lives until it has ended");
-    facts.about(conversation.run.token());
-    let peer = match &conversation.phase {
-        Phase::Running { peer } => *peer,
-        // The yield crossed the run's close: there is nothing left to decide.
-        Phase::Closing => return,
-        Phase::Pending | Phase::Opening | Phase::Unwanted | Phase::Closed => {
-            unreachable!("a conversation yields only between starting and ending")
-        }
-    };
-    // A sub-agent that yields is done: its last message is its answer.
-    if let Some(asker) = conversation.asker {
-        let call = calls.get_mut(asker).expect("a sub-agent's call lives until it has ended");
-        let close_child = match &mut call.work {
-            Work::Child(child) => agent::yielded(child, text, stop, &env.limits),
-            Work::Landing(_) | Work::Host(_) => unreachable!("a sub-agent serves a sub-agent's call"),
-        };
-        if let Some(child) = close_child {
-            close(conversations, child, out);
-        }
-        return;
-    }
-    let run_id = conversation.run;
-    let run = runs.get_mut(run_id).expect("a run lives until its conversations have ended");
-    let state = mem::replace(&mut run.state, State::Closed);
-    run.state = match state {
-        State::Working { reply_to, main } => {
-            assert!(main == id, "a conversation with no asker is main");
-            assert!(conversation.calls == 0, "a main yield follows every call terminal");
-            let replied = match run.charter.mode {
-                Mode::Finite => false,
-                Mode::Open => match stop {
-                    Stop::EndTurn => !text.is_empty(),
-                    Stop::Budget | Stop::MaxTokens | Stop::Refusal | Stop::NoCalls => false,
-                },
-            };
-            let final_reply = match &run.wind_down {
-                Some(crate::wind_down::WindDown::Finishing { noted: true, .. }) => true,
-                Some(
-                    crate::wind_down::WindDown::Finishing { noted: false, .. }
-                    | crate::wind_down::WindDown::Settling { .. },
-                )
-                | None => false,
-            };
-            if replied && final_reply {
-                out.push(Request::Waiting { host_run: run.host_name, read: run.inbox.fence() });
-                wind_down(conversations, reply_to, main, Ending::Parked, out)
-            } else if run.wind_down.is_some() {
-                match final_remaining(run, env.now) {
-                    Ok(()) if run.inbox.has_queued() => continue_messages(run, reply_to, main, peer, &env.limits, out),
-                    Ok(()) => {
-                        let note = match run.charter.mode {
-                            Mode::Finite => prompt::finish_now(),
-                            Mode::Open => prompt::last_reply(),
-                        };
-                        say(reply_to, main, peer, note, out)
-                    }
-                    Err(exhausted) => wind_down(
-                        conversations,
-                        reply_to,
-                        main,
-                        Ending::Failed(Failure::Budget { exhausted, used: None, bound: None }),
-                        out,
-                    ),
-                }
-            } else if run.inbox.has_queued() {
-                continue_messages(run, reply_to, main, peer, &env.limits, out)
-            } else if replied {
-                out.push(Request::Waiting { host_run: run.host_name, read: run.inbox.fence() });
-                if run.charter.waiting == Duration::ZERO {
-                    wind_down(conversations, reply_to, main, Ending::Parked, out)
-                } else {
-                    State::Listening { reply_to, main, until: env.now.saturating_add(run.charter.waiting) }
-                }
-            } else {
-                match nudge(run, stop, &env.limits) {
-                    Ok(()) => say(
-                        reply_to,
-                        main,
-                        peer,
-                        prompt::nudge(run.charter.mode, stop, run.nudges, env.limits.nudges),
-                        out,
-                    ),
-                    Err(failure) => wind_down(conversations, reply_to, main, Ending::Failed(failure), out),
-                }
-            }
-        }
-
-        State::Awaiting { .. }
-        | State::Preparing { .. }
-        | State::Stopping { .. }
-        | State::Listening { .. }
-        | State::Waiting { .. }
-        | State::Winding { .. }
-        | State::Closed => {
-            unreachable!("main yields only while its run works: it is closed when the run winds down")
-        }
-    };
-    follow(runs, alarms, facts, ready, run_id);
 }
 
 fn hard_stop(
