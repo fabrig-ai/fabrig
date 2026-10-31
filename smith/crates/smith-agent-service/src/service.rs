@@ -73,7 +73,7 @@ pub struct Limits {
     /// Declared process memory in bytes, carried without a startup fit check.
     pub memory: u64,
     /// Event ownership, absent for a host that has no process stream.
-    pub events: Option<crate::EventLimits>,
+    pub events: Option<smith_protocol_events::EventLimits>,
 }
 
 /// All startup inputs except the inherited descriptors, which the shell
@@ -137,7 +137,7 @@ enum Operation {
 #[derive(Debug)]
 pub struct Service {
     limits: Limits,
-    events: Option<crate::events::Producer>,
+    events: Option<smith_protocol_events::events::Producer>,
     teardown: Teardown,
     product_exit: Option<u8>,
     usage_unread: bool,
@@ -210,7 +210,7 @@ pub fn effects_valid(limits: &Limits, endpoints: &llm::Endpoints) -> bool {
         && limits.machine.processes.checked_mul(2).is_some()
         && llm::component_valid(&limits.llm, endpoints)
         && machine::valid(&limits.machine)
-        && crate::events::valid(limits)
+        && smith_protocol_events::events::valid(&crate::projection::sources(limits))
 }
 
 /// Whether all service parts and their IO composition fit (skein/docs/foundation/programming-model.md, 6.3).
@@ -268,7 +268,7 @@ impl Service {
     }
 
     fn parts(config: Config, seed: Option<u64>) -> Result<Self, ConfigError> {
-        let events = crate::events::Producer::configured(&config);
+        let events = crate::event_producer(&config);
         let Config { mut limits, domain, channel_endpoints, llm_endpoints, environment, stream_mode, program } = config;
         let program::Parts { program, files } = program::parts(program, &mut limits, &environment)?;
         let (domain, channel, io, frames) = match seed {
@@ -353,18 +353,18 @@ impl Service {
     pub fn adopt_destination(
         &mut self,
         fd: kernel::Fd,
-        destination: crate::sinks::Destination,
-        delivery: crate::sinks::Delivery,
+        destination: smith_protocol_events::sinks::Destination,
+        delivery: smith_protocol_events::sinks::Delivery,
         append: bool,
     ) -> Result<(), kernel::Fd> {
         let Some(events) = &mut self.events else { return Err(fd) };
-        if !events.sinks.room_for_destination(destination) {
+        if !events.sinks().room_for_destination(destination) {
             return Err(fd);
         }
         let deadline = self.limits.events.expect("producer has configured ownership").write_deadline;
         let io = self.io.as_mut().expect("standalone IO");
         let token = if append { io.adopt_append(fd, deadline)? } else { io.adopt_write_pipe(fd, Some(deadline))? };
-        events.sinks.add(destination, token, delivery).expect("destination room checked before descriptor adoption");
+        events.sinks().add(destination, token, delivery).expect("destination room checked before descriptor adoption");
         Ok(())
     }
 
@@ -377,9 +377,9 @@ impl Service {
 
     /// One destination IO gave up, and why, for the shell's operator line
     /// (smith/docs/design/protocol/events.md, section 5.2).
-    pub fn pop_given_up(&mut self) -> Option<crate::sinks::GivenUp> {
+    pub fn pop_given_up(&mut self) -> Option<smith_protocol_events::sinks::GivenUp> {
         match &mut self.events {
-            Some(events) => events.sinks.pop_given_up(),
+            Some(events) => events.sinks().pop_given_up(),
             None => None,
         }
     }
@@ -504,7 +504,7 @@ impl Service {
         self.pending_start = None;
         let token = self.next_send();
         let answer = run::Answer::Refused(run::Refusal::Invalid(reason));
-        crate::answers::remember(self, &answer, Box::default(), self.domain_env.now);
+        crate::terminal::remember(self, &answer, Box::default(), self.domain_env.now);
         let read = None;
         if let Some(events) = &mut self.events {
             events.answer(self.domain_env.now, self.run_started, &answer, read);
@@ -605,7 +605,7 @@ pub fn iterate(service: &mut Service, now: Time, wall: Wall) {
     component_down(service);
     teardown::advance(service);
     if let Some(events) = &mut service.events {
-        events.sinks.down(service.io_env.now, &mut service.io_requests);
+        events.sinks().down(service.io_env.now, &mut service.io_requests);
     }
     io_down(service);
     if let Some(io) = &mut service.io {
@@ -739,7 +739,7 @@ fn channel_event_ready(service: &Service) -> bool {
 #[must_use]
 pub fn work_pending(service: &Service, now: Time) -> bool {
     let takes = match &service.events {
-        Some(events) => events.sinks.takes(),
+        Some(events) => events.takes(),
         None => true,
     };
     let due = match next_deadline(service) {
@@ -753,7 +753,7 @@ pub fn work_pending(service: &Service, now: Time) -> bool {
         }
         || (takes && (service.llm.has_work() || !service.llm.measures_drained()))
         || match &service.events {
-            Some(events) => events.sinks.has_work(),
+            Some(events) => events.has_work(),
             None => false,
         }
         || match &service.domain {

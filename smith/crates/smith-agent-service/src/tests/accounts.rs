@@ -131,7 +131,14 @@ fn a_limited_run_answers_with_reset_ms() {
             ),
         },
     ] {
-        let meta = crate::AnswerMeta { now: NOW, run: RUN, wind_down: false, read: None, unread: 0, elapsed: ELAPSED };
+        let meta = smith_protocol_events::AnswerMeta {
+            now: NOW,
+            run: RUN,
+            wind_down: false,
+            read: None,
+            unread: 0,
+            elapsed: ELAPSED,
+        };
         let answer = run::Answer::Failed {
             failure: run::Failure::Model(run::Fault::Limited { account: ACCOUNT, reset_at: row.reset_at }),
             spent: run::Spend::ZERO,
@@ -139,7 +146,11 @@ fn a_limited_run_answers_with_reset_ms() {
         };
         let record = smith_events::Record {
             t_ms: NOW_MS,
-            event: smith_events::Event::RunCompleted(crate::answer_record(meta, &answer, crate::sinks::Capture::None)),
+            event: smith_events::Event::RunCompleted(smith_protocol_events::answer_record(
+                meta,
+                &answer,
+                smith_protocol_events::sinks::Capture::None,
+            )),
         };
         let expected = row.expected.as_bytes();
         assert_stream_record(&record, expected);

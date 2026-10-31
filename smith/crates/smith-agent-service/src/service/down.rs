@@ -32,7 +32,7 @@ pub(super) fn domain_down(service: &mut Service) {
     }
     for _ in 0..service.limits.queue {
         match &service.events {
-            Some(events) if !events.sinks.takes() => break,
+            Some(events) if !events.takes() => break,
             Some(_) | None => {}
         }
         if !channel_takes(service)
@@ -72,7 +72,7 @@ pub(super) fn channel_takes(service: &Service) -> bool {
 pub(super) fn drain_facts(service: &mut Service) {
     for _ in 0..service.limits.queue {
         match &service.events {
-            Some(events) if !events.sinks.takes() => break,
+            Some(events) if !events.takes() => break,
             Some(_) | None => {}
         }
         let fact = match &mut service.domain {
@@ -100,7 +100,7 @@ pub(super) fn drain_facts(service: &mut Service) {
     };
     if drained && let Some(events) = &mut service.events {
         for _ in 0..service.limits.domain.run.conversations {
-            if !events.sinks.takes() || !events.sinks.facts_drained(events.origin()) {
+            if !events.takes() || !events.facts_drained() {
                 break;
             }
         }

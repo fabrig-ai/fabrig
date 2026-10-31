@@ -422,14 +422,19 @@ pub(crate) fn account_service() -> Service {
         .as_mut()
         .unwrap()
         .sinks()
-        .add(crate::sinks::Destination::Trace, Token::new(400), crate::sinks::Delivery::Complete)
+        .add(
+            smith_protocol_events::sinks::Destination::Trace,
+            Token::new(400),
+            smith_protocol_events::sinks::Delivery::Complete,
+        )
         .unwrap();
     agent
 }
 
 pub(crate) fn account_request(agent: &mut Service, request: domain::Request) -> smith_events::Record {
     domain_request(agent, request);
-    let records = crate::sinks::tests::drain_ready(agent.events.as_mut().unwrap().sinks(), Token::new(400));
+    let records =
+        smith_protocol_events::sinks::fixture::drain_ready(agent.events.as_mut().unwrap().sinks(), Token::new(400));
     assert_eq!(records.len(), 1);
     records.into_iter().next().unwrap()
 }
@@ -437,9 +442,9 @@ pub(crate) fn account_request(agent: &mut Service, request: domain::Request) -> 
 fn event_service() -> Service {
     let mut config = configuration();
     config.limits.events = Some(
-        crate::events::EventLimits::derive(
+        crate::event_limits(
             &config.limits,
-            crate::sinks::Capture::Calls,
+            smith_protocol_events::sinks::Capture::Calls,
             1,
             0,
             &[],
@@ -652,7 +657,9 @@ fn a_domain_entrance_waits_until_the_previous_entrances_facts_reach_the_sinks() 
     let mut service = event_service();
     let run = preparing_message_run(&mut service);
     let sinks = service.events.as_mut().unwrap().sinks();
-    sinks.add(crate::sinks::Destination::Trace, TRACE, crate::sinks::Delivery::Complete).unwrap();
+    sinks
+        .add(smith_protocol_events::sinks::Destination::Trace, TRACE, smith_protocol_events::sinks::Delivery::Complete)
+        .unwrap();
     // As in the slow complete-destination fixture, withhold its IO credit
     // and fill ordinary lines until the sink stops accepting observations.
     for _ in 0..service.limits.queue {
@@ -680,11 +687,13 @@ fn a_domain_entrance_waits_until_the_previous_entrances_facts_reach_the_sinks() 
     assert_eq!(service.domain_events.len(), 1, "the second entrance has not run");
     domain_up(&mut service);
     assert_eq!(service.domain_events.len(), 1, "waiting again cannot advance the second entrance");
-    crate::sinks::tests::drain_ready(service.events.as_mut().unwrap().sinks(), TRACE);
+    smith_protocol_events::sinks::fixture::drain_ready(service.events.as_mut().unwrap().sinks(), TRACE);
     let mut names = List::with_capacity(FACTS);
     for _ in [FIRST, SECOND] {
         domain_up(&mut service);
-        for record in crate::sinks::tests::drain_ready(service.events.as_mut().unwrap().sinks(), TRACE) {
+        for record in
+            smith_protocol_events::sinks::fixture::drain_ready(service.events.as_mut().unwrap().sinks(), TRACE)
+        {
             match record.event {
                 smith_events::Event::MessageReceived(message) => {
                     names.push(message.name).expect("one fact per entrance");
@@ -913,9 +922,9 @@ mod validity {
             limits.llm.accounts = 0;
             cases.push(limits);
             let mut limits = base;
-            limits.events = Some(crate::EventLimits {
-                sinks: crate::sinks::tests::limits(1),
-                capture: crate::sinks::Capture::None,
+            limits.events = Some(smith_protocol_events::EventLimits {
+                sinks: smith_protocol_events::sinks::fixture::limits(1),
+                capture: smith_protocol_events::sinks::Capture::None,
                 front: false,
                 write_deadline: Duration::from_secs(1),
             });
@@ -962,9 +971,9 @@ mod validity {
                 assert!(!io_valid(&Limits { io: native, ..base }), "{native:?}");
             }
             let mut limits = base;
-            limits.events = Some(crate::EventLimits {
-                sinks: crate::sinks::tests::limits(u32::MAX),
-                capture: crate::sinks::Capture::None,
+            limits.events = Some(smith_protocol_events::EventLimits {
+                sinks: smith_protocol_events::sinks::fixture::limits(u32::MAX),
+                capture: smith_protocol_events::sinks::Capture::None,
                 front: false,
                 write_deadline: Duration::from_secs(1),
             });

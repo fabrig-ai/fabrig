@@ -141,7 +141,7 @@ impl Effects {
         component_down(service);
         teardown::advance(service);
         if let Some(events) = &mut service.events {
-            events.sinks.down(service.io_env.now, &mut service.io_requests);
+            events.sinks().down(service.io_env.now, &mut service.io_requests);
         }
         io_down(service);
         if let Some(io) = &mut service.io {
@@ -184,19 +184,19 @@ impl Effects {
     pub fn adopt_destination(
         &mut self,
         fd: kernel::Fd,
-        destination: crate::Destination,
-        delivery: crate::sinks::Delivery,
+        destination: smith_protocol_events::Destination,
+        delivery: smith_protocol_events::sinks::Delivery,
         append: bool,
         io: &mut io::Io,
     ) -> Result<(), kernel::Fd> {
         let service = &mut self.service;
         let Some(events) = &mut service.events else { return Err(fd) };
-        if !events.sinks.room_for_destination(destination) {
+        if !events.sinks().room_for_destination(destination) {
             return Err(fd);
         }
         let deadline = service.limits.events.expect("configured producer").write_deadline;
         let token = if append { io.adopt_append(fd, deadline)? } else { io.adopt_write_pipe(fd, Some(deadline))? };
-        events.sinks.add(destination, token, delivery).expect("destination room checked");
+        events.sinks().add(destination, token, delivery).expect("destination room checked");
         Ok(())
     }
 
@@ -219,7 +219,7 @@ impl Effects {
             return true;
         }
         if let Some(events) = &service.events
-            && events.sinks.owns(owner)
+            && events.owns(owner)
         {
             return true;
         }
@@ -231,7 +231,7 @@ impl Effects {
     #[must_use]
     pub fn streams(&self) -> u32 {
         match &self.service.events {
-            Some(events) => events.sinks.open_streams(),
+            Some(events) => events.streams(),
             None => 0,
         }
     }
@@ -252,17 +252,17 @@ impl Effects {
 
     /// Capture selected by the product's event configuration.
     #[must_use]
-    pub fn capture(&self) -> crate::sinks::Capture {
+    pub fn capture(&self) -> smith_protocol_events::sinks::Capture {
         match self.service.limits.events {
             Some(events) => events.capture,
-            None => crate::sinks::Capture::None,
+            None => smith_protocol_events::sinks::Capture::None,
         }
     }
 
     /// The existing event sink's optional in-process view, with no destination credit.
-    pub fn front_sinks(&mut self) -> Option<&mut crate::sinks::Sinks> {
+    pub fn front_sinks(&mut self) -> Option<&mut smith_protocol_events::sinks::Sinks> {
         match &mut self.service.events {
-            Some(events) => Some(&mut events.sinks),
+            Some(events) => Some(events.sinks()),
             None => None,
         }
     }
@@ -271,7 +271,7 @@ impl Effects {
     #[must_use]
     pub fn front_pending(&self) -> bool {
         match &self.service.events {
-            Some(events) => events.sinks.front_pending(),
+            Some(events) => events.front_pending(),
             None => false,
         }
     }
@@ -280,7 +280,7 @@ impl Effects {
     #[must_use]
     pub fn takes(&self) -> bool {
         match &self.service.events {
-            Some(events) => events.sinks.takes(),
+            Some(events) => events.takes(),
             None => true,
         }
     }
@@ -303,7 +303,7 @@ impl Effects {
     pub fn facts_drained(&mut self) {
         if let Some(events) = &mut self.service.events {
             for _ in 0..self.service.limits.domain.run.conversations {
-                if !events.sinks.takes() || !events.sinks.facts_drained(events.origin()) {
+                if !events.takes() || !events.facts_drained() {
                     break;
                 }
             }
@@ -311,7 +311,7 @@ impl Effects {
     }
 
     /// Record the answer where the product meets it, with its producer's totals.
-    pub fn answered(&mut self, now: Time, answer: crate::Answered) {
+    pub fn answered(&mut self, now: Time, answer: smith_protocol_events::Answered) {
         if let Some(events) = &mut self.service.events {
             events.answered(now, self.service.run_started, answer);
         }

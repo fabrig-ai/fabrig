@@ -12,35 +12,19 @@
 
 extern crate alloc;
 
-mod answers;
-mod calls;
-mod children;
-pub mod events;
-mod inputs;
 mod live;
-mod messages;
-mod observations;
-mod responses;
+mod projection;
 mod service;
+mod terminal;
 
 pub mod profile;
-pub mod sinks;
 
 #[cfg(test)]
 mod tests;
 
-pub use observations::{
-    ChildShare, budget_record, check_exit, child_completed, child_share, opening_model, reported_usage,
-    request_tool_choice,
-};
-
+pub use projection::{event_limits, event_producer};
 pub use service::teardown::{Answer, Close, Step, Teardown};
-
-pub use events::EventLimits;
-
-pub use sinks::{Destination, GivenUp, Why};
-
-pub use answers::{AnswerMeta, Answered, Last, accepted, answer_record, last};
+pub use terminal::{Last, last};
 
 pub use service::{
     AdoptError, Config, ConfigError, Effects, Failure, Limits, ProgramBackend, Service, done, effects_valid, failure,

@@ -143,7 +143,7 @@ fn a_service_with_held_inline_facts() -> Service {
 #[test]
 fn a_line_waits_while_the_local_child_holds_the_backlog() {
     use skein_io::kernel::Fd;
-    use smith_agent_service::sinks;
+    use smith_protocol_events::sinks;
     // A destination has six line slots; eight offers reach its reservation.
     const SINK_OFFERS: u64 = 8;
     const HELD_ITERATIONS: u32 = 2; // Check retention across an iteration boundary.

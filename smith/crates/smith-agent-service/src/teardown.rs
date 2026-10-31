@@ -94,7 +94,7 @@ fn close_room(service: &Service) -> bool {
 
 pub(super) fn components_closed(service: &Service) -> bool {
     let streams = match &service.events {
-        Some(events) => events.sinks.open_streams(),
+        Some(events) => events.streams(),
         None => 0,
     };
     let streams = streams.checked_add(u32::from(service.signals.is_some())).expect("bounded live signals");
@@ -106,7 +106,7 @@ pub(super) fn components_closed(service: &Service) -> bool {
 
 fn stream_closed(service: &Service) -> bool {
     let destinations = match &service.events {
-        Some(events) => events.sinks.closed(),
+        Some(events) => events.closed(),
         None => true,
     };
     destinations
@@ -135,7 +135,7 @@ pub(super) fn shutdown(service: &mut Service) {
         Teardown::Closing { at, answer, step: step @ (Step::Stream | Step::Signals), .. } => {
             service.teardown = Teardown::Closing { at, answer, close: Close::Aborted, step };
             if let Some(events) = &mut service.events {
-                events.sinks.abort(&mut service.io_requests);
+                events.sinks().abort(&mut service.io_requests);
             }
             return;
         }

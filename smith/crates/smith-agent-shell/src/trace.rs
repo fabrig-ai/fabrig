@@ -5,7 +5,7 @@
 
 use std::path::PathBuf;
 
-pub use smith_agent_service::sinks::{Capture, Delivery};
+pub use smith_protocol_events::sinks::{Capture, Delivery};
 
 /// A configured append destination; the service closes it after its session end.
 pub struct TraceConfig {

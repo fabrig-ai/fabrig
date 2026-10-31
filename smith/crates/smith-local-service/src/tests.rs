@@ -625,7 +625,7 @@ fn colocated_down(
 #[expect(clippy::wildcard_enum_match_arm, reason = "the story names unexpected shell and store requests")]
 #[expect(clippy::too_many_lines, reason = "one loaded entrance-order story includes its trace and cleanup")]
 fn a_later_entrance_keeps_its_facts_behind_the_earlier_entrances_requests() {
-    use smith_agent_service::sinks;
+    use smith_protocol_events::sinks;
     // The neighbouring plaintext story settles in fewer than 2000 passes.
     const SETTLE_PASSES: u32 = 2000;
     // Two request/append round trips expose facts even with the shell held.
@@ -742,19 +742,13 @@ fn a_later_entrance_keeps_its_facts_behind_the_earlier_entrances_requests() {
     machine.close(root);
 }
 
-pub(crate) fn recording_colocated_config() -> (Config, smith_agent_service::EventLimits) {
-    use smith_agent_service::sinks;
+pub(crate) fn recording_colocated_config() -> (Config, smith_protocol_events::EventLimits) {
+    use smith_protocol_events::sinks;
     let mut config = colocated_config();
     let crate::AgentConfig::Inline { configuration: lower, .. } = &mut config.agent else { panic!("inline") };
-    let events = smith_agent_service::EventLimits::derive(
-        &lower.limits,
-        sinks::Capture::Calls,
-        1,
-        0,
-        &[],
-        Duration::from_secs(30),
-    )
-    .expect("bounded event stream");
+    let events =
+        smith_agent_service::event_limits(&lower.limits, sinks::Capture::Calls, 1, 0, &[], Duration::from_secs(30))
+            .expect("bounded event stream");
     lower.limits.events = Some(events);
     (config, events)
 }
@@ -791,7 +785,7 @@ fn message_receipts(records: &[smith_events::Record]) -> usize {
 fn trace_records(
     machine: &skein_fake_machine::Machine,
     trace: skein_fake_machine::Opened,
-    events: &smith_agent_service::EventLimits,
+    events: &smith_protocol_events::EventLimits,
 ) -> Vec<smith_events::Record> {
     // Read the whole one-turn fixture; the machine owns the file's bound.
     machine
@@ -954,7 +948,7 @@ pub(crate) fn trace_append(service: &mut Service, trace: skein_io::kernel::Fd) -
 
 #[test]
 fn an_inline_trace_whose_append_fails_is_given_up_once_with_why() {
-    use smith_agent_service::{Destination, GivenUp, Why, sinks};
+    use smith_protocol_events::{Destination, GivenUp, Why, sinks};
     let trace = skein_io::kernel::Fd::new(20);
     let (config, _) = recording_colocated_config();
     let mut service = Service::new(config, 8).expect("colocated service");
@@ -973,12 +967,12 @@ fn an_inline_trace_whose_append_fails_is_given_up_once_with_why() {
 
 #[test]
 fn a_spawned_trace_is_held_to_the_configured_write_deadline() {
-    use smith_agent_service::{Destination, GivenUp, Why, sinks};
+    use smith_protocol_events::{Destination, GivenUp, Why, sinks};
     let trace = skein_io::kernel::Fd::new(20);
     let deadline = Duration::from_secs(1);
     let mut product = smith_agent_process_world::configuration();
     product.limits.events = Some(
-        smith_agent_service::EventLimits::derive(&product.limits, sinks::Capture::Calls, 1, 0, &[], deadline)
+        smith_agent_service::event_limits(&product.limits, sinks::Capture::Calls, 1, 0, &[], deadline)
             .expect("bounded event stream"),
     );
     let mut local = config();

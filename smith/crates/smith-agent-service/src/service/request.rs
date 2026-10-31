@@ -109,7 +109,7 @@ pub(super) fn domain_request(service: &mut Service, request: domain::Request) {
             }
         }
         domain::Request::Answer { to, answer, read, detail } => {
-            crate::answers::remember(service, &answer, detail, service.domain_env.now);
+            crate::terminal::remember(service, &answer, detail, service.domain_env.now);
             assert!(to.into_token() == Token::new(1), "one Start reply right per process");
             if let Some(events) = &mut service.events {
                 events.answer(service.domain_env.now, service.run_started, &answer, read);

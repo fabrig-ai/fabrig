@@ -268,7 +268,7 @@ fn child_usage(world: &World, parent: u64, call: &[u8]) -> String {
 #[test]
 fn a_child_usage_line_tells_the_budget_record_naming_its_call() {
     let mut world = World::new(19, &charter());
-    world.capture(smith_agent_service::sinks::Capture::Everything);
+    world.capture(smith_protocol_events::sinks::Capture::Everything);
     world.observe_facts(TraceCase::ChildAnswered, 4);
     assert!(world.settle());
     let child = world

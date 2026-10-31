@@ -3,7 +3,7 @@
 use super::{Effects, Service};
 use skein_io::kernel;
 use skein_lib::Time;
-use smith_agent_service::sinks::{Delivery, Destination};
+use smith_protocol_events::sinks::{Delivery, Destination};
 
 impl Service {
     /// Adopt JSON output as an append file or a write stream for either placement.

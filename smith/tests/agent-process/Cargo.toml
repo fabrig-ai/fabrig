@@ -30,6 +30,7 @@ skein-sim.workspace = true
 skein-tls-world.workspace = true
 skein-world.workspace = true
 smith-agent-service.workspace = true
+smith-protocol-events.workspace = true
 smith-agent-shell.workspace = true
 smith-agent-world.workspace = true
 smith-channel.workspace = true

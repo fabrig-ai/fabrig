@@ -67,9 +67,9 @@ fn the_sinks_records_hold_the_headers_entries_and_longest_name() {
     let named =
         effective(&profile(), &declarations(), &limits, &endpoints(&declarations(), &limits)).expect("bounded list");
     let header = header(&named, &names(), &declarations()).expect("names fit");
-    let events = crate::EventLimits::derive(
+    let events = crate::event_limits(
         &limits,
-        crate::sinks::Capture::None,
+        smith_protocol_events::sinks::Capture::None,
         1,
         0,
         header.as_slice(),
@@ -155,9 +155,9 @@ fn the_sinks_own_limits_are_named_and_fit_the_header() {
         let named = effective(&profile(), &declarations(), &limits, &endpoints).expect("bounded list");
         let header = header(&named, &names(), &declarations()).expect("names fit");
         limits.events = Some(
-            crate::EventLimits::derive(
+            crate::event_limits(
                 &limits,
-                crate::sinks::Capture::None,
+                smith_protocol_events::sinks::Capture::None,
                 1,
                 0,
                 header.as_slice(),

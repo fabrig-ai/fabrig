@@ -158,12 +158,12 @@ fn configuration(case: Case) -> smith_agent_service::Config {
         smith_domain::feedback_bound(&config.limits.domain.run).expect("complete bounded feedback");
     if matches!(case, Case::Tools | Case::Events) {
         config.limits.events = Some(
-            smith_agent_service::EventLimits::derive(
+            smith_agent_service::event_limits(
                 &config.limits,
                 if case == Case::Events {
-                    smith_agent_service::sinks::Capture::Everything
+                    smith_protocol_events::sinks::Capture::Everything
                 } else {
-                    smith_agent_service::sinks::Capture::None
+                    smith_protocol_events::sinks::Capture::None
                 },
                 1,
                 0,
@@ -194,11 +194,11 @@ fn make_agent(spawn: &Spawn, inherited: &Inherited) -> Proc {
                 Some(smith_agent_shell::trace::TraceConfig {
                     path: "/home/events.jsonl".into(),
                     capture: if case == Case::Events {
-                        smith_agent_service::sinks::Capture::Everything
+                        smith_protocol_events::sinks::Capture::Everything
                     } else {
-                        smith_agent_service::sinks::Capture::None
+                        smith_protocol_events::sinks::Capture::None
                     },
-                    delivery: smith_agent_service::sinks::Delivery::Complete,
+                    delivery: smith_protocol_events::sinks::Delivery::Complete,
                 })
             } else {
                 None
@@ -678,9 +678,9 @@ fn run_inner(
             false,
             initial.as_ref(),
             if case == Case::Events {
-                smith_agent_service::sinks::Capture::Everything
+                smith_protocol_events::sinks::Capture::Everything
             } else {
-                smith_agent_service::sinks::Capture::None
+                smith_protocol_events::sinks::Capture::None
             },
             skein_llm::Provider::OpenAiCodex,
             value,

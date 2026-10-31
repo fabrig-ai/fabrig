@@ -283,21 +283,21 @@ impl Service {
         fd: kernel::Fd,
         now: Time,
         header: smith_events::SessionStarted,
-        delivery: agent_service::sinks::Delivery,
+        delivery: smith_protocol_events::sinks::Delivery,
     ) -> Result<(), kernel::Fd> {
         if let Some(stream) = &mut self.stream {
             let token = self.below.process_mut().adopt_trace(fd, stream.write_deadline)?;
             stream
                 .producer
                 .sinks()
-                .add(agent_service::Destination::Trace, token, delivery)
+                .add(smith_protocol_events::Destination::Trace, token, delivery)
                 .expect("one configured product destination");
             stream.producer.started(now, header);
             return Ok(());
         }
         match &mut self.below {
             Effects::Inline { agent, local } => {
-                agent.adopt_destination(fd, agent_service::Destination::Trace, delivery, true, local.io())?;
+                agent.adopt_destination(fd, smith_protocol_events::Destination::Trace, delivery, true, local.io())?;
                 agent.start_session(now, header);
             }
             Effects::Spawned(_) => return Err(fd),
@@ -410,7 +410,7 @@ impl Service {
     }
 
     /// Take a typed live-view record from the same sink that owns the trace.
-    pub fn pop_front(&mut self) -> Option<agent_service::sinks::View> {
+    pub fn pop_front(&mut self) -> Option<smith_protocol_events::sinks::View> {
         match self.below.inline_mut() {
             Some(effects) => match effects.front_sinks() {
                 Some(sinks) => sinks.pop_front(),
@@ -493,7 +493,7 @@ impl Service {
     /// The next destination given up, with why, for the shell's one line on
     /// standard error (protocol/events.md, section 5.2).
     #[must_use]
-    pub fn pop_given_up(&mut self) -> Option<agent_service::GivenUp> {
+    pub fn pop_given_up(&mut self) -> Option<smith_protocol_events::GivenUp> {
         match self.below.inline_mut() {
             Some(effects) => match effects.front_sinks() {
                 Some(sinks) => sinks.pop_given_up(),

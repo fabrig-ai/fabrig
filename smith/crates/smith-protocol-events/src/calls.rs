@@ -523,13 +523,7 @@ mod tests {
     }
 
     fn source() -> session::Limits {
-        let mut profile = crate::profile::standard();
-        profile.declared.memory = 2_281_701_376;
-        let mut source = crate::profile::derive(&profile, &crate::tests::declarations(0)).unwrap().domain.session;
-        source.sessions = 1;
-        source.parallel_tools = 2;
-        source.completion_bytes = 1024;
-        source
+        session::Limits { sessions: 1, parallel_tools: 2, completion_bytes: 1024, ..smith_agent_world::LIMITS.session }
     }
 
     fn fixture(source: &session::Limits, capture: Capture) -> (Book, Sinks, Token, Token, session::ToolCall) {

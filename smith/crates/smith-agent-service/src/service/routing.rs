@@ -30,15 +30,17 @@ pub(super) fn record_usage(service: &mut Service, usage: io::Measured) {
         Some(answer) => Some(service.io_env.now.saturating_since(answer)),
         None => None,
     };
-    events.sinks.ended(
+    let origin = events.origin();
+    let answered = match service.product_exit {
+        Some(_) => events.answer_at().is_some(),
+        None => answer.sent(),
+    };
+    events.sinks().ended(
         service.io_env.now,
-        events.origin(),
-        &crate::sinks::Ended {
+        origin,
+        &smith_protocol_events::sinks::Ended {
             exit: service.product_exit.unwrap_or(u8::from(!answer.sent())),
-            answered: match service.product_exit {
-                Some(_) => events.answer_at().is_some(),
-                None => answer.sent(),
-            },
+            answered,
             aborted: match close {
                 teardown::Close::Graceful => false,
                 teardown::Close::Aborted => true,
@@ -74,8 +76,8 @@ pub(super) fn route_io_event(service: &mut Service, event: io::Event) {
     }
     if let Some(events) = &mut service.events {
         match event.owner() {
-            Some(owner) if events.sinks.owns(owner) => {
-                events.sinks.up(service.io_env.now, event);
+            Some(owner) if events.owns(owner) => {
+                events.sinks().up(service.io_env.now, event);
                 return;
             }
             Some(_) | None => {}

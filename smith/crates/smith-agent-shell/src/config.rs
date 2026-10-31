@@ -306,8 +306,8 @@ fn event_limits(
     capture: Capture,
     header: &[smith_events::EffectiveLimit],
     write_deadline: Duration,
-) -> Result<service::EventLimits, ConfigurationRefusal> {
-    let events = service::EventLimits::derive(
+) -> Result<smith_protocol_events::EventLimits, ConfigurationRefusal> {
+    let events = smith_agent_service::event_limits(
         limits,
         capture,
         1,

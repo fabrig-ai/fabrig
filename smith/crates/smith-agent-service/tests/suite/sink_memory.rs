@@ -11,8 +11,8 @@ mod tests {
     use skein_heap::Meter;
     use skein_io as io;
     use skein_lib::{Queue, Time, Token, stream};
-    use smith_agent_service::sinks::{Capture, Delivery, Destination, SinkLimits, Sinks};
     use smith_events::{Effect, Event, Record, Source, ToolStarted};
+    use smith_protocol_events::sinks::{Capture, Delivery, Destination, SinkLimits, Sinks};
 
     fn product_limits() -> SinkLimits {
         use smith_agent_service::profile::{self, Configuration, Endpoint, Model, OversizedReasoning};
@@ -53,7 +53,7 @@ mod tests {
             }]),
         };
         let limits = profile::derive(&profile, &declarations).expect("source-admitted product fixture");
-        smith_agent_service::EventLimits::derive(&limits, Capture::Everything, 1, 3, &[], profile.policy.write_deadline)
+        smith_agent_service::event_limits(&limits, Capture::Everything, 1, 3, &[], profile.policy.write_deadline)
             .expect("joint product bounds")
             .sinks
     }

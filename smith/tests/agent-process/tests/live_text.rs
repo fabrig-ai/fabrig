@@ -3,7 +3,7 @@ use skein_fake_llm_domain::api;
 use skein_lib::Duration;
 use skein_world::domain::heap::Counting;
 use smith_agent_process_world::{TraceCase, World, charter};
-use smith_agent_service::sinks::Capture;
+use smith_protocol_events::sinks::Capture;
 
 #[global_allocator]
 static HEAP: Counting = Counting;

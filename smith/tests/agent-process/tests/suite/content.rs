@@ -143,7 +143,7 @@ fn reconstruct(anthropic: bool) {
     reason = "check capture fields across independently checked complete native streams"
 )]
 fn native_capture_policies_keep_execution_and_select_only_their_content() {
-    use smith_agent_service::sinks::Capture;
+    use smith_protocol_events::sinks::Capture;
     let mut queries = None;
     let mut answer = None;
     for capture in [Capture::None, Capture::Calls, Capture::Everything] {
@@ -249,7 +249,7 @@ fn three_conversations_starting_completions_in_one_pass_are_each_recorded() {
 
 #[test]
 fn native_provider_failure_keeps_status_and_capture_selected_detail_in_every_terminal() {
-    use smith_agent_service::sinks::Capture;
+    use smith_protocol_events::sinks::Capture;
     for capture in [Capture::None, Capture::Calls, Capture::Everything] {
         let mut world = World::new(71, &charter());
         world.initial_message(907, b"task", b"ALPHA");

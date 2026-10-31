@@ -157,8 +157,15 @@ fn the_standard_exit_grace_exceeds_its_teardown_bound() {
     let selected = profile();
     let mut limits = super::derive(&selected, &declarations()).expect("standard profile");
     limits.events = Some(
-        crate::EventLimits::derive(&limits, crate::sinks::Capture::None, 1, 0, &[], selected.policy.write_deadline)
-            .expect("standard event stream"),
+        crate::event_limits(
+            &limits,
+            smith_protocol_events::sinks::Capture::None,
+            1,
+            0,
+            &[],
+            selected.policy.write_deadline,
+        )
+        .expect("standard event stream"),
     );
     assert_eq!(selected.policy.exit_grace, Duration::from_secs(45));
     assert_eq!(super::teardown_bound(&limits), Some(Duration::from_secs(40)));

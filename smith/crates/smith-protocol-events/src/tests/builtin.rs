@@ -1,5 +1,5 @@
 use crate::calls::Book;
-use crate::sinks::tests::{drain_ready, grant, limits};
+use crate::sinks::fixture::{drain_ready, grant, limits};
 use crate::sinks::{Capture, Delivery, Destination, Sinks};
 use alloc::boxed::Box;
 use skein_lib::{List, Time, Token};
@@ -9,10 +9,9 @@ use smith_events::{Event, Source, Verdict};
 #[test]
 fn a_builtin_call_is_a_workspace_tool_event() {
     for capture in [Capture::None, Capture::Calls, Capture::Everything] {
-        let profile = crate::profile::standard();
-        let source = crate::profile::derive(&profile, &super::declarations(0)).unwrap().domain.session;
+        let source = smith_agent_world::LIMITS.session;
         let mut book = Book::new(&source, capture);
-        let mut sinks = Sinks::new(&limits(1), capture, 7, crate::sinks::tests::DEADLINE);
+        let mut sinks = Sinks::new(&limits(1), capture, 7, crate::sinks::fixture::DEADLINE);
         let destination = Token::new(999);
         sinks.add(Destination::Trace, destination, Delivery::Complete).unwrap();
         grant(&mut sinks, destination);

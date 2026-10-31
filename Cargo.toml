@@ -105,6 +105,7 @@ members = [
     "smith",
     "smith/benchmarks",
     "smith/crates/smith-agent-service",
+    "smith/crates/smith-protocol-events",
     "smith/crates/smith-agent-shell",
     "smith/crates/smith-channel",
     "smith/crates/smith-charter",
@@ -378,6 +379,7 @@ smith-channel = { path = "smith/crates/smith-channel" }
 smith-protocol-channel = { path = "smith/crates/smith-protocol-channel" }
 smith-host-protocol = { path = "smith/crates/smith-host-protocol" }
 smith-agent-service = { path = "smith/crates/smith-agent-service" }
+smith-protocol-events = { path = "smith/crates/smith-protocol-events" }
 smith-local-protocol = { path = "smith/crates/smith-local-protocol" }
 smith-local-service = { path = "smith/crates/smith-local-service" }
 smith-agent-process-world = { path = "smith/tests/agent-process" }

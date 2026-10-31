@@ -177,7 +177,7 @@ fn llm_measures(service: &mut Service) {
 fn llm_measure_batch(service: &mut Service, pending: u32, direct: bool) -> bool {
     for _ in 0..pending {
         match &service.events {
-            Some(events) if !events.sinks.takes() => return false,
+            Some(events) if !events.takes() => return false,
             Some(_) | None => {}
         }
         let measure = if direct { service.llm.pop_measure() } else { program::pop_measure(service) }
@@ -207,7 +207,7 @@ fn llm_measure_batch(service: &mut Service, pending: u32, direct: bool) -> bool 
             | llm::Measure::Retried { .. } => {}
         }
         match &mut service.events {
-            Some(events) => events.sinks.measure(events.origin(), measure),
+            Some(events) => events.measure(measure),
             None => match measure {
                 llm::Measure::Terminal { .. }
                 | llm::Measure::Call { .. }
@@ -266,7 +266,7 @@ pub(super) fn component_up(service: &mut Service) {
 fn llm_events_up(service: &mut Service) {
     for _ in 0..service.limits.queue {
         match &service.events {
-            Some(events) if !events.sinks.takes() => break,
+            Some(events) if !events.takes() => break,
             Some(_) | None => {}
         }
         if !service.llm.measures_drained()
@@ -286,22 +286,22 @@ fn llm_events_up(service: &mut Service) {
             }
             llm::ToDomain::Completed { owner, completion } => {
                 if let Some(events) = &mut service.events {
-                    events.sinks.attempt_ready(owner);
-                    let conversation = events.sinks.received(owner, &completion);
+                    events.sinks().attempt_ready(owner);
+                    let conversation = events.sinks().received(owner, &completion);
                     events.received(conversation, &completion);
                 }
                 service.domain_events.push(domain::Event::Completed { owner, completion });
             }
             llm::ToDomain::Failed { owner, failure, evidence, detail, report } => {
                 if let Some(events) = &mut service.events {
-                    events.sinks.attempt_ready(owner);
-                    events.sinks.failed(owner, failure, evidence, &detail, &report);
+                    events.sinks().attempt_ready(owner);
+                    events.sinks().failed(owner, failure, evidence, &detail, &report);
                 }
                 service.domain_events.push(domain::Event::Failed { owner, failure, evidence, detail, report });
             }
             llm::ToDomain::Cancelled { owner } => {
                 if let Some(events) = &mut service.events {
-                    events.sinks.attempt_ready(owner);
+                    events.sinks().attempt_ready(owner);
                 }
                 service.domain_events.push(domain::Event::Cancelled { owner });
             }

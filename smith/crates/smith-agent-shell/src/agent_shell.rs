@@ -331,7 +331,7 @@ fn prepare(mut configuration: config::Configuration, resources: &Resources) -> R
             fd
         };
         service
-            .adopt_destination(fd, service::Destination::Trace, trace.delivery, true)
+            .adopt_destination(fd, smith_protocol_events::Destination::Trace, trace.delivery, true)
             .map_err(|fd| format!("trace descriptor {} cannot be adopted", fd.raw()))?;
     } else if resources.trace.is_some() {
         return Err("an inherited trace requires a configured destination".into());
@@ -476,15 +476,15 @@ fn read_configuration(path: &Path, errors: &mut dyn Write) -> Result<config::Con
 /// IO's terms; every shell prints it once per destination (smith/docs/design/protocol/events.md,
 /// section 5.2).
 #[must_use]
-pub fn given_up_line(given_up: service::GivenUp) -> String {
+pub fn given_up_line(given_up: smith_protocol_events::GivenUp) -> String {
     let name = match given_up.destination {
-        service::Destination::Trace => "trace file",
-        service::Destination::Output => "standard output events",
+        smith_protocol_events::Destination::Trace => "trace file",
+        smith_protocol_events::Destination::Output => "standard output events",
     };
     let why = match given_up.why {
-        service::Why::Behind => "it stayed behind past the write deadline",
-        service::Why::ReaderGone => "its reader went away",
-        service::Why::WriteFailed => "a write failed",
+        smith_protocol_events::Why::Behind => "it stayed behind past the write deadline",
+        smith_protocol_events::Why::ReaderGone => "its reader went away",
+        smith_protocol_events::Why::WriteFailed => "a write failed",
     };
     format!("event destination {name} was given up: {why}; later records count as lost")
 }
@@ -559,7 +559,7 @@ pub fn identity() -> smith_events::Agent {
 #[cfg(test)]
 mod tests {
     use super::given_up_line;
-    use smith_agent_service::{Destination, GivenUp, Why};
+    use smith_protocol_events::{Destination, GivenUp, Why};
 
     #[test]
     fn the_given_up_line_names_the_destination_and_why() {

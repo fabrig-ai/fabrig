@@ -18,9 +18,9 @@ pub(crate) fn host_limits(
     let mut child = agent.service.limits;
     if spawned {
         child.events = Some(
-            smith_agent_service::EventLimits::derive(
+            smith_agent_service::event_limits(
                 &child,
-                smith_agent_service::sinks::Capture::None,
+                smith_protocol_events::sinks::Capture::None,
                 1,
                 0,
                 &[],

@@ -1119,23 +1119,7 @@ pub(crate) mod tests {
         }
     }
 
-    pub(crate) fn prompt(thread: u32) -> llm::Prompt {
-        llm::Prompt {
-            effort: Some(b"medium".as_slice().into()),
-            purpose: llm::Purpose::Ordinary { guard: None },
-            endpoint: llm::Endpoint(0),
-            affinity: llm::Affinity { key: [0; 16], thread },
-            asker: llm::Asker::Main,
-            model: b"model-7".to_vec().into(),
-            system: Box::new([]),
-            tools: smith_domain::tools::Grants { inspect: false, modify: false, shell: false },
-            namespace: smith_domain::tools::Namespace::NoWorkspace,
-            served: Box::new([]),
-            choice: llm::ToolChoice::Only(Box::new([])),
-            messages: Box::new([]),
-            max_tokens: 7,
-        }
-    }
+    pub(crate) use crate::fixture::prompt;
 
     pub(crate) fn fact(millis: u64, kind: session::FactKind, turn: u64, spent: Option<u64>) -> session::Fact {
         session::Fact {

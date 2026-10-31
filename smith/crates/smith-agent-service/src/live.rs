@@ -466,7 +466,7 @@ mod tests {
     }
     #[test]
     fn only_the_main_ordinary_completion_is_wanted() {
-        let mut prompt = crate::responses::tests::prompt(0);
+        let mut prompt = smith_protocol_events::fixture::prompt(0);
         for (text, reasoning, input, main_ordinary) in [
             (false, false, false, false),
             (true, false, false, true),

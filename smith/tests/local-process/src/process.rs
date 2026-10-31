@@ -609,9 +609,9 @@ pub fn make_local(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
     config.launch = kind.launch(config.launch.root, &document);
     if launch.traced {
         lower.limits.events = Some(
-            smith_agent_service::EventLimits::derive(
+            smith_agent_service::event_limits(
                 &lower.limits,
-                smith_agent_service::sinks::Capture::Everything,
+                smith_protocol_events::sinks::Capture::Everything,
                 1,
                 0,
                 &[],
@@ -684,7 +684,7 @@ pub fn make_local(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
     }
     if launch.traced {
         let fd = inherited.appends.iter().find(|(name, _)| name.as_ref() == b"product-trace").expect("trace fd").1;
-        let delivery = smith_agent_service::sinks::Delivery::Complete;
+        let delivery = smith_protocol_events::sinks::Delivery::Complete;
         let header = header.expect("traced product header");
         local.adopt_trace(fd, None, Time::ZERO, header, delivery).expect("product trace adoption");
     } else if let Some(header) = header {
@@ -717,8 +717,8 @@ fn product_header(
     configuration.trace = None;
     let trace = smith_agent_shell::trace::TraceConfig {
         path: launch.root_path.join("events.jsonl"),
-        capture: agent::sinks::Capture::Everything,
-        delivery: agent::sinks::Delivery::Complete,
+        capture: smith_protocol_events::sinks::Capture::Everything,
+        delivery: smith_protocol_events::sinks::Delivery::Complete,
     };
     let header = Local::trace_header(
         &mut configuration,
@@ -766,9 +766,9 @@ pub fn make_agent(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
     let mut configuration = specialize(parsed.service);
     let trace = if launch.traced {
         configuration.limits.events = Some(
-            agent::EventLimits::derive(
+            smith_agent_service::event_limits(
                 &configuration.limits,
-                agent::sinks::Capture::Everything,
+                smith_protocol_events::sinks::Capture::Everything,
                 1,
                 0,
                 &[],
@@ -778,8 +778,8 @@ pub fn make_agent(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
         );
         Some(smith_agent_shell::trace::TraceConfig {
             path: launch.root_path.join("events.jsonl.agent"),
-            capture: agent::sinks::Capture::Everything,
-            delivery: agent::sinks::Delivery::Complete,
+            capture: smith_protocol_events::sinks::Capture::Everything,
+            delivery: smith_protocol_events::sinks::Delivery::Complete,
         })
     } else {
         None

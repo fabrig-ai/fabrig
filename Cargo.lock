@@ -3145,6 +3145,7 @@ dependencies = [
  "smith-events",
  "smith-fake-claude",
  "smith-protocol-channel",
+ "smith-protocol-events",
  "smith-protocol-llm",
  "smith-protocol-machine",
  "smith-protocol-program",
@@ -3171,6 +3172,7 @@ dependencies = [
  "smith-domain",
  "smith-events",
  "smith-protocol-channel",
+ "smith-protocol-events",
  "smith-protocol-llm",
  "smith-protocol-machine",
  "smith-protocol-program",
@@ -3198,6 +3200,7 @@ dependencies = [
  "smith-domain",
  "smith-events",
  "smith-protocol-channel",
+ "smith-protocol-events",
  "smith-protocol-llm",
  "smith-protocol-machine",
  "smith-protocol-program",
@@ -3499,6 +3502,7 @@ dependencies = [
  "smith-local-shell",
  "smith-local-world",
  "smith-protocol-channel",
+ "smith-protocol-events",
  "smith-protocol-llm",
  "smith-protocol-machine",
  "smith-transcript",
@@ -3554,6 +3558,7 @@ dependencies = [
  "smith-local-process-world",
  "smith-local-protocol",
  "smith-protocol-channel",
+ "smith-protocol-events",
  "smith-protocol-program",
  "smith-transcript",
 ]
@@ -3592,6 +3597,7 @@ dependencies = [
  "smith-local-protocol",
  "smith-local-service",
  "smith-protocol-channel",
+ "smith-protocol-events",
  "smith-protocol-program",
  "smith-real-world",
  "smith-transcript",
@@ -3643,6 +3649,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "smith-protocol-events"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+ "skein-heap",
+ "skein-io",
+ "skein-lib",
+ "skein-llm",
+ "smith-agent-world",
+ "smith-domain",
+ "smith-events",
+ "smith-protocol-channel",
+ "smith-protocol-llm",
+]
+
+[[package]]
 name = "smith-protocol-llm"
 version = "0.0.0"
 dependencies = [
@@ -3682,6 +3704,7 @@ dependencies = [
  "smith-host-domain",
  "smith-host-world",
  "smith-protocol-channel",
+ "smith-protocol-events",
  "smith-protocol-llm",
  "smith-session-world",
  "smith-tools-world",

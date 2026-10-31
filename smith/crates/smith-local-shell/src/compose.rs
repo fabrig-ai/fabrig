@@ -477,14 +477,14 @@ pub(crate) fn prepare_stream(
     use std::path::PathBuf;
     let trace = agent.trace.take();
     let capture = if front && !json {
-        smith_agent_service::sinks::Capture::None
+        smith_protocol_events::sinks::Capture::None
     } else {
-        smith_agent_service::sinks::Capture::Everything
+        smith_protocol_events::sinks::Capture::Everything
     };
     let specification = smith_agent_shell::trace::TraceConfig {
         path: trace.as_ref().map_or_else(|| PathBuf::from("stdout"), |trace| trace.path.clone()),
         capture: trace.as_ref().map_or(capture, |trace| trace.capture),
-        delivery: trace.as_ref().map_or(smith_agent_service::sinks::Delivery::Complete, |trace| trace.delivery),
+        delivery: trace.as_ref().map_or(smith_protocol_events::sinks::Delivery::Complete, |trace| trace.delivery),
     };
     let destinations = u32::from(trace.is_some()).checked_add(u32::from(json)).expect("two destinations");
     let mut header = crate::Local::prepare_header(

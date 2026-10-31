@@ -56,7 +56,7 @@ impl Parent {
         window: u32,
         environment: bool,
         message: Option<&smith_channel::Message>,
-        capture: smith_agent_service::sinks::Capture,
+        capture: smith_protocol_events::sinks::Capture,
         provider: skein_llm::Provider,
         value: &smith_channel::GrantValue,
         live: Option<smith_channel::LiveAsk>,
@@ -127,9 +127,9 @@ impl Parent {
                                 Box::new([b'0' + case.number()]) as Box<[u8]>,
                                 frames.to_string().into_bytes().into_boxed_slice(),
                                 match capture {
-                                    smith_agent_service::sinks::Capture::None => Box::from(b"none".as_slice()),
-                                    smith_agent_service::sinks::Capture::Calls => Box::from(b"calls".as_slice()),
-                                    smith_agent_service::sinks::Capture::Everything => {
+                                    smith_protocol_events::sinks::Capture::None => Box::from(b"none".as_slice()),
+                                    smith_protocol_events::sinks::Capture::Calls => Box::from(b"calls".as_slice()),
+                                    smith_protocol_events::sinks::Capture::Everything => {
                                         Box::from(b"everything".as_slice())
                                     }
                                 },
@@ -539,9 +539,9 @@ fn make_tracing(spawn: &Spawn, inherited: &Inherited) -> Proc {
         configuration.limits.llm.connection.io.sends = orders::OUTPUT_SENDS;
     }
     let capture = match spawn.args[2].as_ref() {
-        b"none" => smith_agent_service::sinks::Capture::None,
-        b"calls" => smith_agent_service::sinks::Capture::Calls,
-        b"everything" => smith_agent_service::sinks::Capture::Everything,
+        b"none" => smith_protocol_events::sinks::Capture::None,
+        b"calls" => smith_protocol_events::sinks::Capture::Calls,
+        b"everything" => smith_protocol_events::sinks::Capture::Everything,
         _ => panic!("selected native capture policy"),
     };
     Proc::Tracing(Box::new(crate::tracing::Tracing::new(configuration, inherited, capture)))
@@ -1057,7 +1057,7 @@ pub struct World {
     records: Vec<smith_events::Record>,
     trace_bytes: Box<[u8]>,
     message: Option<smith_channel::Message>,
-    capture: smith_agent_service::sinks::Capture,
+    capture: smith_protocol_events::sinks::Capture,
     anthropic: bool,
     private_grant: bool,
     grant: Option<smith_channel::GrantValue>,
@@ -1106,7 +1106,7 @@ impl World {
             records: Vec::new(),
             trace_bytes: Box::new([]),
             message: None,
-            capture: smith_agent_service::sinks::Capture::Everything,
+            capture: smith_protocol_events::sinks::Capture::Everything,
             anthropic: false,
             private_grant: false,
             grant: None,
@@ -1215,7 +1215,7 @@ impl World {
     }
 
     /// Select the event destination's capture policy before spawning.
-    pub fn capture(&mut self, capture: smith_agent_service::sinks::Capture) {
+    pub fn capture(&mut self, capture: smith_protocol_events::sinks::Capture) {
         self.capture = capture;
     }
 

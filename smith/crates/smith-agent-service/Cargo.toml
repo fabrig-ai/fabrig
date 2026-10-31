@@ -7,6 +7,7 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+smith-protocol-events.workspace = true
 skein-http.workspace = true
 skein-llm-connection.workspace = true
 skein-tls.workspace = true
@@ -25,6 +26,7 @@ smith-protocol-machine.workspace = true
 smith-protocol-program.workspace = true
 
 [dev-dependencies]
+smith-protocol-events = { workspace = true, features = ["fixture"] }
 serde_json = "1.0"
 skein-heap.workspace = true
 smith-agent-world.workspace = true

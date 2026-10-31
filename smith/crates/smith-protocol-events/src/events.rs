@@ -23,87 +23,12 @@ pub struct EventLimits {
     pub write_deadline: Duration,
 }
 
-impl EventLimits {
-    /// Derive receiving and destination ownership from the admitted source bounds.
-    /// `effort_bytes` is the charter codec’s reasoning effort bound.
-    /// `header` supplies the startup inventory's count and longest configured name.
-    #[must_use]
-    pub fn derive(
-        limits: &crate::Limits,
-        capture: Capture,
-        destinations: u32,
-        effort_bytes: u32,
-        header: &[smith_events::EffectiveLimit],
-        write_deadline: Duration,
-    ) -> Option<EventLimits> {
-        let charter = limits.channel.charter;
-        let mut header_string = 0;
-        for entry in header {
-            header_string = header_string.max(u32::try_from(entry.name.len()).ok()?);
-        }
-        let metadata_string = charter
-            .llm_endpoint
-            .max(charter.llm_model)
-            .max(charter.host_tool_name)
-            .max(charter.field_name)
-            .max(charter.run_result_label_some)
-            .max(effort_bytes)
-            .max(header_string)
-            .max(46);
-        let client = limits.llm.adapter.client;
-        let string = metadata_string.max(client.strings).max(limits.channel.bodies.message_label);
-        let answer_bytes = u32::try_from(limits.domain.run.outcome_bytes).ok()?;
-        let metadata_items =
-            charter.run_result_fields.max(limits.domain.run.host_tools).max(18).max(u32::try_from(header.len()).ok()?);
-        let content = answer_bytes
-            .max(client.answer)
-            .max(client.request)
-            .max(limits.channel.bodies.message_text)
-            .max(client.detail_bytes);
-        let items = metadata_items.max(client.output_items).max(client.history_items);
-        let records = smith_events::Limits { string, content, items };
-        let scalar_content = answer_bytes.max(client.detail_bytes);
-        let metadata = smith_events::Limits { string, content: scalar_content, items: metadata_items };
-        let scalar = crate::sinks::largest_line(&metadata, Capture::None, answer_bytes, metadata_string)?;
-        // One completion's blocks share the Client's answer bytes. A message
-        // receipt owns only that channel message's exact label and text.
-        let observed = client
-            .answer
-            .checked_mul(6)?
-            .checked_add(client.output_items.checked_mul(128)?)?
-            .max(limits.channel.bodies.message_text.checked_mul(6)?);
-        // The component validates this exact native body before copying a new
-        // part. Its payload is a subset of that body. At most history_items
-        // messages and blocks add 128 bytes of event framing per total block;
-        // tool names add only bounded array framing. No replay payload is copied.
-        let prompt = client
-            .request
-            .checked_add(client.history_items.checked_mul(128)?)?
-            .checked_add(client.tools.checked_mul(128)?)?
-            .checked_add(metadata_string.checked_mul(18)?)?
-            .checked_add(2048)?;
-        let observation_line = match capture {
-            Capture::None | Capture::Calls => scalar.checked_add(observed)?,
-            Capture::Everything => scalar.checked_add(observed)?.max(prompt),
-        };
-        let mut sinks = SinkLimits {
-            destinations,
-            output: 0,
-            records,
-            answer_bytes,
-            metadata_string,
-            metadata_items,
-            scalar_content,
-            observation_line,
-            fact_extra: observed,
-            conversations: limits.domain.run.conversations,
-        };
-        sinks.output = crate::sinks::output_bound(&sinks, capture)?;
-        if !crate::sinks::valid(&sinks, capture) {
-            return None;
-        }
-        Some(EventLimits { sinks, capture, front: false, write_deadline })
-    }
+/// Source capacities admitted by the composing service before projection starts.
+#[derive(Clone, Copy, Debug)]
+pub struct Sources {
+    pub session: domain::session::Limits,
+    pub output: u32,
+    pub events: Option<EventLimits>,
 }
 
 #[derive(Debug)]
@@ -142,6 +67,22 @@ impl Producer {
         &mut self.sinks
     }
 
+    /// Project one measured provider exchange in its source order.
+    pub fn measure(&mut self, measure: smith_protocol_llm::Measure) {
+        self.sinks.measure(self.origin(), measure);
+    }
+
+    /// Finish the next observation whose source facts have drained.
+    pub fn facts_drained(&mut self) -> bool {
+        self.sinks.facts_drained(self.origin())
+    }
+
+    /// Whether every destination has reported closed.
+    #[must_use]
+    pub fn closed(&self) -> bool {
+        self.sinks.closed()
+    }
+
     /// A typed live-view record awaits its product, independently of destination work.
     #[must_use]
     pub fn front_pending(&self) -> bool {
@@ -172,34 +113,15 @@ impl Producer {
         self.sinks.owns(owner)
     }
 
+    /// Build the joins and destinations from their admitted source bounds.
     #[must_use]
-    pub fn configured(config: &crate::Config) -> Option<Producer> {
-        match config.limits.events {
-            Some(_) => {
-                let mut producer = Producer::new(&config.limits, config.channel_endpoints.clone());
-                producer.programs = match crate::service::bound(config.program.as_ref()) {
-                    Some(program) => program.endpoints.clone(),
-                    None => Box::default(),
-                };
-                Some(producer)
-            }
-            None => None,
-        }
-    }
-
-    pub(crate) fn new(limits: &crate::Limits, names: channel::Endpoints) -> Producer {
+    pub fn new(limits: &Sources, names: channel::Endpoints, programs: Box<[u32]>) -> Producer {
         let events = limits.events.expect("event configuration exists");
         Producer {
-            sinks: Sinks::with_front(
-                &events.sinks,
-                events.capture,
-                limits.io.output,
-                events.write_deadline,
-                events.front,
-            ),
+            sinks: Sinks::with_front(&events.sinks, events.capture, limits.output, events.write_deadline, events.front),
             names,
-            programs: Box::default(),
-            calls: crate::calls::Book::new(&limits.domain.session, events.capture),
+            programs,
+            calls: crate::calls::Book::new(&limits.session, events.capture),
             messages: crate::messages::Book::new(events.capture),
             capture: events.capture,
             origin: None,
@@ -235,7 +157,7 @@ impl Producer {
         );
     }
 
-    pub(crate) fn message(&mut self, name: Token, label: &[u8], text: &[u8]) {
+    pub fn message(&mut self, name: Token, label: &[u8], text: &[u8]) {
         self.messages.received(name, label, text);
     }
 
@@ -306,7 +228,7 @@ impl Producer {
         });
     }
 
-    pub(crate) fn pop_overflow_notice(&mut self) -> Option<run::Overflow> {
+    pub fn pop_overflow_notice(&mut self) -> Option<run::Overflow> {
         self.overflow_notice.take()
     }
 
@@ -321,7 +243,7 @@ impl Producer {
     }
 
     #[expect(clippy::too_many_lines, reason = "one exhaustive content-free root fact projection")]
-    pub(crate) fn fact(&mut self, fact: &domain::Fact) {
+    pub fn fact(&mut self, fact: &domain::Fact) {
         let origin = self.origin();
         let (fact, opening) = match fact {
             domain::Fact::Session { fact } => {
@@ -470,12 +392,12 @@ impl Producer {
         crate::opening_model(model, name, model.effort.as_deref(), backend)
     }
 
-    pub(crate) fn received(&mut self, owner: Token, completion: &domain::llm::Completion) {
+    pub fn received(&mut self, owner: Token, completion: &domain::llm::Completion) {
         self.calls.child_received(owner, completion.usage);
         self.calls.received(owner, completion);
     }
 
-    pub(crate) fn request(
+    pub fn request(
         &mut self,
         now: Time,
         owner: Token,
@@ -499,7 +421,7 @@ impl Producer {
         })
     }
 
-    pub(crate) fn answer(&mut self, now: Time, started: Time, answer: &run::Answer, read: Option<Token>) {
+    pub fn answer(&mut self, now: Time, started: Time, answer: &run::Answer, read: Option<Token>) {
         self.messages.clear();
         assert!(self.answer_at.is_none(), "one answer per invocation");
         self.answer_at = Some(now);
@@ -604,11 +526,9 @@ fn message_refusal(reason: run::MessageRefusal) -> smith_events::MessageRefusal 
 
 /// Whether configured event sinks and joins fit (skein/docs/foundation/programming-model.md, 6.3).
 #[must_use]
-pub fn valid(limits: &crate::Limits) -> bool {
+pub fn valid(limits: &Sources) -> bool {
     match limits.events {
-        Some(events) => {
-            crate::sinks::valid(&events.sinks, events.capture) && crate::calls::valid(&limits.domain.session)
-        }
+        Some(events) => crate::sinks::valid(&events.sinks, events.capture) && crate::calls::valid(&limits.session),
         None => true,
     }
 }
@@ -629,7 +549,7 @@ mod tests {
 
     #[test]
     fn invalid_limits_are_refused() {
-        let mut limits = crate::service::tests::configuration().limits;
+        let mut limits = Sources { session: smith_agent_world::LIMITS.session, output: 4096, events: None };
         assert!(valid(&limits));
         limits.events = Some(EventLimits {
             sinks: crate::sinks::tests::limits(1),
@@ -642,7 +562,7 @@ mod tests {
         limits.events.as_mut().unwrap().sinks.output = 0;
         assert!(!valid(&limits));
         limits = base;
-        limits.domain.session.answer_bytes = u64::MAX;
+        limits.session.answer_bytes = u64::MAX;
         assert!(!valid(&limits));
         // Call joins exist even without content capture.
         limits.events.as_mut().unwrap().capture = Capture::None;

@@ -429,7 +429,7 @@ impl Sinks {
     }
 
     /// Drain a component observation before its domain terminal is consumed.
-    pub(crate) fn measure(&mut self, origin: Time, measure: smith_protocol_llm::Measure) {
+    pub fn measure(&mut self, origin: Time, measure: smith_protocol_llm::Measure) {
         match measure {
             smith_protocol_llm::Measure::Call { .. } | smith_protocol_llm::Measure::Arguments { .. } => {}
             smith_protocol_llm::Measure::Retried { at, owner, status, retry_ms } => {
@@ -492,7 +492,7 @@ impl Sinks {
     }
 
     /// A failure before prompt translation still tells its handed-off start exactly once.
-    pub(crate) fn attempt_ready(&mut self, owner: Token) {
+    pub fn attempt_ready(&mut self, owner: Token) {
         if let Some(record) = self.pending.remove(&owner) {
             self.record(&record);
         }
@@ -503,7 +503,7 @@ impl Sinks {
         self.responses.received(owner, completion)
     }
 
-    pub(crate) fn failed(
+    pub fn failed(
         &mut self,
         owner: Token,
         failure: smith_domain::llm::Failure,
@@ -1088,7 +1088,8 @@ fn answer_bytes(answer: &smith_events::RunCompleted) -> u64 {
     bytes
 }
 
-pub(crate) fn largest_line(
+#[must_use]
+pub fn largest_line(
     limits: &smith_events::Limits,
     capture: Capture,
     answer_bytes: u32,
@@ -1162,7 +1163,8 @@ fn authoritative_credit(limits: &SinkLimits, capture: Capture) -> Option<u32> {
     largest_line(&metadata, capture, limits.answer_bytes, limits.metadata_string)?.checked_mul(AUTHORITATIVE)
 }
 
-pub(crate) fn output_bound(limits: &SinkLimits, capture: Capture) -> Option<u32> {
+#[must_use]
+pub fn output_bound(limits: &SinkLimits, capture: Capture) -> Option<u32> {
     authoritative_credit(limits, capture)?.checked_add(ordinary_credit(limits, capture)?)
 }
 
@@ -1180,6 +1182,9 @@ fn ordinary_credit(limits: &SinkLimits, capture: Capture) -> Option<u32> {
     Some(pair.max(limits.line_ceiling(capture)?))
 }
 
+#[cfg(any(test, feature = "fixture"))]
+pub mod fixture;
+
 #[cfg(test)]
 pub(crate) mod tests {
     #![allow(
@@ -1195,24 +1200,7 @@ pub(crate) mod tests {
     mod view;
 
     /// The write deadline IO keeps on each test destination.
-    pub(crate) const DEADLINE: Duration = Duration::from_secs(30);
-
-    pub(crate) fn limits(destinations: u32) -> SinkLimits {
-        let records = smith_events::Limits { string: 64, content: 1024, items: 19 };
-        let line = largest_line(&records, Capture::None, records.content, records.string).unwrap();
-        SinkLimits {
-            destinations,
-            output: line.checked_mul(6).unwrap(),
-            records,
-            answer_bytes: records.content,
-            metadata_string: records.string,
-            metadata_items: records.items,
-            scalar_content: records.content,
-            observation_line: 0,
-            fact_extra: 0,
-            conversations: 1,
-        }
-    }
+    pub(crate) use super::fixture::{DEADLINE, drain, drain_ready, grant, limits};
 
     #[test]
     fn the_live_view_drops_without_holding_a_none_capture_destination() {
@@ -1589,53 +1577,6 @@ pub(crate) mod tests {
 
     fn golden(bytes: &[u8], limits: &SinkLimits) -> Record {
         smith_events::read(bytes, &limits.records).unwrap().unwrap()
-    }
-
-    pub(crate) fn grant(sinks: &mut Sinks, token: Token) {
-        sinks.up(Time::ZERO, io::Event::Stream { owner: token, up: stream::Up::Room });
-    }
-
-    pub(crate) fn drain(sinks: &mut Sinks, token: Token) -> Vec<Record> {
-        drain_until(sinks, token, true)
-    }
-
-    pub(crate) fn drain_ready(sinks: &mut Sinks, token: Token) -> Vec<Record> {
-        drain_until(sinks, token, false)
-    }
-
-    fn drain_until(sinks: &mut Sinks, token: Token, ended: bool) -> Vec<Record> {
-        let mut out = Queue::with_capacity(2);
-        let mut read = Vec::new();
-        let mut reader = smith_events::Reader::with_ceiling(&sinks.limits.records, sinks.line).unwrap();
-        for _ in 0_u32..10_000 {
-            sinks.down(Time::ZERO, &mut out);
-            match out.pop() {
-                Some(io::Request::Stream { down: stream::Down::Demand { room, .. }, .. }) => {
-                    assert_eq!(room, sinks.io_output);
-                    grant(sinks, token);
-                }
-                Some(io::Request::Stream { down: stream::Down::Send(bytes), .. }) => {
-                    assert!(bytes.len() <= usize::try_from(sinks.io_output).unwrap());
-                    let line = reader.feed(&bytes).unwrap();
-                    assert_eq!(line.consumed, bytes.len());
-                    if let Some(record) = line.record {
-                        read.push(record);
-                    }
-                }
-                Some(io::Request::Close { .. }) => {
-                    reader.finish().unwrap();
-                    sinks.up(Time::ZERO, io::Event::Closed { owner: token });
-                    return read;
-                }
-                None => {
-                    assert!(!ended, "writer failed to advance before close");
-                    reader.finish().unwrap();
-                    return read;
-                }
-                Some(other) => panic!("unexpected append request: {other:?}"),
-            }
-        }
-        panic!("bounded writer did not close");
     }
 
     #[test]

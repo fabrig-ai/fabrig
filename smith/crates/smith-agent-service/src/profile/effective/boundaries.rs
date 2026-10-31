@@ -67,15 +67,15 @@ pub(super) fn io(inventory: &mut Inventory, limits: &skein_io::Limits) -> Option
     Some(())
 }
 
-pub(super) fn events(inventory: &mut Inventory, limits: &crate::EventLimits) -> Option<()> {
-    let crate::EventLimits { sinks: _, capture: _, front: _, write_deadline } = *limits;
+pub(super) fn events(inventory: &mut Inventory, limits: &smith_protocol_events::EventLimits) -> Option<()> {
+    let smith_protocol_events::EventLimits { sinks: _, capture: _, front: _, write_deadline } = *limits;
     inventory.layer = Layer::Events;
     inventory.value("write_deadline", Value::Duration(write_deadline))?;
     Some(())
 }
 
-pub(super) fn sinks(inventory: &mut Inventory, limits: &crate::sinks::SinkLimits) -> Option<()> {
-    let crate::sinks::SinkLimits {
+pub(super) fn sinks(inventory: &mut Inventory, limits: &smith_protocol_events::sinks::SinkLimits) -> Option<()> {
+    let smith_protocol_events::sinks::SinkLimits {
         destinations,
         output,
         records: _,

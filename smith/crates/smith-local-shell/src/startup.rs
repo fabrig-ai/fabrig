@@ -85,8 +85,8 @@ fn profile_refusal(refusal: smith_agent_service::profile::Refusal) -> String {
 #[must_use]
 pub fn stream_header(
     chat: Box<[u8]>,
-    capture: smith_agent_service::sinks::Capture,
-    delivery: smith_agent_service::sinks::Delivery,
+    capture: smith_protocol_events::sinks::Capture,
+    delivery: smith_protocol_events::sinks::Delivery,
     pid: u64,
     limits: skein_lib::List<smith_events::EffectiveLimit>,
 ) -> smith_events::SessionStarted {

@@ -5,7 +5,6 @@
 
 #![expect(clippy::manual_map, reason = "the strict subset requires explicit matches instead of closures")]
 
-use alloc::boxed::Box;
 use skein_lib::{Duration, List};
 use smith_domain::run;
 use smith_events::{
@@ -13,44 +12,6 @@ use smith_events::{
 };
 
 use crate::sinks::Capture;
-
-/// The settled agent's last operator line (smith/docs/design/protocol/agent.md, section 6).
-#[derive(Debug)]
-pub enum Last {
-    /// An accepted or parked answer needs no failure line.
-    Quiet,
-    /// A failed or refused answer, with its operator detail.
-    Failed { failure: Box<AnswerFailure>, detail: Box<[u8]> },
-    /// No answer crossed the channel, for this concrete cause.
-    Unanswered(crate::Failure),
-}
-
-/// Project the settled terminal independently of event capture or destinations.
-#[must_use]
-pub fn last(service: &crate::Service) -> Option<Last> {
-    let answered = crate::done(service)?;
-    if !answered {
-        return Some(Last::Unanswered(crate::failure(service).expect("an unanswered end keeps its first cause")));
-    }
-    let failure = match service.final_failure.clone() {
-        Some(why) => failed(why, service.final_answer_at),
-        None => match service.final_refusal {
-            Some(why) => refused(why),
-            None => return Some(Last::Quiet),
-        },
-    };
-    Some(Last::Failed { failure: Box::new(failure), detail: service.final_detail.clone() })
-}
-
-pub(crate) fn remember(service: &mut crate::Service, answer: &run::Answer, detail: Box<[u8]>, now: skein_lib::Time) {
-    service.final_detail = detail;
-    service.final_answer_at = now;
-    match answer {
-        run::Answer::Failed { failure, .. } => service.final_failure = Some(failure.clone()),
-        run::Answer::Refused(refusal) => service.final_refusal = Some(*refusal),
-        run::Answer::Accepted { .. } | run::Answer::Parked { .. } => {}
-    }
-}
 
 /// Parts of a run terminal supplied by the writer that meets its answer.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -79,12 +40,12 @@ pub struct AnswerMeta {
 pub fn answer_record(meta: AnswerMeta, answer: &run::Answer, capture: Capture) -> RunCompleted {
     let (status, failure, result, turns, spent) = match answer {
         run::Answer::Parked { spent, turns } => (Status::Parked, None, None, *turns, *spent),
-        run::Answer::Refused(refusal) => (Status::Refused, Some(refused(*refusal)), None, 0, run::Spend::ZERO),
+        run::Answer::Refused(refusal) => (Status::Refused, Some(refusal_record(*refusal)), None, 0, run::Spend::ZERO),
         run::Answer::Accepted { outcome, spent, turns } => {
             (Status::Accepted, None, Some(accepted(outcome, capture)), *turns, *spent)
         }
         run::Answer::Failed { failure, spent, turns } => {
-            (Status::Failed, Some(failed(failure.clone(), meta.now)), None, *turns, *spent)
+            (Status::Failed, Some(failure_record(failure.clone(), meta.now)), None, *turns, *spent)
         }
     };
     RunCompleted {
@@ -165,7 +126,9 @@ fn failure(class: AnswerClass, which: Option<&[u8]>) -> AnswerFailure {
     }
 }
 
-fn refused(refusal: run::Refusal) -> AnswerFailure {
+/// Project a refused entrance into the event vocabulary.
+#[must_use]
+pub fn refusal_record(refusal: run::Refusal) -> AnswerFailure {
     match refusal {
         run::Refusal::Busy => failure(AnswerClass::Busy, None),
         run::Refusal::Invalid(invalid) => failure(AnswerClass::Invalid, Some(invalid_name(invalid))),
@@ -205,7 +168,9 @@ fn invalid_name(invalid: run::Invalid) -> &'static [u8] {
     }
 }
 
-fn failed(why: run::Failure, now: skein_lib::Time) -> AnswerFailure {
+/// Project a domain failure into the event vocabulary.
+#[must_use]
+pub fn failure_record(why: run::Failure, now: skein_lib::Time) -> AnswerFailure {
     match why {
         run::Failure::Model(fault) => match fault {
             run::Fault::Completion { failure: why, evidence, model: _, attempts: _, report } => {
@@ -534,7 +499,7 @@ mod tests {
                 );
             }
         }
-        let why = failed(
+        let why = failure_record(
             run::Failure::Model(run::Fault::Completion {
                 failure: run::CompletionFailure::RateLimited { retry_after: Duration::from_millis(23) },
                 evidence: run::CompletionEvidence::Response { status: None },
@@ -560,7 +525,7 @@ mod tests {
             })
         );
         assert_eq!(
-            failed(run::Failure::Transcript(run::TranscriptRefusal::Unresolved), meta().now).reason.as_deref(),
+            failure_record(run::Failure::Transcript(run::TranscriptRefusal::Unresolved), meta().now).reason.as_deref(),
             Some(b"unresolved".as_slice())
         );
     }
@@ -609,7 +574,7 @@ mod tests {
                 exit,
                 detail: b"program detail".as_slice().into(),
             });
-            let value = failed(fault, skein_lib::Time::ZERO);
+            let value = failure_record(fault, skein_lib::Time::ZERO);
             assert_eq!(value.class, AnswerClass::Model);
             assert_eq!(value.program.as_deref(), Some(b"claude_code".as_slice()));
             assert_eq!(value.exit, expected);
