@@ -20,7 +20,18 @@ use skein_lib::{
 pub(super) enum Closing {
     Open,
     Pending,
+    /// A graceful close is sent; an abort may still follow it.
     Sent,
+    Aborted,
+}
+impl Closing {
+    /// Whether io has the connection's close or abort.
+    pub(super) fn sent(self) -> bool {
+        match self {
+            Self::Open | Self::Pending => false,
+            Self::Sent | Self::Aborted => true,
+        }
+    }
 }
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(super) enum HintState {

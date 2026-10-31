@@ -115,20 +115,53 @@ impl Host {
                     live.answer(answer, &mut self.plan_out);
                 }
             }
-            Request::Close => {
-                self.closing = true;
-                self.states.clear();
-                self.runs = Map::with_capacity(self.runs.capacity());
-                self.closing_tokens.clear();
-                for (token, _) in &self.connections {
-                    self.closing_tokens.push(*token).expect("bounded connections");
+            Request::Close => self.close(),
+            Request::Abort => {
+                for _ in 0..self.runs.len() {
+                    let Some((token, _)) = self.runs.first() else {
+                        break;
+                    };
+                    let token = *token;
+                    let mut run = self.runs.remove(&token).expect("live run");
+                    match &run.pending {
+                        Some(reconcile::Need::Done(_) | reconcile::Need::Stop(_)) => {}
+                        Some(
+                            reconcile::Need::Read(_)
+                            | reconcile::Need::Write { .. }
+                            | reconcile::Need::Send { .. }
+                            | reconcile::Need::Draw(_),
+                        )
+                        | None => cut(&mut run, &mut self.connections, &mut self.plan_out),
+                    }
+                    match run.pending.take() {
+                        Some(reconcile::Need::Done(outcome)) => up.push(Event::Done { run: token, outcome }),
+                        Some(reconcile::Need::Stop(failure)) => up.push(Event::Stop { run: token, failure }),
+                        Some(
+                            reconcile::Need::Read(_)
+                            | reconcile::Need::Write { .. }
+                            | reconcile::Need::Send { .. }
+                            | reconcile::Need::Draw(_),
+                        )
+                        | None => unreachable!("a halted run holds its stop"),
+                    }
                 }
-                for token in &self.closing_tokens {
-                    self.connections.get_mut(token).expect("owned connection").abort();
-                }
+                self.close();
             }
         }
         self.drive(env, up, io);
+    }
+    /// Ends every run unheard and aborts every connection (6.3).
+    fn close(&mut self) {
+        self.closing = true;
+        self.states.clear();
+        self.runs = Map::with_capacity(self.runs.capacity());
+        self.closing_tokens.clear();
+        for (token, _) in &self.connections {
+            self.closing_tokens.push(*token).expect("bounded connections");
+        }
+        for token in &self.closing_tokens {
+            self.connections.get_mut(token).expect("owned connection").abort();
+        }
     }
     pub fn up(
         &mut self,
@@ -320,15 +353,7 @@ impl Host {
             return;
         }
         if run.deadline <= env.now {
-            if let Some(connection) = run.connection
-                && let Some(c) = self.connections.get_mut(&connection)
-            {
-                c.abort();
-            }
-            if run.send.is_some() {
-                run.step(reconcile::Event::Reply(Reply::Down), &mut self.plan_out);
-            }
-            run.halt(Why::Down, &mut self.plan_out);
+            cut(run, &mut self.connections, &mut self.plan_out);
             return;
         }
         let forge = configured(&self.settings, run.forge);
@@ -372,6 +397,19 @@ fn open(run: Token, forge: &Forge, agent: &[u8], send: &Send, env: &Env<Limits>)
             crate::call::Call::Forgejo(_) => Err(Refused::Unexpected),
         },
     }
+}
+/// Ends a run at once, as its deadline does: its connection aborted, a send it waits
+/// on heard as down, and the run halted `Down`, its stop pending.
+fn cut(run: &mut Run, connections: &mut Map<Token, Connection>, out: &mut Queue<reconcile::Need>) {
+    if let Some(connection) = run.connection
+        && let Some(c) = connections.get_mut(&connection)
+    {
+        c.abort();
+    }
+    if run.send.is_some() {
+        run.step(reconcile::Event::Reply(Reply::Down), out);
+    }
+    run.halt(Why::Down, out);
 }
 fn earlier(earliest: &mut Option<Time>, time: Time) {
     if match *earliest {

@@ -122,6 +122,8 @@ pub(crate) struct Connection {
     pub(crate) deadline: Option<Time>,
     pub(crate) socket: Option<Token>,
     pub(crate) closing: bool,
+    /// The socket whose graceful close io holds; an abort may still follow it.
+    graceful: Option<Token>,
     pub(crate) written: bool,
     http: http::Client,
     tls: Option<skein_tls::client::Client>,
@@ -179,6 +181,7 @@ impl Connection {
             deadline: Some(deadline),
             socket: None,
             closing: false,
+            graceful: None,
             written: false,
             http: http::Client::new(&limits::http(l, tls.is_some(), &shared.io)),
             tls,
@@ -927,11 +930,23 @@ impl Connection {
         self.request = None;
         if let Some(socket) = self.socket {
             self.closing = true;
+            self.graceful = if abort { None } else { Some(socket) };
             io.push(if abort {
                 skein_io::Request::Abort { entity: socket }
             } else {
                 skein_io::Request::Close { entity: socket }
             });
+        }
+    }
+    /// Aborts the connection, and turns a graceful close already sent into an abort
+    /// (programming-model.md, 5.2).
+    pub fn abort(&mut self, io: &mut Queue<skein_io::Request>) {
+        if !self.closing {
+            self.close(true, io);
+            return;
+        }
+        if let Some(socket) = self.graceful.take() {
+            io.push(skein_io::Request::Abort { entity: socket });
         }
     }
     fn answer_pending(&self) -> bool {
