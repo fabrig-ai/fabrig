@@ -101,8 +101,22 @@ fn a_paused_restore_answers_an_ask_not_ready_without_a_commit_or_retained_answer
     assert_eq!(world.commits.len(), commits, "NotReady must not submit a commit");
     assert_eq!(world.store.rows, rows, "no business mutation or retained keyed answer");
     assert!(world.store_peer.as_mut().expect("store peer").take().is_empty());
+    world.hold_restart_reads = true;
     world.finish_restore_pages();
     assert_eq!(world.store.rows, with_start_mark(&rows), "whole original restored facts and the start's mark");
+    assert!(!world.domain.ready());
+    let applied = world.store.applied;
+    let commits = world.commits.len();
+    world.send(ask(&world, sign_in, 7101));
+    assert_eq!(reply(&mut world, 7101).1, people::Reply::Again(people::Again::NotReady));
+    world.send(self::sign_in(7102));
+    assert_eq!(reply(&mut world, 7102).1, people::Reply::Again(people::Again::NotReady));
+    assert_eq!(world.store.applied, applied);
+    assert_eq!(world.commits.len(), commits);
+    assert_eq!(world.store.rows, with_start_mark(&rows));
+    world.hold_restart_reads = false;
+    world.drain();
+    assert!(world.domain.ready());
     world.send(ask(&world, sign_in, 7101));
     assert!(matches!(reply(&mut world, 7101).1, people::Reply::Outcome(people::Outcome::Created { .. })));
 }

@@ -495,7 +495,16 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<E
         Event::SubscribeTopic { to, key, connector, topic, resources } => {
             topics::subscribe(core, env, work, to, key, connector, topic, &resources)
         }
+        Event::EffectDeadline if !core.ready() => crate::stopping::empty(),
         Event::EffectDeadline => crate::effects::deadline(core, env),
+        Event::SignIn { reply_to, .. } | Event::People(people::Event::Ask { reply_to, .. }) if !core.ready() => {
+            let mut out = Queue::uncapped();
+            out.push(Request::Held(Box::new(Held::PeopleReply {
+                to: reply_to,
+                reply: people::Reply::Again(people::Again::NotReady),
+            })));
+            Requests::Out(out)
+        }
         Event::SignIn { reply_to, identity, held } => sign_in(core, env, work, reply_to, identity, held),
         Event::ReadLoaded { load, result } => crate::reads::loaded(core, env, load, result),
         Event::Read { reply, sign_in, read } => crate::reads::start(core, env, reply, sign_in, read),
@@ -624,7 +633,7 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<E
 /// Fire one due child timer, returning its whole bounded request batch.
 pub fn fire(core: &mut Core, env: &Env<Limits>, timer: Timer) -> Requests {
     core.start_input();
-    if !core.start_opened() {
+    if !core.ready() {
         return crate::stopping::empty();
     }
     core.run_now = env.now;
