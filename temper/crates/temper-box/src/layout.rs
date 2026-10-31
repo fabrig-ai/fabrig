@@ -1,12 +1,15 @@
 //! One placement, shared by host and policy (protocol/setup.md, 7.3).
 use alloc::boxed::Box;
 use skein_lib::List;
-use temper_forge_setup::{Stage, Step, Steps};
+use skein_lib::{Decimal, bytes};
+use temper_forge_setup::{FORGE_ARGUMENT, Stage, Step, Steps, machine::BoxKind};
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Asked {
     pub forge: u16,
     pub recorded: bool,
     pub stage: Stage,
+    pub kind: Option<BoxKind>,
+    pub remover: bool,
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Placed {
@@ -18,6 +21,7 @@ pub struct Placed {
 pub fn flatten(steps: Steps) -> Box<[Placed]> {
     let mut count = u32::try_from(steps.always.len()).expect("bounded steps");
     for group in &steps.asked {
+        count = count.checked_add(u32::from(group.remover.is_some())).expect("remover slot");
         count = count.checked_add(u32::try_from(group.steps.len()).expect("bounded group")).expect("bounded steps");
     }
     let mut out = List::with_capacity(count);
@@ -40,10 +44,30 @@ pub fn flatten(steps: Steps) -> Box<[Placed]> {
                 for (stage, step) in group.steps {
                     out.push(Placed {
                         step,
-                        asked: Some(Asked { forge: group.forge, recorded: group.recorded, stage }),
+                        asked: Some(Asked {
+                            forge: group.forge,
+                            recorded: group.recorded,
+                            stage,
+                            kind: group.kind,
+                            remover: false,
+                        }),
                         label: label.take(),
                     })
                     .expect("step capacity");
+                }
+                if let Some(step) = group.remover {
+                    out.push(Placed {
+                        step,
+                        asked: Some(Asked {
+                            forge: group.forge,
+                            recorded: group.recorded,
+                            stage: Stage::Run,
+                            kind: group.kind,
+                            remover: true,
+                        }),
+                        label: None,
+                    })
+                    .expect("remover capacity");
                 }
             }
         }
@@ -68,4 +92,30 @@ pub fn label(steps: &[Placed], forge: u16) -> Option<&[u8]> {
         }
     }
     None
+}
+
+/// A kind's slot names its bound forge in its arguments and output (temper/docs/design/draft/playground-reset.md, 3).
+#[must_use]
+pub fn bound(template: &Step, forge: u16) -> Step {
+    let digits = Decimal::of(u64::from(forge));
+    let mut args = List::with_capacity(u32::try_from(template.arguments().len()).expect("bounded arguments"));
+    for argument in template.arguments() {
+        args.push(if argument.as_ref() == FORGE_ARGUMENT {
+            bytes::copy_of(digits.as_bytes())
+        } else {
+            argument.clone()
+        })
+        .expect("argument capacity");
+    }
+    let mut step = Step::new(
+        crate::lines::joined(&[template.name(), b"-", digits.as_bytes()]),
+        args.into_boxed(),
+        template.kind(),
+    )
+    .listening(Box::from(template.listeners()));
+    if let Some(address) = template.ready() {
+        step = step.with_ready(address);
+    }
+    step.set_started_notice(bytes::copy_of(template.started_notice()));
+    step
 }
