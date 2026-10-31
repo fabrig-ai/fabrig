@@ -71,7 +71,8 @@ Down, from the owner: a **call** (token, forge, repository, `Op`);
 take; **returned**, an answer handed back in the domain's drain; an
 **offer**, when the domain has room; a forge's **connect**, with its
 access (3.5); a GitHub forge's **installations**, the ones the owner
-accepted (4.4); and the **close**, its last act.
+accepted (4.4); and the **close**, its last act, or the **abort**, a close
+that does not wait (8.5).
 
 Up, to the owner: **answered**, a call's one terminal with its token,
 cost and result; a **hint**, after its delivery's response is queued
@@ -80,7 +81,8 @@ listener's bound address (6.4); **listener lost** (6.4); **connected**,
 a forge's start done (3.3); **stopped**, a forge's access refused, at
 most once per connect; an **installation**'s change (4.4); a
 **git token**, an installation's for git (5.3); a **fact**, a
-diagnostic for the owner's log; and **closed**, the last event (8.5).
+diagnostic for the owner's log; **cancelled**, a call's terminal on an
+abort; and **closed**, the last event (8.5).
 
 | Down | Up |
 |---|---|
@@ -842,6 +844,12 @@ and crosses Answering's deadline and the close with a held hint.
 - **It closes what it keeps:** its connections, the listener and each
   webhook connection. **`closed`** goes up once, when none is left and
   io has settled every socket. It is the last event.
+- **An abort is a close that does not wait** (programming-model.md,
+  5.2). Each call still open ends once with **`cancelled`**; it drops
+  what it holds as a close does, refuses new calls, and aborts every
+  socket it keeps, turning graceful closes still pending into aborts.
+  A second abort, or a close after it, changes nothing; **`closed`**
+  follows once io has settled.
 
 ### 8.6 An installation's tokens
 

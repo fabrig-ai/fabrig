@@ -801,6 +801,7 @@ end.
 | `Request::Run { run, plan }` | `Event::Need { run, need }`: a `Read` or a `Write` |
 | `Request::Answer { run, answer }`: `Read(value)` or `Written` | `Event::Done { run, outcome }` |
 | `Request::Close` | `Event::Stop { run, failure }` |
+| `Request::Abort` | `Event::Cancelled { run }` |
 | | `Event::Closed` |
 
 - **A run** is the owner's number for one plan:
@@ -824,7 +825,11 @@ end.
   with no need waiting is ignored.
 - **Each run ends once,** `Done` or `Stop`, within `deadline`. `Close`
   ends every run unheard and the host says `Closed` when io has settled
-  every socket.
+  every socket. `Abort` (programming-model.md, 5.2) ends each run still
+  held once with `Cancelled`, refuses new runs, and aborts every
+  connection, a graceful close still pending included; a second `Abort`,
+  or a `Close` after it, changes nothing, and `Closed` follows once io
+  has settled.
 
 ### 6.4 The items
 
