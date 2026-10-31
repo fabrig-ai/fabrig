@@ -259,7 +259,7 @@ fn a_task_correlation_past_its_limit_records_the_row_entrance_fit() {
 }
 
 #[test]
-fn link_rederives_waiting_escalations_and_preserves_the_same_holder() {
+fn link_preserves_waiting_escalations_without_reselecting_their_holders() {
     use jig_domain_core::Record;
     use jig_domain_people as people;
     use jig_domain_tasks as tasks;
@@ -288,11 +288,7 @@ fn link_rederives_waiting_escalations_and_preserves_the_same_holder() {
             &super::resume_fixture::limits(),
             &records,
         );
-        let tasks::Escalation::Waiting { revision, holder, .. } = restored.tasks().task(goal).unwrap().escalation
-        else {
-            panic!("restored waiting escalation");
-        };
-        assert_eq!((revision, holder), (1, role));
+        assert_eq!(restored.tasks().task(goal).unwrap().escalation, task.escalation);
         assert_eq!(restored.core.start_failure(), None);
     }
 }
