@@ -3,6 +3,10 @@ use crate::{Event, Limits, Request, forge, route};
 use alloc::boxed::Box;
 use skein_lib::{Env, Queue, Rng, Time};
 #[derive(Debug)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "independent session and pending playground-selection facts (playground-reset.md, 6.1)"
+)]
 pub struct Domain {
     pub(crate) pages: crate::pages::Pages,
     pub(crate) forge: forge::Side,
@@ -13,6 +17,7 @@ pub struct Domain {
     pub(crate) authorizing: crate::authorize::Flight,
     pub(crate) authorization_revision: u64,
     pub(crate) signed_out: bool,
+    pub(crate) pending_select: bool,
     pub(crate) returning: Option<(jig_client::Key, Box<[u8]>)>,
 }
 #[must_use]
@@ -53,6 +58,7 @@ fn build(limits: &Limits, seed: u64, unlinked: bool) -> Domain {
         unlinked,
         departing: false,
         returning: None,
+        pending_select: false,
         authorization: None,
         authorizing: crate::authorize::Flight::Idle,
         authorization_revision: 0,

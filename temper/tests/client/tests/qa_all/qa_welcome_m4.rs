@@ -3,7 +3,6 @@ use jig_client_world::harness::App;
 use skein_lib::Queue;
 use skein_ui::{Role, Tree};
 use temper_client_domain::{Address, Step};
-use temper_client_protocol_wire::v1 as wire;
 use temper_client_world::{
     app::{Root, Temper, View},
     fixtures,
@@ -110,7 +109,8 @@ fn failed_setup_keeps_steps_and_names_the_failed_one() {
 
 #[test]
 fn unavailable_demo_read_does_not_retire_a_project() {
-    let (mut front, mut root) = harness::demo_fixture(fixtures::SEED, &wire::DemoState::Running);
+    let (mut front, mut root) =
+        harness::demo_fixture(fixtures::SEED, &temper_client_domain::forge::demo::DemoState::Running);
     front.demo = None;
     harness::reopen(&mut front, &mut root, fixtures::chats_page(), false);
     let view = page(&mut front, &mut root, fixtures::chats_page());
@@ -124,7 +124,8 @@ fn unavailable_demo_read_does_not_retire_a_project() {
 
 #[test]
 fn first_real_forge_hides_the_playground_before_reload() {
-    let (mut front, mut root) = harness::demo_fixture(fixtures::SEED, &wire::DemoState::Running);
+    let (mut front, mut root) =
+        harness::demo_fixture(fixtures::SEED, &temper_client_domain::forge::demo::DemoState::Running);
     retired(&mut front);
     connection(
         &mut front,
@@ -149,39 +150,15 @@ fn first_real_forge_hides_the_playground_before_reload() {
 }
 
 fn retired(front: &mut Joint) {
-    let mut parts = front.demo.take().expect("demo fixture").into_parts();
-    parts.state = wire::DemoState::Ended;
-    front.demo = Some(wire::DemoAnswer::new(&wire::CEILINGS, parts).expect("ended demo answer"));
-}
-
-#[test]
-fn retired_demo_reload_hides_its_provider_and_welcome_card() {
-    let (mut front, mut root) = harness::demo_fixture(fixtures::SEED, &wire::DemoState::NotStarted);
-    retired(&mut front);
-    harness::reopen(&mut front, &mut root, Address::Welcome { step: Step::Welcome }, false);
-    let welcome_view = page(&mut front, &mut root, Address::Welcome { step: Step::Welcome });
-    let welcome = Temper::tree(&welcome_view);
-    assert!(
-        !words(welcome).iter().any(|line| line.contains("Try the playground")),
-        "retired playground has no welcome card"
-    );
-    let model_view = page(&mut front, &mut root, Address::Welcome { step: Step::Model { way: None } });
-    let model = Temper::tree(&model_view);
-    let text = words(model);
-    assert!(!text.iter().any(|line| line.contains("Scripted API key")), "retired provider remains excluded: {text:?}");
-    assert!(
-        model.nodes().iter().any(|node| node.name.as_deref() == Some(b"Use an API key")),
-        "the real provider's single key way remains: {text:?}"
-    );
-    assert!(
-        !model.nodes().iter().any(|node| node.name.as_deref() == Some(b"Try the playground instead")),
-        "retired playground has no fallback"
-    );
+    let mut parts = front.demo.take().expect("demo fixture");
+    parts.state = temper_client_domain::forge::demo::DemoState::Ended;
+    front.demo = Some(parts);
 }
 
 #[test]
 fn running_demo_project_is_named_playground() {
-    let (mut front, mut root) = harness::demo_fixture(fixtures::SEED, &wire::DemoState::Running);
+    let (mut front, mut root) =
+        harness::demo_fixture(fixtures::SEED, &temper_client_domain::forge::demo::DemoState::Running);
     let view = page(&mut front, &mut root, fixtures::chats_page());
     let tree = Temper::tree(&view);
     assert!(
@@ -189,28 +166,4 @@ fn running_demo_project_is_named_playground() {
         "project chooser names the running playground: {:?}",
         words(tree)
     );
-}
-
-#[test]
-fn retired_demo_reload_drops_the_only_navigation_project() {
-    let (mut front, mut root) = harness::demo_fixture(fixtures::SEED, &wire::DemoState::Running);
-    retired(&mut front);
-    harness::reopen(&mut front, &mut root, fixtures::chats_page(), false);
-    let view = page(&mut front, &mut root, fixtures::chats_page());
-    let tree = Temper::tree(&view);
-    let text = words(tree);
-    assert!(text.iter().any(|line| line == "No project yet"), "retired demo leaves no selected project: {text:?}");
-    for name in [b"Playground".as_slice(), b"Project 1"] {
-        assert!(
-            !tree.nodes().iter().any(|node| node.role == Role::Button && node.name.as_deref() == Some(name)),
-            "retired project is absent from the chooser"
-        );
-    }
-    for name in [b"Board".as_slice(), b"Changes"] {
-        assert!(
-            !tree.nodes().iter().any(|node| node.name.as_deref() == Some(name)),
-            "retired project offers no {}",
-            String::from_utf8_lossy(name)
-        );
-    }
 }

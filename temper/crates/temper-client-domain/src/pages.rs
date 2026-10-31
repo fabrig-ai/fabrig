@@ -843,7 +843,7 @@ fn task_confirmation(pages: &mut Pages, client: &Client, act: jig_client::contra
     }
 }
 
-fn choose_project(pages: &mut Pages, client: &Client, project: u32) {
+pub(super) fn choose_project(pages: &mut Pages, client: &Client, project: u32) {
     if let Some(me) = pages.me(client) {
         for row in &me.projects {
             if row.project == project {

@@ -263,9 +263,9 @@ pub(super) fn root_at_with_demo(
     demo: Option<(u32, bool)>,
 ) -> (temper_client_domain::Domain, Token, Option<Token>, Option<Token>, Option<Token>) {
     let state = if let temper_client_domain::Address::Welcome { .. } = address {
-        w::DemoState::NotStarted
+        forge::demo::DemoState::NotStarted
     } else {
-        w::DemoState::Running
+        forge::demo::DemoState::Running
     };
     root_at_with_activity(
         address,
@@ -283,7 +283,7 @@ fn root_at_with_activity(
     address: temper_client_domain::Address,
     limits: &Limits,
     project_name: &[u8],
-    demo: Option<(u32, bool, w::DemoState)>,
+    demo: Option<(u32, bool, forge::demo::DemoState)>,
     activity: Option<c::ActivityPage>,
     forge_rows: Option<List<w::ForgeRow>>,
 ) -> (temper_client_domain::Domain, Token, Option<Token>, Option<Token>, Option<Token>) {
@@ -297,7 +297,7 @@ pub(super) fn root_at_with_forges(
     address: temper_client_domain::Address,
     limits: &Limits,
     project_name: &[u8],
-    demo: Option<(u32, bool, w::DemoState)>,
+    demo: Option<(u32, bool, forge::demo::DemoState)>,
     activity: Option<c::ActivityPage>,
     forge_rows: Option<List<w::ForgeRow>>,
 ) -> (temper_client_domain::Domain, Token, Option<Token>, Option<Token>, Option<Token>, Option<Token>) {
@@ -1437,20 +1437,32 @@ fn demo_accounts(model: bool) -> c::OwnerAccounts {
     }
 }
 
-pub fn demo_read_answer(root: &mut temper_client_domain::Domain, read: Token, project: u32, state: w::DemoState) {
+pub fn demo_read_answer(
+    root: &mut temper_client_domain::Domain,
+    read: Token,
+    project: u32,
+    state: forge::demo::DemoState,
+) {
     let mut cues = List::with_capacity(2);
     cues.push(Box::from(DEMO_CUE)).expect("first cue");
     cues.push(Box::from(DEMO_OTHER_CUE)).expect("second cue");
-    let answer = w::DemoAnswer::new(
+    let answer = w::PlaygroundAnswer::new(
         &w::CEILINGS,
-        w::DemoAnswerParts {
-            state,
-            project,
-            forge: wire::FORGE,
-            provider: 17,
-            owner: b"acme".as_slice().into(),
-            name: b"shop".as_slice().into(),
-            cues,
+        w::PlaygroundAnswerParts {
+            state: w::PlaygroundState::Running(
+                w::PlaygroundRunning::new(
+                    &w::CEILINGS,
+                    w::PlaygroundRunningParts {
+                        project,
+                        forge: wire::FORGE,
+                        provider: 17,
+                        owner: b"acme".as_slice().into(),
+                        name: b"shop".as_slice().into(),
+                        cues,
+                    },
+                )
+                .expect("running fixture"),
+            ),
         },
     )
     .expect("demo answer");
@@ -1462,7 +1474,11 @@ pub fn demo_read_answer(root: &mut temper_client_domain::Domain, read: Token, pr
                     read,
                     result: jig_client::Readout::Family {
                         family: wire::FORGE,
-                        record: Some(wire::demo_answer(&answer)),
+                        record: if state == forge::demo::DemoState::Running {
+                            Some(wire::playground_answer(&answer))
+                        } else {
+                            None
+                        },
                     },
                 },
             },
@@ -1476,8 +1492,12 @@ fn deliver_demo(
     watch: Token,
     project: u32,
     model: bool,
-    state: w::DemoState,
+    state: forge::demo::DemoState,
 ) {
+    if state != forge::demo::DemoState::Running {
+        deliver_no_demo(root, read, watch);
+        return;
+    }
     demo_read_answer(root, read, project, state);
     let accounts = demo_accounts(model);
     root_event(
@@ -1532,17 +1552,20 @@ pub fn demo_forges_root(
     address: temper_client_domain::Address,
     rows: List<w::ForgeRow>,
 ) -> temper_client_domain::Domain {
-    demo_forges_state_root(address, rows, w::DemoState::Running)
+    demo_forges_state_root(address, rows, forge::demo::DemoState::Running)
 }
 pub fn demo_forges_state_root(
     address: temper_client_domain::Address,
     rows: List<w::ForgeRow>,
-    state: w::DemoState,
+    state: forge::demo::DemoState,
 ) -> temper_client_domain::Domain {
     root_at_with_activity(address, &domain_limits(), b"Shop", Some((PROJECT, true, state)), None, Some(rows)).0
 }
 
-pub fn demo_state_root(address: temper_client_domain::Address, state: w::DemoState) -> temper_client_domain::Domain {
+pub fn demo_state_root(
+    address: temper_client_domain::Address,
+    state: forge::demo::DemoState,
+) -> temper_client_domain::Domain {
     root_at_with_activity(address, &domain_limits(), b"Shop", Some((PROJECT, true, state)), None, None).0
 }
 pub fn demo_start_attempt(root: &mut temper_client_domain::Domain) -> Token {
@@ -1563,7 +1586,7 @@ pub fn demo_start_attempt(root: &mut temper_client_domain::Domain) -> Token {
                     down: jig_client::Down::Send { attempt, request: jig_client::Ask::Family { record, .. }, .. },
                 },
         } = request
-            && *wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request() == w::Request::StartDemo
+            && *wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request() == w::Request::StartPlayground
         {
             return attempt;
         }
@@ -1638,4 +1661,13 @@ pub fn pair(
     roots.push(first).expect("first root");
     roots.push(second).expect("second root");
     roots.into_boxed()
+}
+
+// A failure followed by a running read supplies the identity while a retry is in flight.
+pub fn demo_running_retry(root: &mut temper_client_domain::Domain) -> Token {
+    let attempt = demo_start_attempt(root);
+    let failed = w::StartFailed::new(&w::CEILINGS, w::StartFailedParts { why: w::StartFailure::Account }).unwrap();
+    let read = demo_start_answer(root, attempt, w::Outcome::StartFailed(failed)).expect("running read after failure");
+    demo_read_answer(root, read, PROJECT, forge::demo::DemoState::Running);
+    demo_start_attempt(root)
 }

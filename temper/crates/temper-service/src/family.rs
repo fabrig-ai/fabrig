@@ -43,6 +43,9 @@ pub fn to_root(
                 }
             };
             let request = match request {
+                w::Request::RemoveForge(_) | w::Request::EndPlayground => {
+                    return Err(Box::new(kit::Event::Application(kit::FromApplication::Undecodable { to: reply_to })));
+                }
                 w::Request::SetUp(value) => {
                     let value = value.into_parts();
                     return Ok(root::Event::Party(root::PartyInput::Application {
@@ -54,7 +57,7 @@ pub fn to_root(
                         carried,
                         request: temper_engine_domain::Application::Forge(forge::Ask::SetUp {
                             playground: value.playground,
-                            forge: value.forge,
+                            forge: owned_forge(forges),
                             org: value.org,
                             repository: value.repository,
                             project: match value.project {
@@ -123,7 +126,13 @@ pub fn to_root(
                                     forge::How::GitHubManifest { back }
                                 }
                             };
-                            forge::Ask::Connect { forge: value.forge, how }
+                            forge::Ask::Connect {
+                                forge: match value.forge {
+                                    Some(number) => number,
+                                    None => connect_forge(forges, &how),
+                                },
+                                how,
+                            }
                         }
                         w::Request::Accept(value) => {
                             let value = value.into_parts();
@@ -145,11 +154,13 @@ pub fn to_root(
                             }
                             forge::Ask::Install { forge: value.forge, back: value.back }
                         }
-                        w::Request::Reachable(_)
+                        w::Request::RemoveForge(_)
+                        | w::Request::EndPlayground
+                        | w::Request::Reachable(_)
                         | w::Request::Adopt(_)
                         | w::Request::SetUp(_)
                         | w::Request::Return(_)
-                        | w::Request::StartDemo => {
+                        | w::Request::StartPlayground => {
                             unreachable!("connect or install")
                         }
                     };
@@ -163,7 +174,7 @@ pub fn to_root(
                         request: root::Application::Forge(request),
                     }));
                 }
-                w::Request::StartDemo => {
+                w::Request::StartPlayground => {
                     return Ok(root::Event::Party(root::PartyInput::Application {
                         scope,
                         reply_to,
@@ -227,21 +238,17 @@ pub fn to_root(
             if family == wire::FORGE
                 && version == wire::CLIENT_VERSION
                 && let Some(reading) = wire::decode_reading(&record, limits)
-                && *reading.read() == w::Read::Demo
+                && *reading.read() == w::Read::Playground
                 && let Some(demo) = demo
+                && demo.state == Some(forge::DemoState::Running)
             {
                 let mut cues = List::with_capacity(u32::try_from(demo.cues.len()).expect("bounded demo cues"));
                 for cue in &demo.cues {
                     cues.push(cue.clone()).expect("bounded demo cues");
                 }
-                let record = w::DemoAnswer::new(
+                let running = w::PlaygroundRunning::new(
                     limits,
-                    w::DemoAnswerParts {
-                        state: match demo.state {
-                            Some(forge::DemoState::Running) => w::DemoState::Running,
-                            Some(forge::DemoState::Ended) => w::DemoState::Ended,
-                            None => w::DemoState::NotStarted,
-                        },
+                    w::PlaygroundRunningParts {
                         project: demo.project,
                         forge: demo.forge,
                         provider: demo.provider,
@@ -250,8 +257,13 @@ pub fn to_root(
                         cues,
                     },
                 )
-                .expect("demo checked at startup");
-                answer = Some(wire::demo_answer(&record));
+                .expect("playground checked at startup");
+                let record = w::PlaygroundAnswer::new(
+                    limits,
+                    w::PlaygroundAnswerParts { state: w::PlaygroundState::Running(running) },
+                )
+                .expect("playground checked at startup");
+                answer = Some(wire::playground_answer(&record));
             }
             Err(Box::new(kit::Event::Application(kit::FromApplication::Read { reply, family, record: answer })))
         }
@@ -605,11 +617,30 @@ pub fn answer(
         Some(
             root::ApplicationAnswer::Connect(forge::ConnectAnswer::Connecting)
             | root::ApplicationAnswer::Install(forge::InstallAnswer::Connecting),
-        ) => w::Outcome::Connecting,
+        ) => w::Outcome::Connecting(
+            w::ForgeNumber::new(
+                limits,
+                w::ForgeNumberParts {
+                    // 0 is not numbered yet: domain answers carry no number until fr-domain.
+                    forge: 0,
+                },
+            )
+            .ok()?,
+        ),
         Some(
             root::ApplicationAnswer::Install(forge::InstallAnswer::Link(address))
             | root::ApplicationAnswer::Connect(forge::ConnectAnswer::Link(address)),
-        ) => w::Outcome::Link(w::Link::new(limits, w::LinkParts { address }).ok()?),
+        ) => w::Outcome::Link(
+            w::Link::new(
+                limits,
+                w::LinkParts {
+                    // 0 is not numbered yet: domain answers carry no number until fr-domain.
+                    forge: 0,
+                    address,
+                },
+            )
+            .ok()?,
+        ),
         Some(
             root::ApplicationAnswer::Accept(forge::AcceptAnswer::Refused(why))
             | root::ApplicationAnswer::Reachable(forge::ReachableAnswer::Refused(why))
@@ -634,7 +665,16 @@ pub fn answer(
             .ok()?,
         ),
         Some(root::ApplicationAnswer::StartDemo(answer)) => start_answer(answer, limits)?,
-        Some(temper_engine_domain::ApplicationAnswer::SetUp(forge::SetUpAnswer::SettingUp)) => w::Outcome::SettingUp,
+        Some(temper_engine_domain::ApplicationAnswer::SetUp(forge::SetUpAnswer::SettingUp)) => w::Outcome::SettingUp(
+            w::ForgeNumber::new(
+                limits,
+                w::ForgeNumberParts {
+                    // 0 is not numbered yet: domain answers carry no number until fr-domain.
+                    forge: 0,
+                },
+            )
+            .ok()?,
+        ),
         Some(temper_engine_domain::ApplicationAnswer::SetUp(forge::SetUpAnswer::Refused(why))) => {
             w::Outcome::SetUpRefused(
                 w::SetUpRefused::new(
@@ -753,6 +793,7 @@ pub fn forges(value: forge::Forges, limits: &w::Limits) -> Option<Box<[u8]>> {
                 w::ForgeRow::new(
                     limits,
                     w::ForgeRowParts {
+                        finished: forge_finished(&row.connection, !repositories.is_empty()),
                         number: row.number,
                         read_only: row.read_only,
                         kind: match row.kind {
@@ -1103,5 +1144,42 @@ fn landing_phase(phase: &forge::LandingPhase) -> w::LandingPhase {
         forge::LandingPhase::Landed => w::LandingPhase::Landed,
         forge::LandingPhase::Held { .. } => w::LandingPhase::Held,
         forge::LandingPhase::Cancelled => w::LandingPhase::Cancelled,
+    }
+}
+
+// SetUp names no forge; the stored-forge task replaces this document bridge.
+fn owned_forge(forges: &[crate::settings::Forge]) -> u16 {
+    for forge in forges {
+        if forge.mode == forge::Mode::Owned {
+            return forge.number;
+        }
+    }
+    0
+}
+fn connect_forge(forges: &[crate::settings::Forge], how: &forge::How) -> u16 {
+    let kind = match how {
+        forge::How::GitHubApp { .. } | forge::How::GitHubManifest { .. } => crate::settings::Kind::GitHub,
+        forge::How::ForgejoAdmin { .. } => crate::settings::Kind::Forgejo,
+    };
+    for row in forges {
+        if row.kind == kind
+            && (kind == crate::settings::Kind::GitHub
+                || (row.mode != forge::Mode::Owned && row.mode != forge::Mode::Fake))
+        {
+            return row.number;
+        }
+    }
+    0
+}
+
+fn forge_finished(connection: &forge::Connection, repositories: bool) -> bool {
+    match connection {
+        forge::Connection::Connected { .. } => repositories,
+        forge::Connection::NotConnected
+        | forge::Connection::NotSetUp
+        | forge::Connection::SettingUp { .. }
+        | forge::Connection::SetUpFailed { .. }
+        | forge::Connection::Connecting
+        | forge::Connection::Stopped { .. } => false,
     }
 }

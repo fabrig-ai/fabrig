@@ -177,7 +177,7 @@ pub fn watch(limits: &super::Limits) -> Option<Watchable> {
 }
 #[must_use]
 pub fn ask(
-    forge: u16,
+    _forge: u16,
     org: Box<[u8]>,
     repository: Box<[u8]>,
     project: SetUpProject,
@@ -186,7 +186,7 @@ pub fn ask(
 ) -> Option<Ask> {
     Some(Ask::Family {
         scope: c::Scope::Deployment,
-        record: family::set_up(forge, org, repository, project, playground, &wire_limits(limits)?)?,
+        record: family::set_up(org, repository, project, playground, &wire_limits(limits)?)?,
     })
 }
 #[must_use]

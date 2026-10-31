@@ -119,10 +119,5 @@ pub fn setup(root: &Domain) -> Option<Setup> {
     } else {
         Step::Ready
     };
-    Some(Setup {
-        playground: !personal_connected && root.forge().demo().is_some(),
-        forge: owner && !connected,
-        model,
-        step,
-    })
+    Some(Setup { playground: !personal_connected && root.demo_answered(), forge: owner && !connected, model, step })
 }

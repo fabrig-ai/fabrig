@@ -417,7 +417,8 @@ fn read(side: &mut Side, out: &mut Queue<Request>) {
     side.serial = side.serial.checked_add(1).expect("forge handles fit");
     let handle = Handle { asker: crate::owner::Owner::Forge.asker(), number: side.serial };
     side.demo.pending = Some(handle);
-    let record = w::Reading::new(&w::CEILINGS, w::ReadingParts { read: w::Read::Demo }).expect("fieldless demo read");
+    let record =
+        w::Reading::new(&w::CEILINGS, w::ReadingParts { read: w::Read::Playground }).expect("fieldless demo read");
     out.push(Request::Client {
         asked: jig_client::Event::Read {
             handle,
@@ -460,7 +461,7 @@ pub enum StartAnswer {
 #[must_use]
 pub fn ask(limits: &Limits) -> Option<jig_client::Ask> {
     let limits = wire_limits(limits)?;
-    let record = w::Requesting::new(&limits, w::RequestingParts { request: w::Request::StartDemo }).ok()?;
+    let record = w::Requesting::new(&limits, w::RequestingParts { request: w::Request::StartPlayground }).ok()?;
     Some(jig_client::Ask::Family {
         scope: c::Scope::Deployment,
         record: jig_client::Family {
@@ -500,7 +501,7 @@ pub fn answer(value: &jig_client::Answered, limits: &Limits) -> Option<StartAnsw
             w::StartFailure::Adoption => StartFailure::Adoption,
             w::StartFailure::NotConnected => StartFailure::NotConnected,
         }),
-        w::Outcome::Connecting
+        w::Outcome::Connecting(_)
         | w::Outcome::Link(_)
         | w::Outcome::ConnectRefused(_)
         | w::Outcome::Page(_)
@@ -508,8 +509,12 @@ pub fn answer(value: &jig_client::Answered, limits: &Limits) -> Option<StartAnsw
         | w::Outcome::Adopted(_)
         | w::Outcome::CoreRefused(_)
         | w::Outcome::ForgeRefused(_)
-        | w::Outcome::SettingUp
+        | w::Outcome::SettingUp(_)
         | w::Outcome::SetUpRefused(_)
+        | w::Outcome::Removing
+        | w::Outcome::RemoveRefused(_)
+        | w::Outcome::Resetting
+        | w::Outcome::EndRefused(_)
         | w::Outcome::Returning => return None,
     })
 }
@@ -530,8 +535,13 @@ pub(crate) fn start(side: &mut Side, limits: Limits, out: &mut Queue<Request>) {
     {
         return;
     }
-    let Some(demo) = side.demo.answer.as_ref() else { return };
-    if demo.state == DemoState::Running && side.demo.failure.is_none() {
+    if !side.demo.answered {
+        return;
+    }
+    if let Some(demo) = side.demo.answer.as_ref()
+        && demo.state == DemoState::Running
+        && side.demo.failure.is_none()
+    {
         return;
     }
     let Some(ask) = ask(&limits) else { return };

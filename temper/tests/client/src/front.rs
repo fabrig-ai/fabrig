@@ -19,13 +19,14 @@ use temper_engine_domain_world::{direct::Driver, store::Store, walking};
 /// The common client Front backed by temper's own engine root.
 #[expect(clippy::struct_excessive_bools, reason = "independent fixture switches keep existing worlds unchanged")]
 pub struct Joint {
+    configured_forges: Box<[temper_engine_domain_forge::Configured]>,
     pub engine: Driver,
     pub sign_ins: u32,
     pub leaves: Vec<Box<[u8]>>,
     pub refuse_return: bool,
     set_ups: Vec<(u16, Token)>,
     pub admin_connects: Vec<(u16, Token)>,
-    pub demo: Option<temper_client_protocol_wire::v1::DemoAnswer>,
+    pub demo: Option<temper_client_domain::forge::Demo>,
     pub demo_starts: Vec<skein_lib::RequestKey>,
     pub demo_removals: Vec<skein_lib::RequestKey>,
     pub demo_reads: usize,
@@ -687,6 +688,7 @@ impl Joint {
             first: jig_client_protocol_wire::VERSION,
             last: jig_client_protocol_wire::VERSION,
         });
+        let configured_forges = configs[1].forges.clone();
         transport.models.clone_from(&configs[1].core.settings.models);
         transport.providers = configs[1].core.settings.llm_providers.clone();
         let worker_models = configs[1]
@@ -726,6 +728,7 @@ impl Joint {
         engine.delivered.clear();
         engine.immediate.clear();
         Joint {
+            configured_forges,
             engine,
             sign_ins: 0,
             leaves: Vec::new(),
@@ -896,16 +899,16 @@ impl Joint {
             use temper_client_protocol_wire::{self as wire, v1 as w};
             if record.family == wire::FORGE
                 && wire::decode_requesting(&record.bytes, &w::CEILINGS)
-                    .is_some_and(|request| *request.request() == w::Request::StartDemo)
+                    .is_some_and(|request| *request.request() == w::Request::StartPlayground)
             {
                 self.demo_starts.push(*key);
                 let outcome = self.demo_outcomes.pop_front().unwrap_or(w::Outcome::Running);
                 if outcome == w::Outcome::Running
                     && let Some(demo) = self.demo.take()
                 {
-                    let mut parts = demo.into_parts();
-                    parts.state = w::DemoState::Running;
-                    self.demo = Some(w::DemoAnswer::new(&w::CEILINGS, parts).expect("demo fixture"));
+                    let mut parts = demo;
+                    parts.state = temper_client_domain::forge::demo::DemoState::Running;
+                    self.demo = Some(parts);
                 }
                 self.callbacks.push((
                     who,
@@ -1015,7 +1018,7 @@ impl Joint {
                             read: *read,
                             result: jig_client::Readout::Family {
                                 family: record.family,
-                                record: self.demo.as_ref().map(temper_client_protocol_wire::demo_answer),
+                                record: self.demo.as_ref().and_then(demo_record),
                             },
                         },
                     },
@@ -1101,8 +1104,13 @@ impl Joint {
         if self.demo_read(who, &request) || self.task_read_end(who, &request) {
             return;
         }
-        let (events, refusal) =
-            translate::request(&mut self.transport, who, &mut request, &self.client_limits[&who].client.domain);
+        let (events, refusal) = translate::request(
+            &self.configured_forges,
+            &mut self.transport,
+            who,
+            &mut request,
+            &self.client_limits[&who].client.domain,
+        );
         if let Some(packet) = refusal {
             self.incoming(packet);
         }
@@ -1122,11 +1130,11 @@ impl Joint {
         let mut forges = skein_lib::List::with_capacity(wire::FORGES);
         for row in rows.into_parts().forges.into_boxed() {
             // A change story can use the engine's fake stand as its demo forge.
-            if row.number() != demo.forge() {
+            if row.number() != demo.forge {
                 forges.push(row).expect("scripted deployment row");
             }
         }
-        let connection = if *demo.state() == w::DemoState::Running {
+        let connection = if demo.state == temper_client_domain::forge::demo::DemoState::Running {
             w::Connection::Connected(
                 w::Connected::new(&w::CEILINGS, w::ConnectedParts { id: 2, login: b"playground".as_slice().into() })
                     .expect("fake connection"),
@@ -1139,7 +1147,8 @@ impl Joint {
                 w::ForgeRow::new(
                     &w::CEILINGS,
                     w::ForgeRowParts {
-                        number: demo.forge(),
+                        finished: false,
+                        number: demo.forge,
                         kind: w::Kind::Forgejo,
                         mode: w::Mode::Fake,
                         connection,
@@ -1644,3 +1653,33 @@ fn core_rows(engine: &Driver) -> BTreeMap<jig_test_domain::Key, jig_test_domain:
 mod tests;
 
 mod accounts;
+
+// A scripted not-started or ended playground answers no record, as the service does.
+fn demo_record(demo: &temper_client_domain::forge::Demo) -> Option<Box<[u8]>> {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    if demo.state != temper_client_domain::forge::demo::DemoState::Running {
+        return None;
+    }
+    let mut cues = skein_lib::List::with_capacity(wire::CUES);
+    for cue in &demo.cues {
+        cues.push(cue.clone()).expect("bounded cues");
+    }
+    let running = w::PlaygroundRunning::new(
+        &w::CEILINGS,
+        w::PlaygroundRunningParts {
+            project: demo.project,
+            forge: demo.forge,
+            provider: demo.provider,
+            owner: demo.owner.clone(),
+            name: demo.name.clone(),
+            cues,
+        },
+    )
+    .expect("demo fixture");
+    let answer = w::PlaygroundAnswer::new(
+        &w::CEILINGS,
+        w::PlaygroundAnswerParts { state: w::PlaygroundState::Running(running) },
+    )
+    .expect("demo fixture");
+    Some(wire::playground_answer(&answer))
+}

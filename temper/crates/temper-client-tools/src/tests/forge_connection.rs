@@ -29,7 +29,7 @@ fn request(root: &f::Harness, call: u32) -> w::Request {
 }
 fn link() -> w::Outcome {
     let limits = temper_client_domain::forge::wire_limits(&f::limits_root().domain.forge).expect("wire limits");
-    w::Outcome::Link(w::Link::new(&limits, w::LinkParts { address: ADDRESS.into() }).expect("link"))
+    w::Outcome::Link(w::Link::new(&limits, w::LinkParts { forge: 0, address: ADDRESS.into() }).expect("link"))
 }
 
 #[test]
@@ -64,7 +64,7 @@ fn connect_carries_the_bundle_once_without_saving_it() {
         let mut root = f::signed_in(f::PARTY);
         let call = root.submit_value(CONNECT, Some(Secret::new(pem.into())));
         let w::Request::Connect(connect) = request(&root, call) else { panic!("connect") };
-        assert_eq!(connect.forge(), 3);
+        assert_eq!(*connect.forge(), Some(3));
         let w::How::GithubApp(app) = connect.into_parts().how else { panic!("pasted App") };
         assert_eq!(app.id(), 4242);
         assert_eq!(root.sent_name(call), Some(f::named("app")));
@@ -118,12 +118,12 @@ fn unoffered_ways_exit_two_without_reading_or_sending_a_value() {
 fn connect_and_install_print_their_durable_outcomes() {
     for json in [false, true] {
         for (words, outcome, status, text, structured) in [
-            (CONNECT, w::Outcome::Connecting, 0, b"connecting\ntemper ctl DIR forge list --until connected:3\n".as_slice(), br#"{"connecting":{}}"#.as_slice()),
-            (ADMIN, w::Outcome::Connecting, 0, b"connecting\ntemper ctl DIR forge list --until connected:3\n".as_slice(), br#"{"connecting":{}}"#.as_slice()),
+            (CONNECT, w::Outcome::Connecting(w::ForgeNumber::new(&w::CEILINGS, w::ForgeNumberParts { forge: 0 }).unwrap()), 0, b"connecting\ntemper ctl DIR forge list --until connected:3\n".as_slice(), br#"{"connecting":{}}"#.as_slice()),
+            (ADMIN, w::Outcome::Connecting(w::ForgeNumber::new(&w::CEILINGS, w::ForgeNumberParts { forge: 0 }).unwrap()), 0, b"connecting\ntemper ctl DIR forge list --until connected:3\n".as_slice(), br#"{"connecting":{}}"#.as_slice()),
             (MANIFEST, link(), 0, b"Open this address in a browser on the engine's machine:\nhttps://forge.invalid/install/app\ntemper ctl DIR forge list --until settled\n".as_slice(), br#"{"link":{"address":"https://forge.invalid/install/app"}}"#.as_slice()),
             (INSTALL, link(), 0, b"Open this address in a browser on the engine's machine:\nhttps://forge.invalid/install/app\ntemper ctl DIR forge list --until settled\n", br#"{"link":{"address":"https://forge.invalid/install/app"}}"#),
-            (MANIFEST, w::Outcome::Connecting, 1, b"connecting\n".as_slice(), br#"{"connecting":{}}"#.as_slice()),
-            (INSTALL, w::Outcome::Connecting, 1, b"connecting\n", br#"{"connecting":{}}"#),
+            (MANIFEST, w::Outcome::Connecting(w::ForgeNumber::new(&w::CEILINGS, w::ForgeNumberParts { forge: 0 }).unwrap()), 1, b"connecting\n".as_slice(), br#"{"connecting":{}}"#.as_slice()),
+            (INSTALL, w::Outcome::Connecting(w::ForgeNumber::new(&w::CEILINGS, w::ForgeNumberParts { forge: 0 }).unwrap()), 1, b"connecting\n", br#"{"connecting":{}}"#),
             (INSTALL, w::Outcome::Unknown, 1, b"unknown\n", br#"{"unknown":{}}"#),
         ] {
             let mut root = f::signed_in(f::PARTY);
@@ -247,7 +247,11 @@ fn a_connect_waits_for_me_and_keeps_its_request_stable_across_clocks() {
 }
 #[test]
 fn a_connect_refuses_an_install_link_and_both_refuse_unrelated_outcomes() {
-    for (words, outcome) in [(CONNECT, link()), (CONNECT, w::Outcome::SettingUp), (INSTALL, w::Outcome::Running)] {
+    for (words, outcome) in [
+        (CONNECT, link()),
+        (CONNECT, w::Outcome::SettingUp(w::ForgeNumber::new(&w::CEILINGS, w::ForgeNumberParts { forge: 0 }).unwrap())),
+        (INSTALL, w::Outcome::Running),
+    ] {
         let mut root = f::signed_in(f::PARTY);
         let call = root.submit_value(
             words,
@@ -269,7 +273,7 @@ fn manifest_connect_sends_no_back_or_carried_value() {
     let mut root = f::signed_in(f::PARTY);
     let call = root.submit(MANIFEST);
     let w::Request::Connect(connect) = request(&root, call) else { panic!("connect") };
-    assert_eq!(connect.forge(), 3);
+    assert_eq!(*connect.forge(), Some(3));
     let w::How::GithubManifest(manifest) = connect.how() else { panic!("manifest") };
     assert_eq!(manifest.back(), &None);
     assert!(root.carried.is_empty());
@@ -304,7 +308,10 @@ fn admin_connect_carries_item_one_with_the_file_bytes_unchanged() {
         assert_eq!(root.carried[&call].expose(), expected.as_ref());
         assert!(expected.len() <= 4096);
         assert!(root.saved.is_empty());
-        root.adoption_answer(call, w::Outcome::Connecting);
+        root.adoption_answer(
+            call,
+            w::Outcome::Connecting(w::ForgeNumber::new(&w::CEILINGS, w::ForgeNumberParts { forge: 0 }).unwrap()),
+        );
         let printed = root.answer(call).expect("connecting");
         assert_eq!(printed.status, 0);
         assert_eq!(printed.stdout.as_ref(), b"connecting\ntemper ctl DIR forge list --until connected:3\n");
@@ -339,7 +346,10 @@ fn admin_first_repository_uses_default_and_custom_project_and_label() {
         assert_eq!(first.label(), label);
         let w::SetUpProject::New(new) = first.project() else { panic!("new project") };
         assert_eq!(new.name(), project);
-        root.adoption_answer(call, w::Outcome::Connecting);
+        root.adoption_answer(
+            call,
+            w::Outcome::Connecting(w::ForgeNumber::new(&w::CEILINGS, w::ForgeNumberParts { forge: 0 }).unwrap()),
+        );
         assert!(root.answer(call).is_none(), "waits for creation and adoption");
         assert_eq!(root.progress.as_slice(), &[Box::<[u8]>::from(b"connecting\n".as_slice())]);
     }
@@ -435,6 +445,7 @@ fn first_page(root: &mut f::Harness, connection: w::Connection, state: w::FirstS
         w::ForgeRow::new(
             &l,
             w::ForgeRowParts {
+                finished: false,
                 number: 3,
                 kind: w::Kind::Forgejo,
                 mode: w::Mode::Managed,
@@ -488,7 +499,10 @@ fn admin_first_makes_a_new_project_or_uses_its_number_or_name_then_prints_the_ad
                 words.push(project).unwrap();
             }
             let call = root.submit_prepared(f::call(words.as_slice()), json, Some(Secret::new(TOKEN.into())));
-            root.adoption_answer(call, w::Outcome::Connecting);
+            root.adoption_answer(
+                call,
+                w::Outcome::Connecting(w::ForgeNumber::new(&w::CEILINGS, w::ForgeNumberParts { forge: 0 }).unwrap()),
+            );
             assert!(root.answer(call).is_none());
             first_page(&mut root, w::Connection::Connecting, made(), None);
             assert!(root.answer(call).is_none(), "waits for Connected too");
@@ -549,7 +563,10 @@ fn admin_first_reruns_use_the_same_project_and_adoption_keys_and_keep_an_existin
         let mut previous_project = None;
         for _ in 0u8..2 {
             let call = root.submit_value(words.as_slice(), Some(Secret::new(TOKEN.into())));
-            root.adoption_answer(call, w::Outcome::Connecting);
+            root.adoption_answer(
+                call,
+                w::Outcome::Connecting(w::ForgeNumber::new(&w::CEILINGS, w::ForgeNumberParts { forge: 0 }).unwrap()),
+            );
             first_page(&mut root, connected(), made(), None);
             if project.is_none() {
                 let client::Ask::Jig(_) = root.adoption_bytes(call) else { panic!("MakeProject") };
@@ -612,7 +629,10 @@ fn admin_first_stop_and_failed_create_exit_one_without_the_token() {
             let mut root = f::signed_in(f::PARTY);
             let words_call = f::extended(ADMIN, &["--first", "work/hello"]);
             let call = root.submit_prepared(f::call(words_call.as_slice()), json, Some(Secret::new(TOKEN.into())));
-            root.adoption_answer(call, w::Outcome::Connecting);
+            root.adoption_answer(
+                call,
+                w::Outcome::Connecting(w::ForgeNumber::new(&w::CEILINGS, w::ForgeNumberParts { forge: 0 }).unwrap()),
+            );
             first_page(&mut root, w::Connection::Connecting, state, stop);
             let printed = root.answer(call).unwrap();
             assert_eq!(printed.status, 1);

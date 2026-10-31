@@ -85,7 +85,7 @@ fn carried(pem: &[u8]) -> Secret {
             else {
                 panic!("Connect")
             };
-            assert_eq!(connect.forge(), 2);
+            assert_eq!(*connect.forge(), Some(2));
             let w::How::GithubApp(app) = connect.how() else { panic!("pasted App") };
             assert_eq!(app.id(), 7);
             carried = Some(value);
@@ -344,7 +344,7 @@ fn install_sends_its_way_back_and_leaves_once_only_from_the_answer() {
                     outcome: w::Outcome::Link(
                         w::Link::new(
                             &w::CEILINGS,
-                            w::LinkParts { address: b"https://fake.invalid/install".as_slice().into() },
+                            w::LinkParts { forge: 0, address: b"https://fake.invalid/install".as_slice().into() },
                         )
                         .unwrap(),
                     ),

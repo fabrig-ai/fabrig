@@ -204,7 +204,7 @@ fn connect_request(app: u64) -> w::Request {
         w::Connect::new(
             &w::CEILINGS,
             w::ConnectParts {
-                forge: FORGE,
+                forge: Some(FORGE),
                 how: w::How::GithubApp(w::GitHubApp::new(&w::CEILINGS, w::GitHubAppParts { id: app }).unwrap()),
             },
         )
@@ -311,7 +311,10 @@ fn paste_replay_and_refused_replacement_keep_the_connection_and_write_counts() {
     let (mut service, bearer) = http_owner();
     let before = service.engine.as_ref().unwrap().setup.next_write;
     let first = http_paste(&mut service, &bearer, 1, 7);
-    assert_eq!(first, w::Outcome::Connecting);
+    assert_eq!(
+        first,
+        w::Outcome::Connecting(w::ForgeNumber::new(&w::CEILINGS, w::ForgeNumberParts { forge: 0 }).unwrap())
+    );
     paste_success(&mut service, &mut Face::new());
     show_connected(&mut service);
     assert_eq!(http_paste(&mut service, &bearer, 1, 7), first);

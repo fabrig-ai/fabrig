@@ -22,15 +22,16 @@ fn first(label: &[u8]) -> Result<v1::FirstAsk, v1::Problem> {
 fn request(first: Option<v1::FirstAsk>) -> v1::Requesting {
     let limits = fixtures::limits();
     let admin = v1::ForgejoAdmin::new(&limits, v1::ForgejoAdminParts { first }).unwrap();
-    let connect = v1::Connect::new(&limits, v1::ConnectParts { forge: 1, how: v1::How::ForgejoAdmin(admin) }).unwrap();
+    let connect =
+        v1::Connect::new(&limits, v1::ConnectParts { forge: Some(1), how: v1::How::ForgejoAdmin(admin) }).unwrap();
     v1::Requesting::new(&limits, v1::RequestingParts { request: v1::Request::Connect(connect) }).unwrap()
 }
-// An untrusted peer's Connect: version 11, Connect tag 4, forge 1,
+// An untrusted peer's Connect: version 12, Connect tag 4, forge 1,
 // ForgejoAdmin tag 2, Some(first), work/hello, Existing project 7.
 fn peer(label: &[u8]) -> Box<[u8]> {
     const HEAD: &[u8] = &[
-        0, 11, 4, 0, 1, 2, 1, 0, 0, 0, 4, b'w', b'o', b'r', b'k', 0, 0, 0, 5, b'h', b'e', b'l', b'l', b'o', 0, 0, 0, 0,
-        7,
+        0, 12, 4, 1, 0, 1, 2, 1, 0, 0, 0, 4, b'w', b'o', b'r', b'k', 0, 0, 0, 5, b'h', b'e', b'l', b'l', b'o', 0, 0, 0,
+        0, 7,
     ];
     let mut writer = Writer::new(HEAD.len().checked_add(4).unwrap().checked_add(label.len()).unwrap());
     writer.put(HEAD).unwrap();

@@ -245,14 +245,11 @@ fn fixture_root(
         front.engine.settle();
     }
     if let WelcomeForge::Demo { running, .. } = forge {
-        let mut demo = demo_answer(running).into_parts();
+        let mut demo = demo_answer(running);
         if adoption {
             demo.forge = 1;
         }
-        front.demo = Some(
-            temper_client_protocol_wire::v1::DemoAnswer::new(&temper_client_protocol_wire::v1::CEILINGS, demo)
-                .expect("demo fixture"),
-        );
+        front.demo = Some(demo);
     }
     front.bind(CLIENT, fixtures::PARTY);
     let mut root = if tools {
@@ -427,14 +424,14 @@ pub fn account_chat(front: &mut Joint, account: u32) -> u64 {
 
 /// A scripted demo read and start, beside the real root's account and forge facts.
 #[must_use]
-pub fn demo_fixture(seed: u64, state: &temper_client_protocol_wire::v1::DemoState) -> (Joint, Root) {
+pub fn demo_fixture(seed: u64, state: &temper_client_domain::forge::demo::DemoState) -> (Joint, Root) {
     fixture_root(
         seed,
         Tools::Off,
         2,
         None,
         false,
-        WelcomeForge::Demo { running: *state == temper_client_protocol_wire::v1::DemoState::Running, github: false },
+        WelcomeForge::Demo { running: *state == temper_client_domain::forge::demo::DemoState::Running, github: false },
         false,
     )
 }
@@ -479,23 +476,17 @@ pub fn demo_github_fixture(seed: u64) -> (Joint, Root) {
     fixture_root(seed, Tools::Off, 2, None, false, WelcomeForge::Demo { running: false, github: true }, false)
 }
 
-fn demo_answer(running: bool) -> temper_client_protocol_wire::v1::DemoAnswer {
-    use temper_client_protocol_wire::v1 as w;
-    let mut cues = skein_lib::List::with_capacity(1);
-    cues.push(b"Change the title".as_slice().into()).expect("one cue");
-    w::DemoAnswer::new(
-        &w::CEILINGS,
-        w::DemoAnswerParts {
-            project: 1,
-            forge: 2,
-            provider: PROVIDER,
-            owner: b"acme".as_slice().into(),
-            name: b"shop".as_slice().into(),
-            state: if running { w::DemoState::Running } else { w::DemoState::NotStarted },
-            cues,
-        },
-    )
-    .expect("demo fixture")
+fn demo_answer(running: bool) -> temper_client_domain::forge::Demo {
+    use temper_client_domain::forge::{Demo, demo::DemoState};
+    Demo {
+        project: 1,
+        forge: 2,
+        provider: PROVIDER,
+        owner: b"acme".as_slice().into(),
+        name: b"shop".as_slice().into(),
+        state: if running { DemoState::Running } else { DemoState::NotStarted },
+        cues: Box::new([b"Change the title".as_slice().into()]),
+    }
 }
 
 /// Fresh page on the same engine and person, with an explicit departure policy.

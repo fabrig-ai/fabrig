@@ -23,6 +23,9 @@ fn deliver(root: &mut Domain, watch: Token, delivery: c::Delivery) -> Queue<Requ
     up(root, Up::Watched { watch, event: c::WatchEvent::Delivered(delivery) })
 }
 fn answer(root: &mut Domain, present: bool) {
+    answer_record(root, present, false);
+}
+fn answer_record(root: &mut Domain, present: bool, running: bool) {
     let mut out = Queue::with_capacity(1);
     forge::demo::told(&mut root.forge, &Told::Link { link: Link::Offline }, f::limits().forge, &mut out);
     forge::demo::told(&mut root.forge, &Told::Link { link: Link::Live }, f::limits().forge, &mut out);
@@ -30,12 +33,9 @@ fn answer(root: &mut Domain, present: bool) {
         panic!("demo read")
     };
     let page = if present {
-        let mut parts =
-            wire::decode_demo_answer(&demo::answer(b"Change the title"), &w::CEILINGS).unwrap().into_parts();
-        parts.state = w::DemoState::NotStarted;
         Readout::Family {
             family: wire::FORGE,
-            record: Some(wire::demo_answer(&w::DemoAnswer::new(&w::CEILINGS, parts).unwrap())),
+            record: if running { Some(demo::answer(b"Change the title")) } else { None },
         }
     } else {
         Readout::NotServed { family: Some(wire::FORGE), served: None }
@@ -100,6 +100,7 @@ fn rows(root: &mut Domain, watch: Token, number: u16) -> Queue<Request> {
             w::ForgeRow::new(
                 &limits,
                 w::ForgeRowParts {
+                    finished: false,
                     number,
                     kind: w::Kind::Forgejo,
                     mode: w::Mode::Connected,
@@ -156,16 +157,6 @@ fn the_welcome_moves_on_once_an_account_and_a_forge_are_the_persons() {
     account(&mut root, accounts, 18, true);
     assert!(moved(rows(&mut root, forges.unwrap(), wire::FORGE + 1), true));
     assert!(decided(&root));
-}
-#[test]
-fn the_demos_account_and_forge_keep_the_welcome() {
-    for (provider, number) in [(17, wire::FORGE), (18, wire::FORGE), (17, wire::FORGE + 1)] {
-        let (mut root, _, accounts, forges) = opened(true, Step::Welcome);
-        answer(&mut root, true);
-        account(&mut root, accounts, provider, true);
-        assert!(!moved(rows(&mut root, forges.unwrap(), number), true));
-        assert!(decided(&root));
-    }
 }
 #[test]
 fn an_account_alone_decides_for_a_person_without_the_forges_role() {
@@ -246,11 +237,25 @@ fn a_later_step_never_moves_on() {
 }
 #[test]
 fn try_the_playground_opens_the_chats_in_the_demos_project() {
-    let (mut root, _, _, _) = opened(false, Step::Welcome);
+    let (mut root, me_watch, _, _) = opened(false, Step::Welcome);
     assert!(!moved(event(&mut root, Event::Act { action: Action::Pages(Act::Playground) }), false));
-    answer(&mut root, true);
+    let mut me = f::chats::me();
+    let mut other = me.projects.get(0).unwrap().clone();
+    other.project = 2;
+    let mut projects = List::with_capacity(2);
+    projects.push(me.projects.get(0).unwrap().clone()).unwrap();
+    projects.push(other).unwrap();
+    me.projects = projects;
+    deliver(&mut root, me_watch, c::Delivery::Me(Box::new(me)));
+    event(&mut root, Event::Act { action: Action::Pages(Act::Project { project: 2 }) });
+    demo::deliver_demo_read(&mut root, Readout::Family { family: wire::FORGE, record: None });
     assert!(moved(event(&mut root, Event::Act { action: Action::Pages(Act::Playground) }), false));
+    assert_eq!(root.pages().project(), Some(2));
+    demo::deliver_demo_read(&mut root, demo::page_with_state(forge::demo::DemoState::Running));
     assert_eq!(root.pages().project(), Some(f::PROJECT));
+    event(&mut root, Event::Act { action: Action::Pages(Act::Project { project: 2 }) });
+    demo::deliver_demo_read(&mut root, demo::page_with_state(forge::demo::DemoState::Running));
+    assert_eq!(root.pages().project(), Some(2), "the pending selection is consumed once");
 }
 #[test]
 fn the_model_step_sends_the_accounts_acts() {
@@ -338,6 +343,7 @@ fn strip_forges(root: &mut Domain, watch: Token, connection: Option<w::Connectio
                 w::ForgeRow::new(
                     &w::CEILINGS,
                     w::ForgeRowParts {
+                        finished: false,
                         number: 3,
                         kind: w::Kind::Forgejo,
                         mode: w::Mode::Owned,
@@ -438,7 +444,7 @@ fn continue_setting_up_goes_to_the_first_step_not_done() {
 fn the_playground_forge_shows_while_the_forge_half_holds() {
     let (mut root, _, accounts, forges) = opened(true, Step::Model { way: None });
     let watch = forges.unwrap();
-    answer(&mut root, true);
+    answer_record(&mut root, true, true);
     event(&mut root, Event::Act { action: Action::Pages(Act::Playground) });
     account(&mut root, accounts, 18, true);
     rows(&mut root, watch, wire::FORGE);
@@ -465,7 +471,7 @@ fn with_a_demo_model_usable_reads_other_providers_lines() {
         [(18, true, false, false), (18, false, true, true), (17, true, true, false)]
     {
         let (mut root, _, accounts, _) = opened(false, Step::Model { way: None });
-        answer(&mut root, true);
+        answer_record(&mut root, true, true);
         let mut document = demo::accounts(Some(provider), line_usable, false);
         document.usable = document_usable;
         deliver(&mut root, accounts, c::Delivery::OwnerAccounts(Box::new(document)));
@@ -478,17 +484,11 @@ fn ready_and_the_strip_count_an_owners_deployment_model() {
     let (mut root, _, accounts, _) = opened(true, Step::Model { way: None });
     answer(&mut root, true);
     account(&mut root, accounts, 18, false);
-    let mut out = event(&mut root, Event::Act { action: Action::Pages(Act::Playground) });
-    let watch = demo::deployment_watch(&mut out).expect("owner start opens the deployment watch");
+    event(&mut root, Event::Act { action: Action::Pages(Act::Playground) });
+    let mut out = demo::deliver_demo_read(&mut root, demo::page_with_state(forge::demo::DemoState::Running));
+    let watch = demo::deployment_watch(&mut out).expect("running read opens the deployment watch");
     let mut out =
         demo::deliver_deployment(&mut root, watch, demo::deployment(&[demo::DEMO_ACCOUNT, demo::OTHER_ACCOUNT]));
-    assert!(demo::removed(&mut out).is_empty(), "removal waits for the running read");
-    assert_eq!(pages::welcome::model_usable(&root), Some(true));
-
-    let mut out = demo::deliver_demo_read(
-        &mut root,
-        Readout::Family { family: wire::FORGE, record: Some(demo::answer(b"Change the title")) },
-    );
     assert_eq!(demo::removed(&mut out).len(), 1);
     assert_eq!(pages::welcome::model_usable(&root), Some(true), "the watch keeps the model after removal");
     demo::deliver_deployment(&mut root, watch, demo::deployment(&[demo::OTHER_ACCOUNT]));

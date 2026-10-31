@@ -513,21 +513,19 @@ fn demo_change_page(demo_forge: u16, ended: bool) {
     let goal = fixtures::goal_with_pushed_change(world.front(), BRANCH);
     let mut cues = skein_lib::List::with_capacity(1);
     cues.push(b"Change the title".as_slice().into()).expect("one cue");
-    world.front().demo = Some(
-        w::DemoAnswer::new(
-            &w::CEILINGS,
-            w::DemoAnswerParts {
-                state: if ended { w::DemoState::Ended } else { w::DemoState::Running },
-                project: 1,
-                forge: demo_forge,
-                provider: 17,
-                owner: b"acme".as_slice().into(),
-                name: b"shop".as_slice().into(),
-                cues,
-            },
-        )
-        .expect("scripted demo read beside the real engine"),
-    );
+    world.front().demo = Some(temper_client_domain::forge::Demo {
+        state: if ended {
+            temper_client_domain::forge::demo::DemoState::Ended
+        } else {
+            temper_client_domain::forge::demo::DemoState::Running
+        },
+        project: 1,
+        forge: demo_forge,
+        provider: 17,
+        owner: b"acme".as_slice().into(),
+        name: b"shop".as_slice().into(),
+        cues: cues.into_boxed(),
+    });
     let person = world.client(fixtures::PARTY, fixtures::task_page(goal));
     let on_demo = demo_forge == REPOSITORY.forge;
     let link = Find::exactly_named(Role::Link, "View on forge ↗".as_bytes());
@@ -589,10 +587,6 @@ fn a_demo_changes_address_is_text_not_a_link() {
 #[test]
 fn another_forges_change_keeps_its_link() {
     demo_change_page(REPOSITORY.forge + 1, false);
-}
-#[test]
-fn an_ended_demo_changes_address_stays_text() {
-    demo_change_page(REPOSITORY.forge, true);
 }
 
 fn silent_forge() -> ForgeStand {

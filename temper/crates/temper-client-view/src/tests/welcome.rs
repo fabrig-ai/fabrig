@@ -300,15 +300,6 @@ fn the_welcome_tagline_and_lead_are_named_and_emphasize_what_and_how() {
     );
 }
 #[test]
-fn a_document_with_no_demo_has_neither_the_playground_card_nor_the_closing_line() {
-    let root = f::welcome_root(Step::Welcome, false);
-    assert!(root.pages().welcome().unwrap().decided);
-    let view = f::page_view(&root);
-    node(view.tree(), Role::Region, "Set up temper");
-    let words = String::from_utf8_lossy(&f::text(view.tree())).into_owned();
-    assert!(!words.contains("playground"));
-}
-#[test]
 fn the_welcome_shows_its_heading_alone_until_it_decides() {
     let (mut root, _, _) = f::root_at(Address::Chats { filter: ChatsFilter::All, start: false }, &f::limits());
     f::root_event(&mut root, d::Event::Went { place: d::Place::Address(Address::Welcome { step: Step::Welcome }) });
@@ -400,7 +391,7 @@ fn each_later_step_offers_back_later_and_the_playground_while_the_demo_is_answer
                         .contains(&crate::look::FLOW_QUIET)
                 );
             }
-            assert_eq!(f::find(view.tree(), Role::Button, b"Try the playground instead").is_some(), demo);
+            assert!(f::find(view.tree(), Role::Button, b"Try the playground instead").is_some());
             if demo {
                 let id = node(view.tree(), Role::Button, "Try the playground instead");
                 assert!(

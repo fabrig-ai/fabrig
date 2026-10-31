@@ -118,7 +118,13 @@ pub fn digest(value: &forge::Adoption) -> [u8; 32] {
     writer.finish().as_ref().try_into().expect("32-byte SHA-256")
 }
 #[must_use]
+#[expect(
+    clippy::too_many_arguments,
+    clippy::too_many_lines,
+    reason = "one exhaustive request match retains the keyed admission envelope and configured-forge bridge"
+)]
 pub fn request(
+    forges: &[owner::Configured],
     transport: &mut Transport,
     who: ClientId,
     attempt: Token,
@@ -152,13 +158,17 @@ pub fn request(
                 request: engine::Application::Forge(owner::Ask::Install { forge: value.forge, back: value.back }),
             });
         }
-        v1::Request::Accept(_) | v1::Request::Reachable(_) | v1::Request::StartDemo => {
+        v1::Request::RemoveForge(_)
+        | v1::Request::EndPlayground
+        | v1::Request::Accept(_)
+        | v1::Request::Reachable(_)
+        | v1::Request::StartPlayground => {
             panic!("client sends no demo start yet")
         }
         v1::Request::Connect(connect) => {
             assert_eq!(scope, jig_client::contract::Scope::Deployment);
             assert!(reader.is_empty(), "whole admin request");
-            return admin_request(transport, who, attempt, key, ask, connect, carried);
+            return admin_request(forges, transport, who, attempt, key, ask, connect, carried);
         }
         v1::Request::Adopt(adopt) => adopt,
         v1::Request::Return(returning) => {
@@ -182,7 +192,7 @@ pub fn request(
         }
         v1::Request::SetUp(set_up) => {
             assert!(reader.is_empty(), "whole setup request");
-            return set_up_request(transport, who, attempt, key, scope, ask, set_up.into_parts());
+            return set_up_request(forges, transport, who, attempt, key, scope, ask, set_up.into_parts());
         }
     })
     .into_parts();
@@ -228,7 +238,12 @@ pub fn request(
         ))),
     })
 }
+#[expect(
+    clippy::too_many_arguments,
+    reason = "the keyed admission envelope and configured-forge bridge travel together"
+)]
 fn admin_request(
+    forges: &[owner::Configured],
     transport: &mut Transport,
     who: ClientId,
     attempt: Token,
@@ -266,7 +281,16 @@ fn admin_request(
         digest: skein_lib::sha256::digest(&ask.bytes),
         carried,
         request: engine::Application::Forge(owner::Ask::Connect {
-            forge: connect.forge,
+            forge: connect.forge.unwrap_or_else(|| {
+                forges
+                    .iter()
+                    .find(|row| {
+                        row.kind == owner::Kind::Forgejo
+                            && row.mode != owner::Mode::Owned
+                            && row.mode != owner::Mode::Fake
+                    })
+                    .map_or(0, |row| row.number)
+            }),
             how: owner::How::ForgejoAdmin { first },
         }),
     })
@@ -550,7 +574,12 @@ fn answered(route: &Reply, body: Option<temper_engine_domain::ApplicationAnswer>
     )
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "the keyed admission envelope and configured-forge bridge travel together"
+)]
 fn set_up_request(
+    forges: &[owner::Configured],
     transport: &mut Transport,
     who: ClientId,
     attempt: Token,
@@ -578,7 +607,8 @@ fn set_up_request(
         carried: None,
         request: temper_engine_domain::Application::Forge(owner::Ask::SetUp {
             playground: setup.playground,
-            forge: setup.forge,
+            // SetUp names no forge; select the first owned configuration as the service does.
+            forge: forges.iter().find(|row| row.mode == owner::Mode::Owned).map_or(0, |row| row.number),
             org: setup.org,
             repository: setup.repository,
             project: match setup.project {
@@ -702,7 +732,7 @@ mod watch_tests {
                 },
             },
         };
-        crate::translate::request(transport, CLIENT, &mut request, &crate::fixtures::domain_limits().client.domain)
+        crate::translate::request(&[], transport, CLIENT, &mut request, &crate::fixtures::domain_limits().client.domain)
     }
 
     fn open_watch(transport: &mut Transport) -> Token {
@@ -756,7 +786,7 @@ mod watch_tests {
         let limits = forge::wire_limits(&crate::app::limits().forge).expect("wire bounds");
         let record = forge::family::request(&adoption, &limits).expect("request envelope");
         let mut transport = transport();
-        let event = super::request(&mut transport, CLIENT, NATIVE, [5; 16], c::Scope::Project(7), &record, None);
+        let event = super::request(&[], &mut transport, CLIENT, NATIVE, [5; 16], c::Scope::Project(7), &record, None);
         let engine::Event::Party(PartyInput::Application { request, .. }) = event else { panic!("root adoption") };
         assert_eq!(
             request,
@@ -876,6 +906,7 @@ mod watch_tests {
         let mut request =
             client::Request::Client { request: jig_client::Request::Down { down: Down::Close { watch: NATIVE } } };
         let (events, packet) = crate::translate::request(
+            &[],
             &mut transport,
             CLIENT,
             &mut request,

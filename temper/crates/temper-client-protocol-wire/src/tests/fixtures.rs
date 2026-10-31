@@ -79,7 +79,7 @@ pub fn outcome_rows() -> [v1::Outcome; 20] {
         forge_refused(v1::ForgeReason::HomeHeld),
         forge_refused(v1::ForgeReason::PrefixOccupied),
         v1::Outcome::Unknown,
-        v1::Outcome::SettingUp,
+        v1::Outcome::SettingUp(v1::ForgeNumber::new(&v1::CEILINGS, v1::ForgeNumberParts { forge: 0 }).unwrap()),
         set_up_refused(v1::SetUpRefusal::NotOffered),
         set_up_refused(v1::SetUpRefusal::NotUnderTheBox),
         set_up_refused(v1::SetUpRefusal::Busy),

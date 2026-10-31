@@ -222,12 +222,16 @@ fn print(pending: &Pending, outcome: &Outcome, structured: bool, limits: &Limits
         | w::Outcome::Adopted(_)
         | w::Outcome::CoreRefused(_)
         | w::Outcome::Returning
-        | w::Outcome::Connecting
+        | w::Outcome::Connecting(_)
         | w::Outcome::Link(_)
-        | w::Outcome::SettingUp
+        | w::Outcome::SettingUp(_)
         | w::Outcome::SetUpRefused(_)
         | w::Outcome::Running
         | w::Outcome::StartRefused(_)
+        | w::Outcome::Removing
+        | w::Outcome::RemoveRefused(_)
+        | w::Outcome::Resetting
+        | w::Outcome::EndRefused(_)
         | w::Outcome::StartFailed(_) => return render::failure(b"repositories decoding failed", structured, 1),
     };
     let bytes = if structured {

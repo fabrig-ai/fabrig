@@ -19,6 +19,7 @@ if [ "$#" -ne 1 ]; then
 fi
 out=$1
 cd "$(dirname "$0")/.."
+target=${CARGO_TARGET_DIR:-../target}
 if [ -e "$out" ] && [ ! -e "$out/index.html" ]; then
     echo "scripts/bundle.sh: $out exists and holds no index.html" >&2
     exit 1
@@ -26,8 +27,8 @@ fi
 cargo build --target wasm32-unknown-unknown $flag ${features:+--features "$features"} -p temper-client-shell-web
 cargo build -p skein-ui-bundle
 shell=crates/temper-client-shell-web
-target/debug/skein-ui-bundle \
-    --module "target/wasm32-unknown-unknown/$profile/temper_client_shell_web.wasm" \
+"$target/debug/skein-ui-bundle" \
+    --module "$target/wasm32-unknown-unknown/$profile/temper_client_shell_web.wasm" \
     --name temper_client_shell_web --prefix /bundle/ \
     --stylesheet "$shell/temper.css" \
     --stylesheet "$shell/task-pages.css" \

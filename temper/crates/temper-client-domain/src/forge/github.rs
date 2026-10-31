@@ -127,7 +127,7 @@ pub(crate) fn send(side: &mut Side, limits: Limits, forge: u16, back: Option<Box
             w::Connect::new(
                 &bounds,
                 w::ConnectParts {
-                    forge,
+                    forge: Some(forge),
                     how: w::How::GithubApp(w::GitHubApp::new(&bounds, w::GitHubAppParts { id }).expect("valid App id")),
                 },
             )
@@ -153,7 +153,9 @@ pub(crate) fn manifest(side: &mut Side, limits: Limits, forge: u16, back: Box<[u
         w::GitHubManifest::new(&bounds, w::GitHubManifestParts { back: Some(back) })
             .expect("printed flow address fits"),
     );
-    let request = w::Request::Connect(w::Connect::new(&bounds, w::ConnectParts { forge, how }).expect("connect fits"));
+    let request = w::Request::Connect(
+        w::Connect::new(&bounds, w::ConnectParts { forge: Some(forge), how }).expect("connect fits"),
+    );
     dispatch(side, &bounds, forge, request, true, out);
 }
 fn dispatch(
@@ -246,7 +248,7 @@ pub(crate) fn decode(outcome: &Outcome, linking: bool, limits: Limits) -> Option
                 return None;
             }
             match answer.into_parts().outcome {
-                w::Outcome::Connecting => Some(Answer::Connecting),
+                w::Outcome::Connecting(_) => Some(Answer::Connecting),
                 w::Outcome::ConnectRefused(refusal) => Some(Answer::Refused(refusal.why().clone())),
                 w::Outcome::Link(link) if linking => Some(Answer::Link(link.into_parts().address)),
                 w::Outcome::Unknown => Some(Answer::Unknown),
@@ -267,10 +269,14 @@ pub(crate) fn decode(outcome: &Outcome, linking: bool, limits: Limits) -> Option
                 w::Outcome::Accepted(_)
                 | w::Outcome::Adopted(_)
                 | w::Outcome::CoreRefused(_)
-                | w::Outcome::SettingUp
+                | w::Outcome::SettingUp(_)
                 | w::Outcome::SetUpRefused(_)
                 | w::Outcome::Running
                 | w::Outcome::StartRefused(_)
+                | w::Outcome::Removing
+                | w::Outcome::RemoveRefused(_)
+                | w::Outcome::Resetting
+                | w::Outcome::EndRefused(_)
                 | w::Outcome::StartFailed(_)
                 | w::Outcome::Returning
                 | w::Outcome::Link(_) => None,

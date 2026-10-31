@@ -503,7 +503,8 @@ fn restore(state: &mut Forges, env: &Env<Limits>, key: Key, request: &jig_client
             let request = request.into_parts();
             Some(Intent {
                 playground: request.playground,
-                forge: request.forge,
+                // 0 is not known: a kept request names no forge (contracts.md, 5; numbers start at 1, 2).
+                forge: 0,
                 org: request.org,
                 repository: request.repository,
                 project: match request.project {
@@ -516,8 +517,10 @@ fn restore(state: &mut Forges, env: &Env<Limits>, key: Key, request: &jig_client
                 },
             })
         }
-        temper_client_protocol_wire::v1::Request::StartDemo => None,
-        temper_client_protocol_wire::v1::Request::Reachable(_)
+        temper_client_protocol_wire::v1::Request::StartPlayground => None,
+        temper_client_protocol_wire::v1::Request::RemoveForge(_)
+        | temper_client_protocol_wire::v1::Request::EndPlayground
+        | temper_client_protocol_wire::v1::Request::Reachable(_)
         | temper_client_protocol_wire::v1::Request::Adopt(_)
         | temper_client_protocol_wire::v1::Request::Return(_)
         | temper_client_protocol_wire::v1::Request::Connect(_)
@@ -938,7 +941,7 @@ fn setup_text(forge: u16, answer: &SetUpAnswer, kept: bool, limits: &Limits, out
             out.put(b"refused: ");
             out.put(words::set_up_refusal(*why));
             out.put(b"\n");
-            if *why == SetUpRefusal::NotUnderTheBox {
+            if *why == SetUpRefusal::NotUnderTheBox && forge != 0 {
                 out.put(&words::set_up_commands(forge));
                 out.put(b"\n");
             }
@@ -976,7 +979,7 @@ fn setup_json(forge: u16, answer: &SetUpAnswer, kept: bool, out: &mut Encoder) {
                 SetUpRefusal::Invalid => b"invalid",
             });
             out.object_end();
-            if *why == SetUpRefusal::NotUnderTheBox {
+            if *why == SetUpRefusal::NotUnderTheBox && forge != 0 {
                 out.key(b"next");
                 out.string(&words::set_up_commands(forge));
             }

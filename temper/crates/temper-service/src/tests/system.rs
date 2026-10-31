@@ -236,6 +236,7 @@ fn a_scripted_box_answers_keyed_setup_requests_through_the_clients_family() {
     }
     const LINE_BYTES: u32 = fixtures::system::BOX_BYTES;
     let mut stand = fixtures::system::one_process_under_box(true);
+    stand.service.engine.as_mut().unwrap().workers.forges[0].mode = temper_engine_domain_forge::Mode::Owned;
     stand.service.adopt_box(Fd::new(3), Fd::new(4), LINE_BYTES).unwrap();
     fixtures::until_hosting(&mut stand);
     // SystemStand has fixed membership and an in-memory store. Startup's
@@ -245,7 +246,10 @@ fn a_scripted_box_answers_keyed_setup_requests_through_the_clients_family() {
     }
     turns(&mut stand);
     let bearer = box_sign_in(&mut stand);
-    assert_eq!(box_setup(&mut stand, &bearer, OWNED, 1), w::Outcome::SettingUp);
+    assert_eq!(
+        box_setup(&mut stand, &bearer, OWNED, 1),
+        w::Outcome::SettingUp(w::ForgeNumber::new(&w::CEILINGS, w::ForgeNumberParts { forge: 0 }).unwrap())
+    );
     turns(&mut stand);
     assert_eq!(stand.kernel.box_written.as_slice(), b"start 1\n");
     assert_eq!(
@@ -261,7 +265,10 @@ fn a_scripted_box_answers_keyed_setup_requests_through_the_clients_family() {
         stand.service.engine.as_ref().unwrap().domain.forge_connection(OWNED),
         Connection::SettingUp { step: Some(SetUpStep::Prepare) }
     );
-    assert_eq!(box_setup(&mut stand, &bearer, OWNED, 1), w::Outcome::SettingUp);
+    assert_eq!(
+        box_setup(&mut stand, &bearer, OWNED, 1),
+        w::Outcome::SettingUp(w::ForgeNumber::new(&w::CEILINGS, w::ForgeNumberParts { forge: 0 }).unwrap())
+    );
     assert_eq!(stand.kernel.box_written.as_slice(), b"start 1\n");
 
     for byte in b"failed 1 prepare 1 exited 1\n" {
@@ -274,7 +281,10 @@ fn a_scripted_box_answers_keyed_setup_requests_through_the_clients_family() {
     );
     assert_eq!(stand.kernel.box_written.as_slice(), b"start 1\n");
 
-    assert_eq!(box_setup(&mut stand, &bearer, OWNED, 2), w::Outcome::SettingUp);
+    assert_eq!(
+        box_setup(&mut stand, &bearer, OWNED, 2),
+        w::Outcome::SettingUp(w::ForgeNumber::new(&w::CEILINGS, w::ForgeNumberParts { forge: 0 }).unwrap())
+    );
     turns(&mut stand);
     assert_eq!(stand.kernel.box_written.as_slice(), b"start 1\nstart 1\n");
     assert_eq!(
@@ -326,7 +336,7 @@ fn box_sign_in(stand: &mut fixtures::system::SystemStand) -> Box<[u8]> {
 fn box_setup(
     stand: &mut fixtures::system::SystemStand,
     bearer: &[u8],
-    forge: u16,
+    _forge: u16,
     key: u8,
 ) -> temper_client_protocol_wire::v1::Outcome {
     use fixtures::http as peer;
@@ -343,7 +353,6 @@ fn box_setup(
                     &w::CEILINGS,
                     w::SetUpParts {
                         playground: false,
-                        forge,
                         org: b"work".as_slice().into(),
                         repository: b"hello".as_slice().into(),
                         project: w::SetUpProject::Existing(
