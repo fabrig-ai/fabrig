@@ -75,7 +75,7 @@ pub(crate) fn turn(
         None => false,
     };
     if beyond_offer
-        || outstanding.len() > usize::try_from(environment.limits.run_inbox).expect("run inbox fits usize")
+        || outstanding.len() > skein_lib::length::usize_of(environment.limits.run_inbox)
         || !crate::inbox::readable(domain, number, read, outstanding)
         || !crate::inbox::valid_refusals(domain, number, offered, refusals)
     {
@@ -135,7 +135,7 @@ pub(crate) fn answer_refusals(
     let Some(old) = record(domain, number) else { return };
     if !domain.ready()
         || refused.is_empty()
-        || refused.len() > usize::try_from(env.limits.inbox_messages).expect("u32 fits usize")
+        || refused.len() > skein_lib::length::usize_of(env.limits.inbox_messages)
         || attempt == 0
         || crate::run::run_attempt(&old.phase) != Some(attempt)
         || !crate::inbox::valid_refusals(domain, number, offered, refused)
@@ -193,9 +193,7 @@ pub(crate) fn activation(
     let admitted_end = if parked { End::Parked } else { end.clone() };
     match &admitted_end {
         End::Finished { result, cancel_delegates } => {
-            if crate::run::result_bytes(result)
-                > usize::try_from(environment.limits.result_bytes).expect("u32 fits usize")
-            {
+            if crate::run::result_bytes(result) > skein_lib::length::usize_of(environment.limits.result_bytes) {
                 return refused(to, Some(number), Refusal::Contract, out);
             }
             let closing = match old.phase {
@@ -217,9 +215,7 @@ pub(crate) fn activation(
             }
         }
         End::FinishedWithFollowups { result, followups } => {
-            if crate::run::result_bytes(result)
-                > usize::try_from(environment.limits.result_bytes).expect("u32 fits usize")
-            {
+            if crate::run::result_bytes(result) > skein_lib::length::usize_of(environment.limits.result_bytes) {
                 return refused(to, Some(number), Refusal::Contract, out);
             }
             if !old.narrowing

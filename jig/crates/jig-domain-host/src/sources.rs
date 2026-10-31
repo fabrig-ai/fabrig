@@ -81,7 +81,7 @@ pub fn valid(limits: &Limits) -> bool {
 }
 
 pub(crate) fn replace(domain: &mut Domain, env: &Env<Limits>, names: Box<[SourceName]>, out: &mut Queue<Request>) {
-    if names.len() > usize::try_from(env.limits.program_sources).expect("source bound") || !unique(&names) {
+    if names.len() > skein_lib::length::usize_of(env.limits.program_sources) || !unique(&names) {
         out.push(Request::SourceFault);
         return;
     }
@@ -338,7 +338,7 @@ fn advance(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 }
 
 fn tail(detail: Box<[u8]>, bound: u32) -> Box<[u8]> {
-    let bound = usize::try_from(bound).expect("detail bound");
+    let bound = skein_lib::length::usize_of(bound);
     if detail.len() <= bound {
         return detail;
     }

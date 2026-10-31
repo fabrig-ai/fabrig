@@ -715,7 +715,7 @@ fn a_restored_met_and_amendment_leave_all_ordinary_sender_room_available() {
             Reply::Done
         );
     }
-    assert_eq!(world.record(1).inbox.len(), usize::try_from(LIMITS.inbox_messages).expect("limit fits") + 2);
+    assert_eq!(world.record(1).inbox.len(), skein_lib::length::usize_of(LIMITS.inbox_messages) + 2);
 }
 
 #[test]
@@ -888,10 +888,7 @@ fn a_release_scans_all_dependencies_in_list_order_even_after_the_hold_reason_cha
 }
 
 fn dependency_compound(world: &mut World, operations: Vec<tasks::Operation>) -> Reply {
-    let mut staged = skein_lib::List::with_capacity(u32::try_from(operations.len()).expect("small fixture"));
-    for operation in operations {
-        staged.push(operation).expect("fixture operations bound");
-    }
+    let staged = skein_lib::List::from_boxed(operations.into_boxed_slice());
     response(world, |reply_to| Event::Compound {
         reply_to,
         by: jig_domain_tasks::Party::Person(9),

@@ -7,6 +7,7 @@
 )]
 use crate::domain::{Domain, record};
 use crate::{Authority, Contract, Executor, Last, Limits, New, Parameter, Party, Phase, Problem, Refusal, Spec, Was};
+use skein_lib::bytes::is_utf8;
 
 fn problem(task: Option<u64>, why: Refusal) -> Problem {
     Problem { task, why, blocked_by: None, capacity: None }
@@ -96,9 +97,7 @@ fn check_with_result_proposal(
                     crate::CapacityCause::Delegates { limit: limits.delegates },
                 ));
             }
-            let Some(result_bytes) =
-                usize::try_from(limits.result_bytes).expect("u32 fits usize").checked_mul(batch.len())
-            else {
+            let Some(result_bytes) = skein_lib::length::usize_of(limits.result_bytes).checked_mul(batch.len()) else {
                 return Err(problem(Some(number), Refusal::Busy));
             };
             let mut news = 0_u32;
@@ -188,7 +187,6 @@ fn matches_result_action(parent: &crate::TaskRecord, number: u64, batch: &[New])
     true
 }
 
-#[expect(clippy::manual_map, reason = "step code uses a closed match rather than a closure")]
 fn result_proposal_number(parent: &crate::TaskRecord) -> Option<u64> {
     if !parent.result_proposal {
         return None;
@@ -295,7 +293,7 @@ fn check_members(
         {
             return Err(problem(number, why));
         }
-        if new.dependencies.len() > usize::try_from(limits.dependencies).expect("u32 fits usize") {
+        if new.dependencies.len() > skein_lib::length::usize_of(limits.dependencies) {
             return Err(problem(number, Refusal::Dependencies));
         }
         for (index, dependency) in new.dependencies.iter().enumerate() {
@@ -367,11 +365,10 @@ pub(crate) fn contains(numbers: &[u64], number: u64) -> bool {
 /// Pure bounded shape check used by the root before retaining a call body.
 #[must_use]
 pub fn valid_spec(limits: &Limits, spec: &Spec) -> bool {
-    if spec.parameters.len() > usize::try_from(limits.parameters).expect("u32 fits usize")
-        || spec.inputs.len() > usize::try_from(limits.inputs).expect("u32 fits usize")
-        || !text(&spec.words)
-        || spec.asks
-            && crate::questions::OWED_WORDS.len() > usize::try_from(limits.inbox_bytes).expect("u32 fits usize")
+    if spec.parameters.len() > skein_lib::length::usize_of(limits.parameters)
+        || spec.inputs.len() > skein_lib::length::usize_of(limits.inputs)
+        || !is_utf8(&spec.words)
+        || spec.asks && crate::questions::OWED_WORDS.len() > skein_lib::length::usize_of(limits.inbox_bytes)
     {
         return false;
     }
@@ -386,7 +383,7 @@ pub fn valid_spec(limits: &Limits, spec: &Spec) -> bool {
     for parameter in &spec.parameters {
         match parameter {
             Parameter::Bytes { value, .. } => {
-                if !text(value) {
+                if !is_utf8(value) {
                     return false;
                 }
                 let Some(total) = bytes.checked_add(value.len()) else {
@@ -397,12 +394,7 @@ pub fn valid_spec(limits: &Limits, spec: &Spec) -> bool {
             Parameter::Number { .. } | Parameter::Resource { .. } => {}
         }
     }
-    bytes <= usize::try_from(limits.spec_bytes).expect("u32 fits usize")
-}
-
-#[expect(clippy::disallowed_methods, reason = "client/domain/contract.md, 5.3 requires UTF-8 text validation")]
-fn text(bytes: &[u8]) -> bool {
-    core::str::from_utf8(bytes).is_ok()
+    bytes <= skein_lib::length::usize_of(limits.spec_bytes)
 }
 
 /// Pure bounded result-contract shape check before retaining a call body.
@@ -410,7 +402,7 @@ fn text(bytes: &[u8]) -> bool {
 pub fn valid_contract(limits: &Limits, contract: &Contract) -> bool {
     match contract {
         Contract::Approval { state, part } => {
-            if state.len() > usize::try_from(limits.result_bytes).expect("u32 fits usize") {
+            if state.len() > skein_lib::length::usize_of(limits.result_bytes) {
                 return false;
             }
             match &part.key {
@@ -424,13 +416,13 @@ pub fn valid_contract(limits: &Limits, contract: &Contract) -> bool {
                         let Some(total) = bytes.checked_add(segment.len()) else { return false };
                         bytes = total;
                     }
-                    bytes <= usize::try_from(limits.hold_bytes).expect("u32 fits usize")
+                    bytes <= skein_lib::length::usize_of(limits.hold_bytes)
                 }
             }
         }
         Contract::Report { words } | Contract::Change { words, .. } => *words <= limits.result_bytes,
         Contract::Verdict { choices } => {
-            if choices.is_empty() || choices.len() > usize::try_from(limits.contract_choices).expect("u32 fits usize") {
+            if choices.is_empty() || choices.len() > skein_lib::length::usize_of(limits.contract_choices) {
                 return false;
             }
             for (at, choice) in choices.iter().enumerate() {
@@ -451,16 +443,16 @@ pub fn valid_contract(limits: &Limits, contract: &Contract) -> bool {
 /// Pure bounded permission-value shape check before retaining a call body.
 #[must_use]
 pub fn valid_authority(limits: &Limits, value: &Authority) -> bool {
-    if value.grants.len() > usize::try_from(limits.authority_grants).expect("u32 fits usize")
-        || value.note_resources.len() > usize::try_from(limits.authority_grants).expect("u32 fits usize")
-        || value.delegation.kinds.len() > usize::try_from(limits.executor_kinds).expect("u32 fits usize")
+    if value.grants.len() > skein_lib::length::usize_of(limits.authority_grants)
+        || value.note_resources.len() > skein_lib::length::usize_of(limits.authority_grants)
+        || value.delegation.kinds.len() > skein_lib::length::usize_of(limits.executor_kinds)
         || value.notes.0 & !7 != 0
     {
         return false;
     }
     let mut bytes = 0_usize;
     for grant in &value.grants {
-        if grant.pattern.segments.len() > usize::try_from(limits.authority_segments).expect("u32 fits usize") {
+        if grant.pattern.segments.len() > skein_lib::length::usize_of(limits.authority_segments) {
             return false;
         }
         for segment in &grant.pattern.segments {
@@ -479,7 +471,7 @@ pub fn valid_authority(limits: &Limits, value: &Authority) -> bool {
         }
     }
     for scope in &value.note_resources {
-        if scope.pattern.segments.len() > usize::try_from(limits.authority_segments).expect("u32 fits usize") {
+        if scope.pattern.segments.len() > skein_lib::length::usize_of(limits.authority_segments) {
             return false;
         }
         for segment in &scope.pattern.segments {
@@ -493,22 +485,22 @@ pub fn valid_authority(limits: &Limits, value: &Authority) -> bool {
             }
         }
     }
-    bytes <= usize::try_from(limits.authority_bytes).expect("u32 fits usize")
+    bytes <= skein_lib::length::usize_of(limits.authority_bytes)
 }
 
 /// Shape bound for a batch retained before its resources have been reported.
 /// Structural and financial admission is still checked when the batch resumes.
 #[must_use]
 pub fn bounded_batch(limits: &Limits, batch: &[New]) -> bool {
-    if batch.is_empty() || batch.len() > usize::try_from(limits.batch).expect("u32 fits usize") {
+    if batch.is_empty() || batch.len() > skein_lib::length::usize_of(limits.batch) {
         return false;
     }
     for member in batch {
         if !valid_spec(limits, &member.spec)
             || !valid_contract(limits, &member.contract)
             || !valid_authority(limits, &member.authority)
-            || member.dependencies.len() > usize::try_from(limits.dependencies).expect("u32 fits usize")
-            || member.holdings.len() > usize::try_from(limits.holdings).expect("u32 fits usize")
+            || member.dependencies.len() > skein_lib::length::usize_of(limits.dependencies)
+            || member.holdings.len() > skein_lib::length::usize_of(limits.holdings)
         {
             return false;
         }

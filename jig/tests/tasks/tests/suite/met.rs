@@ -235,7 +235,7 @@ fn a_live_met_leaves_all_ordinary_sender_room_available() {
             Reply::Done
         );
     }
-    assert_eq!(world.record(KEPT).inbox.len(), usize::try_from(LIMITS.inbox_messages).expect("small limit") + 2);
+    assert_eq!(world.record(KEPT).inbox.len(), skein_lib::length::usize_of(LIMITS.inbox_messages) + 2);
 }
 
 #[test]

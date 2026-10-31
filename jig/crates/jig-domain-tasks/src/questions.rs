@@ -72,7 +72,7 @@ pub(crate) fn person_answer(domain: &mut Domain, env: &Env<Limits>, event: Event
         || word.from != Party::Person(person)
         || word.kind != (MessageKind::Answer { question })
         || word.words.is_empty()
-        || word.words.len() > usize::try_from(env.limits.message_bytes).expect("byte bound")
+        || word.words.len() > skein_lib::length::usize_of(env.limits.message_bytes)
     {
         return refused(reply_to, Some(asked), Refusal::State, out);
     }
@@ -174,10 +174,7 @@ pub(crate) fn ended(
     notices: &[crate::QuestionNotice],
     out: &mut Queue<Request>,
 ) {
-    assert!(
-        notices.len() <= usize::try_from(env.limits.inbox_messages).expect("question bound"),
-        "bounded notice batch"
-    );
+    assert!(notices.len() <= skein_lib::length::usize_of(env.limits.inbox_messages), "bounded notice batch");
     let mut last = None;
     for notice in notices {
         last = append_notice(

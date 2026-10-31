@@ -162,12 +162,12 @@ fn a_graces_ask_to_finish_is_admitted_into_a_full_inbox() {
             },
         });
     }
-    assert_eq!(world.record(TASK).inbox.len(), usize::try_from(LIMITS.inbox_messages).expect("small inbox bound"));
+    assert_eq!(world.record(TASK).inbox.len(), skein_lib::length::usize_of(LIMITS.inbox_messages));
     assert_eq!(cancel(&mut world, Some(Duration::from_secs(5)), b"wrap up"), Reply::Done);
     assert_eq!(cancel(&mut world, Some(Duration::from_secs(10)), b"later"), Reply::Done);
-    assert_eq!(world.record(TASK).inbox.len(), usize::try_from(LIMITS.inbox_messages).expect("small inbox bound") + 1);
+    assert_eq!(world.record(TASK).inbox.len(), skein_lib::length::usize_of(LIMITS.inbox_messages) + 1);
     world.restart();
-    assert_eq!(world.record(TASK).inbox.len(), usize::try_from(LIMITS.inbox_messages).expect("small inbox bound") + 1);
+    assert_eq!(world.record(TASK).inbox.len(), skein_lib::length::usize_of(LIMITS.inbox_messages) + 1);
 }
 
 #[test]

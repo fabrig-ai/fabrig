@@ -130,8 +130,8 @@ fn each_asked_kind_passes_with_all_fields_whole_while_waiting() {
 fn a_piece_at_the_byte_bound_passes_and_one_byte_more_is_fenced() {
     for limit in [0, 16] {
         let mut world = world(2, limit, TEXT);
-        world.piece(text(1, 1, 0, &vec![b'x'; usize::try_from(limit + 1).expect("tiny bound")]));
-        let exact = text(1, 2, 0, &vec![b'x'; usize::try_from(limit).expect("tiny bound")]);
+        world.piece(text(1, 1, 0, &vec![b'x'; skein_lib::length::usize_of(limit + 1)]));
+        let exact = text(1, 2, 0, &vec![b'x'; skein_lib::length::usize_of(limit)]);
         world.piece(exact.clone());
         assert_eq!(pieces(&world), [expected(exact)]);
         assert_eq!(world.piece_counts(), (1, 0));

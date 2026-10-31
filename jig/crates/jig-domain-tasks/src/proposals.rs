@@ -249,7 +249,7 @@ impl PersonProposalState {
 pub(crate) fn valid_person_proposal(proposal: &PersonProposal, limits: &Limits) -> bool {
     if proposal.number == 0
         || proposal.proposer == 0
-        || proposal.reason.len() > usize::try_from(limits.message_bytes).expect("u32 fits usize")
+        || proposal.reason.len() > skein_lib::length::usize_of(limits.message_bytes)
         || !crate::person_proposals::valid_action(proposal, limits)
     {
         return false;
@@ -273,9 +273,7 @@ pub(crate) fn valid_person_proposal(proposal: &PersonProposal, limits: &Limits) 
         },
         PersonProposalState::Rejected { by, reason, message, .. } => match by {
             Party::Person(person) => {
-                *person != 0
-                    && *message != 0
-                    && reason.len() <= usize::try_from(limits.message_bytes).expect("u32 fits usize")
+                *person != 0 && *message != 0 && reason.len() <= skein_lib::length::usize_of(limits.message_bytes)
             }
             Party::Task(_) | Party::Deployment { .. } => false,
         },
@@ -404,7 +402,7 @@ pub(crate) fn decide_person(
             ProposalOutcome::Accepted
         }
         ProposalDecision::Reject { reason } => {
-            if reason.len() > usize::try_from(env.limits.message_bytes).expect("u32 fits usize")
+            if reason.len() > skein_lib::length::usize_of(env.limits.message_bytes)
                 || match message {
                     Some(number) => number == 0,
                     None => true,
@@ -631,7 +629,7 @@ pub(crate) fn admission_problem_staged(
 ) -> Option<crate::Problem> {
     if proposal.number == 0
         || proposal.proposer == 0
-        || proposal.reason.len() > usize::try_from(limits.message_bytes).expect("u32 fits usize")
+        || proposal.reason.len() > skein_lib::length::usize_of(limits.message_bytes)
     {
         return Some(proposal_problem(proposal.proposer, Refusal::Read));
     }
@@ -668,7 +666,7 @@ pub(crate) fn admission_problem_staged(
         limits,
         proposal.proposer,
         1,
-        usize::try_from(limits.message_bytes).expect("u32 fits usize"),
+        skein_lib::length::usize_of(limits.message_bytes),
     ) {
         return Some(crate::Problem::capacity(
             Some(proposal.proposer),
@@ -722,7 +720,7 @@ pub(crate) fn check_result(domain: &Domain, env: &Env<Limits>, task: u64, propos
     if proposal.number == 0
         || proposal.proposer != task
         || proposal.as_holder
-        || proposal.reason.len() > usize::try_from(env.limits.message_bytes).expect("u32 fits usize")
+        || proposal.reason.len() > skein_lib::length::usize_of(env.limits.message_bytes)
     {
         return false;
     }
@@ -730,13 +728,7 @@ pub(crate) fn check_result(domain: &Domain, env: &Env<Limits>, task: u64, propos
     if row.project != proposal.project || row.proposal.is_some() || row.revision == u64::MAX {
         return false;
     }
-    if !crate::inbox::room(
-        domain,
-        &env.limits,
-        task,
-        1,
-        usize::try_from(env.limits.message_bytes).expect("u32 fits usize"),
-    ) {
+    if !crate::inbox::room(domain, &env.limits, task, 1, skein_lib::length::usize_of(env.limits.message_bytes)) {
         return false;
     }
     match (&row.phase, &proposal.action, &proposal.state) {
@@ -746,10 +738,7 @@ pub(crate) fn check_result(domain: &Domain, env: &Env<Limits>, task: u64, propos
                 ProposalHolder::Person(number) => *number != 0,
                 ProposalHolder::Policy { project, kind } => *project == row.project && *kind == ProposalKind::Batch,
             };
-            if !holder_valid
-                || batch.is_empty()
-                || batch.len() > usize::try_from(env.limits.batch).expect("u32 fits usize")
-            {
+            if !holder_valid || batch.is_empty() || batch.len() > skein_lib::length::usize_of(env.limits.batch) {
                 return false;
             }
             for (at, member) in batch.iter().enumerate() {
@@ -761,7 +750,7 @@ pub(crate) fn check_result(domain: &Domain, env: &Env<Limits>, task: u64, propos
                     || !crate::batch::valid_contract(&env.limits, &member.contract)
                     || !crate::batch::valid_authority(&env.limits, &member.authority)
                     || !crate::wake::valid(&member.wake)
-                    || member.dependencies.len() > usize::try_from(env.limits.dependencies).expect("u32 fits usize")
+                    || member.dependencies.len() > skein_lib::length::usize_of(env.limits.dependencies)
                 {
                     return false;
                 }
@@ -876,7 +865,7 @@ pub(crate) fn decide(
             ProposalOutcome::Accepted
         }
         ProposalDecision::Reject { reason } => {
-            if reason.len() > usize::try_from(env.limits.message_bytes).expect("u32 fits usize") {
+            if reason.len() > skein_lib::length::usize_of(env.limits.message_bytes) {
                 return refused(to, Some(proposer), Refusal::Read, out);
             }
             proposal.state = ProposalState::Rejected { by, reason };
@@ -1088,7 +1077,7 @@ pub(crate) fn decide_settings(
     };
     let row = record(domain, proposer).expect("settings proposer live");
     assert!(
-        message > row.last_message && reason.len() <= usize::try_from(env.limits.message_bytes).expect("word bound"),
+        message > row.last_message && reason.len() <= skein_lib::length::usize_of(env.limits.message_bytes),
         "checked settings outcome"
     );
     let (terminal, change) = match outcome {

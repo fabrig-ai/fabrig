@@ -31,7 +31,7 @@ impl Domain {
     #[must_use]
     pub fn prospective_payer(&self, mut funder: Funder, staged: &[PayerLink]) -> Option<Payer> {
         let bound = self.names.capacity();
-        if staged.len() > usize::try_from(bound).expect("task bound fits") {
+        if staged.len() > skein_lib::length::usize_of(bound) {
             return None;
         }
         for (at, link) in staged.iter().enumerate() {

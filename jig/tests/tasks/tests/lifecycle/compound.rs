@@ -42,10 +42,7 @@ fn a_compound_closing_a_task_and_moving_its_delegate_survives_a_restart() {
 }
 
 fn deployment(world: &mut World, by: Party, operations: Vec<Operation>) -> Reply {
-    let mut bounded = List::with_capacity(u32::try_from(operations.len()).expect("bounded compound fixture"));
-    for operation in operations {
-        bounded.push(operation).expect("bounded compound fixture");
-    }
+    let bounded = List::from_boxed(operations.into_boxed_slice());
     let to = world.to().into_token();
     world.send(Event::Compound {
         reply_to: skein_lib::ReplyTo::new(to),

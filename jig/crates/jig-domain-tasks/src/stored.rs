@@ -359,9 +359,9 @@ pub(crate) fn valid_amendment(limits: &Limits, amendment: &crate::Amendment) -> 
         Some(change) => crate::control::valid_address(change.address),
         None => true,
     }) && match &amendment.instructions {
-        Some(instructions) => instructions.len() <= usize::try_from(limits.message_bytes).expect("u32 fits usize"),
+        Some(instructions) => instructions.len() <= skein_lib::length::usize_of(limits.message_bytes),
         None => true,
-    } && amendment.reason.len() <= usize::try_from(limits.message_bytes).expect("u32 fits usize")
+    } && amendment.reason.len() <= skein_lib::length::usize_of(limits.message_bytes)
         && match &amendment.spec {
             Some(spec) => crate::batch::valid_spec(limits, spec) && spec.inputs.is_empty(),
             None => true,
@@ -371,7 +371,7 @@ pub(crate) fn valid_amendment(limits: &Limits, amendment: &crate::Amendment) -> 
             None => true,
         }
         && match &amendment.dependencies {
-            Some(dependencies) => dependencies.len() <= usize::try_from(limits.dependencies).expect("u32 fits usize"),
+            Some(dependencies) => dependencies.len() <= skein_lib::length::usize_of(limits.dependencies),
             None => true,
         }
         && match &amendment.wake {

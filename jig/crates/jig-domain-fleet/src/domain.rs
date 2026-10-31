@@ -130,15 +130,9 @@ impl Domain {
             },
             "configured agent needs fit their byte bound"
         );
-        assert!(
-            catalogue.len() <= usize::try_from(crate::CATALOGUE_MODELS).expect("catalogue count"),
-            "bounded model catalogue"
-        );
+        assert!(catalogue.len() <= skein_lib::length::usize_of(crate::CATALOGUE_MODELS), "bounded model catalogue");
         for name in &catalogue {
-            assert!(
-                name.len() <= usize::try_from(crate::CATALOGUE_NAME_BYTES).expect("model name bound"),
-                "bounded model names"
-            );
+            assert!(name.len() <= skein_lib::length::usize_of(crate::CATALOGUE_NAME_BYTES), "bounded model names");
         }
         let tracked = limits::tracked(limits).expect("validated fleet limits");
         let channels_count =

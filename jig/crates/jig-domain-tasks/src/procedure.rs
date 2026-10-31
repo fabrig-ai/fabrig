@@ -99,9 +99,9 @@ fn check(
     decision: &ProcedureDecision,
 ) -> Result<crate::compound::Staged, crate::Problem> {
     let task = record(domain, number).expect("step task checked");
-    if decision.cancels.len() > usize::try_from(env.limits.batch).expect("batch fits")
-        || decision.amendments.len() > usize::try_from(env.limits.batch).expect("batch fits")
-        || decision.messages.len() > usize::try_from(env.limits.batch).expect("batch fits")
+    if decision.cancels.len() > skein_lib::length::usize_of(env.limits.batch)
+        || decision.amendments.len() > skein_lib::length::usize_of(env.limits.batch)
+        || decision.messages.len() > skein_lib::length::usize_of(env.limits.batch)
         || decision.proposals.len() > 1
     {
         return Err(problem(number, Refusal::Batch));

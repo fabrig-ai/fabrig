@@ -725,7 +725,6 @@ fn deadline(env: &Env<Limits>, at: Time) -> Deadline {
     Deadline { at, wall }
 }
 /// Limited until the later of its resets; a limit with none holds until resumed.
-#[expect(clippy::manual_map, reason = "the strict subset uses exhaustive matches without closures")]
 fn limited(domain: &mut Domain, env: &Env<Limits>, source: u32, reset: Option<Time>, out: &mut Queue<Request>) {
     let Some(entry) = domain.sources.get_mut(&source) else { return };
     let before = entry.hold;
@@ -944,7 +943,6 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     }
     changed(domain, env, source, before, out);
 }
-#[expect(clippy::manual_map, reason = "the strict subset uses exhaustive matches without closures")]
 fn fact(number: u32, entry: &Source) -> Fact {
     let held = match entry.hold {
         Some(Hold::Limited { until }) => State::Limited { until },
@@ -1044,7 +1042,6 @@ pub(crate) fn stored(domain: &Domain, number: u32) -> Stored {
 }
 /// A passed limit lifts, a source's usability follows its kind and its one alarm is rearmed;
 /// its fact is returned.
-#[expect(clippy::manual_map, reason = "the strict subset uses exhaustive matches without closures")]
 pub(crate) fn settle(domain: &mut Domain, env: &Env<Limits>, source: u32) -> Fact {
     let entry = domain.sources.get_mut(&source).expect("event keeps its source");
     if let Some(Hold::Limited { until: Some(until) }) = entry.hold

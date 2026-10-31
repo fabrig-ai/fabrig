@@ -762,7 +762,7 @@ impl World {
 
     fn receive_answer(&mut self, answer: &RunAnswer) {
         self.link_words.push("answer");
-        assert_eq!(usize::try_from(answer.turns).expect("bounded"), self.seen.len(), "turns precede their answer");
+        assert_eq!(skein_lib::length::usize_of(answer.turns), self.seen.len(), "turns precede their answer");
         match &answer.ending {
             Ending::Ended { .. } | Ending::Parked { .. } | Ending::Failed { .. } | Ending::Refused(_) => {}
         }

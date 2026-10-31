@@ -18,7 +18,6 @@ pub(crate) struct Kept {
 impl Domain {
     /// A waiting effect reads the task's current kept state (domain/tasks.md, 5.7).
     #[must_use]
-    #[expect(clippy::manual_map, reason = "step code has no closures (programming-model.md, section 10)")]
     pub fn waiting_effect_problem(&self, task: u64) -> Option<crate::Problem> {
         let row = record(self, task)?;
         let kept = for_record(row);

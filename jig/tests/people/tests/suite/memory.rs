@@ -70,8 +70,7 @@ impl Measured {
 
     fn ask(&mut self, key: u8) -> Option<Token> {
         let reply_to = self.to();
-        let words = vec![1; usize::try_from(self.env.limits.words).expect("test values are admitted and fit")]
-            .into_boxed_slice();
+        let words = vec![1; skein_lib::length::usize_of(self.env.limits.words)].into_boxed_slice();
         self.event(Event::Ask {
             models: Box::new([]),
             reply_to,
@@ -105,12 +104,8 @@ fn full_people_roles_signins_pending_waiters_answers_and_expiry_fit() {
             let reply_to = test.to();
             let identity = Identity {
                 key: IdentityKey { provider: 0, subject: (number).to_be_bytes().into() },
-                login: vec![
-                    1;
-                    usize::try_from(limits.identity_bytes).expect("test values are admitted and fit")
-                        - size_of::<u64>()
-                ]
-                .into_boxed_slice(),
+                login: vec![1; skein_lib::length::usize_of(limits.identity_bytes) - size_of::<u64>()]
+                    .into_boxed_slice(),
                 name: Box::new([]),
             };
             test.event(Event::SignedIn {
@@ -319,8 +314,7 @@ fn retained_account_sign_in_answers_keep_their_longest_addresses() {
                 ask: Ask::AccountSignIn { holder: jig_domain_people::AccountHolder::Own, provider: 3 },
             })
             .expect("account sign-in admitted");
-        let address =
-            vec![b'a'; usize::try_from(jig_domain_people::ADDRESS).expect("small address bound")].into_boxed_slice();
+        let address = vec![b'a'; skein_lib::length::usize_of(jig_domain_people::ADDRESS)].into_boxed_slice();
         test.event(Event::Decided {
             request,
             outcome: Outcome::AccountSignInStarted { source: u32::from(key), address },
