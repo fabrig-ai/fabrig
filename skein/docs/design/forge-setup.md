@@ -800,7 +800,7 @@ end.
 |---|---|
 | `Request::Run { run, plan }` | `Event::Need { run, need }`: a `Read` or a `Write` |
 | `Request::Answer { run, answer }`: `Read(value)` or `Written` | `Event::Done { run, outcome }` |
-| `Request::Close` | `Event::Stop { run, failure }` |
+| `Request::Close`, `Request::Abort` | `Event::Stop { run, failure }` |
 | | `Event::Closed` |
 
 - **A run** is the owner's number for one plan:
@@ -823,8 +823,13 @@ end.
   the run waits for its answer. One answer per need: an answer for a run
   with no need waiting is ignored.
 - **Each run ends once,** `Done` or `Stop`, within `deadline`. `Close`
-  ends every run unheard and the host says `Closed` when io has settled
-  every socket.
+  ends every run unheard, aborts every socket the host made, and the
+  host says `Closed` when io has settled every socket. Its close waits
+  for nothing, so `Abort`, the close that does not wait
+  (programming-model.md, section 5.2), does the same: either one after
+  the other, or a second of either, changes nothing, and `Closed` comes
+  once and last. A request after `Closed` is ignored. A TLS connection
+  ends at io, with no `close_notify` of its own (11).
 
 ### 6.4 The items
 
@@ -937,7 +942,12 @@ The tiers and budgets are testing-strategy.md's and skein's `testing.md`.
     twice, or unknown, refused; an installation accepted, and a stray
     one uninstalled; the hook's address set; a pasted App lacking a
     permission named;
-  - no secret in a failure's `Debug` or in the trace.
+  - no secret in a failure's `Debug` or in the trace;
+  - an abort mid-run ending it unheard with its socket aborted, `Closed`
+    once and the host left with no deadline; an abort turning a reply's
+    graceful close, held by its peer, into an abort before io's close
+    deadline; a close after an abort, and an abort after a close,
+    changing nothing.
 - **The scenario's ceiling,** against the counting allocator (skein-heap):
   the setup world meters the host alone, the fake and the store outside it
   (skein-heap's `Measured`, as the machine world does), and checks at
@@ -1135,3 +1145,11 @@ probe making the probe App.
 - **To find:** whether an `installation_target` row reaches the log
   unsubscribed; whether an inactive hook shows in the App's read stays
   `unchecked` live (section 9).
+
+## 11. Later
+
+- **The TLS close.** A TLS connection the host made ends at io with no
+  `close_notify` sent (6.3), whether its reply was taken, its run passed
+  its deadline, or the owner closed or aborted the host. The close comes
+  with the transport the forge components will share, which owns the TLS
+  session's end.

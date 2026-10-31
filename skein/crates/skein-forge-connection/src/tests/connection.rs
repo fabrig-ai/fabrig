@@ -481,13 +481,7 @@ fn start_retry_after_wins_over_the_backoff_cap() {
     h.run(Duration::from_nanos(1));
     assert_eq!(
         h.answered(1),
-        Some(&Answered {
-            call: skein_lib::Token::new(1),
-            cost: 0,
-            free: 0,
-            rate: None,
-            result: Err(api::Error::Unavailable)
-        })
+        Some(&Answered { call: Token::new(1), cost: 0, free: 0, rate: None, result: Err(api::Error::Unavailable) })
     );
     assert_eq!(h.answers.len(), 1);
     h.run(Duration::from_nanos(9_999_999_999));
@@ -533,7 +527,7 @@ fn an_unconfigured_forge_is_unavailable_at_zero_cost() {
     assert_eq!(
         h.answered(1),
         Some(&crate::Answered {
-            call: skein_lib::Token::new(1),
+            call: Token::new(1),
             cost: 0,
             free: 0,
             rate: None,
@@ -558,7 +552,7 @@ fn a_stopped_forge_does_not_stop_another() {
     assert_eq!(
         h.answered(1),
         Some(&crate::Answered {
-            call: skein_lib::Token::new(1),
+            call: Token::new(1),
             cost: 2,
             free: 0,
             rate: None,
@@ -592,7 +586,7 @@ fn an_idle_connection_is_reassigned_to_another_forge() {
     assert_eq!(
         h.answered(2),
         Some(&crate::Answered {
-            call: skein_lib::Token::new(2),
+            call: Token::new(2),
             cost: 2,
             free: 0,
             rate: None,
