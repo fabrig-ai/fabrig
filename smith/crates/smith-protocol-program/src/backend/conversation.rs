@@ -2,29 +2,27 @@
 //! Keeps correlation separately from delivered domain blocks; the domain alone
 //! accepts outcomes; cancellation fails unanswered calls before settling the child.
 
+use super::Complete;
 use super::{Backend, Below, State, calls, stream, turns};
 use crate::mcp::{self, json};
 use alloc::boxed::Box;
 use skein_json::Kind;
 use skein_lib::{Env, List, Queue};
 use smith_domain::{llm, run};
-use smith_protocol_llm::{self as protocol, FromDomain, ToDomain};
+use smith_protocol_llm::{self as protocol, ToDomain};
 
 impl Backend {
     pub(super) fn resume(
         &mut self,
         env: &Env<protocol::ComponentLimits>,
-        request: FromDomain,
+        request: Complete,
         up: &mut Queue<ToDomain>,
         below: &mut Queue<Below>,
     ) {
-        let owner = match &request {
-            FromDomain::Complete { owner, .. } => *owner,
-            FromDomain::Cancel { .. } | FromDomain::Yield { .. } => unreachable!("completion route"),
-        };
-        self.begin_prompt(&request);
-        self.owner = Some(owner);
-        if self.exit.is_some() || self.child.is_none() || self.pipes.input.is_none() {
+        let owner = request.owner;
+        self.begin_prompt(request.observation.is_some());
+        self.current.claim(owner, up);
+        if self.process.exit().is_some() || self.process.child().is_none() || self.process.pipes().input.is_none() {
             self.fail_program(env, b"smith: the program is no longer accepting input", up, below);
             return;
         }
@@ -38,10 +36,7 @@ impl Backend {
         let Some(mut request) = self.wind_down(env, request, up, below) else {
             return;
         };
-        let (prompt, capture) = match &mut request {
-            FromDomain::Complete { prompt, observation, .. } => (prompt, observation.is_some()),
-            FromDomain::Cancel { .. } | FromDomain::Yield { .. } => unreachable!("completion route"),
-        };
+        let (prompt, capture) = (&mut request.prompt, request.observation.is_some());
         let messages = core::mem::replace(&mut prompt.messages, Box::new([]));
         let Some(resumed) = super::replies::resume(self, messages, prompt, capture) else {
             self.fail(
@@ -53,9 +48,9 @@ impl Backend {
             );
             return;
         };
-        self.request = Some(request);
+        self.current.retain(request, up);
         let mut sent = resumed.observed;
-        self.completion_deadline(env, true);
+        self.completion_deadline(env, true, up);
         self.answer_calls();
         self.match_calls();
         // A later API message may already be in flight. Only a completed
@@ -191,7 +186,7 @@ impl Backend {
             let failure = if self.turns.ready.room() == 0 {
                 llm::Failure::Invalid
             } else {
-                llm::Failure::Program { exit: self.exit }
+                llm::Failure::Program { exit: self.process.exit() }
             };
             self.fail(env, failure, b"smith: invalid program message or completion backlog", up, below);
             return;
@@ -201,7 +196,7 @@ impl Backend {
             return;
         }
         self.match_calls();
-        self.completion_deadline(env, false);
+        self.completion_deadline(env, false, up);
         self.deliver(env, up, below);
         self.continue_ended(env, up, below);
     }
@@ -212,8 +207,12 @@ impl Backend {
         up: &mut Queue<ToDomain>,
         below: &mut Queue<Below>,
     ) {
-        if self.owner.is_some() && self.turns.result && self.turns.ready.is_empty() && self.turns.message.is_none() {
-            if self.exit.is_some() || self.child.is_none() || self.pipes.input.is_none() {
+        if self.current.owner().is_some()
+            && self.turns.result
+            && self.turns.ready.is_empty()
+            && self.turns.message.is_none()
+        {
+            if self.process.exit().is_some() || self.process.child().is_none() || self.process.pipes().input.is_none() {
                 self.fail_program(env, b"smith: the program is no longer accepting input", up, below);
                 return;
             }
@@ -227,7 +226,7 @@ impl Backend {
             }
             self.prompt_measure(env.now, Some(b"Continue with the tool results."));
             self.turns.restart();
-            self.completion_deadline(env, true);
+            self.completion_deadline(env, true, up);
             self.send_input();
         }
     }
@@ -267,7 +266,7 @@ impl Backend {
         if self.switching {
             return;
         }
-        let Some(owner) = self.owner else {
+        let Some(owner) = self.current.owner() else {
             return;
         };
         if !self.turns.ready.is_empty() {
@@ -282,11 +281,8 @@ impl Backend {
             return;
         };
         self.retain_calls();
-        let (prompt, outcome, deliver) = match &self.request {
-            Some(FromDomain::Complete { prompt, outcome, deliver, .. }) => (prompt, outcome, deliver),
-            Some(FromDomain::Cancel { .. } | FromDomain::Yield { .. }) | None => {
-                unreachable!("active completion contract")
-            }
+        let Some(Complete { prompt, outcome, deliver, .. }) = self.current.request() else {
+            unreachable!("active completion contract");
         };
         let mut decoded = 0_u64;
         for block in &mut completion.content {
@@ -341,7 +337,6 @@ impl Backend {
             return;
         }
         self.match_calls();
-        self.owner = None;
         self.deadline = None;
         if text > 0 {
             up.push(ToDomain::Text { owner, bytes: text });
@@ -349,7 +344,7 @@ impl Backend {
         self.completion_measure(env.now, owner, &completion);
         self.terminal_measure(env.now, owner);
         self.builtin_owners(owner, &completion);
-        up.push(ToDomain::Completed { owner, completion });
+        self.current.settle(super::current::Terminal::Completed { completion }, up);
         self.flush_builtins(up);
         if self.compaction() {
             self.switching = true;
@@ -417,22 +412,22 @@ impl Backend {
         self.answer_calls();
     }
 
-    pub(super) fn completion_deadline(&mut self, env: &Env<protocol::ComponentLimits>, head: bool) {
-        if self.owner.is_none()
-            || self.state != State::Running
-            || self.switching
-            || self.stop != super::stop::Stop::None
-        {
-            return;
-        }
-        match &self.request {
-            Some(FromDomain::Complete { deadlines, .. }) => {
-                self.response_phase = if head { llm::CompletionPhase::Head } else { llm::CompletionPhase::Idle };
-                self.deadline = Some(
-                    env.now.saturating_add(if head { deadlines.head } else { deadlines.idle }).min(deadlines.whole),
-                );
-            }
-            Some(FromDomain::Cancel { .. } | FromDomain::Yield { .. }) | None => {}
+    pub(super) fn completion_active(&self) -> bool {
+        self.current.owner().is_some()
+            && self.state == State::Running
+            && !self.switching
+            && self.stop == super::stop::Stop::None
+    }
+
+    pub(super) fn completion_deadline(
+        &mut self,
+        env: &Env<protocol::ComponentLimits>,
+        head: bool,
+        up: &mut Queue<ToDomain>,
+    ) {
+        if self.completion_active() {
+            self.deadline = None;
+            self.current.progress(env.now, head, up);
         }
     }
 

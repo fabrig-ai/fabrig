@@ -150,19 +150,19 @@ impl Driver {
                 | Request::Unauthorized { .. }
                 | Request::Refused { .. }
                 | Request::Limited { .. }
-                | Request::Yield { .. } => {}
+                | Request::Lower(smith_domain::Lower::Yield { .. }) => {}
                 Request::Deliver { owner, host_run, .. } => {
                     self.seen[4] += 1;
                     self.ask(Asked::Delivery { owner, host_run, stopped: false });
                 }
-                Request::Complete {
+                Request::Lower(smith_domain::Lower::Complete {
                     owner,
                     prompt,
                     max_completion_bytes,
                     max_completion_blocks,
                     decoded_call_bytes,
                     ..
-                } => {
+                }) => {
                     self.seen[0] += 1;
                     let (finish, agents) = served(&prompt);
                     self.observe_prompt(&prompt);
@@ -181,8 +181,8 @@ impl Driver {
                         cancelled: false,
                     });
                 }
-                Request::Cancel { owner } => self.cancel(Family::Llm, owner),
-                Request::Io { owner, op, deadline: _ } => {
+                Request::Lower(smith_domain::Lower::Cancel { owner }) => self.cancel(Family::Llm, owner),
+                Request::Lower(smith_domain::Lower::Io { owner, op, deadline: _ }) => {
                     self.seen[1] += 1;
                     let op = match op {
                         Op::Load { .. } => OpKind::Load,
@@ -194,21 +194,21 @@ impl Driver {
                     };
                     self.ask(Asked::Io { owner, op, cancelled: false });
                 }
-                Request::Job { owner, act } => self.ask(Asked::Job { owner, act }),
-                Request::CancelIo { owner } => self.cancel(Family::Io, owner),
-                Request::Read { owner, .. } => {
+                Request::Lower(smith_domain::Lower::Job { owner, act }) => self.ask(Asked::Job { owner, act }),
+                Request::Lower(smith_domain::Lower::CancelIo { owner }) => self.cancel(Family::Io, owner),
+                Request::Lower(smith_domain::Lower::Read { owner, .. }) => {
                     self.seen[2] += 1;
                     self.ask(Asked::Read { owner });
                 }
-                Request::Probe { owner, .. } => {
+                Request::Lower(smith_domain::Lower::Probe { owner, .. }) => {
                     self.seen[2] += 1;
                     self.ask(Asked::Probe { owner });
                 }
-                Request::Check { owner, .. } => {
+                Request::Lower(smith_domain::Lower::Check { owner, .. }) => {
                     self.seen[3] += 1;
                     self.ask(Asked::Check { owner, aborted: false });
                 }
-                Request::Abort { owner } => self.cancel(Family::Check, owner),
+                Request::Lower(smith_domain::Lower::Abort { owner }) => self.cancel(Family::Check, owner),
             }
         }
     }
@@ -294,16 +294,18 @@ impl Driver {
         }
         let asked = self.asked.swap_remove(index(&mut self.rng, self.asked.len()));
         Some(match asked {
-            Asked::Complete { owner, cancelled: true, .. } if self.rng.chance(700) => Event::Cancelled { owner },
+            Asked::Complete { owner, cancelled: true, .. } if self.rng.chance(700) => {
+                Event::Below(smith_domain::Below::Cancelled { owner })
+            }
             Asked::Complete { owner, finish, agents, receiving, cancelled, .. } => {
                 if self.rng.below(10) == 0 {
-                    Event::Failed {
+                    Event::Below(smith_domain::Below::Failed {
                         owner,
                         failure: Failure::Overloaded,
                         evidence: smith_domain::llm::Evidence::Unknown,
                         detail: Box::default(),
                         report: smith_domain::llm::Report::none(),
-                    }
+                    })
                 } else {
                     let completion = self.completion(limits, finish, agents, receiving);
                     let (owned, decoded) = completion_owned(&completion);
@@ -315,28 +317,34 @@ impl Driver {
                     if cancelled {
                         self.seen[16] += 1;
                     }
-                    Event::Completed { owner, completion }
+                    Event::Below(smith_domain::Below::Completed { owner, completion })
                 }
             }
             Asked::Io { owner, cancelled: true, .. } if self.rng.chance(700) => {
-                Event::Done { owner, done: Done::Cancelled }
+                Event::Below(smith_domain::Below::Done { owner, done: Done::Cancelled })
             }
-            Asked::Io { owner, op, .. } => Event::Done { owner, done: self.done(limits, op) },
-            Asked::Job { owner, act } => Event::Done { owner, done: random::job_done(act) },
+            Asked::Io { owner, op, .. } => {
+                Event::Below(smith_domain::Below::Done { owner, done: self.done(limits, op) })
+            }
+            Asked::Job { owner, act } => Event::Below(smith_domain::Below::Done { owner, done: random::job_done(act) }),
             Asked::Read { owner } => {
                 let read = match self.rng.below(4) {
                     0 => run::Read::Missing,
                     _ => run::Read::Text { text: bytes(u64::from(limits.run.guide_bytes)), whole: false },
                 };
-                Event::Read { owner, read }
+                Event::Below(smith_domain::Below::Read { owner, read })
             }
-            Asked::Probe { owner } => Event::Probed { owner, executable: self.rng.chance(700) },
-            Asked::Check { owner, aborted: true } if self.rng.chance(700) => Event::Aborted { owner },
+            Asked::Probe { owner } => {
+                Event::Below(smith_domain::Below::Probed { owner, executable: self.rng.chance(700) })
+            }
+            Asked::Check { owner, aborted: true } if self.rng.chance(700) => {
+                Event::Below(smith_domain::Below::Aborted { owner })
+            }
             Asked::Check { owner, .. } => {
                 let exit = run::Exit::Code { code: u8::from(self.rng.chance(500)) };
                 self.seen[if exit == (run::Exit::Code { code: 0 }) { 7 } else { 8 }] += 1;
                 let ran = run::Ran { exit, output: bytes(u64::from(limits.run.check_tail)), cut: 1000 };
-                Event::Checked { owner, ran }
+                Event::Below(smith_domain::Below::Checked { owner, ran })
             }
             Asked::Delivery { owner, stopped, .. } => {
                 let choice = index(&mut self.rng, 3);

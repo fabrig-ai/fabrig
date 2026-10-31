@@ -2,11 +2,12 @@
 //! Keeps the last recorded id, never the program's session contents.
 //! Affinity and the first rendered message identify the window.
 
+use super::Complete;
+use super::PIPE_BYTES;
 use super::{Backend, Below, State, compact, turns};
-use super::{PIPE_BYTES, Pipes};
 use skein_lib::{Env, List, Queue, sha256::Sha256};
 use smith_domain::llm::{self, Affinity, Prompt};
-use smith_protocol_llm::{self as protocol, FromDomain, ToDomain};
+use smith_protocol_llm::{self as protocol, ToDomain};
 
 /// A completion keeps its process or opens the identified window's process.
 #[derive(Debug, PartialEq, Eq)]
@@ -128,14 +129,11 @@ impl Backend {
     pub(super) fn window_request(
         &mut self,
         env: &Env<protocol::ComponentLimits>,
-        request: FromDomain,
+        request: Complete,
         up: &mut Queue<ToDomain>,
         below: &mut Queue<Below>,
     ) {
-        let (owner, prompt) = match &request {
-            FromDomain::Complete { owner, prompt, .. } => (*owner, prompt),
-            FromDomain::Cancel { .. } | FromDomain::Yield { .. } => unreachable!("completion route"),
-        };
+        let (owner, prompt) = (request.owner, &request.prompt);
         let keep = !compact::is_compaction(prompt)
             && !self.switching
             && match opening(prompt, self.running_session, self.recorded_session) {
@@ -149,8 +147,8 @@ impl Backend {
         let active = self.active_turn();
         let stopping = self.switching;
         self.switching = true;
-        self.owner = Some(owner);
-        self.request = Some(request);
+        self.current.claim(owner, up);
+        self.current.retain(request, up);
         self.outgoing = None;
         if !stopping {
             self.stop(env, active, false, up, below);
@@ -163,13 +161,7 @@ impl Backend {
         up: &mut Queue<ToDomain>,
         below: &mut Queue<Below>,
     ) {
-        if self.state == State::Ending
-            || self.native.is_some()
-            || !self.switching
-            || self.child.is_some()
-            || self.spawning
-            || self.pipes != Pipes::CLOSED
-        {
+        if self.state == State::Ending || self.native.is_some() || !self.switching || !self.process.settled() {
             return;
         }
         if !self.server_ended
@@ -187,9 +179,8 @@ impl Backend {
             self.winding = super::stop::WindDown::Ordinary;
         }
         self.stopping = 0;
-        self.exit = None;
+        self.process.reset();
         self.eof_deadline = None;
-        self.drain_deadline = None;
         self.deadline = None;
         self.stdout_demanding = false;
         self.intake = List::with_capacity(PIPE_BYTES);
@@ -199,16 +190,15 @@ impl Backend {
         self.stderr = super::Tail::with_capacity(self.settings.receiving.max_failure_bytes);
         self.stderr_wrapped = false;
         self.written = 0;
-        self.interrupt_pending = None;
-        self.interrupt_line = None;
+        self.interrupt.forget(&mut self.io);
         self.ledger = List::with_capacity(self.settings.ledger_slots().expect("ledger"));
         self.turns = turns::Turns::new(&self.settings.receiving, self.settings.adapter.client.answer);
         self.permitted_message = 1;
-        if self.owner.is_some() {
+        if self.current.owner().is_some() {
             self.state = State::Starting;
             self.prepare_invocation(env, up, below);
         } else {
-            self.request = None;
+            self.current.clear(up);
             self.state = State::Idle;
         }
     }
@@ -219,10 +209,7 @@ impl Backend {
         up: &mut Queue<ToDomain>,
         below: &mut Queue<Below>,
     ) {
-        let prompt = match &self.request {
-            Some(FromDomain::Complete { prompt, .. }) => prompt,
-            Some(FromDomain::Cancel { .. } | FromDomain::Yield { .. }) | None => unreachable!("startup request"),
-        };
+        let Some(Complete { prompt, .. }) = self.current.request() else { unreachable!("startup request") };
         if compact::is_compaction(prompt) {
             self.resuming = false;
             self.names.session = self.compaction_id();

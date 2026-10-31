@@ -18,7 +18,7 @@ fn a_program_completion_skips_the_session_reservation() {
 fn a_program_completion_without_usage_overflows() {
     let mut h = program();
     let (_, owner, _) = h.admit(7, charter());
-    let emitted = h.step(Event::Completed {
+    let emitted = h.step(Event::Below(crate::Below::Completed {
         owner,
         completion: Completion {
             reasoning_dropped: Box::default(),
@@ -26,7 +26,7 @@ fn a_program_completion_without_usage_overflows() {
             stop: Stop::EndTurn,
             usage: Usage::NONE,
         },
-    });
+    }));
     let [Request::Answer { answer: run::Answer::Failed { failure, .. }, .. }] = emitted.as_ref() else {
         panic!("overflow answer: {emitted:?}");
     };
@@ -43,7 +43,7 @@ fn a_program_overrun_is_spent() {
     selected.llm.prices.unit = 1;
     let (_, owner, _) = h.admit(7, selected);
     let usage = Usage { input_tokens: Some(10_001), output_tokens: Some(1), ..Usage::ZERO };
-    let emitted = h.step(Event::Completed {
+    let emitted = h.step(Event::Below(crate::Below::Completed {
         owner,
         completion: Completion {
             reasoning_dropped: Box::default(),
@@ -51,7 +51,7 @@ fn a_program_overrun_is_spent() {
             stop: Stop::EndTurn,
             usage,
         },
-    });
+    }));
     assert!(emitted.is_empty());
     let emitted = h.next();
     let [Request::Answer { answer: run::Answer::Failed { spent, .. }, .. }] = emitted.as_ref() else {
@@ -87,9 +87,9 @@ fn the_run_s_time_cancels_a_program_completion() {
     let (_, owner, _) = h.admit(7, charter());
     h.env.now = Time::ZERO.saturating_add(BUDGET.time);
     assert!(h.fire().is_empty());
-    assert_eq!(h.fire().as_ref(), &[Request::Cancel { owner }]);
+    assert_eq!(h.fire().as_ref(), &[Request::Lower(crate::Lower::Cancel { owner })]);
     assert!(h.next().is_empty());
-    let emitted = h.step(Event::Cancelled { owner });
+    let emitted = h.step(Event::Below(crate::Below::Cancelled { owner }));
     let [
         Request::Answer {
             answer: run::Answer::Failed { failure: run::Failure::Budget { exhausted: run::Exhausted::Time, .. }, .. },
@@ -105,7 +105,7 @@ fn the_run_s_time_cancels_a_program_completion() {
 fn a_program_spec_names_its_backend() {
     let mut h = program();
     let (_, owner, _) = h.admit(7, charter());
-    h.step(Event::Completed {
+    h.step(Event::Below(crate::Below::Completed {
         owner,
         completion: Completion {
             reasoning_dropped: Box::default(),
@@ -113,7 +113,7 @@ fn a_program_spec_names_its_backend() {
             stop: Stop::EndTurn,
             usage: Usage::ZERO,
         },
-    });
+    }));
     let turn = h.turns.last().expect("program turn");
     let session::record::Kind::First(opener) = &turn.kind else { panic!("opening") };
     assert_eq!(opener.backend, session::record::Backend::Program { name: bytes(b"claude_code") });
@@ -144,7 +144,7 @@ fn open_program_final_choice_permits_only_text() {
     selected.budget.turns = 2;
     selected.reserve = run::charter::Reserve { turns: 1, time: Duration::from_secs(60) };
     let (_, owner, _) = h.admit(7, selected);
-    let emitted = h.step(Event::Completed {
+    let emitted = h.step(Event::Below(crate::Below::Completed {
         owner,
         completion: Completion {
             reasoning_dropped: Box::default(),
@@ -152,8 +152,10 @@ fn open_program_final_choice_permits_only_text() {
             stop: Stop::MaxTokens,
             usage: USAGE,
         },
-    });
-    let [Request::Complete { owner, prompt, .. }] = emitted.as_ref() else { panic!("last prompt: {emitted:?}") };
+    }));
+    let [Request::Lower(crate::Lower::Complete { owner, prompt, .. })] = emitted.as_ref() else {
+        panic!("last prompt: {emitted:?}")
+    };
     assert_eq!(prompt.choice, crate::llm::ToolChoice::None);
     assert_eq!(prompt.asker, crate::llm::Asker::Main);
     assert!(!prompt.served.contains(&Served::Finish));
@@ -175,11 +177,13 @@ fn opaque_and_refusal_blocks_never_become_open_text_replies() {
     for content in contents {
         let mut h = program();
         let (_, owner, _) = h.admit(7, open_policy());
-        let emitted = h.step(Event::Completed {
+        let emitted = h.step(Event::Below(crate::Below::Completed {
             owner,
             completion: Completion { reasoning_dropped: Box::default(), content, stop: Stop::EndTurn, usage: USAGE },
-        });
-        let [Request::Complete { prompt, .. }] = emitted.as_ref() else { panic!("nudge: {emitted:?}") };
+        }));
+        let [Request::Lower(crate::Lower::Complete { prompt, .. })] = emitted.as_ref() else {
+            panic!("nudge: {emitted:?}")
+        };
         let message = prompt.messages.last().expect("nudge user message");
         let [Block::Text { text, .. }] = message.content.as_ref() else { panic!("one nudge text") };
         assert_eq!(text.as_ref(), b"You ended your turn with no text, so you have not replied. Carry on, and reply with text or call `wait`. This is reminder 1 of 1: if you stop again without replying after the last one, the run ends unfinished.");
@@ -197,6 +201,6 @@ fn an_open_finish_yields_the_main_completion_owner_once() {
         text: bytes(b"Please finish"),
         finish_requested: true,
     }));
-    assert_eq!(harness.next().as_ref(), &[Request::Yield { owner }]);
+    assert_eq!(harness.next().as_ref(), &[Request::Lower(crate::Lower::Yield { owner })]);
     assert!(harness.next().is_empty());
 }

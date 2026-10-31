@@ -159,11 +159,17 @@ fn chronology(world: &World, counts: &mut [u64; 16]) {
     assert!(cancels.len() <= 1, "one parent Cancel for the original admitted run");
     if let Some(cancel) = cancels.first() {
         counts[8] += u64::try_from(
-            world.trace()[cancel + 1..].iter().filter(|line| line.contains("agent <- Completed { owner: ")).count(),
+            world.trace()[cancel + 1..]
+                .iter()
+                .filter(|line| line.contains("agent <- Below(Completed { owner: "))
+                .count(),
         )
         .expect("bounded late completions");
         counts[9] += u64::try_from(
-            world.trace()[cancel + 1..].iter().filter(|line| line.contains("agent <- Cancelled { owner: ")).count(),
+            world.trace()[cancel + 1..]
+                .iter()
+                .filter(|line| line.contains("agent <- Below(Cancelled { owner: "))
+                .count(),
         )
         .expect("bounded cancellation terminals");
     }

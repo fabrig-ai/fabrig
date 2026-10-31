@@ -23,7 +23,7 @@ fn a_complete_measures_its_user_messages() {
         &[Block::Text { text: b"start text".as_slice().into() }]
     );
     assert!(prompt.tools.unwrap().iter().any(|name| name.as_ref() == b"Read"));
-    let Some(FromDomain::Complete { observation, .. }) = &mut backend.request else { panic!("complete") };
+    let Some(Complete { observation, .. }) = backend.current.request_mut() else { panic!("complete") };
     *observation = Some(Observation { first: false, messages: 2 });
     backend.prompt_due = true;
     backend.prompt_measure(Time::ZERO, None);
@@ -87,15 +87,15 @@ fn a_shared_stdout_read_waits_for_the_next_owner() {
         backend.intake.push(*byte).unwrap();
     }
     backend.consume_stdout(&env(0), &mut up, &mut below);
-    assert!(backend.owner.is_some());
+    assert!(backend.current.owner().is_some());
     let Some(Measure::Prompt { .. }) = backend.pop_measure() else { panic!("prompt first") };
     backend.consume_stdout(&env(0), &mut up, &mut below);
-    assert!(backend.owner.is_none());
+    assert!(backend.current.owner().is_none());
     let Some(Measure::Completion { .. }) = backend.pop_measure() else { panic!("completion") };
     let Some(Measure::Terminal { .. }) = backend.pop_measure() else { panic!("terminal") };
     backend.consume_stdout(&env(0), &mut up, &mut below);
     assert!(backend.pop_measure().is_none());
-    backend.owner = Some(Token::new(81));
+    fixtures::claim_completion(Token::new(81), &mut backend);
     backend.consume_stdout(&env(0), &mut up, &mut below);
     let Some(Measure::Retried { owner, .. }) = backend.pop_measure() else { panic!("retry") };
     assert_eq!(owner, Token::new(81));
@@ -110,7 +110,7 @@ fn a_continuation_is_measured_as_user_text() {
     *observation = Some(Observation { first: false, messages: 2 });
     let mut up = Queue::with_capacity(32);
     let mut below = Queue::with_capacity(64);
-    backend.resume(&env(0), next, &mut up, &mut below);
+    backend.resume(&env(0), Complete::from_request(next), &mut up, &mut below);
     backend.flush_prompt_measure(Time::ZERO);
     let Some(Measure::Prompt { prompt, .. }) = backend.pop_measure() else { panic!("prompt") };
     assert_eq!(
@@ -132,7 +132,7 @@ fn a_wind_down_measures_the_encoded_user_text() {
     }]);
     let mut up = Queue::with_capacity(32);
     let mut below = Queue::with_capacity(64);
-    backend.resume(&env(0), next, &mut up, &mut below);
+    backend.resume(&env(0), Complete::from_request(next), &mut up, &mut below);
     backend.line(
         &env(0),
         br#"{"type":"control_response","response":{"subtype":"success","request_id":"smith-1"}}"#,
@@ -167,7 +167,7 @@ fn an_empty_prompt_defers_until_its_release() {
 #[test]
 fn the_first_prompt_prices_every_program_tool() {
     let mut backend = active(true);
-    let Some(FromDomain::Complete { prompt, .. }) = &mut backend.request else { panic!("request") };
+    let Some(Complete { prompt, .. }) = backend.current.request_mut() else { panic!("request") };
     prompt.tools = smith_domain::tools::Grants { inspect: true, modify: true, shell: true };
     backend.first_prompt_measure(Time::ZERO);
     assert_eq!(backend.measures.room(), measures::capacity(&backend.settings).unwrap());
@@ -346,7 +346,12 @@ fn held_call_user_text_is_captured() {
             content.push(llm::Block::Text { text: b"new user text".as_slice().into(), replay: None });
         }
         prompt.messages = Box::new([llm::Message { role: llm::Role::User, content: content.into_boxed_slice() }]);
-        backend.resume(&env(0), next, &mut Queue::with_capacity(32), &mut Queue::with_capacity(64));
+        backend.resume(
+            &env(0),
+            Complete::from_request(next),
+            &mut Queue::with_capacity(32),
+            &mut Queue::with_capacity(64),
+        );
         let reply = fixtures::server_reply(&mut backend);
         let received = reply["result"]["content"][0]["text"].as_str().expect("received reply text");
         assert_eq!(received, if with_text { "done\nnew user text" } else { "done" });
@@ -376,7 +381,7 @@ fn a_results_only_complete_offers_one_prompt() {
         Box::new([llm::Message { role: llm::Role::User, content: Box::new([reply_tests::result(b"held")]) }]);
     let mut up = Queue::with_capacity(32);
     let mut below = Queue::with_capacity(64);
-    backend.resume(&env(0), next, &mut up, &mut below);
+    backend.resume(&env(0), Complete::from_request(next), &mut up, &mut below);
     backend.line(
         &env(1),
         br#"{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"held","content":"done"}]}}"#,

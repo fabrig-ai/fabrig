@@ -16,9 +16,12 @@ mod builtins;
 mod calls;
 mod compact;
 mod conversation;
+mod current;
+use current::Complete;
 mod diagnostics;
 mod files;
 mod intake;
+mod interrupt;
 mod measures;
 mod memory;
 mod native;
@@ -26,6 +29,7 @@ mod session;
 pub use memory::backend_valid;
 mod permission;
 mod policy;
+mod process;
 mod recovery;
 mod redaction;
 mod replies;
@@ -203,7 +207,7 @@ enum State {
 /// The run's program adapter, driven by the service (smith/docs/design/protocol/programs.md, sections 3, 5).
 #[expect(
     clippy::struct_excessive_bools,
-    reason = "child, server, stdout and once-per-Complete observation facts are independent"
+    reason = "MCP, stream retention, window invocation and prompt observations advance independently"
 )]
 pub struct Backend {
     mounts: Box<[Mount]>,
@@ -212,27 +216,20 @@ pub struct Backend {
     names: start::Names,
     grant: Option<Grant>,
     state: State,
-    owner: Option<Token>,
+    current: current::Current,
     pending_failure: Option<(llm::Failure, Box<[u8]>)>,
-    request: Option<FromDomain>,
     check: Option<Command>,
     server: Option<mcp::Server>,
     server_ended: bool,
     files: files::Files,
     native: Option<native::Snapshot>,
     native_writes: Map<Box<[u8]>, smith_domain::tools::Place>,
-    child: Option<Token>,
-    spawning: bool,
-    pipes: Pipes,
+    process: process::Process,
     outgoing: Option<Box<[u8]>>,
     written: u32,
-    interrupt_sequence: u64,
-    interrupt_pending: Option<u64>,
-    interrupt_line: Option<Box<[u8]>>,
-    exit: Option<u32>,
+    interrupt: interrupt::Interrupt,
     deadline: Option<Time>,
     eof_deadline: Option<Time>,
-    drain_deadline: Option<Time>,
     stopping: u8,
     stop: stop::Stop,
     winding: stop::WindDown,
@@ -243,7 +240,6 @@ pub struct Backend {
     recorded_session: Option<[u8; 16]>,
     /// One-based index of the next message whose calls may be permitted.
     permitted_message: u64,
-    response_phase: llm::CompletionPhase,
     run_time: Duration,
     line: List<u8>,
     stdout_demanding: bool,
@@ -267,7 +263,7 @@ impl core::fmt::Debug for Backend {
         formatter
             .debug_struct("Backend")
             .field("state", &self.state)
-            .field("owner", &self.owner)
+            .field("owner", &self.current.owner())
             .finish_non_exhaustive()
     }
 }
@@ -290,27 +286,20 @@ impl Backend {
             names: start::Names::new(entropy),
             grant: None,
             state: State::Idle,
-            owner: None,
+            current: current::Current::new(),
             pending_failure: None,
-            request: None,
             check: None,
             server: None,
             server_ended: false,
             files: files::Files::new(),
             native: None,
             native_writes: Map::with_capacity(ledger.capacity()),
-            child: None,
-            spawning: false,
-            pipes: Pipes::CLOSED,
+            process: process::Process::new(),
             outgoing: None,
             written: 0,
-            interrupt_sequence: 0,
-            interrupt_pending: None,
-            interrupt_line: None,
-            exit: None,
+            interrupt: interrupt::Interrupt::new(),
             deadline: None,
             eof_deadline: None,
-            drain_deadline: None,
             stopping: 0,
             stop: stop::Stop::None,
             winding: stop::WindDown::Ordinary,
@@ -320,7 +309,6 @@ impl Backend {
             running_session: None,
             recorded_session: None,
             permitted_message: 1,
-            response_phase: llm::CompletionPhase::Head,
             run_time: Duration::ZERO,
             line,
             stdout_demanding: false,
@@ -382,7 +370,7 @@ impl Backend {
             || owner == self.token(Owner::Program)
             || owner == self.token(Owner::Files)
             || owner == self.token(Owner::Native)
-            || self.pipes.all().contains(&Some(owner))
+            || self.process.pipes().all().contains(&Some(owner))
             || match &self.check {
                 Some(check) => check.owns(owner),
                 None => false,
@@ -406,7 +394,7 @@ impl Backend {
     /// Whether a cancellation belongs to the outstanding program completion.
     #[must_use]
     pub fn pending(&self, owner: Token) -> bool {
-        self.owner == Some(owner)
+        self.current.owner() == Some(owner)
     }
 
     /// Whether a completion grant belongs to the installed program account.
@@ -428,10 +416,11 @@ impl Backend {
     ) {
         match request {
             request @ FromDomain::Complete { owner, .. } => {
+                let request = Complete::from_request(request);
                 if self.winding == stop::WindDown::YieldRequested {
                     self.winding = stop::WindDown::Ordinary;
                 }
-                self.begin_prompt(&request);
+                self.begin_prompt(request.observation.is_some());
                 if let Some((failure, detail)) = self.pending_failure.take() {
                     self.terminal_measure(env.now, owner);
                     up.push(ToDomain::Failed {
@@ -460,7 +449,7 @@ impl Backend {
                 return;
             }
             FromDomain::Cancel { owner } => {
-                if self.owner == Some(owner) {
+                if self.current.owner() == Some(owner) {
                     self.close(env, up, below);
                 }
             }
@@ -499,7 +488,7 @@ impl Backend {
         if let Some(server) = &mut self.server {
             server.fire(env.now, &mut self.io);
         }
-        let drain_due = match self.drain_deadline {
+        let drain_due = match self.process.next_deadline() {
             Some(deadline) => env.now >= deadline,
             None => false,
         };
@@ -527,53 +516,45 @@ impl Backend {
                 State::Starting => self.fail_program(env, b"smith: the program did not initialize", up, below),
                 State::Ending => self.terminate(env.now),
                 State::Running => {
-                    let phase = match &self.request {
-                        Some(FromDomain::Complete { deadlines, .. }) if env.now >= deadlines.whole => {
-                            llm::CompletionPhase::Whole
-                        }
-                        Some(FromDomain::Complete { .. } | FromDomain::Cancel { .. } | FromDomain::Yield { .. })
-                        | None => self.response_phase,
-                    };
+                    let phase = self.current.phase(env.now);
                     self.fail(env, llm::Failure::TimedOut { phase }, b"smith: program completion deadline", up, below);
                 }
                 State::Idle | State::Checking | State::Ended => {}
             }
+        }
+        let completion_due = match self.current.next_deadline() {
+            Some(until) => env.now >= until,
+            None => false,
+        };
+        if self.completion_active() && completion_due {
+            let phase = self.current.phase(env.now);
+            self.fail(env, llm::Failure::TimedOut { phase }, b"smith: program completion deadline", up, below);
         }
         self.progress(env, up, below);
         self.flush(below);
     }
 
     fn terminate(&mut self, now: Time) {
-        if self.exit.is_some() {
+        if self.process.exit().is_some() {
             self.deadline = None;
-            match self.drain_deadline {
-                Some(deadline) if now >= deadline => {}
-                Some(_) | None => return,
-            }
-            self.drain_deadline = None;
-            for pipe in self.pipes.all().into_iter().flatten() {
-                self.io.push(io::Request::Abort { entity: pipe });
-            }
-            if let Some(child) = self.child {
-                self.io.push(io::Request::Close { entity: child });
-            }
+            self.process.drain(now, &mut self.io);
             return;
         }
         self.stopping = self.stopping.saturating_add(1).min(2);
-        if let Some(child) = self.child {
+        if let Some(child) = self.process.child() {
             self.io.push(io::Request::Signal {
                 child,
                 to: kernel::Target::Group,
                 signal: if self.stopping == 1 { kernel::Signal::Terminate } else { kernel::Signal::Kill },
             });
             if self.stopping == 2 {
-                for pipe in self.pipes.all().into_iter().flatten() {
+                for pipe in self.process.pipes().all().into_iter().flatten() {
                     self.io.push(io::Request::Abort { entity: pipe });
                 }
                 self.io.push(io::Request::Close { entity: child });
             }
         }
-        if self.child.is_some() || self.spawning {
+        if self.process.child().is_some() || self.process.spawning() {
             self.deadline = Some(now.saturating_add(self.settings.grace));
         }
     }
@@ -585,6 +566,14 @@ impl Backend {
             return None;
         }
         let mut earliest = self.deadline;
+        if self.completion_active()
+            && let Some(at) = self.current.next_deadline()
+        {
+            earliest = Some(match earliest {
+                Some(held) => held.min(at),
+                None => at,
+            });
+        }
         if let Some(at) = self.intake_due {
             earliest = Some(match earliest {
                 Some(held) => held.min(at),
@@ -593,7 +582,7 @@ impl Backend {
         }
         for at in [
             self.eof_deadline,
-            self.drain_deadline,
+            self.process.next_deadline(),
             match &self.check {
                 Some(check) => check.next_deadline(),
                 None => None,
@@ -679,11 +668,11 @@ impl Backend {
         }
         let active = self.active_turn();
         self.state = State::Ending;
-        if let Some(owner) = self.owner.take() {
+        if let Some(owner) = self.current.owner() {
             self.terminal_measure(env.now, owner);
-            up.push(ToDomain::Cancelled { owner });
+            self.current.settle(current::Terminal::Cancelled, up);
         }
-        self.request = None;
+        self.current.clear(up);
         self.outgoing = None;
         self.eof_deadline = None;
         self.stop(env, active, parking, up, below);
@@ -694,8 +683,8 @@ impl Backend {
         if let Some(check) = &mut self.check {
             check.fire(Time::from_nanos(u64::MAX), &mut self.io);
         }
-        if self.child.is_none()
-            && !self.spawning
+        if self.process.child().is_none()
+            && !self.process.spawning()
             && let Some(server) = &mut self.server
         {
             server.close(&mut self.io);
@@ -737,7 +726,7 @@ impl Backend {
         up: &mut Queue<ToDomain>,
         below: &mut Queue<Below>,
     ) {
-        self.fail(env, llm::Failure::Program { exit: self.exit }, detail, up, below);
+        self.fail(env, llm::Failure::Program { exit: self.process.exit() }, detail, up, below);
     }
 
     fn fail(
@@ -749,16 +738,18 @@ impl Backend {
         below: &mut Queue<Below>,
     ) {
         let detail = self.private_diagnostic(detail);
-        let restart = self.owner.is_some() && recovery::restartable(failure);
-        if let Some(owner) = self.owner.take() {
+        let restart = self.current.owner().is_some() && recovery::restartable(failure);
+        if let Some(owner) = self.current.owner() {
             self.terminal_measure(env.now, owner);
-            up.push(ToDomain::Failed {
-                owner,
-                failure,
-                evidence: llm::Evidence::Unsent,
-                detail,
-                report: llm::Report::none(),
-            });
+            self.current.settle(
+                current::Terminal::Failed {
+                    failure,
+                    evidence: llm::Evidence::Unsent,
+                    detail,
+                    report: llm::Report::none(),
+                },
+                up,
+            );
         } else if self.pending_failure.is_none() {
             self.pending_failure = Some((failure, detail));
         }
@@ -768,7 +759,7 @@ impl Backend {
             self.state = State::Running;
             self.outgoing = None;
             self.stop(env, active, false, up, below);
-            self.request = None;
+            self.current.clear(up);
         } else {
             self.close_turn(env, false, up, below);
         }

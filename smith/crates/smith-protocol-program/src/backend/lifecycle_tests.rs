@@ -14,7 +14,7 @@ fn a_late_spawn_after_grace_is_terminated_as_a_group() {
     let mut below = Queue::with_capacity(64);
     backend.close(&env(0), &mut up, &mut below);
     backend.fire(&env(2), &mut up, &mut below);
-    assert!(backend.spawning);
+    assert!(backend.process.spawning());
     assert!(backend.stopping > 0);
     backend.from_io(
         &env(3),
@@ -107,7 +107,7 @@ fn an_accepted_init_uses_the_completion_head_deadline() {
     assert_eq!(backend.state, State::Running);
     assert!(backend.switching, "stops the expired invocation while retaining retry storage");
     assert!(backend.stop == stop::Stop::Closing);
-    assert!(backend.owner.is_none());
+    assert!(backend.current.owner().is_none());
 }
 #[test]
 fn private_diagnostics_redact_known_private_values() {

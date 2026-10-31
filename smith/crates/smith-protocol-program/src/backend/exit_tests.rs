@@ -35,7 +35,7 @@ fn a_relay_without_a_program_exit_fails_at_its_grace() {
     assert!(up.is_empty(), "EOF must not fail before its grace");
     let mut before = env(0);
     before.now = Time::from_nanos(until.as_nanos().checked_sub(1).expect("positive grace"));
-    backend.completion_deadline(&before, false);
+    backend.completion_deadline(&before, false, &mut up);
     assert_eq!(backend.next_deadline(), Some(until));
     backend.fire(&before, &mut up, &mut below);
     assert!(up.is_empty(), "the grace has not expired");
@@ -52,7 +52,7 @@ fn a_relay_without_a_program_exit_fails_at_its_grace() {
 #[test]
 fn buffered_stdout_cannot_clear_the_relay_eof_grace() {
     let mut backend = active();
-    backend.pipes.input = Some(Token::new(31));
+    fixtures::attach_pipes(Pipes { input: Some(Token::new(31)), ..backend.process.pipes() }, &mut backend);
     let until = env(0).now.saturating_add(backend.settings.grace);
     let mut up = Queue::with_capacity(32);
     let mut below = Queue::with_capacity(64);

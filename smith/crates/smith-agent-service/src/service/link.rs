@@ -84,16 +84,18 @@ pub(super) fn request(service: &mut Stages, frame: &mut Frame, request: domain::
             program::settled(service, turn);
             live_step(service, Some(&mut *frame), crate::live::Action::End { turn: *number });
         }
-        domain::Request::Complete { .. }
-        | domain::Request::Yield { .. }
-        | domain::Request::Cancel { .. }
-        | domain::Request::Io { .. }
-        | domain::Request::Job { .. }
-        | domain::Request::CancelIo { .. }
-        | domain::Request::Read { .. }
-        | domain::Request::Probe { .. }
-        | domain::Request::Check { .. }
-        | domain::Request::Abort { .. }
+        domain::Request::Lower(
+            smith_domain::Lower::Complete { .. }
+            | smith_domain::Lower::Yield { .. }
+            | smith_domain::Lower::Cancel { .. }
+            | smith_domain::Lower::Io { .. }
+            | smith_domain::Lower::Job { .. }
+            | smith_domain::Lower::CancelIo { .. }
+            | smith_domain::Lower::Read { .. }
+            | smith_domain::Lower::Probe { .. }
+            | smith_domain::Lower::Check { .. }
+            | smith_domain::Lower::Abort { .. },
+        )
         | domain::Request::Waiting { .. }
         | domain::Request::HostCall { .. }
         | domain::Request::WithdrawHost { .. }
@@ -226,16 +228,18 @@ pub(super) fn request(service: &mut Stages, frame: &mut Frame, request: domain::
                 &mut service.channel_below,
             )
         }
-        domain::Request::Complete { .. }
-        | domain::Request::Yield { .. }
-        | domain::Request::Cancel { .. }
-        | domain::Request::Io { .. }
-        | domain::Request::Job { .. }
-        | domain::Request::CancelIo { .. }
-        | domain::Request::Read { .. }
-        | domain::Request::Probe { .. }
-        | domain::Request::Check { .. }
-        | domain::Request::Abort { .. } => unreachable!("lower requests are dispatched before the framed face"),
+        domain::Request::Lower(
+            smith_domain::Lower::Complete { .. }
+            | smith_domain::Lower::Yield { .. }
+            | smith_domain::Lower::Cancel { .. }
+            | smith_domain::Lower::Io { .. }
+            | smith_domain::Lower::Job { .. }
+            | smith_domain::Lower::CancelIo { .. }
+            | smith_domain::Lower::Read { .. }
+            | smith_domain::Lower::Probe { .. }
+            | smith_domain::Lower::Check { .. }
+            | smith_domain::Lower::Abort { .. },
+        ) => unreachable!("lower requests are dispatched before the framed face"),
     };
     sent(service, result.is_ok());
     if answered {

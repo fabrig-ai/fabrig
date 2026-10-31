@@ -19,27 +19,7 @@ mod store;
 use delivery::DeliveryIo;
 use store::StoreIo;
 
-/// Reusable child executable and credential-free environment.
-#[derive(Clone, Debug)]
-pub struct Launch {
-    pub program: Box<[u8]>,
-    pub arguments: Box<[Box<[u8]>]>,
-    pub environment: Box<[Box<[u8]>]>,
-    pub root: kernel::Fd,
-    pub directory: Box<[u8]>,
-}
-
-impl Launch {
-    fn for_spawn(&self) -> protocol::Launch {
-        protocol::Launch {
-            program: self.program.clone(),
-            arguments: self.arguments.clone(),
-            environment: self.environment.clone(),
-            root: self.root,
-            directory: self.directory.clone(),
-        }
-    }
-}
+pub use smith_protocol_program::Launch;
 
 /// Lower limits for one agent child and its channel, supplied by the service.
 #[derive(Clone, Copy, Debug)]
@@ -820,7 +800,7 @@ impl HostIo {
                     }));
                     return;
                 };
-                process.spawn(self.launch.for_spawn(), deadline, &mut self.io_requests);
+                process.spawn(self.launch.clone(), deadline, &mut self.io_requests);
                 self.process = Some(process);
             }
             host::process::Request::Send { owner, message, .. } => {
@@ -1367,7 +1347,7 @@ mod tests {
         )
         .unwrap();
         process.spawn(
-            adapter.launch.for_spawn(),
+            adapter.launch.clone(),
             Time::ZERO.saturating_add(Duration::from_secs(60)),
             &mut Queue::uncapped(),
         );

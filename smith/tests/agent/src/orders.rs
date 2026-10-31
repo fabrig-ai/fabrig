@@ -36,9 +36,9 @@ impl HandoffRequest {
     pub(crate) fn from_request(request: &Request) -> Option<Self> {
         if let Request::Turn { turn, .. } = request {
             Some(Self::Turn { sequence: turn.sequence })
-        } else if let Request::Complete { owner, name, prompt, .. } = request {
+        } else if let Request::Lower(smith_domain::Lower::Complete { owner, name, prompt, .. }) = request {
             Some(Self::Complete { owner: *owner, name: *name, thread: prompt.affinity.thread })
-        } else if let Request::Cancel { owner } = request {
+        } else if let Request::Lower(smith_domain::Lower::Cancel { owner }) = request {
             Some(Self::Cancel { owner: *owner })
         } else {
             None

@@ -38,14 +38,14 @@ fn one_content_drain_empties_the_root_beyond_the_service_fact_allowance() {
     );
     let mut completion = None;
     while let Some(request) = service.stages.domain_requests.pop() {
-        if let domain::Request::Complete { owner, .. } = request {
+        if let domain::Request::Lower(smith_domain::Lower::Complete { owner, .. }) = request {
             completion = Some(owner);
         }
     }
     domain::step(
         root,
         &service.stages.domain_env,
-        domain::Event::Completed {
+        domain::Event::Below(smith_domain::Below::Completed {
             owner: completion.expect("provider request"),
             completion: domain::llm::Completion {
                 reasoning_dropped: Box::default(),
@@ -56,7 +56,7 @@ fn one_content_drain_empties_the_root_beyond_the_service_fact_allowance() {
                 stop: domain::llm::Stop::EndTurn,
                 usage: domain::llm::Usage::ZERO,
             },
-        },
+        }),
         &mut service.stages.domain_requests,
     );
     assert_eq!(root.pending_content(), 3, "two text records and usage");

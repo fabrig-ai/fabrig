@@ -437,20 +437,20 @@ fn workspace_routes_keep_equal_tokens_in_separate_lower_families() {
     };
     while out.pop().is_some() {}
     let owner = Token::new(55);
-    agent.lower.push(smith::Request::Io {
+    agent.lower.push(smith::Request::Lower(Lower::Io {
         owner,
         op: smith::tools::Op::Load {
             at: smith::tools::Place { root: Token::new(9), path: b"a".as_slice().into() },
             max: 3,
         },
         deadline: Time::from_nanos(100),
-    });
-    agent.lower.push(smith::Request::Read {
+    }));
+    agent.lower.push(smith::Request::Lower(Lower::Read {
         owner,
         at: run::Place { root: Token::new(9), path: b"guide".as_slice().into() },
         max: 3,
         deadline: Time::from_nanos(100),
-    });
+    }));
     crate::route::route(&mut agent, &env, Id::from_token(handle), &mut out);
     let Some(Output::Lower { agent: emitted_agent, request: Lower::Io { owner: name, .. } }) = out.pop() else {
         panic!("expected Io")
@@ -483,13 +483,13 @@ fn a_job_act_is_lowered_and_settles_with_its_done() {
     while out.pop().is_some() {}
     let owner = Token::new(55);
     let act = smith::tools::JobAct::Read { head: 3, tail: 2, wait: Duration::from_secs(1) };
-    agent.lower.push(smith::Request::Job { owner, act });
+    agent.lower.push(smith::Request::Lower(Lower::Job { owner, act }));
     crate::route::route(&mut agent, &env, Id::from_token(handle), &mut out);
     assert_eq!(out.pop(), Some(Output::Lower { agent: handle, request: Lower::Job { owner, act } }));
     let slot = agent.slots.get_mut(Id::from_token(handle)).expect("retained slot");
     assert_eq!(
         crate::workspace::terminal(slot, Below::Done { owner, done: smith::tools::Done::Cancelled }),
-        Some(smith::Event::Done { owner, done: smith::tools::Done::Cancelled })
+        Some(smith::Event::Below(Below::Done { owner, done: smith::tools::Done::Cancelled }))
     );
     assert_eq!(slot.io.len(), 0);
 }
@@ -581,7 +581,7 @@ fn a_dropped_slot_keeps_a_command_right_until_its_terminal() {
     }
     // This unit supplies a root-boundary command fixture; the composed worlds
     // supply root operations and the native fake-machine settlement.
-    agent.lower.push(smith::Request::Io {
+    agent.lower.push(smith::Request::Lower(Lower::Io {
         owner: Token::new(100),
         op: smith::tools::Op::Spawn {
             cwd: smith::tools::Place { root: Token::new(9), path: b".".as_slice().into() },
@@ -591,7 +591,7 @@ fn a_dropped_slot_keeps_a_command_right_until_its_terminal() {
             after: None,
         },
         deadline: Time::from_nanos(100),
-    });
+    }));
     crate::route::route(&mut agent, &env, Id::from_token(handle), &mut out);
     while out.pop().is_some() {}
     step(&mut agent, &env, Input::Parent(parent::Event::Drop { agent: handle }), &mut out);

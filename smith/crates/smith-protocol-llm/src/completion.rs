@@ -68,7 +68,7 @@ pub fn completion(context: Context, completion: skein_llm::Completion) -> Result
         cache_write_tokens: cache_write,
         reasoning_tokens: reasoning,
     };
-    Ok(Event::Completed {
+    Ok(Event::Below(smith_domain::Below::Completed {
         owner: context.owner,
         completion: llm::Completion {
             reasoning_dropped: reasoning_dropped.into_boxed(),
@@ -76,7 +76,7 @@ pub fn completion(context: Context, completion: skein_llm::Completion) -> Result
             stop,
             usage,
         },
-    })
+    }))
 }
 
 fn block_value(block: skein_llm::Block, context: &Context, decoded_bytes: &mut u64) -> Result<llm::Said, Error> {

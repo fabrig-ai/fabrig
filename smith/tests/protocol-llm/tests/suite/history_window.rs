@@ -159,7 +159,7 @@ fn history_edge(provider: skein_llm::Provider) {
             }
         }
         assert_eq!(connection.peer.queries.len(), 1, "outside peer receives the exact admitted history");
-        let [Event::Completed { completion, .. }] = terminals.as_slice() else {
+        let [Event::Below(smith_domain::Below::Completed { completion, .. })] = terminals.as_slice() else {
             panic!("observed completion expected: {terminals:?}");
         };
         let [llm::Said::Text { text, .. }] = completion.content.as_ref() else { panic!("one observed text") };

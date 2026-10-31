@@ -163,7 +163,7 @@ fn completed(context: Context, peer: &mut RawWorld, expected_owner: Token) -> ll
         panic!("observed native completion")
     };
     assert_eq!(owner, expected_owner);
-    let Event::Completed { owner, completion } =
+    let Event::Below(smith_domain::Below::Completed { owner, completion }) =
         codec::completion(context, completion).expect("observed owned terminal translates")
     else {
         panic!("completed translation")
@@ -417,11 +417,18 @@ fn await_query(world: &mut World, count: usize) {
 }
 
 fn discovered(world: &World) {
-    let read = world.trace().iter().position(|line| line.contains("agent -> Read {")).expect("original discovery read");
-    let returned =
-        world.trace().iter().position(|line| line.contains("agent <- Read {")).expect("observed discovery terminal");
-    let complete =
-        world.trace().iter().position(|line| line.contains("agent -> Complete {")).expect("observed root Complete");
+    let read =
+        world.trace().iter().position(|line| line.contains("agent -> Lower(Read {")).expect("original discovery read");
+    let returned = world
+        .trace()
+        .iter()
+        .position(|line| line.contains("agent <- Below(Read {"))
+        .expect("observed discovery terminal");
+    let complete = world
+        .trace()
+        .iter()
+        .position(|line| line.contains("agent -> Lower(Complete {"))
+        .expect("observed root Complete");
     assert!(read < returned && returned < complete);
     assert!(
         skein_lib::bytes::find(
@@ -502,20 +509,23 @@ fn failure_evidence(
     evidence: llm::Evidence,
     detail: &[u8],
 ) -> bool {
-    matches!(event, Event::Failed { owner: terminal_owner, failure: terminal_failure, evidence: terminal_evidence, detail: terminal_detail, ..}
+    matches!(event, Event::Below(smith_domain::Below::Failed { owner: terminal_owner, failure: terminal_failure, evidence: terminal_evidence, detail: terminal_detail, ..})
         if *terminal_owner == owner && *terminal_failure == failure && *terminal_evidence == evidence && terminal_detail.as_ref() == detail)
 }
 
 fn failure_corruptions(event: &mut Event, owner: Token, failure: llm::Failure, evidence: llm::Evidence, detail: &[u8]) {
     assert!(failure_evidence(event, owner, failure, evidence, detail), "full observed failure: {event:?}");
-    let Event::Failed { owner: observed, .. } = event else { panic!("observed failure") };
+    let Event::Below(smith_domain::Below::Failed { owner: observed, .. }) = event else { panic!("observed failure") };
     *observed = Token::new(999);
     assert!(!failure_evidence(event, owner, failure, evidence, detail));
-    let Event::Failed { owner: observed, detail: observed_detail, .. } = event else { panic!("observed failure") };
+    let Event::Below(smith_domain::Below::Failed { owner: observed, detail: observed_detail, .. }) = event else {
+        panic!("observed failure")
+    };
     *observed = owner;
     let retained = std::mem::replace(observed_detail, b"rewritten".as_slice().into());
     assert!(!failure_evidence(event, owner, failure, evidence, detail));
-    let Event::Failed { detail: observed_detail, evidence: observed_evidence, .. } = event else {
+    let Event::Below(smith_domain::Below::Failed { detail: observed_detail, evidence: observed_evidence, .. }) = event
+    else {
         panic!("observed failure")
     };
     *observed_detail = retained;
@@ -525,13 +535,17 @@ fn failure_corruptions(event: &mut Event, owner: Token, failure: llm::Failure, e
         llm::Evidence::Response { status: None }
     };
     assert!(!failure_evidence(event, owner, failure, evidence, detail));
-    let Event::Failed { evidence: observed_evidence, failure: observed_failure, .. } = event else {
+    let Event::Below(smith_domain::Below::Failed { evidence: observed_evidence, failure: observed_failure, .. }) =
+        event
+    else {
         panic!("observed failure")
     };
     *observed_evidence = evidence;
     *observed_failure = llm::Failure::Invalid;
     assert!(!failure_evidence(event, owner, failure, evidence, detail));
-    let Event::Failed { failure: observed_failure, .. } = event else { panic!("observed failure") };
+    let Event::Below(smith_domain::Below::Failed { failure: observed_failure, .. }) = event else {
+        panic!("observed failure")
+    };
     *observed_failure = failure;
     assert!(failure_evidence(event, owner, failure, evidence, detail));
 }
@@ -750,7 +764,8 @@ fn a_reasoning_item_past_its_bound_fails_unless_the_model_drops_it() {
             let client::Event::Completed { owner: _, completion } = terminal else {
                 panic!("drop keeps completion");
             };
-            let Event::Completed { completion, .. } = codec::completion(context, completion).expect("drop translates")
+            let Event::Below(smith_domain::Below::Completed { completion, .. }) =
+                codec::completion(context, completion).expect("drop translates")
             else {
                 panic!("completed");
             };

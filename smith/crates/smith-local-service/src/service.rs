@@ -19,7 +19,6 @@ pub(crate) mod program_check;
 use ending::{Ending, State as EndState};
 use smith_domain as agent;
 use smith_host_domain as host;
-use smith_inline_agent as inline;
 use smith_local_domain as local;
 use smith_local_protocol as protocol;
 
@@ -847,7 +846,7 @@ impl Service {
                     Some(current) => assert_eq!(current, agent, "one inline slot owns every outstanding lower right"),
                     None => self.lower_agent = Some(agent),
                 }
-                self.effects.as_mut().expect("native IO belongs to inline mode").request(to_root_request(request));
+                self.effects.as_mut().expect("native IO belongs to inline mode").request(request);
             }
             local::Request::Input { reading } => self.io.input(reading),
             local::Request::Notice { notice } => self.notice(now, notice),
@@ -1173,7 +1172,7 @@ pub fn iterate(service: &mut Service, now: Time, wall: Wall) {
             let Some(event) = effects.event() else { break };
             service.local_events.push(local::Event::Below {
                 agent: service.lower_agent.expect("terminal belongs to an inline lower request"),
-                terminal: to_below(event),
+                terminal: event,
             });
         }
     }
@@ -1306,67 +1305,6 @@ fn namespace_submit(submit: kernel::Submit, bit: u64) -> kernel::Submit {
         other => other,
     };
     kernel::Submit { op: Token::new(submit.op.raw() | bit), kind }
-}
-
-fn to_below(event: agent::Event) -> inline::Below {
-    match event {
-        agent::Event::Completed { owner, completion } => inline::Below::Completed { owner, completion },
-        agent::Event::Failed { owner, failure, evidence, detail, report } => {
-            inline::Below::Failed { owner, failure, evidence, detail, report }
-        }
-        agent::Event::Cancelled { owner } => inline::Below::Cancelled { owner },
-        agent::Event::Done { owner, done } => inline::Below::Done { owner, done },
-        agent::Event::Read { owner, read } => inline::Below::Read { owner, read },
-        agent::Event::Probed { owner, executable } => inline::Below::Probed { owner, executable },
-        agent::Event::Checked { owner, ran } => inline::Below::Checked { owner, ran },
-        agent::Event::Aborted { owner } => inline::Below::Aborted { owner },
-        agent::Event::Start { .. }
-        | agent::Event::Message { .. }
-        | agent::Event::Cancel { .. }
-        | agent::Event::Acknowledge { .. }
-        | agent::Event::Grant { .. }
-        | agent::Event::HostReturned { .. }
-        | agent::Event::BuiltinResult { .. }
-        | agent::Event::ReadVersion { .. }
-        | agent::Event::Delivered { .. } => unreachable!("effects emit only typed IO terminals"),
-    }
-}
-
-/// Convert only the closed lower face into the shared component owner's request vocabulary.
-fn to_root_request(request: inline::Lower) -> agent::Request {
-    match request {
-        inline::Lower::Complete {
-            owner,
-            name,
-            grant,
-            prompt,
-            deadlines,
-            max_completion_bytes,
-            max_completion_blocks,
-            max_failure_bytes,
-            decoded_call_bytes,
-        } => agent::Request::Complete {
-            owner,
-            name,
-            grant,
-            prompt,
-            deadlines,
-            max_completion_bytes,
-            max_completion_blocks,
-            max_failure_bytes,
-            decoded_call_bytes,
-        },
-        inline::Lower::Cancel { owner } => agent::Request::Cancel { owner },
-        inline::Lower::Io { owner, op, deadline } => agent::Request::Io { owner, op, deadline },
-        inline::Lower::Job { owner, act } => agent::Request::Job { owner, act },
-        inline::Lower::CancelIo { owner } => agent::Request::CancelIo { owner },
-        inline::Lower::Read { owner, at, max, deadline } => agent::Request::Read { owner, at, max, deadline },
-        inline::Lower::Probe { owner, at, deadline } => agent::Request::Probe { owner, at, deadline },
-        inline::Lower::Check { owner, program, deadline, tail } => {
-            agent::Request::Check { owner, program, deadline, tail }
-        }
-        inline::Lower::Abort { owner } => agent::Request::Abort { owner },
-    }
 }
 
 #[cfg(test)]

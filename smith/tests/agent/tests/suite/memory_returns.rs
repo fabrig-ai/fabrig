@@ -68,13 +68,13 @@ fn fill_window(memory: &mut Memory) {
         let owner = memory.completion(Asker::Main, false);
         memory.answer(owner, read(turn * u64::try_from(RESULT_BYTES).expect("result bytes")));
         let owner = memory.io();
-        memory.step(Event::Done {
+        memory.step(Event::Below(smith_domain::Below::Done {
             owner,
             done: Done::Loaded {
                 content: vec![b'x'; RESULT_BYTES].into_boxed_slice(),
                 version: Version::new([1, 0, 0, 0]),
             },
-        });
+        }));
         if turn + 1 < TURNS {
             memory.settle();
         }
@@ -139,14 +139,14 @@ fn read_job_to_its_end(memory: &mut Memory) {
         ),
     );
     let owner = memory.io();
-    memory.step(Event::Done {
+    memory.step(Event::Below(smith_domain::Below::Done {
         owner,
         done: Done::Held {
             head: vec![b'h'; 4096].into_boxed_slice(),
             tail: vec![b't'; 4096].into_boxed_slice(),
             dropped: 0,
         },
-    });
+    }));
     memory.settle();
     let job = memory.running_job();
     let owner = memory.completion(Asker::Main, false);
@@ -159,7 +159,7 @@ fn read_job_to_its_end(memory: &mut Memory) {
     );
     let (owner, act) = memory.job();
     assert_eq!(act, JobAct::Read { head: 16_384, tail: 49_152, wait: Duration::from_secs(30) });
-    memory.step(Event::Done {
+    memory.step(Event::Below(smith_domain::Below::Done {
         owner,
         done: Done::Job {
             head: vec![b'h'; 8192].into_boxed_slice(),
@@ -167,7 +167,7 @@ fn read_job_to_its_end(memory: &mut Memory) {
             dropped: 0,
             end: JobEnd::Ended(Exit::Code { code: 0 }),
         },
-    });
+    }));
     memory.settle();
 }
 

@@ -187,7 +187,10 @@ fn owned_results_use_the_production_renderer_before_the_request_goes() {
         assert!(output.starts_with(b"exit code 0\nprior"));
         assert!(!*is_error);
         let client::Event::Completed { owner: _, completion } = take_terminal(&mut peer) else { panic!("completion") };
-        assert!(matches!(codec::completion(context, completion), Ok(Event::Completed { .. })));
+        assert!(matches!(
+            codec::completion(context, completion),
+            Ok(Event::Below(smith_domain::Below::Completed { .. }))
+        ));
         close_won(&mut peer);
     }
 }
@@ -230,7 +233,10 @@ fn a_result_past_its_bound_is_cut_with_its_marker_and_the_request_goes() {
             .expect("decimal omitted count");
         assert_eq!(omitted + marker, byte_count + b"exit code 0\n".len());
         let client::Event::Completed { owner: _, completion } = take_terminal(&mut peer) else { panic!("completion") };
-        assert!(matches!(codec::completion(context, completion), Ok(Event::Completed { .. })));
+        assert!(matches!(
+            codec::completion(context, completion),
+            Ok(Event::Below(smith_domain::Below::Completed { .. }))
+        ));
         close_won(&mut peer);
     }
 }
@@ -304,7 +310,7 @@ fn optional_child_shares_cross_both_provider_schemas_and_observed_completions() 
                 panic!("the provider retains the child call");
             };
             assert_eq!(received.as_ref(), arguments);
-            let Event::Completed { completion, .. } =
+            let Event::Below(smith_domain::Below::Completed { completion, .. }) =
                 codec::completion(context, completion).expect("observed checked adapter callback")
             else {
                 panic!("the observed call has one root completion");

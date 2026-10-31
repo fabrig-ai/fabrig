@@ -64,7 +64,9 @@ impl Typed {
 }
 impl Backend for Typed {
     fn start(&mut self, request: Request, now: Time, wall: Wall) -> Vec<provider::api::Query> {
-        let Request::Complete { owner, prompt, .. } = request else { panic!("backend accepts Complete") };
+        let Request::Lower(smith_domain::Lower::Complete { owner, prompt, .. }) = request else {
+            panic!("backend accepts Complete")
+        };
         self.stage.tick(now);
         self.stage.env.wall = wall;
         self.calls.open(owner, (prompt.tools, prompt.served.clone(), prompt.asker));
@@ -94,19 +96,20 @@ impl Backend for Typed {
             let owner = to.into_token();
             let (grants, served, asker) = self.calls.end(owner);
             let event = match result {
-                Ok(answer) => {
-                    Event::Completed { owner, completion: translate::completion(answer, grants, &served, asker) }
-                }
+                Ok(answer) => Event::Below(smith_domain::Below::Completed {
+                    owner,
+                    completion: translate::completion(answer, grants, &served, asker),
+                }),
                 Err(error) => {
                     let (failure, evidence) =
                         self.failure.unwrap_or((translate::failure(error.error), llm::Evidence::Unknown));
-                    Event::Failed {
+                    Event::Below(smith_domain::Below::Failed {
                         owner,
                         failure,
                         evidence,
                         detail: Box::default(),
                         report: self.failure_report.clone(),
-                    }
+                    })
                 }
             };
             progress.terminals.push((owner, event));

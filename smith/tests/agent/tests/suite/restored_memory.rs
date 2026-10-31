@@ -211,7 +211,9 @@ struct Complete {
 }
 
 fn terminal_bytes(event: &Event) -> u64 {
-    let Event::Completed { completion, .. } = event else { panic!("observed typed successful terminal") };
+    let Event::Below(smith_domain::Below::Completed { completion, .. }) = event else {
+        panic!("observed typed successful terminal")
+    };
     let [said] = completion.content.as_ref() else { panic!("one observed scripted assistant block") };
     let payload = match said {
         llm::Said::Text { text, replay } => {
@@ -540,7 +542,7 @@ impl Counted {
                     assert_eq!(host_run, WORKER);
                     assert!(self.admitted.replace(run).is_none());
                 }
-                Request::Read { owner, at, .. } => {
+                Request::Lower(smith_domain::Lower::Read { owner, at, .. }) => {
                     if let Some(caller) = &self.caller_charter {
                         let selected = caller.conventions.as_ref().expect("maximum path Start");
                         assert_eq!(at.path.as_ref(), selected.guide.as_ref());
@@ -548,7 +550,7 @@ impl Counted {
                     }
                     assert!(self.read.replace(owner).is_none());
                 }
-                Request::Probe { owner, at, .. } => {
+                Request::Lower(smith_domain::Lower::Probe { owner, at, .. }) => {
                     if let Some(caller) = &self.caller_charter {
                         let selected = caller.conventions.as_ref().expect("maximum path Start");
                         assert_eq!(at.path.as_ref(), selected.checks.as_ref());
@@ -557,7 +559,7 @@ impl Counted {
                     }
                     assert!(self.probe.replace(owner).is_none());
                 }
-                Request::Complete { owner, prompt, max_completion_bytes, .. } => {
+                Request::Lower(smith_domain::Lower::Complete { owner, prompt, max_completion_bytes, .. }) => {
                     self.calls += 1;
                     assert!(self.complete.replace(Complete { owner, prompt, maximum: max_completion_bytes }).is_none());
                 }
@@ -585,8 +587,8 @@ impl Counted {
                     assert_eq!(host_run, WORKER);
                     self.long_open = self.long_open.checked_sub(1).expect("terminal belongs to observed provider work");
                 }
-                Request::Yield { .. } => {}
-                Request::Cancel { owner } => {
+                Request::Lower(smith_domain::Lower::Yield { .. }) => {}
+                Request::Lower(smith_domain::Lower::Cancel { owner }) => {
                     let complete = self.complete.as_ref().expect("pending compaction is cancelled before typed work");
                     assert_eq!(complete.owner, owner);
                     assert!(matches!(complete.prompt.purpose, llm::Purpose::Compaction { .. }));
@@ -598,11 +600,13 @@ impl Counted {
                 | Request::Refused { .. }
                 | Request::Limited { .. }
                 | Request::MessageRefused { .. }
-                | Request::Io { .. }
-                | Request::Job { .. }
-                | Request::CancelIo { .. }
-                | Request::Check { .. }
-                | Request::Abort { .. } => {
+                | Request::Lower(
+                    smith_domain::Lower::Io { .. }
+                    | smith_domain::Lower::Job { .. }
+                    | smith_domain::Lower::CancelIo { .. }
+                    | smith_domain::Lower::Check { .. }
+                    | smith_domain::Lower::Abort { .. },
+                ) => {
                     panic!("this positive Wait/text fixture owes only discovery, provider and parent observations")
                 }
             }
@@ -658,9 +662,9 @@ impl Counted {
 
     fn discover(&mut self) {
         let owner = self.read.take().expect("observed root discovery request");
-        self.step(Event::Read { owner, read: run::Read::Missing });
+        self.step(Event::Below(smith_domain::Below::Read { owner, read: run::Read::Missing }));
         if let Some(owner) = self.probe.take() {
-            self.step(Event::Probed { owner, executable: false });
+            self.step(Event::Below(smith_domain::Below::Probed { owner, executable: false }));
         }
     }
 
@@ -737,7 +741,7 @@ impl Counted {
             llm::Said::Text { text: text.into(), replay: None }
         };
         drop(complete.prompt);
-        let event = Event::Completed {
+        let event = Event::Below(smith_domain::Below::Completed {
             owner: complete.owner,
             completion: llm::Completion {
                 reasoning_dropped: Box::new([]),
@@ -745,7 +749,7 @@ impl Counted {
                 stop: if waiting { llm::Stop::ToolUse } else { llm::Stop::EndTurn },
                 usage: llm::Usage { input_tokens: Some(0), output_tokens: Some(1), ..llm::Usage::NONE },
             },
-        };
+        });
         assert!(terminal_bytes(&event) <= complete.maximum, "typed terminal fits its receiving contract");
         event
     }
@@ -1022,7 +1026,7 @@ fn restore_exact(counted: &mut Counted, messages: u32, cycles: u32, tight: &Limi
     counted.step(Event::Cancel { run });
     counted.resume();
     drop(counted.complete.take());
-    counted.step(Event::Cancelled { owner });
+    counted.step(Event::Below(smith_domain::Below::Cancelled { owner }));
     assert!(matches!(counted.answer, Some(run::Answer::Failed { failure: run::Failure::Cancelled, turns: 1, .. })));
     counted.resume();
 }
@@ -1286,17 +1290,17 @@ fn a_restored_run_keeps_full_brief_and_custom_paths_with_caller_copies() {
     assert!(counted.admitted.is_some() && counted.read.is_some());
     assert_eq!(counted.calls, 0, "maximum retained paths and caller Start coexist before any provider effect");
     let owner = counted.read.take().expect("observed maximum-path discovery");
-    counted.step(Event::Read {
+    counted.step(Event::Below(smith_domain::Below::Read {
         owner,
         read: run::Read::Text { text: b"Maximum host-selected guide".as_slice().into(), whole: true },
-    });
+    }));
     let owner = counted.probe.take().expect("observed maximum check-path Probe");
-    counted.step(Event::Probed { owner, executable: true });
+    counted.step(Event::Below(smith_domain::Below::Probed { owner, executable: true }));
     let owner = counted.read.take().expect("observed maximum guide-path Read for the readonly mount");
-    counted.step(Event::Read {
+    counted.step(Event::Below(smith_domain::Below::Read {
         owner,
         read: run::Read::Text { text: b"Maximum readonly guide".as_slice().into(), whole: true },
-    });
+    }));
     let first = counted.complete.as_ref().expect("observed first root Complete");
     assert!(first.prompt.system.len() > 16_384, "combined metadata exceeds the original typed string cap");
     assert!(first.prompt.system.len() <= 32_768, "explicit typed string cap fits the observed combined prompt");
