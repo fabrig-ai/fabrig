@@ -14,14 +14,14 @@ enum Inner {
     SignIn(super::Process),
     Recovery(RecoveryProcess),
 }
-impl Inner {
-    fn host(&mut self) -> &mut dyn Host {
+impl Delegate for Inner {
+    fn host_mut(&mut self) -> &mut dyn Host {
         match self {
             Self::SignIn(process) => process,
             Self::Recovery(process) => process,
         }
     }
-    fn view(&self) -> &dyn Host {
+    fn host(&self) -> &dyn Host {
         match self {
             Self::SignIn(process) => process,
             Self::Recovery(process) => process,
@@ -85,10 +85,10 @@ impl Host for Process {
                 assert!(complete.result.is_ok());
                 self.signal_state = Signal::Closed;
             } else {
-                self.inner.host().completions().push(complete);
+                self.inner.completions().push(complete);
             }
         }
-        self.inner.host().iterate(now, wall);
+        self.inner.iterate(now, wall);
         if let Inner::SignIn(super::Process::Client(client)) = &self.inner {
             if client.opened_private.is_some() && self.opened_at.is_none() {
                 self.opened_at = Some(self.issued);
@@ -97,11 +97,11 @@ impl Host for Process {
                 self.stored_at = Some(self.issued);
             }
         }
-        while let Some(submit) = self.inner.host().submissions().pop() {
+        while let Some(submit) = self.inner.submissions().pop() {
             assert_ne!(submit.op, SIGNAL, "wrapper namespace");
             self.submissions.push(submit);
         }
-        if self.inner.view().is_empty() && self.signal_state == Signal::Held && !self.inner.view().work_pending(now) {
+        if self.inner.is_empty() && self.signal_state == Signal::Held && !self.inner.work_pending(now) {
             self.signal_state = Signal::Closing;
             self.submissions.push(Submit { op: SIGNAL, kind: Op::Close { fd: self.signal } });
         }
@@ -115,23 +115,23 @@ impl Host for Process {
     }
     fn work_pending(&self, now: Time) -> bool {
         !self.completions.is_empty()
-            || self.inner.view().work_pending(now)
-            || (self.inner.view().is_empty() && self.signal_state == Signal::Held)
+            || self.inner.work_pending(now)
+            || (self.inner.is_empty() && self.signal_state == Signal::Held)
     }
     fn next_deadline(&self) -> Option<Time> {
-        self.inner.view().next_deadline()
+        self.inner.next_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
-        self.inner.view().next_policy_deadline()
+        self.inner.next_policy_deadline()
     }
     fn is_empty(&self) -> bool {
         self.signal_state == Signal::Closed
-            && self.inner.view().is_empty()
+            && self.inner.is_empty()
             && self.completions.is_empty()
             && self.submissions.is_empty()
     }
     fn operations(&self) -> u32 {
-        self.inner.view().operations() + 1
+        self.inner.operations() + 1
     }
 }
 fn limits() -> accounts::Limits {
@@ -232,7 +232,7 @@ impl Referee<Process> for Judge {
                 self.sign_in.delivered = 1;
             }
         }
-        if procs[1].inner.view().is_empty() && procs[2].inner.view().is_empty() && !procs[0].ending {
+        if procs[1].inner.is_empty() && procs[2].inner.is_empty() && !procs[0].ending {
             if let Inner::SignIn(super::Process::Issuer(peer)) = &mut procs[0].inner {
                 peer.shutdown();
             }
@@ -264,7 +264,7 @@ impl Referee<Process> for Judge {
                 unreachable!("browser slot")
             }
         };
-        let shutdown_ready = procs[1].inner.view().is_empty() && procs[2].inner.view().is_empty() && !procs[0].ending;
+        let shutdown_ready = procs[1].inner.is_empty() && procs[2].inner.is_empty() && !procs[0].ending;
         self.wake = (owner_ready || redirect_ready || shutdown_ready).then_some(now);
     }
     fn next_deadline(&self) -> Option<Time> {
