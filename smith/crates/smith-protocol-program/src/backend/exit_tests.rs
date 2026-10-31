@@ -9,7 +9,7 @@ fn relay_eof_waits_for_the_programs_exit() {
     let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
     backend.mcp_ended(&env(0), &mut up, &mut below);
     assert!(up.is_empty());
-    assert_eq!(backend.phase, Phase::Running);
+    assert_eq!(backend.state, State::Running);
     backend.from_io(
         &env(0),
         BelowEvent::Io(io::Event::Exited { owner: backend.token(Owner::Program), exit: kernel::Exit::Code(7) }),

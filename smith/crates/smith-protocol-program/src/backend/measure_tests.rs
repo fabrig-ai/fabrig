@@ -10,7 +10,7 @@ use smith_events::{Block, Role};
 
 fn active(observe: bool) -> Backend {
     let mut backend = backend();
-    backend.phase = Phase::Running;
+    backend.state = State::Running;
     backend.child = Some(Token::new(30));
     backend.pipes = Pipes::from_spawn(&[Token::new(31), Token::new(32), Token::new(33)]);
     let mut request = request(&backend);
@@ -329,7 +329,7 @@ fn a_retry_discards_the_unfinished_message() {
         }
     }
     assert_eq!(completions, 1);
-    assert_eq!(backend.phase, Phase::Running);
+    assert_eq!(backend.state, State::Running);
 }
 
 #[test]
@@ -420,5 +420,5 @@ fn a_results_only_complete_offers_one_prompt() {
     backend.prompt_measure(env(4).now, Some(b"a second offer"));
     backend.flush_prompt_measure(env(4).now);
     assert!(backend.pop_measure().is_none());
-    assert_eq!(backend.phase, Phase::Running);
+    assert_eq!(backend.state, State::Running);
 }

@@ -1,7 +1,7 @@
 //! Lazy child startup and private entropy-derived names (smith/docs/design/protocol/programs.md, 3, 5.1).
 //! Keeps no login; the existing status reader classifies subscription use.
 
-use super::{Backend, Below, Phase};
+use super::{Backend, Below, State};
 use super::{Owner, PIPE_BYTES, Pipes};
 use crate::{Command, Ended, Launch, STATUS, Status, configuration_directory, environment, mcp};
 use alloc::boxed::Box;
@@ -46,7 +46,7 @@ impl Backend {
             FromDomain::Complete { owner, grant, .. } => (*owner, *grant),
             FromDomain::Cancel { .. } | FromDomain::Yield { .. } => unreachable!("start receives Complete"),
         };
-        if self.phase != Phase::Idle {
+        if self.state != State::Idle {
             self.owner = Some(owner);
             self.fail(env, llm::Failure::Invalid, b"smith: a program conversation is already started", up, below);
             return;
@@ -70,7 +70,7 @@ impl Backend {
         }
         if self.files.prepared() {
             self.request = Some(request);
-            self.phase = Phase::Starting;
+            self.state = State::Starting;
             self.prepare_invocation(env, up, below);
             return;
         }
@@ -96,7 +96,7 @@ impl Backend {
         for argument in STATUS {
             arguments.push(Box::from(argument)).expect("status arguments");
         }
-        self.phase = Phase::Checking;
+        self.state = State::Checking;
         self.check = Some(Command::new(
             self.token(Owner::Status),
             Launch {
@@ -125,14 +125,14 @@ impl Backend {
         if self.winding == super::stop::WindDown::YieldRequested {
             self.yield_for_wind_down(env, up, below);
         }
-        if self.phase == Phase::Ending
+        if self.state == State::Ending
             && self.child.is_none()
             && !self.spawning
             && let Some(server) = &mut self.server
         {
             server.close(&mut self.io);
         }
-        if self.phase == Phase::Ending
+        if self.state == State::Ending
             && self.check.is_none()
             && !self.spawning
             && self.child.is_none()
@@ -163,12 +163,12 @@ impl Backend {
             None => return,
         };
         self.check = None;
-        if self.phase == Phase::Ending {
+        if self.state == State::Ending {
             return;
         }
         match status {
             Status::Usable => {
-                self.phase = Phase::Starting;
+                self.state = State::Starting;
                 self.open_runs(env.now, below);
             }
             Status::NotSignedIn | Status::Otherwise(_) => self.fail(
@@ -195,7 +195,7 @@ impl Backend {
             };
             match event {
                 Some(mcp::Up::Listening { port }) => {
-                    if self.phase == Phase::Starting {
+                    if self.state == State::Starting {
                         self.store_instructions(env.now, port, below);
                     }
                 }
@@ -247,12 +247,12 @@ impl Backend {
         if self.switching {
             return;
         }
-        if self.phase == Phase::Running && self.child.is_some() {
+        if self.state == State::Running && self.child.is_some() {
             // Relay EOF can precede waitpid. Let the child and stderr settle
             // before choosing its program fault (smith/docs/design/protocol/programs.md, section 5.6).
             let until = env.now.saturating_add(self.settings.grace);
             self.eof_deadline = Some(self.eof_deadline.unwrap_or(until).min(until));
-        } else if self.phase != Phase::Ending && self.phase != Phase::Ended {
+        } else if self.state != State::Ending && self.state != State::Ended {
             self.fail(env, llm::Failure::Program { exit: self.exit }, b"smith: the MCP server ended", up, below);
         }
     }
@@ -358,7 +358,7 @@ impl Backend {
                 if let Some(pipe) = self.pipes.errors {
                     Self::demand(pipe, PIPE_BYTES, &mut self.io);
                 }
-                if self.phase == Phase::Ending {
+                if self.state == State::Ending {
                     self.io.push(io::Request::Close { entity: self.pipes.input.expect("stdin") });
                     if self.stopping > 0
                         || match self.deadline {
@@ -394,7 +394,7 @@ impl Backend {
                 if self.child.is_none()
                     && !self.spawning
                     && self.pipes == Pipes::CLOSED
-                    && self.phase != Phase::Ending
+                    && self.state != State::Ending
                     && !self.switching
                 {
                     let detail = self.error_tail();
@@ -433,7 +433,7 @@ impl Backend {
             }
             io::Event::Stream { up: stream::Up::Room, .. } => {}
             io::Event::Output { up: stream::OutputUp::Settled { right, outcome }, .. } => {
-                if self.phase != Phase::Ending || self.stop == super::stop::Stop::Parking {
+                if self.state != State::Ending || self.stop == super::stop::Stop::Parking {
                     match outcome {
                         stream::OutputOutcome::Granted => {
                             if self.exit.is_some() || self.pipes.input.is_none() {
@@ -536,9 +536,9 @@ impl Backend {
                 self.stderr.push(*byte).expect("tail room");
             } else if self.stderr.capacity() > 0 {
                 self.stderr_wrapped = true;
-                *self.stderr.get_mut(self.tail).expect("tail cell") = *byte;
-                self.tail = self
-                    .tail
+                *self.stderr.get_mut(self.stderr_next).expect("tail cell") = *byte;
+                self.stderr_next = self
+                    .stderr_next
                     .checked_add(1)
                     .expect("tail index")
                     .checked_rem(self.stderr.capacity())
@@ -551,7 +551,7 @@ impl Backend {
         let mut bytes = List::with_capacity(self.stderr.len());
         for index in 0..self.stderr.len() {
             let at = self
-                .tail
+                .stderr_next
                 .checked_add(index)
                 .expect("tail offset")
                 .checked_rem(self.stderr.len())

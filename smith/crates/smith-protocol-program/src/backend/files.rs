@@ -2,7 +2,7 @@
 //! Keeps only created-file flags and directory handles; never scans old runs.
 
 use super::Owner;
-use super::{Backend, Below, Phase};
+use super::{Backend, Below, State};
 use crate::mcp::{self, json};
 use alloc::boxed::Box;
 use skein_io::{file, kernel};
@@ -302,7 +302,7 @@ impl Backend {
     ) {
         let step = self.files.pending.take().expect("one pending private file request");
         let success = self.files.accept(step, event, descriptor);
-        if self.phase == Phase::Ending {
+        if self.state == State::Ending {
             if success && step == Step::CloseRoot {
                 self.settings.directory = None;
             }
@@ -393,7 +393,7 @@ impl Backend {
             return;
         }
         let Some(root) = self.settings.directory else {
-            self.phase = Phase::Ended;
+            self.state = State::Ended;
             return;
         };
         if let Some(residue) = &self.files.residue {

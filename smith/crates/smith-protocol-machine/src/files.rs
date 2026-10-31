@@ -91,13 +91,13 @@ pub(crate) struct Create {
     deadline: Time,
     /// The index of the `/` that ends the directory the file is in.
     parent: u32,
-    step: Making,
+    state: State,
     cancelled: bool,
 }
 
 /// The step a create's request in flight is.
 #[derive(Clone, Copy, Debug)]
-enum Making {
+enum State {
     /// Whether the file's directory is one.
     Probing,
     /// The directory whose path ends before byte `end`.
@@ -137,7 +137,7 @@ impl Create {
             no_follow: true,
         };
         (
-            Pending::Create(Create { root, path, content, deadline, parent, step: Making::Probing, cancelled: false }),
+            Pending::Create(Create { root, path, content, deadline, parent, state: State::Probing, cancelled: false }),
             probe,
         )
     }
@@ -150,9 +150,9 @@ impl Create {
 
     /// Take the terminal of the step in flight.
     pub(crate) fn event(mut self, owner: Token, now: Time, event: file::Event) -> Next {
-        let after = match self.step {
-            Making::Probing => self.probed(event),
-            Making::Making { end } => self.made(end, event),
+        let after = match self.state {
+            State::Probing => self.probed(event),
+            State::Making { end } => self.made(end, event),
         };
         match after {
             After::Answer(done) => Next::Done(done),
@@ -167,7 +167,7 @@ impl Create {
                 }
             }
             After::Make { end } => {
-                self.step = Making::Making { end };
+                self.state = State::Making { end };
                 let request = file::Request::MakeDirectory {
                     owner,
                     root: self.root,

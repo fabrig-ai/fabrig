@@ -62,7 +62,7 @@ fn an_open_result_completes_text_and_keeps_input_open() {
             .count(),
         0
     );
-    assert_eq!(backend.phase, Phase::Running);
+    assert_eq!(backend.state, State::Running);
 }
 
 #[test]
@@ -118,7 +118,7 @@ fn an_interrupted_open_turn_yields_without_failure() {
     assert_eq!(completed(&up).stop, llm::Stop::EndTurn);
     assert!(completed(&up).content.is_empty());
     assert!(backend.pending_failure.is_none());
-    assert_eq!(backend.phase, Phase::Running);
+    assert_eq!(backend.state, State::Running);
     assert!(interrupt_sent(&below));
 }
 
@@ -132,7 +132,7 @@ fn an_open_final_request_enters_the_wind_down() {
     prompt.messages = Box::new([user(b"Reply now with what you have")]);
     backend.resume(&env(0), next, &mut Queue::with_capacity(32), &mut Queue::with_capacity(64));
     assert!(backend.winding == stop::WindDown::Finishing);
-    assert_eq!(backend.phase, Phase::Running);
+    assert_eq!(backend.state, State::Running);
     let line: serde_json::Value =
         serde_json::from_slice(backend.outgoing.as_ref().expect("finishing input")).expect("user line");
     assert_eq!(line["message"]["content"], "Reply now with what you have\n");
@@ -217,10 +217,10 @@ fn a_yield_without_an_outstanding_completion_is_ignored() {
 #[test]
 fn a_yield_during_startup_waits_for_the_running_boundary() {
     let (mut backend, mut up, mut below) = running_with_queues();
-    backend.phase = Phase::Starting;
+    backend.state = State::Starting;
     backend.from_domain(&env(0), FromDomain::Yield { owner: Token::new(80) }, &mut up, &mut below);
     assert!(!interrupt_sent(&below));
-    backend.phase = Phase::Running;
+    backend.state = State::Running;
     backend.fire(&env(0), &mut up, &mut below);
     assert!(interrupt_sent(&below));
     assert!(up.is_empty());

@@ -3,7 +3,7 @@
 //! whether a result is owed; knows no run budget. Keeping stops write control
 //! requests, cancel/close signal, and the existing grace escalates both.
 
-use super::{Backend, Below, Phase, stream, tail, turns};
+use super::{Backend, Below, State, stream, tail, turns};
 use crate::mcp;
 use skein_io::{self as io, kernel};
 use skein_lib::{Env, List, Queue};
@@ -40,7 +40,7 @@ impl Backend {
     /// repeating an interrupt already waiting on its result (smith/docs/design/protocol/programs.md 5.9).
     #[must_use]
     fn can_yield_for_wind_down(&self) -> bool {
-        self.phase == Phase::Running
+        self.state == State::Running
             && self.owner.is_some()
             && self.stop == Stop::None
             && self.winding != WindDown::Finishing
@@ -61,7 +61,7 @@ impl Backend {
         self.winding = WindDown::Ordinary;
         if self.active_turn() {
             self.stop(env, true, true, up, below);
-            if self.phase == Phase::Ending {
+            if self.state == State::Ending {
                 return;
             }
             self.stop = Stop::Yielding;
@@ -279,7 +279,7 @@ impl Backend {
             self.turns.interrupted();
         }
         self.finish_stop();
-        if self.phase == Phase::Running && !self.switching {
+        if self.state == State::Running && !self.switching {
             self.completion_deadline(env, true);
         }
     }

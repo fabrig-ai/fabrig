@@ -77,7 +77,7 @@ fn the_tail_goes_as_one_user_message() {
 fn stderr_failure(backend: &mut Backend, detail: &[u8]) -> llm::Failure {
     backend.stderr = List::with_capacity(128);
     backend.stderr_wrapped = false;
-    backend.tail = 0;
+    backend.stderr_next = 0;
     backend.pipes.errors = Some(Token::new(33));
     backend.io_event(
         &env(0),
@@ -91,7 +91,7 @@ fn stderr_failure(backend: &mut Backend, detail: &[u8]) -> llm::Failure {
 #[test]
 fn a_missing_session_is_gone() {
     let mut backend = launchable();
-    backend.phase = Phase::Starting;
+    backend.state = State::Starting;
     backend.exit = Some(1);
     assert_eq!(
         stderr_failure(&mut backend, b"No conversation found with session ID: example"),
@@ -102,12 +102,12 @@ fn a_missing_session_is_gone() {
         stderr_failure(&mut backend, b"Other failure: No conversation found with session ID"),
         llm::Failure::Program { exit: Some(1) }
     );
-    backend.phase = Phase::Running;
+    backend.state = State::Running;
     assert_eq!(
         stderr_failure(&mut backend, b"No conversation found with session ID"),
         llm::Failure::Program { exit: Some(1) }
     );
-    backend.phase = Phase::Starting;
+    backend.state = State::Starting;
     backend.resuming = false;
     assert_eq!(
         stderr_failure(&mut backend, b"No conversation found with session ID"),
@@ -118,7 +118,7 @@ fn a_missing_session_is_gone() {
 #[test]
 fn a_park_while_waiting_interrupts() {
     let mut backend = launchable();
-    backend.phase = Phase::Running;
+    backend.state = State::Running;
     backend.child = Some(backend.token(Owner::Program));
     backend.pipes = Pipes::from_spawn(&[Token::new(31), Token::new(32), Token::new(33)]);
     backend.owner = None; // The wait completion was delivered; its held RPC remains unanswered.
@@ -206,7 +206,7 @@ fn launch_from_listener(
 
 fn running_history(up: &mut Queue<ToDomain>, below: &mut Queue<Below>) -> (Backend, [u8; 16]) {
     let mut backend = launchable();
-    backend.phase = Phase::Starting;
+    backend.state = State::Starting;
     backend.owner = Some(Token::new(80));
     backend.open_runs(env(0).now, below);
     for (file, descriptor) in [(Token::new(42), kernel::Fd::new(43)), (Token::new(44), kernel::Fd::new(45))] {
@@ -221,7 +221,7 @@ fn running_history(up: &mut Queue<ToDomain>, below: &mut Queue<Below>) -> (Backe
         );
     }
     let first = launch_from_listener(&mut backend, 0, up, below);
-    let id = backend.running.expect("window ID");
+    let id = backend.running_session.expect("window ID");
     assert!(first.args.windows(2).any(|pair| pair[0].as_ref() == b"--resume" && pair[1].as_ref() == session::uuid(id)));
     backend.from_io(
         &env(0),
@@ -359,11 +359,11 @@ fn a_first_call_retry_resumes_the_recorded_session() {
         let FromDomain::Complete { prompt, .. } = &request else { panic!("complete") };
         let session::Opening::New { id } = session::opening(prompt, None, None) else { panic!("new") };
         backend.request = Some(request);
-        backend.running = Some(id);
+        backend.running_session = Some(id);
         backend.names.session = session::uuid(id);
         backend.resuming = false;
         backend.owner = Some(Token::new(80));
-        backend.phase = Phase::Starting;
+        backend.state = State::Starting;
         backend.child = Some(backend.token(Owner::Program));
         backend.pipes = Pipes::from_spawn(&[Token::new(31), Token::new(32), Token::new(33)]);
         backend.launch_spec().expect("new spawn");
@@ -373,7 +373,7 @@ fn a_first_call_retry_resumes_the_recorded_session() {
         if init_first {
             backend.admit_init(&env(0), init, &mut up, &mut below);
         }
-        assert_eq!(backend.recorded, None);
+        assert_eq!(backend.recorded_session, None);
         backend.from_io(
             &env(0),
             BelowEvent::Io(io::Event::Output {
@@ -387,10 +387,10 @@ fn a_first_call_retry_resumes_the_recorded_session() {
             &mut below,
         );
         if !init_first {
-            assert_eq!(backend.recorded, None, "input alone does not record the ID");
+            assert_eq!(backend.recorded_session, None, "input alone does not record the ID");
             backend.admit_init(&env(0), init, &mut up, &mut below);
         }
-        assert_eq!(backend.recorded, Some(id));
+        assert_eq!(backend.recorded_session, Some(id));
         backend.fire(&env(1), &mut up, &mut below);
         let Some(ToDomain::Failed { failure, .. }) = up.pop() else { panic!("head timeout") };
         assert_eq!(failure, llm::Failure::TimedOut { phase: llm::Phase::Head });
@@ -414,7 +414,7 @@ fn a_first_call_retry_resumes_the_recorded_session() {
 #[test]
 fn a_wrapped_missing_prefix_stays_a_program_error() {
     let mut backend = launchable();
-    backend.phase = Phase::Starting;
+    backend.state = State::Starting;
     backend.exit = Some(1);
     let prefix = b"No conversation found with session ID";
     backend.stderr = List::with_capacity(u32::try_from(prefix.len()).expect("prefix length"));
@@ -427,7 +427,7 @@ fn a_wrapped_missing_prefix_stays_a_program_error() {
             &mut Queue::with_capacity(64),
         );
     }
-    assert_eq!(backend.tail, 0, "one whole revolution");
+    assert_eq!(backend.stderr_next, 0, "one whole revolution");
     assert_eq!(backend.stderr.as_slice(), prefix);
     assert!(backend.stderr_wrapped);
     assert_eq!(backend.exit_failure(), llm::Failure::Program { exit: Some(1) });

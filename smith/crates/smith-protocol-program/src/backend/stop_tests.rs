@@ -94,7 +94,7 @@ fn the_wind_down_requests_one_interrupt() {
     backend.line(&env(0), br#"{"type":"result","is_error":true,"subtype":"error_during_execution","terminal_reason":"aborted_streaming"}"#, &mut up, &mut below);
     backend.flush(&mut below);
     assert!(backend.winding == stop::WindDown::Finishing);
-    assert_eq!(backend.phase, Phase::Running);
+    assert_eq!(backend.state, State::Running);
     let note: serde_json::Value = serde_json::from_slice(backend.outgoing.as_ref().expect("finishing note")).unwrap();
     assert_eq!(
         note["message"]["content"],
@@ -231,7 +231,7 @@ fn a_built_in_outside_the_choice_is_denied() {
 fn an_answered_builtin_does_not_release_the_next_prompt() {
     let mut backend = active();
     builtin(&mut backend);
-    backend.permitted = 2;
+    backend.permitted_message = 2;
     backend.ledger.get_mut(0).unwrap().answered = true;
     backend.ledger.get_mut(0).unwrap().input = br#"{"a":1}"#.as_slice().into();
     builtin(&mut backend);
@@ -254,7 +254,7 @@ fn equal_permission_prompts_bind_distinct_calls() {
     let mut backend = active();
     builtin(&mut backend);
     builtin(&mut backend);
-    backend.permitted = 2;
+    backend.permitted_message = 2;
     assert!(backend.permission_ready(b"Read", b"{}", None).is_some());
     assert!(backend.permission_ready(b"Read", b"{}", None).is_some());
     assert!(backend.permission_ready(b"Read", b"{}", None).is_none());
@@ -506,7 +506,7 @@ fn a_control_interrupt_keeps_the_process_for_the_note() {
         ]
     );
     assert_eq!(backend.child, Some(Token::new(30)));
-    assert_eq!(backend.phase, Phase::Running);
+    assert_eq!(backend.state, State::Running);
     assert_eq!(signal(&below, kernel::Signal::Interrupt), 0);
     assert!(!input_closed(&below));
     for event in &up {

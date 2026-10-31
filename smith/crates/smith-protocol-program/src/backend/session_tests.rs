@@ -52,11 +52,11 @@ fn the_session_id_is_a_v4_uuid() {
 #[test]
 fn a_new_window_stops_the_old_session() {
     let mut backend = backend();
-    backend.phase = Phase::Running;
+    backend.state = State::Running;
     backend.child = Some(backend.token(Owner::Program));
     backend.pipes = Pipes::from_spawn(&[Token::new(31), Token::new(32), Token::new(33)]);
     let session::Opening::New { id } = session::opening(&ordinary(), None, None) else { panic!("new") };
-    backend.running = Some(id);
+    backend.running_session = Some(id);
     backend.owner = Some(Token::new(80));
     backend.request = Some(request(&backend));
     let mut next = request(&backend);
@@ -150,7 +150,7 @@ fn a_compaction_renders_the_window_as_one_message() {
 #[test]
 fn a_compaction_s_text_is_its_summary() {
     let mut backend = backend();
-    backend.phase = Phase::Running;
+    backend.state = State::Running;
     backend.owner = Some(Token::new(80));
     backend.child = Some(backend.token(Owner::Program));
     backend.pipes.input = Some(Token::new(31));
@@ -178,18 +178,18 @@ fn a_compaction_s_text_is_its_summary() {
 #[test]
 fn the_program_s_own_compaction_passes() {
     let mut backend = backend();
-    backend.phase = Phase::Running;
+    backend.state = State::Running;
     let mut up = Queue::with_capacity(32);
     let mut below = Queue::with_capacity(64);
     backend.line(&env(0), br#"{"type":"system","subtype":"compact_boundary"}"#, &mut up, &mut below);
     assert!(up.is_empty());
-    assert_eq!(backend.phase, Phase::Running);
+    assert_eq!(backend.state, State::Running);
 }
 
 #[test]
 fn a_pending_window_keeps_the_stop_grace() {
     let mut backend = backend();
-    backend.phase = Phase::Running;
+    backend.state = State::Running;
     backend.switching = true;
     backend.child = Some(backend.token(Owner::Program));
     backend.pipes.input = Some(Token::new(31));

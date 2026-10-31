@@ -4,7 +4,7 @@
 //! teach nothing. Closing waits for the load's terminal before private cleanup.
 
 use super::Owner;
-use super::{Backend, Below, Phase, policy, stop};
+use super::{Backend, Below, State, policy, stop};
 use crate::mcp::{self, json};
 use alloc::boxed::Box;
 use skein_io::{digest, file};
@@ -98,7 +98,7 @@ impl Backend {
 
     pub(super) fn native_event(&mut self, event: file::Event, up: &mut Queue<ToDomain>) {
         let snapshot = self.native.take().expect("one native file terminal");
-        if snapshot.cancelled || self.phase == Phase::Ending || self.stop != stop::Stop::None {
+        if snapshot.cancelled || self.state == State::Ending || self.stop != stop::Stop::None {
             return;
         }
         match event {

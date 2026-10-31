@@ -2,7 +2,7 @@
 //! Keeps correlation separately from delivered domain blocks; the domain alone
 //! accepts outcomes; cancellation fails unanswered calls before settling the child.
 
-use super::{Backend, Below, Phase, calls, stream, turns};
+use super::{Backend, Below, State, calls, stream, turns};
 use crate::mcp::{self, json};
 use alloc::boxed::Box;
 use skein_json::Kind;
@@ -34,7 +34,7 @@ impl Backend {
             );
             return;
         }
-        self.permitted = self
+        self.permitted_message = self
             .turns
             .closed
             .checked_sub(u64::from(self.turns.ready.len()))
@@ -406,7 +406,7 @@ impl Backend {
         for call in held.into_boxed() {
             match call {
                 mcp::Up::Call { call, tool, input } => {
-                    if self.phase == Phase::Ending || self.stop != super::stop::Stop::None {
+                    if self.state == State::Ending || self.stop != super::stop::Stop::None {
                         self.server.as_mut().expect("stopped MCP call").answer(
                             call,
                             mcp::Answer::Error(super::stop::INTERRUPTED.into()),
@@ -443,7 +443,7 @@ impl Backend {
 
     pub(super) fn completion_deadline(&mut self, env: &Env<protocol::ComponentLimits>, head: bool) {
         if self.owner.is_none()
-            || self.phase != Phase::Running
+            || self.state != State::Running
             || self.switching
             || self.stop != super::stop::Stop::None
         {
@@ -461,7 +461,7 @@ impl Backend {
     }
 
     pub(super) fn answer_calls(&mut self) {
-        if self.phase == Phase::Ending || self.stop != super::stop::Stop::None {
+        if self.state == State::Ending || self.stop != super::stop::Stop::None {
             return;
         }
         for index in 0..self.ledger.len() {

@@ -133,14 +133,14 @@ fn init_contract(tools: &[&str], granted: bool, contract: bool) -> (Backend, Que
 fn a_contract_init_may_list_structured_output() {
     let (backend, up) = init_contract(&["StructuredOutput"], false, true);
     assert!(up.is_empty());
-    assert_eq!(backend.phase, Phase::Running);
+    assert_eq!(backend.state, State::Running);
 }
 
 #[test]
 fn a_contract_init_may_omit_structured_output() {
     let (backend, up) = init_contract(&[], false, true);
     assert!(up.is_empty());
-    assert_eq!(backend.phase, Phase::Running);
+    assert_eq!(backend.state, State::Running);
 }
 
 #[test]
@@ -193,7 +193,7 @@ fn structured_output_is_the_finish_from_its_result() {
     assert!(backend.ledger.is_empty(), "no workspace call or result is owed");
     assert!(up.is_empty(), "no BuiltinResult or second completion");
     assert!(below.is_empty(), "neither a permission prompt nor an MCP answer");
-    assert_eq!(backend.phase, Phase::Running);
+    assert_eq!(backend.state, State::Running);
 }
 
 #[test]
@@ -208,7 +208,7 @@ fn a_structured_call_without_its_wrapped_outcome_fails() {
         let line = serde_json::to_vec(&result).expect("result JSON");
         backend.line(&env(0), &line, &mut up, &mut below);
         let Some(ToDomain::Failed { .. }) = up.pop() else { panic!("missing outcome fails") };
-        assert_eq!(backend.phase, Phase::Ending);
+        assert_eq!(backend.state, State::Ending);
         assert!(up.is_empty(), "the held call was never delivered as a built-in");
     }
 }
@@ -234,7 +234,7 @@ fn an_init_without_a_granted_built_in_fails() {
     failed(up.pop(), b"smith: the program lacks a granted built-in tool: Grep");
     let (backend, up) = init(&["mcp__smith__permission_prompt", "Read", "Glob", "Grep"], true);
     assert!(up.is_empty());
-    assert_eq!(backend.phase, Phase::Running);
+    assert_eq!(backend.state, State::Running);
 }
 
 #[test]
@@ -508,7 +508,7 @@ fn a_structured_result_requires_exactly_its_outcome_member() {
                 .expect("result JSON");
         backend.line(&env(0), &line, &mut up, &mut below);
         let Some(ToDomain::Failed { .. }) = up.pop() else { panic!("invalid wrapper fails") };
-        assert_eq!(backend.phase, Phase::Ending);
+        assert_eq!(backend.state, State::Ending);
     }
 }
 

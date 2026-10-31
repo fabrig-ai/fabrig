@@ -248,7 +248,7 @@ pub(super) fn active() -> Backend {
 
 /// Keep caller-selected limits and attach the standard running completion.
 pub(super) fn running(mut backend: Backend) -> Backend {
-    backend.phase = Phase::Running;
+    backend.state = State::Running;
     backend.child = Some(Token::new(30));
     backend.pipes = Pipes::from_spawn(&[Token::new(31), Token::new(32), Token::new(33)]);
     backend.owner = Some(Token::new(80));
@@ -276,7 +276,7 @@ pub(super) fn window() -> Backend {
     let session::Opening::New { id } = session::opening(prompt, None, None) else {
         panic!("new window");
     };
-    backend.running = Some(id);
+    backend.running_session = Some(id);
     backend
 }
 
@@ -323,7 +323,7 @@ pub(super) fn prompt_with(messages: Box<[llm::Message]>) -> llm::Prompt {
 /// A lazy startup whose program spawn has not answered yet.
 pub(super) fn spawning() -> Backend {
     let mut backend = backend();
-    backend.phase = Phase::Starting;
+    backend.state = State::Starting;
     backend.spawning = true;
     backend
 }
@@ -331,7 +331,7 @@ pub(super) fn spawning() -> Backend {
 /// A spawned program waiting for its init record.
 pub(super) fn starting() -> Backend {
     let mut backend = active();
-    backend.phase = Phase::Starting;
+    backend.state = State::Starting;
     backend.deadline = Some(env(30).now);
     backend.child = Some(backend.token(Owner::Program));
     backend
@@ -340,7 +340,7 @@ pub(super) fn starting() -> Backend {
 /// One child with no remaining output streams.
 pub(super) fn running_child() -> Backend {
     let mut backend = backend();
-    backend.phase = Phase::Running;
+    backend.state = State::Running;
     backend.child = Some(Token::new(30));
     backend
 }
@@ -348,7 +348,7 @@ pub(super) fn running_child() -> Backend {
 /// A program input line waiting for output room.
 pub(super) fn input(bytes: Box<[u8]>) -> Backend {
     let mut backend = backend();
-    backend.phase = Phase::Running;
+    backend.state = State::Running;
     backend.pipes.input = Some(Token::new(31));
     backend.outgoing = Some(bytes);
     backend.send_input();

@@ -340,7 +340,7 @@ fn accepting_one_finish_does_not_accept_an_unjudged_finish() {
 #[test]
 fn bytes_after_init_in_the_same_read_start_the_idle_deadline() {
     let mut backend = active();
-    backend.phase = Phase::Starting;
+    backend.state = State::Starting;
     let Some(FromDomain::Complete { deadlines, .. }) = &mut backend.request else { panic!("completion") };
     deadlines.head = Duration::from_secs(30);
     deadlines.idle = Duration::from_secs(2);

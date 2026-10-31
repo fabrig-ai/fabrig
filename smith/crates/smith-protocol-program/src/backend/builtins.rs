@@ -1,7 +1,7 @@
 //! Built-in stream correlation (protocol/programs.md 5.4–5.5).
 //! Uses the bounded call ledger: a result waits for its call's Completed owner.
 
-use super::{Backend, Below, Phase, policy, stream};
+use super::{Backend, Below, State, policy, stream};
 use crate::mcp::{self, json};
 use alloc::boxed::Box;
 use skein_json::{Document, Kind};
@@ -43,7 +43,7 @@ impl Backend {
             self.fail(env, llm::Failure::Program { exit: None }, &detail, up, below);
             return;
         }
-        self.phase = Phase::Running;
+        self.state = State::Running;
         if !self.compaction() {
             self.remember_session();
         }

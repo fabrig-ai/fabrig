@@ -38,7 +38,7 @@ pub enum Ended<'a> {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Phase {
+enum State {
     Active,
     ChildClosed,
     Done,
@@ -51,7 +51,7 @@ pub struct Command {
     child: Option<Token>,
     pipes: [Option<Token>; 2],
     deadline: Time,
-    phase: Phase,
+    state: State,
     timed_out: bool,
     exit: Option<kernel::Exit>,
     stdout: List<u8>,
@@ -87,7 +87,7 @@ impl Command {
             child: None,
             pipes: [None, None],
             deadline,
-            phase: Phase::Active,
+            state: State::Active,
             timed_out: false,
             exit: None,
             stdout: List::with_capacity(STATUS_BYTES.checked_add(1).expect("status sentinel")),
@@ -155,7 +155,7 @@ impl Command {
             }
             io::Event::Closed { owner } => {
                 if owner == self.io_owner {
-                    self.phase = Phase::ChildClosed;
+                    self.state = State::ChildClosed;
                 } else {
                     for pipe in &mut self.pipes {
                         if *pipe == Some(owner) {
@@ -179,14 +179,14 @@ impl Command {
 
     /// Kill at the deadline, waiting for child and pipe closures before ending.
     pub fn fire(&mut self, now: Time, below: &mut Queue<io::Request>) {
-        if self.phase != Phase::Done && !self.timed_out && now >= self.deadline {
+        if self.state != State::Done && !self.timed_out && now >= self.deadline {
             self.cancel(below);
         }
     }
 
     /// Cancel once, retaining the child and pipes until their close reports.
     pub fn cancel(&mut self, below: &mut Queue<io::Request>) {
-        if self.phase != Phase::Done && !self.timed_out {
+        if self.state != State::Done && !self.timed_out {
             self.timed_out = true;
             self.stop(below);
         }
@@ -195,13 +195,13 @@ impl Command {
     /// The host deadline while the command is active and has not timed out.
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
-        if self.phase == Phase::Done || self.timed_out { None } else { Some(self.deadline) }
+        if self.state == State::Done || self.timed_out { None } else { Some(self.deadline) }
     }
 
     /// The ending once the child and both output pipes have settled.
     #[must_use]
     pub fn ended(&self) -> Option<Ended<'_>> {
-        if self.phase != Phase::Done {
+        if self.state != State::Done {
             return None;
         }
         let detail = self.stderr.as_slice();
@@ -251,7 +251,7 @@ impl Command {
     }
 
     fn settle(&mut self) {
-        if self.phase != Phase::ChildClosed || self.pipes != [None, None] {
+        if self.state != State::ChildClosed || self.pipes != [None, None] {
             return;
         }
         if self.tail_next > 0 {
@@ -268,6 +268,6 @@ impl Command {
             self.stderr = tail;
             self.tail_next = 0;
         }
-        self.phase = Phase::Done;
+        self.state = State::Done;
     }
 }

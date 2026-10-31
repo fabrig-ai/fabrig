@@ -2,7 +2,7 @@
 //! Keeps the last recorded id, never the program's session contents.
 //! Affinity and the first rendered message identify the window.
 
-use super::{Backend, Below, Phase, compact, turns};
+use super::{Backend, Below, State, compact, turns};
 use super::{PIPE_BYTES, Pipes};
 use skein_lib::{Env, List, Queue, sha256::Sha256};
 use smith_domain::llm::{self, Affinity, Prompt};
@@ -120,8 +120,8 @@ pub(super) fn uuid(id: [u8; 16]) -> [u8; 36] {
 
 impl Backend {
     pub(super) fn remember_session(&mut self) {
-        if self.phase == Phase::Running && !self.switching && !self.compaction() && self.outgoing.is_none() {
-            self.recorded = self.running;
+        if self.state == State::Running && !self.switching && !self.compaction() && self.outgoing.is_none() {
+            self.recorded_session = self.running_session;
         }
     }
 
@@ -138,7 +138,7 @@ impl Backend {
         };
         let keep = !compact::is_compaction(prompt)
             && !self.switching
-            && match opening(prompt, self.running, self.recorded) {
+            && match opening(prompt, self.running_session, self.recorded_session) {
                 Opening::Running => true,
                 Opening::New { .. } | Opening::Resume { .. } => false,
             };
@@ -163,7 +163,7 @@ impl Backend {
         up: &mut Queue<ToDomain>,
         below: &mut Queue<Below>,
     ) {
-        if self.phase == Phase::Ending
+        if self.state == State::Ending
             || self.native.is_some()
             || !self.switching
             || self.child.is_some()
@@ -181,7 +181,7 @@ impl Backend {
         self.server = None;
         self.server_ended = false;
         self.switching = false;
-        self.running = None;
+        self.running_session = None;
         self.stop = super::stop::Stop::None;
         if self.winding != super::stop::WindDown::YieldRequested {
             self.winding = super::stop::WindDown::Ordinary;
@@ -197,20 +197,20 @@ impl Backend {
         self.intake_due = None;
         self.line = List::with_capacity(self.settings.line_bytes);
         self.stderr = List::with_capacity(self.settings.receiving.max_failure_bytes);
-        self.tail = 0;
+        self.stderr_next = 0;
         self.stderr_wrapped = false;
         self.written = 0;
         self.interrupt_pending = None;
         self.interrupt_line = None;
         self.ledger = List::with_capacity(self.settings.ledger_slots().expect("ledger"));
         self.turns = turns::Turns::new(&self.settings.receiving, self.settings.adapter.client.answer);
-        self.permitted = 1;
+        self.permitted_message = 1;
         if self.owner.is_some() {
-            self.phase = Phase::Starting;
+            self.state = State::Starting;
             self.prepare_invocation(env, up, below);
         } else {
             self.request = None;
-            self.phase = Phase::Idle;
+            self.state = State::Idle;
         }
     }
 
@@ -229,7 +229,7 @@ impl Backend {
             self.names.session = self.compaction_id();
             self.store_instructions(env.now, 0, below);
         } else {
-            match opening(prompt, None, self.recorded) {
+            match opening(prompt, None, self.recorded_session) {
                 kind @ (Opening::New { .. } | Opening::Resume { .. }) => {
                     let id = match kind {
                         Opening::New { id } => {
@@ -242,7 +242,7 @@ impl Backend {
                         }
                         Opening::Running => unreachable!("opening a process"),
                     };
-                    self.running = Some(id);
+                    self.running_session = Some(id);
                     self.names.session = uuid(id);
                 }
                 Opening::Running => unreachable!("no process"),

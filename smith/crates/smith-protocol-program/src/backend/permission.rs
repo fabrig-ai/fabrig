@@ -3,7 +3,7 @@
 //! uses the provider's tool id, or its name/input when the id is absent.
 
 use super::PIPE_BYTES;
-use super::{Backend, Phase, policy};
+use super::{Backend, State, policy};
 use crate::mcp::{self, json};
 use alloc::boxed::Box;
 use skein_lib::List;
@@ -18,7 +18,7 @@ impl Backend {
                 unreachable!("permission prompt")
             }
         };
-        if self.phase == Phase::Ending || self.stop != super::stop::Stop::None {
+        if self.state == State::Ending || self.stop != super::stop::Stop::None {
             self.server.as_mut().expect("stopped permission prompt").verdict(
                 call,
                 mcp::Verdict::Deny { message: super::stop::INTERRUPTED.into() },
@@ -76,7 +76,7 @@ impl Backend {
                         )
                 }
             };
-            if held.builtin && !held.answered && !held.prompted && same && held.message < self.permitted {
+            if held.builtin && !held.answered && !held.prompted && same && held.message < self.permitted_message {
                 held.prompted = true;
                 return Some(index);
             }

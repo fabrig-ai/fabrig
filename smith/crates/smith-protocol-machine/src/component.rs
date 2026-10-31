@@ -15,7 +15,7 @@ use skein_lib::{Env, List, Map, Queue, Time, Token};
 use smith_domain::{run, tools};
 
 use crate::boundary::{Below, BelowEvent, FromDomain, ToDomain};
-use crate::guide::{Guide, Step};
+use crate::guide::{Guide, Next as GuideNext};
 use crate::limits::Limits;
 use crate::process::Process;
 
@@ -394,10 +394,10 @@ impl Component {
                 let owner = event.owner();
                 if let Some(guide) = self.guides.remove(&owner) {
                     match guide.event(owner, event, below) {
-                        Step::Continue(guide) => {
+                        GuideNext::Continue(guide) => {
                             self.guides.insert(owner, guide).expect("guide slot returned");
                         }
-                        Step::Done(terminal) => to_domain.push(terminal),
+                        GuideNext::Done(terminal) => to_domain.push(terminal),
                     }
                 } else if let Some(process) = self.processes.get_mut(&owner) {
                     process.directory_event(event, below);

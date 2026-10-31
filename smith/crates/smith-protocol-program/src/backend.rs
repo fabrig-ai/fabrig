@@ -50,11 +50,11 @@ mod measure_tests;
 #[cfg(test)]
 mod open_tests;
 #[cfg(test)]
+mod records_tests;
+#[cfg(test)]
 mod reply_tests;
 #[cfg(test)]
 mod resume_tests;
-#[cfg(test)]
-mod review_tests;
 #[cfg(test)]
 mod session_tests;
 #[cfg(test)]
@@ -190,7 +190,7 @@ pub enum BelowEvent {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Phase {
+enum State {
     Idle,
     Checking,
     Starting,
@@ -210,7 +210,7 @@ pub struct Backend {
     settings: Settings,
     names: start::Names,
     grant: Option<Grant>,
-    phase: Phase,
+    state: State,
     owner: Option<Token>,
     pending_failure: Option<(llm::Failure, Box<[u8]>)>,
     request: Option<FromDomain>,
@@ -238,9 +238,10 @@ pub struct Backend {
     switching: bool,
     resuming: bool,
     compactions: u32,
-    running: Option<[u8; 16]>,
-    recorded: Option<[u8; 16]>,
-    permitted: u64,
+    running_session: Option<[u8; 16]>,
+    recorded_session: Option<[u8; 16]>,
+    /// One-based index of the next message whose calls may be permitted.
+    permitted_message: u64,
     response_phase: llm::Phase,
     run_time: Duration,
     line: List<u8>,
@@ -256,7 +257,8 @@ pub struct Backend {
     ledger: List<calls::Call>,
     turns: turns::Turns,
     stderr: List<u8>,
-    tail: u32,
+    /// Next byte overwritten when the stderr capture is full.
+    stderr_next: u32,
     stderr_wrapped: bool,
     io: Queue<io::Request>,
 }
@@ -265,7 +267,7 @@ impl core::fmt::Debug for Backend {
     fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         formatter
             .debug_struct("Backend")
-            .field("phase", &self.phase)
+            .field("state", &self.state)
             .field("owner", &self.owner)
             .finish_non_exhaustive()
     }
@@ -288,7 +290,7 @@ impl Backend {
             settings,
             names: start::Names::new(entropy),
             grant: None,
-            phase: Phase::Idle,
+            state: State::Idle,
             owner: None,
             pending_failure: None,
             request: None,
@@ -316,9 +318,9 @@ impl Backend {
             switching: false,
             resuming: false,
             compactions: 0,
-            running: None,
-            recorded: None,
-            permitted: 1,
+            running_session: None,
+            recorded_session: None,
+            permitted_message: 1,
             response_phase: llm::Phase::Head,
             run_time: Duration::ZERO,
             line,
@@ -334,7 +336,7 @@ impl Backend {
             ledger,
             turns,
             stderr: List::with_capacity(failure_bytes),
-            tail: 0,
+            stderr_next: 0,
             stderr_wrapped: false,
             io: Queue::with_capacity(32),
         }
@@ -342,19 +344,19 @@ impl Backend {
 
     /// Adopt the shell's programs directory; its close belongs to this backend.
     pub fn directory(&mut self, root: Root) {
-        assert_eq!(self.phase, Phase::Idle, "programs root is supplied before startup");
+        assert_eq!(self.state, State::Idle, "programs root is supplied before startup");
         self.settings.directory = Some(root);
     }
 
     /// Supply the first admitted workspace directory, borrowed until backend close.
     pub fn workspace(&mut self, root: Root) {
-        assert_eq!(self.phase, Phase::Idle, "workspace is supplied before startup");
+        assert_eq!(self.state, State::Idle, "workspace is supplied before startup");
         self.settings.workspace = Some(root);
     }
 
     /// Supply all admitted host directories, with the working directory first (5.4).
     pub fn mounts(&mut self, mounts: Box<[Mount]>) {
-        assert_eq!(self.phase, Phase::Idle, "mounts precede startup");
+        assert_eq!(self.state, State::Idle, "mounts precede startup");
         self.mounts = mounts;
     }
 
@@ -443,9 +445,9 @@ impl Backend {
                     });
                     return;
                 }
-                match self.phase {
-                    Phase::Running => self.window_request(env, request, up, below),
-                    Phase::Idle | Phase::Checking | Phase::Starting | Phase::Ending | Phase::Ended => {
+                match self.state {
+                    State::Running => self.window_request(env, request, up, below),
+                    State::Idle | State::Checking | State::Starting | State::Ending | State::Ended => {
                         self.start(env, request, up, below);
                     }
                 }
@@ -523,16 +525,16 @@ impl Backend {
             self.terminate(env.now);
         } else if due {
             self.deadline = None;
-            match self.phase {
-                Phase::Starting => self.fail(
+            match self.state {
+                State::Starting => self.fail(
                     env,
                     llm::Failure::Program { exit: self.exit },
                     b"smith: the program did not initialize",
                     up,
                     below,
                 ),
-                Phase::Ending => self.terminate(env.now),
-                Phase::Running => {
+                State::Ending => self.terminate(env.now),
+                State::Running => {
                     let phase = match &self.request {
                         Some(FromDomain::Complete { deadlines, .. }) if env.now >= deadlines.whole => llm::Phase::Whole,
                         Some(FromDomain::Complete { .. } | FromDomain::Cancel { .. } | FromDomain::Yield { .. })
@@ -540,7 +542,7 @@ impl Backend {
                     };
                     self.fail(env, llm::Failure::TimedOut { phase }, b"smith: program completion deadline", up, below);
                 }
-                Phase::Idle | Phase::Checking | Phase::Ended => {}
+                State::Idle | State::Checking | State::Ended => {}
             }
         }
         self.progress(env, up, below);
@@ -677,12 +679,12 @@ impl Backend {
         up: &mut Queue<ToDomain>,
         below: &mut Queue<Below>,
     ) {
-        match self.phase {
-            Phase::Ending | Phase::Ended => return,
-            Phase::Idle | Phase::Checking | Phase::Starting | Phase::Running => {}
+        match self.state {
+            State::Ending | State::Ended => return,
+            State::Idle | State::Checking | State::Starting | State::Running => {}
         }
         let active = self.active_turn();
-        self.phase = Phase::Ending;
+        self.state = State::Ending;
         if let Some(owner) = self.owner.take() {
             self.terminal_measure(env.now, owner);
             up.push(ToDomain::Cancelled { owner });
@@ -711,7 +713,7 @@ impl Backend {
     /// Every owned resource, including the programs root, has reported closed.
     #[must_use]
     pub fn closed(&self) -> bool {
-        self.phase == Phase::Ended
+        self.state == State::Ended
     }
 
     fn token(&self, owner: Owner) -> Token {
@@ -759,7 +761,7 @@ impl Backend {
         if restart {
             let active = self.active_turn();
             self.switching = true;
-            self.phase = Phase::Running;
+            self.state = State::Running;
             self.outgoing = None;
             self.stop(env, active, false, up, below);
             self.request = None;
