@@ -34,7 +34,7 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
         root::Request::SetUp { forge, request, org, repository, playground } => {
             crate::setup::lifecycle::first(engine, forge, org, repository, playground);
             let mut out = skein_lib::Queue::with_capacity(3);
-            engine.box_link.ask(forge, request, &mut out);
+            engine.box_link.group(forge, temper_engine_domain_forge::BoxKind::Owned, request, &mut out);
             box_link::drain(engine, &mut out);
         }
         root::Request::Connect { forge, request, how, carried } => match how {

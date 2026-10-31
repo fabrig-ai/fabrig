@@ -5,6 +5,8 @@ mod box_kinds;
 mod fake_backends;
 #[path = "suite/github_goon.rs"]
 mod github_goon;
+#[path = "suite/startover.rs"]
+mod startover;
 pub mod support;
 use skein_io::kernel::{Exit, Signal};
 use skein_lib::Duration;

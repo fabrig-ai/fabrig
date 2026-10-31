@@ -93,6 +93,7 @@ impl Link {
         }
     }
     /// The caller reserves three output slots before asking.
+    #[cfg(test)]
     pub(crate) fn ask(&mut self, forge: u16, request: Token, out: &mut Queue<Out>) {
         self.start(forge, None, request, out);
     }
