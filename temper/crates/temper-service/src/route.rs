@@ -14,7 +14,7 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
     match request {
         root::Request::PlaygroundActs { .. } => {}
         root::Request::ResetAct { .. } => {}
-        root::Request::ForgeKept(_) => {}
+        root::Request::ForgeKept(record) => crate::forges::record(engine, record),
         root::Request::ForgeGone { .. } => {}
         root::Request::BoxGroup { forge, kind, request } => {
             let mut out = skein_lib::Queue::with_capacity(3);

@@ -32,6 +32,7 @@ mod startup;
 mod system;
 
 mod forge;
+mod forge_runtime;
 
 mod box_link;
 mod bundle;

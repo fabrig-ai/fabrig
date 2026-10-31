@@ -472,7 +472,8 @@ fn grant_sizes_take_credentials_source_names_and_generated_identities() {
         engine.jig.limits.driver.client.document.token_bytes = 1;
         worker.jig.limits.token = credential;
         let left = crate::workers::limits(&engine).unwrap();
-        let right = worker_settings::link_limits(&worker.jig, &payload).unwrap();
+        let right =
+            worker_settings::link_limits(&worker.jig, &payload, fixtures::worker_limits().forge.forges).unwrap();
         let wire = crate::translate::limits(&engine.limits).unwrap();
         let identity = u32::try_from(v1::Identity::encoded_bound(&wire).unwrap()).unwrap();
         assert_eq!(left.sizes.grant, credential.max(name).max(identity));
@@ -493,7 +494,7 @@ fn grant_sizes_take_credentials_source_names_and_generated_identities() {
     engine.jig.limits.hub.charter_bytes = u64::MAX;
     assert!(crate::workers::limits(&engine).is_none());
     worker.jig.limits.hub.charter_bytes = u64::MAX;
-    assert!(worker_settings::link_limits(&worker.jig, &payload).is_none());
+    assert!(worker_settings::link_limits(&worker.jig, &payload, fixtures::worker_limits().forge.forges).is_none());
     worker_settings::prepare(&worker, &fixtures::worker_agent(), &fixtures::worker_limits())
         .expect_err("an unrepresentable charter envelope is refused");
 }

@@ -29,7 +29,7 @@ struct Generations {
     previous: Option<Secret>,
 }
 impl Identities {
-    /// Room for each configured identity's number.
+    /// Room for each kept identity's number.
     #[must_use]
     pub fn with_capacity(identities: u32) -> Self {
         Self { entries: Map::with_capacity(identities) }
@@ -43,7 +43,7 @@ impl Identities {
         }
         self.entries
             .insert(number, Generations { generation: 1, newest: value, previous: None })
-            .expect("configured identity capacity");
+            .expect("kept forge identity capacity");
         1
     }
     /// Either of the two newest generations, or none for an older one.
@@ -75,7 +75,7 @@ impl Identities {
 #[derive(Debug)]
 pub struct Values {
     pub accounts: Table,
-    /// The two newest encoded values of each configured git identity.
+    /// The two newest encoded values of each kept git identity.
     pub identities: Identities,
     pub tokens: crate::forge::tokens::Tokens,
 }
@@ -137,7 +137,7 @@ impl Values {
         use jig_protocol_config::What;
         let identities = &settings.identities;
         self.tokens = crate::forge::tokens::Tokens::new(settings);
-        self.identities = Identities::with_capacity(u32::try_from(identities.len()).expect("identity count"));
+        self.identities = Identities::with_capacity(settings.limits.forge.forges);
         for identity in identities {
             // GitHub gathers tokens until its first Connected.
             if identity.token.expose().is_empty() {

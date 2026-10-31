@@ -10,10 +10,11 @@ use temper_engine_domain_forge as forge;
 
 /// The mirrored durable demo state gates every service path (protocol/forge.md, 8.1).
 pub(crate) fn ended(engine: &crate::engine::Engine, forge: u16) -> bool {
-    match &engine.demo {
-        Some(demo) => demo.forge == forge && demo.state == Some(forge::DemoState::Ended),
-        None => false,
-    }
+    engine.domain.forge_ended(forge)
+        || match &engine.demo {
+            Some(demo) => demo.forge == forge && demo.state == Some(forge::DemoState::Ended),
+            None => false,
+        }
 }
 
 /// The user agent every forge request carries; a test pins it.
@@ -164,7 +165,7 @@ pub fn back(event: Box<forge::Event>) -> Result<skein_forge_connection::Answered
 #[must_use]
 pub fn small(forge: &forge::Limits) -> skein_forge_connection::Limits {
     skein_forge_connection::Limits {
-        forges: 4,
+        forges: forge.forges,
         token_bytes: limits::FORGE_TOKEN_BYTES,
         key_bytes: u32::try_from(skein_tls::RS256_KEY_BYTES).expect("RS256 key bound fits u32"),
         installations: limits::FORGE_INSTALLATIONS,
@@ -206,7 +207,16 @@ pub(crate) struct Layer {
     pub(crate) io: Queue<skein_io::Request>,
     pub(crate) closed: bool,
     begun: bool,
-    held: Map<u16, Box<[u8]>>,
+    pub(crate) held: Map<u16, Box<[u8]>>,
+    pub(crate) endpoints: Map<u16, skein_forge_connection::settings::Forge>,
+    pub(crate) github: Option<ForgeRuntime>,
+    pub(crate) roots: Option<skein_tls::Config>,
+    pub(crate) webhooks: bool,
+    pub(crate) file_access: Map<u16, ()>,
+    pub(crate) startup_access: Map<u16, skein_forge_connection::Access>,
+    pub(crate) serving: Option<()>,
+    pub(crate) resolving: Map<u16, ()>,
+    pub(crate) names: Map<Box<[u8]>, core::net::IpAddr>,
     #[cfg(test)]
     pub(crate) starts: List<(u16, skein_forge_connection::Access)>,
     #[cfg(test)]
@@ -216,14 +226,22 @@ pub(crate) struct Layer {
 }
 impl Layer {
     pub(crate) fn new(
-        settings: skein_forge_connection::settings::Settings,
+        mut settings: skein_forge_connection::settings::Settings,
         limits: skein_forge_connection::Limits,
         shared: &skein_forge_connection::Shared,
         configured: &[settings::Forge],
     ) -> Result<Self, skein_forge_connection::Unusable> {
         let mut held_hosts = Map::with_capacity(limits.forges);
+        let mut names = Map::uncapped();
         for endpoint in &settings.forges {
             for forge in configured {
+                if endpoint.number == forge.number
+                    && let jig_protocol_config::Address::Host { name, .. } = &forge.api
+                    && let skein_io::Addr::Ip(address) = endpoint.address
+                    && address != HELD_ADDRESS
+                {
+                    names.insert(name.clone(), address.ip()).expect("configured host capacity");
+                }
                 if endpoint.number == forge.number
                     && endpoint.address == skein_io::Addr::Ip(HELD_ADDRESS)
                     && let jig_protocol_config::Address::Host { name, .. } = &forge.api
@@ -232,7 +250,29 @@ impl Layer {
                 }
             }
         }
+        let mut roots = None;
+        let mut file_access = Map::with_capacity(limits.forges);
+        let mut endpoints = Map::with_capacity(limits.forges);
+        let initial = core::mem::replace(&mut settings.forges, List::with_capacity(limits.forges));
+        for forge in initial.into_boxed() {
+            if forge.access.is_some() {
+                file_access.insert(forge.number, ()).expect("configured forge capacity");
+            }
+            if let skein_forge_connection::settings::Transport::Tls { trust, .. } = &forge.transport {
+                roots = Some(trust.clone());
+            }
+            endpoints.insert(forge.number, forge).expect("validated endpoints");
+        }
         Ok(Self {
+            endpoints,
+            github: None,
+            roots,
+            webhooks: settings.webhooks.is_some(),
+            file_access,
+            startup_access: Map::with_capacity(limits.forges),
+            serving: None,
+            resolving: Map::with_capacity(limits.forges),
+            names,
             held: held_hosts,
             component: skein_forge_connection::Component::new(settings, &limits, shared)?,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
@@ -288,6 +328,16 @@ impl Layer {
         if !self.begun {
             self.begun = true;
             self.component.begin(&self.env, &mut self.above, &mut self.io);
+            for _ in 0..self.startup_access.len() {
+                let forge = *self.startup_access.first().expect("pending document access").0;
+                let access = self.startup_access.remove(&forge).expect("pending document access");
+                self.component.down(
+                    &self.env,
+                    skein_forge_connection::Request::Connect { forge, access },
+                    &mut self.above,
+                    &mut self.io,
+                );
+            }
         } else if let Some(deadline) = self.component.next_deadline()
             && deadline <= now
         {
