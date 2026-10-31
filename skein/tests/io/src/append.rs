@@ -131,13 +131,6 @@ impl Writer {
         }
     }
 
-    fn ready(&mut self) {
-        while self.io.is_ready() {
-            skein_io::resume(&mut self.io, &self.env, &mut self.up, &mut self.submissions);
-            self.observed();
-        }
-    }
-
     #[must_use]
     pub fn failures(&self) -> usize {
         self.events.iter().filter(|event| matches!(event, Evidence::Failed(_))).count()
@@ -148,16 +141,8 @@ impl Host for Writer {
     fn iterate(&mut self, now: Time, wall: Wall) {
         self.env.now = now;
         self.env.wall = wall;
-        self.ready();
-        while let Some(complete) = self.completions.pop() {
-            skein_io::up(&mut self.io, &self.env, complete, &mut self.up, &mut self.submissions);
-            self.observed();
-            self.ready();
-        }
-        while self.io.is_due(now) {
-            skein_io::fire(&mut self.io, &self.env, &mut self.up, &mut self.submissions);
-            self.observed();
-        }
+        skein_io::stage::up(&mut self.io, &self.env, &mut self.completions, &mut self.up, &mut self.submissions, now);
+        self.observed();
         let request = match self.phase {
             Phase::Asking if self.sent < PARTS.len() => {
                 self.phase = Phase::Waiting;
