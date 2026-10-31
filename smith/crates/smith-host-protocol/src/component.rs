@@ -8,8 +8,8 @@
 //! (smith/docs/design/protocol/channel.md, sections 3–4). Answered names are not
 //! retained, since answers need no withdrawal and those names grow with a run.
 use alloc::boxed::Box;
-use skein_channel::{Closed, Event, Lower, LowerEvent, Machine, Request, Role, Schema, StreamMode, frame_writer};
-use skein_lib::{Map, Queue, Time, Token, Writer};
+use skein_channel::{Closed, Event, Lower, LowerEvent, Machine, Request, Role, Schema, StreamMode};
+use skein_lib::{Map, Queue, Time, Token};
 use smith_host_domain::channel;
 
 use crate::limits::{Error, Limits};
@@ -18,8 +18,7 @@ use crate::translate::{Values, encode_reply, encode_start};
 mod notices;
 mod receive;
 
-const RULES: u16 = 256;
-const LIMITS: u16 = 2;
+use smith_channel::reason::{LIMITS, RULES};
 const CHILD_TRANSITIONS: u8 = 8;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -194,9 +193,7 @@ impl Component {
         self.live = crate::live::Streams::new(live, 0);
         self.sequence = sequence;
         self.state = State::Started;
-        self.machine.down(Request::Send { token, frame }, &mut self.events, below);
-        self.drain(to_service, below);
-        self.fire(to_service, below);
+        self.send_frame(token, frame, to_service, below);
         Ok(())
     }
 
@@ -212,16 +209,8 @@ impl Component {
             return Err(Error::Order);
         }
         let record = crate::translate::encode_message(message, &self.bodies)?;
-        let Ok(length) = usize::try_from(record.measure()) else {
-            return Err(Error::MissingValue);
-        };
-        let mut body = Writer::new(length);
-        record.encode(&mut body)?;
-        let mut frame = frame_writer(0x0101, record.measure())?;
-        frame.put(&body.finish())?;
-        self.machine.down(Request::Send { token, frame: frame.finish()? }, &mut self.events, below);
-        self.drain(to_service, below);
-        self.fire(to_service, below);
+        let frame = smith_channel::frame(smith_channel::Body::Message(record))?;
+        self.send_frame(token, frame, to_service, below);
         Ok(())
     }
 
@@ -241,9 +230,7 @@ impl Component {
         let frame = encode_reply(key.domain(), reply, &self.bodies)?;
         self.calls_by_token.remove(&call);
         self.calls_by_name.remove(&key);
-        self.machine.down(Request::Send { token, frame }, &mut self.events, below);
-        self.drain(to_service, below);
-        self.fire(to_service, below);
+        self.send_frame(token, frame, to_service, below);
         Ok(())
     }
 
@@ -259,16 +246,8 @@ impl Component {
             return Err(Error::Order);
         }
         let record = smith_channel::Acknowledge::new(&self.bodies, smith_channel::AcknowledgeParts { number: turn })?;
-        let Ok(length) = usize::try_from(record.measure()) else {
-            return Err(Error::MissingValue);
-        };
-        let mut body = Writer::new(length);
-        record.encode(&mut body)?;
-        let mut frame = frame_writer(0x0103, record.measure())?;
-        frame.put(&body.finish())?;
-        self.machine.down(Request::Send { token, frame: frame.finish()? }, &mut self.events, below);
-        self.drain(to_service, below);
-        self.fire(to_service, below);
+        let frame = smith_channel::frame(smith_channel::Body::Acknowledge(record))?;
+        self.send_frame(token, frame, to_service, below);
         Ok(())
     }
 
@@ -298,16 +277,8 @@ impl Component {
             },
         )?;
         let record = smith_channel::GrantRefresh::new(&self.bodies, smith_channel::GrantRefreshParts { grant })?;
-        let Ok(length) = usize::try_from(record.measure()) else {
-            return Err(Error::MissingValue);
-        };
-        let mut body = Writer::new(length);
-        record.encode(&mut body)?;
-        let mut frame = frame_writer(0x0104, record.measure())?;
-        frame.put(&body.finish())?;
-        self.machine.down(Request::Send { token, frame: frame.finish()? }, &mut self.events, below);
-        self.drain(to_service, below);
-        self.fire(to_service, below);
+        let frame = smith_channel::frame(smith_channel::Body::GrantRefresh(record))?;
+        self.send_frame(token, frame, to_service, below);
         Ok(())
     }
 
@@ -322,18 +293,22 @@ impl Component {
             return Err(Error::Order);
         }
         let record = smith_channel::Cancel::new(&self.bodies, smith_channel::CancelParts {})?;
-        let Ok(length) = usize::try_from(record.measure()) else {
-            return Err(Error::MissingValue);
-        };
-        let mut body = Writer::new(length);
-        record.encode(&mut body)?;
-        let mut frame = frame_writer(0x0105, record.measure())?;
-        frame.put(&body.finish())?;
+        let frame = smith_channel::frame(smith_channel::Body::Cancel(record))?;
         self.cancelled = true;
-        self.machine.down(Request::Send { token, frame: frame.finish()? }, &mut self.events, below);
+        self.send_frame(token, frame, to_service, below);
+        Ok(())
+    }
+
+    fn send_frame(
+        &mut self,
+        token: Token,
+        frame: skein_channel::Frame,
+        to_service: &mut Queue<Received>,
+        below: &mut Queue<Lower>,
+    ) {
+        self.machine.down(Request::Send { token, frame }, &mut self.events, below);
         self.drain(to_service, below);
         self.fire(to_service, below);
-        Ok(())
     }
 
     /// Consume one stream event and progress the opening.

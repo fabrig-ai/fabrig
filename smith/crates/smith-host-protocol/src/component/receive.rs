@@ -8,20 +8,10 @@ use alloc::boxed::Box;
 use skein_lib::{Reader, Token};
 use smith_host_domain::channel;
 
-const ADMITTED: u16 = 0x0106;
-const CALL: u16 = 0x0107;
-const WITHDRAW: u16 = 0x0108;
-const TURN: u16 = 0x0109;
-const WAITING: u16 = 0x010a;
-const LONG: u16 = 0x010b;
-const LONG_DONE: u16 = 0x010c;
-const UNAUTHORIZED: u16 = 0x010d;
-const LIMITED: u16 = 0x010e;
-const FACT: u16 = 0x010f;
-const ANSWER: u16 = 0x0110;
-const MESSAGE_REFUSED: u16 = 0x0111;
-const LIVE: u16 = 0x0112;
-const ACCOUNT_REFUSED: u16 = 0x0113;
+use smith_channel::kind::{
+    ACCOUNT_REFUSED, ADMITTED, ANSWER, CALL, FACT, LIMITED, LIVE, LONG, LONG_DONE, MESSAGE_REFUSED, TURN, UNAUTHORIZED,
+    WAITING, WITHDRAW,
+};
 
 /// What a refusal says of a record it could not take: its order, its call, or its kind.
 pub(super) fn refusal_text(kind: u16, error: Error) -> &'static [u8] {

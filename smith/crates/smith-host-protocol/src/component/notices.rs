@@ -5,7 +5,7 @@ use skein_lib::Reader;
 
 pub(super) fn decode(limits: &smith_channel::Limits, kind: u16, body: &[u8]) -> Result<Received, Error> {
     match kind {
-        0x010d => {
+        smith_channel::kind::UNAUTHORIZED => {
             let notice = smith_channel::Unauthorized::decode(limits, &mut Reader::new(body))?;
             Ok(Received::Message {
                 message: smith_host_domain::Up::Unauthorized {
@@ -14,13 +14,13 @@ pub(super) fn decode(limits: &smith_channel::Limits, kind: u16, body: &[u8]) -> 
                 },
             })
         }
-        0x010e => {
+        smith_channel::kind::LIMITED => {
             let notice = smith_channel::Limited::decode(limits, &mut Reader::new(body))?;
             Ok(Received::Message {
                 message: smith_host_domain::Up::Limited { account: notice.account(), reset: *notice.reset() },
             })
         }
-        0x0113 => {
+        smith_channel::kind::ACCOUNT_REFUSED => {
             let notice = smith_channel::AccountRefused::decode(limits, &mut Reader::new(body))?;
             Ok(Received::Message {
                 message: smith_host_domain::Up::Refused {
