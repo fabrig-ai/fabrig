@@ -3,13 +3,13 @@
 use super::bench::{Identity, run};
 use std::path::PathBuf;
 
-pub fn request(task: PathBuf, identity: Identity) -> run::Prepared {
-    run::Prepared {
+pub fn request(task: PathBuf, identity: Identity) -> run::Request {
+    run::Request {
         task,
         identity,
         program: "/bin/sh".into(),
         arguments: Vec::new(),
-        codex_home: None,
+        logins: None,
         configuration: None,
         teardown_ms: 50,
         grace_ms: 20,

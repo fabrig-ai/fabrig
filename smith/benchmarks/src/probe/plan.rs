@@ -57,9 +57,17 @@ pub(super) fn task(entries: &[crate::CatalogueTask], name: &str) -> Result<crate
 // Fixed machine and directory observations supplied to request construction.
 struct RequestInputs<'a> {
     repository: &'a Path,
-    codex_home: PathBuf,
+    logins: PathBuf,
     host: String,
     cpus: Vec<u32>,
+}
+
+#[derive(Clone, Copy)]
+struct RunIdentity<'a> {
+    name: &'a str,
+    started: &'a str,
+    face: Option<crate::SmithFace>,
+    harness_commit: &'a str,
 }
 
 fn request(
@@ -68,9 +76,9 @@ fn request(
     suite: &Suite,
     agent: &crate::SuiteAgent,
     arm: &ArmRef,
-    run: (&str, &str, Option<crate::SmithFace>, &str),
+    run: RunIdentity<'_>,
     attempt: usize,
-) -> Result<crate::run::Prepared, String> {
+) -> Result<crate::run::Request, String> {
     let root = inputs.repository.join("benchmarks");
     let task = &entry.task;
     let pin_file = root.join("agents").join(agent.agent.directory()).join(format!("{}.pin.toml", agent.config));
@@ -84,14 +92,14 @@ fn request(
             (program.clone(), pin.pin.version.clone(), crate::arm::binary_digest(program)?)
         }
     };
-    Ok(crate::run::Prepared {
+    Ok(crate::run::Request {
         task: entry.manifest.clone(),
         program,
         arguments: Vec::new(),
         configuration: Some(pin_file),
-        codex_home: Some(inputs.codex_home.clone()),
+        logins: Some(inputs.logins.clone()),
         identity: Identity {
-            run: run.0.into(),
+            run: run.name.into(),
             attempt: format!("{attempt:02}"),
             arm: if agent.config == "smith-claude-code" {
                 format!("smith-claude-code-{}", &digest[..8])
@@ -105,7 +113,7 @@ fn request(
             agent: agent.agent,
             agent_version: version,
             binary_sha256: digest,
-            smith_face: if agent.agent == Agent::Smith { run.2 } else { None },
+            smith_face: if agent.agent == Agent::Smith { run.face } else { None },
             configuration_sha256: pin.sha256,
             user_configuration_sha256: Measure::unavailable("user configuration is isolated"),
             provider: agent.provider,
@@ -118,10 +126,10 @@ fn request(
                 resolved_window: Measure::unavailable("not run"),
                 resolved_effort: Measure::unavailable("not run"),
             },
-            harness_commit: run.3.into(),
+            harness_commit: run.harness_commit.into(),
             host: inputs.host.clone(),
             cpus: inputs.cpus.clone(),
-            started_utc: run.1.into(),
+            started_utc: run.started.into(),
         },
         teardown_ms: 10_000,
         grace_ms: 1_000,
@@ -139,13 +147,13 @@ fn task_requests(
     entry: &crate::CatalogueTask,
     suite: &Suite,
     arms: (&ArmRef, &[(String, ArmRef)]),
-    run: (&str, &str, Option<crate::SmithFace>, &str),
+    run: RunIdentity<'_>,
     repetitions: u32,
-    requests: &mut Vec<crate::run::Prepared>,
+    requests: &mut Vec<crate::run::Request>,
 ) -> Result<(), String> {
     let inputs = RequestInputs {
         repository,
-        codex_home: crate::arm::state_root(&Guard::from_environment()?)?.join("logins/codex"),
+        logins: crate::arm::state_root(&Guard::from_environment()?)?.join("logins/codex"),
         host: fs::read_to_string("/proc/sys/kernel/hostname").map_err(|error| error.to_string())?.trim().into(),
         cpus: cpus()?,
     };
@@ -157,9 +165,9 @@ fn task_requests_in(
     entry: &crate::CatalogueTask,
     suite: &Suite,
     arms: (&ArmRef, &[(String, ArmRef)]),
-    run: (&str, &str, Option<crate::SmithFace>, &str),
+    run: RunIdentity<'_>,
     repetitions: u32,
-    requests: &mut Vec<crate::run::Prepared>,
+    requests: &mut Vec<crate::run::Request>,
 ) -> Result<(), String> {
     let (arm, binaries) = arms;
     for agent in &suite.agents {
@@ -219,16 +227,16 @@ fn narrowed(file: &Path, order: &Order) -> Result<toml::Value, String> {
     fields.insert("arm".into(), toml::Value::Array(vec![]));
     fields.insert("repetitions".into(), toml::Value::Integer(i64::from(order.attempts)));
     fields.insert("rerun_failed".into(), toml::Value::Integer(i64::from(order.attempts == 1)));
-    if order.probe == "probes/credentials" && order.agent != Agent::Smith {
+    if order.probe == "probes/credentials" && order.agent != ProbeAgent::Smith {
         return Err("the credentials probe requires smith's chatgpt account".into());
     }
-    if order.agent == Agent::ClaudeCode {
+    if order.agent == ProbeAgent::SmithClaudeCode {
         let program = toml::from_str::<toml::Value>(
             "[[agents]]\nagent='smith'\nprovider='anthropic'\nconfig='smith-claude-code'",
         )
         .map_err(|error| error.to_string())?;
         fields.insert("agents".into(), program["agents"].clone());
-    } else if order.agent == Agent::Codex {
+    } else if order.agent == ProbeAgent::Codex {
         let codex = toml::from_str::<toml::Value>("[[agents]]\nagent='codex'\nprovider='codex'\nconfig='standard'")
             .map_err(|error| error.to_string())?;
         fields.insert("agents".into(), codex["agents"].clone());
@@ -332,7 +340,7 @@ pub(super) fn prepare(
             &entry,
             &suite,
             (arm, &binaries),
-            (&run, &started, face, &harness_commit),
+            RunIdentity { name: &run, started: &started, face, harness_commit: &harness_commit },
             repetitions,
             &mut requests,
         )?;
@@ -382,7 +390,7 @@ pub(super) fn archived(repository: &Path, source: &Source) -> Result<ArmRef, Str
     Err(format!("no archived arm for {commit}; run build {reference} first"))
 }
 
-fn write_requests(guard: &Guard, directory: &Path, requests: &[crate::run::Prepared]) -> Result<(), String> {
+fn write_requests(guard: &Guard, directory: &Path, requests: &[crate::run::Request]) -> Result<(), String> {
     for request in requests {
         write(
             guard,

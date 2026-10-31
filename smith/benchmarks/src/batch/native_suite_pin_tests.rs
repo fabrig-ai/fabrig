@@ -1,4 +1,3 @@
-
 use super::*;
 use sha2::Digest;
 
@@ -43,7 +42,7 @@ fn native_built_suite_pin_verifies_full_arm_commit_and_binary() {
     identity.seed_sha256 = task.seed_sha256;
     identity.model.requested_model = "gpt-6-luna".into();
     identity.model.requested_effort = "low".into();
-    let mut request = Prepared {
+    let mut request = Request {
         program: directory.join("smith"),
         configuration: Some(pin_file),
         teardown_ms: 1,
@@ -64,7 +63,7 @@ fn native_built_suite_pin_verifies_full_arm_commit_and_binary() {
     unknown_model_admission(root, &mut request);
 }
 
-fn unknown_model_admission(root: &Path, request: &mut Prepared) {
+fn unknown_model_admission(root: &Path, request: &mut Request) {
     let suite_file = root.join("suites/probes.toml");
     let mut suite = probe_suite(&suite_file, "probes/failures/unknown-model", 1).expect("failure suite");
     suite.tasks = vec!["probes/failures/unknown-model".into()];

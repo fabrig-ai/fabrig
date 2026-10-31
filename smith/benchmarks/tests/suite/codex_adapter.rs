@@ -149,7 +149,7 @@ fn a_named_path_cannot_read_credentials_or_an_unrelated_file() {
 }
 
 fn the_pinned_adapter_refuses_version_drift_and_isolates_the_user_home() {
-    use smith_bench::agent::{Context, Prepared};
+    use smith_bench::agent::{Context, PreparedAgent};
     use smith_bench::guard::Guard;
     use smith_bench::isolate::{SetupStep, empty};
     use smith_bench::{Agent, ModelChoice, read_task};
@@ -189,7 +189,7 @@ fn the_pinned_adapter_refuses_version_drift_and_isolates_the_user_home() {
     assert_eq!(Agent::Codex.prepare(&context).expect_err("version drift").step, SetupStep::Configuration);
     context.installed_version = "codex-cli 0.160.0";
     let prepared = Agent::Codex.prepare(&context).expect("pinned version");
-    let Prepared::Codex(codex) = &prepared else {
+    let PreparedAgent::Codex(codex) = &prepared else {
         panic!("Codex preparation");
     };
     assert_eq!(codex.home, private.root.join("codex"));
@@ -334,7 +334,7 @@ fn malformed_named_rollouts_remain_available_for_archive_and_keep_the_cached_fau
         .execute("INSERT INTO threads VALUES(?1,?2)", ["root", file.to_str().expect("path")])
         .expect("named path");
     drop(connection);
-    let prepared = smith_bench::agent::Prepared::Codex(smith_bench::agent::codex::Prepared {
+    let prepared = smith_bench::agent::PreparedAgent::Codex(smith_bench::agent::codex::PreparedCodex {
         overrides: Vec::new(),
         credential: home.join("auth.json"),
         expires: skein_lib::Wall::EPOCH,
@@ -720,7 +720,7 @@ impl CodexAttempt {
         }
     }
 
-    fn finish(self, prepared: smith_bench::agent::codex::Prepared) {
+    fn finish(self, prepared: smith_bench::agent::codex::PreparedCodex) {
         prepared.borrowed.expect("private credential").finish(&self.guard).expect("settled cleanup");
     }
 }

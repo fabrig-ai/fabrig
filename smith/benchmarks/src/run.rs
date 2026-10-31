@@ -35,13 +35,14 @@ mod traces;
 /// Arguments already name the planned scratch paths; the runner owns its cwd.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct Prepared {
+pub struct Request {
     pub task: PathBuf,
     pub identity: Identity,
     pub program: PathBuf,
     pub arguments: Vec<String>,
-    /// Read-only source login for Codex's attempt-owned access-only home.
-    pub codex_home: Option<PathBuf>,
+    /// Codex's read-only login; Smith selects the sibling `smith` directory.
+    #[serde(rename = "codex_home")]
+    pub logins: Option<PathBuf>,
     /// The committed adapter pin; absent only for offline stream replays.
     #[serde(default)]
     pub configuration: Option<PathBuf>,
@@ -162,7 +163,7 @@ fn valid_name(name: &str) -> bool {
 }
 
 /// Resolve the planned scratch root without materialising it.
-pub fn scratch_root(state: &Path, prepared: &Prepared) -> Result<PathBuf, String> {
+pub fn scratch_root(state: &Path, prepared: &Request) -> Result<PathBuf, String> {
     if !valid_name(&prepared.identity.run) || !valid_name(&prepared.identity.attempt) {
         return Err("run and attempt ids must be ordinary directory names".into());
     }
@@ -175,7 +176,7 @@ fn raw(
     private: &Private,
     arguments: &[String],
     deadline: u64,
-    prepared: &Prepared,
+    prepared: &Request,
 ) -> Result<ProcessResult, String> {
     raw_environment(clock, machine, private, arguments, prepared, (deadline, &BTreeMap::new()))
 }
@@ -185,7 +186,7 @@ fn raw_environment(
     machine: &Machine,
     private: &Private,
     arguments: &[String],
-    prepared: &Prepared,
+    prepared: &Request,
     policy: (u64, &BTreeMap<String, String>),
 ) -> Result<ProcessResult, String> {
     let (deadline, environment) = policy;
@@ -222,7 +223,7 @@ fn succeeded(result: &ProcessResult) -> bool {
     result.exit == Exit::Code(0) && result.forced == Forced::No && result.error.is_none()
 }
 
-fn free_space(clock: &Clock, machine: &Machine, private: &Private, prepared: &Prepared) -> Result<(), String> {
+fn free_space(clock: &Clock, machine: &Machine, private: &Private, prepared: &Request) -> Result<(), String> {
     if prepared.disk_estimate_bytes == 0 {
         return Err("a positive disk estimate is required".into());
     }
@@ -304,7 +305,7 @@ fn seed_commit(
     guard: &Guard,
     machine: &Machine,
     private: &Private,
-    prepared: &Prepared,
+    prepared: &Request,
 ) -> Result<(), String> {
     let path = guard.write_path(&private.workspace.join(".git"))?;
     if path.exists() {
@@ -347,7 +348,7 @@ fn copy_cache(
     guard: &Guard,
     machine: &Machine,
     private: &Private,
-    prepared: &Prepared,
+    prepared: &Request,
 ) -> Result<(), String> {
     for (source, destination) in [(&private.warm_cargo, &private.cargo_home), (&private.warm_target, &private.target)] {
         // A source has been warmed by this attempt's own setup, never borrowed
@@ -378,7 +379,7 @@ fn copy_cache(
     Ok(())
 }
 
-fn task_for(prepared: &Prepared) -> Result<Task, String> {
+fn task_for(prepared: &Request) -> Result<Task, String> {
     let mut task = crate::check_task(&prepared.task, &Path::new(env!("CARGO_MANIFEST_DIR")).join("../docs/design"))
         .map_err(|error| error.to_string())?;
     let kind = match task.kind {
@@ -412,7 +413,7 @@ fn prepare(
     task: &Task,
     task_directory: &Path,
     root: &Path,
-    prepared: &Prepared,
+    prepared: &Request,
 ) -> Result<(Private, String, crate::grade::Snapshot), Setup> {
     let mut step = SetupStep::Configuration;
     let prepared_attempt = (|| {
@@ -725,7 +726,7 @@ struct Work<'a> {
     machine: &'a Machine,
     private: &'a Private,
     task: &'a Task,
-    prepared: &'a Prepared,
+    prepared: &'a Request,
     directory: &'a Path,
 }
 
@@ -737,12 +738,12 @@ fn credential_lifetime(work: Work<'_>) -> Result<Duration, String> {
 }
 
 fn archive_preparation(
-    prepared: &crate::agent::Prepared,
+    prepared: &crate::agent::PreparedAgent,
     work: Work<'_>,
     result: &mut AttemptResult,
 ) -> Result<(), String> {
     match prepared {
-        crate::agent::Prepared::Codex(prepared) => {
+        crate::agent::PreparedAgent::Codex(prepared) => {
             result.identity.user_configuration_sha256 =
                 Measure::unavailable("attempt-owned Codex home; user configuration is not read");
             archive(
@@ -753,7 +754,7 @@ fn archive_preparation(
                 &serde_json::to_vec_pretty(&prepared.overrides).map_err(|error| error.to_string())?,
             )?;
         }
-        crate::agent::Prepared::Smith(prepared) => {
+        crate::agent::PreparedAgent::Smith(prepared) => {
             if let Some(check) = prepared.check_document() {
                 for (path, name) in
                     [(check.clone(), "check.json"), (check.with_file_name("check-stderr.log"), "check-stderr.log")]
@@ -834,7 +835,7 @@ fn invocation(
     let attempt = (|| {
         let mut environment = crate::isolate::environment(work.machine, work.private, &work.task.environment)?;
         let Some(pin_file) = &work.prepared.configuration else {
-            if work.prepared.codex_home.is_some() {
+            if work.prepared.logins.is_some() {
                 return Err("credentialed attempts require a committed adapter configuration".into());
             }
             return Ok((
@@ -865,7 +866,7 @@ fn invocation(
         }
         let (arm, version) = source_arm(work, &result.identity)?;
         let source =
-            work.prepared.codex_home.as_deref().ok_or("the adapter requires its read-only source login directory")?;
+            work.prepared.logins.as_deref().ok_or("the adapter requires its read-only source login directory")?;
         let smith_home = source.parent().ok_or("source login needs its harness parent")?.join("smith");
         let home = if result.identity.agent == crate::Agent::Smith { smith_home.as_path() } else { source };
         let model = crate::ModelChoice {
@@ -889,7 +890,7 @@ fn invocation(
         };
         let (prepared, receipt) = match result.identity.agent {
             crate::Agent::Smith => crate::agent::smith::prepare_checked(&context, &work.prepared.arguments)
-                .map(|(prepared, receipt)| (crate::agent::Prepared::Smith(prepared), receipt)),
+                .map(|(prepared, receipt)| (crate::agent::PreparedAgent::Smith(prepared), receipt)),
             crate::Agent::Codex | crate::Agent::ClaudeCode => {
                 result.identity.agent.prepare(&context).map(|prepared| (prepared, None))
             }
@@ -898,7 +899,7 @@ fn invocation(
             step = error.step;
             error.reason
         })?;
-        if let crate::agent::Prepared::Smith(_) = &prepared {
+        if let crate::agent::PreparedAgent::Smith(_) = &prepared {
             let selected = crate::SmithFace::Events;
             if result.identity.smith_face != Some(selected) {
                 return Err("Smith identity names a different face than its source registry".into());
@@ -1039,7 +1040,7 @@ fn afterwards(
 
 /// Run exactly one prepared invocation in this process and archive its result.
 /// Setup failures are recorded as refusals and make the enclosing suite incomplete.
-pub fn attempt(guard: &Guard, machine: &Machine, state: &Path, prepared: &Prepared) -> Result<Recorded, String> {
+pub fn attempt(guard: &Guard, machine: &Machine, state: &Path, prepared: &Request) -> Result<Recorded, String> {
     let root = scratch_root(state, prepared)?;
     let temporary_before = crate::isolate::temporary_entries(&root);
     private_parent(guard, root.parent().expect("scratch parent"))?;
@@ -1162,7 +1163,7 @@ pub fn script(task: &Task, capture: &Capture) -> crate::agent::Script {
 pub(crate) fn recover(
     guard: &Guard,
     state: &Path,
-    prepared: &Prepared,
+    prepared: &Request,
     process: &ProcessResult,
     reason: String,
 ) -> Result<AttemptResult, String> {
@@ -1195,7 +1196,7 @@ pub(crate) fn recover(
 }
 
 /// Read an adapter-produced request strictly, without reading any login.
-pub fn read_prepared(path: &Path) -> Result<Prepared, String> {
+pub fn read_prepared(path: &Path) -> Result<Request, String> {
     let text = fs::read_to_string(path).map_err(|error| error.to_string())?;
     let mut decoder = serde_json::Deserializer::from_str(&text);
     let request =

@@ -1,4 +1,3 @@
-
 use super::*;
 
 #[test]
@@ -20,7 +19,7 @@ fn a_prepared_pin_runs_only_its_selected_tasks() {
     identity.configuration_sha256 = pin.sha256.clone();
     identity.model.requested_model = "gpt-6-luna".into();
     identity.model.requested_effort = "low".into();
-    let mut request = Prepared {
+    let mut request = Request {
         program: "/nonexecuted".into(),
         configuration: Some(pin_file),
         teardown_ms: 0,

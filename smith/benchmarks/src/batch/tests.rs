@@ -183,7 +183,7 @@ const BLOCK_ARMS: [&str; 2] = ["a", "b"];
 const BLOCK_REPETITIONS: u32 = 2;
 const BLOCK_SEED: u64 = 71;
 
-fn block_requests() -> (crate::Suite, Vec<Prepared>) {
+fn block_requests() -> (crate::Suite, Vec<Request>) {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let mut suite = crate::read_suite(&root.join("tests/recorded/suites/sample.toml")).expect("suite");
     suite.design = Design::Interleaved;

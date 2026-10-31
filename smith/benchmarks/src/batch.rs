@@ -13,7 +13,7 @@ use skein_world::end_to_end::Command;
 use crate::guard::Guard;
 use crate::isolate::Machine;
 use crate::process::{Bounds, Capture, execute};
-use crate::run::{Prepared, read_prepared};
+use crate::run::{Request, read_prepared};
 use crate::{AttemptResult, Design, End, Measure, ScopeKind, Suite};
 
 mod credentials;
@@ -30,7 +30,7 @@ pub struct Batch {
     pub probes: BTreeMap<String, crate::ProbeVerdict>,
 }
 
-fn requests(directory: &Path) -> Result<Vec<Prepared>, String> {
+fn requests(directory: &Path) -> Result<Vec<Request>, String> {
     let mut paths = fs::read_dir(directory)
         .map_err(|error| error.to_string())?
         .collect::<Result<Vec<_>, _>>()
@@ -39,12 +39,12 @@ fn requests(directory: &Path) -> Result<Vec<Prepared>, String> {
     paths.into_iter().map(|entry| read_prepared(&entry.path())).collect()
 }
 
-pub(crate) fn ordered(suite: &Suite, requests: Vec<Prepared>, seed: u64) -> Result<Vec<Prepared>, String> {
+pub(crate) fn ordered(suite: &Suite, requests: Vec<Request>, seed: u64) -> Result<Vec<Request>, String> {
     order(suite, requests, seed, false)
 }
 
-fn order(suite: &Suite, requests: Vec<Prepared>, seed: u64, logical: bool) -> Result<Vec<Prepared>, String> {
-    let mut groups: BTreeMap<String, BTreeMap<String, Vec<Prepared>>> = BTreeMap::new();
+fn order(suite: &Suite, requests: Vec<Request>, seed: u64, logical: bool) -> Result<Vec<Request>, String> {
+    let mut groups: BTreeMap<String, BTreeMap<String, Vec<Request>>> = BTreeMap::new();
     let mut ids = BTreeSet::new();
     let run = requests.first().map(|request| request.identity.run.clone());
     for request in requests {
@@ -137,7 +137,7 @@ fn known_tokens(result: &AttemptResult) -> Option<u64> {
     Some(used)
 }
 
-fn configuration_matches(pin: &crate::PinnedConfiguration, request: &Prepared) -> Result<bool, String> {
+fn configuration_matches(pin: &crate::PinnedConfiguration, request: &Request) -> Result<bool, String> {
     if pin.pin.agent != request.identity.agent
         || pin.pin.provider != request.identity.provider
         || pin.sha256 != request.identity.configuration_sha256
@@ -158,7 +158,7 @@ fn configuration_matches(pin: &crate::PinnedConfiguration, request: &Prepared) -
 fn selected_configuration_matches(
     agents: &[crate::SuiteAgent],
     pins: &[crate::PinnedConfiguration],
-    request: &Prepared,
+    request: &Request,
 ) -> Result<bool, String> {
     let mut matched = false;
     for (agent, pin) in agents.iter().zip(pins) {
@@ -187,7 +187,7 @@ fn allowed_agents(suite: &Suite) -> Vec<crate::SuiteAgent> {
     allowed
 }
 
-fn check_override(suite: &Suite, request: &Prepared) -> Result<(), String> {
+fn check_override(suite: &Suite, request: &Request) -> Result<(), String> {
     if !suite.arms.is_empty() && matches!(suite.arms[0], crate::Arm::Override { .. }) {
         let fields = suite
             .arms
@@ -204,7 +204,7 @@ fn check_override(suite: &Suite, request: &Prepared) -> Result<(), String> {
     Ok(())
 }
 
-fn check_requests(suite_file: &Path, suite: &Suite, requests: &[Prepared]) -> Result<(), String> {
+fn check_requests(suite_file: &Path, suite: &Suite, requests: &[Request]) -> Result<(), String> {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
     let catalogue =
         crate::catalogue(&root.join("tasks"), &root.join("../docs/design")).map_err(|error| error.to_string())?;
@@ -312,7 +312,7 @@ fn dispatch_command(
     machine: &Machine,
     state: &Path,
     executable: &Path,
-    request: &Prepared,
+    request: &Request,
 ) -> Result<(Command, bool), String> {
     let root = state.join("requests");
     crate::run::private_parent(guard, &root)?;
@@ -347,7 +347,7 @@ fn dispatch_command(
 fn dispatch_result(
     guard: &Guard,
     state: &Path,
-    request: &Prepared,
+    request: &Request,
     process: &crate::process::ProcessResult,
     existed: bool,
 ) -> Result<AttemptResult, String> {
@@ -383,7 +383,7 @@ fn dispatch(
     state: &Path,
     clock: &Clock,
     executable: &Path,
-    request: &Prepared,
+    request: &Request,
     remaining: u64,
 ) -> Result<AttemptResult, String> {
     let (command, existed) = dispatch_command(guard, machine, state, executable, request)?;
@@ -459,7 +459,7 @@ pub(crate) fn probe_requests(
     seed: u64,
     probe: &str,
     repetitions: u32,
-) -> Result<Vec<Prepared>, String> {
+) -> Result<Vec<Request>, String> {
     let suite = probe_suite(suite_file, probe, repetitions)?;
     let requests = requests(prepared_directory)?;
     check_requests(suite_file, &suite, &requests)?;
@@ -468,10 +468,10 @@ pub(crate) fn probe_requests(
 
 fn dispatch_order(
     suite: &Suite,
-    requests: Vec<Prepared>,
+    requests: Vec<Request>,
     seed: u64,
     logical: bool,
-) -> Result<(VecDeque<Prepared>, usize), String> {
+) -> Result<(VecDeque<Request>, usize), String> {
     let ordered = if logical { order(suite, requests, seed, true)? } else { ordered(suite, requests, seed)? };
     let physical = ordered.first().map_or(Ok(1), |request| {
         if credentials::selected(request) {

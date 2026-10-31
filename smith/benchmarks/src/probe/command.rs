@@ -38,9 +38,9 @@ pub fn command(command: &str, arguments: &[String]) -> Result<Judgment, String> 
         return Err("choose parent commit or parent arm".into());
     }
     let agent = match options.get("--agent").copied().unwrap_or("smith") {
-        "smith" => Agent::Smith,
-        "codex" if command == "probe" => Agent::Codex,
-        "smith-claude-code" if command == "probe" => Agent::ClaudeCode,
+        "smith" => ProbeAgent::Smith,
+        "codex" if command == "probe" => ProbeAgent::Codex,
+        "smith-claude-code" if command == "probe" => ProbeAgent::SmithClaudeCode,
         _ => return Err("this command requires smith (probe also accepts codex or smith-claude-code)".into()),
     };
     let source = options.get("--commit").map_or(Source::Head, |commit| Source::Commit((*commit).into()));
@@ -61,10 +61,10 @@ pub fn command(command: &str, arguments: &[String]) -> Result<Judgment, String> 
             return Err("change suite requires --commit or --arm".into());
         }
     }
-    if agent == Agent::Codex || !options.contains_key("--arm") {
+    if agent == ProbeAgent::Codex || !options.contains_key("--arm") {
         crate::arm::resolve_commit(repository, "HEAD")?;
     }
-    let arm = if agent == Agent::Codex {
+    let arm = if agent == ProbeAgent::Codex {
         codex(repository, "standard")?
     } else if let Some(directory) = options.get("--arm") {
         ArmRef::Built(crate::arm::read_build(&Path::new(directory).join("smith"))?)
@@ -263,7 +263,7 @@ fn comparison(
             }
             let ceiling = if command == "calibrate" { 2 } else { 1 };
             let one =
-                Order { probe: order.probe.clone(), agent: Agent::Smith, attempts: ceiling, source: Source::Head };
+                Order { probe: order.probe.clone(), agent: ProbeAgent::Smith, attempts: ceiling, source: Source::Head };
             let planned = plan(repository, &one, &before_arm)?;
             let before_build = crate::fix::prepared(&planned.suite, &planned.directory, seed, &order.probe, ceiling)?;
             let batch = if command == "calibrate" {

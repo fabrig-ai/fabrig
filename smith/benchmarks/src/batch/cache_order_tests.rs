@@ -1,4 +1,3 @@
-
 use super::*;
 
 #[test]
@@ -11,7 +10,7 @@ fn logical_calibration_requires_thirty_runs_but_one_suite_triplet_requires_three
         .map(|position| {
             let mut identity = result.identity.clone();
             identity.attempt = format!("{position:02}");
-            Prepared {
+            Request {
                 program: "/nonexecuted".into(),
                 teardown_ms: 0,
                 grace_ms: 1,

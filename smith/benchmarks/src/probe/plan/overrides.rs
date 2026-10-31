@@ -19,14 +19,19 @@ fn fixture() -> (PathBuf, crate::CatalogueTask, Suite, ArmRef) {
     (root, crate::CatalogueTask { name: "probes/history/small-window".into(), manifest, task }, suite, arm)
 }
 
-fn requests(root: &Path, entry: &crate::CatalogueTask, suite: &Suite, arm: &ArmRef) -> Vec<crate::run::Prepared> {
+fn requests(root: &Path, entry: &crate::CatalogueTask, suite: &Suite, arm: &ArmRef) -> Vec<crate::run::Request> {
     let mut requests = Vec::new();
     task_requests(
         root.parent().expect("repository"),
         entry,
         suite,
         (arm, &[]),
-        ("offline-overrides", "2026-10-14T00:00:00Z", Some(crate::SmithFace::Events), &"0".repeat(40)),
+        RunIdentity {
+            name: "offline-overrides",
+            started: "2026-10-14T00:00:00Z",
+            face: Some(crate::SmithFace::Events),
+            harness_commit: &"0".repeat(40),
+        },
         5,
         &mut requests,
     )
@@ -49,7 +54,7 @@ fn a_suite_with_two_override_arms_prepares_ten_interleaved_requests() {
         assert_eq!(request.identity.task_version, entry.task.version);
         assert_eq!(request.identity.model.requested_model, "gpt-6-luna");
         let encoded = serde_json::to_vec(request).expect("persisted request");
-        let decoded: crate::run::Prepared = serde_json::from_slice(&encoded).expect("request identity");
+        let decoded: crate::run::Request = serde_json::from_slice(&encoded).expect("request identity");
         let mut result =
             crate::read_result(&root.join("tests/recorded/results/attempt.json")).expect("recorded result");
         result.identity = decoded.identity;
@@ -117,7 +122,12 @@ fn a_suite_gives_one_task_its_own_repetitions() {
         &entry,
         &suite,
         (&arm, &[]),
-        ("offline-overrides", "2026-10-14T00:00:00Z", Some(crate::SmithFace::Events), &"0".repeat(40)),
+        RunIdentity {
+            name: "offline-overrides",
+            started: "2026-10-14T00:00:00Z",
+            face: Some(crate::SmithFace::Events),
+            harness_commit: &"0".repeat(40),
+        },
         count,
         &mut prepared,
     )
@@ -158,7 +168,7 @@ fn the_parity_suite_runs_58_attempts_interleaved() {
     }
 }
 
-fn parity_requests(root: &Path, suite: &Suite, template: &crate::run::Prepared) -> Vec<crate::run::Prepared> {
+fn parity_requests(root: &Path, suite: &Suite, template: &crate::run::Request) -> Vec<crate::run::Request> {
     let mut prepared = Vec::new();
     for name in &suite.tasks {
         let task = root.join("tasks").join(name).join("task.toml");
@@ -194,7 +204,7 @@ fn binary_fixture() -> (PathBuf, Suite, Vec<(String, ArmRef)>) {
     (root, suite, vec![("before".into(), arm), ("after".into(), ArmRef::Built(after))])
 }
 
-fn binary_requests(root: &Path, suite: &Suite, binaries: &[(String, ArmRef)]) -> Vec<crate::run::Prepared> {
+fn binary_requests(root: &Path, suite: &Suite, binaries: &[(String, ArmRef)]) -> Vec<crate::run::Request> {
     const REPETITIONS_PER_ARM: u32 = 5;
     let mut prepared = Vec::new();
     for name in &suite.tasks {
@@ -206,7 +216,12 @@ fn binary_requests(root: &Path, suite: &Suite, binaries: &[(String, ArmRef)]) ->
             &entry,
             suite,
             (&binaries[0].1, binaries),
-            ("offline-binaries", "2026-10-15T00:00:00Z", Some(crate::SmithFace::Events), &"0".repeat(40)),
+            RunIdentity {
+                name: "offline-binaries",
+                started: "2026-10-15T00:00:00Z",
+                face: Some(crate::SmithFace::Events),
+                harness_commit: &"0".repeat(40),
+            },
             REPETITIONS_PER_ARM,
             &mut prepared,
         )

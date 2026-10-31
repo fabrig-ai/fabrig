@@ -12,7 +12,7 @@ mod prepare;
 
 mod rollouts;
 
-pub use prepare::{Observing, Prepared, prepare};
+pub use prepare::{Observing, PreparedCodex, prepare};
 
 pub use rollouts::{ChildThread, Link, ResponseUsage, RolloutFile, Rollouts, collect_rollouts, parse_rollout};
 

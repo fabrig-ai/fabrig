@@ -3,7 +3,7 @@
 
 use crate::Identity;
 use crate::arm::Build;
-use crate::run::Prepared;
+use crate::run::Request;
 
 pub(super) fn same_input(left: &Identity, right: &Identity) -> bool {
     left.task == right.task
@@ -20,7 +20,7 @@ pub(super) fn same_input(left: &Identity, right: &Identity) -> bool {
         && left.cpus == right.cpus
 }
 
-pub(super) fn inputs(requests: &[Prepared]) -> Result<(), String> {
+pub(super) fn inputs(requests: &[Request]) -> Result<(), String> {
     let first = requests.first().ok_or("probe has no prepared requests")?;
     if requests.iter().any(|request| !same_input(&first.identity, &request.identity)) {
         return Err("before/after must use the same frozen task, seed, prompt, configuration, model and host".into());
@@ -28,7 +28,7 @@ pub(super) fn inputs(requests: &[Prepared]) -> Result<(), String> {
     Ok(())
 }
 
-pub(super) fn build(request: &Prepared) -> Result<Build, String> {
+pub(super) fn build(request: &Request) -> Result<Build, String> {
     let build = crate::arm::read_build(&request.program)?;
     if build.arm.commit != request.identity.agent_version || build.arm.sha256 != request.identity.binary_sha256 {
         return Err("prepared probe differs from its verified built arm".into());
@@ -36,7 +36,7 @@ pub(super) fn build(request: &Prepared) -> Result<Build, String> {
     Ok(build)
 }
 
-pub(super) fn one_arm(requests: &[Prepared], repetitions: usize) -> Result<Build, String> {
+pub(super) fn one_arm(requests: &[Request], repetitions: usize) -> Result<Build, String> {
     inputs(requests)?;
     if requests.len() != repetitions {
         return Err(format!("calibration requires {repetitions} physical requests for this logical repetition count"));

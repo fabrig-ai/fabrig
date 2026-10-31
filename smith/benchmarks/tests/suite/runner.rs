@@ -32,7 +32,7 @@ fn isolated_replay(name: &str) -> Option<PathBuf> {
     None
 }
 
-fn repository_request(root: &std::path::Path, guard: &smith_bench::guard::Guard) -> smith_bench::run::Prepared {
+fn repository_request(root: &std::path::Path, guard: &smith_bench::guard::Guard) -> smith_bench::run::Request {
     use sha2::{Digest, Sha256};
     let fixtures = crate::common::repository().join("tests/recorded");
     let state = root.join("state/smith-bench");
@@ -57,7 +57,7 @@ fn repository_request(root: &std::path::Path, guard: &smith_bench::guard::Guard)
     let program = std::fs::canonicalize("/bin/sh").expect("shell executable");
     identity.binary_sha256 = smith_bench::arm::binary_digest(&program).expect("replay digest");
     identity.run = "repository-replay".into();
-    smith_bench::run::Prepared {
+    smith_bench::run::Request {
         program,
         teardown_ms: 100,
         setup_deadline_seconds: 3,
@@ -130,7 +130,7 @@ fn a_recorded_answer_is_observed_before_the_tree_settles() {
 
 #[test]
 fn a_prepared_adapter_observes_the_answer_through_the_common_supervisor() {
-    let prepared = smith_bench::agent::Prepared::Codex(smith_bench::agent::codex::Prepared {
+    let prepared = smith_bench::agent::PreparedAgent::Codex(smith_bench::agent::codex::PreparedCodex {
         overrides: Vec::new(),
         credential: "/tmp/smith-codex-capture-no-login/auth.json".into(),
         expires: skein_lib::Wall::EPOCH,

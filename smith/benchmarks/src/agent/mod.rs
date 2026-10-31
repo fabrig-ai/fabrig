@@ -44,9 +44,9 @@ pub struct Context<'a> {
 
 /// The adapter's prepared invocation; unsupported agents refuse before this value.
 #[derive(Debug)]
-pub enum Prepared {
+pub enum PreparedAgent {
     /// Codex's pinned standalone command, in an attempt-owned home.
-    Codex(codex::Prepared),
+    Codex(codex::PreparedCodex),
     /// Smith's verified built arm and native outside face.
     Smith(smith::Prepared),
 }
@@ -91,10 +91,10 @@ pub struct HarnessFault {
 
 impl Agent {
     /// Prepare a supported adapter; missing faces or versions refuse as setup.
-    pub fn prepare(self, context: &Context<'_>) -> Result<Prepared, crate::isolate::Setup> {
+    pub fn prepare(self, context: &Context<'_>) -> Result<PreparedAgent, crate::isolate::Setup> {
         match self {
-            Self::Codex => codex::prepare(context).map(Prepared::Codex),
-            Self::Smith => smith::prepare(context).map(Prepared::Smith),
+            Self::Codex => codex::prepare(context).map(PreparedAgent::Codex),
+            Self::Smith => smith::prepare(context).map(PreparedAgent::Smith),
             Self::ClaudeCode => Err(crate::isolate::Setup {
                 step: crate::isolate::SetupStep::Configuration,
                 reason: "Claude Code belongs to the next comparison pass".into(),
@@ -103,7 +103,7 @@ impl Agent {
     }
 }
 
-impl Prepared {
+impl PreparedAgent {
     /// Build the command with its pinned configuration overrides.
     #[must_use]
     pub fn command(&self) -> Invocation {
@@ -184,7 +184,7 @@ pub enum Agent {
     Smith,
     /// Codex, observed through JSON lines and its named rollouts.
     Codex,
-    /// Standalone Claude Code identity; probes select the smith program arm.
+    /// Standalone Claude Code identity, refused by the benchmark adapters.
     ClaudeCode,
 }
 

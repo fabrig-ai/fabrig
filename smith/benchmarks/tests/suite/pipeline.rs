@@ -5,10 +5,10 @@ use std::path::PathBuf;
 use sha2::{Digest, Sha256};
 use smith_bench::guard::Guard;
 use smith_bench::isolate::Machine;
-use smith_bench::run::{Prepared, attempt, scratch_root};
+use smith_bench::run::{Request, attempt, scratch_root};
 use smith_bench::{End, Measure};
 
-fn fixture(story: &str) -> (Guard, Machine, skein_scratch::Scratch, Prepared) {
+fn fixture(story: &str) -> (Guard, Machine, skein_scratch::Scratch, Request) {
     use std::os::unix::fs::DirBuilderExt;
     let scratch = skein_scratch::Scratch::new(story);
     let root = scratch.path().join("root");
@@ -36,7 +36,7 @@ fn fixture(story: &str) -> (Guard, Machine, skein_scratch::Scratch, Prepared) {
     identity.prompt_sha256 = format!("{:x}", Sha256::digest(prompt));
     identity.binary_sha256 = smith_bench::arm::binary_digest(&PathBuf::from("/bin/dash")).expect("shell digest");
     let recording = crate::common::repository().join("tests/recorded/codex/completed.jsonl");
-    let prepared = Prepared {
+    let prepared = Request {
 program: "/bin/dash".into(),
 arguments: vec!["-c".into(), "cat >/dev/null; test \"$(cat \"$CARGO_HOME/warm\")\" = warmed; test \"$(cat \"$CARGO_TARGET_DIR/warm\")\" = target; printf 'changed\\n' > answer.txt; git add answer.txt; git -c user.name=replay -c user.email=replay@example.invalid -c gc.auto=0 -c maintenance.auto=false commit -qm 'Agent commit'; printf untracked > new.txt; printf poisoned > \"$CARGO_HOME/warm\"; printf poisoned > \"$CARGO_TARGET_DIR/warm\"; printf marker > \"$HOME/agent-only\"; printf 'settled replay\\n' >&2; cat \"$1\"".into(), "replay".into(), recording.to_str().expect("recording UTF-8").into()],
 teardown_ms: 100,
