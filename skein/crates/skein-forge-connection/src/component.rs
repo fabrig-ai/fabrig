@@ -247,6 +247,7 @@ impl Component {
             Lifecycle::Aborting | Lifecycle::Closed => return,
         }
         match request {
+            Request::Add(_) | Request::Remove { .. } => {}
             Request::Connect { forge, access } => {
                 self.connect(env, forge, access, up, io);
                 self.drive(env, up, io);
