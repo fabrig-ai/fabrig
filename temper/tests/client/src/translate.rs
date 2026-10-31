@@ -122,7 +122,6 @@ fn unsupported_people(event: &people::Event) -> PartyInput {
         people::Event::Ask { .. } => panic!("the client kit does not make People::Ask"),
         people::Event::Decided { .. } => panic!("the client kit does not make People::Decided"),
         people::Event::Restore { .. } => panic!("the client kit does not make People::Restore"),
-        people::Event::Restored => panic!("the client kit does not make People::Restored"),
         people::Event::Whose { .. } => panic!("the client kit does not make People::Whose"),
         people::Event::Act { .. } => panic!("the client kit does not make People::Act"),
     }

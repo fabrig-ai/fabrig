@@ -23,10 +23,6 @@ pub(super) fn route_people(
     work: &mut Queue<Event>,
     event: people::Event,
 ) -> Requests {
-    if event == people::Event::Restored {
-        core.seed_owners = Box::new([]);
-        core.seed_projects = Box::new([]);
-    }
     if let people::Event::Forget { task, .. } = &event {
         drop(core.archived_chats.remove(task));
     }
@@ -70,8 +66,7 @@ pub(super) fn route_people(
         | people::Event::Act { .. }
         | people::Event::Whose { .. }
         | people::Event::Ask { .. }
-        | people::Event::Restore { .. }
-        | people::Event::Restored) => other,
+        | people::Event::Restore { .. }) => other,
     };
     super::view_routes::touch_people_event(core, &env.limits, &event);
     let mut child = Queue::uncapped();

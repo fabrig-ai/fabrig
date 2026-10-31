@@ -1478,7 +1478,7 @@ impl Front<Temper> for Joint {
                         temper_engine_domain_world::protocol::hosting(*task, *attempt, jig_domain_host::Phase::Active)
                     })
                     .collect();
-                let store = std::mem::replace(&mut self.engine.store, Store::new());
+                let store = self.engine.take_store();
                 let config = walking::config(self.seed);
                 // The restarted engine runs the walking settings: judge asks by the same ones, as jig's kit does.
                 self.transport.models.clone_from(&config.core.settings.models);

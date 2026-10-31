@@ -171,7 +171,15 @@ fn positive_change(world: &mut World, repair: bool) -> Result<(), Violation> {
         root::Record::Core(core::Record::Tasks(tasks::Stored::Ended(row))) if row.number == task
         && matches!(row.phase,tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Change {..}))))
         })
-    })
+    })?;
+    let chat = world.peers.assignments[0].task;
+    if world.store.rows.contains_key(&root::Key::Core(core::Key::Tasks(tasks::Key::Live(chat)))) {
+        scenarios::wake(world, chat)?;
+        wait(world, |world| {
+            world.store.rows.contains_key(&root::Key::Core(core::Key::Tasks(tasks::Key::Ended(chat))))
+        })?;
+    }
+    Ok(())
 }
 fn other_hand(world: &mut World) -> Result<(), Violation> {
     world.systems.hold = true;
@@ -503,7 +511,13 @@ pub fn run(story: Story, cut: Cut, seed: u64) -> Result<Outcome, Violation> {
         }
         Story::IssueCreation => issue_creation(&mut world)?,
     }
-    world.drain()?;
+    // Releases can wait for the forge client's next timer after immediate work drains.
+    wait(&mut world, |world| {
+        !world.store.rows.values().any(|record| {
+            matches!(record, root::Record::Core(core::Record::Tasks(tasks::Stored::Live(row)))
+                if matches!(row.phase, tasks::Phase::Closing(_)))
+        })
+    })?;
     crate::oracle::close(&mut world)?;
     Ok(world.outcome())
 }

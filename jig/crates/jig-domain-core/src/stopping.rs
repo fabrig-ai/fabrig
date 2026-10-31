@@ -160,8 +160,7 @@ fn people_gate(event: people::Event) -> Result<Event, Requests> {
         | people::Event::SignedIn { .. }
         | people::Event::Roles { .. }
         | people::Event::Decided { .. }
-        | people::Event::Restore { .. }
-        | people::Event::Restored) => Ok(Event::People(event)),
+        | people::Event::Restore { .. }) => Ok(Event::People(event)),
     }
 }
 impl Timer {

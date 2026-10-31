@@ -33,6 +33,7 @@ fn signed_in_on(role: Option<people::Role>, kind: forge::Kind) -> (Domain, Env<L
 }
 fn signed_in_root((mut domain, env): (Domain, Env<Limits>), role: Option<people::Role>) -> (Domain, Env<Limits>) {
     domain.core.people = people::Domain::new(&env.limits.people, Box::new([]), 1, Box::new([]));
+    domain.core.people.start_restore(env.wall);
     let mut out = Queue::uncapped();
     for record in [
         people::Stored::Person {
@@ -59,12 +60,10 @@ fn signed_in_root((mut domain, env): (Domain, Env<Limits>), role: Option<people:
             &mut out,
         );
     }
-    people::step(
-        &mut domain.core.people,
-        &Env { now: env.now, wall: env.wall, limits: env.limits.people },
-        people::Event::Restored,
-        &mut out,
-    );
+    let people_env = Env { now: env.now, wall: env.wall, limits: env.limits.people };
+    assert!(domain.core.people.start_link(&people_env));
+    domain.core.people.start_sweep();
+    assert!(domain.core.people.start_complete(&people_env));
     (domain, env)
 }
 

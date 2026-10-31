@@ -568,6 +568,7 @@ fn placement_with_accounts(
     account(&mut core, &limits, accounts::Event::Want);
     granted(&mut core, &limits, 1);
     core.people = people::Domain::new(&limits.people, Box::new([]), u16::MAX, Box::new([]));
+    core.people.start_restore(Wall::EPOCH);
     let mut out = Queue::uncapped();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people };
     for person in [OWNER, OTHER_PERSON] {
@@ -598,7 +599,7 @@ fn placement_with_accounts(
         },
         &mut out,
     );
-    people::step(&mut core.people, &env, people::Event::Restored, &mut out);
+    finish_people(&mut core.people, &env);
     core.fleet = placement_fleet(&core, &limits);
     let mut out = Queue::uncapped();
     fleet::step(

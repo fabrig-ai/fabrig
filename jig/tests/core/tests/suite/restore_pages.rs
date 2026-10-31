@@ -133,6 +133,8 @@ fn a_paused_restore_answers_sign_in_not_ready_without_changing_durable_rows() {
     assert_eq!(world.store.applied, applied, "NotReady sign-in must not commit");
     assert_eq!(world.commits.len(), commits, "NotReady sign-in must not submit a commit");
     assert_eq!(world.store.rows, rows, "NotReady sign-in leaves the complete durable store unchanged");
+    world.finish_restore_pages();
+    assert!(world.domain.ready());
 }
 
 #[test]

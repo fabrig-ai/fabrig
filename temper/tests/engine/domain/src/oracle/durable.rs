@@ -63,13 +63,17 @@ fn durable_panel(panel: &mut temper_engine_domain_forge::Panel) {
     }
 }
 
-/// `Connection` is rebuilt by routing at startup (forge.md, 4.1); `app` names
-/// how this process received an App (boundary.rs, `AppWay`). Adopted rows persist.
+/// Routing rebuilds connection, setup and installation observations at startup
+/// (temper/docs/design/domain/forge.md, 4.1). Adopted rows persist.
 #[must_use]
 pub fn forges(mut document: temper_engine_domain_forge::Forges) -> temper_engine_domain_forge::Forges {
     for row in &mut document.rows {
         row.connection = temper_engine_domain_forge::Connection::NotConnected;
         row.app = None;
+        row.failed = None;
+        row.offer = temper_engine_domain_forge::Offer::NotOffered;
+        row.first = None;
+        row.installations = Box::new([]);
     }
     document
 }

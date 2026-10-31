@@ -468,6 +468,7 @@ fn restore_key_account(core: &mut Core, limits: &Limits, number: u32, source: u3
 
 fn clear_projects(core: &mut Core, limits: &Limits) {
     core.authority = authority::Domain::new(core.authority.rules().clone(), limits.authority).expect("restore rules");
+    core.authority.start_restore();
     core.projects.clear();
     core.names = Map::with_capacity(limits.authority.projects);
     core.permission_roles = Map::with_capacity(limits.authority.projects);
@@ -476,6 +477,7 @@ fn clear_projects(core: &mut Core, limits: &Limits) {
 
 fn seeded_core(config: Config, limits: &Limits) -> Result<Core, Problem> {
     let mut core = Core::new(config, limits)?;
+    core.people.start_restore(Wall::EPOCH);
     let projects = core::mem::replace(&mut core.seed_projects, Box::new([]));
     for project in projects {
         let mut out = Queue::uncapped();
@@ -526,7 +528,7 @@ pub(crate) fn core() -> (Core, Limits) {
         },
         &mut out,
     );
-    people::step(&mut core.people, &env, people::Event::Restored, &mut out);
+    finish_people(&mut core.people, &env);
     (core, limits)
 }
 
@@ -1632,6 +1634,7 @@ fn documents_project_exposes_two_roles_members_pool_and_resource_parts() {
     assert_eq!(out.pop(), Some(authority::PolicyFact::Added { project: 1 }));
     let first_identity = core.people.identity(1).unwrap().clone();
     core.people = people::Domain::new(&limits.people, Box::new([]), core.settings.deployment_provider, Box::new([]));
+    core.people.start_restore(Wall::EPOCH);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people };
     let mut restored = Queue::uncapped();
     for record in [
@@ -1658,7 +1661,7 @@ fn documents_project_exposes_two_roles_members_pool_and_resource_parts() {
         people::step(&mut core.people, &env, people::Event::Restore { record }, &mut restored);
         while restored.pop().is_some() {}
     }
-    people::step(&mut core.people, &env, people::Event::Restored, &mut restored);
+    finish_people(&mut core.people, &env);
     send_task(
         &mut core,
         &limits,
@@ -1738,6 +1741,7 @@ fn documents_lifecycle_history_keeps_holds_and_endings() {
 fn restore_document_party(core: &mut Core, limits: &Limits, projects: &[u32]) {
     let identity = core.people.identity(1).unwrap().clone();
     core.people = people::Domain::new(&limits.people, Box::new([]), core.settings.deployment_provider, Box::new([]));
+    core.people.start_restore(Wall::EPOCH);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people };
     let mut out = Queue::uncapped();
     people::step(
@@ -1761,7 +1765,7 @@ fn restore_document_party(core: &mut Core, limits: &Limits, projects: &[u32]) {
         );
         while out.pop().is_some() {}
     }
-    people::step(&mut core.people, &env, people::Event::Restored, &mut out);
+    finish_people(&mut core.people, &env);
     assert!(core.people.identity(1).is_some());
 }
 #[test]
@@ -2049,6 +2053,7 @@ fn watch_core() -> (Core, Limits) {
         .unwrap();
     let identity = core.people.identity(1).unwrap().clone();
     core.people = people::Domain::new(&limits.people, Box::new([]), core.settings.deployment_provider, Box::new([]));
+    core.people.start_restore(Wall::EPOCH);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people };
     let mut out = Queue::uncapped();
     let records = [
@@ -2072,7 +2077,7 @@ fn watch_core() -> (Core, Limits) {
         people::step(&mut core.people, &env, people::Event::Restore { record }, &mut out);
         while out.pop().is_some() {}
     }
-    people::step(&mut core.people, &env, people::Event::Restored, &mut out);
+    finish_people(&mut core.people, &env);
     (core, limits)
 }
 
@@ -3045,12 +3050,7 @@ fn invisible_and_absent_reads_have_the_same_unknown_answer() {
     }
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people };
     let mut out = Queue::uncapped();
-    people::step(
-        &mut core.people,
-        &env,
-        people::Event::Restore { record: people::Stored::Roles { project: 1, holdings: Box::new([]) } },
-        &mut out,
-    );
+    people::step(&mut core.people, &env, people::Event::Roles { project: 1, holdings: Box::new([]) }, &mut out);
     let Held::Read { answer, .. } = read_answer(&mut core, &limits, 10, reads::Read::Task { task: 1 }) else {
         panic!("read terminal expected")
     };
@@ -3795,4 +3795,10 @@ pub(crate) fn finish_started(core: &mut Core, env: &Env<Limits>, mut action: cra
         };
     }
     panic!("bounded fixture start");
+}
+
+fn finish_people(domain: &mut people::Domain, env: &Env<people::Limits>) {
+    assert!(domain.start_link(env));
+    domain.start_sweep();
+    assert!(domain.start_complete(env));
 }

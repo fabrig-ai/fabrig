@@ -464,6 +464,7 @@ fn settled_frame_watch(expiry: skein_lib::Wall) -> (crate::Domain, skein_lib::En
     use skein_lib::Env;
     let mut domain = fixtures::domain();
     let env = fixtures::env();
+    domain.core.people.start_restore(env.wall);
     let people_env = Env { now: env.now, wall: env.wall, limits: env.limits.core.people };
     let mut ignored = Queue::uncapped();
     for record in [
@@ -479,7 +480,9 @@ fn settled_frame_watch(expiry: skein_lib::Wall) -> (crate::Domain, skein_lib::En
     ] {
         people::step(&mut domain.core.people, &people_env, people::Event::Restore { record }, &mut ignored);
     }
-    people::step(&mut domain.core.people, &people_env, people::Event::Restored, &mut ignored);
+    assert!(domain.core.people.start_link(&people_env));
+    domain.core.people.start_sweep();
+    assert!(domain.core.people.start_complete(&people_env));
     let watcher = Token::new(901);
     crate::step(
         &mut domain,
