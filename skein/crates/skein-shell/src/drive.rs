@@ -29,8 +29,25 @@ pub trait Host {
     /// Whether `iterate` has work at `now` without the kernel.
     fn work_pending(&self, now: Time) -> bool;
 
-    /// Its earliest deadline, over every layer.
-    fn next_deadline(&self) -> Option<Time>;
+    /// Its earliest deadline, over every layer: the earlier mechanism or
+    /// policy deadline, or `None` only when both are absent. A host overrides
+    /// `next_mechanism_deadline`, or this method when its deadline needs more
+    /// than that merge.
+    fn next_deadline(&self) -> Option<Time> {
+        match (self.next_mechanism_deadline(), self.next_policy_deadline()) {
+            (Some(mechanism), Some(policy)) => Some(mechanism.min(policy)),
+            (Some(mechanism), None) => Some(mechanism),
+            (None, Some(policy)) => Some(policy),
+            (None, None) => None,
+        }
+    }
+
+    /// Its earliest mechanism deadline: io close, retry and file stalls,
+    /// and any layer's mechanism timers, excluded by `next_policy_deadline`.
+    /// The default has no mechanism deadline.
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        None
+    }
 
     /// Its earliest policy deadline, excluding io close, retry and file stalls
     /// (testing-strategy.md, section 6). Every host states it explicitly.
