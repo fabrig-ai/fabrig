@@ -4,7 +4,7 @@
 //! requests, cancel/close signal, and the existing grace escalates both.
 
 use super::Complete;
-use super::{Backend, Below, State, stream, tail, turns};
+use super::{Backend, Below, State, tail, turns};
 use crate::mcp;
 use skein_io::{self as io, kernel};
 use skein_lib::{Env, List, Queue};
@@ -127,7 +127,7 @@ impl Backend {
     ) -> bool {
         // A natural end has no control request. A yield keeps the sequence
         // after its acknowledgement and result, until this finishing input.
-        let prefix = if self.interrupt_sequence == 0 {
+        let prefix = if self.interrupt.sequence() == 0 {
             b"".as_slice()
         } else {
             b"(The agent paused your last turn to send the finishing note.)\n".as_slice()
@@ -186,7 +186,7 @@ impl Backend {
             Stop::None | Stop::Closing => false,
         };
         if keeping && active && !waiting && self.process.child().is_some() {
-            match self.prepare_interrupt() {
+            match self.interrupt.prepare(self.settings.input_bytes, &mut self.io) {
                 Some(()) => {
                     // Finish any user line already being written before this line.
                     if self.outgoing.is_none() {
@@ -223,42 +223,15 @@ impl Backend {
         }
     }
 
-    fn prepare_interrupt(&mut self) -> Option<()> {
-        let sequence = self.interrupt_sequence.checked_add(1)?;
-        let line = stream::interrupt_request(sequence, self.settings.input_bytes)?;
-        self.interrupt_sequence = sequence;
-        self.interrupt_pending = Some(sequence);
-        self.interrupt_line = Some(line);
-        Some(())
-    }
-
     pub(super) fn send_interrupt(&mut self) {
-        if let Some(line) = &self.interrupt_line {
-            self.io.push(io::Request::Output {
-                stream: self.process.pipes().input.expect("interrupt input"),
-                down: skein_lib::stream::OutputDown::Room {
-                    right: super::INTERRUPT_RIGHT,
-                    bytes: u32::try_from(line.len()).expect("bounded interrupt line"),
-                },
-            });
-        }
+        self.interrupt.offer(self.process.pipes().input, &mut self.io);
     }
 
     pub(super) fn control_response(&mut self, document: &skein_json::Document) -> bool {
         let response = mcp::json::field(document, 0, b"response");
         let subtype = mcp::json::text_in(document, mcp::json::field_in(document, response, b"subtype"));
         let id = mcp::json::text_in(document, mcp::json::field_in(document, response, b"request_id"));
-        match self.interrupt_pending {
-            Some(sequence) if subtype == Some(b"success") => {
-                let expected = stream::interrupt_id(sequence);
-                if id == Some(expected.as_ref()) {
-                    self.interrupt_pending = None;
-                    return true;
-                }
-            }
-            Some(_) | None => {}
-        }
-        false
+        subtype == Some(b"success") && self.interrupt.acknowledge(id, &mut self.io)
     }
 
     pub(super) fn stopped_result(

@@ -190,8 +190,7 @@ impl Backend {
         self.stderr = super::Tail::with_capacity(self.settings.receiving.max_failure_bytes);
         self.stderr_wrapped = false;
         self.written = 0;
-        self.interrupt_pending = None;
-        self.interrupt_line = None;
+        self.interrupt.forget(&mut self.io);
         self.ledger = List::with_capacity(self.settings.ledger_slots().expect("ledger"));
         self.turns = turns::Turns::new(&self.settings.receiving, self.settings.adapter.client.answer);
         self.permitted_message = 1;

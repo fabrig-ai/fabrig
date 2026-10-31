@@ -21,6 +21,7 @@ use current::Complete;
 mod diagnostics;
 mod files;
 mod intake;
+mod interrupt;
 mod measures;
 mod memory;
 mod native;
@@ -206,7 +207,7 @@ enum State {
 /// The run's program adapter, driven by the service (smith/docs/design/protocol/programs.md, sections 3, 5).
 #[expect(
     clippy::struct_excessive_bools,
-    reason = "child, server, stdout and once-per-Complete observation facts are independent"
+    reason = "MCP, stream retention, window invocation and prompt observations advance independently"
 )]
 pub struct Backend {
     mounts: Box<[Mount]>,
@@ -226,9 +227,7 @@ pub struct Backend {
     process: process::Process,
     outgoing: Option<Box<[u8]>>,
     written: u32,
-    interrupt_sequence: u64,
-    interrupt_pending: Option<u64>,
-    interrupt_line: Option<Box<[u8]>>,
+    interrupt: interrupt::Interrupt,
     deadline: Option<Time>,
     eof_deadline: Option<Time>,
     stopping: u8,
@@ -298,9 +297,7 @@ impl Backend {
             process: process::Process::new(),
             outgoing: None,
             written: 0,
-            interrupt_sequence: 0,
-            interrupt_pending: None,
-            interrupt_line: None,
+            interrupt: interrupt::Interrupt::new(),
             deadline: None,
             eof_deadline: None,
             stopping: 0,

@@ -36,7 +36,7 @@ impl Backend {
         match event {
             io::Event::Spawned { child, pipes, .. } => {
                 self.process.spawned(child, Pipes::from_spawn(&pipes));
-                self.interrupt_sequence = 0;
+                self.interrupt.restart(&mut self.io);
                 self.read_stdout();
                 if let Some(pipe) = self.process.pipes().errors {
                     Self::demand(pipe, PIPE_BYTES, &mut self.io);
@@ -100,12 +100,7 @@ impl Backend {
                                 return;
                             }
                             if right == super::INTERRUPT_RIGHT {
-                                if let Some(bytes) = self.interrupt_line.take() {
-                                    self.io.push(io::Request::Output {
-                                        stream: self.process.pipes().input.expect("interrupt write"),
-                                        down: stream::OutputDown::Send { right, bytes },
-                                    });
-                                }
+                                self.interrupt.send(self.process.pipes().input.expect("interrupt write"), &mut self.io);
                             } else if let Some(bytes) = &self.outgoing {
                                 let start = usize::try_from(self.written).expect("input cursor");
                                 let end = start
