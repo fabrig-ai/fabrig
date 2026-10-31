@@ -18,7 +18,7 @@ use jig_domain_core as core;
 use jig_domain_fleet as fleet;
 use jig_domain_tasks as tasks;
 use jig_test_connector as connector;
-use skein_lib::{Decision, Env, Journal, List, Map, Queue, ReplyTo, Set, Time, Token, Wall};
+use skein_lib::{Decision, Env, Journal, List, Map, Queue, ReplyTo, Set, Token, Wall};
 
 /// A store address owned by the core or one numbered connector.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
@@ -370,6 +370,12 @@ pub struct Domain {
 }
 
 impl Domain {
+    /// The composed core, including its child timer queries.
+    #[must_use]
+    pub const fn core(&self) -> &core::Core {
+        &self.core
+    }
+
     /// Configure the composed core before the testing application's first step.
     pub fn core_mut(&mut self) -> &mut core::Core {
         &mut self.core
@@ -407,32 +413,6 @@ impl Domain {
     #[must_use]
     pub fn start_page_failure(&self) -> Option<&(core::start::Phase, jig_protocol_store::restore::Failure)> {
         self.start_page_failure.as_ref()
-    }
-
-    /// Project each child's original elapsed deadline and the saved people
-    /// wall expiry at the supplied clocks. The loop sends the owner's Timer.
-    #[must_use]
-    pub fn core_deadlines(&self, now: Time, wall: Wall) -> [(core::Timer, Option<Time>); 6] {
-        let elapsed = self.core.people.next_deadline();
-        let saved = match self.core.people.next_wall_expiry() {
-            Some(expiry) if self.core.people.ready() => Some(
-                now.saturating_add(skein_lib::Duration::from_nanos(expiry.as_nanos().saturating_sub(wall.as_nanos()))),
-            ),
-            Some(_) | None => None,
-        };
-        let people = match (elapsed, saved) {
-            (Some(left), Some(right)) => Some(left.min(right)),
-            (Some(at), None) | (None, Some(at)) => Some(at),
-            (None, None) => None,
-        };
-        [
-            (core::Timer::People, people),
-            (core::Timer::Tasks, self.core.tasks.next_deadline()),
-            (core::Timer::Fleet, self.core.fleet.next_deadline()),
-            (core::Timer::Brief, self.core.brief.next_deadline()),
-            (core::Timer::Account, self.core.accounts.next_deadline()),
-            (core::Timer::View, self.core.views.next_deadline()),
-        ]
     }
 
     /// Project the two connector owners' existing absolute deadlines unchanged.
@@ -826,13 +806,12 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
     if finish_only {
         assert!(!domain.decision_wrote && !domain.core.counters.dirty(), "stopping continuation makes no commit");
     }
-    if domain.decision_wrote || domain.core.counters.dirty() {
-        let header = domain.core.counters.next_commit();
-        write(
-            domain,
-            &mut decision,
-            Write::Save(Record::Core(core::Record::Core(core::CoreRecord::Deployment(header)))),
-        );
+    let header = if domain.decision_wrote { Some(domain.core.commit_header()) } else { domain.core.cold_header() };
+    if let Some(header) = header {
+        let core::Write::Save(header) = header else {
+            unreachable!("a deployment header is a save");
+        };
+        write(domain, &mut decision, Write::Save(Record::Core(header)));
     }
     if !domain.start_stopped() {
         domain.journal.accept(decision);
@@ -1055,12 +1034,8 @@ fn wall_due(env: &Env<Limits>, expiry: Wall) -> bool {
 }
 
 fn timers_due(domain: &Domain, env: &Env<Limits>) -> bool {
-    for (_, due) in domain.core_deadlines(env.now, env.wall) {
-        if let Some(due) = due
-            && due <= env.now
-        {
-            return true;
-        }
+    if domain.core.due(env.now, env.wall).is_some() {
+        return true;
     }
     for (_, due) in domain.connector_deadlines() {
         if let Some(due) = due

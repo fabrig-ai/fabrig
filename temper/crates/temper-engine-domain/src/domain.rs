@@ -964,7 +964,7 @@ pub(crate) fn fire_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Queu
     }
     domain.settled = None;
     let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
-    for timer in [jig_domain_core::Timer::Account, jig_domain_core::Timer::View] {
+    if let Some(timer) = domain.core.due(env.now, env.wall) {
         let routed = jig_domain_core::fire(&mut domain.core, &environment_core(env), timer);
         route_core_requests(domain, env, &mut decision, routed);
     }
@@ -987,15 +987,6 @@ pub(crate) fn fire_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Queu
         let routed =
             jig_domain_core::step(&mut domain.core, &environment_core(env), jig_domain_core::Event::EffectDeadline);
         route_core_requests(domain, env, &mut decision, routed);
-        for timer in [
-            jig_domain_core::Timer::People,
-            jig_domain_core::Timer::Tasks,
-            jig_domain_core::Timer::Fleet,
-            jig_domain_core::Timer::Brief,
-        ] {
-            let routed = jig_domain_core::fire(&mut domain.core, &environment_core(env), timer);
-            route_core_requests(domain, env, &mut decision, routed);
-        }
         route_into(domain, env, &mut decision);
     }
     close(domain, env, decision, out);

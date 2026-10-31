@@ -10,7 +10,7 @@ impl Domain {
         if self.journal.stopped() || self.start_stop().is_some() || !self.start_runtime() {
             return None;
         }
-        let mut next = earliest(self.core.accounts.next_deadline(), self.core.views.next_deadline());
+        let mut next = self.core.next_deadline(env.now, env.wall);
         if let Some(start) = &self.demo_start
             && let Some(demo) = self.forge.demo()
             && !crate::route::demo::connected(&self.forge.connection(demo.adoption.forge))
@@ -21,15 +21,6 @@ impl Domain {
             return next;
         }
         if self.ready() {
-            for deadline in [
-                self.core.people.next_deadline(),
-                self.core.tasks.next_deadline(),
-                self.core.fleet.next_deadline(),
-                self.core.brief.next_deadline(),
-            ] {
-                next = earliest(next, deadline);
-            }
-            next = earliest(next, wall_deadline(self.core.people.next_wall_expiry(), env.now, env.wall));
             next = earliest(next, wall_deadline(self.core.effect_deadline(), env.now, env.wall));
         }
         if self.ready() || self.settling.active() || crate::restart::connector_restarting(self) {
