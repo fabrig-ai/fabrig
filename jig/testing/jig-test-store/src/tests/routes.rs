@@ -466,7 +466,7 @@ fn switched_start_completes_the_switch_phase() {
 }
 
 #[test]
-fn start_application_decode_failure_is_typed_and_has_the_record_key() {
+fn start_application_decode_failure_names_its_cause_and_has_the_record_key() {
     use core::start::Phase;
     use jig_protocol_store::{
         Event, Request, Row,
