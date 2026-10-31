@@ -1,14 +1,13 @@
 //! The core's connector asks, translated for temper's forge and brief
 //! (jig's `domain/root.md`, 5; `examples/ops/domain/src/route.rs`).
 use super::{
-    Decision, Delivery, Domain, Env, Limits, List, Queue, ReplyTo, Token, Work, brief_outputs, decide_call, emit,
-    forge, forge_release_ending, forge_route, internal,
+    Decision, Delivery, Domain, Env, Limits, List, Queue, ReplyTo, Work, brief_outputs, decide_call, emit, forge,
+    forge_release_ending, forge_route,
 };
 use crate::CallAnswer;
 use alloc::boxed::Box;
 use jig_domain_brief as brief;
 use jig_domain_core as core;
-use jig_domain_fleet as fleet;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 
@@ -277,25 +276,24 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
                 if !writes.is_empty() {
                     domain.work.push(Work::Forge(forge::Event::Claim { task, attempt, writes, holders }));
                 }
-                let assignment = domain.assignments.get(&task).expect("claimed assignment");
-                let workstream = assignment.workstream;
-                let placement = Some(assignment.run.placement);
-                let grants = fleet_grants(&assignment.grants);
-                emit(
-                    decision,
-                    &env.limits,
-                    Delivery::Fleet(fleet::Event::Start {
-                        placement,
-                        grants,
-                        kinds,
-                        version,
-                        reply_to: internal(task),
-                        run: Token::new(task),
-                        attempt: Token::new(attempt),
-                        workstream,
-                        assignment: fleet::Assignment { turns: Token::new(task), answered: Token::new(task) },
-                    }),
+                let mut out = Queue::uncapped();
+                jig_domain_hub_link::step(
+                    &mut domain.hub_link,
+                    env.now,
+                    jig_domain_hub_link::Event::Start { task, attempt, kinds, version },
+                    &mut out,
                 );
+                for _ in 0..out.len() {
+                    let jig_domain_hub_link::Request::Core(core::Event::Fleet(mut event)) =
+                        out.pop().expect("link start")
+                    else {
+                        unreachable!("a start routes to the fleet")
+                    };
+                    if let jig_domain_fleet::Event::Start { workstream, .. } = &mut event {
+                        *workstream = domain.assignment_parts.get(&task).expect("temper workspace").workstream;
+                    }
+                    emit(decision, &env.limits, Delivery::Fleet(event));
+                }
             }
             None
         }
@@ -351,11 +349,6 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
         child.push(request);
         brief_outputs(domain, env, decision, &mut child);
     }
-}
-
-/// Copy a prepared assignment's grants for the fleet's start.
-fn fleet_grants(grants: &[jig_domain_accounts::Grant]) -> Box<[fleet::Grant]> {
-    Box::from(grants)
 }
 
 fn step_made(domain: &mut Domain, task: u64, step: u64, child: Option<u64>) {

@@ -15,6 +15,7 @@ jig-domain-people.workspace = true
 jig-domain-tasks.workspace = true
 jig-domain-fleet.workspace = true
 jig-domain-host.workspace = true
+jig-domain-hub-link.workspace = true
 jig-domain-brief.workspace = true
 jig-domain-accounts.workspace = true
 jig-domain-authority.workspace = true
