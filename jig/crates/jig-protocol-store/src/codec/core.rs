@@ -11,23 +11,19 @@ use skein_lib::{List, Reader, Wall, Writer};
 mod calls;
 mod projections;
 mod runs;
-/// Family bounds used by the core and its carried task and note values.
-#[derive(Clone, Copy, Debug)]
-pub struct Limits {
-    pub core: wire::Limits,
-    pub tasks: crate::tasks_v9::Limits,
-    pub notes: crate::notes_v1::Limits,
-}
-#[must_use]
-pub fn limits(domain: &domain::Limits) -> Option<Limits> {
-    let tasks = crate::codec::tasks::limits(&domain.tasks)?;
-    let notes = crate::codec::notes::limits(&domain.notes)?;
+use super::View;
+
+pub(super) fn limits(
+    domain: &domain::Limits,
+    tasks: &crate::tasks_v9::Limits,
+    notes: &crate::notes_v1::Limits,
+) -> Option<wire::Limits> {
     let core = wire::Limits {
         settings_refusal_value: u32::try_from(crate::people_v13::Refusal::encoded_bound(&crate::people_v13::CEILINGS)?)
             .ok()?,
-        phase_bytes_value: u32::try_from(crate::tasks_v9::PhaseRecord::encoded_bound(&tasks)?).ok()?,
-        change_bytes_value: u32::try_from(crate::tasks_v9::ChangeRecord::encoded_bound(&tasks)?).ok()?,
-        end_bytes_value: u32::try_from(crate::tasks_v9::EndRecord::encoded_bound(&tasks)?).ok()?,
+        phase_bytes_value: u32::try_from(crate::tasks_v9::PhaseRecord::encoded_bound(tasks)?).ok()?,
+        change_bytes_value: u32::try_from(crate::tasks_v9::ChangeRecord::encoded_bound(tasks)?).ok()?,
+        end_bytes_value: u32::try_from(crate::tasks_v9::EndRecord::encoded_bound(tasks)?).ok()?,
         projection_goal_words: domain.tasks.spec_bytes,
         projection_task_words: domain.tasks.spec_bytes,
         projection_milestone_words: domain.tasks.message_bytes.max(domain.tasks.result_bytes),
@@ -46,13 +42,13 @@ pub fn limits(domain: &domain::Limits) -> Option<Limits> {
         call_part_delegated_value: domain.tasks.batch,
         call_part_delegation_denied_findings: jig_domain_authority::stored_finding_limit(&domain.authority)?,
         call_part_note_recalled_entries: domain.notes.recalled,
-        task_bytes_value: u32::try_from(crate::tasks_v9::TaskProblem::encoded_bound(&tasks)?).ok()?,
-        note_bytes_value: u32::try_from(crate::notes_v1::Row::encoded_bound(&notes)?).ok()?,
+        task_bytes_value: u32::try_from(crate::tasks_v9::TaskProblem::encoded_bound(tasks)?).ok()?,
+        note_bytes_value: u32::try_from(crate::notes_v1::Row::encoded_bound(notes)?).ok()?,
     };
     wire::check_limits(&core).ok()?;
-    Some(Limits { core, tasks, notes })
+    Some(core)
 }
-pub fn encode(row: &domain::CoreRecord, limits: &Limits) -> Result<Box<[u8]>, wire::Problem> {
+pub fn encode(row: &domain::CoreRecord, limits: &View) -> Result<Box<[u8]>, wire::Problem> {
     let value = match row {
         domain::CoreRecord::Call(call) => wire::Value::Call(calls::encode_call_record(call, limits)?),
         domain::CoreRecord::Settings(_) => {
@@ -78,7 +74,7 @@ pub fn encode(row: &domain::CoreRecord, limits: &Limits) -> Result<Box<[u8]>, wi
     row.encode(&mut writer).expect("measured room");
     Ok(writer.finish())
 }
-pub fn decode(bytes: &[u8], limits: &Limits) -> Result<domain::CoreRecord, wire::Problem> {
+pub fn decode(bytes: &[u8], limits: &View) -> Result<domain::CoreRecord, wire::Problem> {
     let wire::RowParts { value } = wire::Row::decode(&limits.core, &mut Reader::new(bytes))?.into_parts();
     Ok(match value {
         wire::Value::Call(value) => domain::CoreRecord::Call(calls::decode_call_record(value, limits)?),
@@ -109,7 +105,7 @@ fn note_problem(value: crate::notes_v1::Problem) -> wire::Problem {
 fn too_large(_: core::num::TryFromIntError) -> wire::Problem {
     problem(skein_codec::Reason::Bound)
 }
-pub fn encode_proposer(value: &people::Proposer, limits: &Limits) -> Result<wire::Proposer, wire::Problem> {
+pub fn encode_proposer(value: &people::Proposer, limits: &View) -> Result<wire::Proposer, wire::Problem> {
     Ok(match value {
         people::Proposer::Task(value) => {
             wire::Proposer::Task(wire::ProposerTask::new(&limits.core, wire::ProposerTaskParts { value: *value })?)
@@ -156,7 +152,7 @@ pub fn decode_proposal_choice(value: wire::ProposalChoice) -> people::ProposalCh
 
 pub fn encode_escalation_decision(
     value: &people::EscalationDecision,
-    limits: &Limits,
+    limits: &View,
 ) -> Result<wire::EscalationDecision, wire::Problem> {
     Ok(match value {
         people::EscalationDecision::Release => wire::EscalationDecision::Release,
@@ -206,7 +202,7 @@ pub fn decode_proposal_kind(value: wire::ProposalKind) -> tasks::ProposalKind {
 
 pub fn encode_escalation_outcome(
     value: &tasks::EscalationOutcome,
-    limits: &Limits,
+    limits: &View,
 ) -> Result<wire::EscalationOutcome, wire::Problem> {
     Ok(match value {
         tasks::EscalationOutcome::Released => wire::EscalationOutcome::Released,
@@ -277,7 +273,7 @@ pub fn decode_source(value: wire::Source) -> authority::Source {
     }
 }
 
-pub fn encode_lacks(value: &authority::Lacks, limits: &Limits) -> Result<wire::Lacks, wire::Problem> {
+pub fn encode_lacks(value: &authority::Lacks, limits: &View) -> Result<wire::Lacks, wire::Problem> {
     let authority::Lacks { tools, grants, executors, tasks, depth, spend, deadline, notes, models } = value;
     wire::Lacks::new(
         &limits.core,
@@ -293,7 +289,7 @@ pub fn decode_lacks(value: wire::Lacks) -> authority::Lacks {
     authority::Lacks { tools, grants, executors, tasks, depth, spend, deadline, notes, models }
 }
 
-pub fn encode_judge(value: &authority::Judge, limits: &Limits) -> Result<wire::Judge, wire::Problem> {
+pub fn encode_judge(value: &authority::Judge, limits: &View) -> Result<wire::Judge, wire::Problem> {
     let authority::Judge { connector, requirement, parameters } = value;
     wire::Judge::new(
         &limits.core,
@@ -325,7 +321,7 @@ pub fn decode_answer(value: wire::Answer) -> authority::Answer {
     }
 }
 
-pub fn encode_finding(value: &authority::Finding, limits: &Limits) -> Result<wire::Finding, wire::Problem> {
+pub fn encode_finding(value: &authority::Finding, limits: &View) -> Result<wire::Finding, wire::Problem> {
     Ok(match value {
         authority::Finding::Oversized => wire::Finding::Oversized,
         authority::Finding::UnknownProject => wire::Finding::UnknownProject,
@@ -464,7 +460,7 @@ pub fn decode_host_kind(value: wire::HostKind) -> fleet::HostKind {
 
 pub fn encode_outbox_outcome(
     value: &domain::connector::OutboxOutcome,
-    limits: &Limits,
+    limits: &View,
 ) -> Result<wire::OutboxOutcome, wire::Problem> {
     Ok(match value {
         domain::connector::OutboxOutcome::Made => wire::OutboxOutcome::Made,
@@ -517,13 +513,13 @@ pub fn decode_delivery_outcome(value: wire::DeliveryOutcome) -> domain::Delivery
 }
 
 /// The versioned body stored in a transcript frame (protocol/store.md, 8.3).
-pub fn turn(value: &domain::TurnRecord, limits: &Limits) -> Result<Box<[u8]>, wire::Problem> {
+pub fn turn(value: &domain::TurnRecord, limits: &View) -> Result<Box<[u8]>, wire::Problem> {
     let value = runs::encode_turn_record(value, limits)?;
     let mut writer = Writer::new(usize::try_from(value.measure()).expect("measured length"));
     value.encode(&mut writer).expect("measured room");
     Ok(writer.finish())
 }
 /// Decode a transcript frame's versioned core turn.
-pub fn read_turn(bytes: &[u8], limits: &Limits) -> Result<domain::TurnRecord, wire::Problem> {
+pub fn read_turn(bytes: &[u8], limits: &View) -> Result<domain::TurnRecord, wire::Problem> {
     Ok(runs::decode_turn_record(wire::TurnRecord::decode(&limits.core, &mut Reader::new(bytes))?))
 }

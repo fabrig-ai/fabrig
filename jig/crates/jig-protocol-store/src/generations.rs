@@ -66,8 +66,8 @@ pub(crate) fn manifest(
     crate::codec::component::Manifest {
         generation,
         from,
-        before: crate::format::recorded(before),
-        after: crate::format::recorded(after),
+        before,
+        after,
         counts: kept,
         store,
         secrets,

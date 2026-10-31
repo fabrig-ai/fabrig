@@ -95,7 +95,7 @@ pub(crate) struct ServiceHost {
     in_flight: std::collections::BTreeSet<skein_lib::Token>,
     now: Time,
     reserve: Option<crate::box_listener::Listener>,
-    codec: jig_protocol_store::codec::Limits,
+    codec: jig_protocol_store::codec::View,
     families: temper_protocol_store::Bounds,
 }
 impl Host for ServiceHost {
