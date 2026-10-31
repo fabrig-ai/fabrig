@@ -1524,7 +1524,6 @@ fn fixture_with_record(record: jig_domain_core::Record) -> Vec<Item> {
     disk.items()
 }
 
-
 #[test]
 fn a_restart_row_past_the_deployments_lowered_limit_refuses_load() {
     let record = fixtures::live_task(fixtures::LIVE);
