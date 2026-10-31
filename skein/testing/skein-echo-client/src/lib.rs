@@ -350,43 +350,15 @@ pub fn iterate(client: &mut Client, now: Time, wall: Wall) {
     client.io_env.wall = wall;
     client.env.now = now;
     client.env.wall = wall;
-    io_up(client, now);
+    io_up(client);
     client_stage(client, now);
     io_down(client);
     client.io.reclaim();
 }
 
-fn io_up(client: &mut Client, now: Time) {
-    let limits = client.io_env.limits;
-    let entries = limits.sockets.checked_add(limits.refusals).expect("io's limits fit a u32");
-    for _ in 0..entries {
-        if !client.io.is_ready() || !io_room(client, io::MAX_OUT_RESUME) {
-            break;
-        }
-        io::resume(&mut client.io, &client.io_env, &mut client.told, &mut client.submissions);
-    }
-    if client.io.is_ready() {
-        return;
-    }
-    for _ in 0..client.completions.len() {
-        if !io_room(client, io::MAX_OUT_UP) {
-            break;
-        }
-        let Some(complete) = client.completions.pop() else {
-            break;
-        };
-        io::up(&mut client.io, &client.io_env, complete, &mut client.told, &mut client.submissions);
-    }
-    if !client.completions.is_empty() {
-        return;
-    }
-    let timers = limits.sockets.checked_mul(2).expect("io's limits fit a u32");
-    for _ in 0..timers {
-        if !client.io.is_due(now) || !io_room(client, io::MAX_OUT_FIRE) {
-            break;
-        }
-        io::fire(&mut client.io, &client.io_env, &mut client.told, &mut client.submissions);
-    }
+/// io's stage of the up pass (io.md, 2.1).
+fn io_up(client: &mut Client) {
+    io::stage::up(&mut client.io, &client.io_env, &mut client.completions, &mut client.told, &mut client.submissions);
 }
 
 /// The client's stage: its connections' timers armed once it is told the
@@ -484,18 +456,7 @@ fn owner(event: &io::Event) -> u32 {
     u32::try_from(owner.raw()).expect("an owner token is a connection's index")
 }
 
+/// io's stage of the down pass (io.md, 2.1).
 fn io_down(client: &mut Client) {
-    for _ in 0..client.asked.len() {
-        if !client.io.takes() || !io_room(client, io::MAX_OUT_DOWN) {
-            break;
-        }
-        let Some(request) = client.asked.pop() else {
-            break;
-        };
-        io::down(&mut client.io, &client.io_env, request, &mut client.submissions);
-    }
-}
-
-fn io_room(client: &Client, max: io::MaxOut) -> bool {
-    client.submissions.room() >= max.submissions
+    io::stage::down(&mut client.io, &client.io_env, &mut client.asked, &mut client.submissions);
 }

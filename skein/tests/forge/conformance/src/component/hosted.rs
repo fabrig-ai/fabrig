@@ -250,25 +250,16 @@ impl Host for Hosted {
         self.env.wall = wall;
         self.io_env.now = now;
         self.io_env.wall = wall;
-        while self.io.is_ready() {
-            skein_io::resume(&mut self.io, &self.io_env, &mut self.events, &mut self.submit);
-        }
-        while let Some(c) = self.complete.pop() {
-            skein_io::up(&mut self.io, &self.io_env, c, &mut self.events, &mut self.submit);
-            while self.io.is_ready() {
-                skein_io::resume(&mut self.io, &self.io_env, &mut self.events, &mut self.submit);
-            }
-        }
-        while self.io.is_due(now) {
-            skein_io::fire(&mut self.io, &self.io_env, &mut self.events, &mut self.submit);
-        }
+        skein_io::stage::up(&mut self.io, &self.io_env, &mut self.complete, &mut self.events, &mut self.submit);
         while let Some(e) = self.events.pop() {
             self.component.up(&self.env, e, &mut self.above, &mut self.below);
         }
         if self.component.next_deadline().is_some_and(|at| at <= now) {
             self.component.fire(&self.env, &mut self.above, &mut self.below);
         }
-        while self.io.takes() {
+        // io's down stage by hand (io.md, 2.1), counting each request sent
+        // as io takes it.
+        while self.io.takes() && self.submit.room() >= skein_io::MAX_OUT_DOWN.submissions {
             let Some(r) = self.below.pop() else {
                 break;
             };

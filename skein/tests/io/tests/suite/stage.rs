@@ -216,9 +216,9 @@ fn ready_work_waits_for_room_for_the_most_a_resume_submits() {
     reads.append(&mut rig.taken());
     let fds: Vec<_> = reads
         .iter()
-        .map(|read| match read.kind {
-            Op::PipeRead { fd, .. } => fd,
-            ref other => panic!("a pipe read: {other:?}"),
+        .map(|read| {
+            let Op::PipeRead { fd, .. } = read.kind else { panic!("a pipe read: {read:?}") };
+            fd
         })
         .collect();
     assert_eq!(fds, [Fd::new(40), Fd::new(41)], "each pipe's read, one a stage, in turn");
@@ -323,9 +323,11 @@ fn down_takes_requests_in_order_while_the_kernel_has_room_for_the_most_down_subm
     let owners: Vec<_> = rig
         .told()
         .into_iter()
-        .map(|event| match event {
-            Event::Connecting { owner, .. } => owner,
-            other => panic!("a connect is told Connecting first: {other:?}"),
+        .map(|event| {
+            let Event::Connecting { owner, .. } = event else {
+                panic!("a connect is told Connecting first: {event:?}")
+            };
+            owner
         })
         .collect();
     assert_eq!(owners, [Token::new(1), Token::new(2)], "taken oldest first");
