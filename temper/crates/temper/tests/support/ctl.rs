@@ -1132,27 +1132,30 @@ impl Referee<Process> for Judge {
         assert!(
             now < self.deadline || self.settled,
             "ctl story did not settle: {}",
-            match &procs[1] {
-                Process::Calls(calls) => format!(
-                    "calls={} member={} child={:?}",
-                    calls.ends.len(),
-                    calls.member.as_ref().map_or_else(|| "none".into(), member::Member::status),
-                    calls.child.as_ref().map(|child| (
-                        child.ended.exit,
-                        child.closing,
-                        child.signals,
-                        child.reading,
-                        child.ended.stdout.len(),
-                        child.ended.stderr.len()
-                    ))
-                ),
-                Process::Binary(_)
-                | Process::Stdout(_)
-                | Process::Person(_)
-                | Process::Peer(_)
-                | Process::Issuer(_)
-                | Process::Visitor(_) => "other host".into(),
-            }
+            procs
+                .iter()
+                .find_map(|proc| match proc {
+                    Process::Calls(calls) => Some(format!(
+                        "calls={} member={} child={:?}",
+                        calls.ends.len(),
+                        calls.member.as_ref().map_or_else(|| "none".into(), member::Member::status),
+                        calls.child.as_ref().map(|child| (
+                            child.ended.exit,
+                            child.closing,
+                            child.signals,
+                            child.reading,
+                            child.ended.stdout.len(),
+                            child.ended.stderr.len()
+                        ))
+                    )),
+                    Process::Binary(_)
+                    | Process::Stdout(_)
+                    | Process::Person(_)
+                    | Process::Peer(_)
+                    | Process::Issuer(_)
+                    | Process::Visitor(_) => None,
+                })
+                .unwrap_or_else(|| "no calls host".into())
         );
     }
     fn next_deadline(&self) -> Option<Time> {
@@ -1292,6 +1295,20 @@ pub fn proposal_key(ended: &Ended) -> String {
 #[cfg(test)]
 mod read_condition_tests {
     use super::*;
+
+    #[test]
+    #[should_panic(expected = "ctl story did not settle: calls=0 member=none child=None")]
+    fn a_single_host_timeout_reports_its_pending_call() {
+        let mut judge = Judge {
+            stopped: false,
+            settled: false,
+            deadline: Time::ZERO,
+            scratch: PathBuf::new(),
+            token_names: Vec::new(),
+        };
+        let calls = Calls::new(Fd::new(0), Vec::new(), None, None);
+        judge.observe(Time::ZERO, &[Process::Calls(Box::new(calls))]);
+    }
 
     #[test]
     fn a_child_prerequisite_reads_later_pages_and_polls_again_from_the_start() {
