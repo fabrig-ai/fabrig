@@ -353,7 +353,7 @@ fn procedure_phase() -> ChipPhaseFacts {
             resources: list([]),
             resources_cut: false,
             resources_observed: false,
-            procedure: Some(ApplicationPart { connector: 2, kind: PartKind::Procedure, key: PartKey::Number(9) }),
+            procedure: Some(jig_client::contract::Part { connector: 2, kind: PartKind::Procedure, key: PartKey::Number(9) }),
             live_delegates: 0,
             closing_connectors: None,
             ending: None,
