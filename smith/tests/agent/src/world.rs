@@ -1212,7 +1212,7 @@ impl<B: Backend> World<B> {
                     && self
                         .disk
                         .load(self.root.expect("marker scenario has a workspace"), b"conflict.txt", u64::MAX)
-                        .is_ok_and(|(bytes, _)| bytes.windows(7).any(|part| part == b"<<<<<<<"))
+                        .is_ok_and(|(bytes, _)| skein_lib::bytes::find(&bytes, b"<<<<<<<").is_some())
                 {
                     run::Delivery::Refused(
                         run::DeliveryRefusal::new(

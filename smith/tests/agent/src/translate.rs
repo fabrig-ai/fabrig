@@ -158,7 +158,8 @@ pub fn decode(
     asker: agent::Asker,
 ) -> agent::Decoded {
     let invalid = || agent::Decoded::Invalid { problem: agent::Problem::UnknownTool };
-    if name == b"sub_agent" && (asker == agent::Asker::Child || arguments.windows(8).any(|part| part == b"\"agents\""))
+    if name == b"sub_agent"
+        && (asker == agent::Asker::Child || skein_lib::bytes::find(arguments, b"\"agents\"").is_some())
     {
         return agent::Decoded::Invalid { problem: agent::Problem::Nesting };
     }
@@ -198,7 +199,7 @@ pub fn decode(
     }
     if name == b"sub_agent" && served.contains(&agent::Served::SubAgent) {
         let Some(brief) = field(arguments, b"brief") else { return invalid() };
-        let has = |word: &[u8]| arguments.windows(word.len()).any(|part| part == word);
+        let has = |word: &[u8]| skein_lib::bytes::find(arguments, word).is_some();
         let families = run::charter::Families {
             tools: run::charter::Tools {
                 inspect: has(b"\"inspect\""),
@@ -264,7 +265,7 @@ fn job(arguments: &[u8]) -> agent::Decoded {
             wait: quota(arguments, b"wait_seconds").map_or(tools::Wait::Default, |seconds| {
                 tools::Wait::Asked(skein_lib::Duration::from_secs(u64::from(seconds)))
             }),
-            stop: arguments.windows(11).any(|bytes| bytes == b"\"stop\":true"),
+            stop: skein_lib::bytes::find(arguments, b"\"stop\":true").is_some(),
         },
     }
 }
@@ -298,7 +299,7 @@ fn finish(arguments: &[u8]) -> Option<run::outcome::Declared> {
         }));
     }
     let name = field(arguments, b"verdict")?;
-    let children: Box<[Item]> = if arguments.windows(10).any(|part| part == b"\"children\"") {
+    let children: Box<[Item]> = if skein_lib::bytes::find(arguments, b"\"children\"").is_some() {
         let child = Item {
             kind: field(arguments, b"kind")?,
             fields: Box::new([
@@ -313,20 +314,18 @@ fn finish(arguments: &[u8]) -> Option<run::outcome::Declared> {
     Some(Declared::Verdict(Verdict { name, text: body, items: children, fields: Box::new([]) }))
 }
 
-/// The scripted fixtures use unescaped string fields. This recognizes that finite
-/// fixture language, never arbitrary JSON or production provider documents.
-// The scripted fixtures supply unescaped positive decimal fields. This is a
-// finite fixture language; arbitrary provider input is tested in protocol-llm.
+// The finite fixture language supplies unescaped positive decimal fields.
 fn quota(arguments: &[u8], name: &[u8]) -> Option<u32> {
     let prefix = [b"\"", name, b"\":"].concat();
-    let start = arguments.windows(prefix.len()).position(|part| part == prefix)? + prefix.len();
-    let digits: Vec<u8> = arguments[start..].iter().copied().take_while(u8::is_ascii_digit).collect();
-    std::str::from_utf8(&digits).ok()?.parse().ok()
+    let start = skein_lib::bytes::find(arguments, &prefix)? + prefix.len();
+    let rest = &arguments[start..];
+    let end = rest.iter().position(|byte| !byte.is_ascii_digit()).unwrap_or(rest.len());
+    u32::try_from(skein_lib::bytes::decimal(&rest[..end])?).ok()
 }
 
 fn field(arguments: &[u8], name: &[u8]) -> Option<Box<[u8]>> {
     let prefix = [b"\"", name, b"\":\""].concat();
-    let start = arguments.windows(prefix.len()).position(|part| part == prefix)? + prefix.len();
+    let start = skein_lib::bytes::find(arguments, &prefix)? + prefix.len();
     let rest = &arguments[start..];
     let end = rest.iter().position(|byte| *byte == b'"')?;
     Some(rest[..end].into())

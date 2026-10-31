@@ -1,11 +1,11 @@
-//! Provider faces driven by the agent world's single loop (domain/run.md, section 13).
+//! Provider faces driven by the agent world's single loop (smith/docs/design/domain/run.md, section 13).
 use crate::{Settings, translate};
 use skein_fake_llm_domain as provider;
 use skein_lib::{ReplyTo, Time, Token, Wall};
 use skein_world::domain::{Ledger, Stage};
 use smith_domain::{Event, Request, llm, tools};
 
-/// A provider face under the shared agent loop (testing-strategy.md, section 2).
+/// A provider face under the shared agent loop (skein/docs/foundation/testing-strategy.md, section 2).
 /// Implementations own lower progression and return only boundary observations.
 pub trait Backend: core::fmt::Debug {
     /// Admit the root's complete request without reconstructing its contract.

@@ -1,4 +1,4 @@
-//! Shared protocol story setup (protocol/llm.md, section 10).
+//! Shared protocol story setup (smith/docs/design/protocol/llm.md, section 10).
 use smith_protocol_llm::{ComponentLimits, Limits};
 
 /// The protocol world's client and workspace description preset.

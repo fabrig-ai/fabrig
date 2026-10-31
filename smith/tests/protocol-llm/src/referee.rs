@@ -1,4 +1,4 @@
-//! Native stable-prefix observations (protocol/llm.md, section 10).
+//! Native stable-prefix observations (smith/docs/design/protocol/llm.md, section 10).
 use skein_lib::Token;
 use skein_world::domain::{Expectations, Judge};
 
@@ -17,7 +17,7 @@ impl NativeRequest {
     #[must_use]
     pub fn from_http(bytes: &[u8]) -> Self {
         let bytes = &skein_llm_world::identity(bytes)[..];
-        let head = bytes.windows(4).position(|bytes| bytes == b"\r\n\r\n").expect("observed HTTP request head");
+        let head = skein_lib::bytes::find(bytes, b"\r\n\r\n").expect("observed HTTP request head");
         let fields: std::collections::BTreeMap<String, Box<serde_json::value::RawValue>> =
             serde_json::from_slice(&bytes[head + 4..]).expect("observed native JSON request");
         let system = fields.get("instructions").or_else(|| fields.get("system")).expect("native system");

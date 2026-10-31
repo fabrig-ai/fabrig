@@ -1,4 +1,4 @@
-//! Fixture finish grammar for direct-client stories (protocol/llm.md, section 10).
+//! Fixture finish grammar for direct-client stories (smith/docs/design/protocol/llm.md, section 10).
 use crate::adapter;
 use smith_domain::{llm as agent, run, tools};
 
@@ -10,7 +10,8 @@ pub(crate) fn decode(
     asker: agent::Asker,
 ) -> agent::Decoded {
     let invalid = || agent::Decoded::Invalid { problem: agent::Problem::UnknownTool };
-    if name == b"sub_agent" && (asker == agent::Asker::Child || arguments.windows(8).any(|part| part == b"\"agents\""))
+    if name == b"sub_agent"
+        && (asker == agent::Asker::Child || skein_lib::bytes::find(arguments, b"\"agents\"").is_some())
     {
         return agent::Decoded::Invalid { problem: agent::Problem::Nesting };
     }
@@ -53,7 +54,7 @@ pub(crate) fn decode(
     }
     if name == b"sub_agent" && served.contains(&agent::Served::SubAgent) {
         let Some(brief) = field(arguments, b"brief") else { return invalid() };
-        let has = |word: &[u8]| arguments.windows(word.len()).any(|part| part == word);
+        let has = |word: &[u8]| skein_lib::bytes::find(arguments, word).is_some();
         let families = run::charter::Families {
             tools: run::charter::Tools {
                 inspect: has(b"\"inspect\""),
@@ -100,7 +101,7 @@ fn finish(arguments: &[u8]) -> Option<run::outcome::Declared> {
         }));
     }
     let name = field(arguments, b"verdict")?;
-    let children: Box<[Item]> = if arguments.windows(10).any(|part| part == b"\"children\"") {
+    let children: Box<[Item]> = if skein_lib::bytes::find(arguments, b"\"children\"").is_some() {
         let child = Item {
             kind: field(arguments, b"kind")?,
             fields: Box::new([
@@ -119,64 +120,21 @@ fn finish(arguments: &[u8]) -> Option<run::outcome::Declared> {
 /// fixture language, never arbitrary JSON or production provider documents.
 fn field(arguments: &[u8], name: &[u8]) -> Option<Box<[u8]>> {
     let prefix = [b"\"", name, b"\":\""].concat();
-    let start = arguments.windows(prefix.len()).position(|part| part == prefix)? + prefix.len();
+    let start = skein_lib::bytes::find(arguments, &prefix)? + prefix.len();
     let rest = &arguments[start..];
     let end = rest.iter().position(|byte| *byte == b'"')?;
     Some(rest[..end].into())
 }
 
 fn object(document: &[u8]) -> Option<()> {
-    use skein_json::{Token, tokenizer as json};
-    use skein_lib::{
-        Env, Intake, Queue, Time, Wall,
-        stream::{Down, Up},
-    };
     let length = u32::try_from(document.len()).ok()?;
     if document.len() > run::HostInput::CAPACITY {
         return None;
     }
-    let limits = json::Limits { depth: 32, string: length, number: length, chunk: 1024, length };
-    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let mut tokenizer = json::Tokenizer::new(&limits);
-    let mut above = Queue::uncapped();
-    let mut below = Queue::uncapped();
-    let mut intake = Intake::with_capacity(length.max(json::largest_demand(&limits)));
-    intake.append(document).ok()?;
-    let mut demand = None;
-    let mut first = true;
-    for _ in 0..document.len().checked_mul(4)?.checked_add(8)? {
-        match demand.take() {
-            None => json::down(&mut tokenizer, &env, json::Request::Next, &mut above, &mut below),
-            Some(read) => {
-                let event = intake.meet(read).map_or(Up::End, Up::Bytes);
-                json::up(&mut tokenizer, &env, event, &mut above, &mut below);
-            }
-        }
-        match below.pop() {
-            Some(Down::Demand { read, room: 0 }) => demand = Some(read),
-            None => {}
-            Some(Down::Demand { .. } | Down::Send(_) | Down::Finish) => {
-                panic!("JSON tokenizer only demands bounded reads")
-            }
-        }
-        match above.pop() {
-            Some(json::Event::Token(token)) => {
-                if first && token != Token::ObjectStart {
-                    return None;
-                }
-                first = false;
-            }
-            Some(json::Event::Done) => return (!first).then_some(()),
-            Some(json::Event::Failed(_)) => return None,
-            Some(json::Event::Long(_) | json::Event::Skipped(_)) => {
-                unreachable!("fixture decoder requests only Next tokens")
-            }
-            Some(json::Event::Closed) => panic!("parser is not closed by this translator"),
-            None => {}
-        }
-        assert!(above.is_empty() && below.is_empty());
-    }
-    panic!("bounded JSON completes within linear steps");
+    let limits = skein_json::tokenizer::Limits { depth: 32, string: length, number: length, chunk: 1024, length };
+    let retained = skein_json::document::Limits { tokens: length, text: length };
+    let parsed = skein_json::parse(document, &limits, &retained).ok()?;
+    (parsed.token(0)?.kind == skein_json::Kind::ObjectStart).then_some(())
 }
 
 #[cfg(test)]

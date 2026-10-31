@@ -1,4 +1,4 @@
-//! Small translation and component presets (protocol/llm.md, sections 8 and 10).
+//! Small translation and component presets (smith/docs/design/protocol/llm.md, sections 8 and 10).
 //! The caller supplies its dependency bounds and stated quantities; this crate
 //! owns the remaining admission capacities and their receiving derivation.
 use crate::{ComponentLimits, Limits, Receiving, Stated};

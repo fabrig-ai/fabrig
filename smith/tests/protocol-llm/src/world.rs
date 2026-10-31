@@ -1,4 +1,4 @@
-//! Protocol backend constructors for the shared agent world (protocol/llm.md, section 10).
+//! Protocol backend constructors for the shared agent world (smith/docs/design/protocol/llm.md, section 10).
 use crate::wire;
 use skein_fake_checkout::Checkout;
 use skein_fake_llm_domain as provider;

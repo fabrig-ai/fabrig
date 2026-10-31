@@ -1,4 +1,4 @@
-//! Native protocol backend for the shared agent world (protocol/llm.md, section 10).
+//! Native protocol backend for the shared agent world (smith/docs/design/protocol/llm.md, section 10).
 pub mod adapter;
 pub mod fixture;
 pub mod pool_peer;
